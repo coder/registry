@@ -134,3 +134,8 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+## Script artifacts
+/validate-contributors
+/validate-module-readmes
+/validate-template-readmes
