@@ -19,41 +19,52 @@ type Readme struct {
 	RawText  string
 }
 
-// ExtractFrontmatter attempts to separate a README file's frontmatter content
-// from the main README body. It does not validate whether the structure of the
-// frontmatter is valid (i.e., that it's structured as YAML).
-func ExtractFrontmatter(readmeText string) (string, error) {
+// SeparateFrontmatter attempts to separate a README file's frontmatter content
+// from the main README body, returning both values in that order. It does not
+// validate whether the structure of the frontmatter is valid (i.e., that it's
+// structured as YAML).
+func SeparateFrontmatter(readmeText string) (string, string, error) {
 	if readmeText == "" {
-		return "", errors.New("README is empty")
+		return "", "", errors.New("README is empty")
 	}
 
 	const fence = "---"
 	fm := ""
+	body := ""
 	fenceCount := 0
 	lineScanner := bufio.NewScanner(
 		strings.NewReader(strings.TrimSpace(readmeText)),
 	)
 	for lineScanner.Scan() {
 		nextLine := lineScanner.Text()
-		if fenceCount == 0 && nextLine != fence {
-			return "", errors.New("README does not start with frontmatter fence")
-		}
-
-		if nextLine != fence {
-			fm += nextLine + "\n"
+		if fenceCount < 2 && nextLine == fence {
+			fenceCount++
 			continue
 		}
-
-		fenceCount++
-		if fenceCount >= 2 {
+		// Break early if the very first line wasn't a fence, because then we
+		// know for certain that the README has problems
+		if fenceCount == 0 {
 			break
 		}
+
+		// It should be safe to trim each line of the frontmatter on a per-line
+		// basis, because there shouldn't be any extra meaning attached to the
+		// indentation. The same does NOT apply to the README; best we can do is
+		// gather all the lines, and then trim around it
+		if inReadmeBody := fenceCount >= 2; inReadmeBody {
+			body += nextLine + "\n"
+		} else {
+			fm += strings.TrimSpace(nextLine) + "\n"
+		}
+	}
+	if fenceCount < 2 {
+		return "", "", errors.New("README does not have two sets of frontmatter fences")
+	}
+	if fm == "" {
+		return "", "", errors.New("readme has frontmatter fences but no frontmatter content")
 	}
 
-	if fenceCount < 2 {
-		return "", errors.New("README does not have two sets of frontmatter fences")
-	}
-	return fm, nil
+	return fm, strings.TrimSpace(body), nil
 }
 
 // ValidationPhase represents a specific phase during README validation. It is

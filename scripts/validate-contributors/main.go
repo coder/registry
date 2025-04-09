@@ -338,7 +338,7 @@ func parseContributorFiles(entries []readme.Readme) (
 		Phase: readme.ValidationPhaseYamlParsing,
 	}
 	for _, rm := range entries {
-		fm, err := readme.ExtractFrontmatter(rm.RawText)
+		fm, _, err := readme.SeparateFrontmatter(rm.RawText)
 		if err != nil {
 			yamlParsingErrors.Errors = append(
 				yamlParsingErrors.Errors,

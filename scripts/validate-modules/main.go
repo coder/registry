@@ -3,18 +3,18 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path"
+	"strings"
 
 	"coder.com/coder-registry/cmd/readme"
+	"gopkg.in/yaml.v3"
 )
 
-/*
-Things I need to do:
-1. Grab each README file
-2.
-*/
+// Todo: Once we have all modules loaded in, see if it's worth switching
+// any of the functions here over to goroutines
 
 type moduleFrontmatter struct {
 	Description string    `yaml:"description"`
@@ -24,9 +24,11 @@ type moduleFrontmatter struct {
 	Verified    *bool     `yaml:"verified"`
 }
 
-type moduleFrontmatterWithFilePath struct {
-	moduleFrontmatter
-	FilePath string
+type moduleReadme struct {
+	Frontmatter moduleFrontmatter
+	ModuleName  string
+	FilePath    string
+	Body        string
 }
 
 func aggregateModuleReadmeFiles() ([]readme.Readme, error) {
@@ -35,8 +37,6 @@ func aggregateModuleReadmeFiles() ([]readme.Readme, error) {
 		return nil, err
 	}
 
-	// Todo: Once we have all modules loaded in, see if it's worth switching
-	// this function over to use goroutines
 	allReadmeFiles := []readme.Readme{}
 	problems := []error{}
 	for _, e := range registryEntries {
@@ -79,6 +79,54 @@ func aggregateModuleReadmeFiles() ([]readme.Readme, error) {
 	return allReadmeFiles, nil
 }
 
+func parseModuleFiles(entries []readme.Readme) (
+	map[string]moduleReadme,
+	error,
+) {
+	readmesByName := map[string]moduleReadme{}
+	yamlParsingErrors := readme.ValidationPhaseError{
+		Phase: readme.ValidationPhaseYamlParsing,
+	}
+	for _, rm := range entries {
+		fm, body, err := readme.SeparateFrontmatter(rm.RawText)
+		if err != nil {
+			yamlParsingErrors.Errors = append(
+				yamlParsingErrors.Errors,
+				fmt.Errorf("failed to parse %q: %v", rm.FilePath, err),
+			)
+			continue
+		}
+
+		yml := moduleFrontmatter{}
+		if err := yaml.Unmarshal([]byte(fm), &yml); err != nil {
+			yamlParsingErrors.Errors = append(
+				yamlParsingErrors.Errors,
+				fmt.Errorf("failed to parse %q: %v", rm.FilePath, err),
+			)
+			continue
+		}
+
+		segments := strings.Split(rm.FilePath, "/")
+		if len(segments) < 2 {
+			yamlParsingErrors.Errors = append(
+				yamlParsingErrors.Errors,
+				fmt.Errorf("unable to parse main module name from README filepath: %q", rm.FilePath),
+			)
+			continue
+		}
+		moduleName := segments[len(segments)-2]
+
+		readmesByName[moduleName] = moduleReadme{
+			ModuleName:  moduleName,
+			FilePath:    rm.FilePath,
+			Frontmatter: yml,
+			Body:        body,
+		}
+	}
+
+	return readmesByName, nil
+}
+
 func main() {
 	log.Println("Starting README validation for modules")
 	allReadmeFiles, err := aggregateModuleReadmeFiles()
@@ -91,4 +139,9 @@ func main() {
 		return
 	}
 	log.Printf("Processing %d README files\n", len(allReadmeFiles))
+	modules, err := parseModuleFiles(allReadmeFiles)
+	if err != nil {
+		log.Panic(err)
+	}
+	log.Printf("Verified %d module README files", len(modules))
 }
