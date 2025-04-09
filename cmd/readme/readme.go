@@ -1,3 +1,4 @@
+// Package readme contains general-use utilities for processing README files.
 package readme
 
 import (
@@ -57,9 +58,18 @@ func ExtractFrontmatter(readmeText string) (string, error) {
 type ValidationPhase int
 
 const (
+	// ValidationPhaseFilesystemRead indicates when a README file is being read
+	// from the file system
 	ValidationPhaseFilesystemRead ValidationPhase = iota
+	// ValidationPhaseYamlParsing indicates when a README's frontmatter is being
+	// parsed as YAML. This phase does not include YAML validation.
 	ValidationPhaseYamlParsing
+	// ValidationPhaseYamlValidation indicates when a README's frontmatter is
+	// being validated as proper YAML with expected keys.
 	ValidationPhaseYamlValidation
+	// ValidationPhaseAssetCrossReference indicates when a README's frontmatter
+	// is having all its relative URLs be validated for whether they point to
+	// valid resources.
 	ValidationPhaseAssetCrossReference
 )
 
