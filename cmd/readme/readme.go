@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+// RootRegistryPath is the directory where all READMEs that need to be validated
+// should live.
+const RootRegistryPath = "./registry"
+
 // Readme represents a single README file within the repo (usually within the
 // /registry directory).
 type Readme struct {

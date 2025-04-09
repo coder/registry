@@ -1,3 +1,8 @@
+// This package is for validating all contributors within the main Registry
+// directory. It validates that it has nothing but sub-directories, and that
+// each sub-directory has a README.md file. Each of those files must then
+// describe a specific contributor. The contents of these files will be parsed
+// by the Registry site build step to be displayed in the Registry site's UI.
 package main
 
 import (
@@ -13,13 +18,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const rootRegistryPath = "./registry"
-
 type contributorProfileFrontmatter struct {
 	DisplayName            string  `yaml:"display_name"`
 	Bio                    string  `yaml:"bio"`
 	GithubUsername         string  `yaml:"github"`
-	AvatarUrl              *string `yaml:"avatar"` // Script assumes that if value is nil, the Registry site build step will backfill the value with the user's GitHub avatar URL
+	AvatarURL              *string `yaml:"avatar"` // Script assumes that if value is nil, the Registry site build step will backfill the value with the user's GitHub avatar URL
 	LinkedinURL            *string `yaml:"linkedin"`
 	WebsiteURL             *string `yaml:"website"`
 	SupportEmail           *string `yaml:"support_email"`
@@ -265,11 +268,11 @@ func validateContributorYaml(yml contributorFrontmatterWithFilePath) []error {
 	// Avatar URL - can't validate the image actually leads to a valid resource
 	// in a pure function, but can at least catch obvious problems
 	func() {
-		if yml.AvatarUrl == nil {
+		if yml.AvatarURL == nil {
 			return
 		}
 
-		if *yml.AvatarUrl == "" {
+		if *yml.AvatarURL == "" {
 			problems = append(
 				problems,
 				fmt.Errorf(
@@ -282,18 +285,18 @@ func validateContributorYaml(yml contributorFrontmatterWithFilePath) []error {
 
 		// Have to use .Parse instead of .ParseRequestURI because this is the
 		// one field that's allowed to be a relative URL
-		if _, err := url.Parse(*yml.AvatarUrl); err != nil {
+		if _, err := url.Parse(*yml.AvatarURL); err != nil {
 			problems = append(
 				problems,
 				fmt.Errorf(
 					"error %q (%q) is not a valid relative or absolute URL",
-					*yml.AvatarUrl,
+					*yml.AvatarURL,
 					yml.FilePath,
 				),
 			)
 		}
 
-		if strings.Contains(*yml.AvatarUrl, "?") {
+		if strings.Contains(*yml.AvatarURL, "?") {
 			problems = append(
 				problems,
 				fmt.Errorf(
@@ -306,7 +309,7 @@ func validateContributorYaml(yml contributorFrontmatterWithFilePath) []error {
 		supportedFileFormats := []string{".png", ".jpeg", ".jpg", ".gif", ".svg"}
 		matched := false
 		for _, ff := range supportedFileFormats {
-			matched = strings.HasSuffix(*yml.AvatarUrl, ff)
+			matched = strings.HasSuffix(*yml.AvatarURL, ff)
 			if matched {
 				break
 			}
@@ -406,7 +409,7 @@ func parseContributorFiles(entries []readme.Readme) (
 			fmt.Errorf(
 				"company %q does not exist in %q directory but is referenced by these profiles: [%s]",
 				companyName,
-				rootRegistryPath,
+				readme.RootRegistryPath,
 				strings.Join(group, ", "),
 			),
 		)
@@ -419,7 +422,7 @@ func parseContributorFiles(entries []readme.Readme) (
 }
 
 func aggregateContributorReadmeFiles() ([]readme.Readme, error) {
-	dirEntries, err := os.ReadDir(rootRegistryPath)
+	dirEntries, err := os.ReadDir(readme.RootRegistryPath)
 	if err != nil {
 		return nil, err
 	}
@@ -427,7 +430,7 @@ func aggregateContributorReadmeFiles() ([]readme.Readme, error) {
 	allReadmeFiles := []readme.Readme{}
 	problems := []error{}
 	for _, e := range dirEntries {
-		dirPath := path.Join(rootRegistryPath, e.Name())
+		dirPath := path.Join(readme.RootRegistryPath, e.Name())
 		if !e.IsDir() {
 			problems = append(
 				problems,
@@ -469,15 +472,15 @@ func validateRelativeUrls(
 	problems := []error{}
 
 	for _, con := range contributors {
-		if con.AvatarUrl == nil {
+		if con.AvatarURL == nil {
 			continue
 		}
-		if isRelativeUrl := strings.HasPrefix(*con.AvatarUrl, ".") ||
-			strings.HasPrefix(*con.AvatarUrl, "/"); !isRelativeUrl {
+		if isRelativeURL := strings.HasPrefix(*con.AvatarURL, ".") ||
+			strings.HasPrefix(*con.AvatarURL, "/"); !isRelativeURL {
 			continue
 		}
 
-		if strings.HasPrefix(*con.AvatarUrl, "..") {
+		if strings.HasPrefix(*con.AvatarURL, "..") {
 			problems = append(
 				problems,
 				fmt.Errorf(
@@ -489,14 +492,14 @@ func validateRelativeUrls(
 		}
 
 		absolutePath := strings.TrimSuffix(con.FilePath, "README.md") +
-			*con.AvatarUrl
+			*con.AvatarURL
 		_, err := os.ReadFile(absolutePath)
 		if err != nil {
 			problems = append(
 				problems,
 				fmt.Errorf(
 					"relative avatar path %q for %q does not point to image in file system",
-					*con.AvatarUrl,
+					*con.AvatarURL,
 					con.FilePath,
 				),
 			)
@@ -537,6 +540,6 @@ func main() {
 
 	log.Printf(
 		"Processed all READMEs in the %q directory\n",
-		rootRegistryPath,
+		readme.RootRegistryPath,
 	)
 }
