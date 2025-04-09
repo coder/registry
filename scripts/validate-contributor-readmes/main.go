@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bufio"
-	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -11,15 +9,11 @@ import (
 	"slices"
 	"strings"
 
+	"coder.com/coder-registry/cmd/readme"
 	"gopkg.in/yaml.v3"
 )
 
 const rootRegistryPath = "./registry"
-
-type readme struct {
-	FilePath string
-	RawText  string
-}
 
 type contributorProfileFrontmatter struct {
 	DisplayName            string  `yaml:"display_name"`
@@ -36,57 +30,6 @@ type contributorProfileFrontmatter struct {
 type contributorFrontmatterWithFilePath struct {
 	contributorProfileFrontmatter
 	FilePath string
-}
-
-var _ error = validationPhaseError{}
-
-type validationPhaseError struct {
-	Phase  string
-	Errors []error
-}
-
-func (vpe validationPhaseError) Error() string {
-	msg := fmt.Sprintf("Error during %q phase of README validation:", vpe.Phase)
-	for _, e := range vpe.Errors {
-		msg += fmt.Sprintf("\n- %v", e)
-	}
-	msg += "\n"
-
-	return msg
-}
-
-func extractFrontmatter(readmeText string) (string, error) {
-	if readmeText == "" {
-		return "", errors.New("README is empty")
-	}
-
-	const fence = "---"
-	fm := ""
-	fenceCount := 0
-	lineScanner := bufio.NewScanner(
-		strings.NewReader(strings.TrimSpace(readmeText)),
-	)
-	for lineScanner.Scan() {
-		nextLine := lineScanner.Text()
-		if fenceCount == 0 && nextLine != fence {
-			return "", errors.New("README does not start with frontmatter fence")
-		}
-
-		if nextLine != fence {
-			fm += nextLine + "\n"
-			continue
-		}
-
-		fenceCount++
-		if fenceCount >= 2 {
-			break
-		}
-	}
-
-	if fenceCount == 1 {
-		return "", errors.New("README does not have two sets of frontmatter fences")
-	}
-	return fm, nil
 }
 
 func validateContributorYaml(yml contributorFrontmatterWithFilePath) []error {
@@ -383,16 +326,16 @@ func validateContributorYaml(yml contributorFrontmatterWithFilePath) []error {
 	return problems
 }
 
-func parseContributorFiles(readmeEntries []readme) (
+func parseContributorFiles(entries []readme.Readme) (
 	map[string]contributorFrontmatterWithFilePath,
 	error,
 ) {
 	frontmatterByUsername := map[string]contributorFrontmatterWithFilePath{}
-	yamlParsingErrors := validationPhaseError{
-		Phase: "YAML parsing",
+	yamlParsingErrors := readme.ValidationPhaseError{
+		Phase: readme.ValidationPhaseYamlParsing,
 	}
-	for _, rm := range readmeEntries {
-		fm, err := extractFrontmatter(rm.RawText)
+	for _, rm := range entries {
+		fm, err := readme.ExtractFrontmatter(rm.RawText)
 		if err != nil {
 			yamlParsingErrors.Errors = append(
 				yamlParsingErrors.Errors,
@@ -434,8 +377,8 @@ func parseContributorFiles(readmeEntries []readme) (
 	}
 
 	employeeGithubGroups := map[string][]string{}
-	yamlValidationErrors := validationPhaseError{
-		Phase: "Raw YAML Validation",
+	yamlValidationErrors := readme.ValidationPhaseError{
+		Phase: readme.ValidationPhaseYamlValidation,
 	}
 	for _, yml := range frontmatterByUsername {
 		errors := validateContributorYaml(yml)
@@ -475,13 +418,13 @@ func parseContributorFiles(readmeEntries []readme) (
 	return frontmatterByUsername, nil
 }
 
-func aggregateContributorReadmeFiles() ([]readme, error) {
+func aggregateContributorReadmeFiles() ([]readme.Readme, error) {
 	dirEntries, err := os.ReadDir(rootRegistryPath)
 	if err != nil {
 		return nil, err
 	}
 
-	allReadmeFiles := []readme{}
+	allReadmeFiles := []readme.Readme{}
 	problems := []error{}
 	for _, e := range dirEntries {
 		dirPath := path.Join(rootRegistryPath, e.Name())
@@ -502,15 +445,15 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 			problems = append(problems, err)
 			continue
 		}
-		allReadmeFiles = append(allReadmeFiles, readme{
+		allReadmeFiles = append(allReadmeFiles, readme.Readme{
 			FilePath: readmePath,
 			RawText:  string(rmBytes),
 		})
 	}
 
 	if len(problems) != 0 {
-		return nil, validationPhaseError{
-			Phase:  "FileSystem reading",
+		return nil, readme.ValidationPhaseError{
+			Phase:  readme.ValidationPhaseFilesystemRead,
 			Errors: problems,
 		}
 	}
@@ -563,8 +506,8 @@ func validateRelativeUrls(
 	if len(problems) == 0 {
 		return nil
 	}
-	return validationPhaseError{
-		Phase:  "Relative URL validation",
+	return readme.ValidationPhaseError{
+		Phase:  readme.ValidationPhaseAssetCrossReference,
 		Errors: problems,
 	}
 }
