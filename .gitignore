@@ -137,5 +137,6 @@ dist
 
 ## Script artifacts
 /validate-contributors
-/validate-module-readmes
-/validate-template-readmes
+/validate-modules
+/validate-templates
+/validate-repo-structure
