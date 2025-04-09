@@ -1,5 +1,5 @@
 // This package handles validating the READMEs of each module within the main
-// Registry directory
+// Registry directory, as well as any assets that they depend on.
 package main
 
 import (
@@ -17,10 +17,11 @@ Things I need to do:
 */
 
 type moduleFrontmatter struct {
-	Tags        []string `yaml:"tags"`
-	Description string   `yaml:"description"`
-	IconURL     string   `yaml:"icon"`
-	DisplayName *string  `yaml:"display_name"`
+	Description string    `yaml:"description"`
+	IconURL     string    `yaml:"icon"`
+	DisplayName *string   `yaml:"display_name"`
+	Tags        *[]string `yaml:"tags"`
+	Verified    *bool     `yaml:"verified"`
 }
 
 type moduleFrontmatterWithFilePath struct {
@@ -34,6 +35,8 @@ func aggregateModuleReadmeFiles() ([]readme.Readme, error) {
 		return nil, err
 	}
 
+	// Todo: Once we have all modules loaded in, see if it's worth switching
+	// this function over to use goroutines
 	allReadmeFiles := []readme.Readme{}
 	problems := []error{}
 	for _, e := range registryEntries {
@@ -48,12 +51,12 @@ func aggregateModuleReadmeFiles() ([]readme.Readme, error) {
 			continue
 		}
 
-		for _, e := range modEntries {
-			if !e.IsDir() {
+		for _, me := range modEntries {
+			if !me.IsDir() {
 				continue
 			}
 
-			readmePath := path.Join(modulesPath, "README.md")
+			readmePath := path.Join(modulesPath, me.Name(), "README.md")
 			rmBytes, err := os.ReadFile(readmePath)
 			if err != nil {
 				problems = append(problems, err)
