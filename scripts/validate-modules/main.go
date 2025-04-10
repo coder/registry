@@ -83,6 +83,8 @@ func aggregateModuleReadmeFiles() ([]readme.Readme, error) {
 }
 
 func validateModuleReadmeFiles(modules map[string]moduleReadme) error {
+	allErrors := []error{}
+
 	// Todo: once we know how we want to have users structure the Terraform code
 	// snippet for importing a module, we'll need to verify that the README has
 	// that snippet
@@ -145,8 +147,6 @@ func validateModuleReadmeFiles(modules map[string]moduleReadme) error {
 
 		// Icon URL
 		func() {
-			fmt.Println(module.FilePath)
-
 			if fm.IconURL == "" {
 				problems = append(
 					problems,
@@ -180,6 +180,22 @@ func validateModuleReadmeFiles(modules map[string]moduleReadme) error {
 				return
 			}
 
+			// Would normally be skittish about having relative paths like this,
+			// but it should be safe because we have guarantees about the
+			// structure of the repo, and where this logic will run
+			isPermittedRelativeURL := strings.HasPrefix(fm.IconURL, "./") ||
+				strings.HasPrefix(fm.IconURL, "/") ||
+				strings.HasPrefix(fm.IconURL, "../../../.logos")
+			if !isPermittedRelativeURL {
+				problems = append(
+					problems,
+					fmt.Errorf(
+						"%q: relative icon URL %q for module must either be scoped to that module's directory, or the top-level /.logos directory",
+						module.FilePath,
+						fm.IconURL,
+					),
+				)
+			}
 		}()
 
 		// Tags
@@ -211,7 +227,6 @@ func validateModuleReadmeFiles(modules map[string]moduleReadme) error {
 		return problems
 	}
 
-	allErrors := []error{}
 	for _, m := range modules {
 		allErrors = append(allErrors, validateModuleBody(m)...)
 		allErrors = append(allErrors, validateModuleFrontmatter(m)...)
@@ -302,8 +317,8 @@ func main() {
 	}
 	log.Printf("Parsed %d module README files", len(modules))
 
-	validationError := validateModuleReadmeFiles(modules)
-	if validationError != nil {
+	err = validateModuleReadmeFiles(modules)
+	if err != nil {
 		log.Panic(err)
 	}
 	log.Printf("Validated structure of %d module README files", len(modules))
