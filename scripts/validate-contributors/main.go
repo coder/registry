@@ -335,7 +335,7 @@ func parseContributorFiles(entries []readme.Readme) (
 ) {
 	frontmatterByUsername := map[string]contributorFrontmatterWithFilePath{}
 	yamlParsingErrors := readme.ValidationPhaseError{
-		Phase: readme.ValidationPhaseYamlParsing,
+		Phase: readme.ValidationPhaseReadmeParsing,
 	}
 	for _, rm := range entries {
 		fm, _, err := readme.SeparateFrontmatter(rm.RawText)
@@ -381,7 +381,7 @@ func parseContributorFiles(entries []readme.Readme) (
 
 	employeeGithubGroups := map[string][]string{}
 	yamlValidationErrors := readme.ValidationPhaseError{
-		Phase: readme.ValidationPhaseYamlValidation,
+		Phase: readme.ValidationPhaseReadmeValidation,
 	}
 	for _, yml := range frontmatterByUsername {
 		errors := validateContributorYaml(yml)

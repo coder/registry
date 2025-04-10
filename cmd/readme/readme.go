@@ -76,12 +76,12 @@ const (
 	// ValidationPhaseFilesystemRead indicates when a README file is being read
 	// from the file system
 	ValidationPhaseFilesystemRead ValidationPhase = iota
-	// ValidationPhaseYamlParsing indicates when a README's frontmatter is being
+	// ValidationPhaseReadmeParsing indicates when a README's frontmatter is being
 	// parsed as YAML. This phase does not include YAML validation.
-	ValidationPhaseYamlParsing
-	// ValidationPhaseYamlValidation indicates when a README's frontmatter is
+	ValidationPhaseReadmeParsing
+	// ValidationPhaseReadmeValidation indicates when a README's frontmatter is
 	// being validated as proper YAML with expected keys.
-	ValidationPhaseYamlValidation
+	ValidationPhaseReadmeValidation
 	// ValidationPhaseAssetCrossReference indicates when a README's frontmatter
 	// is having all its relative URLs be validated for whether they point to
 	// valid resources.
@@ -92,10 +92,10 @@ func (p ValidationPhase) String() string {
 	switch p {
 	case ValidationPhaseFilesystemRead:
 		return "Filesystem reading"
-	case ValidationPhaseYamlParsing:
-		return "YAML parsing"
-	case ValidationPhaseYamlValidation:
-		return "YAML validation"
+	case ValidationPhaseReadmeParsing:
+		return "README parsing"
+	case ValidationPhaseReadmeValidation:
+		return "README validation"
 	case ValidationPhaseAssetCrossReference:
 		return "Cross-referencing asset references"
 	default:
