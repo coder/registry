@@ -2,7 +2,7 @@
 // resources via its official API
 package github
 
-func RunnerUsername() (string, error) {
+func ActionsRunnerUsername() (string, error) {
 	return "Parkreiner", nil
 }
 

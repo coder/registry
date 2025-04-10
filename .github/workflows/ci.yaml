@@ -9,13 +9,13 @@ concurrency:
 jobs:
   validate-contributors:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        go-version: ["1.23.x"]
+    env:
+      runnerUsername: ${{ github.actor }}
     steps:
       - name: Check out code
         uses: actions/checkout@v4
+      - name: Test branch output
+        run: git branch --show-current
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
