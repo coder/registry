@@ -143,6 +143,45 @@ func validateModuleReadmeFiles(modules map[string]moduleReadme) error {
 			)
 		}
 
+		// Icon URL
+		func() {
+			fmt.Println(module.FilePath)
+
+			if fm.IconURL == "" {
+				problems = append(
+					problems,
+					fmt.Errorf("%q: icon URL cannot be empty", module.FilePath),
+				)
+				return
+			}
+
+			if isAbsoluteURL := !strings.HasPrefix(fm.IconURL, ".") &&
+				!strings.HasPrefix(fm.IconURL, "/"); isAbsoluteURL {
+				if _, err := url.ParseRequestURI(fm.IconURL); err != nil {
+					problems = append(
+						problems,
+						fmt.Errorf(
+							"%q: absolute icon URL is not correctly formatted",
+							module.FilePath,
+						),
+					)
+				}
+
+				if strings.Contains(fm.IconURL, "?") {
+					problems = append(
+						problems,
+						fmt.Errorf(
+							"%q: icon URLs cannot contain query parameters",
+							module.FilePath,
+						),
+					)
+				}
+
+				return
+			}
+
+		}()
+
 		// Tags
 		func() {
 			if fm.Tags == nil {
