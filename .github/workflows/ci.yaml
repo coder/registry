@@ -11,11 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       actor: ${{ github.actor }}
+      base_ref: ${{ github.base_ref }}
+      head_ref: ${{ github.head_ref }}
     steps:
       - name: Check out code
         uses: actions/checkout@v4
-      - name: Feeling cute. Might (aka should) delete later
-        run: git branch --show-current
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
