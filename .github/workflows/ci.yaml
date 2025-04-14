@@ -10,9 +10,11 @@ jobs:
   validate-contributors:
     runs-on: ubuntu-latest
     env:
-      actor: ${{ github.actor }}
-      base_ref: ${{ github.base_ref }}
-      head_ref: ${{ github.head_ref }}
+      ACTOR: ${{ github.actor }}
+      BASE_REF: ${{ github.base_ref }}
+      HEAD_REF: ${{ github.head_ref }}
+      GITHUB_API_URL: ${{ github.api_url }}
+      GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Check out code
         uses: actions/checkout@v4

@@ -10,18 +10,30 @@ import (
 	"log"
 
 	"coder.com/coder-registry/cmd/github"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Panic(err)
+	}
 	username, err := github.ActionsActor()
 	if err != nil {
 		log.Panic(err)
 	}
-	log.Printf("running as %q\n", username)
-	_, _, err = github.ActionsRefs()
+	log.Printf("Running validation for user %q", username)
+	headRef, baseRef, err := github.ActionsRefs()
 	if err != nil {
 		log.Panic(err)
 	}
+	log.Printf("Using branches %q and %q for validation comparison", headRef, baseRef)
+
+	employees, err := github.CoderEmployeeUsernames()
+	if err != nil {
+		log.Panic(err)
+	}
+	log.Printf("got back %d employees\n", employees.TotalEmployees())
 
 	log.Println("Starting README validation")
 	allReadmeFiles, err := aggregateContributorReadmeFiles()
