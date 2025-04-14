@@ -8,9 +8,17 @@ package main
 
 import (
 	"log"
+
+	"coder.com/coder-registry/cmd/github"
 )
 
 func main() {
+	username, err := github.ActionsActor()
+	if err != nil {
+		log.Panic(err)
+	}
+	log.Println("running as %q", username)
+
 	log.Println("Starting README validation")
 	allReadmeFiles, err := aggregateContributorReadmeFiles()
 	if err != nil {

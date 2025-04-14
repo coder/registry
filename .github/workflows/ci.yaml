@@ -9,6 +9,8 @@ concurrency:
 jobs:
   validate-contributors:
     runs-on: ubuntu-latest
+    env:
+      actor: ${{ github.actor }}
     steps:
       - name: Check out code
         uses: actions/checkout@v4
