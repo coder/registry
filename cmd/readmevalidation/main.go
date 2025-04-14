@@ -17,7 +17,11 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
-	log.Println("running as %q", username)
+	log.Printf("running as %q\n", username)
+	_, _, err = github.ActionsRefs()
+	if err != nil {
+		log.Panic(err)
+	}
 
 	log.Println("Starting README validation")
 	allReadmeFiles, err := aggregateContributorReadmeFiles()
