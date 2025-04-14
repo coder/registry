@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v4
+      - name: Feeling cute. Might (aka should) delete later
+        run: git branch --show-current
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
