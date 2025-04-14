@@ -136,4 +136,4 @@ dist
 .pnp.*
 
 # Script output
-/contributors
+/readmevalidation

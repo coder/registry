@@ -1,8 +1,9 @@
-// This package is for validating all contributors within the main Registry
-// directory. It validates that it has nothing but sub-directories, and that
-// each sub-directory has a README.md file. Each of those files must then
-// describe a specific contributor. The contents of these files will be parsed
-// by the Registry site build step, to be displayed in the Registry site's UI.
+// This package is for validating all the README files present in the Registry
+// directory. The expectation is that each contributor, module, and template
+// will have an associated README containing useful metadata. This metadata must
+// be validated for correct structure during CI, because the files themselves
+// are parsed and rendered as UI as part of the Registry site build step (the
+// Registry site itself lives in a separate repo).
 package main
 
 import (
