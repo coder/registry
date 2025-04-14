@@ -18,10 +18,7 @@ func main() {
 
 	log.Printf("Processing %d README files\n", len(allReadmeFiles))
 	contributors, err := parseContributorFiles(allReadmeFiles)
-	log.Printf(
-		"Processed %d README files as valid contributor profiles",
-		len(contributors),
-	)
+	log.Printf("Processed %d README files as valid contributor profiles", len(contributors))
 	if err != nil {
 		log.Panic(err)
 	}
@@ -32,8 +29,5 @@ func main() {
 	}
 	log.Println("All relative URLs for READMEs are valid")
 
-	log.Printf(
-		"Processed all READMEs in the %q directory\n",
-		rootRegistryPath,
-	)
+	log.Printf("Processed all READMEs in the %q directory\n", rootRegistryPath)
 }
