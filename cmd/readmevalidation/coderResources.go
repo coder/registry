@@ -5,22 +5,29 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+
+	"coder.com/coder-registry/cmd/github"
 )
 
 type coderResourceFrontmatter struct {
 	Description string   `yaml:"description"`
 	IconURL     string   `yaml:"icon"`
 	DisplayName *string  `yaml:"display_name"`
-	Tags        []string `yaml:"tags"`
 	Verified    *bool    `yaml:"verified"`
+	Tags        []string `yaml:"tags"`
 }
 
-type coderResourceReadme struct {
+// coderResource represents a generic concept for a Terraform resource used to
+// help create Coder workspaces. As of 2025-04-15, this encapsulates both
+// Coder Modules and Coder Templates.
+type coderResource struct {
+	name           string
+	filePath       string
+	readmeBody     string
 	oldFrontmatter *coderResourceFrontmatter
 	newFrontmatter *coderResourceFrontmatter
-	newBody        string
-	moduleName     string
-	filePath       string
+	oldIsVerified  bool
+	newIsVerified  bool
 }
 
 func validateCoderResourceDisplayName(displayName *string) error {
@@ -95,6 +102,37 @@ func validateCoderResourceTags(tags []string) error {
 	return nil
 }
 
-func validateCoderResourceReadmeBody(body string) []error {
+func validateCoderResourceVerifiedStatus(oldVerified bool, newVerified bool, actorOrgStatus github.OrgStatus) error {
+	// If the actor making the changes is an employee of Coder, any changes are
+	// assumed to be valid
+	if actorOrgStatus == github.OrgStatusMember {
+		return nil
+	}
+
+	// Right now, because we collapse the omitted/nil case and false together,
+	// the only field transition that's allowed is if the verified statuses are
+	// exactly the same (which includes the field going from omitted to
+	// explicitly false, or vice-versa).
+	isPermittedChangeForNonEmployee := oldVerified == newVerified
+	if isPermittedChangeForNonEmployee {
+		return nil
+	}
+
+	return fmt.Errorf("actor with status %q is not allowed to flip verified status from %t to %t", actorOrgStatus.String(), oldVerified, newVerified)
+}
+
+// Todo: once we decide on how we want the README frontmatter to be formatted
+// for the Embedded Registry work, update this function to validate that the
+// correct Terraform code snippets are included in the README and are actually
+// valid Terraform
+func validateCoderResourceReadmeBody(body string) error {
+	trimmed := strings.TrimSpace(body)
+	if !strings.HasPrefix(trimmed, "# ") {
+		return errors.New("README body must start with ATX-style h1 header (i.e., \"# \")")
+	}
+	return nil
+}
+
+func validateCoderResource(resource coderResource) []error {
 	return nil
 }
