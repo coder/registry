@@ -71,10 +71,12 @@ func separateFrontmatter(readmeText string) (string, string, error) {
 type validationPhase int
 
 const (
-	//
-	validationPhaseStructureValidation validationPhase = iota
+	// validationPhaseFileStructureValidation indicates when the entire Registry
+	// directory is being verified for having all files be placed in the file
+	// system as expected.
+	validationPhaseFileStructureValidation validationPhase = iota
 
-	// validationPhaseFileLoad indicates when a README file is being read from
+	// validationPhaseFileLoad indicates when README files are being read from
 	// the file system
 	validationPhaseFileLoad
 
