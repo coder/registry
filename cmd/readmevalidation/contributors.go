@@ -194,10 +194,6 @@ func validateContributorAvatarURL(avatarURL *string) []error {
 	return problems
 }
 
-func addFilePathToError(filePath string, err error) error {
-	return fmt.Errorf("%q: %v", filePath, err)
-}
-
 func validateContributorProfile(yml contributorProfile) []error {
 	allProblems := []error{}
 
@@ -313,7 +309,6 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 	for _, e := range dirEntries {
 		dirPath := path.Join(rootRegistryPath, e.Name())
 		if !e.IsDir() {
-			problems = append(problems, fmt.Errorf("detected non-directory file %q at base of main Registry directory", dirPath))
 			continue
 		}
 
@@ -331,7 +326,7 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 
 	if len(problems) != 0 {
 		return nil, validationPhaseError{
-			phase:  validationPhaseFilesystemRead,
+			phase:  validationPhaseFileLoad,
 			errors: problems,
 		}
 	}

@@ -55,10 +55,17 @@ func main() {
 	} else {
 		log.Println("Provided API token does not belong to a Coder employee. Some README validation steps will be skipped compared to when they run in CI.")
 	}
-	fmt.Printf("actor %q is %s\n", actorUsername, actorOrgStatus.String())
+	fmt.Printf("Script GitHub actor %q has Coder organization status %q\n", actorUsername, actorOrgStatus.String())
 
 	log.Println("Starting README validation")
 
+	// Validate file structure of main README directory
+	err = validateRepoStructure()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	// Validate contributor README files
 	allReadmeFiles, err := aggregateContributorReadmeFiles()
 	if err != nil {
 		log.Panic(err)
@@ -75,4 +82,8 @@ func main() {
 	}
 	log.Println("All relative URLs for READMEs are valid")
 	log.Printf("Processed all READMEs in the %q directory\n", rootRegistryPath)
+
+	// Validate modules
+
+	// Validate templates
 }

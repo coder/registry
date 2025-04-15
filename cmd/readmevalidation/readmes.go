@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"strings"
 )
 
@@ -72,12 +71,15 @@ func separateFrontmatter(readmeText string) (string, string, error) {
 type validationPhase int
 
 const (
-	// validationPhaseFilesystemRead indicates when a README file is being read
-	// from the file system
-	validationPhaseFilesystemRead validationPhase = iota
+	//
+	validationPhaseStructureValidation validationPhase = iota
 
-	// validationPhaseReadmeParsing indicates when a README's frontmatter is being
-	// parsed as YAML. This phase does not include YAML validation.
+	// validationPhaseFileLoad indicates when a README file is being read from
+	// the file system
+	validationPhaseFileLoad
+
+	// validationPhaseReadmeParsing indicates when a README's frontmatter is
+	// being parsed as YAML. This phase does not include YAML validation.
 	validationPhaseReadmeParsing
 
 	// validationPhaseReadmeValidation indicates when a README's frontmatter is
@@ -92,7 +94,7 @@ const (
 
 func (p validationPhase) String() string {
 	switch p {
-	case validationPhaseFilesystemRead:
+	case validationPhaseFileLoad:
 		return "Filesystem reading"
 	case validationPhaseReadmeParsing:
 		return "README parsing"
@@ -103,25 +105,4 @@ func (p validationPhase) String() string {
 	default:
 		return "Unknown validation phase"
 	}
-}
-
-var _ error = validationPhaseError{}
-
-// validationPhaseError represents an error that occurred during a specific
-// phase of README validation. It should be used to collect ALL validation
-// errors that happened during a specific phase, rather than the first one
-// encountered.
-type validationPhaseError struct {
-	phase  validationPhase
-	errors []error
-}
-
-func (vpe validationPhaseError) Error() string {
-	msg := fmt.Sprintf("Error during %q phase of README validation:", vpe.phase.String())
-	for _, e := range vpe.errors {
-		msg += fmt.Sprintf("\n- %v", e)
-	}
-	msg += "\n"
-
-	return msg
 }
