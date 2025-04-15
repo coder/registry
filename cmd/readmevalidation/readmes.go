@@ -105,18 +105,18 @@ func (p validationPhase) String() string {
 	}
 }
 
-var _ error = ValidationPhaseError{}
+var _ error = validationPhaseError{}
 
-// ValidationPhaseError represents an error that occurred during a specific
+// validationPhaseError represents an error that occurred during a specific
 // phase of README validation. It should be used to collect ALL validation
 // errors that happened during a specific phase, rather than the first one
 // encountered.
-type ValidationPhaseError struct {
+type validationPhaseError struct {
 	phase  validationPhase
 	errors []error
 }
 
-func (vpe ValidationPhaseError) Error() string {
+func (vpe validationPhaseError) Error() string {
 	msg := fmt.Sprintf("Error during %q phase of README validation:", vpe.phase.String())
 	for _, e := range vpe.errors {
 		msg += fmt.Sprintf("\n- %v", e)

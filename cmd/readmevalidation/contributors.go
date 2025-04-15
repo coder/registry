@@ -33,27 +33,6 @@ type contributorProfile struct {
 	filePath    string
 }
 
-var _ error = validationPhaseError{}
-
-type validationPhaseError struct {
-	phase  string
-	errors []error
-}
-
-func (vpe validationPhaseError) Error() string {
-	validationStrs := []string{}
-	for _, e := range vpe.errors {
-		validationStrs = append(validationStrs, fmt.Sprintf("- %v", e))
-	}
-	slices.Sort(validationStrs)
-
-	msg := fmt.Sprintf("Error during %q phase of README validation:", vpe.phase)
-	msg += strings.Join(validationStrs, "\n")
-	msg += "\n"
-
-	return msg
-}
-
 func validateContributorGithubUsername(githubUsername string) error {
 	if githubUsername == "" {
 		return errors.New("missing GitHub username")
@@ -219,7 +198,7 @@ func addFilePathToError(filePath string, err error) error {
 	return fmt.Errorf("%q: %v", filePath, err)
 }
 
-func validateContributorYaml(yml contributorProfile) []error {
+func validateContributorProfile(yml contributorProfile) []error {
 	allProblems := []error{}
 
 	if err := validateContributorGithubUsername(yml.frontmatter.GithubUsername); err != nil {
@@ -286,7 +265,7 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 	}
 	if len(yamlParsingErrors) != 0 {
 		return nil, validationPhaseError{
-			phase:  "YAML parsing",
+			phase:  validationPhaseReadmeParsing,
 			errors: yamlParsingErrors,
 		}
 	}
@@ -294,7 +273,7 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 	employeeGithubGroups := map[string][]string{}
 	yamlValidationErrors := []error{}
 	for _, p := range profilesByUsername {
-		errors := validateContributorYaml(p)
+		errors := validateContributorProfile(p)
 		if len(errors) > 0 {
 			yamlValidationErrors = append(yamlValidationErrors, errors...)
 			continue
@@ -315,7 +294,7 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 	}
 	if len(yamlValidationErrors) != 0 {
 		return nil, validationPhaseError{
-			phase:  "Raw YAML Validation",
+			phase:  validationPhaseReadmeValidation,
 			errors: yamlValidationErrors,
 		}
 	}
@@ -352,7 +331,7 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 
 	if len(problems) != 0 {
 		return nil, validationPhaseError{
-			phase:  "FileSystem reading",
+			phase:  validationPhaseFilesystemRead,
 			errors: problems,
 		}
 	}
@@ -395,7 +374,7 @@ func validateContributorRelativeUrls(
 		return nil
 	}
 	return validationPhaseError{
-		phase:  "Relative URL validation",
+		phase:  validationPhaseAssetCrossReference,
 		errors: problems,
 	}
 }
