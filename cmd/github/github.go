@@ -10,16 +10,14 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 )
 
-const defaultGithubAPIRoute = "https://api.github.com/"
+const defaultGithubAPIBaseRoute = "https://api.github.com/"
 
 const (
-	actionsActorKey   = "ACTOR"
-	actionsBaseRefKey = "BASE_REF"
-	actionsHeadRefKey = "HEAD_REF"
+	actionsActorKey   = "CI_ACTOR"
+	actionsBaseRefKey = "CI_BASE_REF"
 )
 
 const (
@@ -38,119 +36,157 @@ func ActionsActor() (string, error) {
 	return username, nil
 }
 
-// ActionsRefs returns the name of the head ref and the base ref for current CI
-// run, in that order. Both values must be loaded into the env as part of the
-// GitHub Actions YAML file, or else the function fails.
-func ActionsRefs() (string, string, error) {
+// BaseRef returns the name of the base ref for the Git branch that will be
+// merged into the main branch.
+func BaseRef() (string, error) {
 	baseRef := os.Getenv(actionsBaseRefKey)
-	headRef := os.Getenv(actionsHeadRefKey)
-
-	if baseRef == "" && headRef == "" {
-		return "", "", fmt.Errorf("values for %q and %q are not in env. If running from CI, please add values via ci.yaml file", actionsHeadRefKey, actionsBaseRefKey)
-	} else if headRef == "" {
-		return "", "", fmt.Errorf("value for %q is not in env. If running from CI, please add value via ci.yaml file", actionsHeadRefKey)
-	} else if baseRef == "" {
-		return "", "", fmt.Errorf("value for %q is not in env. If running from CI, please add value via ci.yaml file", actionsBaseRefKey)
+	if baseRef == "" {
+		return "", fmt.Errorf("value for %q is not in env. If running from CI, please add value via ci.yaml file", actionsBaseRefKey)
 	}
 
-	return headRef, baseRef, nil
+	return baseRef, nil
 }
 
-// CoderEmployees represents all members of the Coder GitHub organization. This
-// value should not be instantiated from outside the package, and should instead
-// be created via one of the package's exported functions.
-type CoderEmployees struct {
-	// Have map defined as private field to make sure that it can't ever be
-	// mutated from an outside package
-	_employees map[string]struct{}
+// Client is a reusable REST client for making requests to the GitHub API.
+// It should be instantiated via NewGithubClient
+type Client struct {
+	baseURL    string
+	token      string
+	httpClient http.Client
 }
 
-// IsEmployee takes a GitHub username and indicates whether the matching user is
-// a member of the Coder organization
-func (ce *CoderEmployees) IsEmployee(username string) bool {
-	if ce._employees == nil {
-		return false
+// NewClient instantiates a GitHub client
+func NewClient() (*Client, error) {
+	// Considered letting the user continue on with no token and more aggressive
+	// rate-limiting, but from experimentation, the non-authenticated experience
+	// hit the rate limits really quickly, and had a lot of restrictions
+	apiToken := os.Getenv(githubAPITokenKey)
+	if apiToken == "" {
+		return nil, fmt.Errorf("missing env variable %q", githubAPITokenKey)
 	}
 
-	_, ok := ce._employees[username]
-	return ok
+	baseURL := os.Getenv(githubAPIURLKey)
+	if baseURL == "" {
+		log.Printf("env variable %q is not defined. Falling back to %q\n", githubAPIURLKey, defaultGithubAPIBaseRoute)
+		baseURL = defaultGithubAPIBaseRoute
+	}
+
+	return &Client{
+		baseURL:    baseURL,
+		token:      apiToken,
+		httpClient: http.Client{Timeout: 10 * time.Second},
+	}, nil
 }
 
-// TotalEmployees returns the number of members in the Coder organization
-func (ce *CoderEmployees) TotalEmployees() int {
-	return len(ce._employees)
-}
-
-type ghOrganizationMember struct {
+// User represents a truncated version of the API response from Github's /user
+// endpoint.
+type User struct {
 	Login string `json:"login"`
 }
 
-type ghRateLimitedRes struct {
-	Message string `json:"message"`
-}
-
-func parseResponse[V any](b []byte) (V, error) {
-	var want V
-	var rateLimitedRes ghRateLimitedRes
-
-	if err := json.Unmarshal(b, &rateLimitedRes); err != nil {
-		return want, err
-	}
-	if isRateLimited := strings.Contains(rateLimitedRes.Message, "API rate limit exceeded for "); isRateLimited {
-		return want, errors.New("request was rate-limited")
-	}
-	if err := json.Unmarshal(b, &want); err != nil {
-		return want, err
-	}
-
-	return want, nil
-}
-
-// CoderEmployeeUsernames requests from the GitHub API the list of all usernames
-// of people who are employees of Coder.
-func CoderEmployeeUsernames() (CoderEmployees, error) {
-	apiURL := os.Getenv(githubAPIURLKey)
-	if apiURL == "" {
-		log.Printf("API URL not set via env key %q. Defaulting to %q\n", githubAPIURLKey, defaultGithubAPIRoute)
-		apiURL = defaultGithubAPIRoute
-	}
-	token := os.Getenv(githubAPITokenKey)
-	if token == "" {
-		log.Printf("API token not set via env key %q. All requests will be non-authenticated and subject to more aggressive rate limiting", githubAPITokenKey)
-	}
-
-	req, err := http.NewRequest("GET", apiURL+"/orgs/coder/members", nil)
+// GetUserFromToken returns the user associated with the loaded API token
+func (gc *Client) GetUserFromToken() (User, error) {
+	req, err := http.NewRequest("GET", gc.baseURL+"user", nil)
 	if err != nil {
-		return CoderEmployees{}, fmt.Errorf("coder employee names: %v", err)
+		return User{}, err
 	}
-	if token != "" {
-		req.Header.Add("Authorization", "Bearer "+token)
+	if gc.token != "" {
+		req.Header.Add("Authorization", "Bearer "+gc.token)
 	}
 
-	client := http.Client{Timeout: 5 * time.Second}
-	res, err := client.Do(req)
+	res, err := gc.httpClient.Do(req)
 	if err != nil {
-		return CoderEmployees{}, fmt.Errorf("coder employee names: %v", err)
+		return User{}, err
 	}
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return CoderEmployees{}, fmt.Errorf("coder employee names: got back status code %d", res.StatusCode)
+
+	if res.StatusCode == http.StatusUnauthorized {
+		return User{}, errors.New("request is not authorized")
+	}
+	if res.StatusCode == http.StatusForbidden {
+		return User{}, errors.New("request is forbidden")
 	}
 
 	b, err := io.ReadAll(res.Body)
 	if err != nil {
-		return CoderEmployees{}, fmt.Errorf("coder employee names: %v", err)
-	}
-	rawMembers, err := parseResponse[[]ghOrganizationMember](b)
-	if err != nil {
-		return CoderEmployees{}, fmt.Errorf("coder employee names: %v", err)
+		return User{}, err
 	}
 
-	employeesSet := map[string]struct{}{}
-	for _, m := range rawMembers {
-		employeesSet[m.Login] = struct{}{}
+	user := User{}
+	if err := json.Unmarshal(b, &user); err != nil {
+		return User{}, err
 	}
-	return CoderEmployees{
-		_employees: employeesSet,
-	}, nil
+	return user, nil
+}
+
+// OrgStatus indicates whether a GitHub user is a member of a given organization
+type OrgStatus int
+
+var _ fmt.Stringer = OrgStatus(0)
+
+const (
+	// OrgStatusIndeterminate indicates when a user's organization status
+	// could not be determined. It is the zero value of the OrgStatus type, and
+	// any users with this value should be treated as completely untrusted
+	OrgStatusIndeterminate = iota
+	// OrgStatusNonMember indicates when a user is definitely NOT part of an
+	// organization
+	OrgStatusNonMember
+	// OrgStatusMember indicates when a user is a member of a Github
+	// organization
+	OrgStatusMember
+)
+
+func (s OrgStatus) String() string {
+	switch s {
+	case OrgStatusMember:
+		return "Member"
+	case OrgStatusNonMember:
+		return "Non-member"
+	default:
+		return "Indeterminate"
+	}
+}
+
+// GetUserOrgStatus takes a GitHub username, and checks the GitHub API to see
+// whether that member is part of the Coder organization
+func (gc *Client) GetUserOrgStatus(org string, username string) (OrgStatus, error) {
+	// This API endpoint is really annoying, because it's able to produce false
+	// negatives. Any user can be a public member of Coder, a private member of
+	// Coder, or a non-member.
+	//
+	// So if the function returns status 200, you can always trust that. But if
+	// it returns any 400 code, that could indicate a few things:
+	// 1. The user being checked is not part of the organization, but the user
+	//    associated with the token is.
+	// 2. The user being checked is a member of the organization, but their
+	//    status is private, and the token being used to check belongs to a user
+	//    who is not part of the Coder organization.
+	// 3. Neither the user being checked nor the user associated with the token
+	//    are members of the organization
+	//
+	// The best option is to make sure that the token being used belongs to a
+	// member of the Coder organization
+	req, err := http.NewRequest("GET", fmt.Sprintf("%sorgs/%s/%s", gc.baseURL, org, username), nil)
+	if err != nil {
+		return OrgStatusIndeterminate, err
+	}
+	if gc.token != "" {
+		req.Header.Add("Authorization", "Bearer "+gc.token)
+	}
+
+	res, err := gc.httpClient.Do(req)
+	if err != nil {
+		return OrgStatusIndeterminate, err
+	}
+	defer res.Body.Close()
+
+	switch res.StatusCode {
+	case http.StatusNoContent:
+		return OrgStatusMember, nil
+	case http.StatusNotFound:
+		return OrgStatusNonMember, nil
+	default:
+		return OrgStatusIndeterminate, nil
+	}
 }

@@ -7,6 +7,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"coder.com/coder-registry/cmd/github"
@@ -14,26 +15,43 @@ import (
 )
 
 func main() {
+	log.Println("Beginning README file validation")
 	err := godotenv.Load()
 	if err != nil {
 		log.Panic(err)
 	}
-	username, err := github.ActionsActor()
+	actorUsername, err := github.ActionsActor()
 	if err != nil {
 		log.Panic(err)
 	}
-	log.Printf("Running validation for user %q", username)
-	headRef, baseRef, err := github.ActionsRefs()
+	baseRef, err := github.BaseRef()
 	if err != nil {
 		log.Panic(err)
 	}
-	log.Printf("Using branches %q and %q for validation comparison", headRef, baseRef)
+	log.Printf("Using branch %q for validation comparison", baseRef)
 
-	employees, err := github.CoderEmployeeUsernames()
+	log.Printf("Using GitHub API to determine what fields can be set by user %q\n", actorUsername)
+	client, err := github.NewClient()
 	if err != nil {
 		log.Panic(err)
 	}
-	log.Printf("got back %d employees\n", employees.TotalEmployees())
+	tokenUser, err := client.GetUserFromToken()
+	if err != nil {
+		log.Panic(err)
+	}
+	tokenUserStatus, err := client.GetUserOrgStatus("coder", tokenUser.Login)
+	if err != nil {
+		log.Panic(err)
+	}
+	var actorOrgStatus github.OrgStatus
+	if tokenUserStatus == github.OrgStatusMember {
+		actorOrgStatus, err = client.GetUserOrgStatus("coder", actorUsername)
+		if err != nil {
+			log.Panic(err)
+		}
+	}
+
+	fmt.Printf("actor %q is %s\n", actorUsername, actorOrgStatus.String())
 
 	log.Println("Starting README validation")
 	allReadmeFiles, err := aggregateContributorReadmeFiles()
