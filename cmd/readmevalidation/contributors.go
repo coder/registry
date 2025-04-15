@@ -334,9 +334,7 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 	return allReadmeFiles, nil
 }
 
-func validateContributorRelativeUrls(
-	contributors map[string]contributorProfile,
-) error {
+func validateContributorRelativeUrls(contributors map[string]contributorProfile) error {
 	// This function only validates relative avatar URLs for now, but it can be
 	// beefed up to validate more in the future
 	problems := []error{}

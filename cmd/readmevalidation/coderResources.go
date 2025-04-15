@@ -19,11 +19,12 @@ type coderResourceFrontmatter struct {
 
 // coderResource represents a generic concept for a Terraform resource used to
 // help create Coder workspaces. As of 2025-04-15, this encapsulates both
-// Coder Modules and Coder Templates.
+// Coder Modules and Coder Templates. If the newReadmeBody and newFrontmatter
+// fields are nil, that represents that the file has been deleted
 type coderResource struct {
 	name           string
 	filePath       string
-	readmeBody     string
+	newReadmeBody  *string
 	oldFrontmatter *coderResourceFrontmatter
 	newFrontmatter *coderResourceFrontmatter
 	oldIsVerified  bool
@@ -124,7 +125,8 @@ func validateCoderResourceVerifiedStatus(oldVerified bool, newVerified bool, act
 // Todo: once we decide on how we want the README frontmatter to be formatted
 // for the Embedded Registry work, update this function to validate that the
 // correct Terraform code snippets are included in the README and are actually
-// valid Terraform
+// valid Terraform. Might also want to validate that each header follows proper
+// hierarchy (i.e., not jumping from h1 to h3 because you think it looks nicer)
 func validateCoderResourceReadmeBody(body string) error {
 	trimmed := strings.TrimSpace(body)
 	if !strings.HasPrefix(trimmed, "# ") {
@@ -133,6 +135,45 @@ func validateCoderResourceReadmeBody(body string) error {
 	return nil
 }
 
-func validateCoderResource(resource coderResource) []error {
+func validateCoderResourceChanges(resource coderResource, actorOrgStatus github.OrgStatus) []error {
+	var problems []error
+
+	if resource.newReadmeBody != nil {
+		if err := validateCoderResourceReadmeBody(*resource.newReadmeBody); err != nil {
+			problems = append(problems, addFilePathToError(resource.filePath, err))
+		}
+	}
+
+	if resource.newFrontmatter != nil {
+		if err := validateCoderResourceDisplayName(resource.newFrontmatter.DisplayName); err != nil {
+			problems = append(problems, addFilePathToError(resource.filePath, err))
+		}
+		if err := validateCoderResourceDescription(resource.newFrontmatter.Description); err != nil {
+			problems = append(problems, addFilePathToError(resource.filePath, err))
+		}
+		if err := validateCoderResourceTags(resource.newFrontmatter.Tags); err != nil {
+			problems = append(problems, addFilePathToError(resource.filePath, err))
+		}
+		if err := validateCoderResourceVerifiedStatus(resource.oldIsVerified, resource.newIsVerified, actorOrgStatus); err != nil {
+			problems = append(problems, addFilePathToError(resource.filePath, err))
+		}
+
+		for _, err := range validateCoderResourceIconURL(resource.newFrontmatter.IconURL) {
+			problems = append(problems, addFilePathToError(resource.filePath, err))
+		}
+	}
+
+	return problems
+}
+
+func parseCoderResourceFiles(oldReadmeFiles []readme, newReadmeFiles []readme) (map[string]coderResource, error) {
+	return nil, nil
+}
+
+func validateCoderResourceRelativeUrls(map[string]coderResource) []error {
 	return nil
+}
+
+func aggregateCoderResourceReadmeFiles() ([]readme, error) {
+	return nil, nil
 }

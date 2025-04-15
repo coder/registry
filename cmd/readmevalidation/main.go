@@ -9,6 +9,8 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
+	"sync"
 
 	"coder.com/coder-registry/cmd/github"
 	"github.com/joho/godotenv"
@@ -60,30 +62,64 @@ func main() {
 	log.Println("Starting README validation")
 
 	// Validate file structure of main README directory
+	log.Println("Validating directory structure of the README directory")
 	err = validateRepoStructure()
 	if err != nil {
 		log.Panic(err)
 	}
 
+	// Set up concurrency for validating each category of README file
+	var readmeValidationErrors []error
+	errChan := make(chan error, 1)
+	wg := sync.WaitGroup{}
+	go func() {
+		for err := range errChan {
+			readmeValidationErrors = append(readmeValidationErrors, err)
+		}
+	}()
+
 	// Validate contributor README files
-	allReadmeFiles, err := aggregateContributorReadmeFiles()
-	if err != nil {
-		log.Panic(err)
-	}
-	log.Printf("Processing %d README files\n", len(allReadmeFiles))
-	contributors, err := parseContributorFiles(allReadmeFiles)
-	log.Printf("Processed %d README files as valid contributor profiles", len(contributors))
-	if err != nil {
-		log.Panic(err)
-	}
-	err = validateContributorRelativeUrls(contributors)
-	if err != nil {
-		log.Panic(err)
-	}
-	log.Println("All relative URLs for READMEs are valid")
-	log.Printf("Processed all READMEs in the %q directory\n", rootRegistryPath)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		allReadmeFiles, err := aggregateContributorReadmeFiles()
+		if err != nil {
+			log.Panic(err)
+		}
+		log.Printf("Processing %d README files\n", len(allReadmeFiles))
+		contributors, err := parseContributorFiles(allReadmeFiles)
+		log.Printf("Processed %d README files as valid contributor profiles", len(contributors))
+		if err != nil {
+			log.Panic(err)
+		}
+		err = validateContributorRelativeUrls(contributors)
+		if err != nil {
+			log.Panic(err)
+		}
+		log.Println("All relative URLs for READMEs are valid")
+		log.Printf("Processed all READMEs in the %q directory\n", rootRegistryPath)
+	}()
 
 	// Validate modules
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+	}()
 
 	// Validate templates
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+	}()
+
+	// Clean up and log errors
+	wg.Wait()
+	close(errChan)
+	for _, err := range readmeValidationErrors {
+		log.Println(err)
+	}
+	if len(readmeValidationErrors) != 0 {
+		os.Exit(1)
+	}
 }
