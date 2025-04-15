@@ -7,45 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"os"
 	"time"
 )
 
 const defaultGithubAPIBaseRoute = "https://api.github.com/"
-
-const (
-	actionsActorKey   = "CI_ACTOR"
-	actionsBaseRefKey = "CI_BASE_REF"
-)
-
-const (
-	githubAPIURLKey   = "GITHUB_API_URL"
-	githubAPITokenKey = "GITHUB_API_TOKEN"
-)
-
-// ActionsActor returns the username of the GitHub user who triggered the
-// current CI run as part of GitHub Actions. The value must be loaded into the
-// env as part of the Github Actions YAML file, or else the function fails.
-func ActionsActor() (string, error) {
-	username := os.Getenv(actionsActorKey)
-	if username == "" {
-		return "", fmt.Errorf("value for %q is not in env. If running from CI, please add value via ci.yaml file", actionsActorKey)
-	}
-	return username, nil
-}
-
-// BaseRef returns the name of the base ref for the Git branch that will be
-// merged into the main branch.
-func BaseRef() (string, error) {
-	baseRef := os.Getenv(actionsBaseRefKey)
-	if baseRef == "" {
-		return "", fmt.Errorf("value for %q is not in env. If running from CI, please add value via ci.yaml file", actionsBaseRefKey)
-	}
-
-	return baseRef, nil
-}
 
 // Client is a reusable REST client for making requests to the GitHub API.
 // It should be instantiated via NewGithubClient
@@ -55,19 +21,25 @@ type Client struct {
 	httpClient http.Client
 }
 
-// NewClient instantiates a GitHub client
-func NewClient() (*Client, error) {
+// ClientInit is used to instantiate a new client. If the value of BaseURL is
+// not defined, a default value of "https://api.github.com/" is used instead
+type ClientInit struct {
+	BaseURL  string
+	APIToken string
+}
+
+// NewClient instantiates a GitHub client. If the baseURL is
+func NewClient(init ClientInit) (*Client, error) {
 	// Considered letting the user continue on with no token and more aggressive
 	// rate-limiting, but from experimentation, the non-authenticated experience
 	// hit the rate limits really quickly, and had a lot of restrictions
-	apiToken := os.Getenv(githubAPITokenKey)
+	apiToken := init.APIToken
 	if apiToken == "" {
-		return nil, fmt.Errorf("missing env variable %q", githubAPITokenKey)
+		return nil, errors.New("API token is missing")
 	}
 
-	baseURL := os.Getenv(githubAPIURLKey)
+	baseURL := init.BaseURL
 	if baseURL == "" {
-		log.Printf("env variable %q is not defined. Falling back to %q\n", githubAPIURLKey, defaultGithubAPIBaseRoute)
 		baseURL = defaultGithubAPIBaseRoute
 	}
 
@@ -129,9 +101,11 @@ const (
 	// could not be determined. It is the zero value of the OrgStatus type, and
 	// any users with this value should be treated as completely untrusted
 	OrgStatusIndeterminate = iota
+
 	// OrgStatusNonMember indicates when a user is definitely NOT part of an
 	// organization
 	OrgStatusNonMember
+
 	// OrgStatusMember indicates when a user is a member of a Github
 	// organization
 	OrgStatusMember

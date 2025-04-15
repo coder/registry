@@ -4,10 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
+	"path"
+	"slices"
 	"strings"
 
 	"coder.com/coder-registry/cmd/github"
 )
+
+var supportedResourceTypes = []string{"modules", "templates"}
 
 type coderResourceFrontmatter struct {
 	Description string   `yaml:"description"`
@@ -166,7 +171,7 @@ func validateCoderResourceChanges(resource coderResource, actorOrgStatus github.
 	return problems
 }
 
-func parseCoderResourceFiles(oldReadmeFiles []readme, newReadmeFiles []readme) (map[string]coderResource, error) {
+func parseCoderResourceFiles(oldReadmeFiles []readme, newReadmeFiles []readme, actorOrgStatus github.OrgStatus) (map[string]coderResource, error) {
 	return nil, nil
 }
 
@@ -174,6 +179,60 @@ func validateCoderResourceRelativeUrls(map[string]coderResource) []error {
 	return nil
 }
 
-func aggregateCoderResourceReadmeFiles() ([]readme, error) {
-	return nil, nil
+func aggregateCoderResourceReadmeFiles(resourceDirectoryName string) ([]readme, error) {
+	if !slices.Contains(supportedResourceTypes, resourceDirectoryName) {
+		return nil, fmt.Errorf("%q is not a supported resource type. Must be one of [%s]", resourceDirectoryName, strings.Join(supportedResourceTypes, ", "))
+	}
+
+	registryFiles, err := os.ReadDir(rootRegistryPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var allReadmeFiles []readme
+	var problems []error
+	for _, f := range registryFiles {
+		if !f.IsDir() {
+			continue
+		}
+
+		resourceDirPath := path.Join(rootRegistryPath, f.Name(), resourceDirectoryName)
+		resourceFiles, err := os.ReadDir(resourceDirPath)
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				problems = append(problems, err)
+			}
+			continue
+		}
+
+		for _, resFile := range resourceFiles {
+			// Not sure if we want to allow non-directories to live inside of
+			// main directories like /modules or /templates, but we can tighten
+			// things up later
+			if !resFile.IsDir() {
+				continue
+			}
+
+			readmePath := path.Join(resourceDirPath, resFile.Name(), "README.md")
+			rawRm, err := os.ReadFile(readmePath)
+			if err != nil {
+				problems = append(problems, err)
+				continue
+			}
+			allReadmeFiles = append(allReadmeFiles, readme{
+				filePath: readmePath,
+				rawText:  string(rawRm),
+			})
+
+		}
+	}
+
+	if len(problems) != 0 {
+		return nil, validationPhaseError{
+			phase:  validationPhaseFileLoad,
+			errors: problems,
+		}
+	}
+
+	return allReadmeFiles, nil
 }

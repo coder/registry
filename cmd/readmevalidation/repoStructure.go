@@ -7,27 +7,27 @@ import (
 	"path"
 )
 
-func validateCoderResourceDirectory(directoryPath string) []error {
+func validateCoderResourceSubdirectory(dirPath string) []error {
 	errs := []error{}
 
-	dir, err := os.Stat(directoryPath)
+	dir, err := os.Stat(dirPath)
 	if err != nil {
 		// It's valid for a specific resource directory not to exist. It's just
 		// that if it does exist, it must follow specific rules
 		if !errors.Is(err, os.ErrNotExist) {
-			errs = append(errs, addFilePathToError(directoryPath, err))
+			errs = append(errs, addFilePathToError(dirPath, err))
 		}
 		return errs
 	}
 
 	if !dir.IsDir() {
-		errs = append(errs, fmt.Errorf("%q: path is not a directory", directoryPath))
+		errs = append(errs, fmt.Errorf("%q: path is not a directory", dirPath))
 		return errs
 	}
 
-	files, err := os.ReadDir(directoryPath)
+	files, err := os.ReadDir(dirPath)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("%q: %v", directoryPath, err))
+		errs = append(errs, fmt.Errorf("%q: %v", dirPath, err))
 		return errs
 	}
 	for _, f := range files {
@@ -35,7 +35,7 @@ func validateCoderResourceDirectory(directoryPath string) []error {
 			continue
 		}
 
-		resourceReadmePath := path.Join(directoryPath, f.Name(), "README.md")
+		resourceReadmePath := path.Join(dirPath, f.Name(), "README.md")
 		_, err := os.Stat(resourceReadmePath)
 		if err == nil {
 			continue
@@ -71,13 +71,11 @@ func validateRegistryDirectory() []error {
 			problems = append(problems, err)
 		}
 
-		modulesPath := path.Join(dirPath, "modules")
-		if errs := validateCoderResourceDirectory(modulesPath); len(errs) != 0 {
-			problems = append(problems, errs...)
-		}
-		templatesPath := path.Join(dirPath, "templates")
-		if errs := validateCoderResourceDirectory(templatesPath); len(errs) != 0 {
-			problems = append(problems, errs...)
+		for _, rType := range supportedResourceTypes {
+			resourcePath := path.Join(dirPath, rType)
+			if errs := validateCoderResourceSubdirectory(resourcePath); len(errs) != 0 {
+				problems = append(problems, errs...)
+			}
 		}
 	}
 
@@ -85,13 +83,23 @@ func validateRegistryDirectory() []error {
 }
 
 func validateRepoStructure() error {
-	errs := validateRegistryDirectory()
-	if len(errs) != 0 {
-		return validationPhaseError{
-			phase:  validationPhaseFileLoad,
-			errors: errs,
-		}
+	var problems []error
+	if errs := validateRegistryDirectory(); len(errs) != 0 {
+		problems = append(problems, errs...)
 	}
 
+	_, err := os.Stat("./.logos")
+	if err != nil {
+		problems = append(problems, err)
+	}
+
+	// Todo: figure out what other directories and decide what other invariants
+	// we want to set for them
+	if len(problems) != 0 {
+		return validationPhaseError{
+			phase:  validationPhaseFileStructureValidation,
+			errors: problems,
+		}
+	}
 	return nil
 }

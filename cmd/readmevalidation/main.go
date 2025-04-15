@@ -13,30 +13,34 @@ import (
 	"sync"
 
 	"coder.com/coder-registry/cmd/github"
+	"github.com/go-git/go-git/v5"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	// Do basic setup
 	log.Println("Beginning README file validation")
+
+	// Do basic setup
 	err := godotenv.Load()
 	if err != nil {
 		log.Panic(err)
 	}
-	actorUsername, err := github.ActionsActor()
+	actorUsername, err := actionsActor()
 	if err != nil {
 		log.Panic(err)
 	}
-	baseRef, err := github.BaseRef()
+	ghAPIToken, err := githubAPIToken()
 	if err != nil {
 		log.Panic(err)
 	}
-	log.Printf("Using branch %q for validation comparison", baseRef)
 
 	// Retrieve data necessary from the GitHub API to help determine whether
 	// certain field changes are allowed
 	log.Printf("Using GitHub API to determine what fields can be set by user %q\n", actorUsername)
-	client, err := github.NewClient()
+	client, err := github.NewClient(github.ClientInit{
+		BaseURL:  os.Getenv(githubAPIBaseURLKey),
+		APIToken: ghAPIToken,
+	})
 	if err != nil {
 		log.Panic(err)
 	}
@@ -59,6 +63,7 @@ func main() {
 	}
 	fmt.Printf("Script GitHub actor %q has Coder organization status %q\n", actorUsername, actorOrgStatus.String())
 
+	// Start main validation
 	log.Println("Starting README validation")
 
 	// Validate file structure of main README directory
@@ -85,17 +90,20 @@ func main() {
 
 		allReadmeFiles, err := aggregateContributorReadmeFiles()
 		if err != nil {
-			log.Panic(err)
+			errChan <- err
+			return
 		}
 		log.Printf("Processing %d README files\n", len(allReadmeFiles))
 		contributors, err := parseContributorFiles(allReadmeFiles)
 		log.Printf("Processed %d README files as valid contributor profiles", len(contributors))
 		if err != nil {
-			log.Panic(err)
+			errChan <- err
+			return
 		}
 		err = validateContributorRelativeUrls(contributors)
 		if err != nil {
-			log.Panic(err)
+			errChan <- err
+			return
 		}
 		log.Println("All relative URLs for READMEs are valid")
 		log.Printf("Processed all READMEs in the %q directory\n", rootRegistryPath)
@@ -105,6 +113,30 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+
+		baseRefReadmeFiles, err := aggregateCoderResourceReadmeFiles("modules")
+		if err != nil {
+			errChan <- err
+			return
+		}
+		fmt.Printf("------ got %d back\n", len(baseRefReadmeFiles))
+
+		repo, err := git.PlainOpenWithOptions(".", &git.PlainOpenOptions{
+			DetectDotGit:          false,
+			EnableDotGitCommonDir: false,
+		})
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		head, err := repo.Head()
+		if err != nil {
+			errChan <- err
+			return
+		}
+		activeBranchName := head.Name().Short()
+		fmt.Println("-----", activeBranchName)
 	}()
 
 	// Validate templates
