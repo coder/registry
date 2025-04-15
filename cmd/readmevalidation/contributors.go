@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"net/url"
@@ -13,17 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const rootRegistryPath = "./registry"
-
-var (
-	validContributorStatuses   = []string{"official", "partner", "community"}
-	supportedAvatarFileFormats = []string{".png", ".jpeg", ".jpg", ".gif", ".svg"}
-)
-
-type readme struct {
-	filePath string
-	rawText  string
-}
+var validContributorStatuses = []string{"official", "partner", "community"}
 
 type contributorProfileFrontmatter struct {
 	DisplayName    string `yaml:"display_name"`
@@ -63,40 +52,6 @@ func (vpe validationPhaseError) Error() string {
 	msg += "\n"
 
 	return msg
-}
-
-func extractFrontmatter(readmeText string) (string, error) {
-	if readmeText == "" {
-		return "", errors.New("README is empty")
-	}
-
-	const fence = "---"
-	fm := ""
-	fenceCount := 0
-	lineScanner := bufio.NewScanner(
-		strings.NewReader(strings.TrimSpace(readmeText)),
-	)
-	for lineScanner.Scan() {
-		nextLine := lineScanner.Text()
-		if fenceCount == 0 && nextLine != fence {
-			return "", errors.New("README does not start with frontmatter fence")
-		}
-
-		if nextLine != fence {
-			fm += nextLine + "\n"
-			continue
-		}
-
-		fenceCount++
-		if fenceCount >= 2 {
-			break
-		}
-	}
-
-	if fenceCount == 1 {
-		return "", errors.New("README does not have two sets of frontmatter fences")
-	}
-	return fm, nil
 }
 
 func validateContributorGithubUsername(githubUsername string) error {
@@ -297,7 +252,7 @@ func validateContributorYaml(yml contributorProfile) []error {
 }
 
 func parseContributorProfile(rm readme) (contributorProfile, error) {
-	fm, err := extractFrontmatter(rm.rawText)
+	fm, _, err := separateFrontmatter(rm.rawText)
 	if err != nil {
 		return contributorProfile{}, fmt.Errorf("%q: failed to parse frontmatter: %v", rm.filePath, err)
 	}
