@@ -15,6 +15,7 @@ import (
 )
 
 func main() {
+	// Do basic setup
 	log.Println("Beginning README file validation")
 	err := godotenv.Load()
 	if err != nil {
@@ -30,6 +31,8 @@ func main() {
 	}
 	log.Printf("Using branch %q for validation comparison", baseRef)
 
+	// Retrieve data necessary from the GitHub API to help determine whether
+	// certain field changes are allowed
 	log.Printf("Using GitHub API to determine what fields can be set by user %q\n", actorUsername)
 	client, err := github.NewClient()
 	if err != nil {
@@ -49,28 +52,27 @@ func main() {
 		if err != nil {
 			log.Panic(err)
 		}
+	} else {
+		log.Println("Provided API token does not belong to a Coder employee. Some README validation steps will be skipped compared to when they run in CI.")
 	}
-
 	fmt.Printf("actor %q is %s\n", actorUsername, actorOrgStatus.String())
 
 	log.Println("Starting README validation")
+
 	allReadmeFiles, err := aggregateContributorReadmeFiles()
 	if err != nil {
 		log.Panic(err)
 	}
-
 	log.Printf("Processing %d README files\n", len(allReadmeFiles))
 	contributors, err := parseContributorFiles(allReadmeFiles)
 	log.Printf("Processed %d README files as valid contributor profiles", len(contributors))
 	if err != nil {
 		log.Panic(err)
 	}
-
-	err = validateRelativeUrls(contributors)
+	err = validateContributorRelativeUrls(contributors)
 	if err != nil {
 		log.Panic(err)
 	}
 	log.Println("All relative URLs for READMEs are valid")
-
 	log.Printf("Processed all READMEs in the %q directory\n", rootRegistryPath)
 }

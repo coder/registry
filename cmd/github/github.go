@@ -149,25 +149,28 @@ func (s OrgStatus) String() string {
 }
 
 // GetUserOrgStatus takes a GitHub username, and checks the GitHub API to see
-// whether that member is part of the Coder organization
-func (gc *Client) GetUserOrgStatus(org string, username string) (OrgStatus, error) {
+// whether that member is part of the provided organization
+func (gc *Client) GetUserOrgStatus(orgName string, username string) (OrgStatus, error) {
 	// This API endpoint is really annoying, because it's able to produce false
-	// negatives. Any user can be a public member of Coder, a private member of
-	// Coder, or a non-member.
+	// negatives. Any user can be:
+	// 1. A public member of an organization
+	// 2. A private member of an organization
+	// 3. Not a member of an organization
 	//
 	// So if the function returns status 200, you can always trust that. But if
 	// it returns any 400 code, that could indicate a few things:
-	// 1. The user being checked is not part of the organization, but the user
-	//    associated with the token is.
-	// 2. The user being checked is a member of the organization, but their
-	//    status is private, and the token being used to check belongs to a user
-	//    who is not part of the Coder organization.
+	// 1. The user associated with the token is a member of the organization,
+	//    and the user being checked is not.
+	// 2. The user associated with the token is NOT a member of the
+	//    organization, and the member being checked is a private member. The
+	//    token user will have no way to view the private member's status.
 	// 3. Neither the user being checked nor the user associated with the token
-	//    are members of the organization
+	//    are members of the organization.
 	//
-	// The best option is to make sure that the token being used belongs to a
-	// member of the Coder organization
-	req, err := http.NewRequest("GET", fmt.Sprintf("%sorgs/%s/%s", gc.baseURL, org, username), nil)
+	// The best option to avoid false positives is to make sure that the token
+	// being used belongs to a member of the organization being checked.
+	url := fmt.Sprintf("%sorgs/%s/members/%s", gc.baseURL, orgName, username)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return OrgStatusIndeterminate, err
 	}
