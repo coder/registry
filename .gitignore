@@ -135,5 +135,6 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
-# Script output
+# Things needed for CI
 /readmevalidation
+/readmevalidation-git

@@ -71,6 +71,12 @@ func validateRegistryDirectory() []error {
 			problems = append(problems, err)
 		}
 
+		mainTerraformPath := path.Join(dirPath, "main.tf")
+		_, err = os.Stat(mainTerraformPath)
+		if err != nil {
+			problems = append(problems, err)
+		}
+
 		for _, rType := range supportedResourceTypes {
 			resourcePath := path.Join(dirPath, rType)
 			if errs := validateCoderResourceSubdirectory(resourcePath); len(errs) != 0 {

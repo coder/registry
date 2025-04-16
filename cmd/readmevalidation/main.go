@@ -15,6 +15,7 @@ import (
 	"coder.com/coder-registry/cmd/github"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/joho/godotenv"
 )
 
@@ -110,9 +111,9 @@ func main() {
 			}
 			fmt.Printf("------ got %d back\n", len(baseRefReadmeFiles))
 
-			repo, err := git.PlainOpenWithOptions(".", &git.PlainOpenOptions{
-				DetectDotGit:          false,
-				EnableDotGitCommonDir: false,
+			repo, err := git.PlainClone(dummyGitDirectory, true, &git.CloneOptions{
+				URL:  "https://github.com/coder/registry",
+				Auth: &http.BasicAuth{},
 			})
 			if err != nil {
 				return err
@@ -123,7 +124,6 @@ func main() {
 				return err
 			}
 			activeBranchName := head.Name().Short()
-			fmt.Println("yeah...")
 
 			tree, err := repo.Worktree()
 			if err != nil {

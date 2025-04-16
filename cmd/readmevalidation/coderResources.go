@@ -12,6 +12,13 @@ import (
 	"coder.com/coder-registry/cmd/github"
 )
 
+// dummyGitDirectory is the directory that a full version of the Registry will
+// be cloned into during CI. The CI needs to use Git history to validate
+// certain README files, and using the root branch itself (even though it's
+// fully equivalent) has a risk of breaking other CI steps when switching
+// branches. Better to make a full isolated copy and manipulate that.
+const dummyGitDirectory = "./readmevalidation-git"
+
 var supportedResourceTypes = []string{"modules", "templates"}
 
 type coderResourceFrontmatter struct {
