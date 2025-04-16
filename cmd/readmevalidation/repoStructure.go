@@ -93,8 +93,8 @@ func validateRepoStructure() error {
 		problems = append(problems, err)
 	}
 
-	// Todo: figure out what other directories and decide what other invariants
-	// we want to set for them
+	// Todo: figure out what other directories we want to make guarantees for
+	// and add them to this function
 	if len(problems) != 0 {
 		return validationPhaseError{
 			phase:  validationPhaseFileStructureValidation,

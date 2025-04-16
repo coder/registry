@@ -125,11 +125,25 @@ func main() {
 			return
 		}
 		activeBranchName := head.Name().Short()
-		_, err = repo.Reference(plumbing.ReferenceName(activeBranchName), true)
+		fmt.Println("Found ", activeBranchName)
+
+		wt, err := repo.Worktree()
 		if err != nil {
 			errChan <- err
 			return
 		}
+		err = wt.Checkout(&git.CheckoutOptions{
+			Branch: plumbing.ReferenceName(activeBranchName),
+			Create: false,
+			Force:  false,
+			Keep:   true,
+		})
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		fmt.Println("Got here!")
 	}()
 
 	// Validate templates
@@ -142,10 +156,14 @@ func main() {
 	wg.Wait()
 	close(errChan)
 	<-doneChan
+	if len(readmeValidationErrors) == 0 {
+		log.Println("All validation was successful")
+		return
+	}
+
+	fmt.Println("---\nEncountered the following problems")
 	for _, err := range readmeValidationErrors {
 		log.Println(err)
 	}
-	if len(readmeValidationErrors) != 0 {
-		os.Exit(1)
-	}
+	os.Exit(1)
 }
