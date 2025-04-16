@@ -15,10 +15,10 @@
     "module": "ESNext",
 
     "paths": {
-      // 2025-04-16 - This seems to be a Bun-specific bug, where extending the
-      // tsconfig file causes all paths from the base tsconfig file to be
-      // forgotten. Node and the VSCode IDE recognize the path no problem, but
-      // without this, the tests will fail.
+      // 2025-04-16 - This seems to be a Bun-specific bug, where extending a
+      // tsconfig file causes all its paths to be forgotten. The VSCode LSP
+      // recognizes the path just fine without this, but Bun needs the mapping
+      // to be redefined
       "~test": ["../../../../test/test.ts"]
     }
   }
