@@ -1,7 +1,7 @@
 ---
 display_name: code-server
 description: VS Code in the browser
-icon: ../../../.icons/code.svg
+icon: ../../../../.icons/code.svg
 maintainer_github: coder
 verified: true
 tags: [helper, ide, web]

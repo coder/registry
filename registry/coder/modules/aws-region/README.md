@@ -1,7 +1,7 @@
 ---
 display_name: AWS Region
 description: A parameter with human region names and icons
-icon: ../../../.icons/aws.svg
+icon: ../../../../.icons/aws.svg
 maintainer_github: coder
 verified: true
 tags: [helper, parameter, regions, aws]

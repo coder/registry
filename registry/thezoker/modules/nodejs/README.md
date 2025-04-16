@@ -1,7 +1,7 @@
 ---
 display_name: nodejs
 description: Install Node.js via nvm
-icon: ../../../.icons/node.svg
+icon: ../../../../.icons/node.svg
 maintainer_github: TheZoker
 verified: false
 tags: [helper]

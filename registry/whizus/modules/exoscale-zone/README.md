@@ -1,7 +1,7 @@
 ---
 display_name: exoscale-zone
 description: A parameter with human zone names and icons
-icon: ../../../.icons/exoscale.svg
+icon: ../../../../.icons/exoscale.svg
 maintainer_github: WhizUs
 verified: false
 tags: [helper, parameter, zones, regions, exoscale]

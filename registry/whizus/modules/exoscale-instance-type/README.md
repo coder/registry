@@ -1,7 +1,7 @@
 ---
 display_name: exoscale-instance-type
 description: A parameter with human readable exoscale instance names
-icon: ../../../.icons/exoscale.svg
+icon: ../../../../.icons/exoscale.svg
 maintainer_github: WhizUs
 verified: false
 tags: [helper, parameter, instances, exoscale]
