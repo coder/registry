@@ -103,47 +103,57 @@ func main() {
 	go func() {
 		defer wg.Done()
 
-		baseRefReadmeFiles, err := aggregateCoderResourceReadmeFiles("modules")
-		if err != nil {
-			errChan <- err
-			return
-		}
-		fmt.Printf("------ got %d back\n", len(baseRefReadmeFiles))
+		refactorLater := func() error {
+			baseRefReadmeFiles, err := aggregateCoderResourceReadmeFiles("modules")
+			if err != nil {
+				return err
+			}
+			fmt.Printf("------ got %d back\n", len(baseRefReadmeFiles))
 
-		repo, err := git.PlainOpenWithOptions(".", &git.PlainOpenOptions{
-			DetectDotGit:          false,
-			EnableDotGitCommonDir: false,
-		})
-		if err != nil {
-			errChan <- err
-			return
+			repo, err := git.PlainOpenWithOptions(".", &git.PlainOpenOptions{
+				DetectDotGit:          false,
+				EnableDotGitCommonDir: false,
+			})
+			if err != nil {
+				return err
+			}
+
+			head, err := repo.Head()
+			if err != nil {
+				return err
+			}
+			activeBranchName := head.Name().Short()
+			fmt.Println("yeah...")
+
+			tree, err := repo.Worktree()
+			if err != nil {
+				return err
+			}
+			err = tree.Checkout(&git.CheckoutOptions{
+				Branch: plumbing.NewBranchReferenceName(activeBranchName),
+				Create: false,
+				Force:  false,
+				Keep:   true,
+			})
+			if err != nil {
+				return err
+			}
+
+			fmt.Println("Got here!")
+			files, _ := tree.Filesystem.ReadDir(".")
+			for _, f := range files {
+				if f.IsDir() {
+					fmt.Println(f.Name())
+				}
+			}
+
+			return nil
 		}
 
-		head, err := repo.Head()
-		if err != nil {
-			errChan <- err
-			return
-		}
-		activeBranchName := head.Name().Short()
-		fmt.Println("Found ", activeBranchName)
-
-		wt, err := repo.Worktree()
-		if err != nil {
-			errChan <- err
-			return
-		}
-		err = wt.Checkout(&git.CheckoutOptions{
-			Branch: plumbing.ReferenceName(activeBranchName),
-			Create: false,
-			Force:  false,
-			Keep:   true,
-		})
-		if err != nil {
-			errChan <- err
-			return
+		if err := refactorLater(); err != nil {
+			errChan <- fmt.Errorf("module validation: %v", err)
 		}
 
-		fmt.Println("Got here!")
 	}()
 
 	// Validate templates
@@ -161,7 +171,8 @@ func main() {
 		return
 	}
 
-	fmt.Println("---\nEncountered the following problems")
+	fmt.Println("---")
+	fmt.Println("Encountered the following problems")
 	for _, err := range readmeValidationErrors {
 		log.Println(err)
 	}
