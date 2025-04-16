@@ -3,7 +3,7 @@ import {
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
-} from "../test";
+} from "~test";
 
 describe("azure-region", async () => {
   await runTerraformInit(import.meta.dir);

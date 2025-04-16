@@ -3,7 +3,7 @@ import {
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
-} from "../test";
+} from "~test";
 
 describe("exoscale-zone", async () => {
   await runTerraformInit(import.meta.dir);

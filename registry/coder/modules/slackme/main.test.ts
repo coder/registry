@@ -9,7 +9,7 @@ import {
   runTerraformInit,
   testRequiredVariables,
   writeCoder,
-} from "../test";
+} from "~test";
 
 describe("slackme", async () => {
   await runTerraformInit(import.meta.dir);

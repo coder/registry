@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { runTerraformApply, runTerraformInit } from "../test";
+import { runTerraformApply, runTerraformInit } from "~test";
 
 describe("vscode-web", async () => {
   await runTerraformInit(import.meta.dir);

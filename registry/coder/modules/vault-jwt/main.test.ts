@@ -1,5 +1,5 @@
 import { describe } from "bun:test";
-import { runTerraformInit, testRequiredVariables } from "../test";
+import { runTerraformInit, testRequiredVariables } from "~test";
 
 describe("vault-jwt", async () => {
   await runTerraformInit(import.meta.dir);

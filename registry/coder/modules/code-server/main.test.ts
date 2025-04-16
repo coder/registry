@@ -3,7 +3,7 @@ import {
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
-} from "../test";
+} from "~test";
 
 describe("code-server", async () => {
   await runTerraformInit(import.meta.dir);

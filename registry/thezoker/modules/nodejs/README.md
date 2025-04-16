@@ -20,7 +20,7 @@ module "nodejs" {
 }
 ```
 
-### Install multiple versions
+## Install multiple versions
 
 This installs multiple versions of Node.js:
 

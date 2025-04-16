@@ -3,7 +3,7 @@ import {
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
-} from "../test";
+} from "~test";
 
 const allowedDesktopEnvs = ["xfce", "kde", "gnome", "lxde", "lxqt"] as const;
 type AllowedDesktopEnv = (typeof allowedDesktopEnvs)[number];

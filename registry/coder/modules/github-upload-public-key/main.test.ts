@@ -9,7 +9,7 @@ import {
   runTerraformInit,
   testRequiredVariables,
   writeCoder,
-} from "../test";
+} from "~test";
 
 describe("github-upload-public-key", async () => {
   await runTerraformInit(import.meta.dir);

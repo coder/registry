@@ -4,7 +4,7 @@ import {
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
-} from "../test";
+} from "~test";
 
 type TestVariables = Readonly<{
   agent_id: string;

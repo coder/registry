@@ -8,7 +8,7 @@ import {
   runTerraformInit,
   testRequiredVariables,
   type TerraformState,
-} from "../test";
+} from "~test";
 
 // executes the coder script after installing pip
 const executeScriptInContainerWithPip = async (

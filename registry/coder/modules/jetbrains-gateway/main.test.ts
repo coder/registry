@@ -3,7 +3,7 @@ import {
   runTerraformInit,
   testRequiredVariables,
   runTerraformApply,
-} from "../test";
+} from "~test";
 
 describe("jetbrains-gateway", async () => {
   await runTerraformInit(import.meta.dir);

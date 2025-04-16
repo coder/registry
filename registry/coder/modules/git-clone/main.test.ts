@@ -4,7 +4,7 @@ import {
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
-} from "../test";
+} from "~test";
 
 describe("git-clone", async () => {
   await runTerraformInit(import.meta.dir);
