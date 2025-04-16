@@ -1,7 +1,7 @@
 ---
 display_name: JFrog (OAuth)
 description: Install the JF CLI and authenticate with Artifactory using OAuth.
-icon: ../../../.icons/jfrog.svg
+icon: ../../../../.icons/jfrog.svg
 maintainer_github: coder
 partner_github: jfrog
 verified: true

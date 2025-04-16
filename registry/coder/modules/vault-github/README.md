@@ -1,7 +1,7 @@
 ---
 display_name: Hashicorp Vault Integration (GitHub)
 description: Authenticates with Vault using GitHub
-icon: ../../../.icons/vault.svg
+icon: ../../../../.icons/vault.svg
 maintainer_github: coder
 partner_github: hashicorp
 verified: true

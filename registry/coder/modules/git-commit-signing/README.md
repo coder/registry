@@ -1,7 +1,7 @@
 ---
 display_name: Git commit signing
 description: Configures Git to sign commits using your Coder SSH key
-icon: ../../../.icons/git.svg
+icon: ../../../../.icons/git.svg
 maintainer_github: coder
 verified: true
 tags: [helper, git]

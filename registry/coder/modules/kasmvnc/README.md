@@ -1,7 +1,7 @@
 ---
 display_name: KasmVNC
 description: A modern open source VNC server
-icon: ../../../.icons/kasmvnc.svg
+icon: ../../../../.icons/kasmvnc.svg
 maintainer_github: coder
 verified: true
 tags: [helper, vnc, desktop]

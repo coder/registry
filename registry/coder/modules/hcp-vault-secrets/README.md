@@ -1,7 +1,7 @@
 ---
 display_name: "HCP Vault Secrets"
 description: "Fetch secrets from HCP Vault"
-icon: ../../../.icons/vault.svg
+icon: ../../../../.icons/vault.svg
 maintainer_github: coder
 partner_github: hashicorp
 verified: true
