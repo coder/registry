@@ -14,6 +14,7 @@ import (
 
 	"coder.com/coder-registry/cmd/github"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/joho/godotenv"
 )
 
@@ -66,7 +67,10 @@ func main() {
 	// Start main validation
 	log.Println("Starting README validation")
 
-	// Validate file structure of main README directory
+	// Validate file structure of main README directory. Have to do this
+	// synchronously and before everything else, or else there's no way to for
+	// the other main validation functions can't make any safe assumptions
+	// about where they should look in the repo
 	log.Println("Validating directory structure of the README directory")
 	err = validateRepoStructure()
 	if err != nil {
@@ -76,18 +80,22 @@ func main() {
 	// Set up concurrency for validating each category of README file
 	var readmeValidationErrors []error
 	errChan := make(chan error, 1)
+	doneChan := make(chan struct{})
 	wg := sync.WaitGroup{}
 	go func() {
 		for err := range errChan {
 			readmeValidationErrors = append(readmeValidationErrors, err)
 		}
+		close(doneChan)
 	}()
 
 	// Validate contributor README files
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		validateAllContributors(errChan)
+		if err := validateAllContributors(); err != nil {
+			errChan <- fmt.Errorf("contributor validation: %v", err)
+		}
 	}()
 
 	// Validate modules
@@ -117,7 +125,11 @@ func main() {
 			return
 		}
 		activeBranchName := head.Name().Short()
-		fmt.Println("-----", activeBranchName)
+		_, err = repo.Reference(plumbing.ReferenceName(activeBranchName), true)
+		if err != nil {
+			errChan <- err
+			return
+		}
 	}()
 
 	// Validate templates
@@ -126,9 +138,10 @@ func main() {
 		defer wg.Done()
 	}()
 
-	// Clean up and log errors
+	// Clean up and then log errors
 	wg.Wait()
 	close(errChan)
+	<-doneChan
 	for _, err := range readmeValidationErrors {
 		log.Println(err)
 	}
