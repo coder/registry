@@ -1,0 +1,36 @@
+name: deploy-registry
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    # Set id-token permission for gcloud
+    # Adding a comment because retriggering the build manually hung? I am the lord of devops and you will bend?
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@71f986410dfbc7added4569d411d040a91dc6935
+        with:
+          workload_identity_provider: projects/309789351055/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: registry-v2-github@coder-registry-1.iam.gserviceaccount.com
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@77e7a554d41e2ee56fc945c52dfd3f33d12def9a
+
+        # For the time being, let's have the first couple merges to main in modules deploy a new version
+        # to *dev*. Once we review and make sure everything's working, we can deploy a new version to *main*.
+        # Maybe in the future we could automate this based on the result of E2E tests.
+      - name: Deploy to dev.registry.coder.com
+        run: |
+          gcloud builds triggers run 29818181-126d-4f8a-a937-f228b27d3d34 --branch dev
