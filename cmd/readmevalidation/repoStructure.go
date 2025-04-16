@@ -97,7 +97,7 @@ func validateRepoStructure() error {
 		problems = append(problems, errs...)
 	}
 
-	_, err := os.Stat("./.logos")
+	_, err := os.Stat("./.icons")
 	if err != nil {
 		problems = append(problems, err)
 	}

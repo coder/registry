@@ -172,9 +172,9 @@ func main() {
 	}
 
 	fmt.Println("---")
-	fmt.Println("Encountered the following problems")
+	log.Println("Encountered the following problems")
 	for _, err := range readmeValidationErrors {
-		log.Println(err)
+		fmt.Println(err)
 	}
 	os.Exit(1)
 }

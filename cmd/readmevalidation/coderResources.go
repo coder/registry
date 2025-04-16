@@ -87,9 +87,9 @@ func validateCoderResourceIconURL(iconURL string) []error {
 	// repo, and where this logic will run
 	isPermittedRelativeURL := strings.HasPrefix(iconURL, "./") ||
 		strings.HasPrefix(iconURL, "/") ||
-		strings.HasPrefix(iconURL, "../../../.logos")
+		strings.HasPrefix(iconURL, "../../../.icons")
 	if !isPermittedRelativeURL {
-		problems = append(problems, errors.New("relative icon URL must either be scoped to that module's directory, or the top-level /.logos directory"))
+		problems = append(problems, fmt.Errorf("relative icon URL %q must either be scoped to that module's directory, or the top-level /.icons directory (this can usually be done by starting the path with \"../../../.icons\")", iconURL))
 	}
 
 	return problems

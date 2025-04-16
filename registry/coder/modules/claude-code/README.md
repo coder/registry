@@ -1,7 +1,8 @@
 ---
 display_name: Claude Code
 description: Run Claude Code in your workspace
-icon: ../.icons/claude.svg
+icon: ../../../.icons/claude.svg
+maintainer_github: coder
 verified: true
 tags: [agent, claude-code]
 ---

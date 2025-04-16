@@ -1,7 +1,7 @@
 ---
 display_name: Cursor IDE
 description: Add a one-click button to launch Cursor IDE
-icon: ../.icons/cursor.svg
+icon: ../../../.icons/cursor.svg
 verified: true
 tags: [ide, cursor, helper]
 ---
