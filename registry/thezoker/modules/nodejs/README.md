@@ -1,5 +1,5 @@
 ---
-display_name: nodejs
+display_name: Node.js
 description: Install Node.js via nvm
 icon: ../../../../.icons/node.svg
 maintainer_github: TheZoker
