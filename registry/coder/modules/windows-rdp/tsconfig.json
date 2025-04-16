@@ -1,0 +1,11 @@
+{
+  // Even though this module doesn't contain any TypeScript, it's still
+  // incredibly helpful to include a custom tsconfig file here to ensure that
+  // the raw, unprocessed JavaScript we send doesn't use features that are too
+  // modern, to maximize browser compatibility
+  "extends": ["../../../../tsconfig.json"],
+  "compilerOptions": {
+    "target": "ES6",
+    "module": "ES6"
+  }
+}

@@ -152,6 +152,7 @@ async function autoSubmitForm(myForm) {
     // they're part of the form. Avoids CSS stacking context issues, maybe?
     /** @type {HTMLLIElement | null} */
     const protocolOption = document.querySelector(
+      // biome-ignore lint/style/useTemplate: Have to skip interpolation for the main.tf interpolation
       'p-dropdownitem[ng-reflect-label="' + PROTOCOL + '"] li',
     );
 
@@ -191,6 +192,7 @@ async function autoSubmitForm(myForm) {
 
       if (input === null) {
         throw new Error(
+          // biome-ignore lint/style/useTemplate: Have to skip interpolation for the main.tf interpolation
           'Unable to element that matches query "' + querySelector + '"',
         );
       }
@@ -293,6 +295,7 @@ function setupFormDetection() {
  */
 function setupAlwaysOnStyles() {
   const styleId = "coder-patch--styles-always-on";
+  // biome-ignore lint/style/useTemplate: Have to skip interpolation for the main.tf interpolation
   const existingContainer = document.querySelector("#" + styleId);
   if (existingContainer) {
     return;
@@ -310,11 +313,24 @@ function setupAlwaysOnStyles() {
   document.head.appendChild(styleContainer);
 }
 
+/**
+ * This ensures that the Devolutions login form (which by default, always shows
+ * up on screen when the app first launches) stays visually hidden from the user
+ * when they open Devolutions via the Coder module.
+ *
+ * The form will still be filled out automatically and submitted in the
+ * background via the rest of the logic in this file, so this function is mainly
+ * to help avoid screen flickering and make the overall experience feel a little
+ * more polished (even though it's just one giant hack).
+ *
+ * @returns {void}
+ */
 function hideFormForInitialSubmission() {
   const styleId = "coder-patch--styles-initial-submission";
   const cssOpacityVariableName = "--coder-opacity-multiplier";
 
   /** @type {HTMLStyleElement | null} */
+  // biome-ignore lint/style/useTemplate: Have to skip interpolation for the main.tf interpolation
   let styleContainer = document.querySelector("#" + styleId);
   if (!styleContainer) {
     styleContainer = document.createElement("style");

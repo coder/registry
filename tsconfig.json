@@ -1,9 +1,5 @@
 {
   "compilerOptions": {
-    // If we were just compiling for the tests, we could safely target ESNext at
-    // all times, but just because we've been starting to add more runtime logic
-    // files to some of the modules, erring on the side of caution by having a
-    // older compilation target
     "target": "ES2024",
     "module": "esnext",
     "strict": true,
