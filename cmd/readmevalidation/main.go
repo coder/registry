@@ -13,9 +13,6 @@ import (
 	"sync"
 
 	"coder.com/coder-registry/cmd/github"
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/joho/godotenv"
 )
 
@@ -104,53 +101,56 @@ func main() {
 	go func() {
 		defer wg.Done()
 
-		refactorLater := func() error {
+		moveToOuterScopeLater := func() error {
 			baseRefReadmeFiles, err := aggregateCoderResourceReadmeFiles("modules")
 			if err != nil {
 				return err
 			}
-			fmt.Printf("------ got %d back\n", len(baseRefReadmeFiles))
-
-			repo, err := git.PlainClone(dummyGitDirectory, true, &git.CloneOptions{
-				URL:  "https://github.com/coder/registry",
-				Auth: &http.BasicAuth{},
-			})
+			parsed, err := parseCoderResourceFiles("modules", baseRefReadmeFiles, baseRefReadmeFiles, actorOrgStatus)
 			if err != nil {
 				return err
 			}
+			fmt.Printf("------ got %d back\n", len(parsed))
 
-			head, err := repo.Head()
-			if err != nil {
-				return err
-			}
-			activeBranchName := head.Name().Short()
+			// repo, err := git.PlainClone(dummyGitDirectory, true, &git.CloneOptions{
+			// 	URL:  "https://github.com/coder/registry",
+			// 	Auth: &http.BasicAuth{},
+			// })
+			// if err != nil {
+			// 	return err
+			// }
 
-			tree, err := repo.Worktree()
-			if err != nil {
-				return err
-			}
-			err = tree.Checkout(&git.CheckoutOptions{
-				Branch: plumbing.NewBranchReferenceName(activeBranchName),
-				Create: false,
-				Force:  false,
-				Keep:   true,
-			})
-			if err != nil {
-				return err
-			}
+			// head, err := repo.Head()
+			// if err != nil {
+			// 	return err
+			// }
+			// activeBranchName := head.Name().Short()
 
-			fmt.Println("Got here!")
-			files, _ := tree.Filesystem.ReadDir(".")
-			for _, f := range files {
-				if f.IsDir() {
-					fmt.Println(f.Name())
-				}
-			}
+			// tree, err := repo.Worktree()
+			// if err != nil {
+			// 	return err
+			// }
+			// err = tree.Checkout(&git.CheckoutOptions{
+			// 	Branch: plumbing.NewBranchReferenceName(activeBranchName),
+			// 	Create: false,
+			// 	Force:  false,
+			// 	Keep:   true,
+			// })
+			// if err != nil {
+			// 	return err
+			// }
+
+			// files, _ := tree.Filesystem.ReadDir(".")
+			// for _, f := range files {
+			// 	if f.IsDir() {
+			// 		fmt.Println(f.Name())
+			// 	}
+			// }
 
 			return nil
 		}
 
-		if err := refactorLater(); err != nil {
+		if err := moveToOuterScopeLater(); err != nil {
 			errChan <- fmt.Errorf("module validation: %v", err)
 		}
 

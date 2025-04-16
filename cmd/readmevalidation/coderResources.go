@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"coder.com/coder-registry/cmd/github"
+	"gopkg.in/yaml.v3"
 )
 
 // dummyGitDirectory is the directory that a full version of the Registry will
@@ -34,7 +35,7 @@ type coderResourceFrontmatter struct {
 // Coder Modules and Coder Templates. If the newReadmeBody and newFrontmatter
 // fields are nil, that represents that the file has been deleted
 type coderResource struct {
-	name           string
+	resourceType   string
 	filePath       string
 	newReadmeBody  *string
 	oldFrontmatter *coderResourceFrontmatter
@@ -178,10 +179,77 @@ func validateCoderResourceChanges(resource coderResource, actorOrgStatus github.
 	return problems
 }
 
-func parseCoderResourceFiles(oldReadmeFiles []readme, newReadmeFiles []readme, actorOrgStatus github.OrgStatus) (map[string]coderResource, error) {
-	return nil, nil
+func parseCoderResourceFiles(resourceType string, oldReadmeFiles []readme, newReadmeFiles []readme, actorOrgStatus github.OrgStatus) (map[string]coderResource, error) {
+	if !slices.Contains(supportedResourceTypes, resourceType) {
+		return nil, fmt.Errorf("resource type %q is not in supported list [%s]", resourceType, strings.Join(supportedResourceTypes, ", "))
+	}
+
+	var errs []error
+	resourcesByFilePath := map[string]coderResource{}
+	zipped := zipReadmes(oldReadmeFiles, newReadmeFiles)
+
+	for filePath, z := range zipped {
+		resource := coderResource{
+			resourceType: resourceType,
+			filePath:     filePath,
+		}
+
+		if z.new != nil {
+			fm, body, err := separateFrontmatter(z.new.rawText)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("resource type %s - %q: %v", resourceType, filePath, err))
+			} else {
+				resource.newReadmeBody = &body
+				var newFm coderResourceFrontmatter
+				if err := yaml.Unmarshal([]byte(fm), &newFm); err != nil {
+					errs = append(errs, fmt.Errorf("resource type %s - %q: %v", resourceType, filePath, err))
+				} else {
+					resource.newFrontmatter = &newFm
+					if newFm.Verified != nil && *newFm.Verified {
+						resource.newIsVerified = true
+					}
+				}
+			}
+		}
+
+		if z.old != nil {
+			fm, _, err := separateFrontmatter(z.old.rawText)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("resource type %s - %q: %v", resourceType, filePath, err))
+			} else {
+				var oldFm coderResourceFrontmatter
+				if err := yaml.Unmarshal([]byte(fm), &oldFm); err != nil {
+					errs = append(errs, fmt.Errorf("resource type %s - %q: %v", resourceType, filePath, err))
+				} else {
+					resource.oldFrontmatter = &oldFm
+					if oldFm.Verified != nil && *oldFm.Verified {
+						resource.oldIsVerified = true
+					}
+				}
+			}
+		}
+
+		if z.old != nil || z.new != nil {
+			resourcesByFilePath[filePath] = resource
+		}
+	}
+
+	for _, r := range resourcesByFilePath {
+		errs = append(errs, validateCoderResourceChanges(r, actorOrgStatus)...)
+	}
+
+	if len(errs) != 0 {
+		return nil, validationPhaseError{
+			phase:  validationPhaseReadmeParsing,
+			errors: errs,
+		}
+	}
+	return resourcesByFilePath, nil
 }
 
+// Todo: because Coder Resource READMEs will have their full contents
+// (frontmatter and body) rendered on the Registry site, we need to make sure
+// that all image references in the body are valid, too
 func validateCoderResourceRelativeUrls(map[string]coderResource) []error {
 	return nil
 }

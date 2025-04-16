@@ -37,15 +37,24 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 
 		resourceReadmePath := path.Join(dirPath, f.Name(), "README.md")
 		_, err := os.Stat(resourceReadmePath)
-		if err == nil {
-			continue
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				errs = append(errs, fmt.Errorf("%q: README file does not exist", resourceReadmePath))
+			} else {
+				errs = append(errs, addFilePathToError(resourceReadmePath, err))
+			}
 		}
 
-		if errors.Is(err, os.ErrNotExist) {
-			errs = append(errs, fmt.Errorf("%q: README file does not exist", resourceReadmePath))
-		} else {
-			errs = append(errs, addFilePathToError(resourceReadmePath, err))
+		mainTerraformPath := path.Join(dirPath, f.Name(), "main.tf")
+		_, err = os.Stat(mainTerraformPath)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				errs = append(errs, fmt.Errorf("%q: 'main.tf' file does not exist", mainTerraformPath))
+			} else {
+				errs = append(errs, addFilePathToError(mainTerraformPath, err))
+			}
 		}
+
 	}
 
 	return errs
@@ -67,12 +76,6 @@ func validateRegistryDirectory() []error {
 
 		readmePath := path.Join(dirPath, "README.md")
 		_, err := os.Stat(readmePath)
-		if err != nil {
-			problems = append(problems, err)
-		}
-
-		mainTerraformPath := path.Join(dirPath, "main.tf")
-		_, err = os.Stat(mainTerraformPath)
 		if err != nil {
 			problems = append(problems, err)
 		}

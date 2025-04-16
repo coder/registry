@@ -108,3 +108,48 @@ func (p validationPhase) String() string {
 		return "Unknown validation phase"
 	}
 }
+
+type zippedReadmes struct {
+	old *readme
+	new *readme
+}
+
+// zipReadmes takes two slices of README files, and combines them into a map,
+// where each key is a file path, and each value is a struct containing the old
+// value for the path, and the new value for the path. If the old value exists
+// but the new one doesn't, that indicates that a file has been deleted. If the
+// new value exists, but the old one doesn't, that indicates that the file was
+// created.
+func zipReadmes(prevReadmes []readme, newReadmes []readme) map[string]zippedReadmes {
+	oldMap := map[string]readme{}
+	for _, rm := range prevReadmes {
+		oldMap[rm.filePath] = rm
+	}
+
+	zipped := map[string]zippedReadmes{}
+	for _, rm := range newReadmes {
+		old, ok := oldMap[rm.filePath]
+		if ok {
+			zipped[rm.filePath] = zippedReadmes{
+				old: &old,
+				new: &rm,
+			}
+		} else {
+			zipped[rm.filePath] = zippedReadmes{
+				old: nil,
+				new: &rm,
+			}
+		}
+	}
+	for _, old := range oldMap {
+		_, ok := zipped[old.filePath]
+		if !ok {
+			zipped[old.filePath] = zippedReadmes{
+				old: &old,
+				new: nil,
+			}
+		}
+	}
+
+	return zipped
+}
