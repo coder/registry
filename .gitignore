@@ -137,3 +137,11 @@ dist
 
 # Script output
 /contributors
+
+# Terraform files generated during testing
+.terraform*
+*.tfstate
+*.tfstate.lock.info
+
+# Generated credentials from google-github-actions/auth
+gha-creds-*.json
