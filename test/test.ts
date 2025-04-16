@@ -202,6 +202,14 @@ export const runTerraformApply = async <TVars extends TerraformVariables>(
     ...process.env,
     ...(customEnv ?? {}),
   };
+
+  // This is a fix for when you try to run the tests from a Coder workspace.
+  // When process.env is destructured into the object, it can sometimes have
+  // workspace-specific values, which causes the resulting URL to be different
+  // from what the tests have classically expected.
+  childEnv.CODER_AGENT_URL = undefined;
+  childEnv.CODER_WORKSPACE_NAME = undefined;
+
   for (const [key, value] of Object.entries(vars) as [string, JsonValue][]) {
     if (value !== null) {
       childEnv[`TF_VAR_${key}`] = String(value);
