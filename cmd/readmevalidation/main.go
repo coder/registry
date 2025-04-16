@@ -87,26 +87,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-
-		allReadmeFiles, err := aggregateContributorReadmeFiles()
-		if err != nil {
-			errChan <- err
-			return
-		}
-		log.Printf("Processing %d README files\n", len(allReadmeFiles))
-		contributors, err := parseContributorFiles(allReadmeFiles)
-		log.Printf("Processed %d README files as valid contributor profiles", len(contributors))
-		if err != nil {
-			errChan <- err
-			return
-		}
-		err = validateContributorRelativeUrls(contributors)
-		if err != nil {
-			errChan <- err
-			return
-		}
-		log.Println("All relative URLs for READMEs are valid")
-		log.Printf("Processed all READMEs in the %q directory\n", rootRegistryPath)
+		validateAllContributors(errChan)
 	}()
 
 	// Validate modules
