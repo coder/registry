@@ -1,7 +1,7 @@
 ---
 display_name: Azure Region
 description: A parameter with human region names and icons
-icon: ../.icons/azure.svg
+icon: ../../../.icons/azure.svg
 maintainer_github: coder
 verified: true
 tags: [helper, parameter, azure, regions]
@@ -24,7 +24,7 @@ resource "azurem_resource_group" "example" {
 }
 ```
 
-![Azure Region Default](../.images/azure-default.png)
+![Azure Region Default](../../.images/azure-default.png)
 
 ## Examples
 
@@ -50,7 +50,7 @@ resource "azurerm_resource_group" "example" {
 }
 ```
 
-![Azure Region Custom](../.images/azure-custom.png)
+![Azure Region Custom](../../.images/azure-custom.png)
 
 ### Exclude Regions
 
@@ -74,7 +74,7 @@ resource "azurerm_resource_group" "example" {
 }
 ```
 
-![Azure Exclude](../.images/azure-exclude.png)
+![Azure Exclude](../../.images/azure-exclude.png)
 
 ## Related templates
 

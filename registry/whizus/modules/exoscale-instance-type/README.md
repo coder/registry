@@ -1,7 +1,7 @@
 ---
 display_name: exoscale-instance-type
 description: A parameter with human readable exoscale instance names
-icon: ../.icons/exoscale.svg
+icon: ../../../.icons/exoscale.svg
 maintainer_github: WhizUs
 verified: false
 tags: [helper, parameter, instances, exoscale]
@@ -35,7 +35,7 @@ resource "coder_metadata" "workspace_info" {
 }
 ```
 
-![Exoscale instance types](../.images/exoscale-instance-types.png)
+![Exoscale instance types](../../.images/exoscale-instance-types.png)
 
 ## Examples
 
@@ -72,7 +72,7 @@ resource "coder_metadata" "workspace_info" {
 }
 ```
 
-![Exoscale instance types Custom](../.images/exoscale-instance-custom.png)
+![Exoscale instance types Custom](../../.images/exoscale-instance-custom.png)
 
 ### Use category and exclude type
 
@@ -110,7 +110,7 @@ resource "coder_metadata" "workspace_info" {
 }
 ```
 
-![Exoscale instance types category and exclude](../.images/exoscale-instance-exclude.png)
+![Exoscale instance types category and exclude](../../.images/exoscale-instance-exclude.png)
 
 ## Related templates
 

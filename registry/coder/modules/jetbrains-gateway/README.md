@@ -1,7 +1,7 @@
 ---
 display_name: JetBrains Gateway
 description: Add a one-click button to launch JetBrains Gateway IDEs in the dashboard.
-icon: ../.icons/gateway.svg
+icon: ../../../.icons/gateway.svg
 maintainer_github: coder
 verified: true
 tags: [ide, jetbrains, helper, parameter]
@@ -26,7 +26,7 @@ module "jetbrains_gateway" {
 }
 ```
 
-![JetBrains Gateway IDes list](../.images/jetbrains-gateway.png)
+![JetBrains Gateway IDes list](../../.images/jetbrains-gateway.png)
 
 ## Examples
 

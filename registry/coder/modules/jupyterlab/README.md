@@ -1,7 +1,7 @@
 ---
 display_name: JupyterLab
 description: A module that adds JupyterLab in your Coder template.
-icon: ../.icons/jupyter.svg
+icon: ../../../.icons/jupyter.svg
 maintainer_github: coder
 verified: true
 tags: [jupyter, helper, ide, web]
@@ -11,7 +11,7 @@ tags: [jupyter, helper, ide, web]
 
 A module that adds JupyterLab in your Coder template.
 
-![JupyterLab](../.images/jupyterlab.png)
+![JupyterLab](../../.images/jupyterlab.png)
 
 ```tf
 module "jupyterlab" {

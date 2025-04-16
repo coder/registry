@@ -1,7 +1,7 @@
 ---
 display_name: Coder Login
 description: Automatically logs the user into Coder on their workspace
-icon: ../.icons/coder-white.svg
+icon: ../../../.icons/coder-white.svg
 maintainer_github: coder
 verified: true
 tags: [helper]
@@ -20,4 +20,4 @@ module "coder-login" {
 }
 ```
 
-![Coder Login Logs](../.images/coder-login.png)
+![Coder Login Logs](../../.images/coder-login.png)

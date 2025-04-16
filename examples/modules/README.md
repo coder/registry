@@ -1,7 +1,7 @@
 ---
 display_name: MODULE_NAME
 description: Describe what this module does
-icon: ../.icons/<A_RELEVANT_ICON>.svg
+icon: ../../../.icons/<A_RELEVANT_ICON>.svg
 maintainer_github: GITHUB_USERNAME
 verified: false
 tags: [helper]
@@ -29,10 +29,10 @@ Install the Dracula theme from [OpenVSX](https://open-vsx.org/):
 
 ```tf
 module "MODULE_NAME" {
-  count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/modules/MODULE_NAME/coder"
-  version    = "1.0.2"
-  agent_id   = coder_agent.example.id
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/modules/MODULE_NAME/coder"
+  version  = "1.0.2"
+  agent_id = coder_agent.example.id
   extensions = [
     "dracula-theme.theme-dracula"
   ]
@@ -51,8 +51,8 @@ module "MODULE_NAME" {
   source     = "registry.coder.com/modules/MODULE_NAME/coder"
   version    = "1.0.2"
   agent_id   = coder_agent.example.id
-  extensions = [ "dracula-theme.theme-dracula" ]
-  settings   = {
+  extensions = ["dracula-theme.theme-dracula"]
+  settings = {
     "workbench.colorTheme" = "Dracula"
   }
 }

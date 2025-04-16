@@ -1,7 +1,7 @@
 ---
 display_name: Hashicorp Vault Integration (GitHub)
 description: Authenticates with Vault using GitHub
-icon: ../.icons/vault.svg
+icon: ../../../.icons/vault.svg
 maintainer_github: coder
 partner_github: hashicorp
 verified: true
@@ -34,7 +34,7 @@ or using the Vault API:
 curl -H "X-Vault-Token: ${VAULT_TOKEN}" -X GET "${VAULT_ADDR}/v1/coder/secrets/data/coder"
 ```
 
-![Vault login](../.images/vault-login.png)
+![Vault login](../../.images/vault-login.png)
 
 ## Configuration
 

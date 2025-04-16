@@ -1,7 +1,7 @@
 ---
 display_name: Fly.io Region
 description: A parameter with human region names and icons
-icon: ../.icons/fly.svg
+icon: ../../../.icons/fly.svg
 maintainer_github: coder
 verified: true
 tags: [helper, parameter, fly.io, regions]
@@ -22,7 +22,7 @@ module "fly-region" {
 }
 ```
 
-![Fly.io Default](../.images/flyio-basic.png)
+![Fly.io Default](../../.images/flyio-basic.png)
 
 ## Examples
 
@@ -40,7 +40,7 @@ module "fly-region" {
 }
 ```
 
-![Fly.io Filtered Regions](../.images/flyio-filtered.png)
+![Fly.io Filtered Regions](../../.images/flyio-filtered.png)
 
 ### Using custom icons and names
 
@@ -63,7 +63,7 @@ module "fly-region" {
 }
 ```
 
-![Fly.io custom icon and name](../.images/flyio-custom.png)
+![Fly.io custom icon and name](../../.images/flyio-custom.png)
 
 ## Associated template
 

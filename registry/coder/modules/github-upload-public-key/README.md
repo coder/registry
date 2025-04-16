@@ -1,7 +1,7 @@
 ---
 display_name: Github Upload Public Key
 description: Automates uploading Coder public key to Github so users don't have to.
-icon: ../.icons/github.svg
+icon: ../../../.icons/github.svg
 maintainer_github: coder
 verified: true
 tags: [helper, git]

@@ -1,7 +1,7 @@
 ---
 display_name: JFrog (Token)
 description: Install the JF CLI and authenticate with Artifactory using Artifactory terraform provider.
-icon: ../.icons/jfrog.svg
+icon: ../../../.icons/jfrog.svg
 maintainer_github: coder
 partner_github: jfrog
 verified: true
@@ -33,7 +33,7 @@ For detailed instructions, please see this [guide](https://coder.com/docs/v2/lat
 > Note
 > This module does not install `npm`, `go`, `pip`, etc but only configure them. You need to handle the installation of these tools yourself.
 
-![JFrog](../.images/jfrog.png)
+![JFrog](../../.images/jfrog.png)
 
 ## Examples
 

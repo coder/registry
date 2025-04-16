@@ -1,7 +1,7 @@
 ---
 display_name: "HCP Vault Secrets"
 description: "Fetch secrets from HCP Vault"
-icon: ../.icons/vault.svg
+icon: ../../../.icons/vault.svg
 maintainer_github: coder
 partner_github: hashicorp
 verified: true
@@ -28,7 +28,7 @@ To configure the HCP Vault Secrets module, follow these steps,
 
 1. [Create secrets in HCP Vault Secrets](https://developer.hashicorp.com/vault/tutorials/hcp-vault-secrets-get-started/hcp-vault-secrets-create-secret)
 2. Create an HCP Service Principal from the HCP Vault Secrets app in the HCP console. This will give you the `HCP_CLIENT_ID` and `HCP_CLIENT_SECRET` that you need to authenticate with HCP Vault Secrets.
-   ![HCP vault secrets credentials](../.images/hcp-vault-secrets-credentials.png)
+   ![HCP vault secrets credentials](../../.images/hcp-vault-secrets-credentials.png)
 3. Set `HCP_CLIENT_ID` and `HCP_CLIENT_SECRET` variables on the coder provisioner (recommended) or supply them as input to the module.
 4. Set the `project_id`. This is the ID of the project where the HCP Vault Secrets app is running.
 

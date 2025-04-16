@@ -1,7 +1,7 @@
 ---
 display_name: Dotfiles
 description: Allow developers to optionally bring their own dotfiles repository to customize their shell and IDE settings!
-icon: ../.icons/dotfiles.svg
+icon: ../../../.icons/dotfiles.svg
 maintainer_github: coder
 verified: true
 tags: [helper]

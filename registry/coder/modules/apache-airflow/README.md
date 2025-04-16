@@ -1,7 +1,7 @@
 ---
 display_name: airflow
 description: A module that adds Apache Airflow in your Coder template
-icon: ../.icons/airflow.svg
+icon: ../../../.icons/airflow.svg
 maintainer_github: coder
 partner_github: nataindata
 verified: true
@@ -21,4 +21,4 @@ module "airflow" {
 }
 ```
 
-![Airflow](../.images/airflow.png)
+![Airflow](../../.images/airflow.png)

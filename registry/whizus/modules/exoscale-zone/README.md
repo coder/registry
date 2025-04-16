@@ -1,7 +1,7 @@
 ---
 display_name: exoscale-zone
 description: A parameter with human zone names and icons
-icon: ../.icons/exoscale.svg
+icon: ../../../.icons/exoscale.svg
 maintainer_github: WhizUs
 verified: false
 tags: [helper, parameter, zones, regions, exoscale]
@@ -34,7 +34,7 @@ resource "exoscale_compute_instance" "instance" {
 }
 ```
 
-![Exoscale Zones](../.images/exoscale-zones.png)
+![Exoscale Zones](../../../.images/exoscale-zones.png)
 
 ## Examples
 
@@ -69,7 +69,7 @@ resource "exoscale_compute_instance" "instance" {
 }
 ```
 
-![Exoscale Custom](../.images/exoscale-custom.png)
+![Exoscale Custom](../../../.images/exoscale-custom.png)
 
 ### Exclude regions
 
@@ -93,7 +93,7 @@ resource "exoscale_compute_instance" "instance" {
 }
 ```
 
-![Exoscale Exclude](../.images/exoscale-exclude.png)
+![Exoscale Exclude](../../../.images/exoscale-exclude.png)
 
 ## Related templates
 

@@ -1,7 +1,7 @@
 ---
 display_name: Windows RDP
 description: RDP Server and Web Client, powered by Devolutions Gateway
-icon: ../.icons/desktop.svg
+icon: ../../../.icons/desktop.svg
 maintainer_github: coder
 verified: true
 tags: [windows, rdp, web, desktop]

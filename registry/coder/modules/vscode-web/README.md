@@ -1,7 +1,7 @@
 ---
 display_name: VS Code Web
 description: VS Code Web - Visual Studio Code in the browser
-icon: ../.icons/code.svg
+icon: ../../../.icons/code.svg
 maintainer_github: coder
 verified: true
 tags: [helper, ide, vscode, web]
@@ -21,7 +21,7 @@ module "vscode-web" {
 }
 ```
 
-![VS Code Web with GitHub Copilot and live-share](../.images/vscode-web.gif)
+![VS Code Web with GitHub Copilot and live-share](../../.images/vscode-web.gif)
 
 ## Examples
 

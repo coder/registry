@@ -1,7 +1,7 @@
 ---
 display_name: JFrog (OAuth)
 description: Install the JF CLI and authenticate with Artifactory using OAuth.
-icon: ../.icons/jfrog.svg
+icon: ../../../.icons/jfrog.svg
 maintainer_github: coder
 partner_github: jfrog
 verified: true
@@ -12,7 +12,7 @@ tags: [integration, jfrog]
 
 Install the JF CLI and authenticate package managers with Artifactory using OAuth configured via the Coder [`external-auth`](https://coder.com/docs/v2/latest/admin/external-auth) feature.
 
-![JFrog OAuth](../.images/jfrog-oauth.png)
+![JFrog OAuth](../../.images/jfrog-oauth.png)
 
 ```tf
 module "jfrog" {

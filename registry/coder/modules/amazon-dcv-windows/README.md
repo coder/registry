@@ -1,7 +1,7 @@
 ---
 display_name: Amazon DCV Windows
 description: Amazon DCV Server and Web Client for Windows
-icon: ../.icons/dcv.svg
+icon: ../../../.icons/dcv.svg
 maintainer_github: coder
 verified: true
 tags: [windows, amazon, dcv, web, desktop]
@@ -11,7 +11,7 @@ tags: [windows, amazon, dcv, web, desktop]
 
 Amazon DCV is high performance remote display protocol that provides a secure way to deliver remote desktop and application streaming from any cloud or data center to any device, over varying network conditions.
 
-![Amazon DCV on a Windows workspace](../.images/amazon-dcv-windows.png)
+![Amazon DCV on a Windows workspace](../../.images/amazon-dcv-windows.png)
 
 Enable DCV Server and Web Client on Windows workspaces.
 
