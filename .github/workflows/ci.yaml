@@ -21,7 +21,7 @@ jobs:
       - name: Remove build file artifact
         run: rm ./contributors
   test-terraform:
-    runs-on: ubuntu-latest/
+    runs-on: ubuntu-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v4
