@@ -307,7 +307,6 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 	for _, e := range dirEntries {
 		dirPath := path.Join(rootRegistryPath, e.Name())
 		if !e.IsDir() {
-			problems = append(problems, fmt.Errorf("detected non-directory file %q at base of main Registry directory", dirPath))
 			continue
 		}
 
