@@ -343,8 +343,10 @@ func validateContributorRelativeUrls(contributors map[string]contributorProfile)
 		if con.frontmatter.AvatarURL == nil {
 			continue
 		}
-		if isRelativeURL := strings.HasPrefix(*con.frontmatter.AvatarURL, ".") ||
-			strings.HasPrefix(*con.frontmatter.AvatarURL, "/"); !isRelativeURL {
+
+		isRelativeURL := strings.HasPrefix(*con.frontmatter.AvatarURL, ".") ||
+			strings.HasPrefix(*con.frontmatter.AvatarURL, "/")
+		if !isRelativeURL {
 			continue
 		}
 
