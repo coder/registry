@@ -52,22 +52,22 @@ func validateContributorEmployerGithubUsername(employerGithubUsername *string, g
 		return nil
 	}
 
-	problems := []error{}
+	errs := []error{}
 	if *employerGithubUsername == "" {
-		problems = append(problems, errors.New("company_github field is defined but has empty value"))
-		return problems
+		errs = append(errs, errors.New("company_github field is defined but has empty value"))
+		return errs
 	}
 
 	lower := strings.ToLower(*employerGithubUsername)
 	if uriSafe := url.PathEscape(lower); uriSafe != lower {
-		problems = append(problems, fmt.Errorf("gitHub company username %q is not a valid URL path segment", *employerGithubUsername))
+		errs = append(errs, fmt.Errorf("gitHub company username %q is not a valid URL path segment", *employerGithubUsername))
 	}
 
 	if *employerGithubUsername == githubUsername {
-		problems = append(problems, fmt.Errorf("cannot list own GitHub name (%q) as employer", githubUsername))
+		errs = append(errs, fmt.Errorf("cannot list own GitHub name (%q) as employer", githubUsername))
 	}
 
-	return problems
+	return errs
 }
 
 func validateContributorDisplayName(displayName string) error {
@@ -95,7 +95,7 @@ func validateContributorSupportEmail(email *string) []error {
 		return nil
 	}
 
-	problems := []error{}
+	errs := []error{}
 
 	// Can't 100% validate that this is correct without actually sending
 	// an email, and especially with some contributors being individual
@@ -103,31 +103,31 @@ func validateContributorSupportEmail(email *string) []error {
 	// pipeline. Best we can do is verify the general structure
 	username, server, ok := strings.Cut(*email, "@")
 	if !ok {
-		problems = append(problems, fmt.Errorf("email address %q is missing @ symbol", *email))
-		return problems
+		errs = append(errs, fmt.Errorf("email address %q is missing @ symbol", *email))
+		return errs
 	}
 
 	if username == "" {
-		problems = append(problems, fmt.Errorf("email address %q is missing username", *email))
+		errs = append(errs, fmt.Errorf("email address %q is missing username", *email))
 	}
 
 	domain, tld, ok := strings.Cut(server, ".")
 	if !ok {
-		problems = append(problems, fmt.Errorf("email address %q is missing period for server segment", *email))
-		return problems
+		errs = append(errs, fmt.Errorf("email address %q is missing period for server segment", *email))
+		return errs
 	}
 
 	if domain == "" {
-		problems = append(problems, fmt.Errorf("email address %q is missing domain", *email))
+		errs = append(errs, fmt.Errorf("email address %q is missing domain", *email))
 	}
 	if tld == "" {
-		problems = append(problems, fmt.Errorf("email address %q is missing top-level domain", *email))
+		errs = append(errs, fmt.Errorf("email address %q is missing top-level domain", *email))
 	}
 	if strings.Contains(*email, "?") {
-		problems = append(problems, errors.New("email is not allowed to contain query parameters"))
+		errs = append(errs, errors.New("email is not allowed to contain query parameters"))
 	}
 
-	return problems
+	return errs
 }
 
 func validateContributorWebsite(websiteURL *string) error {
@@ -161,19 +161,19 @@ func validateContributorAvatarURL(avatarURL *string) []error {
 		return nil
 	}
 
-	problems := []error{}
+	errs := []error{}
 	if *avatarURL == "" {
-		problems = append(problems, errors.New("avatar URL must be omitted or non-empty string"))
-		return problems
+		errs = append(errs, errors.New("avatar URL must be omitted or non-empty string"))
+		return errs
 	}
 
 	// Have to use .Parse instead of .ParseRequestURI because this is the
 	// one field that's allowed to be a relative URL
 	if _, err := url.Parse(*avatarURL); err != nil {
-		problems = append(problems, fmt.Errorf("URL %q is not a valid relative or absolute URL", *avatarURL))
+		errs = append(errs, fmt.Errorf("URL %q is not a valid relative or absolute URL", *avatarURL))
 	}
 	if strings.Contains(*avatarURL, "?") {
-		problems = append(problems, errors.New("avatar URL is not allowed to contain search parameters"))
+		errs = append(errs, errors.New("avatar URL is not allowed to contain search parameters"))
 	}
 
 	matched := false
@@ -186,42 +186,42 @@ func validateContributorAvatarURL(avatarURL *string) []error {
 	if !matched {
 		segments := strings.Split(*avatarURL, ".")
 		fileExtension := segments[len(segments)-1]
-		problems = append(problems, fmt.Errorf("avatar URL '.%s' does not end in a supported file format: [%s]", fileExtension, strings.Join(supportedAvatarFileFormats, ", ")))
+		errs = append(errs, fmt.Errorf("avatar URL '.%s' does not end in a supported file format: [%s]", fileExtension, strings.Join(supportedAvatarFileFormats, ", ")))
 	}
 
-	return problems
+	return errs
 }
 
 func validateContributorYaml(yml contributorProfile) []error {
-	allProblems := []error{}
+	allErrs := []error{}
 
 	if err := validateContributorGithubUsername(yml.frontmatter.GithubUsername); err != nil {
-		allProblems = append(allProblems, addFilePathToError(yml.filePath, err))
+		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
 	}
 	if err := validateContributorDisplayName(yml.frontmatter.DisplayName); err != nil {
-		allProblems = append(allProblems, addFilePathToError(yml.filePath, err))
+		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
 	}
 	if err := validateContributorLinkedinURL(yml.frontmatter.LinkedinURL); err != nil {
-		allProblems = append(allProblems, addFilePathToError(yml.filePath, err))
+		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
 	}
 	if err := validateContributorWebsite(yml.frontmatter.WebsiteURL); err != nil {
-		allProblems = append(allProblems, addFilePathToError(yml.filePath, err))
+		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
 	}
 	if err := validateContributorStatus(yml.frontmatter.ContributorStatus); err != nil {
-		allProblems = append(allProblems, addFilePathToError(yml.filePath, err))
+		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
 	}
 
 	for _, err := range validateContributorEmployerGithubUsername(yml.frontmatter.EmployerGithubUsername, yml.frontmatter.GithubUsername) {
-		allProblems = append(allProblems, addFilePathToError(yml.filePath, err))
+		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
 	}
 	for _, err := range validateContributorSupportEmail(yml.frontmatter.SupportEmail) {
-		allProblems = append(allProblems, addFilePathToError(yml.filePath, err))
+		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
 	}
 	for _, err := range validateContributorAvatarURL(yml.frontmatter.AvatarURL) {
-		allProblems = append(allProblems, addFilePathToError(yml.filePath, err))
+		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
 	}
 
-	return allProblems
+	return allErrs
 }
 
 func parseContributorProfile(rm readme) (contributorProfile, error) {
@@ -303,7 +303,7 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 	}
 
 	allReadmeFiles := []readme{}
-	problems := []error{}
+	errs := []error{}
 	for _, e := range dirEntries {
 		dirPath := path.Join(rootRegistryPath, e.Name())
 		if !e.IsDir() {
@@ -313,7 +313,7 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 		readmePath := path.Join(dirPath, "README.md")
 		rmBytes, err := os.ReadFile(readmePath)
 		if err != nil {
-			problems = append(problems, err)
+			errs = append(errs, err)
 			continue
 		}
 		allReadmeFiles = append(allReadmeFiles, readme{
@@ -322,10 +322,10 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 		})
 	}
 
-	if len(problems) != 0 {
+	if len(errs) != 0 {
 		return nil, validationPhaseError{
 			phase:  validationPhaseFileLoad,
-			errors: problems,
+			errors: errs,
 		}
 	}
 
@@ -335,7 +335,7 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 func validateContributorRelativeUrls(contributors map[string]contributorProfile) error {
 	// This function only validates relative avatar URLs for now, but it can be
 	// beefed up to validate more in the future
-	problems := []error{}
+	errs := []error{}
 
 	for _, con := range contributors {
 		// If the avatar URL is missing, we'll just assume that the Registry
@@ -349,7 +349,7 @@ func validateContributorRelativeUrls(contributors map[string]contributorProfile)
 		}
 
 		if strings.HasPrefix(*con.frontmatter.AvatarURL, "..") {
-			problems = append(problems, fmt.Errorf("%q: relative avatar URLs cannot be placed outside a user's namespaced directory", con.filePath))
+			errs = append(errs, fmt.Errorf("%q: relative avatar URLs cannot be placed outside a user's namespaced directory", con.filePath))
 			continue
 		}
 
@@ -357,16 +357,16 @@ func validateContributorRelativeUrls(contributors map[string]contributorProfile)
 			*con.frontmatter.AvatarURL
 		_, err := os.ReadFile(absolutePath)
 		if err != nil {
-			problems = append(problems, fmt.Errorf("%q: relative avatar path %q does not point to image in file system", con.filePath, *con.frontmatter.AvatarURL))
+			errs = append(errs, fmt.Errorf("%q: relative avatar path %q does not point to image in file system", con.filePath, *con.frontmatter.AvatarURL))
 		}
 	}
 
-	if len(problems) == 0 {
+	if len(errs) == 0 {
 		return nil
 	}
 	return validationPhaseError{
 		phase:  validationPhaseAssetCrossReference,
-		errors: problems,
+		errors: errs,
 	}
 }
 

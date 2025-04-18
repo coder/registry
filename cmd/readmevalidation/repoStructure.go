@@ -12,7 +12,7 @@ var supportedResourceTypes = []string{"modules", "templates"}
 func validateCoderResourceSubdirectory(dirPath string) []error {
 	errs := []error{}
 
-	dir, err := os.Stat(dirPath)
+	subDir, err := os.Stat(dirPath)
 	if err != nil {
 		// It's valid for a specific resource directory not to exist. It's just
 		// that if it does exist, it must follow specific rules
@@ -22,18 +22,20 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 		return errs
 	}
 
-	if !dir.IsDir() {
+	if !subDir.IsDir() {
 		errs = append(errs, fmt.Errorf("%q: path is not a directory", dirPath))
 		return errs
 	}
 
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("%q: %v", dirPath, err))
+		errs = append(errs, addFilePathToError(dirPath, err))
 		return errs
 	}
 	for _, f := range files {
-		if !f.IsDir() {
+		// The .coder file is sometimes generated as part of Bun tests. These
+		// directories will never be committed to
+		if !f.IsDir() || f.Name() == ".coder" {
 			continue
 		}
 
@@ -63,34 +65,35 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 }
 
 func validateRegistryDirectory() []error {
-	dirEntries, err := os.ReadDir(rootRegistryPath)
+	userDirs, err := os.ReadDir(rootRegistryPath)
 	if err != nil {
 		return []error{err}
 	}
 
-	problems := []error{}
-	for _, e := range dirEntries {
-		dirPath := path.Join(rootRegistryPath, e.Name())
-		if !e.IsDir() {
-			problems = append(problems, fmt.Errorf("detected non-directory file %q at base of main Registry directory", dirPath))
+	allErrs := []error{}
+	for _, d := range userDirs {
+		dirPath := path.Join(rootRegistryPath, d.Name())
+		if !d.IsDir() {
+			allErrs = append(allErrs, fmt.Errorf("detected non-directory file %q at base of main Registry directory", dirPath))
 			continue
 		}
 
-		readmePath := path.Join(dirPath, "README.md")
-		_, err := os.Stat(readmePath)
+		contributorReadmePath := path.Join(dirPath, "README.md")
+		_, err := os.Stat(contributorReadmePath)
 		if err != nil {
-			problems = append(problems, err)
+			allErrs = append(allErrs, err)
 		}
 
 		for _, rType := range supportedResourceTypes {
 			resourcePath := path.Join(dirPath, rType)
-			if errs := validateCoderResourceSubdirectory(resourcePath); len(errs) != 0 {
-				problems = append(problems, errs...)
+			errs := validateCoderResourceSubdirectory(resourcePath)
+			if len(errs) != 0 {
+				allErrs = append(allErrs, errs...)
 			}
 		}
 	}
 
-	return problems
+	return allErrs
 }
 
 func validateRepoStructure() error {
@@ -101,11 +104,9 @@ func validateRepoStructure() error {
 
 	_, err := os.Stat("./.icons")
 	if err != nil {
-		problems = append(problems, err)
+		problems = append(problems, errors.New("missing top-level .icons directory (used for storing reusable Coder resource icons)"))
 	}
 
-	// Todo: figure out what other directories we want to make guarantees for
-	// and add them to this function
 	if len(problems) != 0 {
 		return validationPhaseError{
 			phase:  validationPhaseFileStructureValidation,
