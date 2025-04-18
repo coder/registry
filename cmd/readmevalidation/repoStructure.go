@@ -5,9 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"slices"
+	"strings"
 )
 
-var supportedResourceTypes = []string{"modules", "templates"}
+var (
+	supportedResourceTypes            = []string{"modules", "templates"}
+	supportedUserNameSpaceDirectories = append(supportedResourceTypes[:], ".icons", ".images")
+)
 
 func validateCoderResourceSubdirectory(dirPath string) []error {
 	errs := []error{}
@@ -84,11 +89,32 @@ func validateRegistryDirectory() []error {
 			allErrs = append(allErrs, err)
 		}
 
-		for _, rType := range supportedResourceTypes {
-			resourcePath := path.Join(dirPath, rType)
-			errs := validateCoderResourceSubdirectory(resourcePath)
-			if len(errs) != 0 {
-				allErrs = append(allErrs, errs...)
+		files, err := os.ReadDir(dirPath)
+		if err != nil {
+			allErrs = append(allErrs, err)
+			continue
+		}
+
+		for _, f := range files {
+			// Todo: Decide if there's anything more formal that we want to
+			// ensure about non-directories scoped to user namespaces
+			if !f.IsDir() {
+				continue
+			}
+
+			segment := f.Name()
+			filePath := path.Join(dirPath, segment)
+
+			if !slices.Contains(supportedUserNameSpaceDirectories, segment) {
+				allErrs = append(allErrs, fmt.Errorf("%q: only these sub-directories are allowed at top of user namespace: [%s]", filePath, strings.Join(supportedUserNameSpaceDirectories, ", ")))
+				continue
+			}
+
+			if slices.Contains(supportedResourceTypes, segment) {
+				errs := validateCoderResourceSubdirectory(filePath)
+				if len(errs) != 0 {
+					allErrs = append(allErrs, errs...)
+				}
 			}
 		}
 	}
