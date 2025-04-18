@@ -17,9 +17,9 @@ jobs:
         with:
           go-version: "1.23.2"
       - name: Validate contributors
-        run: go build ./scripts/contributors && ./contributors
+        run: go build ./cmd/readmevalidation && ./readmevalidation
       - name: Remove build file artifact
-        run: rm ./contributors
+        run: rm ./readmevalidation
   test-terraform:
     runs-on: ubuntu-latest
     steps:

@@ -135,8 +135,8 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
-# Script output
-/contributors
+# Things needed for CI
+/readmevalidation
 
 # Terraform files generated during testing
 .terraform*
