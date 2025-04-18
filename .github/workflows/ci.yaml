@@ -7,7 +7,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
-  validate-contributors:
+  validate-readme-files:
     runs-on: ubuntu-latest
     env:
       ACTOR: ${{ github.actor }}
@@ -26,3 +26,23 @@ jobs:
         run: go build ./cmd/readmevalidation && ./readmevalidation
       - name: Remove build file artifact
         run: rm ./readmevalidation
+  test-terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Set up Terraform
+        uses: coder/coder/.github/actions/setup-tf@main
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          # We're using the latest version of Bun for now, but it might be worth
+          # reconsidering. They've pushed breaking changes in patch releases
+          # that have broken our CI.
+          # Our PR where issues started to pop up: https://github.com/coder/modules/pull/383
+          # The Bun PR that broke things: https://github.com/oven-sh/bun/pull/16067
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install
+      - name: Run tests
+        run: bun test
