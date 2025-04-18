@@ -38,10 +38,10 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 		return errs
 	}
 	for _, f := range files {
-		// The .coder file is sometimes generated as part of Bun tests. These
-		// directories will never be committed to the repo, but in the off
-		// chance that they don't get cleaned up properly, we want to skip over
-		// them
+		// The .coder subdirectories are sometimes generated as part of Bun
+		// tests. These subdirectories will never be committed to the repo, but
+		// in the off chance that they don't get cleaned up properly, we want to
+		// skip over them
 		if !f.IsDir() || f.Name() == ".coder" {
 			continue
 		}
