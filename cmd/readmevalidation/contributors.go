@@ -29,7 +29,7 @@ type contributorProfileFrontmatter struct {
 	ContributorStatus      *string `yaml:"status"`
 }
 
-type contributorProfile struct {
+type contributorProfileReadme struct {
 	frontmatter contributorProfileFrontmatter
 	filePath    string
 }
@@ -192,57 +192,57 @@ func validateContributorAvatarURL(avatarURL *string) []error {
 	return errs
 }
 
-func validateContributorYaml(yml contributorProfile) []error {
+func validateContributorReadme(rm contributorProfileReadme) []error {
 	allErrs := []error{}
 
-	if err := validateContributorGithubUsername(yml.frontmatter.GithubUsername); err != nil {
-		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
+	if err := validateContributorGithubUsername(rm.frontmatter.GithubUsername); err != nil {
+		allErrs = append(allErrs, addFilePathToError(rm.filePath, err))
 	}
-	if err := validateContributorDisplayName(yml.frontmatter.DisplayName); err != nil {
-		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
+	if err := validateContributorDisplayName(rm.frontmatter.DisplayName); err != nil {
+		allErrs = append(allErrs, addFilePathToError(rm.filePath, err))
 	}
-	if err := validateContributorLinkedinURL(yml.frontmatter.LinkedinURL); err != nil {
-		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
+	if err := validateContributorLinkedinURL(rm.frontmatter.LinkedinURL); err != nil {
+		allErrs = append(allErrs, addFilePathToError(rm.filePath, err))
 	}
-	if err := validateContributorWebsite(yml.frontmatter.WebsiteURL); err != nil {
-		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
+	if err := validateContributorWebsite(rm.frontmatter.WebsiteURL); err != nil {
+		allErrs = append(allErrs, addFilePathToError(rm.filePath, err))
 	}
-	if err := validateContributorStatus(yml.frontmatter.ContributorStatus); err != nil {
-		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
+	if err := validateContributorStatus(rm.frontmatter.ContributorStatus); err != nil {
+		allErrs = append(allErrs, addFilePathToError(rm.filePath, err))
 	}
 
-	for _, err := range validateContributorEmployerGithubUsername(yml.frontmatter.EmployerGithubUsername, yml.frontmatter.GithubUsername) {
-		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
+	for _, err := range validateContributorEmployerGithubUsername(rm.frontmatter.EmployerGithubUsername, rm.frontmatter.GithubUsername) {
+		allErrs = append(allErrs, addFilePathToError(rm.filePath, err))
 	}
-	for _, err := range validateContributorSupportEmail(yml.frontmatter.SupportEmail) {
-		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
+	for _, err := range validateContributorSupportEmail(rm.frontmatter.SupportEmail) {
+		allErrs = append(allErrs, addFilePathToError(rm.filePath, err))
 	}
-	for _, err := range validateContributorAvatarURL(yml.frontmatter.AvatarURL) {
-		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
+	for _, err := range validateContributorAvatarURL(rm.frontmatter.AvatarURL) {
+		allErrs = append(allErrs, addFilePathToError(rm.filePath, err))
 	}
 
 	return allErrs
 }
 
-func parseContributorProfile(rm readme) (contributorProfile, error) {
+func parseContributorProfile(rm readme) (contributorProfileReadme, error) {
 	fm, _, err := separateFrontmatter(rm.rawText)
 	if err != nil {
-		return contributorProfile{}, fmt.Errorf("%q: failed to parse frontmatter: %v", rm.filePath, err)
+		return contributorProfileReadme{}, fmt.Errorf("%q: failed to parse frontmatter: %v", rm.filePath, err)
 	}
 
 	yml := contributorProfileFrontmatter{}
 	if err := yaml.Unmarshal([]byte(fm), &yml); err != nil {
-		return contributorProfile{}, fmt.Errorf("%q: failed to parse: %v", rm.filePath, err)
+		return contributorProfileReadme{}, fmt.Errorf("%q: failed to parse: %v", rm.filePath, err)
 	}
 
-	return contributorProfile{
+	return contributorProfileReadme{
 		filePath:    rm.filePath,
 		frontmatter: yml,
 	}, nil
 }
 
-func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfile, error) {
-	profilesByUsername := map[string]contributorProfile{}
+func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfileReadme, error) {
+	profilesByUsername := map[string]contributorProfileReadme{}
 	yamlParsingErrors := []error{}
 	for _, rm := range readmeEntries {
 		p, err := parseContributorProfile(rm)
@@ -267,7 +267,7 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 	employeeGithubGroups := map[string][]string{}
 	yamlValidationErrors := []error{}
 	for _, p := range profilesByUsername {
-		errors := validateContributorYaml(p)
+		errors := validateContributorReadme(p)
 		if len(errors) > 0 {
 			yamlValidationErrors = append(yamlValidationErrors, errors...)
 			continue
@@ -332,7 +332,7 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 	return allReadmeFiles, nil
 }
 
-func validateContributorRelativeUrls(contributors map[string]contributorProfile) error {
+func validateContributorRelativeUrls(contributors map[string]contributorProfileReadme) error {
 	// This function only validates relative avatar URLs for now, but it can be
 	// beefed up to validate more in the future
 	errs := []error{}

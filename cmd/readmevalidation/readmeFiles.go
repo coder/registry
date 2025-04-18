@@ -66,6 +66,14 @@ func separateFrontmatter(readmeText string) (string, string, error) {
 	return fm, strings.TrimSpace(body), nil
 }
 
+func validateReadmeBody(body string) error {
+	trimmed := strings.TrimSpace(body)
+	if !strings.HasPrefix(trimmed, "# ") {
+		return errors.New("README body must start with ATX-style h1 header (i.e., \"# \")")
+	}
+	return nil
+}
+
 // validationPhase represents a specific phase during README validation. It is
 // expected that each phase is discrete, and errors during one will prevent a
 // future phase from starting.

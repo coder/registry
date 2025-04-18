@@ -9,10 +9,7 @@ import (
 	"strings"
 )
 
-var (
-	supportedResourceTypes            = []string{"modules", "templates"}
-	supportedUserNameSpaceDirectories = append(supportedResourceTypes[:], ".icons", ".images")
-)
+var supportedUserNameSpaceDirectories = append(supportedResourceTypes[:], ".icons", ".images")
 
 func validateCoderResourceSubdirectory(dirPath string) []error {
 	errs := []error{}
