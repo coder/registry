@@ -11,29 +11,8 @@ import (
 
 func main() {
 	log.Println("Starting README validation")
-	allReadmeFiles, err := aggregateContributorReadmeFiles()
+	err := validateAllContributorFiles()
 	if err != nil {
 		log.Panic(err)
 	}
-
-	log.Printf("Processing %d README files\n", len(allReadmeFiles))
-	contributors, err := parseContributorFiles(allReadmeFiles)
-	log.Printf(
-		"Processed %d README files as valid contributor profiles",
-		len(contributors),
-	)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	err = validateContributorRelativeUrls(contributors)
-	if err != nil {
-		log.Panic(err)
-	}
-	log.Println("All relative URLs for READMEs are valid")
-
-	log.Printf(
-		"Processed all READMEs in the %q directory\n",
-		rootRegistryPath,
-	)
 }

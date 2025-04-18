@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"path"
@@ -12,9 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var (
-	validContributorStatuses = []string{"official", "partner", "community"}
-)
+var validContributorStatuses = []string{"official", "partner", "community"}
 
 type contributorProfileFrontmatter struct {
 	DisplayName    string `yaml:"display_name"`
@@ -48,10 +47,7 @@ func validateContributorGithubUsername(githubUsername string) error {
 	return nil
 }
 
-func validateContributorEmployerGithubUsername(
-	employerGithubUsername *string,
-	githubUsername string,
-) []error {
+func validateContributorEmployerGithubUsername(employerGithubUsername *string, githubUsername string) []error {
 	if employerGithubUsername == nil {
 		return nil
 	}
@@ -337,9 +333,7 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 	return allReadmeFiles, nil
 }
 
-func validateContributorRelativeUrls(
-	contributors map[string]contributorProfile,
-) error {
+func validateContributorRelativeUrls(contributors map[string]contributorProfile) error {
 	// This function only validates relative avatar URLs for now, but it can be
 	// beefed up to validate more in the future
 	problems := []error{}
@@ -375,4 +369,27 @@ func validateContributorRelativeUrls(
 		phase:  validationPhaseAssetCrossReference,
 		errors: problems,
 	}
+}
+
+func validateAllContributorFiles() error {
+	allReadmeFiles, err := aggregateContributorReadmeFiles()
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Processing %d README files\n", len(allReadmeFiles))
+	contributors, err := parseContributorFiles(allReadmeFiles)
+	if err != nil {
+		return err
+	}
+	log.Printf("Processed %d README files as valid contributor profiles", len(contributors))
+
+	err = validateContributorRelativeUrls(contributors)
+	if err != nil {
+		return err
+	}
+	log.Println("All relative URLs for READMEs are valid")
+
+	log.Printf("Processed all READMEs in the %q directory\n", rootRegistryPath)
+	return nil
 }
