@@ -26,7 +26,7 @@ func main() {
 		log.Panic(err)
 	}
 
-	err = validateRelativeUrls(contributors)
+	err = validateContributorRelativeUrls(contributors)
 	if err != nil {
 		log.Panic(err)
 	}

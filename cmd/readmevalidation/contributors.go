@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"net/url"
@@ -13,17 +12,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const rootRegistryPath = "./registry"
-
 var (
-	validContributorStatuses   = []string{"official", "partner", "community"}
-	supportedAvatarFileFormats = []string{".png", ".jpeg", ".jpg", ".gif", ".svg"}
+	validContributorStatuses = []string{"official", "partner", "community"}
 )
-
-type readme struct {
-	filePath string
-	rawText  string
-}
 
 type contributorProfileFrontmatter struct {
 	DisplayName    string `yaml:"display_name"`
@@ -42,61 +33,6 @@ type contributorProfileFrontmatter struct {
 type contributorProfile struct {
 	frontmatter contributorProfileFrontmatter
 	filePath    string
-}
-
-var _ error = validationPhaseError{}
-
-type validationPhaseError struct {
-	phase  string
-	errors []error
-}
-
-func (vpe validationPhaseError) Error() string {
-	validationStrs := []string{}
-	for _, e := range vpe.errors {
-		validationStrs = append(validationStrs, fmt.Sprintf("- %v", e))
-	}
-	slices.Sort(validationStrs)
-
-	msg := fmt.Sprintf("Error during %q phase of README validation:", vpe.phase)
-	msg += strings.Join(validationStrs, "\n")
-	msg += "\n"
-
-	return msg
-}
-
-func extractFrontmatter(readmeText string) (string, error) {
-	if readmeText == "" {
-		return "", errors.New("README is empty")
-	}
-
-	const fence = "---"
-	fm := ""
-	fenceCount := 0
-	lineScanner := bufio.NewScanner(
-		strings.NewReader(strings.TrimSpace(readmeText)),
-	)
-	for lineScanner.Scan() {
-		nextLine := lineScanner.Text()
-		if fenceCount == 0 && nextLine != fence {
-			return "", errors.New("README does not start with frontmatter fence")
-		}
-
-		if nextLine != fence {
-			fm += nextLine + "\n"
-			continue
-		}
-
-		fenceCount++
-		if fenceCount >= 2 {
-			break
-		}
-	}
-
-	if fenceCount == 1 {
-		return "", errors.New("README does not have two sets of frontmatter fences")
-	}
-	return fm, nil
 }
 
 func validateContributorGithubUsername(githubUsername string) error {
@@ -260,10 +196,6 @@ func validateContributorAvatarURL(avatarURL *string) []error {
 	return problems
 }
 
-func addFilePathToError(filePath string, err error) error {
-	return fmt.Errorf("%q: %v", filePath, err)
-}
-
 func validateContributorYaml(yml contributorProfile) []error {
 	allProblems := []error{}
 
@@ -297,7 +229,7 @@ func validateContributorYaml(yml contributorProfile) []error {
 }
 
 func parseContributorProfile(rm readme) (contributorProfile, error) {
-	fm, err := extractFrontmatter(rm.rawText)
+	fm, _, err := separateFrontmatter(rm.rawText)
 	if err != nil {
 		return contributorProfile{}, fmt.Errorf("%q: failed to parse frontmatter: %v", rm.filePath, err)
 	}
@@ -331,7 +263,7 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 	}
 	if len(yamlParsingErrors) != 0 {
 		return nil, validationPhaseError{
-			phase:  "YAML parsing",
+			phase:  validationPhaseReadmeParsing,
 			errors: yamlParsingErrors,
 		}
 	}
@@ -356,11 +288,11 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 		if _, found := profilesByUsername[companyName]; found {
 			continue
 		}
-		yamlValidationErrors = append(yamlValidationErrors, fmt.Errorf("company %q does not exist in %q directory but is referenced by these profiles: [%s]", companyName, rootRegistryPath, strings.Join(group, ", ")))
+		yamlValidationErrors = append(yamlValidationErrors, fmt.Errorf("%q: company %q does not exist but is referenced by these profiles: [%s]", rootRegistryPath, companyName, strings.Join(group, ", ")))
 	}
 	if len(yamlValidationErrors) != 0 {
 		return nil, validationPhaseError{
-			phase:  "Raw YAML Validation",
+			phase:  validationPhaseReadmeParsing,
 			errors: yamlValidationErrors,
 		}
 	}
@@ -397,7 +329,7 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 
 	if len(problems) != 0 {
 		return nil, validationPhaseError{
-			phase:  "FileSystem reading",
+			phase:  validationPhaseFileLoad,
 			errors: problems,
 		}
 	}
@@ -405,7 +337,7 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 	return allReadmeFiles, nil
 }
 
-func validateRelativeUrls(
+func validateContributorRelativeUrls(
 	contributors map[string]contributorProfile,
 ) error {
 	// This function only validates relative avatar URLs for now, but it can be
@@ -440,7 +372,7 @@ func validateRelativeUrls(
 		return nil
 	}
 	return validationPhaseError{
-		phase:  "Relative URL validation",
+		phase:  validationPhaseAssetCrossReference,
 		errors: problems,
 	}
 }
