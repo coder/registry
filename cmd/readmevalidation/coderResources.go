@@ -121,10 +121,6 @@ func validateCoderResourceReadmeBody(body string) []error {
 	var errs []error
 	errs = append(errs, validateReadmeBody(trimmed)...)
 
-	if true {
-		return errs
-	}
-
 	foundParagraph := false
 	terraformCodeBlockCount := 0
 	foundTerraformVersionRef := false
@@ -147,7 +143,7 @@ func validateCoderResourceReadmeBody(body string) []error {
 
 		if nextLine == "```" {
 			if !isInsideCodeBlock {
-				errs = append(errs, fmt.Errorf("line %d: found stray ``` (either an extra code block terminator, or a code block header without a specified language)", lineNum))
+				errs = append(errs, errors.New("found stray ``` (either an extra code block terminator, or a code block header without a specified language)"))
 				break
 			}
 
@@ -179,7 +175,7 @@ func validateCoderResourceReadmeBody(body string) []error {
 			}
 
 			if strings.HasPrefix(nextLine, "```hcl") {
-				errs = append(errs, fmt.Errorf("line %d: all .hcl language references must be converted to .tf", lineNum))
+				errs = append(errs, errors.New("all .hcl language references must be converted to .tf"))
 			}
 
 			continue
@@ -189,7 +185,7 @@ func validateCoderResourceReadmeBody(body string) []error {
 		// are: (1) empty spaces, (2) paragraphs, (3) HTML, and (4) asset
 		// references made via [] syntax
 		trimmedLine := strings.TrimSpace(nextLine)
-		isParagraph := trimmedLine != "" && !strings.HasPrefix(trimmedLine, "[") && !strings.HasPrefix(trimmedLine, "<")
+		isParagraph := trimmedLine != "" && !strings.HasPrefix(trimmedLine, "![") && !strings.HasPrefix(trimmedLine, "<")
 		foundParagraph = foundParagraph || isParagraph
 	}
 
