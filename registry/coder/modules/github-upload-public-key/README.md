@@ -36,7 +36,7 @@ CODER_EXTERNAL_AUTH_0_SCOPES="repo,workflow,admin:public_key"
 
 Note that the default scopes if not provided are `repo,workflow`. If the module is failing to complete after updating the external auth configuration, instruct users of the module to "Unlink" and "Link" their Github account in the External Auth user settings page to get the new scopes.
 
-# Example
+## Example
 
 Using a coder github external auth with a non-default id: (default is `github`)
 
