@@ -4,9 +4,15 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
+	"os"
+	"path"
 	"regexp"
+	"slices"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 var supportedResourceTypes = []string{"modules", "templates"}
@@ -27,6 +33,13 @@ type coderResourceReadme struct {
 	filePath     string
 	body         string
 	frontmatter  coderResourceFrontmatter
+}
+
+type coderResourceReadmes map[string]coderResourceReadme
+
+func (crr coderResourceReadmes) Get(filePath string) (coderResourceReadme, bool) {
+	rm, ok := crr[filePath]
+	return rm, ok
 }
 
 func validateCoderResourceDisplayName(displayName *string) error {
@@ -219,4 +232,140 @@ func validateCoderResourceReadme(rm coderResourceReadme) []error {
 	}
 
 	return errs
+}
+
+func parseCoderResourceReadme(resourceType string, rm readme) (coderResourceReadme, error) {
+	fm, body, err := separateFrontmatter(rm.rawText)
+	if err != nil {
+		return coderResourceReadme{}, fmt.Errorf("%q: failed to parse frontmatter: %v", rm.filePath, err)
+	}
+
+	yml := coderResourceFrontmatter{}
+	if err := yaml.Unmarshal([]byte(fm), &yml); err != nil {
+		return coderResourceReadme{}, fmt.Errorf("%q: failed to parse: %v", rm.filePath, err)
+	}
+
+	return coderResourceReadme{
+		resourceType: resourceType,
+		filePath:     rm.filePath,
+		body:         body,
+		frontmatter:  yml,
+	}, nil
+}
+
+func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (coderResourceReadmes, error) {
+	resources := coderResourceReadmes(map[string]coderResourceReadme{})
+	var yamlParsingErrs []error
+	for _, rm := range rms {
+		p, err := parseCoderResourceReadme(resourceType, rm)
+		if err != nil {
+			yamlParsingErrs = append(yamlParsingErrs, err)
+			continue
+		}
+
+		resources[p.filePath] = p
+	}
+	if len(yamlParsingErrs) != 0 {
+		return nil, validationPhaseError{
+			phase:  validationPhaseReadmeParsing,
+			errors: yamlParsingErrs,
+		}
+	}
+
+	yamlValidationErrors := []error{}
+	for _, readme := range resources {
+		errors := validateCoderResourceReadme(readme)
+		if len(errors) > 0 {
+			yamlValidationErrors = append(yamlValidationErrors, errors...)
+		}
+	}
+	if len(yamlValidationErrors) != 0 {
+		return nil, validationPhaseError{
+			phase:  validationPhaseReadmeParsing,
+			errors: yamlValidationErrors,
+		}
+	}
+
+	return resources, nil
+}
+
+// Todo: Need to beef up this function by grabbing each image/video URL from
+// the body's AST
+func validateCoderResourceRelativeUrls(resources coderResourceReadmes) error {
+	return nil
+}
+
+func aggregateCoderResourceReadmeFiles(resourceType string) ([]readme, error) {
+	registryFiles, err := os.ReadDir(rootRegistryPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var allReadmeFiles []readme
+	var errs []error
+	for _, rf := range registryFiles {
+		if !rf.IsDir() {
+			continue
+		}
+
+		resourceRootPath := path.Join(rootRegistryPath, rf.Name(), resourceType)
+		resourceDirs, err := os.ReadDir(resourceRootPath)
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				errs = append(errs, err)
+			}
+			continue
+		}
+
+		for _, rd := range resourceDirs {
+			if !rd.IsDir() || rd.Name() == ".coder" {
+				continue
+			}
+
+			resourceReadmePath := path.Join(resourceRootPath, rd.Name(), "README.md")
+			rm, err := os.ReadFile(resourceReadmePath)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+
+			allReadmeFiles = append(allReadmeFiles, readme{
+				filePath: resourceReadmePath,
+				rawText:  string(rm),
+			})
+		}
+	}
+
+	if len(errs) != 0 {
+		return nil, validationPhaseError{
+			phase:  validationPhaseFileLoad,
+			errors: errs,
+		}
+	}
+	return allReadmeFiles, nil
+}
+
+func validateAllCoderResourceFilesOfType(resourceType string) error {
+	if !slices.Contains(supportedResourceTypes, resourceType) {
+		return fmt.Errorf("resource type %q is not part of supported list [%s]", resourceType, strings.Join(supportedResourceTypes, ", "))
+	}
+
+	allReadmeFiles, err := aggregateCoderResourceReadmeFiles(resourceType)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Processing %d README files\n", len(allReadmeFiles))
+	resources, err := parseCoderResourceReadmeFiles(resourceType, allReadmeFiles)
+	if err != nil {
+		return err
+	}
+	log.Printf("Processed %d README files as valid Coder resources with type %q", len(resources), resourceType)
+
+	err = validateCoderResourceRelativeUrls(resources)
+	if err != nil {
+		return err
+	}
+	log.Printf("All relative URLs for %s READMEs are valid\n", resourceType)
+	return nil
 }

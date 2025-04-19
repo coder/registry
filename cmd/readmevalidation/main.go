@@ -23,13 +23,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	errs := []error{}
+	var errs []error
 	err := validateAllContributorFiles()
+	if err != nil {
+		errs = append(errs, err)
+	}
+	err = validateAllCoderResourceFilesOfType("modules")
 	if err != nil {
 		errs = append(errs, err)
 	}
 
 	if len(errs) == 0 {
+		log.Printf("Processed all READMEs in the %q directory\n", rootRegistryPath)
 		os.Exit(0)
 	}
 	for _, err := range errs {
