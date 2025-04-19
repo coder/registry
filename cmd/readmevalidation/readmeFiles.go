@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -31,9 +32,8 @@ func separateFrontmatter(readmeText string) (string, string, error) {
 	fm := ""
 	body := ""
 	fenceCount := 0
-	lineScanner := bufio.NewScanner(
-		strings.NewReader(strings.TrimSpace(readmeText)),
-	)
+
+	lineScanner := bufio.NewScanner(strings.NewReader(strings.TrimSpace(readmeText)))
 	for lineScanner.Scan() {
 		nextLine := lineScanner.Text()
 		if fenceCount < 2 && nextLine == fence {
@@ -66,12 +66,73 @@ func separateFrontmatter(readmeText string) (string, string, error) {
 	return fm, strings.TrimSpace(body), nil
 }
 
-func validateReadmeBody(body string) error {
+var readmeHeaderRe = regexp.MustCompile("^(#{1,})(\\s*)")
+
+// Todo: This is a little chaotic, and might have some risks of false positives.
+// Might be better to bring in an
+func validateReadmeBody(body string) []error {
 	trimmed := strings.TrimSpace(body)
+	var errs []error
+
+	// If the very first line of the README, there's a risk that the rest of the
+	// validation logic will break, since we don't have many guarantees about
+	// how the README is actually structured
 	if !strings.HasPrefix(trimmed, "# ") {
-		return errors.New("README body must start with ATX-style h1 header (i.e., \"# \")")
+		errs = append(errs, errors.New("README body must start with ATX-style h1 header (i.e., \"# \")"))
+		return errs
 	}
-	return nil
+
+	lineNum := 0
+	lastHeaderLevel := 0
+	foundFirstH1 := false
+
+	lineScanner := bufio.NewScanner(strings.NewReader(trimmed))
+	for lineScanner.Scan() {
+		lineNum++
+		nextLine := lineScanner.Text()
+
+		headerGroups := readmeHeaderRe.FindStringSubmatch(nextLine)
+		if headerGroups == nil {
+			continue
+		}
+
+		spaceAfterHeader := headerGroups[2]
+		if spaceAfterHeader == "" {
+			errs = append(errs, fmt.Errorf("line %d: header does not have space between header characters and main header text", lineNum))
+		}
+
+		nextHeaderLevel := len(headerGroups[1])
+		if nextHeaderLevel == 1 && !foundFirstH1 {
+			foundFirstH1 = true
+			lastHeaderLevel = 1
+			continue
+		}
+
+		// If we have obviously invalid headers, it's not really safe to keep
+		// proceeding with the rest of the content
+		if nextHeaderLevel == 1 {
+			errs = append(errs, errors.New("READMEs cannot contain more than h1 header"))
+			break
+		}
+		if nextHeaderLevel > 6 {
+			errs = append(errs, fmt.Errorf("line %d: README/HTML files cannot have headers exceed level 6 (found level %d)", lineNum, nextHeaderLevel))
+			break
+		}
+
+		// This is something we need to enforce for accessibility, not just for
+		// the Registry website, but also when users are viewing the README
+		// files in the GitHub web view
+		if nextHeaderLevel > lastHeaderLevel && nextHeaderLevel != (lastHeaderLevel+1) {
+			errs = append(errs, fmt.Errorf("line %d: headers are not allowed to increase more than 1 level at a time", lineNum))
+			continue
+		}
+
+		// As long as the above condition passes, there's no problems with
+		// going up a header level or going down 1+ header levels
+		lastHeaderLevel = nextHeaderLevel
+	}
+
+	return errs
 }
 
 // validationPhase represents a specific phase during README validation. It is

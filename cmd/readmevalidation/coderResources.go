@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 )
 
@@ -94,25 +96,126 @@ func validateCoderResourceTags(tags []string) error {
 	return nil
 }
 
-func validateCoderResourceChanges(resource coderResourceReadme) []error {
+// Todo: This is a holdover from the validation logic used by the Coder Modules
+// repo. It gives us some assurance, but realistically, we probably want to
+// parse any Terraform code snippets, and make some deeper guarantees about how
+// it's structured. Just validating whether it *can* be parsed as Terraform
+// would be a big improvement.
+var terraformVersionRe = regexp.MustCompile("^\\bversion\\s+=")
+
+// This validation function definitely has risks of false positives right now,
+// but realistically, it's not going to cause problems for launch. The most
+// foolproof way to rebuild this would be to parse each README into an AST, and
+// then parse each Terraform code block as Terraform
+func validateCoderResourceReadmeBody(body string) []error {
+	trimmed := strings.TrimSpace(body)
+	var errs []error
+	errs = append(errs, validateReadmeBody(trimmed)...)
+
+	foundParagraph := false
+	terraformCodeBlockCount := 0
+	foundTerraformVersionRef := false
+
+	lineNum := 0
+	isInsideCodeBlock := false
+	isInsideTerraform := false
+
+	lineScanner := bufio.NewScanner(strings.NewReader(trimmed))
+	for lineScanner.Scan() {
+		lineNum++
+		nextLine := lineScanner.Text()
+
+		// Code assumes that invalid headers would've already been handled by
+		// the base validation function, so we don't need to check deeper if the
+		// first line isn't an h1
+		if lineNum == 1 && !strings.HasPrefix(nextLine, "# ") {
+			break
+		}
+
+		if nextLine == "```" {
+			if !isInsideCodeBlock {
+				errs = append(errs, fmt.Errorf("line %d: found stray ``` (either an extra code block terminator, or a code block header without a specified language)", lineNum))
+				break
+			}
+
+			isInsideCodeBlock = false
+			isInsideTerraform = false
+			continue
+		}
+
+		if isInsideTerraform {
+			foundTerraformVersionRef = foundTerraformVersionRef || terraformVersionRe.MatchString(nextLine)
+			continue
+		}
+		if isInsideCodeBlock {
+			continue
+		}
+
+		// Code assumes that we can treat this case as the end of the "h1
+		// section" and don't need to process any further lines
+		if strings.HasPrefix(nextLine, "#") {
+			break
+		}
+
+		// This is meant to catch cases like ```tf, ```hcl, and ```js
+		if strings.HasPrefix(nextLine, "```") {
+			isInsideCodeBlock = true
+			isInsideTerraform = strings.HasPrefix(nextLine, "```tf")
+			if isInsideTerraform {
+				terraformCodeBlockCount++
+			}
+
+			if strings.HasPrefix(nextLine, "```hcl") {
+				errs = append(errs, fmt.Errorf("line %d: all .hcl language references must be converted to .tf", lineNum))
+			}
+
+			continue
+		}
+
+		// Code assumes that if we've reached this point, the only other options
+		// are: (1) empty spaces, (2) paragraphs, (3) HTML, and (4) asset
+		// references made via [] syntax
+		trimmedLine := strings.TrimSpace(nextLine)
+		isParagraph := trimmedLine != "" && !strings.HasPrefix(trimmedLine, "[") && !strings.HasPrefix(trimmedLine, "<")
+		foundParagraph = foundParagraph || isParagraph
+	}
+
+	if terraformCodeBlockCount == 0 {
+		errs = append(errs, errors.New("did not find Terraform code block within h1 section"))
+	} else {
+		if terraformCodeBlockCount > 1 {
+			errs = append(errs, errors.New("cannot have more than one Terraform code block in h1 section"))
+		}
+		if !foundTerraformVersionRef {
+			errs = append(errs, errors.New("did not find Terraform code block that specifies 'version' field"))
+		}
+	}
+	if !foundParagraph {
+		errs = append(errs, errors.New("did not find paragraph within h1 section"))
+	}
+
+	return errs
+}
+
+func validateCoderResourceReadme(rm coderResourceReadme) []error {
 	var errs []error
 
-	if err := validateReadmeBody(resource.body); err != nil {
-		errs = append(errs, addFilePathToError(resource.filePath, err))
+	for _, err := range validateCoderResourceReadmeBody(rm.body) {
+		errs = append(errs, addFilePathToError(rm.filePath, err))
 	}
 
-	if err := validateCoderResourceDisplayName(resource.frontmatter.DisplayName); err != nil {
-		errs = append(errs, addFilePathToError(resource.filePath, err))
+	if err := validateCoderResourceDisplayName(rm.frontmatter.DisplayName); err != nil {
+		errs = append(errs, addFilePathToError(rm.filePath, err))
 	}
-	if err := validateCoderResourceDescription(resource.frontmatter.Description); err != nil {
-		errs = append(errs, addFilePathToError(resource.filePath, err))
+	if err := validateCoderResourceDescription(rm.frontmatter.Description); err != nil {
+		errs = append(errs, addFilePathToError(rm.filePath, err))
 	}
-	if err := validateCoderResourceTags(resource.frontmatter.Tags); err != nil {
-		errs = append(errs, addFilePathToError(resource.filePath, err))
+	if err := validateCoderResourceTags(rm.frontmatter.Tags); err != nil {
+		errs = append(errs, addFilePathToError(rm.filePath, err))
 	}
 
-	for _, err := range validateCoderResourceIconURL(resource.frontmatter.IconURL) {
-		errs = append(errs, addFilePathToError(resource.filePath, err))
+	for _, err := range validateCoderResourceIconURL(rm.frontmatter.IconURL) {
+		errs = append(errs, addFilePathToError(rm.filePath, err))
 	}
 
 	return errs
