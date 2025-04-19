@@ -114,7 +114,7 @@ func validateCoderResourceTags(tags []string) error {
 // parse any Terraform code snippets, and make some deeper guarantees about how
 // it's structured. Just validating whether it *can* be parsed as Terraform
 // would be a big improvement.
-var terraformVersionRe = regexp.MustCompile("^\\bversion\\s+=")
+var terraformVersionRe = regexp.MustCompile("^\\s*\\bversion\\s+=")
 
 func validateCoderResourceReadmeBody(body string) []error {
 	trimmed := strings.TrimSpace(body)
@@ -137,48 +137,37 @@ func validateCoderResourceReadmeBody(body string) []error {
 		// Code assumes that invalid headers would've already been handled by
 		// the base validation function, so we don't need to check deeper if the
 		// first line isn't an h1
-		if lineNum == 1 && !strings.HasPrefix(nextLine, "# ") {
-			break
-		}
-
-		if nextLine == "```" {
-			if !isInsideCodeBlock {
-				errs = append(errs, errors.New("found stray ``` (either an extra code block terminator, or a code block header without a specified language)"))
+		if lineNum == 1 {
+			if !strings.HasPrefix(nextLine, "# ") {
 				break
+			} else {
+				continue
 			}
+		}
 
-			isInsideCodeBlock = false
-			isInsideTerraform = false
+		if strings.HasPrefix(nextLine, "```") {
+			isInsideCodeBlock = !isInsideCodeBlock
+			isInsideTerraform = isInsideCodeBlock && strings.HasPrefix(nextLine, "```tf")
+			if isInsideTerraform {
+				terraformCodeBlockCount++
+			}
+			if strings.HasPrefix(nextLine, "```hcl") {
+				errs = append(errs, errors.New("all .hcl language references must be converted to .tf"))
+			}
 			continue
 		}
 
-		if isInsideTerraform {
-			foundTerraformVersionRef = foundTerraformVersionRef || terraformVersionRe.MatchString(nextLine)
-			continue
-		}
 		if isInsideCodeBlock {
+			if isInsideTerraform {
+				foundTerraformVersionRef = foundTerraformVersionRef || terraformVersionRe.MatchString(nextLine)
+			}
 			continue
 		}
 
 		// Code assumes that we can treat this case as the end of the "h1
 		// section" and don't need to process any further lines
-		if strings.HasPrefix(nextLine, "#") {
+		if lineNum > 1 && strings.HasPrefix(nextLine, "#") {
 			break
-		}
-
-		// This is meant to catch cases like ```tf, ```hcl, and ```js
-		if strings.HasPrefix(nextLine, "```") {
-			isInsideCodeBlock = true
-			isInsideTerraform = strings.HasPrefix(nextLine, "```tf")
-			if isInsideTerraform {
-				terraformCodeBlockCount++
-			}
-
-			if strings.HasPrefix(nextLine, "```hcl") {
-				errs = append(errs, errors.New("all .hcl language references must be converted to .tf"))
-			}
-
-			continue
 		}
 
 		// Code assumes that if we've reached this point, the only other options
@@ -201,6 +190,9 @@ func validateCoderResourceReadmeBody(body string) []error {
 	}
 	if !foundParagraph {
 		errs = append(errs, errors.New("did not find paragraph within h1 section"))
+	}
+	if isInsideCodeBlock {
+		errs = append(errs, errors.New("code blocks inside h1 section do not all terminate before end of file"))
 	}
 
 	return errs

@@ -11,6 +11,16 @@ tags: [helper]
 
 Add the `slackme` command to your workspace that DMs you on Slack when your command finishes running.
 
+```tf
+module "slackme" {
+  count            = data.coder_workspace.me.start_count
+  source           = "registry.coder.com/modules/slackme/coder"
+  version          = "1.0.2"
+  agent_id         = coder_agent.example.id
+  auth_provider_id = "slack"
+}
+```
+
 ```bash
 slackme npm run long-build
 ```
@@ -53,16 +63,6 @@ slackme npm run long-build
    ```
 
 3. Restart your Coder deployment. Any Template can now import the Slack Me module, and `slackme` will be available on the `$PATH`:
-
-   ```tf
-   module "slackme" {
-     count            = data.coder_workspace.me.start_count
-     source           = "registry.coder.com/modules/slackme/coder"
-     version          = "1.0.2"
-     agent_id         = coder_agent.example.id
-     auth_provider_id = "slack"
-   }
-   ```
 
 ## Examples
 
