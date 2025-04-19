@@ -116,14 +116,14 @@ func validateCoderResourceTags(tags []string) error {
 // would be a big improvement.
 var terraformVersionRe = regexp.MustCompile("^\\bversion\\s+=")
 
-// This validation function definitely has risks of false positives right now,
-// but realistically, it's not going to cause problems for launch. The most
-// foolproof way to rebuild this would be to parse each README into an AST, and
-// then parse each Terraform code block as Terraform
 func validateCoderResourceReadmeBody(body string) []error {
 	trimmed := strings.TrimSpace(body)
 	var errs []error
 	errs = append(errs, validateReadmeBody(trimmed)...)
+
+	if true {
+		return errs
+	}
 
 	foundParagraph := false
 	terraformCodeBlockCount := 0

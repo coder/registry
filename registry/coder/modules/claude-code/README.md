@@ -22,7 +22,7 @@ module "claude-code" {
 }
 ```
 
-### Prerequisites
+## Prerequisites
 
 - Node.js and npm must be installed in your workspace to install Claude Code
 - `screen` must be installed in your workspace to run Claude Code in the background

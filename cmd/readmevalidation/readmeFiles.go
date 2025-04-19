@@ -68,8 +68,8 @@ func separateFrontmatter(readmeText string) (string, string, error) {
 
 var readmeHeaderRe = regexp.MustCompile("^(#{1,})(\\s*)")
 
-// Todo: This is a little chaotic, and might have some risks of false positives.
-// Might be better to bring in an
+// Todo: This seems to work okay for now, but the really proper way of doing
+// this is by parsing this as an AST, and then checking the resulting nodes
 func validateReadmeBody(body string) []error {
 	trimmed := strings.TrimSpace(body)
 	var errs []error
@@ -82,14 +82,24 @@ func validateReadmeBody(body string) []error {
 		return errs
 	}
 
-	lineNum := 0
-	lastHeaderLevel := 0
+	latestHeaderLevel := 0
 	foundFirstH1 := false
+	isInCodeBlock := false
 
 	lineScanner := bufio.NewScanner(strings.NewReader(trimmed))
 	for lineScanner.Scan() {
-		lineNum++
 		nextLine := lineScanner.Text()
+
+		// Have to check this because a lot of programming languages support #
+		// comments (including Terraform), and without any context, there's no
+		// way to tell the difference between a markdown header and code comment
+		if strings.HasPrefix(nextLine, "```") {
+			isInCodeBlock = !isInCodeBlock
+			continue
+		}
+		if isInCodeBlock {
+			continue
+		}
 
 		headerGroups := readmeHeaderRe.FindStringSubmatch(nextLine)
 		if headerGroups == nil {
@@ -98,13 +108,13 @@ func validateReadmeBody(body string) []error {
 
 		spaceAfterHeader := headerGroups[2]
 		if spaceAfterHeader == "" {
-			errs = append(errs, fmt.Errorf("line %d: header does not have space between header characters and main header text", lineNum))
+			errs = append(errs, errors.New("header does not have space between header characters and main header text"))
 		}
 
 		nextHeaderLevel := len(headerGroups[1])
 		if nextHeaderLevel == 1 && !foundFirstH1 {
 			foundFirstH1 = true
-			lastHeaderLevel = 1
+			latestHeaderLevel = 1
 			continue
 		}
 
@@ -115,21 +125,21 @@ func validateReadmeBody(body string) []error {
 			break
 		}
 		if nextHeaderLevel > 6 {
-			errs = append(errs, fmt.Errorf("line %d: README/HTML files cannot have headers exceed level 6 (found level %d)", lineNum, nextHeaderLevel))
+			errs = append(errs, fmt.Errorf("README/HTML files cannot have headers exceed level 6 (found level %d)", nextHeaderLevel))
 			break
 		}
 
 		// This is something we need to enforce for accessibility, not just for
 		// the Registry website, but also when users are viewing the README
 		// files in the GitHub web view
-		if nextHeaderLevel > lastHeaderLevel && nextHeaderLevel != (lastHeaderLevel+1) {
-			errs = append(errs, fmt.Errorf("line %d: headers are not allowed to increase more than 1 level at a time", lineNum))
+		if nextHeaderLevel > latestHeaderLevel && nextHeaderLevel != (latestHeaderLevel+1) {
+			errs = append(errs, fmt.Errorf("headers are not allowed to increase more than 1 level at a time"))
 			continue
 		}
 
 		// As long as the above condition passes, there's no problems with
 		// going up a header level or going down 1+ header levels
-		lastHeaderLevel = nextHeaderLevel
+		latestHeaderLevel = nextHeaderLevel
 	}
 
 	return errs

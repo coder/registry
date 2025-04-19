@@ -20,13 +20,13 @@ module "github-upload-public-key" {
 }
 ```
 
-# Requirements
+## Requirements
 
 This module requires `curl` and `jq` to be installed inside your workspace.
 
 Github External Auth must be enabled in the workspace for this module to work. The Github app that is configured for external auth must have both read and write permissions to "Git SSH keys" in order to upload the public key. Additionally, a Coder admin must also have the `admin:public_key` scope added to the external auth configuration of the Coder deployment. For example:
 
-```
+```txt
 CODER_EXTERNAL_AUTH_0_ID="USER_DEFINED_ID"
 CODER_EXTERNAL_AUTH_0_TYPE=github
 CODER_EXTERNAL_AUTH_0_CLIENT_ID=xxxxxx
