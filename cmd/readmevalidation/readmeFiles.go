@@ -72,16 +72,19 @@ var readmeHeaderRe = regexp.MustCompile("^(#{1,})(\\s*)")
 // this is by parsing this as an AST, and then checking the resulting nodes
 func validateReadmeBody(body string) []error {
 	trimmed := strings.TrimSpace(body)
-	var errs []error
+
+	if trimmed == "" {
+		return []error{errors.New("README body is empty")}
+	}
 
 	// If the very first line of the README, there's a risk that the rest of the
 	// validation logic will break, since we don't have many guarantees about
 	// how the README is actually structured
 	if !strings.HasPrefix(trimmed, "# ") {
-		errs = append(errs, errors.New("README body must start with ATX-style h1 header (i.e., \"# \")"))
-		return errs
+		return []error{errors.New("README body must start with ATX-style h1 header (i.e., \"# \")")}
 	}
 
+	var errs []error
 	latestHeaderLevel := 0
 	foundFirstH1 := false
 	isInCodeBlock := false
