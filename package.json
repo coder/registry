@@ -2,8 +2,8 @@
   "name": "modules",
   "scripts": {
     "test": "bun test",
-    "fmt": "bun x prettier --write **/*.sh **/*.ts **/*.md *.md && terraform fmt **/*.tf",
-    "fmt:ci": "bun x prettier --check **/*.sh **/*.ts **/*.md *.md && terraform fmt -check **/*.tf",
+    "fmt": "bun x prettier --write **/*.sh **/*.ts **/*.md *.md && terraform fmt -recursive -diff",
+    "fmt:ci": "bun x prettier --check **/*.sh **/*.ts **/*.md *.md && terraform fmt -check -recursive -diff",
     "update-version": "./update-version.sh"
   },
   "devDependencies": {
