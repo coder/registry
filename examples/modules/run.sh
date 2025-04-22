@@ -14,7 +14,7 @@ printf "$${BOLD}Installing MODULE_NAME ...\n\n"
 # Use variables from the templatefile function in main.tf
 # e.g. LOG_PATH, PORT, etc.
 
-printf "🥳 Installation comlete!\n\n"
+printf "🥳 Installation complete!\n\n"
 
 printf "👷 Starting MODULE_NAME in background...\n\n"
 # Start the app in here
