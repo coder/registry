@@ -21,7 +21,21 @@ Or this command on Windows:
 powershell -c "irm bun.sh/install.ps1 | iex"
 ```
 
-Follow the instructions to ensure that Bun is available globally.
+Follow the instructions to ensure that Bun is available globally. Once Bun is installed, install all necessary dependencies from the root of the repo:
+
+Via NPM:
+
+```shell
+npm i
+```
+
+Via PNPM:
+
+```shell
+pnpm i
+```
+
+This repo does not support Yarn.
 
 ### Installing Go (optional)
 
@@ -80,16 +94,77 @@ module "example" {
 }
 ```
 
+## Adding/modifying README files
+
+This repo uses Go to do a quick validation of each README. If you are working with the README files at all, it is strongly recommended that you install Go, so that the files can be validated locally.
+
+### Validating all README files
+
+To validate all README files throughout the entire repo, you can run the following:
+
+```shell
+go build ./cmd/readmevalidation && ./readmevalidation
+```
+
+The resulting binary is already part of the `.gitignore` file, but you can quickly remove it with:
+
+```shell
+rm ./readmevalidation
+```
+
+### README validation criteria
+
+The following criteria exists for one of two reasons: (1) content accessibility, or (2) having content be designed in a way that's easy for the Registry site build step to use:
+
+#### General README requirements
+
+- There must be a frontmatter section.
+- There must be exactly one h1 header, and it must be at the very top
+- The README body (if it exists) must start with an h1 header. No other content (including GitHub-Flavored Markdown alerts) is allowed to be placed above it.
+- When increasing the level of a header, the header's level must be incremented by one each time.
+- Additional image/video assets can be placed in one of two places:
+  - In the same user namespace directory where that user's main content lives
+  - In the top-level `.icons` directory
+- Any `.hcl` code snippets must be labeled as `.tf` snippets instead
+
+  ```txt
+  \`\`\`tf
+  Content
+  \`\`\`
+  ```
+
+#### Contributor profiles
+
+- The README body is allowed to be empty, but if it isn't, it must follow all the rules above.
+- The frontmatter supports the following fields:
+  - `display_name` (required string) – The name to use when displaying your user profile in the Coder Registry site
+  - `bio` (optional string) – A short description of who you are
+  - `github` (required string) – Your GitHub handle
+  - `avatar_url` (optional string) – A relative/absolute URL pointing to your avatar
+  - `linkedin` (optional string) – A URL pointing to your LinkedIn page
+  - `support_email` (optional string) – An email for users to reach you at if they need help with a published module/template
+  - `employer_github` (optional string) – The name of another user namespace whom you'd like to have associated with your account. The namespace must also exist in the repo, or else the README validation will fail.
+  - `status` (optional string union) – If defined, must be one of "community", "partner", or "official". "Community" is treated as the default value if not specified, and should be used for the majority of external contributions. "Official" should be used for Coder and Coder satellite companies. "Partner" is for companies who have a formal business agreement with Coder.
+
+#### Modules and templates
+
+- The frontmatter supports the following fields:
+  - `description` (required string) A short description of what the module/template does.
+  - `icon` (required string) – A URL pointing to the icon to use for the module/template when viewing it on the Registry website.
+  - `display_name` (optional string) – A name to display instead of the name intuited from the module's/template's directory name
+  - `verified` (optional boolean) – A boolean indicated that the Coder team has officially tested and vouched for the functionality/reliability of a given module or template. This field should only be changed by Coder employees.
+  - `tags` (optional string array) – A list of tags to associate with the module/template. Users will be able to search for these tags from the Registry website.
+
 ## Releases
 
 The release process is automated with these steps:
 
-## 1. Create and merge a new PR
+### 1. Create and merge a new PR
 
 - Create a PR with your module changes
 - Get your PR reviewed, approved, and merged into the `main` branch
 
-## 2. Prepare Release (Maintainer Task)
+### 2. Prepare Release (Maintainer Task)
 
 After merging to `main`, a maintainer will:
 
@@ -117,7 +192,7 @@ After merging to `main`, a maintainer will:
 
   The tag format will be: `release/module-name/v1.2.3`
 
-## 3. Publishing to Coder Registry
+### 3. Publishing to Coder Registry
 
 Our automated processes will handle publishing new data to [registry.coder.com](https://registry.coder.com).
 
