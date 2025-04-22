@@ -26,7 +26,11 @@ main() {
     local subdirs=$(find "$registry_dir" -mindepth 3 -type d | sort)
 
     for dir in $subdirs; do
-        validate_terraform_directory "$dir"
+        # Skip over any directories that obviously don't have the necessary
+        # files
+        if test -f "$dir/main.tf"; then
+            validate_terraform_directory "$dir"
+        fi
     done
 }
 
