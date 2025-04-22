@@ -2,9 +2,9 @@
   "name": "modules",
   "scripts": {
     "test": "bun test",
+    "terraform-validate": "./scripts/terraform_validate.sh",
     "fmt": "bun x prettier -w **/*.sh .sample/run.sh new.sh **/*.ts **/*.md *.md && terraform fmt **/*.tf .sample/main.tf",
-    "fmt:ci": "bun x prettier --check **/*.sh .sample/run.sh new.sh **/*.ts **/*.md *.md && terraform fmt -check **/*.tf .sample/main.tf",
-    "update-version": "./update-version.sh"
+    "fmt:ci": "bun x prettier --check **/*.sh .sample/run.sh new.sh **/*.ts **/*.md *.md && terraform fmt -check **/*.tf .sample/main.tf"
   },
   "devDependencies": {
     "@types/bun": "^1.2.9",
