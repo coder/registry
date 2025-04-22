@@ -38,6 +38,9 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      # Need Terraform for its formatter
+      - name: Install Terraform
+        uses: coder/coder/.github/actions/setup-tf@main
       - name: Install dependencies
         run: bun install
       - name: Validate formatting
