@@ -16,9 +16,8 @@ import (
 var validContributorStatuses = []string{"official", "partner", "community"}
 
 type contributorProfileFrontmatter struct {
-	DisplayName    string `yaml:"display_name"`
-	Bio            string `yaml:"bio"`
-	GithubUsername string `yaml:"github"`
+	DisplayName string `yaml:"display_name"`
+	Bio         string `yaml:"bio"`
 	// Script assumes that if value is nil, the Registry site build step will
 	// backfill the value with the user's GitHub avatar URL
 	AvatarURL         *string `yaml:"avatar"`
@@ -30,20 +29,8 @@ type contributorProfileFrontmatter struct {
 
 type contributorProfile struct {
 	frontmatter contributorProfileFrontmatter
+	namespace   string
 	filePath    string
-}
-
-func validateContributorGithubUsername(githubUsername string) error {
-	if githubUsername == "" {
-		return errors.New("missing GitHub username")
-	}
-
-	lower := strings.ToLower(githubUsername)
-	if uriSafe := url.PathEscape(lower); uriSafe != lower {
-		return fmt.Errorf("gitHub username %q is not a valid URL path segment", githubUsername)
-	}
-
-	return nil
 }
 
 func validateContributorDisplayName(displayName string) error {
@@ -171,9 +158,6 @@ func validateContributorAvatarURL(avatarURL *string) []error {
 func validateContributorYaml(yml contributorProfile) []error {
 	allErrs := []error{}
 
-	if err := validateContributorGithubUsername(yml.frontmatter.GithubUsername); err != nil {
-		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
-	}
 	if err := validateContributorDisplayName(yml.frontmatter.DisplayName); err != nil {
 		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
 	}
@@ -211,11 +195,12 @@ func parseContributorProfile(rm readme) (contributorProfile, error) {
 	return contributorProfile{
 		filePath:    rm.filePath,
 		frontmatter: yml,
+		namespace:   strings.TrimSuffix(strings.TrimPrefix(rm.filePath, "registry/"), "/README.md"),
 	}, nil
 }
 
 func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfile, error) {
-	profilesByUsername := map[string]contributorProfile{}
+	profilesByNamespace := map[string]contributorProfile{}
 	yamlParsingErrors := []error{}
 	for _, rm := range readmeEntries {
 		p, err := parseContributorProfile(rm)
@@ -224,11 +209,11 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 			continue
 		}
 
-		if prev, alreadyExists := profilesByUsername[p.frontmatter.GithubUsername]; alreadyExists {
-			yamlParsingErrors = append(yamlParsingErrors, fmt.Errorf("%q: GitHub name %s conflicts with field defined in %q", p.filePath, p.frontmatter.GithubUsername, prev.filePath))
+		if prev, alreadyExists := profilesByNamespace[p.namespace]; alreadyExists {
+			yamlParsingErrors = append(yamlParsingErrors, fmt.Errorf("%q: namespace %q conflicts with namespace from %q", p.filePath, p.namespace, prev.filePath))
 			continue
 		}
-		profilesByUsername[p.frontmatter.GithubUsername] = p
+		profilesByNamespace[p.namespace] = p
 	}
 	if len(yamlParsingErrors) != 0 {
 		return nil, validationPhaseError{
@@ -238,7 +223,7 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 	}
 
 	yamlValidationErrors := []error{}
-	for _, p := range profilesByUsername {
+	for _, p := range profilesByNamespace {
 		errors := validateContributorYaml(p)
 		if len(errors) > 0 {
 			yamlValidationErrors = append(yamlValidationErrors, errors...)
@@ -252,7 +237,7 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 		}
 	}
 
-	return profilesByUsername, nil
+	return profilesByNamespace, nil
 }
 
 func aggregateContributorReadmeFiles() ([]readme, error) {
