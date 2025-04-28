@@ -16,58 +16,21 @@ import (
 var validContributorStatuses = []string{"official", "partner", "community"}
 
 type contributorProfileFrontmatter struct {
-	DisplayName    string `yaml:"display_name"`
-	Bio            string `yaml:"bio"`
-	GithubUsername string `yaml:"github"`
+	DisplayName string `yaml:"display_name"`
+	Bio         string `yaml:"bio"`
 	// Script assumes that if value is nil, the Registry site build step will
 	// backfill the value with the user's GitHub avatar URL
-	AvatarURL              *string `yaml:"avatar"`
-	LinkedinURL            *string `yaml:"linkedin"`
-	WebsiteURL             *string `yaml:"website"`
-	SupportEmail           *string `yaml:"support_email"`
-	EmployerGithubUsername *string `yaml:"employer_github"`
-	ContributorStatus      *string `yaml:"status"`
+	AvatarURL         *string `yaml:"avatar"`
+	LinkedinURL       *string `yaml:"linkedin"`
+	WebsiteURL        *string `yaml:"website"`
+	SupportEmail      *string `yaml:"support_email"`
+	ContributorStatus *string `yaml:"status"`
 }
 
 type contributorProfile struct {
 	frontmatter contributorProfileFrontmatter
+	namespace   string
 	filePath    string
-}
-
-func validateContributorGithubUsername(githubUsername string) error {
-	if githubUsername == "" {
-		return errors.New("missing GitHub username")
-	}
-
-	lower := strings.ToLower(githubUsername)
-	if uriSafe := url.PathEscape(lower); uriSafe != lower {
-		return fmt.Errorf("gitHub username %q is not a valid URL path segment", githubUsername)
-	}
-
-	return nil
-}
-
-func validateContributorEmployerGithubUsername(employerGithubUsername *string, githubUsername string) []error {
-	if employerGithubUsername == nil {
-		return nil
-	}
-
-	errs := []error{}
-	if *employerGithubUsername == "" {
-		errs = append(errs, errors.New("company_github field is defined but has empty value"))
-		return errs
-	}
-
-	lower := strings.ToLower(*employerGithubUsername)
-	if uriSafe := url.PathEscape(lower); uriSafe != lower {
-		errs = append(errs, fmt.Errorf("gitHub company username %q is not a valid URL path segment", *employerGithubUsername))
-	}
-
-	if *employerGithubUsername == githubUsername {
-		errs = append(errs, fmt.Errorf("cannot list own GitHub name (%q) as employer", githubUsername))
-	}
-
-	return errs
 }
 
 func validateContributorDisplayName(displayName string) error {
@@ -195,9 +158,6 @@ func validateContributorAvatarURL(avatarURL *string) []error {
 func validateContributorYaml(yml contributorProfile) []error {
 	allErrs := []error{}
 
-	if err := validateContributorGithubUsername(yml.frontmatter.GithubUsername); err != nil {
-		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
-	}
 	if err := validateContributorDisplayName(yml.frontmatter.DisplayName); err != nil {
 		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
 	}
@@ -211,9 +171,6 @@ func validateContributorYaml(yml contributorProfile) []error {
 		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
 	}
 
-	for _, err := range validateContributorEmployerGithubUsername(yml.frontmatter.EmployerGithubUsername, yml.frontmatter.GithubUsername) {
-		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
-	}
 	for _, err := range validateContributorSupportEmail(yml.frontmatter.SupportEmail) {
 		allErrs = append(allErrs, addFilePathToError(yml.filePath, err))
 	}
@@ -238,11 +195,12 @@ func parseContributorProfile(rm readme) (contributorProfile, error) {
 	return contributorProfile{
 		filePath:    rm.filePath,
 		frontmatter: yml,
+		namespace:   strings.TrimSuffix(strings.TrimPrefix(rm.filePath, "registry/"), "/README.md"),
 	}, nil
 }
 
 func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfile, error) {
-	profilesByUsername := map[string]contributorProfile{}
+	profilesByNamespace := map[string]contributorProfile{}
 	yamlParsingErrors := []error{}
 	for _, rm := range readmeEntries {
 		p, err := parseContributorProfile(rm)
@@ -251,11 +209,11 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 			continue
 		}
 
-		if prev, alreadyExists := profilesByUsername[p.frontmatter.GithubUsername]; alreadyExists {
-			yamlParsingErrors = append(yamlParsingErrors, fmt.Errorf("%q: GitHub name %s conflicts with field defined in %q", p.filePath, p.frontmatter.GithubUsername, prev.filePath))
+		if prev, alreadyExists := profilesByNamespace[p.namespace]; alreadyExists {
+			yamlParsingErrors = append(yamlParsingErrors, fmt.Errorf("%q: namespace %q conflicts with namespace from %q", p.filePath, p.namespace, prev.filePath))
 			continue
 		}
-		profilesByUsername[p.frontmatter.GithubUsername] = p
+		profilesByNamespace[p.namespace] = p
 	}
 	if len(yamlParsingErrors) != 0 {
 		return nil, validationPhaseError{
@@ -264,27 +222,13 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 		}
 	}
 
-	employeeGithubGroups := map[string][]string{}
 	yamlValidationErrors := []error{}
-	for _, p := range profilesByUsername {
+	for _, p := range profilesByNamespace {
 		errors := validateContributorYaml(p)
 		if len(errors) > 0 {
 			yamlValidationErrors = append(yamlValidationErrors, errors...)
 			continue
 		}
-
-		if p.frontmatter.EmployerGithubUsername != nil {
-			employeeGithubGroups[*p.frontmatter.EmployerGithubUsername] = append(
-				employeeGithubGroups[*p.frontmatter.EmployerGithubUsername],
-				p.frontmatter.GithubUsername,
-			)
-		}
-	}
-	for companyName, group := range employeeGithubGroups {
-		if _, found := profilesByUsername[companyName]; found {
-			continue
-		}
-		yamlValidationErrors = append(yamlValidationErrors, fmt.Errorf("%q: company %q does not exist but is referenced by these profiles: [%s]", rootRegistryPath, companyName, strings.Join(group, ", ")))
 	}
 	if len(yamlValidationErrors) != 0 {
 		return nil, validationPhaseError{
@@ -293,7 +237,7 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 		}
 	}
 
-	return profilesByUsername, nil
+	return profilesByNamespace, nil
 }
 
 func aggregateContributorReadmeFiles() ([]readme, error) {
