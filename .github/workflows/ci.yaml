@@ -26,8 +26,10 @@ jobs:
           bun-version: latest
       - name: Install dependencies
         run: bun install
-      - name: Run tests
+      - name: Run TypeScript tests
         run: bun test
+      - name: Run Terraform Validate
+        run: bun terraform-validate
   validate-style:
     name: Check for typos and unformatted code
     runs-on: ubuntu-latest
