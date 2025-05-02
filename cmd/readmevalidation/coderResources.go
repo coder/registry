@@ -89,6 +89,9 @@ func validateCoderResourceIconURL(iconURL string) []error {
 }
 
 func validateCoderResourceTags(tags []string) error {
+	if tags == nil {
+		return errors.New("provided tags array is nil")
+	}
 	if len(tags) == 0 {
 		return nil
 	}
@@ -140,9 +143,8 @@ func validateCoderResourceReadmeBody(body string) []error {
 		if lineNum == 1 {
 			if !strings.HasPrefix(nextLine, "# ") {
 				break
-			} else {
-				continue
 			}
+			continue
 		}
 
 		if strings.HasPrefix(nextLine, "```") {
