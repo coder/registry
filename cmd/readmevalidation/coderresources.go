@@ -35,13 +35,6 @@ type coderResourceReadme struct {
 	frontmatter  coderResourceFrontmatter
 }
 
-type coderResourceReadmes map[string]coderResourceReadme
-
-func (crr coderResourceReadmes) Get(filePath string) (coderResourceReadme, bool) {
-	rm, ok := crr[filePath]
-	return rm, ok
-}
-
 func validateCoderResourceDisplayName(displayName *string) error {
 	if displayName != nil && *displayName == "" {
 		return errors.New("if defined, display_name must not be empty string")
@@ -243,8 +236,8 @@ func parseCoderResourceReadme(resourceType string, rm readme) (coderResourceRead
 	}, nil
 }
 
-func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (coderResourceReadmes, error) {
-	resources := coderResourceReadmes(map[string]coderResourceReadme{})
+func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (map[string]coderResourceReadme, error) {
+	resources := map[string]coderResourceReadme{}
 	var yamlParsingErrs []error
 	for _, rm := range rms {
 		p, err := parseCoderResourceReadme(resourceType, rm)
@@ -281,7 +274,7 @@ func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (coderReso
 
 // Todo: Need to beef up this function by grabbing each image/video URL from
 // the body's AST
-func validateCoderResourceRelativeUrls(resources coderResourceReadmes) error {
+func validateCoderResourceRelativeUrls(resources map[string]coderResourceReadme) error {
 	return nil
 }
 
