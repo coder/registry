@@ -1,0 +1,4 @@
+[default.extend-words]
+muc = "muc" # For Munich location code
+Hashi = "Hashi"
+HashiCorp = "HashiCorp"
