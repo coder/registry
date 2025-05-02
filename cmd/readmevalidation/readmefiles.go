@@ -151,45 +151,28 @@ func validateReadmeBody(body string) []error {
 // validationPhase represents a specific phase during README validation. It is
 // expected that each phase is discrete, and errors during one will prevent a
 // future phase from starting.
-type validationPhase int
+type validationPhase string
 
 const (
 	// validationPhaseFileStructureValidation indicates when the entire Registry
 	// directory is being verified for having all files be placed in the file
 	// system as expected.
-	validationPhaseFileStructureValidation validationPhase = iota
+	validationPhaseFileStructureValidation validationPhase = "File structure validation"
 
 	// validationPhaseFileLoad indicates when README files are being read from
 	// the file system
-	validationPhaseFileLoad
+	validationPhaseFileLoad = "Filesystem reading"
 
 	// validationPhaseReadmeParsing indicates when a README's frontmatter is
 	// being parsed as YAML. This phase does not include YAML validation.
-	validationPhaseReadmeParsing
+	validationPhaseReadmeParsing = "README parsing"
 
 	// validationPhaseReadmeValidation indicates when a README's frontmatter is
 	// being validated as proper YAML with expected keys.
-	validationPhaseReadmeValidation
+	validationPhaseReadmeValidation = "README validation"
 
 	// validationPhaseAssetCrossReference indicates when a README's frontmatter
 	// is having all its relative URLs be validated for whether they point to
 	// valid resources.
-	validationPhaseAssetCrossReference
+	validationPhaseAssetCrossReference = "Cross-referencing relative asset URLs"
 )
-
-func (p validationPhase) String() string {
-	switch p {
-	case validationPhaseFileStructureValidation:
-		return "File structure validation"
-	case validationPhaseFileLoad:
-		return "Filesystem reading"
-	case validationPhaseReadmeParsing:
-		return "README parsing"
-	case validationPhaseReadmeValidation:
-		return "README validation"
-	case validationPhaseAssetCrossReference:
-		return "Cross-referencing relative asset URLs"
-	default:
-		return fmt.Sprintf("Unknown validation phase: %d", p)
-	}
-}

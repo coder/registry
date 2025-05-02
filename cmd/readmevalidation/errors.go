@@ -14,7 +14,7 @@ type validationPhaseError struct {
 var _ error = validationPhaseError{}
 
 func (vpe validationPhaseError) Error() string {
-	msg := fmt.Sprintf("Error during %q phase of README validation:", vpe.phase.String())
+	msg := fmt.Sprintf("Error during %q phase of README validation:", vpe.phase)
 	for _, e := range vpe.errors {
 		msg += fmt.Sprintf("\n- %v", e)
 	}
