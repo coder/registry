@@ -1,29 +1,29 @@
 # Coder Registry
 
-[Registry Site](https://registry.coder.com) • [Coder OSS repo](https://github.com/coder/coder) • [Coder Docs](https://www.coder.com/docs) • [Official Discord](https://discord.gg/coder)
-
-> [!NOTE]
-> The Coder Registry repo will be updated to support Coder Templates in the next few weeks. You can currently find all official templates [in the official coder/coder repo, under `examples/templates`](https://github.com/coder/coder/tree/main/examples/templates).
+[Registry Site](https://registry.coder.com) • [Coder OSS](https://github.com/coder/coder) • [Coder Docs](https://www.coder.com/docs) • [Official Discord](https://discord.gg/coder)
 
 [![Health](https://github.com/coder/registry/actions/workflows/check_registry_site_health.yaml/badge.svg)](https://github.com/coder/registry/actions/workflows/check_registry_site_health.yaml)
+
+> [!NOTE]
+> The Coder Registry repo will be updated to support Coder Templates in the coming weeks. You can currently find all official templates in the official coder/coder repo, [under the `examples/templates` directory](https://github.com/coder/coder/tree/main/examples/templates).
 
 Coder Registry is a community-driven platform for extending your Coder workspaces. Publish reusable Terraform as Coder Modules for users all over the world.
 
 ## Overview
 
-Coder is built on HashiCorp's open-source Terraform language, to provide developers an easy, declarative way to define the infrastructure for their remote development environments. Coder-flavored versions of Terraform allow you to mix in other, reusable Terraform snippets to add integrations with other popular development tools, such as JetBrains, Cursor, or Visual Studio Code.
+Coder is built on HashiCorp's open-source Terraform language to provide developers an easy, declarative way to define the infrastructure for their remote development environments. Coder-flavored versions of Terraform allow you to mix in reusable Terraform snippets to add integrations with other popular development tools, such as JetBrains, Cursor, or Visual Studio Code.
 
-This spares you the trouble of needing to figure out how to define these integrations yourself. Simply add the correct import snippet, along with any data dependencies, and your workspace can start using that new functionality immediately.
+Simply add the correct import snippet, along with any data dependencies, and your workspace can start using the new functionality immediately.
 
 ![Coder Agent Bar](./images/coder-agent-bar.png)
 
-More information about Coder templates [can be found here](https://coder.com/docs/admin/templates/creating-templates), while more information about modules [can be found here](https://coder.com/docs/admin/templates/extending-templates/modules).
+More information [about Coder Modules can be found here](https://coder.com/docs/admin/templates/extending-templates/modules), while more information [about Coder Templates can be found here](https://coder.com/docs/admin/templates/creating-templates).
 
 ## Getting started
 
-The easiest way to discover new modules and templates is by visiting [the official Coder Registry website](https://registry.coder.com/). The website is a full mirror of the Coder Registry repo, and it is where .tar versions of the various resources can be downloaded from, from within your Coder deployment.
+The easiest way to discover new modules and templates is by visiting [the official Coder Registry website](https://registry.coder.com/). The website is a full mirror of the Coder Registry repo, and it is where .tar versions of the various resources can be downloaded from, for use within your Coder deployment.
 
-Note that while Coder has a baseline set of requirements for allowing an external PR to be merged in (i.e., published), Coder cannot vouch for the validity or functionality of a resource until that resource has been flagged with the `verified` status. [All modules under the Coder namespace](https://github.com/coder/registry/tree/main/registry/coder) are automatically verified.
+Note that while Coder has a baseline set of requirements for allowing an external PR to be published, Coder cannot vouch for the validity or functionality of a resource until that resource has been flagged with the `verified` status. [All modules under the Coder namespace](https://github.com/coder/registry/tree/main/registry/coder) are automatically verified.
 
 ### Getting started with modules
 
