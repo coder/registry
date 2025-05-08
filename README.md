@@ -4,10 +4,10 @@
 
 [![Health](https://github.com/coder/registry/actions/workflows/check_registry_site_health.yaml/badge.svg)](https://github.com/coder/registry/actions/workflows/check_registry_site_health.yaml)
 
+Coder Registry is a community-driven platform for extending your Coder workspaces. Publish reusable Terraform as Coder Modules for users all over the world.
+
 > [!NOTE]
 > The Coder Registry repo will be updated to support Coder Templates in the coming weeks. You can currently find all official templates in the official coder/coder repo, [under the `examples/templates` directory](https://github.com/coder/coder/tree/main/examples/templates).
-
-Coder Registry is a community-driven platform for extending your Coder workspaces. Publish reusable Terraform as Coder Modules for users all over the world.
 
 ## Overview
 
