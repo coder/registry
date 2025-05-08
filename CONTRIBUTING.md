@@ -1,7 +1,5 @@
 # Contributing
 
-The Registry repo gives each contributing author a namespace to add modules and other Coder-specific resources under. (For example, Coder's official module for JetBrains Gateway can be found under [`/registry/coder/modules/jetbrains-gateway`](https://github.com/coder/registry/tree/main/registry/coder/modules/jetbrains-gateway).) This ensures that multiple users can publish resources with the same name or similar purposes without any risks of namespace collisions. Version control for each resource is also handled via Git tags in this repo.
-
 ## Getting started
 
 This repo uses two main runtimes to verify the correctness of a module/template before it is published:
@@ -51,17 +49,75 @@ Once Go has been installed, verify the installation via:
 go version
 ```
 
-### Adding a new module/template (coming soon)
+## Namespaces
 
-Once Bun (and possibly Go) have been installed, clone this repository. From there, you can run this script to make it easier to start contributing a new module or template:
+All Coder resources are scoped to namespaces placed at the top level of the `/registry` directory. Any modules or templates must be placed inside a namespace to be accepted as a contribution. For example, all modules created by TheZoker would be placed under `/registry/TheZoker/modules`, with a subdirectory for each individual module.
+
+If a name is already taken, you will need to create a subdirectory under a different name, but you will still be able to choose any display name.
+
+### Contributor README files
+
+Each namespace directory must contain a `README.md` file containing metadata about who you are as a contributor. Each README file must contain frontmatter with required metadata fields, but there are no restrictions on the body of the README. Feel free to customize it to your heart's content (within reason – the CI step will check for accessibility violations).
+
+The frontmatter must contain the following fields:
+
+- `display_name` (required string) – The name to use when displaying your user profile in the Coder Registry site
+- `bio` (optional string) – A short description of who you are
+- `github` (optional string) – Your GitHub handle
+- `avatar_url` (optional string) – A relative/absolute URL pointing to your avatar for the Registry site. It is strongly recommended that you add avatar images to this repo and reference them via relative URLs.
+- `linkedin` (optional string) – A URL pointing to your LinkedIn page
+- `support_email` (optional string) – An email for users to reach you at if they need help with a published module/template
+- `status` (optional string union) – If defined, must be one of `"community"`, `"partner"`, or `"official"`. `"community"` is treated as the default value if not specified, and should be used for the majority of external contributions. `"official"` should be used for Coder and Coder satellite companies. `"partner"` is for companies who have a formal business partnership with Coder.
+
+### Images
+
+Any images needed for either the main namespace directory or a module/template can be placed in a relative `/images` directory at the top of the namespace directory. This is to minimize the risk of file name conflicts between different users.
+
+## Coder modules
+
+### Adding a new module
+
+> [!NOTE]
+> This script will be available shortly. These instructions cannot be followed just yet. Contributors looking to add modules early will need to create all directories manually.
+
+Once Bun (and possibly Go) have been installed, clone the Coder Registry repository. From there, you can run this script to make it easier to start contributing a new module or template:
 
 ```shell
-./new.sh NAME_OF_NEW_MODULE
+./new.sh USER_NAMESPACE/NAME_OF_NEW_MODULE
 ```
 
-You can also create the correct module/template files manually.
+You can also create a module file manually by creating the necessary files and directories.
 
-## Testing a Module
+### The composition of a Coder module
+
+Each Coder Module must contain the following files:
+
+- A `main.tf` file that defines the main Terraform-based functionality
+- A `main.test.ts` file that is used to validate that the module works as expected
+- A `README.md` file containing required information (listed below)
+
+You are free to include any additional files in the module, as needed by the module. For example, the [Windows RDP module](https://github.com/coder/registry/tree/main/registry/coder/modules/windows-rdp) contains additional files for injecting specific functionality into a Coder Workspace.
+
+### The structure of a module README
+
+All requirements listed below are validating using our CI process. A README file must have:
+
+- Frontmatter that describes metadata for the module:
+  - `display_name` (required string) – This is the name displayed on the Coder Registry website
+  - `description` (required string) – A short description of the module, which is displayed on the Registry website
+  - `icon` (required URL) – A relative/absolute URL pointing to the icon to display for the module in the Coder Registry website.
+  - `maintainer_github` (deprecated string) – The name of the creator of the module. This field exists for backwards compatibility with previous versions of the Registry, but going forward, the value will be calculated from the namespace directory.
+  - `partner_github` (deprecated string)
+  - `verified` (optional boolean) – Indicates whether the module has been officially verified by Coder.
+  - `tags` (required string array) – A list of metadata tags to describe the module. Used in the Registry site for search and navigation functionality.
+- An H1 header with the name of the module
+- The following content directly under the h1 header (without another header between them):
+  - A description of what the module does
+  - A Terraform snippet for letting other users import the functionality
+
+Additional information can be placed in the README file below the content listed above, using any number of headers.
+
+### Testing a Module
 
 > [!IMPORTANT]
 > It is the responsibility of the module author to implement tests for every new module they wish to contribute. It falls to the author to test the module locally before submitting a PR.
@@ -73,13 +129,13 @@ All general-purpose test helpers for validating Terraform can be found in the to
 
 You can reference the existing `*.test.ts` files to get an idea for how to set up tests.
 
-You can run all tests by running this command:
+You can run all tests by running this command from the root of the Registry directory:
 
 ```shell
 bun test
 ```
 
-Note that tests can take some time to run, so you probably don't want to be running this as part of your development loop.
+Note that tests can take some time to run, so you probably don't want to be running this as part of your core development loop.
 
 To run specific tests, you can use the `-t` flag, which accepts a filepath regex:
 
@@ -98,7 +154,7 @@ module "example" {
 
 ## Adding/modifying README files
 
-This repo uses Go to do a quick validation of each README. If you are working with the README files at all, it is strongly recommended that you install Go, so that the files can be validated locally.
+This repo uses Go to do a quick validation of each README file. If you are working with the README files at all (i.e., creating them, modifying them), it is strongly recommended that you install Go, so that the files can be validated locally.
 
 ### Validating all README files
 
