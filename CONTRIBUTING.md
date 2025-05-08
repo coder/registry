@@ -1,5 +1,7 @@
 # Contributing
 
+The Registry repo gives each contributing author a namespace to add modules and other Coder-specific resources under. (For example, Coder's official module for JetBrains Gateway can be found under [`/registry/coder/modules/jetbrains-gateway`](https://github.com/coder/registry/tree/main/registry/coder/modules/jetbrains-gateway).) This ensures that multiple users can publish resources with the same name or similar purposes without any risks of namespace collisions. Version control for each resource is also handled via Git tags in this repo.
+
 ## Getting started
 
 This repo uses two main runtimes to verify the correctness of a module/template before it is published:
