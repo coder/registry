@@ -13,6 +13,16 @@ terraform {
   }
 }
 
+variable "arch" {
+  type        = string
+  description = "The target architecture of the workspace"
+  default     = "amd64"
+  validation {
+    condition     = contains(["amd64", "arm64"], var.arch)
+    error_message = "Architecture must be either 'amd64' or 'arm64'."
+  }
+}
+
 variable "agent_id" {
   type        = string
   description = "The ID of a Coder agent."
@@ -178,78 +188,100 @@ data "http" "jetbrains_ide_versions" {
 }
 
 locals {
+  # AMD64 versions of the images just use the version string, while ARM64
+  # versions append "-aarch64". Eg:
+  #
+  # https://download.jetbrains.com/idea/ideaIU-2025.1.tar.gz
+  # https://download.jetbrains.com/idea/ideaIU-2025.1.tar.gz
+  #
+  # We rewrite the data map above dynamically based on the user's architecture parameter.
+  #
+  effective_jetbrains_ide_versions = {
+    for k, v in var.jetbrains_ide_versions : k => {
+      build_number = v.build_number
+      version      = var.arch == "arm64" ? "${v.version}-aarch64" : v.version
+    }
+  }
+
+  # When downloading the latest IDE, the download link in the JSON is either:
+  #
+  # linux.download_link
+  # linuxARM64.download_link
+  #
+  download_key = var.arch == "arm64" ? "linuxARM64" : "linux"
+
   jetbrains_ides = {
     "GO" = {
       icon          = "/icon/goland.svg",
       name          = "GoLand",
       identifier    = "GO",
-      build_number  = var.jetbrains_ide_versions["GO"].build_number,
-      download_link = "${var.download_base_link}/go/goland-${var.jetbrains_ide_versions["GO"].version}.tar.gz"
-      version       = var.jetbrains_ide_versions["GO"].version
+      build_number  = local.effective_jetbrains_ide_versions["GO"].build_number,
+      download_link = "${var.download_base_link}/go/goland-${local.effective_jetbrains_ide_versions["GO"].version}.tar.gz"
+      version       = local.effective_jetbrains_ide_versions["GO"].version
     },
     "WS" = {
       icon          = "/icon/webstorm.svg",
       name          = "WebStorm",
       identifier    = "WS",
-      build_number  = var.jetbrains_ide_versions["WS"].build_number,
-      download_link = "${var.download_base_link}/webstorm/WebStorm-${var.jetbrains_ide_versions["WS"].version}.tar.gz"
-      version       = var.jetbrains_ide_versions["WS"].version
+      build_number  = local.effective_jetbrains_ide_versions["WS"].build_number,
+      download_link = "${var.download_base_link}/webstorm/WebStorm-${local.effective_jetbrains_ide_versions["WS"].version}.tar.gz"
+      version       = local.effective_jetbrains_ide_versions["WS"].version
     },
     "IU" = {
       icon          = "/icon/intellij.svg",
       name          = "IntelliJ IDEA Ultimate",
       identifier    = "IU",
-      build_number  = var.jetbrains_ide_versions["IU"].build_number,
-      download_link = "${var.download_base_link}/idea/ideaIU-${var.jetbrains_ide_versions["IU"].version}.tar.gz"
-      version       = var.jetbrains_ide_versions["IU"].version
+      build_number  = local.effective_jetbrains_ide_versions["IU"].build_number,
+      download_link = "${var.download_base_link}/idea/ideaIU-${local.effective_jetbrains_ide_versions["IU"].version}.tar.gz"
+      version       = local.effective_jetbrains_ide_versions["IU"].version
     },
     "PY" = {
       icon          = "/icon/pycharm.svg",
       name          = "PyCharm Professional",
       identifier    = "PY",
-      build_number  = var.jetbrains_ide_versions["PY"].build_number,
-      download_link = "${var.download_base_link}/python/pycharm-professional-${var.jetbrains_ide_versions["PY"].version}.tar.gz"
-      version       = var.jetbrains_ide_versions["PY"].version
+      build_number  = local.effective_jetbrains_ide_versions["PY"].build_number,
+      download_link = "${var.download_base_link}/python/pycharm-professional-${local.effective_jetbrains_ide_versions["PY"].version}.tar.gz"
+      version       = local.effective_jetbrains_ide_versions["PY"].version
     },
     "CL" = {
       icon          = "/icon/clion.svg",
       name          = "CLion",
       identifier    = "CL",
-      build_number  = var.jetbrains_ide_versions["CL"].build_number,
-      download_link = "${var.download_base_link}/cpp/CLion-${var.jetbrains_ide_versions["CL"].version}.tar.gz"
-      version       = var.jetbrains_ide_versions["CL"].version
+      build_number  = local.effective_jetbrains_ide_versions["CL"].build_number,
+      download_link = "${var.download_base_link}/cpp/CLion-${local.effective_jetbrains_ide_versions["CL"].version}.tar.gz"
+      version       = local.effective_jetbrains_ide_versions["CL"].version
     },
     "PS" = {
       icon          = "/icon/phpstorm.svg",
       name          = "PhpStorm",
       identifier    = "PS",
-      build_number  = var.jetbrains_ide_versions["PS"].build_number,
-      download_link = "${var.download_base_link}/webide/PhpStorm-${var.jetbrains_ide_versions["PS"].version}.tar.gz"
-      version       = var.jetbrains_ide_versions["PS"].version
+      build_number  = local.effective_jetbrains_ide_versions["PS"].build_number,
+      download_link = "${var.download_base_link}/webide/PhpStorm-${local.effective_jetbrains_ide_versions["PS"].version}.tar.gz"
+      version       = local.effective_jetbrains_ide_versions["PS"].version
     },
     "RM" = {
       icon          = "/icon/rubymine.svg",
       name          = "RubyMine",
       identifier    = "RM",
-      build_number  = var.jetbrains_ide_versions["RM"].build_number,
-      download_link = "${var.download_base_link}/ruby/RubyMine-${var.jetbrains_ide_versions["RM"].version}.tar.gz"
-      version       = var.jetbrains_ide_versions["RM"].version
+      build_number  = local.effective_jetbrains_ide_versions["RM"].build_number,
+      download_link = "${var.download_base_link}/ruby/RubyMine-${local.effective_jetbrains_ide_versions["RM"].version}.tar.gz"
+      version       = local.effective_jetbrains_ide_versions["RM"].version
     },
     "RD" = {
       icon          = "/icon/rider.svg",
       name          = "Rider",
       identifier    = "RD",
-      build_number  = var.jetbrains_ide_versions["RD"].build_number,
-      download_link = "${var.download_base_link}/rider/JetBrains.Rider-${var.jetbrains_ide_versions["RD"].version}.tar.gz"
-      version       = var.jetbrains_ide_versions["RD"].version
+      build_number  = local.effective_jetbrains_ide_versions["RD"].build_number,
+      download_link = "${var.download_base_link}/rider/JetBrains.Rider-${local.effective_jetbrains_ide_versions["RD"].version}.tar.gz"
+      version       = local.effective_jetbrains_ide_versions["RD"].version
     },
     "RR" = {
       icon          = "/icon/rustrover.svg",
       name          = "RustRover",
       identifier    = "RR",
-      build_number  = var.jetbrains_ide_versions["RR"].build_number,
-      download_link = "${var.download_base_link}/rustrover/RustRover-${var.jetbrains_ide_versions["RR"].version}.tar.gz"
-      version       = var.jetbrains_ide_versions["RR"].version
+      build_number  = local.effective_jetbrains_ide_versions["RR"].build_number,
+      download_link = "${var.download_base_link}/rustrover/RustRover-${local.effective_jetbrains_ide_versions["RR"].version}.tar.gz"
+      version       = local.effective_jetbrains_ide_versions["RR"].version
     }
   }
 
@@ -258,7 +290,7 @@ locals {
   key           = var.latest ? keys(local.json_data)[0] : ""
   display_name  = local.jetbrains_ides[data.coder_parameter.jetbrains_ide.value].name
   identifier    = data.coder_parameter.jetbrains_ide.value
-  download_link = var.latest ? local.json_data[local.key][0].downloads.linux.link : local.jetbrains_ides[data.coder_parameter.jetbrains_ide.value].download_link
+  download_link = var.latest ? local.json_data[local.key][0].downloads[local.download_key].link : local.jetbrains_ides[data.coder_parameter.jetbrains_ide.value].download_link
   build_number  = var.latest ? local.json_data[local.key][0].build : local.jetbrains_ides[data.coder_parameter.jetbrains_ide.value].build_number
   version       = var.latest ? local.json_data[local.key][0].version : var.jetbrains_ide_versions[data.coder_parameter.jetbrains_ide.value].version
 }

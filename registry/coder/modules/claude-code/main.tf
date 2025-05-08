@@ -54,10 +54,33 @@ variable "experiment_use_screen" {
   default     = false
 }
 
+variable "experiment_use_tmux" {
+  type        = bool
+  description = "Whether to use tmux instead of screen for running Claude Code in the background."
+  default     = false
+}
+
 variable "experiment_report_tasks" {
   type        = bool
   description = "Whether to enable task reporting."
   default     = false
+}
+
+variable "experiment_pre_install_script" {
+  type        = string
+  description = "Custom script to run before installing Claude Code."
+  default     = null
+}
+
+variable "experiment_post_install_script" {
+  type        = string
+  description = "Custom script to run after installing Claude Code."
+  default     = null
+}
+
+locals {
+  encoded_pre_install_script  = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
+  encoded_post_install_script = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
 }
 
 # Install and Initialize Claude Code
@@ -74,6 +97,14 @@ resource "coder_script" "claude_code" {
       command -v "$1" >/dev/null 2>&1
     }
 
+    # Run pre-install script if provided
+    if [ -n "${local.encoded_pre_install_script}" ]; then
+      echo "Running pre-install script..."
+      echo "${local.encoded_pre_install_script}" | base64 -d > /tmp/pre_install.sh
+      chmod +x /tmp/pre_install.sh
+      /tmp/pre_install.sh
+    fi
+
     # Install Claude Code if enabled
     if [ "${var.install_claude_code}" = "true" ]; then
       if ! command_exists npm; then
@@ -84,9 +115,50 @@ resource "coder_script" "claude_code" {
       npm install -g @anthropic-ai/claude-code@${var.claude_code_version}
     fi
 
+    # Run post-install script if provided
+    if [ -n "${local.encoded_post_install_script}" ]; then
+      echo "Running post-install script..."
+      echo "${local.encoded_post_install_script}" | base64 -d > /tmp/post_install.sh
+      chmod +x /tmp/post_install.sh
+      /tmp/post_install.sh
+    fi
+
     if [ "${var.experiment_report_tasks}" = "true" ]; then
       echo "Configuring Claude Code to report tasks via Coder MCP..."
       coder exp mcp configure claude-code ${var.folder}
+    fi
+
+    # Handle terminal multiplexer selection (tmux or screen)
+    if [ "${var.experiment_use_tmux}" = "true" ] && [ "${var.experiment_use_screen}" = "true" ]; then
+      echo "Error: Both experiment_use_tmux and experiment_use_screen cannot be true simultaneously."
+      echo "Please set only one of them to true."
+      exit 1
+    fi
+
+    # Run with tmux if enabled
+    if [ "${var.experiment_use_tmux}" = "true" ]; then
+      echo "Running Claude Code in the background with tmux..."
+      
+      # Check if tmux is installed
+      if ! command_exists tmux; then
+        echo "Error: tmux is not installed. Please install tmux manually."
+        exit 1
+      fi
+
+      touch "$HOME/.claude-code.log"
+      
+      export LANG=en_US.UTF-8
+      export LC_ALL=en_US.UTF-8
+      
+      # Create a new tmux session in detached mode
+      tmux new-session -d -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions"
+      
+      # Send the prompt to the tmux session if needed
+      if [ -n "$CODER_MCP_CLAUDE_TASK_PROMPT" ]; then
+        tmux send-keys -t claude-code "$CODER_MCP_CLAUDE_TASK_PROMPT"
+        sleep 5
+        tmux send-keys -t claude-code Enter
+      fi
     fi
 
     # Run with screen if enabled
@@ -149,20 +221,27 @@ resource "coder_app" "claude_code" {
     #!/bin/bash
     set -e
 
-    if [ "${var.experiment_use_screen}" = "true" ]; then
+    export LANG=en_US.UTF-8
+    export LC_ALL=en_US.UTF-8
+
+    if [ "${var.experiment_use_tmux}" = "true" ]; then
+      if tmux has-session -t claude-code 2>/dev/null; then
+        echo "Attaching to existing Claude Code tmux session." | tee -a "$HOME/.claude-code.log"
+        tmux attach-session -t claude-code
+      else
+        echo "Starting a new Claude Code tmux session." | tee -a "$HOME/.claude-code.log"
+        tmux new-session -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions | tee -a \"$HOME/.claude-code.log\"; exec bash"
+      fi
+    elif [ "${var.experiment_use_screen}" = "true" ]; then
       if screen -list | grep -q "claude-code"; then
-        export LANG=en_US.UTF-8
-        export LC_ALL=en_US.UTF-8
-        echo "Attaching to existing Claude Code session." | tee -a "$HOME/.claude-code.log"
+        echo "Attaching to existing Claude Code screen session." | tee -a "$HOME/.claude-code.log"
         screen -xRR claude-code
       else
-        echo "Starting a new Claude Code session." | tee -a "$HOME/.claude-code.log"
-        screen -S claude-code bash -c 'export LANG=en_US.UTF-8; export LC_ALL=en_US.UTF-8; claude --dangerously-skip-permissions | tee -a "$HOME/.claude-code.log"; exec bash'
+        echo "Starting a new Claude Code screen session." | tee -a "$HOME/.claude-code.log"
+        screen -S claude-code bash -c 'claude --dangerously-skip-permissions | tee -a "$HOME/.claude-code.log"; exec bash'
       fi
     else
       cd ${var.folder}
-      export LANG=en_US.UTF-8
-      export LC_ALL=en_US.UTF-8
       claude
     fi
     EOT
