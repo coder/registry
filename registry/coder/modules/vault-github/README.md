@@ -15,7 +15,7 @@ This module lets you authenticate with [Hashicorp Vault](https://www.vaultprojec
 ```tf
 module "vault" {
   count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/modules/vault-github/coder"
+  source     = "registry.coder.com/coder/vault-github/coder"
   version    = "1.0.7"
   agent_id   = coder_agent.example.id
   vault_addr = "https://vault.example.com"
@@ -47,7 +47,7 @@ To configure the Vault module, you must set up a Vault GitHub auth method. See t
 ```tf
 module "vault" {
   count                = data.coder_workspace.me.start_count
-  source               = "registry.coder.com/modules/vault-github/coder"
+  source               = "registry.coder.com/coder/vault-github/coder"
   version              = "1.0.7"
   agent_id             = coder_agent.example.id
   vault_addr           = "https://vault.example.com"
@@ -60,7 +60,7 @@ module "vault" {
 ```tf
 module "vault" {
   count                  = data.coder_workspace.me.start_count
-  source                 = "registry.coder.com/modules/vault-github/coder"
+  source                 = "registry.coder.com/coder/vault-github/coder"
   version                = "1.0.7"
   agent_id               = coder_agent.example.id
   vault_addr             = "https://vault.example.com"
@@ -74,7 +74,7 @@ module "vault" {
 ```tf
 module "vault" {
   count             = data.coder_workspace.me.start_count
-  source            = "registry.coder.com/modules/vault-github/coder"
+  source            = "registry.coder.com/coder/vault-github/coder"
   version           = "1.0.7"
   agent_id          = coder_agent.example.id
   vault_addr        = "https://vault.example.com"

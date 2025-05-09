@@ -15,7 +15,7 @@ A module that adds Apache Airflow in your Coder template.
 ```tf
 module "airflow" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/modules/apache-airflow/coder"
+  source   = "registry.coder.com/nataindata/apache-airflow/coder"
   version  = "1.0.13"
   agent_id = coder_agent.main.id
 }
