@@ -197,7 +197,7 @@ In addition to the general criteria, all README files must have the following:
   - `avatar_url` (optional string) – A relative/absolute URL pointing to your avatar for the Registry site. It is strongly recommended that you commit avatar images to this repo and reference them via a relative URL.
   - `linkedin` (optional string) – A URL pointing to your LinkedIn page.
   - `support_email` (optional string) – An email for users to reach you at if they need help with a published module/template.
-  - `status` (optional string union) – If defined, this must be one of `"community"`, `"partner"`, or `"official"`. `"community"` is treated as the default value if not specified, and should be used for the majority of external contributions. `"partner"` is for companies who have a formal business partnership with Coder. `"official"` should be used only by Coder.
+  - `status` (string union) – If defined, this must be one of `"community"`, `"partner"`, or `"official"`. `"community"` should be used for the majority of external contributions. `"partner"` is for companies who have a formal business partnership with Coder. `"official"` should be used only by Coder employees.
 
 - The README body (the content that goes directly below the frontmatter) is allowed to be empty, but if it isn't, it must follow all the rules above.
 
