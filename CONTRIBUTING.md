@@ -51,7 +51,7 @@ go version
 
 ## Namespaces
 
-All Coder resources are scoped to namespaces placed at the top level of the `/registry` directory. Any modules or templates must be placed inside a namespace to be accepted as a contribution. For example, all modules created by TheJonkler would be placed under `/registry/thejonkler/modules`, with a subdirectory for each individual module the user has published.
+All Coder resources are scoped to namespaces placed at the top level of the `/registry` directory. Any modules or templates must be placed inside a namespace to be accepted as a contribution. For example, all modules created by CoderEmployeeBob would be placed under `/registry/coderemployeebob/modules`, with a subdirectory for each individual module the user has published.
 
 If a namespace is already taken, you will need to create a different, unique namespace, but will still be able to choose any display name. (The display name is shown in the Registry website. More info below.)
 
@@ -61,7 +61,7 @@ More information about contributor profile README files can be found below.
 
 ### Images
 
-Any images needed for either the main namespace directory or a module/template can be placed in a relative `/images` directory at the top of the namespace directory. (e.g., The Jonkler can have a `/registry/thejonkler/images` directory, that can be referenced by the main README file, as well as a README file in `/registry/thejonkler/modules/custom_module/README.md`.) This is to minimize the risk of file name conflicts between different users as they add images to help illustrate parts of their README files.
+Any images needed for either the main namespace directory or a module/template can be placed in a relative `/images` directory at the top of the namespace directory. (e.g., CoderEmployeeBob can have a `/registry/coderemployeebob/images` directory, that can be referenced by the main README file, as well as a README file in `/registry/coderemployeebob/modules/custom_module/README.md`.) This is to minimize the risk of file name conflicts between different users as they add images to help illustrate parts of their README files.
 
 ## Coder modules
 
@@ -197,7 +197,7 @@ In addition to the general criteria, all README files must have the following:
   - `avatar_url` (optional string) – A relative/absolute URL pointing to your avatar for the Registry site. It is strongly recommended that you commit avatar images to this repo and reference them via a relative URL.
   - `linkedin` (optional string) – A URL pointing to your LinkedIn page.
   - `support_email` (optional string) – An email for users to reach you at if they need help with a published module/template.
-  - `status` (optional string union) – If defined, this must be one of `"community"`, `"partner"`, or `"official"`. `"community"` is treated as the default value if not specified, and should be used for the majority of external contributions. `"partner"` is for companies who have a formal business partnership with Coder. `"official"` should be used only by Coder and Coder satellite companies.
+  - `status` (optional string union) – If defined, this must be one of `"community"`, `"partner"`, or `"official"`. `"community"` is treated as the default value if not specified, and should be used for the majority of external contributions. `"partner"` is for companies who have a formal business partnership with Coder. `"official"` should be used only by Coder.
 
 - The README body (the content that goes directly below the frontmatter) is allowed to be empty, but if it isn't, it must follow all the rules above.
 

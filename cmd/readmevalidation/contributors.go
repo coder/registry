@@ -16,15 +16,15 @@ import (
 var validContributorStatuses = []string{"official", "partner", "community"}
 
 type contributorProfileFrontmatter struct {
-	DisplayName string `yaml:"display_name"`
-	Bio         string `yaml:"bio"`
-	// Script assumes that if value is nil, the Registry site build step will
-	// backfill the value with the user's GitHub avatar URL
-	AvatarURL         *string `yaml:"avatar"`
-	LinkedinURL       *string `yaml:"linkedin"`
-	WebsiteURL        *string `yaml:"website"`
-	SupportEmail      *string `yaml:"support_email"`
-	ContributorStatus *string `yaml:"status"`
+	DisplayName       string `yaml:"display_name"`
+	Bio               string `yaml:"bio"`
+	ContributorStatus string `yaml:"status"`
+	// Script assumes that if avatar URL is nil, the Registry site build step
+	// will backfill the value with the user's GitHub avatar URL
+	AvatarURL    *string `yaml:"avatar"`
+	LinkedinURL  *string `yaml:"linkedin"`
+	WebsiteURL   *string `yaml:"website"`
+	SupportEmail *string `yaml:"support_email"`
 }
 
 type contributorProfileReadme struct {
@@ -105,13 +105,9 @@ func validateContributorWebsite(websiteURL *string) error {
 	return nil
 }
 
-func validateContributorStatus(status *string) error {
-	if status == nil {
-		return nil
-	}
-
-	if !slices.Contains(validContributorStatuses, *status) {
-		return fmt.Errorf("contributor status %q is not valid", *status)
+func validateContributorStatus(status string) error {
+	if !slices.Contains(validContributorStatuses, status) {
+		return fmt.Errorf("contributor status %q is not valid", status)
 	}
 
 	return nil
