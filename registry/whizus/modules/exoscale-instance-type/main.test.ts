@@ -23,7 +23,7 @@ describe("exoscale-instance-type", async () => {
     expect(state.outputs.value.value).toBe("gpu3.huge");
   });
 
-  it("fails because of wrong categroy definition", async () => {
+  it("fails when default value is provided without any matching category definitions", async () => {
     expect(async () => {
       await runTerraformApply(import.meta.dir, {
         default: "gpu3.huge",
