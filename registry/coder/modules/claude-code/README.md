@@ -14,7 +14,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/modules/claude-code/coder"
-  version             = "1.0.31"
+  version             = "1.2.1"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
@@ -25,7 +25,7 @@ module "claude-code" {
 ## Prerequisites
 
 - Node.js and npm must be installed in your workspace to install Claude Code
-- `screen` must be installed in your workspace to run Claude Code in the background
+- Either `screen` or `tmux` must be installed in your workspace to run Claude Code in the background
 - You must add the [Coder Login](https://registry.coder.com/modules/coder-login) module to your template
 
 The `codercom/oss-dogfood:latest` container image can be used for testing on container-based workspaces.
@@ -43,7 +43,7 @@ The `codercom/oss-dogfood:latest` container image can be used for testing on con
 > Join our [Discord channel](https://discord.gg/coder) or
 > [contact us](https://coder.com/contact) to get help or share feedback.
 
-Your workspace must have `screen` installed to use this.
+Your workspace must have either `screen` or `tmux` installed to use this.
 
 ```tf
 variable "anthropic_api_key" {
@@ -71,7 +71,7 @@ data "coder_parameter" "ai_prompt" {
 resource "coder_agent" "main" {
   # ...
   env = {
-    CODER_MCP_CLAUDE_API_KEY       = var.anthropic_api_key # or use a coder_parameter 
+    CODER_MCP_CLAUDE_API_KEY       = var.anthropic_api_key # or use a coder_parameter
     CODER_MCP_CLAUDE_TASK_PROMPT   = data.coder_parameter.ai_prompt.value
     CODER_MCP_APP_STATUS_SLUG      = "claude-code"
     CODER_MCP_CLAUDE_SYSTEM_PROMPT = <<-EOT
@@ -83,14 +83,14 @@ resource "coder_agent" "main" {
 module "claude-code" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/modules/claude-code/coder"
-  version             = "1.0.31"
+  version             = "1.1.0"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
   claude_code_version = "0.2.57"
 
   # Enable experimental features
-  experiment_use_screen   = true
+  experiment_use_screen   = true # Or use experiment_use_tmux = true to use tmux instead
   experiment_report_tasks = true
 }
 ```
@@ -102,7 +102,7 @@ Run Claude Code as a standalone app in your workspace. This will install Claude 
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/modules/claude-code/coder"
-  version             = "1.0.31"
+  version             = "1.2.1"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true

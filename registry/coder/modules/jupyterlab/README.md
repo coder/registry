@@ -17,7 +17,7 @@ A module that adds JupyterLab in your Coder template.
 module "jupyterlab" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/modules/jupyterlab/coder"
-  version  = "1.0.30"
+  version  = "1.0.31"
   agent_id = coder_agent.example.id
 }
 ```

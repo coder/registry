@@ -78,6 +78,60 @@ variable "experiment_goose_model" {
   default     = null
 }
 
+variable "experiment_pre_install_script" {
+  type        = string
+  description = "Custom script to run before installing Goose."
+  default     = null
+}
+
+variable "experiment_post_install_script" {
+  type        = string
+  description = "Custom script to run after installing Goose."
+  default     = null
+}
+
+variable "experiment_additional_extensions" {
+  type        = string
+  description = "Additional extensions configuration in YAML format to append to the config."
+  default     = null
+}
+
+locals {
+  base_extensions = <<-EOT
+coder:
+  args:
+  - exp
+  - mcp
+  - server
+  cmd: coder
+  description: Report ALL tasks and statuses (in progress, done, failed) you are working on.
+  enabled: true
+  envs:
+    CODER_MCP_APP_STATUS_SLUG: goose
+  name: Coder
+  timeout: 3000
+  type: stdio
+developer:
+  display_name: Developer
+  enabled: true
+  name: developer
+  timeout: 300
+  type: builtin
+EOT
+
+  # Add two spaces to each line of extensions to match YAML structure
+  formatted_base        = "  ${replace(trimspace(local.base_extensions), "\n", "\n  ")}"
+  additional_extensions = var.experiment_additional_extensions != null ? "\n  ${replace(trimspace(var.experiment_additional_extensions), "\n", "\n  ")}" : ""
+
+  combined_extensions = <<-EOT
+extensions:
+${local.formatted_base}${local.additional_extensions}
+EOT
+
+  encoded_pre_install_script  = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
+  encoded_post_install_script = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
+}
+
 # Install and Initialize Goose
 resource "coder_script" "goose" {
   agent_id     = var.agent_id
@@ -92,6 +146,14 @@ resource "coder_script" "goose" {
       command -v "$1" >/dev/null 2>&1
     }
 
+    # Run pre-install script if provided
+    if [ -n "${local.encoded_pre_install_script}" ]; then
+      echo "Running pre-install script..."
+      echo "${local.encoded_pre_install_script}" | base64 -d > /tmp/pre_install.sh
+      chmod +x /tmp/pre_install.sh
+      /tmp/pre_install.sh
+    fi
+
     # Install Goose if enabled
     if [ "${var.install_goose}" = "true" ]; then
       if ! command_exists npm; then
@@ -102,6 +164,14 @@ resource "coder_script" "goose" {
       RELEASE_TAG=v${var.goose_version} curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | CONFIGURE=false bash
     fi
 
+    # Run post-install script if provided
+    if [ -n "${local.encoded_post_install_script}" ]; then
+      echo "Running post-install script..."
+      echo "${local.encoded_post_install_script}" | base64 -d > /tmp/post_install.sh
+      chmod +x /tmp/post_install.sh
+      /tmp/post_install.sh
+    fi
+
     # Configure Goose if auto-configure is enabled
     if [ "${var.experiment_auto_configure}" = "true" ]; then
       echo "Configuring Goose..."
@@ -109,28 +179,13 @@ resource "coder_script" "goose" {
       cat > "$HOME/.config/goose/config.yaml" << EOL
 GOOSE_PROVIDER: ${var.experiment_goose_provider}
 GOOSE_MODEL: ${var.experiment_goose_model}
-extensions:
-  coder:
-    args:
-    - exp
-    - mcp
-    - server
-    cmd: coder
-    description: Report ALL tasks and statuses (in progress, done, failed) before and after starting
-    enabled: true
-    envs:
-      CODER_MCP_APP_STATUS_SLUG: goose
-    name: Coder
-    timeout: 3000
-    type: stdio
-  developer:
-    display_name: Developer
-    enabled: true
-    name: developer
-    timeout: 300
-    type: builtin
+${trimspace(local.combined_extensions)}
 EOL
     fi
+    
+    # Write system prompt to config
+    mkdir -p "$HOME/.config/goose"
+    echo "$GOOSE_SYSTEM_PROMPT" > "$HOME/.config/goose/.goosehints"
     
     # Run with screen if enabled
     if [ "${var.experiment_use_screen}" = "true" ]; then
@@ -162,14 +217,28 @@ EOL
       export LANG=en_US.UTF-8
       export LC_ALL=en_US.UTF-8
       
-      screen -U -dmS goose bash -c '
+      # Determine goose command
+      if command_exists goose; then
+        GOOSE_CMD=goose
+      elif [ -f "$HOME/.local/bin/goose" ]; then
+        GOOSE_CMD="$HOME/.local/bin/goose"
+      else
+        echo "Error: Goose is not installed. Please enable install_goose or install it manually."
+        exit 1
+      fi
+      
+      screen -U -dmS goose bash -c "
         cd ${var.folder}
-        $HOME/.local/bin/goose run --text "$GOOSE_SYSTEM_PROMPT. Your task: $GOOSE_TASK_PROMPT" --interactive | tee -a "$HOME/.goose.log"
-        exec bash
-      '
+        \"$GOOSE_CMD\" run --text \"Review your goosehints. Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GOOSE_TASK_PROMPT\" --interactive | tee -a \"$HOME/.goose.log\"
+        /bin/bash
+      "
     else
       # Check if goose is installed before running
-      if ! command_exists $HOME/.local/bin/goose; then
+      if command_exists goose; then
+        GOOSE_CMD=goose
+      elif [ -f "$HOME/.local/bin/goose" ]; then
+        GOOSE_CMD="$HOME/.local/bin/goose"
+      else
         echo "Error: Goose is not installed. Please enable install_goose or install it manually."
         exit 1
       fi
@@ -186,21 +255,34 @@ resource "coder_app" "goose" {
     #!/bin/bash
     set -e
 
+    # Function to check if a command exists
+    command_exists() {
+      command -v "$1" >/dev/null 2>&1
+    }
+
+    # Determine goose command
+    if command_exists goose; then
+      GOOSE_CMD=goose
+    elif [ -f "$HOME/.local/bin/goose" ]; then
+      GOOSE_CMD="$HOME/.local/bin/goose"
+    else
+      echo "Error: Goose is not installed. Please enable install_goose or install it manually."
+      exit 1
+    fi
+
     if [ "${var.experiment_use_screen}" = "true" ]; then
-      if screen -list | grep -q "goose"; then
-        export LANG=en_US.UTF-8
-        export LC_ALL=en_US.UTF-8
-        echo "Attaching to existing Goose session." | tee -a "$HOME/.goose.log"
-        screen -xRR goose
-      else
-        echo "Starting a new Goose session." | tee -a "$HOME/.goose.log"
-        screen -S goose bash -c 'export LANG=en_US.UTF-8; export LC_ALL=en_US.UTF-8; $HOME/.local/bin/goose run --text "Always report status and instructions to Coder, before and after your steps" --interactive | tee -a "$HOME/.goose.log"; exec bash'
+      # Check if session exists first
+      if ! screen -list | grep -q "goose"; then
+        echo "Error: No existing Goose session found. Please wait for the script to start it."
+        exit 1
       fi
+      # Only attach to existing session
+      screen -xRR goose
     else
       cd ${var.folder}
       export LANG=en_US.UTF-8
       export LC_ALL=en_US.UTF-8
-      $HOME/.local/bin/goose
+      "$GOOSE_CMD" run --text "Review goosehints. Your task: $GOOSE_TASK_PROMPT" --interactive
     fi
     EOT
   icon         = var.icon

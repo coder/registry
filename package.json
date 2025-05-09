@@ -1,5 +1,5 @@
 {
-  "name": "modules",
+  "name": "registry",
   "scripts": {
     "fmt": "bun x prettier --write **/*.sh **/*.ts **/*.md *.md && terraform fmt -recursive -diff",
     "fmt:ci": "bun x prettier --check **/*.sh **/*.ts **/*.md *.md && terraform fmt -check -recursive -diff",

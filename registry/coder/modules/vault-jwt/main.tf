@@ -20,6 +20,13 @@ variable "vault_addr" {
   description = "The address of the Vault server."
 }
 
+variable "vault_jwt_token" {
+  type        = string
+  description = "The JWT token used for authentication with Vault."
+  default     = null
+  sensitive   = true
+}
+
 variable "vault_jwt_auth_path" {
   type        = string
   description = "The path to the Vault JWT auth method."
@@ -46,7 +53,7 @@ resource "coder_script" "vault" {
   display_name = "Vault (GitHub)"
   icon         = "/icon/vault.svg"
   script = templatefile("${path.module}/run.sh", {
-    CODER_OIDC_ACCESS_TOKEN : data.coder_workspace_owner.me.oidc_access_token,
+    CODER_OIDC_ACCESS_TOKEN : var.vault_jwt_token != null ? var.vault_jwt_token : data.coder_workspace_owner.me.oidc_access_token,
     VAULT_JWT_AUTH_PATH : var.vault_jwt_auth_path,
     VAULT_JWT_ROLE : var.vault_jwt_role,
     VAULT_CLI_VERSION : var.vault_cli_version,
