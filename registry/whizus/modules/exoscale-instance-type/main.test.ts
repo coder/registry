@@ -29,7 +29,7 @@ describe("exoscale-instance-type", async () => {
         default: "gpu3.huge",
         // type_category: ["standard"] is standard
       });
-    }).toThrow(/default value "gpu3.huge" must be defined as one of options/);
+    }).toThrow(/value "gpu3.huge" must be defined as one of options/);
   });
 
   it("set custom order for coder_parameter", async () => {
