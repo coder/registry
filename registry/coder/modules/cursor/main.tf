@@ -32,6 +32,12 @@ variable "order" {
   default     = null
 }
 
+variable "slug" {
+  type        = string
+  description = "The slug of the app."
+  default     = "cursor"
+}
+
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
@@ -39,7 +45,7 @@ resource "coder_app" "cursor" {
   agent_id     = var.agent_id
   external     = true
   icon         = "/icon/cursor.svg"
-  slug         = "cursor"
+  slug         = var.slug
   display_name = "Cursor Desktop"
   order        = var.order
   url = join("", [
