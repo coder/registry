@@ -15,7 +15,7 @@ Enable Remote Desktop + a web based client on Windows workspaces, powered by [de
 # AWS example. See below for examples of using this module with other providers
 module "windows_rdp" {
   count       = data.coder_workspace.me.start_count
-  source      = "registry.coder.com/modules/windows-rdp/coder"
+  source      = "registry.coder.com/coder/windows-rdp/coder"
   version     = "1.0.18"
   agent_id    = resource.coder_agent.main.id
   resource_id = resource.aws_instance.dev.id
@@ -33,7 +33,7 @@ module "windows_rdp" {
 ```tf
 module "windows_rdp" {
   count       = data.coder_workspace.me.start_count
-  source      = "registry.coder.com/modules/windows-rdp/coder"
+  source      = "registry.coder.com/coder/windows-rdp/coder"
   version     = "1.0.18"
   agent_id    = resource.coder_agent.main.id
   resource_id = resource.aws_instance.dev.id
@@ -45,7 +45,7 @@ module "windows_rdp" {
 ```tf
 module "windows_rdp" {
   count       = data.coder_workspace.me.start_count
-  source      = "registry.coder.com/modules/windows-rdp/coder"
+  source      = "registry.coder.com/coder/windows-rdp/coder"
   version     = "1.0.18"
   agent_id    = resource.coder_agent.main.id
   resource_id = resource.google_compute_instance.dev[0].id

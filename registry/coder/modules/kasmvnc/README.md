@@ -14,7 +14,7 @@ Automatically install [KasmVNC](https://kasmweb.com/kasmvnc) in a workspace, and
 ```tf
 module "kasmvnc" {
   count               = data.coder_workspace.me.start_count
-  source              = "registry.coder.com/modules/kasmvnc/coder"
+  source              = "registry.coder.com/coder/kasmvnc/coder"
   version             = "1.0.23"
   agent_id            = coder_agent.example.id
   desktop_environment = "xfce"

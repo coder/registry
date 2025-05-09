@@ -14,7 +14,7 @@ Install the JF CLI and authenticate package managers with Artifactory using Arti
 
 ```tf
 module "jfrog" {
-  source                   = "registry.coder.com/modules/jfrog-token/coder"
+  source                   = "registry.coder.com/coder/jfrog-token/coder"
   version                  = "1.0.30"
   agent_id                 = coder_agent.example.id
   jfrog_url                = "https://XXXX.jfrog.io"
@@ -41,7 +41,7 @@ For detailed instructions, please see this [guide](https://coder.com/docs/v2/lat
 
 ```tf
 module "jfrog" {
-  source                   = "registry.coder.com/modules/jfrog-token/coder"
+  source                   = "registry.coder.com/coder/jfrog-token/coder"
   version                  = "1.0.30"
   agent_id                 = coder_agent.example.id
   jfrog_url                = "https://YYYY.jfrog.io"
@@ -74,7 +74,7 @@ The [JFrog extension](https://open-vsx.org/extension/JFrog/jfrog-vscode-extensio
 
 ```tf
 module "jfrog" {
-  source                   = "registry.coder.com/modules/jfrog-token/coder"
+  source                   = "registry.coder.com/coder/jfrog-token/coder"
   version                  = "1.0.30"
   agent_id                 = coder_agent.example.id
   jfrog_url                = "https://XXXX.jfrog.io"
@@ -94,7 +94,7 @@ module "jfrog" {
 data "coder_workspace" "me" {}
 
 module "jfrog" {
-  source                   = "registry.coder.com/modules/jfrog-token/coder"
+  source                   = "registry.coder.com/coder/jfrog-token/coder"
   version                  = "1.0.30"
   agent_id                 = coder_agent.example.id
   jfrog_url                = "https://XXXX.jfrog.io"

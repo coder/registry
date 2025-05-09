@@ -22,7 +22,7 @@ This module has a chance of conflicting with the user's dotfiles / the personali
 ```tf
 module "git-commit-signing" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/modules/git-commit-signing/coder"
+  source   = "registry.coder.com/coder/git-commit-signing/coder"
   version  = "1.0.11"
   agent_id = coder_agent.example.id
 }

@@ -14,7 +14,7 @@ Automatically install [Visual Studio Code Server](https://code.visualstudio.com/
 ```tf
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
-  source         = "registry.coder.com/modules/vscode-web/coder"
+  source         = "registry.coder.com/coder/vscode-web/coder"
   version        = "1.0.30"
   agent_id       = coder_agent.example.id
   accept_license = true
@@ -30,7 +30,7 @@ module "vscode-web" {
 ```tf
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
-  source         = "registry.coder.com/modules/vscode-web/coder"
+  source         = "registry.coder.com/coder/vscode-web/coder"
   version        = "1.0.30"
   agent_id       = coder_agent.example.id
   install_prefix = "/home/coder/.vscode-web"
@@ -44,7 +44,7 @@ module "vscode-web" {
 ```tf
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
-  source         = "registry.coder.com/modules/vscode-web/coder"
+  source         = "registry.coder.com/coder/vscode-web/coder"
   version        = "1.0.30"
   agent_id       = coder_agent.example.id
   extensions     = ["github.copilot", "ms-python.python", "ms-toolsai.jupyter"]
@@ -59,7 +59,7 @@ Configure VS Code's [settings.json](https://code.visualstudio.com/docs/getstarte
 ```tf
 module "vscode-web" {
   count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/modules/vscode-web/coder"
+  source     = "registry.coder.com/coder/vscode-web/coder"
   version    = "1.0.30"
   agent_id   = coder_agent.example.id
   extensions = ["dracula-theme.theme-dracula"]
@@ -77,7 +77,7 @@ By default, this module installs the latest. To pin a specific version, retrieve
 ```tf
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
-  source         = "registry.coder.com/modules/vscode-web/coder"
+  source         = "registry.coder.com/coder/vscode-web/coder"
   version        = "1.0.30"
   agent_id       = coder_agent.example.id
   commit_id      = "e54c774e0add60467559eb0d1e229c6452cf8447"

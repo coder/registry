@@ -16,7 +16,7 @@ Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder)
 ```tf
 module "windsurf" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/modules/windsurf/coder"
+  source   = "registry.coder.com/coder/windsurf/coder"
   version  = "1.0.0"
   agent_id = coder_agent.example.id
 }
@@ -29,7 +29,7 @@ module "windsurf" {
 ```tf
 module "windsurf" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/modules/windsurf/coder"
+  source   = "registry.coder.com/coder/windsurf/coder"
   version  = "1.0.0"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"

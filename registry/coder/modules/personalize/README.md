@@ -14,7 +14,7 @@ Run a script on workspace start that allows developers to run custom commands to
 ```tf
 module "personalize" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/modules/personalize/coder"
+  source   = "registry.coder.com/coder/personalize/coder"
   version  = "1.0.2"
   agent_id = coder_agent.example.id
 }

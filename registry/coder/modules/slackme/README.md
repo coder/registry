@@ -14,7 +14,7 @@ Add the `slackme` command to your workspace that DMs you on Slack when your comm
 ```tf
 module "slackme" {
   count            = data.coder_workspace.me.start_count
-  source           = "registry.coder.com/modules/slackme/coder"
+  source           = "registry.coder.com/coder/slackme/coder"
   version          = "1.0.2"
   agent_id         = coder_agent.example.id
   auth_provider_id = "slack"
@@ -74,7 +74,7 @@ slackme npm run long-build
 ```tf
 module "slackme" {
   count            = data.coder_workspace.me.start_count
-  source           = "registry.coder.com/modules/slackme/coder"
+  source           = "registry.coder.com/coder/slackme/coder"
   version          = "1.0.2"
   agent_id         = coder_agent.example.id
   auth_provider_id = "slack"
