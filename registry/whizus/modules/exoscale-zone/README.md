@@ -77,7 +77,9 @@ Hide the Switzerland zones Geneva and Zurich
 
 ```tf
 module "exoscale-zone" {
-  source  = "registry.coder.com/whizus/exoscale-zone/coder"
+  # Switch to "registry.coder.com/whizus/exoscale-zone/coder" for the next 
+  # release
+  source  = "registry.coder.com/coder/exoscale-zone/coder"
   version = "1.0.12"
   exclude = ["ch-gva-2", "ch-dk-2"]
 }

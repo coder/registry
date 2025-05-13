@@ -80,8 +80,10 @@ Show only gpu1 types
 
 ```tf
 module "exoscale-instance-type" {
-  count         = data.coder_workspace.me.start_count
-  source        = "registry.coder.com/whizus/exoscale-instance-type/coder"
+  count = data.coder_workspace.me.start_count
+  # Switch to "registry.coder.com/whizus/exoscale-instance-type/coder" for the 
+  # next release
+  source        = "registry.coder.com/coder/exoscale-instance-type/coder"
   version       = "1.0.12"
   default       = "gpu.large"
   type_category = ["gpu"]
