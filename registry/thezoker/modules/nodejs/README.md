@@ -13,8 +13,9 @@ Automatically installs [Node.js](https://github.com/nodejs/node) via [nvm](https
 
 ```tf
 module "nodejs" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/thezoker/nodejs/coder"
+  count = data.coder_workspace.me.start_count
+  # Switch to "registry.coder.com/thezoker/nodejs/coder" for the next release
+  source   = "registry.coder.com/coder/nodejs/coder"
   version  = "1.0.10"
   agent_id = coder_agent.example.id
 }
@@ -27,7 +28,7 @@ This installs multiple versions of Node.js:
 ```tf
 module "nodejs" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/thezoker/nodejs/coder"
+  source   = "registry.coder.com/coder/nodejs/coder"
   version  = "1.0.10"
   agent_id = coder_agent.example.id
   node_versions = [
@@ -45,8 +46,7 @@ A example with all available options:
 
 ```tf
 module "nodejs" {
-  count = data.coder_workspace.me.start_count
-  # Switch to "registry.coder.com/thezoker/nodejs/coder" for the next release
+  count              = data.coder_workspace.me.start_count
   source             = "registry.coder.com/coder/nodejs/coder"
   version            = "1.0.10"
   agent_id           = coder_agent.example.id
