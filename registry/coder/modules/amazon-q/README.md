@@ -1,7 +1,7 @@
 ---
 display_name: Amazon Q
 description: Run Amazon Q in your workspace to access Amazon's AI coding assistant.
-icon: ../.icons/aws.svg
+icon: ../../../../.icons/aws.svg
 maintainer_github: coder
 verified: true
 tags: [ai, helper, amazon-q]
@@ -21,7 +21,7 @@ module "amazon-q" {
 }
 ```
 
-![Amazon-Q in action](../.images/amazonq.png)
+![Amazon-Q in action](../../.images/amazon-q.png)
 
 ## Prerequisites
 
