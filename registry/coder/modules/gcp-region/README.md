@@ -14,7 +14,7 @@ This module adds Google Cloud Platform regions to your Coder template.
 ```tf
 module "gcp_region" {
   count   = data.coder_workspace.me.start_count
-  source  = "registry.coder.com/modules/gcp-region/coder"
+  source  = "registry.coder.com/coder/gcp-region/coder"
   version = "1.0.12"
   regions = ["us", "europe"]
 }
@@ -35,7 +35,7 @@ Note: setting `gpu_only = true` and using a default region without GPU support, 
 ```tf
 module "gcp_region" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/modules/gcp-region/coder"
+  source   = "registry.coder.com/coder/gcp-region/coder"
   version  = "1.0.12"
   default  = ["us-west1-a"]
   regions  = ["us-west1"]
@@ -52,7 +52,7 @@ resource "google_compute_instance" "example" {
 ```tf
 module "gcp_region" {
   count                  = data.coder_workspace.me.start_count
-  source                 = "registry.coder.com/modules/gcp-region/coder"
+  source                 = "registry.coder.com/coder/gcp-region/coder"
   version                = "1.0.12"
   regions                = ["europe-west"]
   single_zone_per_region = false
@@ -68,7 +68,7 @@ resource "google_compute_instance" "example" {
 ```tf
 module "gcp_region" {
   count                  = data.coder_workspace.me.start_count
-  source                 = "registry.coder.com/modules/gcp-region/coder"
+  source                 = "registry.coder.com/coder/gcp-region/coder"
   version                = "1.0.12"
   regions                = ["us", "europe"]
   gpu_only               = true
