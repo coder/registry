@@ -25,7 +25,6 @@ variable "vault_token" {
   description = "The Vault token to use for authentication."
   sensitive   = true
   default     = null
-
 }
 
 variable "vault_cli_version" {
