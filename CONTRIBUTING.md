@@ -242,7 +242,7 @@ Additional image/video assets can be placed in one of two places:
 
 ## Releases
 
-The release process is automated with these steps:
+The release process involves the following steps:
 
 ### 1. Create and merge a new PR
 
@@ -253,33 +253,42 @@ The release process is automated with these steps:
 
 After merging to `main`, a maintainer will:
 
-- View all modules and their current versions:
+- Check out the merge commit:
 
   ```shell
-  ./release.sh --list
+  git checkout MERGE_COMMIT_ID
   ```
 
-- Determine the next version number based on changes:
-
-  - **Patch version** (1.2.3 → 1.2.4): Bug fixes
-  - **Minor version** (1.2.3 → 1.3.0): New features, adding inputs, deprecating inputs
-  - **Major version** (1.2.3 → 2.0.0): Breaking changes (removing inputs, changing input types)
-
-- Create and push an annotated tag:
+- Create annotated tags for each module that was changed:
 
   ```shell
-  # Fetch latest changes
-  git fetch origin
-  
-  # Create and push tag
-  ./release.sh module-name 1.2.3 --push
+  git tag -a "release/$namespace/$module/v$version" -m "Release $namespace/$module v$version"
   ```
 
-  The tag format will be: `release/module-name/v1.2.3`
+- Push the tags to origin:
+
+  ```shell
+  git push origin release/$namespace/$module/v$version
+  ```
+
+For example, to release version 1.0.14 of the coder/aider module:
+
+```shell
+git tag -a "release/coder/aider/v1.0.14" -m "Release coder/aider v1.0.14"
+git push origin release/coder/aider/v1.0.14
+```
+
+### Version Numbers
+
+Version numbers should follow semantic versioning:
+
+- **Patch version** (1.2.3 → 1.2.4): Bug fixes
+- **Minor version** (1.2.3 → 1.3.0): New features, adding inputs, deprecating inputs
+- **Major version** (1.2.3 → 2.0.0): Breaking changes (removing inputs, changing input types)
 
 ### 3. Publishing to Coder Registry
 
-Our automated processes will handle publishing new data to [registry.coder.com](https://registry.coder.com).
+After tags are pushed, the changes will be published to [registry.coder.com](https://registry.coder.com).
 
 > [!NOTE]
-> Some data in registry.coder.com is fetched on demand from the [coder/modules](https://github.com/coder/modules) repo's `main` branch. This data should update almost immediately after a release, while other changes will take some time to propagate.
+> Some data in registry.coder.com is fetched on demand from this repository's `main` branch. This data should update almost immediately after a release, while other changes will take some time to propagate.
