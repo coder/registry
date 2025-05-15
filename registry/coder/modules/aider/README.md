@@ -13,7 +13,7 @@ Run [Aider](https://aider.chat) AI pair programming in your workspace. This modu
 
 ```tf
 module "aider" {
-  source   = "registry.coder.com/modules/aider/coder"
+  source   = "registry.coder.com/coder/aider/coder"
   version  = "1.0.0"
   agent_id = coder_agent.example.id
 }
