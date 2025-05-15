@@ -32,6 +32,18 @@ variable "order" {
   default     = null
 }
 
+variable "slug" {
+  type        = string
+  description = "The slug of the app."
+  default     = "cursor"
+}
+
+variable "display_name" {
+  type        = string
+  description = "The display name of the app."
+  default     = "Cursor Desktop"
+}
+
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
@@ -39,8 +51,8 @@ resource "coder_app" "cursor" {
   agent_id     = var.agent_id
   external     = true
   icon         = "/icon/cursor.svg"
-  slug         = "cursor"
-  display_name = "Cursor Desktop"
+  slug         = var.slug
+  display_name = var.display_name
   order        = var.order
   url = join("", [
     "cursor://coder.coder-remote/open",
