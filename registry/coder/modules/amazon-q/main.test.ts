@@ -4,7 +4,7 @@ import {
   runTerraformInit,
   testRequiredVariables,
   findResourceInstance,
-} from "../../test";
+} from "~test";
 import path from "path";
 
 const moduleDir = path.resolve(__dirname);
