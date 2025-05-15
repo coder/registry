@@ -72,52 +72,33 @@ variable "experiment_report_tasks" {
   default     = true
 }
 
-variable "experiment_task_conventions" {
+variable "system_prompt" {
   type        = string
-  description = "Custom conventions for task reporting to be written to CONVENTIONS.md"
+  description = "System prompt for instructing Aider on task reporting and behavior"
   default     = <<-EOT
-# Aider Coding Conventions
-
-## Task Reporting Requirements
-
-As you work on tasks, you MUST follow these task reporting conventions:
-
-1. ALWAYS report the status of each task to Coder before and after your steps.
-2. Use the following format for reporting tasks:
-   ```
-   TASK: [brief description of what you're doing]
-   STATUS: [one of: "started", "in progress", "done", "failed"]
-   ```
-
-3. Send a task report in these specific situations:
-   - When you BEGIN working on a task
-   - When you make SIGNIFICANT PROGRESS on a task
-   - When you COMPLETE a task successfully
-   - When you ENCOUNTER AN ERROR or cannot complete a task
-
-4. Example sequence of task reporting:
-   ```
-   TASK: Setting up project structure
-   STATUS: started
-   
-   [Your work and discussion here]
-   
-   TASK: Setting up project structure
-   STATUS: in progress
-   
-   [More work and discussion]
-   
-   TASK: Setting up project structure
-   STATUS: done
-   
-   TASK: Implementing feature X
-   STATUS: started
-   ```
-
-5. Always include a brief but descriptive task name that clearly identifies what you're working on.
-
-These conventions ensure that Coder can properly track task status in the UI.
+You are a helpful Coding assistant. Aim to autonomously investigate
+and solve issues the user gives you and test your work, whenever possible.
+Avoid shortcuts like mocking tests. When you get stuck, you can ask the user
+but opt for autonomy.
+YOU MUST REPORT ALL TASKS TO CODER.
+When reporting tasks, you MUST follow these EXACT instructions:
+- IMMEDIATELY report status after receiving ANY user message.
+- Be granular. If you are investigating with multiple steps, report each step to coder.
+Task state MUST be one of the following:
+- Use "state": "working" when actively processing WITHOUT needing additional user input.
+- Use "state": "complete" only when finished with a task.
+- Use "state": "failure" when you need ANY user input, lack sufficient details, or encounter blockers.
+Task summaries MUST:
+- Include specifics about what you're doing.
+- Include clear and actionable steps for the user.
+- Be less than 160 characters in length.
 EOT
+}
+
+variable "task_prompt" {
+  type        = string
+  description = "Task prompt to use with Aider"
+  default     = ""
 }
 
 variable "experiment_pre_install_script" {
@@ -136,6 +117,35 @@ variable "experiment_additional_extensions" {
   type        = string
   description = "Additional extensions configuration in YAML format to append to the config."
   default     = null
+}
+
+variable "ai_provider" {
+  type        = string
+  description = "AI provider to use with Aider (openai, anthropic, azure, google, etc.)"
+  default     = "anthropic"
+  validation {
+    condition     = contains(["openai", "anthropic", "azure", "google", "cohere", "mistral", "ollama", "custom"], var.ai_provider)
+    error_message = "ai_provider must be one of: openai, anthropic, azure, google, cohere, mistral, ollama, custom"
+  }
+}
+
+variable "ai_model" {
+  type        = string
+  description = "AI model to use with Aider. Can use Aider's built-in aliases like '4o' (gpt-4o), 'sonnet' (claude-3-7-sonnet), 'opus' (claude-3-opus), etc."
+  default     = "sonnet"
+}
+
+variable "ai_api_key" {
+  type        = string
+  description = "API key for the selected AI provider. This will be set as the appropriate environment variable based on the provider."
+  default     = ""
+  sensitive   = true
+}
+
+variable "custom_env_var_name" {
+  type        = string
+  description = "Custom environment variable name when using custom provider"
+  default     = ""
 }
 
 locals {
@@ -171,6 +181,33 @@ EOT
 
   encoded_pre_install_script  = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
   encoded_post_install_script = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
+
+  # Combine system prompt and task prompt for aider
+  combined_prompt = trimspace(<<-EOT
+SYSTEM PROMPT:
+${var.system_prompt}
+
+This is your current task: ${var.task_prompt}
+EOT
+  )
+
+  # Map providers to their environment variable names
+  provider_env_vars = {
+    openai    = "OPENAI_API_KEY"
+    anthropic = "ANTHROPIC_API_KEY"
+    azure     = "AZURE_OPENAI_API_KEY"
+    google    = "GOOGLE_API_KEY"
+    cohere    = "COHERE_API_KEY"
+    mistral   = "MISTRAL_API_KEY"
+    ollama    = "OLLAMA_HOST"
+    custom    = var.custom_env_var_name
+  }
+
+  # Get the environment variable name for selected provider
+  env_var_name = local.provider_env_vars[var.ai_provider]
+
+  # Model flag for aider command
+  model_flag = var.ai_provider == "ollama" ? "--ollama-model" : "--model"
 }
 
 # Install and Initialize Aider
@@ -202,12 +239,21 @@ resource "coder_script" "aider" {
         if ! command_exists tmux; then
           echo "Installing tmux for persistent sessions..."
           if command -v apt-get >/dev/null 2>&1; then
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq tmux
+            if command -v sudo >/dev/null 2>&1; then
+              sudo apt-get update -qq
+              sudo apt-get install -y -qq tmux
+            else
+              apt-get update -qq || echo "Warning: Cannot update package lists without sudo privileges"
+              apt-get install -y -qq tmux || echo "Warning: Cannot install tmux without sudo privileges"
+            fi
           elif command -v dnf >/dev/null 2>&1; then
-            sudo dnf install -y -q tmux
+            if command -v sudo >/dev/null 2>&1; then
+              sudo dnf install -y -q tmux
+            else
+              dnf install -y -q tmux || echo "Warning: Cannot install tmux without sudo privileges"
+            fi
           else
-            echo "Warning: Unable to install tmux on this system."
+            echo "Warning: Unable to install tmux on this system. Neither apt-get nor dnf found."
           fi
         else
           echo "tmux is already installed, skipping installation."
@@ -216,12 +262,21 @@ resource "coder_script" "aider" {
         if ! command_exists screen; then
           echo "Installing screen for persistent sessions..."
           if command -v apt-get >/dev/null 2>&1; then
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq screen
+            if command -v sudo >/dev/null 2>&1; then
+              sudo apt-get update -qq
+              sudo apt-get install -y -qq screen
+            else
+              apt-get update -qq || echo "Warning: Cannot update package lists without sudo privileges"
+              apt-get install -y -qq screen || echo "Warning: Cannot install screen without sudo privileges"
+            fi
           elif command -v dnf >/dev/null 2>&1; then
-            sudo dnf install -y -q screen
+            if command -v sudo >/dev/null 2>&1; then
+              sudo dnf install -y -q screen
+            else
+              dnf install -y -q screen || echo "Warning: Cannot install screen without sudo privileges"
+            fi
           else
-            echo "Warning: Unable to install screen on this system."
+            echo "Warning: Unable to install screen on this system. Neither apt-get nor dnf found."
           fi
         else
           echo "screen is already installed, skipping installation."
@@ -245,12 +300,21 @@ resource "coder_script" "aider" {
       if ! command_exists python3 || ! command_exists pip3; then
         echo "Installing Python dependencies required for Aider..."
         if command -v apt-get >/dev/null 2>&1; then
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq python3-pip python3-venv
+          if command -v sudo >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq python3-pip python3-venv
+          else
+            apt-get update -qq || echo "Warning: Cannot update package lists without sudo privileges"
+            apt-get install -y -qq python3-pip python3-venv || echo "Warning: Cannot install Python packages without sudo privileges"
+          fi
         elif command -v dnf >/dev/null 2>&1; then
-          sudo dnf install -y -q python3-pip python3-virtualenv
+          if command -v sudo >/dev/null 2>&1; then
+            sudo dnf install -y -q python3-pip python3-virtualenv
+          else
+            dnf install -y -q python3-pip python3-virtualenv || echo "Warning: Cannot install Python packages without sudo privileges"
+          fi
         else
-          echo "Warning: Unable to install Python on this system."
+          echo "Warning: Unable to install Python on this system. Neither apt-get nor dnf found."
         fi
       else
         echo "Python is already installed, skipping installation."
@@ -290,12 +354,6 @@ resource "coder_script" "aider" {
 ${trimspace(local.combined_extensions)}
 EOL
       echo "Added Coder MCP extension to Aider config.yml"
-      
-      mkdir -p "${var.folder}"
-      cat > "${var.folder}/CONVENTIONS.md" << 'CONVENTIONS_EOF'
-${var.experiment_task_conventions}
-CONVENTIONS_EOF
-      echo "Created CONVENTIONS.md file with task reporting instructions"
     fi
 
     echo "Starting persistent Aider session..."
@@ -308,16 +366,41 @@ CONVENTIONS_EOF
     export PATH="$HOME/bin:$PATH"
     
     if [ "${var.use_tmux}" = "true" ]; then
-      if [ -n "$CODER_MCP_AIDER_TASK_PROMPT" ]; then
+      if [ -n "${var.task_prompt}" ]; then
         echo "Running Aider with message in tmux session..."
-        tmux new-session -d -s ${var.session_name} -c ${var.folder} "echo \"Starting Aider with app status slug: aider\"; export ANTHROPIC_API_KEY=\"$ANTHROPIC_API_KEY\"; export CODER_MCP_APP_STATUS_SLUG=\"aider\"; aider --architect --yes-always --read CONVENTIONS.md --message \"Report each step to Coder. Your task: $CODER_MCP_AIDER_TASK_PROMPT\""
+        
+        # Configure tmux for shared sessions
+        if [ ! -f "$HOME/.tmux.conf" ]; then
+          echo "Creating ~/.tmux.conf with shared session settings..."
+          echo "set -g mouse on" > "$HOME/.tmux.conf"
+        fi
+        
+        if ! grep -q "^set -g mouse on$" "$HOME/.tmux.conf"; then
+          echo "Adding 'set -g mouse on' to ~/.tmux.conf..."
+          echo "set -g mouse on" >> "$HOME/.tmux.conf"
+        fi
+        
+        echo "Starting Aider using ${var.ai_provider} provider and model: ${var.ai_model}"
+        tmux new-session -d -s ${var.session_name} -c ${var.folder} "export ${local.env_var_name}=\"${var.ai_api_key}\"; aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${local.combined_prompt}\""
         echo "Aider task started in tmux session '${var.session_name}'. Check the UI for progress."
       else
-        tmux new-session -d -s ${var.session_name} -c ${var.folder} "echo \"Starting Aider with app status slug: aider\"; export ANTHROPIC_API_KEY=\"$ANTHROPIC_API_KEY\"; export CODER_MCP_APP_STATUS_SLUG=\"aider\"; aider --read CONVENTIONS.md"
+        # Configure tmux for shared sessions
+        if [ ! -f "$HOME/.tmux.conf" ]; then
+          echo "Creating ~/.tmux.conf with shared session settings..."
+          echo "set -g mouse on" > "$HOME/.tmux.conf"
+        fi
+        
+        if ! grep -q "^set -g mouse on$" "$HOME/.tmux.conf"; then
+          echo "Adding 'set -g mouse on' to ~/.tmux.conf..."
+          echo "set -g mouse on" >> "$HOME/.tmux.conf"
+        fi
+        
+        echo "Starting Aider using ${var.ai_provider} provider and model: ${var.ai_model}"
+        tmux new-session -d -s ${var.session_name} -c ${var.folder} "export ${local.env_var_name}=\"${var.ai_api_key}\"; aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${var.system_prompt}\""
         echo "Tmux session '${var.session_name}' started. Access it by clicking the Aider button."
       fi
     else
-      if [ -n "$CODER_MCP_AIDER_TASK_PROMPT" ]; then
+      if [ -n "${var.task_prompt}" ]; then
         echo "Running Aider with message in screen session..."
         
         if [ ! -f "$HOME/.screenrc" ]; then
@@ -335,13 +418,12 @@ CONVENTIONS_EOF
           echo "acladd $(whoami)" >> "$HOME/.screenrc"
         fi
         
+        echo "Starting Aider using ${var.ai_provider} provider and model: ${var.ai_model}"
         screen -U -dmS ${var.session_name} bash -c "
           cd ${var.folder}
           export PATH=\"$HOME/bin:$HOME/.local/bin:$PATH\"
-          export ANTHROPIC_API_KEY=\"$ANTHROPIC_API_KEY\"
-          export CODER_MCP_APP_STATUS_SLUG=\"aider\"
-          echo \"Starting Aider with app status slug: aider\"
-          aider --architect --yes-always --read CONVENTIONS.md --message \"Report each step to Coder. Your task: $CODER_MCP_AIDER_TASK_PROMPT\"
+          export ${local.env_var_name}=\"${var.ai_api_key}\"
+          aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${local.combined_prompt}\"
           /bin/bash
         "
         
@@ -363,13 +445,12 @@ CONVENTIONS_EOF
           echo "acladd $(whoami)" >> "$HOME/.screenrc"
         fi
         
+        echo "Starting Aider using ${var.ai_provider} provider and model: ${var.ai_model}"
         screen -U -dmS ${var.session_name} bash -c "
           cd ${var.folder}
           export PATH=\"$HOME/bin:$HOME/.local/bin:$PATH\"
-          export ANTHROPIC_API_KEY=\"$ANTHROPIC_API_KEY\"
-          export CODER_MCP_APP_STATUS_SLUG=\"aider\"
-          echo \"Starting Aider with app status slug: aider\"
-          aider --read CONVENTIONS.md
+          export ${local.env_var_name}=\"${var.ai_api_key}\"
+          aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${local.combined_prompt}\"
           /bin/bash
         "
         echo "Screen session '${var.session_name}' started. Access it by clicking the Aider button."
@@ -393,32 +474,28 @@ resource "coder_app" "aider_cli" {
     
     export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
     
-    export CODER_MCP_APP_STATUS_SLUG="aider"
-    
     export LANG=en_US.UTF-8
     export LC_ALL=en_US.UTF-8
     
     if [ "${var.use_tmux}" = "true" ]; then
       if tmux has-session -t ${var.session_name} 2>/dev/null; then
         echo "Attaching to existing Aider tmux session..."
-        tmux setenv -t ${var.session_name} CODER_MCP_APP_STATUS_SLUG "aider"
         tmux attach-session -t ${var.session_name}
       else
         echo "Starting new Aider tmux session..."
-        tmux new-session -s ${var.session_name} -c ${var.folder} "export ANTHROPIC_API_KEY=\"$ANTHROPIC_API_KEY\"; export CODER_MCP_APP_STATUS_SLUG=\"aider\"; aider --read CONVENTIONS.md; exec bash"
+        tmux new-session -s ${var.session_name} -c ${var.folder} "export ${local.env_var_name}=\"${var.ai_api_key}\"; aider ${local.model_flag} ${var.ai_model} --message \"${local.combined_prompt}\"; exec bash"
       fi
     elif [ "${var.use_screen}" = "true" ]; then
       if ! screen -list | grep -q "${var.session_name}"; then
         echo "Error: No existing Aider session found. Please wait for the script to start it."
         exit 1
       fi
-      export CODER_MCP_APP_STATUS_SLUG="aider"
       screen -xRR ${var.session_name}
     else
       cd "${var.folder}"
       echo "Starting Aider directly..."
-      export CODER_MCP_APP_STATUS_SLUG="aider"
-      aider --read CONVENTIONS.md
+      export ${local.env_var_name}="${var.ai_api_key}"
+      aider ${local.model_flag} ${var.ai_model} --message "${local.combined_prompt}"
     fi
   EOT
   order        = var.order
