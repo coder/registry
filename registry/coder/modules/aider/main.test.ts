@@ -17,15 +17,25 @@ describe("aider", async () => {
     const testPrompt = "Add a hello world function";
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
+      task_prompt: testPrompt,
     });
 
     const instance = findResourceInstance(state, "coder_script");
     expect(instance.script).toContain(
-      'if [ -n "$CODER_MCP_AIDER_TASK_PROMPT" ]',
+      `This is your current task: ${testPrompt}`,
     );
-    expect(instance.script).toContain(
-      "aider --architect --yes-always --read CONVENTIONS.md --message",
-    );
+    expect(instance.script).toContain("aider --architect --yes-always");
+  });
+
+  it("handles custom system prompt", async () => {
+    const customPrompt = "Report all tasks with state: working";
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      system_prompt: customPrompt,
+    });
+
+    const instance = findResourceInstance(state, "coder_script");
+    expect(instance.script).toContain(customPrompt);
   });
 
   it("handles pre and post install scripts", async () => {
@@ -56,5 +66,42 @@ describe("aider", async () => {
       "Error: Both use_screen and use_tmux cannot be enabled at the same time",
     );
     expect(instance.script).toContain("exit 1");
+  });
+
+  it("configures Aider with known provider and model", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      ai_provider: "anthropic",
+      ai_model: "sonnet",
+      ai_api_key: "test-anthropic-key",
+    });
+
+    const instance = findResourceInstance(state, "coder_script");
+    expect(instance.script).toContain(
+      'export ANTHROPIC_API_KEY=\\"test-anthropic-key\\"',
+    );
+    expect(instance.script).toContain("--model sonnet");
+    expect(instance.script).toContain(
+      "Starting Aider using anthropic provider and model: sonnet",
+    );
+  });
+
+  it("handles custom provider with custom env var and API key", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      ai_provider: "custom",
+      custom_env_var_name: "MY_CUSTOM_API_KEY",
+      ai_model: "custom-model",
+      ai_api_key: "test-custom-key",
+    });
+
+    const instance = findResourceInstance(state, "coder_script");
+    expect(instance.script).toContain(
+      'export MY_CUSTOM_API_KEY=\\"test-custom-key\\"',
+    );
+    expect(instance.script).toContain("--model custom-model");
+    expect(instance.script).toContain(
+      "Starting Aider using custom provider and model: custom-model",
+    );
   });
 });
