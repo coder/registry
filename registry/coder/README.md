@@ -4,7 +4,6 @@ bio: Coder provisions cloud development environments via Terraform, supporting L
 github: coder
 linkedin: https://www.linkedin.com/company/coderhq
 website: https://www.coder.com
-support_email: support@coder.com
 status: official
 ---
 
