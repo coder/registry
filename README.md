@@ -37,7 +37,7 @@ In both cases, the main README contains a Terraform snippet for integrating the 
 ```tf
 module "cursor" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/modules/cursor/coder"
+  source   = "registry.coder.com/coder/cursor/coder"
   version  = "1.0.19"
   agent_id = coder_agent.example.id
 }

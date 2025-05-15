@@ -17,7 +17,7 @@ Customize the preselected parameter value:
 ```tf
 module "aws-region" {
   count   = data.coder_workspace.me.start_count
-  source  = "registry.coder.com/modules/aws-region/coder"
+  source  = "registry.coder.com/coder/aws-region/coder"
   version = "1.0.12"
   default = "us-east-1"
 }
@@ -38,7 +38,7 @@ Change the display name and icon for a region using the corresponding maps:
 ```tf
 module "aws-region" {
   count   = data.coder_workspace.me.start_count
-  source  = "registry.coder.com/modules/aws-region/coder"
+  source  = "registry.coder.com/coder/aws-region/coder"
   version = "1.0.12"
   default = "ap-south-1"
 
@@ -65,7 +65,7 @@ Hide the Asia Pacific regions Seoul and Osaka:
 ```tf
 module "aws-region" {
   count   = data.coder_workspace.me.start_count
-  source  = "registry.coder.com/modules/aws-region/coder"
+  source  = "registry.coder.com/coder/aws-region/coder"
   version = "1.0.12"
   exclude = ["ap-northeast-2", "ap-northeast-3"]
 }

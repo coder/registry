@@ -15,7 +15,7 @@ This module lets you authenticate with [Hashicorp Vault](https://www.vaultprojec
 ```tf
 module "vault" {
   count           = data.coder_workspace.me.start_count
-  source          = "registry.coder.com/modules/vault-jwt/coder"
+  source          = "registry.coder.com/coder/vault-jwt/coder"
   version         = "1.1.0"
   agent_id        = coder_agent.example.id
   vault_addr      = "https://vault.example.com"
@@ -43,7 +43,7 @@ curl -H "X-Vault-Token: ${VAULT_TOKEN}" -X GET "${VAULT_ADDR}/v1/coder/secrets/d
 ```tf
 module "vault" {
   count               = data.coder_workspace.me.start_count
-  source              = "registry.coder.com/modules/vault-jwt/coder"
+  source              = "registry.coder.com/coder/vault-jwt/coder"
   version             = "1.0.31"
   agent_id            = coder_agent.example.id
   vault_addr          = "https://vault.example.com"
@@ -59,7 +59,7 @@ data "coder_workspace_owner" "me" {}
 
 module "vault" {
   count          = data.coder_workspace.me.start_count
-  source         = "registry.coder.com/modules/vault-jwt/coder"
+  source         = "registry.coder.com/coder/vault-jwt/coder"
   version        = "1.0.31"
   agent_id       = coder_agent.example.id
   vault_addr     = "https://vault.example.com"
@@ -72,7 +72,7 @@ module "vault" {
 ```tf
 module "vault" {
   count             = data.coder_workspace.me.start_count
-  source            = "registry.coder.com/modules/vault-jwt/coder"
+  source            = "registry.coder.com/coder/vault-jwt/coder"
   version           = "1.0.31"
   agent_id          = coder_agent.example.id
   vault_addr        = "https://vault.example.com"
@@ -133,7 +133,7 @@ resource "jwt_signed_token" "vault" {
 
 module "vault" {
   count           = data.coder_workspace.me.start_count
-  source          = "registry.coder.com/modules/vault-jwt/coder"
+  source          = "registry.coder.com/coder/vault-jwt/coder"
   version         = "1.1.0"
   agent_id        = coder_agent.example.id
   vault_addr      = "https://vault.example.com"
