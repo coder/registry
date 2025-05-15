@@ -4,7 +4,7 @@ description: Run Amazon Q in your workspace to access Amazon's AI coding assista
 icon: ../../../../.icons/amazon-q.svg
 maintainer_github: coder
 verified: true
-tags: [agent, ai, aws]
+tags: [agent, ai, aws, amazon-q]
 ---
 
 # Amazon Q
