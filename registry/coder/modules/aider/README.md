@@ -44,7 +44,7 @@ module "aider" {
 | `icon`                             | The icon to use for the app                                                | `string` | `"/icon/aider.svg"` |
 | `experiment_report_tasks`          | Whether to enable task reporting                                           | `bool`   | `true`              |
 | `system_prompt`                    | System prompt for instructing Aider on task reporting and behavior         | `string` | See default in code |
-| `task_prompt`                      | Task prompt to use with Aider                                             | `string` | `""`                |
+| `task_prompt`                      | Task prompt to use with Aider                                              | `string` | `""`                |
 | `ai_provider`                      | AI provider to use with Aider (openai, anthropic, azure, etc.)             | `string` | `"anthropic"`       |
 | `ai_model`                         | AI model to use (can use Aider's built-in aliases like "sonnet", "4o")     | `string` | `"sonnet"`          |
 | `ai_api_key`                       | API key for the selected AI provider                                       | `string` | `""`                |
@@ -98,7 +98,7 @@ module "aider" {
   agent_id    = coder_agent.example.id
   use_tmux    = true
   ai_provider = "openai"
-  ai_model    = "4o"   # Uses Aider's built-in alias for gpt-4o
+  ai_model    = "4o" # Uses Aider's built-in alias for gpt-4o
   ai_api_key  = var.openai_api_key
 }
 ```
@@ -113,14 +113,14 @@ variable "custom_api_key" {
 }
 
 module "aider" {
-  count              = data.coder_workspace.me.start_count
-  source             = "registry.coder.com/modules/aider/coder"
-  version            = "1.0.0"
-  agent_id           = coder_agent.example.id
-  ai_provider        = "custom"
+  count               = data.coder_workspace.me.start_count
+  source              = "registry.coder.com/modules/aider/coder"
+  version             = "1.0.0"
+  agent_id            = coder_agent.example.id
+  ai_provider         = "custom"
   custom_env_var_name = "MY_CUSTOM_API_KEY"
-  ai_model           = "custom-model" 
-  ai_api_key         = var.custom_api_key
+  ai_model            = "custom-model"
+  ai_api_key          = var.custom_api_key
 }
 ```
 
@@ -287,16 +287,16 @@ Persistent sessions (screen/tmux) allow you to:
 
 Aider supports various providers and models, and this module integrates directly with Aider's built-in model aliases:
 
-| Provider       | Example Models/Aliases                      | Default Model     |
-| -------------- | ------------------------------------------- | ----------------- |
-| **anthropic**  | "sonnet" (Claude 3.7 Sonnet), "opus", "haiku" | "sonnet"        |
-| **openai**     | "4o" (GPT-4o), "4" (GPT-4), "3.5-turbo"      | "4o"            |
-| **azure**      | Azure OpenAI models                         | "gpt-4"          |
-| **google**     | "gemini" (Gemini Pro), "gemini-2.5-pro"     | "gemini-2.5-pro" |
-| **cohere**     | "command-r-plus", etc.                      | "command-r-plus" |
-| **mistral**    | "mistral-large-latest"                      | "mistral-large-latest" |
-| **ollama**     | "llama3", etc.                              | "llama3"         |
-| **custom**     | Any model name with custom ENV variable     | -                |
+| Provider      | Example Models/Aliases                        | Default Model          |
+| ------------- | --------------------------------------------- | ---------------------- |
+| **anthropic** | "sonnet" (Claude 3.7 Sonnet), "opus", "haiku" | "sonnet"               |
+| **openai**    | "4o" (GPT-4o), "4" (GPT-4), "3.5-turbo"       | "4o"                   |
+| **azure**     | Azure OpenAI models                           | "gpt-4"                |
+| **google**    | "gemini" (Gemini Pro), "gemini-2.5-pro"       | "gemini-2.5-pro"       |
+| **cohere**    | "command-r-plus", etc.                        | "command-r-plus"       |
+| **mistral**   | "mistral-large-latest"                        | "mistral-large-latest" |
+| **ollama**    | "llama3", etc.                                | "llama3"               |
+| **custom**    | Any model name with custom ENV variable       | -                      |
 
 For a complete and up-to-date list of supported aliases and models, please refer to the [Aider LLM documentation](https://aider.chat/docs/llms.html) and the [Aider LLM Leaderboards](https://aider.chat/docs/leaderboards.html) which show performance comparisons across different models.
 
@@ -309,5 +309,7 @@ If you encounter issues:
 3. **Browser mode issues**: If the browser interface doesn't open, check that you're accessing it from a machine that can reach your Coder workspace
 
 For more information on using Aider, see the [Aider documentation](https://aider.chat/docs/).
+
+```
 
 ```
