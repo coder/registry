@@ -68,7 +68,7 @@ variable "anthropic_api_key" {
 
 module "aider" {
   count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/modules/aider/coder"
+  source     = "registry.coder.com/coder/aider/coder"
   version    = "1.0.0"
   agent_id   = coder_agent.example.id
   ai_api_key = var.anthropic_api_key
@@ -93,7 +93,7 @@ variable "openai_api_key" {
 
 module "aider" {
   count       = data.coder_workspace.me.start_count
-  source      = "registry.coder.com/modules/aider/coder"
+  source      = "registry.coder.com/coder/aider/coder"
   version     = "1.0.0"
   agent_id    = coder_agent.example.id
   use_tmux    = true
@@ -114,7 +114,7 @@ variable "custom_api_key" {
 
 module "aider" {
   count               = data.coder_workspace.me.start_count
-  source              = "registry.coder.com/modules/aider/coder"
+  source              = "registry.coder.com/coder/aider/coder"
   version             = "1.0.0"
   agent_id            = coder_agent.example.id
   ai_provider         = "custom"
@@ -131,7 +131,7 @@ You can extend Aider's capabilities by adding custom extensions:
 ```tf
 module "aider" {
   count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/modules/aider/coder"
+  source     = "registry.coder.com/coder/aider/coder"
   version    = "1.0.0"
   agent_id   = coder_agent.example.id
   ai_api_key = var.anthropic_api_key
@@ -210,7 +210,7 @@ data "coder_parameter" "ai_prompt" {
 
 module "aider" {
   count       = data.coder_workspace.me.start_count
-  source      = "registry.coder.com/modules/aider/coder"
+  source      = "registry.coder.com/coder/aider/coder"
   version     = "1.0.0"
   agent_id    = coder_agent.example.id
   ai_api_key  = var.anthropic_api_key
