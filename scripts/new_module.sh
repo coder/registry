@@ -35,7 +35,7 @@ mkdir -p "registry/${NAMESPACE}/modules/${MODULE_NAME}"
 cp -r examples/modules/* "registry/${NAMESPACE}/modules/${MODULE_NAME}/"
 
 # Change to module directory
-cd "registry/${NAMESPACE}/${MODULE_NAME}"
+cd "registry/${NAMESPACE}/modules/${MODULE_NAME}"
 
 # Detect OS
 if [[ "$OSTYPE" == "darwin"* ]]; then
