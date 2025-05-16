@@ -2,9 +2,9 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"path"
@@ -338,17 +338,17 @@ func validateAllCoderResourceFilesOfType(resourceType string) error {
 		return err
 	}
 
-	log.Printf("Processing %d README files\n", len(allReadmeFiles))
+	logger.Info(context.Background(), "Processing README files", "num_files", len(allReadmeFiles))
 	resources, err := parseCoderResourceReadmeFiles(resourceType, allReadmeFiles)
 	if err != nil {
 		return err
 	}
-	log.Printf("Processed %d README files as valid Coder resources with type %q", len(resources), resourceType)
+	logger.Info(context.Background(), "Processed README files as valid Coder resources", "num_files", len(resources), "type", resourceType)
 
 	err = validateCoderResourceRelativeUrls(resources)
 	if err != nil {
 		return err
 	}
-	log.Printf("All relative URLs for %s READMEs are valid\n", resourceType)
+	logger.Info(context.Background(), "All relative URLs for READMEs are valid", "type", resourceType)
 	return nil
 }

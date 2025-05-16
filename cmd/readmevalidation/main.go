@@ -6,20 +6,24 @@
 package main
 
 import (
-	"fmt"
-	"log"
+	"context"
 	"os"
+
+	"cdr.dev/slog"
+	"cdr.dev/slog/sloggers/sloghuman"
 )
 
+var logger = slog.Make(sloghuman.Sink(os.Stdout))
+
 func main() {
-	log.Println("Starting README validation")
+	logger.Info(context.Background(), "Starting README validation")
 
 	// If there are fundamental problems with how the repo is structured, we
 	// can't make any guarantees that any further validations will be relevant
 	// or accurate
 	repoErr := validateRepoStructure()
 	if repoErr != nil {
-		log.Println(repoErr)
+		logger.Error(context.Background(), repoErr.Error())
 		os.Exit(1)
 	}
 
@@ -34,11 +38,11 @@ func main() {
 	}
 
 	if len(errs) == 0 {
-		log.Printf("Processed all READMEs in the %q directory\n", rootRegistryPath)
+		logger.Info(context.Background(), "Processed all READMEs in directory", "dir", rootRegistryPath)
 		os.Exit(0)
 	}
 	for _, err := range errs {
-		fmt.Println(err)
+		logger.Error(context.Background(), err.Error())
 	}
 	os.Exit(1)
 }

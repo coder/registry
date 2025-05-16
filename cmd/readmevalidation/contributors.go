@@ -1,9 +1,9 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"path"
@@ -318,19 +318,19 @@ func validateAllContributorFiles() error {
 		return err
 	}
 
-	log.Printf("Processing %d README files\n", len(allReadmeFiles))
+	logger.Info(context.Background(), "Processing README files", "num_files", len(allReadmeFiles))
 	contributors, err := parseContributorFiles(allReadmeFiles)
 	if err != nil {
 		return err
 	}
-	log.Printf("Processed %d README files as valid contributor profiles", len(contributors))
+	logger.Info(context.Background(), "Processed README files as valid contributor profiles", "num_contributors", len(contributors))
 
 	err = validateContributorRelativeUrls(contributors)
 	if err != nil {
 		return err
 	}
-	log.Println("All relative URLs for READMEs are valid")
+	logger.Info(context.Background(), "All relative URLs for READMEs are valid")
 
-	log.Printf("Processed all READMEs in the %q directory\n", rootRegistryPath)
+	logger.Info(context.Background(), "Processed all READMEs in directory", "dir", rootRegistryPath)
 	return nil
 }
