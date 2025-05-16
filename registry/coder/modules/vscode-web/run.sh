@@ -59,15 +59,26 @@ case "$ARCH" in
     ;;
 esac
 
+# Detect the platform
+if [ -n "${PLATFORM}" ]; then
+  DETECTED_PLATFORM="${PLATFORM}"
+elif [ -f /etc/alpine-release ] || grep -qi 'ID=alpine' /etc/os-release 2>/dev/null || command -v apk > /dev/null 2>&1; then
+  DETECTED_PLATFORM="alpine"
+elif [ "$(uname -s)" = "Darwin" ]; then
+  DETECTED_PLATFORM="darwin"
+else
+  DETECTED_PLATFORM="linux"
+fi
+
 # Check if a specific VS Code Web commit ID was provided
 if [ -n "${COMMIT_ID}" ]; then
   HASH="${COMMIT_ID}"
 else
-  HASH=$(curl -fsSL https://update.code.visualstudio.com/api/commits/stable/server-linux-$ARCH-web | cut -d '"' -f 2)
+  HASH=$(curl -fsSL https://update.code.visualstudio.com/api/commits/stable/server-$DETECTED_PLATFORM-$ARCH-web | cut -d '"' -f 2)
 fi
 printf "$${BOLD}VS Code Web commit id version $HASH.\n"
 
-output=$(curl -fsSL "https://vscode.download.prss.microsoft.com/dbazure/download/stable/$HASH/vscode-server-linux-$ARCH-web.tar.gz" | tar -xz -C "${INSTALL_PREFIX}" --strip-components 1)
+output=$(curl -fsSL "https://vscode.download.prss.microsoft.com/dbazure/download/stable/$HASH/vscode-server-$DETECTED_PLATFORM-$ARCH-web.tar.gz" | tar -xz -C "${INSTALL_PREFIX}" --strip-components 1)
 
 if [ $? -ne 0 ]; then
   echo "Failed to install Microsoft Visual Studio Code Server: $output"
