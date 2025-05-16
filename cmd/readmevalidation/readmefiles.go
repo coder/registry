@@ -10,7 +10,6 @@ import (
 
 const (
 	rootRegistryPath = "./registry"
-	fence            = "---"
 
 	// validationPhaseFileStructureValidation indicates when the entire Registry
 	// directory is being verified for having all files be placed in the file
@@ -33,7 +32,7 @@ const (
 
 var (
 	supportedAvatarFileFormats = []string{".png", ".jpeg", ".jpg", ".gif", ".svg"}
-	// TODO: an example of what this regex matches would be useful, I think it's just
+	// Matches markdown headers, must be at the beginning of a line, such as "# " or "### ".
 	readmeHeaderRe = regexp.MustCompile("^(#{1,})(\\s*)")
 )
 
@@ -54,6 +53,8 @@ func separateFrontmatter(readmeText string) (string, string, error) {
 	if readmeText == "" {
 		return "", "", errors.New("README is empty")
 	}
+
+	const fence = "---"
 
 	fm := ""
 	body := ""
@@ -100,8 +101,8 @@ func validateReadmeBody(body string) []error {
 		return []error{errors.New("README body is empty")}
 	}
 
-	// If the very first line of the README, there's a risk that the rest of the validation logic will break, since we
-	// don't have many guarantees about how the README is actually structured.
+	// If the very first line of the README doesn't start with an ATX-style H1 header, there's a risk that the rest of the
+	// validation logic will break, since we don't have many guarantees about how the README is actually structured.
 	if !strings.HasPrefix(trimmed, "# ") {
 		return []error{errors.New("README body must start with ATX-style h1 header (i.e., \"# \")")}
 	}
