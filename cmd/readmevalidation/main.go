@@ -18,9 +18,8 @@ var logger = slog.Make(sloghuman.Sink(os.Stdout))
 func main() {
 	logger.Info(context.Background(), "Starting README validation")
 
-	// If there are fundamental problems with how the repo is structured, we
-	// can't make any guarantees that any further validations will be relevant
-	// or accurate
+	// If there are fundamental problems with how the repo is structured, we can't make any guarantees that any further
+	// validations will be relevant or accurate.
 	repoErr := validateRepoStructure()
 	if repoErr != nil {
 		logger.Error(context.Background(), repoErr.Error())
