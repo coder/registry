@@ -23,20 +23,7 @@ function run_code_server() {
 if [ ! -f ~/.local/share/code-server/User/settings.json ]; then
   echo "⚙️ Creating settings file..."
   mkdir -p ~/.local/share/code-server/User
-  if command -v jq &> /dev/null; then
-    echo "${SETTINGS}" | jq '.' > ~/.local/share/code-server/User/settings.json
-  else
-    echo "${SETTINGS}" > ~/.local/share/code-server/User/settings.json
-  fi
-fi
-
-# Apply/overwrite template based settings
-echo "⚙️ Creating machine settings file..."
-mkdir -p ~/.local/share/code-server/Machine
-if command -v jq &> /dev/null; then
-  echo "${MACHINE_SETTINGS}" | jq '.' > ~/.local/share/code-server/Machine/settings.json
-else
-  echo "${MACHINE_SETTINGS}" > ~/.local/share/code-server/Machine/settings.json
+  echo "${SETTINGS}" > ~/.local/share/code-server/User/settings.json
 fi
 
 # Check if code-server is already installed for offline
