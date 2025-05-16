@@ -9,11 +9,11 @@ CODER_OIDC_ACCESS_TOKEN=${CODER_OIDC_ACCESS_TOKEN}
 fetch() {
   dest="$1"
   url="$2"
-  if command -v curl > /dev/null 2>&1; then
+  if command -v curl >/dev/null 2>&1; then
     curl -sSL --fail "$${url}" -o "$${dest}"
-  elif command -v wget > /dev/null 2>&1; then
+  elif command -v wget >/dev/null 2>&1; then
     wget -O "$${dest}" "$${url}"
-  elif command -v busybox > /dev/null 2>&1; then
+  elif command -v busybox >/dev/null 2>&1; then
     busybox wget -O "$${dest}" "$${url}"
   else
     printf "curl, wget, or busybox is not installed. Please install curl or wget in your image.\n"
@@ -22,9 +22,9 @@ fetch() {
 }
 
 unzip_safe() {
-  if command -v unzip > /dev/null 2>&1; then
+  if command -v unzip >/dev/null 2>&1; then
     command unzip "$@"
-  elif command -v busybox > /dev/null 2>&1; then
+  elif command -v busybox >/dev/null 2>&1; then
     busybox unzip "$@"
   else
     printf "unzip or busybox is not installed. Please install unzip in your image.\n"
@@ -56,7 +56,7 @@ install() {
 
   # Check if the vault CLI is installed and has the correct version
   installation_needed=1
-  if command -v vault > /dev/null 2>&1; then
+  if command -v vault >/dev/null 2>&1; then
     CURRENT_VERSION=$(vault version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
     if [ "$${CURRENT_VERSION}" = "$${VAULT_CLI_VERSION}" ]; then
       printf "Vault version %s is already installed and up-to-date.\n\n" "$${CURRENT_VERSION}"
@@ -81,7 +81,7 @@ install() {
       return 1
     fi
     rm vault.zip
-    if sudo mv vault /usr/local/bin/vault 2> /dev/null; then
+    if sudo mv vault /usr/local/bin/vault 2>/dev/null; then
       printf "Vault installed successfully!\n\n"
     else
       mkdir -p ~/.local/bin
@@ -107,6 +107,6 @@ rm -rf "$TMP"
 
 # Authenticate with Vault
 printf "🔑 Authenticating with Vault ...\n\n"
-echo "$${CODER_OIDC_ACCESS_TOKEN}" | vault write auth/"$${VAULT_JWT_AUTH_PATH}"/login role="$${VAULT_JWT_ROLE}" jwt=-
+echo "$${CODER_OIDC_ACCESS_TOKEN}" | vault write -field=token auth/"$${VAULT_JWT_AUTH_PATH}"/login role="$${VAULT_JWT_ROLE}" jwt=- | vault login -
 printf "🥳 Vault authentication complete!\n\n"
 printf "You can now use Vault CLI to access secrets.\n"

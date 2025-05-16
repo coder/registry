@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 0.17"
+      version = ">= 2.1"
     }
   }
 }
@@ -122,6 +122,20 @@ variable "subdomain" {
   default     = false
 }
 
+variable "open_in" {
+  type        = string
+  description = <<-EOT
+    Determines where the app will be opened. Valid values are `"tab"` and `"slim-window" (default)`.
+    `"tab"` opens in a new tab in the same browser window.
+    `"slim-window"` opens a new browser window without navigation controls.
+  EOT
+  default     = "slim-window"
+  validation {
+    condition     = contains(["tab", "slim-window"], var.open_in)
+    error_message = "The 'open_in' variable must be one of: 'tab', 'slim-window'."
+  }
+}
+
 resource "coder_script" "code-server" {
   agent_id     = var.agent_id
   display_name = "code-server"
@@ -166,6 +180,7 @@ resource "coder_app" "code-server" {
   subdomain    = var.subdomain
   share        = var.share
   order        = var.order
+  open_in      = var.open_in
 
   healthcheck {
     url       = "http://localhost:${var.port}/healthz"

@@ -17,8 +17,8 @@ Consult the [JetBrains documentation](https://www.jetbrains.com/help/idea/prereq
 ```tf
 module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
-  source         = "registry.coder.com/modules/jetbrains-gateway/coder"
-  version        = "1.0.28"
+  source         = "registry.coder.com/coder/jetbrains-gateway/coder"
+  version        = "1.1.0"
   agent_id       = coder_agent.example.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["CL", "GO", "IU", "PY", "WS"]
@@ -26,7 +26,7 @@ module "jetbrains_gateway" {
 }
 ```
 
-![JetBrains Gateway IDes list](../../.images/jetbrains-gateway.png)
+![JetBrains Gateway IDes list](../.images/jetbrains-gateway.png)
 
 ## Examples
 
@@ -35,8 +35,8 @@ module "jetbrains_gateway" {
 ```tf
 module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
-  source         = "registry.coder.com/modules/jetbrains-gateway/coder"
-  version        = "1.0.28"
+  source         = "registry.coder.com/coder/jetbrains-gateway/coder"
+  version        = "1.1.0"
   agent_id       = coder_agent.example.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["GO", "WS"]
@@ -49,8 +49,8 @@ module "jetbrains_gateway" {
 ```tf
 module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
-  source         = "registry.coder.com/modules/jetbrains-gateway/coder"
-  version        = "1.0.28"
+  source         = "registry.coder.com/coder/jetbrains-gateway/coder"
+  version        = "1.1.0"
   agent_id       = coder_agent.example.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["IU", "PY"]
@@ -64,8 +64,8 @@ module "jetbrains_gateway" {
 ```tf
 module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
-  source         = "registry.coder.com/modules/jetbrains-gateway/coder"
-  version        = "1.0.28"
+  source         = "registry.coder.com/coder/jetbrains-gateway/coder"
+  version        = "1.1.0"
   agent_id       = coder_agent.example.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["IU", "PY"]
@@ -89,8 +89,8 @@ module "jetbrains_gateway" {
 ```tf
 module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
-  source         = "registry.coder.com/modules/jetbrains-gateway/coder"
-  version        = "1.0.28"
+  source         = "registry.coder.com/coder/jetbrains-gateway/coder"
+  version        = "1.1.0"
   agent_id       = coder_agent.example.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["GO", "WS"]
@@ -107,8 +107,8 @@ Due to the highest priority of the `ide_download_link` parameter in the `(jetbra
 ```tf
 module "jetbrains_gateway" {
   count              = data.coder_workspace.me.start_count
-  source             = "registry.coder.com/modules/jetbrains-gateway/coder"
-  version            = "1.0.28"
+  source             = "registry.coder.com/coder/jetbrains-gateway/coder"
+  version            = "1.1.0"
   agent_id           = coder_agent.example.id
   folder             = "/home/coder/example"
   jetbrains_ides     = ["GO", "WS"]

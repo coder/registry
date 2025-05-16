@@ -24,6 +24,7 @@ variable "vault_token" {
   type        = string
   description = "The Vault token to use for authentication."
   sensitive   = true
+  default     = null
 }
 
 variable "vault_cli_version" {
@@ -56,6 +57,7 @@ resource "coder_env" "vault_addr" {
 }
 
 resource "coder_env" "vault_token" {
+  count    = var.vault_token != null ? 1 : 0
   agent_id = var.agent_id
   name     = "VAULT_TOKEN"
   value    = var.vault_token

@@ -3,13 +3,13 @@ INSTALLER=""
 check_available_installer() {
   # check if pipx is installed
   echo "Checking for a supported installer"
-  if command -v pipx > /dev/null 2>&1; then
+  if command -v pipx >/dev/null 2>&1; then
     echo "pipx is installed"
     INSTALLER="pipx"
     return
   fi
   # check if uv is installed
-  if command -v uv > /dev/null 2>&1; then
+  if command -v uv >/dev/null 2>&1; then
     echo "uv is installed"
     INSTALLER="uv"
     return
@@ -26,32 +26,33 @@ fi
 BOLD='\033[0;1m'
 
 # check if jupyterlab is installed
-if ! command -v jupyter-lab > /dev/null 2>&1; then
+if ! command -v jupyter-lab >/dev/null 2>&1; then
   # install jupyterlab
   check_available_installer
   printf "$${BOLD}Installing jupyterlab!\n"
   case $INSTALLER in
-    uv)
-      uv pip install -q jupyterlab \
-        && printf "%s\n" "🥳 jupyterlab has been installed"
-      JUPYTERPATH="$HOME/.venv/bin/"
-      ;;
-    pipx)
-      pipx install jupyterlab \
-        && printf "%s\n" "🥳 jupyterlab has been installed"
-      JUPYTERPATH="$HOME/.local/bin"
-      ;;
+  uv)
+    uv pip install -q jupyterlab &&
+      printf "%s\n" "🥳 jupyterlab has been installed"
+    JUPYTER="$HOME/.venv/bin/jupyter-lab"
+    ;;
+  pipx)
+    pipx install jupyterlab &&
+      printf "%s\n" "🥳 jupyterlab has been installed"
+    JUPYTER="$HOME/.local/bin/jupyter-lab"
+    ;;
   esac
 else
   printf "%s\n\n" "🥳 jupyterlab is already installed"
+  JUPYTER=$(command -v jupyter-lab)
 fi
 
 printf "👷 Starting jupyterlab in background..."
 printf "check logs at ${LOG_PATH}"
-$JUPYTERPATH/jupyter-lab --no-browser \
+$JUPYTER --no-browser \
   "$BASE_URL_FLAG" \
   --ServerApp.ip='*' \
   --ServerApp.port="${PORT}" \
   --ServerApp.token='' \
   --ServerApp.password='' \
-  > "${LOG_PATH}" 2>&1 &
+  >"${LOG_PATH}" 2>&1 &

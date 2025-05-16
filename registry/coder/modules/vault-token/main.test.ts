@@ -7,6 +7,5 @@ describe("vault-token", async () => {
   testRequiredVariables(import.meta.dir, {
     agent_id: "foo",
     vault_addr: "foo",
-    vault_token: "foo",
   });
 });

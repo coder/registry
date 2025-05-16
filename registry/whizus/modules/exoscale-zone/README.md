@@ -17,8 +17,8 @@ Customize the preselected parameter value:
 ```tf
 module "exoscale-zone" {
   count   = data.coder_workspace.me.start_count
-  source  = "registry.coder.com/modules/exoscale-zone/coder"
-  version = "1.0.12"
+  source  = "registry.coder.com/whizus/exoscale-zone/coder"
+  version = "1.0.13"
   default = "ch-dk-2"
 }
 
@@ -45,8 +45,8 @@ Change the display name and icon for a zone using the corresponding maps:
 ```tf
 module "exoscale-zone" {
   count   = data.coder_workspace.me.start_count
-  source  = "registry.coder.com/modules/exoscale-zone/coder"
-  version = "1.0.12"
+  source  = "registry.coder.com/whizus/exoscale-zone/coder"
+  version = "1.0.13"
   default = "at-vie-1"
 
   custom_names = {
@@ -77,8 +77,9 @@ Hide the Switzerland zones Geneva and Zurich
 
 ```tf
 module "exoscale-zone" {
-  source  = "registry.coder.com/modules/exoscale-zone/coder"
-  version = "1.0.12"
+  count   = data.coder_workspace.me.start_count
+  source  = "registry.coder.com/whizus/exoscale-zone/coder"
+  version = "1.0.13"
   exclude = ["ch-gva-2", "ch-dk-2"]
 }
 

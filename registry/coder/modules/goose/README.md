@@ -13,8 +13,8 @@ Run the [Goose](https://block.github.io/goose/) agent in your workspace to gener
 
 ```tf
 module "goose" {
-  source        = "registry.coder.com/modules/goose/coder"
-  version       = "1.0.31"
+  source        = "registry.coder.com/coder/goose/coder"
+  version       = "1.1.0"
   agent_id      = coder_agent.example.id
   folder        = "/home/coder"
   install_goose = true
@@ -22,7 +22,7 @@ module "goose" {
 }
 ```
 
-### Prerequisites
+## Prerequisites
 
 - `screen` must be installed in your workspace to run Goose in the background
 - You must add the [Coder Login](https://registry.coder.com/modules/coder-login) module to your template
@@ -47,7 +47,7 @@ Your workspace must have `screen` installed to use this.
 ```tf
 module "coder-login" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/modules/coder-login/coder"
+  source   = "registry.coder.com/coder/coder-login/coder"
   version  = "1.0.15"
   agent_id = coder_agent.example.id
 }
@@ -72,11 +72,11 @@ resource "coder_agent" "main" {
   env = {
     GOOSE_SYSTEM_PROMPT = <<-EOT
       You are a helpful assistant that can help write code.
-      
+
       Run all long running tasks (e.g. npm run dev) in the background and not in the foreground.
-      
+
       Periodically check in on background tasks.
-      
+
       Notify Coder of the status of the task before and after your steps.
     EOT
     GOOSE_TASK_PROMPT   = data.coder_parameter.ai_prompt.value
@@ -89,8 +89,8 @@ resource "coder_agent" "main" {
 
 module "goose" {
   count         = data.coder_workspace.me.start_count
-  source        = "registry.coder.com/modules/goose/coder"
-  version       = "1.0.31"
+  source        = "registry.coder.com/coder/goose/coder"
+  version       = "1.1.0"
   agent_id      = coder_agent.example.id
   folder        = "/home/coder"
   install_goose = true
@@ -111,14 +111,44 @@ module "goose" {
 }
 ```
 
+### Adding Custom Extensions (MCP)
+
+You can extend Goose's capabilities by adding custom extensions. For example, to add the desktop-commander extension:
+
+```tf
+module "goose" {
+  # ... other configuration ...
+
+  experiment_pre_install_script = <<-EOT
+  npm i -g @wonderwhy-er/desktop-commander@latest
+  EOT
+
+  experiment_additional_extensions = <<-EOT
+  desktop-commander:
+    args: []
+    cmd: desktop-commander
+    description: Ideal for background tasks
+    enabled: true
+    envs: {}
+    name: desktop-commander
+    timeout: 300
+    type: stdio
+  EOT
+}
+```
+
+This will add the desktop-commander extension to Goose, allowing it to run commands in the background. The extension will be available in the Goose interface and can be used to run long-running processes like development servers.
+
+Note: The indentation in the heredoc is preserved, so you can write the YAML naturally.
+
 ## Run standalone
 
 Run Goose as a standalone app in your workspace. This will install Goose and run it directly without using screen or any task reporting to the Coder UI.
 
 ```tf
 module "goose" {
-  source        = "registry.coder.com/modules/goose/coder"
-  version       = "1.0.31"
+  source        = "registry.coder.com/coder/goose/coder"
+  version       = "1.1.0"
   agent_id      = coder_agent.example.id
   folder        = "/home/coder"
   install_goose = true
