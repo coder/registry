@@ -69,13 +69,13 @@ variable "experiment_auto_configure" {
 variable "experiment_goose_provider" {
   type        = string
   description = "The provider to use for Goose (e.g., anthropic)."
-  default     = null
+  default     = ""
 }
 
 variable "experiment_goose_model" {
   type        = string
   description = "The model to use for Goose (e.g., claude-3-5-sonnet-latest)."
-  default     = null
+  default     = ""
 }
 
 variable "experiment_pre_install_script" {
