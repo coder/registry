@@ -5,7 +5,9 @@ on:
     branches:
       - main
     tags:
-      - "release/*/v*" # Matches tags like release/module-name/v1.0.0
+      # Matches release/<namespace>/<resource_name>/<semantic_version>
+      # (e.g., "release/whizus/exoscale-zone/v1.0.13")
+      - "release/*/*/v*.*.*"
 
 jobs:
   deploy:
