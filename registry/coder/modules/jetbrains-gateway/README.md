@@ -4,7 +4,7 @@ description: Add a one-click button to launch JetBrains Gateway IDEs in the dash
 icon: ../../../../.icons/gateway.svg
 maintainer_github: coder
 verified: true
-tags: [ide, jetbrains, helper, parameter]
+tags: [ide, jetbrains, parameter, gateway]
 ---
 
 # JetBrains Gateway

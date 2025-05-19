@@ -4,7 +4,7 @@ description: Configures Git to sign commits using your Coder SSH key
 icon: ../../../../.icons/git.svg
 maintainer_github: coder
 verified: true
-tags: [helper, git, coder]
+tags: [helper, git]
 ---
 
 # git-commit-signing
