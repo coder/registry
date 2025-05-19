@@ -4,7 +4,7 @@ description: Stores Git configuration from Coder credentials
 icon: ../../../../.icons/git.svg
 maintainer_github: coder
 verified: true
-tags: [helper, git]
+tags: [helper, git, coder]
 ---
 
 # git-config

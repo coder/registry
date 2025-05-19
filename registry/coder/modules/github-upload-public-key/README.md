@@ -4,7 +4,7 @@ description: Automates uploading Coder public key to Github so users don't have 
 icon: ../../../../.icons/github.svg
 maintainer_github: coder
 verified: true
-tags: [helper, git]
+tags: [helper, git, coder]
 ---
 
 # github-upload-public-key

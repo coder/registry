@@ -4,12 +4,12 @@ description: Configures Git to sign commits using your Coder SSH key
 icon: ../../../../.icons/git.svg
 maintainer_github: coder
 verified: true
-tags: [helper, git]
+tags: [helper, git, coder]
 ---
 
 # git-commit-signing
 
-> [!IMPORTANT]  
+> [!IMPORTANT]
 > This module will only work with Git versions >=2.34, prior versions [do not support signing commits via SSH keys](https://lore.kernel.org/git/xmqq8rxpgwki.fsf@gitster.g/).
 
 This module downloads your SSH key from Coder and uses it to sign commits with Git.

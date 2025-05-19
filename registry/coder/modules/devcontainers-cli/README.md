@@ -4,7 +4,7 @@ description: devcontainers-cli module provides an easy way to install @devcontai
 icon: ../../../../.icons/devcontainers.svg
 verified: true
 maintainer_github: coder
-tags: [devcontainers]
+tags: [devcontainers, helper]
 ---
 
 # devcontainers-cli

@@ -3,9 +3,8 @@ display_name: airflow
 description: A module that adds Apache Airflow in your Coder template
 icon: ../../../../.icons/airflow.svg
 maintainer_github: nataindata
-partner_github: coder
 verified: true
-tags: [airflow, idea, web, helper]
+tags: [airflow, ide, web]
 ---
 
 # airflow

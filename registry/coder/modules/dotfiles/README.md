@@ -4,7 +4,7 @@ description: Allow developers to optionally bring their own dotfiles repository 
 icon: ../../../../.icons/dotfiles.svg
 maintainer_github: coder
 verified: true
-tags: [helper]
+tags: [helper, dotfiles]
 ---
 
 # Dotfiles

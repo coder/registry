@@ -5,7 +5,7 @@ icon: ../../../../.icons/jfrog.svg
 maintainer_github: coder
 partner_github: jfrog
 verified: true
-tags: [integration, jfrog]
+tags: [integration, jfrog, helper]
 ---
 
 # JFrog
