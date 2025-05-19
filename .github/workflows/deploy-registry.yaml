@@ -34,3 +34,6 @@ jobs:
         # the future we could automate this based on the result of E2E tests.
       - name: Deploy to dev.registry.coder.com
         run: gcloud builds triggers run 29818181-126d-4f8a-a937-f228b27d3d34 --branch dev
+      - name: Deploy to registry.coder.com
+        run: |
+          gcloud builds triggers run 106610ff-41fb-4bd0-90a2-7643583fb9c0 --branch main
