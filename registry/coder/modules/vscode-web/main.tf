@@ -136,6 +136,16 @@ variable "subdomain" {
   default     = true
 }
 
+variable "platform" {
+  type        = string
+  description = "The platform to use for the VS Code Web."
+  default     = ""
+  validation {
+    condition     = var.platform == "" || var.platform == "linux" || var.platform == "darwin" || var.platform == "alpine" || var.platform == "win32"
+    error_message = "Incorrect value. Please set either 'linux', 'darwin', or 'alpine' or 'win32'."
+  }
+}
+
 data "coder_workspace_owner" "me" {}
 data "coder_workspace" "me" {}
 
@@ -158,6 +168,7 @@ resource "coder_script" "vscode-web" {
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
     SERVER_BASE_PATH : local.server_base_path,
     COMMIT_ID : var.commit_id,
+    PLATFORM : var.platform,
   })
   run_on_start = true
 
