@@ -4,7 +4,7 @@ description: Run Goose in your workspace
 icon: ../../../../.icons/goose.svg
 maintainer_github: coder
 verified: true
-tags: [agent, goose]
+tags: [agent, goose, ai]
 ---
 
 # Goose

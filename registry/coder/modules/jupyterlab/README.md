@@ -4,7 +4,7 @@ description: A module that adds JupyterLab in your Coder template.
 icon: ../../../../.icons/jupyter.svg
 maintainer_github: coder
 verified: true
-tags: [jupyter, helper, ide, web]
+tags: [jupyter, ide, web]
 ---
 
 # JupyterLab

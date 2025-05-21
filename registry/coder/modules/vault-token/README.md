@@ -5,7 +5,7 @@ icon: ../../../../.icons/vault.svg
 maintainer_github: coder
 partner_github: hashicorp
 verified: true
-tags: [helper, integration, vault, token]
+tags: [hashicorp, integration, vault, token]
 ---
 
 # Hashicorp Vault Integration (Token)
