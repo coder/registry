@@ -284,11 +284,12 @@ fi
 VNC_LOG="/tmp/kasmvncserver.log"
 # Start the server
 printf "🚀 Starting KasmVNC server...\n"
+
 set +e
-# shellcheck disable=SC2086
 vncserver -select-de "${DESKTOP_ENVIRONMENT}" -disableBasicAuth > "$VNC_LOG" 2>&1
 RETVAL=$?
 set -e
+
 if [[ $RETVAL -ne 0 ]]; then
   echo "ERROR: Failed to start KasmVNC server. Return code: $RETVAL"
     if [[ -f "$VNC_LOG" ]]; then
