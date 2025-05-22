@@ -20,14 +20,14 @@ func main() {
 
 	// If there are fundamental problems with how the repo is structured, we can't make any guarantees that any further
 	// validations will be relevant or accurate.
-	repoErr := validateRepoStructure()
-	if repoErr != nil {
-		logger.Error(context.Background(), repoErr.Error())
+	err := validateRepoStructure()
+	if err != nil {
+		logger.Error(context.Background(), "Error when validating the repo structure", "error", err.Error())
 		os.Exit(1)
 	}
 
 	var errs []error
-	err := validateAllContributorFiles()
+	err = validateAllContributorFiles()
 	if err != nil {
 		errs = append(errs, err)
 	}

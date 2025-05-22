@@ -239,12 +239,13 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 
 	allReadmeFiles := []readme{}
 	errs := []error{}
+	dirPath := ""
 	for _, e := range dirEntries {
 		if !e.IsDir() {
 			continue
 		}
 
-		dirPath := path.Join(rootRegistryPath, e.Name())
+		dirPath = path.Join(rootRegistryPath, e.Name())
 
 		readmePath := path.Join(dirPath, "README.md")
 		rmBytes, err := os.ReadFile(readmePath)
@@ -268,7 +269,7 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 	return allReadmeFiles, nil
 }
 
-func validateContributorRelativeUrls(contributors map[string]contributorProfileReadme) error {
+func validateContributorRelativeURLs(contributors map[string]contributorProfileReadme) error {
 	// This function only validates relative avatar URLs for now, but it can be beefed up to validate more in the future.
 	errs := []error{}
 
@@ -317,7 +318,7 @@ func validateAllContributorFiles() error {
 	}
 	logger.Info(context.Background(), "Processed README files as valid contributor profiles", "num_contributors", len(contributors))
 
-	if err = validateContributorRelativeUrls(contributors); err != nil {
+	if err = validateContributorRelativeURLs(contributors); err != nil {
 		return err
 	}
 	logger.Info(context.Background(), "All relative URLs for READMEs are valid")

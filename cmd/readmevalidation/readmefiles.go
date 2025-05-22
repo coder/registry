@@ -132,7 +132,8 @@ func validateReadmeBody(body string) []error {
 			continue
 		}
 
-		if spaceAfterHeader := headerGroups[2]; spaceAfterHeader == "" {
+		// In the Markdown spec it is mandatory to have a space following the header # symbol(s).
+		if headerGroups[2] == "" {
 			errs = append(errs, errors.New("header does not have space between header characters and main header text"))
 		}
 
