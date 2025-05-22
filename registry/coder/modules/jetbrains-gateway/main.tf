@@ -45,7 +45,7 @@ variable "folder" {
   type        = string
   description = "The directory to open in the IDE. e.g. /home/coder/project"
   validation {
-    condition     = can(regex("^(?:/[^/]+)+$", var.folder))
+    condition     = can(regex("^(?:/[^/]+)+/?$", var.folder))
     error_message = "The folder must be a full path and must not start with a ~."
   }
 }
