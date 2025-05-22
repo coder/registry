@@ -4,7 +4,7 @@ description: Add a one-click button to launch VS Code Desktop
 icon: ../../../../.icons/code.svg
 maintainer_github: coder
 verified: true
-tags: [ide, vscode, helper]
+tags: [ide, vscode]
 ---
 
 # VS Code Desktop

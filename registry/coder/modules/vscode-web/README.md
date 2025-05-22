@@ -4,7 +4,7 @@ description: VS Code Web - Visual Studio Code in the browser
 icon: ../../../../.icons/code.svg
 maintainer_github: coder
 verified: true
-tags: [helper, ide, vscode, web]
+tags: [ide, vscode, web]
 ---
 
 # VS Code Web

@@ -5,7 +5,7 @@ icon: ../../../../.icons/vault.svg
 maintainer_github: coder
 partner_github: hashicorp
 verified: true
-tags: [helper, integration, vault, jwt, oidc]
+tags: [hashicorp, integration, vault, jwt, oidc]
 ---
 
 # Hashicorp Vault Integration (JWT)
@@ -109,7 +109,7 @@ resource "jwt_signed_token" "vault" {
     sub = "${data.coder_workspace.me.id}"
     aud = "https://vault.example.com"
     iat = provider::time::rfc3339_parse(plantimestamp()).unix
-    # Uncomment to set an expiry on the JWT token(default 3600 seconds). 
+    # Uncomment to set an expiry on the JWT token(default 3600 seconds).
     # workspace will need to be restarted to generate a new token if it expires
     #exp = provider::time::rfc3339_parse(timeadd(timestamp(), 3600)).unix    agent            = coder_agent.main.id
     provisioner      = data.coder_provisioner.main.id
