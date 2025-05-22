@@ -89,7 +89,7 @@ describe("Web RDP", async () => {
      * @see {@link https://regex101.com/r/UMgQpv/2}
      */
     const formEntryValuesRe =
-      /^const formFieldEntries = \{$.*?^\s+username: \{$.*?^\s*?querySelector.*?,$.*?^\s*value: "(?<username>.+?)",$.*?password: \{$.*?^\s+querySelector: .*?,$.*?^\s*value: "(?<password>.+?)",$.*?^};$/ms;
+      /^const formFieldEntries = \{$.*?^\s+username: \{$.*?^\s*?querySelector.*?,$.*?^\s*value: JSON\.parse\("(?<username>.+?)"\),$.*?password: \{$.*?^\s+querySelector: .*?,$.*?^\s*value: JSON\.parse\("(?<password>.+?)"\),$.*?^};$/ms;
 
     // Test that things work with the default username/password
     const defaultState = await runTerraformApply<TestVariables>(
@@ -106,12 +106,13 @@ describe("Web RDP", async () => {
     const defaultResultsGroup =
       formEntryValuesRe.exec(defaultRdpScript ?? "")?.groups ?? {};
 
-    expect(defaultResultsGroup.username).toBe("Administrator");
-    expect(defaultResultsGroup.password).toBe("coderRDP!");
+    // Should match the escaped JSON values
+    expect(defaultResultsGroup.username).toBe(JSON.stringify("Administrator"));
+    expect(defaultResultsGroup.password).toBe(JSON.stringify("coderRDP!"));
 
     // Test that custom usernames/passwords are also forwarded correctly
     const customAdminUsername = "crouton";
-    const customAdminPassword = "VeryVeryVeryVeryVerySecurePassword97!";
+    const customAdminPassword = "VeryVeryVeryVeryVerySecurePassword97!\\"; // Added a backslash for testing
     const customizedState = await runTerraformApply<TestVariables>(
       import.meta.dir,
       {
@@ -128,7 +129,12 @@ describe("Web RDP", async () => {
     const customResultsGroup =
       formEntryValuesRe.exec(customRdpScript ?? "")?.groups ?? {};
 
-    expect(customResultsGroup.username).toBe(customAdminUsername);
-    expect(customResultsGroup.password).toBe(customAdminPassword);
+    // Should match the escaped JSON values
+    expect(customResultsGroup.username).toBe(
+      JSON.stringify(customAdminUsername),
+    );
+    expect(customResultsGroup.password).toBe(
+      JSON.stringify(customAdminPassword),
+    );
   });
 });
