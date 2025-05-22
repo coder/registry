@@ -23,7 +23,7 @@ variable "port" {
 variable "kasm_version" {
   type        = string
   description = "Version of KasmVNC to install."
-  default     = "1.3.4"
+  default     = "1.3.2"
 }
 
 variable "desktop_environment" {
@@ -52,7 +52,7 @@ resource "coder_script" "kasm_vnc" {
     DESKTOP_ENVIRONMENT = var.desktop_environment,
     KASM_VERSION        = var.kasm_version
     SUBDOMAIN           = tostring(var.subdomain)
-    PATH_VNC_HTML       = var.subdomain ? "" : "${path.module}/path_vnc.html"
+    PATH_VNC_HTML       = var.subdomain ? "" : file("${path.module}/path_vnc.html")
   })
 }
 

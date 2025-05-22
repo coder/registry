@@ -2,6 +2,7 @@
 
 # Exit on error, undefined variables, and pipe failures
 set -euo pipefail
+
 error() { printf "💀 ERROR: %s\n" "$@"; exit 1; }
 
 # Function to check if vncserver is already installed
@@ -275,7 +276,7 @@ patch_kasm_http_files(){
 }
 
 if [[ "${SUBDOMAIN}" == "false" ]]; then
-  info "🩹 Patching up webserver files to support path-sharing..."
+  echo "🩹 Patching up webserver files to support path-sharing..."
   patch_kasm_http_files
 fi
 
@@ -288,7 +289,13 @@ pid=$!
 sleep 5
 grep -v '^[[:space:]]*$' /tmp/kasmvncserver.log | tail -n 10
 if ps -p $pid | grep -q "^$pid"; then
-  echo "ERROR: Failed to start KasmVNC server. Check full logs at /tmp/kasmvncserver.log"
+  echo "ERROR: Failed to start KasmVNC server. Printing logs from /tmp/kasmvncserver.log"
+  if [[ -f /tmp/kasmvncserver.log ]]; then
+    echo "Full logs:"
+    cat /tmp/kasmvncserver.log
+  else
+    echo "ERROR: Log file not found: /tmp/kasmvncserver.log"
+  fi
   exit 1
 fi
 printf "🚀 KasmVNC server started successfully!\n"
