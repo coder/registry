@@ -52,8 +52,9 @@ resource "coder_script" "windows-rdp" {
     # doesn't allow recursive calls to the templatefile function. Have to feed
     # results of the JS template replace into the powershell template
     patch_file_contents = templatefile("${path.module}/devolutions-patch.js", {
-      CODER_USERNAME = var.admin_username
-      CODER_PASSWORD = var.admin_password
+      # Properly escape the username and password to preserve special characters
+      CODER_USERNAME = jsonencode(var.admin_username)
+      CODER_PASSWORD = jsonencode(var.admin_password)
     })
   })
 
