@@ -59,7 +59,7 @@ resource "coder_script" "kasm_vnc" {
 resource "coder_app" "kasm_vnc" {
   agent_id     = var.agent_id
   slug         = "kasm-vnc"
-  display_name = "kasmVNC"
+  display_name = "KasmVNC"
   url          = "http://localhost:${var.port}"
   icon         = "/icon/kasmvnc.svg"
   subdomain    = var.subdomain
