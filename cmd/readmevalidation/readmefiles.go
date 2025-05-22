@@ -33,7 +33,7 @@ const (
 var (
 	supportedAvatarFileFormats = []string{".png", ".jpeg", ".jpg", ".gif", ".svg"}
 	// Matches markdown headers, must be at the beginning of a line, such as "# " or "### ".
-	readmeHeaderRe = regexp.MustCompile("^(#{1,})(\\s*)")
+	readmeHeaderRe = regexp.MustCompile(`^(#{1,})(\s*)`)
 )
 
 // validationPhase represents a specific phase during README validation. It is expected that each phase is discrete, and

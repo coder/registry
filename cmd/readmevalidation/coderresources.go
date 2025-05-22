@@ -21,7 +21,7 @@ var (
 	// TODO: This is a holdover from the validation logic used by the Coder Modules repo. It gives us some assurance, but
 	// realistically, we probably want to parse any Terraform code snippets, and make some deeper guarantees about how it's
 	// structured. Just validating whether it *can* be parsed as Terraform would be a big improvement.
-	terraformVersionRe = regexp.MustCompile("^\\s*\\bversion\\s+=")
+	terraformVersionRe = regexp.MustCompile(`^\s*\bversion\s+=`)
 )
 
 type coderResourceFrontmatter struct {
