@@ -8,26 +8,32 @@ import (
 	"strings"
 )
 
+// validationPhase represents a specific phase during README validation. It is expected that each phase is discrete, and
+// errors during one will prevent a future phase from starting.
+type validationPhase string
+
 const (
 	rootRegistryPath = "./registry"
 
-	// validationPhaseFileStructureValidation indicates when the entire Registry
+	// --- validationPhases ---
+	// fileStructureValidation indicates when the entire Registry
 	// directory is being verified for having all files be placed in the file
 	// system as expected.
-	validationPhaseFileStructureValidation validationPhase = "File structure validation"
+	fileStructureValidation validationPhase = "File structure validation"
 
-	// validationPhaseFileLoad indicates when README files are being read from
+	// fileLoad indicates when README files are being read from
 	// the file system.
-	validationPhaseFileLoad = "Filesystem reading"
+	fileLoad validationPhase = "Filesystem reading"
 
-	// validationPhaseReadmeParsing indicates when a README's frontmatter is
+	// readmeParsing indicates when a README's frontmatter is
 	// being parsed as YAML. This phase does not include YAML validation.
-	validationPhaseReadmeParsing = "README parsing"
+	readmeParsing validationPhase = "README parsing"
 
-	// validationPhaseAssetCrossReference indicates when a README's frontmatter
+	// assetCrossReference indicates when a README's frontmatter
 	// is having all its relative URLs be validated for whether they point to
 	// valid resources.
-	validationPhaseAssetCrossReference = "Cross-referencing relative asset URLs"
+	assetCrossReference validationPhase = "Cross-referencing relative asset URLs"
+	// --- end of validationPhases ---
 )
 
 var (
@@ -35,10 +41,6 @@ var (
 	// Matches markdown headers, must be at the beginning of a line, such as "# " or "### ".
 	readmeHeaderRe = regexp.MustCompile(`^(#{1,})(\s*)`)
 )
-
-// validationPhase represents a specific phase during README validation. It is expected that each phase is discrete, and
-// errors during one will prevent a future phase from starting.
-type validationPhase string
 
 // readme represents a single README file within the repo (usually within the top-level "/registry" directory).
 type readme struct {

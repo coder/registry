@@ -209,7 +209,7 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 	}
 	if len(yamlParsingErrors) != 0 {
 		return nil, validationPhaseError{
-			phase:  validationPhaseReadmeParsing,
+			phase:  readmeParsing,
 			errors: yamlParsingErrors,
 		}
 	}
@@ -223,7 +223,7 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 	}
 	if len(yamlValidationErrors) != 0 {
 		return nil, validationPhaseError{
-			phase:  validationPhaseReadmeParsing,
+			phase:  readmeParsing,
 			errors: yamlValidationErrors,
 		}
 	}
@@ -261,7 +261,7 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 
 	if len(errs) != 0 {
 		return nil, validationPhaseError{
-			phase:  validationPhaseFileLoad,
+			phase:  fileLoad,
 			errors: errs,
 		}
 	}
@@ -300,7 +300,7 @@ func validateContributorRelativeURLs(contributors map[string]contributorProfileR
 		return nil
 	}
 	return validationPhaseError{
-		phase:  validationPhaseAssetCrossReference,
+		phase:  assetCrossReference,
 		errors: errs,
 	}
 }
