@@ -189,7 +189,7 @@ if command -v sudo &> /dev/null && sudo -n true 2> /dev/null; then
   SUDO=sudo
 else
   kasm_config_file="$HOME/.vnc/kasmvnc.yaml"
-  SUDO=
+  SUDO=""
 
   echo "WARNING: Sudo access not available, using user config dir!"
 
