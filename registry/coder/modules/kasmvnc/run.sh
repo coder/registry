@@ -2,6 +2,7 @@
 
 # Exit on error, undefined variables, and pipe failures
 set -euo pipefail
+error() { printf "💀 ERROR: %s\n" "$@"; exit 1; }
 
 # Function to check if vncserver is already installed
 check_installed() {
@@ -219,6 +220,64 @@ EOF
 # The server is protected via the Coder session token / tunnel
 # and does not listen publicly
 echo -e "password\npassword\n" | vncpasswd -wo -u "$USER"
+
+get_http_dir() {
+  # determine the served file path
+  # Start with the default
+  httpd_directory="/usr/share/kasmvnc/www"
+
+  # Check the system configuration path
+  if [[ -e /etc/kasmvnc/kasmvnc.yaml ]]; then
+    d=($(grep -E "^\s*httpd_directory:.*$" /etc/kasmvnc/kasmvnc.yaml))
+    # If this grep is successful, it will return:
+    #     httpd_directory: /usr/share/kasmvnc/www
+    if [[ $${#d[@]} -eq 2 && -d "$${d[1]}" ]]; then
+      httpd_directory="$${d[1]}"
+    fi
+  fi
+
+  # Check the home directory for overriding values
+  if [[ -e "$HOME/.vnc/kasmvnc.yaml" ]]; then
+    d=($(grep -E "^\s*httpd_directory:.*$" /etc/kasmvnc/kasmvnc.yaml))
+    if [[ $${#d[@]} -eq 2 && -d "$${d[1]}" ]]; then
+      httpd_directory="$${d[1]}"
+    fi
+  fi
+  echo $httpd_directory
+}
+
+fix_server_index_file(){
+    local fname=$${FUNCNAME[0]}  # gets current function name
+    if [[ $# -ne 1 ]]; then
+        error "$fname requires exactly 1 parameter:\n\tpath to KasmVNC httpd_directory"
+    fi
+    local httpdir="$1"
+    if [[ ! -d "$httpdir" ]]; then
+      error "$fname: $httpdir is not a directory"
+    fi
+    pushd "$httpdir" > /dev/null
+
+    cat <<'EOH' > /tmp/path_vnc.html
+${PATH_VNC_HTML}
+EOH
+    $SUDO mv /tmp/path_vnc.html .
+    # check for the switcheroo
+    if [[ -f "index.html" && -L "vnc.html" ]]; then
+      $SUDO mv $httpdir/index.html $httpdir/vnc.html
+    fi
+    $SUDO ln -s -f path_vnc.html index.html
+    popd > /dev/null
+}
+
+patch_kasm_http_files(){
+  homedir=$(get_http_dir)
+  fix_server_index_file "$homedir"
+}
+
+if [[ "${SUBDOMAIN}" == "false" ]]; then
+  info "🩹 Patching up webserver files to support path-sharing..."
+  patch_kasm_http_files
+fi
 
 # Start the server
 printf "🚀 Starting KasmVNC server...\n"

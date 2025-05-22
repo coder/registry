@@ -47,10 +47,12 @@ resource "coder_script" "kasm_vnc" {
   display_name = "KasmVNC"
   icon         = "/icon/kasmvnc.svg"
   run_on_start = true
-  script       = templatefile("${path.module}/run.sh", {
+  script = templatefile("${path.module}/run.sh", {
     PORT                = var.port,
     DESKTOP_ENVIRONMENT = var.desktop_environment,
     KASM_VERSION        = var.kasm_version
+    SUBDOMAIN           = tostring(var.subdomain)
+    PATH_VNC_HTML       = var.subdomain ? "" : "${path.module}/path_vnc.html"
   })
 }
 
