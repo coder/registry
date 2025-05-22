@@ -59,7 +59,7 @@ const formFieldEntries = {
     querySelector: "web-client-username-control input",
 
     /** @readonly */
-    value: "${CODER_USERNAME}",
+    value: JSON.parse("${CODER_USERNAME}"),
   },
 
   /** @readonly */
@@ -68,7 +68,7 @@ const formFieldEntries = {
     querySelector: "web-client-password-control input",
 
     /** @readonly */
-    value: "${CODER_PASSWORD}",
+    value: JSON.parse("${CODER_PASSWORD}"),
   },
 };
 
