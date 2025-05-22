@@ -208,6 +208,7 @@ echo "Writing KasmVNC config to $kasm_config_file"
 $SUDO tee "$kasm_config_file" > /dev/null << EOF
 network:
   protocol: http
+  interface: 127.0.0.1
   websocket_port: ${PORT}
   ssl:
     require_ssl: false
