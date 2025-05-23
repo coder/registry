@@ -4,7 +4,7 @@ description: VS Code in the browser
 icon: ../../../../.icons/code.svg
 maintainer_github: coder
 verified: true
-tags: [helper, ide, web]
+tags: [ide, web, code-server]
 ---
 
 # code-server
