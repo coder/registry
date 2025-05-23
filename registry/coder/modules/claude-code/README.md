@@ -22,6 +22,11 @@ module "claude-code" {
 }
 ```
 
+> **Security Notice**: This module uses the [`--dangerously-skip-permissions`](https://docs.anthropic.com/en/docs/claude-code/cli-usage#cli-flags) flag when running Claude Code. This flag
+> bypasses standard permission checks and allows Claude Code broader access to your system than normally permitted. While
+> this enables more functionality, it also means Claude Code can potentially execute commands with the same privileges as
+> the user running it. Use this module _only_ in trusted environments and be aware of the security implications.
+
 ## Prerequisites
 
 - Node.js and npm must be installed in your workspace to install Claude Code
