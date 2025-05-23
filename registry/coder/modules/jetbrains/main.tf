@@ -16,15 +16,13 @@ terraform {
 variable "agent_id" {
   type        = string
   description = "The ID of a Coder agent."
-  default     = "foo" # remove before merging
 }
 
 variable "folder" {
   type        = string
-  default     = "/home/coder/project" # remove before merging
   description = "The directory to open in the IDE. e.g. /home/coder/project"
   validation {
-    condition     = can(regex("^(?:/[^/]+)+$", var.folder))
+    condition     = can(regex("^(?:/[^/]+)+/?$", var.folder))
     error_message = "The folder must be a full path and must not start with a ~."
   }
 }
@@ -32,7 +30,9 @@ variable "folder" {
 variable "default" {
   default     = []
   type        = set(string)
-  description = "Default IDEs selection"
+  description = <<-EOT
+    The default IDE selection. Removes the selection from the UI. e.g. ["CL", "GO", "IU"]
+  EOT
 }
 
 variable "coder_app_order" {
@@ -107,8 +107,8 @@ variable "download_base_link" {
 }
 
 data "http" "jetbrains_ide_versions" {
-  for_each = var.default == [] ? var.options : var.default
-  url      = "${var.releases_base_link}/products/releases?code=${each.key}&type=${var.channel}&${var.major_version == "latest" ? "latest=true" : "major_version=${var.major_version}"}"
+  for_each = length(var.default) == 0 ? var.options : var.default
+  url      = "${var.releases_base_link}/products/releases?code=${each.key}&type=${var.channel}&latest=true${var.major_version == "latest" ? "" : "&major_version=${var.major_version}"}"
 }
 
 variable "ide_config" {
@@ -155,36 +155,41 @@ variable "ide_config" {
 }
 
 locals {
+  # Parse HTTP responses once
+  parsed_responses = {
+    for code in length(var.default) == 0 ? var.options : var.default : code => jsondecode(data.http.jetbrains_ide_versions[code].response_body)
+  }
+
   # Dynamically generate IDE configurations based on options
   options_metadata = {
-    for code in var.default == [] ? var.options : var.default : code => {
-      icon       = var.ide_config[code].icon
-      name       = var.ide_config[code].name
-      identifier = code
-      build      = var.major_version != "" ? jsondecode(data.http.jetbrains_ide_versions[code].response_body)[code][0].build : var.ide_config[code].build
-      json_data  = var.major_version != "" ? jsondecode(data.http.jetbrains_ide_versions[code].response_body)[code][0] : {}
-      key        = var.major_version != "" ? keys(data.http.jetbrains_ide_versions[code].response_body)[code][0] : ""
-
+    for code in length(var.default) == 0 ? var.options : var.default : code => {
+      response_key = keys(local.parsed_responses[code])[0]
+      icon         = var.ide_config[code].icon
+      name         = var.ide_config[code].name
+      identifier   = code
+      build        = local.parsed_responses[code][keys(local.parsed_responses[code])[0]][0].build
+      json_data    = local.parsed_responses[code][keys(local.parsed_responses[code])[0]][0]
+      key          = code
     }
   }
 }
 
 data "coder_parameter" "jetbrains_ide" {
-  count        = var.default == [] ? 0 : 1
+  count        = length(var.default) == 0 ? 1 : 0
   type         = "list(string)"
   name         = "jetbrains_ide"
   display_name = "JetBrains IDE"
-  icon         = "/icon/jetbrains.svg"
+  icon         = "/icon/jetbrains-toolbox.svg"
   mutable      = true
-  default      = jsonencode(var.default)
+  default      = jsonencode([])
   order        = var.coder_parameter_order
-  form_type    = "tag-select"
+  form_type    = "multi-select"
 
   dynamic "option" {
-    for_each = var.default == [] ? var.options : var.default
+    for_each = var.options
     content {
-      icon  = local.options_metadata[option.value].icon
-      name  = local.options_metadata[option.value].name
+      icon  = var.ide_config[option.value].icon
+      name  = var.ide_config[option.value].name
       value = option.value
     }
   }
@@ -195,19 +200,19 @@ data "coder_workspace_owner" "me" {}
 
 locals {
   # Convert the parameter value to a set for for_each
-  selected_ides = var.default == [] ? var.options : toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ide[0].value, "[]")))
+  selected_ides = length(var.default) == 0 ? toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ide[0].value, "[]"))) : toset(var.default)
 }
 
 resource "coder_app" "jetbrains" {
   for_each     = local.selected_ides
   agent_id     = var.agent_id
-  slug         = "jetbrains-${each.key}"
+  slug         = "jetbrains-${lower(each.key)}"
   display_name = local.options_metadata[each.key].name
   icon         = local.options_metadata[each.key].icon
   external     = true
   order        = var.coder_app_order
   url = join("", [
-    "jetbrains://gateway/com.coder.toolbox?&workspace=",
+    "jetbrains://gateway/com.coder.toolbox?&workspace=", # TODO: chnage to jetbrains://gateway/coder/... when 2.6.3 version of Toolbox is released
     data.coder_workspace.me.name,
     "&owner=",
     data.coder_workspace_owner.me.name,
