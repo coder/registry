@@ -1,9 +1,9 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"path"
@@ -35,7 +35,7 @@ type contributorProfileReadme struct {
 
 func validateContributorDisplayName(displayName string) error {
 	if displayName == "" {
-		return fmt.Errorf("missing display_name")
+		return errors.New("missing display_name")
 	}
 
 	return nil
@@ -53,6 +53,9 @@ func validateContributorLinkedinURL(linkedinURL *string) error {
 	return nil
 }
 
+// validateContributorSupportEmail does best effort validation of a contributors email address.	We can't 100% validate
+// that this is correct without actually sending an email, especially because some contributors are individual developers
+// and we don't want to do that on every single run of the CI pipeline. The best we can do is verify the general structure.
 func validateContributorSupportEmail(email *string) []error {
 	if email == nil {
 		return nil
@@ -60,10 +63,6 @@ func validateContributorSupportEmail(email *string) []error {
 
 	errs := []error{}
 
-	// Can't 100% validate that this is correct without actually sending
-	// an email, and especially with some contributors being individual
-	// developers, we don't want to do that on every single run of the CI
-	// pipeline. Best we can do is verify the general structure
 	username, server, ok := strings.Cut(*email, "@")
 	if !ok {
 		errs = append(errs, fmt.Errorf("email address %q is missing @ symbol", *email))
@@ -113,21 +112,18 @@ func validateContributorStatus(status string) error {
 	return nil
 }
 
-// Can't validate the image actually leads to a valid resource in a pure
-// function, but can at least catch obvious problems
+// Can't validate the image actually leads to a valid resource in a pure function, but can at least catch obvious problems.
 func validateContributorAvatarURL(avatarURL *string) []error {
 	if avatarURL == nil {
 		return nil
 	}
 
-	errs := []error{}
 	if *avatarURL == "" {
-		errs = append(errs, errors.New("avatar URL must be omitted or non-empty string"))
-		return errs
+		return []error{errors.New("avatar URL must be omitted or non-empty string")}
 	}
 
-	// Have to use .Parse instead of .ParseRequestURI because this is the
-	// one field that's allowed to be a relative URL
+	errs := []error{}
+	// Have to use .Parse instead of .ParseRequestURI because this is the one field that's allowed to be a relative URL.
 	if _, err := url.Parse(*avatarURL); err != nil {
 		errs = append(errs, fmt.Errorf("URL %q is not a valid relative or absolute URL", *avatarURL))
 	}
@@ -213,22 +209,21 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 	}
 	if len(yamlParsingErrors) != 0 {
 		return nil, validationPhaseError{
-			phase:  validationPhaseReadmeParsing,
+			phase:  readmeParsing,
 			errors: yamlParsingErrors,
 		}
 	}
 
 	yamlValidationErrors := []error{}
 	for _, p := range profilesByNamespace {
-		errors := validateContributorReadme(p)
-		if len(errors) > 0 {
+		if errors := validateContributorReadme(p); len(errors) > 0 {
 			yamlValidationErrors = append(yamlValidationErrors, errors...)
 			continue
 		}
 	}
 	if len(yamlValidationErrors) != 0 {
 		return nil, validationPhaseError{
-			phase:  validationPhaseReadmeParsing,
+			phase:  readmeParsing,
 			errors: yamlValidationErrors,
 		}
 	}
@@ -244,11 +239,13 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 
 	allReadmeFiles := []readme{}
 	errs := []error{}
+	dirPath := ""
 	for _, e := range dirEntries {
-		dirPath := path.Join(rootRegistryPath, e.Name())
 		if !e.IsDir() {
 			continue
 		}
+
+		dirPath = path.Join(rootRegistryPath, e.Name())
 
 		readmePath := path.Join(dirPath, "README.md")
 		rmBytes, err := os.ReadFile(readmePath)
@@ -264,7 +261,7 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 
 	if len(errs) != 0 {
 		return nil, validationPhaseError{
-			phase:  validationPhaseFileLoad,
+			phase:  fileLoad,
 			errors: errs,
 		}
 	}
@@ -272,21 +269,18 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 	return allReadmeFiles, nil
 }
 
-func validateContributorRelativeUrls(contributors map[string]contributorProfileReadme) error {
-	// This function only validates relative avatar URLs for now, but it can be
-	// beefed up to validate more in the future
+func validateContributorRelativeURLs(contributors map[string]contributorProfileReadme) error {
+	// This function only validates relative avatar URLs for now, but it can be beefed up to validate more in the future.
 	errs := []error{}
 
 	for _, con := range contributors {
-		// If the avatar URL is missing, we'll just assume that the Registry
-		// site build step will take care of filling in the data properly
+		// If the avatar URL is missing, we'll just assume that the Registry site build step will take care of filling
+		// in the data properly.
 		if con.frontmatter.AvatarURL == nil {
 			continue
 		}
 
-		isRelativeURL := strings.HasPrefix(*con.frontmatter.AvatarURL, ".") ||
-			strings.HasPrefix(*con.frontmatter.AvatarURL, "/")
-		if !isRelativeURL {
+		if !strings.HasPrefix(*con.frontmatter.AvatarURL, ".") || !strings.HasPrefix(*con.frontmatter.AvatarURL, "/") {
 			continue
 		}
 
@@ -297,8 +291,7 @@ func validateContributorRelativeUrls(contributors map[string]contributorProfileR
 
 		absolutePath := strings.TrimSuffix(con.filePath, "README.md") +
 			*con.frontmatter.AvatarURL
-		_, err := os.ReadFile(absolutePath)
-		if err != nil {
+		if _, err := os.ReadFile(absolutePath); err != nil {
 			errs = append(errs, fmt.Errorf("%q: relative avatar path %q does not point to image in file system", con.filePath, *con.frontmatter.AvatarURL))
 		}
 	}
@@ -307,7 +300,7 @@ func validateContributorRelativeUrls(contributors map[string]contributorProfileR
 		return nil
 	}
 	return validationPhaseError{
-		phase:  validationPhaseAssetCrossReference,
+		phase:  assetCrossReference,
 		errors: errs,
 	}
 }
@@ -318,19 +311,18 @@ func validateAllContributorFiles() error {
 		return err
 	}
 
-	log.Printf("Processing %d README files\n", len(allReadmeFiles))
+	logger.Info(context.Background(), "Processing README files", "num_files", len(allReadmeFiles))
 	contributors, err := parseContributorFiles(allReadmeFiles)
 	if err != nil {
 		return err
 	}
-	log.Printf("Processed %d README files as valid contributor profiles", len(contributors))
+	logger.Info(context.Background(), "Processed README files as valid contributor profiles", "num_contributors", len(contributors))
 
-	err = validateContributorRelativeUrls(contributors)
-	if err != nil {
+	if err = validateContributorRelativeURLs(contributors); err != nil {
 		return err
 	}
-	log.Println("All relative URLs for READMEs are valid")
+	logger.Info(context.Background(), "All relative URLs for READMEs are valid")
 
-	log.Printf("Processed all READMEs in the %q directory\n", rootRegistryPath)
+	logger.Info(context.Background(), "Processed all READMEs in directory", "dir", rootRegistryPath)
 	return nil
 }
