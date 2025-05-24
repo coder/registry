@@ -52,6 +52,17 @@ locals {
 
 data "coder_workspace" "me" {}
 
+resource "coder_script" "rdp_setup" {
+  agent_id     = var.agent_id
+  display_name = "Configure RDP"
+  icon         = "/icon/desktop.svg"
+  script = templatefile("${path.module}/configure-rdp.ps1", {
+    username = var.username
+    password = var.password
+  })
+  run_on_start = true
+}
+
 resource "coder_app" "rdp_desktop" {
   agent_id     = var.agent_id
   slug         = "rdp-desktop"
@@ -65,6 +76,12 @@ resource "coder_app" "rdp_desktop" {
 output "app" {
   description = "The created RDP desktop app resource"
   value       = coder_app.rdp_desktop
+  sensitive   = true
+}
+
+output "script" {
+  description = "The RDP configuration script resource"
+  value       = coder_script.rdp_setup
   sensitive   = true
 }
 
