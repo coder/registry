@@ -34,6 +34,25 @@ function findRdpApp(state: TerraformState) {
   return null;
 }
 
+function findRdpScript(state: TerraformState) {
+  for (const resource of state.resources) {
+    const isRdpScriptResource =
+      resource.type === "coder_script" && resource.name === "rdp_setup";
+
+    if (!isRdpScriptResource) {
+      continue;
+    }
+
+    for (const instance of resource.instances) {
+      if (instance.attributes.display_name === "Configure RDP") {
+        return instance.attributes;
+      }
+    }
+  }
+
+  return null;
+}
+
 describe("local-windows-rdp", async () => {
   await runTerraformInit(import.meta.dir);
 
@@ -63,6 +82,27 @@ describe("local-windows-rdp", async () => {
     expect(app?.url).toContain("password=coderRDP!");
   });
 
+  it("should create RDP configuration script", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "test-agent-id",
+    });
+
+    const script = findRdpScript(state);
+
+    // Verify the script was created
+    expect(script).not.toBeNull();
+    expect(script?.display_name).toBe("Configure RDP");
+    expect(script?.icon).toBe("/icon/desktop.svg");
+    expect(script?.run_on_start).toBe(true);
+    expect(script?.run_on_stop).toBe(false);
+
+    // Verify the script contains PowerShell configuration
+    expect(script?.script).toContain("Set-AdminPassword");
+    expect(script?.script).toContain("Enable-RDP");
+    expect(script?.script).toContain("Configure-Firewall");
+    expect(script?.script).toContain("Start-RDPService");
+  });
+
   it("should create RDP app with custom values", async () => {
     const state = await runTerraformApply<TestVariables>(import.meta.dir, {
       agent_id: "custom-agent-id",
@@ -83,6 +123,20 @@ describe("local-windows-rdp", async () => {
     expect(app?.url).toContain("/agent/windows-agent/rdp");
     expect(app?.url).toContain("username=CustomUser");
     expect(app?.url).toContain("password=CustomPass123!");
+  });
+
+  it("should pass custom credentials to PowerShell script", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "test-agent-id",
+      username: "TestAdmin",
+      password: "TestPassword123!",
+    });
+
+    const script = findRdpScript(state);
+
+    // Verify custom credentials are in the script
+    expect(script?.script).toContain('$username = "TestAdmin"');
+    expect(script?.script).toContain('$password = "TestPassword123!"');
   });
 
   it("should handle sensitive password variable", async () => {
