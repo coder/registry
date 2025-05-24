@@ -26,6 +26,11 @@ variable "vault_token" {
   sensitive   = true
   default     = null
 }
+variable "vault_namespace" {
+  type        = string
+  description = "The Vault namespace to use."
+  default     = null
+}
 
 variable "vault_cli_version" {
   type        = string
@@ -61,4 +66,11 @@ resource "coder_env" "vault_token" {
   agent_id = var.agent_id
   name     = "VAULT_TOKEN"
   value    = var.vault_token
+}
+
+resource "coder_env" "vault_namespace" {
+  count    = var.vault_namespace != null ? 1 : 0
+  agent_id = var.agent_id
+  name     = "VAULT_NAMESPACE"
+  value    = var.vault_namespace
 }
