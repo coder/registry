@@ -1,15 +1,15 @@
 ---
 display_name: Windows RDP Desktop
-description: Add a one-click RDP Desktop button using Coder Desktop URI functionality
+description: Enable RDP on Windows and add a one-click Coder Desktop button for seamless access
 icon: ../../../../.icons/desktop.svg
 maintainer_github: coder
-verified: true
-tags: [rdp, windows, desktop]
+verified: false
+tags: [rdp, windows, desktop, remote]
 ---
 
 # Windows RDP Desktop
 
-This module adds a one-click button to launch Remote Desktop Protocol (RDP) sessions directly through Coder Desktop using URI handling. This provides seamless RDP access without requiring manual port forwarding.
+This module enables Remote Desktop Protocol (RDP) on Windows workspaces and adds a one-click button to launch RDP sessions directly through Coder Desktop. It provides a complete, standalone solution for RDP access without requiring manual configuration or port forwarding.
 
 ```tf
 module "rdp_desktop" {
@@ -20,23 +20,34 @@ module "rdp_desktop" {
 }
 ```
 
-## Requirements
-
-- **Coder Desktop**: This module requires [Coder Desktop](https://github.com/coder/coder/releases) to be installed on the client machine
-- **Windows Workspace**: The target workspace must be running Windows with RDP enabled
-- **Agent**: A Coder agent must be running on the Windows workspace
-
 ## Features
 
-- ✅ One-click RDP access through Coder Desktop
-- ✅ No manual port forwarding required
-- ✅ Configurable authentication credentials
-- ✅ Customizable display name and ordering
-- ✅ Secure credential handling
+- ✅ **Standalone Solution**: Automatically configures RDP on Windows workspaces
+- ✅ **One-click Access**: Launch RDP sessions directly through Coder Desktop
+- ✅ **No Port Forwarding**: Uses Coder Desktop URI handling
+- ✅ **Auto-configuration**: Sets up Windows firewall, services, and authentication
+- ✅ **Secure**: Configurable credentials with sensitive variable handling
+- ✅ **Customizable**: Display name, credentials, and UI ordering options
+
+## What This Module Does
+
+1. **Enables RDP** on the Windows workspace
+2. **Sets the administrator password** for RDP authentication
+3. **Configures Windows Firewall** to allow RDP connections
+4. **Starts RDP services** automatically
+5. **Creates a Coder Desktop button** for one-click access
+
+## Requirements
+
+- **Coder Desktop**: Must be installed on the client machine ([Download here](https://github.com/coder/coder/releases))
+- **Windows Workspace**: The target workspace must be running Windows
+- **Coder Agent**: Must be running on the Windows workspace
 
 ## Examples
 
 ### Basic Usage
+
+Uses default credentials (Username: `Administrator`, Password: `coderRDP!`):
 
 ```tf
 module "rdp_desktop" {
@@ -49,18 +60,22 @@ module "rdp_desktop" {
 
 ### Custom Credentials
 
+Set your own username and password:
+
 ```tf
 module "rdp_desktop" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/local-windows-rdp/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
-  username = "MyUser"
+  username = "MyAdmin"
   password = "MySecurePassword123!"
 }
 ```
 
 ### Custom Display and Agent
+
+Configure display name and specify a different agent:
 
 ```tf
 module "rdp_desktop" {
