@@ -23,7 +23,7 @@ type readme struct {
 // from the main README body, returning both values in that order. It does not
 // validate whether the structure of the frontmatter is valid (i.e., that it's
 // structured as YAML).
-func separateFrontmatter(readmeText string) (string, string, error) {
+func separateFrontmatter(readmeText string) (readmeFrontmatter string, readmeBody string, err error) {
 	if readmeText == "" {
 		return "", "", xerrors.New("README is empty")
 	}
@@ -66,7 +66,7 @@ func separateFrontmatter(readmeText string) (string, string, error) {
 	return fm, strings.TrimSpace(body), nil
 }
 
-var readmeHeaderRe = regexp.MustCompile("^(#{1,})(\\s*)")
+var readmeHeaderRe = regexp.MustCompile(`^(#+)(\s*)`)
 
 // Todo: This seems to work okay for now, but the really proper way of doing
 // this is by parsing this as an AST, and then checking the resulting nodes.
@@ -166,10 +166,6 @@ const (
 	// validationPhaseReadmeParsing indicates when a README's frontmatter is
 	// being parsed as YAML. This phase does not include YAML validation.
 	validationPhaseReadmeParsing = "README parsing"
-
-	// validationPhaseReadmeValidation indicates when a README's frontmatter is
-	// being validated as proper YAML with expected keys.
-	validationPhaseReadmeValidation = "README validation"
 
 	// validationPhaseAssetCrossReference indicates when a README's frontmatter
 	// is having all its relative URLs be validated for whether they point to

@@ -110,7 +110,7 @@ func validateCoderResourceTags(tags []string) error {
 // parse any Terraform code snippets, and make some deeper guarantees about how
 // it's structured. Just validating whether it *can* be parsed as Terraform
 // would be a big improvement.
-var terraformVersionRe = regexp.MustCompile("^\\s*\\bversion\\s+=")
+var terraformVersionRe = regexp.MustCompile(`^\s*\bversion\s+=`)
 
 func validateCoderResourceReadmeBody(body string) []error {
 	trimmed := strings.TrimSpace(body)
@@ -257,9 +257,9 @@ func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (map[strin
 
 	yamlValidationErrors := []error{}
 	for _, readme := range resources {
-		errors := validateCoderResourceReadme(readme)
-		if len(errors) > 0 {
-			yamlValidationErrors = append(yamlValidationErrors, errors...)
+		errs := validateCoderResourceReadme(readme)
+		if len(errs) > 0 {
+			yamlValidationErrors = append(yamlValidationErrors, errs...)
 		}
 	}
 	if len(yamlValidationErrors) != 0 {
@@ -274,7 +274,7 @@ func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (map[strin
 
 // Todo: Need to beef up this function by grabbing each image/video URL from
 // the body's AST.
-func validateCoderResourceRelativeUrls(resources map[string]coderResourceReadme) error {
+func validateCoderResourceRelativeUrls(_ map[string]coderResourceReadme) error {
 	return nil
 }
 

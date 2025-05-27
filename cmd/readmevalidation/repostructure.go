@@ -63,7 +63,6 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 				errs = append(errs, addFilePathToError(mainTerraformPath, err))
 			}
 		}
-
 	}
 
 	return errs
