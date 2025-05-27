@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"golang.org/x/xerrors"
 	"gopkg.in/yaml.v3"
 )
 
@@ -27,7 +27,7 @@ type coderResourceFrontmatter struct {
 
 // coderResourceReadme represents a README describing a Terraform resource used
 // to help create Coder workspaces. As of 2025-04-15, this encapsulates both
-// Coder Modules and Coder Templates
+// Coder Modules and Coder Templates.
 type coderResourceReadme struct {
 	resourceType string
 	filePath     string
@@ -37,14 +37,14 @@ type coderResourceReadme struct {
 
 func validateCoderResourceDisplayName(displayName *string) error {
 	if displayName != nil && *displayName == "" {
-		return errors.New("if defined, display_name must not be empty string")
+		return xerrors.New("if defined, display_name must not be empty string")
 	}
 	return nil
 }
 
 func validateCoderResourceDescription(description string) error {
 	if description == "" {
-		return errors.New("frontmatter description cannot be empty")
+		return xerrors.New("frontmatter description cannot be empty")
 	}
 	return nil
 }
@@ -53,17 +53,17 @@ func validateCoderResourceIconURL(iconURL string) []error {
 	problems := []error{}
 
 	if iconURL == "" {
-		problems = append(problems, errors.New("icon URL cannot be empty"))
+		problems = append(problems, xerrors.New("icon URL cannot be empty"))
 		return problems
 	}
 
 	isAbsoluteURL := !strings.HasPrefix(iconURL, ".") && !strings.HasPrefix(iconURL, "/")
 	if isAbsoluteURL {
 		if _, err := url.ParseRequestURI(iconURL); err != nil {
-			problems = append(problems, errors.New("absolute icon URL is not correctly formatted"))
+			problems = append(problems, xerrors.New("absolute icon URL is not correctly formatted"))
 		}
 		if strings.Contains(iconURL, "?") {
-			problems = append(problems, errors.New("icon URLs cannot contain query parameters"))
+			problems = append(problems, xerrors.New("icon URLs cannot contain query parameters"))
 		}
 		return problems
 	}
@@ -75,7 +75,7 @@ func validateCoderResourceIconURL(iconURL string) []error {
 		strings.HasPrefix(iconURL, "/") ||
 		strings.HasPrefix(iconURL, "../../../../.icons")
 	if !isPermittedRelativeURL {
-		problems = append(problems, fmt.Errorf("relative icon URL %q must either be scoped to that module's directory, or the top-level /.icons directory (this can usually be done by starting the path with \"../../../.icons\")", iconURL))
+		problems = append(problems, xerrors.Errorf("relative icon URL %q must either be scoped to that module's directory, or the top-level /.icons directory (this can usually be done by starting the path with \"../../../.icons\")", iconURL))
 	}
 
 	return problems
@@ -83,7 +83,7 @@ func validateCoderResourceIconURL(iconURL string) []error {
 
 func validateCoderResourceTags(tags []string) error {
 	if tags == nil {
-		return errors.New("provided tags array is nil")
+		return xerrors.New("provided tags array is nil")
 	}
 	if len(tags) == 0 {
 		return nil
@@ -100,7 +100,7 @@ func validateCoderResourceTags(tags []string) error {
 	}
 
 	if len(invalidTags) != 0 {
-		return fmt.Errorf("found invalid tags (tags that cannot be used for filter state in the Registry website): [%s]", strings.Join(invalidTags, ", "))
+		return xerrors.Errorf("found invalid tags (tags that cannot be used for filter state in the Registry website): [%s]", strings.Join(invalidTags, ", "))
 	}
 	return nil
 }
@@ -147,7 +147,7 @@ func validateCoderResourceReadmeBody(body string) []error {
 				terraformCodeBlockCount++
 			}
 			if strings.HasPrefix(nextLine, "```hcl") {
-				errs = append(errs, errors.New("all .hcl language references must be converted to .tf"))
+				errs = append(errs, xerrors.New("all .hcl language references must be converted to .tf"))
 			}
 			continue
 		}
@@ -174,20 +174,20 @@ func validateCoderResourceReadmeBody(body string) []error {
 	}
 
 	if terraformCodeBlockCount == 0 {
-		errs = append(errs, errors.New("did not find Terraform code block within h1 section"))
+		errs = append(errs, xerrors.New("did not find Terraform code block within h1 section"))
 	} else {
 		if terraformCodeBlockCount > 1 {
-			errs = append(errs, errors.New("cannot have more than one Terraform code block in h1 section"))
+			errs = append(errs, xerrors.New("cannot have more than one Terraform code block in h1 section"))
 		}
 		if !foundTerraformVersionRef {
-			errs = append(errs, errors.New("did not find Terraform code block that specifies 'version' field"))
+			errs = append(errs, xerrors.New("did not find Terraform code block that specifies 'version' field"))
 		}
 	}
 	if !foundParagraph {
-		errs = append(errs, errors.New("did not find paragraph within h1 section"))
+		errs = append(errs, xerrors.New("did not find paragraph within h1 section"))
 	}
 	if isInsideCodeBlock {
-		errs = append(errs, errors.New("code blocks inside h1 section do not all terminate before end of file"))
+		errs = append(errs, xerrors.New("code blocks inside h1 section do not all terminate before end of file"))
 	}
 
 	return errs
@@ -220,12 +220,12 @@ func validateCoderResourceReadme(rm coderResourceReadme) []error {
 func parseCoderResourceReadme(resourceType string, rm readme) (coderResourceReadme, error) {
 	fm, body, err := separateFrontmatter(rm.rawText)
 	if err != nil {
-		return coderResourceReadme{}, fmt.Errorf("%q: failed to parse frontmatter: %v", rm.filePath, err)
+		return coderResourceReadme{}, xerrors.Errorf("%q: failed to parse frontmatter: %v", rm.filePath, err)
 	}
 
 	yml := coderResourceFrontmatter{}
 	if err := yaml.Unmarshal([]byte(fm), &yml); err != nil {
-		return coderResourceReadme{}, fmt.Errorf("%q: failed to parse: %v", rm.filePath, err)
+		return coderResourceReadme{}, xerrors.Errorf("%q: failed to parse: %v", rm.filePath, err)
 	}
 
 	return coderResourceReadme{
@@ -273,7 +273,7 @@ func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (map[strin
 }
 
 // Todo: Need to beef up this function by grabbing each image/video URL from
-// the body's AST
+// the body's AST.
 func validateCoderResourceRelativeUrls(resources map[string]coderResourceReadme) error {
 	return nil
 }
@@ -330,7 +330,7 @@ func aggregateCoderResourceReadmeFiles(resourceType string) ([]readme, error) {
 
 func validateAllCoderResourceFilesOfType(resourceType string) error {
 	if !slices.Contains(supportedResourceTypes, resourceType) {
-		return fmt.Errorf("resource type %q is not part of supported list [%s]", resourceType, strings.Join(supportedResourceTypes, ", "))
+		return xerrors.Errorf("resource type %q is not part of supported list [%s]", resourceType, strings.Join(supportedResourceTypes, ", "))
 	}
 
 	allReadmeFiles, err := aggregateCoderResourceReadmeFiles(resourceType)

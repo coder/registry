@@ -2,10 +2,10 @@ package main
 
 import (
 	"bufio"
-	"errors"
-	"fmt"
 	"regexp"
 	"strings"
+
+	"golang.org/x/xerrors"
 )
 
 const rootRegistryPath = "./registry"
@@ -25,7 +25,7 @@ type readme struct {
 // structured as YAML).
 func separateFrontmatter(readmeText string) (string, string, error) {
 	if readmeText == "" {
-		return "", "", errors.New("README is empty")
+		return "", "", xerrors.New("README is empty")
 	}
 
 	const fence = "---"
@@ -57,10 +57,10 @@ func separateFrontmatter(readmeText string) (string, string, error) {
 		}
 	}
 	if fenceCount < 2 {
-		return "", "", errors.New("README does not have two sets of frontmatter fences")
+		return "", "", xerrors.New("README does not have two sets of frontmatter fences")
 	}
 	if fm == "" {
-		return "", "", errors.New("readme has frontmatter fences but no frontmatter content")
+		return "", "", xerrors.New("readme has frontmatter fences but no frontmatter content")
 	}
 
 	return fm, strings.TrimSpace(body), nil
@@ -69,19 +69,19 @@ func separateFrontmatter(readmeText string) (string, string, error) {
 var readmeHeaderRe = regexp.MustCompile("^(#{1,})(\\s*)")
 
 // Todo: This seems to work okay for now, but the really proper way of doing
-// this is by parsing this as an AST, and then checking the resulting nodes
+// this is by parsing this as an AST, and then checking the resulting nodes.
 func validateReadmeBody(body string) []error {
 	trimmed := strings.TrimSpace(body)
 
 	if trimmed == "" {
-		return []error{errors.New("README body is empty")}
+		return []error{xerrors.New("README body is empty")}
 	}
 
 	// If the very first line of the README, there's a risk that the rest of the
 	// validation logic will break, since we don't have many guarantees about
 	// how the README is actually structured
 	if !strings.HasPrefix(trimmed, "# ") {
-		return []error{errors.New("README body must start with ATX-style h1 header (i.e., \"# \")")}
+		return []error{xerrors.New("README body must start with ATX-style h1 header (i.e., \"# \")")}
 	}
 
 	var errs []error
@@ -111,7 +111,7 @@ func validateReadmeBody(body string) []error {
 
 		spaceAfterHeader := headerGroups[2]
 		if spaceAfterHeader == "" {
-			errs = append(errs, errors.New("header does not have space between header characters and main header text"))
+			errs = append(errs, xerrors.New("header does not have space between header characters and main header text"))
 		}
 
 		nextHeaderLevel := len(headerGroups[1])
@@ -124,11 +124,11 @@ func validateReadmeBody(body string) []error {
 		// If we have obviously invalid headers, it's not really safe to keep
 		// proceeding with the rest of the content
 		if nextHeaderLevel == 1 {
-			errs = append(errs, errors.New("READMEs cannot contain more than h1 header"))
+			errs = append(errs, xerrors.New("READMEs cannot contain more than h1 header"))
 			break
 		}
 		if nextHeaderLevel > 6 {
-			errs = append(errs, fmt.Errorf("README/HTML files cannot have headers exceed level 6 (found level %d)", nextHeaderLevel))
+			errs = append(errs, xerrors.Errorf("README/HTML files cannot have headers exceed level 6 (found level %d)", nextHeaderLevel))
 			break
 		}
 
@@ -136,7 +136,7 @@ func validateReadmeBody(body string) []error {
 		// the Registry website, but also when users are viewing the README
 		// files in the GitHub web view
 		if nextHeaderLevel > latestHeaderLevel && nextHeaderLevel != (latestHeaderLevel+1) {
-			errs = append(errs, fmt.Errorf("headers are not allowed to increase more than 1 level at a time"))
+			errs = append(errs, xerrors.New("headers are not allowed to increase more than 1 level at a time"))
 			continue
 		}
 
@@ -160,7 +160,7 @@ const (
 	validationPhaseFileStructureValidation validationPhase = "File structure validation"
 
 	// validationPhaseFileLoad indicates when README files are being read from
-	// the file system
+	// the file system.
 	validationPhaseFileLoad = "Filesystem reading"
 
 	// validationPhaseReadmeParsing indicates when a README's frontmatter is

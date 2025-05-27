@@ -1,8 +1,6 @@
 package main
 
 import (
-	"errors"
-	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -10,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"golang.org/x/xerrors"
 	"gopkg.in/yaml.v3"
 )
 
@@ -35,7 +34,7 @@ type contributorProfileReadme struct {
 
 func validateContributorDisplayName(displayName string) error {
 	if displayName == "" {
-		return fmt.Errorf("missing display_name")
+		return xerrors.New("missing display_name")
 	}
 
 	return nil
@@ -47,7 +46,7 @@ func validateContributorLinkedinURL(linkedinURL *string) error {
 	}
 
 	if _, err := url.ParseRequestURI(*linkedinURL); err != nil {
-		return fmt.Errorf("linkedIn URL %q is not valid: %v", *linkedinURL, err)
+		return xerrors.Errorf("linkedIn URL %q is not valid: %v", *linkedinURL, err)
 	}
 
 	return nil
@@ -66,28 +65,28 @@ func validateContributorSupportEmail(email *string) []error {
 	// pipeline. Best we can do is verify the general structure
 	username, server, ok := strings.Cut(*email, "@")
 	if !ok {
-		errs = append(errs, fmt.Errorf("email address %q is missing @ symbol", *email))
+		errs = append(errs, xerrors.Errorf("email address %q is missing @ symbol", *email))
 		return errs
 	}
 
 	if username == "" {
-		errs = append(errs, fmt.Errorf("email address %q is missing username", *email))
+		errs = append(errs, xerrors.Errorf("email address %q is missing username", *email))
 	}
 
 	domain, tld, ok := strings.Cut(server, ".")
 	if !ok {
-		errs = append(errs, fmt.Errorf("email address %q is missing period for server segment", *email))
+		errs = append(errs, xerrors.Errorf("email address %q is missing period for server segment", *email))
 		return errs
 	}
 
 	if domain == "" {
-		errs = append(errs, fmt.Errorf("email address %q is missing domain", *email))
+		errs = append(errs, xerrors.Errorf("email address %q is missing domain", *email))
 	}
 	if tld == "" {
-		errs = append(errs, fmt.Errorf("email address %q is missing top-level domain", *email))
+		errs = append(errs, xerrors.Errorf("email address %q is missing top-level domain", *email))
 	}
 	if strings.Contains(*email, "?") {
-		errs = append(errs, errors.New("email is not allowed to contain query parameters"))
+		errs = append(errs, xerrors.New("email is not allowed to contain query parameters"))
 	}
 
 	return errs
@@ -99,7 +98,7 @@ func validateContributorWebsite(websiteURL *string) error {
 	}
 
 	if _, err := url.ParseRequestURI(*websiteURL); err != nil {
-		return fmt.Errorf("linkedIn URL %q is not valid: %v", *websiteURL, err)
+		return xerrors.Errorf("linkedIn URL %q is not valid: %v", *websiteURL, err)
 	}
 
 	return nil
@@ -107,14 +106,14 @@ func validateContributorWebsite(websiteURL *string) error {
 
 func validateContributorStatus(status string) error {
 	if !slices.Contains(validContributorStatuses, status) {
-		return fmt.Errorf("contributor status %q is not valid", status)
+		return xerrors.Errorf("contributor status %q is not valid", status)
 	}
 
 	return nil
 }
 
 // Can't validate the image actually leads to a valid resource in a pure
-// function, but can at least catch obvious problems
+// function, but can at least catch obvious problems.
 func validateContributorAvatarURL(avatarURL *string) []error {
 	if avatarURL == nil {
 		return nil
@@ -122,17 +121,17 @@ func validateContributorAvatarURL(avatarURL *string) []error {
 
 	errs := []error{}
 	if *avatarURL == "" {
-		errs = append(errs, errors.New("avatar URL must be omitted or non-empty string"))
+		errs = append(errs, xerrors.New("avatar URL must be omitted or non-empty string"))
 		return errs
 	}
 
 	// Have to use .Parse instead of .ParseRequestURI because this is the
 	// one field that's allowed to be a relative URL
 	if _, err := url.Parse(*avatarURL); err != nil {
-		errs = append(errs, fmt.Errorf("URL %q is not a valid relative or absolute URL", *avatarURL))
+		errs = append(errs, xerrors.Errorf("URL %q is not a valid relative or absolute URL", *avatarURL))
 	}
 	if strings.Contains(*avatarURL, "?") {
-		errs = append(errs, errors.New("avatar URL is not allowed to contain search parameters"))
+		errs = append(errs, xerrors.New("avatar URL is not allowed to contain search parameters"))
 	}
 
 	matched := false
@@ -145,7 +144,7 @@ func validateContributorAvatarURL(avatarURL *string) []error {
 	if !matched {
 		segments := strings.Split(*avatarURL, ".")
 		fileExtension := segments[len(segments)-1]
-		errs = append(errs, fmt.Errorf("avatar URL '.%s' does not end in a supported file format: [%s]", fileExtension, strings.Join(supportedAvatarFileFormats, ", ")))
+		errs = append(errs, xerrors.Errorf("avatar URL '.%s' does not end in a supported file format: [%s]", fileExtension, strings.Join(supportedAvatarFileFormats, ", ")))
 	}
 
 	return errs
@@ -180,12 +179,12 @@ func validateContributorReadme(rm contributorProfileReadme) []error {
 func parseContributorProfile(rm readme) (contributorProfileReadme, error) {
 	fm, _, err := separateFrontmatter(rm.rawText)
 	if err != nil {
-		return contributorProfileReadme{}, fmt.Errorf("%q: failed to parse frontmatter: %v", rm.filePath, err)
+		return contributorProfileReadme{}, xerrors.Errorf("%q: failed to parse frontmatter: %v", rm.filePath, err)
 	}
 
 	yml := contributorProfileFrontmatter{}
 	if err := yaml.Unmarshal([]byte(fm), &yml); err != nil {
-		return contributorProfileReadme{}, fmt.Errorf("%q: failed to parse: %v", rm.filePath, err)
+		return contributorProfileReadme{}, xerrors.Errorf("%q: failed to parse: %v", rm.filePath, err)
 	}
 
 	return contributorProfileReadme{
@@ -206,7 +205,7 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 		}
 
 		if prev, alreadyExists := profilesByNamespace[p.namespace]; alreadyExists {
-			yamlParsingErrors = append(yamlParsingErrors, fmt.Errorf("%q: namespace %q conflicts with namespace from %q", p.filePath, p.namespace, prev.filePath))
+			yamlParsingErrors = append(yamlParsingErrors, xerrors.Errorf("%q: namespace %q conflicts with namespace from %q", p.filePath, p.namespace, prev.filePath))
 			continue
 		}
 		profilesByNamespace[p.namespace] = p
@@ -291,7 +290,7 @@ func validateContributorRelativeUrls(contributors map[string]contributorProfileR
 		}
 
 		if strings.HasPrefix(*con.frontmatter.AvatarURL, "..") {
-			errs = append(errs, fmt.Errorf("%q: relative avatar URLs cannot be placed outside a user's namespaced directory", con.filePath))
+			errs = append(errs, xerrors.Errorf("%q: relative avatar URLs cannot be placed outside a user's namespaced directory", con.filePath))
 			continue
 		}
 
@@ -299,7 +298,7 @@ func validateContributorRelativeUrls(contributors map[string]contributorProfileR
 			*con.frontmatter.AvatarURL
 		_, err := os.ReadFile(absolutePath)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("%q: relative avatar path %q does not point to image in file system", con.filePath, *con.frontmatter.AvatarURL))
+			errs = append(errs, xerrors.Errorf("%q: relative avatar path %q does not point to image in file system", con.filePath, *con.frontmatter.AvatarURL))
 		}
 	}
 
