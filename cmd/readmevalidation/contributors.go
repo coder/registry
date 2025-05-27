@@ -19,7 +19,7 @@ type contributorProfileFrontmatter struct {
 	Bio               string `yaml:"bio"`
 	ContributorStatus string `yaml:"status"`
 	// Script assumes that if avatar URL is nil, the Registry site build step
-	// will backfill the value with the user's GitHub avatar URL
+	// will backfill the value with the user's GitHub avatar URL.
 	AvatarURL    *string `yaml:"avatar"`
 	LinkedinURL  *string `yaml:"linkedin"`
 	WebsiteURL   *string `yaml:"website"`
@@ -62,7 +62,7 @@ func validateContributorSupportEmail(email *string) []error {
 	// Can't 100% validate that this is correct without actually sending
 	// an email, and especially with some contributors being individual
 	// developers, we don't want to do that on every single run of the CI
-	// pipeline. Best we can do is verify the general structure
+	// pipeline. Best we can do is verify the general structure.
 	username, server, ok := strings.Cut(*email, "@")
 	if !ok {
 		errs = append(errs, xerrors.Errorf("email address %q is missing @ symbol", *email))
@@ -126,7 +126,7 @@ func validateContributorAvatarURL(avatarURL *string) []error {
 	}
 
 	// Have to use .Parse instead of .ParseRequestURI because this is the
-	// one field that's allowed to be a relative URL
+	// one field that's allowed to be a relative URL.
 	if _, err := url.Parse(*avatarURL); err != nil {
 		errs = append(errs, xerrors.Errorf("URL %q is not a valid relative or absolute URL", *avatarURL))
 	}
@@ -273,12 +273,12 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 
 func validateContributorRelativeUrls(contributors map[string]contributorProfileReadme) error {
 	// This function only validates relative avatar URLs for now, but it can be
-	// beefed up to validate more in the future
+	// beefed up to validate more in the future.
 	errs := []error{}
 
 	for _, con := range contributors {
 		// If the avatar URL is missing, we'll just assume that the Registry
-		// site build step will take care of filling in the data properly
+		// site build step will take care of filling in the data properly.
 		if con.frontmatter.AvatarURL == nil {
 			continue
 		}

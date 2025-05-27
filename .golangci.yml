@@ -35,6 +35,9 @@ linters:
   settings:
     dupl:
       threshold: 412
+    godot:
+      scope: all
+      capital: true
     exhaustruct:
       include:
         - httpmw\.\w+

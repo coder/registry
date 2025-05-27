@@ -16,7 +16,7 @@ func main() {
 
 	// If there are fundamental problems with how the repo is structured, we
 	// can't make any guarantees that any further validations will be relevant
-	// or accurate
+	// or accurate.
 	repoErr := validateRepoStructure()
 	if repoErr != nil {
 		log.Println(repoErr)

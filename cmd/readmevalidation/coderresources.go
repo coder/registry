@@ -70,7 +70,7 @@ func validateCoderResourceIconURL(iconURL string) []error {
 
 	// Would normally be skittish about having relative paths like this, but it
 	// should be safe because we have guarantees about the structure of the
-	// repo, and where this logic will run
+	// repo, and where this logic will run.
 	isPermittedRelativeURL := strings.HasPrefix(iconURL, "./") ||
 		strings.HasPrefix(iconURL, "/") ||
 		strings.HasPrefix(iconURL, "../../../../.icons")
@@ -91,7 +91,7 @@ func validateCoderResourceTags(tags []string) error {
 
 	// All of these tags are used for the module/template filter controls in the
 	// Registry site. Need to make sure they can all be placed in the browser
-	// URL without issue
+	// URL without issue.
 	invalidTags := []string{}
 	for _, t := range tags {
 		if t != url.QueryEscape(t) {
@@ -132,7 +132,7 @@ func validateCoderResourceReadmeBody(body string) []error {
 
 		// Code assumes that invalid headers would've already been handled by
 		// the base validation function, so we don't need to check deeper if the
-		// first line isn't an h1
+		// first line isn't an h1.
 		if lineNum == 1 {
 			if !strings.HasPrefix(nextLine, "# ") {
 				break
@@ -160,14 +160,14 @@ func validateCoderResourceReadmeBody(body string) []error {
 		}
 
 		// Code assumes that we can treat this case as the end of the "h1
-		// section" and don't need to process any further lines
+		// section" and don't need to process any further lines.
 		if lineNum > 1 && strings.HasPrefix(nextLine, "#") {
 			break
 		}
 
 		// Code assumes that if we've reached this point, the only other options
 		// are: (1) empty spaces, (2) paragraphs, (3) HTML, and (4) asset
-		// references made via [] syntax
+		// references made via [] syntax.
 		trimmedLine := strings.TrimSpace(nextLine)
 		isParagraph := trimmedLine != "" && !strings.HasPrefix(trimmedLine, "![") && !strings.HasPrefix(trimmedLine, "<")
 		foundParagraph = foundParagraph || isParagraph

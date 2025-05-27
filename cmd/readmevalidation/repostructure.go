@@ -18,7 +18,7 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 	subDir, err := os.Stat(dirPath)
 	if err != nil {
 		// It's valid for a specific resource directory not to exist. It's just
-		// that if it does exist, it must follow specific rules
+		// that if it does exist, it must follow specific rules.
 		if !errors.Is(err, os.ErrNotExist) {
 			errs = append(errs, addFilePathToError(dirPath, err))
 		}
@@ -39,7 +39,7 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 		// The .coder subdirectories are sometimes generated as part of Bun
 		// tests. These subdirectories will never be committed to the repo, but
 		// in the off chance that they don't get cleaned up properly, we want to
-		// skip over them
+		// skip over them.
 		if !f.IsDir() || f.Name() == ".coder" {
 			continue
 		}
@@ -96,7 +96,7 @@ func validateRegistryDirectory() []error {
 
 		for _, f := range files {
 			// Todo: Decide if there's anything more formal that we want to
-			// ensure about non-directories scoped to user namespaces
+			// ensure about non-directories scoped to user namespaces.
 			if !f.IsDir() {
 				continue
 			}
