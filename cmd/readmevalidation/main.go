@@ -9,7 +9,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"cdr.dev/slog"
+	"cdr.dev/slog/sloggers/sloghuman"
 )
+
+var logger = slog.Make(sloghuman.Sink(os.Stdout))
 
 func main() {
 	log.Println("Starting README validation")
