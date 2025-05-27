@@ -16,15 +16,13 @@ import (
 var validContributorStatuses = []string{"official", "partner", "community"}
 
 type contributorProfileFrontmatter struct {
-	DisplayName       string `yaml:"display_name"`
-	Bio               string `yaml:"bio"`
-	ContributorStatus string `yaml:"status"`
-	// Script assumes that if avatar URL is nil, the Registry site build step
-	// will backfill the value with the user's GitHub avatar URL
-	AvatarURL    *string `yaml:"avatar"`
-	LinkedinURL  *string `yaml:"linkedin"`
-	WebsiteURL   *string `yaml:"website"`
-	SupportEmail *string `yaml:"support_email"`
+	DisplayName       string  `yaml:"display_name"`
+	Bio               string  `yaml:"bio"`
+	ContributorStatus string  `yaml:"status"`
+	AvatarURL         *string `yaml:"avatar"`
+	LinkedinURL       *string `yaml:"linkedin"`
+	WebsiteURL        *string `yaml:"website"`
+	SupportEmail      *string `yaml:"support_email"`
 }
 
 type contributorProfileReadme struct {
@@ -275,11 +273,8 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 func validateContributorRelativeUrls(contributors map[string]contributorProfileReadme) error {
 	// This function only validates relative avatar URLs for now, but it can be
 	// beefed up to validate more in the future
-	errs := []error{}
-
+	var errs []error
 	for _, con := range contributors {
-		// If the avatar URL is missing, we'll just assume that the Registry
-		// site build step will take care of filling in the data properly
 		if con.frontmatter.AvatarURL == nil {
 			continue
 		}
@@ -290,16 +285,18 @@ func validateContributorRelativeUrls(contributors map[string]contributorProfileR
 			continue
 		}
 
-		if strings.HasPrefix(*con.frontmatter.AvatarURL, "..") {
+		isAvatarInApprovedSpot := strings.HasPrefix(*con.frontmatter.AvatarURL, "./.images/") ||
+			strings.HasPrefix(*con.frontmatter.AvatarURL, ".images/")
+		if !isAvatarInApprovedSpot {
 			errs = append(errs, fmt.Errorf("%q: relative avatar URLs cannot be placed outside a user's namespaced directory", con.filePath))
 			continue
 		}
 
 		absolutePath := strings.TrimSuffix(con.filePath, "README.md") +
 			*con.frontmatter.AvatarURL
-		_, err := os.ReadFile(absolutePath)
+		_, err := os.Stat(absolutePath)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("%q: relative avatar path %q does not point to image in file system", con.filePath, *con.frontmatter.AvatarURL))
+			errs = append(errs, fmt.Errorf("%q: path %q does not point to image in file system", con.filePath, absolutePath))
 		}
 	}
 
