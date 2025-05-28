@@ -64,6 +64,7 @@ The validation exists for two reasons:
 In addition to the general criteria, all namespace README files must have:
 
 - Frontmatter metadata with support for the following fields:
+
   - `display_name` (required string) – The name to use when displaying the user profile in the Coder Registry site
   - `bio` (optional string) – A short description of who they are
   - `github` (optional string) – Their GitHub handle
@@ -79,6 +80,7 @@ In addition to the general criteria, all namespace README files must have:
 In addition to the general criteria, all module README files must have:
 
 - Frontmatter that describes metadata for the module:
+
   - `display_name` (required string) – This is the name displayed on the Coder Registry website
   - `description` (required string) – A short description of the module, which is displayed on the Registry website
   - `icon` (required string) – A relative/absolute URL pointing to the icon to display for the module in the Coder Registry website
@@ -88,6 +90,7 @@ In addition to the general criteria, all module README files must have:
   - `partner_github` (deprecated string) - The name of any additional creators for a module. This field exists for backwards compatibility with previous versions of the Registry, but should not ever be used going forward
 
 - The following content directly under the h1 header (without another header between them):
+
   - A description of what the module does
   - A Terraform snippet for letting other users import the functionality
 
@@ -267,6 +270,7 @@ When reviewing PRs, ensure:
 If a release needs to be reverted:
 
 1. Delete the problematic tag:
+
    ```shell
    git tag -d release/$namespace/$module/v$version
    git push origin :refs/tags/release/$namespace/$module/v$version
@@ -289,4 +293,4 @@ For maintainer-specific questions or issues:
 - Repository issues for public discussion
 - Security email for sensitive issues
 
-Remember: As a maintainer, you're responsible for maintaining the quality and security of the Registry. When in doubt, err on the side of caution and seek additional review. 
+Remember: As a maintainer, you're responsible for maintaining the quality and security of the Registry. When in doubt, err on the side of caution and seek additional review.
