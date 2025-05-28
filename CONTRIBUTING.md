@@ -15,11 +15,13 @@ The Coder Registry is a collection of Terraform modules that extend Coder worksp
 ## Setup
 
 ### Prerequisites
+
 - Git and GitHub account
 - Basic Terraform knowledge (for module development)
 - Docker (for running tests)
 
 ### Install Dependencies
+
 ```bash
 # Install Bun (test runner)
 curl -fsSL https://bun.sh/install | bash
@@ -65,6 +67,7 @@ mkdir -p registry/[your-username]
 ```
 
 Create `registry/[your-username]/README.md`:
+
 ```markdown
 ---
 display_name: "Your Name"
@@ -86,6 +89,7 @@ cd registry/[your-username]/modules/[module-name]
 ### 3. Build Your Module
 
 **Edit `main.tf`** - Your Terraform code:
+
 ```terraform
 terraform {
   required_version = ">= 1.0"
@@ -109,7 +113,8 @@ resource "coder_script" "install" {
 ```
 
 **Update `README.md`** - Add proper frontmatter:
-```markdown
+
+````markdown
 ---
 display_name: "Tool Name"
 description: "Brief description of what this module does"
@@ -132,7 +137,9 @@ module "tool" {
   agent_id = coder_agent.main.id
 }
 ```
-```
+````
+
+````
 
 **Write tests in `main.test.ts`**:
 ```typescript
@@ -150,7 +157,7 @@ describe("module-name", () => {
     });
   });
 });
-```
+````
 
 ### 4. Test and Submit
 
@@ -182,18 +189,21 @@ find registry -name "*[module-name]*" -type d
 ### 2. Make Your Changes
 
 **For bug fixes:**
+
 - Reproduce the issue
 - Fix the code in `main.tf`
 - Add/update tests
 - Update documentation if needed
 
 **For new features:**
+
 - Add new variables with sensible defaults
 - Implement the feature
 - Add tests for new functionality
 - Update README with new variables
 
 **For documentation:**
+
 - Fix typos and unclear explanations
 - Add missing variable documentation
 - Improve usage examples
@@ -223,11 +233,13 @@ bun test
 ### Create a Pull Request
 
 1. **Fork and branch:**
+
    ```bash
    git checkout -b fix/module-name-issue
    ```
 
 2. **Commit with clear messages:**
+
    ```bash
    git commit -m "Fix version parsing in module-name"
    ```
@@ -238,17 +250,21 @@ bun test
    - Any breaking changes
 
 ### PR Template
+
 ```markdown
 ## Description
+
 Brief description of changes.
 
 ## Type of Change
+
 - [ ] New module
-- [ ] Bug fix  
+- [ ] Bug fix
 - [ ] Feature enhancement
 - [ ] Documentation
 
 ## Testing
+
 - [ ] Tests pass (`bun test`)
 - [ ] Code formatted (`bun run fmt`)
 ```
@@ -258,32 +274,36 @@ Brief description of changes.
 ## Requirements
 
 ### Every Module Must Have
+
 - `main.tf` - Terraform code
 - `main.test.ts` - Working tests
 - `README.md` - Documentation with frontmatter
 
 ### README Frontmatter
+
 ```yaml
 ---
-display_name: "Module Name"           # Required - Name shown on Registry website
-description: "What it does"         # Required - Short description for Registry
-icon: "path/to/icon.svg"           # Required - Path to icon file
+display_name: "Module Name" # Required - Name shown on Registry website
+description: "What it does" # Required - Short description for Registry
+icon: "path/to/icon.svg" # Required - Path to icon file
 maintainer_github: "your-username" # Required - Your GitHub username
-verified: false                    # Optional - Set by Coder maintainers only
-tags: ["tag1", "tag2"]             # Required - Array of descriptive tags
-partner_github: "partner-name"     # Optional - For official partnerships only
+verified: false # Optional - Set by Coder maintainers only
+tags: ["tag1", "tag2"] # Required - Array of descriptive tags
+partner_github: "partner-name" # Optional - For official partnerships only
 ---
 ```
 
 ### README Requirements
 
 All README files must follow these rules:
+
 - Must have frontmatter section with proper YAML
 - Exactly one h1 header directly below frontmatter
 - When increasing header levels, increment by one each time
 - Use `tf` instead of `hcl` for code blocks
 
 ### Best Practices
+
 - Use descriptive variable names and descriptions
 - Include helpful comments
 - Test all functionality
@@ -306,12 +326,14 @@ go build ./cmd/readmevalidation && ./readmevalidation
 After your PR is merged, maintainers will handle the release:
 
 1. **Create release tags** for changed modules:
+
    ```bash
    git tag -a "release/$namespace/$module/v$version" -m "Release $namespace/$module v$version"
    git push origin release/$namespace/$module/v$version
    ```
 
 2. **Version numbers** follow semantic versioning:
+
    - **Patch** (1.2.3 → 1.2.4): Bug fixes
    - **Minor** (1.2.3 → 1.3.0): New features, adding inputs
    - **Major** (1.2.3 → 2.0.0): Breaking changes (removing inputs, changing types)
@@ -323,6 +345,7 @@ After your PR is merged, maintainers will handle the release:
 ## Reporting Issues
 
 When reporting bugs, include:
+
 - Module name and version
 - Expected vs actual behavior
 - Minimal reproduction case
