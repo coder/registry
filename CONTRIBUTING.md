@@ -18,16 +18,26 @@ The Coder Registry is a collection of Terraform modules that extend Coder worksp
 
 - Git and GitHub account
 - Basic Terraform knowledge (for module development)
+- Terraform installed ([installation guide](https://developer.hashicorp.com/terraform/install))
 - Docker (for running tests)
 
 ### Install Dependencies
 
-```bash
-# Install Bun (test runner)
-curl -fsSL https://bun.sh/install | bash
-source ~/.bashrc
+Install Bun (test runner):
 
-# Install project dependencies
+```bash
+curl -fsSL https://bun.sh/install | bash
+```
+
+Restart your terminal or source your profile:
+
+```bash
+source ~/.bashrc
+```
+
+Install project dependencies:
+
+```bash
 bun install
 ```
 
