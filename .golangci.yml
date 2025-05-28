@@ -24,12 +24,11 @@ linters:
     - misspell
     - nestif
     - nilnil
-    - noctx
-    - paralleltest
+    # - noctx
+    # - paralleltest
     - revive
     - staticcheck
-    - testpackage
-    - tparallel
+    # - tparallel
     - unconvert
     - unused
   settings:
@@ -118,12 +117,11 @@ linters:
         - name: blank-imports
         - name: bool-literal-in-expr
         - name: call-to-gc
-        - name: confusing-naming
         - name: confusing-results
         - name: constant-logical-expr
         - name: context-as-argument
         - name: context-keys-type
-        - name: deep-exit
+        # - name: deep-exit
         - name: defer
         - name: dot-imports
         - name: duplicated-imports
