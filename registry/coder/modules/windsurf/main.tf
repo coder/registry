@@ -33,9 +33,9 @@ variable "order" {
 }
 
 variable "group" {
-	type        = string
-	description = "The name of a group that this app belongs to."
-	default     = null
+  type        = string
+  description = "The name of a group that this app belongs to."
+  default     = null
 }
 
 data "coder_workspace" "me" {}
