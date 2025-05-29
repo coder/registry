@@ -56,6 +56,12 @@ func validateCoderResourceDescription(description string) error {
 	return nil
 }
 
+func isPermittedRelativeURL(checkURL string) bool {
+	// Would normally be skittish about having relative paths like this, but it should be safe because we have
+	// guarantees about the structure of the repo, and where this logic will run.
+	return strings.HasPrefix(checkURL, "./") || strings.HasPrefix(checkURL, "/") || strings.HasPrefix(checkURL, "../../../../.icons")
+}
+
 func validateCoderResourceIconURL(iconURL string) []error {
 	if iconURL == "" {
 		return []error{xerrors.New("icon URL cannot be empty")}
@@ -63,8 +69,8 @@ func validateCoderResourceIconURL(iconURL string) []error {
 
 	errs := []error{}
 
-	isAbsoluteURL := !strings.HasPrefix(iconURL, ".") && !strings.HasPrefix(iconURL, "/")
-	if isAbsoluteURL {
+	// If the URL does not have a relative path.
+	if !strings.HasPrefix(iconURL, ".") && !strings.HasPrefix(iconURL, "/") {
 		if _, err := url.ParseRequestURI(iconURL); err != nil {
 			errs = append(errs, xerrors.New("absolute icon URL is not correctly formatted"))
 		}
@@ -74,12 +80,8 @@ func validateCoderResourceIconURL(iconURL string) []error {
 		return errs
 	}
 
-	// Would normally be skittish about having relative paths like this, but it should be safe because we have guarantees
-	// about the structure of the repo, and where this logic will run.
-	isPermittedRelativeURL := strings.HasPrefix(iconURL, "./") ||
-		strings.HasPrefix(iconURL, "/") ||
-		strings.HasPrefix(iconURL, "../../../../.icons")
-	if !isPermittedRelativeURL {
+	// If the URL has a relative path.
+	if !isPermittedRelativeURL(iconURL) {
 		errs = append(errs, xerrors.Errorf("relative icon URL %q must either be scoped to that module's directory, or the top-level /.icons directory (this can usually be done by starting the path with \"../../../.icons\")", iconURL))
 	}
 
@@ -271,7 +273,7 @@ func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (map[strin
 
 // Todo: Need to beef up this function by grabbing each image/video URL from
 // the body's AST.
-func validateCoderResourceRelativeUrls(_ map[string]coderResourceReadme) error {
+func validateCoderResourceRelativeURLs(_ map[string]coderResourceReadme) error {
 	return nil
 }
 
@@ -283,14 +285,13 @@ func aggregateCoderResourceReadmeFiles(resourceType string) ([]readme, error) {
 
 	var allReadmeFiles []readme
 	var errs []error
-	var resourceDirs []os.DirEntry
 	for _, rf := range registryFiles {
 		if !rf.IsDir() {
 			continue
 		}
 
 		resourceRootPath := path.Join(rootRegistryPath, rf.Name(), resourceType)
-		resourceDirs, err = os.ReadDir(resourceRootPath)
+		resourceDirs, err := os.ReadDir(resourceRootPath)
 		if err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
 				errs = append(errs, err)
@@ -343,7 +344,7 @@ func validateAllCoderResourceFilesOfType(resourceType string) error {
 	}
 	logger.Info(context.Background(), "rocessed README files as valid Coder resources", "num_files", len(resources), "type", resourceType)
 
-	if err = validateCoderResourceRelativeUrls(resources); err != nil {
+	if err := validateCoderResourceRelativeURLs(resources); err != nil {
 		return err
 	}
 	logger.Info(context.Background(), "all relative URLs for READMEs are valid", "type", resourceType)

@@ -13,12 +13,8 @@ import (
 var supportedUserNameSpaceDirectories = append(supportedResourceTypes, ".icons", ".images")
 
 func validateCoderResourceSubdirectory(dirPath string) []error {
-	var (
-		err    error
-		subDir os.FileInfo
-	)
-
-	if subDir, err = os.Stat(dirPath); err != nil {
+	subDir, err := os.Stat(dirPath)
+	if err != nil {
 		// It's valid for a specific resource directory not to exist. It's just that if it does exist, it must follow specific rules.
 		if !errors.Is(err, os.ErrNotExist) {
 			return []error{addFilePathToError(dirPath, err)}
@@ -43,7 +39,7 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 		}
 
 		resourceReadmePath := path.Join(dirPath, f.Name(), "README.md")
-		if _, err = os.Stat(resourceReadmePath); err != nil {
+		if _, err := os.Stat(resourceReadmePath); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				errs = append(errs, xerrors.Errorf("%q: 'README.md' does not exist", resourceReadmePath))
 			} else {
@@ -52,7 +48,7 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 		}
 
 		mainTerraformPath := path.Join(dirPath, f.Name(), "main.tf")
-		if _, err = os.Stat(mainTerraformPath); err != nil {
+		if _, err := os.Stat(mainTerraformPath); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				errs = append(errs, xerrors.Errorf("%q: 'main.tf' file does not exist", mainTerraformPath))
 			} else {
@@ -64,16 +60,12 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 }
 
 func validateRegistryDirectory() []error {
-	var (
-		userDirs []os.DirEntry
-		err      error
-	)
-	if userDirs, err = os.ReadDir(rootRegistryPath); err != nil {
+	userDirs, err := os.ReadDir(rootRegistryPath)
+	if err != nil {
 		return []error{err}
 	}
 
 	allErrs := []error{}
-	var iterFiles []os.DirEntry
 	for _, d := range userDirs {
 		dirPath := path.Join(rootRegistryPath, d.Name())
 		if !d.IsDir() {
@@ -82,16 +74,17 @@ func validateRegistryDirectory() []error {
 		}
 
 		contributorReadmePath := path.Join(dirPath, "README.md")
-		if _, err = os.Stat(contributorReadmePath); err != nil {
+		if _, err := os.Stat(contributorReadmePath); err != nil {
 			allErrs = append(allErrs, err)
 		}
 
-		if iterFiles, err = os.ReadDir(dirPath); err != nil {
+		files, err := os.ReadDir(dirPath)
+		if err != nil {
 			allErrs = append(allErrs, err)
 			continue
 		}
 
-		for _, f := range iterFiles {
+		for _, f := range files {
 			// TODO: Decide if there's anything more formal that we want to ensure about non-directories scoped to user namespaces.
 			if !f.IsDir() {
 				continue

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -21,15 +22,15 @@ const (
 	// system as expected.
 	validationPhaseStructure validationPhase = "File structure validation"
 
-	// validationPhaseFile indicates when README files are being read from
+	// ValidationPhaseFile indicates when README files are being read from
 	// the file system.
 	validationPhaseFile validationPhase = "Filesystem reading"
 
-	// validationPhaseReadme indicates when a README's frontmatter is
+	// ValidationPhaseReadme indicates when a README's frontmatter is
 	// being parsed as YAML. This phase does not include YAML validation.
 	validationPhaseReadme validationPhase = "README parsing"
 
-	// validationPhaseCrossReference indicates when a README's frontmatter
+	// ValidationPhaseCrossReference indicates when a README's frontmatter
 	// is having all its relative URLs be validated for whether they point to
 	// valid resources.
 	validationPhaseCrossReference validationPhase = "Cross-referencing relative asset URLs"
@@ -58,14 +59,13 @@ func separateFrontmatter(readmeText string) (readmeFrontmatter string, readmeBod
 
 	const fence = "---"
 
-	fm := ""
-	body := ""
-	nextLine := ""
+	var fm strings.Builder
+	var body strings.Builder
 	fenceCount := 0
 
 	lineScanner := bufio.NewScanner(strings.NewReader(strings.TrimSpace(readmeText)))
 	for lineScanner.Scan() {
-		nextLine = lineScanner.Text()
+		nextLine := lineScanner.Text()
 		if fenceCount < 2 && nextLine == fence {
 			fenceCount++
 			continue
@@ -79,19 +79,19 @@ func separateFrontmatter(readmeText string) (readmeFrontmatter string, readmeBod
 		// extra meaning attached to the indentation. The same does NOT apply to the README; best we can do is gather
 		// all the lines and then trim around it.
 		if inReadmeBody := fenceCount >= 2; inReadmeBody {
-			body += nextLine + "\n"
+			fmt.Fprintf(&body, "%s\n", nextLine)
 		} else {
-			fm += strings.TrimSpace(nextLine) + "\n"
+			fmt.Fprintf(&fm, "%s\n", strings.TrimSpace(nextLine))
 		}
 	}
 	if fenceCount < 2 {
 		return "", "", xerrors.New("README does not have two sets of frontmatter fences")
 	}
-	if fm == "" {
+	if fm.Len() == 0 {
 		return "", "", xerrors.New("readme has frontmatter fences but no frontmatter content")
 	}
 
-	return fm, strings.TrimSpace(body), nil
+	return fm.String(), strings.TrimSpace(body.String()), nil
 }
 
 // TODO: This seems to work okay for now, but the really proper way of doing this is by parsing this as an AST, and then
@@ -113,11 +113,10 @@ func validateReadmeBody(body string) []error {
 	latestHeaderLevel := 0
 	foundFirstH1 := false
 	isInCodeBlock := false
-	nextLine := ""
 
 	lineScanner := bufio.NewScanner(strings.NewReader(trimmed))
 	for lineScanner.Scan() {
-		nextLine = lineScanner.Text()
+		nextLine := lineScanner.Text()
 
 		// Have to check this because a lot of programming languages support # comments (including Terraform), and
 		// without any context, there's no way to tell the difference between a markdown header and code comment.

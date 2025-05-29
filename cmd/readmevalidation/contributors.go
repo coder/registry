@@ -128,7 +128,7 @@ func validateContributorAvatarURL(avatarURL *string) []error {
 		errs = append(errs, xerrors.New("avatar URL is not allowed to contain search parameters"))
 	}
 
-	matched := false
+	var matched bool
 	for _, ff := range supportedAvatarFileFormats {
 		matched = strings.HasSuffix(*avatarURL, ff)
 		if matched {
@@ -243,7 +243,6 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 		}
 
 		dirPath = path.Join(rootRegistryPath, e.Name())
-
 		readmePath := path.Join(dirPath, "README.md")
 		rmBytes, err := os.ReadFile(readmePath)
 		if err != nil {
@@ -288,8 +287,7 @@ func validateContributorRelativeURLs(contributors map[string]contributorProfileR
 			continue
 		}
 
-		absolutePath := strings.TrimSuffix(con.filePath, "README.md") +
-			*con.frontmatter.AvatarURL
+		absolutePath := strings.TrimSuffix(con.filePath, "README.md") + *con.frontmatter.AvatarURL
 		if _, err := os.ReadFile(absolutePath); err != nil {
 			errs = append(errs, xerrors.Errorf("%q: relative avatar path %q does not point to image in file system", con.filePath, absolutePath))
 		}
@@ -317,7 +315,7 @@ func validateAllContributorFiles() error {
 	}
 	logger.Info(context.Background(), "processed README files as valid contributor profiles", "num_contributors", len(contributors))
 
-	if err = validateContributorRelativeURLs(contributors); err != nil {
+	if err := validateContributorRelativeURLs(contributors); err != nil {
 		return err
 	}
 	logger.Info(context.Background(), "all relative URLs for READMEs are valid")
