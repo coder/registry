@@ -61,8 +61,9 @@ All modules are organized under `/registry/[namespace]/modules/`. Each contribut
 
 ### Images and Icons
 
-- Place images in `/registry/[namespace]/images/` to avoid conflicts
-- Icons can go in the top-level `/.icons/` directory if used by multiple modules
+- **Namespace avatars**: Place your avatar in `/registry/[namespace]/images/`
+- **Module images**: Place other images in `/registry/[namespace]/images/` to avoid conflicts
+- **Module icons**: Can go in the top-level `/.icons/` directory if used by multiple modules
 
 ---
 
@@ -74,20 +75,34 @@ If you're a new contributor, create your namespace:
 
 ```bash
 mkdir -p registry/[your-username]
+mkdir -p registry/[your-username]/images
 ```
+
+#### Add Your Avatar
+
+Every namespace should have an avatar. Add your avatar image:
+
+1. Add a square image (recommended: 400x400px minimum) to `registry/[your-username]/images/`
+2. Supported formats: `.png`, `.jpg`, `.jpeg`, `.svg`
+3. Name it something clear like `avatar.png` or `profile.jpg`
+
+#### Create Your Namespace README
 
 Create `registry/[your-username]/README.md`:
 
 ```markdown
 ---
 display_name: "Your Name"
-bio: "Brief description"
+bio: "Brief description of what you do"
+avatar_url: "./images/avatar.png"
 github: "your-username"
 status: "community"
 ---
 
 # Your Name
 ```
+
+> **Note**: The `avatar_url` should point to your avatar image relative to your namespace directory.
 
 ### 2. Generate Module Files
 
@@ -124,7 +139,7 @@ resource "coder_script" "install" {
 
 **Update `README.md`** - Add proper frontmatter:
 
-````markdown
+```markdown
 ---
 display_name: "Tool Name"
 description: "Brief description of what this module does"
@@ -147,9 +162,7 @@ module "tool" {
   agent_id = coder_agent.main.id
 }
 ```
-````
-
-````
+```
 
 **Write tests in `main.test.ts`**:
 ```typescript
@@ -167,7 +180,7 @@ describe("module-name", () => {
     });
   });
 });
-````
+```
 
 ### 4. Test and Submit
 
@@ -259,25 +272,16 @@ bun test
    - What you changed and why
    - Any breaking changes
 
-### PR Template
+### Using PR Templates
 
-```markdown
-## Description
+We have different PR templates for different types of contributions. GitHub will show you options to choose from, or you can manually select:
 
-Brief description of changes.
+- **New Module**: Use `?template=new_module.md` 
+- **Bug Fix**: Use `?template=bug_fix.md`
+- **Feature**: Use `?template=feature.md`
+- **Documentation**: Use `?template=documentation.md`
 
-## Type of Change
-
-- [ ] New module
-- [ ] Bug fix
-- [ ] Feature enhancement
-- [ ] Documentation
-
-## Testing
-
-- [ ] Tests pass (`bun test`)
-- [ ] Code formatted (`bun run fmt`)
-```
+Example: `https://github.com/coder/registry/compare/main...your-branch?template=new_module.md`
 
 ---
 
@@ -331,24 +335,15 @@ go build ./cmd/readmevalidation && ./readmevalidation
 
 ---
 
-## Release Process
+## Versioning Guidelines
 
-After your PR is merged, maintainers will handle the release:
+After your PR is merged, maintainers will handle the release. Understanding version numbers helps you describe the impact of your changes:
 
-1. **Create release tags** for changed modules:
+- **Patch** (1.2.3 → 1.2.4): Bug fixes
+- **Minor** (1.2.3 → 1.3.0): New features, adding inputs
+- **Major** (1.2.3 → 2.0.0): Breaking changes (removing inputs, changing types)
 
-   ```bash
-   git tag -a "release/$namespace/$module/v$version" -m "Release $namespace/$module v$version"
-   git push origin release/$namespace/$module/v$version
-   ```
-
-2. **Version numbers** follow semantic versioning:
-
-   - **Patch** (1.2.3 → 1.2.4): Bug fixes
-   - **Minor** (1.2.3 → 1.3.0): New features, adding inputs
-   - **Major** (1.2.3 → 2.0.0): Breaking changes (removing inputs, changing types)
-
-3. **Publishing**: Changes are automatically published to [registry.coder.com](https://registry.coder.com) after tags are pushed.
+**Important**: Always specify the version change in your PR (e.g., `v1.2.3 → v1.2.4`). This helps maintainers create the correct release tag.
 
 ---
 
