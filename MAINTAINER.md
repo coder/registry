@@ -24,7 +24,7 @@ Check that PRs have:
 - [ ] Proper frontmatter in README
 - [ ] Working tests (`bun test`)
 - [ ] Formatted code (`bun run fmt`)
-- [ ] Avatar image for new namespaces (in `images/` directory)
+- [ ] Avatar image for new namespaces (`avatar.png` or `avatar.svg` in `.images/`)
 
 #### Version Guidelines
 
@@ -71,11 +71,12 @@ Changes are automatically published to [registry.coder.com](https://registry.cod
 ### Module Frontmatter (Required)
 
 ```yaml
-display_name: "Tool Name"
+display_name: "Module Name"
 description: "What it does"
-icon: "path/to/icon.svg"
+icon: "../../../../.icons/tool.svg"
 maintainer_github: "username"
-verified: false # true for verified modules
+partner_github: "partner-name" # Optional - For official partner modules
+verified: false # Optional - Set by maintainers only
 tags: ["tag1", "tag2"]
 ```
 
@@ -83,9 +84,12 @@ tags: ["tag1", "tag2"]
 
 ```yaml
 display_name: "Your Name"
-bio: "Brief description"
-avatar_url: "./images/avatar.png" # Path to avatar image
+bio: "Brief description of who you are and what you do"
+avatar_url: "./.images/avatar.png"
 github: "username"
+linkedin: "https://www.linkedin.com/in/username" # Optional
+website: "https://yourwebsite.com" # Optional
+support_email: "you@example.com" # Optional
 status: "community" # or "partner", "official"
 ```
 
@@ -94,5 +98,6 @@ status: "community" # or "partner", "official"
 - **README validation fails**: Check YAML syntax, ensure h1 header after frontmatter
 - **Tests fail**: Ensure Docker with `--network=host`, check Terraform syntax
 - **Wrong file structure**: Use `./scripts/new_module.sh` for new modules
+- **Missing namespace avatar**: Must be `avatar.png` or `avatar.svg` in `.images/` directory
 
 That's it. Keep it simple.
