@@ -2,10 +2,10 @@ package main
 
 import (
 	"bufio"
-	"errors"
-	"fmt"
 	"regexp"
 	"strings"
+
+	"golang.org/x/xerrors"
 )
 
 // validationPhase represents a specific phase during README validation. It is expected that each phase is discrete, and
@@ -21,25 +21,25 @@ const (
 	// system as expected.
 	fileStructureValidation validationPhase = "File structure validation"
 
-	// fileLoad indicates when README files are being read from
+	// FileLoad indicates when README files are being read from
 	// the file system.
 	fileLoad validationPhase = "Filesystem reading"
 
-	// readmeParsing indicates when a README's frontmatter is
+	// ReadmeParsing indicates when a README's frontmatter is
 	// being parsed as YAML. This phase does not include YAML validation.
 	readmeParsing validationPhase = "README parsing"
 
-	// assetCrossReference indicates when a README's frontmatter
+	// AssetCrossReference indicates when a README's frontmatter
 	// is having all its relative URLs be validated for whether they point to
 	// valid resources.
 	assetCrossReference validationPhase = "Cross-referencing relative asset URLs"
-	// --- end of validationPhases ---
+	// --- end of validationPhases ---.
 )
 
 var (
 	supportedAvatarFileFormats = []string{".png", ".jpeg", ".jpg", ".gif", ".svg"}
 	// Matches markdown headers, must be at the beginning of a line, such as "# " or "### ".
-	readmeHeaderRe = regexp.MustCompile(`^(#{1,})(\s*)`)
+	readmeHeaderRe = regexp.MustCompile(`^(#+)(\s*)`)
 )
 
 // readme represents a single README file within the repo (usually within the top-level "/registry" directory).
@@ -51,9 +51,9 @@ type readme struct {
 // separateFrontmatter attempts to separate a README file's frontmatter content from the main README body, returning
 // both values in that order. It does not validate whether the structure of the frontmatter is valid (i.e., that it's
 // structured as YAML).
-func separateFrontmatter(readmeText string) (string, string, error) {
+func separateFrontmatter(readmeText string) (readmeFrontmatter string, readmeBody string, err error) {
 	if readmeText == "" {
-		return "", "", errors.New("README is empty")
+		return "", "", xerrors.New("README is empty")
 	}
 
 	const fence = "---"
@@ -85,10 +85,10 @@ func separateFrontmatter(readmeText string) (string, string, error) {
 		}
 	}
 	if fenceCount < 2 {
-		return "", "", errors.New("README does not have two sets of frontmatter fences")
+		return "", "", xerrors.New("README does not have two sets of frontmatter fences")
 	}
 	if fm == "" {
-		return "", "", errors.New("readme has frontmatter fences but no frontmatter content")
+		return "", "", xerrors.New("readme has frontmatter fences but no frontmatter content")
 	}
 
 	return fm, strings.TrimSpace(body), nil
@@ -100,13 +100,13 @@ func validateReadmeBody(body string) []error {
 	trimmed := strings.TrimSpace(body)
 
 	if trimmed == "" {
-		return []error{errors.New("README body is empty")}
+		return []error{xerrors.New("README body is empty")}
 	}
 
 	// If the very first line of the README doesn't start with an ATX-style H1 header, there's a risk that the rest of the
 	// validation logic will break, since we don't have many guarantees about how the README is actually structured.
 	if !strings.HasPrefix(trimmed, "# ") {
-		return []error{errors.New("README body must start with ATX-style h1 header (i.e., \"# \")")}
+		return []error{xerrors.New("README body must start with ATX-style h1 header (i.e., \"# \")")}
 	}
 
 	var errs []error
@@ -136,7 +136,7 @@ func validateReadmeBody(body string) []error {
 
 		// In the Markdown spec it is mandatory to have a space following the header # symbol(s).
 		if headerGroups[2] == "" {
-			errs = append(errs, errors.New("header does not have space between header characters and main header text"))
+			errs = append(errs, xerrors.New("header does not have space between header characters and main header text"))
 		}
 
 		nextHeaderLevel := len(headerGroups[1])
@@ -148,18 +148,18 @@ func validateReadmeBody(body string) []error {
 
 		// If we have obviously invalid headers, it's not really safe to keep proceeding with the rest of the content.
 		if nextHeaderLevel == 1 {
-			errs = append(errs, errors.New("READMEs cannot contain more than h1 header"))
+			errs = append(errs, xerrors.New("READMEs cannot contain more than h1 header"))
 			break
 		}
 		if nextHeaderLevel > 6 {
-			errs = append(errs, fmt.Errorf("README/HTML files cannot have headers exceed level 6 (found level %d)", nextHeaderLevel))
+			errs = append(errs, xerrors.Errorf("README/HTML files cannot have headers exceed level 6 (found level %d)", nextHeaderLevel))
 			break
 		}
 
 		// This is something we need to enforce for accessibility, not just for the Registry website, but also when
-		// users are viewing the README files in the GitHub web view
+		// users are viewing the README files in the GitHub web view.
 		if nextHeaderLevel > latestHeaderLevel && nextHeaderLevel != (latestHeaderLevel+1) {
-			errs = append(errs, fmt.Errorf("headers are not allowed to increase more than 1 level at a time"))
+			errs = append(errs, xerrors.New("headers are not allowed to increase more than 1 level at a time"))
 			continue
 		}
 

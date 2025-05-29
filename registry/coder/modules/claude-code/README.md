@@ -4,7 +4,7 @@ description: Run Claude Code in your workspace
 icon: ../../../../.icons/claude.svg
 maintainer_github: coder
 verified: true
-tags: [agent, claude-code]
+tags: [agent, claude-code, ai]
 ---
 
 # Claude Code
@@ -21,6 +21,11 @@ module "claude-code" {
   claude_code_version = "latest"
 }
 ```
+
+> **Security Notice**: This module uses the [`--dangerously-skip-permissions`](https://docs.anthropic.com/en/docs/claude-code/cli-usage#cli-flags) flag when running Claude Code. This flag
+> bypasses standard permission checks and allows Claude Code broader access to your system than normally permitted. While
+> this enables more functionality, it also means Claude Code can potentially execute commands with the same privileges as
+> the user running it. Use this module _only_ in trusted environments and be aware of the security implications.
 
 ## Prerequisites
 

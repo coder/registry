@@ -4,7 +4,7 @@ description: Add a one-click button to launch Windsurf Editor
 icon: ../../../../.icons/windsurf.svg
 maintainer_github: coder
 verified: true
-tags: [ide, windsurf, helper, ai]
+tags: [ide, windsurf, ai]
 ---
 
 # Windsurf Editor

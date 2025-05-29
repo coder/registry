@@ -2,14 +2,15 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path"
 	"slices"
 	"strings"
+
+	"golang.org/x/xerrors"
 )
 
-var supportedUserNameSpaceDirectories = append(supportedResourceTypes[:], ".icons", ".images")
+var supportedUserNameSpaceDirectories = append(supportedResourceTypes, ".icons", ".images")
 
 func validateCoderResourceSubdirectory(dirPath string) []error {
 	var (
@@ -25,7 +26,7 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 	}
 
 	if !subDir.IsDir() {
-		return []error{fmt.Errorf("%q: path is not a directory", dirPath)}
+		return []error{xerrors.Errorf("%q: path is not a directory", dirPath)}
 	}
 
 	files, err := os.ReadDir(dirPath)
@@ -44,7 +45,7 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 		resourceReadmePath := path.Join(dirPath, f.Name(), "README.md")
 		if _, err = os.Stat(resourceReadmePath); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				errs = append(errs, fmt.Errorf("%q: 'README.md' does not exist", resourceReadmePath))
+				errs = append(errs, xerrors.Errorf("%q: 'README.md' does not exist", resourceReadmePath))
 			} else {
 				errs = append(errs, addFilePathToError(resourceReadmePath, err))
 			}
@@ -53,7 +54,7 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 		mainTerraformPath := path.Join(dirPath, f.Name(), "main.tf")
 		if _, err = os.Stat(mainTerraformPath); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				errs = append(errs, fmt.Errorf("%q: 'main.tf' file does not exist", mainTerraformPath))
+				errs = append(errs, xerrors.Errorf("%q: 'main.tf' file does not exist", mainTerraformPath))
 			} else {
 				errs = append(errs, addFilePathToError(mainTerraformPath, err))
 			}
@@ -76,7 +77,7 @@ func validateRegistryDirectory() []error {
 	for _, d := range userDirs {
 		dirPath := path.Join(rootRegistryPath, d.Name())
 		if !d.IsDir() {
-			allErrs = append(allErrs, fmt.Errorf("detected non-directory file %q at base of main Registry directory", dirPath))
+			allErrs = append(allErrs, xerrors.Errorf("detected non-directory file %q at base of main Registry directory", dirPath))
 			continue
 		}
 
@@ -100,7 +101,7 @@ func validateRegistryDirectory() []error {
 			filePath := path.Join(dirPath, segment)
 
 			if !slices.Contains(supportedUserNameSpaceDirectories, segment) {
-				allErrs = append(allErrs, fmt.Errorf("%q: only these sub-directories are allowed at top of user namespace: [%s]", filePath, strings.Join(supportedUserNameSpaceDirectories, ", ")))
+				allErrs = append(allErrs, xerrors.Errorf("%q: only these sub-directories are allowed at top of user namespace: [%s]", filePath, strings.Join(supportedUserNameSpaceDirectories, ", ")))
 				continue
 			}
 
@@ -122,7 +123,7 @@ func validateRepoStructure() error {
 	}
 
 	if _, err := os.Stat("./.icons"); err != nil {
-		errs = append(errs, errors.New("missing top-level .icons directory (used for storing reusable Coder resource icons)"))
+		errs = append(errs, xerrors.New("missing top-level .icons directory (used for storing reusable Coder resource icons)"))
 	}
 
 	if len(errs) != 0 {

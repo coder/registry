@@ -4,7 +4,7 @@ description: A file browser for your workspace
 icon: ../../../../.icons/filebrowser.svg
 maintainer_github: coder
 verified: true
-tags: [helper, filebrowser]
+tags: [filebrowser, web]
 ---
 
 # File Browser
