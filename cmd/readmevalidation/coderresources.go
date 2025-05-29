@@ -247,7 +247,7 @@ func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (map[strin
 	}
 	if len(yamlParsingErrs) != 0 {
 		return nil, validationPhaseError{
-			phase:  readmeParsing,
+			phase:  validationPhaseReadme,
 			errors: yamlParsingErrs,
 		}
 	}
@@ -261,7 +261,7 @@ func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (map[strin
 	}
 	if len(yamlValidationErrors) != 0 {
 		return nil, validationPhaseError{
-			phase:  readmeParsing,
+			phase:  validationPhaseReadme,
 			errors: yamlValidationErrors,
 		}
 	}
@@ -319,7 +319,7 @@ func aggregateCoderResourceReadmeFiles(resourceType string) ([]readme, error) {
 
 	if len(errs) != 0 {
 		return nil, validationPhaseError{
-			phase:  fileLoad,
+			phase:  validationPhaseFile,
 			errors: errs,
 		}
 	}

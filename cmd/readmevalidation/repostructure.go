@@ -128,7 +128,7 @@ func validateRepoStructure() error {
 
 	if len(errs) != 0 {
 		return validationPhaseError{
-			phase:  fileStructureValidation,
+			phase:  validationPhaseStructure,
 			errors: errs,
 		}
 	}

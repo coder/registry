@@ -16,23 +16,23 @@ const (
 	rootRegistryPath = "./registry"
 
 	// --- validationPhases ---
-	// fileStructureValidation indicates when the entire Registry
+	// validationPhaseStructure indicates when the entire Registry
 	// directory is being verified for having all files be placed in the file
 	// system as expected.
-	fileStructureValidation validationPhase = "File structure validation"
+	validationPhaseStructure validationPhase = "File structure validation"
 
-	// FileLoad indicates when README files are being read from
+	// validationPhaseFile indicates when README files are being read from
 	// the file system.
-	fileLoad validationPhase = "Filesystem reading"
+	validationPhaseFile validationPhase = "Filesystem reading"
 
-	// ReadmeParsing indicates when a README's frontmatter is
+	// validationPhaseReadme indicates when a README's frontmatter is
 	// being parsed as YAML. This phase does not include YAML validation.
-	readmeParsing validationPhase = "README parsing"
+	validationPhaseReadme validationPhase = "README parsing"
 
-	// AssetCrossReference indicates when a README's frontmatter
+	// validationPhaseCrossReference indicates when a README's frontmatter
 	// is having all its relative URLs be validated for whether they point to
 	// valid resources.
-	assetCrossReference validationPhase = "Cross-referencing relative asset URLs"
+	validationPhaseCrossReference validationPhase = "Cross-referencing relative asset URLs"
 	// --- end of validationPhases ---.
 )
 
