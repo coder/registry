@@ -61,9 +61,9 @@ All modules are organized under `/registry/[namespace]/modules/`. Each contribut
 
 ### Images and Icons
 
-- **Namespace avatars**: Place your avatar in `/registry/[namespace]/images/`
-- **Module images**: Place other images in `/registry/[namespace]/images/` to avoid conflicts
-- **Module icons**: Can go in the top-level `/.icons/` directory if used by multiple modules
+- **Namespace avatars**: Must be named `avatar.png` or `avatar.svg` in `/registry/[namespace]/.images/`
+- **Module screenshots/demos**: Use `/registry/[namespace]/.images/` for module-specific images
+- **Module icons**: Use the shared `/.icons/` directory at the root for module icons
 
 ---
 
@@ -75,16 +75,16 @@ If you're a new contributor, create your namespace:
 
 ```bash
 mkdir -p registry/[your-username]
-mkdir -p registry/[your-username]/images
+mkdir -p registry/[your-username]/.images
 ```
 
 #### Add Your Avatar
 
-Every namespace should have an avatar. Add your avatar image:
+Every namespace must have an avatar. Add your avatar image:
 
-1. Add a square image (recommended: 400x400px minimum) to `registry/[your-username]/images/`
-2. Supported formats: `.png`, `.jpg`, `.jpeg`, `.svg`
-3. Name it something clear like `avatar.png` or `profile.jpg`
+1. Add a square image (recommended: 400x400px minimum) to `registry/[your-username]/.images/`
+2. Name it exactly `avatar.png` or `avatar.svg`
+3. Supported formats: `.png` or `.svg` only
 
 #### Create Your Namespace README
 
@@ -93,16 +93,21 @@ Create `registry/[your-username]/README.md`:
 ```markdown
 ---
 display_name: "Your Name"
-bio: "Brief description of what you do"
-avatar_url: "./images/avatar.png"
+bio: "Brief description of who you are and what you do"
+avatar_url: "./.images/avatar.png"
 github: "your-username"
+linkedin: "https://www.linkedin.com/in/your-username" # Optional
+website: "https://yourwebsite.com" # Optional
+support_email: "you@example.com" # Optional
 status: "community"
 ---
 
 # Your Name
+
+Brief description of who you are and what you do.
 ```
 
-> **Note**: The `avatar_url` should point to your avatar image relative to your namespace directory.
+> **Note**: The `avatar_url` must point to `./.images/avatar.png` or `./.images/avatar.svg`.
 
 ### 2. Generate Module Files
 
@@ -143,7 +148,7 @@ resource "coder_script" "install" {
 ---
 display_name: "Tool Name"
 description: "Brief description of what this module does"
-icon: "../../../.icons/tool.svg"
+icon: "../../../../.icons/tool.svg"
 maintainer_github: "your-username"
 verified: false
 tags: ["development", "tool"]
@@ -166,15 +171,17 @@ module "tool" {
 
 **Write tests in `main.test.ts`**:
 ```typescript
+import { describe, expect, it } from "bun:test";
 import { runTerraformApply, runTerraformInit, testRequiredVariables } from "~test";
 
-describe("module-name", () => {
+describe("module-name", async () => {
+  await runTerraformInit(import.meta.dir);
+
   it("should have required variables", async () => {
     await testRequiredVariables(import.meta.dir);
   });
 
   it("should apply successfully", async () => {
-    await runTerraformInit(import.meta.dir);
     await runTerraformApply(import.meta.dir, {
       agent_id: "test-agent-id",
     });
@@ -295,15 +302,17 @@ Example: `https://github.com/coder/registry/compare/main...your-branch?template=
 
 ### README Frontmatter
 
+Module README frontmatter must include:
+
 ```yaml
 ---
 display_name: "Module Name" # Required - Name shown on Registry website
-description: "What it does" # Required - Short description for Registry
-icon: "path/to/icon.svg" # Required - Path to icon file
+description: "What it does" # Required - Short description
+icon: "../../../../.icons/tool.svg" # Required - Path to icon file
 maintainer_github: "your-username" # Required - Your GitHub username
-verified: false # Optional - Set by Coder maintainers only
+partner_github: "partner-name" # Optional - For official partner modules
+verified: false # Optional - Set by maintainers only
 tags: ["tag1", "tag2"] # Required - Array of descriptive tags
-partner_github: "partner-name" # Optional - For official partnerships only
 ---
 ```
 
