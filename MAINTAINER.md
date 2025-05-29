@@ -24,6 +24,17 @@ Check that PRs have:
 - [ ] Proper frontmatter in README
 - [ ] Working tests (`bun test`)
 - [ ] Formatted code (`bun run fmt`)
+- [ ] Avatar image for new namespaces (in `images/` directory)
+
+#### Version Guidelines
+
+When reviewing PRs, ensure the version change follows semantic versioning:
+
+- **Patch** (1.2.3 → 1.2.4): Bug fixes
+- **Minor** (1.2.3 → 1.3.0): New features, adding inputs
+- **Major** (1.2.3 → 2.0.0): Breaking changes (removing inputs, changing types)
+
+PRs should clearly indicate the version change (e.g., `v1.2.3 → v1.2.4`).
 
 ### Validate READMEs
 
@@ -37,17 +48,23 @@ go build ./cmd/readmevalidation && ./readmevalidation
 
 After merging a PR:
 
+1. Get the new version from the PR (shown as `old → new`)
+2. Checkout the merge commit and create the tag:
+
 ```bash
+# Checkout the merge commit
 git checkout MERGE_COMMIT_ID
+
+# Create and push the release tag using the version from the PR
 git tag -a "release/$namespace/$module/v$version" -m "Release $namespace/$module v$version"
 git push origin release/$namespace/$module/v$version
 ```
 
-### Version Numbers
+Example: If PR shows `v1.2.3 → v1.2.4`, use `v1.2.4` in the tag.
 
-- **Patch** (1.2.3 → 1.2.4): Bug fixes
-- **Minor** (1.2.3 → 1.3.0): New features, adding inputs
-- **Major** (1.2.3 → 2.0.0): Breaking changes
+### Publishing
+
+Changes are automatically published to [registry.coder.com](https://registry.coder.com) after tags are pushed.
 
 ## README Requirements
 
@@ -67,6 +84,7 @@ tags: ["tag1", "tag2"]
 ```yaml
 display_name: "Your Name"
 bio: "Brief description"
+avatar_url: "./images/avatar.png" # Path to avatar image
 github: "username"
 status: "community" # or "partner", "official"
 ```
@@ -76,14 +94,5 @@ status: "community" # or "partner", "official"
 - **README validation fails**: Check YAML syntax, ensure h1 header after frontmatter
 - **Tests fail**: Ensure Docker with `--network=host`, check Terraform syntax
 - **Wrong file structure**: Use `./scripts/new_module.sh` for new modules
-
-## Emergency
-
-### Revert Release
-
-```bash
-git tag -d release/$namespace/$module/v$version
-git push origin :refs/tags/release/$namespace/$module/v$version
-```
 
 That's it. Keep it simple.
