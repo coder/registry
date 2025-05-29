@@ -12,6 +12,7 @@ Please select the appropriate PR template for your contribution:
 If you've already started your PR, add `?template=TEMPLATE_NAME.md` to your URL.
 
 ### Quick Checklist
+
 - [ ] Tests pass (`bun test`)
 - [ ] Code formatted (`bun run fmt`)
-- [ ] Following contribution guidelines 
+- [ ] Following contribution guidelines

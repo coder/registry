@@ -117,6 +117,7 @@ cd registry/[your-username]/modules/[module-name]
 ```
 
 This script generates:
+
 - `main.tf` - Terraform configuration template
 - `README.md` - Documentation template with frontmatter
 
@@ -224,7 +225,7 @@ bun test
 
 We have different PR templates for different types of contributions. GitHub will show you options to choose from, or you can manually select:
 
-- **New Module**: Use `?template=new_module.md` 
+- **New Module**: Use `?template=new_module.md`
 - **Bug Fix**: Use `?template=bug_fix.md`
 - **Feature**: Use `?template=feature.md`
 - **Documentation**: Use `?template=documentation.md`
