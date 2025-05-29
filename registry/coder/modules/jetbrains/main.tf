@@ -174,7 +174,7 @@ locals {
   }
 }
 
-data "coder_parameter" "jetbrains_ide" {
+data "coder_parameter" "jetbrains_ides" {
   count        = length(var.default) == 0 ? 1 : 0
   type         = "list(string)"
   name         = "jetbrains_ide"
@@ -200,7 +200,7 @@ data "coder_workspace_owner" "me" {}
 
 locals {
   # Convert the parameter value to a set for for_each
-  selected_ides = length(var.default) == 0 ? toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ide[0].value, "[]"))) : toset(var.default)
+  selected_ides = length(var.default) == 0 ? toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ides[0].value, "[]"))) : toset(var.default)
 }
 
 resource "coder_app" "jetbrains" {
