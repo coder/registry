@@ -24,6 +24,12 @@ variable "order" {
   default     = null
 }
 
+variable "group" {
+	type        = string
+	description = "The name of a group that this app belongs to."
+	default     = null
+}
+
 variable "icon" {
   type        = string
   description = "The icon to use for the app."
@@ -138,7 +144,7 @@ resource "coder_script" "claude_code" {
     # Run with tmux if enabled
     if [ "${var.experiment_use_tmux}" = "true" ]; then
       echo "Running Claude Code in the background with tmux..."
-      
+
       # Check if tmux is installed
       if ! command_exists tmux; then
         echo "Error: tmux is not installed. Please install tmux manually."
@@ -146,13 +152,13 @@ resource "coder_script" "claude_code" {
       fi
 
       touch "$HOME/.claude-code.log"
-      
+
       export LANG=en_US.UTF-8
       export LC_ALL=en_US.UTF-8
-      
+
       # Create a new tmux session in detached mode
       tmux new-session -d -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions"
-      
+
       # Send the prompt to the tmux session if needed
       if [ -n "$CODER_MCP_CLAUDE_TASK_PROMPT" ]; then
         tmux send-keys -t claude-code "$CODER_MCP_CLAUDE_TASK_PROMPT"
@@ -164,7 +170,7 @@ resource "coder_script" "claude_code" {
     # Run with screen if enabled
     if [ "${var.experiment_use_screen}" = "true" ]; then
       echo "Running Claude Code in the background..."
-      
+
       # Check if screen is installed
       if ! command_exists screen; then
         echo "Error: screen is not installed. Please install screen manually."
@@ -178,7 +184,7 @@ resource "coder_script" "claude_code" {
         echo "Creating ~/.screenrc and adding multiuser settings..." | tee -a "$HOME/.claude-code.log"
         echo -e "multiuser on\nacladd $(whoami)" > "$HOME/.screenrc"
       fi
-      
+
       if ! grep -q "^multiuser on$" "$HOME/.screenrc"; then
         echo "Adding 'multiuser on' to ~/.screenrc..." | tee -a "$HOME/.claude-code.log"
         echo "multiuser on" >> "$HOME/.screenrc"
@@ -190,7 +196,7 @@ resource "coder_script" "claude_code" {
       fi
       export LANG=en_US.UTF-8
       export LC_ALL=en_US.UTF-8
-      
+
       screen -U -dmS claude-code bash -c '
         cd ${var.folder}
         claude --dangerously-skip-permissions | tee -a "$HOME/.claude-code.log"
@@ -246,4 +252,6 @@ resource "coder_app" "claude_code" {
     fi
     EOT
   icon         = var.icon
+  order        = var.order
+  group        = var.group
 }

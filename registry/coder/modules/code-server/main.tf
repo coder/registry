@@ -89,6 +89,12 @@ variable "order" {
   default     = null
 }
 
+variable "group" {
+	type        = string
+	description = "The name of a group that this app belongs to."
+	default     = null
+}
+
 variable "offline" {
   type        = bool
   description = "Just run code-server in the background, don't fetch it from GitHub"
@@ -187,6 +193,7 @@ resource "coder_app" "code-server" {
   subdomain    = var.subdomain
   share        = var.share
   order        = var.order
+  group        = var.group
   open_in      = var.open_in
 
   healthcheck {

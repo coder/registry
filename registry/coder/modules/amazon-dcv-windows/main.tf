@@ -9,6 +9,18 @@ terraform {
   }
 }
 
+variable "order" {
+  type        = number
+  description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
+  default     = null
+}
+
+variable "group" {
+	type        = string
+	description = "The name of a group that this app belongs to."
+	default     = null
+}
+
 variable "agent_id" {
   type        = string
   description = "The ID of a Coder agent."
@@ -45,6 +57,8 @@ resource "coder_app" "web-dcv" {
   url          = "https://localhost:${var.port}${local.web_url_path}?username=${local.admin_username}&password=${var.admin_password}"
   icon         = "/icon/dcv.svg"
   subdomain    = var.subdomain
+  order        = var.order
+  group        = var.group
 }
 
 resource "coder_script" "install-dcv" {
