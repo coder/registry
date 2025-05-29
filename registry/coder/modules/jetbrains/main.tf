@@ -177,8 +177,8 @@ locals {
 data "coder_parameter" "jetbrains_ides" {
   count        = length(var.default) == 0 ? 1 : 0
   type         = "list(string)"
-  name         = "jetbrains_ide"
-  display_name = "JetBrains IDE"
+  name         = "jetbrains_ides"
+  display_name = "JetBrains IDEs"
   icon         = "/icon/jetbrains-toolbox.svg"
   mutable      = true
   default      = jsonencode([])
