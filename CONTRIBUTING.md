@@ -116,78 +116,19 @@ Brief description of who you are and what you do.
 cd registry/[your-username]/modules/[module-name]
 ```
 
+This script generates:
+- `main.tf` - Terraform configuration template
+- `README.md` - Documentation template with frontmatter
+
 ### 3. Build Your Module
 
-**Edit `main.tf`** - Your Terraform code:
-
-```terraform
-terraform {
-  required_version = ">= 1.0"
-  required_providers {
-    coder = {
-      source  = "coder/coder"
-      version = ">= 0.17"
-    }
-  }
-}
-
-variable "agent_id" {
-  description = "The ID of a Coder agent."
-  type        = string
-}
-
-resource "coder_script" "install" {
-  agent_id = var.agent_id
-  script   = file("${path.module}/run.sh")
-}
-```
-
-**Update `README.md`** - Add proper frontmatter:
-
-```markdown
----
-display_name: "Tool Name"
-description: "Brief description of what this module does"
-icon: "../../../../.icons/tool.svg"
-maintainer_github: "your-username"
-verified: false
-tags: ["development", "tool"]
----
-
-# Tool Name
-
-Brief description and usage example.
-
-## Usage
-
-```tf
-module "tool" {
-  source   = "registry.coder.com/[username]/[module]/coder"
-  version  = "1.0.0"
-  agent_id = coder_agent.main.id
-}
-```
-```
-
-**Write tests in `main.test.ts`**:
-```typescript
-import { describe, expect, it } from "bun:test";
-import { runTerraformApply, runTerraformInit, testRequiredVariables } from "~test";
-
-describe("module-name", async () => {
-  await runTerraformInit(import.meta.dir);
-
-  it("should have required variables", async () => {
-    await testRequiredVariables(import.meta.dir);
-  });
-
-  it("should apply successfully", async () => {
-    await runTerraformApply(import.meta.dir, {
-      agent_id: "test-agent-id",
-    });
-  });
-});
-```
+1. **Edit `main.tf`** to implement your module's functionality
+2. **Update `README.md`** with:
+   - Accurate description and usage examples
+   - Correct icon path (usually `../../../../.icons/your-icon.svg`)
+   - Proper tags that describe your module
+3. **Create `main.test.ts`** to test your module
+4. **Add any scripts** or additional files your module needs
 
 ### 4. Test and Submit
 
