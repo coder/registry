@@ -2,8 +2,8 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
-	"log"
 	"net/url"
 	"os"
 	"path"
@@ -15,7 +15,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var supportedResourceTypes = []string{"modules", "templates"}
+var (
+	supportedResourceTypes = []string{"modules", "templates"}
+
+	// TODO: This is a holdover from the validation logic used by the Coder Modules repo. It gives us some assurance, but
+	// realistically, we probably want to parse any Terraform code snippets, and make some deeper guarantees about how it's
+	// structured. Just validating whether it *can* be parsed as Terraform would be a big improvement.
+	terraformVersionRe = regexp.MustCompile(`^\s*\bversion\s+=`)
+)
 
 type coderResourceFrontmatter struct {
 	Description string   `yaml:"description"`
@@ -49,36 +56,36 @@ func validateCoderResourceDescription(description string) error {
 	return nil
 }
 
-func validateCoderResourceIconURL(iconURL string) []error {
-	problems := []error{}
+func isPermittedRelativeURL(checkURL string) bool {
+	// Would normally be skittish about having relative paths like this, but it should be safe because we have
+	// guarantees about the structure of the repo, and where this logic will run.
+	return strings.HasPrefix(checkURL, "./") || strings.HasPrefix(checkURL, "/") || strings.HasPrefix(checkURL, "../../../../.icons")
+}
 
+func validateCoderResourceIconURL(iconURL string) []error {
 	if iconURL == "" {
-		problems = append(problems, xerrors.New("icon URL cannot be empty"))
-		return problems
+		return []error{xerrors.New("icon URL cannot be empty")}
 	}
 
-	isAbsoluteURL := !strings.HasPrefix(iconURL, ".") && !strings.HasPrefix(iconURL, "/")
-	if isAbsoluteURL {
+	errs := []error{}
+
+	// If the URL does not have a relative path.
+	if !strings.HasPrefix(iconURL, ".") && !strings.HasPrefix(iconURL, "/") {
 		if _, err := url.ParseRequestURI(iconURL); err != nil {
-			problems = append(problems, xerrors.New("absolute icon URL is not correctly formatted"))
+			errs = append(errs, xerrors.New("absolute icon URL is not correctly formatted"))
 		}
 		if strings.Contains(iconURL, "?") {
-			problems = append(problems, xerrors.New("icon URLs cannot contain query parameters"))
+			errs = append(errs, xerrors.New("icon URLs cannot contain query parameters"))
 		}
-		return problems
+		return errs
 	}
 
-	// Would normally be skittish about having relative paths like this, but it
-	// should be safe because we have guarantees about the structure of the
-	// repo, and where this logic will run.
-	isPermittedRelativeURL := strings.HasPrefix(iconURL, "./") ||
-		strings.HasPrefix(iconURL, "/") ||
-		strings.HasPrefix(iconURL, "../../../../.icons")
-	if !isPermittedRelativeURL {
-		problems = append(problems, xerrors.Errorf("relative icon URL %q must either be scoped to that module's directory, or the top-level /.icons directory (this can usually be done by starting the path with \"../../../.icons\")", iconURL))
+	// If the URL has a relative path.
+	if !isPermittedRelativeURL(iconURL) {
+		errs = append(errs, xerrors.Errorf("relative icon URL %q must either be scoped to that module's directory, or the top-level /.icons directory (this can usually be done by starting the path with \"../../../.icons\")", iconURL))
 	}
 
-	return problems
+	return errs
 }
 
 func validateCoderResourceTags(tags []string) error {
@@ -89,9 +96,8 @@ func validateCoderResourceTags(tags []string) error {
 		return nil
 	}
 
-	// All of these tags are used for the module/template filter controls in the
-	// Registry site. Need to make sure they can all be placed in the browser
-	// URL without issue.
+	// All of these tags are used for the module/template filter controls in the Registry site. Need to make sure they
+	// can all be placed in the browser URL without issue.
 	invalidTags := []string{}
 	for _, t := range tags {
 		if t != url.QueryEscape(t) {
@@ -105,16 +111,11 @@ func validateCoderResourceTags(tags []string) error {
 	return nil
 }
 
-// Todo: This is a holdover from the validation logic used by the Coder Modules
-// repo. It gives us some assurance, but realistically, we probably want to
-// parse any Terraform code snippets, and make some deeper guarantees about how
-// it's structured. Just validating whether it *can* be parsed as Terraform
-// would be a big improvement.
-var terraformVersionRe = regexp.MustCompile(`^\s*\bversion\s+=`)
-
 func validateCoderResourceReadmeBody(body string) []error {
-	trimmed := strings.TrimSpace(body)
 	var errs []error
+
+	trimmed := strings.TrimSpace(body)
+	// TODO: this may cause unexpected behavior since the errors slice may have a 0 length. Add a test.
 	errs = append(errs, validateReadmeBody(trimmed)...)
 
 	foundParagraph := false
@@ -130,9 +131,8 @@ func validateCoderResourceReadmeBody(body string) []error {
 		lineNum++
 		nextLine := lineScanner.Text()
 
-		// Code assumes that invalid headers would've already been handled by
-		// the base validation function, so we don't need to check deeper if the
-		// first line isn't an h1.
+		// Code assumes that invalid headers would've already been handled by the base validation function, so we don't
+		// need to check deeper if the first line isn't an h1.
 		if lineNum == 1 {
 			if !strings.HasPrefix(nextLine, "# ") {
 				break
@@ -159,15 +159,13 @@ func validateCoderResourceReadmeBody(body string) []error {
 			continue
 		}
 
-		// Code assumes that we can treat this case as the end of the "h1
-		// section" and don't need to process any further lines.
+		// Code assumes that we can treat this case as the end of the "h1 section" and don't need to process any further lines.
 		if lineNum > 1 && strings.HasPrefix(nextLine, "#") {
 			break
 		}
 
-		// Code assumes that if we've reached this point, the only other options
-		// are: (1) empty spaces, (2) paragraphs, (3) HTML, and (4) asset
-		// references made via [] syntax.
+		// Code assumes that if we've reached this point, the only other options are:
+		// (1) empty spaces, (2) paragraphs, (3) HTML, and (4) asset references made via [] syntax.
 		trimmedLine := strings.TrimSpace(nextLine)
 		isParagraph := trimmedLine != "" && !strings.HasPrefix(trimmedLine, "![") && !strings.HasPrefix(trimmedLine, "<")
 		foundParagraph = foundParagraph || isParagraph
@@ -250,7 +248,7 @@ func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (map[strin
 	}
 	if len(yamlParsingErrs) != 0 {
 		return nil, validationPhaseError{
-			phase:  validationPhaseReadmeParsing,
+			phase:  validationPhaseReadme,
 			errors: yamlParsingErrs,
 		}
 	}
@@ -264,7 +262,7 @@ func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (map[strin
 	}
 	if len(yamlValidationErrors) != 0 {
 		return nil, validationPhaseError{
-			phase:  validationPhaseReadmeParsing,
+			phase:  validationPhaseReadme,
 			errors: yamlValidationErrors,
 		}
 	}
@@ -274,7 +272,7 @@ func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (map[strin
 
 // Todo: Need to beef up this function by grabbing each image/video URL from
 // the body's AST.
-func validateCoderResourceRelativeUrls(_ map[string]coderResourceReadme) error {
+func validateCoderResourceRelativeURLs(_ map[string]coderResourceReadme) error {
 	return nil
 }
 
@@ -321,7 +319,7 @@ func aggregateCoderResourceReadmeFiles(resourceType string) ([]readme, error) {
 
 	if len(errs) != 0 {
 		return nil, validationPhaseError{
-			phase:  validationPhaseFileLoad,
+			phase:  validationPhaseFile,
 			errors: errs,
 		}
 	}
@@ -338,17 +336,16 @@ func validateAllCoderResourceFilesOfType(resourceType string) error {
 		return err
 	}
 
-	log.Printf("Processing %d README files\n", len(allReadmeFiles))
+	logger.Info(context.Background(), "rocessing README files", "num_files", len(allReadmeFiles))
 	resources, err := parseCoderResourceReadmeFiles(resourceType, allReadmeFiles)
 	if err != nil {
 		return err
 	}
-	log.Printf("Processed %d README files as valid Coder resources with type %q", len(resources), resourceType)
+	logger.Info(context.Background(), "rocessed README files as valid Coder resources", "num_files", len(resources), "type", resourceType)
 
-	err = validateCoderResourceRelativeUrls(resources)
-	if err != nil {
+	if err := validateCoderResourceRelativeURLs(resources); err != nil {
 		return err
 	}
-	log.Printf("All relative URLs for %s READMEs are valid\n", resourceType)
+	logger.Info(context.Background(), "all relative URLs for READMEs are valid", "type", resourceType)
 	return nil
 }

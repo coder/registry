@@ -7,7 +7,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 
 	"cdr.dev/slog"
@@ -19,12 +18,11 @@ var logger = slog.Make(sloghuman.Sink(os.Stdout))
 func main() {
 	logger.Info(context.Background(), "starting README validation")
 
-	// If there are fundamental problems with how the repo is structured, we
-	// can't make any guarantees that any further validations will be relevant
-	// or accurate.
+	// If there are fundamental problems with how the repo is structured, we can't make any guarantees that any further
+	// validations will be relevant or accurate.
 	err := validateRepoStructure()
 	if err != nil {
-		log.Println(err)
+		logger.Error(context.Background(), "error when validating the repo structure", "error", err.Error())
 		os.Exit(1)
 	}
 
