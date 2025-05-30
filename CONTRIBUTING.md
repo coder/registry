@@ -28,7 +28,6 @@ Install Bun:
 curl -fsSL https://bun.sh/install | bash
 ```
 
-Restart your terminal or source your profile:
 
 ```bash
 source ~/.bashrc
