@@ -17,7 +17,6 @@ variable "agent_id" {
 variable "agent_name" {
   type        = string
   description = "The name of the Coder agent."
-  default     = "main"
 }
 
 variable "username" {
