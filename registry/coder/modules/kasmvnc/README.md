@@ -18,6 +18,7 @@ module "kasmvnc" {
   version             = "1.1.0"
   agent_id            = coder_agent.example.id
   desktop_environment = "xfce"
+  subdomain           = true
 }
 ```
 
