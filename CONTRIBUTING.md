@@ -36,7 +36,6 @@ Install project dependencies:
 bun install
 ```
 
-> **Note**: This repository does not support Yarn. Please use Bun for all package management.
 
 ### Installing Go (Optional)
 
