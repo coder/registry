@@ -22,7 +22,7 @@ The Coder Registry is a collection of Terraform modules that extend Coder worksp
 
 ### Install Dependencies
 
-Install Bun (test runner):
+Install Bun:
 
 ```bash
 curl -fsSL https://bun.sh/install | bash
