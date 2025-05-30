@@ -8,7 +8,7 @@ import {
 
 type TestVariables = Readonly<{
   agent_id: string;
-  agent_name?: string;
+  agent_name: string;
   username?: string;
   password?: string;
   display_name?: string;
@@ -58,11 +58,13 @@ describe("local-windows-rdp", async () => {
 
   testRequiredVariables<TestVariables>(import.meta.dir, {
     agent_id: "test-agent-id",
+    agent_name: "test-agent",
   });
 
   it("should create RDP app with default values", async () => {
     const state = await runTerraformApply<TestVariables>(import.meta.dir, {
       agent_id: "test-agent-id",
+      agent_name: "main",
     });
 
     const app = findRdpApp(state);
@@ -85,6 +87,7 @@ describe("local-windows-rdp", async () => {
   it("should create RDP configuration script", async () => {
     const state = await runTerraformApply<TestVariables>(import.meta.dir, {
       agent_id: "test-agent-id",
+      agent_name: "main",
     });
 
     const script = findRdpScript(state);
@@ -128,6 +131,7 @@ describe("local-windows-rdp", async () => {
   it("should pass custom credentials to PowerShell script", async () => {
     const state = await runTerraformApply<TestVariables>(import.meta.dir, {
       agent_id: "test-agent-id",
+      agent_name: "main",
       username: "TestAdmin",
       password: "TestPassword123!",
     });
@@ -142,6 +146,7 @@ describe("local-windows-rdp", async () => {
   it("should handle sensitive password variable", async () => {
     const state = await runTerraformApply<TestVariables>(import.meta.dir, {
       agent_id: "test-agent-id",
+      agent_name: "main",
       password: "SensitivePass123!",
     });
 
@@ -154,6 +159,7 @@ describe("local-windows-rdp", async () => {
   it("should use correct default agent name", async () => {
     const state = await runTerraformApply<TestVariables>(import.meta.dir, {
       agent_id: "test-agent-id",
+      agent_name: "main",
     });
 
     const app = findRdpApp(state);
