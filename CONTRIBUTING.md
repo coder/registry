@@ -179,11 +179,11 @@ The following criteria exists for two reasons:
 - When increasing the level of a header, the header's level must be incremented by one each time.
 - Any `.hcl` code snippets must be labeled as `.tf` snippets instead
 
-  ```txt
-  \`\`\`tf
+  ````txt
+  ```tf
   Content
-  \`\`\`
   ```
+  ````
 
 #### Namespace (contributor profile) criteria
 
