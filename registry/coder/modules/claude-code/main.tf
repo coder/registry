@@ -99,9 +99,12 @@ resource "coder_script" "claude_code" {
 
     # Check if the specified folder exists
     if [ ! -d "${var.folder}" ]; then
-      echo "Error: The specified folder '${var.folder}' does not exist."
-      echo "Please ensure the folder exists before running Claude Code."
-      exit 1
+      echo "Warning: The specified folder '${var.folder}' does not exist."
+      echo "Creating the folder..."
+      # The folder must exist before tmux is started or else claude will start
+      # in the home directory.
+      mkdir -p "${var.folder}"
+      echo "Folder created successfully."
     fi
 
     # Run pre-install script if provided
