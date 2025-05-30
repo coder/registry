@@ -97,6 +97,13 @@ resource "coder_script" "claude_code" {
       command -v "$1" >/dev/null 2>&1
     }
 
+    # Check if the specified folder exists
+    if [ ! -d "${var.folder}" ]; then
+      echo "Error: The specified folder '${var.folder}' does not exist."
+      echo "Please ensure the folder exists before running Claude Code."
+      exit 1
+    fi
+
     # Run pre-install script if provided
     if [ -n "${local.encoded_pre_install_script}" ]; then
       echo "Running pre-install script..."
