@@ -245,8 +245,6 @@ Module README frontmatter must include:
 display_name: "Module Name" # Required - Name shown on Registry website
 description: "What it does" # Required - Short description
 icon: "../../../../.icons/tool.svg" # Required - Path to icon file
-maintainer_github: "your-username" # Required - Your GitHub username
-partner_github: "partner-name" # Optional - For official partner modules
 verified: false # Optional - Set by maintainers only
 tags: ["tag1", "tag2"] # Required - Array of descriptive tags
 ---
