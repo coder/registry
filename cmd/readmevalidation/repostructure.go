@@ -112,7 +112,7 @@ func validateRegistryDirectory() []error {
 func validateRepoStructure() error {
 	var errs []error
 	if vrdErrs := validateRegistryDirectory(); len(vrdErrs) != 0 {
-		errs = append(errs, errs...)
+		errs = append(errs, vrdErrs...)
 	}
 
 	if _, err := os.Stat("./.icons"); err != nil {

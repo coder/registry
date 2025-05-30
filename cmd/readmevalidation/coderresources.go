@@ -125,12 +125,11 @@ func validateCoderResourceReadmeBody(body string) []error {
 	lineNum := 0
 	isInsideCodeBlock := false
 	isInsideTerraform := false
-	nextLine := ""
 
 	lineScanner := bufio.NewScanner(strings.NewReader(trimmed))
 	for lineScanner.Scan() {
 		lineNum++
-		nextLine = lineScanner.Text()
+		nextLine := lineScanner.Text()
 
 		// Code assumes that invalid headers would've already been handled by the base validation function, so we don't
 		// need to check deeper if the first line isn't an h1.
