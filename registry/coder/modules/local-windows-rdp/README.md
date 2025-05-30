@@ -13,10 +13,11 @@ This module enables Remote Desktop Protocol (RDP) on Windows workspaces and adds
 
 ```tf
 module "rdp_desktop" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/local-windows-rdp/coder"
-  version  = "1.0.0"
-  agent_id = coder_agent.main.id
+  count      = data.coder_workspace.me.start_count
+  source     = "registry.coder.com/coder/local-windows-rdp/coder"
+  version    = "1.0.0"
+  agent_id   = coder_agent.main.id
+  agent_name = coder_agent.main.name
 }
 ```
 
@@ -39,9 +40,7 @@ module "rdp_desktop" {
 
 ## Requirements
 
-- **Coder Desktop**: Must be installed on the client machine ([Download here](https://github.com/coder/coder/releases))
-- **Windows Workspace**: The target workspace must be running Windows
-- **Coder Agent**: Must be running on the Windows workspace
+- **Coder Desktop**: Must be installed on the client machine ([Download here](https://coder.com/docs/user-guides/desktop))
 
 ## Examples
 
@@ -51,31 +50,17 @@ Uses default credentials (Username: `Administrator`, Password: `coderRDP!`):
 
 ```tf
 module "rdp_desktop" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/local-windows-rdp/coder"
-  version  = "1.0.0"
-  agent_id = coder_agent.main.id
+  count      = data.coder_workspace.me.start_count
+  source     = "registry.coder.com/coder/local-windows-rdp/coder"
+  version    = "1.0.0"
+  agent_id   = coder_agent.main.id
+  agent_name = coder_agent.main.name
 }
 ```
 
-### Custom Credentials
+### Custom display name
 
-Set your own username and password:
-
-```tf
-module "rdp_desktop" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/local-windows-rdp/coder"
-  version  = "1.0.0"
-  agent_id = coder_agent.main.id
-  username = "MyAdmin"
-  password = "MySecurePassword123!"
-}
-```
-
-### Custom Display and Agent
-
-Configure display name and specify a different agent:
+Specify a custom display name for the `coder_app` button:
 
 ```tf
 module "rdp_desktop" {
