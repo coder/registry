@@ -16,7 +16,6 @@ The Coder Registry is a collection of Terraform modules that extend Coder worksp
 
 ### Prerequisites
 
-- Git and GitHub account
 - Basic Terraform knowledge (for module development)
 - Terraform installed ([installation guide](https://developer.hashicorp.com/terraform/install))
 - Docker (for running tests)
