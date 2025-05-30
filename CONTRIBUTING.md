@@ -132,7 +132,7 @@ This script generates:
 bun test
 
 # Format code
-bun run fmt
+bun fmt
 
 # Commit and create PR
 git add .
