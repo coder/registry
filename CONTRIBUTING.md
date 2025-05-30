@@ -314,6 +314,6 @@ When reporting bugs, include:
 2. **No tests** or broken tests
 3. **Hardcoded values** instead of variables
 4. **Breaking changes** without defaults
-5. **Not running** `bun run fmt` before submitting
+5. **Not running** `bun fmt` before submitting
 
 Happy contributing! 🚀
