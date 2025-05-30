@@ -1,6 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"golang.org/x/xerrors"
+)
 
 // validationPhaseError represents an error that occurred during a specific
 // phase of README validation. It should be used to collect ALL validation
@@ -24,5 +28,5 @@ func (vpe validationPhaseError) Error() string {
 }
 
 func addFilePathToError(filePath string, err error) error {
-	return fmt.Errorf("%q: %v", filePath, err)
+	return xerrors.Errorf("%q: %v", filePath, err)
 }

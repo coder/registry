@@ -17,11 +17,11 @@ import (
 var logger = slog.Make(sloghuman.Sink(os.Stdout))
 
 func main() {
-	logger.Info(context.Background(), "Starting README validation")
+	logger.Info(context.Background(), "starting README validation")
 
 	// If there are fundamental problems with how the repo is structured, we
 	// can't make any guarantees that any further validations will be relevant
-	// or accurate
+	// or accurate.
 	err := validateRepoStructure()
 	if err != nil {
 		log.Println(err)
@@ -39,7 +39,7 @@ func main() {
 	}
 
 	if len(errs) == 0 {
-		logger.Info(context.Background(), "Processed all READMEs in directory", "dir", rootRegistryPath)
+		logger.Info(context.Background(), "processed all READMEs in directory", "dir", rootRegistryPath)
 		os.Exit(0)
 	}
 	for _, err := range errs {
