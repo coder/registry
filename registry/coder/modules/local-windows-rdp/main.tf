@@ -72,15 +72,3 @@ resource "coder_app" "rdp_desktop" {
   order        = var.order
 }
 
-output "app" {
-  description = "The created RDP desktop app resource"
-  value       = coder_app.rdp_desktop
-  sensitive   = true
-}
-
-output "script" {
-  description = "The RDP configuration script resource"
-  value       = coder_script.rdp_setup
-  sensitive   = true
-}
-
