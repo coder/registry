@@ -114,6 +114,7 @@ This script generates:
 
 - `main.tf` - Terraform configuration template
 - `README.md` - Documentation template with frontmatter
+- `run.sh` - Script for module execution (can be deleted if not required)
 
 ### 3. Build Your Module
 
