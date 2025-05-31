@@ -115,7 +115,7 @@ This script generates:
 
 ```bash
 # Test your module
-bun test
+bun test -t 'module-name'
 
 # Format code
 bun fmt
@@ -163,12 +163,10 @@ find registry -name "*[module-name]*" -type d
 ### 3. Test Your Changes
 
 ```bash
-cd registry/[namespace]/modules/[module-name]
+# Test a specific module
+bun test -t 'module-name'
 
-# Test the specific module
-bun test
-
-# Test all modules (from repo root)
+# Test all modules
 bun test
 ```
 
