@@ -28,25 +28,10 @@ Install Bun:
 curl -fsSL https://bun.sh/install | bash
 ```
 
-
-
 Install project dependencies:
 
 ```bash
 bun install
-```
-
-
-### Installing Go (Optional)
-
-This step can be skipped if you are not working on any of the README validation logic. The validation will still run as part of CI.
-
-Navigate to the [official Go installation page](https://golang.org/doc/install), and install the correct version for your operating system.
-
-Once Go has been installed, verify the installation:
-
-```bash
-go version
 ```
 
 ### Understanding Namespaces
@@ -266,16 +251,6 @@ All README files must follow these rules:
 - Include helpful comments
 - Test all functionality
 - Follow existing code patterns in the module
-
----
-
-## README Validation
-
-If you installed Go, you can validate README files locally:
-
-```bash
-go build ./cmd/readmevalidation && ./readmevalidation
-```
 
 ---
 
