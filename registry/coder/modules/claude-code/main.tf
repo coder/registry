@@ -167,15 +167,8 @@ resource "coder_script" "claude_code" {
       export LC_ALL=en_US.UTF-8
 
       # Create a new tmux session in detached mode
-      tmux new-session -d -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions"
+      tmux new-session -d -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions \"${CODER_MCP_CLAUDE_TASK_PROMPT}\""
 
-      # Send the prompt to the tmux session if needed
-      if [ -n "$CODER_MCP_CLAUDE_TASK_PROMPT" ]; then
-        echo "Sending prompt to tmux session..."
-        tmux send-keys -t claude-code "$CODER_MCP_CLAUDE_TASK_PROMPT"
-        sleep 5
-        tmux send-keys -t claude-code Enter
-      fi
     fi
 
     # Run with screen if enabled
