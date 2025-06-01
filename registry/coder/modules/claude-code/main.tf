@@ -131,17 +131,17 @@ resource "coder_script" "claude_code" {
       npm install -g @anthropic-ai/claude-code@${var.claude_code_version}
     fi
 
+    if [ "${var.experiment_report_tasks}" = "true" ]; then
+      echo "Configuring Claude Code to report tasks via Coder MCP..."
+      coder exp mcp configure claude-code ${var.folder}
+    fi
+
     # Run post-install script if provided
     if [ -n "${local.encoded_post_install_script}" ]; then
       echo "Running post-install script..."
       echo "${local.encoded_post_install_script}" | base64 -d > /tmp/post_install.sh
       chmod +x /tmp/post_install.sh
       /tmp/post_install.sh
-    fi
-
-    if [ "${var.experiment_report_tasks}" = "true" ]; then
-      echo "Configuring Claude Code to report tasks via Coder MCP..."
-      coder exp mcp configure claude-code ${var.folder}
     fi
 
     # Handle terminal multiplexer selection (tmux or screen)
@@ -171,6 +171,7 @@ resource "coder_script" "claude_code" {
 
       # Send the prompt to the tmux session if needed
       if [ -n "$CODER_MCP_CLAUDE_TASK_PROMPT" ]; then
+        echo "Sending prompt to tmux session..."
         tmux send-keys -t claude-code "$CODER_MCP_CLAUDE_TASK_PROMPT"
         sleep 5
         tmux send-keys -t claude-code Enter
