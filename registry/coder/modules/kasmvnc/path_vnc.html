@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Path-Sharing Bounce Page</title>
+    <style type="text/css">
+      :root {
+        color-scheme: light dark;
+        --dark: #121212;
+        --header-bg: rgba(127,127,127,0.2);
+        --light: white;
+        --rule-color: light-dark(rgba(0,0,0,0.8), rgba(255,255,255,0.8));
+        background-color: light-dark(var(--light), var(--dark));
+        color: light-dark(var(--dark), var(--light));
+      }
+      body, h1, p {
+        box-sizing: border-box;
+        margin:0; padding:0;
+      }
+      body{
+        font-family:Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      }
+      h1{
+        width: 100%;
+        padding: 1rem;
+        letter-spacing: -1.5pt;
+        padding-bottom:10px;
+        border-bottom: 1px solid var(--rule-color);
+        background-color: var(--header-bg);
+      }
+      p {
+        padding: 1rem; letter-spacing: -0.5pt;}
+      a.indent { display:inline-block; padding-top:0.5rem; padding-left: 2rem; font-size:0.8rem }
+      </style>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <h1>Path-Sharing Bounce Page</h1>
+    <p>
+      This application is being served via path sharing.
+      If you are not redirected, <span id="help">check the
+      Javascript console in your browser's developer tools
+      for more information.</span>
+    </p>
+  </body>
+  <script language="javascript">
+    // This page exists to satisfy the querystring driven client API
+    // specified here - https://raw.githubusercontent.com/kasmtech/noVNC/bce2d6a7048025c6e6c05df9d98b206c23f6dbab/docs/EMBEDDING.md
+    // tl;dr:
+    // * `host` - The WebSocket host to connect to.
+    //      This is just the hostname component of the original URL
+    // * `port` - The WebSocket port to connect to.
+    //      It doesn't look like we need to set this unless it's different
+    //      than the incoming http request.
+    // * `encrypt` - If TLS should be used for the WebSocket connection.
+    //      we base this on whether or not the protocol is `https`, seems
+    //      reasonable for now.
+    // * `path` - The WebSocket path to use.
+    //      This apparently doesn't tolerate a leading `/` so we use a
+    //      function to tidy that up.
+    function trimFirstCharIf(str, char) {
+       return str.charAt(0) === char ? str.slice(1) : str;
+    }
+    function trimLastCharIf(str, char) {
+       return str.endsWith("/") ? str.slice(0,str.length-1) : str;
+    }
+    const newloc = new URL(window.location);
+    const h = document.getElementById("help")
+
+    // Building the websockify path must happen before we append the filename to newloc.pathname
+    newloc.searchParams.append("path",
+      trimLastCharIf(trimFirstCharIf(newloc.pathname,"/"),"/")+"/websockify");
+    newloc.searchParams.append("encrypted", newloc.protocol==="https:"? true : false);
+
+    newloc.pathname += "vnc.html"
+    console.log(newloc);
+
+    h.innerHTML = `click <a id="link" href="${newloc.toString()}">here</a> to go to the application.
+    <br/><br/>The rewritten URL is:<br/><a id="link" class="indent" href="${newloc.toString()}">${newloc.toString()}</a>`
+    window.location = newloc.href;
+  </script>
+</html>

@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 0.23"
+      version = ">= 2.5"
     }
   }
 }
@@ -32,6 +32,12 @@ variable "order" {
   default     = null
 }
 
+variable "group" {
+  type        = string
+  description = "The name of a group that this app belongs to."
+  default     = null
+}
+
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
@@ -42,6 +48,8 @@ resource "coder_app" "vscode" {
   slug         = "vscode"
   display_name = "VS Code Desktop"
   order        = var.order
+  group        = var.group
+
   url = join("", [
     "vscode://coder.coder-remote/open",
     "?owner=",

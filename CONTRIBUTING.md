@@ -180,8 +180,6 @@ bun test
 
 ## Submitting Changes
 
-### Create a Pull Request
-
 1. **Fork and branch:**
 
    ```bash
