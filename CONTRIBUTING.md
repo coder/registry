@@ -59,11 +59,16 @@ mkdir -p registry/[your-username]/.images
 
 #### Add Your Avatar
 
-Every namespace must have an avatar. Add your avatar image:
+Every namespace must have an avatar. We recommend using your GitHub avatar:
 
-1. Add a square image (recommended: 400x400px minimum) to `registry/[your-username]/.images/`
-2. Name it exactly `avatar.png` or `avatar.svg`
-3. Supported formats: `.png` or `.svg` only
+1. Download your GitHub avatar from `https://github.com/[your-username].png`
+2. Save it as `avatar.png` in `registry/[your-username]/.images/`
+3. This gives you a properly sized, square image that's already familiar to the community
+
+The avatar must be:
+- Named exactly `avatar.png` or `avatar.svg`
+- Square image (recommended: 400x400px minimum)
+- Supported formats: `.png` or `.svg` only
 
 #### Create Your Namespace README
 
