@@ -66,6 +66,7 @@ Every namespace must have an avatar. We recommend using your GitHub avatar:
 3. This gives you a properly sized, square image that's already familiar to the community
 
 The avatar must be:
+
 - Named exactly `avatar.png` or `avatar.svg`
 - Square image (recommended: 400x400px minimum)
 - Supported formats: `.png` or `.svg` only
