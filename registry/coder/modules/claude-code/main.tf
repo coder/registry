@@ -131,6 +131,11 @@ resource "coder_script" "claude_code" {
       npm install -g @anthropic-ai/claude-code@${var.claude_code_version}
     fi
 
+    # Hardcoded for now: install AgentAPI
+    wget https://github.com/coder/agentapi/releases/download/preview/agentapi-linux-amd64More actions
+    chmod +x agentapi-linux-amd64
+    sudo mv agentapi-linux-amd64 /usr/local/bin/agentapi
+
     if [ "${var.experiment_report_tasks}" = "true" ]; then
       echo "Configuring Claude Code to report tasks via Coder MCP..."
       coder exp mcp configure claude-code ${var.folder}
@@ -166,8 +171,22 @@ resource "coder_script" "claude_code" {
       export LANG=en_US.UTF-8
       export LC_ALL=en_US.UTF-8
 
-      # Create a new tmux session in detached mode
-      tmux new-session -d -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\""
+      tmux new-session -d -s claude-code-agentapi -c ${var.folder} 'agentapi server -- bash -c "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\" | tee -a \"$HOME/.claude-code.log\""; exec bash'More actions
+      echo "Waiting for agentapi server to start on port 3284..."
+      for i in $(seq 1 15); do
+        if lsof -i :3284 | grep -q 'LISTEN'; then
+          echo "agentapi server started on port 3284."
+          break
+        fi
+        echo "Waiting... ($i/15)"
+        sleep 1
+      done
+      if ! lsof -i :3284 | grep -q 'LISTEN'; then
+        echo "Error: agentapi server did not start on port 3284 after 15 seconds."
+        exit 1
+      fi
+      tmux new-session -d -s claude-code -c ${var.folder} "agentapi attach"
+
 
     fi
 
@@ -217,6 +236,15 @@ resource "coder_script" "claude_code" {
   run_on_start = true
 }
 
+resource "coder_app" "claude_code_web" {
+  slug         = "claude-code-web"
+  display_name = "Claude Code Web"
+  agent_id     = var.agent_id
+  url          = "http://localhost:3284/chat/embed"
+  icon         = var.icon
+  subdomain    = true
+}
+
 resource "coder_app" "claude_code" {
   slug         = "claude-code"
   display_name = "Claude Code"
@@ -229,6 +257,12 @@ resource "coder_app" "claude_code" {
     export LC_ALL=en_US.UTF-8
 
     if [ "${var.experiment_use_tmux}" = "true" ]; then
+
+      if ! tmux has-session -t claude-code-agentapi 2>/dev/null; then
+        echo "Starting a new Claude Code agentapi tmux session." | tee -a "$HOME/.claude-code.log"
+        tmux new-session -d -s claude-code-agentapi -c ${var.folder} 'agentapi server -- bash -c "claude --dangerously-skip-permissions | tee -a \"$HOME/.claude-code.log\""; exec bash'
+      fi
+
       if tmux has-session -t claude-code 2>/dev/null; then
         echo "Attaching to existing Claude Code tmux session." | tee -a "$HOME/.claude-code.log"
         tmux attach-session -t claude-code
