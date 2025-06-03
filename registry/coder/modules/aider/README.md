@@ -1,4 +1,3 @@
----
 display_name: Aider
 description: Run Aider AI pair programming in your workspace
 icon: ../../../../.icons/aider.svg
@@ -14,7 +13,7 @@ Run [Aider](https://aider.chat) AI pair programming in your workspace. This modu
 ```tf
 module "aider" {
   source   = "registry.coder.com/coder/aider/coder"
-  version  = "1.1.0"
+  version  = "1.0.1"
   agent_id = coder_agent.example.id
 }
 ```
@@ -69,7 +68,7 @@ variable "anthropic_api_key" {
 module "aider" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/aider/coder"
-  version    = "1.1.0"
+  version    = "1.0.1"
   agent_id   = coder_agent.example.id
   ai_api_key = var.anthropic_api_key
 }
@@ -81,6 +80,7 @@ This basic setup will:
 - Create a persistent screen session named "aider"
 - Configure Aider to use Anthropic Claude 3.7 Sonnet model
 - Enable task reporting (configures Aider to report tasks to Coder MCP)
+- Set the API key as an environment variable using the `coder_env` resource
 
 ### Using OpenAI with tmux
 
@@ -94,9 +94,10 @@ variable "openai_api_key" {
 module "aider" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/aider/coder"
-  version     = "1.1.0"
+  version     = "1.0.1"
   agent_id    = coder_agent.example.id
   use_tmux    = true
+  use_screen  = false
   ai_provider = "openai"
   ai_model    = "4o" # Uses Aider's built-in alias for gpt-4o
   ai_api_key  = var.openai_api_key
@@ -115,7 +116,7 @@ variable "custom_api_key" {
 module "aider" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/aider/coder"
-  version             = "1.1.0"
+  version             = "1.0.1"
   agent_id            = coder_agent.example.id
   ai_provider         = "custom"
   custom_env_var_name = "MY_CUSTOM_API_KEY"
@@ -132,7 +133,7 @@ You can extend Aider's capabilities by adding custom extensions:
 module "aider" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/aider/coder"
-  version    = "1.1.0"
+  version    = "1.0.1"
   agent_id   = coder_agent.example.id
   ai_api_key = var.anthropic_api_key
 
@@ -211,7 +212,7 @@ data "coder_parameter" "ai_prompt" {
 module "aider" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/aider/coder"
-  version     = "1.1.0"
+  version     = "1.0.1"
   agent_id    = coder_agent.example.id
   ai_api_key  = var.anthropic_api_key
   task_prompt = data.coder_parameter.ai_prompt.value
@@ -253,6 +254,23 @@ This is your current task: [task_prompt]
 3. Logs task output to `$HOME/.aider.log` for reference
 
 If you want to disable task reporting, set `experiment_report_tasks = false` in your module configuration.
+
+## Environment Variables
+
+The module automatically sets the appropriate environment variable for your selected AI provider using the `coder_env` resource:
+
+| Provider      | Environment Variable    |
+| ------------- | ----------------------- |
+| **anthropic** | `ANTHROPIC_API_KEY`     |
+| **openai**    | `OPENAI_API_KEY`        |
+| **azure**     | `AZURE_OPENAI_API_KEY`  |
+| **google**    | `GOOGLE_API_KEY`        |
+| **cohere**    | `COHERE_API_KEY`        |
+| **mistral**   | `MISTRAL_API_KEY`       |
+| **ollama**    | `OLLAMA_HOST`           |
+| **custom**    | Your custom variable    |
+
+The API key is securely set as an environment variable and will be available to Aider when it runs.
 
 ## Using Aider in Your Workspace
 
@@ -309,7 +327,3 @@ If you encounter issues:
 3. **Browser mode issues**: If the browser interface doesn't open, check that you're accessing it from a machine that can reach your Coder workspace
 
 For more information on using Aider, see the [Aider documentation](https://aider.chat/docs/).
-
-```
-
-```
