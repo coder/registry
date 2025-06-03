@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.1"
+      version = ">= 2.5"
     }
   }
 }
@@ -86,6 +86,12 @@ variable "share" {
 variable "order" {
   type        = number
   description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
+  default     = null
+}
+
+variable "group" {
+  type        = string
+  description = "The name of a group that this app belongs to."
   default     = null
 }
 
@@ -187,6 +193,7 @@ resource "coder_app" "code-server" {
   subdomain    = var.subdomain
   share        = var.share
   order        = var.order
+  group        = var.group
   open_in      = var.open_in
 
   healthcheck {

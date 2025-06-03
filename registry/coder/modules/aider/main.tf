@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 0.17"
+      version = ">= 2.5"
     }
   }
 }
@@ -21,6 +21,12 @@ data "coder_workspace_owner" "me" {}
 variable "order" {
   type        = number
   description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
+  default     = null
+}
+
+variable "group" {
+  type        = string
+  description = "The name of a group that this app belongs to."
   default     = null
 }
 
@@ -224,17 +230,17 @@ resource "coder_script" "aider" {
     }
 
     echo "Setting up Aider AI pair programming..."
-    
+
     if [ "${var.use_screen}" = "true" ] && [ "${var.use_tmux}" = "true" ]; then
       echo "Error: Both use_screen and use_tmux cannot be enabled at the same time."
       exit 1
     fi
-    
+
     mkdir -p "${var.folder}"
 
     if [ "$(uname)" = "Linux" ]; then
       echo "Checking dependencies for Linux..."
-      
+
       if [ "${var.use_tmux}" = "true" ]; then
         if ! command_exists tmux; then
           echo "Installing tmux for persistent sessions..."
@@ -296,7 +302,7 @@ resource "coder_script" "aider" {
 
     if [ "${var.install_aider}" = "true" ]; then
       echo "Installing Aider..."
-      
+
       if ! command_exists python3 || ! command_exists pip3; then
         echo "Installing Python dependencies required for Aider..."
         if command -v apt-get >/dev/null 2>&1; then
@@ -319,37 +325,37 @@ resource "coder_script" "aider" {
       else
         echo "Python is already installed, skipping installation."
       fi
-      
+
       if ! command_exists aider; then
         curl -LsSf https://aider.chat/install.sh | sh
       fi
-      
+
       if [ -f "$HOME/.bashrc" ]; then
         if ! grep -q 'export PATH="$HOME/bin:$PATH"' "$HOME/.bashrc"; then
           echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
         fi
       fi
-      
+
       if [ -f "$HOME/.zshrc" ]; then
         if ! grep -q 'export PATH="$HOME/bin:$PATH"' "$HOME/.zshrc"; then
           echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.zshrc"
         fi
       fi
-      
+
     fi
-    
+
     if [ -n "${local.encoded_post_install_script}" ]; then
       echo "Running post-install script..."
       echo "${local.encoded_post_install_script}" | base64 -d > /tmp/post_install.sh
       chmod +x /tmp/post_install.sh
       /tmp/post_install.sh
     fi
-    
+
     if [ "${var.experiment_report_tasks}" = "true" ]; then
       echo "Configuring Aider to report tasks via Coder MCP..."
-      
+
       mkdir -p "$HOME/.config/aider"
-      
+
       cat > "$HOME/.config/aider/config.yml" << EOL
 ${trimspace(local.combined_extensions)}
 EOL
@@ -357,29 +363,29 @@ EOL
     fi
 
     echo "Starting persistent Aider session..."
-    
+
     touch "$HOME/.aider.log"
-    
+
     export LANG=en_US.UTF-8
     export LC_ALL=en_US.UTF-8
-    
+
     export PATH="$HOME/bin:$PATH"
-    
+
     if [ "${var.use_tmux}" = "true" ]; then
       if [ -n "${var.task_prompt}" ]; then
         echo "Running Aider with message in tmux session..."
-        
+
         # Configure tmux for shared sessions
         if [ ! -f "$HOME/.tmux.conf" ]; then
           echo "Creating ~/.tmux.conf with shared session settings..."
           echo "set -g mouse on" > "$HOME/.tmux.conf"
         fi
-        
+
         if ! grep -q "^set -g mouse on$" "$HOME/.tmux.conf"; then
           echo "Adding 'set -g mouse on' to ~/.tmux.conf..."
           echo "set -g mouse on" >> "$HOME/.tmux.conf"
         fi
-        
+
         echo "Starting Aider using ${var.ai_provider} provider and model: ${var.ai_model}"
         tmux new-session -d -s ${var.session_name} -c ${var.folder} "export ${local.env_var_name}=\"${var.ai_api_key}\"; aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${local.combined_prompt}\""
         echo "Aider task started in tmux session '${var.session_name}'. Check the UI for progress."
@@ -389,12 +395,12 @@ EOL
           echo "Creating ~/.tmux.conf with shared session settings..."
           echo "set -g mouse on" > "$HOME/.tmux.conf"
         fi
-        
+
         if ! grep -q "^set -g mouse on$" "$HOME/.tmux.conf"; then
           echo "Adding 'set -g mouse on' to ~/.tmux.conf..."
           echo "set -g mouse on" >> "$HOME/.tmux.conf"
         fi
-        
+
         echo "Starting Aider using ${var.ai_provider} provider and model: ${var.ai_model}"
         tmux new-session -d -s ${var.session_name} -c ${var.folder} "export ${local.env_var_name}=\"${var.ai_api_key}\"; aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${var.system_prompt}\""
         echo "Tmux session '${var.session_name}' started. Access it by clicking the Aider button."
@@ -402,12 +408,12 @@ EOL
     else
       if [ -n "${var.task_prompt}" ]; then
         echo "Running Aider with message in screen session..."
-        
+
         if [ ! -f "$HOME/.screenrc" ]; then
           echo "Creating ~/.screenrc and adding multiuser settings..."
           echo -e "multiuser on\nacladd $(whoami)" > "$HOME/.screenrc"
         fi
-        
+
         if ! grep -q "^multiuser on$" "$HOME/.screenrc"; then
           echo "Adding 'multiuser on' to ~/.screenrc..."
           echo "multiuser on" >> "$HOME/.screenrc"
@@ -417,7 +423,7 @@ EOL
           echo "Adding 'acladd $(whoami)' to ~/.screenrc..."
           echo "acladd $(whoami)" >> "$HOME/.screenrc"
         fi
-        
+
         echo "Starting Aider using ${var.ai_provider} provider and model: ${var.ai_model}"
         screen -U -dmS ${var.session_name} bash -c "
           cd ${var.folder}
@@ -426,15 +432,15 @@ EOL
           aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${local.combined_prompt}\"
           /bin/bash
         "
-        
+
         echo "Aider task started in screen session '${var.session_name}'. Check the UI for progress."
       else
-        
+
         if [ ! -f "$HOME/.screenrc" ]; then
           echo "Creating ~/.screenrc and adding multiuser settings..."
           echo -e "multiuser on\nacladd $(whoami)" > "$HOME/.screenrc"
         fi
-        
+
         if ! grep -q "^multiuser on$" "$HOME/.screenrc"; then
           echo "Adding 'multiuser on' to ~/.screenrc..."
           echo "multiuser on" >> "$HOME/.screenrc"
@@ -444,7 +450,7 @@ EOL
           echo "Adding 'acladd $(whoami)' to ~/.screenrc..."
           echo "acladd $(whoami)" >> "$HOME/.screenrc"
         fi
-        
+
         echo "Starting Aider using ${var.ai_provider} provider and model: ${var.ai_model}"
         screen -U -dmS ${var.session_name} bash -c "
           cd ${var.folder}
@@ -456,7 +462,7 @@ EOL
         echo "Screen session '${var.session_name}' started. Access it by clicking the Aider button."
       fi
     fi
-    
+
     echo "Aider setup complete!"
   EOT
   run_on_start = true
@@ -471,12 +477,12 @@ resource "coder_app" "aider_cli" {
   command      = <<-EOT
     #!/bin/bash
     set -e
-    
+
     export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
-    
+
     export LANG=en_US.UTF-8
     export LC_ALL=en_US.UTF-8
-    
+
     if [ "${var.use_tmux}" = "true" ]; then
       if tmux has-session -t ${var.session_name} 2>/dev/null; then
         echo "Attaching to existing Aider tmux session..."
@@ -499,4 +505,5 @@ resource "coder_app" "aider_cli" {
     fi
   EOT
   order        = var.order
+  group        = var.group
 }

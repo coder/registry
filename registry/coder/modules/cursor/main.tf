@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 0.23"
+      version = ">= 2.5"
     }
   }
 }
@@ -32,6 +32,12 @@ variable "order" {
   default     = null
 }
 
+variable "group" {
+  type        = string
+  description = "The name of a group that this app belongs to."
+  default     = null
+}
+
 variable "slug" {
   type        = string
   description = "The slug of the app."
@@ -54,6 +60,7 @@ resource "coder_app" "cursor" {
   slug         = var.slug
   display_name = var.display_name
   order        = var.order
+  group        = var.group
   url = join("", [
     "cursor://coder.coder-remote/open",
     "?owner=",

@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 0.17"
+      version = ">= 2.5"
     }
   }
 }
@@ -51,6 +51,12 @@ variable "order" {
   default     = null
 }
 
+variable "group" {
+  type        = string
+  description = "The name of a group that this app belongs to."
+  default     = null
+}
+
 resource "coder_script" "jupyterlab" {
   agent_id     = var.agent_id
   display_name = "jupyterlab"
@@ -72,4 +78,5 @@ resource "coder_app" "jupyterlab" {
   subdomain    = var.subdomain
   share        = var.share
   order        = var.order
+  group        = var.group
 }

@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 0.17"
+      version = ">= 2.5"
     }
   }
 }
@@ -21,6 +21,12 @@ data "coder_workspace_owner" "me" {}
 variable "order" {
   type        = number
   description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
+  default     = null
+}
+
+variable "group" {
+  type        = string
+  description = "The name of a group that this app belongs to."
   default     = null
 }
 
@@ -213,7 +219,7 @@ resource "coder_script" "amazon_q" {
     fi
 
     if [ "${var.experiment_report_tasks}" = "true" ]; then
-      echo "Configuring Amazon Q to report tasks via Coder MCP..."      
+      echo "Configuring Amazon Q to report tasks via Coder MCP..."
       mkdir -p ~/.aws/amazonq
       echo "${local.encoded_mcp_json}" | base64 -d > ~/.aws/amazonq/mcp.json
       echo "Created the ~/.aws/amazonq/mcp.json configuration file"
@@ -227,19 +233,19 @@ resource "coder_script" "amazon_q" {
 
     if [ "${var.experiment_use_tmux}" = "true" ]; then
       echo "Running Amazon Q in the background with tmux..."
-      
+
       if ! command_exists tmux; then
         echo "Error: tmux is not installed. Please install tmux manually."
         exit 1
       fi
 
       touch "$HOME/.amazon-q.log"
-      
+
       export LANG=en_US.UTF-8
       export LC_ALL=en_US.UTF-8
-      
+
       tmux new-session -d -s amazon-q -c "${var.folder}" "q chat --trust-all-tools | tee -a "$HOME/.amazon-q.log" && exec bash"
-      
+
       tmux send-keys -t amazon-q "${local.full_prompt}"
       sleep 5
       tmux send-keys -t amazon-q Enter
@@ -247,7 +253,7 @@ resource "coder_script" "amazon_q" {
 
     if [ "${var.experiment_use_screen}" = "true" ]; then
       echo "Running Amazon Q in the background..."
-      
+
       if ! command_exists screen; then
         echo "Error: screen is not installed. Please install screen manually."
         exit 1
@@ -259,7 +265,7 @@ resource "coder_script" "amazon_q" {
         echo "Creating ~/.screenrc and adding multiuser settings..." | tee -a "$HOME/.amazon-q.log"
         echo -e "multiuser on\nacladd $(whoami)" > "$HOME/.screenrc"
       fi
-      
+
       if ! grep -q "^multiuser on$" "$HOME/.screenrc"; then
         echo "Adding 'multiuser on' to ~/.screenrc..." | tee -a "$HOME/.amazon-q.log"
         echo "multiuser on" >> "$HOME/.screenrc"
@@ -271,7 +277,7 @@ resource "coder_script" "amazon_q" {
       fi
       export LANG=en_US.UTF-8
       export LC_ALL=en_US.UTF-8
-      
+
       screen -U -dmS amazon-q bash -c '
         cd ${var.folder}
         q chat --trust-all-tools | tee -a "$HOME/.amazon-q.log
@@ -326,4 +332,6 @@ resource "coder_app" "amazon_q" {
     fi
     EOT
   icon         = var.icon
+  order        = var.order
+  group        = var.group
 }

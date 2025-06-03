@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 0.17"
+      version = ">= 2.5"
     }
   }
 }
@@ -21,6 +21,12 @@ data "coder_workspace_owner" "me" {}
 variable "order" {
   type        = number
   description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
+  default     = null
+}
+
+variable "group" {
+  type        = string
+  description = "The name of a group that this app belongs to."
   default     = null
 }
 
@@ -194,11 +200,11 @@ GOOSE_MODEL: ${var.experiment_goose_model}
 ${trimspace(local.combined_extensions)}
 EOL
     fi
-    
+
     # Write system prompt to config
     mkdir -p "$HOME/.config/goose"
     echo "$GOOSE_SYSTEM_PROMPT" > "$HOME/.config/goose/.goosehints"
-    
+
     # Handle terminal multiplexer selection (tmux or screen)
     if [ "${var.experiment_use_tmux}" = "true" ] && [ "${var.experiment_use_screen}" = "true" ]; then
       echo "Error: Both experiment_use_tmux and experiment_use_screen cannot be true simultaneously."
@@ -219,7 +225,7 @@ EOL
     # Run with tmux if enabled
     if [ "${var.experiment_use_tmux}" = "true" ]; then
       echo "Running Goose in the background with tmux..."
-      
+
       # Check if tmux is installed
       if ! command_exists tmux; then
         echo "Error: tmux is not installed. Please install tmux manually."
@@ -227,26 +233,26 @@ EOL
       fi
 
       touch "$HOME/.goose.log"
-      
+
       export LANG=en_US.UTF-8
       export LC_ALL=en_US.UTF-8
-      
+
       # Configure tmux for shared sessions
       if [ ! -f "$HOME/.tmux.conf" ]; then
         echo "Creating ~/.tmux.conf with shared session settings..."
         echo "set -g mouse on" > "$HOME/.tmux.conf"
       fi
-      
+
       if ! grep -q "^set -g mouse on$" "$HOME/.tmux.conf"; then
         echo "Adding 'set -g mouse on' to ~/.tmux.conf..."
         echo "set -g mouse on" >> "$HOME/.tmux.conf"
       fi
-      
+
       # Create a new tmux session in detached mode
       tmux new-session -d -s ${var.session_name} -c ${var.folder} "\"$GOOSE_CMD\" run --text \"Review your goosehints. Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GOOSE_TASK_PROMPT\" --interactive | tee -a \"$HOME/.goose.log\"; exec bash"
     elif [ "${var.experiment_use_screen}" = "true" ]; then
       echo "Running Goose in the background..."
-      
+
       # Check if screen is installed
       if ! command_exists screen; then
         echo "Error: screen is not installed. Please install screen manually."
@@ -260,7 +266,7 @@ EOL
         echo "Creating ~/.screenrc and adding multiuser settings..." | tee -a "$HOME/.goose.log"
         echo -e "multiuser on\nacladd $(whoami)" > "$HOME/.screenrc"
       fi
-      
+
       if ! grep -q "^multiuser on$" "$HOME/.screenrc"; then
         echo "Adding 'multiuser on' to ~/.screenrc..." | tee -a "$HOME/.goose.log"
         echo "multiuser on" >> "$HOME/.screenrc"
@@ -272,7 +278,7 @@ EOL
       fi
       export LANG=en_US.UTF-8
       export LC_ALL=en_US.UTF-8
-      
+
       screen -U -dmS ${var.session_name} bash -c "
         cd ${var.folder}
         \"$GOOSE_CMD\" run --text \"Review your goosehints. Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GOOSE_TASK_PROMPT\" --interactive | tee -a \"$HOME/.goose.log\"
@@ -331,4 +337,6 @@ resource "coder_app" "goose" {
     fi
     EOT
   icon         = var.icon
+  order        = var.order
+  group        = var.group
 }
