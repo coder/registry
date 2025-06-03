@@ -131,17 +131,17 @@ resource "coder_script" "claude_code" {
       npm install -g @anthropic-ai/claude-code@${var.claude_code_version}
     fi
 
+    if [ "${var.experiment_report_tasks}" = "true" ]; then
+      echo "Configuring Claude Code to report tasks via Coder MCP..."
+      coder exp mcp configure claude-code ${var.folder}
+    fi
+
     # Run post-install script if provided
     if [ -n "${local.encoded_post_install_script}" ]; then
       echo "Running post-install script..."
       echo "${local.encoded_post_install_script}" | base64 -d > /tmp/post_install.sh
       chmod +x /tmp/post_install.sh
       /tmp/post_install.sh
-    fi
-
-    if [ "${var.experiment_report_tasks}" = "true" ]; then
-      echo "Configuring Claude Code to report tasks via Coder MCP..."
-      coder exp mcp configure claude-code ${var.folder}
     fi
 
     # Handle terminal multiplexer selection (tmux or screen)
@@ -167,14 +167,8 @@ resource "coder_script" "claude_code" {
       export LC_ALL=en_US.UTF-8
 
       # Create a new tmux session in detached mode
-      tmux new-session -d -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions"
+      tmux new-session -d -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\""
 
-      # Send the prompt to the tmux session if needed
-      if [ -n "$CODER_MCP_CLAUDE_TASK_PROMPT" ]; then
-        tmux send-keys -t claude-code "$CODER_MCP_CLAUDE_TASK_PROMPT"
-        sleep 5
-        tmux send-keys -t claude-code Enter
-      fi
     fi
 
     # Run with screen if enabled
@@ -209,15 +203,9 @@ resource "coder_script" "claude_code" {
 
       screen -U -dmS claude-code bash -c '
         cd ${var.folder}
-        claude --dangerously-skip-permissions | tee -a "$HOME/.claude-code.log"
+        claude --dangerously-skip-permissions "$CODER_MCP_CLAUDE_TASK_PROMPT" | tee -a "$HOME/.claude-code.log"
         exec bash
       '
-      # Extremely hacky way to send the prompt to the screen session
-      # This will be fixed in the future, but `claude` was not sending MCP
-      # tasks when an initial prompt is provided.
-      screen -S claude-code -X stuff "$CODER_MCP_CLAUDE_TASK_PROMPT"
-      sleep 5
-      screen -S claude-code -X stuff "^M"
     else
       # Check if claude is installed before running
       if ! command_exists claude; then
