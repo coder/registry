@@ -132,7 +132,7 @@ resource "coder_script" "claude_code" {
     fi
 
     # Hardcoded for now: install AgentAPI
-    wget https://github.com/coder/agentapi/releases/download/preview/agentapi-linux-amd64More actions
+    wget https://github.com/coder/agentapi/releases/download/preview/agentapi-linux-amd64
     chmod +x agentapi-linux-amd64
     sudo mv agentapi-linux-amd64 /usr/local/bin/agentapi
 
