@@ -173,7 +173,7 @@ resource "coder_script" "claude_code" {
 
       # use low width to fit in the tasks UI sidebar. height is adjusted to ~match the default 80k (80x1000) characters
       # visible in the terminal screen.
-      tmux new-session -d -s claude-code-agentapi -c ${var.folder} 'agentapi server --term-width 67 --term-height 1190 -- bash -c "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\" | tee -a \"$HOME/.claude-code.log\""; exec bash'
+      tmux new-session -d -s claude-code-agentapi -c ${var.folder} 'agentapi server --term-width 67 --term-height 1190 -- bash -c "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\""; exec bash'
       echo "Waiting for agentapi server to start on port 3284..."
       for i in $(seq 1 15); do
         if lsof -i :3284 | grep -q 'LISTEN'; then
@@ -264,7 +264,7 @@ resource "coder_app" "claude_code" {
         echo "Starting a new Claude Code agentapi tmux session." | tee -a "$HOME/.claude-code.log"
         # use low width to fit in the tasks UI sidebar. height is adjusted to ~match the default 80k (80x1000) characters
         # visible in the terminal screen.
-        tmux new-session -d -s claude-code-agentapi -c ${var.folder} 'agentapi server --term-width 67 --term-height 1190 -- bash -c "claude --dangerously-skip-permissions | tee -a \"$HOME/.claude-code.log\""; exec bash'
+        tmux new-session -d -s claude-code-agentapi -c ${var.folder} 'agentapi server --term-width 67 --term-height 1190 -- bash -c "claude --dangerously-skip-permissions"; exec bash'
       fi
 
       if tmux has-session -t claude-code 2>/dev/null; then
