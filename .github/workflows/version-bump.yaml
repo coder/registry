@@ -2,13 +2,35 @@ name: Version Bump
 
 on:
   pull_request:
-    types: [labeled]
+    types: [opened, synchronize, labeled]
+    paths:
+      - 'registry/**/modules/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  version-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if version bump is needed
+        run: |
+          echo "🔍 Checking if module versions need to be updated..."
+          
+          # Run the script in check mode
+          if ./.github/scripts/version-bump.sh check origin/main; then
+            echo "✅ Module versions are up to date"
+          else
+            echo "❌ Module versions need to be updated"
+            exit 1
+          fi
+
   version-bump:
     if: github.event.label.name == 'version:patch' || github.event.label.name == 'version:minor' || github.event.label.name == 'version:major'
     runs-on: ubuntu-latest
@@ -49,7 +71,7 @@ jobs:
       - name: Run version bump script
         id: version-bump
         run: |
-          # Capture script output for later use in PR comment
+          # Run the script to update versions
           output_file=$(mktemp)
           if ./.github/scripts/version-bump.sh "${{ steps.bump-type.outputs.type }}" origin/main > "$output_file" 2>&1; then
             echo "success=true" >> $GITHUB_OUTPUT
@@ -71,16 +93,15 @@ jobs:
           # Show output
           cat "$output_file"
 
-      - name: Commit changes
+      - name: Check for changes and commit
         if: steps.version-bump.outputs.success == 'true'
         run: |
-          # Check if any README files were modified
-          if git diff --quiet 'registry/*/modules/*/README.md'; then
-            echo "No README changes to commit"
+          # Check if any files were modified
+          if git diff --quiet; then
+            echo "No changes to commit"
           else
-            echo "Committing README changes..."
-            git diff --name-only 'registry/*/modules/*/README.md'
-            git add registry/*/modules/*/README.md
+            echo "Committing version bump changes..."
+            git add .
             git commit -m "chore: bump module versions (${{ steps.bump-type.outputs.type }})"
             git push
           fi

@@ -277,6 +277,9 @@ Use the version bump script to automatically update module versions:
 
 # For breaking changes
 ./.github/scripts/version-bump.sh major
+
+# To check if versions need updating (without making changes)
+./.github/scripts/version-bump.sh check
 ```
 
 The script will:
@@ -294,7 +297,14 @@ You can also add a label to your PR instead of running the script manually:
 
 The version bump will happen automatically when the label is added.
 
-**Important**: Always update module versions when making changes. The CI will check that versions are properly updated.
+### CI Validation
+
+The CI will automatically check that module versions are properly updated:
+- **Version Check**: Runs on all PRs that modify modules
+- **Fails if versions need updating** but haven't been bumped
+- **Passes if versions are up to date** or no modules were modified
+
+**Important**: Always update module versions when making changes. The CI will enforce this requirement.
 
 ---
 

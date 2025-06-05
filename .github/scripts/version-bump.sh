@@ -2,17 +2,24 @@
 
 # Version Bump Script
 # Extracts version bump logic from GitHub Actions workflow
-# Usage: ./version-bump.sh <bump_type> [base_ref]
-#   bump_type: patch, minor, or major
+# Usage: ./version-bump.sh <bump_type> [base_ref] [--check]
+#   bump_type: patch, minor, major, or check
 #   base_ref: base reference for diff (default: origin/main)
+#   --check: only check if versions need updating, don't modify files
 
 set -euo pipefail
 
 # Function to print usage
 usage() {
-    echo "Usage: $0 <bump_type> [base_ref]"
-    echo "  bump_type: patch, minor, or major"
+    echo "Usage: $0 <bump_type> [base_ref] [--check]"
+    echo "  bump_type: patch, minor, major, or check"
     echo "  base_ref: base reference for diff (default: origin/main)"
+    echo "  --check: only check if versions need updating, don't modify files"
+    echo ""
+    echo "Examples:"
+    echo "  $0 patch                    # Update versions with patch bump"
+    echo "  $0 check                    # Check if versions need updating"
+    echo "  $0 patch origin/main --check # Check what patch bump would do"
     exit 1
 }
 
@@ -62,6 +69,7 @@ update_readme_version() {
     local namespace="$2"
     local module_name="$3"
     local new_version="$4"
+    local check_mode="$5"
     
     if [ ! -f "$readme_path" ]; then
         return 1
@@ -70,24 +78,28 @@ update_readme_version() {
     # Check if README contains version references for this specific module
     local module_source="registry.coder.com/${namespace}/${module_name}/coder"
     if grep -q "source.*${module_source}" "$readme_path"; then
-        echo "Updating version references for $namespace/$module_name in $readme_path"
-        # Use awk to only update versions that follow the specific module source
-        awk -v module_source="$module_source" -v new_version="$new_version" '
-        /source.*=.*/ {
-          if ($0 ~ module_source) {
-            in_target_module = 1
-          } else {
-            in_target_module = 0
-          }
-        }
-        /version.*=.*"/ {
-          if (in_target_module) {
-            gsub(/version[[:space:]]*=[[:space:]]*"[^"]*"/, "version = \"" new_version "\"")
-            in_target_module = 0
-          }
-        }
-        { print }
-        ' "$readme_path" > "${readme_path}.tmp" && mv "${readme_path}.tmp" "$readme_path"
+        if [ "$check_mode" = "true" ]; then
+            echo "Would update version references for $namespace/$module_name in $readme_path"
+        else
+            echo "Updating version references for $namespace/$module_name in $readme_path"
+            # Use awk to only update versions that follow the specific module source
+            awk -v module_source="$module_source" -v new_version="$new_version" '
+            /source.*=.*/ {
+              if ($0 ~ module_source) {
+                in_target_module = 1
+              } else {
+                in_target_module = 0
+              }
+            }
+            /version.*=.*"/ {
+              if (in_target_module) {
+                gsub(/version[[:space:]]*=[[:space:]]*"[^"]*"/, "version = \"" new_version "\"")
+                in_target_module = 0
+              }
+            }
+            { print }
+            ' "$readme_path" > "${readme_path}.tmp" && mv "${readme_path}.tmp" "$readme_path"
+        fi
         return 0
     elif grep -q 'version\s*=\s*"' "$readme_path"; then
         echo "⚠️  Found version references but no module source match for $namespace/$module_name"
@@ -100,19 +112,40 @@ update_readme_version() {
 # Main function
 main() {
     # Parse arguments
-    if [ $# -lt 1 ] || [ $# -gt 2 ]; then
+    if [ $# -lt 1 ] || [ $# -gt 3 ]; then
         usage
     fi
     
     local bump_type="$1"
-    local base_ref="${2:-origin/main}"
+    local base_ref="origin/main"
+    local check_mode=false
+    
+    # Parse remaining arguments
+    shift
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --check)
+                check_mode=true
+                ;;
+            *)
+                base_ref="$1"
+                ;;
+        esac
+        shift
+    done
+    
+    # Handle "check" as bump type
+    if [ "$bump_type" = "check" ]; then
+        check_mode=true
+        bump_type="patch"  # Use patch as default for check mode
+    fi
     
     # Validate bump type
     case "$bump_type" in
         "patch"|"minor"|"major")
             ;;
         *)
-            echo "❌ Invalid bump type: '$bump_type'. Expected patch, minor, or major." >&2
+            echo "❌ Invalid bump type: '$bump_type'. Expected patch, minor, major, or check." >&2
             exit 1
             ;;
     esac
@@ -196,7 +229,7 @@ main() {
         echo "New version: $new_version"
         
         # Update README if applicable
-        if update_readme_version "$readme_path" "$namespace" "$module_name" "$new_version"; then
+        if update_readme_version "$readme_path" "$namespace" "$module_name" "$new_version" "$check_mode"; then
             updated_readmes="$updated_readmes\n- $namespace/$module_name"
             has_changes=true
         fi
@@ -228,19 +261,39 @@ main() {
     fi
     
     # Check for changes and provide guidance
-    if [ "$has_changes" = true ]; then
-        echo "✅ Version bump completed successfully!"
-        echo "📝 README files have been updated with new versions."
-        echo ""
-        echo "Next steps:"
-        echo "1. Review the changes: git diff"
-        echo "2. Commit the changes: git add . && git commit -m 'chore: bump module versions ($bump_type)'"
-        echo "3. Push the changes: git push"
-        exit 0
+    if [ "$check_mode" = "true" ]; then
+        if [ "$has_changes" = true ]; then
+            echo "❌ Module versions need to be updated!"
+            echo "📝 The following modules would have their README files updated:"
+            echo -e "$updated_readmes"
+            echo ""
+            echo "To fix this, run one of:"
+            echo "  ./.github/scripts/version-bump.sh patch"
+            echo "  ./.github/scripts/version-bump.sh minor"
+            echo "  ./.github/scripts/version-bump.sh major"
+            echo ""
+            echo "Or add a version label to your PR: version:patch, version:minor, or version:major"
+            exit 1
+        else
+            echo "✅ Module versions are up to date!"
+            echo "ℹ️  No version updates needed."
+            exit 0
+        fi
     else
-        echo "ℹ️  No README files were updated (no version references found matching module sources)."
-        echo "Version calculations completed, but no files were modified."
-        exit 0
+        if [ "$has_changes" = true ]; then
+            echo "✅ Version bump completed successfully!"
+            echo "📝 README files have been updated with new versions."
+            echo ""
+            echo "Next steps:"
+            echo "1. Review the changes: git diff"
+            echo "2. Commit the changes: git add . && git commit -m 'chore: bump module versions ($bump_type)'"
+            echo "3. Push the changes: git push"
+            exit 0
+        else
+            echo "ℹ️  No README files were updated (no version references found matching module sources)."
+            echo "Version calculations completed, but no files were modified."
+            exit 0
+        fi
     fi
 }
 
