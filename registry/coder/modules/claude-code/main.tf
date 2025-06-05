@@ -72,6 +72,12 @@ variable "experiment_report_tasks" {
   default     = false
 }
 
+variable "experiment_report_tasks_interval" {
+  type        = number
+  description = "How often to poll task status in seconds, or zero to disable."
+  default     = 0
+}
+
 variable "experiment_pre_install_script" {
   type        = string
   description = "Custom script to run before installing Claude Code."
@@ -250,6 +256,40 @@ resource "coder_app" "claude_code_web" {
     interval = 5
     threshold = 3
   }
+}
+
+resource "coder_script" "task_reporter" {
+  agent_id     = var.agent_id
+  display_name = "Task reporter"
+  icon         = var.icon
+  command      = <<-EOT
+    #!/bin/bash
+    set -e
+    if [ -z "${var.experiment_report_tasks_interval}" ] ;
+      echo "Task polling is not enabled"
+      exit 0
+    fi
+    if [ "${var.experiment_report_tasks_interval}" = "0" ] ;
+      echo "Task polling is not enabled"
+      exit 0
+    fi
+    echo "Waiting for agentapi server to start on port 3284..."
+    for i in $(seq 1 15); do
+      if lsof -i :3284 | grep -q 'LISTEN'; then
+        echo "agentapi server started on port 3284."
+        break
+      fi
+      echo "Waiting... ($i/15)"
+      sleep 1
+    done
+    if ! lsof -i :3284 | grep -q 'LISTEN'; then
+      echo "Error: agentapi server did not start on port 3284 after 15 seconds."
+      exit 1
+    fi
+    echo "Running status poller in the background..."
+    coder exp task report-status --agentapi-url "http://localhost:3284" &
+  EOT
+  run_on_start = true
 }
 
 resource "coder_app" "claude_code" {
