@@ -252,47 +252,47 @@ resource "coder_app" "claude_code_web" {
   }
 }
 
-resource "coder_app" "claude_code" {
-  slug         = "claude-code"
-  display_name = "Claude Code"
-  agent_id     = var.agent_id
-  command      = <<-EOT
-    #!/bin/bash
-    set -e
+# resource "coder_app" "claude_code" {
+#   slug         = "claude-code"
+#   display_name = "Claude Code"
+#   agent_id     = var.agent_id
+#   command      = <<-EOT
+#     #!/bin/bash
+#     set -e
 
-    export LANG=en_US.UTF-8
-    export LC_ALL=en_US.UTF-8
+#     export LANG=en_US.UTF-8
+#     export LC_ALL=en_US.UTF-8
 
-    if [ "${var.experiment_use_tmux}" = "true" ]; then
+#     if [ "${var.experiment_use_tmux}" = "true" ]; then
 
-      if ! tmux has-session -t claude-code-agentapi 2>/dev/null; then
-        echo "Starting a new Claude Code agentapi tmux session." | tee -a "$HOME/.claude-code.log"
-        # use low width to fit in the tasks UI sidebar. height is adjusted to ~match the default 80k (80x1000) characters
-        # visible in the terminal screen.
-        tmux new-session -d -s claude-code-agentapi -c ${var.folder} 'agentapi server --term-width 67 --term-height 1190 -- bash -c "claude --dangerously-skip-permissions"; exec bash'
-      fi
+#       if ! tmux has-session -t claude-code-agentapi 2>/dev/null; then
+#         echo "Starting a new Claude Code agentapi tmux session." | tee -a "$HOME/.claude-code.log"
+#         # use low width to fit in the tasks UI sidebar. height is adjusted to ~match the default 80k (80x1000) characters
+#         # visible in the terminal screen.
+#         tmux new-session -d -s claude-code-agentapi -c ${var.folder} 'agentapi server --term-width 67 --term-height 1190 -- bash -c "claude --dangerously-skip-permissions"; exec bash'
+#       fi
 
-      if tmux has-session -t claude-code 2>/dev/null; then
-        echo "Attaching to existing Claude Code tmux session." | tee -a "$HOME/.claude-code.log"
-        tmux attach-session -t claude-code
-      else
-        echo "Starting a new Claude Code tmux session." | tee -a "$HOME/.claude-code.log"
-        tmux new-session -s claude-code -c ${var.folder} "agentapi attach; exec bash"
-      fi
-    elif [ "${var.experiment_use_screen}" = "true" ]; then
-      if screen -list | grep -q "claude-code"; then
-        echo "Attaching to existing Claude Code screen session." | tee -a "$HOME/.claude-code.log"
-        screen -xRR claude-code
-      else
-        echo "Starting a new Claude Code screen session." | tee -a "$HOME/.claude-code.log"
-        screen -S claude-code bash -c 'agentapi attach; exec bash'
-      fi
-    else
-      cd ${var.folder}
-      claude
-    fi
-    EOT
-  icon         = var.icon
-  order        = var.order
-  group        = var.group
-}
+#       if tmux has-session -t claude-code 2>/dev/null; then
+#         echo "Attaching to existing Claude Code tmux session." | tee -a "$HOME/.claude-code.log"
+#         tmux attach-session -t claude-code
+#       else
+#         echo "Starting a new Claude Code tmux session." | tee -a "$HOME/.claude-code.log"
+#         tmux new-session -s claude-code -c ${var.folder} "agentapi attach; exec bash"
+#       fi
+#     elif [ "${var.experiment_use_screen}" = "true" ]; then
+#       if screen -list | grep -q "claude-code"; then
+#         echo "Attaching to existing Claude Code screen session." | tee -a "$HOME/.claude-code.log"
+#         screen -xRR claude-code
+#       else
+#         echo "Starting a new Claude Code screen session." | tee -a "$HOME/.claude-code.log"
+#         screen -S claude-code bash -c 'agentapi attach; exec bash'
+#       fi
+#     else
+#       cd ${var.folder}
+#       claude
+#     fi
+#     EOT
+#   icon         = var.icon
+#   order        = var.order
+#   group        = var.group
+# }
