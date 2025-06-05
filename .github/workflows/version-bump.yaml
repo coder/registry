@@ -2,7 +2,7 @@ name: Version Bump
 
 on:
   pull_request:
-    types: [opened, synchronize, labeled]
+    types: [labeled]
     paths:
       - 'registry/**/modules/**'
 
@@ -11,38 +11,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  version-check:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Check if version bump is needed
-        run: |
-          echo "🔍 Checking if module versions need to be updated..."
-          
-          # Run the script with patch to see if it would make changes
-          if ./.github/scripts/version-bump.sh patch origin/main; then
-            # Check if the script made any changes
-            if git diff --quiet; then
-              echo "✅ Module versions are up to date"
-            else
-              echo "❌ Module versions need to be updated!"
-              echo "The script would make the following changes:"
-              git diff --name-only
-              echo ""
-              echo "To fix this, add a version label to your PR:"
-              echo "- version:patch (for bug fixes)"
-              echo "- version:minor (for new features)"
-              echo "- version:major (for breaking changes)"
-              exit 1
-            fi
-          else
-            echo "ℹ️ No modules detected in changes"
-          fi
-
   version-bump:
     if: github.event.label.name == 'version:patch' || github.event.label.name == 'version:minor' || github.event.label.name == 'version:major'
     runs-on: ubuntu-latest
