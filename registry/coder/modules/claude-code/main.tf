@@ -245,6 +245,11 @@ resource "coder_app" "claude_code_web" {
   url          = "http://localhost:3284/"
   icon         = var.icon
   subdomain    = true
+  healthcheck {
+    url      = "http://localhost:3284/status"
+    interval = 5
+    threshold = 3
+  }
 }
 
 resource "coder_app" "claude_code" {
