@@ -23,12 +23,24 @@ jobs:
         run: |
           echo "🔍 Checking if module versions need to be updated..."
           
-          # Run the script in check mode
-          if ./.github/scripts/version-bump.sh check origin/main; then
-            echo "✅ Module versions are up to date"
+          # Run the script with patch to see if it would make changes
+          if ./.github/scripts/version-bump.sh patch origin/main; then
+            # Check if the script made any changes
+            if git diff --quiet; then
+              echo "✅ Module versions are up to date"
+            else
+              echo "❌ Module versions need to be updated!"
+              echo "The script would make the following changes:"
+              git diff --name-only
+              echo ""
+              echo "To fix this, add a version label to your PR:"
+              echo "- version:patch (for bug fixes)"
+              echo "- version:minor (for new features)"
+              echo "- version:major (for breaking changes)"
+              exit 1
+            fi
           else
-            echo "❌ Module versions need to be updated"
-            exit 1
+            echo "ℹ️ No modules detected in changes"
           fi
 
   version-bump:

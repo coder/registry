@@ -277,9 +277,6 @@ Use the version bump script to automatically update module versions:
 
 # For breaking changes
 ./.github/scripts/version-bump.sh major
-
-# To check if versions need updating (without making changes)
-./.github/scripts/version-bump.sh check
 ```
 
 The script will:
