@@ -1,0 +1,221 @@
+name: Version Bump
+
+on:
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  version-bump:
+    if: github.event.label.name == 'version:patch' || github.event.label.name == 'version:minor' || github.event.label.name == 'version:major'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Detect version bump type
+        id: version-type
+        run: |
+          if [[ "${{ github.event.label.name }}" == "version:patch" ]]; then
+            echo "bump_type=patch" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.label.name }}" == "version:minor" ]]; then
+            echo "bump_type=minor" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.label.name }}" == "version:major" ]]; then
+            echo "bump_type=major" >> $GITHUB_OUTPUT
+          else
+            echo "Invalid version label: ${{ github.event.label.name }}"
+            exit 1
+          fi
+
+      - name: Detect modified modules
+        id: detect-modules
+        run: |
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
+          MODULES=$(echo "$CHANGED_FILES" | grep -E '^registry/[^/]+/modules/[^/]+/' | cut -d'/' -f1-4 | sort -u)
+          
+          if [ -z "$MODULES" ]; then
+            echo "No modules detected in changes"
+            exit 1
+          fi
+          
+          echo "Found modules:"
+          echo "$MODULES"
+          echo "modules<<EOF" >> $GITHUB_OUTPUT
+          echo "$MODULES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Process version bumps
+        id: process-bumps
+        run: |
+          BUMP_TYPE="${{ steps.version-type.outputs.bump_type }}"
+          BUMPED_MODULES=""
+          UPDATED_READMES=""
+          UNTAGGED_MODULES=""
+          
+          while IFS= read -r module_path; do
+            if [ -z "$module_path" ]; then continue; fi
+            
+            NAMESPACE=$(echo "$module_path" | cut -d'/' -f2)
+            MODULE_NAME=$(echo "$module_path" | cut -d'/' -f4)
+            
+            echo "Processing: $NAMESPACE/$MODULE_NAME"
+            
+            LATEST_TAG=$(git tag -l "release/${NAMESPACE}/${MODULE_NAME}/v*" | sort -V | tail -1)
+            README_PATH="$module_path/README.md"
+            
+            if [ -z "$LATEST_TAG" ]; then
+              # No tag found, check if README has version references
+              if [ -f "$README_PATH" ] && grep -q 'version\s*=\s*"' "$README_PATH"; then
+                # Extract version from README
+                README_VERSION=$(grep 'version\s*=\s*"' "$README_PATH" | head -1 | sed 's/.*version\s*=\s*"\([^"]*\)".*/\1/')
+                echo "No git tag found, but README shows version: $README_VERSION"
+                
+                # Validate extracted version format
+                if ! [[ "$README_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                  echo "❌ Invalid README version format: '$README_VERSION'. Expected X.Y.Z format."
+                  echo "Starting from v1.0.0 instead"
+                  CURRENT_VERSION="1.0.0"
+                else
+                  CURRENT_VERSION="$README_VERSION"
+                  UNTAGGED_MODULES="$UNTAGGED_MODULES\n- $NAMESPACE/$MODULE_NAME (README: v$README_VERSION)"
+                fi
+              else
+                echo "No existing tags or version references found for $NAMESPACE/$MODULE_NAME, starting from v1.0.0"
+                CURRENT_VERSION="1.0.0"
+              fi
+            else
+              CURRENT_VERSION=$(echo "$LATEST_TAG" | sed 's/.*\/v//')
+              echo "Found git tag: $LATEST_TAG (v$CURRENT_VERSION)"
+            fi
+            
+            echo "Current version: $CURRENT_VERSION"
+            
+            # Validate version format (semantic versioning: X.Y.Z)
+            if ! [[ "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "❌ Invalid version format: '$CURRENT_VERSION'. Expected X.Y.Z format."
+              exit 1
+            fi
+            
+            IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+            
+            # Validate that components are numeric
+            if ! [[ "$major" =~ ^[0-9]+$ ]] || ! [[ "$minor" =~ ^[0-9]+$ ]] || ! [[ "$patch" =~ ^[0-9]+$ ]]; then
+              echo "❌ Version components must be numeric: major='$major' minor='$minor' patch='$patch'"
+              exit 1
+            fi
+            
+            case "$BUMP_TYPE" in
+              "patch")
+                NEW_VERSION="$major.$minor.$((patch + 1))"
+                ;;
+              "minor")
+                NEW_VERSION="$major.$((minor + 1)).0"
+                ;;
+              "major")
+                NEW_VERSION="$((major + 1)).0.0"
+                ;;
+            esac
+            
+            echo "New version: $NEW_VERSION"
+            
+            if [ -f "$README_PATH" ]; then
+              # Check if README contains version references for this specific module
+              MODULE_SOURCE="registry.coder.com/${NAMESPACE}/${MODULE_NAME}/coder"
+              if grep -q "source.*${MODULE_SOURCE}" "$README_PATH"; then
+                echo "Updating version references for $NAMESPACE/$MODULE_NAME in $README_PATH"
+                # Use awk to only update versions that follow the specific module source
+                awk -v module_source="$MODULE_SOURCE" -v new_version="$NEW_VERSION" '
+                /source.*=.*/ {
+                  if ($0 ~ module_source) {
+                    in_target_module = 1
+                  } else {
+                    in_target_module = 0
+                  }
+                }
+                /version.*=.*"/ {
+                  if (in_target_module) {
+                    gsub(/version[[:space:]]*=[[:space:]]*"[^"]*"/, "version = \"" new_version "\"")
+                    in_target_module = 0
+                  }
+                }
+                { print }
+                ' "$README_PATH" > "${README_PATH}.tmp" && mv "${README_PATH}.tmp" "$README_PATH"
+                UPDATED_READMES="$UPDATED_READMES\n- $NAMESPACE/$MODULE_NAME"
+              elif grep -q 'version\s*=\s*"' "$README_PATH"; then
+                echo "⚠️  Found version references but no module source match for $NAMESPACE/$MODULE_NAME"
+              fi
+            fi
+            
+            BUMPED_MODULES="$BUMPED_MODULES\n- $NAMESPACE/$MODULE_NAME: v$CURRENT_VERSION → v$NEW_VERSION"
+            
+          done <<< "${{ steps.detect-modules.outputs.modules }}"
+          
+          echo "bumped_modules<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$BUMPED_MODULES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "updated_readmes<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$UPDATED_READMES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "untagged_modules<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$UNTAGGED_MODULES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Commit changes
+        run: |
+          # Check if any README files were modified
+          if git diff --quiet 'registry/*/modules/*/README.md'; then
+            echo "No README changes to commit"
+          else
+            echo "Committing README changes..."
+            git diff --name-only 'registry/*/modules/*/README.md'
+            git add registry/*/modules/*/README.md
+            git commit -m "chore: bump module versions (${{ steps.version-type.outputs.bump_type }})"
+            git push
+          fi
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const bumpedModules = `${{ steps.process-bumps.outputs.bumped_modules }}`;
+            const updatedReadmes = `${{ steps.process-bumps.outputs.updated_readmes }}`;
+            const untaggedModules = `${{ steps.process-bumps.outputs.untagged_modules }}`;
+            const bumpType = `${{ steps.version-type.outputs.bump_type }}`;
+            
+            let comment = `## 🚀 Version Bump Summary\n\n`;
+            comment += `**Bump Type:** \`${bumpType}\`\n\n`;
+            comment += `**Modules Updated:**\n${bumpedModules}\n\n`;
+            
+            if (updatedReadmes.trim()) {
+              comment += `**READMEs Updated:**\n${updatedReadmes}\n\n`;
+            }
+            
+            if (untaggedModules.trim()) {
+              comment += `⚠️ **Modules Without Git Tags:**\n${untaggedModules}\n\n`;
+              comment += `> These modules were versioned based on README content. Consider creating proper release tags after merging.\n\n`;
+            }
+            
+            comment += `> Versions have been automatically updated in module READMEs where applicable.`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            }); 
