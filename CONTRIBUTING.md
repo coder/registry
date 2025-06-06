@@ -280,6 +280,7 @@ If your changes require a version bump, use the version bump script:
 ```
 
 The script will:
+
 1. Detect which modules you've modified
 2. Calculate the new version number
 3. Update all version references in the module's README
