@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [labeled]
     paths:
-      - 'registry/**/modules/**'
+      - "registry/**/modules/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -55,17 +55,17 @@ jobs:
             cat "$output_file"
             exit 1
           fi
-          
+
           # Store output for PR comment
           {
             echo "output<<EOF"
             cat "$output_file"
             echo "EOF"
           } >> $GITHUB_OUTPUT
-          
+
           # Show output
           cat "$output_file"
-          
+
           # Check if any files would be modified by the script
           if git diff --quiet; then
             echo "versions_up_to_date=true" >> $GITHUB_OUTPUT
@@ -88,7 +88,7 @@ jobs:
           script: |
             const output = `${{ steps.version-check.outputs.output }}`;
             const bumpType = `${{ steps.bump-type.outputs.type }}`;
-            
+
             let comment = `## ❌ Version Bump Validation Failed\n\n`;
             comment += `**Bump Type:** \`${bumpType}\`\n\n`;
             comment += `Module versions need to be updated but haven't been bumped yet.\n\n`;
@@ -98,7 +98,7 @@ jobs:
             comment += `3. Push the changes: \`git push\`\n\n`;
             comment += `### Script Output:\n\`\`\`\n${output}\n\`\`\`\n\n`;
             comment += `> Please update the module versions and push the changes to continue.`;
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
