@@ -266,7 +266,7 @@ When you modify a module, you need to update its version number in the README. U
 
 ### Updating Module Versions
 
-Use the version bump script to automatically update module versions:
+If your changes require a version bump, use the version bump script:
 
 ```bash
 # For bug fixes
@@ -285,23 +285,7 @@ The script will:
 3. Update all version references in the module's README
 4. Show you a summary of changes
 
-### Alternative: Use PR Labels
-
-You can also add a label to your PR instead of running the script manually:
-- `version:patch` - For bug fixes
-- `version:minor` - For new features  
-- `version:major` - For breaking changes
-
-The version bump will happen automatically when the label is added.
-
-### CI Validation
-
-The CI will automatically check that module versions are properly updated:
-- **Version Check**: Runs on all PRs that modify modules
-- **Fails if versions need updating** but haven't been bumped
-- **Passes if versions are up to date** or no modules were modified
-
-**Important**: Always update module versions when making changes. The CI will enforce this requirement.
+**Important**: Only run the version bump script if your changes require a new release. Documentation-only changes don't need version updates.
 
 ---
 
