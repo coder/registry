@@ -1,14 +1,12 @@
 #!/bin/bash
 
 # Version Bump Script
-# Extracts version bump logic from GitHub Actions workflow
 # Usage: ./version-bump.sh <bump_type> [base_ref]
 #   bump_type: patch, minor, or major
 #   base_ref: base reference for diff (default: origin/main)
 
 set -euo pipefail
 
-# Function to print usage
 usage() {
     echo "Usage: $0 <bump_type> [base_ref]"
     echo "  bump_type: patch, minor, or major"
@@ -21,7 +19,6 @@ usage() {
     exit 1
 }
 
-# Function to validate version format
 validate_version() {
     local version="$1"
     if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -31,14 +28,12 @@ validate_version() {
     return 0
 }
 
-# Function to bump version
 bump_version() {
     local current_version="$1"
     local bump_type="$2"
     
     IFS='.' read -r major minor patch <<< "$current_version"
     
-    # Validate that components are numeric
     if ! [[ "$major" =~ ^[0-9]+$ ]] || ! [[ "$minor" =~ ^[0-9]+$ ]] || ! [[ "$patch" =~ ^[0-9]+$ ]]; then
         echo "❌ Version components must be numeric: major='$major' minor='$minor' patch='$patch'" >&2
         return 1
@@ -61,7 +56,6 @@ bump_version() {
     esac
 }
 
-# Function to update README version
 update_readme_version() {
     local readme_path="$1"
     local namespace="$2"
@@ -72,11 +66,9 @@ update_readme_version() {
         return 1
     fi
     
-    # Check if README contains version references for this specific module
     local module_source="registry.coder.com/${namespace}/${module_name}/coder"
     if grep -q "source.*${module_source}" "$readme_path"; then
         echo "Updating version references for $namespace/$module_name in $readme_path"
-        # Use awk to only update versions that follow the specific module source
         awk -v module_source="$module_source" -v new_version="$new_version" '
         /source.*=.*/ {
           if ($0 ~ module_source) {
@@ -102,9 +94,7 @@ update_readme_version() {
     return 1
 }
 
-# Main function
 main() {
-    # Parse arguments
     if [ $# -lt 1 ] || [ $# -gt 2 ]; then
         usage
     fi
@@ -112,7 +102,6 @@ main() {
     local bump_type="$1"
     local base_ref="${2:-origin/main}"
     
-    # Validate bump type
     case "$bump_type" in
         "patch"|"minor"|"major")
             ;;
@@ -124,7 +113,6 @@ main() {
     
     echo "🔍 Detecting modified modules..."
     
-    # Detect modified modules
     local changed_files
     changed_files=$(git diff --name-only "${base_ref}"...HEAD)
     local modules
@@ -139,13 +127,11 @@ main() {
     echo "$modules"
     echo ""
     
-    # Initialize tracking variables
     local bumped_modules=""
     local updated_readmes=""
     local untagged_modules=""
     local has_changes=false
     
-    # Process each module
     while IFS= read -r module_path; do
         if [ -z "$module_path" ]; then continue; fi
         
@@ -156,21 +142,17 @@ main() {
         
         echo "📦 Processing: $namespace/$module_name"
         
-        # Find latest tag
         local latest_tag
         latest_tag=$(git tag -l "release/${namespace}/${module_name}/v*" | sort -V | tail -1)
         local readme_path="$module_path/README.md"
         local current_version
         
         if [ -z "$latest_tag" ]; then
-            # No tag found, check if README has version references
             if [ -f "$readme_path" ] && grep -q 'version\s*=\s*"' "$readme_path"; then
-                # Extract version from README
                 local readme_version
                 readme_version=$(grep 'version\s*=\s*"' "$readme_path" | head -1 | sed 's/.*version\s*=\s*"\([^"]*\)".*/\1/')
                 echo "No git tag found, but README shows version: $readme_version"
                 
-                # Validate extracted version format
                 if ! validate_version "$readme_version"; then
                     echo "Starting from v1.0.0 instead"
                     current_version="1.0.0"
@@ -189,18 +171,15 @@ main() {
         
         echo "Current version: $current_version"
         
-        # Validate current version format
         if ! validate_version "$current_version"; then
             exit 1
         fi
         
-        # Calculate new version
         local new_version
         new_version=$(bump_version "$current_version" "$bump_type")
         
         echo "New version: $new_version"
         
-        # Update README if applicable
         if update_readme_version "$readme_path" "$namespace" "$module_name" "$new_version"; then
             updated_readmes="$updated_readmes\n- $namespace/$module_name"
             has_changes=true
@@ -211,7 +190,6 @@ main() {
         
     done <<< "$modules"
     
-    # Output results
     echo "📋 Summary:"
     echo "Bump Type: $bump_type"
     echo ""
@@ -232,7 +210,6 @@ main() {
         echo ""
     fi
     
-    # Provide guidance
     if [ "$has_changes" = true ]; then
         echo "✅ Version bump completed successfully!"
         echo "📝 README files have been updated with new versions."
@@ -249,5 +226,4 @@ main() {
     fi
 }
 
-# Run main function with all arguments
 main "$@"
