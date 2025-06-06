@@ -15,7 +15,7 @@ jobs:
     if: github.event.label.name == 'version:patch' || github.event.label.name == 'version:minor' || github.event.label.name == 'version:major'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       pull-requests: write
     steps:
       - name: Checkout code
@@ -23,11 +23,6 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Extract bump type from label
         id: bump-type
@@ -48,16 +43,14 @@ jobs:
               ;;
           esac
 
-      - name: Run version bump script
-        id: version-bump
+      - name: Check version bump requirements
+        id: version-check
         run: |
-          # Run the script to update versions
+          # Run the script to check what versions should be
           output_file=$(mktemp)
           if ./.github/scripts/version-bump.sh "${{ steps.bump-type.outputs.type }}" origin/main > "$output_file" 2>&1; then
-            echo "success=true" >> $GITHUB_OUTPUT
             echo "Script completed successfully"
           else
-            echo "success=false" >> $GITHUB_OUTPUT
             echo "Script failed"
             cat "$output_file"
             exit 1
@@ -72,32 +65,39 @@ jobs:
           
           # Show output
           cat "$output_file"
-
-      - name: Check for changes and commit
-        if: steps.version-bump.outputs.success == 'true'
-        run: |
-          # Check if any files were modified
+          
+          # Check if any files would be modified by the script
           if git diff --quiet; then
-            echo "No changes to commit"
+            echo "versions_up_to_date=true" >> $GITHUB_OUTPUT
+            echo "✅ All module versions are already up to date"
           else
-            echo "Committing version bump changes..."
-            git add .
-            git commit -m "chore: bump module versions (${{ steps.bump-type.outputs.type }})"
-            git push
+            echo "versions_up_to_date=false" >> $GITHUB_OUTPUT
+            echo "❌ Module versions need to be updated"
+            echo "Files that would be changed:"
+            git diff --name-only
+            echo ""
+            echo "Diff preview:"
+            git diff
+            exit 1
           fi
 
-      - name: Comment on PR
-        if: steps.version-bump.outputs.success == 'true'
+      - name: Comment on PR - Failure
+        if: failure() && steps.version-check.outputs.versions_up_to_date == 'false'
         uses: actions/github-script@v7
         with:
           script: |
-            const output = `${{ steps.version-bump.outputs.output }}`;
+            const output = `${{ steps.version-check.outputs.output }}`;
             const bumpType = `${{ steps.bump-type.outputs.type }}`;
             
-            let comment = `## 🚀 Version Bump Summary\n\n`;
+            let comment = `## ❌ Version Bump Validation Failed\n\n`;
             comment += `**Bump Type:** \`${bumpType}\`\n\n`;
+            comment += `Module versions need to be updated but haven't been bumped yet.\n\n`;
+            comment += `**Required Actions:**\n`;
+            comment += `1. Run the version bump script locally: \`./.github/scripts/version-bump.sh ${bumpType}\`\n`;
+            comment += `2. Commit the changes: \`git add . && git commit -m "chore: bump module versions (${bumpType})"\`\n`;
+            comment += `3. Push the changes: \`git push\`\n\n`;
             comment += `### Script Output:\n\`\`\`\n${output}\n\`\`\`\n\n`;
-            comment += `> Versions have been automatically updated using the version bump script.`;
+            comment += `> Please update the module versions and push the changes to continue.`;
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,
