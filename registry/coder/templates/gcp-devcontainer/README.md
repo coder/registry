@@ -1,7 +1,7 @@
 ---
 display_name: Google Compute Engine (Devcontainer)
 description: Provision a Devcontainer on Google Compute Engine instances as Coder workspaces
-icon: ../../../../.icons/gcp.png
+icon: ../../../../.icons/gcp.svg
 maintainer_github: coder
 verified: true
 tags: [vm, linux, gcp, devcontainer]
