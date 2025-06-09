@@ -19,11 +19,11 @@ main() {
   # relative to the main script directory
   local registry_dir="$script_dir/../registry"
 
-  # Get all subdirectories in the registry directory. Code assumes that
-  # Terraform directories won't begin to appear until three levels deep into
+  # Get all module subdirectories in the registry directory. Code assumes that
+  # Terraform module directories won't begin to appear until three levels deep into
   # the registry (e.g., registry/coder/modules/coder-login, which will then
   # have a main.tf file inside it)
-  local subdirs=$(find "$registry_dir" -mindepth 3 -type d | sort)
+  local subdirs=$(find "$registry_dir" -mindepth 3 -path "*/modules/*" -type d | sort)
 
   for dir in $subdirs; do
     # Skip over any directories that obviously don't have the necessary
