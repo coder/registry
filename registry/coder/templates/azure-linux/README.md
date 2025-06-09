@@ -34,7 +34,6 @@ This means, when the workspace restarts, any tools or files outside of the home 
 > [!NOTE]
 > This template is designed to be a starting point! Edit the Terraform to extend the template to support your use case.
 
-
 ### Persistent VM
 
 > [!IMPORTANT]  
