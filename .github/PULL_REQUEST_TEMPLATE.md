@@ -1,18 +1,39 @@
-## Choose a PR Template
+## Description
 
-Please select the appropriate PR template for your contribution:
-
-- 🆕 [New Module](?template=new_module.md) - Adding a new module to the registry
-- 🐛 [Bug Fix](?template=bug_fix.md) - Fixing an existing issue
-- ✨ [Feature](?template=feature.md) - Adding new functionality to a module
-- 📝 [Documentation](?template=documentation.md) - Improving docs only
+<!-- Briefly describe what this PR does and why -->
 
 ---
 
-If you've already started your PR, add `?template=TEMPLATE_NAME.md` to your URL.
+## Type of Change
 
-### Quick Checklist
+- [ ] New module
+- [ ] Bug fix
+- [ ] Feature/enhancement
+- [ ] Documentation
+- [ ] Other
+
+---
+
+## Module Information
+
+<!-- Delete this section if not applicable -->
+
+**Path:** `registry/[namespace]/modules/[module-name]`  
+**New version:** `v1.0.0`  
+**Breaking change:** [ ] Yes [ ] No
+
+---
+
+## Testing & Validation
 
 - [ ] Tests pass (`bun test`)
 - [ ] Code formatted (`bun run fmt`)
-- [ ] Following contribution guidelines
+- [ ] Changes tested locally
+
+---
+
+## Related Issues
+
+<!-- Link related issues or write "None" if not applicable -->
+
+Closes #
