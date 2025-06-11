@@ -44,6 +44,12 @@ variable "order" {
   default     = null
 }
 
+variable "group" {
+  type        = string
+  description = "The name of a group that this app belongs to."
+  default     = null
+}
+
 locals {
   # Extract server name from workspace access URL
   server_name = regex("https?:\\/\\/([^\\/]+)", data.coder_workspace.me.access_url)[0]
@@ -70,5 +76,6 @@ resource "coder_app" "rdp_desktop" {
   icon         = "/icon/desktop.svg"
   external     = true
   order        = var.order
+  group        = var.group
 }
 
