@@ -84,9 +84,22 @@ variable "experiment_post_install_script" {
   default     = null
 }
 
+variable "enable_user_memory" {
+  type        = bool
+  description = "Whether to enable user memory for Claude Code. This creates ~/.claude/CLAUDE.md for persistent user preferences."
+  default     = false
+}
+
+variable "user_memory_content" {
+  type        = string
+  description = "Initial content for the user memory file (~/.claude/CLAUDE.md). Only used if the file doesn't already exist."
+  default     = null
+}
+
 locals {
   encoded_pre_install_script  = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
   encoded_post_install_script = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
+  encoded_user_memory_content = var.user_memory_content != null ? base64encode(var.user_memory_content) : ""
 }
 
 # Install and Initialize Claude Code
@@ -111,6 +124,28 @@ resource "coder_script" "claude_code" {
       # in the home directory.
       mkdir -p "${var.folder}"
       echo "Folder created successfully."
+    fi
+
+    # Set up user memory if enabled
+    if [ "${var.enable_user_memory}" = "true" ]; then
+      echo "Setting up Claude Code user memory..."
+      
+      # Create the .claude directory if it doesn't exist
+      if [ ! -d "$HOME/.claude" ]; then
+        echo "Creating ~/.claude directory..."
+        mkdir -p "$HOME/.claude"
+      fi
+      
+      # Create the user memory file if it doesn't exist and content is provided
+      if [ ! -f "$HOME/.claude/CLAUDE.md" ] && [ -n "${local.encoded_user_memory_content}" ]; then
+        echo "Creating user memory file ~/.claude/CLAUDE.md..."
+        echo "${local.encoded_user_memory_content}" | base64 -d > "$HOME/.claude/CLAUDE.md"
+        echo "User memory file created successfully."
+      elif [ -f "$HOME/.claude/CLAUDE.md" ]; then
+        echo "User memory file ~/.claude/CLAUDE.md already exists, skipping creation."
+      else
+        echo "User memory enabled but no initial content provided. You can manually create ~/.claude/CLAUDE.md later."
+      fi
     fi
 
     # Run pre-install script if provided

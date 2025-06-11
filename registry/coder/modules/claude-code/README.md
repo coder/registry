@@ -117,3 +117,41 @@ module "claude-code" {
   icon = "https://registry.npmmirror.com/@lobehub/icons-static-png/1.24.0/files/dark/claude-color.png"
 }
 ```
+
+## Enable user memory
+
+Claude Code supports [user memory](https://docs.anthropic.com/en/docs/claude-code/memory-management) that persists across all projects. This memory is stored in `~/.claude/CLAUDE.md` and contains personal preferences, coding standards, and instructions that apply to all your work.
+
+```tf
+module "claude-code" {
+  source              = "registry.coder.com/coder/claude-code/coder"
+  version             = "1.3.1"
+  agent_id            = coder_agent.example.id
+  folder              = "/home/coder"
+  install_claude_code = true
+  claude_code_version = "latest"
+
+  # Enable user memory
+  enable_user_memory = true
+  user_memory_content = <<-EOT
+    # My Claude Code Preferences
+    
+    ## Coding Style
+    - Always use descriptive variable names
+    - Prefer explicit over implicit code
+    - Add comments for complex logic
+    
+    ## Preferred Technologies
+    - Use TypeScript for JavaScript projects
+    - Prefer functional programming patterns
+    - Use modern ES6+ syntax
+    
+    ## Testing
+    - Write unit tests for all functions
+    - Use descriptive test names
+    - Aim for high test coverage
+  EOT
+}
+```
+
+The `user_memory_content` is only used to create the initial `~/.claude/CLAUDE.md` file if it doesn't already exist. Once created, you can edit this file directly to update your preferences, and they will persist across workspace rebuilds since the file lives in the user's home directory outside the workspace.
