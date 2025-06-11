@@ -39,14 +39,21 @@ variable "admin_password" {
   sensitive = true
 }
 
+variable "devolutions_gateway_version" {
+  type        = string
+  default     = "2025.2.1"
+  description = "Version of Devolutions Gateway to install. Defaults to the latest available version."
+}
+
 resource "coder_script" "windows-rdp" {
   agent_id     = var.agent_id
   display_name = "windows-rdp"
   icon         = "/icon/desktop.svg"
 
   script = templatefile("${path.module}/powershell-installation-script.tftpl", {
-    admin_username = var.admin_username
-    admin_password = var.admin_password
+    admin_username              = var.admin_username
+    admin_password              = var.admin_password
+    devolutions_gateway_version = var.devolutions_gateway_version
 
     # Wanted to have this be in the powershell template file, but Terraform
     # doesn't allow recursive calls to the templatefile function. Have to feed

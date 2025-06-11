@@ -26,6 +26,17 @@ module "windows_rdp" {
 
 [![Video](./video-thumbnails/video-thumbnail.png)](https://github.com/coder/modules/assets/28937484/fb5f4a55-7b69-4550-ab62-301e13a4be02)
 
+## Variables
+
+| Name                          | Description                                    | Type     | Default           | Required |
+| ----------------------------- | ---------------------------------------------- | -------- | ----------------- | -------- |
+| `agent_id`                    | The ID of a Coder agent                        | `string` | n/a               | yes      |
+| `resource_id`                 | The ID of the primary Coder resource (e.g. VM) | `string` | n/a               | yes      |
+| `admin_username`              | Administrator username for RDP access          | `string` | `"Administrator"` | no       |
+| `admin_password`              | Administrator password for RDP access          | `string` | `"coderRDP!"`     | no       |
+| `devolutions_gateway_version` | Version of Devolutions Gateway to install      | `string` | `"2025.2.1"`      | no       |
+| `share`                       | Sharing level for the RDP app                  | `string` | `"owner"`         | no       |
+
 ## Examples
 
 ### With AWS
@@ -49,6 +60,19 @@ module "windows_rdp" {
   version     = "1.0.18"
   agent_id    = resource.coder_agent.main.id
   resource_id = resource.google_compute_instance.dev[0].id
+}
+```
+
+### With Custom Devolutions Gateway Version
+
+```tf
+module "windows_rdp" {
+  count                       = data.coder_workspace.me.start_count
+  source                      = "registry.coder.com/coder/windows-rdp/coder"
+  version                     = "1.0.18"
+  agent_id                    = resource.coder_agent.main.id
+  resource_id                 = resource.aws_instance.dev.id
+  devolutions_gateway_version = "2025.1.6" # Specify a specific version
 }
 ```
 
