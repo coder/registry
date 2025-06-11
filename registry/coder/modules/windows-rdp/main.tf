@@ -9,6 +9,18 @@ terraform {
   }
 }
 
+variable "order" {
+  type        = number
+  description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
+  default     = null
+}
+
+variable "group" {
+  type        = string
+  description = "The name of a group that this app belongs to."
+  default     = null
+}
+
 variable "share" {
   type    = string
   default = "owner"
@@ -68,6 +80,8 @@ resource "coder_app" "windows-rdp" {
   url          = "http://localhost:7171"
   icon         = "/icon/desktop.svg"
   subdomain    = true
+  order        = var.order
+  group        = var.group
 
   healthcheck {
     url       = "http://localhost:7171"
@@ -83,4 +97,6 @@ resource "coder_app" "rdp-docs" {
   icon         = "https://raw.githubusercontent.com/matifali/logos/main/windows.svg"
   url          = "https://coder.com/docs/ides/remote-desktops#rdp-desktop"
   external     = true
+  order        = var.order
+  group        = var.group
 }
