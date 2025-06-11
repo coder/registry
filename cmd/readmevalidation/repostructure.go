@@ -13,40 +13,33 @@ import (
 var supportedUserNameSpaceDirectories = append(supportedResourceTypes, ".icons", ".images")
 
 func validateCoderResourceSubdirectory(dirPath string) []error {
-	errs := []error{}
-
 	subDir, err := os.Stat(dirPath)
 	if err != nil {
-		// It's valid for a specific resource directory not to exist. It's just
-		// that if it does exist, it must follow specific rules.
+		// It's valid for a specific resource directory not to exist. It's just that if it does exist, it must follow specific rules.
 		if !errors.Is(err, os.ErrNotExist) {
-			errs = append(errs, addFilePathToError(dirPath, err))
+			return []error{addFilePathToError(dirPath, err)}
 		}
-		return errs
 	}
 
 	if !subDir.IsDir() {
-		errs = append(errs, xerrors.Errorf("%q: path is not a directory", dirPath))
-		return errs
+		return []error{xerrors.Errorf("%q: path is not a directory", dirPath)}
 	}
 
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
-		errs = append(errs, addFilePathToError(dirPath, err))
-		return errs
+		return []error{addFilePathToError(dirPath, err)}
 	}
+
+	errs := []error{}
 	for _, f := range files {
-		// The .coder subdirectories are sometimes generated as part of Bun
-		// tests. These subdirectories will never be committed to the repo, but
-		// in the off chance that they don't get cleaned up properly, we want to
-		// skip over them.
+		// The .coder subdirectories are sometimes generated as part of Bun tests. These subdirectories will never be
+		// committed to the repo, but in the off chance that they don't get cleaned up properly, we want to skip over them.
 		if !f.IsDir() || f.Name() == ".coder" {
 			continue
 		}
 
 		resourceReadmePath := path.Join(dirPath, f.Name(), "README.md")
-		_, err := os.Stat(resourceReadmePath)
-		if err != nil {
+		if _, err := os.Stat(resourceReadmePath); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				errs = append(errs, xerrors.Errorf("%q: 'README.md' does not exist", resourceReadmePath))
 			} else {
@@ -55,8 +48,7 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 		}
 
 		mainTerraformPath := path.Join(dirPath, f.Name(), "main.tf")
-		_, err = os.Stat(mainTerraformPath)
-		if err != nil {
+		if _, err := os.Stat(mainTerraformPath); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				errs = append(errs, xerrors.Errorf("%q: 'main.tf' file does not exist", mainTerraformPath))
 			} else {
@@ -64,7 +56,6 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 			}
 		}
 	}
-
 	return errs
 }
 
@@ -83,8 +74,7 @@ func validateRegistryDirectory() []error {
 		}
 
 		contributorReadmePath := path.Join(dirPath, "README.md")
-		_, err := os.Stat(contributorReadmePath)
-		if err != nil {
+		if _, err := os.Stat(contributorReadmePath); err != nil {
 			allErrs = append(allErrs, err)
 		}
 
@@ -95,8 +85,7 @@ func validateRegistryDirectory() []error {
 		}
 
 		for _, f := range files {
-			// Todo: Decide if there's anything more formal that we want to
-			// ensure about non-directories scoped to user namespaces.
+			// TODO: Decide if there's anything more formal that we want to ensure about non-directories scoped to user namespaces.
 			if !f.IsDir() {
 				continue
 			}
@@ -110,8 +99,7 @@ func validateRegistryDirectory() []error {
 			}
 
 			if slices.Contains(supportedResourceTypes, segment) {
-				errs := validateCoderResourceSubdirectory(filePath)
-				if len(errs) != 0 {
+				if errs := validateCoderResourceSubdirectory(filePath); len(errs) != 0 {
 					allErrs = append(allErrs, errs...)
 				}
 			}
@@ -122,20 +110,19 @@ func validateRegistryDirectory() []error {
 }
 
 func validateRepoStructure() error {
-	var problems []error
-	if errs := validateRegistryDirectory(); len(errs) != 0 {
-		problems = append(problems, errs...)
+	var errs []error
+	if vrdErrs := validateRegistryDirectory(); len(vrdErrs) != 0 {
+		errs = append(errs, vrdErrs...)
 	}
 
-	_, err := os.Stat("./.icons")
-	if err != nil {
-		problems = append(problems, xerrors.New("missing top-level .icons directory (used for storing reusable Coder resource icons)"))
+	if _, err := os.Stat("./.icons"); err != nil {
+		errs = append(errs, xerrors.New("missing top-level .icons directory (used for storing reusable Coder resource icons)"))
 	}
 
-	if len(problems) != 0 {
+	if len(errs) != 0 {
 		return validationPhaseError{
-			phase:  validationPhaseFileStructureValidation,
-			errors: problems,
+			phase:  validationPhaseStructure,
+			errors: errs,
 		}
 	}
 	return nil

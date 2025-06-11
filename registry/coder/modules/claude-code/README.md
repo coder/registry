@@ -14,7 +14,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "1.3.0"
+  version             = "1.3.1"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
@@ -88,7 +88,7 @@ resource "coder_agent" "main" {
 module "claude-code" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "1.1.0"
+  version             = "1.3.1"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
@@ -107,7 +107,7 @@ Run Claude Code as a standalone app in your workspace. This will install Claude 
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "1.3.0"
+  version             = "1.3.1"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
