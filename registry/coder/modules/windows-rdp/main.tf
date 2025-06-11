@@ -92,11 +92,9 @@ resource "coder_app" "windows-rdp" {
 
 resource "coder_app" "rdp-docs" {
   agent_id     = var.agent_id
-  display_name = "Local RDP"
+  display_name = "Local RDP Docs"
   slug         = "rdp-docs"
   icon         = "https://raw.githubusercontent.com/matifali/logos/main/windows.svg"
   url          = "https://coder.com/docs/ides/remote-desktops#rdp-desktop"
   external     = true
-  order        = var.order
-  group        = var.group
 }
