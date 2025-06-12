@@ -84,6 +84,18 @@ variable "experiment_post_install_script" {
   default     = null
 }
 
+variable "experiment_tmux_session_persistence" {
+  type        = bool
+  description = "Whether to enable tmux session persistence across workspace restarts."
+  default     = false
+}
+
+variable "experiment_tmux_session_save_interval" {
+  type        = string
+  description = "How often to save tmux sessions in minutes."
+  default     = "15"
+}
+
 locals {
   encoded_pre_install_script  = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
   encoded_post_install_script = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
@@ -151,6 +163,62 @@ resource "coder_script" "claude_code" {
       exit 1
     fi
 
+    # Configure tmux session persistence if enabled
+    if [ "${var.experiment_tmux_session_persistence}" = "true" ] && [ "${var.experiment_use_tmux}" = "true" ]; then
+      echo "Setting up tmux session persistence..."
+      
+      # Check and install git if needed
+      if ! command_exists git; then
+        echo "Git not found, installing git..."
+        if command_exists apt-get; then
+          apt-get update && apt-get install -y git
+        elif command_exists yum; then
+          yum install -y git
+        elif command_exists dnf; then
+          dnf install -y git
+        elif command_exists pacman; then
+          pacman -S --noconfirm git
+        elif command_exists apk; then
+          apk add git
+        else
+          echo "Error: Unable to install git automatically. Package manager not recognized."
+          echo "Please install git manually to enable session persistence."
+          exit 1
+        fi
+      fi
+      
+      # Install TPM and plugins
+      mkdir -p ~/.tmux/plugins
+      if [ ! -d ~/.tmux/plugins/tpm ]; then
+        git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+      fi
+      
+      # Configure .tmux.conf for persistence
+      cat > ~/.tmux.conf << EOF
+# Claude Code tmux persistence configuration
+set -g @plugin 'tmux-plugins/tmux-resurrect'
+set -g @plugin 'tmux-plugins/tmux-continuum'
+
+# Configure session persistence
+set -g @resurrect-processes 'claude'
+set -g @continuum-restore 'on'
+set -g @continuum-save-interval '${var.experiment_tmux_session_save_interval}'
+
+# Initialize plugin manager
+run '~/.tmux/plugins/tpm/tpm'
+EOF
+
+      # Install plugins
+      ~/.tmux/plugins/tpm/scripts/install_plugins.sh
+    fi
+
+    # Validate session persistence requirements
+    if [ "${var.experiment_tmux_session_persistence}" = "true" ] && [ "${var.experiment_use_tmux}" != "true" ]; then
+      echo "Error: Session persistence requires tmux to be enabled."
+      echo "Please set experiment_use_tmux = true when using session persistence."
+      exit 1
+    fi
+
     # Run with tmux if enabled
     if [ "${var.experiment_use_tmux}" = "true" ]; then
       echo "Running Claude Code in the background with tmux..."
@@ -166,8 +234,10 @@ resource "coder_script" "claude_code" {
       export LANG=en_US.UTF-8
       export LC_ALL=en_US.UTF-8
 
-      # Create a new tmux session in detached mode
-      tmux new-session -d -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\""
+      # Create or attach to session (persistence handles restoration automatically)
+      if ! tmux has-session -t claude-code 2>/dev/null; then
+        tmux new-session -d -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\""
+      fi
 
     fi
 
