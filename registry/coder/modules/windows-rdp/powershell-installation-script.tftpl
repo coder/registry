@@ -16,6 +16,11 @@ function Configure-RDP {
     New-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 1 -PropertyType DWORD -Force
     # Enable RDP through Windows Firewall
     Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+
+    # Disable UDP. It doesn't work via `coder port-forward` and is broken due to MTU issues in Coder Connect.
+    # Requires a restart to take effect. c.f. https://github.com/coder/internal/issues/608#issuecomment-2965923672
+    New-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name "SelectTransport" -Value 1 -PropertyType DWORD -Force
+    Restart-Service -Name "TermService" -Force
 }
 
 function Install-DevolutionsGateway {
