@@ -121,6 +121,12 @@ variable "use_cached" {
   default     = false
 }
 
+variable "disable_trust" {
+  type        = bool
+  description = "Disables workspace trust protection for VS Code Web."
+  default     = false
+}
+
 variable "extensions_dir" {
   type        = string
   description = "Override the directory to store extensions in."
@@ -169,6 +175,7 @@ resource "coder_script" "vscode-web" {
     SETTINGS : replace(jsonencode(var.settings), "\"", "\\\""),
     OFFLINE : var.offline,
     USE_CACHED : var.use_cached,
+    DISABLE_TRUST : var.disable_trust,
     EXTENSIONS_DIR : var.extensions_dir,
     FOLDER : var.folder,
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
