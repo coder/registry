@@ -115,6 +115,25 @@ resource "coder_script" "claude_code" {
       command -v "$1" >/dev/null 2>&1
     }
 
+    # Function to install tmux if needed
+    install_tmux() {
+      echo "Installing tmux..."
+      if command_exists apt-get; then
+        apt-get update && apt-get install -y tmux
+      elif command_exists yum; then
+        yum install -y tmux
+      elif command_exists dnf; then
+        dnf install -y tmux
+      elif command_exists pacman; then
+        pacman -S --noconfirm tmux
+      elif command_exists apk; then
+        apk add tmux
+      else
+        echo "Error: Unable to install tmux automatically. Package manager not recognized."
+        exit 1
+      fi
+    }
+
     # Check if the specified folder exists
     if [ ! -d "${var.folder}" ]; then
       echo "Warning: The specified folder '${var.folder}' does not exist."
@@ -186,38 +205,52 @@ resource "coder_script" "claude_code" {
       exit 1
     fi
 
-    # Configure tmux session persistence if enabled
-    if [ "${var.experiment_tmux_session_persistence}" = "true" ] && [ "${var.experiment_use_tmux}" = "true" ]; then
-      echo "Setting up tmux session persistence..."
-      
-      # Check and install git if needed
-      if ! command_exists git; then
-        echo "Git not found, installing git..."
-        if command_exists apt-get; then
-          apt-get update && apt-get install -y git
-        elif command_exists yum; then
-          yum install -y git
-        elif command_exists dnf; then
-          dnf install -y git
-        elif command_exists pacman; then
-          pacman -S --noconfirm git
-        elif command_exists apk; then
-          apk add git
-        else
-          echo "Error: Unable to install git automatically. Package manager not recognized."
-          echo "Please install git manually to enable session persistence."
-          exit 1
+    # Validate session persistence requirements
+    if [ "${var.experiment_tmux_session_persistence}" = "true" ] && [ "${var.experiment_use_tmux}" != "true" ]; then
+      echo "Error: Session persistence requires tmux to be enabled."
+      echo "Please set experiment_use_tmux = true when using session persistence."
+      exit 1
+    fi
+
+    # Install and configure tmux if enabled
+    if [ "${var.experiment_use_tmux}" = "true" ]; then
+      # Install tmux if not present
+      if ! command_exists tmux; then
+        install_tmux
+      fi
+
+      # Configure tmux session persistence if enabled
+      if [ "${var.experiment_tmux_session_persistence}" = "true" ]; then
+        echo "Setting up tmux session persistence..."
+        
+        # Check and install git if needed
+        if ! command_exists git; then
+          echo "Git not found, installing git..."
+          if command_exists apt-get; then
+            apt-get update && apt-get install -y git
+          elif command_exists yum; then
+            yum install -y git
+          elif command_exists dnf; then
+            dnf install -y git
+          elif command_exists pacman; then
+            pacman -S --noconfirm git
+          elif command_exists apk; then
+            apk add git
+          else
+            echo "Error: Unable to install git automatically. Package manager not recognized."
+            echo "Please install git manually to enable session persistence."
+            exit 1
+          fi
         fi
-      fi
-      
-      # Install TPM and plugins
-      mkdir -p ~/.tmux/plugins
-      if [ ! -d ~/.tmux/plugins/tpm ]; then
-        git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
-      fi
-      
-      # Configure .tmux.conf for persistence
-      cat > ~/.tmux.conf << EOF
+        
+        # Install TPM and plugins
+        mkdir -p ~/.tmux/plugins
+        if [ ! -d ~/.tmux/plugins/tpm ]; then
+          git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+        fi
+        
+        # Configure .tmux.conf for persistence
+        cat > ~/.tmux.conf << EOF
 # Claude Code tmux persistence configuration
 set -g @plugin 'tmux-plugins/tmux-resurrect'
 set -g @plugin 'tmux-plugins/tmux-continuum'
@@ -231,29 +264,12 @@ set -g @continuum-save-interval '${var.experiment_tmux_session_save_interval}'
 run '~/.tmux/plugins/tpm/tpm'
 EOF
 
-      # Install plugins
-      ~/.tmux/plugins/tpm/scripts/install_plugins.sh
-    fi
-
-    # Validate session persistence requirements
-    if [ "${var.experiment_tmux_session_persistence}" = "true" ] && [ "${var.experiment_use_tmux}" != "true" ]; then
-      echo "Error: Session persistence requires tmux to be enabled."
-      echo "Please set experiment_use_tmux = true when using session persistence."
-      exit 1
-    fi
-
-    # Run with tmux if enabled
-    if [ "${var.experiment_use_tmux}" = "true" ]; then
-      echo "Running Claude Code in the background with tmux..."
-
-      # Check if tmux is installed
-      if ! command_exists tmux; then
-        echo "Error: tmux is not installed. Please install tmux manually."
-        exit 1
+        # Install plugins
+        ~/.tmux/plugins/tpm/scripts/install_plugins.sh
       fi
 
+      echo "Running Claude Code in the background with tmux..."
       touch "$HOME/.claude-code.log"
-
       export LANG=en_US.UTF-8
       export LC_ALL=en_US.UTF-8
 
@@ -261,7 +277,6 @@ EOF
       if ! tmux has-session -t claude-code 2>/dev/null; then
         tmux new-session -d -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\""
       fi
-
     fi
 
     # Run with screen if enabled
@@ -291,6 +306,7 @@ EOF
         echo "Adding 'acladd $(whoami)' to ~/.screenrc..." | tee -a "$HOME/.claude-code.log"
         echo "acladd $(whoami)" >> "$HOME/.screenrc"
       fi
+
       export LANG=en_US.UTF-8
       export LC_ALL=en_US.UTF-8
 
