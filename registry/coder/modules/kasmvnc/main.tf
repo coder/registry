@@ -54,6 +54,12 @@ variable "subdomain" {
   description = "Is subdomain sharing enabled in your cluster?"
 }
 
+variable "kasm_config" {
+  type        = map(any)
+  default     = {}
+  description = "Additional KasmVNC configuration options. Can be used to set DLP policies and other advanced settings. See https://kasmweb.com/docs/develop/how_to/kasmvnc_dlp_policies.html for details."
+}
+
 resource "coder_script" "kasm_vnc" {
   agent_id     = var.agent_id
   display_name = "KasmVNC"

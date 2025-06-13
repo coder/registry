@@ -205,6 +205,8 @@ else
 fi
 
 echo "Writing KasmVNC config to $kasm_config_file"
+
+# Create base config
 $SUDO tee "$kasm_config_file" > /dev/null << EOF
 network:
   protocol: http
@@ -217,6 +219,32 @@ network:
   udp:
     public_ip: 127.0.0.1
 EOF
+
+# Add additional KasmVNC configuration if provided
+if [[ -n "${KASM_CONFIG}" && "${KASM_CONFIG}" != "{}" ]]; then
+  # Check if jq is available
+  if ! command -v jq &> /dev/null; then
+    echo "WARNING: jq is not installed. Cannot parse additional KasmVNC configuration."
+    echo "WARNING: Install jq or provide configuration in the correct format."
+  else
+    # Create a temporary file for the additional config
+    TEMP_CONFIG_FILE=$(mktemp)
+    
+    # Parse the JSON and convert to YAML format
+    echo '${KASM_CONFIG}' | jq -r 'to_entries | .[] |
+      if .value | type == "object" then
+        .key + ":\n" + (.value | to_entries | map("  " + .key + ": " + (.value | tostring)) | join("\n"))
+      else
+        .key + ": " + (.value | tostring)
+      end' > "$TEMP_CONFIG_FILE"
+    
+    # Append the additional config to the main config file
+    $SUDO tee -a "$kasm_config_file" > /dev/null < "$TEMP_CONFIG_FILE"
+    
+    # Clean up
+    rm "$TEMP_CONFIG_FILE"
+  fi
+fi
 
 # This password is not used since we start the server without auth.
 # The server is protected via the Coder session token / tunnel
