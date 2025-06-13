@@ -218,14 +218,14 @@ if [[ -f "$kasm_config_file" ]]; then
   # Update only the network section
   if grep -q "^network:" "$TEMP_CONFIG_FILE"; then
     # Network section exists, update only the websocket_port
-    sed -i "s/\([ \t]*websocket_port:\).*/\1 $PORT/" "$TEMP_CONFIG_FILE"
+    sed -i "s/\([ \t]*websocket_port:\).*/\1 ${PORT}/" "$TEMP_CONFIG_FILE"
   else
     # Network section doesn't exist, add it
     cat >> "$TEMP_CONFIG_FILE" << EOF
 network:
   protocol: http
   interface: 127.0.0.1
-  websocket_port: $PORT
+  websocket_port: ${PORT}
   ssl:
     require_ssl: false
     pem_certificate:
@@ -240,7 +240,7 @@ else
 network:
   protocol: http
   interface: 127.0.0.1
-  websocket_port: $PORT
+  websocket_port: ${PORT}
   ssl:
     require_ssl: false
     pem_certificate:
