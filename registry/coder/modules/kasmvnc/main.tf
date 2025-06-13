@@ -71,6 +71,7 @@ resource "coder_script" "kasm_vnc" {
     KASM_VERSION        = var.kasm_version
     SUBDOMAIN           = tostring(var.subdomain)
     PATH_VNC_HTML       = var.subdomain ? "" : file("${path.module}/path_vnc.html")
+    KASM_CONFIG         = jsonencode(var.kasm_config)
   })
 }
 
