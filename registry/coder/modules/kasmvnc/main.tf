@@ -60,17 +60,20 @@ variable "kasm_config" {
   description = <<-EOT
     Additional KasmVNC configuration in YAML format. Can be used to set DLP policies and other advanced settings.
     
-    Example for DLP policies:
+    Example for DLP policies (according to KasmVNC documentation):
     ```yaml
     data_loss_prevention:
       clipboard:
-        server_to_client: false
-        client_to_server: false
+        server_to_client:
+          enabled: false
+        client_to_server:
+          enabled: false
       printing: false
       download: false
     ```
     
-    See https://kasmweb.com/docs/develop/how_to/kasmvnc_dlp_policies.html for details.
+    For more advanced configuration options, see the KasmVNC documentation:
+    https://kasmweb.com/docs/latest/how_to/kasmvnc_dlp_policies.html
   EOT
 }
 
