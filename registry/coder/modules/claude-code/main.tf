@@ -119,15 +119,15 @@ resource "coder_script" "claude_code" {
     install_tmux() {
       echo "Installing tmux..."
       if command_exists apt-get; then
-        apt-get update && apt-get install -y tmux
+        sudo apt-get update && sudo apt-get install -y tmux
       elif command_exists yum; then
-        yum install -y tmux
+        sudo yum install -y tmux
       elif command_exists dnf; then
-        dnf install -y tmux
+        sudo dnf install -y tmux
       elif command_exists pacman; then
-        pacman -S --noconfirm tmux
+        sudo pacman -S --noconfirm tmux
       elif command_exists apk; then
-        apk add tmux
+        sudo apk add tmux
       else
         echo "Error: Unable to install tmux automatically. Package manager not recognized."
         exit 1
@@ -227,15 +227,15 @@ resource "coder_script" "claude_code" {
         if ! command_exists git; then
           echo "Git not found, installing git..."
           if command_exists apt-get; then
-            apt-get update && apt-get install -y git
+            sudo apt-get update && sudo apt-get install -y git
           elif command_exists yum; then
-            yum install -y git
+            sudo yum install -y git
           elif command_exists dnf; then
-            dnf install -y git
+            sudo dnf install -y git
           elif command_exists pacman; then
-            pacman -S --noconfirm git
+            sudo pacman -S --noconfirm git
           elif command_exists apk; then
-            apk add git
+            sudo apk add git
           else
             echo "Error: Unable to install git automatically. Package manager not recognized."
             echo "Please install git manually to enable session persistence."
