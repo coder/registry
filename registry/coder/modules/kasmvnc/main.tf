@@ -55,9 +55,9 @@ variable "subdomain" {
 }
 
 variable "kasm_config" {
-  type        = map(any)
-  default     = {}
-  description = "Additional KasmVNC configuration options. Can be used to set DLP policies and other advanced settings. See https://kasmweb.com/docs/develop/how_to/kasmvnc_dlp_policies.html for details."
+  type        = string
+  default     = ""
+  description = "Additional KasmVNC configuration in YAML format. Can be used to set DLP policies and other advanced settings. See https://kasmweb.com/docs/develop/how_to/kasmvnc_dlp_policies.html for details."
 }
 
 resource "coder_script" "kasm_vnc" {
@@ -71,7 +71,7 @@ resource "coder_script" "kasm_vnc" {
     KASM_VERSION        = var.kasm_version
     SUBDOMAIN           = tostring(var.subdomain)
     PATH_VNC_HTML       = var.subdomain ? "" : file("${path.module}/path_vnc.html")
-    KASM_CONFIG         = jsonencode(var.kasm_config)
+    KASM_CONFIG         = var.kasm_config
   })
 }
 

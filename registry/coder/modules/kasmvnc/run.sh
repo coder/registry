@@ -193,21 +193,35 @@ else
   SUDO=""
 
   echo "WARNING: Sudo access not available, using user config dir!"
-
+  
+  # Always ensure the directory exists
+  mkdir -p "$HOME/.vnc"
+  
+  # We'll handle existing configs differently - we'll merge instead of skipping
   if [[ -f "$kasm_config_file" ]]; then
-    echo "WARNING: Custom user KasmVNC config exists, not overwriting!"
-    echo "WARNING: Ensure that you manually configure the appropriate settings."
-    kasm_config_file="/dev/stderr"
-  else
-    echo "WARNING: This may prevent custom user KasmVNC settings from applying!"
-    mkdir -p "$HOME/.vnc"
+    echo "INFO: Custom user KasmVNC config exists, will merge with new settings."
+    # Create a backup of the existing config
+    cp "$kasm_config_file" "${kasm_config_file}.bak"
   fi
 fi
 
 echo "Writing KasmVNC config to $kasm_config_file"
 
-# Create base config
-$SUDO tee "$kasm_config_file" > /dev/null << EOF
+# Create a temporary file for our config
+TEMP_CONFIG_FILE=$(mktemp)
+
+# Check if existing config file exists and preserve its content
+if [[ -f "$kasm_config_file" ]]; then
+  echo "Preserving existing KasmVNC configuration settings."
+  cp "$kasm_config_file" "$TEMP_CONFIG_FILE"
+  
+  # Update only the network section
+  if grep -q "^network:" "$TEMP_CONFIG_FILE"; then
+    # Network section exists, update only the websocket_port
+    sed -i "s/\([ \t]*websocket_port:\).*/\1 ${PORT}/" "$TEMP_CONFIG_FILE"
+  else
+    # Network section doesn't exist, add it
+    cat >> "$TEMP_CONFIG_FILE" << EOF
 network:
   protocol: http
   interface: 127.0.0.1
@@ -219,32 +233,45 @@ network:
   udp:
     public_ip: 127.0.0.1
 EOF
+  fi
+else
+  # Start with base network configuration for new config
+  cat > "$TEMP_CONFIG_FILE" << EOF
+network:
+  protocol: http
+  interface: 127.0.0.1
+  websocket_port: ${PORT}
+  ssl:
+    require_ssl: false
+    pem_certificate:
+    pem_key:
+  udp:
+    public_ip: 127.0.0.1
+EOF
+fi
 
 # Add additional KasmVNC configuration if provided
-if [[ -n "${KASM_CONFIG}" && "${KASM_CONFIG}" != "{}" ]]; then
-  # Check if jq is available
-  if ! command -v jq &> /dev/null; then
-    echo "WARNING: jq is not installed. Cannot parse additional KasmVNC configuration."
-    echo "WARNING: Install jq or provide configuration in the correct format."
-  else
-    # Create a temporary file for the additional config
-    TEMP_CONFIG_FILE=$(mktemp)
-    
-    # Parse the JSON and convert to YAML format
-    echo '${KASM_CONFIG}' | jq -r 'to_entries | .[] |
-      if .value | type == "object" then
-        .key + ":\n" + (.value | to_entries | map("  " + .key + ": " + (.value | tostring)) | join("\n"))
-      else
-        .key + ": " + (.value | tostring)
-      end' > "$TEMP_CONFIG_FILE"
-    
-    # Append the additional config to the main config file
-    $SUDO tee -a "$kasm_config_file" > /dev/null < "$TEMP_CONFIG_FILE"
-    
-    # Clean up
-    rm "$TEMP_CONFIG_FILE"
-  fi
+if [[ -n "${KASM_CONFIG}" ]]; then
+  echo "Adding custom KasmVNC configuration."
+  
+  # Add a comment to mark the start of custom config
+  echo "" >> "$TEMP_CONFIG_FILE"
+  echo "# ---- START CUSTOM KASMVNC CONFIG ----" >> "$TEMP_CONFIG_FILE"
+  echo "" >> "$TEMP_CONFIG_FILE"
+  
+  # Directly append the YAML configuration
+  echo "${KASM_CONFIG}" >> "$TEMP_CONFIG_FILE"
+  
+  # Add a comment to mark the end of custom config
+  echo "" >> "$TEMP_CONFIG_FILE"
+  echo "# ---- END CUSTOM KASMVNC CONFIG ----" >> "$TEMP_CONFIG_FILE"
 fi
+
+# Apply the configuration
+$SUDO cp "$TEMP_CONFIG_FILE" "$kasm_config_file"
+
+# Clean up
+rm "$TEMP_CONFIG_FILE"
 
 # This password is not used since we start the server without auth.
 # The server is protected via the Coder session token / tunnel
