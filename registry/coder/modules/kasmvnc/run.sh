@@ -225,7 +225,7 @@ if [[ -f "$kasm_config_file" ]]; then
 network:
   protocol: http
   interface: 127.0.0.1
-  websocket_port: ${PORT}
+  websocket_port: $PORT
   ssl:
     require_ssl: false
     pem_certificate:
@@ -240,7 +240,7 @@ else
 network:
   protocol: http
   interface: 127.0.0.1
-  websocket_port: ${PORT}
+  websocket_port: $PORT
   ssl:
     require_ssl: false
     pem_certificate:
