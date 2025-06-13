@@ -135,9 +135,32 @@ resource "coder_script" "claude_code" {
 
     # Install Claude Code if enabled
     if [ "${var.install_claude_code}" = "true" ]; then
+      # Check if npm is available, if not try to install Node.js using NVM
       if ! command_exists npm; then
-        echo "Error: npm is not installed. Please install Node.js and npm first."
-        exit 1
+        echo "npm not found, checking for Node.js installation..."
+        if ! command_exists node; then
+          echo "Node.js not found, installing Node.js via NVM..."
+          # Install NVM
+          export NVM_DIR="$HOME/.nvm"
+          if [ ! -d "$NVM_DIR" ]; then
+            mkdir -p "$NVM_DIR"
+            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          else
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          fi
+          
+          # Install Node.js LTS version
+          nvm install --lts
+          nvm use --lts
+          nvm alias default node
+          
+          echo "Node.js installed: $(node --version)"
+          echo "npm installed: $(npm --version)"
+        else
+          echo "Node.js is installed but npm is not available. Please install npm manually."
+          exit 1
+        fi
       fi
       echo "Installing Claude Code..."
       npm install -g @anthropic-ai/claude-code@${var.claude_code_version}
