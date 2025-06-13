@@ -253,3 +253,7 @@ resource "coder_app" "claude_code" {
   order        = var.order
   group        = var.group
 }
+
+output "app_id" {
+  value = coder_app.claude_code.id
+}
