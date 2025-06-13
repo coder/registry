@@ -258,13 +258,35 @@ All README files must follow these rules:
 
 ## Versioning Guidelines
 
-After your PR is merged, maintainers will handle the release. Understanding version numbers helps you describe the impact of your changes:
+When you modify a module, you need to update its version number in the README. Understanding version numbers helps you describe the impact of your changes:
 
 - **Patch** (1.2.3 → 1.2.4): Bug fixes
 - **Minor** (1.2.3 → 1.3.0): New features, adding inputs
 - **Major** (1.2.3 → 2.0.0): Breaking changes (removing inputs, changing types)
 
-**Important**: Always specify the version change in your PR (e.g., `v1.2.3 → v1.2.4`). This helps maintainers create the correct release tag.
+### Updating Module Versions
+
+If your changes require a version bump, use the version bump script:
+
+```bash
+# For bug fixes
+./.github/scripts/version-bump.sh patch
+
+# For new features
+./.github/scripts/version-bump.sh minor
+
+# For breaking changes
+./.github/scripts/version-bump.sh major
+```
+
+The script will:
+
+1. Detect which modules you've modified
+2. Calculate the new version number
+3. Update all version references in the module's README
+4. Show you a summary of changes
+
+**Important**: Only run the version bump script if your changes require a new release. Documentation-only changes don't need version updates.
 
 ---
 

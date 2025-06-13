@@ -26,7 +26,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Detect version bump type
         id: version-type
         run: |
@@ -40,7 +39,6 @@ jobs:
             echo "Invalid version label: ${{ github.event.label.name }}"
             exit 1
           fi
-
       - name: Detect modified modules
         id: detect-modules
         run: |
@@ -57,7 +55,6 @@ jobs:
           echo "modules<<EOF" >> $GITHUB_OUTPUT
           echo "$MODULES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
       - name: Process version bumps
         id: process-bumps
         run: |
@@ -175,7 +172,6 @@ jobs:
           echo "untagged_modules<<EOF" >> $GITHUB_OUTPUT
           echo -e "$UNTAGGED_MODULES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
       - name: Commit changes
         run: |
           # Check if any README files were modified
@@ -188,7 +184,6 @@ jobs:
             git commit -m "chore: bump module versions (${{ steps.version-type.outputs.bump_type }})"
             git push
           fi
-
       - name: Comment on PR
         uses: actions/github-script@v7
         with:

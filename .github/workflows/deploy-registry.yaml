@@ -2,8 +2,6 @@ name: deploy-registry
 
 on:
   push:
-    branches:
-      - main
     tags:
       # Matches release/<namespace>/<resource_name>/<semantic_version>
       # (e.g., "release/whizus/exoscale-zone/v1.0.13")

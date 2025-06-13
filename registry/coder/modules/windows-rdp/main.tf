@@ -9,6 +9,18 @@ terraform {
   }
 }
 
+variable "order" {
+  type        = number
+  description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
+  default     = null
+}
+
+variable "group" {
+  type        = string
+  description = "The name of a group that this app belongs to."
+  default     = null
+}
+
 variable "share" {
   type    = string
   default = "owner"
@@ -39,14 +51,21 @@ variable "admin_password" {
   sensitive = true
 }
 
+variable "devolutions_gateway_version" {
+  type        = string
+  default     = "2025.2.1"
+  description = "Version of Devolutions Gateway to install. Defaults to the latest available version."
+}
+
 resource "coder_script" "windows-rdp" {
   agent_id     = var.agent_id
   display_name = "windows-rdp"
   icon         = "/icon/desktop.svg"
 
   script = templatefile("${path.module}/powershell-installation-script.tftpl", {
-    admin_username = var.admin_username
-    admin_password = var.admin_password
+    admin_username              = var.admin_username
+    admin_password              = var.admin_password
+    devolutions_gateway_version = var.devolutions_gateway_version
 
     # Wanted to have this be in the powershell template file, but Terraform
     # doesn't allow recursive calls to the templatefile function. Have to feed
@@ -68,6 +87,8 @@ resource "coder_app" "windows-rdp" {
   url          = "http://localhost:7171"
   icon         = "/icon/desktop.svg"
   subdomain    = true
+  order        = var.order
+  group        = var.group
 
   healthcheck {
     url       = "http://localhost:7171"
@@ -78,7 +99,7 @@ resource "coder_app" "windows-rdp" {
 
 resource "coder_app" "rdp-docs" {
   agent_id     = var.agent_id
-  display_name = "Local RDP"
+  display_name = "Local RDP Docs"
   slug         = "rdp-docs"
   icon         = "https://raw.githubusercontent.com/matifali/logos/main/windows.svg"
   url          = "https://coder.com/docs/ides/remote-desktops#rdp-desktop"
