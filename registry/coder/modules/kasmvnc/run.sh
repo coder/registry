@@ -201,7 +201,7 @@ else
   if [[ -f "$kasm_config_file" ]]; then
     echo "INFO: Custom user KasmVNC config exists, will merge with new settings."
     # Create a backup of the existing config
-    cp "$kasm_config_file" "${kasm_config_file}.bak"
+    cp "$kasm_config_file" "$${kasm_config_file}.bak"
   fi
 fi
 
@@ -218,7 +218,7 @@ if [[ -f "$kasm_config_file" ]]; then
   # Update only the network section
   if grep -q "^network:" "$TEMP_CONFIG_FILE"; then
     # Network section exists, update only the websocket_port
-    sed -i "s/\([ \t]*websocket_port:\).*/\1 ${PORT}/" "$TEMP_CONFIG_FILE"
+    sed -i "s/\([ \t]*websocket_port:\).*/\1 $PORT/" "$TEMP_CONFIG_FILE"
   else
     # Network section doesn't exist, add it
     cat >> "$TEMP_CONFIG_FILE" << EOF
