@@ -138,7 +138,7 @@ resource "coder_script" "claude_code" {
 
     if [ "${var.experiment_report_tasks}" = "true" ]; then
       echo "Configuring Claude Code to report tasks via Coder MCP..."
-      coder exp mcp configure claude-code ${var.folder}
+      coder exp mcp configure claude-code ${var.folder} --ai-agentapi-url http://localhost:3284
     fi
 
     # Run post-install script if provided
