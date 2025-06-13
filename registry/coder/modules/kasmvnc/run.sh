@@ -254,6 +254,33 @@ fi
 if [[ -n "${KASM_CONFIG}" ]]; then
   echo "Adding custom KasmVNC configuration."
   
+  # Check for common configuration errors
+  if echo "${KASM_CONFIG}" | grep -q "^policies:"; then
+    echo "WARNING: Found 'policies:' at the top level of your configuration."
+    echo "WARNING: DLP policies should be under the 'data_loss_prevention:' section."
+    echo "WARNING: Example:"
+    echo "WARNING: data_loss_prevention:"
+    echo "WARNING:   clipboard:"
+    echo "WARNING:     server_to_client: false"
+    echo "WARNING:     client_to_server: false"
+    echo "WARNING:   printing: false"
+    echo "WARNING:   download: false"
+    
+    # Create a temporary file for the fixed configuration
+    FIXED_CONFIG_FILE=$(mktemp)
+    
+    # Replace 'policies:' with 'data_loss_prevention:'
+    echo "${KASM_CONFIG}" | sed 's/^policies:/data_loss_prevention:/' > "$FIXED_CONFIG_FILE"
+    
+    # Use the fixed configuration
+    KASM_CONFIG=$(cat "$FIXED_CONFIG_FILE")
+    
+    # Clean up
+    rm "$FIXED_CONFIG_FILE"
+    
+    echo "WARNING: Automatically fixed configuration. Please update your Terraform code."
+  fi
+  
   # Add a comment to mark the start of custom config
   echo "" >> "$TEMP_CONFIG_FILE"
   echo "# ---- START CUSTOM KASMVNC CONFIG ----" >> "$TEMP_CONFIG_FILE"

@@ -57,7 +57,21 @@ variable "subdomain" {
 variable "kasm_config" {
   type        = string
   default     = ""
-  description = "Additional KasmVNC configuration in YAML format. Can be used to set DLP policies and other advanced settings. See https://kasmweb.com/docs/develop/how_to/kasmvnc_dlp_policies.html for details."
+  description = <<-EOT
+    Additional KasmVNC configuration in YAML format. Can be used to set DLP policies and other advanced settings.
+    
+    Example for DLP policies:
+    ```yaml
+    data_loss_prevention:
+      clipboard:
+        server_to_client: false
+        client_to_server: false
+      printing: false
+      download: false
+    ```
+    
+    See https://kasmweb.com/docs/develop/how_to/kasmvnc_dlp_policies.html for details.
+  EOT
 }
 
 resource "coder_script" "kasm_vnc" {
