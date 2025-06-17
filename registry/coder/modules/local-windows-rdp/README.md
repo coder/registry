@@ -4,6 +4,8 @@ description: Enable RDP on Windows and add a one-click Coder Desktop button for 
 icon: ../../../../.icons/desktop.svg
 maintainer_github: coder
 verified: true
+coder_desktop: true
+supported_os: [windows]
 tags: [rdp, windows, desktop, remote]
 ---
 
