@@ -114,10 +114,10 @@ module "claude-code" {
   install_claude_code = true
 
   # Enable tmux with session persistence
-  experiment_use_tmux                    = true
-  experiment_tmux_session_persistence    = true
-  experiment_tmux_session_save_interval  = "10" # Save every 10 minutes
-  experiment_report_tasks                = true
+  experiment_use_tmux                   = true
+  experiment_tmux_session_persistence   = true
+  experiment_tmux_session_save_interval = "10" # Save every 10 minutes
+  experiment_report_tasks               = true
 }
 ```
 
