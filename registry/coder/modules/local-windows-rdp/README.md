@@ -40,10 +40,6 @@ module "rdp_desktop" {
 4. **Starts RDP services** automatically
 5. **Creates a Coder Desktop button** for one-click access
 
-## Requirements
-
-- **Coder Desktop**: Must be installed on the client machine ([Download here](https://coder.com/docs/user-guides/desktop))
-
 ## Examples
 
 ### Basic Usage
