@@ -110,12 +110,10 @@ resource "coder_script" "claude_code" {
     #!/bin/bash
     set -e
 
-    # Function to check if a command exists
     command_exists() {
       command -v "$1" >/dev/null 2>&1
     }
 
-    # Function to install tmux if needed
     install_tmux() {
       echo "Installing tmux..."
       if command_exists apt-get; then
@@ -134,7 +132,6 @@ resource "coder_script" "claude_code" {
       fi
     }
 
-    # Check if the specified folder exists
     if [ ! -d "${var.folder}" ]; then
       echo "Warning: The specified folder '${var.folder}' does not exist."
       echo "Creating the folder..."
@@ -143,8 +140,6 @@ resource "coder_script" "claude_code" {
       mkdir -p "${var.folder}"
       echo "Folder created successfully."
     fi
-
-    # Run pre-install script if provided
     if [ -n "${local.encoded_pre_install_script}" ]; then
       echo "Running pre-install script..."
       echo "${local.encoded_pre_install_script}" | base64 -d > /tmp/pre_install.sh
@@ -152,14 +147,11 @@ resource "coder_script" "claude_code" {
       /tmp/pre_install.sh
     fi
 
-    # Install Claude Code if enabled
     if [ "${var.install_claude_code}" = "true" ]; then
-      # Check if npm is available, if not try to install Node.js using NVM
       if ! command_exists npm; then
         echo "npm not found, checking for Node.js installation..."
         if ! command_exists node; then
           echo "Node.js not found, installing Node.js via NVM..."
-          # Install NVM
           export NVM_DIR="$HOME/.nvm"
           if [ ! -d "$NVM_DIR" ]; then
             mkdir -p "$NVM_DIR"
@@ -169,7 +161,6 @@ resource "coder_script" "claude_code" {
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           fi
           
-          # Install Node.js LTS version
           nvm install --lts
           nvm use --lts
           nvm alias default node
@@ -190,7 +181,6 @@ resource "coder_script" "claude_code" {
       coder exp mcp configure claude-code ${var.folder}
     fi
 
-    # Run post-install script if provided
     if [ -n "${local.encoded_post_install_script}" ]; then
       echo "Running post-install script..."
       echo "${local.encoded_post_install_script}" | base64 -d > /tmp/post_install.sh
@@ -198,32 +188,25 @@ resource "coder_script" "claude_code" {
       /tmp/post_install.sh
     fi
 
-    # Handle terminal multiplexer selection (tmux or screen)
     if [ "${var.experiment_use_tmux}" = "true" ] && [ "${var.experiment_use_screen}" = "true" ]; then
       echo "Error: Both experiment_use_tmux and experiment_use_screen cannot be true simultaneously."
       echo "Please set only one of them to true."
       exit 1
     fi
 
-    # Validate session persistence requirements
     if [ "${var.experiment_tmux_session_persistence}" = "true" ] && [ "${var.experiment_use_tmux}" != "true" ]; then
       echo "Error: Session persistence requires tmux to be enabled."
       echo "Please set experiment_use_tmux = true when using session persistence."
       exit 1
     fi
 
-    # Install and configure tmux if enabled
     if [ "${var.experiment_use_tmux}" = "true" ]; then
-      # Install tmux if not present
       if ! command_exists tmux; then
         install_tmux
       fi
 
-      # Configure tmux session persistence if enabled
       if [ "${var.experiment_tmux_session_persistence}" = "true" ]; then
         echo "Setting up tmux session persistence..."
-        
-        # Check and install git if needed
         if ! command_exists git; then
           echo "Git not found, installing git..."
           if command_exists apt-get; then
@@ -243,13 +226,11 @@ resource "coder_script" "claude_code" {
           fi
         fi
         
-        # Install TPM and plugins
         mkdir -p ~/.tmux/plugins
         if [ ! -d ~/.tmux/plugins/tpm ]; then
           git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
         fi
         
-        # Configure .tmux.conf for persistence
         cat > ~/.tmux.conf << EOF
 # Claude Code tmux persistence configuration
 set -g @plugin 'tmux-plugins/tmux-resurrect'
@@ -257,14 +238,15 @@ set -g @plugin 'tmux-plugins/tmux-continuum'
 
 # Configure session persistence
 set -g @resurrect-processes 'claude'
+set -g @resurrect-capture-pane-contents 'on'
 set -g @continuum-restore 'on'
 set -g @continuum-save-interval '${var.experiment_tmux_session_save_interval}'
+set -g @continuum-boot 'on'
 
 # Initialize plugin manager
 run '~/.tmux/plugins/tpm/tpm'
 EOF
 
-        # Install plugins
         ~/.tmux/plugins/tpm/scripts/install_plugins.sh
       fi
 
@@ -273,25 +255,33 @@ EOF
       export LANG=en_US.UTF-8
       export LC_ALL=en_US.UTF-8
 
-      # Create or attach to session (persistence handles restoration automatically)
-      if ! tmux has-session -t claude-code 2>/dev/null; then
-        tmux new-session -d -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\""
+      if [ "${var.experiment_tmux_session_persistence}" = "true" ]; then
+        sleep 3
+        
+        if tmux has-session -t claude-code 2>/dev/null; then
+          # Existing session - only start Claude if not running (no prompt)
+          if ! tmux list-panes -t claude-code -F '#{pane_current_command}' | grep -q "claude"; then
+            tmux send-keys -t claude-code "cd ${var.folder} && claude --dangerously-skip-permissions" C-m
+          fi
+        else
+          # New session - include prompt
+          tmux new-session -d -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\""
+        fi
+      else
+        if ! tmux has-session -t claude-code 2>/dev/null; then
+          tmux new-session -d -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\""
+        fi
       fi
     fi
 
-    # Run with screen if enabled
     if [ "${var.experiment_use_screen}" = "true" ]; then
       echo "Running Claude Code in the background..."
-
-      # Check if screen is installed
       if ! command_exists screen; then
         echo "Error: screen is not installed. Please install screen manually."
         exit 1
       fi
 
       touch "$HOME/.claude-code.log"
-
-      # Ensure the screenrc exists
       if [ ! -f "$HOME/.screenrc" ]; then
         echo "Creating ~/.screenrc and adding multiuser settings..." | tee -a "$HOME/.claude-code.log"
         echo -e "multiuser on\nacladd $(whoami)" > "$HOME/.screenrc"
@@ -316,7 +306,6 @@ EOF
         exec bash
       '
     else
-      # Check if claude is installed before running
       if ! command_exists claude; then
         echo "Error: Claude Code is not installed. Please enable install_claude_code or install it manually."
         exit 1
@@ -343,7 +332,11 @@ resource "coder_app" "claude_code" {
         tmux attach-session -t claude-code
       else
         echo "Starting a new Claude Code tmux session." | tee -a "$HOME/.claude-code.log"
-        tmux new-session -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions | tee -a \"$HOME/.claude-code.log\"; exec bash"
+        if [ -n "$CODER_MCP_CLAUDE_TASK_PROMPT" ]; then
+          tmux new-session -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\" | tee -a \"$HOME/.claude-code.log\"; exec bash"
+        else
+          tmux new-session -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions | tee -a \"$HOME/.claude-code.log\"; exec bash"
+        fi
       fi
     elif [ "${var.experiment_use_screen}" = "true" ]; then
       if screen -list | grep -q "claude-code"; then
