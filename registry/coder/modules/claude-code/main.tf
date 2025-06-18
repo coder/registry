@@ -328,7 +328,7 @@ resource "coder_app" "claude_code" {
         echo "Attaching to existing Claude Code tmux session." | tee -a "$HOME/.claude-code.log"
         # If Claude isn't running in the session, start it without the prompt
         if ! tmux list-panes -t claude-code -F '#{pane_current_command}' | grep -q "claude"; then
-          tmux send-keys -t claude-code "cd ${var.folder} && claude-code -c --dangerously-skip-permissions" C-m
+          tmux send-keys -t claude-code "cd ${var.folder} && claude -c --dangerously-skip-permissions" C-m
         fi
         tmux attach-session -t claude-code
       else
