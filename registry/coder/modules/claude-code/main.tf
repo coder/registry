@@ -237,7 +237,7 @@ set -g @plugin 'tmux-plugins/tmux-resurrect'
 set -g @plugin 'tmux-plugins/tmux-continuum'
 
 # Configure session persistence
-set -g @resurrect-processes 'claude'
+set -g @resurrect-processes ':all:'
 set -g @resurrect-capture-pane-contents 'on'
 set -g @continuum-restore 'on'
 set -g @continuum-save-interval '${var.experiment_tmux_session_save_interval}'
