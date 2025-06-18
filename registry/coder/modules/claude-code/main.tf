@@ -239,9 +239,11 @@ set -g @plugin 'tmux-plugins/tmux-continuum'
 # Configure session persistence
 set -g @resurrect-processes ':all:'
 set -g @resurrect-capture-pane-contents 'on'
+set -g @resurrect-save-bash-history 'on'
 set -g @continuum-restore 'on'
 set -g @continuum-save-interval '${var.experiment_tmux_session_save_interval}'
 set -g @continuum-boot 'on'
+set -g @continuum-save-on 'on'
 
 # Initialize plugin manager
 run '~/.tmux/plugins/tpm/tpm'
@@ -258,13 +260,8 @@ EOF
       if [ "${var.experiment_tmux_session_persistence}" = "true" ]; then
         sleep 3
         
-        if tmux has-session -t claude-code 2>/dev/null; then
-          # Existing session - only start Claude if not running (no prompt)
-          if ! tmux list-panes -t claude-code -F '#{pane_current_command}' | grep -q "claude"; then
-            tmux send-keys -t claude-code "cd ${var.folder} && claude --dangerously-skip-permissions" C-m
-          fi
-        else
-          # New session - include prompt
+        if ! tmux has-session -t claude-code 2>/dev/null; then
+          # Only create a new session if one doesn't exist
           tmux new-session -d -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\""
         fi
       else
@@ -329,6 +326,10 @@ resource "coder_app" "claude_code" {
     if [ "${var.experiment_use_tmux}" = "true" ]; then
       if tmux has-session -t claude-code 2>/dev/null; then
         echo "Attaching to existing Claude Code tmux session." | tee -a "$HOME/.claude-code.log"
+        # If Claude isn't running in the session, start it without the prompt
+        if ! tmux list-panes -t claude-code -F '#{pane_current_command}' | grep -q "claude"; then
+          tmux send-keys -t claude-code "cd ${var.folder} && claude-code -c --dangerously-skip-permissions" C-m
+        fi
         tmux attach-session -t claude-code
       else
         echo "Starting a new Claude Code tmux session." | tee -a "$HOME/.claude-code.log"
