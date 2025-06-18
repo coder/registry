@@ -333,11 +333,7 @@ resource "coder_app" "claude_code" {
         tmux attach-session -t claude-code
       else
         echo "Starting a new Claude Code tmux session." | tee -a "$HOME/.claude-code.log"
-        if [ -n "$CODER_MCP_CLAUDE_TASK_PROMPT" ]; then
-          tmux new-session -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\" | tee -a \"$HOME/.claude-code.log\"; exec bash"
-        else
-          tmux new-session -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions | tee -a \"$HOME/.claude-code.log\"; exec bash"
-        fi
+        tmux new-session -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions | tee -a \"$HOME/.claude-code.log\"; exec bash"
       fi
     elif [ "${var.experiment_use_screen}" = "true" ]; then
       if screen -list | grep -q "claude-code"; then
