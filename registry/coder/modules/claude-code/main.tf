@@ -3,8 +3,7 @@ terraform {
 
   required_providers {
     coder = {
-      source  = "coder/coder"
-      version = ">= 2.5"
+      source = "coder/coder"
     }
   }
 }
@@ -295,4 +294,8 @@ resource "coder_app" "claude_code" {
   icon         = var.icon
   order        = var.order
   group        = var.group
+}
+
+resource "coder_ai_task" "claude_code" {
+  sidebar_app_id = coder_app.claude_code.id
 }
