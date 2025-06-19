@@ -190,6 +190,15 @@ main() {
 
   done <<< "$modules"
 
+  # Always run formatter to ensure consistent formatting
+  echo "🔧 Running formatter to ensure consistent formatting..."
+  if command -v bun >/dev/null 2>&1; then
+    bun fmt >/dev/null 2>&1 || echo "⚠️  Warning: bun fmt failed, but continuing..."
+  else
+    echo "⚠️  Warning: bun not found, skipping formatting"
+  fi
+  echo ""
+
   echo "📋 Summary:"
   echo "Bump Type: $bump_type"
   echo ""
