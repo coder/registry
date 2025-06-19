@@ -297,7 +297,4 @@ resource "coder_app" "claude_code" {
 }
 
 resource "coder_ai_task" "claude_code" {
-  sidebar_app {
-    id = coder_app.claude_code.id
-  }
 }
