@@ -14,7 +14,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "1.3.1"
+  version             = "1.4.0"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
@@ -88,7 +88,7 @@ resource "coder_agent" "main" {
 module "claude-code" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "1.3.1"
+  version             = "1.4.0"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
@@ -100,6 +100,29 @@ module "claude-code" {
 }
 ```
 
+## Session Persistence (Experimental)
+
+Enable automatic session persistence to maintain Claude Code sessions across workspace restarts:
+
+```tf
+module "claude-code" {
+  count               = data.coder_workspace.me.start_count
+  source              = "registry.coder.com/coder/claude-code/coder"
+  version             = "1.4.0"
+  agent_id            = coder_agent.example.id
+  folder              = "/home/coder"
+  install_claude_code = true
+
+  # Enable tmux with session persistence
+  experiment_use_tmux                   = true
+  experiment_tmux_session_persistence   = true
+  experiment_tmux_session_save_interval = "10" # Save every 10 minutes
+  experiment_report_tasks               = true
+}
+```
+
+Session persistence automatically saves and restores your Claude Code environment, including working directory and command history.
+
 ## Run standalone
 
 Run Claude Code as a standalone app in your workspace. This will install Claude Code and run it directly without using screen or any task reporting to the Coder UI.
@@ -107,7 +130,7 @@ Run Claude Code as a standalone app in your workspace. This will install Claude 
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "1.3.1"
+  version             = "1.4.0"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
