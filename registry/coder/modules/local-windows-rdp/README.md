@@ -4,7 +4,6 @@ description: Enable RDP on Windows and add a one-click Coder Desktop button for 
 icon: ../../../../.icons/desktop.svg
 maintainer_github: coder
 verified: true
-coder_desktop: true
 supported_os: [windows]
 tags: [rdp, windows, desktop, remote]
 ---
@@ -12,6 +11,8 @@ tags: [rdp, windows, desktop, remote]
 # Windows RDP Desktop
 
 This module enables Remote Desktop Protocol (RDP) on Windows workspaces and adds a one-click button to launch RDP sessions directly through [Coder Desktop](https://coder.com/docs/user-guides/desktop). It provides a complete, standalone solution for RDP access, eliminating the need for manual configuration or port forwarding through the Coder CLI.
+
+> **Note**: [Coder Desktop](https://coder.com/docs/user-guides/desktop) is required on client devices to use the Local Windows RDP access feature.
 
 ```tf
 module "rdp_desktop" {
