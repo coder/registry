@@ -11,7 +11,7 @@ tags: [rdp, windows, desktop, remote]
 
 # Windows RDP Desktop
 
-This module enables Remote Desktop Protocol (RDP) on Windows workspaces and adds a one-click button to launch RDP sessions directly through Coder Desktop. It provides a complete, standalone solution for RDP access without requiring manual configuration or port forwarding.
+This module enables Remote Desktop Protocol (RDP) on Windows workspaces and adds a one-click button to launch RDP sessions directly through [Coder Desktop](https://coder.com/docs/user-guides/desktop). It provides a complete, standalone solution for RDP access, eliminating the need for manual configuration or port forwarding through the Coder CLI.
 
 ```tf
 module "rdp_desktop" {
