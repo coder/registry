@@ -4,6 +4,7 @@ terraform {
   required_providers {
     coder = {
       source = "coder/coder"
+      version = ">= 2.7.0"
     }
   }
 }
@@ -53,6 +54,18 @@ variable "claude_code_version" {
   default     = "latest"
 }
 
+variable "install_agentapi" {
+  type        = bool
+  description = "Whether to install AgentAPI."
+  default     = true
+}
+
+variable "agentapi_version" {
+  type        = string
+  description = "The version of AgentAPI to install."
+  default     = "v0.2.2"
+}
+
 variable "experiment_use_screen" {
   type        = bool
   description = "Whether to use screen for running Claude Code in the background."
@@ -86,6 +99,15 @@ variable "experiment_post_install_script" {
 locals {
   encoded_pre_install_script  = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
   encoded_post_install_script = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
+  agentapi_start_command = <<-EOT
+    #!/bin/bash
+    set -e
+    
+    # use low width to fit in the tasks UI sidebar. height is adjusted to ~match the default 80k (80x1000) characters
+    # visible in the terminal screen.
+    agentapi server --term-width 67 --term-height 1190 -- bash -c "claude --dangerously-skip-permissions \"$(cat ~/.claude-code-prompt)\""
+  EOT
+  agentapi_start_command_base64 = base64encode(local.agentapi_start_command)
 }
 
 # Install and Initialize Claude Code
@@ -130,10 +152,31 @@ resource "coder_script" "claude_code" {
       npm install -g @anthropic-ai/claude-code@${var.claude_code_version}
     fi
 
-    # Hardcoded for now: install AgentAPI
-    wget https://github.com/coder/agentapi/releases/download/preview/agentapi-linux-amd64
-    chmod +x agentapi-linux-amd64
-    sudo mv agentapi-linux-amd64 /usr/local/bin/agentapi
+    # Install AgentAPI if enabled
+    if [ "${var.install_agentapi}" = "true" ]; then
+      echo "Installing AgentAPI..."
+      arch=$(uname -m)
+      if [ "$arch" = "x86_64" ]; then
+        binary_name="agentapi-linux-amd64"
+      elif [ "$arch" = "aarch64" ]; then
+        binary_name="agentapi-linux-arm64"
+      else
+        echo "Error: Unsupported architecture: $arch"
+        exit 1
+      fi
+      wget "https://github.com/coder/agentapi/releases/download/${var.agentapi_version}/$binary_name"
+      chmod +x "$binary_name"
+      sudo mv "$binary_name" /usr/local/bin/agentapi
+    fi
+
+    if ! command_exists agentapi; then
+      echo "Error: AgentAPI is not installed. Please enable install_agentapi or install it manually."
+      exit 1
+    fi
+
+    echo -n "$CODER_MCP_CLAUDE_TASK_PROMPT" > ~/.claude-code-prompt
+    echo -n "${local.agentapi_start_command_base64}" | base64 -d > ~/.agentapi-start-command
+    chmod +x ~/.agentapi-start-command
 
     if [ "${var.experiment_report_tasks}" = "true" ]; then
       echo "Configuring Claude Code to report tasks via Coder MCP..."
@@ -172,7 +215,7 @@ resource "coder_script" "claude_code" {
 
       # use low width to fit in the tasks UI sidebar. height is adjusted to ~match the default 80k (80x1000) characters
       # visible in the terminal screen.
-      tmux new-session -d -s claude-code-agentapi -c ${var.folder} 'agentapi server --term-width 67 --term-height 1190 -- bash -c "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\""; exec bash'
+      tmux new-session -d -s claude-code-agentapi -c ${var.folder} '~/.agentapi-start-command; exec bash'
       echo "Waiting for agentapi server to start on port 3284..."
       for i in $(seq 1 15); do
         if lsof -i :3284 | grep -q 'LISTEN'; then
@@ -223,7 +266,7 @@ resource "coder_script" "claude_code" {
 
       screen -U -dmS claude-code bash -c '
         cd ${var.folder}
-        claude --dangerously-skip-permissions "$CODER_MCP_CLAUDE_TASK_PROMPT" | tee -a "$HOME/.claude-code.log"
+        ~/.agentapi-start-command
         exec bash
       '
     else
@@ -266,9 +309,7 @@ resource "coder_app" "claude_code" {
 
       if ! tmux has-session -t claude-code-agentapi 2>/dev/null; then
         echo "Starting a new Claude Code agentapi tmux session." | tee -a "$HOME/.claude-code.log"
-        # use low width to fit in the tasks UI sidebar. height is adjusted to ~match the default 80k (80x1000) characters
-        # visible in the terminal screen.
-        tmux new-session -d -s claude-code-agentapi -c ${var.folder} 'agentapi server --term-width 67 --term-height 1190 -- bash -c "claude --dangerously-skip-permissions"; exec bash'
+        tmux new-session -d -s claude-code-agentapi -c ${var.folder} '~/.agentapi-start-command; exec bash'
       fi
 
       if tmux has-session -t claude-code 2>/dev/null; then
