@@ -216,6 +216,13 @@ EOT
   model_flag = var.ai_provider == "ollama" ? "--ollama-model" : "--model"
 }
 
+# Set environment variable for AI provider API key
+resource "coder_env" "ai_api_key" {
+  agent_id = var.agent_id
+  name     = local.env_var_name
+  value    = var.ai_api_key
+}
+
 # Install and Initialize Aider
 resource "coder_script" "aider" {
   agent_id     = var.agent_id
@@ -387,7 +394,7 @@ EOL
         fi
 
         echo "Starting Aider using ${var.ai_provider} provider and model: ${var.ai_model}"
-        tmux new-session -d -s ${var.session_name} -c ${var.folder} "export ${local.env_var_name}=\"${var.ai_api_key}\"; aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${local.combined_prompt}\""
+        tmux new-session -d -s ${var.session_name} -c ${var.folder} "aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${local.combined_prompt}\""
         echo "Aider task started in tmux session '${var.session_name}'. Check the UI for progress."
       else
         # Configure tmux for shared sessions
@@ -402,7 +409,7 @@ EOL
         fi
 
         echo "Starting Aider using ${var.ai_provider} provider and model: ${var.ai_model}"
-        tmux new-session -d -s ${var.session_name} -c ${var.folder} "export ${local.env_var_name}=\"${var.ai_api_key}\"; aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${var.system_prompt}\""
+        tmux new-session -d -s ${var.session_name} -c ${var.folder} "aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${var.system_prompt}\""
         echo "Tmux session '${var.session_name}' started. Access it by clicking the Aider button."
       fi
     else
@@ -428,7 +435,6 @@ EOL
         screen -U -dmS ${var.session_name} bash -c "
           cd ${var.folder}
           export PATH=\"$HOME/bin:$HOME/.local/bin:$PATH\"
-          export ${local.env_var_name}=\"${var.ai_api_key}\"
           aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${local.combined_prompt}\"
           /bin/bash
         "
@@ -455,7 +461,6 @@ EOL
         screen -U -dmS ${var.session_name} bash -c "
           cd ${var.folder}
           export PATH=\"$HOME/bin:$HOME/.local/bin:$PATH\"
-          export ${local.env_var_name}=\"${var.ai_api_key}\"
           aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${local.combined_prompt}\"
           /bin/bash
         "
@@ -489,7 +494,7 @@ resource "coder_app" "aider_cli" {
         tmux attach-session -t ${var.session_name}
       else
         echo "Starting new Aider tmux session..."
-        tmux new-session -s ${var.session_name} -c ${var.folder} "export ${local.env_var_name}=\"${var.ai_api_key}\"; aider ${local.model_flag} ${var.ai_model} --message \"${local.combined_prompt}\"; exec bash"
+        tmux new-session -s ${var.session_name} -c ${var.folder} "aider ${local.model_flag} ${var.ai_model} --message \"${local.combined_prompt}\"; exec bash"
       fi
     elif [ "${var.use_screen}" = "true" ]; then
       if ! screen -list | grep -q "${var.session_name}"; then
@@ -500,7 +505,6 @@ resource "coder_app" "aider_cli" {
     else
       cd "${var.folder}"
       echo "Starting Aider directly..."
-      export ${local.env_var_name}="${var.ai_api_key}"
       aider ${local.model_flag} ${var.ai_model} --message "${local.combined_prompt}"
     fi
   EOT

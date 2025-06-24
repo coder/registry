@@ -66,27 +66,6 @@ data "coder_parameter" "ai_prompt" {
   mutable     = true
 }
 
-# Set the prompt and system prompt for Goose via environment variables
-resource "coder_agent" "main" {
-  # ...
-  env = {
-    GOOSE_SYSTEM_PROMPT = <<-EOT
-      You are a helpful assistant that can help write code.
-
-      Run all long running tasks (e.g. npm run dev) in the background and not in the foreground.
-
-      Periodically check in on background tasks.
-
-      Notify Coder of the status of the task before and after your steps.
-    EOT
-    GOOSE_TASK_PROMPT   = data.coder_parameter.ai_prompt.value
-
-    # An API key is required for experiment_auto_configure
-    # See https://block.github.io/goose/docs/getting-started/providers
-    ANTHROPIC_API_KEY = var.anthropic_api_key # or use a coder_parameter
-  }
-}
-
 module "goose" {
   count         = data.coder_workspace.me.start_count
   source        = "registry.coder.com/coder/goose/coder"
@@ -95,6 +74,19 @@ module "goose" {
   folder        = "/home/coder"
   install_goose = true
   goose_version = "v1.0.16"
+
+  # Set prompts and API key directly in the module
+  system_prompt = <<-EOT
+    You are a helpful assistant that can help write code.
+
+    Run all long running tasks (e.g. npm run dev) in the background and not in the foreground.
+
+    Periodically check in on background tasks.
+
+    Notify Coder of the status of the task before and after your steps.
+  EOT
+  task_prompt       = data.coder_parameter.ai_prompt.value
+  anthropic_api_key = var.anthropic_api_key # or use a coder_parameter
 
   # Enable experimental features
   experiment_report_tasks = true
