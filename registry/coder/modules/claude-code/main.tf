@@ -424,8 +424,8 @@ resource "coder_app" "claude_code_web" {
   subdomain    = true
   healthcheck {
     url       = "http://localhost:3284/status"
-    interval  = 5
-    threshold = 6
+    interval  = 6
+    threshold = 10
   }
 }
 
