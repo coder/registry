@@ -1,0 +1,86 @@
+---
+display_name: Fleet IDE
+description: Add a one-click button to launch JetBrains Fleet IDE to connect to your workspace.
+icon: ../../../../.icons/jetbrains.svg
+maintainer_github: coder
+verified: false
+tags: [ide, jetbrains, fleet]
+---
+
+# Fleet IDE
+
+This module adds a Fleet IDE button to your Coder workspace that opens the workspace in JetBrains Fleet using SSH remote development.
+
+JetBrains Fleet is a next-generation IDE that supports collaborative development and distributed architectures. It connects to your Coder workspace via SSH, providing a seamless remote development experience.
+
+```tf
+module "fleet_ide" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/fleet-ide/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
+}
+```
+
+![Fleet IDE](../.images/fleet-ide.png)
+
+## Requirements
+
+- JetBrains Fleet must be installed locally on your development machine
+- Download Fleet from: https://www.jetbrains.com/fleet/
+
+## Examples
+
+### Basic usage
+
+```tf
+module "fleet_ide" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/fleet-ide/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
+}
+```
+
+### Open a specific folder
+
+```tf
+module "fleet_ide" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/fleet-ide/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
+  folder   = "/home/coder/project"
+}
+```
+
+### Customize app name and grouping
+
+```tf
+module "fleet_ide" {
+  count        = data.coder_workspace.me.start_count
+  source       = "registry.coder.com/coder/fleet-ide/coder"
+  version      = "1.0.0"
+  agent_id     = coder_agent.example.id
+  display_name = "Fleet"
+  group        = "JetBrains IDEs"
+  order        = 1
+}
+```
+
+## How it works
+
+1. The module creates an external app link in your Coder workspace
+2. When clicked, it generates a `fleet://` URI that instructs Fleet to connect via SSH
+3. Fleet connects to your workspace using the SSH credentials provided by Coder
+4. You can then develop remotely with full Fleet IDE capabilities
+
+## SSH Connection
+
+Fleet uses SSH to connect to your workspace. The connection URL format is:
+
+```
+fleet://fleet.ssh/<workspace-url>?pwd=<folder>&forceNewHost=true
+```
+
+The `forceNewHost=true` parameter ensures Fleet establishes a fresh connection each time.
