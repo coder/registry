@@ -425,7 +425,7 @@ resource "coder_app" "claude_code_web" {
   healthcheck {
     url       = "http://localhost:3284/status"
     interval  = 5
-    threshold = 3
+    threshold = 6
   }
 }
 
