@@ -72,19 +72,6 @@ data "coder_parameter" "ai_prompt" {
   mutable     = true
 }
 
-# Set the prompt and system prompt for Claude Code via environment variables
-resource "coder_agent" "main" {
-  # ...
-  env = {
-    CODER_MCP_CLAUDE_API_KEY       = var.anthropic_api_key # or use a coder_parameter
-    CODER_MCP_CLAUDE_TASK_PROMPT   = data.coder_parameter.ai_prompt.value
-    CODER_MCP_APP_STATUS_SLUG      = "claude-code"
-    CODER_MCP_CLAUDE_SYSTEM_PROMPT = <<-EOT
-      You are a helpful assistant that can help with code.
-    EOT
-  }
-}
-
 module "claude-code" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/claude-code/coder"
@@ -93,6 +80,13 @@ module "claude-code" {
   folder              = "/home/coder"
   install_claude_code = true
   claude_code_version = "0.2.57"
+
+  # Set API key and prompts directly in the module
+  claude_api_key = var.anthropic_api_key # or use a coder_parameter
+  task_prompt    = data.coder_parameter.ai_prompt.value
+  system_prompt  = <<-EOT
+    You are a helpful assistant that can help with code.
+  EOT
 
   # Enable experimental features
   experiment_use_screen   = true # Or use experiment_use_tmux = true to use tmux instead

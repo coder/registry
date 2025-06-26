@@ -96,9 +96,62 @@ variable "experiment_tmux_session_save_interval" {
   default     = "15"
 }
 
+variable "claude_api_key" {
+  type        = string
+  description = "Anthropic API key for Claude."
+  default     = ""
+  sensitive   = true
+}
+
+variable "task_prompt" {
+  type        = string
+  description = "Task prompt for Claude Code."
+  default     = ""
+}
+
+variable "system_prompt" {
+  type        = string
+  description = "System prompt for Claude Code."
+  default     = ""
+}
+
+variable "app_status_slug" {
+  type        = string
+  description = "App status slug for Claude Code."
+  default     = "claude-code"
+}
+
 locals {
   encoded_pre_install_script  = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
   encoded_post_install_script = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
+}
+
+# Set environment variables for Claude Code
+resource "coder_env" "claude_api_key" {
+  count    = var.claude_api_key != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CODER_MCP_CLAUDE_API_KEY"
+  value    = var.claude_api_key
+}
+
+resource "coder_env" "claude_task_prompt" {
+  count    = var.task_prompt != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CODER_MCP_CLAUDE_TASK_PROMPT"
+  value    = var.task_prompt
+}
+
+resource "coder_env" "claude_system_prompt" {
+  count    = var.system_prompt != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CODER_MCP_CLAUDE_SYSTEM_PROMPT"
+  value    = var.system_prompt
+}
+
+resource "coder_env" "claude_app_status_slug" {
+  agent_id = var.agent_id
+  name     = "CODER_MCP_APP_STATUS_SLUG"
+  value    = var.app_status_slug
 }
 
 # Install and Initialize Claude Code
