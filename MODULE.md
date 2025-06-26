@@ -1,6 +1,6 @@
 # Coder Modules:
 
-_Technical reference for understanding, developing, and implementing Coder modules in workspace environments_
+_Technical reference for understanding, developing, and contributing Coder modules_
 
 ## Table of Contents
 
