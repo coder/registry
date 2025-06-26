@@ -1,4 +1,4 @@
-# Coder Modules: Comprehensive Documentation
+# Coder Modules:
 
 _Technical reference for understanding, developing, and implementing Coder modules in workspace environments_
 
