@@ -84,7 +84,7 @@ The relationship between these components enables scalable workspace management:
 
 ### Terraform Foundation
 
-Coder modules are implemented as Terraform modules using HashiCorp's infrastructure-as-code framework. The [Coder Terraform provider](https://registry.terraform.io/providers/coder/coder/latest/docs) extends standard Terraform functionality with workspace-specific resources:
+Coder modules are written in Terraform and are used to extend Coder Templates. The [Coder Terraform provider](https://registry.terraform.io/providers/coder/coder/latest/docs) extends standard Terraform functionality with workspace-specific resources:
 
 **Core Module Resources:**
 
