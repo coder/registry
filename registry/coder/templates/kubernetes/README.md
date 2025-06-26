@@ -1,7 +1,7 @@
 ---
 display_name: Kubernetes (Deployment)
 description: Provision Kubernetes Deployments as Coder workspaces
-icon: ../../../../.icons/k8s.png
+icon: ../../../../.icons/kubernetes.svg
 maintainer_github: coder
 verified: true
 tags: [kubernetes, container]
