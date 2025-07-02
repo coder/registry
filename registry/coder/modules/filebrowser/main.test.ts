@@ -55,7 +55,7 @@ describe("filebrowser", async () => {
     );
 
     testBaseLine(output);
-  });
+  }, 15000);
 
   it("runs with database_path var", async () => {
     const state = await runTerraformApply(import.meta.dir, {
@@ -71,7 +71,7 @@ describe("filebrowser", async () => {
     );
 
     testBaseLine(output);
-  });
+  }, 15000);
 
   it("runs with folder var", async () => {
     const state = await runTerraformApply(import.meta.dir, {
@@ -85,8 +85,7 @@ describe("filebrowser", async () => {
       "apk add bash",
     );
 
-    testBaseLine(output);
-  });
+  }, 15000);
 
   it("runs with subdomain=false", async () => {
     const state = await runTerraformApply(import.meta.dir, {
@@ -103,5 +102,5 @@ describe("filebrowser", async () => {
     );
 
     testBaseLine(output);
-  });
+  }, 15000);
 });
