@@ -63,7 +63,7 @@ describe("filebrowser", async () => {
       database_path: ".config/filebrowser.db",
     });
 
-    const output = await await executeScriptInContainer(
+    const output = await executeScriptInContainer(
       state,
       "alpine/curl",
       "sh",
@@ -78,12 +78,14 @@ describe("filebrowser", async () => {
       agent_id: "foo",
       folder: "/home/coder/project",
     });
-    const output = await await executeScriptInContainer(
+    const output = await executeScriptInContainer(
       state,
       "alpine/curl",
       "sh",
       "apk add bash",
     );
+
+    testBaseLine(output);
   });
 
   it("runs with subdomain=false", async () => {
@@ -93,7 +95,7 @@ describe("filebrowser", async () => {
       subdomain: false,
     });
 
-    const output = await await executeScriptInContainer(
+    const output = await executeScriptInContainer(
       state,
       "alpine/curl",
       "sh",
