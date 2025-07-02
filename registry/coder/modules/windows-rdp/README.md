@@ -1,5 +1,5 @@
 ---
-display_name: Windows RDP
+display_name: RDP Web
 description: RDP Server and Web Client, powered by Devolutions Gateway
 icon: ../../../../.icons/desktop.svg
 maintainer_github: coder
