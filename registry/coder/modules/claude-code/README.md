@@ -89,7 +89,7 @@ module "claude-code" {
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
-  claude_code_version = "0.2.57"
+  claude_code_version = "1.0.40"
 
   # Enable experimental features
   experiment_report_tasks = true
@@ -113,3 +113,7 @@ module "claude-code" {
   icon = "https://registry.npmmirror.com/@lobehub/icons-static-png/1.24.0/files/dark/claude-color.png"
 }
 ```
+
+## Troubleshooting
+
+The module will create log files in the workspace's `~/.claude-module` directory. If you run into any issues, look at them for more information.
