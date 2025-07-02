@@ -28,8 +28,5 @@ jobs:
         uses: google-github-actions/setup-gcloud@77e7a554d41e2ee56fc945c52dfd3f33d12def9a
       - name: Deploy to dev.registry.coder.com
         run: gcloud builds triggers run 29818181-126d-4f8a-a937-f228b27d3d34 --branch main
-      # garrett!: We don't have a good way to target this right now, so I'm commenting it out
-      # so we don't accidently deploy to production.
-      # - name: Deploy to registry.coder.com
-      #   run: |
-      #     gcloud builds triggers run 106610ff-41fb-4bd0-90a2-7643583fb9c0 --branch main
+      - name: Deploy to registry.coder.com
+        run: gcloud builds triggers run 106610ff-41fb-4bd0-90a2-7643583fb9c0 --tag production
