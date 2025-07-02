@@ -1,11 +1,11 @@
 ---
-display_name: RDP Web
+display_name: RDP Desktop
 description: Enable RDP on Windows and add a one-click Coder Desktop button for seamless access
 icon: ../../../../.icons/desktop.svg
 maintainer_github: coder
 verified: true
 supported_os: [windows]
-tags: [rdp, windows, web]
+tags: [rdp, windows, desktop, local]
 ---
 
 # Windows RDP Desktop
