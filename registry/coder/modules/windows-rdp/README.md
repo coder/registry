@@ -64,7 +64,3 @@ module "windows_rdp" {
   devolutions_gateway_version = "2025.1.6" # Specify a specific version
 }
 ```
-
-## Roadmap
-
-- [ ] Test on Microsoft Azure.
