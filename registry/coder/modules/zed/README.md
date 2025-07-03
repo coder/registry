@@ -1,15 +1,15 @@
 ---
-display_name: Zed IDE
-description: Add a one-click button to launch Zed IDE
+display_name: Zed Editor
+description: Add a one-click button to launch Zed Editor
 icon: ../../../../.icons/zed.svg
 maintainer_github: coder
 verified: true
 tags: [ide, zed, editor]
 ---
 
-# Zed IDE
+# Zed Editor
 
-Add a button to open any workspace with a single click in Zed IDE.
+Add a button to open any workspace with a single click in Zed Editor.
 
 Zed is a high-performance, multiplayer code editor from the creators of Atom and Tree-sitter.
 

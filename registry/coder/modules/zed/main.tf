@@ -22,7 +22,7 @@ variable "agent_name" {
 
 variable "folder" {
   type        = string
-  description = "The folder to open in Zed IDE."
+  description = "The folder to open in Zed Editor."
   default     = ""
 }
 
@@ -47,7 +47,7 @@ variable "slug" {
 variable "display_name" {
   type        = string
   description = "The display name of the app."
-  default     = "Zed IDE"
+  default     = "Zed Editor"
 }
 
 data "coder_workspace" "me" {}
@@ -73,5 +73,5 @@ resource "coder_app" "zed" {
 
 output "zed_url" {
   value       = coder_app.zed.url
-  description = "Zed IDE URL."
+  description = "Zed Editor URL."
 }
