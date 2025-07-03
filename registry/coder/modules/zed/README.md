@@ -1,20 +1,20 @@
 ---
-display_name: Zed Editor
-description: Add a one-click button to launch Zed Editor
+display_name: Zed
+description: Add a one-click button to launch Zed
 icon: ../../../../.icons/zed.svg
 maintainer_github: coder
 verified: true
 tags: [ide, zed, editor]
 ---
 
-# Zed Editor
+# Zed
 
-Add a button to open any workspace with a single click in Zed Editor.
+Add a button to open any workspace with a single click in Zed.
 
 Zed is a high-performance, multiplayer code editor from the creators of Atom and Tree-sitter.
 
 > [!IMPORTANT]
-> Zed needs you to either have Coder CLI installed with `coder config-ssh` run or [Coder Desktop](https://coder.com/docs/user-guides/desktop).
+> Zed needs you to either have Coder CLI installed with `coder config-ssh` run or [Coder Desktop](https://coder.com/docs/user-guides/desktop)
 
 ```tf
 module "zed" {
