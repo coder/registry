@@ -17,7 +17,7 @@ describe("zed", async () => {
       agent_id: "foo",
     });
     expect(state.outputs.zed_url.value).toBe(
-      "zed://ssh/default.coder",
+      "zed://ssh/default.default.coder",
     );
 
     const coder_app = state.resources.find(
@@ -35,7 +35,7 @@ describe("zed", async () => {
       folder: "/foo/bar",
     });
     expect(state.outputs.zed_url.value).toBe(
-      "zed://ssh/default.coder/foo/bar",
+      "zed://ssh/default.default.coder/foo/bar",
     );
   });
 
