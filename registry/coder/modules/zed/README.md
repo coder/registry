@@ -13,6 +13,9 @@ Add a button to open any workspace with a single click in Zed IDE.
 
 Zed is a high-performance, multiplayer code editor from the creators of Atom and Tree-sitter.
 
+> [!IMPORTANT]
+> Zed needs you to either have Coder CLI installed with `coder config-ssh` run or [Coder Desktop](https://coder.com/docs/user-guides/desktop).
+
 ```tf
 module "zed" {
   count    = data.coder_workspace.me.start_count
