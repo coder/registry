@@ -11,42 +11,42 @@ terraform {
 
 variable "agent_id" {
   type        = string
-  description = "The ID of a Coder agent."
+  description = "The ID of a Coder agent"
 }
 
 variable "agent_name" {
   type        = string
-  description = "The name of the agent."
+  description = "The name of the agent"
   default     = ""
 }
 
 variable "folder" {
   type        = string
-  description = "The folder to open in Zed."
+  description = "The folder to open in Zed"
   default     = ""
 }
 
 variable "order" {
   type        = number
-  description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
+  description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)"
   default     = null
 }
 
 variable "group" {
   type        = string
-  description = "The name of a group that this app belongs to."
+  description = "The name of a group that this app belongs to"
   default     = null
 }
 
 variable "slug" {
   type        = string
-  description = "The slug of the app."
+  description = "The slug of the app"
   default     = "zed"
 }
 
 variable "display_name" {
   type        = string
-  description = "The display name of the app."
+  description = "The display name of the app"
   default     = "Zed"
 }
 
@@ -73,5 +73,5 @@ resource "coder_app" "zed" {
 
 output "zed_url" {
   value       = coder_app.zed.url
-  description = "Zed URL."
+  description = "Zed URL"
 }
