@@ -14,7 +14,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "2.0.0"
+  version             = "2.0.1"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
@@ -85,11 +85,11 @@ resource "coder_agent" "main" {
 module "claude-code" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "2.0.0"
+  version             = "2.0.1"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
-  claude_code_version = "0.2.57"
+  claude_code_version = "1.0.40"
 
   # Enable experimental features
   experiment_report_tasks = true
@@ -103,7 +103,7 @@ Run Claude Code as a standalone app in your workspace. This will install Claude 
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "2.0.0"
+  version             = "2.0.1"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
@@ -113,3 +113,7 @@ module "claude-code" {
   icon = "https://registry.npmmirror.com/@lobehub/icons-static-png/1.24.0/files/dark/claude-color.png"
 }
 ```
+
+## Troubleshooting
+
+The module will create log files in the workspace's `~/.claude-module` directory. If you run into any issues, look at them for more information.

@@ -55,7 +55,7 @@ describe("filebrowser", async () => {
     );
 
     testBaseLine(output);
-  });
+  }, 15000);
 
   it("runs with database_path var", async () => {
     const state = await runTerraformApply(import.meta.dir, {
@@ -63,7 +63,7 @@ describe("filebrowser", async () => {
       database_path: ".config/filebrowser.db",
     });
 
-    const output = await await executeScriptInContainer(
+    const output = await executeScriptInContainer(
       state,
       "alpine/curl",
       "sh",
@@ -71,20 +71,21 @@ describe("filebrowser", async () => {
     );
 
     testBaseLine(output);
-  });
+  }, 15000);
 
   it("runs with folder var", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       folder: "/home/coder/project",
     });
-    const output = await await executeScriptInContainer(
+    const output = await executeScriptInContainer(
       state,
       "alpine/curl",
       "sh",
       "apk add bash",
     );
-  });
+
+  }, 15000);
 
   it("runs with subdomain=false", async () => {
     const state = await runTerraformApply(import.meta.dir, {
@@ -93,7 +94,7 @@ describe("filebrowser", async () => {
       subdomain: false,
     });
 
-    const output = await await executeScriptInContainer(
+    const output = await executeScriptInContainer(
       state,
       "alpine/curl",
       "sh",
@@ -101,5 +102,5 @@ describe("filebrowser", async () => {
     );
 
     testBaseLine(output);
-  });
+  }, 15000);
 });

@@ -25,7 +25,7 @@ export FB_DATABASE="${DB_PATH}"
 # Check if filebrowser db exists
 if [[ ! -f "${DB_PATH}" ]]; then
   filebrowser config init 2>&1 | tee -a ${LOG_PATH}
-  filebrowser users add admin "" --perm.admin=true --viewMode=mosaic 2>&1 | tee -a ${LOG_PATH}
+  filebrowser users add admin "coderPASSWORD" --perm.admin=true --viewMode=mosaic 2>&1 | tee -a ${LOG_PATH}
 fi
 
 filebrowser config set --baseurl=${SERVER_BASE_PATH} --port=${PORT} --auth.method=noauth --root=$ROOT_DIR 2>&1 | tee -a ${LOG_PATH}
