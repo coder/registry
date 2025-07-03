@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 0.17"
+      version = ">= 2.5"
     }
   }
 }
@@ -97,6 +97,12 @@ variable "order" {
   default     = null
 }
 
+variable "group" {
+  type        = string
+  description = "The name of a group that this app belongs to."
+  default     = null
+}
+
 variable "settings" {
   type        = any
   description = "A map of settings to apply to VS Code web."
@@ -112,6 +118,12 @@ variable "offline" {
 variable "use_cached" {
   type        = bool
   description = "Uses cached copy of VS Code Web in the background, otherwise fetches it from internet."
+  default     = false
+}
+
+variable "disable_trust" {
+  type        = bool
+  description = "Disables workspace trust protection for VS Code Web."
   default     = false
 }
 
@@ -163,6 +175,7 @@ resource "coder_script" "vscode-web" {
     SETTINGS : replace(jsonencode(var.settings), "\"", "\\\""),
     OFFLINE : var.offline,
     USE_CACHED : var.use_cached,
+    DISABLE_TRUST : var.disable_trust,
     EXTENSIONS_DIR : var.extensions_dir,
     FOLDER : var.folder,
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
@@ -194,6 +207,7 @@ resource "coder_app" "vscode-web" {
   subdomain    = var.subdomain
   share        = var.share
   order        = var.order
+  group        = var.group
 
   healthcheck {
     url       = local.healthcheck_url

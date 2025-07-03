@@ -14,7 +14,7 @@ Run [Amazon Q](https://aws.amazon.com/q/) in your workspace to access Amazon's A
 ```tf
 module "amazon-q" {
   source   = "registry.coder.com/coder/amazon-q/coder"
-  version  = "1.0.1"
+  version  = "1.1.0"
   agent_id = coder_agent.example.id
   # Required: see below for how to generate
   experiment_auth_tarball = var.amazon_q_auth_tarball
@@ -82,7 +82,7 @@ module "amazon-q" {
 ```tf
 module "amazon-q" {
   source                  = "registry.coder.com/coder/amazon-q/coder"
-  version                 = "1.0.1"
+  version                 = "1.1.0"
   agent_id                = coder_agent.example.id
   experiment_auth_tarball = var.amazon_q_auth_tarball
   experiment_use_tmux     = true
@@ -94,7 +94,7 @@ module "amazon-q" {
 ```tf
 module "amazon-q" {
   source                  = "registry.coder.com/coder/amazon-q/coder"
-  version                 = "1.0.1"
+  version                 = "1.1.0"
   agent_id                = coder_agent.example.id
   experiment_auth_tarball = var.amazon_q_auth_tarball
   experiment_report_tasks = true
@@ -106,32 +106,13 @@ module "amazon-q" {
 ```tf
 module "amazon-q" {
   source                         = "registry.coder.com/coder/amazon-q/coder"
-  version                        = "1.0.1"
+  version                        = "1.1.0"
   agent_id                       = coder_agent.example.id
   experiment_auth_tarball        = var.amazon_q_auth_tarball
   experiment_pre_install_script  = "echo Pre-install!"
   experiment_post_install_script = "echo Post-install!"
 }
 ```
-
-## Variables
-
-| Name                             | Required | Default                  | Description                                                                                     |
-| -------------------------------- | -------- | ------------------------ | ----------------------------------------------------------------------------------------------- |
-| `agent_id`                       | Yes      | —                        | The ID of a Coder agent.                                                                        |
-| `experiment_auth_tarball`        | Yes      | —                        | Base64-encoded, zstd-compressed tarball of a pre-authenticated Amazon Q config directory.       |
-| `install_amazon_q`               | No       | `true`                   | Whether to install Amazon Q.                                                                    |
-| `amazon_q_version`               | No       | `latest`                 | Version to install.                                                                             |
-| `experiment_use_screen`          | No       | `false`                  | Use GNU screen for background operation.                                                        |
-| `experiment_use_tmux`            | No       | `false`                  | Use tmux for background operation.                                                              |
-| `experiment_report_tasks`        | No       | `false`                  | Enable task reporting to Coder.                                                                 |
-| `experiment_pre_install_script`  | No       | `null`                   | Custom script to run before install.                                                            |
-| `experiment_post_install_script` | No       | `null`                   | Custom script to run after install.                                                             |
-| `icon`                           | No       | `/icon/amazon-q.svg`     | The icon to use for the app.                                                                    |
-| `folder`                         | No       | `/home/coder`            | The folder to run Amazon Q in.                                                                  |
-| `order`                          | No       | `null`                   | The order determines the position of app in the UI presentation.                                |
-| `system_prompt`                  | No       | See [main.tf](./main.tf) | The system prompt to use for Amazon Q. This should instruct the agent how to do task reporting. |
-| `ai_prompt`                      | No       | See [main.tf](./main.tf) | The initial task prompt to send to Amazon Q.                                                    |
 
 ## Notes
 

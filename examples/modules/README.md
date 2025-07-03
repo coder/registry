@@ -15,7 +15,7 @@ tags: [helper]
 module "MODULE_NAME" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/NAMESPACE/MODULE_NAME/coder"
-  version = "1.0.2"
+  version = "1.0.0"
 }
 ```
 
@@ -31,7 +31,7 @@ Install the Dracula theme from [OpenVSX](https://open-vsx.org/):
 module "MODULE_NAME" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/NAMESPACE/MODULE_NAME/coder"
-  version  = "1.0.2"
+  version  = "1.0.0"
   agent_id = coder_agent.example.id
   extensions = [
     "dracula-theme.theme-dracula"
@@ -49,7 +49,7 @@ Configure VS Code's [settings.json](https://code.visualstudio.com/docs/getstarte
 module "MODULE_NAME" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/NAMESPACE/MODULE_NAME/coder"
-  version    = "1.0.2"
+  version    = "1.0.0"
   agent_id   = coder_agent.example.id
   extensions = ["dracula-theme.theme-dracula"]
   settings = {
@@ -65,7 +65,7 @@ Run code-server in the background, don't fetch it from GitHub:
 ```tf
 module "MODULE_NAME" {
   source   = "registry.coder.com/NAMESPACE/MODULE_NAME/coder"
-  version  = "1.0.2"
+  version  = "1.0.0"
   agent_id = coder_agent.example.id
   offline  = true
 }

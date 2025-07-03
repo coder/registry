@@ -4,7 +4,7 @@ description: Run Goose in your workspace
 icon: ../../../../.icons/goose.svg
 maintainer_github: coder
 verified: true
-tags: [agent, goose]
+tags: [agent, goose, ai]
 ---
 
 # Goose
@@ -14,7 +14,7 @@ Run the [Goose](https://block.github.io/goose/) agent in your workspace to gener
 ```tf
 module "goose" {
   source        = "registry.coder.com/coder/goose/coder"
-  version       = "1.1.1"
+  version       = "1.3.0"
   agent_id      = coder_agent.example.id
   folder        = "/home/coder"
   install_goose = true
@@ -24,14 +24,14 @@ module "goose" {
 
 ## Prerequisites
 
-- `screen` must be installed in your workspace to run Goose in the background
+- `screen` or `tmux` must be installed in your workspace to run Goose in the background
 - You must add the [Coder Login](https://registry.coder.com/modules/coder-login) module to your template
 
 The `codercom/oss-dogfood:latest` container image can be used for testing on container-based workspaces.
 
 ## Examples
 
-Your workspace must have `screen` installed to use this.
+Your workspace must have `screen` or `tmux` installed to use the background session functionality.
 
 ### Run in the background and report tasks (Experimental)
 
@@ -90,7 +90,7 @@ resource "coder_agent" "main" {
 module "goose" {
   count         = data.coder_workspace.me.start_count
   source        = "registry.coder.com/coder/goose/coder"
-  version       = "1.1.1"
+  version       = "1.3.0"
   agent_id      = coder_agent.example.id
   folder        = "/home/coder"
   install_goose = true
@@ -99,8 +99,12 @@ module "goose" {
   # Enable experimental features
   experiment_report_tasks = true
 
-  # Run Goose in the background
+  # Run Goose in the background with screen (pick one: screen or tmux)
   experiment_use_screen = true
+  # experiment_use_tmux = true  # Alternative: use tmux instead of screen
+
+  # Optional: customize the session name (defaults to "goose")
+  # session_name = "goose-session"
 
   # Avoid configuring Goose manually
   experiment_auto_configure = true
@@ -143,12 +147,12 @@ Note: The indentation in the heredoc is preserved, so you can write the YAML nat
 
 ## Run standalone
 
-Run Goose as a standalone app in your workspace. This will install Goose and run it directly without using screen or any task reporting to the Coder UI.
+Run Goose as a standalone app in your workspace. This will install Goose and run it directly without using screen or tmux, and without any task reporting to the Coder UI.
 
 ```tf
 module "goose" {
   source        = "registry.coder.com/coder/goose/coder"
-  version       = "1.1.1"
+  version       = "1.3.0"
   agent_id      = coder_agent.example.id
   folder        = "/home/coder"
   install_goose = true

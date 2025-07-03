@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 0.17"
+      version = ">= 2.5"
     }
     http = {
       source  = "hashicorp/http"
@@ -45,7 +45,7 @@ variable "folder" {
   type        = string
   description = "The directory to open in the IDE. e.g. /home/coder/project"
   validation {
-    condition     = can(regex("^(?:/[^/]+)+$", var.folder))
+    condition     = can(regex("^(?:/[^/]+)+/?$", var.folder))
     error_message = "The folder must be a full path and must not start with a ~."
   }
 }
@@ -59,6 +59,12 @@ variable "default" {
 variable "order" {
   type        = number
   description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
+  default     = null
+}
+
+variable "group" {
+  type        = string
+  description = "The name of a group that this app belongs to."
   default     = null
 }
 
@@ -324,6 +330,7 @@ resource "coder_app" "gateway" {
   icon         = local.icon
   external     = true
   order        = var.order
+  group        = var.group
   url = join("", [
     "jetbrains-gateway://connect#type=coder&workspace=",
     data.coder_workspace.me.name,
@@ -341,6 +348,8 @@ resource "coder_app" "gateway" {
     local.build_number,
     "&ide_download_link=",
     local.download_link,
+    "&agent_id=",
+    var.agent_id,
   ])
 }
 

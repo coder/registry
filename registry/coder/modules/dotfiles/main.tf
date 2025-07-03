@@ -4,9 +4,21 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 0.12"
+      version = ">= 2.5"
     }
   }
+}
+
+variable "order" {
+  type        = number
+  description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
+  default     = null
+}
+
+variable "group" {
+  type        = string
+  description = "The name of a group that this app belongs to."
+  default     = null
 }
 
 variable "agent_id" {
@@ -79,6 +91,8 @@ resource "coder_app" "dotfiles" {
   display_name = "Refresh Dotfiles"
   slug         = "dotfiles"
   icon         = "/icon/dotfiles.svg"
+  order        = var.order
+  group        = var.group
   command = templatefile("${path.module}/run.sh", {
     DOTFILES_URI : local.dotfiles_uri,
     DOTFILES_USER : local.user

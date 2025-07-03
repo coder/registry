@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 0.17"
+      version = ">= 2.5"
     }
   }
 }
@@ -105,4 +105,3 @@ data "coder_parameter" "MODULE_NAME" {
     }
   }
 }
-
