@@ -127,3 +127,9 @@ locals {
   url              = "http://localhost:${var.port}${local.server_base_path}"
   healthcheck_url  = "http://localhost:${var.port}${local.server_base_path}/health"
 }
+
+resource "coder_env" "fb_noauth" {
+  agent_id = var.agent_id
+  name     = "FB_NOAUTH"
+  value    = "true"
+}
