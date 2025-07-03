@@ -30,6 +30,21 @@ export const runContainer = async (
   return containerID.trim();
 };
 
+export const removeContainer = async (id: string) => {
+  const proc = spawn(["docker", "rm", "-f", id], {
+    stderr: "pipe",
+    stdout: "pipe",
+  });
+  const exitCode = await proc.exited;
+  const [stderr, stdout] = await Promise.all([
+    readableStreamToText(proc.stderr ?? new ReadableStream()),
+    readableStreamToText(proc.stdout ?? new ReadableStream()),
+  ]);
+  if (exitCode !== 0) {
+    throw new Error(`${stderr}\n${stdout}`);
+  }
+};
+
 export interface scriptOutput {
   exitCode: number;
   stdout: string[];
@@ -279,10 +294,33 @@ export const createJSONResponse = (obj: object, statusCode = 200): Response => {
 };
 
 export const writeCoder = async (id: string, script: string) => {
-  const exec = await execContainer(id, [
-    "sh",
-    "-c",
-    `echo '${script}' > /usr/bin/coder && chmod +x /usr/bin/coder`,
-  ]);
-  expect(exec.exitCode).toBe(0);
+  await writeFileContainer(id, "/usr/bin/coder", script, {
+    user: "root",
+  });
+  const execResult = await execContainer(
+    id,
+    ["chmod", "755", "/usr/bin/coder"],
+    ["--user", "root"],
+  );
+  expect(execResult.exitCode).toBe(0);
+};
+
+export const writeFileContainer = async (
+  id: string,
+  path: string,
+  content: string,
+  options?: {
+    user?: string;
+  },
+) => {
+  const contentBase64 = Buffer.from(content).toString("base64");
+  const proc = await execContainer(
+    id,
+    ["sh", "-c", `echo '${contentBase64}' | base64 -d > '${path}'`],
+    options?.user ? ["--user", options.user] : undefined,
+  );
+  if (proc.exitCode !== 0) {
+    throw new Error(`Failed to write file: ${proc.stderr}`);
+  }
+  expect(proc.exitCode).toBe(0);
 };

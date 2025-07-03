@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.5"
+      version = ">= 2.7"
     }
   }
 }
@@ -54,16 +54,22 @@ variable "claude_code_version" {
   default     = "latest"
 }
 
-variable "experiment_use_screen" {
+variable "experiment_cli_app" {
   type        = bool
-  description = "Whether to use screen for running Claude Code in the background."
+  description = "Whether to create the CLI workspace app."
   default     = false
 }
 
-variable "experiment_use_tmux" {
-  type        = bool
-  description = "Whether to use tmux instead of screen for running Claude Code in the background."
-  default     = false
+variable "experiment_cli_app_order" {
+  type        = number
+  description = "The order of the CLI workspace app."
+  default     = null
+}
+
+variable "experiment_cli_app_group" {
+  type        = string
+  description = "The group of the CLI workspace app."
+  default     = null
 }
 
 variable "experiment_report_tasks" {
@@ -84,21 +90,29 @@ variable "experiment_post_install_script" {
   default     = null
 }
 
-variable "experiment_tmux_session_persistence" {
+
+variable "install_agentapi" {
   type        = bool
-  description = "Whether to enable tmux session persistence across workspace restarts."
-  default     = false
+  description = "Whether to install AgentAPI."
+  default     = true
 }
 
-variable "experiment_tmux_session_save_interval" {
+variable "agentapi_version" {
   type        = string
-  description = "How often to save tmux sessions in minutes."
-  default     = "15"
+  description = "The version of AgentAPI to install."
+  default     = "v0.2.2"
 }
 
 locals {
-  encoded_pre_install_script  = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
-  encoded_post_install_script = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
+  # we have to trim the slash because otherwise coder exp mcp will
+  # set up an invalid claude config 
+  workdir                            = trimsuffix(var.folder, "/")
+  encoded_pre_install_script         = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
+  encoded_post_install_script        = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
+  agentapi_start_script_b64          = base64encode(file("${path.module}/scripts/agentapi-start.sh"))
+  agentapi_wait_for_start_script_b64 = base64encode(file("${path.module}/scripts/agentapi-wait-for-start.sh"))
+  remove_last_session_id_script_b64  = base64encode(file("${path.module}/scripts/remove-last-session-id.js"))
+  claude_code_app_slug               = "ccw"
 }
 
 # Install and Initialize Claude Code
@@ -109,35 +123,16 @@ resource "coder_script" "claude_code" {
   script       = <<-EOT
     #!/bin/bash
     set -e
+    set -x
 
     command_exists() {
       command -v "$1" >/dev/null 2>&1
     }
 
-    install_tmux() {
-      echo "Installing tmux..."
-      if command_exists apt-get; then
-        sudo apt-get update && sudo apt-get install -y tmux
-      elif command_exists yum; then
-        sudo yum install -y tmux
-      elif command_exists dnf; then
-        sudo dnf install -y tmux
-      elif command_exists pacman; then
-        sudo pacman -S --noconfirm tmux
-      elif command_exists apk; then
-        sudo apk add tmux
-      else
-        echo "Error: Unable to install tmux automatically. Package manager not recognized."
-        exit 1
-      fi
-    }
-
-    if [ ! -d "${var.folder}" ]; then
-      echo "Warning: The specified folder '${var.folder}' does not exist."
+    if [ ! -d "${local.workdir}" ]; then
+      echo "Warning: The specified folder '${local.workdir}' does not exist."
       echo "Creating the folder..."
-      # The folder must exist before tmux is started or else claude will start
-      # in the home directory.
-      mkdir -p "${var.folder}"
+      mkdir -p "${local.workdir}"
       echo "Folder created successfully."
     fi
     if [ -n "${local.encoded_pre_install_script}" ]; then
@@ -176,9 +171,58 @@ resource "coder_script" "claude_code" {
       npm install -g @anthropic-ai/claude-code@${var.claude_code_version}
     fi
 
+    if ! command_exists node; then
+      echo "Error: Node.js is not installed. Please install Node.js manually."
+      exit 1
+    fi
+
+    # Install AgentAPI if enabled
+    if [ "${var.install_agentapi}" = "true" ]; then
+      echo "Installing AgentAPI..."
+      arch=$(uname -m)
+      if [ "$arch" = "x86_64" ]; then
+        binary_name="agentapi-linux-amd64"
+      elif [ "$arch" = "aarch64" ]; then
+        binary_name="agentapi-linux-arm64"
+      else
+        echo "Error: Unsupported architecture: $arch"
+        exit 1
+      fi
+      curl \
+        --retry 5 \
+        --retry-delay 5 \
+        --fail \
+        --retry-all-errors \
+        -L \
+        -C - \
+        -o agentapi \
+        "https://github.com/coder/agentapi/releases/download/${var.agentapi_version}/$binary_name"
+      chmod +x agentapi
+      sudo mv agentapi /usr/local/bin/agentapi
+    fi
+    if ! command_exists agentapi; then
+      echo "Error: AgentAPI is not installed. Please enable install_agentapi or install it manually."
+      exit 1
+    fi
+
+    # this must be kept in sync with the agentapi-start.sh script
+    module_path="$HOME/.claude-module"
+    mkdir -p "$module_path/scripts"
+
+    # save the prompt for the agentapi start command
+    echo -n "$CODER_MCP_CLAUDE_TASK_PROMPT" > "$module_path/prompt.txt"
+
+    echo -n "${local.agentapi_start_script_b64}" | base64 -d > "$module_path/scripts/agentapi-start.sh"
+    echo -n "${local.agentapi_wait_for_start_script_b64}" | base64 -d > "$module_path/scripts/agentapi-wait-for-start.sh"
+    echo -n "${local.remove_last_session_id_script_b64}" | base64 -d > "$module_path/scripts/remove-last-session-id.js"
+    chmod +x "$module_path/scripts/agentapi-start.sh"
+    chmod +x "$module_path/scripts/agentapi-wait-for-start.sh"
+
     if [ "${var.experiment_report_tasks}" = "true" ]; then
       echo "Configuring Claude Code to report tasks via Coder MCP..."
-      coder exp mcp configure claude-code ${var.folder}
+      export CODER_MCP_APP_STATUS_SLUG="${local.claude_code_app_slug}"
+      export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
+      coder exp mcp configure claude-code "${local.workdir}"
     fi
 
     if [ -n "${local.encoded_post_install_script}" ]; then
@@ -188,133 +232,43 @@ resource "coder_script" "claude_code" {
       /tmp/post_install.sh
     fi
 
-    if [ "${var.experiment_use_tmux}" = "true" ] && [ "${var.experiment_use_screen}" = "true" ]; then
-      echo "Error: Both experiment_use_tmux and experiment_use_screen cannot be true simultaneously."
-      echo "Please set only one of them to true."
+    if ! command_exists claude; then
+      echo "Error: Claude Code is not installed. Please enable install_claude_code or install it manually."
       exit 1
     fi
 
-    if [ "${var.experiment_tmux_session_persistence}" = "true" ] && [ "${var.experiment_use_tmux}" != "true" ]; then
-      echo "Error: Session persistence requires tmux to be enabled."
-      echo "Please set experiment_use_tmux = true when using session persistence."
-      exit 1
-    fi
+    export LANG=en_US.UTF-8
+    export LC_ALL=en_US.UTF-8
 
-    if [ "${var.experiment_use_tmux}" = "true" ]; then
-      if ! command_exists tmux; then
-        install_tmux
-      fi
-
-      if [ "${var.experiment_tmux_session_persistence}" = "true" ]; then
-        echo "Setting up tmux session persistence..."
-        if ! command_exists git; then
-          echo "Git not found, installing git..."
-          if command_exists apt-get; then
-            sudo apt-get update && sudo apt-get install -y git
-          elif command_exists yum; then
-            sudo yum install -y git
-          elif command_exists dnf; then
-            sudo dnf install -y git
-          elif command_exists pacman; then
-            sudo pacman -S --noconfirm git
-          elif command_exists apk; then
-            sudo apk add git
-          else
-            echo "Error: Unable to install git automatically. Package manager not recognized."
-            echo "Please install git manually to enable session persistence."
-            exit 1
-          fi
-        fi
-        
-        mkdir -p ~/.tmux/plugins
-        if [ ! -d ~/.tmux/plugins/tpm ]; then
-          git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
-        fi
-        
-        cat > ~/.tmux.conf << EOF
-# Claude Code tmux persistence configuration
-set -g @plugin 'tmux-plugins/tmux-resurrect'
-set -g @plugin 'tmux-plugins/tmux-continuum'
-
-# Configure session persistence
-set -g @resurrect-processes ':all:'
-set -g @resurrect-capture-pane-contents 'on'
-set -g @resurrect-save-bash-history 'on'
-set -g @continuum-restore 'on'
-set -g @continuum-save-interval '${var.experiment_tmux_session_save_interval}'
-set -g @continuum-boot 'on'
-set -g @continuum-save-on 'on'
-
-# Initialize plugin manager
-run '~/.tmux/plugins/tpm/tpm'
-EOF
-
-        ~/.tmux/plugins/tpm/scripts/install_plugins.sh
-      fi
-
-      echo "Running Claude Code in the background with tmux..."
-      touch "$HOME/.claude-code.log"
-      export LANG=en_US.UTF-8
-      export LC_ALL=en_US.UTF-8
-
-      if [ "${var.experiment_tmux_session_persistence}" = "true" ]; then
-        sleep 3
-        
-        if ! tmux has-session -t claude-code 2>/dev/null; then
-          # Only create a new session if one doesn't exist
-          tmux new-session -d -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\""
-        fi
-      else
-        if ! tmux has-session -t claude-code 2>/dev/null; then
-          tmux new-session -d -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions \"$CODER_MCP_CLAUDE_TASK_PROMPT\""
-        fi
-      fi
-    fi
-
-    if [ "${var.experiment_use_screen}" = "true" ]; then
-      echo "Running Claude Code in the background..."
-      if ! command_exists screen; then
-        echo "Error: screen is not installed. Please install screen manually."
-        exit 1
-      fi
-
-      touch "$HOME/.claude-code.log"
-      if [ ! -f "$HOME/.screenrc" ]; then
-        echo "Creating ~/.screenrc and adding multiuser settings..." | tee -a "$HOME/.claude-code.log"
-        echo -e "multiuser on\nacladd $(whoami)" > "$HOME/.screenrc"
-      fi
-
-      if ! grep -q "^multiuser on$" "$HOME/.screenrc"; then
-        echo "Adding 'multiuser on' to ~/.screenrc..." | tee -a "$HOME/.claude-code.log"
-        echo "multiuser on" >> "$HOME/.screenrc"
-      fi
-
-      if ! grep -q "^acladd $(whoami)$" "$HOME/.screenrc"; then
-        echo "Adding 'acladd $(whoami)' to ~/.screenrc..." | tee -a "$HOME/.claude-code.log"
-        echo "acladd $(whoami)" >> "$HOME/.screenrc"
-      fi
-
-      export LANG=en_US.UTF-8
-      export LC_ALL=en_US.UTF-8
-
-      screen -U -dmS claude-code bash -c '
-        cd ${var.folder}
-        claude --dangerously-skip-permissions "$CODER_MCP_CLAUDE_TASK_PROMPT" | tee -a "$HOME/.claude-code.log"
-        exec bash
-      '
-    else
-      if ! command_exists claude; then
-        echo "Error: Claude Code is not installed. Please enable install_claude_code or install it manually."
-        exit 1
-      fi
-    fi
+    cd "${local.workdir}"
+    nohup "$module_path/scripts/agentapi-start.sh" use_prompt &> "$module_path/agentapi-start.log" &
+    "$module_path/scripts/agentapi-wait-for-start.sh"
     EOT
   run_on_start = true
 }
 
+resource "coder_app" "claude_code_web" {
+  # use a short slug to mitigate https://github.com/coder/coder/issues/15178
+  slug         = local.claude_code_app_slug
+  display_name = "Claude Code Web"
+  agent_id     = var.agent_id
+  url          = "http://localhost:3284/"
+  icon         = var.icon
+  order        = var.order
+  group        = var.group
+  subdomain    = true
+  healthcheck {
+    url       = "http://localhost:3284/status"
+    interval  = 3
+    threshold = 20
+  }
+}
+
 resource "coder_app" "claude_code" {
+  count = var.experiment_cli_app ? 1 : 0
+
   slug         = "claude-code"
-  display_name = "Claude Code"
+  display_name = "Claude Code CLI"
   agent_id     = var.agent_id
   command      = <<-EOT
     #!/bin/bash
@@ -323,32 +277,15 @@ resource "coder_app" "claude_code" {
     export LANG=en_US.UTF-8
     export LC_ALL=en_US.UTF-8
 
-    if [ "${var.experiment_use_tmux}" = "true" ]; then
-      if tmux has-session -t claude-code 2>/dev/null; then
-        echo "Attaching to existing Claude Code tmux session." | tee -a "$HOME/.claude-code.log"
-        # If Claude isn't running in the session, start it without the prompt
-        if ! tmux list-panes -t claude-code -F '#{pane_current_command}' | grep -q "claude"; then
-          tmux send-keys -t claude-code "cd ${var.folder} && claude -c --dangerously-skip-permissions" C-m
-        fi
-        tmux attach-session -t claude-code
-      else
-        echo "Starting a new Claude Code tmux session." | tee -a "$HOME/.claude-code.log"
-        tmux new-session -s claude-code -c ${var.folder} "claude --dangerously-skip-permissions | tee -a \"$HOME/.claude-code.log\"; exec bash"
-      fi
-    elif [ "${var.experiment_use_screen}" = "true" ]; then
-      if screen -list | grep -q "claude-code"; then
-        echo "Attaching to existing Claude Code screen session." | tee -a "$HOME/.claude-code.log"
-        screen -xRR claude-code
-      else
-        echo "Starting a new Claude Code screen session." | tee -a "$HOME/.claude-code.log"
-        screen -S claude-code bash -c 'claude --dangerously-skip-permissions | tee -a "$HOME/.claude-code.log"; exec bash'
-      fi
-    else
-      cd ${var.folder}
-      claude
-    fi
+    agentapi attach
     EOT
   icon         = var.icon
-  order        = var.order
-  group        = var.group
+  order        = var.experiment_cli_app_order
+  group        = var.experiment_cli_app_group
+}
+
+resource "coder_ai_task" "claude_code" {
+  sidebar_app {
+    id = coder_app.claude_code_web.id
+  }
 }
