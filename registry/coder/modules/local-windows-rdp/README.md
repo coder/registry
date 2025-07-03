@@ -12,14 +12,13 @@ tags: [rdp, windows, desktop, local]
 
 This module enables Remote Desktop Protocol (RDP) on Windows workspaces and adds a one-click button to launch RDP sessions directly through [Coder Desktop](https://coder.com/docs/user-guides/desktop). It provides a complete, standalone solution for RDP access, eliminating the need for manual configuration or port forwarding through the Coder CLI.
 
-> [!NOTE]
-> [Coder Desktop](https://coder.com/docs/user-guides/desktop) is required on client devices to use the Local Windows RDP access feature.
+> [!NOTE] > [Coder Desktop](https://coder.com/docs/user-guides/desktop) is required on client devices to use the Local Windows RDP access feature.
 
 ```tf
 module "rdp_desktop" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/local-windows-rdp/coder"
-  version    = "1.0.0"
+  version    = "1.0.1"
   agent_id   = coder_agent.main.id
   agent_name = coder_agent.main.name
 }
@@ -52,7 +51,7 @@ Uses default credentials (Username: `Administrator`, Password: `coderRDP!`):
 module "rdp_desktop" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/local-windows-rdp/coder"
-  version    = "1.0.0"
+  version    = "1.0.1"
   agent_id   = coder_agent.main.id
   agent_name = coder_agent.main.name
 }
@@ -66,7 +65,7 @@ Specify a custom display name for the `coder_app` button:
 module "rdp_desktop" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/coder/local-windows-rdp/coder"
-  version      = "1.0.0"
+  version      = "1.0.1"
   agent_id     = coder_agent.windows.id
   agent_name   = "windows"
   display_name = "Windows Desktop"
