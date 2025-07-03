@@ -114,6 +114,25 @@ variable "experiment_additional_extensions" {
   default     = null
 }
 
+variable "system_prompt" {
+  type        = string
+  description = "System prompt for Goose."
+  default     = ""
+}
+
+variable "task_prompt" {
+  type        = string
+  description = "Task prompt for Goose."
+  default     = ""
+}
+
+variable "anthropic_api_key" {
+  type        = string
+  description = "Anthropic API key for Goose."
+  default     = ""
+  sensitive   = true
+}
+
 locals {
   base_extensions = <<-EOT
 coder:
@@ -148,6 +167,28 @@ EOT
 
   encoded_pre_install_script  = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
   encoded_post_install_script = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
+}
+
+# Set environment variables for Goose
+resource "coder_env" "goose_system_prompt" {
+  count    = var.system_prompt != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "GOOSE_SYSTEM_PROMPT"
+  value    = var.system_prompt
+}
+
+resource "coder_env" "goose_task_prompt" {
+  count    = var.task_prompt != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "GOOSE_TASK_PROMPT"
+  value    = var.task_prompt
+}
+
+resource "coder_env" "anthropic_api_key" {
+  count    = var.anthropic_api_key != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_API_KEY"
+  value    = var.anthropic_api_key
 }
 
 # Install and Initialize Goose
