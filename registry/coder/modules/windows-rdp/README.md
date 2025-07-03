@@ -1,5 +1,5 @@
 ---
-display_name: RDP Web
+display_name: Windows RDP
 description: RDP Server and Web Client, powered by Devolutions Gateway
 icon: ../../../../.icons/desktop.svg
 maintainer_github: coder
@@ -16,7 +16,7 @@ Enable Remote Desktop + a web based client on Windows workspaces, powered by [de
 module "windows_rdp" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/windows-rdp/coder"
-  version     = "1.2.2"
+  version     = "1.2.1"
   agent_id    = resource.coder_agent.main.id
   resource_id = resource.aws_instance.dev.id
 }
@@ -34,7 +34,7 @@ module "windows_rdp" {
 module "windows_rdp" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/windows-rdp/coder"
-  version     = "1.2.2"
+  version     = "1.2.1"
   agent_id    = resource.coder_agent.main.id
   resource_id = resource.aws_instance.dev.id
 }
@@ -46,7 +46,7 @@ module "windows_rdp" {
 module "windows_rdp" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/windows-rdp/coder"
-  version     = "1.2.2"
+  version     = "1.2.1"
   agent_id    = resource.coder_agent.main.id
   resource_id = resource.google_compute_instance.dev[0].id
 }
@@ -58,9 +58,13 @@ module "windows_rdp" {
 module "windows_rdp" {
   count                       = data.coder_workspace.me.start_count
   source                      = "registry.coder.com/coder/windows-rdp/coder"
-  version                     = "1.2.2"
+  version                     = "1.2.1"
   agent_id                    = resource.coder_agent.main.id
   resource_id                 = resource.aws_instance.dev.id
   devolutions_gateway_version = "2025.1.6" # Specify a specific version
 }
 ```
+
+## Roadmap
+
+- [ ] Test on Microsoft Azure.
