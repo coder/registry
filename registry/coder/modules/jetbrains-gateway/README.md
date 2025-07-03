@@ -65,7 +65,7 @@ module "jetbrains_gateway" {
 module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jetbrains-gateway/coder"
-  version        =      "1.2.1"
+  version        = "1.2.1"
   agent_id       = coder_agent.example.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["IU", "PY"]
