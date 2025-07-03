@@ -324,3 +324,13 @@ export const writeFileContainer = async (
   }
   expect(proc.exitCode).toBe(0);
 };
+
+export const readFileContainer = async (id: string, path: string) => {
+  const proc = await execContainer(id, ["cat", path], ["--user", "root"]);
+  if (proc.exitCode !== 0) {
+    console.log(proc.stderr);
+    console.log(proc.stdout);
+  }
+  expect(proc.exitCode).toBe(0);
+  return proc.stdout;
+};
