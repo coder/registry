@@ -14,6 +14,12 @@ variable "agent_id" {
   description = "The ID of a Coder agent."
 }
 
+variable "agent_name" {
+  type        = string
+  description = "The name of the agent."
+  default     = ""
+}
+
 variable "folder" {
   type        = string
   description = "The folder to open in Zed IDE."
@@ -49,8 +55,8 @@ data "coder_workspace_owner" "me" {}
 
 locals {
   workspace_name = lower(data.coder_workspace.me.name)
-  owner_name     = lower(data.coder_workspace_owner.me.name)
-  hostname       = "${local.workspace_name}.${local.owner_name}.coder"
+  agent_name     = lower(var.agent_name)
+  hostname       = var.agent_name != "" ? "${local.agent_name}.${local.workspace_name}.me.coder" : "${local.workspace_name}.coder"
 }
 
 resource "coder_app" "zed" {
@@ -61,7 +67,7 @@ resource "coder_app" "zed" {
   external     = true
   order        = var.order
   group        = var.group
-  url          = "zed://ssh/${local.hostname}/${var.folder}"
+  url          = "zed://ssh/${local.hostname}${var.folder != "" ? "/${var.folder}" : ""}"
 }
 
 output "zed_url" {

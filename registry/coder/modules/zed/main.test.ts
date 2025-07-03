@@ -17,7 +17,7 @@ describe("zed", async () => {
       agent_id: "foo",
     });
     expect(state.outputs.zed_url.value).toBe(
-      "zed://ssh/default.default.coder/",
+      "zed://ssh/default.coder",
     );
 
     const coder_app = state.resources.find(
@@ -35,7 +35,7 @@ describe("zed", async () => {
       folder: "/foo/bar",
     });
     expect(state.outputs.zed_url.value).toBe(
-      "zed://ssh/default.default.coder/foo/bar",
+      "zed://ssh/default.coder/foo/bar",
     );
   });
 
@@ -67,5 +67,15 @@ describe("zed", async () => {
     expect(coder_app).not.toBeNull();
     expect(coder_app?.instances.length).toBe(1);
     expect(coder_app?.instances[0].attributes.display_name).toBe("Custom Zed");
+  });
+
+  it("adds agent_name to hostname", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      agent_name: "myagent",
+    });
+    expect(state.outputs.zed_url.value).toBe(
+      "zed://ssh/myagent.default.me.coder",
+    );
   });
 });

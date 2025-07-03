@@ -48,3 +48,15 @@ module "zed" {
   order        = 1
 }
 ```
+
+### With custom agent name
+
+```tf
+module "zed" {
+  count      = data.coder_workspace.me.start_count
+  source     = "registry.coder.com/coder/zed/coder"
+  version    = "1.0.0"
+  agent_id   = coder_agent.example.id
+  agent_name = coder_agent.example.name
+}
+```
