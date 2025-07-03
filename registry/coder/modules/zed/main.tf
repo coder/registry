@@ -57,7 +57,7 @@ locals {
   workspace_name = lower(data.coder_workspace.me.name)
   owner_name     = lower(data.coder_workspace_owner.me.name)
   agent_name     = lower(var.agent_name)
-  hostname       = var.agent_name != "" ? "${local.agent_name}.${local.workspace_name}.me.coder" : "${local.workspace_name}.${local.owner_name}.coder"
+  hostname       = var.agent_name != "" ? "${local.agent_name}.${local.workspace_name}.${local.owner_name}.coder" : "${local.workspace_name}.coder"
 }
 
 resource "coder_app" "zed" {
