@@ -41,7 +41,7 @@ variable "slug" {
 variable "display_name" {
   type        = string
   description = "The display name of the app."
-  default     = "Fleet IDE"
+  default     = "JetBrains Fleet"
 }
 
 data "coder_workspace" "me" {}
