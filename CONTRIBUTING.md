@@ -217,7 +217,7 @@ module "code-server" {
 
 #### README.md
 
-Create comprehensive documentation with proper frontmatter:
+Create documentation with proper frontmatter:
 
 ```markdown
 ---
@@ -231,23 +231,9 @@ tags: ["platform", "use-case", "tools"]
 
 # Template Name
 
-Detailed description of the template and what it provisions.
+Describe what the template provides and how to use it.
 
-## Prerequisites
-
-List any requirements (infrastructure, permissions, etc.)
-
-## Architecture
-
-Describe what resources are created and how they work together.
-
-## Variables
-
-Document any input variables users can customize.
-
-## Usage
-
-Provide clear examples of how to use the template.
+Include any setup requirements, resource information, or usage notes that users need to know.
 ```
 
 ### 3. Test Your Template
