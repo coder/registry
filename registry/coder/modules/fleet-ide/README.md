@@ -73,7 +73,6 @@ module "fleet_ide" {
 1. The module creates an external app link in your Coder workspace
 2. When clicked, it generates a `fleet://` URI that instructs Fleet to connect via SSH
 3. Fleet connects to your workspace using the SSH credentials provided by Coder
-4. You can then develop remotely with full Fleet IDE capabilities
 
 ## SSH Connection
 
