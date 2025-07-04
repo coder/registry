@@ -29,6 +29,9 @@ module "fleet_ide" {
 - JetBrains Fleet must be installed locally on your development machine
 - Download Fleet from: https://www.jetbrains.com/fleet/
 
+> [IMPORTANT]
+> Fleet needs you to either have Coder CLI installed with `coder config-ssh` run or [Coder Desktop](https://coder.com/docs/user-guides/desktop).
+
 ## Examples
 
 ### Basic usage
@@ -67,21 +70,3 @@ module "fleet_ide" {
   order        = 1
 }
 ```
-
-## How it works
-
-1. The module creates an external app link in your Coder workspace
-2. When clicked, it generates a `fleet://` URI that instructs Fleet to connect via SSH
-3. Fleet connects to your workspace using the SSH credentials provided by Coder
-> [IMPORTANT]
-> Fleet needs you to either have Coder CLI installed with `coder config-ssh` run or [Coder Desktop](https://coder.com/docs/user-guides/desktop).
-
-## SSH Connection
-
-Fleet uses SSH to connect to your workspace. The connection URL format is:
-
-```
-fleet://fleet.ssh/<workspace-url>?pwd=<folder>
-```
-
-Fleet will automatically manage the SSH connection and handle connection reuse as needed.
