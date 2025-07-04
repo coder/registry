@@ -58,9 +58,7 @@ resource "coder_app" "fleet" {
   url = join("", [
     "fleet://fleet.ssh/",
     data.coder_workspace.me.access_url,
-    "?",
-    var.folder != "" ? join("", ["pwd=", var.folder, "&"]) : "",
-    "forceNewHost=true"
+    var.folder != "" ? join("", ["?pwd=", var.folder]) : ""
   ])
 }
 

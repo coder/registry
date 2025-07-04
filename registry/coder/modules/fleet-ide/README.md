@@ -81,7 +81,7 @@ module "fleet_ide" {
 Fleet uses SSH to connect to your workspace. The connection URL format is:
 
 ```
-fleet://fleet.ssh/<workspace-url>?pwd=<folder>&forceNewHost=true
+fleet://fleet.ssh/<workspace-url>?pwd=<folder>
 ```
 
-The `forceNewHost=true` parameter ensures Fleet establishes a fresh connection each time.
+Fleet will automatically manage the SSH connection and handle connection reuse as needed.
