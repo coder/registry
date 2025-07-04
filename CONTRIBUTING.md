@@ -269,21 +269,25 @@ coder templates push [template-name] -d .
 ### 1. Types of Template Improvements
 
 **Bug fixes:**
+
 - Fix infrastructure provisioning issues
 - Resolve agent connectivity problems
 - Correct resource naming or tagging
 
 **Feature additions:**
+
 - Add new registry modules for additional functionality
 - Include additional infrastructure options
 - Improve startup scripts or automation
 
 **Platform updates:**
+
 - Update base images or AMIs
 - Adapt to new platform features
 - Improve security configurations
 
 **Documentation:**
+
 - Clarify prerequisites and setup steps
 - Add troubleshooting guides
 - Improve usage examples
