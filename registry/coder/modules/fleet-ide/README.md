@@ -1,5 +1,5 @@
 ---
-display_name: Fleet IDE
+display_name: JetBrains Fleet
 description: Add a one-click button to launch JetBrains Fleet IDE to connect to your workspace.
 icon: ../../../../.icons/jetbrains.svg
 maintainer_github: coder
