@@ -4,7 +4,7 @@ description: Run Claude Code in your workspace
 icon: ../../../../.icons/claude.svg
 maintainer_github: coder
 verified: true
-tags: [agent, claude-code, ai]
+tags: [agent, claude-code, ai, tasks]
 ---
 
 # Claude Code
