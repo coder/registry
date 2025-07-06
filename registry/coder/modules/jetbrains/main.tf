@@ -225,7 +225,7 @@ resource "coder_app" "jetbrains" {
   external     = true
   order        = var.coder_app_order
   url = join("", [
-    "jetbrains://gateway/com.coder.toolbox?&workspace=", # TODO: chnage to jetbrains://gateway/coder/... when 2.6.3 version of Toolbox is released
+    "jetbrains://gateway/coder?&workspace=", # requires 2.6.3+ version of Toolbox
     data.coder_workspace.me.name,
     "&owner=",
     data.coder_workspace_owner.me.name,
