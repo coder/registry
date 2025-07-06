@@ -1,9 +1,7 @@
 ---
-display_name: JetBrains IDEs
+display_name: JetBrains Toolbox
 description: Add JetBrains IDE integrations to your Coder workspaces with configurable options.
 icon: ../.icons/jetbrains.svg
-maintainer_github: coder
-partner_github: jetbrains
 verified: true
 tags: [ide, jetbrains, parameter]
 ---
@@ -21,6 +19,9 @@ module "jetbrains" {
   folder   = "/home/coder/project"
 }
 ```
+
+> [!NOTE]
+> This module requires Coder version 2.24+ to use the `multi-select` form type.
 
 > [!WARNING]
 > JetBrains recommends a minimum of 4 CPU cores and 8GB of RAM.
@@ -89,7 +90,7 @@ module "jetbrains" {
     "GO" = {
       name  = "GoLand"
       icon  = "/custom/icons/goland.svg"
-      build = "251.25410.140" # Note: build numbers are fetched from API, not used
+      build = "251.25410.140"
     }
     "PY" = {
       name  = "PyCharm"
@@ -105,7 +106,11 @@ module "jetbrains" {
 }
 ```
 
-### Offline Mode
+### Air-Gapped and Offline Environments
+
+This module supports air-gapped environments through automatic fallback mechanisms:
+
+#### Option 1: Self-hosted JetBrains API Mirror
 
 For organizations with internal JetBrains API mirrors:
 
@@ -124,6 +129,42 @@ module "jetbrains" {
   download_base_link = "https://jetbrains-downloads.internal.company.com"
 }
 ```
+
+#### Option 2: Fully Air-Gapped (No Internet Access)
+
+The module automatically falls back to static build numbers from `ide_config` when the JetBrains API is unreachable:
+
+```tf
+module "jetbrains" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/jetbrains/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
+  folder   = "/home/coder/project"
+
+  default = ["GO", "IU"]
+
+  # Update these build numbers as needed for your environment
+  ide_config = {
+    "GO" = {
+      name  = "GoLand"
+      icon  = "/icon/goland.svg"
+      build = "251.25410.140" # Static build number used when API is unavailable
+    }
+    "IU" = {
+      name  = "IntelliJ IDEA"
+      icon  = "/icon/intellij.svg"
+      build = "251.23774.200" # Static build number used when API is unavailable
+    }
+  }
+}
+```
+
+**How it works:**
+
+- The module first attempts to fetch the latest build numbers from the JetBrains API
+- If the API is unreachable (network timeout, DNS failure, etc.), it automatically falls back to the build numbers specified in `ide_config`
+- This ensures the module works in both connected and air-gapped environments without configuration changes
 
 ### Single IDE for Specific Use Case
 
@@ -152,8 +193,9 @@ module "jetbrains_goland" {
 
 ### Version Resolution
 
-- Build numbers are always fetched from the JetBrains API for the latest compatible versions
-- `major_version` and `channel` control which API endpoint is queried
+- Build numbers are fetched from the JetBrains API for the latest compatible versions when internet access is available
+- If the API is unreachable (air-gapped environments), the module automatically falls back to build numbers from `ide_config`
+- `major_version` and `channel` control which API endpoint is queried (when API access is available)
 
 ## Supported IDEs
 

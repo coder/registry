@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.4.2"
+      version = ">= 2.5"
     }
     http = {
       source  = "hashicorp/http"
@@ -33,6 +33,12 @@ variable "default" {
   description = <<-EOT
     The default IDE selection. Removes the selection from the UI. e.g. ["CL", "GO", "IU"]
   EOT
+}
+
+variable "group" {
+  type        = string
+  description = "The name of a group that this app belongs to."
+  default     = null
 }
 
 variable "coder_app_order" {
@@ -155,23 +161,35 @@ variable "ide_config" {
 }
 
 locals {
-  # Parse HTTP responses once
+  # Parse HTTP responses once with error handling for air-gapped environments
   parsed_responses = {
-    for code in length(var.default) == 0 ? var.options : var.default : code => jsondecode(data.http.jetbrains_ide_versions[code].response_body)
+    for code in length(var.default) == 0 ? var.options : var.default : code => try(
+      jsondecode(data.http.jetbrains_ide_versions[code].response_body),
+      {} # Return empty object if API call fails
+    )
   }
 
-  # Dynamically generate IDE configurations based on options
+  # Dynamically generate IDE configurations based on options with fallback to ide_config
   options_metadata = {
     for code in length(var.default) == 0 ? var.options : var.default : code => {
-      response_key = keys(local.parsed_responses[code])[0]
-      icon         = var.ide_config[code].icon
-      name         = var.ide_config[code].name
-      identifier   = code
-      build        = local.parsed_responses[code][keys(local.parsed_responses[code])[0]][0].build
-      json_data    = local.parsed_responses[code][keys(local.parsed_responses[code])[0]][0]
-      key          = code
+      icon       = var.ide_config[code].icon
+      name       = var.ide_config[code].name
+      identifier = code
+      key        = code
+
+      # Use API build number if available, otherwise fall back to ide_config build number
+      build = length(keys(local.parsed_responses[code])) > 0 ? (
+        local.parsed_responses[code][keys(local.parsed_responses[code])[0]][0].build
+      ) : var.ide_config[code].build
+
+      # Store API data for potential future use (only if API is available)
+      json_data    = length(keys(local.parsed_responses[code])) > 0 ? local.parsed_responses[code][keys(local.parsed_responses[code])[0]][0] : null
+      response_key = length(keys(local.parsed_responses[code])) > 0 ? keys(local.parsed_responses[code])[0] : null
     }
   }
+
+  # Convert the parameter value to a set for for_each
+  selected_ides = length(var.default) == 0 ? toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ides[0].value, "[]"))) : toset(var.default)
 }
 
 data "coder_parameter" "jetbrains_ides" {
@@ -183,7 +201,7 @@ data "coder_parameter" "jetbrains_ides" {
   mutable      = true
   default      = jsonencode([])
   order        = var.coder_parameter_order
-  form_type    = "multi-select"
+  form_type    = "multi-select" # requires Coder version 2.24+
 
   dynamic "option" {
     for_each = var.options
@@ -197,11 +215,6 @@ data "coder_parameter" "jetbrains_ides" {
 
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
-
-locals {
-  # Convert the parameter value to a set for for_each
-  selected_ides = length(var.default) == 0 ? toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ides[0].value, "[]"))) : toset(var.default)
-}
 
 resource "coder_app" "jetbrains" {
   for_each     = local.selected_ides

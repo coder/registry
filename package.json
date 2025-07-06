@@ -1,8 +1,8 @@
 {
   "name": "registry",
   "scripts": {
-    "fmt": "bun x prettier --write **/*.sh **/*.ts **/*.md *.md && terraform fmt -recursive -diff",
-    "fmt:ci": "bun x prettier --check **/*.sh **/*.ts **/*.md *.md && terraform fmt -check -recursive -diff",
+    "fmt": "bun x prettier --write **/*.sh **/*.ts **/main.test.ts **/*.md *.md && terraform fmt -recursive -diff",
+    "fmt:ci": "bun x prettier --check **/*.sh **/*.ts **/main.test.ts **/*.md *.md && terraform fmt -check -recursive -diff",
     "terraform-validate": "./scripts/terraform_validate.sh",
     "test": "bun test",
     "update-version": "./update-version.sh"
