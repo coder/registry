@@ -14,10 +14,10 @@ Enable Remote Desktop + a web based client on Windows workspaces, powered by [de
 ```tf
 # AWS example. See below for examples of using this module with other providers
 module "windows_rdp" {
-  count       = data.coder_workspace.me.start_count
-  source      = "registry.coder.com/coder/windows-rdp/coder"
-  version     = "1.2.2"
-  agent_id    = resource.coder_agent.main.id
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/windows-rdp/coder"
+  version  = "1.2.2"
+  agent_id = resource.coder_agent.main.id
 }
 ```
 
@@ -31,10 +31,10 @@ module "windows_rdp" {
 
 ```tf
 module "windows_rdp" {
-  count       = data.coder_workspace.me.start_count
-  source      = "registry.coder.com/coder/windows-rdp/coder"
-  version     = "1.2.2"
-  agent_id    = resource.coder_agent.main.id
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/windows-rdp/coder"
+  version  = "1.2.2"
+  agent_id = resource.coder_agent.main.id
 }
 ```
 
@@ -42,10 +42,10 @@ module "windows_rdp" {
 
 ```tf
 module "windows_rdp" {
-  count       = data.coder_workspace.me.start_count
-  source      = "registry.coder.com/coder/windows-rdp/coder"
-  version     = "1.2.2"
-  agent_id    = resource.coder_agent.main.id
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/windows-rdp/coder"
+  version  = "1.2.2"
+  agent_id = resource.coder_agent.main.id
 }
 ```
 
