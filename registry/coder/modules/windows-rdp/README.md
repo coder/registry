@@ -1,5 +1,5 @@
 ---
-display_name: Windows RDP
+display_name: RDP Web
 description: RDP Server and Web Client, powered by Devolutions Gateway
 icon: ../../../../.icons/desktop.svg
 maintainer_github: coder
@@ -14,11 +14,10 @@ Enable Remote Desktop + a web based client on Windows workspaces, powered by [de
 ```tf
 # AWS example. See below for examples of using this module with other providers
 module "windows_rdp" {
-  count       = data.coder_workspace.me.start_count
-  source      = "registry.coder.com/coder/windows-rdp/coder"
-  version     = "1.2.1"
-  agent_id    = resource.coder_agent.main.id
-  resource_id = resource.aws_instance.dev.id
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/windows-rdp/coder"
+  version  = "1.2.2"
+  agent_id = resource.coder_agent.main.id
 }
 ```
 
@@ -32,11 +31,10 @@ module "windows_rdp" {
 
 ```tf
 module "windows_rdp" {
-  count       = data.coder_workspace.me.start_count
-  source      = "registry.coder.com/coder/windows-rdp/coder"
-  version     = "1.2.1"
-  agent_id    = resource.coder_agent.main.id
-  resource_id = resource.aws_instance.dev.id
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/windows-rdp/coder"
+  version  = "1.2.2"
+  agent_id = resource.coder_agent.main.id
 }
 ```
 
@@ -44,11 +42,10 @@ module "windows_rdp" {
 
 ```tf
 module "windows_rdp" {
-  count       = data.coder_workspace.me.start_count
-  source      = "registry.coder.com/coder/windows-rdp/coder"
-  version     = "1.2.1"
-  agent_id    = resource.coder_agent.main.id
-  resource_id = resource.google_compute_instance.dev[0].id
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/windows-rdp/coder"
+  version  = "1.2.2"
+  agent_id = resource.coder_agent.main.id
 }
 ```
 
@@ -58,13 +55,8 @@ module "windows_rdp" {
 module "windows_rdp" {
   count                       = data.coder_workspace.me.start_count
   source                      = "registry.coder.com/coder/windows-rdp/coder"
-  version                     = "1.2.1"
+  version                     = "1.2.2"
   agent_id                    = resource.coder_agent.main.id
-  resource_id                 = resource.aws_instance.dev.id
-  devolutions_gateway_version = "2025.1.6" # Specify a specific version
+  devolutions_gateway_version = "2025.2.2" # Specify a specific version
 }
 ```
-
-## Roadmap
-
-- [ ] Test on Microsoft Azure.

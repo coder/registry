@@ -32,7 +32,6 @@ a service account:
 
 1. Click **Create and continue**, and choose the following IAM roles to grant to
    the service account:
-
    - Compute Admin
    - Service Account User
 
