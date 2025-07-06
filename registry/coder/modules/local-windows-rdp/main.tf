@@ -60,7 +60,7 @@ data "coder_workspace" "me" {}
 resource "coder_script" "rdp_setup" {
   agent_id     = var.agent_id
   display_name = "Configure RDP"
-  icon         = "/icon/desktop.svg"
+  icon         = "/icon/rdp.svg"
   script = templatefile("${path.module}/configure-rdp.ps1", {
     username = var.username
     password = var.password
@@ -73,9 +73,8 @@ resource "coder_app" "rdp_desktop" {
   slug         = "rdp-desktop"
   display_name = var.display_name
   url          = "coder://${local.server_name}/v0/open/ws/${data.coder_workspace.me.name}/agent/${var.agent_name}/rdp?username=${var.username}&password=${var.password}"
-  icon         = "/icon/desktop.svg"
+  icon         = "/icon/rdp.svg"
   external     = true
   order        = var.order
   group        = var.group
 }
-
