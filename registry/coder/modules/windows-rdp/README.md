@@ -18,7 +18,6 @@ module "windows_rdp" {
   source      = "registry.coder.com/coder/windows-rdp/coder"
   version     = "1.2.2"
   agent_id    = resource.coder_agent.main.id
-  resource_id = resource.aws_instance.dev.id
 }
 ```
 
@@ -36,7 +35,6 @@ module "windows_rdp" {
   source      = "registry.coder.com/coder/windows-rdp/coder"
   version     = "1.2.2"
   agent_id    = resource.coder_agent.main.id
-  resource_id = resource.aws_instance.dev.id
 }
 ```
 
@@ -48,7 +46,6 @@ module "windows_rdp" {
   source      = "registry.coder.com/coder/windows-rdp/coder"
   version     = "1.2.2"
   agent_id    = resource.coder_agent.main.id
-  resource_id = resource.google_compute_instance.dev[0].id
 }
 ```
 
@@ -60,7 +57,6 @@ module "windows_rdp" {
   source                      = "registry.coder.com/coder/windows-rdp/coder"
   version                     = "1.2.2"
   agent_id                    = resource.coder_agent.main.id
-  resource_id                 = resource.aws_instance.dev.id
-  devolutions_gateway_version = "2025.1.6" # Specify a specific version
+  devolutions_gateway_version = "2025.2.2" # Specify a specific version
 }
 ```

@@ -8,7 +8,6 @@ import {
 
 type TestVariables = Readonly<{
   agent_id: string;
-  resource_id: string;
   share?: string;
   admin_username?: string;
   admin_password?: string;
@@ -45,13 +44,11 @@ describe("Web RDP", async () => {
   await runTerraformInit(import.meta.dir);
   testRequiredVariables<TestVariables>(import.meta.dir, {
     agent_id: "foo",
-    resource_id: "bar",
   });
 
   it("Has the PowerShell script install Devolutions Gateway", async () => {
     const state = await runTerraformApply<TestVariables>(import.meta.dir, {
       agent_id: "foo",
-      resource_id: "bar",
     });
 
     const lines = findWindowsRdpScript(state)
@@ -96,7 +93,6 @@ describe("Web RDP", async () => {
       import.meta.dir,
       {
         agent_id: "foo",
-        resource_id: "bar",
       },
     );
 
@@ -116,7 +112,6 @@ describe("Web RDP", async () => {
       import.meta.dir,
       {
         agent_id: "foo",
-        resource_id: "bar",
         admin_username: customAdminUsername,
         admin_password: customAdminPassword,
       },

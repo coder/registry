@@ -48,7 +48,7 @@ variable "admin_password" {
 
 variable "devolutions_gateway_version" {
   type        = string
-  default     = "2025.2.1"
+  default     = "2025.2.2"
   description = "Version of Devolutions Gateway to install. Defaults to the latest available version."
 }
 
