@@ -10,7 +10,7 @@ tags: [vm, linux, aws, persistent, devcontainer]
 # Remote Development on AWS EC2 VMs using a Devcontainer
 
 Provision AWS EC2 VMs as [Coder workspaces](https://coder.com/docs) with this example template.
-![Architecture Diagram](./architecture.svg)
+![Architecture Diagram](../../.images/aws-devcontainer-architecture.svg)
 
 <!-- TODO: Add screenshot -->
 

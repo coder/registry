@@ -6,6 +6,12 @@ on:
       # Matches release/<namespace>/<resource_name>/<semantic_version>
       # (e.g., "release/whizus/exoscale-zone/v1.0.13")
       - "release/*/*/v*.*.*"
+    branches: # Templates get released when merged to main
+      - main
+    paths:
+      - ".github/workflows/deploy-registry.yaml"
+      - "registry/**/templates/**"
+      - ".icons/**"
 
 jobs:
   deploy:
