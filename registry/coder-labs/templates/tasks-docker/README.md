@@ -41,7 +41,6 @@ You can also add this template to your Coder deployment and begin tinkering righ
 - Coder installed (see [our docs](https://coder.com/docs/install)), ideally a Linux VM with Docker
 - Anthropic API Key (or access to Anthropic models via Bedrock or Vertex, see [Claude Code docs](https://docs.anthropic.com/en/docs/claude-code/third-party-integrations))
 - Access to a Docker socket
-
   - If on the local VM, ensure the `coder` user is added to the Docker group (docs)
 
     ```sh
