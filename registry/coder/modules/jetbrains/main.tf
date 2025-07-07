@@ -238,6 +238,8 @@ resource "coder_app" "jetbrains" {
     "&ide_product_code=",
     each.key,
     "&ide_build_number=",
-    local.options_metadata[each.key].build
+    local.options_metadata[each.key].build,
+    "&agent_id=",
+    var.agent_id,
   ])
 }

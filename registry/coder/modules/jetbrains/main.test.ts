@@ -292,7 +292,7 @@ describe("jetbrains", async () => {
       );
       const url = coder_app?.instances[0].attributes.url;
 
-      expect(url).toContain("jetbrains://gateway/com.coder.toolbox");
+      expect(url).toContain("jetbrains://gateway/coder");
       expect(url).toContain("&workspace=");
       expect(url).toContain("&owner=");
       expect(url).toContain("&folder=/custom/project/path");
@@ -300,6 +300,7 @@ describe("jetbrains", async () => {
       expect(url).toContain("&token=$SESSION_TOKEN");
       expect(url).toContain("&ide_product_code=GO");
       expect(url).toContain("&ide_build_number=");
+      expect(url).toContain("&agent_id=test-agent-123");
     });
 
     it("should include build numbers from API in URLs", async () => {
@@ -993,7 +994,7 @@ describe("jetbrains", async () => {
       for (const app of coder_apps) {
         // Should have valid URLs with build numbers
         expect(app.instances[0].attributes.url).toContain(
-          "jetbrains://gateway/com.coder.toolbox",
+          "jetbrains://gateway/coder",
         );
         expect(app.instances[0].attributes.url).toContain("ide_build_number=");
         expect(app.instances[0].attributes.url).toContain("ide_product_code=");
