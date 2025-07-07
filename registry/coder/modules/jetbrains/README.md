@@ -2,6 +2,7 @@
 display_name: JetBrains Toolbox
 description: Add JetBrains IDE integrations to your Coder workspaces with configurable options.
 icon: ../../../../.icons/jetbrains.svg
+maintainer_github: coder
 verified: true
 tags: [ide, jetbrains, parameter]
 ---
