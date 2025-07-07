@@ -15,7 +15,13 @@ terraform {
 
 variable "agent_id" {
   type        = string
-  description = "The ID of a Coder agent."
+  description = "The resource ID of a Coder agent."
+}
+
+variable "agent_name" {
+  type        = string
+  description = "The name of a Coder agent. Needed for workspaces with multiple agents."
+  default     = null
 }
 
 variable "folder" {
@@ -239,7 +245,6 @@ resource "coder_app" "jetbrains" {
     each.key,
     "&ide_build_number=",
     local.options_metadata[each.key].build,
-    "&agent_id=",
-    var.agent_id,
+    var.agent_name != null ? "&agent_name=${var.agent_name}" : "",
   ])
 }

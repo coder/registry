@@ -300,7 +300,27 @@ describe("jetbrains", async () => {
       expect(url).toContain("&token=$SESSION_TOKEN");
       expect(url).toContain("&ide_product_code=GO");
       expect(url).toContain("&ide_build_number=");
-      expect(url).toContain("&agent_id=test-agent-123");
+      // No agent_name parameter should be included when agent_name is not specified
+      expect(url).not.toContain("&agent_name=");
+    });
+
+    it("should include agent_name parameter when agent_name is specified", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "test-agent-123",
+        agent_name: "main-agent",
+        folder: "/custom/project/path",
+        default: '["GO"]',
+      });
+
+      const coder_app = state.resources.find(
+        (res) => res.type === "coder_app" && res.name === "jetbrains",
+      );
+      const url = coder_app?.instances[0].attributes.url;
+
+      expect(url).toContain("jetbrains://gateway/coder");
+      expect(url).toContain("&agent_name=main-agent");
+      expect(url).toContain("&ide_product_code=GO");
+      expect(url).toContain("&ide_build_number=");
     });
 
     it("should include build numbers from API in URLs", async () => {
