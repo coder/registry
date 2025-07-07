@@ -9,6 +9,7 @@ on:
     branches: # Templates get released when merged to main
       - main
     paths:
+      - ".github/workflows/deploy-registry.yaml"
       - "registry/**/templates/**"
       - ".icons/**"
 
