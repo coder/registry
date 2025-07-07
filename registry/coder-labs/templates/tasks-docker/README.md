@@ -42,20 +42,21 @@ You can also add this template to your Coder deployment and begin tinkering righ
 - Anthropic API Key (or access to Anthropic models via Bedrock or Vertex, see [Claude Code docs](https://docs.anthropic.com/en/docs/claude-code/third-party-integrations))
 - Access to a Docker socket
   - If on the local VM, ensure the `coder` user is added to the Docker group (docs)
+
     ```sh
     # Add coder user to Docker group
     sudo adduser coder docker
-
+    
     # Restart Coder server
     sudo systemctl restart coder
-
+    
     # Test Docker
     sudo -u coder docker ps
     ```
+
   - If on a remote VM, see the [Docker Terraform provider documentation](https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs#remote-hosts) to configure a remote host
 
-
-To import this template into Coder, first create a template from "Scratch" in the template editor. 
+To import this template into Coder, first create a template from "Scratch" in the template editor.
 
 Visit this URL for your Coder deployment:
 
@@ -72,7 +73,7 @@ Alternatively, you can use the Coder CLI to [push the template](https://coder.co
 curl -L https://coder.com/install.sh | sh
 
 # Log in to your deployment
-coder login https://coder.example.com 
+coder login https://coder.example.com
 
 # Clone the registry
 git clone https://github.com/coder/registry
@@ -84,4 +85,3 @@ cd registry/coder-labs/templates/tasks-docker
 # Push the template
 coder templates push
 ```
-

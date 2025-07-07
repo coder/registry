@@ -14,7 +14,7 @@ terraform {
 # example templates and adapt the Claude Code module
 # 
 # see: https://registry.coder.com/templates 
-provider "docker" { }
+provider "docker" {}
 
 # The Claude Code module does the automatic task reporting
 # Other agent modules: https://registry.coder.com/modules?search=agent
@@ -27,10 +27,10 @@ module "claude-code" {
   folder              = "/home/coder/projects"
   install_claude_code = true
   claude_code_version = "latest"
-  order = 999
+  order               = 999
 
   experiment_post_install_script = data.coder_parameter.setup_script.value
-  
+
   # This enables Coder Tasks
   experiment_report_tasks = true
 }
@@ -52,7 +52,7 @@ resource "coder_env" "anthropic_api_key" {
 # We are using presets to set the prompts, image, and set up instructions
 # See https://coder.com/docs/admin/templates/extending-templates/parameters#workspace-presets
 data "coder_workspace_preset" "default" {
-  name = "Real World App: Angular + Django"
+  name    = "Real World App: Angular + Django"
   default = true
   parameters = {
     "system_prompt" = <<-EOT
@@ -78,7 +78,7 @@ data "coder_workspace_preset" "default" {
 
     EOT
 
-    "setup_script" = <<-EOT
+    "setup_script"    = <<-EOT
     # Set up projects dir
     mkdir -p /home/coder/projects
     cd $HOME/projects
@@ -291,7 +291,7 @@ module "code-server" {
   source = "registry.coder.com/coder/code-server/coder"
 
   settings = {
-    "workbench.colorTheme": "Default Dark Modern"
+    "workbench.colorTheme" : "Default Dark Modern"
   }
 
   # This ensures that the latest non-breaking version of the module gets downloaded, you can also pin the module version to prevent breaking changes in production.

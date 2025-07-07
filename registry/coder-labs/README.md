@@ -6,7 +6,9 @@ avatar: ./.images/avatar.svg
 linkedin: https://www.linkedin.com/company/coderhq
 website: https://discord.gg/coder
 status: community
----å
+---
+
+å
 
 # Coder Labs
 
