@@ -149,12 +149,12 @@ module "jetbrains" {
     "GO" = {
       name  = "GoLand"
       icon  = "/icon/goland.svg"
-      build = "251.25410.140" # Static build number used when API is unavailable
+      build = "251.26927.50" # Static build number used when API is unavailable
     }
     "IU" = {
       name  = "IntelliJ IDEA"
       icon  = "/icon/intellij.svg"
-      build = "251.23774.200" # Static build number used when API is unavailable
+      build = "251.26927.53" # Static build number used when API is unavailable
     }
   }
 }

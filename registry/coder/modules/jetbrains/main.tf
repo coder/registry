@@ -126,9 +126,9 @@ variable "ide_config" {
     - build: The build number of the IDE.
     Example:
     {
-      "CL" = { name = "CLion", icon = "/icon/clion.svg", build = "251.23774.202" },
-      "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "251.25410.140" },
-      "IU" = { name = "IntelliJ IDEA", icon = "/icon/intellij.svg", build = "251.23774.200" },
+      "CL" = { name = "CLion", icon = "/icon/clion.svg", build = "251.26927.39" },
+      "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "251.26927.50" },
+      "IU" = { name = "IntelliJ IDEA", icon = "/icon/intellij.svg", build = "251.26927.53" },
     }
   EOT
   type = map(object({
@@ -137,15 +137,15 @@ variable "ide_config" {
     build = string
   }))
   default = {
-    "CL" = { name = "CLion", icon = "/icon/clion.svg", build = "251.23774.202" },
-    "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "251.25410.140" },
-    "IU" = { name = "IntelliJ IDEA", icon = "/icon/intellij.svg", build = "251.23774.200" },
-    "PS" = { name = "PhpStorm", icon = "/icon/phpstorm.svg", build = "251.23774.209" },
-    "PY" = { name = "PyCharm", icon = "/icon/pycharm.svg", build = "251.23774.211" },
-    "RD" = { name = "Rider", icon = "/icon/rider.svg", build = "251.23774.212" },
-    "RM" = { name = "RubyMine", icon = "/icon/rubymine.svg", build = "251.23774.208" },
-    "RR" = { name = "RustRover", icon = "/icon/rustrover.svg", build = "251.23774.316" },
-    "WS" = { name = "WebStorm", icon = "/icon/webstorm.svg", build = "251.23774.210" }
+    "CL" = { name = "CLion", icon = "/icon/clion.svg", build = "251.26927.39" },
+    "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "251.26927.50" },
+    "IU" = { name = "IntelliJ IDEA", icon = "/icon/intellij.svg", build = "251.26927.53" },
+    "PS" = { name = "PhpStorm", icon = "/icon/phpstorm.svg", build = "251.26927.60" },
+    "PY" = { name = "PyCharm", icon = "/icon/pycharm.svg", build = "251.26927.74" },
+    "RD" = { name = "Rider", icon = "/icon/rider.svg", build = "251.26927.67" },
+    "RM" = { name = "RubyMine", icon = "/icon/rubymine.svg", build = "251.26927.47" },
+    "RR" = { name = "RustRover", icon = "/icon/rustrover.svg", build = "251.26927.79" },
+    "WS" = { name = "WebStorm", icon = "/icon/webstorm.svg", build = "251.26927.40" }
   }
   validation {
     condition     = length(var.ide_config) > 0
