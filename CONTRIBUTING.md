@@ -224,7 +224,6 @@ Create documentation with proper frontmatter:
 display_name: "Template Name"
 description: "Brief description of what this template provides"
 icon: "../../../../.icons/platform.svg"
-maintainer_github: "your-username"
 verified: false
 tags: ["platform", "use-case", "tools"]
 ---
