@@ -2,8 +2,7 @@
 display_name: JetBrains Fleet
 description: Add a one-click button to launch JetBrains Fleet IDE to connect to your workspace.
 icon: ../../../../.icons/jetbrains.svg
-maintainer_github: coder
-verified: false
+verified: true
 tags: [ide, jetbrains, fleet]
 ---
 
@@ -21,8 +20,6 @@ module "fleet_ide" {
   agent_id = coder_agent.example.id
 }
 ```
-
-![Fleet IDE](../.images/fleet-ide.png)
 
 ## Requirements
 
