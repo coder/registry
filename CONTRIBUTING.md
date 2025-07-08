@@ -197,8 +197,8 @@ data "coder_workspace_owner" "me" {}
 
 # Coder agent
 resource "coder_agent" "main" {
-  arch = "amd64"
-  os   = "linux"
+  arch           = "amd64"
+  os             = "linux"
   startup_script = <<-EOT
     # Startup commands here
   EOT
@@ -206,8 +206,8 @@ resource "coder_agent" "main" {
 
 # Registry modules for IDEs, tools, and integrations
 module "code-server" {
-  source = "registry.coder.com/coder/code-server/coder"
-  version = "~> 1.0"
+  source   = "registry.coder.com/coder/code-server/coder"
+  version  = "~> 1.0"
   agent_id = coder_agent.main.id
 }
 
