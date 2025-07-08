@@ -21,6 +21,8 @@ module "jetbrains" {
 }
 ```
 
+![JetBrains IDEs list](../../.images/jetbrains-dropdown.png)
+
 > [!IMPORTANT]
 > This module requires Coder version 2.24+ and [JetBrains Toolbox](https://www.jetbrains.com/toolbox-app/) version 2.7 or higher.
 
