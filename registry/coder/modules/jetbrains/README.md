@@ -21,8 +21,8 @@ module "jetbrains" {
 }
 ```
 
-> [!NOTE]
-> This module requires Coder version 2.24+ to use the `multi-select` form type.
+> [!IMPORTANT]
+> This module requires Coder version 2.24+ and JetBrains Toolbox version 2.7 or higher.
 
 > [!WARNING]
 > JetBrains recommends a minimum of 4 CPU cores and 8GB of RAM.
