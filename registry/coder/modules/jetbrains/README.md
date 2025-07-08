@@ -146,4 +146,3 @@ All JetBrains IDEs with remote development capabilities:
 - [RubyMine (`RM`)](https://www.jetbrains.com/ruby/)
 - [RustRover (`RR`)](https://www.jetbrains.com/rust/)
 - [WebStorm (`WS`)](https://www.jetbrains.com/webstorm/)
-- [WebStorm (`WS`)](https://www.jetbrains.com/webstorm/)
