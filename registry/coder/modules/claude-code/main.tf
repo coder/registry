@@ -103,6 +103,31 @@ variable "agentapi_version" {
   default     = "v0.2.2"
 }
 
+variable "claude_api_key" {
+  type        = string
+  description = "Anthropic API key for Claude."
+  default     = ""
+  sensitive   = true
+}
+
+variable "task_prompt" {
+  type        = string
+  description = "Task prompt for Claude Code."
+  default     = ""
+}
+
+variable "system_prompt" {
+  type        = string
+  description = "System prompt for Claude Code."
+  default     = ""
+}
+
+variable "app_status_slug" {
+  type        = string
+  description = "App status slug for Claude Code."
+  default     = "claude-code"
+}
+
 locals {
   # we have to trim the slash because otherwise coder exp mcp will
   # set up an invalid claude config 
@@ -113,6 +138,34 @@ locals {
   agentapi_wait_for_start_script_b64 = base64encode(file("${path.module}/scripts/agentapi-wait-for-start.sh"))
   remove_last_session_id_script_b64  = base64encode(file("${path.module}/scripts/remove-last-session-id.js"))
   claude_code_app_slug               = "ccw"
+}
+
+# Set environment variables for Claude Code
+resource "coder_env" "claude_api_key" {
+  count    = var.claude_api_key != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CODER_MCP_CLAUDE_API_KEY"
+  value    = var.claude_api_key
+}
+
+resource "coder_env" "claude_task_prompt" {
+  count    = var.task_prompt != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CODER_MCP_CLAUDE_TASK_PROMPT"
+  value    = var.task_prompt
+}
+
+resource "coder_env" "claude_system_prompt" {
+  count    = var.system_prompt != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CODER_MCP_CLAUDE_SYSTEM_PROMPT"
+  value    = var.system_prompt
+}
+
+resource "coder_env" "claude_app_status_slug" {
+  agent_id = var.agent_id
+  name     = "CODER_MCP_APP_STATUS_SLUG"
+  value    = var.app_status_slug
 }
 
 # Install and Initialize Claude Code
