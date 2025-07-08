@@ -73,7 +73,7 @@ describe("local-windows-rdp", async () => {
     expect(app).not.toBeNull();
     expect(app?.slug).toBe("rdp-desktop");
     expect(app?.display_name).toBe("RDP Desktop");
-    expect(app?.icon).toBe("/icon/desktop.svg");
+    expect(app?.icon).toBe("/icon/rdp.svg");
     expect(app?.external).toBe(true);
 
     // Verify the URI format
@@ -95,7 +95,7 @@ describe("local-windows-rdp", async () => {
     // Verify the script was created
     expect(script).not.toBeNull();
     expect(script?.display_name).toBe("Configure RDP");
-    expect(script?.icon).toBe("/icon/desktop.svg");
+    expect(script?.icon).toBe("/icon/rdp.svg");
     expect(script?.run_on_start).toBe(true);
     expect(script?.run_on_stop).toBe(false);
 
