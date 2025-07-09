@@ -26,7 +26,7 @@ module "fleet_ide" {
 - JetBrains Fleet must be installed locally on your development machine
 - Download Fleet from: https://www.jetbrains.com/fleet/
 
-> [IMPORTANT]
+> [!IMPORTANT]
 > Fleet needs you to either have Coder CLI installed with `coder config-ssh` run or [Coder Desktop](https://coder.com/docs/user-guides/desktop).
 
 ## Examples
