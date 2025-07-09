@@ -165,7 +165,8 @@ module "git-clone" {
 
 ## Git clone with different destination folder
 
-By default, the repository will be cloned into a folder matching the repository name. You can use the `folder_name` attribute to change the name of the destination folder to something else.
+By default, the repository will be cloned into a folder matching the repository name.
+You can use the `folder_name` attribute to change the name of the destination folder to something else.
 
 For example, this will clone into the `~/projects/coder/coder-dev` folder:
 
@@ -194,6 +195,6 @@ module "git-clone" {
   source   = "registry.coder.com/modules/git-clone/coder"
   version  = "1.0.18"
   agent_id = coder_agent.example.id
-  url   = "https://github.com/coder/coder"
-  depth = 1                          # shallow clone
+  url      = "https://github.com/coder/coder"
+  depth    = 1
 }
