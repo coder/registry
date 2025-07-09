@@ -11,7 +11,7 @@ tags: [integration, vault, hashicorp, hvs]
 # HCP Vault Secrets
 
 > [!WARNING]
-> **⚠️ DEPRECATED: HCP Vault Secrets is being sunsetted**
+> **⚠️ DEPRECATED: HCP Vault Secrets is being sunset**
 >
 > HashiCorp has announced that HCP Vault Secrets will no longer be available for purchase by new customers after **June 30th, 2025**. This module will stop working when HCP Vault Secrets is fully discontinued.
 >
