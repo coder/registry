@@ -5,7 +5,7 @@ import {
   testRequiredVariables,
 } from "~test";
 
-describe("fleet-ide", async () => {
+describe("jetbrains-fleet", async () => {
   await runTerraformInit(import.meta.dir);
 
   testRequiredVariables(import.meta.dir, {
@@ -56,7 +56,7 @@ describe("fleet-ide", async () => {
       slug: "my-fleet",
     });
     expect(state.outputs.fleet_url.value).toBe(
-      "fleet://fleet.ssh/default.default.coder",
+      "fleet://fleet.ssh/default.coder",
     );
 
     const coder_app = state.resources.find(
