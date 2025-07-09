@@ -17,7 +17,7 @@ describe("fleet-ide", async () => {
       agent_id: "foo",
     });
     expect(state.outputs.fleet_url.value).toBe(
-      "fleet://fleet.ssh/default.default.coder",
+      "fleet://fleet.ssh/default.coder",
     );
 
     const coder_app = state.resources.find(
@@ -35,7 +35,17 @@ describe("fleet-ide", async () => {
       folder: "/foo/bar",
     });
     expect(state.outputs.fleet_url.value).toBe(
-      "fleet://fleet.ssh/default.default.coder?pwd=/foo/bar",
+      "fleet://fleet.ssh/default.coder?pwd=/foo/bar",
+    );
+  });
+
+  it("adds agent_name to hostname", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      agent_name: "myagent",
+    });
+    expect(state.outputs.fleet_url.value).toBe(
+      "fleet://fleet.ssh/myagent.default.default.coder",
     );
   });
 
