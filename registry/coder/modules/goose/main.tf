@@ -60,6 +60,12 @@ variable "install_agentapi" {
   default     = true
 }
 
+variable "agentapi_version" {
+  type        = string
+  description = "The version of AgentAPI to install."
+  default     = "v0.2.3"
+}
+
 variable "goose_provider" {
   type        = string
   description = "The provider to use for Goose (e.g., anthropic)."
@@ -139,6 +145,7 @@ module "agentapi" {
   cli_app_display_name = "Goose CLI"
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
+  agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
   start_script         = local.start_script
