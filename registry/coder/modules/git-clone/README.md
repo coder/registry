@@ -198,3 +198,4 @@ module "git-clone" {
   url      = "https://github.com/coder/coder"
   depth    = 1
 }
+```
