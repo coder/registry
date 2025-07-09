@@ -4,7 +4,7 @@ description: Run Claude Code in your workspace
 icon: ../../../../.icons/claude.svg
 maintainer_github: coder
 verified: true
-tags: [agent, claude-code, ai]
+tags: [agent, claude-code, ai, tasks]
 ---
 
 # Claude Code
@@ -14,7 +14,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "1.3.1"
+  version             = "2.0.2"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
@@ -30,7 +30,6 @@ module "claude-code" {
 ## Prerequisites
 
 - Node.js and npm must be installed in your workspace to install Claude Code
-- Either `screen` or `tmux` must be installed in your workspace to run Claude Code in the background
 - You must add the [Coder Login](https://registry.coder.com/modules/coder-login) module to your template
 
 The `codercom/oss-dogfood:latest` container image can be used for testing on container-based workspaces.
@@ -47,8 +46,6 @@ The `codercom/oss-dogfood:latest` container image can be used for testing on con
 >
 > Join our [Discord channel](https://discord.gg/coder) or
 > [contact us](https://coder.com/contact) to get help or share feedback.
-
-Your workspace must have either `screen` or `tmux` installed to use this.
 
 ```tf
 variable "anthropic_api_key" {
@@ -88,26 +85,25 @@ resource "coder_agent" "main" {
 module "claude-code" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "1.3.1"
+  version             = "2.0.2"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
-  claude_code_version = "0.2.57"
+  claude_code_version = "1.0.40"
 
   # Enable experimental features
-  experiment_use_screen   = true # Or use experiment_use_tmux = true to use tmux instead
   experiment_report_tasks = true
 }
 ```
 
 ## Run standalone
 
-Run Claude Code as a standalone app in your workspace. This will install Claude Code and run it directly without using screen or any task reporting to the Coder UI.
+Run Claude Code as a standalone app in your workspace. This will install Claude Code and run it without any task reporting to the Coder UI.
 
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "1.3.1"
+  version             = "2.0.2"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
@@ -117,3 +113,7 @@ module "claude-code" {
   icon = "https://registry.npmmirror.com/@lobehub/icons-static-png/1.24.0/files/dark/claude-color.png"
 }
 ```
+
+## Troubleshooting
+
+The module will create log files in the workspace's `~/.claude-module` directory. If you run into any issues, look at them for more information.

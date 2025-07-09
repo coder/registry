@@ -14,9 +14,7 @@ brew install go
 sudo apt install golang-go
 ```
 
-## Daily Tasks
-
-### Review PRs
+## Reviewing a PR
 
 Check that PRs have:
 
@@ -26,7 +24,7 @@ Check that PRs have:
 - [ ] Formatted code (`bun run fmt`)
 - [ ] Avatar image for new namespaces (`avatar.png` or `avatar.svg` in `.images/`)
 
-#### Version Guidelines
+### Version Guidelines
 
 When reviewing PRs, ensure the version change follows semantic versioning:
 
@@ -42,7 +40,7 @@ PRs should clearly indicate the version change (e.g., `v1.2.3 → v1.2.4`).
 go build ./cmd/readmevalidation && ./readmevalidation
 ```
 
-## Releases
+## Making a Release
 
 ### Create Release Tags
 
@@ -99,5 +97,3 @@ status: "community" # or "partner", "official"
 - **Tests fail**: Ensure Docker with `--network=host`, check Terraform syntax
 - **Wrong file structure**: Use `./scripts/new_module.sh` for new modules
 - **Missing namespace avatar**: Must be `avatar.png` or `avatar.svg` in `.images/` directory
-
-That's it. Keep it simple.

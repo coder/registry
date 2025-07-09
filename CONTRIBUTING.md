@@ -4,12 +4,14 @@ Welcome! This guide covers how to contribute to the Coder Registry, whether you'
 
 ## What is the Coder Registry?
 
-The Coder Registry is a collection of Terraform modules that extend Coder workspaces with development tools like VS Code, Cursor, JetBrains IDEs, and more.
+The Coder Registry is a collection of Terraform modules and templates for Coder workspaces. Modules provide IDEs, authentication integrations, development tools, and other workspace functionality. Templates provide complete workspace configurations for different platforms and use cases that appear as community templates on the registry website.
 
 ## Types of Contributions
 
 - **[New Modules](#creating-a-new-module)** - Add support for a new tool or functionality
+- **[New Templates](#creating-a-new-template)** - Create complete workspace configurations
 - **[Existing Modules](#contributing-to-existing-modules)** - Fix bugs, add features, or improve documentation
+- **[Existing Templates](#contributing-to-existing-templates)** - Improve workspace templates
 - **[Bug Reports](#reporting-issues)** - Report problems or request features
 
 ## Setup
@@ -36,7 +38,15 @@ bun install
 
 ### Understanding Namespaces
 
-All modules are organized under `/registry/[namespace]/modules/`. Each contributor gets their own namespace (e.g., `/registry/your-username/modules/`). If a namespace is taken, choose a different unique namespace, but you can still use any display name on the Registry website.
+All modules and templates are organized under `/registry/[namespace]/`. Each contributor gets their own namespace with both modules and templates directories:
+
+```
+registry/[namespace]/
+├── modules/         # Individual components and tools
+└── templates/       # Complete workspace configurations
+```
+
+For example: `/registry/your-username/modules/` and `/registry/your-username/templates/`. If a namespace is taken, choose a different unique namespace, but you can still use any display name on the Registry website.
 
 ### Images and Icons
 
@@ -136,15 +146,171 @@ git push origin your-branch
 
 ---
 
-## Contributing to Existing Modules
+## Creating a New Template
 
-### 1. Find the Module
+Templates are complete Coder workspace configurations that users can deploy directly. Unlike modules (which are components), templates provide full infrastructure definitions for specific platforms or use cases.
 
-```bash
-find registry -name "*[module-name]*" -type d
+### Template Structure
+
+Templates follow the same namespace structure as modules but are located in the `templates` directory:
+
+```
+registry/[your-username]/templates/[template-name]/
+├── main.tf          # Complete Terraform configuration
+├── README.md        # Documentation with frontmatter
+├── [additional files] # Scripts, configs, etc.
 ```
 
-### 2. Make Your Changes
+### 1. Create Your Template Directory
+
+```bash
+mkdir -p registry/[your-username]/templates/[template-name]
+cd registry/[your-username]/templates/[template-name]
+```
+
+### 2. Create Template Files
+
+#### main.tf
+
+Your `main.tf` should be a complete Coder template configuration including:
+
+- Required providers (coder, and your infrastructure provider)
+- Coder agent configuration
+- Infrastructure resources (containers, VMs, etc.)
+- Registry modules for IDEs, tools, and integrations
+
+Example structure:
+
+```terraform
+terraform {
+  required_providers {
+    coder = {
+      source = "coder/coder"
+    }
+    # Add your infrastructure provider (docker, aws, etc.)
+  }
+}
+
+# Coder data sources
+data "coder_workspace" "me" {}
+data "coder_workspace_owner" "me" {}
+
+# Coder agent
+resource "coder_agent" "main" {
+  arch           = "amd64"
+  os             = "linux"
+  startup_script = <<-EOT
+    # Startup commands here
+  EOT
+}
+
+# Registry modules for IDEs, tools, and integrations
+module "code-server" {
+  source   = "registry.coder.com/coder/code-server/coder"
+  version  = "~> 1.0"
+  agent_id = coder_agent.main.id
+}
+
+# Your infrastructure resources
+# (Docker containers, AWS instances, etc.)
+```
+
+#### README.md
+
+Create documentation with proper frontmatter:
+
+```markdown
+---
+display_name: "Template Name"
+description: "Brief description of what this template provides"
+icon: "../../../../.icons/platform.svg"
+verified: false
+tags: ["platform", "use-case", "tools"]
+---
+
+# Template Name
+
+Describe what the template provides and how to use it.
+
+Include any setup requirements, resource information, or usage notes that users need to know.
+```
+
+### 3. Test Your Template
+
+Templates should be tested to ensure they work correctly. Test with Coder:
+
+```bash
+cd registry/[your-username]/templates/[template-name]
+coder templates push [template-name] -d .
+```
+
+### 4. Template Best Practices
+
+- **Use registry modules**: Leverage existing modules for IDEs, tools, and integrations
+- **Provide sensible defaults**: Make the template work out-of-the-box
+- **Include metadata**: Add useful workspace metadata (CPU, memory, disk usage)
+- **Document prerequisites**: Clearly explain infrastructure requirements
+- **Use variables**: Allow customization of common settings
+- **Follow naming conventions**: Use descriptive, consistent naming
+
+### 5. Template Guidelines
+
+- Templates appear as "Community Templates" on the registry website
+- Include proper error handling and validation
+- Test with Coder before submitting
+- Document any required permissions or setup steps
+- Use semantic versioning in your README frontmatter
+
+---
+
+## Contributing to Existing Templates
+
+### 1. Types of Template Improvements
+
+**Bug fixes:**
+
+- Fix infrastructure provisioning issues
+- Resolve agent connectivity problems
+- Correct resource naming or tagging
+
+**Feature additions:**
+
+- Add new registry modules for additional functionality
+- Include additional infrastructure options
+- Improve startup scripts or automation
+
+**Platform updates:**
+
+- Update base images or AMIs
+- Adapt to new platform features
+- Improve security configurations
+
+**Documentation:**
+
+- Clarify prerequisites and setup steps
+- Add troubleshooting guides
+- Improve usage examples
+
+### 2. Testing Template Changes
+
+Testing template modifications thoroughly is necessary. Test with Coder:
+
+```bash
+coder templates push test-[template-name] -d .
+```
+
+### 3. Maintain Compatibility
+
+- Don't remove existing variables without clear migration path
+- Preserve backward compatibility when possible
+- Test that existing workspaces still function
+- Document any breaking changes clearly
+
+---
+
+## Contributing to Existing Modules
+
+### 1. Make Your Changes
 
 **For bug fixes:**
 
@@ -166,7 +332,7 @@ find registry -name "*[module-name]*" -type d
 - Add missing variable documentation
 - Improve usage examples
 
-### 3. Test Your Changes
+### 2. Test Your Changes
 
 ```bash
 # Test a specific module
@@ -176,7 +342,7 @@ bun test -t 'module-name'
 bun test
 ```
 
-### 4. Maintain Backward Compatibility
+### 3. Maintain Backward Compatibility
 
 - New variables should have default values
 - Don't break existing functionality
@@ -208,6 +374,7 @@ bun test
 We have different PR templates for different types of contributions. GitHub will show you options to choose from, or you can manually select:
 
 - **New Module**: Use `?template=new_module.md`
+- **New Template**: Use `?template=new_template.md`
 - **Bug Fix**: Use `?template=bug_fix.md`
 - **Feature**: Use `?template=feature.md`
 - **Documentation**: Use `?template=documentation.md`
@@ -223,6 +390,13 @@ Example: `https://github.com/coder/registry/compare/main...your-branch?template=
 - `main.tf` - Terraform code
 - `main.test.ts` - Working tests
 - `README.md` - Documentation with frontmatter
+
+### Every Template Must Have
+
+- `main.tf` - Complete Terraform configuration
+- `README.md` - Documentation with frontmatter
+
+Templates don't require test files like modules do, but should be manually tested before submission.
 
 ### README Frontmatter
 
@@ -304,7 +478,7 @@ When reporting bugs, include:
 
 ## Getting Help
 
-- **Examples**: Check `/registry/coder/modules/` for well-structured modules
+- **Examples**: Check `/registry/coder/modules/` for well-structured modules and `/registry/coder/templates/` for complete templates
 - **Issues**: Open an issue for technical problems
 - **Community**: Reach out to the Coder community for questions
 
