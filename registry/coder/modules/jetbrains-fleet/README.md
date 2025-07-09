@@ -1,21 +1,21 @@
 ---
 display_name: JetBrains Fleet
-description: Add a one-click button to launch JetBrains Fleet IDE to connect to your workspace.
+description: Add a one-click button to launch JetBrains Fleet to connect to your workspace.
 icon: ../../../../.icons/jetbrains.svg
 verified: true
 tags: [ide, jetbrains, fleet]
 ---
 
-# Fleet IDE
+# Jetbrains Fleet
 
-This module adds a Fleet IDE button to your Coder workspace that opens the workspace in JetBrains Fleet using SSH remote development.
+This module adds a Jetbrains Fleet button to your Coder workspace that opens the workspace in JetBrains Fleet using SSH remote development.
 
 JetBrains Fleet is a next-generation IDE that supports collaborative development and distributed architectures. It connects to your Coder workspace via SSH, providing a seamless remote development experience.
 
 ```tf
-module "fleet_ide" {
+module "jetbrains_fleet" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/fleet-ide/coder"
+  source   = "registry.coder.com/coder/jetbrains-fleet/coder"
   version  = "1.0.0"
   agent_id = coder_agent.example.id
 }
@@ -34,9 +34,9 @@ module "fleet_ide" {
 ### Basic usage
 
 ```tf
-module "fleet_ide" {
+module "jetbrains_fleet" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/fleet-ide/coder"
+  source   = "registry.coder.com/coder/jetbrains-fleet/coder"
   version  = "1.0.0"
   agent_id = coder_agent.example.id
 }
@@ -45,9 +45,9 @@ module "fleet_ide" {
 ### Open a specific folder
 
 ```tf
-module "fleet_ide" {
+module "jetbrains_fleet" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/fleet-ide/coder"
+  source   = "registry.coder.com/coder/jetbrains-fleet/coder"
   version  = "1.0.0"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
@@ -57,13 +57,25 @@ module "fleet_ide" {
 ### Customize app name and grouping
 
 ```tf
-module "fleet_ide" {
+module "jetbrains_fleet" {
   count        = data.coder_workspace.me.start_count
-  source       = "registry.coder.com/coder/fleet-ide/coder"
+  source       = "registry.coder.com/coder/jetbrains-fleet/coder"
   version      = "1.0.0"
   agent_id     = coder_agent.example.id
   display_name = "Fleet"
   group        = "JetBrains IDEs"
   order        = 1
+}
+```
+
+### With custom agent name
+
+```tf
+module "jetbrains_fleet" {
+  count      = data.coder_workspace.me.start_count
+  source     = "registry.coder.com/coder/jetbrains-fleet/coder"
+  version    = "1.0.0"
+  agent_id   = coder_agent.example.id
+  agent_name = coder_agent.example.name
 }
 ```
