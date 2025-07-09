@@ -180,3 +180,20 @@ module "git-clone" {
   base_dir    = "~/projects/coder"
 }
 ```
+
+## Git shallow clone
+
+Limit the clone history to speed-up workspace startup by setting `depth`.
+
+When `depth` is greater than `0` the module runs `git clone --depth <depth>`.
+If not defined, the default, `0`, performs a full clone.
+
+```tf
+module "git-clone" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/modules/git-clone/coder"
+  version  = "1.0.18"
+  agent_id = coder_agent.example.id
+  url   = "https://github.com/coder/coder"
+  depth = 1                          # shallow clone
+}
