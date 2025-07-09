@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 0.17"
+      version = ">= 2.5"
     }
   }
 }
@@ -35,11 +35,6 @@ variable "agent_id" {
   description = "The ID of a Coder agent."
 }
 
-variable "resource_id" {
-  type        = string
-  description = "The ID of the primary Coder resource (e.g. VM)."
-}
-
 variable "admin_username" {
   type    = string
   default = "Administrator"
@@ -53,14 +48,14 @@ variable "admin_password" {
 
 variable "devolutions_gateway_version" {
   type        = string
-  default     = "2025.2.1"
+  default     = "2025.2.2"
   description = "Version of Devolutions Gateway to install. Defaults to the latest available version."
 }
 
 resource "coder_script" "windows-rdp" {
   agent_id     = var.agent_id
   display_name = "windows-rdp"
-  icon         = "/icon/desktop.svg"
+  icon         = "/icon/rdp.svg"
 
   script = templatefile("${path.module}/powershell-installation-script.tftpl", {
     admin_username              = var.admin_username
@@ -101,7 +96,7 @@ resource "coder_app" "rdp-docs" {
   agent_id     = var.agent_id
   display_name = "Local RDP Docs"
   slug         = "rdp-docs"
-  icon         = "https://raw.githubusercontent.com/matifali/logos/main/windows.svg"
-  url          = "https://coder.com/docs/ides/remote-desktops#rdp-desktop"
+  icon         = "/icon/windows.svg"
+  url          = "https://coder.com/docs/user-guides/workspace-access/remote-desktops#rdp"
   external     = true
 }

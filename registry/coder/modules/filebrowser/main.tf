@@ -97,7 +97,6 @@ resource "coder_script" "filebrowser" {
     LOG_PATH : var.log_path,
     PORT : var.port,
     FOLDER : var.folder,
-    LOG_PATH : var.log_path,
     DB_PATH : var.database_path,
     SUBDOMAIN : var.subdomain,
     SERVER_BASE_PATH : local.server_base_path
@@ -128,3 +127,4 @@ locals {
   url              = "http://localhost:${var.port}${local.server_base_path}"
   healthcheck_url  = "http://localhost:${var.port}${local.server_base_path}/health"
 }
+
