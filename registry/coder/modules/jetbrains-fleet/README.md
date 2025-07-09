@@ -16,7 +16,7 @@ JetBrains Fleet is a next-generation IDE that supports collaborative development
 module "jetbrains_fleet" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains-fleet/coder"
-  version = "1.0.1"
+  version  = "1.0.1"
   agent_id = coder_agent.example.id
 }
 ```
@@ -37,7 +37,7 @@ module "jetbrains_fleet" {
 module "jetbrains_fleet" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains-fleet/coder"
-  version = "1.0.1"
+  version  = "1.0.1"
   agent_id = coder_agent.example.id
 }
 ```
@@ -48,7 +48,7 @@ module "jetbrains_fleet" {
 module "jetbrains_fleet" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains-fleet/coder"
-  version = "1.0.1"
+  version  = "1.0.1"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
 }
@@ -60,7 +60,7 @@ module "jetbrains_fleet" {
 module "jetbrains_fleet" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/coder/jetbrains-fleet/coder"
-  version = "1.0.1"
+  version      = "1.0.1"
   agent_id     = coder_agent.example.id
   display_name = "Fleet"
   group        = "JetBrains IDEs"
@@ -74,7 +74,7 @@ module "jetbrains_fleet" {
 module "jetbrains_fleet" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/jetbrains-fleet/coder"
-  version = "1.0.1"
+  version    = "1.0.1"
   agent_id   = coder_agent.example.id
   agent_name = coder_agent.example.name
 }
