@@ -17,7 +17,7 @@ describe("fleet-ide", async () => {
       agent_id: "foo",
     });
     expect(state.outputs.fleet_url.value).toBe(
-      "fleet://fleet.ssh/https://mydeployment.coder.com?workspace=default&owner=default",
+      "fleet://fleet.ssh/default.default.coder",
     );
 
     const coder_app = state.resources.find(
@@ -35,7 +35,7 @@ describe("fleet-ide", async () => {
       folder: "/foo/bar",
     });
     expect(state.outputs.fleet_url.value).toBe(
-      "fleet://fleet.ssh/https://mydeployment.coder.com?workspace=default&owner=default&pwd=/foo/bar",
+      "fleet://fleet.ssh/default.default.coder?pwd=/foo/bar",
     );
   });
 
@@ -46,7 +46,7 @@ describe("fleet-ide", async () => {
       slug: "my-fleet",
     });
     expect(state.outputs.fleet_url.value).toBe(
-      "fleet://fleet.ssh/https://mydeployment.coder.com?workspace=default&owner=default",
+      "fleet://fleet.ssh/default.default.coder",
     );
 
     const coder_app = state.resources.find(

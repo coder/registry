@@ -47,6 +47,12 @@ variable "display_name" {
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
+locals {
+  workspace_name = lower(data.coder_workspace.me.name)
+  owner_name     = lower(data.coder_workspace_owner.me.name)
+  hostname       = "${local.workspace_name}.${local.owner_name}.coder"
+}
+
 resource "coder_app" "fleet" {
   agent_id     = var.agent_id
   external     = true
@@ -57,12 +63,8 @@ resource "coder_app" "fleet" {
   group        = var.group
   url = join("", [
     "fleet://fleet.ssh/",
-    data.coder_workspace.me.access_url,
-    "?workspace=",
-    data.coder_workspace.me.name,
-    "&owner=",
-    data.coder_workspace_owner.me.name,
-    var.folder != "" ? join("", ["&pwd=", var.folder]) : ""
+    local.hostname,
+    var.folder != "" ? join("", ["?pwd=", var.folder]) : ""
   ])
 }
 
