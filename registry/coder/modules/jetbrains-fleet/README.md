@@ -1,7 +1,7 @@
 ---
 display_name: JetBrains Fleet
 description: Add a one-click button to launch JetBrains Fleet to connect to your workspace.
-icon: ../../../../.icons/jetbrains.svg
+icon: ../../../../.icons/fleet.svg
 verified: true
 tags: [ide, jetbrains, fleet]
 ---
