@@ -38,8 +38,50 @@ variable "group" {
   default     = null
 }
 
+variable "extensions" {
+  type        = list(string)
+  description = "A list of VS Code extensions to install. Extensions should be specified in the format 'publisher.extension-name'."
+  default     = []
+  
+  validation {
+    condition = alltrue([
+      for ext in var.extensions : can(regex("^[a-zA-Z0-9][a-zA-Z0-9\\-_]*\\.[a-zA-Z0-9][a-zA-Z0-9\\-_]*$", ext))
+    ])
+    error_message = "Extensions must be in the format 'publisher.extension-name' (e.g., 'ms-python.python')."
+  }
+}
+
+variable "settings" {
+  type        = any
+  description = "A map of VS Code settings to apply to the workspace. These settings will be written to the workspace's settings.json file."
+  default     = {}
+}
+
+variable "install_extensions" {
+  type        = bool
+  description = "Whether to automatically install the specified extensions when the workspace starts."
+  default     = true
+}
+
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
+
+# Script to install extensions and configure settings
+resource "coder_script" "vscode_desktop_setup" {
+  count        = var.install_extensions && (length(var.extensions) > 0 || length(var.settings) > 0) ? 1 : 0
+  agent_id     = var.agent_id
+  display_name = "VS Code Desktop Setup"
+  icon         = "/icon/code.svg"
+  run_on_start = true
+  run_on_stop  = false
+  timeout      = 300
+
+  script = templatefile("${path.module}/setup.sh", {
+    EXTENSIONS = jsonencode(var.extensions)
+    SETTINGS   = jsonencode(var.settings)
+    FOLDER     = var.folder
+  })
+}
 
 resource "coder_app" "vscode" {
   agent_id     = var.agent_id
