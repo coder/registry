@@ -127,7 +127,7 @@ describe("vscode-desktop", async () => {
       (res) => res.type === "coder_script" && res.name === "vscode_desktop_setup",
     );
 
-    expect(coder_script).toBeNull();
+    expect(coder_script).toBeUndefined();
   });
 
   it("does not create setup script when no extensions or settings", async () => {
@@ -139,6 +139,6 @@ describe("vscode-desktop", async () => {
       (res) => res.type === "coder_script" && res.name === "vscode_desktop_setup",
     );
 
-    expect(coder_script).toBeNull();
+    expect(coder_script).toBeUndefined();
   });
 });
