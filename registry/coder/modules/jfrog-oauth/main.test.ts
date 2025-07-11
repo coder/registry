@@ -126,4 +126,98 @@ EOF`;
       'if [ -z "YES" ]; then\n  not_configured go',
     );
   });
+
+  it("generates maven settings with multiple repos", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "some-agent-id",
+      jfrog_url: fakeFrogUrl,
+      package_managers: JSON.stringify({
+        maven: ["maven-local", "maven-central"],
+      }),
+    });
+    const coderScript = findResourceInstance(state, "coder_script");
+    const mavenStanza = `cat << EOF > ~/.m2/settings.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <servers>
+    <server>
+      <id>maven-local</id>
+      <username>${user}</username>
+      <password></password>
+    </server>
+    <server>
+      <id>maven-central</id>
+      <username>${user}</username>
+      <password></password>
+    </server>
+  </servers>
+  <profiles>
+    <profile>
+      <id>artifactory</id>
+      <repositories>
+        <repository>
+          <id>maven-local</id>
+          <name>maven-local</name>
+          <url>http://localhost:8081/artifactory/maven-local</url>
+          <releases>
+            <enabled>true</enabled>
+          </releases>
+          <snapshots>
+            <enabled>true</enabled>
+          </snapshots>
+        </repository>
+        <repository>
+          <id>maven-central</id>
+          <name>maven-central</name>
+          <url>http://localhost:8081/artifactory/maven-central</url>
+          <releases>
+            <enabled>true</enabled>
+          </releases>
+          <snapshots>
+            <enabled>true</enabled>
+          </snapshots>
+        </repository>
+      </repositories>
+      <pluginRepositories>
+        <pluginRepository>
+          <id>maven-local</id>
+          <name>maven-local</name>
+          <url>http://localhost:8081/artifactory/maven-local</url>
+          <releases>
+            <enabled>true</enabled>
+          </releases>
+          <snapshots>
+            <enabled>true</enabled>
+          </snapshots>
+        </pluginRepository>
+        <pluginRepository>
+          <id>maven-central</id>
+          <name>maven-central</name>
+          <url>http://localhost:8081/artifactory/maven-central</url>
+          <releases>
+            <enabled>true</enabled>
+          </releases>
+          <snapshots>
+            <enabled>true</enabled>
+          </snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+  </profiles>
+  <activeProfiles>
+    <activeProfile>artifactory</activeProfile>
+  </activeProfiles>
+</settings>
+EOF`;
+    expect(coderScript.script).toContain(mavenStanza);
+    expect(coderScript.script).toContain(
+      'jf mvnc --global --repo-resolve "maven-local" --repo-deploy "maven-local"',
+    );
+    expect(coderScript.script).toContain(
+      'if [ -z "YES" ]; then\n  not_configured maven',
+    );
+  });
 });
