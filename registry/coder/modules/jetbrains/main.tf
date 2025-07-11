@@ -59,6 +59,16 @@ variable "coder_parameter_order" {
   default     = null
 }
 
+variable "plugins" {
+  type        = list(string)
+  description = "List of JetBrains plugin IDs to pre-install. Plugin IDs can be found on the JetBrains Marketplace (e.g., 'tanvd.grazi', 'com.github.copilot'). Plugins will be installed automatically when the IDE backend starts."
+  default     = []
+  validation {
+    condition     = can([for plugin in var.plugins : regex("^[a-zA-Z0-9._-]+$", plugin)])
+    error_message = "Plugin IDs must contain only alphanumeric characters, dots, underscores, and hyphens."
+  }
+}
+
 variable "major_version" {
   type        = string
   description = "The major version of the IDE. i.e. 2025.1"
@@ -196,6 +206,17 @@ locals {
 
   # Convert the parameter value to a set for for_each
   selected_ides = length(var.default) == 0 ? toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ides[0].value, "[]"))) : toset(var.default)
+}
+
+resource "coder_script" "jetbrains_plugin_installer" {
+  count        = length(var.plugins) > 0 ? 1 : 0
+  agent_id     = var.agent_id
+  display_name = "JetBrains Plugin Installer"
+  icon         = "/icon/jetbrains-toolbox.svg"
+  script = templatefile("${path.module}/plugin_installer.sh", {
+    plugins = jsonencode(var.plugins)
+  })
+  run_on_start = true
 }
 
 data "coder_parameter" "jetbrains_ides" {

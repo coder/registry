@@ -1021,4 +1021,104 @@ describe("jetbrains", async () => {
       }
     });
   });
+
+  // Plugin Installation Tests
+  describe("plugin installation", () => {
+    it("should not create plugin installer script when no plugins specified", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        folder: "/home/coder",
+        default: '["GO"]',
+        plugins: "[]",
+      });
+
+      const pluginScript = state.resources.find(
+        (res) => res.type === "coder_script" && res.name === "jetbrains_plugin_installer",
+      );
+      expect(pluginScript).toBeUndefined();
+    });
+
+    it("should create plugin installer script when plugins are specified", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        folder: "/home/coder",
+        default: '["GO"]',
+        plugins: '["tanvd.grazi", "com.github.copilot"]',
+      });
+
+      const pluginScript = state.resources.find(
+        (res) => res.type === "coder_script" && res.name === "jetbrains_plugin_installer",
+      );
+      expect(pluginScript).toBeDefined();
+      expect(pluginScript?.instances[0].attributes.agent_id).toBe("foo");
+      expect(pluginScript?.instances[0].attributes.display_name).toBe("JetBrains Plugin Installer");
+      expect(pluginScript?.instances[0].attributes.run_on_start).toBe(true);
+      expect(pluginScript?.instances[0].attributes.script).toContain("tanvd.grazi");
+      expect(pluginScript?.instances[0].attributes.script).toContain("com.github.copilot");
+    });
+
+    it("should create plugin installer script with single plugin", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "test-agent",
+        folder: "/home/coder",
+        default: '["IU"]',
+        plugins: '["tanvd.grazi"]',
+      });
+
+      const pluginScript = state.resources.find(
+        (res) => res.type === "coder_script" && res.name === "jetbrains_plugin_installer",
+      );
+      expect(pluginScript).toBeDefined();
+      expect(pluginScript?.instances[0].attributes.agent_id).toBe("test-agent");
+      expect(pluginScript?.instances[0].attributes.script).toContain("tanvd.grazi");
+    });
+
+    it("should validate plugin ID format", async () => {
+      // Valid plugin IDs should work
+      await expect(
+        runTerraformApply(import.meta.dir, {
+          agent_id: "foo",
+          folder: "/home/coder",
+          default: '["GO"]',
+          plugins: '["tanvd.grazi", "com.github.copilot", "org.jetbrains.plugins.yaml"]',
+        }),
+      ).resolves.toBeDefined();
+    });
+
+    it("should work with empty plugin list", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        folder: "/home/coder",
+        default: '["GO"]',
+        plugins: "[]",
+      });
+
+      const pluginScript = state.resources.find(
+        (res) => res.type === "coder_script" && res.name === "jetbrains_plugin_installer",
+      );
+      expect(pluginScript).toBeUndefined();
+    });
+
+    it("should work with plugins when using parameter selection mode", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        folder: "/home/coder",
+        // No default specified - uses parameter selection
+        plugins: '["tanvd.grazi"]',
+      });
+
+      // Should create plugin script even when using parameter selection
+      const pluginScript = state.resources.find(
+        (res) => res.type === "coder_script" && res.name === "jetbrains_plugin_installer",
+      );
+      expect(pluginScript).toBeDefined();
+      expect(pluginScript?.instances[0].attributes.script).toContain("tanvd.grazi");
+
+      // Should also create the parameter for IDE selection
+      const parameter = state.resources.find(
+        (res) => res.type === "coder_parameter" && res.name === "jetbrains_ides",
+      );
+      expect(parameter).toBeDefined();
+    });
+  });
 });

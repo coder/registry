@@ -120,6 +120,54 @@ module "jetbrains_pycharm" {
 }
 ```
 
+### Plugin Pre-installation
+
+Automatically install JetBrains plugins when the IDE backend starts:
+
+```tf
+module "jetbrains" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/jetbrains/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
+  folder   = "/home/coder/project"
+  
+  # Pre-install plugins by their marketplace IDs
+  plugins = [
+    "tanvd.grazi",           # Grazie Lite (grammar checking)
+    "com.github.copilot",    # GitHub Copilot
+    "org.jetbrains.plugins.terraform", # Terraform support
+    "com.intellij.plugins.watcher"      # File Watchers
+  ]
+}
+```
+
+### Complete Configuration with Plugins
+
+```tf
+module "jetbrains" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/jetbrains/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
+  folder   = "/home/coder/project"
+  
+  # IDE selection
+  default = ["IU", "PY"]
+  
+  # Plugin pre-installation
+  plugins = [
+    "tanvd.grazi",
+    "com.github.copilot",
+    "org.jetbrains.plugins.terraform"
+  ]
+  
+  # Version configuration
+  major_version = "2025.1"
+  channel       = "release"
+}
+```
+
 ## Behavior
 
 ### Parameter vs Direct Apps
@@ -132,6 +180,15 @@ module "jetbrains_pycharm" {
 - Build numbers are fetched from the JetBrains API for the latest compatible versions when internet access is available
 - If the API is unreachable (air-gapped environments), the module automatically falls back to build numbers from `ide_config`
 - `major_version` and `channel` control which API endpoint is queried (when API access is available)
+
+### Plugin Installation
+
+- Plugins are automatically installed on the remote IDE backend after JetBrains Gateway downloads the IDE
+- Plugin IDs can be found on the [JetBrains Marketplace](https://plugins.jetbrains.com/) in the "Additional Information" section
+- The installation process waits up to 5 minutes for the IDE backend to be ready
+- Plugins are installed for all IDE backends that are downloaded by Gateway
+- If plugin installation fails, the workspace will still function normally - plugins can be installed manually later
+- Restart the IDE if it's already running to see newly installed plugins
 
 ## Supported IDEs
 
