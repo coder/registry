@@ -24,6 +24,7 @@ module "jfrog" {
     go     = ["go", "another-go-repo"]
     pypi   = ["pypi", "extra-index-pypi"]
     docker = ["example-docker-staging.jfrog.io", "example-docker-production.jfrog.io"]
+    conda  = ["conda", "another-conda-repo"]
   }
 }
 ```
@@ -47,9 +48,10 @@ module "jfrog" {
   jfrog_url                = "https://YYYY.jfrog.io"
   artifactory_access_token = var.artifactory_access_token # An admin access token
   package_managers = {
-    npm  = ["npm-local"]
-    go   = ["go-local"]
-    pypi = ["pypi-local"]
+    npm   = ["npm-local"]
+    go    = ["go-local"]
+    pypi  = ["pypi-local"]
+    conda = ["conda-local"]
   }
 }
 ```
@@ -68,6 +70,29 @@ go get github.com/golang/example/hello
 pip install requests
 ```
 
+### Configure conda package manager
+
+Configure the conda package manager to fetch packages from Artifactory.
+
+```tf
+module "jfrog" {
+  source                   = "registry.coder.com/coder/jfrog-token/coder"
+  version                  = "1.0.30"
+  agent_id                 = coder_agent.example.id
+  jfrog_url                = "https://YYYY.jfrog.io"
+  artifactory_access_token = var.artifactory_access_token
+  package_managers = {
+    conda = ["conda-local"]
+  }
+}
+```
+
+You should now be able to install packages from Artifactory using conda.
+
+```shell
+conda install numpy
+```
+
 ### Configure code-server with JFrog extension
 
 The [JFrog extension](https://open-vsx.org/extension/JFrog/jfrog-vscode-extension) for VS Code allows you to interact with Artifactory from within the IDE.
@@ -81,9 +106,10 @@ module "jfrog" {
   artifactory_access_token = var.artifactory_access_token
   configure_code_server    = true # Add JFrog extension configuration for code-server
   package_managers = {
-    npm  = ["npm"]
-    go   = ["go"]
-    pypi = ["pypi"]
+    npm   = ["npm"]
+    go    = ["go"]
+    pypi  = ["pypi"]
+    conda = ["conda"]
   }
 }
 ```

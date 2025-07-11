@@ -28,6 +28,7 @@ module "jfrog" {
     go     = ["go", "another-go-repo"]
     pypi   = ["pypi", "extra-index-pypi"]
     docker = ["example-docker-staging.jfrog.io", "example-docker-production.jfrog.io"]
+    conda  = ["conda", "another-conda-repo"]
   }
 }
 ```
@@ -68,6 +69,31 @@ jf pip install requests
 pip install requests
 ```
 
+### Configure conda package manager
+
+Configure the conda package manager to fetch packages from Artifactory.
+
+```tf
+module "jfrog" {
+  count          = data.coder_workspace.me.start_count
+  source         = "registry.coder.com/coder/jfrog-oauth/coder"
+  version        = "1.0.19"
+  agent_id       = coder_agent.example.id
+  jfrog_url      = "https://example.jfrog.io"
+  username_field = "email"
+
+  package_managers = {
+    conda = ["conda"]
+  }
+}
+```
+
+You should now be able to install packages from Artifactory using conda.
+
+```shell
+conda install numpy
+```
+
 ### Configure code-server with JFrog extension
 
 The [JFrog extension](https://open-vsx.org/extension/JFrog/jfrog-vscode-extension) for VS Code allows you to interact with Artifactory from within the IDE.
@@ -82,9 +108,10 @@ module "jfrog" {
   username_field        = "username" # If you are using GitHub to login to both Coder and Artifactory, use username_field = "username"
   configure_code_server = true       # Add JFrog extension configuration for code-server
   package_managers = {
-    npm  = ["npm"]
-    go   = ["go"]
-    pypi = ["pypi"]
+    npm   = ["npm"]
+    go    = ["go"]
+    pypi  = ["pypi"]
+    conda = ["conda"]
   }
 }
 ```
