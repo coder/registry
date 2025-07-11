@@ -76,7 +76,7 @@ resource "coder_script" "vscode_desktop_setup" {
   run_on_stop  = false
   timeout      = 300
 
-  script = templatefile("${path.module}/setup.sh", {
+  script = templatefile("${path.module}/run.sh", {
     EXTENSIONS = jsonencode(var.extensions)
     SETTINGS   = jsonencode(var.settings)
     FOLDER     = var.folder

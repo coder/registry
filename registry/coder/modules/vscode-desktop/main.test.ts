@@ -55,7 +55,7 @@ describe("vscode-desktop", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       folder: "/foo/bar",
-      openRecent: "false",
+      open_recent: "false",
     });
     expect(state.outputs.vscode_url.value).toBe(
       "vscode://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
