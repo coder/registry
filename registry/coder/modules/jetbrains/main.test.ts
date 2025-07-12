@@ -1021,4 +1021,123 @@ describe("jetbrains", async () => {
       }
     });
   });
+
+  // Plugin Installation Tests
+  describe("plugin installation functionality", () => {
+    it("should create script resource when plugins are specified", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        folder: "/home/coder",
+        default: '["GO", "IU"]',
+        plugins: '["org.jetbrains.plugins.github", "com.intellij.ml.llm"]',
+      });
+
+      // Should create coder_script resource for plugin installation
+      const script = state.resources.find(
+        (res) => res.type === "coder_script" && res.name === "jetbrains_plugins",
+      );
+      expect(script).toBeDefined();
+      expect(script?.instances[0].attributes.display_name).toBe("Install JetBrains Plugins");
+      expect(script?.instances[0].attributes.run_on_start).toBe(true);
+      expect(script?.instances[0].attributes.start_blocks_login).toBe(false);
+      expect(script?.instances[0].attributes.timeout).toBe(300);
+
+      // Should still create the IDE apps
+      const coder_apps = state.resources.filter(
+        (res) => res.type === "coder_app" && res.name === "jetbrains",
+      );
+      expect(coder_apps.length).toBeGreaterThan(0);
+    });
+
+    it("should not create script resource when no plugins are specified", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        folder: "/home/coder",
+        default: '["GO"]',
+        plugins: '[]', // Empty plugins list
+      });
+
+      // Should NOT create script resource when plugins list is empty
+      const script = state.resources.find(
+        (res) => res.type === "coder_script" && res.name === "jetbrains_plugins",
+      );
+      expect(script).toBeUndefined();
+
+      // Should still create IDE apps normally
+      const coder_apps = state.resources.filter(
+        (res) => res.type === "coder_app" && res.name === "jetbrains",
+      );
+      expect(coder_apps.length).toBe(1);
+    });
+
+    it("should not create script resource when plugins parameter is not provided", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        folder: "/home/coder",
+        default: '["GO"]',
+        // plugins parameter not provided (uses default empty list)
+      });
+
+      // Should NOT create script resource when plugins is default empty
+      const script = state.resources.find(
+        (res) => res.type === "coder_script" && res.name === "jetbrains_plugins",
+      );
+      expect(script).toBeUndefined();
+
+      // Should still create IDE apps normally
+      const coder_apps = state.resources.filter(
+        (res) => res.type === "coder_app" && res.name === "jetbrains",
+      );
+      expect(coder_apps.length).toBe(1);
+    });
+
+    it("should work with plugins and parameter mode (default=[])", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        folder: "/home/coder",
+        // default is empty (parameter mode)
+        plugins: '["org.jetbrains.plugins.github"]',
+      });
+
+      // Should create parameter for IDE selection
+      const parameter = state.resources.find(
+        (res) => res.type === "coder_parameter" && res.name === "jetbrains_ides",
+      );
+      expect(parameter).toBeDefined();
+
+      // Should create script resource for plugin installation
+      const script = state.resources.find(
+        (res) => res.type === "coder_script" && res.name === "jetbrains_plugins",
+      );
+      expect(script).toBeDefined();
+
+      // Should not create any apps in parameter mode (until user selects)
+      const coder_apps = state.resources.filter(
+        (res) => res.type === "coder_app" && res.name === "jetbrains",
+      );
+      expect(coder_apps.length).toBe(0);
+    });
+
+    it("should work with single plugin", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        folder: "/home/coder",
+        default: '["PY"]',
+        plugins: '["Pythonid"]', // Single plugin
+      });
+
+      // Should create script resource
+      const script = state.resources.find(
+        (res) => res.type === "coder_script" && res.name === "jetbrains_plugins",
+      );
+      expect(script).toBeDefined();
+
+      // Should create PyCharm app
+      const coder_apps = state.resources.filter(
+        (res) => res.type === "coder_app" && res.name === "jetbrains",
+      );
+      expect(coder_apps.length).toBe(1);
+      expect(coder_apps[0].instances[0].attributes.display_name).toBe("PyCharm");
+    });
+  });
 });

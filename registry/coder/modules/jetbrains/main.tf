@@ -98,6 +98,12 @@ variable "options" {
   }
 }
 
+variable "plugins" {
+  type        = list(string)
+  description = "A list of plugin IDs to pre-install in the JetBrains IDEs. Plugin IDs can be found on the JetBrains Marketplace."
+  default     = []
+}
+
 variable "releases_base_link" {
   type        = string
   description = "URL of the JetBrains releases base link."
@@ -247,4 +253,20 @@ resource "coder_app" "jetbrains" {
     local.options_metadata[each.key].build,
     var.agent_name != null ? "&agent_name=${var.agent_name}" : "",
   ])
+}
+
+resource "coder_script" "jetbrains_plugins" {
+  count              = length(var.plugins) > 0 ? 1 : 0
+  agent_id           = var.agent_id
+  display_name       = "Configure JetBrains Plugins"
+  icon               = "/icon/jetbrains-toolbox.svg"
+  run_on_start       = true
+  start_blocks_login = false
+  timeout            = 120
+
+  script = templatefile("${path.module}/scripts/install-plugins.sh", {
+    plugins       = var.plugins
+    selected_ides = local.selected_ides
+    folder        = var.folder
+  })
 }

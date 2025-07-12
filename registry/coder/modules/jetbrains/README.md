@@ -120,6 +120,28 @@ module "jetbrains_pycharm" {
 }
 ```
 
+### Pre-installing JetBrains Plugins
+
+```tf
+module "jetbrains" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/jetbrains/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
+  folder   = "/home/coder/project"
+  default  = ["IU", "PY"]
+
+  # Pre-install plugins for all selected IDEs
+  plugins = [
+    "org.jetbrains.plugins.github",           # GitHub plugin
+    "com.intellij.ml.llm",                    # AI Assistant
+    "com.jetbrains.plugins.remotesdk",        # Remote Development
+    "Pythonid",                               # Python support (for IntelliJ)
+    "org.intellij.plugins.markdown"           # Markdown support
+  ]
+}
+```
+
 ## Behavior
 
 ### Parameter vs Direct Apps
@@ -146,3 +168,43 @@ All JetBrains IDEs with remote development capabilities:
 - [RubyMine (`RM`)](https://www.jetbrains.com/ruby/)
 - [RustRover (`RR`)](https://www.jetbrains.com/rust/)
 - [WebStorm (`WS`)](https://www.jetbrains.com/webstorm/)
+
+## Plugin Configuration
+
+The module supports pre-configuring JetBrains plugins for automatic installation when IDEs are first accessed via JetBrains Gateway. This works seamlessly with JetBrains' Remote Development architecture.
+
+### How Plugin Configuration Works
+
+1. When `plugins` parameter contains plugin IDs, a startup script creates IDE configuration files
+2. The script runs when the workspace starts, setting up plugin suggestions and recommendations
+3. When you connect via JetBrains Gateway, the IDE backend is automatically downloaded
+4. The IDE detects the plugin configuration and prompts for installation
+5. You can accept the suggestions to install all configured plugins at once
+
+### Finding Plugin IDs
+
+Plugin IDs can be found on the [JetBrains Marketplace](https://plugins.jetbrains.com/):
+
+1. Navigate to the plugin page
+2. Look for the plugin ID in the URL or on the plugin details page
+3. Common plugin ID examples:
+   - `org.jetbrains.plugins.github` - GitHub integration
+   - `com.intellij.ml.llm` - AI Assistant
+   - `Pythonid` - Python support for IntelliJ IDEA
+   - `org.intellij.plugins.markdown` - Markdown support
+
+### Demo-Ready Features
+
+- ✅ **Works with existing JetBrains Gateway workflow** - No need to pre-install IDEs
+- ✅ **Creates project-level plugin suggestions** - Visible in `.idea/externalDependencies.xml`
+- ✅ **Sets up IDE configuration files** - Ready for when IDE backend downloads
+- ✅ **Visual feedback** - Script shows configuration progress in workspace logs
+- ✅ **Easy to demonstrate** - Connect via Gateway → IDE suggests plugins → Accept → Done!
+
+### Important Notes
+
+- Works with JetBrains Gateway's automatic IDE backend downloading
+- Plugin suggestions appear when opening projects in the configured IDEs
+- No manual IDE installation required on the workspace server
+- Compatible with all JetBrains IDEs that support Remote Development
+- Configuration persists across workspace restarts
