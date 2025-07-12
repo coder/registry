@@ -15,7 +15,7 @@ describe("aws-ami-snapshot", async () => {
   });
 
   it("supports optional variables", async () => {
-    await testRequiredVariables(import.meta.dir, {
+    await runTerraformApply(import.meta.dir, {
       instance_id: "i-1234567890abcdef0",
       default_ami_id: "ami-12345678",
       template_name: "test-template",
