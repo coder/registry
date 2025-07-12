@@ -18,6 +18,7 @@ Provision Proxmox VE virtual machines as [Coder workspaces](https://coder.com/do
 **Proxmox VE Cluster**: This template requires an existing Proxmox VE cluster (version 7.0 or higher recommended).
 
 **VM Template**: This template uses cloud-init enabled VM templates. You'll need to create a template with:
+
 - Ubuntu 22.04 LTS (or your preferred Linux distribution)
 - Cloud-init package installed
 - Qemu Guest Agent installed
@@ -29,16 +30,19 @@ Provision Proxmox VE virtual machines as [Coder workspaces](https://coder.com/do
 This template authenticates to Proxmox VE using API tokens. You'll need to:
 
 1. Create a user in Proxmox VE for Coder:
+
    ```bash
    pveum user add coder@pve
    ```
 
 2. Create an API token:
+
    ```bash
    pveum user token add coder@pve coder-token --privsep=0
    ```
 
 3. Assign appropriate permissions:
+
    ```bash
    pveum role add CoderRole -privs "VM.Allocate,VM.Audit,VM.Clone,VM.Config.CDROM,VM.Config.CPU,VM.Config.Cloudinit,VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Console,VM.Monitor,VM.PowerMgmt,VM.Snapshot,VM.Snapshot.Rollback,Datastore.Allocate,Datastore.AllocateSpace,Datastore.Audit,SDN.Use"
    pveum aclmod / -user coder@pve -role CoderRole
