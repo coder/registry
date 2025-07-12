@@ -309,9 +309,9 @@ data "cloudinit_config" "user_data" {
     content_type = "text/cloud-config"
 
     content = templatefile("${path.module}/cloud-init/cloud-config.yaml.tftpl", {
-      hostname         = local.hostname
-      linux_user       = local.linux_user
-      ssh_public_key   = var.ssh_public_key
+      hostname          = local.hostname
+      linux_user        = local.linux_user
+      ssh_public_key    = var.ssh_public_key
       coder_agent_token = coder_agent.dev[0].token
     })
   }
@@ -321,9 +321,9 @@ data "cloudinit_config" "user_data" {
     content_type = "text/x-shellscript"
 
     content = templatefile("${path.module}/cloud-init/userdata.sh.tftpl", {
-      hostname         = local.hostname
-      linux_user       = local.linux_user
-      ssh_public_key   = var.ssh_public_key
+      hostname          = local.hostname
+      linux_user        = local.linux_user
+      ssh_public_key    = var.ssh_public_key
       coder_agent_token = coder_agent.dev[0].token
     })
   }
@@ -413,9 +413,9 @@ resource "oci_core_subnet" "subnet" {
 
 # Home disk
 resource "oci_core_volume" "home_volume" {
-  compartment_id = var.compartment_ocid
-  display_name   = "coder-${data.coder_workspace.me.id}-home"
-  size_in_gbs   = data.coder_parameter.home_size.value
+  compartment_id      = var.compartment_ocid
+  display_name        = "coder-${data.coder_workspace.me.id}-home"
+  size_in_gbs         = data.coder_parameter.home_size.value
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
 }
 
@@ -449,7 +449,7 @@ resource "oci_core_instance" "dev" {
 
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
-    user_data          = base64encode(data.cloudinit_config.user_data.rendered)
+    user_data           = base64encode(data.cloudinit_config.user_data.rendered)
   }
 
   freeform_tags = {
