@@ -13,9 +13,9 @@ This module provides AMI-based snapshot functionality for Coder workspaces runni
 
 ```tf
 module "ami_snapshot" {
-  source = "registry.coder.com/mavrickrishi/aws-ami-snapshot/coder"
+  source  = "registry.coder.com/mavrickrishi/aws-ami-snapshot/coder"
   version = "1.0.0"
-  
+
   instance_id    = aws_instance.workspace.id
   default_ami_id = data.aws_ami.ubuntu.id
   template_name  = "aws-linux"
