@@ -167,65 +167,8 @@ data "coder_parameter" "home_volume_size" {
   }
 }
 
-data "coder_parameter" "region" {
-  name         = "region"
-  display_name = "Region"
-  description  = "This is the region where your workspace will be created."
-  icon         = "/emojis/1f30e.png"
-  type         = "string"
-  default      = "ams3"
-  mutable      = false
-  # nyc1, sfo1, and ams2 regions were excluded because they do not support volumes, which are used to persist data while decreasing cost
-  option {
-    name  = "Canada (Toronto)"
-    value = "tor1"
-    icon  = "/emojis/1f1e8-1f1e6.png"
-  }
-  option {
-    name  = "Germany (Frankfurt)"
-    value = "fra1"
-    icon  = "/emojis/1f1e9-1f1ea.png"
-  }
-  option {
-    name  = "India (Bangalore)"
-    value = "blr1"
-    icon  = "/emojis/1f1ee-1f1f3.png"
-  }
-  option {
-    name  = "Netherlands (Amsterdam)"
-    value = "ams3"
-    icon  = "/emojis/1f1f3-1f1f1.png"
-  }
-  option {
-    name  = "Singapore"
-    value = "sgp1"
-    icon  = "/emojis/1f1f8-1f1ec.png"
-  }
-  option {
-    name  = "United Kingdom (London)"
-    value = "lon1"
-    icon  = "/emojis/1f1ec-1f1e7.png"
-  }
-  option {
-    name  = "United States (California - 2)"
-    value = "sfo2"
-    icon  = "/emojis/1f1fa-1f1f8.png"
-  }
-  option {
-    name  = "United States (California - 3)"
-    value = "sfo3"
-    icon  = "/emojis/1f1fa-1f1f8.png"
-  }
-  option {
-    name  = "United States (New York - 1)"
-    value = "nyc1"
-    icon  = "/emojis/1f1fa-1f1f8.png"
-  }
-  option {
-    name  = "United States (New York - 3)"
-    value = "nyc3"
-    icon  = "/emojis/1f1fa-1f1f8.png"
-  }
+module "region" {
+  source = "../../modules/digitalocean-region"
 }
 
 # Configure the DigitalOcean Provider
@@ -297,7 +240,7 @@ module "jetbrains_gateway" {
 }
 
 resource "digitalocean_volume" "home_volume" {
-  region                   = data.coder_parameter.region.value
+  region                   = module.region.value
   name                     = "coder-${data.coder_workspace.me.id}-home"
   size                     = data.coder_parameter.home_volume_size.value
   initial_filesystem_type  = "ext4"
@@ -309,7 +252,7 @@ resource "digitalocean_volume" "home_volume" {
 }
 
 resource "digitalocean_droplet" "workspace" {
-  region = data.coder_parameter.region.value
+  region = module.region.value
   count  = data.coder_workspace.me.start_count
   name   = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
   image  = data.coder_parameter.droplet_image.value
