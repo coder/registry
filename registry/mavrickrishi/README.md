@@ -1,7 +1,8 @@
 ---
-name: mavrickrishi
-description: Modules and templates by mavrickrishi
-github_url: https://github.com/MAVRICK-1
+display_name: "mavrickrishi"
+description: "Modules and templates by mavrickrishi"
+github_url: "https://github.com/MAVRICK-1"
+status: "community"
 ---
 
 # mavrickrishi

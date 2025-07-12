@@ -1,7 +1,7 @@
 ---
 display_name: AWS AMI Snapshot
 description: Create and manage AMI snapshots for Coder workspaces with restore capabilities
-icon: ../../../../../../.icons/aws.svg
+icon: ../../../../.icons/aws.svg
 maintainer_github: MAVRICK-1
 verified: false
 tags: [aws, snapshot, ami, backup, persistence]
@@ -10,6 +10,17 @@ tags: [aws, snapshot, ami, backup, persistence]
 # AWS AMI Snapshot Module
 
 This module provides AMI-based snapshot functionality for Coder workspaces running on AWS EC2 instances. It enables users to create snapshots when workspaces are stopped and restore from previous snapshots when starting workspaces.
+
+```tf
+module "ami_snapshot" {
+  source = "registry.coder.com/mavrickrishi/aws-ami-snapshot/coder"
+  version = "1.0.0"
+  
+  instance_id    = aws_instance.workspace.id
+  default_ami_id = data.aws_ami.ubuntu.id
+  template_name  = "aws-linux"
+}
+```
 
 ## Features
 
