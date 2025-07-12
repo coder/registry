@@ -23,7 +23,7 @@ describe("jetbrains-plugins", async () => {
         // No plugins specified
       });
 
-      // Should create JetBrains apps through the base module
+      // Should create JetBrains apps directly
       const jetbrains_apps = state.resources.filter(
         (res) => res.type === "coder_app" && res.name === "jetbrains"
       );
@@ -47,7 +47,7 @@ describe("jetbrains-plugins", async () => {
         plugins: '["org.jetbrains.plugins.github", "com.intellij.ml.llm"]',
       });
 
-      // Should create JetBrains apps through the base module
+      // Should create JetBrains apps directly
       const jetbrains_apps = state.resources.filter(
         (res) => res.type === "coder_app" && res.name === "jetbrains"
       );
@@ -78,7 +78,7 @@ describe("jetbrains-plugins", async () => {
         plugins: '["org.jetbrains.plugins.github"]',
       });
 
-      // Should create parameter for IDE selection (through base module)
+      // Should create parameter for IDE selection directly
       const parameters = state.resources.filter(
         (res) => res.type === "coder_parameter" && res.name === "jetbrains_ides"
       );

@@ -1,15 +1,15 @@
 ---
 display_name: JetBrains with Plugin Configuration
-description: Extends the JetBrains module with automatic plugin pre-configuration for workspaces.
+description: A complete JetBrains IDE module with automatic plugin pre-configuration for workspaces.
 icon: ../../../../.icons/jetbrains.svg
-maintainer_github: saheli
+maintainer_github: sahelisaha04
 verified: false
 tags: [ide, jetbrains, plugins, parameter]
 ---
 
 # JetBrains IDEs with Plugin Configuration
 
-This module extends the base JetBrains module with automatic plugin pre-configuration capabilities. It wraps the official `coder/jetbrains` module and adds plugin management features.
+This module provides complete JetBrains IDE integration with automatic plugin pre-configuration capabilities. It implements full JetBrains Gateway functionality with plugin management features.
 
 ```tf
 module "jetbrains_with_plugins" {
@@ -33,15 +33,16 @@ module "jetbrains_with_plugins" {
 
 ## Features
 
-✅ **Wraps official JetBrains module** - All existing functionality preserved  
+✅ **Complete JetBrains integration** - Full IDE functionality with Gateway support  
 ✅ **Plugin pre-configuration** - Automatically suggests plugins when IDE opens  
 ✅ **Project-level integration** - Creates `.idea/externalDependencies.xml`  
 ✅ **Gateway compatible** - Works with JetBrains Gateway workflow  
 ✅ **Zero setup required** - No manual IDE installation needed  
+✅ **Standalone implementation** - No external module dependencies
 
 ## How It Works
 
-1. **Base JetBrains apps** are created using the official module
+1. **JetBrains apps** are created directly with full Gateway integration
 2. **Plugin configuration script** runs on workspace start (when plugins specified)
 3. **IDE configuration files** are created for automatic plugin suggestions
 4. **When connecting via Gateway** → IDE suggests configured plugins → User accepts → Plugins install

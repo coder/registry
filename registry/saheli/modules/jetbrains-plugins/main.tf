@@ -6,6 +6,10 @@ terraform {
       source  = "coder/coder"
       version = ">= 2.5"
     }
+    http = {
+      source  = "hashicorp/http"
+      version = ">= 3.0"
+    }
   }
 }
 
@@ -87,7 +91,6 @@ variable "options" {
     )
     error_message = "The options must be a set of valid product codes. Valid product codes are ${join(",", ["CL", "GO", "IU", "PS", "PY", "RD", "RM", "RR", "WS"])}."
   }
-  # check if the set is empty
   validation {
     condition     = length(var.options) > 0
     error_message = "The options must not be empty."
@@ -154,7 +157,6 @@ variable "ide_config" {
     condition     = length(var.ide_config) > 0
     error_message = "The ide_config must not be empty."
   }
-  # ide_config must be a superset of var.. options
   validation {
     condition = alltrue([
       for code in var.options : contains(keys(var.ide_config), code)
@@ -163,26 +165,95 @@ variable "ide_config" {
   }
 }
 
-# Use the existing JetBrains module as a base
-module "jetbrains" {
-  source                = "registry.coder.com/coder/jetbrains/coder"
-  version               = "1.0.0"
-  agent_id              = var.agent_id
-  agent_name            = var.agent_name
-  folder                = var.folder
-  default               = var.default
-  group                 = var.group
-  coder_app_order       = var.coder_app_order
-  coder_parameter_order = var.coder_parameter_order
-  major_version         = var.major_version
-  channel               = var.channel
-  options               = var.options
-  releases_base_link    = var.releases_base_link
-  download_base_link    = var.download_base_link
-  ide_config            = var.ide_config
+data "http" "jetbrains_ide_versions" {
+  for_each = length(var.default) == 0 ? var.options : var.default
+  url      = "${var.releases_base_link}/products/releases?code=${each.key}&type=${var.channel}&latest=true${var.major_version == "latest" ? "" : "&major_version=${var.major_version}"}"
 }
 
-# Add plugin configuration script
+locals {
+  # Parse HTTP responses once with error handling for air-gapped environments
+  parsed_responses = {
+    for code in length(var.default) == 0 ? var.options : var.default : code => try(
+      jsondecode(data.http.jetbrains_ide_versions[code].response_body),
+      {} # Return empty object if API call fails
+    )
+  }
+
+  # Dynamically generate IDE configurations based on options with fallback to ide_config
+  options_metadata = {
+    for code in length(var.default) == 0 ? var.options : var.default : code => {
+      icon       = var.ide_config[code].icon
+      name       = var.ide_config[code].name
+      identifier = code
+      key        = code
+
+      # Use API build number if available, otherwise fall back to ide_config build number
+      build = length(keys(local.parsed_responses[code])) > 0 ? (
+        local.parsed_responses[code][keys(local.parsed_responses[code])[0]][0].build
+      ) : var.ide_config[code].build
+
+      # Store API data for potential future use (only if API is available)
+      json_data    = length(keys(local.parsed_responses[code])) > 0 ? local.parsed_responses[code][keys(local.parsed_responses[code])[0]][0] : null
+      response_key = length(keys(local.parsed_responses[code])) > 0 ? keys(local.parsed_responses[code])[0] : null
+    }
+  }
+
+  # Convert the parameter value to a set for for_each
+  selected_ides = length(var.default) == 0 ? toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ides[0].value, "[]"))) : toset(var.default)
+}
+
+data "coder_parameter" "jetbrains_ides" {
+  count        = length(var.default) == 0 ? 1 : 0
+  type         = "list(string)"
+  name         = "jetbrains_ides"
+  display_name = "JetBrains IDEs"
+  icon         = "/icon/jetbrains-toolbox.svg"
+  mutable      = true
+  default      = jsonencode([])
+  order        = var.coder_parameter_order
+  form_type    = "multi-select"
+
+  dynamic "option" {
+    for_each = var.options
+    content {
+      icon  = var.ide_config[option.value].icon
+      name  = var.ide_config[option.value].name
+      value = option.value
+    }
+  }
+}
+
+data "coder_workspace" "me" {}
+data "coder_workspace_owner" "me" {}
+
+resource "coder_app" "jetbrains" {
+  for_each     = local.selected_ides
+  agent_id     = var.agent_id
+  slug         = "jetbrains-${lower(each.key)}"
+  display_name = local.options_metadata[each.key].name
+  icon         = local.options_metadata[each.key].icon
+  external     = true
+  order        = var.coder_app_order
+  url = join("", [
+    "jetbrains://gateway/coder?&workspace=",
+    data.coder_workspace.me.name,
+    "&owner=",
+    data.coder_workspace_owner.me.name,
+    "&folder=",
+    var.folder,
+    "&url=",
+    data.coder_workspace.me.access_url,
+    "&token=",
+    "$SESSION_TOKEN",
+    "&ide_product_code=",
+    each.key,
+    "&ide_build_number=",
+    local.options_metadata[each.key].build,
+    var.agent_name != null ? "&agent_name=${var.agent_name}" : "",
+  ])
+}
+
+# Plugin configuration script
 resource "coder_script" "jetbrains_plugins" {
   count              = length(var.plugins) > 0 ? 1 : 0
   agent_id           = var.agent_id
