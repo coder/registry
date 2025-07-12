@@ -16,15 +16,15 @@ NC='\033[0m' # No Color
 
 # Logging functions
 log_info() {
-    printf "${GREEN}[INFO]${NC} %s\n" "$1"
+    printf "$${GREEN}[INFO]$${NC} %s\n" "$1"
 }
 
 log_warn() {
-    printf "${YELLOW}[WARN]${NC} %s\n" "$1"
+    printf "$${YELLOW}[WARN]$${NC} %s\n" "$1"
 }
 
 log_error() {
-    printf "${RED}[ERROR]${NC} %s\n" "$1"
+    printf "$${RED}[ERROR]$${NC} %s\n" "$1"
 }
 
 # Check if running as root
@@ -39,7 +39,7 @@ if command -v parsec &> /dev/null; then
     exit 0
 fi
 
-printf "${BOLD}🎮 Installing Parsec for Low-Latency Remote Desktop Access...${NC}\n\n"
+printf "$${BOLD}🎮 Installing Parsec for Low-Latency Remote Desktop Access...$${NC}\n\n"
 
 # Function to detect the Linux distribution
 detect_distro() {

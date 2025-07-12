@@ -51,14 +51,14 @@ describe("parsec", async () => {
     });
   });
 
-  it("sets default values correctly", async () => {
-    const result = await runTerraformApply(import.meta.dir, {
+    it("sets default values correctly", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
     });
-    
+
     // Check that default values are applied
-    expect(result.parsec_info.value.installation_method).toBe("auto");
-    expect(result.parsec_info.value.hardware_acceleration).toBe(true);
+    expect(state.outputs.parsec_info.value.installation_method).toBe("auto");
+    expect(state.outputs.parsec_info.value.hardware_acceleration).toBe(true);
   });
 
   it("configures UI positioning", async () => {
