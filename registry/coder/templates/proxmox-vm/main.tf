@@ -1,4 +1,3 @@
-<!-- filepath: /home/pranjal/Desktop/Github Repo/registry/registry/coder/templates/proxmox-vm/main.tf -->
 terraform {
   required_providers {
     coder = {
