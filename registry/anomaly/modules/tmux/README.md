@@ -14,7 +14,8 @@ up a default or custom tmux configuration with session save/restore capabilities
   - `tmux-plugins/tmux-resurrect`
   - `tmux-plugins/tmux-continuum`
 - Supports custom tmux configuration
-- Enables automatic session save/restore
+- Enables automatic session save
+- To restore in case of server restart `prefix + ctrl+r`
 - Configurable save interval
 
 ## Usage
@@ -76,4 +77,5 @@ This module does not export outputs.
   and TPM initialization lines if you want plugin support.
 - The script will attempt to install dependencies using `sudo` where required.
 - If `git` is not installed, TPM installation will fail.
+- To restore in case of server restart `prefix + ctrl+r`
 - If you are using custom config, you'll be responsible for setting up persistence
