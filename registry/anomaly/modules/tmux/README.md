@@ -63,7 +63,6 @@ module "tmux" {
     set -g mouse on
     set -g history-limit 10000
   EOT
-  save_interval = 2
 }
 ```
 
