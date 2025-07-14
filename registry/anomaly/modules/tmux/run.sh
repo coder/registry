@@ -8,14 +8,14 @@ TMUX_CONFIG="${TMUX_CONFIG}"
 
 # Function to install tmux
 install_tmux() {
-    print_info "Checking for tmux installation..."
+    echo "Checking for tmux installation..."
 
     if command -v tmux &> /dev/null; then
-        print_info "tmux is already installed"
+        echo "tmux is already installed"
         return 0
     fi
 
-    print_info "Installing tmux..."
+    echo "Installing tmux..."
 
     # Detect package manager and install tmux
     if command -v apt-get &> /dev/null; then
@@ -36,7 +36,7 @@ install_tmux() {
         exit 1
     fi
 
-    print_info "tmux installed successfully"
+    echo "tmux installed successfully"
 }
 
 # Function to install Tmux Plugin Manager (TPM)
@@ -44,11 +44,11 @@ install_tpm() {
     local tpm_dir="$HOME/.tmux/plugins/tpm"
 
     if [ -d "$tpm_dir" ]; then
-        print_info "TPM is already installed"
+        echo "TPM is already installed"
         return 0
     fi
 
-    print_info "Installing Tmux Plugin Manager (TPM)..."
+    echo "Installing Tmux Plugin Manager (TPM)..."
 
     # Create plugins directory
     mkdir -p "$HOME/.tmux/plugins"
@@ -56,7 +56,7 @@ install_tpm() {
     # Clone TPM repository
     if command -v git &> /dev/null; then
         git clone https://github.com/tmux-plugins/tpm "$tpm_dir"
-        print_info "TPM installed successfully"
+        echo "TPM installed successfully"
     else
         print_error "Git is not installed. Please install git to use tmux plugins."
         exit 1
@@ -65,7 +65,7 @@ install_tpm() {
 
 # Function to create tmux configuration
 setup_tmux_config() {
-    print_info "Setting up tmux configuration..."
+    echo "Setting up tmux configuration..."
 
     local config_dir="$HOME/.tmux"
     local config_file="$HOME/.tmux.conf"
@@ -103,12 +103,12 @@ bind C-r run-shell "~/.tmux/plugins/tmux-resurrect/scripts/restore.sh"
 run '~/.tmux/plugins/tpm/tpm'
 EOF
 
-    print_info "tmux configuration created at $config_file"
+    echo "tmux configuration created at $config_file"
 }
 
 # Function to install tmux plugins
 install_plugins() {
-    print_info "Installing tmux plugins..."
+    echo "Installing tmux plugins..."
 
     # Check if TPM is installed
     if [ ! -d "$HOME/.tmux/plugins/tpm" ]; then
@@ -119,12 +119,12 @@ install_plugins() {
     # Install plugins using TPM
     "$HOME/.tmux/plugins/tpm/bin/install_plugins"
 
-    print_info "tmux plugins installed successfully"
+    echo "tmux plugins installed successfully"
 }
 
 # Function to start tmux session
 start_tmux_session() {
-    print_info "Setting up tmux session..."
+    echo "Setting up tmux session..."
 
     # Check if session already exists
     if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
@@ -134,14 +134,14 @@ start_tmux_session() {
 
     # Create new session
     if [ -n "$STARTUP_COMMAND" ]; then
-        print_info "Creating tmux session '$SESSION_NAME' with startup command"
+        echo "Creating tmux session '$SESSION_NAME' with startup command"
         tmux new-session -d -s "$SESSION_NAME" "$STARTUP_COMMAND"
     else
-        print_info "Creating tmux session '$SESSION_NAME'"
+        echo "Creating tmux session '$SESSION_NAME'"
         tmux new-session -d -s "$SESSION_NAME"
     fi
 
-    print_info "tmux session '$SESSION_NAME' created successfully"
+    echo "tmux session '$SESSION_NAME' created successfully"
 }
 
 # Function to display usage information
