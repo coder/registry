@@ -1,13 +1,13 @@
 ---
 display_name: "Jay Kumar"
-bio: "Brief description of who you are and what you do"
+bio: "I'm a Software Engineer :)"
 avatar_url: "./.images/avatar.png"
 github: "35C4n0r"
-linkedin: "https://www.linkedin.com/in/jaykum4r" # Optional
-support_email: "work.jaykumar@gmail.co" # Optional
+linkedin: "https://www.linkedin.com/in/jaykum4r"
+support_email: "work.jaykumar@gmail.com"
 status: "community"
 ---
 
 # Your Name
 
-Brief description of who you are and what you do.
+I'm a Software Engineer :)
