@@ -2,7 +2,6 @@
 display_name: Slack Me
 description: Send a Slack message when a command finishes inside a workspace!
 icon: ../../../../.icons/slack.svg
-maintainer_github: coder
 verified: true
 tags: [helper, slack]
 ---

@@ -2,7 +2,6 @@
 display_name: Goose
 description: Run Goose in your workspace
 icon: ../../../../.icons/goose.svg
-maintainer_github: coder
 verified: true
 tags: [agent, goose, ai, tasks]
 ---

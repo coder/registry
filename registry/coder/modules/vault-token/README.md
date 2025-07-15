@@ -2,7 +2,6 @@
 display_name: Hashicorp Vault Integration (Token)
 description: Authenticates with Vault using Token
 icon: ../../../../.icons/vault.svg
-maintainer_github: coder
 partner_github: hashicorp
 verified: true
 tags: [hashicorp, integration, vault, token]

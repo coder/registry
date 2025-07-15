@@ -2,7 +2,6 @@
 display_name: Git Config
 description: Stores Git configuration from Coder credentials
 icon: ../../../../.icons/git.svg
-maintainer_github: coder
 verified: true
 tags: [helper, git]
 ---

@@ -2,7 +2,6 @@
 display_name: Cursor IDE
 description: Add a one-click button to launch Cursor IDE
 icon: ../../../../.icons/cursor.svg
-maintainer_github: coder
 verified: true
 tags: [ide, cursor, ai]
 ---

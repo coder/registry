@@ -2,7 +2,6 @@
 display_name: VS Code Web
 description: VS Code Web - Visual Studio Code in the browser
 icon: ../../../../.icons/code.svg
-maintainer_github: coder
 verified: true
 tags: [ide, vscode, web]
 ---

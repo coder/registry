@@ -2,7 +2,6 @@
 display_name: Amazon Q
 description: Run Amazon Q in your workspace to access Amazon's AI coding assistant.
 icon: ../../../../.icons/amazon-q.svg
-maintainer_github: coder
 verified: true
 tags: [agent, ai, aws, amazon-q]
 ---
