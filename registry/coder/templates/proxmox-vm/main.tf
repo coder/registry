@@ -50,7 +50,7 @@ variable "network_bridge" {
 provider "proxmox" {
   # API URL can be set via PM_API_URL environment variable or variable
   pm_api_url = var.proxmox_api_url != "" ? var.proxmox_api_url : null
-  
+
   # Authentication via API token (recommended):
   # Set these environment variables:
   # PM_API_TOKEN_ID='terraform-prov@pve!mytoken'
@@ -59,21 +59,21 @@ provider "proxmox" {
   # Or via username/password:
   # PM_USER="terraform-prov@pve"
   # PM_PASS="password"
-  
+
   # TLS settings
-  pm_tls_insecure = true  # Allow self-signed certificates (common in Proxmox)
-  
+  pm_tls_insecure = true # Allow self-signed certificates (common in Proxmox)
+
   # Performance settings
-  pm_parallel = 2    # Allow 2 simultaneous operations
-  pm_timeout  = 600  # 10 minute timeout for API calls
-  
+  pm_parallel = 2   # Allow 2 simultaneous operations
+  pm_timeout  = 600 # 10 minute timeout for API calls
+
   # Optional: Enable debugging
   pm_debug = false
-  
+
   # Optional: Enable logging for troubleshooting
   pm_log_enable = false
   pm_log_file   = "terraform-plugin-proxmox.log"
-  
+
   # Minimum permission check
   pm_minimum_permission_check = true
 }
@@ -176,8 +176,8 @@ resource "coder_agent" "main" {
 module "code-server" {
   count  = data.coder_workspace.me.start_count
   source = "registry.coder.com/coder/code-server/coder"
-  
-  version = "~> 1.0"
+
+  version  = "~> 1.0"
   agent_id = coder_agent.main.id
   order    = 1
 }
@@ -190,17 +190,17 @@ module "jetbrains_gateway" {
   jetbrains_ides = ["IU", "PY", "WS", "PS", "RD", "CL", "GO", "RM"]
   default        = "IU"
   folder         = "/home/coder"
-  
-  version = "~> 1.0"
+
+  version    = "~> 1.0"
   agent_id   = coder_agent.main.id
   agent_name = "main"
   order      = 2
 }
 
 locals {
-  vm_name     = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
-  linux_user  = "coder"
-  hostname    = lower(data.coder_workspace.me.name)
+  vm_name    = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
+  linux_user = "coder"
+  hostname   = lower(data.coder_workspace.me.name)
 }
 
 # Cloud-init configuration
@@ -264,7 +264,7 @@ resource "proxmox_file" "cloud_init_user_data" {
   content_type = "snippets"
   datastore_id = "local"
   node_name    = data.coder_parameter.proxmox_node.value
-  
+
   source_raw {
     data      = data.cloudinit_config.user_data.rendered
     file_name = "coder-${data.coder_workspace.me.id}-user.yml"
@@ -276,32 +276,32 @@ resource "proxmox_vm_qemu" "workspace" {
   count       = data.coder_workspace.me.start_count
   name        = local.vm_name
   target_node = data.coder_parameter.proxmox_node.value
-  
+
   # Clone from template
   clone      = var.vm_template
   full_clone = true
-  
+
   # VM Configuration
   cores   = data.coder_parameter.cpu_cores.value
   memory  = data.coder_parameter.memory.value
   sockets = 1
-  
+
   # Enable Qemu Guest Agent for better integration
   agent = 1
-  
+
   # Operating system type
   os_type = "cloud-init"
-  
+
   # Cloud-init configuration
   cloudinit_cdrom_storage = var.storage
   cicustom                = "user=local:snippets/coder-${data.coder_workspace.me.id}-user.yml"
-  
+
   # Network configuration
   network {
     bridge = var.network_bridge
     model  = "virtio"
   }
-  
+
   # Disk configuration following provider documentation format
   disks {
     scsi {
@@ -309,17 +309,17 @@ resource "proxmox_vm_qemu" "workspace" {
         disk {
           size    = data.coder_parameter.disk_size.value
           storage = var.storage
-          format  = "raw"  # Explicitly set format
+          format  = "raw" # Explicitly set format
         }
       }
     }
   }
-  
+
   # Boot settings
   boot    = "order=scsi0"
   onboot  = false
   startup = ""
-  
+
   # VM lifecycle management
   lifecycle {
     ignore_changes = [
@@ -327,13 +327,13 @@ resource "proxmox_vm_qemu" "workspace" {
       desc,
       numa,
       hotplug,
-      disk,  # Prevent disk recreation
+      disk, # Prevent disk recreation
     ]
   }
-  
+
   # Tags for identification (supported in newer Proxmox versions)
   tags = "coder,workspace,${data.coder_workspace_owner.me.name}"
-  
+
   # Depends on cloud-init file being created first
   depends_on = [proxmox_file.cloud_init_user_data]
 }
@@ -341,23 +341,23 @@ resource "proxmox_vm_qemu" "workspace" {
 # VM power management based on workspace state
 resource "null_resource" "vm_power_management" {
   count = data.coder_workspace.me.start_count
-  
+
   # Trigger on workspace state changes
   triggers = {
     workspace_transition = data.coder_workspace.me.transition
-    vm_id               = proxmox_vm_qemu.workspace[0].vmid
-    node                = data.coder_parameter.proxmox_node.value
+    vm_id                = proxmox_vm_qemu.workspace[0].vmid
+    node                 = data.coder_parameter.proxmox_node.value
   }
-  
+
   # Start VM on workspace start
   provisioner "local-exec" {
     when    = create
     command = data.coder_workspace.me.transition == "start" ? "echo 'VM should be started'" : "echo 'VM created'"
   }
-  
+
   # Note: Actual VM power management would require additional tooling
   # This is a placeholder for proper power management implementation
-  
+
   depends_on = [proxmox_vm_qemu.workspace]
 }
 
@@ -371,7 +371,7 @@ resource "coder_metadata" "workspace_info" {
     value = data.coder_parameter.proxmox_node.value
   }
   item {
-    key   = "vm_id" 
+    key   = "vm_id"
     value = proxmox_vm_qemu.workspace[0].vmid
   }
   item {
