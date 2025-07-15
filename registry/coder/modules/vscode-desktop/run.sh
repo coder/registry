@@ -13,7 +13,7 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
-# Function to check if VS Code CLI is available
+# Function to check if VS Code CLI is available, and install if missing
 check_vscode_cli() {
     if command -v code >/dev/null 2>&1; then
         return 0
@@ -28,14 +28,58 @@ check_vscode_cli() {
         "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
     )
     
-    for path in "$${vscode_paths[@]}"; do
+    for path in "${vscode_paths[@]}"; do
         if [ -x "$path" ]; then
             export PATH="$PATH:$(dirname "$path")"
             return 0
         fi
     done
+
+    # Try to install VS Code Desktop (which provides the CLI)
+    log "VS Code CLI (code) not found. Attempting to install VS Code Desktop..."
+    if command -v apt-get >/dev/null 2>&1; then
+        log "Attempting to install VS Code via apt-get..."
+        sudo apt-get update >/dev/null 2>&1 && sudo apt-get install -y wget gpg >/dev/null 2>&1
+        wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
+        sudo install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/
+        sudo sh -c 'echo "deb [arch=$(dpkg --print-architecture)] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list'
+        sudo apt-get update >/dev/null 2>&1 && sudo apt-get install -y code >/dev/null 2>&1
+        rm -f microsoft.gpg
     
-    return 1
+    elif command -v yum >/dev/null 2>&1; then
+        log "Attempting to install VS Code via yum..."
+        sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+        sudo sh -c 'echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/vscode.repo'
+        sudo yum check-update >/dev/null 2>&1 && sudo yum install -y code >/dev/null 2>&1
+    
+    elif command -v dnf >/dev/null 2>&1; then
+        log "Attempting to install VS Code via dnf..."
+        sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+        sudo sh -c 'echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/vscode.repo'
+        sudo dnf check-update >/dev/null 2>&1 && sudo dnf install -y code >/dev/null 2>&1
+    
+    elif command -v pacman >/dev/null 2>&1; then
+        log "Attempting to install VS Code via pacman..."
+        sudo pacman -Sy --noconfirm code >/dev/null 2>&1 || sudo pacman -Sy --noconfirm visual-studio-code-bin >/dev/null 2>&1
+    
+    elif command -v brew >/dev/null 2>&1; then
+        log "Attempting to install VS Code via brew..."
+        brew install --cask visual-studio-code >/dev/null 2>&1
+    
+    else
+        log "ERROR: Could not determine package manager to install VS Code. Please install it manually."
+        return 1
+    
+    fi
+
+    # Re-check for code CLI
+    if command -v code >/dev/null 2>&1; then
+        log "✓ VS Code CLI installed successfully."
+        return 0
+    else
+        log "ERROR: VS Code CLI installation failed. Please install VS Code Desktop and ensure 'code' is in your PATH."
+        return 1
+    fi
 }
 
 # Function to install VS Code extensions
@@ -241,14 +285,9 @@ main() {
     
     # Check if VS Code CLI is available
     if ! check_vscode_cli; then
-        log "WARNING: VS Code CLI (code command) is not available in PATH."
-        log "Extensions cannot be installed automatically, but settings will still be configured."
-        log "To install extensions manually, ensure VS Code is installed and the 'code' command is available."
-        
-        # Still configure settings and create recommendations
-        configure_settings "$SETTINGS" "$FOLDER"
-        create_extensions_recommendations "$EXTENSIONS" "$FOLDER"
-        return 0
+        log "ERROR: VS Code CLI (code command) is not available in PATH after installation attempt."
+        log "Please ensure VS Code Desktop is installed and the 'code' command is available."
+        exit 1
     fi
     
     # Install extensions
