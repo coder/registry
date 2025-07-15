@@ -12,7 +12,7 @@ Add a button to open any workspace with a single click in [Kiro IDE](https://kir
 
 Kiro is an AI-powered IDE from AWS that helps developers build from concept to production with spec-driven development, featuring AI agents, hooks, and steering files.
 
-Uses the [open-remote-ssh extension](https://open-vsx.org/extension/jeanp413/open-remote-ssh) for establishing connections to Coder workspaces.
+Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder) and [open-remote-ssh extension](https://open-vsx.org/extension/jeanp413/open-remote-ssh) for establishing connections to Coder workspaces.
 
 ```tf
 module "kiro" {
