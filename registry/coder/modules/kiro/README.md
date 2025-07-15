@@ -9,7 +9,7 @@ tags: [ide, kiro, ai, aws]
 
 # Kiro IDE
 
-Add a button to open any workspace with a single click in Kiro IDE.
+Add a button to open any workspace with a single click in [Kiro IDE](https://kiro.dev).
 
 Kiro is an AI-powered IDE from AWS that helps developers build from concept to production with spec-driven development, featuring AI agents, hooks, and steering files.
 
