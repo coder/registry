@@ -1,7 +1,7 @@
 ---
 display_name: Kiro IDE
 description: Add a one-click button to launch Kiro IDE
-icon: ../../../../.icons/code.svg
+icon: ../../../../.icons/kiro.svg
 maintainer_github: coder
 verified: true
 tags: [ide, kiro, ai, aws]

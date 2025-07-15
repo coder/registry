@@ -56,7 +56,7 @@ data "coder_workspace_owner" "me" {}
 resource "coder_app" "kiro" {
   agent_id     = var.agent_id
   external     = true
-  icon         = "/icon/code.svg"
+  icon         = "/icon/kiro.svg"
   slug         = var.slug
   display_name = var.display_name
   order        = var.order
