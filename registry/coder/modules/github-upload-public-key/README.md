@@ -14,7 +14,7 @@ Templates that utilize Github External Auth can automatically ensure that the Co
 module "github-upload-public-key" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/github-upload-public-key/coder"
-  version = "1.0.31"
+  version  = "1.0.31"
   agent_id = coder_agent.example.id
 }
 ```
@@ -47,7 +47,7 @@ data "coder_external_auth" "github" {
 module "github-upload-public-key" {
   count            = data.coder_workspace.me.start_count
   source           = "registry.coder.com/coder/github-upload-public-key/coder"
-  version = "1.0.31"
+  version          = "1.0.31"
   agent_id         = coder_agent.example.id
   external_auth_id = data.coder_external_auth.github.id
 }

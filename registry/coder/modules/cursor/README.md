@@ -16,7 +16,7 @@ Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder)
 module "cursor" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/cursor/coder"
-  version = "1.2.1"
+  version  = "1.2.1"
   agent_id = coder_agent.example.id
 }
 ```
@@ -29,7 +29,7 @@ module "cursor" {
 module "cursor" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/cursor/coder"
-  version = "1.2.1"
+  version  = "1.2.1"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
 }
