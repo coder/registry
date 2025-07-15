@@ -15,7 +15,7 @@ Enable Remote Desktop + a web based client on Windows workspaces, powered by [de
 module "windows_rdp" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windows-rdp/coder"
-  version  = "1.2.2"
+  version = "1.2.3"
   agent_id = resource.coder_agent.main.id
 }
 ```
@@ -32,7 +32,7 @@ module "windows_rdp" {
 module "windows_rdp" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windows-rdp/coder"
-  version  = "1.2.2"
+  version = "1.2.3"
   agent_id = resource.coder_agent.main.id
 }
 ```
@@ -43,7 +43,7 @@ module "windows_rdp" {
 module "windows_rdp" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windows-rdp/coder"
-  version  = "1.2.2"
+  version = "1.2.3"
   agent_id = resource.coder_agent.main.id
 }
 ```
@@ -54,7 +54,7 @@ module "windows_rdp" {
 module "windows_rdp" {
   count                       = data.coder_workspace.me.start_count
   source                      = "registry.coder.com/coder/windows-rdp/coder"
-  version                     = "1.2.2"
+  version = "1.2.3"
   agent_id                    = resource.coder_agent.main.id
   devolutions_gateway_version = "2025.2.2" # Specify a specific version
 }

@@ -15,7 +15,7 @@ We do not recommend using this module directly. Instead, please consider using o
 ```tf
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.0.0"
+  version = "1.0.1"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug

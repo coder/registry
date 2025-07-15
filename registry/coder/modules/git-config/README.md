@@ -14,7 +14,7 @@ Runs a script that updates git credentials in the workspace to match the user's 
 module "git-config" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/git-config/coder"
-  version  = "1.0.15"
+  version = "1.0.31"
   agent_id = coder_agent.example.id
 }
 ```
@@ -29,7 +29,7 @@ TODO: Add screenshot
 module "git-config" {
   count              = data.coder_workspace.me.start_count
   source             = "registry.coder.com/coder/git-config/coder"
-  version            = "1.0.15"
+  version = "1.0.31"
   agent_id           = coder_agent.example.id
   allow_email_change = true
 }
@@ -43,7 +43,7 @@ TODO: Add screenshot
 module "git-config" {
   count                 = data.coder_workspace.me.start_count
   source                = "registry.coder.com/coder/git-config/coder"
-  version               = "1.0.15"
+  version = "1.0.31"
   agent_id              = coder_agent.example.id
   allow_username_change = false
   allow_email_change    = false

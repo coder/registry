@@ -17,7 +17,7 @@ Consult the [JetBrains documentation](https://www.jetbrains.com/help/idea/prereq
 module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jetbrains-gateway/coder"
-  version        = "1.2.1"
+  version = "1.2.2"
   agent_id       = coder_agent.example.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["CL", "GO", "IU", "PY", "WS"]
@@ -35,7 +35,7 @@ module "jetbrains_gateway" {
 module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jetbrains-gateway/coder"
-  version        = "1.2.1"
+  version = "1.2.2"
   agent_id       = coder_agent.example.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["GO", "WS"]
@@ -49,7 +49,7 @@ module "jetbrains_gateway" {
 module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jetbrains-gateway/coder"
-  version        = "1.2.1"
+  version = "1.2.2"
   agent_id       = coder_agent.example.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["IU", "PY"]
@@ -64,7 +64,7 @@ module "jetbrains_gateway" {
 module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jetbrains-gateway/coder"
-  version        = "1.2.1"
+  version = "1.2.2"
   agent_id       = coder_agent.example.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["IU", "PY"]
@@ -89,7 +89,7 @@ module "jetbrains_gateway" {
 module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jetbrains-gateway/coder"
-  version        = "1.2.1"
+  version = "1.2.2"
   agent_id       = coder_agent.example.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["GO", "WS"]
@@ -107,7 +107,7 @@ Due to the highest priority of the `ide_download_link` parameter in the `(jetbra
 module "jetbrains_gateway" {
   count              = data.coder_workspace.me.start_count
   source             = "registry.coder.com/coder/jetbrains-gateway/coder"
-  version            = "1.2.1"
+  version = "1.2.2"
   agent_id           = coder_agent.example.id
   folder             = "/home/coder/example"
   jetbrains_ides     = ["GO", "WS"]
