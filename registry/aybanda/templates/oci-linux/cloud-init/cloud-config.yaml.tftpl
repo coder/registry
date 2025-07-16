@@ -1,0 +1,39 @@
+#cloud-config
+hostname: ${hostname}
+users:
+  - name: ${linux_user}
+    uid: 1000
+    gid: 1000
+    groups: sudo
+    packages:
+      - curl
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+
+# Update package list and install basic packages
+package_update: true
+package_upgrade: true
+packages:
+  - curl
+  - wget
+  - git
+  - unzip
+  - software-properties-common
+  - apt-transport-https
+  - ca-certificates
+  - gnupg
+  - lsb-release
+
+# Write the Coder agent token to a file
+write_files:
+  - path: /opt/coder/init.env
+    content: |
+      CODER_AGENT_TOKEN=${coder_agent_token}
+    owner: ${linux_user}:${linux_user}
+    permissions: '0600'
+
+# Run commands after package installation
+runcmd:
+  - systemctl enable --now coder-agent 
