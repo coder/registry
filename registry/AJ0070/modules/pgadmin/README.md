@@ -1,15 +1,17 @@
 ---
-display_name: pgAdmin
-description: A module to add pgAdmin to your Coder workspace for easy access to PostgreSQL databases.
-icon: ../../../../.icons/postgres.svg
-maintainer_github: AJ0070
+display_name: "pgAdmin"
+description: "A web-based interface for managing PostgreSQL databases in your Coder workspace."
+icon: "../../../../.icons/postgres.svg"
+maintainer_github: "AJ0070"
 verified: false
-tags: [helper, database, postgres, pgadmin]
+tags: ["database", "postgres", "pgadmin", "web-ide"]
 ---
 
 # pgAdmin
 
-This module adds a pgAdmin app to your Coder workspace, providing a web-based interface for managing PostgreSQL databases.
+This module adds a pgAdmin app to your Coder workspace, providing a powerful web-based interface for managing PostgreSQL databases.
+
+It can be served on a Coder subdomain for easy access, or on `localhost` if you prefer to use port-forwarding.
 
 ```tf
 module "pgadmin" {
@@ -17,5 +19,22 @@ module "pgadmin" {
   source   = "[registry.coder.com/AJ0070/pgadmin/coder](https://registry.coder.com/AJ0070/pgadmin/coder)"
   version  = "1.0.0"
   agent_id = coder_agent.example.id
+}
+```
+
+# Examples
+
+### Serve on a Localhost Port
+
+To access pgAdmin via `localhost` and a port-forward, set the `subdomain` variable to `false`.
+
+```tf
+module "pgadmin" {
+  count     = data.coder_workspace.me.start_count
+  source    = "[registry.coder.com/AJ0070/pgadmin/coder](https://registry.coder.com/AJ0070/pgadmin/coder)"
+  version   = "1.0.0"
+  agent_id  = coder_agent.example.id
+  subdomain = false
+  port      = 8080 # Optional: specify a custom port
 }
 ```
