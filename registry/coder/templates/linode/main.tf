@@ -13,12 +13,12 @@ locals {
   username = data.coder_workspace_owner.me.name
 }
 
-variable "linode_token" {}
-variable "storage_size" {
-  type = number
-  description = "The Size of the VM HDD" 
-  default = 25
+variable "linode_token" {
+  type = string
+  description = "Your Linode Token"
+  default = "null"
 }
+
 variable "region" {
   type = string
   description = "Where do you want your linode instance to be hosted?"
@@ -36,12 +36,14 @@ data "coder_workspace_owner" "me" {}
 resource "linode_instance" "main" {
   region = data.coder_parameter.region.value
   label = "linode-${data.coder_workspace.me.id}-home" 
+  type = data.coder_parameter.type.value
 }
 
 resource "linode_instance_disk" "boot" {
   label = "boot"
   linode_id = linode_instance.main.id
-  size = var.storage_size
+  size = tostring(data.coder_parameter.storage_size)
+  # this is making me aggrovated, I can't figure out how to convert this value gathered later on (in create workspace vs. import template) to a string so TF will accept it.
   filesystem = "ext4"
 }
 
@@ -68,6 +70,21 @@ data "coder_parameter" "region" {
     name = "Newark, NJ"
     value= "us-east"
   }
+}
+
+data "coder_parameter" "type" {
+  name = "type"
+  display_name = "Instance Type"
+  type = "string"
+  default = "g6-standard-2"
+  # Linode documentation does not specify a list of types, so I'm not sure what to put here. I'm not currently a Linode customer.
+}
+
+data "coder_parameter" "storage_size" {
+  name = "storage_size"
+  display_name = "Storage Size"
+  type = "number"
+  default = "25"
 }
 
 resource "coder_agent" "main" {
