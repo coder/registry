@@ -14,7 +14,11 @@ locals {
 }
 
 variable "linode_token" {}
-variable "size" {}
+variable "storage_size" {
+  type = number
+  description = "The Size of the VM HDD" 
+  default = 25
+}
 
 provider "linode" {
   token = var.linode_token
@@ -26,7 +30,14 @@ data "coder_workspace_owner" "me" {}
 
 resource "linode_instance" "main" {
   region = data.coder_parameter.region.value
-  label = "coder-${data.coder_workspace.me.id}-home"
+  label = "linode-${data.coder_workspace.me.id}-home" 
+}
+
+resource "linode_instance_disk" "boot" {
+  label = "boot"
+  linode_id = linode_instance.my-instance.id
+  size = var.storage_size
+  filesystem = "ext4"
 }
 
 resource "coder_agent" "main" {
