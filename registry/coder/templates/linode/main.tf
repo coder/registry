@@ -19,6 +19,11 @@ variable "storage_size" {
   description = "The Size of the VM HDD" 
   default = 25
 }
+variable "region" {
+  type = string
+  description = "Where do you want your linode instance to be hosted?"
+  default = "us-central"
+}
 
 provider "linode" {
   token = var.linode_token
@@ -35,9 +40,34 @@ resource "linode_instance" "main" {
 
 resource "linode_instance_disk" "boot" {
   label = "boot"
-  linode_id = linode_instance.my-instance.id
+  linode_id = linode_instance.main.id
   size = var.storage_size
   filesystem = "ext4"
+}
+
+data "coder_parameter" "region" {
+  name         = "region"
+  display_name = "Region"
+  description  = "This is the region where your workspace will be created."
+  type         = "string"
+  default      = "us-central"
+  mutable      = false
+  option {
+    name  = "Dallas, TX"
+    value = "us-central"
+  }
+  option {
+    name  = "Fremont, CA"
+    value = "us-west"
+  }
+  option {
+    name  = "Atlanta, GA"
+    value = "us-southeast"
+  }
+  option {
+    name = "Newark, NJ"
+    value= "us-east"
+  }
 }
 
 resource "coder_agent" "main" {
