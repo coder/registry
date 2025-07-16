@@ -16,25 +16,8 @@ It can be served on a Coder subdomain for easy access, or on `localhost` if you 
 ```tf
 module "pgadmin" {
   count    = data.coder_workspace.me.start_count
-  source   = "[registry.coder.com/AJ0070/pgadmin/coder](https://registry.coder.com/AJ0070/pgadmin/coder)"
+  source   = "registry.coder.com/AJ0070/pgadmin/coder"
   version  = "1.0.0"
   agent_id = coder_agent.example.id
-}
-```
-
-# Examples
-
-### Serve on a Localhost Port
-
-To access pgAdmin via `localhost` and a port-forward, set the `subdomain` variable to `false`.
-
-```tf
-module "pgadmin" {
-  count     = data.coder_workspace.me.start_count
-  source    = "[registry.coder.com/AJ0070/pgadmin/coder](https://registry.coder.com/AJ0070/pgadmin/coder)"
-  version   = "1.0.0"
-  agent_id  = coder_agent.example.id
-  subdomain = false
-  port      = 8080 # Optional: specify a custom port
 }
 ```
