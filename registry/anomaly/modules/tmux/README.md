@@ -1,3 +1,11 @@
+---
+display_name: "Tmux"
+description: "Tmux for coder agent :)"
+icon: "../../../../.icons/tmux.svg"
+verified: false
+tags: ["tmux", "terminal", "persistent"]
+---
+
 # tmux Terraform Module
 
 This module provisions and configures [tmux](https://github.com/tmux/tmux) with session persistence and plugin support
