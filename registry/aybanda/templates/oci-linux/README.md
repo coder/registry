@@ -2,7 +2,6 @@
 display_name: Oracle Cloud Infrastructure (Linux)
 description: Provision Oracle Cloud Infrastructure VMs as Coder workspaces
 icon: ../../../../.icons/oci.svg
-maintainer_github: coder
 verified: false
 tags: [vm, linux, oci, oracle]
 ---
