@@ -2,9 +2,8 @@
 display_name: Docker Build
 description: Build Docker containers from Dockerfile as Coder workspaces
 icon: ../../../../.icons/docker.svg
-maintainer_github: coder
 verified: true
-tags: [docker, container, build, dockerfile]
+tags: [docker, container, dockerfile]
 ---
 
 # Remote Development on Docker Containers (Build from Dockerfile)
@@ -42,7 +41,7 @@ This template provisions the following resources:
 
 This means, when the workspace restarts, any tools or files outside of the home directory are not persisted. To pre-bake tools into the workspace (e.g. `python3`), modify the `build/Dockerfile`. Alternatively, individual developers can [personalize](https://coder.com/docs/dotfiles) their workspaces with dotfiles.
 
-> **Note**
+> [!NOTE]
 > This template is designed to be a starting point! Edit the Terraform and Dockerfile to extend the template to support your use case.
 
 ### Editing the image
