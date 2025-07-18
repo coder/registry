@@ -2,7 +2,6 @@
 display_name: Scratch
 description: A minimal starter template for Coder
 icon: ../../../../.icons/box-emoji.svg
-maintainer_github: coder
 verified: true
 tags: []
 ---

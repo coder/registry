@@ -2,7 +2,6 @@
 display_name: Slack Me
 description: Send a Slack message when a command finishes inside a workspace!
 icon: ../../../../.icons/slack.svg
-maintainer_github: coder
 verified: true
 tags: [helper, slack]
 ---
@@ -15,7 +14,7 @@ Add the `slackme` command to your workspace that DMs you on Slack when your comm
 module "slackme" {
   count            = data.coder_workspace.me.start_count
   source           = "registry.coder.com/coder/slackme/coder"
-  version          = "1.0.2"
+  version          = "1.0.31"
   agent_id         = coder_agent.example.id
   auth_provider_id = "slack"
 }
@@ -75,7 +74,7 @@ slackme npm run long-build
 module "slackme" {
   count            = data.coder_workspace.me.start_count
   source           = "registry.coder.com/coder/slackme/coder"
-  version          = "1.0.2"
+  version          = "1.0.31"
   agent_id         = coder_agent.example.id
   auth_provider_id = "slack"
   slack_message    = <<EOF

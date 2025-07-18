@@ -2,7 +2,6 @@
 display_name: Azure VM (Windows)
 description: Provision Azure VMs as Coder workspaces
 icon: ../../../../.icons/azure.svg
-maintainer_github: coder
 verified: true
 tags: [vm, windows, azure]
 ---

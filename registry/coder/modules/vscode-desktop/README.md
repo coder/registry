@@ -2,7 +2,6 @@
 display_name: VS Code Desktop
 description: Add a one-click button to launch VS Code Desktop
 icon: ../../../../.icons/code.svg
-maintainer_github: coder
 verified: true
 tags: [ide, vscode]
 ---
@@ -17,7 +16,7 @@ Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder)
 module "vscode" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/vscode-desktop/coder"
-  version  = "1.1.0"
+  version  = "1.1.1"
   agent_id = coder_agent.example.id
 }
 ```
@@ -30,7 +29,7 @@ module "vscode" {
 module "vscode" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/vscode-desktop/coder"
-  version  = "1.1.0"
+  version  = "1.1.1"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
 }

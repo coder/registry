@@ -2,7 +2,6 @@
 display_name: MODULE_NAME
 description: Describe what this module does
 icon: ../../../../.icons/<A_RELEVANT_ICON>.svg
-maintainer_github: GITHUB_USERNAME
 verified: false
 tags: [helper]
 ---

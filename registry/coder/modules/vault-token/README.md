@@ -2,7 +2,6 @@
 display_name: Hashicorp Vault Integration (Token)
 description: Authenticates with Vault using Token
 icon: ../../../../.icons/vault.svg
-maintainer_github: coder
 partner_github: hashicorp
 verified: true
 tags: [hashicorp, integration, vault, token]
@@ -21,7 +20,7 @@ variable "vault_token" {
 
 module "vault" {
   source          = "registry.coder.com/coder/vault-token/coder"
-  version         = "1.2.0"
+  version         = "1.2.1"
   agent_id        = coder_agent.example.id
   vault_token     = var.token # optional
   vault_addr      = "https://vault.example.com"
@@ -75,7 +74,7 @@ variable "vault_token" {
 
 module "vault" {
   source            = "registry.coder.com/coder/vault-token/coder"
-  version           = "1.2.0"
+  version           = "1.2.1"
   agent_id          = coder_agent.example.id
   vault_addr        = "https://vault.example.com"
   vault_token       = var.token
