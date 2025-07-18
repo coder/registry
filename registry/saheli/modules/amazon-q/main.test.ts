@@ -25,16 +25,21 @@ describe("amazon-q module", async () => {
     const scriptResource = findResourceInstance(state, "coder_script");
     expect(scriptResource).toBeDefined();
     expect(scriptResource.agent_id).toBe(requiredVars.agent_id);
-    // Optionally, check that the script contains expected lines
-    expect(scriptResource.script).toContain("Installing Amazon Q");
+    // The script is base64 encoded, so let's check for the module
+    expect(scriptResource.script).toContain("ARG_INSTALL_SCRIPT");
   });
 
-  // 3. coder_app resource is created
+  // 3. coder_app resource is created (from AgentAPI module)
   it("creates coder_app resource", async () => {
     const state = await runTerraformApply(moduleDir, requiredVars);
-    const appResource = findResourceInstance(state, "coder_app", "amazon_q");
-    expect(appResource).toBeDefined();
-    expect(appResource.agent_id).toBe(requiredVars.agent_id);
+    // The AgentAPI module creates apps with names "agentapi_web" and "agentapi_cli"
+    const webAppResource = findResourceInstance(state, "coder_app", "agentapi_web");
+    expect(webAppResource).toBeDefined();
+    expect(webAppResource.agent_id).toBe(requiredVars.agent_id);
+    
+    const cliAppResource = findResourceInstance(state, "coder_app", "agentapi_cli");
+    expect(cliAppResource).toBeDefined();
+    expect(cliAppResource.agent_id).toBe(requiredVars.agent_id);
   });
 
   // Add more state-based tests as needed
