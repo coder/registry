@@ -68,7 +68,7 @@ esac
 # Detect the platform
 if [ -n "${PLATFORM}" ]; then
   DETECTED_PLATFORM="${PLATFORM}"
-elif [ -f /etc/alpine-release ] || grep -qi 'ID=alpine' /etc/os-release 2>/dev/null || command -v apk > /dev/null 2>&1; then
+elif [ -f /etc/alpine-release ] || grep -qi 'ID=alpine' /etc/os-release 2> /dev/null || command -v apk > /dev/null 2>&1; then
   DETECTED_PLATFORM="alpine"
 elif [ "$(uname -s)" = "Darwin" ]; then
   DETECTED_PLATFORM="darwin"
