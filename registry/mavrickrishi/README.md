@@ -1,7 +1,7 @@
 ---
 display_name: "mavrickrishi"
 description: "Modules and templates by mavrickrishi"
-github_url: "https://github.com/MAVRICK-1"
+github_url: "https://github.com/mavrick-1"
 status: "community"
 ---
 
