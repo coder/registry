@@ -22,10 +22,10 @@ describe("aws-ami-snapshot", async () => {
       enable_dlm_cleanup: true,
       dlm_role_arn: "arn:aws:iam::123456789012:role/dlm-lifecycle-role",
       snapshot_retention_count: 5,
-      tags: {
+      tags: JSON.stringify({
         Environment: "test",
         Project: "coder",
-      },
+      }),
     });
   });
 });
