@@ -55,7 +55,7 @@ describe("vscode-desktop", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       folder: "/foo/bar",
-      openRecent: "false",
+      open_recent: "false",
     });
     expect(state.outputs.vscode_url.value).toBe(
       "vscode://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
@@ -85,5 +85,60 @@ describe("vscode-desktop", async () => {
     expect(coder_app).not.toBeNull();
     expect(coder_app?.instances.length).toBe(1);
     expect(coder_app?.instances[0].attributes.order).toBe(22);
+  });
+
+  it("creates setup script when extensions are provided", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      extensions: '["ms-python.python", "ms-vscode.cpptools"]',
+    });
+
+    const coder_script = state.resources.find(
+      (res) => res.type === "coder_script" && res.name === "vscode_desktop_setup",
+    );
+
+    expect(coder_script).not.toBeNull();
+    expect(coder_script?.instances.length).toBe(1);
+    expect(coder_script?.instances[0].attributes.run_on_start).toBe(true);
+  });
+
+  it("creates setup script when settings are provided", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      settings: '{"editor.fontSize": 14, "workbench.colorTheme": "Dark+ (default dark)"}',
+    });
+
+    const coder_script = state.resources.find(
+      (res) => res.type === "coder_script" && res.name === "vscode_desktop_setup",
+    );
+
+    expect(coder_script).not.toBeNull();
+    expect(coder_script?.instances.length).toBe(1);
+  });
+
+  it("does not create setup script when install_extensions is false", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      extensions: '["ms-python.python"]',
+      install_extensions: "false",
+    });
+
+    const coder_script = state.resources.find(
+      (res) => res.type === "coder_script" && res.name === "vscode_desktop_setup",
+    );
+
+    expect(coder_script).toBeUndefined();
+  });
+
+  it("does not create setup script when no extensions or settings", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+    });
+
+    const coder_script = state.resources.find(
+      (res) => res.type === "coder_script" && res.name === "vscode_desktop_setup",
+    );
+
+    expect(coder_script).toBeUndefined();
   });
 });
