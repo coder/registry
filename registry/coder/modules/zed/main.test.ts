@@ -16,9 +16,7 @@ describe("zed", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
     });
-    expect(state.outputs.zed_url.value).toBe(
-      "zed://ssh/default.coder",
-    );
+    expect(state.outputs.zed_url.value).toBe("zed://ssh/default.coder");
 
     const coder_app = state.resources.find(
       (res) => res.type === "coder_app" && res.name === "zed",
@@ -34,9 +32,7 @@ describe("zed", async () => {
       agent_id: "foo",
       folder: "/foo/bar",
     });
-    expect(state.outputs.zed_url.value).toBe(
-      "zed://ssh/default.coder/foo/bar",
-    );
+    expect(state.outputs.zed_url.value).toBe("zed://ssh/default.coder/foo/bar");
   });
 
   it("expect order to be set", async () => {

@@ -10,6 +10,7 @@
   "devDependencies": {
     "@types/bun": "^1.2.18",
     "bun-types": "^1.2.18",
+    "dedent": "^1.6.0",
     "gray-matter": "^4.0.3",
     "marked": "^16.0.0",
     "prettier": "^3.6.2",

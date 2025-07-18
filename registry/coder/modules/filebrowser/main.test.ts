@@ -84,7 +84,6 @@ describe("filebrowser", async () => {
       "sh",
       "apk add bash",
     );
-
   }, 15000);
 
   it("runs with subdomain=false", async () => {

@@ -12,6 +12,12 @@ tags: [rdp, windows, desktop, local]
 
 This module enables Remote Desktop Protocol (RDP) on Windows workspaces and adds a one-click button to launch RDP sessions directly through [Coder Desktop](https://coder.com/docs/user-guides/desktop). It provides a complete, standalone solution for RDP access, eliminating the need for manual configuration or port forwarding through the Coder CLI.
 
+<!--
+  2025-07-07 - Prettier isn't formatting GFM comments properly if they don't
+  start with a letter.
+  See https://github.com/prettier/prettier/issues/15479
+-->
+<!-- prettier-ignore -->
 > [!NOTE]
 > [Coder Desktop](https://coder.com/docs/user-guides/desktop) is required on client devices to use the Local Windows RDP access feature.
 

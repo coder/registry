@@ -56,6 +56,12 @@ variable "folder_name" {
   default     = ""
 }
 
+variable "depth" {
+  description = "If > 0, perform a shallow clone using this depth."
+  type        = number
+  default     = 0
+}
+
 locals {
   # Remove query parameters and fragments from the URL
   url = replace(replace(var.url, "/\\?.*/", ""), "/#.*/", "")
@@ -113,6 +119,7 @@ resource "coder_script" "git_clone" {
     CLONE_PATH = local.clone_path,
     REPO_URL : local.clone_url,
     BRANCH_NAME : local.branch_name,
+    DEPTH = var.depth,
   })
   display_name       = "Git Clone"
   icon               = "/icon/git.svg"

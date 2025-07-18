@@ -9,7 +9,7 @@ tags: [vm, linux, gcp, devcontainer]
 
 # Remote Development in a Devcontainer on Google Compute Engine
 
-![Architecture Diagram](./architecture.svg)
+![Architecture Diagram](../../.images/gcp-devcontainer-architecture.svg)
 
 ## Prerequisites
 
