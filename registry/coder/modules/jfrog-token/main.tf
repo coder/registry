@@ -91,6 +91,7 @@ variable "package_managers" {
     go     = optional(list(string), [])
     pypi   = optional(list(string), [])
     docker = optional(list(string), [])
+    conda  = optional(list(string), [])
   })
   description = <<-EOF
     A map of package manager names to their respective artifactory repositories. Unused package managers can be omitted.
@@ -100,6 +101,7 @@ variable "package_managers" {
         go     = ["YOUR_GO_REPO_KEY", "ANOTHER_GO_REPO_KEY"]
         pypi   = ["YOUR_PYPI_REPO_KEY", "ANOTHER_PYPI_REPO_KEY"]
         docker = ["YOUR_DOCKER_REPO_KEY", "ANOTHER_DOCKER_REPO_KEY"]
+        conda  = ["YOUR_CONDA_REPO_KEY", "ANOTHER_CONDA_REPO_KEY"]
       }
   EOF
 }
@@ -123,13 +125,16 @@ locals {
       {
         REPOS = [
           for r in var.package_managers.npm :
-          strcontains(r, ":") ? zipmap(["SCOPE", "NAME"], ["${split(":", r)[0]}:", split(":", r)[1]]) : { SCOPE = "", NAME = r }
+          length(split(":", r)) > 1 ? zipmap(["SCOPE", "NAME"], ["${split(":", r)[0]}:", split(":", r)[1]]) : { SCOPE = "", NAME = r }
         ]
       }
     )
   )
   pip_conf = templatefile(
     "${path.module}/pip.conf.tftpl", merge(local.common_values, { REPOS = var.package_managers.pypi })
+  )
+  condarc = templatefile(
+    "${path.module}/condarc.tftpl", merge(local.common_values, { REPOS = var.package_managers.conda })
   )
 }
 
@@ -171,6 +176,9 @@ resource "coder_script" "jfrog" {
       REPOSITORY_PYPI       = try(element(var.package_managers.pypi, 0), "")
       HAS_DOCKER            = length(var.package_managers.docker) == 0 ? "" : "YES"
       REGISTER_DOCKER       = join("\n", formatlist("register_docker \"%s\"", var.package_managers.docker))
+      HAS_CONDA             = length(var.package_managers.conda) == 0 ? "" : "YES"
+      CONDARC               = local.condarc
+      REPOSITORY_CONDA      = try(element(var.package_managers.conda, 0), "")
     }
   ))
   run_on_start = true
