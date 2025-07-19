@@ -32,7 +32,7 @@ filebrowser config set --baseurl=${SERVER_BASE_PATH} --port=${PORT} --auth.metho
 
 printf "👷 Starting filebrowser in background... \n\n"
 
-printf "📂 Serving $${ROOT_DIR} at http://localhost:${PORT} \n\n"
+printf "📂 Serving $${ROOT_DIR} at http://localhost:${PORT}${SERVER_BASE_PATH} \n\n"
 
 filebrowser >>${LOG_PATH} 2>&1 &
 
