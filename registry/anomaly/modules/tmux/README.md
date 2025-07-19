@@ -6,7 +6,7 @@ verified: false
 tags: ["tmux", "terminal", "persistent"]
 ---
 
-# tmux Terraform Module
+# tmux
 
 This module provisions and configures [tmux](https://github.com/tmux/tmux) with session persistence and plugin support
 for a Coder agent. It automatically installs tmux, the Tmux Plugin Manager (TPM), and a set of useful plugins, and sets
@@ -28,7 +28,7 @@ up a default or custom tmux configuration with session save/restore capabilities
 
 ## Usage
 
-```hcl
+```tf
 module "tmux" {
   source        = "path/to/this/module"
   agent_id      = coder_agent.example.id
@@ -36,14 +36,6 @@ module "tmux" {
   save_interval = 1  # Optional: save interval in minutes
 }
 ```
-
-## Input Variables
-
-| Name          | Type   | Description                         | Default |
-| ------------- | ------ | ----------------------------------- | ------- |
-| agent_id      | string | The ID of a Coder agent.            | n/a     |
-| tmux_config   | string | Custom tmux configuration to apply. | ""      |
-| save_interval | number | Save interval (in minutes).         | 1       |
 
 ## How It Works
 
@@ -64,7 +56,7 @@ module "tmux" {
 
 ## Example
 
-```hcl
+```tf
 module "tmux" {
   source        = "./registry/anomaly/modules/tmux"
   agent_id      = var.agent_id
@@ -75,15 +67,10 @@ module "tmux" {
 }
 ```
 
-## Outputs
-
-This module does not export outputs.
-
-## Notes
-
-- If you provide a custom `tmux_config`, it will completely replace the default configuration. Ensure you include plugin
+> [!NOTE]
+> - If you provide a custom `tmux_config`, it will completely replace the default configuration. Ensure you include plugin
   and TPM initialization lines if you want plugin support.
-- The script will attempt to install dependencies using `sudo` where required.
-- If `git` is not installed, TPM installation will fail.
-- To restore in case of server restart `prefix + ctrl+r`
-- If you are using custom config, you'll be responsible for setting up persistence
+> - The script will attempt to install dependencies using `sudo` where required.
+> - If `git` is not installed, TPM installation will fail.
+> - To restore in case of server restart `prefix + ctrl+r`
+> - If you are using custom config, you'll be responsible for setting up persistence
