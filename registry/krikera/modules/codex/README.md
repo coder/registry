@@ -6,7 +6,7 @@ verified: false
 tags: ["ai", "agent", "codex", "openai"]
 ---
 
-# OpenAI Codex CLI
+# OpenAI Codex
 
 A Rust-based OpenAI Codex CLI tool with AgentAPI web chat UI integration and full task reporting support for Coder + Tasks UI.
 
