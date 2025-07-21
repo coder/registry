@@ -11,14 +11,6 @@ tags: ["ai", "assistant", "codex", "openai", "rust", "tasks"]
 
 A Rust-based OpenAI Codex CLI tool with AgentAPI web chat UI integration and full task reporting support for Coder + Tasks UI.
 
-## Features
-
-- **Rust-based CLI**: High-performance Rust implementation of OpenAI Codex
-- **Web Chat UI**: Interactive web interface through AgentAPI integration
-- **Task Reporting**: Full integration with Coder Tasks UI
-- **Code Generation**: Generate code from natural language descriptions
-- **Code Completion**: Smart code completion and suggestions
-- **Code Explanation**: Get explanations for existing code
 
 ```tf
 module "codex" {
