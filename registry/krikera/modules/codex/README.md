@@ -3,7 +3,7 @@ display_name: "OpenAI Codex"
 description: "Rust-based OpenAI Codex CLI with AgentAPI web chat UI and task reporting"
 icon: "../../../../.icons/claude.svg"
 verified: false
-tags: ["ai", "assistant", "codex", "openai", "rust", "tasks"]
+tags: ["ai", "agent", "codex", "openai"]
 ---
 
 # OpenAI Codex CLI
