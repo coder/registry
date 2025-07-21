@@ -134,7 +134,7 @@ module "agentapi" {
 
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
-     GOOGLE_API_KEY='${var.gemini_api_key}' \
+     GEMINI_API_KEY='${var.gemini_api_key}' \
      GOOGLE_GENAI_USE_VERTEXAI='${var.google_genai_use_vertexai}' \
      GEMINI_MODEL='${var.gemini_model}' \
      GEMINI_START_DIRECTORY='${var.folder}' \
