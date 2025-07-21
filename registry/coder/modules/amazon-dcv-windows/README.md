@@ -2,7 +2,6 @@
 display_name: Amazon DCV Windows
 description: Amazon DCV Server and Web Client for Windows
 icon: ../../../../.icons/dcv.svg
-maintainer_github: coder
 verified: true
 tags: [windows, amazon, dcv, web, desktop]
 ---

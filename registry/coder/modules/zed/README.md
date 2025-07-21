@@ -2,7 +2,6 @@
 display_name: Zed
 description: Add a one-click button to launch Zed
 icon: ../../../../.icons/zed.svg
-maintainer_github: coder
 verified: true
 tags: [ide, zed, editor]
 ---

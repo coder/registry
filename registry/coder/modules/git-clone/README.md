@@ -2,7 +2,6 @@
 display_name: Git Clone
 description: Clone a Git repository by URL and skip if it exists.
 icon: ../../../../.icons/git.svg
-maintainer_github: coder
 verified: true
 tags: [git, helper]
 ---

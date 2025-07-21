@@ -2,7 +2,6 @@
 display_name: AgentAPI
 description: Building block for modules that need to run an agentapi server
 icon: ../../../../.icons/coder.svg
-maintainer_github: coder
 verified: true
 tags: [internal]
 ---
