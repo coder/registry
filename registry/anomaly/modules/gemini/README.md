@@ -12,14 +12,14 @@ Run [Gemini CLI](https://ai.google.dev/gemini-api/docs/cli) in your workspace to
 
 ```tf
 module "gemini" {
-  source              = "registry.coder.com/anomaly/gemini/anomaly"
-  version             = "1.0.0"
-  agent_id            = coder_agent.example.id
-  gemini_api_key      = var.gemini_api_key
-  gemini_model        = "gemini-1.5-pro-latest"
-  install_gemini      = true
-  gemini_version      = "latest"
-  agentapi_version    = "latest"
+  source           = "registry.coder.com/anomaly/gemini/anomaly"
+  version          = "1.0.0"
+  agent_id         = coder_agent.example.id
+  gemini_api_key   = var.gemini_api_key
+  gemini_model     = "gemini-1.5-pro-latest"
+  install_gemini   = true
+  gemini_version   = "latest"
+  agentapi_version = "latest"
 }
 ```
 
@@ -36,7 +36,6 @@ module "gemini" {
 - **Pre/Post Install Hooks**: Run custom scripts before/after install
 - **Vertex AI Support**: Optionally use Google Vertex AI endpoints
 
-
 ## Usage Example
 
 ```tf
@@ -47,14 +46,14 @@ variable "gemini_api_key" {
 }
 
 module "gemini" {
-  count             = data.coder_workspace.me.start_count
-  source            = "registry.coder.com/anomaly/gemini/anomaly"
-  version           = "1.0.0"
-  agent_id          = coder_agent.example.id
-  gemini_api_key    = var.gemini_api_key # we recommend providing this parameter inorder to have a smoother experience (i.e. no google sign-in)
-  gemini_model      = "gemini-1.5-pro-latest"
-  install_gemini    = true
-  gemini_version    = "latest"
+  count          = data.coder_workspace.me.start_count
+  source         = "registry.coder.com/anomaly/gemini/anomaly"
+  version        = "1.0.0"
+  agent_id       = coder_agent.example.id
+  gemini_api_key = var.gemini_api_key # we recommend providing this parameter inorder to have a smoother experience (i.e. no google sign-in)
+  gemini_model   = "gemini-1.5-pro-latest"
+  install_gemini = true
+  gemini_version = "latest"
 }
 ```
 

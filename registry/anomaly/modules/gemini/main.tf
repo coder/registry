@@ -60,13 +60,13 @@ variable "gemini_settings_json" {
   default     = ""
 }
 
-variable gemini_api_key {
+variable "gemini_api_key" {
   type        = string
   description = "Gemini API Key"
   default     = ""
 }
 
-variable google_genai_use_vertexai {
+variable "google_genai_use_vertexai" {
   type        = bool
   description = "Whether to use vertex ai"
   default     = false
@@ -111,8 +111,8 @@ variable "post_install_script" {
 
 locals {
   app_slug        = "gemini"
-  install_script = file("${path.module}/scripts/install.sh")
-  start_script = file("${path.module}/scripts/start.sh")
+  install_script  = file("${path.module}/scripts/install.sh")
+  start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".gemini-module"
 }
 
