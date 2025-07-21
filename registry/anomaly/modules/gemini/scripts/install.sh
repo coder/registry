@@ -50,13 +50,13 @@ function install_gemini() {
     # we need node to install and run gemini-cli
     install_node
 
-    printf "%s Installing Gemini CLI\n" "$BOLD"
+    printf "%s Installing Gemini CLI\n" "$${BOLD}"
     if [ -n "$ARG_GEMINI_VERSION" ]; then
       npm install -g "@google/gemini-cli@$ARG_GEMINI_VERSION"
     else
       npm install -g "@google/gemini-cli"
     fi
-    printf "%s Successfully installed Gemini CLI. Version: %s" "$BOLD" "$(gemini --version)\n"
+    printf "%s Successfully installed Gemini CLI. Version: %s" "$${BOLD}" "$(gemini --version)\n"
   fi
 }
 

@@ -39,7 +39,7 @@ variable "icon" {
 variable "folder" {
   type        = string
   description = "The folder to run Gemini in."
-  default     = "/home/coder"
+  default     = "/home/coder/gemini"
 }
 
 variable "install_gemini" {
@@ -90,15 +90,9 @@ variable "gemini_model" {
   default     = ""
 }
 
-variable "gemini_start_directory" {
-  type        = string
-  description = "Directory to start the Gemini CLI in."
-  default     = "/home/coder/gemini"
-}
-
 variable "pre_install_script" {
   type        = string
-  description = "Custom script to run before installing Goose."
+  description = "Custom script to run before installing Gemini."
   default     = null
 }
 
@@ -143,7 +137,7 @@ module "agentapi" {
      GOOGLE_API_KEY='${var.gemini_api_key}' \
      GOOGLE_GENAI_USE_VERTEXAI='${var.google_genai_use_vertexai}' \
      GEMINI_MODEL='${var.gemini_model}' \
-     GEMINI_START_DIRECTORY='${var.gemini_start_directory}' \
+     GEMINI_START_DIRECTORY='${var.folder}' \
      /tmp/start.sh
    EOT
 
