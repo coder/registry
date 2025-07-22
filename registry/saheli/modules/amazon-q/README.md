@@ -1,205 +1,249 @@
 ---
 display_name: Amazon Q
-description: Run Amazon Q with AgentAPI as a web chat interface, with optional Aider integration and Coder Tasks support.
+description: Run Amazon Q with AgentAPI as a web chat interface, with Coder Tasks integration for real-time AI task management.
 icon: ../../../../.icons/amazon-q.svg
 maintainer_github: coder
 verified: true
-tags: [agent, ai, aws, amazon-q, agentapi, tasks, aider]
+tags: [agent, ai, aws, amazon-q, agentapi, tasks, aider, mcp]
 ---
 
-# Amazon Q
+# Amazon Q with Coder Tasks Integration
 
-Run [Amazon Q](https://aws.amazon.com/q/) with [AgentAPI](https://github.com/coder/agentapi) as a web chat interface, with optional [Aider](https://aider.chat) integration and full Coder Tasks support. This module provides a modern web interface for Amazon Q with automatic task reporting.
-
-```tf
-module "amazon-q" {
-  source       = "registry.coder.com/coder/amazon-q/coder"
-  version      = "2.0.0"
-  agent_id     = coder_agent.example.id
-  auth_tarball = var.amazon_q_auth_tarball
-}
-```
-
-![Amazon-Q with AgentAPI](../../.images/amazon-q-agentapi.png)
-
-## Prerequisites
-
-- You must add the [Coder Login](https://registry.coder.com/modules/coder-login) module to your template
-- You must generate an authenticated Amazon Q tarball on another machine:
-  ```sh
-  cd ~/.local/share/amazon-q && tar -c . | zstd | base64 -w 0
-  ```
-  Paste the result into the `auth_tarball` variable.
-- For Aider mode: Python 3 and pip3 must be installed in your workspace
-
-<details>
-<summary><strong>How to generate the Amazon Q auth tarball (step-by-step)</strong></summary>
-
-**1. Install and authenticate Amazon Q on your local machine:**
-
-- Download and install Amazon Q from the [official site](https://aws.amazon.com/q/developer/).
-- Run `q login` and complete the authentication process in your terminal.
-
-**2. Locate your Amazon Q config directory:**
-
-- The config is typically stored at `~/.local/share/amazon-q`.
-
-**3. Generate the tarball:**
-
-- Run the following command in your terminal:
-  ```sh
-  cd ~/.local/share/amazon-q
-  tar -c . | zstd | base64 -w 0
-  ```
-
-**4. Copy the output:**
-
-- The command will output a long string. Copy this entire string.
-
-**5. Paste into your Terraform variable:**
-
-- Assign the string to the `experiment_auth_tarball` variable in your Terraform configuration, for example:
-  ```tf
-  variable "amazon_q_auth_tarball" {
-    type    = string
-    default = "PASTE_LONG_STRING_HERE"
-  }
-  ```
-
-**Note:**
-
-- You must re-generate the tarball if you log out or re-authenticate Amazon Q on your local machine.
-- This process is required for each user who wants to use Amazon Q in their workspace.
-
-[Reference: Amazon Q documentation](https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/generate-docs.html)
-
-</details>
-
-## Examples
-
-### Basic Amazon Q with AgentAPI
-
-```tf
-module "coder-login" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/coder-login/coder"
-  version  = "1.0.15"
-  agent_id = coder_agent.example.id
-}
-
-module "amazon-q" {
-  count        = data.coder_workspace.me.start_count
-  source       = "registry.coder.com/coder/amazon-q/coder"
-  version      = "2.0.0"
-  agent_id     = coder_agent.example.id
-  auth_tarball = var.amazon_q_auth_tarball
-}
-```
-
-### Using Aider instead of Amazon Q
-
-```tf
-variable "anthropic_api_key" {
-  type        = string
-  description = "Anthropic API key for Aider"
-  sensitive   = true
-}
-
-resource "coder_agent" "main" {
-  env = {
-    ANTHROPIC_API_KEY = var.anthropic_api_key
-  }
-}
-
-module "amazon-q" {
-  count        = data.coder_workspace.me.start_count
-  source       = "registry.coder.com/coder/amazon-q/coder"
-  version      = "2.0.0"
-  agent_id     = coder_agent.main.id
-  use_aider    = true
-  auth_tarball = "dummy" # Not needed for Aider mode
-}
-```
-
-### With Task Automation
-
-```tf
-data "coder_parameter" "ai_prompt" {
-  type        = "string"
-  name        = "AI Task"
-  default     = ""
-  description = "Task for the AI agent to complete"
-  mutable     = true
-}
-
-module "amazon-q" {
-  count        = data.coder_workspace.me.start_count
-  source       = "registry.coder.com/coder/amazon-q/coder"
-  version      = "2.0.0"
-  agent_id     = coder_agent.example.id
-  auth_tarball = var.amazon_q_auth_tarball
-  task_prompt  = data.coder_parameter.ai_prompt.value
-}
-```
-
-### With Custom Extensions
+Run [Amazon Q](https://aws.amazon.com/q/) with [AgentAPI](https://github.com/coder/agentapi) and full [Coder Tasks](https://coder.com/docs/tasks) support. This module provides a modern web chat interface with real-time task reporting, making it easy to track AI progress through Coder's task sidebar.
 
 ```tf
 module "amazon-q" {
-  count        = data.coder_workspace.me.start_count
-  source       = "registry.coder.com/coder/amazon-q/coder"
-  version      = "2.0.0"
-  agent_id     = coder_agent.example.id
-  auth_tarball = var.amazon_q_auth_tarball
-  
-  additional_extensions = <<-EOT
-custom-tool:
-  args: []
-  cmd: custom-tool-command
-  description: A custom tool for the AI agent
-  enabled: true
-  envs: {}
-  name: custom-tool
-  timeout: 300
-  type: stdio
-EOT
+  source                  = "registry.coder.com/saheli/amazon-q/coder"
+  version                 = "2.0.0"
+  agent_id                = coder_agent.example.id
+  experiment_report_tasks = true # Enable Coder Tasks integration
+
+  # AWS Authentication
+  aws_access_key_id     = var.aws_access_key_id
+  aws_secret_access_key = var.aws_secret_access_key
 }
 ```
+
+![Amazon-Q with AgentAPI and Tasks](../../.images/amazon-q-agentapi-tasks.png)
 
 ## Features
 
-- **Web Chat Interface**: Modern web interface powered by AgentAPI
-- **Coder Tasks Integration**: Full integration with Coder's Tasks system
-- **Dual AI Support**: Choose between Amazon Q or Aider
-- **Task Reporting**: Automatic status reporting to Coder dashboard
-- **Persistent Sessions**: Sessions persist across browser refreshes
-- **Custom Extensions**: Support for additional MCP extensions
+- 🤖 **Amazon Q Integration**: Full Amazon Q Developer capabilities
+- 📊 **Coder Tasks**: Real-time task reporting in the Coder sidebar
+- 🌐 **Web Chat Interface**: Modern web UI powered by AgentAPI
+- 🎯 **Aider Support**: Optional Aider integration for enhanced coding
+- 🔌 **MCP Protocol**: Model Context Protocol for advanced integrations
+- 🔐 **Flexible Auth**: Supports AWS credentials, IAM roles, and SSO
 
-## Module Parameters
+## Prerequisites
 
-| Parameter | Description | Type | Default |
-|-----------|-------------|------|---------|
-| `agent_id` | The ID of a Coder agent (required) | `string` | - |
-| `auth_tarball` | Base64 encoded Amazon Q auth tarball | `string` | - |
-| `use_aider` | Whether to use Aider instead of Amazon Q | `bool` | `false` |
-| `task_prompt` | Initial task prompt | `string` | `""` |
-| `additional_extensions` | Additional extensions in YAML format | `string` | `null` |
-| `install_agentapi` | Whether to install AgentAPI | `bool` | `true` |
-| `agentapi_version` | Version of AgentAPI to install | `string` | `"latest"` |
+- Coder v2.7.0 or later
+- AWS account with Amazon Q Developer access
+- Linux workspace (x86_64 or arm64)
 
-## Migration from v1.x
+## Quick Start
 
-The v2.0 release introduces AgentAPI integration and breaking changes:
+### Basic Usage with Tasks
 
-- `experiment_auth_tarball` → `auth_tarball`
-- `experiment_report_tasks` → Always enabled
-- `experiment_use_screen/tmux` → Replaced by AgentAPI
-- New web interface replaces terminal-only access
-- Full Coder Tasks integration
+```hcl
+module "amazon-q" {
+  source  = "registry.coder.com/saheli/amazon-q/coder"
+  version = "2.0.0"
 
-## Notes
+  agent_id = coder_agent.main.id
 
-- This module now uses AgentAPI for web interface and task reporting
-- Task reporting is always enabled in v2.0
-- For legacy behavior, use v1.x of this module
-- For more details, see the [main.tf](./main.tf) source.
+  # Enable Coder Tasks
+  experiment_report_tasks = true
+
+  # AWS credentials
+  aws_access_key_id     = var.aws_access_key_id
+  aws_secret_access_key = var.aws_secret_access_key
+  aws_region           = "us-east-1"
+}
+```
+
+### With Custom Task Reporting
+
+```hcl
+module "amazon-q" {
+  source  = "registry.coder.com/saheli/amazon-q/coder"
+  version = "2.0.0"
+
+  agent_id = coder_agent.main.id
+  experiment_report_tasks = true
+
+  # Optimized system prompt for task reporting
+  system_prompt = <<-EOT
+    You are Amazon Q integrated with Coder Tasks.
+
+    YOU MUST REPORT ALL TASKS TO CODER:
+    - Report status IMMEDIATELY after any user message
+    - Break work into granular, trackable tasks
+    - Use "working" when actively processing
+    - Use "complete" when finished
+    - Use "failure" when blocked
+
+    Keep summaries under 160 characters.
+  EOT
+
+  # Start with a specific task
+  task_prompt = "Create a Python REST API with FastAPI"
+}
+```
+
+### Using Aider Mode
+
+```hcl
+module "amazon-q" {
+  source  = "registry.coder.com/saheli/amazon-q/coder"
+  version = "2.0.0"
+
+  agent_id = coder_agent.main.id
+
+  # Use Aider instead of Amazon Q CLI
+  use_aider = true
+  aider_version = "latest"
+
+  # Enable all features
+  experiment_report_tasks = true
+  install_agentapi = true
+}
+```
+
+## How Coder Tasks Integration Works
+
+When `experiment_report_tasks = true`:
+
+1. **Web Interface**: Access Amazon Q through the "Amazon Q Web" app in Coder
+2. **Task Sidebar**: Tasks appear in real-time in the Coder sidebar
+3. **Status Updates**: See live progress as the AI works on your requests
+4. **MCP Protocol**: Uses Model Context Protocol for reliable task reporting
+
+The integration provides:
+
+- Real-time task status (working, complete, failure)
+- Granular progress tracking
+- Interactive chat interface
+- Full task history
+
+## Configuration Variables
+
+| Variable                  | Type   | Description                       | Default                |
+| ------------------------- | ------ | --------------------------------- | ---------------------- |
+| `agent_id`                | string | **Required** - The Coder agent ID | -                      |
+| `experiment_report_tasks` | bool   | Enable Coder Tasks integration    | `true`                 |
+| `install_amazon_q`        | bool   | Install Amazon Q CLI              | `true`                 |
+| `install_agentapi`        | bool   | Install AgentAPI                  | `true`                 |
+| `use_aider`               | bool   | Use Aider instead of Amazon Q     | `false`                |
+| `system_prompt`           | string | System instructions for the AI    | (task-optimized)       |
+| `task_prompt`             | string | Initial task to start with        | `""`                   |
+| `aws_access_key_id`       | string | AWS Access Key ID                 | `""`                   |
+| `aws_secret_access_key`   | string | AWS Secret Access Key             | `""`                   |
+| `aws_region`              | string | AWS Region                        | `"us-east-1"`          |
+| `order`                   | number | App display order                 | `null`                 |
+| `group`                   | string | App group name                    | `null`                 |
+| `icon`                    | string | App icon path                     | `"/icon/amazon-q.svg"` |
+
+## AWS Authentication
+
+The module supports multiple authentication methods:
+
+### 1. Environment Variables
+
+```hcl
+aws_access_key_id     = var.aws_access_key_id
+aws_secret_access_key = var.aws_secret_access_key
+```
+
+### 2. IAM Instance Role
+
+Leave credentials empty to use the workspace's IAM role.
+
+### 3. AWS Profile
+
+```hcl
+aws_profile = "my-profile"
+```
+
+## Advanced Configuration
+
+### Custom MCP Extensions
+
+Add additional MCP servers for enhanced functionality:
+
+```hcl
+additional_extensions = <<-YAML
+desktop-commander:
+  cmd: desktop-commander-server
+  args: ["--server"]
+  description: Long-running processes
+  enabled: true
+  type: stdio
+playwright:
+  cmd: npx
+  args: ["--yes", "@mcp-get/playwright", "server"]
+  description: Web testing
+  enabled: true
+  type: stdio
+YAML
+```
+
+### Custom Scripts
+
+Run scripts before/after installation:
+
+```hcl
+experiment_pre_install_script = <<-BASH
+  echo "Preparing environment..."
+  pip install -U pip
+BASH
+
+experiment_post_install_script = <<-BASH
+  echo "Setup complete!"
+BASH
+```
+
+## Troubleshooting
+
+### Task Reporting Issues
+
+- Ensure `experiment_report_tasks = true`
+- Check AgentAPI status: `curl http://localhost:3284/status`
+- Verify MCP config: `cat ~/.config/coder/mcp/amazon-q.yaml`
+- Check logs: `tail -f ~/.amazon-q-module/logs/*.log`
+
+### Amazon Q Not Starting
+
+- Verify installation: `q --version`
+- Check AWS credentials: `aws sts get-caller-identity`
+- Review logs in `~/.amazon-q-module/logs/`
+
+### Web Interface Not Loading
+
+- Ensure AgentAPI is running on port 3284
+- Check the "Amazon Q Web" app in Coder UI
+- Verify health check passes
+
+## Architecture
+
+```mermaid
+graph LR
+    A[User] --> B[Coder Web UI]
+    B --> C[Amazon Q Web App]
+    C --> D[AgentAPI :3284]
+    D --> E[Amazon Q CLI]
+    E --> F[AWS Services]
+    D --> G[Coder Tasks API]
+    G --> H[Task Sidebar]
+```
+
+## Support
+
+- [Amazon Q Documentation](https://docs.aws.amazon.com/amazonq/)
+- [Coder Tasks Guide](https://coder.com/docs/tasks)
+- [AgentAPI Repository](https://github.com/coder/agentapi)
+- [Module Issues](https://github.com/coder/registry/issues)
+
+## License
+
+This module is licensed under the MIT License. Amazon Q is subject to AWS service terms.

@@ -14,6 +14,17 @@ mkdir -p "$HOME/.amazon-q-module/logs"
 
 log "INFO: Starting Amazon Q installation..."
 
+# Get environment variables from Terraform
+INSTALL_AMAZON_Q="${ARG_INSTALL:-true}"
+AMAZON_Q_VERSION="${ARG_AMAZON_Q_VERSION:-latest}"
+USE_AIDER="${ARG_USE_AIDER:-false}"
+AIDER_VERSION="${ARG_AIDER_VERSION:-latest}"
+AMAZON_Q_CONFIG="${ARG_AMAZON_Q_CONFIG:-}"
+AWS_ACCESS_KEY_ID="${ARG_AWS_ACCESS_KEY_ID:-}"
+AWS_SECRET_ACCESS_KEY="${ARG_AWS_SECRET_ACCESS_KEY:-}"
+AWS_REGION="${ARG_AWS_REGION:-us-east-1}"
+AWS_PROFILE="${ARG_AWS_PROFILE:-default}"
+
 # Check if Amazon Q is already installed
 if command -v q >/dev/null 2>&1; then
     log "INFO: Amazon Q is already installed"
@@ -116,5 +127,61 @@ provider: aws
 region: ${AWS_REGION:-us-east-1}
 profile: ${AWS_PROFILE:-default}
 EOF
+
+# Install Aider if requested
+if [ "$USE_AIDER" = "true" ]; then
+    log "INFO: Installing Aider..."
+    if ! command -v pip3 >/dev/null 2>&1; then
+        log "INFO: Installing Python 3 and pip..."
+        if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y python3 python3-pip
+        elif command -v yum >/dev/null 2>&1; then
+            sudo yum install -y python3 python3-pip
+        fi
+    fi
+    
+    # Install Aider
+    if [ "$AIDER_VERSION" = "latest" ]; then
+        pip3 install --user aider-chat
+    else
+        pip3 install --user "aider-chat==$AIDER_VERSION"
+    fi
+    
+    # Add to PATH
+    if ! grep -q ".local/bin" "$HOME/.bashrc"; then
+        echo 'export PATH="$PATH:$HOME/.local/bin"' >> "$HOME/.bashrc"
+    fi
+    export PATH="$PATH:$HOME/.local/bin"
+    
+    # Verify Aider installation
+    if command -v aider >/dev/null 2>&1; then
+        log "SUCCESS: Aider installed successfully"
+        aider --version | tee -a "$HOME/.amazon-q-module/logs/install.log"
+    else
+        log "ERROR: Aider installation failed"
+        exit 1
+    fi
+fi
+
+# Create MCP configuration directory
+log "INFO: Creating MCP configuration..."
+mkdir -p "$HOME/.amazon-q-module/mcp"
+mkdir -p "$HOME/.config/coder/mcp"
+
+# Write MCP configuration if provided
+if [ ! -z "$AMAZON_Q_CONFIG" ]; then
+    echo "$AMAZON_Q_CONFIG" > "$HOME/.amazon-q-module/mcp/config.yaml"
+    log "INFO: MCP configuration written to $HOME/.amazon-q-module/mcp/config.yaml"
+    
+    # Also write to Coder MCP config location for Amazon Q
+    if [ "$USE_AIDER" = "true" ]; then
+        echo "$AMAZON_Q_CONFIG" > "$HOME/.config/coder/mcp/aider.yaml"
+        log "INFO: MCP configuration written for Aider"
+    else
+        echo "$AMAZON_Q_CONFIG" > "$HOME/.config/coder/mcp/amazon-q.yaml"
+        log "INFO: MCP configuration written for Amazon Q"
+    fi
+fi
 
 log "INFO: Installation completed successfully"

@@ -173,23 +173,45 @@ variable "additional_extensions" {
 }
 
 locals {
-  app_slug = "amazon-q"
+  app_slug        = "amazon-q"
   module_dir_name = ".amazon-q-module"
-  
+
+  # MCP extensions configuration following Goose pattern
+  base_extensions = <<-EOT
+coder:
+  args:
+  - exp
+  - mcp
+  - server
+  cmd: coder
+  description: Report ALL tasks and statuses (in progress, done, failed) you are working on.
+  enabled: true
+  envs:
+    CODER_MCP_APP_STATUS_SLUG: ${local.app_slug}
+    CODER_MCP_AI_AGENTAPI_URL: http://localhost:3284
+  name: Coder
+  timeout: 3000
+  type: stdio
+developer:
+  display_name: Developer
+  enabled: true
+  name: developer
+  timeout: 300
+  type: builtin
+EOT
+
+  # Format extensions to match YAML structure
+  formatted_base        = "  ${replace(trimspace(local.base_extensions), "\n", "\n  ")}"
+  additional_extensions = var.additional_extensions != null ? "\n  ${replace(trimspace(var.additional_extensions), "\n", "\n  ")}" : ""
+  combined_extensions   = <<-EOT
+extensions:
+${local.formatted_base}${local.additional_extensions}
+EOT
+
   # Load scripts from files like Goose module
   install_script_content = file("${path.module}/scripts/install.sh")
-  start_script_content = templatefile("${path.module}/scripts/start.sh", {
-    system_prompt = var.system_prompt
-    task_prompt = var.task_prompt
-    folder = var.folder
-    use_aider = var.use_aider
-    report_tasks = var.experiment_report_tasks
-    aws_access_key_id = var.aws_access_key_id
-    aws_secret_access_key = var.aws_secret_access_key
-    aws_region = var.aws_region
-    aws_profile = var.aws_profile
-  })
-  
+  start_script_content   = file("${path.module}/scripts/start.sh")
+
 }
 
 module "agentapi" {
@@ -211,6 +233,49 @@ module "agentapi" {
   pre_install_script   = var.experiment_pre_install_script
   post_install_script  = var.experiment_post_install_script
   start_script         = local.start_script_content
-  install_script       = local.install_script_content
-  
+  install_script       = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    echo -n '${base64encode(local.install_script_content)}' | base64 -d > /tmp/install.sh
+    chmod +x /tmp/install.sh
+
+    ARG_AMAZON_Q_CONFIG="$(echo -n '${base64encode(local.combined_extensions)}' | base64 -d)" \
+    ARG_INSTALL='${var.install_amazon_q}' \
+    ARG_AMAZON_Q_VERSION='${var.amazon_q_version}' \
+    ARG_USE_AIDER='${var.use_aider}' \
+    ARG_AIDER_VERSION='${var.aider_version}' \
+    ARG_AWS_ACCESS_KEY_ID='${var.aws_access_key_id}' \
+    ARG_AWS_SECRET_ACCESS_KEY='${var.aws_secret_access_key}' \
+    ARG_AWS_REGION='${var.aws_region}' \
+    ARG_AWS_PROFILE='${var.aws_profile}' \
+    /tmp/install.sh
+  EOT
+
+}
+
+# Create web app for Amazon Q chat interface
+resource "coder_app" "amazon_q_web" {
+  count = var.experiment_report_tasks ? 1 : 0
+
+  slug         = "aqw" # Short slug to avoid URL length issues
+  display_name = var.use_aider ? "Amazon Q + Aider Web" : "Amazon Q Web"
+  agent_id     = var.agent_id
+  url          = "http://localhost:3284/"
+  subdomain    = true
+  healthcheck {
+    url       = "http://localhost:3284/status"
+    interval  = 3
+    threshold = 20
+  }
+}
+
+# Create AI task resource for sidebar integration
+resource "coder_ai_task" "amazon_q" {
+  count = var.experiment_report_tasks ? 1 : 0
+
+  sidebar_app {
+    id = coder_app.amazon_q_web[0].id
+  }
 }
