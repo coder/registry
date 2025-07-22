@@ -2,7 +2,6 @@
 display_name: "HCP Vault Secrets"
 description: "Fetch secrets from HCP Vault"
 icon: ../../../../.icons/vault.svg
-partner_github: hashicorp
 verified: true
 tags: [integration, vault, hashicorp, hvs]
 ---

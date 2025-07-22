@@ -2,7 +2,6 @@
 display_name: Hashicorp Vault Integration (JWT)
 description: Authenticates with Vault using a JWT from Coder's OIDC provider
 icon: ../../../../.icons/vault.svg
-partner_github: hashicorp
 verified: true
 tags: [hashicorp, integration, vault, jwt, oidc]
 ---

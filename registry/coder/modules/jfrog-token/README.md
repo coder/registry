@@ -2,7 +2,6 @@
 display_name: JFrog (Token)
 description: Install the JF CLI and authenticate with Artifactory using Artifactory terraform provider.
 icon: ../../../../.icons/jfrog.svg
-partner_github: jfrog
 verified: true
 tags: [integration, jfrog]
 ---
