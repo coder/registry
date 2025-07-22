@@ -45,9 +45,9 @@ variable "icon" {
 }
 
 variable "sessions" {
-  type = list(string)
+  type        = list(string)
   description = "List of tmux sessions to create or start."
-  default = ["default"]
+  default     = ["default"]
 }
 
 resource "coder_script" "tmux" {
