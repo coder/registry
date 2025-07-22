@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Convert templated variables to shell variables
-SESSIONS='${SESSIONS}'
+SESSION_NAME='${SESSION_NAME}'
 
 # Function to check if tmux is installed
 check_tmux() {
@@ -30,29 +30,7 @@ handle_session() {
 main() {
   # Check if tmux is installed
   check_tmux
-
-  # If no sessions are specified, create or attach to a default session
-  if [ "$SESSIONS" = "[]" ] || [ -z "$SESSIONS" ]; then
-    echo "No sessions specified, using default session..."
-    handle_session "default"
-    exit 0
-  fi
-
-  # Parse the JSON array by removing brackets and quotes, then split by commas
-  # Remove the opening and closing brackets
-  sessions_str=$${SESSIONS#[}
-  sessions_str=$${sessions_str%]}
-
-  # Remove quotes and split by commas
-  sessions_str=$(echo "$sessions_str" | sed s/\"//g)
-  IFS=',' read -ra SESSION_ARRAY <<< "$sessions_str"
-
-  # Handle each session
-  for session in "$${SESSION_ARRAY[@]}"; do
-    # Trim whitespace
-    session=$(echo "$session" | sed s/^[[:space:]]*//\;s/[[:space:]]*$//)
-    handle_session "$session"
-  done
+  handle_session "${SESSION_NAME}"
 }
 
 # Run the main function
