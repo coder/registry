@@ -84,7 +84,7 @@ detect_modules_needing_tags() {
   echo ""
 
   local all_modules
-  all_modules=$(find registry -type d -path "*/modules/*" -mindepth 3 -maxdepth 3 | sort -u || echo "")
+  all_modules=$(find registry -mindepth 3 -maxdepth 3 -type d -path "*/modules/*" | sort -u || echo "")
 
   [ -z "$all_modules" ] && {
     echo "❌ No modules found to check"
