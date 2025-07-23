@@ -2,7 +2,6 @@
 display_name: code-server
 description: VS Code in the browser
 icon: ../../../../.icons/code.svg
-maintainer_github: coder
 verified: true
 tags: [ide, web, code-server]
 ---
@@ -15,7 +14,7 @@ Automatically install [code-server](https://github.com/coder/code-server) in a w
 module "code-server" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/code-server/coder"
-  version  = "1.3.0"
+  version  = "1.3.1"
   agent_id = coder_agent.example.id
 }
 ```
@@ -30,7 +29,7 @@ module "code-server" {
 module "code-server" {
   count           = data.coder_workspace.me.start_count
   source          = "registry.coder.com/coder/code-server/coder"
-  version         = "1.3.0"
+  version         = "1.3.1"
   agent_id        = coder_agent.example.id
   install_version = "4.8.3"
 }
@@ -44,7 +43,7 @@ Install the Dracula theme from [OpenVSX](https://open-vsx.org/):
 module "code-server" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/code-server/coder"
-  version  = "1.3.0"
+  version  = "1.3.1"
   agent_id = coder_agent.example.id
   extensions = [
     "dracula-theme.theme-dracula"
@@ -62,7 +61,7 @@ Configure VS Code's [settings.json](https://code.visualstudio.com/docs/getstarte
 module "code-server" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/code-server/coder"
-  version    = "1.3.0"
+  version    = "1.3.1"
   agent_id   = coder_agent.example.id
   extensions = ["dracula-theme.theme-dracula"]
   settings = {
@@ -79,7 +78,7 @@ Just run code-server in the background, don't fetch it from GitHub:
 module "code-server" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/code-server/coder"
-  version    = "1.3.0"
+  version    = "1.3.1"
   agent_id   = coder_agent.example.id
   extensions = ["dracula-theme.theme-dracula", "ms-azuretools.vscode-docker"]
 }
@@ -95,7 +94,7 @@ Run an existing copy of code-server if found, otherwise download from GitHub:
 module "code-server" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/code-server/coder"
-  version    = "1.3.0"
+  version    = "1.3.1"
   agent_id   = coder_agent.example.id
   use_cached = true
   extensions = ["dracula-theme.theme-dracula", "ms-azuretools.vscode-docker"]
@@ -108,7 +107,7 @@ Just run code-server in the background, don't fetch it from GitHub:
 module "code-server" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/code-server/coder"
-  version  = "1.3.0"
+  version  = "1.3.1"
   agent_id = coder_agent.example.id
   offline  = true
 }

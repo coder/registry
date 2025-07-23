@@ -100,7 +100,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.2.2"
+  default     = "v0.2.3"
 }
 
 locals {
