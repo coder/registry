@@ -28,10 +28,27 @@ run_vscode_web() {
   "$VSCODE_WEB" serve-local "$EXTENSION_ARG" "$SERVER_BASE_PATH_ARG" "$DISABLE_TRUST_ARG" --port "${PORT}" --host 127.0.0.1 --accept-server-license-terms --without-connection-token --telemetry-level "${TELEMETRY_LEVEL}" > "${LOG_PATH}" 2>&1 &
 }
 
-# Check if the settings file exists...
-if [ ! -f ~/.vscode-server/data/Machine/settings.json ]; then
-  echo "⚙️ Creating settings file..."
-  mkdir -p ~/.vscode-server/data/Machine
+# Merge settings with any existing settings file
+echo "⚙️ Configuring VS Code settings..."
+mkdir -p ~/.vscode-server/data/Machine
+
+SETTINGS_FILE="~/.vscode-server/data/Machine/settings.json"
+if [ -f ~/.vscode-server/data/Machine/settings.json ]; then
+  # Merge with existing settings using jq if available
+  if command -v jq > /dev/null 2>&1; then
+    echo "📝 Merging with existing settings..."
+    # Create a temporary file with the new settings
+    echo "${SETTINGS}" > /tmp/new_settings.json
+    # Merge existing settings with new settings (new settings take precedence)
+    jq -s '.[0] * .[1]' ~/.vscode-server/data/Machine/settings.json /tmp/new_settings.json > /tmp/merged_settings.json
+    mv /tmp/merged_settings.json ~/.vscode-server/data/Machine/settings.json
+    rm -f /tmp/new_settings.json
+  else
+    echo "⚠️  jq not available, overwriting existing settings..."
+    echo "${SETTINGS}" > ~/.vscode-server/data/Machine/settings.json
+  fi
+else
+  echo "📝 Creating new settings file..."
   echo "${SETTINGS}" > ~/.vscode-server/data/Machine/settings.json
 fi
 
