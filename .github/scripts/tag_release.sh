@@ -191,25 +191,30 @@ create_and_push_tags() {
 
   echo "🚀 Pushing tags to origin..."
 
+  local tags_to_push=()
+  for module_info in "${MODULES_TO_TAG[@]}"; do
+    IFS=':' read -r module_path namespace module_name version <<< "$module_info"
+    local tag_name="release/$namespace/$module_name/v$version"
+    
+    if git rev-parse --verify "$tag_name" > /dev/null 2>&1; then
+      tags_to_push+=("$tag_name")
+    fi
+  done
+
   local pushed_tags=0
   local failed_pushes=0
 
-  for module_info in "${MODULES_TO_TAG[@]}"; do
-    IFS=':' read -r module_path namespace module_name version <<< "$module_info"
-
-    local tag_name="release/$namespace/$module_name/v$version"
-
-    if git rev-parse --verify "$tag_name" > /dev/null 2>&1; then
-      echo "Pushing: $tag_name"
-      if git push origin "$tag_name"; then
-        echo "✅ Pushed: $tag_name"
-        pushed_tags=$((pushed_tags + 1))
-      else
-        echo "❌ Failed to push: $tag_name"
-        failed_pushes=$((failed_pushes + 1))
-      fi
+  if [ ${#tags_to_push[@]} -eq 0 ]; then
+    echo "❌ No valid tags found to push"
+  else
+    if git push --atomic origin "${tags_to_push[@]}"; then
+      echo "✅ Successfully pushed all ${#tags_to_push[@]} tags"
+      pushed_tags=${#tags_to_push[@]}
+    else
+      echo "❌ Failed to push tags"
+      failed_pushes=${#tags_to_push[@]}
     fi
-  done
+  fi
 
   echo ""
   echo "📊 Push summary:"
