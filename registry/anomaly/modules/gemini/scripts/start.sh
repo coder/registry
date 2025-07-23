@@ -35,4 +35,13 @@ else
     }
 fi
 
-agentapi server --term-width 67 --term-height 1190 -- gemini
+if [ -n "$GEMINI_TASK_PROMPT" ]; then
+    printf "Running the task prompt\n"
+    PROMPT="Review your Gemini.md. Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"
+    GEMINI_ARGS=(--prompt-interactive "$PROMPT")
+else
+    printf "No task prompt given.\n"
+    GEMINI_ARGS=()
+fi
+
+agentapi server --term-width 67 --term-height 1190 -- gemini "${GEMINI_ARGS[@]}"

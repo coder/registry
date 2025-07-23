@@ -102,8 +102,62 @@ variable "post_install_script" {
   default     = null
 }
 
+data "coder_parameter" "ai_prompt" {
+  type        = "string"
+  name        = "AI Prompt"
+  default     = ""
+  description = "Write a prompt for Gemini CLI"
+  mutable     = true
+}
+
+variable "additional_extensions" {
+  type        = string
+  description = "Additional extensions configuration in json format to append to the config."
+  default     = null
+}
+
+variable "gemini_instruction_prompt" {
+  type        = string
+  description = "Gemini instruction prompt. will be added to GEMINI.md in specified folder"
+  default     = ""
+}
+
+resource "coder_env" "gemini_api_key" {
+  agent_id = var.agent_id
+  name     = "GEMINI_API_KEY"
+  value    = var.gemini_api_key
+}
+
+resource "coder_env" "gemini_use_vertex_ai" {
+  agent_id = var.agent_id
+  name     = "GOOGLE_GENAI_USE_VERTEXAI"
+  value    = var.google_genai_use_vertexai
+}
 
 locals {
+  base_extensions = <<-EOT
+{
+  "coder": {
+    "args": [
+      "exp",
+      "mcp",
+      "server"
+    ],
+    "command": "coder",
+    "description": "Report ALL tasks and statuses (in progress, done, failed) you are working on.",
+    "enabled": true,
+    "env": {
+      "CODER_MCP_APP_STATUS_SLUG": "${local.app_slug}",
+      "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284"
+    },
+    "name": "Coder",
+    "timeout": 3000,
+    "type": "stdio",
+    "trust": true
+  }
+}
+EOT
+
   app_slug        = "gemini"
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
@@ -138,6 +192,7 @@ module "agentapi" {
      GOOGLE_GENAI_USE_VERTEXAI='${var.google_genai_use_vertexai}' \
      GEMINI_MODEL='${var.gemini_model}' \
      GEMINI_START_DIRECTORY='${var.folder}' \
+     GEMINI_TASK_PROMPT='${data.coder_parameter.ai_prompt.value}' \
      /tmp/start.sh
    EOT
 
@@ -151,6 +206,10 @@ module "agentapi" {
     ARG_INSTALL='${var.install_gemini}' \
     ARG_GEMINI_VERSION='${var.gemini_version}' \
     ARG_GEMINI_CONFIG='${var.gemini_settings_json}' \
+    BASE_EXTENSIONS='${replace(local.base_extensions, "'", "'\\''")}' \
+    ADDITIONAL_EXTENSIONS='${replace(var.additional_extensions != null ? var.additional_extensions : "", "'", "'\\''")}' \
+    GEMINI_START_DIRECTORY='${var.folder}' \
+    GEMINI_INSTRUCTION_PROMPT='${var.gemini_instruction_prompt}' \
     /tmp/install.sh
   EOT
 }
