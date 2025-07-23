@@ -195,7 +195,7 @@ create_and_push_tags() {
   for module_info in "${MODULES_TO_TAG[@]}"; do
     IFS=':' read -r module_path namespace module_name version <<< "$module_info"
     local tag_name="release/$namespace/$module_name/v$version"
-    
+
     if git rev-parse --verify "$tag_name" > /dev/null 2>&1; then
       tags_to_push+=("$tag_name")
     fi
