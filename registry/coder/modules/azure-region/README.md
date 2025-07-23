@@ -2,7 +2,6 @@
 display_name: Azure Region
 description: A parameter with human region names and icons
 icon: ../../../../.icons/azure.svg
-maintainer_github: coder
 verified: true
 tags: [helper, parameter, azure, regions]
 ---
@@ -15,7 +14,7 @@ This module adds a parameter with all Azure regions, allowing developers to sele
 module "azure_region" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/coder/azure-region/coder"
-  version = "1.0.12"
+  version = "1.0.31"
   default = "eastus"
 }
 
@@ -36,7 +35,7 @@ Change the display name and icon for a region using the corresponding maps:
 module "azure-region" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/coder/azure-region/coder"
-  version = "1.0.12"
+  version = "1.0.31"
   custom_names = {
     "australia" : "Go Australia!"
   }
@@ -60,7 +59,7 @@ Hide all regions in Australia except australiacentral:
 module "azure-region" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/coder/azure-region/coder"
-  version = "1.0.12"
+  version = "1.0.31"
   exclude = [
     "australia",
     "australiacentral2",

@@ -2,7 +2,6 @@
 display_name: GCP Region
 description: Add Google Cloud Platform regions to your Coder template.
 icon: ../../../../.icons/gcp.svg
-maintainer_github: coder
 verified: true
 tags: [gcp, regions, parameter, helper]
 ---
@@ -15,7 +14,7 @@ This module adds Google Cloud Platform regions to your Coder template.
 module "gcp_region" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/coder/gcp-region/coder"
-  version = "1.0.12"
+  version = "1.0.31"
   regions = ["us", "europe"]
 }
 
@@ -36,7 +35,7 @@ Note: setting `gpu_only = true` and using a default region without GPU support, 
 module "gcp_region" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/gcp-region/coder"
-  version  = "1.0.12"
+  version  = "1.0.31"
   default  = ["us-west1-a"]
   regions  = ["us-west1"]
   gpu_only = false
@@ -53,7 +52,7 @@ resource "google_compute_instance" "example" {
 module "gcp_region" {
   count                  = data.coder_workspace.me.start_count
   source                 = "registry.coder.com/coder/gcp-region/coder"
-  version                = "1.0.12"
+  version                = "1.0.31"
   regions                = ["europe-west"]
   single_zone_per_region = false
 }
@@ -69,7 +68,7 @@ resource "google_compute_instance" "example" {
 module "gcp_region" {
   count                  = data.coder_workspace.me.start_count
   source                 = "registry.coder.com/coder/gcp-region/coder"
-  version                = "1.0.12"
+  version                = "1.0.31"
   regions                = ["us", "europe"]
   gpu_only               = true
   single_zone_per_region = true

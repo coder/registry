@@ -2,7 +2,6 @@
 display_name: AgentAPI
 description: Building block for modules that need to run an agentapi server
 icon: ../../../../.icons/coder.svg
-maintainer_github: coder
 verified: true
 tags: [internal]
 ---
@@ -16,7 +15,7 @@ We do not recommend using this module directly. Instead, please consider using o
 ```tf
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.0.0"
+  version = "1.0.1"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
