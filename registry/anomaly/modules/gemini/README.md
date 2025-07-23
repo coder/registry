@@ -30,6 +30,7 @@ module "gemini" {
 
 ## Usage Example
 
+- Example 1:
 ```tf
 variable "gemini_api_key" {
   type        = string
@@ -46,21 +47,28 @@ module "gemini" {
   gemini_model   = "gemini-1.5-pro-latest"
   install_gemini = true
   gemini_version = "latest"
+  gemini_instruction_prompt = "Start every response with `Gemini says:`"
 }
 ```
 
 ## How it Works
 
-- **Install**: The module installs Gemini CLI using npm (installs Node.js if needed)
-- **Configure**: Optionally writes your settings JSON to `~/.gemini/settings.json`
+- **Install**: The module installs Gemini CLI using npm (installs Node.js via NVM if needed)
+- **Instruction Prompt**: If `GEMINI_INSTRUCTION_PROMPT` and `GEMINI_START_DIRECTORY` are set, creates the directory (if needed) and writes the prompt to `GEMINI.md`
 - **Start**: Launches Gemini CLI in the specified directory, wrapped by AgentAPI
 - **Environment**: Sets `GEMINI_API_KEY`, `GOOGLE_GENAI_USE_VERTEXAI`, `GEMINI_MODEL` for the CLI (if variables provided)
 
 ## Troubleshooting
 
 - If Gemini CLI is not found, ensure `install_gemini = true` and your API key is valid
-- Node.js and npm are installed automatically if missing
+- Node.js and npm are installed automatically if missing (using NVM)
 - Check logs in `/home/coder/.gemini-module/` for install/start output
+- We highly recommend using the `gemini_api_key` variable, this also ensures smooth tasks running without needing to sign in to Google.
+
+> [!NOTE]
+> To use tasks with Gemini CLI, ensure you have the `gemini_api_key` variable set, and **you pass the `AI Prompt` Parameter**.
+> By default we inject the "theme": "Default" and "selectedAuthType": "gemini-api-key" to your ~/.gemini/settings.json along with the coder mcp server.
+> In `gemini_instruction_prompt` and `AI Prompt` text we recommend using (\`\`) backticks instead of quotes to avoid escaping issues. Eg: gemini_instruction_prompt = "Start every response with \`Gemini says:\` "
 
 ## References
 

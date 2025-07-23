@@ -37,7 +37,7 @@ fi
 
 if [ -n "$GEMINI_TASK_PROMPT" ]; then
     printf "Running the task prompt\n"
-    PROMPT="Review your Gemini.md. Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"
+    PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"
     GEMINI_ARGS=(--prompt-interactive "$PROMPT")
 else
     printf "No task prompt given.\n"
