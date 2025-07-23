@@ -31,6 +31,7 @@ module "gemini" {
 ## Usage Example
 
 - Example 1:
+
 ```tf
 variable "gemini_api_key" {
   type        = string
@@ -39,14 +40,14 @@ variable "gemini_api_key" {
 }
 
 module "gemini" {
-  count          = data.coder_workspace.me.start_count
-  source         = "registry.coder.com/anomaly/gemini/anomaly"
-  version        = "1.0.0"
-  agent_id       = coder_agent.example.id
-  gemini_api_key = var.gemini_api_key # we recommend providing this parameter inorder to have a smoother experience (i.e. no google sign-in)
-  gemini_model   = "gemini-1.5-pro-latest"
-  install_gemini = true
-  gemini_version = "latest"
+  count                     = data.coder_workspace.me.start_count
+  source                    = "registry.coder.com/anomaly/gemini/anomaly"
+  version                   = "1.0.0"
+  agent_id                  = coder_agent.example.id
+  gemini_api_key            = var.gemini_api_key # we recommend providing this parameter inorder to have a smoother experience (i.e. no google sign-in)
+  gemini_model              = "gemini-1.5-pro-latest"
+  install_gemini            = true
+  gemini_version            = "latest"
   gemini_instruction_prompt = "Start every response with `Gemini says:`"
 }
 ```
