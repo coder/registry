@@ -2,7 +2,6 @@
 display_name: File Browser
 description: A file browser for your workspace
 icon: ../../../../.icons/filebrowser.svg
-maintainer_github: coder
 verified: true
 tags: [filebrowser, web]
 ---
@@ -15,7 +14,7 @@ A file browser for your workspace.
 module "filebrowser" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/filebrowser/coder"
-  version  = "1.1.1"
+  version  = "1.1.2"
   agent_id = coder_agent.example.id
 }
 ```
@@ -30,7 +29,7 @@ module "filebrowser" {
 module "filebrowser" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/filebrowser/coder"
-  version  = "1.1.1"
+  version  = "1.1.2"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
 }
@@ -42,7 +41,7 @@ module "filebrowser" {
 module "filebrowser" {
   count         = data.coder_workspace.me.start_count
   source        = "registry.coder.com/coder/filebrowser/coder"
-  version       = "1.1.1"
+  version       = "1.1.2"
   agent_id      = coder_agent.example.id
   database_path = ".config/filebrowser.db"
 }
@@ -54,7 +53,7 @@ module "filebrowser" {
 module "filebrowser" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/filebrowser/coder"
-  version    = "1.1.1"
+  version    = "1.1.2"
   agent_id   = coder_agent.example.id
   agent_name = "main"
   subdomain  = false

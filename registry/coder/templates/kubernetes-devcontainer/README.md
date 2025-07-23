@@ -2,7 +2,6 @@
 display_name: Kubernetes (Devcontainer)
 description: Provision envbuilder pods as Coder workspaces
 icon: ../../../../.icons/kubernetes.svg
-maintainer_github: coder
 verified: true
 tags: [container, kubernetes, devcontainer]
 ---

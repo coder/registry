@@ -2,7 +2,6 @@
 display_name: AWS EC2 (Devcontainer)
 description: Provision AWS EC2 VMs with a devcontainer as Coder workspaces
 icon: ../../../../.icons/aws.svg
-maintainer_github: coder
 verified: true
 tags: [vm, linux, aws, persistent, devcontainer]
 ---
