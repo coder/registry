@@ -80,7 +80,7 @@ module "tmux" {
 }
 ```
 
-> [!NOTE]
+> [!IMPORTANT]
 >
 > - If you provide a custom `tmux_config`, it will completely replace the default configuration. Ensure you include plugin
 >   and TPM initialization lines if you want plugin support and session persistence.
