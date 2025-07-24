@@ -39,9 +39,9 @@ module "rustdesk" {
   source    = "github.com/your-username/your-module-repo"
   agent_id  = var.agent_id
 }
-
-also add this within resource "docker_container" "workspace":
-
+```
+Also add this within resource "docker_container" "workspace":
+ 
 ```hcl
 privileged = true
   user       = "root"
@@ -62,3 +62,4 @@ ports {
   internal = 21119
   external = 21119
 }
+```
