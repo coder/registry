@@ -12,6 +12,14 @@ This module provisions and configures [tmux](https://github.com/tmux/tmux) with 
 for a Coder agent. It automatically installs tmux, the Tmux Plugin Manager (TPM), and a set of useful plugins, and sets
 up a default or custom tmux configuration with session save/restore capabilities.
 
+```tf
+module "tmux" {
+  source   = "registry.coder.com/anomaly/aider/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
+}
+```
+
 ## Features
 
 - Installs tmux if not already present
@@ -30,7 +38,7 @@ up a default or custom tmux configuration with session save/restore capabilities
 
 ```tf
 module "tmux" {
-  source        = "path/to/this/module"
+  source        = "registry.coder.com/anomaly/aider/coder"
   agent_id      = coder_agent.example.id
   tmux_config   = ""                        # Optional: custom tmux.conf content
   save_interval = 1                         # Optional: save interval in minutes
@@ -68,7 +76,7 @@ This module can provision multiple tmux sessions, each as a separate app in the 
 
 ```tf
 module "tmux" {
-  source      = "./registry/anomaly/modules/tmux"
+  source      = "registry.coder.com/anomaly/aider/coder"
   agent_id    = var.agent_id
   sessions    = ["default", "dev", "anomaly"]
   tmux_config = <<-EOT
