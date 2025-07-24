@@ -62,12 +62,12 @@ function install_gemini() {
 
 function populate_settings_json() {
     if [ "${ARG_GEMINI_CONFIG}" != "" ]; then
-      echo "${ARG_GEMINI_CONFIG}" > "/home/coder/.gemini/settings.json"
+      echo "${ARG_GEMINI_CONFIG}" > "$HOME/.gemini/settings.json"
     fi
 }
 
 function append_extensions_to_settings_json() {
-    SETTINGS_PATH="/home/coder/.gemini/settings.json"
+    SETTINGS_PATH="$HOME/.gemini/settings.json"
     mkdir -p "$(dirname "$SETTINGS_PATH")"
     printf "[append_extensions_to_settings_json] Starting extension merge process...\n"
     if [ -z "${BASE_EXTENSIONS:-}" ]; then
