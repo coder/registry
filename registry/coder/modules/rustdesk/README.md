@@ -36,7 +36,7 @@ Rustdesk module requires root scope (to install rustdesk & execute rustdesk --pa
 
 ```hcl
 module "rustdesk" {
-  source    = "github.com/your-username/your-module-repo"
+  source    = "registry.coder.com/coder/rustdesk/coder"
   agent_id  = var.agent_id
 }
 ```
