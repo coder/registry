@@ -1,12 +1,17 @@
 #!/bin/bash
 
 # Load shell environment
-source ~/.bashrc
-source ~/.nvm/nvm.sh
+source "$HOME"/.bashrc
 
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
+
+if [ -f "$HOME/.nvm/nvm.sh" ]; then
+  source "$HOME"/.nvm/nvm.sh
+else
+  export PATH="$HOME/.npm-global/bin:$PATH"
+fi
 
 printf "Version: %s\n" "$(gemini --version)\n"
 
@@ -43,6 +48,13 @@ else
     printf "No task prompt given.\n"
     GEMINI_ARGS=()
 fi
+
+if [ -n "$GEMINI_API_KEY" ]; then
+    printf "gemini_api_key provided !\n"
+else
+    printf "gemini_api_key not provided\n"
+fi
+
 # use low width to fit in the tasks UI sidebar. height is adjusted so that width x height ~= 80x1000 characters
 # are visible in the terminal screen by default.
 agentapi server --term-width 67 --term-height 1190 -- gemini "${GEMINI_ARGS[@]}"

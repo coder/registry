@@ -16,7 +16,7 @@ module "gemini" {
   version          = "1.0.0"
   agent_id         = coder_agent.example.id
   gemini_api_key   = var.gemini_api_key
-  gemini_model     = "gemini-1.5-pro-latest"
+  gemini_model     = "gemini-2.5-pro"
   install_gemini   = true
   gemini_version   = "latest"
   agentapi_version = "latest"
@@ -45,7 +45,7 @@ module "gemini" {
   version                   = "1.0.0"
   agent_id                  = coder_agent.example.id
   gemini_api_key            = var.gemini_api_key # we recommend providing this parameter inorder to have a smoother experience (i.e. no google sign-in)
-  gemini_model              = "gemini-1.5-pro-latest"
+  gemini_model              = "gemini-2.5-flash"
   install_gemini            = true
   gemini_version            = "latest"
   gemini_instruction_prompt = "Start every response with `Gemini says:`"

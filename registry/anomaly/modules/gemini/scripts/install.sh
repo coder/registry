@@ -10,9 +10,9 @@ command_exists() {
 set -o nounset
 
 echo "--------------------------------"
-printf "gemini_config: %s\n" "$ARG_GEMINI_CONFIG\n"
-printf "install: %s\n" "$ARG_INSTALL\n"
-printf "gemini_version: %s\n" "$ARG_GEMINI_VERSION\n"
+printf "gemini_config: %s\n" "$ARG_GEMINI_CONFIG"
+printf "install: %s\n" "$ARG_INSTALL"
+printf "gemini_version: %s\n" "$ARG_GEMINI_VERSION"
 echo "--------------------------------"
 
 set +o nounset
@@ -36,8 +36,8 @@ function install_node() {
         nvm use --lts
         nvm alias default node
 
-        printf "Node.js installed: %s\n" "$(node --version)\n"
-        printf "npm installed: %s\n" "$(npm --version)\n"
+        printf "Node.js installed: %s\n" "$(node --version)"
+        printf "npm installed: %s\n" "$(npm --version)"
       else
         printf "Node.js is installed but npm is not available. Please install npm manually.\n"
         exit 1
@@ -50,19 +50,46 @@ function install_gemini() {
     # we need node to install and run gemini-cli
     install_node
 
-    printf "%s Installing Gemini CLI\n" "$${BOLD}"
+  # If nvm does not exist, we will create a global npm directory (this os to prevent the possibility of EACCESS issues on npm -g)
+  if ! command_exists nvm; then
+      printf "which node: %s\n" "$(which node)"
+      printf "which npm: %s\n" "$(which npm)"
+
+      # Create a directory for global packages
+      mkdir -p "$HOME"/.npm-global
+
+      # Configure npm to use it
+      npm config set prefix "$HOME/.npm-global"
+
+      # Add to PATH for current session
+      export PATH="$HOME/.npm-global/bin:$PATH"
+
+      # Add to shell profile for future sessions
+      if ! grep -q "export PATH=$HOME/.npm-global/bin:\$PATH" ~/.bashrc; then
+          echo "export PATH=$HOME/.npm-global/bin:\$PATH" >> ~/.bashrc
+      fi
+    fi
+
+    printf "%s Installing Gemini CLI\n" "${BOLD}"
+
     if [ -n "$ARG_GEMINI_VERSION" ]; then
       npm install -g "@google/gemini-cli@$ARG_GEMINI_VERSION"
     else
       npm install -g "@google/gemini-cli"
     fi
-    printf "%s Successfully installed Gemini CLI. Version: %s" "$${BOLD}" "$(gemini --version)\n"
+    printf "%s Successfully installed Gemini CLI. Version: %s\n" "${BOLD}" "$(gemini --version)"
   fi
 }
 
 function populate_settings_json() {
     if [ "${ARG_GEMINI_CONFIG}" != "" ]; then
+      SETTINGS_PATH="$HOME/.gemini/settings.json"
+      mkdir -p "$(dirname "$SETTINGS_PATH")"
+      printf "Custom gemini_config is provided !\n"
       echo "${ARG_GEMINI_CONFIG}" > "$HOME/.gemini/settings.json"
+    else
+      printf "No custom gemini_config provided, using default settings.json.\n"
+      append_extensions_to_settings_json
     fi
 }
 
@@ -75,7 +102,7 @@ function append_extensions_to_settings_json() {
       return
     fi
     if [ ! -f "$SETTINGS_PATH" ]; then
-      printf "[append_extensions_to_settings_json] $SETTINGS_PATH does not exist. Creating with merged mcpServers structure.\n"
+      printf "%s does not exist. Creating with merged mcpServers structure.\n" "$SETTINGS_PATH"
       # If ADDITIONAL_EXTENSIONS is not set or empty, use '{}'
       ADD_EXT_JSON='{}'
       if [ -n "${ADDITIONAL_EXTENSIONS:-}" ]; then
@@ -137,8 +164,7 @@ function add_instruction_prompt_if_exists() {
 
 # Install Gemini
 install_gemini
-populate_settings_json
 gemini --version
-append_extensions_to_settings_json
+populate_settings_json
 add_instruction_prompt_if_exists
 
