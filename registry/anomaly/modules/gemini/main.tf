@@ -66,7 +66,7 @@ variable "gemini_api_key" {
   default     = ""
 }
 
-variable "google_genai_use_vertexai" {
+variable "use_vertexai" {
   type        = bool
   description = "Whether to use vertex ai"
   default     = false
@@ -86,7 +86,7 @@ variable "agentapi_version" {
 
 variable "gemini_model" {
   type        = string
-  description = "The model to use for Gemini (e.g., claude-3-5-sonnet-latest)."
+  description = "The model to use for Gemini (e.g., gemini-2.5-pro)."
   default     = ""
 }
 
@@ -116,9 +116,9 @@ variable "additional_extensions" {
   default     = null
 }
 
-variable "gemini_instruction_prompt" {
+variable "gemini_system_prompt" {
   type        = string
-  description = "Gemini instruction prompt. will be added to GEMINI.md in specified folder"
+  description = "System prompt for Gemini. It will be added to GEMINI.md in the specified folder."
   default     = ""
 }
 
@@ -131,7 +131,7 @@ resource "coder_env" "gemini_api_key" {
 resource "coder_env" "gemini_use_vertex_ai" {
   agent_id = var.agent_id
   name     = "GOOGLE_GENAI_USE_VERTEXAI"
-  value    = var.google_genai_use_vertexai
+  value    = var.use_vertexai
 }
 
 locals {
@@ -189,7 +189,7 @@ module "agentapi" {
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
      GEMINI_API_KEY='${var.gemini_api_key}' \
-     GOOGLE_GENAI_USE_VERTEXAI='${var.google_genai_use_vertexai}' \
+     GOOGLE_GENAI_USE_VERTEXAI='${var.use_vertexai}' \
      GEMINI_MODEL='${var.gemini_model}' \
      GEMINI_START_DIRECTORY='${var.folder}' \
      GEMINI_TASK_PROMPT='${data.coder_parameter.ai_prompt.value}' \
@@ -209,7 +209,7 @@ module "agentapi" {
     BASE_EXTENSIONS='${replace(local.base_extensions, "'", "'\\''")}' \
     ADDITIONAL_EXTENSIONS='${replace(var.additional_extensions != null ? var.additional_extensions : "", "'", "'\\''")}' \
     GEMINI_START_DIRECTORY='${var.folder}' \
-    GEMINI_INSTRUCTION_PROMPT='${var.gemini_instruction_prompt}' \
+    GEMINI_INSTRUCTION_PROMPT='${var.gemini_system_prompt}' \
     /tmp/install.sh
   EOT
 }
