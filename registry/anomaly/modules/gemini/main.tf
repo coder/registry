@@ -106,7 +106,7 @@ data "coder_parameter" "ai_prompt" {
   type        = "string"
   name        = "AI Prompt"
   default     = ""
-  description = "Write a prompt for Gemini CLI"
+  description = "Initial prompt for the Gemini CLI"
   mutable     = true
 }
 
