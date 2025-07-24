@@ -29,6 +29,8 @@ This [Coder](https://coder.com) module installs and launches [RustDesk](https://
 
 ### Quickstart
 
+Rustdesk module requires root scope (to install rustdesk & execute rustdesk --password "somepassword", because rustdesk cli does not provide a way to get the password else setup in advance)
+
 1. Add the module to your [Coder Terraform workspace](https://registry.coder.com)
 2. Include it in your `main.tf`:
 
@@ -36,4 +38,27 @@ This [Coder](https://coder.com) module installs and launches [RustDesk](https://
 module "rustdesk" {
   source    = "github.com/your-username/your-module-repo"
   agent_id  = var.agent_id
+}
+
+also add this within resource "docker_container" "workspace":
+
+```hcl
+privileged = true
+  user       = "root"
+  network_mode = "host"
+  ports {
+  internal = 21115
+  external = 21115
+}
+ports {
+  internal = 21116
+  external = 21116
+}
+ports {
+  internal = 21118
+  external = 21118
+}
+ports {
+  internal = 21119
+  external = 21119
 }
