@@ -2,7 +2,6 @@
 display_name: Kubernetes (Envbox)
 description: Provision envbox pods as Coder workspaces
 icon: ../../../../.icons/kubernetes.svg
-maintainer_github: coder
 verified: true
 tags: [kubernetes, containers, docker-in-docker]
 ---
