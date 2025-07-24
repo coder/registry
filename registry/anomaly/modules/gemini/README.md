@@ -66,7 +66,7 @@ module "gemini" {
 - Check logs in `/home/coder/.gemini-module/` for install/start output
 - We highly recommend using the `gemini_api_key` variable, this also ensures smooth tasks running without needing to sign in to Google.
 
-> [!NOTE]
+> [!IMPORTANT]
 > To use tasks with Gemini CLI, ensure you have the `gemini_api_key` variable set, and **you pass the `AI Prompt` Parameter**.
 > By default we inject the "theme": "Default" and "selectedAuthType": "gemini-api-key" to your ~/.gemini/settings.json along with the coder mcp server.
 > In `gemini_instruction_prompt` and `AI Prompt` text we recommend using (\`\`) backticks instead of quotes to avoid escaping issues. Eg: gemini_instruction_prompt = "Start every response with \`Gemini says:\` "
