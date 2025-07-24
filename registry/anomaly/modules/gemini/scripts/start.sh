@@ -43,5 +43,6 @@ else
     printf "No task prompt given.\n"
     GEMINI_ARGS=()
 fi
-
+# use low width to fit in the tasks UI sidebar. height is adjusted so that width x height ~= 80x1000 characters
+# are visible in the terminal screen by default.
 agentapi server --term-width 67 --term-height 1190 -- gemini "${GEMINI_ARGS[@]}"
