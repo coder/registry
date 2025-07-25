@@ -100,6 +100,9 @@ describe("filebrowser", async () => {
       "apk add bash",
     );
 
+    const expectedUrl = "http://localhost:13339/@default/default/apps/filebrowser";
+    const expectedLogLine = `📂 Serving /root at ${expectedUrl} `;
+
     testBaseLine(output);
   }, 15000);
 });
