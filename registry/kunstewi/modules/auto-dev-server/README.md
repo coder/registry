@@ -2,7 +2,7 @@
 display_name: Auto npm start
 description: Automatically starts a Node.js development server via `npm start`.
 icon: ../../../../.icons/node.svg
-maintainer_github: TheZoker
+maintainer_github: kunstewi
 verified: false
 tags: [helper, nodejs, automation, dev-server]
 ---
