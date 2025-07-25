@@ -1,0 +1,55 @@
+#cloud-config
+users:
+  - name: ${username}
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    groups: sudo
+    shell: /bin/bash
+packages:
+  - git
+%{ if home_volume_label != "" ~}
+fs_setup:
+  - device: /dev/disk/by-id/scsi-0HC_Volume_${volume_id}
+    filesystem: ext4
+    label: ${home_volume_label}
+    overwrite: false # This prevents reformatting the disk on every boot
+
+mounts:
+  - [
+      "LABEL=${home_volume_label}",
+      "/home/${username}",
+      auto,
+      "defaults,uid=1000,gid=1000",
+    ]
+%{ endif ~}
+write_files:
+  - path: /opt/coder/init
+    permissions: "0755"
+    encoding: b64
+    content: ${init_script}
+  - path: /etc/systemd/system/coder-agent.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Coder Agent
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      User=${username}
+      ExecStart=/opt/coder/init
+      Environment=CODER_AGENT_TOKEN=${coder_agent_token}
+      Restart=always
+      RestartSec=10
+      TimeoutStopSec=90
+      KillMode=process
+
+      OOMScoreAdjust=-900
+      SyslogIdentifier=coder-agent
+
+      [Install]
+      WantedBy=multi-user.target
+runcmd:
+  - mount -a
+  - chown ${username}:${username} /home/${username}
+  - systemctl enable coder-agent
+  - systemctl start coder-agent
