@@ -507,3 +507,37 @@ resource "coder_app" "aider_cli" {
   order        = var.order
   group        = var.group
 }
+
+module "agentapi" {
+  source  = "registry.coder.com/coder/agentapi/coder"
+  version = "1.0.1"
+
+  agent_id             = var.agent_id
+  web_app_slug         = local.app_slug
+  web_app_order        = var.order
+  web_app_group        = var.group
+  web_app_icon         = var.icon
+  web_app_display_name = "Aider"
+  cli_app_slug         = "${local.app_slug}-cli"
+  cli_app_display_name = "Aider CLI"
+  module_dir_name      = local.module_dir_name
+  agentapi_version     = var.agentapi_version
+  pre_install_script   = var.experiment_pre_install_script
+  post_install_script  = var.experiment_post_install_script
+  start_script         = local.start_script
+  install_script = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
+    chmod +x /tmp/install.sh
+
+    ARG_PROVIDER='${var.ai_provider}' \
+    ARG_MODEL='${var.ai_model}' \
+    ARG_AIDER_CONFIG="$(echo -n '${base64encode(local.combined_extensions)}' | base64 -d)" \
+    ARG_INSTALL='${var.install_aider}' \
+    ARG_AIDER_VERSION='${var.aider_version}' \
+    /tmp/install.sh
+  EOT
+}
