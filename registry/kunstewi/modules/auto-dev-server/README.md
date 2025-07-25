@@ -1,59 +1,41 @@
 ---
-display_name: Auto Development Server
-description: Automatically detect and start development servers based on project detection
-icon: ../../../../.icons/play.svg
+display_name: Auto npm start
+description: Automatically starts a Node.js development server via `npm start`.
+icon: ../../../../.icons/node.svg
+maintainer_github: TheZoker
 verified: false
-maintainer_github: kunstewi
-tags: [development, automation, devcontainer]
+tags: [helper, nodejs, automation, dev-server]
 ---
 
-# Auto Development Server
+# Auto npm start
 
-Automatically detects and starts development servers for various project types when the workspace starts. Supports Node.js, Python, Ruby, Go, Rust, PHP projects, and integrates with devcontainer.json configuration.
+This module automatically detects a Node.js project in your workspace and runs `npm start` in the background when the workspace starts.
+
+It looks for a `package.json` file in the specified project directory. If found, it starts the server and logs the output to `auto-npm-start.log` within that directory.
+
+## Basic Usage
+
+Add this to your Coder template. It will check for a project in `/home/coder/project`.
 
 ```tf
-module "auto_dev_server" {
+module "auto_npm_start" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/kunstewi/auto-dev-server/coder"
+  source   = "registry.coder.com/thezoker/auto-npm-start/coder"
   version  = "1.0.0"
   agent_id = coder_agent.example.id
 }
 ```
 
-## Supported Project Types
+## Custom Project Directory
 
-- **Node.js**: Detects `package.json` and runs `npm start`, `npm run dev`, or `yarn start`
-- **Python**: Detects Django (`manage.py`), Flask, or FastAPI projects
-- **Ruby**: Detects Rails applications and Rack applications
-- **Go**: Detects `go.mod` or `main.go` files
-- **Rust**: Detects `Cargo.toml` files
-- **PHP**: Detects `composer.json` or `index.php` files
-- **Devcontainer**: Uses `postStartCommand` from `.devcontainer/devcontainer.json`
-
-## Examples
-
-### Basic Usage
+If your project is in a different location, you can specify the `project_dir` variable.
 
 ```tf
-module "auto_dev_server" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/kunstewi/auto-dev-server/coder"
-  version  = "1.0.0"
-  agent_id = coder_agent.example.id
-}
-```
-
-### Custom Configuration
-
-```tf
-module "auto_dev_server" {
-  count            = data.coder_workspace.me.start_count
-  source           = "registry.coder.com/kunstewi/auto-dev-server/coder"
-  version          = "1.0.0"
-  agent_id         = coder_agent.example.id
-  project_dir      = "/workspace/projects"
-  port_range_start = 4000
-  port_range_end   = 8000
-  log_level        = "DEBUG"
+module "auto_npm_start" {
+  count       = data.coder_workspace.me.start_count
+  source      = "registry.coder.com/thezoker/auto-npm-start/coder"
+  version     = "1.0.0"
+  agent_id    = coder_agent.example.id
+  project_dir = "/home/coder/my-awesome-app"
 }
 ```

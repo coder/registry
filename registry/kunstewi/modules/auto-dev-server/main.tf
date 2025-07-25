@@ -1,71 +1,33 @@
 terraform {
+  required_version = ">= 1.0"
+
   required_providers {
     coder = {
-      source = "coder/coder"
+      source  = "coder/coder"
+      version = ">= 0.12"
     }
   }
 }
 
 variable "agent_id" {
-  description = "The ID of a Coder agent."
   type        = string
+  description = "The ID of a Coder agent."
 }
 
 variable "project_dir" {
-  description = "The directory to scan for projects"
   type        = string
-  default     = "/home/coder"
+  description = "The directory to check for a package.json file."
+  default     = "/home/coder/project"
 }
 
-variable "auto_start" {
-  description = "Whether to automatically start development servers"
-  type        = bool
-  default     = true
-}
-
-variable "port_range_start" {
-  description = "Starting port for development servers"
-  type        = number
-  default     = 3000
-}
-
-variable "port_range_end" {
-  description = "Ending port for development servers"
-  type        = number
-  default     = 9000
-}
-
-variable "log_level" {
-  description = "Log level for the auto-dev-server script"
-  type        = string
-  default     = "INFO"
-  validation {
-    condition     = contains(["DEBUG", "INFO", "WARN", "ERROR"], var.log_level)
-    error_message = "Log level must be one of: DEBUG, INFO, WARN, ERROR"
-  }
-}
-
-locals {
-  script_content = templatefile("${path.module}/scripts/auto-dev-server.sh", {
-    project_dir      = var.project_dir
-    auto_start       = var.auto_start
-    port_range_start = var.port_range_start
-    port_range_end   = var.port_range_end
-    log_level        = var.log_level
-  })
-}
-
-resource "coder_script" "auto_dev_server" {
+resource "coder_script" "auto_npm_start" {
   agent_id     = var.agent_id
-  display_name = "Auto Development Server"
-  icon         = "/icon/play.svg"
-  script       = local.script_content
-  run_on_start = var.auto_start
-  run_on_stop  = false
-  timeout      = 300
+  display_name = "Auto npm start"
+  icon         = "/icon/node.svg"
+  script = templatefile("${path.module}/run.sh", {
+    PROJECT_DIR : var.project_dir,
+  })
+  run_on_start       = true
+  start_blocks_login = false # Run in background, don't block login
 }
 
-output "script_id" {
-  description = "The ID of the auto-dev-server script"
-  value       = coder_script.auto_dev_server.id
-}
