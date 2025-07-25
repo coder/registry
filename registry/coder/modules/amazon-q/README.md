@@ -2,7 +2,6 @@
 display_name: Amazon Q
 description: Run Amazon Q in your workspace to access Amazon's AI coding assistant.
 icon: ../../../../.icons/amazon-q.svg
-maintainer_github: coder
 verified: true
 tags: [agent, ai, aws, amazon-q]
 ---
@@ -14,7 +13,7 @@ Run [Amazon Q](https://aws.amazon.com/q/) in your workspace to access Amazon's A
 ```tf
 module "amazon-q" {
   source   = "registry.coder.com/coder/amazon-q/coder"
-  version  = "1.1.0"
+  version  = "1.1.1"
   agent_id = coder_agent.example.id
   # Required: see below for how to generate
   experiment_auth_tarball = var.amazon_q_auth_tarball
@@ -82,7 +81,7 @@ module "amazon-q" {
 ```tf
 module "amazon-q" {
   source                  = "registry.coder.com/coder/amazon-q/coder"
-  version                 = "1.1.0"
+  version                 = "1.1.1"
   agent_id                = coder_agent.example.id
   experiment_auth_tarball = var.amazon_q_auth_tarball
   experiment_use_tmux     = true
@@ -94,7 +93,7 @@ module "amazon-q" {
 ```tf
 module "amazon-q" {
   source                  = "registry.coder.com/coder/amazon-q/coder"
-  version                 = "1.1.0"
+  version                 = "1.1.1"
   agent_id                = coder_agent.example.id
   experiment_auth_tarball = var.amazon_q_auth_tarball
   experiment_report_tasks = true
@@ -106,7 +105,7 @@ module "amazon-q" {
 ```tf
 module "amazon-q" {
   source                         = "registry.coder.com/coder/amazon-q/coder"
-  version                        = "1.1.0"
+  version                        = "1.1.1"
   agent_id                       = coder_agent.example.id
   experiment_auth_tarball        = var.amazon_q_auth_tarball
   experiment_pre_install_script  = "echo Pre-install!"

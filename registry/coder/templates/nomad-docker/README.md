@@ -2,7 +2,6 @@
 display_name: Nomad
 description: Provision Nomad Jobs as Coder workspaces
 icon: ../../../../.icons/nomad.svg
-maintainer_github: coder
 verified: true
 tags: [nomad, container]
 ---
