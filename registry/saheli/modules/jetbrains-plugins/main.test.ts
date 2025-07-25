@@ -167,22 +167,23 @@ describe("jetbrains-plugins", async () => {
         channel: "release",
       });
 
-      // Should create multiple IDE apps
+      // Should create multiple IDE app instances
       const jetbrains_apps = state.resources.filter(
         (res) => res.type === "coder_app" && res.name === "jetbrains"
       );
-      expect(jetbrains_apps.length).toBe(2);
+      expect(jetbrains_apps.length).toBe(1); // One resource with multiple instances
+      expect(jetbrains_apps[0].instances).toHaveLength(2); // Two instances
 
-      // Check app properties
-      const app_names = jetbrains_apps.map(
-        (app) => app.instances[0].attributes.display_name
+      // Check app properties from all instances
+      const app_names = jetbrains_apps[0].instances.map(
+        (instance) => instance.attributes.display_name
       );
       expect(app_names).toContain("IntelliJ IDEA");
       expect(app_names).toContain("WebStorm");
 
       // Check URLs contain proper JetBrains Gateway links
-      jetbrains_apps.forEach((app) => {
-        const url = app.instances[0].attributes.url;
+      jetbrains_apps[0].instances.forEach((instance) => {
+        const url = instance.attributes.url;
         expect(url).toContain("jetbrains://gateway/coder");
         expect(url).toContain("ide_product_code=");
         expect(url).toContain("ide_build_number=");
