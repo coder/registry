@@ -2,7 +2,7 @@
 display_name: Gemini CLI
 icon: ../../../../.icons/gemini.svg
 description: Run Gemini CLI in your workspace with AgentAPI integration
-verified: false
+verified: true
 tags: [agent, gemini, ai, google]
 ---
 
@@ -12,7 +12,7 @@ Run [Gemini CLI](https://ai.google.dev/gemini-api/docs/cli) in your workspace to
 
 ```tf
 module "gemini" {
-  source           = "registry.coder.com/anomaly/gemini/coder"
+  source           = "registry.coder.com/coder-labs/gemini/coder"
   version          = "1.0.0"
   agent_id         = coder_agent.example.id
   gemini_api_key   = var.gemini_api_key
@@ -41,7 +41,7 @@ variable "gemini_api_key" {
 
 module "gemini" {
   count                     = data.coder_workspace.me.start_count
-  source                    = "registry.coder.com/anomaly/gemini/coder"
+  source                    = "registry.coder.com/coder-labs/gemini/coder"
   version                   = "1.0.0"
   agent_id                  = coder_agent.example.id
   gemini_api_key            = var.gemini_api_key # we recommend providing this parameter inorder to have a smoother experience (i.e. no google sign-in)

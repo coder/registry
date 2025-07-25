@@ -14,7 +14,6 @@ import {
   execModuleScript,
   expectAgentAPIStarted,
 } from "../../../coder/modules/agentapi/test-util";
-import dedent from "dedent";
 
 let cleanupFunctions: (() => Promise<void>)[] = [];
 const registerCleanup = (cleanup: () => Promise<void>) => {
