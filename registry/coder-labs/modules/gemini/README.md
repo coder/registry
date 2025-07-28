@@ -3,7 +3,7 @@ display_name: Gemini CLI
 icon: ../../../../.icons/gemini.svg
 description: Run Gemini CLI in your workspace with AgentAPI integration
 verified: true
-tags: [agent, gemini, ai, google]
+tags: [agent, gemini, ai, google, tasks]
 ---
 
 # Gemini CLI
