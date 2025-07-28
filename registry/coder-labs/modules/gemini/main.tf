@@ -192,7 +192,7 @@ module "agentapi" {
      GOOGLE_GENAI_USE_VERTEXAI='${var.use_vertexai}' \
      GEMINI_MODEL='${var.gemini_model}' \
      GEMINI_START_DIRECTORY='${var.folder}' \
-     GEMINI_TASK_PROMPT='${data.coder_parameter.ai_prompt.value}' \
+     GEMINI_TASK_PROMPT='${base64encode(data.coder_parameter.ai_prompt.value)}' \
      /tmp/start.sh
    EOT
 
@@ -205,11 +205,11 @@ module "agentapi" {
     chmod +x /tmp/install.sh
     ARG_INSTALL='${var.install_gemini}' \
     ARG_GEMINI_VERSION='${var.gemini_version}' \
-    ARG_GEMINI_CONFIG='${var.gemini_settings_json}' \
-    BASE_EXTENSIONS='${replace(local.base_extensions, "'", "'\\''")}' \
-    ADDITIONAL_EXTENSIONS='${replace(var.additional_extensions != null ? var.additional_extensions : "", "'", "'\\''")}' \
+    ARG_GEMINI_CONFIG='${base64encode(var.gemini_settings_json)}' \
+    BASE_EXTENSIONS='${base64encode(replace(local.base_extensions, "'", "'\\''"))}' \
+    ADDITIONAL_EXTENSIONS='${base64encode(replace(var.additional_extensions != null ? var.additional_extensions : "", "'", "'\\''"))}' \
     GEMINI_START_DIRECTORY='${var.folder}' \
-    GEMINI_INSTRUCTION_PROMPT='${var.gemini_system_prompt}' \
+    GEMINI_INSTRUCTION_PROMPT='${base64encode(var.gemini_system_prompt)}' \
     /tmp/install.sh
   EOT
 }

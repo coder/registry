@@ -9,6 +9,11 @@ command_exists() {
 
 set -o nounset
 
+ARG_GEMINI_CONFIG=$(echo -n "$ARG_GEMINI_CONFIG" | base64 -d)
+BASE_EXTENSIONS=$(echo -n "$BASE_EXTENSIONS" | base64 -d)
+ADDITIONAL_EXTENSIONS=$(echo -n "$ADDITIONAL_EXTENSIONS" | base64 -d)
+GEMINI_INSTRUCTION_PROMPT=$(echo -n "$GEMINI_INSTRUCTION_PROMPT" | base64 -d)
+
 echo "--------------------------------"
 printf "gemini_config: %s\n" "$ARG_GEMINI_CONFIG"
 printf "install: %s\n" "$ARG_INSTALL"

@@ -13,7 +13,9 @@ else
   export PATH="$HOME/.npm-global/bin:$PATH"
 fi
 
-printf "Version: %s\n" "$(gemini --version)\n"
+printf "Version: %s\n" "$(gemini --version)"
+
+GEMINI_TASK_PROMPT=$(echo -n "$GEMINI_TASK_PROMPT" | base64 -d)
 
 if command_exists gemini; then
     printf "Gemini is installed\n"
@@ -41,7 +43,7 @@ else
 fi
 
 if [ -n "$GEMINI_TASK_PROMPT" ]; then
-    printf "Running the task prompt\n"
+    printf "Running the task prompt %s\n" "$GEMINI_TASK_PROMPT"
     PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"
     GEMINI_ARGS=(--prompt-interactive "$PROMPT")
 else

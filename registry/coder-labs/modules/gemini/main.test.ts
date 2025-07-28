@@ -74,30 +74,26 @@ describe("gemini", async () => {
     const { id } = await setup();
     await execModuleScript(id);
     await expectAgentAPIStarted(id);
-    // const resp = await readFileContainer(id, "/home/coder/.gemini-module/install.log");
-    // console.error("\n\n\nINSTALL_LOG => ", resp, "\n\n\n")
-    //
-    // const resp2 = await readFileContainer(id, "/home/coder/.gemini-module/agentapi-start.log");
-    // console.error("\n\n\nSTART_LOG => ", resp2, "\n\n\n")
   });
 
   test("install-gemini-version", async () => {
+    const version_to_install = "0.1.13";
     const { id } = await setup({
+      skipGeminiMock: true,
       moduleVariables: {
         install_gemini: "true",
-        gemini_version: "v2.5.0",
+        gemini_version: version_to_install,
       },
     });
     await execModuleScript(id);
-    // Check for version in install log or binary (customize as needed)
     const resp = await execContainer(id, [
       "bash",
       "-c",
       `cat /home/coder/.gemini-module/install.log || true`,
     ]);
-    expect(resp.stdout).toContain("v2.5.0");
+    expect(resp.stdout).toContain(version_to_install);
   });
-  //
+
   test("gemini-settings-json", async () => {
     const settings = '{"foo": "bar"}';
     const { id } = await setup({
