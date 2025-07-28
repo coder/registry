@@ -92,7 +92,8 @@ module "tmux" {
 
 > [!IMPORTANT]
 >
-> - If you provide a custom `tmux_config`, it will completely replace the default configuration. Ensure you include plugin and TPM initialization lines if you want plugin support and session persistence.
+> - If you provide a custom `tmux_config`, it will completely replace the default configuration. Ensure you include plugin
+>   and TPM initialization lines if you want plugin support and session persistence.
 > - The script will attempt to install dependencies using `sudo` where required.
 > - If `git` is not installed, TPM installation will fail.
 > - If you are using custom config, you'll be responsible for setting up persistence and plugins.
