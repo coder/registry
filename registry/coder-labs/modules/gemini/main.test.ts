@@ -6,7 +6,7 @@ import {
   beforeAll,
   expect,
 } from "bun:test";
-import { execContainer, findResourceInstance, readFileContainer, runTerraformInit } from "~test";
+import { execContainer, readFileContainer, runTerraformInit } from "~test";
 import {
   loadTestFile,
   writeExecutable,
@@ -168,7 +168,6 @@ describe("gemini", async () => {
       },
     });
     await execModuleScript(id);
-    // Check that the folder is used (e.g., by checking a file or env)
     const resp = await readFileContainer(id, "/home/coder/.gemini-module/install.log");
     expect(resp).toContain(folder);
   });
