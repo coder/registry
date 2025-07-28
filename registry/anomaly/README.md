@@ -1,5 +1,5 @@
 ---
-display_name: "anomaly"
+display_name: "Jay Kumar"
 bio: "I'm a Software Engineer :)"
 avatar_url: "./.images/avatar.png"
 github: "35C4n0r"
