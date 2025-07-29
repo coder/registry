@@ -157,7 +157,7 @@ if [ ${length(var.package_managers.docker)} -gt 0 ]; then
     echo "🐳 Configuring Docker credentials..."
     mkdir -p ~/.docker
     %{ for repo in var.package_managers.docker ~}
-    echo -n "${var.nexus_password}" | docker login "${repo}" --username "${local.username}" --password-stdin
+    echo -n "${var.nexus_password}" | docker login "${local.nexus_host}" --username "${local.username}" --password-stdin
     %{ endfor ~}
     config_complete
   else
