@@ -142,9 +142,18 @@ fi
 if [ ${length(var.package_managers.pypi)} -gt 0 ]; then
   echo "🐍 Configuring pip..."
   mkdir -p ~/.pip
+  # Create .netrc file for secure credential storage
+  cat > ~/.netrc << EOF
+machine ${local.nexus_host}
+login ${local.username}
+password ${var.nexus_password}
+EOF
+  chmod 600 ~/.netrc
+
+  # Update pip.conf to use index-url without embedded credentials
   cat > ~/.pip/pip.conf << 'EOF'
 [global]
-index-url = https://${local.username}:${var.nexus_password}@${local.nexus_host}/repository/${try(element(var.package_managers.pypi, 0), "pypi-public")}/simple
+index-url = https://${local.nexus_host}/repository/${try(element(var.package_managers.pypi, 0), "pypi-public")}/simple
 EOF
   config_complete
 else
