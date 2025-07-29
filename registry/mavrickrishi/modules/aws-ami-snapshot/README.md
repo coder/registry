@@ -164,6 +164,7 @@ Users need the following IAM permissions for full functionality:
 | instance_id              | The EC2 instance ID to create snapshots from                 | string      | n/a     | yes      |
 | default_ami_id           | The default AMI ID to use when not restoring from a snapshot | string      | n/a     | yes      |
 | template_name            | The name of the Coder template using this module             | string      | n/a     | yes      |
+| test_mode                | Set to true when running tests to skip AWS API calls         | bool        | false   | no       |
 | tags                     | Additional tags to apply to snapshots                        | map(string) | {}      | no       |
 | enable_dlm_cleanup       | Enable Data Lifecycle Manager for automated snapshot cleanup | bool        | false   | no       |
 | dlm_role_arn             | ARN of the IAM role for DLM                                  | string      | ""      | no       |

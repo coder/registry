@@ -25,6 +25,12 @@ provider "aws" {
 }
 
 # Variables
+variable "test_mode" {
+  description = "Set to true when running tests to skip AWS API calls"
+  type        = bool
+  default     = false
+}
+
 variable "instance_id" {
   description = "The EC2 instance ID to create snapshots from"
   type        = string
@@ -96,11 +102,11 @@ data "coder_parameter" "use_previous_snapshot" {
     description = "Start with a fresh instance"
   }
   dynamic "option" {
-    for_each = data.aws_ami_ids.workspace_snapshots.ids
+    for_each = local.workspace_snapshot_ids
     content {
-      name        = "${data.aws_ami.snapshot_info[option.value].name} (${formatdate("YYYY-MM-DD hh:mm", data.aws_ami.snapshot_info[option.value].creation_date)})"
+      name        = var.test_mode ? "Test Snapshot" : "${local.snapshot_info[option.value].name} (${formatdate("YYYY-MM-DD hh:mm", local.snapshot_info[option.value].creation_date)})"
       value       = option.value
-      description = data.aws_ami.snapshot_info[option.value].description
+      description = var.test_mode ? "Test Description" : local.snapshot_info[option.value].description
     }
   }
 }
@@ -109,8 +115,17 @@ data "coder_parameter" "use_previous_snapshot" {
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
+# Local values to handle test mode
+locals {
+  workspace_snapshot_ids = var.test_mode ? [] : data.aws_ami_ids.workspace_snapshots[0].ids
+  snapshot_info = var.test_mode ? {} : {
+    for ami_id in local.workspace_snapshot_ids : ami_id => data.aws_ami.snapshot_info[ami_id]
+  }
+}
+
 # Retrieve existing snapshots for this workspace
 data "aws_ami_ids" "workspace_snapshots" {
+  count  = var.test_mode ? 0 : 1
   owners = ["self"]
 
   filter {
@@ -136,7 +151,7 @@ data "aws_ami_ids" "workspace_snapshots" {
 
 # Get detailed information about each snapshot
 data "aws_ami" "snapshot_info" {
-  for_each = toset(data.aws_ami_ids.workspace_snapshots.ids)
+  for_each = toset(local.workspace_snapshot_ids)
   owners   = ["self"]
 
   filter {
@@ -179,7 +194,7 @@ resource "aws_ami_from_instance" "workspace_snapshot" {
 
 # Optional: Data Lifecycle Manager policy for automated cleanup
 resource "aws_dlm_lifecycle_policy" "workspace_snapshots" {
-  count              = var.enable_dlm_cleanup ? 1 : 0
+  count              = var.enable_dlm_cleanup && !var.test_mode ? 1 : 0
   description        = "Lifecycle policy for Coder workspace AMI snapshots"
   execution_role_arn = var.dlm_role_arn
   state              = "ENABLED"
@@ -227,17 +242,17 @@ output "snapshot_ami_id" {
 
 output "available_snapshots" {
   description = "List of available snapshot AMI IDs for this workspace"
-  value       = data.aws_ami_ids.workspace_snapshots.ids
+  value       = local.workspace_snapshot_ids
 }
 
 output "snapshot_info" {
   description = "Detailed information about available snapshots"
-  value = {
-    for ami_id in data.aws_ami_ids.workspace_snapshots.ids : ami_id => {
-      name         = data.aws_ami.snapshot_info[ami_id].name
-      description  = data.aws_ami.snapshot_info[ami_id].description
-      created_date = data.aws_ami.snapshot_info[ami_id].creation_date
-      tags         = data.aws_ami.snapshot_info[ami_id].tags
+  value = var.test_mode ? {} : {
+    for ami_id in local.workspace_snapshot_ids : ami_id => {
+      name         = local.snapshot_info[ami_id].name
+      description  = local.snapshot_info[ami_id].description
+      created_date = local.snapshot_info[ami_id].creation_date
+      tags         = local.snapshot_info[ami_id].tags
     }
   }
 }
