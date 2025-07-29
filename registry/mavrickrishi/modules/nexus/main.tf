@@ -82,7 +82,7 @@ resource "coder_script" "nexus" {
   agent_id     = var.agent_id
   display_name = "nexus"
   icon         = "/icon/nexus.svg"
-  script = <<-EOT
+  script       = <<-EOT
 #!/usr/bin/env bash
 
 not_configured() {
@@ -165,9 +165,9 @@ if [ ${length(var.package_managers.docker)} -gt 0 ]; then
   if command -v docker > /dev/null 2>&1; then
     echo "🐳 Configuring Docker credentials..."
     mkdir -p ~/.docker
-    %{ for repo in var.package_managers.docker ~}
+    %{for repo in var.package_managers.docker~}
     echo -n "${var.nexus_password}" | docker login "${local.nexus_host}" --username "${local.username}" --password-stdin
-    %{ endfor ~}
+    %{endfor~}
     config_complete
   else
     echo "🤔 Docker is not installed, skipping Docker configuration."

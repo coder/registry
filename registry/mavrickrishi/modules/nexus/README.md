@@ -12,11 +12,11 @@ Configure package managers (Maven, npm, PyPI, Docker) to use Sonatype Nexus Repo
 
 ```tf
 module "nexus" {
-  source           = "registry.coder.com/mavrickrishi/nexus/coder"
-  version          = "1.0.0"
-  agent_id         = coder_agent.example.id
-  nexus_url        = "https://nexus.example.com"
-  nexus_password   = var.nexus_api_token
+  source         = "registry.coder.com/mavrickrishi/nexus/coder"
+  version        = "1.0.0"
+  agent_id       = coder_agent.example.id
+  nexus_url      = "https://nexus.example.com"
+  nexus_password = var.nexus_api_token
   package_managers = {
     maven  = ["maven-public", "maven-releases"]
     npm    = ["npm-public", "@scoped:npm-private"]
@@ -34,11 +34,11 @@ module "nexus" {
 
 ```tf
 module "nexus" {
-  source           = "registry.coder.com/mavrickrishi/nexus/coder"
-  version          = "1.0.0"
-  agent_id         = coder_agent.example.id
-  nexus_url        = "https://nexus.example.com"
-  nexus_password   = var.nexus_api_token
+  source         = "registry.coder.com/mavrickrishi/nexus/coder"
+  version        = "1.0.0"
+  agent_id       = coder_agent.example.id
+  nexus_url      = "https://nexus.example.com"
+  nexus_password = var.nexus_api_token
   package_managers = {
     maven = ["maven-public", "maven-releases", "maven-snapshots"]
   }
@@ -49,11 +49,11 @@ module "nexus" {
 
 ```tf
 module "nexus" {
-  source           = "registry.coder.com/mavrickrishi/nexus/coder"
-  version          = "1.0.0"
-  agent_id         = coder_agent.example.id
-  nexus_url        = "https://nexus.example.com"
-  nexus_password   = var.nexus_api_token
+  source         = "registry.coder.com/mavrickrishi/nexus/coder"
+  version        = "1.0.0"
+  agent_id       = coder_agent.example.id
+  nexus_url      = "https://nexus.example.com"
+  nexus_password = var.nexus_api_token
   package_managers = {
     npm = ["npm-public", "@mycompany:npm-private"]
   }
@@ -64,11 +64,11 @@ module "nexus" {
 
 ```tf
 module "nexus" {
-  source           = "registry.coder.com/mavrickrishi/nexus/coder"
-  version          = "1.0.0"
-  agent_id         = coder_agent.example.id
-  nexus_url        = "https://nexus.example.com"
-  nexus_password   = var.nexus_api_token
+  source         = "registry.coder.com/mavrickrishi/nexus/coder"
+  version        = "1.0.0"
+  agent_id       = coder_agent.example.id
+  nexus_url      = "https://nexus.example.com"
+  nexus_password = var.nexus_api_token
   package_managers = {
     pypi = ["pypi-public", "pypi-private"]
   }
@@ -79,11 +79,11 @@ module "nexus" {
 
 ```tf
 module "nexus" {
-  source           = "registry.coder.com/mavrickrishi/nexus/coder"
-  version          = "1.0.0"
-  agent_id         = coder_agent.example.id
-  nexus_url        = "https://nexus.example.com"
-  nexus_password   = var.nexus_api_token
+  source         = "registry.coder.com/mavrickrishi/nexus/coder"
+  version        = "1.0.0"
+  agent_id       = coder_agent.example.id
+  nexus_url      = "https://nexus.example.com"
+  nexus_password = var.nexus_api_token
   package_managers = {
     docker = ["docker-public", "docker-private"]
   }
@@ -94,12 +94,12 @@ module "nexus" {
 
 ```tf
 module "nexus" {
-  source           = "registry.coder.com/mavrickrishi/nexus/coder"
-  version          = "1.0.0"
-  agent_id         = coder_agent.example.id
-  nexus_url        = "https://nexus.example.com"
-  nexus_username   = "custom-user"
-  nexus_password   = var.nexus_api_token
+  source         = "registry.coder.com/mavrickrishi/nexus/coder"
+  version        = "1.0.0"
+  agent_id       = coder_agent.example.id
+  nexus_url      = "https://nexus.example.com"
+  nexus_username = "custom-user"
+  nexus_password = var.nexus_api_token
   package_managers = {
     maven = ["maven-public"]
   }
@@ -110,11 +110,11 @@ module "nexus" {
 
 ```tf
 module "nexus" {
-  source           = "registry.coder.com/mavrickrishi/nexus/coder"
-  version          = "1.0.0"
-  agent_id         = coder_agent.example.id
-  nexus_url        = "https://nexus.example.com"
-  nexus_password   = var.nexus_api_token
+  source         = "registry.coder.com/mavrickrishi/nexus/coder"
+  version        = "1.0.0"
+  agent_id       = coder_agent.example.id
+  nexus_url      = "https://nexus.example.com"
+  nexus_password = var.nexus_api_token
   package_managers = {
     maven  = ["maven-public", "maven-releases"]
     npm    = ["npm-public", "@company:npm-private"]
