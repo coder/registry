@@ -185,11 +185,11 @@ describe("gemini", async () => {
     expect(resp).toContain("enabled");
   });
 
-  test("gemini-system-prompt", async () => {
-    const prompt = "This is a system prompt for Gemini.";
+  test("gemini-instruction-prompt", async () => {
+    const prompt = "This is an instruction prompt for Gemini.";
     const { id } = await setup({
       moduleVariables: {
-        gemini_system_prompt: prompt,
+        gemini_instruction_prompt: prompt,
       },
     });
     await execModuleScript(id);

@@ -62,8 +62,9 @@ variable "gemini_settings_json" {
 
 variable "gemini_api_key" {
   type        = string
-  description = "Gemini API Key"
+  description = "The Gemini API key. Obtain from https://aistudio.google.com/app/apikey"
   default     = ""
+  sensitive   = true
 }
 
 variable "use_vertexai" {
@@ -102,13 +103,6 @@ variable "post_install_script" {
   default     = null
 }
 
-data "coder_parameter" "ai_prompt" {
-  type        = "string"
-  name        = "AI Prompt"
-  default     = ""
-  description = "Initial prompt for the Gemini CLI"
-  mutable     = true
-}
 
 variable "additional_extensions" {
   type        = string
@@ -116,9 +110,9 @@ variable "additional_extensions" {
   default     = null
 }
 
-variable "gemini_system_prompt" {
+variable "gemini_instruction_prompt" {
   type        = string
-  description = "System prompt for Gemini. It will be added to GEMINI.md in the specified folder."
+  description = "Instruction prompt for Gemini. It will be added to GEMINI.md in the specified folder."
   default     = ""
 }
 
@@ -158,10 +152,15 @@ locals {
 }
 EOT
 
-  app_slug        = "gemini"
-  install_script  = file("${path.module}/scripts/install.sh")
-  start_script    = file("${path.module}/scripts/start.sh")
-  module_dir_name = ".gemini-module"
+  # we have to trim the slash because otherwise coder exp mcp will
+  # set up an invalid gemini config
+  workdir                            = trimsuffix(var.folder, "/")
+  app_slug                           = "gemini"
+  install_script                     = file("${path.module}/scripts/install.sh")
+  start_script                       = file("${path.module}/scripts/agentapi-start.sh")
+  agentapi_wait_for_start_script_b64 = base64encode(file("${path.module}/scripts/agentapi-wait-for-start.sh"))
+  remove_last_session_id_script_b64  = base64encode(file("${path.module}/scripts/remove-last-session-id.js"))
+  module_dir_name                    = ".gemini-module"
 }
 
 module "agentapi" {
@@ -186,20 +185,43 @@ module "agentapi" {
      set -o errexit
      set -o pipefail
 
-     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-     chmod +x /tmp/start.sh
-     GEMINI_API_KEY='${var.gemini_api_key}' \
+     # this must be kept in sync with the agentapi-start.sh script
+     module_path="$HOME/.gemini-module"
+     mkdir -p "$module_path/scripts"
+
+     echo -n "$CODER_MCP_GEMINI_TASK_PROMPT" > "$module_path/prompt.txt"
+
+     echo -n "${local.remove_last_session_id_script_b64}" | base64 -d > "$module_path/scripts/remove-last-session-id.js"
+     echo -n "${local.agentapi_wait_for_start_script_b64}" | base64 -d > "$module_path/scripts/agentapi-wait-for-start.sh"
+     chmod +x "$module_path/scripts/agentapi-wait-for-start.sh"
+
+     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/agentapi-start.sh
+     chmod +x /tmp/agentapi-start.sh
+     
+     export LANG=en_US.UTF-8
+     export LC_ALL=en_US.UTF-8
+     
+     cd "${local.workdir}"
+     nohup env GEMINI_API_KEY='${var.gemini_api_key}' \
      GOOGLE_GENAI_USE_VERTEXAI='${var.use_vertexai}' \
      GEMINI_MODEL='${var.gemini_model}' \
-     GEMINI_START_DIRECTORY='${var.folder}' \
-     GEMINI_TASK_PROMPT='${base64encode(data.coder_parameter.ai_prompt.value)}' \
-     /tmp/start.sh
+     GEMINI_START_DIRECTORY='${local.workdir}' \
+     CODER_MCP_GEMINI_TASK_PROMPT='$CODER_MCP_GEMINI_TASK_PROMPT' \
+     /tmp/agentapi-start.sh use_prompt &> "$module_path/agentapi-start.log" &
+     "$module_path/scripts/agentapi-wait-for-start.sh"
    EOT
 
   install_script = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
+
+    if [ ! -d "${local.workdir}" ]; then
+      echo "Warning: The specified folder '${local.workdir}' does not exist."
+      echo "Creating the folder..."
+      mkdir -p "${local.workdir}"
+      echo "Folder created successfully."
+    fi
 
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
@@ -208,8 +230,8 @@ module "agentapi" {
     ARG_GEMINI_CONFIG='${base64encode(var.gemini_settings_json)}' \
     BASE_EXTENSIONS='${base64encode(replace(local.base_extensions, "'", "'\\''"))}' \
     ADDITIONAL_EXTENSIONS='${base64encode(replace(var.additional_extensions != null ? var.additional_extensions : "", "'", "'\\''"))}' \
-    GEMINI_START_DIRECTORY='${var.folder}' \
-    GEMINI_INSTRUCTION_PROMPT='${base64encode(var.gemini_system_prompt)}' \
+    GEMINI_START_DIRECTORY='${local.workdir}' \
+    GEMINI_INSTRUCTION_PROMPT='${base64encode(var.gemini_instruction_prompt)}' \
     /tmp/install.sh
   EOT
 }
