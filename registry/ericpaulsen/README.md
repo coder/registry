@@ -6,7 +6,7 @@ github: "ericpaulsen"
 linkedin: "https://www.linkedin.com/in/ericpaulsen17" # Optional
 website: "https://ericpaulsen.io" # Optional
 support_email: "ericpaulsen@hey.com" # Optional
-status: "coder"
+status: "community"
 ---
 
 # Eric Paulsen
