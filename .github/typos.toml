@@ -2,9 +2,7 @@
 muc = "muc" # For Munich location code
 Hashi = "Hashi"
 HashiCorp = "HashiCorp"
+mavrickrishi = "mavrick" # Username
 
 [files]
-extend-exclude = [
-    "registry/coder/templates/aws-devcontainer/architecture.svg", #False positive
-    "registry/mavrickrishi/README.md" # False positive - mavrickrishi is a username
-]
+extend-exclude = ["registry/coder/templates/aws-devcontainer/architecture.svg"] #False positive
