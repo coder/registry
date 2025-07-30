@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "esnext",
+    "strict": true,
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node",
+    "types": ["bun-types"],
+
+    "paths": {
+      // Not the biggest fan of relative paths in TypeScript projects, but it
+      // does make things easier for non-Coder contributors to get tests
+      // imported and set up
+      "~test": ["./test/test.ts"]
+    }
+  }
+}

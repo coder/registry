@@ -1,0 +1,6 @@
+[global]
+index-url = https://${ARTIFACTORY_USERNAME}:${ARTIFACTORY_ACCESS_TOKEN}@${JFROG_HOST}/artifactory/api/pypi/${try(element(REPOS, 0), "")}/simple
+extra-index-url =
+%{ for REPO in try(slice(REPOS, 1, length(REPOS)), []) ~}
+    https://${ARTIFACTORY_USERNAME}:${ARTIFACTORY_ACCESS_TOKEN}@${JFROG_HOST}/artifactory/api/pypi/${REPO}/simple
+%{ endfor ~}

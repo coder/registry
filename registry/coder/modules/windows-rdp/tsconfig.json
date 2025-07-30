@@ -1,0 +1,25 @@
+{
+  // Even though this Coder module doesn't contain any TypeScript, it's still
+  // incredibly helpful to include a custom tsconfig file here to ensure that
+  // the raw, unprocessed JavaScript we send doesn't use features that are too
+  // modern, to maximize browser compatibility
+  "extends": ["../../../../tsconfig.json"],
+  "compilerOptions": {
+    // Not using ES6, because ES2018 gives some features that make testing a
+    // little bit easier. That's still a large net that catches most of our
+    // target audience, though
+    "target": "ES2018",
+
+    // Have to still use ESNext module for the testing setup; otherwise the
+    // tests will break from the `import.meta` references.
+    "module": "ESNext",
+
+    "paths": {
+      // 2025-04-16 - This seems to be a Bun-specific bug, where extending a
+      // tsconfig file causes all its paths to be forgotten. The VSCode LSP
+      // recognizes the path just fine without this, but Bun needs the mapping
+      // to be redefined
+      "~test": ["../../../../test/test.ts"]
+    }
+  }
+}
