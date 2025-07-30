@@ -37,7 +37,7 @@ if [ -n "$PIP_INSTALL_EXTRA_PACKAGES" ]; then
   pipx install $PIP_INSTALL_EXTRA_PACKAGES
   echo "🥳 Additional packages have been installed\n\n"
 else
-  echo "DEBUG: $PIP_INSTALL_EXTRA_PACKAGES Port: $PORT\n"
+  echo "DEBUG: ${PIP_INSTALL_EXTRA_PACKAGES} Port: ${PORT}\n"
 fi
 
 echo "👷 Starting jupyter-notebook in background..."
