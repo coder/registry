@@ -32,12 +32,6 @@ variable "port" {
   default     = 19999
 }
 
-variable "mutable" {
-  type        = bool
-  description = "Whether the parameter is mutable."
-  default     = true
-}
-
 variable "order" {
   type        = number
   description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
@@ -49,10 +43,7 @@ resource "coder_script" "rustdesk" {
   agent_id     = var.agent_id
   display_name = "Rustdesk"
   icon         = local.icon_url
-  script = templatefile("${path.module}/run.sh", {
-    RUSTDESK_VERSION: "1.4.0",
-    RUSTDESK_DEB: "rustdesk-1.4.0-x86_64.deb"
-  })
+  script = templatefile("${path.module}/run.sh", {})
   run_on_start = true
   run_on_stop  = false
 }
@@ -68,11 +59,3 @@ resource "coder_app" "rustdesk" {
   external     = true
 }
 
-data "coder_parameter" "rustdesk" {
-  type         = "string" 
-  name         = "rustdesk"
-  display_name = "Rustdesk"
-  icon         = local.icon_url
-  mutable      = var.mutable
-  default      = "" # You may want to adjust this default value
-}
