@@ -103,7 +103,7 @@ resource "coder_script" "nexus" {
   icon         = "/icon/nexus.svg"
   script = templatefile("${path.module}/run.sh", {
     NEXUS_URL       = var.nexus_url
-    NEXUS_HOST      = local.nexus_host[1]
+    NEXUS_HOST      = local.nexus_host
     NEXUS_USERNAME  = local.username
     NEXUS_PASSWORD  = var.nexus_password
     HAS_MAVEN       = length(var.package_managers.maven) == 0 ? "" : "YES"
