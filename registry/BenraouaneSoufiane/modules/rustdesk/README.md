@@ -39,7 +39,7 @@ This is the basic Coder's rustdesk module that install minimal desktop environme
 
 ```hcl
 module "rustdesk" {
-  source    = "registry.coder.com/coder/rustdesk/coder"
+  source    = "registry.coder.com/BenraouaneSoufiane/rustdesk/BenraouaneSoufiane"
   agent_id  = var.agent_id
 }
 ```
