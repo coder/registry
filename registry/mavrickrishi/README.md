@@ -1,7 +1,7 @@
 ---
 display_name: mavrickrishi
 bio: Coder module contributor
-github: MAVRICK-1
+github: mavrick-1
 status: community
 ---
 

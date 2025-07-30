@@ -11,7 +11,7 @@ config_complete() {
 
 register_docker() {
   repo=$1
-  echo -n "${NEXUS_PASSWORD}" | docker login "${NEXUS_HOST}" --username "${NEXUS_USERNAME}" --password-stdin
+  echo -n "${NEXUS_PASSWORD}" | docker login "${NEXUS_HOST}/repository/$${repo}" --username "${NEXUS_USERNAME}" --password-stdin
 }
 
 echo "🚀 Configuring Nexus repository access..."

@@ -80,7 +80,7 @@ data "coder_workspace_owner" "me" {}
 
 locals {
   username   = coalesce(var.nexus_username, var.username_field == "email" ? data.coder_workspace_owner.me.email : data.coder_workspace_owner.me.name)
-  nexus_host = regex("^https?://([^:/]+)", var.nexus_url)[1]
+  nexus_host = split("/", replace(replace(var.nexus_url, "https://", ""), "http://", ""))[0]
 }
 
 locals {
