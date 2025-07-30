@@ -48,6 +48,18 @@ variable "group" {
   default     = null
 }
 
+variable "requirements_path" {
+  type        = string
+  description = "The path to requirements.txt with packages to preinstall"
+  default     = ""
+}
+
+variable "pip_install_packages" {
+  type        = string
+  description = "List of packages to preinstall (example: numpy==1.26.4 pandas matplotlib<4 scikit-learn)"
+  default     = ""
+}
+
 resource "coder_script" "jupyter-notebook" {
   agent_id     = var.agent_id
   display_name = "jupyter-notebook"
