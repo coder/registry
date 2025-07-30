@@ -291,7 +291,7 @@ resource "kubernetes_deployment" "main" {
     # Switch to user and run agent
     exec sudo --preserve-env=CODER_AGENT_TOKEN -u ${lower(data.coder_workspace_owner.me.name)} sh -c '${coder_agent.main.init_script}'
 EOF
-]
+          ]
           env {
             name  = "CODER_AGENT_TOKEN"
             value = coder_agent.main.token
