@@ -25,7 +25,7 @@ if [ -n "$REQUIREMENTS_PATH" ]; then
   if [ -f "$REQUIREMENTS_PATH" ]; then
     echo "📄 Installing packages from $REQUIREMENTS_PATH..."
     pip install --no-cache-dir -r "$REQUIREMENTS_PATH"
-    echo "🥳 Requirements installed\n\n"
+    echo "🥳 Packages from $REQUIREMENTS_PATH have been installed\n\n"
   else
     echo "⚠️  REQUIREMENTS_PATH is set to '$REQUIREMENTS_PATH' but the file does not exist!\n\n"
   fi
@@ -33,9 +33,9 @@ fi
 
 # Install packages selected with PIP_INSTALL_EXTRA_PACKAGES
 if [ -n "$PIP_INSTALL_EXTRA_PACKAGES" ]; then
-  echo "📦 Installing extra pip packages: $PIP_INSTALL_EXTRA_PACKAGES"
+  echo "📦 Installing additional packages: $PIP_INSTALL_EXTRA_PACKAGES"
   pip install --no-cache-dir $PIP_INSTALL_EXTRA_PACKAGES
-  echo "🥳 Extra packages installed\n\n"
+  echo "🥳 Additional packages have been installed\n\n"
 fi
 
 echo "👷 Starting jupyter-notebook in background..."
