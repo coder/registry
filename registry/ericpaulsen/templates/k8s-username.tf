@@ -108,8 +108,13 @@ resource "coder_agent" "main" {
   arch           = "amd64"
   startup_script = <<-EOT
     set -e
-    
-    true
+
+    # Install the latest code-server.
+    # Append "--version x.x.x" to install a specific version of code-server.
+    curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/tmp/code-server
+
+    # Start code-server in the background.
+    /tmp/code-server/bin/code-server --auth none --port 13337 >/tmp/code-server.log 2>&1 &
 EOT
 
   # The following metadata blocks are optional. They are used to display
@@ -169,22 +174,22 @@ EOT
   }
 }
 
-# # code-server
-# resource "coder_app" "code-server" {
-#   agent_id     = coder_agent.main.id
-#   slug         = "code-server"
-#   display_name = "code-server"
-#   icon         = "/icon/code.svg"
-#   url          = "http://localhost:13337?folder=/home/coder"
-#   subdomain    = false
-#   share        = "owner"
+# code-server
+resource "coder_app" "code-server" {
+  agent_id     = coder_agent.main.id
+  slug         = "code-server"
+  display_name = "code-server"
+  icon         = "/icon/code.svg"
+  url          = "http://localhost:13337?folder=/home/coder"
+  subdomain    = false
+  share        = "owner"
 
-#   healthcheck {
-#     url       = "http://localhost:13337/healthz"
-#     interval  = 3
-#     threshold = 10
-#   }
-# }
+  healthcheck {
+    url       = "http://localhost:13337/healthz"
+    interval  = 3
+    threshold = 10
+  }
+}
 
 resource "kubernetes_persistent_volume_claim" "home" {
   metadata {
@@ -280,11 +285,11 @@ resource "kubernetes_deployment" "main" {
           image_pull_policy = "Always"
           command = ["sh", "-c", <<EOF
     # Create user and setup home directory
-    sudo useradd ${data.coder_workspace_owner.me.name} --home=/home/${data.coder_workspace_owner.me.name} --shell=/bin/bash --uid=1001 --user-group
-    sudo chown -R ${data.coder_workspace_owner.me.name}:${data.coder_workspace_owner.me.name} /home/${data.coder_workspace_owner.me.name}
+    sudo useradd ${lower(data.coder_workspace_owner.me.name)} --home=/home/${lower(data.coder_workspace_owner.me.name)} --shell=/bin/bash --uid=1001 --user-group
+    sudo chown -R ${lower(data.coder_workspace_owner.me.name)}:${lower(data.coder_workspace_owner.me.name)} /home/${lower(data.coder_workspace_owner.me.name)}
     
     # Switch to user and run agent
-    exec sudo --preserve-env=CODER_AGENT_TOKEN -u ${data.coder_workspace_owner.me.name} sh -c '${coder_agent.main.init_script}'
+    exec sudo --preserve-env=CODER_AGENT_TOKEN -u ${lower(data.coder_workspace_owner.me.name)} sh -c '${coder_agent.main.init_script}'
 EOF
 ]
           env {
@@ -302,7 +307,7 @@ EOF
             }
           }
           volume_mount {
-            mount_path = "/home/${data.coder_workspace_owner.me.name}"
+            mount_path = "/home/${lower(data.coder_workspace_owner.me.name)}"
             name       = "home"
             read_only  = false
           }

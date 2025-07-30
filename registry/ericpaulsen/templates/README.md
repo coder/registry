@@ -2,9 +2,8 @@
 display_name: Kubernetes (Deployment) with Dynamic Username
 description: Provision Kubernetes Deployments as Coder workspaces with your Username
 icon: ../../../site/static/icon/k8s.png
-maintainer_github: ericpaulsen
 verified: true
-tags: [kubernetes, container]
+tags: [kubernetes, container, username]
 ---
 
 # Remote development on Kubernetes with dynamic usernames
@@ -47,6 +46,6 @@ This template authenticates using a `~/.kube/config`, if present on the server, 
 This template provisions the following resources:
 
 - Kubernetes Deployment (ephemeral)
-- Kubernetes persistent volume claim (persistent on `/home/coder`)
+- Kubernetes persistent volume claim (persistent on `/home/${username}`, where `${username}` is your Coder username)
 
 This means, when the workspace restarts, any tools or files outside of the home directory are not persisted. To pre-bake tools into the workspace (e.g. `python3`), modify the container image. Alternatively, individual developers can [personalize](https://coder.com/docs/dotfiles) their workspaces with dotfiles.
