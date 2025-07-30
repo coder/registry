@@ -1,6 +1,9 @@
 name: deploy-registry
 
 on:
+  schedule:
+    # Runs at 02:30 UTC Monday through Friday
+    - cron: "30 2 * * 1-5"
   push:
     tags:
       # Matches release/<namespace>/<resource_name>/<semantic_version>
