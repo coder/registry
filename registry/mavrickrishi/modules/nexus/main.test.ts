@@ -94,6 +94,22 @@ describe("nexus", async () => {
     expect(output.stdout.join("\n")).toContain("🤔 no docker repository is set, skipping docker configuration.");
   });
 
+  it("configures Go module proxy", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "test-agent",
+      nexus_url: "https://nexus.example.com",
+      nexus_password: "test-token",
+      package_managers: JSON.stringify({
+        go: ["go-public", "go-private"]
+      })
+    });
+
+    const output = await executeScriptInContainer(state, "ubuntu:20.04");
+    expect(output.stdout.join("\n")).toContain("🐹 Configuring Go...");
+    expect(output.stdout.join("\n")).toContain("Go proxy configured via GOPROXY environment variable");
+    expect(output.stdout.join("\n")).toContain("🥳 Configuration complete!");
+  });
+
   it("validates nexus_url format", async () => {
     await expect(
       runTerraformApply(import.meta.dir, {
