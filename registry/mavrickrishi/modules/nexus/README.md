@@ -2,7 +2,7 @@
 display_name: Sonatype Nexus Repository
 description: Configure package managers to use Sonatype Nexus Repository for Maven, npm, PyPI, and Docker registries.
 icon: /.icons/nexus.svg
-verified: true
+verified: false
 tags: [integration, nexus, maven, npm, pypi, docker]
 ---
 
