@@ -31,10 +31,10 @@ if [ -n "$REQUIREMENTS_PATH" ]; then
   fi
 fi
 
-# Install packages selected with PIP_INSTALL_PACKAGES
-if [ -n "$PIP_INSTALL_PACKAGES" ]; then
-  echo "📦 Installing extra pip packages: $PIP_INSTALL_PACKAGES"
-  pip install --no-cache-dir $PIP_INSTALL_PACKAGES
+# Install packages selected with PIP_INSTALL_EXTRA_PACKAGES
+if [ -n "$PIP_INSTALL_EXTRA_PACKAGES" ]; then
+  echo "📦 Installing extra pip packages: $PIP_INSTALL_EXTRA_PACKAGES"
+  pip install --no-cache-dir $PIP_INSTALL_EXTRA_PACKAGES
   echo "🥳 Extra packages installed\n\n"
 fi
 

@@ -54,9 +54,9 @@ variable "requirements_path" {
   default     = ""
 }
 
-variable "pip_install_packages" {
+variable "pip_install_extra_packages" {
   type        = string
-  description = "List of packages to preinstall (example: numpy==1.26.4 pandas matplotlib<4 scikit-learn)"
+  description = "List of extra packages to preinstall (example: numpy==1.26.4 pandas matplotlib<4 scikit-learn)"
   default     = ""
 }
 
@@ -68,7 +68,7 @@ resource "coder_script" "jupyter-notebook" {
     LOG_PATH : var.log_path,
     PORT : var.port,
     REQUIREMENTS_PATH : var.requirements_path,
-    PIP_INSTALL_PACKAGES : var.pip_install_packages
+    PIP_INSTALL_EXTRA_PACKAGES : var.pip_install_extra_packages
   })
   run_on_start = true
 }
