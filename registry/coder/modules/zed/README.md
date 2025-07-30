@@ -2,7 +2,6 @@
 display_name: Zed
 description: Add a one-click button to launch Zed
 icon: ../../../../.icons/zed.svg
-maintainer_github: coder
 verified: true
 tags: [ide, zed, editor]
 ---
@@ -20,7 +19,7 @@ Zed is a high-performance, multiplayer code editor from the creators of Atom and
 module "zed" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/zed/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.example.id
 }
 ```
@@ -33,7 +32,7 @@ module "zed" {
 module "zed" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/zed/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
 }
@@ -45,7 +44,7 @@ module "zed" {
 module "zed" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/coder/zed/coder"
-  version      = "1.0.0"
+  version      = "1.0.1"
   agent_id     = coder_agent.example.id
   display_name = "Zed Editor"
   order        = 1
@@ -58,7 +57,7 @@ module "zed" {
 module "zed" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/zed/coder"
-  version    = "1.0.0"
+  version    = "1.0.1"
   agent_id   = coder_agent.example.id
   agent_name = coder_agent.example.name
 }

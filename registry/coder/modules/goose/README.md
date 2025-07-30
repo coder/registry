@@ -2,7 +2,6 @@
 display_name: Goose
 description: Run Goose in your workspace
 icon: ../../../../.icons/goose.svg
-maintainer_github: coder
 verified: true
 tags: [agent, goose, ai, tasks]
 ---
@@ -14,7 +13,7 @@ Run the [Goose](https://block.github.io/goose/) agent in your workspace to gener
 ```tf
 module "goose" {
   source           = "registry.coder.com/coder/goose/coder"
-  version          = "2.0.0"
+  version          = "2.0.1"
   agent_id         = coder_agent.example.id
   folder           = "/home/coder"
   install_goose    = true
@@ -80,7 +79,7 @@ resource "coder_agent" "main" {
 module "goose" {
   count            = data.coder_workspace.me.start_count
   source           = "registry.coder.com/coder/goose/coder"
-  version          = "2.0.0"
+  version          = "2.0.1"
   agent_id         = coder_agent.example.id
   folder           = "/home/coder"
   install_goose    = true

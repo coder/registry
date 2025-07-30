@@ -2,7 +2,6 @@
 display_name: Coder Login
 description: Automatically logs the user into Coder on their workspace
 icon: ../../../../.icons/coder.svg
-maintainer_github: coder
 verified: true
 tags: [helper]
 ---
@@ -15,7 +14,7 @@ Automatically logs the user into Coder when creating their workspace.
 module "coder-login" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/coder-login/coder"
-  version  = "1.0.15"
+  version  = "1.0.31"
   agent_id = coder_agent.example.id
 }
 ```

@@ -2,7 +2,6 @@
 display_name: RDP Desktop
 description: Enable RDP on Windows and add a one-click Coder Desktop button for seamless access
 icon: ../../../../.icons/rdp.svg
-maintainer_github: coder
 verified: true
 supported_os: [windows]
 tags: [rdp, windows, desktop, local]
@@ -25,7 +24,7 @@ This module enables Remote Desktop Protocol (RDP) on Windows workspaces and adds
 module "rdp_desktop" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/local-windows-rdp/coder"
-  version    = "1.0.1"
+  version    = "1.0.2"
   agent_id   = coder_agent.main.id
   agent_name = coder_agent.main.name
 }
@@ -58,7 +57,7 @@ Uses default credentials (Username: `Administrator`, Password: `coderRDP!`):
 module "rdp_desktop" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/local-windows-rdp/coder"
-  version    = "1.0.1"
+  version    = "1.0.2"
   agent_id   = coder_agent.main.id
   agent_name = coder_agent.main.name
 }
@@ -72,7 +71,7 @@ Specify a custom display name for the `coder_app` button:
 module "rdp_desktop" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/coder/local-windows-rdp/coder"
-  version      = "1.0.1"
+  version      = "1.0.2"
   agent_id     = coder_agent.windows.id
   agent_name   = "windows"
   display_name = "Windows Desktop"

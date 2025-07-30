@@ -2,7 +2,6 @@
 display_name: AWS Region
 description: A parameter with human region names and icons
 icon: ../../../../.icons/aws.svg
-maintainer_github: coder
 verified: true
 tags: [helper, parameter, regions, aws]
 ---
@@ -18,7 +17,7 @@ Customize the preselected parameter value:
 module "aws-region" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/coder/aws-region/coder"
-  version = "1.0.12"
+  version = "1.0.31"
   default = "us-east-1"
 }
 
@@ -39,7 +38,7 @@ Change the display name and icon for a region using the corresponding maps:
 module "aws-region" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/coder/aws-region/coder"
-  version = "1.0.12"
+  version = "1.0.31"
   default = "ap-south-1"
 
   custom_names = {
@@ -66,7 +65,7 @@ Hide the Asia Pacific regions Seoul and Osaka:
 module "aws-region" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/coder/aws-region/coder"
-  version = "1.0.12"
+  version = "1.0.31"
   exclude = ["ap-northeast-2", "ap-northeast-3"]
 }
 

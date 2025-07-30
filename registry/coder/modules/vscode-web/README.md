@@ -2,7 +2,6 @@
 display_name: VS Code Web
 description: VS Code Web - Visual Studio Code in the browser
 icon: ../../../../.icons/code.svg
-maintainer_github: coder
 verified: true
 tags: [ide, vscode, web]
 ---
@@ -15,7 +14,7 @@ Automatically install [Visual Studio Code Server](https://code.visualstudio.com/
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.3.0"
+  version        = "1.3.1"
   agent_id       = coder_agent.example.id
   accept_license = true
 }
@@ -31,7 +30,7 @@ module "vscode-web" {
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.3.0"
+  version        = "1.3.1"
   agent_id       = coder_agent.example.id
   install_prefix = "/home/coder/.vscode-web"
   folder         = "/home/coder"
@@ -45,7 +44,7 @@ module "vscode-web" {
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.3.0"
+  version        = "1.3.1"
   agent_id       = coder_agent.example.id
   extensions     = ["github.copilot", "ms-python.python", "ms-toolsai.jupyter"]
   accept_license = true
@@ -60,7 +59,7 @@ Configure VS Code's [settings.json](https://code.visualstudio.com/docs/getstarte
 module "vscode-web" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/vscode-web/coder"
-  version    = "1.3.0"
+  version    = "1.3.1"
   agent_id   = coder_agent.example.id
   extensions = ["dracula-theme.theme-dracula"]
   settings = {
@@ -78,7 +77,7 @@ By default, this module installs the latest. To pin a specific version, retrieve
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.3.0"
+  version        = "1.3.1"
   agent_id       = coder_agent.example.id
   commit_id      = "e54c774e0add60467559eb0d1e229c6452cf8447"
   accept_license = true

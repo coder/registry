@@ -2,7 +2,6 @@
 display_name: Azure VM (Linux)
 description: Provision Azure VMs as Coder workspaces
 icon: ../../../../.icons/azure.svg
-maintainer_github: coder
 verified: true
 tags: [vm, linux, azure]
 ---

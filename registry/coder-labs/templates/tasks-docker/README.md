@@ -2,7 +2,6 @@
 display_name: Tasks on Docker
 description: Run Coder Tasks on Docker with an example application
 icon: ../../../../.icons/tasks.svg
-maintainer_github: coder-labs
 verified: false
 tags: [docker, container, ai, tasks]
 ---

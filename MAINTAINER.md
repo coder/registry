@@ -72,8 +72,6 @@ Changes are automatically published to [registry.coder.com](https://registry.cod
 display_name: "Module Name"
 description: "What it does"
 icon: "../../../../.icons/tool.svg"
-maintainer_github: "username"
-partner_github: "partner-name" # Optional - For official partner modules
 verified: false # Optional - Set by maintainers only
 tags: ["tag1", "tag2"]
 ```
