@@ -228,13 +228,13 @@ data "oci_core_images" "ubuntu" {
 locals {
   hostname   = lower(data.coder_workspace.me.name)
   linux_user = "coder"
-  
+
   # Parse shape configuration for flexible shapes
   shape_parts = split("-", data.coder_parameter.instance_shape.value)
   base_shape  = length(local.shape_parts) > 2 ? join("-", slice(local.shape_parts, 0, 3)) : data.coder_parameter.instance_shape.value
   ocpus       = length(local.shape_parts) > 3 ? tonumber(local.shape_parts[3]) : 1
   memory_gb   = length(local.shape_parts) > 4 ? tonumber(local.shape_parts[4]) : 6
-  
+
   # Determine if shape is flexible (needs shape_config)
   is_flexible = can(regex(".*Flex.*", local.base_shape))
 }
@@ -500,4 +500,4 @@ resource "coder_metadata" "home_info" {
     key   = "size"
     value = "${data.coder_parameter.home_size.value} GiB"
   }
-} 
+}
