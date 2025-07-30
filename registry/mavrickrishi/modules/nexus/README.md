@@ -1,14 +1,14 @@
 ---
 display_name: Sonatype Nexus Repository
 description: Configure package managers to use Sonatype Nexus Repository for Maven, npm, PyPI, and Docker registries.
-icon: ../../../../.icons/nexus.svg
+icon: /.icons/nexus.svg
 verified: true
 tags: [integration, nexus, maven, npm, pypi, docker]
 ---
 
 # Sonatype Nexus Repository
 
-Configure package managers (Maven, npm, PyPI, Docker) to use Sonatype Nexus Repository with API token authentication.
+Configure package managers (Maven, npm, PyPI, Docker) to use [Sonatype Nexus Repository](https://help.sonatype.com/en/sonatype-nexus-repository.html) with API token authentication. This module provides secure credential handling, multiple repository support per package manager, and flexible username configuration.
 
 ```tf
 module "nexus" {
@@ -26,7 +26,14 @@ module "nexus" {
 }
 ```
 
-> Note: This module configures package managers but does not install them. You need to handle the installation of Maven, npm, Python pip, and Docker yourself.
+## Requirements
+
+- Nexus Repository Manager 3.x
+- Valid API token or user credentials
+- Package managers installed on the workspace (Maven, npm, pip, Docker as needed)
+
+> [!NOTE]
+> This module configures package managers but does not install them. You need to handle the installation of Maven, npm, Python pip, and Docker yourself.
 
 ## Examples
 
@@ -123,31 +130,3 @@ module "nexus" {
   }
 }
 ```
-
-## Parameters
-
-- `nexus_url` (required): The base URL of your Nexus repository manager
-- `nexus_password` (required): API token or password for authentication (sensitive)
-- `nexus_username` (optional): Custom username (defaults to Coder username)
-- `username_field` (optional): Field to use for username ("username" or "email", defaults to "username")
-- `package_managers` (required): Configuration for package managers:
-  - `maven`: List of Maven repository names
-  - `npm`: List of npm repository names (supports scoped packages with "@scope:repo-name")
-  - `pypi`: List of PyPI repository names
-  - `docker`: List of Docker registry names
-
-## Features
-
-- ✅ Maven repository configuration with settings.xml
-- ✅ npm configuration with .npmrc (including scoped packages)
-- ✅ Python pip configuration with pip.conf
-- ✅ Docker registry authentication
-- ✅ Secure credential handling
-- ✅ Multiple repository support per package manager
-- ✅ Flexible username configuration
-
-## Requirements
-
-- Nexus Repository Manager 3.x
-- Valid API token or user credentials
-- Package managers installed on the workspace (Maven, npm, pip, Docker as needed)

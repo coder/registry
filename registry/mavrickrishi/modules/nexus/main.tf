@@ -4,14 +4,14 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 0.23"
+      version = ">= 2.5"
     }
   }
 }
 
 variable "nexus_url" {
   type        = string
-  description = "Nexus repository URL. e.g. https://nexus.example.com"
+  description = "The base URL of your Nexus repository manager (e.g. https://nexus.example.com)"
   validation {
     condition     = can(regex("^(https|http)://", var.nexus_url))
     error_message = "nexus_url must be a valid URL starting with either 'https://' or 'http://'"
@@ -20,13 +20,13 @@ variable "nexus_url" {
 
 variable "nexus_username" {
   type        = string
-  description = "Username for Nexus authentication"
+  description = "Custom username for Nexus authentication. If not provided, defaults to the Coder username based on the username_field setting"
   default     = null
 }
 
 variable "nexus_password" {
   type        = string
-  description = "Password or API token for Nexus authentication"
+  description = "API token or password for Nexus authentication. This value is sensitive and should be stored securely"
   sensitive   = true
 }
 
@@ -49,8 +49,13 @@ variable "package_managers" {
     docker = []
   }
   description = <<-EOF
-    A map of package manager names to their respective Nexus repositories. Unused package managers can be omitted.
-    For example:
+    Configuration for package managers. Each key maps to a list of Nexus repository names:
+    - maven: List of Maven repository names
+    - npm: List of npm repository names (supports scoped packages with "@scope:repo-name")
+    - pypi: List of PyPI repository names
+    - docker: List of Docker registry names
+    Unused package managers can be omitted.
+    Example:
       {
         maven  = ["maven-public", "maven-releases"]
         npm    = ["npm-public", "@scoped:npm-private"]
@@ -62,7 +67,7 @@ variable "package_managers" {
 
 variable "username_field" {
   type        = string
-  description = "The field to use for the username. Default 'username'."
+  description = "Field to use for username (\"username\" or \"email\"). Defaults to \"username\". Only used when nexus_username is not provided"
   default     = "username"
   validation {
     condition     = can(regex("^(email|username)$", var.username_field))
@@ -78,115 +83,38 @@ locals {
   nexus_host = regex("^https?://([^:/]+)", var.nexus_url)
 }
 
+locals {
+  # Get first repository name or use default
+  maven_repo = length(var.package_managers.maven) > 0 ? var.package_managers.maven[0] : "maven-public"
+  npm_repo   = length(var.package_managers.npm) > 0 ? var.package_managers.npm[0] : "npm-public"
+  pypi_repo  = length(var.package_managers.pypi) > 0 ? var.package_managers.pypi[0] : "pypi-public"
+
+  npmrc = <<-EOF
+registry=${var.nexus_url}/repository/${local.npm_repo}/
+//${local.nexus_host}/repository/${local.npm_repo}/:username=${local.username}
+//${local.nexus_host}/repository/${local.npm_repo}/:_password=${base64encode(var.nexus_password)}
+//${local.nexus_host}/repository/${local.npm_repo}/:always-auth=true
+EOF
+}
+
 resource "coder_script" "nexus" {
   agent_id     = var.agent_id
   display_name = "nexus"
   icon         = "/icon/nexus.svg"
-  script       = <<-EOT
-#!/usr/bin/env bash
-
-not_configured() {
-  type=$1
-  echo "🤔 no $type repository is set, skipping $type configuration."
-}
-
-config_complete() {
-  echo "🥳 Configuration complete!"
-}
-
-echo "🚀 Configuring Nexus repository access..."
-
-# Configure Maven
-if [ ${length(var.package_managers.maven)} -gt 0 ]; then
-  echo "☕ Configuring Maven..."
-  mkdir -p ~/.m2
-  cat > ~/.m2/settings.xml << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
-  <servers>
-    <server>
-      <id>nexus</id>
-      <username>${local.username}</username>
-      <password>${var.nexus_password}</password>
-    </server>
-  </servers>
-  <mirrors>
-    <mirror>
-      <id>nexus-mirror</id>
-      <mirrorOf>*</mirrorOf>
-      <url>${var.nexus_url}/repository/${try(element(var.package_managers.maven, 0), "maven-public")}</url>
-    </mirror>
-  </mirrors>
-</settings>
-EOF
-  config_complete
-else
-  not_configured maven
-fi
-
-# Configure npm
-if [ ${length(var.package_managers.npm)} -gt 0 ]; then
-  echo "📦 Configuring npm..."
-  cat > ~/.npmrc << 'EOF'
-registry=${var.nexus_url}/repository/${try(element(var.package_managers.npm, 0), "npm-public")}/
-//${local.nexus_host}/repository/${try(element(var.package_managers.npm, 0), "npm-public")}/:username=${local.username}
-//${local.nexus_host}/repository/${try(element(var.package_managers.npm, 0), "npm-public")}/:_password=${base64encode(var.nexus_password)}
-//${local.nexus_host}/repository/${try(element(var.package_managers.npm, 0), "npm-public")}/:always-auth=true
-EOF
-  config_complete
-else
-  not_configured npm
-fi
-
-# Configure pip
-if [ ${length(var.package_managers.pypi)} -gt 0 ]; then
-  echo "🐍 Configuring pip..."
-  mkdir -p ~/.pip
-  # Create .netrc file for secure credential storage
-  cat > ~/.netrc << EOF
-machine ${local.nexus_host}
-login ${local.username}
-password ${var.nexus_password}
-EOF
-  chmod 600 ~/.netrc
-
-  # Update pip.conf to use index-url without embedded credentials
-  cat > ~/.pip/pip.conf << 'EOF'
-[global]
-index-url = https://${local.nexus_host}/repository/${try(element(var.package_managers.pypi, 0), "pypi-public")}/simple
-EOF
-  config_complete
-else
-  not_configured pypi
-fi
-
-# Configure Docker
-if [ ${length(var.package_managers.docker)} -gt 0 ]; then
-  if command -v docker > /dev/null 2>&1; then
-    echo "🐳 Configuring Docker credentials..."
-    mkdir -p ~/.docker
-    %{for repo in var.package_managers.docker~}
-    echo -n "${var.nexus_password}" | docker login "${local.nexus_host}" --username "${local.username}" --password-stdin
-    %{endfor~}
-    config_complete
-  else
-    echo "🤔 Docker is not installed, skipping Docker configuration."
-  fi
-else
-  not_configured docker
-fi
-
-echo "✅ Nexus repository configuration completed!"
-EOT
+  script = templatefile("${path.module}/run.sh", {
+    NEXUS_URL       = var.nexus_url
+    NEXUS_HOST      = local.nexus_host[1]
+    NEXUS_USERNAME  = local.username
+    NEXUS_PASSWORD  = var.nexus_password
+    HAS_MAVEN       = length(var.package_managers.maven) == 0 ? "" : "YES"
+    MAVEN_REPO      = local.maven_repo
+    HAS_NPM         = length(var.package_managers.npm) == 0 ? "" : "YES"
+    NPMRC           = local.npmrc
+    HAS_PYPI        = length(var.package_managers.pypi) == 0 ? "" : "YES"
+    PYPI_REPO       = local.pypi_repo
+    HAS_DOCKER      = length(var.package_managers.docker) == 0 ? "" : "YES"
+    REGISTER_DOCKER = join("\n    ", formatlist("register_docker \"%s\"", var.package_managers.docker))
+  })
   run_on_start = true
 }
 
-output "nexus_url" {
-  description = "The Nexus repository URL"
-  value       = var.nexus_url
-}
-
-output "username" {
-  description = "The username used for Nexus authentication"
-  value       = local.username
-}
