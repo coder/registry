@@ -39,12 +39,14 @@ variable "package_managers" {
   type = object({
     maven  = optional(list(string), [])
     npm    = optional(list(string), [])
+    go     = optional(list(string), [])
     pypi   = optional(list(string), [])
     docker = optional(list(string), [])
   })
   default = {
     maven  = []
     npm    = []
+    go     = []
     pypi   = []
     docker = []
   }
@@ -52,6 +54,7 @@ variable "package_managers" {
     Configuration for package managers. Each key maps to a list of Nexus repository names:
     - maven: List of Maven repository names
     - npm: List of npm repository names (supports scoped packages with "@scope:repo-name")
+    - go: List of Go proxy repository names
     - pypi: List of PyPI repository names
     - docker: List of Docker registry names
     Unused package managers can be omitted.
@@ -59,6 +62,7 @@ variable "package_managers" {
       {
         maven  = ["maven-public", "maven-releases"]
         npm    = ["npm-public", "@scoped:npm-private"]
+        go     = ["go-public", "go-private"]
         pypi   = ["pypi-public", "pypi-private"]
         docker = ["docker-public", "docker-private"]
       }
@@ -87,6 +91,7 @@ locals {
   # Get first repository name or use default
   maven_repo = length(var.package_managers.maven) > 0 ? var.package_managers.maven[0] : "maven-public"
   npm_repo   = length(var.package_managers.npm) > 0 ? var.package_managers.npm[0] : "npm-public"
+  go_repo    = length(var.package_managers.go) > 0 ? var.package_managers.go[0] : "go-public"
   pypi_repo  = length(var.package_managers.pypi) > 0 ? var.package_managers.pypi[0] : "pypi-public"
 
   npmrc = <<-EOF
@@ -110,11 +115,23 @@ resource "coder_script" "nexus" {
     MAVEN_REPO      = local.maven_repo
     HAS_NPM         = length(var.package_managers.npm) == 0 ? "" : "YES"
     NPMRC           = local.npmrc
+    HAS_GO          = length(var.package_managers.go) == 0 ? "" : "YES"
+    GO_REPO         = local.go_repo
     HAS_PYPI        = length(var.package_managers.pypi) == 0 ? "" : "YES"
     PYPI_REPO       = local.pypi_repo
     HAS_DOCKER      = length(var.package_managers.docker) == 0 ? "" : "YES"
     REGISTER_DOCKER = join("\n    ", formatlist("register_docker \"%s\"", var.package_managers.docker))
   })
   run_on_start = true
+}
+
+resource "coder_env" "goproxy" {
+  count    = length(var.package_managers.go) == 0 ? 0 : 1
+  agent_id = var.agent_id
+  name     = "GOPROXY"
+  value = join(",", [
+    for repo in var.package_managers.go :
+    "https://${local.username}:${var.nexus_password}@${local.nexus_host}/repository/${repo}"
+  ])
 }
 

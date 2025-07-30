@@ -55,6 +55,17 @@ else
   not_configured npm
 fi
 
+# Configure Go
+if [ -n "${HAS_GO}" ]; then
+  echo "🐹 Configuring Go..."
+  # Go configuration is handled via GOPROXY environment variable
+  # which is set by the Terraform configuration
+  echo "Go proxy configured via GOPROXY environment variable"
+  config_complete
+else
+  not_configured go
+fi
+
 # Configure pip
 if [ -n "${HAS_PYPI}" ]; then
   echo "🐍 Configuring pip..."

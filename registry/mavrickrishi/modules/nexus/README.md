@@ -8,7 +8,7 @@ tags: [integration, nexus-repository, maven, npm, pypi, docker]
 
 # Sonatype Nexus Repository
 
-Configure package managers (Maven, npm, PyPI, Docker) to use [Sonatype Nexus Repository](https://help.sonatype.com/en/sonatype-nexus-repository.html) with API token authentication. This module provides secure credential handling, multiple repository support per package manager, and flexible username configuration.
+Configure package managers (Maven, npm, Go, PyPI, Docker) to use [Sonatype Nexus Repository](https://help.sonatype.com/en/sonatype-nexus-repository.html) with API token authentication. This module provides secure credential handling, multiple repository support per package manager, and flexible username configuration.
 
 ```tf
 module "nexus" {
@@ -20,6 +20,7 @@ module "nexus" {
   package_managers = {
     maven  = ["maven-public", "maven-releases"]
     npm    = ["npm-public", "@scoped:npm-private"]
+    go     = ["go-public", "go-private"]
     pypi   = ["pypi-public", "pypi-private"]
     docker = ["docker-public", "docker-private"]
   }
@@ -30,10 +31,10 @@ module "nexus" {
 
 - Nexus Repository Manager 3.x
 - Valid API token or user credentials
-- Package managers installed on the workspace (Maven, npm, pip, Docker as needed)
+- Package managers installed on the workspace (Maven, npm, Go, pip, Docker as needed)
 
 > [!NOTE]
-> This module configures package managers but does not install them. You need to handle the installation of Maven, npm, Python pip, and Docker yourself.
+> This module configures package managers but does not install them. You need to handle the installation of Maven, npm, Go, Python pip, and Docker yourself.
 
 ## Examples
 
@@ -63,6 +64,21 @@ module "nexus" {
   nexus_password = var.nexus_api_token
   package_managers = {
     npm = ["npm-public", "@mycompany:npm-private"]
+  }
+}
+```
+
+### Configure Go module proxy
+
+```tf
+module "nexus" {
+  source         = "registry.coder.com/mavrickrishi/nexus/coder"
+  version        = "1.0.0"
+  agent_id       = coder_agent.example.id
+  nexus_url      = "https://nexus.example.com"
+  nexus_password = var.nexus_api_token
+  package_managers = {
+    go = ["go-public", "go-private"]
   }
 }
 ```
@@ -125,6 +141,7 @@ module "nexus" {
   package_managers = {
     maven  = ["maven-public", "maven-releases"]
     npm    = ["npm-public", "@company:npm-private"]
+    go     = ["go-public", "go-private"]
     pypi   = ["pypi-public", "pypi-private"]
     docker = ["docker-public", "docker-private"]
   }
