@@ -104,8 +104,8 @@ EOF
 
 resource "coder_script" "nexus" {
   agent_id     = var.agent_id
-  display_name = "nexus"
-  icon         = "/icon/nexus.svg"
+  display_name = "nexus-repository"
+  icon         = "/icon/nexus-repository.svg"
   script = templatefile("${path.module}/run.sh", {
     NEXUS_URL       = var.nexus_url
     NEXUS_HOST      = local.nexus_host

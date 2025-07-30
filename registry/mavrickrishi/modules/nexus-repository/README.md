@@ -1,7 +1,7 @@
 ---
-display_name: Nexus Repository
+display_name: Sonatype Nexus Repository
 description: Configure package managers to use Sonatype Nexus Repository for Maven, npm, PyPI, and Docker registries.
-icon: ../../../.icons/nexus.svg
+icon: ../../../../.icons/nexus-repository.svg
 verified: true
 tags: [integration, nexus-repository, maven, npm, pypi, docker]
 ---
@@ -11,8 +11,8 @@ tags: [integration, nexus-repository, maven, npm, pypi, docker]
 Configure package managers (Maven, npm, Go, PyPI, Docker) to use [Sonatype Nexus Repository](https://help.sonatype.com/en/sonatype-nexus-repository.html) with API token authentication. This module provides secure credential handling, multiple repository support per package manager, and flexible username configuration.
 
 ```tf
-module "nexus" {
-  source         = "registry.coder.com/mavrickrishi/nexus/coder"
+module "nexus_repository" {
+  source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
   version        = "1.0.0"
   agent_id       = coder_agent.example.id
   nexus_url      = "https://nexus.example.com"
@@ -41,8 +41,8 @@ module "nexus" {
 ### Configure Maven to use Nexus repositories
 
 ```tf
-module "nexus" {
-  source         = "registry.coder.com/mavrickrishi/nexus/coder"
+module "nexus_repository" {
+  source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
   version        = "1.0.0"
   agent_id       = coder_agent.example.id
   nexus_url      = "https://nexus.example.com"
@@ -56,8 +56,8 @@ module "nexus" {
 ### Configure npm with scoped packages
 
 ```tf
-module "nexus" {
-  source         = "registry.coder.com/mavrickrishi/nexus/coder"
+module "nexus_repository" {
+  source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
   version        = "1.0.0"
   agent_id       = coder_agent.example.id
   nexus_url      = "https://nexus.example.com"
@@ -71,8 +71,8 @@ module "nexus" {
 ### Configure Go module proxy
 
 ```tf
-module "nexus" {
-  source         = "registry.coder.com/mavrickrishi/nexus/coder"
+module "nexus_repository" {
+  source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
   version        = "1.0.0"
   agent_id       = coder_agent.example.id
   nexus_url      = "https://nexus.example.com"
@@ -86,8 +86,8 @@ module "nexus" {
 ### Configure Python PyPI repositories
 
 ```tf
-module "nexus" {
-  source         = "registry.coder.com/mavrickrishi/nexus/coder"
+module "nexus_repository" {
+  source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
   version        = "1.0.0"
   agent_id       = coder_agent.example.id
   nexus_url      = "https://nexus.example.com"
@@ -101,8 +101,8 @@ module "nexus" {
 ### Configure Docker registries
 
 ```tf
-module "nexus" {
-  source         = "registry.coder.com/mavrickrishi/nexus/coder"
+module "nexus_repository" {
+  source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
   version        = "1.0.0"
   agent_id       = coder_agent.example.id
   nexus_url      = "https://nexus.example.com"
@@ -116,8 +116,8 @@ module "nexus" {
 ### Use custom username
 
 ```tf
-module "nexus" {
-  source         = "registry.coder.com/mavrickrishi/nexus/coder"
+module "nexus_repository" {
+  source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
   version        = "1.0.0"
   agent_id       = coder_agent.example.id
   nexus_url      = "https://nexus.example.com"
@@ -132,8 +132,8 @@ module "nexus" {
 ### Complete configuration for all package managers
 
 ```tf
-module "nexus" {
-  source         = "registry.coder.com/mavrickrishi/nexus/coder"
+module "nexus_repository" {
+  source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
   version        = "1.0.0"
   agent_id       = coder_agent.example.id
   nexus_url      = "https://nexus.example.com"

@@ -4,4 +4,7 @@ Hashi = "Hashi"
 HashiCorp = "HashiCorp"
 
 [files]
-extend-exclude = ["registry/coder/templates/aws-devcontainer/architecture.svg"] #False positive
+extend-exclude = [
+    "registry/coder/templates/aws-devcontainer/architecture.svg", #False positive
+    "registry/mavrickrishi/README.md" # False positive - mavrickrishi is a username
+]

@@ -6,7 +6,7 @@ import {
   testRequiredVariables,
 } from "~test";
 
-describe("nexus", async () => {
+describe("nexus-repository", async () => {
   await runTerraformInit(import.meta.dir);
 
   testRequiredVariables(import.meta.dir, {

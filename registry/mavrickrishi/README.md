@@ -11,4 +11,4 @@ This directory contains Coder modules and templates created by mavrickrishi.
 
 ## Modules
 
-- [nexus](./modules/nexus/) - Configure package managers to use Sonatype Nexus Repository
+- [nexus-repository](./modules/nexus-repository/) - Configure package managers to use Sonatype Nexus Repository
