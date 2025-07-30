@@ -127,15 +127,15 @@ data "coder_parameter" "instance_shape" {
   mutable      = false
   option {
     name  = "VM.Standard.A1.Flex (1 OCPU, 6 GB RAM)"
-    value = "VM.Standard.A1.Flex"
+    value = "VM.Standard.A1.Flex-1-6"
   }
   option {
     name  = "VM.Standard.A1.Flex (2 OCPU, 12 GB RAM)"
-    value = "VM.Standard.A1.Flex"
+    value = "VM.Standard.A1.Flex-2-12"
   }
   option {
     name  = "VM.Standard.A1.Flex (4 OCPU, 24 GB RAM)"
-    value = "VM.Standard.A1.Flex"
+    value = "VM.Standard.A1.Flex-4-24"
   }
   option {
     name  = "VM.Standard.E2.1.Micro (1 OCPU, 1 GB RAM)"
@@ -159,15 +159,15 @@ data "coder_parameter" "instance_shape" {
   }
   option {
     name  = "VM.Standard.E3.Flex (1 OCPU, 8 GB RAM)"
-    value = "VM.Standard.E3.Flex"
+    value = "VM.Standard.E3.Flex-1-8"
   }
   option {
     name  = "VM.Standard.E3.Flex (2 OCPU, 16 GB RAM)"
-    value = "VM.Standard.E3.Flex"
+    value = "VM.Standard.E3.Flex-2-16"
   }
   option {
     name  = "VM.Standard.E3.Flex (4 OCPU, 32 GB RAM)"
-    value = "VM.Standard.E3.Flex"
+    value = "VM.Standard.E3.Flex-4-32"
   }
 }
 
@@ -228,6 +228,15 @@ data "oci_core_images" "ubuntu" {
 locals {
   hostname   = lower(data.coder_workspace.me.name)
   linux_user = "coder"
+  
+  # Parse shape configuration for flexible shapes
+  shape_parts = split("-", data.coder_parameter.instance_shape.value)
+  base_shape  = length(local.shape_parts) > 2 ? join("-", slice(local.shape_parts, 0, 3)) : data.coder_parameter.instance_shape.value
+  ocpus       = length(local.shape_parts) > 3 ? tonumber(local.shape_parts[3]) : 1
+  memory_gb   = length(local.shape_parts) > 4 ? tonumber(local.shape_parts[4]) : 6
+  
+  # Determine if shape is flexible (needs shape_config)
+  is_flexible = can(regex(".*Flex.*", local.base_shape))
 }
 
 # Coder Agent
@@ -430,11 +439,14 @@ resource "oci_core_instance" "dev" {
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
   compartment_id      = var.compartment_ocid
   display_name        = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
-  shape               = data.coder_parameter.instance_shape.value
+  shape               = local.base_shape
 
-  shape_config {
-    ocpus         = 1
-    memory_in_gbs = 6
+  dynamic "shape_config" {
+    for_each = local.is_flexible ? [1] : []
+    content {
+      ocpus         = local.ocpus
+      memory_in_gbs = local.memory_gb
+    }
   }
 
   create_vnic_details {
