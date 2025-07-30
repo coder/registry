@@ -36,6 +36,8 @@ if [ -n "$PIP_INSTALL_EXTRA_PACKAGES" ]; then
   echo "📦 Installing additional packages: $PIP_INSTALL_EXTRA_PACKAGES"
   pipx install $PIP_INSTALL_EXTRA_PACKAGES
   echo "🥳 Additional packages have been installed\n\n"
+else
+  echo "DEBUG: $PIP_INSTALL_EXTRA_PACKAGES\n"
 fi
 
 echo "👷 Starting jupyter-notebook in background..."
