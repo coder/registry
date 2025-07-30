@@ -21,23 +21,21 @@ else
 fi
 
 # Install packages selected with REQUIREMENTS_PATH
-if [ -n "$REQUIREMENTS_PATH" ]; then
-  if [ -f "$REQUIREMENTS_PATH" ]; then
-    echo "📄 Installing packages from $REQUIREMENTS_PATH..."
-    pipx runpip cookiecutter install -r "$REQUIREMENTS_PATH"
-    echo "🥳 Packages from $REQUIREMENTS_PATH have been installed\n\n"
+if [ -n "${REQUIREMENTS_PATH}" ]; then
+  if [ -f "${REQUIREMENTS_PATH}" ]; then
+    echo "📄 Installing packages from ${REQUIREMENTS_PATH}..."
+    pipx runpip cookiecutter install -r "${REQUIREMENTS_PATH}"
+    echo "🥳 Packages from ${REQUIREMENTS_PATH} have been installed\n\n"
   else
-    echo "⚠️  REQUIREMENTS_PATH is set to '$REQUIREMENTS_PATH' but the file does not exist!\n\n"
+    echo "⚠️  REQUIREMENTS_PATH is set to '${REQUIREMENTS_PATH}' but the file does not exist!\n\n"
   fi
 fi
 
 # Install packages selected with PIP_INSTALL_EXTRA_PACKAGES
-if [ -n "$PIP_INSTALL_EXTRA_PACKAGES" ]; then
-  echo "📦 Installing additional packages: $PIP_INSTALL_EXTRA_PACKAGES"
-  pipx install $PIP_INSTALL_EXTRA_PACKAGES
+if [ -n "${PIP_INSTALL_EXTRA_PACKAGES}" ]; then
+  echo "📦 Installing additional packages: ${PIP_INSTALL_EXTRA_PACKAGES}"
+  pipx install ${PIP_INSTALL_EXTRA_PACKAGES}
   echo "🥳 Additional packages have been installed\n\n"
-else
-  echo "DEBUG: ${PIP_INSTALL_EXTRA_PACKAGES} Port: ${PORT}\n"
 fi
 
 echo "👷 Starting jupyter-notebook in background..."
