@@ -2,7 +2,6 @@
 display_name: Fly.io Region
 description: A parameter with human region names and icons
 icon: ../../../../.icons/fly.svg
-maintainer_github: coder
 verified: true
 tags: [helper, parameter, fly.io, regions]
 ---
@@ -17,7 +16,7 @@ We can use the simplest format here, only adding a default selection as the `atl
 module "fly-region" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/coder/fly-region/coder"
-  version = "1.0.2"
+  version = "1.0.31"
   default = "atl"
 }
 ```
@@ -34,7 +33,7 @@ The regions argument can be used to display only the desired regions in the Code
 module "fly-region" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/coder/fly-region/coder"
-  version = "1.0.2"
+  version = "1.0.31"
   default = "ams"
   regions = ["ams", "arn", "atl"]
 }
@@ -50,7 +49,7 @@ Set custom icons and names with their respective maps.
 module "fly-region" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/coder/fly-region/coder"
-  version = "1.0.2"
+  version = "1.0.31"
   default = "ams"
 
   custom_icons = {
