@@ -66,7 +66,9 @@ resource "coder_script" "jupyter-notebook" {
   icon         = "/icon/jupyter.svg"
   script = templatefile("${path.module}/run.sh", {
     LOG_PATH : var.log_path,
-    PORT : var.port
+    PORT : var.port,
+    REQUIREMENTS_PATH : var.requirements_path,
+    PIP_INSTALL_PACKAGES : var.pip_install_packages
   })
   run_on_start = true
 }

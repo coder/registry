@@ -14,10 +14,28 @@ if ! command -v jupyter-notebook > /dev/null 2>&1; then
     exit 1
   fi
   # install jupyter notebook
-  pipx install -q notebook
+  pipx install --no-cache-dir -q notebook
   echo "🥳 jupyter-notebook has been installed\n\n"
 else
   echo "🥳 jupyter-notebook is already installed\n\n"
+fi
+
+# Install packages selected with REQUIREMENTS_PATH
+if [ -n "$REQUIREMENTS_PATH" ]; then
+  if [ -f "$REQUIREMENTS_PATH" ]; then
+    echo "📄 Installing packages from $REQUIREMENTS_PATH..."
+    pip install --no-cache-dir -r "$REQUIREMENTS_PATH"
+    echo "🥳 Requirements installed\n\n"
+  else
+    echo "⚠️  REQUIREMENTS_PATH is set to '$REQUIREMENTS_PATH' but the file does not exist!\n\n"
+  fi
+fi
+
+# Install packages selected with PIP_INSTALL_PACKAGES
+if [ -n "$PIP_INSTALL_PACKAGES" ]; then
+  echo "📦 Installing extra pip packages: $PIP_INSTALL_PACKAGES"
+  pip install --no-cache-dir $PIP_INSTALL_PACKAGES
+  echo "🥳 Extra packages installed\n\n"
 fi
 
 echo "👷 Starting jupyter-notebook in background..."
