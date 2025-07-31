@@ -16,12 +16,32 @@ required_vars=(
 )
 
 # Check if each required variable is set
+missing_vars=()
 for var in "${required_vars[@]}"; do
   if [[ -z "${!var:-}" ]]; then
-    echo "Error: Environment variable '$var' is not set."
-    exit 1
+    missing_vars+=("$var")
   fi
 done
+
+# If any required variables are missing, provide helpful error message
+if [[ ${#missing_vars[@]} -gt 0 ]]; then
+  echo "Error: The following required environment variables are not set:"
+  for var in "${missing_vars[@]}"; do
+    echo "  - $var"
+  done
+  echo ""
+  echo "To fix this, add these secrets to your GitHub repository:"
+  echo "1. Go to your repository Settings > Secrets and variables > Actions"
+  echo "2. Click 'New repository secret' for each missing variable"
+  echo "3. Add the appropriate values from your Instatus and Vercel dashboards"
+  echo ""
+  echo "Required secrets:"
+  echo "- INSTATUS_API_KEY: Your Instatus API key"
+  echo "- INSTATUS_PAGE_ID: Your Instatus page ID"
+  echo "- INSTATUS_COMPONENT_ID: Your Instatus component ID"
+  echo "- VERCEL_API_KEY: Your Vercel API key"
+  exit 1
+fi
 
 REGISTRY_BASE_URL="${REGISTRY_BASE_URL:-https://registry.coder.com}"
 

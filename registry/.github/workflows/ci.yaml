@@ -1,0 +1,70 @@
+name: CI
+on:
+  pull_request:
+    branches: [main]
+# Cancel in-progress runs for pull requests when developers push new changes
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+jobs:
+  test-terraform:
+    name: Validate Terraform output
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Set up Terraform
+        uses: coder/coder/.github/actions/setup-tf@main
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          # We're using the latest version of Bun for now, but it might be worth
+          # reconsidering. They've pushed breaking changes in patch releases
+          # that have broken our CI.
+          # Our PR where issues started to pop up: https://github.com/coder/modules/pull/383
+          # The Bun PR that broke things: https://github.com/oven-sh/bun/pull/16067
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install
+      - name: Run TypeScript tests
+        run: bun test
+      - name: Run Terraform Validate
+        run: bun terraform-validate
+  validate-style:
+    name: Check for typos and unformatted code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      # Need Terraform for its formatter
+      - name: Install Terraform
+        uses: coder/coder/.github/actions/setup-tf@main
+      - name: Install dependencies
+        run: bun install
+      - name: Validate formatting
+        run: bun fmt:ci
+      - name: Check for typos
+        uses: crate-ci/typos@v1.34.0
+        with:
+          config: .github/typos.toml
+  validate-readme-files:
+    name: Validate README files
+    runs-on: ubuntu-latest
+    # We want to do some basic README checks first before we try analyzing the
+    # contents
+    needs: validate-style
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.2"
+      - name: Validate contributors
+        run: go build ./cmd/readmevalidation && ./readmevalidation
+      - name: Remove build file artifact
+        run: rm ./readmevalidation
