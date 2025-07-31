@@ -15,9 +15,9 @@ tags: [integration, vault, hashicorp, hvs]
 >
 > **Use these Coder registry modules instead:**
 >
-> - **[vault-token](https://registry.coder.com/modules/vault-token)** - Connect to Vault using access tokens
-> - **[vault-jwt](https://registry.coder.com/modules/vault-jwt)** - Connect to Vault using JWT/OIDC authentication
-> - **[vault-github](https://registry.coder.com/modules/vault-github)** - Connect to Vault using GitHub authentication
+> - **[vault-token](https://registry.coder.com/modules/coder/vault-token)** - Connect to Vault using access tokens
+> - **[vault-jwt](https://registry.coder.com/modules/coder/vault-jwt)** - Connect to Vault using JWT/OIDC authentication
+> - **[vault-github](https://registry.coder.com/modules/coder/vault-github)** - Connect to Vault using GitHub authentication
 >
 > These modules work with both self-hosted Vault and HCP Vault Dedicated. For migration help, see the [official HashiCorp announcement](https://developer.hashicorp.com/hcp/docs/vault-secrets/end-of-sale-announcement).
 
