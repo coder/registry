@@ -15,6 +15,7 @@ module "amazon-q" {
   source   = "registry.coder.com/coder/amazon-q/coder"
   version  = "1.1.1"
   agent_id = coder_agent.example.id
+  
   # Required: see below for how to generate
   experiment_auth_tarball = var.amazon_q_auth_tarball
 }
