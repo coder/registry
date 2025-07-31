@@ -18,7 +18,6 @@ data "coder_workspace" "me" {}
 
 data "coder_workspace_owner" "me" {}
 
-
 variable "order" {
   type        = number
   description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
@@ -40,7 +39,7 @@ variable "icon" {
 variable "folder" {
   type        = string
   description = "The folder to run sourcegraph-amp in."
-  default     = "/home/coder/sourcegraph-amp"
+  default     = "/home/coder"
 }
 
 variable "install_sourcegraph-amp" {
@@ -87,26 +86,26 @@ variable "post_install_script" {
 
 locals {
   base_extensions = <<-EOT
-{
-  "coder": {
-    "args": [
-      "exp",
-      "mcp",
-      "server"
-    ],
-    "command": "coder",
-    "description": "Report ALL tasks and statuses (in progress, done, failed) you are working on.",
-    "enabled": true,
-    "env": {
-      "CODER_MCP_APP_STATUS_SLUG": "${local.app_slug}",
-      "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284"
-    },
-    "name": "Coder",
-    "timeout": 3000,
-    "type": "stdio",
-    "trust": true
-  }
-}
+coder:
+  args:
+  - exp
+  - mcp
+  - server
+  cmd: coder
+  description: Report ALL tasks and statuses (in progress, done, failed) you are working on.
+  enabled: true
+  envs:
+    CODER_MCP_APP_STATUS_SLUG: ${local.app_slug}
+    CODER_MCP_AI_AGENTAPI_URL: http://localhost:3284
+  name: Coder
+  timeout: 3000
+  type: stdio
+developer:
+  display_name: Developer
+  enabled: true
+  name: developer
+  timeout: 300
+  type: builtin
 EOT
 
   app_slug        = "sourcegraph-amp"
