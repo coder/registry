@@ -72,22 +72,8 @@ resource "coder_app" "vscode-desktop" {
   order = var.web_app_order
   group = var.web_app_group
 
+  # While the call to "join" is not strictly necessary, it makes the URL more readable.
   url = join("", [
-    var.protocol,
-    "://coder.coder-remote/open",
-    "?owner=",
-    data.coder_workspace_owner.me.name,
-    "&workspace=",
-    data.coder_workspace.me.name,
-    var.folder != "" ? join("", ["&folder=", var.folder]) : "",
-    var.open_recent ? "&openRecent" : "",
-    "&url=",
-    data.coder_workspace.me.access_url,
-    "&token=$SESSION_TOKEN",
-  ])
-
-  /*
-    url = join("", [
     "vscode://coder.coder-remote/open",
     "?owner=${data.coder_workspace_owner.me.name}",
     "&workspace=${data.coder_workspace.me.name}",
@@ -96,7 +82,6 @@ resource "coder_app" "vscode-desktop" {
     "&url=${data.coder_workspace.me.access_url}",
     "&token=$SESSION_TOKEN",
   ])
-  */
 }
 
 output "ide_uri" {
