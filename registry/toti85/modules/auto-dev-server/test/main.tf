@@ -14,13 +14,13 @@ resource "coder_agent" "test" {
 
 # Test basic functionality
 module "auto_dev_server_basic" {
-  source   = "./../../"
+  source   = "../"
   agent_id = coder_agent.test.id
 }
 
 # Test with custom configuration
 module "auto_dev_server_custom" {
-  source              = "./../../"
+  source              = "../"
   agent_id            = coder_agent.test.id
   project_dir         = "/workspace"
   enabled_frameworks  = ["nodejs", "django"]
