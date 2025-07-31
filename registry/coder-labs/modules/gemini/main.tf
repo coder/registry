@@ -33,13 +33,25 @@ variable "group" {
 variable "icon" {
   type        = string
   description = "The icon to use for the app."
-  default     = "/icon/gemini.svg"
+  default     = "../../../../.icons/gemini.svg"
 }
 
 variable "folder" {
   type        = string
   description = "The folder to run Gemini in."
   default     = "/home/coder"
+}
+
+variable "auto_approve" {
+  type        = bool
+  description = "Whether to automatically approve Gemini API key usage."
+  default     = true
+}
+
+variable "yolo_mode" {
+  type        = bool
+  description = "Whether to enable YOLO mode for faster responses without confirmation prompts."
+  default     = true
 }
 
 variable "install_gemini" {
