@@ -278,13 +278,6 @@ resource "linode_instance" "workspace" {
   }
 }
 
-# Attach the volume to the instance
-resource "linode_volume_attachment" "workspace_volume" {
-  count       = data.coder_workspace.me.start_count
-  linode_id   = linode_instance.workspace[0].id
-  volume_id   = linode_volume.home_volume.id
-}
-
 resource "coder_metadata" "workspace-info" {
   count       = data.coder_workspace.me.start_count
   resource_id = linode_instance.workspace[0].id
