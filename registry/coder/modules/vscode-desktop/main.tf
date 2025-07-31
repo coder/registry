@@ -1,12 +1,5 @@
 terraform {
   required_version = ">= 1.0"
-
-  required_providers {
-    coder = {
-      source  = "coder/coder"
-      version = ">= 2.5"
-    }
-  }
 }
 
 variable "agent_id" {
@@ -38,33 +31,24 @@ variable "group" {
   default     = null
 }
 
-data "coder_workspace" "me" {}
-data "coder_workspace_owner" "me" {}
+module "vscode" {
+  # TODO: update this
+  source = "git::https://github.com/coder/registry.git//registry/coder/modules/vscode-desktop-core?ref=phorcys420/centralize-vscode-desktop"
 
-resource "coder_app" "vscode" {
-  agent_id     = var.agent_id
-  external     = true
-  icon         = "/icon/code.svg"
-  slug         = "vscode"
-  display_name = "VS Code Desktop"
-  order        = var.order
-  group        = var.group
+  agent_id = var.agent_id
 
-  url = join("", [
-    "vscode://coder.coder-remote/open",
-    "?owner=",
-    data.coder_workspace_owner.me.name,
-    "&workspace=",
-    data.coder_workspace.me.name,
-    var.folder != "" ? join("", ["&folder=", var.folder]) : "",
-    var.open_recent ? "&openRecent" : "",
-    "&url=",
-    data.coder_workspace.me.access_url,
-    "&token=$SESSION_TOKEN",
-  ])
+  web_app_icon         = "/icon/code.svg"
+  web_app_slug         = "vscode"
+  web_app_display_name = "VS Code Desktop"
+  web_app_order        = var.order
+  web_app_group        = var.group
+
+  folder      = var.folder
+  open_recent = var.open_recent
+  protocol    = "vscode"
 }
 
 output "vscode_url" {
-  value       = coder_app.vscode.url
+  value       = module.vscode.ide_uri
   description = "VS Code Desktop URL."
 }
