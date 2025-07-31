@@ -64,7 +64,7 @@ data "coder_workspace_owner" "me" {}
 resource "coder_app" "vscode-desktop" {
   agent_id = var.agent_id
   external = true
-  
+
   icon         = var.web_app_icon
   slug         = var.web_app_slug
   display_name = var.web_app_display_name
