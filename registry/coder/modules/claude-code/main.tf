@@ -48,6 +48,36 @@ variable "install_claude_code" {
   default     = true
 }
 
+variable "enable_subagents" {
+  type        = bool
+  description = "Whether to enable Claude Code subagents for specialized tasks."
+  default     = false
+}
+
+variable "subagents_version" {
+  type        = string
+  description = "The version of subagents to install. Set to 'latest' for the most recent version."
+  default     = "latest"
+}
+
+variable "custom_subagents_path" {
+  type        = string
+  description = "Path to custom subagents directory. If not set, will use the default agents from wshobson/agents."
+  default     = ""
+}
+
+variable "enabled_subagents" {
+  type        = list(string)
+  description = "List of subagents to enable. If empty, all subagents will be enabled when enable_subagents is true."
+  default     = []
+}
+
+variable "default_subagent_model" {
+  type        = string
+  description = "Default Claude model to use for subagents that don't specify a model. Options: claude-3-5-haiku-20241022, claude-sonnet-4-20250514, claude-opus-4-20250514"
+  default     = "claude-sonnet-4-20250514"
+}
+
 variable "claude_code_version" {
   type        = string
   description = "The version of Claude Code to install."
