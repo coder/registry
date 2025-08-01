@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# Load shell environment
+source "$HOME"/.bashrc
+
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+if [ -f "$HOME/.nvm/nvm.sh" ]; then
+  source "$HOME"/.nvm/nvm.sh
+else
+  export PATH="$HOME/.npm-global/bin:$PATH"
+fi
+
+printf "Version: %s\n" "$(codex --version)"
+
+CODEX_TASK_PROMPT=$(echo -n "$CODEX_TASK_PROMPT" | base64 -d)
+CODEX_ARGS=("--skip-git-repo-check")
+
+if command_exists codex; then
+    printf "Codex is installed\n"
+else
+    printf "Error: Codex is not installed. Please enable install_codex or install it manually :)\n"
+    exit 1
+fi
+
+if [ -d "${CODEX_START_DIRECTORY}" ]; then
+    printf "Directory '%s' exists. Changing to it.\\n" "${CODEX_START_DIRECTORY}"
+    cd "${CODEX_START_DIRECTORY}" || {
+        printf "Error: Could not change to directory '%s'.\\n" "${CODEX_START_DIRECTORY}"
+        exit 1
+    }
+else
+    printf "Directory '%s' does not exist. Creating and changing to it.\\n" "${CODEX_START_DIRECTORY}"
+    mkdir -p "${CODEX_START_DIRECTORY}" || {
+        printf "Error: Could not create directory '%s'.\\n" "${CODEX_START_DIRECTORY}"
+        exit 1
+    }
+    cd "${CODEX_START_DIRECTORY}" || {
+        printf "Error: Could not change to directory '%s'.\\n" "${CODEX_START_DIRECTORY}"
+        exit 1
+    }
+fi
+
+if [ -n "$CODEX_MODEL" ]; then
+    CODEX_ARGS+=("--model" "$CODEX_MODEL")
+fi
+
+if [ -n "$CODEX_TASK_PROMPT" ]; then
+    printf "Running the task prompt %s\n" "$CODEX_TASK_PROMPT"
+    PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses, when each part of the task is finished report with . Your task at hand: $CODEX_TASK_PROMPT"
+    CODEX_ARGS+=("--dangerously-bypass-approvals-and-sandbox" "$PROMPT")
+else
+    printf "No task prompt given.\n"
+fi
+
+if [ -n "$CODEX_API_KEY" ]; then
+    printf "codex_api_key provided !\n"
+else
+    printf "codex_api_key not provided\n"
+fi
+
+# use low width to fit in the tasks UI sidebar. height is adjusted so that width x height ~= 80x1000 characters
+# are visible in the terminal screen by default.
+# in case of codex we adjust the height to 930 due to a bug in codex module, see: https://github.com/openai/codex/issues/1608
+printf "Starting codex with %s\n" "${CODEX_ARGS[@]}"
+agentapi server --term-width 70 --term-height 930 -- codex "${CODEX_ARGS[@]}"

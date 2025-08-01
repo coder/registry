@@ -1,0 +1,210 @@
+import {
+  test,
+  afterEach,
+  describe,
+  setDefaultTimeout,
+  beforeAll,
+  expect,
+} from "bun:test";
+import { execContainer, readFileContainer, runTerraformInit } from "~test";
+import {
+  loadTestFile,
+  writeExecutable,
+  setup as setupUtil,
+  execModuleScript,
+  expectAgentAPIStarted,
+} from "../../../coder/modules/agentapi/test-util";
+
+let cleanupFunctions: (() => Promise<void>)[] = [];
+const registerCleanup = (cleanup: () => Promise<void>) => {
+  cleanupFunctions.push(cleanup);
+};
+afterEach(async () => {
+  const cleanupFnsCopy = cleanupFunctions.slice().reverse();
+  cleanupFunctions = [];
+  for (const cleanup of cleanupFnsCopy) {
+    try {
+      await cleanup();
+    } catch (error) {
+      console.error("Error during cleanup:", error);
+    }
+  }
+});
+
+interface SetupProps {
+  skipAgentAPIMock?: boolean;
+  skipCodexMock?: boolean;
+  moduleVariables?: Record<string, string>;
+  agentapiMockScript?: string;
+}
+
+const setup = async (props?: SetupProps): Promise<{ id: string }> => {
+  const projectDir = "/home/coder/project";
+  const { id } = await setupUtil({
+    moduleDir: import.meta.dir,
+    moduleVariables: {
+      install_codex: props?.skipCodexMock ? "true" : "false",
+      install_agentapi: props?.skipAgentAPIMock ? "true" : "false",
+      codex_model: "gpt-4-turbo",
+      ...props?.moduleVariables,
+    },
+    registerCleanup,
+    projectDir,
+    skipAgentAPIMock: props?.skipAgentAPIMock,
+    agentapiMockScript: props?.agentapiMockScript,
+  });
+  if (!props?.skipCodexMock) {
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/bin/codex",
+      content: await loadTestFile(import.meta.dir, "codex-mock.sh"),
+    });
+  }
+  return { id };
+};
+
+setDefaultTimeout(60 * 1000);
+
+describe("codex", async () => {
+  beforeAll(async () => {
+    await runTerraformInit(import.meta.dir);
+  });
+
+  test("happy-path", async () => {
+    const { id } = await setup();
+    await execModuleScript(id);
+    await expectAgentAPIStarted(id);
+  });
+
+  test("install-codex-version", async () => {
+    const version_to_install = "1.0.0";
+    const { id } = await setup({
+      skipCodexMock: true,
+      moduleVariables: {
+        install_codex: "true",
+        codex_version: version_to_install,
+      },
+    });
+    await execModuleScript(id);
+    const resp = await execContainer(id, [
+      "bash",
+      "-c",
+      `cat /home/coder/.codex-module/install.log || true`,
+    ]);
+    expect(resp.stdout).toContain(version_to_install);
+  });
+
+  test("codex-config-toml", async () => {
+    const settings = '[mcp_servers.CustomMCP]\n' +
+      'command = "/Users/jkmr/Documents/work/coder/coder_darwin_arm64"\n' +
+      'args = ["exp", "mcp", "server", "app-status-slug=codex"]\n' +
+      'env = { "CODER_MCP_APP_STATUS_SLUG" = "codex", "CODER_MCP_AI_AGENTAPI_URL"= "http://localhost:3284" }\n' +
+      'description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."\n' +
+      'enabled = true\n' +
+      'type = "stdio"';
+    const { id } = await setup({
+      moduleVariables: {
+        codex_settings_toml: settings,
+      },
+    });
+    await execModuleScript(id);
+    const resp = await readFileContainer(id, "/home/coder/.codex/config.toml");
+    expect(resp).toContain("[mcp_servers.CustomMCP]");
+    expect(resp).toContain("[mcp_servers.Coder]");
+  });
+
+  test("codex-api-key", async () => {
+    const apiKey = "test-api-key-123";
+    const { id } = await setup({
+      moduleVariables: {
+        codex_api_key: apiKey,
+      },
+    });
+    await execModuleScript(id);
+
+    const resp = await readFileContainer(id, "/home/coder/.codex-module/agentapi-start.log");
+    expect(resp).toContain("codex_api_key provided !");
+  });
+
+  test("pre-post-install-scripts", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        pre_install_script: "#!/bin/bash\necho 'pre-install-script'",
+        post_install_script: "#!/bin/bash\necho 'post-install-script'",
+      },
+    });
+    await execModuleScript(id);
+    const preInstallLog = await readFileContainer(id, "/home/coder/.codex-module/pre_install.log");
+    expect(preInstallLog).toContain("pre-install-script");
+    const postInstallLog = await readFileContainer(id, "/home/coder/.codex-module/post_install.log");
+    expect(postInstallLog).toContain("post-install-script");
+  });
+
+  test("folder-variable", async () => {
+    const folder = "/tmp/codex-test-folder";
+    const { id } = await setup({
+      skipCodexMock: false,
+      moduleVariables: {
+        folder,
+      },
+    });
+    await execModuleScript(id);
+    const resp = await readFileContainer(id, "/home/coder/.codex-module/install.log");
+    expect(resp).toContain(folder);
+  });
+
+  test("additional-extensions", async () => {
+    const additional = '[mcp_servers.CustomMCP]\n' +
+      'command = "/Users/jkmr/Documents/work/coder/coder_darwin_arm64"\n' +
+      'args = ["exp", "mcp", "server", "app-status-slug=codex"]\n' +
+      'env = { "CODER_MCP_APP_STATUS_SLUG" = "codex", "CODER_MCP_AI_AGENTAPI_URL"= "http://localhost:3284" }\n' +
+      'description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."\n' +
+      'enabled = true\n' +
+      'type = "stdio"';
+    const { id } = await setup({
+      moduleVariables: {
+        additional_extensions: additional,
+      },
+    });
+    await execModuleScript(id);
+    const resp = await readFileContainer(id, "/home/coder/.codex/config.toml");
+    expect(resp).toContain("[mcp_servers.CustomMCP]");
+    expect(resp).toContain("[mcp_servers.Coder]");
+  });
+
+  test("codex-system-prompt", async () => {
+    const prompt = "This is a system prompt for Codex.";
+    const { id } = await setup({
+      moduleVariables: {
+        codex_system_prompt: prompt,
+      },
+    });
+    await execModuleScript(id);
+    const resp = await readFileContainer(id, "/home/coder/AGENTS.md");
+    expect(resp).toContain(prompt);
+  });
+
+  test("codex-ai-task-prompt", async () => {
+    const prompt = "This is a system prompt for Codex.";
+    const { id } = await setup({
+      moduleVariables: {
+        ai_prompt: prompt,
+      },
+    });
+    await execModuleScript(id);
+    const resp = await execContainer(id, [
+      "bash",
+      "-c",
+      `cat /home/coder/.codex-module/agentapi-start.log || true`,
+    ]);
+    expect(resp.stdout).toContain(`Every step of the way, report tasks to Coder with proper descriptions and statuses, when each part of the task is finished report with . Your task at hand: ${prompt}`);
+  });
+
+  test("start-without-prompt", async () => {
+    const { id } = await setup();
+    await execModuleScript(id);
+    const prompt = await execContainer(id, ["ls", "-l", "/home/coder/AGENTS.md"]);
+    expect(prompt.exitCode).not.toBe(0);
+    expect(prompt.stderr).toContain("No such file or directory");
+  });
+});
