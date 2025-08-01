@@ -15,9 +15,9 @@ tags: [integration, vault, hashicorp, hvs]
 >
 > **Use these Coder registry modules instead:**
 >
-> - **[vault-token](https://registry.coder.com/modules/vault-token)** - Connect to Vault using access tokens
-> - **[vault-jwt](https://registry.coder.com/modules/vault-jwt)** - Connect to Vault using JWT/OIDC authentication
-> - **[vault-github](https://registry.coder.com/modules/vault-github)** - Connect to Vault using GitHub authentication
+> - **[vault-token](https://registry.coder.com/modules/coder/vault-token)** - Connect to Vault using access tokens
+> - **[vault-jwt](https://registry.coder.com/modules/coder/vault-jwt)** - Connect to Vault using JWT/OIDC authentication
+> - **[vault-github](https://registry.coder.com/modules/coder/vault-github)** - Connect to Vault using GitHub authentication
 >
 > These modules work with both self-hosted Vault and HCP Vault Dedicated. For migration help, see the [official HashiCorp announcement](https://developer.hashicorp.com/hcp/docs/vault-secrets/end-of-sale-announcement).
 
@@ -26,7 +26,7 @@ This module lets you fetch all or selective secrets from a [HCP Vault Secrets](h
 ```tf
 module "vault" {
   source     = "registry.coder.com/coder/hcp-vault-secrets/coder"
-  version    = "1.0.33"
+  version    = "1.0.34"
   agent_id   = coder_agent.example.id
   app_name   = "demo-app"
   project_id = "aaa-bbb-ccc"
@@ -52,7 +52,7 @@ To fetch all secrets from the HCP Vault Secrets app, skip the `secrets` input.
 ```tf
 module "vault" {
   source     = "registry.coder.com/coder/hcp-vault-secrets/coder"
-  version    = "1.0.33"
+  version    = "1.0.34"
   agent_id   = coder_agent.example.id
   app_name   = "demo-app"
   project_id = "aaa-bbb-ccc"
@@ -66,7 +66,7 @@ To fetch selective secrets from the HCP Vault Secrets app, set the `secrets` inp
 ```tf
 module "vault" {
   source     = "registry.coder.com/coder/hcp-vault-secrets/coder"
-  version    = "1.0.33"
+  version    = "1.0.34"
   agent_id   = coder_agent.example.id
   app_name   = "demo-app"
   project_id = "aaa-bbb-ccc"
@@ -81,7 +81,7 @@ Set `client_id` and `client_secret` as module inputs.
 ```tf
 module "vault" {
   source        = "registry.coder.com/coder/hcp-vault-secrets/coder"
-  version       = "1.0.33"
+  version       = "1.0.34"
   agent_id      = coder_agent.example.id
   app_name      = "demo-app"
   project_id    = "aaa-bbb-ccc"
