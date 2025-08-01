@@ -88,6 +88,7 @@ module "codex" {
 > [!IMPORTANT]
 > To use tasks with Codex CLI, ensure you have the `codex_api_key` variable set, and **you create an `ai_prompt` `coder_parameter` and pass it's value to codex `ai_prompt` variable**.
 > The module automatically configures Codex with your API key and model preferences.
+> Tasks are run with `--dangerously-bypass-approvals-and-sandbox`
 
 ## References
 
