@@ -12,7 +12,7 @@ Run Codex CLI in your workspace to access OpenAI's models through the Codex inte
 
 ```tf
 module "codex" {
-  source           = "registry.coder.com/coder-labs/codex/coder" 
+  source           = "registry.coder.com/coder-labs/codex/coder"
   version          = "1.0.0"
   agent_id         = coder_agent.example.id
   codex_api_key    = var.codex_api_key
@@ -28,23 +28,25 @@ module "codex" {
 ## Usage Example
 
 - Simple usage Example:
+
 ```tf
 module "codex" {
-  count                = data.coder_workspace.me.start_count
-  source               = "registry.coder.com/coder-labs/codex/coder"
-  version              = "1.0.0"
-  agent_id             = coder_agent.example.id
-  codex_api_key        = "..."
-  codex_model          = "o4-mini"
-  install_codex        = true
-  codex_version        = "latest"
-  folder               = "/home/coder/project"
-  codex_system_prompt  = "You are a helpful coding assistant. Start every response with `Codex says:`"
-  agentapi_version = "v0.3.0"
+  count               = data.coder_workspace.me.start_count
+  source              = "registry.coder.com/coder-labs/codex/coder"
+  version             = "1.0.0"
+  agent_id            = coder_agent.example.id
+  codex_api_key       = "..."
+  codex_model         = "o4-mini"
+  install_codex       = true
+  codex_version       = "latest"
+  folder              = "/home/coder/project"
+  codex_system_prompt = "You are a helpful coding assistant. Start every response with `Codex says:`"
+  agentapi_version    = "v0.3.0"
 }
 ```
 
 - Example usage with Tasks:
+
 ```tf
 # This
 data "coder_parameter" "ai_prompt" {
@@ -63,10 +65,10 @@ module "coder-login" {
 }
 
 module "codex" {
-  source = "/Users/jkmr/Documents/work/registry/registry/coder-labs/modules/codex"
-  agent_id   = coder_agent.example.id
-  codex_api_key = "..."
-  ai_prompt = data.coder_parameter.ai_prompt.value
+  source           = "/Users/jkmr/Documents/work/registry/registry/coder-labs/modules/codex"
+  agent_id         = coder_agent.example.id
+  codex_api_key    = "..."
+  ai_prompt        = data.coder_parameter.ai_prompt.value
   agentapi_version = "v0.3.0"
 }
 ```
@@ -85,7 +87,7 @@ module "codex" {
 
 > [!IMPORTANT]
 > To use tasks with Codex CLI, ensure you have the `codex_api_key` variable set, and **you create an `ai_prompt` `coder_parametre` and pass it's value to codex `ai_prompt` variable**.
-> The module automatically configures Codex with your API key and model preferences. 
+> The module automatically configures Codex with your API key and model preferences.
 
 ## References
 
