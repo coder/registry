@@ -74,7 +74,7 @@ resource "coder_app" "vscode-desktop" {
 
   # While the call to "join" is not strictly necessary, it makes the URL more readable.
   url = join("", [
-    "vscode://coder.coder-remote/open",
+    "${var.protocol}://coder.coder-remote/open",
     "?owner=${data.coder_workspace_owner.me.name}",
     "&workspace=${data.coder_workspace.me.name}",
     var.folder != "" ? join("", ["&folder=", var.folder]) : "",
