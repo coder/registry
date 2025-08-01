@@ -28,6 +28,11 @@ module "aider" {
 - **Browser UI**: Use Aider in your browser with a modern web interface instead of the terminal
 - **Non-Interactive Mode**: Automatically processes tasks when provided via the `task_prompt` variable
 
+## Module Parameters
+
+> [!NOTE]
+> The `use_screen` and `use_tmux` parameters cannot both be enabled at the same time. By default, `use_screen` is set to `true` and `use_tmux` is set to `false`.
+
 ## Usage Examples
 
 ### Basic setup with API key
@@ -282,7 +287,3 @@ If you encounter issues:
 3. **Browser mode issues**: If the browser interface doesn't open, check that you're accessing it from a machine that can reach your Coder workspace
 
 For more information on using Aider, see the [Aider documentation](https://aider.chat/docs/).
-
-```
-
-```
