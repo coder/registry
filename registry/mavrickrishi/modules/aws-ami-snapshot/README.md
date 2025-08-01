@@ -157,28 +157,6 @@ Users need the following IAM permissions for full functionality:
 4. **AMI Selection**: The module outputs the appropriate AMI ID (default or selected snapshot)
 5. **Cleanup**: Optional DLM policies can automatically clean up old snapshots
 
-## Variables
-
-| Name                     | Description                                                  | Type        | Default | Required |
-| ------------------------ | ------------------------------------------------------------ | ----------- | ------- | -------- |
-| instance_id              | The EC2 instance ID to create snapshots from                 | string      | n/a     | yes      |
-| default_ami_id           | The default AMI ID to use when not restoring from a snapshot | string      | n/a     | yes      |
-| template_name            | The name of the Coder template using this module             | string      | n/a     | yes      |
-| test_mode                | Set to true when running tests to skip AWS API calls         | bool        | false   | no       |
-| tags                     | Additional tags to apply to snapshots                        | map(string) | {}      | no       |
-| enable_dlm_cleanup       | Enable Data Lifecycle Manager for automated snapshot cleanup | bool        | false   | no       |
-| dlm_role_arn             | ARN of the IAM role for DLM                                  | string      | ""      | no       |
-| snapshot_retention_count | Number of snapshots to retain when using DLM cleanup         | number      | 7       | no       |
-
-## Outputs
-
-| Name                | Description                                           |
-| ------------------- | ----------------------------------------------------- |
-| ami_id              | The AMI ID to use for the workspace instance          |
-| is_using_snapshot   | Whether the workspace is using a snapshot AMI         |
-| snapshot_ami_id     | The AMI ID of the created snapshot (if any)           |
-| available_snapshots | List of available snapshot AMI IDs for this workspace |
-| snapshot_info       | Detailed information about available snapshots        |
 
 ## Considerations
 
@@ -192,6 +170,6 @@ Users need the following IAM permissions for full functionality:
 
 See the updated AWS templates that use this module:
 
-- `coder/templates/aws-linux`
-- `coder/templates/aws-windows`
-- `coder/templates/aws-devcontainer`
+- [`coder/templates/aws-linux`](https://registry.coder.com/templates/aws-linux)
+- [`coder/templates/aws-windows`](https://registry.coder.com/templates/aws-windows)
+- [`coder/templates/aws-devcontainer`](https://registry.coder.com/templates/aws-devcontainer)
