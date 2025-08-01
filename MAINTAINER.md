@@ -93,7 +93,7 @@ Continue? [y/N]: y
 
 ### Manual Process (Fallback)
 
-If the automated script fails or for single module releases:
+If the automated script fails, you can manually tag and release modules:
 
 ```bash
 # Checkout the merge commit
