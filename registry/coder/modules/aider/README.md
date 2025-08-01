@@ -13,7 +13,7 @@ Run [Aider](https://aider.chat) AI pair programming in your workspace. This modu
 ```tf
 module "aider" {
   source   = "registry.coder.com/coder/aider/coder"
-  version  = "1.1.1"
+  version  = "1.1.2"
   agent_id = coder_agent.example.id
 }
 ```
@@ -47,7 +47,7 @@ variable "anthropic_api_key" {
 module "aider" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/aider/coder"
-  version    = "1.1.1"
+  version    = "1.1.2"
   agent_id   = coder_agent.example.id
   ai_api_key = var.anthropic_api_key
 }
@@ -72,7 +72,7 @@ variable "openai_api_key" {
 module "aider" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/aider/coder"
-  version     = "1.1.1"
+  version     = "1.1.2"
   agent_id    = coder_agent.example.id
   use_tmux    = true
   ai_provider = "openai"
@@ -93,7 +93,7 @@ variable "custom_api_key" {
 module "aider" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/aider/coder"
-  version             = "1.1.1"
+  version             = "1.1.2"
   agent_id            = coder_agent.example.id
   ai_provider         = "custom"
   custom_env_var_name = "MY_CUSTOM_API_KEY"
@@ -110,7 +110,7 @@ You can extend Aider's capabilities by adding custom extensions:
 module "aider" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/aider/coder"
-  version    = "1.1.1"
+  version    = "1.1.2"
   agent_id   = coder_agent.example.id
   ai_api_key = var.anthropic_api_key
 
@@ -189,7 +189,7 @@ data "coder_parameter" "ai_prompt" {
 module "aider" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/aider/coder"
-  version     = "1.1.1"
+  version     = "1.1.2"
   agent_id    = coder_agent.example.id
   ai_api_key  = var.anthropic_api_key
   task_prompt = data.coder_parameter.ai_prompt.value
