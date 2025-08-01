@@ -39,17 +39,17 @@ module "auto_dev_server" {
 
 ## Supported Frameworks
 
-| Framework | Detection Files | Default Start Command |
-|-----------|----------------|----------------------|
-| **Node.js** | `package.json` | `npm start` |
-| **Rails** | `Gemfile`, `config.ru`, `app/controllers` | `rails server` |
-| **Django** | `manage.py`, `settings.py` | `python manage.py runserver 0.0.0.0:8000` |
-| **Flask** | `app.py`, `application.py`, `wsgi.py` | `flask run --host=0.0.0.0` |
-| **FastAPI** | `main.py`, `app.py` | `uvicorn main:app --host 0.0.0.0 --port 8000` |
-| **Spring Boot** | `pom.xml`, `build.gradle`, `src/main/java` | `./mvnw spring-boot:run` |
-| **Go** | `go.mod`, `main.go` | `go run .` |
-| **Rust** | `Cargo.toml`, `src/main.rs` | `cargo run` |
-| **PHP** | `index.php`, `composer.json` | `php -S 0.0.0.0:8000` |
+| Framework       | Detection Files                            | Default Start Command                         |
+| --------------- | ------------------------------------------ | --------------------------------------------- |
+| **Node.js**     | `package.json`                             | `npm start`                                   |
+| **Rails**       | `Gemfile`, `config.ru`, `app/controllers`  | `rails server`                                |
+| **Django**      | `manage.py`, `settings.py`                 | `python manage.py runserver 0.0.0.0:8000`     |
+| **Flask**       | `app.py`, `application.py`, `wsgi.py`      | `flask run --host=0.0.0.0`                    |
+| **FastAPI**     | `main.py`, `app.py`                        | `uvicorn main:app --host 0.0.0.0 --port 8000` |
+| **Spring Boot** | `pom.xml`, `build.gradle`, `src/main/java` | `./mvnw spring-boot:run`                      |
+| **Go**          | `go.mod`, `main.go`                        | `go run .`                                    |
+| **Rust**        | `Cargo.toml`, `src/main.rs`                | `cargo run`                                   |
+| **PHP**         | `index.php`, `composer.json`               | `php -S 0.0.0.0:8000`                         |
 
 ## Configuration Options
 
@@ -72,11 +72,11 @@ Enable only specific frameworks:
 
 ```tf
 module "auto_dev_server" {
-  count               = data.coder_workspace.me.start_count
-  source              = "registry.coder.com/toti85/auto-dev-server/coder"
-  version             = "1.0.0"
-  agent_id            = coder_agent.example.id
-  enabled_frameworks  = ["nodejs", "rails", "django"]
+  count              = data.coder_workspace.me.start_count
+  source             = "registry.coder.com/toti85/auto-dev-server/coder"
+  version            = "1.0.0"
+  agent_id           = coder_agent.example.id
+  enabled_frameworks = ["nodejs", "rails", "django"]
 }
 ```
 
@@ -86,10 +86,10 @@ Override default commands for specific frameworks:
 
 ```tf
 module "auto_dev_server" {
-  count           = data.coder_workspace.me.start_count
-  source          = "registry.coder.com/toti85/auto-dev-server/coder"
-  version         = "1.0.0"
-  agent_id        = coder_agent.example.id
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/toti85/auto-dev-server/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
   custom_commands = {
     nodejs = "npm run dev"
     rails  = "bundle exec rails server -b 0.0.0.0"
@@ -102,16 +102,16 @@ module "auto_dev_server" {
 
 ```tf
 module "auto_dev_server" {
-  count             = data.coder_workspace.me.start_count
-  source            = "registry.coder.com/toti85/auto-dev-server/coder"
-  version           = "1.0.0"
-  agent_id          = coder_agent.example.id
-  project_dir       = "/workspace"
+  count              = data.coder_workspace.me.start_count
+  source             = "registry.coder.com/toti85/auto-dev-server/coder"
+  version            = "1.0.0"
+  agent_id           = coder_agent.example.id
+  project_dir        = "/workspace"
   enabled_frameworks = ["nodejs", "rails", "django", "spring"]
-  start_delay       = 60
-  log_level         = "DEBUG"
-  use_devcontainer  = true
-  custom_commands   = {
+  start_delay        = 60
+  log_level          = "DEBUG"
+  use_devcontainer   = true
+  custom_commands = {
     nodejs = "npm run dev -- --host 0.0.0.0"
     spring = "./gradlew bootRun"
   }
@@ -120,23 +120,23 @@ module "auto_dev_server" {
 
 ## Variables
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `agent_id` | `string` | **Required** | The ID of a Coder agent |
-| `project_dir` | `string` | `"$HOME"` | Directory to scan for projects |
-| `enabled_frameworks` | `list(string)` | `["nodejs", "rails", "django", "flask", "fastapi", "spring", "go", "rust", "php"]` | Frameworks to detect |
-| `start_delay` | `number` | `30` | Delay before starting servers (seconds) |
-| `log_level` | `string` | `"INFO"` | Logging level (DEBUG, INFO, WARN, ERROR) |
-| `use_devcontainer` | `bool` | `true` | Enable devcontainer.json integration |
-| `custom_commands` | `map(string)` | `{}` | Custom start commands per framework |
+| Variable             | Type           | Default                                                                            | Description                              |
+| -------------------- | -------------- | ---------------------------------------------------------------------------------- | ---------------------------------------- |
+| `agent_id`           | `string`       | **Required**                                                                       | The ID of a Coder agent                  |
+| `project_dir`        | `string`       | `"$HOME"`                                                                          | Directory to scan for projects           |
+| `enabled_frameworks` | `list(string)` | `["nodejs", "rails", "django", "flask", "fastapi", "spring", "go", "rust", "php"]` | Frameworks to detect                     |
+| `start_delay`        | `number`       | `30`                                                                               | Delay before starting servers (seconds)  |
+| `log_level`          | `string`       | `"INFO"`                                                                           | Logging level (DEBUG, INFO, WARN, ERROR) |
+| `use_devcontainer`   | `bool`         | `true`                                                                             | Enable devcontainer.json integration     |
+| `custom_commands`    | `map(string)`  | `{}`                                                                               | Custom start commands per framework      |
 
 ## Outputs
 
-| Output | Description |
-|--------|-------------|
-| `log_file` | Path to the auto-dev-server log file |
-| `enabled_frameworks` | List of enabled frameworks |
-| `project_directory` | Directory being scanned |
+| Output               | Description                          |
+| -------------------- | ------------------------------------ |
+| `log_file`           | Path to the auto-dev-server log file |
+| `enabled_frameworks` | List of enabled frameworks           |
+| `project_directory`  | Directory being scanned              |
 
 ## Devcontainer Integration
 
@@ -206,14 +206,14 @@ custom_commands = {
 
 ```tf
 module "auto_dev_server" {
-  count               = data.coder_workspace.me.start_count
-  source              = "registry.coder.com/toti85/auto-dev-server/coder"
-  version             = "1.0.0"
-  agent_id            = coder_agent.example.id
-  project_dir         = "/home/coder/workspace"
-  enabled_frameworks  = ["nodejs", "django", "spring"]
-  start_delay         = 45
-  custom_commands     = {
+  count              = data.coder_workspace.me.start_count
+  source             = "registry.coder.com/toti85/auto-dev-server/coder"
+  version            = "1.0.0"
+  agent_id           = coder_agent.example.id
+  project_dir        = "/home/coder/workspace"
+  enabled_frameworks = ["nodejs", "django", "spring"]
+  start_delay        = 45
+  custom_commands = {
     nodejs = "npm run dev:frontend"
     django = "python manage.py runserver 0.0.0.0:8000"
     spring = "./mvnw spring-boot:run -Dspring-boot.run.profiles=dev"
@@ -225,14 +225,14 @@ module "auto_dev_server" {
 
 ```tf
 module "auto_dev_server" {
-  count               = data.coder_workspace.me.start_count
-  source              = "registry.coder.com/toti85/auto-dev-server/coder"
-  version             = "1.0.0"
-  agent_id            = coder_agent.example.id
-  project_dir         = "/workspace/services"
-  enabled_frameworks  = ["nodejs", "go", "fastapi"]
-  log_level           = "DEBUG"
-  custom_commands     = {
+  count              = data.coder_workspace.me.start_count
+  source             = "registry.coder.com/toti85/auto-dev-server/coder"
+  version            = "1.0.0"
+  agent_id           = coder_agent.example.id
+  project_dir        = "/workspace/services"
+  enabled_frameworks = ["nodejs", "go", "fastapi"]
+  log_level          = "DEBUG"
+  custom_commands = {
     nodejs  = "npm run dev:api"
     go      = "go run cmd/server/main.go"
     fastapi = "uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload"

@@ -20,14 +20,14 @@ module "auto_dev_server_basic" {
 
 # Test with custom configuration
 module "auto_dev_server_custom" {
-  source              = "../"
-  agent_id            = coder_agent.test.id
-  project_dir         = "/workspace"
-  enabled_frameworks  = ["nodejs", "django"]
-  start_delay         = 45
+  source             = "../"
+  agent_id           = coder_agent.test.id
+  project_dir        = "/workspace"
+  enabled_frameworks = ["nodejs", "django"]
+  start_delay        = 45
   log_level          = "DEBUG"
   use_devcontainer   = false
-  custom_commands    = {
+  custom_commands = {
     nodejs = "npm run dev"
     django = "python manage.py runserver 0.0.0.0:3000"
   }
