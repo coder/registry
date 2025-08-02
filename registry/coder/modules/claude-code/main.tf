@@ -248,7 +248,7 @@ resource "coder_script" "claude_code" {
   run_on_start = true
 }
 
-resource "coder_app" "claude_code_web" {
+resource "coder_app" "claude_code_webx" {
   # use a short slug to mitigate https://github.com/coder/coder/issues/15178
   slug         = local.claude_code_app_slug
   display_name = "Claude Code Web"
@@ -287,6 +287,6 @@ resource "coder_app" "claude_code" {
 
 resource "coder_ai_task" "claude_code" {
   sidebar_app {
-    id = coder_app.claude_code_web.id
+    id = coder_app.claude_code_webx.id
   }
 }
