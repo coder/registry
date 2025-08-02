@@ -13,7 +13,7 @@ Run [Aider](https://aider.chat) AI pair programming in your workspace. This modu
 ```tf
 module "aider" {
   source   = "registry.coder.com/coder/aider/coder"
-  version  = "1.1.1"
+  version  = "1.1.2"
   agent_id = coder_agent.example.id
 }
 ```
@@ -30,29 +30,8 @@ module "aider" {
 
 ## Module Parameters
 
-| Parameter                          | Description                                                                | Type     | Default             |
-| ---------------------------------- | -------------------------------------------------------------------------- | -------- | ------------------- |
-| `agent_id`                         | The ID of a Coder agent (required)                                         | `string` | -                   |
-| `folder`                           | The folder to run Aider in                                                 | `string` | `/home/coder`       |
-| `install_aider`                    | Whether to install Aider                                                   | `bool`   | `true`              |
-| `aider_version`                    | The version of Aider to install                                            | `string` | `"latest"`          |
-| `use_screen`                       | Whether to use screen for running Aider in the background                  | `bool`   | `true`              |
-| `use_tmux`                         | Whether to use tmux instead of screen for running Aider in the background  | `bool`   | `false`             |
-| `session_name`                     | Name for the persistent session (screen or tmux)                           | `string` | `"aider"`           |
-| `order`                            | Position of the app in the UI presentation                                 | `number` | `null`              |
-| `icon`                             | The icon to use for the app                                                | `string` | `"/icon/aider.svg"` |
-| `experiment_report_tasks`          | Whether to enable task reporting                                           | `bool`   | `true`              |
-| `system_prompt`                    | System prompt for instructing Aider on task reporting and behavior         | `string` | See default in code |
-| `task_prompt`                      | Task prompt to use with Aider                                              | `string` | `""`                |
-| `ai_provider`                      | AI provider to use with Aider (openai, anthropic, azure, etc.)             | `string` | `"anthropic"`       |
-| `ai_model`                         | AI model to use (can use Aider's built-in aliases like "sonnet", "4o")     | `string` | `"sonnet"`          |
-| `ai_api_key`                       | API key for the selected AI provider                                       | `string` | `""`                |
-| `custom_env_var_name`              | Custom environment variable name when using custom provider                | `string` | `""`                |
-| `experiment_pre_install_script`    | Custom script to run before installing Aider                               | `string` | `null`              |
-| `experiment_post_install_script`   | Custom script to run after installing Aider                                | `string` | `null`              |
-| `experiment_additional_extensions` | Additional extensions configuration in YAML format to append to the config | `string` | `null`              |
-
-> **Note**: `use_screen` and `use_tmux` cannot both be enabled at the same time. By default, `use_screen` is set to `true` and `use_tmux` is set to `false`.
+> [!NOTE]
+> The `use_screen` and `use_tmux` parameters cannot both be enabled at the same time. By default, `use_screen` is set to `true` and `use_tmux` is set to `false`.
 
 ## Usage Examples
 
@@ -68,7 +47,7 @@ variable "anthropic_api_key" {
 module "aider" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/aider/coder"
-  version    = "1.1.1"
+  version    = "1.1.2"
   agent_id   = coder_agent.example.id
   ai_api_key = var.anthropic_api_key
 }
@@ -93,7 +72,7 @@ variable "openai_api_key" {
 module "aider" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/aider/coder"
-  version     = "1.1.1"
+  version     = "1.1.2"
   agent_id    = coder_agent.example.id
   use_tmux    = true
   ai_provider = "openai"
@@ -114,7 +93,7 @@ variable "custom_api_key" {
 module "aider" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/aider/coder"
-  version             = "1.1.1"
+  version             = "1.1.2"
   agent_id            = coder_agent.example.id
   ai_provider         = "custom"
   custom_env_var_name = "MY_CUSTOM_API_KEY"
@@ -131,7 +110,7 @@ You can extend Aider's capabilities by adding custom extensions:
 module "aider" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/aider/coder"
-  version    = "1.1.1"
+  version    = "1.1.2"
   agent_id   = coder_agent.example.id
   ai_api_key = var.anthropic_api_key
 
@@ -210,7 +189,7 @@ data "coder_parameter" "ai_prompt" {
 module "aider" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/aider/coder"
-  version     = "1.1.1"
+  version     = "1.1.2"
   agent_id    = coder_agent.example.id
   ai_api_key  = var.anthropic_api_key
   task_prompt = data.coder_parameter.ai_prompt.value
@@ -308,7 +287,3 @@ If you encounter issues:
 3. **Browser mode issues**: If the browser interface doesn't open, check that you're accessing it from a machine that can reach your Coder workspace
 
 For more information on using Aider, see the [Aider documentation](https://aider.chat/docs/).
-
-```
-
-```
