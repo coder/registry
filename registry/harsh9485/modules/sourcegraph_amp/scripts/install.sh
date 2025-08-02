@@ -30,7 +30,6 @@ function install_sourcegraph_amp() {
     ensure_node
     printf "%b Installing Sourcegraph AMP CLI...%b\n" "$BOLD" 
     npm install -g @sourcegraph/amp
-    export AMP_API_KEY="$SOURCEGRAPH_AMP_API_KEY"
     printf "%b Installation complete.%b\n" "$BOLD" 
   fi
 }

@@ -23,6 +23,7 @@ else
   mkdir -p "$dir"
 fi
 cd "$dir"
-
+echo "Add AMP API key"
+export AMP_API_KEY=$SOURCEGRAPH_AMP_API_KEY
 # Launch AgentAPI server with AMP
 agentapi server --term-width=67 --term-height=1190 -- amp
