@@ -9,6 +9,7 @@ terraform {
   }
 }
 
+
 variable "agent_id" {
   type        = string
   description = "The ID of a Coder agent."
