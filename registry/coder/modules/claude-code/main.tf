@@ -251,7 +251,7 @@ resource "coder_script" "claude_code" {
 resource "coder_app" "claude_code_webx" {
   # use a short slug to mitigate https://github.com/coder/coder/issues/15178
   slug         = local.claude_code_app_slug
-  display_name = "Claude Code Web"
+  display_name = "Claude Code Webx"
   agent_id     = var.agent_id
   url          = "http://localhost:3284/"
   icon         = var.icon
