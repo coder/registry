@@ -15,7 +15,7 @@ module "codex" {
   source           = "registry.coder.com/coder-labs/codex/coder"
   version          = "1.0.0"
   agent_id         = coder_agent.example.id
-  codex_api_key    = var.codex_api_key
+  openai_api_key   = var.openai_api_key
   agentapi_version = "v0.3.0"
 }
 ```
@@ -35,7 +35,7 @@ module "codex" {
   source              = "registry.coder.com/coder-labs/codex/coder"
   version             = "1.0.0"
   agent_id            = coder_agent.example.id
-  codex_api_key       = "..."
+  openai_api_key      = "..."
   codex_model         = "o4-mini"
   install_codex       = true
   codex_version       = "latest"
@@ -67,7 +67,7 @@ module "coder-login" {
 module "codex" {
   source           = "/Users/jkmr/Documents/work/registry/registry/coder-labs/modules/codex"
   agent_id         = coder_agent.example.id
-  codex_api_key    = "..."
+  openai_api_key   = "..."
   ai_prompt        = data.coder_parameter.ai_prompt.value
   agentapi_version = "v0.3.0"
 }
@@ -86,7 +86,7 @@ module "codex" {
 - Ensure your OpenAI API key has access to the specified model
 
 > [!IMPORTANT]
-> To use tasks with Codex CLI, ensure you have the `codex_api_key` variable set, and **you create an `ai_prompt` `coder_parameter` and pass it's value to codex `ai_prompt` variable**.
+> To use tasks with Codex CLI, ensure you have the `openai_api_key` variable set, and **you create an `ai_prompt` `coder_parameter` and pass it's value to codex `ai_prompt` variable**. [Tasks Template Example](https://registry.coder.com/templates/coder-labs/tasks-docker).
 > The module automatically configures Codex with your API key and model preferences.
 > Tasks are run with `--dangerously-bypass-approvals-and-sandbox`
 
