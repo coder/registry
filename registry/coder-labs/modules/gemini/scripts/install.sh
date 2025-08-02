@@ -133,8 +133,12 @@ function append_extensions_to_settings_json() {
       '.mcpServers = (.mcpServers // {} + $base + $add)' \
       "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
 
-    # Add theme and selectedAuthType fields
-    jq '.theme = "Default" | .selectedAuthType = "gemini-api-key"' "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
+    # Add theme, selectedAuthType, and Gemini settings
+    jq '.theme = "Default" | 
+        .selectedAuthType = "gemini-api-key" |
+        .autoApproveApiKey = true |
+        .geminicodeassist.agentYoloMode = true |
+        .geminicodeassist.autoConfirm = true' "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
 
     printf "[append_extensions_to_settings_json] Merge complete.\n"
 }
