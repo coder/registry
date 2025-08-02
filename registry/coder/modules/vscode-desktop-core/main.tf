@@ -80,6 +80,8 @@ resource "coder_app" "vscode-desktop" {
     var.folder != "" ? join("", ["&folder=", var.folder]) : "",
     var.open_recent ? "&openRecent" : "",
     "&url=${data.coder_workspace.me.access_url}",
+    # NOTE: There is a protocol whitelist for the token replacement, so this will only work with the protocols hardcoded in the front-end.
+    # (https://github.com/coder/coder/blob/6ba4b5bbc95e2e528d7f5b1e31fffa200ae1a6db/site/src/modules/apps/apps.ts#L18)
     "&token=$SESSION_TOKEN",
   ])
 }
