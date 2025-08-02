@@ -1,6 +1,6 @@
 ---
 display_name: Codex CLI
-icon: ../../../../.icons/codex.svg
+icon: ../../../../.icons/openai.svg
 description: Run Codex CLI in your workspace with AgentAPI integration
 verified: true
 tags: [agent, codex, ai, openai, tasks]
