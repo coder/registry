@@ -8,7 +8,14 @@ tags: [agent, gemini, ai, google, tasks]
 
 # Gemini CLI
 
-Run [Gemini CLI](https://ai.google.dev/gemini-api/docs/cli) in your workspace to access Google's Gemini AI models, and custom pre/post install scripts. This module integrates with [AgentAPI](https://github.com/coder/agentapi) for Coder Tasks compatibility.
+Run [Gemini CLI](https://ai.google.com/docs/gemini/tools/cli) in your workspace to access Google's Gemini AI models, and custom pre/post install scripts. This module integrates with [AgentAPI](https://github.com/coder/agentapi) for Coder Tasks compatibility.
+
+## Getting Started
+
+1. **Get a Gemini API Key**:
+   - Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - Create a new API key or use an existing one
+   - The API key starts with "AIza..."
 
 ```tf
 module "gemini" {
@@ -44,10 +51,13 @@ module "gemini" {
   source                    = "registry.coder.com/coder-labs/gemini/coder"
   version                   = "1.0.0"
   agent_id                  = coder_agent.example.id
-  gemini_api_key            = var.gemini_api_key # we recommend providing this parameter inorder to have a smoother experience (i.e. no google sign-in)
+  gemini_api_key            = var.gemini_api_key # Required for automated setup
   gemini_model              = "gemini-2.5-flash"
-  install_gemini            = true
-  gemini_version            = "latest"
+  install_gemini           = true
+  gemini_version           = "latest"
+  auto_approve             = true    # Automatically approve API key usage
+  yolo_mode               = true    # Enable faster responses without confirmations
+  folder                  = "/home/coder/project" # Custom working directory
   gemini_instruction_prompt = "Start every response with `Gemini says:`"
 }
 ```
@@ -64,7 +74,11 @@ module "gemini" {
 - If Gemini CLI is not found, ensure `install_gemini = true` and your API key is valid
 - Node.js and npm are installed automatically if missing (using NVM)
 - Check logs in `/home/coder/.gemini-module/` for install/start output
-- We highly recommend using the `gemini_api_key` variable, this also ensures smooth tasks running without needing to sign in to Google.
+- We highly recommend using the `gemini_api_key` variable, this also ensures smooth tasks running without needing to sign in to Google
+- If experiencing prompts for approval or confirmation:
+  - Set `auto_approve = true` to automatically approve API key usage
+  - Set `yolo_mode = true` to enable faster responses without confirmation prompts
+  - These settings are configured in `~/.gemini/settings.json` automatically
 
 > [!IMPORTANT]
 > To use tasks with Gemini CLI, ensure you have the `gemini_api_key` variable set, and **you pass the `AI Prompt` Parameter**.
