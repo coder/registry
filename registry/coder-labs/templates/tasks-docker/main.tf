@@ -118,7 +118,6 @@ data "coder_workspace_preset" "default" {
     EOT
     "preview_port"    = "4200"
     "container_image" = "codercom/example-universal:ubuntu"
-    "jetbrains_ide"   = "PY"
   }
 
   # Pre-builds is a Coder Premium
