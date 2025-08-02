@@ -290,7 +290,3 @@ resource "coder_ai_task" "claude_code" {
     id = coder_app.claude_code_webx.id
   }
 }
-
-resource "terraform_data" "claude_code_app_id" {
-  input = coder_app.claude_code_webx.id
-}
