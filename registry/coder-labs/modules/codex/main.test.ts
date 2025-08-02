@@ -117,13 +117,13 @@ describe("codex", async () => {
     const apiKey = "test-api-key-123";
     const { id } = await setup({
       moduleVariables: {
-        codex_api_key: apiKey,
+        openai_api_key: apiKey,
       },
     });
     await execModuleScript(id);
 
     const resp = await readFileContainer(id, "/home/coder/.codex-module/agentapi-start.log");
-    expect(resp).toContain("codex_api_key provided !");
+    expect(resp).toContain("openai_api_key provided !");
   });
 
   test("pre-post-install-scripts", async () => {
