@@ -1,12 +1,5 @@
 terraform {
   required_version = ">= 1.0"
-
-  required_providers {
-    coder = {
-      source  = "coder/coder"
-      version = ">= 2.5"
-    }
-  }
 }
 
 variable "agent_id" {
@@ -16,7 +9,7 @@ variable "agent_id" {
 
 variable "folder" {
   type        = string
-  description = "The folder to open in Cursor IDE."
+  description = "The folder to open in Windsurf Editor."
   default     = ""
 }
 
@@ -38,32 +31,24 @@ variable "group" {
   default     = null
 }
 
-data "coder_workspace" "me" {}
-data "coder_workspace_owner" "me" {}
+module "windsurf" {
+  # TODO: update this
+  source = "git::https://github.com/coder/registry.git//registry/coder/modules/vscode-desktop-core?ref=phorcys420/centralize-vscode-desktop"
 
-resource "coder_app" "windsurf" {
-  agent_id     = var.agent_id
-  external     = true
-  icon         = "/icon/windsurf.svg"
-  slug         = "windsurf"
-  display_name = "Windsurf Editor"
-  order        = var.order
-  group        = var.group
-  url = join("", [
-    "windsurf://coder.coder-remote/open",
-    "?owner=",
-    data.coder_workspace_owner.me.name,
-    "&workspace=",
-    data.coder_workspace.me.name,
-    var.folder != "" ? join("", ["&folder=", var.folder]) : "",
-    var.open_recent ? "&openRecent" : "",
-    "&url=",
-    data.coder_workspace.me.access_url,
-    "&token=$SESSION_TOKEN",
-  ])
+  agent_id = var.agent_id
+
+  web_app_icon         = "/icon/windsurf.svg"
+  web_app_slug         = "windsurf"
+  web_app_display_name = "Windsurf Editor"
+  web_app_order        = var.order
+  web_app_group        = var.group
+
+  folder      = var.folder
+  open_recent = var.open_recent
+  protocol    = "windsurf"
 }
 
 output "windsurf_url" {
-  value       = coder_app.windsurf.url
+  value       = module.windsurf.ide_uri
   description = "Windsurf Editor URL."
 }
