@@ -10,9 +10,9 @@ const appName = "vscode-desktop";
 
 const defaultVariables = {
   agent_id: "foo",
-  web_app_icon: "/icon/code.svg",
-  web_app_slug: "vscode",
-  web_app_display_name: "VS Code Desktop",
+  coder_app_icon: "/icon/code.svg",
+  coder_app_slug: "vscode",
+  coder_app_display_name: "VS Code Desktop",
   protocol: "vscode",
 }
 
@@ -85,7 +85,7 @@ describe("vscode-desktop-core", async () => {
 
   it("expect order to be set", async () => {
     const state = await runTerraformApply(import.meta.dir, {
-      web_app_order: "22",
+      coder_app_order: "22",
       ...defaultVariables
     });
 
