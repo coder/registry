@@ -55,10 +55,10 @@ else
     printf "No task prompt given.\n"
 fi
 
-if [ -n "$CODEX_API_KEY" ]; then
-    printf "codex_api_key provided !\n"
+if [ -n "$OPENAI_API_KEY" ]; then
+    printf "openai_api_key provided !\n"
 else
-    printf "codex_api_key not provided\n"
+    printf "openai_api_key not provided\n"
 fi
 
 # use low width to fit in the tasks UI sidebar. height is adjusted so that width x height ~= 80x1000 characters

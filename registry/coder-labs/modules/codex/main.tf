@@ -60,7 +60,7 @@ variable "codex_settings_toml" {
   default     = ""
 }
 
-variable "codex_api_key" {
+variable "openai_api_key" {
   type        = string
   description = "Codex API Key"
   default     = ""
@@ -114,10 +114,10 @@ variable "codex_system_prompt" {
   default     = ""
 }
 
-resource "coder_env" "codex_api_key" {
+resource "coder_env" "openai_api_key" {
   agent_id = var.agent_id
   name     = "OPENAI_API_KEY"
-  value    = var.codex_api_key
+  value    = var.openai_api_key
 }
 
 locals {
@@ -151,7 +151,7 @@ module "agentapi" {
 
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
-     CODEX_API_KEY='${var.codex_api_key}' \
+     OPENAI_API_KEY='${var.openai_api_key}' \
      CODEX_MODEL='${var.codex_model}' \
      CODEX_START_DIRECTORY='${var.folder}' \
      CODEX_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
