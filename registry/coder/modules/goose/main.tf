@@ -155,7 +155,7 @@ module "agentapi" {
     set -o pipefail
 
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
+    chmod +x /tmp/install.sh 
 
     ARG_PROVIDER='${var.goose_provider}' \
     ARG_MODEL='${var.goose_model}' \
