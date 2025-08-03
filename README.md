@@ -23,7 +23,25 @@ More information [about Coder Modules can be found here](https://coder.com/docs/
 
 The easiest way to discover new modules and templates is by visiting [the official Coder Registry website](https://registry.coder.com/). The website is a full mirror of the Coder Registry repo, and it is where .tar versions of the various resources can be downloaded from, for use within your Coder deployment.
 
-Note that while Coder has a baseline set of requirements for allowing an external PR to be published, Coder cannot vouch for the validity or functionality of a resource until that resource has been flagged with the `verified` status. [All modules under the Coder namespace](https://github.com/coder/registry/tree/main/registry/coder) are automatically verified.
+### Quality Standards
+
+All modules and templates must meet our quality standards to be published:
+
+1. **Validation**: All READMEs must pass automated validation:
+   - Required frontmatter fields
+   - Proper document structure 
+   - Required sections based on type (module vs template)
+
+2. **Verification**: While we validate submissions, we can't verify functionality until marked as `verified`:
+   - [All modules under the Coder namespace](https://github.com/coder/registry/tree/main/registry/coder) are automatically verified
+   - Community submissions require review and testing
+   - Look for the `verified` flag in frontmatter
+
+3. **Documentation**: Clear documentation is required:
+   - Prerequisites and setup requirements
+   - Infrastructure details and costs
+   - Usage examples and variables
+   - Platform requirements and permissions
 
 ### Getting started with modules
 

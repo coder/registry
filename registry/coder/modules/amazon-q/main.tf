@@ -69,7 +69,7 @@ variable "experiment_use_tmux" {
 variable "experiment_report_tasks" {
   type        = bool
   description = "Whether to enable task reporting."
-  default     = false
+  default     = true
 }
 
 variable "experiment_pre_install_script" {
@@ -132,11 +132,23 @@ locals {
     {
       "mcpServers": {
         "coder": {
-          "command": "coder",
-          "args": ["exp", "mcp", "server", "--allowed-tools", "coder_report_task"],
+          "args": [
+            "exp",
+            "mcp",
+            "server",
+            "--allowed-tools",
+            "coder_report_task"
+          ],
+          "cmd": "coder",
+          "description": "Report ALL tasks and statuses (in progress, done, failed) you are working on.",
+          "enabled": true,
           "env": {
-            "CODER_MCP_APP_STATUS_SLUG": "amazon-q"
-          }
+            "CODER_MCP_APP_STATUS_SLUG": "amazon-q",
+            "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284"
+          },
+          "name": "Coder",
+          "timeout": 3000,
+          "type": "stdio"
         }
       }
     }
@@ -149,6 +161,25 @@ locals {
 
     ${var.ai_prompt}
   EOT
+  
+  module_dir_name = ".amazon-q-module"
+}
+
+module "agentapi" {
+  source  = "registry.coder.com/coder/agentapi/coder"
+  version = "1.0.0"
+
+  agent_id             = var.agent_id
+  web_app_slug         = "amazon-q"
+  web_app_order        = var.order
+  web_app_group        = var.group
+  web_app_icon         = var.icon 
+  web_app_display_name = "Amazon Q"
+  cli_app             = true
+  cli_app_slug        = "amazon-q-cli"
+  cli_app_display_name = "Amazon Q CLI"
+  module_dir_name      = local.module_dir_name
+  install_agentapi     = true
 }
 
 resource "coder_script" "amazon_q" {
@@ -225,86 +256,35 @@ resource "coder_script" "amazon_q" {
       echo "Created the ~/.aws/amazonq/mcp.json configuration file"
     fi
 
-    if [ "${var.experiment_use_tmux}" = "true" ] && [ "${var.experiment_use_screen}" = "true" ]; then
-      echo "Error: Both experiment_use_tmux and experiment_use_screen cannot be true simultaneously."
-      echo "Please set only one of them to true."
+    if ! command_exists q; then
+      echo "Error: Amazon Q is not installed. Please enable install_amazon_q or install it manually."
       exit 1
     fi
 
-    if [ "${var.experiment_use_tmux}" = "true" ]; then
-      echo "Running Amazon Q in the background with tmux..."
-
-      if ! command_exists tmux; then
-        echo "Error: tmux is not installed. Please install tmux manually."
-        exit 1
-      fi
-
-      touch "$HOME/.amazon-q.log"
-
-      export LANG=en_US.UTF-8
-      export LC_ALL=en_US.UTF-8
-
-      tmux new-session -d -s amazon-q -c "${var.folder}" "q chat --trust-all-tools | tee -a "$HOME/.amazon-q.log" && exec bash"
-
-      tmux send-keys -t amazon-q "${local.full_prompt}"
-      sleep 5
-      tmux send-keys -t amazon-q Enter
-    fi
-
-    if [ "${var.experiment_use_screen}" = "true" ]; then
-      echo "Running Amazon Q in the background..."
-
-      if ! command_exists screen; then
-        echo "Error: screen is not installed. Please install screen manually."
-        exit 1
-      fi
-
-      touch "$HOME/.amazon-q.log"
-
-      if [ ! -f "$HOME/.screenrc" ]; then
-        echo "Creating ~/.screenrc and adding multiuser settings..." | tee -a "$HOME/.amazon-q.log"
-        echo -e "multiuser on\nacladd $(whoami)" > "$HOME/.screenrc"
-      fi
-
-      if ! grep -q "^multiuser on$" "$HOME/.screenrc"; then
-        echo "Adding 'multiuser on' to ~/.screenrc..." | tee -a "$HOME/.amazon-q.log"
-        echo "multiuser on" >> "$HOME/.screenrc"
-      fi
-
-      if ! grep -q "^acladd $(whoami)$" "$HOME/.screenrc"; then
-        echo "Adding 'acladd $(whoami)' to ~/.screenrc..." | tee -a "$HOME/.amazon-q.log"
-        echo "acladd $(whoami)" >> "$HOME/.screenrc"
-      fi
-      export LANG=en_US.UTF-8
-      export LC_ALL=en_US.UTF-8
-
-      screen -U -dmS amazon-q bash -c '
-        cd ${var.folder}
-        q chat --trust-all-tools | tee -a "$HOME/.amazon-q.log
-        exec bash
-      '
-      # Extremely hacky way to send the prompt to the screen session
-      # This will be fixed in the future, but `amazon-q` was not sending MCP
-      # tasks when an initial prompt is provided.
-      screen -S amazon-q -X stuff "${local.full_prompt}"
-      sleep 5
-      screen -S amazon-q -X stuff "^M"
+    if [ -n "${local.full_prompt}" ]; then
+      mkdir -p "${HOME}/${local.module_dir_name}"
+      echo "${local.full_prompt}" > "${HOME}/${local.module_dir_name}/prompt.txt"
+      Q_ARGS=(chat --trust-all-tools --message "$(cat ${HOME}/${local.module_dir_name}/prompt.txt)")
     else
-      if ! command_exists q; then
-        echo "Error: Amazon Q is not installed. Please enable install_amazon_q or install it manually."
-        exit 1
-      fi
+      echo "Starting without a prompt"
+      Q_ARGS=(chat --trust-all-tools)
     fi
+
+    export LANG=en_US.UTF-8
+    export LC_ALL=en_US.UTF-8
+
+    cd "${var.folder}"
+    agentapi server --term-width 67 --term-height 1190 -- \
+        bash -c "$(printf '%q ' "q" "${Q_ARGS[@]}")"
     EOT
   run_on_start = true
 }
 
-resource "coder_app" "amazon_q" {
-  slug         = "amazon-q"
-  display_name = "Amazon Q"
-  agent_id     = var.agent_id
-  command      = <<-EOT
-    #!/bin/bash
+resource "coder_ai_task" "amazon_q" {
+  sidebar_app {
+    id = module.agentapi.web_app_id
+  }
+}
     set -e
 
     export LANG=en_US.UTF-8

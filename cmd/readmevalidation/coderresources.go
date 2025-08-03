@@ -211,6 +211,20 @@ func validateCoderResourceReadme(rm coderResourceReadme) []error {
 	for _, err := range validateCoderResourceIconURL(rm.frontmatter.IconURL) {
 		errs = append(errs, addFilePathToError(rm.filePath, err))
 	}
+	
+	// For templates, perform additional validation
+	if rm.resourceType == "templates" {
+		templateReadme, err := parseTemplateReadme(readme{
+			filePath: rm.filePath,
+			rawText: rm.body,
+		})
+		if err != nil {
+			errs = append(errs, err)
+		} else {
+			templateErrs := validateTemplateReadme(templateReadme)
+			errs = append(errs, templateErrs...)
+		}
+	}
 
 	return errs
 }

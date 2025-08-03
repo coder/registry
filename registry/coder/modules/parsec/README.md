@@ -20,9 +20,11 @@ This module integrates [Parsec](https://parsec.app/) into your workspace for low
 
 ## Prerequisites
 
-- A Linux-based workspace
+- Windows or Linux-based workspace
 - Parsec host key (obtain from [Parsec Settings](https://console.parsec.app/settings))
-- For GPU acceleration: NVIDIA GPU with appropriate drivers
+- For GPU acceleration:
+  - Windows: NVIDIA or AMD GPU with latest drivers
+  - Linux: NVIDIA GPU with appropriate drivers installed
 
 ## Usage
 
@@ -84,9 +86,17 @@ parsec_config = {
 ## How it Works
 
 1. **Installation**: The module installs Parsec and required dependencies
+   - Windows: Uses PowerShell to download and install Parsec
+   - Linux: Uses shell script to install via package manager
 2. **Configuration**: Sets up Parsec with the provided host key and settings
+   - Creates platform-specific configuration files
+   - Applies custom streaming settings
 3. **GPU Support**: Automatically configures GPU acceleration if available
+   - Windows: Supports both NVIDIA and AMD GPUs
+   - Linux: Configures NVIDIA GPU drivers
 4. **Autostart**: Optionally starts Parsec daemon on workspace startup
+   - Windows: Configures Windows service
+   - Linux: Sets up systemd service
 
 ## Client Setup
 
@@ -97,18 +107,50 @@ parsec_config = {
 
 ## Troubleshooting
 
-- If the stream quality is poor:
+### Stream Quality Issues
+- If experiencing poor quality:
   - Reduce encoder_bitrate or encoder_fps
   - Check your network connection
   - Verify GPU acceleration is working
   
+### Connection Problems
 - If connection fails:
   - Verify your host key is correct
   - Check workspace firewall settings
   - Ensure Parsec daemon is running
 
+### Platform-Specific Issues
+
+#### Windows
+- GPU not detected:
+  - Update GPU drivers through Device Manager
+  - For NVIDIA: Install latest Game Ready drivers
+  - For AMD: Install latest Radeon Software
+- Service not starting:
+  - Check Windows Services app
+  - Review Event Viewer for errors
+  
+#### Linux
+- GPU acceleration not working:
+  - Verify NVIDIA drivers are installed: `nvidia-smi`
+  - Check X server configuration
+- Display server issues:
+  - Ensure X11 or Wayland is running
+  - Check display server logs
+
 ## References
 
+### Documentation
 - [Parsec Documentation](https://parsec.app/docs)
 - [Host Computer Requirements](https://parsec.app/docs/hosting-specifications)
-- [Parsec Linux Setup Guide](https://parsec.app/docs/linux)
+- [Windows Setup Guide](https://parsec.app/docs/windows)
+- [Linux Setup Guide](https://parsec.app/docs/linux)
+
+### Support Resources
+- [Parsec Support Center](https://support.parsec.app)
+- [GPU Driver Downloads](https://parsec.app/docs/supported-graphics-cards)
+- [Network Requirements](https://support.parsec.app/hc/en-us/articles/115002875791-Required-Network-Ports-And-Protocols)
+
+### Community
+- [Parsec Discord](https://discord.gg/parsec)
+- [Coder Discussion Forum](https://github.com/coder/coder/discussions)

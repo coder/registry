@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              http://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+  <servers>
+%{ for REPO in REPOS ~}
+    <server>
+      <id>${REPO}</id>
+      <username>${ARTIFACTORY_USERNAME}</username>
+      <password>${ARTIFACTORY_ACCESS_TOKEN}</password>
+    </server>
+%{ endfor ~}
+  </servers>
+
+  <profiles>
+%{ for REPO in REPOS ~}
+    <profile>
+      <id>${REPO}</id>
+      <repositories>
+        <repository>
+          <id>${REPO}</id>
+          <name>${REPO}</name>
+          <url>${JFROG_URL}/artifactory/${REPO}</url>
+          <releases>
+            <enabled>true</enabled>
+          </releases>
+          <snapshots>
+            <enabled>true</enabled>
+          </snapshots>
+        </repository>
+      </repositories>
+      <pluginRepositories>
+        <pluginRepository>
+          <id>${REPO}</id>
+          <name>${REPO}</name>
+          <url>${JFROG_URL}/artifactory/${REPO}</url>
+          <releases>
+            <enabled>true</enabled>
+          </releases>
+          <snapshots>
+            <enabled>true</enabled>
+          </snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+%{ endfor ~}
+  </profiles>
+
+  <activeProfiles>
+%{ for REPO in REPOS ~}
+    <activeProfile>${REPO}</activeProfile>
+%{ endfor ~}
+  </activeProfiles>
+
+</settings> 

@@ -1,10 +1,10 @@
 {
   "name": "registry",
   "scripts": {
-    "fmt": "bun x prettier --write **/*.sh **/*.ts **/*.md *.md && terraform fmt -recursive -diff",
-    "fmt:ci": "bun x prettier --check **/*.sh **/*.ts **/*.md *.md && terraform fmt -check -recursive -diff",
+    "fmt": "npx prettier --write **/*.sh **/*.ts **/*.md *.md && terraform fmt -recursive -diff",
+    "fmt:ci": "npx prettier --check **/*.sh **/*.ts **/*.md *.md && terraform fmt -check -recursive -diff",
     "terraform-validate": "./scripts/terraform_validate.sh",
-    "test": "bun test",
+    "test": "npx jest",
     "update-version": "./update-version.sh"
   },
   "devDependencies": {
@@ -25,5 +25,6 @@
       "prettier-plugin-sh",
       "prettier-plugin-terraform-formatter"
     ]
-  }
+  },
+  "private": true
 }

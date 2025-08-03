@@ -394,9 +394,32 @@ Example: `https://github.com/coder/registry/compare/main...your-branch?template=
 ### Every Template Must Have
 
 - `main.tf` - Complete Terraform configuration
-- `README.md` - Documentation with frontmatter
+- `README.md` - Documentation with required frontmatter and sections
 
 Templates don't require test files like modules do, but should be manually tested before submission.
+
+Template README files must include:
+
+1. Frontmatter with:
+   ```yaml
+   ---
+   display_name: "Template Name" # Required - Name shown on Registry website
+   description: "What it does"   # Required - Brief description
+   icon: "../../../../.icons/platform.svg" # Required - Icon path
+   verified: false              # Optional - Set by maintainers only
+   tags: ["platform", "use-case"] # Required - Descriptive tags
+   platform: "aws"              # Required - Infrastructure platform
+   requirements: ["aws-cli"]    # Required - Prerequisites
+   workload: "development"      # Required - Type of workload
+   ---
+   ```
+
+2. Required sections:
+   - Prerequisites - Required setup and dependencies
+   - Infrastructure/Resources - What gets provisioned
+   - Usage/Examples - How to use the template
+   - Cost and Permissions - Resource costs and required permissions
+   - Variables - All configuration options
 
 ### README Frontmatter
 

@@ -31,9 +31,13 @@ func main() {
 	if err != nil {
 		errs = append(errs, err)
 	}
-	err = validateAllCoderResourceFilesOfType("modules")
-	if err != nil {
-		errs = append(errs, err)
+	
+	// Validate both modules and templates
+	for _, resourceType := range supportedResourceTypes {
+		err = validateAllCoderResourceFilesOfType(resourceType)
+		if err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	if len(errs) == 0 {

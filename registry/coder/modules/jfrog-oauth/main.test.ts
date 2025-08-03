@@ -126,4 +126,23 @@ EOF`;
       'if [ -z "YES" ]; then\n  not_configured go',
     );
   });
+
+  it("configures maven with multiple repos", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "some-agent-id",
+      jfrog_url: fakeFrogUrl,
+      package_managers: JSON.stringify({
+        maven: ["maven-local", "maven-remote", "maven-virtual"],
+      }),
+    });
+    const coderScript = findResourceInstance(state, "coder_script");
+    expect(coderScript.script).toContain(
+      'jf mvc --global --repo-resolve "maven-local"',
+    );
+    expect(coderScript.script).toContain(
+      'if [ -z "YES" ]; then\n  not_configured maven',
+    );
+    expect(coderScript.script).toContain("mkdir -p ~/.m2");
+    expect(coderScript.script).toContain("cat << EOF > ~/.m2/settings.xml");
+  });
 });

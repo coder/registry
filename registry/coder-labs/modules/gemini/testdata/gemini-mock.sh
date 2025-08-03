@@ -9,6 +9,6 @@ fi
 set -e
 
 while true; do
-    echo "$(date) - gemini-mock"
-    sleep 15
+  echo "$(date) - gemini-mock"
+  sleep 15
 done

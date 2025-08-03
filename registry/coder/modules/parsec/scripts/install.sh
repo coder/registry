@@ -14,44 +14,44 @@ printf "${BLUE}Starting Parsec installation...${NC}\n"
 
 # Check if we're running on a supported system
 if [ "$(uname)" != "Linux" ]; then
-    printf "${RED}Error: This module only supports Linux systems${NC}\n"
-    exit 1
+  printf "${RED}Error: This module only supports Linux systems${NC}\n"
+  exit 1
 fi
 
 # Install dependencies
 printf "${BLUE}Installing dependencies...${NC}\n"
 if command -v apt-get &> /dev/null; then
-    # Ubuntu/Debian
-    sudo apt-get update
-    sudo apt-get install -y \
-        libegl1-mesa \
-        libgl1-mesa-glx \
-        libvdpau1 \
-        x11-xserver-utils \
-        pulseaudio \
-        curl \
-        jq
+  # Ubuntu/Debian
+  sudo apt-get update
+  sudo apt-get install -y \
+    libegl1-mesa \
+    libgl1-mesa-glx \
+    libvdpau1 \
+    x11-xserver-utils \
+    pulseaudio \
+    curl \
+    jq
 elif command -v dnf &> /dev/null; then
-    # Fedora/RHEL
-    sudo dnf install -y \
-        mesa-libEGL \
-        mesa-libGL \
-        libvdpau \
-        xorg-x11-server-utils \
-        pulseaudio \
-        curl \
-        jq
+  # Fedora/RHEL
+  sudo dnf install -y \
+    mesa-libEGL \
+    mesa-libGL \
+    libvdpau \
+    xorg-x11-server-utils \
+    pulseaudio \
+    curl \
+    jq
 else
-    printf "${RED}Error: Unsupported Linux distribution${NC}\n"
-    exit 1
+  printf "${RED}Error: Unsupported Linux distribution${NC}\n"
+  exit 1
 fi
 
 # Download and install Parsec
 printf "${BLUE}Downloading Parsec...${NC}\n"
 if [ "$PARSEC_VERSION" = "latest" ]; then
-    DOWNLOAD_URL="https://builds.parsec.app/package/parsec-linux.deb"
+  DOWNLOAD_URL="https://builds.parsec.app/package/parsec-linux.deb"
 else
-    DOWNLOAD_URL="https://builds.parsec.app/package/parsec-linux-${PARSEC_VERSION}.deb"
+  DOWNLOAD_URL="https://builds.parsec.app/package/parsec-linux-${PARSEC_VERSION}.deb"
 fi
 
 wget -O /tmp/parsec.deb "$DOWNLOAD_URL"
@@ -79,25 +79,25 @@ EOL
 
 # Configure host key
 if [ -n "$PARSEC_HOST_KEY" ]; then
-    echo "host_key = $PARSEC_HOST_KEY" >> "$PARSEC_CONFIG_DIR/config.txt"
+  echo "host_key = $PARSEC_HOST_KEY" >> "$PARSEC_CONFIG_DIR/config.txt"
 fi
 
 # Configure GPU acceleration if enabled
 if [ "$ENABLE_GPU" = "true" ]; then
-    printf "${BLUE}Configuring GPU acceleration...${NC}\n"
-    # Check for NVIDIA GPU
-    if command -v nvidia-smi &> /dev/null; then
-        echo "encoder_device = 0" >> "$PARSEC_CONFIG_DIR/config.txt"
-    else
-        printf "${RED}Warning: GPU acceleration enabled but no NVIDIA GPU found${NC}\n"
-    fi
+  printf "${BLUE}Configuring GPU acceleration...${NC}\n"
+  # Check for NVIDIA GPU
+  if command -v nvidia-smi &> /dev/null; then
+    echo "encoder_device = 0" >> "$PARSEC_CONFIG_DIR/config.txt"
+  else
+    printf "${RED}Warning: GPU acceleration enabled but no NVIDIA GPU found${NC}\n"
+  fi
 fi
 
 # Set up autostart if enabled
 if [ "$AUTO_START" = "true" ]; then
-    printf "${BLUE}Configuring autostart...${NC}\n"
-    mkdir -p "$HOME/.config/autostart"
-    cat > "$HOME/.config/autostart/parsec.desktop" << EOL
+  printf "${BLUE}Configuring autostart...${NC}\n"
+  mkdir -p "$HOME/.config/autostart"
+  cat > "$HOME/.config/autostart/parsec.desktop" << EOL
 [Desktop Entry]
 Type=Application
 Name=Parsec
@@ -110,8 +110,8 @@ fi
 
 # Start Parsec daemon
 if [ "$AUTO_START" = "true" ]; then
-    printf "${BLUE}Starting Parsec daemon...${NC}\n"
-    parsecd &
+  printf "${BLUE}Starting Parsec daemon...${NC}\n"
+  parsecd &
 fi
 
 printf "${GREEN}Parsec installation and configuration complete!${NC}\n"

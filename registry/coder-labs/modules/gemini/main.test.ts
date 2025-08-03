@@ -102,7 +102,10 @@ describe("gemini", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/.gemini/settings.json");
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.gemini/settings.json",
+    );
     expect(resp).toContain("foo");
     expect(resp).toContain("bar");
   });
@@ -116,7 +119,10 @@ describe("gemini", async () => {
     });
     await execModuleScript(id);
 
-    const resp = await readFileContainer(id, "/home/coder/.gemini-module/agentapi-start.log");
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.gemini-module/agentapi-start.log",
+    );
     expect(resp).toContain("gemini_api_key provided !");
   });
 
@@ -128,8 +134,11 @@ describe("gemini", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/.gemini-module/install.log");
-    expect(resp).toContain('GOOGLE_GENAI_USE_VERTEXAI=\'true\'');
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.gemini-module/install.log",
+    );
+    expect(resp).toContain("GOOGLE_GENAI_USE_VERTEXAI='true'");
   });
 
   test("gemini-model", async () => {
@@ -141,7 +150,10 @@ describe("gemini", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/.gemini-module/install.log");
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.gemini-module/install.log",
+    );
     expect(resp).toContain(model);
   });
 
@@ -153,9 +165,15 @@ describe("gemini", async () => {
       },
     });
     await execModuleScript(id);
-    const preInstallLog = await readFileContainer(id, "/home/coder/.gemini-module/pre_install.log");
+    const preInstallLog = await readFileContainer(
+      id,
+      "/home/coder/.gemini-module/pre_install.log",
+    );
     expect(preInstallLog).toContain("pre-install-script");
-    const postInstallLog = await readFileContainer(id, "/home/coder/.gemini-module/post_install.log");
+    const postInstallLog = await readFileContainer(
+      id,
+      "/home/coder/.gemini-module/post_install.log",
+    );
     expect(postInstallLog).toContain("post-install-script");
   });
 
@@ -168,7 +186,10 @@ describe("gemini", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/.gemini-module/install.log");
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.gemini-module/install.log",
+    );
     expect(resp).toContain(folder);
   });
 
@@ -180,7 +201,10 @@ describe("gemini", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/.gemini/settings.json");
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.gemini/settings.json",
+    );
     expect(resp).toContain("custom");
     expect(resp).toContain("enabled");
   });
@@ -200,7 +224,11 @@ describe("gemini", async () => {
   test("start-without-prompt", async () => {
     const { id } = await setup();
     await execModuleScript(id);
-    const prompt = await execContainer(id, ["ls", "-l", "/home/coder/GEMINI.md"]);
+    const prompt = await execContainer(id, [
+      "ls",
+      "-l",
+      "/home/coder/GEMINI.md",
+    ]);
     expect(prompt.exitCode).not.toBe(0);
     expect(prompt.stderr).toContain("No such file or directory");
   });

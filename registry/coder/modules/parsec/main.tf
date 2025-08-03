@@ -56,10 +56,10 @@ resource "coder_script" "install_parsec" {
   agent_id     = var.agent_id
   display_name = "Install Parsec"
   icon         = "/icon/parsec.svg"
-  script       = file("${path.module}/scripts/install.sh")
+  script       = data.coder_workspace.me.os == "windows" ? file("${path.module}/scripts/install.ps1") : file("${path.module}/scripts/install.sh")
   run_on_start = true
 
-  env = {
+  environment = {
     PARSEC_HOST_KEY         = var.parsec_host_key
     PARSEC_VERSION         = var.parsec_version
     ENABLE_GPU            = tostring(var.enable_gpu_acceleration)

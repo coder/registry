@@ -1,0 +1,5 @@
+[33m14ba4ae[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/jfrog-maven-support[m[33m, [m[1;32mfeat/parsec-integration[m[33m)[m Add JFrog Maven support modules
+[33m83b2a40[m feat: add Parsec module for low-latency remote desktop
+[33m20dc292[m[33m ([m[1;31morigin/feat/claude-code-subagents[m[33m, [m[1;32mfeat/claude-code-subagents[m[33m)[m feat(claude-code): add subagents support
+[33mdb9dbdb[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/feat/improve-gemini-module[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m, [m[1;32mfeat/improve-gemini-module[m[33m)[m fix(gemini): improve module configuration and documentation
+[33m3fd7b47[m feat: dynamic username template (#261)

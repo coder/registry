@@ -81,6 +81,23 @@ else
   fi
 fi
 
+# Configure Maven to use the Artifactory "maven" repository.
+if [ -z "${HAS_MAVEN}" ]; then
+  not_configured maven
+else
+  if command -v mvn > /dev/null 2>&1; then
+    echo "☕ Configuring Maven..."
+    jf mvc --global --repo-resolve "${REPOSITORY_MAVEN}"
+    mkdir -p ~/.m2
+    cat << EOF > ~/.m2/settings.xml
+${MAVEN_SETTINGS}
+EOF
+    config_complete
+  else
+    echo "🤔 no maven is installed, skipping maven configuration."
+  fi
+fi
+
 # Install the JFrog vscode extension for code-server.
 if [ "${CONFIGURE_CODE_SERVER}" == "true" ]; then
   while ! [ -x /tmp/code-server/bin/code-server ]; do

@@ -22,6 +22,7 @@ module "jfrog" {
     go     = ["go", "another-go-repo"]
     pypi   = ["pypi", "extra-index-pypi"]
     docker = ["example-docker-staging.jfrog.io", "example-docker-production.jfrog.io"]
+    maven  = ["maven-local", "maven-remote", "maven-virtual"]
   }
 }
 ```
@@ -64,6 +65,33 @@ jf pip install requests
 npm install prettier
 go get github.com/golang/example/hello
 pip install requests
+```
+
+### Configure Maven
+
+Configure the Maven package manager to fetch dependencies from Artifactory.
+
+```tf
+module "jfrog" {
+  source                   = "registry.coder.com/coder/jfrog-token/coder"
+  version                  = "1.0.31"
+  agent_id                 = coder_agent.example.id
+  jfrog_url                = "https://YYYY.jfrog.io"
+  artifactory_access_token = var.artifactory_access_token
+  package_managers = {
+    maven = ["maven-local", "maven-remote"]
+  }
+}
+```
+
+You should now be able to use Maven with Artifactory repositories:
+
+```shell
+jf mvn clean install
+```
+
+```shell
+mvn clean install
 ```
 
 ### Configure code-server with JFrog extension
