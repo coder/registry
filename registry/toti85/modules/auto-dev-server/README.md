@@ -10,6 +10,15 @@ tags: [development, automation, devserver, nodejs, rails, django, flask, spring]
 
 This module automatically detects development projects in your workspace and starts the appropriate development servers in the background. It supports multiple frameworks and integrates with devcontainer.json configuration.
 
+```tf
+module "auto_dev_server" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/toti85/auto-dev-server/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
+}
+```
+
 ## Features
 
 🔍 **Multi-Framework Detection**: Supports Node.js, Rails, Django, Flask, FastAPI, Spring Boot, Go, Rust, and PHP projects
