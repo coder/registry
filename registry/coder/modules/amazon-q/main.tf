@@ -125,24 +125,7 @@ variable "ai_prompt" {
 locals {
   encoded_pre_install_script  = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
   encoded_post_install_script = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
-  # We need to use allowed tools to limit the context Amazon Q receives.
-  # Amazon Q can't handle big contexts, and the `create_template_version` tool
-  # has a description that's too long.
-  mcp_json         = <<EOT
-    {
-      "mcpServers": {
-        "coder": {
-          "command": "coder",
-          "args": ["exp", "mcp", "server", "--allowed-tools", "coder_report_task"],
-          "env": {
-            "CODER_MCP_APP_STATUS_SLUG": "amazon-q"
-          }
-        }
-      }
-    }
-  EOT
-  encoded_mcp_json = base64encode(local.mcp_json)
-  full_prompt      = <<-EOT
+  full_prompt                 = <<-EOT
     ${var.system_prompt}
 
     Your first task is:
@@ -211,18 +194,17 @@ resource "coder_script" "amazon_q" {
     cd "$PREV_DIR"
     echo "Extracted auth tarball"
 
+    if [ "${var.experiment_report_tasks}" = "true" ]; then
+      echo "Configuring Amazon Q to report tasks via Coder MCP..."
+      q mcp add --name coder --command "coder" --args "exp,mcp,server,--allowed-tools,coder_report_task" --env "CODER_MCP_APP_STATUS_SLUG=amazon-q" --scope global --force
+      echo "Added Coder MCP server to Amazon Q configuration"
+    fi
+
     if [ -n "${local.encoded_post_install_script}" ]; then
       echo "Running post-install script..."
       echo "${local.encoded_post_install_script}" | base64 -d > /tmp/post_install.sh
       chmod +x /tmp/post_install.sh
       /tmp/post_install.sh
-    fi
-
-    if [ "${var.experiment_report_tasks}" = "true" ]; then
-      echo "Configuring Amazon Q to report tasks via Coder MCP..."
-      mkdir -p ~/.aws/amazonq
-      echo "${local.encoded_mcp_json}" | base64 -d > ~/.aws/amazonq/mcp.json
-      echo "Created the ~/.aws/amazonq/mcp.json configuration file"
     fi
 
     if [ "${var.experiment_use_tmux}" = "true" ] && [ "${var.experiment_use_screen}" = "true" ]; then
