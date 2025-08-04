@@ -34,14 +34,16 @@ install() {
         # so that the devcontainer command is available
         if [ -z "$PNPM_HOME" ]; then
             PNPM_HOME="$CODER_SCRIPT_BIN_DIR"
-            export M_HOME
+            export PNPM_HOME
         fi
         pnpm add -g @devcontainers/cli
     elif [ "$PACKAGE_MANAGER" = "yarn" ]; then
         # We want to cd into `$CODER_SCRIPT_DATA_DIR` as the current directory
         # might contain a `package.json` with `packageManager` set to something
         # other than `yarn`. When this happens, `yarn global add` will fail to install.
-        cd "$CODER_SCRIPT_DATA_DIR" && yarn global add @devcontainers/cli --prefix "$(dirname "$CODER_SCRIPT_BIN_DIR")"
+        pushd "$CODER_SCRIPT_DATA_DIR" && \
+            yarn global add @devcontainers/cli --prefix "$(dirname "$CODER_SCRIPT_BIN_DIR")" && \
+            popd
     fi
 }
 
