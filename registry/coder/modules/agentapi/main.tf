@@ -126,6 +126,11 @@ variable "agentapi_port" {
   default     = 3284
 }
 
+locals {
+  # agentapi_subdomain_false_min_version_expr matches a semantic version >= v0.3.2.
+  agentapi_subdomain_false_min_version_expr = "^v(0\\.(3\\.[2-9]+|[4-9]+\\.\\d+)|[1-9]\\d*\\.\\d+\\.\\d+)$"
+}
+
 variable "agentapi_subdomain" {
   type        = bool
   description = "Whether to use a subdomain for AgentAPI."
@@ -134,8 +139,7 @@ variable "agentapi_subdomain" {
     condition = var.agentapi_subdomain || (
       # If version doesn't look like a valid semantic version, just allow it.
       !can(regex("^v\\d+\\.\\d+\\.\\d+$", var.agentapi_version))
-      ||
-      can(regex("^v(0\\.(3\\.[2-9]+|[4-9]+\\.\\d+)|[1-9]\\d*\\.\\d+\\.\\d+)$", var.agentapi_version))
+      || can(regex(local.agentapi_subdomain_false_min_version_expr, var.agentapi_version))
     )
     error_message = "Running with subdomain = false is only supported by agentapi >= v0.3.2."
   }
