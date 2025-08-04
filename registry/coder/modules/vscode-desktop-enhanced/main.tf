@@ -55,11 +55,11 @@ data "coder_workspace_owner" "me" {}
 
 # Script to install extensions and apply settings
 resource "coder_script" "vscode_setup" {
-  count           = length(var.extensions) > 0 || var.settings != "{}" ? 1 : 0
-  agent_id        = var.agent_id
-  display_name    = "VS Code Setup"
-  icon            = "/icon/code.svg"
-  script          = join("\n", [
+  count        = length(var.extensions) > 0 || var.settings != "{}" ? 1 : 0
+  agent_id     = var.agent_id
+  display_name = "VS Code Setup"
+  icon         = "/icon/code.svg"
+  script = join("\n", [
     "#!/bin/bash",
     "set -euo pipefail",
     "",
@@ -145,8 +145,8 @@ resource "coder_script" "vscode_setup" {
     "echo \"🎉 VS Code setup completed successfully!\"",
     "echo \"💡 Extensions and settings will be available when you connect with VS Code Desktop\""
   ])
-  run_on_start    = true
-  run_on_stop     = false
+  run_on_start = true
+  run_on_stop  = false
 }
 
 resource "coder_app" "vscode" {

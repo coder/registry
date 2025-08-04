@@ -1,8 +1,34 @@
-# VS Code Desktop Enhanced: Pre-install Extensions and Apply Settings
+Closes #207
 
-## Summary
+## Description
 
 This PR introduces a new **VS Code Desktop Enhanced** module that extends the existing VS Code Desktop functionality by adding support for automatically pre-installing VS Code extensions and applying custom settings when users connect to Coder workspaces.
+
+## Type of Change
+
+- [x] New module
+- [ ] Bug fix
+- [ ] Feature/enhancement
+- [ ] Documentation
+- [ ] Other
+
+## Module Information
+
+**Path:** `registry/coder/modules/vscode-desktop-enhanced`  
+**New version:** `v1.0.0`  
+**Breaking change:** [x] No
+
+## Testing & Validation
+
+- [x] Tests pass (`bun test`) - 10/10 tests passing
+- [x] Code formatted (`bun run fmt`)
+- [x] Changes tested locally
+
+## Related Issues
+
+Resolves #207 - Pre-install VS Code extensions in desktop VS Code module
+
+---
 
 ## Features
 
