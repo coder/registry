@@ -1,7 +1,7 @@
 ---
 display_name: Kubernetes (Deployment) with Dynamic Username
 description: Provision Kubernetes Deployments as Coder workspaces with your Username
-icon: ../../../site/static/icon/k8s.png
+icon: ../../../../.icons/kubernetes.svg
 verified: true
 tags: [kubernetes, container, username]
 ---
