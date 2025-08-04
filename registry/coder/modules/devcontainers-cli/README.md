@@ -15,7 +15,7 @@ The devcontainers-cli module provides an easy way to install [`@devcontainers/cl
 ```tf
 module "devcontainers-cli" {
   source   = "registry.coder.com/coder/devcontainers-cli/coder"
-  version  = "1.0.31"
+  version  = "1.0.32"
   agent_id = coder_agent.example.id
 }
 ```
