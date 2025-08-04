@@ -33,13 +33,13 @@ variable "group" {
 variable "icon" {
   type        = string
   description = "The icon to use for the app."
-  default     = "../../../../.icons/gemini.svg"
+  default     = "/icon/gemini.svg"
 }
 
 variable "folder" {
   type        = string
   description = "The folder to run Gemini in."
-  default     = "/home/coder"
+  default     = "/home/coder/project"
 }
 
 variable "auto_approve" {
@@ -74,8 +74,13 @@ variable "gemini_settings_json" {
 
 variable "gemini_api_key" {
   type        = string
-  description = "Gemini API Key"
+  description = "Gemini API Key (get one at https://makersuite.google.com/app/apikey). Required for automated setup and task execution."
   default     = ""
+  
+  validation {
+    condition     = can(regex("^AIza[0-9A-Za-z-_]{35}$", var.gemini_api_key)) || var.gemini_api_key == "" || can(regex("^test-", var.gemini_api_key))
+    error_message = "Gemini API key must start with 'AIza' and be 39 characters total, be empty to configure manually, or be a test key."
+  }
 }
 
 variable "use_vertexai" {
@@ -114,12 +119,12 @@ variable "post_install_script" {
   default     = null
 }
 
-data "coder_parameter" "ai_prompt" {
-  type        = "string"
-  name        = "AI Prompt"
+# AI Prompt can be passed via environment variable CODER_MCP_GEMINI_TASK_PROMPT
+# or by using a coder_parameter in your template (similar to Claude Code module)
+variable "ai_prompt" {
+  type        = string
+  description = "Initial prompt for the Gemini CLI. If empty, will check for CODER_MCP_GEMINI_TASK_PROMPT environment variable."
   default     = ""
-  description = "Initial prompt for the Gemini CLI"
-  mutable     = true
 }
 
 variable "additional_extensions" {
@@ -204,7 +209,7 @@ module "agentapi" {
      GOOGLE_GENAI_USE_VERTEXAI='${var.use_vertexai}' \
      GEMINI_MODEL='${var.gemini_model}' \
      GEMINI_START_DIRECTORY='${var.folder}' \
-     GEMINI_TASK_PROMPT='${base64encode(data.coder_parameter.ai_prompt.value)}' \
+     GEMINI_TASK_PROMPT='${base64encode(var.ai_prompt != "" ? var.ai_prompt : "")}' \
      /tmp/start.sh
    EOT
 

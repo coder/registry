@@ -137,8 +137,10 @@ function append_extensions_to_settings_json() {
     jq '.theme = "Default" | 
         .selectedAuthType = "gemini-api-key" |
         .autoApproveApiKey = true |
+        .geminicodeassist = (.geminicodeassist // {}) |
         .geminicodeassist.agentYoloMode = true |
-        .geminicodeassist.autoConfirm = true' "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
+        .geminicodeassist.autoConfirm = true |
+        .geminicodeassist.skipConfirmations = true' "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
 
     printf "[append_extensions_to_settings_json] Merge complete.\n"
 }

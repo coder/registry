@@ -17,6 +17,12 @@ printf "Version: %s\n" "$(gemini --version)"
 
 GEMINI_TASK_PROMPT=$(echo -n "$GEMINI_TASK_PROMPT" | base64 -d)
 
+# Check for environment variable as fallback (similar to Claude Code pattern)
+if [ -z "$GEMINI_TASK_PROMPT" ] && [ -n "${CODER_MCP_GEMINI_TASK_PROMPT:-}" ]; then
+    GEMINI_TASK_PROMPT="$CODER_MCP_GEMINI_TASK_PROMPT"
+    printf "Using GEMINI_TASK_PROMPT from environment variable\n"
+fi
+
 if command_exists gemini; then
     printf "Gemini is installed\n"
 else
@@ -52,9 +58,12 @@ else
 fi
 
 if [ -n "$GEMINI_API_KEY" ]; then
-    printf "gemini_api_key provided !\n"
+    printf "Gemini API key provided! ✓\n"
 else
-    printf "gemini_api_key not provided\n"
+    printf "⚠️  Warning: No Gemini API key provided.\n"
+    printf "   - You'll need to authenticate manually when prompted\n"
+    printf "   - For automated setup, add gemini_api_key variable to your template\n"
+    printf "   - Get an API key at: https://makersuite.google.com/app/apikey\n"
 fi
 
 # use low width to fit in the tasks UI sidebar. height is adjusted so that width x height ~= 80x1000 characters
