@@ -165,6 +165,54 @@ describe("agentapi", async () => {
       "ps -eo command | grep [a]gentapi",
     ]);
     expect(agentApiProcessOutput.exitCode).toBe(0);
-    expect(agentApiProcessOutput.stdout).toContain(`--chat-base-path /@default/default.foo/apps/agentapi-web/chat`);
+    expect(agentApiProcessOutput.stdout).toContain(
+      `--chat-base-path /@default/default.foo/apps/agentapi-web/chat`,
+    );
+  });
+
+  test("validate-agentapi-version", async () => {
+    const cases = [
+      {
+        moduleVariables: {
+          agentapi_version: "v0.3.2",
+          agentapi_subdomain: "false",
+        },
+        shouldThrow: "",
+      },
+      {
+        moduleVariables: {
+          agentapi_version: "v0.3.2",
+          agentapi_subdomain: "true",
+        },
+        shouldThrow: "",
+      },
+      {
+        moduleVariables: {
+          agentapi_version: "v0.3.1",
+          agentapi_subdomain: "false",
+        },
+        shouldThrow: "Running with subdomain = false is only supported by agentapi >= v0.3.2.",
+      },
+      {
+        moduleVariables: {
+          agentapi_version: "v0.3.1",
+          agentapi_subdomain: "true",
+        },
+        shouldThrow: "",
+      },
+      {
+        moduleVariables: {
+          agentapi_version: "arbitrary-string-bypasses-validation",
+        },
+        shouldThrow: "",
+      }
+    ];
+    for (const { moduleVariables, shouldThrow } of cases) {
+      if (shouldThrow) {
+        return expect(setup({ moduleVariables: moduleVariables as Record<string, string> })).rejects.toThrow(shouldThrow);
+      } else {
+        return expect(setup({ moduleVariables: moduleVariables as Record<string, string> })).resolves.toBeDefined();
+      }
+    }
   });
 });

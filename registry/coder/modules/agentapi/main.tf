@@ -130,6 +130,15 @@ variable "agentapi_subdomain" {
   type        = bool
   description = "Whether to use a subdomain for AgentAPI."
   default     = true
+  validation {
+    condition = var.agentapi_subdomain || (
+      # If version doesn't look like a valid semantic version, just allow it.
+      !can(regex("^v\\d+\\.\\d+\\.\\d+$", var.agentapi_version))
+      ||
+      can(regex("^v(0\\.(3\\.[2-9]+|[4-9]+\\.\\d+)|[1-9]\\d*\\.\\d+\\.\\d+)$", var.agentapi_version))
+    )
+    error_message = "Running with subdomain = false is only supported by agentapi >= v0.3.2."
+  }
 }
 
 variable "module_dir_name" {
@@ -147,8 +156,10 @@ locals {
   agentapi_start_script_b64          = base64encode(var.start_script)
   agentapi_wait_for_start_script_b64 = base64encode(file("${path.module}/scripts/agentapi-wait-for-start.sh"))
   // Chat base path is only set if not using a subdomain.
-  // NOTE: CODER_WORKSPACE_AGENT_NAME is a recent addition, so using agent ID
-  // for backward compatibility.
+  // NOTE:
+  //   - This requires agentapi version >= v0.3.2.
+  //   - As CODER_WORKSPACE_AGENT_NAME is a recent addition we use agent ID
+  //     for backward compatibility.
   agentapi_chat_base_path = var.agentapi_subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${var.web_app_slug}/chat"
   main_script             = file("${path.module}/scripts/main.sh")
 }
