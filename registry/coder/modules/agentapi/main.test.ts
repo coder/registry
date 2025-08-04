@@ -174,28 +174,28 @@ describe("agentapi", async () => {
     const cases = [
       {
         moduleVariables: {
-          agentapi_version: "v0.3.2",
+          agentapi_version: "v0.3.1",
           agentapi_subdomain: "false",
         },
         shouldThrow: "",
       },
       {
         moduleVariables: {
-          agentapi_version: "v0.3.2",
+          agentapi_version: "v0.3.1",
           agentapi_subdomain: "true",
         },
         shouldThrow: "",
       },
       {
         moduleVariables: {
-          agentapi_version: "v0.3.1",
+          agentapi_version: "v0.3.0",
           agentapi_subdomain: "false",
         },
-        shouldThrow: "Running with subdomain = false is only supported by agentapi >= v0.3.2.",
+        shouldThrow: "Running with subdomain = false is only supported by agentapi >= v0.3.1.",
       },
       {
         moduleVariables: {
-          agentapi_version: "v0.3.1",
+          agentapi_version: "v0.3.0",
           agentapi_subdomain: "true",
         },
         shouldThrow: "",
