@@ -157,7 +157,6 @@ Users need the following IAM permissions for full functionality:
 4. **AMI Selection**: The module outputs the appropriate AMI ID (default or selected snapshot)
 5. **Cleanup**: Optional DLM policies can automatically clean up old snapshots
 
-
 ## Considerations
 
 - **Cost**: AMI snapshots incur storage costs. Use cleanup policies to manage costs
