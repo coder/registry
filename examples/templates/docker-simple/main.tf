@@ -25,7 +25,7 @@ data "coder_parameter" "docker_image" {
   type         = "string"
   mutable      = false
   order        = 1
-  
+
   option {
     name  = "Ubuntu (Recommended)"
     value = "codercom/enterprise-base:ubuntu"
