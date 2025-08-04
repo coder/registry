@@ -319,4 +319,49 @@ describe("claude-code", async () => {
       agentApiUrl: "http://localhost:3284",
     });
   });
+
+  test("system-prompt", async () => {
+    // Test that system prompt is saved and used with --append-system-prompt flag
+    const systemPrompt = "You are a helpful coding assistant specialized in testing.";
+    const { id } = await setupContainer({
+      vars: {
+        system_prompt: systemPrompt,
+        folder: projectDir,
+      },
+    });
+    
+    await execContainer(id, ["bash", "-c", `mkdir -p '${projectDir}'`]);
+    await writeCoder(id, await loadTestFile("coder-mock.js"));
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/bin/agentapi",
+      content: await loadTestFile("agentapi-mock.js"),
+    });
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/bin/claude",
+      content: await loadTestFile("claude-mock.js"),
+    });
+
+    const respModuleScript = await execModuleScript(id);
+    expect(respModuleScript.exitCode).toBe(0);
+
+    // Check that the system prompt was saved
+    const systemPromptFile = await execContainer(id, [
+      "bash",
+      "-c", 
+      "cat /home/coder/.claude-module/system-prompt.txt",
+    ]);
+    expect(systemPromptFile.exitCode).toBe(0);
+    expect(systemPromptFile.stdout.trim()).toBe(systemPrompt);
+
+    // Check that agentapi-start.sh script uses --append-system-prompt
+    const startScript = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/scripts/agentapi-start.sh",
+    ]);
+    expect(startScript.exitCode).toBe(0);
+    expect(startScript.stdout).toContain("--append-system-prompt");
+  });
 });

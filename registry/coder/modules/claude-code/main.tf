@@ -103,6 +103,12 @@ variable "agentapi_version" {
   default     = "v0.3.0"
 }
 
+variable "system_prompt" {
+  type        = string
+  description = "System prompt to append to Claude Code's default system prompt using --append-system-prompt flag."
+  default     = ""
+}
+
 locals {
   # we have to trim the slash because otherwise coder exp mcp will
   # set up an invalid claude config 
@@ -211,6 +217,9 @@ resource "coder_script" "claude_code" {
 
     # save the prompt for the agentapi start command
     echo -n "$CODER_MCP_CLAUDE_TASK_PROMPT" > "$module_path/prompt.txt"
+
+    # save the system prompt for the agentapi start command
+    echo -n "${var.system_prompt}" > "$module_path/system-prompt.txt"
 
     echo -n "${local.agentapi_start_script_b64}" | base64 -d > "$module_path/scripts/agentapi-start.sh"
     echo -n "${local.agentapi_wait_for_start_script_b64}" | base64 -d > "$module_path/scripts/agentapi-wait-for-start.sh"

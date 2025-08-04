@@ -18,6 +18,7 @@ module "claude-code" {
   folder              = "/home/coder"
   install_claude_code = true
   claude_code_version = "latest"
+  system_prompt       = "You are a helpful coding assistant. Always test your code before suggesting it."
 }
 ```
 
@@ -68,16 +69,21 @@ data "coder_parameter" "ai_prompt" {
   mutable     = true
 }
 
-# Set the prompt and system prompt for Claude Code via environment variables
+data "coder_parameter" "system_prompt" {
+  type        = "string"
+  name        = "System Prompt"
+  default     = "You are a helpful assistant that can help with code."
+  description = "System prompt for Claude Code"
+  mutable     = true
+}
+
+# Set the prompt and API key for Claude Code via environment variables
 resource "coder_agent" "main" {
   # ...
   env = {
-    CODER_MCP_CLAUDE_API_KEY       = var.anthropic_api_key # or use a coder_parameter
-    CODER_MCP_CLAUDE_TASK_PROMPT   = data.coder_parameter.ai_prompt.value
-    CODER_MCP_APP_STATUS_SLUG      = "claude-code"
-    CODER_MCP_CLAUDE_SYSTEM_PROMPT = <<-EOT
-      You are a helpful assistant that can help with code.
-    EOT
+    CODER_MCP_CLAUDE_API_KEY     = var.anthropic_api_key # or use a coder_parameter
+    CODER_MCP_CLAUDE_TASK_PROMPT = data.coder_parameter.ai_prompt.value
+    CODER_MCP_APP_STATUS_SLUG    = "claude-code"
   }
 }
 
@@ -89,6 +95,9 @@ module "claude-code" {
   folder              = "/home/coder"
   install_claude_code = true
   claude_code_version = "1.0.40"
+
+  # System prompt is now passed directly to the module
+  system_prompt = data.coder_parameter.system_prompt.value
 
   # Enable experimental features
   experiment_report_tasks = true
@@ -107,6 +116,7 @@ module "claude-code" {
   folder              = "/home/coder"
   install_claude_code = true
   claude_code_version = "latest"
+  system_prompt       = "You are a helpful coding assistant specialized in this project."
 
   # Icon is not available in Coder v2.20 and below, so we'll use a custom icon URL
   icon = "https://registry.npmmirror.com/@lobehub/icons-static-png/1.24.0/files/dark/claude-color.png"
@@ -116,3 +126,13 @@ module "claude-code" {
 ## Troubleshooting
 
 The module will create log files in the workspace's `~/.claude-module` directory. If you run into any issues, look at them for more information.
+
+## Migration from CODER_MCP_CLAUDE_SYSTEM_PROMPT
+
+Previously, system prompts were set using the `CODER_MCP_CLAUDE_SYSTEM_PROMPT` environment variable. The module now uses the `--append-system-prompt` CLI flag, which provides more reliable behavior. 
+
+To migrate:
+1. Remove `CODER_MCP_CLAUDE_SYSTEM_PROMPT` from your agent environment variables
+2. Add the `system_prompt` parameter to your `claude-code` module configuration
+
+The new approach using `--append-system-prompt` ensures that the system prompt is consistently applied and makes the configuration more explicit.

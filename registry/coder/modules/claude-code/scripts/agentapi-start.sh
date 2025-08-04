@@ -31,10 +31,19 @@ function start_agentapi() {
     local continue_flag="$1"
     local prompt_subshell='"$(cat /tmp/claude-code-prompt)"'
     
+    # Check if system prompt file exists and has content
+    local system_prompt_arg=""
+    if [ -f "$module_path/system-prompt.txt" ] && [ -s "$module_path/system-prompt.txt" ]; then
+        local system_prompt_content="$(cat "$module_path/system-prompt.txt")"
+        if [ -n "$system_prompt_content" ]; then
+            system_prompt_arg="--append-system-prompt \"$system_prompt_content\""
+        fi
+    fi
+    
     # use low width to fit in the tasks UI sidebar. height is adjusted so that width x height ~= 80x1000 characters
     # visible in the terminal screen by default.
     agentapi server --term-width 67 --term-height 1190 -- \
-        bash -c "claude $continue_flag --dangerously-skip-permissions $prompt_subshell" \
+        bash -c "claude $continue_flag --dangerously-skip-permissions $system_prompt_arg $prompt_subshell" \
         > "$log_file_path" 2>&1
 }
 
