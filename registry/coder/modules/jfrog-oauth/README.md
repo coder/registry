@@ -27,12 +27,13 @@ module "jfrog" {
     pypi   = ["pypi", "extra-index-pypi"]
     docker = ["example-docker-staging.jfrog.io", "example-docker-production.jfrog.io"]
     maven  = ["maven-local", "maven-virtual"]
+    conda  = ["conda-local", "conda-virtual"]
   }
 }
 ```
 
 > Note
-> This module does not install `npm`, `go`, `pip`, `mvn`, etc but only configure them. You need to handle the installation of these tools yourself.
+> This module does not install `npm`, `go`, `pip`, `mvn`, `conda`, etc but only configure them. You need to handle the installation of these tools yourself.
 
 ## Prerequisites
 
@@ -94,6 +95,33 @@ jf mvn clean install
 mvn clean install
 ```
 
+### Configure conda to fetch packages from Artifactory
+
+```tf
+module "jfrog" {
+  count          = data.coder_workspace.me.start_count
+  source         = "registry.coder.com/coder/jfrog-oauth/coder"
+  version        = "1.0.31"
+  agent_id       = coder_agent.example.id
+  jfrog_url      = "https://example.jfrog.io"
+  username_field = "email"
+
+  package_managers = {
+    conda = ["conda-local", "conda-virtual"]
+  }
+}
+```
+
+You should now be able to install packages from Artifactory using both the `jf conda` and `conda` command.
+
+```shell
+jf conda install numpy
+```
+
+```shell
+conda install numpy
+```
+
 ### Configure code-server with JFrog extension
 
 The [JFrog extension](https://open-vsx.org/extension/JFrog/jfrog-vscode-extension) for VS Code allows you to interact with Artifactory from within the IDE.
@@ -112,6 +140,7 @@ module "jfrog" {
     go    = ["go"]
     pypi  = ["pypi"]
     maven = ["maven-local"]
+    conda = ["conda-local"]
   }
 }
 ```

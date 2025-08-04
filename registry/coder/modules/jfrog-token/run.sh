@@ -80,6 +80,25 @@ EOF
   config_complete
 fi
 
+# Configure conda to use the Artifactory "conda" repository.
+if [ -z "${HAS_CONDA}" ]; then
+  not_configured conda
+else
+  echo "🐍 Configuring conda..."
+  if command -v conda > /dev/null 2>&1; then
+    cat << EOF > ~/.condarc
+${CONDARC}
+EOF
+    config_complete
+  else
+    echo "🤔 conda is not installed, creating .condarc for future use..."
+    cat << EOF > ~/.condarc
+${CONDARC}
+EOF
+    echo "📝 .condarc file created. Install conda to use this configuration."
+  fi
+fi
+
 # Configure the JFrog CLI to use the Artifactory "docker" repository.
 if [ -z "${HAS_DOCKER}" ]; then
   not_configured docker

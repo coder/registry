@@ -23,6 +23,7 @@ module "jfrog" {
     pypi   = ["pypi", "extra-index-pypi"]
     docker = ["example-docker-staging.jfrog.io", "example-docker-production.jfrog.io"]
     maven  = ["maven-local", "maven-virtual"]
+    conda  = ["conda-local", "conda-virtual"]
   }
 }
 ```
@@ -30,13 +31,13 @@ module "jfrog" {
 For detailed instructions, please see this [guide](https://coder.com/docs/v2/latest/guides/artifactory-integration#jfrog-token) on the Coder documentation.
 
 > Note
-> This module does not install `npm`, `go`, `pip`, `mvn`, etc but only configure them. You need to handle the installation of these tools yourself.
+> This module does not install `npm`, `go`, `pip`, `mvn`, `conda`, etc but only configure them. You need to handle the installation of these tools yourself.
 
 ![JFrog](../../.images/jfrog.png)
 
 ## Examples
 
-### Configure npm, go, and pypi to use Artifactory local repositories
+### Configure npm, go, pypi, maven, and conda to use Artifactory local repositories
 
 ```tf
 module "jfrog" {
@@ -46,21 +47,23 @@ module "jfrog" {
   jfrog_url                = "https://YYYY.jfrog.io"
   artifactory_access_token = var.artifactory_access_token # An admin access token
   package_managers = {
-    npm  = ["npm-local"]
-    go   = ["go-local"]
-    pypi = ["pypi-local"]
+    npm   = ["npm-local"]
+    go    = ["go-local"]
+    pypi  = ["pypi-local"]
     maven = ["maven-local"]
+    conda = ["conda-local"]
   }
 }
 ```
 
-You should now be able to install packages from Artifactory using both the `jf npm`, `jf go`, `jf pip`, `jf mvn` and `npm`, `go`, `pip`, `mvn` commands.
+You should now be able to install packages from Artifactory using both the `jf npm`, `jf go`, `jf pip`, `jf mvn`, `jf conda` and `npm`, `go`, `pip`, `mvn`, `conda` commands.
 
 ```shell
 jf npm install prettier
 jf go get github.com/golang/example/hello
 jf pip install requests
 jf mvn clean install
+jf conda install numpy
 ```
 
 ```shell
@@ -68,6 +71,32 @@ npm install prettier
 go get github.com/golang/example/hello
 pip install requests
 mvn clean install
+conda install numpy
+```
+
+### Configure conda to fetch packages from Artifactory
+
+```tf
+module "jfrog" {
+  source                   = "registry.coder.com/coder/jfrog-token/coder"
+  version                  = "1.0.31"
+  agent_id                 = coder_agent.example.id
+  jfrog_url                = "https://YYYY.jfrog.io"
+  artifactory_access_token = var.artifactory_access_token
+  package_managers = {
+    conda = ["conda-local", "conda-virtual"]
+  }
+}
+```
+
+You should now be able to install packages from Artifactory using both the `jf conda` and `conda` command.
+
+```shell
+jf conda install numpy
+```
+
+```shell
+conda install numpy
 ```
 
 ### Configure code-server with JFrog extension
