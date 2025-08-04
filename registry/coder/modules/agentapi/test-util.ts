@@ -30,7 +30,7 @@ export const setupContainer = async ({
         console.log(`Not removing container ${id} in debug mode`);
         console.log(`Run "docker rm -f ${id}" to remove it manually.`);
       } else {
-        removeContainer(id)
+        removeContainer(id);
       }
       return Promise.resolve();
     }
