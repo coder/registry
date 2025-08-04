@@ -125,36 +125,7 @@ variable "ai_prompt" {
 locals {
   encoded_pre_install_script  = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
   encoded_post_install_script = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
-  # We need to use allowed tools to limit the context Amazon Q receives.
-  # Amazon Q can't handle big contexts, and the `create_template_version` tool
-  # has a description that's too long.
-  mcp_json         = <<EOT
-    {
-      "mcpServers": {
-        "coder": {
-          "args": [
-            "exp",
-            "mcp",
-            "server",
-            "--allowed-tools",
-            "coder_report_task"
-          ],
-          "cmd": "coder",
-          "description": "Report ALL tasks and statuses (in progress, done, failed) you are working on.",
-          "enabled": true,
-          "env": {
-            "CODER_MCP_APP_STATUS_SLUG": "amazon-q",
-            "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284"
-          },
-          "name": "Coder",
-          "timeout": 3000,
-          "type": "stdio"
-        }
-      }
-    }
-  EOT
-  encoded_mcp_json = base64encode(local.mcp_json)
-  full_prompt      = <<-EOT
+
     ${var.system_prompt}
 
     Your first task is:
@@ -242,6 +213,12 @@ resource "coder_script" "amazon_q" {
     cd "$PREV_DIR"
     echo "Extracted auth tarball"
 
+    if [ "${var.experiment_report_tasks}" = "true" ]; then
+      echo "Configuring Amazon Q to report tasks via Coder MCP..."
+      q mcp add --name coder --command "coder" --args "exp,mcp,server,--allowed-tools,coder_report_task" --env "CODER_MCP_APP_STATUS_SLUG=amazon-q" --scope global --force
+      echo "Added Coder MCP server to Amazon Q configuration"
+    fi
+
     if [ -n "${local.encoded_post_install_script}" ]; then
       echo "Running post-install script..."
       echo "${local.encoded_post_install_script}" | base64 -d > /tmp/post_install.sh
@@ -249,15 +226,7 @@ resource "coder_script" "amazon_q" {
       /tmp/post_install.sh
     fi
 
-    if [ "${var.experiment_report_tasks}" = "true" ]; then
-      echo "Configuring Amazon Q to report tasks via Coder MCP..."
-      mkdir -p ~/.aws/amazonq
-      echo "${local.encoded_mcp_json}" | base64 -d > ~/.aws/amazonq/mcp.json
-      echo "Created the ~/.aws/amazonq/mcp.json configuration file"
-    fi
 
-    if ! command_exists q; then
-      echo "Error: Amazon Q is not installed. Please enable install_amazon_q or install it manually."
       exit 1
     fi
 
