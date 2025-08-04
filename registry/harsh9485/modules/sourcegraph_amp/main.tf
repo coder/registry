@@ -152,7 +152,6 @@ module "agentapi" {
     chmod +x /tmp/install.sh
     ARG_INSTALL_SOURCEGRAPH_AMP='${var.install_sourcegraph-amp}' \
     SOURCEGRAPH_AMP_START_DIRECTORY='${var.folder}' \
-    SOURCEGRAPH_AMP_API_KEY='${var.sourcegraph-amp_api_key}' \
     BASE_EXTENSIONS='${replace(local.base_extensions, "'", "'\\''")}' \
     /tmp/install.sh
   EOT

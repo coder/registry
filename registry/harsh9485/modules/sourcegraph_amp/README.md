@@ -5,7 +5,7 @@ icon: ../../../../.icons/sourcegraph-amp.svg
 description: Run Sourcegraph AMP CLI in your workspace with AgentAPI integration
 verified: true
 tags: \[agent, sourcegraph, amp, ai, tasks]
--------------------------------------------
+---
 
 # Sourcegraph AMP CLI
 
