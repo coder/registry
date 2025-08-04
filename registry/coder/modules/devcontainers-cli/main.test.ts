@@ -45,12 +45,16 @@ const executeScriptInContainerWithPackageManager = async (
 
   console.log(path);
 
+  await execContainer(id, [shell, "-c", "mkdir -p /tmp/coder-script-data"]);
+
   const resp = await execContainer(
     id,
     [shell, "-c", instance.script],
     [
       "--env",
       "CODER_SCRIPT_BIN_DIR=/tmp/coder-script-data/bin",
+      "--env",
+      "CODER_SCRIPT_DATA_DIR=/tmp/coder-script-data",
       "--env",
       `PATH=${path}:/tmp/coder-script-data/bin`,
     ],
