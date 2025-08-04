@@ -162,4 +162,31 @@ EOF`;
       'if [ -z "YES" ]; then\n  not_configured go',
     );
   });
+
+  it("generates a Maven settings.xml with repositories", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "some-agent-id",
+      jfrog_url: fakeFrogUrl,
+      artifactory_access_token: "XXXX",
+      package_managers: JSON.stringify({
+        maven: ["maven-local", "maven-virtual"],
+      }),
+    });
+    const coderScript = findResourceInstance(state, "coder_script");
+    
+    // Check that Maven configuration is enabled
+    expect(coderScript.script).toContain(
+      'jf mvnc --global --repo-resolve "maven-local"',
+    );
+    expect(coderScript.script).toContain(
+      'if [ -z "YES" ]; then\n  not_configured maven',
+    );
+    
+    // Check that settings.xml contains the repositories
+    expect(coderScript.script).toContain("~/.m2/settings.xml");
+    expect(coderScript.script).toContain("<id>maven-local</id>");
+    expect(coderScript.script).toContain("<id>maven-virtual</id>");
+    expect(coderScript.script).toContain(`<url>${fakeFrogUrl}/artifactory/maven-local</url>`);
+    expect(coderScript.script).toContain(`<url>${fakeFrogUrl}/artifactory/maven-virtual</url>`);
+  });
 });

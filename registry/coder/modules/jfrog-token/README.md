@@ -22,6 +22,7 @@ module "jfrog" {
     go     = ["go", "another-go-repo"]
     pypi   = ["pypi", "extra-index-pypi"]
     docker = ["example-docker-staging.jfrog.io", "example-docker-production.jfrog.io"]
+    maven  = ["maven-local", "maven-virtual"]
   }
 }
 ```
@@ -29,7 +30,7 @@ module "jfrog" {
 For detailed instructions, please see this [guide](https://coder.com/docs/v2/latest/guides/artifactory-integration#jfrog-token) on the Coder documentation.
 
 > Note
-> This module does not install `npm`, `go`, `pip`, etc but only configure them. You need to handle the installation of these tools yourself.
+> This module does not install `npm`, `go`, `pip`, `mvn`, etc but only configure them. You need to handle the installation of these tools yourself.
 
 ![JFrog](../../.images/jfrog.png)
 
@@ -48,22 +49,25 @@ module "jfrog" {
     npm  = ["npm-local"]
     go   = ["go-local"]
     pypi = ["pypi-local"]
+    maven = ["maven-local"]
   }
 }
 ```
 
-You should now be able to install packages from Artifactory using both the `jf npm`, `jf go`, `jf pip` and `npm`, `go`, `pip` commands.
+You should now be able to install packages from Artifactory using both the `jf npm`, `jf go`, `jf pip`, `jf mvn` and `npm`, `go`, `pip`, `mvn` commands.
 
 ```shell
 jf npm install prettier
 jf go get github.com/golang/example/hello
 jf pip install requests
+jf mvn clean install
 ```
 
 ```shell
 npm install prettier
 go get github.com/golang/example/hello
 pip install requests
+mvn clean install
 ```
 
 ### Configure code-server with JFrog extension
@@ -79,9 +83,10 @@ module "jfrog" {
   artifactory_access_token = var.artifactory_access_token
   configure_code_server    = true # Add JFrog extension configuration for code-server
   package_managers = {
-    npm  = ["npm"]
-    go   = ["go"]
-    pypi = ["pypi"]
+    npm   = ["npm"]
+    go    = ["go"]
+    pypi  = ["pypi"]
+    maven = ["maven-local"]
   }
 }
 ```
@@ -100,6 +105,7 @@ module "jfrog" {
   token_description        = "Token for Coder workspace: ${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}"
   package_managers = {
     npm = ["npm"]
+    maven = ["maven-local"]
   }
 }
 ```

@@ -26,12 +26,13 @@ module "jfrog" {
     go     = ["go", "another-go-repo"]
     pypi   = ["pypi", "extra-index-pypi"]
     docker = ["example-docker-staging.jfrog.io", "example-docker-production.jfrog.io"]
+    maven  = ["maven-local", "maven-virtual"]
   }
 }
 ```
 
 > Note
-> This module does not install `npm`, `go`, `pip`, etc but only configure them. You need to handle the installation of these tools yourself.
+> This module does not install `npm`, `go`, `pip`, `mvn`, etc but only configure them. You need to handle the installation of these tools yourself.
 
 ## Prerequisites
 
@@ -66,6 +67,33 @@ jf pip install requests
 pip install requests
 ```
 
+### Configure Maven to fetch packages from Artifactory
+
+```tf
+module "jfrog" {
+  count          = data.coder_workspace.me.start_count
+  source         = "registry.coder.com/coder/jfrog-oauth/coder"
+  version        = "1.0.31"
+  agent_id       = coder_agent.example.id
+  jfrog_url      = "https://example.jfrog.io"
+  username_field = "email"
+
+  package_managers = {
+    maven = ["maven-local", "maven-virtual"]
+  }
+}
+```
+
+You should now be able to build and install packages from Artifactory using both the `jf mvn` and `mvn` command.
+
+```shell
+jf mvn clean install
+```
+
+```shell
+mvn clean install
+```
+
 ### Configure code-server with JFrog extension
 
 The [JFrog extension](https://open-vsx.org/extension/JFrog/jfrog-vscode-extension) for VS Code allows you to interact with Artifactory from within the IDE.
@@ -80,9 +108,10 @@ module "jfrog" {
   username_field        = "username" # If you are using GitHub to login to both Coder and Artifactory, use username_field = "username"
   configure_code_server = true       # Add JFrog extension configuration for code-server
   package_managers = {
-    npm  = ["npm"]
-    go   = ["go"]
-    pypi = ["pypi"]
+    npm   = ["npm"]
+    go    = ["go"]
+    pypi  = ["pypi"]
+    maven = ["maven-local"]
   }
 }
 ```
