@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 # If @devcontainers/cli is already installed, we can skip
 if command -v devcontainer >/dev/null 2>&1; then
