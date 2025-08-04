@@ -334,6 +334,49 @@ module "code-server" {
   order    = 1
 }
 
+# Auto-start development servers based on project detection
+module "dev_server_autostart" {
+  count  = data.coder_workspace.me.start_count
+  source = "registry.coder.com/coder/dev-server-autostart/coder"
+
+  # This ensures that the latest non-breaking version of the module gets downloaded
+  version = "~> 1.0"
+
+  agent_id = coder_agent.main.id
+  
+  # Configuration for devcontainer workspaces
+  work_dir                 = "/workspaces"
+  scan_subdirectories     = true
+  max_depth               = 3
+  
+  # Enable devcontainer.json integration
+  devcontainer_integration = true
+  
+  # Automatically install dependencies
+  auto_install_deps       = true
+  
+  # Custom commands for better devcontainer compatibility
+  custom_commands = {
+    "node"    = "npm run dev || npm run start || npm start"
+    "nextjs"  = "npm run dev"
+    "python"  = "python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+    "django"  = "python manage.py runserver 0.0.0.0:8000"
+    "fastapi" = "uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+    "flask"   = "python -m flask run --host=0.0.0.0 --port=5000"
+    "rails"   = "rails server -b 0.0.0.0 -p 3000"
+    "go"      = "go run ."
+    "java"    = "mvn spring-boot:run || gradle bootRun"
+  }
+  
+  # Wait a bit longer for devcontainer to fully initialize
+  startup_delay        = 15
+  health_check_enabled = true
+  timeout_seconds      = 600  # Longer timeout for initial dependency installation
+  
+  # More verbose logging for debugging
+  log_level = "info"
+}
+
 # See https://registry.coder.com/modules/coder/jetbrains-gateway
 module "jetbrains_gateway" {
   count  = data.coder_workspace.me.start_count
@@ -368,5 +411,25 @@ resource "coder_metadata" "container_info" {
   item {
     key   = "cache repo"
     value = var.cache_repo == "" ? "not enabled" : var.cache_repo
+  }
+  item {
+    key   = "auto-start servers"
+    value = "Development servers will automatically start based on detected project types"
+  }
+  item {
+    key   = "supported frameworks"
+    value = "Node.js, Python, Ruby, Go, Java, PHP, Next.js, React, Vue.js, Angular, Django, FastAPI, Flask, Rails"
+  }
+  item {
+    key   = "devcontainer integration"
+    value = "Executes postCreateCommand, postStartCommand from devcontainer.json"
+  }
+  item {
+    key   = "server logs"
+    value = "View with: tail -f /tmp/dev-server-autostart/server.log"
+  }
+  item {
+    key   = "running servers"
+    value = "List with: tmux list-sessions | grep dev-server"
   }
 }

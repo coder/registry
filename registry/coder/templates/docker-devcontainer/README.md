@@ -37,11 +37,44 @@ This template provisions the following resources:
 - Docker image (persistent) using [`envbuilder`](https://github.com/coder/envbuilder)
 - Docker container (ephemeral)
 - Docker volume (persistent on `/workspaces`)
+- **Development Server Auto-Start**: Automatically detects and starts development servers based on project type
 
 The Git repository is cloned inside the `/workspaces` volume if not present.
 Any local changes to the Devcontainer files inside the volume will be applied when you restart the workspace.
 Keep in mind that any tools or files outside of `/workspaces` or not added as part of the Devcontainer specification are not persisted.
 Edit the `devcontainer.json` instead!
+
+### Development Server Auto-Start
+
+This template includes automatic development server detection and startup:
+
+- **Automatic Detection**: Scans `/workspaces` for common project files (package.json, requirements.txt, go.mod, etc.)
+- **Multi-Framework Support**: Supports Node.js, Python, Ruby, Go, Java, PHP and their popular frameworks
+- **Devcontainer Integration**: Executes `postCreateCommand`, `postStartCommand`, and `postAttachCommand` from devcontainer.json
+- **Background Execution**: Runs servers in tmux sessions without blocking the terminal
+- **Health Monitoring**: Basic health checks for started servers
+
+#### Supported Project Types
+
+| Framework | Detection File(s) | Auto-Start Command |
+|-----------|------------------|-------------------|
+| Next.js | `next.config.js` | `npm run dev` |
+| React/Node.js | `package.json` | `npm run dev` or `npm start` |
+| Angular | `angular.json` | `ng serve` |
+| Vue.js | `vue.config.js` | `npm run serve` |
+| Django | `manage.py` | `python manage.py runserver 0.0.0.0:8000` |
+| FastAPI | `main.py` with FastAPI | `uvicorn main:app --reload --host 0.0.0.0` |
+| Flask | `app.py` with Flask | `python -m flask run --host=0.0.0.0` |
+| Ruby on Rails | `Gemfile` + `config/application.rb` | `rails server -b 0.0.0.0` |
+| Go | `go.mod` | `go run .` |
+| Java/Spring | `pom.xml` or `build.gradle` | `mvn spring-boot:run` or `gradle bootRun` |
+
+#### Monitoring Development Servers
+
+- **View running servers**: `tmux list-sessions | grep dev-server`
+- **Attach to a server**: `tmux attach-session -t dev-server-<type>-<project>`
+- **View server logs**: `tail -f /tmp/dev-server-autostart/server.log`
+- **View auto-start logs**: `tail -f /tmp/dev-server-autostart/autostart.log`
 
 > **Note**
 > This template is designed to be a starting point! Edit the Terraform to extend the template to support your use case.
