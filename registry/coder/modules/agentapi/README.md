@@ -1,21 +1,22 @@
 ---
 display_name: AgentAPI
-description: Building block for modules that need to run an agentapi server
+description: Building block for modules that need to run an AgentAPI server
 icon: ../../../../.icons/coder.svg
 verified: true
-tags: [internal]
+tags: [internal, library]
 ---
 
 # AgentAPI
 
-The AgentAPI module is a building block for modules that need to run an agentapi server. It is intended primarily for internal use by Coder to create modules compatible with Tasks.
+> [!CAUTION]
+> We do not recommend using this module directly. Instead, please consider using one of our [Tasks-compatible AI agent modules](https://registry.coder.com/modules?search=tag%3Atasks).
 
-We do not recommend using this module directly. Instead, please consider using one of our [Tasks-compatible AI agent modules](https://registry.coder.com/modules?search=tag%3Atasks).
+The AgentAPI module is a building block for modules that need to run an AgentAPI server. It is intended primarily for internal use by Coder to create modules compatible with Tasks.
 
 ```tf
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.0.1"
+  version = "1.0.2"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
@@ -50,4 +51,4 @@ module "agentapi" {
 
 ## For module developers
 
-For a complete example of how to use this module, see the [goose module](https://github.com/coder/registry/blob/main/registry/coder/modules/goose/main.tf).
+For a complete example of how to use this module, see the [Goose module](https://github.com/coder/registry/blob/main/registry/coder/modules/goose/main.tf).

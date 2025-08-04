@@ -289,3 +289,11 @@ resource "coder_ai_task" "claude_code" {
     id = coder_app.claude_code_web.id
   }
 }
+
+# As of https://github.com/coder/coder/commit/6ba4b5bbc95e2e528d7f5b1e31fffa200ae1a6db,
+# there's a bug in Coder's Terraform statefile parsing which prevents it from seeing coder_apps
+# in certain scenarios. This is a workaround to bypass this bug until we have a proper fix.
+# For more details see https://github.com/coder/coder/issues/18776
+resource "terraform_data" "claude_code_app_id" {
+  input = coder_app.claude_code_web.id
+}
