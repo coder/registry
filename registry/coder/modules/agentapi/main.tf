@@ -126,6 +126,12 @@ variable "agentapi_port" {
   default     = 3284
 }
 
+variable "agentapi_subdomain" {
+  type        = bool
+  description = "Whether to use a subdomain for AgentAPI."
+  default     = true
+}
+
 variable "module_dir_name" {
   type        = string
   description = "Name of the subdirectory in the home directory for module files."
@@ -140,7 +146,11 @@ locals {
   encoded_post_install_script        = var.post_install_script != null ? base64encode(var.post_install_script) : ""
   agentapi_start_script_b64          = base64encode(var.start_script)
   agentapi_wait_for_start_script_b64 = base64encode(file("${path.module}/scripts/agentapi-wait-for-start.sh"))
-  main_script                        = file("${path.module}/scripts/main.sh")
+  // Chat base path is only set if not using a subdomain.
+  // NOTE: CODER_WORKSPACE_AGENT_NAME is a recent addition, so using agent ID
+  // for backward compatibility.
+  agentapi_chat_base_path = var.agentapi_subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${var.web_app_slug}/chat"
+  main_script             = file("${path.module}/scripts/main.sh")
 }
 
 resource "coder_script" "agentapi" {
@@ -165,6 +175,7 @@ resource "coder_script" "agentapi" {
     ARG_WAIT_FOR_START_SCRIPT="$(echo -n '${local.agentapi_wait_for_start_script_b64}' | base64 -d)" \
     ARG_POST_INSTALL_SCRIPT="$(echo -n '${local.encoded_post_install_script}' | base64 -d)" \
     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
+    ARG_AGENTAPI_CHAT_BASE_PATH='${local.agentapi_chat_base_path}' \
     /tmp/main.sh
     EOT
   run_on_start = true
@@ -178,7 +189,7 @@ resource "coder_app" "agentapi_web" {
   icon         = var.web_app_icon
   order        = var.web_app_order
   group        = var.web_app_group
-  subdomain    = true
+  subdomain    = var.agentapi_subdomain
   healthcheck {
     url       = "http://localhost:${var.agentapi_port}/status"
     interval  = 3

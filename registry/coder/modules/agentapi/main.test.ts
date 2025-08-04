@@ -148,4 +148,23 @@ describe("agentapi", async () => {
     ]);
     expect(respAgentAPI.exitCode).toBe(0);
   });
+
+  test("no-subdomain-base-path", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        agentapi_subdomain: "false",
+      },
+    });
+
+    const respModuleScript = await execModuleScript(id);
+    expect(respModuleScript.exitCode).toBe(0);
+
+    const agentApiProcessOutput = await execContainer(id, [
+      "bash",
+      "-c",
+      "ps -eo command | grep [a]gentapi",
+    ]);
+    expect(agentApiProcessOutput.exitCode).toBe(0);
+    expect(agentApiProcessOutput.stdout).toContain(`--chat-base-path /@default/default.foo/apps/agentapi-web/chat`);
+  });
 });
