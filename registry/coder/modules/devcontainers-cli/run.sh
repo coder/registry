@@ -1,4 +1,10 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
+
+# We want to cd into `$CODER_SCRIPT_DATA_DIR` as the current directory
+# might contain a `package.json` with `packageManager` set to something
+# other than the detected package manager. When this happens, it can
+# cause the installation to fail.
+cd "$CODER_SCRIPT_DATA_DIR"
 
 # If @devcontainers/cli is already installed, we can skip
 if command -v devcontainer >/dev/null 2>&1; then
@@ -38,12 +44,7 @@ install() {
         fi
         pnpm add -g @devcontainers/cli
     elif [ "$PACKAGE_MANAGER" = "yarn" ]; then
-        # We want to cd into `$CODER_SCRIPT_DATA_DIR` as the current directory
-        # might contain a `package.json` with `packageManager` set to something
-        # other than `yarn`. When this happens, `yarn global add` will fail to install.
-        pushd "$CODER_SCRIPT_DATA_DIR" && \
-            yarn global add @devcontainers/cli --prefix "$(dirname "$CODER_SCRIPT_BIN_DIR")" && \
-            popd
+        yarn global add @devcontainers/cli --prefix "$(dirname "$CODER_SCRIPT_BIN_DIR")"
     fi
 }
 

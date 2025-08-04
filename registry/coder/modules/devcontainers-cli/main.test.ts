@@ -23,9 +23,6 @@ const executeScriptInContainerWithPackageManager = async (
   const instance = findResourceInstance(state, "coder_script");
   const id = await runContainer(image);
 
-  // Install bash
-  await execContainer(id, [shell, "-c", "apk add bash"]);
-
   // Install the specified package manager
   if (packageManager === "npm") {
     await execContainer(id, [shell, "-c", "apk add nodejs npm"]);
@@ -52,7 +49,7 @@ const executeScriptInContainerWithPackageManager = async (
 
   const resp = await execContainer(
     id,
-    ["bash", "-c", instance.script],
+    [shell, "-c", instance.script],
     [
       "--env",
       "CODER_SCRIPT_BIN_DIR=/tmp/coder-script-data/bin",
