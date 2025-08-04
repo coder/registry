@@ -16,7 +16,7 @@ module "codex" {
   version          = "1.0.0"
   agent_id         = coder_agent.example.id
   openai_api_key   = var.openai_api_key
-  agentapi_version = "v0.3.0"
+  agentapi_version = "v0.3.2"
 }
 ```
 
@@ -41,7 +41,7 @@ module "codex" {
   codex_version       = "latest"
   folder              = "/home/coder/project"
   codex_system_prompt = "You are a helpful coding assistant. Start every response with `Codex says:`"
-  agentapi_version    = "v0.3.0"
+  agentapi_version    = "v0.3.2"
 }
 ```
 
@@ -69,7 +69,7 @@ module "codex" {
   agent_id         = coder_agent.example.id
   openai_api_key   = "..."
   ai_prompt        = data.coder_parameter.ai_prompt.value
-  agentapi_version = "v0.3.0"
+  agentapi_version = "v0.3.2"
 }
 ```
 
