@@ -209,9 +209,9 @@ describe("agentapi", async () => {
     ];
     for (const { moduleVariables, shouldThrow } of cases) {
       if (shouldThrow) {
-        return expect(setup({ moduleVariables: moduleVariables as Record<string, string> })).rejects.toThrow(shouldThrow);
+        expect(setup({ moduleVariables: moduleVariables as Record<string, string> })).rejects.toThrow(shouldThrow);
       } else {
-        return expect(setup({ moduleVariables: moduleVariables as Record<string, string> })).resolves.toBeDefined();
+        expect(setup({ moduleVariables: moduleVariables as Record<string, string> })).resolves.toBeDefined();
       }
     }
   });
