@@ -31,5 +31,10 @@ else
     GOOSE_ARGS=()
 fi
 
+if [ -n "${AGENTAPI_CHAT_BASE_PATH:-}" ]; then
+    echo "Using AGENTAPI_CHAT_BASE_PATH: $AGENTAPI_CHAT_BASE_PATH"
+    export AGENTAPI_CHAT_BASE_PATH
+fi
+
 agentapi server --term-width 67 --term-height 1190 -- \
     bash -c "$(printf '%q ' "$GOOSE_CMD" "${GOOSE_ARGS[@]}")"
