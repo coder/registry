@@ -159,15 +159,12 @@ describe("agentapi", async () => {
     const respModuleScript = await execModuleScript(id);
     expect(respModuleScript.exitCode).toBe(0);
 
-    const agentApiProcessOutput = await execContainer(id, [
-      "bash",
-      "-c",
-      "ps -eo command | grep [a]gentapi",
-    ]);
-    expect(agentApiProcessOutput.exitCode).toBe(0);
-    expect(agentApiProcessOutput.stdout).toContain(
-      `--chat-base-path /@default/default.foo/apps/agentapi-web/chat`,
+    await expectAgentAPIStarted(id);
+    const agentApiStartLog = await readFileContainer(
+      id,
+      "/home/coder/test-agentapi-start.log",
     );
+    expect(agentApiStartLog).toContain("Using AGENTAPI_CHAT_BASE_PATH: /@default/default.foo/apps/agentapi-web/chat");
   });
 
   test("validate-agentapi-version", async () => {
