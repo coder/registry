@@ -65,13 +65,18 @@ module "coder-login" {
 }
 
 module "codex" {
-  source           = "/Users/jkmr/Documents/work/registry/registry/coder-labs/modules/codex"
+  source           = "registry.coder.com/coder-labs/codex/coder"
   agent_id         = coder_agent.example.id
   openai_api_key   = "..."
   ai_prompt        = data.coder_parameter.ai_prompt.value
   agentapi_version = "v0.3.2"
 }
 ```
+
+> **Security Notice**: This module uses the `--dangerously-bypass-approvals-and-sandbox` flag when running Codex CLI. This flag
+> bypasses standard permission checks and allows Codex CLI broader access to your system than normally permitted. While
+> this enables more functionality, it also means Codex CLI can potentially execute commands with the same privileges as
+> the user running it. Use this module _only_ in trusted environments and be aware of the security implications.
 
 ## How it Works
 
@@ -82,13 +87,12 @@ module "codex" {
 
 ## Troubleshooting
 
-- Check logs in `/home/coder/.codex-module/` for install/start output
+- Check installation and startup logs in `~/.codex-module/`
 - Ensure your OpenAI API key has access to the specified model
 
 > [!IMPORTANT]
 > To use tasks with Codex CLI, ensure you have the `openai_api_key` variable set, and **you create an `ai_prompt` `coder_parameter` and pass it's value to codex `ai_prompt` variable**. [Tasks Template Example](https://registry.coder.com/templates/coder-labs/tasks-docker).
 > The module automatically configures Codex with your API key and model preferences.
-> Tasks are run with `--dangerously-bypass-approvals-and-sandbox`
 
 ## References
 
