@@ -9,14 +9,19 @@ command_exists() {
 
 set -o nounset
 
-ARG_CODEX_CONFIG=$(echo -n "$ARG_CODEX_CONFIG" | base64 -d)
-ADDITIONAL_EXTENSIONS=$(echo -n "$ADDITIONAL_EXTENSIONS" | base64 -d)
-CODEX_INSTRUCTION_PROMPT=$(echo -n "$CODEX_INSTRUCTION_PROMPT" | base64 -d)
+ARG_EXTRA_CODEX_CONFIG=$(echo -n "$ARG_EXTRA_CODEX_CONFIG" | base64 -d)
+ARG_ADDITIONAL_EXTENSIONS=$(echo -n "$ARG_ADDITIONAL_EXTENSIONS" | base64 -d)
+ARG_CODEX_INSTRUCTION_PROMPT=$(echo -n "$ARG_CODEX_INSTRUCTION_PROMPT" | base64 -d)
 
 echo "--------------------------------"
-printf "codex_config: %s\n" "$ARG_CODEX_CONFIG"
 printf "install: %s\n" "$ARG_INSTALL"
 printf "codex_version: %s\n" "$ARG_CODEX_VERSION"
+printf "codex_config: %s\n" "$ARG_EXTRA_CODEX_CONFIG"
+printf "app_slug: %s\n" "$ARG_CODER_MCP_APP_STATUS_SLUG"
+printf "additional_extensions: %s\n" "$ARG_ADDITIONAL_EXTENSIONS"
+printf "start_directory: %s\n" "$ARG_CODEX_START_DIRECTORY"
+printf "instruction_prompt: %s\n" "$ARG_CODEX_INSTRUCTION_PROMPT"
+
 echo "--------------------------------"
 
 set +o nounset
@@ -93,48 +98,49 @@ function populate_config_toml() {
 [mcp_servers.Coder]
 command = "coder"
 args = ["exp", "mcp", "server"]
-env = {
-  "CODER_MCP_APP_STATUS_SLUG" = "${CODER_MCP_APP_STATUS_SLUG}",
-  "CODER_MCP_AI_AGENTAPI_URL"= "http://localhost:3284",
-  "CODER_AGENT_URL" = "${CODER_AGENT_URL}",
-  "CODER_AGENT_TOKEN" = "${CODER_AGENT_TOKEN}"
-}
+env = { "CODER_MCP_APP_STATUS_SLUG" = "${ARG_CODER_MCP_APP_STATUS_SLUG}", "CODER_MCP_AI_AGENTAPI_URL"= "http://localhost:3284", "CODER_AGENT_URL" = "${CODER_AGENT_URL}", "CODER_AGENT_TOKEN" = "${CODER_AGENT_TOKEN}" }
 description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."
 type = "stdio"
 EOF
 )
 
     echo "
-${ARG_CODEX_CONFIG}
+${ARG_EXTRA_CODEX_CONFIG}
 
 ${BASE_EXTENSIONS}
 
-${ADDITIONAL_EXTENSIONS}
+${ARG_ADDITIONAL_EXTENSIONS}
     " > "$HOME/.codex/config.toml"
 
 }
 
 function add_instruction_prompt_if_exists() {
-    if [ -n "${CODEX_INSTRUCTION_PROMPT:-}" ]; then
-        if [ -d "${CODEX_START_DIRECTORY}" ]; then
-            printf "Directory '%s' exists. Changing to it.\\n" "${CODEX_START_DIRECTORY}"
-            cd "${CODEX_START_DIRECTORY}" || {
-                printf "Error: Could not change to directory '%s'.\\n" "${CODEX_START_DIRECTORY}"
+    if [ -n "${ARG_CODEX_INSTRUCTION_PROMPT:-}" ]; then
+        if [ -d "${ARG_CODEX_START_DIRECTORY}" ]; then
+            printf "Directory '%s' exists. Changing to it.\\n" "${ARG_CODEX_START_DIRECTORY}"
+            cd "${ARG_CODEX_START_DIRECTORY}" || {
+                printf "Error: Could not change to directory '%s'.\\n" "${ARG_CODEX_START_DIRECTORY}"
                 exit 1
             }
         else
-            printf "Directory '%s' does not exist. Creating and changing to it.\\n" "${CODEX_START_DIRECTORY}"
-            mkdir -p "${CODEX_START_DIRECTORY}" || {
-                printf "Error: Could not create directory '%s'.\\n" "${CODEX_START_DIRECTORY}"
+            printf "Directory '%s' does not exist. Creating and changing to it.\\n" "${ARG_CODEX_START_DIRECTORY}"
+            mkdir -p "${ARG_CODEX_START_DIRECTORY}" || {
+                printf "Error: Could not create directory '%s'.\\n" "${ARG_CODEX_START_DIRECTORY}"
                 exit 1
             }
-            cd "${CODEX_START_DIRECTORY}" || {
-                printf "Error: Could not change to directory '%s'.\\n" "${CODEX_START_DIRECTORY}"
+            cd "${ARG_CODEX_START_DIRECTORY}" || {
+                printf "Error: Could not change to directory '%s'.\\n" "${ARG_CODEX_START_DIRECTORY}"
                 exit 1
             }
         fi
-        printf "Setting AGENTS.md\n"
-        echo "${CODEX_INSTRUCTION_PROMPT}" > AGENTS.md
+
+        # Check if AGENTS.md contains the instruction prompt already
+        if [ -f AGENTS.md ] && grep -Fxq "${ARG_CODEX_INSTRUCTION_PROMPT}" AGENTS.md; then
+            printf "AGENTS.md already contains the instruction prompt. Skipping append.\n"
+        else
+            printf "Appending instruction prompt to AGENTS.md\n"
+            echo -e "\n${ARG_CODEX_INSTRUCTION_PROMPT}" >> AGENTS.md
+        fi
     else
         printf "AGENTS.md is not set.\n"
     fi

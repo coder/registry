@@ -78,7 +78,7 @@ describe("codex", async () => {
   });
 
   test("install-codex-version", async () => {
-    const version_to_install = "1.0.0";
+    const version_to_install = "0.10.0";
     const { id } = await setup({
       skipCodexMock: true,
       moduleVariables: {

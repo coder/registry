@@ -15,7 +15,15 @@ fi
 
 printf "Version: %s\n" "$(codex --version)"
 
-CODEX_TASK_PROMPT=$(echo -n "$CODEX_TASK_PROMPT" | base64 -d)
+ARG_CODEX_TASK_PROMPT=$(echo -n "$ARG_CODEX_TASK_PROMPT" | base64 -d)
+
+echo "--------------------------------"
+printf "openai_api_key: %s\n" "$ARG_OPENAI_API_KEY"
+printf "codex_model: %s\n" "$ARG_CODEX_MODEL"
+printf "start_directory: %s\n" "$ARG_CODEX_START_DIRECTORY"
+printf "task_prompt: %s\n" "$ARG_CODEX_TASK_PROMPT"
+echo "--------------------------------"
+
 CODEX_ARGS=("--skip-git-repo-check")
 
 if command_exists codex; then
@@ -25,37 +33,37 @@ else
     exit 1
 fi
 
-if [ -d "${CODEX_START_DIRECTORY}" ]; then
-    printf "Directory '%s' exists. Changing to it.\\n" "${CODEX_START_DIRECTORY}"
-    cd "${CODEX_START_DIRECTORY}" || {
-        printf "Error: Could not change to directory '%s'.\\n" "${CODEX_START_DIRECTORY}"
+if [ -d "${ARG_CODEX_START_DIRECTORY}" ]; then
+    printf "Directory '%s' exists. Changing to it.\\n" "${ARG_CODEX_START_DIRECTORY}"
+    cd "${ARG_CODEX_START_DIRECTORY}" || {
+        printf "Error: Could not change to directory '%s'.\\n" "${ARG_CODEX_START_DIRECTORY}"
         exit 1
     }
 else
-    printf "Directory '%s' does not exist. Creating and changing to it.\\n" "${CODEX_START_DIRECTORY}"
-    mkdir -p "${CODEX_START_DIRECTORY}" || {
-        printf "Error: Could not create directory '%s'.\\n" "${CODEX_START_DIRECTORY}"
+    printf "Directory '%s' does not exist. Creating and changing to it.\\n" "${ARG_CODEX_START_DIRECTORY}"
+    mkdir -p "${ARG_CODEX_START_DIRECTORY}" || {
+        printf "Error: Could not create directory '%s'.\\n" "${ARG_CODEX_START_DIRECTORY}"
         exit 1
     }
-    cd "${CODEX_START_DIRECTORY}" || {
-        printf "Error: Could not change to directory '%s'.\\n" "${CODEX_START_DIRECTORY}"
+    cd "${ARG_CODEX_START_DIRECTORY}" || {
+        printf "Error: Could not change to directory '%s'.\\n" "${ARG_CODEX_START_DIRECTORY}"
         exit 1
     }
 fi
 
-if [ -n "$CODEX_MODEL" ]; then
-    CODEX_ARGS+=("--model" "$CODEX_MODEL")
+if [ -n "$ARG_CODEX_MODEL" ]; then
+    CODEX_ARGS+=("--model" "$ARG_CODEX_MODEL")
 fi
 
-if [ -n "$CODEX_TASK_PROMPT" ]; then
-    printf "Running the task prompt %s\n" "$CODEX_TASK_PROMPT"
-    PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $CODEX_TASK_PROMPT"
+if [ -n "$ARG_CODEX_TASK_PROMPT" ]; then
+    printf "Running the task prompt %s\n" "$ARG_CODEX_TASK_PROMPT"
+    PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $ARG_CODEX_TASK_PROMPT"
     CODEX_ARGS+=("--dangerously-bypass-approvals-and-sandbox" "$PROMPT")
 else
     printf "No task prompt given.\n"
 fi
 
-if [ -n "$OPENAI_API_KEY" ]; then
+if [ -n "$ARG_OPENAI_API_KEY" ]; then
     printf "openai_api_key provided !\n"
 else
     printf "openai_api_key not provided\n"

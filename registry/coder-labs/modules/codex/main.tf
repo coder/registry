@@ -151,10 +151,10 @@ module "agentapi" {
 
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
-     OPENAI_API_KEY='${var.openai_api_key}' \
-     CODEX_MODEL='${var.codex_model}' \
-     CODEX_START_DIRECTORY='${var.folder}' \
-     CODEX_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
+     ARG_OPENAI_API_KEY='${var.openai_api_key}' \
+     ARG_CODEX_MODEL='${var.codex_model}' \
+     ARG_CODEX_START_DIRECTORY='${var.folder}' \
+     ARG_CODEX_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
      /tmp/start.sh
    EOT
 
@@ -167,11 +167,11 @@ module "agentapi" {
     chmod +x /tmp/install.sh
     ARG_INSTALL='${var.install_codex}' \
     ARG_CODEX_VERSION='${var.codex_version}' \
-    ARG_CODEX_CONFIG='${base64encode(var.extra_codex_settings_toml)}' \
-    CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
-    ADDITIONAL_EXTENSIONS='${base64encode(var.additional_extensions)}' \
-    CODEX_START_DIRECTORY='${var.folder}' \
-    CODEX_INSTRUCTION_PROMPT='${base64encode(var.codex_system_prompt)}' \
+    ARG_EXTRA_CODEX_CONFIG='${base64encode(var.extra_codex_settings_toml)}' \
+    ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
+    ARG_ADDITIONAL_EXTENSIONS='${base64encode(var.additional_extensions)}' \
+    ARG_CODEX_START_DIRECTORY='${var.folder}' \
+    ARG_CODEX_INSTRUCTION_PROMPT='${base64encode(var.codex_system_prompt)}' \
     /tmp/install.sh
   EOT
 }
