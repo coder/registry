@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Load shell environment
 source "$HOME"/.bashrc
 
 command_exists() {
@@ -51,13 +50,11 @@ else
     GEMINI_ARGS=()
 fi
 
-# Enable YOLO mode if requested
 if [ -n "$GEMINI_YOLO_MODE" ] && [ "$GEMINI_YOLO_MODE" = "true" ]; then
     printf "YOLO mode enabled - will auto-approve all tool calls\n"
     GEMINI_ARGS+=(--yolo)
 fi
 
-# Check for API key in either environment variable
 if [ -n "$GEMINI_API_KEY" ] || [ -n "$GOOGLE_API_KEY" ]; then
     if [ -n "$GOOGLE_GENAI_USE_VERTEXAI" ] && [ "$GOOGLE_GENAI_USE_VERTEXAI" = "true" ]; then
         printf "Using Vertex AI with API key\n"
@@ -68,6 +65,4 @@ else
     printf "No API key provided (neither GEMINI_API_KEY nor GOOGLE_API_KEY)\n"
 fi
 
-# use low width to fit in the tasks UI sidebar. height is adjusted so that width x height ~= 80x1000 characters
-# are visible in the terminal screen by default.
 agentapi server --term-width 67 --term-height 1190 -- gemini "${GEMINI_ARGS[@]}"

@@ -2,7 +2,6 @@
 
 BOLD='\033[0;1m'
 
-# Function to check if a command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
@@ -23,7 +22,6 @@ echo "--------------------------------"
 set +o nounset
 
 function install_node() {
-  # borrowed from claude-code module
     if ! command_exists npm; then
       printf "npm not found, checking for Node.js installation...\n"
       if ! command_exists node; then
@@ -52,24 +50,15 @@ function install_node() {
 
 function install_gemini() {
   if [ "${ARG_INSTALL}" = "true" ]; then
-    # we need node to install and run gemini-cli
     install_node
 
-  # If nvm does not exist, we will create a global npm directory (this is to prevent the possibility of EACCESS issues on npm -g)
   if ! command_exists nvm; then
       printf "which node: %s\n" "$(which node)"
       printf "which npm: %s\n" "$(which npm)"
 
-      # Create a directory for global packages
       mkdir -p "$HOME"/.npm-global
-
-      # Configure npm to use it
       npm config set prefix "$HOME/.npm-global"
-
-      # Add to PATH for current session
       export PATH="$HOME/.npm-global/bin:$PATH"
-
-      # Add to shell profile for future sessions
       if ! grep -q "export PATH=$HOME/.npm-global/bin:\$PATH" ~/.bashrc; then
           echo "export PATH=$HOME/.npm-global/bin:\$PATH" >> ~/.bashrc
       fi
@@ -108,7 +97,6 @@ function append_extensions_to_settings_json() {
     fi
     if [ ! -f "$SETTINGS_PATH" ]; then
       printf "%s does not exist. Creating with merged mcpServers structure.\n" "$SETTINGS_PATH"
-      # If ADDITIONAL_EXTENSIONS is not set or empty, use '{}'
       ADD_EXT_JSON='{}'
       if [ -n "${ADDITIONAL_EXTENSIONS:-}" ]; then
         ADD_EXT_JSON="$ADDITIONAL_EXTENSIONS"
@@ -116,10 +104,7 @@ function append_extensions_to_settings_json() {
       printf '{"mcpServers":%s}\n' "$(jq -s 'add' <(echo "$BASE_EXTENSIONS") <(echo "$ADD_EXT_JSON"))" > "$SETTINGS_PATH"
     fi
 
-    # Prepare temp files
     TMP_SETTINGS=$(mktemp)
-
-    # If ADDITIONAL_EXTENSIONS is not set or empty, use '{}'
     ADD_EXT_JSON='{}'
     if [ -n "${ADDITIONAL_EXTENSIONS:-}" ]; then
       printf "[append_extensions_to_settings_json] ADDITIONAL_EXTENSIONS is set.\n"
@@ -133,7 +118,6 @@ function append_extensions_to_settings_json() {
       '.mcpServers = (.mcpServers // {} + $base + $add)' \
       "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
 
-    # Add theme and selectedAuthType fields
     jq '.theme = "Default" | .selectedAuthType = "gemini-api-key"' "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
 
     printf "[append_extensions_to_settings_json] Merge complete.\n"
@@ -167,7 +151,6 @@ function add_system_prompt_if_exists() {
 }
 
 
-# Install Gemini
 install_gemini
 gemini --version
 populate_settings_json
