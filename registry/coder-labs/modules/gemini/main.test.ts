@@ -70,7 +70,7 @@ describe("gemini", async () => {
     await runTerraformInit(import.meta.dir);
   });
 
-  test("happy-path", async () => {
+  test("agent-api", async () => {
     const { id } = await setup();
     await execModuleScript(id);
     await expectAgentAPIStarted(id);

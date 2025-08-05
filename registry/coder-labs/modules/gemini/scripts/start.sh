@@ -2,9 +2,6 @@
 set -o errexit
 set -o pipefail
 
-
-AGENTAPI_PORT="$2"
-
 source "$HOME"/.bashrc
 
 command_exists() {
@@ -73,6 +70,5 @@ else
     printf "No API key provided (neither GEMINI_API_KEY nor GOOGLE_API_KEY)\n"
 fi
 
-PORT=${AGENTAPI_PORT:-3284}
-agentapi server --port "$PORT" --term-width 67 --term-height 1190 -- \
+agentapi server --term-width 67 --term-height 1190 -- \
     bash -c "$(printf '%q ' gemini "${GEMINI_ARGS[@]}")"
