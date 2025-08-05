@@ -54,9 +54,9 @@ variable "codex_version" {
   default     = ""
 }
 
-variable "codex_settings_toml" {
+variable "extra_codex_settings_toml" {
   type        = string
-  description = "json to use in ~/.codex/config.toml."
+  description = "Settings to append to ~/.codex/config.toml."
   default     = ""
 }
 
@@ -129,7 +129,7 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.0.0"
+  version = "1.0.1"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
@@ -167,7 +167,7 @@ module "agentapi" {
     chmod +x /tmp/install.sh
     ARG_INSTALL='${var.install_codex}' \
     ARG_CODEX_VERSION='${var.codex_version}' \
-    ARG_CODEX_CONFIG='${base64encode(var.codex_settings_toml)}' \
+    ARG_CODEX_CONFIG='${base64encode(var.extra_codex_settings_toml)}' \
     CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ADDITIONAL_EXTENSIONS='${base64encode(var.additional_extensions)}' \
     CODEX_START_DIRECTORY='${var.folder}' \

@@ -14,6 +14,7 @@ import {
   execModuleScript,
   expectAgentAPIStarted,
 } from "../../../coder/modules/agentapi/test-util";
+import dedent from "dedent";
 
 let cleanupFunctions: (() => Promise<void>)[] = [];
 const registerCleanup = (cleanup: () => Promise<void>) => {
@@ -89,22 +90,24 @@ describe("codex", async () => {
     const resp = await execContainer(id, [
       "bash",
       "-c",
-      `cat /home/coder/.codex-module/install.log || true`,
+      `cat /home/coder/.codex-module/install.log`,
     ]);
     expect(resp.stdout).toContain(version_to_install);
   });
 
   test("codex-config-toml", async () => {
-    const settings = '[mcp_servers.CustomMCP]\n' +
-      'command = "/Users/jkmr/Documents/work/coder/coder_darwin_arm64"\n' +
-      'args = ["exp", "mcp", "server", "app-status-slug=codex"]\n' +
-      'env = { "CODER_MCP_APP_STATUS_SLUG" = "codex", "CODER_MCP_AI_AGENTAPI_URL"= "http://localhost:3284" }\n' +
-      'description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."\n' +
-      'enabled = true\n' +
-      'type = "stdio"';
+    const settings = dedent`
+      [mcp_servers.CustomMCP]
+      command = "/Users/jkmr/Documents/work/coder/coder_darwin_arm64"
+      args = ["exp", "mcp", "server", "app-status-slug=codex"]
+      env = { "CODER_MCP_APP_STATUS_SLUG" = "codex", "CODER_MCP_AI_AGENTAPI_URL"= "http://localhost:3284" }
+      description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."
+      enabled = true
+      type = "stdio"
+    `.trim();
     const { id } = await setup({
       moduleVariables: {
-        codex_settings_toml: settings,
+        extra_codex_settings_toml: settings,
       },
     });
     await execModuleScript(id);
@@ -154,13 +157,15 @@ describe("codex", async () => {
   });
 
   test("additional-extensions", async () => {
-    const additional = '[mcp_servers.CustomMCP]\n' +
-      'command = "/Users/jkmr/Documents/work/coder/coder_darwin_arm64"\n' +
-      'args = ["exp", "mcp", "server", "app-status-slug=codex"]\n' +
-      'env = { "CODER_MCP_APP_STATUS_SLUG" = "codex", "CODER_MCP_AI_AGENTAPI_URL"= "http://localhost:3284" }\n' +
-      'description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."\n' +
-      'enabled = true\n' +
-      'type = "stdio"';
+    const additional = dedent`
+      [mcp_servers.CustomMCP]
+      command = "/Users/jkmr/Documents/work/coder/coder_darwin_arm64"
+      args = ["exp", "mcp", "server", "app-status-slug=codex"]
+      env = { "CODER_MCP_APP_STATUS_SLUG" = "codex", "CODER_MCP_AI_AGENTAPI_URL"= "http://localhost:3284" }
+      description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."
+      enabled = true
+      type = "stdio"
+    `.trim();
     const { id } = await setup({
       moduleVariables: {
         additional_extensions: additional,
@@ -195,9 +200,9 @@ describe("codex", async () => {
     const resp = await execContainer(id, [
       "bash",
       "-c",
-      `cat /home/coder/.codex-module/agentapi-start.log || true`,
+      `cat /home/coder/.codex-module/agentapi-start.log`,
     ]);
-    expect(resp.stdout).toContain(`Every step of the way, report tasks to Coder with proper descriptions and statuses, when each part of the task is finished report with . Your task at hand: ${prompt}`);
+    expect(resp.stdout).toContain(`Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: ${prompt}`);
   });
 
   test("start-without-prompt", async () => {

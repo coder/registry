@@ -89,12 +89,20 @@ function populate_config_toml() {
     CONFIG_PATH="$HOME/.codex/config.toml"
     mkdir -p "$(dirname "$CONFIG_PATH")"
     printf "Custom codex_config is provided !\n"
-    BASE_EXTENSIONS="[mcp_servers.Coder]
-    command = \"coder\"
-    args = [\"exp\", \"mcp\", \"server\"]
-    env = { \"CODER_MCP_APP_STATUS_SLUG\" = \"${CODER_MCP_APP_STATUS_SLUG}\", \"CODER_MCP_AI_AGENTAPI_URL\"= \"http://localhost:3284\", \"CODER_AGENT_URL\" = \"${CODER_AGENT_URL}\", \"CODER_AGENT_TOKEN\" = \"${CODER_AGENT_TOKEN}\" }
-    description = \"Report ALL tasks and statuses (in progress, done, failed) you are working on.\"
-    type = \"stdio\""
+    BASE_EXTENSIONS=$(cat <<EOF
+[mcp_servers.Coder]
+command = "coder"
+args = ["exp", "mcp", "server"]
+env = {
+  "CODER_MCP_APP_STATUS_SLUG" = "${CODER_MCP_APP_STATUS_SLUG}",
+  "CODER_MCP_AI_AGENTAPI_URL"= "http://localhost:3284",
+  "CODER_AGENT_URL" = "${CODER_AGENT_URL}",
+  "CODER_AGENT_TOKEN" = "${CODER_AGENT_TOKEN}"
+}
+description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."
+type = "stdio"
+EOF
+)
 
     echo "
 ${ARG_CODEX_CONFIG}
@@ -125,7 +133,6 @@ function add_instruction_prompt_if_exists() {
                 exit 1
             }
         fi
-        touch AGENTS.md
         printf "Setting AGENTS.md\n"
         echo "${CODEX_INSTRUCTION_PROMPT}" > AGENTS.md
     else
