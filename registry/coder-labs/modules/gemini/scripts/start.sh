@@ -2,8 +2,7 @@
 set -o errexit
 set -o pipefail
 
-# Handle parameters from agentapi module
-USE_PROMPT="$1"
+
 AGENTAPI_PORT="$2"
 
 source "$HOME"/.bashrc
@@ -20,7 +19,8 @@ fi
 
 printf "Version: %s\n" "$(gemini --version)"
 
-GEMINI_TASK_PROMPT=$(echo -n "$GEMINI_TASK_PROMPT" | base64 -d)
+MODULE_DIR="$HOME/.gemini-module"
+mkdir -p "$MODULE_DIR"
 
 if command_exists gemini; then
     printf "Gemini is installed\n"
@@ -47,12 +47,12 @@ else
     }
 fi
 
-# Handle prompt logic based on parameters
-if [ -n "$USE_PROMPT" ] && [ "$USE_PROMPT" = "true" ] && [ -n "$GEMINI_TASK_PROMPT" ]; then
+if [ -n "$GEMINI_TASK_PROMPT" ]; then
     printf "Running automated task: %s\n" "$GEMINI_TASK_PROMPT"
     PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"
-    GEMINI_ARGS=(--prompt)
-    GEMINI_ARGS+=("$PROMPT")
+    PROMPT_FILE="$MODULE_DIR/prompt.txt"
+    echo -n "$PROMPT" >"$PROMPT_FILE"
+    GEMINI_ARGS=(--prompt "$PROMPT")
 else
     printf "Starting Gemini CLI in interactive mode.\n"
     GEMINI_ARGS=()
@@ -73,6 +73,6 @@ else
     printf "No API key provided (neither GEMINI_API_KEY nor GOOGLE_API_KEY)\n"
 fi
 
-# Use the port parameter if provided, otherwise default to 3284
 PORT=${AGENTAPI_PORT:-3284}
-agentapi server --port "$PORT" --term-width 67 --term-height 1190 -- gemini "${GEMINI_ARGS[@]}"
+agentapi server --port "$PORT" --term-width 67 --term-height 1190 -- \
+    bash -c "$(printf '%q ' gemini "${GEMINI_ARGS[@]}")"

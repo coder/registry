@@ -204,7 +204,9 @@ describe("gemini", async () => {
         task_prompt: taskPrompt,
       },
     });
-    await execModuleScript(id);
+    await execModuleScript(id, {
+      GEMINI_TASK_PROMPT: taskPrompt,
+    });
     const resp = await readFileContainer(id, "/home/coder/.gemini-module/agentapi-start.log");
     expect(resp).toContain("Running automated task:");
   });

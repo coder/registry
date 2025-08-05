@@ -185,12 +185,8 @@ module "agentapi" {
   web_app_group        = var.group
   web_app_icon         = var.icon
   web_app_display_name = "Gemini"
-  cli_app              = true
   cli_app_slug         = "${local.app_slug}-cli"
   cli_app_display_name = "Gemini CLI"
-  cli_app_icon         = var.icon
-  cli_app_order        = var.order
-  cli_app_group        = var.group
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
@@ -225,7 +221,7 @@ module "agentapi" {
       GEMINI_YOLO_MODE='${var.enable_yolo_mode}' \
      GEMINI_MODEL='${var.gemini_model}' \
      GEMINI_START_DIRECTORY='${var.folder}' \
-     GEMINI_TASK_PROMPT='${base64encode(var.task_prompt)}' \
+     GEMINI_TASK_PROMPT='${var.task_prompt}' \
      /tmp/start.sh
    EOT
 }
