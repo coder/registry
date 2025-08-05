@@ -12,7 +12,7 @@ set -o nounset
 ARG_GEMINI_CONFIG=$(echo -n "$ARG_GEMINI_CONFIG" | base64 -d)
 BASE_EXTENSIONS=$(echo -n "$BASE_EXTENSIONS" | base64 -d)
 ADDITIONAL_EXTENSIONS=$(echo -n "$ADDITIONAL_EXTENSIONS" | base64 -d)
-GEMINI_INSTRUCTION_PROMPT=$(echo -n "$GEMINI_INSTRUCTION_PROMPT" | base64 -d)
+GEMINI_SYSTEM_PROMPT=$(echo -n "$GEMINI_SYSTEM_PROMPT" | base64 -d)
 
 echo "--------------------------------"
 printf "gemini_config: %s\n" "$ARG_GEMINI_CONFIG"
@@ -55,7 +55,7 @@ function install_gemini() {
     # we need node to install and run gemini-cli
     install_node
 
-  # If nvm does not exist, we will create a global npm directory (this os to prevent the possibility of EACCESS issues on npm -g)
+  # If nvm does not exist, we will create a global npm directory (this is to prevent the possibility of EACCESS issues on npm -g)
   if ! command_exists nvm; then
       printf "which node: %s\n" "$(which node)"
       printf "which npm: %s\n" "$(which npm)"
@@ -139,8 +139,8 @@ function append_extensions_to_settings_json() {
     printf "[append_extensions_to_settings_json] Merge complete.\n"
 }
 
-function add_instruction_prompt_if_exists() {
-    if [ -n "${GEMINI_INSTRUCTION_PROMPT:-}" ]; then
+function add_system_prompt_if_exists() {
+    if [ -n "${GEMINI_SYSTEM_PROMPT:-}" ]; then
         if [ -d "${GEMINI_START_DIRECTORY}" ]; then
             printf "Directory '%s' exists. Changing to it.\\n" "${GEMINI_START_DIRECTORY}"
             cd "${GEMINI_START_DIRECTORY}" || {
@@ -160,7 +160,7 @@ function add_instruction_prompt_if_exists() {
         fi
         touch GEMINI.md
         printf "Setting GEMINI.md\n"
-        echo "${GEMINI_INSTRUCTION_PROMPT}" > GEMINI.md
+        echo "${GEMINI_SYSTEM_PROMPT}" > GEMINI.md
     else
         printf "GEMINI.md is not set.\n"
     fi
@@ -171,5 +171,5 @@ function add_instruction_prompt_if_exists() {
 install_gemini
 gemini --version
 populate_settings_json
-add_instruction_prompt_if_exists
+add_system_prompt_if_exists
 

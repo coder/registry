@@ -74,7 +74,7 @@ variable "use_vertexai" {
 
 variable "install_agentapi" {
   type        = bool
-  description = "Whether to install AgentAPI."
+  description = "Whether to install AgentAPI for web UI and task automation."
   default     = true
 }
 
@@ -102,12 +102,10 @@ variable "post_install_script" {
   default     = null
 }
 
-data "coder_parameter" "ai_prompt" {
-  type        = "string"
-  name        = "AI Prompt"
+variable "task_prompt" {
+  type        = string
+  description = "Task prompt for automated Gemini execution"
   default     = ""
-  description = "Initial prompt for the Gemini CLI"
-  mutable     = true
 }
 
 variable "additional_extensions" {
@@ -192,7 +190,7 @@ module "agentapi" {
      GOOGLE_GENAI_USE_VERTEXAI='${var.use_vertexai}' \
      GEMINI_MODEL='${var.gemini_model}' \
      GEMINI_START_DIRECTORY='${var.folder}' \
-     GEMINI_TASK_PROMPT='${base64encode(data.coder_parameter.ai_prompt.value)}' \
+     GEMINI_TASK_PROMPT='${base64encode(var.task_prompt)}' \
      /tmp/start.sh
    EOT
 
@@ -209,7 +207,7 @@ module "agentapi" {
     BASE_EXTENSIONS='${base64encode(replace(local.base_extensions, "'", "'\\''"))}' \
     ADDITIONAL_EXTENSIONS='${base64encode(replace(var.additional_extensions != null ? var.additional_extensions : "", "'", "'\\''"))}' \
     GEMINI_START_DIRECTORY='${var.folder}' \
-    GEMINI_INSTRUCTION_PROMPT='${base64encode(var.gemini_system_prompt)}' \
+    GEMINI_SYSTEM_PROMPT='${base64encode(var.gemini_system_prompt)}' \
     /tmp/install.sh
   EOT
 }

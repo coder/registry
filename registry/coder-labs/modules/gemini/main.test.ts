@@ -197,6 +197,18 @@ describe("gemini", async () => {
     expect(resp).toContain(prompt);
   });
 
+  test("task-prompt", async () => {
+    const taskPrompt = "Create a simple Hello World function";
+    const { id } = await setup({
+      moduleVariables: {
+        task_prompt: taskPrompt,
+      },
+    });
+    await execModuleScript(id);
+    const resp = await readFileContainer(id, "/home/coder/.gemini-module/agentapi-start.log");
+    expect(resp).toContain("Running automated task:");
+  });
+
   test("start-without-prompt", async () => {
     const { id } = await setup();
     await execModuleScript(id);
