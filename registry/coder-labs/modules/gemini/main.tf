@@ -179,18 +179,39 @@ module "agentapi" {
   version = "1.0.0"
 
   agent_id             = var.agent_id
+  folder               = var.folder
   web_app_slug         = local.app_slug
   web_app_order        = var.order
   web_app_group        = var.group
   web_app_icon         = var.icon
   web_app_display_name = "Gemini"
+  cli_app              = true
   cli_app_slug         = "${local.app_slug}-cli"
   cli_app_display_name = "Gemini CLI"
+  cli_app_icon         = var.icon
+  cli_app_order        = var.order
+  cli_app_group        = var.group
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
+  install_script       = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
+    chmod +x /tmp/install.sh
+    ARG_INSTALL='${var.install_gemini}' \
+    ARG_GEMINI_VERSION='${var.gemini_version}' \
+    ARG_GEMINI_CONFIG='${base64encode(var.gemini_settings_json)}' \
+    BASE_EXTENSIONS='${base64encode(replace(local.base_extensions, "'", "'\\''"))}' \
+    ADDITIONAL_EXTENSIONS='${base64encode(replace(var.additional_extensions != null ? var.additional_extensions : "", "'", "'\\''"))}' \
+    GEMINI_START_DIRECTORY='${var.folder}' \
+    GEMINI_SYSTEM_PROMPT='${base64encode(var.gemini_system_prompt)}' \
+    /tmp/install.sh
+  EOT
   start_script         = <<-EOT
      #!/bin/bash
      set -o errexit
@@ -207,21 +228,4 @@ module "agentapi" {
      GEMINI_TASK_PROMPT='${base64encode(var.task_prompt)}' \
      /tmp/start.sh
    EOT
-
-  install_script = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
-    ARG_INSTALL='${var.install_gemini}' \
-    ARG_GEMINI_VERSION='${var.gemini_version}' \
-    ARG_GEMINI_CONFIG='${base64encode(var.gemini_settings_json)}' \
-    BASE_EXTENSIONS='${base64encode(replace(local.base_extensions, "'", "'\\''"))}' \
-    ADDITIONAL_EXTENSIONS='${base64encode(replace(var.additional_extensions != null ? var.additional_extensions : "", "'", "'\\''"))}' \
-    GEMINI_START_DIRECTORY='${var.folder}' \
-    GEMINI_SYSTEM_PROMPT='${base64encode(var.gemini_system_prompt)}' \
-    /tmp/install.sh
-  EOT
 }

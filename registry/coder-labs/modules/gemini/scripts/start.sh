@@ -1,4 +1,10 @@
 #!/bin/bash
+set -o errexit
+set -o pipefail
+
+# Handle parameters from agentapi module
+USE_PROMPT="$1"
+AGENTAPI_PORT="$2"
 
 source "$HOME"/.bashrc
 
@@ -41,7 +47,8 @@ else
     }
 fi
 
-if [ -n "$GEMINI_TASK_PROMPT" ]; then
+# Handle prompt logic based on parameters
+if [ -n "$USE_PROMPT" ] && [ "$USE_PROMPT" = "true" ] && [ -n "$GEMINI_TASK_PROMPT" ]; then
     printf "Running automated task: %s\n" "$GEMINI_TASK_PROMPT"
     PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"
     GEMINI_ARGS=(--prompt)
@@ -66,4 +73,6 @@ else
     printf "No API key provided (neither GEMINI_API_KEY nor GOOGLE_API_KEY)\n"
 fi
 
-agentapi server --term-width 67 --term-height 1190 -- gemini "${GEMINI_ARGS[@]}"
+# Use the port parameter if provided, otherwise default to 3284
+PORT=${AGENTAPI_PORT:-3284}
+agentapi server --port "$PORT" --term-width 67 --term-height 1190 -- gemini "${GEMINI_ARGS[@]}"
