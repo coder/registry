@@ -120,9 +120,21 @@ variable "gemini_system_prompt" {
   default     = ""
 }
 
+variable "enable_yolo_mode" {
+  type        = bool
+  description = "Enable YOLO mode to automatically approve all tool calls without user confirmation. Use with caution."
+  default     = false
+}
+
 resource "coder_env" "gemini_api_key" {
   agent_id = var.agent_id
   name     = "GEMINI_API_KEY"
+  value    = var.gemini_api_key
+}
+
+resource "coder_env" "google_api_key" {
+  agent_id = var.agent_id
+  name     = "GOOGLE_API_KEY"
   value    = var.gemini_api_key
 }
 
@@ -187,7 +199,9 @@ module "agentapi" {
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
      GEMINI_API_KEY='${var.gemini_api_key}' \
+     GOOGLE_API_KEY='${var.gemini_api_key}' \
      GOOGLE_GENAI_USE_VERTEXAI='${var.use_vertexai}' \
+      GEMINI_YOLO_MODE='${var.enable_yolo_mode}' \
      GEMINI_MODEL='${var.gemini_model}' \
      GEMINI_START_DIRECTORY='${var.folder}' \
      GEMINI_TASK_PROMPT='${base64encode(var.task_prompt)}' \

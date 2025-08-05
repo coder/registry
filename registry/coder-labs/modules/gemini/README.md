@@ -97,6 +97,7 @@ module "gemini" {
   gemini_api_key     = var.gemini_api_key
   gemini_model       = "gemini-2.5-flash"
   task_prompt        = data.coder_parameter.ai_prompt.value
+  enable_yolo_mode   = true  # Auto-approve all tool calls for automation
   gemini_system_prompt = <<-EOT
     You are a helpful coding assistant. Always explain your code changes clearly.
     YOU MUST REPORT ALL TASKS TO CODER.
@@ -104,10 +105,26 @@ module "gemini" {
 }
 ```
 
+> [!WARNING]
+> YOLO mode automatically approves all tool calls without user confirmation. The agent has access to your machine's file system and terminal. Only enable in trusted, isolated environments.
+
+### Using Vertex AI (Enterprise)
+
+For enterprise users who prefer Google's Vertex AI platform:
+
+```tf
+module "gemini" {
+  source         = "registry.coder.com/coder-labs/gemini/coder"
+  version        = "1.0.0"
+  agent_id       = coder_agent.example.id
+  gemini_api_key = var.gemini_api_key
+  use_vertexai   = true
+}
+```
+
 ## Troubleshooting
 
 - If Gemini CLI is not found, ensure your API key is valid (`install_gemini` defaults to `true`)
-- Node.js and npm are installed automatically if missing (using NVM)
 - Check logs in `~/.gemini-module/` for install/start output
 - Use the `gemini_api_key` variable to avoid requiring Google sign-in
 

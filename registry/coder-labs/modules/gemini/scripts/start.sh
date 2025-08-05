@@ -51,10 +51,21 @@ else
     GEMINI_ARGS=()
 fi
 
-if [ -n "$GEMINI_API_KEY" ]; then
-    printf "gemini_api_key provided !\n"
+# Enable YOLO mode if requested
+if [ -n "$GEMINI_YOLO_MODE" ] && [ "$GEMINI_YOLO_MODE" = "true" ]; then
+    printf "YOLO mode enabled - will auto-approve all tool calls\n"
+    GEMINI_ARGS+=(--yolo)
+fi
+
+# Check for API key in either environment variable
+if [ -n "$GEMINI_API_KEY" ] || [ -n "$GOOGLE_API_KEY" ]; then
+    if [ -n "$GOOGLE_GENAI_USE_VERTEXAI" ] && [ "$GOOGLE_GENAI_USE_VERTEXAI" = "true" ]; then
+        printf "Using Vertex AI with API key\n"
+    else
+        printf "Using direct Gemini API with API key\n"
+    fi
 else
-    printf "gemini_api_key not provided\n"
+    printf "No API key provided (neither GEMINI_API_KEY nor GOOGLE_API_KEY)\n"
 fi
 
 # use low width to fit in the tasks UI sidebar. height is adjusted so that width x height ~= 80x1000 characters
