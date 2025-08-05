@@ -86,7 +86,6 @@ data "coder_parameter" "ai_prompt" {
   default     = ""
   description = "Task prompt for automated Gemini execution"
   mutable     = true
-  ephemeral   = true
 }
 
 module "gemini" {

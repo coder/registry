@@ -44,7 +44,8 @@ fi
 if [ -n "$GEMINI_TASK_PROMPT" ]; then
     printf "Running automated task: %s\n" "$GEMINI_TASK_PROMPT"
     PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"
-    GEMINI_ARGS=(--prompt "$PROMPT")
+    GEMINI_ARGS=(--prompt)
+    GEMINI_ARGS+=("$PROMPT")
 else
     printf "Starting Gemini CLI in interactive mode.\n"
     GEMINI_ARGS=()
