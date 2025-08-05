@@ -81,7 +81,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.3.0"
+  default     = "v0.2.3"
 }
 
 variable "gemini_model" {
@@ -176,10 +176,9 @@ EOT
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.0.0"
+  version = "1.0.2"
 
   agent_id             = var.agent_id
-  folder               = var.folder
   web_app_slug         = local.app_slug
   web_app_order        = var.order
   web_app_group        = var.group
