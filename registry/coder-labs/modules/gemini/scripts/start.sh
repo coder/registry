@@ -49,7 +49,7 @@ if [ -n "$GEMINI_TASK_PROMPT" ]; then
     PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"
     PROMPT_FILE="$MODULE_DIR/prompt.txt"
     echo -n "$PROMPT" >"$PROMPT_FILE"
-    GEMINI_ARGS=(--prompt "$PROMPT")
+    GEMINI_ARGS=(--prompt "$PROMPT" --interactive)
 else
     printf "Starting Gemini CLI in interactive mode.\n"
     GEMINI_ARGS=()
