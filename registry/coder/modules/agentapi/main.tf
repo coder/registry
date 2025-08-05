@@ -117,7 +117,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.3.1"
+  default     = "v0.3.3"
 }
 
 variable "agentapi_port" {
@@ -127,8 +127,10 @@ variable "agentapi_port" {
 }
 
 locals {
-  # agentapi_subdomain_false_min_version_expr matches a semantic version >= v0.3.1.
-  agentapi_subdomain_false_min_version_expr = "^v(0\\.(3\\.[1-9]+|[4-9]+\\.\\d+)|[1-9]\\d*\\.\\d+\\.\\d+)$"
+  # agentapi_subdomain_false_min_version_expr matches a semantic version >= v0.3.3.
+  # Initial support was added in v0.3.1 but configuration via environment variable
+  # was added in v0.3.3.
+  agentapi_subdomain_false_min_version_expr = "^v(0\\.(3\\.[3-9]+|[4-9]+\\.\\d+)|[1-9]\\d*\\.\\d+\\.\\d+)$"
 }
 
 variable "agentapi_subdomain" {
@@ -143,7 +145,7 @@ variable "agentapi_subdomain" {
       can(regex(local.agentapi_subdomain_false_min_version_expr, var.agentapi_version)) :
       true
     )
-    error_message = "Running with subdomain = false is only supported by agentapi >= v0.3.1."
+    error_message = "Running with subdomain = false is only supported by agentapi >= v0.3.3."
   }
 }
 
@@ -163,7 +165,8 @@ locals {
   agentapi_wait_for_start_script_b64 = base64encode(file("${path.module}/scripts/agentapi-wait-for-start.sh"))
   // Chat base path is only set if not using a subdomain.
   // NOTE:
-  //   - This requires agentapi version >= v0.3.1.
+  //   - Initial support for --chat-base-path was added in v0.3.1 but configuration
+  //     via environment variable AGENTAPI_CHAT_BASE_PATH was added in v0.3.3.
   //   - As CODER_WORKSPACE_AGENT_NAME is a recent addition we use agent ID
   //     for backward compatibility.
   agentapi_chat_base_path = var.agentapi_subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${var.web_app_slug}/chat"
