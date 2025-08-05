@@ -90,14 +90,14 @@ data "coder_parameter" "ai_prompt" {
 }
 
 module "gemini" {
-  count              = data.coder_workspace.me.start_count
-  source             = "registry.coder.com/coder-labs/gemini/coder"
-  version            = "1.0.0"
-  agent_id           = coder_agent.example.id
-  gemini_api_key     = var.gemini_api_key
-  gemini_model       = "gemini-2.5-flash"
-  task_prompt        = data.coder_parameter.ai_prompt.value
-  enable_yolo_mode   = true  # Auto-approve all tool calls for automation
+  count                = data.coder_workspace.me.start_count
+  source               = "registry.coder.com/coder-labs/gemini/coder"
+  version              = "1.0.0"
+  agent_id             = coder_agent.example.id
+  gemini_api_key       = var.gemini_api_key
+  gemini_model         = "gemini-2.5-flash"
+  task_prompt          = data.coder_parameter.ai_prompt.value
+  enable_yolo_mode     = true # Auto-approve all tool calls for automation
   gemini_system_prompt = <<-EOT
     You are a helpful coding assistant. Always explain your code changes clearly.
     YOU MUST REPORT ALL TASKS TO CODER.

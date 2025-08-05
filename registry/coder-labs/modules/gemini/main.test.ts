@@ -117,7 +117,7 @@ describe("gemini", async () => {
     await execModuleScript(id);
 
     const resp = await readFileContainer(id, "/home/coder/.gemini-module/agentapi-start.log");
-    expect(resp).toContain("gemini_api_key provided !");
+    expect(resp).toContain("Using direct Gemini API with API key");
   });
 
   test("use-vertexai", async () => {
