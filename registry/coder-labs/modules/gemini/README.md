@@ -131,6 +131,6 @@ The module creates log files in the workspace's `~/.gemini-module` directory for
 
 ## References
 
-- [Gemini CLI Documentation](https://github.com/google-gemini/gemini-cli)
+- [Gemini CLI Documentation](https://github.com/google-gemini/gemini-cli/blob/main/docs/index.md)
 - [AgentAPI Documentation](https://github.com/coder/agentapi)
 - [Coder AI Agents Guide](https://coder.com/docs/ai-coder)
