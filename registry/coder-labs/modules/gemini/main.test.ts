@@ -8,7 +8,6 @@ import {
 } from "bun:test";
 import { execContainer, readFileContainer, runTerraformInit } from "~test";
 import {
-  loadTestFile,
   writeExecutable,
   setup as setupUtil,
   execModuleScript,
@@ -54,10 +53,24 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
     agentapiMockScript: props?.agentapiMockScript,
   });
   if (!props?.skipGeminiMock) {
+    const geminiMockContent = `#!/bin/bash
+
+if [[ "$1" == "--version" ]]; then
+  echo "HELLO: $(bash -c env)"
+  echo "gemini version v2.5.0"
+  exit 0
+fi
+
+set -e
+
+while true; do
+    echo "$(date) - gemini-mock"
+    sleep 15
+done`;
     await writeExecutable({
       containerId: id,
       filePath: "/usr/bin/gemini",
-      content: await loadTestFile(import.meta.dir, "gemini-mock.sh"),
+      content: geminiMockContent,
     });
   }
   return { id };
