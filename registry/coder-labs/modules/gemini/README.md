@@ -13,7 +13,7 @@ Run [Gemini CLI](https://github.com/google-gemini/gemini-cli) in your workspace 
 ```tf
 module "gemini" {
   source   = "registry.coder.com/coder-labs/gemini/coder"
-  version  = "1.0.0"
+  version  = "1.1.0"
   agent_id = coder_agent.example.id
 }
 ```
@@ -45,7 +45,7 @@ variable "gemini_api_key" {
 
 module "gemini" {
   source         = "registry.coder.com/coder-labs/gemini/coder"
-  version        = "1.0.0"
+  version        = "1.1.0"
   agent_id       = coder_agent.example.id
   gemini_api_key = var.gemini_api_key
 }
@@ -91,7 +91,7 @@ data "coder_parameter" "ai_prompt" {
 module "gemini" {
   count                = data.coder_workspace.me.start_count
   source               = "registry.coder.com/coder-labs/gemini/coder"
-  version              = "1.0.0"
+  version              = "1.1.0"
   agent_id             = coder_agent.example.id
   gemini_api_key       = var.gemini_api_key
   gemini_model         = "gemini-2.5-flash"
@@ -114,7 +114,7 @@ For enterprise users who prefer Google's Vertex AI platform:
 ```tf
 module "gemini" {
   source         = "registry.coder.com/coder-labs/gemini/coder"
-  version        = "1.0.0"
+  version        = "1.1.0"
   agent_id       = coder_agent.example.id
   gemini_api_key = var.gemini_api_key
   use_vertexai   = true
