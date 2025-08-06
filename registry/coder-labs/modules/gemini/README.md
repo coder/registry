@@ -15,6 +15,7 @@ module "gemini" {
   source   = "registry.coder.com/coder-labs/gemini/coder"
   version  = "1.1.0"
   agent_id = coder_agent.example.id
+  folder   = "/home/coder/project"
 }
 ```
 
@@ -30,7 +31,7 @@ module "gemini" {
 ## Prerequisites
 
 - Node.js and npm will be installed automatically if not present
-- For automated task execution, you must add the [Coder Login](https://registry.coder.com/modules/coder/coder-login) module to your template
+- The [Coder Login](https://registry.coder.com/modules/coder/coder-login) module is required
 
 ## Examples
 
@@ -48,6 +49,7 @@ module "gemini" {
   version        = "1.1.0"
   agent_id       = coder_agent.example.id
   gemini_api_key = var.gemini_api_key
+  folder         = "/home/coder/project"
 }
 ```
 
@@ -55,6 +57,7 @@ This basic setup will:
 
 - Install Gemini CLI in the workspace
 - Configure authentication with your API key
+- Set Gemini to run in `/home/coder/project` directory
 - Enable interactive use from the terminal
 - Set up MCP server integration for task reporting
 
@@ -95,6 +98,7 @@ module "gemini" {
   agent_id             = coder_agent.example.id
   gemini_api_key       = var.gemini_api_key
   gemini_model         = "gemini-2.5-flash"
+  folder               = "/home/coder/project"
   task_prompt          = data.coder_parameter.ai_prompt.value
   enable_yolo_mode     = true # Auto-approve all tool calls for automation
   gemini_system_prompt = <<-EOT
@@ -117,6 +121,7 @@ module "gemini" {
   version        = "1.1.0"
   agent_id       = coder_agent.example.id
   gemini_api_key = var.gemini_api_key
+  folder         = "/home/coder/project"
   use_vertexai   = true
 }
 ```
