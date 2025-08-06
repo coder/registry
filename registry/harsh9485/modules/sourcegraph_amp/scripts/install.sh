@@ -9,6 +9,11 @@ echo "Install flag: $ARG_INSTALL_SOURCEGRAPH_AMP"
 echo "Workspace: $SOURCEGRAPH_AMP_START_DIRECTORY"
 echo "--------------------------------"
 
+# Helper function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
 function install_node() {
     if ! command_exists npm; then
         printf "npm not found, checking for Node.js installation...\n"
@@ -57,4 +62,16 @@ function install_sourcegraph_amp() {
     fi
 }
 
+function setup_system_prompt() {
+    if [ -n "${SOURCEGRAPH_AMP_SYSTEM_PROMPT:-}" ]; then
+        echo "Setting Sourcegraph AMP system prompt..."
+        mkdir -p "$HOME/.sourcegraph-amp"
+        echo "$SOURCEGRAPH_AMP_SYSTEM_PROMPT" > "$HOME/.sourcegraph-amp/SYSTEM_PROMPT.md"
+        echo "System prompt saved to $HOME/.sourcegraph-amp/SYSTEM_PROMPT.md"
+    else
+        echo "No system prompt provided for Sourcegraph AMP."
+    fi
+}
+
 install_sourcegraph_amp
+setup_system_prompt

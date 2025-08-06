@@ -36,6 +36,18 @@ variable "sourcegraph_amp_api_key" {
   sensitive   = true
 }
 
+# Set system prompt for Sourcegraph Amp via environment variables
+resource "coder_agent" "main" {
+  # ...
+  env = {
+    SOURCEGRAPH_AMP_SYSTEM_PROMPT = <<-EOT
+      You are an AMP assistant that helps developers debug and write code efficiently.
+
+      Always log task status to Coder.
+    EOT
+  }
+}
+
 module "sourcegraph_amp" {
   count                       = data.coder_workspace.me.start_count
   source                      = "registry.coder.com/harsh9485/sourcegraph-amp/coder"

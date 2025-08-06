@@ -66,7 +66,7 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
   return { id };
 };
 
-setDefaultTimeout(60 * 1000 * 8);
+setDefaultTimeout(60 * 1000);
 
 describe("Sourcegraph AMP Module", async () => {
   beforeAll(async () => {
