@@ -171,17 +171,22 @@ describe("agentapi", async () => {
     const cases = [
       {
         moduleVariables: {
-          agentapi_version: "v0.3.3",
-          agentapi_subdomain: "false",
+          agentapi_version: "v0.3.2",
         },
         shouldThrow: "",
       },
       {
         moduleVariables: {
           agentapi_version: "v0.3.3",
-          agentapi_subdomain: "true",
         },
         shouldThrow: "",
+      },
+      {
+        moduleVariables: {
+          agentapi_version: "v0.0.1",
+          agentapi_subdomain: "false",
+        },
+        shouldThrow: "Running with subdomain = false is only supported by agentapi >= v0.3.3.",
       },
       {
         moduleVariables: {
@@ -193,9 +198,28 @@ describe("agentapi", async () => {
       {
         moduleVariables: {
           agentapi_version: "v0.3.3",
-          agentapi_subdomain: "true",
+          agentapi_subdomain: "false",
         },
         shouldThrow: "",
+      },
+      {
+        moduleVariables: {
+          agentapi_version: "v0.3.999",
+          agentapi_subdomain: "false",
+        },
+        shouldThrow: "",
+      },
+      {
+        moduleVariables: {
+          agentapi_version: "v0.999.999",
+          agentapi_subdomain: "false",
+        },
+      },
+      {
+        moduleVariables: {
+          agentapi_version: "v999.999.999",
+          agentapi_subdomain: "false",
+        },
       },
       {
         moduleVariables: {

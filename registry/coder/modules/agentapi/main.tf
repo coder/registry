@@ -130,7 +130,9 @@ locals {
   # agentapi_subdomain_false_min_version_expr matches a semantic version >= v0.3.3.
   # Initial support was added in v0.3.1 but configuration via environment variable
   # was added in v0.3.3.
-  agentapi_subdomain_false_min_version_expr = "^v(0\\.(3\\.[3-9]+|[4-9]+\\.\\d+)|[1-9]\\d*\\.\\d+\\.\\d+)$"
+  # This is unfortunately a regex because there is no builtin way to compare semantic versions in Terraform.
+  # See: https://regex101.com/r/oHPyRa/1
+  agentapi_subdomain_false_min_version_expr = "^v(0\\.(3\\.[3-9]|3.[1-9]\\d+|[4-9]\\.\\d+|[1-9]\\d+\\.\\d+)|[1-9]\\d*\\.\\d+\\.\\d+)$"
 }
 
 variable "agentapi_subdomain" {
