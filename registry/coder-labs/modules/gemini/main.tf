@@ -217,7 +217,7 @@ module "agentapi" {
      GEMINI_API_KEY='${var.gemini_api_key}' \
      GOOGLE_API_KEY='${var.gemini_api_key}' \
      GOOGLE_GENAI_USE_VERTEXAI='${var.use_vertexai}' \
-      GEMINI_YOLO_MODE='${var.enable_yolo_mode}' \
+     GEMINI_YOLO_MODE='${var.enable_yolo_mode}' \
      GEMINI_MODEL='${var.gemini_model}' \
      GEMINI_START_DIRECTORY='${var.folder}' \
      GEMINI_TASK_PROMPT='${var.task_prompt}' \
