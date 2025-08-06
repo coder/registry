@@ -24,7 +24,16 @@ export const setupContainer = async ({
   });
   const coderScript = findResourceInstance(state, "coder_script");
   const id = await runContainer(image ?? "codercom/enterprise-node:latest");
-  return { id, coderScript, cleanup: () => removeContainer(id) };
+  return {
+    id, coderScript, cleanup: async () => {
+      if (process.env["DEBUG"] === "true" || process.env["DEBUG"] === "1" || process.env["DEBUG"] === "yes") {
+        console.log(`Not removing container ${id} in debug mode`);
+        console.log(`Run "docker rm -f ${id}" to remove it manually.`);
+      } else {
+        await removeContainer(id);
+      }
+    }
+  };
 };
 
 export const loadTestFile = async (

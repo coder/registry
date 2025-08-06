@@ -148,4 +148,92 @@ describe("agentapi", async () => {
     ]);
     expect(respAgentAPI.exitCode).toBe(0);
   });
+
+  test("no-subdomain-base-path", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        agentapi_subdomain: "false",
+      },
+    });
+
+    const respModuleScript = await execModuleScript(id);
+    expect(respModuleScript.exitCode).toBe(0);
+
+    await expectAgentAPIStarted(id);
+    const agentApiStartLog = await readFileContainer(
+      id,
+      "/home/coder/test-agentapi-start.log",
+    );
+    expect(agentApiStartLog).toContain("Using AGENTAPI_CHAT_BASE_PATH: /@default/default.foo/apps/agentapi-web/chat");
+  });
+
+  test("validate-agentapi-version", async () => {
+    const cases = [
+      {
+        moduleVariables: {
+          agentapi_version: "v0.3.2",
+        },
+        shouldThrow: "",
+      },
+      {
+        moduleVariables: {
+          agentapi_version: "v0.3.3",
+        },
+        shouldThrow: "",
+      },
+      {
+        moduleVariables: {
+          agentapi_version: "v0.0.1",
+          agentapi_subdomain: "false",
+        },
+        shouldThrow: "Running with subdomain = false is only supported by agentapi >= v0.3.3.",
+      },
+      {
+        moduleVariables: {
+          agentapi_version: "v0.3.2",
+          agentapi_subdomain: "false",
+        },
+        shouldThrow: "Running with subdomain = false is only supported by agentapi >= v0.3.3.",
+      },
+      {
+        moduleVariables: {
+          agentapi_version: "v0.3.3",
+          agentapi_subdomain: "false",
+        },
+        shouldThrow: "",
+      },
+      {
+        moduleVariables: {
+          agentapi_version: "v0.3.999",
+          agentapi_subdomain: "false",
+        },
+        shouldThrow: "",
+      },
+      {
+        moduleVariables: {
+          agentapi_version: "v0.999.999",
+          agentapi_subdomain: "false",
+        },
+      },
+      {
+        moduleVariables: {
+          agentapi_version: "v999.999.999",
+          agentapi_subdomain: "false",
+        },
+      },
+      {
+        moduleVariables: {
+          agentapi_version: "arbitrary-string-bypasses-validation",
+        },
+        shouldThrow: "",
+      }
+    ];
+    for (const { moduleVariables, shouldThrow } of cases) {
+      if (shouldThrow) {
+        expect(setup({ moduleVariables: moduleVariables as Record<string, string> })).rejects.toThrow(shouldThrow);
+      } else {
+        expect(setup({ moduleVariables: moduleVariables as Record<string, string> })).resolves.toBeDefined();
+      }
+    }
+  });
 });
