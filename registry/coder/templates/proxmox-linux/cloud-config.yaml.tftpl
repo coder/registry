@@ -1,0 +1,46 @@
+#cloud-config
+hostname: ${username}-workspace
+fqdn: ${username}-workspace.local
+
+users:
+  - name: ${username}
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: users,admin,wheel,sudo,docker
+    shell: /bin/bash
+    lock_passwd: false
+    passwd: ${password}
+    ssh_authorized_keys: []
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - curl
+  - wget
+  - git
+  - build-essential
+  - htop
+  - neofetch
+  - unzip
+  - software-properties-common
+  - apt-transport-https
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - qemu-guest-agent
+  - cloud-guest-utils
+
+write_files:
+  - path: /opt/coder-init.sh
+    permissions: '0755'
+    encoding: b64
+    content: ${init_script}
+
+runcmd:
+  - systemctl enable qemu-guest-agent
+  - systemctl start qemu-guest-agent
+  - growpart /dev/vda 1
+  - resize2fs /dev/vda1
+  - /opt/coder-init.sh
+
+final_message: "Coder workspace is ready for ${username}!"
