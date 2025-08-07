@@ -91,7 +91,7 @@ module "codex" {
 - Ensure your OpenAI API key has access to the specified model
 
 > [!IMPORTANT]
-> To use tasks with Codex CLI, ensure you have the `openai_api_key` variable set, and **you create an `ai_prompt` `coder_parameter` and pass it's value to codex `ai_prompt` variable**. [Tasks Template Example](https://registry.coder.com/templates/coder-labs/tasks-docker).
+> To use tasks with Codex CLI, ensure you have the `openai_api_key` variable set, and **you create a `coder_parameter` named `"AI Prompt"` and pass its value to the codex module's `ai_prompt` variable**. [Tasks Template Example](https://registry.coder.com/templates/coder-labs/tasks-docker).
 > The module automatically configures Codex with your API key and model preferences.
 
 ## References
