@@ -159,4 +159,3 @@ For issues and contributions, please visit the [Coder Registry repository](https
 ## Contributors
 
 - [aybanda](https://github.com/aybanda)
-
