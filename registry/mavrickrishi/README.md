@@ -1,13 +1,20 @@
 ---
-display_name: "mavrickrishi"
-description: "Modules and templates by mavrickrishi"
-github_url: "https://github.com/mavrick-1"
+display_name: "Rishi Mondal"
+bio: "Breaking code, fixing bugs, and occasionally making it work! Always caffeinated, always committing"
+avatar_url: "./.images/avatar.jpeg"
+github: "MAVRICK-1"
+linkedin: "https://www.linkedin.com/in/rishi-mondal-5238b2282/" # Optional
+website: "https://mavrick-portfolio.vercel.app/" # Optional
+support_email: "mavrickrishi@gmail.com" # Optional
 status: "community"
 ---
 
-# mavrickrishi
+# Rishi Mondal
 
-This namespace contains modules and templates created by mavrickrishi.
+I'm Rishi Mondal, a passionate developer from Chinsurah Hooghly, West Bengal, India.
+I'm a maintainer at CNCF KubeStellar, GSoC contributor at UCSC OSPO, and a Docker Captain.
+When I'm not breaking code and fixing bugs, you'll find me contributing to open-source projects,
+participating in LFX CNCF programs, and helping the developer community grow.
 
 ## Modules
 
