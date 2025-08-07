@@ -25,9 +25,9 @@ This template provisions a Linux development environment on Proxmox Virtual Envi
 ### Proxmox VE Setup
 - Proxmox VE 8.x cluster with API access
 - VM templates with cloud-init support:
-  - `ubuntu-22.04-cloudinit` - Ubuntu 22.04 LTS cloud image
-  - `ubuntu-20.04-cloudinit` - Ubuntu 20.04 LTS cloud image
-  - `debian-12-cloudinit` - Debian 12 cloud image
+  - VM ID 9000: Ubuntu 22.04 LTS cloud image
+  - VM ID 9001: Ubuntu 20.04 LTS cloud image
+  - VM ID 9002: Debian 12 cloud image
 
 ### Authentication
 Configure Proxmox provider authentication using one of:
@@ -56,8 +56,9 @@ To create cloud-init compatible templates:
 wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
 ```
 
-2. Create VM template:
+2. Create VM templates:
 ```bash
+# Ubuntu 22.04 LTS (VM ID 9000)
 qm create 9000 --name ubuntu-22.04-cloudinit --memory 2048 --cores 2 --net0 virtio,bridge=vmbr0
 qm importdisk 9000 jammy-server-cloudimg-amd64.img local-lvm
 qm set 9000 --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-9000-disk-0
@@ -66,6 +67,28 @@ qm set 9000 --ide2 local-lvm:cloudinit
 qm set 9000 --serial0 socket --vga serial0
 qm set 9000 --agent enabled=1
 qm template 9000
+
+# Ubuntu 20.04 LTS (VM ID 9001) - Optional
+wget https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
+qm create 9001 --name ubuntu-20.04-cloudinit --memory 2048 --cores 2 --net0 virtio,bridge=vmbr0
+qm importdisk 9001 focal-server-cloudimg-amd64.img local-lvm
+qm set 9001 --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-9001-disk-0
+qm set 9001 --boot c --bootdisk scsi0
+qm set 9001 --ide2 local-lvm:cloudinit
+qm set 9001 --serial0 socket --vga serial0
+qm set 9001 --agent enabled=1
+qm template 9001
+
+# Debian 12 (VM ID 9002) - Optional
+wget https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
+qm create 9002 --name debian-12-cloudinit --memory 2048 --cores 2 --net0 virtio,bridge=vmbr0
+qm importdisk 9002 debian-12-generic-amd64.qcow2 local-lvm
+qm set 9002 --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-9002-disk-0
+qm set 9002 --boot c --bootdisk scsi0
+qm set 9002 --ide2 local-lvm:cloudinit
+qm set 9002 --serial0 socket --vga serial0
+qm set 9002 --agent enabled=1
+qm template 9002
 ```
 
 ## Architecture
