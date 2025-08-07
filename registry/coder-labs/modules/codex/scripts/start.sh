@@ -14,7 +14,7 @@ else
 fi
 
 printf "Version: %s\n" "$(codex --version)"
-
+set -o nounset
 ARG_CODEX_TASK_PROMPT=$(echo -n "$ARG_CODEX_TASK_PROMPT" | base64 -d)
 
 echo "--------------------------------"
