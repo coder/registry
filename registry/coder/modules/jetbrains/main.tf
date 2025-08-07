@@ -202,6 +202,7 @@ data "coder_parameter" "jetbrains_ides" {
   count        = length(var.default) == 0 ? 1 : 0
   type         = "list(string)"
   name         = "jetbrains_ides"
+  description  = "Select which JetBrains IDEs to configure for use in this workspace."
   display_name = "JetBrains IDEs"
   icon         = "/icon/jetbrains-toolbox.svg"
   mutable      = true

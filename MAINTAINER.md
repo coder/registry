@@ -42,12 +42,58 @@ go build ./cmd/readmevalidation && ./readmevalidation
 
 ## Making a Release
 
-### Create Release Tags
+### Automated Tag and Release Process
 
-After merging a PR:
+After merging a PR, use the automated script to create and push release tags:
 
-1. Get the new version from the PR (shown as `old → new`)
-2. Checkout the merge commit and create the tag:
+**Prerequisites:**
+
+- Ensure all module versions are updated in their respective README files (the script uses this as the source of truth)
+- Make sure you have the necessary permissions to push tags to the repository
+
+**Steps:**
+
+1. **Checkout the merge commit:**
+
+   ```bash
+   git checkout MERGE_COMMIT_ID
+   ```
+
+2. **Run the tag release script:**
+
+   ```bash
+   ./scripts/tag_release.sh
+   ```
+
+3. **Review and confirm:**
+   - The script will automatically scan all modules in the registry
+   - It will detect which modules need version bumps by comparing README versions to existing tags
+   - A summary will be displayed showing which modules need tagging
+   - Confirm the list is correct when prompted
+
+4. **Automatic tagging:**
+   - After confirmation, the script will automatically create all necessary release tags
+   - Tags will be pushed to the remote repository
+   - The script operates on the current checked-out commit
+
+**Example output:**
+
+```text
+🔍 Scanning all modules for missing release tags...
+
+📦 coder/code-server: v4.1.2 (needs tag)
+✅ coder/dotfiles: v1.0.5 (already tagged)
+
+## Tags to be created:
+- `release/coder/code-server/v4.1.2`
+
+❓ Do you want to proceed with creating and pushing these release tags?
+Continue? [y/N]: y
+```
+
+### Manual Process (Fallback)
+
+If the automated script fails, you can manually tag and release modules:
 
 ```bash
 # Checkout the merge commit
