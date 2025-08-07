@@ -13,6 +13,7 @@ START_SCRIPT="$ARG_START_SCRIPT"
 WAIT_FOR_START_SCRIPT="$ARG_WAIT_FOR_START_SCRIPT"
 POST_INSTALL_SCRIPT="$ARG_POST_INSTALL_SCRIPT"
 AGENTAPI_PORT="$ARG_AGENTAPI_PORT"
+AGENTAPI_CHAT_BASE_PATH="${ARG_AGENTAPI_CHAT_BASE_PATH:-}"
 set +o nounset
 
 command_exists() {
@@ -92,5 +93,7 @@ export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
 cd "${WORKDIR}"
+
+export AGENTAPI_CHAT_BASE_PATH="${AGENTAPI_CHAT_BASE_PATH:-}"
 nohup "$module_path/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &>"$module_path/agentapi-start.log" &
 "$module_path/scripts/agentapi-wait-for-start.sh" "${AGENTAPI_PORT}"
