@@ -41,7 +41,6 @@ module "codex" {
   codex_version       = "latest"
   folder              = "/home/coder/project"
   codex_system_prompt = "You are a helpful coding assistant. Start every response with `Codex says:`"
-  agentapi_version    = "v0.3.2"
 }
 ```
 
