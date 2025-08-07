@@ -1,7 +1,7 @@
 ---
 display_name: "pgAdmin"
 description: "A web-based interface for managing PostgreSQL databases in your Coder workspace."
-icon: "../../../../.icons/postgres.svg"
+icon: "../../../../.icons/pgadmin.svg"
 maintainer_github: "AJ0070"
 verified: false
 tags: ["database", "postgres", "pgadmin", "web-ide"]

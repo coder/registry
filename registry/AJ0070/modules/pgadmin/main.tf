@@ -43,7 +43,7 @@ resource "coder_app" "pgadmin" {
   agent_id     = var.agent_id
   display_name = "pgAdmin"
   slug         = "pgadmin"
-  icon         = "/icon/postgres.svg"
+  icon         = "/icon/pgadmin.svg"
   url          = local.url
   subdomain    = var.subdomain
   share        = "owner"
@@ -58,7 +58,7 @@ resource "coder_app" "pgadmin" {
 resource "coder_script" "pgadmin" {
   agent_id     = var.agent_id
   display_name = "Install and run pgAdmin"
-  icon         = "/icon/postgres.svg"
+  icon         = "/icon/pgadmin.svg"
   run_on_start = true
   script = templatefile("${path.module}/run.sh", {
     PORT             = var.port,
