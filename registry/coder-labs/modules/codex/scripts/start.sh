@@ -71,6 +71,6 @@ else
 fi
 
 # use low width to fit in the tasks UI sidebar
-# we adjust the height to 930 due to a bug in codex module, see: https://github.com/openai/codex/issues/1608
+# we adjust the height to 930 due to a bug in codex, see: https://github.com/openai/codex/issues/1608
 printf "Starting codex with %s\n" "${CODEX_ARGS[@]}"
 agentapi server --term-width 63 --term-height 930 -- codex "${CODEX_ARGS[@]}"
