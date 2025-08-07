@@ -2,7 +2,8 @@
 
 # Load shell environment
 source "$HOME"/.bashrc
-
+set -o errexit
+set -o pipefail
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
