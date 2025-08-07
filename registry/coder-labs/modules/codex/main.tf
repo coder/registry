@@ -80,7 +80,7 @@ variable "agentapi_version" {
 
 variable "codex_model" {
   type        = string
-  description = "The model to use for Codex (e.g., o4-mini)."
+  description = "The model for Codex to use (e.g., o4-mini)."
   default     = ""
 }
 
