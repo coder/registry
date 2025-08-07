@@ -6,7 +6,8 @@ BOLD='\033[0;1m'
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
-
+set -o errexit
+set -o pipefail
 set -o nounset
 
 ARG_EXTRA_CODEX_CONFIG=$(echo -n "$ARG_EXTRA_CODEX_CONFIG" | base64 -d)
