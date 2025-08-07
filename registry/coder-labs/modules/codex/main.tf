@@ -51,7 +51,7 @@ variable "install_codex" {
 variable "codex_version" {
   type        = string
   description = "The version of Codex to install."
-  default     = ""
+  default     = "" # empty string means the latest available version
 }
 
 variable "extra_codex_settings_toml" {
