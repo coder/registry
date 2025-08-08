@@ -12,37 +12,29 @@ describe("cursor", async () => {
     agent_id: "foo",
   });
 
-  it("default output with CLI enabled", async () => {
+  it("default output", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
     });
-    
-    // Check desktop app output
-    expect(state.outputs.cursor_desktop_url.value).toBe(
-      "cursor://coder.coder-remote/open?owner=default&workspace=default&folder=/home/coder&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+    expect(state.outputs.cursor_url.value).toBe(
+      "cursor://coder.coder-remote/open?owner=default&workspace=default&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
 
-    // Check that AgentAPI module is created
-    const agentapi_module = state.resources.find(
-      (res) => res.type === "module" && res.name === "agentapi",
-    );
-    expect(agentapi_module).not.toBeNull();
-
-    // Check desktop app resource
     const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "cursor_desktop",
+      (res) => res.type === "coder_app" && res.name === "cursor",
     );
+
     expect(coder_app).not.toBeNull();
     expect(coder_app?.instances.length).toBe(1);
     expect(coder_app?.instances[0].attributes.order).toBeNull();
   });
 
-  it("adds custom folder", async () => {
+  it("adds folder", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       folder: "/foo/bar",
     });
-    expect(state.outputs.cursor_desktop_url.value).toBe(
+    expect(state.outputs.cursor_url.value).toBe(
       "cursor://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
   });
@@ -53,18 +45,29 @@ describe("cursor", async () => {
       folder: "/foo/bar",
       open_recent: "true",
     });
-    expect(state.outputs.cursor_desktop_url.value).toBe(
+    expect(state.outputs.cursor_url.value).toBe(
       "cursor://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
   });
 
-  it("adds open_recent with default folder", async () => {
+  it("adds folder but not open_recent", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      folder: "/foo/bar",
+      openRecent: "false",
+    });
+    expect(state.outputs.cursor_url.value).toBe(
+      "cursor://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+    );
+  });
+
+  it("adds open_recent", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       open_recent: "true",
     });
-    expect(state.outputs.cursor_desktop_url.value).toBe(
-      "cursor://coder.coder-remote/open?owner=default&workspace=default&folder=/home/coder&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+    expect(state.outputs.cursor_url.value).toBe(
+      "cursor://coder.coder-remote/open?owner=default&workspace=default&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
   });
 
@@ -75,31 +78,11 @@ describe("cursor", async () => {
     });
 
     const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "cursor_desktop",
+      (res) => res.type === "coder_app" && res.name === "cursor",
     );
 
     expect(coder_app).not.toBeNull();
     expect(coder_app?.instances.length).toBe(1);
-    expect(coder_app?.instances[0].attributes.order).toBe(23); // order + 1 for desktop app
-  });
-
-  it("disables CLI installation", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      install_cursor_cli: "false",
-      install_agentapi: "false",
-    });
-
-    // Should still have desktop app
-    const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "cursor_desktop",
-    );
-    expect(coder_app).not.toBeNull();
-
-    // AgentAPI module should still exist but with install_agentapi = false
-    const agentapi_module = state.resources.find(
-      (res) => res.type === "module" && res.name === "agentapi",
-    );
-    expect(agentapi_module).not.toBeNull();
+    expect(coder_app?.instances[0].attributes.order).toBe(22);
   });
 });
