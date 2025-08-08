@@ -22,14 +22,14 @@ module "cursor_cli" {
   agent_id = coder_agent.example.id
 
   # Optional
-  folder              = "/home/coder/project"
-  install_cursor_cli  = true
-  cursor_cli_version  = "latest"
-  base_command        = "status"          # optional subcommand (default is chat mode)
-  output_format       = "json"            # text | json | stream-json
-  force               = false
-  model               = "gpt-5"
-  mcp_json            = jsonencode({
+  folder             = "/home/coder/project"
+  install_cursor_cli = true
+  cursor_cli_version = "latest"
+  base_command       = "status" # optional subcommand (default is chat mode)
+  output_format      = "json"   # text | json | stream-json
+  force              = false
+  model              = "gpt-5"
+  mcp_json = jsonencode({
     mcpServers = {
       # example project-specific servers (see docs)
     }

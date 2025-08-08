@@ -18,8 +18,8 @@ run "non_interactive_mode" {
   command = plan
 
   variables {
-    agent_id         = "test-agent"
-    output_format    = "json"
+    agent_id      = "test-agent"
+    output_format = "json"
   }
 
   assert {
@@ -53,8 +53,8 @@ run "additional_settings_propagated" {
   command = plan
 
   variables {
-    agent_id   = "test-agent"
-    mcp_json   = jsonencode({ mcpServers = { foo = { command = "foo", type = "stdio" } } })
+    agent_id = "test-agent"
+    mcp_json = jsonencode({ mcpServers = { foo = { command = "foo", type = "stdio" } } })
     rules_files = {
       "global.yml" = "version: 1\nrules:\n  - name: global\n    include: ['**/*']\n    description: global rule"
     }
@@ -68,7 +68,7 @@ run "additional_settings_propagated" {
 
   // Ensure rules map is passed
   assert {
-    condition     = can(regex(base64encode(jsonencode({"global.yml":"version: 1\nrules:\n  - name: global\n    include: ['**/*']\n    description: global rule"})), resource.coder_script.cursor_cli.script))
+    condition     = can(regex(base64encode(jsonencode({ "global.yml" : "version: 1\nrules:\n  - name: global\n    include: ['**/*']\n    description: global rule" })), resource.coder_script.cursor_cli.script))
     error_message = "Expected PROJECT_RULES_JSON (base64) to be in the install step"
   }
 }
@@ -77,9 +77,9 @@ run "output_api_key" {
   command = plan
 
   variables {
-    agent_id        = "test-agent"
-    output_format   = "json"
-    api_key         = "sk-test-123"
+    agent_id      = "test-agent"
+    output_format = "json"
+    api_key       = "sk-test-123"
   }
 
   assert {
