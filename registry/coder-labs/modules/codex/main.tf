@@ -39,7 +39,6 @@ variable "icon" {
 variable "folder" {
   type        = string
   description = "The folder to run Codex in."
-  default     = "/home/coder"
 }
 
 variable "install_codex" {

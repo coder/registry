@@ -47,6 +47,7 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
       install_codex: props?.skipCodexMock ? "true" : "false",
       install_agentapi: props?.skipAgentAPIMock ? "true" : "false",
       codex_model: "gpt-4-turbo",
+      folder: "/home/coder",
       ...props?.moduleVariables,
     },
     registerCleanup,
@@ -125,7 +126,10 @@ describe("codex", async () => {
     });
     await execModuleScript(id);
 
-    const resp = await readFileContainer(id, "/home/coder/.codex-module/agentapi-start.log");
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.codex-module/agentapi-start.log",
+    );
     expect(resp).toContain("openai_api_key provided !");
   });
 
@@ -137,9 +141,15 @@ describe("codex", async () => {
       },
     });
     await execModuleScript(id);
-    const preInstallLog = await readFileContainer(id, "/home/coder/.codex-module/pre_install.log");
+    const preInstallLog = await readFileContainer(
+      id,
+      "/home/coder/.codex-module/pre_install.log",
+    );
     expect(preInstallLog).toContain("pre-install-script");
-    const postInstallLog = await readFileContainer(id, "/home/coder/.codex-module/post_install.log");
+    const postInstallLog = await readFileContainer(
+      id,
+      "/home/coder/.codex-module/post_install.log",
+    );
     expect(postInstallLog).toContain("post-install-script");
   });
 
@@ -152,7 +162,10 @@ describe("codex", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/.codex-module/install.log");
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.codex-module/install.log",
+    );
     expect(resp).toContain(folder);
   });
 
@@ -189,6 +202,43 @@ describe("codex", async () => {
     expect(resp).toContain(prompt);
   });
 
+  test("codex-system-prompt-skip-append-if-exists", async () => {
+    const prompt_1 = "This is a system prompt for Codex.";
+    const prompt_2 = "This is a system prompt for Goose.";
+    const prompt_3 = dedent`
+    This is a system prompt for Codex.
+    This is a system prompt for Gemini.
+    `.trim();
+    const pre_install_script = dedent`
+        #!/bin/bash
+        echo -e "${prompt_3}" >> /home/coder/AGENTS.md
+        `.trim();
+
+    const { id } = await setup({
+      moduleVariables: {
+        pre_install_script,
+        codex_system_prompt: prompt_2,
+      },
+    });
+    await execModuleScript(id);
+    const resp = await readFileContainer(id, "/home/coder/AGENTS.md");
+    expect(resp).toContain(prompt_1);
+    expect(resp).toContain(prompt_2);
+
+    // Re-run with a prompt that already exists, it should not append again
+    const { id: id_2 } = await setup({
+      moduleVariables: {
+        pre_install_script,
+        codex_system_prompt: prompt_1,
+      },
+    });
+    await execModuleScript(id_2);
+    const resp_2 = await readFileContainer(id_2, "/home/coder/AGENTS.md");
+    expect(resp_2).toContain(prompt_1);
+    const count = (resp_2.match(new RegExp(prompt_1, "g")) || []).length;
+    expect(count).toBe(1);
+  });
+
   test("codex-ai-task-prompt", async () => {
     const prompt = "This is a system prompt for Codex.";
     const { id } = await setup({
@@ -202,13 +252,19 @@ describe("codex", async () => {
       "-c",
       `cat /home/coder/.codex-module/agentapi-start.log`,
     ]);
-    expect(resp.stdout).toContain(`Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: ${prompt}`);
+    expect(resp.stdout).toContain(
+      `Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: ${prompt}`,
+    );
   });
 
   test("start-without-prompt", async () => {
     const { id } = await setup();
     await execModuleScript(id);
-    const prompt = await execContainer(id, ["ls", "-l", "/home/coder/AGENTS.md"]);
+    const prompt = await execContainer(id, [
+      "ls",
+      "-l",
+      "/home/coder/AGENTS.md",
+    ]);
     expect(prompt.exitCode).not.toBe(0);
     expect(prompt.stderr).toContain("No such file or directory");
   });
