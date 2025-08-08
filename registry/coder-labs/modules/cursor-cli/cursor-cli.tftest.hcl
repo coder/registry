@@ -62,6 +62,8 @@ run "additional_settings_propagated" {
     rules_files = {
       "global.yml" = "version: 1\nrules:\n  - name: global\n    include: ['**/*']\n    description: global rule"
     }
+    pre_install_script  = "#!/bin/bash\necho pre-install"
+    post_install_script = "#!/bin/bash\necho post-install"
   }
 
   // Ensure project mcp_json is passed
@@ -74,6 +76,16 @@ run "additional_settings_propagated" {
   assert {
     condition     = can(regex(base64encode(jsonencode({ "global.yml" : "version: 1\nrules:\n  - name: global\n    include: ['**/*']\n    description: global rule" })), resource.coder_script.cursor_cli.script))
     error_message = "Expected PROJECT_RULES_JSON (base64) to be in the install step"
+  }
+
+  // Ensure pre/post install scripts are embedded
+  assert {
+    condition     = can(regex(base64encode("#!/bin/bash\necho pre-install"), resource.coder_script.cursor_cli.script))
+    error_message = "Expected pre-install script to be embedded"
+  }
+  assert {
+    condition     = can(regex(base64encode("#!/bin/bash\necho post-install"), resource.coder_script.cursor_cli.script))
+    error_message = "Expected post-install script to be embedded"
   }
 }
 

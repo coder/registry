@@ -94,11 +94,25 @@ variable "rules_files" {
   default     = null
 }
 
+variable "pre_install_script" {
+  type        = string
+  description = "Optional script to run before installing Cursor CLI."
+  default     = null
+}
+
+variable "post_install_script" {
+  type        = string
+  description = "Optional script to run after installing Cursor CLI."
+  default     = null
+}
+
 locals {
-  app_slug        = "cursor-cli"
-  install_script  = file("${path.module}/scripts/install.sh")
-  start_script    = file("${path.module}/scripts/start.sh")
-  module_dir_name = ".cursor-cli-module"
+  app_slug                    = "cursor-cli"
+  install_script              = file("${path.module}/scripts/install.sh")
+  start_script                = file("${path.module}/scripts/start.sh")
+  module_dir_name             = ".cursor-cli-module"
+  encoded_pre_install_script  = var.pre_install_script != null ? base64encode(var.pre_install_script) : ""
+  encoded_post_install_script = var.post_install_script != null ? base64encode(var.post_install_script) : ""
 }
 
 # Expose status slug and API key to the agent environment
@@ -129,6 +143,13 @@ resource "coder_script" "cursor_cli" {
 
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
+    # Run optional pre-install script
+    if [ -n "${local.encoded_pre_install_script}" ]; then
+      echo "${local.encoded_pre_install_script}" | base64 -d > /tmp/pre_install.sh
+      chmod +x /tmp/pre_install.sh
+      echo "[cursor-cli] running pre-install script" | tee -a "$HOME/${local.module_dir_name}/install.log"
+      /tmp/pre_install.sh | tee -a "$HOME/${local.module_dir_name}/pre_install.log"
+    fi
     ARG_INSTALL='${var.install_cursor_cli}' \
     ARG_VERSION='${var.cursor_cli_version}' \
     PROJECT_MCP_JSON='${var.mcp_json != null ? base64encode(replace(var.mcp_json, "'", "'\\''")) : ""}' \
@@ -136,6 +157,14 @@ resource "coder_script" "cursor_cli" {
     MODULE_DIR_NAME='${local.module_dir_name}' \
     FOLDER='${var.folder}' \
     /tmp/install.sh | tee "$HOME/${local.module_dir_name}/install.log"
+
+    # Run optional post-install script
+    if [ -n "${local.encoded_post_install_script}" ]; then
+      echo "${local.encoded_post_install_script}" | base64 -d > /tmp/post_install.sh
+      chmod +x /tmp/post_install.sh
+      echo "[cursor-cli] running post-install script" | tee -a "$HOME/${local.module_dir_name}/install.log"
+      /tmp/post_install.sh | tee -a "$HOME/${local.module_dir_name}/post_install.log"
+    fi
 
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
     chmod +x /tmp/start.sh

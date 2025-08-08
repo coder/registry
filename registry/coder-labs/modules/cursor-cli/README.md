@@ -66,16 +66,13 @@ module "cursor_cli" {
 
   mcp_json = jsonencode({
     mcpServers = {
-      search = {
-        command = "/usr/bin/rg"
-        type    = "stdio"
-        args    = ["--json"]
-        env     = { RIPGREP_CONFIG_PATH = "/workspace/.ripgreprc" }
+      playwright = {
+        command = "npx"
+        args    = ["-y", "@playwright/mcp@latest", "--headless", "--isolated", "--no-sandbox"]
       }
-      python = {
-        command = "/usr/bin/python3"
-        type    = "stdio"
-        args    = ["/workspace/tools/mcp_python_server.py"]
+      desktop-commander = {
+        command = "npx"
+        args    = ["-y", "@wonderwhy-er/desktop-commander"]
       }
     }
   })
