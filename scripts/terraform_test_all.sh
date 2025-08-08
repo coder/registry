@@ -6,7 +6,7 @@ set -euo pipefail
 run_dir() {
   local dir="$1"
   echo "==> Running terraform test in $dir"
-  (cd "$dir" && terraform init -upgrade -input=false -no-color >/dev/null && terraform test -no-color -verbose)
+  (cd "$dir" && terraform init -upgrade -input=false -no-color > /dev/null && terraform test -no-color -verbose)
 }
 
 mapfile -t test_dirs < <(find . -type f -name "*.tftest.hcl" -print0 | xargs -0 -I{} dirname {} | sort -u)
