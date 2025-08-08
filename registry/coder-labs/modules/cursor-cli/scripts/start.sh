@@ -13,15 +13,12 @@ FORCE=${FORCE:-false}
 MODEL=${MODEL:-}
 OUTPUT_FORMAT=${OUTPUT_FORMAT:-json}
 API_KEY_SECRET=${API_KEY_SECRET:-}
-EXTRA_ARGS_BASE64=${EXTRA_ARGS:-}
 MODULE_DIR_NAME=${MODULE_DIR_NAME:-.cursor-cli-module}
 FOLDER=${FOLDER:-$HOME}
 BINARY_NAME=${BINARY_NAME:-cursor-agent}
 
 mkdir -p "$HOME/$MODULE_DIR_NAME"
 
-# Decode EXTRA_ARGS lines into an array
-IFS=$'\n' read -r -d '' -a EXTRA_ARR < <(echo -n "$EXTRA_ARGS_BASE64" | base64 -d; printf '\0') || true
 
 # Find cursor agent cli
 if command_exists "$BINARY_NAME"; then
@@ -67,10 +64,6 @@ if [ -n "$NON_INTERACTIVE_CMD" ]; then
   ARGS+=("${CMD_PARTS[@]}")
 fi
 
-# Extra args, if any
-if [ ${#EXTRA_ARR[@]} -gt 0 ]; then
-  ARGS+=("${EXTRA_ARR[@]}")
-fi
 
 # Set API key env if provided
 if [ -n "$API_KEY_SECRET" ]; then

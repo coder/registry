@@ -9,8 +9,8 @@ run "defaults_noninteractive" {
   }
 
   assert {
-    condition     = can(regex("BINARY_NAME='cursor-agent'", resource.coder_script.cursor_cli.script))
-    error_message = "Expected default binary_name to be cursor-agent"
+    condition     = can(regex("Cursor CLI", resource.coder_script.cursor_cli.display_name))
+    error_message = "Expected coder_script to be created"
   }
 }
 
@@ -19,15 +19,13 @@ run "non_interactive_mode" {
 
   variables {
     agent_id         = "test-agent"
-    base_command     = "status"
-    extra_args       = ["--dry-run"]
     output_format    = "json"
   }
 
   assert {
-    // base command and -p --output-format json are included in env
-    condition     = can(regex("BASE_COMMAND='status'", resource.coder_script.cursor_cli.script))
-    error_message = "Expected BASE_COMMAND to be propagated"
+    // non-interactive always prints; output format propagates
+    condition     = can(regex("OUTPUT_FORMAT='json'", resource.coder_script.cursor_cli.script))
+    error_message = "Expected OUTPUT_FORMAT to be propagated"
   }
 }
 
@@ -55,34 +53,11 @@ run "additional_settings_propagated" {
   command = plan
 
   variables {
-    agent_id            = "test-agent"
-    additional_settings = jsonencode({
-      mcpServers = {
-        coder = {
-          command = "coder"
-          args    = ["exp", "mcp", "server"]
-          type    = "stdio"
-        }
-      }
-    })
+    agent_id   = "test-agent"
     mcp_json   = jsonencode({ mcpServers = { foo = { command = "foo", type = "stdio" } } })
     rules_files = {
       "global.yml" = "version: 1\nrules:\n  - name: global\n    include: ['**/*']\n    description: global rule"
     }
-  }
-
-  // Ensure the encoded settings are passed into the install invocation
-  assert {
-    condition     = can(regex(base64encode(jsonencode({
-      mcpServers = {
-        coder = {
-          command = "coder"
-          args    = ["exp", "mcp", "server"]
-          type    = "stdio"
-        }
-      }
-    })), resource.coder_script.cursor_cli.script))
-    error_message = "Expected ADDITIONAL_SETTINGS (base64) to be in the install step"
   }
 
   // Ensure project mcp_json is passed
@@ -98,16 +73,13 @@ run "additional_settings_propagated" {
   }
 }
 
-run "output_api_key_binary_basecmd_extra" {
+run "output_api_key" {
   command = plan
 
   variables {
     agent_id        = "test-agent"
     output_format   = "json"
     api_key         = "sk-test-123"
-    binary_name     = "cursor-agent"
-    base_command    = "status"
-    extra_args      = ["--foo", "bar"]
   }
 
   assert {
@@ -118,20 +90,5 @@ run "output_api_key_binary_basecmd_extra" {
   assert {
     condition     = can(regex("API_KEY_SECRET='sk-test-123'", resource.coder_script.cursor_cli.script))
     error_message = "Expected API key to be plumbed (to CURSOR_API_KEY at runtime)"
-  }
-
-  assert {
-    condition     = can(regex("BINARY_NAME='cursor-agent'", resource.coder_script.cursor_cli.script))
-    error_message = "Expected binary name to be forwarded"
-  }
-
-  assert {
-    condition     = can(regex("BASE_COMMAND='status'", resource.coder_script.cursor_cli.script))
-    error_message = "Expected base command to be forwarded"
-  }
-
-  assert {
-    condition     = can(regex(base64encode("--foo\nbar"), resource.coder_script.cursor_cli.script))
-    error_message = "Expected extra args to be base64 encoded and passed"
   }
 }

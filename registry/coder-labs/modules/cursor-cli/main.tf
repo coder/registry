@@ -82,29 +82,6 @@ variable "api_key" {
   sensitive   = true
 }
 
-variable "extra_args" {
-  type        = list(string)
-  description = "Additional args to pass to the Cursor CLI."
-  default     = []
-}
-
-variable "binary_name" {
-  type        = string
-  description = "Cursor Agent binary name (default: cursor-agent)."
-  default     = "cursor-agent"
-}
-
-variable "base_command" {
-  type        = string
-  description = "Base Cursor CLI command to run (default: none for chat)."
-  default     = ""
-}
-
-variable "additional_settings" {
-  type        = string
-  description = "JSON to merge into ~/.cursor/settings.json (e.g., mcpServers)."
-  default     = ""
-}
 
 variable "mcp_json" {
   type        = string
@@ -138,7 +115,6 @@ resource "coder_script" "cursor_cli" {
     chmod +x /tmp/install.sh
     ARG_INSTALL='${var.install_cursor_cli}' \
     ARG_VERSION='${var.cursor_cli_version}' \
-    ADDITIONAL_SETTINGS='${base64encode(replace(var.additional_settings, "'", "'\\''"))}' \
     PROJECT_MCP_JSON='${var.mcp_json != null ? base64encode(replace(var.mcp_json, "'", "'\\''")) : ""}' \
     PROJECT_RULES_JSON='${var.rules_files != null ? base64encode(jsonencode(var.rules_files)) : ""}' \
     MODULE_DIR_NAME='${local.module_dir_name}' \
@@ -148,15 +124,12 @@ resource "coder_script" "cursor_cli" {
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
     chmod +x /tmp/start.sh
     # Non-interactive mode by design
-    BASE_COMMAND='${var.base_command}' \
     FORCE='${var.force}' \
     MODEL='${var.model}' \
     OUTPUT_FORMAT='${var.output_format}' \
     API_KEY_SECRET='${var.api_key}' \
-    EXTRA_ARGS='${base64encode(join("\n", var.extra_args))}' \
     MODULE_DIR_NAME='${local.module_dir_name}' \
     FOLDER='${var.folder}' \
-    BINARY_NAME='${var.binary_name}' \
     /tmp/start.sh | tee "$HOME/${local.module_dir_name}/start.log"
   EOT
   run_on_start = true
