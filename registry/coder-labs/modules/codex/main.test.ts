@@ -96,6 +96,18 @@ describe("codex", async () => {
     expect(resp.stdout).toContain(version_to_install);
   });
 
+  test("check-latest-codex-version-works", async () => {
+    const { id } = await setup({
+      skipCodexMock: true,
+      skipAgentAPIMock: true,
+      moduleVariables: {
+        install_codex: "true",
+      },
+    });
+    await execModuleScript(id);
+    await expectAgentAPIStarted(id);
+  });
+
   test("codex-config-toml", async () => {
     const settings = dedent`
       [mcp_servers.CustomMCP]
