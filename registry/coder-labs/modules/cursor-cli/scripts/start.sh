@@ -12,7 +12,6 @@ NON_INTERACTIVE_CMD=${NON_INTERACTIVE_CMD:-}
 FORCE=${FORCE:-false}
 MODEL=${MODEL:-}
 OUTPUT_FORMAT=${OUTPUT_FORMAT:-json}
-API_KEY_SECRET=${API_KEY_SECRET:-}
 MODULE_DIR_NAME=${MODULE_DIR_NAME:-.cursor-cli-module}
 FOLDER=${FOLDER:-$HOME}
 
@@ -64,10 +63,6 @@ if [ -n "$NON_INTERACTIVE_CMD" ]; then
 fi
 
 
-# Set API key env if provided
-if [ -n "$API_KEY_SECRET" ]; then
-  export CURSOR_API_KEY="$API_KEY_SECRET"
-fi
 
 # Log and exec
 printf "Running: %q %s\n" "$CURSOR_CMD" "$(printf '%q ' "${ARGS[@]}")" | tee -a "$HOME/$MODULE_DIR_NAME/start.log"

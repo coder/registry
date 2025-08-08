@@ -102,6 +102,20 @@ locals {
   module_dir_name = ".cursor-cli-module"
 }
 
+# Expose status slug and API key to the agent environment
+resource "coder_env" "status_slug" {
+  agent_id = var.agent_id
+  name     = "CODER_MCP_APP_STATUS_SLUG"
+  value    = local.app_slug
+}
+
+resource "coder_env" "cursor_api_key" {
+  count    = var.api_key != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CURSOR_API_KEY"
+  value    = var.api_key
+}
+
 resource "coder_script" "cursor_cli" {
   agent_id     = var.agent_id
   display_name = "Cursor CLI"
@@ -127,7 +141,6 @@ resource "coder_script" "cursor_cli" {
     FORCE='${var.force}' \
     MODEL='${var.model}' \
     OUTPUT_FORMAT='${var.output_format}' \
-    API_KEY_SECRET='${var.api_key}' \
     MODULE_DIR_NAME='${local.module_dir_name}' \
     FOLDER='${var.folder}' \
     /tmp/start.sh | tee "$HOME/${local.module_dir_name}/start.log"

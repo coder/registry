@@ -25,7 +25,7 @@ module "cursor_cli" {
   folder             = "/home/coder/project"
   install_cursor_cli = true
   cursor_cli_version = "latest"
-  output_format      = "json"   # text | json | stream-json
+  output_format      = "json" # text | json | stream-json
   force              = false
   model              = "gpt-5"
   mcp_json = jsonencode({
