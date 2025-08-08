@@ -38,11 +38,6 @@ fi
 
 ARGS=()
 
-# base command: if provided, append; otherwise chat mode (no command)
-if [ -n "${BASE_COMMAND:-}" ]; then
-  ARGS+=("${BASE_COMMAND}")
-fi
-
 # global flags
 if [ -n "$MODEL" ]; then
   ARGS+=("-m" "$MODEL")
@@ -57,12 +52,8 @@ if [ -n "$OUTPUT_FORMAT" ]; then
   ARGS+=("--output-format" "$OUTPUT_FORMAT")
 fi
 if [ -n "$NON_INTERACTIVE_CMD" ]; then
-  # shellcheck disable=SC2206
-  CMD_PARTS=($NON_INTERACTIVE_CMD)
-  ARGS+=("${CMD_PARTS[@]}")
+  ARGS+=("$NON_INTERACTIVE_CMD")
 fi
-
-
 
 # Log and exec
 printf "Running: %q %s\n" "$CURSOR_CMD" "$(printf '%q ' "${ARGS[@]}")" | tee -a "$HOME/$MODULE_DIR_NAME/start.log"

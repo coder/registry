@@ -1,11 +1,12 @@
 // Terraform tests for the cursor-cli module
 // Validates that we render expected script content given inputs
 
-run "defaults_noninteractive" {
+run "defaults" {
   command = plan
 
   variables {
     agent_id = "test-agent"
+    folder   = "/home/coder"
   }
 
   assert {
@@ -19,6 +20,7 @@ run "non_interactive_mode" {
 
   variables {
     agent_id      = "test-agent"
+    folder        = "/home/coder"
     output_format = "json"
   }
 
@@ -34,6 +36,7 @@ run "model_and_force" {
 
   variables {
     agent_id = "test-agent"
+    folder   = "/home/coder"
     model    = "test-model"
     force    = true
   }
@@ -54,6 +57,7 @@ run "additional_settings_propagated" {
 
   variables {
     agent_id = "test-agent"
+    folder   = "/home/coder"
     mcp_json = jsonencode({ mcpServers = { foo = { command = "foo", type = "stdio" } } })
     rules_files = {
       "global.yml" = "version: 1\nrules:\n  - name: global\n    include: ['**/*']\n    description: global rule"
@@ -73,22 +77,22 @@ run "additional_settings_propagated" {
   }
 }
 
-run "output_api_key" {
+run "api_key_env_var" {
   command = plan
 
   variables {
-    agent_id      = "test-agent"
-    output_format = "json"
-    api_key       = "sk-test-123"
+    agent_id = "test-agent"
+    folder   = "/home/coder"
+    api_key  = "sk-test-123"
   }
 
   assert {
-    condition     = can(regex("OUTPUT_FORMAT='json'", resource.coder_script.cursor_cli.script))
-    error_message = "Expected output format to be passed"
+    condition     = resource.coder_env.cursor_api_key[0].name == "CURSOR_API_KEY"
+    error_message = "Expected CURSOR_API_KEY env to be created when api_key is set"
   }
 
   assert {
-    condition     = can(regex("API_KEY_SECRET='sk-test-123'", resource.coder_script.cursor_cli.script))
-    error_message = "Expected API key to be plumbed (to CURSOR_API_KEY at runtime)"
+    condition     = resource.coder_env.cursor_api_key[0].value == "sk-test-123"
+    error_message = "Expected CURSOR_API_KEY env value to be set from api_key"
   }
 }

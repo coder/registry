@@ -39,7 +39,6 @@ variable "icon" {
 variable "folder" {
   type        = string
   description = "The folder to run Cursor CLI in."
-  default     = "/home/coder"
 }
 
 variable "install_cursor_cli" {
@@ -125,6 +124,9 @@ resource "coder_script" "cursor_cli" {
     set -o errexit
     set -o pipefail
 
+    # Ensure module log directory exists before piping logs
+    mkdir -p "$HOME/${local.module_dir_name}"
+
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
     ARG_INSTALL='${var.install_cursor_cli}' \
@@ -137,7 +139,6 @@ resource "coder_script" "cursor_cli" {
 
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
     chmod +x /tmp/start.sh
-    # Non-interactive mode by design
     FORCE='${var.force}' \
     MODEL='${var.model}' \
     OUTPUT_FORMAT='${var.output_format}' \

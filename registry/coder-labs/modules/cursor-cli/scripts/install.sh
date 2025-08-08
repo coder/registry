@@ -26,56 +26,35 @@ PROJECT_RULES_JSON=$(echo -n "$PROJECT_RULES_JSON" | base64 -d)
   echo "--------------------------------"
 } | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
 
-# Install Cursor Agent CLI if requested.
-# The docs show Cursor Agent CLI usage; we will install via npm globally.
-# This requires Node/npm; install Node via NVM if not present (similar to gemini module approach).
+# Install Cursor via official installer if requested
 if [ "$ARG_INSTALL" = "true" ]; then
-  echo "Installing Cursor Agent CLI..." | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
-
-  install_node() {
-    if ! command_exists npm; then
-      if ! command_exists node; then
-        export NVM_DIR="$HOME/.nvm"
-        if [ ! -d "$NVM_DIR" ]; then
-          mkdir -p "$NVM_DIR"
-          curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-          [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-        else
-          [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-        fi
-        nvm install --lts
-        nvm use --lts
-        nvm alias default node
-      else
-        echo "Node is installed but npm missing; please install npm manually." | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
-      fi
-    fi
-  }
-
-  install_node
-
-  # If nvm not present, create local npm global dir to avoid permissions issues
-  if ! command_exists nvm; then
-    mkdir -p "$HOME/.npm-global"
-    npm config set prefix "$HOME/.npm-global"
-    export PATH="$HOME/.npm-global/bin:$PATH"
-    if ! grep -q "export PATH=$HOME/.npm-global/bin:\$PATH" "$HOME/.bashrc" 2>/dev/null; then
-      echo "export PATH=$HOME/.npm-global/bin:\$PATH" >> "$HOME/.bashrc"
-    fi
+  echo "Installing Cursor via official installer..." | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
+  set +e
+  curl https://cursor.com/install -fsS | bash 2>&1 | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
+  CURL_EXIT=${PIPESTATUS[0]}
+  set -e
+  if [ $CURL_EXIT -ne 0 ]; then
+    echo "Cursor installer failed with exit code $CURL_EXIT" | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
   fi
 
-  if [ -n "$ARG_VERSION" ] && [ "$ARG_VERSION" != "latest" ]; then
-    npm install -g "cursor-agent@$ARG_VERSION" 2>&1 | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
-  else
-    npm install -g cursor-agent 2>&1 | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
+  # Ensure binaries are discoverable; create stable symlink to cursor-agent
+  CANDIDATES=(
+    "$(command -v cursor-agent || true)"
+    "$HOME/.cursor/bin/cursor-agent"
+  )
+  FOUND_BIN=""
+  for c in "${CANDIDATES[@]}"; do
+    if [ -n "$c" ] && [ -x "$c" ]; then
+      FOUND_BIN="$c"
+      break
+    fi
+  done
+  mkdir -p "$HOME/.local/bin"
+  if [ -n "$FOUND_BIN" ]; then
+    ln -sf "$FOUND_BIN" "$HOME/.local/bin/cursor-agent"
   fi
-
-  echo "Installed cursor-agent: $(command -v cursor-agent || true)" | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
+  echo "Installed cursor-agent at: $(command -v cursor-agent || true) (resolved: $FOUND_BIN)" | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
 fi
-
-# Ensure settings path exists and set status slug for Coder MCP tools
-SETTINGS_PATH="$HOME/.cursor/settings.json"
-mkdir -p "$(dirname "$SETTINGS_PATH")"
 
 # Ensure status slug env is exported for downstream processes
 if [ -n "${STATUS_SLUG:-}" ]; then
@@ -102,11 +81,6 @@ if [ -n "$PROJECT_RULES_JSON" ]; then
     echo "$CONTENT" > "$RULES_DIR/$NAME"
     echo "Wrote rule: $RULES_DIR/$NAME" | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
   done
-fi
-
-# If settings file doesn't exist, initialize basic structure
-if [ ! -f "$SETTINGS_PATH" ]; then
-  echo '{}' > "$SETTINGS_PATH"
 fi
 
 
