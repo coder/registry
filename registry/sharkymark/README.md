@@ -26,9 +26,7 @@ Visit my [website](https://markmilligan.io) to learn more about my work and inte
 [Flight Radar](https://www.flightradar24.com/airport/aus)
 
 ### Webcams
+
 [Austin - facing south](https://cctv.austinmobility.io/image/51.jpg)
 
 [Austin - facing north](https://cctv.austinmobility.io/image/52.jpg)
-
-
-
