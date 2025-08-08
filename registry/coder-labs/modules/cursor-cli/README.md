@@ -11,18 +11,26 @@ tags: [agent, cursor, ai, cli]
 Run the Cursor Coding Agent in your workspace using the Cursor CLI directly.
 
 ```tf
+
+data "coder_parameter" "ai_prompt" {
+  name    = "ai_prompt"
+  type    = "string"
+  default = "Write a simple hello world program in Python"
+}
+
 module "cursor_cli" {
   source   = "registry.coder.com/coder-labs/cursor-cli/coder"
   version  = "0.1.0"
   agent_id = coder_agent.example.id
+  folder   = "/home/coder/project"
 
   # Optional
-  folder             = "/home/coder/project"
   install_cursor_cli = true
   cursor_cli_version = "latest"
   output_format      = "json" # text | json | stream-json
   force              = false
   model              = "gpt-5"
+  ai_prompt          = data.coder_parameter.ai_prompt.value
   mcp_json = jsonencode({
     mcpServers = {
       # example project-specific servers (see docs)

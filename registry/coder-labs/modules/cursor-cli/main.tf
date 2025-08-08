@@ -74,6 +74,12 @@ variable "output_format" {
   default     = ""
 }
 
+variable "ai_prompt" {
+  type        = string
+  description = "AI prompt/task passed to cursor-agent."
+  default     = ""
+}
+
 variable "api_key" {
   type        = string
   description = "API key (sets CURSOR_API_KEY env or pass via -a)."
@@ -171,6 +177,7 @@ resource "coder_script" "cursor_cli" {
     FORCE='${var.force}' \
     MODEL='${var.model}' \
     OUTPUT_FORMAT='${var.output_format}' \
+    AI_PROMPT='${var.ai_prompt}' \
     MODULE_DIR_NAME='${local.module_dir_name}' \
     FOLDER='${var.folder}' \
     /tmp/start.sh | tee "$HOME/${local.module_dir_name}/start.log"

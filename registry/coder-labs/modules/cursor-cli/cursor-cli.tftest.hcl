@@ -22,12 +22,18 @@ run "non_interactive_mode" {
     agent_id      = "test-agent"
     folder        = "/home/coder"
     output_format = "json"
+    ai_prompt     = "refactor the auth module to use JWT tokens"
   }
 
   assert {
     // non-interactive always prints; output format propagates
     condition     = can(regex("OUTPUT_FORMAT='json'", resource.coder_script.cursor_cli.script))
     error_message = "Expected OUTPUT_FORMAT to be propagated"
+  }
+
+  assert {
+    condition     = can(regex("AI_PROMPT='refactor the auth module to use JWT tokens'", resource.coder_script.cursor_cli.script))
+    error_message = "Expected ai_prompt to be propagated via AI_PROMPT"
   }
 }
 

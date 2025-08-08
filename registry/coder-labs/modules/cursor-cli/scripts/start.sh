@@ -9,6 +9,7 @@ command_exists() {
 
 # Non-interactive autonomous mode only
 NON_INTERACTIVE_CMD=${NON_INTERACTIVE_CMD:-}
+AI_PROMPT=${AI_PROMPT:-}
 FORCE=${FORCE:-false}
 MODEL=${MODEL:-}
 OUTPUT_FORMAT=${OUTPUT_FORMAT:-json}
@@ -46,13 +47,12 @@ if [ "$FORCE" = "true" ]; then
   ARGS+=("-f")
 fi
 
-# Non-interactive printing flags (always enabled)
 ARGS+=("-p")
 if [ -n "$OUTPUT_FORMAT" ]; then
   ARGS+=("--output-format" "$OUTPUT_FORMAT")
 fi
-if [ -n "$NON_INTERACTIVE_CMD" ]; then
-  ARGS+=("$NON_INTERACTIVE_CMD")
+if [ -n "$AI_PROMPT" ]; then
+  ARGS+=("$AI_PROMPT")
 fi
 
 # Log and exec

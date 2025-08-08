@@ -49,8 +49,8 @@ describe("cursor-cli", async () => {
   });
 
   test("installs Cursor via official installer and runs --help", async () => {
-    const { id } = await setup({ install_cursor_cli: "true" });
-    const resp = await execModuleScript(id, { NON_INTERACTIVE_CMD: "--help" });
+    const { id } = await setup({ install_cursor_cli: "true", ai_prompt: "--help" });
+    const resp = await execModuleScript(id);
     expect(resp.exitCode).toBe(0);
 
     // Verify the start log captured the invocation
@@ -67,7 +67,7 @@ describe("cursor-cli", async () => {
   });
 
   test("model and force flags propagate", async () => {
-    const { id } = await setup({ model: "sonnet-4", force: "true" });
+    const { id } = await setup({ model: "sonnet-4", force: "true", ai_prompt: "status" });
     await writeExecutable({
       containerId: id,
       filePath: "/usr/bin/cursor-agent",
@@ -85,6 +85,7 @@ describe("cursor-cli", async () => {
     expect(startLog.exitCode).toBe(0);
     expect(startLog.stdout).toContain("-m sonnet-4");
     expect(startLog.stdout).toContain("-f");
+    expect(startLog.stdout).toContain("status");
   });
 
   test("writes project mcp.json when provided", async () => {
