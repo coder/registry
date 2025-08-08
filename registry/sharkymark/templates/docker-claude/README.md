@@ -3,7 +3,7 @@ display_name: "Claude Code AI Agent Template"
 description: The goal is to try the experimental ai agent integration with Claude CodeAI agent
 icon: "../../../../.icons/claude.svg"
 verified: false
-tags: ["ai", "docker", "container"]
+tags: ["ai", "docker", "container", "claude", "agent", "tasks"]
 ---
 
 # ai agent template for a workspace in a container on a Docker host
