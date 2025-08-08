@@ -2,7 +2,6 @@
 display_name: AWS AMI Snapshot
 description: Create and manage AMI snapshots for Coder workspaces with restore capabilities
 icon: ../../../../.icons/aws.svg
-maintainer_github: coder
 verified: false
 tags: [aws, snapshot, ami, backup, persistence]
 ---
