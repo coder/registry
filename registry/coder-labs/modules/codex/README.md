@@ -68,7 +68,6 @@ module "codex" {
   agent_id         = coder_agent.example.id
   openai_api_key   = "..."
   ai_prompt        = data.coder_parameter.ai_prompt.value
-  agentapi_version = "v0.3.2"
 }
 ```
 
