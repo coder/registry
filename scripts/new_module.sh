@@ -31,7 +31,7 @@ if [ -d "registry/$NAMESPACE/modules/$MODULE_NAME" ]; then
 fi
 mkdir -p "registry/${NAMESPACE}/modules/${MODULE_NAME}"
 
-# Copy required files from the example module (includes Terraform tests)
+# Copy required files from the example module
 cp -r examples/modules/* "registry/${NAMESPACE}/modules/${MODULE_NAME}/"
 
 # Change to module directory
@@ -48,7 +48,5 @@ else
   sed -i "s/MODULE_NAME/${MODULE_NAME}/g" README.md
 fi
 
-# Make run.sh executable (if present)
-if [ -f run.sh ]; then
-  chmod +x run.sh
-fi
+# Make run.sh executable
+chmod +x run.sh
