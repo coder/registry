@@ -45,10 +45,6 @@ if [ "$FORCE" = "true" ]; then
   ARGS+=("-f")
 fi
 
-ARGS+=("-p")
-if [ -n "$OUTPUT_FORMAT" ]; then
-  ARGS+=("--output-format" "$OUTPUT_FORMAT")
-fi
 if [ -n "$AI_PROMPT" ]; then
   ARGS+=("$AI_PROMPT")
 fi

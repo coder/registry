@@ -68,12 +68,6 @@ variable "model" {
   default     = ""
 }
 
-variable "output_format" {
-  type        = string
-  description = "Output format with -p: text, json, or stream-json."
-  default     = ""
-}
-
 variable "ai_prompt" {
   type        = string
   description = "AI prompt/task passed to cursor-agent."
@@ -176,7 +170,6 @@ resource "coder_script" "cursor_cli" {
     chmod +x /tmp/start.sh
     FORCE='${var.force}' \
     MODEL='${var.model}' \
-    OUTPUT_FORMAT='${var.output_format}' \
     AI_PROMPT='${var.ai_prompt}' \
     MODULE_DIR_NAME='${local.module_dir_name}' \
     FOLDER='${var.folder}' \
