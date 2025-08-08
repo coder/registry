@@ -247,8 +247,8 @@ export const runTerraformApply = async <TVars extends TerraformVariables>(
       "-compact-warnings",
       "-input=false",
       "-auto-approve",
-      "-state",
       "-no-color",
+      "-state",
       stateFile,
     ],
     {
