@@ -88,15 +88,18 @@ module "cursor" {
 ## Usage
 
 ### Desktop IDE
+
 Click the "Cursor Desktop" button in your workspace to launch Cursor IDE.
 
 ### CLI Agent
 
 #### Web Interface
+
 1. Click the "Cursor" button to access the web interface
 2. Start interactive sessions with text output
 
 #### Terminal Usage
+
 ```bash
 # Interactive mode (default)
 cursor-agent
@@ -111,12 +114,13 @@ cursor-agent -p "find and fix performance issues" --output-format text
 cursor-agent -p "add error handling" --model "gpt-5"
 
 # Session management
-cursor-agent ls                    # List all previous chats
-cursor-agent resume                # Resume latest conversation
-cursor-agent --resume="chat-id"    # Resume specific conversation
+cursor-agent ls                 # List all previous chats
+cursor-agent resume             # Resume latest conversation
+cursor-agent --resume="chat-id" # Resume specific conversation
 ```
 
 #### Interactive Mode Features
+
 - Conversational sessions with the agent
 - Review proposed changes before applying
 - Real-time guidance and steering
@@ -124,6 +128,7 @@ cursor-agent --resume="chat-id"    # Resume specific conversation
 - Session persistence and resumption
 
 #### Non-Interactive Mode Features
+
 - Automation-friendly for scripts and CI pipelines
 - Direct prompt execution with text output
 - Model selection support
@@ -132,6 +137,7 @@ cursor-agent --resume="chat-id"    # Resume specific conversation
 ## Configuration
 
 The module supports the same configuration options as the Cursor CLI:
+
 - **MCP (Model Context Protocol)**: Automatically detects `mcp.json` configuration
 - **Rules System**: Supports `.cursor/rules` directory for custom agent behavior
 - **Environment Variables**: Respects Cursor CLI environment settings
@@ -154,6 +160,7 @@ cursor-agent --help
 ### Common Issues
 
 1. **Cursor CLI not found**: Ensure `install_cursor_cli = true` or install manually:
+
    ```bash
    curl https://cursor.com/install -fsS | bash
    ```
