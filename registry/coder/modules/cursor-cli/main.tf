@@ -78,6 +78,36 @@ variable "post_install_script" {
   default     = null
 }
 
+variable "enable_mcp" {
+  type        = bool
+  description = "Whether to enable MCP (Model Context Protocol) support."
+  default     = true
+}
+
+variable "mcp_config_path" {
+  type        = string
+  description = "Path to the MCP configuration file (mcp.json)."
+  default     = ""
+}
+
+variable "enable_force_mode" {
+  type        = bool
+  description = "Whether to enable force mode for non-interactive automation."
+  default     = false
+}
+
+variable "default_model" {
+  type        = string
+  description = "Default AI model to use (e.g., gpt-5, claude-4-sonnet)."
+  default     = ""
+}
+
+variable "enable_rules" {
+  type        = bool
+  description = "Whether to enable the rules system (.cursor/rules directory)."
+  default     = true
+}
+
 locals {
   app_slug           = "cursor-cli"
   install_script     = file("${path.module}/scripts/install.sh")
@@ -114,6 +144,11 @@ module "agentapi" {
 
     ARG_FOLDER='${var.folder}' \
     ARG_INSTALL='${var.install_cursor_cli}' \
+    ARG_ENABLE_MCP='${var.enable_mcp}' \
+    ARG_MCP_CONFIG_PATH='${var.mcp_config_path}' \
+    ARG_ENABLE_FORCE_MODE='${var.enable_force_mode}' \
+    ARG_DEFAULT_MODEL='${var.default_model}' \
+    ARG_ENABLE_RULES='${var.enable_rules}' \
     /tmp/install.sh
   EOT
 }

@@ -30,8 +30,30 @@ echo "  - Start interactive session: cursor-agent"
 echo "  - Non-interactive mode: cursor-agent -p 'your prompt here'"
 echo "  - With specific model: cursor-agent -p 'prompt' --model 'gpt-5'"
 echo "  - Text output format: cursor-agent -p 'prompt' --output-format text"
+echo "  - Force mode (non-interactive): cursor-agent -p 'prompt' --force"
 echo "  - List sessions: cursor-agent ls"
 echo "  - Resume session: cursor-agent resume"
+echo ""
+
+# Set up environment variables for configuration
+if [ -n "${ARG_DEFAULT_MODEL:-}" ]; then
+    export CURSOR_DEFAULT_MODEL="${ARG_DEFAULT_MODEL}"
+    echo "Default model set to: ${ARG_DEFAULT_MODEL}"
+fi
+
+if [ "${ARG_ENABLE_FORCE_MODE:-false}" = "true" ]; then
+    export CURSOR_FORCE_MODE="true"
+    echo "Force mode enabled for non-interactive automation"
+fi
+
+if [ "${ARG_ENABLE_MCP:-true}" = "true" ]; then
+    echo "MCP (Model Context Protocol) support enabled"
+fi
+
+if [ "${ARG_ENABLE_RULES:-true}" = "true" ]; then
+    echo "Rules system enabled (.cursor/rules directory)"
+fi
+
 echo ""
 
 # Configure for interactive mode with text output
