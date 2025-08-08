@@ -17,6 +17,7 @@ module "codex" {
   agent_id         = coder_agent.example.id
   openai_api_key   = var.openai_api_key
   agentapi_version = "v0.3.3"
+  folder           = "/home/coder/project"
 }
 ```
 
@@ -64,10 +65,11 @@ module "coder-login" {
 }
 
 module "codex" {
-  source           = "registry.coder.com/coder-labs/codex/coder"
-  agent_id         = coder_agent.example.id
-  openai_api_key   = "..."
-  ai_prompt        = data.coder_parameter.ai_prompt.value
+  source         = "registry.coder.com/coder-labs/codex/coder"
+  agent_id       = coder_agent.example.id
+  openai_api_key = "..."
+  ai_prompt      = data.coder_parameter.ai_prompt.value
+  folder         = "/home/coder/project"
 }
 ```
 
@@ -91,6 +93,7 @@ module "codex" {
 > [!IMPORTANT]
 > To use tasks with Codex CLI, ensure you have the `openai_api_key` variable set, and **you create a `coder_parameter` named `"AI Prompt"` and pass its value to the codex module's `ai_prompt` variable**. [Tasks Template Example](https://registry.coder.com/templates/coder-labs/tasks-docker).
 > The module automatically configures Codex with your API key and model preferences.
+> folder is a required variable for the module to function correctly.
 
 ## References
 
