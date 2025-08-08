@@ -103,8 +103,8 @@ run "parameter_order_when_default_empty" {
   command = plan
 
   variables {
-    agent_id             = "foo"
-    folder               = "/home/coder"
+    agent_id              = "foo"
+    folder                = "/home/coder"
     coder_parameter_order = 5
   }
 
