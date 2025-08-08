@@ -10,9 +10,9 @@ tags: [agent, cursor, ai, cli]
 
 Run the Cursor Coding Agent in your workspace using the Cursor CLI directly. This module does not use AgentAPI and executes the Cursor agent process itself.
 
-- Defaults to interactive mode, with an option for non-interactive mode
+- Runs non-interactive (autonomous) by default, using `-p` (print)
 - Supports `--force` runs
-- Allows configuring MCP servers (settings merge)
+- Allows configuring MCP servers and project MCP (`~/.cursor/settings.json` and `<folder>/.cursor/mcp.json`)
 - Lets you choose a model and pass extra CLI arguments
 
 ```tf
@@ -25,10 +25,15 @@ module "cursor_cli" {
   folder              = "/home/coder/project"
   install_cursor_cli  = true
   cursor_cli_version  = "latest"
-  interactive         = true
-  non_interactive_cmd = "run --once"
+  base_command        = "status"          # optional subcommand (default is chat mode)
+  output_format       = "json"            # text | json | stream-json
   force               = false
-  model               = "gpt-4o"
+  model               = "gpt-5"
+  mcp_json            = jsonencode({
+    mcpServers = {
+      # example project-specific servers (see docs)
+    }
+  })
   additional_settings = jsonencode({
     mcpServers = {
       coder = {
@@ -48,8 +53,9 @@ module "cursor_cli" {
 ## Notes
 
 - See Cursor CLI docs: `https://docs.cursor.com/en/cli/overview`
-- The module writes merged settings to `~/.cursor/settings.json`
-- Interactive by default; set `interactive = false` to run non-interactively via `non_interactive_cmd`
+- For MCP project config, see `https://docs.cursor.com/en/context/mcp#using-mcp-json`. This module writes your `mcp_json` into `<folder>/.cursor/mcp.json` and merges `additional_settings` into `~/.cursor/settings.json`.
+- For Rules, see `https://docs.cursor.com/en/context/rules#project-rules`. Provide `rules_files` (map of file name to content) to populate `<folder>/.cursor/rules/`.
+- The agent runs non-interactively with `-p` by default. Use `output_format` to choose `text | json | stream-json` (default `json`).
 
 ## Troubleshooting
 

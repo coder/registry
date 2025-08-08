@@ -54,23 +54,8 @@ variable "cursor_cli_version" {
   default     = "latest"
 }
 
-variable "interactive" {
-  type        = bool
-  description = "Run in interactive chat mode (default)."
-  default     = true
-}
+# Running mode is non-interactive by design for automation.
 
-variable "initial_prompt" {
-  type        = string
-  description = "Initial prompt to start the chat with (passed as trailing arg)."
-  default     = ""
-}
-
-variable "non_interactive_cmd" {
-  type        = string
-  description = "Additional arguments appended when interactive=false (advanced usage)."
-  default     = ""
-}
 
 variable "force" {
   type        = bool
@@ -121,6 +106,18 @@ variable "additional_settings" {
   default     = ""
 }
 
+variable "mcp_json" {
+  type        = string
+  description = "Project-specific MCP JSON to write to <folder>/.cursor/mcp.json. See https://docs.cursor.com/en/context/mcp#using-mcp-json"
+  default     = null
+}
+
+variable "rules_files" {
+  type        = map(string)
+  description = "Optional map of rule file name to content. Files will be written to <folder>/.cursor/rules/<name>. See https://docs.cursor.com/en/context/rules#project-rules"
+  default     = null
+}
+
 locals {
   app_slug        = "cursor-cli"
   install_script  = file("${path.module}/scripts/install.sh")
@@ -142,15 +139,15 @@ resource "coder_script" "cursor_cli" {
     ARG_INSTALL='${var.install_cursor_cli}' \
     ARG_VERSION='${var.cursor_cli_version}' \
     ADDITIONAL_SETTINGS='${base64encode(replace(var.additional_settings, "'", "'\\''"))}' \
+    PROJECT_MCP_JSON='${var.mcp_json != null ? base64encode(replace(var.mcp_json, "'", "'\\''")) : ""}' \
+    PROJECT_RULES_JSON='${var.rules_files != null ? base64encode(jsonencode(var.rules_files)) : ""}' \
     MODULE_DIR_NAME='${local.module_dir_name}' \
     FOLDER='${var.folder}' \
     /tmp/install.sh | tee "$HOME/${local.module_dir_name}/install.log"
 
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
     chmod +x /tmp/start.sh
-    INTERACTIVE='${var.interactive}' \
-    INITIAL_PROMPT='${replace(var.initial_prompt, "'", "'\\''")}' \
-    NON_INTERACTIVE_CMD='${replace(var.non_interactive_cmd, "'", "'\\''")}' \
+    # Non-interactive mode by design
     BASE_COMMAND='${var.base_command}' \
     FORCE='${var.force}' \
     MODEL='${var.model}' \

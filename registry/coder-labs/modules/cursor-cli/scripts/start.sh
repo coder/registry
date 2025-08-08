@@ -7,12 +7,11 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
-INTERACTIVE=${INTERACTIVE:-true}
-INITIAL_PROMPT=${INITIAL_PROMPT:-}
+# Non-interactive autonomous mode only
 NON_INTERACTIVE_CMD=${NON_INTERACTIVE_CMD:-}
 FORCE=${FORCE:-false}
 MODEL=${MODEL:-}
-OUTPUT_FORMAT=${OUTPUT_FORMAT:-}
+OUTPUT_FORMAT=${OUTPUT_FORMAT:-json}
 API_KEY_SECRET=${API_KEY_SECRET:-}
 EXTRA_ARGS_BASE64=${EXTRA_ARGS:-}
 MODULE_DIR_NAME=${MODULE_DIR_NAME:-.cursor-cli-module}
@@ -57,29 +56,20 @@ if [ "$FORCE" = "true" ]; then
   ARGS+=("-f")
 fi
 
-# Non-interactive printing flags
-PRINT_TO_CONSOLE=false
-if [ "$INTERACTIVE" != "true" ]; then
-  PRINT_TO_CONSOLE=true
-  ARGS+=("-p")
-  if [ -n "$OUTPUT_FORMAT" ]; then
-    ARGS+=("--output-format" "$OUTPUT_FORMAT")
-  fi
-  if [ -n "$NON_INTERACTIVE_CMD" ]; then
-    # shellcheck disable=SC2206
-    CMD_PARTS=($NON_INTERACTIVE_CMD)
-    ARGS+=("${CMD_PARTS[@]}")
-  fi
+# Non-interactive printing flags (always enabled)
+ARGS+=("-p")
+if [ -n "$OUTPUT_FORMAT" ]; then
+  ARGS+=("--output-format" "$OUTPUT_FORMAT")
+fi
+if [ -n "$NON_INTERACTIVE_CMD" ]; then
+  # shellcheck disable=SC2206
+  CMD_PARTS=($NON_INTERACTIVE_CMD)
+  ARGS+=("${CMD_PARTS[@]}")
 fi
 
 # Extra args, if any
 if [ ${#EXTRA_ARR[@]} -gt 0 ]; then
   ARGS+=("${EXTRA_ARR[@]}")
-fi
-
-# If initial prompt specified (chat mode), pass as trailing arg
-if [ -n "$INITIAL_PROMPT" ]; then
-  ARGS+=("$INITIAL_PROMPT")
 fi
 
 # Set API key env if provided

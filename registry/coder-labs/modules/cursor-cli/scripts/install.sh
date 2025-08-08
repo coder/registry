@@ -16,6 +16,8 @@ FOLDER=${FOLDER:-$HOME}
 mkdir -p "$HOME/$MODULE_DIR_NAME"
 
 ADDITIONAL_SETTINGS=$(echo -n "$ADDITIONAL_SETTINGS" | base64 -d)
+PROJECT_MCP_JSON=$(echo -n "$PROJECT_MCP_JSON" | base64 -d)
+PROJECT_RULES_JSON=$(echo -n "$PROJECT_RULES_JSON" | base64 -d)
 
 {
   echo "--------------------------------"
@@ -75,6 +77,27 @@ fi
 # Ensure settings path exists and merge additional_settings JSON
 SETTINGS_PATH="$HOME/.cursor/settings.json"
 mkdir -p "$(dirname "$SETTINGS_PATH")"
+
+# Write project-specific MCP if provided
+if [ -n "$PROJECT_MCP_JSON" ]; then
+  TARGET_DIR="$FOLDER/.cursor"
+  mkdir -p "$TARGET_DIR"
+  echo "$PROJECT_MCP_JSON" > "$TARGET_DIR/mcp.json"
+  echo "Wrote project MCP to $TARGET_DIR/mcp.json" | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
+fi
+
+# Write rules files if provided (map of name->content)
+if [ -n "$PROJECT_RULES_JSON" ]; then
+  RULES_DIR="$FOLDER/.cursor/rules"
+  mkdir -p "$RULES_DIR"
+  echo "$PROJECT_RULES_JSON" | jq -r 'to_entries[] | @base64' | while read -r entry; do
+    _jq() { echo "${entry}" | base64 -d | jq -r ${1}; }
+    NAME=$(_jq '.key')
+    CONTENT=$(_jq '.value')
+    echo "$CONTENT" > "$RULES_DIR/$NAME"
+    echo "Wrote rule: $RULES_DIR/$NAME" | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
+  done
+fi
 
 # If settings file doesn't exist, initialize basic structure
 if [ ! -f "$SETTINGS_PATH" ]; then
