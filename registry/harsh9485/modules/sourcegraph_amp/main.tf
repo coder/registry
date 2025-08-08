@@ -108,7 +108,7 @@ developer:
   type: builtin
 EOT
 
-  app_slug        = "sourcegraph-amp"
+  app_slug        = "amp"
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".sourcegraph-amp-module"

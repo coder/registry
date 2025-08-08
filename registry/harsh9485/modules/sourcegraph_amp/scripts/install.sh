@@ -28,9 +28,12 @@ function install_node() {
                 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             fi
 
+            # Temporarily disable nounset (-u) for nvm to avoid PROVIDED_VERSION error
+            set +u
             nvm install --lts
             nvm use --lts
             nvm alias default node
+            set -u
 
             printf "Node.js installed: %s\n" "$(node --version)"
             printf "npm installed: %s\n" "$(npm --version)"
@@ -56,7 +59,7 @@ function install_sourcegraph_amp() {
         fi
 
         printf "%s Installing Sourcegraph AMP CLI...\n" "${BOLD}"
-        npm install -g @sourcegraph/amp
+        npm install -g @sourcegraph/amp@0.0.1754179307-gba1f97
         export AMP_API_KEY="$SOURCEGRAPH_AMP_API_KEY"
         printf "%s Successfully installed Sourcegraph AMP CLI. Version: %s\n" "${BOLD}" "$(amp --version)"
     fi

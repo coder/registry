@@ -30,10 +30,13 @@ module "sourcegraph_amp" {
 ## Usage Example
 
 ```tf
-variable "sourcegraph_amp_api_key" {
-  type        = string
-  description = "Sourcegraph AMP API key"
-  sensitive   = true
+data "coder_parameter" "ai_prompt" {
+  name        = "AI Prompt"
+  description = "Write an initial prompt for Aider to work on."
+  type        = "string"
+  default     = ""
+  mutable     = true
+  ephemeral   = true
 }
 
 # Set system prompt for Sourcegraph Amp via environment variables
@@ -45,7 +48,14 @@ resource "coder_agent" "main" {
 
       Always log task status to Coder.
     EOT
+    SOURCEGRAPH_AMP_TASK_PROMPT = data.coder_parameter.ai_prompt.value
   }
+}
+
+variable "sourcegraph_amp_api_key" {
+  type        = string
+  description = "Sourcegraph AMP API key"
+  sensitive   = true
 }
 
 module "sourcegraph_amp" {
