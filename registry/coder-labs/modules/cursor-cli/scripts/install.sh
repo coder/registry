@@ -15,7 +15,6 @@ FOLDER=${FOLDER:-$HOME}
 
 mkdir -p "$HOME/$MODULE_DIR_NAME"
 
-ADDITIONAL_SETTINGS=$(echo -n "$ADDITIONAL_SETTINGS" | base64 -d)
 PROJECT_MCP_JSON=$(echo -n "$PROJECT_MCP_JSON" | base64 -d)
 PROJECT_RULES_JSON=$(echo -n "$PROJECT_RULES_JSON" | base64 -d)
 
@@ -74,9 +73,15 @@ if [ "$ARG_INSTALL" = "true" ]; then
   echo "Installed cursor-agent: $(command -v cursor-agent || true)" | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
 fi
 
-# Ensure settings path exists and merge additional_settings JSON
+# Ensure settings path exists and set status slug for Coder MCP tools
 SETTINGS_PATH="$HOME/.cursor/settings.json"
 mkdir -p "$(dirname "$SETTINGS_PATH")"
+
+# Ensure status slug env is exported for downstream processes
+if [ -n "${STATUS_SLUG:-}" ]; then
+  echo "export CODER_MCP_APP_STATUS_SLUG=$STATUS_SLUG" >> "$HOME/.bashrc"
+  export CODER_MCP_APP_STATUS_SLUG="$STATUS_SLUG"
+fi
 
 # Write project-specific MCP if provided
 if [ -n "$PROJECT_MCP_JSON" ]; then
@@ -104,11 +109,5 @@ if [ ! -f "$SETTINGS_PATH" ]; then
   echo '{}' > "$SETTINGS_PATH"
 fi
 
-if [ -n "$ADDITIONAL_SETTINGS" ]; then
-  echo "Merging additional settings into $SETTINGS_PATH" | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
-  TMP_SETTINGS=$(mktemp)
-  # Merge JSON: deep merge mcpServers and top-level keys
-  jq --argjson add "$ADDITIONAL_SETTINGS" 'def deepmerge(a;b): reduce (b|keys[]) as $key (a; .[$key] = if ( (.[ $key ]|type?) == "object" and (b[$key]|type?) == "object" ) then deepmerge(.[ $key ]; b[$key]) else b[$key] end); deepmerge(.;$add)' "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
-fi
 
 exit 0

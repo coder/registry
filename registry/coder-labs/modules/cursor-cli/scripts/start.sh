@@ -15,18 +15,17 @@ OUTPUT_FORMAT=${OUTPUT_FORMAT:-json}
 API_KEY_SECRET=${API_KEY_SECRET:-}
 MODULE_DIR_NAME=${MODULE_DIR_NAME:-.cursor-cli-module}
 FOLDER=${FOLDER:-$HOME}
-BINARY_NAME=${BINARY_NAME:-cursor-agent}
 
 mkdir -p "$HOME/$MODULE_DIR_NAME"
 
 
 # Find cursor agent cli
-if command_exists "$BINARY_NAME"; then
-  CURSOR_CMD="$BINARY_NAME"
-elif [ -x "$HOME/.local/bin/$BINARY_NAME" ]; then
-  CURSOR_CMD="$HOME/.local/bin/$BINARY_NAME"
+if command_exists cursor-agent; then
+  CURSOR_CMD=cursor-agent
+elif [ -x "$HOME/.local/bin/cursor-agent" ]; then
+  CURSOR_CMD="$HOME/.local/bin/cursor-agent"
 else
-  echo "Error: $BINARY_NAME not found. Install it or set install_cursor_cli=true." | tee -a "$HOME/$MODULE_DIR_NAME/start.log"
+  echo "Error: cursor-agent not found. Install it or set install_cursor_cli=true." | tee -a "$HOME/$MODULE_DIR_NAME/start.log"
   exit 1
 fi
 
