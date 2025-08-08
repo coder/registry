@@ -204,3 +204,8 @@ resource "coder_app" "cursor_cli" {
     fi
   EOT
 }
+
+output "app_id" {
+  description = "The ID of the Cursor CLI app."
+  value       = coder_app.cursor_cli.id
+}
