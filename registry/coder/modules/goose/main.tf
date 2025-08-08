@@ -63,7 +63,13 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.2.3"
+  default     = "v0.3.3"
+}
+
+variable "subdomain" {
+  type        = bool
+  description = "Whether to use a subdomain for AgentAPI."
+  default     = true
 }
 
 variable "goose_provider" {
@@ -133,7 +139,7 @@ EOT
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.0.0"
+  version = "1.1.0"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
@@ -146,6 +152,7 @@ module "agentapi" {
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
+  agentapi_subdomain   = var.subdomain
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
   start_script         = local.start_script
