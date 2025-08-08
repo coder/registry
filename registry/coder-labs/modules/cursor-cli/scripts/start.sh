@@ -7,8 +7,6 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
-# Non-interactive autonomous mode only
-NON_INTERACTIVE_CMD=${NON_INTERACTIVE_CMD:-}
 AI_PROMPT=${AI_PROMPT:-}
 FORCE=${FORCE:-false}
 MODEL=${MODEL:-}

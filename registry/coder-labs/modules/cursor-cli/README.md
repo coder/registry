@@ -36,6 +36,19 @@ module "cursor_cli" {
       # example project-specific servers (see docs)
     }
   })
+
+  # Use post_install_script to wait for the repo to be ready
+  post_install_script = <<-EOT
+    #!/usr/bin/env bash
+    set -euo pipefail
+    TARGET="${FOLDER}/.git/config"
+    echo "[cursor-cli] waiting for ${TARGET}..."
+    for i in $(seq 1 600); do
+      [ -f "$TARGET" ] && { echo "ready"; exit 0; }
+      sleep 1
+    done
+    echo "timeout waiting for ${TARGET}" >&2
+  EOT
 }
 ```
 

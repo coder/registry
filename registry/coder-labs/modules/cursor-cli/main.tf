@@ -154,7 +154,7 @@ resource "coder_script" "cursor_cli" {
       echo "${local.encoded_pre_install_script}" | base64 -d > /tmp/pre_install.sh
       chmod +x /tmp/pre_install.sh
       echo "[cursor-cli] running pre-install script" | tee -a "$HOME/${local.module_dir_name}/install.log"
-      /tmp/pre_install.sh | tee -a "$HOME/${local.module_dir_name}/pre_install.log"
+      FOLDER='${var.folder}' /tmp/pre_install.sh | tee -a "$HOME/${local.module_dir_name}/pre_install.log"
     fi
     ARG_INSTALL='${var.install_cursor_cli}' \
     ARG_VERSION='${var.cursor_cli_version}' \
@@ -169,7 +169,7 @@ resource "coder_script" "cursor_cli" {
       echo "${local.encoded_post_install_script}" | base64 -d > /tmp/post_install.sh
       chmod +x /tmp/post_install.sh
       echo "[cursor-cli] running post-install script" | tee -a "$HOME/${local.module_dir_name}/install.log"
-      /tmp/post_install.sh | tee -a "$HOME/${local.module_dir_name}/post_install.log"
+      FOLDER='${var.folder}' /tmp/post_install.sh | tee -a "$HOME/${local.module_dir_name}/post_install.log"
     fi
 
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
