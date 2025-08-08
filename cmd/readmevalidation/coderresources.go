@@ -336,12 +336,12 @@ func validateAllCoderResourceFilesOfType(resourceType string) error {
 		return err
 	}
 
-	logger.Info(context.Background(), "rocessing README files", "num_files", len(allReadmeFiles))
+	logger.Info(context.Background(), "processing README files", "num_files", len(allReadmeFiles))
 	resources, err := parseCoderResourceReadmeFiles(resourceType, allReadmeFiles)
 	if err != nil {
 		return err
 	}
-	logger.Info(context.Background(), "rocessed README files as valid Coder resources", "num_files", len(resources), "type", resourceType)
+	logger.Info(context.Background(), "processed README files as valid Coder resources", "num_files", len(resources), "type", resourceType)
 
 	if err := validateCoderResourceRelativeURLs(resources); err != nil {
 		return err
