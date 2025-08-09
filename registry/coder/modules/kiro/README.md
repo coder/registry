@@ -36,16 +36,3 @@ module "kiro" {
   folder   = "/home/coder/project"
 }
 ```
-
-### Open with custom display name and order
-
-```tf
-module "kiro" {
-  count        = data.coder_workspace.me.start_count
-  source       = "registry.coder.com/coder/kiro/coder"
-  version      = "1.0.0"
-  agent_id     = coder_agent.example.id
-  display_name = "Kiro AI IDE"
-  order        = 1
-}
-```
