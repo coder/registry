@@ -152,8 +152,8 @@ resource "coder_script" "cursor_cli" {
     fi
     ARG_INSTALL='${var.install_cursor_cli}' \
     ARG_VERSION='${var.cursor_cli_version}' \
-    PROJECT_MCP_JSON='${var.mcp_json != null ? base64encode(replace(var.mcp_json, "'", "'\\''")) : ""}' \
-    PROJECT_RULES_JSON='${var.rules_files != null ? base64encode(jsonencode(var.rules_files)) : ""}' \
+    WORKSPACE_MCP_JSON='${var.mcp_json != null ? base64encode(replace(var.mcp_json, "'", "'\\''")) : ""}' \
+    WORKSPACE_RULES_JSON='${var.rules_files != null ? base64encode(jsonencode(var.rules_files)) : ""}' \
     MODULE_DIR_NAME='${local.module_dir_name}' \
     FOLDER='${var.folder}' \
     /tmp/install.sh | tee "$HOME/${local.module_dir_name}/install.log"

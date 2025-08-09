@@ -15,8 +15,8 @@ FOLDER=${FOLDER:-$HOME}
 
 mkdir -p "$HOME/$MODULE_DIR_NAME"
 
-PROJECT_MCP_JSON=$(echo -n "$PROJECT_MCP_JSON" | base64 -d)
-PROJECT_RULES_JSON=$(echo -n "$PROJECT_RULES_JSON" | base64 -d)
+WORKSPACE_MCP_JSON=$(echo -n "$WORKSPACE_MCP_JSON" | base64 -d)
+WORKSPACE_RULES_JSON=$(echo -n "$WORKSPACE_RULES_JSON" | base64 -d)
 
 {
   echo "--------------------------------"
@@ -62,19 +62,20 @@ if [ -n "${STATUS_SLUG:-}" ]; then
   export CODER_MCP_APP_STATUS_SLUG="$STATUS_SLUG"
 fi
 
-# Write project-specific MCP if provided
-if [ -n "$PROJECT_MCP_JSON" ]; then
-  TARGET_DIR="$FOLDER/.cursor"
+# Write MCP config to user's home if provided (~/.cursor/mcp.json)
+if [ -n "$WORKSPACE_MCP_JSON" ]; then
+  TARGET_DIR="$HOME/.cursor"
+  TARGET_FILE="$TARGET_DIR/mcp.json"
   mkdir -p "$TARGET_DIR"
-  echo "$PROJECT_MCP_JSON" > "$TARGET_DIR/mcp.json"
-  echo "Wrote project MCP to $TARGET_DIR/mcp.json" | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
+  echo "$WORKSPACE_MCP_JSON" > "$TARGET_FILE"
+  echo "Wrote workspace MCP to $TARGET_FILE" | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
 fi
 
-# Write rules files if provided (map of name->content)
-if [ -n "$PROJECT_RULES_JSON" ]; then
-  RULES_DIR="$FOLDER/.cursor/rules"
+# Write rules files to user's home (~/.cursor/rules)
+if [ -n "$WORKSPACE_RULES_JSON" ]; then
+  RULES_DIR="$HOME/.cursor/rules"
   mkdir -p "$RULES_DIR"
-  echo "$PROJECT_RULES_JSON" | jq -r 'to_entries[] | @base64' | while read -r entry; do
+  echo "$WORKSPACE_RULES_JSON" | jq -r 'to_entries[] | @base64' | while read -r entry; do
     _jq() { echo "${entry}" | base64 -d | jq -r ${1}; }
     NAME=$(_jq '.key')
     CONTENT=$(_jq '.value')

@@ -85,9 +85,9 @@ describe("cursor-cli", async () => {
     expect(startLog.stdout).toContain("status");
   });
 
-  test("writes project mcp.json when provided", async () => {
+  test("writes workspace mcp.json when provided", async () => {
     const mcp = JSON.stringify({ mcpServers: { foo: { command: "foo", type: "stdio" } } });
-    const { id, projectDir } = await setup({ mcp_json: mcp });
+    const { id } = await setup({ mcp_json: mcp });
     await writeExecutable({
       containerId: id,
       filePath: "/usr/bin/cursor-agent",
@@ -99,7 +99,7 @@ describe("cursor-cli", async () => {
     const mcpContent = await execContainer(id, [
       "bash",
       "-c",
-      `cat '${projectDir}/.cursor/mcp.json'`,
+      `cat '/home/coder/.cursor/mcp.json'`,
     ]);
     expect(mcpContent.exitCode).toBe(0);
     expect(mcpContent.stdout).toContain("mcpServers");

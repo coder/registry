@@ -27,7 +27,6 @@ module "cursor_cli" {
   # Optional
   install_cursor_cli = true
   cursor_cli_version = "latest"
-  output_format      = "json" # text | json | stream-json
   force              = false
   model              = "gpt-5"
   ai_prompt          = data.coder_parameter.ai_prompt.value
@@ -56,7 +55,7 @@ module "cursor_cli" {
 
 ### MCP configuration
 
-Minimal MCP server (writes `<folder>/.cursor/mcp.json`):
+Minimal MCP server (writes `~/.cursor/mcp.json`):
 
 ```tf
 module "cursor_cli" {
@@ -83,7 +82,7 @@ module "cursor_cli" {
   source   = "registry.coder.com/coder-labs/cursor-cli/coder"
   version  = "0.1.0"
   agent_id = coder_agent.example.id
-  folder   = "/workspace"
+  folder   = "/home/coder/project"
 
   mcp_json = jsonencode({
     mcpServers = {
@@ -102,7 +101,7 @@ module "cursor_cli" {
 
 ### Rules
 
-Provide a map of file name to content; files are written to `<folder>/.cursor/rules/<name>`.
+Provide a map of file name to content; files are written to `~/.cursor/rules/<name>`.
 
 Single rules file:
 
@@ -117,10 +116,10 @@ module "cursor_cli" {
     "global.yml" = <<-EOT
       version: 1
       rules:
-        - name: project
+        - name: frontend
           include: ['**/*']
           exclude: ['node_modules/**', '.git/**']
-          description: Project-wide rules
+          description: Frontend rules
       EOT
   }
 }
@@ -133,7 +132,7 @@ module "cursor_cli" {
   source   = "registry.coder.com/coder-labs/cursor-cli/coder"
   version  = "0.1.0"
   agent_id = coder_agent.example.id
-  folder   = "/workspace"
+  folder   = "/home/coder/project"
 
   rules_files = {
     "python.yml" = <<-EOT
@@ -159,9 +158,8 @@ module "cursor_cli" {
 ## Notes
 
 - See Cursor CLI docs: `https://docs.cursor.com/en/cli/overview`
-- For MCP project config, see `https://docs.cursor.com/en/context/mcp#using-mcp-json`. This module writes your `mcp_json` into `<folder>/.cursor/mcp.json`.
-- For Rules, see `https://docs.cursor.com/en/context/rules#project-rules`. Provide `rules_files` (map of file name to content) to populate `<folder>/.cursor/rules/`.
-- The agent runs non-interactively with `-p` by default. Use `output_format` to choose `text | json | stream-json` (default `json`).
+- For MCP project config, see `https://docs.cursor.com/en/context/mcp#using-mcp-json`. This module writes your `mcp_json` into `~/.cursor/mcp.json`.
+- For Rules, see `https://docs.cursor.com/en/context/rules#project-rules`. Provide `rules_files` (map of file name to content) to populate `~/.cursor/rules/`.
 
 ## Troubleshooting
 
