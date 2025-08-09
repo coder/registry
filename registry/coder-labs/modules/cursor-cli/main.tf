@@ -1,0 +1,204 @@
+terraform {
+  required_version = ">= 1.0"
+
+  required_providers {
+    coder = {
+      source  = "coder/coder"
+      version = ">= 2.7"
+    }
+  }
+}
+
+variable "agent_id" {
+  type        = string
+  description = "The ID of a Coder agent."
+}
+
+data "coder_workspace" "me" {}
+
+data "coder_workspace_owner" "me" {}
+
+variable "order" {
+  type        = number
+  description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
+  default     = null
+}
+
+variable "group" {
+  type        = string
+  description = "The name of a group that this app belongs to."
+  default     = null
+}
+
+variable "icon" {
+  type        = string
+  description = "The icon to use for the app."
+  default     = "/icon/cursor.svg"
+}
+
+variable "folder" {
+  type        = string
+  description = "The folder to run Cursor CLI in."
+}
+
+variable "install_cursor_cli" {
+  type        = bool
+  description = "Whether to install Cursor CLI."
+  default     = true
+}
+
+variable "cursor_cli_version" {
+  type        = string
+  description = "The version of Cursor CLI to install (latest for latest)."
+  default     = "latest"
+}
+
+# Running mode is non-interactive by design for automation.
+
+
+variable "force" {
+  type        = bool
+  description = "Pass -f/--force to allow commands unless explicitly denied."
+  default     = false
+}
+
+variable "model" {
+  type        = string
+  description = "Pass -m/--model to select model (e.g., sonnet-4, gpt-5)."
+  default     = ""
+}
+
+variable "ai_prompt" {
+  type        = string
+  description = "AI prompt/task passed to cursor-agent."
+  default     = ""
+}
+
+variable "api_key" {
+  type        = string
+  description = "API key (sets CURSOR_API_KEY env or pass via -a)."
+  default     = ""
+  sensitive   = true
+}
+
+
+variable "mcp_json" {
+  type        = string
+  description = "Project-specific MCP JSON to write to <folder>/.cursor/mcp.json. See https://docs.cursor.com/en/context/mcp#using-mcp-json"
+  default     = null
+}
+
+variable "rules_files" {
+  type        = map(string)
+  description = "Optional map of rule file name to content. Files will be written to <folder>/.cursor/rules/<name>. See https://docs.cursor.com/en/context/rules#project-rules"
+  default     = null
+}
+
+variable "pre_install_script" {
+  type        = string
+  description = "Optional script to run before installing Cursor CLI."
+  default     = null
+}
+
+variable "post_install_script" {
+  type        = string
+  description = "Optional script to run after installing Cursor CLI."
+  default     = null
+}
+
+locals {
+  app_slug                    = "cursor-cli"
+  install_script              = file("${path.module}/scripts/install.sh")
+  start_script                = file("${path.module}/scripts/start.sh")
+  module_dir_name             = ".cursor-cli-module"
+  encoded_pre_install_script  = var.pre_install_script != null ? base64encode(var.pre_install_script) : ""
+  encoded_post_install_script = var.post_install_script != null ? base64encode(var.post_install_script) : ""
+}
+
+# Expose status slug and API key to the agent environment
+resource "coder_env" "status_slug" {
+  agent_id = var.agent_id
+  name     = "CODER_MCP_APP_STATUS_SLUG"
+  value    = local.app_slug
+}
+
+resource "coder_env" "cursor_api_key" {
+  count    = var.api_key != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CURSOR_API_KEY"
+  value    = var.api_key
+}
+
+resource "coder_script" "cursor_cli" {
+  agent_id     = var.agent_id
+  display_name = "Cursor CLI"
+  icon         = var.icon
+  script       = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    # Ensure module log directory exists before piping logs
+    mkdir -p "$HOME/${local.module_dir_name}"
+
+    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
+    chmod +x /tmp/install.sh
+    # Run optional pre-install script
+    if [ -n "${local.encoded_pre_install_script}" ]; then
+      echo "${local.encoded_pre_install_script}" | base64 -d > /tmp/pre_install.sh
+      chmod +x /tmp/pre_install.sh
+      echo "[cursor-cli] running pre-install script" | tee -a "$HOME/${local.module_dir_name}/install.log"
+      FOLDER='${var.folder}' /tmp/pre_install.sh | tee -a "$HOME/${local.module_dir_name}/pre_install.log"
+    fi
+    ARG_INSTALL='${var.install_cursor_cli}' \
+    ARG_VERSION='${var.cursor_cli_version}' \
+    PROJECT_MCP_JSON='${var.mcp_json != null ? base64encode(replace(var.mcp_json, "'", "'\\''")) : ""}' \
+    PROJECT_RULES_JSON='${var.rules_files != null ? base64encode(jsonencode(var.rules_files)) : ""}' \
+    MODULE_DIR_NAME='${local.module_dir_name}' \
+    FOLDER='${var.folder}' \
+    /tmp/install.sh | tee "$HOME/${local.module_dir_name}/install.log"
+
+    # Run optional post-install script
+    if [ -n "${local.encoded_post_install_script}" ]; then
+      echo "${local.encoded_post_install_script}" | base64 -d > /tmp/post_install.sh
+      chmod +x /tmp/post_install.sh
+      echo "[cursor-cli] running post-install script" | tee -a "$HOME/${local.module_dir_name}/install.log"
+      FOLDER='${var.folder}' /tmp/post_install.sh | tee -a "$HOME/${local.module_dir_name}/post_install.log"
+    fi
+
+    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+    chmod +x /tmp/start.sh
+    FORCE='${var.force}' \
+    MODEL='${var.model}' \
+    AI_PROMPT='${var.ai_prompt}' \
+    MODULE_DIR_NAME='${local.module_dir_name}' \
+    FOLDER='${var.folder}' \
+    /tmp/start.sh | tee "$HOME/${local.module_dir_name}/start.log"
+  EOT
+  run_on_start = true
+}
+
+resource "coder_app" "cursor_cli" {
+  agent_id     = var.agent_id
+  slug         = local.app_slug
+  display_name = "Cursor CLI"
+  icon         = var.icon
+  order        = var.order
+  group        = var.group
+  command      = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+    if [ -f "$HOME/${local.module_dir_name}/start.log" ]; then
+      tail -n +1 -f "$HOME/${local.module_dir_name}/start.log"
+    else
+      echo "Cursor CLI not started yet. Check install/start logs in $HOME/${local.module_dir_name}/"
+      /bin/bash
+    fi
+  EOT
+}
+
+output "app_id" {
+  description = "The ID of the Cursor CLI app."
+  value       = coder_app.cursor_cli.id
+}

@@ -1,0 +1,87 @@
+#!/bin/bash
+
+set -o errexit
+set -o pipefail
+
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Inputs
+ARG_INSTALL=${ARG_INSTALL:-true}
+ARG_VERSION=${ARG_VERSION:-latest}
+MODULE_DIR_NAME=${MODULE_DIR_NAME:-.cursor-cli-module}
+FOLDER=${FOLDER:-$HOME}
+
+mkdir -p "$HOME/$MODULE_DIR_NAME"
+
+PROJECT_MCP_JSON=$(echo -n "$PROJECT_MCP_JSON" | base64 -d)
+PROJECT_RULES_JSON=$(echo -n "$PROJECT_RULES_JSON" | base64 -d)
+
+{
+  echo "--------------------------------"
+  echo "install: $ARG_INSTALL"
+  echo "version: $ARG_VERSION"
+  echo "folder: $FOLDER"
+  echo "--------------------------------"
+} | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
+
+# Install Cursor via official installer if requested
+if [ "$ARG_INSTALL" = "true" ]; then
+  echo "Installing Cursor via official installer..." | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
+  set +e
+  curl https://cursor.com/install -fsS | bash 2>&1 | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
+  CURL_EXIT=${PIPESTATUS[0]}
+  set -e
+  if [ $CURL_EXIT -ne 0 ]; then
+    echo "Cursor installer failed with exit code $CURL_EXIT" | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
+  fi
+
+  # Ensure binaries are discoverable; create stable symlink to cursor-agent
+  CANDIDATES=(
+    "$(command -v cursor-agent || true)"
+    "$HOME/.cursor/bin/cursor-agent"
+  )
+  FOUND_BIN=""
+  for c in "${CANDIDATES[@]}"; do
+    if [ -n "$c" ] && [ -x "$c" ]; then
+      FOUND_BIN="$c"
+      break
+    fi
+  done
+  mkdir -p "$HOME/.local/bin"
+  if [ -n "$FOUND_BIN" ]; then
+    ln -sf "$FOUND_BIN" "$HOME/.local/bin/cursor-agent"
+  fi
+  echo "Installed cursor-agent at: $(command -v cursor-agent || true) (resolved: $FOUND_BIN)" | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
+fi
+
+# Ensure status slug env is exported for downstream processes
+if [ -n "${STATUS_SLUG:-}" ]; then
+  echo "export CODER_MCP_APP_STATUS_SLUG=$STATUS_SLUG" >> "$HOME/.bashrc"
+  export CODER_MCP_APP_STATUS_SLUG="$STATUS_SLUG"
+fi
+
+# Write project-specific MCP if provided
+if [ -n "$PROJECT_MCP_JSON" ]; then
+  TARGET_DIR="$FOLDER/.cursor"
+  mkdir -p "$TARGET_DIR"
+  echo "$PROJECT_MCP_JSON" > "$TARGET_DIR/mcp.json"
+  echo "Wrote project MCP to $TARGET_DIR/mcp.json" | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
+fi
+
+# Write rules files if provided (map of name->content)
+if [ -n "$PROJECT_RULES_JSON" ]; then
+  RULES_DIR="$FOLDER/.cursor/rules"
+  mkdir -p "$RULES_DIR"
+  echo "$PROJECT_RULES_JSON" | jq -r 'to_entries[] | @base64' | while read -r entry; do
+    _jq() { echo "${entry}" | base64 -d | jq -r ${1}; }
+    NAME=$(_jq '.key')
+    CONTENT=$(_jq '.value')
+    echo "$CONTENT" > "$RULES_DIR/$NAME"
+    echo "Wrote rule: $RULES_DIR/$NAME" | tee -a "$HOME/$MODULE_DIR_NAME/install.log"
+  done
+fi
+
+
+exit 0
