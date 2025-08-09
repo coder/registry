@@ -81,7 +81,6 @@ variable "api_key" {
   sensitive   = true
 }
 
-
 variable "mcp_json" {
   type        = string
   description = "Workspace-specific MCP JSON to write to ~/.cursor/mcp.json. See https://docs.cursor.com/en/context/mcp#using-mcp-json"
