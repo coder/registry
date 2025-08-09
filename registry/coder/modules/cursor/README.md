@@ -45,7 +45,7 @@ module "cursor" {
   source   = "registry.coder.com/coder/cursor/coder"
   version  = "1.2.1"
   agent_id = coder_agent.example.id
-  mcp      = jsonencode({
+  mcp = jsonencode({
     servers = {
       demo = { url = "http://localhost:1234" }
     }
