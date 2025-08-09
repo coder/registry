@@ -16,7 +16,7 @@ Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder)
 module "cursor" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/cursor/coder"
-  version = "1.3.0"
+  version  = "1.3.0"
   agent_id = coder_agent.example.id
 }
 ```
@@ -29,7 +29,7 @@ module "cursor" {
 module "cursor" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/cursor/coder"
-  version = "1.3.0"
+  version  = "1.3.0"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
 }
@@ -43,11 +43,18 @@ Provide a JSON-encoded string via the `mcp` input. When set, the module writes t
 module "cursor" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/cursor/coder"
-  version = "1.3.0"
+  version  = "1.3.0"
   agent_id = coder_agent.example.id
   mcp = jsonencode({
-    servers = {
-      demo = { url = "http://localhost:1234" }
+    mcpServers = {
+      coder = {
+        command = "coder"
+        args    = ["exp", "mcp", "server"]
+        env = {
+          CODER_MCP_APP_STATUS_SLUG = "cursor"
+          CODER_MCP_AI_AGENTAPI_URL = "http://localhost:3284"
+        }
+      }
     }
   })
 }
