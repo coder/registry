@@ -34,3 +34,21 @@ module "cursor" {
   folder   = "/home/coder/project"
 }
 ```
+
+### Configure MCP servers for Cursor
+
+Provide a JSON-encoded string via the `mcp` input. When set, the module writes the value to `~/.cursor/mcp.json` using a `coder_script` on workspace start.
+
+```tf
+module "cursor" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/cursor/coder"
+  version  = "1.2.1"
+  agent_id = coder_agent.example.id
+  mcp      = jsonencode({
+    servers = {
+      demo = { url = "http://localhost:1234" }
+    }
+  })
+}
+```
