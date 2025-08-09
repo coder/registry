@@ -87,13 +87,13 @@ resource "coder_app" "cursor" {
 }
 
 resource "coder_script" "cursor_mcp" {
-  count         = var.mcp != "" ? 1 : 0
-  agent_id      = var.agent_id
-  display_name  = "Cursor MCP"
-  icon          = "/icon/cursor.svg"
-  run_on_start  = true
+  count              = var.mcp != "" ? 1 : 0
+  agent_id           = var.agent_id
+  display_name       = "Cursor MCP"
+  icon               = "/icon/cursor.svg"
+  run_on_start       = true
   start_blocks_login = false
-  script        = <<-EOT
+  script             = <<-EOT
     #!/bin/sh
     set -eu
     mkdir -p "$HOME/.cursor"
