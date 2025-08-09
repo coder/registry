@@ -84,13 +84,13 @@ variable "api_key" {
 
 variable "mcp_json" {
   type        = string
-  description = "Project-specific MCP JSON to write to <folder>/.cursor/mcp.json. See https://docs.cursor.com/en/context/mcp#using-mcp-json"
+  description = "Workspace-specific MCP JSON to write to ~/.cursor/mcp.json. See https://docs.cursor.com/en/context/mcp#using-mcp-json"
   default     = null
 }
 
 variable "rules_files" {
   type        = map(string)
-  description = "Optional map of rule file name to content. Files will be written to <folder>/.cursor/rules/<name>. See https://docs.cursor.com/en/context/rules#project-rules"
+  description = "Optional map of rule file name to content. Files will be written to ~/.cursor/rules/<name>. See https://docs.cursor.com/en/context/rules#project-rules"
   default     = null
 }
 
