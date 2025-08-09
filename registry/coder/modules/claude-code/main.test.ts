@@ -54,7 +54,7 @@ const setupContainer = async ({
     ...vars,
   });
   const coderScript = findResourceInstance(state, "coder_script");
-  const id = await runContainer(image ?? "node:18-alpine");
+  const id = await runContainer(image ?? "codercom/enterprise-node:latest");
   registerCleanup(() => removeContainer(id));
   return { id, coderScript };
 };
