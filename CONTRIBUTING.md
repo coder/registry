@@ -89,7 +89,7 @@ Create `registry/[your-username]/README.md`:
 ---
 display_name: "Your Name"
 bio: "Brief description of who you are and what you do"
-avatar_url: "./.images/avatar.png"
+avatar: "./.images/avatar.png"
 github: "your-username"
 linkedin: "https://www.linkedin.com/in/your-username" # Optional
 website: "https://yourwebsite.com" # Optional
@@ -102,7 +102,7 @@ status: "community"
 Brief description of who you are and what you do.
 ```
 
-> **Note**: The `avatar_url` must point to `./.images/avatar.png` or `./.images/avatar.svg`.
+> **Note**: The `avatar` must point to `./.images/avatar.png` or `./.images/avatar.svg`.
 
 ### 2. Generate Module Files
 
