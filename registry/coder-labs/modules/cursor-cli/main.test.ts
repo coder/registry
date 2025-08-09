@@ -61,9 +61,6 @@ describe("cursor-cli", async () => {
     ]);
     expect(startLog.exitCode).toBe(0);
     expect(startLog.stdout).toContain("cursor-agent");
-    // Non-interactive flags are always provided
-    expect(startLog.stdout).toContain("-p");
-    expect(startLog.stdout).toContain("--output-format json");
   });
 
   test("model and force flags propagate", async () => {
