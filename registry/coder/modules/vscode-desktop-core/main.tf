@@ -28,7 +28,7 @@ variable "open_recent" {
 
 variable "protocol" {
   type        = string
-  description = "The URI protocol the IDE."
+  description = "The URI protocol for the IDE."
 }
 
 variable "coder_app_icon" {
