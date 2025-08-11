@@ -52,7 +52,7 @@ variable "display_name" {
 
 variable "settings" {
   type        = string
-  description = "Optional object of Zed settings to write to settings.json"
+  description = "JSON encoded settings.json"
   default     = ""
 }
 
