@@ -10,6 +10,7 @@ import path from "path";
 import {
   execContainer,
   findResourceInstance,
+  readFileContainer,
   removeContainer,
   runContainer,
   runTerraformApply,
@@ -318,5 +319,22 @@ describe("claude-code", async () => {
       statusSlug: "ccw",
       agentApiUrl: "http://localhost:3284",
     });
+  });
+
+  // verify that the agentapi binary has access to the AGENTAPI_ALLOWED_HOSTS environment variable
+  // set in main.tf
+  test("agentapi-allowed-hosts", async () => {
+    const { id } = await setup();
+
+    const respModuleScript = await execModuleScript(id);
+    expect(respModuleScript.exitCode).toBe(0);
+
+    await expectAgentAPIStarted(id);
+
+    const agentApiStartLog = await readFileContainer(
+      id,
+      "/home/coder/agentapi-mock.log",
+    );
+    expect(agentApiStartLog).toContain("AGENTAPI_ALLOWED_HOSTS: *");
   });
 });
