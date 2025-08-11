@@ -67,7 +67,7 @@ module "zed" {
 
 Zed stores settings at `~/.config/zed/settings.json` by default. If `XDG_CONFIG_HOME` is set on Linux, settings will be at `$XDG_CONFIG_HOME/zed/settings.json`.
 
-You can declaratively set/merge settings with the `settings` input. For example, to configure MCP servers:
+You can declaratively set/merge settings with the `settings` input. Provide a JSON string (e.g., via `jsonencode(...)`). For example, to configure MCP servers:
 
 ```tf
 module "zed" {
@@ -76,7 +76,7 @@ module "zed" {
   version  = "1.0.1"
   agent_id = coder_agent.example.id
 
-  settings = {
+  settings = jsonencode({
     context_servers = {
       your-mcp-server = {
         source  = "custom"
@@ -85,6 +85,9 @@ module "zed" {
         env     = {}
       }
     }
-  }
+  })
 }
 ```
+
+See Zed’s settings files documentation: https://zed.dev/docs/configuring-zed#settings-files
+

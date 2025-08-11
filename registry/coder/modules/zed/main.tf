@@ -51,9 +51,9 @@ variable "display_name" {
 }
 
 variable "settings" {
-  type        = any
-  description = "Optional object of Zed settings to write to settings.json (merged if jq is available)."
-  default     = {}
+  type        = string
+  description = "Optional object of Zed settings to write to settings.json"
+  default     = ""
 }
 
 data "coder_workspace" "me" {}
@@ -74,8 +74,8 @@ resource "coder_script" "zed_settings" {
   run_on_start = true
   script       = <<-EOT
     set -eu
-    SETTINGS_JSON='${replace(jsonencode(var.settings), "\"", "\\\"")}'
-    if [ "$${SETTINGS_JSON}" = "{}" ] || [ -z "$${SETTINGS_JSON}" ]; then
+    SETTINGS_JSON='${replace(var.settings, "\"", "\\\"")}'
+    if [ -z "$${SETTINGS_JSON}" ] || [ "$${SETTINGS_JSON}" = "{}" ]; then
       exit 0
     fi
     CONFIG_HOME="$${XDG_CONFIG_HOME:-$HOME/.config}"
