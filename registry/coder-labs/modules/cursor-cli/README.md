@@ -10,6 +10,8 @@ tags: [agent, cursor, ai, cli]
 
 Run the Cursor Coding Agent in your workspace using the Cursor CLI directly.
 
+A full example with MCP, rules, and pre/post install scripts:
+
 ```tf
 
 data "coder_parameter" "ai_prompt" {
@@ -27,14 +29,31 @@ module "cursor_cli" {
   # Optional
   install_cursor_cli = true
   cursor_cli_version = "latest"
-  force              = false
+  force              = true
   model              = "gpt-5"
   ai_prompt          = data.coder_parameter.ai_prompt.value
+
+  # Minimal MCP server (writes `~/.cursor/mcp.json`):
   mcp_json = jsonencode({
     mcpServers = {
-      # example project-specific servers (see docs)
+      playwright = {
+        command = "npx"
+        args    = ["-y", "@playwright/mcp@latest", "--headless", "--isolated", "--no-sandbox"]
+      }
+      desktop-commander = {
+        command = "npx"
+        args    = ["-y", "@wonderwhy-er/desktop-commander"]
+      }
     }
   })
+
+  # Use a pre_install_script to install the CLI
+  pre_install_script = <<-EOT
+    #!/usr/bin/env bash
+    set -euo pipefail
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    apt-get install -y nodejs
+  EOT
 
   # Use post_install_script to wait for the repo to be ready
   post_install_script = <<-EOT
@@ -48,92 +67,8 @@ module "cursor_cli" {
     done
     echo "timeout waiting for ${TARGET}" >&2
   EOT
-}
-```
 
-## Examples
-
-### MCP configuration
-
-Minimal MCP server (writes `~/.cursor/mcp.json`):
-
-```tf
-module "cursor_cli" {
-  source   = "registry.coder.com/coder-labs/cursor-cli/coder"
-  version  = "0.1.0"
-  agent_id = coder_agent.example.id
-  folder   = "/home/coder/project"
-
-  mcp_json = jsonencode({
-    mcpServers = {
-      tools = {
-        command = "/usr/local/bin/tools-server"
-        type    = "stdio"
-      }
-    }
-  })
-}
-```
-
-Multiple servers with args and env:
-
-```tf
-module "cursor_cli" {
-  source   = "registry.coder.com/coder-labs/cursor-cli/coder"
-  version  = "0.1.0"
-  agent_id = coder_agent.example.id
-  folder   = "/home/coder/project"
-
-  mcp_json = jsonencode({
-    mcpServers = {
-      playwright = {
-        command = "npx"
-        args    = ["-y", "@playwright/mcp@latest", "--headless", "--isolated", "--no-sandbox"]
-      }
-      desktop-commander = {
-        command = "npx"
-        args    = ["-y", "@wonderwhy-er/desktop-commander"]
-      }
-    }
-  })
-}
-```
-
-### Rules
-
-Provide a map of file name to content; files are written to `~/.cursor/rules/<name>`.
-
-Single rules file:
-
-```tf
-module "cursor_cli" {
-  source   = "registry.coder.com/coder-labs/cursor-cli/coder"
-  version  = "0.1.0"
-  agent_id = coder_agent.example.id
-  folder   = "/home/coder/project"
-
-  rules_files = {
-    "global.yml" = <<-EOT
-      version: 1
-      rules:
-        - name: frontend
-          include: ['**/*']
-          exclude: ['node_modules/**', '.git/**']
-          description: Frontend rules
-      EOT
-  }
-}
-```
-
-Multiple rules files (language-specific):
-
-```tf
-module "cursor_cli" {
-  source   = "registry.coder.com/coder-labs/cursor-cli/coder"
-  version  = "0.1.0"
-  agent_id = coder_agent.example.id
-  folder   = "/home/coder/project"
-
+  # Provide a map of file name to content; files are written to `~/.cursor/rules/<name>`.
   rules_files = {
     "python.yml" = <<-EOT
       version: 1
@@ -155,7 +90,7 @@ module "cursor_cli" {
 }
 ```
 
-## Notes
+## References
 
 - See Cursor CLI docs: `https://docs.cursor.com/en/cli/overview`
 - For MCP project config, see `https://docs.cursor.com/en/context/mcp#using-mcp-json`. This module writes your `mcp_json` into `~/.cursor/mcp.json`.

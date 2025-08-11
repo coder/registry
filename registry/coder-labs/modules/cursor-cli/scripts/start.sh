@@ -49,6 +49,6 @@ if [ -n "$AI_PROMPT" ]; then
   ARGS+=("$AI_PROMPT")
 fi
 
-# Log and exec
+# Log and run in background, redirecting all output to the log file
 printf "Running: %q %s\n" "$CURSOR_CMD" "$(printf '%q ' "${ARGS[@]}")" | tee -a "$HOME/$MODULE_DIR_NAME/start.log"
-exec "$CURSOR_CMD" "${ARGS[@]}"
+("$CURSOR_CMD" "${ARGS[@]}" >> "$HOME/$MODULE_DIR_NAME/start.log" 2>&1) &
