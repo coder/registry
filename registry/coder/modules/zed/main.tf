@@ -72,7 +72,7 @@ resource "coder_script" "zed_settings" {
   display_name = "Configure Zed settings"
   icon         = "/icon/zed.svg"
   run_on_start = true
-  script = <<-EOT
+  script       = <<-EOT
     set -eu
     SETTINGS_JSON='${replace(jsonencode(var.settings), "\"", "\\\"")}'
     if [ "$${SETTINGS_JSON}" = "{}" ] || [ -z "$${SETTINGS_JSON}" ]; then
