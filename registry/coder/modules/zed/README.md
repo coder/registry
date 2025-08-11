@@ -44,7 +44,7 @@ module "zed" {
 module "zed" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/coder/zed/coder"
-  version  = "1.1.0"
+  version      = "1.1.0"
   agent_id     = coder_agent.example.id
   display_name = "Zed Editor"
   order        = 1
@@ -57,7 +57,7 @@ module "zed" {
 module "zed" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/zed/coder"
-  version  = "1.1.0"
+  version    = "1.1.0"
   agent_id   = coder_agent.example.id
   agent_name = coder_agent.example.name
 }
