@@ -1,7 +1,7 @@
 ---
 display_name: "Mark Milligan"
 bio: "VP of Revenue  at https://nuon.co. Former VP of Sales at Coder. Love building startup revenue teams and tinkering with technology."
-avatar_url: "./.images/avatar.png"
+avatar: "./.images/avatar.png"
 github: "sharkymark"
 linkedin: "https://www.linkedin.com/in/marktmilligan" # Optional
 website: "https://markmilligan.io" # Optional
