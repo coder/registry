@@ -62,3 +62,29 @@ module "zed" {
   agent_name = coder_agent.example.name
 }
 ```
+
+### Configure Zed settings including MCP servers
+
+Zed stores settings at `~/.config/zed/settings.json` by default. If `XDG_CONFIG_HOME` is set on Linux, settings will be at `$XDG_CONFIG_HOME/zed/settings.json`.
+
+You can declaratively set/merge settings with the `settings` input. For example, to configure MCP servers:
+
+```tf
+module "zed" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/zed/coder"
+  version  = "1.0.1"
+  agent_id = coder_agent.example.id
+
+  settings = {
+    context_servers = {
+      your-mcp-server = {
+        source  = "custom"
+        command = "some-command"
+        args    = ["arg-1", "arg-2"]
+        env     = {}
+      }
+    }
+  }
+}
+```
