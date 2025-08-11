@@ -14,6 +14,7 @@ on:
     paths:
       - ".github/workflows/deploy-registry.yaml"
       - "registry/**/templates/**"
+      - "registry/**/README.md"
       - ".icons/**"
 
 jobs:
