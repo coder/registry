@@ -1,12 +1,5 @@
 terraform {
   required_version = ">= 1.0"
-
-  required_providers {
-    coder = {
-      source  = "coder/coder"
-      version = ">= 2.5"
-    }
-  }
 }
 
 variable "agent_id" {
@@ -50,32 +43,24 @@ variable "display_name" {
   default     = "Cursor Desktop"
 }
 
-data "coder_workspace" "me" {}
-data "coder_workspace_owner" "me" {}
+module "cursor" {
+  # TODO: update this
+  source = "git::https://github.com/coder/registry.git//registry/coder/modules/vscode-desktop-core?ref=phorcys420/centralize-vscode-desktop"
 
-resource "coder_app" "cursor" {
-  agent_id     = var.agent_id
-  external     = true
-  icon         = "/icon/cursor.svg"
-  slug         = var.slug
-  display_name = var.display_name
-  order        = var.order
-  group        = var.group
-  url = join("", [
-    "cursor://coder.coder-remote/open",
-    "?owner=",
-    data.coder_workspace_owner.me.name,
-    "&workspace=",
-    data.coder_workspace.me.name,
-    var.folder != "" ? join("", ["&folder=", var.folder]) : "",
-    var.open_recent ? "&openRecent" : "",
-    "&url=",
-    data.coder_workspace.me.access_url,
-    "&token=$SESSION_TOKEN",
-  ])
+  agent_id = var.agent_id
+
+  web_app_icon         = "/icon/cursor.svg"
+  web_app_slug         = var.slug
+  web_app_display_name = var.display_name
+  web_app_order        = var.order
+  web_app_group        = var.group
+
+  folder      = var.folder
+  open_recent = var.open_recent
+  protocol    = "cursor"
 }
 
 output "cursor_url" {
-  value       = coder_app.cursor.url
+  value       = module.cursor.ide_uri
   description = "Cursor IDE Desktop URL."
 }

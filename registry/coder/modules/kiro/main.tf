@@ -1,12 +1,5 @@
 terraform {
   required_version = ">= 1.0"
-
-  required_providers {
-    coder = {
-      source  = "coder/coder"
-      version = ">= 2.5"
-    }
-  }
 }
 
 variable "agent_id" {
@@ -38,44 +31,24 @@ variable "group" {
   default     = null
 }
 
-variable "slug" {
-  type        = string
-  description = "The slug of the app."
-  default     = "kiro"
-}
+module "kiro" {
+  # TODO: update this
+  source = "git::https://github.com/coder/registry.git//registry/coder/modules/vscode-desktop-core?ref=phorcys420/centralize-vscode-desktop"
 
-variable "display_name" {
-  type        = string
-  description = "The display name of the app."
-  default     = "Kiro IDE"
-}
+  agent_id = var.agent_id
 
-data "coder_workspace" "me" {}
-data "coder_workspace_owner" "me" {}
+  web_app_icon         = "/icon/kiro.svg"
+  web_app_slug         = "kiro"
+  web_app_display_name = "Kiro IDE"
+  web_app_order        = var.order
+  web_app_group        = var.group
 
-resource "coder_app" "kiro" {
-  agent_id     = var.agent_id
-  external     = true
-  icon         = "/icon/kiro.svg"
-  slug         = var.slug
-  display_name = var.display_name
-  order        = var.order
-  group        = var.group
-  url = join("", [
-    "kiro://coder.coder-remote/open",
-    "?owner=",
-    data.coder_workspace_owner.me.name,
-    "&workspace=",
-    data.coder_workspace.me.name,
-    var.folder != "" ? join("", ["&folder=", var.folder]) : "",
-    var.open_recent ? "&openRecent" : "",
-    "&url=",
-    data.coder_workspace.me.access_url,
-    "&token=$SESSION_TOKEN",
-  ])
+  folder      = var.folder
+  open_recent = var.open_recent
+  protocol    = "kiro"
 }
 
 output "kiro_url" {
-  value       = coder_app.kiro.url
+  value       = module.kiro.ide_uri
   description = "Kiro IDE URL."
 }
