@@ -75,18 +75,18 @@ resource "coder_script" "zed_settings" {
   script = <<-EOT
     set -eu
     SETTINGS_JSON='${replace(jsonencode(var.settings), "\"", "\\\"")}'
-    if [ "${SETTINGS_JSON}" = "{}" ] || [ -z "${SETTINGS_JSON}" ]; then
+    if [ "$${SETTINGS_JSON}" = "{}" ] || [ -z "$${SETTINGS_JSON}" ]; then
       exit 0
     fi
-    CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-    ZED_DIR="${CONFIG_HOME}/zed"
-    mkdir -p "${ZED_DIR}"
-    SETTINGS_FILE="${ZED_DIR}/settings.json"
-    if command -v jq >/dev/null 2>&1 && [ -s "${SETTINGS_FILE}" ]; then
+    CONFIG_HOME="$${XDG_CONFIG_HOME:-$HOME/.config}"
+    ZED_DIR="$${CONFIG_HOME}/zed"
+    mkdir -p "$${ZED_DIR}"
+    SETTINGS_FILE="$${ZED_DIR}/settings.json"
+    if command -v jq >/dev/null 2>&1 && [ -s "$${SETTINGS_FILE}" ]; then
       tmpfile="$(mktemp)"
-      jq -s '.[0] * .[1]' "${SETTINGS_FILE}" <(printf '%s\n' "${SETTINGS_JSON}") > "${tmpfile}" && mv "${tmpfile}" "${SETTINGS_FILE}"
+      jq -s '.[0] * .[1]' "$${SETTINGS_FILE}" <(printf '%s\n' "$${SETTINGS_JSON}") > "$${tmpfile}" && mv "$${tmpfile}" "$${SETTINGS_FILE}"
     else
-      printf '%s\n' "${SETTINGS_JSON}" > "${SETTINGS_FILE}"
+      printf '%s\n' "$${SETTINGS_JSON}" > "$${SETTINGS_FILE}"
     fi
   EOT
 }
