@@ -1,5 +1,5 @@
 ---
-display_name: Coder VSCode Desktop Core
+display_name: VSCode Desktop Core
 description: Building block for modules that need to link to an external VSCode-based IDE
 icon: ../../../../.icons/coder.svg
 verified: true
