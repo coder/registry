@@ -90,4 +90,3 @@ module "zed" {
 ```
 
 See Zed’s settings files documentation: https://zed.dev/docs/configuring-zed#settings-files
-
