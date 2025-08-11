@@ -104,8 +104,13 @@ description = "Report ALL tasks and statuses (in progress, done, failed) you are
 type = "stdio"
 EOF
 )
-
+    TRUSTED_FOLDER=$(cat <<EOF
+projects = { "${ARG_CODEX_START_DIRECTORY}" = { trust_level = "trusted" } }
+EOF
+    )
     echo "
+${TRUSTED_FOLDER}
+
 ${ARG_EXTRA_CODEX_CONFIG}
 
 ${BASE_EXTENSIONS}

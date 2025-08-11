@@ -73,10 +73,8 @@ module "codex" {
 }
 ```
 
-> **Security Notice**: This module uses the `--dangerously-bypass-approvals-and-sandbox` flag when running Codex CLI. This flag
-> bypasses standard permission checks and allows Codex CLI broader access to your system than normally permitted. While
-> this enables more functionality, it also means Codex CLI can potentially execute commands with the same privileges as
-> the user running it. Use this module _only_ in trusted environments and be aware of the security implications.
+> **Security Notice**: This module marks the workspace/folder as trusted that allows Codex to work in this workspace without asking for approval.
+> Use this module _only_ in trusted environments and be aware of the security implications.
 
 ## How it Works
 

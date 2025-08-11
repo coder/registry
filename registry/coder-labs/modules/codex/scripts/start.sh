@@ -25,7 +25,7 @@ printf "start_directory: %s\n" "$ARG_CODEX_START_DIRECTORY"
 printf "task_prompt: %s\n" "$ARG_CODEX_TASK_PROMPT"
 echo "--------------------------------"
 set +o nounset
-CODEX_ARGS=("--skip-git-repo-check")
+CODEX_ARGS=()
 
 if command_exists codex; then
     printf "Codex is installed\n"
@@ -58,8 +58,8 @@ fi
 
 if [ -n "$ARG_CODEX_TASK_PROMPT" ]; then
     printf "Running the task prompt %s\n" "$ARG_CODEX_TASK_PROMPT"
-    PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $ARG_CODEX_TASK_PROMPT"
-    CODEX_ARGS+=("--dangerously-bypass-approvals-and-sandbox" "$PROMPT")
+    PROMPT="Complete the task at hand and at every step of the way, report tasks to Coder with proper summary and statuses. Your task at hand: $ARG_CODEX_TASK_PROMPT"
+    CODEX_ARGS+=("$PROMPT")
 else
     printf "No task prompt given.\n"
 fi
@@ -73,4 +73,4 @@ fi
 # use low width to fit in the tasks UI sidebar
 # we adjust the height to 930 due to a bug in codex, see: https://github.com/openai/codex/issues/1608
 printf "Starting codex with %s\n" "${CODEX_ARGS[@]}"
-agentapi server --term-width 63 --term-height 930 -- codex "${CODEX_ARGS[@]}"
+agentapi server --term-width 67 --term-height 1190 -- codex "${CODEX_ARGS[@]}"
