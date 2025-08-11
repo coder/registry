@@ -117,13 +117,38 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.2.3"
+  default     = "v0.3.3"
 }
 
 variable "agentapi_port" {
   type        = number
   description = "The port used by AgentAPI."
   default     = 3284
+}
+
+locals {
+  # agentapi_subdomain_false_min_version_expr matches a semantic version >= v0.3.3.
+  # Initial support was added in v0.3.1 but configuration via environment variable
+  # was added in v0.3.3.
+  # This is unfortunately a regex because there is no builtin way to compare semantic versions in Terraform.
+  # See: https://regex101.com/r/oHPyRa/1
+  agentapi_subdomain_false_min_version_expr = "^v(0\\.(3\\.[3-9]|3.[1-9]\\d+|[4-9]\\.\\d+|[1-9]\\d+\\.\\d+)|[1-9]\\d*\\.\\d+\\.\\d+)$"
+}
+
+variable "agentapi_subdomain" {
+  type        = bool
+  description = "Whether to use a subdomain for AgentAPI."
+  default     = true
+  validation {
+    condition = var.agentapi_subdomain || (
+      # If version doesn't look like a valid semantic version, just allow it.
+      # Note that boolean operators do not short-circuit in Terraform.
+      can(regex("^v\\d+\\.\\d+\\.\\d+$", var.agentapi_version)) ?
+      can(regex(local.agentapi_subdomain_false_min_version_expr, var.agentapi_version)) :
+      true
+    )
+    error_message = "Running with subdomain = false is only supported by agentapi >= v0.3.3."
+  }
 }
 
 variable "module_dir_name" {
@@ -140,7 +165,14 @@ locals {
   encoded_post_install_script        = var.post_install_script != null ? base64encode(var.post_install_script) : ""
   agentapi_start_script_b64          = base64encode(var.start_script)
   agentapi_wait_for_start_script_b64 = base64encode(file("${path.module}/scripts/agentapi-wait-for-start.sh"))
-  main_script                        = file("${path.module}/scripts/main.sh")
+  // Chat base path is only set if not using a subdomain.
+  // NOTE:
+  //   - Initial support for --chat-base-path was added in v0.3.1 but configuration
+  //     via environment variable AGENTAPI_CHAT_BASE_PATH was added in v0.3.3.
+  //   - As CODER_WORKSPACE_AGENT_NAME is a recent addition we use agent ID
+  //     for backward compatibility.
+  agentapi_chat_base_path = var.agentapi_subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${var.web_app_slug}/chat"
+  main_script             = file("${path.module}/scripts/main.sh")
 }
 
 resource "coder_script" "agentapi" {
@@ -165,6 +197,7 @@ resource "coder_script" "agentapi" {
     ARG_WAIT_FOR_START_SCRIPT="$(echo -n '${local.agentapi_wait_for_start_script_b64}' | base64 -d)" \
     ARG_POST_INSTALL_SCRIPT="$(echo -n '${local.encoded_post_install_script}' | base64 -d)" \
     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
+    ARG_AGENTAPI_CHAT_BASE_PATH='${local.agentapi_chat_base_path}' \
     /tmp/main.sh
     EOT
   run_on_start = true
@@ -178,7 +211,7 @@ resource "coder_app" "agentapi_web" {
   icon         = var.web_app_icon
   order        = var.web_app_order
   group        = var.web_app_group
-  subdomain    = true
+  subdomain    = var.agentapi_subdomain
   healthcheck {
     url       = "http://localhost:${var.agentapi_port}/status"
     interval  = 3
