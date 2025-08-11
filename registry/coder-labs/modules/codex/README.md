@@ -23,7 +23,7 @@ module "codex" {
 
 ## Prerequisites
 
-- You must add the [Coder Login](https://registry.coder.com/modules/coder-login/coder) module to your template
+- You must add the [Coder Login](https://registry.coder.com/modules/coder/coder-login) module to your template
 - OpenAI API key for Codex access
 
 ## Usage Example
