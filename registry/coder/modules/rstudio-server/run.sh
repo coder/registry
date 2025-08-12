@@ -7,18 +7,16 @@ RESET='\033[0m'
 
 printf "$${BOLD}Starting RStudio Server (Rocker)...$${RESET}\n"
 
-printf "Docker host: ${DOCKER_HOST}"
-
 IMAGE="rocker/rstudio:${SERVER_VERSION}"
 
 # Pull the specified version
-docker pull "$${IMAGE}"
+printf "1\n" && docker pull "$${IMAGE}"
 
 # Create (or reuse) a persistent renv cache volume
-docker volume create "${RENV_CACHE_VOLUME}" 
+printf "2\n" && docker volume create "${RENV_CACHE_VOLUME}" 
 
 # Run container (auto-remove on stop)
-docker run -d --rm \
+printf "3\n" && docker run -d --rm \
   --name rstudio-server \
   -p "${PORT}:8787" \
   -e DISABLE_AUTH="${DISABLE_AUTH}" \
