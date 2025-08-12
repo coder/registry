@@ -59,13 +59,13 @@ module "cursor_cli" {
   post_install_script = <<-EOT
     #!/usr/bin/env bash
     set -euo pipefail
-    TARGET="${FOLDER}/.git/config"
-    echo "[cursor-cli] waiting for ${TARGET}..."
+    TARGET="$${FOLDER}/.git/config"
+    echo "[cursor-cli] waiting for $${TARGET}..."
     for i in $(seq 1 600); do
       [ -f "$TARGET" ] && { echo "ready"; exit 0; }
       sleep 1
     done
-    echo "timeout waiting for ${TARGET}" >&2
+    echo "timeout waiting for $${TARGET}" >&2
   EOT
 
   # Provide a map of file name to content; files are written to `~/.cursor/rules/<name>`.
