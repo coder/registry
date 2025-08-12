@@ -113,6 +113,9 @@ func validateRegistryDirectory() []error {
 	return allErrs
 }
 
+// validateRepoStructure validates that the structure of the repo is "correct enough" to do all necessary validation
+// checks. It is NOT an exhaustive validation of the entire repo structure – it only checks the parts of the repo that
+// are relevant for the main validation steps
 func validateRepoStructure() error {
 	var errs []error
 	if vrdErrs := validateRegistryDirectory(); len(vrdErrs) != 0 {
