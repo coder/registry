@@ -8,6 +8,10 @@ tags: [docker, container, dockerfile]
 
 # Remote Development on Docker Containers (Build from Dockerfile)
 
+> [!NOTE]
+> This template is designed to be a starting point for testing purposes.
+> In a production environment, you would want to move away from storing the Dockerfile in-template and move towards using a centralized image registry.
+
 Build and provision Docker containers from a Dockerfile as [Coder workspaces](https://coder.com/docs/workspaces) with this example template.
 
 This template builds a custom Docker image from the included Dockerfile, allowing you to customize the development environment by modifying the Dockerfile rather than using a pre-built image.
