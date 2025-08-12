@@ -166,7 +166,7 @@ EOT
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.0.0"
+  version = "1.1.1"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
