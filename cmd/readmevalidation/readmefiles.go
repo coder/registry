@@ -39,7 +39,9 @@ const (
 
 var (
 	supportedAvatarFileFormats = []string{".png", ".jpeg", ".jpg", ".gif", ".svg"}
-	// Matches markdown headers, must be at the beginning of a line, such as "# " or "### ".
+	// Matches markdown headers placed at the beginning of a line (e.g., "# " or "### "). To make the logic for
+	// validateReadmeBody easier, this pattern deliberately matches on invalid headers (header levels must be in the
+	// range 1–6 to be valid). The function has checks to see if the level is correct.
 	readmeHeaderRe = regexp.MustCompile(`^(#+)(\s*)`)
 )
 
