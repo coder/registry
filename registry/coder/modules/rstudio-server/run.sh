@@ -7,6 +7,8 @@ RESET='\033[0m'
 
 printf "$${BOLD}Starting RStudio Server (Rocker)...$${RESET}\n"
 
+printf "Docker host: ${DOCKER_HOST}"
+
 IMAGE="rocker/rstudio:${SERVER_VERSION}"
 
 # Pull the specified version
