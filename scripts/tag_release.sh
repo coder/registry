@@ -63,7 +63,7 @@ log() {
   local message="$*"
   local timestamp
   timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-  
+
   case "$level" in
     "ERROR")
       if [[ "$OUTPUT_FORMAT" == "json" ]]; then
@@ -102,7 +102,7 @@ add_json_error() {
   local message="$2"
   local details="${3:-}"
   local exit_code="${4:-1}"
-  
+
   JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg type "$type" --arg msg "$message" --arg details "$details" --argjson code "$exit_code" \
     '.errors += [{"type": $type, "message": $msg, "details": $details, "exit_code": $code}]')
 }
@@ -111,7 +111,7 @@ add_json_warning() {
   local module="$1"
   local message="$2"
   local type="$3"
-  
+
   JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg module "$module" --arg msg "$message" --arg type "$type" \
     '.warnings += [{"module": $module, "message": $msg, "type": $type}]')
 }
@@ -124,7 +124,7 @@ add_json_module() {
   local tag_name="$5"
   local status="$6"
   local already_existed="$7"
-  
+
   JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg ns "$namespace" --arg name "$module_name" --arg path "$path" \
     --arg version "$version" --arg tag "$tag_name" --arg status "$status" --argjson existed "$already_existed" \
     '.modules += [{"namespace": $ns, "module_name": $name, "path": $path, "version": $version, "tag_name": $tag, "status": $status, "already_existed": $existed}]')
@@ -133,23 +133,23 @@ add_json_module() {
 parse_arguments() {
   while [[ $# -gt 0 ]]; do
     case $1 in
-      -y|--auto-approve)
+      -y | --auto-approve)
         AUTO_APPROVE=true
         shift
         ;;
-      -d|--dry-run)
+      -d | --dry-run)
         DRY_RUN=true
         shift
         ;;
-      -v|--verbose)
+      -v | --verbose)
         VERBOSE=true
         shift
         ;;
-      -q|--quiet)
+      -q | --quiet)
         QUIET=true
         shift
         ;;
-      -f|--format=*|--format)
+      -f | --format=* | --format)
         if [[ "$1" == "-f" || "$1" == "--format" ]]; then
           if [[ -z "$2" ]]; then
             log "ERROR" "Option $1 requires a value"
@@ -166,7 +166,7 @@ parse_arguments() {
           exit $EXIT_ERROR
         fi
         ;;
-      -n|--namespace=*|--namespace)
+      -n | --namespace=* | --namespace)
         if [[ "$1" == "-n" || "$1" == "--namespace" ]]; then
           if [[ -z "$2" ]]; then
             log "ERROR" "Option $1 requires a value"
@@ -179,7 +179,7 @@ parse_arguments() {
           shift
         fi
         ;;
-      -m|--module=*|--module)
+      -m | --module=* | --module)
         if [[ "$1" == "-m" || "$1" == "--module" ]]; then
           if [[ -z "$2" ]]; then
             log "ERROR" "Option $1 requires a value"
@@ -192,11 +192,11 @@ parse_arguments() {
           shift
         fi
         ;;
-      -s|--skip-push)
+      -s | --skip-push)
         SKIP_PUSH=true
         shift
         ;;
-      -h|--help)
+      -h | --help)
         usage
         ;;
       *)
@@ -266,7 +266,7 @@ check_module_needs_tagging() {
   local readme_version="$3"
 
   local tag_name="release/${namespace}/${module_name}/v${readme_version}"
-  
+
   log "DEBUG" "Checking if tag exists: $tag_name"
 
   if git rev-parse --verify "$tag_name" > /dev/null 2>&1; then
@@ -281,17 +281,17 @@ check_module_needs_tagging() {
 should_process_module() {
   local namespace="$1"
   local module_name="$2"
-  
+
   if [[ -n "$TARGET_NAMESPACE" && "$TARGET_NAMESPACE" != "$namespace" ]]; then
     log "DEBUG" "Skipping $namespace/$module_name: namespace filter"
     return 1
   fi
-  
+
   if [[ -n "$TARGET_MODULE" && "$TARGET_MODULE" != "$module_name" ]]; then
     log "DEBUG" "Skipping $namespace/$module_name: module filter"
     return 1
   fi
-  
+
   return 0
 }
 
@@ -354,7 +354,7 @@ detect_modules_needing_tags() {
       log "INFO" "📦 $namespace/$module_name: v$readme_version (needs tag)"
       MODULES_TO_TAG+=("$module_path:$namespace:$module_name:$readme_version")
       needs_tagging=$((needs_tagging + 1))
-      
+
       local status="needs_tagging"
       if [[ "$DRY_RUN" == "true" ]]; then
         status="would_be_tagged"
@@ -400,17 +400,17 @@ detect_modules_needing_tags() {
 
 pre_flight_checks() {
   log "DEBUG" "Running pre-flight checks..."
-  
+
   if ! git rev-parse --git-dir > /dev/null 2>&1; then
     log "ERROR" "Not in a git repository"
     return $EXIT_ERROR
   fi
-  
+
   if ! git remote get-url origin > /dev/null 2>&1; then
     log "ERROR" "No 'origin' remote found"
     return $EXIT_ERROR
   fi
-  
+
   if [[ "$SKIP_PUSH" != "true" && "$DRY_RUN" != "true" ]]; then
     log "DEBUG" "Testing remote connectivity..."
     if ! git ls-remote --exit-code origin > /dev/null 2>&1; then
@@ -418,12 +418,12 @@ pre_flight_checks() {
       return $EXIT_ERROR
     fi
   fi
-  
+
   if ! git rev-parse HEAD > /dev/null 2>&1; then
     log "ERROR" "Cannot determine current commit"
     return $EXIT_ERROR
   fi
-  
+
   log "DEBUG" "Pre-flight checks passed"
   return $EXIT_SUCCESS
 }
@@ -461,18 +461,18 @@ create_and_push_tags() {
     log "DEBUG" "Creating tag: $tag_name"
     log "INFO" "Creating tag: $tag_name"
 
-    if git tag -a "$tag_name" -m "$tag_message" "$current_commit" 2>/dev/null; then
+    if git tag -a "$tag_name" -m "$tag_message" "$current_commit" 2> /dev/null; then
       log "SUCCESS" "Created: $tag_name"
       created_tags=$((created_tags + 1))
       created_tag_names+=("$tag_name")
-      
+
       JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg tag "$tag_name" \
         '(.modules[] | select(.tag_name == $tag) | .status) = "tag_created"')
     else
       log "ERROR" "Failed to create: $tag_name"
       add_json_error "tag_creation_failed" "Failed to create tag: $tag_name" "git tag -a $tag_name -m '$tag_message' $current_commit"
       failed_tags=$((failed_tags + 1))
-      
+
       JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg tag "$tag_name" \
         '(.modules[] | select(.tag_name == $tag) | .status) = "tag_creation_failed"')
     fi
@@ -520,10 +520,10 @@ create_and_push_tags() {
     log "ERROR" "No valid tags found to push"
     JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq '.summary.operation_status = "failed" | .summary.tags_pushed = 0')
   else
-    if git push --atomic origin "${tags_to_push[@]}" 2>/dev/null; then
+    if git push --atomic origin "${tags_to_push[@]}" 2> /dev/null; then
       log "SUCCESS" "Successfully pushed all ${#tags_to_push[@]} tags"
       pushed_tags=${#tags_to_push[@]}
-      
+
       for tag_name in "${tags_to_push[@]}"; do
         JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg tag "$tag_name" \
           '(.modules[] | select(.tag_name == $tag) | .status) = "tagged_and_pushed"')
@@ -532,7 +532,7 @@ create_and_push_tags() {
       log "ERROR" "Failed to push tags"
       add_json_error "push_failed" "Failed to push tags to remote" "git push --atomic origin ${tags_to_push[*]}"
       failed_pushes=${#tags_to_push[@]}
-      
+
       for tag_name in "${tags_to_push[@]}"; do
         JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg tag "$tag_name" \
           '(.modules[] | select(.tag_name == $tag) | .status) = "tag_created_push_failed"')
@@ -571,19 +571,19 @@ finalize_json_output() {
   local timestamp
   timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
   local current_commit
-  current_commit=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+  current_commit=$(git rev-parse HEAD 2> /dev/null || echo "unknown")
   local command_line="$0 $*"
-  
+
   JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg ts "$timestamp" --arg commit "$current_commit" \
     --arg cmd "$command_line" \
     '.metadata.timestamp = $ts | .metadata.commit = $commit | .metadata.command = $cmd')
-  
+
   echo "$JSON_OUTPUT"
 }
 
 main() {
   parse_arguments "$@"
-  
+
   if [[ "$OUTPUT_FORMAT" == "json" ]]; then
     if ! command -v jq > /dev/null 2>&1; then
       echo '{"error": "jq is required for JSON output format but not found"}' >&2
@@ -593,7 +593,7 @@ main() {
 
   if [[ "$OUTPUT_FORMAT" != "json" ]]; then
     log "INFO" "🚀 Coder Registry Tag Release Script"
-    log "INFO" "Operating on commit: $(git rev-parse HEAD 2>/dev/null || echo 'unknown')"
+    log "INFO" "Operating on commit: $(git rev-parse HEAD 2> /dev/null || echo 'unknown')"
     echo ""
   fi
 
@@ -608,7 +608,7 @@ main() {
   local detect_exit_code
   detect_modules_needing_tags
   detect_exit_code=$?
-  
+
   case $detect_exit_code in
     $EXIT_NO_ACTION_NEEDED)
       if [[ "$OUTPUT_FORMAT" == "json" ]]; then
@@ -653,11 +653,11 @@ main() {
   local create_exit_code
   create_and_push_tags
   create_exit_code=$?
-  
+
   if [[ "$OUTPUT_FORMAT" == "json" ]]; then
     finalize_json_output "$@"
   fi
-  
+
   exit $create_exit_code
 }
 
