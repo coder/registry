@@ -10,7 +10,7 @@ import (
 	"golang.org/x/xerrors"
 )
 
-var supportedUserNameSpaceDirectories = append(supportedResourceTypes, ".icons", ".images")
+var supportedUserNameSpaceDirectories = append(supportedResourceTypes, ".images")
 
 func validateCoderResourceSubdirectory(dirPath string) []error {
 	subDir, err := os.Stat(dirPath)
