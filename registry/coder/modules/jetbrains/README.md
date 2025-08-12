@@ -46,12 +46,6 @@ module "jetbrains" {
 }
 ```
 
-<!-- Delete this section if not applicable -->
-
-**Path:** `registry/[namespace]/modules/[module-name]`  
-**New version:** `v1.0.0`  
-**Breaking change:** [ ] Yes [ ] No
-
 ### User Choice with Limited Options
 
 ```tf
