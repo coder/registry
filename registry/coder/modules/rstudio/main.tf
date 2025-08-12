@@ -15,16 +15,48 @@ variable "agent_id" {
   description = "The ID of a Coder agent."
 }
 
-variable "log_path" {
+variable "rstudio_server_version" {
   type        = string
-  description = "The path to log jupyter notebook to."
-  default     = "/tmp/jupyter-notebook.log"
+  description = "RStudio Server version"
+  default     = "4.5.1"
+}
+
+variable "disable_auth" {
+  type        = bool
+  description = "Disable auth"
+  default     = false
+}
+
+variable "rstudio_user" {
+  type        = string
+  description = "RStudio user"
+  default     = "rstudio"
+  sensitive   = true
+}
+
+variable "rstudio_password" {
+  type        = string
+  description = "RStudio password"
+  default     = "rstudio"
+  sensitive   = true
+}
+
+variable "project_path" {
+  type        = string
+  description = "The path to RStudio project, it will be mounted in the container."
+  default = null
 }
 
 variable "port" {
   type        = number
-  description = "The port to run jupyter-notebook on."
-  default     = 19999
+  description = "The port to run rstudio-server on."
+  default     = 8787
+}
+
+variable "enable_renv" {
+  type        = bool
+  description = "If renv.lock exists, renv will restore the environment and install dependencies"
+  default     = true
 }
 
 variable "share" {
@@ -48,37 +80,27 @@ variable "group" {
   default     = null
 }
 
-variable "requirements_path" {
-  type        = string
-  description = "The path to requirements.txt with packages to preinstall"
-  default     = ""
-}
-
-variable "pip_install_extra_packages" {
-  type        = string
-  description = "List of extra packages to preinstall (example: numpy==1.26.4 pandas matplotlib<4 scikit-learn)"
-  default     = ""
-}
-
-resource "coder_script" "jupyter-notebook" {
+resource "coder_script" "rstudio-server" {
   agent_id     = var.agent_id
-  display_name = "jupyter-notebook"
-  icon         = "/icon/jupyter.svg"
+  display_name = "rstudio-server"
+  icon         = "/icon/rstudio.svg"
   script = templatefile("${path.module}/run.sh", {
-    LOG_PATH : var.log_path,
+    DISABLE_AUTH : var.disable_auth,
+    RSTUDIO_USER : var.rstudio_user,
+    RSTUDIO_PASSWORD : var.rstudio_password,
+    PROJECT_PATH : var.project_path,
     PORT : var.port,
-    REQUIREMENTS_PATH : var.requirements_path,
-    PIP_INSTALL_EXTRA_PACKAGES : var.pip_install_extra_packages
+    ENABLE_RENV : var.enable_renv,
   })
   run_on_start = true
 }
 
-resource "coder_app" "jupyter-notebook" {
+resource "coder_app" "rstudio-server" {
   agent_id     = var.agent_id
-  slug         = "jupyter-notebook"
-  display_name = "Jupyter Notebook"
+  slug         = "rstudio-server"
+  display_name = "RStudio Server"
   url          = "http://localhost:${var.port}"
-  icon         = "/icon/jupyter.svg"
+  icon         = "/icon/rstudio.svg"
   subdomain    = true
   share        = var.share
   order        = var.order

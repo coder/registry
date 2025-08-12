@@ -6,17 +6,17 @@ verified: true
 tags: [rstudio, ide, web]
 ---
 
-# Jupyter Notebook
+# RStudio Server
 
-A module that adds Jupyter Notebook in your Coder template.
+A module that deploys Rocker Project distribution of RStudio Server in your Coder template.
 
-![Jupyter Notebook](../../.images/jupyter-notebook.png)
+![RStudio Server](../../.images/rstudio.png)
 
 ```tf
-module "jupyter-notebook" {
+module "rstudio-server" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/jupyter-notebook/coder"
-  version  = "1.2.0"
+  source   = "registry.coder.com/coder/rstudio-server/coder"
+  version  = "0.9.0"
   agent_id = coder_agent.example.id
 }
 ```
