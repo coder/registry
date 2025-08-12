@@ -12,6 +12,8 @@ import (
 
 var supportedUserNameSpaceDirectories = append(supportedResourceTypes, ".images")
 
+// validateCoderResourceSubdirectory validates that the structure of a module or template within a namespace follows all
+// expected file conventions
 func validateCoderResourceSubdirectory(dirPath string) []error {
 	resourceDir, err := os.Stat(dirPath)
 	if err != nil {
@@ -61,6 +63,8 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 	return errs
 }
 
+// validateRegistryDirectory validates that the contents of `/registry` follow all expected file conventions. This
+// includes the top-level structure of the individual namespace directories.
 func validateRegistryDirectory() []error {
 	namespaceDirs, err := os.ReadDir(rootRegistryPath)
 	if err != nil {
