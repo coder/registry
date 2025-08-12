@@ -16,7 +16,7 @@ terraform {
 provider "aws" {
   # Configuration will be provided via environment variables or other means
   # This block satisfies the requirement for explicit configuration
-  region                      = "us-east-1"
+  region                      = var.aws_region != "" ? var.aws_region : null
   skip_credentials_validation = true
   skip_requesting_account_id  = true
   skip_region_validation      = true
