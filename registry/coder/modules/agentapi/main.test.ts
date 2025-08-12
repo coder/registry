@@ -236,4 +236,17 @@ describe("agentapi", async () => {
       }
     }
   });
+
+  test("agentapi-allowed-hosts", async () => {
+    // verify that the agentapi binary has access to the AGENTAPI_ALLOWED_HOSTS environment variable
+    // set in main.sh
+    const { id } = await setup();
+    await execModuleScript(id);
+    await expectAgentAPIStarted(id);
+    const agentApiStartLog = await readFileContainer(
+      id,
+      "/home/coder/agentapi-mock.log",
+    );
+    expect(agentApiStartLog).toContain("AGENTAPI_ALLOWED_HOSTS: *");
+  });
 });
