@@ -10,7 +10,7 @@ printf "$${BOLD}Starting RStudio Server (Rocker)...$${RESET}\n"
 IMAGE="rocker/rstudio:${SERVER_VERSION}"
 
 # Pull the specified version
-docker pull "${IMAGE}"
+docker pull "$${IMAGE}"
 
 # Run container (auto-remove on stop)
 docker run -d --rm \
@@ -20,7 +20,7 @@ docker run -d --rm \
   -e USER="${RSTUDIO_USER}" \
   -e PASSWORD="${RSTUDIO_PASSWORD}" \
   -v "${PROJECT_PATH}:/home/${RSTUDIO_USER}/project" \
-  "${IMAGE}"
+  "$${IMAGE}"
 
 # Optional renv restore
 if [ "${ENABLE_RENV}" = "true" ] && [ -f "${PROJECT_PATH}/renv.lock" ]; then
