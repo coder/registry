@@ -104,7 +104,7 @@ data "coder_parameter" "use_previous_snapshot" {
   dynamic "option" {
     for_each = local.workspace_snapshot_ids
     content {
-      name        = var.test_mode ? "Test Snapshot" : "${local.snapshot_info[option.value].name} (${formatdate("YYYY-MM-DD hh:mm", local.snapshot_info[option.value].creation_date)})"
+      name        = var.test_mode ? "Test Snapshot" : "${local.snapshot_info[option.value].name} (${formatdate("YYYY-MM-DD hh:mm", timeadd(local.snapshot_info[option.value].creation_date, "0s"))})"
       value       = option.value
       description = var.test_mode ? "Test Description" : local.snapshot_info[option.value].description
     }
