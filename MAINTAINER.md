@@ -18,9 +18,9 @@ sudo apt install golang-go
 
 Check that PRs have:
 
-- [ ] All required files (`main.tf`, `main.test.ts`, `README.md`)
+- [ ] All required files (`main.tf`, `README.md`, at least one `.tftest.hcl`)
 - [ ] Proper frontmatter in README
-- [ ] Working tests (`bun test`)
+- [ ] Working tests (`terraform test`)
 - [ ] Formatted code (`bun run fmt`)
 - [ ] Avatar image for new namespaces (`avatar.png` or `avatar.svg` in `.images/`)
 
@@ -127,7 +127,7 @@ tags: ["tag1", "tag2"]
 ```yaml
 display_name: "Your Name"
 bio: "Brief description of who you are and what you do"
-avatar_url: "./.images/avatar.png"
+avatar: "./.images/avatar.png"
 github: "username"
 linkedin: "https://www.linkedin.com/in/username" # Optional
 website: "https://yourwebsite.com" # Optional

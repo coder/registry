@@ -95,5 +95,7 @@ export LC_ALL=en_US.UTF-8
 cd "${WORKDIR}"
 
 export AGENTAPI_CHAT_BASE_PATH="${AGENTAPI_CHAT_BASE_PATH:-}"
+# Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
+export AGENTAPI_ALLOWED_HOSTS="*"
 nohup "$module_path/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &>"$module_path/agentapi-start.log" &
 "$module_path/scripts/agentapi-wait-for-start.sh" "${AGENTAPI_PORT}"
