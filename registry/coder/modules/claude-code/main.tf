@@ -241,6 +241,10 @@ resource "coder_script" "claude_code" {
     export LC_ALL=en_US.UTF-8
 
     cd "${local.workdir}"
+
+    # Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
+    export AGENTAPI_ALLOWED_HOSTS="*"
+
     nohup "$module_path/scripts/agentapi-start.sh" use_prompt &> "$module_path/agentapi-start.log" &
     "$module_path/scripts/agentapi-wait-for-start.sh"
     EOT
@@ -288,12 +292,4 @@ resource "coder_ai_task" "claude_code" {
   sidebar_app {
     id = coder_app.claude_code_web.id
   }
-}
-
-# As of https://github.com/coder/coder/commit/6ba4b5bbc95e2e528d7f5b1e31fffa200ae1a6db,
-# there's a bug in Coder's Terraform statefile parsing which prevents it from seeing coder_apps
-# in certain scenarios. This is a workaround to bypass this bug until we have a proper fix.
-# For more details see https://github.com/coder/coder/issues/18776
-resource "terraform_data" "claude_code_app_id" {
-  input = coder_app.claude_code_web.id
 }

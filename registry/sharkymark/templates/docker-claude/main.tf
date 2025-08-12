@@ -9,12 +9,46 @@ terraform {
   }
 }
 
-# This template requires a valid Docker socket
-# However, you can reference our Kubernetes/VM
-# example templates and adapt the Claude Code module
-# 
-# see: https://registry.coder.com/templates 
-provider "docker" {}
+provider "docker" {
+  host = var.socket
+}
+
+provider "coder" {
+}
+
+data "coder_workspace" "me" {
+}
+
+data "coder_workspace_owner" "me" {
+}
+
+data "coder_provisioner" "me" {
+}
+
+variable "socket" {
+  type        = string
+  description = <<-EOF
+  The Unix socket that the Docker daemon listens on and how containers
+  communicate with the Docker daemon.
+
+  Either Unix or TCP
+  e.g., unix:///var/run/docker.sock
+
+  EOF
+  default     = "unix:///var/run/docker.sock"
+}
+
+variable "anthropic_api_key" {
+  type        = string
+  description = "Generate one at: https://console.anthropic.com/settings/keys"
+  sensitive   = true
+}
+
+resource "coder_env" "anthropic_api_key" {
+  agent_id = coder_agent.dev.id
+  name     = "CODER_MCP_CLAUDE_API_KEY"
+  value    = var.anthropic_api_key
+}
 
 # The Claude Code module does the automatic task reporting
 # Other agent modules: https://registry.coder.com/modules?search=agent
@@ -23,7 +57,7 @@ module "claude-code" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/claude-code/coder"
   version             = "2.0.0"
-  agent_id            = coder_agent.main.id
+  agent_id            = coder_agent.dev.id
   folder              = "/home/coder/projects"
   install_claude_code = true
   claude_code_version = "latest"
@@ -33,20 +67,6 @@ module "claude-code" {
 
   # This enables Coder Tasks
   experiment_report_tasks = true
-}
-
-# You can also use a model provider, like AWS Bedrock or Vertex by replacing
-# this with the special env vars from the Claude Code docs.
-# see: https://docs.anthropic.com/en/docs/claude-code/third-party-integrations
-variable "anthropic_api_key" {
-  type        = string
-  description = "Generate one at: https://console.anthropic.com/settings/keys"
-  sensitive   = true
-}
-resource "coder_env" "anthropic_api_key" {
-  agent_id = coder_agent.main.id
-  name     = "CODER_MCP_CLAUDE_API_KEY"
-  value    = var.anthropic_api_key
 }
 
 # We are using presets to set the prompts, image, and set up instructions
@@ -119,17 +139,6 @@ data "coder_workspace_preset" "default" {
     "preview_port"    = "4200"
     "container_image" = "codercom/example-universal:ubuntu"
   }
-
-  # Pre-builds is a Coder Premium
-  # feature to speed up workspace creation
-  # 
-  # see https://coder.com/docs/admin/templates/extending-templates/prebuilt-workspaces
-  # prebuilds {
-  #   instances = 1
-  #   expiration_policy {
-  #      ttl = 86400  # Time (in seconds) after which unclaimed prebuilds are expired (1 day)
-  #  }
-  # }
 }
 
 # Advanced parameters (these are all set via preset)
@@ -174,53 +183,56 @@ data "coder_parameter" "preview_port" {
 
 # Other variables for Claude Code
 resource "coder_env" "claude_task_prompt" {
-  agent_id = coder_agent.main.id
+  agent_id = coder_agent.dev.id
   name     = "CODER_MCP_CLAUDE_TASK_PROMPT"
   value    = data.coder_parameter.ai_prompt.value
 }
 resource "coder_env" "app_status_slug" {
-  agent_id = coder_agent.main.id
+  agent_id = coder_agent.dev.id
   name     = "CODER_MCP_APP_STATUS_SLUG"
   value    = "claude-code"
 }
 resource "coder_env" "claude_system_prompt" {
-  agent_id = coder_agent.main.id
+  agent_id = coder_agent.dev.id
   name     = "CODER_MCP_CLAUDE_SYSTEM_PROMPT"
   value    = data.coder_parameter.system_prompt.value
 }
 
-data "coder_provisioner" "me" {}
-data "coder_workspace" "me" {}
-data "coder_workspace_owner" "me" {}
+module "coder-login" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/modules/coder-login/coder"
+  agent_id = coder_agent.dev.id
+}
 
-resource "coder_agent" "main" {
-  arch           = data.coder_provisioner.me.arch
-  os             = "linux"
-  startup_script = <<-EOT
-    set -e
-    # Prepare user home with default files on first start.
-    if [ ! -f ~/.init_done ]; then
-      cp -rT /etc/skel ~
-      touch ~/.init_done
-    fi
-  EOT
+module "dotfiles" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/modules/dotfiles/coder"
+  agent_id = coder_agent.dev.id
+}
 
-  # These environment variables allow you to make Git commits right away after creating a
-  # workspace. Note that they take precedence over configuration defined in ~/.gitconfig!
-  # You can remove this block if you'd prefer to configure Git manually or using
-  # dotfiles. (see docs/dotfiles.md)
-  env = {
-    GIT_AUTHOR_NAME     = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_AUTHOR_EMAIL    = "${data.coder_workspace_owner.me.email}"
-    GIT_COMMITTER_NAME  = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_COMMITTER_EMAIL = "${data.coder_workspace_owner.me.email}"
-  }
+module "code-server" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/modules/code-server/coder"
+  agent_id = coder_agent.dev.id
+  folder   = "/home/coder/projects"
+}
+
+module "git-config" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/modules/git-config/coder"
+  agent_id = coder_agent.dev.id
+}
+
+resource "coder_agent" "dev" {
+  arch = data.coder_provisioner.me.arch
+  os   = "linux"
 
   # The following metadata blocks are optional. They are used to display
   # information about your workspace in the dashboard. You can remove them
   # if you don't want to display any information.
   # For basic resources, you can use the `coder stat` command.
   # If you need more control, you can write your own script.
+
   metadata {
     display_name = "CPU Usage"
     key          = "0_cpu_usage"
@@ -261,114 +273,34 @@ resource "coder_agent" "main" {
     timeout      = 1
   }
 
-  metadata {
-    display_name = "Load Average (Host)"
-    key          = "6_load_host"
-    # get load avg scaled by number of cores
-    script   = <<EOT
-      echo "`cat /proc/loadavg | awk '{ print $1 }'` `nproc`" | awk '{ printf "%0.2f", $1/$2 }'
-    EOT
-    interval = 60
-    timeout  = 1
+  display_apps {
+    vscode                 = true
+    vscode_insiders        = false
+    ssh_helper             = false
+    port_forwarding_helper = true
+    web_terminal           = true
   }
 
-  metadata {
-    display_name = "Swap Usage (Host)"
-    key          = "7_swap_host"
-    script       = <<EOT
-      free -b | awk '/^Swap/ { printf("%.1f/%.1f", $3/1024.0/1024.0/1024.0, $2/1024.0/1024.0/1024.0) }'
-    EOT
-    interval     = 10
-    timeout      = 1
-  }
-}
+  startup_script_behavior = "non-blocking"
+  connection_timeout      = 300
 
-# See https://registry.coder.com/modules/coder/code-server
-module "code-server" {
-  count  = data.coder_workspace.me.start_count
-  folder = "/home/coder/projects"
-  source = "registry.coder.com/coder/code-server/coder"
+  env = {
 
-  settings = {
-    "workbench.colorTheme" : "Default Dark Modern"
+    GIT_AUTHOR_NAME     = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
+    GIT_AUTHOR_EMAIL    = "${data.coder_workspace_owner.me.email}"
+    GIT_COMMITTER_NAME  = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
+    GIT_COMMITTER_EMAIL = "${data.coder_workspace_owner.me.email}"
   }
 
-  # This ensures that the latest non-breaking version of the module gets downloaded, you can also pin the module version to prevent breaking changes in production.
-  version = "~> 1.0"
+  startup_script = <<EOT
+#!/bin/sh
 
-  agent_id = coder_agent.main.id
-  order    = 1
-}
+EOT
 
-module "vscode" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/vscode-desktop/coder"
-  version  = "1.1.0"
-  agent_id = coder_agent.main.id
-}
-
-module "windsurf" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/windsurf/coder"
-  version  = "1.1.0"
-  agent_id = coder_agent.main.id
-}
-
-module "cursor" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/cursor/coder"
-  version  = "1.2.0"
-  agent_id = coder_agent.main.id
-}
-
-module "jetbrains_gateway" {
-  count  = data.coder_workspace.me.start_count
-  source = "registry.coder.com/coder/jetbrains-gateway/coder"
-
-  # JetBrains IDEs to make available for the user to select
-  jetbrains_ides = ["IU", "PS", "WS", "PY", "CL", "GO", "RM", "RD", "RR"]
-  default        = "IU"
-
-  # Default folder to open when starting a JetBrains IDE
-  folder = "/home/coder/projects"
-
-  # This ensures that the latest non-breaking version of the module gets downloaded, you can also pin the module version to prevent breaking changes in production.
-  version = "~> 1.0"
-
-  agent_id   = coder_agent.main.id
-  agent_name = "main"
-  order      = 2
-}
-
-resource "docker_volume" "home_volume" {
-  name = "coder-${data.coder_workspace.me.id}-home"
-  # Protect the volume from being deleted due to changes in attributes.
-  lifecycle {
-    ignore_changes = all
-  }
-  # Add labels in Docker to keep track of orphan resources.
-  labels {
-    label = "coder.owner"
-    value = data.coder_workspace_owner.me.name
-  }
-  labels {
-    label = "coder.owner_id"
-    value = data.coder_workspace_owner.me.id
-  }
-  labels {
-    label = "coder.workspace_id"
-    value = data.coder_workspace.me.id
-  }
-  # This field becomes outdated if the workspace is renamed but can
-  # be useful for debugging or cleaning out dangling volumes.
-  labels {
-    label = "coder.workspace_name_at_creation"
-    value = data.coder_workspace.me.name
-  }
 }
 
 resource "coder_app" "preview" {
-  agent_id     = coder_agent.main.id
+  agent_id     = coder_agent.dev.id
   slug         = "preview"
   display_name = "Preview your app"
   icon         = "${data.coder_workspace.me.access_url}/emojis/1f50e.png"
@@ -388,38 +320,44 @@ resource "docker_container" "workspace" {
   count = data.coder_workspace.me.start_count
   image = data.coder_parameter.container_image.value
   # Uses lower() to avoid Docker restriction on container names.
-  name = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}"
-  # Hostname makes the shell more user friendly: coder@my-workspace:~$
-  hostname = data.coder_workspace.me.name
-  user     = "coder"
+  name     = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}"
+  hostname = lower(data.coder_workspace.me.name)
+  dns      = ["1.1.1.1"]
+
   # Use the docker gateway if the access URL is 127.0.0.1
-  entrypoint = ["sh", "-c", replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")]
-  env        = ["CODER_AGENT_TOKEN=${coder_agent.main.token}"]
+  #entrypoint = ["sh", "-c", replace(coder_agent.dev.init_script, "127.0.0.1", "host.docker.internal")]
+
+  # Use the docker gateway if the access URL is 127.0.0.1
+  command = [
+    "sh", "-c",
+    <<EOT
+    trap '[ $? -ne 0 ] && echo === Agent script exited with non-zero code. Sleeping infinitely to preserve logs... && sleep infinity' EXIT
+    ${replace(coder_agent.dev.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}
+    EOT
+  ]
+
+
+  env = ["CODER_AGENT_TOKEN=${coder_agent.dev.token}"]
+  volumes {
+    container_path = "/home/coder/"
+    volume_name    = docker_volume.coder_volume.name
+    read_only      = false
+  }
   host {
     host = "host.docker.internal"
     ip   = "host-gateway"
   }
-  volumes {
-    container_path = "/home/coder"
-    volume_name    = docker_volume.home_volume.name
-    read_only      = false
-  }
+}
 
-  # Add labels in Docker to keep track of orphan resources.
-  labels {
-    label = "coder.owner"
-    value = data.coder_workspace_owner.me.name
-  }
-  labels {
-    label = "coder.owner_id"
-    value = data.coder_workspace_owner.me.id
-  }
-  labels {
-    label = "coder.workspace_id"
-    value = data.coder_workspace.me.id
-  }
-  labels {
-    label = "coder.workspace_name"
-    value = data.coder_workspace.me.name
+resource "docker_volume" "coder_volume" {
+  name = "coder-${data.coder_workspace_owner.me.name}-${data.coder_workspace.me.name}"
+}
+
+resource "coder_metadata" "workspace_info" {
+  count       = data.coder_workspace.me.start_count
+  resource_id = docker_container.workspace[0].id
+  item {
+    key   = "image"
+    value = data.coder_parameter.container_image.value
   }
 }

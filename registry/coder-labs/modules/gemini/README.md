@@ -13,7 +13,7 @@ Run [Gemini CLI](https://ai.google.dev/gemini-api/docs/cli) in your workspace to
 ```tf
 module "gemini" {
   source           = "registry.coder.com/coder-labs/gemini/coder"
-  version          = "1.0.0"
+  version          = "1.0.1"
   agent_id         = coder_agent.example.id
   gemini_api_key   = var.gemini_api_key
   gemini_model     = "gemini-2.5-pro"
@@ -42,7 +42,7 @@ variable "gemini_api_key" {
 module "gemini" {
   count                     = data.coder_workspace.me.start_count
   source                    = "registry.coder.com/coder-labs/gemini/coder"
-  version                   = "1.0.0"
+  version                   = "1.0.1"
   agent_id                  = coder_agent.example.id
   gemini_api_key            = var.gemini_api_key # we recommend providing this parameter inorder to have a smoother experience (i.e. no google sign-in)
   gemini_model              = "gemini-2.5-flash"

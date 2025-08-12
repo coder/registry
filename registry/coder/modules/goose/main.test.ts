@@ -251,4 +251,21 @@ describe("goose", async () => {
     expect(prompt.exitCode).not.toBe(0);
     expect(prompt.stderr).toContain("No such file or directory");
   });
+
+  test("subdomain-false", async () => {
+    const { id } = await setup({
+      agentapiMockScript: await loadTestFile(
+        import.meta.dir,
+        "agentapi-mock-print-args.js",
+      ),
+      moduleVariables: {
+        subdomain: "false",
+      },
+    });
+
+    await execModuleScript(id);
+
+    const agentapiMockOutput = await readFileContainer(id, agentapiStartLog);
+    expect(agentapiMockOutput).toContain("AGENTAPI_CHAT_BASE_PATH=/@default/default.foo/apps/goose/chat");
+  });
 });
