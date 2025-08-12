@@ -12,6 +12,9 @@ IMAGE="rocker/rstudio:${SERVER_VERSION}"
 # Pull the specified version
 docker pull "$${IMAGE}"
 
+# Create (or reuse) a persistent renv cache volume
+docker volume create "${RENV_CACHE_VOLUME}" 
+
 # Run container (auto-remove on stop)
 docker run -d --rm \
   --name rstudio-server \
@@ -19,7 +22,9 @@ docker run -d --rm \
   -e DISABLE_AUTH="${DISABLE_AUTH}" \
   -e USER="${RSTUDIO_USER}" \
   -e PASSWORD="${RSTUDIO_PASSWORD}" \
+  -e RENV_PATHS_CACHE="/renv/cache" \
   -v "${PROJECT_PATH}:/home/${RSTUDIO_USER}/project" \
+  -v "${RENV_CACHE_VOLUME}:/renv/cache" \
   "$${IMAGE}"
 
 # Optional renv restore
