@@ -1,7 +1,6 @@
 ---
-
 display\_name: Sourcegraph AMP
-icon: ../../../../.icons/sourcegraph-amp.svg
+icon: ../../../../.icons/sourcegraph_amp.svg
 description: Run Sourcegraph AMP CLI in your workspace with AgentAPI integration
 verified: true
 tags: \[agent, sourcegraph, amp, ai, tasks]
@@ -13,19 +12,19 @@ Run [Sourcegraph AMP CLI](https://sourcegraph.com/amp) in your workspace to acce
 
 ```tf
 module "sourcegraph_amp" {
-  source                  = "registry.coder.com/harsh9485/sourcegraph-amp/coder"
+  source                  = "registry.coder.com/harsh9485/sourcegraph_amp/coder"
   version                 = "1.0.0"
   agent_id                = coder_agent.example.id
   sourcegraph_amp_api_key = var.sourcegraph_amp_api_key
-  install_sourcegraph-amp = true
+  install_sourcegraph_amp = true
   agentapi_version        = "latest"
 }
 ```
 
 ## Prerequisites
 
-* Include the [Coder Login](https://registry.coder.com/modules/coder-login/coder) module in your template
-* Node.js and npm are automatically installed (via NVM) if not already available
+- Include the [Coder Login](https://registry.coder.com/modules/coder-login/coder) module in your template
+- Node.js and npm are automatically installed (via NVM) if not already available
 
 ## Usage Example
 
@@ -48,7 +47,7 @@ resource "coder_agent" "main" {
 
       Always log task status to Coder.
     EOT
-    SOURCEGRAPH_AMP_TASK_PROMPT = data.coder_parameter.ai_prompt.value
+    SOURCEGRAPH_AMP_TASK_PROMPT   = data.coder_parameter.ai_prompt.value
   }
 }
 
@@ -59,26 +58,26 @@ variable "sourcegraph_amp_api_key" {
 }
 
 module "sourcegraph_amp" {
-  count                       = data.coder_workspace.me.start_count
-  source                      = "registry.coder.com/harsh9485/sourcegraph-amp/coder"
-  version                     = "1.0.0"
-  agent_id                    = coder_agent.example.id
-  sourcegraph_amp_api_key     = var.sourcegraph_amp_api_key # recommended for authenticated usage
-  install_sourcegraph-amp     = true
+  count                   = data.coder_workspace.me.start_count
+  source                  = "registry.coder.com/harsh9485/sourcegraph_amp/coder"
+  version                 = "1.0.0"
+  agent_id                = coder_agent.example.id
+  sourcegraph_amp_api_key = var.sourcegraph_amp_api_key # recommended for authenticated usage
+  install_sourcegraph_amp = true
 }
 ```
 
 ## How it Works
 
-* **Install**: Installs Sourcegraph AMP CLI using npm (installs Node.js via NVM if required)
-* **Start**: Launches AMP CLI in the specified directory, wrapped with AgentAPI to enable tasks and AI interactions
-* **Environment Variables**: Sets `SOURCEGRAPH_AMP_API_KEY` and `SOURCEGRAPH_AMP_START_DIRECTORY` for the CLI execution
+- **Install**: Installs Sourcegraph AMP CLI using npm (installs Node.js via NVM if required)
+- **Start**: Launches AMP CLI in the specified directory, wrapped with AgentAPI to enable tasks and AI interactions
+- **Environment Variables**: Sets `SOURCEGRAPH_AMP_API_KEY` and `SOURCEGRAPH_AMP_START_DIRECTORY` for the CLI execution
 
 ## Troubleshooting
 
-* If `amp` is not found, ensure `install_sourcegraph-amp = true` and your API key is valid
-* Logs are written under `/home/coder/.sourcegraph-amp-module/` (`install.log`, `agentapi-start.log`) for debugging
-* If AgentAPI fails to start, verify that your container has network access and executable permissions for the scripts
+- If `amp` is not found, ensure `install_sourcegraph_amp = true` and your API key is valid
+- Logs are written under `/home/coder/.sourcegraph_amp-module/` (`install.log`, `agentapi-start.log`) for debugging
+- If AgentAPI fails to start, verify that your container has network access and executable permissions for the scripts
 
 > \[!IMPORTANT]
 > For using **Coder Tasks** with Sourcegraph AMP, make sure to pass the `AI Prompt` parameter and set `sourcegraph_amp_api_key`.
@@ -86,6 +85,6 @@ module "sourcegraph_amp" {
 
 ## References
 
-* [Sourcegraph AMP Documentation](https://sourcegraph.com/amp)
-* [AgentAPI Documentation](https://github.com/coder/agentapi)
-* [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)
+- [Sourcegraph AMP Documentation](https://sourcegraph.com/amp)
+- [AgentAPI Documentation](https://github.com/coder/agentapi)
+- [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)

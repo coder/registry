@@ -38,26 +38,26 @@ variable "icon" {
 
 variable "folder" {
   type        = string
-  description = "The folder to run sourcegraph-amp in."
+  description = "The folder to run sourcegraph_amp in."
   default     = "/home/coder"
 }
 
-variable "install_sourcegraph-amp" {
+variable "install_sourcegraph_amp" {
   type        = bool
   description = "Whether to install sourcegraph-amp."
   default     = true
 }
 
-variable "sourcegraph-amp_api_key" {
+variable "sourcegraph_amp_api_key" {
   type        = string
   description = "sourcegraph-amp API Key"
   default     = ""
 }
 
-resource "coder_env" "sourcegraph-amp_api_key" {
+resource "coder_env" "sourcegraph_amp_api_key" {
   agent_id = var.agent_id
   name     = "SOURCEGRAPH_AMP_API_KEY"
-  value    = var.sourcegraph-amp_api_key
+  value    = var.sourcegraph_amp_api_key
 }
 
 variable "install_agentapi" {
@@ -74,13 +74,13 @@ variable "agentapi_version" {
 
 variable "pre_install_script" {
   type        = string
-  description = "Custom script to run before installing sourcegraph-amp"
+  description = "Custom script to run before installing sourcegraph_amp"
   default     = null
 }
 
 variable "post_install_script" {
   type        = string
-  description = "Custom script to run after installing sourcegraph-amp."
+  description = "Custom script to run after installing sourcegraph_amp."
   default     = null
 }
 
@@ -138,7 +138,7 @@ module "agentapi" {
 
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
-     SOURCEGRAPH_AMP_API_KEY='${var.sourcegraph-amp_api_key}' \
+     SOURCEGRAPH_AMP_API_KEY='${var.sourcegraph_amp_api_key}' \
      SOURCEGRAPH_AMP_START_DIRECTORY='${var.folder}' \
      /tmp/start.sh
    EOT
@@ -150,7 +150,7 @@ module "agentapi" {
 
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
-    ARG_INSTALL_SOURCEGRAPH_AMP='${var.install_sourcegraph-amp}' \
+    ARG_INSTALL_SOURCEGRAPH_AMP='${var.install_sourcegraph_amp}' \
     SOURCEGRAPH_AMP_START_DIRECTORY='${var.folder}' \
     BASE_EXTENSIONS='${replace(local.base_extensions, "'", "'\\''")}' \
     /tmp/install.sh

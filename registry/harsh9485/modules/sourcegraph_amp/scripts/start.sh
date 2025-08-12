@@ -5,7 +5,11 @@ set -euo pipefail
 # shellcheck source=/dev/null
 source "$HOME/.bashrc"
 # shellcheck source=/dev/null
-source "$HOME/.nvm/nvm.sh"
+if [ -f "$HOME/.nvm/nvm.sh" ]; then
+  source "$HOME"/.nvm/nvm.sh
+else
+  export PATH="$HOME/.npm-global/bin:$PATH"
+fi
 
 function ensure_command() {
   command -v "$1" &>/dev/null || { echo "Error: '$1' not found." >&2; exit 1; }
@@ -23,11 +27,16 @@ else
   mkdir -p "$dir"
 fi
 cd "$dir"
-echo "Add AMP API key"
-export AMP_API_KEY=$SOURCEGRAPH_AMP_API_KEY
 
-if [ -n "$SOURCEGRAPH_AMP_TASK_PROMPT" ]; then
-    printf "Running the task prompt: %s\n" "$SOURCEGRAPH_AMP_TASK_PROMPT"
+if [ -n "$SOURCEGRAPH_AMP_API_KEY" ]; then
+    printf "sourcegraph_amp_api_key provided !\n"
+    export AMP_API_KEY=$SOURCEGRAPH_AMP_API_KEY
+else
+    printf "sourcegraph_amp_api_key not provided\n"
+fi
+
+if [ -n "${SOURCEGRAPH_AMP_TASK_PROMPT:-}" ]; then
+    printf "sourcegraph amp task prompt provided : $SOURCEGRAPH_AMP_TASK_PROMPT"
     PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $SOURCEGRAPH_AMP_TASK_PROMPT"
 
     # Pipe the prompt into amp, which will be run inside agentapi

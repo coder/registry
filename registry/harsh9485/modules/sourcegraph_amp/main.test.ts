@@ -68,7 +68,7 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
 
 setDefaultTimeout(60 * 1000);
 
-describe("Sourcegraph AMP Module", async () => {
+describe("sourcegraph-amp", async () => {
   beforeAll(async () => {
     await runTerraformInit(import.meta.dir);
   });
@@ -79,7 +79,7 @@ describe("Sourcegraph AMP Module", async () => {
     await expectAgentAPIStarted(id);
   });
   
-  test("sourcegraph-amp-api-key", async () => {
+  test("api-key", async () => {
     const apiKey = "test-api-key-123";
     const { id } = await setup({
       moduleVariables: {
@@ -88,7 +88,7 @@ describe("Sourcegraph AMP Module", async () => {
     });
     await execModuleScript(id);
     const resp = await readFileContainer(id, "/home/coder/.sourcegraph-amp-module/agentapi-start.log");
-    expect(resp).toContain("AMP version: AMP CLI mock version v1.0.0");
+    expect(resp).toContain("sourcegraph_amp_api_key provided !");
   });
 
   test("custom-folder", async () => {
@@ -117,10 +117,23 @@ describe("Sourcegraph AMP Module", async () => {
     expect(postLog).toContain("post-install-script");
   });
 
-  test("amp-not-installed", async () => {
-    const { id } = await setup({ skipAmpMock: true });
-    await execModuleScript(id);
-    const log = await readFileContainer(id, "/home/coder/.sourcegraph-amp-module/install.log");
-    expect(log).toContain("Error");
+  test("system-prompt", async () => {
+    const prompt = "this is a system prompt for AMP";
+    const {id} = await setup();
+    await execModuleScript(id, {
+      SOURCEGRAPH_AMP_SYSTEM_PROMPT : prompt,
+    });
+    const resp = await readFileContainer(id, "/home/coder/.sourcegraph-amp/SYSTEM_PROMPT.md");
+    expect(resp).toContain(prompt);
   });
+
+  test("task-prompt", async () => {
+    const prompt = "this is a task prompt for AMP";
+    const {id} = await setup();
+    await execModuleScript(id, {
+      SOURCEGRAPH_AMP_TASK_PROMPT : prompt,
+    });
+    const resp = await readFileContainer(id, "/home/coder/.sourcegraph-amp-module/agentapi-start.log");
+    expect(resp).toContain(`sourcegraph amp task prompt provided : ${prompt}`);
+  })
 });

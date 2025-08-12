@@ -60,7 +60,6 @@ function install_sourcegraph_amp() {
 
         printf "%s Installing Sourcegraph AMP CLI...\n" "${BOLD}"
         npm install -g @sourcegraph/amp@0.0.1754179307-gba1f97
-        export AMP_API_KEY="$SOURCEGRAPH_AMP_API_KEY"
         printf "%s Successfully installed Sourcegraph AMP CLI. Version: %s\n" "${BOLD}" "$(amp --version)"
     fi
 }
