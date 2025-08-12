@@ -85,6 +85,7 @@ resource "coder_script" "rstudio-server" {
   display_name = "rstudio-server"
   icon         = "/icon/rstudio.svg"
   script = templatefile("${path.module}/run.sh", {
+    SERVER_VERSION : var.rstudio_server_version,
     DISABLE_AUTH : var.disable_auth,
     RSTUDIO_USER : var.rstudio_user,
     RSTUDIO_PASSWORD : var.rstudio_password,

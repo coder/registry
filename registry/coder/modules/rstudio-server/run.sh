@@ -1,6 +1,33 @@
 #!/usr/bin/env sh
 
+set -eu
+
 BOLD='\033[0;1m'
+RESET='\033[0m'
 
-printf "$${BOLD}Installing Rstudio!\n"
+printf "${BOLD}Starting RStudio Server (Rocker)...${RESET}\n"
 
+IMAGE="rocker/rstudio:${SERVER_VERSION}"
+
+# Pull the specified version
+docker pull "${IMAGE}"
+
+# Run container (auto-remove on stop)
+docker run -d --rm \
+  --name rstudio-server \
+  -p "${PORT}:8787" \
+  -e DISABLE_AUTH="${DISABLE_AUTH}" \
+  -e USER="${RSTUDIO_USER}" \
+  -e PASSWORD="${RSTUDIO_PASSWORD}" \
+  -v "${PROJECT_PATH}:/home/${RSTUDIO_USER}/project" \
+  "${IMAGE}"
+
+# Optional renv restore
+if [ "${ENABLE_RENV}" = "true" ] && [ -f "${PROJECT_PATH}/renv.lock" ]; then
+  echo "Restoring R environment via renv..."
+  docker exec -u "${RSTUDIO_USER}" rstudio-server R -q -e \
+    'if (!requireNamespace("renv", quietly = TRUE)) install.packages("renv", repos="https://cloud.r-project.org"); renv::restore(prompt = FALSE)'
+fi
+
+printf "\n${BOLD}RStudio Server ${SERVER_VERSION} is running on port ${PORT}${RESET}\n"
+[ "${DISABLE_AUTH}" != "true" ] && echo "User: ${RSTUDIO_USER}"
