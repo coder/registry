@@ -4,22 +4,20 @@ description: Automatically detect and start development servers for various proj
 icon: ../../../../.icons/server.svg
 verified: false
 tags:
-  [
-    development,
-    automation,
-    servers,
-    nodejs,
-    python,
-    java,
-    go,
-    rust,
-    php,
-    rails,
-    django,
-    flask,
-    spring-boot,
-    dotnet,
-  ]
+  - development
+  - automation
+  - servers
+  - nodejs
+  - python
+  - java
+  - go
+  - rust
+  - php
+  - rails
+  - django
+  - flask
+  - spring-boot
+  - dotnet
 ---
 
 # Auto-Start Development Servers
