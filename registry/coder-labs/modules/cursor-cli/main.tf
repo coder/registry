@@ -47,12 +47,6 @@ variable "install_cursor_cli" {
   default     = true
 }
 
-variable "cursor_cli_version" {
-  type        = string
-  description = "The version of Cursor CLI to install (latest for latest)."
-  default     = "latest"
-}
-
 variable "enable_agentapi" {
   type        = bool
   description = "Whether to enable the AgentAPI for Cursor CLI."
@@ -169,7 +163,6 @@ resource "coder_script" "cursor_cli" {
       FOLDER='${var.folder}' /tmp/pre_install.sh | tee -a "$HOME/${local.module_dir_name}/pre_install.log"
     fi
     ARG_INSTALL='${var.install_cursor_cli}' \
-    ARG_VERSION='${var.cursor_cli_version}' \
     ARG_WORKSPACE_MCP_JSON='${var.mcp_json != null ? base64encode(replace(var.mcp_json, "'", "'\\''")) : ""}' \
     ARG_WORKSPACE_RULES_JSON='${var.rules_files != null ? base64encode(jsonencode(var.rules_files)) : ""}' \
     ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
@@ -259,7 +252,6 @@ module "agentapi" {
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
     ARG_INSTALL='${var.install_cursor_cli}' \
-    ARG_VERSION='${var.cursor_cli_version}' \
     ARG_WORKSPACE_MCP_JSON='${var.mcp_json != null ? base64encode(replace(var.mcp_json, "'", "'\\''")) : ""}' \
     ARG_WORKSPACE_RULES_JSON='${var.rules_files != null ? base64encode(jsonencode(var.rules_files)) : ""}' \
     ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
