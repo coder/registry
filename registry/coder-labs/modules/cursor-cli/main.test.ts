@@ -99,7 +99,7 @@ describe("cursor-cli", async () => {
     const mcpContent = await execContainer(id, [
       "bash",
       "-c",
-      `cat '/home/coder/.cursor/mcp.json'`,
+      `cat '/home/coder/project/.cursor/mcp.json'`,
     ]);
     expect(mcpContent.exitCode).toBe(0);
     expect(mcpContent.stdout).toContain("mcpServers");

@@ -53,6 +53,24 @@ variable "cursor_cli_version" {
   default     = "latest"
 }
 
+variable "enable_agentapi" {
+  type        = bool
+  description = "Whether to enable the AgentAPI for Cursor CLI."
+  default     = false
+}
+
+variable "install_agentapi" {
+  type        = bool
+  description = "Whether to install AgentAPI."
+  default     = true
+}
+
+variable "agentapi_version" {
+  type        = string
+  description = "The version of AgentAPI to install."
+  default     = "v0.4.0"
+}
+
 # Running mode is non-interactive by design for automation.
 
 
@@ -132,6 +150,7 @@ resource "coder_script" "cursor_cli" {
   agent_id     = var.agent_id
   display_name = "Cursor CLI"
   icon         = var.icon
+  count        = var.enable_agentapi ? 0 : 1
   script       = <<-EOT
     #!/bin/bash
     set -o errexit
@@ -151,10 +170,10 @@ resource "coder_script" "cursor_cli" {
     fi
     ARG_INSTALL='${var.install_cursor_cli}' \
     ARG_VERSION='${var.cursor_cli_version}' \
-    WORKSPACE_MCP_JSON='${var.mcp_json != null ? base64encode(replace(var.mcp_json, "'", "'\\''")) : ""}' \
-    WORKSPACE_RULES_JSON='${var.rules_files != null ? base64encode(jsonencode(var.rules_files)) : ""}' \
-    MODULE_DIR_NAME='${local.module_dir_name}' \
-    FOLDER='${var.folder}' \
+    ARG_WORKSPACE_MCP_JSON='${var.mcp_json != null ? base64encode(replace(var.mcp_json, "'", "'\\''")) : ""}' \
+    ARG_WORKSPACE_RULES_JSON='${var.rules_files != null ? base64encode(jsonencode(var.rules_files)) : ""}' \
+    ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
+    ARG_FOLDER='${var.folder}' \
     /tmp/install.sh | tee "$HOME/${local.module_dir_name}/install.log"
 
     # Run optional post-install script
@@ -167,11 +186,11 @@ resource "coder_script" "cursor_cli" {
 
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
     chmod +x /tmp/start.sh
-    FORCE='${var.force}' \
-    MODEL='${var.model}' \
-    AI_PROMPT='${var.ai_prompt}' \
-    MODULE_DIR_NAME='${local.module_dir_name}' \
-    FOLDER='${var.folder}' \
+    ARG_FORCE='${var.force}' \
+    ARG_MODEL='${var.model}' \
+    ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+    ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
+    ARG_FOLDER='${var.folder}' \
     /tmp/start.sh | tee "$HOME/${local.module_dir_name}/start.log"
   EOT
   run_on_start = true
@@ -181,6 +200,7 @@ resource "coder_app" "cursor_cli" {
   agent_id     = var.agent_id
   slug         = local.app_slug
   display_name = "Cursor CLI"
+  count        = var.enable_agentapi ? 0 : 1
   icon         = var.icon
   order        = var.order
   group        = var.group
@@ -197,7 +217,55 @@ resource "coder_app" "cursor_cli" {
   EOT
 }
 
-output "app_id" {
-  description = "The ID of the Cursor CLI app."
-  value       = coder_app.cursor_cli.id
+module "agentapi" {
+  source  = "registry.coder.com/coder/agentapi/coder"
+  version = "1.0.0"
+  count   = var.enable_agentapi ? 1 : 0
+
+  agent_id             = var.agent_id
+  web_app_slug         = "${local.app_slug}-agentapi"
+  web_app_order        = var.order
+  web_app_group        = var.group
+  web_app_icon         = var.icon
+  web_app_display_name = "Cursor CLI"
+  cli_app_slug         = local.app_slug
+  cli_app_display_name = "Cursor CLI"
+  module_dir_name      = local.module_dir_name
+  install_agentapi     = var.install_agentapi
+  agentapi_version     = var.agentapi_version
+  pre_install_script   = var.pre_install_script
+  post_install_script  = var.post_install_script
+  start_script         = <<-EOT
+     #!/bin/bash
+     set -o errexit
+     set -o pipefail
+
+     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+     chmod +x /tmp/start.sh
+      ARG_FORCE='${var.force}' \
+      ARG_MODEL='${var.model}' \
+      ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+      ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
+      ARG_FOLDER='${var.folder}' \
+      ARG_AGENTAPI_MODE='${var.enable_agentapi}' \
+     /tmp/start.sh
+   EOT
+
+  install_script = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
+    chmod +x /tmp/install.sh
+    ARG_INSTALL='${var.install_cursor_cli}' \
+    ARG_VERSION='${var.cursor_cli_version}' \
+    ARG_WORKSPACE_MCP_JSON='${var.mcp_json != null ? base64encode(replace(var.mcp_json, "'", "'\\''")) : ""}' \
+    ARG_WORKSPACE_RULES_JSON='${var.rules_files != null ? base64encode(jsonencode(var.rules_files)) : ""}' \
+    ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
+    ARG_FOLDER='${var.folder}' \
+    ARG_AGENTAPI_MODE='${var.enable_agentapi}' \
+    ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}-agentapi' \
+    /tmp/install.sh
+  EOT
 }
