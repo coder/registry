@@ -10,7 +10,7 @@ printf "$${BOLD}Starting RStudio Server (Rocker)...$${RESET}\n"
 IMAGE="rocker/rstudio:${SERVER_VERSION}"
 
 # Pull the specified version
-docker -H ${DOCKER_HOST} pull "$${IMAGE}"
+docker pull "$${IMAGE}"
 
 # Create (or reuse) a persistent renv cache volume
 docker volume create "${RENV_CACHE_VOLUME}"
