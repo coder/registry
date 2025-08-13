@@ -50,7 +50,7 @@ variable "rstudio_password" {
 variable "project_path" {
   type        = string
   description = "The path to RStudio project, it will be mounted in the container."
-  default = null
+  default     = null
 }
 
 variable "port" {
@@ -97,7 +97,7 @@ resource "coder_script" "rstudio-server" {
   display_name = "rstudio-server"
   icon         = "/icon/rstudio.svg"
   script = templatefile("${path.module}/run.sh", {
-    DOCKER_HOST: var.docker_socket,
+    DOCKER_HOST : var.docker_socket,
     SERVER_VERSION : var.rstudio_server_version,
     DISABLE_AUTH : var.disable_auth,
     RSTUDIO_USER : var.rstudio_user,
@@ -105,7 +105,7 @@ resource "coder_script" "rstudio-server" {
     PROJECT_PATH : var.project_path,
     PORT : var.port,
     ENABLE_RENV : var.enable_renv,
-    RENV_CACHE_VOLUME: var.renv_cache_volume,
+    RENV_CACHE_VOLUME : var.renv_cache_volume,
   })
   run_on_start = true
 }
