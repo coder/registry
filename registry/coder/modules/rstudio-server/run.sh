@@ -9,6 +9,9 @@ printf "$${BOLD}Starting RStudio Server (Rocker)...$${RESET}\n"
 
 IMAGE="rocker/rstudio:${SERVER_VERSION}"
 
+#
+sleep 15
+
 # Pull the specified version
 docker pull "$${IMAGE}"
 
