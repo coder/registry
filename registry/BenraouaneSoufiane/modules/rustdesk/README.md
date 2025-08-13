@@ -66,3 +66,14 @@ ports {
   external = 21119
 }
 ```
+
+Also you can customize the rustdesk version, virtual screen dimensions & the pass
+```tf
+module "rustdesk" {
+  source    = "registry.coder.com/BenraouaneSoufiane/rustdesk/BenraouaneSoufiane"
+  agent_id  = var.agent_id
+  rustdesk_password  = "mycustompass"
+  xvfb_resolution    = "1920x1080x24"
+  rustdesk_version   = "1.4.0"
+}
+```
