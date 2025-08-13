@@ -43,6 +43,3 @@ fi
 [ "${DISABLE_AUTH}" != "true" ] && echo "User: ${RSTUDIO_USER}"
 
 printf "\n$${BOLD}RStudio Server ${SERVER_VERSION} is running on port ${PORT}$${RESET}\n"
-
-## TODO testing
-# 3. Sleep 15
