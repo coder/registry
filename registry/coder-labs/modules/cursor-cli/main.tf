@@ -118,7 +118,7 @@ variable "post_install_script" {
 }
 
 locals {
-  app_slug                    = "cursor-cli"
+  app_slug                    = "cursorcli"
   install_script              = file("${path.module}/scripts/install.sh")
   start_script                = file("${path.module}/scripts/start.sh")
   module_dir_name             = ".cursor-cli-module"
@@ -216,7 +216,7 @@ module "agentapi" {
   count   = var.enable_agentapi ? 1 : 0
 
   agent_id             = var.agent_id
-  web_app_slug         = "${local.app_slug}-agentapi"
+  web_app_slug         = local.app_slug
   web_app_order        = var.order
   web_app_group        = var.group
   web_app_icon         = var.icon
@@ -257,7 +257,7 @@ module "agentapi" {
     ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
     ARG_FOLDER='${var.folder}' \
     ARG_AGENTAPI_MODE='${var.enable_agentapi}' \
-    ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}-agentapi' \
+    ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     /tmp/install.sh
   EOT
 }
