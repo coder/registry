@@ -1,6 +1,38 @@
+---
+display_name: Auto-Start Development Servers
+description: Automatically detect and start development servers for various project types
+icon: ../../../../.icons/server.svg
+verified: false
+tags:
+  [
+    development,
+    automation,
+    servers,
+    nodejs,
+    python,
+    java,
+    go,
+    rust,
+    php,
+    rails,
+    django,
+    flask,
+    spring-boot,
+    dotnet,
+  ]
+---
+
 # Auto-Start Development Servers
 
 Automatically detect and start development servers for various project types when a workspace starts. This module scans your workspace for common project structures and starts the appropriate development servers in the background without manual intervention.
+
+```tf
+module "auto_start_dev_servers" {
+  source   = "registry.coder.com/mavrickrishi/auto-start-dev-server/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+}
+```
 
 ## Features
 
