@@ -7,8 +7,6 @@ RESET='\033[0m'
 
 printf "$${BOLD}Starting RStudio Server (Rocker)...$${RESET}\n"
 
-IMAGE="rocker/rstudio:${SERVER_VERSION}"
-
 # Wait for docker to become ready
 max_attempts=10
 delay=2
@@ -25,8 +23,10 @@ while ! docker ps; do
   delay=$$((delay * 2)) # exponential backoff
 done
 
+
 # Pull the specified version
-docker pull "${IMAGE}"
+IMAGE="rocker/rstudio:${SERVER_VERSION}"
+docker pull "$${IMAGE}"
 
 # Create (or reuse) a persistent renv cache volume
 docker volume create "${RENV_CACHE_VOLUME}"
