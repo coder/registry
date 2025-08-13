@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"golang.org/x/xerrors"
@@ -168,5 +169,27 @@ func validateReadmeBody(body string) []error {
 		latestHeaderLevel = nextHeaderLevel
 	}
 
+	return errs
+}
+
+func validateFrontmatterYamlKeys(frontmatter string, allowedKeys []string) []error {
+	if len(allowedKeys) == 0 {
+		return []error{xerrors.New("Set of allowed keys is empty")}
+	}
+
+	var key string
+	var cutOk bool
+	var line string
+
+	var errs []error
+	lineScanner := bufio.NewScanner(strings.NewReader(frontmatter))
+	for lineScanner.Scan() {
+		line = lineScanner.Text()
+		key, _, cutOk = strings.Cut(line, ":")
+		if !cutOk || slices.Contains(allowedKeys, key) {
+			continue
+		}
+		errs = append(errs, xerrors.Errorf("detected unknown key %q", key))
+	}
 	return errs
 }
