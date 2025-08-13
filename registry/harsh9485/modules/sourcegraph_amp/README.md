@@ -2,8 +2,8 @@
 display\_name: Sourcegraph AMP
 icon: ../../../../.icons/sourcegraph_amp.svg
 description: Run Sourcegraph AMP CLI in your workspace with AgentAPI integration
-verified: true
-tags: \[agent, sourcegraph, amp, ai, tasks]
+verified: false
+tags: [agent, sourcegraph, amp, ai, tasks]
 ---
 
 # Sourcegraph AMP CLI
@@ -31,11 +31,11 @@ module "sourcegraph_amp" {
 ```tf
 data "coder_parameter" "ai_prompt" {
   name        = "AI Prompt"
-  description = "Write an initial prompt for Aider to work on."
+  description = "Write an initial prompt for AMP to work on."
   type        = "string"
   default     = ""
   mutable     = true
-  ephemeral   = true
+
 }
 
 # Set system prompt for Sourcegraph Amp via environment variables
@@ -79,12 +79,12 @@ module "sourcegraph_amp" {
 - Logs are written under `/home/coder/.sourcegraph_amp-module/` (`install.log`, `agentapi-start.log`) for debugging
 - If AgentAPI fails to start, verify that your container has network access and executable permissions for the scripts
 
-> \[!IMPORTANT]
+> [!IMPORTANT]
 > For using **Coder Tasks** with Sourcegraph AMP, make sure to pass the `AI Prompt` parameter and set `sourcegraph_amp_api_key`.
 > This ensures task reporting and status updates work seamlessly.
 
 ## References
 
-- [Sourcegraph AMP Documentation](https://sourcegraph.com/amp)
+- [Sourcegraph AMP Documentation](https://ampcode.com/manual)
 - [AgentAPI Documentation](https://github.com/coder/agentapi)
 - [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)
