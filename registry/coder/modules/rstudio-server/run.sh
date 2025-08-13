@@ -9,7 +9,7 @@ printf "$${BOLD}Starting RStudio Server (Rocker)...$${RESET}\n"
 
 IMAGE="rocker/rstudio:${SERVER_VERSION}"
 
-#
+# FIXME retry + backoff
 sleep 15
 
 # Pull the specified version
@@ -41,3 +41,6 @@ fi
 
 printf "\n$${BOLD}RStudio Server ${SERVER_VERSION} is running on port ${PORT}$${RESET}\n"
 
+## TODO testing
+# 2. Renv paths cache + renv.lock
+# 3. Sleep 15

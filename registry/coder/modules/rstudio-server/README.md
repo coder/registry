@@ -10,7 +10,7 @@ tags: [rstudio, ide, web]
 
 A module that deploys Rocker Project distribution of RStudio Server in your Coder template.
 
-![RStudio Server](../../.images/rstudio.png)
+![RStudio Server](../../.images/rstudio-server.png)
 
 ```tf
 module "rstudio-server" {
