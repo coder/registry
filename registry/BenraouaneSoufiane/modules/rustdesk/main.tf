@@ -64,7 +64,6 @@ ${file("${path.module}/run.sh")}
 }
 
 resource "coder_app" "rustdesk" {
-  count = 1
   agent_id     = var.agent_id
   slug         = "rustdesk"
   display_name = "Rustdesk"
