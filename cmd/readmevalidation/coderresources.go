@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bufio"
-	"context"
 	"errors"
 	"net/url"
 	"os"
@@ -89,7 +87,7 @@ func validateCoderResourceIconURL(iconURL string) []error {
 		return []error{xerrors.New("icon URL cannot be empty")}
 	}
 
-	errs := []error{}
+	var errs []error
 
 	// If the URL does not have a relative path.
 	if !strings.HasPrefix(iconURL, ".") && !strings.HasPrefix(iconURL, "/") {
@@ -120,7 +118,7 @@ func validateCoderResourceTags(tags []string) error {
 
 	// All of these tags are used for the module/template filter controls in the Registry site. Need to make sure they
 	// can all be placed in the browser URL without issue.
-	invalidTags := []string{}
+	var invalidTags []string
 	for _, t := range tags {
 		if t != url.QueryEscape(t) {
 			invalidTags = append(invalidTags, t)
@@ -133,108 +131,27 @@ func validateCoderResourceTags(tags []string) error {
 	return nil
 }
 
-func validateCoderResourceReadmeBody(body string) []error {
+func validateCoderResourceFrontmatter(resourceType string, filePath string, fm coderResourceFrontmatter) []error {
+	if !slices.Contains(supportedResourceTypes, resourceType) {
+		return []error{xerrors.Errorf("cannot process unknown resource type %q", resourceType)}
+	}
+
 	var errs []error
-
-	trimmed := strings.TrimSpace(body)
-	// TODO: this may cause unexpected behavior since the errors slice may have a 0 length. Add a test.
-	errs = append(errs, validateReadmeBody(trimmed)...)
-
-	foundParagraph := false
-	terraformCodeBlockCount := 0
-	foundTerraformVersionRef := false
-
-	lineNum := 0
-	isInsideCodeBlock := false
-	isInsideTerraform := false
-
-	lineScanner := bufio.NewScanner(strings.NewReader(trimmed))
-	for lineScanner.Scan() {
-		lineNum++
-		nextLine := lineScanner.Text()
-
-		// Code assumes that invalid headers would've already been handled by the base validation function, so we don't
-		// need to check deeper if the first line isn't an h1.
-		if lineNum == 1 {
-			if !strings.HasPrefix(nextLine, "# ") {
-				break
-			}
-			continue
-		}
-
-		if strings.HasPrefix(nextLine, "```") {
-			isInsideCodeBlock = !isInsideCodeBlock
-			isInsideTerraform = isInsideCodeBlock && strings.HasPrefix(nextLine, "```tf")
-			if isInsideTerraform {
-				terraformCodeBlockCount++
-			}
-			if strings.HasPrefix(nextLine, "```hcl") {
-				errs = append(errs, xerrors.New("all .hcl language references must be converted to .tf"))
-			}
-			continue
-		}
-
-		if isInsideCodeBlock {
-			if isInsideTerraform {
-				foundTerraformVersionRef = foundTerraformVersionRef || terraformVersionRe.MatchString(nextLine)
-			}
-			continue
-		}
-
-		// Code assumes that we can treat this case as the end of the "h1 section" and don't need to process any further lines.
-		if lineNum > 1 && strings.HasPrefix(nextLine, "#") {
-			break
-		}
-
-		// Code assumes that if we've reached this point, the only other options are:
-		// (1) empty spaces, (2) paragraphs, (3) HTML, and (4) asset references made via [] syntax.
-		trimmedLine := strings.TrimSpace(nextLine)
-		isParagraph := trimmedLine != "" && !strings.HasPrefix(trimmedLine, "![") && !strings.HasPrefix(trimmedLine, "<")
-		foundParagraph = foundParagraph || isParagraph
+	if err := validateCoderResourceDisplayName(fm.DisplayName); err != nil {
+		errs = append(errs, addFilePathToError(filePath, err))
+	}
+	if err := validateCoderResourceDescription(fm.Description); err != nil {
+		errs = append(errs, addFilePathToError(filePath, err))
+	}
+	if err := validateCoderResourceTags(fm.Tags); err != nil {
+		errs = append(errs, addFilePathToError(filePath, err))
 	}
 
-	if terraformCodeBlockCount == 0 {
-		errs = append(errs, xerrors.New("did not find Terraform code block within h1 section"))
-	} else {
-		if terraformCodeBlockCount > 1 {
-			errs = append(errs, xerrors.New("cannot have more than one Terraform code block in h1 section"))
-		}
-		if !foundTerraformVersionRef {
-			errs = append(errs, xerrors.New("did not find Terraform code block that specifies 'version' field"))
-		}
+	for _, err := range validateCoderResourceIconURL(fm.IconURL) {
+		errs = append(errs, addFilePathToError(filePath, err))
 	}
-	if !foundParagraph {
-		errs = append(errs, xerrors.New("did not find paragraph within h1 section"))
-	}
-	if isInsideCodeBlock {
-		errs = append(errs, xerrors.New("code blocks inside h1 section do not all terminate before end of file"))
-	}
-
-	return errs
-}
-
-func validateCoderResourceReadme(rm coderResourceReadme) []error {
-	var errs []error
-
-	for _, err := range validateCoderResourceReadmeBody(rm.body) {
-		errs = append(errs, addFilePathToError(rm.filePath, err))
-	}
-
-	if err := validateCoderResourceDisplayName(rm.frontmatter.DisplayName); err != nil {
-		errs = append(errs, addFilePathToError(rm.filePath, err))
-	}
-	if err := validateCoderResourceDescription(rm.frontmatter.Description); err != nil {
-		errs = append(errs, addFilePathToError(rm.filePath, err))
-	}
-	if err := validateCoderResourceTags(rm.frontmatter.Tags); err != nil {
-		errs = append(errs, addFilePathToError(rm.filePath, err))
-	}
-
-	for _, err := range validateCoderResourceIconURL(rm.frontmatter.IconURL) {
-		errs = append(errs, addFilePathToError(rm.filePath, err))
-	}
-	for _, err := range validateSupportedOperatingSystems(rm.frontmatter.OperatingSystems) {
-		errs = append(errs, addFilePathToError(rm.filePath, err))
+	for _, err := range validateSupportedOperatingSystems(fm.OperatingSystems) {
+		errs = append(errs, addFilePathToError(filePath, err))
 	}
 
 	return errs
@@ -248,7 +165,7 @@ func parseCoderResourceReadme(resourceType string, rm readme) (coderResourceRead
 
 	keyErrs := validateFrontmatterYamlKeys(fm, supportedCoderResourceStructKeys)
 	if len(keyErrs) != 0 {
-		remapped := []error{}
+		var remapped []error
 		for _, e := range keyErrs {
 			remapped = append(remapped, addFilePathToError(rm.filePath, e))
 		}
@@ -268,7 +185,11 @@ func parseCoderResourceReadme(resourceType string, rm readme) (coderResourceRead
 	}, nil
 }
 
-func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (map[string]coderResourceReadme, error) {
+func parseCoderResourceReadmeFiles(resourceType string, rms []readme) ([]coderResourceReadme, error) {
+	if !slices.Contains(supportedResourceTypes, resourceType) {
+		return nil, xerrors.Errorf("cannot process unknown resource type %q", resourceType)
+	}
+
 	resources := map[string]coderResourceReadme{}
 	var yamlParsingErrs []error
 	for _, rm := range rms {
@@ -287,30 +208,27 @@ func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (map[strin
 		}
 	}
 
-	yamlValidationErrors := []error{}
-	for _, readme := range resources {
-		errs := validateCoderResourceReadme(readme)
-		if len(errs) > 0 {
-			yamlValidationErrors = append(yamlValidationErrors, errs...)
-		}
+	var serialized []coderResourceReadme
+	for _, r := range resources {
+		serialized = append(serialized, r)
 	}
-	if len(yamlValidationErrors) != 0 {
-		return nil, validationPhaseError{
-			phase:  validationPhaseReadme,
-			errors: yamlValidationErrors,
-		}
-	}
-
-	return resources, nil
+	slices.SortFunc(serialized, func(r1 coderResourceReadme, r2 coderResourceReadme) int {
+		return strings.Compare(r1.filePath, r2.filePath)
+	})
+	return serialized, nil
 }
 
 // Todo: Need to beef up this function by grabbing each image/video URL from
 // the body's AST.
-func validateCoderResourceRelativeURLs(_ map[string]coderResourceReadme) error {
+func validateCoderResourceRelativeURLs(_ []coderResourceReadme) error {
 	return nil
 }
 
 func aggregateCoderResourceReadmeFiles(resourceType string) ([]readme, error) {
+	if !slices.Contains(supportedResourceTypes, resourceType) {
+		return nil, xerrors.Errorf("cannot process unknown resource type %q", resourceType)
+	}
+
 	registryFiles, err := os.ReadDir(rootRegistryPath)
 	if err != nil {
 		return nil, err
@@ -358,28 +276,4 @@ func aggregateCoderResourceReadmeFiles(resourceType string) ([]readme, error) {
 		}
 	}
 	return allReadmeFiles, nil
-}
-
-func validateAllCoderResourceFilesOfType(resourceType string) error {
-	if !slices.Contains(supportedResourceTypes, resourceType) {
-		return xerrors.Errorf("resource type %q is not part of supported list [%s]", resourceType, strings.Join(supportedResourceTypes, ", "))
-	}
-
-	allReadmeFiles, err := aggregateCoderResourceReadmeFiles(resourceType)
-	if err != nil {
-		return err
-	}
-
-	logger.Info(context.Background(), "processing README files", "num_files", len(allReadmeFiles))
-	resources, err := parseCoderResourceReadmeFiles(resourceType, allReadmeFiles)
-	if err != nil {
-		return err
-	}
-	logger.Info(context.Background(), "processed README files as valid Coder resources", "num_files", len(resources), "type", resourceType)
-
-	if err := validateCoderResourceRelativeURLs(resources); err != nil {
-		return err
-	}
-	logger.Info(context.Background(), "all relative URLs for READMEs are valid", "type", resourceType)
-	return nil
 }

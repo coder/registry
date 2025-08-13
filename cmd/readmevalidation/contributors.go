@@ -79,7 +79,7 @@ func validateContributorSupportEmail(email *string) []error {
 		return nil
 	}
 
-	errs := []error{}
+	var errs []error
 
 	username, server, ok := strings.Cut(*email, "@")
 	if !ok {
@@ -140,7 +140,7 @@ func validateContributorAvatarURL(avatarURL *string) []error {
 		return []error{xerrors.New("avatar URL must be omitted or non-empty string")}
 	}
 
-	errs := []error{}
+	var errs []error
 	// Have to use .Parse instead of .ParseRequestURI because this is the one field that's allowed to be a relative URL.
 	if _, err := url.Parse(*avatarURL); err != nil {
 		errs = append(errs, xerrors.Errorf("URL %q is not a valid relative or absolute URL", *avatarURL))
@@ -166,7 +166,7 @@ func validateContributorAvatarURL(avatarURL *string) []error {
 }
 
 func validateContributorReadme(rm contributorProfileReadme) []error {
-	allErrs := []error{}
+	var allErrs []error
 
 	if err := validateContributorDisplayName(rm.frontmatter.DisplayName); err != nil {
 		allErrs = append(allErrs, addFilePathToError(rm.filePath, err))
@@ -202,7 +202,7 @@ func parseContributorProfile(rm readme) (contributorProfileReadme, []error) {
 
 	keyErrs := validateFrontmatterYamlKeys(fm, supportedContributorProfileStructKeys)
 	if len(keyErrs) != 0 {
-		remapped := []error{}
+		var remapped []error
 		for _, e := range keyErrs {
 			remapped = append(remapped, addFilePathToError(rm.filePath, e))
 		}
@@ -223,7 +223,7 @@ func parseContributorProfile(rm readme) (contributorProfileReadme, []error) {
 
 func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfileReadme, error) {
 	profilesByNamespace := map[string]contributorProfileReadme{}
-	yamlParsingErrors := []error{}
+	var yamlParsingErrors []error
 	for _, rm := range readmeEntries {
 		p, errs := parseContributorProfile(rm)
 		if len(errs) != 0 {
@@ -244,7 +244,7 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 		}
 	}
 
-	yamlValidationErrors := []error{}
+	var yamlValidationErrors []error
 	for _, p := range profilesByNamespace {
 		if errors := validateContributorReadme(p); len(errors) > 0 {
 			yamlValidationErrors = append(yamlValidationErrors, errors...)
@@ -267,8 +267,8 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 		return nil, err
 	}
 
-	allReadmeFiles := []readme{}
-	errs := []error{}
+	var allReadmeFiles []readme
+	var errs []error
 	dirPath := ""
 	for _, e := range dirEntries {
 		if !e.IsDir() {
