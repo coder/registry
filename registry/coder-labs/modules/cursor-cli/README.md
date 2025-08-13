@@ -90,6 +90,8 @@ module "cursor_cli" {
 }
 ```
 
+## Running with AgentAPI
+
 To run this module with AgentAPI, pass `enable_agentapi=true`
 
 ```tf
