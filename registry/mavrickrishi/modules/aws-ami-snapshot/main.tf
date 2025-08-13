@@ -13,15 +13,17 @@ terraform {
   }
 }
 
+# Provider configuration for testing only
+# In production, the provider will be inherited from the calling module
 provider "aws" {
-  # Configuration will be provided via environment variables or other means
-  # This block satisfies the requirement for explicit configuration
-  region                      = var.aws_region != "" ? var.aws_region : null
+  region                      = "us-east-1"
   skip_credentials_validation = true
   skip_requesting_account_id  = true
   skip_region_validation      = true
-  access_key                  = "test"
-  secret_key                  = "test"
+  
+  # Mock credentials for testing
+  access_key = "test"
+  secret_key = "test"
 }
 
 # Variables
