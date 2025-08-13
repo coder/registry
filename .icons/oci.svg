@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100">
+  <defs>
+    <linearGradient id="cloudGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f0f0f0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Cloud background with better visibility -->
+  <path d="M10 40 Q10 20 30 20 Q40 10 60 20 Q70 10 90 20 Q100 10 120 20 Q130 10 150 20 Q170 20 170 40 Q170 60 150 60 L30 60 Q10 60 10 40 Z" 
+        fill="url(#cloudGradient)" stroke="#333333" stroke-width="2"/>
+  
+  <!-- Oracle text with better positioning and visibility -->
+  <text x="100" y="45" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#FF0000">ORACLE</text>
+  
+  <!-- Registered trademark symbol -->
+  <text x="165" y="25" font-family="Arial, Helvetica, sans-serif" font-size="10" text-anchor="middle" fill="#FF0000">®</text>
+</svg>
