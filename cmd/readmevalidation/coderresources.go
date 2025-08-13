@@ -17,6 +17,7 @@ import (
 
 var (
 	supportedResourceTypes = []string{"modules", "templates"}
+	operatingSystems       = []string{"windows", "macos", "linux"}
 
 	// TODO: This is a holdover from the validation logic used by the Coder Modules repo. It gives us some assurance, but
 	// realistically, we probably want to parse any Terraform code snippets, and make some deeper guarantees about how it's
@@ -25,11 +26,21 @@ var (
 )
 
 type coderResourceFrontmatter struct {
-	Description string   `yaml:"description"`
-	IconURL     string   `yaml:"icon"`
-	DisplayName *string  `yaml:"display_name"`
-	Verified    *bool    `yaml:"verified"`
-	Tags        []string `yaml:"tags"`
+	Description      string   `yaml:"description"`
+	IconURL          string   `yaml:"icon"`
+	DisplayName      *string  `yaml:"display_name"`
+	Verified         *bool    `yaml:"verified"`
+	Tags             []string `yaml:"tags"`
+	OperatingSystems []string `yaml:"supported_os"`
+}
+
+// A slice version of the struct tags from coderResourceFrontmatter. Might be worth using reflection to generate this
+// list at runtime in the future, but this should be okay for now
+var supportedCoderResourceStructKeys = []string{
+	"description", "icon", "display_name", "verified", "tags", "supported_os",
+	// TODO: This is an old, officially deprecated key from the archived coder/modules repo. We can remove this once we
+	// make sure that the Registry Server is no longer checking this field.
+	"maintainer_github",
 }
 
 // coderResourceReadme represents a README describing a Terraform resource used
@@ -40,6 +51,17 @@ type coderResourceReadme struct {
 	filePath     string
 	body         string
 	frontmatter  coderResourceFrontmatter
+}
+
+func validateSupportedOperatingSystems(systems []string) []error {
+	var errs []error
+	for _, s := range systems {
+		if slices.Contains(operatingSystems, s) {
+			continue
+		}
+		errs = append(errs, xerrors.Errorf("detected unknown operating system %q", s))
+	}
+	return errs
 }
 
 func validateCoderResourceDisplayName(displayName *string) error {
@@ -211,19 +233,31 @@ func validateCoderResourceReadme(rm coderResourceReadme) []error {
 	for _, err := range validateCoderResourceIconURL(rm.frontmatter.IconURL) {
 		errs = append(errs, addFilePathToError(rm.filePath, err))
 	}
+	for _, err := range validateSupportedOperatingSystems(rm.frontmatter.OperatingSystems) {
+		errs = append(errs, addFilePathToError(rm.filePath, err))
+	}
 
 	return errs
 }
 
-func parseCoderResourceReadme(resourceType string, rm readme) (coderResourceReadme, error) {
+func parseCoderResourceReadme(resourceType string, rm readme) (coderResourceReadme, []error) {
 	fm, body, err := separateFrontmatter(rm.rawText)
 	if err != nil {
-		return coderResourceReadme{}, xerrors.Errorf("%q: failed to parse frontmatter: %v", rm.filePath, err)
+		return coderResourceReadme{}, []error{xerrors.Errorf("%q: failed to parse frontmatter: %v", rm.filePath, err)}
+	}
+
+	keyErrs := validateFrontmatterYamlKeys(fm, supportedCoderResourceStructKeys)
+	if len(keyErrs) != 0 {
+		remapped := []error{}
+		for _, e := range keyErrs {
+			remapped = append(remapped, addFilePathToError(rm.filePath, e))
+		}
+		return coderResourceReadme{}, remapped
 	}
 
 	yml := coderResourceFrontmatter{}
 	if err := yaml.Unmarshal([]byte(fm), &yml); err != nil {
-		return coderResourceReadme{}, xerrors.Errorf("%q: failed to parse: %v", rm.filePath, err)
+		return coderResourceReadme{}, []error{xerrors.Errorf("%q: failed to parse: %v", rm.filePath, err)}
 	}
 
 	return coderResourceReadme{
@@ -238,9 +272,9 @@ func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (map[strin
 	resources := map[string]coderResourceReadme{}
 	var yamlParsingErrs []error
 	for _, rm := range rms {
-		p, err := parseCoderResourceReadme(resourceType, rm)
-		if err != nil {
-			yamlParsingErrs = append(yamlParsingErrs, err)
+		p, errs := parseCoderResourceReadme(resourceType, rm)
+		if len(errs) != 0 {
+			yamlParsingErrs = append(yamlParsingErrs, errs...)
 			continue
 		}
 
