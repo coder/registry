@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 set -eu
 
@@ -19,8 +19,8 @@ while ! docker ps; do
   fi
   echo "Attempt $${attempt} failed, retrying in $${delay}s..."
   sleep $delay
-  attempt=$((attempt + 1))
-  delay=$((delay * 2)) # exponential backoff
+  attempt=`expr "$$attempt" + 1`
+  delay=`expr "$$delay" \* 2`  # exponential backoff
 done
 
 
