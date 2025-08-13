@@ -38,7 +38,7 @@ type coderResourceFrontmatter struct {
 // list at runtime in the future, but this should be okay for now
 var supportedCoderResourceStructKeys = []string{
 	"description", "icon", "display_name", "verified", "tags", "supported_os",
-	// TODO: This is an old, officially deprecated key from an older version of the repo. We can remove this once we
+	// TODO: This is an old, officially deprecated key from the archived coder/modules repo. We can remove this once we
 	// make sure that the Registry Server is no longer checking this field.
 	"maintainer_github",
 }
