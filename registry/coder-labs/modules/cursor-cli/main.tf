@@ -212,7 +212,7 @@ resource "coder_app" "cursor_cli" {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.0.0"
+  version = "1.1.1"
   count   = var.enable_agentapi ? 1 : 0
 
   agent_id             = var.agent_id

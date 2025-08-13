@@ -90,6 +90,35 @@ module "cursor_cli" {
 }
 ```
 
+To run this module with AgentAPI, pass `enable_agentapi=true`
+
+```tf
+data "coder_parameter" "ai_prompt" {
+  type        = "string"
+  name        = "AI Prompt"
+  default     = ""
+  description = "Initial prompt for the Codex CLI"
+  mutable     = true
+}
+
+module "coder-login" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/coder-login/coder"
+  version  = "1.0.31"
+  agent_id = coder_agent.main.id
+}
+
+module "cursor-cli" {
+  source          = "registry.coder.com/coder-labs/cursor-cli/coder"
+  agent_id        = coder_agent.main.id
+  api_key         = "key_xxx"
+  ai_prompt       = data.coder_parameter.ai_prompt.value
+  folder          = "/home/coder/project"
+  enable_agentapi = true
+  force           = true # recommended while running tasks
+}
+```
+
 ## References
 
 - See Cursor CLI docs: `https://docs.cursor.com/en/cli/overview`
