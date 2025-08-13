@@ -89,7 +89,7 @@ func validateCoderResourceIconURL(iconURL string) []error {
 		return []error{xerrors.New("icon URL cannot be empty")}
 	}
 
-	errs := []error{}
+	var errs []error
 
 	// If the URL does not have a relative path.
 	if !strings.HasPrefix(iconURL, ".") && !strings.HasPrefix(iconURL, "/") {
@@ -120,7 +120,7 @@ func validateCoderResourceTags(tags []string) error {
 
 	// All of these tags are used for the module/template filter controls in the Registry site. Need to make sure they
 	// can all be placed in the browser URL without issue.
-	invalidTags := []string{}
+	var invalidTags []string
 	for _, t := range tags {
 		if t != url.QueryEscape(t) {
 			invalidTags = append(invalidTags, t)
@@ -133,7 +133,7 @@ func validateCoderResourceTags(tags []string) error {
 	return nil
 }
 
-func validateCoderResourceReadmeBody(body string) []error {
+func validateCoderModuleReadmeBody(body string) []error {
 	var errs []error
 
 	trimmed := strings.TrimSpace(body)
@@ -213,31 +213,86 @@ func validateCoderResourceReadmeBody(body string) []error {
 	return errs
 }
 
-func validateCoderResourceReadme(rm coderResourceReadme) []error {
+func validateCoderResourceFrontmatter(resourceType string, filePath string, fm coderResourceFrontmatter) []error {
+	if !slices.Contains(supportedResourceTypes, resourceType) {
+		return []error{xerrors.Errorf("cannot process unknown resource type %q", resourceType)}
+	}
+
 	var errs []error
-
-	for _, err := range validateCoderResourceReadmeBody(rm.body) {
-		errs = append(errs, addFilePathToError(rm.filePath, err))
+	if err := validateCoderResourceDisplayName(fm.DisplayName); err != nil {
+		errs = append(errs, addFilePathToError(filePath, err))
+	}
+	if err := validateCoderResourceDescription(fm.Description); err != nil {
+		errs = append(errs, addFilePathToError(filePath, err))
+	}
+	if err := validateCoderResourceTags(fm.Tags); err != nil {
+		errs = append(errs, addFilePathToError(filePath, err))
 	}
 
-	if err := validateCoderResourceDisplayName(rm.frontmatter.DisplayName); err != nil {
-		errs = append(errs, addFilePathToError(rm.filePath, err))
+	for _, err := range validateCoderResourceIconURL(fm.IconURL) {
+		errs = append(errs, addFilePathToError(filePath, err))
 	}
-	if err := validateCoderResourceDescription(rm.frontmatter.Description); err != nil {
-		errs = append(errs, addFilePathToError(rm.filePath, err))
-	}
-	if err := validateCoderResourceTags(rm.frontmatter.Tags); err != nil {
-		errs = append(errs, addFilePathToError(rm.filePath, err))
-	}
-
-	for _, err := range validateCoderResourceIconURL(rm.frontmatter.IconURL) {
-		errs = append(errs, addFilePathToError(rm.filePath, err))
-	}
-	for _, err := range validateSupportedOperatingSystems(rm.frontmatter.OperatingSystems) {
-		errs = append(errs, addFilePathToError(rm.filePath, err))
+	for _, err := range validateSupportedOperatingSystems(fm.OperatingSystems) {
+		errs = append(errs, addFilePathToError(filePath, err))
 	}
 
 	return errs
+}
+
+func validateCoderModuleReadme(rm coderResourceReadme) []error {
+	var errs []error
+	for _, err := range validateCoderModuleReadmeBody(rm.body) {
+		errs = append(errs, addFilePathToError(rm.filePath, err))
+	}
+	if fmErrs := validateCoderResourceFrontmatter("modules", rm.filePath, rm.frontmatter); len(fmErrs) != 0 {
+		errs = append(errs, fmErrs...)
+	}
+	return errs
+}
+
+func validateAllCoderModuleReadmes(resources []coderResourceReadme) error {
+	var yamlValidationErrors []error
+	for _, readme := range resources {
+		errs := validateCoderModuleReadme(readme)
+		if len(errs) > 0 {
+			yamlValidationErrors = append(yamlValidationErrors, errs...)
+		}
+	}
+	if len(yamlValidationErrors) != 0 {
+		return validationPhaseError{
+			phase:  validationPhaseReadme,
+			errors: yamlValidationErrors,
+		}
+	}
+	return nil
+}
+
+func validateCoderTemplateReadme(rm coderResourceReadme) []error {
+	var errs []error
+	// for _, err := range validateCoderResourceReadmeBody(rm.body) {
+	// 	errs = append(errs, addFilePathToError(rm.filePath, err))
+	// }
+	if fmErrs := validateCoderResourceFrontmatter("modules", rm.filePath, rm.frontmatter); len(fmErrs) != 0 {
+		errs = append(errs, fmErrs...)
+	}
+	return errs
+}
+
+func validateAllCoderTemplateReadmes(resources []coderResourceReadme) error {
+	var yamlValidationErrors []error
+	for _, readme := range resources {
+		errs := validateCoderTemplateReadme(readme)
+		if len(errs) > 0 {
+			yamlValidationErrors = append(yamlValidationErrors, errs...)
+		}
+	}
+	if len(yamlValidationErrors) != 0 {
+		return validationPhaseError{
+			phase:  validationPhaseReadme,
+			errors: yamlValidationErrors,
+		}
+	}
+	return nil
 }
 
 func parseCoderResourceReadme(resourceType string, rm readme) (coderResourceReadme, []error) {
@@ -248,7 +303,7 @@ func parseCoderResourceReadme(resourceType string, rm readme) (coderResourceRead
 
 	keyErrs := validateFrontmatterYamlKeys(fm, supportedCoderResourceStructKeys)
 	if len(keyErrs) != 0 {
-		remapped := []error{}
+		var remapped []error
 		for _, e := range keyErrs {
 			remapped = append(remapped, addFilePathToError(rm.filePath, e))
 		}
@@ -268,7 +323,7 @@ func parseCoderResourceReadme(resourceType string, rm readme) (coderResourceRead
 	}, nil
 }
 
-func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (map[string]coderResourceReadme, error) {
+func parseCoderResourceReadmeFiles(resourceType string, rms []readme) ([]coderResourceReadme, error) {
 	if !slices.Contains(supportedResourceTypes, resourceType) {
 		return nil, xerrors.Errorf("cannot process unknown resource type %q", resourceType)
 	}
@@ -291,26 +346,19 @@ func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (map[strin
 		}
 	}
 
-	yamlValidationErrors := []error{}
-	for _, readme := range resources {
-		errs := validateCoderResourceReadme(readme)
-		if len(errs) > 0 {
-			yamlValidationErrors = append(yamlValidationErrors, errs...)
-		}
+	var serialized []coderResourceReadme
+	for _, r := range resources {
+		serialized = append(serialized, r)
 	}
-	if len(yamlValidationErrors) != 0 {
-		return nil, validationPhaseError{
-			phase:  validationPhaseReadme,
-			errors: yamlValidationErrors,
-		}
-	}
-
-	return resources, nil
+	slices.SortFunc(serialized, func(r1 coderResourceReadme, r2 coderResourceReadme) int {
+		return strings.Compare(r1.filePath, r2.filePath)
+	})
+	return serialized, nil
 }
 
 // Todo: Need to beef up this function by grabbing each image/video URL from
 // the body's AST.
-func validateCoderResourceRelativeURLs(_ map[string]coderResourceReadme) error {
+func validateCoderResourceRelativeURLs(_ []coderResourceReadme) error {
 	return nil
 }
 
@@ -380,6 +428,10 @@ func validateAllCoderModules() error {
 	if err != nil {
 		return err
 	}
+	err = validateAllCoderModuleReadmes(resources)
+	if err != nil {
+		return err
+	}
 	logger.Info(context.Background(), "processed README files as valid Coder resources", "resource_type", resourceType, "num_files", len(resources))
 
 	if err := validateCoderResourceRelativeURLs(resources); err != nil {
@@ -398,6 +450,10 @@ func validateAllCoderTemplates() error {
 
 	logger.Info(context.Background(), "processing template README files", "resource_type", resourceType, "num_files", len(allReadmeFiles))
 	resources, err := parseCoderResourceReadmeFiles(resourceType, allReadmeFiles)
+	if err != nil {
+		return err
+	}
+	err = validateAllCoderTemplateReadmes(resources)
 	if err != nil {
 		return err
 	}
