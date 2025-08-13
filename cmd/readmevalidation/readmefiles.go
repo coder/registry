@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"golang.org/x/xerrors"
@@ -39,7 +40,9 @@ const (
 
 var (
 	supportedAvatarFileFormats = []string{".png", ".jpeg", ".jpg", ".gif", ".svg"}
-	// Matches markdown headers, must be at the beginning of a line, such as "# " or "### ".
+	// Matches markdown headers placed at the beginning of a line (e.g., "# " or "### "). To make the logic for
+	// validateReadmeBody easier, this pattern deliberately matches on invalid headers (header levels must be in the
+	// range 1–6 to be valid). The function has checks to see if the level is correct.
 	readmeHeaderRe = regexp.MustCompile(`^(#+)(\s*)`)
 )
 
@@ -166,5 +169,27 @@ func validateReadmeBody(body string) []error {
 		latestHeaderLevel = nextHeaderLevel
 	}
 
+	return errs
+}
+
+func validateFrontmatterYamlKeys(frontmatter string, allowedKeys []string) []error {
+	if len(allowedKeys) == 0 {
+		return []error{xerrors.New("Set of allowed keys is empty")}
+	}
+
+	var key string
+	var cutOk bool
+	var line string
+
+	var errs []error
+	lineScanner := bufio.NewScanner(strings.NewReader(frontmatter))
+	for lineScanner.Scan() {
+		line = lineScanner.Text()
+		key, _, cutOk = strings.Cut(line, ":")
+		if !cutOk || slices.Contains(allowedKeys, key) {
+			continue
+		}
+		errs = append(errs, xerrors.Errorf("detected unknown key %q", key))
+	}
 	return errs
 }

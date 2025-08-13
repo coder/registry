@@ -31,7 +31,11 @@ func main() {
 	if err != nil {
 		errs = append(errs, err)
 	}
-	err = validateAllCoderResourceFilesOfType("modules")
+	err = validateAllCoderModules()
+	if err != nil {
+		errs = append(errs, err)
+	}
+	err = validateAllCoderTemplates()
 	if err != nil {
 		errs = append(errs, err)
 	}
