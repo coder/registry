@@ -13,10 +13,10 @@ IMAGE="rocker/rstudio:${SERVER_VERSION}"
 docker -H ${DOCKER_HOST} pull "$${IMAGE}"
 
 # Create (or reuse) a persistent renv cache volume
-docker -H ${DOCKER_HOST} volume create "${RENV_CACHE_VOLUME}" 
+docker volume create "${RENV_CACHE_VOLUME}"
 
 # Run container (auto-remove on stop)
-docker -H ${DOCKER_HOST} run -d --rm \
+docker run -d --rm \
   --name rstudio-server \
   -p "${PORT}:8787" \
   -e DISABLE_AUTH="${DISABLE_AUTH}" \
@@ -30,7 +30,7 @@ docker -H ${DOCKER_HOST} run -d --rm \
 # Optional renv restore
 if [ "${ENABLE_RENV}" = "true" ] && [ -f "${PROJECT_PATH}/renv.lock" ]; then
   echo "Restoring R environment via renv..."
-  docker -H ${DOCKER_HOST} exec -u "${RSTUDIO_USER}" rstudio-server R -q -e \
+  docker exec -u "${RSTUDIO_USER}" rstudio-server R -q -e \
     'if (!requireNamespace("renv", quietly = TRUE)) install.packages("renv", repos="https://cloud.r-project.org"); renv::restore(prompt = FALSE)'
 fi
 
