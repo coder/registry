@@ -45,5 +45,4 @@ fi
 printf "\n$${BOLD}RStudio Server ${SERVER_VERSION} is running on port ${PORT}$${RESET}\n"
 
 ## TODO testing
-# 2. Renv paths cache + renv.lock
 # 3. Sleep 15
