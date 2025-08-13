@@ -25,10 +25,34 @@ fi
 echo "=== Auto-Start Dev Servers Log ===" > "${LOG_PATH}"
 echo "Started at: $(date)" >> "${LOG_PATH}"
 
+# Initialize detected projects JSON file
+DETECTED_PROJECTS_FILE="/tmp/detected-projects.json"
+echo '[]' > "$DETECTED_PROJECTS_FILE"
+
 # Function to log messages
 log_message() {
   echo -e "$1"
   echo "$1" >> "${LOG_PATH}"
+}
+
+# Function to add detected project to JSON
+add_detected_project() {
+  local project_dir="$1"
+  local project_type="$2"
+  local port="$3"
+  local command="$4"
+  
+  # Create JSON entry for this project
+  local project_json=$(jq -n \
+    --arg dir "$project_dir" \
+    --arg type "$project_type" \
+    --arg port "$port" \
+    --arg cmd "$command" \
+    '{"directory": $dir, "type": $type, "port": $port, "command": $cmd}')
+  
+  # Append to the detected projects file
+  jq ". += [$project_json]" "$DETECTED_PROJECTS_FILE" > "$DETECTED_PROJECTS_FILE.tmp" && \
+    mv "$DETECTED_PROJECTS_FILE.tmp" "$DETECTED_PROJECTS_FILE"
 }
 
 # Function to detect and start npm/yarn projects
@@ -46,16 +70,6 @@ detect_npm_projects() {
     
     cd "$project_dir"
     
-    # Check devcontainer.json for custom start command first
-    if [ "${ENABLE_DEVCONTAINER}" = "true" ] && [ -f ".devcontainer/devcontainer.json" ]; then
-      start_cmd=$(jq -r '.customizations.vscode.settings."npm.script.start" // empty' ".devcontainer/devcontainer.json" 2>/dev/null)
-      if [ -n "$start_cmd" ]; then
-        log_message "$${YELLOW}🐳 Using devcontainer start command: $start_cmd$${RESET}"
-        nohup bash -c "$start_cmd" >> "${LOG_PATH}" 2>&1 &
-        continue
-      fi
-    fi
-    
     # Check package.json for start script
     if [ -f "package.json" ] && command -v jq &> /dev/null; then
       start_script=$(jq -r '.scripts.start // empty' package.json)
@@ -64,13 +78,16 @@ detect_npm_projects() {
       if [ -n "$start_script" ]; then
         log_message "$${GREEN}🟢 Starting npm project with 'npm start' in $project_dir$${RESET}"
         nohup npm start >> "${LOG_PATH}" 2>&1 &
+        add_detected_project "$project_dir" "nodejs" "3000" "npm start"
       elif [ -n "$dev_script" ]; then
         log_message "$${GREEN}🟢 Starting npm project with 'npm run dev' in $project_dir$${RESET}"
         nohup npm run dev >> "${LOG_PATH}" 2>&1 &
+        add_detected_project "$project_dir" "nodejs" "3000" "npm run dev"
       fi
     elif [ -f "yarn.lock" ] && command -v yarn &> /dev/null; then
       log_message "$${GREEN}🟢 Starting yarn project with 'yarn start' in $project_dir$${RESET}"
       nohup yarn start >> "${LOG_PATH}" 2>&1 &
+      add_detected_project "$project_dir" "nodejs" "3000" "yarn start"
     fi
     
   done < <(find "${WORKSPACE_DIR}" -maxdepth "${SCAN_DEPTH}" -name "package.json" -type f -print0)
@@ -94,6 +111,7 @@ detect_rails_projects() {
     if grep -q "gem ['\"]rails['\"]" Gemfile 2>/dev/null; then
       log_message "$${GREEN}🟢 Starting Rails server in $project_dir$${RESET}"
       nohup bundle exec rails server >> "${LOG_PATH}" 2>&1 &
+      add_detected_project "$project_dir" "rails" "3000" "bundle exec rails server"
     fi
     
   done < <(find "${WORKSPACE_DIR}" -maxdepth "${SCAN_DEPTH}" -name "Gemfile" -type f -print0)
@@ -114,6 +132,7 @@ detect_django_projects() {
     cd "$project_dir"
     log_message "$${GREEN}🟢 Starting Django development server in $project_dir$${RESET}"
     nohup python manage.py runserver 0.0.0.0:8000 >> "${LOG_PATH}" 2>&1 &
+    add_detected_project "$project_dir" "django" "8000" "python manage.py runserver"
     
   done < <(find "${WORKSPACE_DIR}" -maxdepth "${SCAN_DEPTH}" -name "manage.py" -type f -print0)
 }
@@ -141,6 +160,7 @@ detect_flask_projects() {
           log_message "$${GREEN}🟢 Starting Flask application ($app_file) in $project_dir$${RESET}"
           export FLASK_ENV=development
           nohup python "$app_file" >> "${LOG_PATH}" 2>&1 &
+          add_detected_project "$project_dir" "flask" "5000" "python $app_file"
           break
         fi
       done
@@ -169,9 +189,11 @@ detect_spring_boot_projects() {
       if command -v ./mvnw &> /dev/null; then
         log_message "$${GREEN}🟢 Starting Spring Boot application with Maven wrapper in $project_dir$${RESET}"
         nohup ./mvnw spring-boot:run >> "${LOG_PATH}" 2>&1 &
+        add_detected_project "$project_dir" "spring-boot" "8080" "./mvnw spring-boot:run"
       elif command -v mvn &> /dev/null; then
         log_message "$${GREEN}🟢 Starting Spring Boot application with Maven in $project_dir$${RESET}"
         nohup mvn spring-boot:run >> "${LOG_PATH}" 2>&1 &
+        add_detected_project "$project_dir" "spring-boot" "8080" "mvn spring-boot:run"
       fi
     fi
     
@@ -189,9 +211,11 @@ detect_spring_boot_projects() {
       if command -v ./gradlew &> /dev/null; then
         log_message "$${GREEN}🟢 Starting Spring Boot application with Gradle wrapper in $project_dir$${RESET}"
         nohup ./gradlew bootRun >> "${LOG_PATH}" 2>&1 &
+        add_detected_project "$project_dir" "spring-boot" "8080" "./gradlew bootRun"
       elif command -v gradle &> /dev/null; then
         log_message "$${GREEN}🟢 Starting Spring Boot application with Gradle in $project_dir$${RESET}"
         nohup gradle bootRun >> "${LOG_PATH}" 2>&1 &
+        add_detected_project "$project_dir" "spring-boot" "8080" "gradle bootRun"
       fi
     fi
     
@@ -216,9 +240,11 @@ detect_go_projects() {
     if [ -f "main.go" ]; then
       log_message "$${GREEN}🟢 Starting Go application in $project_dir$${RESET}"
       nohup go run main.go >> "${LOG_PATH}" 2>&1 &
+      add_detected_project "$project_dir" "go" "8080" "go run main.go"
     elif [ -f "cmd/main.go" ]; then
       log_message "$${GREEN}🟢 Starting Go application (cmd/main.go) in $project_dir$${RESET}"
       nohup go run cmd/main.go >> "${LOG_PATH}" 2>&1 &
+      add_detected_project "$project_dir" "go" "8080" "go run cmd/main.go"
     fi
     
   done < <(find "${WORKSPACE_DIR}" -maxdepth "${SCAN_DEPTH}" -name "go.mod" -type f -print0)
@@ -243,6 +269,7 @@ detect_php_projects() {
       if [ -f "$entry_file" ]; then
         log_message "$${GREEN}🟢 Starting PHP development server in $project_dir$${RESET}"
         nohup php -S 0.0.0.0:8080 -t "$(dirname "$entry_file")" >> "${LOG_PATH}" 2>&1 &
+        add_detected_project "$project_dir" "php" "8080" "php -S 0.0.0.0:8080"
         break
       fi
     done
@@ -268,6 +295,7 @@ detect_rust_projects() {
     if grep -q "\[\[bin\]\]" Cargo.toml 2>/dev/null || [ -f "src/main.rs" ]; then
       log_message "$${GREEN}🟢 Starting Rust application in $project_dir$${RESET}"
       nohup cargo run >> "${LOG_PATH}" 2>&1 &
+      add_detected_project "$project_dir" "rust" "8000" "cargo run"
     fi
     
   done < <(find "${WORKSPACE_DIR}" -maxdepth "${SCAN_DEPTH}" -name "Cargo.toml" -type f -print0)
@@ -288,6 +316,7 @@ detect_dotnet_projects() {
     cd "$project_dir"
     log_message "$${GREEN}🟢 Starting .NET application in $project_dir$${RESET}"
     nohup dotnet run >> "${LOG_PATH}" 2>&1 &
+    add_detected_project "$project_dir" "dotnet" "5000" "dotnet run"
     
   done < <(find "${WORKSPACE_DIR}" -maxdepth "${SCAN_DEPTH}" -name "*.csproj" -type f -print0)
 }

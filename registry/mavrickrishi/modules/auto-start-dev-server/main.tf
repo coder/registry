@@ -113,20 +113,47 @@ resource "coder_script" "auto_start_dev_server" {
   display_name = var.display_name
   icon         = "/icon/server.svg"
   script = templatefile("${path.module}/run.sh", {
-    WORKSPACE_DIR         = var.workspace_directory
-    ENABLE_NPM           = var.enable_npm
-    ENABLE_RAILS         = var.enable_rails
-    ENABLE_DJANGO        = var.enable_django
-    ENABLE_FLASK         = var.enable_flask
-    ENABLE_SPRING_BOOT   = var.enable_spring_boot
-    ENABLE_GO            = var.enable_go
-    ENABLE_PHP           = var.enable_php
-    ENABLE_RUST          = var.enable_rust
-    ENABLE_DOTNET        = var.enable_dotnet
-    ENABLE_DEVCONTAINER  = var.enable_devcontainer
-    LOG_PATH             = var.log_path
-    SCAN_DEPTH           = var.scan_depth
-    STARTUP_DELAY        = var.startup_delay
+    WORKSPACE_DIR       = var.workspace_directory
+    ENABLE_NPM          = var.enable_npm
+    ENABLE_RAILS        = var.enable_rails
+    ENABLE_DJANGO       = var.enable_django
+    ENABLE_FLASK        = var.enable_flask
+    ENABLE_SPRING_BOOT  = var.enable_spring_boot
+    ENABLE_GO           = var.enable_go
+    ENABLE_PHP          = var.enable_php
+    ENABLE_RUST         = var.enable_rust
+    ENABLE_DOTNET       = var.enable_dotnet
+    ENABLE_DEVCONTAINER = var.enable_devcontainer
+    LOG_PATH            = var.log_path
+    SCAN_DEPTH          = var.scan_depth
+    STARTUP_DELAY       = var.startup_delay
   })
   run_on_start = true
+}
+
+# Output to expose detected projects
+output "detected_projects_file" {
+  value       = "/tmp/detected-projects.json"
+  description = "Path to JSON file containing detected projects with their types, ports, and commands"
+}
+
+output "log_path" {
+  value       = var.log_path
+  description = "Path to the log file for dev server output"
+}
+
+# Example output values for common port mappings
+output "common_ports" {
+  value = {
+    nodejs = 3000
+    rails  = 3000
+    django = 8000
+    flask  = 5000
+    spring = 8080
+    go     = 8080
+    php    = 8080
+    rust   = 8000
+    dotnet = 5000
+  }
+  description = "Common default ports for different project types"
 }
