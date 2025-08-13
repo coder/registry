@@ -13,14 +13,14 @@ delay=2
 attempt=1
 
 while ! docker ps; do
-  if [ $$attempt -ge $$max_attempts ]; then
+  if [ $attempt -ge $max_attempts ]; then
     echo "Failed to list containers after $${max_attempts} attempts."
     exit 1
   fi
   echo "Attempt $${attempt} failed, retrying in $${delay}s..."
   sleep $delay
-  attempt=`expr "$$attempt" + 1`
-  delay=`expr "$$delay" \* 2`  # exponential backoff
+  attempt=`expr "$attempt" + 1`
+  delay=`expr "$delay" \* 2`  # exponential backoff
 done
 
 
