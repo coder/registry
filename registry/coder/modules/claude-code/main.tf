@@ -241,6 +241,10 @@ resource "coder_script" "claude_code" {
     export LC_ALL=en_US.UTF-8
 
     cd "${local.workdir}"
+
+    # Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
+    export AGENTAPI_ALLOWED_HOSTS="*"
+
     nohup "$module_path/scripts/agentapi-start.sh" use_prompt &> "$module_path/agentapi-start.log" &
     "$module_path/scripts/agentapi-wait-for-start.sh"
     EOT
