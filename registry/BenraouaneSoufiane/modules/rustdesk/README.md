@@ -8,7 +8,7 @@ tags: [rustdesk, rdp, vm]
 
 # RustDesk Coder Module
 
-This is the basic Coder's rustdesk module that install minimal desktop environment (xfce) & launches the rustdesk within your workspace
+This is the basic Coder's rustdesk module that installs minimal desktop environment (xfce) & launches the rustdesk within your workspace
 
 ---
 
