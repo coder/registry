@@ -269,6 +269,10 @@ func parseCoderResourceReadme(resourceType string, rm readme) (coderResourceRead
 }
 
 func parseCoderResourceReadmeFiles(resourceType string, rms []readme) (map[string]coderResourceReadme, error) {
+	if !slices.Contains(supportedResourceTypes, resourceType) {
+		return nil, xerrors.Errorf("cannot process unknown resource type %q", resourceType)
+	}
+
 	resources := map[string]coderResourceReadme{}
 	var yamlParsingErrs []error
 	for _, rm := range rms {
@@ -311,6 +315,10 @@ func validateCoderResourceRelativeURLs(_ map[string]coderResourceReadme) error {
 }
 
 func aggregateCoderResourceReadmeFiles(resourceType string) ([]readme, error) {
+	if !slices.Contains(supportedResourceTypes, resourceType) {
+		return nil, xerrors.Errorf("cannot process unknown resource type %q", resourceType)
+	}
+
 	registryFiles, err := os.ReadDir(rootRegistryPath)
 	if err != nil {
 		return nil, err
@@ -360,26 +368,44 @@ func aggregateCoderResourceReadmeFiles(resourceType string) ([]readme, error) {
 	return allReadmeFiles, nil
 }
 
-func validateAllCoderResourceFilesOfType(resourceType string) error {
-	if !slices.Contains(supportedResourceTypes, resourceType) {
-		return xerrors.Errorf("resource type %q is not part of supported list [%s]", resourceType, strings.Join(supportedResourceTypes, ", "))
-	}
-
+func validateAllCoderModules() error {
+	const resourceType = "modules"
 	allReadmeFiles, err := aggregateCoderResourceReadmeFiles(resourceType)
 	if err != nil {
 		return err
 	}
 
-	logger.Info(context.Background(), "processing README files", "num_files", len(allReadmeFiles))
+	logger.Info(context.Background(), "processing template README files", "resource_type", resourceType, "num_files", len(allReadmeFiles))
 	resources, err := parseCoderResourceReadmeFiles(resourceType, allReadmeFiles)
 	if err != nil {
 		return err
 	}
-	logger.Info(context.Background(), "processed README files as valid Coder resources", "num_files", len(resources), "type", resourceType)
+	logger.Info(context.Background(), "processed README files as valid Coder resources", "resource_type", resourceType, "num_files", len(resources))
 
 	if err := validateCoderResourceRelativeURLs(resources); err != nil {
 		return err
 	}
-	logger.Info(context.Background(), "all relative URLs for READMEs are valid", "type", resourceType)
+	logger.Info(context.Background(), "all relative URLs for READMEs are valid", "resource_type", resourceType)
+	return nil
+}
+
+func validateAllCoderTemplates() error {
+	const resourceType = "templates"
+	allReadmeFiles, err := aggregateCoderResourceReadmeFiles(resourceType)
+	if err != nil {
+		return err
+	}
+
+	logger.Info(context.Background(), "processing template README files", "resource_type", resourceType, "num_files", len(allReadmeFiles))
+	resources, err := parseCoderResourceReadmeFiles(resourceType, allReadmeFiles)
+	if err != nil {
+		return err
+	}
+	logger.Info(context.Background(), "processed README files as valid Coder resources", "resource_type", resourceType, "num_files", len(resources))
+
+	if err := validateCoderResourceRelativeURLs(resources); err != nil {
+		return err
+	}
+	logger.Info(context.Background(), "all relative URLs for READMEs are valid", "resource_type", resourceType)
 	return nil
 }
