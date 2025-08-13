@@ -1,0 +1,35 @@
+{
+  "name": "Amazon Q",
+  "author": "Mudlet Team",
+  "description": "Amazon Q AI assistant integration for Mudlet",
+  "version": "1.0.0",
+  "packageManager": "mudlet",
+  "dependencies": [],
+  "compatibility": {
+    "mudlet": "4.0+"
+  },
+  "scripts": {
+    "install": "installer/amazon_q_installer.lua",
+    "test": "tests/test_amazon_q.lua"
+  },
+  "entryPoints": {
+    "main": "main/amazon_q_main.lua"
+  },
+  "config": {
+    "awsRegion": {
+      "type": "string",
+      "description": "AWS region for Amazon Q",
+      "default": "us-east-1"
+    },
+    "awsProfile": {
+      "type": "string",
+      "description": "AWS profile to use"
+    },
+    "logLevel": {
+      "type": "string",
+      "description": "Logging level",
+      "default": "info",
+      "enum": ["debug", "info", "warn", "error"]
+    }
+  }
+}

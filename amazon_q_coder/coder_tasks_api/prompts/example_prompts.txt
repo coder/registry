@@ -1,0 +1,21 @@
+# Example Prompts for Amazon Q
+
+## Chat Prompts
+- "How do I create a simple trigger in Mudlet?"
+- "What's the difference between a trigger and an alias?"
+- "How can I optimize my scripts for better performance?"
+
+## Code Generation Prompts
+- "Create a trigger that captures health information and displays it in a mini console"
+- "Generate a script to manage my character's inventory"
+- "Create a system to track quest progress"
+
+## Code Explanation Prompts
+- "Explain what this timer script does: [code]"
+- "How does this alias capture variables from the game output?"
+- "Why is this trigger using a regex pattern?"
+
+## Code Fixing Prompts
+- "This trigger isn't firing, can you help me fix it? [code]"
+- "My script is throwing an error, can you debug it? [code]"
+- "How can I improve this alias to be more efficient? [code]"

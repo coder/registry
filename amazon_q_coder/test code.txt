@@ -1,0 +1,26 @@
+# Check each file individually
+Write-Host "Checking files individually:" -ForegroundColor Yellow
+
+# Check simple_test.lua
+if (Test-Path "tests\simple_test.lua") {
+    Write-Host "Running simple_test.lua..." -ForegroundColor Cyan
+    lua "tests\simple_test.lua"
+} else {
+    Write-Host "simple_test.lua not found" -ForegroundColor Red
+}
+
+# Check test_agent_api.lua
+if (Test-Path "tests\test_agent_api.lua") {
+    Write-Host "Running test_agent_api.lua..." -ForegroundColor Cyan
+    lua "tests\test_agent_api.lua"
+} else {
+    Write-Host "test_agent_api.lua not found" -ForegroundColor Red
+}
+
+# Check run_tests.ps1
+if (Test-Path "run_tests.ps1") {
+    Write-Host "Running run_tests.ps1..." -ForegroundColor Cyan
+    .\run_tests.ps1
+} else {
+    Write-Host "run_tests.ps1 not found" -ForegroundColor Red
+}
