@@ -12,7 +12,7 @@ Run [Sourcegraph AMP CLI](https://sourcegraph.com/amp) in your workspace to acce
 
 ```tf
 module "sourcegraph_amp" {
-  source                  = "registry.coder.com/harsh9485/sourcegraph_amp/coder"
+  source                  = "registry.coder.com/coder-labs/sourcegraph_amp/coder"
   version                 = "1.0.0"
   agent_id                = coder_agent.example.id
   sourcegraph_amp_api_key = var.sourcegraph_amp_api_key
@@ -59,7 +59,7 @@ variable "sourcegraph_amp_api_key" {
 
 module "sourcegraph_amp" {
   count                   = data.coder_workspace.me.start_count
-  source                  = "registry.coder.com/harsh9485/sourcegraph_amp/coder"
+  source                  = "registry.coder.com/coder-labs/sourcegraph_amp/coder"
   version                 = "1.0.0"
   agent_id                = coder_agent.example.id
   sourcegraph_amp_api_key = var.sourcegraph_amp_api_key # recommended for authenticated usage
