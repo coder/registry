@@ -1,7 +1,7 @@
 ---
 display_name: "Rishi Mondal"
 bio: "Breaking code, fixing bugs, and occasionally making it work! Always caffeinated, always committing"
-avatar_url: "./.images/avatar.jpeg"
+avatar: "./.images/avatar.jpeg"
 github: "MAVRICK-1"
 linkedin: "https://www.linkedin.com/in/rishi-mondal-5238b2282/"
 website: "https://mavrick-portfolio.vercel.app/"
