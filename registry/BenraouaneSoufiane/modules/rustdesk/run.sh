@@ -1,61 +1,83 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Check if RustDesk is installed
-if ! command -v rustdesk &> /dev/null; then
-  echo "RustDesk is not installed. Installing..."
+# ---- configurable knobs (env overrides) ----
+RUSTDESK_VERSION="${RUSTDESK_VERSION:-1.4.0}"
+XVFB_RESOLUTION="${XVFB_RESOLUTION:-1024x768x16}"
+RUSTDESK_PASSWORD="${RUSTDESK_PASSWORD:-}"
 
-  # Download RustDesk manually
-  RUSTDESK_VERSION="1.4.0"
-  RUSTDESK_DEB="rustdesk-$RUSTDESK_VERSION-x86_64.deb"
+# ---- detect package manager & arch ----
+ARCH="$(uname -m)"
+case "$ARCH" in
+  x86_64|amd64)   PKG_ARCH="x86_64" ;;
+  aarch64|arm64)  PKG_ARCH="aarch64" ;;
+  *)              echo "Unsupported arch: $ARCH"; exit 1 ;;
+esac
 
-  echo "Downloading RustDesk $RUSTDESK_VERSION..."
-  wget "https://github.com/rustdesk/rustdesk/releases/download/$RUSTDESK_VERSION/$RUSTDESK_DEB"
-
-  # Check if download was successful
-  if [ $? -eq 0 ]; then
-    echo "Installing dependencies..."
-    sudo apt update
-    sudo apt install -y libva2 libva-drm2 libva-x11-2 libgstreamer-plugins-base1.0-0 gstreamer1.0-pipewire xfce4 xfce4-goodies xvfb x11-xserver-utils dbus-x11
-    echo "Installing RustDesk..."
-    sudo dpkg -i $RUSTDESK_DEB
-    sudo apt-get install -f -y # To fix any dependencies
-    rm $RUSTDESK_DEB # Clean up
-  else
-    echo "Failed to download RustDesk. Please check your network connection."
-    exit 1
-  fi
+if command -v apt-get >/dev/null 2>&1; then
+  PKG_SYS="deb"
+  PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.deb"
+  INSTALL_DEPS='apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y wget ca-certificates xvfb dbus-x11'
+  INSTALL_CMD="apt-get install -y ./${PKG_NAME}"
+  CLEAN_CMD="rm -f \"${PKG_NAME}\""
+elif command -v dnf >/dev/null 2>&1; then
+  PKG_SYS="rpm"
+  PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.rpm"
+  INSTALL_DEPS='dnf install -y wget ca-certificates xorg-x11-server-Xvfb dbus-x11 || true'
+  INSTALL_CMD="dnf install -y ./${PKG_NAME}"
+  CLEAN_CMD="rm -f \"${PKG_NAME}\""
+elif command -v yum >/dev/null 2>&1; then
+  PKG_SYS="rpm"
+  PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.rpm"
+  INSTALL_DEPS='yum install -y wget ca-certificates xorg-x11-server-Xvfb dbus-x11 || true'
+  INSTALL_CMD="yum install -y ./${PKG_NAME}"
+  CLEAN_CMD="rm -f \"${PKG_NAME}\""
 else
-  echo "RustDesk is already installed."
+  echo "Unsupported distro: need apt, dnf, or yum."
+  exit 1
 fi
 
-# Start perform other necessary actions perform other necessary actions
-echo "Starting Rustdesk..."
-# Start virtual display
-Xvfb :99 -screen 0 1024x768x16 &
+# ---- install rustdesk if missing ----
+if ! command -v rustdesk >/dev/null 2>&1; then
+  echo "Installing dependencies…"
+  bash -lc "$INSTALL_DEPS"
+
+  echo "Downloading RustDesk ${RUSTDESK_VERSION} (${PKG_SYS}, ${PKG_ARCH})…"
+  URL="https://github.com/rustdesk/rustdesk/releases/download/${RUSTDESK_VERSION}/${PKG_NAME}"
+  wget -q "$URL"
+
+  echo "Installing RustDesk…"
+  bash -lc "$INSTALL_CMD"
+
+  echo "Cleaning up…"
+  bash -lc "$CLEAN_CMD"
+fi
+
+# ---- start virtual display ----
+echo "Starting Xvfb with resolution ${XVFB_RESOLUTION}…"
+Xvfb :99 -screen 0 "${XVFB_RESOLUTION}" &
 export DISPLAY=:99
 
-# Wait for X to be ready
-for i in {1..10}; do
-    if xdpyinfo -display :99 >/dev/null 2>&1; then
-        echo "X display is ready"
-        break
-    fi
-    sleep 1
-done
+# ---- create (or accept) password and start rustdesk ----
+if [[ -z "${RUSTDESK_PASSWORD}" ]]; then
+  RUSTDESK_PASSWORD="$(tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 6)"
+fi
 
-# Start desktop environment
-xfce4-session &
-# Wait for xfce session to be ready (rudimentary check)
-echo "Waiting for xfce4-session to initialize..."
-sleep 5  # Adjust if needed
+# give the desktop a moment to come up if you launch XFCE/etc elsewhere
+sleep 3
 
+# set password (daemonless; rustdesk CLI handles it)
+rustdesk --password "${RUSTDESK_PASSWORD}" >/dev/null 2>&1 || true
 rustdesk &
-# Start RustDesk with password
-generated=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 6 | head -n 1)
-rustdesk --password "$generated" &
 
-sleep 5
+sleep 3
+RID="$(rustdesk --get-id || true)"
 
-rid=$(rustdesk --get-id)
-echo "The ID is: $rid"
-echo "The password is: $generated"
+echo "-----------------------------"
+echo " RustDesk ID:        ${RID}"
+echo " RustDesk Password:  ${RUSTDESK_PASSWORD}"
+echo " Display (Xvfb):     ${DISPLAY} (${XVFB_RESOLUTION})"
+echo "-----------------------------"
+
+# keep the script alive if needed (helpful in some runners)
+wait -n || true

@@ -9,43 +9,58 @@ terraform {
   }
 }
 
-locals {
-  # A built-in icon like "/icon/code.svg" or a full URL of icon
-  icon_url = "https://upload.wikimedia.org/wikipedia/commons/9/96/Rustdesk.svg"
-}
-
-# Add required variables for your modules and remove any unneeded variables
-variable "agent_id" {
-  type        = string
-  description = "The ID of a Coder agent."
-}
-
 variable "log_path" {
   type        = string
   description = "The path to log rustdesk to."
   default     = "/tmp/rustdesk.log"
 }
 
-variable "port" {
-  type        = number
-  description = "The port to run rustdesk on."
-  default     = 19999
+variable "agent_id" {
+  description = "Attach RustDesk setup to this agent"
+  type        = string
 }
 
 variable "order" {
+  description = "Run order among scripts/apps"
   type        = number
-  description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
-  default     = null
+  default     = 1
+}
+
+# Optional knobs passed as env (you can expose these as variables too)
+variable "rustdesk_password" {
+  description = "If empty, the script will generate one"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "xvfb_resolution" {
+  description = "Xvfb screen size/depth"
+  type        = string
+  default     = "1024x768x16"
+}
+
+variable "rustdesk_version" {
+  description = "RustDesk version to install"
+  type        = string
+  default     = "1.4.0"
 }
 
 resource "coder_script" "rustdesk" {
-  count = 1
   agent_id     = var.agent_id
-  display_name = "Rustdesk"
-  icon         = local.icon_url
-  script = templatefile("${path.module}/run.sh", {})
+  display_name = "RustDesk"
   run_on_start = true
-  run_on_stop  = false
+
+  # Prepend env as bash exports, then append the script file literally.
+  script = <<-EOT
+    # --- module-provided env knobs ---
+    export RUSTDESK_PASSWORD="${var.rustdesk_password}"
+    export XVFB_RESOLUTION="${var.xvfb_resolution}"
+    export RUSTDESK_VERSION="${var.rustdesk_version}"
+    # ---------------------------------
+
+${file("${path.module}/run.sh")}
+  EOT
 }
 
 resource "coder_app" "rustdesk" {
@@ -54,7 +69,7 @@ resource "coder_app" "rustdesk" {
   slug         = "rustdesk"
   display_name = "Rustdesk"
   url          = "https://rustdesk.com/web"
-  icon         = local.icon_url
+  icon         = "/icon/rustdesk.svg"
   order        = var.order
   external     = true
 }

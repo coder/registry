@@ -37,7 +37,7 @@ This is the basic Coder's rustdesk module that install minimal desktop environme
 1. Add the module to your [Coder Terraform workspace](https://registry.coder.com)
 2. Include it in your `main.tf`:
 
-```hcl
+```tf
 module "rustdesk" {
   source    = "registry.coder.com/BenraouaneSoufiane/rustdesk/BenraouaneSoufiane"
   agent_id  = var.agent_id
@@ -45,7 +45,7 @@ module "rustdesk" {
 ```
 Also add this within resource "docker_container" "workspace":
  
-```hcl
+```tf
 privileged = true
   user       = "root"
   network_mode = "host"
