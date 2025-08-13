@@ -222,18 +222,15 @@ func validateCoderTemplateReadmeBody(body string) []error {
 		errs = append(errs, baseErrs...)
 	}
 
+	var nextLine string
 	foundParagraph := false
-	terraformCodeBlockCount := 0
-	foundTerraformVersionRef := false
-
-	lineNum := 0
 	isInsideCodeBlock := false
-	isInsideTerraform := false
+	lineNum := 0
 
 	lineScanner := bufio.NewScanner(strings.NewReader(trimmed))
 	for lineScanner.Scan() {
 		lineNum++
-		nextLine := lineScanner.Text()
+		nextLine = lineScanner.Text()
 
 		// Code assumes that invalid headers would've already been handled by the base validation function, so we don't
 		// need to check deeper if the first line isn't an h1.
@@ -246,19 +243,8 @@ func validateCoderTemplateReadmeBody(body string) []error {
 
 		if strings.HasPrefix(nextLine, "```") {
 			isInsideCodeBlock = !isInsideCodeBlock
-			isInsideTerraform = isInsideCodeBlock && strings.HasPrefix(nextLine, "```tf")
-			if isInsideTerraform {
-				terraformCodeBlockCount++
-			}
 			if strings.HasPrefix(nextLine, "```hcl") {
 				errs = append(errs, xerrors.New("all .hcl language references must be converted to .tf"))
-			}
-			continue
-		}
-
-		if isInsideCodeBlock {
-			if isInsideTerraform {
-				foundTerraformVersionRef = foundTerraformVersionRef || terraformVersionRe.MatchString(nextLine)
 			}
 			continue
 		}
@@ -275,16 +261,6 @@ func validateCoderTemplateReadmeBody(body string) []error {
 		foundParagraph = foundParagraph || isParagraph
 	}
 
-	if terraformCodeBlockCount == 0 {
-		errs = append(errs, xerrors.New("did not find Terraform code block within h1 section"))
-	} else {
-		if terraformCodeBlockCount > 1 {
-			errs = append(errs, xerrors.New("cannot have more than one Terraform code block in h1 section"))
-		}
-		if !foundTerraformVersionRef {
-			errs = append(errs, xerrors.New("did not find Terraform code block that specifies 'version' field"))
-		}
-	}
 	if !foundParagraph {
 		errs = append(errs, xerrors.New("did not find paragraph within h1 section"))
 	}
