@@ -74,14 +74,14 @@ variable "use_vertexai" {
 
 variable "install_agentapi" {
   type        = bool
-  description = "Whether to install AgentAPI."
+  description = "Whether to install AgentAPI for web UI and task automation."
   default     = true
 }
 
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.3.0"
+  default     = "v0.2.3"
 }
 
 variable "gemini_model" {
@@ -102,12 +102,10 @@ variable "post_install_script" {
   default     = null
 }
 
-data "coder_parameter" "ai_prompt" {
-  type        = "string"
-  name        = "AI Prompt"
+variable "task_prompt" {
+  type        = string
+  description = "Task prompt for automated Gemini execution"
   default     = ""
-  description = "Initial prompt for the Gemini CLI"
-  mutable     = true
 }
 
 variable "additional_extensions" {
@@ -122,9 +120,21 @@ variable "gemini_system_prompt" {
   default     = ""
 }
 
+variable "enable_yolo_mode" {
+  type        = bool
+  description = "Enable YOLO mode to automatically approve all tool calls without user confirmation. Use with caution."
+  default     = false
+}
+
 resource "coder_env" "gemini_api_key" {
   agent_id = var.agent_id
   name     = "GEMINI_API_KEY"
+  value    = var.gemini_api_key
+}
+
+resource "coder_env" "google_api_key" {
+  agent_id = var.agent_id
+  name     = "GOOGLE_API_KEY"
   value    = var.gemini_api_key
 }
 
@@ -181,22 +191,7 @@ module "agentapi" {
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
-  start_script         = <<-EOT
-     #!/bin/bash
-     set -o errexit
-     set -o pipefail
-
-     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-     chmod +x /tmp/start.sh
-     GEMINI_API_KEY='${var.gemini_api_key}' \
-     GOOGLE_GENAI_USE_VERTEXAI='${var.use_vertexai}' \
-     GEMINI_MODEL='${var.gemini_model}' \
-     GEMINI_START_DIRECTORY='${var.folder}' \
-     GEMINI_TASK_PROMPT='${base64encode(data.coder_parameter.ai_prompt.value)}' \
-     /tmp/start.sh
-   EOT
-
-  install_script = <<-EOT
+  install_script       = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
@@ -209,7 +204,23 @@ module "agentapi" {
     BASE_EXTENSIONS='${base64encode(replace(local.base_extensions, "'", "'\\''"))}' \
     ADDITIONAL_EXTENSIONS='${base64encode(replace(var.additional_extensions != null ? var.additional_extensions : "", "'", "'\\''"))}' \
     GEMINI_START_DIRECTORY='${var.folder}' \
-    GEMINI_INSTRUCTION_PROMPT='${base64encode(var.gemini_system_prompt)}' \
+    GEMINI_SYSTEM_PROMPT='${base64encode(var.gemini_system_prompt)}' \
     /tmp/install.sh
   EOT
+  start_script         = <<-EOT
+     #!/bin/bash
+     set -o errexit
+     set -o pipefail
+
+     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+     chmod +x /tmp/start.sh
+     GEMINI_API_KEY='${var.gemini_api_key}' \
+     GOOGLE_API_KEY='${var.gemini_api_key}' \
+     GOOGLE_GENAI_USE_VERTEXAI='${var.use_vertexai}' \
+     GEMINI_YOLO_MODE='${var.enable_yolo_mode}' \
+     GEMINI_MODEL='${var.gemini_model}' \
+     GEMINI_START_DIRECTORY='${var.folder}' \
+     GEMINI_TASK_PROMPT='${var.task_prompt}' \
+     /tmp/start.sh
+   EOT
 }
