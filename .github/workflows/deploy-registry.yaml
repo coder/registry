@@ -14,6 +14,7 @@ on:
     paths:
       - ".github/workflows/deploy-registry.yaml"
       - "registry/**/templates/**"
+      - "registry/**/README.md"
       - ".icons/**"
 
 jobs:
@@ -29,12 +30,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Authenticate with Google Cloud
-        uses: google-github-actions/auth@140bb5113ffb6b65a7e9b937a81fa96cf5064462
+        uses: google-github-actions/auth@b7593ed2efd1c1617e1b0254da33b86225adb2a5
         with:
           workload_identity_provider: projects/309789351055/locations/global/workloadIdentityPools/github-actions/providers/github
           service_account: registry-v2-github@coder-registry-1.iam.gserviceaccount.com
       - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@6a7c903a70c8625ed6700fa299f5ddb4ca6022e9
+        uses: google-github-actions/setup-gcloud@cb1e50a9932213ecece00a606661ae9ca44f3397
       - name: Deploy to dev.registry.coder.com
         run: gcloud builds triggers run 29818181-126d-4f8a-a937-f228b27d3d34 --branch main
       - name: Deploy to registry.coder.com

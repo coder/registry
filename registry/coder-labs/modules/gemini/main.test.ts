@@ -8,7 +8,6 @@ import {
 } from "bun:test";
 import { execContainer, readFileContainer, runTerraformInit } from "~test";
 import {
-  loadTestFile,
   writeExecutable,
   setup as setupUtil,
   execModuleScript,
@@ -54,10 +53,24 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
     agentapiMockScript: props?.agentapiMockScript,
   });
   if (!props?.skipGeminiMock) {
+    const geminiMockContent = `#!/bin/bash
+
+if [[ "$1" == "--version" ]]; then
+  echo "HELLO: $(bash -c env)"
+  echo "gemini version v2.5.0"
+  exit 0
+fi
+
+set -e
+
+while true; do
+    echo "$(date) - gemini-mock"
+    sleep 15
+done`;
     await writeExecutable({
       containerId: id,
       filePath: "/usr/bin/gemini",
-      content: await loadTestFile(import.meta.dir, "gemini-mock.sh"),
+      content: geminiMockContent,
     });
   }
   return { id };
@@ -70,7 +83,7 @@ describe("gemini", async () => {
     await runTerraformInit(import.meta.dir);
   });
 
-  test("happy-path", async () => {
+  test("agent-api", async () => {
     const { id } = await setup();
     await execModuleScript(id);
     await expectAgentAPIStarted(id);
@@ -117,7 +130,7 @@ describe("gemini", async () => {
     await execModuleScript(id);
 
     const resp = await readFileContainer(id, "/home/coder/.gemini-module/agentapi-start.log");
-    expect(resp).toContain("gemini_api_key provided !");
+    expect(resp).toContain("Using direct Gemini API with API key");
   });
 
   test("use-vertexai", async () => {
@@ -195,6 +208,20 @@ describe("gemini", async () => {
     await execModuleScript(id);
     const resp = await readFileContainer(id, "/home/coder/GEMINI.md");
     expect(resp).toContain(prompt);
+  });
+
+  test("task-prompt", async () => {
+    const taskPrompt = "Create a simple Hello World function";
+    const { id } = await setup({
+      moduleVariables: {
+        task_prompt: taskPrompt,
+      },
+    });
+    await execModuleScript(id, {
+      GEMINI_TASK_PROMPT: taskPrompt,
+    });
+    const resp = await readFileContainer(id, "/home/coder/.gemini-module/agentapi-start.log");
+    expect(resp).toContain("Running automated task:");
   });
 
   test("start-without-prompt", async () => {
