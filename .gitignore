@@ -145,3 +145,6 @@ dist
 
 # Generated credentials from google-github-actions/auth
 gha-creds-*.json
+
+# IDEs
+.idea

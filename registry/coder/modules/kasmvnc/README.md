@@ -2,7 +2,6 @@
 display_name: KasmVNC
 description: A modern open source VNC server
 icon: ../../../../.icons/kasmvnc.svg
-maintainer_github: coder
 verified: true
 tags: [vnc, desktop, kasmvnc]
 ---
@@ -15,7 +14,7 @@ Automatically install [KasmVNC](https://kasmweb.com/kasmvnc) in a workspace, and
 module "kasmvnc" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/kasmvnc/coder"
-  version             = "1.2.0"
+  version             = "1.2.1"
   agent_id            = coder_agent.example.id
   desktop_environment = "xfce"
   subdomain           = true

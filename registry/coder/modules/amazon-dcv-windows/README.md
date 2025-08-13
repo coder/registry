@@ -2,7 +2,6 @@
 display_name: Amazon DCV Windows
 description: Amazon DCV Server and Web Client for Windows
 icon: ../../../../.icons/dcv.svg
-maintainer_github: coder
 verified: true
 tags: [windows, amazon, dcv, web, desktop]
 ---
@@ -19,7 +18,7 @@ Enable DCV Server and Web Client on Windows workspaces.
 module "dcv" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/amazon-dcv-windows/coder"
-  version  = "1.1.0"
+  version  = "1.1.1"
   agent_id = resource.coder_agent.main.id
 }
 
