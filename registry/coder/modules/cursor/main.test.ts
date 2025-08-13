@@ -1,8 +1,13 @@
-import { describe, expect, it } from "bun:test";
+import { describe, it, expect } from "bun:test";
 import {
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
+  runContainer,
+  execContainer,
+  removeContainer,
+  findResourceInstance,
+  readFileContainer,
 } from "~test";
 
 describe("cursor", async () => {
@@ -84,5 +89,27 @@ describe("cursor", async () => {
     expect(coder_app).not.toBeNull();
     expect(coder_app?.instances.length).toBe(1);
     expect(coder_app?.instances[0].attributes.order).toBe(22);
+  });
+
+  it("writes ~/.cursor/mcp.json when mcp provided", async () => {
+    const id = await runContainer("alpine");
+    try {
+      const mcp = JSON.stringify({ servers: { demo: { url: "http://localhost:1234" } } });
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        mcp,
+      });
+      const script = findResourceInstance(state, "coder_script", "cursor_mcp").script;
+      const resp = await execContainer(id, ["sh", "-c", script]);
+      if (resp.exitCode !== 0) {
+        console.log(resp.stdout);
+        console.log(resp.stderr);
+      }
+      expect(resp.exitCode).toBe(0);
+      const content = await readFileContainer(id, "/root/.cursor/mcp.json");
+      expect(content).toBe(mcp);
+    } finally {
+      await removeContainer(id);
+    }
   });
 });

@@ -19,7 +19,7 @@ Zed is a high-performance, multiplayer code editor from the creators of Atom and
 module "zed" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/zed/coder"
-  version  = "1.0.1"
+  version  = "1.1.0"
   agent_id = coder_agent.example.id
 }
 ```
@@ -32,7 +32,7 @@ module "zed" {
 module "zed" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/zed/coder"
-  version  = "1.0.1"
+  version  = "1.1.0"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
 }
@@ -44,7 +44,7 @@ module "zed" {
 module "zed" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/coder/zed/coder"
-  version      = "1.0.1"
+  version      = "1.1.0"
   agent_id     = coder_agent.example.id
   display_name = "Zed Editor"
   order        = 1
@@ -57,8 +57,36 @@ module "zed" {
 module "zed" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/zed/coder"
-  version    = "1.0.1"
+  version    = "1.1.0"
   agent_id   = coder_agent.example.id
   agent_name = coder_agent.example.name
 }
 ```
+
+### Configure Zed settings including MCP servers
+
+Zed stores settings at `~/.config/zed/settings.json` by default. If `XDG_CONFIG_HOME` is set on Linux, settings will be at `$XDG_CONFIG_HOME/zed/settings.json`.
+
+You can declaratively set/merge settings with the `settings` input. Provide a JSON string (e.g., via `jsonencode(...)`). For example, to configure MCP servers:
+
+```tf
+module "zed" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/zed/coder"
+  version  = "1.1.0"
+  agent_id = coder_agent.example.id
+
+  settings = jsonencode({
+    context_servers = {
+      your-mcp-server = {
+        source  = "custom"
+        command = "some-command"
+        args    = ["arg-1", "arg-2"]
+        env     = {}
+      }
+    }
+  })
+}
+```
+
+See Zed’s settings files documentation: https://zed.dev/docs/configuring-zed#settings-files
