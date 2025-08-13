@@ -45,7 +45,7 @@ func validateCoderModuleReadmeBody(body string) []error {
 				terraformCodeBlockCount++
 			}
 			if strings.HasPrefix(nextLine, "```hcl") {
-				errs = append(errs, xerrors.New("all .hcl language references must be converted to .tf"))
+				errs = append(errs, xerrors.New("all hcl code blocks must be converted to tf"))
 			}
 			continue
 		}
