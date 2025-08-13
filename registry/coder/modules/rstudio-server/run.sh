@@ -19,8 +19,8 @@ while ! docker ps; do
   fi
   echo "Attempt $${attempt} failed, retrying in $${delay}s..."
   sleep $delay
-  attempt=$$((attempt + 1))
-  delay=$$((delay * 2)) # exponential backoff
+  attempt=$((attempt + 1))
+  delay=$((delay * 2)) # exponential backoff
 done
 
 
