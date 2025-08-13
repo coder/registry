@@ -1,6 +1,6 @@
 ---
 display_name: Rustdesk
-description: Create desktop environmetn & run rustdesk in your workspace
+description: Create desktop environment & run rustdesk in your workspace
 icon: ../../../../.icons/rustdesk.svg
 verified: false
 tags: [rustdesk, rdp, vm]
