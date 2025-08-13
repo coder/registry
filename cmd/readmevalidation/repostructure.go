@@ -10,18 +10,21 @@ import (
 	"golang.org/x/xerrors"
 )
 
-var supportedUserNameSpaceDirectories = append(supportedResourceTypes, ".icons", ".images")
+var supportedUserNameSpaceDirectories = append(supportedResourceTypes, ".images")
 
+// validateCoderResourceSubdirectory validates that the structure of a module or template within a namespace follows all
+// expected file conventions
 func validateCoderResourceSubdirectory(dirPath string) []error {
-	subDir, err := os.Stat(dirPath)
+	resourceDir, err := os.Stat(dirPath)
 	if err != nil {
-		// It's valid for a specific resource directory not to exist. It's just that if it does exist, it must follow specific rules.
+		// It's valid for a specific resource directory not to exist. It's just that if it does exist, it must follow
+		// specific rules.
 		if !errors.Is(err, os.ErrNotExist) {
 			return []error{addFilePathToError(dirPath, err)}
 		}
 	}
 
-	if !subDir.IsDir() {
+	if !resourceDir.IsDir() {
 		return []error{xerrors.Errorf("%q: path is not a directory", dirPath)}
 	}
 
@@ -30,10 +33,11 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 		return []error{addFilePathToError(dirPath, err)}
 	}
 
-	errs := []error{}
+	var errs []error
 	for _, f := range files {
-		// The .coder subdirectories are sometimes generated as part of Bun tests. These subdirectories will never be
-		// committed to the repo, but in the off chance that they don't get cleaned up properly, we want to skip over them.
+		// The .coder subdirectories are sometimes generated as part of our Bun tests. These subdirectories will never
+		// be committed to the repo, but in the off chance that they don't get cleaned up properly, we want to skip over
+		// them.
 		if !f.IsDir() || f.Name() == ".coder" {
 			continue
 		}
@@ -59,49 +63,53 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 	return errs
 }
 
+// validateRegistryDirectory validates that the contents of `/registry` follow all expected file conventions. This
+// includes the top-level structure of the individual namespace directories.
 func validateRegistryDirectory() []error {
-	userDirs, err := os.ReadDir(rootRegistryPath)
+	namespaceDirs, err := os.ReadDir(rootRegistryPath)
 	if err != nil {
 		return []error{err}
 	}
 
-	allErrs := []error{}
-	for _, d := range userDirs {
-		dirPath := path.Join(rootRegistryPath, d.Name())
-		if !d.IsDir() {
-			allErrs = append(allErrs, xerrors.Errorf("detected non-directory file %q at base of main Registry directory", dirPath))
+	var allErrs []error
+	for _, nDir := range namespaceDirs {
+		namespacePath := path.Join(rootRegistryPath, nDir.Name())
+		if !nDir.IsDir() {
+			allErrs = append(allErrs, xerrors.Errorf("detected non-directory file %q at base of main Registry directory", namespacePath))
 			continue
 		}
 
-		contributorReadmePath := path.Join(dirPath, "README.md")
+		contributorReadmePath := path.Join(namespacePath, "README.md")
 		if _, err := os.Stat(contributorReadmePath); err != nil {
 			allErrs = append(allErrs, err)
 		}
 
-		files, err := os.ReadDir(dirPath)
+		files, err := os.ReadDir(namespacePath)
 		if err != nil {
 			allErrs = append(allErrs, err)
 			continue
 		}
 
 		for _, f := range files {
-			// TODO: Decide if there's anything more formal that we want to ensure about non-directories scoped to user namespaces.
+			// TODO: Decide if there's anything more formal that we want to ensure about non-directories at the top
+			// level of each user namespace.
 			if !f.IsDir() {
 				continue
 			}
 
 			segment := f.Name()
-			filePath := path.Join(dirPath, segment)
+			filePath := path.Join(namespacePath, segment)
 
 			if !slices.Contains(supportedUserNameSpaceDirectories, segment) {
 				allErrs = append(allErrs, xerrors.Errorf("%q: only these sub-directories are allowed at top of user namespace: [%s]", filePath, strings.Join(supportedUserNameSpaceDirectories, ", ")))
 				continue
 			}
+			if !slices.Contains(supportedResourceTypes, segment) {
+				continue
+			}
 
-			if slices.Contains(supportedResourceTypes, segment) {
-				if errs := validateCoderResourceSubdirectory(filePath); len(errs) != 0 {
-					allErrs = append(allErrs, errs...)
-				}
+			if errs := validateCoderResourceSubdirectory(filePath); len(errs) != 0 {
+				allErrs = append(allErrs, errs...)
 			}
 		}
 	}
@@ -109,6 +117,9 @@ func validateRegistryDirectory() []error {
 	return allErrs
 }
 
+// validateRepoStructure validates that the structure of the repo is "correct enough" to do all necessary validation
+// checks. It is NOT an exhaustive validation of the entire repo structure – it only checks the parts of the repo that
+// are relevant for the main validation steps
 func validateRepoStructure() error {
 	var errs []error
 	if vrdErrs := validateRegistryDirectory(); len(vrdErrs) != 0 {
