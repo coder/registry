@@ -23,7 +23,7 @@ if command -v apt-get >/dev/null 2>&1; then
 elif command -v dnf >/dev/null 2>&1; then
   PKG_SYS="rpm"
   PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.rpm"
-  INSTALL_DEPS='dnf install -y wget ca-certificates xorg-x11-server-Xvfb dbus-x11 || true'
+  INSTALL_DEPS='dnf install -y wget ca-certificates xorg-x11-server-Xvfb dbus-x11'
   INSTALL_CMD="dnf install -y ./${PKG_NAME}"
   CLEAN_CMD="rm -f \"${PKG_NAME}\""
 elif command -v yum >/dev/null 2>&1; then
