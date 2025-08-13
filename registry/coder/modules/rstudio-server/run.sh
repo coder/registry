@@ -9,11 +9,24 @@ printf "$${BOLD}Starting RStudio Server (Rocker)...$${RESET}\n"
 
 IMAGE="rocker/rstudio:${SERVER_VERSION}"
 
-# FIXME retry + backoff
-sleep 15
+# Wait for docker to become ready
+max_attempts=10
+delay=2
+attempt=1
+
+while ! docker ps; do
+  if [ $$attempt -ge $$max_attempts ]; then
+    echo "Failed to list containers after $${max_attempts} attempts."
+    exit 1
+  fi
+  echo "Attempt $${attempt} failed, retrying in $${delay}s..."
+  sleep $delay
+  attempt=$$((attempt + 1))
+  delay=$$((delay * 2)) # exponential backoff
+done
 
 # Pull the specified version
-docker pull "$${IMAGE}"
+docker pull "${IMAGE}"
 
 # Create (or reuse) a persistent renv cache volume
 docker volume create "${RENV_CACHE_VOLUME}"
