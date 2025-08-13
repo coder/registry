@@ -30,6 +30,9 @@ docker run -d --rm \
   -v "${RENV_CACHE_VOLUME}:/renv/cache" \
   "$${IMAGE}"
 
+# Make RENV_CACHE_VOLUME writable to USER
+docker exec rstudio-server bash -c 'chmod -R 0777 /renv/cache'
+
 # Optional renv restore
 if [ "${ENABLE_RENV}" = "true" ] && [ -f "${PROJECT_PATH}/renv.lock" ]; then
   echo "Restoring R environment via renv..."
