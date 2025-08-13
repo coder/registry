@@ -137,8 +137,90 @@ func validateCoderModuleReadmeBody(body string) []error {
 	var errs []error
 
 	trimmed := strings.TrimSpace(body)
-	// TODO: this may cause unexpected behavior since the errors slice may have a 0 length. Add a test.
-	errs = append(errs, validateReadmeBody(trimmed)...)
+	if baseErrs := validateReadmeBody(trimmed); len(baseErrs) != 0 {
+		errs = append(errs, baseErrs...)
+	}
+
+	foundParagraph := false
+	terraformCodeBlockCount := 0
+	foundTerraformVersionRef := false
+
+	lineNum := 0
+	isInsideCodeBlock := false
+	isInsideTerraform := false
+
+	lineScanner := bufio.NewScanner(strings.NewReader(trimmed))
+	for lineScanner.Scan() {
+		lineNum++
+		nextLine := lineScanner.Text()
+
+		// Code assumes that invalid headers would've already been handled by the base validation function, so we don't
+		// need to check deeper if the first line isn't an h1.
+		if lineNum == 1 {
+			if !strings.HasPrefix(nextLine, "# ") {
+				break
+			}
+			continue
+		}
+
+		if strings.HasPrefix(nextLine, "```") {
+			isInsideCodeBlock = !isInsideCodeBlock
+			isInsideTerraform = isInsideCodeBlock && strings.HasPrefix(nextLine, "```tf")
+			if isInsideTerraform {
+				terraformCodeBlockCount++
+			}
+			if strings.HasPrefix(nextLine, "```hcl") {
+				errs = append(errs, xerrors.New("all .hcl language references must be converted to .tf"))
+			}
+			continue
+		}
+
+		if isInsideCodeBlock {
+			if isInsideTerraform {
+				foundTerraformVersionRef = foundTerraformVersionRef || terraformVersionRe.MatchString(nextLine)
+			}
+			continue
+		}
+
+		// Code assumes that we can treat this case as the end of the "h1 section" and don't need to process any further lines.
+		if lineNum > 1 && strings.HasPrefix(nextLine, "#") {
+			break
+		}
+
+		// Code assumes that if we've reached this point, the only other options are:
+		// (1) empty spaces, (2) paragraphs, (3) HTML, and (4) asset references made via [] syntax.
+		trimmedLine := strings.TrimSpace(nextLine)
+		isParagraph := trimmedLine != "" && !strings.HasPrefix(trimmedLine, "![") && !strings.HasPrefix(trimmedLine, "<")
+		foundParagraph = foundParagraph || isParagraph
+	}
+
+	if terraformCodeBlockCount == 0 {
+		errs = append(errs, xerrors.New("did not find Terraform code block within h1 section"))
+	} else {
+		if terraformCodeBlockCount > 1 {
+			errs = append(errs, xerrors.New("cannot have more than one Terraform code block in h1 section"))
+		}
+		if !foundTerraformVersionRef {
+			errs = append(errs, xerrors.New("did not find Terraform code block that specifies 'version' field"))
+		}
+	}
+	if !foundParagraph {
+		errs = append(errs, xerrors.New("did not find paragraph within h1 section"))
+	}
+	if isInsideCodeBlock {
+		errs = append(errs, xerrors.New("code blocks inside h1 section do not all terminate before end of file"))
+	}
+
+	return errs
+}
+
+func validateCoderTemplateReadmeBody(body string) []error {
+	var errs []error
+
+	trimmed := strings.TrimSpace(body)
+	if baseErrs := validateReadmeBody(trimmed); len(baseErrs) != 0 {
+		errs = append(errs, baseErrs...)
+	}
 
 	foundParagraph := false
 	terraformCodeBlockCount := 0
@@ -269,10 +351,10 @@ func validateAllCoderModuleReadmes(resources []coderResourceReadme) error {
 
 func validateCoderTemplateReadme(rm coderResourceReadme) []error {
 	var errs []error
-	// for _, err := range validateCoderResourceReadmeBody(rm.body) {
-	// 	errs = append(errs, addFilePathToError(rm.filePath, err))
-	// }
-	if fmErrs := validateCoderResourceFrontmatter("modules", rm.filePath, rm.frontmatter); len(fmErrs) != 0 {
+	for _, err := range validateCoderTemplateReadmeBody(rm.body) {
+		errs = append(errs, addFilePathToError(rm.filePath, err))
+	}
+	if fmErrs := validateCoderResourceFrontmatter("templates", rm.filePath, rm.frontmatter); len(fmErrs) != 0 {
 		errs = append(errs, fmErrs...)
 	}
 	return errs
