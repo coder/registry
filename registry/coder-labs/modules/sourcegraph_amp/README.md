@@ -1,5 +1,5 @@
 ---
-display\_name: Sourcegraph AMP
+display_name: Sourcegraph AMP
 icon: ../../../../.icons/sourcegraph_amp.svg
 description: Run Sourcegraph AMP CLI in your workspace with AgentAPI integration
 verified: false
