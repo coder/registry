@@ -231,6 +231,7 @@ resource "coder_app" "jetbrains" {
   icon         = local.options_metadata[each.key].icon
   external     = true
   order        = var.coder_app_order
+  group        = var.group
   url = join("", [
     "jetbrains://gateway/coder?&workspace=", # requires 2.6.3+ version of Toolbox
     data.coder_workspace.me.name,

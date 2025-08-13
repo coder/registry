@@ -2,7 +2,6 @@
 
 BOLD='\033[0;1m'
 
-# Function to check if a command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
@@ -12,7 +11,7 @@ set -o nounset
 ARG_GEMINI_CONFIG=$(echo -n "$ARG_GEMINI_CONFIG" | base64 -d)
 BASE_EXTENSIONS=$(echo -n "$BASE_EXTENSIONS" | base64 -d)
 ADDITIONAL_EXTENSIONS=$(echo -n "$ADDITIONAL_EXTENSIONS" | base64 -d)
-GEMINI_INSTRUCTION_PROMPT=$(echo -n "$GEMINI_INSTRUCTION_PROMPT" | base64 -d)
+GEMINI_SYSTEM_PROMPT=$(echo -n "$GEMINI_SYSTEM_PROMPT" | base64 -d)
 
 echo "--------------------------------"
 printf "gemini_config: %s\n" "$ARG_GEMINI_CONFIG"
@@ -23,7 +22,6 @@ echo "--------------------------------"
 set +o nounset
 
 function install_node() {
-  # borrowed from claude-code module
     if ! command_exists npm; then
       printf "npm not found, checking for Node.js installation...\n"
       if ! command_exists node; then
@@ -52,24 +50,15 @@ function install_node() {
 
 function install_gemini() {
   if [ "${ARG_INSTALL}" = "true" ]; then
-    # we need node to install and run gemini-cli
     install_node
 
-  # If nvm does not exist, we will create a global npm directory (this os to prevent the possibility of EACCESS issues on npm -g)
   if ! command_exists nvm; then
       printf "which node: %s\n" "$(which node)"
       printf "which npm: %s\n" "$(which npm)"
 
-      # Create a directory for global packages
       mkdir -p "$HOME"/.npm-global
-
-      # Configure npm to use it
       npm config set prefix "$HOME/.npm-global"
-
-      # Add to PATH for current session
       export PATH="$HOME/.npm-global/bin:$PATH"
-
-      # Add to shell profile for future sessions
       if ! grep -q "export PATH=$HOME/.npm-global/bin:\$PATH" ~/.bashrc; then
           echo "export PATH=$HOME/.npm-global/bin:\$PATH" >> ~/.bashrc
       fi
@@ -108,7 +97,6 @@ function append_extensions_to_settings_json() {
     fi
     if [ ! -f "$SETTINGS_PATH" ]; then
       printf "%s does not exist. Creating with merged mcpServers structure.\n" "$SETTINGS_PATH"
-      # If ADDITIONAL_EXTENSIONS is not set or empty, use '{}'
       ADD_EXT_JSON='{}'
       if [ -n "${ADDITIONAL_EXTENSIONS:-}" ]; then
         ADD_EXT_JSON="$ADDITIONAL_EXTENSIONS"
@@ -116,10 +104,7 @@ function append_extensions_to_settings_json() {
       printf '{"mcpServers":%s}\n' "$(jq -s 'add' <(echo "$BASE_EXTENSIONS") <(echo "$ADD_EXT_JSON"))" > "$SETTINGS_PATH"
     fi
 
-    # Prepare temp files
     TMP_SETTINGS=$(mktemp)
-
-    # If ADDITIONAL_EXTENSIONS is not set or empty, use '{}'
     ADD_EXT_JSON='{}'
     if [ -n "${ADDITIONAL_EXTENSIONS:-}" ]; then
       printf "[append_extensions_to_settings_json] ADDITIONAL_EXTENSIONS is set.\n"
@@ -133,14 +118,13 @@ function append_extensions_to_settings_json() {
       '.mcpServers = (.mcpServers // {} + $base + $add)' \
       "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
 
-    # Add theme and selectedAuthType fields
     jq '.theme = "Default" | .selectedAuthType = "gemini-api-key"' "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
 
     printf "[append_extensions_to_settings_json] Merge complete.\n"
 }
 
-function add_instruction_prompt_if_exists() {
-    if [ -n "${GEMINI_INSTRUCTION_PROMPT:-}" ]; then
+function add_system_prompt_if_exists() {
+    if [ -n "${GEMINI_SYSTEM_PROMPT:-}" ]; then
         if [ -d "${GEMINI_START_DIRECTORY}" ]; then
             printf "Directory '%s' exists. Changing to it.\\n" "${GEMINI_START_DIRECTORY}"
             cd "${GEMINI_START_DIRECTORY}" || {
@@ -160,16 +144,21 @@ function add_instruction_prompt_if_exists() {
         fi
         touch GEMINI.md
         printf "Setting GEMINI.md\n"
-        echo "${GEMINI_INSTRUCTION_PROMPT}" > GEMINI.md
+        echo "${GEMINI_SYSTEM_PROMPT}" > GEMINI.md
     else
         printf "GEMINI.md is not set.\n"
     fi
 }
 
+function configure_mcp() {
+    export CODER_MCP_APP_STATUS_SLUG="gemini"
+    export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
+    coder exp mcp configure gemini "${GEMINI_START_DIRECTORY}"
+}
 
-# Install Gemini
 install_gemini
 gemini --version
 populate_settings_json
-add_instruction_prompt_if_exists
+add_system_prompt_if_exists
+configure_mcp
 
