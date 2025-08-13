@@ -37,5 +37,7 @@ if [ "${ENABLE_RENV}" = "true" ] && [ -f "${PROJECT_PATH}/renv.lock" ]; then
     'if (!requireNamespace("renv", quietly = TRUE)) install.packages("renv", repos="https://cloud.r-project.org"); renv::restore(prompt = FALSE)'
 fi
 
-printf "\n$${BOLD}RStudio Server ${SERVER_VERSION} is running on port ${PORT}$${RESET}\n"
 [ "${DISABLE_AUTH}" != "true" ] && echo "User: ${RSTUDIO_USER}"
+
+printf "\n$${BOLD}RStudio Server ${SERVER_VERSION} is running on port ${PORT}$${RESET}\n"
+
