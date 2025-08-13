@@ -42,6 +42,7 @@ module "auto_start_dev_servers" {
 - **Non-blocking startup**: Servers start in the background with configurable startup delay
 - **Comprehensive logging**: All server output and detection results logged to a central file
 - **Smart detection**: Uses project-specific files and configurations to identify project types
+- **Integrated live preview**: Automatically creates a preview app for the first detected project
 
 ## Supported Project Types
 
@@ -89,6 +90,9 @@ module "auto_start_dev_servers" {
 
   # Optional: Log file path
   log_path = "/tmp/dev-servers.log"
+
+  # Optional: Enable automatic preview app (default: true)
+  enable_preview_app = true
 }
 ```
 
@@ -144,6 +148,15 @@ cat /tmp/dev-servers.log
 3. **Wrong directory**: Verify `workspace_directory` path is correct and accessible
 4. **Missing dependencies**: Install required runtimes (node, python, java, etc.) in your base image
 
+## Live Preview App
+
+The module automatically creates a "Live Preview" app in your Coder workspace that points to the first detected development server. This gives you instant access to your running application through the Coder dashboard.
+
+- **Automatic detection**: Uses the port from the first project detected
+- **Dynamic URL**: Points to `http://localhost:{detected_port}`
+- **Configurable**: Can be disabled by setting `enable_preview_app = false`
+- **Fallback**: Defaults to port 3000 if no projects are detected
+
 ## Module Outputs
 
 | Output                   | Description                              | Example Value                     |
@@ -151,6 +164,8 @@ cat /tmp/dev-servers.log
 | `detected_projects_file` | Path to JSON file with detected projects | `/tmp/detected-projects.json`     |
 | `log_path`               | Path to dev server log file              | `/tmp/dev-servers.log`            |
 | `common_ports`           | Map of default ports by project type     | `{nodejs=3000, django=8000, ...}` |
+| `preview_url`            | URL of the live preview app              | `http://localhost:3000`           |
+| `detected_port`          | Port of the first detected project       | `3000`                            |
 
 ## Examples
 
@@ -160,6 +175,18 @@ cat /tmp/dev-servers.log
 module "auto_start" {
   source   = "./modules/auto-start-dev-server"
   agent_id = coder_agent.main.id
+}
+```
+
+### Disable Preview App
+
+```hcl
+module "auto_start" {
+  source   = "./modules/auto-start-dev-server"
+  agent_id = coder_agent.main.id
+
+  # Disable automatic preview app creation
+  enable_preview_app = false
 }
 ```
 

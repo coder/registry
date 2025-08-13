@@ -29,6 +29,10 @@ echo "Started at: $(date)" >> "${LOG_PATH}"
 DETECTED_PROJECTS_FILE="/tmp/detected-projects.json"
 echo '[]' > "$DETECTED_PROJECTS_FILE"
 
+# Initialize detected port file for preview app
+DETECTED_PORT_FILE="/tmp/detected-port.txt"
+FIRST_PORT_DETECTED=false
+
 # Function to log messages
 log_message() {
   echo -e "$1"
@@ -41,6 +45,13 @@ add_detected_project() {
   local project_type="$2"
   local port="$3"
   local command="$4"
+  
+  # Set the first detected port for preview app
+  if [ "$FIRST_PORT_DETECTED" = false ]; then
+    echo "$port" > "$DETECTED_PORT_FILE"
+    FIRST_PORT_DETECTED=true
+    log_message "$${BLUE}🎯 First project detected - Preview app will be available on port $port$${RESET}"
+  fi
   
   # Create JSON entry for this project
   local project_json=$(jq -n \
@@ -350,6 +361,12 @@ main() {
   log_message "$${GREEN}✅ Auto-start scan completed!$${RESET}"
   log_message "$${YELLOW}💡 Check running processes with 'ps aux | grep -E \"(npm|rails|python|java|go|php|cargo|dotnet)\"'$${RESET}"
   log_message "$${YELLOW}💡 View logs: tail -f ${LOG_PATH}$${RESET}"
+  
+  # Set default port if no projects were detected
+  if [ "$FIRST_PORT_DETECTED" = false ]; then
+    echo "3000" > "$DETECTED_PORT_FILE"
+    log_message "$${YELLOW}⚠️ No projects detected - Preview app will default to port 3000$${RESET}"
+  fi
 }
 
 # Run main function

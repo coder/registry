@@ -108,6 +108,17 @@ variable "display_name" {
   default     = "Auto-Start Dev Servers"
 }
 
+variable "enable_preview_app" {
+  type        = bool
+  description = "Enable automatic creation of a preview app for the first detected project."
+  default     = true
+}
+
+# Read the detected port from the file written by the script
+locals {
+  detected_port = var.enable_preview_app ? try(tonumber(trimspace(file("/tmp/detected-port.txt"))), 3000) : 3000
+}
+
 resource "coder_script" "auto_start_dev_server" {
   agent_id     = var.agent_id
   display_name = var.display_name
@@ -129,6 +140,18 @@ resource "coder_script" "auto_start_dev_server" {
     STARTUP_DELAY       = var.startup_delay
   })
   run_on_start = true
+}
+
+# Create preview app for first detected project
+resource "coder_app" "preview" {
+  count        = var.enable_preview_app ? 1 : 0
+  agent_id     = var.agent_id
+  slug         = "dev-preview"
+  display_name = "Live Preview"
+  url          = "http://localhost:${local.detected_port}"
+  icon         = "/icon/globe.svg"
+  subdomain    = true
+  share        = "owner"
 }
 
 # Output to expose detected projects
@@ -156,4 +179,14 @@ output "common_ports" {
     dotnet = 5000
   }
   description = "Common default ports for different project types"
+}
+
+output "preview_url" {
+  value       = var.enable_preview_app ? try(coder_app.preview[0].url, null) : null
+  description = "URL of the live preview app (if enabled)"
+}
+
+output "detected_port" {
+  value       = local.detected_port
+  description = "Port of the first detected development server"
 }
