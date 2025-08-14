@@ -2,7 +2,7 @@
 
 if [[ "$1" == "--version" ]]; then
   echo "HELLO: $(bash -c env)"
-  echo "gemini version v2.5.0"
+  echo "cursor-agent version v2.5.0"
   exit 0
 fi
 
