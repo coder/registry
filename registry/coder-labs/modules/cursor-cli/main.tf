@@ -64,13 +64,13 @@ variable "agentapi_version" {
 
 variable "force" {
   type        = bool
-  description = "Pass -f/--force to allow commands unless explicitly denied."
-  default     = false
+  description = "Force allow commands unless explicitly denied"
+  default     = true
 }
 
 variable "model" {
   type        = string
-  description = "Pass -m/--model to select model (e.g., sonnet-4, gpt-5)."
+  description = "Model to use (e.g., sonnet-4, sonnet-4-thinking, gpt-5)"
   default     = ""
 }
 
@@ -82,20 +82,20 @@ variable "ai_prompt" {
 
 variable "api_key" {
   type        = string
-  description = "API key (sets CURSOR_API_KEY env or pass via -a)."
+  description = "API key for Cursor CLI."
   default     = ""
   sensitive   = true
 }
 
 variable "mcp_json" {
   type        = string
-  description = "Workspace-specific MCP JSON to write to ~/.cursor/mcp.json. See https://docs.cursor.com/en/context/mcp#using-mcp-json"
+  description = "Workspace-specific MCP JSON to write to folder/.cursor/mcp.json. See https://docs.cursor.com/en/context/mcp#using-mcp-json"
   default     = null
 }
 
 variable "rules_files" {
   type        = map(string)
-  description = "Optional map of rule file name to content. Files will be written to ~/.cursor/rules/<name>. See https://docs.cursor.com/en/context/rules#project-rules"
+  description = "Optional map of rule file name to content. Files will be written to folder/.cursor/rules/<name>. See https://docs.cursor.com/en/context/rules#project-rules"
   default     = null
 }
 
@@ -112,10 +112,10 @@ variable "post_install_script" {
 }
 
 locals {
-  app_slug                    = "cursorcli"
-  install_script              = file("${path.module}/scripts/install.sh")
-  start_script                = file("${path.module}/scripts/start.sh")
-  module_dir_name             = ".cursor-cli-module"
+  app_slug        = "cursorcli"
+  install_script  = file("${path.module}/scripts/install.sh")
+  start_script    = file("${path.module}/scripts/start.sh")
+  module_dir_name = ".cursor-cli-module"
 }
 
 # Expose status slug and API key to the agent environment

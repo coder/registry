@@ -15,9 +15,18 @@ A full example with MCP, rules, and pre/post install scripts:
 ```tf
 
 data "coder_parameter" "ai_prompt" {
-  name    = "ai_prompt"
-  type    = "string"
-  default = "Write a simple hello world program in Python"
+  type        = "string"
+  name        = "AI Prompt"
+  default     = ""
+  description = "Build a Minesweeper in Python."
+  mutable     = true
+}
+
+module "coder-login" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/coder-login/coder"
+  version  = "1.0.31"
+  agent_id = coder_agent.main.id
 }
 
 module "cursor_cli" {
@@ -33,7 +42,7 @@ module "cursor_cli" {
   model              = "gpt-5"
   ai_prompt          = data.coder_parameter.ai_prompt.value
 
-  # Minimal MCP server (writes `~/.cursor/mcp.json`):
+  # Minimal MCP server (writes `folder/.cursor/mcp.json`):
   mcp_json = jsonencode({
     mcpServers = {
       playwright = {
@@ -68,64 +77,46 @@ module "cursor_cli" {
     echo "timeout waiting for $${TARGET}" >&2
   EOT
 
-  # Provide a map of file name to content; files are written to `~/.cursor/rules/<name>`.
+  # Provide a map of file name to content; files are written to `folder/.cursor/rules/<name>`.
   rules_files = {
-    "python.yml" = <<-EOT
-      version: 1
-      rules:
-        - name: python
-          include: ['**/*.py']
-          description: Python-focused guidance
+    "python.mdc" = <<-EOT
+        ---
+        description: RPC Service boilerplate
+        globs:
+        alwaysApply: false
+        ---
+
+        - Use our internal RPC pattern when defining services
+        - Always use snake_case for service names.
+        
+        @service-template.ts
       EOT
 
-    "frontend.yml" = <<-EOT
-      version: 1
-      rules:
-        - name: web
-          include: ['**/*.{ts,tsx,js,jsx,css}']
-          exclude: ['**/dist/**']
-          description: Frontend rules
+    "frontend.mdc" = <<-EOT
+        ---
+        description: RPC Service boilerplate
+        globs:
+        alwaysApply: false
+        ---
+
+        - Use our internal RPC pattern when defining services
+        - Always use snake_case for service names.
+
+        @service-template.ts
       EOT
   }
 }
 ```
 
-## Running with AgentAPI
-
-To run this module with AgentAPI, pass `enable_agentapi=true`
-
-```tf
-data "coder_parameter" "ai_prompt" {
-  type        = "string"
-  name        = "AI Prompt"
-  default     = ""
-  description = "Initial prompt for the Codex CLI"
-  mutable     = true
-}
-
-module "coder-login" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/coder-login/coder"
-  version  = "1.0.31"
-  agent_id = coder_agent.main.id
-}
-
-module "cursor-cli" {
-  source          = "registry.coder.com/coder-labs/cursor-cli/coder"
-  agent_id        = coder_agent.main.id
-  api_key         = "key_xxx"
-  ai_prompt       = data.coder_parameter.ai_prompt.value
-  folder          = "/home/coder/project"
-  enable_agentapi = true
-  force           = true # recommended while running tasks
-}
-```
+> [!NOTE]
+> A `.cursor` directory will be created in the specified `folder`, containing the MCP configuration, rules
+> Cursor CLI dosen't seem fully compatible with MCPs, so Coder tasks and Coder MCP will not work with this module.
 
 ## References
 
 - See Cursor CLI docs: `https://docs.cursor.com/en/cli/overview`
-- For MCP project config, see `https://docs.cursor.com/en/context/mcp#using-mcp-json`. This module writes your `mcp_json` into `~/.cursor/mcp.json`.
-- For Rules, see `https://docs.cursor.com/en/context/rules#project-rules`. Provide `rules_files` (map of file name to content) to populate `~/.cursor/rules/`.
+- For MCP project config, see `https://docs.cursor.com/en/context/mcp#using-mcp-json`. This module writes your `mcp_json` into `folder/.cursor/mcp.json`.
+- For Rules, see `https://docs.cursor.com/en/context/rules#project-rules`. Provide `rules_files` (map of file name to content) to populate `folder/.cursor/rules/`.
 
 ## Troubleshooting
 
