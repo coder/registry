@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$HOME"/.bashrc
 
 BOLD='\033[0;1m'
 
