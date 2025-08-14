@@ -117,6 +117,9 @@ variable "enable_preview_app" {
 # Read the detected port from the file written by the script
 locals {
   detected_port = var.enable_preview_app ? try(tonumber(trimspace(file("/tmp/detected-port.txt"))), 3000) : 3000
+  # Attempt to read project information for better preview naming
+  detected_projects = try(jsondecode(file("/tmp/detected-projects.json")), [])
+  preview_project   = length(local.detected_projects) > 0 ? local.detected_projects[0] : null
 }
 
 resource "coder_script" "auto_start_dev_server" {

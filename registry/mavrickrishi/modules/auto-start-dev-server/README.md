@@ -35,26 +35,28 @@ module "auto_start_dev_servers" {
 ## Features
 
 - **Multi-language support**: Detects and starts servers for Node.js, Python (Django/Flask), Ruby (Rails), Java (Spring Boot), Go, PHP, Rust, and .NET projects
+- **Smart script prioritization**: Prioritizes `dev` scripts over `start` scripts for better development experience
+- **Intelligent frontend detection**: Automatically identifies frontend projects (React, Vue, Angular, Next.js, Nuxt, Svelte, Vite) and prioritizes them for preview apps
 - **Devcontainer integration**: Respects custom start commands defined in `.devcontainer/devcontainer.json`
 - **Configurable scanning**: Adjustable directory scan depth and project type toggles
 - **Non-blocking startup**: Servers start in the background with configurable startup delay
 - **Comprehensive logging**: All server output and detection results logged to a central file
 - **Smart detection**: Uses project-specific files and configurations to identify project types
-- **Integrated live preview**: Automatically creates a preview app for the first detected project
+- **Integrated live preview**: Automatically creates a preview app for the primary frontend project
 
 ## Supported Project Types
 
-| Framework/Language | Detection Files                              | Start Commands                           |
-| ------------------ | -------------------------------------------- | ---------------------------------------- |
-| **Node.js/npm**    | `package.json`                               | `npm start`, `npm run dev`, `yarn start` |
-| **Ruby on Rails**  | `Gemfile` with rails gem                     | `bundle exec rails server`               |
-| **Django**         | `manage.py`                                  | `python manage.py runserver`             |
-| **Flask**          | `requirements.txt` with Flask                | `python app.py/main.py/run.py`           |
-| **Spring Boot**    | `pom.xml` or `build.gradle` with spring-boot | `mvn spring-boot:run`, `gradle bootRun`  |
-| **Go**             | `go.mod`                                     | `go run main.go`                         |
-| **PHP**            | `composer.json`                              | `php -S 0.0.0.0:8080`                    |
-| **Rust**           | `Cargo.toml`                                 | `cargo run`                              |
-| **.NET**           | `*.csproj`                                   | `dotnet run`                             |
+| Framework/Language | Detection Files                              | Start Commands (in priority order)                    |
+| ------------------ | -------------------------------------------- | ----------------------------------------------------- |
+| **Node.js/npm**    | `package.json`                               | `npm run dev`, `npm run serve`, `npm start` (or yarn) |
+| **Ruby on Rails**  | `Gemfile` with rails gem                     | `bundle exec rails server`                            |
+| **Django**         | `manage.py`                                  | `python manage.py runserver`                          |
+| **Flask**          | `requirements.txt` with Flask                | `python app.py/main.py/run.py`                        |
+| **Spring Boot**    | `pom.xml` or `build.gradle` with spring-boot | `mvn spring-boot:run`, `gradle bootRun`               |
+| **Go**             | `go.mod`                                     | `go run main.go`                                      |
+| **PHP**            | `composer.json`                              | `php -S 0.0.0.0:8080`                                 |
+| **Rust**           | `Cargo.toml`                                 | `cargo run`                                           |
+| **.NET**           | `*.csproj`                                   | `dotnet run`                                          |
 
 ## Usage
 
@@ -148,22 +150,24 @@ cat /tmp/dev-servers.log
 
 ## Live Preview App
 
-The module automatically creates a "Live Preview" app in your Coder workspace that points to the first detected development server. This gives you instant access to your running application through the Coder dashboard.
+The module automatically creates a "Live Preview" app in your Coder workspace that intelligently selects the best project for preview:
 
-- **Automatic detection**: Uses the port from the first project detected
+- **Smart frontend detection**: Prioritizes frontend projects (React, Vue, Angular, etc.) over backend services
+- **Automatic detection**: Uses the port from the primary frontend project, or first detected project if no frontend found
 - **Dynamic URL**: Points to `http://localhost:{detected_port}`
+- **Monorepo friendly**: In multi-project setups, automatically selects the most likely UI project
 - **Configurable**: Can be disabled by setting `enable_preview_app = false`
 - **Fallback**: Defaults to port 3000 if no projects are detected
 
 ## Module Outputs
 
-| Output                   | Description                              | Example Value                     |
-| ------------------------ | ---------------------------------------- | --------------------------------- |
-| `detected_projects_file` | Path to JSON file with detected projects | `/tmp/detected-projects.json`     |
-| `log_path`               | Path to dev server log file              | `/tmp/dev-servers.log`            |
-| `common_ports`           | Map of default ports by project type     | `{nodejs=3000, django=8000, ...}` |
-| `preview_url`            | URL of the live preview app              | `http://localhost:3000`           |
-| `detected_port`          | Port of the first detected project       | `3000`                            |
+| Output                   | Description                                                            | Example Value                     |
+| ------------------------ | ---------------------------------------------------------------------- | --------------------------------- |
+| `detected_projects_file` | Path to JSON file with detected projects (includes `is_frontend` flag) | `/tmp/detected-projects.json`     |
+| `log_path`               | Path to dev server log file                                            | `/tmp/dev-servers.log`            |
+| `common_ports`           | Map of default ports by project type                                   | `{nodejs=3000, django=8000, ...}` |
+| `preview_url`            | URL of the live preview app                                            | `http://localhost:3000`           |
+| `detected_port`          | Port of the first detected project                                     | `3000`                            |
 
 ## Examples
 

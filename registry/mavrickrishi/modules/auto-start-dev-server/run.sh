@@ -32,11 +32,62 @@ echo '[]' > "$DETECTED_PROJECTS_FILE"
 # Initialize detected port file for preview app
 DETECTED_PORT_FILE="/tmp/detected-port.txt"
 FIRST_PORT_DETECTED=false
+FRONTEND_PROJECT_DETECTED=false
 
 # Function to log messages
 log_message() {
   echo -e "$1"
   echo "$1" >> "${LOG_PATH}"
+}
+
+# Function to determine if a project is likely a frontend project
+is_frontend_project() {
+  local project_dir="$1"
+  local project_type="$2"
+  
+  # Check for common frontend indicators
+  if [ "$project_type" = "nodejs" ]; then
+    # Check package.json for frontend dependencies
+    if [ -f "$project_dir/package.json" ] && command -v jq &> /dev/null; then
+      # Check for common frontend frameworks
+      local has_react=$(jq '.dependencies.react // .devDependencies.react // empty' "$project_dir/package.json")
+      local has_vue=$(jq '.dependencies.vue // .devDependencies.vue // empty' "$project_dir/package.json")
+      local has_angular=$(jq '.dependencies["@angular/core"] // .devDependencies["@angular/core"] // empty' "$project_dir/package.json")
+      local has_next=$(jq '.dependencies.next // .devDependencies.next // empty' "$project_dir/package.json")
+      local has_nuxt=$(jq '.dependencies.nuxt // .devDependencies.nuxt // empty' "$project_dir/package.json")
+      local has_svelte=$(jq '.dependencies.svelte // .devDependencies.svelte // empty' "$project_dir/package.json")
+      local has_vite=$(jq '.dependencies.vite // .devDependencies.vite // empty' "$project_dir/package.json")
+      
+      if [ -n "$has_react" ] || [ -n "$has_vue" ] || [ -n "$has_angular" ] || \
+         [ -n "$has_next" ] || [ -n "$has_nuxt" ] || [ -n "$has_svelte" ] || \
+         [ -n "$has_vite" ]; then
+        return 0  # It's a frontend project
+      fi
+    fi
+    
+    # Check for common frontend directory structures
+    if [ -d "$project_dir/src/components" ] || [ -d "$project_dir/components" ] || \
+       [ -d "$project_dir/pages" ] || [ -d "$project_dir/views" ] || \
+       [ -f "$project_dir/index.html" ] || [ -f "$project_dir/public/index.html" ]; then
+      return 0  # It's likely a frontend project
+    fi
+  fi
+  
+  # Rails projects with webpack/webpacker are frontend-enabled
+  if [ "$project_type" = "rails" ]; then
+    if [ -f "$project_dir/config/webpacker.yml" ] || [ -f "$project_dir/webpack.config.js" ]; then
+      return 0
+    fi
+  fi
+  
+  # Django projects with static/templates are frontend-enabled
+  if [ "$project_type" = "django" ]; then
+    if [ -d "$project_dir/static" ] || [ -d "$project_dir/templates" ]; then
+      return 0
+    fi
+  fi
+  
+  return 1  # Not a frontend project
 }
 
 # Function to add detected project to JSON
@@ -46,11 +97,24 @@ add_detected_project() {
   local port="$3"
   local command="$4"
   
-  # Set the first detected port for preview app
-  if [ "$FIRST_PORT_DETECTED" = false ]; then
+  # Check if this is a frontend project
+  local is_frontend=false
+  if is_frontend_project "$project_dir" "$project_type"; then
+    is_frontend=true
+    log_message "$${BLUE}🎨 Detected frontend project at $project_dir$${RESET}"
+  fi
+  
+  # Prioritize frontend projects for the preview app
+  # Set port if: 1) No port set yet, OR 2) This is frontend and no frontend detected yet
+  if [ "$FIRST_PORT_DETECTED" = false ] || ([ "$is_frontend" = true ] && [ "$FRONTEND_PROJECT_DETECTED" = false ]); then
     echo "$port" > "$DETECTED_PORT_FILE"
     FIRST_PORT_DETECTED=true
-    log_message "$${BLUE}🎯 First project detected - Preview app will be available on port $port$${RESET}"
+    if [ "$is_frontend" = true ]; then
+      FRONTEND_PROJECT_DETECTED=true
+      log_message "$${BLUE}🎯 Frontend project detected - Preview app will be available on port $port$${RESET}"
+    else
+      log_message "$${BLUE}🎯 Project detected - Preview app will be available on port $port$${RESET}"
+    fi
   fi
   
   # Create JSON entry for this project
@@ -59,7 +123,8 @@ add_detected_project() {
     --arg type "$project_type" \
     --arg port "$port" \
     --arg cmd "$command" \
-    '{"directory": $dir, "type": $type, "port": $port, "command": $cmd}')
+    --arg frontend "$is_frontend" \
+    '{"directory": $dir, "type": $type, "port": $port, "command": $cmd, "is_frontend": ($frontend == "true")}')
   
   # Append to the detected projects file
   jq ". += [$project_json]" "$DETECTED_PROJECTS_FILE" > "$DETECTED_PROJECTS_FILE.tmp" && \
@@ -85,20 +150,56 @@ detect_npm_projects() {
     if [ -f "package.json" ] && command -v jq &> /dev/null; then
       start_script=$(jq -r '.scripts.start // empty' package.json)
       dev_script=$(jq -r '.scripts.dev // empty' package.json)
+      serve_script=$(jq -r '.scripts.serve // empty' package.json)
       
-      if [ -n "$start_script" ]; then
-        log_message "$${GREEN}🟢 Starting npm project with 'npm start' in $project_dir$${RESET}"
-        nohup npm start >> "${LOG_PATH}" 2>&1 &
-        add_detected_project "$project_dir" "nodejs" "3000" "npm start"
-      elif [ -n "$dev_script" ]; then
-        log_message "$${GREEN}🟢 Starting npm project with 'npm run dev' in $project_dir$${RESET}"
-        nohup npm run dev >> "${LOG_PATH}" 2>&1 &
-        add_detected_project "$project_dir" "nodejs" "3000" "npm run dev"
+      # Determine port (check for common port configurations)
+      local project_port=3000
+      if [ -n "$dev_script" ] && echo "$dev_script" | grep -q "\-\-port"; then
+        project_port=$(echo "$dev_script" | grep -oE "\-\-port[[:space:]]+[0-9]+" | grep -oE "[0-9]+$" || echo "3000")
       fi
-    elif [ -f "yarn.lock" ] && command -v yarn &> /dev/null; then
-      log_message "$${GREEN}🟢 Starting yarn project with 'yarn start' in $project_dir$${RESET}"
-      nohup yarn start >> "${LOG_PATH}" 2>&1 &
-      add_detected_project "$project_dir" "nodejs" "3000" "yarn start"
+      
+      # Use yarn if yarn.lock exists
+      local pkg_manager="npm"
+      local cmd_prefix=""
+      if [ -f "yarn.lock" ] && command -v yarn &> /dev/null; then
+        pkg_manager="yarn"
+        cmd_prefix=""
+      else
+        cmd_prefix="run "
+      fi
+      
+      # Prioritize scripts: 'dev' > 'serve' > 'start' for development environments
+      if [ -n "$dev_script" ]; then
+        if [ "$pkg_manager" = "yarn" ]; then
+          log_message "$${GREEN}🟢 Starting project with 'yarn dev' in $project_dir$${RESET}"
+          nohup yarn dev >> "${LOG_PATH}" 2>&1 &
+          add_detected_project "$project_dir" "nodejs" "$project_port" "yarn dev"
+        else
+          log_message "$${GREEN}🟢 Starting project with 'npm run dev' in $project_dir$${RESET}"
+          nohup npm run dev >> "${LOG_PATH}" 2>&1 &
+          add_detected_project "$project_dir" "nodejs" "$project_port" "npm run dev"
+        fi
+      elif [ -n "$serve_script" ]; then
+        if [ "$pkg_manager" = "yarn" ]; then
+          log_message "$${GREEN}🟢 Starting project with 'yarn serve' in $project_dir$${RESET}"
+          nohup yarn serve >> "${LOG_PATH}" 2>&1 &
+          add_detected_project "$project_dir" "nodejs" "$project_port" "yarn serve"
+        else
+          log_message "$${GREEN}🟢 Starting project with 'npm run serve' in $project_dir$${RESET}"
+          nohup npm run serve >> "${LOG_PATH}" 2>&1 &
+          add_detected_project "$project_dir" "nodejs" "$project_port" "npm run serve"
+        fi
+      elif [ -n "$start_script" ]; then
+        if [ "$pkg_manager" = "yarn" ]; then
+          log_message "$${GREEN}🟢 Starting project with 'yarn start' in $project_dir$${RESET}"
+          nohup yarn start >> "${LOG_PATH}" 2>&1 &
+          add_detected_project "$project_dir" "nodejs" "$project_port" "yarn start"
+        else
+          log_message "$${GREEN}🟢 Starting project with 'npm start' in $project_dir$${RESET}"
+          nohup npm start >> "${LOG_PATH}" 2>&1 &
+          add_detected_project "$project_dir" "nodejs" "$project_port" "npm start"
+        fi
+      fi
     fi
     
   done < <(find "${WORKSPACE_DIR}" -maxdepth "${SCAN_DEPTH}" -name "package.json" -type f -print0)
