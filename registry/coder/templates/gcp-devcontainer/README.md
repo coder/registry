@@ -8,6 +8,8 @@ tags: [vm, linux, gcp, devcontainer]
 
 # Remote Development in a Devcontainer on Google Compute Engine
 
+Provision a Devcontainer on Google Compute Engine instances as Coder workspaces
+
 ![Architecture Diagram](../../.images/gcp-devcontainer-architecture.svg)
 
 ## Prerequisites
