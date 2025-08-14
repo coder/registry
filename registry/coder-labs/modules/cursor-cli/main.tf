@@ -59,9 +59,6 @@ variable "agentapi_version" {
   default     = "v0.4.0"
 }
 
-# Running mode is non-interactive by design for automation.
-
-
 variable "force" {
   type        = bool
   description = "Force allow commands unless explicitly denied"
