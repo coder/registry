@@ -67,9 +67,9 @@ function install_sourcegraph_amp() {
 function setup_system_prompt() {
     if [ -n "${SOURCEGRAPH_AMP_SYSTEM_PROMPT:-}" ]; then
         echo "Setting Sourcegraph AMP system prompt..."
-        mkdir -p "$HOME/.sourcegraph-amp"
-        echo "$SOURCEGRAPH_AMP_SYSTEM_PROMPT" > "$HOME/.sourcegraph-amp/SYSTEM_PROMPT.md"
-        echo "System prompt saved to $HOME/.sourcegraph-amp/SYSTEM_PROMPT.md"
+        mkdir -p "$HOME/.sourcegraph-amp-module"
+        echo "$SOURCEGRAPH_AMP_SYSTEM_PROMPT" > "$HOME/.sourcegraph-amp-module/SYSTEM_PROMPT.md"
+        echo "System prompt saved to $HOME/.sourcegraph-amp-module/SYSTEM_PROMPT.md"
     else
         echo "No system prompt provided for Sourcegraph AMP."
     fi

@@ -123,7 +123,7 @@ describe("sourcegraph-amp", async () => {
     await execModuleScript(id, {
       SOURCEGRAPH_AMP_SYSTEM_PROMPT : prompt,
     });
-    const resp = await readFileContainer(id, "/home/coder/.sourcegraph-amp/SYSTEM_PROMPT.md");
+    const resp = await readFileContainer(id, "/home/coder/.sourcegraph-amp-module/SYSTEM_PROMPT.md");
     expect(resp).toContain(prompt);
   });
 

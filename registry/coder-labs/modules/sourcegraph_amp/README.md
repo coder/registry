@@ -76,7 +76,7 @@ module "sourcegraph_amp" {
 ## Troubleshooting
 
 - If `amp` is not found, ensure `install_sourcegraph_amp = true` and your API key is valid
-- Logs are written under `/home/coder/.sourcegraph_amp-module/` (`install.log`, `agentapi-start.log`) for debugging
+- Logs are written under `/home/coder/.sourcegraph-amp-module/` (`install.log`, `agentapi-start.log`) for debugging
 - If AgentAPI fails to start, verify that your container has network access and executable permissions for the scripts
 
 > [!IMPORTANT]
