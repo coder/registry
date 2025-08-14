@@ -110,7 +110,7 @@ module "cursor_cli" {
 
 > [!NOTE]
 > A `.cursor` directory will be created in the specified `folder`, containing the MCP configuration, rules
-> Cursor CLI dosen't seem fully compatible with MCPs, so Coder tasks and Coder MCP will not work with this module.
+> Cursor CLI doesn't seem fully compatible with MCPs, so Coder tasks and Coder MCP will not work with this module.
 
 ## References
 
