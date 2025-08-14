@@ -43,7 +43,7 @@ module "cursor_cli" {
   ai_prompt          = data.coder_parameter.ai_prompt.value
 
   # Minimal MCP server (writes `folder/.cursor/mcp.json`):
-  mcp_json = jsonencode({
+  mcp = jsonencode({
     mcpServers = {
       playwright = {
         command = "npx"

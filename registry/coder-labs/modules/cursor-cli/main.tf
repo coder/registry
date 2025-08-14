@@ -87,7 +87,7 @@ variable "api_key" {
   sensitive   = true
 }
 
-variable "mcp_json" {
+variable "mcp" {
   type        = string
   description = "Workspace-specific MCP JSON to write to folder/.cursor/mcp.json. See https://docs.cursor.com/en/context/mcp#using-mcp-json"
   default     = null
@@ -172,7 +172,7 @@ module "agentapi" {
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
     ARG_INSTALL='${var.install_cursor_cli}' \
-    ARG_WORKSPACE_MCP_JSON='${var.mcp_json != null ? base64encode(replace(var.mcp_json, "'", "'\\''")) : ""}' \
+    ARG_WORKSPACE_MCP_JSON='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
     ARG_WORKSPACE_RULES_JSON='${var.rules_files != null ? base64encode(jsonencode(var.rules_files)) : ""}' \
     ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
     ARG_FOLDER='${var.folder}' \
