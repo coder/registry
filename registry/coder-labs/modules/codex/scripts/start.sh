@@ -58,7 +58,7 @@ fi
 
 if [ -n "$ARG_CODEX_TASK_PROMPT" ]; then
     printf "Running the task prompt %s\n" "$ARG_CODEX_TASK_PROMPT"
-    PROMPT="Complete the task at hand and at every step of the way, report tasks to Coder with proper summary and statuses. Your task at hand: $ARG_CODEX_TASK_PROMPT"
+    PROMPT="Complete the task at hand in one go. Every step of the way, report your progress using coder_report_task tool with proper summary and statuses. Your task at hand: $ARG_CODEX_TASK_PROMPT"
     CODEX_ARGS+=("$PROMPT")
 else
     printf "No task prompt given.\n"

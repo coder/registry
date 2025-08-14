@@ -264,9 +264,7 @@ describe("codex", async () => {
       "-c",
       `cat /home/coder/.codex-module/agentapi-start.log`,
     ]);
-    expect(resp.stdout).toContain(
-      `Complete the task at hand and at every step of the way, report tasks to Coder with proper summary and statuses. Your task at hand: ${prompt}`,
-    );
+    expect(resp.stdout).toContain(prompt);
   });
 
   test("start-without-prompt", async () => {
