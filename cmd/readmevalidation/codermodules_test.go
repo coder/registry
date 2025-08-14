@@ -14,7 +14,7 @@ func TestValidateCoderResourceReadmeBody(t *testing.T) {
 	t.Run("Parses a valid README body with zero issues", func(t *testing.T) {
 		t.Parallel()
 
-		errs := validateCoderResourceReadmeBody(testBody)
+		errs := validateCoderModuleReadmeBody(testBody)
 		for _, e := range errs {
 			t.Error(e)
 		}
