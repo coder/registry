@@ -75,7 +75,7 @@ describe("cursor-cli", async () => {
     const mcpJson = '{"mcpServers": {"test": {"command": "test-cmd", "type": "stdio"}}}';
     const { id } = await setup({
       moduleVariables: {
-        mcp_json: mcpJson,
+        mcp: mcpJson,
       }
     });
     const resp = await execModuleScript(id);
