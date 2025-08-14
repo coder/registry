@@ -17,7 +17,7 @@ ARG_FOLDER=${ARG_FOLDER:-$HOME}
 echo "--------------------------------"
 echo "install: $ARG_INSTALL"
 echo "version: $ARG_VERSION"
-echo "folder: $FOLDER"
+echo "folder: $ARG_FOLDER"
 echo "ai_prompt: $ARG_AI_PROMPT"
 echo "force: $ARG_FORCE"
 echo "model: $ARG_MODEL"
