@@ -23,29 +23,6 @@ afterEach(async () => {
   }
 });
 
-const setup = async (vars?: Record<string, string>) => {
-  const projectDir = "/home/coder/project";
-  const { id, coderScript, cleanup } = await setupContainer({
-    moduleDir: import.meta.dir,
-    image: "codercom/enterprise-minimal:latest",
-    vars: {
-      folder: projectDir,
-      install_cursor_cli: "false",
-      ...vars,
-    },
-  });
-  registerCleanup(cleanup);
-  // Ensure project dir exists
-  await execContainer(id, ["bash", "-c", `mkdir -p '${projectDir}'`]);
-  // Write the module's script to the container
-  await writeExecutable({
-    containerId: id,
-    filePath: "/home/coder/script.sh",
-    content: coderScript.script,
-  });
-  return { id, projectDir };
-};
-
 interface SetupProps {
   skipAgentAPIMock?: boolean;
   skipCursorCliMock?: boolean;
@@ -53,7 +30,7 @@ interface SetupProps {
   agentapiMockScript?: string;
 }
 
-const setup_agentapi_version = async (props?: SetupProps): Promise<{ id: string }> => {
+const setup = async (props?: SetupProps): Promise<{ id: string }> => {
   const projectDir = "/home/coder/project";
   const { id } = await setupUtil({
     moduleDir: import.meta.dir,
@@ -86,102 +63,8 @@ describe("cursor-cli", async () => {
     await runTerraformInit(import.meta.dir);
   });
 
-  // tests start for the non-agentapi module version
-
-  test("installs Cursor via official installer and runs --help", async () => {
-    const { id } = await setup({ install_cursor_cli: "true", ai_prompt: "--help" });
-    const resp = await execModuleScript(id);
-    expect(resp.exitCode).toBe(0);
-
-    // Verify the start log captured the invocation
-    const startLog = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/script.log",
-    ]);
-    expect(startLog.exitCode).toBe(0);
-    expect(startLog.stdout).toContain("cursor-agent");
-  });
-
-  test("model and force flags propagate", async () => {
-    const { id } = await setup({ model: "sonnet-4", force: "true", ai_prompt: "status" });
-    await writeExecutable({
-      containerId: id,
-      filePath: "/usr/bin/cursor-agent",
-      content: `#!/bin/sh\necho cursor-agent invoked\nfor a in "$@"; do echo arg:$a; done\nexit 0\n`,
-    });
-
-    const resp = await execModuleScript(id);
-    expect(resp.exitCode).toBe(0);
-
-    const startLog = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/script.log",
-    ]);
-    expect(startLog.exitCode).toBe(0);
-    expect(startLog.stdout).toContain("-m sonnet-4");
-    expect(startLog.stdout).toContain("-f");
-    expect(startLog.stdout).toContain("status");
-  });
-
-  test("writes workspace mcp.json when provided", async () => {
-    const mcp = JSON.stringify({ mcpServers: { foo: { command: "foo", type: "stdio" } } });
-    const { id } = await setup({ mcp_json: mcp });
-    await writeExecutable({
-      containerId: id,
-      filePath: "/usr/bin/cursor-agent",
-      content: `#!/bin/sh\necho ok\n`,
-    });
-    const resp = await execModuleScript(id);
-    expect(resp.exitCode).toBe(0);
-
-    const mcpContent = await execContainer(id, [
-      "bash",
-      "-c",
-      `cat '/home/coder/project/.cursor/mcp.json'`,
-    ]);
-    expect(mcpContent.exitCode).toBe(0);
-    expect(mcpContent.stdout).toContain("mcpServers");
-    expect(mcpContent.stdout).toContain("foo");
-  });
-
-  test("fails when cursor-agent missing", async () => {
-    const { id } = await setup();
-    const resp = await execModuleScript(id);
-    expect(resp.exitCode).not.toBe(0);
-    const startLog = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/script.log || true",
-    ]);
-    expect(startLog.stdout).toContain("cursor-agent not found");
-  });
-
-  test("install step logs folder", async () => {
-    const { id } = await setup({ install_cursor_cli: "false" });
-    await writeExecutable({
-      containerId: id,
-      filePath: "/usr/bin/cursor-agent",
-      content: `#!/bin/sh\necho ok\n`,
-    });
-    const resp = await execModuleScript(id);
-    expect(resp.exitCode).toBe(0);
-    const installLog = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/script.log",
-    ]);
-    expect(installLog.exitCode).toBe(0);
-    expect(installLog.stdout).toContain("folder: /home/coder/project");
-  });
-
-  // tests end for the non-agentapi module version
-
-  // tests start for the agentapi module version
-
   test("agentapi-happy-path", async () => {
-    const { id } = await setup_agentapi_version({});
+    const { id } = await setup({});
     const resp = await execModuleScript(id);
     expect(resp.exitCode).toBe(0);
 
@@ -190,7 +73,7 @@ describe("cursor-cli", async () => {
 
   test("agentapi-mcp-json", async () => {
     const mcpJson = '{"mcpServers": {"test": {"command": "test-cmd", "type": "stdio"}}}';
-    const { id } = await setup_agentapi_version({
+    const { id } = await setup({
       moduleVariables: {
         mcp_json: mcpJson,
       }
@@ -213,7 +96,7 @@ describe("cursor-cli", async () => {
 
   test("agentapi-rules-files", async () => {
     const rulesContent = "Always use TypeScript";
-    const { id } = await setup_agentapi_version({
+    const { id } = await setup({
       moduleVariables: {
         rules_files: JSON.stringify({ "typescript.md": rulesContent }),
       }
@@ -232,7 +115,7 @@ describe("cursor-cli", async () => {
 
   test("agentapi-api-key", async () => {
     const apiKey = "test-cursor-api-key-123";
-    const { id } = await setup_agentapi_version({
+    const { id } = await setup({
       moduleVariables: {
         api_key: apiKey,
       }
@@ -250,7 +133,7 @@ describe("cursor-cli", async () => {
 
   test("agentapi-model-and-force-flags", async () => {
     const model = "sonnet-4";
-    const { id } = await setup_agentapi_version({
+    const { id } = await setup({
       moduleVariables: {
         model: model,
         force: "true",
@@ -271,7 +154,7 @@ describe("cursor-cli", async () => {
   });
 
   test("agentapi-pre-post-install-scripts", async () => {
-    const { id } = await setup_agentapi_version({
+    const { id } = await setup({
       moduleVariables: {
         pre_install_script: "#!/bin/bash\necho 'cursor-pre-install-script'",
         post_install_script: "#!/bin/bash\necho 'cursor-post-install-script'",
@@ -297,7 +180,7 @@ describe("cursor-cli", async () => {
 
   test("agentapi-folder-variable", async () => {
     const folder = "/tmp/cursor-test-folder";
-    const { id } = await setup_agentapi_version({
+    const { id } = await setup({
       moduleVariables: {
         folder: folder,
       }
@@ -313,10 +196,8 @@ describe("cursor-cli", async () => {
     expect(installLog.stdout).toContain(folder);
   });
 
-  // test end for the agentapi module version
-
   test("install-test-cursor-cli-latest", async () => {
-    const { id } = await setup_agentapi_version({
+    const { id } = await setup({
       skipCursorCliMock: true,
       skipAgentAPIMock: true,
     });

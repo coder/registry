@@ -47,12 +47,6 @@ variable "install_cursor_cli" {
   default     = true
 }
 
-variable "enable_agentapi" {
-  type        = bool
-  description = "Whether to enable the AgentAPI for Cursor CLI."
-  default     = false
-}
-
 variable "install_agentapi" {
   type        = bool
   description = "Whether to install AgentAPI."
@@ -122,8 +116,6 @@ locals {
   install_script              = file("${path.module}/scripts/install.sh")
   start_script                = file("${path.module}/scripts/start.sh")
   module_dir_name             = ".cursor-cli-module"
-  encoded_pre_install_script  = var.pre_install_script != null ? base64encode(var.pre_install_script) : ""
-  encoded_post_install_script = var.post_install_script != null ? base64encode(var.post_install_script) : ""
 }
 
 # Expose status slug and API key to the agent environment
@@ -140,80 +132,9 @@ resource "coder_env" "cursor_api_key" {
   value    = var.api_key
 }
 
-resource "coder_script" "cursor_cli" {
-  agent_id     = var.agent_id
-  display_name = "Cursor CLI"
-  icon         = var.icon
-  count        = var.enable_agentapi ? 0 : 1
-  script       = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-
-    # Ensure module log directory exists before piping logs
-    mkdir -p "$HOME/${local.module_dir_name}"
-
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
-    # Run optional pre-install script
-    if [ -n "${local.encoded_pre_install_script}" ]; then
-      echo "${local.encoded_pre_install_script}" | base64 -d > /tmp/pre_install.sh
-      chmod +x /tmp/pre_install.sh
-      echo "[cursor-cli] running pre-install script" | tee -a "$HOME/${local.module_dir_name}/install.log"
-      FOLDER='${var.folder}' /tmp/pre_install.sh | tee -a "$HOME/${local.module_dir_name}/pre_install.log"
-    fi
-    ARG_INSTALL='${var.install_cursor_cli}' \
-    ARG_WORKSPACE_MCP_JSON='${var.mcp_json != null ? base64encode(replace(var.mcp_json, "'", "'\\''")) : ""}' \
-    ARG_WORKSPACE_RULES_JSON='${var.rules_files != null ? base64encode(jsonencode(var.rules_files)) : ""}' \
-    ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
-    ARG_FOLDER='${var.folder}' \
-    /tmp/install.sh | tee "$HOME/${local.module_dir_name}/install.log"
-
-    # Run optional post-install script
-    if [ -n "${local.encoded_post_install_script}" ]; then
-      echo "${local.encoded_post_install_script}" | base64 -d > /tmp/post_install.sh
-      chmod +x /tmp/post_install.sh
-      echo "[cursor-cli] running post-install script" | tee -a "$HOME/${local.module_dir_name}/install.log"
-      FOLDER='${var.folder}' /tmp/post_install.sh | tee -a "$HOME/${local.module_dir_name}/post_install.log"
-    fi
-
-    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-    chmod +x /tmp/start.sh
-    ARG_FORCE='${var.force}' \
-    ARG_MODEL='${var.model}' \
-    ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
-    ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
-    ARG_FOLDER='${var.folder}' \
-    /tmp/start.sh | tee "$HOME/${local.module_dir_name}/start.log"
-  EOT
-  run_on_start = true
-}
-
-resource "coder_app" "cursor_cli" {
-  agent_id     = var.agent_id
-  slug         = local.app_slug
-  display_name = "Cursor CLI"
-  count        = var.enable_agentapi ? 0 : 1
-  icon         = var.icon
-  order        = var.order
-  group        = var.group
-  command      = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-    if [ -f "$HOME/${local.module_dir_name}/start.log" ]; then
-      tail -n +1 -f "$HOME/${local.module_dir_name}/start.log"
-    else
-      echo "Cursor CLI not started yet. Check install/start logs in $HOME/${local.module_dir_name}/"
-      /bin/bash
-    fi
-  EOT
-}
-
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
   version = "1.1.1"
-  count   = var.enable_agentapi ? 1 : 0
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
@@ -240,7 +161,6 @@ module "agentapi" {
       ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
       ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
       ARG_FOLDER='${var.folder}' \
-      ARG_AGENTAPI_MODE='${var.enable_agentapi}' \
      /tmp/start.sh
    EOT
 
@@ -256,7 +176,6 @@ module "agentapi" {
     ARG_WORKSPACE_RULES_JSON='${var.rules_files != null ? base64encode(jsonencode(var.rules_files)) : ""}' \
     ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
     ARG_FOLDER='${var.folder}' \
-    ARG_AGENTAPI_MODE='${var.enable_agentapi}' \
     ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     /tmp/install.sh
   EOT
