@@ -29,7 +29,6 @@ This is the basic Coder's rustdesk module that installs minimal desktop environm
 - A workspace agent compatible with Linux and `apt` package manager
 - Root scope (to install desktop environment, rustdesk & execute rustdesk --password "somepassword", because rustdesk cli does not provide a way to get the password else setup in advance, the command rustdesk --password "somepassword" only for root users)
 
-
 ---
 
 ### Quickstart
@@ -43,8 +42,9 @@ module "rustdesk" {
   agent_id  = var.agent_id
 }
 ```
+
 Also add this within resource "docker_container" "workspace":
- 
+
 ```tf
 privileged = true
   user       = "root"
@@ -68,6 +68,7 @@ ports {
 ```
 
 Also you can customize the rustdesk version, virtual screen dimensions & the pass
+
 ```tf
 module "rustdesk" {
   source    = "registry.coder.com/BenraouaneSoufiane/rustdesk/BenraouaneSoufiane"
