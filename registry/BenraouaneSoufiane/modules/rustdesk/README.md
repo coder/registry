@@ -1,6 +1,6 @@
 ---
 display_name: RustDesk
-description: Create a desktop environment and run RustDesk in your workspace
+description: Run RustDesk in your workspace with virtual display
 icon: ../../../../.icons/rustdesk.svg
 verified: false
 tags: [rustdesk, rdp, vm]
@@ -8,7 +8,7 @@ tags: [rustdesk, rdp, vm]
 
 # RustDesk
 
-Installs a minimal desktop environment (XFCE) and launches RustDesk within your workspace to provide remote desktop access. The module outputs the RustDesk ID and password needed to connect from external RustDesk clients.
+Launches RustDesk within your workspace with a virtual display to provide remote desktop access. The module outputs the RustDesk ID and password needed to connect from external RustDesk clients.
 
 ```tf
 module "rustdesk" {
@@ -21,7 +21,7 @@ module "rustdesk" {
 
 ## Features
 
-- Automatically installs XFCE desktop environment
+- Automatically sets up virtual display (Xvfb)
 - Downloads and configures RustDesk
 - Outputs RustDesk ID and password for easy connection
 - Provides external app link to RustDesk web client for browser-based access

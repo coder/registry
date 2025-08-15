@@ -35,19 +35,19 @@ esac
 if command -v apt-get >/dev/null 2>&1; then
 	PKG_SYS="deb"
 	PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.deb"
-	INSTALL_DEPS='apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y wget ca-certificates xvfb dbus-x11 xfce4 xfce4-goodies'
+	INSTALL_DEPS='apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y wget ca-certificates xvfb dbus-x11'
 	INSTALL_CMD="apt-get install -y ./${PKG_NAME}"
 	CLEAN_CMD="rm -f \"${PKG_NAME}\""
 elif command -v dnf >/dev/null 2>&1; then
 	PKG_SYS="rpm"
 	PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.rpm"
-	INSTALL_DEPS='dnf install -y wget ca-certificates xorg-x11-server-Xvfb dbus-x11 @xfce-desktop-environment'
+	INSTALL_DEPS='dnf install -y wget ca-certificates xorg-x11-server-Xvfb dbus-x11'
 	INSTALL_CMD="dnf install -y ./${PKG_NAME}"
 	CLEAN_CMD="rm -f \"${PKG_NAME}\""
 elif command -v yum >/dev/null 2>&1; then
 	PKG_SYS="rpm"
 	PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.rpm"
-	INSTALL_DEPS='yum install -y wget ca-certificates xorg-x11-server-Xvfb dbus-x11 @xfce-desktop-environment'
+	INSTALL_DEPS='yum install -y wget ca-certificates xorg-x11-server-Xvfb dbus-x11'
 	INSTALL_CMD="yum install -y ./${PKG_NAME}"
 	CLEAN_CMD="rm -f \"${PKG_NAME}\""
 else
@@ -74,22 +74,17 @@ else
 fi
 
 # ---- start virtual display ----
-printf "🖼️  Starting virtual display (${XVFB_RESOLUTION})...\n"
-Xvfb :99 -screen 0 "${XVFB_RESOLUTION}" >> "${LOG_PATH}" 2>&1 &
+echo "Starting Xvfb with resolution ${XVFB_RESOLUTION}…"
+Xvfb :99 -screen 0 "${XVFB_RESOLUTION}" &
 export DISPLAY=:99
-
-# ---- start desktop environment ----
-printf "🖥️  Starting XFCE desktop environment...\n"
-sleep 2  # Give Xvfb a moment to start
-startxfce4 >> "${LOG_PATH}" 2>&1 &
 
 # ---- create (or accept) password and start rustdesk ----
 if [[ -z "${RUSTDESK_PASSWORD}" ]]; then
 	RUSTDESK_PASSWORD="$(tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 6)"
 fi
 
-# give the desktop a moment to come up
-sleep 3
+# give Xvfb a moment to start
+sleep 2
 
 printf "🔐 Setting RustDesk password and starting service...\n"
 # set password (requires sudo for system service configuration)
