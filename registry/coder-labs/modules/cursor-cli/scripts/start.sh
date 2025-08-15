@@ -58,10 +58,7 @@ fi
 
 if [ -n "$ARG_AI_PROMPT" ]; then
   printf "AI prompt provided\n"
-  # Note: As of now cursor-agent is not able to handle MCP calls properly, so we are skipping the tasks.
-  # ARGS+=("Execute the task end‑to‑end and also report progress to Coder. Do not only report; always produce the actual deliverable in chat. Task at hand: $ARG_AI_PROMPT")
-
-  ARGS+=("$ARG_AI_PROMPT")
+   ARGS+=("Complete the task at hand in one go. Every step of the way, report your progress using coder_report_task tool with proper summary and statuses. Your task at hand: $ARG_AI_PROMPT")
 fi
 
 # Log and run in background, redirecting all output to the log file
