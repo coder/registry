@@ -41,9 +41,9 @@ variable "xvfb_resolution" {
 }
 
 variable "rustdesk_version" {
-  description = "RustDesk version to install"
+  description = "RustDesk version to install (use 'latest' for most recent release)"
   type        = string
-  default     = "1.4.0"
+  default     = "latest"
 }
 
 resource "coder_script" "rustdesk" {
