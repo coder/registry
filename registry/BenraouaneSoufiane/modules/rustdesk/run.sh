@@ -35,19 +35,19 @@ esac
 if command -v apt-get >/dev/null 2>&1; then
 	PKG_SYS="deb"
 	PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.deb"
-	INSTALL_DEPS='apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y wget ca-certificates xvfb dbus-x11'
+	INSTALL_DEPS='apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y wget ca-certificates xvfb dbus-x11 xkb-data'
 	INSTALL_CMD="apt-get install -y ./${PKG_NAME}"
 	CLEAN_CMD="rm -f \"${PKG_NAME}\""
 elif command -v dnf >/dev/null 2>&1; then
 	PKG_SYS="rpm"
 	PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.rpm"
-	INSTALL_DEPS='dnf install -y wget ca-certificates xorg-x11-server-Xvfb dbus-x11'
+	INSTALL_DEPS='dnf install -y wget ca-certificates xorg-x11-server-Xvfb dbus-x11 xkeyboard-config'
 	INSTALL_CMD="dnf install -y ./${PKG_NAME}"
 	CLEAN_CMD="rm -f \"${PKG_NAME}\""
 elif command -v yum >/dev/null 2>&1; then
 	PKG_SYS="rpm"
 	PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.rpm"
-	INSTALL_DEPS='yum install -y wget ca-certificates xorg-x11-server-Xvfb dbus-x11'
+	INSTALL_DEPS='yum install -y wget ca-certificates xorg-x11-server-Xvfb dbus-x11 xkeyboard-config'
 	INSTALL_CMD="yum install -y ./${PKG_NAME}"
 	CLEAN_CMD="rm -f \"${PKG_NAME}\""
 else
