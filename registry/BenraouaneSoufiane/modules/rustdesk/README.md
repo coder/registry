@@ -51,12 +51,14 @@ module "rustdesk" {
 
 ### Docker container configuration
 
-When using with Docker, add the following to your `docker_container` resource:
+It requires coder' server to be run as root, when using with Docker, add the following to your `docker_container` resource:
 
 ```tf
 resource "docker_container" "workspace" {
+
   # ... other configuration ...
 
+  user       = "root"
   privileged   = true
   network_mode = "host"
 
