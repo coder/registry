@@ -57,14 +57,14 @@ fi
 # ---- install rustdesk if missing ----
 if ! command -v rustdesk >/dev/null 2>&1; then
 	printf "📦 Installing dependencies...\n"
-	bash -c "$INSTALL_DEPS" 2>&1 | tee -a "${LOG_PATH}"
+	sudo bash -c "$INSTALL_DEPS" 2>&1 | tee -a "${LOG_PATH}"
 
 	printf "⬇️  Downloading RustDesk ${RUSTDESK_VERSION} (${PKG_SYS}, ${PKG_ARCH})...\n"
 	URL="https://github.com/rustdesk/rustdesk/releases/download/${RUSTDESK_VERSION}/${PKG_NAME}"
 	wget -q "$URL" 2>&1 | tee -a "${LOG_PATH}"
 
 	printf "🔧 Installing RustDesk...\n"
-	bash -c "$INSTALL_CMD" 2>&1 | tee -a "${LOG_PATH}"
+	sudo bash -c "$INSTALL_CMD" 2>&1 | tee -a "${LOG_PATH}"
 
 	printf "🧹 Cleaning up...\n"
 	bash -c "$CLEAN_CMD" 2>&1 | tee -a "${LOG_PATH}"
@@ -91,8 +91,8 @@ fi
 sleep 3
 
 printf "🔐 Setting RustDesk password and starting service...\n"
-# set password (daemonless; rustdesk CLI handles it)
-rustdesk --password "${RUSTDESK_PASSWORD}" >> "${LOG_PATH}" 2>&1 || true
+# set password (requires sudo for system service configuration)
+sudo rustdesk --password "${RUSTDESK_PASSWORD}" >> "${LOG_PATH}" 2>&1 || true
 rustdesk >> "${LOG_PATH}" 2>&1 &
 
 sleep 3

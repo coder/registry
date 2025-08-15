@@ -32,7 +32,6 @@ module "rustdesk" {
 
 - Coder v2.5 or higher
 - Linux workspace with `apt`, `dnf`, or `yum` package manager
-- Root privileges (required for desktop environment installation and RustDesk password configuration)
 
 ## Examples
 
@@ -57,11 +56,10 @@ When using with Docker, add the following to your `docker_container` resource:
 ```tf
 resource "docker_container" "workspace" {
   # ... other configuration ...
-
+  
   privileged   = true
-  user         = "root"
   network_mode = "host"
-
+  
   ports {
     internal = 21115
     external = 21115
@@ -80,3 +78,4 @@ resource "docker_container" "workspace" {
   }
 }
 ```
+
