@@ -8,6 +8,7 @@ printf "${BOLD}🖥️  Installing RustDesk Remote Desktop\n${RESET}"
 
 # ---- configurable knobs (env overrides) ----
 RUSTDESK_VERSION="${RUSTDESK_VERSION:-latest}"
+LOG_PATH="${LOG_PATH:-/tmp/rustdesk.log}"
 
 # ---- fetch latest version if needed ----
 if [ "$RUSTDESK_VERSION" = "latest" ]; then
