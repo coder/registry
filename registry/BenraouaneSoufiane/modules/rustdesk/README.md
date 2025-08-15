@@ -38,18 +38,18 @@ This is the basic Coder's rustdesk module that installs minimal desktop environm
 
 ```tf
 module "rustdesk" {
-  source    = "registry.coder.com/BenraouaneSoufiane/rustdesk/BenraouaneSoufiane"
-  agent_id  = var.agent_id
+  source   = "registry.coder.com/BenraouaneSoufiane/rustdesk/BenraouaneSoufiane"
+  agent_id = var.agent_id
 }
 ```
 
 Also add this within resource "docker_container" "workspace":
 
 ```tf
-privileged = true
-  user       = "root"
-  network_mode = "host"
-  ports {
+privileged   = true
+user         = "root"
+network_mode = "host"
+ports {
   internal = 21115
   external = 21115
 }
@@ -71,10 +71,10 @@ Also you can customize the rustdesk version, virtual screen dimensions & the pas
 
 ```tf
 module "rustdesk" {
-  source    = "registry.coder.com/BenraouaneSoufiane/rustdesk/BenraouaneSoufiane"
-  agent_id  = var.agent_id
-  rustdesk_password  = "mycustompass"
-  xvfb_resolution    = "1920x1080x24"
-  rustdesk_version   = "1.4.0"
+  source            = "registry.coder.com/BenraouaneSoufiane/rustdesk/BenraouaneSoufiane"
+  agent_id          = var.agent_id
+  rustdesk_password = "mycustompass"
+  xvfb_resolution   = "1920x1080x24"
+  rustdesk_version  = "1.4.0"
 }
 ```
