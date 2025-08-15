@@ -56,10 +56,10 @@ When using with Docker, add the following to your `docker_container` resource:
 ```tf
 resource "docker_container" "workspace" {
   # ... other configuration ...
-  
+
   privileged   = true
   network_mode = "host"
-  
+
   ports {
     internal = 21115
     external = 21115
@@ -78,4 +78,3 @@ resource "docker_container" "workspace" {
   }
 }
 ```
-
