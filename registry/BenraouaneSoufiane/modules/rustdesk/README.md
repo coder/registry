@@ -1,80 +1,94 @@
 ---
-display_name: Rustdesk
-description: Create desktop environment & run rustdesk in your workspace
+display_name: RustDesk
+description: Create a desktop environment and run RustDesk in your workspace
 icon: ../../../../.icons/rustdesk.svg
 verified: false
 tags: [rustdesk, rdp, vm]
 ---
 
-# RustDesk Coder Module
+# RustDesk
 
-This is the basic Coder's rustdesk module that installs minimal desktop environment (xfce) & launches the rustdesk within your workspace
+Installs a minimal desktop environment (XFCE) and launches RustDesk within your workspace to provide remote desktop access. The module outputs the RustDesk ID and password needed to connect from external RustDesk clients.
 
----
+```tf
+module "rustdesk" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/BenraouaneSoufiane/rustdesk/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
+}
+```
 
 ## Features
 
-- Installs RustDesk & launches it in GUI not with black screen
-- Outputs the RustDesk ID and password
-- Automatically launches RustDesk on workspace start
-- Provides an external app link to the [RustDesk web client](https://rustdesk.com/web)
+- Automatically installs XFCE desktop environment
+- Downloads and configures RustDesk
+- Outputs RustDesk ID and password for easy connection
+- Provides external app link to RustDesk web client for browser-based access
+- Starts virtual display (Xvfb) with customizable resolution
+- Customizable screen resolution and RustDesk version
 
----
-
-## Usage
-
-### Prerequisites
+## Requirements
 
 - Coder v2.5 or higher
-- A workspace agent compatible with Linux and `apt` package manager
-- Root scope (to install desktop environment, rustdesk & execute rustdesk --password "somepassword", because rustdesk cli does not provide a way to get the password else setup in advance, the command rustdesk --password "somepassword" only for root users)
+- Linux workspace with `apt`, `dnf`, or `yum` package manager
+- Root privileges (required for desktop environment installation and RustDesk password configuration)
 
----
+## Examples
 
-### Quickstart
-
-1. Add the module to your [Coder Terraform workspace](https://registry.coder.com)
-2. Include it in your `main.tf`:
+### Basic setup
 
 ```tf
 module "rustdesk" {
-  source   = "registry.coder.com/BenraouaneSoufiane/rustdesk/BenraouaneSoufiane"
-  agent_id = var.agent_id
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/BenraouaneSoufiane/rustdesk/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
 }
 ```
 
-Also add this within resource "docker_container" "workspace":
-
-```tf
-privileged   = true
-user         = "root"
-network_mode = "host"
-ports {
-  internal = 21115
-  external = 21115
-}
-ports {
-  internal = 21116
-  external = 21116
-}
-ports {
-  internal = 21118
-  external = 21118
-}
-ports {
-  internal = 21119
-  external = 21119
-}
-```
-
-Also you can customize the rustdesk version, virtual screen dimensions & the pass
+### Custom configuration
 
 ```tf
 module "rustdesk" {
-  source            = "registry.coder.com/BenraouaneSoufiane/rustdesk/BenraouaneSoufiane"
-  agent_id          = var.agent_id
+  count             = data.coder_workspace.me.start_count
+  source            = "registry.coder.com/BenraouaneSoufiane/rustdesk/coder"
+  version           = "1.0.0"
+  agent_id          = coder_agent.example.id
   rustdesk_password = "mycustompass"
   xvfb_resolution   = "1920x1080x24"
   rustdesk_version  = "1.4.0"
 }
 ```
+
+### Docker container configuration
+
+When using with Docker, add the following to your `docker_container` resource:
+
+```tf
+resource "docker_container" "workspace" {
+  # ... other configuration ...
+  
+  privileged   = true
+  user         = "root"
+  network_mode = "host"
+  
+  ports {
+    internal = 21115
+    external = 21115
+  }
+  ports {
+    internal = 21116
+    external = 21116
+  }
+  ports {
+    internal = 21118
+    external = 21118
+  }
+  ports {
+    internal = 21119
+    external = 21119
+  }
+}
+```
+
