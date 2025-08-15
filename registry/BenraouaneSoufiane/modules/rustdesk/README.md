@@ -36,18 +36,7 @@ module "rustdesk" {
 
 ## Examples
 
-### Basic setup
-
-```tf
-module "rustdesk" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/BenraouaneSoufiane/rustdesk/coder"
-  version  = "1.0.0"
-  agent_id = coder_agent.example.id
-}
-```
-
-### Custom configuration
+### Custom configuration with specific version
 
 ```tf
 module "rustdesk" {
@@ -57,7 +46,7 @@ module "rustdesk" {
   agent_id          = coder_agent.example.id
   rustdesk_password = "mycustompass"
   xvfb_resolution   = "1920x1080x24"
-  rustdesk_version  = "1.4.0"
+  rustdesk_version  = "1.4.1"
 }
 ```
 
