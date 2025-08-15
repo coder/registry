@@ -84,6 +84,12 @@ variable "post_install_script" {
   default     = null
 }
 
+variable "additional_extensions" {
+  type        = string
+  description = "Additional extensions configuration in YAML format to append to the config."
+  default     = null
+}
+
 locals {
   base_extensions = <<-EOT
 coder:
@@ -106,6 +112,14 @@ developer:
   name: developer
   timeout: 300
   type: builtin
+EOT
+
+  # Add two spaces to each line of extensions to match YAML structure
+  formatted_base        = "  ${replace(trimspace(local.base_extensions), "\n", "\n  ")}"
+  additional_extensions = var.additional_extensions != null ? "\n  ${replace(trimspace(var.additional_extensions), "\n", "\n  ")}" : ""
+  combined_extensions   = <<-EOT
+extensions:
+${local.formatted_base}${local.additional_extensions}
 EOT
 
   app_slug        = "amp"
@@ -152,7 +166,7 @@ module "agentapi" {
     chmod +x /tmp/install.sh
     ARG_INSTALL_SOURCEGRAPH_AMP='${var.install_sourcegraph_amp}' \
     SOURCEGRAPH_AMP_START_DIRECTORY='${var.folder}' \
-    BASE_EXTENSIONS='${replace(local.base_extensions, "'", "'\\''")}' \
+    ARG_SOURCEGRAPH_AMP_CONFIG="$(echo -n '${base64encode(local.combined_extensions)}' | base64 -d)" \
     /tmp/install.sh
   EOT
 }
