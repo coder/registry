@@ -1,7 +1,7 @@
 ---
 display_name: "Benraouane Soufiane"
 bio: "Full stack developer creating awesome things."
-avatar_url: "./.images/avatar.png"
+avatar: "./.images/avatar.png"
 github: "benraouanesoufiane"
 linkedin: "https://www.linkedin.com/in/benraouane-soufiane" # Optional
 website: "https://benraouanesoufiane.com" # Optional
