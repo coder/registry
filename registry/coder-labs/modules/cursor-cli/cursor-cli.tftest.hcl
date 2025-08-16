@@ -51,14 +51,14 @@ run "test_cursor_cli_with_custom_options" {
   command = plan
 
   variables {
-    agent_id        = "test-agent-789"
-    folder          = "/home/coder/custom"
-    order           = 5
-    group           = "development"
-    icon            = "/icon/custom.svg"
-    model           = "sonnet-4"
-    ai_prompt       = "Help me write better code"
-    force           = false
+    agent_id           = "test-agent-789"
+    folder             = "/home/coder/custom"
+    order              = 5
+    group              = "development"
+    icon               = "/icon/custom.svg"
+    model              = "sonnet-4"
+    ai_prompt          = "Help me write better code"
+    force              = false
     install_cursor_cli = false
     install_agentapi   = false
   }
@@ -100,7 +100,7 @@ run "test_cursor_cli_with_mcp_and_rules" {
   variables {
     agent_id = "test-agent-mcp"
     folder   = "/home/coder/mcp-test"
-    mcp      = jsonencode({
+    mcp = jsonencode({
       mcpServers = {
         test = {
           command = "test-server"
@@ -109,7 +109,7 @@ run "test_cursor_cli_with_mcp_and_rules" {
       }
     })
     rules_files = {
-      "general.md" = "# General coding rules\n- Write clean code\n- Add comments"
+      "general.md"  = "# General coding rules\n- Write clean code\n- Add comments"
       "security.md" = "# Security rules\n- Never commit secrets\n- Validate inputs"
     }
   }
@@ -134,9 +134,9 @@ run "test_cursor_cli_with_scripts" {
   command = plan
 
   variables {
-    agent_id = "test-agent-scripts"
-    folder   = "/home/coder/scripts"
-    pre_install_script = "echo 'Pre-install script'"
+    agent_id            = "test-agent-scripts"
+    folder              = "/home/coder/scripts"
+    pre_install_script  = "echo 'Pre-install script'"
     post_install_script = "echo 'Post-install script'"
   }
 
