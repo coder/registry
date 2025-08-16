@@ -19,10 +19,10 @@ if [ -f "$log_file_path" ]; then
     mv "$log_file_path" "$log_file_path"".$(date +%s)"
 fi
 
-# see the remove-last-session-id.js script for details
+# see the remove-last-session-id.sh script for details
 # about why we need it
 # avoid exiting if the script fails
-node "$scripts_dir/remove-last-session-id.js" "$(pwd)" || true
+bash "$scripts_dir/remove-last-session-id.sh" "$(pwd)" 2>/dev/null || true
 
 # we'll be manually handling errors from this point on
 set +o errexit

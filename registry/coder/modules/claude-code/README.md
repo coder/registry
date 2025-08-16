@@ -28,7 +28,6 @@ module "claude-code" {
 
 ## Prerequisites
 
-- Node.js and npm must be installed in your workspace to install Claude Code
 - You must add the [Coder Login](https://registry.coder.com/modules/coder-login) module to your template
 
 The `codercom/oss-dogfood:latest` container image can be used for testing on container-based workspaces.
