@@ -12,11 +12,11 @@ terraform {
 provider "coder" {}
 
 provider "proxmox" {
-  endpoint  = var.proxmox_api_url
-  api_token = "${var.proxmox_api_token_id}=${var.proxmox_api_token_secret}"
-  insecure  = true
+endpoint  = var.proxmox_api_url
+api_token = "${var.proxmox_api_token_id}=${var.proxmox_api_token_secret}"
+insecure  = true
 
-  # Needed to connect to the VM to place cloud-init files
+  # SSH is still needed for file uploads to Proxmox
   ssh {
     username = var.proxmox_ssh_user
     password = var.proxmox_password
@@ -42,6 +42,7 @@ variable "proxmox_api_token_secret" {
   sensitive = true
 }
 
+
 variable "proxmox_host" {
   description = "Proxmox node IP or DNS for SSH"
   type        = string
@@ -64,7 +65,6 @@ variable "proxmox_node" {
   type        = string
   default     = "pve"
 }
-
 variable "disk_storage" {
   description = "Disk storage (e.g., local-lvm)"
   type        = string
@@ -124,11 +124,6 @@ data "coder_parameter" "disk_size_gb" {
     max       = 100
     monotonic = "increasing"
   }
-}
-
-resource "tls_private_key" "ssh" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
 }
 
 resource "coder_agent" "dev" {
@@ -200,7 +195,6 @@ locals {
   linux_user       = contains(["root", "admin", "daemon", "bin", "sys"], local.base_user) ? "${local.base_user}1" : local.base_user # to avoid conflict with system users
 
   rendered_user_data = templatefile("${path.module}/cloud-init/user-data.tftpl", {
-    ssh_key               = tls_private_key.ssh.public_key_openssh
     coder_token           = coder_agent.dev.token
     coder_init_script_b64 = base64encode(coder_agent.dev.init_script)
     hostname              = local.vm_name

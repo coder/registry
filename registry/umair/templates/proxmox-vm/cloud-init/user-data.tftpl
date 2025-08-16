@@ -6,8 +6,6 @@ users:
     groups: [sudo]
     shell: /bin/bash
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-    ssh_authorized_keys:
-      - ${ssh_key}
 
 package_update: false
 package_upgrade: false
