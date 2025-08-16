@@ -169,11 +169,12 @@ resource "coder_script" "claude_code" {
       fi
       echo "Installing Claude Code..."
       npm install -g @anthropic-ai/claude-code@${var.claude_code_version}
-    fi
-
-    if ! command_exists node; then
-      echo "Error: Node.js is not installed. Please install Node.js manually."
-      exit 1
+      
+      # Verify Node.js is available after installation
+      if ! command_exists node; then
+        echo "Error: Node.js is not installed. Please install Node.js manually."
+        exit 1
+      fi
     fi
 
     # Install AgentAPI if enabled
