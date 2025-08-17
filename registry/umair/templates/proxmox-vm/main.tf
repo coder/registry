@@ -12,11 +12,11 @@ terraform {
 provider "coder" {}
 
 provider "proxmox" {
-endpoint  = var.proxmox_api_url
-api_token = "${var.proxmox_api_token_id}=${var.proxmox_api_token_secret}"
-insecure  = true
+  endpoint  = var.proxmox_api_url
+  api_token = "${var.proxmox_api_token_id}=${var.proxmox_api_token_secret}"
+  insecure  = true
 
-  # SSH is still needed for file uploads to Proxmox
+  # SSH is needed for file uploads to Proxmox
   ssh {
     username = var.proxmox_ssh_user
     password = var.proxmox_password
@@ -68,7 +68,7 @@ variable "proxmox_node" {
 variable "disk_storage" {
   description = "Disk storage (e.g., local-lvm)"
   type        = string
-  default     = "local-lvm"
+  default     = "local-lvm" / onboarding
 }
 
 variable "snippet_storage" {
