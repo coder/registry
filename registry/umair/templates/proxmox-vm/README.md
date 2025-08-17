@@ -1,7 +1,6 @@
 ---
 display_name: Proxmox VM
-description: Provision 
- VMs on Proxmox as Coder workspaces
+description: Provision VMs on Proxmox VE as Coder workspaces
 icon: ../../../../.icons/proxmox.svg
 verified: false
 tags: [proxmox, vm, cloud-init, qemu]
