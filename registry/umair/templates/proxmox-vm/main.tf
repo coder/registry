@@ -248,7 +248,6 @@ resource "proxmox_virtual_environment_vm" "workspace" {
     interface    = "scsi0"
     datastore_id = var.disk_storage
     size         = data.coder_parameter.disk_size_gb.value
-    ssd          = true
   }
 
   initialization {
