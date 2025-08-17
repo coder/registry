@@ -39,6 +39,7 @@ write_files:
       Environment=HOME=/home/${linux_user}
       Environment=CODER_AGENT_TOKEN=${coder_token}
       ExecStart=/opt/coder/init.sh
+      OOMScoreAdjust=-1000
       Restart=always
       RestartSec=5
 
@@ -46,6 +47,7 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
+  - systemctl daemon-reload
   - systemctl enable --now coder-agent.service
 
 final_message: "Cloud-init complete on ${hostname}" 

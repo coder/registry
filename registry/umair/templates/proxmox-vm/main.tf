@@ -68,7 +68,7 @@ variable "proxmox_node" {
 variable "disk_storage" {
   description = "Disk storage (e.g., local-lvm)"
   type        = string
-  default     = "local-lvm" / onboarding
+  default     = "local-lvm"
 }
 
 variable "snippet_storage" {
@@ -142,30 +142,12 @@ resource "coder_agent" "dev" {
   EOT
 
   metadata {
-    display_name = "CPU Usage (Host)"
-    key          = "cpu_usage_host"
-    script       = "coder stat cpu --host"
-    interval     = 10
-    timeout      = 1
-    order        = 2
-  }
-
-  metadata {
-    display_name = "RAM Usage (Host)"
-    key          = "ram_usage_host"
-    script       = "coder stat mem --host"
-    interval     = 10
-    timeout      = 1
-    order        = 1
-  }
-
-  metadata {
     display_name = "CPU Usage"
     key          = "cpu_usage"
     script       = "coder stat cpu"
     interval     = 10
     timeout      = 1
-    order        = 2
+    order        = 1
   }
 
   metadata {
@@ -174,7 +156,7 @@ resource "coder_agent" "dev" {
     script       = "coder stat mem"
     interval     = 10
     timeout      = 1
-    order        = 1
+    order        = 2
   }
 
   metadata {
@@ -183,7 +165,7 @@ resource "coder_agent" "dev" {
     script       = "coder stat disk"
     interval     = 600
     timeout      = 30
-    order        = 1
+    order        = 3
   }
 }
 
