@@ -1,20 +1,21 @@
 ---
-display_name: Proxmox (Cloud‑Init)
-description: Provision Ubuntu VMs on Proxmox as Coder workspaces
+display_name: Proxmox VM
+description: Provision 
+ VMs on Proxmox as Coder workspaces
 icon: ../../../../.icons/proxmox.svg
 verified: false
 tags: [proxmox, vm, cloud-init, qemu]
 ---
 
-# Proxmox Cloud‑Init Template for Coder
+# Proxmox VM Template for Coder
 
-Provision Ubuntu LTS VMs on Proxmox as [Coder workspaces](https://coder.com/docs/workspaces). The template clones a cloud‑init base image, injects user‑data via Snippets, and runs the Coder agent under the workspace owner's Linux user.
+Provision Linux VMs on Proxmox as [Coder workspaces](https://coder.com/docs/workspaces). The template clones a cloud‑init base image, injects user‑data via Snippets, and runs the Coder agent under the workspace owner's Linux user.
 
 ## Prerequisites
 
-- Proxmox VE 8/9 with reachable node(s)
-- Coder v2.25+ (VMs must have outbound HTTPS to Coder)
+- Proxmox VE 8/9
 - Proxmox API token with access to nodes and storages
+- SSH access from Coder provisioner to Proxmox VE
 - Storage with "Snippets" content enabled
 - Ubuntu cloud‑init image/template on Proxmox
   - Latest images: https://cloud-images.ubuntu.com/ ([source](https://cloud-images.ubuntu.com/))
@@ -55,12 +56,6 @@ Verify:
 ```bash
 qm config 999 | grep -E 'template:|agent:|boot:|ide2:|scsi0:'
 ```
-
-### Why this works
-
-- Real bootable root disk + correct boot order eliminates iPXE boot‑failed loops
-- QEMU Guest Agent (QGA) enabled lets Proxmox report guest IPs for automation
-- Snippets + user_data_file_id provide reliable cloud‑init user‑data with `bpg/proxmox`
 
 ### Enable Snippets via GUI
 

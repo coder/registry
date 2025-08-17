@@ -16,7 +16,7 @@ packages:
   - jq
 
 write_files:
-  - path: /usr/local/bin/coder-init.sh
+  - path: /opt/coder/init.sh
     permissions: "0755"
     owner: root:root
     encoding: b64
@@ -38,7 +38,7 @@ write_files:
       WorkingDirectory=/home/${linux_user}
       Environment=HOME=/home/${linux_user}
       Environment=CODER_AGENT_TOKEN=${coder_token}
-      ExecStart=/usr/bin/env bash /usr/local/bin/coder-init.sh
+      ExecStart=/opt/coder/init.sh
       Restart=always
       RestartSec=5
 
@@ -46,6 +46,6 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
-  - [ bash, -lc, "systemctl enable --now coder-agent.service" ]
+  - systemctl enable --now coder-agent.service
 
 final_message: "Cloud-init complete on ${hostname}" 

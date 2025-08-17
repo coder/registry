@@ -182,7 +182,7 @@ resource "coder_agent" "dev" {
     key          = "disk_usage"
     script       = "coder stat disk"
     interval     = 600
-    timeout      = 1
+    timeout      = 30
     order        = 1
   }
 }
