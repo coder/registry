@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 BOLD='\033[0;1m'
 RESET='\033[0m'
@@ -35,19 +34,22 @@ esac
 if command -v apt-get >/dev/null 2>&1; then
 	PKG_SYS="deb"
 	PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.deb"
-	INSTALL_DEPS='apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y wget ca-certificates xvfb dbus-x11 xkb-data'
+	INSTALL_DEPS='apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y wget libva2 libva-drm2 libva-x11-2 libgstreamer-plugins-base1.0-0 gstreamer1.0-pipewire xfce4 xfce4-goodies xvfb x11-xserver-utils dbus-x11
+'
 	INSTALL_CMD="apt-get install -y ./${PKG_NAME}"
 	CLEAN_CMD="rm -f \"${PKG_NAME}\""
 elif command -v dnf >/dev/null 2>&1; then
 	PKG_SYS="rpm"
 	PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.rpm"
-	INSTALL_DEPS='dnf install -y wget ca-certificates xorg-x11-server-Xvfb dbus-x11 xkeyboard-config'
+	INSTALL_DEPS='dnf install -y wget libva2 libva-drm2 libva-x11-2 libgstreamer-plugins-base1.0-0 gstreamer1.0-pipewire xfce4 xfce4-goodies xvfb x11-xserver-utils dbus-x11
+'
 	INSTALL_CMD="dnf install -y ./${PKG_NAME}"
 	CLEAN_CMD="rm -f \"${PKG_NAME}\""
 elif command -v yum >/dev/null 2>&1; then
 	PKG_SYS="rpm"
 	PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.rpm"
-	INSTALL_DEPS='yum install -y wget ca-certificates xorg-x11-server-Xvfb dbus-x11 xkeyboard-config'
+	INSTALL_DEPS='yum install -y wget libva2 libva-drm2 libva-x11-2 libgstreamer-plugins-base1.0-0 gstreamer1.0-pipewire xfce4 xfce4-goodies xvfb x11-xserver-utils dbus-x11
+'
 	INSTALL_CMD="yum install -y ./${PKG_NAME}"
 	CLEAN_CMD="rm -f \"${PKG_NAME}\""
 else
@@ -78,21 +80,39 @@ echo "Starting Xvfb with resolution ${XVFB_RESOLUTION}…"
 Xvfb :99 -screen 0 "${XVFB_RESOLUTION}" &
 export DISPLAY=:99
 
+
+# Wait for X to be ready
+for i in {1..10}; do
+    if xdpyinfo -display :99 >/dev/null 2>&1; then
+        echo "X display is ready"
+        break
+    fi
+    sleep 1
+done
+
 # ---- create (or accept) password and start rustdesk ----
 if [[ -z "${RUSTDESK_PASSWORD}" ]]; then
 	RUSTDESK_PASSWORD="$(tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 6)"
 fi
 
-# give Xvfb a moment to start
-sleep 2
+# Start desktop environment
+xfce4-session &
+
+# Wait for xfce session to be ready (rudimentary check)
+echo "Waiting for xfce4-session to initialize..."
+
+sleep 5  # Adjust if needed
+
 
 printf "🔐 Setting RustDesk password and starting service...\n"
 # set password (requires sudo for system service configuration)
-sudo rustdesk --password "${RUSTDESK_PASSWORD}" >> "${LOG_PATH}" 2>&1 || true
-rustdesk >> "${LOG_PATH}" 2>&1 &
+rustdesk &
+rustdesk --password "${RUSTDESK_PASSWORD}"
 
-sleep 3
-RID="$(rustdesk --get-id 2>/dev/null || echo 'Unable to get ID')"
+
+sleep 5 # Adjust if needed
+
+RID="$(rustdesk --get-id)"
 
 printf "🥳 RustDesk setup complete!\n\n"
 printf "${BOLD}📋 Connection Details:${RESET}\n"
@@ -102,4 +122,4 @@ printf "   Display:            ${DISPLAY} (${XVFB_RESOLUTION})\n"
 printf "\n📝 Logs available at: ${LOG_PATH}\n\n"
 
 # keep the script alive if needed (helpful in some runners)
-wait -n || true
+#wait -n || true
