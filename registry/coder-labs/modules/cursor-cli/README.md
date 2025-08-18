@@ -109,7 +109,7 @@ module "cursor_cli" {
 
 > [!NOTE]
 > A `.cursor` directory will be created in the specified `folder`, containing the MCP configuration, rules.
-> To use this module with tasks, please pass the API Key obtained from Cursor  to the `api_key` variable. To obtain the api key follow the instructions [here](https://docs.cursor.com/en/cli/reference/authentication#step-1%3A-generate-an-api-key)
+> To use this module with tasks, please pass the API Key obtained from Cursor to the `api_key` variable. To obtain the api key follow the instructions [here](https://docs.cursor.com/en/cli/reference/authentication#step-1%3A-generate-an-api-key)
 
 ## References
 
