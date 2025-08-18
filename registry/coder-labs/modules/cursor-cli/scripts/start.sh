@@ -64,4 +64,4 @@ fi
 # Log and run in background, redirecting all output to the log file
 printf "Running: %q %s\n" "$CURSOR_CMD" "$(printf '%q ' "${ARGS[@]}")"
 
-agentapi server --term-width 67 --term-height 1190 -- "$CURSOR_CMD" "${ARGS[@]}"
+agentapi server --type cursor --term-width 67 --term-height 1190 -- "$CURSOR_CMD" "${ARGS[@]}"
