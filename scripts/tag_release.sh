@@ -231,11 +231,11 @@ extract_version_from_readme() {
   }
 
   local version_line
-  version_line=$(grep -E "source\s*=\s*\"registry\.coder\.com/${namespace}/${module_name}" "$readme_path" | head -1 || echo "")
+  version_line=$(grep -E "source[[:space:]]*=[[:space:]]*\"registry\.coder\.com/${namespace}/${module_name}" "$readme_path" | head -1 || echo "")
 
   if [ -n "$version_line" ]; then
     local version
-    version=$(echo "$version_line" | sed -n 's/.*version\s*=\s*"\([^"]*\)".*/\1/p')
+    version=$(echo "$version_line" | sed -n 's/.*version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p')
     if [ -n "$version" ]; then
       log "DEBUG" "Found version '$version' from source line: $version_line"
       echo "$version"
@@ -244,7 +244,7 @@ extract_version_from_readme() {
   fi
 
   local fallback_version
-  fallback_version=$(grep -E 'version\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"' "$readme_path" | head -1 | sed 's/.*version\s*=\s*"\([^"]*\)".*/\1/' || echo "")
+  fallback_version=$(grep -E 'version[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+"' "$readme_path" | head -1 | sed 's/.*version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/' || echo "")
 
   if [ -n "$fallback_version" ]; then
     log "DEBUG" "Found fallback version '$fallback_version'"
