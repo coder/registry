@@ -103,8 +103,7 @@ add_json_error() {
   local details="${3:-}"
   local exit_code="${4:-1}"
 
-  JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg type "$type" --arg msg "$message" --arg details "$details" --argjson code "$exit_code" \
-    '.errors += [{"type": $type, "message": $msg, "details": $details, "exit_code": $code}]')
+  JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg type "$type" --arg msg "$message" --arg details "$details" --argjson code "$exit_code" '.errors += [{"type": $type, "message": $msg, "details": $details, "exit_code": $code}]')
 }
 
 add_json_warning() {
@@ -112,8 +111,7 @@ add_json_warning() {
   local message="$2"
   local type="$3"
 
-  JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg module "$module" --arg msg "$message" --arg type "$type" \
-    '.warnings += [{"module": $module, "message": $msg, "type": $type}]')
+  JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg module "$module" --arg msg "$message" --arg type "$type" '.warnings += [{"module": $module, "message": $msg, "type": $type}]')
 }
 
 add_json_module() {
@@ -125,9 +123,7 @@ add_json_module() {
   local status="$6"
   local already_existed="$7"
 
-  JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg ns "$namespace" --arg name "$module_name" --arg path "$path" \
-    --arg version "$version" --arg tag "$tag_name" --arg status "$status" --argjson existed "$already_existed" \
-    '.modules += [{"namespace": $ns, "module_name": $name, "path": $path, "version": $version, "tag_name": $tag, "status": $status, "already_existed": $existed}]')
+  JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg ns "$namespace" --arg name "$module_name" --arg path "$path" --arg version "$version" --arg tag "$tag_name" --arg status "$status" --argjson existed "$already_existed" '.modules += [{"namespace": $ns, "module_name": $name, "path": $path, "version": $version, "tag_name": $tag, "status": $status, "already_existed": $existed}]')
 }
 
 parse_arguments() {
@@ -235,11 +231,11 @@ extract_version_from_readme() {
   }
 
   local version_line
-  version_line=$(grep -E "source\s*=\s*\"registry\.coder\.com/${namespace}/${module_name}" "$readme_path" | head -1 || echo "")
+  version_line=$(grep -E "source[[:space:]]*=[[:space:]]*\"registry\.coder\.com/${namespace}/${module_name}" "$readme_path" | head -1 || echo "")
 
   if [ -n "$version_line" ]; then
     local version
-    version=$(echo "$version_line" | sed -n 's/.*version\s*=\s*"\([^"]*\)".*/\1/p')
+    version=$(echo "$version_line" | sed -n 's/.*version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p')
     if [ -n "$version" ]; then
       log "DEBUG" "Found version '$version' from source line: $version_line"
       echo "$version"
@@ -248,7 +244,7 @@ extract_version_from_readme() {
   fi
 
   local fallback_version
-  fallback_version=$(grep -E 'version\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"' "$readme_path" | head -1 | sed 's/.*version\s*=\s*"\([^"]*\)".*/\1/' || echo "")
+  fallback_version=$(grep -E 'version[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+"' "$readme_path" | head -1 | sed 's/.*version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/' || echo "")
 
   if [ -n "$fallback_version" ]; then
     log "DEBUG" "Found fallback version '$fallback_version'"
