@@ -111,7 +111,7 @@ locals {
   encoded_post_install_script        = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
   agentapi_start_script_b64          = base64encode(file("${path.module}/scripts/agentapi-start.sh"))
   agentapi_wait_for_start_script_b64 = base64encode(file("${path.module}/scripts/agentapi-wait-for-start.sh"))
-  remove_last_session_id_script_b64  = base64encode(file("${path.module}/scripts/remove-last-session-id.js"))
+  remove_last_session_id_script_b64  = base64encode(file("${path.module}/scripts/remove-last-session-id.sh"))
   claude_code_app_slug               = "ccw"
 }
 
@@ -129,6 +129,21 @@ resource "coder_script" "claude_code" {
       command -v "$1" >/dev/null 2>&1
     }
 
+    function install_claude_code_cli() {
+      echo "Installing Claude Code via official installer"
+      set +e
+      curl -fsSL claude.ai/install.sh | bash -s -- "${var.claude_code_version}" 2>&1
+      CURL_EXIT=$${PIPESTATUS[0]}
+      set -e
+      if [ $CURL_EXIT -ne 0 ]; then
+        echo "Claude Code installer failed with exit code $$CURL_EXIT"
+      fi
+
+      # Ensure binaries are discoverable.
+      export PATH="~/.local/bin:$PATH"
+      echo "Installed Claude Code successfully. Version: $(claude --version || echo 'unknown')"
+    }
+
     if [ ! -d "${local.workdir}" ]; then
       echo "Warning: The specified folder '${local.workdir}' does not exist."
       echo "Creating the folder..."
@@ -143,37 +158,7 @@ resource "coder_script" "claude_code" {
     fi
 
     if [ "${var.install_claude_code}" = "true" ]; then
-      if ! command_exists npm; then
-        echo "npm not found, checking for Node.js installation..."
-        if ! command_exists node; then
-          echo "Node.js not found, installing Node.js via NVM..."
-          export NVM_DIR="$HOME/.nvm"
-          if [ ! -d "$NVM_DIR" ]; then
-            mkdir -p "$NVM_DIR"
-            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-          else
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-          fi
-          
-          nvm install --lts
-          nvm use --lts
-          nvm alias default node
-          
-          echo "Node.js installed: $(node --version)"
-          echo "npm installed: $(npm --version)"
-        else
-          echo "Node.js is installed but npm is not available. Please install npm manually."
-          exit 1
-        fi
-      fi
-      echo "Installing Claude Code..."
-      npm install -g @anthropic-ai/claude-code@${var.claude_code_version}
-    fi
-
-    if ! command_exists node; then
-      echo "Error: Node.js is not installed. Please install Node.js manually."
-      exit 1
+      install_claude_code_cli
     fi
 
     # Install AgentAPI if enabled
@@ -214,7 +199,7 @@ resource "coder_script" "claude_code" {
 
     echo -n "${local.agentapi_start_script_b64}" | base64 -d > "$module_path/scripts/agentapi-start.sh"
     echo -n "${local.agentapi_wait_for_start_script_b64}" | base64 -d > "$module_path/scripts/agentapi-wait-for-start.sh"
-    echo -n "${local.remove_last_session_id_script_b64}" | base64 -d > "$module_path/scripts/remove-last-session-id.js"
+    echo -n "${local.remove_last_session_id_script_b64}" | base64 -d > "$module_path/scripts/remove-last-session-id.sh"
     chmod +x "$module_path/scripts/agentapi-start.sh"
     chmod +x "$module_path/scripts/agentapi-wait-for-start.sh"
 
