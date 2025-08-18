@@ -28,7 +28,6 @@ JSON_OUTPUT='{
 readonly EXIT_SUCCESS=0
 readonly EXIT_ERROR=1
 readonly EXIT_NO_ACTION_NEEDED=2
-readonly EXIT_VALIDATION_FAILED=3
 
 usage() {
   cat << EOF
@@ -52,7 +51,7 @@ EXAMPLES:
   $0 -m code-server -d    # Target specific module
   $0 -n coder -m code-server -d  # Target module in namespace
 
-Exit codes: 0=success, 1=error, 2=no action needed, 3=validation failed
+Exit codes: 0=success, 1=error, 2=no action needed
 EOF
   exit 0
 }
@@ -230,29 +229,38 @@ extract_version_from_readme() {
     return 1
   }
 
-  local version_line
-  version_line=$(grep -E "source[[:space:]]*=[[:space:]]*\"registry\.coder\.com/${namespace}/${module_name}" "$readme_path" | head -1 || echo "")
+  local version
+  version=$(extract_version_from_module_block "$readme_path" "$namespace" "$module_name")
 
-  if [ -n "$version_line" ]; then
-    local version
-    version=$(echo "$version_line" | sed -n 's/.*version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p')
-    if [ -n "$version" ]; then
-      log "DEBUG" "Found version '$version' from source line: $version_line"
-      echo "$version"
-      return 0
-    fi
-  fi
-
-  local fallback_version
-  fallback_version=$(grep -E 'version[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+"' "$readme_path" | head -1 | sed 's/.*version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/' || echo "")
-
-  if [ -n "$fallback_version" ]; then
-    log "DEBUG" "Found fallback version '$fallback_version'"
-    echo "$fallback_version"
+  if [ -n "$version" ]; then
+    log "DEBUG" "Found version '$version' from module block for $namespace/$module_name"
+    echo "$version"
     return 0
   fi
 
-  log "DEBUG" "No version found in $readme_path"
+  log "DEBUG" "No version found in module block for $namespace/$module_name in $readme_path"
+  return 1
+}
+
+extract_version_from_module_block() {
+  local readme_path="$1"
+  local namespace="$2"
+  local module_name="$3"
+
+  local version
+  version=$(grep -A 10 "source[[:space:]]*=[[:space:]]*\"registry\.coder\.com/${namespace}/${module_name}/coder" "$readme_path" \
+    | sed '/^[[:space:]]*}/q' \
+    | grep -E "version[[:space:]]*=[[:space:]]*\"[^\"]+\"" \
+    | head -1 \
+    | sed 's/.*version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/')
+
+  if [ -n "$version" ]; then
+    log "DEBUG" "Found version '$version' for $namespace/$module_name"
+    echo "$version"
+    return 0
+  fi
+
+  log "DEBUG" "No version found within module block for $namespace/$module_name"
   return 1
 }
 
@@ -546,7 +554,7 @@ create_and_push_tags() {
     echo ""
   fi
 
-  if [ $pushed_tags -gt 0 ]; then
+  if [ "$pushed_tags" -gt 0 ]; then
     if [[ "$OUTPUT_FORMAT" != "json" ]]; then
       log "SUCCESS" "🎉 Successfully created and pushed $pushed_tags release tags!"
       echo ""
@@ -606,7 +614,7 @@ main() {
   detect_exit_code=$?
 
   case $detect_exit_code in
-    $EXIT_NO_ACTION_NEEDED)
+    "$EXIT_NO_ACTION_NEEDED")
       if [[ "$OUTPUT_FORMAT" == "json" ]]; then
         finalize_json_output "$@"
       else
@@ -614,7 +622,7 @@ main() {
       fi
       exit $EXIT_SUCCESS
       ;;
-    $EXIT_ERROR)
+    "$EXIT_ERROR")
       if [[ "$OUTPUT_FORMAT" == "json" ]]; then
         JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq '.summary.operation_status = "scan_failed"')
         finalize_json_output "$@"
