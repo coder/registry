@@ -3,7 +3,7 @@ display_name: Cursor CLI
 icon: ../../../../.icons/cursor.svg
 description: Run Cursor Agent CLI in your workspace for AI pair programming
 verified: true
- tags: [agent, cursor, ai, tasks]
+tags: [agent, cursor, ai, tasks]
 ---
 
 # Cursor CLI
