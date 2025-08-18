@@ -37,7 +37,6 @@ module "cursor_cli" {
 
   # Optional
   install_cursor_cli = true
-  cursor_cli_version = "latest"
   force              = true
   model              = "gpt-5"
   ai_prompt          = data.coder_parameter.ai_prompt.value
