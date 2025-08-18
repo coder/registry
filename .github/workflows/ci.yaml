@@ -48,7 +48,7 @@ jobs:
       - name: Validate formatting
         run: bun fmt:ci
       - name: Check for typos
-        uses: crate-ci/typos@v1.35.3
+        uses: crate-ci/typos@v1.35.4
         with:
           config: .github/typos.toml
   validate-readme-files:
