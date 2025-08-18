@@ -80,7 +80,7 @@ function configure_mcp() {
     if [ "${ARG_SOURCEGRAPH_AMP_CONFIG}" != "" ]; then
         echo "Configuring AMP..."
         mkdir -p "$HOME/.config/amp"
-        echo "$ARG_SOURCEGRAPH_AMP_CONFIG" >>"$HOME/.config/amp/config.yaml"
+        echo "$ARG_SOURCEGRAPH_AMP_CONFIG" > "$HOME/.config/amp/config.yaml"
     else
         echo "Skipping AMP configuration"
     fi
