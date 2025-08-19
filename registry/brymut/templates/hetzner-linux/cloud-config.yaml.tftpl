@@ -15,7 +15,7 @@ fs_setup:
 
 mounts:
   - [
-      "LABEL=${home_volume_label}",
+      "/dev/disk/by-id/scsi-0HC_Volume_${volume_id}",
       "/home/${username}",
       auto,
       "defaults,uid=1000,gid=1000",
