@@ -16,7 +16,6 @@ module "codex" {
   version          = "1.0.0"
   agent_id         = coder_agent.example.id
   openai_api_key   = var.openai_api_key
-  agentapi_version = "v0.3.3"
   folder           = "/home/coder/project"
 }
 ```
