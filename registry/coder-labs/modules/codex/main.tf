@@ -113,6 +113,12 @@ variable "codex_system_prompt" {
   default     = ""
 }
 
+variable "full_auto" {
+  type        = bool
+  description = "Whether to run Codex in full-auto mode for automated task execution."
+  default     = false
+}
+
 resource "coder_env" "openai_api_key" {
   agent_id = var.agent_id
   name     = "OPENAI_API_KEY"
@@ -154,6 +160,7 @@ module "agentapi" {
      ARG_CODEX_MODEL='${var.codex_model}' \
      ARG_CODEX_START_DIRECTORY='${var.folder}' \
      ARG_CODEX_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
+     ARG_CODEX_FULL_AUTO='${var.full_auto}' \
      /tmp/start.sh
    EOT
 

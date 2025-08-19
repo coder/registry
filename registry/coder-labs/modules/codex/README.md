@@ -70,6 +70,7 @@ module "codex" {
   openai_api_key = "..."
   ai_prompt      = data.coder_parameter.ai_prompt.value
   folder         = "/home/coder/project"
+  full_auto      = true
 }
 ```
 
