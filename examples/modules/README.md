@@ -103,3 +103,4 @@ module "code_server" {
   version  = "1.0.19"
   agent_id = coder_agent.example.id
 }
+```
