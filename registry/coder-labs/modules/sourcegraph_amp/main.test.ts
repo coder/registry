@@ -78,7 +78,7 @@ describe("sourcegraph-amp", async () => {
     await execModuleScript(id);
     await expectAgentAPIStarted(id);
   });
-  
+
   test("api-key", async () => {
     const apiKey = "test-api-key-123";
     const { id } = await setup({
@@ -87,7 +87,10 @@ describe("sourcegraph-amp", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/.sourcegraph-amp-module/agentapi-start.log");
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.sourcegraph-amp-module/agentapi-start.log",
+    );
     expect(resp).toContain("sourcegraph_amp_api_key provided !");
   });
 
@@ -99,7 +102,10 @@ describe("sourcegraph-amp", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/.sourcegraph-amp-module/install.log");
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.sourcegraph-amp-module/install.log",
+    );
     expect(resp).toContain(folder);
   });
 
@@ -111,29 +117,41 @@ describe("sourcegraph-amp", async () => {
       },
     });
     await execModuleScript(id);
-    const preLog = await readFileContainer(id, "/home/coder/.sourcegraph-amp-module/pre_install.log");
+    const preLog = await readFileContainer(
+      id,
+      "/home/coder/.sourcegraph-amp-module/pre_install.log",
+    );
     expect(preLog).toContain("pre-install-script");
-    const postLog = await readFileContainer(id, "/home/coder/.sourcegraph-amp-module/post_install.log");
+    const postLog = await readFileContainer(
+      id,
+      "/home/coder/.sourcegraph-amp-module/post_install.log",
+    );
     expect(postLog).toContain("post-install-script");
   });
 
   test("system-prompt", async () => {
     const prompt = "this is a system prompt for AMP";
-    const {id} = await setup();
+    const { id } = await setup();
     await execModuleScript(id, {
-      SOURCEGRAPH_AMP_SYSTEM_PROMPT : prompt,
+      SOURCEGRAPH_AMP_SYSTEM_PROMPT: prompt,
     });
-    const resp = await readFileContainer(id, "/home/coder/.sourcegraph-amp-module/SYSTEM_PROMPT.md");
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.sourcegraph-amp-module/SYSTEM_PROMPT.md",
+    );
     expect(resp).toContain(prompt);
   });
 
   test("task-prompt", async () => {
     const prompt = "this is a task prompt for AMP";
-    const {id} = await setup();
+    const { id } = await setup();
     await execModuleScript(id, {
-      SOURCEGRAPH_AMP_TASK_PROMPT : prompt,
+      SOURCEGRAPH_AMP_TASK_PROMPT: prompt,
     });
-    const resp = await readFileContainer(id, "/home/coder/.sourcegraph-amp-module/agentapi-start.log");
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.sourcegraph-amp-module/agentapi-start.log",
+    );
     expect(resp).toContain(`sourcegraph amp task prompt provided : ${prompt}`);
-  })
+  });
 });
