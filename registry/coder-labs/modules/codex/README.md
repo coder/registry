@@ -82,7 +82,7 @@ module "codex" {
 - **Install**: The module installs Codex CLI and sets up the environment
 - **System Prompt**: If `codex_system_prompt` and `folder` are set, creates the directory (if needed) and writes the prompt to `AGENTS.md`
 - **Start**: Launches Codex CLI in the specified directory, wrapped by AgentAPI
-- **Environment**: Sets `OPENAI_API_KEY` and `CODEX_MODEL` for the CLI (if variables provided)
+- **Configuration**: Sets `OPENAI_API_KEY` environment variable and passes `--model` flag to Codex CLI (if variables provided)
 
 ## Sandbox Configuration
 
@@ -124,11 +124,16 @@ module "codex" {
 For advanced configuration or when you need to override multiple settings:
 
 ```tf
-extra_codex_settings_toml = <<-EOT
-  # Any custom Codex configuration
-  model = "gpt-4"
-  disable_response_storage = true
-EOT
+module "codex" {
+  source = "registry.coder.com/coder-labs/codex/coder"
+  # ... other variables ...
+
+  extra_codex_settings_toml = <<-EOT
+    # Any custom Codex configuration
+    model = "gpt-4"
+    disable_response_storage = true
+  EOT
+}
 ```
 
 > [!NOTE]
