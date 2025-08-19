@@ -4,8 +4,7 @@ bio: Collection of example templates and modules for Coder. Designed for referen
 github: coder
 avatar: ./.images/avatar.svg
 linkedin: https://www.linkedin.com/company/coderhq
-website: https://coder.com
-support_email: https://discord.gg/coder
+website: https://discord.gg/coder
 status: official
 ---
 
