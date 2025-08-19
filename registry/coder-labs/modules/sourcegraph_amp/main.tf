@@ -86,34 +86,20 @@ variable "post_install_script" {
 
 variable "base_amp_config" {
   type        = string
-  description = "Base AMP configuration in JSON format. Can be overridden to customize AMP settings."
-  default = jsonencode({
-    # Enable enhanced reasoning for better autonomous operation
-    "amp.anthropic.thinking.enabled" = true
-
-    # Enable TODO tracking for task management  
-    "amp.todos.enabled" = true
-
-    # Optional: Configure tool permissions for autonomous operation
-    # Reference: https://ampcode.com/manual (see Permissions section)
-    # "amp.permissions" = []
-
-    # Optional: Extend timeout for long-running operations in CI/automation
-    # "amp.tools.stopTimeout" = 600
-
-    # Optional: Control environment loading frequency for performance
-    # "amp.terminal.commands.nodeSpawn.loadProfile" = "daily"
-
-    # Optional: Disable tools that don't work well in remote environments
-    # "amp.tools.disable" = ["builtin:open"]
-
-    # These remain at defaults (true) for autonomous operation:
-    # "amp.git.commit.ampThread.enabled" = true  # Link commits to threads
-    # "amp.git.commit.coauthor.enabled" = true   # Add Amp as co-author
-
-    # MCP servers - automatically populated with Coder integration
-    "amp.mcpServers" = {}
-  })
+  description = <<-EOT
+    Base AMP configuration in JSON format. Can be overridden to customize AMP settings.
+    
+    If empty, defaults enable thinking and todos for autonomous operation. Additional options include:
+    - "amp.permissions": [] (tool permissions)
+    - "amp.tools.stopTimeout": 600 (extend timeout for long operations)
+    - "amp.terminal.commands.nodeSpawn.loadProfile": "daily" (environment loading)
+    - "amp.tools.disable": ["builtin:open"] (disable tools for containers)
+    - "amp.git.commit.ampThread.enabled": true (link commits to threads)
+    - "amp.git.commit.coauthor.enabled": true (add Amp as co-author)
+    
+    Reference: https://ampcode.com/manual
+  EOT
+  default = ""
 }
 
 variable "additional_mcp_servers" {
@@ -125,7 +111,14 @@ variable "additional_mcp_servers" {
 locals {
   app_slug = "amp"
 
-  base_config = jsondecode(var.base_amp_config)
+  default_base_config = {
+    "amp.anthropic.thinking.enabled" = true
+    "amp.todos.enabled"             = true
+    "amp.mcpServers"                = {}
+  }
+
+  # Use provided config or default
+  base_config = var.base_amp_config != "" ? jsondecode(var.base_amp_config) : local.default_base_config
 
   coder_mcp = {
     "coder" = {
