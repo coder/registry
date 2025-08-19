@@ -381,7 +381,7 @@ The most common approach is to mirror registry modules in an internal Git reposi
    ```tf
    module "code_server" {
      source   = "git::https://your-internal-git.com/coder-modules.git//modules/code-server"
-     version  = "1.0.19"  # Use Git tags for versioning
+     version  = "1.0.19" # Use Git tags for versioning
      agent_id = coder_agent.example.id
    }
    ```
@@ -436,7 +436,7 @@ module "code_server" {
   source   = "registry.coder.com/coder/code-server/coder"
   version  = "1.0.19"
   agent_id = coder_agent.example.id
-  offline  = true  # Prevents downloading from external sources
+  offline  = true # Prevents downloading from external sources
 }
 ```
 

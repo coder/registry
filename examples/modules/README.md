@@ -78,7 +78,7 @@ For air-gapped environments, reference modules from internal Git repositories:
 module "code_server" {
   source   = "git::https://internal-git.company.com/coder-modules.git//modules/code-server?ref=v1.0.19"
   agent_id = coder_agent.example.id
-  offline  = true  # Prevent external downloads
+  offline  = true # Prevent external downloads
 }
 ```
 
@@ -88,7 +88,7 @@ Vendor modules directly in your template repository:
 
 ```tf
 module "code_server" {
-  source   = "./modules/code-server"  # Relative path to vendored module
+  source   = "./modules/code-server" # Relative path to vendored module
   agent_id = coder_agent.example.id
 }
 ```
