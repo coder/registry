@@ -99,7 +99,7 @@ variable "base_amp_config" {
     
     Reference: https://ampcode.com/manual
   EOT
-  default = ""
+  default     = ""
 }
 
 variable "additional_mcp_servers" {
@@ -113,12 +113,12 @@ locals {
 
   default_base_config = {
     "amp.anthropic.thinking.enabled" = true
-    "amp.todos.enabled"             = true
-    "amp.mcpServers"                = {}
+    "amp.todos.enabled"              = true
   }
 
-  # Use provided config or default
-  base_config = var.base_amp_config != "" ? jsondecode(var.base_amp_config) : local.default_base_config
+  # Use provided config or default, then extract base settings (excluding mcpServers)
+  user_config       = var.base_amp_config != "" ? jsondecode(var.base_amp_config) : local.default_base_config
+  base_amp_settings = { for k, v in local.user_config : k => v if k != "amp.mcpServers" }
 
   coder_mcp = {
     "coder" = {
@@ -135,12 +135,12 @@ locals {
   additional_mcp = var.additional_mcp_servers != null ? jsondecode(var.additional_mcp_servers) : {}
 
   merged_mcp_servers = merge(
-    lookup(local.base_config, "amp.mcpServers", {}),
+    lookup(local.user_config, "amp.mcpServers", {}),
     local.coder_mcp,
     local.additional_mcp
   )
 
-  final_config = merge(local.base_config, {
+  final_config = merge(local.base_amp_settings, {
     "amp.mcpServers" = local.merged_mcp_servers
   })
 
