@@ -74,8 +74,8 @@ module "codex" {
 }
 ```
 
-> **Security Notice**: This module marks the workspace/folder as trusted that allows Codex to work in this workspace without asking for approval.
-> Use this module _only_ in trusted environments and be aware of the security implications.
+> [!WARNING]
+> **Security Notice**: This module configures Codex with a `workspace-write` sandbox that allows AI tasks to read/write files in the specified folder. While the sandbox provides security boundaries, Codex can still modify files within the workspace. Use this module in trusted environments and be aware of the security implications.
 
 ## How it Works
 
@@ -83,6 +83,63 @@ module "codex" {
 - **System Prompt**: If `codex_system_prompt` and `folder` are set, creates the directory (if needed) and writes the prompt to `AGENTS.md`
 - **Start**: Launches Codex CLI in the specified directory, wrapped by AgentAPI
 - **Environment**: Sets `OPENAI_API_KEY` and `CODEX_MODEL` for the CLI (if variables provided)
+
+## Sandbox Configuration
+
+The module automatically configures Codex with a secure sandbox that allows AI tasks to work effectively:
+
+- **Sandbox Mode**: `workspace-write` - Allows Codex to read/write files in the specified `folder`
+- **Approval Policy**: `on-request` - Codex asks for permission before performing potentially risky operations
+- **Network Access**: Enabled within the workspace for package installation and API calls
+
+### Customizing Sandbox Behavior
+
+You can override the default sandbox configuration using the `extra_codex_settings_toml` variable:
+
+#### **For Containerized Environments (Recommended)**
+
+If you encounter Landlock sandbox errors in containerized environments like Coder workspaces:
+
+```tf
+module "codex" {
+  source = "registry.coder.com/coder-labs/codex/coder"
+  # ... other variables ...
+
+  extra_codex_settings_toml = <<-EOT
+    # Disable sandbox for containerized environments (per Codex docs)
+    sandbox_mode = "danger-full-access"
+  EOT
+}
+```
+
+#### **For Read-Only Mode**
+
+```tf
+extra_codex_settings_toml = <<-EOT
+  sandbox_mode = "read-only"
+EOT
+```
+
+#### **For Full Auto Mode**
+
+```tf
+extra_codex_settings_toml = <<-EOT
+  approval_policy = "never"
+EOT
+```
+
+#### **For Restricted Network Access**
+
+If you want to disable network access for security reasons:
+
+```tf
+extra_codex_settings_toml = <<-EOT
+  network_access = false
+EOT
+```
+
+> [!NOTE]
+> Custom settings completely override the base configuration, so you can change any sandbox behavior as needed.
 
 ## Troubleshooting
 

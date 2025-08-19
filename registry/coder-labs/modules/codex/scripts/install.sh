@@ -96,6 +96,19 @@ function populate_config_toml() {
   CONFIG_PATH="$HOME/.codex/config.toml"
   mkdir -p "$(dirname "$CONFIG_PATH")"
   printf "Custom codex_config is provided !\n"
+  BASE_SANDBOX_CONFIG=$(
+    cat << EOF
+# Base sandbox configuration for Codex workspace access
+# This ensures Codex can read/write files in the specified folder for AI tasks
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+
+# Allow network access in workspace-write mode for package installation, API calls, etc.
+[sandbox_workspace_write]
+network_access = true
+EOF
+  )
+  
   BASE_EXTENSIONS=$(
     cat << EOF
 [mcp_servers.Coder]
@@ -106,13 +119,9 @@ description = "Report ALL tasks and statuses (in progress, done, failed) you are
 type = "stdio"
 EOF
   )
-  TRUSTED_FOLDER=$(
-    cat << EOF
-projects = { "${ARG_CODEX_START_DIRECTORY}" = { trust_level = "trusted" } }
-EOF
-  )
+  
   echo "
-${TRUSTED_FOLDER}
+${BASE_SANDBOX_CONFIG}
 
 ${ARG_EXTRA_CODEX_CONFIG}
 
