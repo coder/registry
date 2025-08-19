@@ -1,14 +1,25 @@
 ---
 display_name: Cursor CLI
 icon: ../../../../.icons/cursor.svg
-description: Run Cursor CLI agent in your workspace (no AgentAPI)
+description: Run Cursor Agent CLI in your workspace for AI pair programming
 verified: true
-tags: [agent, cursor, ai, cli]
+tags: [agent, cursor, ai, tasks]
 ---
 
 # Cursor CLI
 
-Run the Cursor Coding Agent in your workspace using the Cursor CLI directly.
+Run the Cursor Agent CLI in your workspace for interactive coding assistance and automated task execution.
+
+```tf
+module "cursor_cli" {
+  source   = "registry.coder.com/coder-labs/cursor-cli/coder"
+  version  = "0.1.1"
+  agent_id = coder_agent.example.id
+  folder   = "/home/coder/project"
+}
+```
+
+## Basic setup
 
 A full example with MCP, rules, and pre/post install scripts:
 
@@ -31,7 +42,7 @@ module "coder-login" {
 
 module "cursor_cli" {
   source   = "registry.coder.com/coder-labs/cursor-cli/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
 
@@ -40,6 +51,7 @@ module "cursor_cli" {
   force              = true
   model              = "gpt-5"
   ai_prompt          = data.coder_parameter.ai_prompt.value
+  api_key            = "xxxx-xxxx-xxxx" # Required while using tasks, see note below
 
   # Minimal MCP server (writes `folder/.cursor/mcp.json`):
   mcp = jsonencode({
