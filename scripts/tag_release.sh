@@ -308,7 +308,9 @@ detect_modules_needing_tags() {
   fi
 
   local all_modules
-  all_modules=$(find registry -mindepth 3 -maxdepth 3 -type d -path "*/modules/*" | sort -u || echo "")
+  # Find all module directories, excluding hidden directories
+  # This works on both macOS and Linux
+  all_modules=$(find registry -mindepth 3 -maxdepth 3 -type d -path "*/modules/*" ! -name ".*" | sort -u || echo "")
 
   [ -z "$all_modules" ] && {
     log "ERROR" "No modules found to check"
