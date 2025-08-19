@@ -49,6 +49,13 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 runcmd:
+%{ if home_volume_label != "" ~}
+  - |
+    until [ -e /dev/disk/by-id/scsi-0HC_Volume_${volume_id} ]; do
+      echo "Waiting for volume device..."
+      sleep 2
+    done
+%{ endif ~}
   - mount -a
   - chown ${username}:${username} /home/${username}
   - systemctl enable coder-agent
