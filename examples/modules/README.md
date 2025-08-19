@@ -69,3 +69,37 @@ module "MODULE_NAME" {
   offline  = true
 }
 ```
+
+### Example 4: Air-Gapped Deployment with Git Source
+
+For air-gapped environments, reference modules from internal Git repositories:
+
+```tf
+module "code_server" {
+  source   = "git::https://internal-git.company.com/coder-modules.git//modules/code-server?ref=v1.0.19"
+  agent_id = coder_agent.example.id
+  offline  = true  # Prevent external downloads
+}
+```
+
+### Example 5: Air-Gapped Deployment with Local Path
+
+Vendor modules directly in your template repository:
+
+```tf
+module "code_server" {
+  source   = "./modules/code-server"  # Relative path to vendored module
+  agent_id = coder_agent.example.id
+}
+```
+
+### Example 6: Private Registry
+
+Use a private Terraform registry for air-gapped deployments:
+
+```tf
+module "code_server" {
+  source   = "private-registry.company.com/coder/code-server/coder"
+  version  = "1.0.19"
+  agent_id = coder_agent.example.id
+}

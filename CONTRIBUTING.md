@@ -355,6 +355,103 @@ terraform test -verbose
 
 ---
 
+## Contributing
+
+---
+
+## Air-Gapped and Offline Deployments
+
+For customers deploying Coder in air-gapped or network-restricted environments without access to `registry.coder.com`, there are several approaches to use registry modules:
+
+### Option 1: Local Git Repository (Recommended)
+
+The most common approach is to mirror registry modules in an internal Git repository:
+
+1. **Download modules** from [registry.coder.com](https://registry.coder.com) while connected to the internet
+2. **Store modules** in your internal Git repository with the same directory structure:
+   ```
+   internal-registry/
+   ├── modules/
+   │   ├── code-server/
+   │   ├── cursor/
+   │   └── vscode-web/
+   └── templates/
+   ```
+3. **Reference modules** using Git source addresses in your templates:
+   ```tf
+   module "code_server" {
+     source   = "git::https://your-internal-git.com/coder-modules.git//modules/code-server"
+     version  = "1.0.19"  # Use Git tags for versioning
+     agent_id = coder_agent.example.id
+   }
+   ```
+
+### Option 2: Custom Terraform Registry
+
+Set up a private Terraform registry mirror:
+
+1. **Configure a private registry** (such as Terraform Enterprise or Artifactory)
+2. **Mirror modules** from the public registry to your private registry
+3. **Update templates** to use custom source addresses:
+   ```tf
+   module "code_server" {
+     source   = "your-registry.com/coder/code-server/coder"
+     version  = "1.0.19"
+     agent_id = coder_agent.example.id
+   }
+   ```
+4. **Configure `.tfrc`** file to point Terraform to your private registry
+
+### Option 3: Vendored Modules
+
+Include modules directly in your template repositories:
+
+1. **Download modules** and include them in your template repository
+2. **Reference with relative paths**:
+   ```tf
+   module "code_server" {
+     source   = "./modules/code-server"
+     agent_id = coder_agent.example.id
+   }
+   ```
+
+### Air-Gapped Requirements
+
+When deploying in air-gapped environments, ensure:
+
+- **Terraform binary** is included in PATH (cannot download from releases.hashicorp.com)
+- **Custom source addresses** are configured for all external dependencies
+- **Telemetry and update checks** are disabled:
+  ```bash
+  coder server --telemetry=false --update-check=false
+  ```
+- **External database** is configured (cannot download PostgreSQL from repo1.maven.org)
+
+### Module Offline Support
+
+Many registry modules support offline operation:
+
+```tf
+module "code_server" {
+  source   = "registry.coder.com/coder/code-server/coder"
+  version  = "1.0.19"
+  agent_id = coder_agent.example.id
+  offline  = true  # Prevents downloading from external sources
+}
+```
+
+Check individual module documentation for offline-specific configuration options.
+
+### Additional Resources
+
+- [Coder Offline Deployment Guide](https://coder.com/docs/install/offline)
+- [Terraform Module Sources](https://developer.hashicorp.com/terraform/language/modules/sources)
+- [Custom Terraform Registry Setup](https://developer.hashicorp.com/terraform/enterprise/registry)
+
+---
+
+## Contributing
+
 ## Submitting Changes
 
 1. **Fork and branch:**

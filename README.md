@@ -23,6 +23,8 @@ More information [about Coder Modules can be found here](https://coder.com/docs/
 
 The easiest way to discover new modules and templates is by visiting [the official Coder Registry website](https://registry.coder.com/). The website is a full mirror of the Coder Registry repo, and it is where .tar versions of the various resources can be downloaded from, for use within your Coder deployment.
 
+> **Air-Gapped Deployments**: For customers in network-restricted environments, see our [air-gapped deployment guide](./CONTRIBUTING.md#air-gapped-and-offline-deployments) for options to use registry modules without internet access.
+
 Note that while Coder has a baseline set of requirements for allowing an external PR to be published, Coder cannot vouch for the validity or functionality of a resource until that resource has been flagged with the `verified` status. [All modules under the Coder namespace](https://github.com/coder/registry/tree/main/registry/coder) are automatically verified.
 
 ### Getting started with modules
