@@ -65,12 +65,12 @@ module "coder-login" {
 }
 
 module "codex" {
-  source         = "registry.coder.com/coder-labs/codex/coder"
-  agent_id       = coder_agent.example.id
-  openai_api_key = "..."
-  ai_prompt      = data.coder_parameter.ai_prompt.value
-  folder         = "/home/coder/project"
-  full_auto      = true
+  source          = "registry.coder.com/coder-labs/codex/coder"
+  agent_id        = coder_agent.example.id
+  openai_api_key  = "..."
+  ai_prompt       = data.coder_parameter.ai_prompt.value
+  folder          = "/home/coder/project"
+  approval_policy = "never" # Full auto mode
 }
 ```
 
@@ -94,52 +94,45 @@ The module automatically configures Codex with a secure sandbox that allows AI t
 
 ### Customizing Sandbox Behavior
 
-You can override the default sandbox configuration using the `extra_codex_settings_toml` variable:
+You can customize the sandbox behavior using dedicated variables:
 
-#### **For Containerized Environments (Recommended)**
+#### **Using Dedicated Variables (Recommended)**
 
-If you encounter Landlock sandbox errors in containerized environments like Coder workspaces:
+For most use cases, use the dedicated sandbox variables:
 
 ```tf
 module "codex" {
   source = "registry.coder.com/coder-labs/codex/coder"
   # ... other variables ...
 
-  extra_codex_settings_toml = <<-EOT
-    # Disable sandbox for containerized environments (per Codex docs)
-    sandbox_mode = "danger-full-access"
-  EOT
+  # Containerized environments (fixes Landlock errors)
+  sandbox_mode = "danger-full-access"
+
+  # Or for read-only mode
+  # sandbox_mode = "read-only"
+
+  # Or for full auto mode
+  # approval_policy = "never"
+
+  # Or disable network access
+  # network_access = false
 }
 ```
 
-#### **For Read-Only Mode**
+#### **Using extra_codex_settings_toml (Advanced)**
+
+For advanced configuration or when you need to override multiple settings:
 
 ```tf
 extra_codex_settings_toml = <<-EOT
-  sandbox_mode = "read-only"
-EOT
-```
-
-#### **For Full Auto Mode**
-
-```tf
-extra_codex_settings_toml = <<-EOT
-  approval_policy = "never"
-EOT
-```
-
-#### **For Restricted Network Access**
-
-If you want to disable network access for security reasons:
-
-```tf
-extra_codex_settings_toml = <<-EOT
-  network_access = false
+  # Any custom Codex configuration
+  model = "gpt-4"
+  disable_response_storage = true
 EOT
 ```
 
 > [!NOTE]
-> Custom settings completely override the base configuration, so you can change any sandbox behavior as needed.
+> The dedicated variables (`sandbox_mode`, `approval_policy`, `network_access`) are the recommended way to configure sandbox behavior. Use `extra_codex_settings_toml` only for advanced configuration that isn't covered by the dedicated variables.
 
 ## Troubleshooting
 

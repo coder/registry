@@ -100,12 +100,12 @@ function populate_config_toml() {
     cat << EOF
 # Base sandbox configuration for Codex workspace access
 # This ensures Codex can read/write files in the specified folder for AI tasks
-sandbox_mode = "workspace-write"
-approval_policy = "on-request"
+sandbox_mode = "${ARG_SANDBOX_MODE}"
+approval_policy = "${ARG_APPROVAL_POLICY}"
 
 # Allow network access in workspace-write mode for package installation, API calls, etc.
 [sandbox_workspace_write]
-network_access = true
+network_access = ${ARG_NETWORK_ACCESS}
 EOF
   )
   

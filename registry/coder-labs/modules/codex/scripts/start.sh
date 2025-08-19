@@ -23,7 +23,6 @@ printf "openai_api_key: %s\n" "$ARG_OPENAI_API_KEY"
 printf "codex_model: %s\n" "$ARG_CODEX_MODEL"
 printf "start_directory: %s\n" "$ARG_CODEX_START_DIRECTORY"
 printf "task_prompt: %s\n" "$ARG_CODEX_TASK_PROMPT"
-printf "full_auto: %s\n" "$ARG_CODEX_FULL_AUTO"
 echo "--------------------------------"
 set +o nounset
 CODEX_ARGS=()
@@ -57,9 +56,7 @@ if [ -n "$ARG_CODEX_MODEL" ]; then
   CODEX_ARGS+=("--model" "$ARG_CODEX_MODEL")
 fi
 
-if [ "$ARG_CODEX_FULL_AUTO" = "true" ]; then
-  CODEX_ARGS+=("--full-auto")
-fi
+
 
 if [ -n "$ARG_CODEX_TASK_PROMPT" ]; then
   printf "Running the task prompt %s\n" "$ARG_CODEX_TASK_PROMPT"

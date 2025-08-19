@@ -59,6 +59,32 @@ variable "extra_codex_settings_toml" {
   default     = ""
 }
 
+variable "sandbox_mode" {
+  type        = string
+  description = "The sandbox mode for Codex. Options: workspace-write, read-only, danger-full-access."
+  default     = "workspace-write"
+  validation {
+    condition     = contains(["workspace-write", "read-only", "danger-full-access"], var.sandbox_mode)
+    error_message = "sandbox_mode must be one of: workspace-write, read-only, danger-full-access."
+  }
+}
+
+variable "approval_policy" {
+  type        = string
+  description = "The approval policy for Codex. Options: on-request, never, untrusted."
+  default     = "on-request"
+  validation {
+    condition     = contains(["on-request", "never", "untrusted"], var.approval_policy)
+    error_message = "approval_policy must be one of: on-request, never, untrusted."
+  }
+}
+
+variable "network_access" {
+  type        = bool
+  description = "Whether to allow network access in workspace-write mode."
+  default     = true
+}
+
 variable "openai_api_key" {
   type        = string
   description = "Codex API Key"
@@ -113,11 +139,7 @@ variable "codex_system_prompt" {
   default     = ""
 }
 
-variable "full_auto" {
-  type        = bool
-  description = "Whether to run Codex in full-auto mode for automated task execution."
-  default     = false
-}
+
 
 resource "coder_env" "openai_api_key" {
   agent_id = var.agent_id
@@ -160,7 +182,6 @@ module "agentapi" {
      ARG_CODEX_MODEL='${var.codex_model}' \
      ARG_CODEX_START_DIRECTORY='${var.folder}' \
      ARG_CODEX_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
-     ARG_CODEX_FULL_AUTO='${var.full_auto}' \
      /tmp/start.sh
    EOT
 
@@ -178,6 +199,9 @@ module "agentapi" {
     ARG_ADDITIONAL_EXTENSIONS='${base64encode(var.additional_extensions)}' \
     ARG_CODEX_START_DIRECTORY='${var.folder}' \
     ARG_CODEX_INSTRUCTION_PROMPT='${base64encode(var.codex_system_prompt)}' \
+    ARG_SANDBOX_MODE='${var.sandbox_mode}' \
+    ARG_APPROVAL_POLICY='${var.approval_policy}' \
+    ARG_NETWORK_ACCESS='${var.network_access}' \
     /tmp/install.sh
   EOT
 }
