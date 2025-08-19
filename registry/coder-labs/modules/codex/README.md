@@ -13,7 +13,7 @@ Run Codex CLI in your workspace to access OpenAI's models through the Codex inte
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "1.0.0"
+  version        = "1.0.1"
   agent_id       = coder_agent.example.id
   openai_api_key = var.openai_api_key
   folder         = "/home/coder/project"
@@ -33,7 +33,7 @@ module "codex" {
 module "codex" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder-labs/codex/coder"
-  version             = "1.0.0"
+  version             = "1.0.1"
   agent_id            = coder_agent.example.id
   openai_api_key      = "..."
   codex_model         = "o4-mini"
