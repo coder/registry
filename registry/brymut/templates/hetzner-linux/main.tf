@@ -79,7 +79,7 @@ resource "hcloud_server" "dev" {
   user_data = templatefile("cloud-config.yaml.tftpl", {
     username          = lower(data.coder_workspace_owner.me.name)
     home_volume_label = "coder-${data.coder_workspace.me.id}-home"
-    volume_id         = hcloud_volume.home_volume[count.index].id
+    volume_id         = hcloud_volume.home_volume.id
     init_script       = base64encode(coder_agent.main.init_script)
     coder_agent_token = coder_agent.main.token
   })
@@ -90,7 +90,6 @@ resource "hcloud_server" "dev" {
 }
 
 resource "hcloud_volume" "home_volume" {
-  count    = data.coder_workspace.me.start_count
   name     = "coder-${data.coder_workspace.me.id}-home"
   size     = data.coder_parameter.home_volume_size.value
   location = data.coder_parameter.hcloud_location.value
@@ -102,7 +101,7 @@ resource "hcloud_volume" "home_volume" {
 
 resource "hcloud_volume_attachment" "home_volume_attachment" {
   count     = data.coder_workspace.me.start_count
-  volume_id = hcloud_volume.home_volume[count.index].id
+  volume_id = hcloud_volume.home_volume.id
   server_id = hcloud_server.dev[count.index].id
   automount = false
 }

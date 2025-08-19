@@ -9,6 +9,9 @@ tags: [vm, linux, hetzner]
 
 Provision Hetzner Cloud servers as [Coder workspaces](https://coder.com/docs/workspaces) with this example template.
 
+> [!IMPORTANT]
+> **Volume Management & Costs:** Hetzner Cloud volumes persist even when workspaces are stopped and will continue to incur storage costs (€0.0476/GB/month). Volumes are only automatically deleted when the workspace is completely deleted. Monitor your volumes in the [Hetzner Cloud Console](https://console.hetzner.cloud/) to manage costs effectively.
+
 ## Prerequisites
 
 To deploy workspaces as Hetzner Cloud servers, you'll need:
