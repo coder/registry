@@ -17,7 +17,6 @@ fi
 printf "Version: %s\n" "$(codex --version)"
 set -o nounset
 ARG_CODEX_TASK_PROMPT=$(echo -n "$ARG_CODEX_TASK_PROMPT" | base64 -d)
-ARG_CODEX_FULL_AUTO=$(echo -n "$ARG_CODEX_FULL_AUTO" | base64 -d)
 
 echo "--------------------------------"
 printf "openai_api_key: %s\n" "$ARG_OPENAI_API_KEY"
