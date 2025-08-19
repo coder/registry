@@ -12,11 +12,11 @@ Run Codex CLI in your workspace to access OpenAI's models through the Codex inte
 
 ```tf
 module "codex" {
-  source           = "registry.coder.com/coder-labs/codex/coder"
-  version          = "1.0.0"
-  agent_id         = coder_agent.example.id
-  openai_api_key   = var.openai_api_key
-  folder           = "/home/coder/project"
+  source         = "registry.coder.com/coder-labs/codex/coder"
+  version        = "1.0.0"
+  agent_id       = coder_agent.example.id
+  openai_api_key = var.openai_api_key
+  folder         = "/home/coder/project"
 }
 ```
 
