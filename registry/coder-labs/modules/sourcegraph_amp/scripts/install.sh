@@ -75,17 +75,22 @@ function setup_system_prompt() {
     fi
 }
 
-function configure_mcp() {
-    echo "MCP Server Configure "
-    if [ "${ARG_SOURCEGRAPH_AMP_CONFIG}" != "" ]; then
-        echo "Configuring AMP..."
-        mkdir -p "$HOME/.config/amp"
-        echo "$ARG_SOURCEGRAPH_AMP_CONFIG" > "$HOME/.config/amp/config.yaml"
-    else
-        echo "Skipping AMP configuration"
+function configure_amp_settings() {
+    echo "Configuring AMP settings..."
+    SETTINGS_PATH="$HOME/.config/amp/settings.json"
+    mkdir -p "$(dirname "$SETTINGS_PATH")"
+    
+    if [ -z "${ARG_AMP_CONFIG:-}" ]; then
+        echo "No AMP config provided, skipping configuration"
+        return
     fi
+    
+    echo "Writing AMP configuration to $SETTINGS_PATH"
+    printf '%s\n' "$ARG_AMP_CONFIG" > "$SETTINGS_PATH"
+    
+    echo "AMP configuration complete"
 }
 
 install_sourcegraph_amp
 setup_system_prompt
-configure_mcp
+configure_amp_settings

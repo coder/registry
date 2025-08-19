@@ -84,45 +84,73 @@ variable "post_install_script" {
   default     = null
 }
 
-variable "additional_extensions" {
+variable "base_amp_config" {
   type        = string
-  description = "Additional extensions configuration in YAML format to append to the config."
+  description = "Base AMP configuration in JSON format. Can be overridden to customize AMP settings."
+  default = jsonencode({
+    # Enable enhanced reasoning for better autonomous operation
+    "amp.anthropic.thinking.enabled" = true
+
+    # Enable TODO tracking for task management  
+    "amp.todos.enabled" = true
+
+    # Optional: Configure tool permissions for autonomous operation
+    # Reference: https://ampcode.com/manual (see Permissions section)
+    # "amp.permissions" = []
+
+    # Optional: Extend timeout for long-running operations in CI/automation
+    # "amp.tools.stopTimeout" = 600
+
+    # Optional: Control environment loading frequency for performance
+    # "amp.terminal.commands.nodeSpawn.loadProfile" = "daily"
+
+    # Optional: Disable tools that don't work well in remote environments
+    # "amp.tools.disable" = ["builtin:open"]
+
+    # These remain at defaults (true) for autonomous operation:
+    # "amp.git.commit.ampThread.enabled" = true  # Link commits to threads
+    # "amp.git.commit.coauthor.enabled" = true   # Add Amp as co-author
+
+    # MCP servers - automatically populated with Coder integration
+    "amp.mcpServers" = {}
+  })
+}
+
+variable "additional_mcp_servers" {
+  type        = string
+  description = "Additional MCP servers configuration in JSON format to append to amp.mcpServers."
   default     = null
 }
 
 locals {
-  base_extensions = <<-EOT
-coder:
-  args:
-  - exp
-  - mcp
-  - server
-  cmd: coder
-  description: Report ALL tasks and statuses (in progress, done, failed) you are working on.
-  enabled: true
-  envs:
-    CODER_MCP_APP_STATUS_SLUG: ${local.app_slug}
-    CODER_MCP_AI_AGENTAPI_URL: http://localhost:3284
-  name: Coder
-  timeout: 3000
-  type: stdio
-developer:
-  display_name: Developer
-  enabled: true
-  name: developer
-  timeout: 300
-  type: builtin
-EOT
+  app_slug = "amp"
 
-  # Add two spaces to each line of extensions to match YAML structure
-  formatted_base        = "  ${replace(trimspace(local.base_extensions), "\n", "\n  ")}"
-  additional_extensions = var.additional_extensions != null ? "\n  ${replace(trimspace(var.additional_extensions), "\n", "\n  ")}" : ""
-  combined_extensions   = <<-EOT
-extensions:
-${local.formatted_base}${local.additional_extensions}
-EOT
+  base_config = jsondecode(var.base_amp_config)
 
-  app_slug        = "amp"
+  coder_mcp = {
+    "coder" = {
+      "command" = "coder"
+      "args"    = ["exp", "mcp", "server"]
+      "env" = {
+        "CODER_MCP_APP_STATUS_SLUG" = local.app_slug
+        "CODER_MCP_AI_AGENTAPI_URL" = "http://localhost:3284"
+      }
+      "type" = "stdio"
+    }
+  }
+
+  additional_mcp = var.additional_mcp_servers != null ? jsondecode(var.additional_mcp_servers) : {}
+
+  merged_mcp_servers = merge(
+    lookup(local.base_config, "amp.mcpServers", {}),
+    local.coder_mcp,
+    local.additional_mcp
+  )
+
+  final_config = merge(local.base_config, {
+    "amp.mcpServers" = local.merged_mcp_servers
+  })
+
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".sourcegraph-amp-module"
@@ -166,7 +194,7 @@ module "agentapi" {
     chmod +x /tmp/install.sh
     ARG_INSTALL_SOURCEGRAPH_AMP='${var.install_sourcegraph_amp}' \
     SOURCEGRAPH_AMP_START_DIRECTORY='${var.folder}' \
-    ARG_SOURCEGRAPH_AMP_CONFIG="$(echo -n '${base64encode(local.combined_extensions)}' | base64 -d)" \
+    ARG_AMP_CONFIG="$(echo -n '${base64encode(jsonencode(local.final_config))}' | base64 -d)" \
     /tmp/install.sh
   EOT
 }
