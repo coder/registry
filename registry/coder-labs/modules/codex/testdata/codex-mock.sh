@@ -9,6 +9,6 @@ fi
 set -e
 
 while true; do
-    echo "$(date) - codex-mock"
-    sleep 15
+  echo "$(date) - codex-mock"
+  sleep 15
 done

@@ -5,7 +5,7 @@ BOLD='\033[0;1m'
 
 # Function to check if a command exists
 command_exists() {
-    command -v "$1" >/dev/null 2>&1
+  command -v "$1" > /dev/null 2>&1
 }
 set -o errexit
 set -o pipefail
@@ -30,30 +30,30 @@ set +o nounset
 
 function install_node() {
   # borrowed from claude-code module
-    if ! command_exists npm; then
-      printf "npm not found, checking for Node.js installation...\n"
-      if ! command_exists node; then
-        printf "Node.js not found, installing Node.js via NVM...\n"
-        export NVM_DIR="$HOME/.nvm"
-        if [ ! -d "$NVM_DIR" ]; then
-          mkdir -p "$NVM_DIR"
-          curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        else
-          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-        fi
-
-        nvm install --lts
-        nvm use --lts
-        nvm alias default node
-
-        printf "Node.js installed: %s\n" "$(node --version)"
-        printf "npm installed: %s\n" "$(npm --version)"
+  if ! command_exists npm; then
+    printf "npm not found, checking for Node.js installation...\n"
+    if ! command_exists node; then
+      printf "Node.js not found, installing Node.js via NVM...\n"
+      export NVM_DIR="$HOME/.nvm"
+      if [ ! -d "$NVM_DIR" ]; then
+        mkdir -p "$NVM_DIR"
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
       else
-        printf "Node.js is installed but npm is not available. Please install npm manually.\n"
-        exit 1
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
       fi
+
+      nvm install --lts
+      nvm use --lts
+      nvm alias default node
+
+      printf "Node.js installed: %s\n" "$(node --version)"
+      printf "npm installed: %s\n" "$(npm --version)"
+    else
+      printf "Node.js is installed but npm is not available. Please install npm manually.\n"
+      exit 1
     fi
+  fi
 }
 
 function install_codex() {
@@ -61,8 +61,8 @@ function install_codex() {
     # we need node to install and run codex-cli
     install_node
 
-  # If nvm does not exist, we will create a global npm directory (this os to prevent the possibility of EACCESS issues on npm -g)
-  if ! command_exists nvm; then
+    # If nvm does not exist, we will create a global npm directory (this os to prevent the possibility of EACCESS issues on npm -g)
+    if ! command_exists nvm; then
       printf "which node: %s\n" "$(which node)"
       printf "which npm: %s\n" "$(which npm)"
 
@@ -77,7 +77,7 @@ function install_codex() {
 
       # Add to shell profile for future sessions
       if ! grep -q "export PATH=$HOME/.npm-global/bin:\$PATH" ~/.bashrc; then
-          echo "export PATH=$HOME/.npm-global/bin:\$PATH" >> ~/.bashrc
+        echo "export PATH=$HOME/.npm-global/bin:\$PATH" >> ~/.bashrc
       fi
     fi
 
@@ -93,10 +93,11 @@ function install_codex() {
 }
 
 function populate_config_toml() {
-    CONFIG_PATH="$HOME/.codex/config.toml"
-    mkdir -p "$(dirname "$CONFIG_PATH")"
-    printf "Custom codex_config is provided !\n"
-    BASE_EXTENSIONS=$(cat <<EOF
+  CONFIG_PATH="$HOME/.codex/config.toml"
+  mkdir -p "$(dirname "$CONFIG_PATH")"
+  printf "Custom codex_config is provided !\n"
+  BASE_EXTENSIONS=$(
+    cat << EOF
 [mcp_servers.Coder]
 command = "coder"
 args = ["exp", "mcp", "server"]
@@ -104,12 +105,13 @@ env = { "CODER_MCP_APP_STATUS_SLUG" = "${ARG_CODER_MCP_APP_STATUS_SLUG}", "CODER
 description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."
 type = "stdio"
 EOF
-)
-    TRUSTED_FOLDER=$(cat <<EOF
+  )
+  TRUSTED_FOLDER=$(
+    cat << EOF
 projects = { "${ARG_CODEX_START_DIRECTORY}" = { trust_level = "trusted" } }
 EOF
-    )
-    echo "
+  )
+  echo "
 ${TRUSTED_FOLDER}
 
 ${ARG_EXTRA_CODEX_CONFIG}
@@ -122,37 +124,36 @@ ${ARG_ADDITIONAL_EXTENSIONS}
 }
 
 function add_instruction_prompt_if_exists() {
-    if [ -n "${ARG_CODEX_INSTRUCTION_PROMPT:-}" ]; then
-        if [ -d "${ARG_CODEX_START_DIRECTORY}" ]; then
-            printf "Directory '%s' exists. Changing to it.\\n" "${ARG_CODEX_START_DIRECTORY}"
-            cd "${ARG_CODEX_START_DIRECTORY}" || {
-                printf "Error: Could not change to directory '%s'.\\n" "${ARG_CODEX_START_DIRECTORY}"
-                exit 1
-            }
-        else
-            printf "Directory '%s' does not exist. Creating and changing to it.\\n" "${ARG_CODEX_START_DIRECTORY}"
-            mkdir -p "${ARG_CODEX_START_DIRECTORY}" || {
-                printf "Error: Could not create directory '%s'.\\n" "${ARG_CODEX_START_DIRECTORY}"
-                exit 1
-            }
-            cd "${ARG_CODEX_START_DIRECTORY}" || {
-                printf "Error: Could not change to directory '%s'.\\n" "${ARG_CODEX_START_DIRECTORY}"
-                exit 1
-            }
-        fi
-
-        # Check if AGENTS.md contains the instruction prompt already
-        if [ -f AGENTS.md ] && grep -Fxq "${ARG_CODEX_INSTRUCTION_PROMPT}" AGENTS.md; then
-            printf "AGENTS.md already contains the instruction prompt. Skipping append.\n"
-        else
-            printf "Appending instruction prompt to AGENTS.md\n"
-            echo -e "\n${ARG_CODEX_INSTRUCTION_PROMPT}" >> AGENTS.md
-        fi
+  if [ -n "${ARG_CODEX_INSTRUCTION_PROMPT:-}" ]; then
+    if [ -d "${ARG_CODEX_START_DIRECTORY}" ]; then
+      printf "Directory '%s' exists. Changing to it.\\n" "${ARG_CODEX_START_DIRECTORY}"
+      cd "${ARG_CODEX_START_DIRECTORY}" || {
+        printf "Error: Could not change to directory '%s'.\\n" "${ARG_CODEX_START_DIRECTORY}"
+        exit 1
+      }
     else
-        printf "AGENTS.md is not set.\n"
+      printf "Directory '%s' does not exist. Creating and changing to it.\\n" "${ARG_CODEX_START_DIRECTORY}"
+      mkdir -p "${ARG_CODEX_START_DIRECTORY}" || {
+        printf "Error: Could not create directory '%s'.\\n" "${ARG_CODEX_START_DIRECTORY}"
+        exit 1
+      }
+      cd "${ARG_CODEX_START_DIRECTORY}" || {
+        printf "Error: Could not change to directory '%s'.\\n" "${ARG_CODEX_START_DIRECTORY}"
+        exit 1
+      }
     fi
-}
 
+    # Check if AGENTS.md contains the instruction prompt already
+    if [ -f AGENTS.md ] && grep -Fxq "${ARG_CODEX_INSTRUCTION_PROMPT}" AGENTS.md; then
+      printf "AGENTS.md already contains the instruction prompt. Skipping append.\n"
+    else
+      printf "Appending instruction prompt to AGENTS.md\n"
+      echo -e "\n${ARG_CODEX_INSTRUCTION_PROMPT}" >> AGENTS.md
+    fi
+  else
+    printf "AGENTS.md is not set.\n"
+  fi
+}
 
 # Install Codex
 install_codex
