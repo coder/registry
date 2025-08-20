@@ -1,45 +1,45 @@
 terraform {
   required_providers {
     coder = {
-      source = "coder/coder"
+      source  = "coder/coder"
       version = ">= 2.10"
     }
   }
 }
 
 data "coder_parameter" "agent_config" {
-  name = "agent_config"
+  name         = "agent_config"
   display_name = "Agent Configuration"
-  description = "Select the operating system and architecture combination for the agent"
-  type = "string"
-  default = "linux-amd64"
-  
+  description  = "Select the operating system and architecture combination for the agent"
+  type         = "string"
+  default      = "linux-amd64"
+
   option {
-    name = "Linux AMD64"
+    name  = "Linux AMD64"
     value = "linux-amd64"
   }
   option {
-    name = "Linux ARM64"
+    name  = "Linux ARM64"
     value = "linux-arm64"
   }
   option {
-    name = "Linux ARMv7"
+    name  = "Linux ARMv7"
     value = "linux-armv7"
   }
   option {
-    name = "Windows AMD64"
+    name  = "Windows AMD64"
     value = "windows-amd64"
   }
   option {
-    name = "Windows ARM64"
+    name  = "Windows ARM64"
     value = "windows-arm64"
   }
   option {
-    name = "macOS AMD64"
+    name  = "macOS AMD64"
     value = "darwin-amd64"
   }
   option {
-    name = "macOS ARM64 (Apple Silicon)"
+    name  = "macOS ARM64 (Apple Silicon)"
     value = "darwin-arm64"
   }
 }
