@@ -98,7 +98,8 @@ write_minimal_default_config() {
     cat << EOF > "$config_path"
 # Minimal Default Codex Configuration
 sandbox_mode = "workspace-write"
-approval_policy = "on-request"
+approval_policy = "never"
+preferred_auth_method = "apikey"
 
 [sandbox_workspace_write]
 network_access = true
@@ -116,12 +117,7 @@ append_mcp_servers_section() {
 [mcp_servers.Coder]
 command = "coder"
 args = ["exp", "mcp", "server"]
-env = {
-  "CODER_MCP_APP_STATUS_SLUG" = "${ARG_CODER_MCP_APP_STATUS_SLUG}",
-  "CODER_MCP_AI_AGENTAPI_URL" = "http://localhost:3284",
-  "CODER_AGENT_URL" = "${CODER_AGENT_URL}",
-  "CODER_AGENT_TOKEN" = "${CODER_AGENT_TOKEN}"
-}
+env = { "CODER_MCP_APP_STATUS_SLUG" = "${ARG_CODER_MCP_APP_STATUS_SLUG}", "CODER_MCP_AI_AGENTAPI_URL" = "http://localhost:3284", "CODER_AGENT_URL" = "${CODER_AGENT_URL}", "CODER_AGENT_TOKEN" = "${CODER_AGENT_TOKEN}" }
 description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."
 type = "stdio"
 
