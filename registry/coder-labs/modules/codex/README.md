@@ -84,11 +84,31 @@ module "codex" {
 ## How it Works
 
 - **Install**: The module installs Codex CLI and sets up the environment
-- **System Prompt**: If `codex_system_prompt` and `folder` are set, creates the directory (if needed) and writes the prompt to `AGENTS.md`
+- **System Prompt**: If `codex_system_prompt` is set, writes the prompt to `AGENTS.md` in the `~/.codex/` directory
 - **Start**: Launches Codex CLI in the specified directory, wrapped by AgentAPI
 - **Configuration**: Sets `OPENAI_API_KEY` environment variable and passes `--model` flag to Codex CLI (if variables provided)
 
 ## Configuration
+
+### **Default Configuration**
+
+When no custom `base_config_toml` is provided, the module uses these secure defaults:
+
+```toml
+sandbox_mode = "workspace-write"
+approval_policy = "never"
+preferred_auth_method = "apikey"
+
+[sandbox_workspace_write]
+network_access = true
+writable_roots = ["$/path/to/your/folder$", "$HOME/.codex"]
+```
+
+The default configuration allows writing to only two specific directories:
+- Your specified `folder` (working directory)
+- `$HOME/.codex` (for configuration files like AGENTS.md)
+
+This provides secure sandbox boundaries while preventing access to other sensitive directories.
 
 ### **Custom Configuration (Optional)**
 

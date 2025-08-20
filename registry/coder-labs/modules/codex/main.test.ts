@@ -292,7 +292,7 @@ describe("codex", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/AGENTS.md");
+    const resp = await readFileContainer(id, "/home/coder/.codex/AGENTS.md");
     expect(resp).toContain(prompt);
   });
 
@@ -305,7 +305,7 @@ describe("codex", async () => {
     `.trim();
     const pre_install_script = dedent`
         #!/bin/bash
-        echo -e "${prompt_3}" >> /home/coder/AGENTS.md
+        echo -e "${prompt_3}" >> /home/coder/.codex/AGENTS.md
         `.trim();
 
     const { id } = await setup({
@@ -315,7 +315,7 @@ describe("codex", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/AGENTS.md");
+    const resp = await readFileContainer(id, "/home/coder/.codex/AGENTS.md");
     expect(resp).toContain(prompt_1);
     expect(resp).toContain(prompt_2);
 
@@ -327,7 +327,7 @@ describe("codex", async () => {
       },
     });
     await execModuleScript(id_2);
-    const resp_2 = await readFileContainer(id_2, "/home/coder/AGENTS.md");
+    const resp_2 = await readFileContainer(id_2, "/home/coder/.codex/AGENTS.md");
     expect(resp_2).toContain(prompt_1);
     const count = (resp_2.match(new RegExp(prompt_1, "g")) || []).length;
     expect(count).toBe(1);
@@ -355,7 +355,7 @@ describe("codex", async () => {
     const prompt = await execContainer(id, [
       "ls",
       "-l",
-      "/home/coder/AGENTS.md",
+      "/home/coder/.codex/AGENTS.md",
     ]);
     expect(prompt.exitCode).not.toBe(0);
     expect(prompt.stderr).toContain("No such file or directory");
