@@ -1,7 +1,7 @@
 ---
 display_name: Externally Managed Workspace
-description: A template for externally managed workspaces
-icon: ../../../../.icons/paperclip-emoji.svg
+description: A template to provision externally managed resources as Coder workspaces
+icon: ../../../../.icons/electric-plug-emoji.svg
 verified: true
 tags: [external]
 ---
