@@ -14,7 +14,7 @@ Automatically install [Visual Studio Code Server](https://code.visualstudio.com/
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.3.1"
+  version        = "1.3.2"
   agent_id       = coder_agent.example.id
   accept_license = true
 }
@@ -34,6 +34,19 @@ module "vscode-web" {
   agent_id       = coder_agent.example.id
   install_prefix = "/home/coder/.vscode-web"
   folder         = "/home/coder"
+  accept_license = true
+}
+```
+
+### Open a VS Code workspace file
+
+```tf
+module "vscode-web" {
+  count          = data.coder_workspace.me.start_count
+  source         = "registry.coder.com/coder/vscode-web/coder"
+  version        = "1.3.2"
+  agent_id       = coder_agent.example.id
+  workspace      = "/home/coder/project.code-workspace"
   accept_license = true
 }
 ```
@@ -82,4 +95,3 @@ module "vscode-web" {
   commit_id      = "e54c774e0add60467559eb0d1e229c6452cf8447"
   accept_license = true
 }
-```

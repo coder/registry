@@ -34,7 +34,13 @@ variable "slug" {
 
 variable "folder" {
   type        = string
-  description = "The folder to open in vscode-web."
+  description = "The folder to open in vscode-web. Cannot be used with 'workspace'."
+  default     = ""
+}
+
+variable "workspace" {
+  type        = string
+  description = "Path to a .code-workspace file to open on startup. Cannot be used with 'folder'."
   default     = ""
 }
 
@@ -178,6 +184,7 @@ resource "coder_script" "vscode-web" {
     DISABLE_TRUST : var.disable_trust,
     EXTENSIONS_DIR : var.extensions_dir,
     FOLDER : var.folder,
+    WORKSPACE : var.workspace,
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
     SERVER_BASE_PATH : local.server_base_path,
     COMMIT_ID : var.commit_id,
@@ -186,6 +193,11 @@ resource "coder_script" "vscode-web" {
   run_on_start = true
 
   lifecycle {
+    precondition {
+      condition     = !(var.folder != "" && var.workspace != "")
+      error_message = "Cannot specify both 'folder' and 'workspace'. Please use only one."
+    }
+
     precondition {
       condition     = !var.offline || length(var.extensions) == 0
       error_message = "Offline mode does not allow extensions to be installed"
@@ -218,6 +230,11 @@ resource "coder_app" "vscode-web" {
 
 locals {
   server_base_path = var.subdomain ? "" : format("/@%s/%s/apps/%s/", data.coder_workspace_owner.me.name, data.coder_workspace.me.name, var.slug)
-  url              = var.folder == "" ? "http://localhost:${var.port}${local.server_base_path}" : "http://localhost:${var.port}${local.server_base_path}?folder=${var.folder}"
-  healthcheck_url  = var.subdomain ? "http://localhost:${var.port}/healthz" : "http://localhost:${var.port}${local.server_base_path}/healthz"
+
+  # Mutually exclusive: workspace takes precedence over folder
+  query_param = var.workspace != "" ? "workspace=${urlencode(var.workspace)}" : (var.folder != "" ? "folder=${urlencode(var.folder)}" : "")
+
+  url = local.query_param != "" ? "http://localhost:${var.port}${local.server_base_path}?${local.query_param}" : "http://localhost:${var.port}${local.server_base_path}"
+
+  healthcheck_url = var.subdomain ? "http://localhost:${var.port}/healthz" : "http://localhost:${var.port}${local.server_base_path}/healthz"
 }
