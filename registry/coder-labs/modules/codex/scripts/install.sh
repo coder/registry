@@ -103,7 +103,7 @@ preferred_auth_method = "apikey"
 
 [sandbox_workspace_write]
 network_access = true
-writable_roots = ["${ARG_CODEX_START_DIRECTORY}"]
+writable_roots = ["${ARG_CODEX_START_DIRECTORY}", "$HOME/.codex"]
 
 EOF
 }
@@ -150,33 +150,31 @@ function populate_config_toml() {
 
 function add_instruction_prompt_if_exists() {
   if [ -n "${ARG_CODEX_INSTRUCTION_PROMPT:-}" ]; then
-    if [ -d "${ARG_CODEX_START_DIRECTORY}" ]; then
-      printf "Directory '%s' exists. Changing to it.\\n" "${ARG_CODEX_START_DIRECTORY}"
-      cd "${ARG_CODEX_START_DIRECTORY}" || {
-        printf "Error: Could not change to directory '%s'.\\n" "${ARG_CODEX_START_DIRECTORY}"
-        exit 1
-      }
+    # Create AGENTS.md in .codex directory instead of polluting the working directory
+    AGENTS_PATH="$HOME/.codex/AGENTS.md"
+    printf "Creating AGENTS.md in .codex directory: %s\\n" "${AGENTS_PATH}"
+    
+    # Ensure .codex directory exists
+    mkdir -p "$HOME/.codex"
+
+    # Check if AGENTS.md contains the instruction prompt already
+    if [ -f "${AGENTS_PATH}" ] && grep -Fxq "${ARG_CODEX_INSTRUCTION_PROMPT}" "${AGENTS_PATH}"; then
+      printf "AGENTS.md already contains the instruction prompt. Skipping append.\n"
     else
-      printf "Directory '%s' does not exist. Creating and changing to it.\\n" "${ARG_CODEX_START_DIRECTORY}"
+      printf "Appending instruction prompt to AGENTS.md in .codex directory\n"
+      echo -e "\n${ARG_CODEX_INSTRUCTION_PROMPT}" >> "${AGENTS_PATH}"
+    fi
+    
+    # Ensure the working directory exists for Codex to run in
+    if [ ! -d "${ARG_CODEX_START_DIRECTORY}" ]; then
+      printf "Creating start directory '%s'\\n" "${ARG_CODEX_START_DIRECTORY}"
       mkdir -p "${ARG_CODEX_START_DIRECTORY}" || {
         printf "Error: Could not create directory '%s'.\\n" "${ARG_CODEX_START_DIRECTORY}"
         exit 1
       }
-      cd "${ARG_CODEX_START_DIRECTORY}" || {
-        printf "Error: Could not change to directory '%s'.\\n" "${ARG_CODEX_START_DIRECTORY}"
-        exit 1
-      }
-    fi
-
-    # Check if AGENTS.md contains the instruction prompt already
-    if [ -f AGENTS.md ] && grep -Fxq "${ARG_CODEX_INSTRUCTION_PROMPT}" AGENTS.md; then
-      printf "AGENTS.md already contains the instruction prompt. Skipping append.\n"
-    else
-      printf "Appending instruction prompt to AGENTS.md\n"
-      echo -e "\n${ARG_CODEX_INSTRUCTION_PROMPT}" >> AGENTS.md
     fi
   else
-    printf "AGENTS.md is not set.\n"
+    printf "AGENTS.md instruction prompt is not set.\n"
   fi
 }
 
