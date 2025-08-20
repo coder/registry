@@ -103,6 +103,7 @@ preferred_auth_method = "apikey"
 
 [sandbox_workspace_write]
 network_access = true
+writable_roots = ["${ARG_CODEX_START_DIRECTORY}"]
 
 EOF
 }
