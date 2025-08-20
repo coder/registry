@@ -25,9 +25,9 @@ module "codex" {
 - You must add the [Coder Login](https://registry.coder.com/modules/coder/coder-login) module to your template
 - OpenAI API key for Codex access
 
-## Usage Example
+## Usage Examples
 
-- Simple usage Example:
+### **Simple Usage**
 
 ```tf
 module "codex" {
@@ -44,10 +44,9 @@ module "codex" {
 }
 ```
 
-- Example usage with Tasks:
+### **Tasks Integration**
 
 ```tf
-# This
 data "coder_parameter" "ai_prompt" {
   type        = "string"
   name        = "AI Prompt"
@@ -69,7 +68,12 @@ module "codex" {
   openai_api_key  = "..."
   ai_prompt       = data.coder_parameter.ai_prompt.value
   folder          = "/home/coder/project"
-  approval_policy = "never" # Full auto mode
+  
+  # Custom configuration for full auto mode
+  base_config_toml = <<-EOT
+    approval_policy = "never"
+    preferred_auth_method = "apikey"
+  EOT
 }
 ```
 
@@ -83,60 +87,36 @@ module "codex" {
 - **Start**: Launches Codex CLI in the specified directory, wrapped by AgentAPI
 - **Configuration**: Sets `OPENAI_API_KEY` environment variable and passes `--model` flag to Codex CLI (if variables provided)
 
-## Sandbox Configuration
+## Configuration
 
-The module automatically configures Codex with a secure sandbox that allows AI tasks to work effectively:
+### **Custom Configuration (Optional)**
 
-- **Sandbox Mode**: `workspace-write` - Allows Codex to read/write files in the specified `folder`
-- **Approval Policy**: `on-request` - Codex asks for permission before performing potentially risky operations
-- **Network Access**: Enabled within the workspace for package installation and API calls
-
-### Customizing Sandbox Behavior
-
-You can customize the sandbox behavior using dedicated variables:
-
-#### **Using Dedicated Variables (Recommended)**
-
-For most use cases, use the dedicated sandbox variables:
+For custom Codex configuration, use `base_config_toml` and/or `additional_mcp_servers`:
 
 ```tf
 module "codex" {
   source = "registry.coder.com/coder-labs/codex/coder"
   # ... other variables ...
 
-  # Containerized environments (fixes Landlock errors)
-  sandbox_mode = "danger-full-access"
+  # Override default configuration
+  base_config_toml = <<-EOT
+    sandbox_mode = "danger-full-access"
+    approval_policy = "never"
+    preferred_auth_method = "apikey"
+  EOT
 
-  # Or for read-only mode
-  # sandbox_mode = "read-only"
-
-  # Or for full auto mode
-  # approval_policy = "never"
-
-  # Or disable network access
-  # network_access = false
-}
-```
-
-#### **Using extra_codex_settings_toml (Advanced)**
-
-For advanced configuration or when you need to override multiple settings:
-
-```tf
-module "codex" {
-  source = "registry.coder.com/coder-labs/codex/coder"
-  # ... other variables ...
-
-  extra_codex_settings_toml = <<-EOT
-    # Any custom Codex configuration
-    model = "gpt-4"
-    disable_response_storage = true
+  # Add extra MCP servers
+  additional_mcp_servers = <<-EOT
+    [mcp_servers.GitHub]
+    command = "npx"
+    args = ["-y", "@modelcontextprotocol/server-github"]
+    type = "stdio"
   EOT
 }
 ```
 
 > [!NOTE]
-> The dedicated variables (`sandbox_mode`, `approval_policy`, `network_access`) are the recommended way to configure sandbox behavior. Use `extra_codex_settings_toml` only for advanced configuration that isn't covered by the dedicated variables.
+> If no custom configuration is provided, the module uses secure defaults. The Coder MCP server is always included automatically.
 
 ## Troubleshooting
 
@@ -150,6 +130,6 @@ module "codex" {
 
 ## References
 
-- [OpenAI API Documentation](https://platform.openai.com/docs)
+- [Codex CLI Documentation](https://github.com/openai/codex)
 - [AgentAPI Documentation](https://github.com/coder/agentapi)
 - [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)
