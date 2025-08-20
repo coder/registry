@@ -79,4 +79,13 @@ resource "coder_app" "jupyterlab" {
   share        = var.share
   order        = var.order
   group        = var.group
+
+  # Healthcheck ensures JupyterLab is fully ready before showing as available
+  # Test with: git clone https://github.com/coder/registry.git && cd registry/registry/coder/modules/jupyterlab
+  # Then use this module in a template to verify the app only appears when JupyterLab is responding
+  healthcheck {
+    url       = "http://localhost:${var.port}/api/status"
+    interval  = 5
+    threshold = 6
+  }
 }
