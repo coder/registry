@@ -13,7 +13,7 @@ Run Codex CLI in your workspace to access OpenAI's models through the Codex inte
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "1.0.1"
+  version        = "1.0.2"
   agent_id       = coder_agent.example.id
   openai_api_key = var.openai_api_key
   folder         = "/home/coder/project"
@@ -33,7 +33,7 @@ module "codex" {
 module "codex" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder-labs/codex/coder"
-  version             = "1.0.1"
+  version             = "1.0.2"
   agent_id            = coder_agent.example.id
   openai_api_key      = "..."
   codex_model         = "o4-mini"
@@ -64,6 +64,7 @@ module "coder-login" {
 
 module "codex" {
   source          = "registry.coder.com/coder-labs/codex/coder"
+  version         = "1.0.2"
   agent_id        = coder_agent.example.id
   openai_api_key  = "..."
   ai_prompt       = data.coder_parameter.ai_prompt.value
@@ -95,7 +96,8 @@ For custom Codex configuration, use `base_config_toml` and/or `additional_mcp_se
 
 ```tf
 module "codex" {
-  source = "registry.coder.com/coder-labs/codex/coder"
+  source  = "registry.coder.com/coder-labs/codex/coder"
+  version = "1.0.2"
   # ... other variables ...
 
   # Override default configuration
