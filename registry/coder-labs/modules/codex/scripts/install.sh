@@ -15,16 +15,15 @@ ARG_BASE_CONFIG_TOML=$(echo -n "$ARG_BASE_CONFIG_TOML" | base64 -d)
 ARG_ADDITIONAL_MCP_SERVERS=$(echo -n "$ARG_ADDITIONAL_MCP_SERVERS" | base64 -d)
 ARG_CODEX_INSTRUCTION_PROMPT=$(echo -n "$ARG_CODEX_INSTRUCTION_PROMPT" | base64 -d)
 
-echo "--------------------------------"
-printf "install: %s\n" "$ARG_INSTALL"
-printf "codex_version: %s\n" "$ARG_CODEX_VERSION"
-printf "base_config_toml: %s\n" "$ARG_BASE_CONFIG_TOML"
-printf "additional_mcp_servers: %s\n" "$ARG_ADDITIONAL_MCP_SERVERS"
-printf "app_slug: %s\n" "$ARG_CODER_MCP_APP_STATUS_SLUG"
-printf "start_directory: %s\n" "$ARG_CODEX_START_DIRECTORY"
-printf "instruction_prompt: %s\n" "$ARG_CODEX_INSTRUCTION_PROMPT"
-
-echo "--------------------------------"
+echo "=== Codex Module Configuration ==="
+printf "Install Codex: %s\n" "$ARG_INSTALL"
+printf "Codex Version: %s\n" "$ARG_CODEX_VERSION"
+printf "App Slug: %s\n" "$ARG_CODER_MCP_APP_STATUS_SLUG"
+printf "Start Directory: %s\n" "$ARG_CODEX_START_DIRECTORY"
+printf "Has Base Config: %s\n" "$([ -n "$ARG_BASE_CONFIG_TOML" ] && echo "Yes" || echo "No")"
+printf "Has Additional MCP: %s\n" "$([ -n "$ARG_ADDITIONAL_MCP_SERVERS" ] && echo "Yes" || echo "No")"
+printf "Has System Prompt: %s\n" "$([ -n "$ARG_CODEX_INSTRUCTION_PROMPT" ] && echo "Yes" || echo "No")"
+echo "======================================"
 
 set +o nounset
 

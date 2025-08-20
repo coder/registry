@@ -25,9 +25,9 @@ module "codex" {
 - You must add the [Coder Login](https://registry.coder.com/modules/coder/coder-login) module to your template
 - OpenAI API key for Codex access
 
-## Usage Examples
+## Examples
 
-### **Simple Usage**
+### **Run standalone**
 
 ```tf
 module "codex" {
@@ -36,7 +36,6 @@ module "codex" {
   version             = "1.0.2"
   agent_id            = coder_agent.example.id
   openai_api_key      = "..."
-  codex_model         = "o4-mini"
   install_codex       = true
   codex_version       = "latest"
   folder              = "/home/coder/project"
@@ -44,7 +43,7 @@ module "codex" {
 }
 ```
 
-### **Tasks Integration**
+### **Tasks integration**
 
 ```tf
 data "coder_parameter" "ai_prompt" {
@@ -78,8 +77,7 @@ module "codex" {
 }
 ```
 
-> [!WARNING]
-> **Security Notice**: This module configures Codex with a `workspace-write` sandbox that allows AI tasks to read/write files in the specified folder. While the sandbox provides security boundaries, Codex can still modify files within the workspace. Use this module in trusted environments and be aware of the security implications.
+> **Security Notice**: This module configures Codex with a `workspace-write` sandbox that allows AI tasks to read/write files in the specified folder. While the sandbox provides security boundaries, Codex can still modify files within the workspace. Use this module _only_ in trusted environments and be aware of the security implications.
 
 ## How it Works
 
@@ -138,7 +136,7 @@ module "codex" {
 ```
 
 > [!NOTE]
-> If no custom configuration is provided, the module uses secure defaults. The Coder MCP server is always included automatically.
+> If no custom configuration is provided, the module uses secure defaults. The Coder MCP server is always included automatically. For advanced options, see [Codex config docs](https://github.com/openai/codex/blob/main/codex-rs/config.md).
 
 ## Troubleshooting
 

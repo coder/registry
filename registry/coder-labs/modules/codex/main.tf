@@ -55,7 +55,7 @@ variable "codex_version" {
 
 variable "base_config_toml" {
   type        = string
-  description = "Complete base TOML configuration for Codex (without mcp_servers section). If empty, uses minimal default configuration with workspace-write sandbox mode and on-request approval policy."
+  description = "Complete base TOML configuration for Codex (without mcp_servers section). If empty, uses minimal default configuration with workspace-write sandbox mode and never approval policy. For advanced options, see https://github.com/openai/codex/blob/main/codex-rs/config.md"
   default     = ""
 }
 
@@ -67,7 +67,7 @@ variable "additional_mcp_servers" {
 
 variable "openai_api_key" {
   type        = string
-  description = "Codex API Key"
+  description = "OpenAI API key for Codex CLI"
   default     = ""
 }
 
@@ -85,7 +85,7 @@ variable "agentapi_version" {
 
 variable "codex_model" {
   type        = string
-  description = "The model for Codex to use (e.g., o4-mini)."
+  description = "The model for Codex to use. Defaults to gpt-5."
   default     = ""
 }
 
@@ -103,14 +103,13 @@ variable "post_install_script" {
 
 variable "ai_prompt" {
   type        = string
-  description = "Task prompt for the Codex CLI"
+  description = "Initial task prompt for Codex CLI when launched via Tasks"
   default     = ""
 }
 
-
 variable "codex_system_prompt" {
   type        = string
-  description = "System prompt for Codex. It will be added to AGENTS.md in the specified folder."
+  description = "System instructions written to AGENTS.md in the ~/.codex directory"
   default     = ""
 }
 
