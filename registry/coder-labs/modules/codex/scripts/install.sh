@@ -11,16 +11,16 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-ARG_EXTRA_CODEX_CONFIG=$(echo -n "$ARG_EXTRA_CODEX_CONFIG" | base64 -d)
-ARG_ADDITIONAL_EXTENSIONS=$(echo -n "$ARG_ADDITIONAL_EXTENSIONS" | base64 -d)
+ARG_BASE_CONFIG_TOML=$(echo -n "$ARG_BASE_CONFIG_TOML" | base64 -d)
+ARG_ADDITIONAL_MCP_SERVERS=$(echo -n "$ARG_ADDITIONAL_MCP_SERVERS" | base64 -d)
 ARG_CODEX_INSTRUCTION_PROMPT=$(echo -n "$ARG_CODEX_INSTRUCTION_PROMPT" | base64 -d)
 
 echo "--------------------------------"
 printf "install: %s\n" "$ARG_INSTALL"
 printf "codex_version: %s\n" "$ARG_CODEX_VERSION"
-printf "codex_config: %s\n" "$ARG_EXTRA_CODEX_CONFIG"
+printf "base_config_toml: %s\n" "$ARG_BASE_CONFIG_TOML"
+printf "additional_mcp_servers: %s\n" "$ARG_ADDITIONAL_MCP_SERVERS"
 printf "app_slug: %s\n" "$ARG_CODER_MCP_APP_STATUS_SLUG"
-printf "additional_extensions: %s\n" "$ARG_ADDITIONAL_EXTENSIONS"
 printf "start_directory: %s\n" "$ARG_CODEX_START_DIRECTORY"
 printf "instruction_prompt: %s\n" "$ARG_CODEX_INSTRUCTION_PROMPT"
 
@@ -92,44 +92,63 @@ function install_codex() {
   fi
 }
 
-function populate_config_toml() {
-  CONFIG_PATH="$HOME/.codex/config.toml"
-  mkdir -p "$(dirname "$CONFIG_PATH")"
-  printf "Custom codex_config is provided !\n"
-  BASE_SANDBOX_CONFIG=$(
-    cat << EOF
-# Base sandbox configuration for Codex workspace access
-# This ensures Codex can read/write files in the specified folder for AI tasks
-sandbox_mode = "${ARG_SANDBOX_MODE}"
-approval_policy = "${ARG_APPROVAL_POLICY}"
+# Write minimal default configuration
+write_minimal_default_config() {
+    local config_path="$1"
+    cat << EOF > "$config_path"
+# Minimal Default Codex Configuration
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
 
-# Allow network access in workspace-write mode for package installation, API calls, etc.
 [sandbox_workspace_write]
-network_access = ${ARG_NETWORK_ACCESS}
+network_access = true
+
 EOF
-  )
-  
-  BASE_EXTENSIONS=$(
-    cat << EOF
+}
+
+# Append MCP servers section
+append_mcp_servers_section() {
+    local config_path="$1"
+    
+    cat << EOF >> "$config_path"
+
+# MCP Servers Configuration
 [mcp_servers.Coder]
 command = "coder"
 args = ["exp", "mcp", "server"]
-env = { "CODER_MCP_APP_STATUS_SLUG" = "${ARG_CODER_MCP_APP_STATUS_SLUG}", "CODER_MCP_AI_AGENTAPI_URL"= "http://localhost:3284", "CODER_AGENT_URL" = "${CODER_AGENT_URL}", "CODER_AGENT_TOKEN" = "${CODER_AGENT_TOKEN}" }
+env = {
+  "CODER_MCP_APP_STATUS_SLUG" = "${ARG_CODER_MCP_APP_STATUS_SLUG}",
+  "CODER_MCP_AI_AGENTAPI_URL" = "http://localhost:3284",
+  "CODER_AGENT_URL" = "${CODER_AGENT_URL}",
+  "CODER_AGENT_TOKEN" = "${CODER_AGENT_TOKEN}"
+}
 description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."
 type = "stdio"
+
 EOF
-  )
-  
-  echo "
-${BASE_SANDBOX_CONFIG}
 
-${ARG_EXTRA_CODEX_CONFIG}
+    if [ -n "$ARG_ADDITIONAL_MCP_SERVERS" ]; then
+        printf "Adding additional MCP servers\n"
+        echo "$ARG_ADDITIONAL_MCP_SERVERS" >> "$config_path"
+    fi
+}
 
-${BASE_EXTENSIONS}
-
-${ARG_ADDITIONAL_EXTENSIONS}
-    " > "$HOME/.codex/config.toml"
-
+# Main configuration function
+function populate_config_toml() {
+    CONFIG_PATH="$HOME/.codex/config.toml"
+    mkdir -p "$(dirname "$CONFIG_PATH")"
+    
+    # Step 1: Write base config (user-provided or minimal default)
+    if [ -n "$ARG_BASE_CONFIG_TOML" ]; then
+        printf "Using provided base configuration\n"
+        echo "$ARG_BASE_CONFIG_TOML" > "$CONFIG_PATH"
+    else
+        printf "Using minimal default configuration\n"
+        write_minimal_default_config "$CONFIG_PATH"
+    fi
+    
+    # Step 2: Always append complete MCP servers section
+    append_mcp_servers_section "$CONFIG_PATH"
 }
 
 function add_instruction_prompt_if_exists() {
