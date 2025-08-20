@@ -95,3 +95,4 @@ module "vscode-web" {
   commit_id      = "e54c774e0add60467559eb0d1e229c6452cf8447"
   accept_license = true
 }
+```
