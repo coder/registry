@@ -80,11 +80,8 @@ resource "coder_app" "jupyterlab" {
   order        = var.order
   group        = var.group
 
-  # Healthcheck ensures JupyterLab is fully ready before showing as available
-  # Test with: git clone https://github.com/coder/registry.git && cd registry/registry/coder/modules/jupyterlab
-  # Then use this module in a template to verify the app only appears when JupyterLab is responding
   healthcheck {
-    url       = "http://localhost:${var.port}/api/status"
+    url       = var.subdomain ? "http://localhost:${var.port}/api/status" : "http://localhost:${var.port}/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}/apps/jupyterlab/api/status"
     interval  = 5
     threshold = 6
   }
