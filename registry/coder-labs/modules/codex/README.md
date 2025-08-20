@@ -136,7 +136,7 @@ module "codex" {
 ```
 
 > [!NOTE]
-> If no custom configuration is provided, the module uses secure defaults. The Coder MCP server is always included automatically. For advanced options, see [Codex config docs](https://github.com/openai/codex/blob/main/codex-rs/config.md).
+> If no custom configuration is provided, the module uses secure defaults. The Coder MCP server is always included automatically. For containerized workspaces (Docker/Kubernetes), you may need `sandbox_mode = "danger-full-access"` to avoid permission issues. For advanced options, see [Codex config docs](https://github.com/openai/codex/blob/main/codex-rs/config.md).
 
 ## Troubleshooting
 
