@@ -59,7 +59,6 @@ resource "coder_env" "anthropic_api_key" {
 #
 # # Conditionally create the OAuth token environment variable
 # resource "coder_env" "claude_code_oauth_token" {
-#   count    = data.coder_parameter.use_claude_code_auth.value == "yes" ? 1 : 0
 #   agent_id = coder_agent.main.id
 #   name     = "CLAUDE_CODE_OAUTH_TOKEN"
 #   value    = var.claude_code_oauth_token
