@@ -27,7 +27,7 @@ module "codex" {
 
 ## Examples
 
-### **Run standalone**
+### Run standalone
 
 ```tf
 module "codex" {
