@@ -86,15 +86,15 @@ module "vscode-web" {
 
 ### Open an existing workspace on startup
 
-To open an existing workspace on startup the `workspace` parameter can be used to represent a path on disk to a `code-workspace` file. 
-Note: Either `workspace` or `folder` can be used, but not both simultaneously. The `code-workspace` file must already be present on disk. 
+To open an existing workspace on startup the `workspace` parameter can be used to represent a path on disk to a `code-workspace` file.
+Note: Either `workspace` or `folder` can be used, but not both simultaneously. The `code-workspace` file must already be present on disk.
 
 ```tf
 module "vscode-web" {
-  count          = data.coder_workspace.me.start_count
-  source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.3.2"
-  agent_id       = coder_agent.example.id
-  workspace      = "/home/coder/coder.code-workspace"
+  count     = data.coder_workspace.me.start_count
+  source    = "registry.coder.com/coder/vscode-web/coder"
+  version   = "1.3.2"
+  agent_id  = coder_agent.example.id
+  workspace = "/home/coder/coder.code-workspace"
 }
 ```

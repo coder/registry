@@ -233,9 +233,9 @@ locals {
   url = (
     var.workspace != "" ?
     "http://localhost:${var.port}${local.server_base_path}?workspace=${urlencode(var.workspace)}" :
-      var.folder != "" ?
-      "http://localhost:${var.port}${local.server_base_path}?folder=${urlencode(var.folder)}" :
-      "http://localhost:${var.port}${local.server_base_path}"
+    var.folder != "" ?
+    "http://localhost:${var.port}${local.server_base_path}?folder=${urlencode(var.folder)}" :
+    "http://localhost:${var.port}${local.server_base_path}"
   )
   healthcheck_url = var.subdomain ? "http://localhost:${var.port}/healthz" : "http://localhost:${var.port}${local.server_base_path}/healthz"
 }
