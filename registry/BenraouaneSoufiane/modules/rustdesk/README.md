@@ -58,7 +58,7 @@ resource "docker_container" "workspace" {
 
   # ... other configuration ...
 
-  user       = "root"
+  user         = "root"
   privileged   = true
   network_mode = "host"
 
