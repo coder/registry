@@ -206,11 +206,11 @@ This is useful for running initialization tasks like installing dependencies or 
 
 ```tf
 module "git-clone" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/git-clone/coder"
-  version  = "1.2.0"
-  agent_id = coder_agent.example.id
-  url      = "https://github.com/coder/coder"
+  count             = data.coder_workspace.me.start_count
+  source            = "registry.coder.com/coder/git-clone/coder"
+  version           = "1.2.0"
+  agent_id          = coder_agent.example.id
+  url               = "https://github.com/coder/coder"
   post_clone_script = <<-EOT
     #!/bin/bash
     echo "Repository cloned successfully!"
