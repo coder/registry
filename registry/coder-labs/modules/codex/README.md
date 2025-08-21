@@ -98,7 +98,7 @@ preferred_auth_method = "apikey"
 network_access = true
 ```
 
-### **Custom Configuration (Optional)**
+### Custom Configuration
 
 For custom Codex configuration, use `base_config_toml` and/or `additional_mcp_servers`:
 
