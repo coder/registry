@@ -161,7 +161,7 @@ variable "platform" {
 variable "workspace" {
   type        = string
   description = "Path to a .code-workspace file to open in vscode-web."
-  default     = null
+  default     = ""
 }
 
 data "coder_workspace_owner" "me" {}
