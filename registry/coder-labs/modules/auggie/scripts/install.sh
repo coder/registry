@@ -90,9 +90,9 @@ function install_auggie() {
 }
 
 function create_coder_mcp() {
-    AUGGIE_CODER_MCP_FILE="$HOME/.augment/coder_mcp.json"
-    CODER_MCP=$(
-        cat << EOF
+  AUGGIE_CODER_MCP_FILE="$HOME/.augment/coder_mcp.json"
+  CODER_MCP=$(
+    cat << EOF
 {
   "mcpServers":{
    "coder": {
@@ -108,10 +108,10 @@ function create_coder_mcp() {
   }
 }
 EOF
-)
-    mkdir -p "$(dirname "$AUGGIE_CODER_MCP_FILE")"
-    echo "$CODER_MCP" > "$AUGGIE_CODER_MCP_FILE"
-    printf "Coder MCP config created at: %s\n" "$AUGGIE_CODER_MCP_FILE"
+  )
+  mkdir -p "$(dirname "$AUGGIE_CODER_MCP_FILE")"
+  echo "$CODER_MCP" > "$AUGGIE_CODER_MCP_FILE"
+  printf "Coder MCP config created at: %s\n" "$AUGGIE_CODER_MCP_FILE"
 }
 
 function create_rules_file() {

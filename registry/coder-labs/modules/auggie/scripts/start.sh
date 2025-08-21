@@ -5,7 +5,7 @@ set -o pipefail
 source "$HOME"/.bashrc
 
 command_exists() {
-    command -v "$1" >/dev/null 2>&1
+  command -v "$1" > /dev/null 2>&1
 }
 
 if [ -f "$HOME/.nvm/nvm.sh" ]; then
@@ -13,7 +13,6 @@ if [ -f "$HOME/.nvm/nvm.sh" ]; then
 else
   export PATH="$HOME/.npm-global/bin:$PATH"
 fi
-
 
 set -o errexit
 set -o pipefail
@@ -31,7 +30,6 @@ ARG_AUGGIE_MODEL=${ARG_AUGGIE_MODEL:-}
 
 ARGS=()
 
-
 echo "--------------------------------"
 
 printf "auggie_start_directory: %s\n" "$ARG_AUGGIE_START_DIRECTORY"
@@ -48,34 +46,33 @@ echo "--------------------------------"
 
 set +o nounset
 
-
 function validate_auggie_installation() {
-    if command_exists auggie; then
-        printf "Auggie is installed\n"
-    else
-        printf "Error: Auggie is not installed. Please enable install_auggie or install it manually\n"
-        exit 1
-    fi
+  if command_exists auggie; then
+    printf "Auggie is installed\n"
+  else
+    printf "Error: Auggie is not installed. Please enable install_auggie or install it manually\n"
+    exit 1
+  fi
 }
 
 function build_auggie_args() {
   if [ -n "$ARG_AUGGIE_INTERACTION_MODE" ]; then
-      if [ "$ARG_AUGGIE_INTERACTION_MODE" != "interactive" ]; then
-          ARGS+=(--"$ARG_AUGGIE_INTERACTION_MODE")
-      fi
+    if [ "$ARG_AUGGIE_INTERACTION_MODE" != "interactive" ]; then
+      ARGS+=(--"$ARG_AUGGIE_INTERACTION_MODE")
+    fi
   fi
 
   if [ -n "$ARG_AUGGIE_MODEL" ]; then
-      ARGS+=(--model "$ARG_AUGGIE_MODEL")
+    ARGS+=(--model "$ARG_AUGGIE_MODEL")
   fi
 
   if [ -n "$ARG_MCP_CONFIG" ]; then
-      ARGS+=(--mcp-config "$ARG_MCP_CONFIG")
+    ARGS+=(--mcp-config "$ARG_MCP_CONFIG")
   fi
 
   if [ -n "$ARG_MCP_FILES" ]; then
     for file in $(echo "$ARG_MCP_FILES" | jq -r '.[]'); do
-        ARGS+=(--mcp-config "$file")
+      ARGS+=(--mcp-config "$file")
     done
   fi
 
@@ -88,24 +85,22 @@ function build_auggie_args() {
   fi
 
   if [ "$ARG_AUGGIE_CONTINUE_PREVIOUS_CONVERSATION" == "true" ]; then
-      ARGS+=(--continue)
+    ARGS+=(--continue)
   fi
 
-
   if [ -n "$ARG_TASK_PROMPT" ]; then
-      PROMPT="Every step of the way, report your progress using coder_report_task tool with proper summary and statuses. Your task at hand: $ARG_TASK_PROMPT"
-      ARGS+=(--instruction "$PROMPT")
+    PROMPT="Every step of the way, report your progress using coder_report_task tool with proper summary and statuses. Your task at hand: $ARG_TASK_PROMPT"
+    ARGS+=(--instruction "$PROMPT")
   fi
 }
 
 function start_agentapi_server() {
-    mkdir -p "$ARG_AUGGIE_START_DIRECTORY"
-    cd "$ARG_AUGGIE_START_DIRECTORY"
-    ARGS+=(--workspace-root "$ARG_AUGGIE_START_DIRECTORY")
-    printf "Running auggie with args: %s\n" "$(printf '%q ' "${ARGS[@]}")"
-    agentapi server --term-width 67 --term-height 1190 -- auggie "${ARGS[@]}"
+  mkdir -p "$ARG_AUGGIE_START_DIRECTORY"
+  cd "$ARG_AUGGIE_START_DIRECTORY"
+  ARGS+=(--workspace-root "$ARG_AUGGIE_START_DIRECTORY")
+  printf "Running auggie with args: %s\n" "$(printf '%q ' "${ARGS[@]}")"
+  agentapi server --term-width 67 --term-height 1190 -- auggie "${ARGS[@]}"
 }
-
 
 validate_auggie_installation
 build_auggie_args
