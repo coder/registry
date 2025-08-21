@@ -96,15 +96,7 @@ preferred_auth_method = "apikey"
 
 [sandbox_workspace_write]
 network_access = true
-writable_roots = ["$/path/to/your/folder$", "$HOME/.codex"]
 ```
-
-The default configuration allows writing to only two specific directories:
-
-- Your specified `folder` (working directory)
-- `$HOME/.codex` (for configuration files like AGENTS.md)
-
-This provides secure sandbox boundaries while preventing access to other sensitive directories.
 
 ### **Custom Configuration (Optional)**
 
