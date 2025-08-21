@@ -85,7 +85,7 @@ module "codex" {
 
 ## Configuration
 
-### **Default Configuration**
+### Default Configuration
 
 When no custom `base_config_toml` is provided, the module uses these secure defaults:
 
