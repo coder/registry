@@ -40,7 +40,7 @@ module "codex" {
 }
 ```
 
-### **Tasks integration**
+### Tasks integration
 
 ```tf
 data "coder_parameter" "ai_prompt" {
