@@ -1,107 +1,157 @@
-import { describe, expect, it } from "bun:test";
 import {
-  findResourceInstance,
-  runTerraformApply,
-  runTerraformInit,
-  testRequiredVariables,
-} from "~test";
+  test,
+  afterEach,
+  describe,
+  setDefaultTimeout,
+  beforeAll,
+  expect,
+} from "bun:test";
+import { execContainer, readFileContainer, runTerraformInit } from "~test";
+import {
+  loadTestFile,
+  writeExecutable,
+  setup as setupUtil,
+  execModuleScript,
+  expectAgentAPIStarted,
+} from "../../../coder/modules/agentapi/test-util";
 
-describe("aider", async () => {
-  await runTerraformInit(import.meta.dir);
+let cleanupFunctions: (() => Promise<void>)[] = [];
+const registerCleanup = (cleanup: () => Promise<void>) => {
+  cleanupFunctions.push(cleanup);
+};
+afterEach(async () => {
+  const cleanupFnsCopy = cleanupFunctions.slice().reverse();
+  cleanupFunctions = [];
+  for (const cleanup of cleanupFnsCopy) {
+    try {
+      await cleanup();
+    } catch (error) {
+      console.error("Error during cleanup:", error);
+    }
+  }
+});
 
-  testRequiredVariables(import.meta.dir, {
-    agent_id: "foo",
+interface SetupProps {
+  skipAgentAPIMock?: boolean;
+  skipAmpMock?: boolean;
+  moduleVariables?: Record<string, string>;
+  agentapiMockScript?: string;
+}
+
+const setup = async (props?: SetupProps): Promise<{ id: string }> => {
+  const projectDir = "/home/coder/project";
+  const { id } = await setupUtil({
+    moduleDir: import.meta.dir,
+    moduleVariables: {
+      install_sourcegraph_amp: props?.skipAmpMock ? "true" : "false",
+      install_agentapi: props?.skipAgentAPIMock ? "true" : "false",
+      sourcegraph_amp_model: "test-model",
+      ...props?.moduleVariables,
+    },
+    registerCleanup,
+    projectDir,
+    skipAgentAPIMock: props?.skipAgentAPIMock,
+    agentapiMockScript: props?.agentapiMockScript,
   });
 
-  it("configures task prompt correctly", async () => {
-    const testPrompt = "Add a hello world function";
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      task_prompt: testPrompt,
-    });
+  // Place the AMP mock CLI binary inside the container
+  // if (!props?.skipAmpMock) {
+  //   await writeExecutable({
+  //     containerId: id,
+  //     filePath: "/usr/bin/amp",
+  //     content: await loadTestFile(`${import.meta.dir}`, "amp-mock.sh"),
+  //   });
+  // }
 
-    const instance = findResourceInstance(state, "coder_script");
-    expect(instance.script).toContain(
-      `This is your current task: ${testPrompt}`,
-    );
-    expect(instance.script).toContain("aider --architect --yes-always");
+  return { id };
+};
+
+setDefaultTimeout(60 * 1000);
+
+describe("Aider", async () => {
+  beforeAll(async () => {
+    await runTerraformInit(import.meta.dir);
   });
 
-  it("handles custom system prompt", async () => {
-    const customPrompt = "Report all tasks with state: working";
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      system_prompt: customPrompt,
-    });
-
-    const instance = findResourceInstance(state, "coder_script");
-    expect(instance.script).toContain(customPrompt);
+  test("happy-path", async () => {
+    const { id } = await setup();
+    await execModuleScript(id);
+    await expectAgentAPIStarted(id);
   });
 
-  it("handles pre and post install scripts", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      experiment_pre_install_script: "echo 'Pre-install script executed'",
-      experiment_post_install_script: "echo 'Post-install script executed'",
+  test("api-key", async () => {
+    const apiKey = "test-api-key-123";
+    const { id } = await setup({
+      moduleVariables: {
+        ai_api_key: apiKey,
+      },
     });
-
-    const instance = findResourceInstance(state, "coder_script");
-
-    expect(instance.script).toContain("Running pre-install script");
-    expect(instance.script).toContain("Running post-install script");
-    expect(instance.script).toContain("base64 -d > /tmp/pre_install.sh");
-    expect(instance.script).toContain("base64 -d > /tmp/post_install.sh");
+    await execModuleScript(id);
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.aider-module/agentapi-start.log",
+    );
+    expect(resp).toContain("API key provided !");
   });
 
-  it("validates that use_screen and use_tmux cannot both be true", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      use_screen: true,
-      use_tmux: true,
+  test("custom-folder", async () => {
+    const folder = "/tmp/aider-test";
+    const { id } = await setup({
+      moduleVariables: {
+        folder,
+      },
     });
-
-    const instance = findResourceInstance(state, "coder_script");
-
-    expect(instance.script).toContain(
-      "Error: Both use_screen and use_tmux cannot be enabled at the same time",
+    await execModuleScript(id);
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.aider-module/install.log",
     );
-    expect(instance.script).toContain("exit 1");
+    expect(resp).toContain(folder);
   });
 
-  it("configures Aider with known provider and model", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      ai_provider: "anthropic",
-      ai_model: "sonnet",
-      ai_api_key: "test-anthropic-key",
+  test("pre-post-install-scripts", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        pre_install_script: "#!/bin/bash\necho 'pre-install-script'",
+        post_install_script: "#!/bin/bash\necho 'post-install-script'",
+      },
     });
-
-    const instance = findResourceInstance(state, "coder_script");
-    expect(instance.script).toContain(
-      'export ANTHROPIC_API_KEY=\\"test-anthropic-key\\"',
+    await execModuleScript(id);
+    const preLog = await readFileContainer(
+      id,
+      "/home/coder/.aider-module/pre_install.log",
     );
-    expect(instance.script).toContain("--model sonnet");
-    expect(instance.script).toContain(
-      "Starting Aider using anthropic provider and model: sonnet",
+    expect(preLog).toContain("pre-install-script");
+    const postLog = await readFileContainer(
+      id,
+      "/home/coder/.aider-module/post_install.log",
     );
+    expect(postLog).toContain("post-install-script");
   });
 
-  it("handles custom provider with custom env var and API key", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      ai_provider: "custom",
-      custom_env_var_name: "MY_CUSTOM_API_KEY",
-      ai_model: "custom-model",
-      ai_api_key: "test-custom-key",
+  test("system-prompt", async () => {
+    const prompt = "this is a system prompt for AMP";
+    const { id } = await setup();
+    await execModuleScript(id, {
+      SOURCEGRAPH_AMP_SYSTEM_PROMPT: prompt,
     });
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.aider-module/SYSTEM_PROMPT.md",
+    );
+    expect(resp).toContain(prompt);
+  });
 
-    const instance = findResourceInstance(state, "coder_script");
-    expect(instance.script).toContain(
-      'export MY_CUSTOM_API_KEY=\\"test-custom-key\\"',
+  test("task-prompt", async () => {
+    const prompt = "this is a task prompt for AMP";
+    const { id } = await setup();
+    await execModuleScript(id, {
+      SOURCEGRAPH_AMP_TASK_PROMPT: prompt,
+    });
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.aider-module/agentapi-start.log",
     );
-    expect(instance.script).toContain("--model custom-model");
-    expect(instance.script).toContain(
-      "Starting Aider using custom provider and model: custom-model",
-    );
+    expect(resp).toContain(`Aider task prompt provided : ${prompt}`);
   });
 });
