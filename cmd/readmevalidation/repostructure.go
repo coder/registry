@@ -14,7 +14,7 @@ import (
 var supportedUserNameSpaceDirectories = append(supportedResourceTypes, ".images")
 
 // validNameRe validates that names contain only alphanumeric characters and hyphens
-var validNameRe = regexp.MustCompile(`^[a-zA-Z0-9-]+$`)
+var validNameRe = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$`)
 
 
 // validateCoderResourceSubdirectory validates that the structure of a module or template within a namespace follows all
