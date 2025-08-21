@@ -31,15 +31,12 @@ module "codex" {
 
 ```tf
 module "codex" {
-  count               = data.coder_workspace.me.start_count
-  source              = "registry.coder.com/coder-labs/codex/coder"
-  version             = "1.1.0"
-  agent_id            = coder_agent.example.id
-  openai_api_key      = "..."
-  install_codex       = true
-  codex_version       = "latest"
-  folder              = "/home/coder/project"
-  codex_system_prompt = "You are a helpful coding assistant. Start every response with `Codex says:`"
+  count          = data.coder_workspace.me.start_count
+  source         = "registry.coder.com/coder-labs/codex/coder"
+  version        = "1.1.0"
+  agent_id       = coder_agent.example.id
+  openai_api_key = "..."
+  folder         = "/home/coder/project"
 }
 ```
 
