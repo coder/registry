@@ -49,6 +49,22 @@ resource "coder_env" "anthropic_api_key" {
   value    = var.anthropic_api_key
 }
 
+# Usage with Claude Code Subscription
+# Uncomment options below and comment out the above `anthropic_api_key` variable
+# variable "claude_code_oauth_token" {
+#   type        = string
+#   description = "Generate one using `claude setup-token` command (required if use_claude_code_auth is true)"
+#   sensitive   = true
+# }
+#
+# # Conditionally create the OAuth token environment variable
+# resource "coder_env" "claude_code_oauth_token" {
+#   count    = data.coder_parameter.use_claude_code_auth.value == "yes" ? 1 : 0
+#   agent_id = coder_agent.main.id
+#   name     = "CLAUDE_CODE_OAUTH_TOKEN"
+#   value    = var.claude_code_oauth_token
+# }
+
 # We are using presets to set the prompts, image, and set up instructions
 # See https://coder.com/docs/admin/templates/extending-templates/parameters#workspace-presets
 data "coder_workspace_preset" "default" {
