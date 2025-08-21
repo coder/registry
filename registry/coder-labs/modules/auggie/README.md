@@ -8,7 +8,7 @@ tags: [agent, auggie, ai, tasks, augment]
 
 # Auggie CLI
 
-Run Auggie CLI in your workspace to access Augment's AI coding assistant with advanced context understanding and codebase integration. This module integrates with [AgentAPI](https://github.com/coder/agentapi) for Coder Tasks compatibility.
+Run Auggie CLI in your workspace to access Augment's AI coding assistant with advanced context understanding and codebase integration. This module integrates with [AgentAPI](https://github.com/coder/agentapi).
 
 ```tf
 module "auggie" {
