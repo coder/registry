@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Load shell environment
 source "$HOME"/.bashrc
 set -o errexit
 set -o pipefail

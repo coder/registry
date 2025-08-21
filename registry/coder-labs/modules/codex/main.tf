@@ -110,10 +110,8 @@ variable "ai_prompt" {
 variable "codex_system_prompt" {
   type        = string
   description = "System instructions written to AGENTS.md in the ~/.codex directory"
-  default     = ""
+  default     = "You are a helpful coding assistant. Start every response with `Codex says:`"
 }
-
-
 
 resource "coder_env" "openai_api_key" {
   agent_id = var.agent_id

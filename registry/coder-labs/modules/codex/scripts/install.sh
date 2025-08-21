@@ -3,7 +3,6 @@ source "$HOME"/.bashrc
 
 BOLD='\033[0;1m'
 
-# Function to check if a command exists
 command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
@@ -28,7 +27,6 @@ echo "======================================"
 set +o nounset
 
 function install_node() {
-  # borrowed from claude-code module
   if ! command_exists npm; then
     printf "npm not found, checking for Node.js installation...\n"
     if ! command_exists node; then
@@ -57,24 +55,18 @@ function install_node() {
 
 function install_codex() {
   if [ "${ARG_INSTALL}" = "true" ]; then
-    # we need node to install and run codex-cli
     install_node
 
-    # If nvm does not exist, we will create a global npm directory (this os to prevent the possibility of EACCESS issues on npm -g)
     if ! command_exists nvm; then
       printf "which node: %s\n" "$(which node)"
       printf "which npm: %s\n" "$(which npm)"
 
-      # Create a directory for global packages
       mkdir -p "$HOME"/.npm-global
 
-      # Configure npm to use it
       npm config set prefix "$HOME/.npm-global"
 
-      # Add to PATH for current session
       export PATH="$HOME/.npm-global/bin:$PATH"
 
-      # Add to shell profile for future sessions
       if ! grep -q "export PATH=$HOME/.npm-global/bin:\$PATH" ~/.bashrc; then
         echo "export PATH=$HOME/.npm-global/bin:\$PATH" >> ~/.bashrc
       fi
@@ -91,7 +83,6 @@ function install_codex() {
   fi
 }
 
-# Write minimal default configuration
 write_minimal_default_config() {
     local config_path="$1"
     cat << EOF > "$config_path"
@@ -107,7 +98,6 @@ writable_roots = ["${ARG_CODEX_START_DIRECTORY}", "$HOME/.codex"]
 EOF
 }
 
-# Append MCP servers section
 append_mcp_servers_section() {
     local config_path="$1"
     
@@ -129,12 +119,10 @@ EOF
     fi
 }
 
-# Main configuration function
 function populate_config_toml() {
     CONFIG_PATH="$HOME/.codex/config.toml"
     mkdir -p "$(dirname "$CONFIG_PATH")"
     
-    # Step 1: Write base config (user-provided or minimal default)
     if [ -n "$ARG_BASE_CONFIG_TOML" ]; then
         printf "Using provided base configuration\n"
         echo "$ARG_BASE_CONFIG_TOML" > "$CONFIG_PATH"
@@ -143,28 +131,23 @@ function populate_config_toml() {
         write_minimal_default_config "$CONFIG_PATH"
     fi
     
-    # Step 2: Always append complete MCP servers section
     append_mcp_servers_section "$CONFIG_PATH"
 }
 
 function add_instruction_prompt_if_exists() {
   if [ -n "${ARG_CODEX_INSTRUCTION_PROMPT:-}" ]; then
-    # Create AGENTS.md in .codex directory instead of polluting the working directory
     AGENTS_PATH="$HOME/.codex/AGENTS.md"
     printf "Creating AGENTS.md in .codex directory: %s\\n" "${AGENTS_PATH}"
     
-    # Ensure .codex directory exists
     mkdir -p "$HOME/.codex"
 
-    # Check if AGENTS.md contains the instruction prompt already
-    if [ -f "${AGENTS_PATH}" ] && grep -Fxq "${ARG_CODEX_INSTRUCTION_PROMPT}" "${AGENTS_PATH}"; then
+    if [ -f "${AGENTS_PATH}" ] && grep -Fq "${ARG_CODEX_INSTRUCTION_PROMPT}" "${AGENTS_PATH}"; then
       printf "AGENTS.md already contains the instruction prompt. Skipping append.\n"
     else
       printf "Appending instruction prompt to AGENTS.md in .codex directory\n"
       echo -e "\n${ARG_CODEX_INSTRUCTION_PROMPT}" >> "${AGENTS_PATH}"
     fi
     
-    # Ensure the working directory exists for Codex to run in
     if [ ! -d "${ARG_CODEX_START_DIRECTORY}" ]; then
       printf "Creating start directory '%s'\\n" "${ARG_CODEX_START_DIRECTORY}"
       mkdir -p "${ARG_CODEX_START_DIRECTORY}" || {
@@ -177,7 +160,6 @@ function add_instruction_prompt_if_exists() {
   fi
 }
 
-# Install Codex
 install_codex
 codex --version
 populate_config_toml

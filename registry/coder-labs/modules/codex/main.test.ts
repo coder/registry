@@ -143,7 +143,7 @@ describe("codex", async () => {
       id,
       "/home/coder/.codex-module/agentapi-start.log",
     );
-    expect(resp).toContain("openai_api_key provided !");
+    expect(resp).toContain("OpenAI API Key: Provided");
   });
 
   test("pre-post-install-scripts", async () => {
@@ -271,7 +271,7 @@ describe("codex", async () => {
     
     // Check default base config
     expect(resp).toContain("sandbox_mode = \"workspace-write\"");
-    expect(resp).toContain("approval_policy = \"on-request\"");
+    expect(resp).toContain("approval_policy = \"never\"");
     expect(resp).toContain("[sandbox_workspace_write]");
     expect(resp).toContain("network_access = true");
     
@@ -305,6 +305,7 @@ describe("codex", async () => {
     `.trim();
     const pre_install_script = dedent`
         #!/bin/bash
+        mkdir -p /home/coder/.codex
         echo -e "${prompt_3}" >> /home/coder/.codex/AGENTS.md
         `.trim();
 
@@ -350,7 +351,11 @@ describe("codex", async () => {
   });
 
   test("start-without-prompt", async () => {
-    const { id } = await setup();
+    const { id } = await setup({
+      moduleVariables: {
+        codex_system_prompt: "", // Explicitly disable system prompt
+      },
+    });
     await execModuleScript(id);
     const prompt = await execContainer(id, [
       "ls",

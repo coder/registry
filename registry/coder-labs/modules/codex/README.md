@@ -13,7 +13,7 @@ Run Codex CLI in your workspace to access OpenAI's models through the Codex inte
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "1.0.2"
+  version        = "1.1.0"
   agent_id       = coder_agent.example.id
   openai_api_key = var.openai_api_key
   folder         = "/home/coder/project"
@@ -33,7 +33,7 @@ module "codex" {
 module "codex" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder-labs/codex/coder"
-  version             = "1.0.2"
+  version             = "1.1.0"
   agent_id            = coder_agent.example.id
   openai_api_key      = "..."
   install_codex       = true
@@ -62,13 +62,13 @@ module "coder-login" {
 }
 
 module "codex" {
-  source          = "registry.coder.com/coder-labs/codex/coder"
-  version         = "1.0.2"
-  agent_id        = coder_agent.example.id
-  openai_api_key  = "..."
-  ai_prompt       = data.coder_parameter.ai_prompt.value
-  folder          = "/home/coder/project"
-  
+  source         = "registry.coder.com/coder-labs/codex/coder"
+  version        = "1.1.0"
+  agent_id       = coder_agent.example.id
+  openai_api_key = "..."
+  ai_prompt      = data.coder_parameter.ai_prompt.value
+  folder         = "/home/coder/project"
+
   # Custom configuration for full auto mode
   base_config_toml = <<-EOT
     approval_policy = "never"
@@ -103,6 +103,7 @@ writable_roots = ["$/path/to/your/folder$", "$HOME/.codex"]
 ```
 
 The default configuration allows writing to only two specific directories:
+
 - Your specified `folder` (working directory)
 - `$HOME/.codex` (for configuration files like AGENTS.md)
 
@@ -115,7 +116,7 @@ For custom Codex configuration, use `base_config_toml` and/or `additional_mcp_se
 ```tf
 module "codex" {
   source  = "registry.coder.com/coder-labs/codex/coder"
-  version = "1.0.2"
+  version = "1.1.0"
   # ... other variables ...
 
   # Override default configuration
