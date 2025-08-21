@@ -185,6 +185,7 @@ resource "coder_script" "vscode-web" {
     EXTENSIONS_DIR : var.extensions_dir,
     FOLDER : var.folder,
     WORKSPACE : var.workspace,
+    WORKSPACE_ARG : coalesce(var.workspace, var.folder),
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
     SERVER_BASE_PATH : local.server_base_path,
     COMMIT_ID : var.commit_id,
