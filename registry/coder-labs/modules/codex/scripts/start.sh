@@ -68,6 +68,6 @@ fi
 
 # Terminal dimensions optimized for Coder Tasks UI sidebar:
 # - Width 67: fits comfortably in sidebar
-# - Height 1190: adjusted due to Codex terminal height bug (see: https://github.com/openai/codex/issues/1608)
+# - Height 1190: adjusted due to Codex terminal height bug
 printf "Starting Codex with arguments: %s\n" "${CODEX_ARGS[*]}"
 agentapi server --term-width 67 --term-height 1190 -- codex "${CODEX_ARGS[@]}"
