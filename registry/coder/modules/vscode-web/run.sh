@@ -23,9 +23,9 @@ if [ "${DISABLE_TRUST}" = true ]; then
 fi
 
 run_vscode_web() {
-  echo "👷 Running $VSCODE_WEB serve-local $EXTENSION_ARG $SERVER_BASE_PATH_ARG $DISABLE_TRUST_ARG --port ${PORT} --host 127.0.0.1 --accept-server-license-terms --without-connection-token --telemetry-level ${TELEMETRY_LEVEL} in the background..."
+  echo "👷 Running $VSCODE_WEB serve-local with workspace: ${WORKSPACE_ARG}"
   echo "Check logs at ${LOG_PATH}!"
-  "$VSCODE_WEB" serve-local "$EXTENSION_ARG" "$SERVER_BASE_PATH_ARG" "$DISABLE_TRUST_ARG" --port "${PORT}" --host 127.0.0.1 --accept-server-license-terms --without-connection-token --telemetry-level "${TELEMETRY_LEVEL}" > "${LOG_PATH}" 2>&1 &
+  "$VSCODE_WEB" serve-local "$EXTENSION_ARG" "$SERVER_BASE_PATH_ARG" "$DISABLE_TRUST_ARG" --port "${PORT}" --host 127.0.0.1 --accept-server-license-terms --without-connection-token --telemetry-level "${TELEMETRY_LEVEL}" "${WORKSPACE_ARG}" > "${LOG_PATH}" 2>&1 &
 }
 
 # Check if the settings file exists...
