@@ -181,7 +181,7 @@ resource "coder_env" "claude_task_prompt" {
 resource "coder_env" "app_status_slug" {
   agent_id = coder_agent.main.id
   name     = "CODER_MCP_APP_STATUS_SLUG"
-  value    = "claude-code"
+  value    = "ccw"
 }
 resource "coder_env" "claude_system_prompt" {
   agent_id = coder_agent.main.id
