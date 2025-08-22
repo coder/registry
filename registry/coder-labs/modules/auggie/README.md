@@ -21,6 +21,7 @@ module "auggie" {
 
 ## Prerequisites
 
+- Node.js and npm must be installed (can be installed via `pre_install_script`)
 - You must add the [Coder Login](https://registry.coder.com/modules/coder/coder-login) module to your template
 - **Augment session token for authentication (required for tasks). [Instructions](https://docs.augmentcode.com/cli/setup-auggie/authentication) to get the session token**
 
@@ -134,6 +135,18 @@ EOF
   pre_install_script = <<-EOT
     #!/usr/bin/env bash
     set -euo pipefail
+    # Install Node.js via NVM if not already available
+    if ! command -v node >/dev/null 2>&1; then
+      export NVM_DIR="$HOME/.nvm"
+      if [ ! -d "$NVM_DIR" ]; then
+        mkdir -p "$NVM_DIR"
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+      fi
+      [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+      nvm install --lts
+      nvm use --lts
+      nvm alias default node
+    fi
     # Install additional dependencies
     npm install -g typescript
     pip install -r requirements.txt

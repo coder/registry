@@ -1,6 +1,5 @@
 #!/bin/bash
-set -o errexit
-set -o pipefail
+set -euo pipefail
 
 source "$HOME"/.bashrc
 
@@ -13,10 +12,6 @@ if [ -f "$HOME/.nvm/nvm.sh" ]; then
 else
   export PATH="$HOME/.npm-global/bin:$PATH"
 fi
-
-set -o errexit
-set -o pipefail
-set -o nounset
 
 ARG_AUGGIE_START_DIRECTORY=${ARG_AUGGIE_START_DIRECTORY:-"$HOME"}
 ARG_TASK_PROMPT=$(echo -n "${ARG_TASK_PROMPT:-}" | base64 -d)
@@ -44,7 +39,6 @@ printf "report_tasks: %s\n" "$ARG_REPORT_TASKS"
 
 echo "--------------------------------"
 
-set +o nounset
 
 function validate_auggie_installation() {
   if command_exists auggie; then

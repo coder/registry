@@ -7,9 +7,7 @@ BOLD='\033[0;1m'
 command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
-set -o errexit
-set -o pipefail
-set -o nounset
+set -euo pipefail
 
 ARG_AUGGIE_INSTALL=${ARG_AUGGIE_INSTALL:-true}
 ARG_AUGGIE_VERSION=${ARG_AUGGIE_VERSION:-}
@@ -26,58 +24,25 @@ printf "rules: %s\n" "$ARG_AUGGIE_RULES"
 
 echo "--------------------------------"
 
-set +o nounset
 
-function install_node() {
-  if ! command_exists npm; then
-    printf "npm not found, checking for Node.js installation...\n"
-    if ! command_exists node; then
-      printf "Node.js not found, installing Node.js via NVM...\n"
-      export NVM_DIR="$HOME/.nvm"
-      if [ ! -d "$NVM_DIR" ]; then
-        mkdir -p "$NVM_DIR"
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-      else
-        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-      fi
-
-      nvm install --lts
-      nvm use --lts
-      nvm alias default node
-
-      printf "Node.js installed: %s\n" "$(node --version)"
-      printf "npm installed: %s\n" "$(npm --version)"
-    else
-      printf "Node.js is installed but npm is not available. Please install npm manually.\n"
-      exit 1
-    fi
+function check_dependencies() {
+  if ! command_exists node; then
+    printf "Error: Node.js is not installed. Please install Node.js manually or use the pre_install_script to install it.\n"
+    exit 1
   fi
+
+  if ! command_exists npm; then
+    printf "Error: npm is not installed. Please install npm manually or use the pre_install_script to install it.\n"
+    exit 1
+  fi
+
+  printf "Node.js version: %s\n" "$(node --version)"
+  printf "npm version: %s\n" "$(npm --version)"
 }
 
 function install_auggie() {
   if [ "${ARG_AUGGIE_INSTALL}" = "true" ]; then
-    install_node
-
-    # If nvm does not exist, we will create a global npm directory (this os to prevent the possibility of EACCESS issues on npm -g)
-    if ! command_exists nvm; then
-      printf "which node: %s\n" "$(which node)"
-      printf "which npm: %s\n" "$(which npm)"
-
-      # Create a directory for global packages
-      mkdir -p "$HOME"/.npm-global
-
-      # Configure npm to use it
-      npm config set prefix "$HOME/.npm-global"
-
-      # Add to PATH for current session
-      export PATH="$HOME/.npm-global/bin:$PATH"
-
-      # Add to shell profile for future sessions
-      if ! grep -q "export PATH=$HOME/.npm-global/bin:\$PATH" ~/.bashrc; then
-        echo "export PATH=$HOME/.npm-global/bin:\$PATH" >> ~/.bashrc
-      fi
-    fi
+    check_dependencies
 
     printf "%s Installing Auggie CLI\n" "${BOLD}"
 
@@ -87,6 +52,9 @@ function install_auggie() {
       npm install -g "@augmentcode/auggie"
     fi
     printf "%s Successfully installed Auggie CLI. Version: %s\n" "${BOLD}" "$(auggie --version)"
+  else
+    # Even if not installing, we should check that dependencies exist for the module to work
+    check_dependencies
   fi
 }
 
