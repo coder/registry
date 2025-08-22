@@ -79,4 +79,9 @@ resource "coder_app" "jupyterlab" {
   share        = var.share
   order        = var.order
   group        = var.group
+  healthcheck {
+    url       = "http://localhost:${var.port}/api"
+    interval  = 5
+    threshold = 6
+  }
 }
