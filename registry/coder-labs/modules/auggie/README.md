@@ -61,9 +61,9 @@ EOF  # Required for tasks
   # Task configuration
   ai_prompt                      = data.coder_parameter.ai_prompt.value
   continue_previous_conversation = true
-  interaction_mode              = "quiet"
-  auggie_model                  = "gpt5"
-  report_tasks                  = true
+  interaction_mode               = "quiet"
+  auggie_model                   = "gpt5"
+  report_tasks                   = true
 
   # MCP configuration for additional integrations
   mcp = <<-EOF
