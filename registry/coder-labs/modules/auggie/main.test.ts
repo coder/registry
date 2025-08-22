@@ -84,6 +84,24 @@ describe("auggie", async () => {
       moduleVariables: {
         install_auggie: "true",
         auggie_version: version_to_install,
+        pre_install_script: dedent`
+          #!/usr/bin/env bash
+          set -euo pipefail
+          
+          # Install Node.js and npm via system package manager
+          if ! command -v node >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y nodejs npm
+          fi
+          
+          # Configure npm to use user directory (avoids permission issues)
+          mkdir -p "$HOME/.npm-global"
+          npm config set prefix "$HOME/.npm-global"
+          
+          # Persist npm user directory configuration
+          echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.bashrc
+          echo "prefix=$HOME/.npm-global" > ~/.npmrc
+        `,
       },
     });
     await execModuleScript(id);
@@ -101,6 +119,24 @@ describe("auggie", async () => {
       skipAgentAPIMock: true,
       moduleVariables: {
         install_auggie: "true",
+        pre_install_script: dedent`
+          #!/usr/bin/env bash
+          set -euo pipefail
+          
+          # Install Node.js and npm via system package manager
+          if ! command -v node >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y nodejs npm
+          fi
+          
+          # Configure npm to use user directory (avoids permission issues)
+          mkdir -p "$HOME/.npm-global"
+          npm config set prefix "$HOME/.npm-global"
+          
+          # Persist npm user directory configuration
+          echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.bashrc
+          echo "prefix=$HOME/.npm-global" > ~/.npmrc
+        `,
       },
     });
     await execModuleScript(id);
@@ -151,6 +187,7 @@ describe("auggie", async () => {
     const rules = "Always use TypeScript for new files";
     const { id } = await setup({
       moduleVariables: {
+        install_auggie: "false",  // Don't need to install auggie to test rules file creation
         rules: rules,
       },
     });
@@ -270,7 +307,11 @@ describe("auggie", async () => {
   });
 
   test("coder-mcp-config-created", async () => {
-    const { id } = await setup();
+    const { id } = await setup({
+      moduleVariables: {
+        install_auggie: "false",  // Don't need to install auggie to test MCP config creation
+      },
+    });
     await execModuleScript(id);
 
     const mcpConfig = await readFileContainer(id, "/home/coder/.augment/coder_mcp.json");

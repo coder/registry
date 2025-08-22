@@ -1,4 +1,6 @@
 #!/bin/bash
+set -euo pipefail
+
 source "$HOME"/.bashrc
 
 BOLD='\033[0;1m'
@@ -7,7 +9,6 @@ BOLD='\033[0;1m'
 command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
-set -euo pipefail
 
 ARG_AUGGIE_INSTALL=${ARG_AUGGIE_INSTALL:-true}
 ARG_AUGGIE_VERSION=${ARG_AUGGIE_VERSION:-}
@@ -53,10 +54,10 @@ function install_auggie() {
     fi
     printf "%s Successfully installed Auggie CLI. Version: %s\n" "${BOLD}" "$(auggie --version)"
   else
-    # Even if not installing, we should check that dependencies exist for the module to work
-    check_dependencies
+    printf "Skipping Auggie CLI installation (install_auggie=false)\n"
   fi
 }
+
 
 function create_coder_mcp() {
   AUGGIE_CODER_MCP_FILE="$HOME/.augment/coder_mcp.json"
@@ -70,8 +71,8 @@ function create_coder_mcp() {
      "env": {
        "CODER_MCP_APP_STATUS_SLUG": "${ARG_MCP_APP_STATUS_SLUG}",
        "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284",
-       "CODER_AGENT_URL": "${CODER_AGENT_URL}",
-       "CODER_AGENT_TOKEN": "${CODER_AGENT_TOKEN}"
+       "CODER_AGENT_URL": "${CODER_AGENT_URL:-}",
+       "CODER_AGENT_TOKEN": "${CODER_AGENT_TOKEN:-}"
      }
    }
   }

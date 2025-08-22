@@ -135,18 +135,21 @@ EOF
   pre_install_script = <<-EOT
     #!/usr/bin/env bash
     set -euo pipefail
-    # Install Node.js via NVM if not already available
+    
+    # Install Node.js and npm via system package manager
     if ! command -v node >/dev/null 2>&1; then
-      export NVM_DIR="$HOME/.nvm"
-      if [ ! -d "$NVM_DIR" ]; then
-        mkdir -p "$NVM_DIR"
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-      fi
-      [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-      nvm install --lts
-      nvm use --lts
-      nvm alias default node
+      sudo apt-get update
+      sudo apt-get install -y nodejs npm
     fi
+    
+    # Configure npm to use user directory (avoids permission issues)
+    mkdir -p "$HOME/.npm-global"
+    npm config set prefix "$HOME/.npm-global"
+    
+    # Persist npm user directory configuration
+    echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.bashrc
+    echo "prefix=$HOME/.npm-global" > ~/.npmrc
+    
     # Install additional dependencies
     npm install -g typescript
     pip install -r requirements.txt
