@@ -148,7 +148,7 @@ variable "report_tasks" {
 variable "cli_app" {
   type        = bool
   description = "Whether to create a CLI app for Auggie"
-  default     = true
+  default     = false
 }
 
 variable "web_app_display_name" {
