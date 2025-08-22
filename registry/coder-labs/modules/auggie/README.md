@@ -26,22 +26,7 @@ module "auggie" {
 
 ## Examples
 
-### Simple Usage
-
-```tf
-module "auggie" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder-labs/auggie/coder"
-  version  = "0.1.0"
-  agent_id = coder_agent.example.id
-  folder   = "/home/coder/project"
-
-  # Optional: Specify Auggie version
-  auggie_version = "0.3.0"
-}
-```
-
-### Advanced Usage with Tasks and Configuration
+### Usage with Tasks and Configuration
 
 ```tf
 data "coder_parameter" "ai_prompt" {
@@ -69,6 +54,9 @@ module "auggie" {
   augment_session_token = <<-EOF
   {"accessToken":"xxxx-yyyy-zzzz-jjjj","tenantURL":"https://d1.api.augmentcode.com/","scopes":["read","write"]}
 EOF  # Required for tasks
+
+  # Version
+   auggie_version = "0.3.0"
 
   # Task configuration
   ai_prompt                      = data.coder_parameter.ai_prompt.value
