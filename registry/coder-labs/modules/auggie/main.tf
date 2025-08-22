@@ -170,7 +170,6 @@ module "agentapi" {
      chmod +x /tmp/start.sh
      ARG_AUGGIE_START_DIRECTORY='${var.folder}' \
      ARG_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
-     ARG_MCP_CONFIG='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
      ARG_MCP_FILES='${jsonencode(var.mcp_files)}' \
      ARG_AUGGIE_RULES='${base64encode(var.rules)}' \
      ARG_AUGGIE_CONTINUE_PREVIOUS_CONVERSATION='${var.continue_previous_conversation}' \
@@ -191,6 +190,7 @@ module "agentapi" {
     ARG_AUGGIE_VERSION='${var.auggie_version}' \
     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_AUGGIE_RULES='${base64encode(var.rules)}' \
+    ARG_MCP_CONFIG='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
     /tmp/install.sh
   EOT
 }

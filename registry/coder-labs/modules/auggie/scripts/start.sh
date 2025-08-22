@@ -20,7 +20,6 @@ set -o nounset
 
 ARG_AUGGIE_START_DIRECTORY=${ARG_AUGGIE_START_DIRECTORY:-"$HOME"}
 ARG_TASK_PROMPT=$(echo -n "${ARG_TASK_PROMPT:-}" | base64 -d)
-ARG_MCP_CONFIG=${ARG_MCP_CONFIG:-}
 ARG_MCP_FILES=${ARG_MCP_FILES:-[]}
 ARG_AUGGIE_RULES=${ARG_AUGGIE_RULES:-}
 ARG_AUGMENT_SESSION_AUTH=${ARG_AUGMENT_SESSION_AUTH:-}
@@ -34,7 +33,6 @@ echo "--------------------------------"
 
 printf "auggie_start_directory: %s\n" "$ARG_AUGGIE_START_DIRECTORY"
 printf "task_prompt: %s\n" "$ARG_TASK_PROMPT"
-printf "mcp_config: %s\n" "$ARG_MCP_CONFIG"
 printf "mcp_files: %s\n" "$ARG_MCP_FILES"
 printf "auggie_rules: %s\n" "$ARG_AUGGIE_RULES"
 printf "continue_previous_conversation: %s\n" "$ARG_AUGGIE_CONTINUE_PREVIOUS_CONVERSATION"
@@ -66,8 +64,9 @@ function build_auggie_args() {
     ARGS+=(--model "$ARG_AUGGIE_MODEL")
   fi
 
-  if [ -n "$ARG_MCP_CONFIG" ]; then
-    ARGS+=(--mcp-config "$ARG_MCP_CONFIG")
+  # add user mcp file if it exists
+  if [ -f "$HOME/.augment/user_mcp.json" ]; then
+    ARGS+=(--mcp-config "$HOME/.augment/user_mcp.json")
   fi
 
   if [ -n "$ARG_MCP_FILES" ]; then

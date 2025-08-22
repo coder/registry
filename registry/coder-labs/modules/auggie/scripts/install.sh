@@ -15,6 +15,7 @@ ARG_AUGGIE_INSTALL=${ARG_AUGGIE_INSTALL:-true}
 ARG_AUGGIE_VERSION=${ARG_AUGGIE_VERSION:-}
 ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
 ARG_AUGGIE_RULES=$(echo -n "${ARG_AUGGIE_RULES:-}" | base64 -d)
+ARG_MCP_CONFIG=${ARG_MCP_CONFIG:-}
 
 echo "--------------------------------"
 
@@ -114,6 +115,18 @@ EOF
   printf "Coder MCP config created at: %s\n" "$AUGGIE_CODER_MCP_FILE"
 }
 
+function create_user_mcp() {
+  if [ -n "$ARG_MCP_CONFIG" ]; then
+    USER_MCP_CONFIG_FILE="$HOME/.augment/user_mcp.json"
+    USER_MCP_CONTENT=$(echo -n "$ARG_MCP_CONFIG" | base64 -d)
+    mkdir -p "$(dirname "$USER_MCP_CONFIG_FILE")"
+    echo "$USER_MCP_CONTENT" > "$USER_MCP_CONFIG_FILE"
+    printf "User MCP config created at: %s\n" "$USER_MCP_CONFIG_FILE"
+  else
+    printf "No user MCP config provided, skipping user MCP config creation.\n"
+  fi
+}
+
 function create_rules_file() {
   AUGGIE_RULES_FILE="$HOME/.augment/rules.md"
   if [ -n "$ARG_AUGGIE_RULES" ]; then
@@ -127,4 +140,5 @@ function create_rules_file() {
 
 install_auggie
 create_coder_mcp
+create_user_mcp
 create_rules_file
