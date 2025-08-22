@@ -164,7 +164,9 @@ EOF
 }
 ```
 
-### Log Files
+### Troubleshooting
+
+If you have any issues, please take a look at the log files below.
 
 ```bash
 # Installation logs
