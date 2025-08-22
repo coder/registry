@@ -230,19 +230,19 @@ get_http_dir() {
 
   # Check the system configuration path
   if [[ -e /etc/kasmvnc/kasmvnc.yaml ]]; then
-    d=($(grep -E "^\s*httpd_directory:.*$" /etc/kasmvnc/kasmvnc.yaml))
-    # If this grep is successful, it will return:
-    #     httpd_directory: /usr/share/kasmvnc/www
-    if [[ $${#d[@]} -eq 2 && -d "$${d[1]}" ]]; then
-      httpd_directory="$${d[1]}"
+    d=$(grep -E '^\s*httpd_directory:.*$' "/etc/kasmvnc/kasmvnc.yaml" | awk '{print $2}')
+
+    if [[ -n "$httpd_directory" ]]; then
+        httpd_directory=$d
     fi
   fi
 
   # Check the home directory for overriding values
   if [[ -e "$HOME/.vnc/kasmvnc.yaml" ]]; then
-    d=($(grep -E "^\s*httpd_directory:.*$" "$HOME/.vnc/kasmvnc.yaml"))
-    if [[ $${#d[@]} -eq 2 && -d "$${d[1]}" ]]; then
-      httpd_directory="$${d[1]}"
+    d=$(grep -E '^\s*httpd_directory:.*$' "$HOME/.vnc/kasmvnc.yaml" | awk '{print $2}')
+
+    if [[ -n "$httpd_directory" ]]; then
+        httpd_directory=$d
     fi
   fi
   echo $httpd_directory
