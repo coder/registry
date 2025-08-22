@@ -34,7 +34,7 @@ esac
 if command -v apt-get >/dev/null 2>&1; then
 	PKG_SYS="deb"
 	PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.deb"
-	INSTALL_DEPS='apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y wget libva2 libva-drm2 libva-x11-2 libgstreamer-plugins-base1.0-0 gstreamer1.0-pipewire xfce4 xfce4-goodies xvfb x11-xserver-utils dbus-x11 libegl1-mesa libgl1 libglx0 libglu1-mesa mesa-utils libxrandr2 libxss1 libgtk-3-0 libgbm1 libdrm2 libxcomposite1 libxdamage1 libxfixes3'
+	INSTALL_DEPS='apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y wget libva2 libva-drm2 libva-x11-2 libgstreamer-plugins-base1.0-0 gstreamer1.0-pipewire xfce4 xfce4-goodies xvfb x11-xserver-utils dbus-x11 libegl1 libgl1 libglx0 libglu1-mesa mesa-utils libxrandr2 libxss1 libgtk-3-0t64 libgbm1 libdrm2 libxcomposite1 libxdamage1 libxfixes3'
 	INSTALL_CMD="apt-get install -y ./${PKG_NAME}"
 	CLEAN_CMD="rm -f \"${PKG_NAME}\""
 elif command -v dnf >/dev/null 2>&1; then
