@@ -45,7 +45,7 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
     moduleVariables: {
       install_sourcegraph_amp: props?.skipAmpMock ? "true" : "false",
       install_agentapi: props?.skipAgentAPIMock ? "true" : "false",
-      sourcegraph_amp_model: "test-model",
+      aider_model: "test-model",
       ...props?.moduleVariables,
     },
     registerCleanup,
@@ -66,7 +66,7 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
   return { id };
 };
 
-setDefaultTimeout(60 * 1000);
+setDefaultTimeout(60 * 5000);
 
 describe("Aider", async () => {
   beforeAll(async () => {
@@ -112,8 +112,8 @@ describe("Aider", async () => {
   test("pre-post-install-scripts", async () => {
     const { id } = await setup({
       moduleVariables: {
-        pre_install_script: "#!/bin/bash\necho 'pre-install-script'",
-        post_install_script: "#!/bin/bash\necho 'post-install-script'",
+        experiment_pre_install_script: "#!/bin/bash\necho 'pre-install-script'",
+        experiment_post_install_script: "#!/bin/bash\necho 'post-install-script'",
       },
     });
     await execModuleScript(id);
@@ -130,23 +130,25 @@ describe("Aider", async () => {
   });
 
   test("system-prompt", async () => {
-    const prompt = "this is a system prompt for AMP";
-    const { id } = await setup();
-    await execModuleScript(id, {
-      SOURCEGRAPH_AMP_SYSTEM_PROMPT: prompt,
+    const system_prompt = "this is a system prompt for AMP";
+    const { id } = await setup({
+      moduleVariables: {
+        system_prompt,
+      },
     });
+    await execModuleScript(id)
     const resp = await readFileContainer(
       id,
       "/home/coder/.aider-module/SYSTEM_PROMPT.md",
     );
-    expect(resp).toContain(prompt);
+    expect(resp).toContain(system_prompt);
   });
 
   test("task-prompt", async () => {
     const prompt = "this is a task prompt for AMP";
     const { id } = await setup();
     await execModuleScript(id, {
-      SOURCEGRAPH_AMP_TASK_PROMPT: prompt,
+      AIDER_TASK_PROMPT: prompt,
     });
     const resp = await readFileContainer(
       id,

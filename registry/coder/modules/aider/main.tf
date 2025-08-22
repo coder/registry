@@ -87,6 +87,17 @@ variable "task_prompt" {
   description = "Task prompt to use with Aider"
   default     = ""
 }
+resource "coder_env" "task_prompt" {
+  agent_id = var.agent_id
+  name     = "AIDER_TASK_PROMPT"
+  value    = var.task_prompt
+}
+
+variable "aider_prompt" {
+  type = bool
+  description = "This prompt will be sent to Aider and should run only once, and AgentAPI will be disabled."
+  default = false
+}
 
 variable "experiment_pre_install_script" {
   type        = string
@@ -127,6 +138,12 @@ variable "ai_api_key" {
   description = "API key for the selected AI provider. This will be set as the appropriate environment variable based on the provider."
   default     = ""
   sensitive   = true
+}
+
+resource "coder_env" "ai_api_key" {
+  agent_id = var.agent_id
+  name     = "ARG_API_KEY"
+  value    = var.ai_api_key
 }
 
 variable "custom_env_var_name" {
@@ -232,11 +249,13 @@ module "agentapi" {
 
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
     chmod +x /tmp/start.sh   
+    AIDER_START_DIRECTORY='${var.folder}' \
     ARG_API_KEY='${var.ai_api_key}' \
     ARG_AI_MODULE='${var.ai_model}' \
     ARG_AI_PROVIDER='${var.ai_provider}' \
     ARG_ENV_API_NAME_HOLDER='${local.env_var_name}' \
     AIDER_TASK_PROMPT='${var.task_prompt}' \
+    AIDER_PROMPT='${var.aider_prompt}' \
     /tmp/start.sh
   EOT 
 

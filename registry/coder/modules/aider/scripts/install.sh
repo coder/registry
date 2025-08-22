@@ -12,20 +12,24 @@ echo "Workspace: $AIDER_START_DIRECTORY"
 echo "--------------------------------"
 
 function install_aider() {
-    echo "Installing pipx via apt-get..."
-    
-    sudo apt-get update -y
-    sudo apt-get install -y pipx
-    pipx ensurepath
+    echo "checking pipx installed..."
+    if ! command_exists pipx; then
+      echo "pipx not found"
+      echo "Installing pipx via apt-get..."
+      sudo apt-get update -y
+      sudo apt-get install -y pipx
+      echo "pipx installed!"
+    fi  
+    pipx ensurepath 
     echo $PATH
     mkdir -p "$AIDER_START_DIRECTORY/.local/bin"
     export PATH="$HOME/.local/bin:$AIDER_START_DIRECTORY/.local/bin:$PATH"   # ensure in current shell too
-    echo "pipx installed!"
     
-
-    echo "Installing Aider via pipx..."
-    pipx install --force aider-install
-    aider-install
+    if ! command_exists aider; then
+      echo "Installing Aider via pipx..."
+      pipx install --force aider-install
+      aider-install
+    fi  
     echo "Aider installed: $(aider --version || echo 'check failed the Aider module insatllation failed')"
 }
 
