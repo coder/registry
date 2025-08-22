@@ -34,22 +34,19 @@ esac
 if command -v apt-get >/dev/null 2>&1; then
 	PKG_SYS="deb"
 	PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.deb"
-	INSTALL_DEPS='apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y wget libva2 libva-drm2 libva-x11-2 libgstreamer-plugins-base1.0-0 gstreamer1.0-pipewire xfce4 xfce4-goodies xvfb x11-xserver-utils dbus-x11
-'
+	INSTALL_DEPS='apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y wget libva2 libva-drm2 libva-x11-2 libgstreamer-plugins-base1.0-0 gstreamer1.0-pipewire xfce4 xfce4-goodies xvfb x11-xserver-utils dbus-x11 libegl1-mesa libgl1 libglx0 libglu1-mesa mesa-utils libxrandr2 libxss1 libgtk-3-0 libgbm1 libdrm2 libxcomposite1 libxdamage1 libxfixes3'
 	INSTALL_CMD="apt-get install -y ./${PKG_NAME}"
 	CLEAN_CMD="rm -f \"${PKG_NAME}\""
 elif command -v dnf >/dev/null 2>&1; then
 	PKG_SYS="rpm"
 	PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.rpm"
-	INSTALL_DEPS='dnf install -y wget libva2 libva-drm2 libva-x11-2 libgstreamer-plugins-base1.0-0 gstreamer1.0-pipewire xfce4 xfce4-goodies xvfb x11-xserver-utils dbus-x11
-'
+	INSTALL_DEPS='dnf install -y wget libva libva-intel-driver gstreamer1-plugins-base pipewire xfce4-session xfce4-panel xorg-x11-server-Xvfb xorg-x11-xauth dbus-x11 mesa-libEGL mesa-libGL mesa-libGLU mesa-dri-drivers libXrandr libXScrnSaver gtk3 mesa-libgbm libdrm libXcomposite libXdamage libXfixes'
 	INSTALL_CMD="dnf install -y ./${PKG_NAME}"
 	CLEAN_CMD="rm -f \"${PKG_NAME}\""
 elif command -v yum >/dev/null 2>&1; then
 	PKG_SYS="rpm"
 	PKG_NAME="rustdesk-${RUSTDESK_VERSION}-${PKG_ARCH}.rpm"
-	INSTALL_DEPS='yum install -y wget libva2 libva-drm2 libva-x11-2 libgstreamer-plugins-base1.0-0 gstreamer1.0-pipewire xfce4 xfce4-goodies xvfb x11-xserver-utils dbus-x11
-'
+	INSTALL_DEPS='yum install -y wget libva libva-intel-driver gstreamer1-plugins-base pipewire xfce4-session xfce4-panel xorg-x11-server-Xvfb xorg-x11-xauth dbus-x11 mesa-libEGL mesa-libGL mesa-libGLU mesa-dri-drivers libXrandr libXScrnSaver gtk3 mesa-libgbm libdrm libXcomposite libXdamage libXfixes'
 	INSTALL_CMD="yum install -y ./${PKG_NAME}"
 	CLEAN_CMD="rm -f \"${PKG_NAME}\""
 else
