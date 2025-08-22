@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Load shell environment
 source "$HOME"/.bashrc
 set -o errexit
 set -o pipefail
@@ -18,12 +17,12 @@ printf "Version: %s\n" "$(codex --version)"
 set -o nounset
 ARG_CODEX_TASK_PROMPT=$(echo -n "$ARG_CODEX_TASK_PROMPT" | base64 -d)
 
-echo "--------------------------------"
-printf "openai_api_key: %s\n" "$ARG_OPENAI_API_KEY"
-printf "codex_model: %s\n" "$ARG_CODEX_MODEL"
-printf "start_directory: %s\n" "$ARG_CODEX_START_DIRECTORY"
-printf "task_prompt: %s\n" "$ARG_CODEX_TASK_PROMPT"
-echo "--------------------------------"
+echo "=== Codex Launch Configuration ==="
+printf "OpenAI API Key: %s\n" "$([ -n "$ARG_OPENAI_API_KEY" ] && echo "Provided" || echo "Not provided")"
+printf "Codex Model: %s\n" "${ARG_CODEX_MODEL:-"Default"}"
+printf "Start Directory: %s\n" "$ARG_CODEX_START_DIRECTORY"
+printf "Has Task Prompt: %s\n" "$([ -n "$ARG_CODEX_TASK_PROMPT" ] && echo "Yes" || echo "No")"
+echo "======================================"
 set +o nounset
 CODEX_ARGS=()
 
@@ -66,13 +65,9 @@ else
   printf "No task prompt given.\n"
 fi
 
-if [ -n "$ARG_OPENAI_API_KEY" ]; then
-  printf "openai_api_key provided !\n"
-else
-  printf "openai_api_key not provided\n"
-fi
 
-# use low width to fit in the tasks UI sidebar
-# we adjust the height to 930 due to a bug in codex, see: https://github.com/openai/codex/issues/1608
-printf "Starting codex with %s\n" "${CODEX_ARGS[@]}"
+# Terminal dimensions optimized for Coder Tasks UI sidebar:
+# - Width 67: fits comfortably in sidebar
+# - Height 1190: adjusted due to Codex terminal height bug
+printf "Starting Codex with arguments: %s\n" "${CODEX_ARGS[*]}"
 agentapi server --term-width 67 --term-height 1190 -- codex "${CODEX_ARGS[@]}"

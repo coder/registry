@@ -158,6 +158,12 @@ variable "platform" {
   }
 }
 
+variable "workspace" {
+  type        = string
+  description = "Path to a .code-workspace file to open in vscode-web."
+  default     = ""
+}
+
 data "coder_workspace_owner" "me" {}
 data "coder_workspace" "me" {}
 
@@ -178,6 +184,7 @@ resource "coder_script" "vscode-web" {
     DISABLE_TRUST : var.disable_trust,
     EXTENSIONS_DIR : var.extensions_dir,
     FOLDER : var.folder,
+    WORKSPACE : var.workspace,
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
     SERVER_BASE_PATH : local.server_base_path,
     COMMIT_ID : var.commit_id,
@@ -194,6 +201,11 @@ resource "coder_script" "vscode-web" {
     precondition {
       condition     = !var.offline || !var.use_cached
       error_message = "Offline and Use Cached can not be used together"
+    }
+
+    precondition {
+      condition     = (var.workspace == "" || var.folder == "")
+      error_message = "Set only one of `workspace` or `folder`."
     }
   }
 }
@@ -218,6 +230,12 @@ resource "coder_app" "vscode-web" {
 
 locals {
   server_base_path = var.subdomain ? "" : format("/@%s/%s/apps/%s/", data.coder_workspace_owner.me.name, data.coder_workspace.me.name, var.slug)
-  url              = var.folder == "" ? "http://localhost:${var.port}${local.server_base_path}" : "http://localhost:${var.port}${local.server_base_path}?folder=${var.folder}"
-  healthcheck_url  = var.subdomain ? "http://localhost:${var.port}/healthz" : "http://localhost:${var.port}${local.server_base_path}/healthz"
+  url = (
+    var.workspace != "" ?
+    "http://localhost:${var.port}${local.server_base_path}?workspace=${urlencode(var.workspace)}" :
+    var.folder != "" ?
+    "http://localhost:${var.port}${local.server_base_path}?folder=${urlencode(var.folder)}" :
+    "http://localhost:${var.port}${local.server_base_path}"
+  )
+  healthcheck_url = var.subdomain ? "http://localhost:${var.port}/healthz" : "http://localhost:${var.port}${local.server_base_path}/healthz"
 }
