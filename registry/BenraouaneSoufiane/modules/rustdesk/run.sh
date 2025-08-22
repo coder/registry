@@ -74,9 +74,8 @@ fi
 
 # ---- start virtual display ----
 echo "Starting Xvfb with resolution ${XVFB_RESOLUTION}…"
-Xvfb :99 -screen 0 "${XVFB_RESOLUTION}" &
+Xvfb :99 -screen 0 "${XVFB_RESOLUTION}" >>"${LOG_PATH}" 2>&1 &
 export DISPLAY=:99
-
 
 # Wait for X to be ready
 for i in {1..10}; do
@@ -89,27 +88,23 @@ done
 
 # ---- create (or accept) password and start rustdesk ----
 if [[ -z "${RUSTDESK_PASSWORD}" ]]; then
-	RUSTDESK_PASSWORD="$(tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 6)"
+	RUSTDESK_PASSWORD="$(tr -dc 'a-zA-Z0-9@' </dev/urandom | head -c 10)@97"
 fi
 
-# Start desktop environment
-xfce4-session &
+echo "Starting XFCE desktop environment..."
+xfce4-session >>"${LOG_PATH}" 2>&1 &
 
-# Wait for xfce session to be ready (rudimentary check)
 echo "Waiting for xfce4-session to initialize..."
-
-sleep 5  # Adjust if needed
-
+sleep 5
 
 printf "🔐 Setting RustDesk password and starting service...\n"
-# set password (requires sudo for system service configuration)
-rustdesk &
-rustdesk --password "${RUSTDESK_PASSWORD}"
+rustdesk >>"${LOG_PATH}" 2>&1 &
+sleep 2
 
+rustdesk --password "${RUSTDESK_PASSWORD}" >>"${LOG_PATH}" 2>&1 &
+sleep 3
 
-sleep 5 # Adjust if needed
-
-RID="$(rustdesk --get-id)"
+RID="$(rustdesk --get-id 2>/dev/null || echo 'ID_PENDING')"
 
 printf "🥳 RustDesk setup complete!\n\n"
 printf "${BOLD}📋 Connection Details:${RESET}\n"
@@ -118,5 +113,5 @@ printf "   RustDesk Password:  ${RUSTDESK_PASSWORD}\n"
 printf "   Display:            ${DISPLAY} (${XVFB_RESOLUTION})\n"
 printf "\n📝 Logs available at: ${LOG_PATH}\n\n"
 
-# keep the script alive if needed (helpful in some runners)
-#wait -n || true
+echo "Setup script completed successfully. All services running in background."
+exit 0
