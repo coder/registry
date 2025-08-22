@@ -48,9 +48,9 @@ function install_auggie() {
     printf "%s Installing Auggie CLI\n" "${BOLD}"
 
     if [ -n "$ARG_AUGGIE_VERSION" ]; then
-      npm install -g "@augmentcode/auggie@$ARG_AUGGIE_VERSION"
+      sudo npm install -g "@augmentcode/auggie@$ARG_AUGGIE_VERSION"
     else
-      npm install -g "@augmentcode/auggie"
+      sudo npm install -g "@augmentcode/auggie"
     fi
     printf "%s Successfully installed Auggie CLI. Version: %s\n" "${BOLD}" "$(auggie --version)"
   else
