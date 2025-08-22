@@ -26,6 +26,7 @@ ARG_AUGMENT_SESSION_AUTH=${ARG_AUGMENT_SESSION_AUTH:-}
 ARG_AUGGIE_CONTINUE_PREVIOUS_CONVERSATION=${ARG_AUGGIE_CONTINUE_PREVIOUS_CONVERSATION:-false}
 ARG_AUGGIE_INTERACTION_MODE=${ARG_AUGGIE_INTERACTION_MODE:-"interactive"}
 ARG_AUGGIE_MODEL=${ARG_AUGGIE_MODEL:-}
+ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-false}
 
 ARGS=()
 
@@ -39,6 +40,7 @@ printf "continue_previous_conversation: %s\n" "$ARG_AUGGIE_CONTINUE_PREVIOUS_CON
 printf "auggie_interaction_mode: %s\n" "$ARG_AUGGIE_INTERACTION_MODE"
 printf "augment_session_auth: %s\n" "$ARG_AUGMENT_SESSION_AUTH"
 printf "auggie_model: %s\n" "$ARG_AUGGIE_MODEL"
+printf "report_tasks: %s\n" "$ARG_REPORT_TASKS"
 
 echo "--------------------------------"
 
@@ -64,7 +66,6 @@ function build_auggie_args() {
     ARGS+=(--model "$ARG_AUGGIE_MODEL")
   fi
 
-  # add user mcp file if it exists
   if [ -f "$HOME/.augment/user_mcp.json" ]; then
     ARGS+=(--mcp-config "$HOME/.augment/user_mcp.json")
   fi
@@ -75,7 +76,6 @@ function build_auggie_args() {
     done
   fi
 
-  # add coder mcp file
   ARGS+=(--mcp-config "$HOME/.augment/coder_mcp.json")
 
   if [ -n "$ARG_AUGGIE_RULES" ]; then
@@ -88,7 +88,11 @@ function build_auggie_args() {
   fi
 
   if [ -n "$ARG_TASK_PROMPT" ]; then
-    PROMPT="Every step of the way, report your progress using coder_report_task tool with proper summary and statuses. Your task at hand: $ARG_TASK_PROMPT"
+    if [ "$ARG_REPORT_TASKS" == "true" ]; then
+      PROMPT="Every step of the way, report your progress using coder_report_task tool with proper summary and statuses. Your task at hand: $ARG_TASK_PROMPT"
+    else
+      PROMPT="$ARG_TASK_PROMPT"
+    fi
     ARGS+=(--instruction "$PROMPT")
   fi
 }

@@ -63,6 +63,7 @@ EOF  # Required for tasks
   continue_previous_conversation = true
   interaction_mode              = "quiet"
   auggie_model                  = "gpt5"
+  report_tasks                  = true
 
   # MCP configuration for additional integrations
   mcp = <<-EOF
@@ -71,10 +72,6 @@ EOF  # Required for tasks
     "filesystem": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/coder/project"]
-    },
-    "git": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-git", "--repository", "/home/coder/project"]
     }
   }
 }
@@ -179,5 +176,3 @@ cat ~/.auggie-module/post_install.log
 - [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)
 - [Auggie CLI Reference](https://docs.augmentcode.com/cli/reference)
 - [MCP Integration Guide](https://docs.augmentcode.com/cli/integrations#mcp-integrations)
-- [AgentAPI Documentation](https://github.com/coder/agentapi)
-- [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)

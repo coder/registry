@@ -38,7 +38,7 @@ variable "icon" {
 
 variable "folder" {
   type        = string
-  description = "The folder to run Codex in."
+  description = "The folder to run Auggie in."
 }
 
 variable "install_auggie" {
@@ -51,6 +51,10 @@ variable "auggie_version" {
   type        = string
   description = "The version of Auggie to install."
   default     = "" # empty string means the latest available version
+  validation {
+    condition     = var.auggie_version == "" || can(regex("^v?[0-9]+\\.[0-9]+\\.[0-9]+", var.auggie_version))
+    error_message = "auggie_version must be empty (for latest) or a valid semantic version like 'v1.2.3' or '1.2.3'."
+  }
 }
 
 variable "install_agentapi" {
@@ -63,17 +67,21 @@ variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
   default     = "v0.6.0"
+  validation {
+    condition     = can(regex("^v[0-9]+\\.[0-9]+\\.[0-9]+", var.agentapi_version))
+    error_message = "agentapi_version must be a valid semantic version starting with 'v', like 'v0.3.3'."
+  }
 }
 
 variable "pre_install_script" {
   type        = string
-  description = "Custom script to run before installing Codex."
+  description = "Custom script to run before installing Auggie."
   default     = null
 }
 
 variable "post_install_script" {
   type        = string
-  description = "Custom script to run after installing Codex."
+  description = "Custom script to run after installing Auggie."
   default     = null
 }
 
@@ -131,6 +139,30 @@ variable "auggie_model" {
   default     = ""
 }
 
+variable "report_tasks" {
+  type        = bool
+  description = "Whether to enable task reporting to Coder UI via AgentAPI"
+  default     = false
+}
+
+variable "cli_app" {
+  type        = bool
+  description = "Whether to create a CLI app for Auggie"
+  default     = true
+}
+
+variable "web_app_display_name" {
+  type        = string
+  description = "Display name for the web app"
+  default     = "Auggie"
+}
+
+variable "cli_app_display_name" {
+  type        = string
+  description = "Display name for the CLI app"
+  default     = "Auggie CLI"
+}
+
 resource "coder_env" "auggie_session_auth" {
   agent_id = var.agent_id
   name     = "AUGMENT_SESSION_AUTH"
@@ -153,9 +185,10 @@ module "agentapi" {
   web_app_order        = var.order
   web_app_group        = var.group
   web_app_icon         = var.icon
-  web_app_display_name = "Auggie"
-  cli_app_slug         = "${local.app_slug}-cli"
-  cli_app_display_name = "Auggie CLI"
+  web_app_display_name = var.web_app_display_name
+  cli_app              = var.cli_app
+  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
+  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
@@ -176,6 +209,7 @@ module "agentapi" {
      ARG_AUGGIE_INTERACTION_MODE='${var.interaction_mode}' \
      ARG_AUGMENT_SESSION_AUTH='${var.augment_session_token}' \
      ARG_AUGGIE_MODEL='${var.auggie_model}' \
+     ARG_REPORT_TASKS='${var.report_tasks}' \
      /tmp/start.sh
    EOT
 
