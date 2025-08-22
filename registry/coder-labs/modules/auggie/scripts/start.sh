@@ -64,7 +64,7 @@ function build_auggie_args() {
     ARGS+=(--mcp-config "$HOME/.augment/user_mcp.json")
   fi
 
-  if [ -n "$ARG_MCP_FILES" ]; then
+  if [ -n "$ARG_MCP_FILES" ] && [ "$ARG_MCP_FILES" != "[]" ]; then
     for file in $(echo "$ARG_MCP_FILES" | jq -r '.[]'); do
       ARGS+=(--mcp-config "$file")
     done
