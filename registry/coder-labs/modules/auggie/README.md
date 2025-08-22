@@ -183,7 +183,11 @@ cat ~/.auggie-module/post_install.log
 
 ## References
 
+- [Auggie CLI Reference](https://docs.augmentcode.com/cli/reference)
+- [MCP Integration Guide](https://docs.augmentcode.com/cli/integrations#mcp-integrations)
 - [Augment Code Documentation](https://docs.augmentcode.com/)
+- [AgentAPI Documentation](https://github.com/coder/agentapi)
+- [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)
 - [Auggie CLI Reference](https://docs.augmentcode.com/cli/reference)
 - [MCP Integration Guide](https://docs.augmentcode.com/cli/integrations#mcp-integrations)
 - [AgentAPI Documentation](https://github.com/coder/agentapi)
