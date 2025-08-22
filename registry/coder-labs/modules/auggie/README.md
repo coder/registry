@@ -21,7 +21,7 @@ module "auggie" {
 
 ## Prerequisites
 
-- Node.js and npm must be installed (can be installed via `pre_install_script`)
+- **Node.js and npm must be sourced/available before the auggie module installs** - ensure they are installed in your workspace image or via earlier provisioning steps
 - You must add the [Coder Login](https://registry.coder.com/modules/coder/coder-login) module to your template
 - **Augment session token for authentication (required for tasks). [Instructions](https://docs.augmentcode.com/cli/setup-auggie/authentication) to get the session token**
 
@@ -130,37 +130,6 @@ module "auggie" {
   }
 }
 EOF
-
-  # Custom install scripts
-  pre_install_script = <<-EOT
-    #!/usr/bin/env bash
-    set -euo pipefail
-    
-    # Install Node.js and npm via system package manager
-    if ! command -v node >/dev/null 2>&1; then
-      sudo apt-get update
-      sudo apt-get install -y nodejs npm
-    fi
-    
-    # Configure npm to use user directory (avoids permission issues)
-    mkdir -p "$HOME/.npm-global"
-    npm config set prefix "$HOME/.npm-global"
-    
-    # Persist npm user directory configuration
-    echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.bashrc
-    echo "prefix=$HOME/.npm-global" > ~/.npmrc
-    
-    # Install additional dependencies
-    npm install -g typescript
-    pip install -r requirements.txt
-  EOT
-
-  post_install_script = <<-EOT
-    #!/usr/bin/env bash
-    set -euo pipefail
-    # Setup project-specific configuration
-    echo "Auggie setup complete for $(pwd)"
-  EOT
 }
 ```
 
