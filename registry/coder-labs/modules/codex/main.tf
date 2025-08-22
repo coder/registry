@@ -53,41 +53,21 @@ variable "codex_version" {
   default     = "" # empty string means the latest available version
 }
 
-variable "extra_codex_settings_toml" {
+variable "base_config_toml" {
   type        = string
-  description = "Settings to append to ~/.codex/config.toml."
+  description = "Complete base TOML configuration for Codex (without mcp_servers section). If empty, uses minimal default configuration with workspace-write sandbox mode and never approval policy. For advanced options, see https://github.com/openai/codex/blob/main/codex-rs/config.md"
   default     = ""
 }
 
-variable "sandbox_mode" {
+variable "additional_mcp_servers" {
   type        = string
-  description = "The sandbox mode for Codex. Options: workspace-write, read-only, danger-full-access."
-  default     = "workspace-write"
-  validation {
-    condition     = contains(["workspace-write", "read-only", "danger-full-access"], var.sandbox_mode)
-    error_message = "sandbox_mode must be one of: workspace-write, read-only, danger-full-access."
-  }
-}
-
-variable "approval_policy" {
-  type        = string
-  description = "The approval policy for Codex. Options: on-request, never, untrusted."
-  default     = "on-request"
-  validation {
-    condition     = contains(["on-request", "never", "untrusted"], var.approval_policy)
-    error_message = "approval_policy must be one of: on-request, never, untrusted."
-  }
-}
-
-variable "network_access" {
-  type        = bool
-  description = "Whether to allow network access in workspace-write mode."
-  default     = true
+  description = "Additional MCP servers configuration in TOML format. These will be merged with the required Coder MCP server in the [mcp_servers] section."
+  default     = ""
 }
 
 variable "openai_api_key" {
   type        = string
-  description = "Codex API Key"
+  description = "OpenAI API key for Codex CLI"
   default     = ""
 }
 
@@ -105,7 +85,7 @@ variable "agentapi_version" {
 
 variable "codex_model" {
   type        = string
-  description = "The model for Codex to use (e.g., o4-mini)."
+  description = "The model for Codex to use. Defaults to gpt-5."
   default     = ""
 }
 
@@ -123,23 +103,15 @@ variable "post_install_script" {
 
 variable "ai_prompt" {
   type        = string
-  description = "Task prompt for the Codex CLI"
-  default     = ""
-}
-
-variable "additional_extensions" {
-  type        = string
-  description = "Additional extensions configuration in json format to append to the config."
+  description = "Initial task prompt for Codex CLI when launched via Tasks"
   default     = ""
 }
 
 variable "codex_system_prompt" {
   type        = string
-  description = "System prompt for Codex. It will be added to AGENTS.md in the specified folder."
-  default     = ""
+  description = "System instructions written to AGENTS.md in the ~/.codex directory"
+  default     = "You are a helpful coding assistant. Start every response with `Codex says:`"
 }
-
-
 
 resource "coder_env" "openai_api_key" {
   agent_id = var.agent_id
@@ -194,14 +166,11 @@ module "agentapi" {
     chmod +x /tmp/install.sh
     ARG_INSTALL='${var.install_codex}' \
     ARG_CODEX_VERSION='${var.codex_version}' \
-    ARG_EXTRA_CODEX_CONFIG='${base64encode(var.extra_codex_settings_toml)}' \
+    ARG_BASE_CONFIG_TOML='${base64encode(var.base_config_toml)}' \
+    ARG_ADDITIONAL_MCP_SERVERS='${base64encode(var.additional_mcp_servers)}' \
     ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
-    ARG_ADDITIONAL_EXTENSIONS='${base64encode(var.additional_extensions)}' \
     ARG_CODEX_START_DIRECTORY='${var.folder}' \
     ARG_CODEX_INSTRUCTION_PROMPT='${base64encode(var.codex_system_prompt)}' \
-    ARG_SANDBOX_MODE='${var.sandbox_mode}' \
-    ARG_APPROVAL_POLICY='${var.approval_policy}' \
-    ARG_NETWORK_ACCESS='${var.network_access}' \
     /tmp/install.sh
   EOT
 }
