@@ -12,6 +12,11 @@ terraform {
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
+locals {
+  config_json = jsonencode(var.config)
+  config_b64 = length(var.config) > 0 ? base64encode(local.config_json) : ""
+}
+
 # Add required variables for your modules and remove any unneeded variables
 variable "agent_id" {
   type        = string
@@ -55,6 +60,27 @@ variable "group" {
   type        = string
   description = "The name of a group that this app belongs to."
   default     = null
+}
+
+variable "config" {
+  type        = any
+  description = "A map of JupyterLab server configuration settings. When set, writes ~/.jupyter/jupyter_server_config.json."
+  default     = {}
+}
+
+resource "coder_script" "jupyterlab_config" {
+  count              = length(var.config) > 0 ? 1 : 0
+  agent_id           = var.agent_id
+  display_name       = "JupyterLab Config"
+  icon               = "/icon/jupyter.svg"
+  run_on_start       = true
+  start_blocks_login = false
+  script             = <<-EOT
+    #!/bin/sh
+    set -eu
+    mkdir -p "$HOME/.jupyter"
+    echo -n "${local.config_b64}" | base64 -d > "$HOME/.jupyter/jupyter_server_config.json"
+  EOT
 }
 
 resource "coder_script" "jupyterlab" {
