@@ -232,7 +232,7 @@ get_http_dir() {
   if [[ -e /etc/kasmvnc/kasmvnc.yaml ]]; then
     d=$(grep -E '^\s*httpd_directory:.*$' "/etc/kasmvnc/kasmvnc.yaml" | awk '{print $2}')
 
-    if [[ -n "$httpd_directory" ]]; then
+    if [[ -n "$d" ]]; then
         httpd_directory=$d
     fi
   fi
@@ -241,7 +241,7 @@ get_http_dir() {
   if [[ -e "$HOME/.vnc/kasmvnc.yaml" ]]; then
     d=$(grep -E '^\s*httpd_directory:.*$' "$HOME/.vnc/kasmvnc.yaml" | awk '{print $2}')
 
-    if [[ -n "$httpd_directory" ]]; then
+    if [[ -n "$d" ]]; then
         httpd_directory=$d
     fi
   fi
