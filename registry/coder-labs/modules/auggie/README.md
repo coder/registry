@@ -24,7 +24,7 @@ module "auggie" {
 - You must add the [Coder Login](https://registry.coder.com/modules/coder/coder-login) module to your template
 - **Augment session token for authentication (required for tasks)**
 
-## Usage Examples
+## Examples
 
 ### Simple Usage
 
