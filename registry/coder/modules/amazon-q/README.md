@@ -10,8 +10,6 @@ tags: [agent, ai, aws, amazon-q, mcp, agentapi]
 
 Run [Amazon Q](https://aws.amazon.com/q/) in your workspace to access Amazon's AI coding assistant. This module provides a complete integration with Coder workspaces, including automatic installation, MCP (Model Context Protocol) integration for task reporting, and support for custom pre/post install scripts.
 
-## Quick Start
-
 ```tf
 module "amazon-q" {
   source   = "registry.coder.com/coder/amazon-q/coder"
