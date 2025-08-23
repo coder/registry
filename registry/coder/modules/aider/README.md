@@ -33,7 +33,7 @@ module "aider" {
 ```tf
 data "coder_parameter" "ai_prompt" {
   name        = "AI Prompt"
-  description = "Write an initial prompt for AMP to work on."
+  description = "Write an initial prompt for Aider to work on."
   type        = "string"
   default     = ""
   mutable     = true

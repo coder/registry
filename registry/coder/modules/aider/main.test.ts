@@ -33,7 +33,7 @@ afterEach(async () => {
 
 interface SetupProps {
   skipAgentAPIMock?: boolean;
-  skipAmpMock?: boolean;
+  skipAiderMock?: boolean;
   moduleVariables?: Record<string, string>;
   agentapiMockScript?: string;
 }
@@ -43,7 +43,7 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
   const { id } = await setupUtil({
     moduleDir: import.meta.dir,
     moduleVariables: {
-      install_sourcegraph_amp: props?.skipAmpMock ? "true" : "false",
+      install_aider: props?.skipAiderMock ? "true" : "false",
       install_agentapi: props?.skipAgentAPIMock ? "true" : "false",
       aider_model: "test-model",
       ...props?.moduleVariables,
@@ -54,12 +54,12 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
     agentapiMockScript: props?.agentapiMockScript,
   });
 
-  // Place the AMP mock CLI binary inside the container
-  // if (!props?.skipAmpMock) {
+  // Place the Aider mock CLI binary inside the container
+  // if (!props?.skipAiderMock) {
   //   await writeExecutable({
   //     containerId: id,
-  //     filePath: "/usr/bin/amp",
-  //     content: await loadTestFile(`${import.meta.dir}`, "amp-mock.sh"),
+  //     filePath: "/usr/bin/aider",
+  //     content: await loadTestFile(`${import.meta.dir}`, "aider-mock.sh"),
   //   });
   // }
 
@@ -130,7 +130,7 @@ describe("Aider", async () => {
   });
 
   test("system-prompt", async () => {
-    const system_prompt = "this is a system prompt for AMP";
+    const system_prompt = "this is a system prompt for Aider";
     const { id } = await setup({
       moduleVariables: {
         system_prompt,
@@ -145,7 +145,7 @@ describe("Aider", async () => {
   });
 
   test("task-prompt", async () => {
-    const prompt = "this is a task prompt for AMP";
+    const prompt = "this is a task prompt for Aider";
     const { id } = await setup();
     await execModuleScript(id, {
       AIDER_TASK_PROMPT: prompt,

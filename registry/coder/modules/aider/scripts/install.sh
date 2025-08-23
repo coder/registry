@@ -44,7 +44,7 @@ function setup_system_prompt() {
   fi
 }
 
-function configure_amp_settings(){
+function configure_aider_settings(){
   if [ "${ARG_IMPLEMENT_MCP}" = "true" ]; then
     echo "Configuring Aider to report tasks via Coder MCP..."
 
@@ -61,4 +61,4 @@ function configure_amp_settings(){
 
 install_aider
 setup_system_prompt
-configure_amp_settings
+configure_aider_settings
