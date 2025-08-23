@@ -64,8 +64,7 @@ jobs:
       - name: Generate changelog
         id: changelog
         env:
-          NAMESPACE: ${{ steps.tag_info.outputs.namespace }}
-          MODULE: ${{ steps.tag_info.outputs.module }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MODULE_PATH: ${{ steps.tag_info.outputs.module_path }}
           PREV_TAG: ${{ steps.prev_tag.outputs.prev_tag }}
           CURRENT_TAG: ${{ steps.tag_info.outputs.tag }}
@@ -73,7 +72,7 @@ jobs:
           echo "Generating changelog for $MODULE_PATH between $PREV_TAG and $CURRENT_TAG"
           
           # Get commits that affected the specific module path
-          COMMITS=$(git log --oneline --no-merges "$PREV_TAG..$CURRENT_TAG" -- "$MODULE_PATH" | cut -d' ' -f1)
+          COMMITS=$(git log --oneline --no-merges "$PREV_TAG..$CURRENT_TAG" -- "$MODULE_PATH")
           
           if [ -z "$COMMITS" ]; then
             echo "No commits found for this module"
@@ -81,49 +80,43 @@ jobs:
             exit 0
           fi
           
-          # Generate changelog from commits
-          CHANGELOG="## What's Changed\n\n"
+          # Use GitHub CLI to generate changelog between tags, then filter for module-specific commits
+          # Generate full changelog first
+          FULL_CHANGELOG=$(gh api repos/:owner/:repo/releases/generate-notes \
+            --field tag_name="$CURRENT_TAG" \
+            --field previous_tag_name="$PREV_TAG" \
+            --jq '.body')
           
-          for commit in $COMMITS; do
-            # Get commit message
-            COMMIT_MSG=$(git log --format="%s" -n 1 $commit)
+          # Extract commit SHAs that affected our module
+          MODULE_COMMIT_SHAS=$(git log --format="%H" --no-merges "$PREV_TAG..$CURRENT_TAG" -- "$MODULE_PATH")
+          
+          # Filter the generated changelog to only include our module's commits
+          FILTERED_CHANGELOG="## What's Changed\n\n"
+          
+          # Process each commit SHA and find corresponding entries in the full changelog
+          for sha in $MODULE_COMMIT_SHAS; do
+            # Get the short SHA (first 7 characters)
+            SHORT_SHA=${sha:0:7}
             
-            # Extract PR number from commit message (handles various formats)
-            PR_NUM=$(echo "$COMMIT_MSG" | grep -oE '\(#[0-9]+\)|#[0-9]+' | grep -oE '[0-9]+' | head -1 || echo "")
+            # Find lines in the full changelog that contain this commit
+            COMMIT_LINES=$(echo "$FULL_CHANGELOG" | grep -E "$SHORT_SHA|$(git log --format='%s' -n 1 $sha)" || true)
             
-            # Get GitHub username from commit (try multiple methods)
-            # First try to get from commit trailer
-            GH_USER=$(git log --format="%(trailers:key=Co-authored-by,valueonly)" -n 1 $commit | head -1 | grep -oE '@[^>]+' | cut -d'@' -f2 | cut -d'.' -f1 || echo "")
-            
-            # If no co-author, try to extract from email
-            if [ -z "$GH_USER" ]; then
-              EMAIL=$(git log --format="%ae" -n 1 $commit)
-              if [[ "$EMAIL" == *"@users.noreply.github.com" ]]; then
-                GH_USER=$(echo "$EMAIL" | cut -d'@' -f1 | sed 's/^[0-9]*+//')
-              else
-                GH_USER=$(echo "$EMAIL" | cut -d'@' -f1)
-              fi
-            fi
-            
-            # Fallback to commit author name if no GitHub username found
-            if [ -z "$GH_USER" ]; then
-              GH_USER=$(git log --format="%an" -n 1 $commit | tr ' ' '-' | tr '[:upper:]' '[:lower:]')
-            fi
-            
-            # Format changelog entry
-            if [ -n "$PR_NUM" ]; then
-              CHANGELOG="${CHANGELOG}* $COMMIT_MSG by @$GH_USER in https://github.com/coder/registry/pull/$PR_NUM\n"
+            if [ -n "$COMMIT_LINES" ]; then
+              FILTERED_CHANGELOG="${FILTERED_CHANGELOG}${COMMIT_LINES}\n"
             else
-              CHANGELOG="${CHANGELOG}* $COMMIT_MSG by @$GH_USER\n"
+              # Fallback: create entry manually if not found in generated changelog
+              COMMIT_MSG=$(git log --format="%s" -n 1 $sha)
+              AUTHOR=$(gh api repos/:owner/:repo/commits/$sha --jq '.author.login // .commit.author.name')
+              FILTERED_CHANGELOG="${FILTERED_CHANGELOG}* $COMMIT_MSG by @$AUTHOR\n"
             fi
           done
           
           # Add full changelog link
-          CHANGELOG="${CHANGELOG}\n\n**Full Changelog**: https://github.com/coder/registry/compare/$PREV_TAG...$CURRENT_TAG"
+          FILTERED_CHANGELOG="${FILTERED_CHANGELOG}\n**Full Changelog**: https://github.com/coder/registry/compare/$PREV_TAG...$CURRENT_TAG"
           
-          # Save changelog to output (escape newlines for GitHub Actions)
+          # Save changelog to output
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo -e "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo -e "$FILTERED_CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
       
       - name: Create Release
