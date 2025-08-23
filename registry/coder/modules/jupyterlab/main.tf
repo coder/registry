@@ -23,11 +23,11 @@ locals {
       }
     }
   }
-  
+
   # Use user config if provided, otherwise fallback to CSP config
   config_to_use = length(var.config) == 0 ? local.csp_fallback_config : var.config
-  config_json = jsonencode(local.config_to_use)
-  config_b64 = base64encode(local.config_json)
+  config_json   = jsonencode(local.config_to_use)
+  config_b64    = base64encode(local.config_json)
 }
 
 # Add required variables for your modules and remove any unneeded variables
