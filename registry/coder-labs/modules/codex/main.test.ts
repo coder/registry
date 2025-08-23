@@ -108,24 +108,25 @@ describe("codex", async () => {
     await expectAgentAPIStarted(id);
   });
 
-  test("codex-config-toml", async () => {
-    const settings = dedent`
-      [mcp_servers.CustomMCP]
-      command = "/Users/jkmr/Documents/work/coder/coder_darwin_arm64"
-      args = ["exp", "mcp", "server", "app-status-slug=codex"]
-      env = { "CODER_MCP_APP_STATUS_SLUG" = "codex", "CODER_MCP_AI_AGENTAPI_URL"= "http://localhost:3284" }
-      description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."
-      enabled = true
-      type = "stdio"
+  test("base-config-toml", async () => {
+    const baseConfig = dedent`
+      sandbox_mode = "danger-full-access"
+      approval_policy = "never"
+      preferred_auth_method = "apikey"
+      
+      [custom_section]
+      new_feature = true
     `.trim();
     const { id } = await setup({
       moduleVariables: {
-        extra_codex_settings_toml: settings,
+        base_config_toml: baseConfig,
       },
     });
     await execModuleScript(id);
     const resp = await readFileContainer(id, "/home/coder/.codex/config.toml");
-    expect(resp).toContain("[mcp_servers.CustomMCP]");
+    expect(resp).toContain("sandbox_mode = \"danger-full-access\"");
+    expect(resp).toContain("preferred_auth_method = \"apikey\"");
+    expect(resp).toContain("[custom_section]");
     expect(resp).toContain("[mcp_servers.Coder]");
   });
 
@@ -142,7 +143,7 @@ describe("codex", async () => {
       id,
       "/home/coder/.codex-module/agentapi-start.log",
     );
-    expect(resp).toContain("openai_api_key provided !");
+    expect(resp).toContain("OpenAI API Key: Provided");
   });
 
   test("pre-post-install-scripts", async () => {
@@ -181,25 +182,106 @@ describe("codex", async () => {
     expect(resp).toContain(folder);
   });
 
-  test("additional-extensions", async () => {
+  test("additional-mcp-servers", async () => {
     const additional = dedent`
-      [mcp_servers.CustomMCP]
-      command = "/Users/jkmr/Documents/work/coder/coder_darwin_arm64"
-      args = ["exp", "mcp", "server", "app-status-slug=codex"]
-      env = { "CODER_MCP_APP_STATUS_SLUG" = "codex", "CODER_MCP_AI_AGENTAPI_URL"= "http://localhost:3284" }
-      description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."
-      enabled = true
+      [mcp_servers.GitHub]
+      command = "npx"
+      args = ["-y", "@modelcontextprotocol/server-github"]
       type = "stdio"
+      description = "GitHub integration"
+      
+      [mcp_servers.FileSystem]
+      command = "npx"
+      args = ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]
+      type = "stdio"
+      description = "File system access"
     `.trim();
     const { id } = await setup({
       moduleVariables: {
-        additional_extensions: additional,
+        additional_mcp_servers: additional,
       },
     });
     await execModuleScript(id);
     const resp = await readFileContainer(id, "/home/coder/.codex/config.toml");
-    expect(resp).toContain("[mcp_servers.CustomMCP]");
+    expect(resp).toContain("[mcp_servers.GitHub]");
+    expect(resp).toContain("[mcp_servers.FileSystem]");
     expect(resp).toContain("[mcp_servers.Coder]");
+    expect(resp).toContain("GitHub integration");
+  });
+
+  test("full-custom-config", async () => {
+    const baseConfig = dedent`
+      sandbox_mode = "read-only"
+      approval_policy = "untrusted"
+      preferred_auth_method = "chatgpt"
+      custom_setting = "test-value"
+      
+      [advanced_settings]
+      timeout = 30000
+      debug = true
+      logging_level = "verbose"
+    `.trim();
+    
+    const additionalMCP = dedent`
+      [mcp_servers.CustomTool]
+      command = "/usr/local/bin/custom-tool"
+      args = ["--serve", "--port", "8080"]
+      type = "stdio"
+      description = "Custom development tool"
+      
+      [mcp_servers.DatabaseMCP]
+      command = "python"
+      args = ["-m", "database_mcp_server"]
+      type = "stdio"
+      description = "Database query interface"
+    `.trim();
+    
+    const { id } = await setup({
+      moduleVariables: {
+        base_config_toml: baseConfig,
+        additional_mcp_servers: additionalMCP,
+      },
+    });
+    await execModuleScript(id);
+    const resp = await readFileContainer(id, "/home/coder/.codex/config.toml");
+    
+    // Check base config
+    expect(resp).toContain("sandbox_mode = \"read-only\"");
+    expect(resp).toContain("preferred_auth_method = \"chatgpt\"");
+    expect(resp).toContain("custom_setting = \"test-value\"");
+    expect(resp).toContain("[advanced_settings]");
+    expect(resp).toContain("logging_level = \"verbose\"");
+    
+    // Check MCP servers
+    expect(resp).toContain("[mcp_servers.Coder]");
+    expect(resp).toContain("[mcp_servers.CustomTool]");
+    expect(resp).toContain("[mcp_servers.DatabaseMCP]");
+    expect(resp).toContain("Custom development tool");
+    expect(resp).toContain("Database query interface");
+  });
+
+  test("minimal-default-config", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        // No base_config_toml or additional_mcp_servers - should use defaults
+      },
+    });
+    await execModuleScript(id);
+    const resp = await readFileContainer(id, "/home/coder/.codex/config.toml");
+    
+    // Check default base config
+    expect(resp).toContain("sandbox_mode = \"workspace-write\"");
+    expect(resp).toContain("approval_policy = \"never\"");
+    expect(resp).toContain("[sandbox_workspace_write]");
+    expect(resp).toContain("network_access = true");
+    
+    // Check only Coder MCP server is present
+    expect(resp).toContain("[mcp_servers.Coder]");
+    expect(resp).toContain("Report ALL tasks and statuses");
+    
+    // Ensure no additional MCP servers
+    const mcpServerCount = (resp.match(/\[mcp_servers\./g) || []).length;
+    expect(mcpServerCount).toBe(1);
   });
 
   test("codex-system-prompt", async () => {
@@ -210,7 +292,7 @@ describe("codex", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/AGENTS.md");
+    const resp = await readFileContainer(id, "/home/coder/.codex/AGENTS.md");
     expect(resp).toContain(prompt);
   });
 
@@ -223,7 +305,8 @@ describe("codex", async () => {
     `.trim();
     const pre_install_script = dedent`
         #!/bin/bash
-        echo -e "${prompt_3}" >> /home/coder/AGENTS.md
+        mkdir -p /home/coder/.codex
+        echo -e "${prompt_3}" >> /home/coder/.codex/AGENTS.md
         `.trim();
 
     const { id } = await setup({
@@ -233,7 +316,7 @@ describe("codex", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/AGENTS.md");
+    const resp = await readFileContainer(id, "/home/coder/.codex/AGENTS.md");
     expect(resp).toContain(prompt_1);
     expect(resp).toContain(prompt_2);
 
@@ -245,7 +328,7 @@ describe("codex", async () => {
       },
     });
     await execModuleScript(id_2);
-    const resp_2 = await readFileContainer(id_2, "/home/coder/AGENTS.md");
+    const resp_2 = await readFileContainer(id_2, "/home/coder/.codex/AGENTS.md");
     expect(resp_2).toContain(prompt_1);
     const count = (resp_2.match(new RegExp(prompt_1, "g")) || []).length;
     expect(count).toBe(1);
@@ -268,12 +351,16 @@ describe("codex", async () => {
   });
 
   test("start-without-prompt", async () => {
-    const { id } = await setup();
+    const { id } = await setup({
+      moduleVariables: {
+        codex_system_prompt: "", // Explicitly disable system prompt
+      },
+    });
     await execModuleScript(id);
     const prompt = await execContainer(id, [
       "ls",
       "-l",
-      "/home/coder/AGENTS.md",
+      "/home/coder/.codex/AGENTS.md",
     ]);
     expect(prompt.exitCode).not.toBe(0);
     expect(prompt.stderr).toContain("No such file or directory");
