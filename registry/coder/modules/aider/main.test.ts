@@ -113,7 +113,8 @@ describe("Aider", async () => {
     const { id } = await setup({
       moduleVariables: {
         experiment_pre_install_script: "#!/bin/bash\necho 'pre-install-script'",
-        experiment_post_install_script: "#!/bin/bash\necho 'post-install-script'",
+        experiment_post_install_script:
+          "#!/bin/bash\necho 'post-install-script'",
       },
     });
     await execModuleScript(id);
@@ -136,7 +137,7 @@ describe("Aider", async () => {
         system_prompt,
       },
     });
-    await execModuleScript(id)
+    await execModuleScript(id);
     const resp = await readFileContainer(
       id,
       "/home/coder/.aider-module/SYSTEM_PROMPT.md",
@@ -146,10 +147,14 @@ describe("Aider", async () => {
 
   test("task-prompt", async () => {
     const prompt = "this is a task prompt for Aider";
-    const { id } = await setup();
-    await execModuleScript(id, {
-      AIDER_TASK_PROMPT: prompt,
+    const apiKey = "test-api-key-123";
+    const { id } = await setup({
+      moduleVariables: {
+        ai_api_key: apiKey,
+        task_prompt: prompt,
+      },
     });
+    await execModuleScript(id);
     const resp = await readFileContainer(
       id,
       "/home/coder/.aider-module/agentapi-start.log",
