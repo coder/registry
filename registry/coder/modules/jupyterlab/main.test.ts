@@ -118,10 +118,10 @@ describe("jupyterlab", async () => {
           allow_origin: "*"
         }
       };
-      const expectedJson = JSON.stringify(config);
+      const configJson = JSON.stringify(config);
       const state = await runTerraformApply(import.meta.dir, {
         agent_id: "foo",
-        config,
+        config: configJson,
       });
       const script = findResourceInstance(state, "coder_script", "jupyterlab_config").script;
       const resp = await execContainer(id, ["sh", "-c", script]);
@@ -131,7 +131,9 @@ describe("jupyterlab", async () => {
       }
       expect(resp.exitCode).toBe(0);
       const content = await readFileContainer(id, "/root/.jupyter/jupyter_server_config.json");
-      expect(content).toBe(expectedJson);
+      // Parse both JSON strings and compare objects to avoid key ordering issues
+      const actualConfig = JSON.parse(content);
+      expect(actualConfig).toEqual(config);
     } finally {
       await removeContainer(id);
     }
@@ -140,7 +142,7 @@ describe("jupyterlab", async () => {
   it("creates config script with CSP fallback when config is empty", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
-      config: {},
+      config: "{}",
     });
     const configScripts = state.resources.filter(
       (res) => res.type === "coder_script" && res.name === "jupyterlab_config"

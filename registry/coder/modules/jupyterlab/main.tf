@@ -25,9 +25,8 @@ locals {
   }
 
   # Use user config if provided, otherwise fallback to CSP config
-  config_to_use = length(var.config) == 0 ? local.csp_fallback_config : var.config
-  config_json   = jsonencode(local.config_to_use)
-  config_b64    = base64encode(local.config_json)
+  config_json = var.config == "{}" ? jsonencode(local.csp_fallback_config) : var.config
+  config_b64  = base64encode(local.config_json)
 }
 
 # Add required variables for your modules and remove any unneeded variables
@@ -76,9 +75,9 @@ variable "group" {
 }
 
 variable "config" {
-  type        = any
-  description = "A map of JupyterLab server configuration settings. When set, writes ~/.jupyter/jupyter_server_config.json."
-  default     = {}
+  type        = string
+  description = "A JSON string of JupyterLab server configuration settings. When set, writes ~/.jupyter/jupyter_server_config.json."
+  default     = "{}"
 }
 
 resource "coder_script" "jupyterlab_config" {
