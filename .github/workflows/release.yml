@@ -135,5 +135,4 @@ jobs:
         run: |
           gh release create "$TAG_NAME" \
             --title "$RELEASE_TITLE" \
-            --notes "$CHANGELOG" \
-            --latest
+            --notes "$CHANGELOG"
