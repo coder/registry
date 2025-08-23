@@ -54,7 +54,7 @@ variable "aider_version" {
   default     = "latest"
 }
 
-variable "experiment_report_tasks" { 
+variable "experiment_report_tasks" {
   type        = bool
   description = "Whether to enable task reporting."
   default     = true
@@ -94,9 +94,9 @@ resource "coder_env" "task_prompt" {
 }
 
 variable "aider_prompt" {
-  type = bool
+  type        = bool
   description = "This prompt will be sent to Aider and should run only once, and AgentAPI will be disabled."
-  default = false
+  default     = false
 }
 
 variable "experiment_pre_install_script" {
@@ -215,7 +215,7 @@ EOT
   model_flag = var.ai_provider == "ollama" ? "--ollama-model" : "--model"
 
   # agentapi variables
-  app_slug = "aider"
+  app_slug        = "aider"
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".aider-module"
@@ -240,8 +240,6 @@ module "agentapi" {
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.experiment_pre_install_script
   post_install_script  = var.experiment_post_install_script
-  
-  # might be change in future
   start_script         = <<-EOT
     #!/bin/bash
     set -o errexit
@@ -257,7 +255,7 @@ module "agentapi" {
     AIDER_TASK_PROMPT='${var.task_prompt}' \
     AIDER_PROMPT='${var.aider_prompt}' \
     /tmp/start.sh
-  EOT 
+  EOT
 
   install_script = <<-EOT
     #!/bin/bash

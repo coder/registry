@@ -12,12 +12,12 @@ Run [Aider](https://aider.chat) AI pair programming in your workspace. This modu
 
 ```tf
 module "aider" {
-  source   = "registry.coder.com/coder/aider/coder"
-  agent_id = coder_agent.example.id
-  ai_api_key = var.api_key
-  install_aider = true
-  ai_provider = "google"
-  ai_model = "gemini"
+  source           = "registry.coder.com/coder/aider/coder"
+  agent_id         = coder_agent.example.id
+  ai_api_key       = var.api_key
+  install_aider    = true
+  ai_provider      = "google"
+  ai_model         = "gemini"
   install_agentapi = true
 }
 ```
@@ -26,7 +26,6 @@ module "aider" {
 
 - Include the [Coder Login](https://registry.coder.com/modules/coder-login/coder) module in your template
 - pipx is automatically installed if not already available
-
 
 ## Usage Example
 
@@ -47,15 +46,15 @@ variable "gemini_api_key" {
 }
 
 module "aider" {
-  source   = "registry.coder.com/coder/aider/coder"
-  agent_id = coder_agent.example.id
-  ai_api_key = var.gemini_api_key
-  install_aider = true
-  ai_provider = "google"
-  ai_model = "gemini"
+  source           = "registry.coder.com/coder/aider/coder"
+  agent_id         = coder_agent.example.id
+  ai_api_key       = var.gemini_api_key
+  install_aider    = true
+  ai_provider      = "google"
+  ai_model         = "gemini"
   install_agentapi = true
-  task_prompt = data.coder_parameter.ai_prompt.value
-  system_prompt = "..."
+  task_prompt      = data.coder_parameter.ai_prompt.value
+  system_prompt    = "..."
 }
 ```
 
