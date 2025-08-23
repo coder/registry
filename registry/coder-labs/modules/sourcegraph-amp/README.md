@@ -1,7 +1,7 @@
 ---
 display_name: Sourcegraph AMP
 icon: ../../../../.icons/sourcegraph-amp.svg
-description: Run Sourcegraph AMP CLI in your workspace with AgentAPI integration
+description: Sourcegraph's AI coding agent with deep codebase understanding and intelligent code search capabilities
 verified: false
 tags: [agent, sourcegraph, amp, ai, tasks]
 ---
