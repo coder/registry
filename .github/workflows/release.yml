@@ -19,6 +19,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch full history for changelog generation
+          persist-credentials: false
       
       - name: Extract tag information
         id: tag_info
@@ -44,11 +45,11 @@ jobs:
       
       - name: Find previous tag
         id: prev_tag
+        env:
+          NAMESPACE: ${{ steps.tag_info.outputs.namespace }}
+          MODULE: ${{ steps.tag_info.outputs.module }}
+          CURRENT_TAG: ${{ steps.tag_info.outputs.tag }}
         run: |
-          NAMESPACE="${{ steps.tag_info.outputs.namespace }}"
-          MODULE="${{ steps.tag_info.outputs.module }}"
-          CURRENT_TAG="${{ steps.tag_info.outputs.tag }}"
-          
           # Find the previous tag for this specific module
           PREV_TAG=$(git tag -l "release/$NAMESPACE/$MODULE/v*" | grep -v "$CURRENT_TAG" | sort -V | tail -1)
           
@@ -62,13 +63,13 @@ jobs:
       
       - name: Generate changelog
         id: changelog
+        env:
+          NAMESPACE: ${{ steps.tag_info.outputs.namespace }}
+          MODULE: ${{ steps.tag_info.outputs.module }}
+          MODULE_PATH: ${{ steps.tag_info.outputs.module_path }}
+          PREV_TAG: ${{ steps.prev_tag.outputs.prev_tag }}
+          CURRENT_TAG: ${{ steps.tag_info.outputs.tag }}
         run: |
-          NAMESPACE="${{ steps.tag_info.outputs.namespace }}"
-          MODULE="${{ steps.tag_info.outputs.module }}"
-          MODULE_PATH="${{ steps.tag_info.outputs.module_path }}"
-          PREV_TAG="${{ steps.prev_tag.outputs.prev_tag }}"
-          CURRENT_TAG="${{ steps.tag_info.outputs.tag }}"
-          
           echo "Generating changelog for $MODULE_PATH between $PREV_TAG and $CURRENT_TAG"
           
           # Get commits that affected the specific module path
@@ -128,8 +129,11 @@ jobs:
       - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.tag_info.outputs.tag }}
+          RELEASE_TITLE: ${{ steps.tag_info.outputs.release_title }}
+          CHANGELOG: ${{ steps.changelog.outputs.changelog }}
         run: |
-          gh release create "${{ steps.tag_info.outputs.tag }}" \
-            --title "${{ steps.tag_info.outputs.release_title }}" \
-            --notes "${{ steps.changelog.outputs.changelog }}" \
+          gh release create "$TAG_NAME" \
+            --title "$RELEASE_TITLE" \
+            --notes "$CHANGELOG" \
             --latest
