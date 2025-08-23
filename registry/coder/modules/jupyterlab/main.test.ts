@@ -137,7 +137,7 @@ describe("jupyterlab", async () => {
     }
   });
 
-  it("does not create config script when config is empty", async () => {
+  it("creates config script with CSP fallback when config is empty", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       config: {},
@@ -145,16 +145,16 @@ describe("jupyterlab", async () => {
     const configScripts = state.resources.filter(
       (res) => res.type === "coder_script" && res.name === "jupyterlab_config"
     );
-    expect(configScripts.length).toBe(0);
+    expect(configScripts.length).toBe(1);
   });
 
-  it("does not create config script when config is not provided", async () => {
+  it("creates config script with CSP fallback when config is not provided", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
     });
     const configScripts = state.resources.filter(
       (res) => res.type === "coder_script" && res.name === "jupyterlab_config"
     );
-    expect(configScripts.length).toBe(0);
+    expect(configScripts.length).toBe(1);
   });
 });
