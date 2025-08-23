@@ -13,6 +13,7 @@ Run [Aider](https://aider.chat) AI pair programming in your workspace. This modu
 ```tf
 module "aider" {
   source           = "registry.coder.com/coder/aider/coder"
+  version          = "1.0.0"
   agent_id         = coder_agent.example.id
   ai_api_key       = var.api_key
   install_aider    = true
@@ -47,6 +48,7 @@ variable "gemini_api_key" {
 
 module "aider" {
   source           = "registry.coder.com/coder/aider/coder"
+  version          = "1.0.0"
   agent_id         = coder_agent.example.id
   ai_api_key       = var.gemini_api_key
   install_aider    = true
@@ -70,6 +72,7 @@ variable "custom_api_key" {
 module "aider" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/aider/coder"
+  version             = "1.0.0"
   agent_id            = coder_agent.example.id
   ai_provider         = "custom"
   custom_env_var_name = "MY_CUSTOM_API_KEY"
