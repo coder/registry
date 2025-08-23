@@ -90,8 +90,8 @@ jobs:
             if [ -n "$COMMIT_LINES" ]; then
               FILTERED_CHANGELOG="${FILTERED_CHANGELOG}${COMMIT_LINES}\n"
             else
-              COMMIT_MSG=$(git log --format="%s" -n 1 $sha)
-              AUTHOR=$(gh api repos/:owner/:repo/commits/$sha --jq '.author.login // .commit.author.name')
+              COMMIT_MSG=$(git log --format=\"%s\" -n 1 $sha)
+              AUTHOR=$(gh api repos/:owner/:repo/commits/$sha --jq '.author.login')
               FILTERED_CHANGELOG="${FILTERED_CHANGELOG}* $COMMIT_MSG by @$AUTHOR\n"
             fi
           done
