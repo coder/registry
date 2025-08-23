@@ -16,11 +16,12 @@ variable "linode_token" {
   description = "Linode API token for authentication"
   type        = string
   sensitive   = true
+  default     = ""
 }
 
 # Configure the Linode Provider
 provider "linode" {
-  token = var.linode_token
+  token = var.linode_token != "" ? var.linode_token : null
 }
 
 data "coder_workspace" "me" {}
@@ -51,6 +52,12 @@ resource "coder_agent" "main" {
     timeout      = 30  # df can take a while on large filesystems
     script       = "coder stat disk --path /home/${lower(data.coder_workspace_owner.me.name)}"
   }
+}
+
+locals {
+  vm_name           = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
+  root_disk_label   = substr("${local.vm_name}-root", 0, 32)
+  home_volume_label = substr("${local.vm_name}-home", 0, 32)
 }
 
 # See https://registry.coder.com/modules/coder/code-server
@@ -268,43 +275,23 @@ data "coder_parameter" "instance_image" {
   name         = "instance_image"
   display_name = "Instance Image"
   description  = "Which Linode image would you like to use?"
-  default      = "linode/ubuntu22.04"
+  default      = "linode/ubuntu24.04"
   type         = "string"
   mutable      = false
 
   option {
-    name  = "Ubuntu 22.04 LTS"
-    value = "linode/ubuntu22.04"
+    name  = "Ubuntu 24.04 LTS"
+    value = "linode/ubuntu24.04"
     icon  = "/icon/ubuntu.svg"
   }
   option {
-    name  = "Ubuntu 20.04 LTS"
-    value = "linode/ubuntu20.04"
-    icon  = "/icon/ubuntu.svg"
-  }
-  option {
-    name  = "Debian 12"
-    value = "linode/debian12"
+    name  = "Debian 13"
+    value = "linode/debian13"
     icon  = "/icon/debian.svg"
   }
   option {
-    name  = "Debian 11"
-    value = "linode/debian11"
-    icon  = "/icon/debian.svg"
-  }
-  option {
-    name  = "CentOS Stream 9"
-    value = "linode/centos-stream9"
-    icon  = "/icon/centos.svg"
-  }
-  option {
-    name  = "Fedora 39"
-    value = "linode/fedora39"
-    icon  = "/icon/fedora.svg"
-  }
-  option {
-    name  = "Fedora 38"
-    value = "linode/fedora38"
+    name  = "Fedora 42"
+    value = "linode/fedora42"
     icon  = "/icon/fedora.svg"
   }
   option {
@@ -321,20 +308,21 @@ data "coder_parameter" "instance_image" {
 
 data "coder_parameter" "home_volume_size" {
   name         = "home_volume_size"
-  display_name = "Home Volume Size"
+  display_name = "Home Volume Size (GB)"
   description  = "How large would you like your home volume to be (in GB)?"
   type         = "number"
   default      = 20
-  mutable      = false
+  mutable      = true
 
   validation {
-    min = 10
-    max = 1024
+    min       = 10
+    max       = 1024
+    monotonic = "increasing"
   }
 }
 
 resource "linode_volume" "home_volume" {
-  label  = "coder-${substr(data.coder_workspace.me.id, 0, 8)}-home"
+  label  = local.home_volume_label
   size   = data.coder_parameter.home_volume_size.value
   region = data.coder_parameter.region.value
 
@@ -346,7 +334,7 @@ resource "linode_volume" "home_volume" {
 
 resource "linode_instance" "workspace" {
   count  = data.coder_workspace.me.start_count
-  label  = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
+  label  = local.vm_name
   region = data.coder_parameter.region.value
   type   = data.coder_parameter.instance_type.value
 
@@ -354,16 +342,18 @@ resource "linode_instance" "workspace" {
 
   metadata {
     user_data = base64encode(templatefile("cloud-init/cloud-config.yaml.tftpl", {
+      hostname          = local.vm_name
       username          = lower(data.coder_workspace_owner.me.name)
       home_volume_label = linode_volume.home_volume.label
       init_script       = base64encode(coder_agent.main.init_script)
       coder_agent_token = coder_agent.main.token
     }))
   }
+  tags = ["coder", "workspace", lower(data.coder_workspace_owner.me.name), lower(data.coder_workspace.me.name)]
 }
 
-# Create boot disk
-resource "linode_instance_disk" "boot_disk" {
+# Create root disk
+resource "linode_instance_disk" "root" {
   count     = data.coder_workspace.me.start_count
   label     = "boot"
   linode_id = linode_instance.workspace[0].id
@@ -372,14 +362,14 @@ resource "linode_instance_disk" "boot_disk" {
 }
 
 # Create instance configuration with volume attached
-resource "linode_instance_config" "boot_config" {
+resource "linode_instance_config" "workspace" {
   count     = data.coder_workspace.me.start_count
-  label     = "boot_config"
+  label     = "${local.vm_name}-config"
   linode_id = linode_instance.workspace[0].id
 
   device {
     device_name = "sda"
-    disk_id     = linode_instance_disk.boot_disk[0].id
+    disk_id     = linode_instance_disk.root[0].id
   }
 
   device {
@@ -403,18 +393,5 @@ resource "coder_metadata" "workspace-info" {
   item {
     key   = "type"
     value = linode_instance.workspace[0].type
-  }
-  item {
-    key   = "ipv4"
-    value = tolist(linode_instance.workspace[0].ipv4)[0]
-  }
-}
-
-resource "coder_metadata" "volume-info" {
-  resource_id = linode_volume.home_volume.id
-
-  item {
-    key   = "size"
-    value = "${linode_volume.home_volume.size} GB"
   }
 }
