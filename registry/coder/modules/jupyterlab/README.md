@@ -1,4 +1,4 @@
-o---
+---
 display_name: JupyterLab
 description: A module that adds JupyterLab in your Coder template.
 icon: ../../../../.icons/jupyter.svg
