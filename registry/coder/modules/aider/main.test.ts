@@ -55,13 +55,13 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
   });
 
   // Place the Aider mock CLI binary inside the container
-  // if (!props?.skipAiderMock) {
-  //   await writeExecutable({
-  //     containerId: id,
-  //     filePath: "/usr/bin/aider",
-  //     content: await loadTestFile(`${import.meta.dir}`, "aider-mock.sh"),
-  //   });
-  // }
+  if (!props?.skipAiderMock) {
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/bin/aider",
+      content: await loadTestFile(`${import.meta.dir}`, "aider-mock.sh"),
+    });
+  }
 
   return { id };
 };
