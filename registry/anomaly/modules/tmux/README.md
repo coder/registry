@@ -91,11 +91,9 @@ module "tmux" {
 ```
 
 > [!IMPORTANT]
->
-> - If you provide a custom `tmux_config`, it will completely replace the default configuration. Ensure you include plugin
->   and TPM initialization lines if you want plugin support and session persistence.
-> - The script will attempt to install dependencies using `sudo` where required.
-> - If `git` is not installed, TPM installation will fail.
-> - If you are using custom config, you'll be responsible for setting up persistence and plugins.
-> - The `order`, `group`, and `icon` variables allow you to customize how tmux apps appear in the Coder UI.
-> - In case of session restart or shh reconnection, the tmux session will be automatically restored :)
+> If you provide a custom `tmux_config`, it will completely replace the default configuration. Ensure you include plugin and TPM initialization lines if you want plugin support and session persistence.
+> The script will attempt to install dependencies using `sudo` where required.
+> If `git` is not installed, TPM installation will fail.
+> If you are using custom config, you'll be responsible for setting up persistence and plugins.
+> The `order`, `group`, and `icon` variables allow you to customize how tmux apps appear in the Coder UI.
+> In case of session restart or shh reconnection, the tmux session will be automatically restored :)
