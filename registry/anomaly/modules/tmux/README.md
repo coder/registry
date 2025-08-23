@@ -1,6 +1,6 @@
 ---
 display_name: "tmux"
-description: "tmux with session persistence and plugns"
+description: "tmux with session persistence and plugins"
 icon: "../../../../.icons/tmux.svg"
 verified: false
 tags: ["tmux", "terminal", "persistent"]
