@@ -50,25 +50,10 @@ jobs:
           MODULE: ${{ steps.tag_info.outputs.module }}
           CURRENT_TAG: ${{ steps.tag_info.outputs.tag }}
         run: |
-          # Find the actual previous version tag for this specific module
-          # Get all tags for this module, sorted by version
-          ALL_TAGS=($(git tag -l "release/$NAMESPACE/$MODULE/v*" | sort -V))
+          # Find the previous tag for this specific module (simple one-liner)
+          PREV_TAG=$(git tag -l "release/$NAMESPACE/$MODULE/v*" | sort -V | grep -B1 "$CURRENT_TAG" | head -1)
           
-          PREV_TAG=""
-          # Find the current tag in the array and get the previous one
-          for i in "${!ALL_TAGS[@]}"; do
-            if [[ "${ALL_TAGS[$i]}" == "$CURRENT_TAG" ]]; then
-              if [[ $i -gt 0 ]]; then
-                PREV_TAG="${ALL_TAGS[$((i-1))]}"
-                break
-              else
-                # This is the first tag, no previous version
-                break
-              fi
-            fi
-          done
-          
-          if [ -z "$PREV_TAG" ]; then
+          if [ -z "$PREV_TAG" ] || [ "$PREV_TAG" = "$CURRENT_TAG" ]; then
             echo "No previous tag found, using initial commit"
             PREV_TAG=$(git rev-list --max-parents=0 HEAD)
           fi
