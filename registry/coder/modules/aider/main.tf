@@ -48,12 +48,6 @@ variable "install_aider" {
   default     = true
 }
 
-variable "aider_version" {
-  type        = string
-  description = "The version of Aider to install."
-  default     = "latest"
-}
-
 variable "experiment_report_tasks" {
   type        = bool
   description = "Whether to enable task reporting."
@@ -220,8 +214,6 @@ EOT
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".aider-module"
 }
-
-# implement agentapi
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"

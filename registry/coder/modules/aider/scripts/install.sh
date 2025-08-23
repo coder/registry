@@ -12,14 +12,10 @@ echo "Workspace: $AIDER_START_DIRECTORY"
 echo "--------------------------------"
 
 function install_aider() {
-    echo "checking pipx installed..."
-    if ! command_exists pipx; then
-      echo "pipx not found"
-      echo "Installing pipx via apt-get..."
-      sudo apt-get update -y
-      sudo apt-get install -y pipx
-      echo "pipx installed!"
-    fi  
+    echo "pipx not found"
+    echo "Installing pipx via apt-get..."
+    sudo apt-get install -y pipx
+    echo "pipx installed!" 
     pipx ensurepath 
     echo $PATH
     mkdir -p "$AIDER_START_DIRECTORY/.local/bin"
