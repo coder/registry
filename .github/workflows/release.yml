@@ -3,8 +3,6 @@ name: Create Release
 on:
   push:
     tags:
-      # Matches release/<namespace>/<resource_name>/<semantic_version>
-      # (e.g., "release/coder-labs/sourcegraph-amp/v1.0.1")
       - "release/*/*/v*.*.*"
 
 jobs:
@@ -18,7 +16,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch full history for changelog generation
+          fetch-depth: 0
           persist-credentials: false
       
       - name: Extract tag information
@@ -27,8 +25,6 @@ jobs:
           TAG=${GITHUB_REF#refs/tags/}
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           
-          # Extract namespace, module, and version from tag
-          # Format: release/namespace/module/version
           IFS='/' read -ra PARTS <<< "$TAG"
           NAMESPACE="${PARTS[1]}"
           MODULE="${PARTS[2]}"
@@ -39,7 +35,6 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "module_path=registry/$NAMESPACE/modules/$MODULE" >> $GITHUB_OUTPUT
           
-          # Create release title
           RELEASE_TITLE="$NAMESPACE/$MODULE $VERSION"
           echo "release_title=$RELEASE_TITLE" >> $GITHUB_OUTPUT
       
@@ -50,7 +45,6 @@ jobs:
           MODULE: ${{ steps.tag_info.outputs.module }}
           CURRENT_TAG: ${{ steps.tag_info.outputs.tag }}
         run: |
-          # Find the previous tag for this specific module (simple one-liner)
           PREV_TAG=$(git tag -l "release/$NAMESPACE/$MODULE/v*" | sort -V | grep -B1 "$CURRENT_TAG" | head -1)
           
           if [ -z "$PREV_TAG" ] || [ "$PREV_TAG" = "$CURRENT_TAG" ]; then
@@ -71,7 +65,6 @@ jobs:
         run: |
           echo "Generating changelog for $MODULE_PATH between $PREV_TAG and $CURRENT_TAG"
           
-          # Get commits that affected the specific module path
           COMMITS=$(git log --oneline --no-merges "$PREV_TAG..$CURRENT_TAG" -- "$MODULE_PATH")
           
           if [ -z "$COMMITS" ]; then
@@ -80,41 +73,29 @@ jobs:
             exit 0
           fi
           
-          # Use GitHub CLI to generate changelog between tags, then filter for module-specific commits
-          # Generate full changelog first
           FULL_CHANGELOG=$(gh api repos/:owner/:repo/releases/generate-notes \
             --field tag_name="$CURRENT_TAG" \
             --field previous_tag_name="$PREV_TAG" \
             --jq '.body')
           
-          # Extract commit SHAs that affected our module
           MODULE_COMMIT_SHAS=$(git log --format="%H" --no-merges "$PREV_TAG..$CURRENT_TAG" -- "$MODULE_PATH")
           
-          # Filter the generated changelog to only include our module's commits
           FILTERED_CHANGELOG="## What's Changed\n\n"
           
-          # Process each commit SHA and find corresponding entries in the full changelog
           for sha in $MODULE_COMMIT_SHAS; do
-            # Get the short SHA (first 7 characters)
             SHORT_SHA=${sha:0:7}
             
-            # Find lines in the full changelog that contain this commit
             COMMIT_LINES=$(echo "$FULL_CHANGELOG" | grep -E "$SHORT_SHA|$(git log --format='%s' -n 1 $sha)" || true)
             
             if [ -n "$COMMIT_LINES" ]; then
               FILTERED_CHANGELOG="${FILTERED_CHANGELOG}${COMMIT_LINES}\n"
             else
-              # Fallback: create entry manually if not found in generated changelog
               COMMIT_MSG=$(git log --format="%s" -n 1 $sha)
               AUTHOR=$(gh api repos/:owner/:repo/commits/$sha --jq '.author.login // .commit.author.name')
               FILTERED_CHANGELOG="${FILTERED_CHANGELOG}* $COMMIT_MSG by @$AUTHOR\n"
             fi
           done
           
-          # Add full changelog link
-          FILTERED_CHANGELOG="${FILTERED_CHANGELOG}\n**Full Changelog**: https://github.com/coder/registry/compare/$PREV_TAG...$CURRENT_TAG"
-          
-          # Save changelog to output
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
           echo -e "$FILTERED_CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
