@@ -1,6 +1,6 @@
 ---
-display_name: "Tmux"
-description: "Tmux for coder agent :)"
+display_name: "tmux"
+description: "tmux with session persistence and plugns"
 icon: "../../../../.icons/tmux.svg"
 verified: false
 tags: ["tmux", "terminal", "persistent"]
