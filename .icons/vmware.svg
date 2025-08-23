@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- VMware-style icon with geometric shapes -->
+  <rect x="2" y="8" width="6" height="6" rx="1" fill="#607D8B" opacity="0.8"/>
+  <rect x="9" y="8" width="6" height="6" rx="1" fill="#607D8B" opacity="0.9"/>
+  <rect x="16" y="8" width="6" height="6" rx="1" fill="#607D8B"/>
+  
+  <!-- Connection lines representing virtualization -->
+  <path d="M5 14 L5 18 L12 18 L12 14" stroke="#2196F3" stroke-width="2" fill="none"/>
+  <path d="M12 14 L12 18 L19 18 L19 14" stroke="#2196F3" stroke-width="2" fill="none"/>
+  
+  <!-- Top layer representing hypervisor -->
+  <rect x="4" y="4" width="16" height="2" rx="1" fill="#4CAF50"/>
+  
+  <!-- Bottom layer representing hardware -->
+  <rect x="4" y="20" width="16" height="2" rx="1" fill="#FF9800"/>
+  
+  <!-- Small dots representing VMs -->
+  <circle cx="5" cy="11" r="1" fill="#FFFFFF"/>
+  <circle cx="12" cy="11" r="1" fill="#FFFFFF"/>
+  <circle cx="19" cy="11" r="1" fill="#FFFFFF"/>
+</svg>
