@@ -13,8 +13,21 @@ data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
 locals {
-  config_json = jsonencode(var.config)
-  config_b64 = length(var.config) > 0 ? base64encode(local.config_json) : ""
+  # Fallback config with CSP for Coder iframe embedding when user config is empty
+  csp_fallback_config = {
+    ServerApp = {
+      tornado_settings = {
+        headers = {
+          "Content-Security-Policy" = "frame-ancestors 'self' ${data.coder_workspace.me.access_url}"
+        }
+      }
+    }
+  }
+  
+  # Use user config if provided, otherwise fallback to CSP config
+  config_to_use = length(var.config) == 0 ? local.csp_fallback_config : var.config
+  config_json = jsonencode(local.config_to_use)
+  config_b64 = base64encode(local.config_json)
 }
 
 # Add required variables for your modules and remove any unneeded variables
@@ -69,7 +82,6 @@ variable "config" {
 }
 
 resource "coder_script" "jupyterlab_config" {
-  count              = length(var.config) > 0 ? 1 : 0
   agent_id           = var.agent_id
   display_name       = "JupyterLab Config"
   icon               = "/icon/jupyter.svg"

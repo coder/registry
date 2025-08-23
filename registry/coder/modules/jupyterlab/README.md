@@ -1,4 +1,4 @@
----
+o---
 display_name: JupyterLab
 description: A module that adds JupyterLab in your Coder template.
 icon: ../../../../.icons/jupyter.svg
@@ -23,15 +23,8 @@ module "jupyterlab" {
 
 ## Configuration
 
-You can customize JupyterLab server settings by providing a JSON configuration:
+JupyterLab is automatically configured to work with Coder's iframe embedding. For advanced configuration, you can use the `config` parameter to provide additional JupyterLab server settings according to the [JupyterLab configuration documentation](https://jupyter-server.readthedocs.io/en/latest/users/configuration.html).
 
-The `config` parameter accepts a map of configuration settings that will be written to `~/.jupyter/jupyter_server_config.json` before JupyterLab starts. This allows you to configure any JupyterLab server settings according to the [JupyterLab configuration documentation](https://jupyter-server.readthedocs.io/en/latest/users/configuration.html).
-
-### Frame Embedding Configuration
-
-To allow JupyterLab to be embedded in Coder's iframe:
-
-**Set Content-Security-Policy for iframe embedding in Coder:**
 ```tf
 module "jupyterlab" {
   count    = data.coder_workspace.me.start_count
@@ -40,11 +33,14 @@ module "jupyterlab" {
   agent_id = coder_agent.example.id
   config = {
     ServerApp = {
+      # Required for Coder Tasks iFrame embedding - do not remove
       tornado_settings = {
         headers = {
           "Content-Security-Policy" = "frame-ancestors 'self' ${data.coder_workspace.me.access_url}"
         }
       }
+      # Your additional configuration here
+      root_dir = "/workspace/notebooks"
     }
   }
 }
