@@ -27,7 +27,7 @@ data "coder_parameter" "repo_url" {
   type         = "string"
   name         = "repo_url"
   display_name = "Git Repository"
-  description  = "Enter the URL of the Git repository to clone into your workspace. This repository should contain a devcontainer.json file to configure your development environment. This default is a sample Flask web app to calculate sales commisions. 🦈"
+  description  = "Enter the URL of the Git repository to clone into your workspace. This repository should contain a devcontainer.json file to configure your development environment. This default is a sample Flask web app to calculate sales commissions. 🦈"
   default      = "https://github.com/sharkymark/flask-commissions.git"
   mutable      = true
 }
