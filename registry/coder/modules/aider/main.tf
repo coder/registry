@@ -158,31 +158,65 @@ variable "agentapi_version" {
   default     = "v0.3.0"
 }
 
+variable "base_aider_config" {
+  type        = string
+  description = <<-EOT
+    The base Aider configuration in YAML format will be stored in the .aider.conf.yml file.
+    
+    options include:
+    read:
+      - CONVENTIONS.md
+      - anotherfile.txt
+      - thirdfile.py
+    model: xxx
+    ##Specify the OpenAI API key
+    openai-api-key: xxx
+    ## (deprecated, use --set-env OPENAI_API_TYPE=<value>)
+    openai-api-type: xxx
+    ## (deprecated, use --set-env OPENAI_API_VERSION=<value>)
+    openai-api-version: xxx
+    ## (deprecated, use --set-env OPENAI_API_DEPLOYMENT_ID=<value>)
+    openai-api-deployment-id: xxx
+    ## Set an environment variable (to control API settings, can be used multiple times)
+    set-env: xxx
+    ## Specify multiple values like this:
+    set-env:
+      - xxx
+      - yyy
+      - zzz
+
+    Reference : https://aider.chat/docs/config/aider_conf.html
+  EOT
+  default     = ""
+}
+
 
 locals {
-  base_extensions = <<-EOT
-coder:
-  args:
-  - exp
-  - mcp
-  - server
-  cmd: coder
-  description: Report ALL tasks and statuses (in progress, done, failed) you are working on.
-  enabled: true
-  envs:
-    CODER_MCP_APP_STATUS_SLUG: aider
-  name: Coder
-  timeout: 3000
-  type: stdio
-developer:
-  display_name: Developer
-  enabled: true
-  name: developer
-  timeout: 300
-  type: builtin
-EOT
+  app_slug  = "aider"
+  coder_mcp = <<-EOT
+  coder:
+    args:
+    - exp
+    - mcp
+    - server
+    cmd: coder
+    description: Report ALL tasks and statuses (in progress, done, failed) you are working on.
+    enabled: true
+    envs:
+      -  CODER_MCP_APP_STATUS_SLUG: aider
+      -  CODER_MCP_AI_AGENTAPI_URL: "http://localhost:3284"
+    name: Coder
+    timeout: 3000
+    type: stdio
+    developer:
+      display_name: Developer
+      enabled: true
+      name: developer
+      timeout: 300
+      type: builtin
+  EOT
 
-  formatted_base        = "  ${replace(trimspace(local.base_extensions), "\n", "\n  ")}"
+  formatted_base        = "  ${replace(trimspace(local.coder_mcp), "\n", "\n  ")}"
   additional_extensions = var.experiment_additional_extensions != null ? "\n  ${replace(trimspace(var.experiment_additional_extensions), "\n", "\n  ")}" : ""
 
   combined_extensions = <<-EOT
@@ -208,8 +242,6 @@ EOT
   # Model flag for aider command
   model_flag = var.ai_provider == "ollama" ? "--ollama-model" : "--model"
 
-  # agentapi variables
-  app_slug        = "aider"
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".aider-module"
@@ -240,11 +272,10 @@ module "agentapi" {
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
     chmod +x /tmp/start.sh   
     AIDER_START_DIRECTORY='${var.folder}' \
-    ARG_API_KEY='${var.ai_api_key}' \
     ARG_AI_MODULE='${var.ai_model}' \
     ARG_AI_PROVIDER='${var.ai_provider}' \
     ARG_ENV_API_NAME_HOLDER='${local.env_var_name}' \
-    AIDER_TASK_PROMPT='${var.task_prompt}' \
+    ARG_TASK_PROMPT='${base64encode(var.task_prompt)}' \
     AIDER_PROMPT='${var.aider_prompt}' \
     /tmp/start.sh
   EOT
@@ -260,7 +291,7 @@ module "agentapi" {
     ARG_INSTALL_AIDER='${var.install_aider}' \
     AIDER_SYSTEM_PROMPT='${var.system_prompt}' \
     ARG_IMPLEMENT_MCP='${var.experiment_report_tasks}' \
-    ARG_AIDER_CONFIG='${trimspace(local.combined_extensions)}' \
+    ARG_AIDER_CONFIG="$(echo -n '${base64encode(trimspace(local.combined_extensions))}' | base64 -d)" \
     /tmp/install.sh
   EOT
 }

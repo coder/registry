@@ -46,7 +46,7 @@ function configure_aider_settings(){
 
     mkdir -p "$HOME/.config/aider"
 
-    echo $ARG_AIDER_CONFIG > "$HOME/.config/aider/config.yml" 
+    echo $ARG_AIDER_CONFIG > "$HOME/.config/aider/.aider.conf.yml" 
     echo "Added Coder MCP extension to Aider config.yml"
   else 
     printf "MCP Server not Implemented"

@@ -9,6 +9,8 @@ echo "Provider: $ARG_AI_PROVIDER"
 echo "Module: $ARG_AI_MODULE"
 echo "--------------------------------"
 
+ARG_TASK_PROMPT=$(echo -n "${ARG_TASK_PROMPT:-}" | base64 -d)
+
 if [ -n "$ARG_API_KEY" ]; then
   printf "API key provided !\n"
   export $ARG_ENV_API_NAME_HOLDER=$ARG_API_KEY
@@ -17,17 +19,16 @@ else
 fi
 
 
-if [ "${AIDER_PROMPT}" == "true" ]; then
+if [ "${AIDER_PROMPT}" == "true" && -n "${ARG_TASK_PROMPT:-}" ]; then
   printf "Adier start only with this prompt : $AIDER_PROMPT"
   mkdir -p $HOME/.aider-module/aider_output.txt
-  echo aider --model $ARG_AI_MODULE --yes-always --message "$AIDER_TASK_PROMPT" > $HOME/.aider-module/aider_output.txt
+  echo aider --model $ARG_AI_MODULE --yes-always --message "$ARG_TASK_PROMPT" > $HOME/.aider-module/aider_output.txt
 
-# @DevelopmentCats @matifali This module doesn’t go into chat mode if you pass a prompt at startup. Aider just answers that one prompt and exits. That’s why I don’t think adding Task prompt support here makes much sense.
-# elif [ -n "${AIDER_TASK_PROMPT:-}" ]; then   
-#   printf "Aider task prompt provided : $AIDER_TASK_PROMPT"
-#   PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $AIDER_TASK_PROMPT"
+elif [ -n "${ARG_TASK_PROMPT:-}" ]; then   
+  printf "Aider task prompt provided : $ARG_TASK_PROMPT"
+  PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $ARG_TASK_PROMPT"
 
-#   agentapi server --term-width=67 --term-height=1190 -- aider --model $ARG_AI_MODULE --yes-always --message "$AIDER_TASK_PROMPT"
+  agentapi server --term-width=67 --term-height=1190 -- aider --model $ARG_AI_MODULE --yes-always --message "$ARG_TASK_PROMPT"
 else
   printf "No task prompt given.\n"
   agentapi server --term-width=67 --term-height=1190 -- aider --model $ARG_AI_MODULE --yes-always
