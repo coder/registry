@@ -19,9 +19,9 @@ else
 fi
 
 
-if [ "${AIDER_PROMPT}" == "true" && -n "${ARG_TASK_PROMPT:-}" ]; then
-  printf "Adier start only with this prompt : $AIDER_PROMPT"
-  mkdir -p $HOME/.aider-module/aider_output.txt
+if [[ "${AIDER_PROMPT}" == "true" && -n "${ARG_TASK_PROMPT:-}" ]]; then
+  printf "Aider start only with this prompt : $ARG_TASK_PROMPT"
+  mkdir -p $HOME/.aider-module/
   echo aider --model $ARG_AI_MODULE --yes-always --message "$ARG_TASK_PROMPT" > $HOME/.aider-module/aider_output.txt
 
 elif [ -n "${ARG_TASK_PROMPT:-}" ]; then   

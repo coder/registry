@@ -81,11 +81,6 @@ variable "task_prompt" {
   description = "Task prompt to use with Aider"
   default     = ""
 }
-resource "coder_env" "task_prompt" {
-  agent_id = var.agent_id
-  name     = "AIDER_TASK_PROMPT"
-  value    = var.task_prompt
-}
 
 variable "aider_prompt" {
   type        = bool
@@ -161,7 +156,7 @@ variable "agentapi_version" {
 variable "base_aider_config" {
   type        = string
   description = <<-EOT
-    The base Aider configuration in YAML format will be stored in the .aider.conf.yml file.
+    Base Aider configuration in ynl format. Will be Store in .aider.conf.yml file.
     
     options include:
     read:
@@ -187,7 +182,7 @@ variable "base_aider_config" {
 
     Reference : https://aider.chat/docs/config/aider_conf.html
   EOT
-  default     = ""
+  default     = null
 }
 
 
@@ -216,12 +211,12 @@ locals {
       type: builtin
   EOT
 
-  formatted_base        = "  ${replace(trimspace(local.coder_mcp), "\n", "\n  ")}"
+  formatted_base        = "\n  ${replace(trimspace(local.coder_mcp), "\n", "\n  ")}"
   additional_extensions = var.experiment_additional_extensions != null ? "\n  ${replace(trimspace(var.experiment_additional_extensions), "\n", "\n  ")}" : ""
-
-  combined_extensions = <<-EOT
+  base_aider_config     = var.base_aider_config != null ? "${replace(trimspace(var.base_aider_config), "\n", "\n  ")}" : ""
+  combined_extensions   = <<-EOT
     extensions:
-      ${local.formatted_base}${local.additional_extensions}
+      ${local.base_aider_config}${local.formatted_base}${local.additional_extensions}
   EOT
 
   # Map providers to their environment variable names
@@ -272,6 +267,7 @@ module "agentapi" {
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
     chmod +x /tmp/start.sh   
     AIDER_START_DIRECTORY='${var.folder}' \
+    ARG_API_KEY='${var.ai_api_key}' \
     ARG_AI_MODULE='${var.ai_model}' \
     ARG_AI_PROVIDER='${var.ai_provider}' \
     ARG_ENV_API_NAME_HOLDER='${local.env_var_name}' \
