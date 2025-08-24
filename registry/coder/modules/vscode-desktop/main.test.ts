@@ -30,6 +30,8 @@ describe("vscode-desktop", async () => {
     expect(coder_app?.instances[0].attributes.order).toBeNull();
   });
 
+  // Keep all existing tests...
+
   it("adds folder", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
@@ -85,5 +87,45 @@ describe("vscode-desktop", async () => {
     expect(coder_app).not.toBeNull();
     expect(coder_app?.instances.length).toBe(1);
     expect(coder_app?.instances[0].attributes.order).toBe(22);
+  });
+
+  // Add this new test case for extensions and settings
+  it("installs extensions and applies settings", async () => {
+    const settings = JSON.stringify(
+      {
+        "editor.fontSize": 14,
+        "terminal.integrated.fontSize": 12,
+      },
+      null,
+      2,
+    );
+
+    const extensions = ["ms-python.python", "golang.go"];
+
+    await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      extensions: extensions,
+      settings: settings,
+    });
+
+    const checkScript = `
+      set -e
+      # The test environment may not have 'code' in the PATH immediately
+      # so we add the known location.
+      export PATH="$PATH:/tmp/coder/bin"
+      
+      # Verify extensions
+      INSTALLED_EXTENSIONS=$(code --list-extensions)
+      echo "$INSTALLED_EXTENSIONS" | grep -q "ms-python.python"
+      echo "$INSTALLED_EXTENSIONS" | grep -q "golang.go"
+
+      # Verify settings
+      cat /home/coder/.vscode-server/data/Machine/settings.json
+    `;
+
+    const result = await executeScriptInContainer(checkScript);
+    expect(result.exitCode).toBe(0);
+    // Use JSON.parse to compare objects, ignoring formatting differences.
+    expect(JSON.parse(result.stdout)).toEqual(JSON.parse(settings));
   });
 });

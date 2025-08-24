@@ -38,8 +38,67 @@ variable "group" {
   default     = null
 }
 
+# New variable for extensions
+variable "extensions" {
+  type        = list(string)
+  description = "A list of VS Code extension IDs to install."
+  default     = []
+}
+
+# New variable for settings
+variable "settings" {
+  type        = string
+  description = "A JSON string of settings to apply to VS Code."
+  default     = ""
+}
+
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
+
+# This script will install extensions and apply settings
+resource "coder_script" "setup_vscode" {
+  # Only run if extensions or settings are provided
+  count = length(var.extensions) > 0 || var.settings != "" ? 1 : 0
+
+  agent_id     = var.agent_id
+  display_name = "Setup VS Code"
+  icon         = "/icon/code.svg"
+  run_on_start = true
+
+  script = <<-EOT
+    #!/bin/bash
+    set -e
+
+    # Wait for code-server to be available
+    # VS Code Server is installed by the Coder agent, which can take a moment.
+    for i in {1..30}; do
+      if command -v code &> /dev/null; then
+        break
+      fi
+      echo "Waiting for 'code' command..."
+      sleep 1
+    done
+    if ! command -v code &> /dev/null; then
+      echo "'code' command not found after 30s"
+      exit 1
+    fi
+
+    # Install extensions
+    %{ for ext in var.extensions ~}
+    code --install-extension ${ext} --force
+    %{ endfor ~}
+
+    # Apply settings
+    %{ if var.settings != "" ~}
+    # Path for settings for remote VS Code Desktop
+    SETTINGS_DIR="/home/coder/.vscode-server/data/Machine"
+    mkdir -p "$SETTINGS_DIR"
+    cat <<'EOF' > "$SETTINGS_DIR/settings.json"
+    ${var.settings}
+    EOF
+    %{ endif ~}
+  EOT
+}
 
 resource "coder_app" "vscode" {
   agent_id     = var.agent_id
