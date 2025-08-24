@@ -52,12 +52,12 @@ The template uses Coder's [devcontainers-cli module](https://registry.coder.com/
 
 The template runs a custom script in the template called `docker-in-docker.sh` to do the following:
 
-* Detects if Coder workspace is accessed via host.docker.internal and applies networking fixes if needed.
-* Enables IP forwarding and sets up NAT rules to allow proper traffic flow between devcontainers and host.
-* Forwards relevant ports (from the agent URL, or 80/443 by default) to the host gateway.
-* Starts Docker service and determines workspace bridge IP for DNS resolution.
-* Installs and configures dnsmasq so devcontainers can resolve host.docker.internal to the workspace’s IP.
-* Configures Docker to use the custom DNS server, ensuring hostname resolution works inside all containers.
+- Detects if Coder workspace is accessed via host.docker.internal and applies networking fixes if needed.
+- Enables IP forwarding and sets up NAT rules to allow proper traffic flow between devcontainers and host.
+- Forwards relevant ports (from the agent URL, or 80/443 by default) to the host gateway.
+- Starts Docker service and determines workspace bridge IP for DNS resolution.
+- Installs and configures dnsmasq so devcontainers can resolve host.docker.internal to the workspace’s IP.
+- Configures Docker to use the custom DNS server, ensuring hostname resolution works inside all containers.
 
 ## Architecture
 
