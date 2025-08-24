@@ -1,6 +1,6 @@
 ---
-display_name: "Tmux"
-description: "Tmux for coder agent :)"
+display_name: "tmux"
+description: "tmux with session persistence and plugins"
 icon: "../../../../.icons/tmux.svg"
 verified: false
 tags: ["tmux", "terminal", "persistent"]
@@ -15,7 +15,7 @@ up a default or custom tmux configuration with session save/restore capabilities
 ```tf
 module "tmux" {
   source   = "registry.coder.com/anomaly/tmux/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.example.id
 }
 ```
@@ -39,7 +39,7 @@ module "tmux" {
 ```tf
 module "tmux" {
   source        = "registry.coder.com/anomaly/tmux/coder"
-  version       = "1.0.0"
+  version       = "1.0.1"
   agent_id      = coder_agent.example.id
   tmux_config   = ""                        # Optional: custom tmux.conf content
   save_interval = 1                         # Optional: save interval in minutes
@@ -78,7 +78,7 @@ This module can provision multiple tmux sessions, each as a separate app in the 
 ```tf
 module "tmux" {
   source      = "registry.coder.com/anomaly/tmux/coder"
-  version     = "1.0.0"
+  version     = "1.0.1"
   agent_id    = var.agent_id
   sessions    = ["default", "dev", "anomaly"]
   tmux_config = <<-EOT
@@ -91,11 +91,9 @@ module "tmux" {
 ```
 
 > [!IMPORTANT]
->
-> - If you provide a custom `tmux_config`, it will completely replace the default configuration. Ensure you include plugin
->   and TPM initialization lines if you want plugin support and session persistence.
-> - The script will attempt to install dependencies using `sudo` where required.
-> - If `git` is not installed, TPM installation will fail.
-> - If you are using custom config, you'll be responsible for setting up persistence and plugins.
-> - The `order`, `group`, and `icon` variables allow you to customize how tmux apps appear in the Coder UI.
-> - In case of session restart or shh reconnection, the tmux session will be automatically restored :)
+> If you provide a custom `tmux_config`, it will completely replace the default configuration. Ensure you include plugin and TPM initialization lines if you want plugin support and session persistence.
+> The script will attempt to install dependencies using `sudo` where required.
+> If `git` is not installed, TPM installation will fail.
+> If you are using custom config, you'll be responsible for setting up persistence and plugins.
+> The `order`, `group`, and `icon` variables allow you to customize how tmux apps appear in the Coder UI.
+> In case of session restart or shh reconnection, the tmux session will be automatically restored :)

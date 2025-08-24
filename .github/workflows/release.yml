@@ -1,0 +1,112 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - "release/*/*/v*.*.*"
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      
+      - name: Extract tag information
+        id: tag_info
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          
+          IFS='/' read -ra PARTS <<< "$TAG"
+          NAMESPACE="${PARTS[1]}"
+          MODULE="${PARTS[2]}"
+          VERSION="${PARTS[3]}"
+          
+          echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
+          echo "module=$MODULE" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "module_path=registry/$NAMESPACE/modules/$MODULE" >> $GITHUB_OUTPUT
+          
+          RELEASE_TITLE="$NAMESPACE/$MODULE $VERSION"
+          echo "release_title=$RELEASE_TITLE" >> $GITHUB_OUTPUT
+      
+      - name: Find previous tag
+        id: prev_tag
+        env:
+          NAMESPACE: ${{ steps.tag_info.outputs.namespace }}
+          MODULE: ${{ steps.tag_info.outputs.module }}
+          CURRENT_TAG: ${{ steps.tag_info.outputs.tag }}
+        run: |
+          PREV_TAG=$(git tag -l "release/$NAMESPACE/$MODULE/v*" | sort -V | grep -B1 "$CURRENT_TAG" | head -1)
+          
+          if [ -z "$PREV_TAG" ] || [ "$PREV_TAG" = "$CURRENT_TAG" ]; then
+            echo "No previous tag found, using initial commit"
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          
+          echo "prev_tag=$PREV_TAG" >> $GITHUB_OUTPUT
+          echo "Previous tag: $PREV_TAG"
+      
+      - name: Generate changelog
+        id: changelog
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODULE_PATH: ${{ steps.tag_info.outputs.module_path }}
+          PREV_TAG: ${{ steps.prev_tag.outputs.prev_tag }}
+          CURRENT_TAG: ${{ steps.tag_info.outputs.tag }}
+        run: |
+          echo "Generating changelog for $MODULE_PATH between $PREV_TAG and $CURRENT_TAG"
+          
+          COMMITS=$(git log --oneline --no-merges "$PREV_TAG..$CURRENT_TAG" -- "$MODULE_PATH")
+          
+          if [ -z "$COMMITS" ]; then
+            echo "No commits found for this module"
+            echo "changelog=No changes found for this module." >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          FULL_CHANGELOG=$(gh api repos/:owner/:repo/releases/generate-notes \
+            --field tag_name="$CURRENT_TAG" \
+            --field previous_tag_name="$PREV_TAG" \
+            --jq '.body')
+          
+          MODULE_COMMIT_SHAS=$(git log --format="%H" --no-merges "$PREV_TAG..$CURRENT_TAG" -- "$MODULE_PATH")
+          
+          FILTERED_CHANGELOG="## What's Changed\n\n"
+          
+          for sha in $MODULE_COMMIT_SHAS; do
+            SHORT_SHA=${sha:0:7}
+            
+            COMMIT_LINES=$(echo "$FULL_CHANGELOG" | grep -E "$SHORT_SHA|$(git log --format='%s' -n 1 $sha)" || true)
+            
+            if [ -n "$COMMIT_LINES" ]; then
+              FILTERED_CHANGELOG="${FILTERED_CHANGELOG}${COMMIT_LINES}\n"
+            else
+              COMMIT_MSG=$(git log --format="%s" -n 1 $sha)
+              AUTHOR=$(gh api repos/:owner/:repo/commits/$sha --jq '.author.login // .commit.author.name')
+              FILTERED_CHANGELOG="${FILTERED_CHANGELOG}* $COMMIT_MSG by @$AUTHOR\n"
+            fi
+          done
+          
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$FILTERED_CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.tag_info.outputs.tag }}
+          RELEASE_TITLE: ${{ steps.tag_info.outputs.release_title }}
+          CHANGELOG: ${{ steps.changelog.outputs.changelog }}
+        run: |
+          gh release create "$TAG_NAME" \
+            --title "$RELEASE_TITLE" \
+            --notes "$CHANGELOG"

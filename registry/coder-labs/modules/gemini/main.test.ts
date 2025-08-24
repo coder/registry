@@ -107,6 +107,18 @@ describe("gemini", async () => {
     expect(resp.stdout).toContain(version_to_install);
   });
 
+  test("install-gemini-latest", async () => {
+    const { id } = await setup({
+      skipGeminiMock: true,
+      moduleVariables: {
+        install_gemini: "true",
+        gemini_version: "",
+      },
+    });
+    await execModuleScript(id);
+    await expectAgentAPIStarted(id);
+  });
+
   test("gemini-settings-json", async () => {
     const settings = '{"foo": "bar"}';
     const { id } = await setup({
