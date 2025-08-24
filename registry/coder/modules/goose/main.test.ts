@@ -134,6 +134,7 @@ describe("goose", async () => {
       console.log(resp.stderr);
     }
     expect(resp.exitCode).toBe(0);
+    await expectAgentAPIStarted(id);
   });
 
   test("config", async () => {

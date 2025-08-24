@@ -1,7 +1,7 @@
 ---
 display_name: Sourcegraph AMP
 icon: ../../../../.icons/sourcegraph-amp.svg
-description: Run Sourcegraph AMP CLI in your workspace with AgentAPI integration
+description: Sourcegraph's AI coding agent with deep codebase understanding and intelligent code search capabilities
 verified: false
 tags: [agent, sourcegraph, amp, ai, tasks]
 ---
@@ -11,9 +11,9 @@ tags: [agent, sourcegraph, amp, ai, tasks]
 Run [Sourcegraph AMP CLI](https://sourcegraph.com/amp) in your workspace to access Sourcegraph's AI-powered code search and analysis tools, with AgentAPI integration for seamless Coder Tasks support.
 
 ```tf
-module "sourcegraph_amp" {
-  source                  = "registry.coder.com/coder-labs/sourcegraph_amp/coder"
-  version                 = "1.0.0"
+module "sourcegraph-amp" {
+  source                  = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
+  version                 = "1.0.1"
   agent_id                = coder_agent.example.id
   sourcegraph_amp_api_key = var.sourcegraph_amp_api_key
   install_sourcegraph_amp = true
@@ -57,10 +57,10 @@ variable "sourcegraph_amp_api_key" {
   sensitive   = true
 }
 
-module "sourcegraph_amp" {
+module "sourcegraph-amp" {
   count                   = data.coder_workspace.me.start_count
-  source                  = "registry.coder.com/coder-labs/sourcegraph_amp/coder"
-  version                 = "1.0.0"
+  source                  = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
+  version                 = "1.0.1"
   agent_id                = coder_agent.example.id
   sourcegraph_amp_api_key = var.sourcegraph_amp_api_key # recommended for authenticated usage
   install_sourcegraph_amp = true
