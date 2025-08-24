@@ -1,7 +1,7 @@
 ---
 display_name: Dev Containers in a Docker workspace
 description: Provision Docker containers as Coder workspaces running Dev Containers via Docker-in-Docker and the devcontainer CLI.
-icon: ../../../site/static/icon/docker.png
+icon: "../../../../.icons/docker.svg"
 maintainer_github: sharkymark
 verified: false
 tags: [docker, container, devcontainer, code-server]
