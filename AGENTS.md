@@ -310,3 +310,4 @@ We welcome contributions for new AI agent modules! Please:
 ### Bounty Program
 
 Some AI agent modules are part of our bounty program. Look for issues labeled `🙋 Bounty claim` for opportunities to contribute and earn rewards.
+
