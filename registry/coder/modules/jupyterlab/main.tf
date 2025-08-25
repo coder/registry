@@ -12,6 +12,23 @@ terraform {
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
+locals {
+  # Fallback config with CSP for Coder iframe embedding when user config is empty
+  csp_fallback_config = {
+    ServerApp = {
+      tornado_settings = {
+        headers = {
+          "Content-Security-Policy" = "frame-ancestors 'self' ${data.coder_workspace.me.access_url}"
+        }
+      }
+    }
+  }
+
+  # Use user config if provided, otherwise fallback to CSP config
+  config_json = var.config == "{}" ? jsonencode(local.csp_fallback_config) : var.config
+  config_b64  = base64encode(local.config_json)
+}
+
 # Add required variables for your modules and remove any unneeded variables
 variable "agent_id" {
   type        = string
@@ -57,6 +74,26 @@ variable "group" {
   default     = null
 }
 
+variable "config" {
+  type        = string
+  description = "A JSON string of JupyterLab server configuration settings. When set, writes ~/.jupyter/jupyter_server_config.json."
+  default     = "{}"
+}
+
+resource "coder_script" "jupyterlab_config" {
+  agent_id           = var.agent_id
+  display_name       = "JupyterLab Config"
+  icon               = "/icon/jupyter.svg"
+  run_on_start       = true
+  start_blocks_login = false
+  script             = <<-EOT
+    #!/bin/sh
+    set -eu
+    mkdir -p "$HOME/.jupyter"
+    echo -n "${local.config_b64}" | base64 -d > "$HOME/.jupyter/jupyter_server_config.json"
+  EOT
+}
+
 resource "coder_script" "jupyterlab" {
   agent_id     = var.agent_id
   display_name = "jupyterlab"
@@ -79,4 +116,9 @@ resource "coder_app" "jupyterlab" {
   share        = var.share
   order        = var.order
   group        = var.group
+  healthcheck {
+    url       = "http://localhost:${var.port}/api"
+    interval  = 5
+    threshold = 6
+  }
 }
