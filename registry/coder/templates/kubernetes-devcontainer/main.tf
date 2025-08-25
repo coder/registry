@@ -40,7 +40,7 @@ variable "use_kubeconfig" {
 
 variable "namespace" {
   type        = string
-  default     = "default"
+  default     = "coder"
   description = "The Kubernetes namespace to create workspaces in (must exist prior to creating workspaces). If the Coder host is itself running as a Pod on the same Kubernetes cluster as you are deploying workspaces to, set this to the same namespace."
 }
 
@@ -62,7 +62,7 @@ data "coder_parameter" "cpu" {
   display_name = "CPU"
   description  = "CPU limit (cores)."
   default      = "2"
-  icon         = "/emojis/1f5a5.png"
+  icon         = "/icon/memory.svg"
   mutable      = true
   validation {
     min = 1
