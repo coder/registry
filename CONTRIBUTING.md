@@ -403,8 +403,8 @@ Example: `https://github.com/coder/registry/compare/main...your-branch?template=
 
 - `main.tf` - Terraform code
 - **Tests**:
-  - `.tftest.hcl` files with `terraform test` (preferred for new modules)
-  - `main.test.ts` file with `bun test` (existing modules)
+  - `*.tftest.hcl` files with `terraform test` (to test terraform specific logoc)
+  - `main.test.ts` file with `bun test` (to test business logic, i.e., `coder_script` to install a package.)
 - `README.md` - Documentation with frontmatter
 
 ### Every Template Must Have
