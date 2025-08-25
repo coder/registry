@@ -125,8 +125,8 @@ This script generates:
    - Correct icon path (usually `../../../../.icons/your-icon.svg`)
    - Proper tags that describe your module
 3. **Create tests for your module:**
-   - **New modules**: Create `.tftest.hcl` files and test with `terraform test`
-   - **Existing modules**: Keep `main.test.ts` files and test with `bun test`
+   - **New modules**: Create `*.tftest.hcl` files and test with `terraform test`
+   - **TypeScript tests**: Create `main.test.ts` files if your module runs scripts or has business logic that Terraform tests can't cover
    - **Both approaches** are supported
 4. **Add any scripts** or additional files your module needs
 
@@ -134,17 +134,14 @@ This script generates:
 
 ```bash
 # Test your module
-# For new modules with .tftest.hcl:
 cd registry/[namespace]/modules/[module-name]
+
+# Required: Test Terraform functionality
 terraform init -upgrade
 terraform test -verbose
 
-# For existing modules with main.test.ts:
-bun test registry/[namespace]/modules/[module-name]
-
-# Run all tests in the repo
-bun test                        # All TypeScript tests
-./scripts/terraform_test_all.sh # All Terraform tests
+# Optional: Test TypeScript files if you have main.test.ts
+bun test main.test.ts
 
 # Format code
 bun run fmt
@@ -352,8 +349,8 @@ coder templates push test-[template-name] -d .
 terraform init -upgrade
 terraform test -verbose
 
-# Test all modules
-./scripts/terraform_test_all.sh
+# Optional: If you have TypeScript tests
+bun test main.test.ts
 ```
 
 ### 3. Maintain Backward Compatibility
@@ -403,7 +400,7 @@ Example: `https://github.com/coder/registry/compare/main...your-branch?template=
 
 - `main.tf` - Terraform code
 - **Tests**:
-  - `*.tftest.hcl` files with `terraform test` (to test terraform specific logoc)
+  - `*.tftest.hcl` files with `terraform test` (to test terraform specific logic)
   - `main.test.ts` file with `bun test` (to test business logic, i.e., `coder_script` to install a package.)
 - `README.md` - Documentation with frontmatter
 
@@ -504,6 +501,6 @@ When reporting bugs, include:
 2. **No tests** or broken tests
 3. **Hardcoded values** instead of variables
 4. **Breaking changes** without defaults
-5. **Not running** formatting (`bun run fmt`) and tests (`bun test` or `terraform test`) before submitting
+5. **Not running** formatting (`bun run fmt`) and tests (`terraform test`, and `bun test main.test.ts` if applicable) before submitting
 
 Happy contributing! 🚀
