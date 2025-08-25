@@ -100,7 +100,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.3.0"
+  default     = "v0.3.3"
 }
 
 variable "subdomain" {
@@ -126,6 +126,8 @@ locals {
   //   - As CODER_WORKSPACE_AGENT_NAME is a recent addition we use agent ID
   //     for backward compatibility.
   agentapi_chat_base_path = var.subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${local.claude_code_app_slug}/chat"
+  server_base_path        = var.subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${local.claude_code_app_slug}"
+  healthcheck_url         = "http://localhost:3284${local.server_base_path}/status"
 }
 
 # Install and Initialize Claude Code
@@ -263,7 +265,7 @@ resource "coder_app" "claude_code_web" {
   group        = var.group
   subdomain    = var.subdomain
   healthcheck {
-    url       = "http://localhost:3284/status"
+    url       = local.healthcheck_url
     interval  = 3
     threshold = 20
   }
