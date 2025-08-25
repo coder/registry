@@ -124,18 +124,27 @@ This script generates:
    - Accurate description and usage examples
    - Correct icon path (usually `../../../../.icons/your-icon.svg`)
    - Proper tags that describe your module
-3. **Create at least one `.tftest.hcl`** to test your module with `terraform test`
+3. **Create tests for your module:**
+   - **New modules**: Create `.tftest.hcl` files and test with `terraform test`
+   - **Existing modules**: Keep `main.test.ts` files and test with `bun test`
+   - **Both approaches** are supported
 4. **Add any scripts** or additional files your module needs
 
 ### 4. Test and Submit
 
 ```bash
-# Test your module (from the module directory)
+# Test your module
+# For new modules with .tftest.hcl:
+cd registry/[namespace]/modules/[module-name]
 terraform init -upgrade
 terraform test -verbose
 
-# Or run all tests in the repo
-./scripts/terraform_test_all.sh
+# For existing modules with main.test.ts:
+bun test registry/[namespace]/modules/[module-name]
+
+# Run all tests in the repo
+bun test                           # All TypeScript tests
+./scripts/terraform_test_all.sh    # All Terraform tests
 
 # Format code
 bun run fmt
@@ -393,7 +402,9 @@ Example: `https://github.com/coder/registry/compare/main...your-branch?template=
 ### Every Module Must Have
 
 - `main.tf` - Terraform code
-- One or more `.tftest.hcl` files - Working tests with `terraform test`
+- **Tests** (choose one):
+  - `.tftest.hcl` files with `terraform test` (preferred for new modules)
+  - `main.test.ts` file with `bun test` (existing modules)
 - `README.md` - Documentation with frontmatter
 
 ### Every Template Must Have
@@ -493,6 +504,6 @@ When reporting bugs, include:
 2. **No tests** or broken tests
 3. **Hardcoded values** instead of variables
 4. **Breaking changes** without defaults
-5. **Not running** formatting (`bun run fmt`) and tests (`terraform test`) before submitting
+5. **Not running** formatting (`bun run fmt`) and tests (`bun test` or `terraform test`) before submitting
 
 Happy contributing! 🚀
