@@ -402,7 +402,7 @@ Example: `https://github.com/coder/registry/compare/main...your-branch?template=
 ### Every Module Must Have
 
 - `main.tf` - Terraform code
-- **Tests** (choose one):
+- **Tests**:
   - `.tftest.hcl` files with `terraform test` (preferred for new modules)
   - `main.test.ts` file with `bun test` (existing modules)
 - `README.md` - Documentation with frontmatter
