@@ -153,7 +153,7 @@ describe("gemini", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/.gemini-module/install.log");
+    const resp = await readFileContainer(id, "/home/coder/.gemini-module/agentapi-start.log");
     expect(resp).toContain('GOOGLE_GENAI_USE_VERTEXAI=\'true\'');
   });
 
@@ -166,7 +166,7 @@ describe("gemini", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/.gemini-module/install.log");
+    const resp = await readFileContainer(id, "/home/coder/.gemini-module/agentapi-start.log");
     expect(resp).toContain(model);
   });
 
@@ -193,7 +193,7 @@ describe("gemini", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/.gemini-module/install.log");
+    const resp = await readFileContainer(id, "/home/coder/.gemini-module/agentapi-start.log");
     expect(resp).toContain(folder);
   });
 
