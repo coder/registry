@@ -34,6 +34,40 @@ module "amazon-q" {
 - **🛠️ Tool Trust**: Configurable tool trust settings
 - **📁 Flexible Deployment**: Configurable working directory and module structure
 
+## Dependencies
+
+This module has critical dependencies on AgentAPI components for proper web integration and interactive functionality:
+
+### AgentAPI Coder Module
+
+- **Module**: `registry.coder.com/coder/agentapi/coder`
+- **Version**: `1.1.1` (hardcoded in module)
+- **Purpose**: Provides the Coder module infrastructure for AgentAPI integration
+- **Functionality**: Handles module lifecycle, configuration, and Coder-specific integration
+
+### AgentAPI Binary
+
+- **Binary Version**: `v0.6.0` (configurable via `agentapi_version` parameter)
+- **Installation**: Automatically downloaded and installed when `install_agentapi = true`
+- **Purpose**: The actual AgentAPI server binary that runs the web interface
+- **Functionality**: Provides the runtime server for web-based interactions
+
+**Why Both Components are Required:**
+
+- **Coder Module (1.1.1)**: Integrates AgentAPI into the Coder ecosystem and manages the module lifecycle
+- **AgentAPI Binary (v0.6.0)**: Provides the actual web interface and interactive functionality
+- **Web Interface**: Enables web-based chat interface accessible through Coder
+- **Session Management**: Handles interactive sessions and maintains state
+- **MCP Protocol**: Facilitates Model Context Protocol communication for task reporting
+- **Real-time Updates**: Enables live progress reporting through the `coder_report_task` tool
+
+**Version Compatibility:**
+
+- **Module Version**: Fixed at `1.1.1` for stability and compatibility
+- **Binary Version**: Configurable (default `v0.6.0`) to allow updates and customization
+- **Coder Integration**: Ensure your Coder deployment supports both component versions
+- **Upgrade Path**: Binary version can be updated via `agentapi_version` parameter
+
 ## Prerequisites
 
 ### Authentication Tarball (Required)
@@ -102,20 +136,20 @@ variable "amazon_q_auth_tarball" {
 
 ### Optional Variables
 
-| Variable              | Type     | Default         | Description                                                                                           |
-| --------------------- | -------- | --------------- | ----------------------------------------------------------------------------------------------------- |
-| `auth_tarball`        | `string` | `""`            | Base64 encoded, zstd compressed tarball of authenticated Amazon Q directory                           |
-| `amazon_q_version`    | `string` | `"latest"`      | Version of Amazon Q to install                                                                        |
-| `install_amazon_q`    | `bool`   | `true`          | Whether to install Amazon Q CLI                                                                       |
-| `install_agentapi`    | `bool`   | `true`          | Whether to install AgentAPI for web integration                                                       |
-| `agentapi_version`    | `string` | `"v0.5.0"`      | Version of AgentAPI to install                                                                        |
-| `folder`              | `string` | `"/home/coder"` | Working directory for Amazon Q                                                                        |
-| `trust_all_tools`     | `bool`   | `true`          | Whether to trust all tools in Amazon Q                                                                |
-| `ai_prompt`           | `string` | `""`            | Initial task prompt to send to Amazon Q                                                               |
-| `system_prompt`       | `string` | _See below_     | System prompt for task reporting behavior                                                             |
-| `pre_install_script`  | `string` | `null`          | Script to run before installing Amazon Q                                                              |
-| `post_install_script` | `string` | `null`          | Script to run after installing Amazon Q                                                               |
-| `agent_config`        | `string` | `null`          | Custom agent configuration JSON (See the [Default Agent configuration](#default-agent-configuration)) |
+| Variable              | Type     | Default                                               | Description                                                                                                                                                           |
+| --------------------- | -------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth_tarball`        | `string` | `""`                                                  | Base64 encoded, zstd compressed tarball of authenticated Amazon Q directory                                                                                           |
+| `amazon_q_version`    | `string` | `"1.14.1"`                                            | Version of Amazon Q to install                                                                                                                                        |
+| `q_install_url`       | `string` | `"https://desktop-release.q.us-east-1.amazonaws.com"` | Base URL for Amazon Q installation downloads                                                                                                                          |
+| `install_amazon_q`    | `bool`   | `true`                                                | Whether to install Amazon Q CLI                                                                                                                                       |
+| `install_agentapi`    | `bool`   | `true`                                                | Whether to install AgentAPI for web integration                                                                                                                       |
+| `agentapi_version`    | `string` | `"v0.6.0"`                                            | Version of AgentAPI to install                                                                                                                                        |
+| `trust_all_tools`     | `bool`   | `false`                                               | Whether to trust all tools in Amazon Q                                                                                                                                |
+| `ai_prompt`           | `string` | `""`                                                  | Initial task prompt to send to Amazon Q                                                                                                                               |
+| `system_prompt`       | `string` | _See below_                                           | System prompt for task reporting behavior                                                                                                                             |
+| `pre_install_script`  | `string` | `null`                                                | Script to run before installing Amazon Q                                                                                                                              |
+| `post_install_script` | `string` | `null`                                                | Script to run after installing Amazon Q                                                                                                                               |
+| `agent_config`        | `string` | `null`                                                | Custom agent configuration JSON. The "name" field is used as the agent name and config filename (See the [Default Agent configuration](#default-agent-configuration)) |
 
 ### UI Configuration
 
@@ -195,6 +229,16 @@ The module includes a default agent configuration template that provides a compr
 - **System Prompt:** Dynamically populated from the `system_prompt` variable
 
 You can override this configuration by providing your own JSON via the `agent_config` variable.
+
+### Agent Name Configuration
+
+The module automatically extracts the agent name from the `"name"` field in the `agent_config` JSON and uses it for:
+
+- **Configuration File:** Saves the agent config as `~/.aws/amazonq/cli-agents/{agent_name}.json`
+- **Default Agent:** Sets the agent as the default using `q settings chat.defaultAgent {agent_name}`
+- **MCP Integration:** Associates the Coder MCP server with the specified agent name
+
+If no custom `agent_config` is provided, the default agent name "agent" is used.
 
 ## Usage Examples
 
@@ -292,6 +336,34 @@ module "amazon-q" {
   icon  = "/icon/custom-amazon-q.svg"
 }
 ```
+
+### Air-Gapped Installation
+
+For environments without direct internet access, you can host Amazon Q installation files internally and configure the module to use your internal repository:
+
+```tf
+module "amazon-q" {
+  source       = "registry.coder.com/coder/amazon-q/coder"
+  version      = "2.0.0"
+  agent_id     = coder_agent.example.id
+  auth_tarball = var.amazon_q_auth_tarball
+
+  # Point to internal artifact repository
+  q_install_url = "https://artifacts.internal.corp/amazon-q-releases"
+
+  # Use specific version available in your repository
+  amazon_q_version = "1.14.1"
+}
+```
+
+**Prerequisites for Air-Gapped Setup:**
+
+1. Download Amazon Q installation files from AWS and host them internally
+2. Maintain the same directory structure: `{base_url}/{version}/q-{arch}-linux.zip`
+3. Ensure both architectures are available:
+   - `q-x86_64-linux.zip` for Intel/AMD systems
+   - `q-aarch64-linux.zip` for ARM systems
+4. Configure network access from Coder workspaces to your internal repository
 
 ## Architecture
 

@@ -5,14 +5,16 @@ set -o errexit
 set -o pipefail
 
 command_exists() {
-  command -v "$1" >/dev/null 2>&1
+  command -v "$1" > /dev/null 2>&1
 }
 
 # Inputs
 ARG_INSTALL=${ARG_INSTALL:-true}
 ARG_VERSION=${ARG_VERSION:-latest}
+ARG_Q_INSTALL_URL=${ARG_Q_INSTALL_URL:-https://desktop-release.q.us-east-1.amazonaws.com}
 ARG_AUTH_TARBALL=${ARG_AUTH_TARBALL:-}
 ARG_AGENT_CONFIG=${ARG_AGENT_CONFIG:-}
+ARG_AGENT_NAME=${ARG_AGENT_NAME:-default-agent}
 ARG_MODULE_DIR_NAME=${ARG_MODULE_DIR_NAME:-.aws/.amazonq}
 ARG_CODER_MCP_APP_STATUS_SLUG=${ARG_CODER_MCP_APP_STATUS_SLUG:-}
 ARG_PRE_INSTALL_SCRIPT=${ARG_PRE_INSTALL_SCRIPT:-}
@@ -29,6 +31,8 @@ fi
 echo "--------------------------------"
 echo "install: $ARG_INSTALL"
 echo "version: $ARG_VERSION"
+echo "q_install_url: $ARG_Q_INSTALL_URL"
+echo "agent_name: $ARG_AGENT_NAME"
 echo "coder_mcp_app_status_slug: $ARG_CODER_MCP_APP_STATUS_SLUG"
 echo "module_dir_name: $ARG_MODULE_DIR_NAME"
 echo "auth_tarball_provided: $([ -n "$ARG_AUTH_TARBALL" ] && echo "yes" || echo "no")"
@@ -61,16 +65,16 @@ function install_amazon_q() {
 
     ARCH="$(uname -m)"
     case "$ARCH" in
-    "x86_64")
-      Q_URL="https://desktop-release.q.us-east-1.amazonaws.com/${ARG_VERSION}/q-x86_64-linux.zip"
-      ;;
-    "aarch64" | "arm64")
-      Q_URL="https://desktop-release.codewhisperer.us-east-1.amazonaws.com/${ARG_VERSION}/q-aarch64-linux.zip"
-      ;;
-    *)
-      echo "Error: Unsupported architecture: $ARCH. Amazon Q only supports x86_64 and arm64."
-      exit 1
-      ;;
+      "x86_64")
+        Q_URL="${ARG_Q_INSTALL_URL}/${ARG_VERSION}/q-x86_64-linux.zip"
+        ;;
+      "aarch64" | "arm64")
+        Q_URL="${ARG_Q_INSTALL_URL}/${ARG_VERSION}/q-aarch64-linux.zip"
+        ;;
+      *)
+        echo "Error: Unsupported architecture: $ARCH. Amazon Q only supports x86_64 and arm64."
+        exit 1
+        ;;
     esac
 
     echo "Downloading Amazon Q for $ARCH from $Q_URL..."
@@ -102,7 +106,7 @@ function extract_auth_tarball() {
   if [ -n "$ARG_AUTH_TARBALL" ]; then
     echo "Extracting auth tarball..."
     PREV_DIR="$PWD"
-    echo "$ARG_AUTH_TARBALL" | base64 -d >/tmp/auth.tar.zst
+    echo "$ARG_AUTH_TARBALL" | base64 -d > /tmp/auth.tar.zst
     rm -rf ~/.local/share/amazon-q
     mkdir -p ~/.local/share/amazon-q
     cd ~/.local/share/amazon-q
@@ -125,9 +129,9 @@ function configure_agent() {
     # Apply custom MCP configuration if provided
     if [ -n "$ARG_AGENT_CONFIG_DECODED" ]; then
       echo "Applying custom MCP configuration..."
-      # Parse and apply MCP config - implementation depends on Amazon Q's MCP config format
-      echo "$ARG_AGENT_CONFIG_DECODED" >"$AGENT_CONFIG_DIR/agent.json"
-      echo "Custom configuration saved to $AGENT_CONFIG_DIR/agent.json"
+      # Use agent name as filename for the configuration
+      echo "$ARG_AGENT_CONFIG_DECODED" > "$AGENT_CONFIG_DIR/${ARG_AGENT_NAME}.json"
+      echo "Custom configuration saved to $AGENT_CONFIG_DIR/${ARG_AGENT_NAME}.json"
     fi
     q mcp add --name coder \
       --command "coder" \
@@ -136,10 +140,10 @@ function configure_agent() {
       --env "CODER_MCP_AI_AGENTAPI_URL=http://localhost:3284" \
       --env "CODER_AGENT_URL=${CODER_AGENT_URL}" \
       --env "CODER_AGENT_TOKEN=${CODER_AGENT_TOKEN}" \
-      --agent agent \
+      --agent "$ARG_AGENT_NAME" \
       --force || echo "Warning: Failed to add Coder MCP server"
-    echo "Added Coder MCP server into agent in Amazon Q configuration"
-    q settings chat.defaultAgent agent
+    echo "Added Coder MCP server into $ARG_AGENT_NAME in Amazon Q configuration"
+    q settings chat.defaultAgent "$ARG_AGENT_NAME"
   fi
 }
 

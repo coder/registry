@@ -1,7 +1,7 @@
 {
   "name": "agent",
   "description": "This is an default agent config",
-  "prompt": "${system_prompt}",
+  "prompt": ${system_prompt},
   "mcpServers": {},
   "tools": [
     "fs_read",
@@ -23,4 +23,3 @@
   "toolsSettings": {},
   "useLegacyMcpJson": true
 }
-

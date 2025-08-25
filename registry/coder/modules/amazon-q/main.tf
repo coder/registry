@@ -37,11 +37,6 @@ variable "icon" {
   default     = "/icon/amazon-q.svg"
 }
 
-variable "folder" {
-  type        = string
-  description = "The folder to run Amazon Q in."
-  default     = "/home/coder"
-}
 
 variable "install_amazon_q" {
   type        = bool
@@ -58,7 +53,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.5.0"
+  default     = "v0.6.0"
 }
 
 variable "amazon_q_version" {
@@ -67,10 +62,16 @@ variable "amazon_q_version" {
   default     = "1.14.1"
 }
 
+variable "q_install_url" {
+  type        = string
+  description = "Base URL for Amazon Q installation downloads."
+  default     = "https://desktop-release.q.us-east-1.amazonaws.com"
+}
+
 variable "trust_all_tools" {
   type        = bool
   description = "Whether to trust all tools in Amazon Q."
-  default     = true
+  default     = false
 }
 
 variable "ai_prompt" {
@@ -107,7 +108,7 @@ variable "system_prompt" {
 
 variable "auth_tarball" {
   type        = string
-  description = "Base64 encoded, zstd compressed tarball of a pre-authenticated ~/.local/share/amazon-q directory. After running `q login` on another machine, you may generate it with: `cd ~/.local/share/amazon-q && tar -c . | zstd | base64 -w 0`"
+  description = "Base64 encoded, zstd compressed tarball of a pre-authenticated ~/.local/share/amazon-q directory."
   default     = ""
   sensitive   = true
 }
@@ -153,6 +154,11 @@ locals {
   agent_config = var.agent_config == null ? templatefile("${path.module}/templates/agent-config.json.tpl", {
     system_prompt = var.system_prompt
   }) : var.agent_config
+
+  # Extract agent name from agent_config JSON
+  agent_config_json = jsondecode(local.agent_config)
+  agent_name        = try(local.agent_config_json.name, "default-agent")
+
   full_prompt = var.ai_prompt != null ? "${var.ai_prompt}" : ""
 }
 
@@ -185,8 +191,7 @@ module "agentapi" {
     ARG_TRUST_ALL_TOOLS='${var.trust_all_tools}' \
     ARG_AI_PROMPT='${base64encode(local.full_prompt)}' \
     ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
-    ARG_FOLDER='${var.folder}' \
-    SERVER_PARAMETERS="/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${local.app_slug}/chat" \
+    ARG_SERVER_PARAMETERS="-c /@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${local.app_slug}/chat" \
     /tmp/start.sh
   EOT
 
@@ -199,8 +204,10 @@ module "agentapi" {
     chmod +x /tmp/install.sh
     ARG_INSTALL='${var.install_amazon_q}' \
     ARG_VERSION='${var.amazon_q_version}' \
+    ARG_Q_INSTALL_URL='${var.q_install_url}' \
     ARG_AUTH_TARBALL='${var.auth_tarball}' \
     ARG_AGENT_CONFIG='${local.agent_config != null ? base64encode(local.agent_config) : ""}' \
+    ARG_AGENT_NAME='${local.agent_name}' \
     ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
     ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_PRE_INSTALL_SCRIPT='${var.pre_install_script != null ? base64encode(var.pre_install_script) : ""}' \
