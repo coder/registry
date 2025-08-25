@@ -143,8 +143,8 @@ terraform test -verbose
 bun test registry/[namespace]/modules/[module-name]
 
 # Run all tests in the repo
-bun test                           # All TypeScript tests
-./scripts/terraform_test_all.sh    # All Terraform tests
+bun test                        # All TypeScript tests
+./scripts/terraform_test_all.sh # All Terraform tests
 
 # Format code
 bun run fmt
