@@ -1,7 +1,7 @@
 #!/bin/bash
 
 BOLD='\033[0;1m'
-
+source "$HOME"/.bashrc
 command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
