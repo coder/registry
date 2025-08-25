@@ -7,6 +7,7 @@ The Coder Registry provides Terraform modules for integrating various AI coding 
 ### Core AI Agents (`coder` namespace)
 
 #### Aider
+
 - **Module**: `registry.coder.com/coder/aider/coder`
 - **Description**: AI pair programming tool for editing code in your local git repository
 - **Features**: Git-aware code editing, multiple AI provider support, automatic commits
@@ -15,6 +16,7 @@ The Coder Registry provides Terraform modules for integrating various AI coding 
 - **Documentation**: [View Module](https://registry.coder.com/modules/aider/coder)
 
 #### Claude Code
+
 - **Module**: `registry.coder.com/coder/claude-code/coder`
 - **Description**: Anthropic's Claude AI assistant with subagent support
 - **Features**: Code generation, debugging, specialized subagents for different tasks
@@ -23,6 +25,7 @@ The Coder Registry provides Terraform modules for integrating various AI coding 
 - **Documentation**: [View Module](https://registry.coder.com/modules/claude-code/coder)
 
 #### Goose
+
 - **Module**: `registry.coder.com/coder/goose/coder`
 - **Description**: AI-powered development assistant with toolkit integration
 - **Features**: Code analysis, generation, development workflow automation
@@ -31,6 +34,7 @@ The Coder Registry provides Terraform modules for integrating various AI coding 
 - **Documentation**: [View Module](https://registry.coder.com/modules/goose/coder)
 
 #### Amazon Q
+
 - **Module**: `registry.coder.com/coder/amazon-q/coder`
 - **Description**: Amazon's AI coding assistant with AWS integration
 - **Features**: AWS-integrated development, MCP support, comprehensive CLI integration
@@ -39,6 +43,7 @@ The Coder Registry provides Terraform modules for integrating various AI coding 
 - **Documentation**: [View Module](https://registry.coder.com/modules/amazon-q/coder)
 
 #### Cursor IDE
+
 - **Module**: `registry.coder.com/coder/cursor/coder`
 - **Description**: Launch Cursor IDE with AI-powered development features
 - **Features**: One-click IDE launch, folder support, recent workspace access
@@ -49,6 +54,7 @@ The Coder Registry provides Terraform modules for integrating various AI coding 
 ### Experimental AI Agents (`coder-labs` namespace)
 
 #### Gemini
+
 - **Module**: `registry.coder.com/coder-labs/gemini/coder-labs`
 - **Description**: Google's Gemini AI model for code assistance
 - **Features**: Multi-modal AI assistance, code generation, analysis
@@ -57,6 +63,7 @@ The Coder Registry provides Terraform modules for integrating various AI coding 
 - **Documentation**: [View Module](https://registry.coder.com/modules/gemini/coder-labs)
 
 #### OpenAI Codex
+
 - **Module**: `registry.coder.com/coder-labs/codex/coder-labs`
 - **Description**: OpenAI's Codex model for code generation and completion
 - **Features**: Code completion, generation, natural language to code translation
@@ -65,6 +72,7 @@ The Coder Registry provides Terraform modules for integrating various AI coding 
 - **Documentation**: [View Module](https://registry.coder.com/modules/codex/coder-labs)
 
 #### Sourcegraph Amp
+
 - **Module**: `registry.coder.com/coder-labs/sourcegraph-amp/coder-labs`
 - **Description**: Sourcegraph's AI-powered code search and analysis tool
 - **Features**: Code search, analysis, AI-powered development insights
@@ -73,6 +81,7 @@ The Coder Registry provides Terraform modules for integrating various AI coding 
 - **Documentation**: [View Module](https://registry.coder.com/modules/sourcegraph-amp/coder-labs)
 
 #### Cursor CLI
+
 - **Module**: `registry.coder.com/coder-labs/cursor-cli/coder-labs`
 - **Description**: Cursor CLI for AI-assisted development
 - **Features**: Command-line interface for Cursor's AI capabilities, MCP settings integration
@@ -81,6 +90,7 @@ The Coder Registry provides Terraform modules for integrating various AI coding 
 - **Documentation**: [View Module](https://registry.coder.com/modules/cursor-cli/coder-labs)
 
 #### Auggie
+
 - **Module**: `registry.coder.com/coder-labs/auggie/coder-labs`
 - **Description**: AI coding assistant with extensive configuration options
 - **Features**: Task automation, MCP server integration, configurable AI models
@@ -91,6 +101,7 @@ The Coder Registry provides Terraform modules for integrating various AI coding 
 ### Community Modules
 
 #### Docker Claude Template
+
 - **Template**: `registry.coder.com/sharkymark/docker-claude/sharkymark`
 - **Description**: Docker-based template with Claude integration
 - **Type**: Complete workspace template
@@ -99,6 +110,7 @@ The Coder Registry provides Terraform modules for integrating various AI coding 
 ## Module Features
 
 ### Common Features
+
 All AI agent modules provide:
 
 - **🚀 One-Click Setup**: Automatic installation and configuration
@@ -109,6 +121,7 @@ All AI agent modules provide:
 - **🧪 Tested**: Full test coverage with Terraform and TypeScript tests
 
 ### AgentAPI Integration
+
 Modules with AgentAPI support provide:
 
 - **Interactive Chat**: Web-based chat interface
@@ -120,6 +133,7 @@ Modules with AgentAPI support provide:
 ## Usage Patterns
 
 ### Basic Usage
+
 ```terraform
 module "ai_agent" {
   count    = data.coder_workspace.me.start_count
@@ -130,6 +144,7 @@ module "ai_agent" {
 ```
 
 ### With API Key Configuration
+
 ```terraform
 variable "ai_api_key" {
   type        = string
@@ -147,6 +162,7 @@ module "ai_agent" {
 ```
 
 ### With Task Prompt Support
+
 ```terraform
 data "coder_parameter" "ai_prompt" {
   name        = "AI Prompt"
@@ -168,6 +184,7 @@ module "ai_agent" {
 ## Prerequisites
 
 ### Required Modules
+
 Most AI agent modules require:
 
 ```terraform
@@ -178,6 +195,7 @@ module "coder_login" {
 ```
 
 ### Runtime Dependencies
+
 - **Node.js**: Automatically installed via NVM for npm-based agents
 - **Python**: Required for Python-based agents (aider, goose)
 - **Git**: Required for git-aware agents
@@ -186,6 +204,7 @@ module "coder_login" {
 ## Configuration Best Practices
 
 ### Environment Variables
+
 Use `coder_env` resources instead of inline exports:
 
 ```terraform
@@ -205,6 +224,7 @@ resource "coder_agent" "main" {
 ```
 
 ### System Prompts
+
 Configure system prompts for consistent behavior:
 
 ```terraform
@@ -220,6 +240,7 @@ resource "coder_env" "system_prompt" {
 ```
 
 ### Namespace Guidelines
+
 - **`coder`**: Stable, production-ready modules maintained by Coder
 - **`coder-labs`**: Experimental modules, may have breaking changes
 - **Community**: Third-party modules, varying maintenance levels
@@ -235,6 +256,7 @@ resource "coder_env" "system_prompt" {
 5. **Review**: Follow [contributing guidelines](CONTRIBUTING.md)
 
 ### Module Structure
+
 ```
 registry/<namespace>/modules/<agent>/
 ├── main.tf              # Terraform configuration
@@ -260,6 +282,7 @@ registry/<namespace>/modules/<agent>/
 ### Debug Information
 
 Module logs are typically located at:
+
 ```
 /home/coder/.<module-name>-module/
 ├── install.log
