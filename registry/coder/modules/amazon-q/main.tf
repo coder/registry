@@ -6,7 +6,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.7" # Updated to match cursor-cli
+      version = ">= 2.7"
     }
   }
 }
@@ -64,7 +64,7 @@ variable "agentapi_version" {
 variable "amazon_q_version" {
   type        = string
   description = "The version of Amazon Q to install."
-  default     = "latest"
+  default     = "1.14.1"
 }
 
 variable "trust_all_tools" {
