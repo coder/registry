@@ -161,6 +161,8 @@ locals {
     # ENVBUILDER_GIT_URL and ENVBUILDER_CACHE_REPO will be overridden by the provider
     # if the cache repo is enabled.
     "ENVBUILDER_GIT_URL" : var.cache_repo == "" ? local.repo_url : "",
+    # Used for when SSH is an available authentication mechanism for git providers
+    "ENVBUILDER_GIT_SSH_PRIVATE_KEY_BASE64" : base64encode(try(data.coder_workspace_owner.me.ssh_private_key, "")),
     # Use the docker gateway if the access URL is 127.0.0.1
     "ENVBUILDER_INIT_SCRIPT" : replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal"),
     "ENVBUILDER_FALLBACK_IMAGE" : data.coder_parameter.fallback_image.value,
@@ -263,8 +265,9 @@ resource "kubernetes_deployment" "main" {
           name              = "dev"
           image             = var.cache_repo == "" ? local.devcontainer_builder_image : envbuilder_cached_image.cached.0.image
           image_pull_policy = "Always"
-          security_context {}
-
+          security_context {
+            privileged = true
+          }
           # Set the environment using cached_image.cached.0.env if the cache repo is enabled.
           # Otherwise, use the local.envbuilder_env.
           # You could alternatively write the environment variables to a ConfigMap or Secret
