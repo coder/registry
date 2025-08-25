@@ -26,6 +26,7 @@ module "jfrog" {
     go     = ["go", "another-go-repo"]
     pypi   = ["pypi", "extra-index-pypi"]
     docker = ["example-docker-staging.jfrog.io", "example-docker-production.jfrog.io"]
+    conda  = ["conda", "conda-local"]
   }
 }
 ```
