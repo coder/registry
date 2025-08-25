@@ -109,18 +109,27 @@ if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
   if ! command -v jq > /dev/null; then
     echo "jq is required to install extensions from a workspace file."
   else
-    WORKSPACE_DIR="$HOME"
-    if [ -n "${FOLDER}" ]; then
-      WORKSPACE_DIR="${FOLDER}"
-    fi
-
-    if [ -f "$WORKSPACE_DIR/.vscode/extensions.json" ]; then
-      printf "🧩 Installing extensions from %s/.vscode/extensions.json...\n" "$WORKSPACE_DIR"
-      # Use sed to remove single-line comments before parsing with jq
-      extensions=$(sed 's|//.*||g' "$WORKSPACE_DIR"/.vscode/extensions.json | jq -r '.recommendations[]')
+    # Prefer WORKSPACE if set and points to a file
+    if [ -n "${WORKSPACE}" ] && [ -f "${WORKSPACE}" ]; then
+      printf "🧩 Installing extensions from %s...\n" "${WORKSPACE}"
+      # Strip single-line comments then parse .extensions.recommendations[]
+      extensions=$(sed 's|//.*||g' "${WORKSPACE}" | jq -r '(.extensions.recommendations // [])[]')
       for extension in $extensions; do
         $VSCODE_WEB "$EXTENSION_ARG" --install-extension "$extension" --force
       done
+    else
+      # Fallback to folder-based .vscode/extensions.json (existing behavior)
+      WORKSPACE_DIR="$HOME"
+      if [ -n "${FOLDER}" ]; then
+        WORKSPACE_DIR="${FOLDER}"
+      fi
+      if [ -f "$WORKSPACE_DIR/.vscode/extensions.json" ]; then
+        printf "🧩 Installing extensions from %s/.vscode/extensions.json...\n" "$WORKSPACE_DIR"
+        extensions=$(sed 's|//.*||g' "$WORKSPACE_DIR/.vscode/extensions.json" | jq -r '.recommendations[]')
+        for extension in $extensions; do
+          $VSCODE_WEB "$EXTENSION_ARG" --install-extension "$extension" --force
+        done
+      fi
     fi
   fi
 fi
