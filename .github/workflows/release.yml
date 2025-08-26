@@ -76,7 +76,10 @@ jobs:
           FULL_CHANGELOG=$(gh api repos/:owner/:repo/releases/generate-notes \
             --field tag_name="$CURRENT_TAG" \
             --field previous_tag_name="$PREV_TAG" \
-            --jq '.body')
+            --jq '.body' 2>/dev/null) || {
+            echo "GitHub API failed (likely new module), proceeding with git-based changelog"
+            FULL_CHANGELOG=$(git log --pretty=format:"* %s by %an" --no-merges "$PREV_TAG..$CURRENT_TAG" -- "$MODULE_PATH")
+          }
           
           MODULE_COMMIT_SHAS=$(git log --format="%H" --no-merges "$PREV_TAG..$CURRENT_TAG" -- "$MODULE_PATH")
           
