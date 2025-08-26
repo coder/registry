@@ -3,6 +3,9 @@ muc = "muc" # For Munich location code
 Hashi = "Hashi"
 HashiCorp = "HashiCorp"
 hel = "hel" # For Helsinki location code
+mavrickrishi = "mavrickrishi" # Username
+mavrick = "mavrick" # Username
+
 
 [files]
 extend-exclude = ["registry/coder/templates/aws-devcontainer/architecture.svg"] #False positive
