@@ -78,7 +78,7 @@ jobs:
             --field previous_tag_name="$PREV_TAG" \
             --jq '.body' 2>/dev/null) || {
             echo "GitHub API failed (likely new module), proceeding with git-based changelog"
-            FULL_CHANGELOG=$(git log --pretty=format:"* %s by %an" --no-merges "$PREV_TAG..$CURRENT_TAG" -- "$MODULE_PATH")
+            FULL_CHANGELOG=""
           }
           
           MODULE_COMMIT_SHAS=$(git log --format="%H" --no-merges "$PREV_TAG..$CURRENT_TAG" -- "$MODULE_PATH")
