@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -11,6 +12,10 @@ import (
 )
 
 var supportedUserNameSpaceDirectories = append(supportedResourceTypes, ".images")
+
+// validNameRe validates that names contain only alphanumeric characters and hyphens
+var validNameRe = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$`)
+
 
 // validateCoderResourceSubdirectory validates that the structure of a module or template within a namespace follows all
 // expected file conventions
@@ -39,6 +44,12 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 		// be committed to the repo, but in the off chance that they don't get cleaned up properly, we want to skip over
 		// them.
 		if !f.IsDir() || f.Name() == ".coder" {
+			continue
+		}
+
+		// Validate module/template name
+		if !validNameRe.MatchString(f.Name()) {
+			errs = append(errs, xerrors.Errorf("%q: name contains invalid characters (only alphanumeric characters and hyphens are allowed)", path.Join(dirPath, f.Name())))
 			continue
 		}
 
@@ -76,6 +87,12 @@ func validateRegistryDirectory() []error {
 		namespacePath := path.Join(rootRegistryPath, nDir.Name())
 		if !nDir.IsDir() {
 			allErrs = append(allErrs, xerrors.Errorf("detected non-directory file %q at base of main Registry directory", namespacePath))
+			continue
+		}
+
+		// Validate namespace name
+		if !validNameRe.MatchString(nDir.Name()) {
+			allErrs = append(allErrs, xerrors.Errorf("%q: namespace name contains invalid characters (only alphanumeric characters and hyphens are allowed)", namespacePath))
 			continue
 		}
 

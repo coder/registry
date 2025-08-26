@@ -107,6 +107,18 @@ describe("gemini", async () => {
     expect(resp.stdout).toContain(version_to_install);
   });
 
+  test("install-gemini-latest", async () => {
+    const { id } = await setup({
+      skipGeminiMock: true,
+      moduleVariables: {
+        install_gemini: "true",
+        gemini_version: "",
+      },
+    });
+    await execModuleScript(id);
+    await expectAgentAPIStarted(id);
+  });
+
   test("gemini-settings-json", async () => {
     const settings = '{"foo": "bar"}';
     const { id } = await setup({
@@ -141,7 +153,7 @@ describe("gemini", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/.gemini-module/install.log");
+    const resp = await readFileContainer(id, "/home/coder/.gemini-module/agentapi-start.log");
     expect(resp).toContain('GOOGLE_GENAI_USE_VERTEXAI=\'true\'');
   });
 
@@ -154,7 +166,7 @@ describe("gemini", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/.gemini-module/install.log");
+    const resp = await readFileContainer(id, "/home/coder/.gemini-module/agentapi-start.log");
     expect(resp).toContain(model);
   });
 
@@ -181,7 +193,7 @@ describe("gemini", async () => {
       },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/.gemini-module/install.log");
+    const resp = await readFileContainer(id, "/home/coder/.gemini-module/agentapi-start.log");
     expect(resp).toContain(folder);
   });
 
