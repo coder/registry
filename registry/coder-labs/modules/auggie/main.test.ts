@@ -165,9 +165,9 @@ describe("auggie", async () => {
       mcpServers: {
         test: {
           command: "test-cmd",
-          type: "stdio"
-        }
-      }
+          type: "stdio",
+        },
+      },
     });
     const { id } = await setup({
       moduleVariables: {
@@ -187,13 +187,16 @@ describe("auggie", async () => {
     const rules = "Always use TypeScript for new files";
     const { id } = await setup({
       moduleVariables: {
-        install_auggie: "false",  // Don't need to install auggie to test rules file creation
+        install_auggie: "false", // Don't need to install auggie to test rules file creation
         rules: rules,
       },
     });
     await execModuleScript(id);
 
-    const rulesFile = await readFileContainer(id, "/home/coder/.augment/rules.md");
+    const rulesFile = await readFileContainer(
+      id,
+      "/home/coder/.augment/rules.md",
+    );
     expect(rulesFile).toContain(rules);
   });
 
@@ -309,12 +312,15 @@ describe("auggie", async () => {
   test("coder-mcp-config-created", async () => {
     const { id } = await setup({
       moduleVariables: {
-        install_auggie: "false",  // Don't need to install auggie to test MCP config creation
+        install_auggie: "false", // Don't need to install auggie to test MCP config creation
       },
     });
     await execModuleScript(id);
 
-    const mcpConfig = await readFileContainer(id, "/home/coder/.augment/coder_mcp.json");
+    const mcpConfig = await readFileContainer(
+      id,
+      "/home/coder/.augment/coder_mcp.json",
+    );
     expect(mcpConfig).toContain("mcpServers");
     expect(mcpConfig).toContain("coder");
     expect(mcpConfig).toContain("CODER_MCP_APP_STATUS_SLUG");

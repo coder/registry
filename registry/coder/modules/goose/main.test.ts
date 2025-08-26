@@ -267,6 +267,8 @@ describe("goose", async () => {
     await execModuleScript(id);
 
     const agentapiMockOutput = await readFileContainer(id, agentapiStartLog);
-    expect(agentapiMockOutput).toContain("AGENTAPI_CHAT_BASE_PATH=/@default/default.foo/apps/goose/chat");
+    expect(agentapiMockOutput).toContain(
+      "AGENTAPI_CHAT_BASE_PATH=/@default/default.foo/apps/goose/chat",
+    );
   });
 });

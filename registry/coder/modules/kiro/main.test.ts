@@ -56,7 +56,7 @@ describe("kiro", async () => {
       slug: "kiro-ai",
       display_name: "Kiro AI IDE",
     });
-    
+
     const coder_app = state.resources.find(
       (res) => res.type === "coder_app" && res.name === "kiro",
     );
@@ -70,7 +70,7 @@ describe("kiro", async () => {
       agent_id: "foo",
       order: "5",
     });
-    
+
     const coder_app = state.resources.find(
       (res) => res.type === "coder_app" && res.name === "kiro",
     );
@@ -83,7 +83,7 @@ describe("kiro", async () => {
       agent_id: "foo",
       group: "AI IDEs",
     });
-    
+
     const coder_app = state.resources.find(
       (res) => res.type === "coder_app" && res.name === "kiro",
     );
