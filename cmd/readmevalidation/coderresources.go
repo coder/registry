@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"net/url"
 	"os"
@@ -276,4 +277,79 @@ func aggregateCoderResourceReadmeFiles(resourceType string) ([]readme, error) {
 		}
 	}
 	return allReadmeFiles, nil
+}
+
+// Matches the format "> [!INFO]". Deliberately using a broad pattern to catch
+// formatting issues that can mess up the renderer for the Registry website
+var gfmAlertRegex = regexp.MustCompile(`^>(\s*)\[!(\w+)\](\s*)(.*)`)
+var gfmAlertTypes = []string{"NOTE", "IMPORTANT", "CAUTION", "WARNING", "TIP"}
+
+func validateResourceGfmAlerts(readmeBody string) []error {
+	trimmed := strings.TrimSpace(readmeBody)
+	if trimmed == "" {
+		return nil
+	}
+
+	var errs []error
+	var sourceLine string
+	isInsideGfmQuotes := false
+	isInsideCodeBlock := false
+
+	lineScanner := bufio.NewScanner(strings.NewReader(trimmed))
+	for lineScanner.Scan() {
+		sourceLine = lineScanner.Text()
+
+		if strings.HasPrefix(sourceLine, "```") {
+			isInsideCodeBlock = !isInsideCodeBlock
+			continue
+		}
+		if isInsideCodeBlock {
+			continue
+		}
+
+		isInsideGfmQuotes = isInsideGfmQuotes && strings.HasPrefix(sourceLine, "> ")
+
+		currentMatch := gfmAlertRegex.FindStringSubmatch(sourceLine)
+		if currentMatch == nil {
+			continue
+		}
+
+		// Nested GFM alerts is such a weird mistake that it's probably not really safe to keep trying to process the
+		// rest of the content, so this will prevent any other validations from happening for the given line
+		if isInsideGfmQuotes {
+			errs = append(errs, errors.New("registry does not support nested GFM alerts"))
+			continue
+		}
+
+		leadingWhitespace := currentMatch[1]
+		if len(leadingWhitespace) != 1 {
+			errs = append(errs, errors.New("GFM alerts must have one space between the '>' and the start of the GFM brackets"))
+		}
+		isInsideGfmQuotes = true
+
+		alertHeader := currentMatch[2]
+		upperHeader := strings.ToUpper(alertHeader)
+		if !slices.Contains(gfmAlertTypes, upperHeader) {
+			errs = append(errs, xerrors.Errorf("GFM alert type %q is not supported", alertHeader))
+		}
+		if alertHeader != upperHeader {
+			errs = append(errs, xerrors.Errorf("GFM alerts must be in all caps"))
+		}
+
+		trailingWhitespace := currentMatch[3]
+		if len(trailingWhitespace) != 0 {
+			errs = append(errs, xerrors.Errorf("GFM alerts must not have any trailing whitespace after the closing bracket"))
+		}
+
+		extraContent := currentMatch[4]
+		if len(extraContent) != 0 {
+			errs = append(errs, xerrors.Errorf("GFM alerts must not have any extra content on the same line"))
+		}
+	}
+
+	if gfmAlertRegex.Match([]byte(sourceLine)) {
+		errs = append(errs, xerrors.Errorf("README has an incomplete GFM alert at the end of the file"))
+	}
+
+	return errs
 }
