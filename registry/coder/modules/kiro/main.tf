@@ -97,6 +97,7 @@ resource "coder_script" "kiro_mcp" {
     set -eu
     mkdir -p "$HOME/.kiro/settings"
     echo -n "${local.mcp_b64}" | base64 -d > "$HOME/.kiro/settings/mcp.json"
+    chmod 600 "$HOME/.kiro/settings/mcp.json"
   EOT
 }
 
