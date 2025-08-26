@@ -125,9 +125,8 @@ This script generates:
    - Correct icon path (usually `../../../../.icons/your-icon.svg`)
    - Proper tags that describe your module
 3. **Create tests for your module:**
-   - **New modules**: Create `*.tftest.hcl` files and test with `terraform test`
-   - **TypeScript tests**: Create `main.test.ts` files if your module runs scripts or has business logic that Terraform tests can't cover
-   - **Both approaches** are supported
+   - **Terraform tests**: Create a `*.tftest.hcl` file and test with `terraform test`
+   - **TypeScript tests**: Create `main.test.ts` file if your module runs scripts or has business logic that Terraform tests can't cover
 4. **Add any scripts** or additional files your module needs
 
 ### 4. Test and Submit
