@@ -17,11 +17,16 @@ import (
 var (
 	supportedResourceTypes = []string{"modules", "templates"}
 	operatingSystems       = []string{"windows", "macos", "linux"}
+	gfmAlertTypes          = []string{"NOTE", "IMPORTANT", "CAUTION", "WARNING", "TIP"}
 
 	// TODO: This is a holdover from the validation logic used by the Coder Modules repo. It gives us some assurance, but
 	// realistically, we probably want to parse any Terraform code snippets, and make some deeper guarantees about how it's
 	// structured. Just validating whether it *can* be parsed as Terraform would be a big improvement.
 	terraformVersionRe = regexp.MustCompile(`^\s*\bversion\s+=`)
+
+	// Matches the format "> [!INFO]". Deliberately using a broad pattern to catch formatting issues that can mess up
+	// the renderer for the Registry website
+	gfmAlertRegex = regexp.MustCompile(`^>(\s*)\[!(\w+)\](\s*)(.*)`)
 )
 
 type coderResourceFrontmatter struct {
@@ -278,11 +283,6 @@ func aggregateCoderResourceReadmeFiles(resourceType string) ([]readme, error) {
 	}
 	return allReadmeFiles, nil
 }
-
-// Matches the format "> [!INFO]". Deliberately using a broad pattern to catch
-// formatting issues that can mess up the renderer for the Registry website
-var gfmAlertRegex = regexp.MustCompile(`^>(\s*)\[!(\w+)\](\s*)(.*)`)
-var gfmAlertTypes = []string{"NOTE", "IMPORTANT", "CAUTION", "WARNING", "TIP"}
 
 func validateResourceGfmAlerts(readmeBody string) []error {
 	trimmed := strings.TrimSpace(readmeBody)
