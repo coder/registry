@@ -18,6 +18,16 @@ function ensure_command() {
   }
 }
 
+SOURCEGRAPH_AMP_START_DIRECTORY=${SOURCEGRAPH_AMP_START_DIRECTORY:-"$HOME"}
+SOURCEGRAPH_AMP_API_KEY=${SOURCEGRAPH_AMP_API_KEY:-}
+SOURCEGRAPH_AMP_TASK_PROMPT=${SOURCEGRAPH_AMP_TASK_PROMPT:-}
+
+echo "--------------------------------"
+printf "API Key: %s\n" "$SOURCEGRAPH_AMP_API_KEY"
+printf "Workspace: %s\n" "$SOURCEGRAPH_AMP_START_DIRECTORY"
+printf "Task Prompt: %s\n" "$SOURCEGRAPH_AMP_TASK_PROMPT"
+echo "--------------------------------"
+
 ensure_command amp
 echo "AMP version: $(amp --version)"
 
@@ -38,12 +48,12 @@ else
 fi
 
 if [ -n "${SOURCEGRAPH_AMP_TASK_PROMPT:-}" ]; then
-  printf "sourcegraph amp task prompt provided : $SOURCEGRAPH_AMP_TASK_PROMPT"
+  printf "sourcegraph amp task prompt provided : %s" "$SOURCEGRAPH_AMP_TASK_PROMPT"
   PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $SOURCEGRAPH_AMP_TASK_PROMPT"
 
   # Pipe the prompt into amp, which will be run inside agentapi
-  agentapi server --term-width=67 --term-height=1190 -- bash -c "echo \"$PROMPT\" | amp"
+  agentapi server --type amp --term-width=67 --term-height=1190 -- bash -c "echo \"$PROMPT\" | amp"
 else
   printf "No task prompt given.\n"
-  agentapi server --term-width=67 --term-height=1190 -- amp
+  agentapi server --type amp --term-width=67 --term-height=1190 -- amp
 fi
