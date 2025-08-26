@@ -30,7 +30,7 @@ For other ways to authenticate [consult the Terraform provider's docs](https://r
 - **Multiple Instance Types**: From Nanode 1GB to 32GB configurations
 - **Comprehensive OS Support**: Ubuntu, Debian, CentOS, Fedora, AlmaLinux, Rocky Linux
 - **Global Regions**: 32 Linode regions across North America, Europe, Asia-Pacific, South America, and Australia
-- **Persistent Storage**: Configurable volumes (10GB-1TB) that persist across workspace restarts
+- **Persistent Storage**: Configurable volumes (10GB-1TB) that persist `$HOME` across workspace restarts
 - **Development Tools**: Pre-configured with VS Code Server
 - **Monitoring**: Built-in CPU, memory, and disk usage monitoring
 
