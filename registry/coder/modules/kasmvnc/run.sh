@@ -230,9 +230,7 @@ get_http_dir() {
 
   # Check the system configuration path
   if [[ -e /etc/kasmvnc/kasmvnc.yaml ]]; then
-    d=$(grep -E '^\s*httpd_directory:.*$' "/etc/kasmvnc/kasmvnc.yaml" | awk '{print $2}')
-
-    if [[ -n "$d" ]]; then
+    if [[ -n "$d" && -d "$d" ]]; then
         httpd_directory=$d
     fi
   fi
