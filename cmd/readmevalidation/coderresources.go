@@ -337,12 +337,12 @@ func validateResourceGfmAlerts(readmeBody string) []error {
 		}
 
 		trailingWhitespace := currentMatch[3]
-		if len(trailingWhitespace) != 0 {
+		if trailingWhitespace != "" {
 			errs = append(errs, xerrors.Errorf("GFM alerts must not have any trailing whitespace after the closing bracket"))
 		}
 
 		extraContent := currentMatch[4]
-		if len(extraContent) != 0 {
+		if extraContent != "" {
 			errs = append(errs, xerrors.Errorf("GFM alerts must not have any extra content on the same line"))
 		}
 	}
