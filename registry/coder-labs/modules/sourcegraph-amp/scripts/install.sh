@@ -9,11 +9,13 @@ BOLD='\033[1m'
 ARG_INSTALL_SOURCEGRAPH_AMP=${ARG_INSTALL_SOURCEGRAPH_AMP:-true}
 ARG_AMP_VERSION=${ARG_AMP_VERSION:-}
 ARG_AMP_CONFIG=${ARG_AMP_CONFIG:-}
+ARG_SOURCEGRAPH_AMP_SYSTEM_PROMPT=${ARG_SOURCEGRAPH_AMP_SYSTEM_PROMPT:-}
 
 echo "--------------------------------"
 printf "Install flag: %s\n" "$ARG_INSTALL_SOURCEGRAPH_AMP"
 printf "Amp Version: %s\n" "$ARG_AMP_VERSION"
 printf "AMP Config: %s\n" "$ARG_AMP_CONFIG"
+printf "System Prompt: %s\n" "$ARG_SOURCEGRAPH_AMP_SYSTEM_PROMPT"
 echo "--------------------------------"
 
 # Helper function to check if a command exists
@@ -68,10 +70,10 @@ function install_sourcegraph_amp() {
 }
 
 function setup_system_prompt() {
-  if [ -n "${SOURCEGRAPH_AMP_SYSTEM_PROMPT:-}" ]; then
+  if [ -n "${ARG_SOURCEGRAPH_AMP_SYSTEM_PROMPT:-}" ]; then
     echo "Setting Sourcegraph AMP system prompt..."
     mkdir -p "$HOME/.sourcegraph-amp-module"
-    echo "$SOURCEGRAPH_AMP_SYSTEM_PROMPT" > "$HOME/.sourcegraph-amp-module/SYSTEM_PROMPT.md"
+    echo "$ARG_SOURCEGRAPH_AMP_SYSTEM_PROMPT" > "$HOME/.sourcegraph-amp-module/SYSTEM_PROMPT.md"
     echo "System prompt saved to $HOME/.sourcegraph-amp-module/SYSTEM_PROMPT.md"
   else
     echo "No system prompt provided for Sourcegraph AMP."

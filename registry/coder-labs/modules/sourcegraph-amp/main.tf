@@ -65,6 +65,12 @@ variable "ai_prompt" {
   default     = ""
 }
 
+variable "system_prompt" {
+  type        = string
+  description = "System prompt for the Amp CLI"
+  default     = ""
+}
+
 resource "coder_env" "sourcegraph_amp_api_key" {
   agent_id = var.agent_id
   name     = "SOURCEGRAPH_AMP_API_KEY"
@@ -80,7 +86,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.3.0"
+  default     = "v0.6.1"
 }
 
 variable "pre_install_script" {
@@ -184,9 +190,9 @@ module "agentapi" {
 
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
-     SOURCEGRAPH_AMP_API_KEY='${var.sourcegraph_amp_api_key}' \
-     SOURCEGRAPH_AMP_START_DIRECTORY='${var.folder}' \
-     SOURCEGRAPH_AMP_TASK_PROMPT='${var.ai_prompt}' \
+     ARG_SOURCEGRAPH_AMP_API_KEY='${var.sourcegraph_amp_api_key}' \
+     ARG_SOURCEGRAPH_AMP_START_DIRECTORY='${var.folder}' \
+     ARG_SOURCEGRAPH_AMP_TASK_PROMPT='${var.ai_prompt}' \
      /tmp/start.sh
    EOT
 
@@ -200,6 +206,7 @@ module "agentapi" {
     ARG_INSTALL_SOURCEGRAPH_AMP='${var.install_sourcegraph_amp}' \
     ARG_AMP_CONFIG="$(echo -n '${base64encode(jsonencode(local.final_config))}' | base64 -d)" \
     ARG_AMP_VERSION='${var.sourcegraph_amp_version}' \
+    ARG_SOURCEGRAPH_AMP_SYSTEM_PROMPT='${var.system_prompt}' \
     /tmp/install.sh
   EOT
 }

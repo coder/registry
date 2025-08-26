@@ -18,20 +18,20 @@ function ensure_command() {
   }
 }
 
-SOURCEGRAPH_AMP_START_DIRECTORY=${SOURCEGRAPH_AMP_START_DIRECTORY:-"$HOME"}
-SOURCEGRAPH_AMP_API_KEY=${SOURCEGRAPH_AMP_API_KEY:-}
-SOURCEGRAPH_AMP_TASK_PROMPT=${SOURCEGRAPH_AMP_TASK_PROMPT:-}
+ARG_SOURCEGRAPH_AMP_START_DIRECTORY=${ARG_SOURCEGRAPH_AMP_START_DIRECTORY:-"$HOME"}
+ARG_SOURCEGRAPH_AMP_API_KEY=${ARG_SOURCEGRAPH_AMP_API_KEY:-}
+ARG_SOURCEGRAPH_AMP_TASK_PROMPT=${ARG_SOURCEGRAPH_AMP_TASK_PROMPT:-}
 
 echo "--------------------------------"
-printf "API Key: %s\n" "$SOURCEGRAPH_AMP_API_KEY"
-printf "Workspace: %s\n" "$SOURCEGRAPH_AMP_START_DIRECTORY"
-printf "Task Prompt: %s\n" "$SOURCEGRAPH_AMP_TASK_PROMPT"
+printf "API Key: %s\n" "$ARG_SOURCEGRAPH_AMP_API_KEY"
+printf "Workspace: %s\n" "$ARG_SOURCEGRAPH_AMP_START_DIRECTORY"
+printf "Task Prompt: %s\n" "$ARG_SOURCEGRAPH_AMP_TASK_PROMPT"
 echo "--------------------------------"
 
 ensure_command amp
 echo "AMP version: $(amp --version)"
 
-dir="$SOURCEGRAPH_AMP_START_DIRECTORY"
+dir="$ARG_SOURCEGRAPH_AMP_START_DIRECTORY"
 if [[ -d "$dir" ]]; then
   echo "Using existing directory: $dir"
 else
@@ -40,16 +40,16 @@ else
 fi
 cd "$dir"
 
-if [ -n "$SOURCEGRAPH_AMP_API_KEY" ]; then
+if [ -n "$ARG_SOURCEGRAPH_AMP_API_KEY" ]; then
   printf "sourcegraph_amp_api_key provided !\n"
-  export AMP_API_KEY=$SOURCEGRAPH_AMP_API_KEY
+  export AMP_API_KEY=$ARG_SOURCEGRAPH_AMP_API_KEY
 else
   printf "sourcegraph_amp_api_key not provided\n"
 fi
 
-if [ -n "${SOURCEGRAPH_AMP_TASK_PROMPT:-}" ]; then
-  printf "sourcegraph amp task prompt provided : %s" "$SOURCEGRAPH_AMP_TASK_PROMPT"
-  PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $SOURCEGRAPH_AMP_TASK_PROMPT"
+if [ -n "${ARG_SOURCEGRAPH_AMP_TASK_PROMPT:-}" ]; then
+  printf "sourcegraph amp task prompt provided : %s" "$ARG_SOURCEGRAPH_AMP_TASK_PROMPT"
+  PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $ARG_SOURCEGRAPH_AMP_TASK_PROMPT"
 
   # Pipe the prompt into amp, which will be run inside agentapi
   agentapi server --type amp --term-width=67 --term-height=1190 -- bash -c "echo \"$PROMPT\" | amp"

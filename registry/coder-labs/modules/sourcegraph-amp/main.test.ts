@@ -43,6 +43,7 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
   const { id } = await setupUtil({
     moduleDir: import.meta.dir,
     moduleVariables: {
+      folder: "/home/coder",
       install_sourcegraph_amp: props?.skipAmpMock ? "true" : "false",
       install_agentapi: props?.skipAgentAPIMock ? "true" : "false",
       sourcegraph_amp_model: "test-model",
@@ -94,6 +95,33 @@ describe("sourcegraph-amp", async () => {
     expect(resp).toContain("sourcegraph_amp_api_key provided !");
   });
 
+  test("install-latest-version", async () => {
+    const { id } = await setup({
+      skipAmpMock: true,
+      skipAgentAPIMock: true,
+      moduleVariables: {
+        sourcegraph_amp_version: "",
+      },
+    });
+    await execModuleScript(id);
+    await expectAgentAPIStarted(id);
+  });
+
+  test("install-specific-version", async () => {
+    const { id } = await setup({
+      skipAmpMock: true,
+      moduleVariables: {
+        sourcegraph_amp_version: "0.0.1755964909-g31e083",
+      },
+    });
+    await execModuleScript(id);
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.sourcegraph-amp-module/agentapi-start.log",
+    );
+    expect(resp).toContain("0.0.1755964909-g31e08");
+  });
+
   test("custom-folder", async () => {
     const folder = "/tmp/sourcegraph-amp-test";
     const { id } = await setup({
@@ -104,7 +132,7 @@ describe("sourcegraph-amp", async () => {
     await execModuleScript(id);
     const resp = await readFileContainer(
       id,
-      "/home/coder/.sourcegraph-amp-module/install.log",
+      "/home/coder/.sourcegraph-amp-module/agentapi-start.log",
     );
     expect(resp).toContain(folder);
   });
@@ -131,10 +159,12 @@ describe("sourcegraph-amp", async () => {
 
   test("system-prompt", async () => {
     const prompt = "this is a system prompt for AMP";
-    const { id } = await setup();
-    await execModuleScript(id, {
-      SOURCEGRAPH_AMP_SYSTEM_PROMPT: prompt,
+    const { id } = await setup({
+      moduleVariables: {
+        system_prompt: prompt
+      }
     });
+    await execModuleScript(id);
     const resp = await readFileContainer(
       id,
       "/home/coder/.sourcegraph-amp-module/SYSTEM_PROMPT.md",
@@ -144,10 +174,12 @@ describe("sourcegraph-amp", async () => {
 
   test("task-prompt", async () => {
     const prompt = "this is a task prompt for AMP";
-    const { id } = await setup();
-    await execModuleScript(id, {
-      SOURCEGRAPH_AMP_TASK_PROMPT: prompt,
+    const { id } = await setup({
+      moduleVariables: {
+        ai_prompt: prompt
+      }
     });
+    await execModuleScript(id);
     const resp = await readFileContainer(
       id,
       "/home/coder/.sourcegraph-amp-module/agentapi-start.log",
