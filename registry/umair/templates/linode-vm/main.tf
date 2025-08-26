@@ -227,7 +227,7 @@ data "coder_parameter" "region" {
   option {
     name  = "Jakarta, ID"
     value = "id-cgk"
-    icon  = "/emojis/1f1ee-1f1f3.png"
+    icon  = "/emojis/1f1ee-1f1e9.png"
   }
   option {
     name  = "Sao Paulo, BR"
