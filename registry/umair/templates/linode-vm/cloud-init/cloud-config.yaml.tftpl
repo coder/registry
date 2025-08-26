@@ -21,7 +21,7 @@ fs_setup:
     device: /dev/sdb
     partition: auto
 mounts:
-  - ["/dev/sdb", "/home/${username}", "ext4", "defaults,uid=1000,gid=1000", "0", "2"]
+  - ["/dev/sdb", "/home/${username}", "ext4", "defaults", "0", "2"]
 write_files:
   - path: /opt/coder/init
     permissions: "0755"
