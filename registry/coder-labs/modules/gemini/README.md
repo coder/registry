@@ -13,7 +13,7 @@ Run [Gemini CLI](https://github.com/google-gemini/gemini-cli) in your workspace 
 ```tf
 module "gemini" {
   source   = "registry.coder.com/coder-labs/gemini/coder"
-  version  = "1.1.0"
+  version  = "2.0.0"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
 }
@@ -30,7 +30,7 @@ module "gemini" {
 
 ## Prerequisites
 
-- Node.js and npm will be installed automatically if not present
+- **Node.js and npm must be sourced/available before the gemini module installs** - ensure they are installed in your workspace image or via earlier provisioning steps
 - The [Coder Login](https://registry.coder.com/modules/coder/coder-login) module is required
 
 ## Examples
@@ -46,7 +46,7 @@ variable "gemini_api_key" {
 
 module "gemini" {
   source         = "registry.coder.com/coder-labs/gemini/coder"
-  version        = "1.1.0"
+  version        = "2.0.0"
   agent_id       = coder_agent.example.id
   gemini_api_key = var.gemini_api_key
   folder         = "/home/coder/project"
@@ -94,7 +94,7 @@ data "coder_parameter" "ai_prompt" {
 module "gemini" {
   count                = data.coder_workspace.me.start_count
   source               = "registry.coder.com/coder-labs/gemini/coder"
-  version              = "1.1.0"
+  version              = "2.0.0"
   agent_id             = coder_agent.example.id
   gemini_api_key       = var.gemini_api_key
   gemini_model         = "gemini-2.5-flash"
@@ -118,7 +118,7 @@ For enterprise users who prefer Google's Vertex AI platform:
 ```tf
 module "gemini" {
   source         = "registry.coder.com/coder-labs/gemini/coder"
-  version        = "1.1.0"
+  version        = "2.0.0"
   agent_id       = coder_agent.example.id
   gemini_api_key = var.gemini_api_key
   folder         = "/home/coder/project"
