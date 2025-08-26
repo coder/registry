@@ -1,14 +1,23 @@
 ---
-display_name: mavrickrishi
-bio: Coder module contributor
-github: mavrick-1
-status: community
+display_name: "Rishi Mondal"
+bio: "Breaking code, fixing bugs, and occasionally making it work! Always caffeinated, always committing"
+avatar: "./.images/avatar.jpeg"
+github: "MAVRICK-1"
+linkedin: "https://www.linkedin.com/in/rishi-mondal-5238b2282/" # Optional
+website: "https://mavrick-portfolio.vercel.app/" # Optional
+support_email: "mavrickrishi@gmail.com" # Optional
+status: "community"
 ---
 
-# mavrickrishi
+# Rishi Mondal
 
-This directory contains Coder modules and templates created by mavrickrishi.
+I'm Rishi Mondal, a passionate developer from Chinsurah Hooghly, West Bengal, India.
+I'm a maintainer at CNCF KubeStellar, GSoC contributor at UCSC OSPO, and a Docker Captain.
+When I'm not breaking code and fixing bugs, you'll find me contributing to open-source projects,
+participating in LFX CNCF programs, and helping the developer community grow.
 
 ## Modules
 
+- **aws-ami-snapshot**: Create and manage AMI snapshots for Coder workspaces with restore capabilities
 - [nexus-repository](./modules/nexus-repository/) - Configure package managers to use Sonatype Nexus Repository
+

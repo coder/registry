@@ -8,6 +8,8 @@ tags: [kubernetes, containers, docker-in-docker]
 
 # envbox
 
+Provision envbox pods as Coder workspaces
+
 ## Introduction
 
 `envbox` is an image that enables creating non-privileged containers capable of running system-level software (e.g. `dockerd`, `systemd`, etc) in Kubernetes.
