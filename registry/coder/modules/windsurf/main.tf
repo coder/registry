@@ -97,6 +97,7 @@ resource "coder_script" "windsurf_mcp" {
     set -eu
     mkdir -p "$HOME/.codeium/windsurf"
     echo -n "${local.mcp_b64}" | base64 -d > "$HOME/.codeium/windsurf/mcp_config.json"
+    chmod 600 "$HOME/.codeium/windsurf/mcp_config.json"
   EOT
 }
 
