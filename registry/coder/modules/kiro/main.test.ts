@@ -3,6 +3,11 @@ import {
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
+  runContainer,
+  execContainer,
+  removeContainer,
+  findResourceInstance,
+  readFileContainer,
 } from "~test";
 
 describe("kiro", async () => {
@@ -89,5 +94,27 @@ describe("kiro", async () => {
     );
 
     expect(coder_app?.instances[0].attributes.group).toBe("AI IDEs");
+  });
+
+  it("writes ~/.kiro/settings/mcp.json when mcp provided", async () => {
+    const id = await runContainer("alpine");
+    try {
+      const mcp = JSON.stringify({ servers: { demo: { url: "http://localhost:1234" } } });
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        mcp,
+      });
+      const script = findResourceInstance(state, "coder_script", "kiro_mcp").script;
+      const resp = await execContainer(id, ["sh", "-c", script]);
+      if (resp.exitCode !== 0) {
+        console.log(resp.stdout);
+        console.log(resp.stderr);
+      }
+      expect(resp.exitCode).toBe(0);
+      const content = await readFileContainer(id, "/root/.kiro/settings/mcp.json");
+      expect(content).toBe(mcp);
+    } finally {
+      await removeContainer(id);
+    }
   });
 });
