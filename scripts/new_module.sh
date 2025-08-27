@@ -29,6 +29,13 @@ if [ -d "registry/$NAMESPACE/modules/$MODULE_NAME" ]; then
   echo "Please choose a different name"
   exit 1
 fi
+
+# Create namespace directory if it doesn't exist
+if [ ! -d "registry/$NAMESPACE" ]; then
+  echo "Creating namespace directory: registry/$NAMESPACE"
+  mkdir -p "registry/$NAMESPACE"
+fi
+
 mkdir -p "registry/${NAMESPACE}/modules/${MODULE_NAME}"
 
 # Copy required files from the example module
