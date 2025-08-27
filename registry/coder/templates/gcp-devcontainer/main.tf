@@ -292,6 +292,7 @@ module "code-server" {
   version = "~> 1.0"
 
   agent_id = coder_agent.main.id
+  agent_name = "main"
   order    = 1
 }
 
@@ -301,6 +302,7 @@ module "jetbrains" {
   source   = "registry.coder.com/modules/coder/jetbrains/coder"
   version  = "~> 1.0"
   agent_id = coder_agent.main.id
+  agent_name = "main"
   folder   = "/workspaces"
 }
 

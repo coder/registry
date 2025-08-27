@@ -24,6 +24,7 @@ module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
   version             = "2.0.0"
   agent_id            = coder_agent.main.id
+  agent_name = "main"
   folder              = "/home/coder/projects"
   install_claude_code = true
   claude_code_version = "latest"
@@ -45,6 +46,7 @@ variable "anthropic_api_key" {
 }
 resource "coder_env" "anthropic_api_key" {
   agent_id = coder_agent.main.id
+  agent_name = "main"
   name     = "CODER_MCP_CLAUDE_API_KEY"
   value    = var.anthropic_api_key
 }
@@ -175,16 +177,19 @@ data "coder_parameter" "preview_port" {
 # Other variables for Claude Code
 resource "coder_env" "claude_task_prompt" {
   agent_id = coder_agent.main.id
+  agent_name = "main"
   name     = "CODER_MCP_CLAUDE_TASK_PROMPT"
   value    = data.coder_parameter.ai_prompt.value
 }
 resource "coder_env" "app_status_slug" {
   agent_id = coder_agent.main.id
+  agent_name = "main"
   name     = "CODER_MCP_APP_STATUS_SLUG"
   value    = "ccw"
 }
 resource "coder_env" "claude_system_prompt" {
   agent_id = coder_agent.main.id
+  agent_name = "main"
   name     = "CODER_MCP_CLAUDE_SYSTEM_PROMPT"
   value    = data.coder_parameter.system_prompt.value
 }
@@ -297,6 +302,7 @@ module "code-server" {
   version = "~> 1.0"
 
   agent_id = coder_agent.main.id
+  agent_name = "main"
   order    = 1
 }
 
@@ -305,6 +311,7 @@ module "vscode" {
   source   = "registry.coder.com/coder/vscode-desktop/coder"
   version  = "1.1.0"
   agent_id = coder_agent.main.id
+  agent_name = "main"
 }
 
 module "windsurf" {
@@ -312,6 +319,7 @@ module "windsurf" {
   source   = "registry.coder.com/coder/windsurf/coder"
   version  = "1.1.0"
   agent_id = coder_agent.main.id
+  agent_name = "main"
 }
 
 module "cursor" {
@@ -319,6 +327,7 @@ module "cursor" {
   source   = "registry.coder.com/coder/cursor/coder"
   version  = "1.2.0"
   agent_id = coder_agent.main.id
+  agent_name = "main"
 }
 
 module "jetbrains" {
@@ -326,6 +335,7 @@ module "jetbrains" {
   source   = "registry.coder.com/modules/coder/jetbrains/coder"
   version  = "~> 1.0"
   agent_id = coder_agent.main.id
+  agent_name = "main"
   folder   = "/home/coder/projects"
 }
 
@@ -358,6 +368,7 @@ resource "docker_volume" "home_volume" {
 
 resource "coder_app" "preview" {
   agent_id     = coder_agent.main.id
+  agent_name = "main"
   slug         = "preview"
   display_name = "Preview your app"
   icon         = "${data.coder_workspace.me.access_url}/emojis/1f50e.png"

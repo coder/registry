@@ -53,6 +53,7 @@ module "code-server" {
   version = "~> 1.0"
 
   agent_id = coder_agent.main.id
+  agent_name = "main"
   order    = 1
 }
 
@@ -62,6 +63,7 @@ module "jetbrains" {
   source   = "registry.coder.com/modules/coder/jetbrains/coder"
   version  = "~> 1.0"
   agent_id = coder_agent.main.id
+  agent_name = "main"
   folder   = "/home/coder"
 }
 
@@ -111,6 +113,7 @@ resource "google_compute_instance" "dev" {
 resource "coder_agent_instance" "dev" {
   count       = data.coder_workspace.me.start_count
   agent_id    = coder_agent.main.id
+  agent_name = "main"
   instance_id = google_compute_instance.dev[0].instance_id
 }
 

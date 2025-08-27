@@ -35,6 +35,7 @@ resource "coder_agent" "main" {
 # details: https://registry.terraform.io/providers/coder/coder/latest/docs/resources/env
 resource "coder_env" "welcome_message" {
   agent_id = coder_agent.main.id
+  agent_name = "main"
   name     = "WELCOME_MESSAGE"
   value    = "Welcome to your Coder workspace!"
 }
@@ -49,12 +50,14 @@ module "code-server" {
   version = "~> 1.0"
 
   agent_id = coder_agent.main.id
+  agent_name = "main"
 }
 
 # Runs a script at workspace start/stop or on a cron schedule
 # details: https://registry.terraform.io/providers/coder/coder/latest/docs/resources/script
 resource "coder_script" "startup_script" {
   agent_id           = coder_agent.main.id
+  agent_name = "main"
   display_name       = "Startup Script"
   script             = <<-EOF
     #!/bin/sh

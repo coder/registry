@@ -328,4 +328,5 @@ module "code-server" {
   # This ensures that the latest non-breaking version of the module gets downloaded, you can also pin the module version to prevent breaking changes in production.
   version  = "~> 1.0"
   agent_id = coder_agent.dev[0].id
+  agent_name = "dev"
 }
