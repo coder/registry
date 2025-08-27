@@ -3,7 +3,10 @@
 # Exit on error, undefined variables, and pipe failures
 set -euo pipefail
 
-error() { printf "💀 ERROR: %s\n" "$@"; exit 1; }
+error() {
+  printf "💀 ERROR: %s\n" "$@"
+  exit 1
+}
 
 # Function to check if vncserver is already installed
 check_installed() {
@@ -248,30 +251,30 @@ get_http_dir() {
   echo $httpd_directory
 }
 
-fix_server_index_file(){
-    local fname=$${FUNCNAME[0]}  # gets current function name
-    if [[ $# -ne 1 ]]; then
-        error "$fname requires exactly 1 parameter:\n\tpath to KasmVNC httpd_directory"
-    fi
-    local httpdir="$1"
-    if [[ ! -d "$httpdir" ]]; then
-      error "$fname: $httpdir is not a directory"
-    fi
-    pushd "$httpdir" > /dev/null
+fix_server_index_file() {
+  local fname=$${FUNCNAME[0]} # gets current function name
+  if [[ $# -ne 1 ]]; then
+    error "$fname requires exactly 1 parameter:\n\tpath to KasmVNC httpd_directory"
+  fi
+  local httpdir="$1"
+  if [[ ! -d "$httpdir" ]]; then
+    error "$fname: $httpdir is not a directory"
+  fi
+  pushd "$httpdir" > /dev/null
 
-    cat <<'EOH' > /tmp/path_vnc.html
+  cat << 'EOH' > /tmp/path_vnc.html
 ${PATH_VNC_HTML}
 EOH
-    $SUDO mv /tmp/path_vnc.html .
-    # check for the switcheroo
-    if [[ -f "index.html" && -L "vnc.html" ]]; then
-      $SUDO mv $httpdir/index.html $httpdir/vnc.html
-    fi
-    $SUDO ln -s -f path_vnc.html index.html
-    popd > /dev/null
+  $SUDO mv /tmp/path_vnc.html .
+  # check for the switcheroo
+  if [[ -f "index.html" && -L "vnc.html" ]]; then
+    $SUDO mv $httpdir/index.html $httpdir/vnc.html
+  fi
+  $SUDO ln -s -f path_vnc.html index.html
+  popd > /dev/null
 }
 
-patch_kasm_http_files(){
+patch_kasm_http_files() {
   homedir=$(get_http_dir)
   fix_server_index_file "$homedir"
 }
@@ -292,7 +295,7 @@ set -e
 
 if [[ $RETVAL -ne 0 ]]; then
   echo "ERROR: Failed to start KasmVNC server. Return code: $RETVAL"
-    if [[ -f "$VNC_LOG" ]]; then
+  if [[ -f "$VNC_LOG" ]]; then
     echo "Full logs:"
     cat "$VNC_LOG"
   else

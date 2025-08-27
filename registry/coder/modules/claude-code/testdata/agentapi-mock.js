@@ -20,7 +20,10 @@ if (
   process.exit(1);
 }
 
-fs.writeFileSync("/home/coder/agentapi-mock.log", `AGENTAPI_ALLOWED_HOSTS: ${process.env.AGENTAPI_ALLOWED_HOSTS}`);
+fs.writeFileSync(
+  "/home/coder/agentapi-mock.log",
+  `AGENTAPI_ALLOWED_HOSTS: ${process.env.AGENTAPI_ALLOWED_HOSTS}`,
+);
 
 console.log(`starting server on port ${port}`);
 

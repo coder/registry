@@ -39,7 +39,6 @@ printf "report_tasks: %s\n" "$ARG_REPORT_TASKS"
 
 echo "--------------------------------"
 
-
 function validate_auggie_installation() {
   if command_exists auggie; then
     printf "Auggie is installed\n"

@@ -84,8 +84,8 @@ function install_codex() {
 }
 
 write_minimal_default_config() {
-    local config_path="$1"
-    cat << EOF > "$config_path"
+  local config_path="$1"
+  cat << EOF > "$config_path"
 # Minimal Default Codex Configuration
 sandbox_mode = "workspace-write"
 approval_policy = "never"
@@ -98,9 +98,9 @@ EOF
 }
 
 append_mcp_servers_section() {
-    local config_path="$1"
-    
-    cat << EOF >> "$config_path"
+  local config_path="$1"
+
+  cat << EOF >> "$config_path"
 
 # MCP Servers Configuration
 [mcp_servers.Coder]
@@ -112,32 +112,32 @@ type = "stdio"
 
 EOF
 
-    if [ -n "$ARG_ADDITIONAL_MCP_SERVERS" ]; then
-        printf "Adding additional MCP servers\n"
-        echo "$ARG_ADDITIONAL_MCP_SERVERS" >> "$config_path"
-    fi
+  if [ -n "$ARG_ADDITIONAL_MCP_SERVERS" ]; then
+    printf "Adding additional MCP servers\n"
+    echo "$ARG_ADDITIONAL_MCP_SERVERS" >> "$config_path"
+  fi
 }
 
 function populate_config_toml() {
-    CONFIG_PATH="$HOME/.codex/config.toml"
-    mkdir -p "$(dirname "$CONFIG_PATH")"
-    
-    if [ -n "$ARG_BASE_CONFIG_TOML" ]; then
-        printf "Using provided base configuration\n"
-        echo "$ARG_BASE_CONFIG_TOML" > "$CONFIG_PATH"
-    else
-        printf "Using minimal default configuration\n"
-        write_minimal_default_config "$CONFIG_PATH"
-    fi
-    
-    append_mcp_servers_section "$CONFIG_PATH"
+  CONFIG_PATH="$HOME/.codex/config.toml"
+  mkdir -p "$(dirname "$CONFIG_PATH")"
+
+  if [ -n "$ARG_BASE_CONFIG_TOML" ]; then
+    printf "Using provided base configuration\n"
+    echo "$ARG_BASE_CONFIG_TOML" > "$CONFIG_PATH"
+  else
+    printf "Using minimal default configuration\n"
+    write_minimal_default_config "$CONFIG_PATH"
+  fi
+
+  append_mcp_servers_section "$CONFIG_PATH"
 }
 
 function add_instruction_prompt_if_exists() {
   if [ -n "${ARG_CODEX_INSTRUCTION_PROMPT:-}" ]; then
     AGENTS_PATH="$HOME/.codex/AGENTS.md"
     printf "Creating AGENTS.md in .codex directory: %s\\n" "${AGENTS_PATH}"
-    
+
     mkdir -p "$HOME/.codex"
 
     if [ -f "${AGENTS_PATH}" ] && grep -Fq "${ARG_CODEX_INSTRUCTION_PROMPT}" "${AGENTS_PATH}"; then
@@ -146,7 +146,7 @@ function add_instruction_prompt_if_exists() {
       printf "Appending instruction prompt to AGENTS.md in .codex directory\n"
       echo -e "\n${ARG_CODEX_INSTRUCTION_PROMPT}" >> "${AGENTS_PATH}"
     fi
-    
+
     if [ ! -d "${ARG_CODEX_START_DIRECTORY}" ]; then
       printf "Creating start directory '%s'\\n" "${ARG_CODEX_START_DIRECTORY}"
       mkdir -p "${ARG_CODEX_START_DIRECTORY}" || {
