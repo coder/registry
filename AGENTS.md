@@ -23,7 +23,7 @@ bun run fmt:ci # Check formatting (CI mode)
 
 ```bash
 # Test all modules with .tftest.hcl files
-./scripts/terraform_test_all.sh
+bun run test
 
 # Test specific module (from module directory)
 terraform init -upgrade
@@ -96,6 +96,7 @@ tags: ["tag1", "tag2"]
 ### Module Testing
 
 - Every module MUST have `.tftest.hcl` test files
+- Optional `main.test.ts` files for container-based testing or complex business logic validation
 - Tests use Docker containers with `--network=host` flag
 - Linux required for testing (Docker Desktop on macOS/Windows won't work)
 - Use Colima or OrbStack on macOS instead of Docker Desktop
@@ -156,7 +157,7 @@ Use semantic versioning for modules:
 ### Testing Workflow
 
 - All modules must pass `terraform test`
-- Use `./scripts/terraform_test_all.sh` for comprehensive testing
+- Use `bun run test` for comprehensive testing
 - Format code with `bun run fmt` before submission
 - Manual testing recommended for templates
 
