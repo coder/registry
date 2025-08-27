@@ -29,9 +29,9 @@ A brief description of what this template provides and its use case.
 
 ## Variables
 
-| Name | Description | Type | Default | Required |
-|------|-------------|------|---------|----------|
-| example_var | Description of the variable | `string` | `"default_value"` | no |
+| Name        | Description                 | Type     | Default           | Required |
+| ----------- | --------------------------- | -------- | ----------------- | -------- |
+| example_var | Description of the variable | `string` | `"default_value"` | no       |
 
 ## Resources Created
 
