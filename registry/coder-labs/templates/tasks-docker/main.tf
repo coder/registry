@@ -323,7 +323,7 @@ module "cursor" {
 
 module "jetbrains_gateway" {
   count  = data.coder_workspace.me.start_count
-  source = "registry.coder.com/coder/jetbrains-gateway/coder"
+  source = "registry.coder.com/modules/coder/jetbrains/coder"
 
   # JetBrains IDEs to make available for the user to select
   jetbrains_ides = ["IU", "PS", "WS", "PY", "CL", "GO", "RM", "RD", "RR"]
