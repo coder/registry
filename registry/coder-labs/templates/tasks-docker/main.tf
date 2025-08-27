@@ -324,7 +324,7 @@ module "cursor" {
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/modules/coder/jetbrains/coder"
-  version  = "1.0.3"
+  version  = "~> 1.0"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/projects"
 }
