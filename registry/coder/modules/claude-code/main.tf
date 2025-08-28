@@ -100,7 +100,13 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.3.0"
+  default     = "v0.3.3"
+}
+
+variable "subdomain" {
+  type        = bool
+  description = "Whether to use a subdomain for the Claude Code app."
+  default     = true
 }
 
 locals {
@@ -113,6 +119,15 @@ locals {
   agentapi_wait_for_start_script_b64 = base64encode(file("${path.module}/scripts/agentapi-wait-for-start.sh"))
   remove_last_session_id_script_b64  = base64encode(file("${path.module}/scripts/remove-last-session-id.sh"))
   claude_code_app_slug               = "ccw"
+  // Chat base path is only set if not using a subdomain.
+  // NOTE:
+  //   - Initial support for --chat-base-path was added in v0.3.1 but configuration
+  //     via environment variable AGENTAPI_CHAT_BASE_PATH was added in v0.3.3.
+  //   - As CODER_WORKSPACE_AGENT_NAME is a recent addition we use agent ID
+  //     for backward compatibility.
+  agentapi_chat_base_path = var.subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${local.claude_code_app_slug}/chat"
+  server_base_path        = var.subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${local.claude_code_app_slug}"
+  healthcheck_url         = "http://localhost:3284${local.server_base_path}/status"
 }
 
 # Install and Initialize Claude Code
@@ -229,6 +244,9 @@ resource "coder_script" "claude_code" {
 
     # Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
     export AGENTAPI_ALLOWED_HOSTS="*"
+    
+    # Set chat base path for non-subdomain routing (only set if not using subdomain)
+    export AGENTAPI_CHAT_BASE_PATH="${local.agentapi_chat_base_path}"
 
     nohup "$module_path/scripts/agentapi-start.sh" use_prompt &> "$module_path/agentapi-start.log" &
     "$module_path/scripts/agentapi-wait-for-start.sh"
@@ -245,9 +263,9 @@ resource "coder_app" "claude_code_web" {
   icon         = var.icon
   order        = var.order
   group        = var.group
-  subdomain    = true
+  subdomain    = var.subdomain
   healthcheck {
-    url       = "http://localhost:3284/status"
+    url       = local.healthcheck_url
     interval  = 3
     threshold = 20
   }
