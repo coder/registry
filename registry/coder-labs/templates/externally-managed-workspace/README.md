@@ -8,6 +8,8 @@ tags: [external]
 
 # Externally Managed Workspace Template
 
+~> **Warning:** External agents require a Premium Coder license. This feature is not available with the free tier.
+
 This template provides a minimal scaffolding for creating Coder workspaces that connect to externally provisioned compute resources.
 
 Use this template as a starting point to build your own custom templates for scenarios where you need to connect to existing infrastructure.
