@@ -7,7 +7,7 @@ BOLD='\033[[0;1m'
 printf "$${BOLD}Installing filebrowser \n\n"
 
 # Check if filebrowser is installed
-if ! command -v filebrowser &>/dev/null; then
+if ! command -v filebrowser &> /dev/null; then
   curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash
 fi
 
@@ -34,6 +34,6 @@ printf "👷 Starting filebrowser in background... \n\n"
 
 printf "📂 Serving $${ROOT_DIR} at http://localhost:${PORT} \n\n"
 
-filebrowser >>${LOG_PATH} 2>&1 &
+filebrowser >> ${LOG_PATH} 2>&1 &
 
 printf "📝 Logs at ${LOG_PATH} \n\n"

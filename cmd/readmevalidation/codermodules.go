@@ -94,6 +94,9 @@ func validateCoderModuleReadme(rm coderResourceReadme) []error {
 	for _, err := range validateCoderModuleReadmeBody(rm.body) {
 		errs = append(errs, addFilePathToError(rm.filePath, err))
 	}
+	for _, err := range validateResourceGfmAlerts(rm.body) {
+		errs = append(errs, addFilePathToError(rm.filePath, err))
+	}
 	if fmErrs := validateCoderResourceFrontmatter("modules", rm.filePath, rm.frontmatter); len(fmErrs) != 0 {
 		errs = append(errs, fmErrs...)
 	}

@@ -124,8 +124,8 @@ describe("codex", async () => {
     });
     await execModuleScript(id);
     const resp = await readFileContainer(id, "/home/coder/.codex/config.toml");
-    expect(resp).toContain("sandbox_mode = \"danger-full-access\"");
-    expect(resp).toContain("preferred_auth_method = \"apikey\"");
+    expect(resp).toContain('sandbox_mode = "danger-full-access"');
+    expect(resp).toContain('preferred_auth_method = "apikey"');
     expect(resp).toContain("[custom_section]");
     expect(resp).toContain("[mcp_servers.Coder]");
   });
@@ -221,7 +221,7 @@ describe("codex", async () => {
       debug = true
       logging_level = "verbose"
     `.trim();
-    
+
     const additionalMCP = dedent`
       [mcp_servers.CustomTool]
       command = "/usr/local/bin/custom-tool"
@@ -235,7 +235,7 @@ describe("codex", async () => {
       type = "stdio"
       description = "Database query interface"
     `.trim();
-    
+
     const { id } = await setup({
       moduleVariables: {
         base_config_toml: baseConfig,
@@ -244,14 +244,14 @@ describe("codex", async () => {
     });
     await execModuleScript(id);
     const resp = await readFileContainer(id, "/home/coder/.codex/config.toml");
-    
+
     // Check base config
-    expect(resp).toContain("sandbox_mode = \"read-only\"");
-    expect(resp).toContain("preferred_auth_method = \"chatgpt\"");
-    expect(resp).toContain("custom_setting = \"test-value\"");
+    expect(resp).toContain('sandbox_mode = "read-only"');
+    expect(resp).toContain('preferred_auth_method = "chatgpt"');
+    expect(resp).toContain('custom_setting = "test-value"');
     expect(resp).toContain("[advanced_settings]");
-    expect(resp).toContain("logging_level = \"verbose\"");
-    
+    expect(resp).toContain('logging_level = "verbose"');
+
     // Check MCP servers
     expect(resp).toContain("[mcp_servers.Coder]");
     expect(resp).toContain("[mcp_servers.CustomTool]");
@@ -268,17 +268,17 @@ describe("codex", async () => {
     });
     await execModuleScript(id);
     const resp = await readFileContainer(id, "/home/coder/.codex/config.toml");
-    
+
     // Check default base config
-    expect(resp).toContain("sandbox_mode = \"workspace-write\"");
-    expect(resp).toContain("approval_policy = \"never\"");
+    expect(resp).toContain('sandbox_mode = "workspace-write"');
+    expect(resp).toContain('approval_policy = "never"');
     expect(resp).toContain("[sandbox_workspace_write]");
     expect(resp).toContain("network_access = true");
-    
+
     // Check only Coder MCP server is present
     expect(resp).toContain("[mcp_servers.Coder]");
     expect(resp).toContain("Report ALL tasks and statuses");
-    
+
     // Ensure no additional MCP servers
     const mcpServerCount = (resp.match(/\[mcp_servers\./g) || []).length;
     expect(mcpServerCount).toBe(1);
@@ -328,7 +328,10 @@ describe("codex", async () => {
       },
     });
     await execModuleScript(id_2);
-    const resp_2 = await readFileContainer(id_2, "/home/coder/.codex/AGENTS.md");
+    const resp_2 = await readFileContainer(
+      id_2,
+      "/home/coder/.codex/AGENTS.md",
+    );
     expect(resp_2).toContain(prompt_1);
     const count = (resp_2.match(new RegExp(prompt_1, "g")) || []).length;
     expect(count).toBe(1);
