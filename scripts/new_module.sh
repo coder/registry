@@ -34,12 +34,12 @@ fi
 if [ ! -d "registry/$NAMESPACE" ]; then
   echo "Creating namespace directory: registry/$NAMESPACE"
   mkdir -p "registry/$NAMESPACE"
-  
+
   # Create namespace README if it doesn't exist
   if [ ! -f "registry/$NAMESPACE/README.md" ]; then
     echo "Creating namespace README: registry/$NAMESPACE/README.md"
     cp "examples/namespace/README.md" "registry/$NAMESPACE/README.md"
-    
+
     # Replace NAMESPACE_NAME placeholder in the README
     if [[ "$OSTYPE" == "darwin"* ]]; then
       # macOS
