@@ -12,8 +12,7 @@ echo "Workspace: $AIDER_START_DIRECTORY"
 echo "--------------------------------"
 
 function install_aider() {
-    echo "pipx not found"
-    echo "Installing pipx via apt-get..."
+    echo "pipx installing..." 
     sudo apt-get install -y pipx
     echo "pipx installed!" 
     pipx ensurepath 
@@ -46,7 +45,7 @@ function configure_aider_settings(){
 
     mkdir -p "$HOME/.config/aider"
 
-    echo $ARG_AIDER_CONFIG > "$HOME/.config/aider/.aider.conf.yml" 
+    echo "$ARG_AIDER_CONFIG" > "$HOME/.config/aider/.aider.conf.yml" 
     echo "Added Coder MCP extension to Aider config.yml"
   else 
     printf "MCP Server not Implemented"

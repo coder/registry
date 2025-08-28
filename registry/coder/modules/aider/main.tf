@@ -129,12 +129,6 @@ variable "ai_api_key" {
   sensitive   = true
 }
 
-resource "coder_env" "ai_api_key" {
-  agent_id = var.agent_id
-  name     = "ARG_API_KEY"
-  value    = var.ai_api_key
-}
-
 variable "custom_env_var_name" {
   type        = string
   description = "Custom environment variable name when using custom provider"
@@ -156,7 +150,7 @@ variable "agentapi_version" {
 variable "base_aider_config" {
   type        = string
   description = <<-EOT
-    Base Aider configuration in ynl format. Will be Store in .aider.conf.yml file.
+    Base Aider configuration in yaml format. Will be stored in .aider.conf.yml file.
     
     options include:
     read:
