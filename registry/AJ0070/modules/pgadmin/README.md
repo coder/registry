@@ -16,7 +16,7 @@ It can be served on a Coder subdomain for easy access, or on `localhost` if you 
 ```tf
 module "pgadmin" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/AJ0070/pgadmin/coder"
+  source   = "registry.coder.com/aj0070/pgadmin/coder"
   version  = "1.0.0"
   agent_id = coder_agent.example.id
 }
