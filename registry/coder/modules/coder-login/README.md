@@ -14,7 +14,7 @@ Automatically logs the user into Coder when creating their workspace.
 module "coder-login" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/coder-login/coder"
-  version  = "1.0.31"
+  version  = "1.1.0"
   agent_id = coder_agent.example.id
 }
 ```
