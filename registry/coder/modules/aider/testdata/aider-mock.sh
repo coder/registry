@@ -9,6 +9,6 @@ fi
 set -e
 
 while true; do
-    echo "$(date) - aider-agent-mock"
-    sleep 15
+  echo "$(date) - aider-agent-mock"
+  sleep 15
 done

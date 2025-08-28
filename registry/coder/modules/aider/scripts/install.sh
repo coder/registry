@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Function to check if a command exists
 command_exists() {
-    command -v "$1" >/dev/null 2>&1
+  command -v "$1" > /dev/null 2>&1
 }
 
 echo "--------------------------------"
@@ -12,20 +12,20 @@ echo "Workspace: $AIDER_START_DIRECTORY"
 echo "--------------------------------"
 
 function install_aider() {
-    echo "pipx installing..." 
-    sudo apt-get install -y pipx
-    echo "pipx installed!" 
-    pipx ensurepath 
-    echo $PATH
-    mkdir -p "$AIDER_START_DIRECTORY/.local/bin"
-    export PATH="$HOME/.local/bin:$AIDER_START_DIRECTORY/.local/bin:$PATH"   # ensure in current shell too
-    
-    if ! command_exists aider; then
-      echo "Installing Aider via pipx..."
-      pipx install --force aider-install
-      aider-install
-    fi  
-    echo "Aider installed: $(aider --version || echo 'check failed the Aider module insatllation failed')"
+  echo "pipx installing..."
+  sudo apt-get install -y pipx
+  echo "pipx installed!"
+  pipx ensurepath
+  echo $PATH
+  mkdir -p "$AIDER_START_DIRECTORY/.local/bin"
+  export PATH="$HOME/.local/bin:$AIDER_START_DIRECTORY/.local/bin:$PATH" # ensure in current shell too
+
+  if ! command_exists aider; then
+    echo "Installing Aider via pipx..."
+    pipx install --force aider-install
+    aider-install
+  fi
+  echo "Aider installed: $(aider --version || echo 'check failed the Aider module insatllation failed')"
 }
 
 function setup_system_prompt() {
@@ -39,20 +39,18 @@ function setup_system_prompt() {
   fi
 }
 
-function configure_aider_settings(){
+function configure_aider_settings() {
   if [ "${ARG_IMPLEMENT_MCP}" = "true" ]; then
     echo "Configuring Aider to report tasks via Coder MCP..."
 
     mkdir -p "$HOME/.config/aider"
 
-    echo "$ARG_AIDER_CONFIG" > "$HOME/.config/aider/.aider.conf.yml" 
+    echo "$ARG_AIDER_CONFIG" > "$HOME/.config/aider/.aider.conf.yml"
     echo "Added Coder MCP extension to Aider config.yml"
-  else 
+  else
     printf "MCP Server not Implemented"
   fi
 }
-
-
 
 install_aider
 setup_system_prompt
