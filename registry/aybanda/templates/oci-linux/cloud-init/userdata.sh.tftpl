@@ -1,0 +1,48 @@
+#!/bin/bash
+set -e
+
+# Set hostname
+hostnamectl set-hostname ${hostname}
+
+# Create coder user if it doesn't exist
+if ! id "${linux_user}" &>/dev/null; then
+    useradd -m -s /bin/bash -G sudo ${linux_user}
+    echo "${linux_user} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+fi
+
+# Create necessary directories
+mkdir -p /opt/coder
+mkdir -p /home/${linux_user}
+
+# Set up SSH key if provided
+if [ -n "${ssh_public_key}" ]; then
+    mkdir -p /home/${linux_user}/.ssh
+    echo "${ssh_public_key}" >> /home/${linux_user}/.ssh/authorized_keys
+    chown -R ${linux_user}:${linux_user} /home/${linux_user}/.ssh
+    chmod 700 /home/${linux_user}/.ssh
+    chmod 600 /home/${linux_user}/.ssh/authorized_keys
+fi
+
+# Mount home volume if it exists
+if [ -b /dev/sdb ]; then
+    # Check if the disk is already formatted
+    if ! blkid /dev/sdb; then
+        mkfs.ext4 /dev/sdb
+    fi
+    
+    # Create mount point and mount
+    mkdir -p /home/${linux_user}
+    mount /dev/sdb /home/${linux_user}
+    
+    # Add to fstab for persistence
+    echo "/dev/sdb /home/${linux_user} ext4 defaults 0 2" >> /etc/fstab
+    
+    # Set ownership
+    chown -R ${linux_user}:${linux_user} /home/${linux_user}
+fi
+
+# Download and install Coder agent
+curl -fsSL https://coder.com/install.sh | sh
+
+# Start the Coder agent
+systemctl enable --now coder-agent 
