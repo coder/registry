@@ -39,7 +39,6 @@ variable "icon" {
 variable "folder" {
   type        = string
   description = "The folder to run sourcegraph_amp in."
-  default     = "/home/coder"
 }
 
 variable "install_sourcegraph_amp" {
@@ -51,6 +50,24 @@ variable "install_sourcegraph_amp" {
 variable "sourcegraph_amp_api_key" {
   type        = string
   description = "sourcegraph-amp API Key"
+  default     = ""
+}
+
+variable "sourcegraph_amp_version" {
+  type        = string
+  description = "The version of sourcegraph-amp to install."
+  default     = ""
+}
+
+variable "ai_prompt" {
+  type        = string
+  description = "Task prompt for the Amp CLI"
+  default     = ""
+}
+
+variable "system_prompt" {
+  type        = string
+  description = "System prompt for the Amp CLI"
   default     = ""
 }
 
@@ -69,7 +86,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.3.0"
+  default     = "v0.6.1"
 }
 
 variable "pre_install_script" {
@@ -151,7 +168,7 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.0.1"
+  version = "1.1.1"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
@@ -173,8 +190,9 @@ module "agentapi" {
 
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
-     SOURCEGRAPH_AMP_API_KEY='${var.sourcegraph_amp_api_key}' \
-     SOURCEGRAPH_AMP_START_DIRECTORY='${var.folder}' \
+     ARG_SOURCEGRAPH_AMP_API_KEY='${var.sourcegraph_amp_api_key}' \
+     ARG_SOURCEGRAPH_AMP_START_DIRECTORY='${var.folder}' \
+     ARG_SOURCEGRAPH_AMP_TASK_PROMPT='${var.ai_prompt}' \
      /tmp/start.sh
    EOT
 
@@ -186,8 +204,9 @@ module "agentapi" {
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
     ARG_INSTALL_SOURCEGRAPH_AMP='${var.install_sourcegraph_amp}' \
-    SOURCEGRAPH_AMP_START_DIRECTORY='${var.folder}' \
     ARG_AMP_CONFIG="$(echo -n '${base64encode(jsonencode(local.final_config))}' | base64 -d)" \
+    ARG_AMP_VERSION='${var.sourcegraph_amp_version}' \
+    ARG_SOURCEGRAPH_AMP_SYSTEM_PROMPT='${var.system_prompt}' \
     /tmp/install.sh
   EOT
 }
