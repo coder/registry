@@ -1,12 +1,22 @@
-import { afterEach, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
+import {
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  setDefaultTimeout,
+  test,
+} from "bun:test";
 import { execContainer, runTerraformInit, writeFileContainer } from "~test";
 import {
   execModuleScript,
   expectAgentAPIStarted,
   loadTestFile,
-  setup as setupUtil
+  setup as setupUtil,
 } from "../../../coder/modules/agentapi/test-util";
-import { setupContainer, writeExecutable } from "../../../coder/modules/agentapi/test-util";
+import {
+  setupContainer,
+  writeExecutable,
+} from "../../../coder/modules/agentapi/test-util";
 
 let cleanupFns: (() => Promise<void>)[] = [];
 const registerCleanup = (fn: () => Promise<void>) => cleanupFns.push(fn);
@@ -72,11 +82,12 @@ describe("cursor-cli", async () => {
   });
 
   test("agentapi-mcp-json", async () => {
-    const mcpJson = '{"mcpServers": {"test": {"command": "test-cmd", "type": "stdio"}}}';
+    const mcpJson =
+      '{"mcpServers": {"test": {"command": "test-cmd", "type": "stdio"}}}';
     const { id } = await setup({
       moduleVariables: {
         mcp: mcpJson,
-      }
+      },
     });
     const resp = await execModuleScript(id);
     expect(resp.exitCode).toBe(0);
@@ -99,7 +110,7 @@ describe("cursor-cli", async () => {
     const { id } = await setup({
       moduleVariables: {
         rules_files: JSON.stringify({ "typescript.md": rulesContent }),
-      }
+      },
     });
     const resp = await execModuleScript(id);
     expect(resp.exitCode).toBe(0);
@@ -118,7 +129,7 @@ describe("cursor-cli", async () => {
     const { id } = await setup({
       moduleVariables: {
         api_key: apiKey,
-      }
+      },
     });
     const resp = await execModuleScript(id);
     expect(resp.exitCode).toBe(0);
@@ -138,7 +149,7 @@ describe("cursor-cli", async () => {
         model: model,
         force: "true",
         ai_prompt: "test prompt",
-      }
+      },
     });
     const resp = await execModuleScript(id);
     expect(resp.exitCode).toBe(0);
@@ -158,7 +169,7 @@ describe("cursor-cli", async () => {
       moduleVariables: {
         pre_install_script: "#!/bin/bash\necho 'cursor-pre-install-script'",
         post_install_script: "#!/bin/bash\necho 'cursor-post-install-script'",
-      }
+      },
     });
     const resp = await execModuleScript(id);
     expect(resp.exitCode).toBe(0);
@@ -183,7 +194,7 @@ describe("cursor-cli", async () => {
     const { id } = await setup({
       moduleVariables: {
         folder: folder,
-      }
+      },
     });
     const resp = await execModuleScript(id);
     expect(resp.exitCode).toBe(0);
@@ -205,8 +216,5 @@ describe("cursor-cli", async () => {
     expect(resp.exitCode).toBe(0);
 
     await expectAgentAPIStarted(id);
-  })
-
+  });
 });
-
-
