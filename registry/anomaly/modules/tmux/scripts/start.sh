@@ -16,7 +16,7 @@ handle_session() {
   local session_name="$1"
 
   # Check if the session exists
-  if tmux has-session -t "$session_name" 2>/dev/null; then
+  if tmux has-session -t "$session_name" 2> /dev/null; then
     echo "Session '$session_name' exists, attaching to it..."
     tmux attach-session -t "$session_name"
   else
