@@ -9,7 +9,7 @@ tags: [external]
 # Externally Managed Workspace Template
 
 > [!IMPORTANT]
-> External agents require a [Premium](https://coder.com/pricing) Coder license.
+> External agents require a Premium Coder license. [Learn more](https://coder.com/pricing).
 
 This template provides a minimal scaffolding for creating Coder workspaces that connect to externally provisioned compute resources.
 
