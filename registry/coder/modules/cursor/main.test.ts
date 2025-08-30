@@ -94,12 +94,18 @@ describe("cursor", async () => {
   it("writes ~/.cursor/mcp.json when mcp provided", async () => {
     const id = await runContainer("alpine");
     try {
-      const mcp = JSON.stringify({ servers: { demo: { url: "http://localhost:1234" } } });
+      const mcp = JSON.stringify({
+        servers: { demo: { url: "http://localhost:1234" } },
+      });
       const state = await runTerraformApply(import.meta.dir, {
         agent_id: "foo",
         mcp,
       });
-      const script = findResourceInstance(state, "coder_script", "cursor_mcp").script;
+      const script = findResourceInstance(
+        state,
+        "coder_script",
+        "cursor_mcp",
+      ).script;
       const resp = await execContainer(id, ["sh", "-c", script]);
       if (resp.exitCode !== 0) {
         console.log(resp.stdout);

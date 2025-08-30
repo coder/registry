@@ -99,28 +99,19 @@ module "code-server" {
   # This ensures that the latest non-breaking version of the module gets downloaded, you can also pin the module version to prevent breaking changes in production.
   version = "~> 1.0"
 
-  agent_id = coder_agent.main.id
-  order    = 1
-}
-
-# See https://registry.coder.com/modules/coder/jetbrains-gateway
-module "jetbrains_gateway" {
-  count  = data.coder_workspace.me.start_count
-  source = "registry.coder.com/coder/jetbrains-gateway/coder"
-
-  # JetBrains IDEs to make available for the user to select
-  jetbrains_ides = ["IU", "PY", "WS", "PS", "RD", "CL", "GO", "RM"]
-  default        = "IU"
-
-  # Default folder to open when starting a JetBrains IDE
-  folder = "/home/coder"
-
-  # This ensures that the latest non-breaking version of the module gets downloaded, you can also pin the module version to prevent breaking changes in production.
-  version = "~> 1.0"
-
   agent_id   = coder_agent.main.id
   agent_name = "main"
-  order      = 2
+  order      = 1
+}
+
+# See https://registry.coder.com/modules/coder/jetbrains
+module "jetbrains" {
+  count      = data.coder_workspace.me.start_count
+  source     = "registry.coder.com/modules/coder/jetbrains/coder"
+  version    = "~> 1.0"
+  agent_id   = coder_agent.main.id
+  agent_name = "main"
+  folder     = "/home/coder"
 }
 
 resource "google_compute_instance" "dev" {
