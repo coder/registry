@@ -70,14 +70,14 @@ module "claude-code" {
 
   # --- Task Configuration ---
   task_prompt = data.coder_parameter.task_prompt.value
-  continue    = true  # will fail in a new workspace with no conversation/session to continue
+  continue    = true # will fail in a new workspace with no conversation/session to continue
   model       = "sonnet"
 
   # --- Permissions & Tools ---
-  permission_mode  = "plan"
+  permission_mode = "plan"
 
   # --- MCP Configuration ---
-  mcp =<<-EOF
+  mcp = <<-EOF
   {
     "mcpServers": {
       "my-custom-tool": {
