@@ -90,7 +90,7 @@ describe("claude-code", async () => {
     const resp = await execContainer(id, [
       "bash",
       "-c",
-      'cat /home/coder/.claude-module/install.log',
+      "cat /home/coder/.claude-module/install.log",
     ]);
     expect(resp.stdout).toContain(version_to_install);
   });
@@ -129,9 +129,9 @@ describe("claude-code", async () => {
       mcpServers: {
         test: {
           command: "test-cmd",
-          type: "stdio"
-        }
-      }
+          type: "stdio",
+        },
+      },
     });
     const { id } = await setup({
       moduleVariables: {
@@ -159,7 +159,7 @@ describe("claude-code", async () => {
     const resp = await execContainer(id, [
       "bash",
       "-c",
-      'cat /home/coder/.claude-module/agentapi-start.log',
+      "cat /home/coder/.claude-module/agentapi-start.log",
     ]);
     expect(resp.stdout).toContain(prompt);
   });
@@ -264,8 +264,13 @@ describe("claude-code", async () => {
     });
     await execModuleScript(id);
 
-    const installLog = await readFileContainer(id, "/home/coder/.claude-module/install.log");
-    expect(installLog).toContain("Configuring Claude Code to report tasks via Coder MCP");
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.claude-module/install.log",
+    );
+    expect(installLog).toContain(
+      "Configuring Claude Code to report tasks via Coder MCP",
+    );
   });
 
   test("dangerously-skip-permissions", async () => {

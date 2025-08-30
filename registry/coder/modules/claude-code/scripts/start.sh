@@ -26,7 +26,6 @@ printf "ARG_PERMISSION_MODE: %s\n" "$ARG_PERMISSION_MODE"
 printf "ARG_TASK_PROMPT: %s\n" "$ARG_TASK_PROMPT"
 printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
 
-
 echo "--------------------------------"
 
 # see the remove-last-session-id.sh script for details
