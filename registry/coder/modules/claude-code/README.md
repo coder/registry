@@ -107,6 +107,33 @@ module "claude-code" {
 }
 ```
 
+## Environment Variables
+
+The module can be further configured using environment variables set on the Coder agent. This allows for more advanced or dynamic setups.
+
+| Variable                             | Description                                                                    | Default                                        |
+| ------------------------------------ | ------------------------------------------------------------------------------ | ---------------------------------------------- |
+| `CLAUDE_API_KEY`                     | Your Anthropic API key.                                                        | `""`                                           |
+| `CODER_MCP_CLAUDE_SYSTEM_PROMPT`     | A custom system prompt for Claude.                                             | "Send a task status update..."                 |
+| `CODER_MCP_CLAUDE_CODER_PROMPT`      | A custom coder prompt for Claude.                                              | `""`                                           |
+| `CODER_MCP_CLAUDE_CONFIG_PATH`     | Path to the Claude configuration file.                                         | `~/.claude.json`                               |
+| `CODER_MCP_CLAUDE_MD_PATH`         | Path to a `CLAUDE.md` file for project-specific instructions.                  | `~/.claude/CLAUDE.md`                          |
+| `CLAUDE_CODE_USE_BEDROCK`            | Set to `"true"` to use Amazon Bedrock. Requires additional AWS configuration.  | `""`                                           |
+
+An example of setting these on a `coder_agent` resource:
+
+```tf
+resource "coder_agent" "main" {
+  # ... other agent config
+  env = {
+    CLAUDE_API_KEY                   = var.anthropic_api_key
+    CODER_MCP_CLAUDE_SYSTEM_PROMPT = <<-EOT
+      You are a helpful assistant that can help with code.
+    EOT
+  }
+}
+```
+
 ## Troubleshooting
 
 If you encounter any issues, check the log files in the `~/.claude-module` directory within your workspace for detailed information.
