@@ -14,20 +14,14 @@ var (
 	terraformSourceRe = regexp.MustCompile(`^\s*source\s*=\s*"([^"]+)"`)
 )
 
-func normalizeModuleName(name string) string {
-	// Normalize module names by replacing hyphens with underscores for comparison
-	// since Terraform allows both but directory names typically use hyphens
-	return strings.ReplaceAll(name, "-", "_")
-}
-
-func extractNamespaceAndModuleFromPath(filePath string) (string, string, error) {
-	// Expected path format: registry/<namespace>/modules/<module-name>/README.md
+func extractNamespaceAndModuleFromPath(filePath string) (namespace string, moduleName string, err error) {
+	// Expected path format: registry/<namespace>/modules/<module-name>/README.md.
 	parts := strings.Split(filepath.Clean(filePath), string(filepath.Separator))
 	if len(parts) < 5 || parts[0] != "registry" || parts[2] != "modules" || parts[4] != "README.md" {
 		return "", "", xerrors.Errorf("invalid module path format: %s", filePath)
 	}
-	namespace := parts[1]
-	moduleName := parts[3]
+	namespace = parts[1]
+	moduleName = parts[3]
 	return namespace, moduleName, nil
 }
 
@@ -55,21 +49,21 @@ func validateModuleSourceURL(body string, filePath string) []error {
 				isInsideTerraform = true
 				firstTerraformBlock = false
 			} else if isInsideTerraform {
-				// End of first terraform block
+				// End of first terraform block.
 				break
 			}
 			continue
 		}
 
 		if isInsideTerraform {
-			// Check for any source line in the first terraform block
+			// Check for any source line in the first terraform block.
 			if matches := terraformSourceRe.FindStringSubmatch(nextLine); matches != nil {
 				actualSource := matches[1]
 				if actualSource == expectedSource {
 					foundCorrectSource = true
 					break
 				} else if strings.HasPrefix(actualSource, "registry.coder.com/") && strings.Contains(actualSource, "/"+moduleName+"/coder") {
-					// Found source for this module but with wrong namespace/format
+					// Found source for this module but with wrong namespace/format.
 					errs = append(errs, xerrors.Errorf("incorrect source URL format: found %q, expected %q", actualSource, expectedSource))
 					return errs
 				}

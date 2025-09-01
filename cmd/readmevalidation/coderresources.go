@@ -25,7 +25,7 @@ var (
 	terraformVersionRe = regexp.MustCompile(`^\s*\bversion\s+=`)
 
 	// Matches the format "> [!INFO]". Deliberately using a broad pattern to catch formatting issues that can mess up
-	// the renderer for the Registry website
+	// the renderer for the Registry website.
 	gfmAlertRegex = regexp.MustCompile(`^>(\s*)\[!(\w+)\](\s*)(.*)`)
 )
 
@@ -39,7 +39,7 @@ type coderResourceFrontmatter struct {
 }
 
 // A slice version of the struct tags from coderResourceFrontmatter. Might be worth using reflection to generate this
-// list at runtime in the future, but this should be okay for now
+// list at runtime in the future, but this should be okay for now.
 var supportedCoderResourceStructKeys = []string{
 	"description", "icon", "display_name", "verified", "tags", "supported_os",
 	// TODO: This is an old, officially deprecated key from the archived coder/modules repo. We can remove this once we
@@ -315,15 +315,15 @@ func validateResourceGfmAlerts(readmeBody string) []error {
 		}
 
 		// Nested GFM alerts is such a weird mistake that it's probably not really safe to keep trying to process the
-		// rest of the content, so this will prevent any other validations from happening for the given line
+		// rest of the content, so this will prevent any other validations from happening for the given line.
 		if isInsideGfmQuotes {
-			errs = append(errs, errors.New("registry does not support nested GFM alerts"))
+			errs = append(errs, xerrors.New("registry does not support nested GFM alerts"))
 			continue
 		}
 
 		leadingWhitespace := currentMatch[1]
 		if len(leadingWhitespace) != 1 {
-			errs = append(errs, errors.New("GFM alerts must have one space between the '>' and the start of the GFM brackets"))
+			errs = append(errs, xerrors.New("GFM alerts must have one space between the '>' and the start of the GFM brackets"))
 		}
 		isInsideGfmQuotes = true
 
@@ -347,7 +347,7 @@ func validateResourceGfmAlerts(readmeBody string) []error {
 		}
 	}
 
-	if gfmAlertRegex.Match([]byte(sourceLine)) {
+	if gfmAlertRegex.MatchString(sourceLine) {
 		errs = append(errs, xerrors.Errorf("README has an incomplete GFM alert at the end of the file"))
 	}
 

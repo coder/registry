@@ -1,6 +1,6 @@
 module coder.com/coder-registry
 
-go 1.23.2
+go 1.24
 
 require (
 	cdr.dev/slog v1.6.1

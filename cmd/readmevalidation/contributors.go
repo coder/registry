@@ -26,7 +26,7 @@ type contributorProfileFrontmatter struct {
 }
 
 // A slice version of the struct tags from contributorProfileFrontmatter. Might be worth using reflection to generate
-// this list at runtime in the future, but this should be okay for now
+// this list at runtime in the future, but this should be okay for now.
 var supportedContributorProfileStructKeys = []string{"display_name", "bio", "status", "avatar", "linkedin", "github", "website", "support_email"}
 
 type contributorProfileReadme struct {
