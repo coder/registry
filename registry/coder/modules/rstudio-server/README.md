@@ -8,6 +8,9 @@ tags: [rstudio, ide, web]
 
 # RStudio Server
 
+> [!NOTE]
+> This module requires `docker` to be available in the workspace. Check [Docker in Workspaces](https://coder.com/docs/admin/templates/extending-templates/docker-in-workspaces) to learn how you can set it up.
+
 Deploy the Rocker Project distribution of RStudio Server in your Coder workspace.
 
 ![RStudio Server](../../.images/rstudio-server.png)
