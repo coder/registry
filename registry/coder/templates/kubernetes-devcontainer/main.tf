@@ -355,7 +355,7 @@ resource "coder_agent" "main" {
   # if you don't want to display any information.
   # For basic resources, you can use the `coder stat` command.
   # If you need more control, you can write your own script.
-  # Note: May not work on AWS Linux Nodes
+  # Note: May not work on AWS Linux Nodes See: https://github.com/coder/clistat/issues/17
   # metadata {
   #   display_name = "CPU Usage"
   #   key          = "0_cpu_usage"
