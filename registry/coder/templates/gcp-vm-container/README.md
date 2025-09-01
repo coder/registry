@@ -8,6 +8,8 @@ tags: [vm-container, linux, gcp]
 
 # Remote Development on Google Compute Engine (VM Container)
 
+Provision Google Compute Engine instances as Coder workspaces.
+
 ## Prerequisites
 
 ### Authentication

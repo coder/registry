@@ -63,7 +63,7 @@ Visit this URL for your Coder deployment:
 https://coder.example.com/templates/new?exampleId=scratch
 ```
 
-After creating the template, paste the contents from [main.tf](./main.tf) into the template editor and save.
+After creating the template, paste the contents from [main.tf](https://github.com/coder/registry/blob/main/registry/coder-labs/templates/tasks-docker/main.tf) into the template editor and save.
 
 Alternatively, you can use the Coder CLI to [push the template](https://coder.com/docs/reference/cli/templates_push)
 
