@@ -63,8 +63,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.23.2"
-      - name: Validate contributors
+          go-version: "1.25.0"
+      - name: Validate Reademde
         run: go build ./cmd/readmevalidation && ./readmevalidation
       - name: Remove build file artifact
         run: rm ./readmevalidation
