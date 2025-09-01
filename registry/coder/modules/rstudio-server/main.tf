@@ -30,7 +30,7 @@ variable "rstudio_server_version" {
 variable "disable_auth" {
   type        = bool
   description = "Disable auth"
-  default     = false
+  default     = true
 }
 
 variable "rstudio_user" {

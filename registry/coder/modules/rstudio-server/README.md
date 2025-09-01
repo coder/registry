@@ -1,6 +1,6 @@
 ---
 display_name: RStudio Server
-description: A module that deploys Rocker Project distribution of RStudio Server in your Coder template.
+description: Deploy the Rocker Project distribution of RStudio Server in your Coder workspace.
 icon: ../../../../.icons/rstudio.svg
 verified: true
 tags: [rstudio, ide, web]
@@ -8,7 +8,7 @@ tags: [rstudio, ide, web]
 
 # RStudio Server
 
-A module that deploys Rocker Project distribution of RStudio Server in your Coder template.
+Deploy the Rocker Project distribution of RStudio Server in your Coder workspace.
 
 ![RStudio Server](../../.images/rstudio-server.png)
 
