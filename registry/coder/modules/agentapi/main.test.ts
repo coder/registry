@@ -164,7 +164,9 @@ describe("agentapi", async () => {
       id,
       "/home/coder/test-agentapi-start.log",
     );
-    expect(agentApiStartLog).toContain("Using AGENTAPI_CHAT_BASE_PATH: /@default/default.foo/apps/agentapi-web/chat");
+    expect(agentApiStartLog).toContain(
+      "Using AGENTAPI_CHAT_BASE_PATH: /@default/default.foo/apps/agentapi-web/chat",
+    );
   });
 
   test("validate-agentapi-version", async () => {
@@ -186,14 +188,16 @@ describe("agentapi", async () => {
           agentapi_version: "v0.0.1",
           agentapi_subdomain: "false",
         },
-        shouldThrow: "Running with subdomain = false is only supported by agentapi >= v0.3.3.",
+        shouldThrow:
+          "Running with subdomain = false is only supported by agentapi >= v0.3.3.",
       },
       {
         moduleVariables: {
           agentapi_version: "v0.3.2",
           agentapi_subdomain: "false",
         },
-        shouldThrow: "Running with subdomain = false is only supported by agentapi >= v0.3.3.",
+        shouldThrow:
+          "Running with subdomain = false is only supported by agentapi >= v0.3.3.",
       },
       {
         moduleVariables: {
@@ -226,13 +230,17 @@ describe("agentapi", async () => {
           agentapi_version: "arbitrary-string-bypasses-validation",
         },
         shouldThrow: "",
-      }
+      },
     ];
     for (const { moduleVariables, shouldThrow } of cases) {
       if (shouldThrow) {
-        expect(setup({ moduleVariables: moduleVariables as Record<string, string> })).rejects.toThrow(shouldThrow);
+        expect(
+          setup({ moduleVariables: moduleVariables as Record<string, string> }),
+        ).rejects.toThrow(shouldThrow);
       } else {
-        expect(setup({ moduleVariables: moduleVariables as Record<string, string> })).resolves.toBeDefined();
+        expect(
+          setup({ moduleVariables: moduleVariables as Record<string, string> }),
+        ).resolves.toBeDefined();
       }
     }
   });

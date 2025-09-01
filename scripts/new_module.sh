@@ -29,6 +29,28 @@ if [ -d "registry/$NAMESPACE/modules/$MODULE_NAME" ]; then
   echo "Please choose a different name"
   exit 1
 fi
+
+# Create namespace directory if it doesn't exist
+if [ ! -d "registry/$NAMESPACE" ]; then
+  echo "Creating namespace directory: registry/$NAMESPACE"
+  mkdir -p "registry/$NAMESPACE"
+
+  # Create namespace README if it doesn't exist
+  if [ ! -f "registry/$NAMESPACE/README.md" ]; then
+    echo "Creating namespace README: registry/$NAMESPACE/README.md"
+    cp "examples/namespace/README.md" "registry/$NAMESPACE/README.md"
+
+    # Replace NAMESPACE_NAME placeholder in the README
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      # macOS
+      sed -i '' "s/NAMESPACE_NAME/${NAMESPACE}/g" "registry/$NAMESPACE/README.md"
+    else
+      # Linux
+      sed -i "s/NAMESPACE_NAME/${NAMESPACE}/g" "registry/$NAMESPACE/README.md"
+    fi
+  fi
+fi
+
 mkdir -p "registry/${NAMESPACE}/modules/${MODULE_NAME}"
 
 # Copy required files from the example module

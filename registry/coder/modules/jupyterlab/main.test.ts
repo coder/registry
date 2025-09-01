@@ -115,22 +115,29 @@ describe("jupyterlab", async () => {
           port: 8888,
           token: "test-token",
           password: "",
-          allow_origin: "*"
-        }
+          allow_origin: "*",
+        },
       };
       const configJson = JSON.stringify(config);
       const state = await runTerraformApply(import.meta.dir, {
         agent_id: "foo",
         config: configJson,
       });
-      const script = findResourceInstance(state, "coder_script", "jupyterlab_config").script;
+      const script = findResourceInstance(
+        state,
+        "coder_script",
+        "jupyterlab_config",
+      ).script;
       const resp = await execContainer(id, ["sh", "-c", script]);
       if (resp.exitCode !== 0) {
         console.log(resp.stdout);
         console.log(resp.stderr);
       }
       expect(resp.exitCode).toBe(0);
-      const content = await readFileContainer(id, "/root/.jupyter/jupyter_server_config.json");
+      const content = await readFileContainer(
+        id,
+        "/root/.jupyter/jupyter_server_config.json",
+      );
       // Parse both JSON strings and compare objects to avoid key ordering issues
       const actualConfig = JSON.parse(content);
       expect(actualConfig).toEqual(config);
@@ -145,7 +152,7 @@ describe("jupyterlab", async () => {
       config: "{}",
     });
     const configScripts = state.resources.filter(
-      (res) => res.type === "coder_script" && res.name === "jupyterlab_config"
+      (res) => res.type === "coder_script" && res.name === "jupyterlab_config",
     );
     expect(configScripts.length).toBe(1);
   });
@@ -155,7 +162,7 @@ describe("jupyterlab", async () => {
       agent_id: "foo",
     });
     const configScripts = state.resources.filter(
-      (res) => res.type === "coder_script" && res.name === "jupyterlab_config"
+      (res) => res.type === "coder_script" && res.name === "jupyterlab_config",
     );
     expect(configScripts.length).toBe(1);
   });

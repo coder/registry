@@ -1,0 +1,22 @@
+# Ignore symlinks to avoid Prettier errors
+CLAUDE.md
+.github/copilot-instructions.md
+
+# Ignore node_modules and dependencies
+node_modules/
+
+# Ignore Terraform files (formatted by terraform fmt)
+*.tf
+*.hcl
+*.tfvars
+
+# Ignore generated and temporary files
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+
+# Ignore other files that shouldn't be formatted
+bun.lock
+go.sum
+go.mod
