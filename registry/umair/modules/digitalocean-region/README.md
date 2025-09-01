@@ -15,7 +15,7 @@ The simplest usage is:
 ```tf
 module "digitalocean-region" {
   count   = data.coder_workspace.me.start_count
-  source  = "registry.coder.com/coder/digitalocean-region/coder"
+  source  = "registry.coder.com/umair/digitalocean-region/coder"
   version = "1.0.0"
   default = "ams3"
 }
@@ -28,7 +28,7 @@ module "digitalocean-region" {
 ```tf
 module "digitalocean-region" {
   count   = data.coder_workspace.me.start_count
-  source  = "registry.coder.com/coder/digitalocean-region/coder"
+  source  = "registry.coder.com/umair/digitalocean-region/coder"
   version = "1.0.0"
 }
 ```
@@ -38,7 +38,7 @@ module "digitalocean-region" {
 ```tf
 module "digitalocean-region" {
   count   = data.coder_workspace.me.start_count
-  source  = "registry.coder.com/coder/digitalocean-region/coder"
+  source  = "registry.coder.com/umair/digitalocean-region/coder"
   version = "1.0.0"
   default = "ams3"
   mutable = true
