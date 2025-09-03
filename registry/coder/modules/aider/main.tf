@@ -76,12 +76,6 @@ variable "system_prompt" {
   EOT
 }
 
-variable "task_prompt" {
-  type        = string
-  description = "Task prompt to use with Aider"
-  default     = ""
-}
-
 variable "aider_prompt" {
   type        = bool
   description = "This prompt will be sent to Aider and should run only once, and AgentAPI will be disabled."
@@ -119,7 +113,6 @@ variable "ai_provider" {
 variable "ai_model" {
   type        = string
   description = "AI model to use with Aider. Can use Aider's built-in aliases like '4o' (gpt-4o), 'sonnet' (claude-3-7-sonnet), 'opus' (claude-3-opus), etc."
-  default     = "gemini"
 }
 
 variable "ai_api_key" {
@@ -144,7 +137,22 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.3.0"
+  default     = "v0.6.3"
+}
+
+data "coder_parameter" "ai_prompt" {
+  name        = "AI Prompt"
+  description = "Write an initial prompt for Aider to work on."
+  type        = "string"
+  default     = ""
+  mutable     = true
+
+}
+
+resource "coder_env" "ai_prompt" {
+  agent_id = var.agent_id
+  name     = "ARG_TASK_PROMPT"
+  value    = data.coder_parameter.ai_prompt.value
 }
 
 variable "base_aider_config" {
@@ -265,7 +273,6 @@ module "agentapi" {
     ARG_AI_MODULE='${var.ai_model}' \
     ARG_AI_PROVIDER='${var.ai_provider}' \
     ARG_ENV_API_NAME_HOLDER='${local.env_var_name}' \
-    ARG_TASK_PROMPT='${base64encode(var.task_prompt)}' \
     AIDER_PROMPT='${var.aider_prompt}' \
     /tmp/start.sh
   EOT

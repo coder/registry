@@ -12,34 +12,22 @@ Run [Aider](https://aider.chat) AI pair programming in your workspace. This modu
 
 ```tf
 module "aider" {
-  source           = "registry.coder.com/coder/aider/coder"
-  version          = "1.0.0"
-  agent_id         = coder_agent.example.id
-  ai_api_key       = var.api_key
-  install_aider    = true
-  ai_provider      = "google"
-  ai_model         = "gemini"
-  install_agentapi = true
+  source      = "registry.coder.com/coder/aider/coder"
+  version     = "1.0.0"
+  agent_id    = coder_agent.example.id
+  ai_api_key  = var.api_key
+  ai_provider = "google"
+  ai_model    = "gemini"
 }
 ```
 
 ## Prerequisites
 
-- Include the [Coder Login](https://registry.coder.com/modules/coder-login/coder) module in your template
 - pipx is automatically installed if not already available
 
 ## Usage Example
 
 ```tf
-data "coder_parameter" "ai_prompt" {
-  name        = "AI Prompt"
-  description = "Write an initial prompt for Aider to work on."
-  type        = "string"
-  default     = ""
-  mutable     = true
-
-}
-
 variable "gemini_api_key" {
   type        = string
   description = "Gemini API key"
@@ -55,7 +43,6 @@ module "aider" {
   ai_provider      = "google"
   ai_model         = "gemini"
   install_agentapi = true
-  task_prompt      = data.coder_parameter.ai_prompt.value
   system_prompt    = "..."
 }
 ```
@@ -105,7 +92,7 @@ For a complete and up-to-date list of supported aliases and models, please refer
 - If AgentAPI fails to start, verify that your container has network access and executable permissions for the scripts
 
 > [!IMPORTANT]
-> For using **Coder Tasks** with Aider, make sure to pass the `AI Prompt` parameter and set `ai_api_key`.
+> To use **Coder Tasks** with Aider, make sure to set `ai_api_key`.
 > This ensures task reporting and status updates work seamlessly.
 
 ## References
