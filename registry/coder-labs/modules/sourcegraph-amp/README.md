@@ -2,7 +2,7 @@
 display_name: Amp CLI
 icon: ../../../../.icons/sourcegraph-amp.svg
 description: Sourcegraph's AI coding agent with deep codebase understanding and intelligent code search capabilities
-verified: false
+verified: true
 tags: [agent, sourcegraph, amp, ai, tasks]
 ---
 
