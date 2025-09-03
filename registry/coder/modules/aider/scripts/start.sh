@@ -9,8 +9,6 @@ echo "Provider: $ARG_AI_PROVIDER"
 echo "Module: $ARG_AI_MODULE"
 echo "--------------------------------"
 
-ARG_TASK_PROMPT=$(echo -n "${ARG_TASK_PROMPT:-}" | base64 -d)
-
 if [ -n "$ARG_API_KEY" ]; then
   printf "API key provided !\n"
   export $ARG_ENV_API_NAME_HOLDER=$ARG_API_KEY

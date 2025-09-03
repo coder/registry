@@ -66,7 +66,7 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
   return { id };
 };
 
-setDefaultTimeout(60 * 5000);
+setDefaultTimeout(60 * 1000);
 
 describe("Aider", async () => {
   beforeAll(async () => {
@@ -74,7 +74,11 @@ describe("Aider", async () => {
   });
 
   test("happy-path", async () => {
-    const { id } = await setup();
+    const { id } = await setup({
+      moduleVariables: {
+        ai_model: "gemini",
+      },
+    });
     await execModuleScript(id);
     await expectAgentAPIStarted(id);
   });
@@ -84,6 +88,7 @@ describe("Aider", async () => {
     const { id } = await setup({
       moduleVariables: {
         ai_api_key: apiKey,
+        ai_model: "gemini",
       },
     });
     await execModuleScript(id);
@@ -99,6 +104,7 @@ describe("Aider", async () => {
     const { id } = await setup({
       moduleVariables: {
         folder,
+        ai_model: "gemini",
       },
     });
     await execModuleScript(id);
@@ -115,6 +121,7 @@ describe("Aider", async () => {
         experiment_pre_install_script: "#!/bin/bash\necho 'pre-install-script'",
         experiment_post_install_script:
           "#!/bin/bash\necho 'post-install-script'",
+        ai_model: "gemini",
       },
     });
     await execModuleScript(id);
@@ -135,6 +142,7 @@ describe("Aider", async () => {
     const { id } = await setup({
       moduleVariables: {
         system_prompt,
+        ai_model: "gemini",
       },
     });
     await execModuleScript(id);
@@ -151,10 +159,12 @@ describe("Aider", async () => {
     const { id } = await setup({
       moduleVariables: {
         ai_api_key: apiKey,
-        task_prompt: prompt,
+        ai_model: "gemini",
       },
     });
-    await execModuleScript(id);
+    await execModuleScript(id, {
+      ARG_TASK_PROMPT: `${prompt}`,
+    });
     const resp = await readFileContainer(
       id,
       "/home/coder/.aider-module/agentapi-start.log",
