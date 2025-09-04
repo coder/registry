@@ -96,7 +96,7 @@ locals {
       low      = 0
     }
   )
-  
+
   total_vulnerabilities = local.vulnerabilities.critical + local.vulnerabilities.high + local.vulnerabilities.medium + local.vulnerabilities.low
 }
 
