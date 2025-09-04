@@ -11,6 +11,18 @@ tags: [security, scanning, jfrog, xray, vulnerabilities]
 
 This module integrates JFrog Xray vulnerability scanning results into Coder workspace metadata. It displays vulnerability counts (Critical, High, Medium, Low) for container images directly on the workspace page.
 
+```tf
+module "jfrog_xray" {
+  source      = "registry.coder.com/modules/jfrog-xray/coder"
+  version     = "1.0.0"
+  
+  resource_id = docker_container.workspace.id
+  xray_url    = "https://example.jfrog.io/xray"
+  xray_token  = var.jfrog_access_token
+  image       = "docker-local/codercom/enterprise-base:latest"
+}
+```
+
 ## Features
 
 - **Automatic Vulnerability Display**: Shows vulnerability counts from JFrog Xray scans
