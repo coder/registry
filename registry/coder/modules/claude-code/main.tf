@@ -83,6 +83,12 @@ variable "install_agentapi" {
   default     = true
 }
 
+variable "use_agentapi" {
+  type = bool
+  description = "Whether to use agentapi"
+  default = true
+}
+
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
@@ -162,7 +168,7 @@ variable "disallowed_tools" {
 
 }
 
-variable "task_prompt" {
+variable "ai_prompt" {
   type        = string
   description = "Task prompt for the Claude Code CLI"
   default     = ""
@@ -185,7 +191,35 @@ locals {
   remove_last_session_id_script_b64 = base64encode(file("${path.module}/scripts/remove-last-session-id.sh"))
 }
 
+data "coder_parameter" "ai_prompt" {
+  count = var.ai_prompt ? 1 : 0
+
+  type        = "string"
+  name        = "AI Prompt"
+  default     = var.ai_prompt
+  description = "Initial prompt for the Codex CLI"
+  mutable     = true
+}
+
+resource "coder_env" "mcp_status_slug" {
+  count = var.report_tasks ? 1 : 0
+
+  agent_id = var.agent_id
+  name     = "CODER_MCP_APP_STATUS_SLUG"
+  value = ""
+}
+
+resource "coder_env" "mcp_ai_agentapi_url" {
+  count = var.report_tasks ? 1 : 0
+
+  agent_id = var.agent_id
+  name     = "CODER_MCP_AI_AGENTAPI_URL"
+  value = ""
+}
+
 module "agentapi" {
+  count = var.use_agentapi ? 1 : 0
+
   source  = "registry.coder.com/coder/agentapi/coder"
   version = "1.1.1"
 
@@ -218,7 +252,7 @@ module "agentapi" {
      ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
      ARG_PERMISSION_MODE='${var.permission_mode}' \
      ARG_WORKDIR='${local.workdir}' \
-     ARG_TASK_PROMPT='${base64encode(var.task_prompt)}' \
+     ARG_AI_PROMPT='${base64encode(data.coder_parameter.ai_prompt)}' \
      /tmp/start.sh
    EOT
 

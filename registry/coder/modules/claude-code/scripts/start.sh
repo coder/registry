@@ -14,7 +14,7 @@ ARG_CONTINUE=${ARG_CONTINUE:-false}
 ARG_DANGEROUSLY_SKIP_PERMISSIONS=${ARG_DANGEROUSLY_SKIP_PERMISSIONS:-}
 ARG_PERMISSION_MODE=${ARG_PERMISSION_MODE:-}
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
-ARG_TASK_PROMPT=$(echo -n "${ARG_TASK_PROMPT:-}" | base64 -d)
+ARG_AI_PROMPT=$(echo -n "${ARG_AI_PROMPT:-}" | base64 -d)
 
 echo "--------------------------------"
 
@@ -23,7 +23,7 @@ printf "ARG_RESUME: %s\n" "$ARG_RESUME_SESSION_ID"
 printf "ARG_CONTINUE: %s\n" "$ARG_CONTINUE"
 printf "ARG_DANGEROUSLY_SKIP_PERMISSIONS: %s\n" "$ARG_DANGEROUSLY_SKIP_PERMISSIONS"
 printf "ARG_PERMISSION_MODE: %s\n" "$ARG_PERMISSION_MODE"
-printf "ARG_TASK_PROMPT: %s\n" "$ARG_TASK_PROMPT"
+printf "ARG_AI_PROMPT: %s\n" "$ARG_AI_PROMPT"
 printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
 
 echo "--------------------------------"
@@ -66,8 +66,8 @@ function build_claude_args() {
 function start_agentapi() {
   mkdir -p "$ARG_WORKDIR"
   cd "$ARG_WORKDIR"
-  if [ -n "$ARG_TASK_PROMPT" ]; then
-    ARGS+=(--dangerously-skip-permissions "$ARG_TASK_PROMPT")
+  if [ -n "$ARG_AI_PROMPT" ]; then
+    ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
   else
     if [ -n "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" ]; then
       ARGS+=(--dangerously-skip-permissions)
