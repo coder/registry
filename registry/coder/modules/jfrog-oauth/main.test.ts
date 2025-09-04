@@ -126,4 +126,24 @@ EOF`;
       'if [ -z "YES" ]; then\n  not_configured go',
     );
   });
+
+  it("generates Maven settings.xml with OAuth authentication", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "some-agent-id",
+      jfrog_url: fakeFrogUrl,
+      package_managers: JSON.stringify({
+        maven: ["maven-local", "maven-remote"],
+      }),
+    });
+    const coderScript = findResourceInstance(state, "coder_script");
+
+    // Check that Maven settings.xml is created
+    expect(coderScript.script).toContain("~/.m2/settings.xml");
+    expect(coderScript.script).toContain(
+      'jf mvnc --global --repo-resolve "maven-local"',
+    );
+    expect(coderScript.script).toContain(
+      'if [ -z "YES" ]; then\n  not_configured maven',
+    );
+  });
 });

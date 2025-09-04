@@ -26,12 +26,13 @@ module "jfrog" {
     go     = ["go", "another-go-repo"]
     pypi   = ["pypi", "extra-index-pypi"]
     docker = ["example-docker-staging.jfrog.io", "example-docker-production.jfrog.io"]
+    maven  = ["maven-local", "maven-virtual"]
   }
 }
 ```
 
 > Note
-> This module does not install `npm`, `go`, `pip`, etc but only configure them. You need to handle the installation of these tools yourself.
+> This module does not install `npm`, `go`, `pip`, `maven`, etc but only configure them. You need to handle the installation of these tools yourself.
 
 ## Prerequisites
 
@@ -80,9 +81,10 @@ module "jfrog" {
   username_field        = "username" # If you are using GitHub to login to both Coder and Artifactory, use username_field = "username"
   configure_code_server = true       # Add JFrog extension configuration for code-server
   package_managers = {
-    npm  = ["npm"]
-    go   = ["go"]
-    pypi = ["pypi"]
+    npm   = ["npm"]
+    go    = ["go"]
+    pypi  = ["pypi"]
+    maven = ["maven"]
   }
 }
 ```

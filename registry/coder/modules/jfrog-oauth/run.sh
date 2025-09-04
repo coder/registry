@@ -81,6 +81,19 @@ else
   fi
 fi
 
+# Configure Maven to use the Artifactory "maven" repository.
+if [ -z "${HAS_MAVEN}" ]; then
+  not_configured maven
+else
+  echo "☕ Configuring Maven..."
+  jf mvnc --global --repo-resolve "${REPOSITORY_MAVEN}"
+  mkdir -p ~/.m2
+  cat << EOF > ~/.m2/settings.xml
+${SETTINGS_XML}
+EOF
+  config_complete
+fi
+
 # Install the JFrog vscode extension for code-server.
 if [ "${CONFIGURE_CODE_SERVER}" == "true" ]; then
   while ! [ -x /tmp/code-server/bin/code-server ]; do
@@ -111,7 +124,7 @@ begin_stanza="# BEGIN: jf CLI shell completion (added by coder module jfrog-oaut
 if [ "$SHELLNAME" == "bash" ] && [ -f ~/.bashrc ]; then
   if ! grep -q "$begin_stanza" ~/.bashrc; then
     printf "%s\n" "$begin_stanza" >> ~/.bashrc
-    echo 'source "$HOME/.jfrog/jfrog_bash_completion"' >> ~/.bashrc
+    echo '[ -f "$HOME/.jfrog/jfrog_bash_completion" ] && source "$HOME/.jfrog/jfrog_bash_completion"' >> ~/.bashrc
     echo "# END: jf CLI shell completion" >> ~/.bashrc
   else
     echo "🥳 ~/.bashrc already contains jf CLI shell completion configuration, skipping."
@@ -121,7 +134,7 @@ elif [ "$SHELLNAME" == "zsh" ] && [ -f ~/.zshrc ]; then
     printf "\n%s\n" "$begin_stanza" >> ~/.zshrc
     echo "autoload -Uz compinit" >> ~/.zshrc
     echo "compinit" >> ~/.zshrc
-    echo 'source "$HOME/.jfrog/jfrog_zsh_completion"' >> ~/.zshrc
+    echo '[ -f "$HOME/.jfrog/jfrog_zsh_completion" ] && source "$HOME/.jfrog/jfrog_zsh_completion"' >> ~/.zshrc
     echo "# END: jf CLI shell completion" >> ~/.zshrc
   else
     echo "🥳 ~/.zshrc already contains jf CLI shell completion configuration, skipping."
