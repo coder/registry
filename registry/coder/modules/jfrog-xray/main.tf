@@ -60,9 +60,8 @@ variable "icon" {
 
 # Configure the Xray provider
 provider "xray" {
-  url           = var.xray_url
-  access_token  = var.xray_token
-  check_license = false
+  url          = var.xray_url
+  access_token = var.xray_token
 }
 
 # Parse image components if repo and repo_path are not provided
