@@ -13,9 +13,9 @@ This module integrates JFrog Xray vulnerability scanning results into Coder work
 
 ```tf
 module "jfrog_xray" {
-  source      = "registry.coder.com/modules/jfrog-xray/coder"
-  version     = "1.0.0"
-  
+  source  = "registry.coder.com/modules/jfrog-xray/coder"
+  version = "1.0.0"
+
   resource_id = docker_container.workspace.id
   xray_url    = "https://example.jfrog.io/xray"
   xray_token  = var.jfrog_access_token
