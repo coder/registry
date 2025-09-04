@@ -60,8 +60,8 @@ variable "icon" {
 
 # Configure the Xray provider
 provider "xray" {
-  url          = var.xray_url
-  access_token = var.xray_token
+  url           = var.xray_url
+  access_token  = var.xray_token
   check_license = false
 }
 
@@ -69,7 +69,7 @@ provider "xray" {
 locals {
   # Split image into repo and path components
   image_parts = split("/", var.image)
-  
+
   # Extract repo (first part) and path (remaining parts)
   parsed_repo = var.repo != "" ? var.repo : local.image_parts[0]
   parsed_path = var.repo_path != "" ? var.repo_path : "/${join("/", slice(local.image_parts, 1, length(local.image_parts)))}"
@@ -89,7 +89,7 @@ locals {
     medium   = 0
     low      = 0
   }
-  
+
   total_vulnerabilities = local.vulnerabilities.critical + local.vulnerabilities.high + local.vulnerabilities.medium + local.vulnerabilities.low
 }
 
@@ -97,32 +97,32 @@ locals {
 resource "coder_metadata" "xray_vulnerabilities" {
   count       = data.coder_workspace.me.start_count
   resource_id = var.resource_id
-  
+
   item {
     key   = "Image"
     value = var.image
   }
-  
+
   item {
     key   = "Total Vulnerabilities"
     value = tostring(local.total_vulnerabilities)
   }
-  
+
   item {
     key   = "Critical"
     value = tostring(local.vulnerabilities.critical)
   }
-  
+
   item {
     key   = "High"
     value = tostring(local.vulnerabilities.high)
   }
-  
+
   item {
     key   = "Medium"
     value = tostring(local.vulnerabilities.medium)
   }
-  
+
   item {
     key   = "Low"
     value = tostring(local.vulnerabilities.low)

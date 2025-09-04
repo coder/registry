@@ -34,7 +34,7 @@ This module integrates JFrog Xray vulnerability scanning results into Coder work
 module "jfrog_xray" {
   source      = "registry.coder.com/modules/jfrog-xray/coder"
   version     = "1.0.0"
-  
+
   resource_id = docker_container.workspace.id
   xray_url    = "https://example.jfrog.io/xray"
   xray_token  = var.jfrog_access_token
@@ -48,15 +48,15 @@ module "jfrog_xray" {
 module "jfrog_xray" {
   source      = "registry.coder.com/modules/jfrog-xray/coder"
   version     = "1.0.0"
-  
+
   resource_id  = docker_container.workspace.id
   xray_url     = "https://example.jfrog.io/xray"
   xray_token   = var.jfrog_access_token
-  
+
   # Specify repo and path separately for more control
   repo         = "docker-local"
   repo_path    = "/codercom/enterprise-base:v2.1.0"
-  
+
   display_name = "Container Security Scan"
   icon         = "/icon/shield.svg"
 }
@@ -88,7 +88,7 @@ resource "docker_container" "workspace" {
   count = data.coder_workspace.me.start_count
   image = "example.jfrog.io/docker-local/codercom/enterprise-base:latest"
   name  = "coder-${data.coder_workspace.me.owner}-${data.coder_workspace.me.name}"
-  
+
   # Container configuration...
 }
 
@@ -96,7 +96,7 @@ resource "docker_container" "workspace" {
 module "jfrog_xray" {
   source      = "registry.coder.com/modules/jfrog-xray/coder"
   version     = "1.0.0"
-  
+
   resource_id = docker_container.workspace[0].id
   xray_url    = "https://example.jfrog.io/xray"
   xray_token  = var.jfrog_access_token
@@ -106,16 +106,16 @@ module "jfrog_xray" {
 
 ## Variables
 
-| Name | Description | Type | Default | Required |
-|------|-------------|------|---------|----------|
-| `resource_id` | The resource ID to attach the vulnerability metadata to | `string` | n/a | yes |
-| `xray_url` | The URL of the JFrog Xray instance | `string` | n/a | yes |
-| `xray_token` | The access token for JFrog Xray authentication | `string` | n/a | yes |
-| `image` | The container image to scan in format 'repo/path:tag' | `string` | n/a | yes |
-| `repo` | The JFrog Artifactory repository name (auto-extracted if not provided) | `string` | `""` | no |
-| `repo_path` | The repository path with image name and tag (auto-extracted if not provided) | `string` | `""` | no |
-| `display_name` | The display name for the vulnerability metadata section | `string` | `"Security Vulnerabilities"` | no |
-| `icon` | The icon to display for the vulnerability metadata | `string` | `"/icon/security.svg"` | no |
+| Name           | Description                                                                  | Type     | Default                      | Required |
+| -------------- | ---------------------------------------------------------------------------- | -------- | ---------------------------- | -------- |
+| `resource_id`  | The resource ID to attach the vulnerability metadata to                      | `string` | n/a                          | yes      |
+| `xray_url`     | The URL of the JFrog Xray instance                                           | `string` | n/a                          | yes      |
+| `xray_token`   | The access token for JFrog Xray authentication                               | `string` | n/a                          | yes      |
+| `image`        | The container image to scan in format 'repo/path:tag'                        | `string` | n/a                          | yes      |
+| `repo`         | The JFrog Artifactory repository name (auto-extracted if not provided)       | `string` | `""`                         | no       |
+| `repo_path`    | The repository path with image name and tag (auto-extracted if not provided) | `string` | `""`                         | no       |
+| `display_name` | The display name for the vulnerability metadata section                      | `string` | `"Security Vulnerabilities"` | no       |
+| `icon`         | The icon to display for the vulnerability metadata                           | `string` | `"/icon/security.svg"`       | no       |
 
 ## Outputs
 
@@ -124,7 +124,7 @@ This module creates workspace metadata that displays:
 - **Image**: The scanned container image
 - **Total Vulnerabilities**: Total count of all vulnerabilities
 - **Critical**: Count of critical severity vulnerabilities
-- **High**: Count of high severity vulnerabilities  
+- **High**: Count of high severity vulnerabilities
 - **Medium**: Count of medium severity vulnerabilities
 - **Low**: Count of low severity vulnerabilities
 
@@ -155,16 +155,19 @@ image = "docker-local/team/project/service:main-abc123"
 ### Common Issues
 
 **"No scan results found"**
+
 - Verify the image exists in Artifactory
 - Check that Xray has scanned the image
 - Confirm the image path format is correct
 
 **"Authentication failed"**
+
 - Verify the access token is valid
 - Check token permissions include Xray read access
 - Ensure the Xray URL is correct
 
 **"Module fails to apply"**
+
 - Verify network connectivity to JFrog instance
 - Check Terraform provider versions
 - Review Coder logs for detailed error messages

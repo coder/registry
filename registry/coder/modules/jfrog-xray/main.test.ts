@@ -1,8 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-  runTerraformInit,
-  testRequiredVariables,
-} from "~test";
+import { runTerraformInit, testRequiredVariables } from "~test";
 
 describe("jfrog-xray", async () => {
   await runTerraformInit(import.meta.dir);
