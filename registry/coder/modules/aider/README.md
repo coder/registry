@@ -15,9 +15,9 @@ module "aider" {
   source      = "registry.coder.com/coder/aider/coder"
   version     = "1.0.0"
   agent_id    = coder_agent.example.id
-  ai_api_key  = var.api_key
-  ai_provider = "google"
-  ai_model    = "gemini"
+  credentials = var.api_key
+  provider    = "google"
+  model       = "gemini"
 }
 ```
 
@@ -38,10 +38,10 @@ module "aider" {
   source           = "registry.coder.com/coder/aider/coder"
   version          = "1.0.0"
   agent_id         = coder_agent.example.id
-  ai_api_key       = var.gemini_api_key
+  credentials      = var.gemini_api_key
   install_aider    = true
-  ai_provider      = "google"
-  ai_model         = "gemini"
+  provider         = "google"
+  model            = "gemini"
   install_agentapi = true
   system_prompt    = "..."
 }
@@ -61,10 +61,10 @@ module "aider" {
   source              = "registry.coder.com/coder/aider/coder"
   version             = "1.0.0"
   agent_id            = coder_agent.example.id
-  ai_provider         = "custom"
+  provider            = "custom"
   custom_env_var_name = "MY_CUSTOM_API_KEY"
-  ai_model            = "custom-model"
-  ai_api_key          = var.custom_api_key
+  model               = "custom-model"
+  credentials         = var.custom_api_key
 }
 ```
 
@@ -90,10 +90,6 @@ For a complete and up-to-date list of supported aliases and models, please refer
 - If `aider` is not found, ensure `install_aider = true` and your API key is valid
 - Logs are written under `/home/coder/.aider-module/` (`install.log`, `agentapi-start.log`) for debugging
 - If AgentAPI fails to start, verify that your container has network access and executable permissions for the scripts
-
-> [!IMPORTANT]
-> To use **Coder Tasks** with Aider, make sure to set `ai_api_key`.
-> This ensures task reporting and status updates work seamlessly.
 
 ## References
 

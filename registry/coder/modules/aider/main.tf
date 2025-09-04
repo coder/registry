@@ -100,22 +100,22 @@ variable "experiment_additional_extensions" {
   default     = null
 }
 
-variable "ai_provider" {
+variable "provider" {
   type        = string
   description = "AI provider to use with Aider (openai, anthropic, azure, google, etc.)"
   default     = "google"
   validation {
-    condition     = contains(["openai", "anthropic", "azure", "google", "cohere", "mistral", "ollama", "custom"], var.ai_provider)
-    error_message = "ai_provider must be one of: openai, anthropic, azure, google, cohere, mistral, ollama, custom"
+    condition     = contains(["openai", "anthropic", "azure", "google", "cohere", "mistral", "ollama", "custom"], var.provider)
+    error_message = "provider must be one of: openai, anthropic, azure, google, cohere, mistral, ollama, custom"
   }
 }
 
-variable "ai_model" {
+variable "model" {
   type        = string
   description = "AI model to use with Aider. Can use Aider's built-in aliases like '4o' (gpt-4o), 'sonnet' (claude-3-7-sonnet), 'opus' (claude-3-opus), etc."
 }
 
-variable "ai_api_key" {
+variable "credentials" {
   type        = string
   description = "API key for the selected AI provider. This will be set as the appropriate environment variable based on the provider."
   default     = ""
@@ -234,10 +234,10 @@ locals {
   }
 
   # Get the environment variable name for selected provider
-  env_var_name = local.provider_env_vars[var.ai_provider]
+  env_var_name = local.provider_env_vars[var.provider]
 
   # Model flag for aider command
-  model_flag = var.ai_provider == "ollama" ? "--ollama-model" : "--model"
+  model_flag = var.provider == "ollama" ? "--ollama-model" : "--model"
 
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
@@ -269,9 +269,9 @@ module "agentapi" {
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
     chmod +x /tmp/start.sh   
     AIDER_START_DIRECTORY='${var.folder}' \
-    ARG_API_KEY='${var.ai_api_key}' \
-    ARG_AI_MODULE='${var.ai_model}' \
-    ARG_AI_PROVIDER='${var.ai_provider}' \
+    ARG_API_KEY='${var.credentials}' \
+    ARG_MODEL='${var.model}' \
+    ARG_PROVIDER='${var.provider}' \
     ARG_ENV_API_NAME_HOLDER='${local.env_var_name}' \
     AIDER_PROMPT='${var.aider_prompt}' \
     /tmp/start.sh
