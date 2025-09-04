@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"context"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -11,63 +10,57 @@ import (
 )
 
 var (
-	terraformSourceRe = regexp.MustCompile(`^\s*source\s*=\s*"([^"]+)"`)
+	// Matches Terraform source lines with registry.coder.com URLs
+	// Pattern: source = "registry.coder.com/namespace/module/coder"
+	terraformSourceRe = regexp.MustCompile(`^\s*source\s*=\s*"` + registryDomain + `/([^/]+)/([^/]+)/coder"`)
 )
 
-func extractNamespaceAndModuleFromPath(filePath string) (namespace string, moduleName string, err error) {
-	// Expected path format: registry/<namespace>/modules/<module-name>/README.md.
-	parts := strings.Split(filepath.Clean(filePath), string(filepath.Separator))
-	if len(parts) < 5 || parts[0] != "registry" || parts[2] != "modules" || parts[4] != "README.md" {
-		return "", "", xerrors.Errorf("invalid module path format: %s", filePath)
-	}
-	namespace = parts[1]
-	moduleName = parts[3]
-	return namespace, moduleName, nil
-}
-
-func validateModuleSourceURL(body string, filePath string) []error {
+func validateModuleSourceURL(rm coderResourceReadme) []error {
 	var errs []error
 
-	namespace, moduleName, err := extractNamespaceAndModuleFromPath(filePath)
-	if err != nil {
-		return []error{err}
+	// Skip validation if we couldn't parse namespace/resourceName from path
+	if rm.namespace == "" || rm.resourceName == "" {
+		return []error{xerrors.Errorf("invalid module path format: %s", rm.filePath)}
 	}
 
-	expectedSource := "registry.coder.com/" + namespace + "/" + moduleName + "/coder"
+	expectedSource := registryDomain + "/" + rm.namespace + "/" + rm.resourceName + "/coder"
 
-	trimmed := strings.TrimSpace(body)
+	trimmed := strings.TrimSpace(rm.body)
 	foundCorrectSource := false
 	isInsideTerraform := false
-	firstTerraformBlock := true
 
 	lineScanner := bufio.NewScanner(strings.NewReader(trimmed))
 	for lineScanner.Scan() {
 		nextLine := lineScanner.Text()
 
 		if strings.HasPrefix(nextLine, "```") {
-			if strings.HasPrefix(nextLine, "```tf") && firstTerraformBlock {
+			if strings.HasPrefix(nextLine, "```tf") {
 				isInsideTerraform = true
-				firstTerraformBlock = false
-			} else if isInsideTerraform {
-				// End of first terraform block.
+				continue
+			}
+			if isInsideTerraform {
 				break
 			}
 			continue
 		}
 
-		if isInsideTerraform {
-			// Check for any source line in the first terraform block.
-			if matches := terraformSourceRe.FindStringSubmatch(nextLine); matches != nil {
-				actualSource := matches[1]
-				if actualSource == expectedSource {
-					foundCorrectSource = true
-					break
-				} else if strings.HasPrefix(actualSource, "registry.coder.com/") && strings.Contains(actualSource, "/"+moduleName+"/coder") {
-					// Found source for this module but with wrong namespace/format.
-					errs = append(errs, xerrors.Errorf("incorrect source URL format: found %q, expected %q", actualSource, expectedSource))
-					return errs
-				}
+		if !isInsideTerraform {
+			continue
+		}
+
+		// Check for source line in the first terraform block
+		if matches := terraformSourceRe.FindStringSubmatch(nextLine); matches != nil {
+			actualNamespace := matches[1]
+			actualModule := matches[2]
+			actualSource := registryDomain + "/" + actualNamespace + "/" + actualModule + "/coder"
+			
+			if actualSource == expectedSource {
+				foundCorrectSource = true
+				break
 			}
+			// Found a registry.coder.com source but with wrong namespace/module
+			errs = append(errs, xerrors.Errorf("incorrect source URL format: found %q, expected %q", actualSource, expectedSource))
+			return errs
 		}
 	}
 
@@ -164,7 +157,7 @@ func validateCoderModuleReadme(rm coderResourceReadme) []error {
 	for _, err := range validateCoderModuleReadmeBody(rm.body) {
 		errs = append(errs, addFilePathToError(rm.filePath, err))
 	}
-	for _, err := range validateModuleSourceURL(rm.body, rm.filePath) {
+	for _, err := range validateModuleSourceURL(rm) {
 		errs = append(errs, addFilePathToError(rm.filePath, err))
 	}
 	for _, err := range validateResourceGfmAlerts(rm.body) {

@@ -18,6 +18,7 @@ var (
 	supportedResourceTypes = []string{"modules", "templates"}
 	operatingSystems       = []string{"windows", "macos", "linux"}
 	gfmAlertTypes          = []string{"NOTE", "IMPORTANT", "CAUTION", "WARNING", "TIP"}
+	registryDomain         = "registry.coder.com"
 
 	// TODO: This is a holdover from the validation logic used by the Coder Modules repo. It gives us some assurance, but
 	// realistically, we probably want to parse any Terraform code snippets, and make some deeper guarantees about how it's
@@ -53,6 +54,8 @@ var supportedCoderResourceStructKeys = []string{
 type coderResourceReadme struct {
 	resourceType string
 	filePath     string
+	namespace    string
+	resourceName string
 	body         string
 	frontmatter  coderResourceFrontmatter
 }
@@ -183,9 +186,20 @@ func parseCoderResourceReadme(resourceType string, rm readme) (coderResourceRead
 		return coderResourceReadme{}, []error{xerrors.Errorf("%q: failed to parse: %v", rm.filePath, err)}
 	}
 
+	// Extract namespace and resource name from file path
+	// Expected path format: registry/<namespace>/<resourceType>/<resource-name>/README.md
+	var namespace, resourceName string
+	parts := strings.Split(path.Clean(rm.filePath), "/")
+	if len(parts) >= 5 && parts[0] == "registry" && parts[2] == resourceType && parts[4] == "README.md" {
+		namespace = parts[1]
+		resourceName = parts[3]
+	}
+
 	return coderResourceReadme{
 		resourceType: resourceType,
 		filePath:     rm.filePath,
+		namespace:    namespace,
+		resourceName: resourceName,
 		body:         body,
 		frontmatter:  yml,
 	}, nil
