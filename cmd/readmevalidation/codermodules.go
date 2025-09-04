@@ -3,10 +3,73 @@ package main
 import (
 	"bufio"
 	"context"
+	"regexp"
 	"strings"
 
 	"golang.org/x/xerrors"
 )
+
+var (
+	// Matches Terraform source lines with registry.coder.com URLs
+	// Pattern: source = "registry.coder.com/namespace/module/coder"
+	terraformSourceRe = regexp.MustCompile(`^\s*source\s*=\s*"` + registryDomain + `/([^/]+)/([^/]+)/coder"`)
+)
+
+func validateModuleSourceURL(rm coderResourceReadme) []error {
+	var errs []error
+
+	// Skip validation if we couldn't parse namespace/resourceName from path
+	if rm.namespace == "" || rm.resourceName == "" {
+		return []error{xerrors.Errorf("invalid module path format: %s", rm.filePath)}
+	}
+
+	expectedSource := registryDomain + "/" + rm.namespace + "/" + rm.resourceName + "/coder"
+
+	trimmed := strings.TrimSpace(rm.body)
+	foundCorrectSource := false
+	isInsideTerraform := false
+
+	lineScanner := bufio.NewScanner(strings.NewReader(trimmed))
+	for lineScanner.Scan() {
+		nextLine := lineScanner.Text()
+
+		if strings.HasPrefix(nextLine, "```") {
+			if strings.HasPrefix(nextLine, "```tf") {
+				isInsideTerraform = true
+				continue
+			}
+			if isInsideTerraform {
+				break
+			}
+			continue
+		}
+
+		if !isInsideTerraform {
+			continue
+		}
+
+		// Check for source line in the first terraform block
+		if matches := terraformSourceRe.FindStringSubmatch(nextLine); matches != nil {
+			actualNamespace := matches[1]
+			actualModule := matches[2]
+			actualSource := registryDomain + "/" + actualNamespace + "/" + actualModule + "/coder"
+			
+			if actualSource == expectedSource {
+				foundCorrectSource = true
+				break
+			}
+			// Found a registry.coder.com source but with wrong namespace/module
+			errs = append(errs, xerrors.Errorf("incorrect source URL format: found %q, expected %q", actualSource, expectedSource))
+			return errs
+		}
+	}
+
+	if !foundCorrectSource {
+		errs = append(errs, xerrors.Errorf("did not find correct source URL %q in first Terraform code block", expectedSource))
+	}
+
+	return errs
+}
 
 func validateCoderModuleReadmeBody(body string) []error {
 	var errs []error
@@ -92,6 +155,9 @@ func validateCoderModuleReadmeBody(body string) []error {
 func validateCoderModuleReadme(rm coderResourceReadme) []error {
 	var errs []error
 	for _, err := range validateCoderModuleReadmeBody(rm.body) {
+		errs = append(errs, addFilePathToError(rm.filePath, err))
+	}
+	for _, err := range validateModuleSourceURL(rm) {
 		errs = append(errs, addFilePathToError(rm.filePath, err))
 	}
 	for _, err := range validateResourceGfmAlerts(rm.body) {
