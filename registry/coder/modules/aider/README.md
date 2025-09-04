@@ -16,7 +16,7 @@ module "aider" {
   version     = "1.0.0"
   agent_id    = coder_agent.example.id
   credentials = var.api_key
-  provider    = "google"
+  ai_provider = "google"
   model       = "gemini"
 }
 ```
@@ -40,7 +40,7 @@ module "aider" {
   agent_id         = coder_agent.example.id
   credentials      = var.gemini_api_key
   install_aider    = true
-  provider         = "google"
+  ai_provider      = "google"
   model            = "gemini"
   install_agentapi = true
   system_prompt    = "..."
@@ -61,7 +61,7 @@ module "aider" {
   source              = "registry.coder.com/coder/aider/coder"
   version             = "1.0.0"
   agent_id            = coder_agent.example.id
-  provider            = "custom"
+  ai_provider         = "custom"
   custom_env_var_name = "MY_CUSTOM_API_KEY"
   model               = "custom-model"
   credentials         = var.custom_api_key

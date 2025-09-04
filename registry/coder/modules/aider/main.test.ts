@@ -76,7 +76,7 @@ describe("Aider", async () => {
   test("happy-path", async () => {
     const { id } = await setup({
       moduleVariables: {
-        ai_model: "gemini",
+        model: "gemini",
       },
     });
     await execModuleScript(id);
@@ -87,8 +87,8 @@ describe("Aider", async () => {
     const apiKey = "test-api-key-123";
     const { id } = await setup({
       moduleVariables: {
-        ai_api_key: apiKey,
-        ai_model: "gemini",
+        credentials: apiKey,
+        model: "gemini",
       },
     });
     await execModuleScript(id);
@@ -104,7 +104,7 @@ describe("Aider", async () => {
     const { id } = await setup({
       moduleVariables: {
         folder,
-        ai_model: "gemini",
+        model: "gemini",
       },
     });
     await execModuleScript(id);
@@ -121,7 +121,7 @@ describe("Aider", async () => {
         experiment_pre_install_script: "#!/bin/bash\necho 'pre-install-script'",
         experiment_post_install_script:
           "#!/bin/bash\necho 'post-install-script'",
-        ai_model: "gemini",
+        model: "gemini",
       },
     });
     await execModuleScript(id);
@@ -142,7 +142,7 @@ describe("Aider", async () => {
     const { id } = await setup({
       moduleVariables: {
         system_prompt,
-        ai_model: "gemini",
+        model: "gemini",
       },
     });
     await execModuleScript(id);
@@ -158,8 +158,8 @@ describe("Aider", async () => {
     const apiKey = "test-api-key-123";
     const { id } = await setup({
       moduleVariables: {
-        ai_api_key: apiKey,
-        ai_model: "gemini",
+        credentials: apiKey,
+        model: "gemini",
       },
     });
     await execModuleScript(id, {

@@ -100,12 +100,12 @@ variable "experiment_additional_extensions" {
   default     = null
 }
 
-variable "provider" {
+variable "ai_provider" {
   type        = string
   description = "AI provider to use with Aider (openai, anthropic, azure, google, etc.)"
   default     = "google"
   validation {
-    condition     = contains(["openai", "anthropic", "azure", "google", "cohere", "mistral", "ollama", "custom"], var.provider)
+    condition     = contains(["openai", "anthropic", "azure", "google", "cohere", "mistral", "ollama", "custom"], var.ai_provider)
     error_message = "provider must be one of: openai, anthropic, azure, google, cohere, mistral, ollama, custom"
   }
 }
@@ -234,10 +234,10 @@ locals {
   }
 
   # Get the environment variable name for selected provider
-  env_var_name = local.provider_env_vars[var.provider]
+  env_var_name = local.provider_env_vars[var.ai_provider]
 
   # Model flag for aider command
-  model_flag = var.provider == "ollama" ? "--ollama-model" : "--model"
+  model_flag = var.ai_provider == "ollama" ? "--ollama-model" : "--model"
 
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
@@ -271,7 +271,7 @@ module "agentapi" {
     AIDER_START_DIRECTORY='${var.folder}' \
     ARG_API_KEY='${var.credentials}' \
     ARG_MODEL='${var.model}' \
-    ARG_PROVIDER='${var.provider}' \
+    ARG_PROVIDER='${var.ai_provider}' \
     ARG_ENV_API_NAME_HOLDER='${local.env_var_name}' \
     AIDER_PROMPT='${var.aider_prompt}' \
     /tmp/start.sh

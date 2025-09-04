@@ -5,8 +5,8 @@ set -euo pipefail
 export PATH="$HOME/.local/bin:$PATH"
 
 echo "--------------------------------"
-echo "Provider: $ARG_AI_PROVIDER"
-echo "Module: $ARG_AI_MODULE"
+echo "Provider: $ARG_PROVIDER"
+echo "Module: $ARG_MODEL"
 echo "--------------------------------"
 
 if [ -n "$ARG_API_KEY" ]; then
@@ -19,14 +19,14 @@ fi
 if [[ "${AIDER_PROMPT}" == "true" && -n "${ARG_TASK_PROMPT:-}" ]]; then
   printf "Aider start only with this prompt : $ARG_TASK_PROMPT"
   mkdir -p $HOME/.aider-module/
-  echo aider --model $ARG_AI_MODULE --yes-always --message "$ARG_TASK_PROMPT" > $HOME/.aider-module/aider_output.txt
+  echo aider --model $ARG_MODEL --yes-always --message "$ARG_TASK_PROMPT" > $HOME/.aider-module/aider_output.txt
 
 elif [ -n "${ARG_TASK_PROMPT:-}" ]; then
   printf "Aider task prompt provided : $ARG_TASK_PROMPT"
   PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $ARG_TASK_PROMPT"
 
-  agentapi server --term-width=67 --term-height=1190 -- aider --model $ARG_AI_MODULE --yes-always --message "$ARG_TASK_PROMPT"
+  agentapi server --term-width=67 --term-height=1190 -- aider --model $ARG_MODEL --yes-always --message "$ARG_TASK_PROMPT"
 else
   printf "No task prompt given.\n"
-  agentapi server --term-width=67 --term-height=1190 -- aider --model $ARG_AI_MODULE --yes-always
+  agentapi server --term-width=67 --term-height=1190 -- aider --model $ARG_MODEL --yes-always
 fi
