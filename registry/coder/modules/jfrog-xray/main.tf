@@ -82,13 +82,21 @@ data "xray_artifacts_scan" "image_scan" {
 
 # Extract vulnerability counts
 locals {
-  vulnerabilities = length(data.xray_artifacts_scan.image_scan.results) > 0 ? data.xray_artifacts_scan.image_scan.results[0].sec_issues : {
-    critical = 0
-    high     = 0
-    medium   = 0
-    low      = 0
-  }
-
+  vulnerabilities = try(
+    length(data.xray_artifacts_scan.image_scan.results) > 0 ? data.xray_artifacts_scan.image_scan.results[0].sec_issues : {
+      critical = 0
+      high     = 0
+      medium   = 0
+      low      = 0
+    },
+    {
+      critical = 0
+      high     = 0
+      medium   = 0
+      low      = 0
+    }
+  )
+  
   total_vulnerabilities = local.vulnerabilities.critical + local.vulnerabilities.high + local.vulnerabilities.medium + local.vulnerabilities.low
 }
 
