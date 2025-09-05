@@ -27,6 +27,7 @@ module "jfrog" {
     pypi   = ["pypi", "extra-index-pypi"]
     docker = ["example-docker-staging.jfrog.io", "example-docker-production.jfrog.io"]
     conda  = ["conda", "conda-local"]
+    maven  = ["maven", "maven-local"]
   }
 }
 ```

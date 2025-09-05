@@ -23,6 +23,7 @@ module "jfrog" {
     pypi   = ["pypi", "extra-index-pypi"]
     docker = ["example-docker-staging.jfrog.io", "example-docker-production.jfrog.io"]
     conda  = ["conda", "conda-local"]
+    maven  = ["maven", "maven-local"]
   }
 }
 ```
@@ -50,17 +51,19 @@ module "jfrog" {
     go    = ["go-local"]
     pypi  = ["pypi-local"]
     conda = ["conda-local"]
+    maven = ["maven-local"]
   }
 }
 ```
 
-You should now be able to install packages from Artifactory using both the `jf npm`, `jf go`, `jf pip` and `npm`, `go`, `pip`, `conda` commands.
+You should now be able to install packages from Artifactory using both the `jf npm`, `jf go`, `jf pip` and `npm`, `go`, `pip`, `conda`, `maven` commands.
 
 ```shell
 jf npm install prettier
 jf go get github.com/golang/example/hello
 jf pip install requests
 conda install numpy
+mvn clean install
 ```
 
 ```shell
@@ -68,6 +71,7 @@ npm install prettier
 go get github.com/golang/example/hello
 pip install requests
 conda install numpy
+mvn clean install
 ```
 
 ### Configure code-server with JFrog extension
