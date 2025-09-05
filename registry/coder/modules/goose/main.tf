@@ -156,6 +156,7 @@ module "agentapi" {
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
   start_script         = local.start_script
+  folder               = var.folder
   install_script       = <<-EOT
     #!/bin/bash
     set -o errexit
