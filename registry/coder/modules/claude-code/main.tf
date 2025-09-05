@@ -172,6 +172,7 @@ variable "claude_code_oauth_token" {
   type        = string
   description = "Set up a long-lived authentication token (requires Claude subscription). Generated using `claude setup-token` command"
   sensitive   = true
+  default     = ""
 }
 
 resource "coder_env" "claude_code_oauth_token" {
