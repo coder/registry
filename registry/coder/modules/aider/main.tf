@@ -128,11 +128,17 @@ variable "custom_env_var_name" {
   default     = ""
 }
 
-variable "install_agentapi" {
+variable "use_tasks" {
   type        = bool
-  description = "Whether to install AgentAPI."
+  description = "the Use Task variable will provide agentapi + Task support"
   default     = true
 }
+
+# variable "install_agentapi" {
+#   type        = bool
+#   description = "Whether to install AgentAPI."
+#   default     = true
+# }
 
 variable "agentapi_version" {
   type        = string
@@ -257,7 +263,7 @@ module "agentapi" {
   cli_app_slug         = "${local.app_slug}-cli"
   cli_app_display_name = "Aider CLI"
   module_dir_name      = local.module_dir_name
-  install_agentapi     = var.install_agentapi
+  install_agentapi     = var.use_tasks ? true : false
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.experiment_pre_install_script
   post_install_script  = var.experiment_post_install_script
@@ -293,3 +299,44 @@ module "agentapi" {
   EOT
 }
 
+resource "coder_script" "aider" {
+  agent_id     = var.agent_id
+  display_name = "Aider"
+  icon         = var.icon
+  script       = <<-EOT
+    #!/bin/bash
+    set -e
+    function install_aider() {
+    echo "pipx installing..."
+    sudo apt-get install -y pipx
+    echo "pipx installed!"
+    pipx ensurepath
+    mkdir -p "${var.folder}/.local/bin"
+    export PATH="$HOME/.local/bin:${var.folder}/.local/bin:$PATH" # ensure in current shell too
+
+    if ! command_exists aider; then
+      echo "Installing Aider via pipx..."
+      pipx install --force aider-install
+      aider-install
+    fi
+    echo "Aider installed: $(aider --version || echo 'check failed the Aider module insatllation failed')"
+  }
+  EOT
+  run_on_start = true
+}
+
+resource "coder_app" "aider_cli" {
+  agent_id     = var.agent_id
+  slug         = "aider"
+  display_name = "Aider"
+  icon         = var.icon
+  command      = <<-EOT
+    #!/bin/bash
+    set -e
+    export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
+    cd "${var.folder}"
+    echo "Starting Aider directly..."
+    export ${local.env_var_name}="${var.credentials}"
+    aider ${local.model_flag} ${var.model} 
+  EOT
+}  

@@ -16,7 +16,6 @@ function install_aider() {
   sudo apt-get install -y pipx
   echo "pipx installed!"
   pipx ensurepath
-  echo $PATH
   mkdir -p "$AIDER_START_DIRECTORY/.local/bin"
   export PATH="$HOME/.local/bin:$AIDER_START_DIRECTORY/.local/bin:$PATH" # ensure in current shell too
 
