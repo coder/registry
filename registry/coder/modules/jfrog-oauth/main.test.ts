@@ -126,4 +126,28 @@ EOF`;
       'if [ -z "YES" ]; then\n  not_configured go',
     );
   });
+
+  it("generates a conda config with multiple repos", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "some-agent-id",
+      jfrog_url: fakeFrogUrl,
+      package_managers: JSON.stringify({
+        conda: ["conda-main", "conda-secondary", "conda-local"],
+      }),
+    });
+    const coderScript = findResourceInstance(state, "coder_script");
+    const condaStanza = `cat << EOF > ~/.condarc
+channels:
+  - https://${user}:@${fakeFrogApi}/conda/conda-main
+  - https://${user}:@${fakeFrogApi}/conda/conda-secondary
+  - https://${user}:@${fakeFrogApi}/conda/conda-local
+  - defaults
+ssl_verify: true
+
+EOF`;
+    expect(coderScript.script).toContain(condaStanza);
+    expect(coderScript.script).toContain(
+      'if [ -z "YES" ]; then\n  not_configured conda',
+    );
+  });
 });
