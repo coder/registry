@@ -246,7 +246,7 @@ resource "coder_app" "agentapi_cli" {
 
 resource "coder_ai_task" "agentapi" {
   count = var.enable_tasks ? 1 : 0
-  
+
   sidebar_app {
     id = coder_app.agentapi_web.id
   }
