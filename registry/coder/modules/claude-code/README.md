@@ -24,7 +24,6 @@ module "claude-code" {
 
 ## Prerequisites
 
-- You must add the [Coder Login](https://registry.coder.com/modules/coder-login) module to your template for task reporting features.
 - An **Anthropic API key** is required for tasks. You can get one from the [Anthropic Console](https://console.anthropic.com/dashboard).
 
 ## Examples
