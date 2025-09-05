@@ -134,6 +134,7 @@ describe("claude-code", async () => {
       },
     });
     const { id } = await setup({
+      skipClaudeMock: true,
       moduleVariables: {
         mcp: mcpConfig,
       },
@@ -142,7 +143,7 @@ describe("claude-code", async () => {
 
     const resp = await readFileContainer(
       id,
-      "/home/coder/.claude-module/install.log",
+      "/home/coder/.claude.json",
     );
     expect(resp).toContain("test-cmd");
   });
@@ -151,7 +152,7 @@ describe("claude-code", async () => {
     const prompt = "This is a task prompt for Claude.";
     const { id } = await setup({
       moduleVariables: {
-        task_prompt: prompt,
+        ai_prompt: prompt,
       },
     });
     await execModuleScript(id);

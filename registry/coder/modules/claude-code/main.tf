@@ -89,6 +89,12 @@ variable "agentapi_version" {
   default     = "v0.6.1"
 }
 
+variable "ai_prompt" {
+  type        = string
+  description = "Initial task prompt for Claude Code."
+  default     = ""
+}
+
 # ---------------------------------------------------------------
 
 variable "install_claude_code" {
@@ -162,13 +168,21 @@ variable "disallowed_tools" {
 
 }
 
-variable "ai_prompt" {
+variable "claude_code_oauth_token" {
   type        = string
-  description = "Task prompt for the Claude Code CLI"
-  default     = ""
+  description = "Set up a long-lived authentication token (requires Claude subscription). Generated using `claude setup-token` command"
+  sensitive   = true
+}
+
+resource "coder_env" "claude_code_oauth_token" {
+  agent_id = var.agent_id
+  name     = "CLAUDE_CODE_OAUTH_TOKEN"
+  value    = var.claude_code_oauth_token
 }
 
 resource "coder_env" "claude_api_key" {
+  count = length(var.claude_api_key) > 0 ? 1 : 0
+
   agent_id = var.agent_id
   name     = "CLAUDE_API_KEY"
   value    = var.claude_api_key

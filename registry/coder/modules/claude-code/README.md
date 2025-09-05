@@ -1,6 +1,6 @@
 ---
 display_name: Claude Code
-description: Run the Claude Code agent in your workspace to generate code and perform tasks.
+description: Run the Claude Code agent in your workspace.
 icon: ../../../../.icons/claude.svg
 verified: true
 tags: [agent, claude-code, ai, tasks, anthropic]
@@ -33,12 +33,6 @@ module "claude-code" {
 This example shows how to configure the Claude Code module with a task prompt, API key, and other custom settings.
 
 ```tf
-variable "anthropic_api_key" {
-  type        = string
-  description = "The Anthropic API key."
-  sensitive   = true
-}
-
 data "coder_parameter" "task_prompt" {
   type        = "string"
   name        = "AI Task Prompt"
@@ -47,21 +41,16 @@ data "coder_parameter" "task_prompt" {
   mutable     = true
 }
 
-module "coder-login" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/coder-login/coder"
-  version  = "1.0.31" # Use a recent version
-  agent_id = coder_agent.example.id
-}
-
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
   version  = "3.0.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
-  # --- Authentication ---
-  claude_api_key = var.anthropic_api_key # required for tasks
+  # --- Authentication --- required for tasks
+  claude_api_key = "xxxx-xxxxx-xxxx"
+  # OR
+  claude_code_oauth_token = "xxxxx-xxxx-xxxx"
 
   # --- Versioning ---
   claude_code_version = "1.0.82" # Pin to a specific version

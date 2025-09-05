@@ -67,7 +67,7 @@ function setup_claude_configurations() {
     claude mcp add "$server_name" "$server_json"
     echo "------------------------"
     echo ""
-  done < <(echo "${MCP:-{}}" | jq -r '.mcpServers | to_entries[] | .key, (.value | @json)')
+  done < <(echo "${ARG_MCP:-{}}" | jq -r '.mcpServers | to_entries[] | .key, (.value | @json)')
 
   if [ -n "$ARG_ALLOWED_TOOLS" ]; then
     coder --allowedTools "$ARG_ALLOWED_TOOLS"
