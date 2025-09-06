@@ -6,16 +6,16 @@ source "$HOME"/.bashrc
 # ANSI colors
 BOLD='\033[1m'
 
-ARG_INSTALL_SOURCEGRAPH_AMP=${ARG_INSTALL_SOURCEGRAPH_AMP:-true}
+ARG_INSTALL_AMP=${ARG_INSTALL_AMP:-true}
 ARG_AMP_VERSION=${ARG_AMP_VERSION:-}
-ARG_AMP_CONFIG=${ARG_AMP_CONFIG:-}
-ARG_SOURCEGRAPH_AMP_SYSTEM_PROMPT=${ARG_SOURCEGRAPH_AMP_SYSTEM_PROMPT:-}
+ARG_AMP_INSTRUCTION_PROMPT=$(echo -n "${ARG_AMP_INSTRUCTION_PROMPT:-}" | base64 -d)
+ARG_AMP_CONFIG=$(echo -n "${ARG_AMP_CONFIG:-}" | base64 -d)
 
 echo "--------------------------------"
-printf "Install flag: %s\n" "$ARG_INSTALL_SOURCEGRAPH_AMP"
+printf "Install flag: %s\n" "$ARG_INSTALL_AMP"
 printf "Amp Version: %s\n" "$ARG_AMP_VERSION"
 printf "AMP Config: %s\n" "$ARG_AMP_CONFIG"
-printf "System Prompt: %s\n" "$ARG_SOURCEGRAPH_AMP_SYSTEM_PROMPT"
+printf "Instruction Prompt: %s\n" "$ARG_AMP_INSTRUCTION_PROMPT"
 echo "--------------------------------"
 
 # Helper function to check if a command exists
@@ -38,8 +38,8 @@ function check_dependencies() {
   printf "npm version: %s\n" "$(npm --version)"
 }
 
-function install_sourcegraph_amp() {
-  if [ "${ARG_INSTALL_SOURCEGRAPH_AMP}" = "true" ]; then
+function install_amp() {
+  if [ "${ARG_INSTALL_AMP}" = "true" ]; then
     check_dependencies
 
     printf "%s Installing Sourcegraph amp\n" "${BOLD}"
@@ -65,18 +65,18 @@ function install_sourcegraph_amp() {
 
     printf "%s Successfully installed Sourcegraph Amp CLI. Version: %s\n" "${BOLD}" "$(amp --version)"
   else
-    printf "Skipping Sourcegraph Amp CLI installation (install_sourcegraph_amp=false)\n"
+    printf "Skipping Sourcegraph Amp CLI installation (install_amp=false)\n"
   fi
 }
 
-function setup_system_prompt() {
-  if [ -n "${ARG_SOURCEGRAPH_AMP_SYSTEM_PROMPT:-}" ]; then
-    echo "Setting Sourcegraph AMP system prompt..."
-    mkdir -p "$HOME/.sourcegraph-amp-module"
-    echo "$ARG_SOURCEGRAPH_AMP_SYSTEM_PROMPT" > "$HOME/.sourcegraph-amp-module/SYSTEM_PROMPT.md"
-    echo "System prompt saved to $HOME/.sourcegraph-amp-module/SYSTEM_PROMPT.md"
+function setup_instruction_prompt() {
+  if [ -n "${ARG_AMP_INSTRUCTION_PROMPT:-}" ]; then
+    echo "Setting AMP instruction prompt..."
+    mkdir -p "$HOME/.config"
+    echo "$ARG_AMP_INSTRUCTION_PROMPT" > "$HOME/.config/AGENTS.md"
+    echo "Instruction prompt saved to $HOME/.config/AGENTS.md"
   else
-    echo "No system prompt provided for Sourcegraph AMP."
+    echo "No instruction prompt provided for Sourcegraph AMP."
   fi
 }
 
@@ -91,11 +91,17 @@ function configure_amp_settings() {
   fi
 
   echo "Writing AMP configuration to $SETTINGS_PATH"
-  printf '%s\n' "$ARG_AMP_CONFIG" > "$SETTINGS_PATH"
+  UPDATED_CONFIG=$(echo "$ARG_AMP_CONFIG" | jq --arg token "$CODER_AGENT_TOKEN" --arg url "$CODER_AGENT_URL" \
+    ".[\"amp.mcpServers\"].coder.env += {
+      \"CODER_AGENT_TOKEN\": \"$CODER_AGENT_TOKEN\",
+      \"CODER_AGENT_URL\": \"$CODER_AGENT_URL\"
+    }")
+    printf "UPDATED_CONFIG: %s\n" "$UPDATED_CONFIG"
+  printf '%s\n' "$UPDATED_CONFIG" > "$SETTINGS_PATH"
 
   echo "AMP configuration complete"
 }
 
-install_sourcegraph_amp
-setup_system_prompt
+install_amp
+setup_instruction_prompt
 configure_amp_settings

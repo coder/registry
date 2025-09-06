@@ -36,45 +36,9 @@ variable "icon" {
   default     = "/icon/sourcegraph-amp.svg"
 }
 
-variable "folder" {
+variable "workdir" {
   type        = string
-  description = "The folder to run sourcegraph_amp in."
-}
-
-variable "install_sourcegraph_amp" {
-  type        = bool
-  description = "Whether to install sourcegraph-amp."
-  default     = true
-}
-
-variable "sourcegraph_amp_api_key" {
-  type        = string
-  description = "sourcegraph-amp API Key"
-  default     = ""
-}
-
-variable "sourcegraph_amp_version" {
-  type        = string
-  description = "The version of sourcegraph-amp to install."
-  default     = ""
-}
-
-variable "ai_prompt" {
-  type        = string
-  description = "Task prompt for the Amp CLI"
-  default     = ""
-}
-
-variable "system_prompt" {
-  type        = string
-  description = "System prompt for the Amp CLI"
-  default     = ""
-}
-
-resource "coder_env" "sourcegraph_amp_api_key" {
-  agent_id = var.agent_id
-  name     = "SOURCEGRAPH_AMP_API_KEY"
-  value    = var.sourcegraph_amp_api_key
+  description = "The folder to run AMP CLI in."
 }
 
 variable "install_agentapi" {
@@ -89,16 +53,78 @@ variable "agentapi_version" {
   default     = "v0.6.1"
 }
 
+variable "cli_app" {
+  type        = bool
+  description = "Whether to create a CLI app for Claude Code"
+  default     = false
+}
+
+variable "web_app_display_name" {
+  type        = string
+  description = "Display name for the web app"
+  default     = "Amp"
+}
+
+variable "cli_app_display_name" {
+  type        = string
+  description = "Display name for the CLI app"
+  default     = "Amp CLI"
+}
+
 variable "pre_install_script" {
   type        = string
-  description = "Custom script to run before installing sourcegraph_amp"
+  description = "Custom script to run before installing amp cli"
   default     = null
 }
 
 variable "post_install_script" {
   type        = string
-  description = "Custom script to run after installing sourcegraph_amp."
+  description = "Custom script to run after installing amp cli."
   default     = null
+}
+
+variable "report_tasks" {
+  type        = bool
+  description = "Whether to enable task reporting to Coder UI"
+  default     = true
+}
+
+# ------------------------------------------
+
+variable "install_amp" {
+  type        = bool
+  description = "Whether to install amp cli."
+  default     = true
+}
+
+variable "amp_api_key" {
+  type        = string
+  description = "amp cli API Key"
+  default     = ""
+}
+
+variable "amp_version" {
+  type        = string
+  description = "The version of amp cli to install."
+  default     = ""
+}
+
+variable "ai_prompt" {
+  type        = string
+  description = "Task prompt for the Amp CLI"
+  default     = ""
+}
+
+variable "instruction_prompt" {
+  type        = string
+  description = "Instruction prompt for the Amp CLI. https://ampcode.com/manual#AGENTS.md"
+  default     = ""
+}
+
+resource "coder_env" "amp_api_key" {
+  agent_id = var.agent_id
+  name     = "AMP_API_KEY"
+  value    = var.amp_api_key
 }
 
 variable "base_amp_config" {
@@ -119,10 +145,14 @@ variable "base_amp_config" {
   default     = ""
 }
 
-variable "additional_mcp_servers" {
+variable "mcp" {
   type        = string
   description = "Additional MCP servers configuration in JSON format to append to amp.mcpServers."
   default     = null
+}
+
+data "external" "env" {
+  program = ["sh", "-c", "echo '{\"CODER_AGENT_TOKEN\":\"'$CODER_AGENT_TOKEN'\",\"CODER_AGENT_URL\":\"'$CODER_AGENT_URL'\"}'"]
 }
 
 locals {
@@ -142,14 +172,16 @@ locals {
       "command" = "coder"
       "args"    = ["exp", "mcp", "server"]
       "env" = {
-        "CODER_MCP_APP_STATUS_SLUG" = local.app_slug
-        "CODER_MCP_AI_AGENTAPI_URL" = "http://localhost:3284"
+        "CODER_MCP_APP_STATUS_SLUG" = var.report_tasks == true ? local.app_slug : ""
+        "CODER_MCP_AI_AGENTAPI_URL" = var.report_tasks == true ? "http://localhost:3284" : ""
+        "CODER_AGENT_TOKEN"         = data.external.env.result.CODER_AGENT_TOKEN
+        "CODER_AGENT_URL"           = data.external.env.result.CODER_AGENT_URL
       }
       "type" = "stdio"
     }
   }
 
-  additional_mcp = var.additional_mcp_servers != null ? jsondecode(var.additional_mcp_servers) : {}
+  additional_mcp = var.mcp != null ? jsondecode(var.mcp) : {}
 
   merged_mcp_servers = merge(
     lookup(local.user_config, "amp.mcpServers", {}),
@@ -163,7 +195,7 @@ locals {
 
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
-  module_dir_name = ".sourcegraph-amp-module"
+  module_dir_name = ".amp-module"
 }
 
 module "agentapi" {
@@ -175,9 +207,10 @@ module "agentapi" {
   web_app_order        = var.order
   web_app_group        = var.group
   web_app_icon         = var.icon
-  web_app_display_name = "Sourcegraph Amp"
-  cli_app_slug         = "${local.app_slug}-cli"
-  cli_app_display_name = "Sourcegraph Amp CLI"
+  web_app_display_name = var.web_app_display_name
+  cli_app              = var.cli_app
+  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
+  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
@@ -190,9 +223,10 @@ module "agentapi" {
 
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
-     ARG_SOURCEGRAPH_AMP_API_KEY='${var.sourcegraph_amp_api_key}' \
-     ARG_SOURCEGRAPH_AMP_START_DIRECTORY='${var.folder}' \
-     ARG_SOURCEGRAPH_AMP_TASK_PROMPT='${var.ai_prompt}' \
+     ARG_AMP_API_KEY='${var.amp_api_key}' \
+     ARG_AMP_START_DIRECTORY='${var.workdir}' \
+     ARG_AMP_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
+     ARG_REPORT_TASKS='${var.report_tasks}' \
      /tmp/start.sh
    EOT
 
@@ -203,10 +237,10 @@ module "agentapi" {
 
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
-    ARG_INSTALL_SOURCEGRAPH_AMP='${var.install_sourcegraph_amp}' \
-    ARG_AMP_CONFIG="$(echo -n '${base64encode(jsonencode(local.final_config))}' | base64 -d)" \
-    ARG_AMP_VERSION='${var.sourcegraph_amp_version}' \
-    ARG_SOURCEGRAPH_AMP_SYSTEM_PROMPT='${var.system_prompt}' \
+    ARG_INSTALL_AMP='${var.install_amp}' \
+    ARG_AMP_CONFIG="${base64encode(jsonencode(local.final_config))}" \
+    ARG_AMP_VERSION='${var.amp_version}' \
+    ARG_AMP_INSTRUCTION_PROMPT='${base64encode(var.instruction_prompt)}' \
     /tmp/install.sh
   EOT
 }
