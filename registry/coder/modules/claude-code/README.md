@@ -99,13 +99,13 @@ module "claude-code" {
 
 The module can be further configured using environment variables set on the Coder agent. This allows for more advanced or dynamic setups.
 
-| Variable                         | Description                                                                   | Default                        |
-| -------------------------------- | ----------------------------------------------------------------------------- | ------------------------------ |
-| `CLAUDE_API_KEY`                 | Your Anthropic API key.                                                       | `""`                           |
-| `CODER_MCP_CLAUDE_SYSTEM_PROMPT` | A custom system prompt for Claude.                                            | "Send a task status update..." |
-| `CODER_MCP_CLAUDE_CODER_PROMPT`  | A custom coder prompt for Claude.                                             | `""`                           |
-| `CODER_MCP_CLAUDE_CONFIG_PATH`   | Path to the Claude configuration file.                                        | `~/.claude.json`               |
-| `CODER_MCP_CLAUDE_MD_PATH`       | Path to a `CLAUDE.md` file for project-specific instructions.                 | `~/.claude/CLAUDE.md`          |
+| Variable                         | Description                                                   | Default                        |
+| -------------------------------- | ------------------------------------------------------------- | ------------------------------ |
+| `CLAUDE_API_KEY`                 | Your Anthropic API key.                                       | `""`                           |
+| `CODER_MCP_CLAUDE_SYSTEM_PROMPT` | A custom system prompt for Claude.                            | "Send a task status update..." |
+| `CODER_MCP_CLAUDE_CODER_PROMPT`  | A custom coder prompt for Claude.                             | `""`                           |
+| `CODER_MCP_CLAUDE_CONFIG_PATH`   | Path to the Claude configuration file.                        | `~/.claude.json`               |
+| `CODER_MCP_CLAUDE_MD_PATH`       | Path to a `CLAUDE.md` file for project-specific instructions. | `~/.claude/CLAUDE.md`          |
 
 An example of setting these on a `coder_agent` resource:
 
@@ -138,7 +138,7 @@ cat ~/.claude-module/post_install.log
 ```
 
 > [!NOTE]
-> To use tasks with Claude Code, you must provide an `anthropic_api_key`. It's recommended to use a `coder_parameter` for the `task_prompt` to allow users to input tasks from the Coder UI. The `workdir` variable is required and specifies the directory where Claude Code will run.
+> To use tasks with Claude Code, you must provide an `anthropic_api_key` or `claude_code_oauth_token`. It's recommended to use a `coder_parameter` for the `task_prompt` to allow users to input tasks from the Coder UI. The `workdir` variable is required and specifies the directory where Claude Code will run.
 
 ## References
 
