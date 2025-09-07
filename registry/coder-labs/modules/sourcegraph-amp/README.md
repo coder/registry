@@ -2,7 +2,7 @@
 display_name: Amp
 icon: ../../../../.icons/sourcegraph-amp.svg
 description: Sourcegraph's AI coding agent with deep codebase understanding and intelligent code search capabilities
-verified: false
+verified: true
 tags: [agent, sourcegraph, amp, ai, tasks]
 ---
 
@@ -15,7 +15,7 @@ module "amp-cli" {
   source      = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
   version     = "2.0.0"
   agent_id    = coder_agent.example.id
-  amp_api_key = var.amp_api_key
+  amp_api_key = "xxxx-xxxx-xxxx"
   workdir     = "/home/coder/project"
 }
 ```
@@ -50,9 +50,8 @@ module "amp-cli" {
   install_amp        = true
   workdir            = "/home/coder/project"
   instruction_prompt = <<-EOT
-      You are an Amp assistant that helps developers debug and write code efficiently.
-
-      Always log task status to Coder.
+      # Instructions
+      - You are an Amp assistant that helps developers debug and write code efficiently.
 EOT
   ai_prompt          = data.coder_parameter.ai_prompt.value
   report_tasks       = true
