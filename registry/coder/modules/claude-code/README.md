@@ -106,7 +106,6 @@ The module can be further configured using environment variables set on the Code
 | `CODER_MCP_CLAUDE_CODER_PROMPT`  | A custom coder prompt for Claude.                                             | `""`                           |
 | `CODER_MCP_CLAUDE_CONFIG_PATH`   | Path to the Claude configuration file.                                        | `~/.claude.json`               |
 | `CODER_MCP_CLAUDE_MD_PATH`       | Path to a `CLAUDE.md` file for project-specific instructions.                 | `~/.claude/CLAUDE.md`          |
-| `CLAUDE_CODE_USE_BEDROCK`        | Set to `"true"` to use Amazon Bedrock. Requires additional AWS configuration. | `""`                           |
 
 An example of setting these on a `coder_agent` resource:
 
