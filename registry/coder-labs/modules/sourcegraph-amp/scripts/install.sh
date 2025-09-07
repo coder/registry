@@ -96,7 +96,7 @@ function configure_amp_settings() {
       \"CODER_AGENT_TOKEN\": \"$CODER_AGENT_TOKEN\",
       \"CODER_AGENT_URL\": \"$CODER_AGENT_URL\"
     }")
-    printf "UPDATED_CONFIG: %s\n" "$UPDATED_CONFIG"
+  printf "UPDATED_CONFIG: %s\n" "$UPDATED_CONFIG"
   printf '%s\n' "$UPDATED_CONFIG" > "$SETTINGS_PATH"
 
   echo "AMP configuration complete"

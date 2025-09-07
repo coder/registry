@@ -49,7 +49,6 @@ else
   printf "amp_api_key not provided\n"
 fi
 
-
 if [ -n "$ARG_AMP_TASK_PROMPT" ]; then
   if [ "$ARG_REPORT_TASKS" == "true" ]; then
     printf "amp task prompt provided : %s" "$ARG_AMP_TASK_PROMPT\n"

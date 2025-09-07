@@ -160,14 +160,11 @@ describe("amp", async () => {
     const prompt = "this is a instruction prompt for AMP";
     const { id } = await setup({
       moduleVariables: {
-        instruction_prompt: prompt
-      }
+        instruction_prompt: prompt,
+      },
     });
     await execModuleScript(id);
-    const resp = await readFileContainer(
-      id,
-      "/home/coder/.config/AGENTS.md",
-    );
+    const resp = await readFileContainer(id, "/home/coder/.config/AGENTS.md");
     expect(resp).toContain(prompt);
   });
 
@@ -175,8 +172,8 @@ describe("amp", async () => {
     const prompt = "this is a task prompt for AMP";
     const { id } = await setup({
       moduleVariables: {
-        ai_prompt: prompt
-      }
+        ai_prompt: prompt,
+      },
     });
     await execModuleScript(id);
     const resp = await readFileContainer(
