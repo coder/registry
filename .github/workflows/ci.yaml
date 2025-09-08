@@ -48,7 +48,7 @@ jobs:
       - name: Validate formatting
         run: bun fmt:ci
       - name: Check for typos
-        uses: crate-ci/typos@v1.35.5
+        uses: crate-ci/typos@v1.36.2
         with:
           config: .github/typos.toml
   validate-readme-files:
@@ -61,7 +61,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v5
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.23.2"
       - name: Validate contributors
