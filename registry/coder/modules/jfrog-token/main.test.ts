@@ -187,4 +187,39 @@ EOF`;
       'if [ -z "YES" ]; then\n  not_configured conda',
     );
   });
+  it("generates a maven settings.xml with multiple repos", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "some-agent-id",
+      jfrog_url: fakeFrogUrl,
+      artifactory_access_token: "XXXX",
+      package_managers: JSON.stringify({
+        maven: ["central", "snapshots", "local"],
+      }),
+    });
+
+    const coderScript = findResourceInstance(state, "coder_script");
+
+    expect(coderScript.script).toContain(
+      'jf mvnc --global --repo-resolve "central"',
+    );
+
+    expect(coderScript.script).toContain("<servers>");
+    expect(coderScript.script).toContain("<id>central</id>");
+    expect(coderScript.script).toContain("<id>snapshots</id>");
+    expect(coderScript.script).toContain("<id>local</id>");
+
+    expect(coderScript.script).toContain(
+      `<url>${fakeFrogUrl}/artifactory/central</url>`,
+    );
+    expect(coderScript.script).toContain(
+      `<url>${fakeFrogUrl}/artifactory/snapshots</url>`,
+    );
+    expect(coderScript.script).toContain(
+      `<url>${fakeFrogUrl}/artifactory/local</url>`,
+    );
+
+    expect(coderScript.script).toContain(
+      'if [ -z "YES" ]; then\n  not_configured maven',
+    );
+  });
 });
