@@ -286,4 +286,25 @@ describe("claude-code", async () => {
     ]);
     expect(startLog.stdout).toContain(`--dangerously-skip-permissions`);
   });
+
+  test("subdomain-false", async () => {
+    const { id } = await setup({
+      skipAgentAPIMock: true,
+      moduleVariables: {
+        subdomain: "false",
+        post_install_script: dedent`
+        #!/bin/bash
+        env | grep AGENTAPI_CHAT_BASE_PATH || echo "AGENTAPI_CHAT_BASE_PATH not found"
+        `
+      },
+    });
+
+    await execModuleScript(id);
+      const startLog = await execContainer(id, [
+        "bash",
+        "-c",
+        "cat /home/coder/.claude-module/post_install.log",
+      ]);
+    expect(startLog.stdout).toContain("ARG_AGENTAPI_CHAT_BASE_PATH=/@default/default.foo/apps/ccw/chat");
+  });
 });

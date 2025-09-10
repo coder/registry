@@ -95,6 +95,12 @@ variable "ai_prompt" {
   default     = ""
 }
 
+variable "subdomain" {
+  type        = bool
+  description = "Whether to use a subdomain for AgentAPI."
+  default     = true
+}
+
 # ---------------------------------------------------------------
 
 variable "install_claude_code" {
@@ -214,6 +220,7 @@ module "agentapi" {
   cli_app              = var.cli_app
   cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
   cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
+  agentapi_subdomain   = var.subdomain
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
