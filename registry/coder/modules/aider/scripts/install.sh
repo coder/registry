@@ -17,7 +17,7 @@ function install_aider() {
   echo "pipx installed!"
   pipx ensurepath
   mkdir -p "$AIDER_START_DIRECTORY/.local/bin"
-  export PATH="$HOME/.local/bin:$AIDER_START_DIRECTORY/.local/bin:$PATH" # ensure in current shell too
+  export PATH="$HOME/.local/bin:$AIDER_START_DIRECTORY/.local/bin:$PATH"
 
   if ! command_exists aider; then
     echo "Installing Aider via pipx..."
