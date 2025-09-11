@@ -219,6 +219,16 @@ locals {
   compartment_id = local.effective_compartment_ocid
 }
 
+# Early, friendly validation to avoid opaque 401s from the OCI APIs
+resource "null_resource" "validate_configuration" {
+  lifecycle {
+    precondition {
+      condition     = length(trimspace(local.compartment_id)) > 0
+      error_message = "Provide either 'compartment_ocid' or 'tenancy_ocid'. For containerized coderd, set TF_VAR_tenancy_ocid or mount ~/.oci/config and set OCI_* envs."
+    }
+  }
+}
+
 # Get the latest Ubuntu image
 data "oci_core_images" "ubuntu" {
   compartment_id           = local.compartment_id

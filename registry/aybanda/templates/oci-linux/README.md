@@ -17,8 +17,8 @@ Provision Oracle Cloud Infrastructure (OCI) VMs as [Coder workspaces](https://co
 This template assumes that coderd is run in an environment that is authenticated with Oracle Cloud Infrastructure. The recommended authentication methods are:
 
 1. **Instance Principal** (Recommended for production): Run Coder on an OCI instance with proper IAM policies
-2. **API Key**: Set environment variables `OCI_TENANCY_OCID`, `OCI_USER_OCID`, `OCI_FINGERPRINT`, and `OCI_PRIVATE_KEY_PATH`. If running coderd/provisioner in a container, ensure the private key file path is mounted into the container so it is accessible at the specified path.
-3. **Configuration File**: Use `~/.oci/config` file (mount into the container if coderd runs in a container)
+2. **API Key**: Set env vars `OCI_TENANCY_OCID`, `OCI_USER_OCID`, `OCI_FINGERPRINT`, `OCI_PRIVATE_KEY_PATH`. If coderd/provisioner runs in a container, mount the private key path into the container.
+3. **Configuration File**: Use `~/.oci/config` (mount into the container if coderd runs in a container)
 
 For detailed authentication setup, see the [OCI Terraform provider documentation](https://registry.terraform.io/providers/oracle/oci/latest/docs#authentication).
 
@@ -92,7 +92,7 @@ The template uses Ubuntu 22.04 LTS as the base image and includes:
 
 1. **Set up authentication** using one of the methods above
 2. **Create a compartment** in your OCI tenancy
-3. **Deploy the template** (if you omit `compartment_ocid`, the tenancy/root compartment will be used)
+3. **Deploy the template** (if you omit `compartment_ocid`, set `TF_VAR_tenancy_ocid` to your tenancy OCID so the root compartment is used)
 
 ### Template Variables
 
@@ -139,6 +139,8 @@ The template supports all major OCI regions:
 ### Common Issues
 
 1. **Authentication Errors**: Ensure proper OCI authentication is configured
+   - If not using Instance Principals, set `TF_VAR_tenancy_ocid` (or `compartment_ocid`) and OCI env vars
+   - For containers, mount `OCI_PRIVATE_KEY_PATH` and/or `~/.oci/config` into the provisioner container
 2. **Permission Errors**: Verify IAM policies are correctly set
 3. **Network Issues**: Check VCN and security list configuration
 4. **Volume Attachment**: Ensure the home volume is properly attached
