@@ -14,12 +14,13 @@ terraform {
 
 # Variables
 variable "compartment_ocid" {
-  description = "The OCID of the compartment to create resources in"
+  description = "The OCID of the compartment to create resources in. If empty, defaults to tenancy OCID (root compartment)."
   type        = string
+  default     = ""
 }
 
-variable "ssh_public_key" {
-  description = "SSH public key for the instance"
+variable "tenancy_ocid" {
+  description = "Tenancy OCID used as the root compartment when compartment_ocid is unset. Typically set from environment (OCI_TENANCY_OCID)."
   type        = string
   default     = ""
 }
@@ -123,7 +124,7 @@ data "coder_parameter" "instance_shape" {
   name         = "instance_shape"
   display_name = "Instance Shape"
   description  = "What instance shape should your workspace use?"
-  default      = "VM.Standard.A1.Flex"
+  default      = "VM.Standard.E2.1.Micro"
   mutable      = false
   option {
     name  = "VM.Standard.A1.Flex (1 OCPU, 6 GB RAM)"
@@ -208,16 +209,19 @@ provider "oci" {
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
-# Get the compartment OCID from environment variable
-data "oci_identity_compartments" "compartments" {
-  compartment_id = var.compartment_ocid
-  access_level   = "ACCESSIBLE"
-  state          = "ACTIVE"
+# Determine effective compartment (defaults to tenancy/root when not provided)
+locals {
+  effective_compartment_ocid = length(trimspace(var.compartment_ocid)) > 0 ? var.compartment_ocid : var.tenancy_ocid
+}
+
+# Validate we have an effective compartment id
+locals {
+  compartment_id = local.effective_compartment_ocid
 }
 
 # Get the latest Ubuntu image
 data "oci_core_images" "ubuntu" {
-  compartment_id           = var.compartment_ocid
+  compartment_id           = local.compartment_id
   operating_system         = "Canonical Ubuntu"
   operating_system_version = "22.04"
   state                    = "AVAILABLE"
@@ -320,7 +324,6 @@ data "cloudinit_config" "user_data" {
     content = templatefile("${path.module}/cloud-init/cloud-config.yaml.tftpl", {
       hostname          = local.hostname
       linux_user        = local.linux_user
-      ssh_public_key    = var.ssh_public_key
       coder_agent_token = coder_agent.dev[0].token
     })
   }
@@ -332,7 +335,6 @@ data "cloudinit_config" "user_data" {
     content = templatefile("${path.module}/cloud-init/userdata.sh.tftpl", {
       hostname          = local.hostname
       linux_user        = local.linux_user
-      ssh_public_key    = var.ssh_public_key
       coder_agent_token = coder_agent.dev[0].token
     })
   }
@@ -340,7 +342,7 @@ data "cloudinit_config" "user_data" {
 
 # VCN
 resource "oci_core_vcn" "vcn" {
-  compartment_id = var.compartment_ocid
+  compartment_id = local.compartment_id
   cidr_blocks    = ["10.0.0.0/16"]
   display_name   = "coder-vcn-${data.coder_workspace.me.id}"
   dns_label      = "coder${data.coder_workspace.me.id}"
@@ -348,14 +350,14 @@ resource "oci_core_vcn" "vcn" {
 
 # Internet Gateway
 resource "oci_core_internet_gateway" "internet_gateway" {
-  compartment_id = var.compartment_ocid
+  compartment_id = local.compartment_id
   vcn_id         = oci_core_vcn.vcn.id
   display_name   = "coder-internet-gateway-${data.coder_workspace.me.id}"
 }
 
 # Route Table
 resource "oci_core_route_table" "route_table" {
-  compartment_id = var.compartment_ocid
+  compartment_id = local.compartment_id
   vcn_id         = oci_core_vcn.vcn.id
   display_name   = "coder-route-table-${data.coder_workspace.me.id}"
 
@@ -368,23 +370,13 @@ resource "oci_core_route_table" "route_table" {
 
 # Security List
 resource "oci_core_security_list" "security_list" {
-  compartment_id = var.compartment_ocid
+  compartment_id = local.compartment_id
   vcn_id         = oci_core_vcn.vcn.id
   display_name   = "coder-security-list-${data.coder_workspace.me.id}"
 
   egress_security_rules {
     destination = "0.0.0.0/0"
     protocol    = "all"
-  }
-
-  ingress_security_rules {
-    protocol = "6"
-    source   = "0.0.0.0/0"
-
-    tcp_options {
-      min = 22
-      max = 22
-    }
   }
 
   ingress_security_rules {
@@ -410,7 +402,7 @@ resource "oci_core_security_list" "security_list" {
 
 # Subnet
 resource "oci_core_subnet" "subnet" {
-  compartment_id = var.compartment_ocid
+  compartment_id = local.compartment_id
   vcn_id         = oci_core_vcn.vcn.id
   cidr_block     = "10.0.1.0/24"
   display_name   = "coder-subnet-${data.coder_workspace.me.id}"
@@ -422,7 +414,7 @@ resource "oci_core_subnet" "subnet" {
 
 # Home disk
 resource "oci_core_volume" "home_volume" {
-  compartment_id      = var.compartment_ocid
+  compartment_id      = local.compartment_id
   display_name        = "coder-${data.coder_workspace.me.id}-home"
   size_in_gbs         = data.coder_parameter.home_size.value
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
@@ -430,14 +422,14 @@ resource "oci_core_volume" "home_volume" {
 
 # Get availability domains
 data "oci_identity_availability_domains" "ads" {
-  compartment_id = var.compartment_ocid
+  compartment_id = local.compartment_id
 }
 
 # OCI Instance
 resource "oci_core_instance" "dev" {
   count               = data.coder_workspace.me.start_count
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
-  compartment_id      = var.compartment_ocid
+  compartment_id      = local.compartment_id
   display_name        = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
   shape               = local.base_shape
 
@@ -460,7 +452,6 @@ resource "oci_core_instance" "dev" {
   }
 
   metadata = {
-    ssh_authorized_keys = var.ssh_public_key
     user_data           = base64encode(data.cloudinit_config.user_data.rendered)
   }
 
@@ -473,7 +464,7 @@ resource "oci_core_instance" "dev" {
 resource "oci_core_volume_attachment" "home_attachment" {
   count           = data.coder_workspace.me.start_count
   attachment_type = "paravirtualized"
-  compartment_id  = var.compartment_ocid
+  compartment_id  = local.compartment_id
   instance_id     = oci_core_instance.dev[0].id
   volume_id       = oci_core_volume.home_volume.id
 }

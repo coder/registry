@@ -14,14 +14,7 @@ fi
 mkdir -p /opt/coder
 mkdir -p /home/${linux_user}
 
-# Set up SSH key if provided
-if [ -n "${ssh_public_key}" ]; then
-    mkdir -p /home/${linux_user}/.ssh
-    echo "${ssh_public_key}" >> /home/${linux_user}/.ssh/authorized_keys
-    chown -R ${linux_user}:${linux_user} /home/${linux_user}/.ssh
-    chmod 700 /home/${linux_user}/.ssh
-    chmod 600 /home/${linux_user}/.ssh/authorized_keys
-fi
+# SSH key management is handled by Coder agent; no direct SSH key injection
 
 # Mount home volume if it exists
 if [ -b /dev/sdb ]; then

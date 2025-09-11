@@ -17,8 +17,8 @@ Provision Oracle Cloud Infrastructure (OCI) VMs as [Coder workspaces](https://co
 This template assumes that coderd is run in an environment that is authenticated with Oracle Cloud Infrastructure. The recommended authentication methods are:
 
 1. **Instance Principal** (Recommended for production): Run Coder on an OCI instance with proper IAM policies
-2. **API Key**: Set environment variables `OCI_TENANCY_OCID`, `OCI_USER_OCID`, `OCI_FINGERPRINT`, and `OCI_PRIVATE_KEY_PATH`
-3. **Configuration File**: Use `~/.oci/config` file
+2. **API Key**: Set environment variables `OCI_TENANCY_OCID`, `OCI_USER_OCID`, `OCI_FINGERPRINT`, and `OCI_PRIVATE_KEY_PATH`. If running coderd/provisioner in a container, ensure the private key file path is mounted into the container so it is accessible at the specified path.
+3. **Configuration File**: Use `~/.oci/config` file (mount into the container if coderd runs in a container)
 
 For detailed authentication setup, see the [OCI Terraform provider documentation](https://registry.terraform.io/providers/oracle/oci/latest/docs#authentication).
 
@@ -92,8 +92,7 @@ The template uses Ubuntu 22.04 LTS as the base image and includes:
 
 1. **Set up authentication** using one of the methods above
 2. **Create a compartment** in your OCI tenancy
-3. **Deploy the template** with your compartment OCID
-4. **Optionally provide an SSH public key** for direct SSH access
+3. **Deploy the template** (if you omit `compartment_ocid`, the tenancy/root compartment will be used)
 
 ### Template Variables
 

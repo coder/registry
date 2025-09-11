@@ -9,8 +9,7 @@ users:
       - curl
     shell: /bin/bash
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
-    ssh_authorized_keys:
-      - ${ssh_public_key}
+    ssh_authorized_keys: []
 
 # Update package list and install basic packages
 package_update: true
