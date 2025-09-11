@@ -48,10 +48,11 @@ module "aider" {
   agent_id         = coder_agent.example.id
   credentials      = var.gemini_api_key
   install_aider    = true
+  workdir          = "/home/coder"
   ai_provider      = "google"
   model            = "gemini"
   install_agentapi = true
-  task_prompt      = data.coder_parameter.ai_prompt.value
+  ai_prompt        = data.coder_parameter.ai_prompt.value
   system_prompt    = "..."
 }
 ```

@@ -100,10 +100,10 @@ describe("Aider", async () => {
   });
 
   test("custom-folder", async () => {
-    const folder = "/tmp/aider-test";
+    const workdir = "/tmp/aider-test";
     const { id } = await setup({
       moduleVariables: {
-        folder,
+        workdir,
         model: "gemini",
       },
     });
@@ -112,15 +112,14 @@ describe("Aider", async () => {
       id,
       "/home/coder/.aider-module/install.log",
     );
-    expect(resp).toContain(folder);
+    expect(resp).toContain(workdir);
   });
 
   test("pre-post-install-scripts", async () => {
     const { id } = await setup({
       moduleVariables: {
-        experiment_pre_install_script: "#!/bin/bash\necho 'pre-install-script'",
-        experiment_post_install_script:
-          "#!/bin/bash\necho 'post-install-script'",
+        pre_install_script: "#!/bin/bash\necho 'pre-install-script'",
+        post_install_script: "#!/bin/bash\necho 'post-install-script'",
         model: "gemini",
       },
     });
@@ -163,7 +162,7 @@ describe("Aider", async () => {
       },
     });
     await execModuleScript(id, {
-      ARG_TASK_PROMPT: `${prompt}`,
+      ARG_AI_PROMPT: `${prompt}`,
     });
     const resp = await readFileContainer(
       id,

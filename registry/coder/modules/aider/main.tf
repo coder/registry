@@ -36,21 +36,76 @@ variable "icon" {
   default     = "/icon/aider.svg"
 }
 
-variable "folder" {
+variable "workdir" {
   type        = string
   description = "The folder to run Aider in."
   default     = "/home/coder"
 }
 
-variable "install_aider" {
+variable "report_tasks" {
   type        = bool
-  description = "Whether to install Aider."
+  description = "Whether to enable task reporting to Coder UI via AgentAPI"
   default     = true
 }
 
-variable "experiment_report_tasks" {
+variable "cli_app" {
   type        = bool
-  description = "Whether to enable task reporting."
+  description = "Whether to create a CLI app for Aider"
+  default     = false
+}
+
+variable "web_app_display_name" {
+  type        = string
+  description = "Display name for the web app"
+  default     = "Aider"
+}
+
+variable "cli_app_display_name" {
+  type        = string
+  description = "Display name for the CLI app"
+  default     = "Aider CLI"
+}
+
+variable "pre_install_script" {
+  type        = string
+  description = "Custom script to run before installing Aider."
+  default     = null
+}
+
+variable "post_install_script" {
+  type        = string
+  description = "Custom script to run after installing Aider."
+  default     = null
+}
+
+variable "install_agentapi" {
+  type        = bool
+  description = "Whether to install AgentAPI."
+  default     = true
+}
+
+variable "agentapi_version" {
+  type        = string
+  description = "The version of AgentAPI to install."
+  default     = "v0.6.3"
+}
+
+variable "ai_prompt" {
+  type        = string
+  description = "Initial task prompt for Claude Code."
+  default     = ""
+}
+
+resource "coder_env" "ai_prompt" {
+  agent_id = var.agent_id
+  name     = "ARG_AI_PROMPT"
+  value    = var.ai_prompt
+}
+# ---------------------------------------------
+
+variable "install_aider" {
+  type        = bool
+  description = "Whether to install Aider."
   default     = true
 }
 
@@ -74,24 +129,6 @@ variable "system_prompt" {
     - Include clear and actionable steps for the user.
     - Be less than 160 characters in length.
   EOT
-}
-
-variable "aider_prompt" {
-  type        = bool
-  description = "This prompt will be sent to Aider and should run only once, and AgentAPI will be disabled."
-  default     = false
-}
-
-variable "experiment_pre_install_script" {
-  type        = string
-  description = "Custom script to run before installing Aider."
-  default     = null
-}
-
-variable "experiment_post_install_script" {
-  type        = string
-  description = "Custom script to run after installing Aider."
-  default     = null
 }
 
 variable "experiment_additional_extensions" {
@@ -126,30 +163,6 @@ variable "custom_env_var_name" {
   type        = string
   description = "Custom environment variable name when using custom provider"
   default     = ""
-}
-
-variable "install_agentapi" {
-  type        = bool
-  description = "Whether to install AgentAPI."
-  default     = true
-}
-
-variable "agentapi_version" {
-  type        = string
-  description = "The version of AgentAPI to install."
-  default     = "v0.6.3"
-}
-
-variable "task_prompt" {
-  type        = string
-  description = "Task prompt to use with Aider"
-  default     = ""
-}
-
-resource "coder_env" "ai_prompt" {
-  agent_id = var.agent_id
-  name     = "ARG_TASK_PROMPT"
-  value    = var.task_prompt
 }
 
 variable "base_aider_config" {
@@ -243,21 +256,22 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.0.1"
+  version = "1.1.1"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
   web_app_order        = var.order
   web_app_group        = var.group
   web_app_icon         = var.icon
-  web_app_display_name = "Aider"
-  cli_app_slug         = "${local.app_slug}-cli"
-  cli_app_display_name = "Aider CLI"
+  web_app_display_name = var.web_app_display_name
+  cli_app              = var.cli_app
+  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
+  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
-  pre_install_script   = var.experiment_pre_install_script
-  post_install_script  = var.experiment_post_install_script
+  pre_install_script   = var.pre_install_script
+  post_install_script  = var.post_install_script
   start_script         = <<-EOT
     #!/bin/bash
     set -o errexit
@@ -265,12 +279,11 @@ module "agentapi" {
 
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
     chmod +x /tmp/start.sh   
-    AIDER_START_DIRECTORY='${var.folder}' \
-    ARG_API_KEY='${var.credentials}' \
+    AIDER_START_DIRECTORY='${var.workdir}' \
+    ARG_API_KEY='${base64encode(var.credentials)}' \
     ARG_MODEL='${var.model}' \
     ARG_PROVIDER='${var.ai_provider}' \
     ARG_ENV_API_NAME_HOLDER='${local.env_var_name}' \
-    AIDER_PROMPT='${var.aider_prompt}' \
     /tmp/start.sh
   EOT
 
@@ -281,10 +294,10 @@ module "agentapi" {
 
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
-    AIDER_START_DIRECTORY='${var.folder}' \
+    AIDER_START_DIRECTORY='${var.workdir}' \
     ARG_INSTALL_AIDER='${var.install_aider}' \
     AIDER_SYSTEM_PROMPT='${var.system_prompt}' \
-    ARG_IMPLEMENT_MCP='${var.experiment_report_tasks}' \
+    ARG_REPORT_TASKS='${var.report_tasks}' \
     ARG_AIDER_CONFIG="$(echo -n '${base64encode(trimspace(local.combined_extensions))}' | base64 -d)" \
     /tmp/install.sh
   EOT

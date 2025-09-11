@@ -6,6 +6,13 @@ command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
 
+# Inputs
+AIDER_START_DIRECTORY=${AIDER_START_DIRECTORY:-/home/coder}
+ARG_INSTALL_AIDER=${ARG_INSTALL_AIDER:-true}
+AIDER_SYSTEM_PROMPT=${AIDER_SYSTEM_PROMPT:-}
+ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
+ARG_AIDER_CONFIG=${ARG_AIDER_CONFIG:-}
+
 echo "--------------------------------"
 echo "Install flag: $ARG_INSTALL_AIDER"
 echo "Workspace: $AIDER_START_DIRECTORY"
@@ -39,7 +46,7 @@ function setup_system_prompt() {
 }
 
 function configure_aider_settings() {
-  if [ "${ARG_IMPLEMENT_MCP}" = "true" ]; then
+  if [ "${ARG_REPORT_TASKS}" = "true" ]; then
     echo "Configuring Aider to report tasks via Coder MCP..."
 
     mkdir -p "$HOME/.config/aider"
