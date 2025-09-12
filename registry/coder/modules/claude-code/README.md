@@ -13,7 +13,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "2.2.0"
+  version             = "2.2.1"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
@@ -83,7 +83,7 @@ resource "coder_agent" "main" {
 module "claude-code" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "2.2.0"
+  version             = "2.2.1"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
@@ -101,7 +101,7 @@ Run Claude Code as a standalone app in your workspace. This will install Claude 
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "2.2.0"
+  version             = "2.2.1"
   agent_id            = coder_agent.example.id
   folder              = "/home/coder"
   install_claude_code = true
@@ -113,5 +113,7 @@ module "claude-code" {
 ```
 
 ## Troubleshooting
+
+By default, this module is configured to run the embedded chat interface as a path-based application. In production, we recommend that you configure a [wildcard access URL](https://coder.com/docs/admin/setup#wildcard-access-url) and set `subdomain = true`. See [here](https://coder.com/docs/tutorials/best-practices/security-best-practices#disable-path-based-apps) for more details.
 
 The module will create log files in the workspace's `~/.claude-module` directory. If you run into any issues, look at them for more information.
