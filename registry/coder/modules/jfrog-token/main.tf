@@ -91,6 +91,8 @@ variable "package_managers" {
     go     = optional(list(string), [])
     pypi   = optional(list(string), [])
     docker = optional(list(string), [])
+    conda  = optional(list(string), [])
+    maven  = optional(list(string), [])
   })
   description = <<-EOF
     A map of package manager names to their respective artifactory repositories. Unused package managers can be omitted.
@@ -100,6 +102,8 @@ variable "package_managers" {
         go     = ["YOUR_GO_REPO_KEY", "ANOTHER_GO_REPO_KEY"]
         pypi   = ["YOUR_PYPI_REPO_KEY", "ANOTHER_PYPI_REPO_KEY"]
         docker = ["YOUR_DOCKER_REPO_KEY", "ANOTHER_DOCKER_REPO_KEY"]
+        conda  = ["YOUR_CONDA_REPO_KEY", "ANOTHER_CONDA_REPO_KEY"]
+        maven  = ["YOUR_MAVEN_REPO_KEY", "ANOTHER_MAVEN_REPO_KEY"]
       }
   EOF
 }
@@ -130,6 +134,12 @@ locals {
   )
   pip_conf = templatefile(
     "${path.module}/pip.conf.tftpl", merge(local.common_values, { REPOS = var.package_managers.pypi })
+  )
+  conda_conf = templatefile(
+    "${path.module}/conda.conf.tftpl", merge(local.common_values, { REPOS = var.package_managers.conda })
+  )
+  maven_settings = templatefile(
+    "${path.module}/settings.xml.tftpl", merge(local.common_values, { REPOS = var.package_managers.maven })
   )
 }
 
@@ -171,6 +181,12 @@ resource "coder_script" "jfrog" {
       REPOSITORY_PYPI       = try(element(var.package_managers.pypi, 0), "")
       HAS_DOCKER            = length(var.package_managers.docker) == 0 ? "" : "YES"
       REGISTER_DOCKER       = join("\n", formatlist("register_docker \"%s\"", var.package_managers.docker))
+      HAS_CONDA             = length(var.package_managers.conda) == 0 ? "" : "YES"
+      CONDA_CONF            = local.conda_conf
+      REPOSITORY_CONDA      = try(element(var.package_managers.conda, 0), "")
+      HAS_MAVEN             = length(var.package_managers.maven) == 0 ? "" : "YES"
+      MAVEN_SETTINGS        = local.maven_settings
+      REPOSITORY_MAVEN      = try(element(var.package_managers.maven, 0), "")
     }
   ))
   run_on_start = true
