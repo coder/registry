@@ -8,34 +8,33 @@ RESET='\033[0m'
 printf "$${BOLD}Starting Nextflow...$${RESET}\n"
 
 if ! command -v nextflow > /dev/null 2>&1; then
-    # Update system dependencies
-    sudo apt update
-    sudo apt install openjdk-18-jdk -y
-    sudo apt install salmon fastqc multiqc -y
+  # Update system dependencies
+  sudo apt update
+  sudo apt install openjdk-18-jdk -y
+  sudo apt install salmon fastqc multiqc -y
 
-    # Install nextflow
-    export NXF_VER=${NEXTFLOW_VERSION}
-    curl -s https://get.nextflow.io | bash
-    sudo mv nextflow /usr/local/bin/
-    sudo chmod +x /usr/local/bin/nextflow
+  # Install nextflow
+  export NXF_VER=${NEXTFLOW_VERSION}
+  curl -s https://get.nextflow.io | bash
+  sudo mv nextflow /usr/local/bin/
+  sudo chmod +x /usr/local/bin/nextflow
 
-    # Verify installation
-    tmp_verify=`mktemp -d coder-nextflow-XXXXXX`
-    nextflow run hello \
-        -with-report "$$tmp_verify/report.html" \
-        -with-trace "$$tmp_verify/trace.txt" \
-        -with-timeline "$$tmp_verify/timeline.html" \
-        -with-dag "$$tmp_verify/flowchart.png"
-    rm -f "$$tmp_verify"
+  # Verify installation
+  tmp_verify=$(mktemp -d coder-nextflow-XXXXXX)
+  nextflow run hello \
+    -with-report "$$tmp_verify/report.html" \
+    -with-trace "$$tmp_verify/trace.txt" \
+    -with-timeline "$$tmp_verify/timeline.html" \
+    -with-dag "$$tmp_verify/flowchart.png"
+  rm -f "$$tmp_verify"
 else
-    echo "Nextflow is already installed\n\n"
+  echo "Nextflow is already installed\n\n"
 fi
 
-if [ ! -z ${PROJECT_PATH} ]
-then
-    # Project is located at PROJECT_PATH
-    echo "Change directory: ${PROJECT_PATH}"
-    cd ${PROJECT_PATH}
+if [ ! -z ${PROJECT_PATH} ]; then
+  # Project is located at PROJECT_PATH
+  echo "Change directory: ${PROJECT_PATH}"
+  cd ${PROJECT_PATH}
 fi
 
 # Start a web server to preview reports
@@ -43,11 +42,8 @@ mkdir -p ${HTTP_SERVER_REPORTS_DIR}
 python3 -m http.server --directory ${HTTP_SERVER_REPORTS_DIR} ${HTTP_SERVER_PORT}
 
 # Stub run?
-if [ "${STUB_RUN}" = "true" ]
-then
-    nextflow ${STUB_RUN_COMMAND} -stub-run
+if [ "${STUB_RUN}" = "true" ]; then
+  nextflow ${STUB_RUN_COMMAND} -stub-run
 fi
 
 printf "\n$${BOLD}Nextflow ${NEXTFLOW_VERSION} is ready. HTTP server is listening on port ${HTTP_SERVER_PORT}$${RESET}\n"
-
-
