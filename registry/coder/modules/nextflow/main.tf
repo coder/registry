@@ -33,7 +33,7 @@ variable "http_server_port" {
 }
 
 variable "http_server_reports_dir" {
-  type        = number
+  type        = string
   description = "Subdirectory for HTTP server reports, relative to the project path."
   default     = "reports"
 }

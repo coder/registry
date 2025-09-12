@@ -20,7 +20,7 @@ if ! command -v nextflow > /dev/null 2>&1; then
     sudo chmod +x /usr/local/bin/nextflow
 
     # Verify installation
-    tmp_verify=$$(mktemp -d coder-nextflow-XXXXXX)
+    tmp_verify=`mktemp -d coder-nextflow-XXXXXX`
     nextflow run hello \
         -with-report "$$tmp_verify/report.html" \
         -with-trace "$$tmp_verify/trace.txt" \
