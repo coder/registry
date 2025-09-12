@@ -3,7 +3,7 @@ display_name: Nextflow
 description: A module that adds Nextflow to your Coder template.
 icon: ../../../../.icons/nextflow.svg
 verified: true
-tags: [nextflow, worfklow, hpc, bioinformatics]
+tags: [nextflow, workflow, hpc, bioinformatics]
 ---
 
 # Nextflow
