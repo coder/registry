@@ -2,6 +2,7 @@ import {
   test,
   afterEach,
   describe,
+  it,
   setDefaultTimeout,
   beforeAll,
   expect,
@@ -253,22 +254,41 @@ describe("goose", async () => {
     expect(prompt.stderr).toContain("No such file or directory");
   });
 
-  test("subdomain-false", async () => {
-    const { id } = await setup({
-      agentapiMockScript: await loadTestFile(
-        import.meta.dir,
-        "agentapi-mock-print-args.js",
-      ),
-      moduleVariables: {
-        subdomain: "false",
-      },
+  describe("subdomain", async () => {
+    it("sets AGENTAPI_CHAT_BASE_PATH when false", async () => {
+      const { id } = await setup({
+        agentapiMockScript: await loadTestFile(
+          import.meta.dir,
+          "agentapi-mock-print-args.js",
+        ),
+        moduleVariables: {
+          subdomain: "false",
+        },
+      });
+
+      await execModuleScript(id);
+
+      const agentapiMockOutput = await readFileContainer(id, agentapiStartLog);
+      expect(agentapiMockOutput).toContain(
+        "AGENTAPI_CHAT_BASE_PATH=/@default/default.foo/apps/goose/chat",
+      );
     });
 
-    await execModuleScript(id);
+    it("does not set AGENTAPI_CHAT_BASE_PATH when true", async () => {
+      const { id } = await setup({
+        agentapiMockScript: await loadTestFile(
+          import.meta.dir,
+          "agentapi-mock-print-args.js",
+        ),
+        moduleVariables: {
+          subdomain: "true",
+        },
+      });
 
-    const agentapiMockOutput = await readFileContainer(id, agentapiStartLog);
-    expect(agentapiMockOutput).toContain(
-      "AGENTAPI_CHAT_BASE_PATH=/@default/default.foo/apps/goose/chat",
-    );
+      await execModuleScript(id);
+
+      const agentapiMockOutput = await readFileContainer(id, agentapiStartLog);
+      expect(agentapiMockOutput).toMatch(/AGENTAPI_CHAT_BASE_PATH=$/m);
+    });
   });
 });
