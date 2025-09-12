@@ -47,14 +47,12 @@ module "amp-cli" {
   amp_version        = "2.0.0"
   agent_id           = coder_agent.example.id
   amp_api_key        = var.amp_api_key # recommended for tasks usage
-  install_amp        = true
   workdir            = "/home/coder/project"
   instruction_prompt = <<-EOT
       # Instructions
       - You are an Amp assistant that helps developers debug and write code efficiently.
 EOT
   ai_prompt          = data.coder_parameter.ai_prompt.value
-  report_tasks       = true
 
 }
 ```

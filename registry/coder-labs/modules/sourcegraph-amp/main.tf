@@ -89,7 +89,6 @@ variable "report_tasks" {
   default     = true
 }
 
-# ------------------------------------------
 
 variable "install_amp" {
   type        = bool

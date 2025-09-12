@@ -24,7 +24,6 @@ ARG_AMP_TASK_PROMPT=$(echo -n "${ARG_AMP_TASK_PROMPT:-}" | base64 -d)
 ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 
 echo "--------------------------------"
-printf "API Key: %s\n" "$ARG_AMP_API_KEY"
 printf "Workspace: %s\n" "$ARG_AMP_START_DIRECTORY"
 printf "Task Prompt: %s\n" "$ARG_AMP_TASK_PROMPT"
 printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
