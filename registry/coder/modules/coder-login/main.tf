@@ -17,15 +17,14 @@ variable "agent_id" {
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
-resource "coder_script" "coder-login" {
+resource "coder_env" "coder_session_token" {
   agent_id = var.agent_id
-  script = templatefile("${path.module}/run.sh", {
-    CODER_USER_TOKEN : data.coder_workspace_owner.me.session_token,
-    CODER_DEPLOYMENT_URL : data.coder_workspace.me.access_url
-  })
-  display_name       = "Coder Login"
-  icon               = "/icon/coder.svg"
-  run_on_start       = true
-  start_blocks_login = true
+  name     = "CODER_SESSION_TOKEN"
+  value    = data.coder_workspace_owner.me.session_token
 }
 
+resource "coder_env" "coder_url" {
+  agent_id = var.agent_id
+  name     = "CODER_URL"
+  value    = data.coder_workspace.me.access_url
+}

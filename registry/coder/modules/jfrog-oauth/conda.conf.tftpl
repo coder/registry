@@ -1,0 +1,6 @@
+channels:
+%{ for REPO in REPOS ~}
+  - https://${ARTIFACTORY_USERNAME}:${ARTIFACTORY_ACCESS_TOKEN}@${JFROG_HOST}/artifactory/api/conda/${REPO}
+%{ endfor ~}
+  - defaults
+ssl_verify: true
