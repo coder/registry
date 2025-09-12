@@ -38,12 +38,6 @@ variable "http_server_reports_dir" {
   default     = "reports"
 }
 
-variable "checkout_demos" {
-  type        = bool
-  description = "Checkout demos?"
-  default     = false
-}
-
 variable "stub_run" {
   type        = bool
   description = "Execute a stub run?"
@@ -52,8 +46,8 @@ variable "stub_run" {
 
 variable "stub_run_command" {
   type        = string
-  description = "Shell command to be executed during the stub run."
-  default     = "nextflow run . -stub-run"
+  description = "Nextflow command to be executed in the stub run."
+  default     = "run rnaseq-nf -with-report reports/report.html -with-trace reports/trace.txt -with-timeline reports/timeline.html -with-dag reports/flowchart.png"
 }
 
 variable "order" {
@@ -86,7 +80,6 @@ resource "coder_script" "nextflow" {
     PROJECT_PATH : var.project_path,
     HTTP_SERVER_PORT : var.http_server_port,
     HTTP_SERVER_REPORTS_DIR : var.http_server_reports_dir,
-    CHECKOUT_DEMOS : var.checkout_demos,
     STUB_RUN : var.stub_run,
     STUB_RUN_COMMAND : var.stub_run_command,
   })
