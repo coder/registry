@@ -98,7 +98,7 @@ variable "ai_prompt" {
 variable "subdomain" {
   type        = bool
   description = "Whether to use a subdomain for AgentAPI."
-  default     = true
+  default     = false
 }
 
 
