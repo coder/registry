@@ -101,7 +101,6 @@ variable "subdomain" {
   default     = true
 }
 
-# ---------------------------------------------------------------
 
 variable "install_claude_code" {
   type        = bool
