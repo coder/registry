@@ -114,4 +114,6 @@ module "claude-code" {
 
 ## Troubleshooting
 
+By default, this module is configured to run the embedded chat interface as a path-based application. In production, we recommend that you configure a [wildcard access URL](https://coder.com/docs/admin/setup#wildcard-access-url) and set `subdomain = true`.
+
 The module will create log files in the workspace's `~/.claude-module` directory. If you run into any issues, look at them for more information.
