@@ -13,7 +13,7 @@ Install the JF CLI and authenticate package managers with Artifactory using Arti
 ```tf
 module "jfrog" {
   source                   = "registry.coder.com/coder/jfrog-token/coder"
-  version                  = "1.1.0"
+  version                  = "1.2.0"
   agent_id                 = coder_agent.example.id
   jfrog_url                = "https://XXXX.jfrog.io"
   artifactory_access_token = var.artifactory_access_token
@@ -23,6 +23,7 @@ module "jfrog" {
     pypi   = ["pypi", "extra-index-pypi"]
     docker = ["example-docker-staging.jfrog.io", "example-docker-production.jfrog.io"]
     conda  = ["conda", "conda-local"]
+    maven  = ["maven", "maven-local"]
   }
 }
 ```
@@ -41,7 +42,7 @@ For detailed instructions, please see this [guide](https://coder.com/docs/v2/lat
 ```tf
 module "jfrog" {
   source                   = "registry.coder.com/coder/jfrog-token/coder"
-  version                  = "1.1.0"
+  version                  = "1.2.0"
   agent_id                 = coder_agent.example.id
   jfrog_url                = "https://YYYY.jfrog.io"
   artifactory_access_token = var.artifactory_access_token # An admin access token
@@ -50,17 +51,19 @@ module "jfrog" {
     go    = ["go-local"]
     pypi  = ["pypi-local"]
     conda = ["conda-local"]
+    maven = ["maven-local"]
   }
 }
 ```
 
-You should now be able to install packages from Artifactory using both the `jf npm`, `jf go`, `jf pip` and `npm`, `go`, `pip`, `conda` commands.
+You should now be able to install packages from Artifactory using both the `jf npm`, `jf go`, `jf pip` and `npm`, `go`, `pip`, `conda`, `maven` commands.
 
 ```shell
 jf npm install prettier
 jf go get github.com/golang/example/hello
 jf pip install requests
 conda install numpy
+mvn clean install
 ```
 
 ```shell
@@ -68,6 +71,7 @@ npm install prettier
 go get github.com/golang/example/hello
 pip install requests
 conda install numpy
+mvn clean install
 ```
 
 ### Configure code-server with JFrog extension
@@ -77,7 +81,7 @@ The [JFrog extension](https://open-vsx.org/extension/JFrog/jfrog-vscode-extensio
 ```tf
 module "jfrog" {
   source                   = "registry.coder.com/coder/jfrog-token/coder"
-  version                  = "1.1.0"
+  version                  = "1.2.0"
   agent_id                 = coder_agent.example.id
   jfrog_url                = "https://XXXX.jfrog.io"
   artifactory_access_token = var.artifactory_access_token
@@ -97,7 +101,7 @@ data "coder_workspace" "me" {}
 
 module "jfrog" {
   source                   = "registry.coder.com/coder/jfrog-token/coder"
-  version                  = "1.1.0"
+  version                  = "1.2.0"
   agent_id                 = coder_agent.example.id
   jfrog_url                = "https://XXXX.jfrog.io"
   artifactory_access_token = var.artifactory_access_token
