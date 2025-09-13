@@ -27,7 +27,9 @@ module "claude-code" {
 
 ## Prerequisites
 
-- An **Anthropic API key** is required for tasks. You can get one from the [Anthropic Console](https://console.anthropic.com/dashboard).
+- An **Anthropic API key** or a _Claude Session Token_ is required for tasks.
+  - You can get the API key from the [Anthropic Console](https://console.anthropic.com/dashboard).
+  - You can get the Session Token using the `claude setup-token` command. This is a long-lived authentication token (requires Claude subscription)
 
 ## Examples
 
@@ -36,9 +38,9 @@ module "claude-code" {
 This example shows how to configure the Claude Code module with a task prompt, API key, and other custom settings.
 
 ```tf
-data "coder_parameter" "task_prompt" {
+data "coder_parameter" "ai_prompt" {
   type        = "string"
-  name        = "AI Task Prompt"
+  name        = "AI Prompt"
   default     = ""
   description = "Initial task prompt for Claude Code."
   mutable     = true
@@ -50,24 +52,20 @@ module "claude-code" {
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
-  # --- Authentication --- required for tasks
+  # --- Authentication --- (required for tasks)
   claude_api_key = "xxxx-xxxxx-xxxx"
   # OR
   claude_code_oauth_token = "xxxxx-xxxx-xxxx"
 
-  # --- Versioning ---
   claude_code_version = "1.0.82" # Pin to a specific version
   agentapi_version    = "v0.6.1"
 
-  # --- Task Configuration ---
-  task_prompt = data.coder_parameter.task_prompt.value
+  task_prompt = data.coder_parameter.ai_prompt.value
   continue    = true # will fail in a new workspace with no conversation/session to continue
   model       = "sonnet"
 
-  # --- Permissions & Tools ---
   permission_mode = "plan"
 
-  # --- MCP Configuration ---
   mcp = <<-EOF
   {
     "mcpServers": {
@@ -83,7 +81,7 @@ module "claude-code" {
 
 ### Standalone Mode
 
-Run Claude Code as a standalone CLI in your workspace without task reporting to the Coder UI.
+Run and configure Claude Code as a standalone CLI in your workspace.
 
 ```tf
 module "claude-code" {
@@ -95,32 +93,6 @@ module "claude-code" {
   claude_code_version = "latest"
   report_tasks        = false
   cli_app             = true
-}
-```
-
-## Environment Variables
-
-The module can be further configured using environment variables set on the Coder agent. This allows for more advanced or dynamic setups.
-
-| Variable                         | Description                                                   | Default                        |
-| -------------------------------- | ------------------------------------------------------------- | ------------------------------ |
-| `CLAUDE_API_KEY`                 | Your Anthropic API key.                                       | `""`                           |
-| `CODER_MCP_CLAUDE_SYSTEM_PROMPT` | A custom system prompt for Claude.                            | "Send a task status update..." |
-| `CODER_MCP_CLAUDE_CODER_PROMPT`  | A custom coder prompt for Claude.                             | `""`                           |
-| `CODER_MCP_CLAUDE_CONFIG_PATH`   | Path to the Claude configuration file.                        | `~/.claude.json`               |
-| `CODER_MCP_CLAUDE_MD_PATH`       | Path to a `CLAUDE.md` file for project-specific instructions. | `~/.claude/CLAUDE.md`          |
-
-An example of setting these on a `coder_agent` resource:
-
-```tf
-resource "coder_agent" "main" {
-  # ... other agent config
-  env = {
-    CLAUDE_API_KEY                 = var.anthropic_api_key
-    CODER_MCP_CLAUDE_SYSTEM_PROMPT = <<-EOT
-      You are a helpful assistant that can help with code.
-    EOT
-  }
 }
 ```
 
