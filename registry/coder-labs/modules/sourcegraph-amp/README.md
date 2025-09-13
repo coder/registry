@@ -50,7 +50,7 @@ module "amp-cli" {
   workdir            = "/home/coder/project"
   instruction_prompt = <<-EOT
       # Instructions
-      - You are an Amp assistant that helps developers debug and write code efficiently.
+      - Start every response with `amp > `
 EOT
   ai_prompt          = data.coder_parameter.ai_prompt.value
 
