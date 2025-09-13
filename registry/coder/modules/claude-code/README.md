@@ -35,7 +35,7 @@ module "claude-code" {
 
 ### Usage with Tasks and Advanced Configuration
 
-This example shows how to configure the Claude Code module with a task prompt, API key, and other custom settings.
+This example shows how to configure the Claude Code module with an ai prompt, API key, and other custom settings.
 
 ```tf
 data "coder_parameter" "ai_prompt" {
@@ -59,9 +59,9 @@ module "claude-code" {
   claude_code_version = "1.0.82" # Pin to a specific version
   agentapi_version    = "v0.6.1"
 
-  task_prompt = data.coder_parameter.ai_prompt.value
-  continue    = true # will fail in a new workspace with no conversation/session to continue
-  model       = "sonnet"
+  ai_prompt = data.coder_parameter.ai_prompt.value
+  continue  = true # will fail in a new workspace with no conversation/session to continue
+  model     = "sonnet"
 
   permission_mode = "plan"
 
@@ -112,7 +112,8 @@ cat ~/.claude-module/post_install.log
 ```
 
 > [!NOTE]
-> To use tasks with Claude Code, you must provide an `anthropic_api_key` or `claude_code_oauth_token`. It's recommended to use a `coder_parameter` for the `task_prompt` to allow users to input tasks from the Coder UI. The `workdir` variable is required and specifies the directory where Claude Code will run.
+> To use tasks with Claude Code, you must provide an `anthropic_api_key` or `claude_code_oauth_token`.
+> The `workdir` variable is required and specifies the directory where Claude Code will run.
 
 ## References
 
