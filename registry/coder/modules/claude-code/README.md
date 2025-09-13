@@ -51,8 +51,7 @@ module "claude-code" {
   version  = "3.0.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
-
-  # --- Authentication --- (required for tasks)
+  
   claude_api_key = "xxxx-xxxxx-xxxx"
   # OR
   claude_code_oauth_token = "xxxxx-xxxx-xxxx"
