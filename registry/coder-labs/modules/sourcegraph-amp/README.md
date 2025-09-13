@@ -22,7 +22,7 @@ module "amp-cli" {
 
 ## Prerequisites
 
-- **Node.js and npm must be sourced/available before the amp cli installs** - ensure they are installed in your workspace image or via earlier provisioning steps
+- **Node.js and npm must be sourced/available before the Amp cli installs** - ensure they are installed in your workspace image or via earlier provisioning steps
 
 ## Usage Example
 
