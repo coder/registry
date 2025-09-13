@@ -13,12 +13,11 @@ import (
 
 var supportedUserNameSpaceDirectories = append(supportedResourceTypes, ".images")
 
-// validNameRe validates that names contain only alphanumeric characters and hyphens
+// validNameRe validates that names contain only alphanumeric characters and hyphens.
 var validNameRe = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$`)
 
-
 // validateCoderResourceSubdirectory validates that the structure of a module or template within a namespace follows all
-// expected file conventions
+// expected file conventions.
 func validateCoderResourceSubdirectory(dirPath string) []error {
 	resourceDir, err := os.Stat(dirPath)
 	if err != nil {
@@ -47,7 +46,7 @@ func validateCoderResourceSubdirectory(dirPath string) []error {
 			continue
 		}
 
-		// Validate module/template name
+		// Validate module/template name.
 		if !validNameRe.MatchString(f.Name()) {
 			errs = append(errs, xerrors.Errorf("%q: name contains invalid characters (only alphanumeric characters and hyphens are allowed)", path.Join(dirPath, f.Name())))
 			continue
@@ -90,7 +89,7 @@ func validateRegistryDirectory() []error {
 			continue
 		}
 
-		// Validate namespace name
+		// Validate namespace name.
 		if !validNameRe.MatchString(nDir.Name()) {
 			allErrs = append(allErrs, xerrors.Errorf("%q: namespace name contains invalid characters (only alphanumeric characters and hyphens are allowed)", namespacePath))
 			continue
@@ -136,7 +135,7 @@ func validateRegistryDirectory() []error {
 
 // validateRepoStructure validates that the structure of the repo is "correct enough" to do all necessary validation
 // checks. It is NOT an exhaustive validation of the entire repo structure – it only checks the parts of the repo that
-// are relevant for the main validation steps
+// are relevant for the main validation steps.
 func validateRepoStructure() error {
 	var errs []error
 	if vrdErrs := validateRegistryDirectory(); len(vrdErrs) != 0 {
