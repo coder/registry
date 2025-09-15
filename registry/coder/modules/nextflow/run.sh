@@ -10,7 +10,7 @@ printf "$${BOLD}Starting Nextflow...$${RESET}\n"
 if ! command -v nextflow > /dev/null 2>&1; then
   # Update system dependencies
   sudo apt update
-  sudo apt install openjdk-18-jdk -y
+  sudo apt install openjdk-21-jdk -y
   sudo apt install salmon fastqc multiqc -y
 
   # Install nextflow
