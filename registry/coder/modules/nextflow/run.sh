@@ -38,7 +38,8 @@ fi
 
 # Start a web server to preview reports
 mkdir -p ${HTTP_SERVER_REPORTS_DIR}
-python3 -m http.server --directory ${HTTP_SERVER_REPORTS_DIR} ${HTTP_SERVER_PORT} &
+echo "Starting HTTP server in background, check logs: ${HTTP_SERVER_LOG_PATH}"
+python3 -m http.server --directory ${HTTP_SERVER_REPORTS_DIR} ${HTTP_SERVER_PORT} > "${HTTP_SERVER_LOG_PATH}" 2>&1 &
 
 # Stub run?
 if [ "${STUB_RUN}" = "true" ]; then

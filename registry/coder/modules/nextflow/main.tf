@@ -38,6 +38,12 @@ variable "http_server_reports_dir" {
   default     = "reports"
 }
 
+variable "http_server_log_path" {
+  type        = string
+  description = "HTTP server logs"
+  default     = "/tmp/nextflow_reports.log"
+}
+
 variable "stub_run" {
   type        = bool
   description = "Execute a stub run?"
@@ -80,6 +86,7 @@ resource "coder_script" "nextflow" {
     PROJECT_PATH : var.project_path,
     HTTP_SERVER_PORT : var.http_server_port,
     HTTP_SERVER_REPORTS_DIR : var.http_server_reports_dir,
+    HTTP_SERVER_LOG_PATH : var.http_server_log_path,
     STUB_RUN : var.stub_run,
     STUB_RUN_COMMAND : var.stub_run_command,
   })
