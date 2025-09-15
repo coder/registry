@@ -10,8 +10,7 @@ printf "$${BOLD}Starting Nextflow...$${RESET}\n"
 if ! command -v nextflow > /dev/null 2>&1; then
   # Update system dependencies
   sudo apt update
-  sudo apt install openjdk-21-jdk -y
-  sudo apt install salmon fastqc multiqc -y
+  sudo apt install openjdk-21-jdk graphviz salmon fastqc multiqc -y
 
   # Install nextflow
   export NXF_VER=${NEXTFLOW_VERSION}
@@ -39,7 +38,7 @@ fi
 
 # Start a web server to preview reports
 mkdir -p ${HTTP_SERVER_REPORTS_DIR}
-python3 -m http.server --directory ${HTTP_SERVER_REPORTS_DIR} ${HTTP_SERVER_PORT}
+python3 -m http.server --directory ${HTTP_SERVER_REPORTS_DIR} ${HTTP_SERVER_PORT} &
 
 # Stub run?
 if [ "${STUB_RUN}" = "true" ]; then
