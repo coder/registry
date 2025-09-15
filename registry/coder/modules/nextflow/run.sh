@@ -22,11 +22,11 @@ if ! command -v nextflow > /dev/null 2>&1; then
   # Verify installation
   tmp_verify=$(mktemp -d coder-nextflow-XXXXXX)
   nextflow run hello \
-    -with-report "$$tmp_verify/report.html" \
-    -with-trace "$$tmp_verify/trace.txt" \
-    -with-timeline "$$tmp_verify/timeline.html" \
-    -with-dag "$$tmp_verify/flowchart.png"
-  rm -r "$$tmp_verify"
+    -with-report "$${tmp_verify}/report.html" \
+    -with-trace "$${tmp_verify}/trace.txt" \
+    -with-timeline "$${tmp_verify}/timeline.html" \
+    -with-dag "$${tmp_verify}/flowchart.png"
+  rm -r "$${tmp_verify}"
 else
   echo "Nextflow is already installed\n\n"
 fi
