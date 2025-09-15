@@ -3,6 +3,7 @@ import {
   afterEach,
   expect,
   describe,
+  it,
   setDefaultTimeout,
   beforeAll,
 } from "bun:test";
@@ -100,6 +101,7 @@ const writeAgentAPIMockControl = async ({
 interface SetupProps {
   skipAgentAPIMock?: boolean;
   skipClaudeMock?: boolean;
+  extraVars?: Record<string, string>;
 }
 
 const projectDir = "/home/coder/project";
@@ -112,6 +114,7 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
       install_claude_code: "false",
       agentapi_version: "preview",
       folder: projectDir,
+      ...props?.extraVars,
     },
   });
   await execContainer(id, ["bash", "-c", `mkdir -p '${projectDir}'`]);
@@ -335,6 +338,36 @@ describe("claude-code", async () => {
       id,
       "/home/coder/agentapi-mock.log",
     );
-    expect(agentApiStartLog).toContain("AGENTAPI_ALLOWED_HOSTS: *");
+    expect(agentApiStartLog).toContain("AGENTAPI_ALLOWED_HOSTS=*");
+  });
+
+  describe("subdomain", async () => {
+    it("sets AGENTAPI_CHAT_BASE_PATH when false", async () => {
+      const { id } = await setup();
+      const respModuleScript = await execModuleScript(id);
+      expect(respModuleScript.exitCode).toBe(0);
+      await expectAgentAPIStarted(id);
+      const agentApiStartLog = await readFileContainer(
+        id,
+        "/home/coder/agentapi-mock.log",
+      );
+      expect(agentApiStartLog).toContain(
+        "AGENTAPI_CHAT_BASE_PATH=/@default/default.foo/apps/ccw/chat",
+      );
+    });
+
+    it("does not set AGENTAPI_CHAT_BASE_PATH when true", async () => {
+      const { id } = await setup({
+        extraVars: { subdomain: "true" },
+      });
+      const respModuleScript = await execModuleScript(id);
+      expect(respModuleScript.exitCode).toBe(0);
+      await expectAgentAPIStarted(id);
+      const agentApiStartLog = await readFileContainer(
+        id,
+        "/home/coder/agentapi-mock.log",
+      );
+      expect(agentApiStartLog).toMatch(/AGENTAPI_CHAT_BASE_PATH=$/m);
+    });
   });
 });
