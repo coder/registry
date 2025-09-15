@@ -43,7 +43,9 @@ function install_claude_code_cli() {
     fi
 
     # Ensure binaries are discoverable.
-    export PATH="$HOME/.local/bin:$PATH"
+    echo "Creating a symlink for claude"
+    sudo ln -s /home/coder/.local/bin/claude /usr/local/bin/claude
+
     echo "Installed Claude Code successfully. Version: $(claude --version || echo 'unknown')"
   else
     echo "Skipping Claude Code installation as per configuration."
@@ -61,13 +63,15 @@ function setup_claude_configurations() {
   module_path="$HOME/.claude-module"
   mkdir -p "$module_path"
 
-  while IFS= read -r server_name && IFS= read -r server_json; do
-    echo "------------------------"
-    echo "Executing: claude mcp add \"$server_name\" '$server_json'"
-    claude mcp add "$server_name" "$server_json"
-    echo "------------------------"
-    echo ""
-  done < <(echo "${ARG_MCP:-{}}" | jq -r '.mcpServers | to_entries[] | .key, (.value | @json)')
+  if [ "$ARG_MCP" != "" ]; then
+    while IFS= read -r server_name && IFS= read -r server_json; do
+      echo "------------------------"
+      echo "Executing: claude mcp add \"$server_name\" '$server_json'"
+      claude mcp add "$server_name" "$server_json"
+      echo "------------------------"
+      echo ""
+    done < <(echo "$ARG_MCP" | jq -r '.mcpServers | to_entries[] | .key, (.value | @json)')
+  fi
 
   if [ -n "$ARG_ALLOWED_TOOLS" ]; then
     coder --allowedTools "$ARG_ALLOWED_TOOLS"

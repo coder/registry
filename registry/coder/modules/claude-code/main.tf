@@ -180,6 +180,48 @@ variable "claude_code_oauth_token" {
   default     = ""
 }
 
+variable "system_prompt" {
+  type        = string
+  description = "The system prompt to use for the Claude Code server."
+  default     = "Send a task status update to notify the user that you are ready for input, and then wait for user input."
+}
+
+variable "claude_config_path" {
+  type        = string
+  description = "The path to the Claude config file."
+  default     = "$HOME/.claude.json"
+}
+
+variable "claude_md_path" {
+  type        = string
+  description = "The path to CLAUDE.md."
+  default     = "$HOME/.claude/CLAUDE.md"
+}
+
+resource "coder_env" "claude_code_config_path" {
+  count = var.claude_config_path == "" ? 0 : 1
+
+  agent_id = var.agent_id
+  name     = "CODER_MCP_CLAUDE_CONFIG_PATH"
+  value    = var.claude_config_path
+}
+
+resource "coder_env" "claude_code_md_path" {
+  count = var.claude_md_path == "" ? 0 : 1
+
+  agent_id = var.agent_id
+  name     = "CODER_MCP_CLAUDE_MD_PATH"
+  value    = var.claude_md_path
+}
+
+resource "coder_env" "claude_code_system_prompt" {
+  count = var.system_prompt == "" ? 0 : 1
+
+  agent_id = var.agent_id
+  name     = "CODER_MCP_CLAUDE_SYSTEM_PROMPT"
+  value    = var.system_prompt
+}
+
 resource "coder_env" "claude_code_oauth_token" {
   agent_id = var.agent_id
   name     = "CLAUDE_CODE_OAUTH_TOKEN"
