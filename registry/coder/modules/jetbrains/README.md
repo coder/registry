@@ -17,7 +17,7 @@ module "jetbrains" {
   version  = "1.1.0"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
-  # tooltip  = "Launch JetBrains IDE with remote development"  # Optional
+  # tooltip  = "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button."  # Optional
 }
 ```
 
@@ -132,7 +132,7 @@ module "jetbrains" {
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
   default  = ["IU", "PY"]
-  tooltip  = "**JetBrains IDE** - Click to launch with remote development capabilities"
+  tooltip  = "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button."
 }
 ```
 
