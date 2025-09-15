@@ -26,7 +26,7 @@ if ! command -v nextflow > /dev/null 2>&1; then
     -with-trace "$$tmp_verify/trace.txt" \
     -with-timeline "$$tmp_verify/timeline.html" \
     -with-dag "$$tmp_verify/flowchart.png"
-  rm -f "$$tmp_verify"
+  rm -r "$$tmp_verify"
 else
   echo "Nextflow is already installed\n\n"
 fi
