@@ -283,14 +283,14 @@ describe("jetbrains", async () => {
         folder: "/home/coder",
         default: '["GO"]',
         tooltip:
-          "ou need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button.",
+          "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button.",
       });
 
       const coder_app = state.resources.find(
         (res) => res.type === "coder_app" && res.name === "jetbrains",
       );
       expect(coder_app?.instances[0].attributes.tooltip).toBe(
-        "ou need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button.",
+        "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button.",
       );
     });
 

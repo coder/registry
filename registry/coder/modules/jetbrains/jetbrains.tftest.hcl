@@ -137,11 +137,11 @@ run "tooltip_when_provided" {
     agent_id = "foo"
     folder   = "/home/coder"
     default  = ["GO"]
-    tooltip  = "ou need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button."
+    tooltip  = "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button."
   }
 
   assert {
-    condition     = anytrue([for app in values(resource.coder_app.jetbrains) : app.tooltip == "ou need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button."])
+    condition     = anytrue([for app in values(resource.coder_app.jetbrains) : app.tooltip == "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button."])
     error_message = "Expected coder_app tooltip to be set when provided"
   }
 }
