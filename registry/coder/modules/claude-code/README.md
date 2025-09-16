@@ -60,7 +60,6 @@ module "claude-code" {
   agentapi_version    = "v0.6.1"
 
   ai_prompt = data.coder_parameter.ai_prompt.value
-  continue  = true # will fail in a new workspace with no conversation/session to continue
   model     = "sonnet"
 
   permission_mode = "plan"

@@ -134,7 +134,7 @@ variable "resume_session_id" {
 
 variable "continue" {
   type        = bool
-  description = "Load the most recent conversation in the current directory."
+  description = "Load the most recent conversation in the current directory. Task will fail in a new workspace with no conversation/session to continue"
   default     = false
 }
 
