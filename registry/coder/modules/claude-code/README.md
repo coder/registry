@@ -35,7 +35,7 @@ module "claude-code" {
 
 ### Usage with Tasks and Advanced Configuration
 
-This example shows how to configure the Claude Code module with an ai prompt, API key, and other custom settings.
+This example shows how to configure the Claude Code module with an AI prompt, API key shared by all users of the template, and other custom settings.
 
 ```tf
 data "coder_parameter" "ai_prompt" {
