@@ -106,12 +106,12 @@ variable "agentapi_version" {
 variable "subdomain" {
   type        = bool
   description = "Whether to use a subdomain for the Claude Code app."
-  default     = true
+  default     = false
 }
 
 locals {
   # we have to trim the slash because otherwise coder exp mcp will
-  # set up an invalid claude config 
+  # set up an invalid claude config
   workdir                            = trimsuffix(var.folder, "/")
   encoded_pre_install_script         = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
   encoded_post_install_script        = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
@@ -244,7 +244,7 @@ resource "coder_script" "claude_code" {
 
     # Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
     export AGENTAPI_ALLOWED_HOSTS="*"
-    
+
     # Set chat base path for non-subdomain routing (only set if not using subdomain)
     export AGENTAPI_CHAT_BASE_PATH="${local.agentapi_chat_base_path}"
 
