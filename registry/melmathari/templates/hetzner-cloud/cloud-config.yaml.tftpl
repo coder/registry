@@ -1,0 +1,57 @@
+#cloud-config
+hostname: ${hostname}
+users:
+  - name: ${username}
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    groups: sudo
+    shell: /bin/bash
+packages:
+  - git
+  - curl
+  - wget
+  - unzip
+  - htop
+disk_setup:
+  ${volume_device}:
+    table_type: 'gpt'
+    layout: true
+    overwrite: false
+fs_setup:
+  - label: coder-home
+    filesystem: ext4
+    device: ${volume_device}
+    partition: auto
+mounts:
+  - ["${volume_device}", "/home/${username}", "ext4", "defaults", "0", "2"]
+write_files:
+  - path: /opt/coder/init
+    permissions: "0755"
+    encoding: b64
+    content: ${init_script}
+  - path: /etc/systemd/system/coder-agent.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Coder Agent
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      User=${username}
+      ExecStart=/opt/coder/init
+      Environment=CODER_AGENT_TOKEN=${coder_agent_token}
+      Restart=always
+      RestartSec=10
+      TimeoutStopSec=90
+      KillMode=process
+
+      OOMScoreAdjust=-1000
+      SyslogIdentifier=coder-agent
+
+      [Install]
+      WantedBy=multi-user.target
+runcmd:
+  - mkdir -p /home/${username}
+  - chown ${username}:${username} /home/${username}
+  - systemctl enable coder-agent
+  - systemctl start coder-agent
