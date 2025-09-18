@@ -157,12 +157,6 @@ data "coder_parameter" "preview_port" {
   mutable      = false
 }
 
-resource "coder_env" "app_status_slug" {
-  agent_id = coder_agent.main.id
-  name     = "CODER_MCP_APP_STATUS_SLUG"
-  value    = "ccw"
-}
-
 data "coder_provisioner" "me" {}
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
