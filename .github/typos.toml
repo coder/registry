@@ -5,6 +5,12 @@ Hashi = "Hashi"
 HashiCorp = "HashiCorp"
 mavrickrishi = "mavrickrishi" # Username
 mavrick = "mavrick" # Username
+melmathari = "melmathari" # Username
+fsn1 = "fsn1" # Hetzner Falkenstein datacenter code
+nbg1 = "nbg1" # Hetzner Nuremberg datacenter code
+hel1 = "hel1" # Hetzner Helsinki datacenter code
+hcloud = "hcloud" # Hetzner Cloud CLI/API
+vcpus = "vcpus" # Virtual CPUs
 
 [files]
 extend-exclude = ["registry/coder/templates/aws-devcontainer/architecture.svg"] #False positive
