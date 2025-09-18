@@ -95,6 +95,26 @@ module "claude-code" {
 }
 ```
 
+### Usage with Claude Code Subscription
+
+```tf
+
+variable "claude_code_oauth_token" {
+  type        = string
+  description = "Generate one using `claude setup-token` command"
+  sensitive   = true
+  value       = "xxxx-xxx-xxxx"
+}
+
+module "claude-code" {
+  source                  = "registry.coder.com/coder/claude-code/coder"
+  version                 = "3.0.0"
+  agent_id                = coder_agent.example.id
+  workdir                 = "/home/coder/project"
+  claude_code_oauth_token = var.claude_code_oauth_token
+}
+```
+
 ## Troubleshooting
 
 If you encounter any issues, check the log files in the `~/.claude-module` directory within your workspace for detailed information.
