@@ -1,5 +1,5 @@
-display_name: "Ray Dashboard"
-description: "Ray Dashboard integration for Coder workspaces"
+display_name: "Ray.io"
+description: "Ray.io is a fast and simple framework for building and running distributed applications. This integration provides a dashboard for monitoring and managing Ray clusters within Coder workspaces."
 icon_url: "https://raw.githubusercontent.com/ray-project/ray/master/doc/source/images/ray_logo.png"
 maintainers:
   - github: "michaelvp411"
