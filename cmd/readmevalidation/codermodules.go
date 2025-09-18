@@ -12,7 +12,7 @@ import (
 var (
 	// Matches Terraform source lines with registry.coder.com URLs
 	// Pattern: source = "registry.coder.com/namespace/module/coder"
-	terraformSourceRe = regexp.MustCompile(`^\s*source\s*=\s*"` + registryDomain + `/([^/]+)/([^/]+)/coder"`)
+	terraformSourceRe = regexp.MustCompile(`^\s*source\s*=\s*"` + registryDomain + `/([a-zA-Z0-9-]+)/([a-zA-Z0-9-]+)/coder"`)
 )
 
 func validateModuleSourceURL(rm coderResourceReadme) []error {
@@ -27,6 +27,7 @@ func validateModuleSourceURL(rm coderResourceReadme) []error {
 
 	trimmed := strings.TrimSpace(rm.body)
 	foundCorrectSource := false
+	var incorrectSources []string
 	isInsideTerraform := false
 
 	lineScanner := bufio.NewScanner(strings.NewReader(trimmed))
@@ -39,7 +40,8 @@ func validateModuleSourceURL(rm coderResourceReadme) []error {
 				continue
 			}
 			if isInsideTerraform {
-				break
+				// End of current terraform block, continue to look for more
+				isInsideTerraform = false
 			}
 			continue
 		}
@@ -48,26 +50,34 @@ func validateModuleSourceURL(rm coderResourceReadme) []error {
 			continue
 		}
 
-		// Check for source line in the first terraform block
+		// Check for source line in terraform blocks
 		if matches := terraformSourceRe.FindStringSubmatch(nextLine); matches != nil {
 			actualNamespace := matches[1]
 			actualModule := matches[2]
 			actualSource := registryDomain + "/" + actualNamespace + "/" + actualModule + "/coder"
-			
+
 			if actualSource == expectedSource {
 				foundCorrectSource = true
-				break
+			} else {
+				// Collect incorrect sources but don't return immediately
+				incorrectSources = append(incorrectSources, actualSource)
 			}
-			// Found a registry.coder.com source but with wrong namespace/module
-			errs = append(errs, xerrors.Errorf("incorrect source URL format: found %q, expected %q", actualSource, expectedSource))
-			return errs
 		}
 	}
 
-	if !foundCorrectSource {
-		errs = append(errs, xerrors.Errorf("did not find correct source URL %q in first Terraform code block", expectedSource))
+	// If we found the correct source, ignore any incorrect ones
+	if foundCorrectSource {
+		return nil
 	}
 
+	// If we found incorrect sources but no correct one, report the first incorrect source
+	if len(incorrectSources) > 0 {
+		errs = append(errs, xerrors.Errorf("incorrect source URL format: found %q, expected %q", incorrectSources[0], expectedSource))
+		return errs
+	}
+
+	// If we found no sources at all
+	errs = append(errs, xerrors.Errorf("did not find correct source URL %q in any Terraform code block", expectedSource))
 	return errs
 }
 
