@@ -22,7 +22,8 @@ if (
 
 fs.writeFileSync(
   "/home/coder/agentapi-mock.log",
-  `AGENTAPI_ALLOWED_HOSTS: ${process.env.AGENTAPI_ALLOWED_HOSTS}`,
+  `AGENTAPI_ALLOWED_HOSTS=${process.env.AGENTAPI_ALLOWED_HOSTS}
+   AGENTAPI_CHAT_BASE_PATH=${process.env.AGENTAPI_CHAT_BASE_PATH}`,
 );
 
 console.log(`starting server on port ${port}`);
