@@ -16,7 +16,7 @@ This Coder module provides easy integration of Ray.io distributed computing fram
 
 ```hcl
 module "ray" {
-  source   = "registry.coder.com/modules/ray/coder"
+  source   = "registry.coder.com/modules/ray-dashboard/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
 }
