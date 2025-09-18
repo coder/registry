@@ -1,0 +1,12 @@
+display_name: "Ray Dashboard"
+description: "Ray Dashboard integration for Coder workspaces"
+icon_url: "https://raw.githubusercontent.com/ray-project/ray/master/doc/source/images/ray_logo.png"
+maintainers:
+  - github: "michaelvp411"
+    name: "Michael Vincent Patterson"
+tags:
+  - "ray"
+  - "dashboard"
+  - "distributed-computing"
+verified: false
+

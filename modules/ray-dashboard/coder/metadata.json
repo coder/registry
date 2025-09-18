@@ -1,0 +1,22 @@
+{
+  "display_name": "Ray.io",
+  "description": "Adds Ray distributed computing framework with dashboard integration to Coder workspaces",
+  "icon_url": "https://raw.githubusercontent.com/ray-project/ray/master/doc/source/images/ray_logo.png",
+  "maintainer": {
+    "name": "Ray Coder Module Contributors",
+    "email": "",
+    "url": ""
+  },
+  "tags": [
+    "ray",
+    "distributed-computing",
+    "machine-learning",
+    "python",
+    "jupyter",
+    "dashboard"
+  ],
+  "readme_url": "README.md",
+  "url": "",
+  "verified": false
+}
+
