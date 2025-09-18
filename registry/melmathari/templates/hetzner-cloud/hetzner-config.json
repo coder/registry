@@ -1,0 +1,49 @@
+{
+  "_comment": "Image names should match Hetzner's official Terraform provider names exactly. Verify with: curl -H 'Authorization: Bearer $HCLOUD_TOKEN' 'https://api.hetzner.cloud/v1/images' | jq '.images[].name'",
+  "type_meta": {
+    "locations": {
+      "fsn1": { "name": "Falkenstein, Germany", "zone": "eu-central" },
+      "nbg1": { "name": "Nuremberg, Germany", "zone": "eu-central" },
+      "hel1": { "name": "Helsinki, Finland", "zone": "eu-central" },
+      "ash": { "name": "Ashburn, VA, USA", "zone": "us-east" },
+      "hil": { "name": "Hillsboro, OR, USA", "zone": "us-west" }
+    },
+    "server_types": {
+      "cx11": { "name": "CX11 (1 vCPU, 4 GB RAM)", "vcpus": 1, "memory": 4 },
+      "cx21": { "name": "CX21 (2 vCPU, 8 GB RAM)", "vcpus": 2, "memory": 8 },
+      "cx22": { "name": "CX22 (2 vCPU, 8 GB RAM, AMD)", "vcpus": 2, "memory": 8 },
+      "cx31": { "name": "CX31 (2 vCPU, 8 GB RAM)", "vcpus": 2, "memory": 8 },
+      "cx32": { "name": "CX32 (2 vCPU, 8 GB RAM, AMD)", "vcpus": 2, "memory": 8 },
+      "cx41": { "name": "CX41 (4 vCPU, 16 GB RAM)", "vcpus": 4, "memory": 16 },
+      "cx42": { "name": "CX42 (4 vCPU, 16 GB RAM, AMD)", "vcpus": 4, "memory": 16 },
+      "cx51": { "name": "CX51 (8 vCPU, 32 GB RAM)", "vcpus": 8, "memory": 32 },
+      "cx52": { "name": "CX52 (8 vCPU, 32 GB RAM, AMD)", "vcpus": 8, "memory": 32 },
+      "ccx13": { "name": "CCX13 (2 vCPU, 8 GB RAM, Dedicated)", "vcpus": 2, "memory": 8 },
+      "ccx23": { "name": "CCX23 (4 vCPU, 16 GB RAM, Dedicated)", "vcpus": 4, "memory": 16 },
+      "ccx33": { "name": "CCX33 (8 vCPU, 32 GB RAM, Dedicated)", "vcpus": 8, "memory": 32 },
+      "ccx43": { "name": "CCX43 (16 vCPU, 64 GB RAM, Dedicated)", "vcpus": 16, "memory": 64 },
+      "ccx53": { "name": "CCX53 (32 vCPU, 128 GB RAM, Dedicated)", "vcpus": 32, "memory": 128 },
+      "ccx63": { "name": "CCX63 (48 vCPU, 192 GB RAM, Dedicated)", "vcpus": 48, "memory": 192 },
+      "cpx11": { "name": "CPX11 (2 vCPU, 4 GB RAM, CPU-optimized)", "vcpus": 2, "memory": 4 },
+      "cpx21": { "name": "CPX21 (3 vCPU, 8 GB RAM, CPU-optimized)", "vcpus": 3, "memory": 8 },
+      "cpx31": { "name": "CPX31 (4 vCPU, 16 GB RAM, CPU-optimized)", "vcpus": 4, "memory": 16 },
+      "cpx41": { "name": "CPX41 (8 vCPU, 32 GB RAM, CPU-optimized)", "vcpus": 8, "memory": 32 },
+      "cpx51": { "name": "CPX51 (16 vCPU, 64 GB RAM, CPU-optimized)", "vcpus": 16, "memory": 64 }
+    },
+    "images": {
+      "ubuntu-24.04": { "name": "Ubuntu 24.04 LTS", "icon": "/icon/ubuntu.svg" },
+      "ubuntu-22.04": { "name": "Ubuntu 22.04 LTS", "icon": "/icon/ubuntu.svg" },
+      "ubuntu-20.04": { "name": "Ubuntu 20.04 LTS", "icon": "/icon/ubuntu.svg" },
+      "debian-12": { "name": "Debian 12", "icon": "/icon/debian.svg" },
+      "debian-11": { "name": "Debian 11", "icon": "/icon/debian.svg" },
+      "centos-stream-9": { "name": "CentOS Stream 9", "icon": "/icon/centos.svg" },
+      "fedora-39": { "name": "Fedora 39", "icon": "/icon/fedora.svg" },
+      "rocky-9": { "name": "Rocky Linux 9", "icon": "/icon/rockylinux.svg" },
+      "alma-9": { "name": "AlmaLinux 9", "icon": "/icon/almalinux.svg" }
+    }
+  },
+  "availability": {
+    "ccx63": ["fsn1", "nbg1"],
+    "*": ["fsn1", "nbg1", "hel1", "ash", "hil"]
+  }
+}
