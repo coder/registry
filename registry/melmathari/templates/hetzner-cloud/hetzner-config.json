@@ -1,5 +1,5 @@
 {
-  "_comment": "Image names should match Hetzner's official Terraform provider names exactly. Verify with: curl -H 'Authorization: Bearer $HCLOUD_TOKEN' 'https://api.hetzner.cloud/v1/images' | jq '.images[].name'",
+  "_comment": "Image names should match Hetzner's official Terraform provider names exactly. Verify with: curl -H 'Authorization: Bearer $HCLOUD_TOKEN' 'https://api.hetzner.cloud/v1/images' | jq '.images[] | .name'",
   "type_meta": {
     "locations": {
       "fsn1": { "name": "Falkenstein, Germany", "zone": "eu-central" },
