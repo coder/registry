@@ -11,8 +11,9 @@ tags: [vm, linux, hetzner, cloud, germany]
 Provision Hetzner Cloud servers as [Coder workspaces](https://coder.com/docs/workspaces) with this template.
 
 This template provides a comprehensive Hetzner Cloud setup with:
+
 - **Dynamic Configuration**: Server types, locations, and images loaded from JSON
-- **Smart Validation**: Prevents invalid server type/location combinations  
+- **Smart Validation**: Prevents invalid server type/location combinations
 - **Multiple Server Types**: Shared, dedicated, and CPU-optimized instances
 - **Global Locations**: Germany, Finland, and USA datacenters
 - **Persistent Storage**: Home volumes that survive workspace restarts
@@ -45,8 +46,8 @@ export HCLOUD_TOKEN="your-hetzner-cloud-api-token"
 
 # List all available images
 curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
-  "https://api.hetzner.cloud/v1/images" | \
-  jq '.images[] | select(.type=="system") | .name'
+  "https://api.hetzner.cloud/v1/images" \
+  | jq '.images[] | select(.type=="system") | .name'
 ```
 
 If you encounter image-related errors, check that the image names in `hetzner-config.json` match the official names exactly (some may include architecture suffixes like `-amd64`).
@@ -74,8 +75,9 @@ This means that when the workspace restarts, any tools or files outside of the h
 The template supports all major Hetzner Cloud server types:
 
 ### Shared vCPU (Cost-effective)
+
 - **CX11**: 1 vCPU, 4 GB RAM
-- **CX21**: 2 vCPU, 8 GB RAM  
+- **CX21**: 2 vCPU, 8 GB RAM
 - **CX22**: 2 vCPU, 4 GB RAM (AMD)
 - **CX31**: 2 vCPU, 8 GB RAM
 - **CX32**: 4 vCPU, 8 GB RAM (AMD)
@@ -85,6 +87,7 @@ The template supports all major Hetzner Cloud server types:
 - **CX52**: 16 vCPU, 32 GB RAM (AMD)
 
 ### Dedicated vCPU (High Performance)
+
 - **CCX13**: 2 vCPU, 8 GB RAM
 - **CCX23**: 4 vCPU, 16 GB RAM
 - **CCX33**: 8 vCPU, 32 GB RAM
@@ -93,6 +96,7 @@ The template supports all major Hetzner Cloud server types:
 - **CCX63**: 48 vCPU, 192 GB RAM
 
 ### CPU-Optimized
+
 - **CPX11**: 2 vCPU, 2 GB RAM
 - **CPX21**: 3 vCPU, 4 GB RAM
 - **CPX31**: 4 vCPU, 8 GB RAM
@@ -102,6 +106,7 @@ The template supports all major Hetzner Cloud server types:
 ## Locations
 
 Available locations:
+
 - **Falkenstein, Germany** (fsn1) - Primary location
 - **Nuremberg, Germany** (nbg1) - Secondary location
 - **Helsinki, Finland** (hel1) - EU Nordic
@@ -134,11 +139,12 @@ hcloud_token = "your-hetzner-cloud-api-token"
 The template uses `hetzner-config.json` for dynamic configuration:
 
 - **Server Types**: Add new server types with their specifications
-- **Locations**: Add new Hetzner datacenters as they become available  
+- **Locations**: Add new Hetzner datacenters as they become available
 - **Images**: Update with current Hetzner image names (verify with API)
 - **Availability**: Map server type restrictions per location
 
 **Example**: Adding a new server type:
+
 ```json
 "cx62": { "name": "CX62 (16 vCPU, 64 GB RAM, AMD)", "vcpus": 16, "memory": 64 }
 ```
@@ -160,7 +166,7 @@ All other parameters can be configured through the Coder workspace creation inte
 You can use custom images in two ways:
 
 1. **Override Field**: Leave the "Custom Image Override" field empty to use the selected OS, or enter a custom image name to override it
-2. **Examples**: 
+2. **Examples**:
    - `my-custom-snapshot` - Your own Hetzner Cloud snapshot
    - `debian-12-amd64` - Specific architecture variant
    - `ubuntu-24.04` - Newer image not yet in the dropdown list
@@ -194,14 +200,15 @@ The template includes validation to prevent selecting server types that aren't a
 If you get errors like "image not found" or "invalid image name":
 
 1. **Verify Image Names**: Check current available images using the API:
+
    ```bash
    curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
-     "https://api.hetzner.cloud/v1/images" | \
-     jq '.images[] | select(.type=="system") | .name' | sort
+     "https://api.hetzner.cloud/v1/images" \
+     | jq '.images[] | select(.type=="system") | .name' | sort
    ```
 
 2. **Update JSON Configuration**: Edit `hetzner-config.json` to match exact image names from Hetzner
-3. **Common Issues**: 
+3. **Common Issues**:
    - Some images may have architecture suffixes (e.g., `debian-12` vs `debian-12-amd64`)
    - Image names may change over time as new versions are released
    - Deprecated images are removed from the available list
@@ -219,6 +226,7 @@ If you get errors like "image not found" or "invalid image name":
 ### Volume Mount Issues
 
 If the home directory doesn't mount properly:
+
 1. Check that the volume is attached to the server
 2. Verify the cloud-init configuration is applied correctly
 3. Ensure the filesystem is formatted as ext4
@@ -226,6 +234,7 @@ If the home directory doesn't mount properly:
 ### Network Connectivity Issues
 
 If you can't connect to development servers:
+
 1. Verify firewall rules allow the required ports
 2. Check that the private network is configured correctly
 3. Ensure the server has a public IP address
