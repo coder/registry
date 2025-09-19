@@ -76,7 +76,7 @@ The template supports all major Hetzner Cloud server types:
 ### Shared vCPU (Cost-effective)
 - **CX11**: 1 vCPU, 4 GB RAM
 - **CX21**: 2 vCPU, 8 GB RAM  
-- **CX22**: 2 vCPU, 8 GB RAM (AMD)
+- **CX22**: 2 vCPU, 4 GB RAM (AMD)
 - **CX31**: 2 vCPU, 8 GB RAM
 - **CX32**: 2 vCPU, 8 GB RAM (AMD)
 - **CX41**: 4 vCPU, 16 GB RAM
