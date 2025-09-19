@@ -5,7 +5,8 @@
     "fmt:ci": "bun x prettier --check . && terraform fmt -check -recursive -diff",
     "terraform-validate": "./scripts/terraform_validate.sh",
     "test": "./scripts/terraform_test_all.sh",
-    "update-version": "./update-version.sh"
+    "update-version": "./update-version.sh",
+    "validate-readme": "go build ./cmd/readmevalidation && ./readmevalidation"
   },
   "devDependencies": {
     "@types/bun": "^1.2.21",
