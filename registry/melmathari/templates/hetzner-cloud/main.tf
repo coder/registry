@@ -41,7 +41,7 @@ data "coder_parameter" "location" {
   type         = "string"
   default      = "fsn1"
   mutable      = false
-  
+
   dynamic "option" {
     for_each = local.hetzner_config.type_meta.locations
     content {
@@ -80,7 +80,7 @@ data "coder_parameter" "server_image" {
   default      = "ubuntu-22.04"
   type         = "string"
   mutable      = false
-  
+
   dynamic "option" {
     for_each = local.hetzner_config.type_meta.images
     content {
@@ -89,7 +89,7 @@ data "coder_parameter" "server_image" {
       icon  = option.value.icon
     }
   }
-  
+
 }
 
 # Optional custom image override
@@ -125,19 +125,19 @@ data "coder_parameter" "volume_size" {
 
 locals {
   # Ensure unique names by including workspace ID
-  server_name       = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}-${substr(data.coder_workspace.me.id, 0, 8)}"
-  volume_name       = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}-${substr(data.coder_workspace.me.id, 0, 8)}-home"
-  network_name      = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}-${substr(data.coder_workspace.me.id, 0, 8)}-net"
-  firewall_name     = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}-${substr(data.coder_workspace.me.id, 0, 8)}-fw"
-  
+  server_name   = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}-${substr(data.coder_workspace.me.id, 0, 8)}"
+  volume_name   = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}-${substr(data.coder_workspace.me.id, 0, 8)}-home"
+  network_name  = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}-${substr(data.coder_workspace.me.id, 0, 8)}-net"
+  firewall_name = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}-${substr(data.coder_workspace.me.id, 0, 8)}-fw"
+
   # Get selected server type and location configuration
   selected_server_type = local.hetzner_config.type_meta.server_types[data.coder_parameter.server_type.value]
-  selected_location = local.hetzner_config.type_meta.locations[data.coder_parameter.location.value]
-  network_zone = local.selected_location.zone
-  
+  selected_location    = local.hetzner_config.type_meta.locations[data.coder_parameter.location.value]
+  network_zone         = local.selected_location.zone
+
   # Get availability for selected server type (use specific or wildcard)
   server_availability = lookup(local.hetzner_config.availability, data.coder_parameter.server_type.value, local.hetzner_config.availability["*"])
-  
+
   # Validate server type is available in selected location
   is_valid_combination = contains(local.server_availability, data.coder_parameter.location.value)
 }
@@ -145,7 +145,7 @@ locals {
 # Validation check for server type and location compatibility
 resource "null_resource" "validate_server_location" {
   count = local.is_valid_combination ? 0 : 1
-  
+
   provisioner "local-exec" {
     command = "echo 'ERROR: Server type ${data.coder_parameter.server_type.value} is not available in location ${data.coder_parameter.location.value}' && exit 1"
   }
@@ -192,11 +192,11 @@ module "code-server" {
 
 # See https://registry.coder.com/modules/coder/jetbrains
 module "jetbrains" {
-  count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/coder/jetbrains/coder"
-  version    = "~> 1.0"
-  agent_id   = coder_agent.main.id
-  folder     = "/home/coder"
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/jetbrains/coder"
+  version  = "~> 1.0"
+  agent_id = coder_agent.main.id
+  folder   = "/home/coder"
 }
 
 variable "ssh_key_id" {
@@ -221,7 +221,7 @@ variable "ssh_key_id" {
 resource "hcloud_network" "workspace" {
   name     = local.network_name
   ip_range = "10.0.0.0/16"
-  
+
   labels = {
     "coder.workspace" = data.coder_workspace.me.name
     "coder.owner"     = data.coder_workspace_owner.me.name
@@ -240,55 +240,55 @@ resource "hcloud_network_subnet" "workspace" {
 # Create firewall
 resource "hcloud_firewall" "workspace" {
   name = local.firewall_name
-  
+
   labels = {
     "coder.workspace" = data.coder_workspace.me.name
     "coder.owner"     = data.coder_workspace_owner.me.name
     "coder.resource"  = "firewall"
   }
-  
+
   rule {
-    direction = "in"
-    port      = "22"
-    protocol  = "tcp"
+    direction  = "in"
+    port       = "22"
+    protocol   = "tcp"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
-  
+
   rule {
-    direction = "in"
-    port      = "80"
-    protocol  = "tcp"
+    direction  = "in"
+    port       = "80"
+    protocol   = "tcp"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
-  
+
   rule {
-    direction = "in"
-    port      = "443"
-    protocol  = "tcp"
+    direction  = "in"
+    port       = "443"
+    protocol   = "tcp"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
-  
+
   rule {
-    direction = "in"
-    port      = "8080"
-    protocol  = "tcp"
+    direction  = "in"
+    port       = "8080"
+    protocol   = "tcp"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
 }
 
 # Create volume for home directory
 resource "hcloud_volume" "home_volume" {
-  name      = local.volume_name
-  size      = data.coder_parameter.volume_size.value
-  location  = data.coder_parameter.location.value
-  format    = "ext4"
-  
+  name     = local.volume_name
+  size     = data.coder_parameter.volume_size.value
+  location = data.coder_parameter.location.value
+  format   = "ext4"
+
   labels = {
     "coder.workspace" = data.coder_workspace.me.name
     "coder.owner"     = data.coder_workspace_owner.me.name
     "coder.resource"  = "home-volume"
   }
-  
+
   # Protect the volume from being deleted due to changes in attributes
   lifecycle {
     ignore_changes = all
@@ -297,30 +297,30 @@ resource "hcloud_volume" "home_volume" {
 
 # Create the server
 resource "hcloud_server" "workspace" {
-  count       = data.coder_workspace.me.start_count
-  name        = local.server_name
-  server_type = data.coder_parameter.server_type.value
-  image       = local.final_image
-  location    = data.coder_parameter.location.value
-  ssh_keys    = var.ssh_key_id > 0 ? [var.ssh_key_id] : []
+  count        = data.coder_workspace.me.start_count
+  name         = local.server_name
+  server_type  = data.coder_parameter.server_type.value
+  image        = local.final_image
+  location     = data.coder_parameter.location.value
+  ssh_keys     = var.ssh_key_id > 0 ? [var.ssh_key_id] : []
   firewall_ids = [hcloud_firewall.workspace.id]
-  
+
   labels = {
     "coder.workspace" = data.coder_workspace.me.name
     "coder.owner"     = data.coder_workspace_owner.me.name
     "coder.resource"  = "workspace-server"
   }
-  
+
   public_net {
     ipv4_enabled = true
     ipv6_enabled = true
   }
-  
+
   network {
     network_id = hcloud_network.workspace.id
     ip         = "10.0.1.5"
   }
-  
+
   user_data = templatefile("${path.module}/cloud-config.yaml.tftpl", {
     hostname          = local.server_name
     username          = lower(data.coder_workspace_owner.me.name)
@@ -328,11 +328,11 @@ resource "hcloud_server" "workspace" {
     init_script       = base64encode(coder_agent.main.init_script)
     coder_agent_token = coder_agent.main.token
   })
-  
+
   depends_on = [
     hcloud_network_subnet.workspace
   ]
-  
+
   # Proper lifecycle: server is destroyed when workspace stops, but volume persists
   lifecycle {
     ignore_changes = [ssh_keys, user_data]
@@ -361,7 +361,7 @@ resource "coder_metadata" "workspace_info" {
   }
   item {
     key   = "vcpus"
-    value = "${local.selected_server_type.vcpus}"
+    value = local.selected_server_type.vcpus
   }
   item {
     key   = "memory"
