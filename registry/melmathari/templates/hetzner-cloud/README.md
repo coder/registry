@@ -93,10 +93,10 @@ The template supports all major Hetzner Cloud server types:
 - **CCX63**: 48 vCPU, 192 GB RAM
 
 ### CPU-Optimized
-- **CPX11**: 2 vCPU, 4 GB RAM
-- **CPX21**: 3 vCPU, 8 GB RAM
-- **CPX31**: 4 vCPU, 16 GB RAM
-- **CPX41**: 8 vCPU, 32 GB RAM
+- **CPX11**: 2 vCPU, 2 GB RAM
+- **CPX21**: 3 vCPU, 4 GB RAM
+- **CPX31**: 4 vCPU, 8 GB RAM
+- **CPX41**: 8 vCPU, 16 GB RAM
 - **CPX51**: 16 vCPU, 64 GB RAM
 
 ## Locations
