@@ -80,7 +80,7 @@ The template supports all major Hetzner Cloud server types:
 - **CX31**: 2 vCPU, 8 GB RAM
 - **CX32**: 4 vCPU, 8 GB RAM (AMD)
 - **CX41**: 4 vCPU, 16 GB RAM
-- **CX42**: 4 vCPU, 16 GB RAM (AMD)
+- **CX42**: 8 vCPU, 16 GB RAM (AMD)
 - **CX51**: 8 vCPU, 32 GB RAM
 - **CX52**: 8 vCPU, 32 GB RAM (AMD)
 
