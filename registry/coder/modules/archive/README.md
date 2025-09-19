@@ -8,7 +8,7 @@ tags: [backup, archive, tar, helper]
 
 # Archive
 
-This module installs small, robust scripts in your workspace to create and extract tar archives from a list of files and directories. It supports gzip, zstd, or no compression. The create command prints only the resulting archive path to stdout; operational logs go to stderr. An optional stop hook can also create an archive automatically when the workspace stops, and an optional start hook can wait for an archive and extract it on start.
+This module installs small, robust scripts in your workspace to create and extract tar archives from a list of files and directories. It supports gzip, zstd, or no compression. The create command prints only the resulting archive path to stdout; operational logs go to stderr. An optional stop hook can also create an archive automatically when the workspace stops, and an optional start hook can wait for an archive on-disk and extract it on start.
 
 - Depends on: `tar` (and `gzip` or `zstd` if you select those compression modes)
 - Installed scripts:
