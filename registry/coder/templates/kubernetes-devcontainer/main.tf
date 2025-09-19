@@ -427,14 +427,13 @@ module "code-server" {
   version = "~> 1.0"
 
   agent_id   = coder_agent.main.id
-  agent_name = "main"
   order      = 1
 }
 
 # See https://registry.coder.com/modules/coder/jetbrains
 module "jetbrains" {
   count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/modules/coder/jetbrains/coder"
+  source     = "registry.coder.com/coder/jetbrains/coder"  
   version    = "~> 1.0"
   agent_id   = coder_agent.main.id
   agent_name = "main"
