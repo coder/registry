@@ -38,8 +38,37 @@ variable "group" {
   default     = null
 }
 
+variable "extensions" {
+  type        = list(string)
+  description = "A list of extensions to install in the VS Code desktop."
+  default     = []
+  validation {
+    condition     = alltrue([for ext in var.extensions : can(regex("^[a-zA-Z0-9][a-zA-Z0-9\\-_]*\\.[a-zA-Z0-9][a-zA-Z0-9\\-_]*$", ext))])
+    error_message = "The extensions variable must be in the format 'publisher.extension-name' (e.g., 'llvm-vs-code-extensions.vscode-clangd')."
+  }
+}
+
+variable "settings" {
+  type        = any
+  description = "A JSON string of VS Code settings."
+  default     = {}
+}
+
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
+
+resource "coder_script" "vscode" {
+  agent_id     = var.agent_id
+  display_name = "Setup VS Code Extensions & Settings"
+  icon         = "/icon/code.svg"
+  run_on_start = false
+  run_on_stop  = true  # Required: at least one must be true
+  script = templatefile("${path.module}/run.sh", {
+    EXTENSIONS = jsonencode(var.extensions)
+    SETTINGS   = jsonencode(var.settings)
+    FOLDER     = var.folder
+  })
+}
 
 resource "coder_app" "vscode" {
   agent_id     = var.agent_id

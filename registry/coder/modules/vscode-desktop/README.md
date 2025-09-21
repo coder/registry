@@ -1,6 +1,6 @@
 ---
 display_name: VS Code Desktop
-description: Add a one-click button to launch VS Code Desktop
+description: Add a one-click button to launch VS Code Desktop with pre-installed extensions and settings
 icon: ../../../../.icons/code.svg
 verified: true
 tags: [ide, vscode]
@@ -8,9 +8,7 @@ tags: [ide, vscode]
 
 # VS Code Desktop
 
-Add a button to open any workspace with a single click.
-
-Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder).
+Add a button to open any workspace with a single click, with support for pre-installing extensions and configuring settings.
 
 ```tf
 module "vscode" {
@@ -23,7 +21,7 @@ module "vscode" {
 
 ## Examples
 
-### Open in a specific directory
+### With extensions and settings
 
 ```tf
 module "vscode" {
@@ -32,5 +30,14 @@ module "vscode" {
   version  = "1.1.1"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
+  extensions = [
+    "ms-python.python",
+    "golang.go"
+  ]
+  settings = {
+    "editor.fontSize" = 14
+    "files.autoSave"  = "afterDelay"
+  }
 }
 ```
+

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import {
-  executeScriptInContainer,
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
@@ -85,5 +84,65 @@ describe("vscode-desktop", async () => {
     expect(coder_app).not.toBeNull();
     expect(coder_app?.instances.length).toBe(1);
     expect(coder_app?.instances[0].attributes.order).toBe(22);
+  });
+
+  it("accepts extensions list", async () => {
+    const extensions = ["ms-python.python", "golang.go"];
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      extensions: JSON.stringify(extensions),
+    });
+
+    const coder_script = state.resources.find(
+      (res) => res.type === "coder_script" && res.name === "vscode",
+    );
+
+    expect(coder_script).not.toBeNull();
+    expect(coder_script?.instances[0].attributes.script).toContain(
+      JSON.stringify(extensions),
+    );
+  });
+
+  it("accepts settings object", async () => {
+    const settings = {
+      "editor.fontSize": 14,
+      "files.autoSave": "afterDelay",
+    };
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      settings: JSON.stringify(settings),
+    });
+
+    const coder_script = state.resources.find(
+      (res) => res.type === "coder_script" && res.name === "vscode",
+    );
+
+    expect(coder_script).not.toBeNull();
+    expect(coder_script?.instances[0].attributes.script).toContain(
+      JSON.stringify(settings),
+    );
+  });
+
+  it("validates extension format", async () => {
+    // This should work (valid format)
+    const validState = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      extensions: JSON.stringify(["ms-python.python", "golang.go"]),
+    });
+    expect(validState).toBeDefined();
+
+    // This should fail (invalid format)
+    try {
+      await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        extensions: JSON.stringify(["invalid-extension-format"]),
+      });
+      throw new Error("Should have failed validation");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toContain(
+        "extensions variable must be in the format",
+      );
+    }
   });
 });
