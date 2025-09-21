@@ -62,7 +62,7 @@ resource "coder_script" "vscode" {
   display_name = "Setup VS Code Extensions & Settings"
   icon         = "/icon/code.svg"
   run_on_start = false
-  run_on_stop  = true  # Required: at least one must be true
+  run_on_stop  = true # Required: at least one must be true
   script = templatefile("${path.module}/run.sh", {
     EXTENSIONS = jsonencode(var.extensions)
     SETTINGS   = jsonencode(var.settings)
