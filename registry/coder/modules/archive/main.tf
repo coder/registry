@@ -78,10 +78,10 @@ locals {
 
   # Ensure ~ is expanded because it cannot be expanded inside quotes in a
   # templated shell script.
-  paths            = [for v in var.paths : replace(v, "/^~/", "$$HOME")]
-  exclude_patterns = [for v in var.exclude_patterns : replace(v, "/^~/", "$$HOME")]
-  directory        = replace(var.directory, "/^~/", "$$HOME")
-  output_dir       = replace(var.output_dir, "/^~/", "$$HOME")
+  paths            = [for v in var.paths : replace(v, "/^~(\\/|$)/", "$$HOME$1")]
+  exclude_patterns = [for v in var.exclude_patterns : replace(v, "/^~(\\/|$)/", "$$HOME$1")]
+  directory        = replace(var.directory, "/^~(\\/|$)/", "$$HOME$1")
+  output_dir       = replace(var.output_dir, "/^~(\\/|$)/", "$$HOME$1")
 
   archive_path = "${local.output_dir}/${var.archive_name}${local.extension}"
 }

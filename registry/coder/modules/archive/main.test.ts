@@ -159,6 +159,12 @@ describe("archive", () => {
 
     const { id } = await installArchive(state);
 
+    const createTestdata = await bashRun(
+      id,
+      `mkdir ~/gzip; touch ~/gzip/defaults.txt`,
+    );
+    ensureRunOk("create testdata", createTestdata);
+
     const run = await bashRun(id, `${BIN_DIR}/coder-archive-create`);
     ensureRunOk("archive-create default run", run);
 
@@ -172,35 +178,39 @@ describe("archive", () => {
 
     const list = await listTar(id, "/tmp/coder-archive.tar.gz");
     ensureRunOk("list default archive", list);
-
-    // We don't assert specific entries to avoid environment coupling.
-    expect(list.stdout.length).toBeGreaterThan(0);
+    expect(list.stdout).toContain("gzip/defaults.txt");
   }, 20000);
 
   it("creates a gzip archive with explicit -f and includes extra CLI paths", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "agent-123",
       // Provide a simple default path so we can assert contents.
-      paths: `["/etc/hostname"]`,
+      paths: `["~/gzip"]`,
       compression: "gzip",
     });
 
     const { id } = await installArchive(state);
 
+    const createTestdata = await bashRun(
+      id,
+      `mkdir ~/gzip; touch ~/gzip/test.txt; touch ~/gziptest.txt`,
+    );
+    ensureRunOk("create testdata", createTestdata);
+
     const out = "/tmp/backup/test-archive.tar.gz";
     const run = await bashRun(
       id,
-      `${BIN_DIR}/coder-archive-create -f ${out} /etc/hosts`,
+      `${BIN_DIR}/coder-archive-create -f ${out} ~/gziptest.txt`,
     );
     ensureRunOk("archive-create gzip explicit -f", run);
 
     expect(run.stdout.trim()).toEqual(out);
     expect(await fileExists(id, out)).toBe(true);
 
-    const tarList = await sh(id, `tar -tzf ${out}`);
-    ensureRunOk("tar -tzf contents (gzip)", tarList);
-    expect(tarList.stdout).toContain("etc/hosts");
-    expect(tarList.stdout).toContain("etc/hostname");
+    const list = await sh(id, `tar -tzf ${out}`);
+    ensureRunOk("tar -tzf contents (gzip)", list);
+    expect(list.stdout).toContain("gzip/test.txt");
+    expect(list.stdout).toContain("gziptest.txt");
   }, 20000);
 
   it("creates a zstd-compressed archive when requested via CLI override", async () => {
