@@ -10,7 +10,6 @@ tags: [backup, archive, tar, helper]
 
 This module installs small, robust scripts in your workspace to create and extract tar archives from a list of files and directories. It supports optional compression (gzip or zstd). The create command prints only the resulting archive path to stdout; operational logs go to stderr. An optional stop hook can also create an archive automatically when the workspace stops, and an optional start hook can wait for an archive on-disk and extract it on start.
 
-
 ## Features
 
 - Installs two commands into the workspace `$PATH`: `coder-archive-create` and `coder-archive-extract`.
@@ -28,14 +27,14 @@ Basic example:
 
 ```tf
 module "archive" {
-  count     = data.coder_workspace.me.start_count
-  source    = "registry.coder.com/coder/archive/coder"
-  version   = "0.0.1"
-  agent_id  = coder_agent.example.id
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/archive/coder"
+  version  = "0.0.1"
+  agent_id = coder_agent.example.id
 
   # Paths to include in the archive (files or directories).
   directory = "~"
-  paths     = [
+  paths = [
     "./projects",
     "./code",
   ]
@@ -46,16 +45,16 @@ Customize compression and output:
 
 ```tf
 module "archive" {
-  count       = data.coder_workspace.me.start_count
-  source      = "registry.coder.com/coder/archive/coder"
-  version     = "0.0.1"
-  agent_id    = coder_agent.example.id
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/archive/coder"
+  version  = "0.0.1"
+  agent_id = coder_agent.example.id
 
   directory    = "/"
   paths        = ["/etc", "/home"]
-  compression  = "zstd"          # "gzip" | "zstd" | "none"
-  output_dir   = "/tmp/backup"   # defaults to /tmp
-  archive_name = "my-backup"     # base name (extension is inferred from compression)
+  compression  = "zstd"        # "gzip" | "zstd" | "none"
+  output_dir   = "/tmp/backup" # defaults to /tmp
+  archive_name = "my-backup"   # base name (extension is inferred from compression)
 }
 ```
 
@@ -63,12 +62,12 @@ Enable auto-archive on stop:
 
 ```tf
 module "archive" {
-  count          = data.coder_workspace.me.start_count
-  source         = "registry.coder.com/coder/archive/coder"
-  version        = "0.0.1"
-  agent_id       = coder_agent.example.id
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/archive/coder"
+  version  = "0.0.1"
+  agent_id = coder_agent.example.id
 
-	# Creates /tmp/coder-archive.tar.gz of the users home directory (defaults).
+  # Creates /tmp/coder-archive.tar.gz of the users home directory (defaults).
   create_on_stop = true
 }
 ```
@@ -77,19 +76,19 @@ Extract on start:
 
 ```tf
 module "archive" {
-  count                          = data.coder_workspace.me.start_count
-  source                         = "registry.coder.com/coder/archive/coder"
-  version                        = "0.0.1"
-  agent_id                       = coder_agent.example.id
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/archive/coder"
+  version  = "0.0.1"
+  agent_id = coder_agent.example.id
 
   # Where to look for the archive file to extract:
-  output_dir                     = "/tmp"
-  archive_name                   = "my-archive"
-  compression                    = "gzip"
+  output_dir   = "/tmp"
+  archive_name = "my-archive"
+  compression  = "gzip"
 
-	# Waits up to 5 minutes for /tmp/my-archive.tar.gz to be present.
-  extract_on_start               = true
-  extract_wait_timeout_seconds   = 300
+  # Waits up to 5 minutes for /tmp/my-archive.tar.gz to be present.
+  extract_on_start             = true
+  extract_wait_timeout_seconds = 300
 }
 ```
 
