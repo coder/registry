@@ -129,3 +129,34 @@ run "app_order_when_default_not_empty" {
     error_message = "Expected coder_app order to be set to 10"
   }
 }
+
+run "tooltip_when_provided" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+    tooltip  = "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button."
+  }
+
+  assert {
+    condition     = anytrue([for app in values(resource.coder_app.jetbrains) : app.tooltip == "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button."])
+    error_message = "Expected coder_app tooltip to be set when provided"
+  }
+}
+
+run "tooltip_null_when_not_provided" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+  }
+
+  assert {
+    condition     = anytrue([for app in values(resource.coder_app.jetbrains) : app.tooltip == null])
+    error_message = "Expected coder_app tooltip to be null when not provided"
+  }
+}
