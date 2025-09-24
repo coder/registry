@@ -36,11 +36,71 @@ variable "icon" {
   default     = "/icon/claude.svg"
 }
 
-variable "folder" {
+variable "workdir" {
   type        = string
   description = "The folder to run Claude Code in."
-  default     = "/home/coder"
 }
+
+variable "report_tasks" {
+  type        = bool
+  description = "Whether to enable task reporting to Coder UI via AgentAPI"
+  default     = true
+}
+
+variable "cli_app" {
+  type        = bool
+  description = "Whether to create a CLI app for Claude Code"
+  default     = false
+}
+
+variable "web_app_display_name" {
+  type        = string
+  description = "Display name for the web app"
+  default     = "Claude Code"
+}
+
+variable "cli_app_display_name" {
+  type        = string
+  description = "Display name for the CLI app"
+  default     = "Claude Code CLI"
+}
+
+variable "pre_install_script" {
+  type        = string
+  description = "Custom script to run before installing Claude Code."
+  default     = null
+}
+
+variable "post_install_script" {
+  type        = string
+  description = "Custom script to run after installing Claude Code."
+  default     = null
+}
+
+variable "install_agentapi" {
+  type        = bool
+  description = "Whether to install AgentAPI."
+  default     = true
+}
+
+variable "agentapi_version" {
+  type        = string
+  description = "The version of AgentAPI to install."
+  default     = "v0.7.1"
+}
+
+variable "ai_prompt" {
+  type        = string
+  description = "Initial task prompt for Claude Code."
+  default     = ""
+}
+
+variable "subdomain" {
+  type        = bool
+  description = "Whether to use a subdomain for AgentAPI."
+  default     = false
+}
+
 
 variable "install_claude_code" {
   type        = bool
@@ -54,245 +114,179 @@ variable "claude_code_version" {
   default     = "latest"
 }
 
-variable "experiment_cli_app" {
+variable "claude_api_key" {
+  type        = string
+  description = "The API key to use for the Claude Code server."
+  default     = ""
+}
+
+variable "model" {
+  type        = string
+  description = "Sets the model for the current session with an alias for the latest model (sonnet or opus) or a model’s full name."
+  default     = ""
+}
+
+variable "resume_session_id" {
+  type        = string
+  description = "Resume a specific session by ID."
+  default     = ""
+}
+
+variable "continue" {
   type        = bool
-  description = "Whether to create the CLI workspace app."
+  description = "Load the most recent conversation in the current directory. Task will fail in a new workspace with no conversation/session to continue"
   default     = false
 }
 
-variable "experiment_cli_app_order" {
-  type        = number
-  description = "The order of the CLI workspace app."
-  default     = null
-}
-
-variable "experiment_cli_app_group" {
-  type        = string
-  description = "The group of the CLI workspace app."
-  default     = null
-}
-
-variable "experiment_report_tasks" {
+variable "dangerously_skip_permissions" {
   type        = bool
-  description = "Whether to enable task reporting."
+  description = "Skip the permission prompts. Use with caution. This will be set to true if using Coder Tasks"
   default     = false
 }
 
-variable "experiment_pre_install_script" {
+variable "permission_mode" {
   type        = string
-  description = "Custom script to run before installing Claude Code."
-  default     = null
+  description = "Permission mode for the cli, check https://docs.anthropic.com/en/docs/claude-code/iam#permission-modes"
+  default     = ""
+  validation {
+    condition     = contains(["", "default", "acceptEdits", "plan", "bypassPermissions"], var.permission_mode)
+    error_message = "interaction_mode must be one of: default, acceptEdits, plan, bypassPermissions."
+  }
 }
 
-variable "experiment_post_install_script" {
+variable "mcp" {
   type        = string
-  description = "Custom script to run after installing Claude Code."
-  default     = null
+  description = "MCP JSON to be added to the claude code local scope"
+  default     = ""
 }
 
-
-variable "install_agentapi" {
-  type        = bool
-  description = "Whether to install AgentAPI."
-  default     = true
-}
-
-variable "agentapi_version" {
+variable "allowed_tools" {
   type        = string
-  description = "The version of AgentAPI to install."
-  default     = "v0.3.3"
+  description = "A list of tools that should be allowed without prompting the user for permission, in addition to settings.json files."
+  default     = ""
 }
 
-variable "subdomain" {
-  type        = bool
-  description = "Whether to use a subdomain for the Claude Code app."
-  default     = false
+variable "disallowed_tools" {
+  type        = string
+  description = "A list of tools that should be disallowed without prompting the user for permission, in addition to settings.json files."
+  default     = ""
+
+}
+
+variable "claude_code_oauth_token" {
+  type        = string
+  description = "Set up a long-lived authentication token (requires Claude subscription). Generated using `claude setup-token` command"
+  sensitive   = true
+  default     = ""
+}
+
+variable "system_prompt" {
+  type        = string
+  description = "The system prompt to use for the Claude Code server."
+  default     = "Send a task status update to notify the user that you are ready for input, and then wait for user input."
+}
+
+variable "claude_md_path" {
+  type        = string
+  description = "The path to CLAUDE.md."
+  default     = "$HOME/.claude/CLAUDE.md"
+}
+
+resource "coder_env" "claude_code_md_path" {
+  count = var.claude_md_path == "" ? 0 : 1
+
+  agent_id = var.agent_id
+  name     = "CODER_MCP_CLAUDE_MD_PATH"
+  value    = var.claude_md_path
+}
+
+resource "coder_env" "claude_code_system_prompt" {
+  count = var.system_prompt == "" ? 0 : 1
+
+  agent_id = var.agent_id
+  name     = "CODER_MCP_CLAUDE_SYSTEM_PROMPT"
+  value    = var.system_prompt
+}
+
+resource "coder_env" "claude_code_oauth_token" {
+  agent_id = var.agent_id
+  name     = "CLAUDE_CODE_OAUTH_TOKEN"
+  value    = var.claude_code_oauth_token
+}
+
+resource "coder_env" "claude_api_key" {
+  count = length(var.claude_api_key) > 0 ? 1 : 0
+
+  agent_id = var.agent_id
+  name     = "CLAUDE_API_KEY"
+  value    = var.claude_api_key
 }
 
 locals {
   # we have to trim the slash because otherwise coder exp mcp will
-  # set up an invalid claude config
-  workdir                            = trimsuffix(var.folder, "/")
-  encoded_pre_install_script         = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
-  encoded_post_install_script        = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
-  agentapi_start_script_b64          = base64encode(file("${path.module}/scripts/agentapi-start.sh"))
-  agentapi_wait_for_start_script_b64 = base64encode(file("${path.module}/scripts/agentapi-wait-for-start.sh"))
-  remove_last_session_id_script_b64  = base64encode(file("${path.module}/scripts/remove-last-session-id.sh"))
-  claude_code_app_slug               = "ccw"
-  // Chat base path is only set if not using a subdomain.
-  // NOTE:
-  //   - Initial support for --chat-base-path was added in v0.3.1 but configuration
-  //     via environment variable AGENTAPI_CHAT_BASE_PATH was added in v0.3.3.
-  //   - As CODER_WORKSPACE_AGENT_NAME is a recent addition we use agent ID
-  //     for backward compatibility.
-  agentapi_chat_base_path = var.subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${local.claude_code_app_slug}/chat"
-  server_base_path        = var.subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${local.claude_code_app_slug}"
-  healthcheck_url         = "http://localhost:3284${local.server_base_path}/status"
+  # set up an invalid claude config 
+  workdir                           = trimsuffix(var.workdir, "/")
+  app_slug                          = "ccw"
+  install_script                    = file("${path.module}/scripts/install.sh")
+  start_script                      = file("${path.module}/scripts/start.sh")
+  module_dir_name                   = ".claude-module"
+  remove_last_session_id_script_b64 = base64encode(file("${path.module}/scripts/remove-last-session-id.sh"))
 }
 
-# Install and Initialize Claude Code
-resource "coder_script" "claude_code" {
-  agent_id     = var.agent_id
-  display_name = "Claude Code"
-  icon         = var.icon
-  script       = <<-EOT
+module "agentapi" {
+
+  source  = "registry.coder.com/coder/agentapi/coder"
+  version = "1.1.1"
+
+  agent_id             = var.agent_id
+  web_app_slug         = local.app_slug
+  web_app_order        = var.order
+  web_app_group        = var.group
+  web_app_icon         = var.icon
+  web_app_display_name = var.web_app_display_name
+  cli_app              = var.cli_app
+  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
+  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
+  agentapi_subdomain   = var.subdomain
+  module_dir_name      = local.module_dir_name
+  install_agentapi     = var.install_agentapi
+  agentapi_version     = var.agentapi_version
+  pre_install_script   = var.pre_install_script
+  post_install_script  = var.post_install_script
+  start_script         = <<-EOT
+     #!/bin/bash
+     set -o errexit
+     set -o pipefail
+     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+     echo -n "${local.remove_last_session_id_script_b64}" | base64 -d > "/tmp/remove-last-session-id.sh"
+     chmod +x /tmp/start.sh
+     chmod +x /tmp/remove-last-session-id.sh
+
+     ARG_MODEL='${var.model}' \
+     ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
+     ARG_CONTINUE='${var.continue}' \
+     ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
+     ARG_PERMISSION_MODE='${var.permission_mode}' \
+     ARG_WORKDIR='${local.workdir}' \
+     ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+     /tmp/start.sh
+   EOT
+
+  install_script = <<-EOT
     #!/bin/bash
-    set -e
-    set -x
+    set -o errexit
+    set -o pipefail
 
-    command_exists() {
-      command -v "$1" >/dev/null 2>&1
-    }
-
-    function install_claude_code_cli() {
-      echo "Installing Claude Code via official installer"
-      set +e
-      curl -fsSL claude.ai/install.sh | bash -s -- "${var.claude_code_version}" 2>&1
-      CURL_EXIT=$${PIPESTATUS[0]}
-      set -e
-      if [ $CURL_EXIT -ne 0 ]; then
-        echo "Claude Code installer failed with exit code $$CURL_EXIT"
-      fi
-
-      # Ensure binaries are discoverable.
-      export PATH="~/.local/bin:$PATH"
-      echo "Installed Claude Code successfully. Version: $(claude --version || echo 'unknown')"
-    }
-
-    if [ ! -d "${local.workdir}" ]; then
-      echo "Warning: The specified folder '${local.workdir}' does not exist."
-      echo "Creating the folder..."
-      mkdir -p "${local.workdir}"
-      echo "Folder created successfully."
-    fi
-    if [ -n "${local.encoded_pre_install_script}" ]; then
-      echo "Running pre-install script..."
-      echo "${local.encoded_pre_install_script}" | base64 -d > /tmp/pre_install.sh
-      chmod +x /tmp/pre_install.sh
-      /tmp/pre_install.sh
-    fi
-
-    if [ "${var.install_claude_code}" = "true" ]; then
-      install_claude_code_cli
-    fi
-
-    # Install AgentAPI if enabled
-    if [ "${var.install_agentapi}" = "true" ]; then
-      echo "Installing AgentAPI..."
-      arch=$(uname -m)
-      if [ "$arch" = "x86_64" ]; then
-        binary_name="agentapi-linux-amd64"
-      elif [ "$arch" = "aarch64" ]; then
-        binary_name="agentapi-linux-arm64"
-      else
-        echo "Error: Unsupported architecture: $arch"
-        exit 1
-      fi
-      curl \
-        --retry 5 \
-        --retry-delay 5 \
-        --fail \
-        --retry-all-errors \
-        -L \
-        -C - \
-        -o agentapi \
-        "https://github.com/coder/agentapi/releases/download/${var.agentapi_version}/$binary_name"
-      chmod +x agentapi
-      sudo mv agentapi /usr/local/bin/agentapi
-    fi
-    if ! command_exists agentapi; then
-      echo "Error: AgentAPI is not installed. Please enable install_agentapi or install it manually."
-      exit 1
-    fi
-
-    # this must be kept in sync with the agentapi-start.sh script
-    module_path="$HOME/.claude-module"
-    mkdir -p "$module_path/scripts"
-
-    # save the prompt for the agentapi start command
-    echo -n "$CODER_MCP_CLAUDE_TASK_PROMPT" > "$module_path/prompt.txt"
-
-    echo -n "${local.agentapi_start_script_b64}" | base64 -d > "$module_path/scripts/agentapi-start.sh"
-    echo -n "${local.agentapi_wait_for_start_script_b64}" | base64 -d > "$module_path/scripts/agentapi-wait-for-start.sh"
-    echo -n "${local.remove_last_session_id_script_b64}" | base64 -d > "$module_path/scripts/remove-last-session-id.sh"
-    chmod +x "$module_path/scripts/agentapi-start.sh"
-    chmod +x "$module_path/scripts/agentapi-wait-for-start.sh"
-
-    if [ "${var.experiment_report_tasks}" = "true" ]; then
-      echo "Configuring Claude Code to report tasks via Coder MCP..."
-      export CODER_MCP_APP_STATUS_SLUG="${local.claude_code_app_slug}"
-      export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
-      coder exp mcp configure claude-code "${local.workdir}"
-    fi
-
-    if [ -n "${local.encoded_post_install_script}" ]; then
-      echo "Running post-install script..."
-      echo "${local.encoded_post_install_script}" | base64 -d > /tmp/post_install.sh
-      chmod +x /tmp/post_install.sh
-      /tmp/post_install.sh
-    fi
-
-    if ! command_exists claude; then
-      echo "Error: Claude Code is not installed. Please enable install_claude_code or install it manually."
-      exit 1
-    fi
-
-    export LANG=en_US.UTF-8
-    export LC_ALL=en_US.UTF-8
-
-    cd "${local.workdir}"
-
-    # Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
-    export AGENTAPI_ALLOWED_HOSTS="*"
-
-    # Set chat base path for non-subdomain routing (only set if not using subdomain)
-    export AGENTAPI_CHAT_BASE_PATH="${local.agentapi_chat_base_path}"
-
-    nohup "$module_path/scripts/agentapi-start.sh" use_prompt &> "$module_path/agentapi-start.log" &
-    "$module_path/scripts/agentapi-wait-for-start.sh"
-    EOT
-  run_on_start = true
-}
-
-resource "coder_app" "claude_code_web" {
-  # use a short slug to mitigate https://github.com/coder/coder/issues/15178
-  slug         = local.claude_code_app_slug
-  display_name = "Claude Code Web"
-  agent_id     = var.agent_id
-  url          = "http://localhost:3284/"
-  icon         = var.icon
-  order        = var.order
-  group        = var.group
-  subdomain    = var.subdomain
-  healthcheck {
-    url       = local.healthcheck_url
-    interval  = 3
-    threshold = 20
-  }
-}
-
-resource "coder_app" "claude_code" {
-  count = var.experiment_cli_app ? 1 : 0
-
-  slug         = "claude-code"
-  display_name = "Claude Code CLI"
-  agent_id     = var.agent_id
-  command      = <<-EOT
-    #!/bin/bash
-    set -e
-
-    export LANG=en_US.UTF-8
-    export LC_ALL=en_US.UTF-8
-
-    agentapi attach
-    EOT
-  icon         = var.icon
-  order        = var.experiment_cli_app_order
-  group        = var.experiment_cli_app_group
-}
-
-resource "coder_ai_task" "claude_code" {
-  sidebar_app {
-    id = coder_app.claude_code_web.id
-  }
+    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
+    chmod +x /tmp/install.sh
+    ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
+    ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
+    ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
+    ARG_REPORT_TASKS='${var.report_tasks}' \
+    ARG_WORKDIR='${local.workdir}' \
+    ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
+    ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
+    ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
+    /tmp/install.sh
+  EOT
 }
