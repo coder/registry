@@ -8,6 +8,8 @@ tags: [vm, windows, gcp]
 
 # Remote Development on Google Compute Engine (Windows)
 
+Provision Google Compute Engine instances as Coder workspaces
+
 ## Prerequisites
 
 ### Authentication

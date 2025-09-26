@@ -276,6 +276,36 @@ describe("jetbrains", async () => {
       );
       expect(parameter?.instances[0].attributes.order).toBe(5);
     });
+
+    it("should set tooltip when specified", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        folder: "/home/coder",
+        default: '["GO"]',
+        tooltip:
+          "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button.",
+      });
+
+      const coder_app = state.resources.find(
+        (res) => res.type === "coder_app" && res.name === "jetbrains",
+      );
+      expect(coder_app?.instances[0].attributes.tooltip).toBe(
+        "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button.",
+      );
+    });
+
+    it("should have null tooltip when not specified", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        folder: "/home/coder",
+        default: '["GO"]',
+      });
+
+      const coder_app = state.resources.find(
+        (res) => res.type === "coder_app" && res.name === "jetbrains",
+      );
+      expect(coder_app?.instances[0].attributes.tooltip).toBeNull();
+    });
   });
 
   // URL Generation Tests

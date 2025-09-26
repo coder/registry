@@ -5,7 +5,7 @@ github: coder
 avatar: ./.images/avatar.svg
 linkedin: https://www.linkedin.com/company/coderhq
 website: https://discord.gg/coder
-status: community
+status: official
 ---
 
 å

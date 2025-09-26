@@ -8,6 +8,8 @@ tags: [vm, linux, gcp]
 
 # Remote Development on Google Compute Engine (Linux)
 
+Provision Google Compute Engine instances as Coder workspaces
+
 ## Prerequisites
 
 ### Authentication

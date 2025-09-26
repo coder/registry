@@ -97,4 +97,4 @@ describe("jetbrains-fleet", async () => {
     expect(coder_app?.instances.length).toBe(1);
     expect(coder_app?.instances[0].attributes.group).toBe("JetBrains IDEs");
   });
-}); 
+});

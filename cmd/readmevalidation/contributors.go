@@ -19,10 +19,15 @@ type contributorProfileFrontmatter struct {
 	Bio               string  `yaml:"bio"`
 	ContributorStatus string  `yaml:"status"`
 	AvatarURL         *string `yaml:"avatar"`
+	GithubUsername    *string `yaml:"github"`
 	LinkedinURL       *string `yaml:"linkedin"`
 	WebsiteURL        *string `yaml:"website"`
 	SupportEmail      *string `yaml:"support_email"`
 }
+
+// A slice version of the struct tags from contributorProfileFrontmatter. Might be worth using reflection to generate
+// this list at runtime in the future, but this should be okay for now
+var supportedContributorProfileStructKeys = []string{"display_name", "bio", "status", "avatar", "linkedin", "github", "website", "support_email"}
 
 type contributorProfileReadme struct {
 	frontmatter contributorProfileFrontmatter
@@ -50,6 +55,22 @@ func validateContributorLinkedinURL(linkedinURL *string) error {
 	return nil
 }
 
+func validateGithubUsername(username *string) error {
+	if username == nil {
+		return nil
+	}
+
+	name := *username
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return xerrors.New("username must have non-whitespace characters")
+	}
+	if name != trimmed {
+		return xerrors.Errorf("username %q has extra whitespace", trimmed)
+	}
+	return nil
+}
+
 // validateContributorSupportEmail does best effort validation of a contributors email address.	We can't 100% validate
 // that this is correct without actually sending an email, especially because some contributors are individual developers
 // and we don't want to do that on every single run of the CI pipeline. The best we can do is verify the general structure.
@@ -58,7 +79,7 @@ func validateContributorSupportEmail(email *string) []error {
 		return nil
 	}
 
-	errs := []error{}
+	var errs []error
 
 	username, server, ok := strings.Cut(*email, "@")
 	if !ok {
@@ -119,7 +140,7 @@ func validateContributorAvatarURL(avatarURL *string) []error {
 		return []error{xerrors.New("avatar URL must be omitted or non-empty string")}
 	}
 
-	errs := []error{}
+	var errs []error
 	// Have to use .Parse instead of .ParseRequestURI because this is the one field that's allowed to be a relative URL.
 	if _, err := url.Parse(*avatarURL); err != nil {
 		errs = append(errs, xerrors.Errorf("URL %q is not a valid relative or absolute URL", *avatarURL))
@@ -145,12 +166,15 @@ func validateContributorAvatarURL(avatarURL *string) []error {
 }
 
 func validateContributorReadme(rm contributorProfileReadme) []error {
-	allErrs := []error{}
+	var allErrs []error
 
 	if err := validateContributorDisplayName(rm.frontmatter.DisplayName); err != nil {
 		allErrs = append(allErrs, addFilePathToError(rm.filePath, err))
 	}
 	if err := validateContributorLinkedinURL(rm.frontmatter.LinkedinURL); err != nil {
+		allErrs = append(allErrs, addFilePathToError(rm.filePath, err))
+	}
+	if err := validateGithubUsername(rm.frontmatter.GithubUsername); err != nil {
 		allErrs = append(allErrs, addFilePathToError(rm.filePath, err))
 	}
 	if err := validateContributorWebsite(rm.frontmatter.WebsiteURL); err != nil {
@@ -170,15 +194,24 @@ func validateContributorReadme(rm contributorProfileReadme) []error {
 	return allErrs
 }
 
-func parseContributorProfile(rm readme) (contributorProfileReadme, error) {
+func parseContributorProfile(rm readme) (contributorProfileReadme, []error) {
 	fm, _, err := separateFrontmatter(rm.rawText)
 	if err != nil {
-		return contributorProfileReadme{}, xerrors.Errorf("%q: failed to parse frontmatter: %v", rm.filePath, err)
+		return contributorProfileReadme{}, []error{xerrors.Errorf("%q: failed to parse frontmatter: %v", rm.filePath, err)}
+	}
+
+	keyErrs := validateFrontmatterYamlKeys(fm, supportedContributorProfileStructKeys)
+	if len(keyErrs) != 0 {
+		var remapped []error
+		for _, e := range keyErrs {
+			remapped = append(remapped, addFilePathToError(rm.filePath, e))
+		}
+		return contributorProfileReadme{}, remapped
 	}
 
 	yml := contributorProfileFrontmatter{}
 	if err := yaml.Unmarshal([]byte(fm), &yml); err != nil {
-		return contributorProfileReadme{}, xerrors.Errorf("%q: failed to parse: %v", rm.filePath, err)
+		return contributorProfileReadme{}, []error{xerrors.Errorf("%q: failed to parse: %v", rm.filePath, err)}
 	}
 
 	return contributorProfileReadme{
@@ -190,11 +223,11 @@ func parseContributorProfile(rm readme) (contributorProfileReadme, error) {
 
 func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfileReadme, error) {
 	profilesByNamespace := map[string]contributorProfileReadme{}
-	yamlParsingErrors := []error{}
+	var yamlParsingErrors []error
 	for _, rm := range readmeEntries {
-		p, err := parseContributorProfile(rm)
-		if err != nil {
-			yamlParsingErrors = append(yamlParsingErrors, err)
+		p, errs := parseContributorProfile(rm)
+		if len(errs) != 0 {
+			yamlParsingErrors = append(yamlParsingErrors, errs...)
 			continue
 		}
 
@@ -211,7 +244,7 @@ func parseContributorFiles(readmeEntries []readme) (map[string]contributorProfil
 		}
 	}
 
-	yamlValidationErrors := []error{}
+	var yamlValidationErrors []error
 	for _, p := range profilesByNamespace {
 		if errors := validateContributorReadme(p); len(errors) > 0 {
 			yamlValidationErrors = append(yamlValidationErrors, errors...)
@@ -234,8 +267,8 @@ func aggregateContributorReadmeFiles() ([]readme, error) {
 		return nil, err
 	}
 
-	allReadmeFiles := []readme{}
-	errs := []error{}
+	var allReadmeFiles []readme
+	var errs []error
 	dirPath := ""
 	for _, e := range dirEntries {
 		if !e.IsDir() {
