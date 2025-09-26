@@ -124,51 +124,26 @@ AWS account with Bedrock access, Claude models enabled in Bedrock console, appro
 Configure Claude Code to use AWS Bedrock for accessing Claude models through your AWS infrastructure.
 
 ```tf
-resource "coder_env" "bedrock_use" {
-  agent_id = coder_agent.example.id
-  name     = "CLAUDE_CODE_USE_BEDROCK"
-  value    = "1"
-}
-
-resource "coder_env" "aws_region" {
-  agent_id = coder_agent.example.id
-  name     = "AWS_REGION"
-  value    = "us-east-1" # Choose your preferred region
-}
-
-# Option 1: Using AWS credentials
-resource "coder_env" "aws_access_key" {
-  agent_id = coder_agent.example.id
-  name     = "AWS_ACCESS_KEY_ID"
-  value    = "your-access-key-id"
-}
-
-resource "coder_env" "aws_secret_key" {
-  agent_id  = coder_agent.example.id
-  name      = "AWS_SECRET_ACCESS_KEY"
-  value     = "your-secret-access-key"
-  sensitive = true
-}
-
-# Option 2: Using Bedrock API key (simpler)
-resource "coder_env" "bedrock_api_key" {
-  agent_id  = coder_agent.example.id
-  name      = "AWS_BEARER_TOKEN_BEDROCK"
-  value     = "your-bedrock-api-key"
-  sensitive = true
-}
-
 module "claude-code" {
-  source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "3.0.1"
-  agent_id = coder_agent.example.id
-  workdir  = "/home/coder/project"
-  model    = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+  source      = "registry.coder.com/coder/claude-code/coder"
+  version     = "3.0.1"
+  agent_id    = coder_agent.example.id
+  workdir     = "/home/coder/project"
+  model       = "anthropic.claude-3-5-sonnet-20241022-v2:0" # Bedrock model ID
+  use_bedrock = true
+  aws_region  = "us-west-2"
+
+  # Option 1: Using AWS credentials
+  aws_access_key_id     = "AKIA..."
+  aws_secret_access_key = "your-secret-key"
+
+  # Option 2: Using Bedrock API key (alternative to AWS credentials)
+  # aws_bearer_token_bedrock = "your-bedrock-api-key"
 }
 ```
 
 > [!NOTE]
-> For additional Bedrock configuration options (model selection, token limits, region overrides, etc.), see the [Claude Code Bedrock documentation](https://docs.claude.com/en/docs/claude-code/amazon-bedrock).
+> For model IDs and available models in your region, refer to the [AWS Bedrock documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html). For additional Bedrock configuration options (model selection, token limits, region overrides, etc.), see the [Claude Code Bedrock documentation](https://docs.claude.com/en/docs/claude-code/amazon-bedrock).
 
 ### Usage with Google Vertex AI
 
@@ -179,32 +154,27 @@ GCP project with Vertex AI API enabled, Claude models enabled through Model Gard
 Configure Claude Code to use Google Vertex AI for accessing Claude models through Google Cloud Platform.
 
 ```tf
-resource "coder_env" "vertex_use" {
-  agent_id = coder_agent.example.id
-  name     = "CLAUDE_CODE_USE_VERTEX"
-  value    = "1"
-}
-
-resource "coder_env" "vertex_project_id" {
-  agent_id = coder_agent.example.id
-  name     = "ANTHROPIC_VERTEX_PROJECT_ID"
-  value    = "your-gcp-project-id"
-}
-
-resource "coder_env" "cloud_ml_region" {
-  agent_id = coder_agent.example.id
-  name     = "CLOUD_ML_REGION"
-  value    = "global"
-}
-
 module "claude-code" {
-  source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "3.0.1"
-  agent_id = coder_agent.example.id
-  workdir  = "/home/coder/project"
-  model    = "claude-sonnet-4@20250514"
+  source            = "registry.coder.com/coder/claude-code/coder"
+  version           = "3.0.1"
+  agent_id          = coder_agent.example.id
+  workdir           = "/home/coder/project"
+  model             = "claude-3-5-sonnet@20241022" # Vertex AI model name
+  use_vertex        = true
+  vertex_project_id = "your-gcp-project-id"
+  vertex_region     = "us-central1" # or "global"
 }
 ```
+
+**Authentication**
+
+Vertex AI uses Google Cloud authentication. Ensure your workspace has access to Google Cloud credentials through one of these methods:
+
+1. **Application Default Credentials (ADC)**: Set up through `gcloud auth application-default login`
+2. **Service Account**: Configure `GOOGLE_APPLICATION_CREDENTIALS` environment variable
+3. **Workload Identity**: For GKE deployments
+
+Refer to the [Google Cloud authentication documentation](https://cloud.google.com/docs/authentication/application-default-credentials) for detailed setup instructions.
 
 > [!NOTE]
 > For additional Vertex AI configuration options (model selection, token limits, region overrides, etc.), see the [Claude Code Vertex AI documentation](https://docs.claude.com/en/docs/claude-code/google-vertex-ai).

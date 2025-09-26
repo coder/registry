@@ -192,6 +192,57 @@ variable "claude_md_path" {
   default     = "$HOME/.claude/CLAUDE.md"
 }
 
+variable "use_bedrock" {
+  type        = bool
+  description = "Whether to use AWS Bedrock for Claude Code."
+  default     = false
+}
+
+variable "aws_region" {
+  type        = string
+  description = "AWS region for Bedrock."
+  default     = ""
+}
+
+variable "aws_access_key_id" {
+  type        = string
+  description = "AWS access key ID for Bedrock authentication."
+  default     = ""
+  sensitive   = true
+}
+
+variable "aws_secret_access_key" {
+  type        = string
+  description = "AWS secret access key for Bedrock authentication."
+  default     = ""
+  sensitive   = true
+}
+
+variable "aws_bearer_token_bedrock" {
+  type        = string
+  description = "AWS Bedrock API key for simplified authentication."
+  default     = ""
+  sensitive   = true
+}
+
+variable "use_vertex" {
+  type        = bool
+  description = "Whether to use Google Vertex AI for Claude Code."
+  default     = false
+}
+
+variable "vertex_project_id" {
+  type        = string
+  description = "Google Cloud project ID for Vertex AI."
+  default     = ""
+}
+
+variable "vertex_region" {
+  type        = string
+  description = "Google Cloud region for Vertex AI."
+  default     = "global"
+}
+
 resource "coder_env" "claude_code_md_path" {
   count = var.claude_md_path == "" ? 0 : 1
 
@@ -220,6 +271,61 @@ resource "coder_env" "claude_api_key" {
   agent_id = var.agent_id
   name     = "CLAUDE_API_KEY"
   value    = var.claude_api_key
+}
+resource "coder_env" "use_bedrock" {
+  count    = var.use_bedrock ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CLAUDE_CODE_USE_BEDROCK"
+  value    = "1"
+}
+
+resource "coder_env" "aws_region" {
+  count    = var.use_bedrock && var.aws_region != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "AWS_REGION"
+  value    = var.aws_region
+}
+
+resource "coder_env" "aws_access_key_id" {
+  count    = var.use_bedrock && var.aws_access_key_id != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "AWS_ACCESS_KEY_ID"
+  value    = var.aws_access_key_id
+}
+
+resource "coder_env" "aws_secret_access_key" {
+  count    = var.use_bedrock && var.aws_secret_access_key != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "AWS_SECRET_ACCESS_KEY"
+  value    = var.aws_secret_access_key
+}
+
+resource "coder_env" "aws_bearer_token_bedrock" {
+  count    = var.use_bedrock && var.aws_bearer_token_bedrock != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "AWS_BEARER_TOKEN_BEDROCK"
+  value    = var.aws_bearer_token_bedrock
+}
+
+resource "coder_env" "use_vertex" {
+  count    = var.use_vertex ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CLAUDE_CODE_USE_VERTEX"
+  value    = "1"
+}
+
+resource "coder_env" "vertex_project_id" {
+  count    = var.use_vertex && var.vertex_project_id != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_VERTEX_PROJECT_ID"
+  value    = var.vertex_project_id
+}
+
+resource "coder_env" "vertex_region" {
+  count    = var.use_vertex ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CLOUD_ML_REGION"
+  value    = var.vertex_region
 }
 
 locals {
