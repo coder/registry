@@ -56,10 +56,10 @@ module "parsec" {
   source         = "registry.coder.com/coder/parsec/coder"
   version        = "1.0.0"
   agent_id       = coder_agent.main.id
-  parsec_version = "150_39b"  # Specific Parsec version
+  parsec_version = "150_39b" # Specific Parsec version
   server_id      = "my-workspace-server"
   peer_id        = "workspace-peer-001"
-  share          = "authenticated"  # Allow authenticated users to access
+  share          = "authenticated" # Allow authenticated users to access
   order          = 1
 }
 ```
@@ -76,7 +76,7 @@ module "parsec" {
 
 # AWS EC2 instance with GPU support (recommended for gaming/graphics)
 resource "aws_instance" "workspace" {
-  ami           = "ami-0abcdef1234567890"  # Ubuntu with NVIDIA drivers
+  ami           = "ami-0abcdef1234567890" # Ubuntu with NVIDIA drivers
   instance_type = "g4dn.xlarge"           # GPU instance
   # ... other configuration
 }
@@ -115,15 +115,15 @@ resource "google_compute_instance" "workspace" {
 
 ## Configuration Options
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `agent_id` | `string` | - | **Required.** The ID of a Coder agent |
-| `order` | `number` | `null` | UI position order |
-| `group` | `string` | `null` | App group name |
-| `share` | `string` | `"owner"` | Sharing level: `owner`, `authenticated`, `public` |
-| `parsec_version` | `string` | `"latest"` | Parsec version to install |
-| `server_id` | `string` | `""` | Custom server ID |
-| `peer_id` | `string` | `""` | Custom peer ID |
+| Variable         | Type     | Default    | Description                                       |
+| ---------------- | -------- | ---------- | ------------------------------------------------- |
+| `agent_id`       | `string` | -          | **Required.** The ID of a Coder agent             |
+| `order`          | `number` | `null`     | UI position order                                 |
+| `group`          | `string` | `null`     | App group name                                    |
+| `share`          | `string` | `"owner"`  | Sharing level: `owner`, `authenticated`, `public` |
+| `parsec_version` | `string` | `"latest"` | Parsec version to install                         |
+| `server_id`      | `string` | `""`       | Custom server ID                                  |
+| `peer_id`        | `string` | `""`       | Custom peer ID                                    |
 
 ## Usage
 
@@ -138,16 +138,19 @@ resource "google_compute_instance" "workspace" {
 ## Troubleshooting
 
 ### Connection Issues
+
 - Ensure your workspace has a stable internet connection
 - Check that Parsec is running: `systemctl status parsec` (on systemd systems)
 - Verify firewall settings allow Parsec traffic
 
 ### Performance Issues
+
 - For best performance, use instances with GPU support
 - Ensure adequate bandwidth (minimum 10 Mbps recommended)
 - Close unnecessary applications on the workspace
 
 ### Installation Issues
+
 - The module requires sudo access for Parsec installation
 - Supported distributions: Ubuntu/Debian, CentOS/RHEL/Fedora
 - Check system logs: `journalctl -u parsec` (systemd) or `/tmp/parsec.log`

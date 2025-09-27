@@ -74,17 +74,17 @@ run "validate_script_template" {
   }
 
   assert {
-    condition = strcontains(resource.coder_script.parsec.script, "PARSEC_VERSION=150_39b")
+    condition     = strcontains(resource.coder_script.parsec.script, "PARSEC_VERSION=150_39b")
     error_message = "Expected script to contain PARSEC_VERSION=150_39b"
   }
 
   assert {
-    condition = strcontains(resource.coder_script.parsec.script, "SERVER_ID=custom-server")
+    condition     = strcontains(resource.coder_script.parsec.script, "SERVER_ID=custom-server")
     error_message = "Expected script to contain SERVER_ID=custom-server"
   }
 
   assert {
-    condition = strcontains(resource.coder_script.parsec.script, "PEER_ID=custom-peer")
+    condition     = strcontains(resource.coder_script.parsec.script, "PEER_ID=custom-peer")
     error_message = "Expected script to contain PEER_ID=custom-peer"
   }
 }
