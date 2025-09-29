@@ -68,6 +68,12 @@ variable "group" {
   default     = null
 }
 
+variable "embed_agent_id" {
+  type        = bool
+  description = "Append the agent_id to the JetBrains Gateway URL for when support for multiple agents is required."
+  default     = false
+}
+
 variable "coder_parameter_order" {
   type        = number
   description = "The order determines the position of a template parameter in the UI/CLI presentation. The lowest order is shown first and parameters with equal order are sorted by name (ascending order)."
@@ -331,7 +337,7 @@ resource "coder_app" "gateway" {
   external     = true
   order        = var.order
   group        = var.group
-  url = join("", [
+  url = join("", concat([
     "jetbrains-gateway://connect#type=coder&workspace=",
     data.coder_workspace.me.name,
     "&owner=",
@@ -348,9 +354,7 @@ resource "coder_app" "gateway" {
     local.build_number,
     "&ide_download_link=",
     local.download_link,
-    "&agent_id=",
-    var.agent_id,
-  ])
+  ], var.embed_agent_id && trimspace(var.agent_id) != "" ? ["&agent_id=", var.agent_id] : []))
 }
 
 output "identifier" {

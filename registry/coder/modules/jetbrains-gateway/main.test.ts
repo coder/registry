@@ -20,7 +20,7 @@ describe("jetbrains-gateway", async () => {
       folder: "/home/coder",
     });
     expect(state.outputs.url.value).toBe(
-      "jetbrains-gateway://connect#type=coder&workspace=default&owner=default&folder=/home/coder&url=https://mydeployment.coder.com&token=$SESSION_TOKEN&ide_product_code=IU&ide_build_number=243.21565.193&ide_download_link=https://download.jetbrains.com/idea/ideaIU-2024.3.tar.gz&agent_id=foo",
+      "jetbrains-gateway://connect#type=coder&workspace=default&owner=default&folder=/home/coder&url=https://mydeployment.coder.com&token=$SESSION_TOKEN&ide_product_code=IU&ide_build_number=243.21565.193&ide_download_link=https://download.jetbrains.com/idea/ideaIU-2024.3.tar.gz",
     );
 
     const coder_app = state.resources.find(
@@ -40,4 +40,15 @@ describe("jetbrains-gateway", async () => {
     });
     expect(state.outputs.identifier.value).toBe("IU");
   });
+});
+it("optionally includes agent_id when embed_agent_id is true", async () => {
+  const state = await runTerraformApply(import.meta.dir, {
+    agent_id: "foo",
+    folder: "/home/coder",
+    embed_agent_id: true,
+  });
+
+  expect(state.outputs.url.value).toBe(
+    "jetbrains-gateway://connect#type=coder&workspace=default&owner=default&folder=/home/coder&url=https://mydeployment.coder.com&token=$SESSION_TOKEN&ide_product_code=IU&ide_build_number=243.21565.193&ide_download_link=https://download.jetbrains.com/idea/ideaIU-2024.3.tar.gz&agent_id=foo",
+  );
 });
