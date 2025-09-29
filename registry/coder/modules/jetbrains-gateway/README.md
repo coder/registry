@@ -10,6 +10,8 @@ tags: [ide, jetbrains, parameter, gateway]
 
 This module adds a JetBrains Gateway Button to open any workspace with a single click.
 
+> We recommend using the [Coder Toolbox module](https://registry.coder.com/modules/coder/jetbrains), which offers significant stability and connectivity benefits over Gateway. Reference our [documentation](https://coder.com/docs/user-guides/workspace-access/jetbrains/toolbox) for more information.
+
 JetBrains recommends a minimum of 4 CPU cores and 8GB of RAM.
 Consult the [JetBrains documentation](https://www.jetbrains.com/help/idea/prerequisites.html#min_requirements) to confirm other system requirements.
 
