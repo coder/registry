@@ -111,6 +111,7 @@ module "copilot_cli" {
 ## Authentication
 
 This module uses Coder's GitHub external authentication:
+
 - Users authenticate via GitHub OAuth in the Coder UI
 - Copilot CLI automatically uses the authenticated session
 - No manual token management required

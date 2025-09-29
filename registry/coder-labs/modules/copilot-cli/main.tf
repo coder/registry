@@ -161,14 +161,14 @@ locals {
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".copilot-module"
-  
+
   # Default configuration with workdir as trusted folder
   default_copilot_config = jsonencode({
-    banner = "never"
-    theme  = "auto"
+    banner          = "never"
+    theme           = "auto"
     trusted_folders = concat([local.workdir], var.trusted_directories)
   })
-  
+
   final_copilot_config = var.copilot_config != "" ? var.copilot_config : local.default_copilot_config
 }
 

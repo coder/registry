@@ -5,11 +5,11 @@ source "$HOME"/.bashrc
 export PATH="$HOME/.local/bin:$PATH"
 
 command_exists() {
-  command -v "$1" >/dev/null 2>&1
+  command -v "$1" > /dev/null 2>&1
 }
 
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
-ARG_AI_PROMPT=$(echo -n "${ARG_AI_PROMPT:-}" | base64 -d 2>/dev/null || echo "")
+ARG_AI_PROMPT=$(echo -n "${ARG_AI_PROMPT:-}" | base64 -d 2> /dev/null || echo "")
 ARG_COPILOT_MODEL=${ARG_COPILOT_MODEL:-}
 ARG_ALLOW_ALL_TOOLS=${ARG_ALLOW_ALL_TOOLS:-false}
 ARG_ALLOW_TOOLS=${ARG_ALLOW_TOOLS:-}
@@ -22,7 +22,6 @@ validate_copilot_installation() {
     exit 1
   fi
 }
-
 
 build_copilot_args() {
   local args=()
@@ -78,10 +77,10 @@ configure_copilot_model() {
 start_agentapi() {
   echo "Starting in directory: $ARG_WORKDIR"
   cd "$ARG_WORKDIR"
-  
+
   local copilot_args_str
   copilot_args_str=$(build_copilot_args)
-  
+
   local copilot_args=()
   if [ -n "$copilot_args_str" ]; then
     read -ra copilot_args <<< "$copilot_args_str"

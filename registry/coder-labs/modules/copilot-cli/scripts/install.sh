@@ -10,8 +10,8 @@ command_exists() {
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
 ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
-ARG_MCP_CONFIG=$(echo -n "${ARG_MCP_CONFIG:-}" | base64 -d 2>/dev/null || echo "")
-ARG_COPILOT_CONFIG=$(echo -n "${ARG_COPILOT_CONFIG:-}" | base64 -d 2>/dev/null || echo "")
+ARG_MCP_CONFIG=$(echo -n "${ARG_MCP_CONFIG:-}" | base64 -d 2> /dev/null || echo "")
+ARG_COPILOT_CONFIG=$(echo -n "${ARG_COPILOT_CONFIG:-}" | base64 -d 2> /dev/null || echo "")
 ARG_EXTERNAL_AUTH_ID=${ARG_EXTERNAL_AUTH_ID:-github}
 
 validate_prerequisites() {
@@ -39,9 +39,9 @@ validate_prerequisites() {
 
 check_github_authentication() {
   echo "Checking GitHub authentication via Coder external auth..."
-  
+
   if command_exists coder; then
-    if coder external-auth access-token "${ARG_EXTERNAL_AUTH_ID:-github}" >/dev/null 2>&1; then
+    if coder external-auth access-token "${ARG_EXTERNAL_AUTH_ID:-github}" > /dev/null 2>&1; then
       echo "GitHub authentication via Coder external auth: OK"
       return 0
     else
@@ -50,7 +50,7 @@ check_github_authentication() {
     fi
   fi
 
-  if command_exists gh && gh auth status >/dev/null 2>&1; then
+  if command_exists gh && gh auth status > /dev/null 2>&1; then
     echo "GitHub CLI authentication detected as fallback"
     return 0
   fi
@@ -89,7 +89,7 @@ EOF
 
 setup_copilot_config() {
   local config_file="$HOME/.config/copilot.json"
-  
+
   if [ -n "$ARG_COPILOT_CONFIG" ]; then
     echo "Setting up Copilot configuration..."
     echo "$ARG_COPILOT_CONFIG" > "$config_file"
@@ -106,7 +106,7 @@ configure_coder_integration() {
     export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
 
     if command_exists coder; then
-      coder exp mcp configure copilot-cli "$ARG_WORKDIR" 2>/dev/null || true
+      coder exp mcp configure copilot-cli "$ARG_WORKDIR" 2> /dev/null || true
     fi
   else
     echo "Task reporting disabled."

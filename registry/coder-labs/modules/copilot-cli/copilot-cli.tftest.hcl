@@ -77,8 +77,8 @@ run "custom_copilot_config" {
     workdir          = "/home/coder"
     external_auth_id = "github"
     copilot_config = jsonencode({
-      banner = "auto"
-      theme  = "light"
+      banner          = "auto"
+      theme           = "light"
       trusted_folders = ["/home/coder", "/workspace"]
     })
   }
