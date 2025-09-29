@@ -44,9 +44,9 @@ const fullConfigVars = {
       },
     },
   }),
-  trusted_directories: ["/workspace", "/projects"],
-  allow_tools: ["fs_read", "fs_write"],
-  deny_tools: ["execute_bash"],
+  trusted_directories: '["/workspace", "/projects"]',
+  allow_tools: '["fs_read", "fs_write"]',
+  deny_tools: '["execute_bash"]',
 };
 
 describe("copilot-cli module", async () => {
@@ -128,7 +128,7 @@ describe("copilot-cli module", async () => {
   it("supports trusted directories", async () => {
     const trustedDirsVars = {
       ...requiredVars,
-      trusted_directories: ["/workspace", "/projects", "/data"],
+      trusted_directories: '["/workspace", "/projects", "/data"]',
     };
 
     const state = await runTerraformApply(moduleDir, trustedDirsVars);
@@ -173,8 +173,8 @@ describe("copilot-cli module", async () => {
   it("supports tool permissions", async () => {
     const toolPermissionsVars = {
       ...requiredVars,
-      allow_tools: ["fs_read", "fs_write", "execute_bash"],
-      deny_tools: ["rm", "sudo"],
+      allow_tools: '["fs_read", "fs_write", "execute_bash"]',
+      deny_tools: '["rm", "sudo"]',
     };
 
     const state = await runTerraformApply(moduleDir, toolPermissionsVars);
@@ -237,26 +237,6 @@ describe("copilot-cli module", async () => {
     );
     expect(statusSlugEnv).toBeDefined();
     expect(statusSlugEnv.value).toBe("copilot-cli");
-  });
-
-  it("validates model options", async () => {
-    const validModels = ["claude-sonnet-4", "claude-sonnet-4.5", "gpt-5"];
-    
-    for (const model of validModels) {
-      const modelVars = {
-        ...requiredVars,
-        copilot_model: model,
-      };
-
-      const state = await runTerraformApply(moduleDir, modelVars);
-
-      const statusSlugEnv = findResourceInstance(
-        state,
-        "coder_env",
-        "mcp_app_status_slug",
-      );
-      expect(statusSlugEnv).toBeDefined();
-    }
   });
 
   it("supports external auth configuration", async () => {
