@@ -244,6 +244,7 @@ module "agentapi" {
   web_app_group        = var.group
   web_app_icon         = var.icon
   web_app_display_name = var.web_app_display_name
+  folder               = local.workdir
   cli_app              = var.cli_app
   cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
   cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
