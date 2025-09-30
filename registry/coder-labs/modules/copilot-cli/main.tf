@@ -226,6 +226,7 @@ module "agentapi" {
     ARG_ALLOW_TOOLS='${join(",", var.allow_tools)}' \
     ARG_DENY_TOOLS='${join(",", var.deny_tools)}' \
     ARG_TRUSTED_DIRECTORIES='${join(",", var.trusted_directories)}' \
+    ARG_EXTERNAL_AUTH_ID='${var.external_auth_id}' \
     /tmp/start.sh
   EOT
 

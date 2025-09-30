@@ -16,6 +16,7 @@ ARG_ALLOW_ALL_TOOLS=${ARG_ALLOW_ALL_TOOLS:-false}
 ARG_ALLOW_TOOLS=${ARG_ALLOW_TOOLS:-}
 ARG_DENY_TOOLS=${ARG_DENY_TOOLS:-}
 ARG_TRUSTED_DIRECTORIES=${ARG_TRUSTED_DIRECTORIES:-}
+ARG_EXTERNAL_AUTH_ID=${ARG_EXTERNAL_AUTH_ID:-github}
 
 validate_copilot_installation() {
   if ! command_exists copilot; then
@@ -81,6 +82,31 @@ configure_copilot_model() {
   fi
 }
 
+setup_github_authentication() {
+  echo "Setting up GitHub authentication..."
+  
+  if command_exists coder; then
+    local github_token
+    if github_token=$(coder external-auth access-token "${ARG_EXTERNAL_AUTH_ID}" 2>/dev/null); then
+      if [ -n "$github_token" ] && [ "$github_token" != "null" ]; then
+        export GITHUB_TOKEN="$github_token"
+        export GH_TOKEN="$github_token"
+        echo "GitHub authentication: via Coder external auth"
+        return 0
+      fi
+    fi
+  fi
+  
+  if command_exists gh && gh auth status > /dev/null 2>&1; then
+    echo "GitHub authentication: via GitHub CLI"
+    return 0
+  fi
+  
+  echo "WARNING: No GitHub authentication found. Copilot CLI requires authentication."
+  echo "Please ensure GitHub external auth is configured in Coder or run 'gh auth login'"
+  return 1
+}
+
 start_agentapi() {
   echo "Starting in directory: $ARG_WORKDIR"
   cd "$ARG_WORKDIR"
@@ -99,7 +125,7 @@ start_agentapi() {
 configure_copilot_model
 
 echo "COPILOT_MODEL=${ARG_COPILOT_MODEL:-${COPILOT_MODEL:-not set}}"
-echo "GitHub authentication: via Coder external auth"
 
+setup_github_authentication
 validate_copilot_installation
 start_agentapi
