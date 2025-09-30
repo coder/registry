@@ -157,9 +157,6 @@ variable "post_install_script" {
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
-data "coder_external_auth" "github" {
-  id = var.external_auth_id
-}
 
 locals {
   workdir         = trimsuffix(var.workdir, "/")
