@@ -98,6 +98,7 @@ resource "coder_script" "cursor_mcp" {
     set -eu
     mkdir -p "$HOME/.cursor"
     echo -n "${local.mcp_b64}" | base64 -d > "$HOME/.cursor/mcp.json"
+    chmod 600 "$HOME/.cursor/mcp.json"
   EOT
 }
 

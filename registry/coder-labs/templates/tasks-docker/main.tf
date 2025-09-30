@@ -22,31 +22,16 @@ provider "docker" {}
 module "claude-code" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "2.0.0"
+  version             = "3.0.0"
   agent_id            = coder_agent.main.id
-  folder              = "/home/coder/projects"
-  install_claude_code = true
-  claude_code_version = "latest"
+  workdir             = "/home/coder/projects"
   order               = 999
-
-  experiment_post_install_script = data.coder_parameter.setup_script.value
-
-  # This enables Coder Tasks
-  experiment_report_tasks = true
-}
-
-# You can also use a model provider, like AWS Bedrock or Vertex by replacing
-# this with the special env vars from the Claude Code docs.
-# see: https://docs.anthropic.com/en/docs/claude-code/third-party-integrations
-variable "anthropic_api_key" {
-  type        = string
-  description = "Generate one at: https://console.anthropic.com/settings/keys"
-  sensitive   = true
-}
-resource "coder_env" "anthropic_api_key" {
-  agent_id = coder_agent.main.id
-  name     = "CODER_MCP_CLAUDE_API_KEY"
-  value    = var.anthropic_api_key
+  claude_api_key      = ""
+  ai_prompt           = data.coder_parameter.ai_prompt.value
+  system_prompt       = data.coder_parameter.system_prompt.value
+  model               = "sonnet"
+  permission_mode     = "plan"
+  post_install_script = data.coder_parameter.setup_script.value
 }
 
 # We are using presets to set the prompts, image, and set up instructions
@@ -172,23 +157,6 @@ data "coder_parameter" "preview_port" {
   mutable      = false
 }
 
-# Other variables for Claude Code
-resource "coder_env" "claude_task_prompt" {
-  agent_id = coder_agent.main.id
-  name     = "CODER_MCP_CLAUDE_TASK_PROMPT"
-  value    = data.coder_parameter.ai_prompt.value
-}
-resource "coder_env" "app_status_slug" {
-  agent_id = coder_agent.main.id
-  name     = "CODER_MCP_APP_STATUS_SLUG"
-  value    = "ccw"
-}
-resource "coder_env" "claude_system_prompt" {
-  agent_id = coder_agent.main.id
-  name     = "CODER_MCP_CLAUDE_SYSTEM_PROMPT"
-  value    = data.coder_parameter.system_prompt.value
-}
-
 data "coder_provisioner" "me" {}
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
@@ -300,13 +268,6 @@ module "code-server" {
   order    = 1
 }
 
-module "vscode" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/vscode-desktop/coder"
-  version  = "1.1.0"
-  agent_id = coder_agent.main.id
-}
-
 module "windsurf" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windsurf/coder"
@@ -321,23 +282,13 @@ module "cursor" {
   agent_id = coder_agent.main.id
 }
 
-module "jetbrains_gateway" {
-  count  = data.coder_workspace.me.start_count
-  source = "registry.coder.com/coder/jetbrains-gateway/coder"
-
-  # JetBrains IDEs to make available for the user to select
-  jetbrains_ides = ["IU", "PS", "WS", "PY", "CL", "GO", "RM", "RD", "RR"]
-  default        = "IU"
-
-  # Default folder to open when starting a JetBrains IDE
-  folder = "/home/coder/projects"
-
-  # This ensures that the latest non-breaking version of the module gets downloaded, you can also pin the module version to prevent breaking changes in production.
-  version = "~> 1.0"
-
+module "jetbrains" {
+  count      = data.coder_workspace.me.start_count
+  source     = "registry.coder.com/coder/jetbrains/coder"
+  version    = "~> 1.0"
   agent_id   = coder_agent.main.id
   agent_name = "main"
-  order      = 2
+  folder     = "/home/coder/projects"
 }
 
 resource "docker_volume" "home_volume" {

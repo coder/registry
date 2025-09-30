@@ -69,7 +69,7 @@ variable "agentapi_version" {
 variable "subdomain" {
   type        = bool
   description = "Whether to use a subdomain for AgentAPI."
-  default     = true
+  default     = false
 }
 
 variable "goose_provider" {
