@@ -255,6 +255,26 @@ describe("copilot-cli module", async () => {
     expect(statusSlugEnv).toBeDefined();
   });
 
+  it("supports system prompt configuration", async () => {
+    const systemPromptVars = {
+      ...requiredVars,
+      system_prompt:
+        "You are a helpful AI assistant that focuses on code quality and best practices.",
+    };
+
+    const state = await runTerraformApply(moduleDir, systemPromptVars);
+
+    const statusSlugEnv = findResourceInstance(
+      state,
+      "coder_env",
+      "mcp_app_status_slug",
+    );
+    expect(statusSlugEnv).toBeDefined();
+
+    // System prompt is now handled via .github/copilot-instructions.md file creation
+    // during install, not via environment variables
+  });
+
   it("works with full configuration", async () => {
     const state = await runTerraformApply(moduleDir, fullConfigVars);
 

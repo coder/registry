@@ -51,6 +51,13 @@ module "copilot_cli" {
   ai_prompt     = data.coder_parameter.ai_prompt.value
   copilot_model = "claude-sonnet-4.5"
 
+  system_prompt = <<-EOT
+    You are a helpful AI coding assistant working in a development environment.
+    Always follow best practices and provide clear explanations for your suggestions.
+    Focus on writing clean, maintainable code and helping with debugging tasks.
+    Send a task status update to notify the user that you are ready for input, and then wait for user input.
+  EOT
+
   allow_tools         = ["shell(git)", "shell(npm)", "write"]
   trusted_directories = ["/home/coder/workspace", "/tmp"]
 
@@ -105,6 +112,31 @@ module "copilot_cli" {
       "/home/coder/projects"
     ]
   })
+}
+```
+
+### System Prompt Configuration
+
+You can customize the behavior of Copilot CLI by providing a system prompt that will be combined with task prompts:
+
+```tf
+module "copilot_cli" {
+  source   = "registry.coder.com/coder-labs/copilot-cli/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
+  workdir  = "/home/coder/project"
+
+  system_prompt = <<-EOT
+    You are a senior software engineer helping with code development.
+    Always prioritize:
+    - Code quality and best practices
+    - Security considerations
+    - Performance optimization
+    - Clear documentation and comments
+    
+    When suggesting changes, explain the reasoning behind your recommendations.
+    Send a task status update to notify the user that you are ready for input, and then wait for user input.
+  EOT
 }
 ```
 

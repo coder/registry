@@ -10,6 +10,7 @@ command_exists() {
 
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
 ARG_AI_PROMPT=$(echo -n "${ARG_AI_PROMPT:-}" | base64 -d 2> /dev/null || echo "")
+ARG_SYSTEM_PROMPT=$(echo -n "${ARG_SYSTEM_PROMPT:-}" | base64 -d 2> /dev/null || echo "")
 ARG_COPILOT_MODEL=${ARG_COPILOT_MODEL:-}
 ARG_ALLOW_ALL_TOOLS=${ARG_ALLOW_ALL_TOOLS:-false}
 ARG_ALLOW_TOOLS=${ARG_ALLOW_TOOLS:-}
@@ -25,8 +26,17 @@ validate_copilot_installation() {
 
 build_copilot_args() {
   local args=()
+  local combined_prompt=""
 
-  if [ -n "$ARG_AI_PROMPT" ]; then
+  # Combine system prompt with AI prompt if both exist
+  if [ -n "$ARG_SYSTEM_PROMPT" ] && [ -n "$ARG_AI_PROMPT" ]; then
+    combined_prompt="$ARG_SYSTEM_PROMPT
+
+Task: $ARG_AI_PROMPT"
+    args+=(--prompt "$combined_prompt")
+  elif [ -n "$ARG_SYSTEM_PROMPT" ]; then
+    args+=(--prompt "$ARG_SYSTEM_PROMPT")
+  elif [ -n "$ARG_AI_PROMPT" ]; then
     args+=(--prompt "$ARG_AI_PROMPT")
   fi
 

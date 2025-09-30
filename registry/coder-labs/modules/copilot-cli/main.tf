@@ -46,6 +46,12 @@ variable "ai_prompt" {
   default     = ""
 }
 
+variable "system_prompt" {
+  type        = string
+  description = "The system prompt to use for the Copilot CLI server."
+  default     = "You are a helpful AI assistant that helps with coding tasks. Always provide clear explanations and follow best practices. Send a task status update to notify the user that you are ready for input, and then wait for user input."
+}
+
 variable "trusted_directories" {
   type        = list(string)
   description = "Additional directories to trust for Copilot CLI operations."
@@ -186,6 +192,7 @@ resource "coder_env" "copilot_model" {
 }
 
 
+
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
   version = "1.1.1"
@@ -216,6 +223,7 @@ module "agentapi" {
     
     ARG_WORKDIR='${local.workdir}' \
     ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+    ARG_SYSTEM_PROMPT='${base64encode(var.system_prompt)}' \
     ARG_COPILOT_MODEL='${var.copilot_model}' \
     ARG_ALLOW_ALL_TOOLS='${var.allow_all_tools}' \
     ARG_ALLOW_TOOLS='${join(",", var.allow_tools)}' \
