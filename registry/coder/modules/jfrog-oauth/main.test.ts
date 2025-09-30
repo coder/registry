@@ -24,12 +24,10 @@ describe("jfrog-oauth", async () => {
   const fakeFrogUrl = "http://localhost:8081";
   const user = "default";
 
-  it("can run apply with required variables", async () => {
-    testRequiredVariables<TestVariables>(import.meta.dir, {
-      agent_id: "some-agent-id",
-      jfrog_url: fakeFrogUrl,
-      package_managers: "{}",
-    });
+  testRequiredVariables<TestVariables>(import.meta.dir, {
+    agent_id: "some-agent-id",
+    jfrog_url: fakeFrogUrl,
+    package_managers: "{}",
   });
 
   it("generates an npmrc with scoped repos", async () => {
