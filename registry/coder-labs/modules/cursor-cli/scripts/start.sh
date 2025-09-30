@@ -58,7 +58,7 @@ fi
 
 if [ -n "$ARG_AI_PROMPT" ]; then
   printf "AI prompt provided\n"
-   ARGS+=("Complete the task at hand in one go. Every step of the way, report your progress using coder_report_task tool with proper summary and statuses. Your task at hand: $ARG_AI_PROMPT")
+  ARGS+=("Complete the task at hand in one go. Every step of the way, report your progress using coder_report_task tool with proper summary and statuses. Your task at hand: $ARG_AI_PROMPT")
 fi
 
 # Log and run in background, redirecting all output to the log file

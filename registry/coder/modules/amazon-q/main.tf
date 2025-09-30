@@ -1,10 +1,12 @@
+# Improved amazon-q module main.tf
+
 terraform {
   required_version = ">= 1.0"
 
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.5"
+      version = ">= 2.7"
     }
   }
 }
@@ -15,7 +17,6 @@ variable "agent_id" {
 }
 
 data "coder_workspace" "me" {}
-
 data "coder_workspace_owner" "me" {}
 
 variable "order" {
@@ -36,11 +37,66 @@ variable "icon" {
   default     = "/icon/amazon-q.svg"
 }
 
-variable "folder" {
+variable "report_tasks" {
+  type        = bool
+  description = "Whether to enable task reporting to Coder UI via AgentAPI"
+  default     = true
+}
+
+variable "cli_app" {
+  type        = bool
+  description = "Whether to create a CLI app for Amazon Q"
+  default     = false
+}
+
+variable "web_app_display_name" {
+  type        = string
+  description = "Display name for the web app"
+  default     = "AmazonQ"
+}
+
+variable "cli_app_display_name" {
+  type        = string
+  description = "Display name for the CLI app"
+  default     = "AmazonQ CLI"
+}
+
+variable "install_agentapi" {
+  type        = bool
+  description = "Whether to install AgentAPI."
+  default     = true
+}
+
+variable "ai_prompt" {
+  type        = string
+  description = "The initial task prompt to send to Amazon Q."
+  default     = ""
+}
+
+variable "pre_install_script" {
+  type        = string
+  description = "Optional script to run before installing Amazon Q."
+  default     = null
+}
+
+variable "post_install_script" {
+  type        = string
+  description = "Optional script to run after installing Amazon Q."
+  default     = null
+}
+
+variable "agentapi_version" {
+  type        = string
+  description = "The version of AgentAPI to install."
+  default     = "v0.6.1"
+}
+
+variable "workdir" {
   type        = string
   description = "The folder to run Amazon Q in."
-  default     = "/home/coder"
 }
+
+# ---------------------------------------------
 
 variable "install_amazon_q" {
   type        = bool
@@ -51,43 +107,19 @@ variable "install_amazon_q" {
 variable "amazon_q_version" {
   type        = string
   description = "The version of Amazon Q to install."
-  default     = "latest"
+  default     = "1.14.1"
 }
 
-variable "experiment_use_screen" {
-  type        = bool
-  description = "Whether to use screen for running Amazon Q in the background."
-  default     = false
-}
-
-variable "experiment_use_tmux" {
-  type        = bool
-  description = "Whether to use tmux instead of screen for running Amazon Q in the background."
-  default     = false
-}
-
-variable "experiment_report_tasks" {
-  type        = bool
-  description = "Whether to enable task reporting."
-  default     = false
-}
-
-variable "experiment_pre_install_script" {
+variable "q_install_url" {
   type        = string
-  description = "Custom script to run before installing Amazon Q."
-  default     = null
+  description = "Base URL for Amazon Q installation downloads."
+  default     = "https://desktop-release.q.us-east-1.amazonaws.com"
 }
 
-variable "experiment_post_install_script" {
-  type        = string
-  description = "Custom script to run after installing Amazon Q."
-  default     = null
-}
-
-variable "experiment_auth_tarball" {
-  type        = string
-  description = "Base64 encoded, zstd compressed tarball of a pre-authenticated ~/.local/share/amazon-q directory. After running `q login` on another machine, you may generate it with: `cd ~/.local/share/amazon-q && tar -c . | zstd | base64 -w 0`"
-  default     = "tarball"
+variable "trust_all_tools" {
+  type        = bool
+  description = "Whether to trust all tools in Amazon Q."
+  default     = false
 }
 
 variable "system_prompt" {
@@ -98,222 +130,141 @@ variable "system_prompt" {
     and solve issues the user gives you and test your work, whenever possible.
     Avoid shortcuts like mocking tests. When you get stuck, you can ask the user
     but opt for autonomy.
-
-    YOU MUST REPORT ALL TASKS TO CODER.
-    When reporting tasks, you MUST follow these EXACT instructions:
-    - IMMEDIATELY report status after receiving ANY user message.
-    - Be granular. If you are investigating with multiple steps, report each step to coder.
-
-    Task state MUST be one of the following:
-    - Use "state": "working" when actively processing WITHOUT needing additional user input.
-    - Use "state": "complete" only when finished with a task.
-    - Use "state": "failure" when you need ANY user input, lack sufficient details, or encounter blockers.
-
-    Task summaries MUST:
-    - Include specifics about what you're doing.
-    - Include clear and actionable steps for the user.
-    - Be less than 160 characters in length.
   EOT
 }
 
-variable "ai_prompt" {
+variable "coder_mcp_instructions" {
   type        = string
-  description = "The initial task prompt to send to Amazon Q."
-  default     = "Please help me with my coding tasks. I'll provide specific instructions as needed."
+  description = "Instructions for the Coder MCP server integration. This defines how the agent should report tasks to Coder."
+  default     = <<-EOT
+    YOU MUST REPORT ALL TASKS TO CODER.
+    When reporting tasks you MUST follow these EXACT instructions:
+    - IMMEDIATELY report status after receiving ANY user message
+    - Be granular If you are investigating with multiple steps report each step to coder.
+
+    Task state MUST be one of the following:
+    - Use "state": "working" when actively processing WITHOUT needing additional user input
+    - Use "state": "complete" only when finished with a task
+    - Use "state": "failure" when you need ANY user input lack sufficient details or encounter blockers.
+
+    Task summaries MUST:
+    - Include specifics about what you're doing
+    - Include clear and actionable steps for the user
+    - Be less than 160 characters in length
+  EOT
+}
+
+variable "auth_tarball" {
+  type        = string
+  description = "Base64 encoded, zstd compressed tarball of a pre-authenticated ~/.local/share/amazon-q directory."
+  default     = ""
+  sensitive   = true
+}
+
+variable "agent_config" {
+  type        = string
+  description = "Optional Agent configuration JSON for Amazon Q."
+  default     = null
+}
+
+variable "agentapi_chat_based_path" {
+  type        = bool
+  description = "Whether to use chat-based path for AgentAPI.Required if CODER_WILDCARD_ACCESS_URL is not defined in coder deployment"
+  default     = false
+}
+
+# Expose status slug to the agent environment
+resource "coder_env" "status_slug" {
+  agent_id = var.agent_id
+  name     = "CODER_MCP_APP_STATUS_SLUG"
+  value    = local.app_slug
+}
+
+# Expose auth tarball as environment variable for install script
+resource "coder_env" "auth_tarball" {
+  count    = var.auth_tarball != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "AMAZON_Q_AUTH_TARBALL"
+  value    = var.auth_tarball
 }
 
 locals {
-  encoded_pre_install_script  = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
-  encoded_post_install_script = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
-  full_prompt                 = <<-EOT
-    ${var.system_prompt}
+  app_slug               = "amazonq"
+  install_script         = file("${path.module}/scripts/install.sh")
+  start_script           = file("${path.module}/scripts/start.sh")
+  module_dir_name        = ".amazonq-module"
+  system_prompt          = jsonencode(replace(var.system_prompt, "/[\r\n]/", ""))
+  coder_mcp_instructions = jsonencode(replace(var.coder_mcp_instructions, "/[\r\n]/", ""))
 
-    Your first task is:
+  # Create default agent config structure
+  default_agent_config = templatefile("${path.module}/templates/agent-config.json.tpl", {
+    system_prompt = local.system_prompt
+  })
 
-    ${var.ai_prompt}
-  EOT
+  # Choose the JSON string: use var.agent_config if provided, otherwise encode default
+  agent_config = var.agent_config != null ? var.agent_config : local.default_agent_config
+
+  # Extract agent name from the selected config
+  agent_name = try(jsondecode(local.agent_config).name, "agent")
+
+  full_prompt = var.ai_prompt != null ? "${var.ai_prompt}" : ""
+
+  server_chat_parameters = var.agentapi_chat_based_path ? "--chat-base-path /@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${local.app_slug}/chat" : ""
 }
 
-resource "coder_script" "amazon_q" {
-  agent_id     = var.agent_id
-  display_name = "Amazon Q"
-  icon         = var.icon
-  script       = <<-EOT
+
+module "agentapi" {
+  source  = "registry.coder.com/coder/agentapi/coder"
+  version = "1.1.1"
+
+  agent_id             = var.agent_id
+  web_app_slug         = local.app_slug
+  web_app_order        = var.order
+  web_app_group        = var.group
+  web_app_icon         = var.icon
+  web_app_display_name = var.web_app_display_name
+  cli_app              = var.cli_app
+  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
+  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
+  module_dir_name      = local.module_dir_name
+  install_agentapi     = var.install_agentapi
+  agentapi_version     = var.agentapi_version
+  pre_install_script   = var.pre_install_script
+  post_install_script  = var.post_install_script
+
+  start_script = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
 
-    command_exists() {
-      command -v "$1" >/dev/null 2>&1
-    }
+    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+    chmod +x /tmp/start.sh
+    ARG_TRUST_ALL_TOOLS='${var.trust_all_tools}' \
+    ARG_AI_PROMPT='${base64encode(local.full_prompt)}' \
+    ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
+    ARG_WORKDIR='${var.workdir}' \
+    ARG_SERVER_PARAMETERS="${local.server_chat_parameters}" \
+    ARG_REPORT_TASKS='${var.report_tasks}' \
+    /tmp/start.sh
+  EOT
 
-    if [ -n "${local.encoded_pre_install_script}" ]; then
-      echo "Running pre-install script..."
-      echo "${local.encoded_pre_install_script}" | base64 -d > /tmp/pre_install.sh
-      chmod +x /tmp/pre_install.sh
-      /tmp/pre_install.sh
-    fi
-
-    if [ "${var.install_amazon_q}" = "true" ]; then
-      echo "Installing Amazon Q..."
-      PREV_DIR="$PWD"
-      TMP_DIR="$(mktemp -d)"
-      cd "$TMP_DIR"
-
-      ARCH="$(uname -m)"
-      case "$ARCH" in
-        "x86_64")
-          Q_URL="https://desktop-release.q.us-east-1.amazonaws.com/${var.amazon_q_version}/q-x86_64-linux.zip"
-          ;;
-        "aarch64"|"arm64")
-          Q_URL="https://desktop-release.codewhisperer.us-east-1.amazonaws.com/${var.amazon_q_version}/q-aarch64-linux.zip"
-          ;;
-        *)
-          echo "Error: Unsupported architecture: $ARCH. Amazon Q only supports x86_64 and arm64."
-          exit 1
-          ;;
-      esac
-
-      echo "Downloading Amazon Q for $ARCH..."
-      curl --proto '=https' --tlsv1.2 -sSf "$Q_URL" -o "q.zip"
-      unzip q.zip
-      ./q/install.sh --no-confirm
-      cd "$PREV_DIR"
-      export PATH="$PATH:$HOME/.local/bin"
-      echo "Installed Amazon Q version: $(q --version)"
-    fi
-
-    echo "Extracting auth tarball..."
-    PREV_DIR="$PWD"
-    echo "${var.experiment_auth_tarball}" | base64 -d > /tmp/auth.tar.zst
-    rm -rf ~/.local/share/amazon-q
-    mkdir -p ~/.local/share/amazon-q
-    cd ~/.local/share/amazon-q
-    tar -I zstd -xf /tmp/auth.tar.zst
-    rm /tmp/auth.tar.zst
-    cd "$PREV_DIR"
-    echo "Extracted auth tarball"
-
-    if [ "${var.experiment_report_tasks}" = "true" ]; then
-      echo "Configuring Amazon Q to report tasks via Coder MCP..."
-      q mcp add --name coder --command "coder" --args "exp,mcp,server,--allowed-tools,coder_report_task" --env "CODER_MCP_APP_STATUS_SLUG=amazon-q" --scope global --force
-      echo "Added Coder MCP server to Amazon Q configuration"
-    fi
-
-    if [ -n "${local.encoded_post_install_script}" ]; then
-      echo "Running post-install script..."
-      echo "${local.encoded_post_install_script}" | base64 -d > /tmp/post_install.sh
-      chmod +x /tmp/post_install.sh
-      /tmp/post_install.sh
-    fi
-
-    if [ "${var.experiment_use_tmux}" = "true" ] && [ "${var.experiment_use_screen}" = "true" ]; then
-      echo "Error: Both experiment_use_tmux and experiment_use_screen cannot be true simultaneously."
-      echo "Please set only one of them to true."
-      exit 1
-    fi
-
-    if [ "${var.experiment_use_tmux}" = "true" ]; then
-      echo "Running Amazon Q in the background with tmux..."
-
-      if ! command_exists tmux; then
-        echo "Error: tmux is not installed. Please install tmux manually."
-        exit 1
-      fi
-
-      touch "$HOME/.amazon-q.log"
-
-      export LANG=en_US.UTF-8
-      export LC_ALL=en_US.UTF-8
-
-      tmux new-session -d -s amazon-q -c "${var.folder}" "q chat --trust-all-tools | tee -a "$HOME/.amazon-q.log" && exec bash"
-
-      tmux send-keys -t amazon-q "${local.full_prompt}"
-      sleep 5
-      tmux send-keys -t amazon-q Enter
-    fi
-
-    if [ "${var.experiment_use_screen}" = "true" ]; then
-      echo "Running Amazon Q in the background..."
-
-      if ! command_exists screen; then
-        echo "Error: screen is not installed. Please install screen manually."
-        exit 1
-      fi
-
-      touch "$HOME/.amazon-q.log"
-
-      if [ ! -f "$HOME/.screenrc" ]; then
-        echo "Creating ~/.screenrc and adding multiuser settings..." | tee -a "$HOME/.amazon-q.log"
-        echo -e "multiuser on\nacladd $(whoami)" > "$HOME/.screenrc"
-      fi
-
-      if ! grep -q "^multiuser on$" "$HOME/.screenrc"; then
-        echo "Adding 'multiuser on' to ~/.screenrc..." | tee -a "$HOME/.amazon-q.log"
-        echo "multiuser on" >> "$HOME/.screenrc"
-      fi
-
-      if ! grep -q "^acladd $(whoami)$" "$HOME/.screenrc"; then
-        echo "Adding 'acladd $(whoami)' to ~/.screenrc..." | tee -a "$HOME/.amazon-q.log"
-        echo "acladd $(whoami)" >> "$HOME/.screenrc"
-      fi
-      export LANG=en_US.UTF-8
-      export LC_ALL=en_US.UTF-8
-
-      screen -U -dmS amazon-q bash -c '
-        cd ${var.folder}
-        q chat --trust-all-tools | tee -a "$HOME/.amazon-q.log
-        exec bash
-      '
-      # Extremely hacky way to send the prompt to the screen session
-      # This will be fixed in the future, but `amazon-q` was not sending MCP
-      # tasks when an initial prompt is provided.
-      screen -S amazon-q -X stuff "${local.full_prompt}"
-      sleep 5
-      screen -S amazon-q -X stuff "^M"
-    else
-      if ! command_exists q; then
-        echo "Error: Amazon Q is not installed. Please enable install_amazon_q or install it manually."
-        exit 1
-      fi
-    fi
-    EOT
-  run_on_start = true
-}
-
-resource "coder_app" "amazon_q" {
-  slug         = "amazon-q"
-  display_name = "Amazon Q"
-  agent_id     = var.agent_id
-  command      = <<-EOT
+  install_script = <<-EOT
     #!/bin/bash
-    set -e
+    set -o errexit
+    set -o pipefail
 
-    export LANG=en_US.UTF-8
-    export LC_ALL=en_US.UTF-8
-
-    if [ "${var.experiment_use_tmux}" = "true" ]; then
-      if tmux has-session -t amazon-q 2>/dev/null; then
-        echo "Attaching to existing Amazon Q tmux session." | tee -a "$HOME/.amazon-q.log"
-        tmux attach-session -t amazon-q
-      else
-        echo "Starting a new Amazon Q tmux session." | tee -a "$HOME/.amazon-q.log"
-        tmux new-session -s amazon-q -c ${var.folder} "q chat --trust-all-tools | tee -a \"$HOME/.amazon-q.log\"; exec bash"
-      fi
-    elif [ "${var.experiment_use_screen}" = "true" ]; then
-      if screen -list | grep -q "amazon-q"; then
-        echo "Attaching to existing Amazon Q screen session." | tee -a "$HOME/.amazon-q.log"
-        screen -xRR amazon-q
-      else
-        echo "Starting a new Amazon Q screen session." | tee -a "$HOME/.amazon-q.log"
-        screen -S amazon-q bash -c 'q chat --trust-all-tools | tee -a "$HOME/.amazon-q.log"; exec bash'
-      fi
-    else
-      cd ${var.folder}
-      q chat --trust-all-tools
-    fi
-    EOT
-  icon         = var.icon
-  order        = var.order
-  group        = var.group
+    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
+    chmod +x /tmp/install.sh
+    ARG_INSTALL='${var.install_amazon_q}' \
+    ARG_VERSION='${var.amazon_q_version}' \
+    ARG_Q_INSTALL_URL='${var.q_install_url}' \
+    ARG_AUTH_TARBALL='${var.auth_tarball}' \
+    ARG_AGENT_CONFIG='${local.agent_config != null ? base64encode(local.agent_config) : ""}' \
+    ARG_AGENT_NAME='${local.agent_name}' \
+    ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
+    ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
+    ARG_CODER_MCP_INSTRUCTIONS='${base64encode(local.coder_mcp_instructions)}' \
+    ARG_REPORT_TASKS='${var.report_tasks}' \
+    /tmp/install.sh
+  EOT
 }

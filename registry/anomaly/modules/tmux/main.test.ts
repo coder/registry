@@ -28,7 +28,9 @@ describe("tmux module", async () => {
 
     // check that the script contains expected lines
     expect(scriptResource.script).toContain("Installing tmux");
-    expect(scriptResource.script).toContain("Installing Tmux Plugin Manager (TPM)");
+    expect(scriptResource.script).toContain(
+      "Installing Tmux Plugin Manager (TPM)",
+    );
     expect(scriptResource.script).toContain("tmux configuration created at");
     expect(scriptResource.script).toContain("✅ tmux setup complete!");
   });

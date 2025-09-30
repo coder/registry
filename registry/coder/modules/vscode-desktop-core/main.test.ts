@@ -14,7 +14,7 @@ const defaultVariables = {
   coder_app_slug: "vscode",
   coder_app_display_name: "VS Code Desktop",
   protocol: "vscode",
-}
+};
 
 describe("vscode-desktop-core", async () => {
   await runTerraformInit(import.meta.dir);
@@ -40,7 +40,7 @@ describe("vscode-desktop-core", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       folder: "/foo/bar",
 
-      ...defaultVariables
+      ...defaultVariables,
     });
 
     expect(state.outputs.ide_uri.value).toBe(
@@ -86,7 +86,7 @@ describe("vscode-desktop-core", async () => {
   it("expect order to be set", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       coder_app_order: "22",
-      ...defaultVariables
+      ...defaultVariables,
     });
 
     const coder_app = state.resources.find(
