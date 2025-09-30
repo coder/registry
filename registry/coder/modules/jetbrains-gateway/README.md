@@ -47,7 +47,7 @@ module "jetbrains_gateway" {
 
 This can be used when support for connecting to multiple agents within one workspace is required.
 
-To utilise this both `embed_agent_id` and `agent_name` must be populated on each instance of the module.
+To utilise this both `embed_agent_name` and `agent_name` must be populated on each instance of the module.
 In addition each instance must have a unique `slug` and `ide_parameter_name` variable defined.
 
 ```tf
@@ -59,7 +59,7 @@ module "jetbrains_gateway" {
   folder             = "/home/coder/example"
   jetbrains_ides     = ["CL", "GO"]
   default            = "GO"
-  embed_agent_id     = true
+  embed_agent_name   = true
   agent_name         = "main"
   ide_parameter_name = "jetbrains_ide" # default variable value
   slug               = "gateway"       # default variable value
@@ -73,7 +73,7 @@ module "jetbrains_gateway_agent2" {
   folder             = "/home/coder/example"
   jetbrains_ides     = ["CL", "GO", "IU", "PY", "WS"]
   default            = "GO"
-  embed_agent_id     = true
+  embed_agent_name   = true
   agent_name         = "jetbrainsagent2"
   ide_parameter_name = "jetbrains_ide_agent2"
   slug               = "gateway-agent2"

@@ -41,12 +41,12 @@ describe("jetbrains-gateway", async () => {
     expect(state.outputs.identifier.value).toBe("IU");
   });
 
-  it("optionally includes agent when embed_agent_id is true", async () => {
+  it("optionally includes agent when embed_agent_name is true", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       agent_name: "main",
       folder: "/home/coder",
-      embed_agent_id: true,
+      embed_agent_name: true,
     });
 
     expect(state.outputs.url.value).toBe(

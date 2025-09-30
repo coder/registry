@@ -36,8 +36,7 @@ variable "slug" {
 
 variable "agent_name" {
   type        = string
-  description = "Agent name. (unused). Will be removed in a future version"
-
+  description = "Agent name."
   default = ""
 }
 
@@ -68,7 +67,7 @@ variable "group" {
   default     = null
 }
 
-variable "embed_agent_id" {
+variable "embed_agent_name" {
   type        = bool
   description = "Embed the agent name in the JetBrains Gateway URL when support for multiple agents is required."
   default     = false
@@ -360,7 +359,7 @@ resource "coder_app" "gateway" {
     local.build_number,
     "&ide_download_link=",
     local.download_link,
-  ], var.embed_agent_id && trimspace(var.agent_name) != "" ? ["&agent=", var.agent_name] : []))
+  ], var.embed_agent_name && trimspace(var.agent_name) != "" ? ["&agent=", var.agent_name] : []))
 }
 
 output "identifier" {
