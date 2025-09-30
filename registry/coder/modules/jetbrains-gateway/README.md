@@ -43,6 +43,43 @@ module "jetbrains_gateway" {
 }
 ```
 
+### Embed the agent name in the Gateway URL
+
+This can be used when support for connecting to multiple agents within one workspace is required.
+
+To utilise this both `embed_agent_id` and `agent_name` must be populated on each instance of the module.
+In addition each instance must have a unique `slug` and `ide_parameter_name` variable defined.
+
+```tf
+module "jetbrains_gateway" {
+  count              = data.coder_workspace.me.start_count
+  source             = "registry.coder.com/coder/jetbrains-gateway/coder"
+  version            = "1.2.3"
+  agent_id           = coder_agent.example.id
+  folder             = "/home/coder/example"
+  jetbrains_ides     = ["CL", "GO"]
+  default            = "GO"
+  embed_agent_id     = true
+  agent_name         = "main"
+  ide_parameter_name = "jetbrains_ide" # default variable value
+  slug               = "gateway"       # default variable value
+}
+
+module "jetbrains_gateway_agent2" {
+  count              = data.coder_workspace.me.start_count
+  source             = "registry.coder.com/coder/jetbrains-gateway/coder"
+  version            = "1.2.3"
+  agent_id           = coder_agent.jetbrainsagent2.id
+  folder             = "/home/coder/example"
+  jetbrains_ides     = ["CL", "GO", "IU", "PY", "WS"]
+  default            = "GO"
+  embed_agent_id     = true
+  agent_name         = "jetbrainsagent2"
+  ide_parameter_name = "jetbrains_ide_agent2"
+  slug               = "gateway-agent2"
+}
+```
+
 ### Use the latest version of each IDE
 
 ```tf
