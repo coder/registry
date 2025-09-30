@@ -14,11 +14,12 @@ Automatically install [KasmVNC](https://kasmweb.com/kasmvnc) in a workspace, and
 module "kasmvnc" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/kasmvnc/coder"
-  version             = "1.2.2"
+  version             = "1.2.3"
   agent_id            = coder_agent.example.id
   desktop_environment = "xfce"
   subdomain           = true
 }
 ```
 
-> **Note:** This module only works on workspaces with a pre-installed desktop environment. As an example base image you can use `codercom/enterprise-desktop` image.
+> [!IMPORTANT]
+> This module only works on workspaces with a pre-installed desktop environment. As an example base image you can use [`codercom/example-desktop`](https://hub.docker.com/r/codercom/example-desktop) image.

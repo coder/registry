@@ -163,8 +163,8 @@ linters:
     staticcheck:
       checks:
         - all
-        - SA4006  # Detects redundant assignments
-        - SA4009  # Detects redundant variable declarations
+        - SA4006 # Detects redundant assignments
+        - SA4009 # Detects redundant variable declarations
         - SA1019
   exclusions:
     generated: lax

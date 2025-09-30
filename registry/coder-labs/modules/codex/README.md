@@ -13,7 +13,7 @@ Run Codex CLI in your workspace to access OpenAI's models through the Codex inte
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "1.0.1"
+  version        = "2.0.0"
   agent_id       = coder_agent.example.id
   openai_api_key = var.openai_api_key
   folder         = "/home/coder/project"
@@ -25,29 +25,24 @@ module "codex" {
 - You must add the [Coder Login](https://registry.coder.com/modules/coder/coder-login) module to your template
 - OpenAI API key for Codex access
 
-## Usage Example
+## Examples
 
-- Simple usage Example:
+### Run standalone
 
 ```tf
 module "codex" {
-  count               = data.coder_workspace.me.start_count
-  source              = "registry.coder.com/coder-labs/codex/coder"
-  version             = "1.0.1"
-  agent_id            = coder_agent.example.id
-  openai_api_key      = "..."
-  codex_model         = "o4-mini"
-  install_codex       = true
-  codex_version       = "latest"
-  folder              = "/home/coder/project"
-  codex_system_prompt = "You are a helpful coding assistant. Start every response with `Codex says:`"
+  count          = data.coder_workspace.me.start_count
+  source         = "registry.coder.com/coder-labs/codex/coder"
+  version        = "2.0.0"
+  agent_id       = coder_agent.example.id
+  openai_api_key = "..."
+  folder         = "/home/coder/project"
 }
 ```
 
-- Example usage with Tasks:
+### Tasks integration
 
 ```tf
-# This
 data "coder_parameter" "ai_prompt" {
   type        = "string"
   name        = "AI Prompt"
@@ -64,79 +59,75 @@ module "coder-login" {
 }
 
 module "codex" {
-  source          = "registry.coder.com/coder-labs/codex/coder"
-  agent_id        = coder_agent.example.id
-  openai_api_key  = "..."
-  ai_prompt       = data.coder_parameter.ai_prompt.value
-  folder          = "/home/coder/project"
-  approval_policy = "never" # Full auto mode
+  source         = "registry.coder.com/coder-labs/codex/coder"
+  version        = "2.0.0"
+  agent_id       = coder_agent.example.id
+  openai_api_key = "..."
+  ai_prompt      = data.coder_parameter.ai_prompt.value
+  folder         = "/home/coder/project"
+
+  # Custom configuration for full auto mode
+  base_config_toml = <<-EOT
+    approval_policy = "never"
+    preferred_auth_method = "apikey"
+  EOT
 }
 ```
 
 > [!WARNING]
-> **Security Notice**: This module configures Codex with a `workspace-write` sandbox that allows AI tasks to read/write files in the specified folder. While the sandbox provides security boundaries, Codex can still modify files within the workspace. Use this module in trusted environments and be aware of the security implications.
+> This module configures Codex with a `workspace-write` sandbox that allows AI tasks to read/write files in the specified folder. While the sandbox provides security boundaries, Codex can still modify files within the workspace. Use this module _only_ in trusted environments and be aware of the security implications.
 
 ## How it Works
 
 - **Install**: The module installs Codex CLI and sets up the environment
-- **System Prompt**: If `codex_system_prompt` and `folder` are set, creates the directory (if needed) and writes the prompt to `AGENTS.md`
+- **System Prompt**: If `codex_system_prompt` is set, writes the prompt to `AGENTS.md` in the `~/.codex/` directory
 - **Start**: Launches Codex CLI in the specified directory, wrapped by AgentAPI
 - **Configuration**: Sets `OPENAI_API_KEY` environment variable and passes `--model` flag to Codex CLI (if variables provided)
 
-## Sandbox Configuration
+## Configuration
 
-The module automatically configures Codex with a secure sandbox that allows AI tasks to work effectively:
+### Default Configuration
 
-- **Sandbox Mode**: `workspace-write` - Allows Codex to read/write files in the specified `folder`
-- **Approval Policy**: `on-request` - Codex asks for permission before performing potentially risky operations
-- **Network Access**: Enabled within the workspace for package installation and API calls
+When no custom `base_config_toml` is provided, the module uses these secure defaults:
 
-### Customizing Sandbox Behavior
+```toml
+sandbox_mode = "workspace-write"
+approval_policy = "never"
+preferred_auth_method = "apikey"
 
-You can customize the sandbox behavior using dedicated variables:
-
-#### **Using Dedicated Variables (Recommended)**
-
-For most use cases, use the dedicated sandbox variables:
-
-```tf
-module "codex" {
-  source = "registry.coder.com/coder-labs/codex/coder"
-  # ... other variables ...
-
-  # Containerized environments (fixes Landlock errors)
-  sandbox_mode = "danger-full-access"
-
-  # Or for read-only mode
-  # sandbox_mode = "read-only"
-
-  # Or for full auto mode
-  # approval_policy = "never"
-
-  # Or disable network access
-  # network_access = false
-}
+[sandbox_workspace_write]
+network_access = true
 ```
 
-#### **Using extra_codex_settings_toml (Advanced)**
+### Custom Configuration
 
-For advanced configuration or when you need to override multiple settings:
+For custom Codex configuration, use `base_config_toml` and/or `additional_mcp_servers`:
 
 ```tf
 module "codex" {
-  source = "registry.coder.com/coder-labs/codex/coder"
+  source  = "registry.coder.com/coder-labs/codex/coder"
+  version = "2.0.0"
   # ... other variables ...
 
-  extra_codex_settings_toml = <<-EOT
-    # Any custom Codex configuration
-    model = "gpt-4"
-    disable_response_storage = true
+  # Override default configuration
+  base_config_toml = <<-EOT
+    sandbox_mode = "danger-full-access"
+    approval_policy = "never"
+    preferred_auth_method = "apikey"
+  EOT
+
+  # Add extra MCP servers
+  additional_mcp_servers = <<-EOT
+    [mcp_servers.GitHub]
+    command = "npx"
+    args = ["-y", "@modelcontextprotocol/server-github"]
+    type = "stdio"
   EOT
 }
 ```
 
 > [!NOTE]
-> The dedicated variables (`sandbox_mode`, `approval_policy`, `network_access`) are the recommended way to configure sandbox behavior. Use `extra_codex_settings_toml` only for advanced configuration that isn't covered by the dedicated variables.
+> If no custom configuration is provided, the module uses secure defaults. The Coder MCP server is always included automatically. For containerized workspaces (Docker/Kubernetes), you may need `sandbox_mode = "danger-full-access"` to avoid permission issues. For advanced options, see [Codex config docs](https://github.com/openai/codex/blob/main/codex-rs/config.md).
 
 ## Troubleshooting
 
@@ -150,6 +141,6 @@ module "codex" {
 
 ## References
 
-- [OpenAI API Documentation](https://platform.openai.com/docs)
+- [Codex CLI Documentation](https://github.com/openai/codex)
 - [AgentAPI Documentation](https://github.com/coder/agentapi)
 - [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)

@@ -81,6 +81,33 @@ else
   fi
 fi
 
+# Configure conda to use the Artifactory "conda" repository.
+if [ -z "${HAS_CONDA}" ]; then
+  not_configured conda
+else
+  echo "🐍 Configuring conda..."
+  # Create conda config directory if it doesn't exist
+  mkdir -p ~/.conda
+  cat << EOF > ~/.condarc
+${CONDA_CONF}
+EOF
+  config_complete
+fi
+
+# Configure Maven to use the Artifactory "maven" repository.
+if [ -z "${HAS_MAVEN}" ]; then
+  not_configured maven
+else
+  echo "☕ Configuring maven..."
+  jf mvnc --global --repo-resolve "${REPOSITORY_MAVEN}"
+  # Create Maven config directory if it doesn't exist
+  mkdir -p ~/.m2
+  cat << EOF > ~/.m2/settings.xml
+${MAVEN_SETTINGS}
+EOF
+  config_complete
+fi
+
 # Install the JFrog vscode extension for code-server.
 if [ "${CONFIGURE_CODE_SERVER}" == "true" ]; then
   while ! [ -x /tmp/code-server/bin/code-server ]; do
