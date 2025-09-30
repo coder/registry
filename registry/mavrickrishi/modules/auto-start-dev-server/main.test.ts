@@ -87,7 +87,7 @@ describe("auto-start-dev-server", async () => {
     });
 
     await runTerraformApply(import.meta.dir, {
-      agent_id: "test-agent-123", 
+      agent_id: "test-agent-123",
       scan_depth: "5",
     });
   });
@@ -101,7 +101,7 @@ describe("auto-start-dev-server", async () => {
       enable_rails: "false",
       enable_flask: "false",
       enable_spring_boot: "false",
-      enable_php: "false", 
+      enable_php: "false",
       enable_rust: "false",
       enable_dotnet: "false",
     });

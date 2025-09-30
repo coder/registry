@@ -158,16 +158,7 @@ The module automatically creates a "Live Preview" app in your Coder workspace th
 - **Monorepo friendly**: In multi-project setups, automatically selects the most likely UI project
 - **Configurable**: Can be disabled by setting `enable_preview_app = false`
 - **Fallback**: Defaults to port 3000 if no projects are detected
-
-## Module Outputs
-
-| Output                   | Description                                                            | Example Value                     |
-| ------------------------ | ---------------------------------------------------------------------- | --------------------------------- |
-| `detected_projects_file` | Path to JSON file with detected projects (includes `is_frontend` flag) | `/tmp/detected-projects.json`     |
-| `log_path`               | Path to dev server log file                                            | `/tmp/dev-servers.log`            |
-| `common_ports`           | Map of default ports by project type                                   | `{nodejs=3000, django=8000, ...}` |
-| `preview_url`            | URL of the live preview app                                            | `http://localhost:3000`           |
-| `detected_port`          | Port of the first detected project                                     | `3000`                            |
+  |
 
 ## Examples
 

@@ -20,6 +20,12 @@ variable "workspace_directory" {
   default     = "$HOME"
 }
 
+variable "project_detection" {
+  type        = bool
+  description = "Master toggle for automatic project detection. When false, disables all project detection regardless of individual enable flags."
+  default     = true
+}
+
 variable "enable_npm" {
   type        = bool
   description = "Enable auto-detection and startup of npm projects."
@@ -114,8 +120,21 @@ variable "enable_preview_app" {
   default     = true
 }
 
-# Read the detected port from the file written by the script
+# Local variables that respect the master toggle
 locals {
+  # Apply master toggle to all individual enables
+  effective_enable_npm          = var.project_detection && var.enable_npm
+  effective_enable_rails        = var.project_detection && var.enable_rails
+  effective_enable_django       = var.project_detection && var.enable_django
+  effective_enable_flask        = var.project_detection && var.enable_flask
+  effective_enable_spring_boot  = var.project_detection && var.enable_spring_boot
+  effective_enable_go           = var.project_detection && var.enable_go
+  effective_enable_php          = var.project_detection && var.enable_php
+  effective_enable_rust         = var.project_detection && var.enable_rust
+  effective_enable_dotnet       = var.project_detection && var.enable_dotnet
+  effective_enable_devcontainer = var.project_detection && var.enable_devcontainer
+
+  # Read the detected port from the file written by the script
   detected_port = var.enable_preview_app ? try(tonumber(trimspace(file("/tmp/detected-port.txt"))), 3000) : 3000
   # Attempt to read project information for better preview naming
   detected_projects = try(jsondecode(file("/tmp/detected-projects.json")), [])
@@ -128,16 +147,16 @@ resource "coder_script" "auto_start_dev_server" {
   icon         = "/icon/server.svg"
   script = templatefile("${path.module}/run.sh", {
     WORKSPACE_DIR       = var.workspace_directory
-    ENABLE_NPM          = var.enable_npm
-    ENABLE_RAILS        = var.enable_rails
-    ENABLE_DJANGO       = var.enable_django
-    ENABLE_FLASK        = var.enable_flask
-    ENABLE_SPRING_BOOT  = var.enable_spring_boot
-    ENABLE_GO           = var.enable_go
-    ENABLE_PHP          = var.enable_php
-    ENABLE_RUST         = var.enable_rust
-    ENABLE_DOTNET       = var.enable_dotnet
-    ENABLE_DEVCONTAINER = var.enable_devcontainer
+    ENABLE_NPM          = local.effective_enable_npm
+    ENABLE_RAILS        = local.effective_enable_rails
+    ENABLE_DJANGO       = local.effective_enable_django
+    ENABLE_FLASK        = local.effective_enable_flask
+    ENABLE_SPRING_BOOT  = local.effective_enable_spring_boot
+    ENABLE_GO           = local.effective_enable_go
+    ENABLE_PHP          = local.effective_enable_php
+    ENABLE_RUST         = local.effective_enable_rust
+    ENABLE_DOTNET       = local.effective_enable_dotnet
+    ENABLE_DEVCONTAINER = local.effective_enable_devcontainer
     LOG_PATH            = var.log_path
     SCAN_DEPTH          = var.scan_depth
     STARTUP_DELAY       = var.startup_delay
@@ -147,7 +166,7 @@ resource "coder_script" "auto_start_dev_server" {
 
 # Create preview app for first detected project
 resource "coder_app" "preview" {
-  count        = var.enable_preview_app ? 1 : 0
+  count        = var.enable_preview_app && var.project_detection ? 1 : 0
   agent_id     = var.agent_id
   slug         = "dev-preview"
   display_name = "Live Preview"
@@ -185,7 +204,7 @@ output "common_ports" {
 }
 
 output "preview_url" {
-  value       = var.enable_preview_app ? try(coder_app.preview[0].url, null) : null
+  value       = var.enable_preview_app && var.project_detection ? try(coder_app.preview[0].url, null) : null
   description = "URL of the live preview app (if enabled)"
 }
 
