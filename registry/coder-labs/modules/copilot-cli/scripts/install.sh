@@ -26,14 +26,25 @@ validate_prerequisites() {
     exit 1
   fi
 
-  if ! command_exists copilot; then
-    echo "ERROR: Copilot CLI not installed. Run: npm install -g @github/copilot"
-    exit 1
-  fi
-
   node_version=$(node --version | sed 's/v//' | cut -d. -f1)
   if [ "$node_version" -lt 22 ]; then
     echo "WARNING: Node.js v$node_version detected. Copilot CLI requires v22+."
+  fi
+}
+
+install_copilot_cli() {
+  if ! command_exists copilot; then
+    echo "Installing GitHub Copilot CLI..."
+    npm install -g @github/copilot
+
+    if ! command_exists copilot; then
+      echo "ERROR: Failed to install Copilot CLI"
+      exit 1
+    fi
+
+    echo "GitHub Copilot CLI installed successfully"
+  else
+    echo "GitHub Copilot CLI already installed"
   fi
 }
 
@@ -114,6 +125,7 @@ configure_coder_integration() {
 }
 
 validate_prerequisites
+install_copilot_cli
 check_github_authentication
 setup_copilot_configurations
 configure_coder_integration

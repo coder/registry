@@ -25,7 +25,6 @@ module "copilot_cli" {
 ## Prerequisites
 
 - **Node.js v22+** and **npm v10+**
-- **GitHub Copilot CLI**: `npm install -g @github/copilot`
 - **Active Copilot subscription** (GitHub Copilot Pro, Pro+, Business, or Enterprise)
 - **GitHub external authentication** configured in Coder
 
@@ -73,7 +72,6 @@ module "copilot_cli" {
     #!/bin/bash
     curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
     sudo apt-get install -y nodejs
-    npm install -g @github/copilot
   EOT
 }
 ```
