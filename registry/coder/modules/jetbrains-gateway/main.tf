@@ -37,7 +37,7 @@ variable "slug" {
 variable "agent_name" {
   type        = string
   description = "Agent name."
-  default = ""
+  default     = ""
 }
 
 variable "folder" {
