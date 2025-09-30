@@ -1,2 +1,2 @@
 #!/bin/bash
-sudo -u '${linux_user}' CODER_AGENT_TOKEN=${coder_agent_token} sh -c '${init_script}'
+sudo -u '${linux_user}' sh -c 'CODER_AGENT_TOKEN="${coder_agent_token}" ${init_script}'

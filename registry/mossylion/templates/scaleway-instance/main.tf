@@ -59,10 +59,21 @@ data "coder_provisioner" "me" {}
 
 data "coder_workspace" "me" {}
 
+data "coder_workspace_owner" "me" {}
+
 resource "coder_agent" "main" {
   arch = data.coder_provisioner.me.arch
   os   = data.coder_provisioner.me.os
   auth = "token"
+
+  startup_script = <<-EOT
+    set -e
+
+    # Install additional tools or run commands at workspace startup
+    # Uncomment and customize as needed:
+    # sudo apt-get update
+    # sudo apt-get install -y build-essential
+  EOT
 
   metadata {
     display_name = "CPU Usage"
@@ -82,9 +93,9 @@ resource "coder_agent" "main" {
   metadata {
     display_name = "Disk Usage"
     key          = "1_disk_usage"
-    script       = "coder stat disk"
-    interval     = 10
-    timeout      = 1
+    script       = "coder stat disk --path /home/${local.linux_user}"
+    interval     = 600
+    timeout      = 30
   }
 }
 
@@ -92,6 +103,8 @@ module "code-server" {
   source   = "registry.coder.com/modules/code-server/coder"
   version  = "1.3.1"
   agent_id = coder_agent.main.id
+  order    = 1
+  folder   = "/home/${local.linux_user}"
 }
 
 # Runs a script at workspace start/stop or on a cron schedule
@@ -102,6 +115,37 @@ module "dotfiles" {
   source   = "registry.coder.com/coder/dotfiles/coder"
   version  = "1.2.1"
   agent_id = coder_agent.main.id
+}
+
+resource "coder_metadata" "workspace_info" {
+  count       = data.coder_workspace.me.start_count
+  resource_id = scaleway_instance_server.workspace[0].id
+
+  item {
+    key   = "region"
+    value = data.coder_parameter.region.value
+  }
+  item {
+    key   = "instance type"
+    value = scaleway_instance_server.workspace[0].type
+  }
+  item {
+    key   = "image"
+    value = data.coder_parameter.base_image.value
+  }
+}
+
+resource "coder_metadata" "volume_info" {
+  resource_id = scaleway_block_volume.persistent_storage.id
+
+  item {
+    key   = "size"
+    value = "${scaleway_block_volume.persistent_storage.size_in_gb} GiB"
+  }
+  item {
+    key   = "iops"
+    value = scaleway_block_volume.persistent_storage.iops
+  }
 }
 
 data "coder_parameter" "region" {
@@ -148,7 +192,7 @@ data "coder_parameter" "base_image" {
   option {
     name  = "Ubuntu 24.04 (Noble)"
     value = "ubuntu_noble"
-    icon  = "/icon/fedora.svg"
+    icon  = "/icon/ubuntu.svg"
   }
 
   option {
@@ -219,7 +263,7 @@ data "coder_parameter" "volume_iops" {
 
 resource "scaleway_instance_server" "workspace" {
   count      = data.coder_workspace.me.start_count
-  name       = data.coder_workspace.me.name
+  name       = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
   type       = data.coder_parameter.instance_size.value
   image      = data.coder_parameter.base_image.value
   ip_ids     = [scaleway_instance_ip.server_ip[0].id, scaleway_instance_ip.v4_server_ip[0].id]
@@ -232,7 +276,7 @@ resource "scaleway_instance_server" "workspace" {
 
 resource "scaleway_block_volume" "persistent_storage" {
   iops       = data.coder_parameter.volume_iops.value
-  name       = "${data.coder_workspace.me.name}-home"
+  name       = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}-home"
   size_in_gb = data.coder_parameter.disk_size.value
   project_id = var.project_id
 }
@@ -263,9 +307,4 @@ variable "access_key" {
 variable "secret_key" {
   type        = string
   description = "Secret key to use to deploy"
-}
-
-variable "region" {
-  type        = string
-  description = "Region to deploy into"
 }
