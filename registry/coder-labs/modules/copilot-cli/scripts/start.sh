@@ -25,30 +25,29 @@ validate_copilot_installation() {
 }
 
 build_copilot_args() {
-  local args=()
-  local combined_prompt=""
+  COPILOT_ARGS=()
 
   # Combine system prompt with AI prompt if both exist
   if [ -n "$ARG_SYSTEM_PROMPT" ] && [ -n "$ARG_AI_PROMPT" ]; then
-    combined_prompt="$ARG_SYSTEM_PROMPT
+    local combined_prompt="$ARG_SYSTEM_PROMPT
 
 Task: $ARG_AI_PROMPT"
-    args+=(--prompt "$combined_prompt")
+    COPILOT_ARGS+=(--prompt "$combined_prompt")
   elif [ -n "$ARG_SYSTEM_PROMPT" ]; then
-    args+=(--prompt "$ARG_SYSTEM_PROMPT")
+    COPILOT_ARGS+=(--prompt "$ARG_SYSTEM_PROMPT")
   elif [ -n "$ARG_AI_PROMPT" ]; then
-    args+=(--prompt "$ARG_AI_PROMPT")
+    COPILOT_ARGS+=(--prompt "$ARG_AI_PROMPT")
   fi
 
   if [ "$ARG_ALLOW_ALL_TOOLS" = "true" ]; then
-    args+=(--allow-all-tools)
+    COPILOT_ARGS+=(--allow-all-tools)
   fi
 
   if [ -n "$ARG_ALLOW_TOOLS" ]; then
     IFS=',' read -ra ALLOW_ARRAY <<< "$ARG_ALLOW_TOOLS"
     for tool in "${ALLOW_ARRAY[@]}"; do
       if [ -n "$tool" ]; then
-        args+=(--allow-tool "$tool")
+        COPILOT_ARGS+=(--allow-tool "$tool")
       fi
     done
   fi
@@ -57,12 +56,10 @@ Task: $ARG_AI_PROMPT"
     IFS=',' read -ra DENY_ARRAY <<< "$ARG_DENY_TOOLS"
     for tool in "${DENY_ARRAY[@]}"; do
       if [ -n "$tool" ]; then
-        args+=(--deny-tool "$tool")
+        COPILOT_ARGS+=(--deny-tool "$tool")
       fi
     done
   fi
-
-  echo "${args[@]}"
 }
 
 configure_copilot_model() {
@@ -88,17 +85,11 @@ start_agentapi() {
   echo "Starting in directory: $ARG_WORKDIR"
   cd "$ARG_WORKDIR"
 
-  local copilot_args_str
-  copilot_args_str=$(build_copilot_args)
+  build_copilot_args
 
-  local copilot_args=()
-  if [ -n "$copilot_args_str" ]; then
-    read -ra copilot_args <<< "$copilot_args_str"
-  fi
-
-  if [ ${#copilot_args[@]} -gt 0 ]; then
-    echo "Copilot arguments: ${copilot_args[*]}"
-    agentapi server --type claude --term-width 120 --term-height 40 -- copilot "${copilot_args[@]}"
+  if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
+    echo "Copilot arguments: ${COPILOT_ARGS[*]}"
+    agentapi server --type claude --term-width 120 --term-height 40 -- copilot "${COPILOT_ARGS[@]}"
   else
     echo "Starting Copilot CLI in interactive mode"
     agentapi server --type claude --term-width 120 --term-height 40 -- copilot
