@@ -26,7 +26,11 @@ module "copilot_cli" {
 
 - **Node.js v22+** and **npm v10+**
 - **Active Copilot subscription** (GitHub Copilot Pro, Pro+, Business, or Enterprise)
-- **GitHub external authentication** configured in Coder
+- **GitHub authentication** via one of:
+  - Coder external authentication (recommended)
+  - GitHub CLI (`gh auth login`)
+  - Environment token (`GITHUB_TOKEN`)
+  - Or use interactive login in Copilot CLI
 
 ## Examples
 
@@ -140,12 +144,17 @@ module "copilot_cli" {
 
 ## Authentication
 
-This module uses Coder's GitHub external authentication:
+This module works with multiple GitHub authentication methods:
 
-- Users authenticate via GitHub OAuth in the Coder UI
-- Copilot CLI automatically uses the authenticated session
-- No manual token management required
-- If not authenticated, users will be prompted to login via the `/login` slash command
+**Recommended (automatic):**
+- **Coder External Auth**: Configure GitHub external authentication in Coder for seamless OAuth token integration
+- **GitHub CLI**: Users can run `gh auth login` in their workspace
+
+**Automatic fallback:**
+- **Environment tokens**: Uses existing `GITHUB_TOKEN` if available (note: Personal Access Tokens may not work with all Copilot CLI features)
+- **Interactive login**: If no authentication is found, Copilot CLI will prompt users to login via the `/login` slash command
+
+**No setup required** - the module automatically detects and uses whatever authentication is available.
 
 ## Troubleshooting
 
