@@ -91,7 +91,7 @@ setup_copilot_config() {
 
   if [ -n "$ARG_COPILOT_CONFIG" ]; then
     echo "Setting up Copilot configuration with MCP servers..."
-    
+
     if [ -n "$ARG_MCP_CONFIG" ]; then
       echo "Merging custom MCP servers into Copilot configuration..."
       if command_exists jq; then
