@@ -35,13 +35,13 @@ variable "agent_id" {
 
 variable "log_path" {
   type        = string
-  description = "The path to log MODULE_NAME to."
-  default     = "/tmp/MODULE_NAME.log"
+  description = "The path to log module-name to."
+  default     = "/tmp/module-name.log"
 }
 
 variable "port" {
   type        = number
-  description = "The port to run MODULE_NAME on."
+  description = "The port to run module-name on."
   default     = 19999
 }
 
@@ -59,9 +59,9 @@ variable "order" {
 # Add other variables here
 
 
-resource "coder_script" "MODULE_NAME" {
+resource "coder_script" "module_name" {
   agent_id     = var.agent_id
-  display_name = "MODULE_NAME"
+  display_name = "Module Name"
   icon         = local.icon_url
   script = templatefile("${path.module}/run.sh", {
     LOG_PATH : var.log_path,
@@ -70,10 +70,10 @@ resource "coder_script" "MODULE_NAME" {
   run_on_stop  = false
 }
 
-resource "coder_app" "MODULE_NAME" {
+resource "coder_app" "module_name" {
   agent_id     = var.agent_id
-  slug         = "MODULE_NAME"
-  display_name = "MODULE_NAME"
+  slug         = "module-name"
+  display_name = "Module Name"
   url          = "http://localhost:${var.port}"
   icon         = local.icon_url
   subdomain    = false
@@ -88,10 +88,10 @@ resource "coder_app" "MODULE_NAME" {
   }
 }
 
-data "coder_parameter" "MODULE_NAME" {
-  type         = "list(string)"
-  name         = "MODULE_NAME"
-  display_name = "MODULE_NAME"
+data "coder_parameter" "module_name" {
+  type         = "string"
+  name         = "module_name"
+  display_name = "Module Name"
   icon         = local.icon_url
   mutable      = var.mutable
   default      = local.options["Option 1"]["value"]
