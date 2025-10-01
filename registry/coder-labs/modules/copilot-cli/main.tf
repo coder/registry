@@ -164,7 +164,6 @@ variable "post_install_script" {
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
-
 locals {
   workdir         = trimsuffix(var.workdir, "/")
   app_slug        = "copilot-cli"

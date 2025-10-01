@@ -87,130 +87,100 @@ setup_copilot_configurations() {
 }
 
 setup_copilot_config() {
-  local config_file="$HOME/.config/copilot.json"
+  local copilot_config_dir="$HOME/.config/copilot-cli"
+  local copilot_config_file="$copilot_config_dir/config.json"
+  local mcp_config_file="$copilot_config_dir/mcp-config.json"
+
+  mkdir -p "$copilot_config_dir"
 
   if [ -n "$ARG_COPILOT_CONFIG" ]; then
-    echo "Setting up Copilot configuration with MCP servers..."
+    echo "Setting up Copilot CLI configuration..."
 
-    if [ -n "$ARG_MCP_CONFIG" ]; then
-      echo "Merging custom MCP servers into Copilot configuration..."
-      if command_exists jq; then
-        local merged_config
-        merged_config=$(echo "$ARG_COPILOT_CONFIG" | jq --argjson mcp_config "$ARG_MCP_CONFIG" '
-          . + {
-            mcpServers: ($mcp_config.mcpServers // {}) |
-            if .github == null then
-              .github = {"command": "@github/copilot-mcp-github"}
-            else . end |
-            if "'"$ARG_REPORT_TASKS"'" == "true" then
-              .coder = {
-                "command": "coder",
-                "args": ["exp", "mcp", "server"],
-                "type": "stdio",
-                "env": {
-                  "CODER_MCP_APP_STATUS_SLUG": "'"$ARG_MCP_APP_STATUS_SLUG"'",
-                  "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284"
-                }
-              }
-            else . end
-          }
-        ')
-        echo "$merged_config" > "$config_file"
-      elif command_exists node; then
-        node -e "
-          const copilotConfig = JSON.parse(\`$ARG_COPILOT_CONFIG\`);
-          const mcpConfig = JSON.parse(\`$ARG_MCP_CONFIG\`);
-          
-          copilotConfig.mcpServers = mcpConfig.mcpServers || {};
-          
-          if (!copilotConfig.mcpServers.github) {
-            copilotConfig.mcpServers.github = {
-              command: '@github/copilot-mcp-github'
-            };
-          }
-          
-          if ('$ARG_REPORT_TASKS' === 'true') {
-            copilotConfig.mcpServers.coder = {
-              command: 'coder',
-              args: ['exp', 'mcp', 'server'],
-              type: 'stdio',
-              env: {
-                CODER_MCP_APP_STATUS_SLUG: '$ARG_MCP_APP_STATUS_SLUG',
-                CODER_MCP_AI_AGENTAPI_URL: 'http://localhost:3284'
-              }
-            };
-          }
-          
-          console.log(JSON.stringify(copilotConfig, null, 2));
-        " > "$config_file"
-      else
-        echo "$ARG_COPILOT_CONFIG" > "$config_file"
-      fi
+    if command_exists jq; then
+      echo "$ARG_COPILOT_CONFIG" | jq 'del(.mcpServers)' > "$copilot_config_file"
     else
-      if [ "$ARG_REPORT_TASKS" = "true" ]; then
-        echo "Adding default MCP servers with Coder task reporting..."
-        if command_exists jq; then
-          echo "$ARG_COPILOT_CONFIG" | jq '. + {
-            mcpServers: {
-              "github": {
-                "command": "@github/copilot-mcp-github"
-              },
-              "coder": {
-                "command": "coder",
-                "args": ["exp", "mcp", "server"],
-                "type": "stdio",
-                "env": {
-                  "CODER_MCP_APP_STATUS_SLUG": "'"$ARG_MCP_APP_STATUS_SLUG"'",
-                  "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284"
-                }
-              }
-            }
-          }' > "$config_file"
-        elif command_exists node; then
-          node -e "
-            const config = JSON.parse(\`$ARG_COPILOT_CONFIG\`);
-            config.mcpServers = {
-              github: { command: '@github/copilot-mcp-github' },
-              coder: {
-                command: 'coder',
-                args: ['exp', 'mcp', 'server'],
-                type: 'stdio',
-                env: {
-                  CODER_MCP_APP_STATUS_SLUG: '$ARG_MCP_APP_STATUS_SLUG',
-                  CODER_MCP_AI_AGENTAPI_URL: 'http://localhost:3284'
-                }
-              }
-            };
-            console.log(JSON.stringify(config, null, 2));
-          " > "$config_file"
-        else
-          echo "$ARG_COPILOT_CONFIG" > "$config_file"
-        fi
-      else
-        echo "Adding default GitHub MCP server..."
-        if command_exists jq; then
-          echo "$ARG_COPILOT_CONFIG" | jq '. + {
-            mcpServers: {
-              "github": {
-                "command": "@github/copilot-mcp-github"
-              }
-            }
-          }' > "$config_file"
-        elif command_exists node; then
-          node -e "
-            const config = JSON.parse(\`$ARG_COPILOT_CONFIG\`);
-            config.mcpServers = { github: { command: '@github/copilot-mcp-github' } };
-            console.log(JSON.stringify(config, null, 2));
-          " > "$config_file"
-        else
-          echo "$ARG_COPILOT_CONFIG" > "$config_file"
-        fi
-      fi
+      echo "$ARG_COPILOT_CONFIG" > "$copilot_config_file"
     fi
+
+    echo "Setting up MCP server configuration..."
+    setup_mcp_config "$mcp_config_file"
   else
     echo "ERROR: No Copilot configuration provided"
     exit 1
   fi
+}
+
+setup_mcp_config() {
+  local mcp_config_file="$1"
+
+  local mcp_servers="{}"
+
+  if [ -n "$ARG_MCP_CONFIG" ]; then
+    echo "Adding custom MCP servers..."
+    if command_exists jq; then
+      mcp_servers=$(echo "$ARG_MCP_CONFIG" | jq '.mcpServers // {}')
+    else
+      mcp_servers="$ARG_MCP_CONFIG"
+    fi
+  fi
+
+  if command_exists jq; then
+    mcp_servers=$(echo "$mcp_servers" | jq '. + {
+      "github": {
+        "command": "@github/copilot-mcp-github"
+      }
+    }')
+  elif command_exists node; then
+    mcp_servers=$(node -e "
+      const servers = JSON.parse(\`$mcp_servers\`);
+      servers.github = { command: '@github/copilot-mcp-github' };
+      console.log(JSON.stringify(servers));
+    ")
+  fi
+
+  if [ "$ARG_REPORT_TASKS" = "true" ]; then
+    echo "Adding Coder MCP server for task reporting..."
+    if command_exists jq; then
+      mcp_servers=$(echo "$mcp_servers" | jq '. + {
+        "coder": {
+          "command": "coder",
+          "args": ["exp", "mcp", "server"],
+          "type": "stdio",
+          "env": {
+            "CODER_MCP_APP_STATUS_SLUG": "'"$ARG_MCP_APP_STATUS_SLUG"'",
+            "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284"
+          }
+        }
+      }')
+    elif command_exists node; then
+      mcp_servers=$(node -e "
+        const servers = JSON.parse(\`$mcp_servers\`);
+        servers.coder = {
+          command: 'coder',
+          args: ['exp', 'mcp', 'server'],
+          type: 'stdio',
+          env: {
+            CODER_MCP_APP_STATUS_SLUG: '$ARG_MCP_APP_STATUS_SLUG',
+            CODER_MCP_AI_AGENTAPI_URL: 'http://localhost:3284'
+          }
+        };
+        console.log(JSON.stringify(servers));
+      ")
+    fi
+  fi
+
+  if command_exists jq; then
+    echo "$mcp_servers" | jq '{mcpServers: .}' > "$mcp_config_file"
+  elif command_exists node; then
+    node -e "
+      const servers = JSON.parse(\`$mcp_servers\`);
+      console.log(JSON.stringify({mcpServers: servers}, null, 2));
+    " > "$mcp_config_file"
+  else
+    echo "{\"mcpServers\": $mcp_servers}" > "$mcp_config_file"
+  fi
+
+  echo "MCP configuration written to: $mcp_config_file"
 }
 
 configure_coder_integration() {

@@ -66,8 +66,9 @@ module "copilot_cli" {
 
   mcp_config = jsonencode({
     mcpServers = {
-      github = {
-        command = "@github/copilot-mcp-github"
+      custom_server = {
+        command = "npx"
+        args    = ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/files"]
       }
     }
   })
@@ -93,6 +94,15 @@ module "copilot_cli" {
   github_token = "your_github_token_here" # Or use data.coder_external_auth.github.access_token
 }
 ```
+
+## Configuration Files
+
+This module creates and manages configuration files in `~/.config/copilot-cli/`:
+
+- `config.json` - Copilot CLI settings (banner, theme, trusted directories)
+- `mcp-config.json` - Model Context Protocol server definitions
+
+The module automatically configures GitHub and Coder MCP servers, and merges any custom MCP servers you provide via `mcp_config`.
 
 ### Standalone Mode
 
