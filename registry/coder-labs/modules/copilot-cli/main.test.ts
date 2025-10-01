@@ -287,4 +287,29 @@ describe("copilot-cli module", async () => {
     expect(statusSlugEnv.name).toBe("CODER_MCP_APP_STATUS_SLUG");
     expect(statusSlugEnv.value).toBe("copilot-cli");
   });
+
+  it("supports github_token variable", async () => {
+    const tokenVars = {
+      ...requiredVars,
+      github_token: "test_github_token_123",
+    };
+
+    const state = await runTerraformApply(moduleDir, tokenVars);
+
+    const statusSlugEnv = findResourceInstance(
+      state,
+      "coder_env",
+      "mcp_app_status_slug",
+    );
+    expect(statusSlugEnv).toBeDefined();
+
+    const githubTokenEnv = findResourceInstance(
+      state,
+      "coder_env",
+      "github_token",
+    );
+    expect(githubTokenEnv).toBeDefined();
+    expect(githubTokenEnv.name).toBe("GITHUB_TOKEN");
+    expect(githubTokenEnv.value).toBe("test_github_token_123");
+  });
 });

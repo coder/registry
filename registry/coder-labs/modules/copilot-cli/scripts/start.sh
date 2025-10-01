@@ -123,12 +123,26 @@ start_agentapi() {
 
   build_copilot_args
 
+  local mcp_args=()
+  local module_path="$HOME/.copilot-module"
+
+  if [ -f "$module_path/mcp_config.json" ]; then
+    mcp_args+=(--mcp-config "$module_path/mcp_config.json")
+  fi
+
   if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
     echo "Copilot arguments: ${COPILOT_ARGS[*]}"
-    agentapi server --type claude --term-width 120 --term-height 40 -- copilot "${COPILOT_ARGS[@]}"
+    if [ ${#mcp_args[@]} -gt 0 ]; then
+      agentapi server --type claude --term-width 120 --term-height 40 "${mcp_args[@]}" -- copilot "${COPILOT_ARGS[@]}"
+    else
+      agentapi server --type claude --term-width 120 --term-height 40 -- copilot "${COPILOT_ARGS[@]}"
+    fi
   else
-    echo "Starting Copilot CLI in interactive mode"
-    agentapi server --type claude --term-width 120 --term-height 40 -- copilot
+    if [ ${#mcp_args[@]} -gt 0 ]; then
+      agentapi server --type claude --term-width 120 --term-height 40 "${mcp_args[@]}" -- copilot
+    else
+      agentapi server --type claude --term-width 120 --term-height 40 -- copilot
+    fi
   fi
 }
 
