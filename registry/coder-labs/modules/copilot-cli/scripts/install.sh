@@ -125,61 +125,6 @@ setup_mcp_config() {
   fi
 
   if command_exists jq; then
-    mcp_servers=$(echo "$mcp_servers" | jq '. + {
-      "github": {
-        "command": "@github/copilot-mcp-github",
-        "args": [],
-        "type": "local",
-        "tools": []
-      }
-    }')
-  elif command_exists node; then
-    mcp_servers=$(node -e "
-      const servers = JSON.parse(\`$mcp_servers\`);
-      servers.github = {
-        command: '@github/copilot-mcp-github',
-        args: [],
-        type: 'local',
-        tools: []
-      };
-      console.log(JSON.stringify(servers));
-    ")
-  fi
-
-  if [ "$ARG_REPORT_TASKS" = "true" ]; then
-    echo "Adding Coder MCP server for task reporting..."
-    if command_exists jq; then
-      mcp_servers=$(echo "$mcp_servers" | jq '. + {
-        "coder": {
-          "command": "coder",
-          "args": ["exp", "mcp", "server"],
-          "type": "local",
-          "tools": [],
-          "env": {
-            "CODER_MCP_APP_STATUS_SLUG": "'"$ARG_MCP_APP_STATUS_SLUG"'",
-            "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284"
-          }
-        }
-      }')
-    elif command_exists node; then
-      mcp_servers=$(node -e "
-        const servers = JSON.parse(\`$mcp_servers\`);
-        servers.coder = {
-          command: 'coder',
-          args: ['exp', 'mcp', 'server'],
-          type: 'local',
-          tools: [],
-          env: {
-            CODER_MCP_APP_STATUS_SLUG: '$ARG_MCP_APP_STATUS_SLUG',
-            CODER_MCP_AI_AGENTAPI_URL: 'http://localhost:3284'
-          }
-        };
-        console.log(JSON.stringify(servers));
-      ")
-    fi
-  fi
-
-  if command_exists jq; then
     echo "$mcp_servers" | jq '{mcpServers: .}' > "$mcp_config_file"
   elif command_exists node; then
     node -e "
@@ -190,7 +135,11 @@ setup_mcp_config() {
     echo "{\"mcpServers\": $mcp_servers}" > "$mcp_config_file"
   fi
 
-  echo "MCP configuration written to: $mcp_config_file"
+  if [ -n "$ARG_MCP_CONFIG" ]; then
+    echo "Custom MCP configuration written to: $mcp_config_file"
+  else
+    echo "Empty MCP configuration file created at: $mcp_config_file"
+  fi
 }
 
 configure_coder_integration() {
@@ -200,10 +149,17 @@ configure_coder_integration() {
     export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
 
     if command_exists coder; then
+      echo "Setting up Coder MCP integration for Copilot CLI..."
       coder exp mcp configure copilot-cli "$ARG_WORKDIR" 2> /dev/null || true
     fi
   else
     echo "Task reporting disabled."
+    if command_exists coder; then
+      export CODER_MCP_APP_STATUS_SLUG=""
+      export CODER_MCP_AI_AGENTAPI_URL=""
+      echo "Configuring Copilot CLI with Coder MCP (no task reporting)..."
+      coder exp mcp configure copilot-cli "$ARG_WORKDIR" 2> /dev/null || true
+    fi
   fi
 }
 
