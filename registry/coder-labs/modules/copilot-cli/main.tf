@@ -171,7 +171,6 @@ locals {
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".copilot-module"
 
-  # Default configuration with workdir as trusted folder
   default_copilot_config = jsonencode({
     banner          = "never"
     theme           = "auto"
@@ -200,8 +199,6 @@ resource "coder_env" "github_token" {
   name     = "GITHUB_TOKEN"
   value    = var.github_token
 }
-
-
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"

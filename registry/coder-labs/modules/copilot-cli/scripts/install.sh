@@ -113,17 +113,67 @@ setup_copilot_config() {
 setup_mcp_config() {
   local mcp_config_file="$1"
 
+  # Start with Coder MCP server if task reporting is enabled
   local mcp_servers="{}"
 
+  if [ "$ARG_REPORT_TASKS" = "true" ] && [ -n "$ARG_MCP_APP_STATUS_SLUG" ]; then
+    echo "Adding Coder MCP server for task reporting..."
+
+    # Create wrapper script for Coder MCP server
+    cat << EOF > /tmp/copilot-mcp-wrapper.sh
+#!/usr/bin/env bash
+set -e
+
+export CODER_MCP_APP_STATUS_SLUG="${ARG_MCP_APP_STATUS_SLUG}"
+export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
+export CODER_AGENT_URL="${CODER_AGENT_URL}"
+export CODER_AGENT_TOKEN="${CODER_AGENT_TOKEN}"
+
+exec coder exp mcp server
+EOF
+    chmod +x /tmp/copilot-mcp-wrapper.sh
+
+    # Define Coder MCP server configuration
+    mcp_servers=$(
+      cat << 'EOF'
+{
+  "coder": {
+    "command": "/tmp/copilot-mcp-wrapper.sh",
+    "args": [],
+    "description": "Report ALL tasks and statuses (in progress, done, failed) you are working on.",
+    "type": "stdio",
+    "timeout": 3000,
+    "trust": true
+  }
+}
+EOF
+    )
+  fi
+
+  # Add custom MCP servers if provided
   if [ -n "$ARG_MCP_CONFIG" ]; then
     echo "Adding custom MCP servers..."
+    local custom_servers
     if command_exists jq; then
-      mcp_servers=$(echo "$ARG_MCP_CONFIG" | jq '.mcpServers // {}')
+      custom_servers=$(echo "$ARG_MCP_CONFIG" | jq '.mcpServers // {}')
+      # Merge custom servers with Coder server
+      mcp_servers=$(echo "$mcp_servers" | jq --argjson custom "$custom_servers" '. + $custom')
+    elif command_exists node; then
+      custom_servers=$(echo "$ARG_MCP_CONFIG" | node -e "
+        const input = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+        console.log(JSON.stringify(input.mcpServers || {}));
+      ")
+      mcp_servers=$(node -e "
+        const existing = JSON.parse(\`$mcp_servers\`);
+        const custom = JSON.parse(\`$custom_servers\`);
+        console.log(JSON.stringify({...existing, ...custom}));
+      ")
     else
-      mcp_servers="$ARG_MCP_CONFIG"
+      echo "WARNING: jq and node not available, cannot merge custom MCP servers"
     fi
   fi
 
+  # Write final MCP configuration
   if command_exists jq; then
     echo "$mcp_servers" | jq '{mcpServers: .}' > "$mcp_config_file"
   elif command_exists node; then
@@ -135,31 +185,19 @@ setup_mcp_config() {
     echo "{\"mcpServers\": $mcp_servers}" > "$mcp_config_file"
   fi
 
-  if [ -n "$ARG_MCP_CONFIG" ]; then
-    echo "Custom MCP configuration written to: $mcp_config_file"
-  else
-    echo "Empty MCP configuration file created at: $mcp_config_file"
-  fi
+  echo "MCP configuration written to: $mcp_config_file"
 }
 
 configure_coder_integration() {
-  if [ "$ARG_REPORT_TASKS" = "true" ]; then
+  if [ "$ARG_REPORT_TASKS" = "true" ] && [ -n "$ARG_MCP_APP_STATUS_SLUG" ]; then
     echo "Configuring Copilot CLI task reporting..."
     export CODER_MCP_APP_STATUS_SLUG="$ARG_MCP_APP_STATUS_SLUG"
     export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
-
-    if command_exists coder; then
-      echo "Setting up Coder MCP integration for Copilot CLI..."
-      coder exp mcp configure copilot-cli "$ARG_WORKDIR" 2> /dev/null || true
-    fi
+    echo "✓ Coder MCP server configured for task reporting"
   else
-    echo "Task reporting disabled."
-    if command_exists coder; then
-      export CODER_MCP_APP_STATUS_SLUG=""
-      export CODER_MCP_AI_AGENTAPI_URL=""
-      echo "Configuring Copilot CLI with Coder MCP (no task reporting)..."
-      coder exp mcp configure copilot-cli "$ARG_WORKDIR" 2> /dev/null || true
-    fi
+    echo "Task reporting disabled or no app status slug provided."
+    export CODER_MCP_APP_STATUS_SLUG=""
+    export CODER_MCP_AI_AGENTAPI_URL=""
   fi
 }
 
