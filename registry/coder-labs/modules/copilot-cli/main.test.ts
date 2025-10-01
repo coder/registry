@@ -270,7 +270,6 @@ describe("copilot-cli module", async () => {
       "mcp_app_status_slug",
     );
     expect(statusSlugEnv).toBeDefined();
-
   });
 
   it("works with full configuration", async () => {
