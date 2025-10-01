@@ -25,7 +25,6 @@ printf "rules: %s\n" "$ARG_AUGGIE_RULES"
 
 echo "--------------------------------"
 
-
 function check_dependencies() {
   if ! command_exists node; then
     printf "Error: Node.js is not installed. Please install Node.js manually or use the pre_install_script to install it.\n"
@@ -51,27 +50,26 @@ function install_auggie() {
     if [ ! -d "$NPM_GLOBAL_PREFIX" ]; then
       mkdir -p "$NPM_GLOBAL_PREFIX"
     fi
-    
+
     npm config set prefix "$NPM_GLOBAL_PREFIX"
-    
+
     export PATH="$NPM_GLOBAL_PREFIX/bin:$PATH"
-    
+
     if [ -n "$ARG_AUGGIE_VERSION" ]; then
       npm install -g "@augmentcode/auggie@$ARG_AUGGIE_VERSION"
     else
       npm install -g "@augmentcode/auggie"
     fi
-    
+
     if ! grep -q "export PATH=\"\$HOME/.npm-global/bin:\$PATH\"" "$HOME/.bashrc"; then
       echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> "$HOME/.bashrc"
     fi
-    
+
     printf "%s Successfully installed Auggie CLI. Version: %s\n" "${BOLD}" "$(auggie --version)"
   else
     printf "Skipping Auggie CLI installation (install_auggie=false)\n"
   fi
 }
-
 
 function create_coder_mcp() {
   AUGGIE_CODER_MCP_FILE="$HOME/.augment/coder_mcp.json"

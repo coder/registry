@@ -177,6 +177,7 @@ resource "coder_agent" "main" {
 # code-server
 resource "coder_app" "code-server" {
   agent_id     = coder_agent.main.id
+  agent_name   = "main"
   slug         = "code-server"
   display_name = "code-server"
   icon         = "/icon/code.svg"
