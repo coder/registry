@@ -66,8 +66,8 @@ Task: $ARG_AI_PROMPT"
 check_existing_session() {
   if [ "$ARG_RESUME_SESSION" = "true" ]; then
     if copilot --help > /dev/null 2>&1; then
-      local session_dir="$HOME/.copilot/sessions"
-      if [ -d "$session_dir" ] && [ "$(ls -A "$session_dir" 2> /dev/null)" ]; then
+      local session_dir="$HOME/.copilot/history-session-state"
+      if [ -d "$session_dir" ] && [ -n "$(ls "$session_dir"/session_*_*.json 2> /dev/null)" ]; then
         echo "Found existing Copilot CLI sessions. Resume mode enabled."
         return 0
       fi
