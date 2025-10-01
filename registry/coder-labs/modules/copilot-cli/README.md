@@ -160,7 +160,7 @@ module "copilot_cli" {
 
 This module works with multiple GitHub authentication methods in priority order:
 
-**1. Direct Token (highest priority):**
+**1. Direct Token :**
 
 - **`github_token` variable**: Provide a GitHub OAuth token or Personal Access Token directly to the module
 
