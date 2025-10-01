@@ -55,13 +55,11 @@ describe("jfrog-token", async () => {
   const user = "default";
   const token = "xxx";
 
-  it("can run apply with required variables", async () => {
-    testRequiredVariables<TestVariables>(import.meta.dir, {
-      agent_id: "some-agent-id",
-      jfrog_url: fakeFrogUrl,
-      artifactory_access_token: "XXXX",
-      package_managers: "{}",
-    });
+  testRequiredVariables<TestVariables>(import.meta.dir, {
+    agent_id: "some-agent-id",
+    jfrog_url: fakeFrogUrl,
+    artifactory_access_token: "XXXX",
+    package_managers: "{}",
   });
 
   it("generates an npmrc with scoped repos", async () => {

@@ -13,7 +13,7 @@ Run the [Goose](https://block.github.io/goose/) agent in your workspace to gener
 ```tf
 module "goose" {
   source           = "registry.coder.com/coder/goose/coder"
-  version          = "2.1.1"
+  version          = "2.1.2"
   agent_id         = coder_agent.example.id
   folder           = "/home/coder"
   install_goose    = true
@@ -79,7 +79,7 @@ resource "coder_agent" "main" {
 module "goose" {
   count            = data.coder_workspace.me.start_count
   source           = "registry.coder.com/coder/goose/coder"
-  version          = "2.1.1"
+  version          = "2.1.2"
   agent_id         = coder_agent.example.id
   folder           = "/home/coder"
   install_goose    = true
@@ -122,5 +122,7 @@ This will add the desktop-commander extension to Goose, allowing it to run comma
 Note: The indentation in the heredoc is preserved, so you can write the YAML naturally.
 
 ## Troubleshooting
+
+By default, this module is configured to run the embedded chat interface as a path-based application. In production, we recommend that you configure a [wildcard access URL](https://coder.com/docs/admin/setup#wildcard-access-url) and set `subdomain = true`. See [here](https://coder.com/docs/tutorials/best-practices/security-best-practices#disable-path-based-apps) for more details.
 
 The module will create log files in the workspace's `~/.goose-module` directory. If you run into any issues, look at them for more information.
