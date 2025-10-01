@@ -42,7 +42,7 @@ run "test_claude_code_with_api_key" {
   }
 
   assert {
-    condition     = coder_env.claude_api_key.value == "test-api-key-123"
+    condition     = coder_env.claude_api_key[0].value == "test-api-key-123"
     error_message = "Claude API key value should match the input"
   }
 }
