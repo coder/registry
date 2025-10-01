@@ -34,7 +34,9 @@ module "copilot_cli" {
 
 ## Examples
 
-### Usage with Tasks and Advanced Configuration
+### Usage with Tasks (Recommended for Development)
+
+For development environments where you want Copilot CLI to have full access to tools without prompting:
 
 ```tf
 data "coder_parameter" "ai_prompt" {
@@ -51,8 +53,9 @@ module "copilot_cli" {
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
-  ai_prompt     = data.coder_parameter.ai_prompt.value
-  copilot_model = "claude-sonnet-4.5"
+  ai_prompt       = data.coder_parameter.ai_prompt.value
+  copilot_model   = "claude-sonnet-4.5"
+  allow_all_tools = true
 
   system_prompt = <<-EOT
     You are a helpful AI coding assistant working in a development environment.
@@ -60,6 +63,21 @@ module "copilot_cli" {
     Focus on writing clean, maintainable code and helping with debugging tasks.
     Send a task status update to notify the user that you are ready for input, and then wait for user input.
   EOT
+
+  trusted_directories = ["/home/coder", "/tmp"]
+}
+```
+
+### Advanced Configuration with Specific Tool Permissions
+
+For more controlled environments where you want to specify exact tools:
+
+```tf
+module "copilot_cli" {
+  source   = "registry.coder.com/coder-labs/copilot-cli/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
+  workdir  = "/home/coder/project"
 
   allow_tools         = ["shell(git)", "shell(npm)", "write"]
   trusted_directories = ["/home/coder/workspace", "/tmp"]
@@ -97,7 +115,7 @@ module "copilot_cli" {
 
 ## Configuration Files
 
-This module creates and manages configuration files in `~/.config/copilot-cli/`:
+This module creates and manages configuration files in `~/.copilot/`:
 
 - `config.json` - Copilot CLI settings (banner, theme, trusted directories)
 - `mcp-config.json` - Model Context Protocol server definitions
