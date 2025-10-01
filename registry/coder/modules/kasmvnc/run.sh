@@ -60,6 +60,9 @@ install_deb() {
     sudo apt-get -o DPkg::Lock::Timeout=300 -qq update
   fi
 
+  echo "Installing required Perl DateTime module..."
+  DEBIAN_FRONTEND=noninteractive sudo apt-get -o DPkg::Lock::Timeout=300 install --yes -qq --no-install-recommends --no-install-suggests libdatetime-perl
+
   DEBIAN_FRONTEND=noninteractive sudo apt-get -o DPkg::Lock::Timeout=300 install --yes -qq --no-install-recommends --no-install-suggests "$kasmdeb"
   rm "$kasmdeb"
 }
