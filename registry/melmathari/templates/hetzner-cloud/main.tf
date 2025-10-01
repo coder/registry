@@ -16,12 +16,11 @@ variable "hcloud_token" {
   description = "Hetzner Cloud API token for authentication"
   type        = string
   sensitive   = true
-  default     = ""
 }
 
 # Configure the Hetzner Cloud Provider
 provider "hcloud" {
-  token = var.hcloud_token != "" ? var.hcloud_token : null
+  token = var.hcloud_token
 }
 
 data "coder_workspace" "me" {}
@@ -209,7 +208,6 @@ variable "ssh_key_id" {
       $ hcloud ssh-key list
   EOF
   sensitive   = true
-  default     = 0
 
   validation {
     condition     = var.ssh_key_id >= 0
