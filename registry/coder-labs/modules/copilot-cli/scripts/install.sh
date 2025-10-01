@@ -161,7 +161,8 @@ EOF
       "description": "Report ALL tasks and statuses (in progress, done, failed) you are working on.",
       "name": "Coder",
       "timeout": 3000,
-      "type": "stdio",
+      "type": "local",
+      "tools": ["*"],
       "trust": true
     }
   }
