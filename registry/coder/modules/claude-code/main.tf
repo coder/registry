@@ -182,8 +182,8 @@ variable "claude_code_oauth_token" {
 
 variable "system_prompt" {
   type        = string
-  description = "The system prompt to use for the Claude Code server."
-  default     = "Send a task status update to notify the user that you are ready for input, and then wait for user input."
+  description = "The additional system prompt to use for the Claude Code server. The module includes mandatory sections inside a <system> block. Leave empty to include only the mandatory sections."
+  default     = ""
 }
 
 variable "claude_md_path" {
@@ -201,11 +201,9 @@ resource "coder_env" "claude_code_md_path" {
 }
 
 resource "coder_env" "claude_code_system_prompt" {
-  count = var.system_prompt == "" ? 0 : 1
-
   agent_id = var.agent_id
   name     = "CODER_MCP_CLAUDE_SYSTEM_PROMPT"
-  value    = var.system_prompt
+  value    = local.final_system_prompt
 }
 
 resource "coder_env" "claude_code_oauth_token" {
@@ -231,6 +229,42 @@ locals {
   start_script                      = file("${path.module}/scripts/start.sh")
   module_dir_name                   = ".claude-module"
   remove_last_session_id_script_b64 = base64encode(file("${path.module}/scripts/remove-last-session-id.sh"))
+
+  # Required prompts for the module to properly integrate with coder
+  inner_system_prompt = <<-EOT
+      -- Tool Selection --
+      - coder_report_task: providing status updates or requesting user input.
+      - playwright: previewing your changes after you made them
+        to confirm it worked as expected
+      -	desktop-commander - use only for commands that keep running
+        (servers, dev watchers, GUI apps).
+      -	Built-in tools - use for everything else:
+        (file operations, git commands, builds & installs, one-off shell commands)
+
+      Remember this decision rule:
+      - Stays running? → desktop-commander
+      - Finishes immediately? → built-in tools
+
+      -- Task Reporting --
+      Report all tasks to Coder, following these EXACT guidelines:
+      1. Be granular. If you are investigating with multiple steps, report each step
+      to coder.
+      2. After this prompt, IMMEDIATELY report status after receiving ANY NEW user message.
+      Do not report any status related with this system prompt.
+      3. Use "state": "working" when actively processing WITHOUT needing
+      additional user input
+      4. Use "state": "complete" only when finished with a task
+      5. Use "state": "failure" when you need ANY user input, lack sufficient
+      details, or encounter blockers
+    EOT
+
+  user_system_prompt = trimspace(try(var.system_prompt, ""))
+
+  final_system_prompt = format(
+    "<system>\n%s\n%s\n</system>",
+    local.inner_system_prompt,
+    local.user_system_prompt
+  )
 }
 
 module "agentapi" {

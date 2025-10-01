@@ -187,3 +187,78 @@ run "test_claude_code_permission_mode_validation" {
     error_message = "Permission mode should be one of the valid options"
   }
 }
+
+run "test_claude_code_system_prompt_omit" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-system-prompt"
+    workdir  = "/home/coder/test"
+    # system_prompt omitted: default string is used
+  }
+
+  assert {
+    condition     = trimspace(coder_env.claude_code_system_prompt.value) != ""
+    error_message = "System prompt must not be empty when omitted"
+  }
+
+  assert {
+    condition     = length(regexall("-- Tool Selection --", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "Mandatory Tool Selection section missing"
+  }
+
+  assert {
+    condition     = length(regexall("-- Task Reporting --", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "Mandatory Task Reporting section missing"
+  }
+}
+
+run "test_claude_code_system_prompt_empty" {
+  command = plan
+
+  variables {
+    agent_id      = "test-agent-system-prompt"
+    workdir       = "/home/coder/test"
+    system_prompt = ""
+  }
+
+  assert {
+    condition     = trimspace(coder_env.claude_code_system_prompt.value) != ""
+    error_message = "System prompt must not be empty when omitted"
+  }
+
+  assert {
+    condition     = length(regexall("-- Tool Selection --", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "Mandatory Tool Selection section missing"
+  }
+
+  assert {
+    condition     = length(regexall("-- Task Reporting --", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "Mandatory Task Reporting section missing"
+  }
+}
+
+run "test_claude_code_system_prompt" {
+  command = plan
+
+  variables {
+    agent_id      = "test-agent-system-prompt"
+    workdir       = "/home/coder/test"
+    system_prompt = "Custom addition"
+  }
+
+  assert {
+    condition     = trimspace(coder_env.claude_code_system_prompt.value) != ""
+    error_message = "System prompt must not be empty when omitted"
+  }
+
+  assert {
+    condition     = length(regexall("-- Tool Selection --", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "Mandatory Tool Selection section missing"
+  }
+
+  assert {
+    condition     = length(regexall("-- Task Reporting --", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "Mandatory Task Reporting section missing"
+  }
+}
