@@ -28,7 +28,6 @@ validate_copilot_installation() {
 build_copilot_args() {
   COPILOT_ARGS=()
 
-  # Combine system prompt with AI prompt if both exist
   if [ -n "$ARG_SYSTEM_PROMPT" ] && [ -n "$ARG_AI_PROMPT" ]; then
     local combined_prompt="$ARG_SYSTEM_PROMPT
 
@@ -85,14 +84,12 @@ configure_copilot_model() {
 setup_github_authentication() {
   echo "Setting up GitHub authentication..."
 
-  # Check for provided token first (highest priority)
   if [ -n "$GITHUB_TOKEN" ]; then
     export GH_TOKEN="$GITHUB_TOKEN"
     echo "✓ Using GitHub token from module configuration"
     return 0
   fi
 
-  # Try external auth
   if command_exists coder; then
     local github_token
     if github_token=$(coder external-auth access-token "${ARG_EXTERNAL_AUTH_ID:-github}" 2> /dev/null); then
@@ -105,7 +102,6 @@ setup_github_authentication() {
     fi
   fi
 
-  # Try GitHub CLI as fallback
   if command_exists gh && gh auth status > /dev/null 2>&1; then
     echo "✓ Using GitHub CLI OAuth authentication"
     return 0
@@ -114,7 +110,7 @@ setup_github_authentication() {
   echo "⚠ No GitHub authentication available"
   echo "  Copilot CLI will prompt for login during first use"
   echo "  Use the '/login' command in Copilot CLI to authenticate"
-  return 0 # Don't fail - let Copilot CLI handle authentication
+  return 0
 }
 
 start_agentapi() {
@@ -123,26 +119,11 @@ start_agentapi() {
 
   build_copilot_args
 
-  local mcp_args=()
-  local module_path="$HOME/.copilot-module"
-
-  if [ -f "$module_path/mcp_config.json" ]; then
-    mcp_args+=(--mcp-config "$module_path/mcp_config.json")
-  fi
-
   if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
     echo "Copilot arguments: ${COPILOT_ARGS[*]}"
-    if [ ${#mcp_args[@]} -gt 0 ]; then
-      agentapi server --type claude --term-width 120 --term-height 40 "${mcp_args[@]}" -- copilot "${COPILOT_ARGS[@]}"
-    else
-      agentapi server --type claude --term-width 120 --term-height 40 -- copilot "${COPILOT_ARGS[@]}"
-    fi
+    agentapi server --type claude --term-width 120 --term-height 40 -- copilot "${COPILOT_ARGS[@]}"
   else
-    if [ ${#mcp_args[@]} -gt 0 ]; then
-      agentapi server --type claude --term-width 120 --term-height 40 "${mcp_args[@]}" -- copilot
-    else
-      agentapi server --type claude --term-width 120 --term-height 40 -- copilot
-    fi
+    agentapi server --type claude --term-width 120 --term-height 40 -- copilot
   fi
 }
 
