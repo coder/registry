@@ -149,6 +149,12 @@ variable "cli_app_display_name" {
   default     = "Copilot CLI"
 }
 
+variable "resume_session" {
+  type        = bool
+  description = "Whether to automatically resume the latest Copilot CLI session on workspace restart."
+  default     = true
+}
+
 variable "pre_install_script" {
   type        = string
   description = "Custom script to run before configuring Copilot CLI."
@@ -237,6 +243,7 @@ module "agentapi" {
     ARG_DENY_TOOLS='${join(",", var.deny_tools)}' \
     ARG_TRUSTED_DIRECTORIES='${join(",", var.trusted_directories)}' \
     ARG_EXTERNAL_AUTH_ID='${var.external_auth_id}' \
+    ARG_RESUME_SESSION='${var.resume_session}' \
     /tmp/start.sh
   EOT
 

@@ -309,4 +309,20 @@ describe("copilot-cli module", async () => {
     expect(githubTokenEnv.name).toBe("GITHUB_TOKEN");
     expect(githubTokenEnv.value).toBe("test_github_token_123");
   });
+
+  it("supports resume session configuration", async () => {
+    const resumeSessionVars = {
+      ...requiredVars,
+      resume_session: false,
+    };
+
+    const state = await runTerraformApply(moduleDir, resumeSessionVars);
+
+    const statusSlugEnv = findResourceInstance(
+      state,
+      "coder_env",
+      "mcp_app_status_slug",
+    );
+    expect(statusSlugEnv).toBeDefined();
+  });
 });

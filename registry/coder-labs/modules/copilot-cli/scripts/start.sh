@@ -17,6 +17,7 @@ ARG_ALLOW_TOOLS=${ARG_ALLOW_TOOLS:-}
 ARG_DENY_TOOLS=${ARG_DENY_TOOLS:-}
 ARG_TRUSTED_DIRECTORIES=${ARG_TRUSTED_DIRECTORIES:-}
 ARG_EXTERNAL_AUTH_ID=${ARG_EXTERNAL_AUTH_ID:-github}
+ARG_RESUME_SESSION=${ARG_RESUME_SESSION:-true}
 
 validate_copilot_installation() {
   if ! command_exists copilot; then
@@ -62,23 +63,17 @@ Task: $ARG_AI_PROMPT"
   fi
 }
 
-configure_copilot_model() {
-  if [ -n "$ARG_COPILOT_MODEL" ]; then
-    case "$ARG_COPILOT_MODEL" in
-      "gpt-5")
-        export COPILOT_MODEL="gpt-5"
-        ;;
-      "claude-sonnet-4")
-        export COPILOT_MODEL="claude-sonnet-4"
-        ;;
-      "claude-sonnet-4.5")
-        export COPILOT_MODEL="claude-sonnet-4.5"
-        ;;
-      *)
-        echo "WARNING: Unknown model '$ARG_COPILOT_MODEL'. Using default."
-        ;;
-    esac
+check_existing_session() {
+  if [ "$ARG_RESUME_SESSION" = "true" ]; then
+    if copilot --help > /dev/null 2>&1; then
+      local session_dir="$HOME/.copilot/sessions"
+      if [ -d "$session_dir" ] && [ "$(ls -A "$session_dir" 2> /dev/null)" ]; then
+        echo "Found existing Copilot CLI sessions. Resume mode enabled."
+        return 0
+      fi
+    fi
   fi
+  return 1
 }
 
 setup_github_authentication() {
@@ -117,19 +112,21 @@ start_agentapi() {
   echo "Starting in directory: $ARG_WORKDIR"
   cd "$ARG_WORKDIR"
 
-  build_copilot_args
-
-  if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
-    echo "Copilot arguments: ${COPILOT_ARGS[*]}"
-    agentapi server --type claude --term-width 120 --term-height 40 -- copilot "${COPILOT_ARGS[@]}"
+  if check_existing_session; then
+    echo "Resuming latest Copilot CLI session..."
+    agentapi server --type claude --term-width 120 --term-height 40 -- copilot --resume
   else
-    agentapi server --type claude --term-width 120 --term-height 40 -- copilot
+    echo "Starting new Copilot CLI session..."
+    build_copilot_args
+
+    if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
+      echo "Copilot arguments: ${COPILOT_ARGS[*]}"
+      agentapi server --type claude --term-width 120 --term-height 40 -- copilot "${COPILOT_ARGS[@]}"
+    else
+      agentapi server --type claude --term-width 120 --term-height 40 -- copilot
+    fi
   fi
 }
-
-configure_copilot_model
-
-echo "COPILOT_MODEL=${ARG_COPILOT_MODEL:-${COPILOT_MODEL:-not set}}"
 
 setup_github_authentication
 validate_copilot_installation

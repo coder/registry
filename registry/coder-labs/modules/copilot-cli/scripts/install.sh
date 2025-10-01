@@ -137,13 +137,11 @@ setup_coder_mcp_server() {
 #!/usr/bin/env bash
 set -e
 
-# --- Set environment variables ---
 export CODER_MCP_APP_STATUS_SLUG="${ARG_MCP_APP_STATUS_SLUG}"
 export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
 export CODER_AGENT_URL="${CODER_AGENT_URL}"
 export CODER_AGENT_TOKEN="${CODER_AGENT_TOKEN}"
 
-# --- Launch the MCP server ---
 exec coder exp mcp server
 EOF
   )
@@ -197,6 +195,16 @@ add_custom_mcp_servers() {
   fi
 }
 
+configure_copilot_model() {
+  if [ -n "$ARG_COPILOT_MODEL" ] && [ "$ARG_COPILOT_MODEL" != "claude-sonnet-4" ]; then
+    echo "Setting Copilot CLI model to: $ARG_COPILOT_MODEL"
+    copilot config model "$ARG_COPILOT_MODEL" || {
+      echo "WARNING: Failed to set model via copilot config, will use environment variable fallback"
+      export COPILOT_MODEL="$ARG_COPILOT_MODEL"
+    }
+  fi
+}
+
 configure_coder_integration() {
   if [ "$ARG_REPORT_TASKS" = "true" ] && [ -n "$ARG_MCP_APP_STATUS_SLUG" ]; then
     echo "Configuring Copilot CLI task reporting..."
@@ -214,6 +222,7 @@ validate_prerequisites
 install_copilot_cli
 check_github_authentication
 setup_copilot_configurations
+configure_copilot_model
 configure_coder_integration
 
 echo "Copilot CLI module setup completed."

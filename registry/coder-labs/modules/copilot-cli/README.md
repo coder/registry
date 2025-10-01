@@ -34,9 +34,9 @@ module "copilot_cli" {
 
 ## Examples
 
-### Usage with Tasks (Recommended for Development)
+### Usage with Tasks
 
-For development environments where you want Copilot CLI to have full access to tools without prompting:
+For development environments where you want Copilot CLI to have full access to tools and automatically resume sessions:
 
 ```tf
 data "coder_parameter" "ai_prompt" {
@@ -56,6 +56,7 @@ module "copilot_cli" {
   ai_prompt       = data.coder_parameter.ai_prompt.value
   copilot_model   = "claude-sonnet-4.5"
   allow_all_tools = true
+  resume_session  = true
 
   system_prompt = <<-EOT
     You are a helpful AI coding assistant working in a development environment.
@@ -204,6 +205,26 @@ This module works with multiple GitHub authentication methods in priority order:
 **No setup required** for automatic methods - the module detects and uses whatever authentication is available.
 
 > **Note**: OAuth tokens work best with Copilot CLI. Personal Access Tokens may have limited functionality.
+
+## Session Resumption
+
+By default (`resume_session = true`), this module automatically resumes the latest Copilot CLI session when the workspace is restarted. This provides a seamless experience where:
+
+- **Previous conversations continue** - No need to re-establish context
+- **No duplicate prompts** - Initial prompts are only sent on first workspace creation
+- **Workspace restart handling** - Automatically detects and resumes existing sessions
+
+```tf
+module "copilot_cli" {
+  source   = "registry.coder.com/coder-labs/copilot-cli/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
+  workdir  = "/home/coder/project"
+
+  resume_session = true # Default: automatically resume sessions
+  # resume_session = false  # Always start fresh sessions
+}
+```
 
 ## Task Reporting
 
