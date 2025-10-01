@@ -271,8 +271,6 @@ describe("copilot-cli module", async () => {
     );
     expect(statusSlugEnv).toBeDefined();
 
-    // System prompt is now handled via .github/copilot-instructions.md file creation
-    // during install, not via environment variables
   });
 
   it("works with full configuration", async () => {

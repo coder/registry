@@ -131,22 +131,38 @@ setup_mcp_config() {
 setup_coder_mcp_server() {
   local mcp_config_file="$1"
 
+  local coder_mcp_wrapper_script
+  coder_mcp_wrapper_script=$(
+    cat << EOF
+#!/usr/bin/env bash
+set -e
+
+# --- Set environment variables ---
+export CODER_MCP_APP_STATUS_SLUG="${ARG_MCP_APP_STATUS_SLUG}"
+export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
+export CODER_AGENT_URL="\${CODER_AGENT_URL}"
+export CODER_AGENT_TOKEN="\${CODER_AGENT_TOKEN}"
+
+# --- Launch the MCP server ---
+exec coder exp mcp server
+EOF
+  )
+  echo "$coder_mcp_wrapper_script" > "/tmp/coder-mcp-server.sh"
+  chmod +x /tmp/coder-mcp-server.sh
+
   local coder_mcp_config
   coder_mcp_config=$(
     cat << EOF
 {
   "mcpServers": {
     "coder": {
-      "type": "local",
-      "command": "coder",
-      "args": ["exp", "mcp", "server"],
-      "tools": ["*"],
-      "env": {
-        "CODER_MCP_APP_STATUS_SLUG": "${ARG_MCP_APP_STATUS_SLUG}",
-        "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284",
-        "CODER_AGENT_URL": "${CODER_AGENT_URL}",
-        "CODER_AGENT_TOKEN": "${CODER_AGENT_TOKEN}"
-      }
+      "command": "/tmp/coder-mcp-server.sh",
+      "args": [],
+      "description": "Report ALL tasks and statuses (in progress, done, failed) you are working on.",
+      "name": "Coder",
+      "timeout": 3000,
+      "type": "stdio",
+      "trust": true
     }
   }
 }

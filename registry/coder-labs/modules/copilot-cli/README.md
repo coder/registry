@@ -207,9 +207,10 @@ This module works with multiple GitHub authentication methods in priority order:
 
 ## Task Reporting
 
-When `report_tasks = true` (default), this module automatically configures the **Coder MCP server** for task reporting integration:
+When `report_tasks = true` (default), this module automatically configures and starts the **Coder MCP server** for task reporting integration:
 
-- **Automatic Integration**: The Coder MCP server is added to the MCP configuration automatically
+- **Automatic Configuration**: The Coder MCP server is added to the MCP configuration automatically
+
 - **Task Status Updates**: Copilot CLI can report task progress to the Coder UI
 - **No Manual Setup**: Works out-of-the-box with Coder's task reporting system
 - **Custom MCP Compatible**: If you provide custom `mcp_config`, the Coder MCP server is added alongside your custom servers
@@ -221,6 +222,14 @@ The Coder MCP server enables Copilot CLI to:
 - Integrate with Coder's AI task workflow system
 
 To disable task reporting, set `report_tasks = false`.
+
+### MCP Server Configuration
+
+This module automatically configures MCP servers by:
+
+1. **Writing MCP Configuration**: Creates `~/.copilot/mcp-config.json` with the correct format
+2. **Wrapper Script**: Creates `/tmp/coder-mcp-server.sh` that sets environment variables and runs `coder exp mcp server`
+3. **Merging Custom Servers**: Adds any custom MCP servers you provide via the `mcp_config` variable
 
 ## Troubleshooting
 
