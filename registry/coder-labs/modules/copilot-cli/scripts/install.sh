@@ -113,79 +113,71 @@ setup_copilot_config() {
 setup_mcp_config() {
   local mcp_config_file="$1"
 
-  # Start with Coder MCP server if task reporting is enabled
-  local mcp_servers="{}"
+  echo '{"mcpServers": {}}' > "$mcp_config_file"
 
   if [ "$ARG_REPORT_TASKS" = "true" ] && [ -n "$ARG_MCP_APP_STATUS_SLUG" ]; then
     echo "Adding Coder MCP server for task reporting..."
+    setup_coder_mcp_server "$mcp_config_file"
+  fi
 
-    # Create wrapper script for Coder MCP server
-    cat << EOF > /tmp/copilot-mcp-wrapper.sh
-#!/usr/bin/env bash
-set -e
+  if [ -n "$ARG_MCP_CONFIG" ]; then
+    echo "Adding custom MCP servers..."
+    add_custom_mcp_servers "$mcp_config_file"
+  fi
 
-export CODER_MCP_APP_STATUS_SLUG="${ARG_MCP_APP_STATUS_SLUG}"
-export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
-export CODER_AGENT_URL="${CODER_AGENT_URL}"
-export CODER_AGENT_TOKEN="${CODER_AGENT_TOKEN}"
+  echo "MCP configuration completed: $mcp_config_file"
+}
 
-exec coder exp mcp server
-EOF
-    chmod +x /tmp/copilot-mcp-wrapper.sh
+setup_coder_mcp_server() {
+  local mcp_config_file="$1"
 
-    # Define Coder MCP server configuration
-    mcp_servers=$(
-      cat << 'EOF'
+  local coder_mcp_config
+  coder_mcp_config=$(
+    cat << EOF
 {
-  "coder": {
-    "command": "/tmp/copilot-mcp-wrapper.sh",
-    "args": [],
-    "description": "Report ALL tasks and statuses (in progress, done, failed) you are working on.",
-    "type": "stdio",
-    "timeout": 3000,
-    "trust": true
+  "mcpServers": {
+    "coder": {
+      "type": "local",
+      "command": "coder",
+      "args": ["exp", "mcp", "server"],
+      "tools": ["*"],
+      "env": {
+        "CODER_MCP_APP_STATUS_SLUG": "${ARG_MCP_APP_STATUS_SLUG}",
+        "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284",
+        "CODER_AGENT_URL": "${CODER_AGENT_URL}",
+        "CODER_AGENT_TOKEN": "${CODER_AGENT_TOKEN}"
+      }
+    }
   }
 }
 EOF
-    )
-  fi
+  )
 
-  # Add custom MCP servers if provided
-  if [ -n "$ARG_MCP_CONFIG" ]; then
-    echo "Adding custom MCP servers..."
-    local custom_servers
-    if command_exists jq; then
-      custom_servers=$(echo "$ARG_MCP_CONFIG" | jq '.mcpServers // {}')
-      # Merge custom servers with Coder server
-      mcp_servers=$(echo "$mcp_servers" | jq --argjson custom "$custom_servers" '. + $custom')
-    elif command_exists node; then
-      custom_servers=$(echo "$ARG_MCP_CONFIG" | node -e "
-        const input = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-        console.log(JSON.stringify(input.mcpServers || {}));
-      ")
-      mcp_servers=$(node -e "
-        const existing = JSON.parse(\`$mcp_servers\`);
-        const custom = JSON.parse(\`$custom_servers\`);
-        console.log(JSON.stringify({...existing, ...custom}));
-      ")
-    else
-      echo "WARNING: jq and node not available, cannot merge custom MCP servers"
-    fi
-  fi
+  echo "$coder_mcp_config" > "$mcp_config_file"
+}
 
-  # Write final MCP configuration
+add_custom_mcp_servers() {
+  local mcp_config_file="$1"
+
   if command_exists jq; then
-    echo "$mcp_servers" | jq '{mcpServers: .}' > "$mcp_config_file"
+    local custom_servers
+    custom_servers=$(echo "$ARG_MCP_CONFIG" | jq '.mcpServers // {}')
+
+    local updated_config
+    updated_config=$(jq --argjson custom "$custom_servers" '.mcpServers += $custom' "$mcp_config_file")
+    echo "$updated_config" > "$mcp_config_file"
   elif command_exists node; then
     node -e "
-      const servers = JSON.parse(\`$mcp_servers\`);
-      console.log(JSON.stringify({mcpServers: servers}, null, 2));
-    " > "$mcp_config_file"
+      const fs = require('fs');
+      const existing = JSON.parse(fs.readFileSync('$mcp_config_file', 'utf8'));
+      const input = JSON.parse(\`$ARG_MCP_CONFIG\`);
+      const custom = input.mcpServers || {};
+      existing.mcpServers = {...existing.mcpServers, ...custom};
+      fs.writeFileSync('$mcp_config_file', JSON.stringify(existing, null, 2));
+    "
   else
-    echo "{\"mcpServers\": $mcp_servers}" > "$mcp_config_file"
+    echo "WARNING: jq and node not available, cannot merge custom MCP servers"
   fi
-
-  echo "MCP configuration written to: $mcp_config_file"
 }
 
 configure_coder_integration() {
