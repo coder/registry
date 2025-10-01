@@ -127,13 +127,21 @@ setup_mcp_config() {
   if command_exists jq; then
     mcp_servers=$(echo "$mcp_servers" | jq '. + {
       "github": {
-        "command": "@github/copilot-mcp-github"
+        "command": "@github/copilot-mcp-github",
+        "args": [],
+        "type": "local",
+        "tools": []
       }
     }')
   elif command_exists node; then
     mcp_servers=$(node -e "
       const servers = JSON.parse(\`$mcp_servers\`);
-      servers.github = { command: '@github/copilot-mcp-github' };
+      servers.github = {
+        command: '@github/copilot-mcp-github',
+        args: [],
+        type: 'local',
+        tools: []
+      };
       console.log(JSON.stringify(servers));
     ")
   fi
@@ -145,7 +153,8 @@ setup_mcp_config() {
         "coder": {
           "command": "coder",
           "args": ["exp", "mcp", "server"],
-          "type": "stdio",
+          "type": "local",
+          "tools": [],
           "env": {
             "CODER_MCP_APP_STATUS_SLUG": "'"$ARG_MCP_APP_STATUS_SLUG"'",
             "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284"
@@ -158,7 +167,8 @@ setup_mcp_config() {
         servers.coder = {
           command: 'coder',
           args: ['exp', 'mcp', 'server'],
-          type: 'stdio',
+          type: 'local',
+          tools: [],
           env: {
             CODER_MCP_APP_STATUS_SLUG: '$ARG_MCP_APP_STATUS_SLUG',
             CODER_MCP_AI_AGENTAPI_URL: 'http://localhost:3284'
