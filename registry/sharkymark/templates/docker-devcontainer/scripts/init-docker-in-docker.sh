@@ -7,9 +7,9 @@ set -e
 # connectivity to the Coder server.
 
 if [ "${CODER_AGENT_URL#*host.docker.internal}" = "$CODER_AGENT_URL" ]; then
-	# External access URL detected, no networking workarounds needed.
-	sudo service docker start
-	exit 0
+  # External access URL detected, no networking workarounds needed.
+  sudo service docker start
+  exit 0
 fi
 
 # host.docker.internal URL detected. Docker's default bridge network creates
@@ -36,17 +36,17 @@ echo "Host IP for host.docker.internal: $host_ip"
 port="${CODER_AGENT_URL##*:}"
 port="${port%%/*}"
 case "$port" in
-[0-9]*)
-	# Specific port found, forward it to the host gateway.
-	sudo iptables -t nat -A PREROUTING -p tcp --dport "$port" -j DNAT --to-destination "$host_ip:$port"
-	echo "Forwarded port $port to $host_ip"
-	;;
-*)
-	# No specific port or non-numeric port, forward standard web ports.
-	sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to-destination "$host_ip:80"
-	sudo iptables -t nat -A PREROUTING -p tcp --dport 443 -j DNAT --to-destination "$host_ip:443"
-	echo "Forwarded default ports 80/443 to $host_ip"
-	;;
+  [0-9]*)
+    # Specific port found, forward it to the host gateway.
+    sudo iptables -t nat -A PREROUTING -p tcp --dport "$port" -j DNAT --to-destination "$host_ip:$port"
+    echo "Forwarded port $port to $host_ip"
+    ;;
+  *)
+    # No specific port or non-numeric port, forward standard web ports.
+    sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to-destination "$host_ip:80"
+    sudo iptables -t nat -A PREROUTING -p tcp --dport 443 -j DNAT --to-destination "$host_ip:443"
+    echo "Forwarded default ports 80/443 to $host_ip"
+    ;;
 esac
 
 # Start Docker service, which creates the "docker0" interface if it doesn't
@@ -66,11 +66,11 @@ sudo service docker start
 # devcontainers will be able to reach us.
 dns_ip=
 while [ -z "$dns_ip" ]; do
-	dns_ip=$(hostname -I | awk '{print $2}')
-	if [ -z "$dns_ip" ]; then
-		echo "Waiting for hostname -I to return a valid second IP address..."
-		sleep 1
-	fi
+  dns_ip=$(hostname -I | awk '{print $2}')
+  if [ -z "$dns_ip" ]; then
+    echo "Waiting for hostname -I to return a valid second IP address..."
+    sleep 1
+  fi
 done
 
 echo "Using DNS IP: $dns_ip"
