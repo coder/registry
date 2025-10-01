@@ -51,6 +51,11 @@ install_copilot_cli() {
 check_github_authentication() {
   echo "Checking GitHub authentication..."
 
+  if [ -n "$GITHUB_TOKEN" ]; then
+    echo "✓ GitHub token provided via module configuration"
+    return 0
+  fi
+
   if command_exists coder; then
     if coder external-auth access-token "${ARG_EXTERNAL_AUTH_ID:-github}" > /dev/null 2>&1; then
       echo "✓ GitHub OAuth authentication via Coder external auth"
@@ -60,12 +65,6 @@ check_github_authentication() {
 
   if command_exists gh && gh auth status > /dev/null 2>&1; then
     echo "✓ GitHub OAuth authentication via GitHub CLI"
-    return 0
-  fi
-
-  if [ -n "$GITHUB_TOKEN" ]; then
-    echo "✓ GitHub token found in environment"
-    echo "  Note: Copilot CLI works best with OAuth tokens from Coder external auth or 'gh auth login'"
     return 0
   fi
 

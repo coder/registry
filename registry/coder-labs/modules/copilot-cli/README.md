@@ -27,9 +27,9 @@ module "copilot_cli" {
 - **Node.js v22+** and **npm v10+**
 - **Active Copilot subscription** (GitHub Copilot Pro, Pro+, Business, or Enterprise)
 - **GitHub authentication** via one of:
+  - Direct token via `github_token` variable (highest priority)
   - Coder external authentication (recommended)
   - GitHub CLI (`gh auth login`)
-  - Environment token (`GITHUB_TOKEN`)
   - Or use interactive login in Copilot CLI
 
 ## Examples
@@ -77,6 +77,20 @@ module "copilot_cli" {
     curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
     sudo apt-get install -y nodejs
   EOT
+}
+```
+
+### Direct Token Authentication
+
+Use a GitHub token directly (OAuth token or Personal Access Token):
+
+```tf
+module "copilot_cli" {
+  source       = "registry.coder.com/coder-labs/copilot-cli/coder"
+  version      = "1.0.0"
+  agent_id     = coder_agent.example.id
+  workdir      = "/home/coder/project"
+  github_token = "your_github_token_here" # Or use data.coder_external_auth.github.access_token
 }
 ```
 
@@ -144,17 +158,24 @@ module "copilot_cli" {
 
 ## Authentication
 
-This module works with multiple GitHub authentication methods:
+This module works with multiple GitHub authentication methods in priority order:
 
-**Recommended (automatic):**
-- **Coder External Auth**: Configure GitHub external authentication in Coder for seamless OAuth token integration
-- **GitHub CLI**: Users can run `gh auth login` in their workspace
+**1. Direct Token (highest priority):**
 
-**Automatic fallback:**
-- **Environment tokens**: Uses existing `GITHUB_TOKEN` if available (note: Personal Access Tokens may not work with all Copilot CLI features)
+- **`github_token` variable**: Provide a GitHub OAuth token or Personal Access Token directly to the module
+
+**2. Automatic detection:**
+
+- **Coder External Auth**: OAuth tokens from GitHub external authentication configured in Coder
+- **GitHub CLI**: OAuth tokens from `gh auth login` in the workspace
+
+**3. Interactive fallback:**
+
 - **Interactive login**: If no authentication is found, Copilot CLI will prompt users to login via the `/login` slash command
 
-**No setup required** - the module automatically detects and uses whatever authentication is available.
+**No setup required** for automatic methods - the module detects and uses whatever authentication is available.
+
+> **Note**: OAuth tokens work best with Copilot CLI. Personal Access Tokens may have limited functionality.
 
 ## Troubleshooting
 

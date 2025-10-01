@@ -84,10 +84,18 @@ configure_copilot_model() {
 
 setup_github_authentication() {
   echo "Setting up GitHub authentication..."
-  
+
+  # Check for provided token first (highest priority)
+  if [ -n "$GITHUB_TOKEN" ]; then
+    export GH_TOKEN="$GITHUB_TOKEN"
+    echo "✓ Using GitHub token from module configuration"
+    return 0
+  fi
+
+  # Try external auth
   if command_exists coder; then
     local github_token
-    if github_token=$(coder external-auth access-token "${ARG_EXTERNAL_AUTH_ID:-github}" 2>/dev/null); then
+    if github_token=$(coder external-auth access-token "${ARG_EXTERNAL_AUTH_ID:-github}" 2> /dev/null); then
       if [ -n "$github_token" ] && [ "$github_token" != "null" ]; then
         export GITHUB_TOKEN="$github_token"
         export GH_TOKEN="$github_token"
@@ -96,25 +104,17 @@ setup_github_authentication() {
       fi
     fi
   fi
-  
+
   # Try GitHub CLI as fallback
   if command_exists gh && gh auth status > /dev/null 2>&1; then
     echo "✓ Using GitHub CLI OAuth authentication"
     return 0
   fi
-  
-  # Use existing environment variable if present
-  if [ -n "$GITHUB_TOKEN" ]; then
-    export GH_TOKEN="$GITHUB_TOKEN"
-    echo "✓ Using GitHub token from environment"
-    echo "  Note: If this is a Personal Access Token, Copilot CLI may not work properly"
-    return 0
-  fi
-  
+
   echo "⚠ No GitHub authentication available"
   echo "  Copilot CLI will prompt for login during first use"
   echo "  Use the '/login' command in Copilot CLI to authenticate"
-  return 0  # Don't fail - let Copilot CLI handle authentication
+  return 0 # Don't fail - let Copilot CLI handle authentication
 }
 
 start_agentapi() {

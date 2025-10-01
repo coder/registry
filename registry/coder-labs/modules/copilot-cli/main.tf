@@ -24,6 +24,13 @@ variable "external_auth_id" {
   default     = "github"
 }
 
+variable "github_token" {
+  type        = string
+  description = "GitHub OAuth token or Personal Access Token. If provided, this will be used instead of auto-detecting authentication."
+  default     = ""
+  sensitive   = true
+}
+
 variable "copilot_model" {
   type        = string
   description = "Model to use. Supported values: claude-sonnet-4 (default), claude-sonnet-4.5, gpt-5."
@@ -186,6 +193,13 @@ resource "coder_env" "copilot_model" {
   agent_id = var.agent_id
   name     = "COPILOT_MODEL"
   value    = var.copilot_model
+}
+
+resource "coder_env" "github_token" {
+  count    = var.github_token != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "GITHUB_TOKEN"
+  value    = var.github_token
 }
 
 
