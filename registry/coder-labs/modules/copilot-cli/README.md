@@ -27,10 +27,9 @@ module "copilot_cli" {
 - **Node.js v22+** and **npm v10+**
 - **Active Copilot subscription** (GitHub Copilot Pro, Pro+, Business, or Enterprise)
 - **GitHub authentication** via one of:
-  - Direct token via `github_token` variable (highest priority)
+  - Direct token via `github_token` variable
   - Coder external authentication (recommended)
-  - GitHub CLI (`gh auth login`)
-  - Or use interactive login in Copilot CLI
+  - Interactive login in Copilot CLI
 
 ## Examples
 
@@ -53,6 +52,7 @@ module "copilot_cli" {
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
+  github_token    = "your_github_token_here" # Or use data.coder_external_auth.github.access_token
   ai_prompt       = data.coder_parameter.ai_prompt.value
   copilot_model   = "claude-sonnet-4.5"
   allow_all_tools = true
@@ -102,8 +102,6 @@ module "copilot_cli" {
 
 ### Direct Token Authentication
 
-Use a GitHub token directly (OAuth token or Personal Access Token):
-
 ```tf
 module "copilot_cli" {
   source       = "registry.coder.com/coder-labs/copilot-cli/coder"
@@ -113,15 +111,6 @@ module "copilot_cli" {
   github_token = "your_github_token_here" # Or use data.coder_external_auth.github.access_token
 }
 ```
-
-## Configuration Files
-
-This module creates and manages configuration files in `~/.copilot/`:
-
-- `config.json` - Copilot CLI settings (banner, theme, trusted directories)
-- `mcp-config.json` - Model Context Protocol server definitions
-
-The module automatically configures GitHub and Coder MCP servers, and merges any custom MCP servers you provide via `mcp_config`.
 
 ### Standalone Mode
 
@@ -160,97 +149,25 @@ module "copilot_cli" {
 }
 ```
 
-### System Prompt Configuration
-
-You can customize the behavior of Copilot CLI by providing a system prompt that will be combined with task prompts:
-
-```tf
-module "copilot_cli" {
-  source   = "registry.coder.com/coder-labs/copilot-cli/coder"
-  version  = "1.0.0"
-  agent_id = coder_agent.example.id
-  workdir  = "/home/coder/project"
-
-  system_prompt = <<-EOT
-    You are a senior software engineer helping with code development.
-    Always prioritize:
-    - Code quality and best practices
-    - Security considerations
-    - Performance optimization
-    - Clear documentation and comments
-    
-    When suggesting changes, explain the reasoning behind your recommendations.
-    Send a task status update to notify the user that you are ready for input, and then wait for user input.
-  EOT
-}
-```
-
 ## Authentication
 
-This module works with multiple GitHub authentication methods in priority order:
+The module supports multiple authentication methods (in priority order):
 
-**1. Direct Token :**
-
-- **`github_token` variable**: Provide a GitHub OAuth token or Personal Access Token directly to the module
-
-**2. Automatic detection:**
-
-- **Coder External Auth**: OAuth tokens from GitHub external authentication configured in Coder
-- **GitHub CLI**: OAuth tokens from `gh auth login` in the workspace
-
-**3. Interactive fallback:**
-
-- **Interactive login**: If no authentication is found, Copilot CLI will prompt users to login via the `/login` slash command
-
-**No setup required** for automatic methods - the module detects and uses whatever authentication is available.
+1. **Direct Token** - Pass `github_token` variable (OAuth or Personal Access Token)
+2. **Coder External Auth** - Automatic if GitHub external auth is configured in Coder
+3. **Interactive** - Copilot CLI prompts for login via `/login` command if no auth found
 
 > **Note**: OAuth tokens work best with Copilot CLI. Personal Access Tokens may have limited functionality.
 
 ## Session Resumption
 
-By default (`resume_session = true`), this module automatically resumes the latest Copilot CLI session when the workspace is restarted. This provides a seamless experience where:
-
-- **Previous conversations continue** - No need to re-establish context
-- **No duplicate prompts** - Initial prompts are only sent on first workspace creation
-- **Workspace restart handling** - Automatically detects and resumes existing sessions
-
-```tf
-module "copilot_cli" {
-  source   = "registry.coder.com/coder-labs/copilot-cli/coder"
-  version  = "1.0.0"
-  agent_id = coder_agent.example.id
-  workdir  = "/home/coder/project"
-
-  resume_session = true # Default: automatically resume sessions
-  # resume_session = false  # Always start fresh sessions
-}
-```
+By default, the module resumes the latest Copilot CLI session when the workspace restarts. Set `resume_session = false` to always start fresh sessions.
 
 ## Task Reporting
 
-When `report_tasks = true` (default), this module automatically configures and starts the **Coder MCP server** for task reporting integration:
-
-- **Automatic Configuration**: The Coder MCP server is added to the MCP configuration automatically
-
-- **Task Status Updates**: Copilot CLI can report task progress to the Coder UI
-- **No Manual Setup**: Works out-of-the-box with Coder's task reporting system
-- **Custom MCP Compatible**: If you provide custom `mcp_config`, the Coder MCP server is added alongside your custom servers
-
-The Coder MCP server enables Copilot CLI to:
-
-- Report task status (working, complete, failure)
-- Send progress updates to the Coder dashboard
-- Integrate with Coder's AI task workflow system
+When enabled (default), Copilot CLI can report task progress to the Coder UI using [AgentAPI](https://github.com/coder/agentapi). Custom MCP servers provided via `mcp_config` are merged with the Coder MCP server automatically.
 
 To disable task reporting, set `report_tasks = false`.
-
-### MCP Server Configuration
-
-This module automatically configures MCP servers by:
-
-1. **Writing MCP Configuration**: Creates `~/.copilot/mcp-config.json` with the correct format
-2. **Wrapper Script**: Creates `/tmp/coder-mcp-server.sh` that sets environment variables and runs `coder exp mcp server`
-3. **Merging Custom Servers**: Adds any custom MCP servers you provide via the `mcp_config` variable
 
 ## Troubleshooting
 
