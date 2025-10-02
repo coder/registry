@@ -279,7 +279,7 @@ module "agentapi" {
 
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
     chmod +x /tmp/start.sh   
-    AIDER_START_DIRECTORY='${var.workdir}' \
+    ARG_WORKDIR='${var.workdir}' \
     ARG_API_KEY='${base64encode(var.credentials)}' \
     ARG_MODEL='${var.model}' \
     ARG_PROVIDER='${var.ai_provider}' \
@@ -294,7 +294,8 @@ module "agentapi" {
 
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
-    AIDER_START_DIRECTORY='${var.workdir}' \
+    ARG_WORKDIR='${var.workdir}' \
+    ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_INSTALL_AIDER='${var.install_aider}' \
     AIDER_SYSTEM_PROMPT='${var.system_prompt}' \
     ARG_REPORT_TASKS='${var.report_tasks}' \

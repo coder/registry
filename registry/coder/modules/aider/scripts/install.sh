@@ -7,15 +7,16 @@ command_exists() {
 }
 
 # Inputs
-AIDER_START_DIRECTORY=${AIDER_START_DIRECTORY:-/home/coder}
+ARG_WORKDIR=${ARG_WORKDIR:-/home/coder}
 ARG_INSTALL_AIDER=${ARG_INSTALL_AIDER:-true}
 AIDER_SYSTEM_PROMPT=${AIDER_SYSTEM_PROMPT:-}
 ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 ARG_AIDER_CONFIG=${ARG_AIDER_CONFIG:-}
+ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
 
 echo "--------------------------------"
 echo "Install flag: $ARG_INSTALL_AIDER"
-echo "Workspace: $AIDER_START_DIRECTORY"
+echo "Workspace: $ARG_WORKDIR"
 echo "--------------------------------"
 
 function install_aider() {
@@ -23,8 +24,8 @@ function install_aider() {
   sudo apt-get install -y pipx
   echo "pipx installed!"
   pipx ensurepath
-  mkdir -p "$AIDER_START_DIRECTORY/.local/bin"
-  export PATH="$HOME/.local/bin:$AIDER_START_DIRECTORY/.local/bin:$PATH"
+  mkdir -p "$ARG_WORKDIR/.local/bin"
+  export PATH="$HOME/.local/bin:$ARG_WORKDIR/.local/bin:$PATH"
 
   if ! command_exists aider; then
     echo "Installing Aider via pipx..."
@@ -32,6 +33,53 @@ function install_aider() {
     aider-install
   fi
   echo "Aider installed: $(aider --version || echo 'check failed the Aider module insatllation failed')"
+}
+
+function install_node() {
+  if ! command_exists npm; then
+    printf "npm not found, checking for Node.js installation...\n"
+    if ! command_exists node; then
+      printf "Node.js not found, installing Node.js via NVM...\n"
+      export NVM_DIR="$HOME/.nvm"
+      if [ ! -d "$NVM_DIR" ]; then
+        mkdir -p "$NVM_DIR"
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+      else
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+      fi
+
+      # Temporarily disable nounset (-u) for nvm to avoid PROVIDED_VERSION error
+      set +u
+      nvm install --lts
+      nvm use --lts
+      nvm alias default node
+      set -u
+
+      printf "Node.js installed: %s\n" "$(node --version)"
+      printf "npm installed: %s\n" "$(npm --version)"
+    else
+      printf "Node.js is installed but npm is not available. Please install npm manually.\n"
+      exit 1
+    fi
+  fi
+}
+
+function install_mcpm-aider() {
+  install_node
+
+  # If nvm is not used, set up user npm global directory
+  if ! command_exists nvm; then
+    mkdir -p "$HOME/.npm-global"
+    npm config set prefix "$HOME/.npm-global"
+    export PATH="$HOME/.npm-global/bin:$PATH"
+    if ! grep -q "export PATH=$HOME/.npm-global/bin:\$PATH" ~/.bashrc; then
+      echo "export PATH=$HOME/.npm-global/bin:\$PATH" >> ~/.bashrc
+    fi
+  fi
+  printf "%s Installing MCPM-Aider for supporting coder MCP...\n" "${BOLD}"
+  npm install -g @poai/mcpm-aider
+  printf "%s Successfully installed MCPM-Aider. Version: %s\n" "${BOLD}" "$(mcpm-aider -V)"
 }
 
 function setup_system_prompt() {
@@ -58,6 +106,22 @@ function configure_aider_settings() {
   fi
 }
 
+function report_tasks() {
+  if [ "$ARG_REPORT_TASKS" = "true" ]; then
+    echo "Configuring Aider to report tasks via Coder MCP..."
+    export CODER_MCP_APP_STATUS_SLUG="$ARG_MCP_APP_STATUS_SLUG"
+    export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
+    coder exp mcp configure mcpm-aider "$ARG_WORKDIR"
+  else
+    export CODER_MCP_APP_STATUS_SLUG=""
+    export CODER_MCP_AI_AGENTAPI_URL=""
+    echo "Configuring Aider with Coder MCP..."
+    coder exp mcp configure mcpm-aider "$ARG_WORKDIR"
+  fi
+}
+
 install_aider
+install_mcpm-aider
 setup_system_prompt
 configure_aider_settings
+report_tasks
