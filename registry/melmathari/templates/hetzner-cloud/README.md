@@ -14,11 +14,11 @@ This template provides a comprehensive Hetzner Cloud setup with:
 
 - **Dynamic Configuration**: Server types, locations, and images loaded from JSON
 - **Location-Aware Filtering**: Available server types automatically filter based on selected location
-- **Multiple Server Types**: Shared, dedicated, and CPU-optimized instances
-- **Global Locations**: Germany, Finland, and USA datacenters
+- **Multiple Server Types**: ARM, Intel, AMD shared, and dedicated instances
+- **Global Locations**: Europe, USA, and Asia datacenters
 - **Persistent Storage**: Home volumes that survive workspace restarts
 - **Secure Networking**: Private networks with firewall rules
-- **Clean Architecture**: Minimal JSON configuration for easy maintenance
+- **Clean Architecture**: Region-based availability in JSON for easy maintenance
 
 ## Prerequisites
 
@@ -72,38 +72,14 @@ This means that when the workspace restarts, any tools or files outside of the h
 
 ## Server Types
 
-The template supports current Hetzner Cloud server types:
+The template supports multiple Hetzner Cloud server types across four categories:
 
-### ARM-based (Energy Efficient)
+- **ARM-based (CAX)**: Energy-efficient ARM architecture instances
+- **Intel CPU-Optimized (CPX)**: High-performance Intel processors
+- **AMD Shared (CX)**: Cost-effective AMD shared instances
+- **Dedicated vCPU (CCX)**: Dedicated CPU resources for consistent performance
 
-- **CAX11**: 2 vCPU, 4 GB RAM
-- **CAX21**: 4 vCPU, 8 GB RAM
-- **CAX31**: 8 vCPU, 16 GB RAM
-- **CAX41**: 16 vCPU, 32 GB RAM
-
-### Shared AMD (Cost-effective)
-
-- **CX22**: 2 vCPU, 4 GB RAM
-- **CX32**: 4 vCPU, 8 GB RAM
-- **CX42**: 8 vCPU, 16 GB RAM
-- **CX52**: 16 vCPU, 32 GB RAM
-
-### Intel CPU-Optimized
-
-- **CPX11**: 2 vCPU, 2 GB RAM
-- **CPX21**: 3 vCPU, 4 GB RAM
-- **CPX31**: 4 vCPU, 8 GB RAM
-- **CPX41**: 8 vCPU, 16 GB RAM
-- **CPX51**: 16 vCPU, 32 GB RAM
-
-### Dedicated vCPU (High Performance)
-
-- **CCX13**: 2 vCPU, 8 GB RAM
-- **CCX23**: 4 vCPU, 16 GB RAM
-- **CCX33**: 8 vCPU, 32 GB RAM
-- **CCX43**: 16 vCPU, 64 GB RAM
-- **CCX53**: 32 vCPU, 128 GB RAM
-- **CCX63**: 48 vCPU, 192 GB RAM
+Server types are automatically filtered based on your selected location. The specific availability is managed in `hetzner-config.json`.
 
 ## Locations
 
@@ -154,12 +130,13 @@ The template uses `hetzner-config.json` for dynamic configuration:
 "cx62": { "name": "CX62 (16 vCPU, 64 GB RAM, AMD)", "vcpus": 16, "memory": 64 }
 ```
 
-If a server type has limited availability, add it to the `availability` section:
+The `availability_by_location` section maps which server types are available in each region:
 
 ```json
-"availability": {
-  "ccx63": ["fsn1", "nbg1"],  // Only available in these locations
-  "*": ["fsn1", "nbg1", "hel1", "ash", "hil"]  // Default for all other types
+"availability_by_location": {
+  "fsn1": ["cax11", "cpx11", "cx22", "ccx13", ...],  // Europe: All types
+  "ash": ["cpx11", "ccx13", ...],                     // USA: Intel + Dedicated only
+  "sin": ["cpx11", "ccx13", ...]                      // Asia: Intel + Dedicated only
 }
 ```
 
@@ -207,7 +184,12 @@ The template includes:
 
 ### Server Type Options Change When Selecting Location
 
-The template dynamically filters server types based on the selected location. For example, if you select a location where certain dedicated server types aren't available, those options won't appear in the server type dropdown. This prevents configuration errors before they happen.
+This is expected behavior! The template dynamically filters server types based on regional availability:
+
+- **Europe (fsn1, nbg1, hel1)**: Shows all server types including ARM (CAX) and AMD (CX)
+- **USA/Asia (ash, hil, sin)**: Shows only Intel (CPX) and Dedicated (CCX) servers
+
+This prevents configuration errors by only showing what's actually available in your selected region.
 
 ### Image Not Found Errors
 
@@ -279,11 +261,9 @@ To test this template locally before deployment:
 
 4. **Test dynamic filtering**: Try planning with different locations to verify server types filter correctly:
    ```bash
-   terraform plan -var="location=fsn1" # Should show CCX63
-   terraform plan -var="location=ash"  # Should NOT show CCX63
+   terraform plan -var="location=fsn1" # Europe: Shows ARM (CAX), AMD (CX), Intel (CPX), Dedicated (CCX)
+   terraform plan -var="location=ash"  # USA: Shows only Intel (CPX) and Dedicated (CCX) - no ARM/AMD
    ```
-
-See `TEST_GUIDE.md` for detailed testing instructions.
 
 ## Notes
 
