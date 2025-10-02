@@ -26,19 +26,26 @@ validate_copilot_installation() {
   fi
 }
 
+build_initial_prompt() {
+  local initial_prompt=""
+  
+  if [ -n "$ARG_AI_PROMPT" ]; then
+    if [ -n "$ARG_SYSTEM_PROMPT" ]; then
+      initial_prompt="<system>
+$ARG_SYSTEM_PROMPT
+</system>
+
+$ARG_AI_PROMPT"
+    else
+      initial_prompt="$ARG_AI_PROMPT"
+    fi
+  fi
+  
+  echo "$initial_prompt"
+}
+
 build_copilot_args() {
   COPILOT_ARGS=()
-
-  if [ -n "$ARG_SYSTEM_PROMPT" ] && [ -n "$ARG_AI_PROMPT" ]; then
-    local combined_prompt="$ARG_SYSTEM_PROMPT
-
-Task: $ARG_AI_PROMPT"
-    COPILOT_ARGS+=(--prompt "$combined_prompt")
-  elif [ -n "$ARG_SYSTEM_PROMPT" ]; then
-    COPILOT_ARGS+=(--prompt "$ARG_SYSTEM_PROMPT")
-  elif [ -n "$ARG_AI_PROMPT" ]; then
-    COPILOT_ARGS+=(--prompt "$ARG_AI_PROMPT")
-  fi
 
   if [ "$ARG_ALLOW_ALL_TOOLS" = "true" ]; then
     COPILOT_ARGS+=(--allow-all-tools)
@@ -112,18 +119,36 @@ start_agentapi() {
   echo "Starting in directory: $ARG_WORKDIR"
   cd "$ARG_WORKDIR"
 
+  build_copilot_args
+
   if check_existing_session; then
     echo "Resuming latest Copilot CLI session..."
-    agentapi server --type claude --term-width 120 --term-height 40 -- copilot --resume
-  else
-    echo "Starting new Copilot CLI session..."
-    build_copilot_args
-
     if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
       echo "Copilot arguments: ${COPILOT_ARGS[*]}"
-      agentapi server --type claude --term-width 120 --term-height 40 -- copilot "${COPILOT_ARGS[@]}"
+      agentapi server --type copilot --term-width 120 --term-height 40 -- copilot --resume "${COPILOT_ARGS[@]}"
     else
-      agentapi server --type claude --term-width 120 --term-height 40 -- copilot
+      agentapi server --type copilot --term-width 120 --term-height 40 -- copilot --resume
+    fi
+  else
+    echo "Starting new Copilot CLI session..."
+    local initial_prompt
+    initial_prompt=$(build_initial_prompt)
+
+    if [ -n "$initial_prompt" ]; then
+      echo "Using initial prompt with system context"
+      if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
+        echo "Copilot arguments: ${COPILOT_ARGS[*]}"
+        agentapi server -I="$initial_prompt" --type copilot --term-width 120 --term-height 40 -- copilot "${COPILOT_ARGS[@]}"
+      else
+        agentapi server -I="$initial_prompt" --type copilot --term-width 120 --term-height 40 -- copilot
+      fi
+    else
+      if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
+        echo "Copilot arguments: ${COPILOT_ARGS[*]}"
+        agentapi server --type copilot --term-width 120 --term-height 40 -- copilot "${COPILOT_ARGS[@]}"
+      else
+        agentapi server --type copilot --term-width 120 --term-height 40 -- copilot
+      fi
     fi
   fi
 }
