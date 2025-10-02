@@ -78,9 +78,25 @@ module "copilot_cli" {
 
   mcp_config = jsonencode({
     mcpServers = {
-      custom_server = {
-        command = "npx"
-        args    = ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/files"]
+      filesystem = {
+        command     = "npx"
+        args        = ["-y", "@modelcontextprotocol/server-filesystem", "/home/coder/workspace"]
+        description = "Provides file system access to the workspace"
+        name        = "Filesystem"
+        timeout     = 3000
+        type        = "local"
+        tools       = ["*"]
+        trust       = true
+      }
+      playwright = {
+        command     = "npx"
+        args        = ["-y", "@playwright/mcp@latest", "--headless", "--isolated"]
+        description = "Browser automation for testing and previewing changes"
+        name        = "Playwright"
+        timeout     = 5000
+        type        = "local"
+        tools       = ["*"]
+        trust       = false
       }
     }
   })
@@ -92,6 +108,12 @@ module "copilot_cli" {
   EOT
 }
 ```
+
+> [!NOTE]
+> GitHub Copilot CLI does not automatically install MCP servers. You have two options:
+>
+> - Use `npx -y` in the MCP config (shown above) to auto-install on each run
+> - Pre-install MCP servers in `pre_install_script` for faster startup (e.g., `npm install -g @modelcontextprotocol/server-filesystem`)
 
 ### Direct Token Authentication
 
@@ -150,7 +172,8 @@ The module supports multiple authentication methods (in priority order):
 2. **Coder External Auth** - Automatic if GitHub external auth is configured in Coder
 3. **Interactive** - Copilot CLI prompts for login via `/login` command if no auth found
 
-> **Note**: OAuth tokens work best with Copilot CLI. Personal Access Tokens may have limited functionality.
+> [!NOTE]
+> OAuth tokens work best with Copilot CLI. Personal Access Tokens may have limited functionality.
 
 ## Session Resumption
 
