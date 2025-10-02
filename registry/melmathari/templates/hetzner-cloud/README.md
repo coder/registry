@@ -13,7 +13,7 @@ Provision Hetzner Cloud servers as [Coder workspaces](https://coder.com/docs/wor
 This template provides a comprehensive Hetzner Cloud setup with:
 
 - **Dynamic Configuration**: Server types, locations, and images loaded from JSON
-- **Smart Validation**: Prevents invalid server type/location combinations
+- **Location-Aware Filtering**: Available server types automatically filter based on selected location
 - **Multiple Server Types**: Shared, dedicated, and CPU-optimized instances
 - **Global Locations**: Germany, Finland, and USA datacenters
 - **Persistent Storage**: Home volumes that survive workspace restarts
@@ -72,19 +72,29 @@ This means that when the workspace restarts, any tools or files outside of the h
 
 ## Server Types
 
-The template supports all major Hetzner Cloud server types:
+The template supports current Hetzner Cloud server types:
 
-### Shared vCPU (Cost-effective)
+### ARM-based (Energy Efficient)
 
-- **CX11**: 1 vCPU, 4 GB RAM
-- **CX21**: 2 vCPU, 8 GB RAM
-- **CX22**: 2 vCPU, 4 GB RAM (AMD)
-- **CX31**: 2 vCPU, 8 GB RAM
-- **CX32**: 4 vCPU, 8 GB RAM (AMD)
-- **CX41**: 4 vCPU, 16 GB RAM
-- **CX42**: 8 vCPU, 16 GB RAM (AMD)
-- **CX51**: 8 vCPU, 32 GB RAM
-- **CX52**: 16 vCPU, 32 GB RAM (AMD)
+- **CAX11**: 2 vCPU, 4 GB RAM
+- **CAX21**: 4 vCPU, 8 GB RAM
+- **CAX31**: 8 vCPU, 16 GB RAM
+- **CAX41**: 16 vCPU, 32 GB RAM
+
+### Shared AMD (Cost-effective)
+
+- **CX22**: 2 vCPU, 4 GB RAM
+- **CX32**: 4 vCPU, 8 GB RAM
+- **CX42**: 8 vCPU, 16 GB RAM
+- **CX52**: 16 vCPU, 32 GB RAM
+
+### Intel CPU-Optimized
+
+- **CPX11**: 2 vCPU, 2 GB RAM
+- **CPX21**: 3 vCPU, 4 GB RAM
+- **CPX31**: 4 vCPU, 8 GB RAM
+- **CPX41**: 8 vCPU, 16 GB RAM
+- **CPX51**: 16 vCPU, 32 GB RAM
 
 ### Dedicated vCPU (High Performance)
 
@@ -95,23 +105,16 @@ The template supports all major Hetzner Cloud server types:
 - **CCX53**: 32 vCPU, 128 GB RAM
 - **CCX63**: 48 vCPU, 192 GB RAM
 
-### CPU-Optimized
-
-- **CPX11**: 2 vCPU, 2 GB RAM
-- **CPX21**: 3 vCPU, 4 GB RAM
-- **CPX31**: 4 vCPU, 8 GB RAM
-- **CPX41**: 8 vCPU, 16 GB RAM
-- **CPX51**: 16 vCPU, 64 GB RAM
-
 ## Locations
 
 Available locations:
 
-- **Falkenstein, Germany** (fsn1) - Primary location
-- **Nuremberg, Germany** (nbg1) - Secondary location
-- **Helsinki, Finland** (hel1) - EU Nordic
+- **Falkenstein, Germany** (fsn1) - Europe
+- **Nuremberg, Germany** (nbg1) - Europe
+- **Helsinki, Finland** (hel1) - Europe
 - **Ashburn, Virginia, USA** (ash) - US East Coast
 - **Hillsboro, Oregon, USA** (hil) - US West Coast
+- **Singapore** (sin) - Asia Pacific
 
 ## Supported Operating Systems
 
@@ -141,12 +144,23 @@ The template uses `hetzner-config.json` for dynamic configuration:
 - **Server Types**: Add new server types with their specifications
 - **Locations**: Add new Hetzner datacenters as they become available
 - **Images**: Update with current Hetzner image names (verify with API)
-- **Availability**: Map server type restrictions per location
+- **Availability**: Map server type restrictions per location (only shown server types that are available)
+
+**How it works**: When a user selects a location, the template automatically filters the server type dropdown to only show instances available in that location. This prevents configuration errors by design.
 
 **Example**: Adding a new server type:
 
 ```json
 "cx62": { "name": "CX62 (16 vCPU, 64 GB RAM, AMD)", "vcpus": 16, "memory": 64 }
+```
+
+If a server type has limited availability, add it to the `availability` section:
+
+```json
+"availability": {
+  "ccx63": ["fsn1", "nbg1"],  // Only available in these locations
+  "*": ["fsn1", "nbg1", "hel1", "ash", "hil"]  // Default for all other types
+}
 ```
 
 **Important**: Always verify image names match Hetzner's official names exactly to avoid provisioning errors.
@@ -191,9 +205,9 @@ The template includes:
 
 ## Troubleshooting
 
-### Invalid Server Type/Location Combination
+### Server Type Options Change When Selecting Location
 
-The template includes validation to prevent selecting server types that aren't available in certain locations. If you encounter this error, choose a different server type or location combination.
+The template dynamically filters server types based on the selected location. For example, if you select a location where certain dedicated server types aren't available, those options won't appear in the server type dropdown. This prevents configuration errors before they happen.
 
 ### Image Not Found Errors
 
@@ -239,13 +253,45 @@ If you can't connect to development servers:
 2. Check that the private network is configured correctly
 3. Ensure the server has a public IP address
 
+## Local Testing
+
+To test this template locally before deployment:
+
+1. **Create a configuration file**:
+
+   ```bash
+   cp terraform.tfvars.example terraform.tfvars
+   ```
+
+2. **Add your Hetzner Cloud API token** to `terraform.tfvars`:
+
+   ```hcl
+   hcloud_token = "your-actual-token-here"
+   ```
+
+3. **Initialize and validate**:
+
+   ```bash
+   terraform init
+   terraform validate
+   terraform plan
+   ```
+
+4. **Test dynamic filtering**: Try planning with different locations to verify server types filter correctly:
+   ```bash
+   terraform plan -var="location=fsn1" # Should show CCX63
+   terraform plan -var="location=ash"  # Should NOT show CCX63
+   ```
+
+See `TEST_GUIDE.md` for detailed testing instructions.
+
 ## Notes
 
 > [!NOTE]
 > This template is designed to be a starting point! Edit the Terraform configuration to extend the template to support your specific use case.
 
 > [!IMPORTANT]
-> The SSH key in this template is a placeholder. In a production environment, you should replace it with your actual SSH public key or remove the SSH key resource entirely if not needed.
+> The SSH key parameter defaults to 0 (no SSH key). To enable SSH access, set `ssh_key_id` to your actual SSH key ID from Hetzner Cloud.
 
 > [!WARNING]
-> Some server types may not be available in all locations. The template includes validation to prevent invalid combinations, but availability can change over time.
+> Server types are automatically filtered based on location availability. If you don't see a specific server type in the dropdown, it's not available in your selected location.
