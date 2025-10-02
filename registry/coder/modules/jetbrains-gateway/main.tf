@@ -330,7 +330,7 @@ resource "coder_app" "gateway" {
   external     = true
   order        = var.order
   group        = var.group
-  url = join("", concat([
+  url = join("", [
     "jetbrains-gateway://connect#type=coder&workspace=",
     data.coder_workspace.me.name,
     "&owner=",
@@ -347,9 +347,9 @@ resource "coder_app" "gateway" {
     local.build_number,
     "&ide_download_link=",
     local.download_link,
-    ], trimspace(var.agent_name) != ""
-    ? ["&agent=", var.agent_name]
-  : []))
+    "&agent=",
+    var.agent_name,
+  ])
 }
 
 output "identifier" {
