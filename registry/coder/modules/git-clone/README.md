@@ -48,7 +48,7 @@ module "git-clone" {
   url      = "https://github.com/coder/coder"
 }
 
-data "coder_git_auth" "github" {
+data "coder_external_auth" "github" {
   id = "github"
 }
 ```
