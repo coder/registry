@@ -29,6 +29,14 @@ data "coder_workspace_owner" "me" {}
 # Load Hetzner Cloud configuration from JSON
 locals {
   hetzner_config = jsondecode(file("${path.module}/hetzner-config.json"))
+
+  # Generate server type options filtered by selected location
+  server_type_options_for_selected_location = [
+    for type_key in lookup(local.hetzner_config.availability_by_location, data.coder_parameter.location.value, []) : {
+      name  = local.hetzner_config.type_meta.server_types[type_key].name
+      value = type_key
+    }
+  ]
 }
 
 # Hetzner Cloud locations parameter (dynamically generated from JSON)
@@ -52,7 +60,7 @@ data "coder_parameter" "location" {
 }
 
 
-# Hetzner Cloud server types parameter (dynamically generated from JSON)
+# Hetzner Cloud server types parameter (dynamically filtered based on selected location)
 data "coder_parameter" "server_type" {
   name         = "server_type"
   display_name = "Server Type"
@@ -62,11 +70,12 @@ data "coder_parameter" "server_type" {
   icon         = "/icon/memory.svg"
   mutable      = false
 
+  # Filter server types based on the selected location
   dynamic "option" {
-    for_each = local.hetzner_config.type_meta.server_types
+    for_each = local.server_type_options_for_selected_location
     content {
       name  = option.value.name
-      value = option.key
+      value = option.value.value
     }
   }
 }
@@ -133,21 +142,6 @@ locals {
   selected_server_type = local.hetzner_config.type_meta.server_types[data.coder_parameter.server_type.value]
   selected_location    = local.hetzner_config.type_meta.locations[data.coder_parameter.location.value]
   network_zone         = local.selected_location.zone
-
-  # Get availability for selected server type (use specific or wildcard)
-  server_availability = lookup(local.hetzner_config.availability, data.coder_parameter.server_type.value, local.hetzner_config.availability["*"])
-
-  # Validate server type is available in selected location
-  is_valid_combination = contains(local.server_availability, data.coder_parameter.location.value)
-}
-
-# Validation check for server type and location compatibility
-resource "null_resource" "validate_server_location" {
-  count = local.is_valid_combination ? 0 : 1
-
-  provisioner "local-exec" {
-    command = "echo 'ERROR: Server type ${data.coder_parameter.server_type.value} is not available in location ${data.coder_parameter.location.value}' && exit 1"
-  }
 }
 
 resource "coder_agent" "main" {

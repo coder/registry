@@ -6,29 +6,58 @@
       "nbg1": { "name": "Nuremberg, Germany", "zone": "eu-central" },
       "hel1": { "name": "Helsinki, Finland", "zone": "eu-central" },
       "ash": { "name": "Ashburn, VA, USA", "zone": "us-east" },
-      "hil": { "name": "Hillsboro, OR, USA", "zone": "us-west" }
+      "hil": { "name": "Hillsboro, OR, USA", "zone": "us-west" },
+      "sin": { "name": "Singapore", "zone": "ap-southeast" }
     },
     "server_types": {
-      "cx11": { "name": "CX11 (1 vCPU, 4 GB RAM)", "vcpus": 1, "memory": 4 },
-      "cx21": { "name": "CX21 (2 vCPU, 8 GB RAM)", "vcpus": 2, "memory": 8 },
+      "cax11": {
+        "name": "CAX11 (2 vCPU, 4 GB RAM, ARM)",
+        "vcpus": 2,
+        "memory": 4
+      },
+      "cax21": {
+        "name": "CAX21 (4 vCPU, 8 GB RAM, ARM)",
+        "vcpus": 4,
+        "memory": 8
+      },
+      "cax31": {
+        "name": "CAX31 (8 vCPU, 16 GB RAM, ARM)",
+        "vcpus": 8,
+        "memory": 16
+      },
+      "cax41": {
+        "name": "CAX41 (16 vCPU, 32 GB RAM, ARM)",
+        "vcpus": 16,
+        "memory": 32
+      },
+      "cpx11": { "name": "CPX11 (2 vCPU, 2 GB RAM)", "vcpus": 2, "memory": 2 },
+      "cpx21": { "name": "CPX21 (3 vCPU, 4 GB RAM)", "vcpus": 3, "memory": 4 },
+      "cpx31": { "name": "CPX31 (4 vCPU, 8 GB RAM)", "vcpus": 4, "memory": 8 },
+      "cpx41": {
+        "name": "CPX41 (8 vCPU, 16 GB RAM)",
+        "vcpus": 8,
+        "memory": 16
+      },
+      "cpx51": {
+        "name": "CPX51 (16 vCPU, 32 GB RAM)",
+        "vcpus": 16,
+        "memory": 32
+      },
       "cx22": {
         "name": "CX22 (2 vCPU, 4 GB RAM, AMD)",
         "vcpus": 2,
         "memory": 4
       },
-      "cx31": { "name": "CX31 (2 vCPU, 8 GB RAM)", "vcpus": 2, "memory": 8 },
       "cx32": {
         "name": "CX32 (4 vCPU, 8 GB RAM, AMD)",
         "vcpus": 4,
         "memory": 8
       },
-      "cx41": { "name": "CX41 (4 vCPU, 16 GB RAM)", "vcpus": 4, "memory": 16 },
       "cx42": {
         "name": "CX42 (8 vCPU, 16 GB RAM, AMD)",
         "vcpus": 8,
         "memory": 16
       },
-      "cx51": { "name": "CX51 (8 vCPU, 32 GB RAM)", "vcpus": 8, "memory": 32 },
       "cx52": {
         "name": "CX52 (16 vCPU, 32 GB RAM, AMD)",
         "vcpus": 16,
@@ -63,31 +92,6 @@
         "name": "CCX63 (48 vCPU, 192 GB RAM, Dedicated)",
         "vcpus": 48,
         "memory": 192
-      },
-      "cpx11": {
-        "name": "CPX11 (2 vCPU, 2 GB RAM, CPU-optimized)",
-        "vcpus": 2,
-        "memory": 2
-      },
-      "cpx21": {
-        "name": "CPX21 (3 vCPU, 4 GB RAM, CPU-optimized)",
-        "vcpus": 3,
-        "memory": 4
-      },
-      "cpx31": {
-        "name": "CPX31 (4 vCPU, 8 GB RAM, CPU-optimized)",
-        "vcpus": 4,
-        "memory": 8
-      },
-      "cpx41": {
-        "name": "CPX41 (8 vCPU, 16 GB RAM, CPU-optimized)",
-        "vcpus": 8,
-        "memory": 16
-      },
-      "cpx51": {
-        "name": "CPX51 (16 vCPU, 64 GB RAM, CPU-optimized)",
-        "vcpus": 16,
-        "memory": 64
       }
     },
     "images": {
@@ -114,8 +118,109 @@
       "alma-9": { "name": "AlmaLinux 9", "icon": "/icon/almalinux.svg" }
     }
   },
-  "availability": {
-    "ccx63": ["fsn1", "nbg1"],
-    "*": ["fsn1", "nbg1", "hel1", "ash", "hil"]
+  "availability_by_location": {
+    "_comment": "Europe has ARM (CAX) + AMD (CX). USA/Asia only have Intel (CPX) + Dedicated (CCX).",
+    "fsn1": [
+      "cax11",
+      "cax21",
+      "cax31",
+      "cax41",
+      "cpx11",
+      "cpx21",
+      "cpx31",
+      "cpx41",
+      "cpx51",
+      "cx22",
+      "cx32",
+      "cx42",
+      "cx52",
+      "ccx13",
+      "ccx23",
+      "ccx33",
+      "ccx43",
+      "ccx53",
+      "ccx63"
+    ],
+    "nbg1": [
+      "cax11",
+      "cax21",
+      "cax31",
+      "cax41",
+      "cpx11",
+      "cpx21",
+      "cpx31",
+      "cpx41",
+      "cpx51",
+      "cx22",
+      "cx32",
+      "cx42",
+      "cx52",
+      "ccx13",
+      "ccx23",
+      "ccx33",
+      "ccx43",
+      "ccx53",
+      "ccx63"
+    ],
+    "hel1": [
+      "cax11",
+      "cax21",
+      "cax31",
+      "cax41",
+      "cpx11",
+      "cpx21",
+      "cpx31",
+      "cpx41",
+      "cpx51",
+      "cx22",
+      "cx32",
+      "cx42",
+      "cx52",
+      "ccx13",
+      "ccx23",
+      "ccx33",
+      "ccx43",
+      "ccx53",
+      "ccx63"
+    ],
+    "ash": [
+      "cpx11",
+      "cpx21",
+      "cpx31",
+      "cpx41",
+      "cpx51",
+      "ccx13",
+      "ccx23",
+      "ccx33",
+      "ccx43",
+      "ccx53",
+      "ccx63"
+    ],
+    "hil": [
+      "cpx11",
+      "cpx21",
+      "cpx31",
+      "cpx41",
+      "cpx51",
+      "ccx13",
+      "ccx23",
+      "ccx33",
+      "ccx43",
+      "ccx53",
+      "ccx63"
+    ],
+    "sin": [
+      "cpx11",
+      "cpx21",
+      "cpx31",
+      "cpx41",
+      "cpx51",
+      "ccx13",
+      "ccx23",
+      "ccx33",
+      "ccx43",
+      "ccx53",
+      "ccx63"
+    ]
   }
 }
