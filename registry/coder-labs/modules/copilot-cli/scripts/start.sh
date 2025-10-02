@@ -31,9 +31,7 @@ build_initial_prompt() {
 
   if [ -n "$ARG_AI_PROMPT" ]; then
     if [ -n "$ARG_SYSTEM_PROMPT" ]; then
-      initial_prompt="<system>
-$ARG_SYSTEM_PROMPT
-</system>
+      initial_prompt="$ARG_SYSTEM_PROMPT
 
 $ARG_AI_PROMPT"
     else
