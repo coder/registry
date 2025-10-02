@@ -202,6 +202,7 @@ module "agentapi" {
   version = "1.1.1"
 
   agent_id             = var.agent_id
+  folder               = var.workdir
   web_app_slug         = local.app_slug
   web_app_order        = var.order
   web_app_group        = var.group
