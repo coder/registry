@@ -237,33 +237,19 @@ If you can't connect to development servers:
 
 ## Local Testing
 
-To test this template locally before deployment:
+To test this template locally, create a `terraform.tfvars` file with:
 
-1. **Create a configuration file**:
+```hcl
+hcloud_token = "your-hetzner-cloud-api-token"
+```
 
-   ```bash
-   cp terraform.tfvars.example terraform.tfvars
-   ```
+Then run:
 
-2. **Add your Hetzner Cloud API token** to `terraform.tfvars`:
-
-   ```hcl
-   hcloud_token = "your-actual-token-here"
-   ```
-
-3. **Initialize and validate**:
-
-   ```bash
-   terraform init
-   terraform validate
-   terraform plan
-   ```
-
-4. **Test dynamic filtering**: Try planning with different locations to verify server types filter correctly:
-   ```bash
-   terraform plan -var="location=fsn1" # Europe: Shows ARM (CAX), AMD (CX), Intel (CPX), Dedicated (CCX)
-   terraform plan -var="location=ash"  # USA: Shows only Intel (CPX) and Dedicated (CCX) - no ARM/AMD
-   ```
+```bash
+terraform init
+terraform validate
+terraform plan
+```
 
 ## Notes
 
