@@ -67,18 +67,6 @@ variable "group" {
   default     = null
 }
 
-variable "embed_agent_name" {
-  type        = bool
-  description = "Embed the agent name in the JetBrains Gateway URL when support for multiple agents is required."
-  default     = false
-}
-
-variable "ide_parameter_name" {
-  type        = string
-  description = "Terraform parameter name for the JetBrains IDE selector. Must be unique per module instance."
-  default     = "jetbrains_ide"
-}
-
 variable "coder_parameter_order" {
   type        = number
   description = "The order determines the position of a template parameter in the UI/CLI presentation. The lowest order is shown first and parameters with equal order are sorted by name (ascending order)."
@@ -314,7 +302,7 @@ locals {
 
 data "coder_parameter" "jetbrains_ide" {
   type         = "string"
-  name         = var.ide_parameter_name
+  name         = "jetbrains_ide"
   display_name = "JetBrains IDE"
   icon         = "/icon/gateway.svg"
   mutable      = true
@@ -359,7 +347,9 @@ resource "coder_app" "gateway" {
     local.build_number,
     "&ide_download_link=",
     local.download_link,
-  ], var.embed_agent_name && trimspace(var.agent_name) != "" ? ["&agent=", var.agent_name] : []))
+    ], trimspace(var.agent_name) != ""
+    ? ["&agent=", var.agent_name]
+  : (trimspace(var.agent_id) != "" ? ["&agent_id=", var.agent_id] : [])))
 }
 
 output "identifier" {
