@@ -28,7 +28,7 @@ validate_copilot_installation() {
 
 build_initial_prompt() {
   local initial_prompt=""
-  
+
   if [ -n "$ARG_AI_PROMPT" ]; then
     if [ -n "$ARG_SYSTEM_PROMPT" ]; then
       initial_prompt="<system>
@@ -40,7 +40,7 @@ $ARG_AI_PROMPT"
       initial_prompt="$ARG_AI_PROMPT"
     fi
   fi
-  
+
   echo "$initial_prompt"
 }
 
