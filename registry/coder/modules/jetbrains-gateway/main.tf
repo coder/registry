@@ -347,9 +347,9 @@ resource "coder_app" "gateway" {
     local.build_number,
     "&ide_download_link=",
     local.download_link,
-  ], trimspace(var.agent_name) != ""
+    ], trimspace(var.agent_name) != ""
     ? ["&agent=", var.agent_name]
-    : []))
+  : []))
 }
 
 output "identifier" {
