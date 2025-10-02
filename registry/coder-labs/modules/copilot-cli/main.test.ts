@@ -1,59 +1,24 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import {
+  findResourceInstance,
   runTerraformApply,
   runTerraformInit,
-  findResourceInstance,
+  testRequiredVariables,
 } from "~test";
-import path from "path";
 
-const moduleDir = path.resolve(__dirname);
+describe("copilot-cli", async () => {
+  await runTerraformInit(import.meta.dir);
 
-const requiredVars = {
-  agent_id: "test-agent-id",
-  workdir: "/home/coder",
-  external_auth_id: "github",
-};
+  testRequiredVariables(import.meta.dir, {
+    agent_id: "test-agent",
+    workdir: "/home/coder",
+  });
 
-const fullConfigVars = {
-  agent_id: "test-agent-id",
-  workdir: "/home/coder",
-  external_auth_id: "github",
-  copilot_model: "claude-sonnet-4.5",
-  report_tasks: true,
-  order: 1,
-  group: "AI Tools",
-  icon: "/icon/custom-copilot.svg",
-  pre_install_script: "echo 'Starting pre-install'",
-  post_install_script: "echo 'Completed post-install'",
-  copilot_config: JSON.stringify({
-    banner: "auto",
-    theme: "light",
-    trusted_folders: ["/home/coder", "/workspace"],
-  }),
-  mcp_config: JSON.stringify({
-    mcpServers: {
-      github: {
-        command: "@github/copilot-mcp-github",
-        env: {
-          GITHUB_TOKEN: "${GITHUB_TOKEN}",
-        },
-      },
-      custom: {
-        command: "custom-server",
-        args: ["--config", "custom.json"],
-      },
-    },
-  }),
-  trusted_directories: '["/workspace", "/projects"]',
-  allow_tools: '["fs_read", "fs_write"]',
-  deny_tools: '["execute_bash"]',
-};
-
-describe("copilot-cli module", async () => {
-  await runTerraformInit(moduleDir);
-
-  it("works with required variables", async () => {
-    const state = await runTerraformApply(moduleDir, requiredVars);
+  it("creates mcp_app_status_slug env var", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "test-agent",
+      workdir: "/home/coder",
+    });
 
     const statusSlugEnv = findResourceInstance(
       state,
@@ -65,240 +30,12 @@ describe("copilot-cli module", async () => {
     expect(statusSlugEnv.value).toBe("copilot-cli");
   });
 
-  it("creates required environment variables", async () => {
-    const state = await runTerraformApply(moduleDir, fullConfigVars);
-
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "mcp_app_status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-    expect(statusSlugEnv.name).toBe("CODER_MCP_APP_STATUS_SLUG");
-    expect(statusSlugEnv.value).toBe("copilot-cli");
-  });
-
-  it("uses default model when not specified", async () => {
-    const state = await runTerraformApply(moduleDir, requiredVars);
-
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "mcp_app_status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  it("supports custom copilot model", async () => {
-    const customModelVars = {
-      ...requiredVars,
-      copilot_model: "claude-sonnet-4.5",
-    };
-
-    const state = await runTerraformApply(moduleDir, customModelVars);
-
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "mcp_app_status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  it("supports custom copilot configuration", async () => {
-    const customConfigVars = {
-      ...requiredVars,
-      copilot_config: JSON.stringify({
-        banner: "auto",
-        theme: "dark",
-        trusted_folders: ["/home/coder", "/workspace"],
-      }),
-    };
-
-    const state = await runTerraformApply(moduleDir, customConfigVars);
-
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "mcp_app_status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  it("supports trusted directories", async () => {
-    const trustedDirsVars = {
-      ...requiredVars,
-      trusted_directories: '["/workspace", "/projects", "/data"]',
-    };
-
-    const state = await runTerraformApply(moduleDir, trustedDirsVars);
-
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "mcp_app_status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  it("supports custom MCP configuration", async () => {
-    const mcpConfigVars = {
-      ...requiredVars,
-      mcp_config: JSON.stringify({
-        mcpServers: {
-          filesystem: {
-            command: "npx",
-            args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
-          },
-          github: {
-            command: "@github/copilot-mcp-github",
-            env: {
-              GITHUB_TOKEN: "${GITHUB_TOKEN}",
-            },
-          },
-        },
-      }),
-    };
-
-    const state = await runTerraformApply(moduleDir, mcpConfigVars);
-
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "mcp_app_status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  it("supports tool permissions", async () => {
-    const toolPermissionsVars = {
-      ...requiredVars,
-      allow_tools: '["fs_read", "fs_write", "execute_bash"]',
-      deny_tools: '["rm", "sudo"]',
-    };
-
-    const state = await runTerraformApply(moduleDir, toolPermissionsVars);
-
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "mcp_app_status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  it("supports UI customization options", async () => {
-    const uiCustomVars = {
-      ...requiredVars,
-      order: 5,
-      group: "Custom AI Tools",
-      icon: "/icon/custom-copilot-icon.svg",
-    };
-
-    const state = await runTerraformApply(moduleDir, uiCustomVars);
-
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "mcp_app_status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  it("supports pre and post install scripts", async () => {
-    const scriptVars = {
-      ...requiredVars,
-      pre_install_script: "echo 'Pre-install setup for Copilot CLI'",
-      post_install_script: "echo 'Post-install cleanup for Copilot CLI'",
-    };
-
-    const state = await runTerraformApply(moduleDir, scriptVars);
-
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "mcp_app_status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  it("handles task reporting disabled", async () => {
-    const noReportingVars = {
-      ...requiredVars,
-      report_tasks: false,
-    };
-
-    const state = await runTerraformApply(moduleDir, noReportingVars);
-
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "mcp_app_status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-    expect(statusSlugEnv.value).toBe("copilot-cli");
-  });
-
-  it("supports external auth configuration", async () => {
-    const customAuthVars = {
-      ...requiredVars,
-      external_auth_id: "custom-github",
-    };
-
-    const state = await runTerraformApply(moduleDir, customAuthVars);
-
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "mcp_app_status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  it("supports system prompt configuration", async () => {
-    const systemPromptVars = {
-      ...requiredVars,
-      system_prompt:
-        "You are a helpful AI assistant that focuses on code quality and best practices.",
-    };
-
-    const state = await runTerraformApply(moduleDir, systemPromptVars);
-
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "mcp_app_status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  it("works with full configuration", async () => {
-    const state = await runTerraformApply(moduleDir, fullConfigVars);
-
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "mcp_app_status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-    expect(statusSlugEnv.name).toBe("CODER_MCP_APP_STATUS_SLUG");
-    expect(statusSlugEnv.value).toBe("copilot-cli");
-  });
-
-  it("supports github_token variable", async () => {
-    const tokenVars = {
-      ...requiredVars,
-      github_token: "test_github_token_123",
-    };
-
-    const state = await runTerraformApply(moduleDir, tokenVars);
-
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "mcp_app_status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
+  it("creates github_token env var with correct value", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "test-agent",
+      workdir: "/home/coder",
+      github_token: "test_token_12345",
+    });
 
     const githubTokenEnv = findResourceInstance(
       state,
@@ -307,22 +44,75 @@ describe("copilot-cli module", async () => {
     );
     expect(githubTokenEnv).toBeDefined();
     expect(githubTokenEnv.name).toBe("GITHUB_TOKEN");
-    expect(githubTokenEnv.value).toBe("test_github_token_123");
+    expect(githubTokenEnv.value).toBe("test_token_12345");
   });
 
-  it("supports resume session configuration", async () => {
-    const resumeSessionVars = {
-      ...requiredVars,
-      resume_session: false,
-    };
+  it("does not create github_token env var when empty", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "test-agent",
+      workdir: "/home/coder",
+      github_token: "",
+    });
 
-    const state = await runTerraformApply(moduleDir, resumeSessionVars);
-
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "mcp_app_status_slug",
+    const githubTokenEnvs = state.resources.filter(
+      (r) => r.type === "coder_env" && r.name === "github_token",
     );
-    expect(statusSlugEnv).toBeDefined();
+    expect(githubTokenEnvs.length).toBe(0);
+  });
+
+  it("creates copilot_model env var for non-default models", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "test-agent",
+      workdir: "/home/coder",
+      copilot_model: "claude-sonnet-4.5",
+    });
+
+    const modelEnv = findResourceInstance(state, "coder_env", "copilot_model");
+    expect(modelEnv).toBeDefined();
+    expect(modelEnv.name).toBe("COPILOT_MODEL");
+    expect(modelEnv.value).toBe("claude-sonnet-4.5");
+  });
+
+  it("does not create copilot_model env var for default model", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "test-agent",
+      workdir: "/home/coder",
+      copilot_model: "claude-sonnet-4",
+    });
+
+    const modelEnvs = state.resources.filter(
+      (r) => r.type === "coder_env" && r.name === "copilot_model",
+    );
+    expect(modelEnvs.length).toBe(0);
+  });
+
+  it("creates coder_script resources via agentapi module", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "test-agent",
+      workdir: "/home/coder",
+    });
+
+    // The agentapi module should create coder_script resources for install and start
+    const scripts = state.resources.filter((r) => r.type === "coder_script");
+    expect(scripts.length).toBeGreaterThan(0);
+  });
+
+  it("validates copilot_model accepts valid values", async () => {
+    // Test valid models don't throw errors
+    await expect(
+      runTerraformApply(import.meta.dir, {
+        agent_id: "test-agent",
+        workdir: "/home/coder",
+        copilot_model: "gpt-5",
+      }),
+    ).resolves.toBeDefined();
+
+    await expect(
+      runTerraformApply(import.meta.dir, {
+        agent_id: "test-agent",
+        workdir: "/home/coder",
+        copilot_model: "claude-sonnet-4.5",
+      }),
+    ).resolves.toBeDefined();
   });
 });

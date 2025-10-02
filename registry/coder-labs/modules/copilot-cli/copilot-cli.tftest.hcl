@@ -1,45 +1,9 @@
-run "required_variables" {
+run "defaults_are_correct" {
   command = plan
 
   variables {
-    agent_id         = "test-agent-id"
-    workdir          = "/home/coder"
-    external_auth_id = "github"
-  }
-
-  assert {
-    condition     = var.agent_id == "test-agent-id"
-    error_message = "Agent ID should be set correctly"
-  }
-
-  assert {
-    condition     = var.workdir == "/home/coder"
-    error_message = "Workdir should be set correctly"
-  }
-
-  assert {
-    condition     = var.external_auth_id == "github"
-    error_message = "External auth ID should be set correctly"
-  }
-}
-
-run "minimal_config" {
-  command = plan
-
-  variables {
-    agent_id         = "test-agent-id"
-    workdir          = "/home/coder"
-    external_auth_id = "github"
-  }
-
-  assert {
-    condition     = resource.coder_env.mcp_app_status_slug.name == "CODER_MCP_APP_STATUS_SLUG"
-    error_message = "Status slug environment variable not configured correctly"
-  }
-
-  assert {
-    condition     = resource.coder_env.mcp_app_status_slug.value == "copilot-cli"
-    error_message = "Status slug value should be 'copilot-cli'"
+    agent_id = "test-agent"
+    workdir  = "/home/coder"
   }
 
   assert {
@@ -51,163 +15,115 @@ run "minimal_config" {
     condition     = var.report_tasks == true
     error_message = "Task reporting should be enabled by default"
   }
-}
 
-run "custom_model" {
-  command = plan
-
-  variables {
-    agent_id         = "test-agent-id"
-    workdir          = "/home/coder"
-    external_auth_id = "github"
-    copilot_model    = "claude-sonnet-4.5"
+  assert {
+    condition     = var.resume_session == true
+    error_message = "Session resumption should be enabled by default"
   }
 
   assert {
-    condition     = var.copilot_model == "claude-sonnet-4.5"
-    error_message = "Custom model should be set correctly"
-  }
-}
-
-run "custom_copilot_config" {
-  command = plan
-
-  variables {
-    agent_id         = "test-agent-id"
-    workdir          = "/home/coder"
-    external_auth_id = "github"
-    copilot_config = jsonencode({
-      banner          = "auto"
-      theme           = "light"
-      trusted_folders = ["/home/coder", "/workspace"]
-    })
+    condition     = var.allow_all_tools == false
+    error_message = "allow_all_tools should be disabled by default"
   }
 
   assert {
-    condition     = var.copilot_config != ""
-    error_message = "Custom copilot config should be provided"
+    condition     = resource.coder_env.mcp_app_status_slug.name == "CODER_MCP_APP_STATUS_SLUG"
+    error_message = "Status slug env var should be created"
+  }
+
+  assert {
+    condition     = resource.coder_env.mcp_app_status_slug.value == "copilot-cli"
+    error_message = "Status slug value should be 'copilot-cli'"
   }
 }
 
-run "trusted_directories" {
+run "github_token_creates_env_var" {
   command = plan
 
   variables {
-    agent_id            = "test-agent-id"
-    workdir             = "/home/coder"
-    external_auth_id    = "github"
-    trusted_directories = ["/workspace", "/projects"]
+    agent_id     = "test-agent"
+    workdir      = "/home/coder"
+    github_token = "test_github_token_abc123"
   }
 
   assert {
-    condition     = length(var.trusted_directories) == 2
-    error_message = "Trusted directories should be set correctly"
+    condition     = length(resource.coder_env.github_token) == 1
+    error_message = "github_token env var should be created when token is provided"
+  }
+
+  assert {
+    condition     = resource.coder_env.github_token[0].name == "GITHUB_TOKEN"
+    error_message = "github_token env var name should be 'GITHUB_TOKEN'"
+  }
+
+  assert {
+    condition     = resource.coder_env.github_token[0].value == "test_github_token_abc123"
+    error_message = "github_token env var value should match input"
   }
 }
 
-run "mcp_config" {
+run "github_token_not_created_when_empty" {
   command = plan
 
   variables {
-    agent_id         = "test-agent-id"
-    workdir          = "/home/coder"
-    external_auth_id = "github"
-    mcp_config = jsonencode({
-      mcpServers = {
-        custom = {
-          command = "custom-server"
-          args    = ["--config", "custom.json"]
-        }
-      }
-    })
+    agent_id     = "test-agent"
+    workdir      = "/home/coder"
+    github_token = ""
   }
 
   assert {
-    condition     = var.mcp_config != ""
-    error_message = "Custom MCP config should be provided"
+    condition     = length(resource.coder_env.github_token) == 0
+    error_message = "github_token env var should not be created when empty"
   }
 }
 
-run "tool_permissions" {
+run "copilot_model_env_var_for_non_default" {
   command = plan
 
   variables {
-    agent_id         = "test-agent-id"
-    workdir          = "/home/coder"
-    external_auth_id = "github"
-    allow_tools      = ["fs_read", "fs_write"]
-    deny_tools       = ["execute_bash"]
+    agent_id      = "test-agent"
+    workdir       = "/home/coder"
+    copilot_model = "claude-sonnet-4.5"
   }
 
   assert {
-    condition     = length(var.allow_tools) == 2
-    error_message = "Allow tools should be set correctly"
+    condition     = length(resource.coder_env.copilot_model) == 1
+    error_message = "copilot_model env var should be created for non-default model"
   }
 
   assert {
-    condition     = length(var.deny_tools) == 1
-    error_message = "Deny tools should be set correctly"
+    condition     = resource.coder_env.copilot_model[0].name == "COPILOT_MODEL"
+    error_message = "copilot_model env var name should be 'COPILOT_MODEL'"
+  }
+
+  assert {
+    condition     = resource.coder_env.copilot_model[0].value == "claude-sonnet-4.5"
+    error_message = "copilot_model env var value should match input"
   }
 }
 
-run "ui_customization" {
+run "copilot_model_not_created_for_default" {
   command = plan
 
   variables {
-    agent_id         = "test-agent-id"
-    workdir          = "/home/coder"
-    external_auth_id = "github"
-    order            = 5
-    group            = "AI Tools"
-    icon             = "/icon/custom-copilot.svg"
+    agent_id      = "test-agent"
+    workdir       = "/home/coder"
+    copilot_model = "claude-sonnet-4"
   }
 
   assert {
-    condition     = var.order == 5
-    error_message = "Order should be set correctly"
-  }
-
-  assert {
-    condition     = var.group == "AI Tools"
-    error_message = "Group should be set correctly"
-  }
-
-  assert {
-    condition     = var.icon == "/icon/custom-copilot.svg"
-    error_message = "Icon should be set correctly"
+    condition     = length(resource.coder_env.copilot_model) == 0
+    error_message = "copilot_model env var should not be created for default model"
   }
 }
 
-run "install_scripts" {
+run "model_validation_accepts_valid_models" {
   command = plan
 
   variables {
-    agent_id            = "test-agent-id"
-    workdir             = "/home/coder"
-    external_auth_id    = "github"
-    pre_install_script  = "echo 'Pre-install setup'"
-    post_install_script = "echo 'Post-install cleanup'"
-  }
-
-  assert {
-    condition     = var.pre_install_script == "echo 'Pre-install setup'"
-    error_message = "Pre-install script should be set correctly"
-  }
-
-  assert {
-    condition     = var.post_install_script == "echo 'Post-install cleanup'"
-    error_message = "Post-install script should be set correctly"
-  }
-}
-
-run "model_validation" {
-  command = plan
-
-  variables {
-    agent_id         = "test-agent-id"
-    workdir          = "/home/coder"
-    external_auth_id = "github"
-    copilot_model    = "gpt-5"
+    agent_id      = "test-agent"
+    workdir       = "/home/coder"
+    copilot_model = "gpt-5"
   }
 
   assert {
@@ -216,23 +132,66 @@ run "model_validation" {
   }
 }
 
-run "task_reporting_disabled" {
+run "copilot_config_merges_with_trusted_directories" {
   command = plan
 
   variables {
-    agent_id         = "test-agent-id"
-    workdir          = "/home/coder"
-    external_auth_id = "github"
-    report_tasks     = false
+    agent_id            = "test-agent"
+    workdir             = "/home/coder/project"
+    trusted_directories = ["/workspace", "/data"]
   }
 
   assert {
-    condition     = var.report_tasks == false
-    error_message = "Task reporting should be disabled when set to false"
+    condition     = length(local.final_copilot_config) > 0
+    error_message = "final_copilot_config should be computed"
+  }
+
+  # Verify workdir is trimmed of trailing slash
+  assert {
+    condition     = local.workdir == "/home/coder/project"
+    error_message = "workdir should be trimmed of trailing slash"
+  }
+}
+
+run "custom_copilot_config_overrides_default" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    workdir  = "/home/coder"
+    copilot_config = jsonencode({
+      banner          = "always"
+      theme           = "dark"
+      trusted_folders = ["/custom"]
+    })
   }
 
   assert {
-    condition     = resource.coder_env.mcp_app_status_slug.name == "CODER_MCP_APP_STATUS_SLUG"
-    error_message = "Status slug should still be configured even when task reporting is disabled"
+    condition     = var.copilot_config != ""
+    error_message = "Custom copilot config should be set"
+  }
+
+  assert {
+    condition     = local.final_copilot_config == var.copilot_config
+    error_message = "Custom copilot config should override default"
+  }
+}
+
+run "app_slug_is_consistent" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    workdir  = "/home/coder"
+  }
+
+  assert {
+    condition     = local.app_slug == "copilot-cli"
+    error_message = "app_slug should be 'copilot-cli'"
+  }
+
+  assert {
+    condition     = local.module_dir_name == ".copilot-module"
+    error_message = "module_dir_name should be '.copilot-module'"
   }
 }

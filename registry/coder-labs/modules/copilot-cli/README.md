@@ -58,8 +58,6 @@ module "copilot_cli" {
   allow_all_tools = true
   resume_session  = true
 
-  EOT
-
   trusted_directories = ["/home/coder", "/tmp"]
 }
 ```
