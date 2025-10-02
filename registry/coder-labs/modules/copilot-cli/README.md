@@ -13,7 +13,7 @@ Run [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/about-c
 ```tf
 module "copilot_cli" {
   source   = "registry.coder.com/coder-labs/copilot-cli/coder"
-  version  = "1.0.0"
+  version  = "0.1.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 }
@@ -48,7 +48,7 @@ data "coder_parameter" "ai_prompt" {
 
 module "copilot_cli" {
   source   = "registry.coder.com/coder-labs/copilot-cli/coder"
-  version  = "1.0.0"
+  version  = "0.1.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
@@ -71,7 +71,7 @@ For more controlled environments where you want to specify exact tools:
 ```tf
 module "copilot_cli" {
   source   = "registry.coder.com/coder-labs/copilot-cli/coder"
-  version  = "1.0.0"
+  version  = "0.1.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
@@ -100,7 +100,7 @@ module "copilot_cli" {
 ```tf
 module "copilot_cli" {
   source       = "registry.coder.com/coder-labs/copilot-cli/coder"
-  version      = "1.0.0"
+  version      = "0.1.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder/project"
   github_token = "your_github_token_here" # Or use data.coder_external_auth.github.access_token
@@ -114,7 +114,7 @@ Run and configure Copilot CLI as a standalone tool in your workspace.
 ```tf
 module "copilot_cli" {
   source       = "registry.coder.com/coder-labs/copilot-cli/coder"
-  version      = "1.0.0"
+  version      = "0.1.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   report_tasks = false
@@ -129,7 +129,7 @@ You can customize the entire Copilot CLI configuration:
 ```tf
 module "copilot_cli" {
   source   = "registry.coder.com/coder-labs/copilot-cli/coder"
-  version  = "1.0.0"
+  version  = "0.1.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/projects"
 
