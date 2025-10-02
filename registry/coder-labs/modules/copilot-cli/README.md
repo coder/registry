@@ -58,11 +58,6 @@ module "copilot_cli" {
   allow_all_tools = true
   resume_session  = true
 
-  system_prompt = <<-EOT
-    You are a helpful AI coding assistant working in a development environment.
-    Always follow best practices and provide clear explanations for your suggestions.
-    Focus on writing clean, maintainable code and helping with debugging tasks.
-    Send a task status update to notify the user that you are ready for input, and then wait for user input.
   EOT
 
   trusted_directories = ["/home/coder", "/tmp"]
