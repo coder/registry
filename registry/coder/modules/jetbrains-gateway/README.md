@@ -109,7 +109,7 @@ Due to the highest priority of the `ide_download_link` parameter in the `(jetbra
 module "jetbrains_gateway" {
   count              = data.coder_workspace.me.start_count
   source             = "registry.coder.com/coder/jetbrains-gateway/coder"
-  version        = "1.2.3"
+  version            = "1.2.3"
   agent_id           = coder_agent.example.id
   folder             = "/home/coder/example"
   jetbrains_ides     = ["GO", "WS"]
