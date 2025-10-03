@@ -81,7 +81,7 @@ check_existing_session() {
           session_id=$(basename "$latest_session_file" | sed 's/session_\(.*\)_[0-9]*.json/\1/')
 
           if [ -n "$session_id" ]; then
-            echo "Found existing Copilot CLI sessions. Will resume latest: $session_id"
+            echo "Found existing Copilot CLI sessions. Will resume latest: $session_id" >&2
             echo "$session_id"
             return 0
           fi
