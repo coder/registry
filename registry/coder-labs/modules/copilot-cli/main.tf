@@ -118,7 +118,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.8.0"
+  default     = "v0.9.0"
 }
 
 variable "report_tasks" {
