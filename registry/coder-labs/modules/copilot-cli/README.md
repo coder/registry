@@ -25,10 +25,10 @@ module "copilot_cli" {
 ## Prerequisites
 
 - **Node.js v22+** and **npm v10+**
-- **Active Copilot subscription** (GitHub Copilot Pro, Pro+, Business, or Enterprise)
+- **[Active Copilot subscription](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot)** (GitHub Copilot Pro, Pro+, Business, or Enterprise)
 - **GitHub authentication** via one of:
   - Direct token via `github_token` variable
-  - Coder external authentication (recommended)
+  - [Coder external authentication](https://coder.com/docs/admin/external-auth) (recommended)
   - Interactive login in Copilot CLI
 
 ## Examples
