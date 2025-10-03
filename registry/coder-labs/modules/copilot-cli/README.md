@@ -180,6 +180,9 @@ The module supports multiple authentication methods (in priority order):
 
 By default, the module resumes the latest Copilot CLI session when the workspace restarts. Set `resume_session = false` to always start fresh sessions.
 
+> [!NOTE]
+> Session resumption requires persistent storage for the home directory or workspace volume. Without persistent storage, sessions will not resume across workspace restarts.
+
 ## Task Reporting
 
 When enabled (default), Copilot CLI can report task progress to the Coder UI using [AgentAPI](https://github.com/coder/agentapi). Custom MCP servers provided via `mcp_config` are merged with the Coder MCP server automatically.
