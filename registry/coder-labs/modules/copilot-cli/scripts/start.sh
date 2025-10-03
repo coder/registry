@@ -84,7 +84,7 @@ check_existing_session() {
 setup_github_authentication() {
   echo "Setting up GitHub authentication..."
 
-  if [ -n "$GITHUB_TOKEN" ]; then
+  if [ -n "${GITHUB_TOKEN:-}" ]; then
     export GH_TOKEN="$GITHUB_TOKEN"
     echo "✓ Using GitHub token from module configuration"
     return 0
