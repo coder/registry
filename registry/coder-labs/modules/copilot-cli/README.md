@@ -64,9 +64,9 @@ module "copilot_cli" {
 }
 ```
 
-### Advanced Configuration with Specific Tool Permissions
+### Advanced Configuration
 
-For more controlled environments where you want to specify exact tools:
+Customize tool permissions, MCP servers, and Copilot CLI settings:
 
 ```tf
 module "copilot_cli" {
@@ -75,9 +75,21 @@ module "copilot_cli" {
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
+  # Tool permissions
   allow_tools         = ["shell(git)", "shell(npm)", "write"]
   trusted_directories = ["/home/coder/workspace", "/tmp"]
 
+  # Custom Copilot CLI configuration
+  copilot_config = jsonencode({
+    banner = "auto"
+    theme  = "dark"
+    trusted_folders = [
+      "/home/coder/workspace",
+      "/home/coder/project"
+    ]
+  })
+
+  # MCP server configuration
   mcp_config = jsonencode({
     mcpServers = {
       filesystem = {
@@ -103,6 +115,7 @@ module "copilot_cli" {
     }
   })
 
+  # Pre-install Node.js if needed
   pre_install_script = <<-EOT
     #!/bin/bash
     curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
@@ -149,28 +162,6 @@ module "copilot_cli" {
   workdir      = "/home/coder"
   report_tasks = false
   cli_app      = true
-}
-```
-
-### Custom Configuration
-
-You can customize the entire Copilot CLI configuration:
-
-```tf
-module "copilot_cli" {
-  source   = "registry.coder.com/coder-labs/copilot-cli/coder"
-  version  = "0.1.0"
-  agent_id = coder_agent.example.id
-  workdir  = "/home/coder/projects"
-
-  copilot_config = jsonencode({
-    banner = "auto"
-    theme  = "dark"
-    trusted_folders = [
-      "/home/coder/workspace",
-      "/home/coder/projects"
-    ]
-  })
 }
 ```
 
