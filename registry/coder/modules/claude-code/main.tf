@@ -188,7 +188,7 @@ variable "system_prompt" {
 
 variable "include_coder_system_prompt" {
   type        = bool
-  description = "Include Coder system prompts for proper integration with tool selection and task reporting."
+  description = "Include Coder system prompts for proper integration with tool selection and task reporting. Defaults to false for backward compatibility, will default to true in the next major release."
   # TODO(major): default to true in the next major release
   default = false
 }
