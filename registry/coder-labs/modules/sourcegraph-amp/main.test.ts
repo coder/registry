@@ -182,4 +182,68 @@ describe("amp", async () => {
     );
     expect(resp).toContain(`amp task prompt provided : ${prompt}`);
   });
+
+  test("custom-base-config", async () => {
+    const customConfig = JSON.stringify({
+      "amp.anthropic.thinking.enabled": false,
+      "amp.todos.enabled": false,
+      "amp.tools.stopTimeout": 900,
+      "amp.git.commit.ampThread.enabled": true,
+    });
+    const customMcp = JSON.stringify({
+      "test-server": {
+        command: "/usr/bin/test-mcp",
+        args: ["--test-arg"],
+        type: "stdio",
+      },
+    });
+    const { id } = await setup({
+      moduleVariables: {
+        base_amp_config: customConfig,
+        mcp: customMcp,
+      },
+    });
+    await execModuleScript(id, {
+      CODER_AGENT_TOKEN: "test-token",
+      CODER_AGENT_URL: "http://test-url:3000",
+    });
+    const settingsContent = await readFileContainer(
+      id,
+      "/home/coder/.config/amp/settings.json",
+    );
+    const settings = JSON.parse(settingsContent);
+
+    expect(settings["amp.anthropic.thinking.enabled"]).toBe(false);
+    expect(settings["amp.todos.enabled"]).toBe(false);
+    expect(settings["amp.tools.stopTimeout"]).toBe(900);
+    expect(settings["amp.git.commit.ampThread.enabled"]).toBe(true);
+    expect(settings["amp.mcpServers"]).toBeDefined();
+    expect(settings["amp.mcpServers"].coder).toBeDefined();
+    expect(settings["amp.mcpServers"]["test-server"]).toBeDefined();
+    expect(settings["amp.mcpServers"]["test-server"].command).toBe(
+      "/usr/bin/test-mcp",
+    );
+    expect(settings["amp.mcpServers"]["test-server"].args).toEqual([
+      "--test-arg",
+    ]);
+  });
+
+  test("default-base-config", async () => {
+    const { id } = await setup();
+    await execModuleScript(id, {
+      CODER_AGENT_TOKEN: "test-token",
+      CODER_AGENT_URL: "http://test-url:3000",
+    });
+    const settingsContent = await readFileContainer(
+      id,
+      "/home/coder/.config/amp/settings.json",
+    );
+    const settings = JSON.parse(settingsContent);
+
+    expect(settings["amp.anthropic.thinking.enabled"]).toBe(true);
+    expect(settings["amp.todos.enabled"]).toBe(true);
+    expect(settings["amp.mcpServers"]).toBeDefined();
+    expect(settings["amp.mcpServers"].coder).toBeDefined();
+    expect(settings["amp.mcpServers"].coder.command).toBe("coder");
+  });
 });
