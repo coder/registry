@@ -53,7 +53,23 @@ module "amp-cli" {
       - Start every response with `amp > `
 EOT
   ai_prompt          = data.coder_parameter.ai_prompt.value
-
+  base_amp_config = jsonencode({
+    "amp.anthropic.thinking.enabled"              = true
+    "amp.todos.enabled"                           = true
+    "amp.tools.stopTimeout"                       = 600
+    "amp.git.commit.ampThread.enabled"            = true
+    "amp.git.commit.coauthor.enabled"             = true
+    "amp.terminal.commands.nodeSpawn.loadProfile" = "daily"
+    "amp.permissions" = [
+      { "tool" : "mcp__coder__*", "action" : "allow" },
+      { "tool" : "Bash", "action" : "allow", "context" : "thread" },
+      { "tool" : "Bash", "matches" : { "cmd" : ["rm -rf /*", "rm -rf ~/*"] }, "action" : "reject", "context" : "subagent" },
+      { "tool" : "edit_file", "action" : "allow" },
+      { "tool" : "write_file", "action" : "allow" },
+      { "tool" : "read_file", "action" : "allow" },
+      { "tool" : "Grep", "action" : "allow" }
+    ]
+  })
 }
 ```
 
