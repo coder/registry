@@ -83,7 +83,7 @@ run "copilot_model_env_var_for_non_default" {
   variables {
     agent_id      = "test-agent"
     workdir       = "/home/coder"
-    copilot_model = "claude-sonnet-4.5"
+    copilot_model = "claude-sonnet-4"
   }
 
   assert {
@@ -97,7 +97,7 @@ run "copilot_model_env_var_for_non_default" {
   }
 
   assert {
-    condition     = resource.coder_env.copilot_model[0].value == "claude-sonnet-4.5"
+    condition     = resource.coder_env.copilot_model[0].value == "claude-sonnet-4"
     error_message = "copilot_model env var value should match input"
   }
 }

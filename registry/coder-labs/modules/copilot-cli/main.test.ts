@@ -64,13 +64,13 @@ describe("copilot-cli", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "test-agent",
       workdir: "/home/coder",
-      copilot_model: "claude-sonnet-4.5",
+      copilot_model: "claude-sonnet-4",
     });
 
     const modelEnv = findResourceInstance(state, "coder_env", "copilot_model");
     expect(modelEnv).toBeDefined();
     expect(modelEnv.name).toBe("COPILOT_MODEL");
-    expect(modelEnv.value).toBe("claude-sonnet-4.5");
+    expect(modelEnv.value).toBe("claude-sonnet-4");
   });
 
   it("does not create copilot_model env var for default model", async () => {
