@@ -139,7 +139,7 @@ module "copilot_cli" {
 
 ### Standalone Mode
 
-Run and configure Copilot CLI as a standalone tool in your workspace.
+Run Copilot CLI as a command-line tool without task reporting or web interface. This installs and configures Copilot CLI, making it available as a CLI app in the Coder agent bar that you can launch to interact with Copilot CLI directly from your terminal.
 
 ```tf
 module "copilot_cli" {
