@@ -197,13 +197,24 @@ locals {
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".copilot-module"
 
-  default_copilot_config = jsonencode({
-    banner          = "never"
-    theme           = "auto"
-    trusted_folders = concat([local.workdir], var.trusted_directories)
-  })
+  all_trusted_folders = concat([local.workdir], var.trusted_directories)
 
-  final_copilot_config = var.copilot_config != "" ? var.copilot_config : local.default_copilot_config
+  parsed_custom_config = try(jsondecode(var.copilot_config), {})
+
+  existing_trusted_folders = try(local.parsed_custom_config.trusted_folders, [])
+
+  merged_copilot_config = merge(
+    {
+      banner = "never"
+      theme  = "auto"
+    },
+    local.parsed_custom_config,
+    {
+      trusted_folders = concat(local.existing_trusted_folders, local.all_trusted_folders)
+    }
+  )
+
+  final_copilot_config = jsonencode(local.merged_copilot_config)
 }
 
 resource "coder_env" "mcp_app_status_slug" {

@@ -160,9 +160,8 @@ run "custom_copilot_config_overrides_default" {
     agent_id = "test-agent"
     workdir  = "/home/coder"
     copilot_config = jsonencode({
-      banner          = "always"
-      theme           = "dark"
-      trusted_folders = ["/custom"]
+      banner = "always"
+      theme  = "dark"
     })
   }
 
@@ -172,8 +171,48 @@ run "custom_copilot_config_overrides_default" {
   }
 
   assert {
-    condition     = local.final_copilot_config == var.copilot_config
-    error_message = "Custom copilot config should override default"
+    condition     = jsondecode(local.final_copilot_config).banner == "always"
+    error_message = "Custom banner setting should be applied"
+  }
+
+  assert {
+    condition     = jsondecode(local.final_copilot_config).theme == "dark"
+    error_message = "Custom theme setting should be applied"
+  }
+}
+
+run "trusted_directories_merged_with_custom_config" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    workdir  = "/home/coder/project"
+    copilot_config = jsonencode({
+      banner          = "always"
+      theme           = "dark"
+      trusted_folders = ["/custom"]
+    })
+    trusted_directories = ["/workspace", "/data"]
+  }
+
+  assert {
+    condition     = contains(jsondecode(local.final_copilot_config).trusted_folders, "/custom")
+    error_message = "Custom trusted folder should be included"
+  }
+
+  assert {
+    condition     = contains(jsondecode(local.final_copilot_config).trusted_folders, "/home/coder/project")
+    error_message = "Workdir should be included in trusted folders"
+  }
+
+  assert {
+    condition     = contains(jsondecode(local.final_copilot_config).trusted_folders, "/workspace")
+    error_message = "trusted_directories should be merged into config"
+  }
+
+  assert {
+    condition     = contains(jsondecode(local.final_copilot_config).trusted_folders, "/data")
+    error_message = "All trusted_directories should be merged into config"
   }
 }
 

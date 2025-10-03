@@ -115,4 +115,22 @@ describe("copilot-cli", async () => {
       }),
     ).resolves.toBeDefined();
   });
+
+  it("merges trusted_directories with custom copilot_config", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "test-agent",
+      workdir: "/home/coder/project",
+      trusted_directories: JSON.stringify(["/workspace", "/data"]),
+      copilot_config: JSON.stringify({
+        banner: "always",
+        theme: "dark",
+        trusted_folders: ["/custom"],
+      }),
+    });
+
+    // Verify that the state was created successfully with the merged config
+    // The actual merging logic is tested in the .tftest.hcl file
+    expect(state).toBeDefined();
+    expect(state.resources).toBeDefined();
+  });
 });

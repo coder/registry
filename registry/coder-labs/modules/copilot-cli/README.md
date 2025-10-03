@@ -83,10 +83,6 @@ module "copilot_cli" {
   copilot_config = jsonencode({
     banner = "never"
     theme  = "dark"
-    trusted_folders = [
-      "/home/coder/workspace",
-      "/home/coder/project"
-    ]
   })
 
   # MCP server configuration
