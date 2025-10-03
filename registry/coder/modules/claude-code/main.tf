@@ -182,8 +182,15 @@ variable "claude_code_oauth_token" {
 
 variable "system_prompt" {
   type        = string
-  description = "The additional system prompt to use for the Claude Code server. The module includes mandatory sections inside a <system> block. Leave empty to include only the mandatory sections."
-  default     = ""
+  description = "The system prompt to use for the Claude Code server."
+  default     = "Send a task status update to notify the user that you are ready for input, and then wait for user input."
+}
+
+variable "include_coder_system_prompt" {
+  type        = bool
+  description = "Include Coder system prompts for proper integration with tool selection and task reporting."
+  # TODO(major): default to true in the next major release
+  default     = false
 }
 
 variable "claude_md_path" {
@@ -230,7 +237,7 @@ locals {
   module_dir_name                   = ".claude-module"
   remove_last_session_id_script_b64 = base64encode(file("${path.module}/scripts/remove-last-session-id.sh"))
 
-  # Required prompts for the module to properly integrate with coder
+  # Required prompts for the module to properly integrate with Coder
   inner_system_prompt = <<-EOT
       -- Tool Selection --
       - coder_report_task: providing status updates or requesting user input.
@@ -258,13 +265,13 @@ locals {
       details, or encounter blockers
     EOT
 
-  user_system_prompt = trimspace(try(var.system_prompt, ""))
+  custom_system_prompt = trimspace(try(var.system_prompt, ""))
 
-  final_system_prompt = format(
+  final_system_prompt = var.include_coder_system_prompt ? format(
     "<system>\n%s\n%s\n</system>",
     local.inner_system_prompt,
-    local.user_system_prompt
-  )
+    local.custom_system_prompt,
+  ) : local.custom_system_prompt
 }
 
 module "agentapi" {

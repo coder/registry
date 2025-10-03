@@ -188,28 +188,30 @@ run "test_claude_code_permission_mode_validation" {
   }
 }
 
-run "test_claude_code_system_prompt_omit" {
+run "test_claude_code_system_prompt_default" {
   command = plan
 
   variables {
     agent_id = "test-agent-system-prompt"
     workdir  = "/home/coder/test"
-    # system_prompt omitted: default string is used
+    # system_prompt: default string is used
+    # include_coder_system_prompt: default is false
   }
 
   assert {
     condition     = trimspace(coder_env.claude_code_system_prompt.value) != ""
-    error_message = "System prompt must not be empty when omitted"
+    error_message = "System prompt should not be empty when omitted"
   }
 
   assert {
-    condition     = length(regexall("-- Tool Selection --", coder_env.claude_code_system_prompt.value)) > 0
-    error_message = "Mandatory Tool Selection section missing"
+    condition     = length(regexall("Send a task status update to notify the user that you are ready for input, and then wait for user input.", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "System prompt should have default value"
   }
 
+  # Ensure Coder sections are not injected when include=false
   assert {
-    condition     = length(regexall("-- Task Reporting --", coder_env.claude_code_system_prompt.value)) > 0
-    error_message = "Mandatory Task Reporting section missing"
+    condition     = length(regexall("-- Tool Selection --|-- Task Reporting --", coder_env.claude_code_system_prompt.value)) == 0
+    error_message = "Coder integration sections should not be present when include_coder_system_prompt is false"
   }
 }
 
@@ -220,21 +222,12 @@ run "test_claude_code_system_prompt_empty" {
     agent_id      = "test-agent-system-prompt"
     workdir       = "/home/coder/test"
     system_prompt = ""
+    # include_coder_system_prompt: default is false
   }
 
   assert {
-    condition     = trimspace(coder_env.claude_code_system_prompt.value) != ""
-    error_message = "System prompt must not be empty when omitted"
-  }
-
-  assert {
-    condition     = length(regexall("-- Tool Selection --", coder_env.claude_code_system_prompt.value)) > 0
-    error_message = "Mandatory Tool Selection section missing"
-  }
-
-  assert {
-    condition     = length(regexall("-- Task Reporting --", coder_env.claude_code_system_prompt.value)) > 0
-    error_message = "Mandatory Task Reporting section missing"
+    condition     = trimspace(coder_env.claude_code_system_prompt.value) == ""
+    error_message = "System prompt should be empty"
   }
 }
 
@@ -245,20 +238,84 @@ run "test_claude_code_system_prompt" {
     agent_id      = "test-agent-system-prompt"
     workdir       = "/home/coder/test"
     system_prompt = "Custom addition"
+    # include_coder_system_prompt: default is false
   }
 
   assert {
     condition     = trimspace(coder_env.claude_code_system_prompt.value) != ""
-    error_message = "System prompt must not be empty when omitted"
+    error_message = "System prompt should not be empty"
+  }
+
+  assert {
+    condition     = length(regexall("Custom addition", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "System prompt should have system_prompt variable value"
+  }
+
+  # Ensure Coder sections are not injected when include=false
+  assert {
+    condition     = length(regexall("-- Tool Selection --|-- Task Reporting --", coder_env.claude_code_system_prompt.value)) == 0
+    error_message = "Coder integration sections should not be present when include_coder_system_prompt is false"
+  }
+}
+
+run "test_claude_code_include_coder_system_prompt_and_default_system_prompt" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-system-prompt"
+    workdir  = "/home/coder/test"
+    # system_prompt: default string is used
+    include_coder_system_prompt = true
+  }
+
+  assert {
+    condition     = trimspace(coder_env.claude_code_system_prompt.value) != ""
+    error_message = "System prompt should not be empty"
   }
 
   assert {
     condition     = length(regexall("-- Tool Selection --", coder_env.claude_code_system_prompt.value)) > 0
-    error_message = "Mandatory Tool Selection section missing"
+    error_message = "System prompt should have Tool Selection section"
   }
 
   assert {
     condition     = length(regexall("-- Task Reporting --", coder_env.claude_code_system_prompt.value)) > 0
-    error_message = "Mandatory Task Reporting section missing"
+    error_message = "System prompt should have Task Reporting section"
+  }
+
+  assert {
+    condition     = length(regexall("Send a task status update to notify the user that you are ready for input, and then wait for user input.", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "System prompt should have system_prompt variable default value"
+  }
+}
+
+run "test_claude_code_include_coder_system_prompt_and_custom_system_prompt" {
+  command = plan
+
+  variables {
+    agent_id                    = "test-agent-system-prompt"
+    workdir                     = "/home/coder/test"
+    system_prompt               = "Custom addition"
+    include_coder_system_prompt = true
+  }
+
+  assert {
+    condition     = trimspace(coder_env.claude_code_system_prompt.value) != ""
+    error_message = "System prompt should not be empty"
+  }
+
+  assert {
+    condition     = length(regexall("-- Tool Selection --", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "System prompt should have Tool Selection section"
+  }
+
+  assert {
+    condition     = length(regexall("-- Task Reporting --", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "System prompt should have Task Reporting section"
+  }
+
+  assert {
+    condition     = length(regexall("Custom addition", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "System prompt should have system_prompt variable value"
   }
 }

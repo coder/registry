@@ -26,6 +26,11 @@ module "claude-code" {
 > [!NOTE]
 > By default, this module is configured to run the embedded chat interface as a path-based application. In production, we recommend that you configure a [wildcard access URL](https://coder.com/docs/admin/setup#wildcard-access-url) and set `subdomain = true`. See [here](https://coder.com/docs/tutorials/best-practices/security-best-practices#disable-path-based-apps) for more details.
 
+<!-- TODO(major): remove this note and update the prompt configuration example in the next major release -->
+> [!NOTE]
+> By default, `include_coder_system_prompt` is false. For proper integration with Coder (tool selection & task reporting), 
+it is recommended to set `include_coder_system_prompt` to true. In the next major release, this will become the default.
+
 ## Prerequisites
 
 - An **Anthropic API key** or a _Claude Session Token_ is required for tasks.
@@ -33,6 +38,26 @@ module "claude-code" {
   - You can get the Session Token using the `claude setup-token` command. This is a long-lived authentication token (requires Claude subscription)
 
 ## Examples
+
+### Prompt configuration (recommended)
+
+Include Coder’s prompt sections and optionally add your own system prompt.
+
+```hcl
+module "claude-code" {
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "3.1.0"
+  agent_id = coder_agent.example.id
+  workdir  = "/home/coder/project"
+
+  include_coder_system_prompt = true
+  
+  # Optional: append additional system prompt.
+  system_prompt = <<-EOT
+    Additional organization-specific guidance here.
+  EOT
+}
+```
 
 ### Usage with Tasks and Advanced Configuration
 
