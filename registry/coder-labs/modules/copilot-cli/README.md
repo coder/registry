@@ -19,6 +19,9 @@ module "copilot_cli" {
 }
 ```
 
+> [!IMPORTANT]
+> This example assumes you have [Coder external authentication](https://coder.com/docs/admin/external-auth) configured with `id = "github"`. If not, you can provide a direct token using the `github_token` variable.
+
 > [!NOTE]
 > By default, this module is configured to run the embedded chat interface as a path-based application. In production, we recommend that you configure a [wildcard access URL](https://coder.com/docs/admin/setup#wildcard-access-url) and set `subdomain = true`. See [here](https://coder.com/docs/tutorials/best-practices/security-best-practices#disable-path-based-apps) for more details.
 
@@ -52,7 +55,6 @@ module "copilot_cli" {
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
-  github_token    = "your_github_token_here" # Or use data.coder_external_auth.github.access_token
   ai_prompt       = data.coder_parameter.ai_prompt.value
   copilot_model   = "claude-sonnet-4.5"
   allow_all_tools = true
@@ -117,13 +119,21 @@ module "copilot_cli" {
 
 ### Direct Token Authentication
 
+Use this example when you want to provide a GitHub Personal Access Token instead of using Coder external auth:
+
 ```tf
+variable "github_token" {
+  type        = string
+  description = "GitHub Personal Access Token"
+  sensitive   = true
+}
+
 module "copilot_cli" {
   source       = "registry.coder.com/coder-labs/copilot-cli/coder"
   version      = "0.1.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder/project"
-  github_token = "your_github_token_here" # Or use data.coder_external_auth.github.access_token
+  github_token = var.github_token
 }
 ```
 
