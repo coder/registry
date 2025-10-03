@@ -152,7 +152,7 @@ module "copilot_cli" {
 
 ### Standalone Mode
 
-Run Copilot CLI as a command-line tool without task reporting or web interface. This installs and configures Copilot CLI, making it available as a CLI app in the Coder agent bar that you can launch to interact with Copilot CLI directly from your terminal.
+Run Copilot CLI as a command-line tool without task reporting or web interface. This installs and configures Copilot CLI, making it available as a CLI app in the Coder agent bar that you can launch to interact with Copilot CLI directly from your terminal. Set `report_tasks = false` to disable integration with Coder Tasks.
 
 ```tf
 module "copilot_cli" {
@@ -182,12 +182,6 @@ By default, the module resumes the latest Copilot CLI session when the workspace
 
 > [!NOTE]
 > Session resumption requires persistent storage for the home directory or workspace volume. Without persistent storage, sessions will not resume across workspace restarts.
-
-## Task Reporting
-
-When enabled (default), Copilot CLI can report task progress to the Coder UI using [AgentAPI](https://github.com/coder/agentapi). Custom MCP servers provided via `mcp_config` are merged with the Coder MCP server automatically.
-
-To disable task reporting, set `report_tasks = false`.
 
 ## Troubleshooting
 
