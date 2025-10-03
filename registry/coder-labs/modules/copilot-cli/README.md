@@ -30,8 +30,8 @@ module "copilot_cli" {
 - **Node.js v22+** and **npm v10+**
 - **[Active Copilot subscription](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot)** (GitHub Copilot Pro, Pro+, Business, or Enterprise)
 - **GitHub authentication** via one of:
-  - Direct token via `github_token` variable
   - [Coder external authentication](https://coder.com/docs/admin/external-auth) (recommended)
+  - Direct token via `github_token` variable
   - Interactive login in Copilot CLI
 
 ## Examples
@@ -169,8 +169,8 @@ module "copilot_cli" {
 
 The module supports multiple authentication methods (in priority order):
 
-1. **Direct Token** - Pass `github_token` variable (OAuth or Personal Access Token)
-2. **Coder External Auth** - Automatic if GitHub external auth is configured in Coder
+1. **[Coder External Auth](https://coder.com/docs/admin/external-auth) (Recommended)** - Automatic if GitHub external auth is configured in Coder
+2. **Direct Token** - Pass `github_token` variable (OAuth or Personal Access Token)
 3. **Interactive** - Copilot CLI prompts for login via `/login` command if no auth found
 
 > [!NOTE]
