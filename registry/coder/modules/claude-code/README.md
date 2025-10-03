@@ -27,9 +27,10 @@ module "claude-code" {
 > By default, this module is configured to run the embedded chat interface as a path-based application. In production, we recommend that you configure a [wildcard access URL](https://coder.com/docs/admin/setup#wildcard-access-url) and set `subdomain = true`. See [here](https://coder.com/docs/tutorials/best-practices/security-best-practices#disable-path-based-apps) for more details.
 
 <!-- TODO(major): remove this note and update the prompt configuration example in the next major release -->
+
 > [!NOTE]
-> By default, `include_coder_system_prompt` is false. For proper integration with Coder (tool selection & task reporting), 
-it is recommended to set `include_coder_system_prompt` to true. In the next major release, this will become the default.
+> By default, `include_coder_system_prompt` is false. For proper integration with Coder (tool selection & task reporting),
+> it is recommended to set `include_coder_system_prompt` to true. In the next major release, this will become the default.
 
 ## Prerequisites
 
@@ -51,7 +52,7 @@ module "claude-code" {
   workdir  = "/home/coder/project"
 
   include_coder_system_prompt = true
-  
+
   # Optional: append additional system prompt.
   system_prompt = <<-EOT
     Additional organization-specific guidance here.

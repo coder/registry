@@ -190,7 +190,7 @@ variable "include_coder_system_prompt" {
   type        = bool
   description = "Include Coder system prompts for proper integration with tool selection and task reporting."
   # TODO(major): default to true in the next major release
-  default     = false
+  default = false
 }
 
 variable "claude_md_path" {
