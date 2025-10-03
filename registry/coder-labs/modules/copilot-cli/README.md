@@ -15,7 +15,7 @@ module "copilot_cli" {
   source   = "registry.coder.com/coder-labs/copilot-cli/coder"
   version  = "0.1.0"
   agent_id = coder_agent.example.id
-  workdir  = "/home/coder/project"
+  workdir  = "/home/coder/projects"
 }
 ```
 
@@ -53,14 +53,14 @@ module "copilot_cli" {
   source   = "registry.coder.com/coder-labs/copilot-cli/coder"
   version  = "0.1.0"
   agent_id = coder_agent.example.id
-  workdir  = "/home/coder/project"
+  workdir  = "/home/coder/projects"
 
   ai_prompt       = data.coder_parameter.ai_prompt.value
   copilot_model   = "claude-sonnet-4.5"
   allow_all_tools = true
   resume_session  = true
 
-  trusted_directories = ["/home/coder", "/tmp"]
+  trusted_directories = ["/home/coder/projects", "/tmp"]
 }
 ```
 
@@ -73,11 +73,11 @@ module "copilot_cli" {
   source   = "registry.coder.com/coder-labs/copilot-cli/coder"
   version  = "0.1.0"
   agent_id = coder_agent.example.id
-  workdir  = "/home/coder/project"
+  workdir  = "/home/coder/projects"
 
   # Tool permissions
   allow_tools         = ["shell(git)", "shell(npm)", "write"]
-  trusted_directories = ["/home/coder/workspace", "/tmp"]
+  trusted_directories = ["/home/coder/projects", "/tmp"]
 
   # Custom Copilot CLI configuration
   copilot_config = jsonencode({
@@ -90,7 +90,7 @@ module "copilot_cli" {
     mcpServers = {
       filesystem = {
         command     = "npx"
-        args        = ["-y", "@modelcontextprotocol/server-filesystem", "/home/coder/workspace"]
+        args        = ["-y", "@modelcontextprotocol/server-filesystem", "/home/coder/projects"]
         description = "Provides file system access to the workspace"
         name        = "Filesystem"
         timeout     = 3000
@@ -141,7 +141,7 @@ module "copilot_cli" {
   source       = "registry.coder.com/coder-labs/copilot-cli/coder"
   version      = "0.1.0"
   agent_id     = coder_agent.example.id
-  workdir      = "/home/coder/project"
+  workdir      = "/home/coder/projects"
   github_token = var.github_token
 }
 ```
