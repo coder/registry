@@ -81,7 +81,7 @@ module "copilot_cli" {
 
   # Custom Copilot CLI configuration
   copilot_config = jsonencode({
-    banner = "auto"
+    banner = "never"
     theme  = "dark"
     trusted_folders = [
       "/home/coder/workspace",
