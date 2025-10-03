@@ -73,11 +73,23 @@ check_existing_session() {
     if copilot --help > /dev/null 2>&1; then
       local session_dir="$HOME/.copilot/history-session-state"
       if [ -d "$session_dir" ] && [ -n "$(ls "$session_dir"/session_*_*.json 2> /dev/null)" ]; then
-        echo "Found existing Copilot CLI sessions. Resume mode enabled."
-        return 0
+        local latest_session_file
+        latest_session_file=$(ls "$session_dir"/session_*_*.json 2> /dev/null | sort -t_ -k3 -n -r | head -n 1)
+
+        if [ -n "$latest_session_file" ]; then
+          local session_id
+          session_id=$(basename "$latest_session_file" | sed 's/session_\(.*\)_[0-9]*.json/\1/')
+
+          if [ -n "$session_id" ]; then
+            echo "Found existing Copilot CLI sessions. Will resume latest: $session_id"
+            echo "$session_id"
+            return 0
+          fi
+        fi
       fi
     fi
   fi
+  echo ""
   return 1
 }
 
@@ -119,13 +131,16 @@ start_agentapi() {
 
   build_copilot_args
 
-  if check_existing_session; then
-    echo "Resuming latest Copilot CLI session..."
+  local session_id
+  session_id=$(check_existing_session)
+
+  if [ -n "$session_id" ]; then
+    echo "Resuming Copilot CLI session: $session_id"
     if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
       echo "Copilot arguments: ${COPILOT_ARGS[*]}"
-      agentapi server --type copilot --term-width 120 --term-height 40 -- copilot --resume "${COPILOT_ARGS[@]}"
+      agentapi server --type copilot --term-width 120 --term-height 40 -- copilot --resume "$session_id" "${COPILOT_ARGS[@]}"
     else
-      agentapi server --type copilot --term-width 120 --term-height 40 -- copilot --resume
+      agentapi server --type copilot --term-width 120 --term-height 40 -- copilot --resume "$session_id"
     fi
   else
     echo "Starting new Copilot CLI session..."
