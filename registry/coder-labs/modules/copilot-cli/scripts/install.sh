@@ -51,7 +51,7 @@ install_copilot_cli() {
 check_github_authentication() {
   echo "Checking GitHub authentication..."
 
-  if [ -n "$GITHUB_TOKEN" ]; then
+  if [ -n "${GITHUB_TOKEN:-}" ]; then
     echo "✓ GitHub token provided via module configuration"
     return 0
   fi
