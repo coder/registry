@@ -61,7 +61,7 @@ describe("jetbrains-gateway", async () => {
     });
 
     expect(state.outputs.url.value).toBe(
-      "jetbrains-gateway://connect#type=coder&workspace=default&owner=default&folder=/home/coder&url=https://mydeployment.coder.com&token=$SESSION_TOKEN&ide_product_code=IU&ide_build_number=243.21565.193&ide_download_link=https://download.jetbrains.com/idea/ideaIU-2024.3.tar.gz&agent=",
+      "jetbrains-gateway://connect#type=coder&workspace=default&owner=default&folder=/home/coder&url=https://mydeployment.coder.com&token=$SESSION_TOKEN&ide_product_code=IU&ide_build_number=243.21565.193&ide_download_link=https://download.jetbrains.com/idea/ideaIU-2024.3.tar.gz&agent=  ",
     );
   });
 });
