@@ -33,8 +33,8 @@ variable "github_token" {
 
 variable "copilot_model" {
   type        = string
-  description = "Model to use. Supported values: claude-sonnet-4 (default), claude-sonnet-4.5, gpt-5."
-  default     = "claude-sonnet-4"
+  description = "Model to use. Supported values: claude-sonnet-4, claude-sonnet-4.5 (default), gpt-5."
+  default     = "claude-sonnet-4.5"
   validation {
     condition     = contains(["claude-sonnet-4", "claude-sonnet-4.5", "gpt-5"], var.copilot_model)
     error_message = "copilot_model must be one of: claude-sonnet-4, claude-sonnet-4.5, gpt-5."
@@ -213,7 +213,7 @@ resource "coder_env" "mcp_app_status_slug" {
 }
 
 resource "coder_env" "copilot_model" {
-  count    = var.copilot_model != "claude-sonnet-4" ? 1 : 0
+  count    = var.copilot_model != "claude-sonnet-4.5" ? 1 : 0
   agent_id = var.agent_id
   name     = "COPILOT_MODEL"
   value    = var.copilot_model

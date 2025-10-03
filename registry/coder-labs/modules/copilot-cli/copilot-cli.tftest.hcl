@@ -7,8 +7,8 @@ run "defaults_are_correct" {
   }
 
   assert {
-    condition     = var.copilot_model == "claude-sonnet-4"
-    error_message = "Default model should be 'claude-sonnet-4'"
+    condition     = var.copilot_model == "claude-sonnet-4.5"
+    error_message = "Default model should be 'claude-sonnet-4.5'"
   }
 
   assert {
@@ -108,7 +108,7 @@ run "copilot_model_not_created_for_default" {
   variables {
     agent_id      = "test-agent"
     workdir       = "/home/coder"
-    copilot_model = "claude-sonnet-4"
+    copilot_model = "claude-sonnet-4.5"
   }
 
   assert {

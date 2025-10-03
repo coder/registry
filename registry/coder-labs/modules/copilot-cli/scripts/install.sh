@@ -196,7 +196,7 @@ add_custom_mcp_servers() {
 }
 
 configure_copilot_model() {
-  if [ -n "$ARG_COPILOT_MODEL" ] && [ "$ARG_COPILOT_MODEL" != "claude-sonnet-4" ]; then
+  if [ -n "$ARG_COPILOT_MODEL" ] && [ "$ARG_COPILOT_MODEL" != "claude-sonnet-4.5" ]; then
     echo "Setting Copilot CLI model to: $ARG_COPILOT_MODEL"
     copilot config model "$ARG_COPILOT_MODEL" || {
       echo "WARNING: Failed to set model via copilot config, will use environment variable fallback"

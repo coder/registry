@@ -77,7 +77,7 @@ describe("copilot-cli", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "test-agent",
       workdir: "/home/coder",
-      copilot_model: "claude-sonnet-4",
+      copilot_model: "claude-sonnet-4.5",
     });
 
     const modelEnvs = state.resources.filter(
