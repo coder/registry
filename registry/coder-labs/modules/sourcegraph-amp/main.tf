@@ -157,13 +157,12 @@ data "external" "env" {
 locals {
   app_slug = "amp"
 
-  default_base_config = {
+  default_base_config = jsonencode({
     "amp.anthropic.thinking.enabled" = true
     "amp.todos.enabled"              = true
-  }
+  })
 
-  # Use provided config or default, then extract base settings (excluding mcpServers)
-  user_config       = var.base_amp_config != "" ? jsondecode(var.base_amp_config) : local.default_base_config
+  user_config       = jsondecode(var.base_amp_config != "" ? var.base_amp_config : local.default_base_config)
   base_amp_settings = { for k, v in local.user_config : k => v if k != "amp.mcpServers" }
 
   coder_mcp = {
