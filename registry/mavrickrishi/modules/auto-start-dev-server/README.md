@@ -3,7 +3,7 @@ display_name: Auto-Start Development Servers
 description: Automatically detect and start development servers for various project types
 icon: ../../../../.icons/server.svg
 verified: false
-tags: [development, automation, servers, nodejs, python, java, go, rust, php, rails, django, flask, spring-boot, dotnet]
+tags: [development, automation, servers]
 ---
 
 # Auto-Start Development Servers
