@@ -433,38 +433,36 @@ detect_dotnet_projects() {
   done < <(find "${WORKSPACE_DIR}" -maxdepth "${SCAN_DEPTH}" -name "*.csproj" -type f -print0)
 }
 
+log_message "Starting auto-detection of development projects..."
 
-  log_message "Starting auto-detection of development projects..."
+# Expand workspace directory if it contains variables
+WORKSPACE_DIR=$(eval echo "${WORKSPACE_DIR}")
 
-  # Expand workspace directory if it contains variables
-  WORKSPACE_DIR=$(eval echo "${WORKSPACE_DIR}")
+# Check if workspace directory exists
+if [ ! -d "$WORKSPACE_DIR" ]; then
+  log_message "$${RED}❌ Workspace directory does not exist: $WORKSPACE_DIR$${RESET}"
+  exit 1
+fi
 
-  # Check if workspace directory exists
-  if [ ! -d "$WORKSPACE_DIR" ]; then
-    log_message "$${RED}❌ Workspace directory does not exist: $WORKSPACE_DIR$${RESET}"
-    exit 1
-  fi
+cd "$WORKSPACE_DIR"
 
-  cd "$WORKSPACE_DIR"
+# Run all detection functions
+detect_npm_projects
+detect_rails_projects
+detect_django_projects
+detect_flask_projects
+detect_spring_boot_projects
+detect_go_projects
+detect_php_projects
+detect_rust_projects
+detect_dotnet_projects
 
-  # Run all detection functions
-  detect_npm_projects
-  detect_rails_projects
-  detect_django_projects
-  detect_flask_projects
-  detect_spring_boot_projects
-  detect_go_projects
-  detect_php_projects
-  detect_rust_projects
-  detect_dotnet_projects
+log_message "$${GREEN}✅ Auto-start scan completed!$${RESET}"
+log_message "$${YELLOW}💡 Check running processes with 'ps aux | grep -E \"(npm|rails|python|java|go|php|cargo|dotnet)\"'$${RESET}"
+log_message "$${YELLOW}💡 View logs: tail -f ${LOG_PATH}$${RESET}"
 
-  log_message "$${GREEN}✅ Auto-start scan completed!$${RESET}"
-  log_message "$${YELLOW}💡 Check running processes with 'ps aux | grep -E \"(npm|rails|python|java|go|php|cargo|dotnet)\"'$${RESET}"
-  log_message "$${YELLOW}💡 View logs: tail -f ${LOG_PATH}$${RESET}"
-
-  # Set default port if no projects were detected
-  if [ "$FIRST_PORT_DETECTED" = false ]; then
-    echo "3000" > "$DETECTED_PORT_FILE"
-    log_message "$${YELLOW}⚠️ No projects detected - Preview app will default to port 3000$${RESET}"
-  fi
-
+# Set default port if no projects were detected
+if [ "$FIRST_PORT_DETECTED" = false ]; then
+  echo "3000" > "$DETECTED_PORT_FILE"
+  log_message "$${YELLOW}⚠️ No projects detected - Preview app will default to port 3000$${RESET}"
+fi
