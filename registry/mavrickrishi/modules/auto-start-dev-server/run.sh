@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
 # Color codes for output
 BOLD='\033[0;1m'
@@ -433,8 +433,7 @@ detect_dotnet_projects() {
   done < <(find "${WORKSPACE_DIR}" -maxdepth "${SCAN_DEPTH}" -name "*.csproj" -type f -print0)
 }
 
-# Main execution
-main() {
+
   log_message "Starting auto-detection of development projects..."
 
   # Expand workspace directory if it contains variables
@@ -468,7 +467,4 @@ main() {
     echo "3000" > "$DETECTED_PORT_FILE"
     log_message "$${YELLOW}⚠️ No projects detected - Preview app will default to port 3000$${RESET}"
   fi
-}
 
-# Run main function
-main "$@"

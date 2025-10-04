@@ -3,21 +3,7 @@ display_name: Auto-Start Development Servers
 description: Automatically detect and start development servers for various project types
 icon: ../../../../.icons/server.svg
 verified: false
-tags:
-  - development
-  - automation
-  - servers
-  - nodejs
-  - python
-  - java
-  - go
-  - rust
-  - php
-  - rails
-  - django
-  - flask
-  - spring-boot
-  - dotnet
+tags: [development, automation, servers, nodejs, python, java, go, rust, php, rails, django, flask, spring-boot, dotnet]
 ---
 
 # Auto-Start Development Servers
@@ -58,7 +44,18 @@ module "auto_start_dev_servers" {
 | **Rust**           | `Cargo.toml`                                 | `cargo run`                                           |
 | **.NET**           | `*.csproj`                                   | `dotnet run`                                          |
 
-## Usage
+## Examples
+
+### Basic Usage
+
+```hcl
+module "auto_start" {
+  source   = "./modules/auto-start-dev-server"
+  agent_id = coder_agent.main.id
+}
+```
+
+### Advanced Usage
 
 ```hcl
 module "auto_start_dev_servers" {
@@ -93,81 +90,6 @@ module "auto_start_dev_servers" {
 
   # Optional: Enable automatic preview app (default: true)
   enable_preview_app = true
-}
-```
-
-## Configuration Options
-
-### Required Variables
-
-- `agent_id` (string): The ID of a Coder agent
-
-## Devcontainer Integration
-
-When `enable_devcontainer` is true, the module will check for `.devcontainer/devcontainer.json` files and look for custom start commands in the VS Code settings:
-
-```json
-{
-  "customizations": {
-    "vscode": {
-      "settings": {
-        "npm.script.start": "npm run custom-dev-command"
-      }
-    }
-  }
-}
-```
-
-If found, the custom command will be used instead of the default project detection logic.
-
-## Monitoring and Debugging
-
-### View Logs
-
-```bash
-# Real-time log viewing
-tail -f /tmp/dev-servers.log
-
-# View full log
-cat /tmp/dev-servers.log
-```
-
-## Security Considerations
-
-- Servers are started with the same user permissions as the Coder agent
-- All project detection is read-only (only checks for existence of files)
-- Server processes run in the background and inherit workspace environment
-- Log files contain server output which may include sensitive information
-
-## Troubleshooting
-
-### Common Issues
-
-1. **No servers starting**: Check that project files exist and scan depth covers your project directories
-2. **Permission denied**: Ensure the script has execute permissions and dependencies are installed
-3. **Wrong directory**: Verify `workspace_directory` path is correct and accessible
-4. **Missing dependencies**: Install required runtimes (node, python, java, etc.) in your base image
-
-## Live Preview App
-
-The module automatically creates a "Live Preview" app in your Coder workspace that intelligently selects the best project for preview:
-
-- **Smart frontend detection**: Prioritizes frontend projects (React, Vue, Angular, etc.) over backend services
-- **Automatic detection**: Uses the port from the primary frontend project, or first detected project if no frontend found
-- **Dynamic URL**: Points to `http://localhost:{detected_port}`
-- **Monorepo friendly**: In multi-project setups, automatically selects the most likely UI project
-- **Configurable**: Can be disabled by setting `enable_preview_app = false`
-- **Fallback**: Defaults to port 3000 if no projects are detected
-  |
-
-## Examples
-
-### Basic Usage
-
-```hcl
-module "auto_start" {
-  source   = "./modules/auto-start-dev-server"
-  agent_id = coder_agent.main.id
 }
 ```
 
