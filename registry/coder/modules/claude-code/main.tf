@@ -183,7 +183,7 @@ variable "claude_code_oauth_token" {
 variable "system_prompt" {
   type        = string
   description = "The system prompt to use for the Claude Code server."
-  default     = "Send a task status update to notify the user that you are ready for input, and then wait for user input."
+  default     = ""
 }
 
 variable "claude_md_path" {
