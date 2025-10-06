@@ -13,7 +13,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "3.1.0"
+  version        = "3.0.2"
   agent_id       = coder_agent.example.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
@@ -34,28 +34,6 @@ module "claude-code" {
 
 ## Examples
 
-### Prompt configuration (recommended)
-
-Include Coder’s prompt section for task reporting and optionally add your own system prompt.
-
-```hcl
-module "claude-code" {
-  source   = "registry.coder.com/coder/claude-code/coder"
-  version = "3.1.0"
-  agent_id = coder_agent.example.id
-  workdir  = "/home/coder/project"
-
-  # Configure Coder's task reporting
-  report_tasks = true
-  report_tasks_system_prompt = true
-
-  # Optional: append additional system prompt.
-  system_prompt = <<-EOT
-    Additional organization-specific guidance here.
-  EOT
-}
-```
-
 ### Usage with Tasks and Advanced Configuration
 
 This example shows how to configure the Claude Code module with an AI prompt, API key shared by all users of the template, and other custom settings.
@@ -71,7 +49,7 @@ data "coder_parameter" "ai_prompt" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "3.1.0"
+  version  = "3.0.2"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
@@ -107,7 +85,7 @@ Run and configure Claude Code as a standalone CLI in your workspace.
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "3.1.0"
+  version             = "3.0.2"
   agent_id            = coder_agent.example.id
   workdir             = "/home/coder"
   install_claude_code = true
@@ -130,7 +108,7 @@ variable "claude_code_oauth_token" {
 
 module "claude-code" {
   source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "3.1.0"
+  version                 = "3.0.2"
   agent_id                = coder_agent.example.id
   workdir                 = "/home/coder/project"
   claude_code_oauth_token = var.claude_code_oauth_token
