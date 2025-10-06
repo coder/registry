@@ -30,7 +30,7 @@ variable "agent_id" {
 
 variable "slug" {
   type        = string
-  description = "The slug for the coder_app. Allows resuing the module with the same template."
+  description = "The slug for the coder_app. Allows reusing the module with the same template."
   default     = "gateway"
 }
 
