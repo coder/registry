@@ -21,7 +21,7 @@ ARG_RESUME_SESSION=${ARG_RESUME_SESSION:-true}
 
 validate_copilot_installation() {
   if ! command_exists copilot; then
-    echo "ERROR: Copilot CLI not installed. Run: npm install -g @github/copilot"
+    echo "ERROR: Copilot not installed. Run: npm install -g @github/copilot"
     exit 1
   fi
 }
@@ -81,7 +81,7 @@ check_existing_session() {
           session_id=$(basename "$latest_session_file" | sed 's/session_\(.*\)_[0-9]*.json/\1/')
 
           if [ -n "$session_id" ]; then
-            echo "Found existing Copilot CLI sessions. Will resume latest: $session_id" >&2
+            echo "Found existing Copilot sessions. Will resume latest: $session_id" >&2
             echo "$session_id"
             return 0
           fi
@@ -120,8 +120,8 @@ setup_github_authentication() {
   fi
 
   echo "⚠ No GitHub authentication available"
-  echo "  Copilot CLI will prompt for login during first use"
-  echo "  Use the '/login' command in Copilot CLI to authenticate"
+  echo "  Copilot will prompt for login during first use"
+  echo "  Use the '/login' command in Copilot to authenticate"
   return 0
 }
 
@@ -135,7 +135,7 @@ start_agentapi() {
   session_id=$(check_existing_session)
 
   if [ -n "$session_id" ]; then
-    echo "Resuming Copilot CLI session: $session_id"
+    echo "Resuming Copilot session: $session_id"
     if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
       echo "Copilot arguments: ${COPILOT_ARGS[*]}"
       agentapi server --type copilot --term-width 120 --term-height 40 -- copilot --resume "$session_id" "${COPILOT_ARGS[@]}"
@@ -143,7 +143,7 @@ start_agentapi() {
       agentapi server --type copilot --term-width 120 --term-height 40 -- copilot --resume "$session_id"
     fi
   else
-    echo "Starting new Copilot CLI session..."
+    echo "Starting new Copilot session..."
     local initial_prompt
     initial_prompt=$(build_initial_prompt)
 

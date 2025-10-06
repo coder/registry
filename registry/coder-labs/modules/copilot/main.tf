@@ -15,7 +15,7 @@ variable "agent_id" {
 
 variable "workdir" {
   type        = string
-  description = "The folder to run Copilot CLI in."
+  description = "The folder to run Copilot in."
 }
 
 variable "external_auth_id" {
@@ -43,7 +43,7 @@ variable "copilot_model" {
 
 variable "copilot_config" {
   type        = string
-  description = "Custom Copilot CLI configuration as JSON string. Leave empty to use default configuration with banner disabled, theme set to auto, and workdir as trusted folder."
+  description = "Custom Copilot configuration as JSON string. Leave empty to use default configuration with banner disabled, theme set to auto, and workdir as trusted folder."
   default     = ""
 }
 
@@ -55,7 +55,7 @@ variable "ai_prompt" {
 
 variable "system_prompt" {
   type        = string
-  description = "The system prompt to use for the Copilot CLI server."
+  description = "The system prompt to use for the Copilot server."
   default     = <<-EOT
     You are a helpful AI assistant that helps with coding tasks. Always provide clear explanations and follow best practices.
     
@@ -81,7 +81,7 @@ variable "system_prompt" {
 
 variable "trusted_directories" {
   type        = list(string)
-  description = "Additional directories to trust for Copilot CLI operations."
+  description = "Additional directories to trust for Copilot operations."
   default     = []
 }
 
@@ -118,7 +118,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.9.0"
+  default     = "v0.10.0"
 }
 
 variable "report_tasks" {
@@ -154,36 +154,36 @@ variable "icon" {
 variable "web_app_display_name" {
   type        = string
   description = "Display name for the web app."
-  default     = "Copilot CLI"
+  default     = "Copilot"
 }
 
 variable "cli_app" {
   type        = bool
-  description = "Whether to create a CLI app for Copilot CLI."
+  description = "Whether to create a CLI app for Copilot."
   default     = false
 }
 
 variable "cli_app_display_name" {
   type        = string
   description = "Display name for the CLI app."
-  default     = "Copilot CLI"
+  default     = "Copilot"
 }
 
 variable "resume_session" {
   type        = bool
-  description = "Whether to automatically resume the latest Copilot CLI session on workspace restart."
+  description = "Whether to automatically resume the latest Copilot session on workspace restart."
   default     = true
 }
 
 variable "pre_install_script" {
   type        = string
-  description = "Custom script to run before configuring Copilot CLI."
+  description = "Custom script to run before configuring Copilot."
   default     = null
 }
 
 variable "post_install_script" {
   type        = string
-  description = "Custom script to run after configuring Copilot CLI."
+  description = "Custom script to run after configuring Copilot."
   default     = null
 }
 
@@ -192,7 +192,7 @@ data "coder_workspace_owner" "me" {}
 
 locals {
   workdir         = trimsuffix(var.workdir, "/")
-  app_slug        = "copilot-cli"
+  app_slug        = "copilot"
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".copilot-module"

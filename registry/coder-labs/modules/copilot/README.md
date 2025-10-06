@@ -1,18 +1,18 @@
 ---
-display_name: Copilot CLI
+display_name: Copilot
 description: GitHub Copilot CLI agent for AI-powered terminal assistance
 icon: ../../../../.icons/github.svg
 verified: false
 tags: [agent, copilot, ai, github, tasks]
 ---
 
-# Copilot CLI
+# Copilot
 
 Run [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/about-copilot-cli) in your workspace for AI-powered coding assistance directly from the terminal. This module integrates with [AgentAPI](https://github.com/coder/agentapi) for task reporting in the Coder UI.
 
 ```tf
-module "copilot_cli" {
-  source   = "registry.coder.com/coder-labs/copilot-cli/coder"
+module "copilot" {
+  source   = "registry.coder.com/coder-labs/copilot/coder"
   version  = "0.1.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/projects"
@@ -32,25 +32,25 @@ module "copilot_cli" {
 - **GitHub authentication** via one of:
   - [Coder external authentication](https://coder.com/docs/admin/external-auth) (recommended)
   - Direct token via `github_token` variable
-  - Interactive login in Copilot CLI
+  - Interactive login in Copilot
 
 ## Examples
 
 ### Usage with Tasks
 
-For development environments where you want Copilot CLI to have full access to tools and automatically resume sessions:
+For development environments where you want Copilot to have full access to tools and automatically resume sessions:
 
 ```tf
 data "coder_parameter" "ai_prompt" {
   type        = "string"
   name        = "AI Prompt"
   default     = ""
-  description = "Initial task prompt for Copilot CLI."
+  description = "Initial task prompt for Copilot."
   mutable     = true
 }
 
-module "copilot_cli" {
-  source   = "registry.coder.com/coder-labs/copilot-cli/coder"
+module "copilot" {
+  source   = "registry.coder.com/coder-labs/copilot/coder"
   version  = "0.1.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/projects"
@@ -66,11 +66,11 @@ module "copilot_cli" {
 
 ### Advanced Configuration
 
-Customize tool permissions, MCP servers, and Copilot CLI settings:
+Customize tool permissions, MCP servers, and Copilot settings:
 
 ```tf
-module "copilot_cli" {
-  source   = "registry.coder.com/coder-labs/copilot-cli/coder"
+module "copilot" {
+  source   = "registry.coder.com/coder-labs/copilot/coder"
   version  = "0.1.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/projects"
@@ -79,7 +79,7 @@ module "copilot_cli" {
   allow_tools         = ["shell(git)", "shell(npm)", "write"]
   trusted_directories = ["/home/coder/projects", "/tmp"]
 
-  # Custom Copilot CLI configuration
+  # Custom Copilot configuration
   copilot_config = jsonencode({
     banner = "never"
     theme  = "dark"
@@ -137,8 +137,8 @@ variable "github_token" {
   sensitive   = true
 }
 
-module "copilot_cli" {
-  source       = "registry.coder.com/coder-labs/copilot-cli/coder"
+module "copilot" {
+  source       = "registry.coder.com/coder-labs/copilot/coder"
   version      = "0.1.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder/projects"
@@ -148,11 +148,11 @@ module "copilot_cli" {
 
 ### Standalone Mode
 
-Run Copilot CLI as a command-line tool without task reporting or web interface. This installs and configures Copilot CLI, making it available as a CLI app in the Coder agent bar that you can launch to interact with Copilot CLI directly from your terminal. Set `report_tasks = false` to disable integration with Coder Tasks.
+Run Copilot as a command-line tool without task reporting or web interface. This installs and configures Copilot, making it available as a CLI app in the Coder agent bar that you can launch to interact with Copilot directly from your terminal. Set `report_tasks = false` to disable integration with Coder Tasks.
 
 ```tf
-module "copilot_cli" {
-  source       = "registry.coder.com/coder-labs/copilot-cli/coder"
+module "copilot" {
+  source       = "registry.coder.com/coder-labs/copilot/coder"
   version      = "0.1.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
@@ -167,14 +167,14 @@ The module supports multiple authentication methods (in priority order):
 
 1. **[Coder External Auth](https://coder.com/docs/admin/external-auth) (Recommended)** - Automatic if GitHub external auth is configured in Coder
 2. **Direct Token** - Pass `github_token` variable (OAuth or Personal Access Token)
-3. **Interactive** - Copilot CLI prompts for login via `/login` command if no auth found
+3. **Interactive** - Copilot prompts for login via `/login` command if no auth found
 
 > [!NOTE]
-> OAuth tokens work best with Copilot CLI. Personal Access Tokens may have limited functionality.
+> OAuth tokens work best with Copilot. Personal Access Tokens may have limited functionality.
 
 ## Session Resumption
 
-By default, the module resumes the latest Copilot CLI session when the workspace restarts. Set `resume_session = false` to always start fresh sessions.
+By default, the module resumes the latest Copilot session when the workspace restarts. Set `resume_session = false` to always start fresh sessions.
 
 > [!NOTE]
 > Session resumption requires persistent storage for the home directory or workspace volume. Without persistent storage, sessions will not resume across workspace restarts.
@@ -196,8 +196,8 @@ cat ~/.copilot-module/post_install.log
 ```
 
 > [!NOTE]
-> To use tasks with Copilot CLI, you must have an active GitHub Copilot subscription.
-> The `workdir` variable is required and specifies the directory where Copilot CLI will run.
+> To use tasks with Copilot, you must have an active GitHub Copilot subscription.
+> The `workdir` variable is required and specifies the directory where Copilot will run.
 
 ## References
 

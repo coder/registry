@@ -7,6 +7,6 @@ if [[ "$1" == "--version" ]]; then
 fi
 
 while true; do
-  echo "$(date) - Copilot CLI mock running..."
+  echo "$(date) - Copilot mock running..."
   sleep 15
 done

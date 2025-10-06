@@ -6,7 +6,7 @@ import {
   testRequiredVariables,
 } from "~test";
 
-describe("copilot-cli", async () => {
+describe("copilot", async () => {
   await runTerraformInit(import.meta.dir);
 
   testRequiredVariables(import.meta.dir, {
@@ -27,7 +27,7 @@ describe("copilot-cli", async () => {
     );
     expect(statusSlugEnv).toBeDefined();
     expect(statusSlugEnv.name).toBe("CODER_MCP_APP_STATUS_SLUG");
-    expect(statusSlugEnv.value).toBe("copilot-cli");
+    expect(statusSlugEnv.value).toBe("copilot");
   });
 
   it("creates github_token env var with correct value", async () => {

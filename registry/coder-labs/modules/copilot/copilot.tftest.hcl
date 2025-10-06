@@ -32,8 +32,8 @@ run "defaults_are_correct" {
   }
 
   assert {
-    condition     = resource.coder_env.mcp_app_status_slug.value == "copilot-cli"
-    error_message = "Status slug value should be 'copilot-cli'"
+    condition     = resource.coder_env.mcp_app_status_slug.value == "copilot"
+    error_message = "Status slug value should be 'copilot'"
   }
 }
 
@@ -225,8 +225,8 @@ run "app_slug_is_consistent" {
   }
 
   assert {
-    condition     = local.app_slug == "copilot-cli"
-    error_message = "app_slug should be 'copilot-cli'"
+    condition     = local.app_slug == "copilot"
+    error_message = "app_slug should be 'copilot'"
   }
 
   assert {

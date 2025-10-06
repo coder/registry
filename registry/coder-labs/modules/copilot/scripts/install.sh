@@ -16,29 +16,29 @@ ARG_EXTERNAL_AUTH_ID=${ARG_EXTERNAL_AUTH_ID:-github}
 
 validate_prerequisites() {
   if ! command_exists node; then
-    echo "ERROR: Node.js not found. Copilot CLI requires Node.js v22+."
+    echo "ERROR: Node.js not found. Copilot requires Node.js v22+."
     echo "Install with: curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt-get install -y nodejs"
     exit 1
   fi
 
   if ! command_exists npm; then
-    echo "ERROR: npm not found. Copilot CLI requires npm v10+."
+    echo "ERROR: npm not found. Copilot requires npm v10+."
     exit 1
   fi
 
   node_version=$(node --version | sed 's/v//' | cut -d. -f1)
   if [ "$node_version" -lt 22 ]; then
-    echo "WARNING: Node.js v$node_version detected. Copilot CLI requires v22+."
+    echo "WARNING: Node.js v$node_version detected. Copilot requires v22+."
   fi
 }
 
-install_copilot_cli() {
+install_copilot() {
   if ! command_exists copilot; then
     echo "Installing GitHub Copilot CLI..."
     npm install -g @github/copilot
 
     if ! command_exists copilot; then
-      echo "ERROR: Failed to install Copilot CLI"
+      echo "ERROR: Failed to install Copilot"
       exit 1
     fi
 
@@ -69,7 +69,7 @@ check_github_authentication() {
   fi
 
   echo "⚠ No GitHub authentication detected"
-  echo "  Copilot CLI will prompt for authentication when started"
+  echo "  Copilot will prompt for authentication when started"
   echo "  For seamless experience, configure GitHub external auth in Coder or run 'gh auth login'"
   return 0
 }
@@ -94,7 +94,7 @@ setup_copilot_config() {
   mkdir -p "$copilot_config_dir"
 
   if [ -n "$ARG_COPILOT_CONFIG" ]; then
-    echo "Setting up Copilot CLI configuration..."
+    echo "Setting up Copilot configuration..."
 
     if command_exists jq; then
       echo "$ARG_COPILOT_CONFIG" | jq 'del(.mcpServers)' > "$copilot_config_file"
@@ -197,7 +197,7 @@ add_custom_mcp_servers() {
 
 configure_copilot_model() {
   if [ -n "$ARG_COPILOT_MODEL" ] && [ "$ARG_COPILOT_MODEL" != "claude-sonnet-4.5" ]; then
-    echo "Setting Copilot CLI model to: $ARG_COPILOT_MODEL"
+    echo "Setting Copilot model to: $ARG_COPILOT_MODEL"
     copilot config model "$ARG_COPILOT_MODEL" || {
       echo "WARNING: Failed to set model via copilot config, will use environment variable fallback"
       export COPILOT_MODEL="$ARG_COPILOT_MODEL"
@@ -207,7 +207,7 @@ configure_copilot_model() {
 
 configure_coder_integration() {
   if [ "$ARG_REPORT_TASKS" = "true" ] && [ -n "$ARG_MCP_APP_STATUS_SLUG" ]; then
-    echo "Configuring Copilot CLI task reporting..."
+    echo "Configuring Copilot task reporting..."
     export CODER_MCP_APP_STATUS_SLUG="$ARG_MCP_APP_STATUS_SLUG"
     export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
     echo "✓ Coder MCP server configured for task reporting"
@@ -219,10 +219,10 @@ configure_coder_integration() {
 }
 
 validate_prerequisites
-install_copilot_cli
+install_copilot
 check_github_authentication
 setup_copilot_configurations
 configure_copilot_model
 configure_coder_integration
 
-echo "Copilot CLI module setup completed."
+echo "Copilot module setup completed."
