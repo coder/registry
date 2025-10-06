@@ -20,7 +20,7 @@ module "copilot" {
 ```
 
 > [!IMPORTANT]
-> This example assumes you have [Coder external authentication](https://coder.com/docs/admin/external-auth) configured with `id = "github"`. If not, you can provide a direct token using the `github_token` variable.
+> This example assumes you have [Coder external authentication](https://coder.com/docs/admin/external-auth) configured with `id = "github"`. If not, you can provide a direct token using the `github_token` variable or provide the correct external authentication id for GitHub by setting `external_auth_id = "my-github"`.
 
 > [!NOTE]
 > By default, this module is configured to run the embedded chat interface as a path-based application. In production, we recommend that you configure a [wildcard access URL](https://coder.com/docs/admin/setup#wildcard-access-url) and set `subdomain = true`. See [here](https://coder.com/docs/tutorials/best-practices/security-best-practices#disable-path-based-apps) for more details.
