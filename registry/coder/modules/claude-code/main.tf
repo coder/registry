@@ -246,6 +246,12 @@ resource "coder_env" "claude_api_key" {
   value    = var.claude_api_key
 }
 
+resource "coder_env" "mcp_server_port" {
+  agent_id = var.agent_id
+  name     = "MCP_SERVER_PORT"
+  value    = "8081"
+}
+
 locals {
   # we have to trim the slash because otherwise coder exp mcp will
   # set up an invalid claude config 
