@@ -188,26 +188,6 @@ run "test_claude_code_permission_mode_validation" {
   }
 }
 
-run "test_claude_code_system_prompt_default" {
-  command = plan
-
-  variables {
-    agent_id = "test-agent-system-prompt"
-    workdir  = "/home/coder/test"
-    # system_prompt: default string is used
-  }
-
-  assert {
-    condition     = trimspace(coder_env.claude_code_system_prompt.value) != ""
-    error_message = "System prompt should not be empty"
-  }
-
-  assert {
-    condition     = length(regexall("Send a task status update to notify the user that you are ready for input, and then wait for user input.", coder_env.claude_code_system_prompt.value)) > 0
-    error_message = "System prompt should have default value"
-  }
-}
-
 run "test_claude_code_system_prompt" {
   command = plan
 
@@ -232,7 +212,7 @@ run "test_claude_report_tasks_default" {
   command = plan
 
   variables {
-    agent_id = "test-agent-system-prompt"
+    agent_id = "test-agent-report-tasks"
     workdir  = "/home/coder/test"
     # report_tasks: default is true
   }
@@ -268,10 +248,9 @@ run "test_claude_report_tasks_disabled" {
   command = plan
 
   variables {
-    agent_id     = "test-agent-system-prompt"
+    agent_id     = "test-agent-report-tasks"
     workdir      = "/home/coder/test"
     report_tasks = false
-    # system_prompt: default string is used
   }
 
   assert {
@@ -287,26 +266,5 @@ run "test_claude_report_tasks_disabled" {
   assert {
     condition     = endswith(trimspace(coder_env.claude_code_system_prompt.value), "</system>")
     error_message = "System prompt should end with </system>"
-  }
-
-  assert {
-    condition     = length(regexall("Send a task status update to notify the user that you are ready for input, and then wait for user input.", coder_env.claude_code_system_prompt.value)) > 0
-    error_message = "System prompt should have default value"
-  }
-}
-
-run "test_claude_report_tasks_disabled_empty_system_prompt" {
-  command = plan
-
-  variables {
-    agent_id      = "test-agent-system-prompt"
-    workdir       = "/home/coder/test"
-    report_tasks  = false
-    system_prompt = ""
-  }
-
-  assert {
-    condition     = trimspace(coder_env.claude_code_system_prompt.value) == ""
-    error_message = "System prompt should be empty"
   }
 }

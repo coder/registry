@@ -248,18 +248,12 @@ locals {
       details, or encounter blockers
     EOT
 
-  custom_system_prompt = trimspace(try(var.system_prompt, ""))
-
   # Only include coder system prompts if report_tasks is enabled
-  inner_system_prompt = format(
-    "%s%s",
+  custom_system_prompt = trimspace(try(var.system_prompt, ""))
+  final_system_prompt = format("<system>%s%s</system>",
     var.report_tasks ? format("\n%s\n", local.report_tasks_system_prompt) : "",
-    trimspace(local.custom_system_prompt) != "" ? format("\n%s\n", local.custom_system_prompt) : "",
+    local.custom_system_prompt != "" ? format("\n%s\n", local.custom_system_prompt) : ""
   )
-  final_system_prompt = trimspace(local.inner_system_prompt) != "" ? format(
-    "<system>%s</system>",
-    local.inner_system_prompt
-  ) : ""
 }
 
 module "agentapi" {
