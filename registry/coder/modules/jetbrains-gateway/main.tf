@@ -36,9 +36,8 @@ variable "slug" {
 
 variable "agent_name" {
   type        = string
-  description = "Agent name. (unused). Will be removed in a future version"
-
-  default = ""
+  description = "Agent name."
+  default     = ""
 }
 
 variable "folder" {
@@ -348,8 +347,8 @@ resource "coder_app" "gateway" {
     local.build_number,
     "&ide_download_link=",
     local.download_link,
-    "&agent_id=",
-    var.agent_id,
+    "&agent=",
+    var.agent_name,
   ])
 }
 
