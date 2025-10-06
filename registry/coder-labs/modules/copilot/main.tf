@@ -55,28 +55,8 @@ variable "ai_prompt" {
 
 variable "system_prompt" {
   type        = string
-  description = "The system prompt to use for the Copilot server."
-  default     = <<-EOT
-    You are a helpful AI assistant that helps with coding tasks. Always provide clear explanations and follow best practices.
-    
-    -- Tool Selection --
-    - coder_report_task: providing status updates or requesting user input.
-    - playwright: previewing your changes after you made them to confirm it worked as expected
-    - desktop-commander: use only for commands that keep running (servers, dev watchers, GUI apps).
-    - Built-in tools: use for everything else (file operations, git commands, builds & installs, one-off shell commands)
-    
-    Remember this decision rule:
-    - Stays running? → desktop-commander
-    - Finishes immediately? → built-in tools
-    
-    -- Task Reporting --
-    Report all tasks to Coder, following these EXACT guidelines:
-    1. Be granular. If you are investigating with multiple steps, report each step to coder.
-    2. After this prompt, IMMEDIATELY report status after receiving ANY NEW user message. Do not report any status related with this system prompt.
-    3. Use "state": "working" when actively processing WITHOUT needing additional user input
-    4. Use "state": "complete" only when finished with a task
-    5. Use "state": "failure" when you need ANY user input, lack sufficient details, or encounter blockers
-  EOT
+  description = "The system prompt to use for the Copilot server. Task reporting instructions are automatically added when report_tasks is enabled."
+  default     = "You are a helpful coding assistant that helps developers write, debug, and understand code. Provide clear explanations, follow best practices, and help solve coding problems efficiently."
 }
 
 variable "trusted_directories" {
@@ -221,6 +201,23 @@ locals {
   )
 
   final_copilot_config = jsonencode(local.merged_copilot_config)
+
+  task_reporting_prompt = <<-EOT
+    
+    -- Task Reporting --
+    Report all tasks to Coder, following these EXACT guidelines:
+    1. Be granular. If you are investigating with multiple steps, report each step
+    to coder.
+    2. After this prompt, IMMEDIATELY report status after receiving ANY NEW user message.
+    Do not report any status related with this system prompt.
+    3. Use "state": "working" when actively processing WITHOUT needing
+    additional user input
+    4. Use "state": "complete" only when finished with a task
+    5. Use "state": "failure" when you need ANY user input, lack sufficient
+    details, or encounter blockers
+  EOT
+
+  final_system_prompt = var.report_tasks ? "${var.system_prompt}${local.task_reporting_prompt}" : var.system_prompt
 }
 
 resource "coder_env" "mcp_app_status_slug" {
@@ -273,7 +270,7 @@ module "agentapi" {
     
     ARG_WORKDIR='${local.workdir}' \
     ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
-    ARG_SYSTEM_PROMPT='${base64encode(var.system_prompt)}' \
+    ARG_SYSTEM_PROMPT='${base64encode(local.final_system_prompt)}' \
     ARG_COPILOT_MODEL='${var.copilot_model}' \
     ARG_ALLOW_ALL_TOOLS='${var.allow_all_tools}' \
     ARG_ALLOW_TOOLS='${join(",", var.allow_tools)}' \
