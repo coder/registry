@@ -44,10 +44,10 @@ locals {
   mcp_b64 = var.mcp != "" ? base64encode(var.mcp) : ""
 }
 
-module "kiro" {
-  # TODO: update this
-  source = "git::https://github.com/coder/registry.git//registry/coder/modules/vscode-desktop-core?ref=phorcys420/centralize-vscode-desktop"
-
+module "vscode-desktop-core" {
+  source = "registry.coder.com/coder/vscode-desktop-core/coder"
+  version = "1.0.0"
+  
   agent_id = var.agent_id
 
   web_app_icon         = "/icon/kiro.svg"
