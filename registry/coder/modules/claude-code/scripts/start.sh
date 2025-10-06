@@ -92,7 +92,16 @@ function start_agentapi() {
     if [ "${ARG_BOUNDARY_UNPRIVILEGED:-true}" = "true" ]; then
       BOUNDARY_ARGS+=(--unprivileged)
     fi
-    BOUNDARY_ARGS+=(--allow "*.anthropic.com" --allow "$ARG_CODER_HOST")
+    # Add default allowed URLs
+    BOUNDARY_ARGS+=(--allow "*.anthropic.com" --allow "registry.npmjs.org" --allow "*.sentry.io" --allow "claude.ai" --allow "$ARG_CODER_HOST")
+    
+    # Add any additional allowed URLs from the variable
+    if [ -n "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS" ]; then
+      IFS=' ' read -ra ADDITIONAL_URLS <<< "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS"
+      for url in "${ADDITIONAL_URLS[@]}"; do
+        BOUNDARY_ARGS+=(--allow "$url")
+      done
+    fi
     
     agentapi server --type claude --term-width 67 --term-height 1190 -- \
       coder boundary "${BOUNDARY_ARGS[@]}" -- \

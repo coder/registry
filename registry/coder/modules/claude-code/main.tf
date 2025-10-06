@@ -210,6 +210,12 @@ variable "boundary_unprivileged" {
   default     = true
 }
 
+variable "boundary_additional_allowed_urls" {
+  type        = list(string)
+  description = "Additional URLs to allow through boundary (in addition to default allowed URLs)"
+  default     = []
+}
+
 resource "coder_env" "claude_code_md_path" {
   count = var.claude_md_path == "" ? 0 : 1
 
@@ -293,6 +299,7 @@ module "agentapi" {
      ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
      ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
      ARG_BOUNDARY_UNPRIVILEGED='${var.boundary_unprivileged}' \
+     ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join(" ", var.boundary_additional_allowed_urls)}' \
      ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh
    EOT
