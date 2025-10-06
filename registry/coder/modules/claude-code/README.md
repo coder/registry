@@ -13,7 +13,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "3.0.1"
+  version        = "3.1.0"
   agent_id       = coder_agent.example.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
@@ -49,7 +49,7 @@ Include Coder’s prompt section for task reporting and optionally add your own 
 ```hcl
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "3.1.0"
+  version = "3.1.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
@@ -79,7 +79,7 @@ data "coder_parameter" "ai_prompt" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "3.0.1"
+  version  = "3.1.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
@@ -115,7 +115,7 @@ Run and configure Claude Code as a standalone CLI in your workspace.
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "3.0.1"
+  version             = "3.1.0"
   agent_id            = coder_agent.example.id
   workdir             = "/home/coder"
   install_claude_code = true
@@ -138,7 +138,7 @@ variable "claude_code_oauth_token" {
 
 module "claude-code" {
   source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "3.0.1"
+  version                 = "3.1.0"
   agent_id                = coder_agent.example.id
   workdir                 = "/home/coder/project"
   claude_code_oauth_token = var.claude_code_oauth_token
