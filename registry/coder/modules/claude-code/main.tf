@@ -186,10 +186,11 @@ variable "system_prompt" {
   default     = "Send a task status update to notify the user that you are ready for input, and then wait for user input."
 }
 
-variable "include_coder_system_prompt" {
+variable "report_tasks_system_prompt" {
   type        = bool
-  description = "Include Coder system prompts for proper integration with tool selection and task reporting. Defaults to false for backward compatibility, will default to true in the next major release."
+  description = "Include the Coder system prompt for task reporting when report_tasks is true. Defaults to false for backward compatibility, will default to true in the next major release."
   # TODO(major): default to true in the next major release
+  #   Related to PR: https://github.com/coder/registry/pull/443
   default = false
 }
 
@@ -237,20 +238,10 @@ locals {
   module_dir_name                   = ".claude-module"
   remove_last_session_id_script_b64 = base64encode(file("${path.module}/scripts/remove-last-session-id.sh"))
 
-  # Required prompts for the module to properly integrate with Coder
+  # Required prompts for the module to properly report task status to Coder
   inner_system_prompt = <<-EOT
       -- Tool Selection --
       - coder_report_task: providing status updates or requesting user input.
-      - playwright: previewing your changes after you made them
-        to confirm it worked as expected
-      -	desktop-commander - use only for commands that keep running
-        (servers, dev watchers, GUI apps).
-      -	Built-in tools - use for everything else:
-        (file operations, git commands, builds & installs, one-off shell commands)
-
-      Remember this decision rule:
-      - Stays running? → desktop-commander
-      - Finishes immediately? → built-in tools
 
       -- Task Reporting --
       Report all tasks to Coder, following these EXACT guidelines:
@@ -267,7 +258,8 @@ locals {
 
   custom_system_prompt = trimspace(try(var.system_prompt, ""))
 
-  final_system_prompt = var.include_coder_system_prompt ? format(
+  # Only include coder system prompts if report_tasks and report_tasks_system_prompt are enabled
+  final_system_prompt = var.report_tasks && var.report_tasks_system_prompt ? format(
     "<system>\n%s\n%s\n</system>",
     local.inner_system_prompt,
     local.custom_system_prompt,

@@ -29,8 +29,10 @@ module "claude-code" {
 <!-- TODO(major): remove this note and update the prompt configuration example in the next major release -->
 
 > [!NOTE]
-> By default, `include_coder_system_prompt` is false. For proper integration with Coder (tool selection & task reporting),
-> it is recommended to set `include_coder_system_prompt` to true. In the next major release, this will become the default.
+>
+> By default, `report_tasks_system_prompt` is false.
+> When `report_tasks` is true, it is recommended to set `report_tasks_system_prompt` to true to inject the Coder system prompt to ensure proper task-reporting integration.
+> If `report_tasks` is false, this setting has no effect. In the next major release, the default for `report_tasks_system_prompt` will be true.
 
 ## Prerequisites
 
@@ -42,7 +44,7 @@ module "claude-code" {
 
 ### Prompt configuration (recommended)
 
-Include Coder’s prompt sections and optionally add your own system prompt.
+Include Coder’s prompt section for task reporting and optionally add your own system prompt.
 
 ```hcl
 module "claude-code" {
@@ -51,7 +53,9 @@ module "claude-code" {
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
-  include_coder_system_prompt = true
+  # Configure Coder's task reporting
+  report_tasks = true
+  report_tasks_system_prompt = true
 
   # Optional: append additional system prompt.
   system_prompt = <<-EOT
