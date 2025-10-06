@@ -26,14 +26,6 @@ module "claude-code" {
 > [!NOTE]
 > By default, this module is configured to run the embedded chat interface as a path-based application. In production, we recommend that you configure a [wildcard access URL](https://coder.com/docs/admin/setup#wildcard-access-url) and set `subdomain = true`. See [here](https://coder.com/docs/tutorials/best-practices/security-best-practices#disable-path-based-apps) for more details.
 
-<!-- TODO(major): remove this note and update the prompt configuration example in the next major release -->
-
-> [!NOTE]
->
-> By default, `report_tasks_system_prompt` is false.
-> When `report_tasks` is true, it is recommended to set `report_tasks_system_prompt` to true to inject the Coder system prompt to ensure proper task-reporting integration.
-> If `report_tasks` is false, this setting has no effect. In the next major release, the default for `report_tasks_system_prompt` will be true.
-
 ## Prerequisites
 
 - An **Anthropic API key** or a _Claude Session Token_ is required for tasks.

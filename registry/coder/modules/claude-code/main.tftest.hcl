@@ -194,40 +194,17 @@ run "test_claude_code_system_prompt_default" {
   variables {
     agent_id = "test-agent-system-prompt"
     workdir  = "/home/coder/test"
-    # report_tasks_system_prompt: default is false
     # system_prompt: default string is used
   }
 
   assert {
     condition     = trimspace(coder_env.claude_code_system_prompt.value) != ""
-    error_message = "System prompt should not be empty when omitted"
+    error_message = "System prompt should not be empty"
   }
 
   assert {
     condition     = length(regexall("Send a task status update to notify the user that you are ready for input, and then wait for user input.", coder_env.claude_code_system_prompt.value)) > 0
     error_message = "System prompt should have default value"
-  }
-
-  # Ensure Coder sections are not injected when include=false
-  assert {
-    condition     = length(regexall("-- Tool Selection --|-- Task Reporting --", coder_env.claude_code_system_prompt.value)) == 0
-    error_message = "Coder integration sections should not be present when report_tasks_system_prompt is false"
-  }
-}
-
-run "test_claude_code_system_prompt_empty" {
-  command = plan
-
-  variables {
-    agent_id = "test-agent-system-prompt"
-    workdir  = "/home/coder/test"
-    # report_tasks_system_prompt: default is false
-    system_prompt = ""
-  }
-
-  assert {
-    condition     = trimspace(coder_env.claude_code_system_prompt.value) == ""
-    error_message = "System prompt should be empty"
   }
 }
 
@@ -235,9 +212,8 @@ run "test_claude_code_system_prompt" {
   command = plan
 
   variables {
-    agent_id = "test-agent-system-prompt"
-    workdir  = "/home/coder/test"
-    # report_tasks_system_prompt: default is false
+    agent_id      = "test-agent-system-prompt"
+    workdir       = "/home/coder/test"
     system_prompt = "Custom addition"
   }
 
@@ -250,22 +226,51 @@ run "test_claude_code_system_prompt" {
     condition     = length(regexall("Custom addition", coder_env.claude_code_system_prompt.value)) > 0
     error_message = "System prompt should have system_prompt variable value"
   }
-
-  # Ensure Coder sections are not injected when include=false
-  assert {
-    condition     = length(regexall("-- Tool Selection --|-- Task Reporting --", coder_env.claude_code_system_prompt.value)) == 0
-    error_message = "Coder integration sections should not be present when report_tasks_system_prompt is false"
-  }
 }
 
-run "test_claude_code_report_tasks_system_prompt_and_default_system_prompt" {
+run "test_claude_report_tasks_default" {
   command = plan
 
   variables {
     agent_id = "test-agent-system-prompt"
     workdir  = "/home/coder/test"
     # report_tasks: default is true
-    report_tasks_system_prompt = true
+  }
+
+  assert {
+    condition     = trimspace(coder_env.claude_code_system_prompt.value) != ""
+    error_message = "System prompt should not be empty"
+  }
+
+  # Ensure system prompt is wrapped by <system>
+  assert {
+    condition     = startswith(trimspace(coder_env.claude_code_system_prompt.value), "<system>")
+    error_message = "System prompt should start with <system>"
+  }
+  assert {
+    condition     = endswith(trimspace(coder_env.claude_code_system_prompt.value), "</system>")
+    error_message = "System prompt should end with </system>"
+  }
+
+  # Ensure Coder sections are injected when report_tasks=true (default)
+  assert {
+    condition     = length(regexall("-- Tool Selection --", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "System prompt should have Tool Selection section"
+  }
+
+  assert {
+    condition     = length(regexall("-- Task Reporting --", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "System prompt should have Task Reporting section"
+  }
+}
+
+run "test_claude_report_tasks_disabled" {
+  command = plan
+
+  variables {
+    agent_id     = "test-agent-system-prompt"
+    workdir      = "/home/coder/test"
+    report_tasks = false
     # system_prompt: default string is used
   }
 
@@ -274,77 +279,34 @@ run "test_claude_code_report_tasks_system_prompt_and_default_system_prompt" {
     error_message = "System prompt should not be empty"
   }
 
+  # Ensure system prompt is wrapped by <system>
   assert {
-    condition     = length(regexall("-- Tool Selection --", coder_env.claude_code_system_prompt.value)) > 0
-    error_message = "System prompt should have Tool Selection section"
+    condition     = startswith(trimspace(coder_env.claude_code_system_prompt.value), "<system>")
+    error_message = "System prompt should start with <system>"
   }
-
   assert {
-    condition     = length(regexall("-- Task Reporting --", coder_env.claude_code_system_prompt.value)) > 0
-    error_message = "System prompt should have Task Reporting section"
+    condition     = endswith(trimspace(coder_env.claude_code_system_prompt.value), "</system>")
+    error_message = "System prompt should end with </system>"
   }
 
   assert {
     condition     = length(regexall("Send a task status update to notify the user that you are ready for input, and then wait for user input.", coder_env.claude_code_system_prompt.value)) > 0
-    error_message = "System prompt should have system_prompt variable default value"
+    error_message = "System prompt should have default value"
   }
 }
 
-run "test_claude_code_report_tasks_system_prompt_and_custom_system_prompt" {
+run "test_claude_report_tasks_disabled_empty_system_prompt" {
   command = plan
 
   variables {
-    agent_id = "test-agent-system-prompt"
-    workdir  = "/home/coder/test"
-    # report_tasks: default is true
-    report_tasks_system_prompt = true
-    system_prompt              = "Custom addition"
+    agent_id      = "test-agent-system-prompt"
+    workdir       = "/home/coder/test"
+    report_tasks  = false
+    system_prompt = ""
   }
 
   assert {
-    condition     = trimspace(coder_env.claude_code_system_prompt.value) != ""
-    error_message = "System prompt should not be empty"
-  }
-
-  assert {
-    condition     = length(regexall("-- Tool Selection --", coder_env.claude_code_system_prompt.value)) > 0
-    error_message = "System prompt should have Tool Selection section"
-  }
-
-  assert {
-    condition     = length(regexall("-- Task Reporting --", coder_env.claude_code_system_prompt.value)) > 0
-    error_message = "System prompt should have Task Reporting section"
-  }
-
-  assert {
-    condition     = length(regexall("Custom addition", coder_env.claude_code_system_prompt.value)) > 0
-    error_message = "System prompt should have system_prompt variable value"
-  }
-}
-
-run "test_claude_code_report_tasks_disabled" {
-  command = plan
-
-  variables {
-    agent_id                   = "test-agent-system-prompt"
-    workdir                    = "/home/coder/test"
-    report_tasks               = false
-    report_tasks_system_prompt = true
-    system_prompt              = "Custom addition"
-  }
-
-  assert {
-    condition     = trimspace(coder_env.claude_code_system_prompt.value) != ""
-    error_message = "System prompt should not be empty"
-  }
-
-  assert {
-    condition     = length(regexall("-- Tool Selection --|-- Task Reporting --", coder_env.claude_code_system_prompt.value)) == 0
-    error_message = "Coder integration sections should not be present when report_task is false"
-  }
-
-  assert {
-    condition     = length(regexall("Custom addition", coder_env.claude_code_system_prompt.value)) > 0
-    error_message = "System prompt should have system_prompt variable value"
+    condition     = trimspace(coder_env.claude_code_system_prompt.value) == ""
+    error_message = "System prompt should be empty"
   }
 }

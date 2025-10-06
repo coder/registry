@@ -186,15 +186,6 @@ variable "system_prompt" {
   default     = "Send a task status update to notify the user that you are ready for input, and then wait for user input."
 }
 
-variable "report_tasks_system_prompt" {
-  type        = bool
-  description = "Include the Coder system prompt for task reporting when report_tasks is true. Defaults to false for backward compatibility, will default to true in the next major release."
-  # TODO(major): default to true in the next major release
-  #   Context PR: https://github.com/coder/registry/pull/443
-  #   See discussion for the `report_tasks` variable definition: https://github.com/coder/registry/pull/443#discussion_r2405788746
-  default = false
-}
-
 variable "claude_md_path" {
   type        = string
   description = "The path to CLAUDE.md."
@@ -240,7 +231,7 @@ locals {
   remove_last_session_id_script_b64 = base64encode(file("${path.module}/scripts/remove-last-session-id.sh"))
 
   # Required prompts for the module to properly report task status to Coder
-  inner_system_prompt = <<-EOT
+  report_tasks_system_prompt = <<-EOT
       -- Tool Selection --
       - coder_report_task: providing status updates or requesting user input.
 
@@ -259,12 +250,16 @@ locals {
 
   custom_system_prompt = trimspace(try(var.system_prompt, ""))
 
-  # Only include coder system prompts if report_tasks and report_tasks_system_prompt are enabled
-  final_system_prompt = var.report_tasks && var.report_tasks_system_prompt ? format(
-    "<system>\n%s\n%s\n</system>",
-    local.inner_system_prompt,
-    local.custom_system_prompt,
-  ) : local.custom_system_prompt
+  # Only include coder system prompts if report_tasks is enabled
+  inner_system_prompt = format(
+    "%s%s",
+    var.report_tasks ? format("\n%s\n", local.report_tasks_system_prompt) : "",
+    trimspace(local.custom_system_prompt) != "" ? format("\n%s\n", local.custom_system_prompt) : "",
+  )
+  final_system_prompt = trimspace(local.inner_system_prompt) != "" ? format(
+    "<system>%s</system>",
+    local.inner_system_prompt
+  ) : ""
 }
 
 module "agentapi" {
