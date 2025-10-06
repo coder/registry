@@ -190,7 +190,8 @@ variable "report_tasks_system_prompt" {
   type        = bool
   description = "Include the Coder system prompt for task reporting when report_tasks is true. Defaults to false for backward compatibility, will default to true in the next major release."
   # TODO(major): default to true in the next major release
-  #   Related to PR: https://github.com/coder/registry/pull/443
+  #   Context PR: https://github.com/coder/registry/pull/443
+  #   See discussion for the `report_tasks` variable definition: https://github.com/coder/registry/pull/443#discussion_r2405788746
   default = false
 }
 
