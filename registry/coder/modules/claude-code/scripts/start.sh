@@ -86,7 +86,7 @@ function start_agentapi() {
   if [ "${ARG_ENABLE_BOUNDARY:-false}" = "true" ]; then
     mkdir -p "$ARG_BOUNDARY_LOG_DIR"
     printf "Starting with coder boundary enabled\n"
-    
+
     # Build boundary args with conditional --unprivileged flag
     BOUNDARY_ARGS=(--log-dir "$ARG_BOUNDARY_LOG_DIR")
     if [ "${ARG_BOUNDARY_UNPRIVILEGED:-true}" = "true" ]; then
@@ -94,7 +94,7 @@ function start_agentapi() {
     fi
     # Add default allowed URLs
     BOUNDARY_ARGS+=(--allow "*.anthropic.com" --allow "registry.npmjs.org" --allow "*.sentry.io" --allow "claude.ai" --allow "localhost:8080/healthz" --allow "$ARG_CODER_HOST")
-    
+
     # Add any additional allowed URLs from the variable
     if [ -n "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS" ]; then
       IFS=' ' read -ra ADDITIONAL_URLS <<< "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS"
@@ -102,7 +102,7 @@ function start_agentapi() {
         BOUNDARY_ARGS+=(--allow "$url")
       done
     fi
-    
+
     agentapi server --type claude --term-width 67 --term-height 1190 -- \
       coder exp boundary "${BOUNDARY_ARGS[@]}" -- \
       claude "${ARGS[@]}"
