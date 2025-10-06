@@ -93,7 +93,7 @@ function start_agentapi() {
       BOUNDARY_ARGS+=(--unprivileged)
     fi
     # Add default allowed URLs
-    BOUNDARY_ARGS+=(--allow "*.anthropic.com" --allow "registry.npmjs.org" --allow "*.sentry.io" --allow "claude.ai" --allow "localhost:8080" --allow "$ARG_CODER_HOST")
+    BOUNDARY_ARGS+=(--allow "*.anthropic.com" --allow "registry.npmjs.org" --allow "*.sentry.io" --allow "claude.ai" --allow "$ARG_CODER_HOST")
 
     # Add any additional allowed URLs from the variable
     if [ -n "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS" ]; then
