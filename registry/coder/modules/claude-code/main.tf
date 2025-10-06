@@ -204,6 +204,12 @@ variable "boundary_log_dir" {
   default     = "/tmp/boundary_logs"
 }
 
+variable "boundary_unprivileged" {
+  type        = bool
+  description = "Whether to use --unprivileged flag with coder boundary (recommended for security)"
+  default     = true
+}
+
 resource "coder_env" "claude_code_md_path" {
   count = var.claude_md_path == "" ? 0 : 1
 
@@ -286,6 +292,7 @@ module "agentapi" {
      ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
      ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
      ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
+     ARG_BOUNDARY_UNPRIVILEGED='${var.boundary_unprivileged}' \
      ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh
    EOT
