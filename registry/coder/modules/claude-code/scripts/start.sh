@@ -104,7 +104,7 @@ function start_agentapi() {
     fi
     
     agentapi server --type claude --term-width 67 --term-height 1190 -- \
-      coder boundary "${BOUNDARY_ARGS[@]}" -- \
+      coder exp boundary "${BOUNDARY_ARGS[@]}" -- \
       claude "${ARGS[@]}"
   else
     agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
