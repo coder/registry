@@ -121,6 +121,12 @@ variable "agentapi_version" {
   default     = "v0.10.0"
 }
 
+variable "copilot_version" {
+  type        = string
+  description = "The version of GitHub Copilot CLI to install. Use 'latest' for the latest version or specify a version like '0.0.334'."
+  default     = "0.0.334"
+}
+
 variable "report_tasks" {
   type        = bool
   description = "Whether to enable task reporting to Coder UI via AgentAPI."
@@ -291,6 +297,7 @@ module "agentapi" {
     ARG_MCP_CONFIG='${var.mcp_config != "" ? base64encode(var.mcp_config) : ""}' \
     ARG_COPILOT_CONFIG='${base64encode(local.final_copilot_config)}' \
     ARG_EXTERNAL_AUTH_ID='${var.external_auth_id}' \
+    ARG_COPILOT_VERSION='${var.copilot_version}' \
     /tmp/install.sh
   EOT
 }

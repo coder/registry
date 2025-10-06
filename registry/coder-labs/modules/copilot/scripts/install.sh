@@ -13,6 +13,7 @@ ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
 ARG_MCP_CONFIG=$(echo -n "${ARG_MCP_CONFIG:-}" | base64 -d 2> /dev/null || echo "")
 ARG_COPILOT_CONFIG=$(echo -n "${ARG_COPILOT_CONFIG:-}" | base64 -d 2> /dev/null || echo "")
 ARG_EXTERNAL_AUTH_ID=${ARG_EXTERNAL_AUTH_ID:-github}
+ARG_COPILOT_VERSION=${ARG_COPILOT_VERSION:-0.0.334}
 
 validate_prerequisites() {
   if ! command_exists node; then
@@ -34,8 +35,12 @@ validate_prerequisites() {
 
 install_copilot() {
   if ! command_exists copilot; then
-    echo "Installing GitHub Copilot CLI..."
-    npm install -g @github/copilot
+    echo "Installing GitHub Copilot CLI (version: ${ARG_COPILOT_VERSION})..."
+    if [ "$ARG_COPILOT_VERSION" = "latest" ]; then
+      npm install -g @github/copilot
+    else
+      npm install -g "@github/copilot@${ARG_COPILOT_VERSION}"
+    fi
 
     if ! command_exists copilot; then
       echo "ERROR: Failed to install Copilot"
