@@ -1,7 +1,7 @@
 ---
 display_name: "Eric Paulsen"
 bio: "Field CTO, EMEA @ Coder"
-avatar_url: "./.images/avatar.png"
+avatar: "./.images/avatar.png"
 github: "ericpaulsen"
 linkedin: "https://www.linkedin.com/in/ericpaulsen17" # Optional
 website: "https://ericpaulsen.io" # Optional

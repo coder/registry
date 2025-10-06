@@ -59,6 +59,12 @@ variable "coder_parameter_order" {
   default     = null
 }
 
+variable "tooltip" {
+  type        = string
+  description = "Markdown text that is displayed when hovering over workspace apps."
+  default     = null
+}
+
 variable "major_version" {
   type        = string
   description = "The major version of the IDE. i.e. 2025.1"
@@ -202,6 +208,7 @@ data "coder_parameter" "jetbrains_ides" {
   count        = length(var.default) == 0 ? 1 : 0
   type         = "list(string)"
   name         = "jetbrains_ides"
+  description  = "Select which JetBrains IDEs to configure for use in this workspace."
   display_name = "JetBrains IDEs"
   icon         = "/icon/jetbrains-toolbox.svg"
   mutable      = true
@@ -230,6 +237,8 @@ resource "coder_app" "jetbrains" {
   icon         = local.options_metadata[each.key].icon
   external     = true
   order        = var.coder_app_order
+  group        = var.group
+  tooltip      = var.tooltip
   url = join("", [
     "jetbrains://gateway/coder?&workspace=", # requires 2.6.3+ version of Toolbox
     data.coder_workspace.me.name,

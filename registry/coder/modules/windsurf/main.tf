@@ -31,6 +31,31 @@ variable "group" {
   default     = null
 }
 
+variable "slug" {
+  type        = string
+  description = "The slug of the app."
+  default     = "windsurf"
+}
+
+variable "display_name" {
+  type        = string
+  description = "The display name of the app."
+  default     = "Windsurf Editor"
+}
+
+variable "mcp" {
+  type        = string
+  description = "JSON-encoded string to configure MCP servers for Windsurf. When set, writes ~/.codeium/windsurf/mcp_config.json."
+  default     = ""
+}
+
+data "coder_workspace" "me" {}
+data "coder_workspace_owner" "me" {}
+
+locals {
+  mcp_b64 = var.mcp != "" ? base64encode(var.mcp) : ""
+}
+
 module "windsurf" {
   # TODO: update this
   source = "git::https://github.com/coder/registry.git//registry/coder/modules/vscode-desktop-core?ref=phorcys420/centralize-vscode-desktop"
@@ -46,6 +71,22 @@ module "windsurf" {
   folder      = var.folder
   open_recent = var.open_recent
   protocol    = "windsurf"
+}
+
+resource "coder_script" "windsurf_mcp" {
+  count              = var.mcp != "" ? 1 : 0
+  agent_id           = var.agent_id
+  display_name       = "Windsurf MCP"
+  icon               = "/icon/windsurf.svg"
+  run_on_start       = true
+  start_blocks_login = false
+  script             = <<-EOT
+    #!/bin/sh
+    set -eu
+    mkdir -p "$HOME/.codeium/windsurf"
+    echo -n "${local.mcp_b64}" | base64 -d > "$HOME/.codeium/windsurf/mcp_config.json"
+    chmod 600 "$HOME/.codeium/windsurf/mcp_config.json"
+  EOT
 }
 
 output "windsurf_url" {

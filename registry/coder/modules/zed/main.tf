@@ -50,7 +50,14 @@ variable "display_name" {
   default     = "Zed"
 }
 
+variable "settings" {
+  type        = string
+  description = "JSON encoded settings.json"
+  default     = ""
+}
+
 data "coder_workspace" "me" {}
+
 data "coder_workspace_owner" "me" {}
 
 locals {
@@ -58,6 +65,30 @@ locals {
   owner_name     = lower(data.coder_workspace_owner.me.name)
   agent_name     = lower(var.agent_name)
   hostname       = var.agent_name != "" ? "${local.agent_name}.${local.workspace_name}.${local.owner_name}.coder" : "${local.workspace_name}.coder"
+}
+
+resource "coder_script" "zed_settings" {
+  agent_id     = var.agent_id
+  display_name = "Configure Zed settings"
+  icon         = "/icon/zed.svg"
+  run_on_start = true
+  script       = <<-EOT
+    set -eu
+    SETTINGS_JSON='${replace(var.settings, "\"", "\\\"")}'
+    if [ -z "$${SETTINGS_JSON}" ] || [ "$${SETTINGS_JSON}" = "{}" ]; then
+      exit 0
+    fi
+    CONFIG_HOME="$${XDG_CONFIG_HOME:-$HOME/.config}"
+    ZED_DIR="$${CONFIG_HOME}/zed"
+    mkdir -p "$${ZED_DIR}"
+    SETTINGS_FILE="$${ZED_DIR}/settings.json"
+    if command -v jq >/dev/null 2>&1 && [ -s "$${SETTINGS_FILE}" ]; then
+      tmpfile="$(mktemp)"
+      jq -s '.[0] * .[1]' "$${SETTINGS_FILE}" <(printf '%s\n' "$${SETTINGS_JSON}") > "$${tmpfile}" && mv "$${tmpfile}" "$${SETTINGS_FILE}"
+    else
+      printf '%s\n' "$${SETTINGS_JSON}" > "$${SETTINGS_FILE}"
+    fi
+  EOT
 }
 
 resource "coder_app" "zed" {

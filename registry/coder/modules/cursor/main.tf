@@ -43,6 +43,20 @@ variable "display_name" {
   default     = "Cursor Desktop"
 }
 
+variable "mcp" {
+  type        = string
+  description = "JSON-encoded string to configure MCP servers for Cursor. When set, writes ~/.cursor/mcp.json."
+  default     = ""
+}
+
+data "coder_workspace" "me" {}
+
+data "coder_workspace_owner" "me" {}
+
+locals {
+  mcp_b64 = var.mcp != "" ? base64encode(var.mcp) : ""
+}
+
 module "cursor" {
   # TODO: update this
   source = "git::https://github.com/coder/registry.git//registry/coder/modules/vscode-desktop-core?ref=phorcys420/centralize-vscode-desktop"
@@ -58,6 +72,22 @@ module "cursor" {
   folder      = var.folder
   open_recent = var.open_recent
   protocol    = "cursor"
+}
+
+resource "coder_script" "cursor_mcp" {
+  count              = var.mcp != "" ? 1 : 0
+  agent_id           = var.agent_id
+  display_name       = "Cursor MCP"
+  icon               = "/icon/cursor.svg"
+  run_on_start       = true
+  start_blocks_login = false
+  script             = <<-EOT
+    #!/bin/sh
+    set -eu
+    mkdir -p "$HOME/.cursor"
+    echo -n "${local.mcp_b64}" | base64 -d > "$HOME/.cursor/mcp.json"
+    chmod 600 "$HOME/.cursor/mcp.json"
+  EOT
 }
 
 output "cursor_url" {
