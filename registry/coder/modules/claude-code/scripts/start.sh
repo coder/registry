@@ -15,6 +15,9 @@ ARG_DANGEROUSLY_SKIP_PERMISSIONS=${ARG_DANGEROUSLY_SKIP_PERMISSIONS:-}
 ARG_PERMISSION_MODE=${ARG_PERMISSION_MODE:-}
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
 ARG_AI_PROMPT=$(echo -n "${ARG_AI_PROMPT:-}" | base64 -d)
+ARG_ENABLE_BOUNDARY=${ARG_ENABLE_BOUNDARY:-false}
+ARG_BOUNDARY_LOG_DIR=${ARG_BOUNDARY_LOG_DIR:-"/tmp/boundary_logs"}
+ARG_CODER_HOST=${ARG_CODER_HOST:-}
 
 echo "--------------------------------"
 
@@ -25,6 +28,9 @@ printf "ARG_DANGEROUSLY_SKIP_PERMISSIONS: %s\n" "$ARG_DANGEROUSLY_SKIP_PERMISSIO
 printf "ARG_PERMISSION_MODE: %s\n" "$ARG_PERMISSION_MODE"
 printf "ARG_AI_PROMPT: %s\n" "$ARG_AI_PROMPT"
 printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
+printf "ARG_ENABLE_BOUNDARY: %s\n" "$ARG_ENABLE_BOUNDARY"
+printf "ARG_BOUNDARY_LOG_DIR: %s\n" "$ARG_BOUNDARY_LOG_DIR"
+printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
 
 echo "--------------------------------"
 
@@ -74,7 +80,17 @@ function start_agentapi() {
     fi
   fi
   printf "Running claude code with args: %s\n" "$(printf '%q ' "${ARGS[@]}")"
-  agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
+
+  if [ "${ARG_ENABLE_BOUNDARY:-false}" = "true" ]; then
+    mkdir -p "$ARG_BOUNDARY_LOG_DIR"
+    printf "Starting with coder boundary enabled\n"
+    agentapi server --type claude --term-width 67 --term-height 1190 -- \
+      coder boundary --log-dir "$ARG_BOUNDARY_LOG_DIR" \
+      --allow "*.anthropic.com" --allow "$ARG_CODER_HOST" -- \
+      claude "${ARGS[@]}"
+  else
+    agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
+  fi
 }
 
 validate_claude_installation

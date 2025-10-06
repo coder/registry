@@ -192,6 +192,18 @@ variable "claude_md_path" {
   default     = "$HOME/.claude/CLAUDE.md"
 }
 
+variable "enable_boundary" {
+  type        = bool
+  description = "Whether to enable coder boundary for network filtering"
+  default     = false
+}
+
+variable "boundary_log_dir" {
+  type        = string
+  description = "Directory for boundary logs"
+  default     = "/tmp/boundary_logs"
+}
+
 resource "coder_env" "claude_code_md_path" {
   count = var.claude_md_path == "" ? 0 : 1
 
@@ -231,6 +243,8 @@ locals {
   start_script                      = file("${path.module}/scripts/start.sh")
   module_dir_name                   = ".claude-module"
   remove_last_session_id_script_b64 = base64encode(file("${path.module}/scripts/remove-last-session-id.sh"))
+  # Extract hostname from access_url for boundary --allow flag
+  coder_host = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
 }
 
 module "agentapi" {
@@ -270,6 +284,9 @@ module "agentapi" {
      ARG_PERMISSION_MODE='${var.permission_mode}' \
      ARG_WORKDIR='${local.workdir}' \
      ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+     ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
+     ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
+     ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh
    EOT
 
