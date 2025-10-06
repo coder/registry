@@ -13,7 +13,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "3.0.1"
+  version        = "3.1.0"
   agent_id       = coder_agent.example.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
@@ -49,7 +49,7 @@ data "coder_parameter" "ai_prompt" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "3.0.1"
+  version  = "3.1.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
@@ -85,7 +85,7 @@ Run and configure Claude Code as a standalone CLI in your workspace.
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "3.0.1"
+  version             = "3.1.0"
   agent_id            = coder_agent.example.id
   workdir             = "/home/coder"
   install_claude_code = true
@@ -108,12 +108,76 @@ variable "claude_code_oauth_token" {
 
 module "claude-code" {
   source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "3.0.1"
+  version                 = "3.1.0"
   agent_id                = coder_agent.example.id
   workdir                 = "/home/coder/project"
   claude_code_oauth_token = var.claude_code_oauth_token
 }
 ```
+
+### Usage with AWS Bedrock
+
+#### Prerequisites
+
+AWS account with Bedrock access, Claude models enabled in Bedrock console, appropriate IAM permissions.
+
+Configure Claude Code to use AWS Bedrock for accessing Claude models through your AWS infrastructure.
+
+```tf
+module "claude-code" {
+  source      = "registry.coder.com/coder/claude-code/coder"
+  version     = "3.1.0"
+  agent_id    = coder_agent.example.id
+  workdir     = "/home/coder/project"
+  model       = "anthropic.claude-3-5-sonnet-20241022-v2:0" # Bedrock model ID
+  use_bedrock = true
+  aws_region  = "us-west-2"
+
+  # Option 1: Using AWS credentials
+  aws_access_key_id     = "AKIA..."
+  aws_secret_access_key = "your-secret-key"
+
+  # Option 2: Using Bedrock API key (alternative to AWS credentials)
+  # aws_bearer_token_bedrock = "your-bedrock-api-key"
+}
+```
+
+> [!NOTE]
+> For model IDs and available models in your region, refer to the [AWS Bedrock documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html). For additional Bedrock configuration options (model selection, token limits, region overrides, etc.), see the [Claude Code Bedrock documentation](https://docs.claude.com/en/docs/claude-code/amazon-bedrock).
+
+### Usage with Google Vertex AI
+
+#### Prerequisites
+
+GCP project with Vertex AI API enabled, Claude models enabled through Model Garden, Google Cloud authentication configured, appropriate IAM permissions.
+
+Configure Claude Code to use Google Vertex AI for accessing Claude models through Google Cloud Platform.
+
+```tf
+module "claude-code" {
+  source            = "registry.coder.com/coder/claude-code/coder"
+  version           = "3.1.0"
+  agent_id          = coder_agent.example.id
+  workdir           = "/home/coder/project"
+  model             = "claude-3-5-sonnet@20241022" # Vertex AI model name
+  use_vertex        = true
+  vertex_project_id = "your-gcp-project-id"
+  vertex_region     = "us-central1" # or "global"
+}
+```
+
+**Authentication**
+
+Vertex AI uses Google Cloud authentication. Ensure your workspace has access to Google Cloud credentials through one of these methods:
+
+1. **Application Default Credentials (ADC)**: Set up through `gcloud auth application-default login`
+2. **Service Account**: Configure `GOOGLE_APPLICATION_CREDENTIALS` environment variable
+3. **Workload Identity**: For GKE deployments
+
+Refer to the [Google Cloud authentication documentation](https://cloud.google.com/docs/authentication/application-default-credentials) for detailed setup instructions.
+
+> [!NOTE]
+> For additional Vertex AI configuration options (model selection, token limits, region overrides, etc.), see the [Claude Code Vertex AI documentation](https://docs.claude.com/en/docs/claude-code/google-vertex-ai).
 
 ## Troubleshooting
 
