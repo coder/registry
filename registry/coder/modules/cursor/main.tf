@@ -55,10 +55,10 @@ data "coder_workspace_owner" "me" {}
 
 locals {
   mcp_b64 = var.mcp != "" ? base64encode(var.mcp) : ""
-} 
+}
 
 module "vscode-desktop-core" {
-  source = "registry.coder.com/coder/vscode-desktop-core/coder"
+  source  = "registry.coder.com/coder/vscode-desktop-core/coder"
   version = "1.0.0"
 
   agent_id = var.agent_id

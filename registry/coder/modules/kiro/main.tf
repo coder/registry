@@ -45,9 +45,9 @@ locals {
 }
 
 module "vscode-desktop-core" {
-  source = "registry.coder.com/coder/vscode-desktop-core/coder"
+  source  = "registry.coder.com/coder/vscode-desktop-core/coder"
   version = "1.0.0"
-  
+
   agent_id = var.agent_id
 
   web_app_icon         = "/icon/kiro.svg"
