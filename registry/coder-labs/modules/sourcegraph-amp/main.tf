@@ -69,7 +69,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.3.0"
+  default     = "v0.10.0"
 }
 
 variable "pre_install_script" {

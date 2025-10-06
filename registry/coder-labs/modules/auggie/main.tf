@@ -66,7 +66,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.6.0"
+  default     = "v0.10.0"
   validation {
     condition     = can(regex("^v[0-9]+\\.[0-9]+\\.[0-9]+", var.agentapi_version))
     error_message = "agentapi_version must be a valid semantic version starting with 'v', like 'v0.3.3'."

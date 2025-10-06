@@ -86,7 +86,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.7.1"
+  default     = "v0.10.0"
 }
 
 variable "ai_prompt" {

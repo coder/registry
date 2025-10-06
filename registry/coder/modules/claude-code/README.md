@@ -58,7 +58,7 @@ module "claude-code" {
   claude_code_oauth_token = "xxxxx-xxxx-xxxx"
 
   claude_code_version = "1.0.82" # Pin to a specific version
-  agentapi_version    = "v0.6.1"
+  agentapi_version    = "v0.10.0"
 
   ai_prompt = data.coder_parameter.ai_prompt.value
   model     = "sonnet"

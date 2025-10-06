@@ -88,7 +88,7 @@ variable "post_install_script" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.6.1"
+  default     = "v0.10.0"
 }
 
 variable "workdir" {

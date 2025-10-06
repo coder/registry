@@ -347,7 +347,7 @@ module "amazon-q" {
 
   # AgentAPI configuration for environments without wildcard access url. https://coder.com/docs/admin/setup#wildcard-access-url
   agentapi_chat_based_path = true
-  agentapi_version         = "v0.6.1"
+  agentapi_version         = "v0.10.0"
 }
 ```
 
