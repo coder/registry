@@ -50,11 +50,11 @@ module "vscode-desktop-core" {
 
   agent_id = var.agent_id
 
-  web_app_icon         = "/icon/kiro.svg"
-  web_app_slug         = "kiro"
-  web_app_display_name = "Kiro IDE"
-  web_app_order        = var.order
-  web_app_group        = var.group
+  coder_app_icon         = "/icon/kiro.svg"
+  coder_app_slug         = "kiro"
+  coder_app_display_name = "Kiro IDE"
+  coder_app_order        = var.order
+  coder_app_group        = var.group
 
   folder      = var.folder
   open_recent = var.open_recent
