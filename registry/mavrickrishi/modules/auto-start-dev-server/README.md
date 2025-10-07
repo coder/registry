@@ -51,6 +51,7 @@ module "auto_start_dev_servers" {
 ```hcl
 module "auto_start" {
   source   = "./modules/auto-start-dev-server"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
 }
 ```
@@ -60,6 +61,7 @@ module "auto_start" {
 ```hcl
 module "auto_start_dev_servers" {
   source   = "./modules/auto-start-dev-server"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
 
   # Optional: Configure which project types to detect
@@ -98,6 +100,7 @@ module "auto_start_dev_servers" {
 ```hcl
 module "auto_start" {
   source   = "./modules/auto-start-dev-server"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
 
   # Disable automatic preview app creation
@@ -110,6 +113,7 @@ module "auto_start" {
 ```hcl
 module "auto_start" {
   source   = "./modules/auto-start-dev-server"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
 
   # Only enable web development projects
@@ -132,6 +136,7 @@ module "auto_start" {
 ```hcl
 module "auto_start" {
   source   = "./modules/auto-start-dev-server"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
 
   workspace_directory = "/workspaces"
