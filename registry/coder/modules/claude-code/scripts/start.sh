@@ -1,7 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-source "$HOME"/.bashrc
+if [ -f "$HOME/.bashrc" ]; then
+  source "$HOME"/.bashrc
+fi
 export PATH="$HOME/.local/bin:$PATH"
 
 command_exists() {
