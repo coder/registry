@@ -11,8 +11,8 @@ describe("nexus-repository", async () => {
 
   testRequiredVariables(import.meta.dir, {
     agent_id: "test-agent",
-    nexus_url: "https://nexus.example.com", 
-    nexus_password: "test-password"
+    nexus_url: "https://nexus.example.com",
+    nexus_password: "test-password",
   });
 
   it("configures Maven settings", async () => {
@@ -21,8 +21,8 @@ describe("nexus-repository", async () => {
       nexus_url: "https://nexus.example.com",
       nexus_password: "test-token",
       package_managers: JSON.stringify({
-        maven: ["maven-public"]
-      })
+        maven: ["maven-public"],
+      }),
     });
 
     const output = await executeScriptInContainer(state, "ubuntu:20.04");
@@ -33,11 +33,11 @@ describe("nexus-repository", async () => {
   it("configures npm registry", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "test-agent",
-      nexus_url: "https://nexus.example.com", 
+      nexus_url: "https://nexus.example.com",
       nexus_password: "test-token",
       package_managers: JSON.stringify({
-        npm: ["npm-public"]
-      })
+        npm: ["npm-public"],
+      }),
     });
 
     const output = await executeScriptInContainer(state, "ubuntu:20.04");
@@ -49,10 +49,10 @@ describe("nexus-repository", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "test-agent",
       nexus_url: "https://nexus.example.com",
-      nexus_password: "test-token", 
+      nexus_password: "test-token",
       package_managers: JSON.stringify({
-        pypi: ["pypi-public"]
-      })
+        pypi: ["pypi-public"],
+      }),
     });
 
     const output = await executeScriptInContainer(state, "ubuntu:20.04");
@@ -67,16 +67,18 @@ describe("nexus-repository", async () => {
       nexus_password: "test-token",
       package_managers: JSON.stringify({
         maven: ["maven-public"],
-        npm: ["npm-public"], 
-        pypi: ["pypi-public"]
-      })
+        npm: ["npm-public"],
+        pypi: ["pypi-public"],
+      }),
     });
 
     const output = await executeScriptInContainer(state, "ubuntu:20.04");
     expect(output.stdout.join("\n")).toContain("☕ Configuring Maven...");
     expect(output.stdout.join("\n")).toContain("📦 Configuring npm...");
     expect(output.stdout.join("\n")).toContain("🐍 Configuring pip...");
-    expect(output.stdout.join("\n")).toContain("✅ Nexus repository configuration completed!");
+    expect(output.stdout.join("\n")).toContain(
+      "✅ Nexus repository configuration completed!",
+    );
   });
 
   it("handles empty package managers", async () => {
@@ -84,14 +86,22 @@ describe("nexus-repository", async () => {
       agent_id: "test-agent",
       nexus_url: "https://nexus.example.com",
       nexus_password: "test-token",
-      package_managers: JSON.stringify({})
+      package_managers: JSON.stringify({}),
     });
 
     const output = await executeScriptInContainer(state, "ubuntu:20.04");
-    expect(output.stdout.join("\n")).toContain("🤔 no maven repository is set, skipping maven configuration.");
-    expect(output.stdout.join("\n")).toContain("🤔 no npm repository is set, skipping npm configuration.");
-    expect(output.stdout.join("\n")).toContain("🤔 no pypi repository is set, skipping pypi configuration.");
-    expect(output.stdout.join("\n")).toContain("🤔 no docker repository is set, skipping docker configuration.");
+    expect(output.stdout.join("\n")).toContain(
+      "🤔 no maven repository is set, skipping maven configuration.",
+    );
+    expect(output.stdout.join("\n")).toContain(
+      "🤔 no npm repository is set, skipping npm configuration.",
+    );
+    expect(output.stdout.join("\n")).toContain(
+      "🤔 no pypi repository is set, skipping pypi configuration.",
+    );
+    expect(output.stdout.join("\n")).toContain(
+      "🤔 no docker repository is set, skipping docker configuration.",
+    );
   });
 
   it("configures Go module proxy", async () => {
@@ -100,13 +110,15 @@ describe("nexus-repository", async () => {
       nexus_url: "https://nexus.example.com",
       nexus_password: "test-token",
       package_managers: JSON.stringify({
-        go: ["go-public", "go-private"]
-      })
+        go: ["go-public", "go-private"],
+      }),
     });
 
     const output = await executeScriptInContainer(state, "ubuntu:20.04");
     expect(output.stdout.join("\n")).toContain("🐹 Configuring Go...");
-    expect(output.stdout.join("\n")).toContain("Go proxy configured via GOPROXY environment variable");
+    expect(output.stdout.join("\n")).toContain(
+      "Go proxy configured via GOPROXY environment variable",
+    );
     expect(output.stdout.join("\n")).toContain("🥳 Configuration complete!");
   });
 
@@ -116,20 +128,20 @@ describe("nexus-repository", async () => {
         agent_id: "test-agent",
         nexus_url: "invalid-url",
         nexus_password: "test-token",
-        package_managers: JSON.stringify({})
-      })
+        package_managers: JSON.stringify({}),
+      }),
     ).rejects.toThrow();
   });
 
   it("validates username_field values", async () => {
     await expect(
       runTerraformApply(import.meta.dir, {
-        agent_id: "test-agent", 
+        agent_id: "test-agent",
         nexus_url: "https://nexus.example.com",
         nexus_password: "test-token",
         username_field: "invalid",
-        package_managers: JSON.stringify({})
-      })
+        package_managers: JSON.stringify({}),
+      }),
     ).rejects.toThrow();
   });
 });
