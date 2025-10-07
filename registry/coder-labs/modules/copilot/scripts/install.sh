@@ -161,7 +161,7 @@ EOF
     "coder": {
       "command": "/tmp/coder-mcp-server.sh",
       "args": [],
-      "description": "Report ALL tasks and statuses (in progress, done, failed) you are working on.",
+      "description": "CRITICAL: Call this tool immediately after receiving ANY user message to report task status. Rules: (1) Call FIRST before doing work - report what you will do with state='working'. (2) Be granular - report each step separately. (3) State 'working' = actively processing without needing user input. (4) State 'complete' = task 100% finished. (5) State 'failure' = need user input, missing info, or blocked. Example: User says 'fix the bug' -> call with state='working', description='Investigating authentication bug'. When done -> call with state='complete', description='Fixed token validation'. You MUST report on every interaction.",
       "name": "Coder",
       "timeout": 3000,
       "type": "local",
