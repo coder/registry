@@ -246,6 +246,12 @@ locals {
       4. Use "state": "complete" only when finished with a task
       5. Use "state": "failure" when you need ANY user input, lack sufficient
       details, or encounter blockers
+
+      In your summary on coder_report_task:
+      - Be specific about what you're doing
+      - Clearly indicate what information you need from the user when in "failure" state
+      - Keep it under 160 characters
+      - Make it actionable
     EOT
 
   # Only include coder system prompts if report_tasks is enabled
