@@ -1,5 +1,5 @@
 ---
-display_name: Copilot
+display_name: Copilot CLI
 description: GitHub Copilot CLI agent for AI-powered terminal assistance
 icon: ../../../../.icons/github.svg
 verified: false
