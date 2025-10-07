@@ -14,6 +14,7 @@ ARG_MCP_CONFIG=$(echo -n "${ARG_MCP_CONFIG:-}" | base64 -d 2> /dev/null || echo 
 ARG_COPILOT_CONFIG=$(echo -n "${ARG_COPILOT_CONFIG:-}" | base64 -d 2> /dev/null || echo "")
 ARG_EXTERNAL_AUTH_ID=${ARG_EXTERNAL_AUTH_ID:-github}
 ARG_COPILOT_VERSION=${ARG_COPILOT_VERSION:-0.0.334}
+ARG_COPILOT_MODEL=${ARG_COPILOT_MODEL:-claude-sonnet-4.5}
 
 validate_prerequisites() {
   if ! command_exists node; then
@@ -201,7 +202,7 @@ add_custom_mcp_servers() {
 }
 
 configure_copilot_model() {
-  if [ -n "$ARG_COPILOT_MODEL" ] && [ "$ARG_COPILOT_MODEL" != "claude-sonnet-4.5" ]; then
+  if [ "$ARG_COPILOT_MODEL" != "claude-sonnet-4.5" ]; then
     echo "Setting Copilot model to: $ARG_COPILOT_MODEL"
     copilot config model "$ARG_COPILOT_MODEL" || {
       echo "WARNING: Failed to set model via copilot config, will use environment variable fallback"
