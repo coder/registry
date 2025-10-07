@@ -71,7 +71,7 @@ build_copilot_args() {
 check_existing_session() {
   if [ "$ARG_RESUME_SESSION" = "true" ]; then
     if copilot --help > /dev/null 2>&1; then
-      local session_dir="$HOME/.copilot/history-session-state"
+      local session_dir="$XDG_CONFIG_HOME/.copilot/history-session-state"
       if [ -d "$session_dir" ] && [ -n "$(ls "$session_dir"/session_*_*.json 2> /dev/null)" ]; then
         echo "Found existing Copilot session. Will continue latest session." >&2
         return 0
@@ -82,6 +82,7 @@ check_existing_session() {
 }
 
 setup_github_authentication() {
+  export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
   echo "Setting up GitHub authentication..."
 
   if [ -n "${GITHUB_TOKEN:-}" ]; then
