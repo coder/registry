@@ -295,6 +295,7 @@ module "agentapi" {
     ARG_COPILOT_CONFIG='${base64encode(local.final_copilot_config)}' \
     ARG_EXTERNAL_AUTH_ID='${var.external_auth_id}' \
     ARG_COPILOT_VERSION='${var.copilot_version}' \
+    ARG_COPILOT_MODEL='${var.copilot_model}' \
     /tmp/install.sh
   EOT
 }

@@ -14,6 +14,7 @@ ARG_MCP_CONFIG=$(echo -n "${ARG_MCP_CONFIG:-}" | base64 -d 2> /dev/null || echo 
 ARG_COPILOT_CONFIG=$(echo -n "${ARG_COPILOT_CONFIG:-}" | base64 -d 2> /dev/null || echo "")
 ARG_EXTERNAL_AUTH_ID=${ARG_EXTERNAL_AUTH_ID:-github}
 ARG_COPILOT_VERSION=${ARG_COPILOT_VERSION:-0.0.334}
+ARG_COPILOT_MODEL=${ARG_COPILOT_MODEL:-claude-sonnet-4.5}
 
 validate_prerequisites() {
   if ! command_exists node; then
@@ -84,7 +85,6 @@ setup_copilot_configurations() {
 
   local module_path="$HOME/.copilot-module"
   mkdir -p "$module_path"
-  mkdir -p "$HOME/.config"
 
   setup_copilot_config
 
@@ -92,7 +92,8 @@ setup_copilot_configurations() {
 }
 
 setup_copilot_config() {
-  local copilot_config_dir="$HOME/.copilot"
+  export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+  local copilot_config_dir="$XDG_CONFIG_HOME/.copilot"
   local copilot_config_file="$copilot_config_dir/config.json"
   local mcp_config_file="$copilot_config_dir/mcp-config.json"
 
