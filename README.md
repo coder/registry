@@ -48,3 +48,7 @@ Simply include that snippet inside your Coder template, defining any data depend
 ## Contributing
 
 We are always accepting new contributions. [Please see our contributing guide for more information.](./CONTRIBUTING.md)
+
+## For Maintainers
+
+Guidelines for maintainers reviewing PRs and managing releases. [See the maintainer guide for more information.](./MAINTAINER.md)
