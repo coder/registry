@@ -70,6 +70,9 @@ func validateCoderTemplateReadme(rm coderResourceReadme) []error {
 	for _, err := range validateCoderTemplateReadmeBody(rm.body) {
 		errs = append(errs, addFilePathToError(rm.filePath, err))
 	}
+	for _, err := range validateResourceGfmAlerts(rm.body) {
+		errs = append(errs, addFilePathToError(rm.filePath, err))
+	}
 	if fmErrs := validateCoderResourceFrontmatter("templates", rm.filePath, rm.frontmatter); len(fmErrs) != 0 {
 		errs = append(errs, fmErrs...)
 	}

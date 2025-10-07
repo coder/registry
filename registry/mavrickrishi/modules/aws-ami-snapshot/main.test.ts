@@ -18,27 +18,33 @@ describe("aws-ami-snapshot", async () => {
   });
 
   it("missing variable: instance_id", async () => {
-    await expect(runTerraformApply(import.meta.dir, {
-      default_ami_id: "ami-12345678",
-      template_name: "test-template",
-      test_mode: true,
-    })).rejects.toThrow();
+    await expect(
+      runTerraformApply(import.meta.dir, {
+        default_ami_id: "ami-12345678",
+        template_name: "test-template",
+        test_mode: true,
+      }),
+    ).rejects.toThrow();
   });
 
   it("missing variable: default_ami_id", async () => {
-    await expect(runTerraformApply(import.meta.dir, {
-      instance_id: "i-1234567890abcdef0",
-      template_name: "test-template",
-      test_mode: true,
-    })).rejects.toThrow();
+    await expect(
+      runTerraformApply(import.meta.dir, {
+        instance_id: "i-1234567890abcdef0",
+        template_name: "test-template",
+        test_mode: true,
+      }),
+    ).rejects.toThrow();
   });
 
   it("missing variable: template_name", async () => {
-    await expect(runTerraformApply(import.meta.dir, {
-      instance_id: "i-1234567890abcdef0",
-      default_ami_id: "ami-12345678",
-      test_mode: true,
-    })).rejects.toThrow();
+    await expect(
+      runTerraformApply(import.meta.dir, {
+        instance_id: "i-1234567890abcdef0",
+        default_ami_id: "ami-12345678",
+        test_mode: true,
+      }),
+    ).rejects.toThrow();
   });
 
   it("supports optional variables", async () => {

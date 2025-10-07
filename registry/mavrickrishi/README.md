@@ -20,3 +20,4 @@ participating in LFX CNCF programs, and helping the developer community grow.
 
 - **aws-ami-snapshot**: Create and manage AMI snapshots for Coder workspaces with restore capabilities
 - [nexus-repository](./modules/nexus-repository/) - Configure package managers to use Sonatype Nexus Repository
+- [auto-start-dev-server](modules/auto-start-dev-server/README.md) - Automatically detect and start development servers for various project types
