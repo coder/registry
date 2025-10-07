@@ -128,7 +128,7 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.1.1"
+  version = "1.2.0"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
