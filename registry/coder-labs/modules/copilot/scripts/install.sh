@@ -85,7 +85,6 @@ setup_copilot_configurations() {
 
   local module_path="$HOME/.copilot-module"
   mkdir -p "$module_path"
-  mkdir -p "$HOME/.config"
 
   setup_copilot_config
 
