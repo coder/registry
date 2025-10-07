@@ -192,6 +192,30 @@ variable "claude_md_path" {
   default     = "$HOME/.claude/CLAUDE.md"
 }
 
+variable "enable_boundary" {
+  type        = bool
+  description = "Whether to enable coder boundary for network filtering"
+  default     = false
+}
+
+variable "boundary_log_dir" {
+  type        = string
+  description = "Directory for boundary logs"
+  default     = "/tmp/boundary_logs"
+}
+
+variable "boundary_unprivileged" {
+  type        = bool
+  description = "Whether to use --unprivileged flag with coder boundary (recommended for security)"
+  default     = true
+}
+
+variable "boundary_additional_allowed_urls" {
+  type        = list(string)
+  description = "Additional URLs to allow through boundary (in addition to default allowed URLs)"
+  default     = []
+}
+
 resource "coder_env" "claude_code_md_path" {
   count = var.claude_md_path == "" ? 0 : 1
 
@@ -222,6 +246,12 @@ resource "coder_env" "claude_api_key" {
   value    = var.claude_api_key
 }
 
+resource "coder_env" "mcp_server_port" {
+  agent_id = var.agent_id
+  name     = "MCP_SERVER_PORT"
+  value    = "8081"
+}
+
 locals {
   # we have to trim the slash because otherwise coder exp mcp will
   # set up an invalid claude config 
@@ -231,6 +261,8 @@ locals {
   start_script                      = file("${path.module}/scripts/start.sh")
   module_dir_name                   = ".claude-module"
   remove_last_session_id_script_b64 = base64encode(file("${path.module}/scripts/remove-last-session-id.sh"))
+  # Extract hostname from access_url for boundary --allow flag
+  coder_host = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
 }
 
 module "agentapi" {
@@ -270,6 +302,11 @@ module "agentapi" {
      ARG_PERMISSION_MODE='${var.permission_mode}' \
      ARG_WORKDIR='${local.workdir}' \
      ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+     ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
+     ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
+     ARG_BOUNDARY_UNPRIVILEGED='${var.boundary_unprivileged}' \
+     ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join(" ", var.boundary_additional_allowed_urls)}' \
+     ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh
    EOT
 

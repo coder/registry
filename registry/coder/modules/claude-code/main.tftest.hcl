@@ -187,3 +187,29 @@ run "test_claude_code_permission_mode_validation" {
     error_message = "Permission mode should be one of the valid options"
   }
 }
+
+run "test_claude_code_with_boundary" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent-boundary"
+    workdir          = "/home/coder/boundary-test"
+    enable_boundary  = true
+    boundary_log_dir = "/tmp/test-boundary-logs"
+  }
+
+  assert {
+    condition     = var.enable_boundary == true
+    error_message = "Boundary should be enabled"
+  }
+
+  assert {
+    condition     = var.boundary_log_dir == "/tmp/test-boundary-logs"
+    error_message = "Boundary log dir should be set correctly"
+  }
+
+  assert {
+    condition     = local.coder_host != ""
+    error_message = "Coder host should be extracted from access URL"
+  }
+}
