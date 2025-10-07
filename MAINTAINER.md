@@ -23,6 +23,7 @@ Check that PRs have:
 - [ ] Working tests (`terraform test`)
 - [ ] Formatted code (`bun run fmt`)
 - [ ] Avatar image for new namespaces (`avatar.png` or `avatar.svg` in `.images/`)
+- [ ] Version label: `version:patch`, `version:minor`, or `version:major`
 
 ### Version Guidelines
 
@@ -32,7 +33,8 @@ When reviewing PRs, ensure the version change follows semantic versioning:
 - **Minor** (1.2.3 → 1.3.0): New features, adding inputs
 - **Major** (1.2.3 → 2.0.0): Breaking changes (removing inputs, changing types)
 
-PRs should clearly indicate the version change (e.g., `v1.2.3 → v1.2.4`).
+PRs should clearly indicate the intended version change (e.g., v1.2.3 → v1.2.4) and include the appropriate label: `version:patch`, `version:minor`, or `version:major`.
+The “Version Bump” CI uses this label to validate required updates (README version refs, etc.).
 
 ### Validate READMEs
 
