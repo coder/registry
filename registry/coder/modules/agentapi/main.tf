@@ -117,7 +117,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.3.3"
+  default     = "v0.10.0"
 }
 
 variable "agentapi_port" {

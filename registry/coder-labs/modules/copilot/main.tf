@@ -242,7 +242,7 @@ resource "coder_env" "github_token" {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.1.1"
+  version = "1.2.0"
 
   agent_id             = var.agent_id
   folder               = local.workdir
@@ -253,6 +253,7 @@ module "agentapi" {
   web_app_display_name = var.web_app_display_name
   cli_app              = var.cli_app
   cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
+  cli_app_icon         = var.cli_app ? var.icon : null
   cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
   agentapi_subdomain   = var.subdomain
   module_dir_name      = local.module_dir_name
@@ -295,6 +296,7 @@ module "agentapi" {
     ARG_COPILOT_CONFIG='${base64encode(local.final_copilot_config)}' \
     ARG_EXTERNAL_AUTH_ID='${var.external_auth_id}' \
     ARG_COPILOT_VERSION='${var.copilot_version}' \
+    ARG_COPILOT_MODEL='${var.copilot_model}' \
     /tmp/install.sh
   EOT
 }
