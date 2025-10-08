@@ -35,13 +35,13 @@ variable "agent_id" {
 
 variable "log_path" {
   type        = string
-  description = "The path to log module-name to."
-  default     = "/tmp/module-name.log"
+  description = "The path to the module log file."
+  default     = "/tmp/module_name.log"
 }
 
 variable "port" {
   type        = number
-  description = "The port to run module-name on."
+  description = "The port to run the application on."
   default     = 19999
 }
 
