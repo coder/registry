@@ -9,7 +9,6 @@ command_exists() {
 # Inputs
 ARG_WORKDIR=${ARG_WORKDIR:-/home/coder}
 ARG_INSTALL_AIDER=${ARG_INSTALL_AIDER:-true}
-AIDER_SYSTEM_PROMPT=${AIDER_SYSTEM_PROMPT:-}
 ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 ARG_AIDER_CONFIG=${ARG_AIDER_CONFIG:-}
 ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
@@ -82,17 +81,6 @@ function install_mcpm-aider() {
   printf "%s Successfully installed MCPM-Aider. Version: %s\n" "${BOLD}" "$(mcpm-aider -V)"
 }
 
-function setup_system_prompt() {
-  if [ -n "${AIDER_SYSTEM_PROMPT:-}" ]; then
-    echo "Setting Aider system prompt..."
-    mkdir -p "$HOME/.aider-module"
-    echo "$AIDER_SYSTEM_PROMPT" > "$HOME/.aider-module/SYSTEM_PROMPT.md"
-    echo "System prompt saved to $HOME/.aider-module/SYSTEM_PROMPT.md"
-  else
-    echo "No system prompt provided for Aider."
-  fi
-}
-
 function configure_aider_settings() {
   if [ "${ARG_REPORT_TASKS}" = "true" ]; then
     echo "Configuring Aider to report tasks via Coder MCP..."
@@ -121,7 +109,6 @@ function report_tasks() {
 }
 
 install_aider
-install_mcpm-aider
-setup_system_prompt
+# install_mcpm-aider
 configure_aider_settings
-report_tasks
+# report_tasks

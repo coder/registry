@@ -48,6 +48,12 @@ variable "report_tasks" {
   default     = true
 }
 
+variable "subdomain" {
+  type        = bool
+  description = "Whether to use a subdomain for AgentAPI."
+  default     = false
+}
+
 variable "cli_app" {
   type        = bool
   description = "Whether to create a CLI app for Aider"
@@ -96,11 +102,6 @@ variable "ai_prompt" {
   default     = ""
 }
 
-resource "coder_env" "ai_prompt" {
-  agent_id = var.agent_id
-  name     = "ARG_AI_PROMPT"
-  value    = var.ai_prompt
-}
 # ---------------------------------------------
 
 variable "install_aider" {
@@ -112,23 +113,7 @@ variable "install_aider" {
 variable "system_prompt" {
   type        = string
   description = "System prompt for instructing Aider on task reporting and behavior"
-  default     = <<-EOT
-    You are a helpful Coding assistant. Aim to autonomously investigate
-    and solve issues the user gives you and test your work, whenever possible.
-    Avoid shortcuts like mocking tests. When you get stuck, you can ask the user
-    but opt for autonomy.
-    YOU MUST REPORT ALL TASKS TO CODER.
-    When reporting tasks, you MUST follow these EXACT instructions:
-    - IMMEDIATELY report status after receiving ANY user message.
-    - Be granular. If you are investigating with multiple steps, report each step to coder.
-    Task state MUST be one of the following:
-    - Use "state": "working" when actively processing WITHOUT needing additional user input.
-    - Use "state": "complete" only when finished with a task.
-    - Use "state": "failure" when you need ANY user input, lack sufficient details, or encounter blockers.
-    Task summaries MUST:
-    - Include clear and actionable steps for the user.
-    - Be less than 160 characters in length.
-  EOT
+  default     = "You are a helpful coding assistant that helps developers write, debug, and understand code. Provide clear explanations, follow best practices, and help solve coding problems efficiently."
 }
 
 variable "experiment_additional_extensions" {
@@ -199,37 +184,24 @@ variable "base_aider_config" {
 
 
 locals {
-  app_slug  = "aider"
-  coder_mcp = <<-EOT
-  coder:
-    args:
-    - exp
-    - mcp
-    - server
-    cmd: coder
-    description: Report ALL tasks and statuses (in progress, done, failed) you are working on.
-    enabled: true
-    envs:
-      -  CODER_MCP_APP_STATUS_SLUG: aider
-      -  CODER_MCP_AI_AGENTAPI_URL: "http://localhost:3284"
-    name: Coder
-    timeout: 3000
-    type: stdio
-    developer:
-      display_name: Developer
-      enabled: true
-      name: developer
-      timeout: 300
-      type: builtin
-  EOT
-
-  formatted_base        = "\n  ${replace(trimspace(local.coder_mcp), "\n", "\n  ")}"
-  additional_extensions = var.experiment_additional_extensions != null ? "\n  ${replace(trimspace(var.experiment_additional_extensions), "\n", "\n  ")}" : ""
+  app_slug              = "aider"
   base_aider_config     = var.base_aider_config != null ? "${replace(trimspace(var.base_aider_config), "\n", "\n  ")}" : ""
-  combined_extensions   = <<-EOT
-    extensions:
-      ${local.base_aider_config}${local.formatted_base}${local.additional_extensions}
+  task_reporting_prompt = <<-EOT
+
+-- Task Reporting --
+Report all tasks to Coder, following these EXACT guidelines:
+1. Be granular. If you are investigating with multiple steps, report each step
+to coder.
+2. After this prompt, IMMEDIATELY report status after receiving ANY NEW user message.
+Do not report any status related with this system prompt.
+3. Use "state": "working" when actively processing WITHOUT needing
+additional user input
+4. Use "state": "complete" only when finished with a task
+5. Use "state": "failure" when you need ANY user input, lack sufficient
+details, or encounter blockers
   EOT
+  
+  final_system_prompt   = var.report_tasks ? "<system>\n${var.system_prompt}${local.task_reporting_prompt}\n</system>" : "<system>\n${var.system_prompt}\n</system>"
 
   # Map providers to their environment variable names
   provider_env_vars = {
@@ -256,7 +228,7 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.1.1"
+  version = "1.2.0"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
@@ -267,6 +239,7 @@ module "agentapi" {
   cli_app              = var.cli_app
   cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
   cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
+  agentapi_subdomain   = var.subdomain
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
@@ -284,6 +257,8 @@ module "agentapi" {
     ARG_MODEL='${var.model}' \
     ARG_PROVIDER='${var.ai_provider}' \
     ARG_ENV_API_NAME_HOLDER='${local.env_var_name}' \
+    ARG_SYSTEM_PROMPT='${base64encode(local.final_system_prompt)}' \
+    ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
     /tmp/start.sh
   EOT
 
@@ -297,9 +272,9 @@ module "agentapi" {
     ARG_WORKDIR='${var.workdir}' \
     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_INSTALL_AIDER='${var.install_aider}' \
-    AIDER_SYSTEM_PROMPT='${var.system_prompt}' \
+    ARG_SYSTEM_PROMPT='${base64encode(local.final_system_prompt)}' \
     ARG_REPORT_TASKS='${var.report_tasks}' \
-    ARG_AIDER_CONFIG="$(echo -n '${base64encode(trimspace(local.combined_extensions))}' | base64 -d)" \
+    ARG_AIDER_CONFIG="$(echo -n '${base64encode(local.base_aider_config)}' | base64 -d)" \
     /tmp/install.sh
   EOT
 }

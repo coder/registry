@@ -4,8 +4,10 @@ set -euo pipefail
 # Ensure pipx-installed apps are in PATH
 export PATH="$HOME/.local/bin:$PATH"
 
-AIDER_START_DIRECTORY=${AIDER_START_DIRECTORY:-/home/coder}
+ARG_WORKDIR=${ARG_WORKDIR:-/home/coder}
 ARG_API_KEY=$(echo -n "${ARG_API_KEY:-}" | base64 -d)
+ARG_SYSTEM_PROMPT=$(echo -n "${ARG_SYSTEM_PROMPT:-}" | base64 -d 2> /dev/null || echo "")
+ARG_AI_PROMPT=$(echo -n "${ARG_AI_PROMPT:-}" | base64 -d 2> /dev/null || echo "")
 ARG_MODEL=${ARG_MODEL:-}
 ARG_PROVIDER=${ARG_PROVIDER:-}
 ARG_ENV_API_NAME_HOLDER=${ARG_ENV_API_NAME_HOLDER:-}
@@ -22,17 +24,32 @@ else
   printf "API key not provided\n"
 fi
 
-# if [[ "${AIDER_PROMPT}" == "true" && -n "${ARG_AI_PROMPT:-}" ]]; then
-#   printf "Aider start only with this prompt : $ARG_AI_PROMPT"
-#   mkdir -p $HOME/.aider-module/
-#   echo aider --model $ARG_MODEL --yes-always --message "$ARG_AI_PROMPT" > $HOME/.aider-module/aider_output.txt
+build_initial_prompt() {
+  local initial_prompt=""
 
-if [ -n "${ARG_AI_PROMPT:-}" ]; then
-  printf "Aider task prompt provided : $ARG_AI_PROMPT"
-  PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $ARG_AI_PROMPT"
+  if [ -n "$ARG_AI_PROMPT" ]; then
+    if [ -n "$ARG_SYSTEM_PROMPT" ]; then
+      initial_prompt="$ARG_SYSTEM_PROMPT $ARG_AI_PROMPT"
+    else
+      initial_prompt="$ARG_AI_PROMPT"
+    fi
+  fi
 
-  agentapi server --term-width=67 --term-height=1190 -- aider --model $ARG_MODEL --yes-always --message "$ARG_AI_PROMPT"
-else
-  printf "No task prompt given.\n"
-  agentapi server --term-width=67 --term-height=1190 -- aider --model $ARG_MODEL --yes-always
-fi
+  echo "$initial_prompt"
+}
+
+start_agentapi() {
+  echo "Starting in directory: $ARG_WORKDIR"
+  cd "$ARG_WORKDIR"
+
+  local initial_prompt
+  initial_prompt=$(build_initial_prompt)
+  if [ -n "$initial_prompt" ]; then
+    echo "Using Initial Prompt to Start agentapi with Task Prompt"
+    agentapi server -I="$initial_prompt" --type aider --term-width=67 --term-height=1190 -- aider --model $ARG_MODEL --yes-always
+  else
+    agentapi server --term-width=67 --term-height=1190 -- aider --model $ARG_MODEL --yes-always
+  fi 
+}
+
+start_agentapi
