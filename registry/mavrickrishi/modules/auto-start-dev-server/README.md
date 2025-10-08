@@ -1,7 +1,7 @@
 ---
-display_name: Auto-Start Development Servers
+display_name: Auto-Start Dev Servers
 description: Automatically detect and start development servers for various project types
-icon: ../../../../.icons/server.svg
+icon: ../../../../.icons/auto-dev-server.svg
 verified: false
 tags: [development, automation, servers]
 ---
