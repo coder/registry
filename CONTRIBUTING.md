@@ -502,4 +502,8 @@ When reporting bugs, include:
 4. **Breaking changes** without defaults
 5. **Not running** formatting (`bun run fmt`) and tests (`terraform test`, and `bun test main.test.ts` if applicable) before submitting
 
+## For Maintainers
+
+Guidelines for reviewing PRs, managing releases, and maintaining the registry. [See the maintainer guide for detailed information.](./MAINTAINER.md)
+
 Happy contributing! 🚀
