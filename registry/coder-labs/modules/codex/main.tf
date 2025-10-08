@@ -171,7 +171,7 @@ module "agentapi" {
   cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
-  agentapi_subdomain = var.subdomain
+  agentapi_subdomain   = var.subdomain
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
