@@ -64,5 +64,3 @@ if [ -n "$POST_CLONE_SCRIPT" ]; then
   /tmp/post_clone.sh
   rm /tmp/post_clone.sh
 fi
-
-exit 0
