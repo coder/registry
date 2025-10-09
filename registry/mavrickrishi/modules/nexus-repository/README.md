@@ -2,7 +2,7 @@
 display_name: Nexus Repository
 description: Configure package managers to use Sonatype Nexus Repository for Maven, npm, PyPI, and Docker registries.
 icon: ../../../../.icons/nexus-repository.svg
-verified: true
+verified: false
 tags: [integration, nexus-repository, maven, npm, pypi, docker]
 ---
 
@@ -13,7 +13,7 @@ Configure package managers (Maven, npm, Go, PyPI, Docker) to use [Sonatype Nexus
 ```tf
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
-  version        = "1.0.0"
+  version        = "1.0.1"
   agent_id       = coder_agent.example.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
@@ -43,7 +43,7 @@ module "nexus_repository" {
 ```tf
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
-  version        = "1.0.0"
+  version        = "1.0.1"
   agent_id       = coder_agent.example.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
@@ -58,7 +58,7 @@ module "nexus_repository" {
 ```tf
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
-  version        = "1.0.0"
+  version        = "1.0.1"
   agent_id       = coder_agent.example.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
@@ -73,7 +73,7 @@ module "nexus_repository" {
 ```tf
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
-  version        = "1.0.0"
+  version        = "1.0.1"
   agent_id       = coder_agent.example.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
@@ -88,7 +88,7 @@ module "nexus_repository" {
 ```tf
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
-  version        = "1.0.0"
+  version        = "1.0.1"
   agent_id       = coder_agent.example.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
@@ -103,7 +103,7 @@ module "nexus_repository" {
 ```tf
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
-  version        = "1.0.0"
+  version        = "1.0.1"
   agent_id       = coder_agent.example.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
@@ -118,7 +118,7 @@ module "nexus_repository" {
 ```tf
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
-  version        = "1.0.0"
+  version        = "1.0.1"
   agent_id       = coder_agent.example.id
   nexus_url      = "https://nexus.example.com"
   nexus_username = "custom-user"
@@ -134,7 +134,7 @@ module "nexus_repository" {
 ```tf
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
-  version        = "1.0.0"
+  version        = "1.0.1"
   agent_id       = coder_agent.example.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
