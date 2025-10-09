@@ -15,7 +15,7 @@ run "app_url_uses_port" {
   }
 
   assert {
-    condition     = resource.coder_app.MODULE_NAME.url == "http://localhost:19999"
-    error_message = "Expected MODULE_NAME app URL to include configured port"
+    condition     = resource.coder_app.module_name.url == "http://localhost:19999"
+    error_message = "Expected module-name app URL to include configured port"
   }
 }
