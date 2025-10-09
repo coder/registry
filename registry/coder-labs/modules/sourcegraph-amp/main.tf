@@ -96,6 +96,12 @@ variable "install_amp" {
   default     = true
 }
 
+variable "install_via_npm" {
+  type        = bool
+  description = "Install Amp via npm instead of the official installer."
+  default     = false
+}
+
 variable "amp_api_key" {
   type        = string
   description = "amp cli API Key"
@@ -237,6 +243,7 @@ module "agentapi" {
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
     ARG_INSTALL_AMP='${var.install_amp}' \
+    ARG_INSTALL_VIA_NPM='${var.install_via_npm}' \
     ARG_AMP_CONFIG="${base64encode(jsonencode(local.final_config))}" \
     ARG_AMP_VERSION='${var.amp_version}' \
     ARG_AMP_INSTRUCTION_PROMPT='${base64encode(var.instruction_prompt)}' \

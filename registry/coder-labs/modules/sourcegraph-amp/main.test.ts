@@ -121,6 +121,28 @@ describe("amp", async () => {
     expect(resp).toContain("0.0.1755964909-g31e08");
   });
 
+  test("install-via-npm", async () => {
+    const { id } = await setup({
+      skipAmpMock: true,
+      moduleVariables: {
+        install_via_npm: "true",
+      },
+    });
+    await execModuleScript(id);
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.amp-module/install.log",
+    );
+    expect(installLog).toContain("Installing Amp via npm");
+
+    const startLog = await readFileContainer(
+      id,
+      "/home/coder/.amp-module/agentapi-start.log",
+    );
+    expect(startLog).toContain("AMP version:");
+  });
+
   test("custom-workdir", async () => {
     const workdir = "/tmp/amp-test";
     const { id } = await setup({

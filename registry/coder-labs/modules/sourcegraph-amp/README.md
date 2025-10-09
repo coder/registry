@@ -22,7 +22,10 @@ module "amp-cli" {
 
 ## Prerequisites
 
-- **Node.js and npm must be sourced/available before the Amp cli installs** - ensure they are installed in your workspace image or via earlier provisioning steps
+- **Default (official installer)**: No prerequisites - the official installer includes its own runtime (Bun)
+- **npm installation (`install_via_npm = true`)**: Requires Node.js and npm to be installed before Amp installation
+  - Required for Alpine Linux or other musl-based systems
+  - Ensure Node.js and npm are available in your workspace image or via earlier provisioning steps
 
 ## Usage Example
 

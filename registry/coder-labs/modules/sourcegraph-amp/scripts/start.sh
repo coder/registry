@@ -6,10 +6,10 @@ set -euo pipefail
 source "$HOME/.bashrc"
 # shellcheck source=/dev/null
 if [ -f "$HOME/.nvm/nvm.sh" ]; then
-  source "$HOME"/.nvm/nvm.sh
-else
-  export PATH="$HOME/.npm-global/bin:$PATH"
+  source "$HOME/.nvm/nvm.sh"
 fi
+
+export PATH="$HOME/.local/bin:$HOME/.amp/bin:$HOME/.npm-global/bin:$PATH"
 
 function ensure_command() {
   command -v "$1" &> /dev/null || {
