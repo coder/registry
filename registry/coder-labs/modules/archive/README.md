@@ -10,6 +10,17 @@ tags: [backup, archive, tar, helper]
 
 This module installs small, robust scripts in your workspace to create and extract tar archives from a list of files and directories. It supports optional compression (gzip or zstd). The create command prints only the resulting archive path to stdout; operational logs go to stderr. An optional stop hook can also create an archive automatically when the workspace stops, and an optional start hook can wait for an archive on-disk and extract it on start.
 
+```tf
+module "archive" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder-labs/archive/coder"
+  version  = "0.0.1"
+  agent_id = coder_agent.example.id
+
+  paths = ["./projects", "./code"]
+}
+```
+
 ## Features
 
 - Installs two commands into the workspace `$PATH`: `coder-archive-create` and `coder-archive-extract`.
@@ -28,7 +39,7 @@ Basic example:
 ```tf
 module "archive" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/archive/coder"
+  source   = "registry.coder.com/coder-labs/archive/coder"
   version  = "0.0.1"
   agent_id = coder_agent.example.id
 
@@ -46,7 +57,7 @@ Customize compression and output:
 ```tf
 module "archive" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/archive/coder"
+  source   = "registry.coder.com/coder-labs/archive/coder"
   version  = "0.0.1"
   agent_id = coder_agent.example.id
 
@@ -63,7 +74,7 @@ Enable auto-archive on stop:
 ```tf
 module "archive" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/archive/coder"
+  source   = "registry.coder.com/coder-labs/archive/coder"
   version  = "0.0.1"
   agent_id = coder_agent.example.id
 
@@ -77,7 +88,7 @@ Extract on start:
 ```tf
 module "archive" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/archive/coder"
+  source   = "registry.coder.com/coder-labs/archive/coder"
   version  = "0.0.1"
   agent_id = coder_agent.example.id
 
