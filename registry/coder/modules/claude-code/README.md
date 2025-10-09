@@ -137,25 +137,46 @@ resource "coder_env" "aws_region" {
 }
 
 # Option 1: Using AWS credentials
-resource "coder_env" "aws_access_key" {
-  agent_id = coder_agent.example.id
-  name     = "AWS_ACCESS_KEY_ID"
-  value    = "your-access-key-id"
+
+variable "aws_access_key_id" {
+  type        = string
+  description = "Your AWS access key ID. Create this in the AWS IAM console under 'Security credentials'."
+  sensitive   = true
+  value       = "xxxx-xxx-xxxx"
 }
 
-resource "coder_env" "aws_secret_key" {
+variable "aws_secret_access_key" {
+  type        = string
+  description = "Your AWS secret access key. This is shown once when you create an access key in the AWS IAM console."
+  sensitive   = true
+  value       = "xxxx-xxx-xxxx"
+}
+
+resource "coder_env" "aws_access_key_id" {
+  agent_id = coder_agent.example.id
+  name     = "AWS_ACCESS_KEY_ID"
+  value    = var.aws_access_key_id
+}
+
+resource "coder_env" "aws_secret_access_key" {
   agent_id  = coder_agent.example.id
   name      = "AWS_SECRET_ACCESS_KEY"
-  value     = "your-secret-access-key"
-  sensitive = true
+  value     = var.aws_secret_access_key"
 }
 
 # Option 2: Using Bedrock API key (simpler)
+
+variable "aws_bearer_token_bedrock" {
+  type        = string
+  description = "Your AWS Bedrock bearer token. This provides access to Bedrock without needing separate access key and secret key."
+  sensitive   = true
+  value       = "xxxx-xxx-xxxx"
+}
+
 resource "coder_env" "bedrock_api_key" {
   agent_id  = coder_agent.example.id
   name      = "AWS_BEARER_TOKEN_BEDROCK"
-  value     = "your-bedrock-api-key"
-  sensitive = true
+  value     = var.aws_bearer_token_bedrock
 }
 
 module "claude-code" {
@@ -163,7 +184,7 @@ module "claude-code" {
   version  = "3.1.1"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
-  model    = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+  model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
 }
 ```
 
