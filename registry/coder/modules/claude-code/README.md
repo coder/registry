@@ -159,9 +159,9 @@ resource "coder_env" "aws_access_key_id" {
 }
 
 resource "coder_env" "aws_secret_access_key" {
-  agent_id  = coder_agent.example.id
-  name      = "AWS_SECRET_ACCESS_KEY"
-  value     = var.aws_secret_access_key"
+  agent_id = coder_agent.example.id
+  name     = "AWS_SECRET_ACCESS_KEY"
+  value    = var.aws_secret_access_key
 }
 
 # Option 2: Using Bedrock API key (simpler)
@@ -174,9 +174,9 @@ variable "aws_bearer_token_bedrock" {
 }
 
 resource "coder_env" "bedrock_api_key" {
-  agent_id  = coder_agent.example.id
-  name      = "AWS_BEARER_TOKEN_BEDROCK"
-  value     = var.aws_bearer_token_bedrock
+  agent_id = coder_agent.example.id
+  name     = "AWS_BEARER_TOKEN_BEDROCK"
+  value    = var.aws_bearer_token_bedrock
 }
 
 module "claude-code" {
