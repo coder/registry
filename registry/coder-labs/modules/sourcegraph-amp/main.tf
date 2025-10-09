@@ -50,7 +50,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.6.1"
+  default     = "v0.10.0"
 }
 
 variable "cli_app" {
@@ -88,7 +88,6 @@ variable "report_tasks" {
   description = "Whether to enable task reporting to Coder UI"
   default     = true
 }
-
 
 variable "install_amp" {
   type        = bool
@@ -204,7 +203,7 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.1.1"
+  version = "1.2.0"
 
   agent_id             = var.agent_id
   folder               = var.workdir
