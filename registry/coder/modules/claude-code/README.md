@@ -13,7 +13,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "3.0.2"
+  version        = "3.1.1"
   agent_id       = coder_agent.example.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
@@ -49,7 +49,7 @@ data "coder_parameter" "ai_prompt" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "3.0.2"
+  version  = "3.1.1"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
@@ -58,7 +58,7 @@ module "claude-code" {
   claude_code_oauth_token = "xxxxx-xxxx-xxxx"
 
   claude_code_version = "1.0.82" # Pin to a specific version
-  agentapi_version    = "v0.6.1"
+  agentapi_version    = "v0.10.0"
 
   ai_prompt = data.coder_parameter.ai_prompt.value
   model     = "sonnet"
@@ -85,7 +85,7 @@ Run and configure Claude Code as a standalone CLI in your workspace.
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "3.0.2"
+  version             = "3.1.1"
   agent_id            = coder_agent.example.id
   workdir             = "/home/coder"
   install_claude_code = true
@@ -108,7 +108,7 @@ variable "claude_code_oauth_token" {
 
 module "claude-code" {
   source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "3.0.2"
+  version                 = "3.1.1"
   agent_id                = coder_agent.example.id
   workdir                 = "/home/coder/project"
   claude_code_oauth_token = var.claude_code_oauth_token
@@ -160,7 +160,7 @@ resource "coder_env" "bedrock_api_key" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "3.0.2"
+  version  = "3.1.1"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
   model    = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
@@ -199,7 +199,7 @@ resource "coder_env" "cloud_ml_region" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "3.0.2"
+  version  = "3.1.1"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
   model    = "claude-sonnet-4@20250514"
