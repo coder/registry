@@ -13,7 +13,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "3.1.0"
+  version        = "3.1.1"
   agent_id       = coder_agent.example.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
@@ -49,7 +49,7 @@ data "coder_parameter" "ai_prompt" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "3.1.0"
+  version  = "3.1.1"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
@@ -85,7 +85,7 @@ Run and configure Claude Code as a standalone CLI in your workspace.
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "3.1.0"
+  version             = "3.1.1"
   agent_id            = coder_agent.example.id
   workdir             = "/home/coder"
   install_claude_code = true
@@ -108,12 +108,127 @@ variable "claude_code_oauth_token" {
 
 module "claude-code" {
   source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "3.0.3"
+  version                 = "3.1.1"
   agent_id                = coder_agent.example.id
   workdir                 = "/home/coder/project"
   claude_code_oauth_token = var.claude_code_oauth_token
 }
 ```
+
+### Usage with AWS Bedrock
+
+#### Prerequisites
+
+AWS account with Bedrock access, Claude models enabled in Bedrock console, appropriate IAM permissions.
+
+Configure Claude Code to use AWS Bedrock for accessing Claude models through your AWS infrastructure.
+
+```tf
+resource "coder_env" "bedrock_use" {
+  agent_id = coder_agent.example.id
+  name     = "CLAUDE_CODE_USE_BEDROCK"
+  value    = "1"
+}
+
+resource "coder_env" "aws_region" {
+  agent_id = coder_agent.example.id
+  name     = "AWS_REGION"
+  value    = "us-east-1" # Choose your preferred region
+}
+
+# Option 1: Using AWS credentials
+
+variable "aws_access_key_id" {
+  type        = string
+  description = "Your AWS access key ID. Create this in the AWS IAM console under 'Security credentials'."
+  sensitive   = true
+  value       = "xxxx-xxx-xxxx"
+}
+
+variable "aws_secret_access_key" {
+  type        = string
+  description = "Your AWS secret access key. This is shown once when you create an access key in the AWS IAM console."
+  sensitive   = true
+  value       = "xxxx-xxx-xxxx"
+}
+
+resource "coder_env" "aws_access_key_id" {
+  agent_id = coder_agent.example.id
+  name     = "AWS_ACCESS_KEY_ID"
+  value    = var.aws_access_key_id
+}
+
+resource "coder_env" "aws_secret_access_key" {
+  agent_id = coder_agent.example.id
+  name     = "AWS_SECRET_ACCESS_KEY"
+  value    = var.aws_secret_access_key
+}
+
+# Option 2: Using Bedrock API key (simpler)
+
+variable "aws_bearer_token_bedrock" {
+  type        = string
+  description = "Your AWS Bedrock bearer token. This provides access to Bedrock without needing separate access key and secret key."
+  sensitive   = true
+  value       = "xxxx-xxx-xxxx"
+}
+
+resource "coder_env" "bedrock_api_key" {
+  agent_id = coder_agent.example.id
+  name     = "AWS_BEARER_TOKEN_BEDROCK"
+  value    = var.aws_bearer_token_bedrock
+}
+
+module "claude-code" {
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "3.1.1"
+  agent_id = coder_agent.example.id
+  workdir  = "/home/coder/project"
+  model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+}
+```
+
+> [!NOTE]
+> For additional Bedrock configuration options (model selection, token limits, region overrides, etc.), see the [Claude Code Bedrock documentation](https://docs.claude.com/en/docs/claude-code/amazon-bedrock).
+
+### Usage with Google Vertex AI
+
+#### Prerequisites
+
+GCP project with Vertex AI API enabled, Claude models enabled through Model Garden, Google Cloud authentication configured, appropriate IAM permissions.
+
+Configure Claude Code to use Google Vertex AI for accessing Claude models through Google Cloud Platform.
+
+```tf
+resource "coder_env" "vertex_use" {
+  agent_id = coder_agent.example.id
+  name     = "CLAUDE_CODE_USE_VERTEX"
+  value    = "1"
+}
+
+resource "coder_env" "vertex_project_id" {
+  agent_id = coder_agent.example.id
+  name     = "ANTHROPIC_VERTEX_PROJECT_ID"
+  value    = "your-gcp-project-id"
+}
+
+resource "coder_env" "cloud_ml_region" {
+  agent_id = coder_agent.example.id
+  name     = "CLOUD_ML_REGION"
+  value    = "global"
+}
+
+module "claude-code" {
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "3.1.1"
+  agent_id = coder_agent.example.id
+  workdir  = "/home/coder/project"
+  model    = "claude-sonnet-4@20250514"
+}
+```
+
+> [!NOTE]
+> For additional Vertex AI configuration options (model selection, token limits, region overrides, etc.), see the [Claude Code Vertex AI documentation](https://docs.claude.com/en/docs/claude-code/google-vertex-ai).
 
 ## Troubleshooting
 
