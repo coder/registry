@@ -28,6 +28,7 @@ module "agentapi" {
   cli_app_display_name = "Goose CLI"
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
+  enable_tasks         = var.enable_tasks # Set to false to disable AI tasks
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
   start_script         = local.start_script
