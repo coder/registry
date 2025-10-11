@@ -1,7 +1,7 @@
 ---
-display_name: Auto-Start Development Servers
+display_name: Auto-Start Dev Servers
 description: Automatically detect and start development servers for various project types
-icon: ../../../../.icons/server.svg
+icon: ../../../../.icons/auto-dev-server.svg
 verified: false
 tags: [development, automation, servers]
 ---
@@ -13,7 +13,7 @@ Automatically detect and start development servers for various project types whe
 ```tf
 module "auto_start_dev_servers" {
   source   = "registry.coder.com/mavrickrishi/auto-start-dev-server/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -48,20 +48,20 @@ module "auto_start_dev_servers" {
 
 ### Basic Usage
 
-```hcl
+```tf
 module "auto_start" {
   source   = "./modules/auto-start-dev-server"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 }
 ```
 
 ### Advanced Usage
 
-```hcl
+```tf
 module "auto_start_dev_servers" {
   source   = "./modules/auto-start-dev-server"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 
   # Optional: Configure which project types to detect
@@ -70,10 +70,10 @@ module "auto_start_dev_servers" {
   enable_django      = true
   enable_flask       = true
   enable_spring_boot = true
-  enable_go         = true
-  enable_php        = true
-  enable_rust       = true
-  enable_dotnet     = true
+  enable_go          = true
+  enable_php         = true
+  enable_rust        = true
+  enable_dotnet      = true
 
   # Optional: Enable devcontainer.json integration
   enable_devcontainer = true
@@ -97,10 +97,10 @@ module "auto_start_dev_servers" {
 
 ### Disable Preview App
 
-```hcl
+```tf
 module "auto_start" {
   source   = "./modules/auto-start-dev-server"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 
   # Disable automatic preview app creation
@@ -110,10 +110,10 @@ module "auto_start" {
 
 ### Selective Project Types
 
-```hcl
+```tf
 module "auto_start" {
   source   = "./modules/auto-start-dev-server"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 
   # Only enable web development projects
@@ -124,25 +124,25 @@ module "auto_start" {
 
   # Disable other project types
   enable_spring_boot = false
-  enable_go         = false
-  enable_php        = false
-  enable_rust       = false
-  enable_dotnet     = false
+  enable_go          = false
+  enable_php         = false
+  enable_rust        = false
+  enable_dotnet      = false
 }
 ```
 
 ### Deep Workspace Scanning
 
-```hcl
+```tf
 module "auto_start" {
   source   = "./modules/auto-start-dev-server"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 
   workspace_directory = "/workspaces"
-  scan_depth         = 3
-  startup_delay      = 5
-  log_path          = "/var/log/dev-servers.log"
+  scan_depth          = 3
+  startup_delay       = 5
+  log_path            = "/var/log/dev-servers.log"
 }
 ```
 
