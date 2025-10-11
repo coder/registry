@@ -64,9 +64,18 @@ function install_node() {
   fi
 }
 
+function install_UV() {
+  if ! command_exists uv; then 
+    printf "UV not found"
+    printf "Installing UV"
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    printf "UV installed successful %s" "Version : $(uv --version)"
+  fi  
+}
+
 function install_mcpm-aider() {
   install_node
-
+  install_UV
   # If nvm is not used, set up user npm global directory
   if ! command_exists nvm; then
     mkdir -p "$HOME/.npm-global"
@@ -76,15 +85,13 @@ function install_mcpm-aider() {
       echo "export PATH=$HOME/.npm-global/bin:\$PATH" >> ~/.bashrc
     fi
   fi
-  printf "%s Installing MCPM-Aider for supporting coder MCP...\n" "${BOLD}"
+  printf "%s Installing MCPM-Aider for supporting coder MCP...\n"
   npm install -g @poai/mcpm-aider
-  printf "%s Successfully installed MCPM-Aider. Version: %s\n" "${BOLD}" "$(mcpm-aider -V)"
+  printf "%s Successfully installed MCPM-Aider. Version: %s\n" "$(mcpm-aider -V)"
 }
 
 function configure_aider_settings() {
   if [ "${ARG_REPORT_TASKS}" = "true" ]; then
-    echo "Configuring Aider to report tasks via Coder MCP..."
-
     mkdir -p "$HOME/.config/aider"
 
     echo "$ARG_AIDER_CONFIG" > "$HOME/.config/aider/.aider.conf.yml"
@@ -99,16 +106,26 @@ function report_tasks() {
     echo "Configuring Aider to report tasks via Coder MCP..."
     export CODER_MCP_APP_STATUS_SLUG="$ARG_MCP_APP_STATUS_SLUG"
     export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
-    coder exp mcp configure mcpm-aider "$ARG_WORKDIR"
+    coder exp mcp configure claude-code "$ARG_WORKDIR"
+    echo "claude configured with SLUG successfuly"
+    configure_claude_for_mcpm_aider
   else
     export CODER_MCP_APP_STATUS_SLUG=""
     export CODER_MCP_AI_AGENTAPI_URL=""
     echo "Configuring Aider with Coder MCP..."
-    coder exp mcp configure mcpm-aider "$ARG_WORKDIR"
+    coder exp mcp configure claude-code "$ARG_WORKDIR"
+    echo "claude configured successfuly"
+    configure_claude_for_mcpm_aider
   fi
 }
 
+function configure_claude_for_mcpm_aider() {
+  echo "configuring claude for mcpm-adier"
+  mkdir -p $HOME/.config/claude
+  cat $HOME/.claude.json > $HOME/.config/claude/claude_desktop_config.json
+}
+
 install_aider
-# install_mcpm-aider
+install_mcpm-aider
 configure_aider_settings
-# report_tasks
+report_tasks
