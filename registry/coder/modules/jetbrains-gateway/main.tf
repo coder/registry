@@ -30,15 +30,14 @@ variable "agent_id" {
 
 variable "slug" {
   type        = string
-  description = "The slug for the coder_app. Allows resuing the module with the same template."
+  description = "The slug for the coder_app. Allows reusing the module with the same template."
   default     = "gateway"
 }
 
 variable "agent_name" {
   type        = string
-  description = "Agent name. (unused). Will be removed in a future version"
-
-  default = ""
+  description = "Agent name."
+  default     = ""
 }
 
 variable "folder" {
@@ -348,8 +347,8 @@ resource "coder_app" "gateway" {
     local.build_number,
     "&ide_download_link=",
     local.download_link,
-    "&agent_id=",
-    var.agent_id,
+    "&agent=",
+    var.agent_name,
   ])
 }
 

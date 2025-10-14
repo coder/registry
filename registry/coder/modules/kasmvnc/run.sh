@@ -60,6 +60,9 @@ install_deb() {
     sudo apt-get -o DPkg::Lock::Timeout=300 -qq update
   fi
 
+  echo "Installing required Perl DateTime module..."
+  DEBIAN_FRONTEND=noninteractive sudo apt-get -o DPkg::Lock::Timeout=300 install --yes -qq --no-install-recommends --no-install-suggests libdatetime-perl
+
   DEBIAN_FRONTEND=noninteractive sudo apt-get -o DPkg::Lock::Timeout=300 install --yes -qq --no-install-recommends --no-install-suggests "$kasmdeb"
   rm "$kasmdeb"
 }
@@ -233,19 +236,17 @@ get_http_dir() {
 
   # Check the system configuration path
   if [[ -e /etc/kasmvnc/kasmvnc.yaml ]]; then
-    d=($(grep -E "^\s*httpd_directory:.*$" /etc/kasmvnc/kasmvnc.yaml))
-    # If this grep is successful, it will return:
-    #     httpd_directory: /usr/share/kasmvnc/www
-    if [[ $${#d[@]} -eq 2 && -d "$${d[1]}" ]]; then
-      httpd_directory="$${d[1]}"
+    d=$(grep -E '^\s*httpd_directory:.*$' "/etc/kasmvnc/kasmvnc.yaml" | awk '{print $$2}')
+    if [[ -n "$d" && -d "$d" ]]; then
+      httpd_directory=$d
     fi
   fi
 
   # Check the home directory for overriding values
   if [[ -e "$HOME/.vnc/kasmvnc.yaml" ]]; then
-    d=($(grep -E "^\s*httpd_directory:.*$" "$HOME/.vnc/kasmvnc.yaml"))
-    if [[ $${#d[@]} -eq 2 && -d "$${d[1]}" ]]; then
-      httpd_directory="$${d[1]}"
+    d=$(grep -E '^\s*httpd_directory:.*$' "$HOME/.vnc/kasmvnc.yaml" | awk '{print $$2}')
+    if [[ -n "$d" && -d "$d" ]]; then
+      httpd_directory=$d
     fi
   fi
   echo $httpd_directory

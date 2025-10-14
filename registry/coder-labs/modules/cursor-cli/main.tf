@@ -56,7 +56,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.5.0"
+  default     = "v0.10.0"
 }
 
 variable "force" {
@@ -131,7 +131,7 @@ resource "coder_env" "cursor_api_key" {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.1.1"
+  version = "1.2.0"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug

@@ -69,7 +69,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.3.0"
+  default     = "v0.10.0"
 }
 
 variable "pre_install_script" {
@@ -151,7 +151,7 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.0.1"
+  version = "1.2.0"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
