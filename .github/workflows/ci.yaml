@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: bun install
       - name: Run TypeScript tests
-        run: bun test
+        run: ./scripts/ts_test_auto.sh
       - name: Run Terraform tests
         run: ./scripts/terraform_test_all.sh
       - name: Run Terraform Validate
