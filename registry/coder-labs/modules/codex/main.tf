@@ -150,6 +150,7 @@ resource "coder_env" "openai_api_key" {
 }
 
 locals {
+  workdir         = trimsuffix(var.workdir, "/")
   app_slug        = "codex"
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
@@ -161,7 +162,7 @@ module "agentapi" {
   version = "1.2.0"
 
   agent_id             = var.agent_id
-  folder               = var.folder
+  folder               = local.workdir
   web_app_slug         = local.app_slug
   web_app_order        = var.order
   web_app_group        = var.group
