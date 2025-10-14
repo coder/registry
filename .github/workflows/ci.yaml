@@ -13,6 +13,10 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.base_ref }}
       - name: Set up Terraform
         uses: coder/coder/.github/actions/setup-tf@main
       - name: Set up Bun
