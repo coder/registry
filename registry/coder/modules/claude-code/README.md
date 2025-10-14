@@ -195,11 +195,17 @@ module "claude-code" {
 
 #### Prerequisites
 
-GCP project with Vertex AI API enabled, Claude models enabled through Model Garden, Google Cloud authentication configured, appropriate IAM permissions.
+GCP project with Vertex AI API enabled, Claude models enabled through Model Garden, service account with Vertex AI permissions, appropriate IAM permissions (Vertex AI User role).
 
 Configure Claude Code to use Google Vertex AI for accessing Claude models through Google Cloud Platform.
 
 ```tf
+variable "vertex_sa_json" {
+  type        = string
+  description = "The complete JSON content of your Google Cloud service account key file. Create a service account in the GCP Console under 'IAM & Admin > Service Accounts', then create and download a JSON key. Copy the entire JSON content into this variable."
+  sensitive   = true
+}
+
 resource "coder_env" "vertex_use" {
   agent_id = coder_agent.example.id
   name     = "CLAUDE_CODE_USE_VERTEX"
@@ -218,12 +224,46 @@ resource "coder_env" "cloud_ml_region" {
   value    = "global"
 }
 
+resource "coder_env" "vertex_sa_json" {
+  agent_id = coder_agent.example.id
+  name     = "VERTEX_SA_JSON"
+  value    = var.vertex_sa_json
+}
+
+resource "coder_env" "google_application_credentials" {
+  agent_id = coder_agent.example.id
+  name     = "GOOGLE_APPLICATION_CREDENTIALS"
+  value    = "/tmp/gcp-sa.json"
+}
+
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
   version  = "3.1.1"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
   model    = "claude-sonnet-4@20250514"
+
+  pre_install_script = <<-EOT
+    #!/bin/bash
+    # Write the service account JSON to a file
+    echo "$VERTEX_SA_JSON" > /tmp/gcp-sa.json
+
+    # Install prerequisite packages
+    sudo apt-get update
+    sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
+
+    # Add Google Cloud public key
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+
+    # Add Google Cloud SDK repo to apt sources
+    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
+
+    # Update and install the Google Cloud SDK
+    sudo apt-get update && sudo apt-get install -y google-cloud-cli
+
+    # Authenticate gcloud with the service account
+    gcloud auth activate-service-account --key-file=/tmp/gcp-sa.json
+  EOT
 }
 ```
 
