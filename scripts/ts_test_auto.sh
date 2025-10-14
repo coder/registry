@@ -19,8 +19,8 @@ SHARED_FILES=(
 echo "==> Detecting changed files..."
 
 if [[ -n "${GITHUB_BASE_REF:-}" ]]; then
-  BASE_REF="HEAD^1"
-  echo "Detected GitHub Actions PR, comparing against merge base: $BASE_REF"
+  BASE_REF="origin/${GITHUB_BASE_REF}"
+  echo "Detected GitHub Actions PR, comparing against: $BASE_REF"
 else
   BASE_REF="origin/main"
   echo "Local development mode, comparing against: $BASE_REF"
