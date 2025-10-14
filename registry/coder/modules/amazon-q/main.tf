@@ -231,6 +231,7 @@ module "agentapi" {
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
+  folder               = var.workdir
 
   start_script = <<-EOT
     #!/bin/bash
