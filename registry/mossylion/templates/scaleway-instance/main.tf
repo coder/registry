@@ -62,7 +62,7 @@ data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
 resource "coder_agent" "main" {
-  arch = data.coder_provisioner.me.arch
+  arch = local.selected_arch
   os   = data.coder_provisioner.me.os
   auth = "token"
 
@@ -225,13 +225,21 @@ locals {
       value = instance.name
     }
   }
+
+  instance_arch_map = {
+    for instance in local.scaleway_config_raw :
+    instance.name => instance.arch
+  }
+
+  # Convert Scaleway arch format to Coder arch format
+  selected_arch = local.instance_arch_map[data.coder_parameter.instance_size.value] == "x86_64" ? "amd64" : local.instance_arch_map[data.coder_parameter.instance_size.value]
 }
 
 data "coder_parameter" "instance_size" {
   name         = "instance_size"
   display_name = "Instance Size"
   description  = "Which Instance Size should be used?"
-  default      = "STARDUST1-S"
+  default      = "DEV1-M"
   type         = "string"
   icon         = "/icon/memory.svg"
   mutable      = false
