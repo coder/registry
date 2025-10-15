@@ -202,12 +202,27 @@ data "coder_parameter" "base_image" {
   }
 }
 
+data "coder_parameter" "root_volume_size" {
+  name        = "Root Volume Size"
+  description = "Size of the OS/boot disk in GB"
+  type        = "number"
+  form_type   = "slider"
+  default     = "20"
+  order       = 7
+  validation {
+    min       = 10
+    max       = 1000
+    monotonic = "increasing"
+  }
+}
+
 data "coder_parameter" "disk_size" {
-  name      = "Disk Size"
-  type      = "number"
-  form_type = "slider"
-  default   = "10"
-  order     = 8
+  name        = "Persistent Storage Size"
+  description = "Size of the additional persistent storage volume in GB"
+  type        = "number"
+  form_type   = "slider"
+  default     = "10"
+  order       = 8
   validation {
     min       = 10
     max       = 500
@@ -280,6 +295,10 @@ resource "scaleway_instance_server" "workspace" {
     cloud-init = data.cloudinit_config.user_data.rendered
   }
   additional_volume_ids = [scaleway_block_volume.persistent_storage.id]
+
+  root_volume {
+    size_in_gb = data.coder_parameter.root_volume_size.value
+  }
 }
 
 resource "scaleway_block_volume" "persistent_storage" {
