@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# set -x
-
 log() {
   printf '%s\n' "$@" >&2
 }
@@ -253,6 +251,7 @@ archive_wait_and_extract() {
   load_defaults
 
   local timeout="${1:-300}"
+  local quiet="${2:-}"
   local file="${DEFAULT_ARCHIVE_PATH}"
 
   local start now
@@ -273,6 +272,8 @@ archive_wait_and_extract() {
     sleep 5
   done
 
-  printf 'ERROR: Timed out waiting for archive: %s\n' "$file" >&2
-  return 1
+  if [[ -z $quiet ]]; then
+    printf 'ERROR: Timed out waiting for archive: %s\n' "$file" >&2
+  fi
+  return 2
 }

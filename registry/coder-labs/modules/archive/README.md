@@ -97,7 +97,9 @@ module "archive" {
   archive_name = "my-archive"
   compression  = "gzip"
 
-  # Waits up to 5 minutes for /tmp/my-archive.tar.gz to be present.
+  # Waits up to 5 minutes for /tmp/my-archive.tar.gz to be present, note that
+  # using a long timeout will delay every workspace start by this much until the
+  # archive is present.
   extract_on_start             = true
   extract_wait_timeout_seconds = 300
 }
@@ -114,7 +116,7 @@ module "archive" {
 - `directory` (string, default: `"~"`): Working directory used for tar with `-C`.
 - `create_on_stop` (bool, default: `false`): If true, registers a `run_on_stop` script that invokes the create wrapper on workspace stop.
 - `extract_on_start` (bool, default: `false`): If true, the installer waits up to `extract_wait_timeout_seconds` for the archive path to appear and extracts it on start.
-- `extract_wait_timeout_seconds` (number, default: `300`): Timeout for `extract_on_start`.
+- `extract_wait_timeout_seconds` (number, default: `5`): Timeout for `extract_on_start`.
 
 ## Outputs
 

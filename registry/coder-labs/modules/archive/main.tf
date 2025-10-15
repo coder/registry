@@ -69,7 +69,7 @@ variable "extract_on_start" {
 variable "extract_wait_timeout_seconds" {
   description = "Timeout (seconds) to wait for an archive when extract_on_start is true."
   type        = number
-  default     = 300
+  default     = 5
 }
 
 # Provide a stable script filename and sensible defaults.

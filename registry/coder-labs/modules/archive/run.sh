@@ -64,5 +64,12 @@ echo "Installed extract script to:  $EXTRACT_WRAPPER_PATH"
 if [[ $EXTRACT_ON_START = true ]]; then
   . "$LIB_PATH"
 
-  archive_wait_and_extract "$EXTRACT_WAIT_TIMEOUT"
+  archive_wait_and_extract "$EXTRACT_WAIT_TIMEOUT" quiet || {
+    exit_code=$?
+    if [[ $exit_code -eq 2 ]]; then
+      echo "WARNING: Archive not found in backup path (this is expected with new workspaces)."
+    else
+      exit $exit_code
+    fi
+  }
 fi
