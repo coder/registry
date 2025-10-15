@@ -28,6 +28,8 @@ jobs:
         run: bun install
       - name: Run TypeScript tests
         run: bun test
+      - name: Run Terraform tests
+        run: ./scripts/terraform_test_all.sh
       - name: Run Terraform Validate
         run: bun terraform-validate
   validate-style:
@@ -48,7 +50,7 @@ jobs:
       - name: Validate formatting
         run: bun fmt:ci
       - name: Check for typos
-        uses: crate-ci/typos@v1.37.2
+        uses: crate-ci/typos@v1.38.1
         with:
           config: .github/typos.toml
   validate-readme-files:
