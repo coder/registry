@@ -129,6 +129,6 @@ resource "coder_script" "archive_stop_script" {
   script = <<-EOT
     #!/usr/bin/env bash
     set -euo pipefail
-    "$CODER_SCRIPT_BIN_DIR/coder-create-archive"
+    "$CODER_SCRIPT_BIN_DIR/coder-archive-create"
   EOT
 }
