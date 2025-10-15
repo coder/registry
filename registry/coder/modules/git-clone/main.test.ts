@@ -30,11 +30,12 @@ describe("git-clone", async () => {
       url: "fake-url",
     });
     const output = await executeScriptInContainer(state, "alpine/git");
-    expect(output.exitCode).toBe(128);
     expect(output.stdout).toEqual([
       "Creating directory ~/fake-url...",
       "Cloning fake-url to ~/fake-url...",
     ]);
+    expect(output.stderr.join(" ")).toContain("fatal");
+    expect(output.stderr.join(" ")).toContain("fake-url");
   });
 
   it("repo_dir should match repo name for https", async () => {
@@ -243,5 +244,21 @@ describe("git-clone", async () => {
       "Creating directory ~/repo-tests.log...",
       "Cloning https://github.com/michaelbrewer/repo-tests.log to ~/repo-tests.log on branch feat/branch...",
     ]);
+  });
+
+  it("runs post-clone script", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "fake-url",
+      post_clone_script: "echo 'Post-clone script executed'",
+    });
+    const output = await executeScriptInContainer(
+      state,
+      "alpine/git",
+      "sh",
+      "mkdir -p ~/fake-url && echo 'existing' > ~/fake-url/file.txt",
+    );
+    expect(output.stdout).toContain("Running post-clone script...");
+    expect(output.stdout).toContain("Post-clone script executed");
   });
 });
