@@ -46,8 +46,9 @@ jobs:
         run: bun install
       - name: Run TypeScript tests
         env:
-          CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
+          ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
           SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
+          MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
         run: ./scripts/ts_test_auto.sh
       - name: Run Terraform tests
         run: ./scripts/terraform_test_all.sh

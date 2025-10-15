@@ -2,19 +2,26 @@
 set -euo pipefail
 
 # Auto-detect which TypeScript tests to run based on changed files from paths-filter
-# Uses paths-filter outputs from GitHub Actions (CHANGED_FILES and SHARED_CHANGED env vars)
+# Uses paths-filter outputs from GitHub Actions:
+#   ALL_CHANGED_FILES - all files changed in the PR (for logging)
+#   SHARED_CHANGED - boolean indicating if shared infrastructure changed
+#   MODULE_CHANGED_FILES - only files in registry/**/modules/** (for processing)
 # Runs all tests if shared infrastructure changes
 #
 # This script only runs tests for changed modules. Documentation and template changes are ignored.
 
 echo "==> Detecting changed files..."
 
-if [[ -z "${CHANGED_FILES:-}" ]]; then
-  echo "✓ No files changed, skipping tests"
-  exit 0
+if [[ -n "${ALL_CHANGED_FILES:-}" ]]; then
+  echo "Changed files in PR:"
+  echo "$ALL_CHANGED_FILES" | tr ' ' '\n' | sed 's/^/  - /'
+  echo ""
 fi
 
-CHANGED_FILES=$(echo "$CHANGED_FILES" | tr ' ' '\n')
+if [[ -z "${MODULE_CHANGED_FILES:-}" ]]; then
+  echo "✓ No module files changed, skipping tests"
+  exit 0
+fi
 
 if [[ "${SHARED_CHANGED:-false}" == "true" ]]; then
   echo "==> Shared infrastructure changed"
@@ -22,9 +29,7 @@ if [[ "${SHARED_CHANGED:-false}" == "true" ]]; then
   exec bun test
 fi
 
-echo "Changed files:"
-echo "$CHANGED_FILES" | sed 's/^/  - /'
-echo ""
+CHANGED_FILES=$(echo "$MODULE_CHANGED_FILES" | tr ' ' '\n')
 
 MODULE_DIRS=()
 while IFS= read -r file; do
