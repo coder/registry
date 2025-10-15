@@ -6,6 +6,7 @@ BRANCH_NAME="${BRANCH_NAME}"
 # Expand home if it's specified!
 CLONE_PATH="$${CLONE_PATH/#\~/$${HOME}}"
 DEPTH="${DEPTH}"
+POST_CLONE_SCRIPT="${POST_CLONE_SCRIPT}"
 
 # Check if the variable is empty...
 if [ -z "$REPO_URL" ]; then
@@ -52,5 +53,14 @@ if [ -z "$(ls -A "$CLONE_PATH")" ]; then
   fi
 else
   echo "$CLONE_PATH already exists and isn't empty, skipping clone!"
-  exit 0
+fi
+
+# Run post-clone script if provided
+if [ -n "$POST_CLONE_SCRIPT" ]; then
+  echo "Running post-clone script..."
+  echo "$POST_CLONE_SCRIPT" | base64 -d > /tmp/post_clone.sh
+  chmod +x /tmp/post_clone.sh
+  cd "$CLONE_PATH"
+  /tmp/post_clone.sh
+  rm /tmp/post_clone.sh
 fi

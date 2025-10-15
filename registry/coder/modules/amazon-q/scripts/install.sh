@@ -94,6 +94,13 @@ function install_amazon_q() {
 function extract_auth_tarball() {
   if [ -n "$ARG_AUTH_TARBALL" ]; then
     echo "Extracting auth tarball..."
+
+    if ! command_exists zstd; then
+      echo "Error: zstd is required to extract the authentication tarball but is not installed."
+      echo "Please install zstd using the pre_install_script parameter."
+      exit 1
+    fi
+
     PREV_DIR="$PWD"
     echo "$ARG_AUTH_TARBALL" | base64 -d > /tmp/auth.tar.zst
     rm -rf ~/.local/share/amazon-q
