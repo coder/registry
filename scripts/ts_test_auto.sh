@@ -18,15 +18,15 @@ if [[ -n "${ALL_CHANGED_FILES:-}" ]]; then
   echo ""
 fi
 
-if [[ -z "${MODULE_CHANGED_FILES:-}" ]]; then
-  echo "✓ No module files changed, skipping tests"
-  exit 0
-fi
-
 if [[ "${SHARED_CHANGED:-false}" == "true" ]]; then
   echo "==> Shared infrastructure changed"
   echo "==> Running all tests for safety"
   exec bun test
+fi
+
+if [[ -z "${MODULE_CHANGED_FILES:-}" ]]; then
+  echo "✓ No module files changed, skipping tests"
+  exit 0
 fi
 
 CHANGED_FILES=$(echo "$MODULE_CHANGED_FILES" | tr ' ' '\n')
