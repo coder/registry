@@ -118,6 +118,9 @@ module "archive" {
 - `extract_on_start` (bool, default: `false`): If true, the installer waits up to `extract_wait_timeout_seconds` for the archive path to appear and extracts it on start.
 - `extract_wait_timeout_seconds` (number, default: `5`): Timeout for `extract_on_start`.
 
+> [!WARNING]
+> The `create_on_stop` feature uses the `coder_script` `run_on_stop` which may not work as expected on certain templates without additional provider configuration. The agent may be terminated before the script completes. See [coder/coder#6174](https://github.com/coder/coder/issues/6174) for provider-specific workarounds and [coder/coder#6175](https://github.com/coder/coder/issues/6175) for tracking a fix.
+
 ## Outputs
 
 - `archive_path` (string): Full archive path computed as `output_dir/archive_name + extension`, where the extension comes from `compression`:

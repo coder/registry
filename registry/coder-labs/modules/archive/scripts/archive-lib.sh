@@ -40,7 +40,7 @@ usage_archive_create() {
   load_defaults
 
   cat >&2 << USAGE
-Usage: coder-create-archive [OPTIONS] [[PATHS] ...]
+Usage: coder-archive-create [OPTIONS] [[PATHS] ...]
 Options:
   -c, --compression <gzip|zstd|none>   Compression algorithm (default "${DEFAULT_COMPRESSION}")
   -C, --directory <DIRECTORY>          Change to directory (default "${DEFAULT_DIRECTORY}")
@@ -148,7 +148,7 @@ usage_archive_extract() {
   load_defaults
 
   cat >&2 << USAGE
-Usage: coder-extract-archive [OPTIONS]
+Usage: coder-archive-extract [OPTIONS]
 Options:
   -c, --compression <gzip|zstd|none>   Compression algorithm (default "${DEFAULT_COMPRESSION}")
   -C, --directory <DIRECTORY>          Change to directory (default "${DEFAULT_DIRECTORY}")
