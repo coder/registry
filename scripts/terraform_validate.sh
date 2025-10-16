@@ -84,7 +84,7 @@ main() {
       fi
     fi
   done
-  
+
   exit $status
 }
 
