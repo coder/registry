@@ -103,8 +103,13 @@ function start_agentapi() {
       done
     fi
 
+    git clone https://github.com/coder/boundary
+    cd boundary
+    git checkout yevhenii/proxy-v2
+    go install ./cmd/...
+
     agentapi server --type claude --term-width 67 --term-height 1190 -- \
-      coder exp boundary "${BOUNDARY_ARGS[@]}" -- \
+      boundary "${BOUNDARY_ARGS[@]}" -- \
       claude "${ARGS[@]}"
   else
     agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
