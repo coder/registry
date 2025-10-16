@@ -27,6 +27,8 @@ jobs:
               - 'tsconfig.json'
               - '.github/workflows/ci.yaml'
               - 'scripts/ts_test_auto.sh'
+              - 'scripts/terraform_test_all.sh'
+              - 'scripts/terraform_validate.sh'
             modules:
               - 'registry/**/modules/**'
             all:
@@ -49,10 +51,18 @@ jobs:
           ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
           SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
           MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
-        run: ./scripts/ts_test_auto.sh
+        run: bun tstest
       - name: Run Terraform tests
-        run: ./scripts/terraform_test_all.sh
+        env:
+          ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
+          SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
+          MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
+        run: bun tftest
       - name: Run Terraform Validate
+        env:
+          ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
+          SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
+          MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
         run: bun terraform-validate
   validate-style:
     name: Check for typos and unformatted code
