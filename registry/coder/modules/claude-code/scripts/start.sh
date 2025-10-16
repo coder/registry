@@ -89,9 +89,6 @@ function start_agentapi() {
 
     # Build boundary args with conditional --unprivileged flag
     BOUNDARY_ARGS=(--log-dir "$ARG_BOUNDARY_LOG_DIR")
-    if [ "${ARG_BOUNDARY_UNPRIVILEGED:-true}" = "true" ]; then
-      BOUNDARY_ARGS+=(--unprivileged)
-    fi
     # Add default allowed URLs
     BOUNDARY_ARGS+=(--allow "*.anthropic.com" --allow "registry.npmjs.org" --allow "*.sentry.io" --allow "claude.ai" --allow "$ARG_CODER_HOST")
 
@@ -103,9 +100,17 @@ function start_agentapi() {
       done
     fi
 
-    agentapi server --type claude --term-width 67 --term-height 1190 -- \
-      coder exp boundary "${BOUNDARY_ARGS[@]}" -- \
-      claude "${ARGS[@]}"
+    git clone https://github.com/coder/boundary
+    cd boundary
+    git checkout yevhenii/proxy-v3
+    go install ./cmd/...
+
+    BOUNDARY_ARGS+=(--proxy-port=8087)
+
+    agentapi server --allowed-hosts="*" --type claude --term-width 67 --term-height 1190 -- \
+      sudo -E env PATH=$PATH setpriv --inh-caps=+net_admin --ambient-caps=+net_admin --bounding-set=+net_admin /home/coder/go/bin/boundary "${BOUNDARY_ARGS[@]}" -- \
+      claude
+      #"${ARGS[@]}"
   else
     agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
   fi
