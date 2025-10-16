@@ -32,6 +32,9 @@ module "archive" {
   - `create_on_stop` to create an archive automatically when the workspace stops.
   - `extract_on_start` to wait for an archive to appear and extract it on start.
 
+> [!WARNING]
+> The `create_on_stop` feature uses the `coder_script` `run_on_stop` which may not work as expected on certain templates without additional provider configuration. The agent may be terminated before the script completes. See [coder/coder#6174](https://github.com/coder/coder/issues/6174) for provider-specific workarounds and [coder/coder#6175](https://github.com/coder/coder/issues/6175) for tracking a fix.
+
 ## Usage
 
 Basic example:
@@ -104,29 +107,6 @@ module "archive" {
   extract_wait_timeout_seconds = 300
 }
 ```
-
-## Inputs
-
-- `agent_id` (string, required): The ID of a Coder agent.
-- `paths` (list(string), default: `["."]`): Files/directories to include when creating an archive.
-- `exclude_patterns` (list(string), default: `[]`): Patterns to exclude (passed to tar via `--exclude`).
-- `compression` (string, default: `"gzip"`): One of `gzip`, `zstd`, or `none`.
-- `archive_name` (string, default: `"coder-archive"`): Base archive name (extension is inferred from `compression`).
-- `output_dir` (string, default: `"/tmp"`): Directory where the archive file will be written/read by default.
-- `directory` (string, default: `"~"`): Working directory used for tar with `-C`.
-- `create_on_stop` (bool, default: `false`): If true, registers a `run_on_stop` script that invokes the create wrapper on workspace stop.
-- `extract_on_start` (bool, default: `false`): If true, the installer waits up to `extract_wait_timeout_seconds` for the archive path to appear and extracts it on start.
-- `extract_wait_timeout_seconds` (number, default: `5`): Timeout for `extract_on_start`.
-
-> [!WARNING]
-> The `create_on_stop` feature uses the `coder_script` `run_on_stop` which may not work as expected on certain templates without additional provider configuration. The agent may be terminated before the script completes. See [coder/coder#6174](https://github.com/coder/coder/issues/6174) for provider-specific workarounds and [coder/coder#6175](https://github.com/coder/coder/issues/6175) for tracking a fix.
-
-## Outputs
-
-- `archive_path` (string): Full archive path computed as `output_dir/archive_name + extension`, where the extension comes from `compression`:
-  - `.tar.gz` for `gzip`
-  - `.tar.zst` for `zstd`
-  - `.tar` for `none`
 
 ## Command usage
 
