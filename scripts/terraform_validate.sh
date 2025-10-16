@@ -7,7 +7,7 @@ set -euo pipefail
 #   ALL_CHANGED_FILES - all files changed in the PR (for logging)
 #   SHARED_CHANGED - boolean indicating if shared infrastructure changed
 #   MODULE_CHANGED_FILES - only files in registry/**/modules/** (for processing)
-# Validates all modules if shared infrastructure changes or if env vars are not set (local dev)
+# Validates all modules if shared infrastructure changes, or skips if no changes detected
 #
 # This script only validates changed modules. Documentation and template changes are ignored.
 
@@ -30,12 +30,12 @@ main() {
   fi
 
   local script_dir=$(dirname "$(readlink -f "$0")")
-  local registry_dir="$script_dir/../registry"
+  local registry_dir=$(readlink -f "$script_dir/../registry")
 
   if [[ "${SHARED_CHANGED:-false}" == "true" ]]; then
     echo "==> Shared infrastructure changed"
     echo "==> Validating all modules for safety"
-    local subdirs=$(find "$registry_dir" -mindepth 3 -path "*/modules/*" -type d | sort)
+    local subdirs=$(find "$registry_dir" -mindepth 3 -maxdepth 3 -path "*/modules/*" -type d | sort)
   elif [[ -z "${MODULE_CHANGED_FILES:-}" ]]; then
     echo "✓ No module files changed, skipping validation"
     exit 0

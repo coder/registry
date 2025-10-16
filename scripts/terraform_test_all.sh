@@ -6,7 +6,7 @@ set -euo pipefail
 #   ALL_CHANGED_FILES - all files changed in the PR (for logging)
 #   SHARED_CHANGED - boolean indicating if shared infrastructure changed
 #   MODULE_CHANGED_FILES - only files in registry/**/modules/** (for processing)
-# Runs all tests if shared infrastructure changes or if env vars are not set (local dev)
+# Runs all tests if shared infrastructure changes, or skips if no changes detected
 #
 # This script only runs tests for changed modules. Documentation and template changes are ignored.
 
