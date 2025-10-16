@@ -27,6 +27,8 @@ jobs:
               - 'tsconfig.json'
               - '.github/workflows/ci.yaml'
               - 'scripts/ts_test_auto.sh'
+              - 'scripts/terraform_test_all.sh'
+              - 'scripts/terraform_validate.sh'
             modules:
               - 'registry/**/modules/**'
             all:
