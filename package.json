@@ -4,7 +4,8 @@
     "fmt": "bun x prettier --write . && terraform fmt -recursive -diff",
     "fmt:ci": "bun x prettier --check . && terraform fmt -check -recursive -diff",
     "terraform-validate": "./scripts/terraform_validate.sh",
-    "test": "./scripts/terraform_test_all.sh",
+    "tftest": "./scripts/terraform_test_all.sh",
+    "tstest": "./scripts/ts_test_auto.sh",
     "update-version": "./update-version.sh"
   },
   "devDependencies": {
