@@ -14,10 +14,10 @@ set -euo pipefail
 validate_terraform_directory() {
   local dir="$1"
   echo "Running \`terraform validate\` in $dir"
-  pushd "$dir"
+  pushd "$dir" > /dev/null
   terraform init -upgrade
   terraform validate
-  popd
+  popd > /dev/null
 }
 
 main() {
@@ -74,13 +74,18 @@ main() {
     local subdirs="${MODULE_DIRS[*]}"
   fi
 
+  status=0
   for dir in $subdirs; do
     # Skip over any directories that obviously don't have the necessary
     # files
     if test -f "$dir/main.tf"; then
-      validate_terraform_directory "$dir"
+      if ! validate_terraform_directory "$dir"; then
+        status=1
+      fi
     fi
   done
+  
+  exit $status
 }
 
 main
