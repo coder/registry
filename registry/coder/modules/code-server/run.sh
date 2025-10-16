@@ -17,10 +17,9 @@ fi
 TRUSTED_DOMAINS_ARG=""
 if [ -n "${TRUSTED_DOMAINS}" ]; then
   # Split comma-separated domains and create multiple --link-protection-trusted-domains arguments
-  IFS=',' read -r -a DOMAINS_ARRAY <<< "${TRUSTED_DOMAINS}"
-  for domain in "${DOMAINS_ARRAY[@]}"; do
+  for domain in $(echo "${TRUSTED_DOMAINS}" | tr ',' ' '); do
     if [ -n "$domain" ]; then
-      TRUSTED_DOMAINS_ARG="$TRUSTED_DOMAINS_ARG --link-protection-trusted-domains=${domain}"
+      TRUSTED_DOMAINS_ARG="$TRUSTED_DOMAINS_ARG --link-protection-trusted-domains=$domain"
     fi
   done
 fi
