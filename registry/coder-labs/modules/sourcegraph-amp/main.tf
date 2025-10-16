@@ -199,7 +199,7 @@ locals {
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".amp-module"
-  workdir          = trimsuffix(var.workdir, "/")
+  workdir         = trimsuffix(var.workdir, "/")
 }
 
 module "agentapi" {
