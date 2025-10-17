@@ -45,7 +45,7 @@ variable "workdir" {
 variable "report_tasks" {
   type        = bool
   description = "Whether to enable task reporting to Coder UI via AgentAPI"
-  default     = true
+  default     = false
 }
 
 variable "subdomain" {
@@ -270,9 +270,7 @@ module "agentapi" {
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
     ARG_WORKDIR='${var.workdir}' \
-    ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_INSTALL_AIDER='${var.install_aider}' \
-    ARG_SYSTEM_PROMPT='${base64encode(local.final_system_prompt)}' \
     ARG_REPORT_TASKS='${var.report_tasks}' \
     ARG_AIDER_CONFIG="$(echo -n '${base64encode(local.base_aider_config)}' | base64 -d)" \
     /tmp/install.sh
