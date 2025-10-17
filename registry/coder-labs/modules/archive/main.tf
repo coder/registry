@@ -119,7 +119,7 @@ resource "coder_script" "archive_stop_script" {
   count              = var.create_on_stop ? 1 : 0
   agent_id           = var.agent_id
   display_name       = "Archive"
-  icon               = "/icon/folder-zip.svg"
+  icon               = "/icon/folder.svg"
   run_on_stop        = true
   start_blocks_login = false
 

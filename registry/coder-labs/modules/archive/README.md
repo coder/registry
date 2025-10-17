@@ -1,7 +1,7 @@
 ---
 display_name: Archive
 description: Create automated and user-invocable scripts that archive and extract selected files/directories with optional compression (gzip or zstd).
-icon: ../../../../.icons/tool.svg
+icon: ../../../../.icons/folder.svg
 verified: false
 tags: [backup, archive, tar, helper]
 ---
