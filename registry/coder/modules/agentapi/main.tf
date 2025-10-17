@@ -156,6 +156,11 @@ variable "module_dir_name" {
   description = "Name of the subdirectory in the home directory for module files."
 }
 
+variable "enable_tasks" {
+  type        = bool
+  description = "Whether to enable AI tasks. When false, the coder_ai_task resource will not be created, avoiding the requirement for an 'AI Prompt' parameter."
+  default     = true
+}
 
 locals {
   # we always trim the slash for consistency
@@ -240,6 +245,8 @@ resource "coder_app" "agentapi_cli" {
 }
 
 resource "coder_ai_task" "agentapi" {
+  count = var.enable_tasks ? 1 : 0
+
   sidebar_app {
     id = coder_app.agentapi_web.id
   }
