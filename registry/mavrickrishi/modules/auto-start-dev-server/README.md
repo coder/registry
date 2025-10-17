@@ -13,7 +13,7 @@ Automatically detect and start development servers for various project types whe
 ```tf
 module "auto_start_dev_servers" {
   source   = "registry.coder.com/mavrickrishi/auto-start-dev-server/coder"
-  version  = "1.0.1"
+  version  = "1.0.2"
   agent_id = coder_agent.main.id
 }
 ```
