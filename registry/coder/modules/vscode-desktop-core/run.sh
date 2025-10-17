@@ -87,6 +87,7 @@ download_and_install_extension() {
   fi
 
   printf "$${BOLD}📦 Installing extension $${CODE}$extension_id$${RESET}...\n"
+  echo "$(date): Starting installation of $extension_id" >> "$log_file"
 
   # Use dedicated temp directory for this extension
   local extension_temp_dir
@@ -94,6 +95,7 @@ download_and_install_extension() {
   local download_file="$temp_dir/$extension_id.vsix"
 
   # First, get the metadata JSON
+  echo "$(date): Fetching metadata from $metadata_url" >> "$log_file"
   local metadata_response
   if metadata_response=$(timeout 30 curl -fsSL "$metadata_url" 2>&1); then
     # Extract the download URL from JSON (handle both VS Code and Open VSX)
@@ -107,10 +109,14 @@ download_and_install_extension() {
     fi
 
     if [[ -n "$download_url" && "$download_url" != "null" ]]; then
+      echo "$(date): Extracted download URL: $download_url" >> "$log_file"
       # Download the actual .vsix file
+      echo "$(date): Downloading extension to $download_file" >> "$log_file"
       if timeout 30 curl -fsSL "$download_url" -o "$download_file" 2>&1; then
-        # Verify the download is a valid file
-        if file "$download_file" 2> /dev/null | grep -q "Zip archive"; then
+        echo "$(date): File size: $(stat -c%s "$download_file") bytes" >> "$log_file"
+        # Verify the download is a valid ZIP file
+        echo "$(date): Validating ZIP file..." >> "$log_file"
+        if unzip -t "$download_file" > /dev/null 2>&1; then
           # Create target directory
           mkdir -p "$target_dir"
           local extract_dir="$target_dir/$extension_id"
@@ -123,6 +129,7 @@ download_and_install_extension() {
           mkdir -p "$extract_dir"
 
           # Extract extension
+          echo "$(date): Extracting to $extract_dir" >> "$log_file"
           if unzip -q "$download_file" -d "$extract_dir" 2> /dev/null; then
             if [ -f "$extract_dir/package.json" ]; then
               printf "$${GREEN}✅ Successfully installed $${CODE}$extension_id$${RESET}\n"
@@ -146,7 +153,11 @@ download_and_install_extension() {
           fi
         else
           printf "$${RED}❌ Invalid file format$${RESET}\n"
-          echo "$(date): Invalid file format for $extension_id" >> "$log_file"
+          {
+            echo "$(date): ZIP validation failed for $extension_id"
+            echo "$(date): File size: $(stat -c%s "$download_file") bytes"
+            echo "$(date): First 100 bytes: $(head -c 100 "$download_file" | hexdump -C | head -3)"
+          } >> "$log_file"
           rm -rf "$extension_temp_dir"
           return 1
         fi
@@ -182,6 +193,7 @@ install_extension_from_url() {
   local extension_id="$extension_name"
 
   printf "$${BOLD}📦 Installing extension from URL: $${CODE}$extension_name$${RESET}...\n"
+  echo "$(date): Starting installation of $extension_id from URL: $url" >> "$log_file"
 
   if [[ -d "$target_dir/$extension_id" ]] && [[ -f "$target_dir/$extension_id/package.json" ]]; then
     printf "$${GREEN}✓ Extension $${CODE}$extension_id$${RESET}$${GREEN} already installed$${RESET}\n"
@@ -193,7 +205,9 @@ install_extension_from_url() {
   extension_temp_dir="$temp_dir/$extension_id-$(date +%s)"
   local download_file="$temp_dir/$extension_id.vsix"
 
+  echo "$(date): Downloading extension to $download_file" >> "$log_file"
   if timeout 30 curl -fsSL "$url" -o "$download_file" 2>&1; then
+    echo "$(date): File size: $(stat -c%s "$download_file") bytes" >> "$log_file"
     # Create target directory
     mkdir -p "$target_dir"
     local extract_dir="$target_dir/$extension_id"
@@ -205,6 +219,7 @@ install_extension_from_url() {
 
     mkdir -p "$extract_dir"
 
+    echo "$(date): Extracting to $extract_dir" >> "$log_file"
     if unzip -q "$download_file" -d "$extract_dir" 2> /dev/null; then
       if [ -f "$extract_dir/package.json" ]; then
         printf "$${GREEN}✅ Successfully installed $${CODE}$extension_id$${RESET}\n"
