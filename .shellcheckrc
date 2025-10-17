@@ -1,0 +1,20 @@
+# ShellCheck configuration for Coder Registry
+# https://www.shellcheck.net/wiki/
+
+# Set default shell dialect to bash (most scripts use bash)
+shell=bash
+
+# Disable checks that conflict with Terraform templating syntax
+# Many scripts use Terraform's templatefile() function with $${VAR} escape syntax
+disable=SC2154  # Variable is referenced but not assigned (injected by Terraform)
+disable=SC2034  # Variable appears unused (used via $${VAR} syntax)
+disable=SC1083  # Literal braces (Terraform's $${VAR} escape syntax)
+disable=SC2193  # Comparison arguments never equal (Terraform interpolation)
+disable=SC2125  # Brace expansion/globs in assignments (Terraform syntax)
+
+# Disable checks that conflict with common bash idioms
+disable=SC2076  # Quoted regex in =~ (intentional for literal string matching with space padding)
+
+# Enable all optional checks for thorough analysis
+enable=all
+
