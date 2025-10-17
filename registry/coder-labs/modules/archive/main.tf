@@ -96,7 +96,7 @@ output "archive_path" {
 resource "coder_script" "archive_start_script" {
   agent_id           = var.agent_id
   display_name       = "Archive"
-  icon               = "/icon/folder-zip.svg"
+  icon               = "/icon/folder.svg"
   run_on_start       = true
   start_blocks_login = var.extract_on_start
 
