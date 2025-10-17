@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# shellcheck disable=SC2269  # Terraform template variables
+# shellcheck disable=SC2034  # Color variables used in Terraform templates
+# shellcheck disable=SC2059  # printf format strings with Terraform variables
+
 set -euo pipefail
 
 # Variables from Terraform template
@@ -40,9 +44,11 @@ generate_extension_url() {
     return 1
   fi
 
-  # Extract publisher and extension name (simple approach)
-  local publisher=$(echo "$extension_id" | cut -d'.' -f1)
-  local name=$(echo "$extension_id" | cut -d'.' -f2-)
+  # Extract publisher and extension name
+  local publisher
+  publisher=$(echo "$extension_id" | cut -d'.' -f1)
+  local name
+  name=$(echo "$extension_id" | cut -d'.' -f2-)
 
   if [[ -z "$publisher" ]] || [[ -z "$name" ]]; then
     printf "$${RED}❌ Invalid extension ID format: $extension_id$${RESET}\n" >&2
@@ -52,16 +58,16 @@ generate_extension_url() {
   # Generate URL based on IDE type
   case "${IDE_TYPE}" in
     "vscode" | "vscode-insiders")
-      # Microsoft IDEs: Use Visual Studio Marketplace
-      printf "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/%s/vsextensions/%s/latest/vspackage" "$publisher" "$name"
+      # Microsoft IDEs: Use the VS Code API to get metadata
+      printf "https://marketplace.visualstudio.com/_apis/public/gallery/vscode/%s/%s/latest" "$publisher" "$name"
       ;;
     "vscodium" | "cursor" | "windsurf" | "kiro")
-      # Non-Microsoft IDEs: Use Open VSX Registry
-      printf "https://open-vsx.org/api/%s/%s/latest/file/%s.%s-latest.vsix" "$publisher" "$name" "$publisher" "$name"
+      # Non-Microsoft IDEs: Use Open VSX Registry metadata endpoint
+      printf "https://open-vsx.org/api/%s/%s/latest" "$publisher" "$name"
       ;;
     *)
       # Default: Use Open VSX Registry for unknown IDEs
-      printf "https://open-vsx.org/api/%s/%s/latest/file/%s.%s-latest.vsix" "$publisher" "$name" "$publisher" "$name"
+      printf "https://open-vsx.org/api/%s/%s/latest" "$publisher" "$name"
       ;;
   esac
 }
@@ -70,7 +76,9 @@ generate_extension_url() {
 download_and_install_extension() {
   local target_dir="$1"
   local extension_id="$2"
-  local url="$3"
+  local metadata_url="$3"
+  local temp_dir="$4"
+  local log_file="$5"
 
   # Check if already installed (idempotency)
   if is_extension_installed "$target_dir" "$extension_id"; then
@@ -80,51 +88,84 @@ download_and_install_extension() {
 
   printf "$${BOLD}📦 Installing extension $${CODE}$extension_id$${RESET}...\n"
 
-  # Create temp directory
-  local temp_dir=$(mktemp -d)
+  # Use dedicated temp directory for this extension
+  local extension_temp_dir
+  extension_temp_dir="$temp_dir/$extension_id-$(date +%s)"
   local download_file="$temp_dir/$extension_id.vsix"
 
-  # Download with timeout
-  if timeout 30 curl -fsSL "$url" -o "$download_file" 2> /dev/null; then
-    # Verify the download is a valid file
-    if file "$download_file" 2> /dev/null | grep -q "Zip archive"; then
-      # Create target directory
-      mkdir -p "$target_dir"
-      local extract_dir="$target_dir/$extension_id"
+  # First, get the metadata JSON
+  local metadata_response
+  if metadata_response=$(timeout 30 curl -fsSL "$metadata_url" 2>&1); then
+    # Extract the download URL from JSON (handle both VS Code and Open VSX)
+    local download_url
+    if [[ "${IDE_TYPE}" == "vscode" || "${IDE_TYPE}" == "vscode-insiders" ]]; then
+      # VS Code format
+      download_url=$(echo "$metadata_response" | jq -r '.versions[0].files[] | select(.assetType == "Microsoft.VisualStudio.Services.VSIXPackage") | .source' 2> /dev/null)
+    else
+      # Open VSX format
+      download_url=$(echo "$metadata_response" | jq -r '.files.download // .downloads.universal // empty' 2> /dev/null)
+    fi
 
-      # Remove existing incomplete installation
-      if [ -d "$extract_dir" ]; then
-        rm -rf "$extract_dir"
-      fi
+    if [[ -n "$download_url" && "$download_url" != "null" ]]; then
+      # Download the actual .vsix file
+      if timeout 30 curl -fsSL "$download_url" -o "$download_file" 2>&1; then
+        # Verify the download is a valid file
+        if file "$download_file" 2> /dev/null | grep -q "Zip archive"; then
+          # Create target directory
+          mkdir -p "$target_dir"
+          local extract_dir="$target_dir/$extension_id"
 
-      mkdir -p "$extract_dir"
+          # Remove existing incomplete installation
+          if [ -d "$extract_dir" ]; then
+            rm -rf "$extract_dir"
+          fi
 
-      # Extract extension
-      if unzip -q "$download_file" -d "$extract_dir" 2> /dev/null; then
-        if [ -f "$extract_dir/package.json" ]; then
-          printf "$${GREEN}✅ Successfully installed $${CODE}$extension_id$${RESET}\n"
-          rm -rf "$temp_dir"
-          return 0
+          mkdir -p "$extract_dir"
+
+          # Extract extension
+          if unzip -q "$download_file" -d "$extract_dir" 2> /dev/null; then
+            if [ -f "$extract_dir/package.json" ]; then
+              printf "$${GREEN}✅ Successfully installed $${CODE}$extension_id$${RESET}\n"
+              # Log success
+              echo "$(date): Successfully installed $extension_id" >> "$log_file"
+              rm -rf "$extension_temp_dir"
+              return 0
+            else
+              printf "$${RED}❌ Invalid extension package$${RESET}\n"
+              echo "$(date): Invalid extension package for $extension_id" >> "$log_file"
+              rm -rf "$extract_dir"
+              rm -rf "$extension_temp_dir"
+              return 1
+            fi
+          else
+            printf "$${RED}❌ Failed to extract extension$${RESET}\n"
+            echo "$(date): Failed to extract $extension_id" >> "$log_file"
+            rm -rf "$extract_dir"
+            rm -rf "$extension_temp_dir"
+            return 1
+          fi
         else
-          printf "$${RED}❌ Invalid extension package$${RESET}\n"
-          rm -rf "$extract_dir"
-          rm -rf "$temp_dir"
+          printf "$${RED}❌ Invalid file format$${RESET}\n"
+          echo "$(date): Invalid file format for $extension_id" >> "$log_file"
+          rm -rf "$extension_temp_dir"
           return 1
         fi
       else
-        printf "$${RED}❌ Failed to extract extension$${RESET}\n"
-        rm -rf "$extract_dir"
-        rm -rf "$temp_dir"
+        printf "$${RED}❌ Download failed$${RESET}\n"
+        echo "$(date): Download failed for $extension_id from $download_url" >> "$log_file"
+        rm -rf "$extension_temp_dir"
         return 1
       fi
     else
-      printf "$${RED}❌ Invalid file format$${RESET}\n"
-      rm -rf "$temp_dir"
+      printf "$${RED}❌ Could not extract download URL from metadata$${RESET}\n"
+      echo "$(date): Could not extract download URL for $extension_id" >> "$log_file"
+      rm -rf "$extension_temp_dir"
       return 1
     fi
   else
-    printf "$${RED}❌ Download failed$${RESET}\n"
-    rm -rf "$temp_dir"
+    printf "$${RED}❌ Failed to fetch extension metadata$${RESET}\n"
+    echo "$(date): Failed to fetch metadata for $extension_id from $metadata_url" >> "$log_file"
+    rm -rf "$extension_temp_dir"
     return 1
   fi
 }
@@ -133,8 +174,11 @@ download_and_install_extension() {
 install_extension_from_url() {
   local url="$1"
   local target_dir="$2"
+  local temp_dir="$3"
+  local log_file="$4"
 
-  local extension_name=$(basename "$url" | sed 's/\.vsix$$//')
+  local extension_name
+  extension_name=$(basename "$url" | sed 's/\.vsix$$//')
   local extension_id="$extension_name"
 
   printf "$${BOLD}📦 Installing extension from URL: $${CODE}$extension_name$${RESET}...\n"
@@ -144,11 +188,12 @@ install_extension_from_url() {
     return 0
   fi
 
-  # Create temp directory
-  local temp_dir=$(mktemp -d)
+  # Use dedicated temp directory
+  local extension_temp_dir
+  extension_temp_dir="$temp_dir/$extension_id-$(date +%s)"
   local download_file="$temp_dir/$extension_id.vsix"
 
-  if timeout 30 curl -fsSL "$url" -o "$download_file" 2> /dev/null; then
+  if timeout 30 curl -fsSL "$url" -o "$download_file" 2>&1; then
     # Create target directory
     mkdir -p "$target_dir"
     local extract_dir="$target_dir/$extension_id"
@@ -163,23 +208,27 @@ install_extension_from_url() {
     if unzip -q "$download_file" -d "$extract_dir" 2> /dev/null; then
       if [ -f "$extract_dir/package.json" ]; then
         printf "$${GREEN}✅ Successfully installed $${CODE}$extension_id$${RESET}\n"
-        rm -rf "$temp_dir"
+        echo "$(date): Successfully installed $extension_id from URL" >> "$log_file"
+        rm -rf "$extension_temp_dir"
         return 0
       else
         printf "$${RED}❌ Invalid extension package$${RESET}\n"
+        echo "$(date): Invalid extension package for $extension_id from URL" >> "$log_file"
         rm -rf "$extract_dir"
-        rm -rf "$temp_dir"
+        rm -rf "$extension_temp_dir"
         return 1
       fi
     else
       printf "$${RED}❌ Failed to extract extension$${RESET}\n"
+      echo "$(date): Failed to extract $extension_id from URL" >> "$log_file"
       rm -rf "$extract_dir"
-      rm -rf "$temp_dir"
+      rm -rf "$extension_temp_dir"
       return 1
     fi
   else
     printf "$${RED}❌ Failed to download extension from URL$${RESET}\n"
-    rm -rf "$temp_dir"
+    echo "$(date): Failed to download $extension_id from URL: $url" >> "$log_file"
+    rm -rf "$extension_temp_dir"
     return 1
   fi
 }
@@ -188,6 +237,8 @@ install_extension_from_url() {
 install_extensions_from_urls() {
   local urls="$1"
   local target_dir="$2"
+  local temp_dir="$3"
+  local log_file="$4"
 
   if [[ -z "$urls" ]]; then
     return 0
@@ -200,7 +251,7 @@ install_extensions_from_urls() {
     # Trim whitespace
     url=$(echo "$url" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     if [ -n "$url" ]; then
-      install_extension_from_url "$url" "$target_dir"
+      install_extension_from_url "$url" "$target_dir" "$temp_dir" "$log_file"
     fi
   done
 }
@@ -209,6 +260,8 @@ install_extensions_from_urls() {
 install_extensions_from_ids() {
   local extensions="$1"
   local target_dir="$2"
+  local temp_dir="$3"
+  local log_file="$4"
 
   if [[ -z "$extensions" ]]; then
     return 0
@@ -221,12 +274,13 @@ install_extensions_from_ids() {
     # Trim whitespace
     extension_id=$(echo "$extension_id" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     if [ -n "$extension_id" ]; then
-      local extension_url
-      extension_url=$(generate_extension_url "$extension_id")
-      if [ -n "$extension_url" ]; then
-        download_and_install_extension "$target_dir" "$extension_id" "$extension_url"
+      local metadata_url
+      metadata_url=$(generate_extension_url "$extension_id")
+      if [ -n "$metadata_url" ]; then
+        download_and_install_extension "$target_dir" "$extension_id" "$metadata_url" "$temp_dir" "$log_file"
       else
         printf "$${RED}❌ Invalid extension ID: $extension_id$${RESET}\n"
+        echo "$(date): Invalid extension ID: $extension_id" >> "$log_file"
       fi
     fi
   done
@@ -243,6 +297,18 @@ main() {
       return 1
     fi
   done
+
+  # Create dedicated module directory structure
+  local module_dir="$HOME/.vscode-desktop-core"
+  local temp_dir="$module_dir/tmp"
+  local logs_dir="$module_dir/logs"
+
+  mkdir -p "$temp_dir" "$logs_dir"
+
+  # Set up logging
+  local log_file
+  log_file="$logs_dir/extension-installation-$(date +%Y%m%d-%H%M%S).log"
+  printf "$${BOLD}📝 Logging to: $${CODE}$log_file$${RESET}\n"
 
   # Expand tilde in extensions directory path
   local extensions_dir="${EXTENSIONS_DIR}"
@@ -261,15 +327,17 @@ main() {
 
   # Install extensions from URLs (airgapped scenario)
   if [ -n "${EXTENSIONS_URLS}" ]; then
-    install_extensions_from_urls "${EXTENSIONS_URLS}" "$extensions_dir"
+    install_extensions_from_urls "${EXTENSIONS_URLS}" "$extensions_dir" "$temp_dir" "$log_file"
   fi
 
   # Install extensions from extension IDs (normal scenario)
   if [[ -n "${EXTENSIONS}" ]]; then
-    install_extensions_from_ids "${EXTENSIONS}" "$extensions_dir"
+    install_extensions_from_ids "${EXTENSIONS}" "$extensions_dir" "$temp_dir" "$log_file"
   fi
 
   printf "$${BOLD}$${GREEN}✨ Extension installation completed for $${CODE}${IDE_TYPE}$${RESET}$${BOLD}$${GREEN}!$${RESET}\n"
+  printf "$${BOLD}📁 Extensions installed to: $${CODE}$extensions_dir$${RESET}\n"
+  printf "$${BOLD}📝 Log file: $${CODE}$log_file$${RESET}\n"
 }
 
 # Script execution entry point

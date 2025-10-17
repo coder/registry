@@ -117,37 +117,41 @@ describe("vscode-desktop-core extension script logic", async () => {
     {
       protocol: "vscode",
       name: "VS Code",
-      expectedUrls: ["marketplace.visualstudio.com"],
+      expectedUrls: [
+        "marketplace.visualstudio.com/_apis/public/gallery/vscode/",
+      ],
       marketplace: "Microsoft",
     },
     {
       protocol: "vscode-insiders",
       name: "VS Code Insiders",
-      expectedUrls: ["marketplace.visualstudio.com"],
+      expectedUrls: [
+        "marketplace.visualstudio.com/_apis/public/gallery/vscode/",
+      ],
       marketplace: "Microsoft",
     },
     {
       protocol: "vscodium",
       name: "VSCodium",
-      expectedUrls: ["open-vsx.org"],
+      expectedUrls: ["open-vsx.org/api/"],
       marketplace: "Open VSX",
     },
     {
       protocol: "cursor",
       name: "Cursor",
-      expectedUrls: ["open-vsx.org"],
+      expectedUrls: ["open-vsx.org/api/"],
       marketplace: "Open VSX",
     },
     {
       protocol: "windsurf",
       name: "WindSurf",
-      expectedUrls: ["open-vsx.org"],
+      expectedUrls: ["open-vsx.org/api/"],
       marketplace: "Open VSX",
     },
     {
       protocol: "kiro",
       name: "Kiro",
-      expectedUrls: ["open-vsx.org"],
+      expectedUrls: ["open-vsx.org/api/"],
       marketplace: "Open VSX",
     },
   ];
@@ -186,15 +190,15 @@ describe("vscode-desktop-core extension script logic", async () => {
       // Verify extension ID is present
       expect(scriptContent).toContain("ms-vscode.hexeditor");
 
-      // Verify the case statement includes the IDE protocol
+      // Verify the case statement includes the IDE protocol (Terraform substitutes the variable)
       expect(scriptContent).toContain(`case "${ide.protocol}" in`);
 
       // Verify that the correct case branch exists for the IDE
       if (ide.marketplace === "Microsoft") {
-        expect(scriptContent).toContain(`"vscode"|"vscode-insiders"`);
+        expect(scriptContent).toContain(`"vscode" | "vscode-insiders"`);
       } else {
         expect(scriptContent).toContain(
-          `"vscodium"|"cursor"|"windsurf"|"kiro"`,
+          `"vscodium" | "cursor" | "windsurf" | "kiro"`,
         );
       }
 
@@ -206,11 +210,11 @@ describe("vscode-desktop-core extension script logic", async () => {
       // Verify the script uses the correct case branch for this IDE
       if (ide.marketplace === "Microsoft") {
         expect(scriptContent).toContain(
-          "# Microsoft IDEs: Use Visual Studio Marketplace",
+          "# Microsoft IDEs: Use the VS Code API to get metadata",
         );
       } else {
         expect(scriptContent).toContain(
-          "# Non-Microsoft IDEs: Use Open VSX Registry",
+          "# Non-Microsoft IDEs: Use Open VSX Registry metadata endpoint",
         );
       }
     });
@@ -223,7 +227,7 @@ describe("vscode-desktop-core extension script logic", async () => {
     const variables = {
       ...defaultVariables,
       extensions_urls:
-        '["https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-vscode/vsextensions/hexeditor/latest/vspackage"]',
+        '["https://marketplace.visualstudio.com/_apis/public/gallery/vscode/ms-vscode/hexeditor/latest"]',
       extensions_dir: extensionsDir,
     };
 
