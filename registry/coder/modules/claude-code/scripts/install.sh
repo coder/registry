@@ -35,7 +35,8 @@ function install_claude_code_cli() {
   if [ "$ARG_INSTALL_CLAUDE_CODE" = "true" ]; then
     echo "Installing Claude Code via official installer"
     set +e
-    curl -fsSL claude.ai/install.sh | bash -s -- "$ARG_CLAUDE_CODE_VERSION" 2>&1
+#    curl -fsSL claude.ai/install.sh | bash -s -- "$ARG_CLAUDE_CODE_VERSION" 2>&1
+    npm install -g @anthropic-ai/claude-code
     CURL_EXIT=${PIPESTATUS[0]}
     set -e
     if [ $CURL_EXIT -ne 0 ]; then
