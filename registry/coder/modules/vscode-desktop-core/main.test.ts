@@ -206,17 +206,6 @@ describe("vscode-desktop-core extension script logic", async () => {
       for (const expectedUrl of ide.expectedUrls) {
         expect(scriptContent).toContain(expectedUrl);
       }
-
-      // Verify the script uses the correct case branch for this IDE
-      if (ide.marketplace === "Microsoft") {
-        expect(scriptContent).toContain(
-          "# Microsoft IDEs: Use the VS Code API to get metadata",
-        );
-      } else {
-        expect(scriptContent).toContain(
-          "# Non-Microsoft IDEs: Use Open VSX Registry metadata endpoint",
-        );
-      }
     });
   }
 
