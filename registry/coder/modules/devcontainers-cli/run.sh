@@ -4,7 +4,7 @@
 # might contain a `package.json` with `packageManager` set to something
 # other than the detected package manager. When this happens, it can
 # cause the installation to fail.
-cd "$CODER_SCRIPT_DATA_DIR"
+cd "$CODER_SCRIPT_DATA_DIR" || exit
 
 # If @devcontainers/cli is already installed, we can skip
 if command -v devcontainer > /dev/null 2>&1; then

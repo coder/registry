@@ -144,7 +144,7 @@ main() {
   printf "$${BOLD}✅ tmux setup complete! \n\n"
 
   printf "$${BOLD} Attempting to restore sessions\n"
-  tmux new-session -d \; source-file ~/.tmux.conf \; run-shell '~/.tmux/plugins/tmux-resurrect/scripts/restore.sh'
+  tmux new-session -d \; source-file ~/.tmux.conf \; run-shell "$HOME/.tmux/plugins/tmux-resurrect/scripts/restore.sh"
   printf "$${BOLD} Sessions restored: -> %s\n" "$(tmux ls)"
 
 }

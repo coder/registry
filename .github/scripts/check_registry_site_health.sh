@@ -82,7 +82,8 @@ create_incident() {
 # Function to check for existing unresolved incidents
 check_existing_incident() {
   # Fetch the latest incidents with status not equal to "RESOLVED"
-  local unresolved_incidents=$(curl -s -X GET "https://api.instatus.com/v1/$INSTATUS_PAGE_ID/incidents" \
+  local unresolved_incidents
+  unresolved_incidents=$(curl -s -X GET "https://api.instatus.com/v1/$INSTATUS_PAGE_ID/incidents" \
     -H "Authorization: Bearer $INSTATUS_API_KEY" \
     -H "Content-Type: application/json" | jq -r '.incidents[] | select(.status != "RESOLVED") | .id')
 
