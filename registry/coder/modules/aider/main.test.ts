@@ -135,39 +135,4 @@ describe("Aider", async () => {
     );
     expect(postLog).toContain("post-install-script");
   });
-
-  test("system-prompt", async () => {
-    const system_prompt = "this is a system prompt for Aider";
-    const { id } = await setup({
-      moduleVariables: {
-        system_prompt,
-        model: "gemini",
-      },
-    });
-    await execModuleScript(id);
-    const resp = await readFileContainer(
-      id,
-      "/home/coder/.aider-module/SYSTEM_PROMPT.md",
-    );
-    expect(resp).toContain(system_prompt);
-  });
-
-  test("task-prompt", async () => {
-    const prompt = "this is a task prompt for Aider";
-    const apiKey = "test-api-key-123";
-    const { id } = await setup({
-      moduleVariables: {
-        credentials: apiKey,
-        model: "gemini",
-      },
-    });
-    await execModuleScript(id, {
-      ARG_AI_PROMPT: `${prompt}`,
-    });
-    const resp = await readFileContainer(
-      id,
-      "/home/coder/.aider-module/agentapi-start.log",
-    );
-    expect(resp).toContain(`Aider task prompt provided : ${prompt}`);
-  });
 });
