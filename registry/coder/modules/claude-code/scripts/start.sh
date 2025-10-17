@@ -84,6 +84,8 @@ function start_agentapi() {
   printf "Running claude code with args: %s\n" "$(printf '%q ' "${ARGS[@]}")"
 
   if [ "${ARG_ENABLE_BOUNDARY:-false}" = "true" ]; then
+    npm install -g @anthropic-ai/claude-code
+
     mkdir -p "$ARG_BOUNDARY_LOG_DIR"
     printf "Starting with coder boundary enabled\n"
 
