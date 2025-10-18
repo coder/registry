@@ -113,7 +113,8 @@ function start_agentapi() {
 
     agentapi server --type claude --term-width 67 --term-height 1190 -- \
       sudo -E env PATH=$PATH setpriv --inh-caps=+net_admin --ambient-caps=+net_admin --bounding-set=+net_admin /home/coder/go/bin/boundary "${BOUNDARY_ARGS[@]}" -- \
-      claude "${ARGS[@]}"
+      claude
+      #"${ARGS[@]}"
   else
     agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
   fi
