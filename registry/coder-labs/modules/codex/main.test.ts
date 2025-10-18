@@ -47,7 +47,7 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
       install_codex: props?.skipCodexMock ? "true" : "false",
       install_agentapi: props?.skipAgentAPIMock ? "true" : "false",
       codex_model: "gpt-4-turbo",
-      folder: "/home/coder",
+      workdir: "/home/coder",
       ...props?.moduleVariables,
     },
     registerCleanup,
@@ -166,12 +166,12 @@ describe("codex", async () => {
     expect(postInstallLog).toContain("post-install-script");
   });
 
-  test("folder-variable", async () => {
-    const folder = "/tmp/codex-test-folder";
+  test("workdir-variable", async () => {
+    const workdir = "/tmp/codex-test-workdir";
     const { id } = await setup({
       skipCodexMock: false,
       moduleVariables: {
-        folder,
+        workdir,
       },
     });
     await execModuleScript(id);
@@ -179,7 +179,7 @@ describe("codex", async () => {
       id,
       "/home/coder/.codex-module/install.log",
     );
-    expect(resp).toContain(folder);
+    expect(resp).toContain(workdir);
   });
 
   test("additional-mcp-servers", async () => {
