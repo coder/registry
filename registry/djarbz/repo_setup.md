@@ -33,7 +33,7 @@ sudo apt update
 sudo apt-get install -y terraform
 ```
 
-## Install Extenstions
+## Install Extensions
 
 - hashicorp.terraform
 
