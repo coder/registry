@@ -51,18 +51,18 @@ run "test_custom_options" {
   command = plan
 
   variables {
-    agent_id            = "test-agent-789"
-    workdir             = "/home/coder/custom"
-    order               = 5
-    group               = "development"
-    icon                = "/icon/custom.svg"
-    model               = "4o"
-    ai_prompt           = "Help me write better code"
-    install_aider       = false
-    install_agentapi    = false
-    agentapi_version    = "v0.6.3"
-    credentials         = ""
-    base_aider_config   = "read:\n  - CONVENTIONS.md"
+    agent_id          = "test-agent-789"
+    workdir           = "/home/coder/custom"
+    order             = 5
+    group             = "development"
+    icon              = "/icon/custom.svg"
+    model             = "4o"
+    ai_prompt         = "Help me write better code"
+    install_aider     = false
+    install_agentapi  = false
+    agentapi_version  = "v0.6.3"
+    credentials       = ""
+    base_aider_config = "read:\n  - CONVENTIONS.md"
   }
 
   assert {
@@ -131,9 +131,9 @@ run "test_ai_provider_env_mapping" {
   command = plan
 
   variables {
-    agent_id  = "test-agent-provider"
-    workdir   = "/home/coder/test"
-    ai_provider = "google"
+    agent_id            = "test-agent-provider"
+    workdir             = "/home/coder/test"
+    ai_provider         = "google"
     custom_env_var_name = ""
   }
 

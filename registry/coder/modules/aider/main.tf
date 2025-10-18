@@ -199,9 +199,10 @@ additional user input
 4. Use "state": "complete" only when finished with a task
 5. Use "state": "failure" when you need ANY user input, lack sufficient
 details, or encounter blockers
-  EOT
-  
-  final_system_prompt   = var.report_tasks ? "<system>\n${var.system_prompt}${local.task_reporting_prompt}\n</system>" : "<system>\n${var.system_prompt}\n</system>"
+  EOT  
+
+
+  final_system_prompt = var.report_tasks ? "<system>\n${var.system_prompt}${local.task_reporting_prompt}\n</system>" : "<system>\n${var.system_prompt}\n</system>"
 
   # Map providers to their environment variable names
   provider_env_vars = {

@@ -26,7 +26,6 @@ fi
 
 build_initial_prompt() {
   local initial_prompt=""
-
   if [ -n "$ARG_AI_PROMPT" ]; then
     if [ -n "$ARG_SYSTEM_PROMPT" ]; then
       initial_prompt="$ARG_SYSTEM_PROMPT $ARG_AI_PROMPT"
@@ -34,7 +33,6 @@ build_initial_prompt() {
       initial_prompt="$ARG_AI_PROMPT"
     fi
   fi
-
   echo "$initial_prompt"
 }
 
@@ -49,7 +47,7 @@ start_agentapi() {
     agentapi server -I="$initial_prompt" --type aider --term-width=67 --term-height=1190 -- aider --model $ARG_MODEL --yes-always
   else
     agentapi server --term-width=67 --term-height=1190 -- aider --model $ARG_MODEL --yes-always
-  fi 
+  fi
 }
 
 # TODO: Implement MCP server for coder when Aider support MCP servers.
