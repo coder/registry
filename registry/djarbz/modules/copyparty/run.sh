@@ -63,14 +63,14 @@ DOWNLOAD_URL="https://github.com/9001/copyparty/releases/download/$${RELEASE_TO_
 
 printf "⏬ Downloading copyparty-sfx.py...\n"
 if ! curl -fsSL -o /tmp/copyparty-sfx.py "$${DOWNLOAD_URL}/copyparty-sfx.py"; then
-	printf "❌ Failed to download copyparty-sfx.py.\n"
-	exit 1
+  printf "❌ Failed to download copyparty-sfx.py.\n"
+  exit 1
 fi
 
 printf "⏬ Downloading helptext.html...\n"
 if ! curl -fsSL -o /tmp/helptext.html "$${DOWNLOAD_URL}/helptext.html"; then
-	# This is not a fatal error, just a warning.
-	printf "⚠️  Could not download helptext.html. The application will still work.\n"
+  # This is not a fatal error, just a warning.
+  printf "⚠️  Could not download helptext.html. The application will still work.\n"
 fi
 
 chmod +x /tmp/copyparty-sfx.py
@@ -81,7 +81,7 @@ printf "🥳 Installation complete!\n\n"
 # Build a clean, quoted string of the command for logging purposes only.
 log_command="python3 /tmp/copyparty-sfx.py -p '$${PORT}'"
 for arg in "$${ARGUMENTS[@]}"; do
-	# printf "DEBUG: ARG [$${arg}]\n"
+  # printf "DEBUG: ARG [$${arg}]\n"
   log_command+=" '$${arg}'"
 done
 

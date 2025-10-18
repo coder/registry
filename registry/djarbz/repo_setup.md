@@ -11,10 +11,11 @@ nvm install node
 npm install
 ```
 
-## Install Bun
+## Install NPM Tooling
 
 ```bash
 npm install -g bun
+npm install -g prettier
 ```
 
 ## Install Terraform
@@ -35,3 +36,13 @@ sudo apt-get install -y terraform
 ## Install Extenstions
 
 - hashicorp.terraform
+
+## Testing
+
+```bash
+bun run fmt
+npx prettier . --write
+# From registry namespace
+terraform init -upgrade
+terraform test -verbose
+```
