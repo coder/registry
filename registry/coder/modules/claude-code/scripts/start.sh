@@ -105,7 +105,7 @@ function start_agentapi() {
 
     git clone https://github.com/coder/boundary
     cd boundary
-    git checkout yevhenii/proxy-v2
+    git checkout yevhenii/proxy-v3
     go install ./cmd/...
 
     echo ${BOUNDARY_ARGS[@]} > "/tmp/yevhenii-debug.log"
