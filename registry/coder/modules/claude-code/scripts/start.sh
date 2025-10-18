@@ -89,9 +89,9 @@ function start_agentapi() {
 
     # Build boundary args with conditional --unprivileged flag
     BOUNDARY_ARGS=(--log-dir "$ARG_BOUNDARY_LOG_DIR")
-    if [ "${ARG_BOUNDARY_UNPRIVILEGED:-true}" = "true" ]; then
-      BOUNDARY_ARGS+=(--unprivileged)
-    fi
+#    if [ "${ARG_BOUNDARY_UNPRIVILEGED:-true}" = "true" ]; then
+#      BOUNDARY_ARGS+=(--unprivileged)
+#    fi
     # Add default allowed URLs
     BOUNDARY_ARGS+=(--allow "*.anthropic.com" --allow "registry.npmjs.org" --allow "*.sentry.io" --allow "claude.ai" --allow "$ARG_CODER_HOST")
 
