@@ -54,8 +54,14 @@ has_session_for_workdir() {
   if [ -d "$project_sessions_dir" ]; then
     for file in "$project_sessions_dir"/*.jsonl; do
       [ -f "$file" ] || continue
-      if ! grep -q '"content":"Warmup"' "$file" 2> /dev/null; then
-        return 0
+
+      if grep -q '"type":"user"' "$file" 2> /dev/null; then
+        local user_msg_count=$(grep -c '"type":"user"' "$file" 2> /dev/null || echo "0")
+        local warmup_count=$(grep -c '"content":"Warmup"' "$file" 2> /dev/null || echo "0")
+
+        if [ "$user_msg_count" -gt "$warmup_count" ]; then
+          return 0
+        fi
       fi
     done
   fi
