@@ -95,28 +95,30 @@ function start_agentapi() {
       ARGS+=(--dangerously-skip-permissions)
     fi
   elif [ "$ARG_CONTINUE" = "true" ]; then
-    echo "Using explicit continue flag"
-    if [ -n "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" ]; then
-      ARGS+=(--dangerously-skip-permissions)
-    fi
-  else
-    local has_existing_session=false
     if has_session_for_workdir "$ARG_WORKDIR"; then
-      has_existing_session=true
       echo "Session detected for workdir: $ARG_WORKDIR"
-    else
-      echo "No existing session for workdir: $ARG_WORKDIR"
-    fi
-
-    if [ -n "$ARG_AI_PROMPT" ] && [ "$has_existing_session" = "false" ]; then
-      ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
-      echo "Starting new session with prompt"
-    elif [ "$has_existing_session" = "true" ]; then
       ARGS+=(--continue)
       if [ -n "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" ]; then
         ARGS+=(--dangerously-skip-permissions)
       fi
       echo "Resuming existing session"
+    else
+      echo "No existing session for workdir: $ARG_WORKDIR"
+      if [ -n "$ARG_AI_PROMPT" ]; then
+        ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
+        echo "Starting new session with prompt"
+      else
+        if [ -n "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" ]; then
+          ARGS+=(--dangerously-skip-permissions)
+        fi
+        echo "Starting claude code session"
+      fi
+    fi
+  else
+    echo "Continue disabled, starting fresh session"
+    if [ -n "$ARG_AI_PROMPT" ]; then
+      ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
+      echo "Starting new session with prompt"
     else
       if [ -n "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" ]; then
         ARGS+=(--dangerously-skip-permissions)
