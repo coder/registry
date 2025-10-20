@@ -19,6 +19,7 @@ ARG_ENABLE_BOUNDARY=${ARG_ENABLE_BOUNDARY:-false}
 ARG_BOUNDARY_LOG_DIR=${ARG_BOUNDARY_LOG_DIR:-"/tmp/boundary_logs"}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
 ARG_BOUNDARY_PROXY_PORT=${ARG_BOUNDARY_PROXY_PORT:-"8087"}
+ARG_BOUNDARY_LOG_LEVEL=${ARG_BOUNDARY_LOG_LEVEL:-"INFO"}
 
 echo "--------------------------------"
 
@@ -33,6 +34,7 @@ printf "ARG_ENABLE_BOUNDARY: %s\n" "$ARG_ENABLE_BOUNDARY"
 printf "ARG_BOUNDARY_LOG_DIR: %s\n" "$ARG_BOUNDARY_LOG_DIR"
 printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
 printf "ARG_BOUNDARY_PROXY_PORT: %s\n" "$ARG_BOUNDARY_PROXY_PORT"
+printf "ARG_BOUNDARY_LOG_LEVEL: %s\n" "$ARG_BOUNDARY_LOG_LEVEL"
 
 echo "--------------------------------"
 
@@ -102,6 +104,9 @@ function start_agentapi() {
 
     # Set HTTP Proxy port used by Boundary
     BOUNDARY_ARGS+=(--proxy-port $ARG_BOUNDARY_PROXY_PORT)
+
+    # Set log level for boundary
+    BOUNDARY_ARGS+=(--log-level $ARG_BOUNDARY_LOG_LEVEL)
 
     git clone https://github.com/coder/boundary
     cd boundary

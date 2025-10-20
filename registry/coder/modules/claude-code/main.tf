@@ -216,6 +216,12 @@ variable "boundary_proxy_port" {
   default     = "8087"
 }
 
+variable "boundary_log_level" {
+  type        = string
+  description = "Log level for boundary process"
+  default     = "INFO"
+}
+
 resource "coder_env" "claude_code_md_path" {
   count = var.claude_md_path == "" ? 0 : 1
 
@@ -301,6 +307,7 @@ module "agentapi" {
      ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join(" ", var.boundary_additional_allowed_urls)}' \
      ARG_CODER_HOST='${local.coder_host}' \
      ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
+     ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
      /tmp/start.sh
    EOT
 
