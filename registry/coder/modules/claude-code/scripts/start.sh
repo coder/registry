@@ -44,6 +44,26 @@ function validate_claude_installation() {
   fi
 }
 
+has_session_for_workdir() {
+  local workdir="$1"
+  local workdir_abs=$(realpath "$workdir" 2> /dev/null || echo "$workdir")
+
+  if [ -f "$HOME/.claude.json" ]; then
+    if jq -e ".projects[\"$workdir_abs\"]" "$HOME/.claude.json" > /dev/null 2>&1; then
+      return 0
+    fi
+  fi
+
+  local project_dir_name=$(echo "$workdir_abs" | sed 's|/|-|g')
+  local project_sessions_dir="$HOME/.claude/projects/$project_dir_name"
+
+  if [ -d "$project_sessions_dir" ] && [ -n "$(ls -A "$project_sessions_dir" 2> /dev/null)" ]; then
+    return 0
+  fi
+
+  return 1
+}
+
 ARGS=()
 
 function build_claude_args() {
@@ -68,13 +88,43 @@ function build_claude_args() {
 function start_agentapi() {
   mkdir -p "$ARG_WORKDIR"
   cd "$ARG_WORKDIR"
-  if [ -n "$ARG_AI_PROMPT" ]; then
-    ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
-  else
+
+  if [ -n "$ARG_RESUME_SESSION_ID" ]; then
+    echo "Using explicit resume_session_id: $ARG_RESUME_SESSION_ID"
     if [ -n "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" ]; then
       ARGS+=(--dangerously-skip-permissions)
     fi
+  elif [ "$ARG_CONTINUE" = "true" ]; then
+    echo "Using explicit continue flag"
+    if [ -n "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" ]; then
+      ARGS+=(--dangerously-skip-permissions)
+    fi
+  else
+    local has_existing_session=false
+    if has_session_for_workdir "$ARG_WORKDIR"; then
+      has_existing_session=true
+      echo "Session detected for workdir: $ARG_WORKDIR"
+    else
+      echo "No existing session for workdir: $ARG_WORKDIR"
+    fi
+
+    if [ -n "$ARG_AI_PROMPT" ] && [ "$has_existing_session" = "false" ]; then
+      ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
+      echo "Starting new session with prompt"
+    elif [ "$has_existing_session" = "true" ]; then
+      ARGS+=(--continue)
+      if [ -n "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" ]; then
+        ARGS+=(--dangerously-skip-permissions)
+      fi
+      echo "Resuming existing session"
+    else
+      if [ -n "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" ]; then
+        ARGS+=(--dangerously-skip-permissions)
+      fi
+      echo "Starting claude code session"
+    fi
   fi
+
   printf "Running claude code with args: %s\n" "$(printf '%q ' "${ARGS[@]}")"
   agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
 }

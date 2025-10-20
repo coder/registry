@@ -167,7 +167,7 @@ describe("claude-code", async () => {
     const { id } = await setup({
       moduleVariables: {
         permission_mode: mode,
-        task_prompt: "test prompt",
+        ai_prompt: "test prompt",
       },
     });
     await execModuleScript(id);
@@ -185,7 +185,7 @@ describe("claude-code", async () => {
     const { id } = await setup({
       moduleVariables: {
         model: model,
-        task_prompt: "test prompt",
+        ai_prompt: "test prompt",
       },
     });
     await execModuleScript(id);
@@ -202,7 +202,7 @@ describe("claude-code", async () => {
     const { id } = await setup({
       moduleVariables: {
         continue: "true",
-        task_prompt: "test prompt",
+        ai_prompt: "test prompt",
       },
     });
     await execModuleScript(id);
