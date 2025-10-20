@@ -48,17 +48,16 @@ has_session_for_workdir() {
   local workdir="$1"
   local workdir_abs=$(realpath "$workdir" 2> /dev/null || echo "$workdir")
 
-  if [ -f "$HOME/.claude.json" ]; then
-    if jq -e ".projects[\"$workdir_abs\"]" "$HOME/.claude.json" > /dev/null 2>&1; then
-      return 0
-    fi
-  fi
-
   local project_dir_name=$(echo "$workdir_abs" | sed 's|/|-|g')
   local project_sessions_dir="$HOME/.claude/projects/$project_dir_name"
 
-  if [ -d "$project_sessions_dir" ] && [ -n "$(ls -A "$project_sessions_dir" 2> /dev/null)" ]; then
-    return 0
+  if [ -d "$project_sessions_dir" ]; then
+    for file in "$project_sessions_dir"/*.jsonl; do
+      [ -f "$file" ] || continue
+      if ! grep -q '"content":"Warmup"' "$file" 2> /dev/null; then
+        return 0
+      fi
+    done
   fi
 
   return 1
