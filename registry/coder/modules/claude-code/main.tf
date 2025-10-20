@@ -210,6 +210,12 @@ variable "boundary_additional_allowed_urls" {
   default     = []
 }
 
+variable "boundary_proxy_port" {
+  type        = string
+  description = "Port for HTTP Proxy used by Boundary"
+  default     = "8087"
+}
+
 resource "coder_env" "claude_code_md_path" {
   count = var.claude_md_path == "" ? 0 : 1
 
@@ -294,6 +300,7 @@ module "agentapi" {
      ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
      ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join(" ", var.boundary_additional_allowed_urls)}' \
      ARG_CODER_HOST='${local.coder_host}' \
+     ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
      /tmp/start.sh
    EOT
 

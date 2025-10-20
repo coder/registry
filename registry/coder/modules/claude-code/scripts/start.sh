@@ -18,6 +18,7 @@ ARG_AI_PROMPT=$(echo -n "${ARG_AI_PROMPT:-}" | base64 -d)
 ARG_ENABLE_BOUNDARY=${ARG_ENABLE_BOUNDARY:-false}
 ARG_BOUNDARY_LOG_DIR=${ARG_BOUNDARY_LOG_DIR:-"/tmp/boundary_logs"}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
+ARG_BOUNDARY_PROXY_PORT=${ARG_BOUNDARY_PROXY_PORT:-"8087"}
 
 echo "--------------------------------"
 
@@ -31,6 +32,7 @@ printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
 printf "ARG_ENABLE_BOUNDARY: %s\n" "$ARG_ENABLE_BOUNDARY"
 printf "ARG_BOUNDARY_LOG_DIR: %s\n" "$ARG_BOUNDARY_LOG_DIR"
 printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
+printf "ARG_BOUNDARY_PROXY_PORT: %s\n" "$ARG_BOUNDARY_PROXY_PORT"
 
 echo "--------------------------------"
 
@@ -98,12 +100,13 @@ function start_agentapi() {
       done
     fi
 
+    # Set HTTP Proxy port used by Boundary
+    BOUNDARY_ARGS+=(--proxy-port $ARG_BOUNDARY_PROXY_PORT)
+
     git clone https://github.com/coder/boundary
     cd boundary
     git checkout yevhenii/proxy-v3
     go install ./cmd/...
-
-    BOUNDARY_ARGS+=(--proxy-port=8087)
 
     agentapi server --allowed-hosts="*" --type claude --term-width 67 --term-height 1190 -- \
       sudo -E env PATH=$PATH setpriv --inh-caps=+net_admin --ambient-caps=+net_admin --bounding-set=+net_admin /home/coder/go/bin/boundary "${BOUNDARY_ARGS[@]}" -- \
