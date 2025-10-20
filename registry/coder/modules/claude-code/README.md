@@ -13,7 +13,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "3.1.1"
+  version        = "3.1.2"
   agent_id       = coder_agent.example.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
@@ -32,6 +32,10 @@ module "claude-code" {
   - You can get the API key from the [Anthropic Console](https://console.anthropic.com/dashboard).
   - You can get the Session Token using the `claude setup-token` command. This is a long-lived authentication token (requires Claude subscription)
 
+### Session Resumption Behavior
+
+By default, Claude Code automatically resumes existing conversations when your workspace restarts. Sessions are tracked per workspace directory, so conversations continue where you left off. If no session exists (first start), your `ai_prompt` will run normally. To disable this behavior and always start fresh, set `continue = false`
+
 ## Examples
 
 ### Usage with Tasks and Advanced Configuration
@@ -49,7 +53,7 @@ data "coder_parameter" "ai_prompt" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "3.1.1"
+  version  = "3.1.2"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
@@ -85,7 +89,7 @@ Run and configure Claude Code as a standalone CLI in your workspace.
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "3.1.1"
+  version             = "3.1.2"
   agent_id            = coder_agent.example.id
   workdir             = "/home/coder"
   install_claude_code = true
@@ -108,7 +112,7 @@ variable "claude_code_oauth_token" {
 
 module "claude-code" {
   source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "3.1.1"
+  version                 = "3.1.2"
   agent_id                = coder_agent.example.id
   workdir                 = "/home/coder/project"
   claude_code_oauth_token = var.claude_code_oauth_token
@@ -181,7 +185,7 @@ resource "coder_env" "bedrock_api_key" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "3.1.1"
+  version  = "3.1.2"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
   model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
@@ -238,7 +242,7 @@ resource "coder_env" "google_application_credentials" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "3.1.1"
+  version  = "3.1.2"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
   model    = "claude-sonnet-4@20250514"
