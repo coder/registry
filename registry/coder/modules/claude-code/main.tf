@@ -219,7 +219,7 @@ variable "boundary_proxy_port" {
 variable "boundary_log_level" {
   type        = string
   description = "Log level for boundary process"
-  default     = "INFO"
+  default     = "WARN"
 }
 
 resource "coder_env" "claude_code_md_path" {
