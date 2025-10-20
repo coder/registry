@@ -204,12 +204,6 @@ variable "boundary_log_dir" {
   default     = "/tmp/boundary_logs"
 }
 
-variable "boundary_unprivileged" {
-  type        = bool
-  description = "Whether to use --unprivileged flag with coder boundary (recommended for security)"
-  default     = true
-}
-
 variable "boundary_additional_allowed_urls" {
   type        = list(string)
   description = "Additional URLs to allow through boundary (in addition to default allowed URLs)"
@@ -244,12 +238,6 @@ resource "coder_env" "claude_api_key" {
   agent_id = var.agent_id
   name     = "CLAUDE_API_KEY"
   value    = var.claude_api_key
-}
-
-resource "coder_env" "mcp_server_port" {
-  agent_id = var.agent_id
-  name     = "MCP_SERVER_PORT"
-  value    = "8081"
 }
 
 locals {
@@ -304,7 +292,6 @@ module "agentapi" {
      ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
      ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
      ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
-     ARG_BOUNDARY_UNPRIVILEGED='${var.boundary_unprivileged}' \
      ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join(" ", var.boundary_additional_allowed_urls)}' \
      ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh

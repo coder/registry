@@ -17,7 +17,6 @@ ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
 ARG_AI_PROMPT=$(echo -n "${ARG_AI_PROMPT:-}" | base64 -d)
 ARG_ENABLE_BOUNDARY=${ARG_ENABLE_BOUNDARY:-false}
 ARG_BOUNDARY_LOG_DIR=${ARG_BOUNDARY_LOG_DIR:-"/tmp/boundary_logs"}
-ARG_BOUNDARY_UNPRIVILEGED=${ARG_BOUNDARY_UNPRIVILEGED:-true}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
 
 echo "--------------------------------"
@@ -31,7 +30,6 @@ printf "ARG_AI_PROMPT: %s\n" "$ARG_AI_PROMPT"
 printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
 printf "ARG_ENABLE_BOUNDARY: %s\n" "$ARG_ENABLE_BOUNDARY"
 printf "ARG_BOUNDARY_LOG_DIR: %s\n" "$ARG_BOUNDARY_LOG_DIR"
-printf "ARG_BOUNDARY_UNPRIVILEGED: %s\n" "$ARG_BOUNDARY_UNPRIVILEGED"
 printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
 
 echo "--------------------------------"
