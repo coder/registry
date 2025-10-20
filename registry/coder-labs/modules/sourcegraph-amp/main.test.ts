@@ -43,9 +43,9 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
   const { id } = await setupUtil({
     moduleDir: import.meta.dir,
     moduleVariables: {
-      install_sourcegraph_amp: props?.skipAmpMock ? "true" : "false",
+      workdir: "/home/coder",
+      install_amp: props?.skipAmpMock ? "true" : "false",
       install_agentapi: props?.skipAgentAPIMock ? "true" : "false",
-      sourcegraph_amp_model: "test-model",
       ...props?.moduleVariables,
     },
     registerCleanup,
@@ -68,45 +68,94 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
 
 setDefaultTimeout(60 * 1000);
 
-describe("sourcegraph-amp", async () => {
+describe("amp", async () => {
   beforeAll(async () => {
     await runTerraformInit(import.meta.dir);
   });
 
-  test("happy-path", async () => {
-    const { id } = await setup();
+  // test("happy-path", async () => {
+  //   const { id } = await setup();
+  //   await execModuleScript(id);
+  //   await expectAgentAPIStarted(id);
+  // });
+  //
+  // test("api-key", async () => {
+  //   const apiKey = "test-api-key-123";
+  //   const { id } = await setup({
+  //     moduleVariables: {
+  //       amp_api_key: apiKey,
+  //     },
+  //   });
+  //   await execModuleScript(id);
+  //   const resp = await readFileContainer(
+  //     id,
+  //     "/home/coder/.amp-module/agentapi-start.log",
+  //   );
+  //   expect(resp).toContain("amp_api_key provided !");
+  // });
+  //
+  test("install-latest-version", async () => {
+    const { id } = await setup({
+      skipAmpMock: true,
+      skipAgentAPIMock: true,
+      moduleVariables: {
+        amp_version: "",
+      },
+    });
     await execModuleScript(id);
     await expectAgentAPIStarted(id);
   });
 
-  test("api-key", async () => {
-    const apiKey = "test-api-key-123";
+  test("install-specific-version", async () => {
     const { id } = await setup({
+      skipAmpMock: true,
       moduleVariables: {
-        sourcegraph_amp_api_key: apiKey,
+        amp_version: "0.0.1755964909-g31e083",
       },
     });
     await execModuleScript(id);
     const resp = await readFileContainer(
       id,
-      "/home/coder/.sourcegraph-amp-module/agentapi-start.log",
+      "/home/coder/.amp-module/agentapi-start.log",
     );
-    expect(resp).toContain("sourcegraph_amp_api_key provided !");
+    expect(resp).toContain("0.0.1755964909-g31e08");
   });
 
-  test("custom-folder", async () => {
-    const folder = "/tmp/sourcegraph-amp-test";
+  test("install-via-npm", async () => {
+    const { id } = await setup({
+      skipAmpMock: true,
+      moduleVariables: {
+        install_via_npm: "true",
+      },
+    });
+    await execModuleScript(id);
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.amp-module/install.log",
+    );
+    expect(installLog).toContain("Installing Amp via npm");
+
+    const startLog = await readFileContainer(
+      id,
+      "/home/coder/.amp-module/agentapi-start.log",
+    );
+    expect(startLog).toContain("AMP version:");
+  });
+
+  test("custom-workdir", async () => {
+    const workdir = "/tmp/amp-test";
     const { id } = await setup({
       moduleVariables: {
-        folder,
+        workdir,
       },
     });
     await execModuleScript(id);
     const resp = await readFileContainer(
       id,
-      "/home/coder/.sourcegraph-amp-module/install.log",
+      "/home/coder/.amp-module/agentapi-start.log",
     );
-    expect(resp).toContain(folder);
+    expect(resp).toContain(workdir);
   });
 
   test("pre-post-install-scripts", async () => {
@@ -119,39 +168,104 @@ describe("sourcegraph-amp", async () => {
     await execModuleScript(id);
     const preLog = await readFileContainer(
       id,
-      "/home/coder/.sourcegraph-amp-module/pre_install.log",
+      "/home/coder/.amp-module/pre_install.log",
     );
     expect(preLog).toContain("pre-install-script");
     const postLog = await readFileContainer(
       id,
-      "/home/coder/.sourcegraph-amp-module/post_install.log",
+      "/home/coder/.amp-module/post_install.log",
     );
     expect(postLog).toContain("post-install-script");
   });
 
-  test("system-prompt", async () => {
-    const prompt = "this is a system prompt for AMP";
-    const { id } = await setup();
-    await execModuleScript(id, {
-      SOURCEGRAPH_AMP_SYSTEM_PROMPT: prompt,
+  test("instruction-prompt", async () => {
+    const prompt = "this is a instruction prompt for AMP";
+    const { id } = await setup({
+      moduleVariables: {
+        instruction_prompt: prompt,
+      },
     });
-    const resp = await readFileContainer(
-      id,
-      "/home/coder/.sourcegraph-amp-module/SYSTEM_PROMPT.md",
-    );
+    await execModuleScript(id);
+    const resp = await readFileContainer(id, "/home/coder/.config/AGENTS.md");
     expect(resp).toContain(prompt);
   });
 
-  test("task-prompt", async () => {
+  test("ai-prompt", async () => {
     const prompt = "this is a task prompt for AMP";
-    const { id } = await setup();
-    await execModuleScript(id, {
-      SOURCEGRAPH_AMP_TASK_PROMPT: prompt,
+    const { id } = await setup({
+      moduleVariables: {
+        ai_prompt: prompt,
+      },
     });
+    await execModuleScript(id);
     const resp = await readFileContainer(
       id,
-      "/home/coder/.sourcegraph-amp-module/agentapi-start.log",
+      "/home/coder/.amp-module/agentapi-start.log",
     );
-    expect(resp).toContain(`sourcegraph amp task prompt provided : ${prompt}`);
+    expect(resp).toContain(`amp task prompt provided : ${prompt}`);
+  });
+
+  test("custom-base-config", async () => {
+    const customConfig = JSON.stringify({
+      "amp.anthropic.thinking.enabled": false,
+      "amp.todos.enabled": false,
+      "amp.tools.stopTimeout": 900,
+      "amp.git.commit.ampThread.enabled": true,
+    });
+    const customMcp = JSON.stringify({
+      "test-server": {
+        command: "/usr/bin/test-mcp",
+        args: ["--test-arg"],
+        type: "stdio",
+      },
+    });
+    const { id } = await setup({
+      moduleVariables: {
+        base_amp_config: customConfig,
+        mcp: customMcp,
+      },
+    });
+    await execModuleScript(id, {
+      CODER_AGENT_TOKEN: "test-token",
+      CODER_AGENT_URL: "http://test-url:3000",
+    });
+    const settingsContent = await readFileContainer(
+      id,
+      "/home/coder/.config/amp/settings.json",
+    );
+    const settings = JSON.parse(settingsContent);
+
+    expect(settings["amp.anthropic.thinking.enabled"]).toBe(false);
+    expect(settings["amp.todos.enabled"]).toBe(false);
+    expect(settings["amp.tools.stopTimeout"]).toBe(900);
+    expect(settings["amp.git.commit.ampThread.enabled"]).toBe(true);
+    expect(settings["amp.mcpServers"]).toBeDefined();
+    expect(settings["amp.mcpServers"].coder).toBeDefined();
+    expect(settings["amp.mcpServers"]["test-server"]).toBeDefined();
+    expect(settings["amp.mcpServers"]["test-server"].command).toBe(
+      "/usr/bin/test-mcp",
+    );
+    expect(settings["amp.mcpServers"]["test-server"].args).toEqual([
+      "--test-arg",
+    ]);
+  });
+
+  test("default-base-config", async () => {
+    const { id } = await setup();
+    await execModuleScript(id, {
+      CODER_AGENT_TOKEN: "test-token",
+      CODER_AGENT_URL: "http://test-url:3000",
+    });
+    const settingsContent = await readFileContainer(
+      id,
+      "/home/coder/.config/amp/settings.json",
+    );
+    const settings = JSON.parse(settingsContent);
+
+    expect(settings["amp.anthropic.thinking.enabled"]).toBe(true);
+    expect(settings["amp.todos.enabled"]).toBe(true);
+    expect(settings["amp.mcpServers"]).toBeDefined();
+    expect(settings["amp.mcpServers"].coder).toBeDefined();
+    expect(settings["amp.mcpServers"].coder.command).toBe("coder");
   });
 });

@@ -88,15 +88,13 @@ variable "post_install_script" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.6.1"
+  default     = "v0.10.0"
 }
 
 variable "workdir" {
   type        = string
   description = "The folder to run Amazon Q in."
 }
-
-# ---------------------------------------------
 
 variable "install_amazon_q" {
   type        = bool
@@ -190,6 +188,7 @@ resource "coder_env" "auth_tarball" {
 
 locals {
   app_slug               = "amazonq"
+  workdir                = trimsuffix(var.workdir, "/")
   install_script         = file("${path.module}/scripts/install.sh")
   start_script           = file("${path.module}/scripts/start.sh")
   module_dir_name        = ".amazonq-module"
@@ -215,9 +214,10 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.1.1"
+  version = "1.2.0"
 
   agent_id             = var.agent_id
+  folder               = local.workdir
   web_app_slug         = local.app_slug
   web_app_order        = var.order
   web_app_group        = var.group
