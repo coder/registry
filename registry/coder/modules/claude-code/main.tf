@@ -198,6 +198,12 @@ variable "enable_boundary" {
   default     = false
 }
 
+variable "boundary_version" {
+  type        = string
+  description = "Boundary version, valid git reference should be provided (tag, commit, branch)"
+  default     = "main"
+}
+
 variable "boundary_log_dir" {
   type        = string
   description = "Directory for boundary logs"
@@ -303,11 +309,12 @@ module "agentapi" {
      ARG_WORKDIR='${local.workdir}' \
      ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
      ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
+     ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
+     ARG_BOUNDARY_VERSION='${var.boundary_version}' \
      ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
      ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join(" ", var.boundary_additional_allowed_urls)}' \
      ARG_CODER_HOST='${local.coder_host}' \
      ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
-     ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
      /tmp/start.sh
    EOT
 

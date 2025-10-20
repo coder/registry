@@ -16,6 +16,7 @@ ARG_PERMISSION_MODE=${ARG_PERMISSION_MODE:-}
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
 ARG_AI_PROMPT=$(echo -n "${ARG_AI_PROMPT:-}" | base64 -d)
 ARG_ENABLE_BOUNDARY=${ARG_ENABLE_BOUNDARY:-false}
+ARG_BOUNDARY_VERSION=${ARG_BOUNDARY_VERSION:-"main"}
 ARG_BOUNDARY_LOG_DIR=${ARG_BOUNDARY_LOG_DIR:-"/tmp/boundary_logs"}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
 ARG_BOUNDARY_PROXY_PORT=${ARG_BOUNDARY_PROXY_PORT:-"8087"}
@@ -31,6 +32,7 @@ printf "ARG_PERMISSION_MODE: %s\n" "$ARG_PERMISSION_MODE"
 printf "ARG_AI_PROMPT: %s\n" "$ARG_AI_PROMPT"
 printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
 printf "ARG_ENABLE_BOUNDARY: %s\n" "$ARG_ENABLE_BOUNDARY"
+printf "ARG_BOUNDARY_VERSION: %s\n" "$ARG_BOUNDARY_VERSION"
 printf "ARG_BOUNDARY_LOG_DIR: %s\n" "$ARG_BOUNDARY_LOG_DIR"
 printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
 printf "ARG_BOUNDARY_PROXY_PORT: %s\n" "$ARG_BOUNDARY_PROXY_PORT"
@@ -86,6 +88,12 @@ function start_agentapi() {
   printf "Running claude code with args: %s\n" "$(printf '%q ' "${ARGS[@]}")"
 
   if [ "${ARG_ENABLE_BOUNDARY:-false}" = "true" ]; then
+    # Install boundary from public github repo
+    git clone https://github.com/coder/boundary
+    cd boundary
+    git checkout $ARG_BOUNDARY_VERSION
+    go install ./cmd/...
+
     mkdir -p "$ARG_BOUNDARY_LOG_DIR"
     printf "Starting with coder boundary enabled\n"
 
@@ -107,11 +115,6 @@ function start_agentapi() {
 
     # Set log level for boundary
     BOUNDARY_ARGS+=(--log-level $ARG_BOUNDARY_LOG_LEVEL)
-
-    git clone https://github.com/coder/boundary
-    cd boundary
-    git checkout yevhenii/proxy-v3
-    go install ./cmd/...
 
     agentapi server --allowed-hosts="*" --type claude --term-width 67 --term-height 1190 -- \
       sudo -E env PATH=$PATH setpriv --inh-caps=+net_admin --ambient-caps=+net_admin --bounding-set=+net_admin /home/coder/go/bin/boundary "${BOUNDARY_ARGS[@]}" -- \
