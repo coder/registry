@@ -48,7 +48,6 @@ module "claude-code" {
   boundary_additional_allowed_urls = ["GET *google.com"]
   boundary_proxy_port = "8087"
   version             = "3.2.1"
-  ...
 }
 ```
 
