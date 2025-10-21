@@ -36,7 +36,7 @@ module "claude-code" {
 
 ### Usage with Agent Boundaries
 
-This example shows how to configure the Claude Code module to run the agent behind a firewall that restricts what it can access and use.
+This example shows how to configure the Claude Code module to run the agent behind a process-level boundary that restricts its network access.
 
 ```tf
 module "claude-code" {
