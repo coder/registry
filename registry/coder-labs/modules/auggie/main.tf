@@ -66,7 +66,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.6.0"
+  default     = "v0.10.0"
   validation {
     condition     = can(regex("^v[0-9]+\\.[0-9]+\\.[0-9]+", var.agentapi_version))
     error_message = "agentapi_version must be a valid semantic version starting with 'v', like 'v0.3.3'."
@@ -174,13 +174,15 @@ locals {
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".auggie-module"
+  folder          = trimsuffix(var.folder, "/")
 }
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.1.1"
+  version = "1.2.0"
 
   agent_id             = var.agent_id
+  folder               = local.folder
   web_app_slug         = local.app_slug
   web_app_order        = var.order
   web_app_group        = var.group

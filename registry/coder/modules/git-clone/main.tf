@@ -62,6 +62,12 @@ variable "depth" {
   default     = 0
 }
 
+variable "post_clone_script" {
+  description = "Custom script to run after cloning the repository. Runs always after git clone, even if the repository already exists."
+  type        = string
+  default     = null
+}
+
 locals {
   # Remove query parameters and fragments from the URL
   url = replace(replace(var.url, "/\\?.*/", ""), "/#.*/", "")
@@ -81,6 +87,8 @@ locals {
   clone_path = var.base_dir != "" ? join("/", [var.base_dir, local.folder_name]) : join("/", ["~", local.folder_name])
   # Construct the web URL
   web_url = startswith(local.clone_url, "git@") ? replace(replace(local.clone_url, ":", "/"), "git@", "https://") : local.clone_url
+  # Encode the post_clone_script for passing to the shell script
+  encoded_post_clone_script = var.post_clone_script != null ? base64encode(var.post_clone_script) : ""
 }
 
 output "repo_dir" {
@@ -120,6 +128,7 @@ resource "coder_script" "git_clone" {
     REPO_URL : local.clone_url,
     BRANCH_NAME : local.branch_name,
     DEPTH = var.depth,
+    POST_CLONE_SCRIPT : local.encoded_post_clone_script,
   })
   display_name       = "Git Clone"
   icon               = "/icon/git.svg"

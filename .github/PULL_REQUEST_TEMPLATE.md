@@ -1,5 +1,3 @@
-Closes #
-
 ## Description
 
 <!-- Briefly describe what this PR does and why -->
@@ -7,6 +5,7 @@ Closes #
 ## Type of Change
 
 - [ ] New module
+- [ ] New template
 - [ ] Bug fix
 - [ ] Feature/enhancement
 - [ ] Documentation
@@ -20,10 +19,16 @@ Closes #
 **New version:** `v1.0.0`  
 **Breaking change:** [ ] Yes [ ] No
 
+## Template Information
+
+<!-- Delete this section if not applicable -->
+
+**Path:** `registry/[namespace]/templates/[template-name]`
+
 ## Testing & Validation
 
 - [ ] Tests pass (`bun test`)
-- [ ] Code formatted (`bun run fmt`)
+- [ ] Code formatted (`bun fmt`)
 - [ ] Changes tested locally
 
 ## Related Issues
