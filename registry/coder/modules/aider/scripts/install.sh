@@ -29,19 +29,19 @@ function install_aider() {
     pipx install --force aider-install
     aider-install
   fi
-  echo "Aider installed: $(aider --version || echo 'check failed the Aider module installation failed')"
+  echo "Aider installed: $(aider --version || echo 'Aider installation check failed')"
 }
 
 function configure_aider_settings() {
   if [ -n "${ARG_AIDER_CONFIG}" ]; then
-    echo "Aider Envronment Variables AND Model are Configuring"
+    echo "Configuring Aider environment variables and model"
 
     mkdir -p "$HOME/.config/aider"
 
     echo "$ARG_AIDER_CONFIG" > "$HOME/.config/aider/.aider.conf.yml"
-    echo "Aider config.yml created at $HOME/.config/aider/.aider.conf.yml"
+    echo "Aider config created at $HOME/.config/aider/.aider.conf.yml"
   else
-    printf "NO Aider Environment Variables and Model Configured\n"
+    printf "No Aider environment variables or model configured\n"
   fi
 }
 

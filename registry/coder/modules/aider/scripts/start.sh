@@ -14,15 +14,15 @@ ARG_ENV_API_NAME_HOLDER=${ARG_ENV_API_NAME_HOLDER:-}
 
 echo "--------------------------------"
 echo "Provider: $ARG_PROVIDER"
-echo "Module: $ARG_MODEL"
+echo "Model: $ARG_MODEL"
 echo "--------------------------------"
 
 if [ -n "$ARG_API_KEY" ]; then
-  printf "API key provided !\n"
+  printf "API key provided!\n"
   export $ARG_ENV_API_NAME_HOLDER=$ARG_API_KEY
-else
-  printf "API key not provided\n"
-fi
+ else
+  printf "API key not provided.\n"
+ fi
 
 build_initial_prompt() {
   local initial_prompt=""
@@ -43,7 +43,7 @@ start_agentapi() {
   local initial_prompt
   initial_prompt=$(build_initial_prompt)
   if [ -n "$initial_prompt" ]; then
-    echo "Using Initial Prompt to Start agentapi with Task Prompt"
+    echo "Starting agentapi with initial prompt"
     agentapi server -I="$initial_prompt" --type aider --term-width=67 --term-height=1190 -- aider --model $ARG_MODEL --yes-always
   else
     agentapi server --term-width=67 --term-height=1190 -- aider --model $ARG_MODEL --yes-always

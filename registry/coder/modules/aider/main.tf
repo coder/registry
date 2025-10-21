@@ -98,7 +98,7 @@ variable "agentapi_version" {
 
 variable "ai_prompt" {
   type        = string
-  description = "Initial task prompt for Claude Code."
+  description = "Initial task prompt for Aider."
   default     = ""
 }
 

@@ -96,7 +96,7 @@ describe("Aider", async () => {
       id,
       "/home/coder/.aider-module/agentapi-start.log",
     );
-    expect(resp).toContain("API key provided !");
+    expect(resp).toContain("API key provided!");
   });
 
   test("custom-folder", async () => {
