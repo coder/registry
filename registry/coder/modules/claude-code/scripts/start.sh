@@ -54,48 +54,33 @@ has_session_for_workdir() {
   if [ -d "$project_sessions_dir" ]; then
     for file in "$project_sessions_dir"/*.jsonl; do
       [ -f "$file" ] || continue
-
       if grep -q '"type":"user"' "$file" 2> /dev/null; then
-        local user_msg_count=$(grep -c '"type":"user"' "$file" 2> /dev/null || echo "0")
-        local warmup_count=$(grep -c '"content":"Warmup"' "$file" 2> /dev/null || echo "0")
-
-        if [ "$user_msg_count" -gt "$warmup_count" ]; then
+        if grep -q '"isSidechain":false' "$file" 2> /dev/null; then
           return 0
         fi
       fi
     done
   fi
-
   return 1
 }
 
 ARGS=()
 
-function build_claude_args() {
+function start_agentapi() {
+  mkdir -p "$ARG_WORKDIR"
+  cd "$ARG_WORKDIR"
+
   if [ -n "$ARG_MODEL" ]; then
     ARGS+=(--model "$ARG_MODEL")
-  fi
-
-  if [ -n "$ARG_RESUME_SESSION_ID" ]; then
-    ARGS+=(--resume "$ARG_RESUME_SESSION_ID")
-  fi
-
-  if [ "$ARG_CONTINUE" = "true" ]; then
-    ARGS+=(--continue)
   fi
 
   if [ -n "$ARG_PERMISSION_MODE" ]; then
     ARGS+=(--permission-mode "$ARG_PERMISSION_MODE")
   fi
 
-}
-
-function start_agentapi() {
-  mkdir -p "$ARG_WORKDIR"
-  cd "$ARG_WORKDIR"
-
   if [ -n "$ARG_RESUME_SESSION_ID" ]; then
     echo "Using explicit resume_session_id: $ARG_RESUME_SESSION_ID"
+    ARGS+=(--resume "$ARG_RESUME_SESSION_ID")
     if [ -n "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" ]; then
       ARGS+=(--dangerously-skip-permissions)
     fi
@@ -137,5 +122,4 @@ function start_agentapi() {
 }
 
 validate_claude_installation
-build_claude_args
 start_agentapi
