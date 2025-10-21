@@ -75,8 +75,8 @@ module "copilot" {
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/projects"
 
-  # Version pinning (defaults to "0.0.334", use "latest" for newest version)
-  copilot_version = "latest"
+  # Version pinning (defaults to "latest", use specific version if desired)
+  copilot_version = "0.0.334"
 
   # Tool permissions
   allow_tools         = ["shell(git)", "shell(npm)", "write"]
