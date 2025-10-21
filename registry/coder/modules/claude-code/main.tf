@@ -134,7 +134,7 @@ variable "resume_session_id" {
 
 variable "continue" {
   type        = bool
-  description = "Automatically continue existing sessions when workspace restarts. When true, resumes existing conversation if found, otherwise runs prompt or starts new session. When false, always starts fresh (ignores existing sessions)."
+  description = "Automatically continue existing sessions on workspace restart. When true, resumes existing conversation if found, otherwise runs prompt or starts new session. When false, always starts fresh (ignores existing sessions)."
   default     = true
 }
 
