@@ -47,6 +47,14 @@ echo "--------------------------------"
 # avoid exiting if the script fails
 bash "/tmp/remove-last-session-id.sh" "$(pwd)" 2> /dev/null || true
 
+function install_boundary() {
+  # Install boundary from public github repo
+  git clone https://github.com/coder/boundary
+  cd boundary
+  git checkout $ARG_BOUNDARY_VERSION
+  go install ./cmd/...
+}
+
 function validate_claude_installation() {
   if command_exists claude; then
     printf "Claude Code is installed\n"
@@ -90,11 +98,7 @@ function start_agentapi() {
   printf "Running claude code with args: %s\n" "$(printf '%q ' "${ARGS[@]}")"
 
   if [ "${ARG_ENABLE_BOUNDARY:-false}" = "true" ]; then
-    # Install boundary from public github repo
-    git clone https://github.com/coder/boundary
-    cd boundary
-    git checkout $ARG_BOUNDARY_VERSION
-    go install ./cmd/...
+    install_boundary
 
     mkdir -p "$ARG_BOUNDARY_LOG_DIR"
     printf "Starting with coder boundary enabled\n"
