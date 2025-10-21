@@ -205,6 +205,17 @@ describe("claude-code", async () => {
         ai_prompt: "test prompt",
       },
     });
+
+    const projectDir = "/home/coder/project";
+    const projectDirName = projectDir.replace(/\//g, "-");
+    const sessionDir = `/home/coder/.claude/projects/${projectDirName}`;
+    await execContainer(id, ["mkdir", "-p", sessionDir]);
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `echo '{"type":"user","isSidechain":false}' > ${sessionDir}/session-123.jsonl`,
+    ]);
+
     await execModuleScript(id);
 
     const startLog = await execContainer(id, [
