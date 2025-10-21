@@ -206,14 +206,16 @@ describe("claude-code", async () => {
       },
     });
 
+    // Create a mock session file so get_latest_session_id can extract the session ID
     const projectDir = "/home/coder/project";
     const projectDirName = projectDir.replace(/\//g, "-");
     const sessionDir = `/home/coder/.claude/projects/${projectDirName}`;
+    const testSessionId = "test-session-123";
     await execContainer(id, ["mkdir", "-p", sessionDir]);
     await execContainer(id, [
       "bash",
       "-c",
-      `echo '{"type":"user","isSidechain":false}' > ${sessionDir}/session-123.jsonl`,
+      `echo '{"type":"user","isSidechain":false,"sessionId":"${testSessionId}"}' > ${sessionDir}/session-123.jsonl`,
     ]);
 
     await execModuleScript(id);
@@ -223,7 +225,8 @@ describe("claude-code", async () => {
       "-c",
       "cat /home/coder/.claude-module/agentapi-start.log",
     ]);
-    expect(startLog.stdout).toContain("--continue");
+    expect(startLog.stdout).toContain("--resume");
+    expect(startLog.stdout).toContain(testSessionId);
   });
 
   test("pre-post-install-scripts", async () => {
