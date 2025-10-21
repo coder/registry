@@ -210,6 +210,12 @@ variable "boundary_log_dir" {
   default     = "/tmp/boundary_logs"
 }
 
+variable "boundary_log_level" {
+  type        = string
+  description = "Log level for boundary process"
+  default     = "WARN"
+}
+
 variable "boundary_additional_allowed_urls" {
   type        = list(string)
   description = "Additional URLs to allow through boundary (in addition to default allowed URLs)"
@@ -220,12 +226,6 @@ variable "boundary_proxy_port" {
   type        = string
   description = "Port for HTTP Proxy used by Boundary"
   default     = "8087"
-}
-
-variable "boundary_log_level" {
-  type        = string
-  description = "Log level for boundary process"
-  default     = "WARN"
 }
 
 resource "coder_env" "claude_code_md_path" {
@@ -338,12 +338,12 @@ module "agentapi" {
      ARG_WORKDIR='${local.workdir}' \
      ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
      ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
-     ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
      ARG_BOUNDARY_VERSION='${var.boundary_version}' \
      ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
+     ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
      ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join(" ", var.boundary_additional_allowed_urls)}' \
-     ARG_CODER_HOST='${local.coder_host}' \
      ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
+     ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh
    EOT
 
