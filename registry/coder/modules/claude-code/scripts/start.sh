@@ -64,55 +64,10 @@ function validate_claude_installation() {
   fi
 }
 
-has_session_for_workdir() {
-  local workdir="$1"
-  local workdir_abs=$(realpath "$workdir" 2> /dev/null || echo "$workdir")
+TASK_SESSION_ID="cd32e253-ca16-4fd3-9825-d837e74ae3c2"
 
-  local project_dir_name=$(echo "$workdir_abs" | sed 's|/|-|g')
-  local project_sessions_dir="$HOME/.claude/projects/$project_dir_name"
-
-  if [ -d "$project_sessions_dir" ]; then
-    for file in "$project_sessions_dir"/*.jsonl; do
-      [ -f "$file" ] || continue
-      if grep -q '"type":"user"' "$file" 2> /dev/null; then
-        if grep -q '"isSidechain":false' "$file" 2> /dev/null; then
-          return 0
-        fi
-      fi
-    done
-  fi
-  return 1
-}
-
-get_latest_session_id() {
-  local workdir="$1"
-  local workdir_abs=$(realpath "$workdir" 2> /dev/null || echo "$workdir")
-  local project_dir_name=$(echo "$workdir_abs" | sed 's|/|-|g')
-  local project_sessions_dir="$HOME/.claude/projects/$project_dir_name"
-
-  if [ ! -d "$project_sessions_dir" ]; then
-    return 1
-  fi
-
-  local latest_session_id=""
-  local latest_time=0
-
-  for file in "$project_sessions_dir"/*.jsonl; do
-    [ -f "$file" ] || continue
-
-    if grep -q '"type":"user"' "$file" 2> /dev/null; then
-      if grep -q '"isSidechain":false' "$file" 2> /dev/null; then
-        local file_time=$(stat -c %Y "$file" 2> /dev/null || stat -f %m "$file" 2> /dev/null || echo 0)
-        if [ "$file_time" -gt "$latest_time" ]; then
-          latest_time=$file_time
-          latest_session_id=$(grep '"isSidechain":false' "$file" | grep '"sessionId"' | head -1 | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
-        fi
-      fi
-    fi
-  done
-
-  if [ -n "$latest_session_id" ]; then
-    echo "$latest_session_id"
+task_session_exists() {
+  if find "$HOME/.claude" -type f -name "*${TASK_SESSION_ID}*" 2> /dev/null | grep -q .; then
     return 0
   else
     return 1
@@ -140,38 +95,24 @@ function start_agentapi() {
       ARGS+=(--dangerously-skip-permissions)
     fi
   elif [ "$ARG_CONTINUE" = "true" ]; then
-    if has_session_for_workdir "$ARG_WORKDIR"; then
-      local session_id=$(get_latest_session_id "$ARG_WORKDIR")
-      if [ -n "$session_id" ]; then
-        echo "Session detected for workdir: $ARG_WORKDIR"
-        echo "Latest session ID: $session_id"
-        ARGS+=(--resume "$session_id")
-        if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
-          ARGS+=(--dangerously-skip-permissions)
-        fi
-        echo "Resuming existing session with explicit session ID"
-      else
-        echo "Could not extract session ID, starting new session"
-        if [ -n "$ARG_AI_PROMPT" ]; then
-          ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
-          echo "Starting new session with prompt"
-        else
-          if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
-            ARGS+=(--dangerously-skip-permissions)
-          fi
-          echo "Starting claude code session"
-        fi
+    if task_session_exists; then
+      echo "Task session detected (ID: $TASK_SESSION_ID)"
+      ARGS+=(--resume "$TASK_SESSION_ID")
+      if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
+        ARGS+=(--dangerously-skip-permissions)
       fi
+      echo "Resuming existing task session"
     else
-      echo "No existing session for workdir: $ARG_WORKDIR"
+      echo "No existing task session found"
+      ARGS+=(--session-id "$TASK_SESSION_ID")
       if [ -n "$ARG_AI_PROMPT" ]; then
         ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
-        echo "Starting new session with prompt"
+        echo "Starting new task session with prompt"
       else
         if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
           ARGS+=(--dangerously-skip-permissions)
         fi
-        echo "Starting claude code session"
+        echo "Starting new task session"
       fi
     fi
   else

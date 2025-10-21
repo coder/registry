@@ -198,7 +198,7 @@ describe("claude-code", async () => {
     expect(startLog.stdout).toContain(`--model ${model}`);
   });
 
-  test("claude-continue-previous-conversation", async () => {
+  test("claude-continue-resume-existing-session", async () => {
     const { id } = await setup({
       moduleVariables: {
         continue: "true",
@@ -206,16 +206,14 @@ describe("claude-code", async () => {
       },
     });
 
-    // Create a mock session file so get_latest_session_id can extract the session ID
-    const projectDir = "/home/coder/project";
-    const projectDirName = projectDir.replace(/\//g, "-");
-    const sessionDir = `/home/coder/.claude/projects/${projectDirName}`;
-    const testSessionId = "test-session-123";
+    // Create a mock session file with the predefined task session ID
+    const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
+    const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
     await execContainer(id, ["mkdir", "-p", sessionDir]);
     await execContainer(id, [
       "bash",
       "-c",
-      `echo '{"type":"user","isSidechain":false,"sessionId":"${testSessionId}"}' > ${sessionDir}/session-123.jsonl`,
+      `touch ${sessionDir}/session-${taskSessionId}.jsonl`,
     ]);
 
     await execModuleScript(id);
@@ -226,7 +224,8 @@ describe("claude-code", async () => {
       "cat /home/coder/.claude-module/agentapi-start.log",
     ]);
     expect(startLog.stdout).toContain("--resume");
-    expect(startLog.stdout).toContain(testSessionId);
+    expect(startLog.stdout).toContain(taskSessionId);
+    expect(startLog.stdout).toContain("Resuming existing task session");
   });
 
   test("pre-post-install-scripts", async () => {
