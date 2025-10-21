@@ -118,10 +118,18 @@ function start_agentapi() {
     # Set log level for boundary
     BOUNDARY_ARGS+=(--log-level $ARG_BOUNDARY_LOG_LEVEL)
 
+    # Remove --dangerously-skip-permissions from ARGS when using boundary (it doesn't work with elevated permissions)
+    # Create a new array without the dangerous permissions flag
+    CLAUDE_ARGS=()
+    for arg in "${ARGS[@]}"; do
+      if [ "$arg" != "--dangerously-skip-permissions" ]; then
+        CLAUDE_ARGS+=("$arg")
+      fi
+    done
+
     agentapi server --allowed-hosts="*" --type claude --term-width 67 --term-height 1190 -- \
       sudo -E env PATH=$PATH setpriv --inh-caps=+net_admin --ambient-caps=+net_admin --bounding-set=+net_admin /home/coder/go/bin/boundary "${BOUNDARY_ARGS[@]}" -- \
-      claude
-      #"${ARGS[@]}"
+      claude "${CLAUDE_ARGS[@]}"
   else
     agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
   fi
