@@ -13,6 +13,26 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v5
+      - name: Detect changed files
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          list-files: shell
+          filters: |
+            shared:
+              - 'test/**'
+              - 'package.json'
+              - 'bun.lock'
+              - 'bunfig.toml'
+              - 'tsconfig.json'
+              - '.github/workflows/ci.yaml'
+              - 'scripts/ts_test_auto.sh'
+              - 'scripts/terraform_test_all.sh'
+              - 'scripts/terraform_validate.sh'
+            modules:
+              - 'registry/**/modules/**'
+            all:
+              - '**'
       - name: Set up Terraform
         uses: coder/coder/.github/actions/setup-tf@main
       - name: Set up Bun
@@ -27,8 +47,22 @@ jobs:
       - name: Install dependencies
         run: bun install
       - name: Run TypeScript tests
-        run: bun test
+        env:
+          ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
+          SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
+          MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
+        run: bun tstest
+      - name: Run Terraform tests
+        env:
+          ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
+          SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
+          MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
+        run: bun tftest
       - name: Run Terraform Validate
+        env:
+          ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
+          SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
+          MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
         run: bun terraform-validate
   validate-style:
     name: Check for typos and unformatted code
@@ -48,7 +82,7 @@ jobs:
       - name: Validate formatting
         run: bun fmt:ci
       - name: Check for typos
-        uses: crate-ci/typos@v1.36.3
+        uses: crate-ci/typos@v1.38.1
         with:
           config: .github/typos.toml
   validate-readme-files:

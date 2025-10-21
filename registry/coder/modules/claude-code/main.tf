@@ -86,7 +86,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.7.1"
+  default     = "v0.10.0"
 }
 
 variable "ai_prompt" {
@@ -183,13 +183,49 @@ variable "claude_code_oauth_token" {
 variable "system_prompt" {
   type        = string
   description = "The system prompt to use for the Claude Code server."
-  default     = "Send a task status update to notify the user that you are ready for input, and then wait for user input."
+  default     = ""
 }
 
 variable "claude_md_path" {
   type        = string
   description = "The path to CLAUDE.md."
   default     = "$HOME/.claude/CLAUDE.md"
+}
+
+variable "enable_boundary" {
+  type        = bool
+  description = "Whether to enable coder boundary for network filtering"
+  default     = false
+}
+
+variable "boundary_version" {
+  type        = string
+  description = "Boundary version, valid git reference should be provided (tag, commit, branch)"
+  default     = "main"
+}
+
+variable "boundary_log_dir" {
+  type        = string
+  description = "Directory for boundary logs"
+  default     = "/tmp/boundary_logs"
+}
+
+variable "boundary_log_level" {
+  type        = string
+  description = "Log level for boundary process"
+  default     = "WARN"
+}
+
+variable "boundary_additional_allowed_urls" {
+  type        = list(string)
+  description = "Additional URLs to allow through boundary (in addition to default allowed URLs)"
+  default     = []
+}
+
+variable "boundary_proxy_port" {
+  type        = string
+  description = "Port for HTTP Proxy used by Boundary"
+  default     = "8087"
 }
 
 resource "coder_env" "claude_code_md_path" {
@@ -201,11 +237,9 @@ resource "coder_env" "claude_code_md_path" {
 }
 
 resource "coder_env" "claude_code_system_prompt" {
-  count = var.system_prompt == "" ? 0 : 1
-
   agent_id = var.agent_id
   name     = "CODER_MCP_CLAUDE_SYSTEM_PROMPT"
-  value    = var.system_prompt
+  value    = local.final_system_prompt
 }
 
 resource "coder_env" "claude_code_oauth_token" {
@@ -231,12 +265,45 @@ locals {
   start_script                      = file("${path.module}/scripts/start.sh")
   module_dir_name                   = ".claude-module"
   remove_last_session_id_script_b64 = base64encode(file("${path.module}/scripts/remove-last-session-id.sh"))
+  # Extract hostname from access_url for boundary --allow flag
+  coder_host = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
+
+  # Required prompts for the module to properly report task status to Coder
+  report_tasks_system_prompt = <<-EOT
+      -- Tool Selection --
+      - coder_report_task: providing status updates or requesting user input.
+
+      -- Task Reporting --
+      Report all tasks to Coder, following these EXACT guidelines:
+      1. Be granular. If you are investigating with multiple steps, report each step
+      to coder.
+      2. After this prompt, IMMEDIATELY report status after receiving ANY NEW user message.
+      Do not report any status related with this system prompt.
+      3. Use "state": "working" when actively processing WITHOUT needing
+      additional user input
+      4. Use "state": "complete" only when finished with a task
+      5. Use "state": "failure" when you need ANY user input, lack sufficient
+      details, or encounter blockers
+
+      In your summary on coder_report_task:
+      - Be specific about what you're doing
+      - Clearly indicate what information you need from the user when in "failure" state
+      - Keep it under 160 characters
+      - Make it actionable
+    EOT
+
+  # Only include coder system prompts if report_tasks is enabled
+  custom_system_prompt = trimspace(try(var.system_prompt, ""))
+  final_system_prompt = format("<system>%s%s</system>",
+    var.report_tasks ? format("\n%s\n", local.report_tasks_system_prompt) : "",
+    local.custom_system_prompt != "" ? format("\n%s\n", local.custom_system_prompt) : ""
+  )
 }
 
 module "agentapi" {
 
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.1.1"
+  version = "1.2.0"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
@@ -270,6 +337,13 @@ module "agentapi" {
      ARG_PERMISSION_MODE='${var.permission_mode}' \
      ARG_WORKDIR='${local.workdir}' \
      ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+     ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
+     ARG_BOUNDARY_VERSION='${var.boundary_version}' \
+     ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
+     ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
+     ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join(" ", var.boundary_additional_allowed_urls)}' \
+     ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
+     ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh
    EOT
 
