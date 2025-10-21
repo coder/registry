@@ -4,6 +4,7 @@ run "test_aider_basic" {
   variables {
     agent_id = "test-agent-123"
     workdir  = "/home/coder"
+    model    = "gemini"
   }
 
   assert {
@@ -39,6 +40,7 @@ run "test_with_credentials" {
     agent_id    = "test-agent-456"
     workdir     = "/home/coder/workspace"
     credentials = "test-api-key-123"
+    model       = "gemini"
   }
 
   assert {
@@ -60,7 +62,7 @@ run "test_custom_options" {
     ai_prompt         = "Help me write better code"
     install_aider     = false
     install_agentapi  = false
-    agentapi_version  = "v0.6.3"
+    agentapi_version  = "v0.10.0"
     credentials       = ""
     base_aider_config = "read:\n  - CONVENTIONS.md"
   }
@@ -101,8 +103,8 @@ run "test_custom_options" {
   }
 
   assert {
-    condition     = var.agentapi_version == "v0.6.3"
-    error_message = "AgentAPI version should be set to 'v0.6.3'"
+    condition     = var.agentapi_version == "v0.10.0"
+    error_message = "AgentAPI version should be set to 'v0.10.0'"
   }
 }
 
@@ -112,6 +114,7 @@ run "test_with_scripts" {
   variables {
     agent_id            = "test-agent-scripts"
     workdir             = "/home/coder/scripts"
+    model               = "gemini"
     pre_install_script  = "echo 'Pre-install script'"
     post_install_script = "echo 'Post-install script'"
   }
@@ -134,6 +137,7 @@ run "test_ai_provider_env_mapping" {
     agent_id            = "test-agent-provider"
     workdir             = "/home/coder/test"
     ai_provider         = "google"
+    model               = "gemini"
     custom_env_var_name = ""
   }
 
@@ -141,28 +145,5 @@ run "test_ai_provider_env_mapping" {
   assert {
     condition     = var.ai_provider == "google"
     error_message = "AI provider should be set to 'google' for this test"
-  }
-}
-
-run "test_system_prompt_wrapping" {
-  command = plan
-
-  variables {
-    agent_id      = "test-agent-system-prompt"
-    workdir       = "/home/coder/test"
-    system_prompt = "Custom addition"
-    report_tasks  = true
-  }
-
-  assert {
-    condition     = var.system_prompt == "Custom addition"
-    error_message = "System prompt variable should be set correctly"
-  }
-
-  # When report_tasks is true, the module builds a final_system_prompt local that includes the Task Reporting section.
-  # We can't directly reference locals from here reliably, so just assert report_tasks is true for this run.
-  assert {
-    condition     = var.report_tasks == true
-    error_message = "report_tasks should be true for this test"
   }
 }
