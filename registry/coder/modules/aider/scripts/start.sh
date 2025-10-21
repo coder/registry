@@ -20,9 +20,9 @@ echo "--------------------------------"
 if [ -n "$ARG_API_KEY" ]; then
   printf "API key provided!\n"
   export $ARG_ENV_API_NAME_HOLDER=$ARG_API_KEY
- else
+else
   printf "API key not provided.\n"
- fi
+fi
 
 build_initial_prompt() {
   local initial_prompt=""
