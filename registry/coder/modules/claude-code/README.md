@@ -38,6 +38,23 @@ By default, Claude Code automatically resumes existing conversations when your w
 
 ## Examples
 
+### Usage with Agent Boundaries
+
+This example shows how to configure the Claude Code module to run the agent behind a process-level boundary that restricts its network access.
+
+```tf
+module "claude-code" {
+  source                           = "dev.registry.coder.com/coder/claude-code/coder"
+  enable_boundary                  = true
+  boundary_version                 = "main"
+  boundary_log_dir                 = "/tmp/boundary_logs"
+  boundary_log_level               = "WARN"
+  boundary_additional_allowed_urls = ["GET *google.com"]
+  boundary_proxy_port              = "8087"
+  version                          = "3.2.1"
+}
+```
+
 ### Usage with Tasks and Advanced Configuration
 
 This example shows how to configure the Claude Code module with an AI prompt, API key shared by all users of the template, and other custom settings.
