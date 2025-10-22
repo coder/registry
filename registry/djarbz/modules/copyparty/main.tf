@@ -11,7 +11,7 @@ terraform {
 
 locals {
   # A built-in icon like "/icon/code.svg" or a full URL of icon
-  icon_url = "https://raw.githubusercontent.com/9001/copyparty/refs/heads/hovudstraum/docs/logo.svg"
+  icon_url = "/icon/copyparty.svg"
   # a map of all possible values
   # options = {
   #   "Option 1" = {
