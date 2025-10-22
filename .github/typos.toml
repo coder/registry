@@ -5,6 +5,7 @@ Hashi = "Hashi"
 HashiCorp = "HashiCorp"
 mavrickrishi = "mavrickrishi" # Username
 mavrick = "mavrick" # Username
+inh = "inh" # Option in setpriv command
 
 [files]
 extend-exclude = ["registry/coder/templates/aws-devcontainer/architecture.svg"] #False positive
