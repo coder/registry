@@ -291,4 +291,92 @@ describe("goose", async () => {
       expect(agentapiMockOutput).toMatch(/AGENTAPI_CHAT_BASE_PATH=$/m);
     });
   });
+
+  describe("session management", async () => {
+    test("session-name-new", async () => {
+      const { id } = await setup({
+        agentapiMockScript: await loadTestFile(
+          import.meta.dir,
+          "agentapi-mock-print-args.js",
+        ),
+        moduleVariables: {
+          session_name: "my-custom-session",
+        },
+      });
+
+      await execModuleScript(id);
+
+      const agentapiMockOutput = await readFileContainer(id, agentapiStartLog);
+      expect(agentapiMockOutput).toContain("Session name: my-custom-session");
+      expect(agentapiMockOutput).toContain("Starting new named session: my-custom-session");
+    });
+
+    test("session-name-resume", async () => {
+      const { id } = await setup({
+        agentapiMockScript: await loadTestFile(
+          import.meta.dir,
+          "agentapi-mock-print-args.js",
+        ),
+        moduleVariables: {
+          session_name: "existing-session",
+        },
+      });
+
+      await execContainer(id, [
+        "bash",
+        "-c",
+        dedent`
+          cat > /usr/bin/goose <<'EOF'
+#!/bin/bash
+if [ "$1" = "session" ] && [ "$2" = "list" ] && [ "$3" = "--format" ] && [ "$4" = "json" ]; then
+  echo '[{"id":"test123","name":"existing-session"}]'
+else
+  echo "goose mock"
+fi
+EOF
+          chmod +x /usr/bin/goose
+        `,
+      ]);
+
+      await execModuleScript(id);
+
+      const agentapiMockOutput = await readFileContainer(id, agentapiStartLog);
+      expect(agentapiMockOutput).toContain("Resuming session by name: existing-session");
+    });
+
+    test("default-session-name", async () => {
+      const { id } = await setup({
+        agentapiMockScript: await loadTestFile(
+          import.meta.dir,
+          "agentapi-mock-print-args.js",
+        ),
+        moduleVariables: {
+          continue: "true",
+        },
+      });
+
+      await execModuleScript(id);
+
+      const agentapiMockOutput = await readFileContainer(id, agentapiStartLog);
+      expect(agentapiMockOutput).toContain("Session name: task-");
+      expect(agentapiMockOutput).toContain("Starting new session:");
+    });
+
+    test("continue-disabled", async () => {
+      const { id } = await setup({
+        agentapiMockScript: await loadTestFile(
+          import.meta.dir,
+          "agentapi-mock-print-args.js",
+        ),
+        moduleVariables: {
+          continue: "false",
+        },
+      });
+
+      await execModuleScript(id);
+
+      const agentapiMockOutput = await readFileContainer(id, agentapiStartLog);
+      expect(agentapiMockOutput).toContain("Continue disabled, starting fresh session");
+    });
+  });
 });

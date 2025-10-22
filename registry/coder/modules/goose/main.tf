@@ -100,9 +100,22 @@ variable "additional_extensions" {
   default     = null
 }
 
+variable "session_name" {
+  type        = string
+  description = "Name for the Goose session. If empty, uses 'task-{workspace_name}' for automatic workspace-specific session naming."
+  default     = ""
+}
+
+variable "continue" {
+  type        = bool
+  description = "Automatically continue existing sessions on workspace restart. When true, resumes session by name if it exists, otherwise starts new named session. When false, always starts fresh."
+  default     = true
+}
+
 locals {
-  app_slug        = "goose"
-  base_extensions = <<-EOT
+  app_slug             = "goose"
+  default_session_name = "task-${data.coder_workspace.me.name}"
+  base_extensions      = <<-EOT
 coder:
   args:
   - exp
@@ -156,8 +169,20 @@ module "agentapi" {
   agentapi_subdomain   = var.subdomain
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
-  start_script         = local.start_script
   folder               = local.folder
+  start_script         = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+    chmod +x /tmp/start.sh
+
+    ARG_SESSION_NAME='${var.session_name}' \
+    ARG_DEFAULT_SESSION_NAME='${local.default_session_name}' \
+    ARG_CONTINUE='${var.continue}' \
+    /tmp/start.sh
+  EOT
   install_script       = <<-EOT
     #!/bin/bash
     set -o errexit

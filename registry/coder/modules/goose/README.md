@@ -30,6 +30,10 @@ module "goose" {
 
 The `codercom/oss-dogfood:latest` container image can be used for testing on container-based workspaces.
 
+### Session Resumption Behavior
+
+By default, Goose automatically resumes workspace-specific sessions when your workspace restarts. Sessions are named `task-{workspace_name}`, ensuring each workspace maintains its own conversation history. If no session exists (first start), your task prompt will run normally. To disable this and always start fresh, set `continue = false`.
+
 ## Examples
 
 ### Run in the background and report tasks

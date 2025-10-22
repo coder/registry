@@ -16,19 +16,51 @@ else
   exit 1
 fi
 
-# this must be kept up to date with main.tf
 MODULE_DIR="$HOME/.goose-module"
 mkdir -p "$MODULE_DIR"
 
-if [ ! -z "$GOOSE_TASK_PROMPT" ]; then
-  echo "Starting with a prompt"
-  PROMPT="Review your goosehints. Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GOOSE_TASK_PROMPT"
-  PROMPT_FILE="$MODULE_DIR/prompt.txt"
-  echo -n "$PROMPT" > "$PROMPT_FILE"
-  GOOSE_ARGS=(run --interactive --instructions "$PROMPT_FILE")
+ARG_SESSION_NAME=${ARG_SESSION_NAME:-}
+ARG_DEFAULT_SESSION_NAME=${ARG_DEFAULT_SESSION_NAME:-}
+ARG_CONTINUE=${ARG_CONTINUE:-true}
+
+if [ -n "$ARG_SESSION_NAME" ]; then
+  SESSION_NAME="$ARG_SESSION_NAME"
 else
-  echo "Starting without a prompt"
-  GOOSE_ARGS=()
+  SESSION_NAME="$ARG_DEFAULT_SESSION_NAME"
+fi
+
+echo "Session name: $SESSION_NAME"
+
+session_name_exists() {
+  local name=$1
+  "$GOOSE_CMD" session list --format json 2>/dev/null | grep -q "\"name\":[[:space:]]*\"$name\""
+}
+
+if [ "$ARG_CONTINUE" = "true" ]; then
+  if session_name_exists "$SESSION_NAME"; then
+    echo "Resuming session: $SESSION_NAME"
+    GOOSE_ARGS=(session --resume --name "$SESSION_NAME")
+  else
+    echo "Starting new session: $SESSION_NAME"
+    if [ -n "$GOOSE_TASK_PROMPT" ]; then
+      PROMPT="Review your goosehints. Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GOOSE_TASK_PROMPT"
+      PROMPT_FILE="$MODULE_DIR/prompt.txt"
+      echo -n "$PROMPT" > "$PROMPT_FILE"
+      GOOSE_ARGS=(run --interactive --name "$SESSION_NAME" --instructions "$PROMPT_FILE")
+    else
+      GOOSE_ARGS=(session --name "$SESSION_NAME")
+    fi
+  fi
+else
+  echo "Continue disabled, starting fresh session"
+  if [ -n "$GOOSE_TASK_PROMPT" ]; then
+    PROMPT="Review your goosehints. Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GOOSE_TASK_PROMPT"
+    PROMPT_FILE="$MODULE_DIR/prompt.txt"
+    echo -n "$PROMPT" > "$PROMPT_FILE"
+    GOOSE_ARGS=(run --interactive --instructions "$PROMPT_FILE")
+  else
+    GOOSE_ARGS=(session)
+  fi
 fi
 
 agentapi server --term-width 67 --term-height 1190 -- \
