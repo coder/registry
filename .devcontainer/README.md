@@ -81,14 +81,17 @@ terraform test -verbose
 ## Troubleshooting
 
 **Bun not found after container creation:**
+
 - Restart the terminal or run: `source ~/.bashrc`
 - The PATH should include `~/.bun/bin`
 
 **Docker not working:**
+
 - Ensure Docker is running on your host machine
 - Check that Docker socket is properly mounted
 
 **Tests failing:**
+
 - Make sure you're using Linux or a compatible Docker runtime (Colima/OrbStack on macOS)
 - Verify Docker has network access with `--network=host`
 
