@@ -134,8 +134,8 @@ variable "resume_session_id" {
 
 variable "continue" {
   type        = bool
-  description = "Load the most recent conversation in the current directory. Task will fail in a new workspace with no conversation/session to continue"
-  default     = false
+  description = "Automatically continue existing sessions on workspace restart. When true, resumes existing conversation if found, otherwise runs prompt or starts new session. When false, always starts fresh (ignores existing sessions)."
+  default     = true
 }
 
 variable "dangerously_skip_permissions" {

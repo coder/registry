@@ -167,7 +167,7 @@ describe("claude-code", async () => {
     const { id } = await setup({
       moduleVariables: {
         permission_mode: mode,
-        task_prompt: "test prompt",
+        ai_prompt: "test prompt",
       },
     });
     await execModuleScript(id);
@@ -185,7 +185,7 @@ describe("claude-code", async () => {
     const { id } = await setup({
       moduleVariables: {
         model: model,
-        task_prompt: "test prompt",
+        ai_prompt: "test prompt",
       },
     });
     await execModuleScript(id);
@@ -198,13 +198,24 @@ describe("claude-code", async () => {
     expect(startLog.stdout).toContain(`--model ${model}`);
   });
 
-  test("claude-continue-previous-conversation", async () => {
+  test("claude-continue-resume-existing-session", async () => {
     const { id } = await setup({
       moduleVariables: {
         continue: "true",
-        task_prompt: "test prompt",
+        ai_prompt: "test prompt",
       },
     });
+
+    // Create a mock session file with the predefined task session ID
+    const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
+    const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
+    await execContainer(id, ["mkdir", "-p", sessionDir]);
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `touch ${sessionDir}/session-${taskSessionId}.jsonl`,
+    ]);
+
     await execModuleScript(id);
 
     const startLog = await execContainer(id, [
@@ -212,7 +223,9 @@ describe("claude-code", async () => {
       "-c",
       "cat /home/coder/.claude-module/agentapi-start.log",
     ]);
-    expect(startLog.stdout).toContain("--continue");
+    expect(startLog.stdout).toContain("--resume");
+    expect(startLog.stdout).toContain(taskSessionId);
+    expect(startLog.stdout).toContain("Resuming existing task session");
   });
 
   test("pre-post-install-scripts", async () => {
