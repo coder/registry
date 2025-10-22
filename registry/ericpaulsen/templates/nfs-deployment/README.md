@@ -1,7 +1,7 @@
 ---
 display_name: "NFS K8s Deployment"
 description: "Mount an NFS share to a Coder K8s workspace"
-icon: "../../../../.icons/platform.svg"
+icon: "../../../../.icons/folder.svg"
 verified: false
 tags: ["kubernetes", "shared-dir", "nfs"]
 ---
