@@ -64,37 +64,70 @@ function validate_claude_installation() {
   fi
 }
 
+TASK_SESSION_ID="cd32e253-ca16-4fd3-9825-d837e74ae3c2"
+
+task_session_exists() {
+  if find "$HOME/.claude" -type f -name "*${TASK_SESSION_ID}*" 2> /dev/null | grep -q .; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 ARGS=()
 
-function build_claude_args() {
+function start_agentapi() {
+  mkdir -p "$ARG_WORKDIR"
+  cd "$ARG_WORKDIR"
+
   if [ -n "$ARG_MODEL" ]; then
     ARGS+=(--model "$ARG_MODEL")
-  fi
-
-  if [ -n "$ARG_RESUME_SESSION_ID" ]; then
-    ARGS+=(--resume "$ARG_RESUME_SESSION_ID")
-  fi
-
-  if [ "$ARG_CONTINUE" = "true" ]; then
-    ARGS+=(--continue)
   fi
 
   if [ -n "$ARG_PERMISSION_MODE" ]; then
     ARGS+=(--permission-mode "$ARG_PERMISSION_MODE")
   fi
 
-}
-
-function start_agentapi() {
-  mkdir -p "$ARG_WORKDIR"
-  cd "$ARG_WORKDIR"
-  if [ -n "$ARG_AI_PROMPT" ]; then
-    ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
-  else
-    if [ -n "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" ]; then
+  if [ -n "$ARG_RESUME_SESSION_ID" ]; then
+    echo "Using explicit resume_session_id: $ARG_RESUME_SESSION_ID"
+    ARGS+=(--resume "$ARG_RESUME_SESSION_ID")
+    if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
       ARGS+=(--dangerously-skip-permissions)
     fi
+  elif [ "$ARG_CONTINUE" = "true" ]; then
+    if task_session_exists; then
+      echo "Task session detected (ID: $TASK_SESSION_ID)"
+      ARGS+=(--resume "$TASK_SESSION_ID")
+      if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
+        ARGS+=(--dangerously-skip-permissions)
+      fi
+      echo "Resuming existing task session"
+    else
+      echo "No existing task session found"
+      ARGS+=(--session-id "$TASK_SESSION_ID")
+      if [ -n "$ARG_AI_PROMPT" ]; then
+        ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
+        echo "Starting new task session with prompt"
+      else
+        if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
+          ARGS+=(--dangerously-skip-permissions)
+        fi
+        echo "Starting new task session"
+      fi
+    fi
+  else
+    echo "Continue disabled, starting fresh session"
+    if [ -n "$ARG_AI_PROMPT" ]; then
+      ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
+      echo "Starting new session with prompt"
+    else
+      if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
+        ARGS+=(--dangerously-skip-permissions)
+      fi
+      echo "Starting claude code session"
+    fi
   fi
+
   printf "Running claude code with args: %s\n" "$(printf '%q ' "${ARGS[@]}")"
 
   if [ "${ARG_ENABLE_BOUNDARY:-false}" = "true" ]; then
@@ -140,5 +173,4 @@ function start_agentapi() {
 }
 
 validate_claude_installation
-build_claude_args
 start_agentapi
