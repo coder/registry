@@ -137,6 +137,12 @@ variable "ai_prompt" {
   default     = ""
 }
 
+variable "continue" {
+  type        = bool
+  description = "Automatically continue existing sessions on workspace restart. When true, resumes existing conversation if found, otherwise runs prompt or starts new session. When false, always starts fresh (ignores existing sessions)."
+  default     = true
+}
+
 variable "codex_system_prompt" {
   type        = string
   description = "System instructions written to AGENTS.md in the ~/.codex directory"
@@ -189,6 +195,7 @@ module "agentapi" {
      ARG_CODEX_MODEL='${var.codex_model}' \
      ARG_CODEX_START_DIRECTORY='${var.workdir}' \
      ARG_CODEX_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
+     ARG_CONTINUE='${var.continue}' \
      /tmp/start.sh
    EOT
 

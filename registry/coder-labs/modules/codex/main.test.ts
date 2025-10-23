@@ -368,4 +368,35 @@ describe("codex", async () => {
     expect(prompt.exitCode).not.toBe(0);
     expect(prompt.stderr).toContain("No such file or directory");
   });
+
+  test("codex-continue-resume-existing-session", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        continue: "true",
+        ai_prompt: "test prompt",
+      },
+    });
+
+    const workdir = "/home/coder";
+    const mockSessionId = "019a1234-5678-9abc-def0-123456789012";
+    const trackingFile = "/home/coder/.codex/.codex-task-session";
+
+    await execContainer(id, ["mkdir", "-p", "/home/coder/.codex"]);
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `echo "${workdir}|${mockSessionId}" > ${trackingFile}`,
+    ]);
+
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.codex-module/agentapi-start.log",
+    ]);
+    expect(startLog.stdout).toContain("Found existing task session");
+    expect(startLog.stdout).toContain(mockSessionId);
+    expect(startLog.stdout).toContain("Resuming existing session");
+  });
 });
