@@ -82,7 +82,7 @@ find_recent_session_file() {
       latest_file="$session_file"
       latest_time="$file_time"
     fi
-  done < <(find "$sessions_dir" -type f -name "*.jsonl" -mmin -2 2> /dev/null)
+  done < <(find "$sessions_dir" -type f -name "*.jsonl" 2> /dev/null)
 
   if [ -n "$latest_file" ]; then
     local first_line=$(head -n 1 "$latest_file")
@@ -92,6 +92,24 @@ find_recent_session_file() {
       return 0
     fi
   fi
+
+  return 1
+}
+
+wait_for_session_file() {
+  local target_dir="$1"
+  local max_attempts=20
+  local attempt=0
+
+  while [ $attempt -lt $max_attempts ]; do
+    local session_id=$(find_recent_session_file "$target_dir" 2> /dev/null || echo "")
+    if [ -n "$session_id" ]; then
+      echo "$session_id"
+      return 0
+    fi
+    sleep 0.5
+    attempt=$((attempt + 1))
+  done
 
   return 1
 }
@@ -169,14 +187,14 @@ build_codex_args() {
 capture_session_id() {
   if [ "$ARG_CONTINUE" = "true" ] && [ -z "$existing_session" ]; then
     printf "Capturing new session ID...\n"
-    new_session=$(find_recent_session_file "$ARG_CODEX_START_DIRECTORY" 2> /dev/null || echo "")
+    new_session=$(wait_for_session_file "$ARG_CODEX_START_DIRECTORY" || echo "")
 
     if [ -n "$new_session" ]; then
       store_session_mapping "$ARG_CODEX_START_DIRECTORY" "$new_session"
       printf "✓ Session tracked: %s\n" "$new_session"
       printf "This session will be automatically resumed on next restart\n"
     else
-      printf "⚠ Could not capture session ID automatically\n"
+      printf "⚠ Could not capture session ID after 10s timeout\n"
     fi
   fi
 }
@@ -184,7 +202,6 @@ capture_session_id() {
 start_codex() {
   printf "Starting Codex with arguments: %s\n" "${CODEX_ARGS[*]}"
   agentapi server --term-width 67 --term-height 1190 -- codex "${CODEX_ARGS[@]}" &
-  sleep 3
   capture_session_id
 }
 
