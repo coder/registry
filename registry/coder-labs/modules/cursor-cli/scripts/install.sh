@@ -9,6 +9,7 @@ command_exists() {
 
 # Inputs
 ARG_INSTALL=${ARG_INSTALL:-true}
+ARG_VERSION=${ARG_VERSION:-latest}
 ARG_MODULE_DIR_NAME=${ARG_MODULE_DIR_NAME:-.cursor-cli-module}
 ARG_FOLDER=${ARG_FOLDER:-$HOME}
 ARG_CODER_MCP_APP_STATUS_SLUG=${ARG_CODER_MCP_APP_STATUS_SLUG:-}
@@ -20,6 +21,7 @@ ARG_WORKSPACE_RULES_JSON=$(echo -n "$ARG_WORKSPACE_RULES_JSON" | base64 -d)
 
 echo "--------------------------------"
 echo "install: $ARG_INSTALL"
+echo "version: $ARG_VERSION"
 echo "folder: $ARG_FOLDER"
 echo "coder_mcp_app_status_slug: $ARG_CODER_MCP_APP_STATUS_SLUG"
 echo "module_dir_name: $ARG_MODULE_DIR_NAME"

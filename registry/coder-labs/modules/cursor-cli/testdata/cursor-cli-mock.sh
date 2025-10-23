@@ -6,6 +6,11 @@ if [[ "$1" == "--version" ]]; then
   exit 0
 fi
 
+if [[ "$1" == "create-chat" ]]; then
+  echo "12345678-1234-1234-1234-123456789abc"
+  exit 0
+fi
+
 set -e
 
 while true; do

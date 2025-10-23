@@ -10,23 +10,35 @@ command_exists() {
 ARG_AI_PROMPT=$(echo -n "${ARG_AI_PROMPT:-}" | base64 -d)
 ARG_FORCE=${ARG_FORCE:-false}
 ARG_MODEL=${ARG_MODEL:-}
-ARG_OUTPUT_FORMAT=${ARG_OUTPUT_FORMAT:-json}
+ARG_CONTINUE=${ARG_CONTINUE:-true}
+ARG_RESUME_SESSION_ID=${ARG_RESUME_SESSION_ID:-}
 ARG_MODULE_DIR_NAME=${ARG_MODULE_DIR_NAME:-.cursor-cli-module}
 ARG_FOLDER=${ARG_FOLDER:-$HOME}
 
 echo "--------------------------------"
-echo "install: $ARG_INSTALL"
-echo "version: $ARG_VERSION"
 echo "folder: $ARG_FOLDER"
 echo "ai_prompt: $ARG_AI_PROMPT"
 echo "force: $ARG_FORCE"
 echo "model: $ARG_MODEL"
-echo "output_format: $ARG_OUTPUT_FORMAT"
+echo "continue: $ARG_CONTINUE"
+echo "resume_session_id: ${ARG_RESUME_SESSION_ID:-<none>}"
 echo "module_dir_name: $ARG_MODULE_DIR_NAME"
-echo "folder: $ARG_FOLDER"
 echo "--------------------------------"
 
 mkdir -p "$HOME/$ARG_MODULE_DIR_NAME"
+
+SESSION_FILE="$HOME/$ARG_MODULE_DIR_NAME/session_id.txt"
+
+get_stored_session_id() {
+  if [ -f "$SESSION_FILE" ]; then
+    cat "$SESSION_FILE" | tr -d '\n' || echo ""
+  fi
+}
+
+store_session_id() {
+  echo "$1" > "$SESSION_FILE"
+  echo "Stored session ID: $1"
+}
 
 # Find cursor agent cli
 if command_exists cursor-agent; then
@@ -54,6 +66,34 @@ if [ -n "$ARG_MODEL" ]; then
 fi
 if [ "$ARG_FORCE" = "true" ]; then
   ARGS+=("-f")
+fi
+
+if [ -n "$ARG_RESUME_SESSION_ID" ]; then
+  echo "Using explicit resume_session_id: $ARG_RESUME_SESSION_ID"
+  ARGS+=("--resume" "$ARG_RESUME_SESSION_ID")
+
+elif [ "$ARG_CONTINUE" = "true" ]; then
+  STORED_SESSION=$(get_stored_session_id)
+
+  if [ -n "$STORED_SESSION" ]; then
+    echo "Found existing session: $STORED_SESSION"
+    echo "Resuming conversation..."
+    ARGS+=("--resume" "$STORED_SESSION")
+  else
+    echo "No existing session found"
+    echo "Creating new session for this workspace..."
+    NEW_SESSION=$($CURSOR_CMD create-chat 2>&1 | tr -d '\n')
+    if [ -n "$NEW_SESSION" ]; then
+      store_session_id "$NEW_SESSION"
+      ARGS+=("--resume" "$NEW_SESSION")
+    else
+      echo "Warning: Failed to create session, continuing without session resume"
+    fi
+  fi
+
+else
+  echo "Continue disabled, starting fresh session"
+  rm -f "$SESSION_FILE"
 fi
 
 if [ -n "$ARG_AI_PROMPT" ]; then

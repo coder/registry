@@ -108,6 +108,18 @@ variable "post_install_script" {
   default     = null
 }
 
+variable "continue" {
+  type        = bool
+  description = "Automatically continue existing sessions on workspace restart. When true, resumes existing conversation if found, otherwise creates new session. When false, always starts fresh."
+  default     = true
+}
+
+variable "resume_session_id" {
+  type        = string
+  description = "Resume a specific session by ID. Takes precedence over automatic session detection."
+  default     = ""
+}
+
 locals {
   app_slug        = "cursorcli"
   install_script  = file("${path.module}/scripts/install.sh")
@@ -158,6 +170,8 @@ module "agentapi" {
       ARG_FORCE='${var.force}' \
       ARG_MODEL='${var.model}' \
       ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+      ARG_CONTINUE='${var.continue}' \
+      ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
       ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
       ARG_FOLDER='${var.folder}' \
      /tmp/start.sh
