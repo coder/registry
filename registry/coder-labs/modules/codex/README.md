@@ -84,7 +84,7 @@ module "codex" {
 - **System Prompt**: If `codex_system_prompt` is set, writes the prompt to `AGENTS.md` in the `~/.codex/` directory
 - **Start**: Launches Codex CLI in the specified directory, wrapped by AgentAPI
 - **Configuration**: Sets `OPENAI_API_KEY` environment variable and passes `--model` flag to Codex CLI (if variables provided)
-- **Session Continuity**: When `continue = true` (default), the module automatically tracks task sessions `~/.codex/.codex-task-session`. On workspace restart, it resumes the existing session with full conversation history. Set `continue = false` to always start fresh sessions.
+- **Session Continuity**: When `continue = true` (default), the module automatically tracks task sessions in `~/.codex/.codex-task-session`. On workspace restart, it resumes the existing session with full conversation history. Set `continue = false` to always start fresh sessions.
 
 ## Configuration
 
