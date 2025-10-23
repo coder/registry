@@ -398,7 +398,9 @@ describe("codex", async () => {
     expect(startLog.stdout).toContain("Found existing task session");
     expect(startLog.stdout).toContain(mockSessionId);
     expect(startLog.stdout).toContain("Resuming existing session");
-    expect(startLog.stdout).toContain(`Starting Codex with arguments: --model gpt-4-turbo resume ${mockSessionId}`);
+    expect(startLog.stdout).toContain(
+      `Starting Codex with arguments: --model gpt-4-turbo resume ${mockSessionId}`,
+    );
     expect(startLog.stdout).not.toContain("test prompt");
   });
 });
