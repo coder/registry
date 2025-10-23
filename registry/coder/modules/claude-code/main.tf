@@ -228,6 +228,18 @@ variable "boundary_proxy_port" {
   default     = "8087"
 }
 
+variable "enable_boundary_pprof" {
+  type        = bool
+  description = "Whether to enable coder boundary pprof server"
+  default     = false
+}
+
+variable "boundary_pprof_port" {
+  type        = string
+  description = "Port for pprof server used by Boundary"
+  default     = "6067"
+}
+
 resource "coder_env" "claude_code_md_path" {
   count = var.claude_md_path == "" ? 0 : 1
 
@@ -343,6 +355,8 @@ module "agentapi" {
      ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
      ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join(" ", var.boundary_additional_allowed_urls)}' \
      ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
+     ARG_ENABLE_BOUNDARY_PPROF='${var.enable_boundary_pprof}' \
+     ARG_BOUNDARY_PPROF_PORT='${var.boundary_pprof_port}' \
      ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh
    EOT
