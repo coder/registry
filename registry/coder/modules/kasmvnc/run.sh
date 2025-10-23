@@ -8,10 +8,10 @@ error() {
   exit 1
 }
 
-# Function to check if vncserver is already installed
+# Function to check if KasmVNC is already installed
 check_installed() {
-  if command -v vncserver &> /dev/null; then
-    echo "vncserver is already installed."
+  if command -v kasmvncserver &> /dev/null; then
+    echo "KasmVNC is already installed."
     return 0 # Don't exit, just indicate it's installed
   else
     return 1 # Indicates not installed
