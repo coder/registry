@@ -37,10 +37,10 @@ run "test_with_api_key" {
   command = plan
 
   variables {
-    agent_id    = "test-agent-456"
-    workdir     = "/home/coder/workspace"
-    api_key     = "test-api-key-123"
-    model       = "gemini"
+    agent_id = "test-agent-456"
+    workdir  = "/home/coder/workspace"
+    api_key  = "test-api-key-123"
+    model    = "gemini"
   }
 
   assert {
