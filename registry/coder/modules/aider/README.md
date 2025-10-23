@@ -11,11 +11,17 @@ tags: [agent, ai, aider]
 Run [Aider](https://aider.chat) AI pair programming in your workspace. This module installs Aider with AgentAPI for seamless Coder Tasks Support.
 
 ```tf
+variable "api_key" {
+  type        = string
+  description = "API key"
+  sensitive   = true
+}
+
 module "aider" {
   source      = "registry.coder.com/coder/aider/coder"
   version     = "1.0.0"
   agent_id    = coder_agent.example.id
-  credentials = var.api_key
+  api_key     = var.api_key
   ai_provider = "google"
   model       = "gemini"
 }
@@ -46,7 +52,7 @@ module "aider" {
   source           = "registry.coder.com/coder/aider/coder"
   version          = "1.0.0"
   agent_id         = coder_agent.example.id
-  credentials      = var.gemini_api_key
+  api_key          = var.gemini_api_key
   install_aider    = true
   workdir          = "/home/coder"
   ai_provider      = "google"
@@ -71,10 +77,11 @@ module "aider" {
   source              = "registry.coder.com/coder/aider/coder"
   version             = "1.0.0"
   agent_id            = coder_agent.example.id
+  workdir             = "/home/coder"
   ai_provider         = "custom"
   custom_env_var_name = "MY_CUSTOM_API_KEY"
   model               = "custom-model"
-  credentials         = var.custom_api_key
+  api_key             = var.custom_api_key
 }
 ```
 

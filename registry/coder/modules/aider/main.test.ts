@@ -87,7 +87,7 @@ describe("Aider", async () => {
     const apiKey = "test-api-key-123";
     const { id } = await setup({
       moduleVariables: {
-        credentials: apiKey,
+        api_key: apiKey,
         model: "gemini",
       },
     });

@@ -137,7 +137,7 @@ variable "model" {
   description = "AI model to use with Aider. Can use Aider's built-in aliases like '4o' (gpt-4o), 'sonnet' (claude-3-7-sonnet), 'opus' (claude-3-opus), etc."
 }
 
-variable "credentials" {
+variable "api_key" {
   type        = string
   description = "API key for the selected AI provider. This will be set as the appropriate environment variable based on the provider."
   default     = ""
@@ -254,7 +254,7 @@ module "agentapi" {
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
     chmod +x /tmp/start.sh   
     ARG_WORKDIR='${var.workdir}' \
-    ARG_API_KEY='${base64encode(var.credentials)}' \
+    ARG_API_KEY='${base64encode(var.api_key)}' \
     ARG_MODEL='${var.model}' \
     ARG_PROVIDER='${var.ai_provider}' \
     ARG_ENV_API_NAME_HOLDER='${local.env_var_name}' \

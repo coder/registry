@@ -33,19 +33,19 @@ run "test_aider_basic" {
   }
 }
 
-run "test_with_credentials" {
+run "test_with_api_key" {
   command = plan
 
   variables {
     agent_id    = "test-agent-456"
     workdir     = "/home/coder/workspace"
-    credentials = "test-api-key-123"
+    api_key     = "test-api-key-123"
     model       = "gemini"
   }
 
   assert {
-    condition     = var.credentials == "test-api-key-123"
-    error_message = "Credentials value should match the input"
+    condition     = var.api_key == "test-api-key-123"
+    error_message = "API key value should match the input"
   }
 }
 
@@ -63,7 +63,7 @@ run "test_custom_options" {
     install_aider     = false
     install_agentapi  = false
     agentapi_version  = "v0.10.0"
-    credentials       = ""
+    api_key           = ""
     base_aider_config = "read:\n  - CONVENTIONS.md"
   }
 
