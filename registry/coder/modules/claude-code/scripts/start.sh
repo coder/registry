@@ -79,6 +79,9 @@ task_session_exists() {
 ARGS=()
 
 function start_agentapi() {
+  # For Task reporting
+  export CODER_MCP_ALLOWED_TOOLS="coder_report_task"
+
   mkdir -p "$ARG_WORKDIR"
   cd "$ARG_WORKDIR"
 
