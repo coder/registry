@@ -36,11 +36,73 @@ variable "icon" {
   default     = "/icon/aider.svg"
 }
 
-variable "folder" {
+variable "workdir" {
   type        = string
   description = "The folder to run Aider in."
   default     = "/home/coder"
 }
+
+variable "report_tasks" {
+  type        = bool
+  description = "Whether to enable task reporting to Coder UI via AgentAPI"
+  default     = false
+}
+
+variable "subdomain" {
+  type        = bool
+  description = "Whether to use a subdomain for AgentAPI."
+  default     = false
+}
+
+variable "cli_app" {
+  type        = bool
+  description = "Whether to create a CLI app for Aider"
+  default     = false
+}
+
+variable "web_app_display_name" {
+  type        = string
+  description = "Display name for the web app"
+  default     = "Aider"
+}
+
+variable "cli_app_display_name" {
+  type        = string
+  description = "Display name for the CLI app"
+  default     = "Aider CLI"
+}
+
+variable "pre_install_script" {
+  type        = string
+  description = "Custom script to run before installing Aider."
+  default     = null
+}
+
+variable "post_install_script" {
+  type        = string
+  description = "Custom script to run after installing Aider."
+  default     = null
+}
+
+variable "install_agentapi" {
+  type        = bool
+  description = "Whether to install AgentAPI."
+  default     = true
+}
+
+variable "agentapi_version" {
+  type        = string
+  description = "The version of AgentAPI to install."
+  default     = "v0.10.0"
+}
+
+variable "ai_prompt" {
+  type        = string
+  description = "Initial task prompt for Aider."
+  default     = ""
+}
+
+# ---------------------------------------------
 
 variable "install_aider" {
   type        = bool
@@ -48,75 +110,10 @@ variable "install_aider" {
   default     = true
 }
 
-variable "aider_version" {
-  type        = string
-  description = "The version of Aider to install."
-  default     = "latest"
-}
-
-variable "use_screen" {
-  type        = bool
-  description = "Whether to use screen for running Aider in the background"
-  default     = true
-}
-
-variable "use_tmux" {
-  type        = bool
-  description = "Whether to use tmux instead of screen for running Aider in the background"
-  default     = false
-}
-
-variable "session_name" {
-  type        = string
-  description = "Name for the persistent session (screen or tmux)"
-  default     = "aider"
-}
-
-variable "experiment_report_tasks" {
-  type        = bool
-  description = "Whether to enable task reporting."
-  default     = true
-}
-
 variable "system_prompt" {
   type        = string
   description = "System prompt for instructing Aider on task reporting and behavior"
-  default     = <<-EOT
-You are a helpful Coding assistant. Aim to autonomously investigate
-and solve issues the user gives you and test your work, whenever possible.
-Avoid shortcuts like mocking tests. When you get stuck, you can ask the user
-but opt for autonomy.
-YOU MUST REPORT ALL TASKS TO CODER.
-When reporting tasks, you MUST follow these EXACT instructions:
-- IMMEDIATELY report status after receiving ANY user message.
-- Be granular. If you are investigating with multiple steps, report each step to coder.
-Task state MUST be one of the following:
-- Use "state": "working" when actively processing WITHOUT needing additional user input.
-- Use "state": "complete" only when finished with a task.
-- Use "state": "failure" when you need ANY user input, lack sufficient details, or encounter blockers.
-Task summaries MUST:
-- Include specifics about what you're doing.
-- Include clear and actionable steps for the user.
-- Be less than 160 characters in length.
-EOT
-}
-
-variable "task_prompt" {
-  type        = string
-  description = "Task prompt to use with Aider"
-  default     = ""
-}
-
-variable "experiment_pre_install_script" {
-  type        = string
-  description = "Custom script to run before installing Aider."
-  default     = null
-}
-
-variable "experiment_post_install_script" {
-  type        = string
-  description = "Custom script to run after installing Aider."
-  default     = null
+  default     = "You are a helpful coding assistant that helps developers write, debug, and understand code. Provide clear explanations, follow best practices, and help solve coding problems efficiently."
 }
 
 variable "experiment_additional_extensions" {
@@ -128,20 +125,19 @@ variable "experiment_additional_extensions" {
 variable "ai_provider" {
   type        = string
   description = "AI provider to use with Aider (openai, anthropic, azure, google, etc.)"
-  default     = "anthropic"
+  default     = "google"
   validation {
     condition     = contains(["openai", "anthropic", "azure", "google", "cohere", "mistral", "ollama", "custom"], var.ai_provider)
-    error_message = "ai_provider must be one of: openai, anthropic, azure, google, cohere, mistral, ollama, custom"
+    error_message = "provider must be one of: openai, anthropic, azure, google, cohere, mistral, ollama, custom"
   }
 }
 
-variable "ai_model" {
+variable "model" {
   type        = string
   description = "AI model to use with Aider. Can use Aider's built-in aliases like '4o' (gpt-4o), 'sonnet' (claude-3-7-sonnet), 'opus' (claude-3-opus), etc."
-  default     = "sonnet"
 }
 
-variable "ai_api_key" {
+variable "api_key" {
   type        = string
   description = "API key for the selected AI provider. This will be set as the appropriate environment variable based on the provider."
   default     = ""
@@ -154,55 +150,66 @@ variable "custom_env_var_name" {
   default     = ""
 }
 
+variable "base_aider_config" {
+  type        = string
+  description = <<-EOT
+    Base Aider configuration in yaml format. Will be stored in .aider.conf.yml file.
+    
+    options include:
+    read:
+      - CONVENTIONS.md
+      - anotherfile.txt
+      - thirdfile.py
+    model: xxx
+    ##Specify the OpenAI API key
+    openai-api-key: xxx
+    ## (deprecated, use --set-env OPENAI_API_TYPE=<value>)
+    openai-api-type: xxx
+    ## (deprecated, use --set-env OPENAI_API_VERSION=<value>)
+    openai-api-version: xxx
+    ## (deprecated, use --set-env OPENAI_API_DEPLOYMENT_ID=<value>)
+    openai-api-deployment-id: xxx
+    ## Set an environment variable (to control API settings, can be used multiple times)
+    set-env: xxx
+    ## Specify multiple values like this:
+    set-env:
+      - xxx
+      - yyy
+      - zzz
+
+    Reference : https://aider.chat/docs/config/aider_conf.html
+  EOT
+  default     = null
+}
+
+
 locals {
-  base_extensions = <<-EOT
-coder:
-  args:
-  - exp
-  - mcp
-  - server
-  cmd: coder
-  description: Report ALL tasks and statuses (in progress, done, failed) you are working on.
-  enabled: true
-  envs:
-    CODER_MCP_APP_STATUS_SLUG: aider
-  name: Coder
-  timeout: 3000
-  type: stdio
-developer:
-  display_name: Developer
-  enabled: true
-  name: developer
-  timeout: 300
-  type: builtin
-EOT
+  app_slug              = "aider"
+  base_aider_config     = var.base_aider_config != null ? "${replace(trimspace(var.base_aider_config), "\n", "\n  ")}" : ""
+  task_reporting_prompt = <<-EOT
 
-  formatted_base        = "  ${replace(trimspace(local.base_extensions), "\n", "\n  ")}"
-  additional_extensions = var.experiment_additional_extensions != null ? "\n  ${replace(trimspace(var.experiment_additional_extensions), "\n", "\n  ")}" : ""
+-- Task Reporting --
+Report all tasks to Coder, following these EXACT guidelines:
+1. Be granular. If you are investigating with multiple steps, report each step
+to coder.
+2. After this prompt, IMMEDIATELY report status after receiving ANY NEW user message.
+Do not report any status related with this system prompt.
+3. Use "state": "working" when actively processing WITHOUT needing
+additional user input
+4. Use "state": "complete" only when finished with a task
+5. Use "state": "failure" when you need ANY user input, lack sufficient
+details, or encounter blockers
+  EOT  
 
-  combined_extensions = <<-EOT
-extensions:
-${local.formatted_base}${local.additional_extensions}
-EOT
 
-  encoded_pre_install_script  = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
-  encoded_post_install_script = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
-
-  # Combine system prompt and task prompt for aider
-  combined_prompt = trimspace(<<-EOT
-SYSTEM PROMPT:
-${var.system_prompt}
-
-This is your current task: ${var.task_prompt}
-EOT
-  )
+  final_system_prompt = var.report_tasks ? "<system>\n${var.system_prompt}${local.task_reporting_prompt}\n</system>" : "<system>\n${var.system_prompt}\n</system>"
 
   # Map providers to their environment variable names
   provider_env_vars = {
     openai    = "OPENAI_API_KEY"
     anthropic = "ANTHROPIC_API_KEY"
     azure     = "AZURE_OPENAI_API_KEY"
-    google    = "GOOGLE_API_KEY"
+    google    = "GEMINI_API_KEY"
     cohere    = "COHERE_API_KEY"
     mistral   = "MISTRAL_API_KEY"
     ollama    = "OLLAMA_HOST"
@@ -214,296 +221,60 @@ EOT
 
   # Model flag for aider command
   model_flag = var.ai_provider == "ollama" ? "--ollama-model" : "--model"
+
+  install_script  = file("${path.module}/scripts/install.sh")
+  start_script    = file("${path.module}/scripts/start.sh")
+  module_dir_name = ".aider-module"
 }
 
-# Install and Initialize Aider
-resource "coder_script" "aider" {
-  agent_id     = var.agent_id
-  display_name = "Aider"
-  icon         = var.icon
-  script       = <<-EOT
+module "agentapi" {
+  source  = "registry.coder.com/coder/agentapi/coder"
+  version = "1.2.0"
+
+  agent_id             = var.agent_id
+  web_app_slug         = local.app_slug
+  web_app_order        = var.order
+  web_app_group        = var.group
+  web_app_icon         = var.icon
+  web_app_display_name = var.web_app_display_name
+  cli_app              = var.cli_app
+  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
+  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
+  agentapi_subdomain   = var.subdomain
+  module_dir_name      = local.module_dir_name
+  install_agentapi     = var.install_agentapi
+  agentapi_version     = var.agentapi_version
+  pre_install_script   = var.pre_install_script
+  post_install_script  = var.post_install_script
+  start_script         = <<-EOT
     #!/bin/bash
-    set -e
+    set -o errexit
+    set -o pipefail
 
-    command_exists() {
-      command -v "$1" >/dev/null 2>&1
-    }
-
-    echo "Setting up Aider AI pair programming..."
-
-    if [ "${var.use_screen}" = "true" ] && [ "${var.use_tmux}" = "true" ]; then
-      echo "Error: Both use_screen and use_tmux cannot be enabled at the same time."
-      exit 1
-    fi
-
-    mkdir -p "${var.folder}"
-
-    if [ "$(uname)" = "Linux" ]; then
-      echo "Checking dependencies for Linux..."
-
-      if [ "${var.use_tmux}" = "true" ]; then
-        if ! command_exists tmux; then
-          echo "Installing tmux for persistent sessions..."
-          if command -v apt-get >/dev/null 2>&1; then
-            if command -v sudo >/dev/null 2>&1; then
-              sudo apt-get update -qq
-              sudo apt-get install -y -qq tmux
-            else
-              apt-get update -qq || echo "Warning: Cannot update package lists without sudo privileges"
-              apt-get install -y -qq tmux || echo "Warning: Cannot install tmux without sudo privileges"
-            fi
-          elif command -v dnf >/dev/null 2>&1; then
-            if command -v sudo >/dev/null 2>&1; then
-              sudo dnf install -y -q tmux
-            else
-              dnf install -y -q tmux || echo "Warning: Cannot install tmux without sudo privileges"
-            fi
-          else
-            echo "Warning: Unable to install tmux on this system. Neither apt-get nor dnf found."
-          fi
-        else
-          echo "tmux is already installed, skipping installation."
-        fi
-      elif [ "${var.use_screen}" = "true" ]; then
-        if ! command_exists screen; then
-          echo "Installing screen for persistent sessions..."
-          if command -v apt-get >/dev/null 2>&1; then
-            if command -v sudo >/dev/null 2>&1; then
-              sudo apt-get update -qq
-              sudo apt-get install -y -qq screen
-            else
-              apt-get update -qq || echo "Warning: Cannot update package lists without sudo privileges"
-              apt-get install -y -qq screen || echo "Warning: Cannot install screen without sudo privileges"
-            fi
-          elif command -v dnf >/dev/null 2>&1; then
-            if command -v sudo >/dev/null 2>&1; then
-              sudo dnf install -y -q screen
-            else
-              dnf install -y -q screen || echo "Warning: Cannot install screen without sudo privileges"
-            fi
-          else
-            echo "Warning: Unable to install screen on this system. Neither apt-get nor dnf found."
-          fi
-        else
-          echo "screen is already installed, skipping installation."
-        fi
-      fi
-    else
-      echo "This module currently only supports Linux workspaces."
-      exit 1
-    fi
-
-    if [ -n "${local.encoded_pre_install_script}" ]; then
-      echo "Running pre-install script..."
-      echo "${local.encoded_pre_install_script}" | base64 -d > /tmp/pre_install.sh
-      chmod +x /tmp/pre_install.sh
-      /tmp/pre_install.sh
-    fi
-
-    if [ "${var.install_aider}" = "true" ]; then
-      echo "Installing Aider..."
-
-      if ! command_exists python3 || ! command_exists pip3; then
-        echo "Installing Python dependencies required for Aider..."
-        if command -v apt-get >/dev/null 2>&1; then
-          if command -v sudo >/dev/null 2>&1; then
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq python3-pip python3-venv
-          else
-            apt-get update -qq || echo "Warning: Cannot update package lists without sudo privileges"
-            apt-get install -y -qq python3-pip python3-venv || echo "Warning: Cannot install Python packages without sudo privileges"
-          fi
-        elif command -v dnf >/dev/null 2>&1; then
-          if command -v sudo >/dev/null 2>&1; then
-            sudo dnf install -y -q python3-pip python3-virtualenv
-          else
-            dnf install -y -q python3-pip python3-virtualenv || echo "Warning: Cannot install Python packages without sudo privileges"
-          fi
-        else
-          echo "Warning: Unable to install Python on this system. Neither apt-get nor dnf found."
-        fi
-      else
-        echo "Python is already installed, skipping installation."
-      fi
-
-      if ! command_exists aider; then
-        curl -LsSf https://aider.chat/install.sh | sh
-      fi
-
-      if [ -f "$HOME/.bashrc" ]; then
-        if ! grep -q 'export PATH="$HOME/bin:$PATH"' "$HOME/.bashrc"; then
-          echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
-        fi
-      fi
-
-      if [ -f "$HOME/.zshrc" ]; then
-        if ! grep -q 'export PATH="$HOME/bin:$PATH"' "$HOME/.zshrc"; then
-          echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.zshrc"
-        fi
-      fi
-
-    fi
-
-    if [ -n "${local.encoded_post_install_script}" ]; then
-      echo "Running post-install script..."
-      echo "${local.encoded_post_install_script}" | base64 -d > /tmp/post_install.sh
-      chmod +x /tmp/post_install.sh
-      /tmp/post_install.sh
-    fi
-
-    if [ "${var.experiment_report_tasks}" = "true" ]; then
-      echo "Configuring Aider to report tasks via Coder MCP..."
-
-      mkdir -p "$HOME/.config/aider"
-
-      cat > "$HOME/.config/aider/config.yml" << EOL
-${trimspace(local.combined_extensions)}
-EOL
-      echo "Added Coder MCP extension to Aider config.yml"
-    fi
-
-    echo "Starting persistent Aider session..."
-
-    touch "$HOME/.aider.log"
-
-    export LANG=en_US.UTF-8
-    export LC_ALL=en_US.UTF-8
-
-    export PATH="$HOME/bin:$PATH"
-
-    if [ "${var.use_tmux}" = "true" ]; then
-      if [ -n "${var.task_prompt}" ]; then
-        echo "Running Aider with message in tmux session..."
-
-        # Configure tmux for shared sessions
-        if [ ! -f "$HOME/.tmux.conf" ]; then
-          echo "Creating ~/.tmux.conf with shared session settings..."
-          echo "set -g mouse on" > "$HOME/.tmux.conf"
-        fi
-
-        if ! grep -q "^set -g mouse on$" "$HOME/.tmux.conf"; then
-          echo "Adding 'set -g mouse on' to ~/.tmux.conf..."
-          echo "set -g mouse on" >> "$HOME/.tmux.conf"
-        fi
-
-        echo "Starting Aider using ${var.ai_provider} provider and model: ${var.ai_model}"
-        tmux new-session -d -s ${var.session_name} -c ${var.folder} "export ${local.env_var_name}=\"${var.ai_api_key}\"; aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${local.combined_prompt}\""
-        echo "Aider task started in tmux session '${var.session_name}'. Check the UI for progress."
-      else
-        # Configure tmux for shared sessions
-        if [ ! -f "$HOME/.tmux.conf" ]; then
-          echo "Creating ~/.tmux.conf with shared session settings..."
-          echo "set -g mouse on" > "$HOME/.tmux.conf"
-        fi
-
-        if ! grep -q "^set -g mouse on$" "$HOME/.tmux.conf"; then
-          echo "Adding 'set -g mouse on' to ~/.tmux.conf..."
-          echo "set -g mouse on" >> "$HOME/.tmux.conf"
-        fi
-
-        echo "Starting Aider using ${var.ai_provider} provider and model: ${var.ai_model}"
-        tmux new-session -d -s ${var.session_name} -c ${var.folder} "export ${local.env_var_name}=\"${var.ai_api_key}\"; aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${var.system_prompt}\""
-        echo "Tmux session '${var.session_name}' started. Access it by clicking the Aider button."
-      fi
-    else
-      if [ -n "${var.task_prompt}" ]; then
-        echo "Running Aider with message in screen session..."
-
-        if [ ! -f "$HOME/.screenrc" ]; then
-          echo "Creating ~/.screenrc and adding multiuser settings..."
-          echo -e "multiuser on\nacladd $(whoami)" > "$HOME/.screenrc"
-        fi
-
-        if ! grep -q "^multiuser on$" "$HOME/.screenrc"; then
-          echo "Adding 'multiuser on' to ~/.screenrc..."
-          echo "multiuser on" >> "$HOME/.screenrc"
-        fi
-
-        if ! grep -q "^acladd $(whoami)$" "$HOME/.screenrc"; then
-          echo "Adding 'acladd $(whoami)' to ~/.screenrc..."
-          echo "acladd $(whoami)" >> "$HOME/.screenrc"
-        fi
-
-        echo "Starting Aider using ${var.ai_provider} provider and model: ${var.ai_model}"
-        screen -U -dmS ${var.session_name} bash -c "
-          cd ${var.folder}
-          export PATH=\"$HOME/bin:$HOME/.local/bin:$PATH\"
-          export ${local.env_var_name}=\"${var.ai_api_key}\"
-          aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${local.combined_prompt}\"
-          /bin/bash
-        "
-
-        echo "Aider task started in screen session '${var.session_name}'. Check the UI for progress."
-      else
-
-        if [ ! -f "$HOME/.screenrc" ]; then
-          echo "Creating ~/.screenrc and adding multiuser settings..."
-          echo -e "multiuser on\nacladd $(whoami)" > "$HOME/.screenrc"
-        fi
-
-        if ! grep -q "^multiuser on$" "$HOME/.screenrc"; then
-          echo "Adding 'multiuser on' to ~/.screenrc..."
-          echo "multiuser on" >> "$HOME/.screenrc"
-        fi
-
-        if ! grep -q "^acladd $(whoami)$" "$HOME/.screenrc"; then
-          echo "Adding 'acladd $(whoami)' to ~/.screenrc..."
-          echo "acladd $(whoami)" >> "$HOME/.screenrc"
-        fi
-
-        echo "Starting Aider using ${var.ai_provider} provider and model: ${var.ai_model}"
-        screen -U -dmS ${var.session_name} bash -c "
-          cd ${var.folder}
-          export PATH=\"$HOME/bin:$HOME/.local/bin:$PATH\"
-          export ${local.env_var_name}=\"${var.ai_api_key}\"
-          aider --architect --yes-always ${local.model_flag} ${var.ai_model} --message \"${local.combined_prompt}\"
-          /bin/bash
-        "
-        echo "Screen session '${var.session_name}' started. Access it by clicking the Aider button."
-      fi
-    fi
-
-    echo "Aider setup complete!"
+    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+    chmod +x /tmp/start.sh   
+    ARG_WORKDIR='${var.workdir}' \
+    ARG_API_KEY='${base64encode(var.api_key)}' \
+    ARG_MODEL='${var.model}' \
+    ARG_PROVIDER='${var.ai_provider}' \
+    ARG_ENV_API_NAME_HOLDER='${local.env_var_name}' \
+    ARG_SYSTEM_PROMPT='${base64encode(local.final_system_prompt)}' \
+    ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+    /tmp/start.sh
   EOT
-  run_on_start = true
-}
 
-# Aider CLI app
-resource "coder_app" "aider_cli" {
-  agent_id     = var.agent_id
-  slug         = "aider"
-  display_name = "Aider"
-  icon         = var.icon
-  command      = <<-EOT
+  install_script = <<-EOT
     #!/bin/bash
-    set -e
+    set -o errexit
+    set -o pipefail
 
-    export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
-
-    export LANG=en_US.UTF-8
-    export LC_ALL=en_US.UTF-8
-
-    if [ "${var.use_tmux}" = "true" ]; then
-      if tmux has-session -t ${var.session_name} 2>/dev/null; then
-        echo "Attaching to existing Aider tmux session..."
-        tmux attach-session -t ${var.session_name}
-      else
-        echo "Starting new Aider tmux session..."
-        tmux new-session -s ${var.session_name} -c ${var.folder} "export ${local.env_var_name}=\"${var.ai_api_key}\"; aider ${local.model_flag} ${var.ai_model} --message \"${local.combined_prompt}\"; exec bash"
-      fi
-    elif [ "${var.use_screen}" = "true" ]; then
-      if ! screen -list | grep -q "${var.session_name}"; then
-        echo "Error: No existing Aider session found. Please wait for the script to start it."
-        exit 1
-      fi
-      screen -xRR ${var.session_name}
-    else
-      cd "${var.folder}"
-      echo "Starting Aider directly..."
-      export ${local.env_var_name}="${var.ai_api_key}"
-      aider ${local.model_flag} ${var.ai_model} --message "${local.combined_prompt}"
-    fi
+    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
+    chmod +x /tmp/install.sh
+    ARG_WORKDIR='${var.workdir}' \
+    ARG_INSTALL_AIDER='${var.install_aider}' \
+    ARG_REPORT_TASKS='${var.report_tasks}' \
+    ARG_AIDER_CONFIG="$(echo -n '${base64encode(local.base_aider_config)}' | base64 -d)" \
+    /tmp/install.sh
   EOT
-  order        = var.order
-  group        = var.group
 }
+
