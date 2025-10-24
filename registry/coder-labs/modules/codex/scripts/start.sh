@@ -29,7 +29,7 @@ printf "Continue Sessions: %s\n" "$ARG_CONTINUE"
 echo "======================================"
 set +o nounset
 
-SESSION_TRACKING_FILE="$HOME/.codex/.codex-task-session"
+SESSION_TRACKING_FILE="$HOME/.codex-module/.codex-task-session"
 
 find_session_for_directory() {
   local target_dir="$1"
