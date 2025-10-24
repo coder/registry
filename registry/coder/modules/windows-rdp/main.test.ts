@@ -99,10 +99,9 @@ describe("Web RDP", async () => {
     const defaultRdpScript = findWindowsRdpScript(defaultState);
     expect(defaultRdpScript).toBeString();
 
-
     const defaultResultsGroup =
       formEntryValuesRe.exec(defaultRdpScript ?? "")?.groups ?? {};
-    
+
     expect(defaultResultsGroup.username).toBe("Administrator");
     expect(defaultResultsGroup.password).toBe("coderRDP!");
 

@@ -57,11 +57,11 @@
     username: {
       /** @readonly */
       querySelector: "web-client-username-control input",
-      
+
       /** @readonly */
       value: "${CODER_USERNAME}",
     },
-     /** @readonly */
+    /** @readonly */
     password: {
       /** @readonly */
       querySelector: "web-client-password-control input",
@@ -227,7 +227,9 @@
       // immediately, just in the off chance that something in the Angular app
       // intercepts it or stops it from propagating properly
       const timeoutId = window.setTimeout(() => {
-        reject(new Error("Input event did not get processed correctly in time."));
+        reject(
+          new Error("Input event did not get processed correctly in time."),
+        );
       }, 3_000);
 
       const handleSuccessfulDispatch = () => {
@@ -274,7 +276,7 @@
       if (protocolTrigger) {
         protocolTrigger.click();
         const protocolOption = document.querySelector(
-          `li[aria-label="$${PROTOCOL}"]`
+          `li[aria-label="$${PROTOCOL}"]`,
         );
         if (protocolOption) {
           protocolOption.click();
@@ -294,7 +296,9 @@
         log("Hostname input not found.");
       }
 
-      for (const [key, { querySelector, value }] of Object.entries(formFieldEntries)) {
+      for (const [key, { querySelector, value }] of Object.entries(
+        formFieldEntries,
+      )) {
         const input = document.querySelector(querySelector);
         if (input) {
           await setInputValue(input, value);
@@ -304,7 +308,9 @@
         }
       }
 
-      const submitButton = form.querySelector('p-button[class="p-element"] button');
+      const submitButton = form.querySelector(
+        'p-button[class="p-element"] button',
+      );
       if (submitButton && !submitButton.disabled) {
         submitButton.click();
         log("Form submitted.");
@@ -325,15 +331,15 @@
    * @returns {void}
    */
   function attachCloseListener(topBar) {
-    const buttons = topBar.querySelectorAll('button');
+    const buttons = topBar.querySelectorAll("button");
 
-    const closeButton = Array.from(buttons).find(button => {
-      const labelSpan = button.querySelector('.p-button-label');
-      return labelSpan && labelSpan.textContent.trim() === 'Close Session';
+    const closeButton = Array.from(buttons).find((button) => {
+      const labelSpan = button.querySelector(".p-button-label");
+      return labelSpan && labelSpan.textContent.trim() === "Close Session";
     });
 
     if (closeButton) {
-      closeButton.parentElement.addEventListener('click', () => {
+      closeButton.parentElement.addEventListener("click", () => {
         window.close();
       });
       log("Close listener attached.");
@@ -355,10 +361,10 @@
    * @returns {void}
    */
   function setCheckbox(filterText, checked) {
-    const checkboxes = document.querySelectorAll('p-checkbox');
+    const checkboxes = document.querySelectorAll("p-checkbox");
 
-    const targetCheckbox = Array.from(checkboxes).find(checkbox => {
-      const label = checkbox.querySelector('.p-checkbox-label');
+    const targetCheckbox = Array.from(checkboxes).find((checkbox) => {
+      const label = checkbox.querySelector(".p-checkbox-label");
       return label && label.textContent.trim() === filterText;
     });
 
@@ -366,14 +372,14 @@
       const input = targetCheckbox.querySelector('input[type="checkbox"]');
       if (input) {
         input.checked = checked;
-        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
       }
       log(`$${filterText} set to $${checked}.`);
     } else {
       log(`$${filterText} checkbox not found in top bar.`);
     }
   }
-  
+
   /**
    * Continuously polls the DOM for a specific form element.
    * - Searches for a <form> inside a <web-client-form> element.
@@ -410,14 +416,14 @@
       attachCloseListener(sessionToolBar);
 
       // Automatically set checkboxes to improve user experience
-      setCheckbox("Unicode Keyboard Mode", true)
-      setCheckbox("Dynamic Resize", true)
+      setCheckbox("Unicode Keyboard Mode", true);
+      setCheckbox("Dynamic Resize", true);
     } else {
       log("Top bar not yet available. Retrying...");
       setTimeout(pollForSessionToolBar, POLL_INTERVAL_MS);
     }
   }
-  
+
   /**
    * Logs a message to the console with a standardized prefix.
    * Format: [Devolutions Patch] $<message>
