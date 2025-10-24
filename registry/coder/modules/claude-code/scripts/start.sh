@@ -22,6 +22,8 @@ ARG_BOUNDARY_VERSION=${ARG_BOUNDARY_VERSION:-"main"}
 ARG_BOUNDARY_LOG_DIR=${ARG_BOUNDARY_LOG_DIR:-"/tmp/boundary_logs"}
 ARG_BOUNDARY_LOG_LEVEL=${ARG_BOUNDARY_LOG_LEVEL:-"WARN"}
 ARG_BOUNDARY_PROXY_PORT=${ARG_BOUNDARY_PROXY_PORT:-"8087"}
+ARG_ENABLE_BOUNDARY_PPROF=${ARG_ENABLE_BOUNDARY_PPROF:-false}
+ARG_BOUNDARY_PPROF_PORT=${ARG_BOUNDARY_PPROF_PORT:-"6067"}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
 
 echo "--------------------------------"
@@ -154,6 +156,12 @@ function start_agentapi() {
 
     # Set log level for boundary
     BOUNDARY_ARGS+=(--log-level $ARG_BOUNDARY_LOG_LEVEL)
+
+    if [ "${ARG_ENABLE_BOUNDARY_PPROF:-false}" = "true" ]; then
+      # Enable boundary pprof server on specified port
+      BOUNDARY_ARGS+=(--pprof)
+      BOUNDARY_ARGS+=(--pprof-port ${ARG_BOUNDARY_PPROF_PORT})
+    fi
 
     # Remove --dangerously-skip-permissions from ARGS when using boundary (it doesn't work with elevated permissions)
     # Create a new array without the dangerous permissions flag

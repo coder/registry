@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.7"
+      version = ">= 2.12"
     }
   }
 }
@@ -239,8 +239,6 @@ resource "coder_app" "agentapi_cli" {
   group        = var.cli_app_group
 }
 
-resource "coder_ai_task" "agentapi" {
-  sidebar_app {
-    id = coder_app.agentapi_web.id
-  }
+output "task_app_id" {
+  value = coder_app.agentapi_web.id
 }
