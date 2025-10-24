@@ -1,3 +1,30 @@
+// @ts-check
+/**
+ * @file Defines the custom logic for patching in UI changes/behavior into the
+ * base Devolutions Gateway Angular app.
+ *
+ * Defined as a JS file to remove the need to have a separate compilation step.
+ * It is highly recommended that you work on this file from within VS Code so
+ * that you can take advantage of the @ts-check directive and get some type-
+ * checking still.
+ *
+ * Other notes about the weird ways this file is set up:
+ * - A lot of the HTML selectors in this file will look nonstandard. This is
+ *   because they are actually custom Angular components.
+ * - It is strongly advised that you avoid template literals that use the
+ *   placeholder syntax via the dollar sign. The Terraform file is treating this
+ *   as a template file, and because it also uses a similar syntax, there's a
+ *   risk that some values will trigger false positives. If a template literal
+ *   must be used, be sure to use a double dollar sign to escape things.
+ * - All the CSS should be written via custom style tags and the !important
+ *   directive (as much as that is a bad idea most of the time). We do not
+ *   control the Angular app, so we have to modify things from afar to ensure
+ *   that as Angular's internal state changes, it doesn't modify its HTML nodes
+ *   in a way that causes our custom styles to get wiped away.
+ *
+ * @typedef {Readonly<{ querySelector: string; value: string; }>} FormFieldEntry
+ * @typedef {Readonly<Record<string, FormFieldEntry>>} FormFieldEntries
+ */
 (function () {
   /**
    * The communication protocol to set Devolutions to.
@@ -30,6 +57,7 @@
     username: {
       /** @readonly */
       querySelector: "web-client-username-control input",
+      
       /** @readonly */
       value: "${CODER_USERNAME}",
     },
@@ -37,6 +65,7 @@
     password: {
       /** @readonly */
       querySelector: "web-client-password-control input",
+
       /** @readonly */
       value: "${CODER_PASSWORD}",
     },
