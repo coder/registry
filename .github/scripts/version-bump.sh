@@ -77,16 +77,19 @@ update_readme_version() {
             in_target_module = 0
           }
         }
-        /version.*=.*"/ {
-          if (in_target_module) {
-            gsub(/version[[:space:]]*=[[:space:]]*"[^"]*"/, "version = \"" new_version "\"")
+        /^[[:space:]]*version[[:space:]]*=/ {
+          if (in_target_module && $1 == "version") {
+            match($0, /^[[:space:]]*/)
+            indent = substr($0, 1, RLENGTH)
+            print indent "version = \"" new_version "\""
             in_target_module = 0
+            next
           }
         }
         { print }
         ' "$readme_path" > "${readme_path}.tmp" && mv "${readme_path}.tmp" "$readme_path"
     return 0
-  elif grep -q 'version\s*=\s*"' "$readme_path"; then
+  elif grep -q '^[[:space:]]*version[[:space:]]*=' "$readme_path"; then
     echo "⚠️  Found version references but no module source match for $namespace/$module_name"
     return 1
   fi
@@ -148,9 +151,9 @@ main() {
     local current_version
 
     if [ -z "$latest_tag" ]; then
-      if [ -f "$readme_path" ] && grep -q 'version\s*=\s*"' "$readme_path"; then
+      if [ -f "$readme_path" ] && grep -q '^[[:space:]]*version[[:space:]]*=' "$readme_path"; then
         local readme_version
-        readme_version=$(grep 'version\s*=\s*"' "$readme_path" | head -1 | sed 's/.*version\s*=\s*"\([^"]*\)".*/\1/')
+        readme_version=$(awk '/^[[:space:]]*version[[:space:]]*=/ && $1 == "version" { match($0, /"[^"]*"/); print substr($0, RSTART+1, RLENGTH-2); exit }' "$readme_path")
         echo "No git tag found, but README shows version: $readme_version"
 
         if ! validate_version "$readme_version"; then
