@@ -169,6 +169,9 @@ function start_agentapi() {
     echo $(id -u) > /tmp/yevhenii-debug.logs
     echo $(id -g) >> /tmp/yevhenii-debug.logs
 
+    echo ${BOUNDARY_ARGS[@]} >> /tmp/yevhenii-debug.logs
+    echo ${ARGS[@]} >> /tmp/yevhenii-debug.logs
+
     agentapi server --allowed-hosts="*" --type claude --term-width 67 --term-height 1190 -- \
       sudo -E env PATH=$PATH setpriv --reuid=$(id -u) --regid=$(id -g) --inh-caps=+net_admin --ambient-caps=+net_admin --bounding-set=+net_admin boundary "${BOUNDARY_ARGS[@]}" -- \
       claude "${ARGS[@]}"
