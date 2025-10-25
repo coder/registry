@@ -9,6 +9,18 @@ terraform {
   }
 }
 
+variable "display_name" {
+  type        = string
+  description = "The display name for the Web RDP application."
+  default     = "Web RDP"
+}
+
+variable "slug" {
+  type        = string
+  description = "The slug for the Web RDP application."
+  default     = "web-rdp"
+}
+
 variable "order" {
   type        = number
   description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
@@ -77,8 +89,8 @@ resource "coder_script" "windows-rdp" {
 resource "coder_app" "windows-rdp" {
   agent_id     = var.agent_id
   share        = var.share
-  slug         = "web-rdp"
-  display_name = "Web RDP"
+  slug         = var.slug
+  display_name = var.display_name
   url          = "http://localhost:7171"
   icon         = "/icon/desktop.svg"
   subdomain    = true

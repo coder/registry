@@ -43,8 +43,21 @@ catch {
 }
 
 # Construct the module path for system-wide installation
-$moduleBasePath = "C:\Windows\system32\config\systemprofile\Documents\PowerShell\Modules\$moduleName\$moduleVersion"
-$modulePath = Join-Path -Path $moduleBasePath -ChildPath "$moduleName.psd1"
+$modulePath = $null                   # Declare outside the loop
+$paths = $env:PSModulePath -split ';'
+
+foreach ($path in $paths) {
+    $candidatePath = Join-Path -Path $path -ChildPath $moduleName
+    if ($moduleVersion) {
+        $candidatePath = Join-Path -Path $candidatePath -ChildPath $moduleVersion
+    }
+
+    $psd1Path = Join-Path -Path $candidatePath -ChildPath "$moduleName.psd1"
+    if (Test-Path $psd1Path) {
+        $modulePath = $psd1Path
+        break
+    }
+}
 
 # Import the module using the full path
 Import-Module $modulePath

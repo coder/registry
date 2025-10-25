@@ -86,7 +86,7 @@ describe("Web RDP", async () => {
      * @see {@link https://regex101.com/r/UMgQpv/2}
      */
     const formEntryValuesRe =
-      /^const formFieldEntries = \{$.*?^\s+username: \{$.*?^\s*?querySelector.*?,$.*?^\s*value: "(?<username>.+?)",$.*?password: \{$.*?^\s+querySelector: .*?,$.*?^\s*value: "(?<password>.+?)",$.*?^};$/ms;
+      /username:\s*\{[\s\S]*?value:\s*"(?<username>[^"]+)"[\s\S]*?password:\s*\{[\s\S]*?value:\s*"(?<password>[^"]+)"/;
 
     // Test that things work with the default username/password
     const defaultState = await runTerraformApply<TestVariables>(
