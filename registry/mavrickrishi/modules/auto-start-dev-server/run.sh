@@ -50,13 +50,20 @@ is_frontend_project() {
     # Check package.json for frontend dependencies
     if [ -f "$project_dir/package.json" ] && command -v jq &> /dev/null; then
       # Check for common frontend frameworks
-      local has_react=$(jq '.dependencies.react // .devDependencies.react // empty' "$project_dir/package.json")
-      local has_vue=$(jq '.dependencies.vue // .devDependencies.vue // empty' "$project_dir/package.json")
-      local has_angular=$(jq '.dependencies["@angular/core"] // .devDependencies["@angular/core"] // empty' "$project_dir/package.json")
-      local has_next=$(jq '.dependencies.next // .devDependencies.next // empty' "$project_dir/package.json")
-      local has_nuxt=$(jq '.dependencies.nuxt // .devDependencies.nuxt // empty' "$project_dir/package.json")
-      local has_svelte=$(jq '.dependencies.svelte // .devDependencies.svelte // empty' "$project_dir/package.json")
-      local has_vite=$(jq '.dependencies.vite // .devDependencies.vite // empty' "$project_dir/package.json")
+      local has_react
+      has_react=$(jq '.dependencies.react // .devDependencies.react // empty' "$project_dir/package.json")
+      local has_vue
+      has_vue=$(jq '.dependencies.vue // .devDependencies.vue // empty' "$project_dir/package.json")
+      local has_angular
+      has_angular=$(jq '.dependencies["@angular/core"] // .devDependencies["@angular/core"] // empty' "$project_dir/package.json")
+      local has_next
+      has_next=$(jq '.dependencies.next // .devDependencies.next // empty' "$project_dir/package.json")
+      local has_nuxt
+      has_nuxt=$(jq '.dependencies.nuxt // .devDependencies.nuxt // empty' "$project_dir/package.json")
+      local has_svelte
+      has_svelte=$(jq '.dependencies.svelte // .devDependencies.svelte // empty' "$project_dir/package.json")
+      local has_vite
+      has_vite=$(jq '.dependencies.vite // .devDependencies.vite // empty' "$project_dir/package.json")
 
       if [ -n "$has_react" ] || [ -n "$has_vue" ] || [ -n "$has_angular" ] \
         || [ -n "$has_next" ] || [ -n "$has_nuxt" ] || [ -n "$has_svelte" ] \
@@ -118,7 +125,8 @@ add_detected_project() {
   fi
 
   # Create JSON entry for this project
-  local project_json=$(jq -n \
+  local project_json
+  project_json=$(jq -n \
     --arg dir "$project_dir" \
     --arg type "$project_type" \
     --arg port "$port" \

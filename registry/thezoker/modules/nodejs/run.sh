@@ -32,6 +32,7 @@ printf "🥳 nvm has been installed\n\n"
 
 # Install each node version...
 IFS=',' read -r -a VERSIONLIST <<< "$${NODE_VERSIONS}"
+# shellcheck disable=SC2066
 for version in "$${VERSIONLIST[@]}"; do
   if [ -z "$version" ]; then
     continue
@@ -45,6 +46,7 @@ for version in "$${VERSIONLIST[@]}"; do
 done
 
 # Set default if provided
+# shellcheck disable=SC2157
 if [ -n "$${DEFAULT}" ]; then
   printf "🛠️ Setting default node version $${CODE}$DEFAULT$${RESET}...\n"
   output=$(nvm alias default $DEFAULT 2>&1)
