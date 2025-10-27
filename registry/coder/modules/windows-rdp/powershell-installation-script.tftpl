@@ -2,6 +2,9 @@ function Set-AdminPassword {
     param (
         [string]$adminPassword
     )
+    # Explicitly import LocalAccounts module
+    Import-Module Microsoft.PowerShell.LocalAccounts -ErrorAction SilentlyContinue
+    
     # Set admin password
     Get-LocalUser -Name "${admin_username}" | Set-LocalUser -Password (ConvertTo-SecureString -AsPlainText $adminPassword -Force)
     # Enable admin user
