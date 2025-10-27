@@ -104,7 +104,7 @@ variable "agentapi_version" {
 variable "copilot_version" {
   type        = string
   description = "The version of GitHub Copilot CLI to install. Use 'latest' for the latest version or specify a version like '0.0.334'."
-  default     = "0.0.334"
+  default     = "latest"
 }
 
 variable "report_tasks" {
