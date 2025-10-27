@@ -166,18 +166,10 @@ function start_agentapi() {
       BOUNDARY_ARGS+=(--pprof-port ${ARG_BOUNDARY_PPROF_PORT})
     fi
 
-    # Remove --dangerously-skip-permissions from ARGS when using boundary (it doesn't work with elevated permissions)
-    # Create a new array without the dangerous permissions flag
-    CLAUDE_ARGS=()
-    for arg in "${ARGS[@]}"; do
-      if [ "$arg" != "--dangerously-skip-permissions" ]; then
-        CLAUDE_ARGS+=("$arg")
-      fi
-    done
-
     agentapi server --allowed-hosts="*" --type claude --term-width 67 --term-height 1190 -- \
-      sudo -E env PATH=$PATH setpriv --inh-caps=+net_admin --ambient-caps=+net_admin --bounding-set=+net_admin boundary "${BOUNDARY_ARGS[@]}" -- \
-      claude "${CLAUDE_ARGS[@]}"
+      sudo -E env PATH=$PATH setpriv --reuid=$(id -u) --regid=$(id -g) --clear-groups \
+      --inh-caps=+net_admin --ambient-caps=+net_admin --bounding-set=+net_admin boundary "${BOUNDARY_ARGS[@]}" -- \
+      claude "${ARGS[@]}"
   else
     agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
   fi
