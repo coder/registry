@@ -21,6 +21,12 @@ variable "slug" {
   default     = "web-rdp"
 }
 
+variable "icon" {
+  type        = string
+  description = "The icon for the Web RDP application."
+  default     = "/icon/desktop.svg"
+}
+
 variable "order" {
   type        = number
   description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
@@ -92,7 +98,7 @@ resource "coder_app" "windows-rdp" {
   slug         = var.slug
   display_name = var.display_name
   url          = "http://localhost:7171"
-  icon         = "/icon/desktop.svg"
+  icon         = var.icon
   subdomain    = true
   order        = var.order
   group        = var.group
