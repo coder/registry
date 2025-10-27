@@ -28,9 +28,8 @@ function Install-DevolutionsGateway {
 $moduleName = "DevolutionsGateway"
 $moduleVersion = "${devolutions_gateway_version}"
 
-# Ensure TLS 1.2 is enabled and PSGallery is trusted for automated installation
+# Ensure TLS 1.2 is enabled for PSGallery
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
 
 # Install the module with the specified version for all users
 # This requires administrator privileges
@@ -38,6 +37,9 @@ try {
     # Install-PackageProvider is required for AWS. Need to set command to
     # terminate on failure so that try/catch actually triggers
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -ErrorAction Stop
+    
+    # Set PSGallery as trusted after NuGet is installed
+    Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
     
     if ($moduleVersion -eq "latest" -or [string]::IsNullOrWhiteSpace($moduleVersion)) {
         Install-Module -Name $moduleName -Force
