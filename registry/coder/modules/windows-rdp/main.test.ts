@@ -61,6 +61,8 @@ describe("Web RDP", async () => {
         '$moduleName = "DevolutionsGateway"',
         // Default is "latest" to automatically get the newest version
         '$moduleVersion = "latest"',
+        "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12",
+        "Set-PSRepository -Name PSGallery -InstallationPolicy Trusted",
         "Install-Module -Name $moduleName -Force",
       ]),
     );

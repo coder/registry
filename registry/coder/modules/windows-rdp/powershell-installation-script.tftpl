@@ -28,6 +28,10 @@ function Install-DevolutionsGateway {
 $moduleName = "DevolutionsGateway"
 $moduleVersion = "${devolutions_gateway_version}"
 
+# Ensure TLS 1.2 is enabled and PSGallery is trusted for automated installation
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+
 # Install the module with the specified version for all users
 # This requires administrator privileges
 try {
