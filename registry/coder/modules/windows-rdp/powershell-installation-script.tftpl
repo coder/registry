@@ -59,12 +59,22 @@ catch {
 
 # Construct the module path for system-wide installation
 $modulePath = $null                   # Declare outside the loop
+
+if ($moduleVersion -eq "latest" -or [string]::IsNullOrWhiteSpace($moduleVersion)) {
+    $installedModule = Get-InstalledModule -Name $moduleName -ErrorAction SilentlyContinue
+    if ($installedModule) {
+        $installedVersion = $installedModule.Version.ToString()
+    }
+} else {
+    $installedVersion = $moduleVersion
+}
+
 $paths = $env:PSModulePath -split ';'
 
 foreach ($path in $paths) {
     $candidatePath = Join-Path -Path $path -ChildPath $moduleName
-    if ($moduleVersion) {
-        $candidatePath = Join-Path -Path $candidatePath -ChildPath $moduleVersion
+    if ($installedVersion) {
+        $candidatePath = Join-Path -Path $candidatePath -ChildPath $installedVersion
     }
 
     $psd1Path = Join-Path -Path $candidatePath -ChildPath "$moduleName.psd1"
