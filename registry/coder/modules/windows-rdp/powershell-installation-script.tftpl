@@ -34,12 +34,21 @@ try {
     # Install-PackageProvider is required for AWS. Need to set command to
     # terminate on failure so that try/catch actually triggers
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -ErrorAction Stop
-    Install-Module -Name $moduleName -RequiredVersion $moduleVersion -Force
+    
+    if ($moduleVersion -eq "latest" -or [string]::IsNullOrWhiteSpace($moduleVersion)) {
+        Install-Module -Name $moduleName -Force
+    } else {
+        Install-Module -Name $moduleName -RequiredVersion $moduleVersion -Force
+    }
 }
 catch {
     # If the first command failed, assume that we're on GCP and run
     # Install-Module only
-    Install-Module -Name $moduleName -RequiredVersion $moduleVersion -Force
+    if ($moduleVersion -eq "latest" -or [string]::IsNullOrWhiteSpace($moduleVersion)) {
+        Install-Module -Name $moduleName -Force
+    } else {
+        Install-Module -Name $moduleName -RequiredVersion $moduleVersion -Force
+    }
 }
 
 # Construct the module path for system-wide installation

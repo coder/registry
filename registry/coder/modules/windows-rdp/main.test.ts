@@ -59,9 +59,9 @@ describe("Web RDP", async () => {
     expect(lines).toEqual(
       expect.arrayContaining<string>([
         '$moduleName = "DevolutionsGateway"',
-        // Devolutions does versioning in the format year.minor.patch
-        expect.stringMatching(/^\$moduleVersion = "\d{4}\.\d+\.\d+"$/),
-        "Install-Module -Name $moduleName -RequiredVersion $moduleVersion -Force",
+        // Default is "latest" to automatically get the newest version
+        '$moduleVersion = "latest"',
+        "Install-Module -Name $moduleName -Force",
       ]),
     );
   });

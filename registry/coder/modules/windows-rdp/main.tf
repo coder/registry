@@ -66,8 +66,8 @@ variable "admin_password" {
 
 variable "devolutions_gateway_version" {
   type        = string
-  default     = "2025.2.2"
-  description = "Version of Devolutions Gateway to install. Defaults to the latest available version."
+  default     = "latest"
+  description = "Version of Devolutions Gateway to install. Use 'latest' for the most recent version, or specify a version like '2025.3.2'."
 }
 
 resource "coder_script" "windows-rdp" {
