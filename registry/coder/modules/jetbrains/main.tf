@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.9"
 
   required_providers {
     coder = {
@@ -163,7 +163,8 @@ variable "ide_config" {
     condition     = length(var.ide_config) > 0
     error_message = "The ide_config must not be empty."
   }
-  # ide_config must be a superset of var.. options
+  # ide_config must be a superset of var.options
+  # Requires Terraform 1.9+ for cross-variable validation references
   validation {
     condition = alltrue([
       for code in var.options : contains(keys(var.ide_config), code)
