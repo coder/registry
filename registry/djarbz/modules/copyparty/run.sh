@@ -54,7 +54,7 @@ else
 fi
 
 # Download appropriate release version assets: `copyparty-sfx.py` and `helptext.html`.
-printf "🚀 Downloading copyparty v%s...\n" "$${RELEASE_TO_INSTALL}"
+printf "🚀 Downloading copyparty %s...\n" "$${RELEASE_TO_INSTALL}"
 DOWNLOAD_URL="https://github.com/9001/copyparty/releases/download/$${RELEASE_TO_INSTALL}"
 
 printf "⏬ Downloading copyparty-sfx.py...\n"
