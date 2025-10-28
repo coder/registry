@@ -254,7 +254,9 @@ describe("opencode", async () => {
       "-c",
       "cat /home/coder/.opencode-module/agentapi-start.log",
     ]);
-    expect(startLog.stdout).toContain("report your progress using coder_report_task");
+    expect(startLog.stdout).toContain(
+      "report your progress using coder_report_task",
+    );
   });
 
   test("opencode-report-tasks-disabled", async () => {
@@ -271,7 +273,9 @@ describe("opencode", async () => {
       "-c",
       "cat /home/coder/.opencode-module/agentapi-start.log",
     ]);
-    expect(startLog.stdout).not.toContain("report your progress using coder_report_task");
+    expect(startLog.stdout).not.toContain(
+      "report your progress using coder_report_task",
+    );
   });
 
   test("cli-app-creation", async () => {

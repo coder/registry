@@ -32,7 +32,6 @@ printf "==================================\n"
 
 OPENCODE_ARGS=()
 
-
 validate_opencode_installation() {
   if ! command_exists opencode; then
     printf "ERROR: OpenCode not installed. Set install_opencode to true\n"

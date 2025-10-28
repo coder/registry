@@ -13,7 +13,6 @@ ARG_INSTALL_OPENCODE=${ARG_INSTALL_OPENCODE:-true}
 ARG_AUTH_JSON=$(echo -n "$ARG_AUTH_JSON" | base64 -d 2> /dev/null || echo "")
 ARG_MCP_CONFIG=$(echo -n "$ARG_MCP_CONFIG" | base64 -d 2> /dev/null || echo "")
 
-
 # Print all received environment variables
 printf "=== INSTALL CONFIG ===\n"
 printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
@@ -32,7 +31,6 @@ else
   printf "ARG_MCP_CONFIG: [NOT PROVIDED]\n"
 fi
 printf "==================================\n"
-
 
 install_opencode() {
   if [ "$ARG_INSTALL_OPENCODE" = "true" ]; then
@@ -73,10 +71,10 @@ setup_opencode_auth() {
   local auth_json_file="$1"
 
   if [ -n "$ARG_AUTH_JSON" ]; then
-      echo "$ARG_AUTH_JSON" > "$auth_json_file"
-      printf "added auth json to %s" "$auth_json_file"
+    echo "$ARG_AUTH_JSON" > "$auth_json_file"
+    printf "added auth json to %s" "$auth_json_file"
   else
-      printf "auth json not provided"
+    printf "auth json not provided"
   fi
 }
 
@@ -85,10 +83,10 @@ setup_mcp_config() {
 
   echo '{"$schema": "https://opencode.ai/config.json", "mcp": {}}' > "$mcp_config_file"
 
-    if [ -n "$ARG_MCP_CONFIG" ]; then
-      echo "Adding custom MCP servers..."
-      echo "$ARG_MCP_CONFIG" > "$mcp_config_file"
-    fi
+  if [ -n "$ARG_MCP_CONFIG" ]; then
+    echo "Adding custom MCP servers..."
+    echo "$ARG_MCP_CONFIG" > "$mcp_config_file"
+  fi
 
   setup_coder_mcp_server "$mcp_config_file"
 
@@ -114,7 +112,8 @@ setup_coder_mcp_server() {
   echo "Adding Coder MCP server configuration"
 
   # Create the coder server configuration JSON
-  coder_config=$(cat <<EOF
+  coder_config=$(
+    cat << EOF
 {
   "type": "local",
   "command": ["coder", "exp", "mcp", "server"],
@@ -127,7 +126,7 @@ setup_coder_mcp_server() {
   }
 }
 EOF
-)
+  )
 
   temp_file=$(mktemp)
   jq --argjson coder_config "$coder_config" '.mcp.coder = $coder_config' "$mcp_config_file" > "$temp_file"
@@ -138,6 +137,5 @@ EOF
 
 install_opencode
 setup_opencode_config
-
 
 echo "OpenCode module setup completed."

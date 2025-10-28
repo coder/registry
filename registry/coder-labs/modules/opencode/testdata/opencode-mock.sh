@@ -8,10 +8,10 @@ echo "Args received: $*"
 
 # Simulate opencode behavior based on arguments
 case "$1" in
-  --version|-v)
+  --version | -v)
     echo "opencode mock version 0.1.0-test"
     ;;
-  --help|-h)
+  --help | -h)
     echo "OpenCode Mock Help"
     echo "Usage: opencode [options] [command]"
     echo "This is a mock version for testing"

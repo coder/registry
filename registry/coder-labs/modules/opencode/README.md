@@ -48,9 +48,9 @@ module "opencode" {
   version  = "0.1.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
-  
+
   ai_prompt = data.coder_parameter.ai_prompt.value
-  model = "anthropic/claude-sonnet-4-20250514"
+  model     = "anthropic/claude-sonnet-4-20250514"
 
   # Authentication (required for tasks)
   auth_json = <<-EOT
@@ -65,8 +65,8 @@ module "opencode" {
   }
 }
 EOT
-  
-  mcp = <<-EOT
+
+  mcp                = <<-EOT
   {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
@@ -102,9 +102,9 @@ Run OpenCode as a command-line tool without web interface or task reporting:
 
 ```tf
 module "opencode" {
-  source   = "registry.coder.com/coder-labs/opencode/coder"
-  version  = "0.1.0"
-  agent_id = coder_agent.example.id
+  source       = "registry.coder.com/coder-labs/opencode/coder"
+  version      = "0.1.0"
+  agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   report_tasks = false
   cli_app      = true
@@ -114,7 +114,6 @@ module "opencode" {
 ## Troubleshooting
 
 If you encounter any issues, check the log files in the `~/.opencode-module` directory within your workspace for detailed information.
-
 
 ## References
 
