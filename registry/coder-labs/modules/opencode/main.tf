@@ -212,3 +212,7 @@ module "agentapi" {
     /tmp/install.sh
   EOT
 }
+
+output "task_app_id" {
+  value = module.agentapi.task_app_id
+}
