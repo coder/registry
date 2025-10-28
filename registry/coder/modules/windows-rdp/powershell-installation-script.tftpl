@@ -61,7 +61,7 @@ catch {
 }
 
 # Construct the module path for system-wide installation
-$modulePath = $null                   # Declare outside the loop
+$modulePath = $null # Declare outside the loop
 
 if ($moduleVersion -eq "latest" -or [string]::IsNullOrWhiteSpace($moduleVersion)) {
     $installedModule = Get-InstalledModule -Name $moduleName -ErrorAction SilentlyContinue
