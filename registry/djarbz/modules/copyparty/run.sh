@@ -11,7 +11,7 @@ PORT="${PORT}"
 PINNED_VERSION="${PINNED_VERSION}"
 # Custom CLI Arguments# The variable from Terraform is a single, comma-separated string.
 # We need to split it into a proper bash array using the comma (,) as the delimiter.
-IFS=',' read -r -a ARGUMENTS <<< "${ARGUMENTS}"
+ARGUMENTS=(${ARGUMENTS})
 
 # VARIABLE appears unused. Verify use (or export if used externally).
 # shellcheck disable=SC2034
@@ -89,12 +89,12 @@ done
 {
   printf "=== Starting copyparty at %s ===\n" "$(date)"
   printf "EXECUTING: %s\n" "$${log_command}"
-} > "$${LOG_PATH}"
+} > "/tmp/copyparty.cmd"
 
 printf "👷 Starting %s in background...\n\n" "$${MODULE_NAME}"
 
 # Execute the actual command using the robust array expansion.
 # Then, append its output (stdout and stderr) to the log file.
-python3 /tmp/copyparty-sfx.py -p "$${PORT}" "$${ARGUMENTS[@]}" >> "$${LOG_PATH}" 2>&1 &
+python3 /tmp/copyparty-sfx.py -p "$${PORT}" "$${ARGUMENTS[@]}" > "$${LOG_PATH}" 2>&1 &
 
 printf "✅ Service started. Check logs at %s\n\n" "$${LOG_PATH}"
