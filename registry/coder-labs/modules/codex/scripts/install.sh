@@ -22,6 +22,8 @@ printf "Start Directory: %s\n" "$ARG_CODEX_START_DIRECTORY"
 printf "Has Base Config: %s\n" "$([ -n "$ARG_BASE_CONFIG_TOML" ] && echo "Yes" || echo "No")"
 printf "Has Additional MCP: %s\n" "$([ -n "$ARG_ADDITIONAL_MCP_SERVERS" ] && echo "Yes" || echo "No")"
 printf "Has System Prompt: %s\n" "$([ -n "$ARG_CODEX_INSTRUCTION_PROMPT" ] && echo "Yes" || echo "No")"
+printf "OpenAI API Key: %s\n" "$([ -n "$ARG_OPENAI_API_KEY" ] && echo "Provided" || echo "Not provided")"
+printf "Report Tasks: %s\n" "$ARG_REPORT_TASKS"
 echo "======================================"
 
 set +o nounset
@@ -100,13 +102,20 @@ EOF
 append_mcp_servers_section() {
   local config_path="$1"
 
+  if [ "${ARG_REPORT_TASKS}" == "false" ]; then
+    ARG_CODER_MCP_APP_STATUS_SLUG=""
+    CODER_MCP_AI_AGENTAPI_URL=""
+  else
+    CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
+  fi
+
   cat << EOF >> "$config_path"
 
 # MCP Servers Configuration
 [mcp_servers.Coder]
 command = "coder"
 args = ["exp", "mcp", "server"]
-env = { "CODER_MCP_APP_STATUS_SLUG" = "${ARG_CODER_MCP_APP_STATUS_SLUG}", "CODER_MCP_AI_AGENTAPI_URL" = "http://localhost:3284", "CODER_AGENT_URL" = "${CODER_AGENT_URL}", "CODER_AGENT_TOKEN" = "${CODER_AGENT_TOKEN}" }
+env = { "CODER_MCP_APP_STATUS_SLUG" = "${ARG_CODER_MCP_APP_STATUS_SLUG}", "CODER_MCP_AI_AGENTAPI_URL" = "${CODER_MCP_AI_AGENTAPI_URL}" , "CODER_AGENT_URL" = "${CODER_AGENT_URL}", "CODER_AGENT_TOKEN" = "${CODER_AGENT_TOKEN}" }
 description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."
 type = "stdio"
 
@@ -159,7 +168,21 @@ function add_instruction_prompt_if_exists() {
   fi
 }
 
+function add_auth_json() {
+  AUTH_JSON_PATH="$HOME/.codex/auth.json"
+  mkdir -p "$(dirname "$AUTH_JSON_PATH")"
+  AUTH_JSON=$(
+    cat << EOF
+{
+  "OPENAI_API_KEY": "${ARG_OPENAI_API_KEY}"
+}
+EOF
+  )
+  echo "$AUTH_JSON" > "$AUTH_JSON_PATH"
+}
+
 install_codex
 codex --version
 populate_config_toml
 add_instruction_prompt_if_exists
+add_auth_json

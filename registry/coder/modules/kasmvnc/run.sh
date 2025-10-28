@@ -8,10 +8,10 @@ error() {
   exit 1
 }
 
-# Function to check if vncserver is already installed
+# Function to check if KasmVNC is already installed
 check_installed() {
-  if command -v vncserver &> /dev/null; then
-    echo "vncserver is already installed."
+  if command -v kasmvncserver &> /dev/null; then
+    echo "KasmVNC is already installed."
     return 0 # Don't exit, just indicate it's installed
   else
     return 1 # Indicates not installed
@@ -59,6 +59,9 @@ install_deb() {
     # Update package cache with a 300-second timeout for dpkg lock
     sudo apt-get -o DPkg::Lock::Timeout=300 -qq update
   fi
+
+  echo "Installing required Perl DateTime module..."
+  DEBIAN_FRONTEND=noninteractive sudo apt-get -o DPkg::Lock::Timeout=300 install --yes -qq --no-install-recommends --no-install-suggests libdatetime-perl
 
   DEBIAN_FRONTEND=noninteractive sudo apt-get -o DPkg::Lock::Timeout=300 install --yes -qq --no-install-recommends --no-install-suggests "$kasmdeb"
   rm "$kasmdeb"
@@ -155,7 +158,7 @@ case "$arch" in
     ;;
 esac
 
-# Check if vncserver is installed, and install if not
+# Check if KasmVNC is installed, and install if not
 if ! check_installed; then
   # Check for NOPASSWD sudo (required)
   if ! command -v sudo &> /dev/null || ! sudo -n true 2> /dev/null; then
@@ -185,7 +188,7 @@ if ! check_installed; then
       ;;
   esac
 else
-  echo "vncserver already installed. Skipping installation."
+  echo "KasmVNC already installed. Skipping installation."
 fi
 
 if command -v sudo &> /dev/null && sudo -n true 2> /dev/null; then
@@ -224,7 +227,7 @@ EOF
 # This password is not used since we start the server without auth.
 # The server is protected via the Coder session token / tunnel
 # and does not listen publicly
-echo -e "password\npassword\n" | vncpasswd -wo -u "$USER"
+echo -e "password\npassword\n" | kasmvncpasswd -wo -u "$USER"
 
 get_http_dir() {
   # determine the served file path
@@ -233,19 +236,17 @@ get_http_dir() {
 
   # Check the system configuration path
   if [[ -e /etc/kasmvnc/kasmvnc.yaml ]]; then
-    d=($(grep -E "^\s*httpd_directory:.*$" /etc/kasmvnc/kasmvnc.yaml))
-    # If this grep is successful, it will return:
-    #     httpd_directory: /usr/share/kasmvnc/www
-    if [[ $${#d[@]} -eq 2 && -d "$${d[1]}" ]]; then
-      httpd_directory="$${d[1]}"
+    d=$(grep -E '^\s*httpd_directory:.*$' "/etc/kasmvnc/kasmvnc.yaml" | awk '{print $$2}')
+    if [[ -n "$d" && -d "$d" ]]; then
+      httpd_directory=$d
     fi
   fi
 
   # Check the home directory for overriding values
   if [[ -e "$HOME/.vnc/kasmvnc.yaml" ]]; then
-    d=($(grep -E "^\s*httpd_directory:.*$" "$HOME/.vnc/kasmvnc.yaml"))
-    if [[ $${#d[@]} -eq 2 && -d "$${d[1]}" ]]; then
-      httpd_directory="$${d[1]}"
+    d=$(grep -E '^\s*httpd_directory:.*$' "$HOME/.vnc/kasmvnc.yaml" | awk '{print $$2}')
+    if [[ -n "$d" && -d "$d" ]]; then
+      httpd_directory=$d
     fi
   fi
   echo $httpd_directory
@@ -289,7 +290,7 @@ VNC_LOG="/tmp/kasmvncserver.log"
 printf "🚀 Starting KasmVNC server...\n"
 
 set +e
-vncserver -select-de "${DESKTOP_ENVIRONMENT}" -disableBasicAuth > "$VNC_LOG" 2>&1
+kasmvncserver -select-de "${DESKTOP_ENVIRONMENT}" -disableBasicAuth > "$VNC_LOG" 2>&1
 RETVAL=$?
 set -e
 

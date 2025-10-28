@@ -131,7 +131,7 @@ locals {
 resource "coder_script" "auto_start_dev_server" {
   agent_id     = var.agent_id
   display_name = var.display_name
-  icon         = "/icon/server.svg"
+  icon         = "/icon/auto-dev-server.svg"
   script = templatefile("${path.module}/run.sh", {
     WORKSPACE_DIR       = var.workspace_directory
     ENABLE_NPM          = coalesce(var.enable_npm, var.project_detection)
@@ -158,7 +158,7 @@ resource "coder_app" "preview" {
   slug         = "dev-preview"
   display_name = "Live Preview"
   url          = "http://localhost:${local.detected_port}"
-  icon         = "/icon/globe.svg"
+  icon         = "/icon/auto-dev-server.svg"
   subdomain    = true
   share        = "owner"
 }

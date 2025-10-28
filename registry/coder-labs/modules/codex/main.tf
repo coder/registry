@@ -36,9 +36,39 @@ variable "icon" {
   default     = "/icon/openai.svg"
 }
 
-variable "folder" {
+variable "workdir" {
   type        = string
   description = "The folder to run Codex in."
+}
+
+variable "report_tasks" {
+  type        = bool
+  description = "Whether to enable task reporting to Coder UI via AgentAPI"
+  default     = true
+}
+
+variable "subdomain" {
+  type        = bool
+  description = "Whether to use a subdomain for AgentAPI."
+  default     = false
+}
+
+variable "cli_app" {
+  type        = bool
+  description = "Whether to create a CLI app for Codex"
+  default     = false
+}
+
+variable "web_app_display_name" {
+  type        = string
+  description = "Display name for the web app"
+  default     = "Codex"
+}
+
+variable "cli_app_display_name" {
+  type        = string
+  description = "Display name for the CLI app"
+  default     = "Codex CLI"
 }
 
 variable "install_codex" {
@@ -107,6 +137,12 @@ variable "ai_prompt" {
   default     = ""
 }
 
+variable "continue" {
+  type        = bool
+  description = "Automatically continue existing sessions on workspace restart. When true, resumes existing conversation if found, otherwise runs prompt or starts new session. When false, always starts fresh (ignores existing sessions)."
+  default     = true
+}
+
 variable "codex_system_prompt" {
   type        = string
   description = "System instructions written to AGENTS.md in the ~/.codex directory"
@@ -120,6 +156,7 @@ resource "coder_env" "openai_api_key" {
 }
 
 locals {
+  workdir         = trimsuffix(var.workdir, "/")
   app_slug        = "codex"
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
@@ -131,15 +168,18 @@ module "agentapi" {
   version = "1.2.0"
 
   agent_id             = var.agent_id
+  folder               = local.workdir
   web_app_slug         = local.app_slug
   web_app_order        = var.order
   web_app_group        = var.group
   web_app_icon         = var.icon
-  web_app_display_name = "Codex"
-  cli_app_slug         = "${local.app_slug}-cli"
-  cli_app_display_name = "Codex CLI"
+  web_app_display_name = var.web_app_display_name
+  cli_app              = var.cli_app
+  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
+  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
+  agentapi_subdomain   = var.subdomain
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
@@ -151,9 +191,11 @@ module "agentapi" {
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
      ARG_OPENAI_API_KEY='${var.openai_api_key}' \
+     ARG_REPORT_TASKS='${var.report_tasks}' \
      ARG_CODEX_MODEL='${var.codex_model}' \
-     ARG_CODEX_START_DIRECTORY='${var.folder}' \
+     ARG_CODEX_START_DIRECTORY='${local.workdir}' \
      ARG_CODEX_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
+     ARG_CONTINUE='${var.continue}' \
      /tmp/start.sh
    EOT
 
@@ -164,12 +206,14 @@ module "agentapi" {
 
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
+    ARG_OPENAI_API_KEY='${var.openai_api_key}' \
+    ARG_REPORT_TASKS='${var.report_tasks}' \
     ARG_INSTALL='${var.install_codex}' \
     ARG_CODEX_VERSION='${var.codex_version}' \
     ARG_BASE_CONFIG_TOML='${base64encode(var.base_config_toml)}' \
     ARG_ADDITIONAL_MCP_SERVERS='${base64encode(var.additional_mcp_servers)}' \
     ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
-    ARG_CODEX_START_DIRECTORY='${var.folder}' \
+    ARG_CODEX_START_DIRECTORY='${local.workdir}' \
     ARG_CODEX_INSTRUCTION_PROMPT='${base64encode(var.codex_system_prompt)}' \
     /tmp/install.sh
   EOT

@@ -124,18 +124,23 @@ This script generates:
    - Accurate description and usage examples
    - Correct icon path (usually `../../../../.icons/your-icon.svg`)
    - Proper tags that describe your module
-3. **Create at least one `.tftest.hcl`** to test your module with `terraform test`
+3. **Create tests for your module:**
+   - **Terraform tests**: Create a `*.tftest.hcl` file and test with `terraform test`
+   - **TypeScript tests**: Create `main.test.ts` file if your module runs scripts or has business logic that Terraform tests can't cover
 4. **Add any scripts** or additional files your module needs
 
 ### 4. Test and Submit
 
 ```bash
-# Test your module (from the module directory)
+# Test your module
+cd registry/[namespace]/modules/[module-name]
+
+# Required: Test Terraform functionality
 terraform init -upgrade
 terraform test -verbose
 
-# Or run all tests in the repo
-./scripts/terraform_test_all.sh
+# Optional: Test TypeScript files if you have main.test.ts
+bun test main.test.ts
 
 # Format code
 bun run fmt
@@ -343,8 +348,8 @@ coder templates push test-[template-name] -d .
 terraform init -upgrade
 terraform test -verbose
 
-# Test all modules
-./scripts/terraform_test_all.sh
+# Optional: If you have TypeScript tests
+bun test main.test.ts
 ```
 
 ### 3. Maintain Backward Compatibility
@@ -393,7 +398,9 @@ Example: `https://github.com/coder/registry/compare/main...your-branch?template=
 ### Every Module Must Have
 
 - `main.tf` - Terraform code
-- One or more `.tftest.hcl` files - Working tests with `terraform test`
+- **Tests**:
+  - `*.tftest.hcl` files with `terraform test` (to test terraform specific logic)
+  - `main.test.ts` file with `bun test` (to test business logic, i.e., `coder_script` to install a package.)
 - `README.md` - Documentation with frontmatter
 
 ### Every Template Must Have
@@ -493,7 +500,7 @@ When reporting bugs, include:
 2. **No tests** or broken tests
 3. **Hardcoded values** instead of variables
 4. **Breaking changes** without defaults
-5. **Not running** formatting (`bun run fmt`) and tests (`terraform test`) before submitting
+5. **Not running** formatting (`bun run fmt`) and tests (`terraform test`, and `bun test main.test.ts` if applicable) before submitting
 
 ## For Maintainers
 

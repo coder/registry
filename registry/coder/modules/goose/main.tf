@@ -135,6 +135,7 @@ EOT
   install_script        = file("${path.module}/scripts/install.sh")
   start_script          = file("${path.module}/scripts/start.sh")
   module_dir_name       = ".goose-module"
+  folder                = trimsuffix(var.folder, "/")
 }
 
 module "agentapi" {
@@ -156,6 +157,7 @@ module "agentapi" {
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
   start_script         = local.start_script
+  folder               = local.folder
   install_script       = <<-EOT
     #!/bin/bash
     set -o errexit

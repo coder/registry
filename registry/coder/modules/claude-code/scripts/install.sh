@@ -91,11 +91,6 @@ function report_tasks() {
     export CODER_MCP_APP_STATUS_SLUG="$ARG_MCP_APP_STATUS_SLUG"
     export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
     coder exp mcp configure claude-code "$ARG_WORKDIR"
-  else
-    export CODER_MCP_APP_STATUS_SLUG=""
-    export CODER_MCP_AI_AGENTAPI_URL=""
-    echo "Configuring Claude Code with Coder MCP..."
-    coder exp mcp configure claude-code "$ARG_WORKDIR"
   fi
 }
 

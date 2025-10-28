@@ -1,5 +1,5 @@
 ---
-display_name: Amp CLI
+display_name: Amp
 icon: ../../../../.icons/sourcegraph-amp.svg
 description: Sourcegraph's AI coding agent with deep codebase understanding and intelligent code search capabilities
 verified: true
@@ -13,7 +13,7 @@ Run [Amp CLI](https://ampcode.com/) in your workspace to access Sourcegraph's AI
 ```tf
 module "amp-cli" {
   source                  = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
-  version                 = "1.1.0"
+  version                 = "2.0.0"
   agent_id                = coder_agent.example.id
   sourcegraph_amp_api_key = var.sourcegraph_amp_api_key
   install_sourcegraph_amp = true
@@ -23,8 +23,10 @@ module "amp-cli" {
 
 ## Prerequisites
 
-- Include the [Coder Login](https://registry.coder.com/modules/coder-login/coder) module in your template
-- Node.js and npm are automatically installed (via NVM) if not already available
+- **Default (official installer)**: No prerequisites - the official installer includes its own runtime (Bun)
+- **npm installation (`install_via_npm = true`)**: Requires Node.js and npm to be installed before Amp installation
+  - Required for Alpine Linux or other musl-based systems
+  - Ensure Node.js and npm are available in your workspace image or via earlier provisioning steps
 
 ## Usage Example
 
@@ -35,52 +37,55 @@ data "coder_parameter" "ai_prompt" {
   type        = "string"
   default     = ""
   mutable     = true
-
 }
 
-# Set system prompt for Amp CLI via environment variables
-resource "coder_agent" "main" {
-  # ...
-  env = {
-    SOURCEGRAPH_AMP_SYSTEM_PROMPT = <<-EOT
-      You are an Amp assistant that helps developers debug and write code efficiently.
-
-      Always log task status to Coder.
-    EOT
-    SOURCEGRAPH_AMP_TASK_PROMPT   = data.coder_parameter.ai_prompt.value
-  }
-}
-
-variable "sourcegraph_amp_api_key" {
+variable "amp_api_key" {
   type        = string
   description = "Sourcegraph Amp API key. Get one at https://ampcode.com/settings"
   sensitive   = true
 }
 
 module "amp-cli" {
-  count                   = data.coder_workspace.me.start_count
-  source                  = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
-  version                 = "1.1.0"
-  agent_id                = coder_agent.example.id
-  sourcegraph_amp_api_key = var.sourcegraph_amp_api_key # recommended for authenticated usage
-  install_sourcegraph_amp = true
+  count              = data.coder_workspace.me.start_count
+  source             = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
+  amp_version        = "2.0.0"
+  agent_id           = coder_agent.example.id
+  amp_api_key        = var.amp_api_key # recommended for tasks usage
+  workdir            = "/home/coder/project"
+  instruction_prompt = <<-EOT
+      # Instructions
+      - Start every response with `amp > `
+EOT
+  ai_prompt          = data.coder_parameter.ai_prompt.value
+  base_amp_config = jsonencode({
+    "amp.anthropic.thinking.enabled"              = true
+    "amp.todos.enabled"                           = true
+    "amp.tools.stopTimeout"                       = 600
+    "amp.git.commit.ampThread.enabled"            = true
+    "amp.git.commit.coauthor.enabled"             = true
+    "amp.terminal.commands.nodeSpawn.loadProfile" = "daily"
+    "amp.permissions" = [
+      { "tool" : "mcp__coder__*", "action" : "allow" },
+      { "tool" : "Bash", "action" : "allow", "context" : "thread" },
+      { "tool" : "Bash", "matches" : { "cmd" : ["rm -rf /*", "rm -rf ~/*"] }, "action" : "reject", "context" : "subagent" },
+      { "tool" : "edit_file", "action" : "allow" },
+      { "tool" : "write_file", "action" : "allow" },
+      { "tool" : "read_file", "action" : "allow" },
+      { "tool" : "Grep", "action" : "allow" }
+    ]
+  })
 }
 ```
 
-## How it Works
-
-- **Install**: Installs Sourcegraph Amp CLI using npm (installs Node.js via NVM if required)
-- **Start**: Launches Amp CLI in the specified directory, wrapped with AgentAPI to enable tasks and AI interactions
-- **Environment Variables**: Sets `SOURCEGRAPH_AMP_API_KEY` and `SOURCEGRAPH_AMP_START_DIRECTORY` for the CLI execution
-
 ## Troubleshooting
 
-- If `amp` is not found, ensure `install_sourcegraph_amp = true` and your API key is valid
-- Logs are written under `/home/coder/.sourcegraph-amp-module/` (`install.log`, `agentapi-start.log`) for debugging
+- If `amp` is not found, ensure `install_amp = true` and your API key is valid
+- Logs are written under `/home/coder/.amp-module/` (`install.log`, `agentapi-start.log`) for debugging
 - If AgentAPI fails to start, verify that your container has network access and executable permissions for the scripts
 
 > [!IMPORTANT]
-> For using **Coder Tasks** with Amp CLI, make sure to pass the `AI Prompt` parameter and set `sourcegraph_amp_api_key`.
+> To use tasks with Amp CLI, create a `coder_parameter` named `"AI Prompt"` and pass its value to the amp-cli module's `ai_prompt` variable. The `folder` variable is required for the module to function correctly.
+> For using **Coder Tasks** with Amp CLI, make sure to set `amp_api_key`.
 > This ensures task reporting and status updates work seamlessly.
 
 ## References
