@@ -2,6 +2,9 @@ function Set-AdminPassword {
     param (
         [string]$adminPassword
     )
+    # Explicitly import LocalAccounts module
+    Import-Module Microsoft.PowerShell.LocalAccounts -ErrorAction SilentlyContinue
+    
     # Set admin password
     Get-LocalUser -Name "${admin_username}" | Set-LocalUser -Password (ConvertTo-SecureString -AsPlainText $adminPassword -Force)
     # Enable admin user
@@ -28,23 +31,61 @@ function Install-DevolutionsGateway {
 $moduleName = "DevolutionsGateway"
 $moduleVersion = "${devolutions_gateway_version}"
 
+# Ensure TLS 1.2 is enabled for PSGallery
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
 # Install the module with the specified version for all users
 # This requires administrator privileges
 try {
     # Install-PackageProvider is required for AWS. Need to set command to
     # terminate on failure so that try/catch actually triggers
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -ErrorAction Stop
-    Install-Module -Name $moduleName -RequiredVersion $moduleVersion -Force
+    
+    # Set PSGallery as trusted after NuGet is installed
+    Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+    
+    if ($moduleVersion -eq "latest" -or [string]::IsNullOrWhiteSpace($moduleVersion)) {
+        Install-Module -Name $moduleName -Force
+    } else {
+        Install-Module -Name $moduleName -RequiredVersion $moduleVersion -Force
+    }
 }
 catch {
     # If the first command failed, assume that we're on GCP and run
     # Install-Module only
-    Install-Module -Name $moduleName -RequiredVersion $moduleVersion -Force
+    if ($moduleVersion -eq "latest" -or [string]::IsNullOrWhiteSpace($moduleVersion)) {
+        Install-Module -Name $moduleName -Force
+    } else {
+        Install-Module -Name $moduleName -RequiredVersion $moduleVersion -Force
+    }
 }
 
 # Construct the module path for system-wide installation
-$moduleBasePath = "C:\Windows\system32\config\systemprofile\Documents\PowerShell\Modules\$moduleName\$moduleVersion"
-$modulePath = Join-Path -Path $moduleBasePath -ChildPath "$moduleName.psd1"
+$modulePath = $null # Declare outside the loop
+
+if ($moduleVersion -eq "latest" -or [string]::IsNullOrWhiteSpace($moduleVersion)) {
+    $installedModule = Get-InstalledModule -Name $moduleName -ErrorAction SilentlyContinue
+    if ($installedModule) {
+        $installedVersion = $installedModule.Version.ToString()
+    }
+} else {
+    $installedVersion = $moduleVersion
+}
+
+$paths = $env:PSModulePath -split ';'
+
+foreach ($path in $paths) {
+    $candidatePath = Join-Path -Path $path -ChildPath $moduleName
+    if ($installedVersion) {
+        $candidatePath = Join-Path -Path $candidatePath -ChildPath $installedVersion
+    }
+
+    $psd1Path = Join-Path -Path $candidatePath -ChildPath "$moduleName.psd1"
+    if (Test-Path $psd1Path) {
+        $modulePath = $psd1Path
+        break
+    }
+}
 
 # Import the module using the full path
 Import-Module $modulePath
