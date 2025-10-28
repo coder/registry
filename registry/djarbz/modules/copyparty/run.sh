@@ -17,9 +17,7 @@ ARGUMENTS=(${ARGUMENTS})
 # shellcheck disable=SC2034
 MODULE_NAME="Copyparty"
 
-BOLD='\033[0;1m'
-
-printf '%sInstalling %s ...\n' "${BOLD}" "$${MODULE_NAME}"
+printf '\e[1mInstalling %s ...\e[0m\n' "$${MODULE_NAME}"
 
 # Add code here
 # Use variables from the templatefile function in main.tf
