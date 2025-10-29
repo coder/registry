@@ -10,8 +10,6 @@ command_exists() {
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
 ARG_AI_PROMPT=$(echo -n "${ARG_AI_PROMPT:-}" | base64 -d 2> /dev/null || echo "")
 ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
-ARG_MODEL=${ARG_MODEL:-}
-ARG_AGENT=${ARG_AGENT:-}
 ARG_SESSION_ID=${ARG_SESSION_ID:-}
 ARG_CONTINUE=${ARG_CONTINUE:-false}
 
@@ -19,8 +17,6 @@ ARG_CONTINUE=${ARG_CONTINUE:-false}
 printf "=== START CONFIG ===\n"
 printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
 printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
-printf "ARG_MODEL: %s\n" "$ARG_MODEL"
-printf "ARG_AGENT: %s\n" "$ARG_AGENT"
 printf "ARG_CONTINUE: %s\n" "$ARG_CONTINUE"
 printf "ARG_SESSION_ID: %s\n" "$ARG_SESSION_ID"
 if [ -n "$ARG_AI_PROMPT" ]; then
@@ -40,13 +36,6 @@ validate_opencode_installation() {
 }
 
 build_opencode_args() {
-  if [ -n "$ARG_MODEL" ]; then
-    OPENCODE_ARGS+=(--model "$ARG_MODEL")
-  fi
-
-  if [ -n "$ARG_AGENT" ]; then
-    OPENCODE_ARGS+=(--agent "$ARG_AGENT")
-  fi
 
   if [ -n "$ARG_SESSION_ID" ]; then
     OPENCODE_ARGS+=(--session "$ARG_SESSION_ID")

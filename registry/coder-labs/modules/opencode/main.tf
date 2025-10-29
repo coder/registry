@@ -119,18 +119,6 @@ variable "continue" {
   default     = false
 }
 
-variable "model" {
-  type        = string
-  description = "The default AI model to use. Passwd via --agent"
-  default     = ""
-}
-
-variable "agent" {
-  type        = string
-  description = "Agent to use. Passed via --agent"
-  default     = ""
-}
-
 variable "session_id" {
   type        = string
   description = "Session id to continue. Passed via --session"
@@ -143,12 +131,11 @@ variable "auth_json" {
   default     = ""
 }
 
-variable "mcp" {
+variable "config_json" {
   type        = string
-  description = "MCP configuration as a JSON string"
+  description = "OpenCode JSON config. https://opencode.ai/docs/config/"
   default     = ""
 }
-
 
 locals {
   workdir         = trimsuffix(var.workdir, "/")
@@ -187,8 +174,6 @@ module "agentapi" {
 
      ARG_WORKDIR='${local.workdir}' \
      ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
-     ARG_MODEL='${var.model}' \
-     ARG_AGENT='${var.agent}' \
      ARG_SESSION_ID='${var.session_id}' \
      ARG_REPORT_TASKS='${var.report_tasks}' \
      ARG_CONTINUE='${var.continue}' \
@@ -208,7 +193,7 @@ module "agentapi" {
     ARG_REPORT_TASKS='${var.report_tasks}' \
     ARG_WORKDIR='${local.workdir}' \
     ARG_AUTH_JSON='${var.auth_json != null ? base64encode(replace(var.auth_json, "'", "'\\''")) : ""}' \
-    ARG_MCP_CONFIG='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
+    ARG_OPENCODE_CONFIG='${var.config_json != null ? base64encode(replace(var.config_json, "'", "'\\''")) : ""}' \
     /tmp/install.sh
   EOT
 }

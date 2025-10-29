@@ -11,7 +11,7 @@ ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
 ARG_OPENCODE_VERSION=${ARG_OPENCODE_VERSION:-latest}
 ARG_INSTALL_OPENCODE=${ARG_INSTALL_OPENCODE:-true}
 ARG_AUTH_JSON=$(echo -n "$ARG_AUTH_JSON" | base64 -d 2> /dev/null || echo "")
-ARG_MCP_CONFIG=$(echo -n "$ARG_MCP_CONFIG" | base64 -d 2> /dev/null || echo "")
+ARG_OPENCODE_CONFIG=$(echo -n "$ARG_OPENCODE_CONFIG" | base64 -d 2> /dev/null || echo "")
 
 # Print all received environment variables
 printf "=== INSTALL CONFIG ===\n"
@@ -25,10 +25,10 @@ if [ -n "$ARG_AUTH_JSON" ]; then
 else
   printf "ARG_AUTH_JSON: [NOT PROVIDED]\n"
 fi
-if [ -n "$ARG_MCP_CONFIG" ]; then
-  printf "ARG_MCP_CONFIG: [MCP CONFIG RECEIVED]\n"
+if [ -n "$ARG_OPENCODE_CONFIG" ]; then
+  printf "ARG_OPENCODE_CONFIG: [RECEIVED]\n"
 else
-  printf "ARG_MCP_CONFIG: [NOT PROVIDED]\n"
+  printf "ARG_OPENCODE_CONFIG: [NOT PROVIDED]\n"
 fi
 printf "==================================\n"
 
@@ -57,14 +57,22 @@ install_opencode() {
 }
 
 setup_opencode_config() {
-  local mcp_config_file="$ARG_WORKDIR/opencode.json"
+  local opencode_config_file="$ARG_WORKDIR/opencode.json"
   local auth_json_file="$HOME/.local/share/opencode/auth.json"
 
   mkdir -p "$(dirname "$auth_json_file")"
-  mkdir -p "$(dirname "$mcp_config_file")"
+  mkdir -p "$(dirname "$opencode_config_file")"
 
   setup_opencode_auth "$auth_json_file"
-  setup_mcp_config "$mcp_config_file"
+
+  if [ -n "$ARG_OPENCODE_CONFIG" ]; then
+    echo "Writing to the config file"
+    echo "$ARG_OPENCODE_CONFIG" > "$opencode_config_file"
+  fi
+
+  setup_coder_mcp_server "$opencode_config_file"
+
+  echo "MCP configuration completed: $opencode_config_file"
 }
 
 setup_opencode_auth() {
@@ -78,23 +86,8 @@ setup_opencode_auth() {
   fi
 }
 
-setup_mcp_config() {
-  local mcp_config_file="$1"
-
-  echo '{"$schema": "https://opencode.ai/config.json", "mcp": {}}' > "$mcp_config_file"
-
-  if [ -n "$ARG_MCP_CONFIG" ]; then
-    echo "Adding custom MCP servers..."
-    echo "$ARG_MCP_CONFIG" > "$mcp_config_file"
-  fi
-
-  setup_coder_mcp_server "$mcp_config_file"
-
-  echo "MCP configuration completed: $mcp_config_file"
-}
-
 setup_coder_mcp_server() {
-  local mcp_config_file="$1"
+  local opencode_config_file="$1"
 
   # Set environment variables based on task reporting setting
   if [ "$ARG_REPORT_TASKS" = "true" ]; then
@@ -129,8 +122,8 @@ EOF
   )
 
   temp_file=$(mktemp)
-  jq --argjson coder_config "$coder_config" '.mcp.coder = $coder_config' "$mcp_config_file" > "$temp_file"
-  mv "$temp_file" "$mcp_config_file"
+  jq --argjson coder_config "$coder_config" '.mcp.coder = $coder_config' "$opencode_config_file" > "$temp_file"
+  mv "$temp_file" "$opencode_config_file"
   echo "Coder MCP server configuration added"
 
 }
