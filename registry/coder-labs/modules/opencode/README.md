@@ -39,7 +39,6 @@ module "opencode" {
   workdir  = "/home/coder/project"
 
   ai_prompt = coder_ai_task.task.prompt
-  model     = "anthropic/claude-sonnet-4-20250514"
   
   auth_json = <<-EOT
 {
@@ -54,29 +53,24 @@ module "opencode" {
 }
 EOT
 
-  mcp = jsonencode({
-    mcpServers = {
+  config_json = jsonencode({
+    "$schema" = "https://opencode.ai/config.json"
+    mcp = {
       filesystem = {
-        command     = "npx"
-        args        = ["-y", "@modelcontextprotocol/server-filesystem", "/home/coder/projects"]
-        description = "Provides file system access to the workspace"
-        name        = "Filesystem"
-        timeout     = 3000
+        command        = ["npx", "-y", "@modelcontextprotocol/server-filesystem", "/home/coder/projects"]
+        enabled        = true
         type        = "local"
-        tools       = ["*"]
-        trust       = true
+        environment = {
+          SOME_VARIABLE_X = "value"
+        }
       }
       playwright = {
-        command     = "npx"
-        args        = ["-y", "@playwright/mcp@latest", "--headless", "--isolated"]
-        description = "Browser automation for testing and previewing changes"
-        name        = "Playwright"
-        timeout     = 5000
+        command        = ["npx", "-y", "@playwright/mcp@latest", "--headless", "--isolated"]
+        enabled        = true
         type        = "local"
-        tools       = ["*"]
-        trust       = false
       }
     }
+    model = "anthropic/claude-sonnet-4-20250514"
   })
   
   pre_install_script = <<-EOT
@@ -108,6 +102,7 @@ If you encounter any issues, check the log files in the `~/.opencode-module` dir
 
 ## References
 
+- [Opencode JSON Config](https://opencode.ai/docs/config/)
 - [OpenCode Documentation](https://opencode.ai/docs)
 - [AgentAPI Documentation](https://github.com/coder/agentapi)
 - [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)

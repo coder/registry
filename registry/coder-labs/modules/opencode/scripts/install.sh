@@ -57,7 +57,7 @@ install_opencode() {
 }
 
 setup_opencode_config() {
-  local opencode_config_file="$ARG_WORKDIR/opencode.json"
+  local opencode_config_file="$HOME/.config/opencode/opencode.json"
   local auth_json_file="$HOME/.local/share/opencode/auth.json"
 
   mkdir -p "$(dirname "$auth_json_file")"
