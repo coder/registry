@@ -148,7 +148,7 @@ function start_agentapi() {
 
     # Add any additional allowed URLs from the variable
     if [ -n "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS" ]; then
-      IFS=' ' read -ra ADDITIONAL_URLS <<< "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS"
+      IFS='|' read -ra ADDITIONAL_URLS <<< "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS"
       for url in "${ADDITIONAL_URLS[@]}"; do
         BOUNDARY_ARGS+=(--allow "$url")
       done
