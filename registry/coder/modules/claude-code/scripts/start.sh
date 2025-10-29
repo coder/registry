@@ -150,6 +150,7 @@ function start_agentapi() {
     if [ -n "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS" ]; then
       IFS='|' read -ra ADDITIONAL_URLS <<< "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS"
       for url in "${ADDITIONAL_URLS[@]}"; do
+        # Quote the URL to preserve spaces within the allow rule
         BOUNDARY_ARGS+=(--allow "$url")
       done
     fi
