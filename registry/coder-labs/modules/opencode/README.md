@@ -39,7 +39,7 @@ module "opencode" {
   workdir  = "/home/coder/project"
 
   ai_prompt = coder_ai_task.task.prompt
-  
+
   auth_json = <<-EOT
 {
   "google": {
@@ -57,22 +57,22 @@ EOT
     "$schema" = "https://opencode.ai/config.json"
     mcp = {
       filesystem = {
-        command        = ["npx", "-y", "@modelcontextprotocol/server-filesystem", "/home/coder/projects"]
-        enabled        = true
-        type        = "local"
+        command = ["npx", "-y", "@modelcontextprotocol/server-filesystem", "/home/coder/projects"]
+        enabled = true
+        type    = "local"
         environment = {
           SOME_VARIABLE_X = "value"
         }
       }
       playwright = {
-        command        = ["npx", "-y", "@playwright/mcp@latest", "--headless", "--isolated"]
-        enabled        = true
-        type        = "local"
+        command = ["npx", "-y", "@playwright/mcp@latest", "--headless", "--isolated"]
+        enabled = true
+        type    = "local"
       }
     }
     model = "anthropic/claude-sonnet-4-20250514"
   })
-  
+
   pre_install_script = <<-EOT
     #!/bin/bash
     curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -

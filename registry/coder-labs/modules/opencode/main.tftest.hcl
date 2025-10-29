@@ -65,6 +65,11 @@ run "defaults_are_correct" {
     condition     = local.workdir == "/home/coder/project"
     error_message = "Workdir should be trimmed of trailing slash"
   }
+
+  assert {
+    condition     = var.continue == false
+    error_message = "Continue flag should be disabled by default"
+  }
 }
 
 run "workdir_trailing_slash_trimmed" {
@@ -172,9 +177,8 @@ run "ai_configuration_variables" {
     agent_id   = "test-agent"
     workdir    = "/home/coder/project"
     ai_prompt  = "This is a test prompt"
-    model      = "gpt-4"
-    agent      = "test-agent-name"
     session_id = "session-123"
+    continue   = true
   }
 
   assert {
@@ -183,18 +187,13 @@ run "ai_configuration_variables" {
   }
 
   assert {
-    condition     = var.model == "gpt-4"
-    error_message = "Model should be set correctly"
-  }
-
-  assert {
-    condition     = var.agent == "test-agent-name"
-    error_message = "Agent should be set correctly"
-  }
-
-  assert {
     condition     = var.session_id == "session-123"
     error_message = "Session ID should be set correctly"
+  }
+
+  assert {
+    condition     = var.continue == true
+    error_message = "Continue flag should be set correctly"
   }
 }
 
@@ -218,23 +217,23 @@ run "auth_json_configuration" {
   }
 }
 
-run "mcp_configuration" {
+run "config_json_configuration" {
   command = plan
 
   variables {
-    agent_id = "test-agent"
-    workdir  = "/home/coder/project"
-    mcp      = "{\"mcp\": {\"test\": {\"command\": \"test-cmd\", \"type\": \"local\"}}}"
+    agent_id    = "test-agent"
+    workdir     = "/home/coder/project"
+    config_json = "{\"$schema\": \"https://opencode.ai/config.json\", \"mcp\": {\"test\": {\"command\": [\"test-cmd\"], \"type\": \"local\"}}, \"model\": \"anthropic/claude-sonnet-4-20250514\"}"
   }
 
   assert {
-    condition     = var.mcp != ""
-    error_message = "MCP configuration should be set"
+    condition     = var.config_json != ""
+    error_message = "OpenCode JSON configuration should be set"
   }
 
   assert {
-    condition     = can(jsondecode(var.mcp))
-    error_message = "MCP configuration should be valid JSON"
+    condition     = can(jsondecode(var.config_json))
+    error_message = "OpenCode JSON configuration should be valid JSON"
   }
 }
 
@@ -324,29 +323,18 @@ run "empty_variables_handled_correctly" {
   command = plan
 
   variables {
-    agent_id   = "test-agent"
-    workdir    = "/home/coder/project"
-    ai_prompt  = ""
-    model      = ""
-    agent      = ""
-    session_id = ""
-    auth_json  = ""
-    mcp        = ""
+    agent_id    = "test-agent"
+    workdir     = "/home/coder/project"
+    ai_prompt   = ""
+    session_id  = ""
+    auth_json   = ""
+    config_json = ""
+    continue    = false
   }
 
   assert {
     condition     = var.ai_prompt == ""
     error_message = "Empty AI prompt should be handled correctly"
-  }
-
-  assert {
-    condition     = var.model == ""
-    error_message = "Empty model should be handled correctly"
-  }
-
-  assert {
-    condition     = var.agent == ""
-    error_message = "Empty agent should be handled correctly"
   }
 
   assert {
@@ -360,7 +348,27 @@ run "empty_variables_handled_correctly" {
   }
 
   assert {
-    condition     = var.mcp == ""
-    error_message = "Empty MCP config should be handled correctly"
+    condition     = var.config_json == ""
+    error_message = "Empty config JSON should be handled correctly"
+  }
+
+  assert {
+    condition     = var.continue == false
+    error_message = "Continue flag default should be handled correctly"
+  }
+}
+
+run "continue_flag_configuration" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    workdir  = "/home/coder/project"
+    continue = true
+  }
+
+  assert {
+    condition     = var.continue == true
+    error_message = "Continue flag should be enabled when specified"
   }
 }

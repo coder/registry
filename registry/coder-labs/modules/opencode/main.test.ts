@@ -146,27 +146,30 @@ describe("opencode", async () => {
     expect(authFile).toContain("test-user");
   });
 
-  test("opencode-mcp-config", async () => {
-    const mcpConfig = JSON.stringify({
+  test("opencode-config-json", async () => {
+    const configJson = JSON.stringify({
+      $schema: "https://opencode.ai/config.json",
       mcp: {
         test: {
           command: ["test-cmd"],
           type: "local",
         },
       },
+      model: "anthropic/claude-sonnet-4-20250514",
     });
     const { id } = await setup({
       moduleVariables: {
-        mcp: mcpConfig,
+        config_json: configJson,
       },
     });
     await execModuleScript(id);
 
     const configFile = await readFileContainer(
       id,
-      "/home/coder/project/opencode.json",
+      "/home/coder/.config/opencode/opencode.json",
     );
     expect(configFile).toContain("test-cmd");
+    expect(configFile).toContain("anthropic/claude-sonnet-4-20250514");
   });
 
   test("opencode-ai-prompt", async () => {
@@ -186,11 +189,10 @@ describe("opencode", async () => {
     expect(resp.stdout).toContain(prompt);
   });
 
-  test("opencode-model", async () => {
-    const model = "gpt-4";
+  test("opencode-continue-flag", async () => {
     const { id } = await setup({
       moduleVariables: {
-        model: model,
+        continue: "true",
         ai_prompt: "test prompt",
       },
     });
@@ -201,14 +203,15 @@ describe("opencode", async () => {
       "-c",
       "cat /home/coder/.opencode-module/agentapi-start.log",
     ]);
-    expect(startLog.stdout).toContain(`--model ${model}`);
+    expect(startLog.stdout).toContain("--continue");
   });
 
-  test("opencode-agent", async () => {
-    const agent = "test-agent";
+  test("opencode-continue-with-session-id", async () => {
+    const sessionId = "session-123";
     const { id } = await setup({
       moduleVariables: {
-        agent: agent,
+        continue: "true",
+        session_id: sessionId,
         ai_prompt: "test prompt",
       },
     });
@@ -219,7 +222,8 @@ describe("opencode", async () => {
       "-c",
       "cat /home/coder/.opencode-module/agentapi-start.log",
     ]);
-    expect(startLog.stdout).toContain(`--agent ${agent}`);
+    expect(startLog.stdout).toContain("--continue");
+    expect(startLog.stdout).toContain(`--session ${sessionId}`);
   });
 
   test("opencode-session-id", async () => {
@@ -328,24 +332,6 @@ describe("opencode", async () => {
       "/home/coder/.opencode-module/agentapi-start.log",
     );
     expect(resp).toContain(workdir);
-  });
-
-  test("coder-mcp-config-created", async () => {
-    const { id } = await setup({
-      moduleVariables: {
-        install_opencode: "false", // Don't need to install opencode to test MCP config creation
-      },
-    });
-    await execModuleScript(id);
-
-    const mcpConfig = await readFileContainer(
-      id,
-      "/home/coder/project/opencode.json",
-    );
-    expect(mcpConfig).toContain("mcp");
-    expect(mcpConfig).toContain("coder");
-    expect(mcpConfig).toContain("CODER_MCP_APP_STATUS_SLUG");
-    expect(mcpConfig).toContain("CODER_MCP_AI_AGENTAPI_URL");
   });
 
   test("subdomain-enabled", async () => {
