@@ -28,19 +28,8 @@ module "opencode" {
 ### Basic Usage with Tasks
 
 ```tf
-data "coder_parameter" "ai_prompt" {
-  type        = "string"
-  name        = "AI Task"
-  default     = ""
-  description = "Initial task prompt for OpenCode AI assistant"
-  mutable     = true
-}
-
-module "coder-login" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/coder-login/coder"
-  version  = "1.0.31"
-  agent_id = coder_agent.example.id
+resource "coder_ai_task" "task" {
+  app_id = module.opencode.task_app_id
 }
 
 module "opencode" {
@@ -49,7 +38,7 @@ module "opencode" {
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
-  ai_prompt = data.coder_parameter.ai_prompt.value
+  ai_prompt = coder_ai_task.task.prompt
   model     = "anthropic/claude-sonnet-4-20250514"
 
   # Authentication (required for tasks)
