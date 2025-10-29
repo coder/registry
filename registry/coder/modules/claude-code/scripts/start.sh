@@ -1,9 +1,12 @@
 #!/bin/bash
-set -euo pipefail
 
 if [ -f "$HOME/.bashrc" ]; then
   source "$HOME"/.bashrc
 fi
+
+# Set strict error handling AFTER sourcing bashrc to avoid unbound variable errors from user dotfiles
+set -euo pipefail
+
 export PATH="$HOME/.local/bin:$PATH"
 
 command_exists() {
