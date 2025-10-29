@@ -115,10 +115,10 @@ run "cli_app_configuration" {
   command = plan
 
   variables {
-    agent_id              = "test-agent"
-    workdir               = "/home/coder/project"
-    cli_app               = true
-    cli_app_display_name  = "Custom OpenCode CLI"
+    agent_id             = "test-agent"
+    workdir              = "/home/coder/project"
+    cli_app              = true
+    cli_app_display_name = "Custom OpenCode CLI"
   }
 
   assert {
@@ -136,12 +136,12 @@ run "web_app_configuration" {
   command = plan
 
   variables {
-    agent_id              = "test-agent"
-    workdir               = "/home/coder/project"
-    web_app_display_name  = "Custom OpenCode Web"
-    order                 = 5
-    group                 = "AI Tools"
-    icon                  = "/custom/icon.svg"
+    agent_id             = "test-agent"
+    workdir              = "/home/coder/project"
+    web_app_display_name = "Custom OpenCode Web"
+    order                = 5
+    group                = "AI Tools"
+    icon                 = "/custom/icon.svg"
   }
 
   assert {
