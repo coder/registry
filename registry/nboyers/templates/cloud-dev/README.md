@@ -69,3 +69,4 @@ For the identity running the template (Coder service account, Terraform runner, 
   ],
   "Resource": "*"
 }
+```
