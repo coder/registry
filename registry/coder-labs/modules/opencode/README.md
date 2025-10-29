@@ -21,7 +21,7 @@ module "opencode" {
 
 ## Prerequisites
 
-- **Authentication credentials** - OpenCode auth.json file is required while running tasks, you can find this file on your system: `$HOME/.local/share/opencode/auth.json`
+- **Authentication credentials** - OpenCode auth.json file is required for non-interactive authentication, you can find this file on your system: `$HOME/.local/share/opencode/auth.json`
 
 ## Examples
 
@@ -40,8 +40,7 @@ module "opencode" {
 
   ai_prompt = coder_ai_task.task.prompt
   model     = "anthropic/claude-sonnet-4-20250514"
-
-  # Authentication (required for tasks)
+  
   auth_json = <<-EOT
 {
   "google": {
@@ -55,33 +54,36 @@ module "opencode" {
 }
 EOT
 
-  mcp                = <<-EOT
-  {
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "test-mcp": {
-      "type": "local",
-      "command": [
-        "uv",
-        "--directory",
-        "/Users/jkmr/Documents/work/test-mcp",
-        "run",
-        "test-mcp.py"
-      ],
-      "enabled": true,
-      "environment": {
-        "a": "A"
+  mcp = jsonencode({
+    mcpServers = {
+      filesystem = {
+        command     = "npx"
+        args        = ["-y", "@modelcontextprotocol/server-filesystem", "/home/coder/projects"]
+        description = "Provides file system access to the workspace"
+        name        = "Filesystem"
+        timeout     = 3000
+        type        = "local"
+        tools       = ["*"]
+        trust       = true
+      }
+      playwright = {
+        command     = "npx"
+        args        = ["-y", "@playwright/mcp@latest", "--headless", "--isolated"]
+        description = "Browser automation for testing and previewing changes"
+        name        = "Playwright"
+        timeout     = 5000
+        type        = "local"
+        tools       = ["*"]
+        trust       = false
       }
     }
-  }
-}
-EOT
+  })
+  
   pre_install_script = <<-EOT
-  cd test-mcp
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-  source "$HOME"/.bashrc
-  /home/coder/.local/bin/uv sync
-EOT
+    #!/bin/bash
+    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+  EOT
 }
 ```
 

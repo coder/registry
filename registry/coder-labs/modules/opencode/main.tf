@@ -139,7 +139,7 @@ variable "session_id" {
 
 variable "auth_json" {
   type        = string
-  description = "Your auth.json from $HOME/.local/share/opencode/auth.json, Required while running tasks."
+  description = "Your auth.json from $HOME/.local/share/opencode/auth.json, Required for non-interactive authentication"
   default     = ""
 }
 
