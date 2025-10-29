@@ -189,7 +189,7 @@ run "test_comma_args" {
       "-v", "/tmp:/tmp:r",             # Share tmp directory (read-only)
       "-v", "/home/coder/:/home:rw",   # Share home directory (read-write)
       "-v", "/work:/work:A:c,dotsrch", # Share work directory (All Perms)
-      "-e2dsa",                        # Enables general file indexing"
+      "-e2dsa",                        # Enables general file indexing
       "--re-maxage", "900",            # Rescan filesystem for changes every SEC
       "--see-dots",                    # Show dotfiles by default if user has correct permissions on volume
       "--xff-src=lan",                 # List of trusted reverse-proxy CIDRs (comma-separated) or `lan` for private IPs.
