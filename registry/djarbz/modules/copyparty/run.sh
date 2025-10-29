@@ -9,8 +9,9 @@ LOG_PATH="${LOG_PATH}"
 PORT="${PORT}"
 # Pinned version (e.g., v1.19.16); overrides latest release discovery if set
 PINNED_VERSION="${PINNED_VERSION}"
-# Custom CLI Arguments# The variable from Terraform is a single, comma-separated string.
-# We need to split it into a proper bash array using the comma (,) as the delimiter.
+# Custom CLI Arguments
+# The variable from Terraform is a series of quoted and space separated strings.
+# We need to parse it into a proper bash array.
 ARGUMENTS=(${ARGUMENTS})
 
 # VARIABLE appears unused. Verify use (or export if used externally).
@@ -81,7 +82,7 @@ for arg in "$${ARGUMENTS[@]}"; do
   log_command+=" '$${arg}'"
 done
 
-# Clear the log file and write the header and command string using printf.
+# Dump the executing command to a tmp file for diagnostic review.
 {
   printf "=== Starting copyparty at %s ===\n" "$(date)"
   printf "EXECUTING: %s\n" "$${log_command}"
@@ -90,7 +91,7 @@ done
 printf "👷 Starting %s in background...\n" "$${MODULE_NAME}"
 
 # Execute the actual command using the robust array expansion.
-# Then, append its output (stdout and stderr) to the log file.
+# Then, capture its output (stdout and stderr) to the log file.
 python3 /tmp/copyparty-sfx.py -p "$${PORT}" "$${ARGUMENTS[@]}" > "$${LOG_PATH}" 2>&1 &
 
 printf "✅ Service started. Check logs at %s\n" "$${LOG_PATH}"
