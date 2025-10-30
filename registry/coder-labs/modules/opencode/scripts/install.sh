@@ -70,7 +70,9 @@ setup_opencode_config() {
     echo "$ARG_OPENCODE_CONFIG" > "$opencode_config_file"
   fi
 
-  setup_coder_mcp_server "$opencode_config_file"
+  if [ "$ARG_REPORT_TASKS" = "true" ]; then
+    setup_coder_mcp_server "$opencode_config_file"
+  fi
 
   echo "MCP configuration completed: $opencode_config_file"
 }
@@ -90,16 +92,10 @@ setup_coder_mcp_server() {
   local opencode_config_file="$1"
 
   # Set environment variables based on task reporting setting
-  if [ "$ARG_REPORT_TASKS" = "true" ]; then
-    echo "Configuring OpenCode task reporting"
-    export CODER_MCP_APP_STATUS_SLUG="$ARG_MCP_APP_STATUS_SLUG"
-    export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
-    echo "Coder integration configured for task reporting"
-  else
-    echo "Task reporting disabled or no app status slug provided."
-    export CODER_MCP_APP_STATUS_SLUG=""
-    export CODER_MCP_AI_AGENTAPI_URL=""
-  fi
+  echo "Configuring OpenCode task reporting"
+  export CODER_MCP_APP_STATUS_SLUG="$ARG_MCP_APP_STATUS_SLUG"
+  export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
+  echo "Coder integration configured for task reporting"
 
   # Add coder MCP server configuration to the JSON file
   echo "Adding Coder MCP server configuration"
@@ -116,6 +112,7 @@ setup_coder_mcp_server() {
     "CODER_MCP_AI_AGENTAPI_URL": "${CODER_MCP_AI_AGENTAPI_URL:-}",
     "CODER_AGENT_URL": "${CODER_AGENT_URL:-}",
     "CODER_AGENT_TOKEN": "${CODER_AGENT_TOKEN:-}"
+    "CODER_MCP_ALLOWED_TOOLS": "coder_report_task"
   }
 }
 EOF
