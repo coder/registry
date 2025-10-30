@@ -137,6 +137,12 @@ variable "ai_prompt" {
   default     = ""
 }
 
+variable "continue" {
+  type        = bool
+  description = "Automatically continue existing sessions on workspace restart. When true, resumes existing conversation if found, otherwise runs prompt or starts new session. When false, always starts fresh (ignores existing sessions)."
+  default     = true
+}
+
 variable "codex_system_prompt" {
   type        = string
   description = "System instructions written to AGENTS.md in the ~/.codex directory"
@@ -187,8 +193,9 @@ module "agentapi" {
      ARG_OPENAI_API_KEY='${var.openai_api_key}' \
      ARG_REPORT_TASKS='${var.report_tasks}' \
      ARG_CODEX_MODEL='${var.codex_model}' \
-     ARG_CODEX_START_DIRECTORY='${var.workdir}' \
+     ARG_CODEX_START_DIRECTORY='${local.workdir}' \
      ARG_CODEX_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
+     ARG_CONTINUE='${var.continue}' \
      /tmp/start.sh
    EOT
 
@@ -206,7 +213,7 @@ module "agentapi" {
     ARG_BASE_CONFIG_TOML='${base64encode(var.base_config_toml)}' \
     ARG_ADDITIONAL_MCP_SERVERS='${base64encode(var.additional_mcp_servers)}' \
     ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
-    ARG_CODEX_START_DIRECTORY='${var.workdir}' \
+    ARG_CODEX_START_DIRECTORY='${local.workdir}' \
     ARG_CODEX_INSTRUCTION_PROMPT='${base64encode(var.codex_system_prompt)}' \
     /tmp/install.sh
   EOT
