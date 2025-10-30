@@ -52,7 +52,7 @@ build_opencode_args() {
     else
       PROMPT="$ARG_AI_PROMPT"
     fi
-    AGENTAPI_ARGS+=(--I "$PROMPT")
+    AGENTAPI_ARGS+=(-I "$PROMPT")
   fi
 }
 
