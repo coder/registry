@@ -144,12 +144,13 @@ function start_agentapi() {
     # Build boundary args with conditional --unprivileged flag
     BOUNDARY_ARGS=(--log-dir "$ARG_BOUNDARY_LOG_DIR")
     # Add default allowed URLs
-    BOUNDARY_ARGS+=(--allow "*anthropic.com" --allow "registry.npmjs.org" --allow "*sentry.io" --allow "claude.ai" --allow "$ARG_CODER_HOST")
+    BOUNDARY_ARGS+=(--allow "domain=anthropic.com" --allow "domain=registry.npmjs.org" --allow "domain=sentry.io" --allow "domain=claude.ai" --allow "domain=$ARG_CODER_HOST")
 
     # Add any additional allowed URLs from the variable
     if [ -n "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS" ]; then
-      IFS=' ' read -ra ADDITIONAL_URLS <<< "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS"
+      IFS='|' read -ra ADDITIONAL_URLS <<< "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS"
       for url in "${ADDITIONAL_URLS[@]}"; do
+        # Quote the URL to preserve spaces within the allow rule
         BOUNDARY_ARGS+=(--allow "$url")
       done
     fi
