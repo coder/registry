@@ -3,7 +3,7 @@ display_name: "Scaleway Instance"
 description: "A workspace spun up on a Scaleway Instance"
 icon: "../../../../.icons/scaleway.svg"
 verified: false
-tags: ["scaleway", "dev", "tools"]
+tags: ["scaleway", "vm", "linux"]
 ---
 
 # Scaleway Instance Template
