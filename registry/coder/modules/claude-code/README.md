@@ -46,7 +46,7 @@ This example shows how to configure the Claude Code module to run the agent behi
 module "claude-code" {
   source                           = "dev.registry.coder.com/coder/claude-code/coder"
   enable_boundary                  = true
-  boundary_version                 = "3.4.4"
+  boundary_version                 = "main"
   boundary_log_dir                 = "/tmp/boundary_logs"
   boundary_log_level               = "WARN"
   boundary_additional_allowed_urls = ["GET *google.com"]
