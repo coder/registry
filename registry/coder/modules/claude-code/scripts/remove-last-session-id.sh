@@ -26,7 +26,7 @@ echo ".claude.json path $claude_json_path"
 # Check if .claude.json exists
 if [ ! -f "$claude_json_path" ]; then
   echo "No .claude.json file found"
-  exit 2
+  exit 1
 fi
 
 # Use jq to check if lastSessionId exists for the working directory and remove it
@@ -38,9 +38,7 @@ if jq -e ".projects[\"$working_dir\"].lastSessionId" "$claude_json_path" > /dev/
     exit 0
   else
     echo "Failed to remove lastSessionId from .claude.json"
-    exit 3
   fi
 else
   echo "No lastSessionId found in .claude.json - nothing to do"
-  exit 4
 fi

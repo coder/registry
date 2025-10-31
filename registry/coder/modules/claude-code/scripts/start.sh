@@ -59,9 +59,6 @@ case $session_cleanup_exit_code in
   0)
     CAN_CONTINUE_CONVERSATION=true
     ;;
-  *)
-    printf "OwO"
-    ;;
 esac
 
 function install_boundary() {
