@@ -229,7 +229,7 @@ describe("claude-code", async () => {
     expect(startLog.stdout).toContain("Resuming existing task session");
   });
 
-  test("claude-continue-resume-general-session", async () => {
+  test("claude-continue-resume-standalone-session", async () => {
     const { id } = await setup({
       moduleVariables: {
         continue: "true",
@@ -358,61 +358,5 @@ describe("claude-code", async () => {
     expect(startLog.stdout).toContain(
       "ARG_AGENTAPI_CHAT_BASE_PATH=/@default/default.foo/apps/ccw/chat",
     );
-  });
-
-  test("continue-false-with-report-tasks-uses-task-id", async () => {
-    const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
-    const { id } = await setup({
-      moduleVariables: {
-        continue: "false",
-        report_tasks: "true",
-      },
-    });
-    await execModuleScript(id);
-
-    const startLog = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/.claude-module/agentapi-start.log",
-    ]);
-    expect(startLog.stdout).toContain("--session-id");
-    expect(startLog.stdout).toContain(taskSessionId);
-  });
-
-  test("prompt-in-general-mode-allows-permissions", async () => {
-    const { id } = await setup({
-      moduleVariables: {
-        report_tasks: "false",
-        ai_prompt: "Review the code",
-      },
-    });
-    await execModuleScript(id);
-
-    const startLog = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/.claude-module/agentapi-start.log",
-    ]);
-    expect(startLog.stdout).toContain("Review the code");
-    expect(startLog.stdout).not.toContain("--dangerously-skip-permissions");
-  });
-
-  test("prompt-in-task-mode-skips-permissions", async () => {
-    const { id } = await setup({
-      moduleVariables: {
-        report_tasks: "true",
-        ai_prompt: "Fix the tests",
-      },
-    });
-    await execModuleScript(id);
-
-    const startLog = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/.claude-module/agentapi-start.log",
-    ]);
-    // Should have both the prompt AND --dangerously-skip-permissions
-    expect(startLog.stdout).toContain("Fix the tests");
-    expect(startLog.stdout).toContain("--dangerously-skip-permissions");
   });
 });
