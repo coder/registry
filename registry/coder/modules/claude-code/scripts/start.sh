@@ -47,13 +47,12 @@ printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
 
 echo "--------------------------------"
 
-# see the remove-last-session-id.sh script for details
-# about why we need it
+# Clean up stale session data (see remove-last-session-id.sh for details)
 CAN_CONTINUE_CONVERSATION=false
- set +e
+set +e
 bash "/tmp/remove-last-session-id.sh" "$(pwd)" 2> /dev/null
 session_cleanup_exit_code=$?
- set -e
+set -e
 
 case $session_cleanup_exit_code in
   0)
@@ -96,7 +95,7 @@ function start_agentapi() {
   fi
 
   if [ -n "$ARG_RESUME_SESSION_ID" ]; then
-    echo "Using explicit resume_session_id: $ARG_RESUME_SESSION_ID"
+    echo "Resuming task session by ID: $ARG_RESUME_SESSION_ID"
     ARGS+=(--resume "$ARG_RESUME_SESSION_ID")
     if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
       ARGS+=(--dangerously-skip-permissions)
@@ -108,17 +107,17 @@ function start_agentapi() {
       if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
         ARGS+=(--dangerously-skip-permissions)
       fi
-      echo "Resuming existing task session"
+      echo "Resuming existing session"
     else
-      echo "No existing task session found"
+      echo "No existing session found"
       if [ -n "$ARG_AI_PROMPT" ]; then
         ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
-        echo "Starting new task session with prompt"
+        echo "Starting new session with prompt"
       else
         if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
           ARGS+=(--dangerously-skip-permissions)
         fi
-        echo "Starting new task session"
+        echo "Starting new session"
       fi
     fi
   else
