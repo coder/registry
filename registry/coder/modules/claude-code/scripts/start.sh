@@ -106,7 +106,7 @@ function start_agentapi() {
     fi
   elif [ "$ARG_CONTINUE" = "true" ]; then
     if [ "$CAN_CONTINUE_CONVERSATION" = true ]; then
-      echo "Task session detected (ID: $TASK_SESSION_ID)"
+      echo "Previous session exists"
       ARGS+=(--continue)
       if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
         ARGS+=(--dangerously-skip-permissions)
@@ -114,7 +114,6 @@ function start_agentapi() {
       echo "Resuming existing task session"
     else
       echo "No existing task session found"
-      ARGS+=(--session-id "$TASK_SESSION_ID")
       if [ -n "$ARG_AI_PROMPT" ]; then
         ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
         echo "Starting new task session with prompt"
