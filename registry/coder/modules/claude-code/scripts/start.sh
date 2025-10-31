@@ -50,9 +50,10 @@ echo "--------------------------------"
 # see the remove-last-session-id.sh script for details
 # about why we need it
 CAN_CONTINUE_CONVERSATION=false
-
+ set +e
 bash "/tmp/remove-last-session-id.sh" "$(pwd)" 2> /dev/null
 session_cleanup_exit_code=$?
+ set -e
 
 case $session_cleanup_exit_code in
   0)
