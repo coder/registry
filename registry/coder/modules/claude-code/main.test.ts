@@ -198,15 +198,16 @@ describe("claude-code", async () => {
     expect(startLog.stdout).toContain(`--model ${model}`);
   });
 
-  test("claude-continue-resume-existing-session", async () => {
+  test("claude-continue-resume-task-session", async () => {
     const { id } = await setup({
       moduleVariables: {
         continue: "true",
+        report_tasks: "true",
         ai_prompt: "test prompt",
       },
     });
 
-    // Create a mock session file with the predefined task session ID
+    // Create a mock task session file with the hardcoded task session ID
     const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
     const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
     await execContainer(id, ["mkdir", "-p", sessionDir]);
@@ -226,6 +227,42 @@ describe("claude-code", async () => {
     expect(startLog.stdout).toContain("--resume");
     expect(startLog.stdout).toContain(taskSessionId);
     expect(startLog.stdout).toContain("Resuming existing task session");
+  });
+
+  test("claude-continue-resume-general-session", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        continue: "true",
+        report_tasks: "false",
+        ai_prompt: "test prompt",
+      },
+    });
+
+    const sessionId = "some-random-session-id";
+    const workdir = "/home/coder/project";
+    const claudeJson = {
+      projects: {
+        [workdir]: {
+          lastSessionId: sessionId,
+        },
+      },
+    };
+
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `echo '${JSON.stringify(claudeJson)}' > /home/coder/.claude.json`,
+    ]);
+
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/agentapi-start.log",
+    ]);
+    expect(startLog.stdout).toContain("--continue");
+    expect(startLog.stdout).toContain("Resuming existing session");
   });
 
   test("pre-post-install-scripts", async () => {
@@ -321,5 +358,61 @@ describe("claude-code", async () => {
     expect(startLog.stdout).toContain(
       "ARG_AGENTAPI_CHAT_BASE_PATH=/@default/default.foo/apps/ccw/chat",
     );
+  });
+
+  test("continue-false-with-report-tasks-uses-task-id", async () => {
+    const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
+    const { id } = await setup({
+      moduleVariables: {
+        continue: "false",
+        report_tasks: "true",
+      },
+    });
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/agentapi-start.log",
+    ]);
+    expect(startLog.stdout).toContain("--session-id");
+    expect(startLog.stdout).toContain(taskSessionId);
+  });
+
+  test("prompt-in-general-mode-allows-permissions", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        report_tasks: "false",
+        ai_prompt: "Review the code",
+      },
+    });
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/agentapi-start.log",
+    ]);
+    expect(startLog.stdout).toContain("Review the code");
+    expect(startLog.stdout).not.toContain("--dangerously-skip-permissions");
+  });
+
+  test("prompt-in-task-mode-skips-permissions", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        report_tasks: "true",
+        ai_prompt: "Fix the tests",
+      },
+    });
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/agentapi-start.log",
+    ]);
+    // Should have both the prompt AND --dangerously-skip-permissions
+    expect(startLog.stdout).toContain("Fix the tests");
+    expect(startLog.stdout).toContain("--dangerously-skip-permissions");
   });
 });
