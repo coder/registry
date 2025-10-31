@@ -49,8 +49,16 @@ echo "--------------------------------"
 
 # see the remove-last-session-id.sh script for details
 # about why we need it
-# avoid exiting if the script fails
-bash "/tmp/remove-last-session-id.sh" "$(pwd)" 2> /dev/null || true
+CAN_CONTINUE_CONVERSATION=false
+
+bash "/tmp/remove-last-session-id.sh" "$(pwd)" 2> /dev/null
+session_cleanup_exit_code=$?
+
+case $session_cleanup_exit_code in
+  0)
+    CAN_CONTINUE_CONVERSATION=true
+    ;;
+esac
 
 function install_boundary() {
   # Install boundary from public github repo
@@ -66,16 +74,6 @@ function validate_claude_installation() {
   else
     printf "Error: Claude Code is not installed. Please enable install_claude_code or install it manually\n"
     exit 1
-  fi
-}
-
-TASK_SESSION_ID="cd32e253-ca16-4fd3-9825-d837e74ae3c2"
-
-task_session_exists() {
-  if find "$HOME/.claude" -type f -name "*${TASK_SESSION_ID}*" 2> /dev/null | grep -q .; then
-    return 0
-  else
-    return 1
   fi
 }
 
@@ -103,9 +101,9 @@ function start_agentapi() {
       ARGS+=(--dangerously-skip-permissions)
     fi
   elif [ "$ARG_CONTINUE" = "true" ]; then
-    if task_session_exists; then
+    if [ "$CAN_CONTINUE_CONVERSATION" = true ]; then
       echo "Task session detected (ID: $TASK_SESSION_ID)"
-      ARGS+=(--resume "$TASK_SESSION_ID")
+      ARGS+=(--continue)
       if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
         ARGS+=(--dangerously-skip-permissions)
       fi
