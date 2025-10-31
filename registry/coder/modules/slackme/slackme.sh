@@ -73,13 +73,13 @@ fi
 
 START=$(date +%s%N)
 # Run all arguments as a command
-$@
+"$@"
 END=$(date +%s%N)
 DURATION_MS=$${DURATION_MS:-$(((END - START) / 1000000))}
 PRETTY_DURATION=$(pretty_duration $DURATION_MS)
 
 set -e
-COMMAND=$(echo $@)
+COMMAND=$(echo "$@")
 SLACK_MESSAGE=$(echo "$SLACK_MESSAGE" | sed "s|\\$COMMAND|$COMMAND|g")
 SLACK_MESSAGE=$(echo "$SLACK_MESSAGE" | sed "s|\\$DURATION|$PRETTY_DURATION|g")
 

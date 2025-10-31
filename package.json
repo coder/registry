@@ -6,6 +6,7 @@
     "terraform-validate": "./scripts/terraform_validate.sh",
     "tftest": "./scripts/terraform_test_all.sh",
     "tstest": "./scripts/ts_test_auto.sh",
+    "shellcheck": "./scripts/shellcheck_validate.sh",
     "update-version": "./update-version.sh"
   },
   "devDependencies": {
@@ -16,7 +17,8 @@
     "marked": "^16.2.0",
     "prettier": "^3.6.2",
     "prettier-plugin-sh": "^0.18.0",
-    "prettier-plugin-terraform-formatter": "^1.2.1"
+    "prettier-plugin-terraform-formatter": "^1.2.1",
+    "shellcheck": "^4.1.0"
   },
   "peerDependencies": {
     "typescript": "^5.8.3"
