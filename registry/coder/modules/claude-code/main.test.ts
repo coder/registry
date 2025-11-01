@@ -227,6 +227,7 @@ describe("claude-code", async () => {
     expect(startLog.stdout).toContain("--resume");
     expect(startLog.stdout).toContain(taskSessionId);
     expect(startLog.stdout).toContain("Resuming existing task session");
+    expect(startLog.stdout).toContain("--dangerously-skip-permissions");
   });
 
   test("claude-continue-resume-standalone-session", async () => {

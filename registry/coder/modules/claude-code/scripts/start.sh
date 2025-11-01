@@ -121,9 +121,7 @@ function start_agentapi() {
     if [ "$ARG_REPORT_TASKS" = "true" ] && task_session_exists; then
       echo "Task session detected (ID: $TASK_SESSION_ID)"
       ARGS+=(--resume "$TASK_SESSION_ID")
-      if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
-        ARGS+=(--dangerously-skip-permissions)
-      fi
+      ARGS+=(--dangerously-skip-permissions)
       echo "Resuming existing task session"
     elif [ "$ARG_REPORT_TASKS" = "false" ] && [ "$CAN_CONTINUE_CONVERSATION" = true ]; then
       echo "Previous session exists"
