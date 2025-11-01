@@ -139,11 +139,14 @@ function start_agentapi() {
         if [ "$ARG_REPORT_TASKS" = "true" ]; then
           ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
         else
+          if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
+            ARGS+=(--dangerously-skip-permissions)
+          fi
           ARGS+=("$ARG_AI_PROMPT")
         fi
         echo "Starting new session with prompt"
       else
-        if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
+        if [ "$ARG_REPORT_TASKS" = "true" ] || [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
           ARGS+=(--dangerously-skip-permissions)
         fi
         echo "Starting new session"
@@ -158,11 +161,14 @@ function start_agentapi() {
       if [ "$ARG_REPORT_TASKS" = "true" ]; then
         ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
       else
+        if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
+          ARGS+=(--dangerously-skip-permissions)
+        fi
         ARGS+=("$ARG_AI_PROMPT")
       fi
       echo "Starting new session with prompt"
     else
-      if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
+      if [ "$ARG_REPORT_TASKS" = "true" ] || [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
         ARGS+=(--dangerously-skip-permissions)
       fi
       echo "Starting claude code session"
