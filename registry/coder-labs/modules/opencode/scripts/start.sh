@@ -27,6 +27,7 @@ fi
 printf "==================================\n"
 
 OPENCODE_ARGS=()
+AGENTAPI_ARGS=()
 
 validate_opencode_installation() {
   if ! command_exists opencode; then
@@ -51,7 +52,7 @@ build_opencode_args() {
     else
       PROMPT="$ARG_AI_PROMPT"
     fi
-    OPENCODE_ARGS+=(--prompt "$PROMPT")
+    AGENTAPI_ARGS+=(-I "$PROMPT")
   fi
 }
 
@@ -62,7 +63,7 @@ start_agentapi() {
   build_opencode_args
 
   printf "Running OpenCode with args: %s\n" "${OPENCODE_ARGS[*]}"
-  agentapi server --type opencode --term-width 67 --term-height 1190 -- opencode "${OPENCODE_ARGS[@]}"
+  agentapi server "${AGENTAPI_ARGS[@]}" --type opencode --term-width 67 --term-height 1190 -- opencode "${OPENCODE_ARGS[@]}"
 }
 
 validate_opencode_installation
