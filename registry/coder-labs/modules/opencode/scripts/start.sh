@@ -63,6 +63,7 @@ start_agentapi() {
   build_opencode_args
 
   printf "Running OpenCode with args: %s\n" "${OPENCODE_ARGS[*]}"
+  echo agentapi server "${AGENTAPI_ARGS[@]}" --type opencode --term-width 67 --term-height 1190 -- opencode "${OPENCODE_ARGS[@]}"
   agentapi server "${AGENTAPI_ARGS[@]}" --type opencode --term-width 67 --term-height 1190 -- opencode "${OPENCODE_ARGS[@]}"
 }
 
