@@ -68,7 +68,7 @@ install() {
     else
       printf "Upgrading Vault CLI from version %s to %s ...\n\n" "$${CURRENT_VERSION}" "${INSTALL_VERSION}"
     fi
-    fetch vault.zip "https://releases.hashicorp.com/vault/$${INSTALL_VERSION}/vault_$${INSTALL_VERSION}_linux_amd64.zip"
+    fetch vault.zip "https://releases.hashicorp.com/vault/$${INSTALL_VERSION}/vault_$${INSTALL_VERSION}_linux_$${ARCH}.zip"
     if [ $? -ne 0 ]; then
       printf "Failed to download Vault.\n"
       return 1

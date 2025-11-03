@@ -129,7 +129,7 @@ resource "coder_script" "copyparty" {
     LOG_PATH : var.log_path,
     PORT : var.port,
     PINNED_VERSION : var.pinned_version,
-    ARGUMENTS : join(",", var.arguments),
+    ARGUMENTS : join(" ", formatlist("\"%s\"", var.arguments)),
   })
   run_on_start = true
   run_on_stop  = false

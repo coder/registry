@@ -23,7 +23,7 @@ variable "port" {
 variable "kasm_version" {
   type        = string
   description = "Version of KasmVNC to install."
-  default     = "1.3.2"
+  default     = "1.4.0"
 }
 
 variable "desktop_environment" {
