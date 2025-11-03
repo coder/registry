@@ -13,7 +13,7 @@ Run Codex CLI in your workspace to access OpenAI's models through the Codex inte
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "3.0.0"
+  version        = "3.1.0"
   agent_id       = coder_agent.example.id
   openai_api_key = var.openai_api_key
   workdir        = "/home/coder/project"
@@ -33,7 +33,7 @@ module "codex" {
 module "codex" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "3.0.0"
+  version        = "3.1.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   workdir        = "/home/coder/project"
@@ -61,7 +61,7 @@ module "coder-login" {
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "3.0.0"
+  version        = "3.1.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   ai_prompt      = data.coder_parameter.ai_prompt.value
@@ -84,6 +84,7 @@ module "codex" {
 - **System Prompt**: If `codex_system_prompt` is set, writes the prompt to `AGENTS.md` in the `~/.codex/` directory
 - **Start**: Launches Codex CLI in the specified directory, wrapped by AgentAPI
 - **Configuration**: Sets `OPENAI_API_KEY` environment variable and passes `--model` flag to Codex CLI (if variables provided)
+- **Session Continuity**: When `continue = true` (default), the module automatically tracks task sessions in `~/.codex-module/.codex-task-session`. On workspace restart, it resumes the existing session with full conversation history. Set `continue = false` to always start fresh sessions.
 
 ## Configuration
 
@@ -107,7 +108,7 @@ For custom Codex configuration, use `base_config_toml` and/or `additional_mcp_se
 ```tf
 module "codex" {
   source  = "registry.coder.com/coder-labs/codex/coder"
-  version = "3.0.0"
+  version = "3.1.0"
   # ... other variables ...
 
   # Override default configuration

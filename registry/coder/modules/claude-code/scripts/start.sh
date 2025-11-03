@@ -1,9 +1,12 @@
 #!/bin/bash
-set -euo pipefail
 
 if [ -f "$HOME/.bashrc" ]; then
   source "$HOME"/.bashrc
 fi
+
+# Set strict error handling AFTER sourcing bashrc to avoid unbound variable errors from user dotfiles
+set -euo pipefail
+
 export PATH="$HOME/.local/bin:$PATH"
 
 command_exists() {
@@ -79,6 +82,9 @@ task_session_exists() {
 ARGS=()
 
 function start_agentapi() {
+  # For Task reporting
+  export CODER_MCP_ALLOWED_TOOLS="coder_report_task"
+
   mkdir -p "$ARG_WORKDIR"
   cd "$ARG_WORKDIR"
 
@@ -141,12 +147,13 @@ function start_agentapi() {
     # Build boundary args with conditional --unprivileged flag
     BOUNDARY_ARGS=(--log-dir "$ARG_BOUNDARY_LOG_DIR")
     # Add default allowed URLs
-    BOUNDARY_ARGS+=(--allow "*anthropic.com" --allow "registry.npmjs.org" --allow "*sentry.io" --allow "claude.ai" --allow "$ARG_CODER_HOST")
+    BOUNDARY_ARGS+=(--allow "domain=anthropic.com" --allow "domain=registry.npmjs.org" --allow "domain=sentry.io" --allow "domain=claude.ai" --allow "domain=$ARG_CODER_HOST")
 
     # Add any additional allowed URLs from the variable
     if [ -n "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS" ]; then
-      IFS=' ' read -ra ADDITIONAL_URLS <<< "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS"
+      IFS='|' read -ra ADDITIONAL_URLS <<< "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS"
       for url in "${ADDITIONAL_URLS[@]}"; do
+        # Quote the URL to preserve spaces within the allow rule
         BOUNDARY_ARGS+=(--allow "$url")
       done
     fi
@@ -163,18 +170,10 @@ function start_agentapi() {
       BOUNDARY_ARGS+=(--pprof-port ${ARG_BOUNDARY_PPROF_PORT})
     fi
 
-    # Remove --dangerously-skip-permissions from ARGS when using boundary (it doesn't work with elevated permissions)
-    # Create a new array without the dangerous permissions flag
-    CLAUDE_ARGS=()
-    for arg in "${ARGS[@]}"; do
-      if [ "$arg" != "--dangerously-skip-permissions" ]; then
-        CLAUDE_ARGS+=("$arg")
-      fi
-    done
-
     agentapi server --allowed-hosts="*" --type claude --term-width 67 --term-height 1190 -- \
-      sudo -E env PATH=$PATH setpriv --inh-caps=+net_admin --ambient-caps=+net_admin --bounding-set=+net_admin boundary "${BOUNDARY_ARGS[@]}" -- \
-      claude "${CLAUDE_ARGS[@]}"
+      sudo -E env PATH=$PATH setpriv --reuid=$(id -u) --regid=$(id -g) --clear-groups \
+      --inh-caps=+net_admin --ambient-caps=+net_admin --bounding-set=+net_admin boundary "${BOUNDARY_ARGS[@]}" -- \
+      claude "${ARGS[@]}"
   else
     agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
   fi
