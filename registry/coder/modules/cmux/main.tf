@@ -72,10 +72,10 @@ variable "group" {
   default     = null
 }
 
-variable "offline" {
+variable "install" {
   type        = bool
-  description = "Just run cmux in the background; do not install from the network"
-  default     = false
+  description = "Install cmux from the network (npm or tarball). If false, run without installing (requires a pre-installed cmux)."
+  default     = true
 }
 
 variable "use_cached" {
@@ -116,15 +116,15 @@ resource "coder_script" "cmux" {
     PORT : var.port,
     LOG_PATH : var.log_path,
     INSTALL_PREFIX : var.install_prefix,
-    OFFLINE : var.offline,
+    OFFLINE : !var.install,
     USE_CACHED : var.use_cached,
   })
   run_on_start = true
 
   lifecycle {
     precondition {
-      condition     = !var.offline || !var.use_cached
-      error_message = "Offline and Use Cached can not be used together"
+      condition     = var.install || !var.use_cached
+      error_message = "Cannot use 'use_cached' when 'install' is false"
     }
   }
 }

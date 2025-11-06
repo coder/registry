@@ -6,13 +6,13 @@ run "required_vars" {
   }
 }
 
-run "offline_and_use_cached_conflict" {
+run "install_false_and_use_cached_conflict" {
   command = plan
 
   variables {
     agent_id   = "foo"
     use_cached = true
-    offline    = true
+    install    = false
   }
 
   expect_failures = [
@@ -43,13 +43,13 @@ run "custom_version" {
   }
 }
 
-# offline-only should succeed
-run "offline_only_success" {
+# install=false should succeed
+run "install_false_only_success" {
   command = plan
 
   variables {
     agent_id = "foo"
-    offline  = true
+    install  = false
   }
 }
 

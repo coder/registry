@@ -79,9 +79,9 @@ module "cmux" {
 }
 ```
 
-### Offline Mode
+### Skip Install
 
-Just run cmux in the background; do not install from the network (requires cmux to be pre-installed):
+Run without installing from the network (requires cmux to be pre-installed):
 
 ```tf
 module "cmux" {
@@ -89,7 +89,7 @@ module "cmux" {
   source   = "registry.coder.com/coder/cmux/coder"
   version  = "1.0.0"
   agent_id = coder_agent.example.id
-  offline  = true
+  install  = false
 }
 ```
 
@@ -100,5 +100,5 @@ module "cmux" {
 ## Notes
 
 - cmux is currently in preview and you may encounter bugs
-- Requires internet connectivity for agent operations (unless running in offline mode)
+- Requires internet connectivity for agent operations (unless `install` is set to false)
 - Installs `@coder/cmux` from npm by default (falls back to the npm tarball if npm is unavailable)
