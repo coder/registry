@@ -22,9 +22,12 @@ describe("cmux", async () => {
       state,
       "alpine/curl",
       "sh",
-      "apk add bash tar gzip",
+      "apk add --no-cache bash tar gzip ca-certificates findutils nodejs && update-ca-certificates",
     );
-
+    if (output.exitCode !== 0) {
+      console.log("STDOUT:\n" + output.stdout.join("\n"));
+      console.log("STDERR:\n" + output.stderr.join("\n"));
+    }
     expect(output.exitCode).toBe(0);
     const expectedLines = [
       "📥 npm not found; downloading tarball from npm registry...",
@@ -35,7 +38,7 @@ describe("cmux", async () => {
     for (const line of expectedLines) {
       expect(output.stdout).toContain(line);
     }
-  }, 15000);
+  }, 60000);
 
   it("runs with npm present", async () => {
     const state = await runTerraformApply(import.meta.dir, {

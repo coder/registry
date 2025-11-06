@@ -90,10 +90,28 @@ if [ ! -f "$CMUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
       exit 1
     fi
     CANDIDATE=""
+    # Common locations
     if [ -f "$TMP_DIR/package/bin/cmux" ]; then
       CANDIDATE="$TMP_DIR/package/bin/cmux"
+    elif [ -f "$TMP_DIR/package/bin/cmux.js" ]; then
+      CANDIDATE="$TMP_DIR/package/bin/cmux.js"
+    elif [ -f "$TMP_DIR/package/bin/cmux.mjs" ]; then
+      CANDIDATE="$TMP_DIR/package/bin/cmux.mjs"
     else
-      CANDIDATE="$(find "$TMP_DIR/package" -maxdepth 3 -type f -name "cmux" | head -n1)"
+      # Try to read package.json bin field
+      if [ -f "$TMP_DIR/package/package.json" ]; then
+        BIN_PATH=$(sed -n 's/.*"bin"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP_DIR/package/package.json" | head -n1)
+        if [ -z "$BIN_PATH" ]; then
+          BIN_PATH=$(sed -n '/"bin"[[:space:]]*:[[:space:]]*{/,/}/p' "$TMP_DIR/package/package.json" | sed -n 's/.*"cmux"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+        fi
+        if [ -n "$BIN_PATH" ] && [ -f "$TMP_DIR/package/$BIN_PATH" ]; then
+          CANDIDATE="$TMP_DIR/package/$BIN_PATH"
+        fi
+      fi
+      # Fallback: search for plausible filenames
+      if [ -z "$CANDIDATE" ] || [ ! -f "$CANDIDATE" ]; then
+        CANDIDATE=$(find "$TMP_DIR/package" -maxdepth 4 -type f \( -name "cmux" -o -name "cmux.js" -o -name "cmux.mjs" -o -name "cmux.cjs" \) | head -n1)
+      fi
     fi
     if [ -z "$CANDIDATE" ] || [ ! -f "$CANDIDATE" ]; then
       echo "❌ Could not locate cmux binary in tarball"
