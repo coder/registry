@@ -8,7 +8,7 @@ tags: [ai, agents, development, multiplexer]
 
 # cmux
 
-Automatically install and run [cmux](https://github.com/coder/cmux) in a workspace. By default, the module installs `@coder/cmux@latest` from npm (with a fallback to downloading the npm tarball if npm is unavailable). cmux is a desktop application for parallel agentic development that enables developers to run multiple AI agents simultaneously across isolated workspaces.
+Automatically install and run [cmux](https://github.com/coder/cmux) in a Coder workspace. By default, the module installs `@coder/cmux@latest` from npm (with a fallback to downloading the npm tarball if npm is unavailable). cmux is a desktop application for parallel agentic development that enables developers to run multiple AI agents simultaneously across isolated cmux workspaces.
 
 ```tf
 module "cmux" {
@@ -22,8 +22,8 @@ module "cmux" {
 ## Features
 
 - **Parallel Agent Execution**: Run multiple AI agents simultaneously on different tasks
-- **Workspace Isolation**: Each agent works in its own isolated environment
-- **Git Divergence Visualization**: Track changes across different agent workspaces
+- **Cmux Workspace Isolation**: Each agent works in its own isolated environment
+- **Git Divergence Visualization**: Track changes across different cmux agent workspaces
 - **Long-Running Processes**: Resume AI work after interruptions
 - **Cost Tracking**: Monitor API usage across agents
 

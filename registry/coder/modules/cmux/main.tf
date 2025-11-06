@@ -1,5 +1,6 @@
 terraform {
-  required_version = ">= 1.0"
+  # Requires Terraform 1.9+ for cross-variable validation references
+  required_version = ">= 1.9"
 
   required_providers {
     coder = {
@@ -40,7 +41,7 @@ variable "install_prefix" {
 
 variable "log_path" {
   type        = string
-  description = "The path to log cmux to."
+  description = "The path for cmux logs."
   default     = "/tmp/cmux.log"
 }
 

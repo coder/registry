@@ -76,7 +76,7 @@ if [ ! -f "$CMUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
         exit 1
       fi
     fi
-    TARBALL_URL="https://registry.npmjs.org/@coder/cmux/-/cmux-$${VERSION_TO_USE}.tgz"
+    TARBALL_URL="https://registry.npmjs.org/@coder/cmux/-/cmux-$VERSION_TO_USE.tgz"
     TMP_DIR="$(mktemp -d)"
     TAR_PATH="$TMP_DIR/cmux.tgz"
     if ! curl -fsSL "$TARBALL_URL" -o "$TAR_PATH"; then

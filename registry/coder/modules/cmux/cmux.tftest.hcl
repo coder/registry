@@ -42,3 +42,23 @@ run "custom_version" {
     install_version = "0.3.0"
   }
 }
+
+# offline-only should succeed
+run "offline_only_success" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    offline  = true
+  }
+}
+
+# use_cached-only should succeed
+run "use_cached_only_success" {
+  command = plan
+
+  variables {
+    agent_id   = "foo"
+    use_cached = true
+  }
+}
