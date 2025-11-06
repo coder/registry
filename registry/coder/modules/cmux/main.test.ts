@@ -22,7 +22,7 @@ describe("cmux", async () => {
       state,
       "alpine/curl",
       "sh",
-      "apk add bash",
+      "apk add bash tar gzip",
     );
 
     expect(output.exitCode).toBe(0);
