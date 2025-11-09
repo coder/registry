@@ -19,38 +19,38 @@ provider "vsphere" {
 }
 
 variable "vsphere_username" {
-  type        = string
-  default     = ""
+  type    = string
+  default = ""
 }
 variable "vsphere_password" {
-  type        = string
-  default     = ""
-  sensitive   = true
+  type      = string
+  default   = ""
+  sensitive = true
 }
 variable "vsphere_server" {
-  type        = string
-  default     = ""
+  type    = string
+  default = ""
 }
 variable "datacenter_name" {
-  type        = string
-  default     = ""
+  type    = string
+  default = ""
 }
 variable "cluster_name" {
-  type        = string
-  default     = ""
+  type    = string
+  default = ""
 }
 variable "datastore_name" {
-  type        = string
-  default     = ""
-  sensitive   = true
+  type      = string
+  default   = ""
+  sensitive = true
 }
 variable "network_name" {
-  type        = string
-  default     = ""
+  type    = string
+  default = ""
 }
 variable "vm_template" {
-  type        = string
-  default     = ""
+  type    = string
+  default = ""
 }
 
 locals {
@@ -168,22 +168,22 @@ data "vsphere_datacenter" "dc" {
 
 data "vsphere_datastore" "datastore" {
   name          = var.datastore_name
-  datacenter_id = "${data.vsphere_datacenter.dc.id}"
+  datacenter_id = data.vsphere_datacenter.dc.id
 }
 
 data "vsphere_compute_cluster" "cluster" {
   name          = var.cluster_name
-  datacenter_id = "${data.vsphere_datacenter.dc.id}"
+  datacenter_id = data.vsphere_datacenter.dc.id
 }
 
 data "vsphere_network" "network" {
   name          = var.network_name
-  datacenter_id = "${data.vsphere_datacenter.dc.id}"
+  datacenter_id = data.vsphere_datacenter.dc.id
 }
 
 data "vsphere_virtual_machine" "template" {
   name          = var.vm_template
-  datacenter_id = "${data.vsphere_datacenter.dc.id}"
+  datacenter_id = data.vsphere_datacenter.dc.id
 }
 
 locals {
@@ -199,35 +199,35 @@ locals {
 resource "vsphere_virtual_machine" "workspace" {
   name             = local.vm_name
   firmware         = data.vsphere_virtual_machine.template.firmware
-  resource_pool_id = "${data.vsphere_compute_cluster.cluster.resource_pool_id}"
-  datastore_id     = "${data.vsphere_datastore.datastore.id}"
+  resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
+  datastore_id     = data.vsphere_datastore.datastore.id
 
   num_cpus = data.coder_parameter.instance_vcpus.value
   memory   = data.coder_parameter.instance_memory.value
-  guest_id = "${data.vsphere_virtual_machine.template.guest_id}"
+  guest_id = data.vsphere_virtual_machine.template.guest_id
 
-  scsi_type = "${data.vsphere_virtual_machine.template.scsi_type}"
+  scsi_type = data.vsphere_virtual_machine.template.scsi_type
 
   network_interface {
-    network_id   = "${data.vsphere_network.network.id}"
-    adapter_type = "${data.vsphere_virtual_machine.template.network_interface_types[0]}"
+    network_id   = data.vsphere_network.network.id
+    adapter_type = data.vsphere_virtual_machine.template.network_interface_types[0]
   }
 
   disk {
-    label            = "disk0"
-    size             = "${data.vsphere_virtual_machine.template.disks.0.size}"
+    label = "disk0"
+    size  = data.vsphere_virtual_machine.template.disks.0.size
   }
   disk {
-    label            = local.home_volume_label
-    size             = data.coder_parameter.home_volume_size.value
-    unit_number      = 1
+    label       = local.home_volume_label
+    size        = data.coder_parameter.home_volume_size.value
+    unit_number = 1
   }
   extra_config = {
     "guestinfo.userdata"          = base64encode(local.cloud_init_config)
     "guestinfo.userdata.encoding" = "base64"
   }
   clone {
-   template_uuid = "${data.vsphere_virtual_machine.template.id}"
+    template_uuid = data.vsphere_virtual_machine.template.id
   }
 }
 
