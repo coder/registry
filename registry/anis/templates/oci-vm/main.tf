@@ -161,20 +161,20 @@ data "coder_parameter" "instance_memory" {
     name  = "32 GB"
     value = 32
   }
-  
+
   validation {
-    min     = data.coder_parameter.instance_ocpus.value
+    min   = data.coder_parameter.instance_ocpus.value
     error = "Memory must be at least equal to OCPUs (minimum 1:1 ratio)."
   }
-  
+
 }
 
 provider "oci" {
-  tenancy_ocid     = var.tenancy_ocid
-  user_ocid        = var.user_ocid
-  fingerprint      = var.fingerprint
-  private_key      = var.private_key
-  region           = data.coder_parameter.region.value
+  tenancy_ocid = var.tenancy_ocid
+  user_ocid    = var.user_ocid
+  fingerprint  = var.fingerprint
+  private_key  = var.private_key
+  region       = data.coder_parameter.region.value
 }
 
 
@@ -216,10 +216,10 @@ locals {
 }
 
 data "oci_core_images" "ubuntu_image" {
-  compartment_id = local.compartment_id
-  operating_system = "Canonical Ubuntu"
+  compartment_id           = local.compartment_id
+  operating_system         = "Canonical Ubuntu"
   operating_system_version = "22.04"
-  shape = data.coder_parameter.instance_type.value
+  shape                    = data.coder_parameter.instance_type.value
 }
 
 data "oci_identity_availability_domains" "ads" {
@@ -233,7 +233,7 @@ data "coder_parameter" "home_volume_size" {
   type         = "number"
   default      = 50
   mutable      = true
-  order       = 3
+  order        = 3
   option {
     name  = "50GB"
     value = 50
@@ -253,35 +253,35 @@ data "coder_parameter" "home_volume_size" {
 }
 
 resource "oci_core_instance" "workspace" {
-    count = data.coder_workspace.me.start_count
-    availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
-    compartment_id = local.compartment_id
-    shape = data.coder_parameter.instance_type.value
-    dynamic "shape_config" {
-        for_each = can(regex("Flex", data.coder_parameter.instance_type.value)) ? [1] : []
-        content {
-            ocpus         = data.coder_parameter.instance_ocpus.value
-            memory_in_gbs = data.coder_parameter.instance_memory.value
-        }
+  count               = data.coder_workspace.me.start_count
+  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  compartment_id      = local.compartment_id
+  shape               = data.coder_parameter.instance_type.value
+  dynamic "shape_config" {
+    for_each = can(regex("Flex", data.coder_parameter.instance_type.value)) ? [1] : []
+    content {
+      ocpus         = data.coder_parameter.instance_ocpus.value
+      memory_in_gbs = data.coder_parameter.instance_memory.value
     }
-    source_details {
-        source_type = "image"
-        source_id   = data.oci_core_images.ubuntu_image.images[0].id
-    }
-    display_name = local.vm_name
-    create_vnic_details {
-        assign_public_ip = true
-        subnet_id = var.subnet_id
-    }
-    metadata = {
-        user_data = base64encode(templatefile("cloud-init/cloud-config.yaml.tftpl", {
-            hostname          = local.vm_name
-            username          = lower(data.coder_workspace_owner.me.name)
-            home_volume_label = local.home_volume_label
-            init_script       = base64encode(coder_agent.main.init_script)
-            coder_agent_token = coder_agent.main.token
-        }))
-    } 
+  }
+  source_details {
+    source_type = "image"
+    source_id   = data.oci_core_images.ubuntu_image.images[0].id
+  }
+  display_name = local.vm_name
+  create_vnic_details {
+    assign_public_ip = true
+    subnet_id        = var.subnet_id
+  }
+  metadata = {
+    user_data = base64encode(templatefile("cloud-init/cloud-config.yaml.tftpl", {
+      hostname          = local.vm_name
+      username          = lower(data.coder_workspace_owner.me.name)
+      home_volume_label = local.home_volume_label
+      init_script       = base64encode(coder_agent.main.init_script)
+      coder_agent_token = coder_agent.main.token
+    }))
+  }
 }
 
 resource "oci_core_volume" "home_volume" {
@@ -297,7 +297,7 @@ resource "oci_core_volume_attachment" "attach_home" {
   compartment_id  = local.compartment_id
   instance_id     = oci_core_instance.workspace[0].id
   #device           = "/dev/sdb"
-  volume_id       = oci_core_volume.home_volume.id
+  volume_id = oci_core_volume.home_volume.id
 }
 
 module "code-server" {
