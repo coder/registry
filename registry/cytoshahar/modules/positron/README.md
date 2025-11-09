@@ -5,6 +5,7 @@ icon: ../../../../.icons/positron.svg
 verified: true
 tags: [ide, positron]
 ---
+
 # Positron Desktop
 
 Add a button to open any workspace with a single click.
@@ -15,7 +16,7 @@ Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder)
 module "positron" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/positron/coder"
-  version  = "1.1.1"
+  version  = "1.0.0"
   agent_id = coder_agent.example.id
 }
 ```

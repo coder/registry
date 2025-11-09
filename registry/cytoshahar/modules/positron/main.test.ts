@@ -6,7 +6,7 @@ import {
   testRequiredVariables,
 } from "~test";
 
-describe("vscode-desktop", async () => {
+describe("positron-desktop", async () => {
   await runTerraformInit(import.meta.dir);
 
   testRequiredVariables(import.meta.dir, {
@@ -17,12 +17,12 @@ describe("vscode-desktop", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
     });
-    expect(state.outputs.vscode_url.value).toBe(
-      "vscode://coder.coder-remote/open?owner=default&workspace=default&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+    expect(state.outputs.positron_url.value).toBe(
+      "positron://coder.coder-remote/open?owner=default&workspace=default&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
 
     const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "vscode",
+      (res) => res.type === "coder_app" && res.name === "positron",
     );
 
     expect(coder_app).not.toBeNull();
@@ -35,8 +35,8 @@ describe("vscode-desktop", async () => {
       agent_id: "foo",
       folder: "/foo/bar",
     });
-    expect(state.outputs.vscode_url.value).toBe(
-      "vscode://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+    expect(state.outputs.positron_url.value).toBe(
+      "positron://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
   });
 
@@ -46,8 +46,8 @@ describe("vscode-desktop", async () => {
       folder: "/foo/bar",
       open_recent: "true",
     });
-    expect(state.outputs.vscode_url.value).toBe(
-      "vscode://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+    expect(state.outputs.positron_url.value).toBe(
+      "positron://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
   });
 
@@ -57,8 +57,8 @@ describe("vscode-desktop", async () => {
       folder: "/foo/bar",
       openRecent: "false",
     });
-    expect(state.outputs.vscode_url.value).toBe(
-      "vscode://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+    expect(state.outputs.positron_url.value).toBe(
+      "positron://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
   });
 
@@ -67,8 +67,8 @@ describe("vscode-desktop", async () => {
       agent_id: "foo",
       open_recent: "true",
     });
-    expect(state.outputs.vscode_url.value).toBe(
-      "vscode://coder.coder-remote/open?owner=default&workspace=default&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+    expect(state.outputs.positron_url.value).toBe(
+      "positron://coder.coder-remote/open?owner=default&workspace=default&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
   });
 
@@ -79,7 +79,7 @@ describe("vscode-desktop", async () => {
     });
 
     const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "vscode",
+      (res) => res.type === "coder_app" && res.name === "positron",
     );
 
     expect(coder_app).not.toBeNull();
