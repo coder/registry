@@ -110,7 +110,7 @@ variable "open_in" {
 resource "coder_script" "cmux" {
   agent_id     = var.agent_id
   display_name = "cmux"
-  icon         = "/icon/terminal.svg"
+  icon         = "/icon/cmux.svg"
   script = templatefile("${path.module}/run.sh", {
     VERSION : var.install_version,
     PORT : var.port,
@@ -134,7 +134,7 @@ resource "coder_app" "cmux" {
   slug         = var.slug
   display_name = var.display_name
   url          = "http://localhost:${var.port}"
-  icon         = "/icon/terminal.svg"
+  icon         = "/icon/cmux.svg"
   subdomain    = var.subdomain
   share        = var.share
   order        = var.order
