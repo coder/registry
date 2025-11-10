@@ -1,9 +1,11 @@
 #!/bin/bash
-set -euo pipefail
 
 if [ -f "$HOME/.bashrc" ]; then
   source "$HOME"/.bashrc
 fi
+
+# Set strict error handling AFTER sourcing bashrc to avoid unbound variable errors from user dotfiles
+set -euo pipefail
 
 BOLD='\033[0;1m'
 
