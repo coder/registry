@@ -17,38 +17,38 @@ variable "agent_id" {
 
 variable "port" {
   type        = number
-  description = "The port to run cmux on."
+  description = "The port to run mux on."
   default     = 4000
 }
 
 variable "display_name" {
   type        = string
-  description = "The display name for the cmux application."
-  default     = "cmux"
+  description = "The display name for the mux application."
+  default     = "mux"
 }
 
 variable "slug" {
   type        = string
-  description = "The slug for the cmux application."
-  default     = "cmux"
+  description = "The slug for the mux application."
+  default     = "mux"
 }
 
 variable "install_prefix" {
   type        = string
-  description = "The prefix to install cmux to."
+  description = "The prefix to install mux to."
   default     = "/tmp/cmux"
 }
 
 variable "log_path" {
   type        = string
-  description = "The path for cmux logs."
+  description = "The path for mux logs."
   default     = "/tmp/cmux.log"
 }
 
 variable "install_version" {
   type        = string
-  description = "The version of cmux to install."
-  default     = "latest"
+  description = "The version or dist-tag of mux to install."
+  default     = "next"
 }
 
 variable "share" {
@@ -74,13 +74,13 @@ variable "group" {
 
 variable "install" {
   type        = bool
-  description = "Install cmux from the network (npm or tarball). If false, run without installing (requires a pre-installed cmux)."
+  description = "Install mux from the network (npm or tarball). If false, run without installing (requires a pre-installed mux)."
   default     = true
 }
 
 variable "use_cached" {
   type        = bool
-  description = "Use cached copy of cmux if present; otherwise install from npm"
+  description = "Use cached copy of mux if present; otherwise install from npm"
   default     = false
 }
 
@@ -109,7 +109,7 @@ variable "open_in" {
 
 resource "coder_script" "cmux" {
   agent_id     = var.agent_id
-  display_name = "cmux"
+  display_name = "mux"
   icon         = "/icon/cmux.svg"
   script = templatefile("${path.module}/run.sh", {
     VERSION : var.install_version,
