@@ -10,15 +10,14 @@ function run_mux() {
   if [ -z "$port_value" ]; then
     port_value="4000"
   fi
-  # Build args for mux
-  local args
-  args=(server --port "$port_value")
+  # Build args for mux (POSIX-compatible, avoid bash arrays)
+  set -- server --port "$port_value"
   if [ -n "${ADD_PROJECT}" ]; then
-    args+=(--add-project "${ADD_PROJECT}")
+    set -- "$@" --add-project "${ADD_PROJECT}"
   fi
   echo "🚀 Starting mux server on port $port_value..."
   echo "Check logs at ${LOG_PATH}!"
-  PORT="$port_value" "$MUX_BINARY" "${args[@]}" > "${LOG_PATH}" 2>&1 &
+  PORT="$port_value" "$MUX_BINARY" "$@" > "${LOG_PATH}" 2>&1 &
 }
 
 # Check if mux is already installed for offline mode
