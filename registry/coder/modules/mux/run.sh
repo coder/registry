@@ -83,7 +83,7 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
     fi
     # Try to extract tarball URL directly from metadata (prefer Node if available for robust JSON parsing)
     TARBALL_URL=""
-    if command -v node >/dev/null 2>&1; then
+    if command -v node > /dev/null 2>&1; then
       TARBALL_URL="$(printf "%s" "$META_JSON" | node -e 'try{const fs=require("fs");const data=JSON.parse(fs.readFileSync(0,"utf8"));if(data&&data.dist&&data.dist.tarball){console.log(data.dist.tarball);}}catch(e){}')"
     fi
     # sed-based fallback
@@ -93,7 +93,7 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
     # Fallback: resolve version then construct tarball URL
     if [ -z "$TARBALL_URL" ]; then
       RESOLVED_VERSION=""
-      if command -v node >/dev/null 2>&1; then
+      if command -v node > /dev/null 2>&1; then
         RESOLVED_VERSION="$(printf "%s" "$META_JSON" | node -e 'try{const fs=require("fs");const data=JSON.parse(fs.readFileSync(0,"utf8"));if(data&&data.version){console.log(data.version);}}catch(e){}')"
       fi
       if [ -z "$RESOLVED_VERSION" ]; then
@@ -127,7 +127,7 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
     BIN_PATH=""
     # Prefer reading bin path from package.json
     if [ -f "$TMP_DIR/package/package.json" ]; then
-      if command -v node >/dev/null 2>&1; then
+      if command -v node > /dev/null 2>&1; then
         BIN_PATH="$(node -e 'try{const fs=require("fs");const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));let bp=typeof p.bin==="string"?p.bin:(p.bin&&p.bin.mux);if(bp){console.log(bp)}}catch(e){}' "$TMP_DIR/package/package.json")"
       fi
       if [ -z "$BIN_PATH" ]; then
