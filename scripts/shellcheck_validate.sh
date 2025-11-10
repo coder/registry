@@ -39,8 +39,8 @@ main() {
     echo "==> Shared infrastructure changed"
     echo "==> Validating all shell scripts for safety"
 
-    # Find all .sh files in the repository, excluding node_modules and .git
-    mapfile -t files_to_check < <(find . -type f -name "*.sh" ! -path "*/node_modules/*" ! -path "*/.git/*" | sort)
+    # Find all .sh files in the repository, excluding node_modules, .git, and .terraform
+    mapfile -t files_to_check < <(find . -type f -name "*.sh" ! -path "*/node_modules/*" ! -path "*/.git/*" ! -path "*/.terraform/*" | sort)
   elif [[ -z "${SHELL_CHANGED_FILES:-}" ]]; then
     echo "✓ No shell script files changed, skipping validation"
     exit 0

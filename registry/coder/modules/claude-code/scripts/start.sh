@@ -155,19 +155,19 @@ function start_agentapi() {
     fi
 
     # Set HTTP Proxy port used by Boundary
-    BOUNDARY_ARGS+=(--proxy-port $ARG_BOUNDARY_PROXY_PORT)
+    BOUNDARY_ARGS+=(--proxy-port "$ARG_BOUNDARY_PROXY_PORT")
 
     # Set log level for boundary
-    BOUNDARY_ARGS+=(--log-level $ARG_BOUNDARY_LOG_LEVEL)
+    BOUNDARY_ARGS+=(--log-level "$ARG_BOUNDARY_LOG_LEVEL")
 
     if [ "${ARG_ENABLE_BOUNDARY_PPROF:-false}" = "true" ]; then
       # Enable boundary pprof server on specified port
       BOUNDARY_ARGS+=(--pprof)
-      BOUNDARY_ARGS+=(--pprof-port ${ARG_BOUNDARY_PPROF_PORT})
+      BOUNDARY_ARGS+=(--pprof-port "$ARG_BOUNDARY_PPROF_PORT")
     fi
 
     agentapi server --allowed-hosts="*" --type claude --term-width 67 --term-height 1190 -- \
-      sudo -E env PATH=$PATH setpriv --reuid=$(id -u) --regid=$(id -g) --clear-groups \
+      sudo -E env PATH="$PATH" setpriv --reuid="$(id -u)" --regid="$(id -g)" --clear-groups \
       --inh-caps=+net_admin --ambient-caps=+net_admin --bounding-set=+net_admin boundary "${BOUNDARY_ARGS[@]}" -- \
       claude "${ARGS[@]}"
   else
