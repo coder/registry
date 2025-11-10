@@ -31,9 +31,9 @@ describe("mux", async () => {
     expect(output.exitCode).toBe(0);
     const expectedLines = [
       "📥 npm not found; downloading tarball from npm registry...",
-      "🥳 mux has been installed in /tmp/cmux",
+      "🥳 mux has been installed in /tmp/mux",
       "🚀 Starting mux server on port 4000...",
-      "Check logs at /tmp/cmux.log!",
+      "Check logs at /tmp/mux.log!",
     ];
     for (const line of expectedLines) {
       expect(output.stdout).toContain(line);
@@ -54,10 +54,10 @@ describe("mux", async () => {
 
     expect(output.exitCode).toBe(0);
     const expectedLines = [
-      "📦 Installing mux via npm into /tmp/cmux...",
-      "🥳 mux has been installed in /tmp/cmux",
+      "📦 Installing mux via npm into /tmp/mux...",
+      "🥳 mux has been installed in /tmp/mux",
       "🚀 Starting mux server on port 4000...",
-      "Check logs at /tmp/cmux.log!",
+      "Check logs at /tmp/mux.log!",
     ];
     for (const line of expectedLines) {
       expect(output.stdout).toContain(line);

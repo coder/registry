@@ -1,20 +1,20 @@
 ---
-display_name: cmux
+display_name: mux
 description: Coding Agent Multiplexer - Run multiple AI agents in parallel
-icon: ../../../../.icons/cmux.svg
+icon: ../../../../.icons/mux.svg
 verified: false
 tags: [ai, agents, development, multiplexer]
 ---
 
-# cmux
+# mux
 
 Automatically install and run mux in a Coder workspace. By default, the module installs `mux@next` from npm (with a fallback to downloading the npm tarball if npm is unavailable). mux is a desktop application for parallel agentic development that enables developers to run multiple AI agents simultaneously across isolated workspaces.
 
 ```tf
-module "cmux" {
+module "mux" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/cmux/coder"
-  version  = "1.1.0"
+  source   = "registry.coder.com/coder/mux/coder"
+  version  = "1.0.0"
   agent_id = coder_agent.example.id
 }
 ```
@@ -23,7 +23,7 @@ module "cmux" {
 
 - **Parallel Agent Execution**: Run multiple AI agents simultaneously on different tasks
 - **Mux Workspace Isolation**: Each agent works in its own isolated environment
-- **Git Divergence Visualization**: Track changes across different cmux agent workspaces
+- **Git Divergence Visualization**: Track changes across different mux agent workspaces
 - **Long-Running Processes**: Resume AI work after interruptions
 - **Cost Tracking**: Monitor API usage across agents
 
@@ -32,10 +32,10 @@ module "cmux" {
 ### Basic Usage
 
 ```tf
-module "cmux" {
+module "mux" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/cmux/coder"
-  version  = "1.1.0"
+  source   = "registry.coder.com/coder/mux/coder"
+  version  = "1.0.0"
   agent_id = coder_agent.example.id
 }
 ```
@@ -43,10 +43,10 @@ module "cmux" {
 ### Pin Version
 
 ```tf
-module "cmux" {
+module "mux" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/cmux/coder"
-  version  = "1.1.0"
+  source   = "registry.coder.com/coder/mux/coder"
+  version  = "1.0.0"
   agent_id = coder_agent.example.id
   # Default is "latest"; set to a specific version to pin
   install_version = "0.4.0"
@@ -56,10 +56,10 @@ module "cmux" {
 ### Custom Port
 
 ```tf
-module "cmux" {
+module "mux" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/cmux/coder"
-  version  = "1.1.0"
+  source   = "registry.coder.com/coder/mux/coder"
+  version  = "1.0.0"
   agent_id = coder_agent.example.id
   port     = 8080
 }
@@ -70,10 +70,10 @@ module "cmux" {
 Run an existing copy of mux if found, otherwise install from npm:
 
 ```tf
-module "cmux" {
+module "mux" {
   count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/coder/cmux/coder"
-  version    = "1.1.0"
+  source     = "registry.coder.com/coder/mux/coder"
+  version    = "1.0.0"
   agent_id   = coder_agent.example.id
   use_cached = true
 }
@@ -84,10 +84,10 @@ module "cmux" {
 Run without installing from the network (requires mux to be pre-installed):
 
 ```tf
-module "cmux" {
+module "mux" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/cmux/coder"
-  version  = "1.1.0"
+  source   = "registry.coder.com/coder/mux/coder"
+  version  = "1.0.0"
   agent_id = coder_agent.example.id
   install  = false
 }
@@ -99,6 +99,6 @@ module "cmux" {
 
 ## Notes
 
-- cmux is currently in preview and you may encounter bugs
+- mux is currently in preview and you may encounter bugs
 - Requires internet connectivity for agent operations (unless `install` is set to false)
 - Installs `mux@next` from npm by default (falls back to the npm tarball if npm is unavailable)

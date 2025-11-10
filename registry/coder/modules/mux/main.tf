@@ -36,13 +36,13 @@ variable "slug" {
 variable "install_prefix" {
   type        = string
   description = "The prefix to install mux to."
-  default     = "/tmp/cmux"
+  default     = "/tmp/mux"
 }
 
 variable "log_path" {
   type        = string
   description = "The path for mux logs."
-  default     = "/tmp/cmux.log"
+  default     = "/tmp/mux.log"
 }
 
 variable "install_version" {
@@ -107,10 +107,10 @@ variable "open_in" {
   }
 }
 
-resource "coder_script" "cmux" {
+resource "coder_script" "mux" {
   agent_id     = var.agent_id
   display_name = "mux"
-  icon         = "/icon/cmux.svg"
+  icon         = "/icon/mux.svg"
   script = templatefile("${path.module}/run.sh", {
     VERSION : var.install_version,
     PORT : var.port,
@@ -129,12 +129,12 @@ resource "coder_script" "cmux" {
   }
 }
 
-resource "coder_app" "cmux" {
+resource "coder_app" "mux" {
   agent_id     = var.agent_id
   slug         = var.slug
   display_name = var.display_name
   url          = "http://localhost:${var.port}"
-  icon         = "/icon/cmux.svg"
+  icon         = "/icon/mux.svg"
   subdomain    = var.subdomain
   share        = var.share
   order        = var.order
@@ -147,3 +147,5 @@ resource "coder_app" "cmux" {
     threshold = 6
   }
 }
+
+
