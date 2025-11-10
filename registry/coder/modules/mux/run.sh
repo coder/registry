@@ -14,7 +14,7 @@ function run_mux() {
   local args
   args=(server --port "$port_value")
   if [ -n "${ADD_PROJECT}" ]; then
-    args+=( --add-project "${ADD_PROJECT}")
+    args+=(--add-project "${ADD_PROJECT}")
   fi
   echo "🚀 Starting mux server on port $port_value..."
   echo "Check logs at ${LOG_PATH}!"
