@@ -13,14 +13,15 @@ Provision OCI virtual machines as [Coder workspaces](https://coder.com/docs/work
 ## Prerequisites
 
 To deploy Coder workspaces on Oracle Cloud, you’ll need the following:
+
 ### OCI Resources
 
 Before deploying, ensure your Oracle Cloud tenancy has:
 
 - A **VCN (Virtual Cloud Network)** already created
 - At least one **subnet** within that VCN (can be public or private)
-- An **Internet Gateway** attached to the VCN  
-- A **Route Table** that routes `0.0.0.0/0` traffic to the Internet Gateway  
+- An **Internet Gateway** attached to the VCN
+- A **Route Table** that routes `0.0.0.0/0` traffic to the Internet Gateway
 
 > [!NOTE]
 > This template **does not create networking resources** (VCN, subnet, gateway, etc.).  
@@ -54,3 +55,4 @@ private_key = <<EOT
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASC...
 -----END PRIVATE KEY-----
 EOT
+```
