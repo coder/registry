@@ -137,12 +137,12 @@ function start_agentapi() {
       fi
       if [ -n "$ARG_AI_PROMPT" ]; then
         if [ "$ARG_REPORT_TASKS" = "true" ]; then
-          ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
+          ARGS+=(--dangerously-skip-permissions -- "$ARG_AI_PROMPT")
         else
           if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
             ARGS+=(--dangerously-skip-permissions)
           fi
-          ARGS+=("$ARG_AI_PROMPT")
+          ARGS+=(-- "$ARG_AI_PROMPT")
         fi
         echo "Starting new session with prompt"
       else
@@ -159,12 +159,12 @@ function start_agentapi() {
     fi
     if [ -n "$ARG_AI_PROMPT" ]; then
       if [ "$ARG_REPORT_TASKS" = "true" ]; then
-        ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
+        ARGS+=(--dangerously-skip-permissions -- "$ARG_AI_PROMPT")
       else
         if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
           ARGS+=(--dangerously-skip-permissions)
         fi
-        ARGS+=("$ARG_AI_PROMPT")
+        ARGS+=(-- "$ARG_AI_PROMPT")
       fi
       echo "Starting new session with prompt"
     else
