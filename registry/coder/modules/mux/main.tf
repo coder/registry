@@ -45,6 +45,12 @@ variable "log_path" {
   default     = "/tmp/mux.log"
 }
 
+variable "add-project" {
+  type        = string
+  description = "Path to add/open as a project in mux (idempotent)."
+  default     = ""
+}
+
 variable "install_version" {
   type        = string
   description = "The version or dist-tag of mux to install."
@@ -115,6 +121,7 @@ resource "coder_script" "mux" {
     VERSION : var.install_version,
     PORT : var.port,
     LOG_PATH : var.log_path,
+    ADD_PROJECT : var.add-project,
     INSTALL_PREFIX : var.install_prefix,
     OFFLINE : !var.install,
     USE_CACHED : var.use_cached,
