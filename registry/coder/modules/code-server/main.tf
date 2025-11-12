@@ -148,7 +148,7 @@ variable "open_in" {
   }
 }
 
-variable "extra_args" {
+variable "additional_args" {
   type        = string
   description = "Additional command-line arguments to pass to code-server (e.g., '--disable-workspace-trust')."
   default     = ""
@@ -174,7 +174,7 @@ resource "coder_script" "code-server" {
     EXTENSIONS_DIR : var.extensions_dir,
     FOLDER : var.folder,
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
-    EXTRA_ARGS : var.extra_args,
+    ADDITIONAL_ARGS : var.additional_args,
   })
   run_on_start = true
 
