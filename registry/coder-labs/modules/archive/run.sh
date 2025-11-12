@@ -6,8 +6,8 @@ EXTRACT_ON_START="${TF_EXTRACT_ON_START}"
 EXTRACT_WAIT_TIMEOUT="${TF_EXTRACT_WAIT_TIMEOUT}"
 
 # Set script defaults from Terraform.
-DEFAULT_PATHS=(${TF_PATHS})
-DEFAULT_EXCLUDE_PATTERNS=(${TF_EXCLUDE_PATTERNS})
+IFS=' ' read -r -a DEFAULT_PATHS <<< "${TF_PATHS}"
+IFS=' ' read -r -a DEFAULT_EXCLUDE_PATTERNS <<< "${TF_EXCLUDE_PATTERNS}"
 DEFAULT_COMPRESSION="${TF_COMPRESSION}"
 DEFAULT_ARCHIVE_PATH="${TF_ARCHIVE_PATH}"
 DEFAULT_DIRECTORY="${TF_DIRECTORY}"
@@ -62,6 +62,7 @@ echo "Installed extract script to:  $EXTRACT_WRAPPER_PATH"
 
 # 3) Optionally wait for and extract an archive on start.
 if [[ $EXTRACT_ON_START = true ]]; then
+  # shellcheck disable=SC1090
   . "$LIB_PATH"
 
   archive_wait_and_extract "$EXTRACT_WAIT_TIMEOUT" quiet || {

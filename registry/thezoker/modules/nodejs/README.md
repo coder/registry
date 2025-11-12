@@ -15,7 +15,7 @@ Automatically installs [Node.js](https://github.com/nodejs/node) via [`nvm`](htt
 module "nodejs" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/thezoker/nodejs/coder"
-  version  = "1.0.11"
+  version  = "1.0.12"
   agent_id = coder_agent.example.id
 }
 ```
@@ -28,7 +28,7 @@ This installs multiple versions of Node.js:
 module "nodejs" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/thezoker/nodejs/coder"
-  version  = "1.0.11"
+  version  = "1.0.12"
   agent_id = coder_agent.example.id
   node_versions = [
     "18",
@@ -47,7 +47,7 @@ A example with all available options:
 module "nodejs" {
   count              = data.coder_workspace.me.start_count
   source             = "registry.coder.com/thezoker/nodejs/coder"
-  version            = "1.0.11"
+  version            = "1.0.12"
   agent_id           = coder_agent.example.id
   nvm_version        = "v0.39.7"
   nvm_install_prefix = "/opt/nvm"

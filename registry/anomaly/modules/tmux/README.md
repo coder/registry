@@ -15,7 +15,7 @@ up a default or custom tmux configuration with session save/restore capabilities
 ```tf
 module "tmux" {
   source   = "registry.coder.com/anomaly/tmux/coder"
-  version  = "1.0.1"
+  version  = "1.0.2"
   agent_id = coder_agent.example.id
 }
 ```
@@ -39,7 +39,7 @@ module "tmux" {
 ```tf
 module "tmux" {
   source        = "registry.coder.com/anomaly/tmux/coder"
-  version       = "1.0.1"
+  version       = "1.0.2"
   agent_id      = coder_agent.example.id
   tmux_config   = ""                        # Optional: custom tmux.conf content
   save_interval = 1                         # Optional: save interval in minutes
@@ -78,7 +78,7 @@ This module can provision multiple tmux sessions, each as a separate app in the 
 ```tf
 module "tmux" {
   source      = "registry.coder.com/anomaly/tmux/coder"
-  version     = "1.0.1"
+  version     = "1.0.2"
   agent_id    = var.agent_id
   sessions    = ["default", "dev", "anomaly"]
   tmux_config = <<-EOT
