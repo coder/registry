@@ -99,7 +99,9 @@ if [ -z "${HAS_MAVEN}" ]; then
   not_configured maven
 else
   echo "☕ Configuring maven..."
-  jf mvnc --global --repo-resolve "${REPOSITORY_MAVEN}"
+  jf mvnc --global \
+    --repo-resolve-releases "${REPOSITORY_MAVEN}" \
+    --repo-resolve-snapshots "${REPOSITORY_MAVEN}"
   # Create Maven config directory if it doesn't exist
   mkdir -p ~/.m2
   cat << EOF > ~/.m2/settings.xml
