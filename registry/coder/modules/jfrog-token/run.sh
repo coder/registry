@@ -99,8 +99,12 @@ if [ -z "${HAS_MAVEN}" ]; then
 else
   echo "☕ Configuring maven..."
   jf mvnc --global \
+    --server-id-resolve="${JFROG_SERVER_ID}" \
     --repo-resolve-releases "${REPOSITORY_MAVEN}" \
-    --repo-resolve-snapshots "${REPOSITORY_MAVEN}"
+    --repo-resolve-snapshots "${REPOSITORY_MAVEN}" \
+    --server-id-deploy="${JFROG_SERVER_ID}" \
+    --repo-deploy-releases "${REPOSITORY_MAVEN}" \
+    --repo-deploy-snapshots "${REPOSITORY_MAVEN}"
   # Create Maven config directory if it doesn't exist
   mkdir -p ~/.m2
   cat << EOF > ~/.m2/settings.xml

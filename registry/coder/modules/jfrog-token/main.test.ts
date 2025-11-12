@@ -198,8 +198,12 @@ EOF`;
     const coderScript = findResourceInstance(state, "coder_script");
 
     expect(coderScript.script).toContain("jf mvnc --global");
+    expect(coderScript.script).toContain('--server-id-resolve="0"');
     expect(coderScript.script).toContain('--repo-resolve-releases "central"');
     expect(coderScript.script).toContain('--repo-resolve-snapshots "central"');
+    expect(coderScript.script).toContain('--server-id-deploy="0"');
+    expect(coderScript.script).toContain('--repo-deploy-releases "central"');
+    expect(coderScript.script).toContain('--repo-deploy-snapshots "central"');
 
     expect(coderScript.script).toContain("<servers>");
     expect(coderScript.script).toContain("<id>central</id>");
