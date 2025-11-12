@@ -2,7 +2,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.12"
+      version = ">= 2.13"
     }
     docker = {
       source = "kreuzwerker/docker"
@@ -17,6 +17,16 @@ terraform {
 # see: https://registry.coder.com/templates
 provider "docker" {}
 
+# A `coder_ai_task` resource enables Tasks and associates
+# the task with the coder_app that will act as an AI agent.
+resource "coder_ai_task" "task" {
+  count  = data.coder_workspace.me.start_count
+  app_id = module.claude-code[count.index].task_app_id
+}
+
+# You can read the task prompt from the `coder_task` data source.
+data "coder_task" "me" {}
+
 # The Claude Code module does the automatic task reporting
 # Other agent modules: https://registry.coder.com/modules?search=agent
 # Or use a custom agent:
@@ -28,15 +38,11 @@ module "claude-code" {
   workdir             = "/home/coder/projects"
   order               = 999
   claude_api_key      = ""
-  ai_prompt           = coder_ai_task.task.prompt
+  ai_prompt           = data.coder_task.me.prompt
   system_prompt       = data.coder_parameter.system_prompt.value
   model               = "sonnet"
   permission_mode     = "plan"
   post_install_script = data.coder_parameter.setup_script.value
-}
-
-resource "coder_ai_task" "task" {
-  app_id = module.claude-code.task_app_id
 }
 
 # We are using presets to set the prompts, image, and set up instructions
