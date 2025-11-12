@@ -20,6 +20,7 @@ ARG_DANGEROUSLY_SKIP_PERMISSIONS=${ARG_DANGEROUSLY_SKIP_PERMISSIONS:-}
 ARG_PERMISSION_MODE=${ARG_PERMISSION_MODE:-}
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
 ARG_AI_PROMPT=$(echo -n "${ARG_AI_PROMPT:-}" | base64 -d)
+ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 ARG_ENABLE_BOUNDARY=${ARG_ENABLE_BOUNDARY:-false}
 ARG_BOUNDARY_VERSION=${ARG_BOUNDARY_VERSION:-"main"}
 ARG_BOUNDARY_LOG_DIR=${ARG_BOUNDARY_LOG_DIR:-"/tmp/boundary_logs"}
@@ -38,6 +39,7 @@ printf "ARG_DANGEROUSLY_SKIP_PERMISSIONS: %s\n" "$ARG_DANGEROUSLY_SKIP_PERMISSIO
 printf "ARG_PERMISSION_MODE: %s\n" "$ARG_PERMISSION_MODE"
 printf "ARG_AI_PROMPT: %s\n" "$ARG_AI_PROMPT"
 printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
+printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
 printf "ARG_ENABLE_BOUNDARY: %s\n" "$ARG_ENABLE_BOUNDARY"
 printf "ARG_BOUNDARY_VERSION: %s\n" "$ARG_BOUNDARY_VERSION"
 printf "ARG_BOUNDARY_LOG_DIR: %s\n" "$ARG_BOUNDARY_LOG_DIR"
@@ -47,10 +49,18 @@ printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
 
 echo "--------------------------------"
 
-# see the remove-last-session-id.sh script for details
-# about why we need it
-# avoid exiting if the script fails
-bash "/tmp/remove-last-session-id.sh" "$(pwd)" 2> /dev/null || true
+# Clean up stale session data (see remove-last-session-id.sh for details)
+CAN_CONTINUE_CONVERSATION=false
+set +e
+bash "/tmp/remove-last-session-id.sh" "$(pwd)" 2> /dev/null
+session_cleanup_exit_code=$?
+set -e
+
+case $session_cleanup_exit_code in
+  0)
+    CAN_CONTINUE_CONVERSATION=true
+    ;;
+esac
 
 function install_boundary() {
   # Install boundary from public github repo
@@ -69,10 +79,15 @@ function validate_claude_installation() {
   fi
 }
 
+# Hardcoded task session ID for Coder task reporting
+# This ensures all task sessions use a consistent, predictable ID
 TASK_SESSION_ID="cd32e253-ca16-4fd3-9825-d837e74ae3c2"
 
 task_session_exists() {
-  if find "$HOME/.claude" -type f -name "*${TASK_SESSION_ID}*" 2> /dev/null | grep -q .; then
+  local workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
+  local project_dir="$HOME/.claude/projects/${workdir_normalized}"
+
+  if [ -d "$project_dir" ] && find "$project_dir" -type f -name "*${TASK_SESSION_ID}*" 2> /dev/null | grep -q .; then
     return 0
   else
     return 1
@@ -97,39 +112,63 @@ function start_agentapi() {
   fi
 
   if [ -n "$ARG_RESUME_SESSION_ID" ]; then
-    echo "Using explicit resume_session_id: $ARG_RESUME_SESSION_ID"
+    echo "Resuming task session by ID: $ARG_RESUME_SESSION_ID"
     ARGS+=(--resume "$ARG_RESUME_SESSION_ID")
     if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
       ARGS+=(--dangerously-skip-permissions)
     fi
   elif [ "$ARG_CONTINUE" = "true" ]; then
-    if task_session_exists; then
+    if [ "$ARG_REPORT_TASKS" = "true" ] && task_session_exists; then
       echo "Task session detected (ID: $TASK_SESSION_ID)"
       ARGS+=(--resume "$TASK_SESSION_ID")
+      ARGS+=(--dangerously-skip-permissions)
+      echo "Resuming existing task session"
+    elif [ "$ARG_REPORT_TASKS" = "false" ] && [ "$CAN_CONTINUE_CONVERSATION" = true ]; then
+      echo "Previous session exists"
+      ARGS+=(--continue)
       if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
         ARGS+=(--dangerously-skip-permissions)
       fi
-      echo "Resuming existing task session"
+      echo "Resuming existing session"
     else
-      echo "No existing task session found"
-      ARGS+=(--session-id "$TASK_SESSION_ID")
+      echo "No existing session found"
+      if [ "$ARG_REPORT_TASKS" = "true" ]; then
+        ARGS+=(--session-id "$TASK_SESSION_ID")
+      fi
       if [ -n "$ARG_AI_PROMPT" ]; then
-        ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
-        echo "Starting new task session with prompt"
+        if [ "$ARG_REPORT_TASKS" = "true" ]; then
+          ARGS+=(--dangerously-skip-permissions -- "$ARG_AI_PROMPT")
+        else
+          if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
+            ARGS+=(--dangerously-skip-permissions)
+          fi
+          ARGS+=(-- "$ARG_AI_PROMPT")
+        fi
+        echo "Starting new session with prompt"
       else
-        if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
+        if [ "$ARG_REPORT_TASKS" = "true" ] || [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
           ARGS+=(--dangerously-skip-permissions)
         fi
-        echo "Starting new task session"
+        echo "Starting new session"
       fi
     fi
   else
     echo "Continue disabled, starting fresh session"
+    if [ "$ARG_REPORT_TASKS" = "true" ]; then
+      ARGS+=(--session-id "$TASK_SESSION_ID")
+    fi
     if [ -n "$ARG_AI_PROMPT" ]; then
-      ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
+      if [ "$ARG_REPORT_TASKS" = "true" ]; then
+        ARGS+=(--dangerously-skip-permissions -- "$ARG_AI_PROMPT")
+      else
+        if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
+          ARGS+=(--dangerously-skip-permissions)
+        fi
+        ARGS+=(-- "$ARG_AI_PROMPT")
+      fi
       echo "Starting new session with prompt"
     else
-      if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
+      if [ "$ARG_REPORT_TASKS" = "true" ] || [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
         ARGS+=(--dangerously-skip-permissions)
       fi
       echo "Starting claude code session"

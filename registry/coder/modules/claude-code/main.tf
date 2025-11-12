@@ -348,6 +348,7 @@ module "agentapi" {
      ARG_PERMISSION_MODE='${var.permission_mode}' \
      ARG_WORKDIR='${local.workdir}' \
      ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+     ARG_REPORT_TASKS='${var.report_tasks}' \
      ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
      ARG_BOUNDARY_VERSION='${var.boundary_version}' \
      ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
