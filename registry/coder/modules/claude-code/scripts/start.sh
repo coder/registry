@@ -209,7 +209,7 @@ function start_agentapi() {
       BOUNDARY_ARGS+=(--pprof-port ${ARG_BOUNDARY_PPROF_PORT})
     fi
 
-    agentapi server --allowed-hosts="*" --type claude --term-width 67 --term-height 1190 -- \
+    agentapi server --type claude --term-width 67 --term-height 1190 -- \
       sudo -E env PATH=$PATH setpriv --reuid=$(id -u) --regid=$(id -g) --clear-groups \
       --inh-caps=+net_admin --ambient-caps=+net_admin --bounding-set=+net_admin boundary "${BOUNDARY_ARGS[@]}" -- \
       claude "${ARGS[@]}"
