@@ -84,6 +84,20 @@ module "code-server" {
 }
 ```
 
+### Pass Additional Arguments
+
+You can pass additional command-line arguments to code-server using the `extra_args` variable. For example, to disable workspace trust:
+
+```tf
+module "code-server" {
+  count      = data.coder_workspace.me.start_count
+  source     = "registry.coder.com/coder/code-server/coder"
+  version    = "1.3.1"
+  agent_id   = coder_agent.example.id
+  extra_args = "--disable-workspace-trust"
+}
+```
+
 ### Offline and Use Cached Modes
 
 By default the module looks for code-server at `/tmp/code-server` but this can be changed with `install_prefix`.
