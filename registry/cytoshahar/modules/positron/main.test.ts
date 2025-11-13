@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import {
-  executeScriptInContainer,
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
