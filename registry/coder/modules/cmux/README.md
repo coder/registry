@@ -14,7 +14,7 @@ Automatically install and run [cmux](https://github.com/coder/cmux) in a Coder w
 module "cmux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/cmux/coder"
-  version  = "1.0.0"
+  version  = "1.0.2"
   agent_id = coder_agent.example.id
 }
 ```
@@ -35,7 +35,7 @@ module "cmux" {
 module "cmux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/cmux/coder"
-  version  = "1.0.0"
+  version  = "1.0.2"
   agent_id = coder_agent.example.id
 }
 ```
@@ -46,7 +46,7 @@ module "cmux" {
 module "cmux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/cmux/coder"
-  version  = "1.0.0"
+  version  = "1.0.2"
   agent_id = coder_agent.example.id
   # Default is "latest"; set to a specific version to pin
   install_version = "0.4.0"
@@ -59,7 +59,7 @@ module "cmux" {
 module "cmux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/cmux/coder"
-  version  = "1.0.0"
+  version  = "1.0.2"
   agent_id = coder_agent.example.id
   port     = 8080
 }
@@ -73,7 +73,7 @@ Run an existing copy of cmux if found, otherwise install from npm:
 module "cmux" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/cmux/coder"
-  version    = "1.0.0"
+  version    = "1.0.2"
   agent_id   = coder_agent.example.id
   use_cached = true
 }
@@ -87,7 +87,7 @@ Run without installing from the network (requires cmux to be pre-installed):
 module "cmux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/cmux/coder"
-  version  = "1.0.0"
+  version  = "1.0.2"
   agent_id = coder_agent.example.id
   install  = false
 }
