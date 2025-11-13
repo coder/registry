@@ -25,6 +25,16 @@ variable "jfrog_server_id" {
   default     = "0"
 }
 
+variable "username" {
+  type        = string
+  description = <<-EOF
+    Override JFrog username. Leave empty for automatic extraction from OAuth token.
+    The module automatically extracts your JFrog username from the OAuth token.
+    Only set this if automatic extraction fails or you need to use a different username.
+  EOF
+  default     = null
+}
+
 variable "username_field" {
   type        = string
   description = "The field to use for the artifactory username. i.e. Coder username or email."
@@ -76,8 +86,11 @@ variable "package_managers" {
 }
 
 locals {
-  # The username field to use for artifactory
-  username   = var.username_field == "email" ? data.coder_workspace_owner.me.email : data.coder_workspace_owner.me.name
+  username = coalesce(
+    var.username,
+    try(data.external.jfrog_username[0].result.username != "" ? data.external.jfrog_username[0].result.username : null, null),
+    var.username_field == "email" ? data.coder_workspace_owner.me.email : data.coder_workspace_owner.me.name
+  )
   jfrog_host = split("://", var.jfrog_url)[1]
   common_values = {
     JFROG_URL                = var.jfrog_url
@@ -115,6 +128,11 @@ data "coder_workspace_owner" "me" {}
 
 data "coder_external_auth" "jfrog" {
   id = var.external_auth_id
+}
+data "external" "jfrog_username" {
+  count = var.username == null ? 1 : 0
+
+  program = ["bash", "-c", "TOKEN='${data.coder_external_auth.jfrog.access_token}'; PAYLOAD=$(echo \"$TOKEN\" | cut -d. -f2); LEN=$(printf '%s' \"$PAYLOAD\" | wc -c); MOD=$((LEN % 4)); if [ $MOD -eq 2 ]; then PAYLOAD=\"$PAYLOAD==\"; elif [ $MOD -eq 3 ]; then PAYLOAD=\"$PAYLOAD=\"; fi; USERNAME=$(echo \"$PAYLOAD\" | base64 -d 2>/dev/null | grep -oP '\"/users/\\K[^\"]+' 2>/dev/null | head -1 || echo \"\"); if [ -z \"$USERNAME\" ]; then echo '{\"username\":\"\"}'; else USERNAME=$(echo \"$USERNAME\" | sed 's/\\\\/\\\\\\\\/g; s/\"/\\\\\"/g'); echo \"{\\\"username\\\":\\\"$USERNAME\\\"}\"; fi"]
 }
 
 resource "coder_script" "jfrog" {

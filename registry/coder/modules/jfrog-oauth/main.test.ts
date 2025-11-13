@@ -12,6 +12,7 @@ describe("jfrog-oauth", async () => {
     jfrog_url: string;
     package_managers: string;
 
+    username?: string;
     username_field?: string;
     jfrog_server_id?: string;
     external_auth_id?: string;
@@ -181,5 +182,29 @@ EOF`;
     expect(coderScript.script).toContain(
       'if [ -z "YES" ]; then\n  not_configured maven',
     );
+  });
+
+  it("accepts manual username override with special characters", async () => {
+    const customUsername = "john.smith";
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "some-agent-id",
+      jfrog_url: fakeFrogUrl,
+      username: customUsername,
+      package_managers: JSON.stringify({
+        npm: ["npm"],
+        pypi: ["pypi"],
+        docker: ["docker.jfrog.io"],
+      }),
+    });
+
+    const coderScript = findResourceInstance(state, "coder_script");
+
+    expect(coderScript.script).toContain(
+      `docker login "$repo" --username ${customUsername}`,
+    );
+
+    expect(coderScript.script).toContain(`https://${customUsername}:`);
+
+    expect(coderScript.script).toContain("cat << EOF > ~/.npmrc");
   });
 });
