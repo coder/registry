@@ -48,7 +48,7 @@ data "coder_workspace_owner" "me" {}
 resource "coder_app" "positron" {
   agent_id     = var.agent_id
   external     = true
-  icon         = "local.icon_url
+  icon         = local.icon_url
   slug         = "positron"
   display_name = "Positron Desktop"
   order        = var.order
