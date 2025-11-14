@@ -53,8 +53,8 @@ variable "vm_template" {
   default = ""
 }
 variable "unverified_ssl" {
-  type        = bool
-  default     = true
+  type    = bool
+  default = true
 }
 
 locals {
