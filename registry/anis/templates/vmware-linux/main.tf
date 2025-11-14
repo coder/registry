@@ -15,7 +15,7 @@ provider "vsphere" {
   password       = var.vsphere_password
   vsphere_server = var.vsphere_server
 
-  allow_unverified_ssl = true
+  allow_unverified_ssl = var.unverified_ssl
 }
 
 variable "vsphere_username" {
@@ -52,6 +52,10 @@ variable "vm_template" {
   type    = string
   default = ""
 }
+variable "unverified_ssl" {
+  type        = bool
+  default     = true
+}
 
 locals {
   vm_name           = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
@@ -61,25 +65,25 @@ locals {
 
 data "coder_parameter" "instance_vcpus" {
   name         = "instance_vcpus"
-  display_name = "VCPUs"
-  description  = "Number of VCPUs "
+  display_name = "vCPUs"
+  description  = "Number of vCPUs "
   type         = "number"
   default      = 1
   mutable      = true
   option {
-    name  = "1 VCPUS"
+    name  = "1 vCPU"
     value = 1
   }
   option {
-    name  = "2 VCPUS"
+    name  = "2 vCPUs"
     value = 2
   }
   option {
-    name  = "4 VCPUS"
+    name  = "4 vCPUs"
     value = 4
   }
   option {
-    name  = "8 VCPUS"
+    name  = "8 vCPUs"
     value = 8
   }
 }
