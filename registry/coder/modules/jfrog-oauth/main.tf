@@ -76,8 +76,20 @@ variable "package_managers" {
 }
 
 locals {
+  jwt_parts       = split(".", data.coder_external_auth.jfrog.access_token)
+  jwt_payload     = try(local.jwt_parts[1], "")
+  payload_padding = local.jwt_payload == "" ? "" : (length(local.jwt_payload) % 4 == 0 ? "" : length(local.jwt_payload) % 4 == 2 ? "==" : "=")
+
+  jwt_username = try(
+    regex(
+      "/users/(.+)",
+      jsondecode(base64decode("${local.jwt_payload}${local.payload_padding}"))["sub"]
+    )[0],
+    ""
+  )
+
   username = coalesce(
-    try(data.external.jfrog_username.result.username != "" ? data.external.jfrog_username.result.username : null, null),
+    local.jwt_username != "" ? local.jwt_username : null,
     var.username_field == "email" ? data.coder_workspace_owner.me.email : data.coder_workspace_owner.me.name
   )
   jfrog_host = split("://", var.jfrog_url)[1]
@@ -117,10 +129,6 @@ data "coder_workspace_owner" "me" {}
 
 data "coder_external_auth" "jfrog" {
   id = var.external_auth_id
-}
-
-data "external" "jfrog_username" {
-  program = ["bash", "-c", "TOKEN='${data.coder_external_auth.jfrog.access_token}'; PAYLOAD=$(echo \"$TOKEN\" | cut -d. -f2); LEN=$(printf '%s' \"$PAYLOAD\" | wc -c); MOD=$((LEN % 4)); if [ $MOD -eq 2 ]; then PAYLOAD=\"$PAYLOAD==\"; elif [ $MOD -eq 3 ]; then PAYLOAD=\"$PAYLOAD=\"; fi; USERNAME=$(echo \"$PAYLOAD\" | base64 -d 2>/dev/null | grep -oP '\"/users/\\K[^\"]+' 2>/dev/null | head -1 || echo \"\"); if [ -z \"$USERNAME\" ]; then echo '{\"username\":\"\"}'; else USERNAME=$(echo \"$USERNAME\" | sed 's/\\\\/\\\\\\\\/g; s/\"/\\\\\"/g'); echo \"{\\\"username\\\":\\\"$USERNAME\\\"}\"; fi"]
 }
 
 resource "coder_script" "jfrog" {
