@@ -76,13 +76,18 @@ variable "package_managers" {
 }
 
 locals {
-  jwt_parts       = split(".", data.coder_external_auth.jfrog.access_token)
-  jwt_payload     = try(local.jwt_parts[1], "")
-  payload_padding = local.jwt_payload == "" ? "" : (length(local.jwt_payload) % 4 == 0 ? "" : length(local.jwt_payload) % 4 == 2 ? "==" : "=")
+  jwt_parts   = try(split(".", data.coder_external_auth.jfrog.access_token), [])
+  jwt_payload = try(local.jwt_parts[1], "")
+  payload_padding = local.jwt_payload == "" ? "" : (
+    length(local.jwt_payload) % 4 == 0 ? "" :
+    length(local.jwt_payload) % 4 == 2 ? "==" :
+    length(local.jwt_payload) % 4 == 3 ? "=" :
+    ""
+  )
 
   jwt_username = try(
     regex(
-      "/users/(.+)",
+      "/users/([^/]+)",
       jsondecode(base64decode("${local.jwt_payload}${local.payload_padding}"))["sub"]
     )[0],
     ""
