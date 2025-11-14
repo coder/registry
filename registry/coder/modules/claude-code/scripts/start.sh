@@ -28,6 +28,7 @@ ARG_BOUNDARY_LOG_LEVEL=${ARG_BOUNDARY_LOG_LEVEL:-"WARN"}
 ARG_BOUNDARY_PROXY_PORT=${ARG_BOUNDARY_PROXY_PORT:-"8087"}
 ARG_ENABLE_BOUNDARY_PPROF=${ARG_ENABLE_BOUNDARY_PPROF:-false}
 ARG_BOUNDARY_PPROF_PORT=${ARG_BOUNDARY_PPROF_PORT:-"6067"}
+ARG_COMPILE_FROM_SOURCE=${ARG_COMPILE_FROM_SOURCE:-false}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
 
 echo "--------------------------------"
@@ -45,6 +46,7 @@ printf "ARG_BOUNDARY_VERSION: %s\n" "$ARG_BOUNDARY_VERSION"
 printf "ARG_BOUNDARY_LOG_DIR: %s\n" "$ARG_BOUNDARY_LOG_DIR"
 printf "ARG_BOUNDARY_LOG_LEVEL: %s\n" "$ARG_BOUNDARY_LOG_LEVEL"
 printf "ARG_BOUNDARY_PROXY_PORT: %s\n" "$ARG_BOUNDARY_PROXY_PORT"
+printf "ARG_COMPILE_FROM_SOURCE: %s\n" "$ARG_COMPILE_FROM_SOURCE"
 printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
 
 echo "--------------------------------"
@@ -63,11 +65,18 @@ case $session_cleanup_exit_code in
 esac
 
 function install_boundary() {
-  # Install boundary from public github repo
-  git clone https://github.com/coder/boundary
-  cd boundary
-  git checkout $ARG_BOUNDARY_VERSION
-  go install ./cmd/...
+  if [ "${ARG_COMPILE_FROM_SOURCE:-false}" = "true" ]; then
+    # Install boundary by compiling from source
+    echo "Compiling boundary from source (version: $ARG_BOUNDARY_VERSION)"
+    git clone https://github.com/coder/boundary
+    cd boundary
+    git checkout $ARG_BOUNDARY_VERSION
+    go install ./cmd/...
+  else
+    # Install boundary using official install script
+    echo "Installing boundary using official install script (version: $ARG_BOUNDARY_VERSION)"
+    curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "$ARG_BOUNDARY_VERSION"
+  fi
 }
 
 function validate_claude_installation() {
