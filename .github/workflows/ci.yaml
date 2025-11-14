@@ -73,6 +73,8 @@ jobs:
           SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
           SHELL_CHANGED_FILES: ${{ steps.filter.outputs.shell_files }}
         run: bun shellcheck
+      - name: Validate set -u ordering
+        run: ./scripts/validate_set_u_order.sh
   validate-style:
     name: Check for typos and unformatted code
     runs-on: ubuntu-latest
