@@ -44,7 +44,7 @@ run "validate_test_config_matches_defaults" {
       for key, config in var.expected_ide_config :
       var.ide_config[key].build == config.build
     ])
-    error_message = "Test configuration mismatch: One or more build numbers in 'var.expected_ide_config' do not match the defaults in 'var.ide_config'. Please update the test file's locals block."
+    error_message = "Test configuration mismatch: One or more build numbers in 'var.expected_ide_config' do not match the defaults in 'var.ide_config'. Please update the test file's global variables block."
   }
 }
 
