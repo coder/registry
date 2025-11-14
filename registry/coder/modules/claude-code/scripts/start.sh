@@ -68,10 +68,17 @@ function install_boundary() {
   if [ "${ARG_COMPILE_FROM_SOURCE:-false}" = "true" ]; then
     # Install boundary by compiling from source
     echo "Compiling boundary from source (version: $ARG_BOUNDARY_VERSION)"
-    git clone https://github.com/coder/boundary
+    git clone https://github.com/coder/boundary.git
     cd boundary
-    git checkout $ARG_BOUNDARY_VERSION
-    go install ./cmd/...
+    git checkout "$ARG_BOUNDARY_VERSION"
+    
+    # Build the binary
+    make build
+    
+    # Install binary and wrapper script (optional)
+    sudo cp boundary /usr/local/bin/
+    sudo cp scripts/boundary-wrapper.sh /usr/local/bin/boundary-run
+    sudo chmod +x /usr/local/bin/boundary-run
   else
     # Install boundary using official install script
     echo "Installing boundary using official install script (version: $ARG_BOUNDARY_VERSION)"
