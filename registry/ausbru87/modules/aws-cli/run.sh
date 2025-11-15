@@ -8,10 +8,10 @@ ARCHITECTURE="${ARCHITECTURE}"
 VERIFY_SIGNATURE="${VERIFY_SIGNATURE}"
 
 # Check if AWS CLI is already installed
-if command -v aws >/dev/null 2>&1; then
+if command -v aws > /dev/null 2>&1; then
   INSTALLED_VERSION=$(aws --version 2>&1 | awk '{print $1}' | cut -d'/' -f2)
   echo "ℹ️  AWS CLI is already installed (version $INSTALLED_VERSION)"
-  
+
   # If a specific version was requested, check if it matches
   if [ -n "$VERSION" ] && [ "$INSTALLED_VERSION" != "$VERSION" ]; then
     echo "⚠️  Installed version ($INSTALLED_VERSION) does not match requested version ($VERSION)"
@@ -67,10 +67,10 @@ fi
 # Verify signature if requested
 if [ "$VERIFY_SIGNATURE" = "true" ]; then
   echo "🔐 Verifying GPG signature..."
-  
+
   # Download signature file
   curl -fsSL "$DOWNLOAD_URL.sig" -o "awscliv2.zip.sig"
-  
+
   # Download and import AWS CLI public key
   cat > awscli-public-key.asc << 'EOF'
 -----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -127,10 +127,10 @@ qJZLqJZJqJZLqJZJqJZLqJZJqA==
 =qvqC
 -----END PGP PUBLIC KEY BLOCK-----
 EOF
-  
-  gpg --import awscli-public-key.asc 2>/dev/null || true
-  
-  if gpg --verify awscliv2.zip.sig awscliv2.zip 2>/dev/null; then
+
+  gpg --import awscli-public-key.asc 2> /dev/null || true
+
+  if gpg --verify awscliv2.zip.sig awscliv2.zip 2> /dev/null; then
     echo "✅ Signature verification successful"
   else
     echo "⚠️  Signature verification failed, but continuing installation..."
@@ -152,7 +152,7 @@ else
 fi
 
 # Verify installation
-if command -v aws >/dev/null 2>&1; then
+if command -v aws > /dev/null 2>&1; then
   INSTALLED_VERSION=$(aws --version 2>&1 | awk '{print $1}' | cut -d'/' -f2)
   echo "✅ AWS CLI successfully installed (version $INSTALLED_VERSION)"
   aws --version

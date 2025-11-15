@@ -123,18 +123,18 @@ For more information, see the [AWS CLI Configuration Guide](https://docs.aws.ama
 
 ## Variables
 
-| Name                | Description                                                                                  | Default        | Required |
-| ------------------- | -------------------------------------------------------------------------------------------- | -------------- | -------- |
-| `agent_id`          | The ID of a Coder agent                                                                      | -              | Yes      |
-| `aws_cli_version`   | The version of AWS CLI to install (leave empty for latest)                                   | `""`           | No       |
-| `install_directory` | The directory to install AWS CLI to                                                          | `/usr/local`   | No       |
-| `architecture`      | The architecture to install AWS CLI for (`x86_64` or `aarch64`, empty for auto-detection)    | `""`           | No       |
-| `verify_signature`  | Whether to verify the GPG signature of the downloaded installer                              | `false`        | No       |
+| Name                | Description                                                                               | Default      | Required |
+| ------------------- | ----------------------------------------------------------------------------------------- | ------------ | -------- |
+| `agent_id`          | The ID of a Coder agent                                                                   | -            | Yes      |
+| `aws_cli_version`   | The version of AWS CLI to install (leave empty for latest)                                | `""`         | No       |
+| `install_directory` | The directory to install AWS CLI to                                                       | `/usr/local` | No       |
+| `architecture`      | The architecture to install AWS CLI for (`x86_64` or `aarch64`, empty for auto-detection) | `""`         | No       |
+| `verify_signature`  | Whether to verify the GPG signature of the downloaded installer                           | `false`      | No       |
 
 ## Outputs
 
-| Name              | Description                                                                          |
-| ----------------- | ------------------------------------------------------------------------------------ |
+| Name              | Description                                                                         |
+| ----------------- | ----------------------------------------------------------------------------------- |
 | `aws_cli_version` | The version of AWS CLI that was installed (or 'latest' if no version was specified) |
 
 ## Requirements
