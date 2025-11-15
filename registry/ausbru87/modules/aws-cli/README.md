@@ -13,7 +13,7 @@ Automatically install the [AWS Command Line Interface (CLI)](https://aws.amazon.
 ```tf
 module "aws-cli" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/aws-cli/coder"
+  source   = "registry.coder.com/modules/ausbru87/aws-cli"
   version  = "1.0.0"
   agent_id = coder_agent.example.id
 }
@@ -37,7 +37,7 @@ Install the latest version of AWS CLI:
 ```tf
 module "aws-cli" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/aws-cli/coder"
+  source   = "registry.coder.com/modules/ausbru87/aws-cli"
   version  = "1.0.0"
   agent_id = coder_agent.example.id
 }
@@ -50,7 +50,7 @@ Install a specific version of AWS CLI for consistency across your team:
 ```tf
 module "aws-cli" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/aws-cli/coder"
+  source   = "registry.coder.com/modules/ausbru87/aws-cli"
   version  = "1.0.0"
   agent_id = coder_agent.example.id
   
@@ -68,7 +68,7 @@ Install AWS CLI to a custom directory (useful when you don't have sudo access):
 ```tf
 module "aws-cli" {
   count              = data.coder_workspace.me.start_count
-  source             = "registry.coder.com/coder/aws-cli/coder"
+  source             = "registry.coder.com/modules/ausbru87/aws-cli"
   version            = "1.0.0"
   agent_id           = coder_agent.example.id
   install_directory  = "/home/coder/.local"
@@ -82,7 +82,7 @@ Enable GPG signature verification for enhanced security:
 ```tf
 module "aws-cli" {
   count            = data.coder_workspace.me.start_count
-  source           = "registry.coder.com/coder/aws-cli/coder"
+  source           = "registry.coder.com/modules/ausbru87/aws-cli"
   version          = "1.0.0"
   agent_id         = coder_agent.example.id
   verify_signature = true
@@ -96,7 +96,7 @@ Explicitly set the architecture (usually auto-detected):
 ```tf
 module "aws-cli" {
   count        = data.coder_workspace.me.start_count
-  source       = "registry.coder.com/coder/aws-cli/coder"
+  source       = "registry.coder.com/modules/ausbru87/aws-cli"
   version      = "1.0.0"
   agent_id     = coder_agent.example.id
   architecture = "aarch64"  # or "x86_64"
