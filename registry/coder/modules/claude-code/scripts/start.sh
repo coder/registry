@@ -226,9 +226,8 @@ function start_agentapi() {
     fi
 
     agentapi server --type claude --term-width 67 --term-height 1190 -- \
-      sudo -E env PATH=$PATH setpriv --reuid=$(id -u) --regid=$(id -g) --clear-groups \
-      --inh-caps=+net_admin --ambient-caps=+net_admin boundary "${BOUNDARY_ARGS[@]}" -- \
-      claude "${ARGS[@]}"
+      boundary-run "${BOUNDARY_ARGS[@]}" -- \
+        claude "${ARGS[@]}"
   else
     agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
   fi
