@@ -39,6 +39,15 @@ module "jfrog" {
 
 This module is usable by JFrog self-hosted (on-premises) Artifactory as it requires configuring a custom integration. This integration benefits from Coder's [external-auth](https://coder.com/docs/v2/latest/admin/external-auth) feature and allows each user to authenticate with Artifactory using an OAuth flow and issues user-scoped tokens to each user. For configuration instructions, see this [guide](https://coder.com/docs/v2/latest/guides/artifactory-integration#jfrog-oauth) on the Coder documentation.
 
+## Username Handling
+
+The module automatically extracts your JFrog username directly from the OAuth token's JWT payload. This preserves special characters like dots (`.`), hyphens (`-`), and accented characters that Coder normalizes in usernames.
+
+**Priority order:**
+
+1. **JWT extraction** (default) - Extracts username from OAuth token, preserving special characters
+2. **Fallback to `username_field`** - If JWT extraction fails, uses Coder username or email
+
 ## Examples
 
 Configure the Python pip package manager to fetch packages from Artifactory while mapping the Coder email to the Artifactory username.
