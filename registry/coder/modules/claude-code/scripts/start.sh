@@ -71,10 +71,10 @@ function install_boundary() {
     git clone https://github.com/coder/boundary.git
     cd boundary
     git checkout "$ARG_BOUNDARY_VERSION"
-    
+
     # Build the binary
     make build
-    
+
     # Install binary and wrapper script (optional)
     sudo cp boundary /usr/local/bin/
     sudo cp scripts/boundary-wrapper.sh /usr/local/bin/boundary-run
@@ -227,7 +227,7 @@ function start_agentapi() {
 
     agentapi server --type claude --term-width 67 --term-height 1190 -- \
       boundary-run "${BOUNDARY_ARGS[@]}" -- \
-        claude "${ARGS[@]}"
+      claude "${ARGS[@]}"
   else
     agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
   fi
