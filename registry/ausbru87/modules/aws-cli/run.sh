@@ -66,3 +66,42 @@ else
   printf "❌ AWS CLI installation failed. Check logs at ${LOG_PATH}\n"
   exit 1
 fi
+
+# Configure autocomplete for common shells
+if command -v aws_completer > /dev/null 2>&1; then
+  AWS_COMPLETER_PATH=$(which aws_completer)
+
+  # Bash autocomplete
+  if [ -f ~/.bashrc ]; then
+    if ! grep -q "aws_completer.*aws" ~/.bashrc; then
+      echo "complete -C '$AWS_COMPLETER_PATH' aws" >> ~/.bashrc
+      printf "✓ Configured AWS CLI autocomplete for bash\n"
+    fi
+  fi
+
+  # Zsh autocomplete
+  if [ -f ~/.zshrc ] || [ -d ~/.oh-my-zsh ]; then
+    if ! grep -q "aws_completer.*aws" ~/.zshrc 2> /dev/null; then
+      cat >> ~/.zshrc << EOF
+
+# AWS CLI autocomplete
+autoload bashcompinit && bashcompinit
+autoload -Uz compinit && compinit
+complete -C '$AWS_COMPLETER_PATH' aws
+EOF
+      printf "✓ Configured AWS CLI autocomplete for zsh\n"
+    fi
+  fi
+
+  # Fish autocomplete
+  if [ -d ~/.config/fish ] || command -v fish > /dev/null 2>&1; then
+    mkdir -p ~/.config/fish/completions
+    FISH_COMPLETION=~/.config/fish/completions/aws.fish
+    if [ ! -f "$FISH_COMPLETION" ]; then
+      cat > "$FISH_COMPLETION" << 'EOF'
+complete --command aws --no-files --arguments '(begin; set --local --export COMP_SHELL fish; set --local --export COMP_LINE (commandline); aws_completer | sed '"'"'s/ $//'"'"'; end)'
+EOF
+      printf "✓ Configured AWS CLI autocomplete for fish\n"
+    fi
+  fi
+fi

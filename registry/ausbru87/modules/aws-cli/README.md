@@ -8,7 +8,7 @@ tags: [helper, aws, cli]
 
 # AWS CLI
 
-Automatically install the [AWS CLI v2](https://aws.amazon.com/cli/) in your Coder workspace.
+Automatically install the [AWS CLI v2](https://aws.amazon.com/cli/) in your Coder workspace with command autocomplete support for bash, zsh, and fish shells.
 
 ```tf
 module "aws-cli" {
@@ -18,6 +18,13 @@ module "aws-cli" {
   agent_id = coder_agent.example.id
 }
 ```
+
+## Features
+
+- Installs AWS CLI v2 for Linux and macOS
+- Supports x86_64 and ARM64 architectures
+- Optional version pinning
+- **Auto-configures command autocomplete** for bash, zsh, and fish shells
 
 ## Examples
 
