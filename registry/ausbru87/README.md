@@ -1,10 +1,9 @@
 ---
-display_name: ausbru87
-bio: Brief description of what this namespace provides
-github: your-github-username
-avatar: ./.images/avatar.svg
-linkedin: https://www.linkedin.com/in/your-profile
-website: https://your-website.com
+display_name: Austen Bruhn
+bio: Solution Engineer at Coder, OSS enthusiast
+github: ausbru87
+avatar: ./.images/avatar.png
+linkedin: https://www.linkedin.com/in/austen-bruhn-b0a646a1/
 status: community
 ---
 
