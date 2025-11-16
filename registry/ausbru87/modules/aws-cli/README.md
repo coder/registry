@@ -62,3 +62,17 @@ module "aws-cli" {
   log_path = "/var/log/aws-cli.log"
 }
 ```
+
+### Airgapped Environment
+
+Use a custom download URL for environments without internet access to AWS:
+
+```tf
+module "aws-cli" {
+  count        = data.coder_workspace.me.start_count
+  source       = "registry.coder.com/ausbru87/aws-cli/coder"
+  version      = "1.0.0"
+  agent_id     = coder_agent.example.id
+  download_url = "https://internal-mirror.company.com/awscli-exe-linux-x86_64.zip"
+}
+```

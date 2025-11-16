@@ -20,6 +20,12 @@ variable "install_version" {
   default     = ""
 }
 
+variable "download_url" {
+  type        = string
+  description = "Custom download URL for AWS CLI. Useful for airgapped environments. If not set, uses the official AWS download URL."
+  default     = ""
+}
+
 variable "log_path" {
   type        = string
   description = "The path to the AWS CLI installation log file."
@@ -33,6 +39,7 @@ resource "coder_script" "aws-cli" {
   script = templatefile("${path.module}/run.sh", {
     LOG_PATH : var.log_path,
     VERSION : var.install_version,
+    DOWNLOAD_URL : var.download_url,
   })
   run_on_start = true
   run_on_stop  = false

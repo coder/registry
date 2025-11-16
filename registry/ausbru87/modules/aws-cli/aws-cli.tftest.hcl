@@ -23,3 +23,12 @@ run "with_custom_log_path" {
     log_path = "/var/log/aws-cli.log"
   }
 }
+
+run "with_custom_download_url" {
+  command = plan
+
+  variables {
+    agent_id     = "test-agent-id"
+    download_url = "https://internal-mirror.company.com/awscli-exe-linux-x86_64.zip"
+  }
+}
