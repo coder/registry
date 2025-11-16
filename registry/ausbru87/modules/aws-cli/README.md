@@ -53,7 +53,7 @@ module "aws-cli" {
   source   = "registry.coder.com/modules/ausbru87/aws-cli"
   version  = "1.0.0"
   agent_id = coder_agent.example.id
-  
+
   # Pin to AWS CLI version 2.15.0
   aws_cli_version = "2.15.0"
 }
