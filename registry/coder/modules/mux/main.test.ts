@@ -6,7 +6,7 @@ import {
   testRequiredVariables,
 } from "~test";
 
-describe("cmux", async () => {
+describe("mux", async () => {
   await runTerraformInit(import.meta.dir);
 
   testRequiredVariables(import.meta.dir, {
@@ -31,9 +31,9 @@ describe("cmux", async () => {
     expect(output.exitCode).toBe(0);
     const expectedLines = [
       "📥 npm not found; downloading tarball from npm registry...",
-      "🥳 cmux has been installed in /tmp/cmux",
-      "🚀 Starting cmux server on port 4000...",
-      "Check logs at /tmp/cmux.log!",
+      "🥳 mux has been installed in /tmp/mux",
+      "🚀 Starting mux server on port 4000...",
+      "Check logs at /tmp/mux.log!",
     ];
     for (const line of expectedLines) {
       expect(output.stdout).toContain(line);
@@ -54,10 +54,10 @@ describe("cmux", async () => {
 
     expect(output.exitCode).toBe(0);
     const expectedLines = [
-      "📦 Installing @coder/cmux via npm into /tmp/cmux...",
-      "🥳 cmux has been installed in /tmp/cmux",
-      "🚀 Starting cmux server on port 4000...",
-      "Check logs at /tmp/cmux.log!",
+      "📦 Installing mux via npm into /tmp/mux...",
+      "🥳 mux has been installed in /tmp/mux",
+      "🚀 Starting mux server on port 4000...",
+      "Check logs at /tmp/mux.log!",
     ];
     for (const line of expectedLines) {
       expect(output.stdout).toContain(line);
