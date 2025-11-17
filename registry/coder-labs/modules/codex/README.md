@@ -13,10 +13,10 @@ Run Codex CLI in your workspace to access OpenAI's models through the Codex inte
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "2.0.0"
+  version        = "3.1.0"
   agent_id       = coder_agent.example.id
   openai_api_key = var.openai_api_key
-  folder         = "/home/coder/project"
+  workdir        = "/home/coder/project"
 }
 ```
 
@@ -33,10 +33,11 @@ module "codex" {
 module "codex" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "2.0.0"
+  version        = "3.1.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
-  folder         = "/home/coder/project"
+  workdir        = "/home/coder/project"
+  report_tasks   = false
 }
 ```
 
@@ -60,11 +61,11 @@ module "coder-login" {
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "2.0.0"
+  version        = "3.1.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   ai_prompt      = data.coder_parameter.ai_prompt.value
-  folder         = "/home/coder/project"
+  workdir        = "/home/coder/project"
 
   # Custom configuration for full auto mode
   base_config_toml = <<-EOT
@@ -75,7 +76,7 @@ module "codex" {
 ```
 
 > [!WARNING]
-> This module configures Codex with a `workspace-write` sandbox that allows AI tasks to read/write files in the specified folder. While the sandbox provides security boundaries, Codex can still modify files within the workspace. Use this module _only_ in trusted environments and be aware of the security implications.
+> This module configures Codex with a `workspace-write` sandbox that allows AI tasks to read/write files in the specified workdir. While the sandbox provides security boundaries, Codex can still modify files within the workspace. Use this module _only_ in trusted environments and be aware of the security implications.
 
 ## How it Works
 
@@ -83,6 +84,7 @@ module "codex" {
 - **System Prompt**: If `codex_system_prompt` is set, writes the prompt to `AGENTS.md` in the `~/.codex/` directory
 - **Start**: Launches Codex CLI in the specified directory, wrapped by AgentAPI
 - **Configuration**: Sets `OPENAI_API_KEY` environment variable and passes `--model` flag to Codex CLI (if variables provided)
+- **Session Continuity**: When `continue = true` (default), the module automatically tracks task sessions in `~/.codex-module/.codex-task-session`. On workspace restart, it resumes the existing session with full conversation history. Set `continue = false` to always start fresh sessions.
 
 ## Configuration
 
@@ -106,7 +108,7 @@ For custom Codex configuration, use `base_config_toml` and/or `additional_mcp_se
 ```tf
 module "codex" {
   source  = "registry.coder.com/coder-labs/codex/coder"
-  version = "2.0.0"
+  version = "3.1.0"
   # ... other variables ...
 
   # Override default configuration
@@ -137,7 +139,7 @@ module "codex" {
 > [!IMPORTANT]
 > To use tasks with Codex CLI, ensure you have the `openai_api_key` variable set, and **you create a `coder_parameter` named `"AI Prompt"` and pass its value to the codex module's `ai_prompt` variable**. [Tasks Template Example](https://registry.coder.com/templates/coder-labs/tasks-docker).
 > The module automatically configures Codex with your API key and model preferences.
-> folder is a required variable for the module to function correctly.
+> workdir is a required variable for the module to function correctly.
 
 ## References
 

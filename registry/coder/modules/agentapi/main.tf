@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.7"
+      version = ">= 2.12"
     }
   }
 }
@@ -117,7 +117,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.3.3"
+  default     = "v0.10.0"
 }
 
 variable "agentapi_port" {
@@ -239,8 +239,6 @@ resource "coder_app" "agentapi_cli" {
   group        = var.cli_app_group
 }
 
-resource "coder_ai_task" "agentapi" {
-  sidebar_app {
-    id = coder_app.agentapi_web.id
-  }
+output "task_app_id" {
+  value = coder_app.agentapi_web.id
 }
