@@ -240,6 +240,12 @@ variable "boundary_pprof_port" {
   default     = "6067"
 }
 
+variable "compile_boundary_from_source" {
+  type        = bool
+  description = "Whether to compile boundary from source instead of using the official install script"
+  default     = false
+}
+
 resource "coder_env" "claude_code_md_path" {
   count = var.claude_md_path == "" ? 0 : 1
 
@@ -348,6 +354,7 @@ module "agentapi" {
      ARG_PERMISSION_MODE='${var.permission_mode}' \
      ARG_WORKDIR='${local.workdir}' \
      ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+     ARG_REPORT_TASKS='${var.report_tasks}' \
      ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
      ARG_BOUNDARY_VERSION='${var.boundary_version}' \
      ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
@@ -356,6 +363,7 @@ module "agentapi" {
      ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
      ARG_ENABLE_BOUNDARY_PPROF='${var.enable_boundary_pprof}' \
      ARG_BOUNDARY_PPROF_PORT='${var.boundary_pprof_port}' \
+     ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
      ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh
    EOT

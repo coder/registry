@@ -17,38 +17,44 @@ variable "agent_id" {
 
 variable "port" {
   type        = number
-  description = "The port to run cmux on."
+  description = "The port to run mux on."
   default     = 4000
 }
 
 variable "display_name" {
   type        = string
-  description = "The display name for the cmux application."
-  default     = "cmux"
+  description = "The display name for the mux application."
+  default     = "mux"
 }
 
 variable "slug" {
   type        = string
-  description = "The slug for the cmux application."
-  default     = "cmux"
+  description = "The slug for the mux application."
+  default     = "mux"
 }
 
 variable "install_prefix" {
   type        = string
-  description = "The prefix to install cmux to."
-  default     = "/tmp/cmux"
+  description = "The prefix to install mux to."
+  default     = "/tmp/mux"
 }
 
 variable "log_path" {
   type        = string
-  description = "The path for cmux logs."
-  default     = "/tmp/cmux.log"
+  description = "The path for mux logs."
+  default     = "/tmp/mux.log"
+}
+
+variable "add-project" {
+  type        = string
+  description = "Path to add/open as a project in mux (idempotent)."
+  default     = ""
 }
 
 variable "install_version" {
   type        = string
-  description = "The version of cmux to install."
-  default     = "latest"
+  description = "The version or dist-tag of mux to install."
+  default     = "next"
 }
 
 variable "share" {
@@ -74,13 +80,13 @@ variable "group" {
 
 variable "install" {
   type        = bool
-  description = "Install cmux from the network (npm or tarball). If false, run without installing (requires a pre-installed cmux)."
+  description = "Install mux from the network (npm or tarball). If false, run without installing (requires a pre-installed mux)."
   default     = true
 }
 
 variable "use_cached" {
   type        = bool
-  description = "Use cached copy of cmux if present; otherwise install from npm"
+  description = "Use cached copy of mux if present; otherwise install from npm"
   default     = false
 }
 
@@ -107,14 +113,15 @@ variable "open_in" {
   }
 }
 
-resource "coder_script" "cmux" {
+resource "coder_script" "mux" {
   agent_id     = var.agent_id
-  display_name = "cmux"
-  icon         = "/icon/cmux.svg"
+  display_name = "mux"
+  icon         = "/icon/mux.svg"
   script = templatefile("${path.module}/run.sh", {
     VERSION : var.install_version,
     PORT : var.port,
     LOG_PATH : var.log_path,
+    ADD_PROJECT : var.add-project,
     INSTALL_PREFIX : var.install_prefix,
     OFFLINE : !var.install,
     USE_CACHED : var.use_cached,
@@ -129,12 +136,12 @@ resource "coder_script" "cmux" {
   }
 }
 
-resource "coder_app" "cmux" {
+resource "coder_app" "mux" {
   agent_id     = var.agent_id
   slug         = var.slug
   display_name = var.display_name
   url          = "http://localhost:${var.port}"
-  icon         = "/icon/cmux.svg"
+  icon         = "/icon/mux.svg"
   subdomain    = var.subdomain
   share        = var.share
   order        = var.order
@@ -147,3 +154,5 @@ resource "coder_app" "cmux" {
     threshold = 6
   }
 }
+
+
