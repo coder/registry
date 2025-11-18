@@ -70,21 +70,38 @@ update_readme_version() {
   if grep -q "source.*${module_source}" "$readme_path"; then
     echo "Updating version references for $namespace/$module_name in $readme_path"
     awk -v module_source="$module_source" -v new_version="$new_version" '
-        /source.*=.*/ {
-          if ($0 ~ module_source) {
-            in_target_module = 1
-          } else {
-            in_target_module = 0
-          }
+        /^[[:space:]]*module[[:space:]]/ {
+          in_module_block = 1
+          module_content = $0 "\n"
+          module_has_target_source = 0
+          next
         }
-        /^[[:space:]]*version[[:space:]]*=/ {
-          if (in_target_module) {
-            match($0, /^[[:space]]*/
-            indent = substr($0, 1, RLENGTH)
-            print indent "version = \"" new_version "\""
-            in_target_module = 0
+        in_module_block {
+          module_content = module_content $0 "\n"
+          if ($0 ~ /source.*=/ && $0 ~ module_source) {
+            module_has_target_source = 1
+          }
+          if ($0 ~ /^[[:space:]]*}[[:space:]]*$/) {
+            in_module_block = 0
+            if (module_has_target_source) {
+              split(module_content, lines, "\n")
+              for (i in lines) {
+                line = lines[i]
+                if (line ~ /^[[:space:]]*version[[:space:]]*=/) {
+                  match(line, /^[[:space:]]*/)
+                  indent = substr(line, 1, RLENGTH)
+                  print indent "version = \"" new_version "\""
+                } else if (line != "") {
+                  print line
+                }
+              }
+            } else {
+              printf "%s", module_content
+            }
+            module_content = ""
             next
           }
+          next
         }
         { print }
         ' "$readme_path" > "${readme_path}.tmp" && mv "${readme_path}.tmp" "$readme_path"
