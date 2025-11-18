@@ -84,14 +84,14 @@ update_readme_version() {
           if ($0 ~ /^[[:space:]]*}[[:space:]]*$/) {
             in_module_block = 0
             if (module_has_target_source) {
-              split(module_content, lines, "\n")
-              for (i in lines) {
+              num_lines = split(module_content, lines, "\n")
+              for (i = 1; i <= num_lines; i++) {
                 line = lines[i]
                 if (line ~ /^[[:space:]]*version[[:space:]]*=/) {
                   match(line, /^[[:space:]]*/)
                   indent = substr(line, 1, RLENGTH)
-            print indent "version = \"" new_version "\""
-                } else if (line != "") {
+                  printf "%sversion = \"%s\"\n", indent, new_version
+                } else {
                   print line
                 }
               }
