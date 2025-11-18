@@ -264,7 +264,7 @@ resource "kubernetes_deployment" "main" {
         container {
           name              = "dev"
           image             = var.cache_repo == "" ? local.devcontainer_builder_image : envbuilder_cached_image.cached.0.image
-          image_pull_policy = "Always"
+          image_pull_policy = "IfNotPresent"
           security_context {
             privileged = true
           }

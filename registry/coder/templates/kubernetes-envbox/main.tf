@@ -152,7 +152,7 @@ resource "kubernetes_pod" "main" {
       name = "dev"
       # We highly recommend pinning this to a specific release of envbox, as the latest tag may change.
       image             = "ghcr.io/coder/envbox:latest"
-      image_pull_policy = "Always"
+      image_pull_policy = "IfNotPresent"
       command           = ["/envbox", "docker"]
 
       security_context {

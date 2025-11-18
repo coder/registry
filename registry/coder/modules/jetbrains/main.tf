@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.9"
 
   required_providers {
     coder = {
@@ -163,7 +163,8 @@ variable "ide_config" {
     condition     = length(var.ide_config) > 0
     error_message = "The ide_config must not be empty."
   }
-  # ide_config must be a superset of var.. options
+  # ide_config must be a superset of var.options
+  # Requires Terraform 1.9+ for cross-variable validation references
   validation {
     condition = alltrue([
       for code in var.options : contains(keys(var.ide_config), code)
@@ -256,4 +257,13 @@ resource "coder_app" "jetbrains" {
     local.options_metadata[each.key].build,
     var.agent_name != null ? "&agent_name=${var.agent_name}" : "",
   ])
+}
+
+output "ide_metadata" {
+  description = "A map of the metadata for each selected JetBrains IDE."
+  value = {
+    # We iterate directly over the selected_ides map.
+    # 'key' will be the IDE key (e.g., "IC", "PY")
+    for key, val in local.selected_ides : key => local.options_metadata[key]
+  }
 }

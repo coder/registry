@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.7"
+      version = ">= 2.12"
     }
   }
 }
@@ -114,6 +114,12 @@ variable "claude_code_version" {
   default     = "latest"
 }
 
+variable "disable_autoupdater" {
+  type        = bool
+  description = "Disable Claude Code automatic updates. When true, Claude Code will stay on the installed version."
+  default     = false
+}
+
 variable "claude_api_key" {
   type        = string
   description = "The API key to use for the Claude Code server."
@@ -134,8 +140,8 @@ variable "resume_session_id" {
 
 variable "continue" {
   type        = bool
-  description = "Load the most recent conversation in the current directory. Task will fail in a new workspace with no conversation/session to continue"
-  default     = false
+  description = "Automatically continue existing sessions on workspace restart. When true, resumes existing conversation if found, otherwise runs prompt or starts new session. When false, always starts fresh (ignores existing sessions)."
+  default     = true
 }
 
 variable "dangerously_skip_permissions" {
@@ -192,6 +198,60 @@ variable "claude_md_path" {
   default     = "$HOME/.claude/CLAUDE.md"
 }
 
+variable "enable_boundary" {
+  type        = bool
+  description = "Whether to enable coder boundary for network filtering"
+  default     = false
+}
+
+variable "boundary_version" {
+  type        = string
+  description = "Boundary version, valid git reference should be provided (tag, commit, branch)"
+  default     = "main"
+}
+
+variable "boundary_log_dir" {
+  type        = string
+  description = "Directory for boundary logs"
+  default     = "/tmp/boundary_logs"
+}
+
+variable "boundary_log_level" {
+  type        = string
+  description = "Log level for boundary process"
+  default     = "WARN"
+}
+
+variable "boundary_additional_allowed_urls" {
+  type        = list(string)
+  description = "Additional URLs to allow through boundary (in addition to default allowed URLs)"
+  default     = []
+}
+
+variable "boundary_proxy_port" {
+  type        = string
+  description = "Port for HTTP Proxy used by Boundary"
+  default     = "8087"
+}
+
+variable "enable_boundary_pprof" {
+  type        = bool
+  description = "Whether to enable coder boundary pprof server"
+  default     = false
+}
+
+variable "boundary_pprof_port" {
+  type        = string
+  description = "Port for pprof server used by Boundary"
+  default     = "6067"
+}
+
+variable "compile_boundary_from_source" {
+  type        = bool
+  description = "Whether to compile boundary from source instead of using the official install script"
+  default     = false
+}
+
 resource "coder_env" "claude_code_md_path" {
   count = var.claude_md_path == "" ? 0 : 1
 
@@ -220,15 +280,25 @@ resource "coder_env" "claude_api_key" {
   value    = var.claude_api_key
 }
 
+resource "coder_env" "disable_autoupdater" {
+  count = var.disable_autoupdater ? 1 : 0
+
+  agent_id = var.agent_id
+  name     = "DISABLE_AUTOUPDATER"
+  value    = "1"
+}
+
 locals {
   # we have to trim the slash because otherwise coder exp mcp will
-  # set up an invalid claude config 
+  # set up an invalid claude config
   workdir                           = trimsuffix(var.workdir, "/")
   app_slug                          = "ccw"
   install_script                    = file("${path.module}/scripts/install.sh")
   start_script                      = file("${path.module}/scripts/start.sh")
   module_dir_name                   = ".claude-module"
   remove_last_session_id_script_b64 = base64encode(file("${path.module}/scripts/remove-last-session-id.sh"))
+  # Extract hostname from access_url for boundary --allow flag
+  coder_host = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
 
   # Required prompts for the module to properly report task status to Coder
   report_tasks_system_prompt = <<-EOT
@@ -263,9 +333,8 @@ locals {
 }
 
 module "agentapi" {
-
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.2.0"
+  version = "2.0.0"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
@@ -299,6 +368,17 @@ module "agentapi" {
      ARG_PERMISSION_MODE='${var.permission_mode}' \
      ARG_WORKDIR='${local.workdir}' \
      ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+     ARG_REPORT_TASKS='${var.report_tasks}' \
+     ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
+     ARG_BOUNDARY_VERSION='${var.boundary_version}' \
+     ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
+     ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
+     ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join("|", var.boundary_additional_allowed_urls)}' \
+     ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
+     ARG_ENABLE_BOUNDARY_PPROF='${var.enable_boundary_pprof}' \
+     ARG_BOUNDARY_PPROF_PORT='${var.boundary_pprof_port}' \
+     ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
+     ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh
    EOT
 
@@ -319,4 +399,8 @@ module "agentapi" {
     ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
     /tmp/install.sh
   EOT
+}
+
+output "task_app_id" {
+  value = module.agentapi.task_app_id
 }

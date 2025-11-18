@@ -14,7 +14,7 @@ This module adds JetBrains IDE buttons to launch IDEs directly from the dashboar
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.1.0"
+  version  = "1.2.0"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
   # tooltip  = "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button."  # Optional
@@ -40,7 +40,7 @@ When `default` contains IDE codes, those IDEs are created directly without user 
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.1.0"
+  version  = "1.2.0"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
   default  = ["PY", "IU"] # Pre-configure GoLand and IntelliJ IDEA
@@ -53,7 +53,7 @@ module "jetbrains" {
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.1.0"
+  version  = "1.2.0"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
   # Show parameter with limited options
@@ -67,7 +67,7 @@ module "jetbrains" {
 module "jetbrains" {
   count         = data.coder_workspace.me.start_count
   source        = "registry.coder.com/coder/jetbrains/coder"
-  version       = "1.1.0"
+  version       = "1.2.0"
   agent_id      = coder_agent.example.id
   folder        = "/home/coder/project"
   default       = ["IU", "PY"]
@@ -82,7 +82,7 @@ module "jetbrains" {
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.1.0"
+  version  = "1.2.0"
   agent_id = coder_agent.example.id
   folder   = "/workspace/project"
 
@@ -108,7 +108,7 @@ module "jetbrains" {
 module "jetbrains_pycharm" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.1.0"
+  version  = "1.2.0"
   agent_id = coder_agent.example.id
   folder   = "/workspace/project"
 
@@ -128,11 +128,31 @@ Add helpful tooltip text that appears when users hover over the IDE app buttons:
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.1.0"
+  version  = "1.2.0"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
   default  = ["IU", "PY"]
   tooltip  = "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button."
+}
+```
+
+### Accessing the IDE Metadata
+
+You can now reference the output `ide_metadata` as a map.
+
+```tf
+# Add metadata to the container showing the installed IDEs and their build versions.
+resource "coder_metadata" "container_info" {
+  count       = data.coder_workspace.me.start_count
+  resource_id = one(docker_container.workspace).id
+
+  dynamic "item" {
+    for_each = length(module.jetbrains) > 0 ? one(module.jetbrains).ide_metadata : {}
+    content {
+      key   = item.value.build
+      value = "${item.value.name} [${item.key}]"
+    }
+  }
 }
 ```
 

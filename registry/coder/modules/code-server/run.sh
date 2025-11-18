@@ -27,7 +27,7 @@ fi
 function run_code_server() {
   echo "👷 Running code-server in the background..."
   echo "Check logs at ${LOG_PATH}!"
-  $CODE_SERVER $EXTENSION_ARG $TRUSTED_DOMAINS_ARG --auth none --port "${PORT}" --app-name "${APP_NAME}" > "${LOG_PATH}" 2>&1 &
+  $CODE_SERVER "$EXTENSION_ARG" $TRUSTED_DOMAINS_ARG --auth none --port "${PORT}" --app-name "${APP_NAME}" ${ADDITIONAL_ARGS} > "${LOG_PATH}" 2>&1 &
 }
 
 # Check if the settings file exists...

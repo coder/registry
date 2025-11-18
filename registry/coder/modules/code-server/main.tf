@@ -154,6 +154,12 @@ variable "trusted_domains" {
   default     = []
 }
 
+variable "additional_args" {
+  type        = string
+  description = "Additional command-line arguments to pass to code-server (e.g., '--disable-workspace-trust')."
+  default     = ""
+}
+
 resource "coder_script" "code-server" {
   agent_id     = var.agent_id
   display_name = "code-server"
@@ -175,6 +181,7 @@ resource "coder_script" "code-server" {
     FOLDER : var.folder,
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
     TRUSTED_DOMAINS : join(",", var.trusted_domains),
+    ADDITIONAL_ARGS : var.additional_args,
   })
   run_on_start = true
 
