@@ -114,9 +114,9 @@ variable "claude_code_version" {
   default     = "latest"
 }
 
-variable "enable_auto_update" {
+variable "disable_autoupdater" {
   type        = bool
-  description = "Allow Claude Code to automatically update itself. When false (default), Claude Code will stay on the installed version."
+  description = "Disable Claude Code automatic updates. When true, Claude Code will stay on the installed version."
   default     = false
 }
 
@@ -281,7 +281,7 @@ resource "coder_env" "claude_api_key" {
 }
 
 resource "coder_env" "disable_autoupdater" {
-  count = var.enable_auto_update ? 0 : 1
+  count = var.disable_autoupdater ? 1 : 0
 
   agent_id = var.agent_id
   name     = "DISABLE_AUTOUPDATER"
