@@ -28,6 +28,7 @@ ARG_BOUNDARY_LOG_LEVEL=${ARG_BOUNDARY_LOG_LEVEL:-"WARN"}
 ARG_BOUNDARY_PROXY_PORT=${ARG_BOUNDARY_PROXY_PORT:-"8087"}
 ARG_ENABLE_BOUNDARY_PPROF=${ARG_ENABLE_BOUNDARY_PPROF:-false}
 ARG_BOUNDARY_PPROF_PORT=${ARG_BOUNDARY_PPROF_PORT:-"6067"}
+ARG_COMPILE_FROM_SOURCE=${ARG_COMPILE_FROM_SOURCE:-false}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
 
 echo "--------------------------------"
@@ -45,6 +46,7 @@ printf "ARG_BOUNDARY_VERSION: %s\n" "$ARG_BOUNDARY_VERSION"
 printf "ARG_BOUNDARY_LOG_DIR: %s\n" "$ARG_BOUNDARY_LOG_DIR"
 printf "ARG_BOUNDARY_LOG_LEVEL: %s\n" "$ARG_BOUNDARY_LOG_LEVEL"
 printf "ARG_BOUNDARY_PROXY_PORT: %s\n" "$ARG_BOUNDARY_PROXY_PORT"
+printf "ARG_COMPILE_FROM_SOURCE: %s\n" "$ARG_COMPILE_FROM_SOURCE"
 printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
 
 echo "--------------------------------"
@@ -63,11 +65,25 @@ case $session_cleanup_exit_code in
 esac
 
 function install_boundary() {
-  # Install boundary from public github repo
-  git clone https://github.com/coder/boundary
-  cd boundary
-  git checkout $ARG_BOUNDARY_VERSION
-  go install ./cmd/...
+  if [ "${ARG_COMPILE_FROM_SOURCE:-false}" = "true" ]; then
+    # Install boundary by compiling from source
+    echo "Compiling boundary from source (version: $ARG_BOUNDARY_VERSION)"
+    git clone https://github.com/coder/boundary.git
+    cd boundary
+    git checkout "$ARG_BOUNDARY_VERSION"
+
+    # Build the binary
+    make build
+
+    # Install binary and wrapper script (optional)
+    sudo cp boundary /usr/local/bin/
+    sudo cp scripts/boundary-wrapper.sh /usr/local/bin/boundary-run
+    sudo chmod +x /usr/local/bin/boundary-run
+  else
+    # Install boundary using official install script
+    echo "Installing boundary using official install script (version: $ARG_BOUNDARY_VERSION)"
+    curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "$ARG_BOUNDARY_VERSION"
+  fi
 }
 
 function validate_claude_installation() {
@@ -209,9 +225,8 @@ function start_agentapi() {
       BOUNDARY_ARGS+=(--pprof-port ${ARG_BOUNDARY_PPROF_PORT})
     fi
 
-    agentapi server --allowed-hosts="*" --type claude --term-width 67 --term-height 1190 -- \
-      sudo -E env PATH=$PATH setpriv --reuid=$(id -u) --regid=$(id -g) --clear-groups \
-      --inh-caps=+net_admin --ambient-caps=+net_admin --bounding-set=+net_admin boundary "${BOUNDARY_ARGS[@]}" -- \
+    agentapi server --type claude --term-width 67 --term-height 1190 -- \
+      boundary-run "${BOUNDARY_ARGS[@]}" -- \
       claude "${ARGS[@]}"
   else
     agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
