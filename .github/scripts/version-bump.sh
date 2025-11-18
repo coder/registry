@@ -90,7 +90,7 @@ update_readme_version() {
                 if (line ~ /^[[:space:]]*version[[:space:]]*=/) {
                   match(line, /^[[:space:]]*/)
                   indent = substr(line, 1, RLENGTH)
-                  print indent "version = \"" new_version "\""
+            print indent "version = \"" new_version "\""
                 } else if (line != "") {
                   print line
                 }

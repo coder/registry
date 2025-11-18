@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.7"
+      version = ">= 2.12"
     }
   }
 }
@@ -112,6 +112,12 @@ variable "claude_code_version" {
   type        = string
   description = "The version of Claude Code to install."
   default     = "latest"
+}
+
+variable "disable_autoupdater" {
+  type        = bool
+  description = "Disable Claude Code automatic updates. When true, Claude Code will stay on the installed version."
+  default     = false
 }
 
 variable "claude_api_key" {
@@ -240,6 +246,12 @@ variable "boundary_pprof_port" {
   default     = "6067"
 }
 
+variable "compile_boundary_from_source" {
+  type        = bool
+  description = "Whether to compile boundary from source instead of using the official install script"
+  default     = false
+}
+
 resource "coder_env" "claude_code_md_path" {
   count = var.claude_md_path == "" ? 0 : 1
 
@@ -268,9 +280,17 @@ resource "coder_env" "claude_api_key" {
   value    = var.claude_api_key
 }
 
+resource "coder_env" "disable_autoupdater" {
+  count = var.disable_autoupdater ? 1 : 0
+
+  agent_id = var.agent_id
+  name     = "DISABLE_AUTOUPDATER"
+  value    = "1"
+}
+
 locals {
   # we have to trim the slash because otherwise coder exp mcp will
-  # set up an invalid claude config 
+  # set up an invalid claude config
   workdir                           = trimsuffix(var.workdir, "/")
   app_slug                          = "ccw"
   install_script                    = file("${path.module}/scripts/install.sh")
@@ -313,9 +333,8 @@ locals {
 }
 
 module "agentapi" {
-
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.2.0"
+  version = "2.0.0"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
@@ -349,14 +368,16 @@ module "agentapi" {
      ARG_PERMISSION_MODE='${var.permission_mode}' \
      ARG_WORKDIR='${local.workdir}' \
      ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+     ARG_REPORT_TASKS='${var.report_tasks}' \
      ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
      ARG_BOUNDARY_VERSION='${var.boundary_version}' \
      ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
      ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
-     ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join(" ", var.boundary_additional_allowed_urls)}' \
+     ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join("|", var.boundary_additional_allowed_urls)}' \
      ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
      ARG_ENABLE_BOUNDARY_PPROF='${var.enable_boundary_pprof}' \
      ARG_BOUNDARY_PPROF_PORT='${var.boundary_pprof_port}' \
+     ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
      ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh
    EOT
@@ -378,4 +399,8 @@ module "agentapi" {
     ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
     /tmp/install.sh
   EOT
+}
+
+output "task_app_id" {
+  value = module.agentapi.task_app_id
 }

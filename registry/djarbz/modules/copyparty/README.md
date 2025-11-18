@@ -17,7 +17,7 @@ This module installs Copyparty, an alternative to Filebrowser.
 module "copyparty" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/djarbz/copyparty/coder"
-  version = "1.0.0"
+  version = "1.0.1"
 }
 ```
 
@@ -35,7 +35,7 @@ Some basic command line options:
 module "copyparty" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/djarbz/copyparty/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.example.id
   arguments = [
     "-v", "/home/coder/:/home:r",       # Share home directory (read-only)
@@ -51,14 +51,14 @@ module "copyparty" {
 module "copyparty" {
   count     = data.coder_workspace.me.start_count
   source    = "registry.coder.com/djarbz/copyparty/coder"
-  version   = "1.0.0"
+  version   = "1.0.1"
   agent_id  = coder_agent.example.id
   subdomain = true
   arguments = [
     "-v", "/tmp:/tmp:r",                         # Share tmp directory (read-only)
     "-v", "/home/coder/:/home:rw",               # Share home directory (read-write)
     "-v", "${local.root_dir}:/work:A:c,dotsrch", # Share work directory (All Perms)
-    "-e2dsa",                                    # Enables general file indexing"
+    "-e2dsa",                                    # Enables general file indexing
     "--re-maxage", "900",                        # Rescan filesystem for changes every SEC
     "--see-dots",                                # Show dotfiles by default if user has correct permissions on volume
     "--xff-src=lan",                             # List of trusted reverse-proxy CIDRs (comma-separated) or `lan` for private IPs.

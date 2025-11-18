@@ -368,4 +368,90 @@ describe("codex", async () => {
     expect(prompt.exitCode).not.toBe(0);
     expect(prompt.stderr).toContain("No such file or directory");
   });
+
+  test("codex-continue-capture-new-session", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        continue: "true",
+        ai_prompt: "test task",
+      },
+    });
+
+    const workdir = "/home/coder";
+    const expectedSessionId = "019a1234-5678-9abc-def0-123456789012";
+    const sessionsDir = "/home/coder/.codex/sessions";
+    const sessionFile = `${sessionsDir}/${expectedSessionId}.jsonl`;
+
+    await execContainer(id, ["mkdir", "-p", sessionsDir]);
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `echo '{"id":"${expectedSessionId}","cwd":"${workdir}","created":"2024-10-24T20:00:00Z","model":"gpt-4-turbo"}' > ${sessionFile}`,
+    ]);
+
+    await execModuleScript(id);
+
+    await expectAgentAPIStarted(id);
+
+    const trackingFile = "/home/coder/.codex-module/.codex-task-session";
+    const maxAttempts = 30;
+    let trackingFileContents = "";
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const result = await execContainer(id, [
+        "bash",
+        "-c",
+        `cat ${trackingFile} 2>/dev/null || echo ""`,
+      ]);
+      if (result.stdout.trim().length > 0) {
+        trackingFileContents = result.stdout;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+
+    expect(trackingFileContents).toContain(`${workdir}|${expectedSessionId}`);
+
+    const startLog = await readFileContainer(
+      id,
+      "/home/coder/.codex-module/agentapi-start.log",
+    );
+    expect(startLog).toContain("Capturing new session ID");
+    expect(startLog).toContain("Session tracked");
+    expect(startLog).toContain(expectedSessionId);
+  });
+
+  test("codex-continue-resume-existing-session", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        continue: "true",
+        ai_prompt: "test prompt",
+      },
+    });
+
+    const workdir = "/home/coder";
+    const mockSessionId = "019a1234-5678-9abc-def0-123456789012";
+    const trackingFile = "/home/coder/.codex-module/.codex-task-session";
+
+    await execContainer(id, ["mkdir", "-p", "/home/coder/.codex-module"]);
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `echo "${workdir}|${mockSessionId}" > ${trackingFile}`,
+    ]);
+
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.codex-module/agentapi-start.log",
+    ]);
+    expect(startLog.stdout).toContain("Found existing task session");
+    expect(startLog.stdout).toContain(mockSessionId);
+    expect(startLog.stdout).toContain("Resuming existing session");
+    expect(startLog.stdout).toContain(
+      `Starting Codex with arguments: --model gpt-4-turbo resume ${mockSessionId}`,
+    );
+    expect(startLog.stdout).not.toContain("test prompt");
+  });
 });

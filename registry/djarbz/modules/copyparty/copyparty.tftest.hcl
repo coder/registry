@@ -80,7 +80,7 @@ run "test_defaults" {
   }
 
   assert {
-    condition     = strcontains(coder_script.copyparty.script, "IFS=',' read -r -a ARGUMENTS \u003c\u003c\u003c \"\"")
+    condition     = strcontains(coder_script.copyparty.script, "ARGUMENTS=()")
     error_message = "Script content does not reflect default empty arguments"
   }
 }
@@ -138,7 +138,7 @@ run "test_custom_values" {
   }
 
   assert {
-    condition     = strcontains(coder_script.copyparty.script, "IFS=',' read -r -a ARGUMENTS \u003c\u003c\u003c \"--verbose,-v\"")
+    condition     = strcontains(coder_script.copyparty.script, "ARGUMENTS=(\"--verbose\" \"-v\")")
     error_message = "Script content does not reflect custom arguments"
   }
 
@@ -178,4 +178,27 @@ run "test_invalid_share" {
   expect_failures = [
     var.share,
   ]
+}
+
+# --- Test Case 7: Comma in Arguments [Readme Example 2] ---
+run "test_comma_args" {
+  # Arguments containing commas
+  variables {
+    agent_id = "example-agent-id"
+    arguments = [
+      "-v", "/tmp:/tmp:r",             # Share tmp directory (read-only)
+      "-v", "/home/coder/:/home:rw",   # Share home directory (read-write)
+      "-v", "/work:/work:A:c,dotsrch", # Share work directory (All Perms)
+      "-e2dsa",                        # Enables general file indexing
+      "--re-maxage", "900",            # Rescan filesystem for changes every SEC
+      "--see-dots",                    # Show dotfiles by default if user has correct permissions on volume
+      "--xff-src=lan",                 # List of trusted reverse-proxy CIDRs (comma-separated) or `lan` for private IPs.
+      "--rproxy", "1",                 # Which ip to associate clients with, index of X-FWD IP.
+    ]
+  }
+
+  assert {
+    condition     = strcontains(coder_script.copyparty.script, "ARGUMENTS=(\"-v\" \"/tmp:/tmp:r\" \"-v\" \"/home/coder/:/home:rw\" \"-v\" \"/work:/work:A:c,dotsrch\" \"-e2dsa\" \"--re-maxage\" \"900\" \"--see-dots\" \"--xff-src=lan\" \"--rproxy\" \"1\")")
+    error_message = "Script content does not reflect Readme Example #2 arguments with commas"
+  }
 }

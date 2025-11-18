@@ -1,9 +1,12 @@
 #!/bin/bash
-set -euo pipefail
 
 if [ -f "$HOME/.bashrc" ]; then
   source "$HOME"/.bashrc
 fi
+
+# Set strict error handling AFTER sourcing bashrc to avoid unbound variable errors from user dotfiles
+set -euo pipefail
+
 export PATH="$HOME/.local/bin:$PATH"
 
 command_exists() {
@@ -17,6 +20,7 @@ ARG_DANGEROUSLY_SKIP_PERMISSIONS=${ARG_DANGEROUSLY_SKIP_PERMISSIONS:-}
 ARG_PERMISSION_MODE=${ARG_PERMISSION_MODE:-}
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
 ARG_AI_PROMPT=$(echo -n "${ARG_AI_PROMPT:-}" | base64 -d)
+ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 ARG_ENABLE_BOUNDARY=${ARG_ENABLE_BOUNDARY:-false}
 ARG_BOUNDARY_VERSION=${ARG_BOUNDARY_VERSION:-"main"}
 ARG_BOUNDARY_LOG_DIR=${ARG_BOUNDARY_LOG_DIR:-"/tmp/boundary_logs"}
@@ -24,6 +28,7 @@ ARG_BOUNDARY_LOG_LEVEL=${ARG_BOUNDARY_LOG_LEVEL:-"WARN"}
 ARG_BOUNDARY_PROXY_PORT=${ARG_BOUNDARY_PROXY_PORT:-"8087"}
 ARG_ENABLE_BOUNDARY_PPROF=${ARG_ENABLE_BOUNDARY_PPROF:-false}
 ARG_BOUNDARY_PPROF_PORT=${ARG_BOUNDARY_PPROF_PORT:-"6067"}
+ARG_COMPILE_FROM_SOURCE=${ARG_COMPILE_FROM_SOURCE:-false}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
 
 echo "--------------------------------"
@@ -35,26 +40,50 @@ printf "ARG_DANGEROUSLY_SKIP_PERMISSIONS: %s\n" "$ARG_DANGEROUSLY_SKIP_PERMISSIO
 printf "ARG_PERMISSION_MODE: %s\n" "$ARG_PERMISSION_MODE"
 printf "ARG_AI_PROMPT: %s\n" "$ARG_AI_PROMPT"
 printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
+printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
 printf "ARG_ENABLE_BOUNDARY: %s\n" "$ARG_ENABLE_BOUNDARY"
 printf "ARG_BOUNDARY_VERSION: %s\n" "$ARG_BOUNDARY_VERSION"
 printf "ARG_BOUNDARY_LOG_DIR: %s\n" "$ARG_BOUNDARY_LOG_DIR"
 printf "ARG_BOUNDARY_LOG_LEVEL: %s\n" "$ARG_BOUNDARY_LOG_LEVEL"
 printf "ARG_BOUNDARY_PROXY_PORT: %s\n" "$ARG_BOUNDARY_PROXY_PORT"
+printf "ARG_COMPILE_FROM_SOURCE: %s\n" "$ARG_COMPILE_FROM_SOURCE"
 printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
 
 echo "--------------------------------"
 
-# see the remove-last-session-id.sh script for details
-# about why we need it
-# avoid exiting if the script fails
-bash "/tmp/remove-last-session-id.sh" "$(pwd)" 2> /dev/null || true
+# Clean up stale session data (see remove-last-session-id.sh for details)
+CAN_CONTINUE_CONVERSATION=false
+set +e
+bash "/tmp/remove-last-session-id.sh" "$(pwd)" 2> /dev/null
+session_cleanup_exit_code=$?
+set -e
+
+case $session_cleanup_exit_code in
+  0)
+    CAN_CONTINUE_CONVERSATION=true
+    ;;
+esac
 
 function install_boundary() {
-  # Install boundary from public github repo
-  git clone https://github.com/coder/boundary
-  cd boundary
-  git checkout $ARG_BOUNDARY_VERSION
-  go install ./cmd/...
+  if [ "${ARG_COMPILE_FROM_SOURCE:-false}" = "true" ]; then
+    # Install boundary by compiling from source
+    echo "Compiling boundary from source (version: $ARG_BOUNDARY_VERSION)"
+    git clone https://github.com/coder/boundary.git
+    cd boundary
+    git checkout "$ARG_BOUNDARY_VERSION"
+
+    # Build the binary
+    make build
+
+    # Install binary and wrapper script (optional)
+    sudo cp boundary /usr/local/bin/
+    sudo cp scripts/boundary-wrapper.sh /usr/local/bin/boundary-run
+    sudo chmod +x /usr/local/bin/boundary-run
+  else
+    # Install boundary using official install script
+    echo "Installing boundary using official install script (version: $ARG_BOUNDARY_VERSION)"
+    curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "$ARG_BOUNDARY_VERSION"
+  fi
 }
 
 function validate_claude_installation() {
@@ -66,10 +95,15 @@ function validate_claude_installation() {
   fi
 }
 
+# Hardcoded task session ID for Coder task reporting
+# This ensures all task sessions use a consistent, predictable ID
 TASK_SESSION_ID="cd32e253-ca16-4fd3-9825-d837e74ae3c2"
 
 task_session_exists() {
-  if find "$HOME/.claude" -type f -name "*${TASK_SESSION_ID}*" 2> /dev/null | grep -q .; then
+  local workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
+  local project_dir="$HOME/.claude/projects/${workdir_normalized}"
+
+  if [ -d "$project_dir" ] && find "$project_dir" -type f -name "*${TASK_SESSION_ID}*" 2> /dev/null | grep -q .; then
     return 0
   else
     return 1
@@ -94,39 +128,63 @@ function start_agentapi() {
   fi
 
   if [ -n "$ARG_RESUME_SESSION_ID" ]; then
-    echo "Using explicit resume_session_id: $ARG_RESUME_SESSION_ID"
+    echo "Resuming task session by ID: $ARG_RESUME_SESSION_ID"
     ARGS+=(--resume "$ARG_RESUME_SESSION_ID")
     if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
       ARGS+=(--dangerously-skip-permissions)
     fi
   elif [ "$ARG_CONTINUE" = "true" ]; then
-    if task_session_exists; then
+    if [ "$ARG_REPORT_TASKS" = "true" ] && task_session_exists; then
       echo "Task session detected (ID: $TASK_SESSION_ID)"
       ARGS+=(--resume "$TASK_SESSION_ID")
+      ARGS+=(--dangerously-skip-permissions)
+      echo "Resuming existing task session"
+    elif [ "$ARG_REPORT_TASKS" = "false" ] && [ "$CAN_CONTINUE_CONVERSATION" = true ]; then
+      echo "Previous session exists"
+      ARGS+=(--continue)
       if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
         ARGS+=(--dangerously-skip-permissions)
       fi
-      echo "Resuming existing task session"
+      echo "Resuming existing session"
     else
-      echo "No existing task session found"
-      ARGS+=(--session-id "$TASK_SESSION_ID")
+      echo "No existing session found"
+      if [ "$ARG_REPORT_TASKS" = "true" ]; then
+        ARGS+=(--session-id "$TASK_SESSION_ID")
+      fi
       if [ -n "$ARG_AI_PROMPT" ]; then
-        ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
-        echo "Starting new task session with prompt"
+        if [ "$ARG_REPORT_TASKS" = "true" ]; then
+          ARGS+=(--dangerously-skip-permissions -- "$ARG_AI_PROMPT")
+        else
+          if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
+            ARGS+=(--dangerously-skip-permissions)
+          fi
+          ARGS+=(-- "$ARG_AI_PROMPT")
+        fi
+        echo "Starting new session with prompt"
       else
-        if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
+        if [ "$ARG_REPORT_TASKS" = "true" ] || [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
           ARGS+=(--dangerously-skip-permissions)
         fi
-        echo "Starting new task session"
+        echo "Starting new session"
       fi
     fi
   else
     echo "Continue disabled, starting fresh session"
+    if [ "$ARG_REPORT_TASKS" = "true" ]; then
+      ARGS+=(--session-id "$TASK_SESSION_ID")
+    fi
     if [ -n "$ARG_AI_PROMPT" ]; then
-      ARGS+=(--dangerously-skip-permissions "$ARG_AI_PROMPT")
+      if [ "$ARG_REPORT_TASKS" = "true" ]; then
+        ARGS+=(--dangerously-skip-permissions -- "$ARG_AI_PROMPT")
+      else
+        if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
+          ARGS+=(--dangerously-skip-permissions)
+        fi
+        ARGS+=(-- "$ARG_AI_PROMPT")
+      fi
       echo "Starting new session with prompt"
     else
-      if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
+      if [ "$ARG_REPORT_TASKS" = "true" ] || [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
         ARGS+=(--dangerously-skip-permissions)
       fi
       echo "Starting claude code session"
@@ -144,12 +202,13 @@ function start_agentapi() {
     # Build boundary args with conditional --unprivileged flag
     BOUNDARY_ARGS=(--log-dir "$ARG_BOUNDARY_LOG_DIR")
     # Add default allowed URLs
-    BOUNDARY_ARGS+=(--allow "*anthropic.com" --allow "registry.npmjs.org" --allow "*sentry.io" --allow "claude.ai" --allow "$ARG_CODER_HOST")
+    BOUNDARY_ARGS+=(--allow "domain=anthropic.com" --allow "domain=registry.npmjs.org" --allow "domain=sentry.io" --allow "domain=claude.ai" --allow "domain=$ARG_CODER_HOST")
 
     # Add any additional allowed URLs from the variable
     if [ -n "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS" ]; then
-      IFS=' ' read -ra ADDITIONAL_URLS <<< "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS"
+      IFS='|' read -ra ADDITIONAL_URLS <<< "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS"
       for url in "${ADDITIONAL_URLS[@]}"; do
+        # Quote the URL to preserve spaces within the allow rule
         BOUNDARY_ARGS+=(--allow "$url")
       done
     fi
@@ -166,8 +225,8 @@ function start_agentapi() {
       BOUNDARY_ARGS+=(--pprof-port ${ARG_BOUNDARY_PPROF_PORT})
     fi
 
-    agentapi server --allowed-hosts="*" --type claude --term-width 67 --term-height 1190 -- \
-      sudo -E env PATH=$PATH setpriv --inh-caps=+net_admin --ambient-caps=+net_admin --bounding-set=+net_admin boundary "${BOUNDARY_ARGS[@]}" -- \
+    agentapi server --type claude --term-width 67 --term-height 1190 -- \
+      boundary-run "${BOUNDARY_ARGS[@]}" -- \
       claude "${ARGS[@]}"
   else
     agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
