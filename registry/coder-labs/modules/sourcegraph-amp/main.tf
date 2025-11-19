@@ -161,9 +161,9 @@ variable "mcp" {
 }
 
 variable "mode" {
-  type = string
+  type        = string
   description = "Set the agent mode (free, rush, smart) — controls the model, system prompt, and tool selection"
-  default = ""
+  default     = ""
   validation {
     condition     = contains(["", "free", "rush", "smart"], var.mode)
     error_message = "Invalid mode. Select one from (free, rush, smart)"
