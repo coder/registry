@@ -15,8 +15,8 @@ module "amp-cli" {
   source                  = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
   version                 = "2.0.1"
   agent_id                = coder_agent.example.id
-  sourcegraph_amp_api_key = var.sourcegraph_amp_api_key
-  install_sourcegraph_amp = true
+  amp_api_key = var.amp_api_key
+  install_amp = true
   agentapi_version        = "latest"
 }
 ```

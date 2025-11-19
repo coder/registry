@@ -160,6 +160,16 @@ variable "mcp" {
   default     = null
 }
 
+variable "mode" {
+  type = string
+  description = "Set the agent mode (free, rush, smart) — controls the model, system prompt, and tool selection"
+  default = ""
+  validation {
+    condition     = contains(["free", "rush", "smart"], var.mode)
+    error_message = "Invalid mode. Select one from (free, rush, smart)"
+  }
+}
+
 data "external" "env" {
   program = ["sh", "-c", "echo '{\"CODER_AGENT_TOKEN\":\"'$CODER_AGENT_TOKEN'\",\"CODER_AGENT_URL\":\"'$CODER_AGENT_URL'\"}'"]
 }
@@ -170,6 +180,7 @@ locals {
   default_base_config = jsonencode({
     "amp.anthropic.thinking.enabled" = true
     "amp.todos.enabled"              = true
+    "amp.terminal.animation"         = false
   })
 
   user_config       = jsondecode(var.base_amp_config != "" ? var.base_amp_config : local.default_base_config)
@@ -237,6 +248,7 @@ module "agentapi" {
      ARG_AMP_START_DIRECTORY='${var.workdir}' \
      ARG_AMP_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
      ARG_REPORT_TASKS='${var.report_tasks}' \
+     ARG_MODE='${var.mode}' \
      /tmp/start.sh
    EOT
 
