@@ -38,11 +38,23 @@ variable "default_dotfiles_uri" {
   default     = ""
 }
 
+variable "default_dotfiles_branch" {
+  type        = string
+  description = "The default dotfiles branch if the workspace user does not provide one"
+  default     = "main"
+}
+
 variable "dotfiles_uri" {
   type        = string
   description = "The URL to a dotfiles repository. (optional, when set, the user isn't prompted for their dotfiles)"
 
   default = null
+}
+
+variable "dotfiles_branch" {
+  type        = string
+  description = "The branch to use for the dotfiles repository (optional, when set, the user isn't prompted for the branch)"
+  default     = null
 }
 
 variable "user" {
@@ -75,16 +87,29 @@ data "coder_parameter" "dotfiles_uri" {
   icon         = "/icon/dotfiles.svg"
 }
 
+data "coder_parameter" "dotfiles_branch" {
+  count        = var.dotfiles_branch == null ? 1 : 0
+  type         = "string"
+  name         = "dotfiles_branch"
+  display_name = "Dotfiles Branch"
+  default      = var.default_dotfiles_branch
+  description  = "The branch to use for the dotfiles repository"
+  mutable      = true
+  icon         = "/icon/dotfiles.svg"
+}
+
 locals {
-  dotfiles_uri = var.dotfiles_uri != null ? var.dotfiles_uri : data.coder_parameter.dotfiles_uri[0].value
-  user         = var.user != null ? var.user : ""
+  dotfiles_uri    = var.dotfiles_uri != null ? var.dotfiles_uri : data.coder_parameter.dotfiles_uri[0].value
+  dotfiles_branch = var.dotfiles_branch != null ? var.dotfiles_branch : data.coder_parameter.dotfiles_branch[0].value
+  user            = var.user != null ? var.user : ""
 }
 
 resource "coder_script" "dotfiles" {
   agent_id = var.agent_id
   script = templatefile("${path.module}/run.sh", {
     DOTFILES_URI : local.dotfiles_uri,
-    DOTFILES_USER : local.user
+    DOTFILES_USER : local.user,
+    DOTFILES_BRANCH : local.dotfiles_branch
   })
   display_name = "Dotfiles"
   icon         = "/icon/dotfiles.svg"
@@ -101,7 +126,8 @@ resource "coder_app" "dotfiles" {
   group        = var.group
   command = templatefile("${path.module}/run.sh", {
     DOTFILES_URI : local.dotfiles_uri,
-    DOTFILES_USER : local.user
+    DOTFILES_USER : local.user,
+    DOTFILES_BRANCH : local.dotfiles_branch
   })
 }
 
