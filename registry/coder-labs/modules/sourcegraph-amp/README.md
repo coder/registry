@@ -12,12 +12,12 @@ Run [Amp CLI](https://ampcode.com/) in your workspace to access Sourcegraph's AI
 
 ```tf
 module "amp-cli" {
-  source                  = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
-  version                 = "2.0.1"
-  agent_id                = coder_agent.example.id
-  amp_api_key = var.amp_api_key
-  install_amp = true
-  agentapi_version        = "latest"
+  source           = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
+  version          = "2.0.1"
+  agent_id         = coder_agent.example.id
+  amp_api_key      = var.amp_api_key
+  install_amp      = true
+  agentapi_version = "latest"
 }
 ```
 

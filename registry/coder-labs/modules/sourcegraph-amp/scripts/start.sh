@@ -30,8 +30,6 @@ printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
 printf "ARG_MODE: %s\n" "$ARG_MODE"
 echo "--------------------------------"
 
-
-
 ensure_command amp
 echo "AMP version: $(amp --version)"
 
@@ -54,8 +52,8 @@ fi
 ARGS=()
 
 if [ -n "$ARG_MODE" ]; then
-    printf "Running agent in: %s mode" "$ARG_MODE"
-    ARGS+=(--mode "$ARG_MODE")
+  printf "Running agent in: %s mode" "$ARG_MODE"
+  ARGS+=(--mode "$ARG_MODE")
 fi
 
 if [ -n "$ARG_AMP_TASK_PROMPT" ]; then
