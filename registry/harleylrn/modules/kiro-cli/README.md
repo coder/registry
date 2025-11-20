@@ -182,7 +182,7 @@ The module includes a default agent configuration template that provides a compr
   "toolAliases": {},
   "allowedTools": ["read", "@coder"],
   "resources": [
-    "file://AmazonQ.md",
+    "file://KiroQ.md",
     "file://README.md",
     "file://.kiro/steering/**/*.md"
   ],
