@@ -283,10 +283,10 @@ describe("kiro-cli module v1.0.0", async () => {
   });
 
   // 6. Configurable installation URL
-  it("uses configurable q_install_url parameter", async () => {
+  it("uses configurable kiro_install_url parameter", async () => {
     const customUrlVars = {
       ...requiredVars,
-      q_install_url: "https://internal-mirror.company.com/kiro-cli",
+      kiro_install_url: "https://internal-mirror.company.com/kiro-cli",
     };
 
     const state = await runTerraformApply(moduleDir, customUrlVars);
