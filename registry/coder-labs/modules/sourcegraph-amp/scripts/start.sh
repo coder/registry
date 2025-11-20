@@ -1,13 +1,15 @@
 #!/bin/bash
-set -euo pipefail
 
 # Load user environment
-# shellcheck source=/dev/null
-source "$HOME/.bashrc"
-# shellcheck source=/dev/null
+if [ -f "$HOME/.bashrc" ]; then
+  source "$HOME/.bashrc"
+fi
+
 if [ -f "$HOME/.nvm/nvm.sh" ]; then
   source "$HOME/.nvm/nvm.sh"
 fi
+
+set -euo pipefail
 
 export PATH="$HOME/.local/bin:$HOME/.amp/bin:$HOME/.npm-global/bin:$PATH"
 

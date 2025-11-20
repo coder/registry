@@ -47,6 +47,7 @@ install() {
   if [ "$${VAULT_CLI_VERSION}" = "latest" ]; then
     LATEST_VERSION=$(curl -s https://releases.hashicorp.com/vault/ | grep -v 'rc' | grep -oE 'vault/[0-9]+\.[0-9]+\.[0-9]+' | sed 's/vault\///' | sort -V | tail -n 1)
     printf "Latest version of Vault is %s.\n\n" "$${LATEST_VERSION}"
+    # shellcheck disable=SC2157
     if [ -z "$${LATEST_VERSION}" ]; then
       printf "Failed to determine the latest Vault version.\n"
       return 1
@@ -64,8 +65,10 @@ install() {
     fi
   fi
 
+  # shellcheck disable=SC2170
   if [ $${installation_needed} -eq 1 ]; then
     # Download and install Vault
+    # shellcheck disable=SC2157
     if [ -z "$${CURRENT_VERSION}" ]; then
       printf "Installing Vault CLI ...\n\n"
     else

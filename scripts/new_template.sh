@@ -58,7 +58,7 @@ mkdir -p "registry/${NAMESPACE}/templates/${TEMPLATE_NAME}"
 cp -r examples/templates/* "registry/${NAMESPACE}/templates/${TEMPLATE_NAME}/"
 
 # Change to template directory
-cd "registry/${NAMESPACE}/templates/${TEMPLATE_NAME}"
+cd "registry/${NAMESPACE}/templates/${TEMPLATE_NAME}" || exit
 
 # Detect OS and replace placeholders
 if [[ "$OSTYPE" == "darwin"* ]]; then

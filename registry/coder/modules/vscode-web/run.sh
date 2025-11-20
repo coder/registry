@@ -94,6 +94,7 @@ printf "$${BOLD}VS Code Web has been installed.\n"
 
 # Install each extension...
 IFS=',' read -r -a EXTENSIONLIST <<< "$${EXTENSIONS}"
+# shellcheck disable=SC2066
 for extension in "$${EXTENSIONLIST[@]}"; do
   if [ -z "$extension" ]; then
     continue
