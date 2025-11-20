@@ -48,7 +48,7 @@ const fullConfigVars = {
   agent_config: baseAgentConfig,
 };
 
-describe("kiro-cli module v2.0.0", async () => {
+describe("kiro-cli module v1.0.0", async () => {
   await runTerraformInit(moduleDir);
 
   // Test Case 1: Basic Usage – No Autonomous Use of Q
