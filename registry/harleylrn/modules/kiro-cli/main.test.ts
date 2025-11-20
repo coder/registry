@@ -394,7 +394,7 @@ describe("kiro-cli module v1.0.0", async () => {
   it("supports air-gapped installation with custom URL", async () => {
     const airGappedVars = {
       ...requiredVars,
-      q_install_url: "https://artifacts.internal.corp/kiro-cli-releases",
+      kiro_install_url: "https://artifacts.internal.corp/kiro-cli-releases",
       kiro_cli_version: "1.14.1",
     };
 
