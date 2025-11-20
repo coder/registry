@@ -239,7 +239,7 @@ This example will:
 
 > [!IMPORTANT]
 > By default `write` tool is not allowed, which will pause the task execution
-> an will wait for the prompt to approve it usage.
+> and will wait for the prompt to approve its usage.
 > To avoid this, and allow the normal task flow, user has two options:
 >
 > - Change the parameter `trust_all_tools` value to `true` (default to `false`)
