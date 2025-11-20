@@ -244,7 +244,7 @@ This example will:
 >
 > - Change the parameter `trust_all_tools` value to `true` (default to `false`)
 >   OR
-> - Provide you own agent configuration with the tools of your choice allowed
+> - Provide your own agent configuration with the tools of your choice allowed
 
 ### With Custom AI Prompt
 
