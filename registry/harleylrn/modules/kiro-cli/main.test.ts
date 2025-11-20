@@ -133,7 +133,7 @@ describe("kiro-cli module v1.0.0", async () => {
       workdir: "/tmp/test-workdir",
       auth_tarball: "dGVzdEF1dGhUYXJiYWxs", // base64 "testAuthTarball"
       kiro_cli_version: "1.14.1",
-      q_install_url: "https://desktop-release.q.us-east-1.amazonaws.com",
+      kiro_install_url: "https://desktop-release.q.us-east-1.amazonaws.com",
       install_kiro_cli: true,
       install_agentapi: true,
       agentapi_version: "v0.6.0",
