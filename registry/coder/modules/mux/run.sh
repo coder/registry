@@ -50,13 +50,14 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
     if [ ! -f package.json ]; then
       echo '{}' > package.json
     fi
+    echo "⏭️  Skipping npm lifecycle scripts with --ignore-scripts"
     PKG="mux"
     if [ -z "${VERSION}" ] || [ "${VERSION}" = "latest" ]; then
       PKG_SPEC="$PKG@latest"
     else
       PKG_SPEC="$PKG@${VERSION}"
     fi
-    if ! npm install --no-audit --no-fund --omit=dev "$PKG_SPEC"; then
+    if ! npm install --no-audit --no-fund --omit=dev --ignore-scripts "$PKG_SPEC"; then
       echo "❌ Failed to install mux via npm"
       exit 1
     fi
