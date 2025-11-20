@@ -36,7 +36,7 @@ const fullConfigVars = {
   install_agentapi: true,
   agentapi_version: "v0.6.0",
   kiro_cli_version: "1.14.1",
-  q_install_url: "https://desktop-release.q.us-east-1.amazonaws.com",
+  kiro_install_url: "https://desktop-release.q.us-east-1.amazonaws.com",
   trust_all_tools: false,
   ai_prompt: "Build a comprehensive test suite",
   auth_tarball: "dGVzdEF1dGhUYXJiYWxs", // base64 "testAuthTarball"
