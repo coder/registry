@@ -38,6 +38,12 @@ variable "vault_jwt_role" {
   description = "The name of the Vault role to use for authentication."
 }
 
+variable "vault_namespace" {
+  type        = string
+  description = "The Vault Enterprise namespace that contains the JWT auth mount."
+  default     = null
+}
+
 variable "vault_cli_version" {
   type        = string
   description = "The version of Vault to install."
@@ -57,6 +63,7 @@ resource "coder_script" "vault" {
     VAULT_JWT_AUTH_PATH : var.vault_jwt_auth_path,
     VAULT_JWT_ROLE : var.vault_jwt_role,
     VAULT_CLI_VERSION : var.vault_cli_version,
+    VAULT_NAMESPACE : var.vault_namespace != null ? var.vault_namespace : "",
   })
   run_on_start       = true
   start_blocks_login = true
@@ -66,6 +73,13 @@ resource "coder_env" "vault_addr" {
   agent_id = var.agent_id
   name     = "VAULT_ADDR"
   value    = var.vault_addr
+}
+
+resource "coder_env" "vault_namespace" {
+  count    = var.vault_namespace == null ? 0 : 1
+  agent_id = var.agent_id
+  name     = "VAULT_NAMESPACE"
+  value    = var.vault_namespace
 }
 
 data "coder_workspace_owner" "me" {}
