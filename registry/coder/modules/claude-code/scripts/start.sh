@@ -149,7 +149,11 @@ function start_agentapi() {
     else
       echo "No existing session found"
       if [ "$ARG_REPORT_TASKS" = "true" ]; then
-        ARGS+=(--session-id "$TASK_SESSION_ID")
+        if task_session_exists; then
+          ARGS+=(--resume "$TASK_SESSION_ID")
+        else
+          ARGS+=(--session-id "$TASK_SESSION_ID")
+        fi
       fi
       if [ -n "$ARG_AI_PROMPT" ]; then
         if [ "$ARG_REPORT_TASKS" = "true" ]; then
@@ -171,7 +175,11 @@ function start_agentapi() {
   else
     echo "Continue disabled, starting fresh session"
     if [ "$ARG_REPORT_TASKS" = "true" ]; then
-      ARGS+=(--session-id "$TASK_SESSION_ID")
+      if task_session_exists; then
+        ARGS+=(--session-id "$TASK_SESSION_ID")
+      else
+        ARGS+=(--resume "$TASK_SESSION_ID")
+      fi
     fi
     if [ -n "$ARG_AI_PROMPT" ]; then
       if [ "$ARG_REPORT_TASKS" = "true" ]; then
