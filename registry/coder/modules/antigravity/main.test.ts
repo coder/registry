@@ -91,7 +91,7 @@ describe("antigravity", async () => {
     expect(coder_app?.instances[0].attributes.order).toBe(22);
   });
 
-  it("writes ~/.antigravity/mcp.json when mcp provided", async () => {
+  it("writes ~/.gemini/antigravity/mcp_config.json when mcp provided", async () => {
     const id = await runContainer("alpine");
     try {
       const mcp = JSON.stringify({
@@ -114,7 +114,7 @@ describe("antigravity", async () => {
       expect(resp.exitCode).toBe(0);
       const content = await readFileContainer(
         id,
-        "/root/.antigravity/mcp.json",
+        "/root/.gemini/antigravity/mcp_config.json",
       );
       expect(content).toBe(mcp);
     } finally {

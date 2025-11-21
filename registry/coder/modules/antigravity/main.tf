@@ -52,7 +52,7 @@ variable "display_name" {
 
 variable "mcp" {
   type        = string
-  description = "JSON-encoded string to configure MCP servers for Antigravity. When set, writes ~/.antigravity/mcp.json."
+  description = "JSON-encoded string to configure MCP servers for Antigravity. When set, writes ~/.gemini/antigravity/mcp_config.json."
   default     = ""
 }
 
@@ -96,9 +96,9 @@ resource "coder_script" "antigravity_mcp" {
   script             = <<-EOT
     #!/bin/sh
     set -eu
-    mkdir -p "$HOME/.antigravity"
-    echo -n "${local.mcp_b64}" | base64 -d > "$HOME/.antigravity/mcp.json"
-    chmod 600 "$HOME/.antigravity/mcp.json"
+    mkdir -p "$HOME/.gemini/antigravity"
+    echo -n "${local.mcp_b64}" | base64 -d > "$HOME/.gemini/antigravity/mcp_config.json"
+    chmod 600 "$HOME/.gemini/antigravity/mcp_config.json"
   EOT
 }
 

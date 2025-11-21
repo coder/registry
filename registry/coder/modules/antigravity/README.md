@@ -8,7 +8,7 @@ tags: [ide, antigravity, ai]
 
 # Antigravity IDE
 
-Add a button to open any workspace with a single click in Antigravity IDE.
+Add a button to open any workspace with a single click in [Antigravity IDE](https://antigravity.google).
 
 Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder).
 
@@ -37,7 +37,7 @@ module "antigravity" {
 
 ### Configure MCP servers for Antigravity
 
-Provide a JSON-encoded string via the `mcp` input. When set, the module writes the value to `~/.antigravity/mcp.json` using a `coder_script` on workspace start.
+Provide a JSON-encoded string via the `mcp` input. When set, the module writes the value to `~/.gemini/antigravity/mcp_config.json` using a `coder_script` on workspace start.
 
 The following example configures Antigravity to use the GitHub MCP server with authentication facilitated by the [`coder_external_auth`](https://coder.com/docs/admin/external-auth#configure-a-github-oauth-app) resource.
 
