@@ -181,10 +181,10 @@ function start_agentapi() {
     if [ "$ARG_REPORT_TASKS" = "true" ]; then
       if task_session_exists; then
         printf "YAYAYA"
-        ARGS+=(--session-id "$TASK_SESSION_ID")
+        ARGS+=(--resume "$TASK_SESSION_ID")
       else
         printf "JAJAJA"
-        ARGS+=(--resume "$TASK_SESSION_ID")
+        ARGS+=(--session-id "$TASK_SESSION_ID")
       fi
     fi
     if [ -n "$ARG_AI_PROMPT" ]; then
