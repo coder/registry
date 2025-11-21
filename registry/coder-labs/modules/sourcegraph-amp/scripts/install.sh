@@ -1,8 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-source "$HOME"/.bashrc
-
 # ANSI colors
 BOLD='\033[1m'
 GREEN='\033[0;32m'
