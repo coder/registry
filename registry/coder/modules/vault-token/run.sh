@@ -2,6 +2,7 @@
 
 # Convert all templated variables to shell variables
 INSTALL_VERSION=${INSTALL_VERSION}
+VAULT_NAMESPACE=${VAULT_NAMESPACE}
 
 fetch() {
   dest="$1"
@@ -101,3 +102,8 @@ if ! (
   exit 1
 fi
 rm -rf "$TMP"
+
+if [ -n "$${VAULT_NAMESPACE}" ]; then
+  export VAULT_NAMESPACE
+  printf "📁 Using Vault namespace: %s\n\n" "$${VAULT_NAMESPACE}"
+fi
