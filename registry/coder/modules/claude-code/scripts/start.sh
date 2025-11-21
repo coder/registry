@@ -103,9 +103,13 @@ task_session_exists() {
   local workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
   local project_dir="$HOME/.claude/projects/${workdir_normalized}"
 
+  printf "PROJECT_DIR: %s, workdir_normalized: %s" "$project_dir" "$workdir_normalized"
+
   if [ -d "$project_dir" ] && find "$project_dir" -type f -name "*${TASK_SESSION_ID}*" 2> /dev/null | grep -q .; then
+    printf "TASK_SESSION_ID: %s file found" "$TASK_SESSION_ID"
     return 0
   else
+    printf "TASK_SESSION_ID: %s file not found" "$TASK_SESSION_ID"
     return 1
   fi
 }
@@ -176,8 +180,10 @@ function start_agentapi() {
     echo "Continue disabled, starting fresh session"
     if [ "$ARG_REPORT_TASKS" = "true" ]; then
       if task_session_exists; then
+        printf "YAYAYA"
         ARGS+=(--session-id "$TASK_SESSION_ID")
       else
+        printf "JAJAJA"
         ARGS+=(--resume "$TASK_SESSION_ID")
       fi
     fi
