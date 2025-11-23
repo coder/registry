@@ -55,7 +55,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.10.0"
+  default     = "v0.11.1"
 }
 
 variable "cli_app" {
