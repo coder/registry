@@ -24,7 +24,7 @@ resource "coder_script" "rdp_keepalive" {
   display_name = "RDP Keep Alive"
   icon         = "/icon/remote-desktop.svg"
   run_on_start = true
-  
+
   # We run a PowerShell loop in the background
   script = <<EOT
 $Interval = ${var.interval}
@@ -37,8 +37,6 @@ while ($true) {
     
     if ($rdpSession) {
         # RDP is active. We need to generate 'activity' to prevent shutdown.
-        # Since Coder monitors network/ssh, the simplest way to bump activity 
-        # is to simulate a state change or write to stdout which the agent captures.
         
         $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
         Write-Host "[$timestamp] RDP Active - Sending KeepAlive signal"
