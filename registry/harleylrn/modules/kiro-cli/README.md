@@ -91,6 +91,8 @@ variable "kiro_cli_auth_tarball" {
 A `coder_parameter` named **'AI Prompt'** is required to enable integration with [Coder Tasks](https://coder.com/docs/ai-coder/tasks).
 
 ```tf
+data "coder_task" "me" {}
+
 data "coder_parameter" "ai_prompt" {
   name         = "AI Prompt"
   display_name = "AI Prompt"
