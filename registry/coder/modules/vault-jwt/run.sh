@@ -4,6 +4,7 @@
 VAULT_CLI_VERSION=${VAULT_CLI_VERSION}
 VAULT_JWT_AUTH_PATH=${VAULT_JWT_AUTH_PATH}
 VAULT_JWT_ROLE=${VAULT_JWT_ROLE}
+VAULT_NAMESPACE=${VAULT_NAMESPACE}
 CODER_OIDC_ACCESS_TOKEN=${CODER_OIDC_ACCESS_TOKEN}
 
 fetch() {
@@ -107,6 +108,11 @@ if ! (
   exit 1
 fi
 rm -rf "$TMP"
+
+if [ -n "$${VAULT_NAMESPACE}" ]; then
+  export VAULT_NAMESPACE
+  printf "📁 Using Vault namespace: %s\n\n" "$${VAULT_NAMESPACE}"
+fi
 
 # Authenticate with Vault
 printf "🔑 Authenticating with Vault ...\n\n"

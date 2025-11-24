@@ -4,6 +4,7 @@
 INSTALL_VERSION=${INSTALL_VERSION}
 GITHUB_EXTERNAL_AUTH_ID=${GITHUB_EXTERNAL_AUTH_ID}
 AUTH_PATH=${AUTH_PATH}
+VAULT_NAMESPACE=${VAULT_NAMESPACE}
 
 fetch() {
   dest="$1"
@@ -106,6 +107,11 @@ if ! (
   exit 1
 fi
 rm -rf "$TMP"
+
+if [ -n "$${VAULT_NAMESPACE}" ]; then
+  export VAULT_NAMESPACE
+  printf "📁 Using Vault namespace: %s\n\n" "$${VAULT_NAMESPACE}"
+fi
 
 # Authenticate with Vault
 printf "🔑 Authenticating with Vault ...\n\n"
