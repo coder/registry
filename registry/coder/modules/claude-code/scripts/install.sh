@@ -70,8 +70,8 @@ function setup_claude_configurations() {
   if [ "$ARG_MCP" != "" ]; then
     while IFS= read -r server_name && IFS= read -r server_json; do
       echo "------------------------"
-      echo "Executing: claude mcp add \"$server_name\" '$server_json'"
-      claude mcp add "$server_name" "$server_json"
+      echo "Executing: claude mcp add-json \"$server_name\" '$server_json'"
+      claude mcp add-json "$server_name" "$server_json"
       echo "------------------------"
       echo ""
     done < <(echo "$ARG_MCP" | jq -r '.mcpServers | to_entries[] | .key, (.value | @json)')
