@@ -68,13 +68,16 @@ function setup_claude_configurations() {
   mkdir -p "$module_path"
 
   if [ "$ARG_MCP" != "" ]; then
-    while IFS= read -r server_name && IFS= read -r server_json; do
-      echo "------------------------"
-      echo "Executing: claude mcp add-json \"$server_name\" '$server_json'"
-      claude mcp add-json "$server_name" "$server_json"
-      echo "------------------------"
-      echo ""
-    done < <(echo "$ARG_MCP" | jq -r '.mcpServers | to_entries[] | .key, (.value | @json)')
+    (
+      cd "$ARG_WORKDIR"
+      while IFS= read -r server_name && IFS= read -r server_json; do
+        echo "------------------------"
+        echo "Executing: claude mcp add-json \"$server_name\" '$server_json' (in $ARG_WORKDIR)"
+        claude mcp add-json "$server_name" "$server_json"
+        echo "------------------------"
+        echo ""
+      done < <(echo "$ARG_MCP" | jq -r '.mcpServers | to_entries[] | .key, (.value | @json)')
+    )
   fi
 
   if [ -n "$ARG_ALLOWED_TOOLS" ]; then
