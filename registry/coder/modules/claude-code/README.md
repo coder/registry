@@ -89,9 +89,11 @@ module "claude-code" {
   mcp = <<-EOF
   {
     "mcpServers": {
-      "my-custom-tool": {
-        "command": "my-tool-server",
-        "args": ["--port", "8080"]
+      "memory": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-memory"],
+        "env": {}
       }
     }
   }
