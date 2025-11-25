@@ -114,6 +114,12 @@ variable "claude_code_version" {
   default     = "latest"
 }
 
+variable "disable_autoupdater" {
+  type        = bool
+  description = "Disable Claude Code automatic updates. When true, Claude Code will stay on the installed version."
+  default     = false
+}
+
 variable "claude_api_key" {
   type        = string
   description = "The API key to use for the Claude Code server."
@@ -240,6 +246,12 @@ variable "boundary_pprof_port" {
   default     = "6067"
 }
 
+variable "compile_boundary_from_source" {
+  type        = bool
+  description = "Whether to compile boundary from source instead of using the official install script"
+  default     = false
+}
+
 resource "coder_env" "claude_code_md_path" {
   count = var.claude_md_path == "" ? 0 : 1
 
@@ -266,6 +278,14 @@ resource "coder_env" "claude_api_key" {
   agent_id = var.agent_id
   name     = "CLAUDE_API_KEY"
   value    = var.claude_api_key
+}
+
+resource "coder_env" "disable_autoupdater" {
+  count = var.disable_autoupdater ? 1 : 0
+
+  agent_id = var.agent_id
+  name     = "DISABLE_AUTOUPDATER"
+  value    = "1"
 }
 
 locals {
@@ -357,6 +377,7 @@ module "agentapi" {
      ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
      ARG_ENABLE_BOUNDARY_PPROF='${var.enable_boundary_pprof}' \
      ARG_BOUNDARY_PPROF_PORT='${var.boundary_pprof_port}' \
+     ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
      ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh
    EOT

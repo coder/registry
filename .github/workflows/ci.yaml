@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Detect changed files
         uses: dorny/paths-filter@v3
         id: filter
@@ -69,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -82,7 +82,7 @@ jobs:
       - name: Validate formatting
         run: bun fmt:ci
       - name: Check for typos
-        uses: crate-ci/typos@v1.39.0
+        uses: crate-ci/typos@v1.39.2
         with:
           config: .github/typos.toml
   validate-readme-files:
@@ -93,11 +93,11 @@ jobs:
     needs: validate-style
     steps:
       - name: Check out code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.23.2"
+          go-version: "1.24.0"
       - name: Validate contributors
         run: go build ./cmd/readmevalidation && ./readmevalidation
       - name: Remove build file artifact
