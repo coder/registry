@@ -17,8 +17,8 @@ run "defaults_are_correct" {
   }
 
   assert {
-    condition     = var.agentapi_version == "v0.10.0"
-    error_message = "Default AgentAPI version should be 'v0.10.0'"
+    condition     = var.agentapi_version == "v0.11.2"
+    error_message = "Default AgentAPI version should be 'v0.11.2'"
   }
 
   assert {
