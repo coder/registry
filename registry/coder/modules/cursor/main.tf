@@ -98,6 +98,6 @@ resource "coder_script" "cursor_mcp" {
 }
 
 output "cursor_url" {
-  value       = module.cursor.ide_uri
+  value       = module.vscode-desktop-core.ide_uri
   description = "Cursor IDE Desktop URL."
 }

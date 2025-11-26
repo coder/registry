@@ -97,6 +97,6 @@ resource "coder_script" "windsurf_mcp" {
 }
 
 output "windsurf_url" {
-  value       = module.windsurf.ide_uri
+  value       = module.vscode-desktop-core.ide_uri
   description = "Windsurf Editor URL."
 }

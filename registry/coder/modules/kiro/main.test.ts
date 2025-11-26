@@ -26,7 +26,7 @@ describe("kiro", async () => {
     );
 
     const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "kiro",
+      (res) => res.type === "coder_app" && res.module === "module.vscode-desktop-core" && res.name === "vscode-desktop",
     );
 
     expect(coder_app).not.toBeNull();
@@ -63,7 +63,7 @@ describe("kiro", async () => {
     });
 
     const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "kiro",
+      (res) => res.type === "coder_app" && res.module === "module.vscode-desktop-core" && res.name === "vscode-desktop",
     );
 
     expect(coder_app?.instances[0].attributes.slug).toBe("kiro-ai");
@@ -77,7 +77,7 @@ describe("kiro", async () => {
     });
 
     const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "kiro",
+      (res) => res.type === "coder_app" && res.module === "module.vscode-desktop-core" && res.name === "vscode-desktop",
     );
 
     expect(coder_app?.instances[0].attributes.order).toBe(5);
@@ -90,7 +90,7 @@ describe("kiro", async () => {
     });
 
     const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "kiro",
+      (res) => res.type === "coder_app" && res.module === "module.vscode-desktop-core" && res.name === "vscode-desktop",
     );
 
     expect(coder_app?.instances[0].attributes.group).toBe("AI IDEs");

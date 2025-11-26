@@ -58,8 +58,8 @@ module "vscode-desktop-core" {
   agent_id = var.agent_id
 
   coder_app_icon         = "/icon/kiro.svg"
-  coder_app_slug         = "kiro"
-  coder_app_display_name = "Kiro IDE"
+  coder_app_slug         = "kiro-ai"
+  coder_app_display_name = "Kiro AI IDE"
   coder_app_order        = var.order
   coder_app_group        = var.group
 
@@ -85,6 +85,6 @@ resource "coder_script" "kiro_mcp" {
 }
 
 output "kiro_url" {
-  value       = module.kiro.ide_uri
+  value       = module.vscode-desktop-core.ide_uri
   description = "Kiro IDE URL."
 }

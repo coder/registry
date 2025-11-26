@@ -56,6 +56,6 @@ module "vscode-desktop-core" {
 }
 
 output "vscode_url" {
-  value       = module.vscode.ide_uri
+  value       = module.vscode-desktop-core.ide_uri
   description = "VS Code Desktop URL."
 }
