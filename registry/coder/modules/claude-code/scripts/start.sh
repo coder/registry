@@ -100,7 +100,8 @@ function validate_claude_installation() {
 TASK_SESSION_ID="cd32e253-ca16-4fd3-9825-d837e74ae3c2"
 
 task_session_exists() {
-  local workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
+  local workdir_normalized
+  workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
   local project_dir="$HOME/.claude/projects/${workdir_normalized}"
 
   printf "PROJECT_DIR: %s, workdir_normalized: %s\n" "$project_dir" "$workdir_normalized"
