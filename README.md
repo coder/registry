@@ -11,13 +11,15 @@ Coder Registry is a community-driven platform for extending your Coder workspace
 
 ## Overview
 
-Coder is built on HashiCorp's open-source Terraform language to provide developers an easy, declarative way to define the infrastructure for their remote development environments. Coder-flavored versions of Terraform allow you to mix in reusable Terraform snippets to add integrations with other popular development tools, such as JetBrains, Cursor, or Visual Studio Code.
+Coder is built on HashiCorp's open-source Terraform language to provide developers an easy, declarative way to define the infrastructure for their remote development environments. Coder-flavored versions of Terraform allow you to mix in reusable Terraform snippets to add integrations with other popular development tools, such as **JetBrains**, **Cursor**, or **Visual Studio Code**.
 
 Simply add the correct import snippet, along with any data dependencies, and your workspace can start using the new functionality immediately.
 
-![Coder Agent Bar](./images/coder-agent-bar.png)
+!
 
 More information [about Coder Modules can be found here](https://coder.com/docs/admin/templates/extending-templates/modules), while more information [about Coder Templates can be found here](https://coder.com/docs/admin/templates/creating-templates).
+
+---
 
 ## Getting started
 
@@ -31,24 +33,15 @@ To get started with a module, navigate to that module's page in either the regis
 
 - [The Cursor repo directory](https://github.com/coder/registry/tree/main/registry/coder/modules/cursor)
 - [The Cursor module page on the main website](https://registry.coder.com/modules/cursor)
+- **[The Windows RDP Keep-Alive module directory (youngthug38)](https://github.com/coder/registry/tree/main/registry/youngthug38/modules/windows-rdp-keepalive)**
+- **[The Windows RDP Keep-Alive module page on the main website](https://registry.coder.com/modules/youngthug38/windows-rdp-keepalive)**
 
 In both cases, the main README contains a Terraform snippet for integrating the module into your workspace. The snippet for Cursor looks like this:
 
 ```tf
 module "cursor" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/cursor/coder"
-  version  = "1.0.19"
-  agent_id = coder_agent.example.id
+  count    = data.coder_workspace.me.start_count
+  source   = "[registry.coder.com/coder/cursor/coder](https://registry.coder.com/coder/cursor/coder)"
+  version  = "1.0.19"
+  agent_id = coder_agent.example.id
 }
-```
-
-Simply include that snippet inside your Coder template, defining any data dependencies referenced, and the next time you create a new workspace, the functionality will be ready for you to use.
-
-## Contributing
-
-We are always accepting new contributions. [Please see our contributing guide for more information.](./CONTRIBUTING.md)
-
-## For Maintainers
-
-Guidelines for maintainers reviewing PRs and managing releases. [See the maintainer guide for more information.](./MAINTAINER.md)
