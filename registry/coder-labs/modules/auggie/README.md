@@ -14,7 +14,7 @@ Run Auggie CLI in your workspace to access Augment's AI coding assistant with ad
 module "auggie" {
   source   = "registry.coder.com/coder-labs/auggie/coder"
   version  = "0.2.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
 ```
@@ -42,13 +42,13 @@ module "coder-login" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/coder-login/coder"
   version  = "1.0.31"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 
 module "auggie" {
   source   = "registry.coder.com/coder-labs/auggie/coder"
   version  = "0.2.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 
   # Authentication
@@ -104,7 +104,7 @@ EOF
 module "auggie" {
   source   = "registry.coder.com/coder-labs/auggie/coder"
   version  = "0.2.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 
   # Multiple MCP configuration files

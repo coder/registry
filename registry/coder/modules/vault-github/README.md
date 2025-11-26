@@ -15,7 +15,7 @@ module "vault" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/vault-github/coder"
   version    = "1.1.0"
-  agent_id   = coder_agent.example.id
+  agent_id   = coder_agent.main.id
   vault_addr = "https://vault.example.com"
 }
 ```
@@ -47,7 +47,7 @@ module "vault" {
   count                = data.coder_workspace.me.start_count
   source               = "registry.coder.com/coder/vault-github/coder"
   version              = "1.1.0"
-  agent_id             = coder_agent.example.id
+  agent_id             = coder_agent.main.id
   vault_addr           = "https://vault.example.com"
   coder_github_auth_id = "my-github-auth-id"
 }
@@ -60,7 +60,7 @@ module "vault" {
   count                  = data.coder_workspace.me.start_count
   source                 = "registry.coder.com/coder/vault-github/coder"
   version                = "1.1.0"
-  agent_id               = coder_agent.example.id
+  agent_id               = coder_agent.main.id
   vault_addr             = "https://vault.example.com"
   coder_github_auth_id   = "my-github-auth-id"
   vault_github_auth_path = "my-github-auth-path"
@@ -74,7 +74,7 @@ module "vault" {
   count             = data.coder_workspace.me.start_count
   source            = "registry.coder.com/coder/vault-github/coder"
   version           = "1.1.0"
-  agent_id          = coder_agent.example.id
+  agent_id          = coder_agent.main.id
   vault_addr        = "https://vault.example.com"
   vault_cli_version = "1.15.0"
 }

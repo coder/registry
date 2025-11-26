@@ -15,7 +15,7 @@ module "vault" {
   count           = data.coder_workspace.me.start_count
   source          = "registry.coder.com/coder/vault-jwt/coder"
   version         = "1.2.0"
-  agent_id        = coder_agent.example.id
+  agent_id        = coder_agent.main.id
   vault_addr      = "https://vault.example.com"
   vault_jwt_role  = "coder"                # The Vault role to use for authentication
   vault_jwt_token = "eyJhbGciOiJIUzI1N..." # optional, if not present, defaults to user's oidc authentication token
@@ -43,7 +43,7 @@ module "vault" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/vault-jwt/coder"
   version             = "1.2.0"
-  agent_id            = coder_agent.example.id
+  agent_id            = coder_agent.main.id
   vault_addr          = "https://vault.example.com"
   vault_jwt_auth_path = "oidc"
   vault_jwt_role      = "coder" # The Vault role to use for authentication
@@ -59,7 +59,7 @@ module "vault" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vault-jwt/coder"
   version        = "1.2.0"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   vault_addr     = "https://vault.example.com"
   vault_jwt_role = data.coder_workspace_owner.me.groups[0]
 }
@@ -72,7 +72,7 @@ module "vault" {
   count             = data.coder_workspace.me.start_count
   source            = "registry.coder.com/coder/vault-jwt/coder"
   version           = "1.2.0"
-  agent_id          = coder_agent.example.id
+  agent_id          = coder_agent.main.id
   vault_addr        = "https://vault.example.com"
   vault_jwt_role    = "coder" # The Vault role to use for authentication
   vault_cli_version = "1.17.5"
@@ -133,7 +133,7 @@ module "vault" {
   count           = data.coder_workspace.me.start_count
   source          = "registry.coder.com/coder/vault-jwt/coder"
   version         = "1.2.0"
-  agent_id        = coder_agent.example.id
+  agent_id        = coder_agent.main.id
   vault_addr      = "https://vault.example.com"
   vault_jwt_role  = "coder" # The Vault role to use for authentication
   vault_jwt_token = jwt_signed_token.vault[0].token

@@ -20,7 +20,7 @@ variable "vault_token" {
 module "vault" {
   source          = "registry.coder.com/coder/vault-token/coder"
   version         = "1.3.0"
-  agent_id        = coder_agent.example.id
+  agent_id        = coder_agent.main.id
   vault_token     = var.token # optional
   vault_addr      = "https://vault.example.com"
   vault_namespace = "prod" # optional, vault enterprise only
@@ -74,7 +74,7 @@ variable "vault_token" {
 module "vault" {
   source            = "registry.coder.com/coder/vault-token/coder"
   version           = "1.3.0"
-  agent_id          = coder_agent.example.id
+  agent_id          = coder_agent.main.id
   vault_addr        = "https://vault.example.com"
   vault_token       = var.token
   vault_cli_version = "1.19.0"

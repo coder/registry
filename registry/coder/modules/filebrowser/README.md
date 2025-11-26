@@ -15,7 +15,7 @@ module "filebrowser" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/filebrowser/coder"
   version  = "1.1.2"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -30,7 +30,7 @@ module "filebrowser" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/filebrowser/coder"
   version  = "1.1.2"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
 ```
@@ -42,7 +42,7 @@ module "filebrowser" {
   count         = data.coder_workspace.me.start_count
   source        = "registry.coder.com/coder/filebrowser/coder"
   version       = "1.1.2"
-  agent_id      = coder_agent.example.id
+  agent_id      = coder_agent.main.id
   database_path = ".config/filebrowser.db"
 }
 ```
@@ -54,7 +54,7 @@ module "filebrowser" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/filebrowser/coder"
   version    = "1.1.2"
-  agent_id   = coder_agent.example.id
+  agent_id   = coder_agent.main.id
   agent_name = "main"
   subdomain  = false
 }

@@ -14,7 +14,7 @@ Run [Amazon Q](https://aws.amazon.com/q/) in your workspace to access Amazon's A
 module "amazon-q" {
   source   = "registry.coder.com/coder/amazon-q/coder"
   version  = "3.0.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   workdir  = "/home/coder"
 
   # Required: Authentication tarball (see below for generation)
@@ -103,7 +103,7 @@ data "coder_parameter" "ai_prompt" {
 module "amazon-q" {
   source          = "registry.coder.com/coder/amazon-q/coder"
   version         = "3.0.0"
-  agent_id        = coder_agent.example.id
+  agent_id        = coder_agent.main.id
   workdir         = "/home/coder"
   auth_tarball    = var.amazon_q_auth_tarball
   ai_prompt       = data.coder_parameter.ai_prompt.value
@@ -229,7 +229,7 @@ If no custom `agent_config` is provided, the default agent name "agent" is used.
 module "amazon-q" {
   source       = "registry.coder.com/coder/amazon-q/coder"
   version      = "3.0.0"
-  agent_id     = coder_agent.example.id
+  agent_id     = coder_agent.main.id
   workdir      = "/home/coder"
   auth_tarball = var.amazon_q_auth_tarball
 }
@@ -259,7 +259,7 @@ This example will:
 module "amazon-q" {
   source          = "registry.coder.com/coder/amazon-q/coder"
   version         = "3.0.0"
-  agent_id        = coder_agent.example.id
+  agent_id        = coder_agent.main.id
   workdir         = "/home/coder"
   auth_tarball    = var.amazon_q_auth_tarball
   ai_prompt       = "Help me set up a Python FastAPI project with proper testing structure"
@@ -280,7 +280,7 @@ module "amazon-q" {
 module "amazon-q" {
   source       = "registry.coder.com/coder/amazon-q/coder"
   version      = "3.0.0"
-  agent_id     = coder_agent.example.id
+  agent_id     = coder_agent.main.id
   workdir      = "/home/coder"
   auth_tarball = var.amazon_q_auth_tarball
 
@@ -306,7 +306,7 @@ module "amazon-q" {
 module "amazon-q" {
   source           = "registry.coder.com/coder/amazon-q/coder"
   version          = "3.0.0"
-  agent_id         = coder_agent.example.id
+  agent_id         = coder_agent.main.id
   workdir          = "/home/coder"
   auth_tarball     = var.amazon_q_auth_tarball
   amazon_q_version = "1.14.0" # Specific version
@@ -320,7 +320,7 @@ module "amazon-q" {
 module "amazon-q" {
   source       = "registry.coder.com/coder/amazon-q/coder"
   version      = "3.0.0"
-  agent_id     = coder_agent.example.id
+  agent_id     = coder_agent.main.id
   workdir      = "/home/coder"
   auth_tarball = var.amazon_q_auth_tarball
 
@@ -341,7 +341,7 @@ module "amazon-q" {
 module "amazon-q" {
   source       = "registry.coder.com/coder/amazon-q/coder"
   version      = "3.0.0"
-  agent_id     = coder_agent.example.id
+  agent_id     = coder_agent.main.id
   workdir      = "/home/coder"
   auth_tarball = var.amazon_q_auth_tarball
 
@@ -359,7 +359,7 @@ For environments without direct internet access, you can host Amazon Q installat
 module "amazon-q" {
   source       = "registry.coder.com/coder/amazon-q/coder"
   version      = "3.0.0"
-  agent_id     = coder_agent.example.id
+  agent_id     = coder_agent.main.id
   workdir      = "/home/coder"
   auth_tarball = var.amazon_q_auth_tarball
 

@@ -15,7 +15,7 @@ module "slackme" {
   count            = data.coder_workspace.me.start_count
   source           = "registry.coder.com/coder/slackme/coder"
   version          = "1.0.31"
-  agent_id         = coder_agent.example.id
+  agent_id         = coder_agent.main.id
   auth_provider_id = "slack"
 }
 ```
@@ -75,7 +75,7 @@ module "slackme" {
   count            = data.coder_workspace.me.start_count
   source           = "registry.coder.com/coder/slackme/coder"
   version          = "1.0.31"
-  agent_id         = coder_agent.example.id
+  agent_id         = coder_agent.main.id
   auth_provider_id = "slack"
   slack_message    = <<EOF
 👋 Hey there from Coder! $COMMAND took $DURATION to execute!

@@ -15,7 +15,7 @@ module "archive" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder-labs/archive/coder"
   version  = "0.0.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 
   paths = ["./projects", "./code"]
 }
@@ -44,7 +44,7 @@ module "archive" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder-labs/archive/coder"
   version  = "0.0.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 
   # Paths to include in the archive (files or directories).
   directory = "~"
@@ -62,7 +62,7 @@ module "archive" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder-labs/archive/coder"
   version  = "0.0.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 
   directory    = "/"
   paths        = ["/etc", "/home"]
@@ -79,7 +79,7 @@ module "archive" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder-labs/archive/coder"
   version  = "0.0.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 
   # Creates /tmp/coder-archive.tar.gz of the users home directory (defaults).
   create_on_stop = true
@@ -93,7 +93,7 @@ module "archive" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder-labs/archive/coder"
   version  = "0.0.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 
   # Where to look for the archive file to extract:
   output_dir   = "/tmp"

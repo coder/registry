@@ -20,7 +20,7 @@ module "zed" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/zed/coder"
   version  = "1.1.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -33,7 +33,7 @@ module "zed" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/zed/coder"
   version  = "1.1.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
 ```
@@ -45,7 +45,7 @@ module "zed" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/coder/zed/coder"
   version      = "1.1.1"
-  agent_id     = coder_agent.example.id
+  agent_id     = coder_agent.main.id
   display_name = "Zed Editor"
   order        = 1
 }
@@ -58,8 +58,8 @@ module "zed" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/zed/coder"
   version    = "1.1.1"
-  agent_id   = coder_agent.example.id
-  agent_name = coder_agent.example.name
+  agent_id   = coder_agent.main.id
+  agent_name = coder_agent.main.name
 }
 ```
 
@@ -74,7 +74,7 @@ module "zed" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/zed/coder"
   version  = "1.1.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 
   settings = jsonencode({
     context_servers = {

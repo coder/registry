@@ -21,7 +21,7 @@ module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jetbrains-gateway/coder"
   version        = "1.2.5"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["CL", "GO", "IU", "PY", "WS"]
   default        = "GO"
@@ -39,7 +39,7 @@ module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jetbrains-gateway/coder"
   version        = "1.2.5"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["GO", "WS"]
   default        = "GO"
@@ -53,7 +53,7 @@ module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jetbrains-gateway/coder"
   version        = "1.2.5"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["IU", "PY"]
   default        = "IU"
@@ -68,7 +68,7 @@ module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jetbrains-gateway/coder"
   version        = "1.2.5"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["IU", "PY"]
   default        = "IU"
@@ -93,7 +93,7 @@ module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jetbrains-gateway/coder"
   version        = "1.2.5"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["GO", "WS"]
   default        = "GO"
@@ -111,7 +111,7 @@ module "jetbrains_gateway" {
   count              = data.coder_workspace.me.start_count
   source             = "registry.coder.com/coder/jetbrains-gateway/coder"
   version            = "1.2.5"
-  agent_id           = coder_agent.example.id
+  agent_id           = coder_agent.main.id
   folder             = "/home/coder/example"
   jetbrains_ides     = ["GO", "WS"]
   releases_base_link = "https://releases.internal.site/"

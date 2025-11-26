@@ -20,6 +20,6 @@ module "rstudio-server" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/rstudio-server/coder"
   version  = "0.9.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 ```

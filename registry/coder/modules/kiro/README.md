@@ -19,7 +19,7 @@ module "kiro" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/kiro/coder"
   version  = "1.1.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -32,7 +32,7 @@ module "kiro" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/kiro/coder"
   version  = "1.1.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
 ```
@@ -48,7 +48,7 @@ module "kiro" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/kiro/coder"
   version  = "1.1.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   mcp = jsonencode({
     mcpServers = {

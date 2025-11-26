@@ -15,7 +15,7 @@ module "git-config" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/git-config/coder"
   version  = "1.0.31"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -30,7 +30,7 @@ module "git-config" {
   count              = data.coder_workspace.me.start_count
   source             = "registry.coder.com/coder/git-config/coder"
   version            = "1.0.31"
-  agent_id           = coder_agent.example.id
+  agent_id           = coder_agent.main.id
   allow_email_change = true
 }
 ```
@@ -44,7 +44,7 @@ module "git-config" {
   count                 = data.coder_workspace.me.start_count
   source                = "registry.coder.com/coder/git-config/coder"
   version               = "1.0.31"
-  agent_id              = coder_agent.example.id
+  agent_id              = coder_agent.main.id
   allow_username_change = false
   allow_email_change    = false
 }

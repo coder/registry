@@ -15,7 +15,7 @@ module "code-server" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/code-server/coder"
   version  = "1.4.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -30,7 +30,7 @@ module "code-server" {
   count           = data.coder_workspace.me.start_count
   source          = "registry.coder.com/coder/code-server/coder"
   version         = "1.4.0"
-  agent_id        = coder_agent.example.id
+  agent_id        = coder_agent.main.id
   install_version = "4.8.3"
 }
 ```
@@ -44,7 +44,7 @@ module "code-server" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/code-server/coder"
   version  = "1.4.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   extensions = [
     "dracula-theme.theme-dracula"
   ]
@@ -62,7 +62,7 @@ module "code-server" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/code-server/coder"
   version    = "1.4.0"
-  agent_id   = coder_agent.example.id
+  agent_id   = coder_agent.main.id
   extensions = ["dracula-theme.theme-dracula"]
   settings = {
     "workbench.colorTheme" = "Dracula"
@@ -79,7 +79,7 @@ module "code-server" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/code-server/coder"
   version    = "1.4.0"
-  agent_id   = coder_agent.example.id
+  agent_id   = coder_agent.main.id
   extensions = ["dracula-theme.theme-dracula", "ms-azuretools.vscode-docker"]
 }
 ```
@@ -93,7 +93,7 @@ module "code-server" {
   count           = data.coder_workspace.me.start_count
   source          = "registry.coder.com/coder/code-server/coder"
   version         = "1.4.0"
-  agent_id        = coder_agent.example.id
+  agent_id        = coder_agent.main.id
   additional_args = "--disable-workspace-trust"
 }
 ```
@@ -109,7 +109,7 @@ module "code-server" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/code-server/coder"
   version    = "1.4.0"
-  agent_id   = coder_agent.example.id
+  agent_id   = coder_agent.main.id
   use_cached = true
   extensions = ["dracula-theme.theme-dracula", "ms-azuretools.vscode-docker"]
 }
@@ -122,7 +122,7 @@ module "code-server" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/code-server/coder"
   version  = "1.4.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   offline  = true
 }
 ```

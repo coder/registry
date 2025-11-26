@@ -14,7 +14,7 @@ Run [OpenCode](https://opencode.ai) AI coding assistant in your workspace for in
 module "opencode" {
   source   = "registry.coder.com/coder-labs/opencode/coder"
   version  = "0.1.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 }
 ```
@@ -35,7 +35,7 @@ resource "coder_ai_task" "task" {
 module "opencode" {
   source   = "registry.coder.com/coder-labs/opencode/coder"
   version  = "0.1.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
   ai_prompt = coder_ai_task.task.prompt
@@ -89,7 +89,7 @@ Run OpenCode as a command-line tool without web interface or task reporting:
 module "opencode" {
   source       = "registry.coder.com/coder-labs/opencode/coder"
   version      = "0.1.0"
-  agent_id     = coder_agent.example.id
+  agent_id     = coder_agent.main.id
   workdir      = "/home/coder"
   report_tasks = false
   cli_app      = true
