@@ -61,7 +61,7 @@ module "dotfiles" {
 module "dotfiles-root" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/coder/dotfiles/coder"
-  version  = "1.2.3"
+  version      = "1.2.3"
   agent_id     = coder_agent.example.id
   user         = "root"
   dotfiles_uri = module.dotfiles.dotfiles_uri
@@ -76,7 +76,7 @@ You can set a default dotfiles repository for all users by setting the `default_
 module "dotfiles" {
   count                = data.coder_workspace.me.start_count
   source               = "registry.coder.com/coder/dotfiles/coder"
-  version  = "1.2.3"
+  version              = "1.2.3"
   agent_id             = coder_agent.example.id
   default_dotfiles_uri = "https://github.com/coder/dotfiles"
 }

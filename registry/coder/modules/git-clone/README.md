@@ -155,7 +155,7 @@ For example, to clone the `feat/example` branch:
 module "git-clone" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/git-clone/coder"
-  version  = "1.2.2"
+  version     = "1.2.2"
   agent_id    = coder_agent.example.id
   url         = "https://github.com/coder/coder"
   branch_name = "feat/example"
@@ -173,7 +173,7 @@ For example, this will clone into the `~/projects/coder/coder-dev` folder:
 module "git-clone" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/git-clone/coder"
-  version  = "1.2.2"
+  version     = "1.2.2"
   agent_id    = coder_agent.example.id
   url         = "https://github.com/coder/coder"
   folder_name = "coder-dev"
@@ -208,7 +208,7 @@ This is useful for running initialization tasks like installing dependencies or 
 module "git-clone" {
   count             = data.coder_workspace.me.start_count
   source            = "registry.coder.com/coder/git-clone/coder"
-  version  = "1.2.2"
+  version           = "1.2.2"
   agent_id          = coder_agent.example.id
   url               = "https://github.com/coder/coder"
   post_clone_script = <<-EOT
