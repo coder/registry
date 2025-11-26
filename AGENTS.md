@@ -144,17 +144,6 @@ Use semantic versioning for modules:
 - TypeScript for test utilities
 - Various npm packages for documentation processing
 
-### Automated Dependency Management
-
-The repository includes automated weekly dependency bumping for agentic modules:
-
-- **Weekly Updates**: Automatic PRs created every Monday for AgentAPI version bumps
-- **Integrated Testing**: All dependency updates are validated through CI tests
-- **Auto-Merge**: PRs that pass all tests are automatically merged
-- **Manual Trigger**: Can be triggered manually via GitHub Actions UI
-
-See [docs/DEPENDENCY_AUTOMATION.md](docs/DEPENDENCY_AUTOMATION.md) for detailed documentation.
-
 ## Workflow Notes
 
 ### Contributing Process
