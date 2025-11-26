@@ -162,7 +162,7 @@ variable "mcp" {
 
 variable "mode" {
   type        = string
-  description = "Set the agent mode (free, rush, smart) — controls the model, system prompt, and tool selection"
+  description = "Set the agent mode (free, rush, smart) — controls the model, system prompt, and tool selection. Default: smart"
   default     = ""
   validation {
     condition     = contains(["", "free", "rush", "smart"], var.mode)
