@@ -14,7 +14,7 @@ Launches RustDesk within your workspace with a virtual display to provide remote
 module "rustdesk" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/BenraouaneSoufiane/rustdesk/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -41,7 +41,7 @@ module "rustdesk" {
 module "rustdesk" {
   count             = data.coder_workspace.me.start_count
   source            = "registry.coder.com/BenraouaneSoufiane/rustdesk/coder"
-  version           = "1.0.0"
+  version           = "1.0.1"
   agent_id          = coder_agent.main.id
   rustdesk_password = "mycustompass"
   xvfb_resolution   = "1920x1080x24"

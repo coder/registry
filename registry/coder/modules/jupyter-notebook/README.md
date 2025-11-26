@@ -16,7 +16,7 @@ A module that adds Jupyter Notebook in your Coder template.
 module "jupyter-notebook" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jupyter-notebook/coder"
-  version  = "1.2.0"
+  version  = "1.2.1"
   agent_id = coder_agent.main.id
 }
 ```

@@ -14,7 +14,7 @@ This module adds JetBrains IDE buttons to launch IDEs directly from the dashboar
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.2.0"
+  version  = "1.2.1"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   # tooltip  = "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button."  # Optional
@@ -40,7 +40,7 @@ When `default` contains IDE codes, those IDEs are created directly without user 
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.2.0"
+  version  = "1.2.1"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   default  = ["PY", "IU"] # Pre-configure GoLand and IntelliJ IDEA
@@ -53,7 +53,7 @@ module "jetbrains" {
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.2.0"
+  version  = "1.2.1"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   # Show parameter with limited options
@@ -67,7 +67,7 @@ module "jetbrains" {
 module "jetbrains" {
   count         = data.coder_workspace.me.start_count
   source        = "registry.coder.com/coder/jetbrains/coder"
-  version       = "1.2.0"
+  version       = "1.2.1"
   agent_id      = coder_agent.main.id
   folder        = "/home/coder/project"
   default       = ["IU", "PY"]
@@ -82,7 +82,7 @@ module "jetbrains" {
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.2.0"
+  version  = "1.2.1"
   agent_id = coder_agent.main.id
   folder   = "/workspace/project"
 
@@ -93,6 +93,7 @@ module "jetbrains" {
       icon  = "/custom/icons/intellij.svg"
       build = "251.26927.53"
     }
+
     "PY" = {
       name  = "PyCharm"
       icon  = "/custom/icons/pycharm.svg"
@@ -108,7 +109,7 @@ module "jetbrains" {
 module "jetbrains_pycharm" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.2.0"
+  version  = "1.2.1"
   agent_id = coder_agent.main.id
   folder   = "/workspace/project"
 
@@ -128,7 +129,7 @@ Add helpful tooltip text that appears when users hover over the IDE app buttons:
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.2.0"
+  version  = "1.2.1"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   default  = ["IU", "PY"]

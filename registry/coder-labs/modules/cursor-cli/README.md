@@ -13,7 +13,7 @@ Run the Cursor Agent CLI in your workspace for interactive coding assistance and
 ```tf
 module "cursor_cli" {
   source   = "registry.coder.com/coder-labs/cursor-cli/coder"
-  version  = "0.2.1"
+  version  = "0.2.2"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
@@ -42,7 +42,7 @@ module "coder-login" {
 
 module "cursor_cli" {
   source   = "registry.coder.com/coder-labs/cursor-cli/coder"
-  version  = "0.2.1"
+  version  = "0.2.2"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 
@@ -60,6 +60,7 @@ module "cursor_cli" {
         command = "npx"
         args    = ["-y", "@playwright/mcp@latest", "--headless", "--isolated", "--no-sandbox"]
       }
+
       desktop-commander = {
         command = "npx"
         args    = ["-y", "@wonderwhy-er/desktop-commander"]

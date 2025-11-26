@@ -16,7 +16,7 @@ A module that adds JupyterLab in your Coder template.
 module "jupyterlab" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jupyterlab/coder"
-  version  = "1.2.0"
+  version  = "1.2.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -29,7 +29,7 @@ JupyterLab is automatically configured to work with Coder's iframe embedding. Fo
 module "jupyterlab" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jupyterlab/coder"
-  version  = "1.2.0"
+  version  = "1.2.1"
   agent_id = coder_agent.main.id
   config = {
     ServerApp = {
@@ -38,6 +38,7 @@ module "jupyterlab" {
         headers = {
           "Content-Security-Policy" = "frame-ancestors 'self' ${data.coder_workspace.me.access_url}"
         }
+
       }
       # Your additional configuration here
       root_dir = "/workspace/notebooks"

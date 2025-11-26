@@ -16,7 +16,7 @@ Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder)
 module "windsurf" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windsurf/coder"
-  version  = "1.2.0"
+  version  = "1.2.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -29,7 +29,7 @@ module "windsurf" {
 module "windsurf" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windsurf/coder"
-  version  = "1.2.0"
+  version  = "1.2.1"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
@@ -45,7 +45,7 @@ The following example configures Windsurf to use the GitHub MCP server with auth
 module "windsurf" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windsurf/coder"
-  version  = "1.2.0"
+  version  = "1.2.1"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   mcp = jsonencode({
@@ -57,6 +57,7 @@ module "windsurf" {
         },
         "type" : "http"
       }
+
     }
   })
 }

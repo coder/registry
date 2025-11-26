@@ -13,7 +13,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "4.2.2"
+  version        = "4.2.3"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
@@ -51,7 +51,7 @@ module "claude-code" {
   boundary_log_level               = "WARN"
   boundary_additional_allowed_urls = ["GET *google.com"]
   boundary_proxy_port              = "8087"
-  version                          = "4.2.2"
+  version                          = "4.2.3"
 }
 ```
 
@@ -70,7 +70,7 @@ data "coder_parameter" "ai_prompt" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.2.2"
+  version  = "4.2.3"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -95,6 +95,7 @@ module "claude-code" {
         "args": ["-y", "@modelcontextprotocol/server-memory"],
         "env": {}
       }
+
     }
   }
   EOF
@@ -108,7 +109,7 @@ Run and configure Claude Code as a standalone CLI in your workspace.
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "4.2.2"
+  version             = "4.2.3"
   agent_id            = coder_agent.main.id
   workdir             = "/home/coder"
   install_claude_code = true
@@ -131,7 +132,7 @@ variable "claude_code_oauth_token" {
 
 module "claude-code" {
   source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "4.2.2"
+  version                 = "4.2.3"
   agent_id                = coder_agent.main.id
   workdir                 = "/home/coder/project"
   claude_code_oauth_token = var.claude_code_oauth_token
@@ -204,7 +205,7 @@ resource "coder_env" "bedrock_api_key" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.2.2"
+  version  = "4.2.3"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
@@ -261,7 +262,7 @@ resource "coder_env" "google_application_credentials" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.2.2"
+  version  = "4.2.3"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "claude-sonnet-4@20250514"

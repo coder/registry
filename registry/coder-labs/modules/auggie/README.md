@@ -13,7 +13,7 @@ Run Auggie CLI in your workspace to access Augment's AI coding assistant with ad
 ```tf
 module "auggie" {
   source   = "registry.coder.com/coder-labs/auggie/coder"
-  version  = "0.2.1"
+  version  = "0.2.2"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
@@ -47,7 +47,7 @@ module "coder-login" {
 
 module "auggie" {
   source   = "registry.coder.com/coder-labs/auggie/coder"
-  version  = "0.2.1"
+  version  = "0.2.2"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 
@@ -74,6 +74,7 @@ EOF  # Required for tasks
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/coder/project"]
     }
+
   }
 }
 EOF
@@ -103,7 +104,7 @@ EOF
 ```tf
 module "auggie" {
   source   = "registry.coder.com/coder-labs/auggie/coder"
-  version  = "0.2.1"
+  version  = "0.2.2"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 
@@ -127,6 +128,7 @@ module "auggie" {
       ],
       "timeout": 600
     }
+
   }
 }
 EOF
