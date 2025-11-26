@@ -13,8 +13,8 @@ Run [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/about-c
 ```tf
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "0.2.2"
-  agent_id = coder_agent.example.id
+  version  = "0.2.3"
+  agent_id = coder_agent.main.id
   workdir  = "/home/coder/projects"
 }
 ```
@@ -51,8 +51,8 @@ data "coder_parameter" "ai_prompt" {
 
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "0.2.2"
-  agent_id = coder_agent.example.id
+  version  = "0.2.3"
+  agent_id = coder_agent.main.id
   workdir  = "/home/coder/projects"
 
   ai_prompt       = data.coder_parameter.ai_prompt.value
@@ -71,8 +71,8 @@ Customize tool permissions, MCP servers, and Copilot settings:
 ```tf
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "0.2.2"
-  agent_id = coder_agent.example.id
+  version  = "0.2.3"
+  agent_id = coder_agent.main.id
   workdir  = "/home/coder/projects"
 
   # Version pinning (defaults to "latest", use specific version if desired)
@@ -101,6 +101,7 @@ module "copilot" {
         tools       = ["*"]
         trust       = true
       }
+
       playwright = {
         command     = "npx"
         args        = ["-y", "@playwright/mcp@latest", "--headless", "--isolated"]
@@ -142,8 +143,8 @@ variable "github_token" {
 
 module "copilot" {
   source       = "registry.coder.com/coder-labs/copilot/coder"
-  version      = "0.2.2"
-  agent_id     = coder_agent.example.id
+  version      = "0.2.3"
+  agent_id     = coder_agent.main.id
   workdir      = "/home/coder/projects"
   github_token = var.github_token
 }
@@ -156,8 +157,8 @@ Run Copilot as a command-line tool without task reporting or web interface. This
 ```tf
 module "copilot" {
   source       = "registry.coder.com/coder-labs/copilot/coder"
-  version      = "0.2.2"
-  agent_id     = coder_agent.example.id
+  version      = "0.2.3"
+  agent_id     = coder_agent.main.id
   workdir      = "/home/coder"
   report_tasks = false
   cli_app      = true
