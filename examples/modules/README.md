@@ -31,7 +31,7 @@ module "MODULE_NAME" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/NAMESPACE/MODULE_NAME/coder"
   version  = "1.0.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   extensions = [
     "dracula-theme.theme-dracula"
   ]
@@ -49,7 +49,7 @@ module "MODULE_NAME" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/NAMESPACE/MODULE_NAME/coder"
   version    = "1.0.0"
-  agent_id   = coder_agent.example.id
+  agent_id   = coder_agent.main.id
   extensions = ["dracula-theme.theme-dracula"]
   settings = {
     "workbench.colorTheme" = "Dracula"
@@ -65,7 +65,7 @@ Run code-server in the background, don't fetch it from GitHub:
 module "MODULE_NAME" {
   source   = "registry.coder.com/NAMESPACE/MODULE_NAME/coder"
   version  = "1.0.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   offline  = true
 }
 ```

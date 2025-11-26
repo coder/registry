@@ -16,7 +16,7 @@ module "nodejs" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/thezoker/nodejs/coder"
   version  = "1.0.12"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -29,7 +29,7 @@ module "nodejs" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/thezoker/nodejs/coder"
   version  = "1.0.12"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   node_versions = [
     "18",
     "20",
@@ -48,7 +48,7 @@ module "nodejs" {
   count              = data.coder_workspace.me.start_count
   source             = "registry.coder.com/thezoker/nodejs/coder"
   version            = "1.0.12"
-  agent_id           = coder_agent.example.id
+  agent_id           = coder_agent.main.id
   nvm_version        = "v0.39.7"
   nvm_install_prefix = "/opt/nvm"
   node_versions = [

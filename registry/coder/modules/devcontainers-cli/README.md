@@ -16,6 +16,6 @@ The devcontainers-cli module provides an easy way to install [`@devcontainers/cl
 module "devcontainers-cli" {
   source   = "registry.coder.com/coder/devcontainers-cli/coder"
   version  = "1.0.33"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 ```

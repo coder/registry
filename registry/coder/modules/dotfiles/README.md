@@ -19,7 +19,7 @@ module "dotfiles" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/dotfiles/coder"
   version  = "1.2.2"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -32,7 +32,7 @@ module "dotfiles" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/dotfiles/coder"
   version  = "1.2.2"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -43,7 +43,7 @@ module "dotfiles" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/dotfiles/coder"
   version  = "1.2.2"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   user     = "root"
 }
 ```
@@ -55,14 +55,15 @@ module "dotfiles" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/dotfiles/coder"
   version  = "1.2.2"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
+
 
 module "dotfiles-root" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/coder/dotfiles/coder"
   version      = "1.2.2"
-  agent_id     = coder_agent.example.id
+  agent_id     = coder_agent.main.id
   user         = "root"
   dotfiles_uri = module.dotfiles.dotfiles_uri
 }
@@ -77,7 +78,7 @@ module "dotfiles" {
   count                = data.coder_workspace.me.start_count
   source               = "registry.coder.com/coder/dotfiles/coder"
   version              = "1.2.2"
-  agent_id             = coder_agent.example.id
+  agent_id             = coder_agent.main.id
   default_dotfiles_uri = "https://github.com/coder/dotfiles"
 }
 ```
