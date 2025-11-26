@@ -6,7 +6,7 @@ Run the [Goose](https://block.github.io/goose/) agent in your workspace to gener
 module "goose" {
   source        = "registry.coder.com/coder/goose/coder"
   version       = "1.0.31"
-  agent_id      = coder_agent.example.id
+  agent_id      = coder_agent.main.id
   folder        = "/home/coder"
   install_goose = true
   goose_version = "v1.0.16"
@@ -40,7 +40,7 @@ module "coder-login" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/coder-login/coder"
   version  = "1.0.15"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 
 variable "anthropic_api_key" {
@@ -82,7 +82,7 @@ module "goose" {
   count         = data.coder_workspace.me.start_count
   source        = "registry.coder.com/coder/goose/coder"
   version       = "1.0.31"
-  agent_id      = coder_agent.example.id
+  agent_id      = coder_agent.main.id
   folder        = "/home/coder"
   install_goose = true
   goose_version = "v1.0.16"
@@ -110,7 +110,7 @@ Run Goose as a standalone app in your workspace. This will install Goose and run
 module "goose" {
   source        = "registry.coder.com/coder/goose/coder"
   version       = "1.0.31"
-  agent_id      = coder_agent.example.id
+  agent_id      = coder_agent.main.id
   folder        = "/home/coder"
   install_goose = true
   goose_version = "v1.0.16"
