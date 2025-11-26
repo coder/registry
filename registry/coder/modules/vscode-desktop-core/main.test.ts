@@ -10,9 +10,11 @@ const appName = "vscode-desktop";
 
 const defaultVariables = {
   agent_id: "foo",
+
   web_app_icon: "/icon/code.svg",
   web_app_slug: "vscode",
   web_app_display_name: "VS Code Desktop",
+
   protocol: "vscode",
 };
 
@@ -21,80 +23,108 @@ describe("vscode-desktop-core", async () => {
 
   testRequiredVariables(import.meta.dir, defaultVariables);
 
-  it("default output", async () => {
-    const state = await runTerraformApply(import.meta.dir, defaultVariables);
-    expect(state.outputs.ide_uri.value).toBe(
-      `${defaultVariables.protocol}://coder.coder-remote/open?owner=default&workspace=default&url=https://mydeployment.coder.com&token=$SESSION_TOKEN`,
-    );
-
-    const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === appName,
-    );
-
-    expect(coder_app).not.toBeNull();
-    expect(coder_app?.instances.length).toBe(1);
-    expect(coder_app?.instances[0].attributes.order).toBeNull();
-  });
-
-  it("adds folder", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      folder: "/foo/bar",
-
-      ...defaultVariables,
+  describe("coder_app", () => {
+    describe("IDE URI attributes", () => {
+      it("default output", async () => {
+        const state = await runTerraformApply(import.meta.dir, defaultVariables);
+        expect(state.outputs.ide_uri.value).toBe(
+          `${defaultVariables.protocol}://coder.coder-remote/open?owner=default&workspace=default&url=https://mydeployment.coder.com&token=$SESSION_TOKEN`,
+        );
+  
+        const coder_app = state.resources.find(
+          (res) => res.type === "coder_app" && res.name === appName,
+        );
+  
+        expect(coder_app).not.toBeNull();
+        expect(coder_app?.instances.length).toBe(1);
+        expect(coder_app?.instances[0].attributes.order).toBeNull();
+      });
+  
+      it("adds folder", async () => {
+        const state = await runTerraformApply(import.meta.dir, {
+          folder: "/foo/bar",
+  
+          ...defaultVariables,
+        });
+  
+        expect(state.outputs.ide_uri.value).toBe(
+          `${defaultVariables.protocol}://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN`,
+        );
+      });
+  
+      it("adds folder and open_recent", async () => {
+        const state = await runTerraformApply(import.meta.dir, {
+          folder: "/foo/bar",
+          open_recent: "true",
+  
+          ...defaultVariables,
+        });
+        expect(state.outputs.ide_uri.value).toBe(
+          `${defaultVariables.protocol}://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN`,
+        );
+      });
+  
+      it("adds folder but not open_recent", async () => {
+        const state = await runTerraformApply(import.meta.dir, {
+          folder: "/foo/bar",
+          openRecent: "false",
+  
+          ...defaultVariables,
+        });
+        expect(state.outputs.ide_uri.value).toBe(
+          `${defaultVariables.protocol}://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN`,
+        );
+      });
+  
+      it("adds open_recent", async () => {
+        const state = await runTerraformApply(import.meta.dir, {
+          open_recent: "true",
+  
+          ...defaultVariables,
+        });
+        expect(state.outputs.ide_uri.value).toBe(
+          `${defaultVariables.protocol}://coder.coder-remote/open?owner=default&workspace=default&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN`,
+        );
+      });
     });
 
-    expect(state.outputs.ide_uri.value).toBe(
-      `${defaultVariables.protocol}://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN`,
-    );
-  });
-
-  it("adds folder and open_recent", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      folder: "/foo/bar",
-      open_recent: "true",
-
-      ...defaultVariables,
+    it("sets custom slug and display_name", async () => {
+      const state = await runTerraformApply(import.meta.dir, defaultVariables);
+  
+      const coder_app = state.resources.find(
+        (res) => res.type === "coder_app" && res.name === appName,
+      );
+  
+      expect(coder_app?.instances[0].attributes.slug).toBe(defaultVariables.web_app_slug);
+      expect(coder_app?.instances[0].attributes.display_name).toBe(defaultVariables.web_app_display_name);
     });
-    expect(state.outputs.ide_uri.value).toBe(
-      `${defaultVariables.protocol}://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN`,
-    );
-  });
+  
+    it("sets order", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        web_app_order: "5",
 
-  it("adds folder but not open_recent", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      folder: "/foo/bar",
-      openRecent: "false",
-
-      ...defaultVariables,
+        ...defaultVariables
+      });
+  
+      const coder_app = state.resources.find(
+        (res) => res.type === "coder_app" && res.name === appName,
+      );
+  
+      expect(coder_app?.instances[0].attributes.order).toBe(5);
     });
-    expect(state.outputs.ide_uri.value).toBe(
-      `${defaultVariables.protocol}://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN`,
-    );
-  });
+  
+    it("sets group", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        web_app_group: "web-app-group",
 
-  it("adds open_recent", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      open_recent: "true",
-
-      ...defaultVariables,
+        ...defaultVariables
+      });
+  
+      const coder_app = state.resources.find(
+        (res) => res.type === "coder_app" && res.name === appName,
+      );
+  
+      expect(coder_app?.instances[0].attributes.group).toBe("web-app-group");
     });
-    expect(state.outputs.ide_uri.value).toBe(
-      `${defaultVariables.protocol}://coder.coder-remote/open?owner=default&workspace=default&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN`,
-    );
-  });
-
-  it("expect order to be set", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      web_app_order: "22",
-      ...defaultVariables,
-    });
-
-    const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === appName,
-    );
-
-    expect(coder_app).not.toBeNull();
-    expect(coder_app?.instances.length).toBe(1);
-    expect(coder_app?.instances[0].attributes.order).toBe(22);
   });
 });

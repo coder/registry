@@ -79,24 +79,6 @@ describe("cursor", async () => {
     );
   });
 
-  it("expect order to be set", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      order: "22",
-    });
-
-    const coder_app = state.resources.find(
-      (res) =>
-        res.type === "coder_app" &&
-        res.module === "module.vscode-desktop-core" &&
-        res.name === "vscode-desktop",
-    );
-
-    expect(coder_app).not.toBeNull();
-    expect(coder_app?.instances.length).toBe(1);
-    expect(coder_app?.instances[0].attributes.order).toBe(22);
-  });
-
   it("writes ~/.cursor/mcp.json when mcp provided", async () => {
     const id = await runContainer("alpine");
     try {

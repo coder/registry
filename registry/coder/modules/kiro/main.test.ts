@@ -58,56 +58,6 @@ describe("kiro", async () => {
     );
   });
 
-  it("custom slug and display_name", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      slug: "kiro-ai",
-      display_name: "Kiro AI IDE",
-    });
-
-    const coder_app = state.resources.find(
-      (res) =>
-        res.type === "coder_app" &&
-        res.module === "module.vscode-desktop-core" &&
-        res.name === "vscode-desktop",
-    );
-
-    expect(coder_app?.instances[0].attributes.slug).toBe("kiro-ai");
-    expect(coder_app?.instances[0].attributes.display_name).toBe("Kiro AI IDE");
-  });
-
-  it("sets order", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      order: "5",
-    });
-
-    const coder_app = state.resources.find(
-      (res) =>
-        res.type === "coder_app" &&
-        res.module === "module.vscode-desktop-core" &&
-        res.name === "vscode-desktop",
-    );
-
-    expect(coder_app?.instances[0].attributes.order).toBe(5);
-  });
-
-  it("sets group", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      group: "AI IDEs",
-    });
-
-    const coder_app = state.resources.find(
-      (res) =>
-        res.type === "coder_app" &&
-        res.module === "module.vscode-desktop-core" &&
-        res.name === "vscode-desktop",
-    );
-
-    expect(coder_app?.instances[0].attributes.group).toBe("AI IDEs");
-  });
-
   it("writes ~/.kiro/settings/mcp.json when mcp provided", async () => {
     const id = await runContainer("alpine");
     try {
