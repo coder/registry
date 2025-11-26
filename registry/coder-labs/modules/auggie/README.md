@@ -14,7 +14,7 @@ Run Auggie CLI in your workspace to access Augment's AI coding assistant with ad
 module "auggie" {
   source   = "registry.coder.com/coder-labs/auggie/coder"
   version  = "0.2.2"
-  agent_id = coder_agent.main.id
+  agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
 }
 ```
@@ -41,14 +41,14 @@ data "coder_parameter" "ai_prompt" {
 module "coder-login" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/coder-login/coder"
-  version  = "1.0.31"
-  agent_id = coder_agent.main.id
+  version  = "0.2.2"
+  agent_id = coder_agent.example.id
 }
 
 module "auggie" {
   source   = "registry.coder.com/coder-labs/auggie/coder"
   version  = "0.2.2"
-  agent_id = coder_agent.main.id
+  agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
 
   # Authentication
@@ -57,7 +57,7 @@ module "auggie" {
 EOF  # Required for tasks
 
   # Version
-   auggie_version = "0.3.0"
+   auggie_version  = "0.2.2"
 
   # Task configuration
   ai_prompt                      = data.coder_parameter.ai_prompt.value
@@ -74,7 +74,6 @@ EOF  # Required for tasks
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/coder/project"]
     }
-
   }
 }
 EOF
@@ -105,7 +104,7 @@ EOF
 module "auggie" {
   source   = "registry.coder.com/coder-labs/auggie/coder"
   version  = "0.2.2"
-  agent_id = coder_agent.main.id
+  agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
 
   # Multiple MCP configuration files
@@ -128,7 +127,6 @@ module "auggie" {
       ],
       "timeout": 600
     }
-
   }
 }
 EOF

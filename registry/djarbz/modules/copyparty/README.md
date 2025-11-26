@@ -17,7 +17,7 @@ This module installs Copyparty, an alternative to Filebrowser.
 module "copyparty" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/djarbz/copyparty/coder"
-  version = "1.0.2"
+  version  = "1.0.2"
 }
 ```
 
@@ -36,7 +36,7 @@ module "copyparty" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/djarbz/copyparty/coder"
   version  = "1.0.2"
-  agent_id = coder_agent.main.id
+  agent_id = coder_agent.example.id
   arguments = [
     "-v", "/home/coder/:/home:r",       # Share home directory (read-only)
     "-v", "${local.repo_dir}:/repo:rw", # Share project directory (read-write)
@@ -51,8 +51,8 @@ module "copyparty" {
 module "copyparty" {
   count     = data.coder_workspace.me.start_count
   source    = "registry.coder.com/djarbz/copyparty/coder"
-  version   = "1.0.2"
-  agent_id  = coder_agent.main.id
+  version  = "1.0.2"
+  agent_id  = coder_agent.example.id
   subdomain = true
   arguments = [
     "-v", "/tmp:/tmp:r",                         # Share tmp directory (read-only)
