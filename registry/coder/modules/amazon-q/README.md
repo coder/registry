@@ -13,7 +13,7 @@ Run [Amazon Q](https://aws.amazon.com/q/) in your workspace to access Amazon's A
 ```tf
 module "amazon-q" {
   source   = "registry.coder.com/coder/amazon-q/coder"
-  version  = "2.0.0"
+  version  = "3.0.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder"
 
@@ -102,7 +102,7 @@ data "coder_parameter" "ai_prompt" {
 
 module "amazon-q" {
   source          = "registry.coder.com/coder/amazon-q/coder"
-  version         = "2.0.0"
+  version         = "3.0.0"
   agent_id        = coder_agent.example.id
   workdir         = "/home/coder"
   auth_tarball    = var.amazon_q_auth_tarball
@@ -228,7 +228,7 @@ If no custom `agent_config` is provided, the default agent name "agent" is used.
 ```tf
 module "amazon-q" {
   source       = "registry.coder.com/coder/amazon-q/coder"
-  version      = "2.0.0"
+  version      = "3.0.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.amazon_q_auth_tarball
@@ -258,7 +258,7 @@ This example will:
 ```tf
 module "amazon-q" {
   source          = "registry.coder.com/coder/amazon-q/coder"
-  version         = "2.0.0"
+  version         = "3.0.0"
   agent_id        = coder_agent.example.id
   workdir         = "/home/coder"
   auth_tarball    = var.amazon_q_auth_tarball
@@ -279,7 +279,7 @@ module "amazon-q" {
 ```tf
 module "amazon-q" {
   source       = "registry.coder.com/coder/amazon-q/coder"
-  version      = "2.0.0"
+  version      = "3.0.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.amazon_q_auth_tarball
@@ -305,7 +305,7 @@ module "amazon-q" {
 ```tf
 module "amazon-q" {
   source           = "registry.coder.com/coder/amazon-q/coder"
-  version          = "2.0.0"
+  version          = "3.0.0"
   agent_id         = coder_agent.example.id
   workdir          = "/home/coder"
   auth_tarball     = var.amazon_q_auth_tarball
@@ -319,7 +319,7 @@ module "amazon-q" {
 ```tf
 module "amazon-q" {
   source       = "registry.coder.com/coder/amazon-q/coder"
-  version      = "2.0.0"
+  version      = "3.0.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.amazon_q_auth_tarball
@@ -340,14 +340,14 @@ module "amazon-q" {
 ```tf
 module "amazon-q" {
   source       = "registry.coder.com/coder/amazon-q/coder"
-  version      = "2.0.0"
+  version      = "3.0.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.amazon_q_auth_tarball
 
   # AgentAPI configuration for environments without wildcard access url. https://coder.com/docs/admin/setup#wildcard-access-url
   agentapi_chat_based_path = true
-  agentapi_version         = "v0.6.1"
+  agentapi_version         = "v0.10.0"
 }
 ```
 
@@ -358,7 +358,7 @@ For environments without direct internet access, you can host Amazon Q installat
 ```tf
 module "amazon-q" {
   source       = "registry.coder.com/coder/amazon-q/coder"
-  version      = "2.0.0"
+  version      = "3.0.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.amazon_q_auth_tarball

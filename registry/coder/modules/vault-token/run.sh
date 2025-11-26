@@ -2,6 +2,7 @@
 
 # Convert all templated variables to shell variables
 INSTALL_VERSION=${INSTALL_VERSION}
+VAULT_NAMESPACE=${VAULT_NAMESPACE}
 
 fetch() {
   dest="$1"
@@ -68,7 +69,7 @@ install() {
     else
       printf "Upgrading Vault CLI from version %s to %s ...\n\n" "$${CURRENT_VERSION}" "${INSTALL_VERSION}"
     fi
-    fetch vault.zip "https://releases.hashicorp.com/vault/$${INSTALL_VERSION}/vault_$${INSTALL_VERSION}_linux_amd64.zip"
+    fetch vault.zip "https://releases.hashicorp.com/vault/$${INSTALL_VERSION}/vault_$${INSTALL_VERSION}_linux_$${ARCH}.zip"
     if [ $? -ne 0 ]; then
       printf "Failed to download Vault.\n"
       return 1
@@ -101,3 +102,8 @@ if ! (
   exit 1
 fi
 rm -rf "$TMP"
+
+if [ -n "$${VAULT_NAMESPACE}" ]; then
+  export VAULT_NAMESPACE
+  printf "📁 Using Vault namespace: %s\n\n" "$${VAULT_NAMESPACE}"
+fi

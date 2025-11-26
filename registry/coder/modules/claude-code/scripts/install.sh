@@ -1,7 +1,11 @@
 #!/bin/bash
-set -euo pipefail
 
-source "$HOME"/.bashrc
+if [ -f "$HOME/.bashrc" ]; then
+  source "$HOME"/.bashrc
+fi
+
+# Set strict error handling AFTER sourcing bashrc to avoid unbound variable errors from user dotfiles
+set -euo pipefail
 
 BOLD='\033[0;1m'
 
@@ -64,13 +68,16 @@ function setup_claude_configurations() {
   mkdir -p "$module_path"
 
   if [ "$ARG_MCP" != "" ]; then
-    while IFS= read -r server_name && IFS= read -r server_json; do
-      echo "------------------------"
-      echo "Executing: claude mcp add \"$server_name\" '$server_json'"
-      claude mcp add "$server_name" "$server_json"
-      echo "------------------------"
-      echo ""
-    done < <(echo "$ARG_MCP" | jq -r '.mcpServers | to_entries[] | .key, (.value | @json)')
+    (
+      cd "$ARG_WORKDIR"
+      while IFS= read -r server_name && IFS= read -r server_json; do
+        echo "------------------------"
+        echo "Executing: claude mcp add-json \"$server_name\" '$server_json' (in $ARG_WORKDIR)"
+        claude mcp add-json "$server_name" "$server_json"
+        echo "------------------------"
+        echo ""
+      done < <(echo "$ARG_MCP" | jq -r '.mcpServers | to_entries[] | .key, (.value | @json)')
+    )
   fi
 
   if [ -n "$ARG_ALLOWED_TOOLS" ]; then
@@ -88,11 +95,6 @@ function report_tasks() {
     echo "Configuring Claude Code to report tasks via Coder MCP..."
     export CODER_MCP_APP_STATUS_SLUG="$ARG_MCP_APP_STATUS_SLUG"
     export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
-    coder exp mcp configure claude-code "$ARG_WORKDIR"
-  else
-    export CODER_MCP_APP_STATUS_SLUG=""
-    export CODER_MCP_AI_AGENTAPI_URL=""
-    echo "Configuring Claude Code with Coder MCP..."
     coder exp mcp configure claude-code "$ARG_WORKDIR"
   fi
 }

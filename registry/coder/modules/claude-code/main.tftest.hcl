@@ -57,7 +57,7 @@ run "test_claude_code_with_custom_options" {
     group                        = "development"
     icon                         = "/icon/custom.svg"
     model                        = "opus"
-    task_prompt                  = "Help me write better code"
+    ai_prompt                    = "Help me write better code"
     permission_mode              = "plan"
     continue                     = true
     install_claude_code          = false
@@ -88,8 +88,8 @@ run "test_claude_code_with_custom_options" {
   }
 
   assert {
-    condition     = var.task_prompt == "Help me write better code"
-    error_message = "Task prompt variable should be set correctly"
+    condition     = var.ai_prompt == "Help me write better code"
+    error_message = "AI prompt variable should be set correctly"
   }
 
   assert {
@@ -185,5 +185,112 @@ run "test_claude_code_permission_mode_validation" {
   assert {
     condition     = contains(["", "default", "acceptEdits", "plan", "bypassPermissions"], var.permission_mode)
     error_message = "Permission mode should be one of the valid options"
+  }
+}
+
+run "test_claude_code_with_boundary" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent-boundary"
+    workdir          = "/home/coder/boundary-test"
+    enable_boundary  = true
+    boundary_log_dir = "/tmp/test-boundary-logs"
+  }
+
+  assert {
+    condition     = var.enable_boundary == true
+    error_message = "Boundary should be enabled"
+  }
+
+  assert {
+    condition     = var.boundary_log_dir == "/tmp/test-boundary-logs"
+    error_message = "Boundary log dir should be set correctly"
+  }
+
+  assert {
+    condition     = local.coder_host != ""
+    error_message = "Coder host should be extracted from access URL"
+  }
+}
+
+run "test_claude_code_system_prompt" {
+  command = plan
+
+  variables {
+    agent_id      = "test-agent-system-prompt"
+    workdir       = "/home/coder/test"
+    system_prompt = "Custom addition"
+  }
+
+  assert {
+    condition     = trimspace(coder_env.claude_code_system_prompt.value) != ""
+    error_message = "System prompt should not be empty"
+  }
+
+  assert {
+    condition     = length(regexall("Custom addition", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "System prompt should have system_prompt variable value"
+  }
+}
+
+run "test_claude_report_tasks_default" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-report-tasks"
+    workdir  = "/home/coder/test"
+    # report_tasks: default is true
+  }
+
+  assert {
+    condition     = trimspace(coder_env.claude_code_system_prompt.value) != ""
+    error_message = "System prompt should not be empty"
+  }
+
+  # Ensure system prompt is wrapped by <system>
+  assert {
+    condition     = startswith(trimspace(coder_env.claude_code_system_prompt.value), "<system>")
+    error_message = "System prompt should start with <system>"
+  }
+  assert {
+    condition     = endswith(trimspace(coder_env.claude_code_system_prompt.value), "</system>")
+    error_message = "System prompt should end with </system>"
+  }
+
+  # Ensure Coder sections are injected when report_tasks=true (default)
+  assert {
+    condition     = length(regexall("-- Tool Selection --", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "System prompt should have Tool Selection section"
+  }
+
+  assert {
+    condition     = length(regexall("-- Task Reporting --", coder_env.claude_code_system_prompt.value)) > 0
+    error_message = "System prompt should have Task Reporting section"
+  }
+}
+
+run "test_claude_report_tasks_disabled" {
+  command = plan
+
+  variables {
+    agent_id     = "test-agent-report-tasks"
+    workdir      = "/home/coder/test"
+    report_tasks = false
+  }
+
+  assert {
+    condition     = trimspace(coder_env.claude_code_system_prompt.value) != ""
+    error_message = "System prompt should not be empty"
+  }
+
+  # Ensure system prompt is wrapped by <system>
+  assert {
+    condition     = startswith(trimspace(coder_env.claude_code_system_prompt.value), "<system>")
+    error_message = "System prompt should start with <system>"
+  }
+  assert {
+    condition     = endswith(trimspace(coder_env.claude_code_system_prompt.value), "</system>")
+    error_message = "System prompt should end with </system>"
   }
 }
