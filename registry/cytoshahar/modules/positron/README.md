@@ -17,7 +17,7 @@ module "positron" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/cytoshahar/positron/coder"
   version  = "1.0.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -30,7 +30,7 @@ module "positron" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/cytoshahar/positron/coder"
   version  = "1.0.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
 ```

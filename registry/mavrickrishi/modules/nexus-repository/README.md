@@ -14,7 +14,7 @@ Configure package managers (Maven, npm, Go, PyPI, Docker) to use [Sonatype Nexus
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
   version        = "1.0.1"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
   package_managers = {
@@ -44,7 +44,7 @@ module "nexus_repository" {
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
   version        = "1.0.1"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
   package_managers = {
@@ -59,7 +59,7 @@ module "nexus_repository" {
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
   version        = "1.0.1"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
   package_managers = {
@@ -74,7 +74,7 @@ module "nexus_repository" {
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
   version        = "1.0.1"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
   package_managers = {
@@ -89,7 +89,7 @@ module "nexus_repository" {
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
   version        = "1.0.1"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
   package_managers = {
@@ -104,7 +104,7 @@ module "nexus_repository" {
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
   version        = "1.0.1"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
   package_managers = {
@@ -119,7 +119,7 @@ module "nexus_repository" {
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
   version        = "1.0.1"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   nexus_url      = "https://nexus.example.com"
   nexus_username = "custom-user"
   nexus_password = var.nexus_api_token
@@ -135,7 +135,7 @@ module "nexus_repository" {
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
   version        = "1.0.1"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
   package_managers = {

@@ -16,7 +16,7 @@ up a default or custom tmux configuration with session save/restore capabilities
 module "tmux" {
   source   = "registry.coder.com/anomaly/tmux/coder"
   version  = "1.0.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -40,7 +40,7 @@ module "tmux" {
 module "tmux" {
   source        = "registry.coder.com/anomaly/tmux/coder"
   version       = "1.0.1"
-  agent_id      = coder_agent.example.id
+  agent_id      = coder_agent.main.id
   tmux_config   = ""                        # Optional: custom tmux.conf content
   save_interval = 1                         # Optional: save interval in minutes
   sessions      = ["default", "dev", "ops"] # Optional: list of tmux sessions

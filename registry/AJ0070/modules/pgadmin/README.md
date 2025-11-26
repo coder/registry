@@ -18,6 +18,6 @@ module "pgadmin" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/AJ0070/pgadmin/coder"
   version  = "1.0.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 ```

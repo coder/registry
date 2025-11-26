@@ -15,7 +15,7 @@ module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
   version  = "1.0.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -36,7 +36,7 @@ module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
   version  = "1.0.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -47,7 +47,7 @@ module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
   version  = "1.0.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   # Default is "latest"; set to a specific version to pin
   install_version = "0.4.0"
 }
@@ -60,7 +60,7 @@ module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
   version  = "1.0.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   port     = 8080
 }
 ```
@@ -74,7 +74,7 @@ module "mux" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/mux/coder"
   version    = "1.0.1"
-  agent_id   = coder_agent.example.id
+  agent_id   = coder_agent.main.id
   use_cached = true
 }
 ```
@@ -88,7 +88,7 @@ module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
   version  = "1.0.1"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   install  = false
 }
 ```

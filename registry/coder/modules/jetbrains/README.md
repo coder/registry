@@ -15,7 +15,7 @@ module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
   version  = "1.2.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   # tooltip  = "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button."  # Optional
 }
@@ -41,7 +41,7 @@ module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
   version  = "1.2.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   default  = ["PY", "IU"] # Pre-configure GoLand and IntelliJ IDEA
 }
@@ -54,7 +54,7 @@ module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
   version  = "1.2.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   # Show parameter with limited options
   options = ["IU", "PY"] # Only these IDEs are available for selection
@@ -68,7 +68,7 @@ module "jetbrains" {
   count         = data.coder_workspace.me.start_count
   source        = "registry.coder.com/coder/jetbrains/coder"
   version       = "1.2.0"
-  agent_id      = coder_agent.example.id
+  agent_id      = coder_agent.main.id
   folder        = "/home/coder/project"
   default       = ["IU", "PY"]
   channel       = "eap"    # Use Early Access Preview versions
@@ -83,7 +83,7 @@ module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
   version  = "1.2.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   folder   = "/workspace/project"
 
   # Custom IDE metadata (display names and icons)
@@ -109,7 +109,7 @@ module "jetbrains_pycharm" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
   version  = "1.2.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   folder   = "/workspace/project"
 
   default = ["PY"] # Only PyCharm
@@ -129,7 +129,7 @@ module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
   version  = "1.2.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   default  = ["IU", "PY"]
   tooltip  = "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button."

@@ -72,7 +72,7 @@ module "rdp_desktop" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/coder/local-windows-rdp/coder"
   version      = "1.0.2"
-  agent_id     = coder_agent.windows.id
+  agent_id     = coder_agent.main.id
   agent_name   = "windows"
   display_name = "Windows Desktop"
   order        = 1

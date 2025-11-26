@@ -17,7 +17,7 @@ module "jfrog" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jfrog-oauth/coder"
   version        = "1.2.2"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   jfrog_url      = "https://example.jfrog.io"
   username_field = "username" # If you are using GitHub to login to both Coder and Artifactory, use username_field = "username"
 
@@ -57,7 +57,7 @@ module "jfrog" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jfrog-oauth/coder"
   version        = "1.2.2"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   jfrog_url      = "https://example.jfrog.io"
   username_field = "email"
 
@@ -86,7 +86,7 @@ module "jfrog" {
   count                 = data.coder_workspace.me.start_count
   source                = "registry.coder.com/coder/jfrog-oauth/coder"
   version               = "1.2.2"
-  agent_id              = coder_agent.example.id
+  agent_id              = coder_agent.main.id
   jfrog_url             = "https://example.jfrog.io"
   username_field        = "username" # If you are using GitHub to login to both Coder and Artifactory, use username_field = "username"
   configure_code_server = true       # Add JFrog extension configuration for code-server
