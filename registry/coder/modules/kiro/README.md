@@ -18,7 +18,7 @@ Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder)
 module "kiro" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/kiro/coder"
-  version  = "1.1.1"
+  version  = "1.2.0"
   agent_id = coder_agent.main.id
 }
 ```
@@ -31,7 +31,7 @@ module "kiro" {
 module "kiro" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/kiro/coder"
-  version  = "1.1.1"
+  version  = "1.2.0"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
@@ -47,7 +47,7 @@ The following example configures Kiro to use the GitHub MCP server with authenti
 module "kiro" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/kiro/coder"
-  version  = "1.1.1"
+  version  = "1.2.0"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   mcp = jsonencode({
@@ -59,6 +59,7 @@ module "kiro" {
         },
         "type" : "http"
       }
+
 
     }
   })
