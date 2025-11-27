@@ -16,7 +16,7 @@ variable "agent_id" {
 
 variable "folder" {
   type        = string
-  description = "The folder to open in Cursor IDE."
+  description = "The folder to open in Windsurf Editor."
   default     = ""
 }
 
@@ -63,26 +63,21 @@ locals {
   mcp_b64 = var.mcp != "" ? base64encode(var.mcp) : ""
 }
 
-resource "coder_app" "windsurf" {
-  agent_id     = var.agent_id
-  external     = true
-  icon         = "/icon/windsurf.svg"
-  slug         = var.slug
-  display_name = var.display_name
-  order        = var.order
-  group        = var.group
-  url = join("", [
-    "windsurf://coder.coder-remote/open",
-    "?owner=",
-    data.coder_workspace_owner.me.name,
-    "&workspace=",
-    data.coder_workspace.me.name,
-    var.folder != "" ? join("", ["&folder=", var.folder]) : "",
-    var.open_recent ? "&openRecent" : "",
-    "&url=",
-    data.coder_workspace.me.access_url,
-    "&token=$SESSION_TOKEN",
-  ])
+module "vscode-desktop-core" {
+  source  = "registry.coder.com/coder/vscode-desktop-core/coder"
+  version = "1.0.0"
+
+  agent_id = var.agent_id
+
+  coder_app_icon         = "/icon/windsurf.svg"
+  coder_app_slug         = "windsurf"
+  coder_app_display_name = "Windsurf Editor"
+  coder_app_order        = var.order
+  coder_app_group        = var.group
+
+  folder      = var.folder
+  open_recent = var.open_recent
+  protocol    = "windsurf"
 }
 
 resource "coder_script" "windsurf_mcp" {
@@ -102,6 +97,6 @@ resource "coder_script" "windsurf_mcp" {
 }
 
 output "windsurf_url" {
-  value       = coder_app.windsurf.url
+  value       = module.vscode-desktop-core.ide_uri
   description = "Windsurf Editor URL."
 }

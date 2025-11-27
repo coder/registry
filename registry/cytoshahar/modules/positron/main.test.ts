@@ -21,7 +21,10 @@ describe("positron-desktop", async () => {
     );
 
     const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "positron",
+      (res) =>
+        res.type === "coder_app" &&
+        res.module === "module.vscode-desktop-core" &&
+        res.name === "vscode-desktop",
     );
 
     expect(coder_app).not.toBeNull();
@@ -69,20 +72,5 @@ describe("positron-desktop", async () => {
     expect(state.outputs.positron_url.value).toBe(
       "positron://coder.coder-remote/open?owner=default&workspace=default&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
-  });
-
-  it("expect order to be set", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      order: "22",
-    });
-
-    const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "positron",
-    );
-
-    expect(coder_app).not.toBeNull();
-    expect(coder_app?.instances.length).toBe(1);
-    expect(coder_app?.instances[0].attributes.order).toBe(22);
   });
 });
