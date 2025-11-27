@@ -173,6 +173,18 @@ variable "ide_config" {
   }
 }
 
+variable "plugins" {
+  type        = list(string)
+  description = "List of JetBrains plugin IDs to pre-install. Find plugin IDs on the JetBrains Marketplace (e.g., \"com.intellij.plugins.terminal\", \"org.rust.lang\")."
+  default     = []
+}
+
+variable "plugin_install_args" {
+  type        = string
+  description = "Additional arguments to pass to the plugin installation command."
+  default     = ""
+}
+
 locals {
   # Parse HTTP responses once with error handling for air-gapped environments
   parsed_responses = {
@@ -257,6 +269,25 @@ resource "coder_app" "jetbrains" {
     local.options_metadata[each.key].build,
     var.agent_name != null ? "&agent_name=${var.agent_name}" : "",
   ])
+}
+
+resource "coder_script" "jetbrains_plugin_installer" {
+  count        = length(var.plugins) > 0 && length(local.selected_ides) > 0 ? 1 : 0
+  agent_id     = var.agent_id
+  display_name = "JetBrains Plugins"
+  icon         = "/icon/jetbrains-toolbox.svg"
+  script = templatefile("${path.module}/install-plugins.sh", {
+    PLUGINS : join(",", var.plugins),
+    PLUGIN_INSTALL_ARGS : var.plugin_install_args,
+    FOLDER : var.folder,
+    IDE_METADATA : jsonencode({
+      for key in local.selected_ides : key => {
+        code = key
+        name = local.options_metadata[key].name
+      }
+    })
+  })
+  run_on_start = true
 }
 
 output "ide_metadata" {

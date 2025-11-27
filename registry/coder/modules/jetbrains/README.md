@@ -61,6 +61,31 @@ module "jetbrains" {
 }
 ```
 
+### Plugin Pre-installation
+
+Automatically install plugins when the workspace starts. Find plugin IDs on the [JetBrains Marketplace](https://plugins.jetbrains.com/) in the "Additional Information" section of each plugin page.
+
+```tf
+module "jetbrains" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/jetbrains/coder"
+  version  = "1.3.0"
+  agent_id = coder_agent.example.id
+  folder   = "/home/coder/project"
+  default  = ["IU", "PY"]
+
+  # Pre-install plugins
+  plugins = [
+    "com.intellij.plugins.terminal", # Terminal plugin
+    "org.rust.lang",                 # Rust language support
+    "com.github.copilot",            # GitHub Copilot
+  ]
+}
+```
+
+> [!NOTE]
+> Plugins are installed on workspace startup. If an IDE is not yet installed via Toolbox, plugins will be installed during the first IDE launch.
+
 ### Early Access Preview (EAP) Versions
 
 ```tf
