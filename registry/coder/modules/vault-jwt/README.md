@@ -14,7 +14,7 @@ This module lets you authenticate with [Hashicorp Vault](https://www.vaultprojec
 module "vault" {
   count           = data.coder_workspace.me.start_count
   source          = "registry.coder.com/coder/vault-jwt/coder"
-  version         = "1.2.0"
+  version         = "1.2.2"
   agent_id        = coder_agent.example.id
   vault_addr      = "https://vault.example.com"
   vault_jwt_role  = "coder"                # The Vault role to use for authentication
@@ -42,7 +42,7 @@ curl -H "X-Vault-Token: ${VAULT_TOKEN}" -X GET "${VAULT_ADDR}/v1/coder/secrets/d
 module "vault" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/vault-jwt/coder"
-  version             = "1.2.0"
+  version             = "1.2.2"
   agent_id            = coder_agent.example.id
   vault_addr          = "https://vault.example.com"
   vault_jwt_auth_path = "oidc"
@@ -58,7 +58,7 @@ data "coder_workspace_owner" "me" {}
 module "vault" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vault-jwt/coder"
-  version        = "1.2.0"
+  version        = "1.2.2"
   agent_id       = coder_agent.example.id
   vault_addr     = "https://vault.example.com"
   vault_jwt_role = data.coder_workspace_owner.me.groups[0]
@@ -71,11 +71,11 @@ module "vault" {
 module "vault" {
   count             = data.coder_workspace.me.start_count
   source            = "registry.coder.com/coder/vault-jwt/coder"
-  version           = "1.2.0"
+  version           = "1.2.2"
   agent_id          = coder_agent.example.id
   vault_addr        = "https://vault.example.com"
   vault_jwt_role    = "coder" # The Vault role to use for authentication
-  vault_cli_version = "1.17.5"
+  vault_cli_version = "1.2.2"
 }
 ```
 
@@ -87,11 +87,11 @@ terraform {
   required_providers {
     jwt = {
       source  = "geektheripper/jwt"
-      version = "1.1.4"
+      version = "1.2.2"
     }
     time = {
       source  = "hashicorp/time"
-      version = "0.11.1"
+      version = "1.2.2"
     }
   }
 }
@@ -132,7 +132,7 @@ resource "jwt_signed_token" "vault" {
 module "vault" {
   count           = data.coder_workspace.me.start_count
   source          = "registry.coder.com/coder/vault-jwt/coder"
-  version         = "1.2.0"
+  version         = "1.2.2"
   agent_id        = coder_agent.example.id
   vault_addr      = "https://vault.example.com"
   vault_jwt_role  = "coder" # The Vault role to use for authentication

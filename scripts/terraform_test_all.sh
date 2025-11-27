@@ -45,7 +45,7 @@ else
       module="${BASH_REMATCH[2]}"
       module_dir="registry/${namespace}/modules/${module}"
 
-      if [[ -d "$module_dir" ]] && [[ ! " ${MODULE_DIRS[*]} " =~ " ${module_dir} " ]]; then
+      if [[ -d "$module_dir" ]] && [[ ! " ${MODULE_DIRS[*]} " =~ " $module_dir " ]]; then
         MODULE_DIRS+=("$module_dir")
       fi
     fi
@@ -67,7 +67,7 @@ else
   for module_dir in "${MODULE_DIRS[@]}"; do
     while IFS= read -r test_file; do
       test_dir=$(dirname "$test_file")
-      if [[ ! " ${test_dirs[*]} " =~ " ${test_dir} " ]]; then
+      if [[ ! " ${test_dirs[*]} " =~ " $test_dir " ]]; then
         test_dirs+=("$test_dir")
       fi
     done < <(find "$module_dir" -type f -name "*.tftest.hcl")
