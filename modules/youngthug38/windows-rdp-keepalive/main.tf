@@ -1,51 +1,28 @@
-terraform {
-  required_version = ">= 1.0"
-  required_providers {
-    coder = {
-      source  = "coder/coder"
-      version = ">= 0.12"
-    }
-  }
-}
-
-variable "agent_id" {
-  description = "The ID of the Coder agent."
-  type        = string
-}
-
-variable "interval" {
-  description = "Interval in seconds to check for RDP connections."
-  type        = number
-  default     = 60
-}
-
-resource "coder_script" "rdp_keepalive" {
-  agent_id     = var.agent_id
-  display_name = "RDP Keep Alive"
-  icon         = "/icon/remote-desktop.svg"
-  run_on_start = true
-
-  # We run a PowerShell loop in the background
-  script = <<EOT
+script = <<EOT
 $Interval = ${var.interval}
 
 Write-Host "Starting RDP Keep Alive Monitor..."
 
 while ($true) {
-    # check for active RDP-Tcp sessions
-    $rdpSession = query user | Select-String "rdp-tcp" | Select-String "Active"
+    # Check for active RDP-Tcp sessions using qwinsta (Standard on Windows Server)
+    $sessionInfo = qwinsta | Select-String "rdp-tcp"
+    $isActive = $sessionInfo | Select-String "Active"
     
-    if ($rdpSession) {
-        # RDP is active. We need to generate 'activity' to prevent shutdown.
-        
+    if ($isActive) {
         $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        Write-Host "[$timestamp] RDP Active - Sending KeepAlive signal"
+        Write-Host "[$timestamp] Active RDP Session Detected."
         
-        # This subtle output to the agent's log is often enough to reset the "idleness" timer
-        # because the PTY receives data.
+        # Hit the Coder Agent API to verify activity
+        # The agent listens on localhost and accepts POST /api/v2/workspace/activity
+        try {
+            $url = "$env:CODER_AGENT_URL/api/v2/workspace/activity"
+            Invoke-RestMethod -Uri $url -Method Post -ContentType "application/json" -Body '{}' -ErrorAction SilentlyContinue
+            Write-Host " -> Heartbeat sent to Coder Agent."
+        } catch {
+            Write-Host " -> Failed to send heartbeat: $_"
+        }
     }
     
     Start-Sleep -Seconds $Interval
 }
 EOT
-}
