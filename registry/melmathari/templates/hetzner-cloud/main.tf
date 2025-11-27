@@ -314,7 +314,6 @@ resource "hcloud_server" "workspace" {
   }
 
   user_data = templatefile("${path.module}/cloud-config.yaml.tftpl", {
-    hostname          = local.server_name
     username          = lower(data.coder_workspace_owner.me.name)
     volume_device     = "/dev/sdb"
     init_script       = base64encode(coder_agent.main.init_script)
