@@ -29,8 +29,11 @@ jobs:
               - 'scripts/ts_test_auto.sh'
               - 'scripts/terraform_test_all.sh'
               - 'scripts/terraform_validate.sh'
+              - 'scripts/shellcheck_validate.sh'
             modules:
               - 'registry/**/modules/**'
+            shell:
+              - '**/*.sh'
             all:
               - '**'
       - name: Set up Terraform
@@ -64,6 +67,14 @@ jobs:
           SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
           MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
         run: bun terraform-validate
+      - name: Run ShellCheck
+        env:
+          ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
+          SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
+          SHELL_CHANGED_FILES: ${{ steps.filter.outputs.shell_files }}
+        run: bun shellcheck
+      - name: Validate set -u ordering
+        run: ./scripts/validate_set_u_order.sh
   validate-style:
     name: Check for typos and unformatted code
     runs-on: ubuntu-latest

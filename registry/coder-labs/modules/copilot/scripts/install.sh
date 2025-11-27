@@ -1,7 +1,10 @@
 #!/bin/bash
-set -euo pipefail
 
-source "$HOME"/.bashrc
+if [ -f "$HOME/.bashrc" ]; then
+  source "$HOME"/.bashrc
+fi
+
+set -euo pipefail
 
 command_exists() {
   command -v "$1" > /dev/null 2>&1
