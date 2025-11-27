@@ -14,10 +14,10 @@ Run [Amp CLI](https://ampcode.com/) in your workspace to access Sourcegraph's AI
 module "amp-cli" {
   source                  = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
   version                 = "2.0.2"
-  agent_id                = coder_agent.main.id
+  agent_id                = coder_agent.example.id
   sourcegraph_amp_api_key = var.sourcegraph_amp_api_key
   install_sourcegraph_amp = true
-  agentapi_version        = "latest"
+  agentapi_version        = "2.0.2"
 }
 ```
 
@@ -48,8 +48,8 @@ variable "amp_api_key" {
 module "amp-cli" {
   count              = data.coder_workspace.me.start_count
   source             = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
-  amp_version        = "2.0.1"
-  agent_id           = coder_agent.main.id
+  amp_version        = "2.0.2"
+  agent_id           = coder_agent.example.id
   amp_api_key        = var.amp_api_key # recommended for tasks usage
   workdir            = "/home/coder/project"
   instruction_prompt = <<-EOT
