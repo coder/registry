@@ -22,7 +22,7 @@ This module has a chance of conflicting with the user's dotfiles / the personali
 module "git-commit-signing" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/git-commit-signing/coder"
-  version  = "1.0.31"
-  agent_id = coder_agent.example.id
+  version  = "1.0.32"
+  agent_id = coder_agent.main.id
 }
 ```
