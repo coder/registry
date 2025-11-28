@@ -13,8 +13,8 @@ Run the [Goose](https://block.github.io/goose/) agent in your workspace to gener
 ```tf
 module "goose" {
   source           = "registry.coder.com/coder/goose/coder"
-  version          = "3.0.0"
-  agent_id         = coder_agent.example.id
+  version          = "3.0.1"
+  agent_id         = coder_agent.main.id
   folder           = "/home/coder"
   install_goose    = true
   goose_version    = "v1.0.31"
@@ -39,7 +39,7 @@ module "coder-login" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/coder-login/coder"
   version  = "1.0.15"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 
 variable "anthropic_api_key" {
@@ -79,8 +79,8 @@ resource "coder_agent" "main" {
 module "goose" {
   count            = data.coder_workspace.me.start_count
   source           = "registry.coder.com/coder/goose/coder"
-  version          = "3.0.0"
-  agent_id         = coder_agent.example.id
+  version          = "3.0.1"
+  agent_id         = coder_agent.main.id
   folder           = "/home/coder"
   install_goose    = true
   goose_version    = "v1.0.31"

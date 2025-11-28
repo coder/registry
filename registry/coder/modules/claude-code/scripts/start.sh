@@ -100,7 +100,8 @@ function validate_claude_installation() {
 TASK_SESSION_ID="cd32e253-ca16-4fd3-9825-d837e74ae3c2"
 
 task_session_exists() {
-  local workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
+  local workdir_normalized
+  workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
   local project_dir="$HOME/.claude/projects/${workdir_normalized}"
 
   printf "PROJECT_DIR: %s, workdir_normalized: %s\n" "$project_dir" "$workdir_normalized"
@@ -226,15 +227,15 @@ function start_agentapi() {
     fi
 
     # Set HTTP Proxy port used by Boundary
-    BOUNDARY_ARGS+=(--proxy-port $ARG_BOUNDARY_PROXY_PORT)
+    BOUNDARY_ARGS+=(--proxy-port "$ARG_BOUNDARY_PROXY_PORT")
 
     # Set log level for boundary
-    BOUNDARY_ARGS+=(--log-level $ARG_BOUNDARY_LOG_LEVEL)
+    BOUNDARY_ARGS+=(--log-level "$ARG_BOUNDARY_LOG_LEVEL")
 
     if [ "${ARG_ENABLE_BOUNDARY_PPROF:-false}" = "true" ]; then
       # Enable boundary pprof server on specified port
       BOUNDARY_ARGS+=(--pprof)
-      BOUNDARY_ARGS+=(--pprof-port ${ARG_BOUNDARY_PPROF_PORT})
+      BOUNDARY_ARGS+=(--pprof-port "$ARG_BOUNDARY_PPROF_PORT")
     fi
 
     agentapi server --type claude --term-width 67 --term-height 1190 -- \
