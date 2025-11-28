@@ -336,7 +336,7 @@ module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
   version = "2.0.0"
 
-  count = report_tasks ? 1 : 0
+  count = var.report_tasks ? 1 : 0
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
   web_app_order        = var.order
