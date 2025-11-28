@@ -176,6 +176,7 @@ resource "coder_env" "status_slug" {
   agent_id = var.agent_id
   name     = "CODER_MCP_APP_STATUS_SLUG"
   value    = local.app_slug
+  count    = var.report_tasks ? 1 : 0
 }
 
 # Expose auth tarball as environment variable for install script
