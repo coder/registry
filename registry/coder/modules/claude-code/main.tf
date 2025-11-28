@@ -403,5 +403,5 @@ module "agentapi" {
 }
 
 output "task_app_id" {
-  value = module.agentapi.task_app_id
+  value = try(module.agentapi[0].task_app_id, null)
 }
