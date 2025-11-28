@@ -17,12 +17,12 @@ run "minimal_config" {
   }
 
   assert {
-    condition     = resource.coder_env.status_slug.name == "CODER_MCP_APP_STATUS_SLUG"
+    condition     = resource.coder_env.status_slug[0].name == "CODER_MCP_APP_STATUS_SLUG"
     error_message = "Status slug environment variable not configured correctly"
   }
 
   assert {
-    condition     = resource.coder_env.status_slug.value == "kiro-cli"
+    condition     = resource.coder_env.status_slug[0].value == "kiro-cli"
     error_message = "Status slug value should be 'kiro-cli'"
   }
 }
@@ -40,12 +40,12 @@ run "test_case_1_basic_usage" {
 
   # Q is installed and authenticated
   assert {
-    condition     = resource.coder_env.status_slug.name == "CODER_MCP_APP_STATUS_SLUG"
+    condition     = resource.coder_env.status_slug[0].name == "CODER_MCP_APP_STATUS_SLUG"
     error_message = "Status slug environment variable should be configured for basic usage"
   }
 
   assert {
-    condition     = resource.coder_env.status_slug.value == "kiro-cli"
+    condition     = resource.coder_env.status_slug[0].value == "kiro-cli"
     error_message = "Status slug value should be 'kiro-cli' for basic usage"
   }
 
@@ -82,12 +82,12 @@ run "test_case_2_autonomous_usage" {
 
   # Q is installed and authenticated
   assert {
-    condition     = resource.coder_env.status_slug.name == "CODER_MCP_APP_STATUS_SLUG"
+    condition     = resource.coder_env.status_slug[0].name == "CODER_MCP_APP_STATUS_SLUG"
     error_message = "Status slug environment variable should be configured for autonomous usage"
   }
 
   assert {
-    condition     = resource.coder_env.status_slug.value == "kiro-cli"
+    condition     = resource.coder_env.status_slug[0].value == "kiro-cli"
     error_message = "Status slug value should be 'kiro-cli' for autonomous usage"
   }
 
@@ -152,7 +152,7 @@ run "test_case_3_extended_configuration" {
 
   # All installation parameters are applied correctly
   assert {
-    condition     = resource.coder_env.status_slug.value == "kiro-cli"
+    condition     = resource.coder_env.status_slug[0].value == "kiro-cli"
     error_message = "Status slug should be configured correctly with extended parameters"
   }
 
@@ -219,12 +219,12 @@ run "full_config" {
   }
 
   assert {
-    condition     = resource.coder_env.status_slug.name == "CODER_MCP_APP_STATUS_SLUG"
+    condition     = resource.coder_env.status_slug[0].name == "CODER_MCP_APP_STATUS_SLUG"
     error_message = "Status slug environment variable not configured correctly"
   }
 
   assert {
-    condition     = resource.coder_env.status_slug.value == "kiro-cli"
+    condition     = resource.coder_env.status_slug[0].value == "kiro-cli"
     error_message = "Status slug value should be 'kiro-cli'"
   }
 
@@ -296,7 +296,7 @@ run "install_options" {
   }
 
   assert {
-    condition     = resource.coder_env.status_slug.name == "CODER_MCP_APP_STATUS_SLUG"
+    condition     = resource.coder_env.status_slug[0].name == "CODER_MCP_APP_STATUS_SLUG"
     error_message = "Status slug should still be configured even when install options are disabled"
   }
 }
@@ -312,7 +312,7 @@ run "version_configuration" {
   }
 
   assert {
-    condition     = resource.coder_env.status_slug.value == "kiro-cli"
+    condition     = resource.coder_env.status_slug[0].value == "kiro-cli"
     error_message = "Status slug value should remain 'kiro-cli' regardless of version"
   }
 }
