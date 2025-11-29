@@ -3,6 +3,7 @@ muc = "muc" # For Munich location code
 tyo = "tyo" # For Tokyo location code
 Hashi = "Hashi"
 HashiCorp = "HashiCorp"
+hel = "hel" # For Helsinki location code
 mavrickrishi = "mavrickrishi" # Username
 mavrick = "mavrick" # Username
 inh = "inh" # Option in setpriv command
