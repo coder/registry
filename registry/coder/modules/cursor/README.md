@@ -16,8 +16,8 @@ Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder)
 module "cursor" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/cursor/coder"
-  version  = "1.3.2"
-  agent_id = coder_agent.example.id
+  version  = "1.4.0"
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -29,8 +29,8 @@ module "cursor" {
 module "cursor" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/cursor/coder"
-  version  = "1.3.2"
-  agent_id = coder_agent.example.id
+  version  = "1.4.0"
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
 ```
@@ -45,8 +45,8 @@ The following example configures Cursor to use the GitHub MCP server with authen
 module "cursor" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/cursor/coder"
-  version  = "1.3.2"
-  agent_id = coder_agent.example.id
+  version  = "1.4.0"
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   mcp = jsonencode({
     mcpServers = {
@@ -57,6 +57,8 @@ module "cursor" {
         },
         "type" : "http"
       }
+
+
     }
   })
 }

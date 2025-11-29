@@ -46,7 +46,7 @@ This example shows how to configure the Claude Code module to run the agent behi
 module "claude-code" {
   source                           = "dev.registry.coder.com/coder/claude-code/coder"
   enable_boundary                  = true
-  boundary_version                 = "main"
+  boundary_version                 = "4.2.2"
   boundary_log_dir                 = "/tmp/boundary_logs"
   boundary_log_level               = "WARN"
   boundary_additional_allowed_urls = ["GET *google.com"]
@@ -78,8 +78,8 @@ module "claude-code" {
   # OR
   claude_code_oauth_token = "xxxxx-xxxx-xxxx"
 
-  claude_code_version = "1.0.82" # Pin to a specific version
-  agentapi_version    = "v0.10.0"
+  claude_code_version = "4.2.2" # Pin to a specific version
+  agentapi_version    = "4.2.2"
 
   ai_prompt = data.coder_parameter.ai_prompt.value
   model     = "sonnet"
@@ -89,11 +89,9 @@ module "claude-code" {
   mcp = <<-EOF
   {
     "mcpServers": {
-      "memory": {
-        "type": "stdio",
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-memory"],
-        "env": {}
+      "my-custom-tool": {
+        "command": "my-tool-server"
+        "args": ["--port", "8080"]
       }
     }
   }
@@ -112,7 +110,7 @@ module "claude-code" {
   agent_id            = coder_agent.example.id
   workdir             = "/home/coder"
   install_claude_code = true
-  claude_code_version = "latest"
+  claude_code_version = "4.2.2"
   report_tasks        = false
   cli_app             = true
 }

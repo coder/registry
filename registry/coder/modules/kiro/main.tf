@@ -38,18 +38,6 @@ variable "group" {
   default     = null
 }
 
-variable "slug" {
-  type        = string
-  description = "The slug of the app."
-  default     = "kiro"
-}
-
-variable "display_name" {
-  type        = string
-  description = "The display name of the app."
-  default     = "Kiro IDE"
-}
-
 variable "mcp" {
   type        = string
   description = "JSON-encoded string to configure MCP servers for Kiro. When set, writes ~/.kiro/settings/mcp.json."
@@ -63,26 +51,21 @@ locals {
   mcp_b64 = var.mcp != "" ? base64encode(var.mcp) : ""
 }
 
-resource "coder_app" "kiro" {
-  agent_id     = var.agent_id
-  external     = true
-  icon         = "/icon/kiro.svg"
-  slug         = var.slug
-  display_name = var.display_name
-  order        = var.order
-  group        = var.group
-  url = join("", [
-    "kiro://coder.coder-remote/open",
-    "?owner=",
-    data.coder_workspace_owner.me.name,
-    "&workspace=",
-    data.coder_workspace.me.name,
-    var.folder != "" ? join("", ["&folder=", var.folder]) : "",
-    var.open_recent ? "&openRecent" : "",
-    "&url=",
-    data.coder_workspace.me.access_url,
-    "&token=$SESSION_TOKEN",
-  ])
+module "vscode-desktop-core" {
+  source  = "registry.coder.com/coder/vscode-desktop-core/coder"
+  version = "1.0.0"
+
+  agent_id = var.agent_id
+
+  coder_app_icon         = "/icon/kiro.svg"
+  coder_app_slug         = "kiro-ai"
+  coder_app_display_name = "Kiro AI IDE"
+  coder_app_order        = var.order
+  coder_app_group        = var.group
+
+  folder      = var.folder
+  open_recent = var.open_recent
+  protocol    = "kiro"
 }
 
 resource "coder_script" "kiro_mcp" {
@@ -102,6 +85,6 @@ resource "coder_script" "kiro_mcp" {
 }
 
 output "kiro_url" {
-  value       = coder_app.kiro.url
+  value       = module.vscode-desktop-core.ide_uri
   description = "Kiro IDE URL."
 }
