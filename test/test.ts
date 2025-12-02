@@ -112,6 +112,8 @@ type JsonValue =
   | { [key: string]: JsonValue };
 
 type TerraformStateResource = {
+  module: string;
+  mode: string;
   type: string;
   name: string;
   provider: string;

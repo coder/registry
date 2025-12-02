@@ -293,3 +293,12 @@ resource "coder_app" "jetbrains" {
     var.agent_name != null ? "&agent_name=${var.agent_name}" : "",
   ])
 }
+
+output "ide_metadata" {
+  description = "A map of the metadata for each selected JetBrains IDE."
+  value = {
+    # We iterate directly over the selected_ides map.
+    # 'key' will be the IDE key (e.g., "IC", "PY")
+    for key, val in local.selected_ides : key => local.options_metadata[key]
+  }
+}

@@ -50,6 +50,7 @@ resource "coder_script" "vault" {
   icon         = "/icon/vault.svg"
   script = templatefile("${path.module}/run.sh", {
     INSTALL_VERSION : var.vault_cli_version,
+    VAULT_NAMESPACE : var.vault_namespace != null ? var.vault_namespace : "",
   })
   run_on_start       = true
   start_blocks_login = true

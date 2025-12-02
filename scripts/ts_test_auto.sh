@@ -42,7 +42,7 @@ while IFS= read -r file; do
     module="${BASH_REMATCH[2]}"
     module_dir="registry/${namespace}/modules/${module}"
 
-    if [[ -f "$module_dir/main.test.ts" ]] && [[ ! " ${MODULE_DIRS[*]} " =~ " ${module_dir} " ]]; then
+    if [[ -f "$module_dir/main.test.ts" ]] && [[ ! " ${MODULE_DIRS[*]} " =~ " $module_dir " ]]; then
       MODULE_DIRS+=("$module_dir")
     fi
   fi

@@ -13,8 +13,8 @@ Configure package managers (Maven, npm, Go, PyPI, Docker) to use [Sonatype Nexus
 ```tf
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
-  version        = "1.0.1"
-  agent_id       = coder_agent.example.id
+  version        = "1.0.2"
+  agent_id       = coder_agent.main.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
   package_managers = {
@@ -24,6 +24,7 @@ module "nexus_repository" {
     pypi   = ["pypi-public", "pypi-private"]
     docker = ["docker-public", "docker-private"]
   }
+
 }
 ```
 
@@ -43,13 +44,14 @@ module "nexus_repository" {
 ```tf
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
-  version        = "1.0.1"
-  agent_id       = coder_agent.example.id
+  version        = "1.0.2"
+  agent_id       = coder_agent.main.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
   package_managers = {
     maven = ["maven-public", "maven-releases", "maven-snapshots"]
   }
+
 }
 ```
 
@@ -58,13 +60,14 @@ module "nexus_repository" {
 ```tf
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
-  version        = "1.0.1"
-  agent_id       = coder_agent.example.id
+  version        = "1.0.2"
+  agent_id       = coder_agent.main.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
   package_managers = {
     npm = ["npm-public", "@mycompany:npm-private"]
   }
+
 }
 ```
 
@@ -73,13 +76,14 @@ module "nexus_repository" {
 ```tf
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
-  version        = "1.0.1"
-  agent_id       = coder_agent.example.id
+  version        = "1.0.2"
+  agent_id       = coder_agent.main.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
   package_managers = {
     go = ["go-public", "go-private"]
   }
+
 }
 ```
 
@@ -88,13 +92,14 @@ module "nexus_repository" {
 ```tf
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
-  version        = "1.0.1"
-  agent_id       = coder_agent.example.id
+  version        = "1.0.2"
+  agent_id       = coder_agent.main.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
   package_managers = {
     pypi = ["pypi-public", "pypi-private"]
   }
+
 }
 ```
 
@@ -103,13 +108,14 @@ module "nexus_repository" {
 ```tf
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
-  version        = "1.0.1"
-  agent_id       = coder_agent.example.id
+  version        = "1.0.2"
+  agent_id       = coder_agent.main.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
   package_managers = {
     docker = ["docker-public", "docker-private"]
   }
+
 }
 ```
 
@@ -118,14 +124,15 @@ module "nexus_repository" {
 ```tf
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
-  version        = "1.0.1"
-  agent_id       = coder_agent.example.id
+  version        = "1.0.2"
+  agent_id       = coder_agent.main.id
   nexus_url      = "https://nexus.example.com"
   nexus_username = "custom-user"
   nexus_password = var.nexus_api_token
   package_managers = {
     maven = ["maven-public"]
   }
+
 }
 ```
 
@@ -134,8 +141,8 @@ module "nexus_repository" {
 ```tf
 module "nexus_repository" {
   source         = "registry.coder.com/mavrickrishi/nexus-repository/coder"
-  version        = "1.0.1"
-  agent_id       = coder_agent.example.id
+  version        = "1.0.2"
+  agent_id       = coder_agent.main.id
   nexus_url      = "https://nexus.example.com"
   nexus_password = var.nexus_api_token
   package_managers = {
@@ -145,5 +152,6 @@ module "nexus_repository" {
     pypi   = ["pypi-public", "pypi-private"]
     docker = ["docker-public", "docker-private"]
   }
+
 }
 ```

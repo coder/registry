@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-# Exit on error, undefined variables, and pipe failures
-set -euo pipefail
+set -eo pipefail
 
 error() {
   printf "💀 ERROR: %s\n" "$@"
@@ -121,6 +120,9 @@ fi
 
 # shellcheck disable=SC1091
 source /etc/os-release
+
+set -u
+
 distro="$ID"
 distro_version="$VERSION_ID"
 codename="$VERSION_CODENAME"

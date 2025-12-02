@@ -57,7 +57,7 @@ run "test_claude_code_with_custom_options" {
     group                        = "development"
     icon                         = "/icon/custom.svg"
     model                        = "opus"
-    task_prompt                  = "Help me write better code"
+    ai_prompt                    = "Help me write better code"
     permission_mode              = "plan"
     continue                     = true
     install_claude_code          = false
@@ -88,8 +88,8 @@ run "test_claude_code_with_custom_options" {
   }
 
   assert {
-    condition     = var.task_prompt == "Help me write better code"
-    error_message = "Task prompt variable should be set correctly"
+    condition     = var.ai_prompt == "Help me write better code"
+    error_message = "AI prompt variable should be set correctly"
   }
 
   assert {

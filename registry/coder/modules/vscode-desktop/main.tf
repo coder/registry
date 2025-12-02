@@ -38,33 +38,24 @@ variable "group" {
   default     = null
 }
 
-data "coder_workspace" "me" {}
-data "coder_workspace_owner" "me" {}
+module "vscode-desktop-core" {
+  source  = "registry.coder.com/coder/vscode-desktop-core/coder"
+  version = "1.0.0"
 
-resource "coder_app" "vscode" {
-  agent_id     = var.agent_id
-  external     = true
-  icon         = "/icon/code.svg"
-  slug         = "vscode"
-  display_name = "VS Code Desktop"
-  order        = var.order
-  group        = var.group
+  agent_id = var.agent_id
 
-  url = join("", [
-    "vscode://coder.coder-remote/open",
-    "?owner=",
-    data.coder_workspace_owner.me.name,
-    "&workspace=",
-    data.coder_workspace.me.name,
-    var.folder != "" ? join("", ["&folder=", var.folder]) : "",
-    var.open_recent ? "&openRecent" : "",
-    "&url=",
-    data.coder_workspace.me.access_url,
-    "&token=$SESSION_TOKEN",
-  ])
+  coder_app_icon         = "/icon/code.svg"
+  coder_app_slug         = "vscode"
+  coder_app_display_name = "VS Code Desktop"
+  coder_app_order        = var.order
+  coder_app_group        = var.group
+
+  folder      = var.folder
+  open_recent = var.open_recent
+  protocol    = "vscode"
 }
 
 output "vscode_url" {
-  value       = coder_app.vscode.url
+  value       = module.vscode-desktop-core.ide_uri
   description = "VS Code Desktop URL."
 }
