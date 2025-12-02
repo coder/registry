@@ -8,6 +8,8 @@ tags: [ai, agents, development, multiplexer]
 
 # mux
 
+![mux](.images/product-hero.webp)
+
 Automatically install and run [mux](https://github.com/coder/mux) in a Coder workspace. By default, the module installs `mux@next` from npm (with a fallback to downloading the npm tarball if npm is unavailable). mux is a desktop application for parallel agentic development that enables developers to run multiple AI agents simultaneously across isolated workspaces.
 
 ```tf
