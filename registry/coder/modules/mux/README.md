@@ -2,19 +2,19 @@
 display_name: mux
 description: Coding Agent Multiplexer - Run multiple AI agents in parallel
 icon: ../../../../.icons/mux.svg
-verified: false
+verified: true
 tags: [ai, agents, development, multiplexer]
 ---
 
 # mux
 
-Automatically install and run mux in a Coder workspace. By default, the module installs `mux@next` from npm (with a fallback to downloading the npm tarball if npm is unavailable). mux is a desktop application for parallel agentic development that enables developers to run multiple AI agents simultaneously across isolated workspaces.
+Automatically install and run [mux](https://github.com/coder/mux) in a Coder workspace. By default, the module installs `mux@next` from npm (with a fallback to downloading the npm tarball if npm is unavailable). mux is a desktop application for parallel agentic development that enables developers to run multiple AI agents simultaneously across isolated workspaces.
 
 ```tf
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "1.0.2"
+  version  = "1.0.3"
   agent_id = coder_agent.main.id
 }
 ```
@@ -35,7 +35,7 @@ module "mux" {
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "1.0.2"
+  version  = "1.0.3"
   agent_id = coder_agent.main.id
 }
 ```
@@ -46,7 +46,7 @@ module "mux" {
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "1.0.2"
+  version  = "1.0.3"
   agent_id = coder_agent.main.id
   # Default is "latest"; set to a specific version to pin
   install_version = "0.4.0"
@@ -59,7 +59,7 @@ module "mux" {
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "1.0.2"
+  version  = "1.0.3"
   agent_id = coder_agent.main.id
   port     = 8080
 }
@@ -73,7 +73,7 @@ Run an existing copy of mux if found, otherwise install from npm:
 module "mux" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/mux/coder"
-  version    = "1.0.2"
+  version    = "1.0.3"
   agent_id   = coder_agent.main.id
   use_cached = true
 }
@@ -87,7 +87,7 @@ Run without installing from the network (requires mux to be pre-installed):
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "1.0.2"
+  version  = "1.0.3"
   agent_id = coder_agent.main.id
   install  = false
 }
