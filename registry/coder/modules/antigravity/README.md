@@ -1,6 +1,6 @@
 ---
 display_name: Antigravity
-description: Add a one-click button to launch Antigravity IDE
+description: Add a one-click button to launch Google Antigravity
 icon: ../../../../.icons/antigravity.svg
 verified: true
 tags: [ide, antigravity, ai]
