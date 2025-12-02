@@ -2,7 +2,7 @@
 display_name: Antigravity IDE
 description: Add a one-click button to launch Antigravity IDE
 icon: ../../../../.icons/antigravity.svg
-verified: false
+verified: true
 tags: [ide, antigravity, ai]
 ---
 
