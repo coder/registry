@@ -1,5 +1,5 @@
 ---
-display_name: Antigravity IDE
+display_name: Antigravity
 description: Add a one-click button to launch Antigravity IDE
 icon: ../../../../.icons/antigravity.svg
 verified: true
