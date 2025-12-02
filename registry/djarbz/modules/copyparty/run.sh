@@ -12,6 +12,7 @@ PINNED_VERSION="${PINNED_VERSION}"
 # Custom CLI Arguments
 # The variable from Terraform is a series of quoted and space separated strings.
 # We need to parse it into a proper bash array.
+# shellcheck disable=SC2206
 ARGUMENTS=(${ARGUMENTS})
 
 # VARIABLE appears unused. Verify use (or export if used externally).

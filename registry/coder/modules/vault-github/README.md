@@ -14,7 +14,7 @@ This module lets you authenticate with [Hashicorp Vault](https://www.vaultprojec
 module "vault" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/vault-github/coder"
-  version    = "1.1.0"
+  version    = "1.1.2"
   agent_id   = coder_agent.example.id
   vault_addr = "https://vault.example.com"
 }
@@ -46,7 +46,7 @@ To configure the Vault module, you must set up a Vault GitHub auth method. See t
 module "vault" {
   count                = data.coder_workspace.me.start_count
   source               = "registry.coder.com/coder/vault-github/coder"
-  version              = "1.1.0"
+  version              = "1.1.2"
   agent_id             = coder_agent.example.id
   vault_addr           = "https://vault.example.com"
   coder_github_auth_id = "my-github-auth-id"
@@ -59,7 +59,7 @@ module "vault" {
 module "vault" {
   count                  = data.coder_workspace.me.start_count
   source                 = "registry.coder.com/coder/vault-github/coder"
-  version                = "1.1.0"
+  version                = "1.1.2"
   agent_id               = coder_agent.example.id
   vault_addr             = "https://vault.example.com"
   coder_github_auth_id   = "my-github-auth-id"
@@ -73,9 +73,9 @@ module "vault" {
 module "vault" {
   count             = data.coder_workspace.me.start_count
   source            = "registry.coder.com/coder/vault-github/coder"
-  version           = "1.1.0"
+  version           = "1.1.2"
   agent_id          = coder_agent.example.id
   vault_addr        = "https://vault.example.com"
-  vault_cli_version = "1.15.0"
+  vault_cli_version = "1.1.2"
 }
 ```

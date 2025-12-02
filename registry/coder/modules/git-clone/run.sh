@@ -60,7 +60,7 @@ if [ -n "$POST_CLONE_SCRIPT" ]; then
   echo "Running post-clone script..."
   echo "$POST_CLONE_SCRIPT" | base64 -d > /tmp/post_clone.sh
   chmod +x /tmp/post_clone.sh
-  cd "$CLONE_PATH"
+  cd "$CLONE_PATH" || exit
   /tmp/post_clone.sh
   rm /tmp/post_clone.sh
 fi
