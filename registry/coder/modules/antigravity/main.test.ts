@@ -26,7 +26,10 @@ describe("antigravity", async () => {
     );
 
     const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "antigravity",
+      (res) =>
+        res.type === "coder_app" &&
+        res.module === "module.vscode-desktop-core" &&
+        res.name === "vscode-desktop",
     );
 
     expect(coder_app).not.toBeNull();
@@ -83,7 +86,10 @@ describe("antigravity", async () => {
     });
 
     const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "antigravity",
+      (res) =>
+        res.type === "coder_app" &&
+        res.module === "module.vscode-desktop-core" &&
+        res.name === "vscode-desktop",
     );
 
     expect(coder_app).not.toBeNull();

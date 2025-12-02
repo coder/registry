@@ -64,26 +64,21 @@ locals {
   mcp_b64 = var.mcp != "" ? base64encode(var.mcp) : ""
 }
 
-resource "coder_app" "antigravity" {
-  agent_id     = var.agent_id
-  external     = true
-  icon         = "/icon/antigravity.svg"
-  slug         = var.slug
-  display_name = var.display_name
-  order        = var.order
-  group        = var.group
-  url = join("", [
-    "antigravity://coder.coder-remote/open",
-    "?owner=",
-    data.coder_workspace_owner.me.name,
-    "&workspace=",
-    data.coder_workspace.me.name,
-    var.folder != "" ? join("", ["&folder=", var.folder]) : "",
-    var.open_recent ? "&openRecent" : "",
-    "&url=",
-    data.coder_workspace.me.access_url,
-    "&token=$SESSION_TOKEN",
-  ])
+module "vscode-desktop-core" {
+  source  = "registry.coder.com/coder/vscode-desktop-core/coder"
+  version = "1.0.1"
+
+  agent_id = var.agent_id
+
+  web_app_icon         = "/icon/antigravity.svg"
+  web_app_slug         = var.slug
+  web_app_display_name = var.display_name
+  web_app_order        = var.order
+  web_app_group        = var.group
+
+  folder      = var.folder
+  open_recent = var.open_recent
+  protocol    = "antigravity"
 }
 
 resource "coder_script" "antigravity_mcp" {
@@ -103,7 +98,7 @@ resource "coder_script" "antigravity_mcp" {
 }
 
 output "antigravity_url" {
-  value       = coder_app.antigravity.url
+  value       = module.vscode-desktop-core.ide_uri
   description = "Antigravity IDE URL."
 }
 
