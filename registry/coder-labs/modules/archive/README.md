@@ -14,7 +14,7 @@ This module installs small, robust scripts in your workspace to create and extra
 module "archive" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder-labs/archive/coder"
-  version  = "0.0.1"
+  version  = "0.0.3"
   agent_id = coder_agent.example.id
 
   paths = ["./projects", "./code"]
@@ -43,7 +43,7 @@ Basic example:
 module "archive" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder-labs/archive/coder"
-  version  = "0.0.1"
+  version  = "0.0.3"
   agent_id = coder_agent.example.id
 
   # Paths to include in the archive (files or directories).
@@ -61,7 +61,7 @@ Customize compression and output:
 module "archive" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder-labs/archive/coder"
-  version  = "0.0.1"
+  version  = "0.0.3"
   agent_id = coder_agent.example.id
 
   directory    = "/"
@@ -78,7 +78,7 @@ Enable auto-archive on stop:
 module "archive" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder-labs/archive/coder"
-  version  = "0.0.1"
+  version  = "0.0.3"
   agent_id = coder_agent.example.id
 
   # Creates /tmp/coder-archive.tar.gz of the users home directory (defaults).
@@ -92,7 +92,7 @@ Extract on start:
 module "archive" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder-labs/archive/coder"
-  version  = "0.0.1"
+  version  = "0.0.3"
   agent_id = coder_agent.example.id
 
   # Where to look for the archive file to extract:

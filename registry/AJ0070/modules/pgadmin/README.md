@@ -17,7 +17,7 @@ It can be served on a Coder subdomain for easy access, or on `localhost` if you 
 module "pgadmin" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/AJ0070/pgadmin/coder"
-  version  = "1.0.0"
-  agent_id = coder_agent.example.id
+  version  = "1.0.1"
+  agent_id = coder_agent.main.id
 }
 ```

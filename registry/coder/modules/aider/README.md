@@ -19,8 +19,8 @@ variable "api_key" {
 
 module "aider" {
   source      = "registry.coder.com/coder/aider/coder"
-  version     = "2.0.0"
-  agent_id    = coder_agent.example.id
+  version     = "2.0.1"
+  agent_id    = coder_agent.main.id
   api_key     = var.api_key
   ai_provider = "google"
   model       = "gemini"
@@ -50,8 +50,8 @@ variable "gemini_api_key" {
 
 module "aider" {
   source           = "registry.coder.com/coder/aider/coder"
-  version          = "2.0.0"
-  agent_id         = coder_agent.example.id
+  version          = "2.0.1"
+  agent_id         = coder_agent.main.id
   api_key          = var.gemini_api_key
   install_aider    = true
   workdir          = "/home/coder"
@@ -75,8 +75,8 @@ variable "custom_api_key" {
 module "aider" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/aider/coder"
-  version             = "2.0.0"
-  agent_id            = coder_agent.example.id
+  version             = "2.0.1"
+  agent_id            = coder_agent.main.id
   workdir             = "/home/coder"
   ai_provider         = "custom"
   custom_env_var_name = "MY_CUSTOM_API_KEY"
