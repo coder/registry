@@ -14,12 +14,12 @@ Automatically install and run [mux](https://github.com/coder/mux) in a Coder wor
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "1.0.3"
+  version  = "1.0.4"
   agent_id = coder_agent.main.id
 }
 ```
 
-![mux](.images/product-hero.webp)
+![mux](../../.images/mux-product-hero.webp)
 
 ## Features
 
@@ -37,7 +37,7 @@ module "mux" {
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "1.0.3"
+  version  = "1.0.4"
   agent_id = coder_agent.main.id
 }
 ```
@@ -48,7 +48,7 @@ module "mux" {
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "1.0.3"
+  version  = "1.0.4"
   agent_id = coder_agent.main.id
   # Default is "latest"; set to a specific version to pin
   install_version = "0.4.0"
@@ -61,7 +61,7 @@ module "mux" {
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "1.0.3"
+  version  = "1.0.4"
   agent_id = coder_agent.main.id
   port     = 8080
 }
@@ -89,7 +89,7 @@ Run without installing from the network (requires mux to be pre-installed):
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "1.0.3"
+  version  = "1.0.4"
   agent_id = coder_agent.main.id
   install  = false
 }
