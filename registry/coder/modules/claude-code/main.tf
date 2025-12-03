@@ -340,7 +340,7 @@ locals {
 
 resource "coder_script" "install_agent" {
 
-  count = var.report_tasks ? 1 : 0
+  count = !var.report_tasks ? 1 : 0
 
   agent_id     = var.agent_id
   display_name = "Install agent"
@@ -368,7 +368,7 @@ resource "coder_script" "install_agent" {
 
 resource "coder_app" "agent_cli" {
 
-  count = (var.report_tasks && var.cli_app) ? 1 : 0
+  count = (!var.report_tasks && var.cli_app) ? 1 : 0
 
 
   agent_id = var.agent_id
