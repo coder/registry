@@ -14,15 +14,16 @@ This module installs and runs Open WebUI using Python and pip within your Coder 
 
 ## Prerequisites
 
-- **Python 3.11 or higher** (automatically installed from [deadsnakes PPA](https://launchpad.net/~deadsnakes/+archive/ubuntu/ppa) if not present)
-- `pip` package manager
-- `sudo` access (for automatic Python installation if needed)
+- **Python 3.11 or higher** must be installed in your image (with `venv` module)
 - Port 7800 (default) or your custom port must be available
 
-**Note:** If Python 3.11+ is not found, the module will automatically:
-1. Add the deadsnakes PPA repository
-2. Install Python 3.11 with venv and dev packages
-3. Install pip if not available
+For Ubuntu/Debian, you can install Python 3.11 from [deadsnakes PPA](https://launchpad.net/~deadsnakes/+archive/ubuntu/ppa):
+
+```shell
+sudo add-apt-repository -y ppa:deadsnakes/ppa
+sudo apt-get update
+sudo apt-get install -y python3.11 python3.11-venv
+```
 
 ## Basic Usage
 

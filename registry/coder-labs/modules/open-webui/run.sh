@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+set -e
 
 # shellcheck disable=SC2059
 printf '\033[0;1mInstalling Open WebUI...\n\n'
@@ -29,40 +30,30 @@ for cmd in python3.13 python3.12 python3.11 python3 python; do
 done
 
 if [ -z "$PYTHON_CMD" ]; then
-  echo "❌ Python 3.11 or higher is not installed"
+  echo "❌ Python 3.11 or higher is required but not found."
   echo ""
-  echo "Installing Python 3.11 from deadsnakes PPA..."
-  
-  # Check if we have sudo access
-  if ! command -v sudo > /dev/null 2>&1; then
-    echo "❌ sudo is not available. Please install Python 3.11+ manually"
-    exit 1
-  fi
-  
-  # Install Python 3.11
-  echo "📦 Adding deadsnakes PPA..."
-  sudo apt-get update -qq
-  sudo apt-get install -y software-properties-common
-  sudo add-apt-repository -y ppa:deadsnakes/ppa
-  sudo apt-get update -qq
-  
-  echo "📦 Installing Python 3.11..."
-  sudo apt-get install -y python3.11 python3.11-venv python3.11-dev
-  
-  PYTHON_CMD="python3.11"
-  echo "✅ Python 3.11 installed successfully"
+  echo "Please install Python 3.11+ in your image. For example on Ubuntu/Debian:"
+  echo "  sudo add-apt-repository -y ppa:deadsnakes/ppa"
+  echo "  sudo apt-get update"
+  echo "  sudo apt-get install -y python3.11 python3.11-venv"
+  exit 1
 fi
 
-# Check if pip is available
-if ! "$PYTHON_CMD" -m pip --version > /dev/null 2>&1; then
-  echo "📦 Installing pip..."
-  curl -sS https://bootstrap.pypa.io/get-pip.py | "$PYTHON_CMD"
+# Set up virtual environment
+VENV_DIR="$HOME/.open-webui-venv"
+if [ ! -d "$VENV_DIR" ]; then
+  echo "📦 Creating virtual environment..."
+  "$PYTHON_CMD" -m venv "$VENV_DIR"
 fi
+
+# Activate virtual environment
+# shellcheck disable=SC1091
+. "$VENV_DIR/bin/activate"
 
 # Check if open-webui is already installed
-if ! "$PYTHON_CMD" -m pip show open-webui > /dev/null 2>&1; then
+if ! pip show open-webui > /dev/null 2>&1; then
   echo "📦 Installing Open WebUI..."
-  "$PYTHON_CMD" -m pip install --user open-webui
+  pip install open-webui
   echo "🥳 Open WebUI has been installed"
 else
   echo "✅ Open WebUI is already installed"
@@ -78,7 +69,7 @@ echo "👷 Starting Open WebUI in background..."
 echo "Check logs at $LOG_PATH"
 
 # Start Open WebUI
-"$PYTHON_CMD" -m open_webui serve --host 0.0.0.0 --port "$PORT" > "$LOG_PATH" 2>&1 &
+open-webui serve --host 0.0.0.0 --port "$PORT" > "$LOG_PATH" 2>&1 &
 
 # Wait a bit for the server to start
 sleep 2
