@@ -10,6 +10,13 @@ tags: [helper, integration, vault, cli]
 
 Installs the [Vault](https://www.vaultproject.io/) CLI and optionally configures token authentication. This module focuses on CLI installation and can be used standalone or as a base for other authentication methods.
 
+## Prerequisites
+
+The following tools are required in the workspace image:
+
+- **HTTP client**: `curl`, `wget`, or `busybox` (at least one)
+- **Archive utility**: `unzip` or `busybox` (at least one)
+
 ```tf
 module "vault_cli" {
   source     = "registry.coder.com/coder/vault-cli/coder"

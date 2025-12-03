@@ -28,14 +28,14 @@ fetch() {
 
   if [ -n "$${dest}" ]; then
     case "$${HTTP_CLIENT}" in
-      curl)    curl -sSL --fail "$${url}" -o "$${dest}" ;;
-      wget)    wget -O "$${dest}" "$${url}" ;;
+      curl) curl -sSL --fail "$${url}" -o "$${dest}" ;;
+      wget) wget -O "$${dest}" "$${url}" ;;
       busybox) busybox wget -O "$${dest}" "$${url}" ;;
     esac
   else
     case "$${HTTP_CLIENT}" in
-      curl)    curl -sSL --fail "$${url}" ;;
-      wget)    wget -qO- "$${url}" ;;
+      curl) curl -sSL --fail "$${url}" ;;
+      wget) wget -qO- "$${url}" ;;
       busybox) busybox wget -qO- "$${url}" ;;
     esac
   fi
