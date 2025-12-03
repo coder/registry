@@ -108,7 +108,7 @@ is_valid_session() {
     return 1
   fi
   
-  if ! jq -e '.sessionId' < <(head -1 "$session_file") >/dev/null 2>&1; then
+  if ! head -3 "$session_file" | jq empty 2>/dev/null; then
     printf "Session validation failed: invalid JSONL format\n"
     return 1
   fi
