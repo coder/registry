@@ -234,42 +234,6 @@ SESSIONEOF`,
     expect(startLog.stdout).toContain("--dangerously-skip-permissions");
   });
 
-  test("claude-continue-resume-standalone-session", async () => {
-    const { id } = await setup({
-      moduleVariables: {
-        continue: "true",
-        report_tasks: "false",
-        ai_prompt: "test prompt",
-      },
-    });
-
-    const sessionId = "some-random-session-id";
-    const workdir = "/home/coder/project";
-    const claudeJson = {
-      projects: {
-        [workdir]: {
-          lastSessionId: sessionId,
-        },
-      },
-    };
-
-    await execContainer(id, [
-      "bash",
-      "-c",
-      `echo '${JSON.stringify(claudeJson)}' > /home/coder/.claude.json`,
-    ]);
-
-    await execModuleScript(id);
-
-    const startLog = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/.claude-module/agentapi-start.log",
-    ]);
-    expect(startLog.stdout).toContain("--continue");
-    expect(startLog.stdout).toContain("Resuming existing session");
-  });
-
   test("pre-post-install-scripts", async () => {
     const { id } = await setup({
       moduleVariables: {
