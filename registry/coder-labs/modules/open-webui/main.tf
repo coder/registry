@@ -53,8 +53,8 @@ resource "coder_script" "open-webui" {
   display_name = "open-webui"
   icon         = "/icon/openai.svg"
   script = templatefile("${path.module}/run.sh", {
-    LOG_PATH : var.log_path,
-    PORT : var.port,
+    HTTP_SERVER_LOG_PATH : var.log_path,
+    HTTP_SERVER_PORT : var.port,
   })
   run_on_start = true
 }
