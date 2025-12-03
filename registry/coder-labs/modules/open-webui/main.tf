@@ -24,7 +24,7 @@ variable "log_path" {
 variable "port" {
   type        = number
   description = "The port to run Open WebUI on."
-  default     = 8080
+  default     = 7800
 }
 
 variable "share" {
