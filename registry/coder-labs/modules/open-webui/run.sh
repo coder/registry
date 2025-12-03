@@ -2,7 +2,7 @@
 
 set -eu
 
-printf '\033[0;1mInstalling Open WebUI...\n\n'
+printf '\033[0;1mInstalling Open WebUI %s...\n\n' "${VERSION}"
 
 check_python_version() {
   python_cmd="$1"
