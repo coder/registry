@@ -119,8 +119,8 @@ is_valid_session() {
     return 1
   fi
 
-  if ! grep -q '"sessionId"' "$session_file" || \
-     ! grep -m 1 '"sessionId"' "$session_file" | jq -e '.sessionId' >/dev/null 2>&1; then
+  if ! grep -q '"sessionId"' "$session_file" \
+    || ! grep -m 1 '"sessionId"' "$session_file" | jq -e '.sessionId' > /dev/null 2>&1; then
     printf "Session validation failed: no valid sessionId found\n"
     return 1
   fi
