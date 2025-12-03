@@ -345,8 +345,8 @@ resource "coder_script" "install_agent" {
   agent_id     = var.agent_id
   display_name = "Install agent"
   run_on_start = true
-  log_path = "${local.module_dir_name}/install.log"
-  script       = <<-EOT
+  # log_path = "${local.module_dir_name}/install.log"
+  script       = <<EOF
     #!/bin/bash
     set -o errexit
     set -o pipefail
@@ -364,7 +364,7 @@ resource "coder_script" "install_agent" {
     ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
     ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
     /tmp/install.sh
-  EOT
+EOF
 }
 
 resource "coder_app" "agent_cli" {
