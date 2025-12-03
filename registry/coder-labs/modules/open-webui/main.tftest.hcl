@@ -23,6 +23,11 @@ run "test_defaults" {
   }
 
   assert {
+    condition     = var.open_webui_version == "0.6.40"
+    error_message = "Default version should be '0.6.40'"
+  }
+
+  assert {
     condition     = coder_app.open-webui.subdomain == true
     error_message = "App should use subdomain"
   }
@@ -111,5 +116,19 @@ run "test_order_and_group" {
   assert {
     condition     = coder_app.open-webui.group == "AI Tools"
     error_message = "Group should be 'AI Tools'"
+  }
+}
+
+run "test_custom_version" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent-version"
+    open_webui_version = "0.5.0"
+  }
+
+  assert {
+    condition     = var.open_webui_version == "0.5.0"
+    error_message = "Custom version should be '0.5.0'"
   }
 }

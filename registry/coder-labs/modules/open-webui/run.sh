@@ -45,8 +45,8 @@ fi
 . "$VENV_DIR/bin/activate"
 
 if ! pip show open-webui > /dev/null 2>&1; then
-  echo "📦 Installing Open WebUI..."
-  pip install open-webui
+  echo "📦 Installing Open WebUI version $${VERSION}..."
+  pip install "open-webui==$${VERSION}"
   echo "🥳 Open WebUI has been installed"
 else
   echo "✅ Open WebUI is already installed"

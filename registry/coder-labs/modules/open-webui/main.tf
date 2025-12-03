@@ -27,6 +27,12 @@ variable "http_server_port" {
   default     = 7800
 }
 
+variable "open_webui_version" {
+  type        = string
+  description = "The version of Open WebUI to install."
+  default     = "0.6.40"
+}
+
 variable "share" {
   type    = string
   default = "owner"
@@ -55,6 +61,7 @@ resource "coder_script" "open-webui" {
   script = templatefile("${path.module}/run.sh", {
     HTTP_SERVER_LOG_PATH : var.http_server_log_path,
     HTTP_SERVER_PORT : var.http_server_port,
+    VERSION : var.open_webui_version,
   })
   run_on_start = true
 }
