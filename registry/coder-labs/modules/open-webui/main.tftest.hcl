@@ -123,12 +123,39 @@ run "test_custom_version" {
   command = plan
 
   variables {
-    agent_id          = "test-agent-version"
+    agent_id           = "test-agent-version"
     open_webui_version = "0.5.0"
   }
 
   assert {
     condition     = var.open_webui_version == "0.5.0"
     error_message = "Custom version should be '0.5.0'"
+  }
+}
+
+run "test_custom_data_dir" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-data"
+    data_dir = "/home/coder/open-webui-data"
+  }
+
+  assert {
+    condition     = var.data_dir == "/home/coder/open-webui-data"
+    error_message = "Custom data_dir should be set"
+  }
+}
+
+run "test_default_data_dir" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-data-default"
+  }
+
+  assert {
+    condition     = var.data_dir == "$HOME/.open-webui"
+    error_message = "Default data_dir should be '$HOME/.open-webui'"
   }
 }

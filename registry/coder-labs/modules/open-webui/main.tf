@@ -33,6 +33,12 @@ variable "open_webui_version" {
   default     = "0.6.40"
 }
 
+variable "data_dir" {
+  type        = string
+  description = "The directory where Open WebUI stores its data (database, uploads, vector_db, cache)."
+  default     = "$HOME/.open-webui"
+}
+
 variable "share" {
   type    = string
   default = "owner"
@@ -62,6 +68,7 @@ resource "coder_script" "open-webui" {
     HTTP_SERVER_LOG_PATH : var.http_server_log_path,
     HTTP_SERVER_PORT : var.http_server_port,
     VERSION : var.open_webui_version,
+    DATA_DIR : var.data_dir,
   })
   run_on_start = true
 }

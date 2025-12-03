@@ -55,6 +55,7 @@ fi
 echo "👷 Starting Open WebUI in background..."
 echo "Check logs at ${HTTP_SERVER_LOG_PATH}"
 
+export DATA_DIR="${DATA_DIR}"
 open-webui serve --host 0.0.0.0 --port "${HTTP_SERVER_PORT}" > "${HTTP_SERVER_LOG_PATH}" 2>&1 &
 
 echo "🥳 Open WebUI is ready. HTTP server is listening on port ${HTTP_SERVER_PORT}"
