@@ -36,7 +36,7 @@ variable "open_webui_version" {
 variable "data_dir" {
   type        = string
   description = "The directory where Open WebUI stores its data (database, uploads, vector_db, cache)."
-  default     = "$HOME/.open-webui"
+  default     = "~/.open-webui"
 }
 
 variable "share" {
