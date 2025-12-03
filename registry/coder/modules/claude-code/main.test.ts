@@ -216,8 +216,8 @@ describe("claude-code", async () => {
       "bash",
       "-c",
       `cat > ${sessionDir}/${taskSessionId}.jsonl << 'SESSIONEOF'
-{"sessionId":"${taskSessionId}","message":{"content":"Task"},"timestamp":"2025-12-03T10:00:00.000Z"}
-{"type":"assistant","message":{"content":"Response"},"timestamp":"2025-12-03T10:00:05.000Z"}
+{"sessionId":"${taskSessionId}","message":{"content":"Task"},"timestamp":"2020-01-01T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-01T10:00:05.000Z"}
 SESSIONEOF`,
     ]);
 
@@ -397,8 +397,8 @@ SESSIONEOF`,
       "bash",
       "-c",
       `cat > ${sessionDir}/generic-123.jsonl << 'EOF'
-{"sessionId":"generic-123","message":{"content":"User session"},"timestamp":"2025-12-02T10:00:00.000Z"}
-{"type":"assistant","message":{"content":"Response"},"timestamp":"2025-12-02T10:00:05.000Z"}
+{"sessionId":"generic-123","message":{"content":"User session"},"timestamp":"2020-01-01T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-01T10:00:05.000Z"}
 EOF`,
     ]);
 
@@ -436,8 +436,8 @@ EOF`,
       "bash",
       "-c",
       `cat > ${sessionDir}/${taskSessionId}.jsonl << 'EOF'
-{"sessionId":"${taskSessionId}","message":{"content":"Task"},"timestamp":"2025-12-02T10:00:00.000Z"}
-{"type":"assistant","message":{"content":"Response"},"timestamp":"2025-12-02T10:00:05.000Z"}
+{"sessionId":"${taskSessionId}","message":{"content":"Task"},"timestamp":"2020-01-01T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-01T10:00:05.000Z"}
 EOF`,
     ]);
 
@@ -446,8 +446,8 @@ EOF`,
       "bash",
       "-c",
       `cat > ${sessionDir}/manual-456.jsonl << 'EOF'
-{"sessionId":"manual-456","message":{"content":"Manual"},"timestamp":"2025-12-02T12:00:00.000Z"}
-{"type":"assistant","message":{"content":"Response"},"timestamp":"2025-12-02T12:00:05.000Z"}
+{"sessionId":"manual-456","message":{"content":"Manual"},"timestamp":"2020-01-02T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-02T10:00:05.000Z"}
 EOF`,
     ]);
 
