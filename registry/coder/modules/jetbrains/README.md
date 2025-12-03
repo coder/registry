@@ -151,16 +151,17 @@ module "jetbrains" {
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   default  = ["IU", "PY"]
+
   jetbrains_plugins = {
-    "PY" = ["com.koxudaxi.pydantic","com.intellij.kubernetes"]
-    "IU" = ["<Plugin-ID>","<Plugin-ID>"]
-    "WS" = ["<Plugin-ID>","<Plugin-ID>"]
-    "GO" = ["<Plugin-ID>","<Plugin-ID>"]
-    "CL" = ["<Plugin-ID>","<Plugin-ID>"]
-    "PS" = ["<Plugin-ID>","<Plugin-ID>"]
-    "RD" = ["<Plugin-ID>","<Plugin-ID>"]
-    "RM" = ["<Plugin-ID>","<Plugin-ID>"]
-    "RR" = ["<Plugin-ID>","<Plugin-ID>"]
+    "PY" = ["com.koxudaxi.pydantic", "com.intellij.kubernetes"]
+    "IU" = ["<Plugin-ID>", "<Plugin-ID>"]
+    "WS" = ["<Plugin-ID>", "<Plugin-ID>"]
+    "GO" = ["<Plugin-ID>", "<Plugin-ID>"]
+    "CL" = ["<Plugin-ID>", "<Plugin-ID>"]
+    "PS" = ["<Plugin-ID>", "<Plugin-ID>"]
+    "RD" = ["<Plugin-ID>", "<Plugin-ID>"]
+    "RM" = ["<Plugin-ID>", "<Plugin-ID>"]
+    "RR" = ["<Plugin-ID>", "<Plugin-ID>"]
   }
 }
 ```
