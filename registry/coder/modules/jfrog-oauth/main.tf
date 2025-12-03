@@ -163,6 +163,13 @@ resource "coder_script" "jfrog" {
     }
   ))
   run_on_start = true
+
+  lifecycle {
+    precondition {
+      condition     = data.coder_external_auth.jfrog.access_token != ""
+      error_message = "JFrog access token is empty. Please authenticate with JFrog using external auth."
+    }
+  }
 }
 
 resource "coder_env" "jfrog_ide_url" {
