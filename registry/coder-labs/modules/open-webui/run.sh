@@ -1,8 +1,12 @@
 #!/usr/bin/env sh
-set -e
 
-HTTP_SERVER_LOG_PATH=$${HTTP_SERVER_LOG_PATH}
-HTTP_SERVER_PORT=$${HTTP_SERVER_PORT}
+set -eu
+
+echo "1. $${HTTP_SERVER_LOG_PATH}"
+echo "2. ${HTTP_SERVER_LOG_PATH}"
+
+HTTP_SERVER_LOG_PATH=${HTTP_SERVER_LOG_PATH}
+HTTP_SERVER_PORT=${HTTP_SERVER_PORT}
 
 # shellcheck disable=SC2059
 printf '\033[0;1mInstalling Open WebUI...\n\n'

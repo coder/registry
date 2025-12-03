@@ -51,7 +51,7 @@ variable "group" {
 resource "coder_script" "open-webui" {
   agent_id     = var.agent_id
   display_name = "open-webui"
-  icon         = "/icon/openai.svg"
+  icon         = "/icon/openwebui.svg"
   script = templatefile("${path.module}/run.sh", {
     HTTP_SERVER_LOG_PATH : var.log_path,
     HTTP_SERVER_PORT : var.port,
@@ -64,7 +64,7 @@ resource "coder_app" "open-webui" {
   slug         = "open-webui"
   display_name = "Open WebUI"
   url          = "http://localhost:${var.port}"
-  icon         = "/icon/openai.svg"
+  icon         = "/icon/openwebui.svg"
   subdomain    = true
   share        = var.share
   order        = var.order
