@@ -17,6 +17,10 @@ The following tools are required in the workspace image:
 - **HTTP client**: `curl`, `wget`, or `busybox` (at least one)
 - **Archive utility**: `unzip` or `busybox` (at least one)
 
+**Recommended:**
+
+- **jq**: For reliable JSON parsing of the HashiCorp releases API (falls back to sed if not available)
+
 ```tf
 module "vault_cli" {
   source     = "registry.coder.com/coder/vault-cli/coder"
