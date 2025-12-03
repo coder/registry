@@ -1,9 +1,6 @@
 #!/usr/bin/env sh
 set -e
 
-LOG_PATH=$${LOG_PATH}
-PORT=$${PORT}
-
 # shellcheck disable=SC2059
 printf '\033[0;1mInstalling Open WebUI...\n\n'
 
@@ -63,13 +60,13 @@ else
 fi
 
 echo "👷 Starting Open WebUI in background..."
-echo "Check logs at $LOG_PATH"
+echo "Check logs at $${LOG_PATH}"
 
 # Start Open WebUI
-open-webui serve --host 0.0.0.0 --port "$PORT" > "$LOG_PATH" 2>&1 &
+open-webui serve --host 0.0.0.0 --port "$${PORT}" > "$${LOG_PATH}" 2>&1 &
 
 # Wait a bit for the server to start
 sleep 2
 
 echo "🥳 Open WebUI is starting!"
-echo "Access it at http://localhost:$PORT"
+echo "Access it at http://localhost:$${PORT}"
