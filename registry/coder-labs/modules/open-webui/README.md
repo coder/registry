@@ -30,7 +30,7 @@ This module installs and runs Open WebUI using Python and pip within your Coder 
 module "open-webui" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder-labs/open-webui/coder"
-  version  = "1.0.0"
+  version  = "0.9.0"
   agent_id = coder_agent.main.id
 }
 ```
