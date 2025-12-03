@@ -155,7 +155,7 @@ run "test_default_data_dir" {
   }
 
   assert {
-    condition     = var.data_dir == "~/.open-webui"
-    error_message = "Default data_dir should be '~/.open-webui'"
+    condition     = var.data_dir == ".open-webui"
+    error_message = "Default data_dir should be '.open-webui'"
   }
 }
