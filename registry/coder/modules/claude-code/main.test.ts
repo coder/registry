@@ -208,13 +208,17 @@ describe("claude-code", async () => {
     });
 
     // Create a mock task session file with the hardcoded task session ID
+    // Note: Claude CLI creates files without "session-" prefix when using --session-id
     const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
     const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
     await execContainer(id, ["mkdir", "-p", sessionDir]);
     await execContainer(id, [
       "bash",
       "-c",
-      `touch ${sessionDir}/session-${taskSessionId}.jsonl`,
+      `cat > ${sessionDir}/${taskSessionId}.jsonl << 'SESSIONEOF'
+{"sessionId":"${taskSessionId}","message":{"content":"Task"},"timestamp":"2025-12-03T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2025-12-03T10:00:05.000Z"}
+SESSIONEOF`,
     ]);
 
     await execModuleScript(id);
@@ -226,7 +230,7 @@ describe("claude-code", async () => {
     ]);
     expect(startLog.stdout).toContain("--resume");
     expect(startLog.stdout).toContain(taskSessionId);
-    expect(startLog.stdout).toContain("Resuming existing task session");
+    expect(startLog.stdout).toContain("Resuming task session");
     expect(startLog.stdout).toContain("--dangerously-skip-permissions");
   });
 
@@ -370,16 +374,14 @@ describe("claude-code", async () => {
       },
     });
 
-    // Create a partial/invalid session file
     const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
     const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
     await execContainer(id, ["mkdir", "-p", sessionDir]);
 
-    // Write incomplete session (only 1 line, should fail validation)
     await execContainer(id, [
       "bash",
       "-c",
-      `echo '{"sessionId":"${taskSessionId}"}' > ${sessionDir}/session-${taskSessionId}.jsonl`,
+      `echo '{"sessionId":"${taskSessionId}"}' > ${sessionDir}/${taskSessionId}.jsonl`,
     ]);
 
     await execModuleScript(id);
@@ -425,13 +427,12 @@ describe("claude-code", async () => {
       },
     });
 
-    // Create a generic session file
     const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
     await execContainer(id, ["mkdir", "-p", sessionDir]);
     await execContainer(id, [
       "bash",
       "-c",
-      `cat > ${sessionDir}/session-generic-123.jsonl << 'EOF'
+      `cat > ${sessionDir}/generic-123.jsonl << 'EOF'
 {"sessionId":"generic-123","message":{"content":"User session"},"timestamp":"2025-12-02T10:00:00.000Z"}
 {"type":"assistant","message":{"content":"Response"},"timestamp":"2025-12-02T10:00:05.000Z"}
 EOF`,
@@ -464,11 +465,11 @@ EOF`,
     const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
     await execContainer(id, ["mkdir", "-p", sessionDir]);
 
-    // Create task session
+    // Create task session (without "session-" prefix, as CLI does)
     await execContainer(id, [
       "bash",
       "-c",
-      `cat > ${sessionDir}/session-${taskSessionId}.jsonl << 'EOF'
+      `cat > ${sessionDir}/${taskSessionId}.jsonl << 'EOF'
 {"sessionId":"${taskSessionId}","message":{"content":"Task"},"timestamp":"2025-12-02T10:00:00.000Z"}
 {"type":"assistant","message":{"content":"Response"},"timestamp":"2025-12-02T10:00:05.000Z"}
 EOF`,
@@ -478,7 +479,7 @@ EOF`,
     await execContainer(id, [
       "bash",
       "-c",
-      `sleep 1 && cat > ${sessionDir}/session-manual-456.jsonl << 'EOF'
+      `sleep 1 && cat > ${sessionDir}/manual-456.jsonl << 'EOF'
 {"sessionId":"manual-456","message":{"content":"Manual"},"timestamp":"2025-12-02T12:00:00.000Z"}
 {"type":"assistant","message":{"content":"Response"},"timestamp":"2025-12-02T12:00:05.000Z"}
 EOF`,

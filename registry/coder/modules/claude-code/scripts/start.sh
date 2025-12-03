@@ -89,7 +89,7 @@ TASK_SESSION_ID="cd32e253-ca16-4fd3-9825-d837e74ae3c2"
 task_session_exists() {
   local workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
   local project_dir="$HOME/.claude/projects/${workdir_normalized}"
-  local session_file="$project_dir/session-${TASK_SESSION_ID}.jsonl"
+  local session_file="$project_dir/${TASK_SESSION_ID}.jsonl"
   
   if [ -f "$session_file" ]; then
     printf "Task session file found: %s\n" "$session_file"
@@ -171,7 +171,7 @@ function start_agentapi() {
     if [ "$ARG_REPORT_TASKS" = "true" ]; then
       local workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
       local project_dir="$HOME/.claude/projects/${workdir_normalized}"
-      local session_file="$project_dir/session-${TASK_SESSION_ID}.jsonl"
+      local session_file="$project_dir/${TASK_SESSION_ID}.jsonl"
       
       if task_session_exists && is_valid_session "$session_file"; then
         echo "Resuming task session: $TASK_SESSION_ID"
