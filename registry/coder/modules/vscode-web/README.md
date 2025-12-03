@@ -53,7 +53,7 @@ module "vscode-web" {
 
 ### Pre-configure Settings
 
-Configure VS Code's [settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-json-file) file:
+Configure VS Code's [Machine settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-json-file) file. These settings are applied on every workspace start, ensuring template-defined settings are always enforced:
 
 ```tf
 module "vscode-web" {

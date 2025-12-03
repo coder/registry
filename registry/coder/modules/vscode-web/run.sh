@@ -28,12 +28,12 @@ run_vscode_web() {
   "$VSCODE_WEB" serve-local "$EXTENSION_ARG" "$SERVER_BASE_PATH_ARG" "$DISABLE_TRUST_ARG" --port "${PORT}" --host 127.0.0.1 --accept-server-license-terms --without-connection-token --telemetry-level "${TELEMETRY_LEVEL}" > "${LOG_PATH}" 2>&1 &
 }
 
-# Check if the settings file exists...
-if [ ! -f ~/.vscode-server/data/Machine/settings.json ]; then
-  echo "⚙️ Creating settings file..."
-  mkdir -p ~/.vscode-server/data/Machine
-  echo "${SETTINGS}" > ~/.vscode-server/data/Machine/settings.json
-fi
+# Apply/overwrite template-based settings on every start
+# Machine settings are always overwritten to apply template changes.
+# See: https://github.com/coder/registry/issues/42
+echo "⚙️ Applying VS Code settings..."
+mkdir -p ~/.vscode-server/data/Machine
+echo "${SETTINGS}" > ~/.vscode-server/data/Machine/settings.json
 
 # Check if vscode-server is already installed for offline or cached mode
 if [ -f "$VSCODE_WEB" ]; then
