@@ -87,9 +87,12 @@ function validate_claude_installation() {
 TASK_SESSION_ID="cd32e253-ca16-4fd3-9825-d837e74ae3c2"
 
 task_session_exists() {
-  local workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
-  local project_dir="$HOME/.claude/projects/${workdir_normalized}"
-  local session_file="$project_dir/${TASK_SESSION_ID}.jsonl"
+  local workdir_normalized
+  local project_dir
+  local session_file
+  workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
+  project_dir="$HOME/.claude/projects/${workdir_normalized}"
+  session_file="$project_dir/${TASK_SESSION_ID}.jsonl"
 
   if [ -f "$session_file" ]; then
     printf "Task session file found: %s\n" "$session_file"
@@ -113,7 +116,8 @@ is_valid_session() {
     return 1
   fi
 
-  local line_count=$(wc -l < "$session_file")
+  local line_count
+  line_count=$(wc -l < "$session_file")
   if [ "$line_count" -lt 2 ]; then
     printf "Session validation failed: incomplete (only %s lines)\n" "$line_count"
     return 1
@@ -130,8 +134,10 @@ is_valid_session() {
 }
 
 has_any_sessions() {
-  local workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
-  local project_dir="$HOME/.claude/projects/${workdir_normalized}"
+  local workdir_normalized
+  local project_dir
+  workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
+  project_dir="$HOME/.claude/projects/${workdir_normalized}"
 
   if [ -d "$project_dir" ] && find "$project_dir" -name "*.jsonl" 2> /dev/null | grep -q .; then
     printf "Sessions found in: %s\n" "$project_dir"
@@ -167,9 +173,12 @@ function start_agentapi() {
   elif [ "$ARG_CONTINUE" = "true" ]; then
 
     if [ "$ARG_REPORT_TASKS" = "true" ]; then
-      local workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
-      local project_dir="$HOME/.claude/projects/${workdir_normalized}"
-      local session_file="$project_dir/${TASK_SESSION_ID}.jsonl"
+      local workdir_normalized
+      local project_dir
+      local session_file
+      workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
+      project_dir="$HOME/.claude/projects/${workdir_normalized}"
+      session_file="$project_dir/${TASK_SESSION_ID}.jsonl"
 
       if task_session_exists && is_valid_session "$session_file"; then
         echo "Resuming task session: $TASK_SESSION_ID"
