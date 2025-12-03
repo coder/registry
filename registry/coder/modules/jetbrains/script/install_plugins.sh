@@ -5,8 +5,12 @@ LOGFILE="$HOME/.config/jetbrains/install_plugins.log"
 TOOLBOX_BASE="$HOME/.local/share/JetBrains/Toolbox/apps"
 PLUGIN_MAP_FILE="$HOME/.config/jetbrains/plugins.json"
 
-sudo apt-get update
-sudo apt-get install -y libfreetype6
+if command -v apt-get > /dev/null 2>&1; then
+  sudo apt-get update
+  sudo apt-get install -y libfreetype6
+else
+  echo "Warning: 'apt-get' not found. Please ensure 'libfreetype6' is installed manually for your distribution." >&2
+fi
 
 mkdir -p "$(dirname "$LOGFILE")"
 
@@ -61,8 +65,12 @@ find_cli_launcher() {
   local exe
   exe="$(launcher_for_code "$1")" || return 1
 
-  if [ -f "$2/bin/$exe" ]; then
-    echo "$2/bin/$exe"
+  # Look for the newest version directory
+  local latest_version
+  latest_version=$(find "$2" -maxdepth 2 -type d -name "ch-*" 2> /dev/null | sort -V | tail -1)
+
+  if [ -n "$latest_version" ] && [ -f "$latest_version/bin/$exe" ]; then
+    echo "$latest_version/bin/$exe"
   else
     return 1
   fi
@@ -70,7 +78,12 @@ find_cli_launcher() {
 
 install_plugin() {
   log "Installing plugin: $2"
-  "$1" installPlugins "$2"
+  if "$1" installPlugins "$2"; then
+    log "Successfully installed plugin: $2"
+  else
+    log "Failed to install plugin: $2"
+    return 1
+  fi
 }
 
 # -------- Main --------
@@ -91,8 +104,17 @@ fi
 
 log "Waiting for IDE installation. Pending codes: ${pending_codes[*]}"
 
+MAX_ATTEMPTS=60 # 10 minutes
+attempt=0
+
 # Loop until all plugins installed
-while [ ${#pending_codes[@]} -gt 0 ]; do
+while [ ${#pending_codes[@]} -gt 0 ] && [ $attempt -lt $MAX_ATTEMPTS ]; do
+
+  if [ ! -d "$TOOLBOX_BASE" ]; then
+    log "Toolbox directory not found yet, waiting..."
+    sleep 10
+    continue
+  fi
 
   for product_dir in "$TOOLBOX_BASE"/*; do
     [ -d "$product_dir" ] || continue
@@ -133,7 +155,13 @@ while [ ${#pending_codes[@]} -gt 0 ]; do
   # If still pending, wait and retry
   if [ ${#pending_codes[@]} -gt 0 ]; then
     sleep 10
+    ((attempt++))
   fi
 done
+
+if [ ${#pending_codes[@]} -gt 0 ]; then
+  log "Timeout: IDEs not found: ${pending_codes[*]}"
+  exit 1
+fi
 
 log "All plugins installed. Exiting."

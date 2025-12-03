@@ -165,6 +165,12 @@ module "jetbrains" {
   }
 }
 ```
+> [!IMPORTANT]\
+> This module prerequisites and limitations
+> 1. Requires JetBrains Toolbox to be installed
+> 2. Requires jq to be available
+> 3. Only works on Debian/Ubuntu-based systems (due to apt-get usage)
+> 4. Plugins are installed when workspace starts, but may take time depending on IDE availability
 
 ### Accessing the IDE Metadata
 

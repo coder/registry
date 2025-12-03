@@ -240,6 +240,7 @@ data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
 resource "coder_script" "store_plugins" {
+  count        = length(var.jetbrains_plugins) > 0 ? 1 : 0
   agent_id     = var.agent_id
   display_name = "Store JetBrains Plugins List"
   run_on_start = true
@@ -254,12 +255,13 @@ resource "coder_script" "store_plugins" {
 }
 
 resource "coder_script" "install_jetbrains_plugins" {
+  count        = length(var.jetbrains_plugins) > 0 ? 1 : 0
   agent_id     = var.agent_id
   display_name = "Install JetBrains Plugins"
   run_on_start = true
+  depends_on   = [coder_script.store_plugins]
 
   script = <<-EOT
-    
     ${file("${path.module}/script/install_plugins.sh")}
   EOT
 }
