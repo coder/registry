@@ -28,11 +28,29 @@ run_vscode_web() {
   "$VSCODE_WEB" serve-local "$EXTENSION_ARG" "$SERVER_BASE_PATH_ARG" "$DISABLE_TRUST_ARG" --port "${PORT}" --host 127.0.0.1 --accept-server-license-terms --without-connection-token --telemetry-level "${TELEMETRY_LEVEL}" > "${LOG_PATH}" 2>&1 &
 }
 
-# Check if the settings file exists...
-if [ ! -f ~/.vscode-server/data/Machine/settings.json ]; then
-  echo "⚙️ Creating settings file..."
-  mkdir -p ~/.vscode-server/data/Machine
-  echo "${SETTINGS}" > ~/.vscode-server/data/Machine/settings.json
+# Apply settings
+SETTINGS_FILE="$HOME/.vscode-server/data/Machine/settings.json"
+mkdir -p "$(dirname "$SETTINGS_FILE")"
+MODULE_SETTINGS='${SETTINGS}'
+
+# Check if we have settings to apply
+if [ -n "$MODULE_SETTINGS" ] && [ "$MODULE_SETTINGS" != "{}" ]; then
+  # Check if jq is available for merging settings
+  if command -v jq > /dev/null; then
+    if [ -f "$SETTINGS_FILE" ]; then
+      echo "⚙️ Merging settings..."
+      # Merge existing settings with new settings (new settings take precedence)
+      MERGED_SETTINGS=$(jq -s '.[0] * .[1]' "$SETTINGS_FILE" <(echo "$MODULE_SETTINGS") 2> /dev/null) || MERGED_SETTINGS="$MODULE_SETTINGS"
+      echo "$MERGED_SETTINGS" > "$SETTINGS_FILE"
+    else
+      echo "⚙️ Creating settings file..."
+      echo "$MODULE_SETTINGS" > "$SETTINGS_FILE"
+    fi
+  else
+    # No jq available, overwrite settings
+    echo "⚙️ Creating settings file..."
+    echo "$MODULE_SETTINGS" > "$SETTINGS_FILE"
+  fi
 fi
 
 # Check if vscode-server is already installed for offline or cached mode
