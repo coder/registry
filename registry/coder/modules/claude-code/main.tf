@@ -252,6 +252,12 @@ variable "compile_boundary_from_source" {
   default     = false
 }
 
+variable "cli_command" {
+  type        = string
+  description = "The command to run for the Claude Code CLI app when tasks are disabled."
+  default     = "claude"
+}
+
 resource "coder_env" "claude_code_md_path" {
   count = var.claude_md_path == "" ? 0 : 1
 
@@ -331,6 +337,67 @@ locals {
     local.custom_system_prompt != "" ? format("\n%s\n", local.custom_system_prompt) : ""
   )
 }
+
+resource "coder_script" "install_agent" {
+
+  count = var.report_tasks ? 1 : 0
+
+  agent_id     = var.agent_id
+  display_name = "Install agent"
+  run_on_start = true
+  script       = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
+    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+
+    chmod +x /tmp/install.sh
+    ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
+    ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
+    ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
+    ARG_REPORT_TASKS='${var.report_tasks}' \
+    ARG_WORKDIR='${local.workdir}' \
+    ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
+    ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
+    ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
+    /tmp/install.sh
+  EOT
+}
+
+resource "coder_app" "agent_cli" {
+
+  count = (var.report_tasks && var.cli_app) ? 1 : 0
+
+
+  agent_id = var.agent_id
+  slug         = local.app_slug
+  display_name = var.cli_app_display_name
+
+  command = length(trimprefix(var.cli_command, " ")) > 0 ? var.cli_command : <<-EOT
+     ARG_MODEL='${var.model}' \
+     ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
+     ARG_CONTINUE='${var.continue}' \
+     ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
+     ARG_PERMISSION_MODE='${var.permission_mode}' \
+     ARG_WORKDIR='${local.workdir}' \
+     ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+     ARG_REPORT_TASKS='${var.report_tasks}' \
+     ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
+     ARG_BOUNDARY_VERSION='${var.boundary_version}' \
+     ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
+     ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
+     ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join("|", var.boundary_additional_allowed_urls)}' \
+     ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
+     ARG_ENABLE_BOUNDARY_PPROF='${var.enable_boundary_pprof}' \
+     ARG_BOUNDARY_PPROF_PORT='${var.boundary_pprof_port}' \
+     ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
+     ARG_CODER_HOST='${local.coder_host}' \
+    /tmp/start.sh
+  EOT
+}
+
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
