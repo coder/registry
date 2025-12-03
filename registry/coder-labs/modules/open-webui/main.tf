@@ -15,13 +15,13 @@ variable "agent_id" {
   description = "The ID of a Coder agent."
 }
 
-variable "log_path" {
+variable "http_server_log_path" {
   type        = string
   description = "The path to log Open WebUI to."
   default     = "/tmp/open-webui.log"
 }
 
-variable "port" {
+variable "http_server_port" {
   type        = number
   description = "The port to run Open WebUI on."
   default     = 7800
@@ -53,8 +53,8 @@ resource "coder_script" "open-webui" {
   display_name = "open-webui"
   icon         = "/icon/openwebui.svg"
   script = templatefile("${path.module}/run.sh", {
-    HTTP_SERVER_LOG_PATH : var.log_path,
-    HTTP_SERVER_PORT : var.port,
+    HTTP_SERVER_LOG_PATH : var.http_server_log_path,
+    HTTP_SERVER_PORT : var.http_server_port,
   })
   run_on_start = true
 }
@@ -63,7 +63,7 @@ resource "coder_app" "open-webui" {
   agent_id     = var.agent_id
   slug         = "open-webui"
   display_name = "Open WebUI"
-  url          = "http://localhost:${var.port}"
+  url          = "http://localhost:${var.http_server_port}"
   icon         = "/icon/openwebui.svg"
   subdomain    = true
   share        = var.share
