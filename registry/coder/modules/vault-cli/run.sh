@@ -6,18 +6,38 @@ VAULT_TOKEN=${VAULT_TOKEN}
 INSTALL_DIR=${INSTALL_DIR}
 VAULT_CLI_VERSION=${VAULT_CLI_VERSION}
 
+# Fetch URL content. If dest is provided, write to file; otherwise output to stdout.
+# Usage: fetch <url> [dest]
 fetch() {
-  dest="$1"
-  url="$2"
-  if command -v curl > /dev/null 2>&1; then
-    curl -sSL --fail "$${url}" -o "$${dest}"
-  elif command -v wget > /dev/null 2>&1; then
-    wget -O "$${dest}" "$${url}"
-  elif command -v busybox > /dev/null 2>&1; then
-    busybox wget -O "$${dest}" "$${url}"
+  url="$1"
+  dest="$${2:-}"
+
+  # Detect HTTP client on first run
+  if [ -z "$${HTTP_CLIENT:-}" ]; then
+    if command -v curl > /dev/null 2>&1; then
+      HTTP_CLIENT="curl"
+    elif command -v wget > /dev/null 2>&1; then
+      HTTP_CLIENT="wget"
+    elif command -v busybox > /dev/null 2>&1; then
+      HTTP_CLIENT="busybox"
+    else
+      printf "curl, wget, or busybox is not installed. Please install curl or wget in your image.\n"
+      return 1
+    fi
+  fi
+
+  if [ -n "$${dest}" ]; then
+    case "$${HTTP_CLIENT}" in
+      curl)    curl -sSL --fail "$${url}" -o "$${dest}" ;;
+      wget)    wget -O "$${dest}" "$${url}" ;;
+      busybox) busybox wget -O "$${dest}" "$${url}" ;;
+    esac
   else
-    printf "curl, wget, or busybox is not installed. Please install curl or wget in your image.\n"
-    return 1
+    case "$${HTTP_CLIENT}" in
+      curl)    curl -sSL --fail "$${url}" ;;
+      wget)    wget -qO- "$${url}" ;;
+      busybox) busybox wget -qO- "$${url}" ;;
+    esac
   fi
 }
 
@@ -58,7 +78,7 @@ install() {
     API_URL="https://api.releases.hashicorp.com/v1/releases/vault/$${VAULT_CLI_VERSION}"
   fi
 
-  API_RESPONSE=$(curl -s "$${API_URL}")
+  API_RESPONSE=$(fetch "$${API_URL}")
   if [ -z "$${API_RESPONSE}" ]; then
     printf "Failed to fetch release information from HashiCorp API.\n"
     return 1
@@ -109,7 +129,7 @@ install() {
     cd "$${TEMP_DIR}" || return 1
 
     printf "Downloading from %s\n" "$${DOWNLOAD_URL}"
-    if ! fetch vault.zip "$${DOWNLOAD_URL}"; then
+    if ! fetch "$${DOWNLOAD_URL}" vault.zip; then
       printf "Failed to download Vault.\n"
       rm -rf "$${TEMP_DIR}"
       return 1
