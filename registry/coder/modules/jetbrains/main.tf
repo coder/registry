@@ -174,9 +174,9 @@ variable "ide_config" {
 }
 
 variable "jetbrains_plugins" {
-  type = map(list(string))
+  type        = map(list(string))
   description = "Map of IDE product codes to plugin ID lists. Example: { IU = [\"com.foo\"], GO = [\"org.bar\"] }."
-  default = {}
+  default     = {}
 }
 
 
@@ -211,7 +211,6 @@ locals {
   # Convert the parameter value to a set for for_each
   selected_ides = length(var.default) == 0 ? toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ides[0].value, "[]"))) : toset(var.default)
 
-    
   plugin_map_b64 = base64encode(jsonencode(var.jetbrains_plugins))
 }
 
@@ -244,7 +243,7 @@ resource "coder_script" "store_plugins" {
   agent_id     = var.agent_id
   display_name = "Store JetBrains Plugins List"
   run_on_start = true
-  script = <<-EOT
+  script       = <<-EOT
     #!/bin/sh
     set -eu
 
@@ -254,8 +253,8 @@ resource "coder_script" "store_plugins" {
   EOT
 }
 
-resource "coder_script" "name" {
-  agent_id = var.agent_id
+resource "coder_script" "install_jetbrains_plugins" {
+  agent_id     = var.agent_id
   display_name = "Install JetBrains Plugins"
   run_on_start = true
 
