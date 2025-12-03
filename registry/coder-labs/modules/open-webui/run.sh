@@ -1,13 +1,12 @@
 #!/usr/bin/env sh
 set -e
 
-LOG_PATH=$${LOG_PATH}
-PORT=$${PORT}
+HTTP_SERVER_LOG_PATH=$${HTTP_SERVER_LOG_PATH}
+HTTP_SERVER_PORT=$${HTTP_SERVER_PORT}
 
 # shellcheck disable=SC2059
 printf '\033[0;1mInstalling Open WebUI...\n\n'
 
-# Function to check Python version
 check_python_version() {
   python_cmd="$1"
   if command -v "$python_cmd" > /dev/null 2>&1; then
@@ -22,7 +21,6 @@ check_python_version() {
   return 1
 }
 
-# Find suitable Python version
 PYTHON_CMD=""
 for cmd in python3.13 python3.12 python3.11 python3 python; do
   if result=$(check_python_version "$cmd"); then
@@ -42,18 +40,15 @@ if [ -z "$PYTHON_CMD" ]; then
   exit 1
 fi
 
-# Set up virtual environment
 VENV_DIR="$HOME/.open-webui-venv"
 if [ ! -d "$VENV_DIR" ]; then
   echo "📦 Creating virtual environment..."
   "$PYTHON_CMD" -m venv "$VENV_DIR"
 fi
 
-# Activate virtual environment
 # shellcheck disable=SC1091
 . "$VENV_DIR/bin/activate"
 
-# Check if open-webui is already installed
 if ! pip show open-webui > /dev/null 2>&1; then
   echo "📦 Installing Open WebUI..."
   pip install open-webui
@@ -63,13 +58,10 @@ else
 fi
 
 echo "👷 Starting Open WebUI in background..."
-echo "Check logs at $LOG_PATH"
+echo "Check logs at $HTTP_SERVER_LOG_PATH"
 
-# Start Open WebUI
-open-webui serve --host 0.0.0.0 --port "$PORT" > "$LOG_PATH" 2>&1 &
+open-webui serve --host 0.0.0.0 --port "$HTTP_SERVER_PORT" > "$HTTP_SERVER_LOG_PATH" 2>&1 &
 
-# Wait a bit for the server to start
 sleep 2
 
-echo "🥳 Open WebUI is starting!"
-echo "Access it at http://localhost:$PORT"
+echo "🥳 Open WebUI is ready. HTTP server is listening on port $HTTP_SERVER_PORT"
