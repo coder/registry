@@ -2,11 +2,8 @@
 
 set -eu
 
-echo "1. ${HTTP_SERVER_LOG_PATH}"
-echo "2. $${HTTP_SERVER_LOG_PATH}"
-
-HTTP_SERVER_LOG_PATH=${HTTP_SERVER_LOG_PATH}
-HTTP_SERVER_PORT=${HTTP_SERVER_PORT}
+echo "HTTP_SERVER_LOG_PATH = ${HTTP_SERVER_LOG_PATH}"
+echo "HTTP_SERVER_PORT = ${HTTP_SERVER_PORT}"
 
 # shellcheck disable=SC2059
 printf '\033[0;1mInstalling Open WebUI...\n\n'
@@ -50,8 +47,14 @@ if [ ! -d "$VENV_DIR" ]; then
   "$PYTHON_CMD" -m venv "$VENV_DIR"
 fi
 
+echo "2. HTTP_SERVER_LOG_PATH = ${HTTP_SERVER_LOG_PATH}"
+echo "2. HTTP_SERVER_PORT = ${HTTP_SERVER_PORT}"
+
 # shellcheck disable=SC1091
 . "$VENV_DIR/bin/activate"
+
+echo "3. HTTP_SERVER_LOG_PATH = ${HTTP_SERVER_LOG_PATH}"
+echo "3. HTTP_SERVER_PORT = ${HTTP_SERVER_PORT}"
 
 if ! pip show open-webui > /dev/null 2>&1; then
   echo "📦 Installing Open WebUI..."
@@ -62,10 +65,10 @@ else
 fi
 
 echo "👷 Starting Open WebUI in background..."
-echo "Check logs at $HTTP_SERVER_LOG_PATH"
+echo "Check logs at ${HTTP_SERVER_LOG_PATH}"
 
-open-webui serve --host 0.0.0.0 --port "$HTTP_SERVER_PORT" > "$HTTP_SERVER_LOG_PATH" 2>&1 &
+open-webui serve --host 0.0.0.0 --port "${HTTP_SERVER_PORT}" > "${HTTP_SERVER_LOG_PATH}" 2>&1 &
 
 sleep 2
 
-echo "🥳 Open WebUI is ready. HTTP server is listening on port $HTTP_SERVER_PORT"
+echo "🥳 Open WebUI is ready. HTTP server is listening on port ${HTTP_SERVER_PORT}"
