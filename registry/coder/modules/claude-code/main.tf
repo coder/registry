@@ -255,7 +255,7 @@ variable "compile_boundary_from_source" {
 variable "cli_command" {
   type        = string
   description = "The command to run for the Claude Code CLI app when tasks are disabled."
-  default     = "claude"
+  default     = ""
 }
 
 resource "coder_env" "claude_code_md_path" {
@@ -345,6 +345,7 @@ resource "coder_script" "install_agent" {
   agent_id     = var.agent_id
   display_name = "Install agent"
   run_on_start = true
+  log_path = "${path.module}/install.log"
   script       = <<-EOT
     #!/bin/bash
     set -o errexit
