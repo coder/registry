@@ -59,12 +59,6 @@ else
   echo "✅ Open WebUI is already installed"
 fi
 
-# Check if Open WebUI is already running
-if pgrep -f "open-webui serve" > /dev/null; then
-  echo "✅ Open WebUI is already running"
-  exit 0
-fi
-
 echo "👷 Starting Open WebUI in background..."
 echo "Check logs at $LOG_PATH"
 
