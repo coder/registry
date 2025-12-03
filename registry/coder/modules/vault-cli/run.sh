@@ -27,12 +27,14 @@ fetch() {
   fi
 
   if [ -n "$${dest}" ]; then
+    # shellcheck disable=SC2195
     case "$${HTTP_CLIENT}" in
       curl) curl -sSL --fail "$${url}" -o "$${dest}" ;;
       wget) wget -O "$${dest}" "$${url}" ;;
       busybox) busybox wget -O "$${dest}" "$${url}" ;;
     esac
   else
+    # shellcheck disable=SC2195
     case "$${HTTP_CLIENT}" in
       curl) curl -sSL --fail "$${url}" ;;
       wget) wget -qO- "$${url}" ;;
