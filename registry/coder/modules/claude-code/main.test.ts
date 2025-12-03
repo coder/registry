@@ -412,7 +412,9 @@ EOF`,
 
     // Should continue existing session
     expect(startLog.stdout).toContain("Sessions found");
-    expect(startLog.stdout).toContain("Continuing most recent standalone session");
+    expect(startLog.stdout).toContain(
+      "Continuing most recent standalone session",
+    );
     expect(startLog.stdout).toContain("--continue");
   });
 
@@ -443,7 +445,7 @@ EOF`,
     await execContainer(id, [
       "bash",
       "-c",
-      `sleep 1 && cat > ${sessionDir}/manual-456.jsonl << 'EOF'
+      `cat > ${sessionDir}/manual-456.jsonl << 'EOF'
 {"sessionId":"manual-456","message":{"content":"Manual"},"timestamp":"2025-12-02T12:00:00.000Z"}
 {"type":"assistant","message":{"content":"Response"},"timestamp":"2025-12-02T12:00:05.000Z"}
 EOF`,

@@ -90,7 +90,7 @@ task_session_exists() {
   local workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
   local project_dir="$HOME/.claude/projects/${workdir_normalized}"
   local session_file="$project_dir/${TASK_SESSION_ID}.jsonl"
-  
+
   if [ -f "$session_file" ]; then
     printf "Task session file found: %s\n" "$session_file"
     return 0
@@ -102,31 +102,23 @@ task_session_exists() {
 
 is_valid_session() {
   local session_file="$1"
-  
+
   if [ ! -f "$session_file" ] || [ ! -s "$session_file" ]; then
     printf "Session validation failed: file missing or empty\n"
     return 1
   fi
-  
-  if ! head -3 "$session_file" | jq empty 2>/dev/null; then
+
+  if ! head -3 "$session_file" | jq empty 2> /dev/null; then
     printf "Session validation failed: invalid JSONL format\n"
     return 1
   fi
-  
+
   local line_count=$(wc -l < "$session_file")
   if [ "$line_count" -lt 2 ]; then
     printf "Session validation failed: incomplete (only %d lines)\n" "$line_count"
     return 1
   fi
-  
-  local mod_time=$(stat -c %Y "$session_file" 2>/dev/null || echo 0)
-  local now=$(date +%s)
-  local age=$((now - mod_time))
-  if [ "$age" -lt 2 ]; then
-    printf "Session validation failed: file being written (age: %d seconds)\n" "$age"
-    return 1
-  fi
-  
+
   printf "Session validation passed: %s\n" "$session_file"
   return 0
 }
@@ -134,8 +126,8 @@ is_valid_session() {
 has_any_sessions() {
   local workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
   local project_dir="$HOME/.claude/projects/${workdir_normalized}"
-  
-  if [ -d "$project_dir" ] && find "$project_dir" -name "*.jsonl" 2>/dev/null | grep -q .; then
+
+  if [ -d "$project_dir" ] && find "$project_dir" -name "*.jsonl" 2> /dev/null | grep -q .; then
     printf "Sessions found in: %s\n" "$project_dir"
     return 0
   else
@@ -165,14 +157,14 @@ function start_agentapi() {
     echo "Resuming specified session: $ARG_RESUME_SESSION_ID"
     ARGS+=(--resume "$ARG_RESUME_SESSION_ID")
     [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ] && ARGS+=(--dangerously-skip-permissions)
-  
+
   elif [ "$ARG_CONTINUE" = "true" ]; then
-    
+
     if [ "$ARG_REPORT_TASKS" = "true" ]; then
       local workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
       local project_dir="$HOME/.claude/projects/${workdir_normalized}"
       local session_file="$project_dir/${TASK_SESSION_ID}.jsonl"
-      
+
       if task_session_exists && is_valid_session "$session_file"; then
         echo "Resuming task session: $TASK_SESSION_ID"
         ARGS+=(--resume "$TASK_SESSION_ID" --dangerously-skip-permissions)
@@ -181,7 +173,7 @@ function start_agentapi() {
         ARGS+=(--session-id "$TASK_SESSION_ID" --dangerously-skip-permissions)
         [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
       fi
-    
+
     else
       if has_any_sessions; then
         echo "Continuing most recent standalone session"
@@ -193,7 +185,7 @@ function start_agentapi() {
         [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ] && ARGS+=(--dangerously-skip-permissions)
       fi
     fi
-  
+
   else
     echo "Continue disabled, starting fresh session"
     [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
