@@ -1,11 +1,5 @@
 #!/usr/bin/env sh
 
-# Convert templated variables to shell variables
-# shellcheck disable=SC2269
-LOG_PATH=${LOG_PATH}
-# shellcheck disable=SC2269
-PORT=${PORT}
-
 # shellcheck disable=SC2059
 printf '\033[0;1mInstalling Open WebUI...\n\n'
 
