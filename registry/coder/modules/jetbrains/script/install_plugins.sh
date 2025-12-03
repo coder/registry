@@ -8,7 +8,6 @@ PLUGIN_MAP_FILE="$HOME/.config/jetbrains/plugins.json"
 sudo apt-get update
 sudo apt-get install -y libfreetype6
 
-
 mkdir -p "$(dirname "$LOGFILE")"
 
 exec > >(tee -a "$LOGFILE") 2>&1
@@ -17,35 +16,32 @@ log() {
   printf '%s %s\n' "$(date --iso-8601=seconds)" "$*" | tee -a "$LOGFILE"
 }
 
-command_exists() {
-  command -v "$1" >/dev/null 2>&1
-}
-
-
 # -------- Read plugin JSON --------
-get_plugins_for_code() {
-  local code="$1"
-  jq -r --arg CODE "$code" '.[$CODE][]?' "$PLUGIN_MAP_FILE" 2>/dev/null || true
+get_enabled_codes() {
+  jq -r 'keys[]' "$PLUGIN_MAP_FILE"
 }
 
-# -------- Product code matching from folder name --------
+get_plugins_for_code() {
+  jq -r --arg CODE "$1" '.[$CODE][]?' "$PLUGIN_MAP_FILE" 2> /dev/null || true
+}
+
+# -------- Product code mapping --------
 map_folder_to_code() {
-  local folder="$1"
-  case "$folder" in
-    *pycharm*)    echo "PY" ;;
-    *idea*)       echo "IU" ;;
-    *webstorm*)   echo "WS" ;;
-    *goland*)     echo "GO" ;;
-    *clion*)      echo "CL" ;;
-    *phpstorm*)   echo "PS" ;;
-    *rider*)      echo "RD" ;;
-    *rubymine*)   echo "RM" ;;
-    *rustrover*)  echo "RR" ;;
-    *)            echo "" ;;
+  case "$1" in
+    *pycharm*) echo "PY" ;;
+    *idea*) echo "IU" ;;
+    *webstorm*) echo "WS" ;;
+    *goland*) echo "GO" ;;
+    *clion*) echo "CL" ;;
+    *phpstorm*) echo "PS" ;;
+    *rider*) echo "RD" ;;
+    *rubymine*) echo "RM" ;;
+    *rustrover*) echo "RR" ;;
+    *) echo "" ;;
   esac
 }
 
-# -------- Correct launcher per product --------
+# -------- CLI launcher names --------
 launcher_for_code() {
   case "$1" in
     PY) echo "pycharm" ;;
@@ -57,63 +53,87 @@ launcher_for_code() {
     RD) echo "rider" ;;
     RM) echo "rubymine" ;;
     RR) echo "rustrover" ;;
-    *)  return 1 ;;
+    *) return 1 ;;
   esac
 }
 
 find_cli_launcher() {
-  local code="$1"
-  local product_root="$2"
-
   local exe
-  exe="$(launcher_for_code "$code")" || return 1
+  exe="$(launcher_for_code "$1")" || return 1
 
-  if [ -f "$product_root/bin/$exe" ]; then
-    echo "$product_root/bin/$exe"
+  if [ -f "$2/bin/$exe" ]; then
+    echo "$2/bin/$exe"
   else
     return 1
   fi
 }
 
 install_plugin() {
-  local launcher="$1"
-  local plugin="$2"
-  log "Installing plugin $plugin"
-  "$launcher" installPlugins "$plugin"
+  log "Installing plugin: $2"
+  "$1" installPlugins "$2"
 }
 
-# -------- Main logic --------
+# -------- Main --------
 log "Plugin installer started"
 
 if [ ! -f "$PLUGIN_MAP_FILE" ]; then
-  log "No plugin map file found. Exiting."
+  log "No plugins.json found. Exiting."
   exit 0
 fi
 
-for product_dir in "$TOOLBOX_BASE"/*; do
-  [ -d "$product_dir" ] || continue
+# Load list of IDE codes user actually needs
+mapfile -t pending_codes < <(get_enabled_codes)
 
-  product_name="$(basename "$product_dir")"
-  code="$(map_folder_to_code "$product_name")"
-  [ -n "$code" ] || continue
+if [ ${#pending_codes[@]} -eq 0 ]; then
+  log "No plugin entries found. Exiting."
+  exit 0
+fi
 
-  cli_launcher="$(find_cli_launcher "$code" "$product_dir")"
-  if [ -z "$cli_launcher" ]; then
-    log "No CLI launcher found for code $code"
-    continue
+log "Waiting for IDE installation. Pending codes: ${pending_codes[*]}"
+
+# Loop until all plugins installed
+while [ ${#pending_codes[@]} -gt 0 ]; do
+
+  for product_dir in "$TOOLBOX_BASE"/*; do
+    [ -d "$product_dir" ] || continue
+
+    product_name="$(basename "$product_dir")"
+    code="$(map_folder_to_code "$product_name")"
+
+    # Only process codes user requested
+    if [[ ! " ${pending_codes[*]} " =~ " $code " ]]; then
+      continue
+    fi
+
+    cli_launcher="$(find_cli_launcher "$code" "$product_dir")" || continue
+
+    log "Detected IDE $code at $product_dir"
+
+    plugins="$(get_plugins_for_code "$code")"
+    if [ -z "$plugins" ]; then
+      log "No plugins for $code"
+      continue
+    fi
+
+    while read -r plugin; do
+      install_plugin "$cli_launcher" "$plugin"
+    done <<< "$plugins"
+
+    # remove code from pending list after success
+    tmp=()
+    for c in "${pending_codes[@]}"; do
+      [ "$c" != "$code" ] && tmp+=("$c")
+    done
+    pending_codes=("${tmp[@]}")
+
+    log "Finished $code. Remaining: ${pending_codes[*]:-none}"
+
+  done
+
+  # If still pending, wait and retry
+  if [ ${#pending_codes[@]} -gt 0 ]; then
+    sleep 10
   fi
-
-  plugins="$(get_plugins_for_code "$code")"
-  if [ -z "$plugins" ]; then
-    log "No plugins for $code"
-    continue
-  fi
-
-  while read -r plugin; do
-    echo "$cli_launcher and $plugin"
-    install_plugin "$cli_launcher" "$plugin"
-  done <<< "$plugins"
-
 done
 
-log "Plugin installer finished"
+log "All plugins installed. Exiting."
