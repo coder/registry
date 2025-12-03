@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
 set -e
 
-LOG_PATH=${LOG_PATH}
-PORT=${PORT}
+LOG_PATH=$${LOG_PATH}
+PORT=$${PORT}
 
 # shellcheck disable=SC2059
 printf '\033[0;1mInstalling Open WebUI...\n\n'
