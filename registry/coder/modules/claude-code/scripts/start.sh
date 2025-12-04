@@ -106,26 +106,43 @@ task_session_exists() {
 is_valid_session() {
   local session_file="$1"
 
-  if [ ! -f "$session_file" ] || [ ! -s "$session_file" ]; then
-    printf "Session validation failed: file missing or empty\n"
+  # Check if file exists and is not empty
+  # Empty files indicate the session was created but never used so they need to be removed
+  if [ ! -f "$session_file" ]; then
+    printf "Session validation failed: file does not exist\n"
     return 1
   fi
 
+  if [ ! -s "$session_file" ]; then
+    printf "Session validation failed: file is empty, removing stale file\n"
+    rm -f "$session_file"
+    return 1
+  fi
+
+  # Validate JSONL format by checking first 3 lines
+  # Claude session files use JSONL (JSON Lines) format where each line is valid JSON
   if ! head -3 "$session_file" | jq empty 2> /dev/null; then
-    printf "Session validation failed: invalid JSONL format\n"
+    printf "Session validation failed: invalid JSONL format, removing corrupt file\n"
+    rm -f "$session_file"
     return 1
   fi
 
+  # Check for minimum session content
+  # Valid sessions need at least 2 lines: initial message and first response
   local line_count
   line_count=$(wc -l < "$session_file")
   if [ "$line_count" -lt 2 ]; then
-    printf "Session validation failed: incomplete (only %s lines)\n" "$line_count"
+    printf "Session validation failed: incomplete (only %s lines), removing incomplete file\n" "$line_count"
+    rm -f "$session_file"
     return 1
   fi
 
+  # Verify the session has a valid sessionId field
+  # This ensures the file structure matches Claude's session format
   if ! grep -q '"sessionId"' "$session_file" \
     || ! grep -m 1 '"sessionId"' "$session_file" | jq -e '.sessionId' > /dev/null 2>&1; then
-    printf "Session validation failed: no valid sessionId found\n"
+    printf "Session validation failed: no valid sessionId found, removing malformed file\n"
+    rm -f "$session_file"
     return 1
   fi
 
