@@ -12,6 +12,8 @@ Open WebUI is a user-friendly web interface for interacting with Large Language 
 
 This module installs and runs Open WebUI using Python and pip within your Coder workspace.
 
+![Open WebUI](../../.images/openwebui.png)
+
 ## Prerequisites
 
 - **Python 3.11 or higher** must be installed in your image (with `venv` module)
@@ -33,5 +35,7 @@ module "open-webui" {
   source   = "registry.coder.com/coder-labs/open-webui/coder"
   version  = "0.9.0"
   agent_id = coder_agent.main.id
+
+  openai_api_key = "sk-proj-1234..."
 }
 ```
