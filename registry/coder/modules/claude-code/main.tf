@@ -400,76 +400,76 @@ EOF
 # }
 #
 #
-# module "agentapi" {
-#   source  = "registry.coder.com/coder/agentapi/coder"
-#   version = "2.0.0"
-#
-#   count = var.report_tasks ? 1 : 0
-#   agent_id             = var.agent_id
-#   web_app_slug         = local.app_slug
-#   web_app_order        = var.order
-#   web_app_group        = var.group
-#   web_app_icon         = var.icon
-#   web_app_display_name = var.web_app_display_name
-#   folder               = local.workdir
-#   cli_app              = var.cli_app
-#   cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
-#   cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
-#   agentapi_subdomain   = var.subdomain
-#   module_dir_name      = local.module_dir_name
-#   install_agentapi     = var.install_agentapi
-#   agentapi_version     = var.agentapi_version
-#   pre_install_script   = var.pre_install_script
-#   post_install_script  = var.post_install_script
-#   start_script         = <<-EOT
-#      #!/bin/bash
-#      set -o errexit
-#      set -o pipefail
-#      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-#      echo -n "${local.remove_last_session_id_script_b64}" | base64 -d > "/tmp/remove-last-session-id.sh"
-#      chmod +x /tmp/start.sh
-#      chmod +x /tmp/remove-last-session-id.sh
-#
-#      ARG_MODEL='${var.model}' \
-#      ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
-#      ARG_CONTINUE='${var.continue}' \
-#      ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
-#      ARG_PERMISSION_MODE='${var.permission_mode}' \
-#      ARG_WORKDIR='${local.workdir}' \
-#      ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
-#      ARG_REPORT_TASKS='${var.report_tasks}' \
-#      ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
-#      ARG_BOUNDARY_VERSION='${var.boundary_version}' \
-#      ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
-#      ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
-#      ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join("|", var.boundary_additional_allowed_urls)}' \
-#      ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
-#      ARG_ENABLE_BOUNDARY_PPROF='${var.enable_boundary_pprof}' \
-#      ARG_BOUNDARY_PPROF_PORT='${var.boundary_pprof_port}' \
-#      ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
-#      ARG_CODER_HOST='${local.coder_host}' \
-#      /tmp/start.sh
-#    EOT
-#
-#   install_script = <<-EOT
-#     #!/bin/bash
-#     set -o errexit
-#     set -o pipefail
-#
-#     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-#     chmod +x /tmp/install.sh
-#     ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
-#     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
-#     ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
-#     ARG_REPORT_TASKS='${var.report_tasks}' \
-#     ARG_WORKDIR='${local.workdir}' \
-#     ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
-#     ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
-#     ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
-#     /tmp/install.sh
-#   EOT
-# }
-#
-# output "task_app_id" {
-#   value = try(module.agentapi[0].task_app_id, null)
-# }
+module "agentapi" {
+  source  = "registry.coder.com/coder/agentapi/coder"
+  version = "2.0.0"
+
+  count = var.report_tasks ? 1 : 0
+  agent_id             = var.agent_id
+  web_app_slug         = local.app_slug
+  web_app_order        = var.order
+  web_app_group        = var.group
+  web_app_icon         = var.icon
+  web_app_display_name = var.web_app_display_name
+  folder               = local.workdir
+  cli_app              = var.cli_app
+  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
+  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
+  agentapi_subdomain   = var.subdomain
+  module_dir_name      = local.module_dir_name
+  install_agentapi     = var.install_agentapi
+  agentapi_version     = var.agentapi_version
+  pre_install_script   = var.pre_install_script
+  post_install_script  = var.post_install_script
+  start_script         = <<-EOT
+     #!/bin/bash
+     set -o errexit
+     set -o pipefail
+     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+     echo -n "${local.remove_last_session_id_script_b64}" | base64 -d > "/tmp/remove-last-session-id.sh"
+     chmod +x /tmp/start.sh
+     chmod +x /tmp/remove-last-session-id.sh
+
+     ARG_MODEL='${var.model}' \
+     ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
+     ARG_CONTINUE='${var.continue}' \
+     ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
+     ARG_PERMISSION_MODE='${var.permission_mode}' \
+     ARG_WORKDIR='${local.workdir}' \
+     ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+     ARG_REPORT_TASKS='${var.report_tasks}' \
+     ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
+     ARG_BOUNDARY_VERSION='${var.boundary_version}' \
+     ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
+     ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
+     ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join("|", var.boundary_additional_allowed_urls)}' \
+     ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
+     ARG_ENABLE_BOUNDARY_PPROF='${var.enable_boundary_pprof}' \
+     ARG_BOUNDARY_PPROF_PORT='${var.boundary_pprof_port}' \
+     ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
+     ARG_CODER_HOST='${local.coder_host}' \
+     /tmp/start.sh
+   EOT
+
+  install_script = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
+    chmod +x /tmp/install.sh
+    ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
+    ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
+    ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
+    ARG_REPORT_TASKS='${var.report_tasks}' \
+    ARG_WORKDIR='${local.workdir}' \
+    ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
+    ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
+    ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
+    /tmp/install.sh
+  EOT
+}
+
+output "task_app_id" {
+  value = try(module.agentapi[0].task_app_id, null)
+}
