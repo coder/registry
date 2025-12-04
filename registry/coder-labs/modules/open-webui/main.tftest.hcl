@@ -159,3 +159,30 @@ run "test_default_data_dir" {
     error_message = "Default data_dir should be '.open-webui'"
   }
 }
+
+run "test_openai_api_key" {
+  command = plan
+
+  variables {
+    agent_id       = "test-agent-openai"
+    openai_api_key = "sk-test-key-123"
+  }
+
+  assert {
+    condition     = var.openai_api_key == "sk-test-key-123"
+    error_message = "OpenAI API key should be set"
+  }
+}
+
+run "test_default_openai_api_key" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-openai-default"
+  }
+
+  assert {
+    condition     = var.openai_api_key == ""
+    error_message = "Default OpenAI API key should be empty"
+  }
+}

@@ -39,6 +39,13 @@ variable "data_dir" {
   default     = ".open-webui"
 }
 
+variable "openai_api_key" {
+  type        = string
+  description = "OpenAI API key for accessing OpenAI models. If not provided, OpenAI integration will need to be configured manually in the UI."
+  default     = ""
+  sensitive   = true
+}
+
 variable "share" {
   type    = string
   default = "owner"
@@ -69,6 +76,7 @@ resource "coder_script" "open-webui" {
     HTTP_SERVER_PORT : var.http_server_port,
     VERSION : var.open_webui_version,
     DATA_DIR : var.data_dir,
+    OPENAI_API_KEY : var.openai_api_key,
   })
   run_on_start = true
 }
