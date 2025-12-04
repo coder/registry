@@ -55,7 +55,11 @@ fi
 echo "👷 Starting Open WebUI in background..."
 echo "Check logs at ${HTTP_SERVER_LOG_PATH}"
 
-echo "DATA_DIR: ${DATA_DIR}"
+# Export DATA_DIR for Open WebUI data storage
+if [ -n "${DATA_DIR}" ]; then
+  export DATA_DIR="${DATA_DIR}"
+  echo "📁 Data directory: ${DATA_DIR}"
+fi
 
 # Export OpenAI API key if provided
 if [ -n "${OPENAI_API_KEY}" ]; then
