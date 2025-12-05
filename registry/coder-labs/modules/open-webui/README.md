@@ -2,8 +2,8 @@
 display_name: Open WebUI
 description: A self-hosted AI chat interface supporting various LLM providers
 icon: ../../../../.icons/openwebui.svg
-verified: true
-tags: [ai, llm, chat, web-ui, python]
+verified: false
+tags: [ai, llm, chat, web, python]
 ---
 
 # Open WebUI

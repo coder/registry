@@ -57,13 +57,13 @@ echo "Check logs at ${HTTP_SERVER_LOG_PATH}"
 
 # Export DATA_DIR for Open WebUI data storage
 if [ -n "${DATA_DIR}" ]; then
-  export DATA_DIR="${DATA_DIR}"
+  export DATA_DIR
   echo "📁 Data directory: ${DATA_DIR}"
 fi
 
 # Export OpenAI API key if provided
 if [ -n "${OPENAI_API_KEY}" ]; then
-  export OPENAI_API_KEY="${OPENAI_API_KEY}"
+  export OPENAI_API_KEY
   echo "🔑 OpenAI API key configured"
 fi
 

@@ -9,7 +9,6 @@ terraform {
   }
 }
 
-# Add required variables for your modules and remove any unneeded variables
 variable "agent_id" {
   type        = string
   description = "The ID of a Coder agent."
@@ -47,8 +46,9 @@ variable "openai_api_key" {
 }
 
 variable "share" {
-  type    = string
-  default = "owner"
+  type        = string
+  description = "The sharing level for the Open WebUI app. Set to 'owner' for private access, 'authenticated' for access by any authenticated user, or 'public' for public access."
+  default     = "owner"
   validation {
     condition     = var.share == "owner" || var.share == "authenticated" || var.share == "public"
     error_message = "Incorrect value. Please set either 'owner', 'authenticated', or 'public'."
