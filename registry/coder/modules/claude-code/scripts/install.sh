@@ -92,31 +92,31 @@ function setup_claude_configurations() {
 
 function configure_standalone_mode() {
   echo "Configuring Claude Code for standalone mode..."
-  
+
   if [ -z "${CLAUDE_API_KEY:-}" ]; then
     echo "Note: CLAUDE_API_KEY not set, skipping authentication setup"
     return
   fi
-  
+
   local claude_config="$HOME/.claude.json"
   local workdir_normalized
   workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
-  
+
   # Create or update .claude.json with minimal configuration for API key auth
   # This skips the interactive login prompt and onboarding screens
   if [ -f "$claude_config" ]; then
     echo "Updating existing Claude configuration at $claude_config"
- 
+
     jq --arg apikey "${CLAUDE_API_KEY:-}" \
-       --arg workdir "$ARG_WORKDIR" \
-       '.autoUpdaterStatus = "disabled" |
+      --arg workdir "$ARG_WORKDIR" \
+      '.autoUpdaterStatus = "disabled" |
         .bypassPermissionsModeAccepted = true |
         .hasAcknowledgedCostThreshold = true |
         .hasCompletedOnboarding = true |
         .primaryApiKey = $apikey |
         .projects[$workdir].hasCompletedProjectOnboarding = true |
         .projects[$workdir].hasTrustDialogAccepted = true' \
-       "$claude_config" > "${claude_config}.tmp" && mv "${claude_config}.tmp" "$claude_config"
+      "$claude_config" > "${claude_config}.tmp" && mv "${claude_config}.tmp" "$claude_config"
   else
     echo "Creating new Claude configuration at $claude_config"
     cat > "$claude_config" << EOF
@@ -135,7 +135,7 @@ function configure_standalone_mode() {
 }
 EOF
   fi
-  
+
   echo "Standalone mode configured successfully"
 }
 
