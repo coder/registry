@@ -345,7 +345,7 @@ resource "coder_script" "install_agent" {
   agent_id     = var.agent_id
   display_name = "Install agent"
   run_on_start = true
-  log_path = "$HOME/${local.module_dir_name}/install.log"
+  log_path = "~/${local.module_dir_name}/install.log"
   script       = <<EOF
     #!/bin/bash
     set -o errexit
