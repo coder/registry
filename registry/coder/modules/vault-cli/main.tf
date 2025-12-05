@@ -48,6 +48,12 @@ variable "vault_namespace" {
   default     = null
 }
 
+variable "enterprise" {
+  type        = bool
+  description = "Whether to install the enterprise version of the Vault CLI. Required if using SAML authentication to Vault."
+  default     = false
+}
+
 data "coder_workspace" "me" {}
 
 resource "coder_script" "vault_cli" {
@@ -59,6 +65,7 @@ resource "coder_script" "vault_cli" {
     VAULT_TOKEN       = var.vault_token
     INSTALL_DIR       = var.install_dir
     VAULT_CLI_VERSION = var.vault_cli_version
+    ENTERPRISE        = var.enterprise
   })
   run_on_start       = true
   start_blocks_login = true

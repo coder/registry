@@ -163,3 +163,14 @@ run "test_vault_cli_with_token_and_namespace" {
     error_message = "VAULT_NAMESPACE should match the provided vault_namespace"
   }
 }
+
+run "test_vault_cli_enterprise" {
+  variables {
+    enterprise = true
+  }
+
+  assert {
+    condition     = resource.coder_script.vault_cli.display_name == "Vault CLI"
+    error_message = "Display name should be 'Vault CLI'"
+  }
+}
