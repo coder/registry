@@ -69,6 +69,12 @@ function install_boundary() {
   if [ "${ARG_COMPILE_FROM_SOURCE:-false}" = "true" ]; then
     # Install boundary by compiling from source
     echo "Compiling boundary from source (version: $ARG_BOUNDARY_VERSION)"
+    
+    # Clean up existing directory if it exists
+    if [ -d "boundary" ]; then
+      rm -rf boundary
+    fi
+    
     git clone https://github.com/coder/boundary.git
     cd boundary
     git checkout "$ARG_BOUNDARY_VERSION"
@@ -80,6 +86,8 @@ function install_boundary() {
     mkdir -p "$HOME/.local/bin"
     cp boundary "$HOME/.local/bin/"
     chmod +x "$HOME/.local/bin/boundary"
+    
+    cd ..
   else
     # Install boundary using official install script to user-local directory
     echo "Installing boundary using official install script (version: $ARG_BOUNDARY_VERSION)"
