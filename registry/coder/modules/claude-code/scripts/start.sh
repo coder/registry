@@ -213,15 +213,15 @@ function start_agentapi() {
         [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ] && ARGS+=(--dangerously-skip-permissions)
       else
         echo "No sessions found, starting fresh standalone session"
-        [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
         [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ] && ARGS+=(--dangerously-skip-permissions)
+        [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
       fi
     fi
 
   else
     echo "Continue disabled, starting fresh session"
-    [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
     [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ] && ARGS+=(--dangerously-skip-permissions)
+    [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
   fi
 
   printf "Running claude code with args: %s\n" "$(printf '%q ' "${ARGS[@]}")"
