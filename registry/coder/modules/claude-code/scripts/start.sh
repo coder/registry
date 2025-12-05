@@ -30,6 +30,7 @@ ARG_ENABLE_BOUNDARY_PPROF=${ARG_ENABLE_BOUNDARY_PPROF:-false}
 ARG_BOUNDARY_PPROF_PORT=${ARG_BOUNDARY_PPROF_PORT:-"6067"}
 ARG_COMPILE_FROM_SOURCE=${ARG_COMPILE_FROM_SOURCE:-false}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
+ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS=${ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS:-}
 
 echo "--------------------------------"
 
@@ -75,14 +76,14 @@ function install_boundary() {
     # Build the binary
     make build
 
-    # Install binary and wrapper script (optional)
-    sudo cp boundary /usr/local/bin/
-    sudo cp scripts/boundary-wrapper.sh /usr/local/bin/boundary-run
-    sudo chmod +x /usr/local/bin/boundary-run
+    # Install binary to user-local bin (no sudo needed for simple mode)
+    mkdir -p "$HOME/.local/bin"
+    cp boundary "$HOME/.local/bin/"
+    chmod +x "$HOME/.local/bin/boundary"
   else
-    # Install boundary using official install script
+    # Install boundary using official install script to user-local directory
     echo "Installing boundary using official install script (version: $ARG_BOUNDARY_VERSION)"
-    curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "$ARG_BOUNDARY_VERSION"
+    INSTALL_DIR="$HOME/.local/bin" curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "$ARG_BOUNDARY_VERSION"
   fi
 }
 
@@ -210,12 +211,12 @@ function start_agentapi() {
     install_boundary
 
     mkdir -p "$ARG_BOUNDARY_LOG_DIR"
-    printf "Starting with coder boundary enabled\n"
+    printf "Starting with coder boundary enabled (simple mode - no special permissions)\n"
 
-    # Build boundary args with conditional --unprivileged flag
-    BOUNDARY_ARGS=(--log-dir "$ARG_BOUNDARY_LOG_DIR")
+    # Build boundary args - using --simple mode (no sudo/capabilities required)
+    BOUNDARY_ARGS=(--simple --log-dir "$ARG_BOUNDARY_LOG_DIR")
     # Add default allowed URLs
-    BOUNDARY_ARGS+=(--allow "domain=anthropic.com" --allow "domain=registry.npmjs.org" --allow "domain=sentry.io" --allow "domain=claude.ai" --allow "domain=$ARG_CODER_HOST")
+    BOUNDARY_ARGS+=(--allow "domain=anthropic.com" --allow "domain=registry.npmjs.org" --allow "domain=sentry.io" --allow "domain=claude.ai" --allow "domain=${ARG_CODER_HOST%%:*}")
 
     # Add any additional allowed URLs from the variable
     if [ -n "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS" ]; then
@@ -238,8 +239,9 @@ function start_agentapi() {
       BOUNDARY_ARGS+=(--pprof-port "$ARG_BOUNDARY_PPROF_PORT")
     fi
 
+    # Use boundary directly with --simple flag (no boundary-run wrapper needed)
     agentapi server --type claude --term-width 67 --term-height 1190 -- \
-      boundary-run "${BOUNDARY_ARGS[@]}" -- \
+      boundary "${BOUNDARY_ARGS[@]}" -- \
       claude "${ARGS[@]}"
   else
     agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
