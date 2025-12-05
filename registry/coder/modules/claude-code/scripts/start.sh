@@ -215,6 +215,16 @@ function start_agentapi() {
 
     # Build boundary args - using --simple mode (no sudo/capabilities required)
     BOUNDARY_ARGS=(--simple --log-dir "$ARG_BOUNDARY_LOG_DIR")
+    
+    # Add audit socket for reporting to Coder agent
+    AUDIT_SOCKET="${TMPDIR:-/tmp}/coder-boundary-audit.sock"
+    if [ -S "$AUDIT_SOCKET" ]; then
+      BOUNDARY_ARGS+=(--audit-socket "$AUDIT_SOCKET")
+      printf "Using audit socket: %s\n" "$AUDIT_SOCKET"
+    else
+      printf "Warning: Audit socket not found at %s - boundary logs won't be reported to Coder\n" "$AUDIT_SOCKET"
+    fi
+    
     # Add default allowed URLs
     BOUNDARY_ARGS+=(--allow "domain=anthropic.com" --allow "domain=registry.npmjs.org" --allow "domain=sentry.io" --allow "domain=claude.ai" --allow "domain=${ARG_CODER_HOST%%:*}")
 
