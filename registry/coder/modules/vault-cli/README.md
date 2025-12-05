@@ -95,6 +95,20 @@ module "vault_cli" {
 }
 ```
 
+### Vault Enterprise Binary
+
+Install the Vault Enterprise binary. This is required if using SAML authentication to Vault:
+
+```tf
+module "vault_cli" {
+  source     = "registry.coder.com/coder/vault-cli/coder"
+  version    = "1.0.0"
+  agent_id   = coder_agent.example.id
+  vault_addr = "https://vault.example.com"
+  enterprise = true
+}
+```
+
 ## Related Modules
 
 For more advanced authentication methods, see:
