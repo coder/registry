@@ -208,13 +208,17 @@ describe("claude-code", async () => {
     });
 
     // Create a mock task session file with the hardcoded task session ID
+    // Note: Claude CLI creates files without "session-" prefix when using --session-id
     const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
     const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
     await execContainer(id, ["mkdir", "-p", sessionDir]);
     await execContainer(id, [
       "bash",
       "-c",
-      `touch ${sessionDir}/session-${taskSessionId}.jsonl`,
+      `cat > ${sessionDir}/${taskSessionId}.jsonl << 'SESSIONEOF'
+{"sessionId":"${taskSessionId}","message":{"content":"Task"},"timestamp":"2020-01-01T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-01T10:00:05.000Z"}
+SESSIONEOF`,
     ]);
 
     await execModuleScript(id);
@@ -226,44 +230,8 @@ describe("claude-code", async () => {
     ]);
     expect(startLog.stdout).toContain("--resume");
     expect(startLog.stdout).toContain(taskSessionId);
-    expect(startLog.stdout).toContain("Resuming existing task session");
+    expect(startLog.stdout).toContain("Resuming task session");
     expect(startLog.stdout).toContain("--dangerously-skip-permissions");
-  });
-
-  test("claude-continue-resume-standalone-session", async () => {
-    const { id } = await setup({
-      moduleVariables: {
-        continue: "true",
-        report_tasks: "false",
-        ai_prompt: "test prompt",
-      },
-    });
-
-    const sessionId = "some-random-session-id";
-    const workdir = "/home/coder/project";
-    const claudeJson = {
-      projects: {
-        [workdir]: {
-          lastSessionId: sessionId,
-        },
-      },
-    };
-
-    await execContainer(id, [
-      "bash",
-      "-c",
-      `echo '${JSON.stringify(claudeJson)}' > /home/coder/.claude.json`,
-    ]);
-
-    await execModuleScript(id);
-
-    const startLog = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/.claude-module/agentapi-start.log",
-    ]);
-    expect(startLog.stdout).toContain("--continue");
-    expect(startLog.stdout).toContain("Resuming existing session");
   });
 
   test("pre-post-install-scripts", async () => {
@@ -359,5 +327,141 @@ describe("claude-code", async () => {
     expect(startLog.stdout).toContain(
       "ARG_AGENTAPI_CHAT_BASE_PATH=/@default/default.foo/apps/ccw/chat",
     );
+  });
+
+  test("partial-initialization-detection", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        continue: "true",
+        report_tasks: "true",
+        ai_prompt: "test prompt",
+      },
+    });
+
+    const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
+    const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
+    await execContainer(id, ["mkdir", "-p", sessionDir]);
+
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `echo '{"sessionId":"${taskSessionId}"}' > ${sessionDir}/${taskSessionId}.jsonl`,
+    ]);
+
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/agentapi-start.log",
+    ]);
+
+    // Should start new session, not try to resume invalid one
+    expect(startLog.stdout).toContain("Starting new task session");
+    expect(startLog.stdout).toContain("--session-id");
+  });
+
+  test("standalone-first-build-no-sessions", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        continue: "true",
+        report_tasks: "false",
+      },
+    });
+
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/agentapi-start.log",
+    ]);
+
+    // Should start fresh, not try to continue
+    expect(startLog.stdout).toContain("No sessions found");
+    expect(startLog.stdout).toContain("starting fresh standalone session");
+    expect(startLog.stdout).not.toContain("--continue");
+  });
+
+  test("standalone-with-sessions-continues", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        continue: "true",
+        report_tasks: "false",
+      },
+    });
+
+    const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
+    await execContainer(id, ["mkdir", "-p", sessionDir]);
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > ${sessionDir}/generic-123.jsonl << 'EOF'
+{"sessionId":"generic-123","message":{"content":"User session"},"timestamp":"2020-01-01T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-01T10:00:05.000Z"}
+EOF`,
+    ]);
+
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/agentapi-start.log",
+    ]);
+
+    // Should continue existing session
+    expect(startLog.stdout).toContain("Sessions found");
+    expect(startLog.stdout).toContain(
+      "Continuing most recent standalone session",
+    );
+    expect(startLog.stdout).toContain("--continue");
+  });
+
+  test("task-mode-ignores-manual-sessions", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        continue: "true",
+        report_tasks: "true",
+        ai_prompt: "test prompt",
+      },
+    });
+
+    const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
+    const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
+    await execContainer(id, ["mkdir", "-p", sessionDir]);
+
+    // Create task session (without "session-" prefix, as CLI does)
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > ${sessionDir}/${taskSessionId}.jsonl << 'EOF'
+{"sessionId":"${taskSessionId}","message":{"content":"Task"},"timestamp":"2020-01-01T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-01T10:00:05.000Z"}
+EOF`,
+    ]);
+
+    // Create manual session (newer)
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > ${sessionDir}/manual-456.jsonl << 'EOF'
+{"sessionId":"manual-456","message":{"content":"Manual"},"timestamp":"2020-01-02T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-02T10:00:05.000Z"}
+EOF`,
+    ]);
+
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/agentapi-start.log",
+    ]);
+
+    // Should resume task session, not manual session
+    expect(startLog.stdout).toContain("Resuming task session");
+    expect(startLog.stdout).toContain(taskSessionId);
+    expect(startLog.stdout).not.toContain("manual-456");
   });
 });
