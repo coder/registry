@@ -276,7 +276,7 @@ resource "coder_env" "claude_api_key" {
   count = length(var.claude_api_key) > 0 ? 1 : 0
 
   agent_id = var.agent_id
-  name     = "ANTHROPIC_API_KEY"
+  name     = "CLAUDE_API_KEY"
   value    = var.claude_api_key
 }
 
