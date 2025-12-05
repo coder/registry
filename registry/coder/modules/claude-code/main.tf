@@ -352,6 +352,8 @@ resource "coder_script" "install_agent" {
     set -o pipefail
     set -x
 
+  mkdir -p "/home/coder/${local.module_dir_name}/install.log"
+
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
 
