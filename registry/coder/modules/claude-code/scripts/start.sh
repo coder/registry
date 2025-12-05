@@ -83,7 +83,7 @@ function install_boundary() {
   else
     # Install boundary using official install script to user-local directory
     echo "Installing boundary using official install script (version: $ARG_BOUNDARY_VERSION)"
-    INSTALL_DIR="$HOME/.local/bin" curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "$ARG_BOUNDARY_VERSION"
+    curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | INSTALL_DIR="$HOME/.local/bin" bash -s -- --version "$ARG_BOUNDARY_VERSION"
   fi
 }
 

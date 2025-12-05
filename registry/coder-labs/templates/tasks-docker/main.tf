@@ -32,8 +32,8 @@ data "coder_task" "me" {}
 # Or use a custom agent:
 module "claude-code" {
   count               = data.coder_workspace.me.start_count
-  source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "4.0.0"
+  source              = "/Users/zach/src/registry/registry/coder/modules/claude-code"
+  #  version             = "4.0.0"
   agent_id            = coder_agent.main.id
   workdir             = "/home/coder/projects"
   order               = 999
@@ -43,6 +43,12 @@ module "claude-code" {
   model               = "sonnet"
   permission_mode     = "plan"
   post_install_script = data.coder_parameter.setup_script.value
+  enable_boundary     = true
+  boundary_version    = "v0.2.1"
+  boundary_log_dir                 = "/tmp/boundary_logs"
+  boundary_log_level               = "DEBUG"
+  boundary_additional_allowed_urls = ["method=GET domain=google.com"]
+  boundary_proxy_port              = "8087"
 }
 
 # We are using presets to set the prompts, image, and set up instructions
@@ -359,6 +365,10 @@ resource "docker_container" "workspace" {
     volume_name    = docker_volume.home_volume.name
     read_only      = false
   }
+  capabilities {
+    add = ["NET_ADMIN", "SYS_ADMIN"]
+  }
+  security_opts = ["seccomp=unconfined"]
 
   # Add labels in Docker to keep track of orphan resources.
   labels {
