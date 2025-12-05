@@ -93,8 +93,8 @@ function setup_claude_configurations() {
 function configure_standalone_mode() {
   echo "Configuring Claude Code for standalone mode..."
   
-  if [ -z "$ANTHROPIC_API_KEY" ]; then
-    echo "Note: ANTHROPIC_API_KEY not set, skipping authentication setup"
+  if [ -z "${CLAUDE_API_KEY:-}" ]; then
+    echo "Note: CLAUDE_API_KEY not set, skipping authentication setup"
     return
   fi
   
@@ -106,8 +106,8 @@ function configure_standalone_mode() {
   # This skips the interactive login prompt and onboarding screens
   if [ -f "$claude_config" ]; then
     echo "Updating existing Claude configuration at $claude_config"
-
-    jq --arg apikey "$ANTHROPIC_API_KEY" \
+ 
+    jq --arg apikey "${CLAUDE_API_KEY:-}" \
        --arg workdir "$ARG_WORKDIR" \
        '.autoUpdaterStatus = "disabled" |
         .bypassPermissionsModeAccepted = true |
@@ -125,7 +125,7 @@ function configure_standalone_mode() {
   "bypassPermissionsModeAccepted": true,
   "hasAcknowledgedCostThreshold": true,
   "hasCompletedOnboarding": true,
-  "primaryApiKey": "$ANTHROPIC_API_KEY",
+  "primaryApiKey": "${CLAUDE_API_KEY:-}",
   "projects": {
     "$ARG_WORKDIR": {
       "hasCompletedProjectOnboarding": true,
