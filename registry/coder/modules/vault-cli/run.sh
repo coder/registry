@@ -5,6 +5,7 @@ VAULT_ADDR=${VAULT_ADDR}
 VAULT_TOKEN=${VAULT_TOKEN}
 INSTALL_DIR=${INSTALL_DIR}
 VAULT_CLI_VERSION=${VAULT_CLI_VERSION}
+ENTERPRISE=${ENTERPRISE}
 
 # Fetch URL content. If dest is provided, write to file; otherwise output to stdout.
 # Usage: fetch <url> [dest]
@@ -75,9 +76,18 @@ install() {
 
   # Fetch release information from HashiCorp API
   if [ "$${VAULT_CLI_VERSION}" = "latest" ]; then
-    API_URL="https://api.releases.hashicorp.com/v1/releases/vault/latest"
+    if [ "$${ENTERPRISE}" = "true" ]; then
+      API_URL="https://api.releases.hashicorp.com/v1/releases/vault/latest?license_class=enterprise"
+    else
+      API_URL="https://api.releases.hashicorp.com/v1/releases/vault/latest"
+    fi
   else
-    API_URL="https://api.releases.hashicorp.com/v1/releases/vault/$${VAULT_CLI_VERSION}"
+    # For specific version, append +ent suffix for enterprise
+    if [ "$${ENTERPRISE}" = "true" ]; then
+      API_URL="https://api.releases.hashicorp.com/v1/releases/vault/$${VAULT_CLI_VERSION}+ent"
+    else
+      API_URL="https://api.releases.hashicorp.com/v1/releases/vault/$${VAULT_CLI_VERSION}"
+    fi
   fi
 
   API_RESPONSE=$(fetch "$${API_URL}")
