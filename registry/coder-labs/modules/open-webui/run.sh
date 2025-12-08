@@ -46,7 +46,7 @@ fi
 
 if ! pip show open-webui > /dev/null 2>&1; then
   echo "📦 Installing Open WebUI version ${VERSION}..."
-  if [ "$VERSION" = "latest" ]; then
+  if [ "${VERSION}" = "latest" ]; then
     pip install open-webui
   else
     pip install "open-webui==${VERSION}"
