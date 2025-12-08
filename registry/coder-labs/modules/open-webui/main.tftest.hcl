@@ -23,8 +23,8 @@ run "test_defaults" {
   }
 
   assert {
-    condition     = var.open_webui_version == "0.6.40"
-    error_message = "Default version should be '0.6.40'"
+    condition     = var.open_webui_version == "latest"
+    error_message = "Default version should be 'latest'"
   }
 
   assert {
