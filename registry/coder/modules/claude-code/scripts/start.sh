@@ -119,20 +119,20 @@ is_valid_session() {
     return 1
   fi
 
-  # Validate JSONL format by checking first 3 lines
-  # Claude session files use JSONL (JSON Lines) format where each line is valid JSON
-  if ! head -3 "$session_file" | jq empty 2> /dev/null; then
-    printf "Session validation failed: invalid JSONL format, removing corrupt file\n"
-    rm -f "$session_file"
-    return 1
-  fi
-
   # Check for minimum session content
   # Valid sessions need at least 2 lines: initial message and first response
   local line_count
   line_count=$(wc -l < "$session_file")
   if [ "$line_count" -lt 2 ]; then
     printf "Session validation failed: incomplete (only %s lines), removing incomplete file\n" "$line_count"
+    rm -f "$session_file"
+    return 1
+  fi
+
+  # Validate JSONL format by checking first 3 lines
+  # Claude session files use JSONL (JSON Lines) format where each line is valid JSON
+  if ! head -3 "$session_file" | jq empty 2> /dev/null; then
+    printf "Session validation failed: invalid JSONL format, removing corrupt file\n"
     rm -f "$session_file"
     return 1
   fi
