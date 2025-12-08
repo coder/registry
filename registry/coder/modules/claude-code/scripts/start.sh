@@ -156,7 +156,7 @@ has_any_sessions() {
   workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
   project_dir="$HOME/.claude/projects/${workdir_normalized}"
 
-  if [ -d "$project_dir" ] && find "$project_dir" -maxdepth 1 -name "*.jsonl" 2> /dev/null | grep -q .; then
+  if [ -d "$project_dir" ] && find "$project_dir" -maxdepth 1 -name "*.jsonl" -size +0c 2> /dev/null | grep -q .; then
     printf "Sessions found in: %s\n" "$project_dir"
     return 0
   else
