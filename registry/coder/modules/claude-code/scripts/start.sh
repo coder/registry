@@ -86,13 +86,19 @@ function validate_claude_installation() {
 # This ensures all task sessions use a consistent, predictable ID
 TASK_SESSION_ID="cd32e253-ca16-4fd3-9825-d837e74ae3c2"
 
-task_session_exists() {
+get_project_dir() {
   local workdir_normalized
-  local project_dir
-  local session_file
   workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
-  project_dir="$HOME/.claude/projects/${workdir_normalized}"
-  session_file="$project_dir/${TASK_SESSION_ID}.jsonl"
+  echo "$HOME/.claude/projects/${workdir_normalized}"
+}
+
+get_task_session_file() {
+  echo "$(get_project_dir)/${TASK_SESSION_ID}.jsonl"
+}
+
+task_session_exists() {
+  local session_file
+  session_file=$(get_task_session_file)
 
   if [ -f "$session_file" ]; then
     printf "Task session file found: %s\n" "$session_file"
@@ -151,10 +157,8 @@ is_valid_session() {
 }
 
 has_any_sessions() {
-  local workdir_normalized
   local project_dir
-  workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
-  project_dir="$HOME/.claude/projects/${workdir_normalized}"
+  project_dir=$(get_project_dir)
 
   if [ -d "$project_dir" ] && find "$project_dir" -maxdepth 1 -name "*.jsonl" -size +0c 2> /dev/null | grep -q .; then
     printf "Sessions found in: %s\n" "$project_dir"
@@ -190,12 +194,8 @@ function start_agentapi() {
   elif [ "$ARG_CONTINUE" = "true" ]; then
 
     if [ "$ARG_REPORT_TASKS" = "true" ]; then
-      local workdir_normalized
-      local project_dir
       local session_file
-      workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
-      project_dir="$HOME/.claude/projects/${workdir_normalized}"
-      session_file="$project_dir/${TASK_SESSION_ID}.jsonl"
+      session_file=$(get_task_session_file)
 
       if task_session_exists && is_valid_session "$session_file"; then
         echo "Resuming task session: $TASK_SESSION_ID"
