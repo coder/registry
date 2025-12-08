@@ -28,8 +28,8 @@ variable "http_server_port" {
 
 variable "open_webui_version" {
   type        = string
-  description = "The version of Open WebUI to install (pip semver's format)"
-  default     = "0"
+  description = "The version of Open WebUI to install"
+  default     = "latest"
 }
 
 variable "data_dir" {
