@@ -3,6 +3,9 @@
 # Set strict error handling AFTER sourcing bashrc to avoid unbound variable errors from user dotfiles
 set -euo pipefail
 
+# Ensure claude binary is in PATH
+export PATH="$HOME/.local/bin:$PATH"
+
 BOLD='\033[0;1m'
 
 command_exists() {
@@ -41,10 +44,6 @@ function install_claude_code_cli() {
     if [ $CURL_EXIT -ne 0 ]; then
       echo "Claude Code installer failed with exit code $$CURL_EXIT"
     fi
-
-    # Ensure binaries are discoverable.
-    echo "Creating a symlink for claude"
-    ln -s "${HOME}"/.local/bin/claude /usr/local/bin/claude
 
     echo "Installed Claude Code successfully. Version: $(claude --version || echo 'unknown')"
   else
