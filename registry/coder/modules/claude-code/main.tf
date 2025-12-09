@@ -86,7 +86,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.11.3"
+  default     = "v0.11.4"
 }
 
 variable "ai_prompt" {
@@ -291,12 +291,11 @@ resource "coder_env" "disable_autoupdater" {
 locals {
   # we have to trim the slash because otherwise coder exp mcp will
   # set up an invalid claude config
-  workdir                           = trimsuffix(var.workdir, "/")
-  app_slug                          = "ccw"
-  install_script                    = file("${path.module}/scripts/install.sh")
-  start_script                      = file("${path.module}/scripts/start.sh")
-  module_dir_name                   = ".claude-module"
-  remove_last_session_id_script_b64 = base64encode(file("${path.module}/scripts/remove-last-session-id.sh"))
+  workdir         = trimsuffix(var.workdir, "/")
+  app_slug        = "ccw"
+  install_script  = file("${path.module}/scripts/install.sh")
+  start_script    = file("${path.module}/scripts/start.sh")
+  module_dir_name = ".claude-module"
   # Extract hostname from access_url for boundary --allow flag
   coder_host = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
 
@@ -357,9 +356,7 @@ module "agentapi" {
      set -o errexit
      set -o pipefail
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-     echo -n "${local.remove_last_session_id_script_b64}" | base64 -d > "/tmp/remove-last-session-id.sh"
      chmod +x /tmp/start.sh
-     chmod +x /tmp/remove-last-session-id.sh
 
      ARG_MODEL='${var.model}' \
      ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
