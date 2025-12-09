@@ -229,31 +229,31 @@ variable "vertex_sa_json" {
 }
 
 resource "coder_env" "vertex_use" {
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   name     = "CLAUDE_CODE_USE_VERTEX"
   value    = "1"
 }
 
 resource "coder_env" "vertex_project_id" {
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   name     = "ANTHROPIC_VERTEX_PROJECT_ID"
   value    = "your-gcp-project-id"
 }
 
 resource "coder_env" "cloud_ml_region" {
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   name     = "CLOUD_ML_REGION"
   value    = "global"
 }
 
 resource "coder_env" "vertex_sa_json" {
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   name     = "VERTEX_SA_JSON"
   value    = var.vertex_sa_json
 }
 
 resource "coder_env" "google_application_credentials" {
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   name     = "GOOGLE_APPLICATION_CREDENTIALS"
   value    = "/tmp/gcp-sa.json"
 }
