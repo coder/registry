@@ -12,8 +12,8 @@ Run [Kiro CLI](https://kiro.dev/) in your workspace to access AI coding assistan
 
 ```tf
 module "kiro-cli" {
-  source   = "registry.coder.com/coder/kiro-cli/coder"
-  version  = "1.0.0"
+  source   = "registry.coder.com/harleylrn/kiro-cli/coder"
+  version  = "1.0.1"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder"
 
@@ -95,8 +95,8 @@ data "coder_task" "me" {}
 
 module "kiro-cli" {
   count           = data.coder_task.me.enabled ? data.coder_workspace.me.start_count : 0
-  source          = "registry.coder.com/coder/kiro-cli/coder"
-  version         = "1.0.0"
+  source          = "registry.coder.com/harleylrn/kiro-cli/coder"
+  version         = "1.0.1"
   agent_id        = coder_agent.example.id
   workdir         = "/home/coder"
   auth_tarball    = var.kiro_cli_auth_tarball
@@ -220,8 +220,8 @@ If no custom `agent_config` is provided, the default agent name "agent" is used.
 
 ```tf
 module "kiro-cli" {
-  source       = "registry.coder.com/coder/kiro-cli/coder"
-  version      = "1.0.0"
+  source       = "registry.coder.com/harleylrn/kiro-cli/coder"
+  version      = "1.0.1"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.kiro_cli_auth_tarball
@@ -250,8 +250,8 @@ This example will:
 
 ```tf
 module "kiro-cli" {
-  source          = "registry.coder.com/coder/kiro-cli/coder"
-  version         = "1.0.0"
+  source          = "registry.coder.com/harleylrn/kiro-cli/coder"
+  version         = "1.0.1"
   agent_id        = coder_agent.example.id
   workdir         = "/home/coder"
   auth_tarball    = var.kiro_cli_auth_tarball
@@ -271,8 +271,8 @@ module "kiro-cli" {
 
 ```tf
 module "kiro-cli" {
-  source       = "registry.coder.com/coder/kiro-cli/coder"
-  version      = "1.0.0"
+  source       = "registry.coder.com/harleylrn/kiro-cli/coder"
+  version      = "1.0.1"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.kiro_cli_auth_tarball
@@ -297,8 +297,8 @@ module "kiro-cli" {
 
 ```tf
 module "kiro-cli" {
-  source           = "registry.coder.com/coder/kiro-cli/coder"
-  version          = "1.0.0"
+  source           = "registry.coder.com/harleylrn/kiro-cli/coder"
+  version          = "1.0.1"
   agent_id         = coder_agent.example.id
   workdir          = "/home/coder"
   auth_tarball     = var.kiro_cli_auth_tarball
@@ -311,8 +311,8 @@ module "kiro-cli" {
 
 ```tf
 module "kiro-cli" {
-  source       = "registry.coder.com/coder/kiro-cli/coder"
-  version      = "1.0.0"
+  source       = "registry.coder.com/harleylrn/kiro-cli/coder"
+  version      = "1.0.1"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.kiro_cli_auth_tarball
@@ -332,8 +332,8 @@ module "kiro-cli" {
 
 ```tf
 module "kiro-cli" {
-  source       = "registry.coder.com/coder/kiro-cli/coder"
-  version      = "1.0.0"
+  source       = "registry.coder.com/harleylrn/kiro-cli/coder"
+  version      = "1.0.1"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.kiro_cli_auth_tarball
@@ -350,8 +350,8 @@ For environments without direct internet access, you can host Kiro CLI installat
 
 ```tf
 module "kiro-cli" {
-  source       = "registry.coder.com/coder/kiro-cli/coder"
-  version      = "1.0.0"
+  source       = "registry.coder.com/harleylrn/kiro-cli/coder"
+  version      = "1.0.1"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.kiro_cli_auth_tarball
@@ -389,68 +389,8 @@ module "kiro-cli" {
 - Check that the Coder agent is properly configured
 - Review the system prompt configuration
 
-<!-- BEGIN_TF_DOCS -->
-
-## Requirements
-
-| Name                                                                     | Version |
-| ------------------------------------------------------------------------ | ------- |
-| <a name="requirement_terraform"></a> [terraform](#requirement_terraform) | >= 1.0  |
-| <a name="requirement_coder"></a> [coder](#requirement_coder)             | >= 2.12 |
-
-## Providers
-
-| Name                                                   | Version |
-| ------------------------------------------------------ | ------- |
-| <a name="provider_coder"></a> [coder](#provider_coder) | 2.13.1  |
-
-## Modules
-
-| Name                                                        | Source                                  | Version |
-| ----------------------------------------------------------- | --------------------------------------- | ------- |
-| <a name="module_agentapi"></a> [agentapi](#module_agentapi) | registry.coder.com/coder/agentapi/coder | 2.0.0   |
-
-## Resources
-
-| Name                                                                                                                     | Type        |
-| ------------------------------------------------------------------------------------------------------------------------ | ----------- |
-| [coder_env.auth_tarball](https://registry.terraform.io/providers/coder/coder/latest/docs/resources/env)                  | resource    |
-| [coder_env.status_slug](https://registry.terraform.io/providers/coder/coder/latest/docs/resources/env)                   | resource    |
-| [coder_workspace.me](https://registry.terraform.io/providers/coder/coder/latest/docs/data-sources/workspace)             | data source |
-| [coder_workspace_owner.me](https://registry.terraform.io/providers/coder/coder/latest/docs/data-sources/workspace_owner) | data source |
-
-## Inputs
-
-| Name                                                                                                      | Description                                                                                                                                                      | Type     | Default                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Required |
-| --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------: |
-| <a name="input_agent_config"></a> [agent_config](#input_agent_config)                                     | Optional Agent configuration JSON for Kiro CLI.                                                                                                                  | `string` | `null`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |    no    |
-| <a name="input_agent_id"></a> [agent_id](#input_agent_id)                                                 | The ID of a Coder agent.                                                                                                                                         | `string` | n/a                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |   yes    |
-| <a name="input_agentapi_chat_based_path"></a> [agentapi_chat_based_path](#input_agentapi_chat_based_path) | Whether to use chat-based path for AgentAPI.Required if CODER_WILDCARD_ACCESS_URL is not defined in coder deployment                                             | `bool`   | `false`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |    no    |
-| <a name="input_agentapi_version"></a> [agentapi_version](#input_agentapi_version)                         | The version of AgentAPI to install.                                                                                                                              | `string` | `"v0.10.0"`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |    no    |
-| <a name="input_ai_prompt"></a> [ai_prompt](#input_ai_prompt)                                              | The initial task prompt to send to Kiro CLI.                                                                                                                     | `string` | `""`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |    no    |
-| <a name="input_auth_tarball"></a> [auth_tarball](#input_auth_tarball)                                     | Base64 encoded, zstd compressed tarball of a pre-authenticated ~/.local/share/kiro-cli directory.                                                                | `string` | `""`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |    no    |
-| <a name="input_cli_app"></a> [cli_app](#input_cli_app)                                                    | Whether to create a CLI app for Kiro CLI                                                                                                                         | `bool`   | `false`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |    no    |
-| <a name="input_cli_app_display_name"></a> [cli_app_display_name](#input_cli_app_display_name)             | Display name for the CLI app                                                                                                                                     | `string` | `"Kiro CLI"`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |    no    |
-| <a name="input_coder_mcp_instructions"></a> [coder_mcp_instructions](#input_coder_mcp_instructions)       | Instructions for the Coder MCP server integration. This defines how the agent should report tasks to Coder.                                                      | `string` | `"YOU MUST REPORT ALL TASKS TO CODER.\nWhen reporting tasks you MUST follow these EXACT instructions:\n- IMMEDIATELY report status after receiving ANY user message\n- Be granular If you are investigating with multiple steps report each step to coder.\n\nTask state MUST be one of the following:\n- Use \"state\": \"working\" when actively processing WITHOUT needing additional user input\n- Use \"state\": \"complete\" only when finished with a task\n- Use \"state\": \"failure\" when you need ANY user input lack sufficient details or encounter blockers.\n\nTask summaries MUST:\n- Include specifics about what you're doing\n- Include clear and actionable steps for the user\n- Be less than 160 characters in length\n"` |    no    |
-| <a name="input_group"></a> [group](#input_group)                                                          | The name of a group that this app belongs to.                                                                                                                    | `string` | `null`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |    no    |
-| <a name="input_icon"></a> [icon](#input_icon)                                                             | The icon to use for the app.                                                                                                                                     | `string` | `"/icon/kiro.svg"`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |    no    |
-| <a name="input_install_agentapi"></a> [install_agentapi](#input_install_agentapi)                         | Whether to install AgentAPI.                                                                                                                                     | `bool`   | `true`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |    no    |
-| <a name="input_install_kiro_cli"></a> [install_kiro_cli](#input_install_kiro_cli)                         | Whether to install Kiro CLI.                                                                                                                                     | `bool`   | `true`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |    no    |
-| <a name="input_kiro_cli_version"></a> [kiro_cli_version](#input_kiro_cli_version)                         | The version of Kiro CLI to install.                                                                                                                              | `string` | `"latest"`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |    no    |
-| <a name="input_kiro_install_url"></a> [kiro_install_url](#input_kiro_install_url)                         | Base URL for Kiro CLI installation downloads.                                                                                                                    | `string` | `"https://desktop-release.q.us-east-1.amazonaws.com"`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |    no    |
-| <a name="input_order"></a> [order](#input_order)                                                          | The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order). | `number` | `null`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |    no    |
-| <a name="input_post_install_script"></a> [post_install_script](#input_post_install_script)                | Optional script to run after installing Kiro CLI.                                                                                                                | `string` | `null`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |    no    |
-| <a name="input_pre_install_script"></a> [pre_install_script](#input_pre_install_script)                   | Optional script to run before installing Kiro CLI.                                                                                                               | `string` | `null`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |    no    |
-| <a name="input_report_tasks"></a> [report_tasks](#input_report_tasks)                                     | Whether to enable task reporting to Coder UI via AgentAPI                                                                                                        | `bool`   | `true`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |    no    |
-| <a name="input_system_prompt"></a> [system_prompt](#input_system_prompt)                                  | The system prompt to use for Kiro CLI. This should instruct the agent how to do task reporting.                                                                  | `string` | `"You are a helpful Coding assistant. Aim to autonomously investigate\nand solve issues the user gives you and test your work, whenever possible.\nAvoid shortcuts like mocking tests. When you get stuck, you can ask the user\nbut opt for autonomy.\n"`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |    no    |
-| <a name="input_trust_all_tools"></a> [trust_all_tools](#input_trust_all_tools)                            | Whether to trust all tools in Kiro CLI.                                                                                                                          | `bool`   | `false`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |    no    |
-| <a name="input_web_app_display_name"></a> [web_app_display_name](#input_web_app_display_name)             | Display name for the web app                                                                                                                                     | `string` | `"Kiro CLI"`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |    no    |
-| <a name="input_workdir"></a> [workdir](#input_workdir)                                                    | The folder to run Kiro CLI in.                                                                                                                                   | `string` | n/a                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |   yes    |
-
 ## Outputs
 
 | Name                                                                 | Description |
 | -------------------------------------------------------------------- | ----------- |
 | <a name="output_task_app_id"></a> [task_app_id](#output_task_app_id) | n/a         |
-
-<!-- END_TF_DOCS -->
