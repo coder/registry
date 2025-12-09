@@ -1,9 +1,5 @@
 #!/bin/bash
 
-if [ -f "$HOME/.bashrc" ]; then
-  source "$HOME"/.bashrc
-fi
-
 # Set strict error handling AFTER sourcing bashrc to avoid unbound variable errors from user dotfiles
 set -euo pipefail
 
@@ -48,7 +44,7 @@ function install_claude_code_cli() {
 
     # Ensure binaries are discoverable.
     echo "Creating a symlink for claude"
-    sudo ln -s /home/coder/.local/bin/claude /usr/local/bin/claude
+    ln -s "${HOME}"/.local/bin/claude /usr/local/bin/claude
 
     echo "Installed Claude Code successfully. Version: $(claude --version || echo 'unknown')"
   else
