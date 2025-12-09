@@ -93,6 +93,7 @@ module "claude-code" {
         "command": "my-tool-server"
         "args": ["--port", "8080"]
       }
+
     }
   }
   EOF
