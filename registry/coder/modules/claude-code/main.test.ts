@@ -141,7 +141,7 @@ describe("claude-code", async () => {
     });
     await execModuleScript(id);
 
-    const resp = await readFileContainer(id, "/home/coder/.claude.json");
+    const resp = await readFileContainer(id, "$HOME/.claude.json");
     expect(resp).toContain("test-cmd");
   });
 
