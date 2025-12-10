@@ -1,10 +1,6 @@
 #!/bin/bash
 
-# Set strict error handling AFTER sourcing bashrc to avoid unbound variable errors from user dotfiles
 set -euo pipefail
-
-# Ensure claude binary is in PATH
-#export PATH="$HOME/.local/bin:$PATH"
 
 BOLD='\033[0;1m'
 
