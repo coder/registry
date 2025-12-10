@@ -261,4 +261,18 @@ describe("git-clone", async () => {
     expect(output.stdout).toContain("Running post-clone script...");
     expect(output.stdout).toContain("Post-clone script executed");
   });
+
+  it("runs with clone_args", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "https://github.com/michaelbrewer/repo-tests.log",
+      clone_args: "--depth 1 --single-branch",
+    });
+    const output = await executeScriptInContainer(state, "alpine/git");
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout).toEqual([
+      "Creating directory ~/repo-tests.log...",
+      "Cloning https://github.com/michaelbrewer/repo-tests.log to ~/repo-tests.log...",
+    ]);
+  });
 });
