@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Ensure claude binary is in PATH
-export PATH="$HOME/.local/bin:$PATH"
+#export PATH="$HOME/.local/bin:$PATH"
 
 BOLD='\033[0;1m'
 
@@ -44,7 +44,6 @@ function install_claude_code_cli() {
     if [ $CURL_EXIT -ne 0 ]; then
       echo "Claude Code installer failed with exit code $$CURL_EXIT"
     fi
-
     echo "Installed Claude Code successfully. Version: $(claude --version || echo 'unknown')"
   else
     echo "Skipping Claude Code installation as per configuration."

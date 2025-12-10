@@ -288,6 +288,12 @@ resource "coder_env" "disable_autoupdater" {
   value    = "1"
 }
 
+resource "coder_env" "claude_binary_path" {
+    agent_id = var.agent_id
+    name     = "PATH"
+    value    = "$HOME/.local/bin:$PATH"
+}
+
 locals {
   # we have to trim the slash because otherwise coder exp mcp will
   # set up an invalid claude config
