@@ -199,6 +199,35 @@ module "git-clone" {
 }
 ```
 
+## Custom clone arguments
+
+Pass additional arguments to the git clone command using the `clone_args` variable.
+This is useful for scenarios like using a local mirror with `--reference` to speed up cloning.
+
+```tf
+module "git-clone" {
+  count      = data.coder_workspace.me.start_count
+  source     = "registry.coder.com/coder/git-clone/coder"
+  version    = "1.2.2"
+  agent_id   = coder_agent.example.id
+  url        = "https://github.com/coder/coder"
+  clone_args = "--reference /mnt/git-mirrors/coder.git"
+}
+```
+
+You can also combine multiple arguments:
+
+```tf
+module "git-clone" {
+  count      = data.coder_workspace.me.start_count
+  source     = "registry.coder.com/coder/git-clone/coder"
+  version    = "1.2.2"
+  agent_id   = coder_agent.example.id
+  url        = "https://github.com/coder/coder"
+  clone_args = "--reference /mnt/git-mirrors/coder.git --dissociate"
+}
+```
+
 ## Post-clone script
 
 Run a custom script after cloning the repository by setting the `post_clone_script` variable.

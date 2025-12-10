@@ -68,6 +68,12 @@ variable "post_clone_script" {
   default     = null
 }
 
+variable "clone_args" {
+  description = "Additional arguments to pass to the git clone command (e.g., '--reference /path/to/mirror' for using a local mirror)."
+  type        = string
+  default     = ""
+}
+
 locals {
   # Remove query parameters and fragments from the URL
   url = replace(replace(var.url, "/\\?.*/", ""), "/#.*/", "")
@@ -129,6 +135,7 @@ resource "coder_script" "git_clone" {
     BRANCH_NAME : local.branch_name,
     DEPTH = var.depth,
     POST_CLONE_SCRIPT : local.encoded_post_clone_script,
+    CLONE_ARGS : var.clone_args,
   })
   display_name       = "Git Clone"
   icon               = "/icon/git.svg"

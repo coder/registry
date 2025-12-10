@@ -7,6 +7,7 @@ BRANCH_NAME="${BRANCH_NAME}"
 CLONE_PATH="$${CLONE_PATH/#\~/$${HOME}}"
 DEPTH="${DEPTH}"
 POST_CLONE_SCRIPT="${POST_CLONE_SCRIPT}"
+CLONE_ARGS="${CLONE_ARGS}"
 
 # Check if the variable is empty...
 if [ -z "$REPO_URL" ]; then
@@ -39,16 +40,20 @@ if [ -z "$(ls -A "$CLONE_PATH")" ]; then
   if [ -z "$BRANCH_NAME" ]; then
     echo "Cloning $REPO_URL to $CLONE_PATH..."
     if [ "$DEPTH" -gt 0 ]; then
-      git clone --depth "$DEPTH" "$REPO_URL" "$CLONE_PATH"
+      # shellcheck disable=SC2086
+      git clone --depth "$DEPTH" $CLONE_ARGS "$REPO_URL" "$CLONE_PATH"
     else
-      git clone "$REPO_URL" "$CLONE_PATH"
+      # shellcheck disable=SC2086
+      git clone $CLONE_ARGS "$REPO_URL" "$CLONE_PATH"
     fi
   else
     echo "Cloning $REPO_URL to $CLONE_PATH on branch $BRANCH_NAME..."
     if [ "$DEPTH" -gt 0 ]; then
-      git clone --depth "$DEPTH" -b "$BRANCH_NAME" "$REPO_URL" "$CLONE_PATH"
+      # shellcheck disable=SC2086
+      git clone --depth "$DEPTH" -b "$BRANCH_NAME" $CLONE_ARGS "$REPO_URL" "$CLONE_PATH"
     else
-      git clone "$REPO_URL" -b "$BRANCH_NAME" "$CLONE_PATH"
+      # shellcheck disable=SC2086
+      git clone -b "$BRANCH_NAME" $CLONE_ARGS "$REPO_URL" "$CLONE_PATH"
     fi
   fi
 else
