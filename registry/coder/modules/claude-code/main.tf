@@ -291,7 +291,7 @@ resource "coder_env" "disable_autoupdater" {
 resource "coder_env" "claude_binary_path" {
     agent_id = var.agent_id
     name     = "PATH"
-    value    = "$HOME/.local/bin:$PATH"
+    value    = "$HOME/.local/jaykumar:$PATH"
 }
 
 locals {
