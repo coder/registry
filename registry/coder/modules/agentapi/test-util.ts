@@ -14,7 +14,9 @@ import { expect } from "bun:test";
  * Extracts all coder_env resources from Terraform state and returns them as
  * a Record of environment variable names to values.
  */
-export const extractCoderEnvVars = (state: TerraformState): Record<string, string> => {
+export const extractCoderEnvVars = (
+  state: TerraformState,
+): Record<string, string> => {
   const envVars: Record<string, string> = {};
 
   for (const resource of state.resources) {
@@ -103,7 +105,9 @@ interface SetupProps {
   agentapiMockScript?: string;
 }
 
-export const setup = async (props: SetupProps): Promise<{ id: string; coderEnvVars: Record<string, string> }> => {
+export const setup = async (
+  props: SetupProps,
+): Promise<{ id: string; coderEnvVars: Record<string, string> }> => {
   const projectDir = props.projectDir ?? "/home/coder/project";
   const { id, coderScript, coderEnvVars, cleanup } = await setupContainer({
     moduleDir: props.moduleDir,
@@ -154,14 +158,11 @@ export const execModuleScript = async (
         .map(([key, value]) => `export ${key}="${value.replace(/"/g, '\\"')}"`)
         .join(" && ") + " && "
     : "";
-  const resp = await execContainer(
-    id,
-    [
-      "bash",
-      "-c",
-      `${envArgs}set -o errexit; set -o pipefail; cd /home/coder && ./script.sh 2>&1 | tee /home/coder/script.log`,
-    ],
-  );
+  const resp = await execContainer(id, [
+    "bash",
+    "-c",
+    `${envArgs}set -o errexit; set -o pipefail; cd /home/coder && ./script.sh 2>&1 | tee /home/coder/script.log`,
+  ]);
   if (resp.exitCode !== 0) {
     console.log(resp.stdout);
     console.log(resp.stderr);
