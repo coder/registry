@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 REPO_URL="${REPO_URL}"
 CLONE_PATH="${CLONE_PATH}"
@@ -44,20 +44,20 @@ if [ -z "$(ls -A "$CLONE_PATH")" ]; then
   fi
 
   # Build the git clone command arguments
-  set --
+  args=()
   if [ -n "$DEPTH" ] && [ "$DEPTH" -gt 0 ]; then
-    set -- "$@" --depth "$DEPTH"
+    args+=(--depth "$DEPTH")
   fi
   if [ -n "$BRANCH_NAME" ]; then
-    set -- "$@" -b "$BRANCH_NAME"
+    args+=(-b "$BRANCH_NAME")
   fi
-  # shellcheck disable=SC2086
+  # shellcheck disable=SC2206
   if [ -n "$CLONE_ARGS" ]; then
-    set -- "$@" $CLONE_ARGS
+    args+=($CLONE_ARGS)
   fi
-  set -- "$@" "$REPO_URL" "$CLONE_PATH"
+  args+=("$REPO_URL" "$CLONE_PATH")
 
-  git clone "$@"
+  git clone "$${args[@]}"
 else
   echo "$CLONE_PATH already exists and isn't empty, skipping clone!"
 fi
