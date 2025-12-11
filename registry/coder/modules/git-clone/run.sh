@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 REPO_URL="${REPO_URL}"
 CLONE_PATH="${CLONE_PATH}"
@@ -37,25 +37,27 @@ fi
 # Check if the directory is empty
 # and if it is, clone the repo, otherwise skip cloning
 if [ -z "$(ls -A "$CLONE_PATH")" ]; then
-  if [ -z "$BRANCH_NAME" ]; then
-    echo "Cloning $REPO_URL to $CLONE_PATH..."
-    if [ "$DEPTH" -gt 0 ]; then
-      # shellcheck disable=SC2086
-      git clone --depth "$DEPTH" $CLONE_ARGS "$REPO_URL" "$CLONE_PATH"
-    else
-      # shellcheck disable=SC2086
-      git clone $CLONE_ARGS "$REPO_URL" "$CLONE_PATH"
-    fi
-  else
+  if [ -n "$BRANCH_NAME" ]; then
     echo "Cloning $REPO_URL to $CLONE_PATH on branch $BRANCH_NAME..."
-    if [ "$DEPTH" -gt 0 ]; then
-      # shellcheck disable=SC2086
-      git clone --depth "$DEPTH" -b "$BRANCH_NAME" $CLONE_ARGS "$REPO_URL" "$CLONE_PATH"
-    else
-      # shellcheck disable=SC2086
-      git clone -b "$BRANCH_NAME" $CLONE_ARGS "$REPO_URL" "$CLONE_PATH"
-    fi
+  else
+    echo "Cloning $REPO_URL to $CLONE_PATH..."
   fi
+
+  # Build the git clone command arguments
+  set --
+  if [ -n "$DEPTH" ] && [ "$DEPTH" -gt 0 ]; then
+    set -- "$@" --depth "$DEPTH"
+  fi
+  if [ -n "$BRANCH_NAME" ]; then
+    set -- "$@" -b "$BRANCH_NAME"
+  fi
+  # shellcheck disable=SC2086
+  if [ -n "$CLONE_ARGS" ]; then
+    set -- "$@" $CLONE_ARGS
+  fi
+  set -- "$@" "$REPO_URL" "$CLONE_PATH"
+
+  git clone "$@"
 else
   echo "$CLONE_PATH already exists and isn't empty, skipping clone!"
 fi
