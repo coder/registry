@@ -8,9 +8,7 @@ tags: [ai, search, docker]
 
 # Perplexica
 
-Run [Perplexica](https://github.com/ItzCrazyKns/Perplexica), a privacy-focused AI search engine, in your Coder workspace.
-
-TODO add sentence about support for local LLMs and cloud providers like OpenAI or Claude.
+Run [Perplexica](https://github.com/ItzCrazyKns/Perplexica), a privacy-focused AI search engine, in your Coder workspace. Supports cloud providers (OpenAI, Anthropic Claude) and local LLMs via Ollama.
 
 ```tf
 module "perplexica" {
@@ -21,13 +19,13 @@ module "perplexica" {
 }
 ```
 
-TODO mention embedded SearXNG due to simplicity and easier startup with less dependencies.
+This module uses the full Perplexica image with embedded SearXNG for simpler setup with no external dependencies.
 
 ![Perplexica](../../.images/perplexica.png)
 
 ## Prerequisites
 
-TODO docker
+This module requires Docker to be available on the host.
 
 ## Examples
 
