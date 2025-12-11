@@ -249,6 +249,11 @@ function start_agentapi() {
     # Set HTTP Proxy port used by Boundary
     BOUNDARY_ARGS+=(--proxy-port "$ARG_BOUNDARY_PROXY_PORT")
 
+    # Pass audit socket path if CODER_AGENT_BOUNDARY_LOG_SOCKET is set
+    if [ -n "$CODER_AGENT_BOUNDARY_LOG_SOCKET" ]; then
+      BOUNDARY_ARGS+=(--audit-socket "$CODER_AGENT_BOUNDARY_LOG_SOCKET")
+    fi
+
     # Set log level for boundary
     BOUNDARY_ARGS+=(--log-level "$ARG_BOUNDARY_LOG_LEVEL")
 

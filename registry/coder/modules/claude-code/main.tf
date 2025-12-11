@@ -252,6 +252,12 @@ variable "compile_boundary_from_source" {
   default     = false
 }
 
+variable "boundary_log_socket_path" {
+  type        = string
+  description = "Path to the Unix socket for boundary audit logs. Both the agent and boundary use this path."
+  default     = "/tmp/coder-boundary-audit.sock"
+}
+
 resource "coder_env" "claude_code_md_path" {
   count = var.claude_md_path == "" ? 0 : 1
 
@@ -286,6 +292,14 @@ resource "coder_env" "disable_autoupdater" {
   agent_id = var.agent_id
   name     = "DISABLE_AUTOUPDATER"
   value    = "1"
+}
+
+resource "coder_env" "boundary_log_socket" {
+  count = var.enable_boundary ? 1 : 0
+
+  agent_id = var.agent_id
+  name     = "CODER_BOUNDARY_LOG_SOCKET"
+  value    = var.boundary_log_socket_path
 }
 
 locals {
