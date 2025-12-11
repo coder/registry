@@ -266,13 +266,73 @@ describe("git-clone", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       url: "https://github.com/michaelbrewer/repo-tests.log",
-      clone_args: "--depth 1 --single-branch",
+      clone_args: "--single-branch",
     });
     const output = await executeScriptInContainer(state, "alpine/git");
     expect(output.exitCode).toBe(0);
     expect(output.stdout).toEqual([
       "Creating directory ~/repo-tests.log...",
       "Cloning https://github.com/michaelbrewer/repo-tests.log to ~/repo-tests.log...",
+    ]);
+  });
+
+  it("runs with depth", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "https://github.com/michaelbrewer/repo-tests.log",
+      depth: "1",
+    });
+    const output = await executeScriptInContainer(state, "alpine/git");
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout).toEqual([
+      "Creating directory ~/repo-tests.log...",
+      "Cloning https://github.com/michaelbrewer/repo-tests.log to ~/repo-tests.log...",
+    ]);
+  });
+
+  it("runs with depth and branch_name", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "https://github.com/michaelbrewer/repo-tests.log",
+      branch_name: "feat/branch",
+      depth: "1",
+    });
+    const output = await executeScriptInContainer(state, "alpine/git");
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout).toEqual([
+      "Creating directory ~/repo-tests.log...",
+      "Cloning https://github.com/michaelbrewer/repo-tests.log to ~/repo-tests.log on branch feat/branch...",
+    ]);
+  });
+
+  it("runs with clone_args and branch_name", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "https://github.com/michaelbrewer/repo-tests.log",
+      branch_name: "feat/branch",
+      clone_args: "--single-branch",
+    });
+    const output = await executeScriptInContainer(state, "alpine/git");
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout).toEqual([
+      "Creating directory ~/repo-tests.log...",
+      "Cloning https://github.com/michaelbrewer/repo-tests.log to ~/repo-tests.log on branch feat/branch...",
+    ]);
+  });
+
+  it("runs with depth, branch_name, and clone_args", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "https://github.com/michaelbrewer/repo-tests.log",
+      branch_name: "feat/branch",
+      depth: "1",
+      clone_args: "--single-branch",
+    });
+    const output = await executeScriptInContainer(state, "alpine/git");
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout).toEqual([
+      "Creating directory ~/repo-tests.log...",
+      "Cloning https://github.com/michaelbrewer/repo-tests.log to ~/repo-tests.log on branch feat/branch...",
     ]);
   });
 });
