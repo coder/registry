@@ -345,7 +345,7 @@ resource "coder_script" "install_agent" {
   agent_id     = var.agent_id
   display_name = "Install agent"
   run_on_start = true
-  log_path = "/home/coder/${local.module_dir_name}/install.log"
+  log_path = "/home/coder/install.log"
   script       = <<EOF
     #!/bin/bash
     set -o pipefail
@@ -367,39 +367,39 @@ resource "coder_script" "install_agent" {
 EOF
 }
 
-# resource "coder_app" "agent_cli" {
-#
-#   count = (!var.report_tasks && var.cli_app) ? 1 : 0
-#
-#
-#   agent_id = var.agent_id
-#   slug         = local.app_slug
-#   display_name = var.cli_app_display_name
-#
-#   command = length(trimprefix(var.cli_command, " ")) > 0 ? var.cli_command : <<-EOT
-#      ARG_MODEL='${var.model}' \
-#      ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
-#      ARG_CONTINUE='${var.continue}' \
-#      ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
-#      ARG_PERMISSION_MODE='${var.permission_mode}' \
-#      ARG_WORKDIR='${local.workdir}' \
-#      ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
-#      ARG_REPORT_TASKS='${var.report_tasks}' \
-#      ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
-#      ARG_BOUNDARY_VERSION='${var.boundary_version}' \
-#      ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
-#      ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
-#      ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join("|", var.boundary_additional_allowed_urls)}' \
-#      ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
-#      ARG_ENABLE_BOUNDARY_PPROF='${var.enable_boundary_pprof}' \
-#      ARG_BOUNDARY_PPROF_PORT='${var.boundary_pprof_port}' \
-#      ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
-#      ARG_CODER_HOST='${local.coder_host}' \
-#     /tmp/start.sh
-#   EOT
-# }
-#
-#
+resource "coder_app" "agent_cli" {
+
+  count = (!var.report_tasks && var.cli_app) ? 1 : 0
+
+
+  agent_id = var.agent_id
+  slug         = local.app_slug
+  display_name = var.cli_app_display_name
+
+  command = length(trimprefix(var.cli_command, " ")) > 0 ? var.cli_command : <<-EOT
+     ARG_MODEL='${var.model}' \
+     ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
+     ARG_CONTINUE='${var.continue}' \
+     ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
+     ARG_PERMISSION_MODE='${var.permission_mode}' \
+     ARG_WORKDIR='${local.workdir}' \
+     ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+     ARG_REPORT_TASKS='${var.report_tasks}' \
+     ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
+     ARG_BOUNDARY_VERSION='${var.boundary_version}' \
+     ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
+     ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
+     ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join("|", var.boundary_additional_allowed_urls)}' \
+     ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
+     ARG_ENABLE_BOUNDARY_PPROF='${var.enable_boundary_pprof}' \
+     ARG_BOUNDARY_PPROF_PORT='${var.boundary_pprof_port}' \
+     ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
+     ARG_CODER_HOST='${local.coder_host}' \
+    /tmp/start.sh
+  EOT
+}
+
+
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
   version = "2.0.0"
