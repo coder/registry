@@ -92,7 +92,7 @@ module "claude-code" {
   {
     "mcpServers": {
       "my-custom-tool": {
-        "command": "my-tool-server"
+        "command": "my-tool-server",
         "args": ["--port", "8080"]
       }
 
