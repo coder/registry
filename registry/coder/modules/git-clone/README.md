@@ -195,8 +195,8 @@ If not defined, the default, `0`, performs a full clone.
 ```tf
 module "git-clone" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/modules/git-clone/coder"
-  version  = "1.2.2"
+  source   = "registry.coder.com/coder/git-clone/coder"
+  version  = "1.2.3"
   agent_id = coder_agent.example.id
   url      = "https://github.com/coder/coder"
   depth    = 1
