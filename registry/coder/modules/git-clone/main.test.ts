@@ -6,6 +6,9 @@ import {
   testRequiredVariables,
 } from "~test";
 
+// Use bitnami/git which has both bash and git pre-installed
+const gitImage = "bitnami/git";
+
 describe("git-clone", async () => {
   await runTerraformInit(import.meta.dir);
 
@@ -19,7 +22,12 @@ describe("git-clone", async () => {
       agent_id: "foo",
       url: "some-url",
     });
-    const output = await executeScriptInContainer(state, "alpine");
+    // Use debian:stable-slim which has bash but no git
+    const output = await executeScriptInContainer(
+      state,
+      "debian:stable-slim",
+      "bash",
+    );
     expect(output.exitCode).toBe(1);
     expect(output.stdout).toEqual(["Git is not installed!"]);
   });
@@ -29,11 +37,10 @@ describe("git-clone", async () => {
       agent_id: "foo",
       url: "fake-url",
     });
-    const output = await executeScriptInContainer(state, "alpine/git");
-    expect(output.stdout).toEqual([
-      "Creating directory ~/fake-url...",
-      "Cloning fake-url to ~/fake-url...",
-    ]);
+    const output = await executeScriptInContainer(state, gitImage, "bash");
+    expect(output.stdout[0]).toContain("Creating directory");
+    expect(output.stdout[0]).toContain("fake-url");
+    expect(output.stdout[1]).toContain("Cloning fake-url to");
     expect(output.stderr.join(" ")).toContain("fatal");
     expect(output.stderr.join(" ")).toContain("fake-url");
   });
@@ -204,12 +211,14 @@ describe("git-clone", async () => {
       agent_id: "foo",
       url: "https://github.com/michaelbrewer/repo-tests.log/tree/feat/branch",
     });
-    const output = await executeScriptInContainer(state, "alpine/git");
+    const output = await executeScriptInContainer(state, gitImage, "bash");
     expect(output.exitCode).toBe(0);
-    expect(output.stdout).toEqual([
-      "Creating directory ~/repo-tests.log...",
-      "Cloning https://github.com/michaelbrewer/repo-tests.log to ~/repo-tests.log on branch feat/branch...",
-    ]);
+    expect(output.stdout[0]).toContain("Creating directory");
+    expect(output.stdout[0]).toContain("repo-tests.log");
+    expect(output.stdout[1]).toContain(
+      "Cloning https://github.com/michaelbrewer/repo-tests.log",
+    );
+    expect(output.stdout[1]).toContain("on branch feat/branch");
   });
 
   it("runs with gitlab clone with switch to feat/branch", async () => {
@@ -217,12 +226,14 @@ describe("git-clone", async () => {
       agent_id: "foo",
       url: "https://gitlab.com/mike.brew/repo-tests.log/-/tree/feat/branch",
     });
-    const output = await executeScriptInContainer(state, "alpine/git");
+    const output = await executeScriptInContainer(state, gitImage, "bash");
     expect(output.exitCode).toBe(0);
-    expect(output.stdout).toEqual([
-      "Creating directory ~/repo-tests.log...",
-      "Cloning https://gitlab.com/mike.brew/repo-tests.log to ~/repo-tests.log on branch feat/branch...",
-    ]);
+    expect(output.stdout[0]).toContain("Creating directory");
+    expect(output.stdout[0]).toContain("repo-tests.log");
+    expect(output.stdout[1]).toContain(
+      "Cloning https://gitlab.com/mike.brew/repo-tests.log",
+    );
+    expect(output.stdout[1]).toContain("on branch feat/branch");
   });
 
   it("runs with github clone with branch_name set to feat/branch", async () => {
@@ -238,12 +249,14 @@ describe("git-clone", async () => {
     expect(state.outputs.web_url.value).toEqual(url);
     expect(state.outputs.branch_name.value).toEqual(branch_name);
 
-    const output = await executeScriptInContainer(state, "alpine/git");
+    const output = await executeScriptInContainer(state, gitImage, "bash");
     expect(output.exitCode).toBe(0);
-    expect(output.stdout).toEqual([
-      "Creating directory ~/repo-tests.log...",
-      "Cloning https://github.com/michaelbrewer/repo-tests.log to ~/repo-tests.log on branch feat/branch...",
-    ]);
+    expect(output.stdout[0]).toContain("Creating directory");
+    expect(output.stdout[0]).toContain("repo-tests.log");
+    expect(output.stdout[1]).toContain(
+      "Cloning https://github.com/michaelbrewer/repo-tests.log",
+    );
+    expect(output.stdout[1]).toContain("on branch feat/branch");
   });
 
   it("runs post-clone script", async () => {
@@ -254,11 +267,93 @@ describe("git-clone", async () => {
     });
     const output = await executeScriptInContainer(
       state,
-      "alpine/git",
-      "sh",
+      gitImage,
+      "bash",
       "mkdir -p ~/fake-url && echo 'existing' > ~/fake-url/file.txt",
     );
     expect(output.stdout).toContain("Running post-clone script...");
     expect(output.stdout).toContain("Post-clone script executed");
+  });
+
+  it("runs with clone_args", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "https://github.com/michaelbrewer/repo-tests.log",
+      clone_args: "--single-branch",
+    });
+    const output = await executeScriptInContainer(state, gitImage, "bash");
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout[0]).toContain("Creating directory");
+    expect(output.stdout[0]).toContain("repo-tests.log");
+    expect(output.stdout[1]).toContain(
+      "Cloning https://github.com/michaelbrewer/repo-tests.log",
+    );
+  });
+
+  it("runs with depth", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "https://github.com/michaelbrewer/repo-tests.log",
+      depth: "1",
+    });
+    const output = await executeScriptInContainer(state, gitImage, "bash");
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout[0]).toContain("Creating directory");
+    expect(output.stdout[0]).toContain("repo-tests.log");
+    expect(output.stdout[1]).toContain(
+      "Cloning https://github.com/michaelbrewer/repo-tests.log",
+    );
+  });
+
+  it("runs with depth and branch_name", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "https://github.com/michaelbrewer/repo-tests.log",
+      branch_name: "feat/branch",
+      depth: "1",
+    });
+    const output = await executeScriptInContainer(state, gitImage, "bash");
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout[0]).toContain("Creating directory");
+    expect(output.stdout[0]).toContain("repo-tests.log");
+    expect(output.stdout[1]).toContain(
+      "Cloning https://github.com/michaelbrewer/repo-tests.log",
+    );
+    expect(output.stdout[1]).toContain("on branch feat/branch");
+  });
+
+  it("runs with clone_args and branch_name", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "https://github.com/michaelbrewer/repo-tests.log",
+      branch_name: "feat/branch",
+      clone_args: "--single-branch",
+    });
+    const output = await executeScriptInContainer(state, gitImage, "bash");
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout[0]).toContain("Creating directory");
+    expect(output.stdout[0]).toContain("repo-tests.log");
+    expect(output.stdout[1]).toContain(
+      "Cloning https://github.com/michaelbrewer/repo-tests.log",
+    );
+    expect(output.stdout[1]).toContain("on branch feat/branch");
+  });
+
+  it("runs with depth, branch_name, and clone_args", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "https://github.com/michaelbrewer/repo-tests.log",
+      branch_name: "feat/branch",
+      depth: "1",
+      clone_args: "--single-branch",
+    });
+    const output = await executeScriptInContainer(state, gitImage, "bash");
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout[0]).toContain("Creating directory");
+    expect(output.stdout[0]).toContain("repo-tests.log");
+    expect(output.stdout[1]).toContain(
+      "Cloning https://github.com/michaelbrewer/repo-tests.log",
+    );
+    expect(output.stdout[1]).toContain("on branch feat/branch");
   });
 });

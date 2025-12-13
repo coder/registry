@@ -14,7 +14,7 @@ This module allows you to automatically clone a repository by URL and skip if it
 module "git-clone" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/git-clone/coder"
-  version  = "1.2.2"
+  version  = "1.3.0"
   agent_id = coder_agent.example.id
   url      = "https://github.com/coder/coder"
 }
@@ -28,7 +28,7 @@ module "git-clone" {
 module "git-clone" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/git-clone/coder"
-  version  = "1.2.2"
+  version  = "1.3.0"
   agent_id = coder_agent.example.id
   url      = "https://github.com/coder/coder"
   base_dir = "~/projects/coder"
@@ -43,10 +43,11 @@ To use with [Git Authentication](https://coder.com/docs/v2/latest/admin/git-prov
 module "git-clone" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/git-clone/coder"
-  version  = "1.2.2"
+  version  = "1.3.0"
   agent_id = coder_agent.example.id
   url      = "https://github.com/coder/coder"
 }
+
 
 data "coder_external_auth" "github" {
   id = "github"
@@ -69,10 +70,11 @@ data "coder_parameter" "git_repo" {
 module "git_clone" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/git-clone/coder"
-  version  = "1.2.2"
+  version  = "1.3.0"
   agent_id = coder_agent.example.id
   url      = data.coder_parameter.git_repo.value
 }
+
 
 # Create a code-server instance for the cloned repository
 module "code-server" {
@@ -103,13 +105,14 @@ Configuring `git-clone` for a self-hosted GitHub Enterprise Server running at `g
 module "git-clone" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/git-clone/coder"
-  version  = "1.2.2"
+  version  = "1.3.0"
   agent_id = coder_agent.example.id
   url      = "https://github.example.com/coder/coder/tree/feat/example"
   git_providers = {
     "https://github.example.com/" = {
       provider = "github"
     }
+
   }
 }
 ```
@@ -122,7 +125,7 @@ To GitLab clone with a specific branch like `feat/example`
 module "git-clone" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/git-clone/coder"
-  version  = "1.2.2"
+  version  = "1.3.0"
   agent_id = coder_agent.example.id
   url      = "https://gitlab.com/coder/coder/-/tree/feat/example"
 }
@@ -134,13 +137,14 @@ Configuring `git-clone` for a self-hosted GitLab running at `gitlab.example.com`
 module "git-clone" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/git-clone/coder"
-  version  = "1.2.2"
+  version  = "1.3.0"
   agent_id = coder_agent.example.id
   url      = "https://gitlab.example.com/coder/coder/-/tree/feat/example"
   git_providers = {
     "https://gitlab.example.com/" = {
       provider = "gitlab"
     }
+
   }
 }
 ```
@@ -155,7 +159,7 @@ For example, to clone the `feat/example` branch:
 module "git-clone" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/git-clone/coder"
-  version     = "1.2.2"
+  version     = "1.3.0"
   agent_id    = coder_agent.example.id
   url         = "https://github.com/coder/coder"
   branch_name = "feat/example"
@@ -173,7 +177,7 @@ For example, this will clone into the `~/projects/coder/coder-dev` folder:
 module "git-clone" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/git-clone/coder"
-  version     = "1.2.2"
+  version     = "1.3.0"
   agent_id    = coder_agent.example.id
   url         = "https://github.com/coder/coder"
   folder_name = "coder-dev"
@@ -199,6 +203,35 @@ module "git-clone" {
 }
 ```
 
+## Custom clone arguments
+
+Pass additional arguments to the git clone command using the `clone_args` variable.
+This is useful for scenarios like using a local mirror with `--reference` to speed up cloning.
+
+```tf
+module "git-clone" {
+  count      = data.coder_workspace.me.start_count
+  source     = "registry.coder.com/coder/git-clone/coder"
+  version    = "1.3.0"
+  agent_id   = coder_agent.example.id
+  url        = "https://github.com/coder/coder"
+  clone_args = "--reference /mnt/git-mirrors/coder.git"
+}
+```
+
+You can also combine multiple arguments:
+
+```tf
+module "git-clone" {
+  count      = data.coder_workspace.me.start_count
+  source     = "registry.coder.com/coder/git-clone/coder"
+  version    = "1.3.0"
+  agent_id   = coder_agent.example.id
+  url        = "https://github.com/coder/coder"
+  clone_args = "--reference /mnt/git-mirrors/coder.git --dissociate"
+}
+```
+
 ## Post-clone script
 
 Run a custom script after cloning the repository by setting the `post_clone_script` variable.
@@ -208,7 +241,7 @@ This is useful for running initialization tasks like installing dependencies or 
 module "git-clone" {
   count             = data.coder_workspace.me.start_count
   source            = "registry.coder.com/coder/git-clone/coder"
-  version           = "1.2.2"
+  version           = "1.3.0"
   agent_id          = coder_agent.example.id
   url               = "https://github.com/coder/coder"
   post_clone_script = <<-EOT
