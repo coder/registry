@@ -62,6 +62,6 @@ if [ -n "$POST_CLONE_SCRIPT" ]; then
   echo "$POST_CLONE_SCRIPT" | base64 -d > "$POST_CLONE_TMP"
   chmod +x "$POST_CLONE_TMP"
   cd "$CLONE_PATH" || exit
-  "$POST_CLONE_TMP"
+  $POST_CLONE_TMP
   rm "$POST_CLONE_TMP"
 fi
