@@ -294,3 +294,67 @@ run "output_multiple_ides" {
     error_message = "Expected ide_metadata['PY'].build to be the fallback '${var.expected_ide_config["PY"].build}'"
   }
 }
+
+run "no_script_when_plugins_empty" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+    plugins  = []
+  }
+
+  assert {
+    condition     = length(resource.coder_script.jetbrains_plugin_installer) == 0
+    error_message = "Expected no coder_script when plugins list is empty"
+  }
+}
+
+run "script_created_when_plugins_provided" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+    plugins  = ["com.intellij.plugins.terminal", "org.rust.lang"]
+  }
+
+  assert {
+    condition     = length(resource.coder_script.jetbrains_plugin_installer) == 1
+    error_message = "Expected coder_script when plugins list is not empty"
+  }
+}
+
+run "script_runs_on_start" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+    plugins  = ["com.intellij.plugins.terminal"]
+  }
+
+  assert {
+    condition     = resource.coder_script.jetbrains_plugin_installer[0].run_on_start == true
+    error_message = "Expected plugin installer script to run on start"
+  }
+}
+
+run "no_script_when_no_ides_selected" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    # default is empty, so no IDEs selected
+    plugins = ["com.intellij.plugins.terminal"]
+  }
+
+  assert {
+    condition     = length(resource.coder_script.jetbrains_plugin_installer) == 0
+    error_message = "Expected no coder_script when no IDEs are selected even if plugins are specified"
+  }
+}
