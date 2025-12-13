@@ -391,7 +391,6 @@ locals {
     set -o errexit
     set -o pipefail
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-    echo -n "${local.remove_last_session_id_script_b64}" | base64 -d > "/tmp/remove-last-session-id.sh"
     chmod +x /tmp/start.sh
     chmod +x /tmp/remove-last-session-id.sh
 
