@@ -32,7 +32,7 @@ module "zed" {
 module "zed" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/zed/coder"
-  version  = "1.1.2"
+  version  = "1.1.3"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
@@ -44,7 +44,7 @@ module "zed" {
 module "zed" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/coder/zed/coder"
-  version      = "1.1.2"
+  version      = "1.1.3"
   agent_id     = coder_agent.main.id
   display_name = "Zed Editor"
   order        = 1
@@ -57,7 +57,7 @@ module "zed" {
 module "zed" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/zed/coder"
-  version    = "1.1.2"
+  version    = "1.1.3"
   agent_id   = coder_agent.main.id
   agent_name = coder_agent.example.name
 }
@@ -73,7 +73,7 @@ You can declaratively set/merge settings with the `settings` input. Provide a JS
 module "zed" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/zed/coder"
-  version  = "1.1.2"
+  version  = "1.1.3"
   agent_id = coder_agent.main.id
 
   settings = jsonencode({

@@ -9,10 +9,6 @@ terraform {
   }
 }
 
-locals {
-  icon_url = "/icon/positron.svg"
-}
-
 variable "agent_id" {
   type        = string
   description = "The ID of a Coder agent."
@@ -42,33 +38,39 @@ variable "group" {
   default     = null
 }
 
+variable "slug" {
+  type        = string
+  description = "The slug of the app."
+  default     = "cursor"
+}
+
+variable "display_name" {
+  type        = string
+  description = "The display name of the app."
+  default     = "Cursor Desktop"
+}
+
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
-resource "coder_app" "positron" {
-  agent_id     = var.agent_id
-  external     = true
-  icon         = local.icon_url
-  slug         = "positron"
-  display_name = "Positron Desktop"
-  order        = var.order
-  group        = var.group
+module "vscode-desktop-core" {
+  source  = "registry.coder.com/coder/vscode-desktop-core/coder"
+  version = "1.0.0"
 
-  url = join("", [
-    "positron://coder.coder-remote/open",
-    "?owner=",
-    data.coder_workspace_owner.me.name,
-    "&workspace=",
-    data.coder_workspace.me.name,
-    var.folder != "" ? join("", ["&folder=", var.folder]) : "",
-    var.open_recent ? "&openRecent" : "",
-    "&url=",
-    data.coder_workspace.me.access_url,
-    "&token=$SESSION_TOKEN",
-  ])
+  agent_id = var.agent_id
+
+  coder_app_icon         = "/icon/positron.svg"
+  coder_app_slug         = var.slug
+  coder_app_display_name = var.display_name
+  coder_app_order        = var.order
+  coder_app_group        = var.group
+
+  folder      = var.folder
+  open_recent = var.open_recent
+  protocol    = "positron"
 }
 
 output "positron_url" {
-  value       = coder_app.positron.url
+  value       = module.vscode-desktop-core.ide_uri
   description = "Positron Desktop URL."
 }
