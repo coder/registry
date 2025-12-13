@@ -17,7 +17,7 @@ mounts:
   - [
       "/dev/disk/by-id/scsi-0HC_Volume_${volume_id}",
       "/home/${username}",
-      auto,
+      ext4,
       "defaults,uid=1000,gid=1000",
     ]
 %{ endif ~}
