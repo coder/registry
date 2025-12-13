@@ -1,10 +1,5 @@
 #!/bin/bash
 
-if [ -f "$HOME/.bashrc" ]; then
-  source "$HOME"/.bashrc
-fi
-
-# Set strict error handling AFTER sourcing bashrc to avoid unbound variable errors from user dotfiles
 set -euo pipefail
 
 BOLD='\033[0;1m'
@@ -45,11 +40,6 @@ function install_claude_code_cli() {
     if [ $CURL_EXIT -ne 0 ]; then
       echo "Claude Code installer failed with exit code $$CURL_EXIT"
     fi
-
-    # Ensure binaries are discoverable.
-    echo "Creating a symlink for claude"
-    sudo ln -s /home/coder/.local/bin/claude /usr/local/bin/claude
-
     echo "Installed Claude Code successfully. Version: $(claude --version || echo 'unknown')"
   else
     echo "Skipping Claude Code installation as per configuration."
