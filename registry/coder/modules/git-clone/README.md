@@ -18,7 +18,6 @@ module "git-clone" {
   agent_id = coder_agent.example.id
   url      = "https://github.com/coder/coder"
 }
-
 ```
 
 ## Examples
@@ -34,7 +33,6 @@ module "git-clone" {
   url      = "https://github.com/coder/coder"
   base_dir = "~/projects/coder"
 }
-
 ```
 
 ### Git Authentication
@@ -131,7 +129,6 @@ module "git-clone" {
   agent_id = coder_agent.example.id
   url      = "https://gitlab.com/coder/coder/-/tree/feat/example"
 }
-
 ```
 
 Configuring `git-clone` for a self-hosted GitLab running at `gitlab.example.com`
@@ -167,7 +164,6 @@ module "git-clone" {
   url         = "https://github.com/coder/coder"
   branch_name = "feat/example"
 }
-
 ```
 
 ## Git clone with different destination folder
@@ -187,7 +183,6 @@ module "git-clone" {
   folder_name = "coder-dev"
   base_dir    = "~/projects/coder"
 }
-
 ```
 
 ## Git shallow clone
@@ -229,5 +224,4 @@ module "git-clone" {
     make setup
   EOT
 }
-
 ```
