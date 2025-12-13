@@ -73,7 +73,7 @@ resource "coder_script" "zed_settings" {
   icon         = "/icon/zed.svg"
   run_on_start = true
   script       = <<-EOT
-    #!/bin/sh
+    #!/usr/bin/env bash
     set -eu
     SETTINGS_JSON='${replace(var.settings, "\"", "\\\"")}'
     if [ -z "$${SETTINGS_JSON}" ] || [ "$${SETTINGS_JSON}" = "{}" ]; then
