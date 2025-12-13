@@ -18,7 +18,7 @@ provider "hcloud" {
 }
 
 # Available locations: https://docs.hetzner.com/cloud/general/locations/
-data "coder_parameter" "hcloud_location" {Expand commentComment on line R21ResolvedCode has comments. Press enter to view.
+data "coder_parameter" "hcloud_location" {
   name         = "hcloud_location"
   display_name = "Hetzner Location"
   description  = "Select the Hetzner Cloud location for your workspace."
@@ -51,7 +51,7 @@ data "coder_parameter" "hcloud_location" {Expand commentComment on line R21Resol
 }
 
 # Available server types: https://docs.hetzner.com/cloud/servers/overview/
-data "coder_parameter" "hcloud_server_type" {Expand commentComment on line R54ResolvedCode has comments. Press enter to view.
+data "coder_parameter" "hcloud_server_type" {
   name         = "hcloud_server_type"
   display_name = "Hetzner Server Type"
   description  = "Select the Hetzner Cloud server type for your workspace."
