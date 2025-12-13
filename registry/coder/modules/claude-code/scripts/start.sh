@@ -1,9 +1,5 @@
 #!/bin/bash
 
-if [ -f "$HOME/.bashrc" ]; then
-  source "$HOME"/.bashrc
-fi
-
 # Set strict error handling AFTER sourcing bashrc to avoid unbound variable errors from user dotfiles
 set -euo pipefail
 
@@ -238,31 +234,35 @@ function start_agentapi() {
     BOUNDARY_ARGS+=(--allow "domain=anthropic.com" --allow "domain=registry.npmjs.org" --allow "domain=sentry.io" --allow "domain=claude.ai" --allow "domain=$ARG_CODER_HOST")
 
     # Add any additional allowed URLs from the variable
-    if [ -n "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS" ]; then
-      IFS='|' read -ra ADDITIONAL_URLS <<< "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS"
+    if [[ -n "${ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS}" ]]; then
+      IFS='|' read -ra ADDITIONAL_URLS <<< "${ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS}"
       for url in "${ADDITIONAL_URLS[@]}"; do
         # Quote the URL to preserve spaces within the allow rule
-        BOUNDARY_ARGS+=(--allow "$url")
+        BOUNDARY_ARGS+=(--allow "${url}")
       done
     fi
 
     # Set HTTP Proxy port used by Boundary
-    BOUNDARY_ARGS+=(--proxy-port "$ARG_BOUNDARY_PROXY_PORT")
+    BOUNDARY_ARGS+=(--proxy-port "${ARG_BOUNDARY_PROXY_PORT}")
 
     # Set log level for boundary
-    BOUNDARY_ARGS+=(--log-level "$ARG_BOUNDARY_LOG_LEVEL")
+    BOUNDARY_ARGS+=(--log-level "${ARG_BOUNDARY_LOG_LEVEL}")
 
-    if [ "${ARG_ENABLE_BOUNDARY_PPROF:-false}" = "true" ]; then
+    if [[ "${ARG_ENABLE_BOUNDARY_PPROF:-false}" = "true" ]]; then
       # Enable boundary pprof server on specified port
       BOUNDARY_ARGS+=(--pprof)
-      BOUNDARY_ARGS+=(--pprof-port "$ARG_BOUNDARY_PPROF_PORT")
+      BOUNDARY_ARGS+=(--pprof-port "${ARG_BOUNDARY_PPROF_PORT}")
     fi
 
-    agentapi server --type claude --term-width 67 --term-height 1190 -- \
-      boundary-run "${BOUNDARY_ARGS[@]}" -- \
-      claude "${ARGS[@]}"
+#    if [[ "${ARG_REPORT_TASKS}" == "true" ]]; then
+#        boundary-run "${BOUNDARY_ARGS[@]}" -- \
+#              claude "${ARGS[@]}"
+#    else
+      "${CORE_COMMAND[@]}" boundary-run "${BOUNDARY_ARGS[@]}" -- \
+        claude "${ARGS[@]}"
+#    fi
   else
-    agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
+    "${CORE_COMMAND[@]}" claude "${ARGS[@]}"
   fi
 }
 
