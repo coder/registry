@@ -5,6 +5,9 @@ RESET='\033[0m'
 MUX_BINARY="${INSTALL_PREFIX}/mux"
 
 function run_mux() {
+  # Remove stale server lock if present
+  rm -f "$HOME/.mux/server.lock"
+
   local port_value
   port_value="${PORT}"
   if [ -z "$port_value" ]; then
