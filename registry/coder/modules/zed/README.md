@@ -19,7 +19,7 @@ Zed is a high-performance, multiplayer code editor from the creators of Atom and
 module "zed" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/zed/coder"
-  version  = "1.1.2"
+  version  = "1.1.3"
   agent_id = coder_agent.main.id
 }
 ```
