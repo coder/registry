@@ -5,10 +5,6 @@ set -euo pipefail
 
 true > "$HOME/start.log"
 
-log() {
-    printf -- "$@" >> "$HOME/start.log"
-}
-
 command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
@@ -30,6 +26,15 @@ ARG_ENABLE_BOUNDARY_PPROF=${ARG_ENABLE_BOUNDARY_PPROF:-false}
 ARG_BOUNDARY_PPROF_PORT=${ARG_BOUNDARY_PPROF_PORT:-"6067"}
 ARG_COMPILE_FROM_SOURCE=${ARG_COMPILE_FROM_SOURCE:-false}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
+ARG_NON_AGENTAPI_CLI=${ARG_NON_AGENTAPI_CLI:-false}
+
+log() {
+  if [[ "${ARG_NON_AGENTAPI_CLI}" = "true" ]]; then
+    printf -- "$@" >> "$HOME/start.log"
+  else
+    printf -- "$@"
+  fi
+}
 
 log "--------------------------------"
 
@@ -48,6 +53,7 @@ log "ARG_BOUNDARY_LOG_LEVEL: %s\n" "$ARG_BOUNDARY_LOG_LEVEL"
 log "ARG_BOUNDARY_PROXY_PORT: %s\n" "$ARG_BOUNDARY_PROXY_PORT"
 log "ARG_COMPILE_FROM_SOURCE: %s\n" "$ARG_COMPILE_FROM_SOURCE"
 log "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
+log "ARG_NON_AGENTAPI_CLI: %s\n" "$ARG_NON_AGENTAPI_CLI"
 
 log "--------------------------------"
 
