@@ -36,7 +36,7 @@ log() {
   fi
 }
 
-log "--------------------------------"
+log "--------------------------------\n"
 
 log "ARG_MODEL: %s\n" "$ARG_MODEL"
 log "ARG_RESUME: %s\n" "$ARG_RESUME_SESSION_ID"
@@ -55,7 +55,7 @@ log "ARG_COMPILE_FROM_SOURCE: %s\n" "$ARG_COMPILE_FROM_SOURCE"
 log "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
 log "ARG_NON_AGENTAPI_CLI: %s\n" "$ARG_NON_AGENTAPI_CLI"
 
-log "--------------------------------"
+log "--------------------------------\n"
 
 function install_boundary() {
   if [ "${ARG_COMPILE_FROM_SOURCE:-false}" = "true" ]; then
