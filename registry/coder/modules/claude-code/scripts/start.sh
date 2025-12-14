@@ -3,7 +3,8 @@
 # Set strict error handling AFTER sourcing bashrc to avoid unbound variable errors from user dotfiles
 set -euo pipefail
 
-export PATH="$HOME/.local/bin:$PATH"
+# Redirect all script output to log file
+exec >> "$HOME/start.log" 2>&1
 
 command_exists() {
   command -v "$1" > /dev/null 2>&1
