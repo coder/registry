@@ -88,12 +88,12 @@ TASK_SESSION_ID="cd32e253-ca16-4fd3-9825-d837e74ae3c2"
 
 get_project_dir() {
   local workdir_normalized
-  workdir_normalized=$(log "$ARG_WORKDIR" | tr '/' '-')
-  log "$HOME/.claude/projects/${workdir_normalized}"
+  workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
+  echo "$HOME/.claude/projects/${workdir_normalized}"
 }
 
 get_task_session_file() {
-  log "$(get_project_dir)/${TASK_SESSION_ID}.jsonl"
+  echo "$(get_project_dir)/${TASK_SESSION_ID}.jsonl"
 }
 
 task_session_exists() {
@@ -224,7 +224,7 @@ function start_agentapi() {
     [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
   fi
 
-  log "Running claude code with args: %s\n" "$(log '%q ' "${ARGS[@]}")"
+  log "Running claude code with args: %s\n" "$(printf '%q ' "${ARGS[@]}")"
 
   if [ "${ARG_ENABLE_BOUNDARY:-false}" = "true" ]; then
     install_boundary
