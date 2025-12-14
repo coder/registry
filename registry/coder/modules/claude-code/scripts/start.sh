@@ -3,10 +3,10 @@
 # Set strict error handling AFTER sourcing bashrc to avoid unbound variable errors from user dotfiles
 set -euo pipefail
 
-true > "${HOME}/start.log"
+true > "$HOME/start.log"
 
 log() {
-    printf "$@" >> "${HOME}/start.log"
+    printf "$@" >> "$HOME/start.log"
 }
 
 command_exists() {
