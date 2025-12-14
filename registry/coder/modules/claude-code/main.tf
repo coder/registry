@@ -338,13 +338,13 @@ locals {
 
   # Common environment variables for install script
   install_env_vars = <<-EOT
-    ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
-    ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
-    ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
-    ARG_REPORT_TASKS='${var.report_tasks}' \
-    ARG_WORKDIR='${local.workdir}' \
-    ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
-    ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
+    ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \\
+    ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \\
+    ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \\
+    ARG_REPORT_TASKS='${var.report_tasks}' \\
+    ARG_WORKDIR='${local.workdir}' \\
+    ARG_ALLOWED_TOOLS='${var.allowed_tools}' \\
+    ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \\
     ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}'
   EOT
 
@@ -394,7 +394,7 @@ locals {
     chmod +x /tmp/start.sh
     chmod +x /tmp/remove-last-session-id.sh
 
-    ${local.start_env_vars} \
+    ${local.start_env_vars} \\
     /tmp/start.sh
   EOT
 }
