@@ -6,7 +6,7 @@ set -euo pipefail
 true > "$HOME/start.log"
 
 log() {
-    printf "$@" >> "$HOME/start.log"
+    printf -- "$@" >> "$HOME/start.log"
 }
 
 command_exists() {
