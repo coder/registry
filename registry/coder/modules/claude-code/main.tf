@@ -416,7 +416,7 @@ resource "coder_app" "agent_cli" {
   slug         = local.app_slug
   display_name = var.cli_app_display_name
 
-  command = length(trimprefix(var.cli_command, " ")) > 0 ? var.cli_command : "${local.start_env_vars}\n/tmp/start.sh"
+  command = length(trimprefix(var.cli_command, " ")) > 0 ? "${var.cli_command} >> $HOME/start.log 2>&1" : "${local.start_env_vars}\n/tmp/start.sh >> $HOME/start.log 2>&1"
 }
 
 
