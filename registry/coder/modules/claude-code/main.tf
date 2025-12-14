@@ -368,7 +368,7 @@ locals {
     export ARG_BOUNDARY_PPROF_PORT='${var.boundary_pprof_port}'
     export ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}'
     export ARG_CODER_HOST='${local.coder_host}'
-    export ARG_NON_AGENTAPI_CLI=(!var.report_tasks && var.cli_app) ? true : false
+    export ARG_NON_AGENTAPI_CLI='${!var.report_tasks && var.cli_app ? true : false}'
   EOT
 
   # Reusable install script command
