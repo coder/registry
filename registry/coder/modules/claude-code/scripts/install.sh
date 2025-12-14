@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 # Set strict error handling AFTER sourcing bashrc to avoid unbound variable errors from user dotfiles
 set -euo pipefail
 

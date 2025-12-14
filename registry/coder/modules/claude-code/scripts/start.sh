@@ -264,13 +264,13 @@ function start_agentapi() {
       BOUNDARY_ARGS+=(--pprof-port "${ARG_BOUNDARY_PPROF_PORT}")
     fi
 
-#    if [[ "${ARG_REPORT_TASKS}" == "true" ]]; then
-#        boundary-run "${BOUNDARY_ARGS[@]}" -- \
-#              claude "${ARGS[@]}"
-#    else
-      "${CORE_COMMAND[@]}" boundary-run "${BOUNDARY_ARGS[@]}" -- \
-        claude "${ARGS[@]}"
-#    fi
+    #    if [[ "${ARG_REPORT_TASKS}" == "true" ]]; then
+    #        boundary-run "${BOUNDARY_ARGS[@]}" -- \
+    #              claude "${ARGS[@]}"
+    #    else
+    "${CORE_COMMAND[@]}" boundary-run "${BOUNDARY_ARGS[@]}" -- \
+      claude "${ARGS[@]}"
+    #    fi
   else
     "${CORE_COMMAND[@]}" claude "${ARGS[@]}"
   fi
