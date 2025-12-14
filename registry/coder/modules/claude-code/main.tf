@@ -338,36 +338,36 @@ locals {
 
   # Common environment variables for install script
   install_env_vars = <<-EOT
-    ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
-    ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
-    ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
-    ARG_REPORT_TASKS='${var.report_tasks}' \
-    ARG_WORKDIR='${local.workdir}' \
-    ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
-    ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
-    ARG_MCP='xyz'
+    export ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}'
+    export ARG_MCP_APP_STATUS_SLUG='${local.app_slug}'
+    export ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}'
+    export ARG_REPORT_TASKS='${var.report_tasks}'
+    export ARG_WORKDIR='${local.workdir}'
+    export ARG_ALLOWED_TOOLS='${var.allowed_tools}'
+    export ARG_DISALLOWED_TOOLS='${var.disallowed_tools}'
+    export ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}'
   EOT
 
   # Common environment variables for start script
   start_env_vars = <<-EOT
-    ARG_MODEL='${var.model}' \
-    ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
-    ARG_CONTINUE='${var.continue}' \
-    ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
-    ARG_PERMISSION_MODE='${var.permission_mode}' \
-    ARG_WORKDIR='${local.workdir}' \
-    ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
-    ARG_REPORT_TASKS='${var.report_tasks}' \
-    ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
-    ARG_BOUNDARY_VERSION='${var.boundary_version}' \
-    ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
-    ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
-    ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join("|", var.boundary_additional_allowed_urls)}' \
-    ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
-    ARG_ENABLE_BOUNDARY_PPROF='${var.enable_boundary_pprof}' \
-    ARG_BOUNDARY_PPROF_PORT='${var.boundary_pprof_port}' \
-    ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
-    ARG_CODER_HOST='${local.coder_host}'
+    export ARG_MODEL='${var.model}'
+    export ARG_RESUME_SESSION_ID='${var.resume_session_id}'
+    export ARG_CONTINUE='${var.continue}'
+    export ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}'
+    export ARG_PERMISSION_MODE='${var.permission_mode}'
+    export ARG_WORKDIR='${local.workdir}'
+    export ARG_AI_PROMPT='${base64encode(var.ai_prompt)}'
+    export ARG_REPORT_TASKS='${var.report_tasks}'
+    export ARG_ENABLE_BOUNDARY='${var.enable_boundary}'
+    export ARG_BOUNDARY_VERSION='${var.boundary_version}'
+    export ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}'
+    export ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}'
+    export ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join("|", var.boundary_additional_allowed_urls)}'
+    export ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}'
+    export ARG_ENABLE_BOUNDARY_PPROF='${var.enable_boundary_pprof}'
+    export ARG_BOUNDARY_PPROF_PORT='${var.boundary_pprof_port}'
+    export ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}'
+    export ARG_CODER_HOST='${local.coder_host}'
   EOT
 
   # Reusable install script command
@@ -381,7 +381,7 @@ locals {
 
     chmod +x /tmp/install.sh
     chmod +x /tmp/start.sh
-    ${local.install_env_vars} \
+    ${local.install_env_vars}
     /tmp/install.sh
   EOT
 
@@ -394,7 +394,7 @@ locals {
     chmod +x /tmp/start.sh
     chmod +x /tmp/remove-last-session-id.sh
 
-    ${local.start_env_vars} \
+    ${local.start_env_vars}
     /tmp/start.sh
   EOT
 }
@@ -416,7 +416,7 @@ resource "coder_app" "agent_cli" {
   slug         = local.app_slug
   display_name = var.cli_app_display_name
 
-  command = length(trimprefix(var.cli_command, " ")) > 0 ? var.cli_command : "${local.start_env_vars} \\\n    /tmp/start.sh"
+  command = length(trimprefix(var.cli_command, " ")) > 0 ? var.cli_command : "${local.start_env_vars}\n/tmp/start.sh"
 }
 
 
