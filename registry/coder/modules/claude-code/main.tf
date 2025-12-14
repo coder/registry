@@ -394,7 +394,7 @@ locals {
     chmod +x /tmp/start.sh
     chmod +x /tmp/remove-last-session-id.sh
 
-    ${local.start_env_vars} \\
+    ${local.start_env_vars} \
     /tmp/start.sh
   EOT
 }
