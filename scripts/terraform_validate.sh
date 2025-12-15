@@ -29,13 +29,16 @@ main() {
     echo ""
   fi
 
-  local script_dir=$(dirname "$(readlink -f "$0")")
-  local registry_dir=$(readlink -f "$script_dir/../registry")
+  local script_dir
+  script_dir=$(dirname "$(readlink -f "$0")")
+  local registry_dir
+  registry_dir=$(readlink -f "$script_dir/../registry")
 
   if [[ "${SHARED_CHANGED:-false}" == "true" ]]; then
     echo "==> Shared infrastructure changed"
     echo "==> Validating all modules for safety"
-    local subdirs=$(find "$registry_dir" -mindepth 3 -maxdepth 3 -path "*/modules/*" -type d | sort)
+    local subdirs
+    subdirs=$(find "$registry_dir" -mindepth 3 -maxdepth 3 -path "*/modules/*" -type d | sort)
   elif [[ -z "${MODULE_CHANGED_FILES:-}" ]]; then
     echo "✓ No module files changed, skipping validation"
     exit 0
@@ -49,11 +52,14 @@ main() {
       fi
 
       if [[ "$file" =~ ^registry/([^/]+)/modules/([^/]+)/ ]]; then
+        local namespace
         namespace="${BASH_REMATCH[1]}"
+        local module
         module="${BASH_REMATCH[2]}"
+        local module_dir
         module_dir="registry/${namespace}/modules/${module}"
 
-        if [[ -d "$module_dir" ]] && [[ ! " ${MODULE_DIRS[*]} " =~ " ${module_dir} " ]]; then
+        if [[ -d "$module_dir" ]] && [[ ! " ${MODULE_DIRS[*]} " =~ " $module_dir " ]]; then
           MODULE_DIRS+=("$module_dir")
         fi
       fi

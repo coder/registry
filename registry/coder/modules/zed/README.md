@@ -19,8 +19,8 @@ Zed is a high-performance, multiplayer code editor from the creators of Atom and
 module "zed" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/zed/coder"
-  version  = "1.1.1"
-  agent_id = coder_agent.example.id
+  version  = "1.1.3"
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -32,8 +32,8 @@ module "zed" {
 module "zed" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/zed/coder"
-  version  = "1.1.1"
-  agent_id = coder_agent.example.id
+  version  = "1.1.3"
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
 ```
@@ -44,8 +44,8 @@ module "zed" {
 module "zed" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/coder/zed/coder"
-  version      = "1.1.1"
-  agent_id     = coder_agent.example.id
+  version      = "1.1.3"
+  agent_id     = coder_agent.main.id
   display_name = "Zed Editor"
   order        = 1
 }
@@ -57,8 +57,8 @@ module "zed" {
 module "zed" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/zed/coder"
-  version    = "1.1.1"
-  agent_id   = coder_agent.example.id
+  version    = "1.1.3"
+  agent_id   = coder_agent.main.id
   agent_name = coder_agent.example.name
 }
 ```
@@ -73,8 +73,8 @@ You can declaratively set/merge settings with the `settings` input. Provide a JS
 module "zed" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/zed/coder"
-  version  = "1.1.1"
-  agent_id = coder_agent.example.id
+  version  = "1.1.3"
+  agent_id = coder_agent.main.id
 
   settings = jsonencode({
     context_servers = {
@@ -84,6 +84,7 @@ module "zed" {
         args    = ["arg-1", "arg-2"]
         env     = {}
       }
+
     }
   })
 }

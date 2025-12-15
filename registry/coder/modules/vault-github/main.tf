@@ -32,6 +32,12 @@ variable "vault_github_auth_path" {
   default     = "github"
 }
 
+variable "vault_namespace" {
+  type        = string
+  description = "The Vault Enterprise namespace that contains the GitHub auth mount."
+  default     = null
+}
+
 variable "vault_cli_version" {
   type        = string
   description = "The version of Vault to install."
@@ -52,6 +58,7 @@ resource "coder_script" "vault" {
     AUTH_PATH : var.vault_github_auth_path,
     GITHUB_EXTERNAL_AUTH_ID : data.coder_external_auth.github.id,
     INSTALL_VERSION : var.vault_cli_version,
+    VAULT_NAMESPACE : var.vault_namespace != null ? var.vault_namespace : "",
   })
   run_on_start       = true
   start_blocks_login = true
@@ -61,6 +68,13 @@ resource "coder_env" "vault_addr" {
   agent_id = var.agent_id
   name     = "VAULT_ADDR"
   value    = var.vault_addr
+}
+
+resource "coder_env" "vault_namespace" {
+  count    = var.vault_namespace == null ? 0 : 1
+  agent_id = var.agent_id
+  name     = "VAULT_NAMESPACE"
+  value    = var.vault_namespace
 }
 
 data "coder_external_auth" "github" {

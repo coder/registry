@@ -9,19 +9,17 @@ LOG_PATH="${LOG_PATH}"
 PORT="${PORT}"
 # Pinned version (e.g., v1.19.16); overrides latest release discovery if set
 PINNED_VERSION="${PINNED_VERSION}"
-# Custom CLI Arguments# The variable from Terraform is a single, comma-separated string.
-# We need to split it into a proper bash array using the comma (,) as the delimiter.
-IFS=',' read -r -a ARGUMENTS <<< "${ARGUMENTS}"
+# Custom CLI Arguments
+# The variable from Terraform is a series of quoted and space separated strings.
+# We need to parse it into a proper bash array.
+# shellcheck disable=SC2206
+ARGUMENTS=(${ARGUMENTS})
 
 # VARIABLE appears unused. Verify use (or export if used externally).
 # shellcheck disable=SC2034
 MODULE_NAME="Copyparty"
 
-# VARIABLE appears unused. Verify use (or export if used externally).
-# shellcheck disable=SC2034
-BOLD='\033[0;1m'
-
-printf '%sInstalling %s ...\n\n' "$${BOLD}" "$${MODULE_NAME}"
+printf '\e[1mInstalling %s ...\e[0m\n' "$${MODULE_NAME}"
 
 # Add code here
 # Use variables from the templatefile function in main.tf
@@ -32,7 +30,7 @@ if ! command -v python3 &> /dev/null; then
   printf "❌ Python3 could not be found. Please install it to continue.\n"
   exit 1
 fi
-printf "✅ Python3 is installed.\n\n"
+printf "✅ Python3 is installed.\n"
 
 RELEASE_TO_INSTALL=""
 # Install provided version to pin, otherwise discover latest github release from `https://github.com/9001/copyparty`.
@@ -44,7 +42,7 @@ if [[ -n "$${PINNED_VERSION}" ]]; then
     exit 1
   fi
   RELEASE_TO_INSTALL="$${PINNED_VERSION}"
-  printf "✅ Using pinned version %s.\n\n" "$${RELEASE_TO_INSTALL}"
+  printf "✅ Using pinned version %s.\n" "$${RELEASE_TO_INSTALL}"
 else
   printf "🔎 Discovering latest release from GitHub...\n"
   # Use curl to get the latest release tag from the GitHub API and sed to parse it
@@ -54,11 +52,11 @@ else
     exit 1
   fi
   RELEASE_TO_INSTALL="$${LATEST_RELEASE}"
-  printf "🏷️  Latest release is %s.\n\n" "$${RELEASE_TO_INSTALL}"
+  printf "🏷️  Latest release is %s.\n" "$${RELEASE_TO_INSTALL}"
 fi
 
 # Download appropriate release version assets: `copyparty-sfx.py` and `helptext.html`.
-printf "🚀 Downloading copyparty v%s...\n" "$${RELEASE_TO_INSTALL}"
+printf "🚀 Downloading copyparty %s...\n" "$${RELEASE_TO_INSTALL}"
 DOWNLOAD_URL="https://github.com/9001/copyparty/releases/download/$${RELEASE_TO_INSTALL}"
 
 printf "⏬ Downloading copyparty-sfx.py...\n"
@@ -74,9 +72,9 @@ if ! curl -fsSL -o /tmp/helptext.html "$${DOWNLOAD_URL}/helptext.html"; then
 fi
 
 chmod +x /tmp/copyparty-sfx.py
-printf "✅ Download complete.\n\n"
+printf "✅ Download complete.\n"
 
-printf "🥳 Installation complete!\n\n"
+printf "🥳 Installation complete!\n"
 
 # Build a clean, quoted string of the command for logging purposes only.
 log_command="python3 /tmp/copyparty-sfx.py -p '$${PORT}'"
@@ -85,16 +83,16 @@ for arg in "$${ARGUMENTS[@]}"; do
   log_command+=" '$${arg}'"
 done
 
-# Clear the log file and write the header and command string using printf.
+# Dump the executing command to a tmp file for diagnostic review.
 {
   printf "=== Starting copyparty at %s ===\n" "$(date)"
   printf "EXECUTING: %s\n" "$${log_command}"
-} > "$${LOG_PATH}"
+} > "/tmp/copyparty.cmd"
 
-printf "👷 Starting %s in background...\n\n" "$${MODULE_NAME}"
+printf "👷 Starting %s in background...\n" "$${MODULE_NAME}"
 
 # Execute the actual command using the robust array expansion.
-# Then, append its output (stdout and stderr) to the log file.
-python3 /tmp/copyparty-sfx.py -p "$${PORT}" "$${ARGUMENTS[@]}" >> "$${LOG_PATH}" 2>&1 &
+# Then, capture its output (stdout and stderr) to the log file.
+python3 /tmp/copyparty-sfx.py -p "$${PORT}" "$${ARGUMENTS[@]}" > "$${LOG_PATH}" 2>&1 &
 
-printf "✅ Service started. Check logs at %s\n\n" "$${LOG_PATH}"
+printf "✅ Service started. Check logs at %s\n" "$${LOG_PATH}"

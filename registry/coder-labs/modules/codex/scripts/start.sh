@@ -38,7 +38,8 @@ find_session_for_directory() {
     return 1
   fi
 
-  local session_id=$(grep "^$target_dir|" "$SESSION_TRACKING_FILE" | cut -d'|' -f2 | head -1)
+  local session_id
+  session_id=$(grep "^$target_dir|" "$SESSION_TRACKING_FILE" | cut -d'|' -f2 | head -1)
 
   if [ -n "$session_id" ]; then
     echo "$session_id"
@@ -74,9 +75,12 @@ find_recent_session_file() {
   local latest_time=0
 
   while IFS= read -r session_file; do
-    local file_time=$(stat -c %Y "$session_file" 2> /dev/null || stat -f %m "$session_file" 2> /dev/null || echo "0")
-    local first_line=$(head -n 1 "$session_file" 2> /dev/null)
-    local session_cwd=$(echo "$first_line" | grep -o '"cwd":"[^"]*"' | cut -d'"' -f4)
+    local file_time
+    file_time=$(stat -c %Y "$session_file" 2> /dev/null || stat -f %m "$session_file" 2> /dev/null || echo "0")
+    local first_line
+    first_line=$(head -n 1 "$session_file" 2> /dev/null)
+    local session_cwd
+    session_cwd=$(echo "$first_line" | grep -o '"cwd":"[^"]*"' | cut -d'"' -f4)
 
     if [ "$session_cwd" = "$target_dir" ] && [ "$file_time" -gt "$latest_time" ]; then
       latest_file="$session_file"
@@ -85,8 +89,10 @@ find_recent_session_file() {
   done < <(find "$sessions_dir" -type f -name "*.jsonl" 2> /dev/null)
 
   if [ -n "$latest_file" ]; then
-    local first_line=$(head -n 1 "$latest_file")
-    local session_id=$(echo "$first_line" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+    local first_line
+    first_line=$(head -n 1 "$latest_file")
+    local session_id
+    session_id=$(echo "$first_line" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
     if [ -n "$session_id" ]; then
       echo "$session_id"
       return 0
@@ -102,7 +108,8 @@ wait_for_session_file() {
   local attempt=0
 
   while [ $attempt -lt $max_attempts ]; do
-    local session_id=$(find_recent_session_file "$target_dir" 2> /dev/null || echo "")
+    local session_id
+    session_id=$(find_recent_session_file "$target_dir" 2> /dev/null || echo "")
     if [ -n "$session_id" ]; then
       echo "$session_id"
       return 0

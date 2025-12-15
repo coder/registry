@@ -19,7 +19,7 @@ module "dcv" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/amazon-dcv-windows/coder"
   version  = "1.1.1"
-  agent_id = resource.coder_agent.main.id
+  agent_id = coder_agent.main.id
 }
 
 resource "coder_metadata" "dcv" {

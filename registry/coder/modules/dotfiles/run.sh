@@ -5,6 +5,7 @@ set -euo pipefail
 DOTFILES_URI="${DOTFILES_URI}"
 DOTFILES_USER="${DOTFILES_USER}"
 
+# shellcheck disable=SC2157
 if [ -n "$${DOTFILES_URI// }" ]; then
   if [ -z "$DOTFILES_USER" ]; then
     DOTFILES_USER="$USER"
