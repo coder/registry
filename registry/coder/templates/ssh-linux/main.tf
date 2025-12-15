@@ -118,13 +118,14 @@ data "coder_parameter" "apps" {
 locals {
   username        = data.coder_parameter.username.value
   home_dir        = "/home/${lower(local.username)}"
-  coder_cache_dir = "${local.home_dir}/.coder"
+  coder_cache_dir = "${local.home_dir}/.coder/${data.coder_workspace.me.id}"
+  agent_id_file   = "${local.coder_cache_dir}/agent.id"
   use_password    = data.coder_parameter.auth_type.value == "password"
   use_key         = data.coder_parameter.auth_type.value == "ssh_key"
   ssh_password    = local.use_password ? data.coder_parameter.ssh_password[0].value : null
   ssh_private_key = local.use_key ? data.coder_parameter.ssh_key[0].value : null
   apps_candidate  = ["VS Code Desktop","VS Code Web", "Cursor"]
-  apps_selected = (can(data.coder_parameter.apps.value) && data.coder_parameter.apps.value != "") ? jsondecode(data.coder_parameter.apps.value) : []
+  apps_selected   = (can(data.coder_parameter.apps.value) && data.coder_parameter.apps.value != "") ? jsondecode(data.coder_parameter.apps.value) : []
 }
 
 resource "coder_agent" "main" {
@@ -195,18 +196,47 @@ connection {
 provisioner "remote-exec" {
   inline = [
     "mkdir -p ${local.coder_cache_dir}",
-    "timestamp=$(date +%s)",
     "coder_sh=${local.coder_cache_dir}/coder.sh",
-    "log_file=${local.coder_cache_dir}/coder_$timestamp.log",
+    "log_file=${local.coder_cache_dir}/coder.log",
     "cat > $coder_sh << 'EOF'",
     "${coder_agent.main.init_script}",
     "EOF",
     "chmod +x $coder_sh",
     "echo \"$(date) : create $coder_sh\" >> ${local.coder_cache_dir}/debug.log",
     "nohup env CODER_AGENT_TOKEN='${coder_agent.main.token}' $coder_sh > $log_file 2>&1 &",
+    "echo $! > ${local.agent_id_file}",
     "echo \"$(date) : run $coder_sh and log at $log_file\" >> ${local.coder_cache_dir}/debug.log",
   ]
  }
+}
+
+resource "null_resource" "coder_stop" {
+  count = data.coder_workspace.me.start_count > 0 ? 0 : 1
+
+connection {
+  type        = "ssh"
+  host        = data.coder_parameter.host.value
+  user        = data.coder_parameter.username.value
+  port        = data.coder_parameter.port.value
+  password    = local.ssh_password
+  private_key = local.ssh_private_key
+  timeout     = "5m"
+}
+
+  provisioner "remote-exec" {
+    inline = [
+      "PID_FILE=${local.agent_id_file}",
+      "if [ -f \"$PID_FILE\" ]; then",
+      "  PID=$(cat \"$PID_FILE\")",
+      "  if kill -0 \"$PID\" 2>/dev/null; then",
+      "    kill -TERM \"$PID\" || true",
+      "    sleep 5",
+      "    kill -KILL \"$PID\" || true",
+      "  fi",
+      "  rm -r ${local.coder_cache_dir}",
+      "fi",
+    ]
+  }
 }
 
 
