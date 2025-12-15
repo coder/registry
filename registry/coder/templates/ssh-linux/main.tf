@@ -175,6 +175,8 @@ resource "coder_agent" "main" {
 }
 
 resource "null_resource" "deploy_coder_agent" {
+  count = data.coder_workspace.me.start_count
+  
   triggers = {
     init_script = sha256(coder_agent.main.init_script)
     token       = coder_agent.main.token
@@ -204,7 +206,7 @@ provisioner "remote-exec" {
     "nohup env CODER_AGENT_TOKEN='${coder_agent.main.token}' $coder_sh > $log_file 2>&1 &",
     "echo \"$(date) : run $coder_sh and log at $log_file\" >> ${local.coder_cache_dir}/debug.log",
   ]
-}
+ }
 }
 
 
