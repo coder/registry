@@ -194,15 +194,15 @@ provisioner "remote-exec" {
   inline = [
     "mkdir -p ${local.coder_cache_dir}",
     "timestamp=$(date +%s)",
-    "coder_sh=${local.coder_cache_dir}/coder_$timestamp.sh",
+    "coder_sh=${local.coder_cache_dir}/coder.sh",
+    "log_file=${local.coder_cache_dir}/coder_$timestamp.log",
     "cat > $coder_sh << 'EOF'",
     "${coder_agent.main.init_script}",
     "EOF",
     "chmod +x $coder_sh",
     "echo \"$(date) : create $coder_sh\" >> ${local.coder_cache_dir}/debug.log",
-    "nohup env CODER_AGENT_TOKEN='${coder_agent.main.token}' $coder_sh > ${local.coder_cache_dir}/coder_log_$timestamp.log 2>&1 &",
-    "echo \"$(date) : run $coder_sh\" >> ${local.coder_cache_dir}/debug.log",
-    "rm $coder_sh"
+    "nohup env CODER_AGENT_TOKEN='${coder_agent.main.token}' $coder_sh > $log_file 2>&1 &",
+    "echo \"$(date) : run $coder_sh and log at $log_file\" >> ${local.coder_cache_dir}/debug.log",
   ]
 }
 }
