@@ -292,7 +292,7 @@ VNC_LOG="/tmp/kasmvncserver.log"
 printf "🚀 Starting KasmVNC server...\n"
 
 set +e
-kasmvncserver -select-de "${DESKTOP_ENVIRONMENT}" -websocketPort "${PORT}" -disableBasicAuth > "$VNC_LOG" 2>&1
+kasmvncserver -select-de "${DESKTOP_ENVIRONMENT}" -websocketPort "${PORT}" -disableBasicAuth -autokill > "$VNC_LOG" 2>&1
 RETVAL=$?
 set -e
 
