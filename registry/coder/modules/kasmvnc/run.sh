@@ -296,7 +296,7 @@ kasmvncserver -select-de "${DESKTOP_ENVIRONMENT}" -websocketPort "${PORT}" -disa
 RETVAL=$?
 set -e
 
-if [[ $RETVAL -ne 0 ]]; then
+if [[ $RETVAL -ne 0 ]] && ! curl -s http://127.0.0.1:"${PORT}"/app; then
   echo "ERROR: Failed to start KasmVNC server. Return code: $RETVAL"
   if [[ -f "$VNC_LOG" ]]; then
     echo "Full logs:"
