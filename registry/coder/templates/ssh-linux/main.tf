@@ -146,7 +146,7 @@ resource "coder_agent" "main" {
   display_apps {
     port_forwarding_helper  = true
     vscode                  = contains(local.apps_selected, "VS Code Desktop")
-    vscode_insiders         = contains(local.apps_selected, "VS Code Desktop")
+    vscode_insiders         = false
     web_terminal            = true
     ssh_helper              = true
   }
