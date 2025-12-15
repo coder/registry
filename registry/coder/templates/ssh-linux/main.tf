@@ -211,7 +211,7 @@ provisioner "remote-exec" {
 }
 
 resource "null_resource" "coder_stop" {
-  count = data.coder_workspace.me.start_count > 0 ? 0 : 1
+  count = (try(data.coder_workspace.me.start_count, 1) > 0 ? 0 : 1)
 
 connection {
   type        = "ssh"
