@@ -31,7 +31,7 @@ variable "desktop_environment" {
   description = "Specifies the desktop environment of the workspace. This should be pre-installed on the workspace."
 
   validation {
-    condition     = contains(["xfce", "kde", "gnome", "lxde", "lxqt"], var.desktop_environment)
+    condition     = contains(["cinnamon", "mate", "lxde", "lxqt", "kde", "gnome", "xfce", "manual"], var.desktop_environment)
     error_message = "Invalid desktop environment. Please specify a valid desktop environment."
   }
 }
