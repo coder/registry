@@ -16,7 +16,7 @@ run "install_false_and_use_cached_conflict" {
   }
 
   expect_failures = [
-    resource.coder_script.cmux
+    resource.coder_script.mux
   ]
 }
 
@@ -29,7 +29,7 @@ run "custom_port" {
   }
 
   assert {
-    condition     = resource.coder_app.cmux.url == "http://localhost:8080"
+    condition     = resource.coder_app.mux.url == "http://localhost:8080"
     error_message = "coder_app URL must use the configured port"
   }
 }
@@ -62,3 +62,5 @@ run "use_cached_only_success" {
     use_cached = true
   }
 }
+
+

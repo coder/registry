@@ -76,8 +76,27 @@ variable "package_managers" {
 }
 
 locals {
-  # The username field to use for artifactory
-  username   = var.username_field == "email" ? data.coder_workspace_owner.me.email : data.coder_workspace_owner.me.name
+  jwt_parts   = try(split(".", data.coder_external_auth.jfrog.access_token), [])
+  jwt_payload = try(local.jwt_parts[1], "")
+  payload_padding = local.jwt_payload == "" ? "" : (
+    length(local.jwt_payload) % 4 == 0 ? "" :
+    length(local.jwt_payload) % 4 == 2 ? "==" :
+    length(local.jwt_payload) % 4 == 3 ? "=" :
+    ""
+  )
+
+  jwt_username = try(
+    regex(
+      "/users/([^/]+)",
+      jsondecode(base64decode("${local.jwt_payload}${local.payload_padding}"))["sub"]
+    )[0],
+    ""
+  )
+
+  username = coalesce(
+    local.jwt_username != "" ? local.jwt_username : null,
+    var.username_field == "email" ? data.coder_workspace_owner.me.email : data.coder_workspace_owner.me.name
+  )
   jfrog_host = split("://", var.jfrog_url)[1]
   common_values = {
     JFROG_URL                = var.jfrog_url
@@ -144,6 +163,13 @@ resource "coder_script" "jfrog" {
     }
   ))
   run_on_start = true
+
+  lifecycle {
+    precondition {
+      condition     = data.coder_external_auth.jfrog.access_token != ""
+      error_message = "JFrog access token is empty. Please authenticate with JFrog using external auth."
+    }
+  }
 }
 
 resource "coder_env" "jfrog_ide_url" {

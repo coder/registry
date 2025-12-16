@@ -64,26 +64,21 @@ locals {
   mcp_b64 = var.mcp != "" ? base64encode(var.mcp) : ""
 }
 
-resource "coder_app" "cursor" {
-  agent_id     = var.agent_id
-  external     = true
-  icon         = "/icon/cursor.svg"
-  slug         = var.slug
-  display_name = var.display_name
-  order        = var.order
-  group        = var.group
-  url = join("", [
-    "cursor://coder.coder-remote/open",
-    "?owner=",
-    data.coder_workspace_owner.me.name,
-    "&workspace=",
-    data.coder_workspace.me.name,
-    var.folder != "" ? join("", ["&folder=", var.folder]) : "",
-    var.open_recent ? "&openRecent" : "",
-    "&url=",
-    data.coder_workspace.me.access_url,
-    "&token=$SESSION_TOKEN",
-  ])
+module "vscode-desktop-core" {
+  source  = "registry.coder.com/coder/vscode-desktop-core/coder"
+  version = "1.0.0"
+
+  agent_id = var.agent_id
+
+  coder_app_icon         = "/icon/cursor.svg"
+  coder_app_slug         = var.slug
+  coder_app_display_name = var.display_name
+  coder_app_order        = var.order
+  coder_app_group        = var.group
+
+  folder      = var.folder
+  open_recent = var.open_recent
+  protocol    = "cursor"
 }
 
 resource "coder_script" "cursor_mcp" {
@@ -103,6 +98,6 @@ resource "coder_script" "cursor_mcp" {
 }
 
 output "cursor_url" {
-  value       = coder_app.cursor.url
+  value       = module.vscode-desktop-core.ide_uri
   description = "Cursor IDE Desktop URL."
 }
