@@ -77,6 +77,12 @@ variable "post_install_script" {
   default     = null
 }
 
+variable "pre_start_script" {
+  type        = string
+  description = "Custom script to run before starting Claude Code."
+  default     = null
+}
+
 variable "install_agentapi" {
   type        = bool
   description = "Whether to install AgentAPI."
@@ -303,7 +309,9 @@ locals {
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".claude-module"
   # Extract hostname from access_url for boundary --allow flag
-  coder_host = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
+  coder_host      = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
+  # Pre-start script for handling dependencies (e.g., waiting for other modules)
+  pre_start_script = var.pre_start_script != null ? var.pre_start_script : ""
 
   # Required prompts for the module to properly report task status to Coder
   report_tasks_system_prompt = <<-EOT
@@ -361,6 +369,9 @@ module "agentapi" {
      #!/bin/bash
      set -o errexit
      set -o pipefail
+
+     ${local.pre_start_script != "" ? "echo -n '${base64encode(local.pre_start_script)}' | base64 -d > /tmp/pre_start.sh && chmod +x /tmp/pre_start.sh && /tmp/pre_start.sh" : ""}
+
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
 
