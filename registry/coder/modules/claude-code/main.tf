@@ -77,6 +77,12 @@ variable "post_install_script" {
   default     = null
 }
 
+variable "pre_start_script" {
+  type        = string
+  description = "Custom script to run before starting Claude Code."
+  default     = null
+}
+
 variable "install_agentapi" {
   type        = bool
   description = "Whether to install AgentAPI."
@@ -361,6 +367,9 @@ module "agentapi" {
      #!/bin/bash
      set -o errexit
      set -o pipefail
+
+     ${var.pre_start_script != null ? var.pre_start_script : ""}
+
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
 
