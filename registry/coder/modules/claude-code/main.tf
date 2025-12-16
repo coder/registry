@@ -67,7 +67,7 @@ variable "cli_app_display_name" {
 
 variable "pre_install_script" {
   type        = string
-  description = "Custom script to run before installing Claude Code."
+  description = "Custom script to run before installing Claude Code. Can be used for dependency ordering between modules (e.g., waiting for git-clone to complete before Claude Code initialization)."
   default     = null
 }
 
