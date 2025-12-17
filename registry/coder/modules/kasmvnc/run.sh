@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# DEBUG=1
 set -eo pipefail
 
 error() {
@@ -368,7 +369,7 @@ RETVAL=$?
 set -e
 
 if [[ $RETVAL -ne 0 ]]; then
-  export DEBUG=1
+
   debug "KasmVNC error code: $RETVAL"
 
   if [[ $RETVAL -eq 255 ]]; then
