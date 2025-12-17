@@ -43,7 +43,7 @@ module "coder-login" {
 module "cursor_cli" {
   source   = "registry.coder.com/coder-labs/cursor-cli/coder"
   version  = "0.3.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 
   # Optional
