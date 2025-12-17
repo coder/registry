@@ -320,7 +320,7 @@ health_check_with_retries() {
 }
 
 debug() {
-  [[ "${DEBUG:-0}" == "1" ]] && echo "[DEBUG] $*" >&2
+  [[ "$${DEBUG:-0}" == "1" ]] && echo "[DEBUG] $*" >&2
 }
 
 check_port_owned_by_user() {
