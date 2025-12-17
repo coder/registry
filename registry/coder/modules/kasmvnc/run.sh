@@ -357,10 +357,10 @@ RETVAL=$?
 set -e
 
 if [[ $RETVAL -ne 0 ]]; then
-  if check_port_owned_by_user "$PORT"; then
-    echo "Port $PORT is already owned by $(whoami), running health check..."
+  if check_port_owned_by_user "${PORT}"; then
+    echo "Port ${PORT} is already owned by $(whoami), running health check..."
     if ! health_check_with_retries; then
-      echo "ERROR: KasmVNC server on port $PORT failed health check"
+      echo "ERROR: KasmVNC server on port ${PORT} failed health check"
       [[ -f "$VNC_LOG" ]] && cat "$VNC_LOG"
       exit 1
     fi
