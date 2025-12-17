@@ -119,7 +119,7 @@ For enterprise users who prefer Google's Vertex AI platform:
 module "gemini" {
   source         = "registry.coder.com/coder-labs/gemini/coder"
   version        = "3.0.0"
-  agent_id       = coder_agent.example.id
+  agent_id       = coder_agent.main.id
   gemini_api_key = var.gemini_api_key
   folder         = "/home/coder/project"
   use_vertexai   = true
