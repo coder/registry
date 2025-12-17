@@ -14,7 +14,7 @@ Run [Gemini CLI](https://github.com/google-gemini/gemini-cli) in your workspace 
 module "gemini" {
   source   = "registry.coder.com/coder-labs/gemini/coder"
   version  = "3.0.0"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
 ```
