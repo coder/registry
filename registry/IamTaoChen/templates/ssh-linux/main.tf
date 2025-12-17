@@ -27,7 +27,7 @@ data "coder_parameter" "host" {
   validation {
     regex = "^[a-zA-Z0-9:.%\\-]+$"
     error = "Please enter a valid hostname, IPv4, or IPv6 address."
-}
+  }
 }
 
 data "coder_parameter" "username" {
@@ -45,10 +45,10 @@ data "coder_parameter" "auth_type" {
   description  = "Authentication method for SSH"
   type         = "string"
 
-  form_type    = "dropdown"
-  default      = "password"
-  mutable      = true
-  order        = 3
+  form_type = "dropdown"
+  default   = "password"
+  mutable   = true
+  order     = 3
   option {
     name  = "password"
     value = "password"
@@ -70,7 +70,7 @@ data "coder_parameter" "ssh_password" {
   styling = jsonencode({
     mask_input = true
   })
-  order        = 4
+  order = 4
 }
 
 data "coder_parameter" "ssh_key" {
@@ -84,7 +84,7 @@ data "coder_parameter" "ssh_key" {
   styling = jsonencode({
     mask_input = true
   })
-  order        = 4
+  order = 4
 }
 
 
@@ -97,19 +97,19 @@ data "coder_parameter" "port" {
   mutable      = true
   order        = 5
   validation {
-    min        = 1
-    max        = 65535
-    error      = "Port must be between 1 and 65535" 
+    min   = 1
+    max   = 65535
+    error = "Port must be between 1 and 65535"
   }
 }
 
 data "coder_parameter" "apps" {
-  name          = "apps"
-  display_name  = "Choose any APPs for your workspace."
-  type          = "list(string)"
-  form_type     = "multi-select"
-  mutable       = true
-  default       = jsonencode(["VS Code Desktop"])
+  name         = "apps"
+  display_name = "Choose any APPs for your workspace."
+  type         = "list(string)"
+  form_type    = "multi-select"
+  mutable      = true
+  default      = jsonencode(["VS Code Desktop"])
   dynamic "option" {
     for_each = local.apps_candidate
     content {
@@ -128,7 +128,7 @@ locals {
   use_key         = data.coder_parameter.auth_type.value == "ssh_key"
   ssh_password    = local.use_password ? data.coder_parameter.ssh_password[0].value : null
   ssh_private_key = local.use_key ? data.coder_parameter.ssh_key[0].value : null
-  apps_candidate  = ["VS Code Desktop","VS Code Web", "Cursor"]
+  apps_candidate  = ["VS Code Desktop", "VS Code Web", "Cursor"]
   apps_selected   = (can(data.coder_parameter.apps.value) && data.coder_parameter.apps.value != "") ? jsondecode(data.coder_parameter.apps.value) : []
 }
 
@@ -146,7 +146,7 @@ resource "coder_agent" "main" {
     set -euo pipefail
   EOT
 
- env = {
+  env = {
     GIT_AUTHOR_NAME     = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
     GIT_AUTHOR_EMAIL    = "${data.coder_workspace_owner.me.email}"
     GIT_COMMITTER_NAME  = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
@@ -154,11 +154,11 @@ resource "coder_agent" "main" {
   }
 
   display_apps {
-    port_forwarding_helper  = true
-    vscode                  = contains(local.apps_selected, "VS Code Desktop")
-    vscode_insiders         = false
-    web_terminal            = true
-    ssh_helper              = true
+    port_forwarding_helper = true
+    vscode                 = contains(local.apps_selected, "VS Code Desktop")
+    vscode_insiders        = false
+    web_terminal           = true
+    ssh_helper             = true
   }
 
   metadata {
@@ -186,51 +186,51 @@ resource "coder_agent" "main" {
 
 resource "null_resource" "deploy_coder_agent" {
   count = data.coder_workspace.me.start_count
-  
+
   triggers = {
     init_script = sha256(coder_agent.main.init_script)
     token       = coder_agent.main.token
   }
 
-connection {
-  type        = "ssh"
-  host        = data.coder_parameter.host.value
-  user        = data.coder_parameter.username.value
-  port        = data.coder_parameter.port.value
-  password    = local.ssh_password
-  private_key = local.ssh_private_key
-  timeout     = "5m"
-}
+  connection {
+    type        = "ssh"
+    host        = data.coder_parameter.host.value
+    user        = data.coder_parameter.username.value
+    port        = data.coder_parameter.port.value
+    password    = local.ssh_password
+    private_key = local.ssh_private_key
+    timeout     = "5m"
+  }
 
-provisioner "remote-exec" {
-  inline = [
-    "mkdir -p ${local.coder_cache_dir}",
-    "coder_sh=${local.coder_cache_dir}/coder.sh",
-    "log_file=${local.coder_cache_dir}/coder.log",
-    "cat > $coder_sh << 'EOF'",
-    "${coder_agent.main.init_script}",
-    "EOF",
-    "chmod +x $coder_sh",
-    "echo \"$(date) : create $coder_sh\" >> ${local.coder_cache_dir}/debug.log",
-    "nohup env CODER_AGENT_TOKEN='${coder_agent.main.token}' $coder_sh > $log_file 2>&1 &",
-    "echo $! > ${local.agent_id_file}",
-    "echo \"$(date) : run $coder_sh and log at $log_file\" >> ${local.coder_cache_dir}/debug.log",
-  ]
- }
+  provisioner "remote-exec" {
+    inline = [
+      "mkdir -p ${local.coder_cache_dir}",
+      "coder_sh=${local.coder_cache_dir}/coder.sh",
+      "log_file=${local.coder_cache_dir}/coder.log",
+      "cat > $coder_sh << 'EOF'",
+      "${coder_agent.main.init_script}",
+      "EOF",
+      "chmod +x $coder_sh",
+      "echo \"$(date) : create $coder_sh\" >> ${local.coder_cache_dir}/debug.log",
+      "nohup env CODER_AGENT_TOKEN='${coder_agent.main.token}' $coder_sh > $log_file 2>&1 &",
+      "echo $! > ${local.agent_id_file}",
+      "echo \"$(date) : run $coder_sh and log at $log_file\" >> ${local.coder_cache_dir}/debug.log",
+    ]
+  }
 }
 
 resource "null_resource" "coder_stop" {
   count = (try(data.coder_workspace.me.start_count, 1) > 0 ? 0 : 1)
 
-connection {
-  type        = "ssh"
-  host        = data.coder_parameter.host.value
-  user        = data.coder_parameter.username.value
-  port        = data.coder_parameter.port.value
-  password    = local.ssh_password
-  private_key = local.ssh_private_key
-  timeout     = "5m"
-}
+  connection {
+    type        = "ssh"
+    host        = data.coder_parameter.host.value
+    user        = data.coder_parameter.username.value
+    port        = data.coder_parameter.port.value
+    password    = local.ssh_password
+    private_key = local.ssh_private_key
+    timeout     = "5m"
+  }
 
   provisioner "remote-exec" {
     inline = [
