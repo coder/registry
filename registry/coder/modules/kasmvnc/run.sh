@@ -320,23 +320,23 @@ health_check_with_retries() {
 }
 
 check_port_owned_by_user() {
-  local port=$1
+  local port="$1"
   local user
-  user=$(whoami)
-  if command -v ss &> /dev/null; then
-    if ss -tlnp 2>/dev/null | awk -v port="$port" -v user="$user" '$4 ~ ":"port && $7 ~ user {exit 0} END {exit 1}'; then
-      return 0
-    fi
+  user="$(whoami)"
+  if command -v ss >/dev/null 2>&1; then
+    ss -H -tlnp 2>/dev/null |
+      awk -v p=":$port" -v u="$user" '$4 ~ p && $7 ~ u {found=1} END {exit !found}'
+    return $?
   fi
-  if command -v netstat &> /dev/null; then
-    if netstat -tlnp 2>/dev/null | awk -v port="$port" -v user="$user" '$4 ~ ":"port && $7 ~ user {exit 0} END {exit 1}'; then
-      return 0
-    fi
+  if command -v netstat >/dev/null 2>&1; then
+    netstat -tlnp 2>/dev/null |
+      awk -v p=":$port" -v u="$user" '$4 ~ p && $7 ~ u {found=1} END {exit !found}'
+    return $?
   fi
-  if command -v lsof &> /dev/null; then
-    if lsof -iTCP:"$port" -sTCP:LISTEN -n -P 2>/dev/null | awk -v user="$user" '$3 == user {exit 0} END {exit 1}'; then
-      return 0
-    fi
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null |
+      awk -v u="$user" '$3 == u {found=1} END {exit !found}'
+    return $?
   fi
   return 1
 }
