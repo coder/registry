@@ -26,7 +26,7 @@ data "coder_parameter" "host" {
   order        = 1
   validation {
     regex = "^[a-zA-Z0-9:.%\\-]+$"
-    error = "Please enter a valid hostname, IPv4, or IPv6 address."
+    error = "Please enter a valid hostname, IPv4, or IPv6 address. Examples: example.com, 192.168.1.1, or fe80::1"
   }
 }
 
