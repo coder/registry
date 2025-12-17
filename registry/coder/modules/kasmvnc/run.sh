@@ -3,8 +3,17 @@
 set -eo pipefail
 
 error() {
-  printf "💀 ERROR: %s\n" "$@"
+  printf "💀 ERROR: %s\n" "$*" >&2
   exit 1
+}
+
+warn() {
+  printf "⚠️  WARN: %s\n" "$*" >&2
+}
+
+debug() {
+  [[ "$${DEBUG:-0}" == "1" ]] || return 0
+  printf "🐛 DEBUG: %s\n" "$*" >&2
 }
 
 # Function to check if KasmVNC is already installed
@@ -319,13 +328,6 @@ health_check_with_retries() {
   return 1
 }
 
-debug() {
-  [[ "$${DEBUG:-0}" == "1" ]] && echo "[DEBUG] $*" >&2
-}
-
-warn() {
-  echo "[WARN] $*" >&2
-}
 
 check_port_owned_by_user() {
   local port="$1"
