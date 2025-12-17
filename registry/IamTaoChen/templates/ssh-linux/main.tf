@@ -4,6 +4,10 @@ terraform {
       source  = "coder/coder"
       version = ">= 2.4.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.6"
+    }
   }
 }
 
@@ -126,6 +130,11 @@ locals {
   ssh_private_key = local.use_key ? data.coder_parameter.ssh_key[0].value : null
   apps_candidate  = ["VS Code Desktop","VS Code Web", "Cursor"]
   apps_selected   = (can(data.coder_parameter.apps.value) && data.coder_parameter.apps.value != "") ? jsondecode(data.coder_parameter.apps.value) : []
+}
+
+resource "random_integer" "vs_code_port" {
+  min = 54000
+  max = 55999
 }
 
 resource "coder_agent" "main" {
@@ -260,5 +269,6 @@ module "vscode-web" {
   version        = "1.4.3"
   agent_id       = coder_agent.main.id
   folder         = local.home_dir
+  port           = random_integer.vs_code_port.result
   accept_license = true
 }
