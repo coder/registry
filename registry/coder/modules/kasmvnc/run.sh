@@ -319,25 +319,67 @@ health_check_with_retries() {
   return 1
 }
 
+debug() {
+  [[ "${DEBUG:-0}" == "1" ]] && echo "[DEBUG] $*" >&2
+}
+
 check_port_owned_by_user() {
   local port="$1"
   local user
   user="$(whoami)"
+
+  debug "Checking port: $port"
+  debug "Current user: $user"
+
   if command -v ss >/dev/null 2>&1; then
-    ss -H -tlnp 2>/dev/null |
-      awk -v p=":$port" -v u="$user" '$4 ~ p && $7 ~ u {found=1} END {exit !found}'
-    return $?
+    debug "Using ss"
+
+    local out
+    out="$(ss -H -tlnp 2>&1)"
+    debug "ss output:"
+    debug "$out"
+
+    echo "$out" | awk -v p=":$port" -v u="$user" '
+      $4 ~ p && $7 ~ u { found=1 }
+      END { exit !found }
+    ' && return 0
+
+    return 1
   fi
+
   if command -v netstat >/dev/null 2>&1; then
-    netstat -tlnp 2>/dev/null |
-      awk -v p=":$port" -v u="$user" '$4 ~ p && $7 ~ u {found=1} END {exit !found}'
-    return $?
+    debug "Using netstat"
+
+    local out
+    out="$(netstat -tlnp 2>&1)"
+    debug "netstat output:"
+    debug "$out"
+
+    echo "$out" | awk -v p=":$port" -v u="$user" '
+      $4 ~ p && $7 ~ u { found=1 }
+      END { exit !found }
+    ' && return 0
+
+    return 1
   fi
+
   if command -v lsof >/dev/null 2>&1; then
-    lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null |
-      awk -v u="$user" '$3 == u {found=1} END {exit !found}'
-    return $?
+    debug "Using lsof"
+
+    local out
+    out="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>&1)"
+    debug "lsof output:"
+    debug "$out"
+
+    echo "$out" | awk -v u="$user" '
+      $3 == u { found=1 }
+      END { exit !found }
+    ' && return 0
+
+    return 1
   fi
+
+  debug "No ss / netstat / lsof available"
   return 1
 }
 
@@ -357,6 +399,8 @@ RETVAL=$?
 set -e
 
 if [[ $RETVAL -ne 0 ]]; then
+  export DEBUG=1
+  debug "KasmVNC error code: $RETVAL"
   if check_port_owned_by_user "${PORT}"; then
     echo "Port ${PORT} is already owned by $(whoami), running health check..."
     if ! health_check_with_retries; then
