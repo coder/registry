@@ -1,6 +1,6 @@
 ---
 display_name: Deploy Coder on existing Linux System
-description: Provision an existing Linux system as a by deploying the Coder agent via SSH with this example template.
+description: Provision an existing Linux system as a workspace by deploying the Coder agent via SSH with this example template.
 icon: "../../../../.icons/linux.svg"
 verified: false
 tags: ["linux"]
@@ -52,7 +52,7 @@ The template includes the following configurable parameters:
 
 1. Create a new workspace in Coder using this template.
 2. Fill in the parameters with your Linux system's details.
-3. Start the workspace—Coden will connect via SSH and deploy the agent.
+3. Start the workspace—Codenr will connect via SSH and deploy the agent.
 4. Access the workspace through the Coder dashboard. Selected apps (e.g., VS Code) will be available.
 5. On stop, the agent process is terminated and cleaned up.
 

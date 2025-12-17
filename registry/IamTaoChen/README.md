@@ -15,4 +15,4 @@ status: "community"
 
 ### ssh-linux
 
-Provision an existing Linux system as a by deploying the Coder agent via SSH with this example template.
+Provision an existing Linux system as a workspace by deploying the Coder agent via SSH with this example template.
