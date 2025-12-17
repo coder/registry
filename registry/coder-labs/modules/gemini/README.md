@@ -95,7 +95,7 @@ module "gemini" {
   count                = data.coder_workspace.me.start_count
   source               = "registry.coder.com/coder-labs/gemini/coder"
   version              = "3.0.0"
-  agent_id             = coder_agent.example.id
+  agent_id             = coder_agent.main.id
   gemini_api_key       = var.gemini_api_key
   gemini_model         = "gemini-2.5-flash"
   folder               = "/home/coder/project"
