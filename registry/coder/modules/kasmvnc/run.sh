@@ -294,37 +294,29 @@ patch_kasm_http_files() {
 health_check_with_retries() {
   local max_attempts=3
   local attempt=1
-  local supports_http_code=false
+  local check_tool
 
   if command -v curl &> /dev/null; then
-    check_tool="curl -s -o /dev/null -w '%%{http_code}'"
-    supports_http_code=true
+    check_tool=(curl -s -f -o /dev/null)
   elif command -v wget &> /dev/null; then
-    check_tool="wget -q -O- --server-response"
+    check_tool=(wget -q -O-)
   elif command -v busybox &> /dev/null; then
-    check_tool="busybox wget -O-"
+    check_tool=(busybox wget -O-)
   else
-    echo "ERROR: No download tool available (curl, wget, or busybox required)"
-    exit 1
+    error "No download tool available (curl, wget, or busybox required)"
   fi
 
   while (( attempt <= max_attempts )); do
-    status=$($check_tool "http://127.0.0.1:${PORT}/app" 2>/dev/null)
-
-    if $supports_http_code; then
-      if [[ "$status" == "200" ]]; then
-        return 0
-      fi
-    else
-      if [[ -n "$status" ]]; then
-        return 0
-      fi
+    if "${check_tool[@]}" "http://127.0.0.1:${PORT}/app" >/dev/null 2>&1; then
+      debug "Attempt $attempt: service is ready"
+      return 0
     fi
 
     echo "Attempt $attempt: service not ready yet"
     sleep 1
     ((attempt++))
   done
+
   return 1
 }
 
