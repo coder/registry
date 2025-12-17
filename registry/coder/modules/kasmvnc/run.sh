@@ -323,64 +323,39 @@ debug() {
   [[ "$${DEBUG:-0}" == "1" ]] && echo "[DEBUG] $*" >&2
 }
 
+warn() {
+  echo "[WARN] $*" >&2
+}
+
 check_port_owned_by_user() {
   local port="$1"
   local user
   user="$(whoami)"
 
-  debug "Checking port: $port"
-  debug "Current user: $user"
-
-  if command -v ss >/dev/null 2>&1; then
-    debug "Using ss"
-
-    local out
-    out="$(ss -H -tlnp 2>&1)"
-    debug "ss output:"
-    debug "$out"
-
-    echo "$out" | awk -v p=":$port" -v u="$user" '
-      $4 ~ p && $7 ~ u { found=1 }
-      END { exit !found }
-    ' && return 0
-
+  if ! command -v lsof >/dev/null 2>&1; then
+    warn "lsof not found, skip port ownership check"
     return 1
   fi
 
-  if command -v netstat >/dev/null 2>&1; then
-    debug "Using netstat"
+  debug "Checking port $port with lsof (user=$user)"
 
-    local out
-    out="$(netstat -tlnp 2>&1)"
-    debug "netstat output:"
-    debug "$out"
+  local out
+  out="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null)"
 
-    echo "$out" | awk -v p=":$port" -v u="$user" '
-      $4 ~ p && $7 ~ u { found=1 }
-      END { exit !found }
-    ' && return 0
+  debug "lsof output:"
+  debug "$out"
 
+  if [[ -z "$out" ]]; then
+    debug "No process is listening on port $port"
     return 1
   fi
 
-  if command -v lsof >/dev/null 2>&1; then
-    debug "Using lsof"
-
-    local out
-    out="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>&1)"
-    debug "lsof output:"
-    debug "$out"
-
-    echo "$out" | awk -v u="$user" '
-      $3 == u { found=1 }
-      END { exit !found }
-    ' && return 0
-
+  if ! echo "$out" | awk -v u="$user" '$3 == u {found=1} END {exit !found}'; then
+    debug "Port $port is not owned by user $user"
     return 1
   fi
 
-  debug "No ss / netstat / lsof available"
-  return 1
+  return 0
 }
 
 
@@ -401,18 +376,18 @@ set -e
 if [[ $RETVAL -ne 0 ]]; then
   export DEBUG=1
   debug "KasmVNC error code: $RETVAL"
-  if check_port_owned_by_user "${PORT}"; then
-    echo "Port ${PORT} is already owned by $(whoami), running health check..."
-    if ! health_check_with_retries; then
-      echo "ERROR: KasmVNC server on port ${PORT} failed health check"
-      [[ -f "$VNC_LOG" ]] && cat "$VNC_LOG"
-      exit 1
-    fi
-  else
-    echo "ERROR: Failed to start KasmVNC server. Return code: $RETVAL"
-    [[ -f "$VNC_LOG" ]] && cat "$VNC_LOG"
-    exit 1
+  if [[ $RETVAL -eq 255 ]]; then
+    if check_port_owned_by_user "${PORT}"; then
+      echo "Port ${PORT} is already owned by $(whoami), running health check..."
+      if ! health_check_with_retries; then
+        echo "ERROR: KasmVNC server on port ${PORT} failed health check"
+        [[ -f "$VNC_LOG" ]] && cat "$VNC_LOG"
+        exit 1
+      fi
   fi
+  echo "ERROR: Failed to start KasmVNC server. Return code: $RETVAL"
+  [[ -f "$VNC_LOG" ]] && cat "$VNC_LOG"
+  exit 1
 fi
 
 printf "🚀 KasmVNC server started successfully!\n"
