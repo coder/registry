@@ -36,6 +36,10 @@ This setup does not provision new infrastructure; it remotely deploys and manage
 
 The agent is ephemeral by design (started on workspace start, stopped on stop). If you need a persistently running agent, modify the template to remove the stop logic or run the agent manually on the host.
 
+## Security Considerations
+
+Warning: This template stores SSH credentials (password or private key) in the Terraform state file and passes them as environment variables during deployment. In production environments, this can introduce security risks, as the state file contains sensitive information in plain text and may be accessible if not properly secured.
+
 ## Parameters
 
 The template includes the following configurable parameters:
