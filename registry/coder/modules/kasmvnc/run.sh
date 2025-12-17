@@ -307,7 +307,7 @@ health_check_with_retries() {
   fi
 
   while (( attempt <= max_attempts )); do
-    if "${check_tool[@]}" "http://127.0.0.1:${PORT}/app" >/dev/null 2>&1; then
+    if "$${check_tool[@]}" "http://127.0.0.1:${PORT}/app" >/dev/null 2>&1; then
       debug "Attempt $attempt: service is ready"
       return 0
     fi
