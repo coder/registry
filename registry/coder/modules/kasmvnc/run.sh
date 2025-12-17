@@ -376,15 +376,22 @@ set -e
 if [[ $RETVAL -ne 0 ]]; then
   export DEBUG=1
   debug "KasmVNC error code: $RETVAL"
+
   if [[ $RETVAL -eq 255 ]]; then
     if check_port_owned_by_user "${PORT}"; then
       echo "Port ${PORT} is already owned by $(whoami), running health check..."
-      if ! health_check_with_retries; then
+
+      if health_check_with_retries; then
+        debug "Health check succeeded, treating as success"
+        exit 0
+      else
         echo "ERROR: KasmVNC server on port ${PORT} failed health check"
         [[ -f "$VNC_LOG" ]] && cat "$VNC_LOG"
         exit 1
       fi
+    fi
   fi
+
   echo "ERROR: Failed to start KasmVNC server. Return code: $RETVAL"
   [[ -f "$VNC_LOG" ]] && cat "$VNC_LOG"
   exit 1
