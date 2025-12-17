@@ -1,13 +1,6 @@
 #!/bin/bash
 
-if [ -f "$HOME/.bashrc" ]; then
-  source "$HOME"/.bashrc
-fi
-
-# Set strict error handling AFTER sourcing bashrc to avoid unbound variable errors from user dotfiles
 set -euo pipefail
-
-export PATH="$HOME/.local/bin:$PATH"
 
 command_exists() {
   command -v "$1" > /dev/null 2>&1
@@ -51,19 +44,6 @@ printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
 
 echo "--------------------------------"
 
-# Clean up stale session data (see remove-last-session-id.sh for details)
-CAN_CONTINUE_CONVERSATION=false
-set +e
-bash "/tmp/remove-last-session-id.sh" "$(pwd)" 2> /dev/null
-session_cleanup_exit_code=$?
-set -e
-
-case $session_cleanup_exit_code in
-  0)
-    CAN_CONTINUE_CONVERSATION=true
-    ;;
-esac
-
 function install_boundary() {
   if [ "${ARG_COMPILE_FROM_SOURCE:-false}" = "true" ]; then
     # Install boundary by compiling from source
@@ -99,18 +79,85 @@ function validate_claude_installation() {
 # This ensures all task sessions use a consistent, predictable ID
 TASK_SESSION_ID="cd32e253-ca16-4fd3-9825-d837e74ae3c2"
 
-task_session_exists() {
+get_project_dir() {
   local workdir_normalized
   workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
-  local project_dir="$HOME/.claude/projects/${workdir_normalized}"
+  echo "$HOME/.claude/projects/${workdir_normalized}"
+}
 
-  printf "PROJECT_DIR: %s, workdir_normalized: %s\n" "$project_dir" "$workdir_normalized"
+get_task_session_file() {
+  echo "$(get_project_dir)/${TASK_SESSION_ID}.jsonl"
+}
 
-  if [ -d "$project_dir" ] && find "$project_dir" -type f -name "*${TASK_SESSION_ID}*" 2> /dev/null | grep -q .; then
-    printf "TASK_SESSION_ID: %s file found\n" "$TASK_SESSION_ID"
+task_session_exists() {
+  local session_file
+  session_file=$(get_task_session_file)
+
+  if [ -f "$session_file" ]; then
+    printf "Task session file found: %s\n" "$session_file"
     return 0
   else
-    printf "TASK_SESSION_ID: %s file not found\n" "$TASK_SESSION_ID"
+    printf "Task session file not found: %s\n" "$session_file"
+    return 1
+  fi
+}
+
+is_valid_session() {
+  local session_file="$1"
+
+  # Check if file exists and is not empty
+  # Empty files indicate the session was created but never used so they need to be removed
+  if [ ! -f "$session_file" ]; then
+    printf "Session validation failed: file does not exist\n"
+    return 1
+  fi
+
+  if [ ! -s "$session_file" ]; then
+    printf "Session validation failed: file is empty, removing stale file\n"
+    rm -f "$session_file"
+    return 1
+  fi
+
+  # Check for minimum session content
+  # Valid sessions need at least 2 lines: initial message and first response
+  local line_count
+  line_count=$(wc -l < "$session_file")
+  if [ "$line_count" -lt 2 ]; then
+    printf "Session validation failed: incomplete (only %s lines), removing incomplete file\n" "$line_count"
+    rm -f "$session_file"
+    return 1
+  fi
+
+  # Validate JSONL format by checking first 3 lines
+  # Claude session files use JSONL (JSON Lines) format where each line is valid JSON
+  if ! head -3 "$session_file" | jq empty 2> /dev/null; then
+    printf "Session validation failed: invalid JSONL format, removing corrupt file\n"
+    rm -f "$session_file"
+    return 1
+  fi
+
+  # Verify the session has a valid sessionId field
+  # This ensures the file structure matches Claude's session format
+  if ! grep -q '"sessionId"' "$session_file" \
+    || ! grep -m 1 '"sessionId"' "$session_file" | jq -e '.sessionId' > /dev/null 2>&1; then
+    printf "Session validation failed: no valid sessionId found, removing malformed file\n"
+    rm -f "$session_file"
+    return 1
+  fi
+
+  printf "Session validation passed: %s\n" "$session_file"
+  return 0
+}
+
+has_any_sessions() {
+  local project_dir
+  project_dir=$(get_project_dir)
+
+  if [ -d "$project_dir" ] && find "$project_dir" -maxdepth 1 -name "*.jsonl" -size +0c 2> /dev/null | grep -q .; then
+    printf "Sessions found in: %s\n" "$project_dir"
+    return 0
+  else
+    printf "No sessions found in: %s\n" "$project_dir"
     return 1
   fi
 }
@@ -133,75 +180,41 @@ function start_agentapi() {
   fi
 
   if [ -n "$ARG_RESUME_SESSION_ID" ]; then
-    echo "Resuming task session by ID: $ARG_RESUME_SESSION_ID"
+    echo "Resuming specified session: $ARG_RESUME_SESSION_ID"
     ARGS+=(--resume "$ARG_RESUME_SESSION_ID")
-    if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
-      ARGS+=(--dangerously-skip-permissions)
-    fi
+    [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ] && ARGS+=(--dangerously-skip-permissions)
+
   elif [ "$ARG_CONTINUE" = "true" ]; then
-    if [ "$ARG_REPORT_TASKS" = "true" ] && task_session_exists; then
-      echo "Task session detected (ID: $TASK_SESSION_ID)"
-      ARGS+=(--resume "$TASK_SESSION_ID")
-      ARGS+=(--dangerously-skip-permissions)
-      echo "Resuming existing task session"
-    elif [ "$ARG_REPORT_TASKS" = "false" ] && [ "$CAN_CONTINUE_CONVERSATION" = true ]; then
-      echo "Previous session exists"
-      ARGS+=(--continue)
-      if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
-        ARGS+=(--dangerously-skip-permissions)
-      fi
-      echo "Resuming existing session"
-    else
-      echo "No existing session found"
-      if [ "$ARG_REPORT_TASKS" = "true" ]; then
-        if task_session_exists; then
-          ARGS+=(--resume "$TASK_SESSION_ID")
-        else
-          ARGS+=(--session-id "$TASK_SESSION_ID")
-        fi
-      fi
-      if [ -n "$ARG_AI_PROMPT" ]; then
-        if [ "$ARG_REPORT_TASKS" = "true" ]; then
-          ARGS+=(--dangerously-skip-permissions -- "$ARG_AI_PROMPT")
-        else
-          if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
-            ARGS+=(--dangerously-skip-permissions)
-          fi
-          ARGS+=(-- "$ARG_AI_PROMPT")
-        fi
-        echo "Starting new session with prompt"
+
+    if [ "$ARG_REPORT_TASKS" = "true" ]; then
+      local session_file
+      session_file=$(get_task_session_file)
+
+      if task_session_exists && is_valid_session "$session_file"; then
+        echo "Resuming task session: $TASK_SESSION_ID"
+        ARGS+=(--resume "$TASK_SESSION_ID" --dangerously-skip-permissions)
       else
-        if [ "$ARG_REPORT_TASKS" = "true" ] || [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
-          ARGS+=(--dangerously-skip-permissions)
-        fi
-        echo "Starting new session"
+        echo "Starting new task session: $TASK_SESSION_ID"
+        ARGS+=(--session-id "$TASK_SESSION_ID" --dangerously-skip-permissions)
+        [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
+      fi
+
+    else
+      if has_any_sessions; then
+        echo "Continuing most recent standalone session"
+        ARGS+=(--continue)
+        [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ] && ARGS+=(--dangerously-skip-permissions)
+      else
+        echo "No sessions found, starting fresh standalone session"
+        [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ] && ARGS+=(--dangerously-skip-permissions)
+        [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
       fi
     fi
+
   else
     echo "Continue disabled, starting fresh session"
-    if [ "$ARG_REPORT_TASKS" = "true" ]; then
-      if task_session_exists; then
-        ARGS+=(--resume "$TASK_SESSION_ID")
-      else
-        ARGS+=(--session-id "$TASK_SESSION_ID")
-      fi
-    fi
-    if [ -n "$ARG_AI_PROMPT" ]; then
-      if [ "$ARG_REPORT_TASKS" = "true" ]; then
-        ARGS+=(--dangerously-skip-permissions -- "$ARG_AI_PROMPT")
-      else
-        if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
-          ARGS+=(--dangerously-skip-permissions)
-        fi
-        ARGS+=(-- "$ARG_AI_PROMPT")
-      fi
-      echo "Starting new session with prompt"
-    else
-      if [ "$ARG_REPORT_TASKS" = "true" ] || [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
-        ARGS+=(--dangerously-skip-permissions)
-      fi
-      echo "Starting claude code session"
-    fi
+    [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ] && ARGS+=(--dangerously-skip-permissions)
+    [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
   fi
 
   printf "Running claude code with args: %s\n" "$(printf '%q ' "${ARGS[@]}")"

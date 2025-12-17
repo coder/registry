@@ -13,8 +13,8 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "4.2.2"
-  agent_id       = coder_agent.example.id
+  version        = "4.2.7"
+  agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
 }
@@ -45,13 +45,15 @@ This example shows how to configure the Claude Code module to run the agent behi
 ```tf
 module "claude-code" {
   source                           = "dev.registry.coder.com/coder/claude-code/coder"
+  version                          = "4.2.7"
+  agent_id                         = coder_agent.main.id
+  workdir                          = "/home/coder/project"
   enable_boundary                  = true
-  boundary_version                 = "4.2.2"
+  boundary_version                 = "main"
   boundary_log_dir                 = "/tmp/boundary_logs"
   boundary_log_level               = "WARN"
   boundary_additional_allowed_urls = ["GET *google.com"]
   boundary_proxy_port              = "8087"
-  version                          = "4.2.2"
 }
 ```
 
@@ -70,16 +72,16 @@ data "coder_parameter" "ai_prompt" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.2.2"
-  agent_id = coder_agent.example.id
+  version  = "4.2.7"
+  agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
   claude_api_key = "xxxx-xxxxx-xxxx"
   # OR
   claude_code_oauth_token = "xxxxx-xxxx-xxxx"
 
-  claude_code_version = "4.2.2" # Pin to a specific version
-  agentapi_version    = "4.2.2"
+  claude_code_version = "2.0.62" # Pin to a specific version
+  agentapi_version    = "0.11.4"
 
   ai_prompt = data.coder_parameter.ai_prompt.value
   model     = "sonnet"
@@ -90,7 +92,7 @@ module "claude-code" {
   {
     "mcpServers": {
       "my-custom-tool": {
-        "command": "my-tool-server"
+        "command": "my-tool-server",
         "args": ["--port", "8080"]
       }
     }
@@ -106,13 +108,12 @@ Run and configure Claude Code as a standalone CLI in your workspace.
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "4.2.2"
-  agent_id            = coder_agent.example.id
-  workdir             = "/home/coder"
+  version             = "4.2.7"
+  agent_id            = coder_agent.main.id
+  workdir             = "/home/coder/project"
   install_claude_code = true
-  claude_code_version = "4.2.2"
+  claude_code_version = "2.0.62"
   report_tasks        = false
-  cli_app             = true
 }
 ```
 
@@ -129,8 +130,8 @@ variable "claude_code_oauth_token" {
 
 module "claude-code" {
   source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "4.2.2"
-  agent_id                = coder_agent.example.id
+  version                 = "4.2.7"
+  agent_id                = coder_agent.main.id
   workdir                 = "/home/coder/project"
   claude_code_oauth_token = var.claude_code_oauth_token
 }
@@ -146,13 +147,13 @@ Configure Claude Code to use AWS Bedrock for accessing Claude models through you
 
 ```tf
 resource "coder_env" "bedrock_use" {
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   name     = "CLAUDE_CODE_USE_BEDROCK"
   value    = "1"
 }
 
 resource "coder_env" "aws_region" {
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   name     = "AWS_REGION"
   value    = "us-east-1" # Choose your preferred region
 }
@@ -174,13 +175,13 @@ variable "aws_secret_access_key" {
 }
 
 resource "coder_env" "aws_access_key_id" {
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   name     = "AWS_ACCESS_KEY_ID"
   value    = var.aws_access_key_id
 }
 
 resource "coder_env" "aws_secret_access_key" {
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   name     = "AWS_SECRET_ACCESS_KEY"
   value    = var.aws_secret_access_key
 }
@@ -195,15 +196,15 @@ variable "aws_bearer_token_bedrock" {
 }
 
 resource "coder_env" "bedrock_api_key" {
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   name     = "AWS_BEARER_TOKEN_BEDROCK"
   value    = var.aws_bearer_token_bedrock
 }
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.2.2"
-  agent_id = coder_agent.example.id
+  version  = "4.2.7"
+  agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
 }
@@ -228,39 +229,39 @@ variable "vertex_sa_json" {
 }
 
 resource "coder_env" "vertex_use" {
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   name     = "CLAUDE_CODE_USE_VERTEX"
   value    = "1"
 }
 
 resource "coder_env" "vertex_project_id" {
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   name     = "ANTHROPIC_VERTEX_PROJECT_ID"
   value    = "your-gcp-project-id"
 }
 
 resource "coder_env" "cloud_ml_region" {
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   name     = "CLOUD_ML_REGION"
   value    = "global"
 }
 
 resource "coder_env" "vertex_sa_json" {
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   name     = "VERTEX_SA_JSON"
   value    = var.vertex_sa_json
 }
 
 resource "coder_env" "google_application_credentials" {
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
   name     = "GOOGLE_APPLICATION_CREDENTIALS"
   value    = "/tmp/gcp-sa.json"
 }
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.2.2"
-  agent_id = coder_agent.example.id
+  version  = "4.2.7"
+  agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "claude-sonnet-4@20250514"
 

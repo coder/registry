@@ -4,10 +4,34 @@ import {
   removeContainer,
   runContainer,
   runTerraformApply,
+  TerraformState,
   writeFileContainer,
 } from "~test";
 import path from "path";
 import { expect } from "bun:test";
+
+/**
+ * Extracts all coder_env resources from Terraform state and returns them as
+ * a Record of environment variable names to values.
+ */
+export const extractCoderEnvVars = (
+  state: TerraformState,
+): Record<string, string> => {
+  const envVars: Record<string, string> = {};
+
+  for (const resource of state.resources) {
+    if (resource.type === "coder_env" && resource.instances.length > 0) {
+      const instance = resource.instances[0].attributes;
+      const name = instance.name as string;
+      const value = instance.value as string;
+      if (name && value) {
+        envVars[name] = value;
+      }
+    }
+  }
+
+  return envVars;
+};
 
 export const setupContainer = async ({
   moduleDir,
@@ -23,10 +47,12 @@ export const setupContainer = async ({
     ...vars,
   });
   const coderScript = findResourceInstance(state, "coder_script");
+  const coderEnvVars = extractCoderEnvVars(state);
   const id = await runContainer(image ?? "codercom/enterprise-node:latest");
   return {
     id,
     coderScript,
+    coderEnvVars,
     cleanup: async () => {
       if (
         process.env["DEBUG"] === "true" ||
@@ -79,9 +105,11 @@ interface SetupProps {
   agentapiMockScript?: string;
 }
 
-export const setup = async (props: SetupProps): Promise<{ id: string }> => {
+export const setup = async (
+  props: SetupProps,
+): Promise<{ id: string; coderEnvVars: Record<string, string> }> => {
   const projectDir = props.projectDir ?? "/home/coder/project";
-  const { id, coderScript, cleanup } = await setupContainer({
+  const { id, coderScript, coderEnvVars, cleanup } = await setupContainer({
     moduleDir: props.moduleDir,
     vars: props.moduleVariables,
   });
@@ -101,7 +129,7 @@ export const setup = async (props: SetupProps): Promise<{ id: string }> => {
     filePath: "/home/coder/script.sh",
     content: coderScript.script,
   });
-  return { id };
+  return { id, coderEnvVars };
 };
 
 export const expectAgentAPIStarted = async (
@@ -125,18 +153,16 @@ export const execModuleScript = async (
   id: string,
   env?: Record<string, string>,
 ) => {
-  const envArgs = Object.entries(env ?? {})
-    .map(([key, value]) => ["--env", `${key}=${value}`])
-    .flat();
-  const resp = await execContainer(
-    id,
-    [
-      "bash",
-      "-c",
-      `set -o errexit; set -o pipefail; cd /home/coder && ./script.sh 2>&1 | tee /home/coder/script.log`,
-    ],
-    envArgs,
-  );
+  const envArgs = env
+    ? Object.entries(env)
+        .map(([key, value]) => `export ${key}="${value.replace(/"/g, '\\"')}"`)
+        .join(" && ") + " && "
+    : "";
+  const resp = await execContainer(id, [
+    "bash",
+    "-c",
+    `${envArgs}set -o errexit; set -o pipefail; cd /home/coder && ./script.sh 2>&1 | tee /home/coder/script.log`,
+  ]);
   if (resp.exitCode !== 0) {
     console.log(resp.stdout);
     console.log(resp.stderr);

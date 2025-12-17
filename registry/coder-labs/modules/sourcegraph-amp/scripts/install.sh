@@ -1,9 +1,4 @@
 #!/bin/bash
-
-if [ -f "$HOME/.bashrc" ]; then
-  source "$HOME"/.bashrc
-fi
-
 set -euo pipefail
 
 # ANSI colors

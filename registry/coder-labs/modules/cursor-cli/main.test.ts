@@ -159,7 +159,7 @@ describe("cursor-cli", async () => {
       "-c",
       "cat /home/coder/.cursor-cli-module/agentapi-start.log || cat /home/coder/.cursor-cli-module/start.log || true",
     ]);
-    expect(startLog.stdout).toContain(`-m ${model}`);
+    expect(startLog.stdout).toContain(`--model ${model}`);
     expect(startLog.stdout).toContain("-f");
     expect(startLog.stdout).toContain("test prompt");
   });
