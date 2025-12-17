@@ -282,6 +282,66 @@ patch_kasm_http_files() {
   fix_server_index_file "$homedir"
 }
 
+health_check_with_retries() {
+  local max_attempts=10
+  local attempt=1
+  local supports_http_code=false
+
+  if command -v curl &> /dev/null; then
+    check_tool="curl -s -o /dev/null -w '%{http_code}'"
+    supports_http_code=true
+  elif command -v wget &> /dev/null; then
+    check_tool="wget -q -O- --server-response"
+  elif command -v busybox &> /dev/null; then
+    check_tool="busybox wget -O-"
+  else
+    echo "ERROR: No download tool available (curl, wget, or busybox required)"
+    exit 1
+  fi
+
+  while (( attempt <= max_attempts )); do
+    status=$($check_tool "http://127.0.0.1:${PORT}/app" 2>/dev/null)
+
+    if $supports_http_code; then
+      if [[ "$status" == "200" ]]; then
+        return 0
+      fi
+    else
+      if [[ -n "$status" ]]; then
+        return 0
+      fi
+    fi
+
+    echo "Attempt $attempt: service not ready yet"
+    sleep 1
+    ((attempt++))
+  done
+  return 1
+}
+
+check_port_owned_by_user() {
+  local port=$1
+  local user
+  user=$(whoami)
+  if command -v ss &> /dev/null; then
+    if ss -tlnp 2>/dev/null | awk -v port="$port" -v user="$user" '$4 ~ ":"port && $7 ~ user {exit 0} END {exit 1}'; then
+      return 0
+    fi
+  fi
+  if command -v netstat &> /dev/null; then
+    if netstat -tlnp 2>/dev/null | awk -v port="$port" -v user="$user" '$4 ~ ":"port && $7 ~ user {exit 0} END {exit 1}'; then
+      return 0
+    fi
+  fi
+  if command -v lsof &> /dev/null; then
+    if lsof -iTCP:"$port" -sTCP:LISTEN -n -P 2>/dev/null | awk -v user="$user" '$3 == user {exit 0} END {exit 1}'; then
+      return 0
+    fi
+  fi
+  return 1
+}
+
+
 if [[ "${SUBDOMAIN}" == "false" ]]; then
   echo "🩹 Patching up webserver files to support path-sharing..."
   patch_kasm_http_files
@@ -296,15 +356,19 @@ kasmvncserver -select-de "${DESKTOP_ENVIRONMENT}" -websocketPort "${PORT}" -disa
 RETVAL=$?
 set -e
 
-if [[ $RETVAL -ne 0 ]] && ! curl -s http://127.0.0.1:"${PORT}"/app; then
-  echo "ERROR: Failed to start KasmVNC server. Return code: $RETVAL"
-  if [[ -f "$VNC_LOG" ]]; then
-    echo "Full logs:"
-    cat "$VNC_LOG"
+if [[ $RETVAL -ne 0 ]]; then
+  if check_port_owned_by_user "$PORT"; then
+    echo "Port $PORT is already owned by $(whoami), running health check..."
+    if ! health_check_with_retries; then
+      echo "ERROR: KasmVNC server on port $PORT failed health check"
+      [[ -f "$VNC_LOG" ]] && cat "$VNC_LOG"
+      exit 1
+    fi
   else
-    echo "ERROR: Log file not found: $VNC_LOG"
+    echo "ERROR: Failed to start KasmVNC server. Return code: $RETVAL"
+    [[ -f "$VNC_LOG" ]] && cat "$VNC_LOG"
+    exit 1
   fi
-  exit 1
 fi
 
 printf "🚀 KasmVNC server started successfully!\n"
