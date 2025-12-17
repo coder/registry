@@ -166,7 +166,7 @@ module "jetbrains" {
 }
 ```
 
-> [!IMPORTANT]\
+> [!IMPORTANT]
 > This module prerequisites and limitations
 >
 > 1. Requires JetBrains Toolbox to be installed
