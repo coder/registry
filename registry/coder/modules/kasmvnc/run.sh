@@ -283,12 +283,12 @@ patch_kasm_http_files() {
 }
 
 health_check_with_retries() {
-  local max_attempts=10
+  local max_attempts=3
   local attempt=1
   local supports_http_code=false
 
   if command -v curl &> /dev/null; then
-    check_tool="curl -s -o /dev/null -w '%{http_code}'"
+    check_tool="curl -s -o /dev/null -w '%%{http_code}'"
     supports_http_code=true
   elif command -v wget &> /dev/null; then
     check_tool="wget -q -O- --server-response"
