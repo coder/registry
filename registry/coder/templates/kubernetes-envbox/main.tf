@@ -121,7 +121,7 @@ module "jetbrains" {
   folder     = "/home/coder"
 }
 
-resource "kubernetes_persistent_volume_claim" "home" {
+resource "kubernetes_persistent_volume_claim_v1" "home" {
   metadata {
     name      = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}-home"
     namespace = var.namespace
@@ -137,7 +137,7 @@ resource "kubernetes_persistent_volume_claim" "home" {
   }
 }
 
-resource "kubernetes_pod" "main" {
+resource "kubernetes_pod_v1" "main" {
   count = data.coder_workspace.me.start_count
 
   metadata {
@@ -284,7 +284,7 @@ resource "kubernetes_pod" "main" {
     volume {
       name = "home"
       persistent_volume_claim {
-        claim_name = kubernetes_persistent_volume_claim.home.metadata.0.name
+        claim_name = kubernetes_persistent_volume_claim_v1.home.metadata.0.name
         read_only  = false
       }
     }

@@ -186,7 +186,7 @@ resource "envbuilder_cached_image" "cached" {
   insecure      = var.insecure_cache_repo
 }
 
-resource "kubernetes_persistent_volume_claim" "workspaces" {
+resource "kubernetes_persistent_volume_claim_v1" "workspaces" {
   metadata {
     name      = "coder-${lower(data.coder_workspace.me.id)}-workspaces"
     namespace = var.namespace
@@ -217,10 +217,10 @@ resource "kubernetes_persistent_volume_claim" "workspaces" {
   }
 }
 
-resource "kubernetes_deployment" "main" {
+resource "kubernetes_deployment_v1" "main" {
   count = data.coder_workspace.me.start_count
   depends_on = [
-    kubernetes_persistent_volume_claim.workspaces
+    kubernetes_persistent_volume_claim_v1.workspaces
   ]
   wait_for_rollout = false
   metadata {
@@ -300,7 +300,7 @@ resource "kubernetes_deployment" "main" {
         volume {
           name = "workspaces"
           persistent_volume_claim {
-            claim_name = kubernetes_persistent_volume_claim.workspaces.metadata.0.name
+            claim_name = kubernetes_persistent_volume_claim_v1.workspaces.metadata.0.name
             read_only  = false
           }
         }
