@@ -291,11 +291,6 @@ resource "coder_env" "disable_autoupdater" {
   value    = "1"
 }
 
-resource "coder_env" "claude_binary_path" {
-  agent_id = var.agent_id
-  name     = "PATH"
-  value    = "${var.claude_binary_path}:$PATH"
-}
 
 resource "coder_env" "anthropic_model" {
   count    = var.model != "" ? 1 : 0

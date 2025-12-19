@@ -35,6 +35,39 @@ printf "ARG_DISALLOWED_TOOLS: %s\n" "$ARG_DISALLOWED_TOOLS"
 
 echo "--------------------------------"
 
+# Ensures claude is accessible in PATH when using a custom binary path
+# Creates symlink in ~/.local/bin and adds to shell profiles
+function ensure_claude_in_path() {
+  if [ "$ARG_CLAUDE_BINARY_PATH" = "$DEFAULT_BINARY_PATH" ]; then
+    # Default path - no action needed, official installer handles this
+    return
+  fi
+
+  echo "Setting up PATH for custom claude location: $ARG_CLAUDE_BINARY_PATH"
+
+  # Create symlink in ~/.local/bin so claude is accessible in PATH
+  mkdir -p "$HOME/.local/bin"
+  ln -sf "$ARG_CLAUDE_BINARY_PATH/claude" "$HOME/.local/bin/claude"
+  echo "Created symlink: $HOME/.local/bin/claude -> $ARG_CLAUDE_BINARY_PATH/claude"
+
+  # Ensure ~/.local/bin is in PATH for this session (needed for claude mcp commands below)
+  export PATH="$HOME/.local/bin:$PATH"
+
+  # Add to shell profiles for future interactive sessions
+  # Only modifies files that already exist, uses marker to prevent duplicates
+  local marker="# Added by claude-code module"
+  local path_export='export PATH="$HOME/.local/bin:$PATH"'
+
+  for profile in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+    if [ -f "$profile" ] && ! grep -qF "$marker" "$profile" 2>/dev/null; then
+      echo "" >> "$profile"
+      echo "$marker" >> "$profile"
+      echo "$path_export" >> "$profile"
+      echo "Added ~/.local/bin to PATH in $profile"
+    fi
+  done
+}
+
 function install_claude_code_cli() {
   if [ "$ARG_INSTALL_CLAUDE_CODE" != "true" ]; then
     echo "Skipping Claude Code installation as per configuration."
@@ -173,5 +206,6 @@ function report_tasks() {
 }
 
 install_claude_code_cli
+ensure_claude_in_path
 setup_claude_configurations
 report_tasks
