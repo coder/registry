@@ -198,6 +198,12 @@ variable "claude_md_path" {
   default     = "$HOME/.claude/CLAUDE.md"
 }
 
+variable "claude_path" {
+  type        = string
+  description = "Path to prepend to PATH for Claude Code binary."
+  default     = "$HOME/.local/bin"
+}
+
 variable "enable_boundary" {
   type        = bool
   description = "Whether to enable coder boundary for network filtering"
@@ -285,16 +291,10 @@ resource "coder_env" "disable_autoupdater" {
   value    = "1"
 }
 
-variable "claude_path" {
-  type        = string
-  description = "Path to prepend to PATH for Claude Code binary. Defaults to $HOME/.local/bin"
-  default     = ""
-}
-
 resource "coder_env" "claude_binary_path" {
   agent_id = var.agent_id
   name     = "PATH"
-  value    = var.claude_path != "" ? "${var.claude_path}:$PATH" : "$HOME/.local/bin:$PATH"
+  value    = "${var.claude_path}:$PATH"
 }
 
 resource "coder_env" "anthropic_model" {
