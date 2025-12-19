@@ -128,7 +128,7 @@ variable "claude_api_key" {
 
 variable "model" {
   type        = string
-  description = "Sets the model for the current session with an alias for the latest model (sonnet or opus) or a model’s full name."
+  description = "Sets the default model for Claude Code via ANTHROPIC_MODEL env var. If empty, Claude Code uses its default. Supports aliases (sonnet, opus) or full model names."
   default     = ""
 }
 
@@ -198,6 +198,12 @@ variable "claude_md_path" {
   default     = "$HOME/.claude/CLAUDE.md"
 }
 
+variable "claude_binary_path" {
+  type        = string
+  description = "Directory where the Claude Code binary is located. If a custom path is specified, Claude Code will be installed via npm to that location instead of using the official installer."
+  default     = "$HOME/.local/bin"
+}
+
 variable "enable_boundary" {
   type        = bool
   description = "Whether to enable coder boundary for network filtering"
@@ -253,8 +259,7 @@ variable "compile_boundary_from_source" {
 }
 
 resource "coder_env" "claude_code_md_path" {
-  count = var.claude_md_path == "" ? 0 : 1
-
+  count    = var.claude_md_path == "" ? 0 : 1
   agent_id = var.agent_id
   name     = "CODER_MCP_CLAUDE_MD_PATH"
   value    = var.claude_md_path
@@ -273,16 +278,14 @@ resource "coder_env" "claude_code_oauth_token" {
 }
 
 resource "coder_env" "claude_api_key" {
-  count = length(var.claude_api_key) > 0 ? 1 : 0
-
+  count    = length(var.claude_api_key) > 0 ? 1 : 0
   agent_id = var.agent_id
   name     = "CLAUDE_API_KEY"
   value    = var.claude_api_key
 }
 
 resource "coder_env" "disable_autoupdater" {
-  count = var.disable_autoupdater ? 1 : 0
-
+  count    = var.disable_autoupdater ? 1 : 0
   agent_id = var.agent_id
   name     = "DISABLE_AUTOUPDATER"
   value    = "1"
@@ -291,7 +294,14 @@ resource "coder_env" "disable_autoupdater" {
 resource "coder_env" "claude_binary_path" {
   agent_id = var.agent_id
   name     = "PATH"
-  value    = "$HOME/.local/bin:$PATH"
+  value    = "${var.claude_binary_path}:$PATH"
+}
+
+resource "coder_env" "anthropic_model" {
+  count    = var.model != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_MODEL"
+  value    = var.model
 }
 
 locals {
@@ -364,7 +374,6 @@ module "agentapi" {
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
 
-     ARG_MODEL='${var.model}' \
      ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
      ARG_CONTINUE='${var.continue}' \
      ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
@@ -393,6 +402,7 @@ module "agentapi" {
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
     ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
+    ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
     ARG_REPORT_TASKS='${var.report_tasks}' \
