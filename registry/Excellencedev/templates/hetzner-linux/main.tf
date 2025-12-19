@@ -49,7 +49,7 @@ data "coder_parameter" "hcloud_location" {
   dynamic "option" {
     for_each = local.hcloud_locations
     content {
-      name  = format(
+      name = format(
         "%s (%s, %s)",
         upper(option.value.name),
         option.value.city,
