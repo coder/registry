@@ -198,7 +198,7 @@ variable "claude_md_path" {
   default     = "$HOME/.claude/CLAUDE.md"
 }
 
-variable "claude_path" {
+variable "claude_binary_path" {
   type        = string
   description = "Path to prepend to PATH for Claude Code binary."
   default     = "$HOME/.local/bin"
@@ -294,7 +294,7 @@ resource "coder_env" "disable_autoupdater" {
 resource "coder_env" "claude_binary_path" {
   agent_id = var.agent_id
   name     = "PATH"
-  value    = "${var.claude_path}:$PATH"
+  value    = "${var.claude_binary_path}:$PATH"
 }
 
 resource "coder_env" "anthropic_model" {
