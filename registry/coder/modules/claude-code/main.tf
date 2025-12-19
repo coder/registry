@@ -128,7 +128,7 @@ variable "claude_api_key" {
 
 variable "model" {
   type        = string
-  description = "Sets the model for the current session with an alias for the latest model (sonnet or opus) or a model’s full name."
+  description = "Sets the default model for Claude Code via ANTHROPIC_MODEL env var. If empty, Claude Code uses its default (Sonnet 4.5). Supports aliases (sonnet, opus) or full model names."
   default     = ""
 }
 
@@ -300,6 +300,14 @@ resource "coder_env" "claude_binary_path" {
   value    = var.claude_path != "" ? "${var.claude_path}:$PATH" : "$HOME/.local/bin:$PATH"
 }
 
+resource "coder_env" "anthropic_model" {
+  count = var.model != "" ? 1 : 0
+
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_MODEL"
+  value    = var.model
+}
+
 locals {
   # we have to trim the slash because otherwise coder exp mcp will
   # set up an invalid claude config
@@ -370,7 +378,6 @@ module "agentapi" {
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
 
-     ARG_MODEL='${var.model}' \
      ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
      ARG_CONTINUE='${var.continue}' \
      ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
