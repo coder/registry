@@ -196,7 +196,9 @@ describe("claude-code", async () => {
       (r) => r.type === "coder_env" && r.name === "anthropic_model",
     );
     expect(envResources.length).toBe(1);
-    expect(envResources[0].instances[0].attributes.name).toBe("ANTHROPIC_MODEL");
+    expect(envResources[0].instances[0].attributes.name).toBe(
+      "ANTHROPIC_MODEL",
+    );
     expect(envResources[0].instances[0].attributes.value).toBe(model);
   });
 
