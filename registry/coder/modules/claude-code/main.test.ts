@@ -184,7 +184,7 @@ describe("claude-code", async () => {
 
   test("claude-model", async () => {
     const model = "opus";
-    const { id, state } = await setup({
+    const { coderEnvVars } = await setup({
       moduleVariables: {
         model: model,
         ai_prompt: "test prompt",
@@ -192,14 +192,7 @@ describe("claude-code", async () => {
     });
 
     // Verify ANTHROPIC_MODEL env var is set via coder_env
-    const envResources = state.resources.filter(
-      (r) => r.type === "coder_env" && r.name === "anthropic_model",
-    );
-    expect(envResources.length).toBe(1);
-    expect(envResources[0].instances[0].attributes.name).toBe(
-      "ANTHROPIC_MODEL",
-    );
-    expect(envResources[0].instances[0].attributes.value).toBe(model);
+    expect(coderEnvVars["ANTHROPIC_MODEL"]).toBe(model);
   });
 
   test("claude-continue-resume-task-session", async () => {
