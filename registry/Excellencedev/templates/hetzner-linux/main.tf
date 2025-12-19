@@ -6,6 +6,10 @@ terraform {
     coder = {
       source = "coder/coder"
     }
+    http = {
+      source  = "hashicorp/http"
+      version = "~> 3.0"
+    }
   }
 }
 
@@ -17,36 +21,42 @@ provider "hcloud" {
   token = var.hcloud_token
 }
 
+data "http" "hcloud_locations" {
+  url = "https://api.hetzner.cloud/v1/locations"
+
+  request_headers = {
+    Authorization = "Bearer ${var.hcloud_token}"
+    Accept        = "application/json"
+  }
+}
+
+data "http" "hcloud_server_types" {
+  url = "https://api.hetzner.cloud/v1/server_types"
+
+  request_headers = {
+    Authorization = "Bearer ${var.hcloud_token}"
+    Accept        = "application/json"
+  }
+}
+
 # Available locations: https://docs.hetzner.com/cloud/general/locations/
 data "coder_parameter" "hcloud_location" {
   name         = "hcloud_location"
   display_name = "Hetzner Location"
   description  = "Select the Hetzner Cloud location for your workspace."
   type         = "string"
-  default      = "fsn1"
-  option {
-    name  = "DE Falkenstein"
-    value = "fsn1"
-  }
-  option {
-    name  = "US Ashburn, VA"
-    value = "ash"
-  }
-  option {
-    name  = "US Hillsboro, OR"
-    value = "hil"
-  }
-  option {
-    name  = "SG Singapore"
-    value = "sin"
-  }
-  option {
-    name  = "DE Nuremberg"
-    value = "nbg1"
-  }
-  option {
-    name  = "FI Helsinki"
-    value = "hel1"
+
+  dynamic "option" {
+    for_each = local.hcloud_locations
+    content {
+      name  = format(
+        "%s (%s, %s)",
+        upper(option.value.name),
+        option.value.city,
+        option.value.country
+      )
+      value = option.value.name
+    }
   }
 }
 
@@ -109,17 +119,48 @@ resource "hcloud_volume_attachment" "home_volume_attachment" {
 locals {
   username = lower(data.coder_workspace_owner.me.name)
 
-  # Data source: local JSON file under the module directory
-  # Check API for latest server types & availability: https://docs.hetzner.cloud/reference/cloud#server-types
-  hcloud_server_types_data        = jsondecode(file("${path.module}/hetzner_server_types.json"))
-  hcloud_server_type_meta         = local.hcloud_server_types_data.type_meta
-  hcloud_server_types_by_location = local.hcloud_server_types_data.availability
+  # --------------------
+  # Locations
+  # --------------------
+  hcloud_locations = [
+    for loc in jsondecode(data.http.hcloud_locations.response_body).locations : {
+      name        = loc.name
+      city        = loc.city
+      country     = loc.country
+      description = loc.description
+    }
+  ]
+
+  # --------------------
+  # Server Types
+  # --------------------
+  hcloud_server_types = {
+    for st in jsondecode(data.http.hcloud_server_types.response_body).server_types :
+    st.name => {
+      cores      = st.cores
+      memory_gb  = st.memory
+      disk_gb    = st.disk
+      locations  = [for l in st.locations : l.name]
+      deprecated = st.deprecated
+    }
+    if st.deprecated == false
+  }
 
   hcloud_server_type_options_for_selected_location = [
-    for type_name in lookup(local.hcloud_server_types_by_location, data.coder_parameter.hcloud_location.value, []) : {
-      name  = format("%s (%d vCPU, %dGB RAM, %dGB)", upper(type_name), local.hcloud_server_type_meta[type_name].cores, local.hcloud_server_type_meta[type_name].memory_gb, local.hcloud_server_type_meta[type_name].disk_gb)
-      value = type_name
+    for name, meta in local.hcloud_server_types : {
+      name = format(
+        "%s (%d vCPU, %dGB RAM, %dGB)",
+        upper(name),
+        meta.cores,
+        meta.memory_gb,
+        meta.disk_gb
+      )
+      value = name
     }
+    if contains(
+      meta.locations,
+      data.coder_parameter.hcloud_location.value
+    )
   ]
 }
 
