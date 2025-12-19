@@ -9,6 +9,7 @@ command_exists() {
 }
 
 ARG_CLAUDE_CODE_VERSION=${ARG_CLAUDE_CODE_VERSION:-}
+ARG_CLAUDE_BINARY_PATH=${ARG_CLAUDE_BINARY_PATH:-'$HOME/.local/bin'}
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
 ARG_INSTALL_CLAUDE_CODE=${ARG_INSTALL_CLAUDE_CODE:-}
 ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
@@ -17,9 +18,13 @@ ARG_MCP=$(echo -n "${ARG_MCP:-}" | base64 -d)
 ARG_ALLOWED_TOOLS=${ARG_ALLOWED_TOOLS:-}
 ARG_DISALLOWED_TOOLS=${ARG_DISALLOWED_TOOLS:-}
 
+ARG_CLAUDE_BINARY_PATH=$(eval echo "$ARG_CLAUDE_BINARY_PATH")
+DEFAULT_BINARY_PATH="$HOME/.local/bin"
+
 echo "--------------------------------"
 
 printf "ARG_CLAUDE_CODE_VERSION: %s\n" "$ARG_CLAUDE_CODE_VERSION"
+printf "ARG_CLAUDE_BINARY_PATH: %s\n" "$ARG_CLAUDE_BINARY_PATH"
 printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
 printf "ARG_INSTALL_CLAUDE_CODE: %s\n" "$ARG_INSTALL_CLAUDE_CODE"
 printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
@@ -31,18 +36,45 @@ printf "ARG_DISALLOWED_TOOLS: %s\n" "$ARG_DISALLOWED_TOOLS"
 echo "--------------------------------"
 
 function install_claude_code_cli() {
-  if [ "$ARG_INSTALL_CLAUDE_CODE" = "true" ]; then
+  if [ "$ARG_INSTALL_CLAUDE_CODE" != "true" ]; then
+    echo "Skipping Claude Code installation as per configuration."
+    return
+  fi
+
+  local use_npm=false
+  local specific_version=false
+
+  if [ "$ARG_CLAUDE_BINARY_PATH" != "$DEFAULT_BINARY_PATH" ]; then
+    use_npm=true
+  fi
+
+  if [ -n "$ARG_CLAUDE_CODE_VERSION" ] && [ "$ARG_CLAUDE_CODE_VERSION" != "latest" ]; then
+    use_npm=true
+    specific_version=true
+  fi
+
+  if [ "$use_npm" = "true" ]; then
+    echo "Installing Claude Code via npm (custom path or version specified)"
+    NPM_PREFIX=$(dirname "$ARG_CLAUDE_BINARY_PATH")
+    mkdir -p "$NPM_PREFIX"
+
+    local version_arg=""
+    if [ "$specific_version" = "true" ]; then
+      version_arg="@$ARG_CLAUDE_CODE_VERSION"
+    fi
+
+    npm install -g "@anthropic-ai/claude-code${version_arg}" --prefix "$NPM_PREFIX"
+    echo "Installed Claude Code via npm to $NPM_PREFIX. Version: $($ARG_CLAUDE_BINARY_PATH/claude --version || echo 'unknown')"
+  else
     echo "Installing Claude Code via official installer"
     set +e
     curl -fsSL claude.ai/install.sh | bash -s -- "$ARG_CLAUDE_CODE_VERSION" 2>&1
     CURL_EXIT=${PIPESTATUS[0]}
     set -e
     if [ $CURL_EXIT -ne 0 ]; then
-      echo "Claude Code installer failed with exit code $$CURL_EXIT"
+      echo "Claude Code installer failed with exit code $CURL_EXIT"
     fi
     echo "Installed Claude Code successfully. Version: $(claude --version || echo 'unknown')"
-  else
-    echo "Skipping Claude Code installation as per configuration."
   fi
 }
 

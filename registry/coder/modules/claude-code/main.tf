@@ -200,7 +200,7 @@ variable "claude_md_path" {
 
 variable "claude_binary_path" {
   type        = string
-  description = "Path to prepend to PATH for Claude Code binary."
+  description = "Directory where the Claude Code binary is located. If a custom path is specified, Claude Code will be installed via npm to that location instead of using the official installer."
   default     = "$HOME/.local/bin"
 }
 
@@ -402,6 +402,7 @@ module "agentapi" {
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
     ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
+    ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
     ARG_REPORT_TASKS='${var.report_tasks}' \

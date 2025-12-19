@@ -61,6 +61,9 @@ module "claude-code" {
 
 This example shows how to configure the Claude Code module with an AI prompt, API key shared by all users of the template, and other custom settings.
 
+> [!NOTE]
+> When a specific `claude_code_version` (other than "latest") or a custom `claude_binary_path` is provided, the module will install Claude Code via npm instead of the official installer. This allows for version pinning and custom install locations.
+
 ```tf
 data "coder_parameter" "ai_prompt" {
   type        = "string"
@@ -80,8 +83,9 @@ module "claude-code" {
   # OR
   claude_code_oauth_token = "xxxxx-xxxx-xxxx"
 
-  claude_code_version = "2.0.62" # Pin to a specific version
-  agentapi_version    = "0.11.4"
+  claude_code_version  = "2.0.62"        # Pin to a specific version
+  claude_binary_path   = "/opt/claude/bin" # Custom install location
+  agentapi_version     = "0.11.4"
 
   ai_prompt = data.coder_parameter.ai_prompt.value
   model     = "sonnet"
