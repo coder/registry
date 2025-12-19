@@ -128,7 +128,7 @@ variable "claude_api_key" {
 
 variable "model" {
   type        = string
-  description = "Sets the default model for Claude Code via ANTHROPIC_MODEL env var. If empty, Claude Code uses its default (Sonnet 4.5). Supports aliases (sonnet, opus) or full model names."
+  description = "Sets the default model for Claude Code via ANTHROPIC_MODEL env var. If empty, Claude Code uses its default. Supports aliases (sonnet, opus) or full model names."
   default     = ""
 }
 
@@ -253,8 +253,7 @@ variable "compile_boundary_from_source" {
 }
 
 resource "coder_env" "claude_code_md_path" {
-  count = var.claude_md_path == "" ? 0 : 1
-
+  count    = var.claude_md_path == "" ? 0 : 1
   agent_id = var.agent_id
   name     = "CODER_MCP_CLAUDE_MD_PATH"
   value    = var.claude_md_path
@@ -273,16 +272,14 @@ resource "coder_env" "claude_code_oauth_token" {
 }
 
 resource "coder_env" "claude_api_key" {
-  count = length(var.claude_api_key) > 0 ? 1 : 0
-
+  count    = length(var.claude_api_key) > 0 ? 1 : 0
   agent_id = var.agent_id
   name     = "CLAUDE_API_KEY"
   value    = var.claude_api_key
 }
 
 resource "coder_env" "disable_autoupdater" {
-  count = var.disable_autoupdater ? 1 : 0
-
+  count    = var.disable_autoupdater ? 1 : 0
   agent_id = var.agent_id
   name     = "DISABLE_AUTOUPDATER"
   value    = "1"
@@ -301,8 +298,7 @@ resource "coder_env" "claude_binary_path" {
 }
 
 resource "coder_env" "anthropic_model" {
-  count = var.model != "" ? 1 : 0
-
+  count    = var.model != "" ? 1 : 0
   agent_id = var.agent_id
   name     = "ANTHROPIC_MODEL"
   value    = var.model
