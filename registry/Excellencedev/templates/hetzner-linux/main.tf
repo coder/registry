@@ -45,6 +45,7 @@ data "coder_parameter" "hcloud_location" {
   display_name = "Hetzner Location"
   description  = "Select the Hetzner Cloud location for your workspace."
   type         = "string"
+  default      = "fsn1"
 
   dynamic "option" {
     for_each = local.hcloud_locations
