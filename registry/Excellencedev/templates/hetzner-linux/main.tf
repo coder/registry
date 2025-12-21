@@ -124,10 +124,9 @@ locals {
   # --------------------
   hcloud_locations = [
     for loc in jsondecode(data.http.hcloud_locations.response_body).locations : {
-      name        = loc.name
-      city        = loc.city
-      country     = loc.country
-      description = loc.description
+      name    = loc.name
+      city    = loc.city
+      country = loc.country
     }
   ]
 
