@@ -252,6 +252,12 @@ variable "compile_boundary_from_source" {
   default     = false
 }
 
+variable "claude_binary_path" {
+  type        = string
+  description = "The path to add to PATH for the Claude binary."
+  default     = "$HOME/.local/bin"
+}
+
 resource "coder_env" "claude_code_md_path" {
   count = var.claude_md_path == "" ? 0 : 1
 
@@ -291,7 +297,7 @@ resource "coder_env" "disable_autoupdater" {
 resource "coder_env" "claude_binary_path" {
   agent_id = var.agent_id
   name     = "PATH"
-  value    = "$HOME/.local/bin:$PATH"
+  value    = "${var.claude_binary_path}:$PATH"
 }
 
 locals {
