@@ -1,9 +1,5 @@
 #!/bin/bash
 
-if [ -f "$HOME/.bashrc" ]; then
-  source "$HOME"/.bashrc
-fi
-
 set -euo pipefail
 
 BOLD='\033[0;1m'
@@ -29,6 +25,9 @@ printf "rules: %s\n" "$ARG_AUGGIE_RULES"
 echo "--------------------------------"
 
 function check_dependencies() {
+
+  printf "PATH: %s\n" "${PATH}"
+
   if ! command_exists node; then
     printf "Error: Node.js is not installed. Please install Node.js manually or use the pre_install_script to install it.\n"
     exit 1
