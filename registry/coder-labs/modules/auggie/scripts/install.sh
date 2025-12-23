@@ -28,6 +28,10 @@ function check_dependencies() {
 
   printf "PATH: %s\n" "${PATH}"
 
+  new_path=$(bash -l -c 'echo $PATH' 2>/dev/null || echo "${PATH}")
+
+  printf "NEW_PATH %s\n" "${new_path}"
+
   if ! command_exists node; then
     printf "Error: Node.js is not installed. Please install Node.js manually or use the pre_install_script to install it.\n"
     exit 1
