@@ -9,6 +9,12 @@ command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
 
+if [ -f "$HOME/.nvm/nvm.sh" ]; then
+  source "$HOME"/.nvm/nvm.sh
+else
+  export PATH="$HOME/.npm-global/bin:$PATH"
+fi
+
 ARG_AUGGIE_INSTALL=${ARG_AUGGIE_INSTALL:-true}
 ARG_AUGGIE_VERSION=${ARG_AUGGIE_VERSION:-}
 ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
