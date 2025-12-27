@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="ociGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#C74634"/>
+      <stop offset="100%" style="stop-color:#E12C2C"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="8" fill="url(#ociGrad)"/>
+  <g fill="white">
+    <circle cx="32" cy="32" r="16" fill="none" stroke="white" stroke-width="3"/>
+    <circle cx="32" cy="32" r="6"/>
+    <rect x="30" y="10" width="4" height="8"/>
+    <rect x="30" y="46" width="4" height="8"/>
+    <rect x="10" y="30" width="8" height="4"/>
+    <rect x="46" y="30" width="8" height="4"/>
+  </g>
+</svg>
