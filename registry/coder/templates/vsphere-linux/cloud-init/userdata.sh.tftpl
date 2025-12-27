@@ -1,0 +1,10 @@
+#!/bin/bash
+# Create coder user if it doesn't exist
+if ! id "${linux_user}" &>/dev/null; then
+  useradd -m -s /bin/bash ${linux_user}
+  echo "${linux_user} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${linux_user}
+  chmod 0440 /etc/sudoers.d/${linux_user}
+fi
+
+# Run the Coder agent init script
+sudo -u '${linux_user}' sh -c '${init_script}'
