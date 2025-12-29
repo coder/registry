@@ -6,40 +6,34 @@ VAULT_TOKEN=${VAULT_TOKEN}
 INSTALL_DIR=${INSTALL_DIR}
 VAULT_CLI_VERSION=${VAULT_CLI_VERSION}
 
-# Fetch URL content. If dest is provided, write to file; otherwise output to stdout.
-# Usage: fetch <url> [dest]
+# Fetch URL content to stdout
 fetch() {
   url="$1"
-  dest="$${2:-}"
-
-  # Detect HTTP client on first run
-  if [ -z "$${HTTP_CLIENT:-}" ]; then
-    if command -v curl > /dev/null 2>&1; then
-      HTTP_CLIENT="curl"
-    elif command -v wget > /dev/null 2>&1; then
-      HTTP_CLIENT="wget"
-    elif command -v busybox > /dev/null 2>&1; then
-      HTTP_CLIENT="busybox"
-    else
-      printf "curl, wget, or busybox is not installed. Please install curl or wget in your image.\n"
-      return 1
-    fi
-  fi
-
-  if [ -n "$${dest}" ]; then
-    # shellcheck disable=SC2195
-    case "$${HTTP_CLIENT}" in
-      curl) curl -sSL --fail "$${url}" -o "$${dest}" ;;
-      wget) wget -O "$${dest}" "$${url}" ;;
-      busybox) busybox wget -O "$${dest}" "$${url}" ;;
-    esac
+  if command -v curl > /dev/null 2>&1; then
+    curl -sSL --fail "$${url}"
+  elif command -v wget > /dev/null 2>&1; then
+    wget -qO- "$${url}"
+  elif command -v busybox > /dev/null 2>&1; then
+    busybox wget -qO- "$${url}"
   else
-    # shellcheck disable=SC2195
-    case "$${HTTP_CLIENT}" in
-      curl) curl -sSL --fail "$${url}" ;;
-      wget) wget -qO- "$${url}" ;;
-      busybox) busybox wget -qO- "$${url}" ;;
-    esac
+    printf "curl, wget, or busybox is not installed. Please install curl or wget in your image.\n"
+    return 1
+  fi
+}
+
+# Download URL to a file
+fetch_to_file() {
+  dest="$1"
+  url="$2"
+  if command -v curl > /dev/null 2>&1; then
+    curl -sSL --fail "$${url}" -o "$${dest}"
+  elif command -v wget > /dev/null 2>&1; then
+    wget -O "$${dest}" "$${url}"
+  elif command -v busybox > /dev/null 2>&1; then
+    busybox wget -O "$${dest}" "$${url}"
+  else
+    printf "curl, wget, or busybox is not installed. Please install curl or wget in your image.\n"
+    return 1
   fi
 }
 
@@ -131,7 +125,7 @@ install() {
     cd "$${TEMP_DIR}" || return 1
 
     printf "Downloading from %s\n" "$${DOWNLOAD_URL}"
-    if ! fetch "$${DOWNLOAD_URL}" vault.zip; then
+    if ! fetch_to_file vault.zip "$${DOWNLOAD_URL}"; then
       printf "Failed to download Vault.\n"
       rm -rf "$${TEMP_DIR}"
       return 1
