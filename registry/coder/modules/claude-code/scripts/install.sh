@@ -9,7 +9,6 @@ command_exists() {
 }
 
 ARG_CLAUDE_CODE_VERSION=${ARG_CLAUDE_CODE_VERSION:-}
-ARG_CLAUDE_BINARY_PATH=${ARG_CLAUDE_BINARY_PATH:-'$HOME/.local/bin'}
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
 ARG_INSTALL_CLAUDE_CODE=${ARG_INSTALL_CLAUDE_CODE:-}
 ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
@@ -18,13 +17,9 @@ ARG_MCP=$(echo -n "${ARG_MCP:-}" | base64 -d)
 ARG_ALLOWED_TOOLS=${ARG_ALLOWED_TOOLS:-}
 ARG_DISALLOWED_TOOLS=${ARG_DISALLOWED_TOOLS:-}
 
-ARG_CLAUDE_BINARY_PATH=$(eval echo "$ARG_CLAUDE_BINARY_PATH")
-DEFAULT_BINARY_PATH="$HOME/.local/bin"
-
 echo "--------------------------------"
 
 printf "ARG_CLAUDE_CODE_VERSION: %s\n" "$ARG_CLAUDE_CODE_VERSION"
-printf "ARG_CLAUDE_BINARY_PATH: %s\n" "$ARG_CLAUDE_BINARY_PATH"
 printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
 printf "ARG_INSTALL_CLAUDE_CODE: %s\n" "$ARG_INSTALL_CLAUDE_CODE"
 printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
@@ -35,69 +30,17 @@ printf "ARG_DISALLOWED_TOOLS: %s\n" "$ARG_DISALLOWED_TOOLS"
 
 echo "--------------------------------"
 
-# Ensures claude is accessible in PATH when using a custom binary path
-# Creates symlink in ~/.local/bin and adds to shell profiles
-function ensure_claude_in_path() {
-  if [ "$ARG_CLAUDE_BINARY_PATH" = "$DEFAULT_BINARY_PATH" ]; then
-    # Default path - no action needed, official installer handles this
-    return
-  fi
-
-  echo "Setting up PATH for custom claude location: $ARG_CLAUDE_BINARY_PATH"
-
-  # Create symlink in ~/.local/bin so claude is accessible in PATH
-  mkdir -p "$HOME/.local/bin"
-  ln -sf "$ARG_CLAUDE_BINARY_PATH/claude" "$HOME/.local/bin/claude"
-  echo "Created symlink: $HOME/.local/bin/claude -> $ARG_CLAUDE_BINARY_PATH/claude"
-
-  # Ensure ~/.local/bin is in PATH for this session (needed for claude mcp commands below)
-  export PATH="$HOME/.local/bin:$PATH"
-
-  # Add to shell profiles for future interactive sessions
-  # Only modifies files that already exist, uses marker to prevent duplicates
-  local marker="# Added by claude-code module"
-  local path_export='export PATH="$HOME/.local/bin:$PATH"'
-
-  for profile in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
-    if [ -f "$profile" ] && ! grep -qF "$marker" "$profile" 2>/dev/null; then
-      echo "" >> "$profile"
-      echo "$marker" >> "$profile"
-      echo "$path_export" >> "$profile"
-      echo "Added ~/.local/bin to PATH in $profile"
-    fi
-  done
-}
-
 function install_claude_code_cli() {
   if [ "$ARG_INSTALL_CLAUDE_CODE" != "true" ]; then
     echo "Skipping Claude Code installation as per configuration."
     return
   fi
 
-  local use_npm=false
-  local specific_version=false
-
-  if [ "$ARG_CLAUDE_BINARY_PATH" != "$DEFAULT_BINARY_PATH" ]; then
-    use_npm=true
-  fi
-
+  # Use npm for specific version pinning, official installer otherwise
   if [ -n "$ARG_CLAUDE_CODE_VERSION" ] && [ "$ARG_CLAUDE_CODE_VERSION" != "latest" ]; then
-    use_npm=true
-    specific_version=true
-  fi
-
-  if [ "$use_npm" = "true" ]; then
-    echo "Installing Claude Code via npm (custom path or version specified)"
-    NPM_PREFIX=$(dirname "$ARG_CLAUDE_BINARY_PATH")
-    mkdir -p "$NPM_PREFIX"
-
-    local version_arg=""
-    if [ "$specific_version" = "true" ]; then
-      version_arg="@$ARG_CLAUDE_CODE_VERSION"
-    fi
-
-    npm install -g "@anthropic-ai/claude-code${version_arg}" --prefix "$NPM_PREFIX"
-    echo "Installed Claude Code via npm to $NPM_PREFIX. Version: $($ARG_CLAUDE_BINARY_PATH/claude --version || echo 'unknown')"
+    echo "Installing Claude Code via npm (version pinning: $ARG_CLAUDE_CODE_VERSION)"
+    npm install -g "@anthropic-ai/claude-code@$ARG_CLAUDE_CODE_VERSION"
+    echo "Installed Claude Code via npm. Version: $(claude --version || echo 'unknown')"
   else
     echo "Installing Claude Code via official installer"
     set +e
@@ -206,6 +149,5 @@ function report_tasks() {
 }
 
 install_claude_code_cli
-ensure_claude_in_path
 setup_claude_configurations
 report_tasks

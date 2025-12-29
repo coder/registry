@@ -200,7 +200,7 @@ variable "claude_md_path" {
 
 variable "claude_binary_path" {
   type        = string
-  description = "Directory where the Claude Code binary is located. If a custom path is specified, Claude Code will be installed via npm to that location instead of using the official installer."
+  description = "Directory where the Claude Code binary is located. Use this if Claude is pre-installed or installed outside the module to a non-default location."
   default     = "$HOME/.local/bin"
 }
 
@@ -291,6 +291,11 @@ resource "coder_env" "disable_autoupdater" {
   value    = "1"
 }
 
+resource "coder_env" "claude_binary_path" {
+  agent_id = var.agent_id
+  name     = "PATH"
+  value    = "${var.claude_binary_path}:$PATH"
+}
 
 resource "coder_env" "anthropic_model" {
   count    = var.model != "" ? 1 : 0
@@ -397,7 +402,6 @@ module "agentapi" {
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
     ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
-    ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
     ARG_REPORT_TASKS='${var.report_tasks}' \
