@@ -404,6 +404,7 @@ module "agentapi" {
     ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
+    ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
     ARG_REPORT_TASKS='${var.report_tasks}' \
     ARG_WORKDIR='${local.workdir}' \
     ARG_ALLOWED_TOOLS='${var.allowed_tools}' \

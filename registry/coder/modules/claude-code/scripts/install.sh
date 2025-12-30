@@ -11,6 +11,7 @@ command_exists() {
 ARG_CLAUDE_CODE_VERSION=${ARG_CLAUDE_CODE_VERSION:-}
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
 ARG_INSTALL_CLAUDE_CODE=${ARG_INSTALL_CLAUDE_CODE:-}
+ARG_CLAUDE_BINARY_PATH=${ARG_CLAUDE_BINARY_PATH:-"$HOME/.local/bin"}
 ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
 ARG_MCP=$(echo -n "${ARG_MCP:-}" | base64 -d)
@@ -22,6 +23,7 @@ echo "--------------------------------"
 printf "ARG_CLAUDE_CODE_VERSION: %s\n" "$ARG_CLAUDE_CODE_VERSION"
 printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
 printf "ARG_INSTALL_CLAUDE_CODE: %s\n" "$ARG_INSTALL_CLAUDE_CODE"
+printf "ARG_CLAUDE_BINARY_PATH: %s\n" "$ARG_CLAUDE_BINARY_PATH"
 printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
 printf "ARG_MCP_APP_STATUS_SLUG: %s\n" "$ARG_MCP_APP_STATUS_SLUG"
 printf "ARG_MCP: %s\n" "$ARG_MCP"
@@ -30,9 +32,38 @@ printf "ARG_DISALLOWED_TOOLS: %s\n" "$ARG_DISALLOWED_TOOLS"
 
 echo "--------------------------------"
 
+function ensure_claude_in_path() {
+  if [ -z "${CODER_SCRIPT_BIN_DIR:-}" ]; then
+    echo "CODER_SCRIPT_BIN_DIR not set, skipping symlink creation"
+    return
+  fi
+
+  if [ -e "$CODER_SCRIPT_BIN_DIR/claude" ]; then
+    echo "Claude already available in CODER_SCRIPT_BIN_DIR"
+    return
+  fi
+
+  local CLAUDE_BIN=""
+  if command -v claude > /dev/null 2>&1; then
+    CLAUDE_BIN=$(command -v claude)
+  elif [ -x "$ARG_CLAUDE_BINARY_PATH/claude" ]; then
+    CLAUDE_BIN="$ARG_CLAUDE_BINARY_PATH/claude"
+  elif [ -x "$HOME/.local/bin/claude" ]; then
+    CLAUDE_BIN="$HOME/.local/bin/claude"
+  fi
+
+  if [ -n "$CLAUDE_BIN" ] && [ -x "$CLAUDE_BIN" ]; then
+    ln -s "$CLAUDE_BIN" "$CODER_SCRIPT_BIN_DIR/claude"
+    echo "Created symlink: $CODER_SCRIPT_BIN_DIR/claude -> $CLAUDE_BIN"
+  else
+    echo "Warning: Could not find claude binary to symlink"
+  fi
+}
+
 function install_claude_code_cli() {
   if [ "$ARG_INSTALL_CLAUDE_CODE" != "true" ]; then
     echo "Skipping Claude Code installation as per configuration."
+    ensure_claude_in_path
     return
   fi
 
@@ -52,6 +83,8 @@ function install_claude_code_cli() {
     fi
     echo "Installed Claude Code successfully. Version: $(claude --version || echo 'unknown')"
   fi
+
+  ensure_claude_in_path
 }
 
 function setup_claude_configurations() {
