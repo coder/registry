@@ -1,14 +1,18 @@
 #!/bin/bash
 
 # Version Bump Script
-# Usage: ./version-bump.sh <bump_type> [base_ref]
+# Usage: ./version-bump.sh [--ci] <bump_type> [base_ref]
+#   --ci: CI mode - run bump, check for changes, exit 1 if changes needed
 #   bump_type: patch, minor, or major
 #   base_ref: base reference for diff (default: origin/main)
 
 set -euo pipefail
 
+CI_MODE=false
+
 usage() {
-  echo "Usage: $0 <bump_type> [base_ref]"
+  echo "Usage: $0 [--ci] <bump_type> [base_ref]"
+  echo "  --ci: CI mode - validates versions are already bumped (exits 1 if not)"
   echo "  bump_type: patch, minor, or major"
   echo "  base_ref: base reference for diff (default: origin/main)"
   echo ""
@@ -16,6 +20,7 @@ usage() {
   echo "  $0 patch                    # Update versions with patch bump"
   echo "  $0 minor                    # Update versions with minor bump"
   echo "  $0 major                    # Update versions with major bump"
+  echo "  $0 --ci patch               # CI check: verify patch bump has been applied"
   exit 1
 }
 
@@ -85,7 +90,7 @@ update_readme_version() {
             in_module_block = 0
             if (module_has_target_source) {
               num_lines = split(module_content, lines, "\n")
-              for (i = 1; i <= num_lines; i++) {
+              for (i = 1; i < num_lines; i++) {
                 line = lines[i]
                 if (line ~ /^[[:space:]]*version[[:space:]]*=/) {
                   match(line, /^[[:space:]]*/)
@@ -115,6 +120,11 @@ update_readme_version() {
 }
 
 main() {
+  if [ "${1:-}" = "--ci" ]; then
+    CI_MODE=true
+    shift
+  fi
+
   if [ $# -lt 1 ] || [ $# -gt 2 ]; then
     usage
   fi
@@ -151,6 +161,8 @@ main() {
   local updated_readmes=""
   local untagged_modules=""
   local has_changes=false
+
+  declare -a modified_readme_files=()
 
   while IFS= read -r module_path; do
     if [ -z "$module_path" ]; then continue; fi
@@ -202,6 +214,7 @@ main() {
 
     if update_readme_version "$readme_path" "$namespace" "$module_name" "$new_version"; then
       updated_readmes="$updated_readmes\n- $namespace/$module_name"
+      modified_readme_files+=("$readme_path")
       has_changes=true
     fi
 
@@ -210,19 +223,22 @@ main() {
 
   done <<< "$modules"
 
-  # Always run formatter to ensure consistent formatting
-  echo "🔧 Running formatter to ensure consistent formatting..."
-  if command -v bun > /dev/null 2>&1; then
-    bun fmt > /dev/null 2>&1 || echo "⚠️  Warning: bun fmt failed, but continuing..."
-  else
-    echo "⚠️  Warning: bun not found, skipping formatting"
+  if [ ${#modified_readme_files[@]} -gt 0 ]; then
+    echo "🔧 Formatting modified README files..."
+    if command -v bun > /dev/null 2>&1; then
+      for readme_file in "${modified_readme_files[@]}"; do
+        bun run prettier --write "$readme_file" 2> /dev/null || true
+      done
+    else
+      echo "⚠️  Warning: bun not found, skipping formatting"
+    fi
+    echo ""
   fi
-  echo ""
 
   echo "📋 Summary:"
   echo "Bump Type: $bump_type"
   echo ""
-  echo "Modules Updated:"
+  echo "Modules Processed:"
   echo -e "$bumped_modules"
   echo ""
 
@@ -237,6 +253,19 @@ main() {
     echo -e "$untagged_modules"
     echo "These modules were versioned based on README content. Consider creating proper release tags after merging."
     echo ""
+  fi
+
+  if [ "$CI_MODE" = true ]; then
+    echo "🔍 Comparing files to committed versions..."
+    if git diff --quiet; then
+      echo "✅ PASS: All versions match - no changes needed"
+      exit 0
+    else
+      echo "❌ FAIL: Module versions need to be updated"
+      echo ""
+      echo "Run './.github/scripts/version-bump.sh $bump_type' locally and commit the changes"
+      exit 1
+    fi
   fi
 
   if [ "$has_changes" = true ]; then

@@ -110,6 +110,7 @@ describe("amp", async () => {
     const { id } = await setup({
       skipAmpMock: true,
       moduleVariables: {
+        install_via_npm: "true",
         amp_version: "0.0.1755964909-g31e083",
       },
     });
