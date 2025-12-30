@@ -34,30 +34,37 @@ echo "--------------------------------"
 
 function ensure_claude_in_path() {
   if [ -z "${CODER_SCRIPT_BIN_DIR:-}" ]; then
-    echo "CODER_SCRIPT_BIN_DIR not set, skipping symlink creation"
+    echo "CODER_SCRIPT_BIN_DIR not set, skipping PATH setup"
     return
   fi
 
-  if [ -e "$CODER_SCRIPT_BIN_DIR/claude" ]; then
-    echo "Claude already available in CODER_SCRIPT_BIN_DIR"
-    return
-  fi
+  if [ ! -e "$CODER_SCRIPT_BIN_DIR/claude" ]; then
+    local CLAUDE_BIN=""
+    if command -v claude > /dev/null 2>&1; then
+      CLAUDE_BIN=$(command -v claude)
+    elif [ -x "$ARG_CLAUDE_BINARY_PATH/claude" ]; then
+      CLAUDE_BIN="$ARG_CLAUDE_BINARY_PATH/claude"
+    elif [ -x "$HOME/.local/bin/claude" ]; then
+      CLAUDE_BIN="$HOME/.local/bin/claude"
+    fi
 
-  local CLAUDE_BIN=""
-  if command -v claude > /dev/null 2>&1; then
-    CLAUDE_BIN=$(command -v claude)
-  elif [ -x "$ARG_CLAUDE_BINARY_PATH/claude" ]; then
-    CLAUDE_BIN="$ARG_CLAUDE_BINARY_PATH/claude"
-  elif [ -x "$HOME/.local/bin/claude" ]; then
-    CLAUDE_BIN="$HOME/.local/bin/claude"
-  fi
-
-  if [ -n "$CLAUDE_BIN" ] && [ -x "$CLAUDE_BIN" ]; then
-    ln -s "$CLAUDE_BIN" "$CODER_SCRIPT_BIN_DIR/claude"
-    echo "Created symlink: $CODER_SCRIPT_BIN_DIR/claude -> $CLAUDE_BIN"
+    if [ -n "$CLAUDE_BIN" ] && [ -x "$CLAUDE_BIN" ]; then
+      ln -s "$CLAUDE_BIN" "$CODER_SCRIPT_BIN_DIR/claude"
+      echo "Created symlink: $CODER_SCRIPT_BIN_DIR/claude -> $CLAUDE_BIN"
+    else
+      echo "Warning: Could not find claude binary to symlink"
+    fi
   else
-    echo "Warning: Could not find claude binary to symlink"
+    echo "Claude already available in CODER_SCRIPT_BIN_DIR"
   fi
+
+  local marker="# Added by claude-code module"
+  for profile in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+    if [ -f "$profile" ] && ! grep -q "$marker" "$profile" 2> /dev/null; then
+      printf "\n%s\nexport PATH=\"%s:\$PATH\"\n" "$marker" "$CODER_SCRIPT_BIN_DIR" >> "$profile"
+      echo "Added $CODER_SCRIPT_BIN_DIR to PATH in $profile"
+    fi
+  done
 }
 
 function install_claude_code_cli() {
