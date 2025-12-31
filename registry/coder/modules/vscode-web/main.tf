@@ -59,12 +59,6 @@ variable "install_prefix" {
   default     = "/tmp/vscode-web"
 }
 
-variable "commit_id" {
-  type        = string
-  description = "Specify the commit ID of the VS Code Web binary to pin to a specific version. If left empty, the latest stable version is used."
-  default     = ""
-}
-
 variable "extensions" {
   type        = list(string)
   description = "A list of extensions to install."
@@ -148,19 +142,25 @@ variable "subdomain" {
   default     = true
 }
 
-variable "platform" {
-  type        = string
-  description = "The platform to use for the VS Code Web."
-  default     = ""
-  validation {
-    condition     = var.platform == "" || var.platform == "linux" || var.platform == "darwin" || var.platform == "alpine" || var.platform == "win32"
-    error_message = "Incorrect value. Please set either 'linux', 'darwin', or 'alpine' or 'win32'."
-  }
-}
-
 variable "workspace" {
   type        = string
   description = "Path to a .code-workspace file to open in vscode-web."
+  default     = ""
+}
+
+variable "release_channel" {
+  type        = string
+  description = "The release channel for VS Code CLI (stable or insiders)."
+  default     = "stable"
+  validation {
+    condition     = var.release_channel == "stable" || var.release_channel == "insiders"
+    error_message = "Incorrect value. Please set either 'stable' or 'insiders'."
+  }
+}
+
+variable "commit_id" {
+  type        = string
+  description = "The commit SHA to use for the VS Code Server. Leave empty to use the latest version."
   default     = ""
 }
 
@@ -187,8 +187,8 @@ resource "coder_script" "vscode-web" {
     WORKSPACE : var.workspace,
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
     SERVER_BASE_PATH : local.server_base_path,
+    RELEASE_CHANNEL : var.release_channel,
     COMMIT_ID : var.commit_id,
-    PLATFORM : var.platform,
   })
   run_on_start = true
 
