@@ -65,6 +65,7 @@ locals {
   owner_name     = lower(data.coder_workspace_owner.me.name)
   agent_name     = lower(var.agent_name)
   hostname       = var.agent_name != "" ? "${local.agent_name}.${local.workspace_name}.${local.owner_name}.coder" : "${local.workspace_name}.coder"
+  settings_b64   = var.settings != "" ? base64encode(var.settings) : ""
 }
 
 resource "coder_script" "zed_settings" {
@@ -73,9 +74,13 @@ resource "coder_script" "zed_settings" {
   icon         = "/icon/zed.svg"
   run_on_start = true
   script       = <<-EOT
-    #!/bin/sh
+    #!/usr/bin/env bash
     set -eu
-    SETTINGS_JSON='${replace(var.settings, "\"", "\\\"")}'
+    SETTINGS_B64='${local.settings_b64}'
+    if [ -z "$${SETTINGS_B64}" ]; then
+      exit 0
+    fi
+    SETTINGS_JSON="$(echo -n "$${SETTINGS_B64}" | base64 -d)"
     if [ -z "$${SETTINGS_JSON}" ] || [ "$${SETTINGS_JSON}" = "{}" ]; then
       exit 0
     fi

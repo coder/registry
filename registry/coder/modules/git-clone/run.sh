@@ -58,9 +58,10 @@ fi
 # Run post-clone script if provided
 if [ -n "$POST_CLONE_SCRIPT" ]; then
   echo "Running post-clone script..."
-  echo "$POST_CLONE_SCRIPT" | base64 -d > /tmp/post_clone.sh
-  chmod +x /tmp/post_clone.sh
-  cd "$CLONE_PATH"
-  /tmp/post_clone.sh
-  rm /tmp/post_clone.sh
+  POST_CLONE_TMP=$(mktemp)
+  echo "$POST_CLONE_SCRIPT" | base64 -d > "$POST_CLONE_TMP"
+  chmod +x "$POST_CLONE_TMP"
+  cd "$CLONE_PATH" || exit
+  $POST_CLONE_TMP
+  rm "$POST_CLONE_TMP"
 fi

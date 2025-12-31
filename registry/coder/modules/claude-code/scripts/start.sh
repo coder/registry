@@ -1,13 +1,6 @@
 #!/bin/bash
 
-if [ -f "$HOME/.bashrc" ]; then
-  source "$HOME"/.bashrc
-fi
-
-# Set strict error handling AFTER sourcing bashrc to avoid unbound variable errors from user dotfiles
 set -euo pipefail
-
-export PATH="$HOME/.local/bin:$PATH"
 
 command_exists() {
   command -v "$1" > /dev/null 2>&1
@@ -28,6 +21,7 @@ ARG_BOUNDARY_LOG_LEVEL=${ARG_BOUNDARY_LOG_LEVEL:-"WARN"}
 ARG_BOUNDARY_PROXY_PORT=${ARG_BOUNDARY_PROXY_PORT:-"8087"}
 ARG_ENABLE_BOUNDARY_PPROF=${ARG_ENABLE_BOUNDARY_PPROF:-false}
 ARG_BOUNDARY_PPROF_PORT=${ARG_BOUNDARY_PPROF_PORT:-"6067"}
+ARG_COMPILE_FROM_SOURCE=${ARG_COMPILE_FROM_SOURCE:-false}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
 
 echo "--------------------------------"
@@ -45,29 +39,31 @@ printf "ARG_BOUNDARY_VERSION: %s\n" "$ARG_BOUNDARY_VERSION"
 printf "ARG_BOUNDARY_LOG_DIR: %s\n" "$ARG_BOUNDARY_LOG_DIR"
 printf "ARG_BOUNDARY_LOG_LEVEL: %s\n" "$ARG_BOUNDARY_LOG_LEVEL"
 printf "ARG_BOUNDARY_PROXY_PORT: %s\n" "$ARG_BOUNDARY_PROXY_PORT"
+printf "ARG_COMPILE_FROM_SOURCE: %s\n" "$ARG_COMPILE_FROM_SOURCE"
 printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
 
 echo "--------------------------------"
 
-# Clean up stale session data (see remove-last-session-id.sh for details)
-CAN_CONTINUE_CONVERSATION=false
-set +e
-bash "/tmp/remove-last-session-id.sh" "$(pwd)" 2> /dev/null
-session_cleanup_exit_code=$?
-set -e
-
-case $session_cleanup_exit_code in
-  0)
-    CAN_CONTINUE_CONVERSATION=true
-    ;;
-esac
-
 function install_boundary() {
-  # Install boundary from public github repo
-  git clone https://github.com/coder/boundary
-  cd boundary
-  git checkout $ARG_BOUNDARY_VERSION
-  go install ./cmd/...
+  if [ "${ARG_COMPILE_FROM_SOURCE:-false}" = "true" ]; then
+    # Install boundary by compiling from source
+    echo "Compiling boundary from source (version: $ARG_BOUNDARY_VERSION)"
+    git clone https://github.com/coder/boundary.git
+    cd boundary
+    git checkout "$ARG_BOUNDARY_VERSION"
+
+    # Build the binary
+    make build
+
+    # Install binary and wrapper script (optional)
+    sudo cp boundary /usr/local/bin/
+    sudo cp scripts/boundary-wrapper.sh /usr/local/bin/boundary-run
+    sudo chmod +x /usr/local/bin/boundary-run
+  else
+    # Install boundary using official install script
+    echo "Installing boundary using official install script (version: $ARG_BOUNDARY_VERSION)"
+    curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "$ARG_BOUNDARY_VERSION"
+  fi
 }
 
 function validate_claude_installation() {
@@ -83,13 +79,85 @@ function validate_claude_installation() {
 # This ensures all task sessions use a consistent, predictable ID
 TASK_SESSION_ID="cd32e253-ca16-4fd3-9825-d837e74ae3c2"
 
-task_session_exists() {
-  local workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
-  local project_dir="$HOME/.claude/projects/${workdir_normalized}"
+get_project_dir() {
+  local workdir_normalized
+  workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
+  echo "$HOME/.claude/projects/${workdir_normalized}"
+}
 
-  if [ -d "$project_dir" ] && find "$project_dir" -type f -name "*${TASK_SESSION_ID}*" 2> /dev/null | grep -q .; then
+get_task_session_file() {
+  echo "$(get_project_dir)/${TASK_SESSION_ID}.jsonl"
+}
+
+task_session_exists() {
+  local session_file
+  session_file=$(get_task_session_file)
+
+  if [ -f "$session_file" ]; then
+    printf "Task session file found: %s\n" "$session_file"
     return 0
   else
+    printf "Task session file not found: %s\n" "$session_file"
+    return 1
+  fi
+}
+
+is_valid_session() {
+  local session_file="$1"
+
+  # Check if file exists and is not empty
+  # Empty files indicate the session was created but never used so they need to be removed
+  if [ ! -f "$session_file" ]; then
+    printf "Session validation failed: file does not exist\n"
+    return 1
+  fi
+
+  if [ ! -s "$session_file" ]; then
+    printf "Session validation failed: file is empty, removing stale file\n"
+    rm -f "$session_file"
+    return 1
+  fi
+
+  # Check for minimum session content
+  # Valid sessions need at least 2 lines: initial message and first response
+  local line_count
+  line_count=$(wc -l < "$session_file")
+  if [ "$line_count" -lt 2 ]; then
+    printf "Session validation failed: incomplete (only %s lines), removing incomplete file\n" "$line_count"
+    rm -f "$session_file"
+    return 1
+  fi
+
+  # Validate JSONL format by checking first 3 lines
+  # Claude session files use JSONL (JSON Lines) format where each line is valid JSON
+  if ! head -3 "$session_file" | jq empty 2> /dev/null; then
+    printf "Session validation failed: invalid JSONL format, removing corrupt file\n"
+    rm -f "$session_file"
+    return 1
+  fi
+
+  # Verify the session has a valid sessionId field
+  # This ensures the file structure matches Claude's session format
+  if ! grep -q '"sessionId"' "$session_file" \
+    || ! grep -m 1 '"sessionId"' "$session_file" | jq -e '.sessionId' > /dev/null 2>&1; then
+    printf "Session validation failed: no valid sessionId found, removing malformed file\n"
+    rm -f "$session_file"
+    return 1
+  fi
+
+  printf "Session validation passed: %s\n" "$session_file"
+  return 0
+}
+
+has_any_sessions() {
+  local project_dir
+  project_dir=$(get_project_dir)
+
+  if [ -d "$project_dir" ] && find "$project_dir" -maxdepth 1 -name "*.jsonl" -size +0c 2> /dev/null | grep -q .; then
+    printf "Sessions found in: %s\n" "$project_dir"
+    return 0
+  else
+    printf "No sessions found in: %s\n" "$project_dir"
     return 1
   fi
 }
@@ -112,67 +180,41 @@ function start_agentapi() {
   fi
 
   if [ -n "$ARG_RESUME_SESSION_ID" ]; then
-    echo "Resuming task session by ID: $ARG_RESUME_SESSION_ID"
+    echo "Resuming specified session: $ARG_RESUME_SESSION_ID"
     ARGS+=(--resume "$ARG_RESUME_SESSION_ID")
-    if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
-      ARGS+=(--dangerously-skip-permissions)
-    fi
+    [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ] && ARGS+=(--dangerously-skip-permissions)
+
   elif [ "$ARG_CONTINUE" = "true" ]; then
-    if [ "$ARG_REPORT_TASKS" = "true" ] && task_session_exists; then
-      echo "Task session detected (ID: $TASK_SESSION_ID)"
-      ARGS+=(--resume "$TASK_SESSION_ID")
-      ARGS+=(--dangerously-skip-permissions)
-      echo "Resuming existing task session"
-    elif [ "$ARG_REPORT_TASKS" = "false" ] && [ "$CAN_CONTINUE_CONVERSATION" = true ]; then
-      echo "Previous session exists"
-      ARGS+=(--continue)
-      if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
-        ARGS+=(--dangerously-skip-permissions)
-      fi
-      echo "Resuming existing session"
-    else
-      echo "No existing session found"
-      if [ "$ARG_REPORT_TASKS" = "true" ]; then
-        ARGS+=(--session-id "$TASK_SESSION_ID")
-      fi
-      if [ -n "$ARG_AI_PROMPT" ]; then
-        if [ "$ARG_REPORT_TASKS" = "true" ]; then
-          ARGS+=(--dangerously-skip-permissions -- "$ARG_AI_PROMPT")
-        else
-          if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
-            ARGS+=(--dangerously-skip-permissions)
-          fi
-          ARGS+=(-- "$ARG_AI_PROMPT")
-        fi
-        echo "Starting new session with prompt"
+
+    if [ "$ARG_REPORT_TASKS" = "true" ]; then
+      local session_file
+      session_file=$(get_task_session_file)
+
+      if task_session_exists && is_valid_session "$session_file"; then
+        echo "Resuming task session: $TASK_SESSION_ID"
+        ARGS+=(--resume "$TASK_SESSION_ID" --dangerously-skip-permissions)
       else
-        if [ "$ARG_REPORT_TASKS" = "true" ] || [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
-          ARGS+=(--dangerously-skip-permissions)
-        fi
-        echo "Starting new session"
+        echo "Starting new task session: $TASK_SESSION_ID"
+        ARGS+=(--session-id "$TASK_SESSION_ID" --dangerously-skip-permissions)
+        [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
+      fi
+
+    else
+      if has_any_sessions; then
+        echo "Continuing most recent standalone session"
+        ARGS+=(--continue)
+        [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ] && ARGS+=(--dangerously-skip-permissions)
+      else
+        echo "No sessions found, starting fresh standalone session"
+        [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ] && ARGS+=(--dangerously-skip-permissions)
+        [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
       fi
     fi
+
   else
     echo "Continue disabled, starting fresh session"
-    if [ "$ARG_REPORT_TASKS" = "true" ]; then
-      ARGS+=(--session-id "$TASK_SESSION_ID")
-    fi
-    if [ -n "$ARG_AI_PROMPT" ]; then
-      if [ "$ARG_REPORT_TASKS" = "true" ]; then
-        ARGS+=(--dangerously-skip-permissions -- "$ARG_AI_PROMPT")
-      else
-        if [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
-          ARGS+=(--dangerously-skip-permissions)
-        fi
-        ARGS+=(-- "$ARG_AI_PROMPT")
-      fi
-      echo "Starting new session with prompt"
-    else
-      if [ "$ARG_REPORT_TASKS" = "true" ] || [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ]; then
-        ARGS+=(--dangerously-skip-permissions)
-      fi
-      echo "Starting claude code session"
-    fi
+    [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ] && ARGS+=(--dangerously-skip-permissions)
+    [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
   fi
 
   printf "Running claude code with args: %s\n" "$(printf '%q ' "${ARGS[@]}")"
@@ -198,20 +240,19 @@ function start_agentapi() {
     fi
 
     # Set HTTP Proxy port used by Boundary
-    BOUNDARY_ARGS+=(--proxy-port $ARG_BOUNDARY_PROXY_PORT)
+    BOUNDARY_ARGS+=(--proxy-port "$ARG_BOUNDARY_PROXY_PORT")
 
     # Set log level for boundary
-    BOUNDARY_ARGS+=(--log-level $ARG_BOUNDARY_LOG_LEVEL)
+    BOUNDARY_ARGS+=(--log-level "$ARG_BOUNDARY_LOG_LEVEL")
 
     if [ "${ARG_ENABLE_BOUNDARY_PPROF:-false}" = "true" ]; then
       # Enable boundary pprof server on specified port
       BOUNDARY_ARGS+=(--pprof)
-      BOUNDARY_ARGS+=(--pprof-port ${ARG_BOUNDARY_PPROF_PORT})
+      BOUNDARY_ARGS+=(--pprof-port "$ARG_BOUNDARY_PPROF_PORT")
     fi
 
-    agentapi server --allowed-hosts="*" --type claude --term-width 67 --term-height 1190 -- \
-      sudo -E env PATH=$PATH setpriv --reuid=$(id -u) --regid=$(id -g) --clear-groups \
-      --inh-caps=+net_admin --ambient-caps=+net_admin --bounding-set=+net_admin boundary "${BOUNDARY_ARGS[@]}" -- \
+    agentapi server --type claude --term-width 67 --term-height 1190 -- \
+      boundary-run "${BOUNDARY_ARGS[@]}" -- \
       claude "${ARGS[@]}"
   else
     agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"

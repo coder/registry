@@ -16,7 +16,7 @@ module "windows_rdp" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windows-rdp/coder"
   version  = "1.3.0"
-  agent_id = resource.coder_agent.main.id
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -33,7 +33,7 @@ module "windows_rdp" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windows-rdp/coder"
   version  = "1.3.0"
-  agent_id = resource.coder_agent.main.id
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -44,7 +44,7 @@ module "windows_rdp" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windows-rdp/coder"
   version  = "1.3.0"
-  agent_id = resource.coder_agent.main.id
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -55,7 +55,7 @@ module "windows_rdp" {
   count                       = data.coder_workspace.me.start_count
   source                      = "registry.coder.com/coder/windows-rdp/coder"
   version                     = "1.3.0"
-  agent_id                    = resource.coder_agent.main.id
+  agent_id                    = coder_agent.main.id
   devolutions_gateway_version = "2025.2.2" # Specify a specific version
 }
 ```

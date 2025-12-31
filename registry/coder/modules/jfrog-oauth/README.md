@@ -16,8 +16,8 @@ Install the JF CLI and authenticate package managers with Artifactory using OAut
 module "jfrog" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jfrog-oauth/coder"
-  version        = "1.2.0"
-  agent_id       = coder_agent.example.id
+  version        = "1.2.4"
+  agent_id       = coder_agent.main.id
   jfrog_url      = "https://example.jfrog.io"
   username_field = "username" # If you are using GitHub to login to both Coder and Artifactory, use username_field = "username"
 
@@ -29,6 +29,7 @@ module "jfrog" {
     conda  = ["conda", "conda-local"]
     maven  = ["maven", "maven-local"]
   }
+
 }
 ```
 
@@ -39,6 +40,15 @@ module "jfrog" {
 
 This module is usable by JFrog self-hosted (on-premises) Artifactory as it requires configuring a custom integration. This integration benefits from Coder's [external-auth](https://coder.com/docs/v2/latest/admin/external-auth) feature and allows each user to authenticate with Artifactory using an OAuth flow and issues user-scoped tokens to each user. For configuration instructions, see this [guide](https://coder.com/docs/v2/latest/guides/artifactory-integration#jfrog-oauth) on the Coder documentation.
 
+## Username Handling
+
+The module automatically extracts your JFrog username directly from the OAuth token's JWT payload. This preserves special characters like dots (`.`), hyphens (`-`), and accented characters that Coder normalizes in usernames.
+
+**Priority order:**
+
+1. **JWT extraction** (default) - Extracts username from OAuth token, preserving special characters
+2. **Fallback to `username_field`** - If JWT extraction fails, uses Coder username or email
+
 ## Examples
 
 Configure the Python pip package manager to fetch packages from Artifactory while mapping the Coder email to the Artifactory username.
@@ -47,14 +57,15 @@ Configure the Python pip package manager to fetch packages from Artifactory whil
 module "jfrog" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jfrog-oauth/coder"
-  version        = "1.2.0"
-  agent_id       = coder_agent.example.id
+  version        = "1.2.4"
+  agent_id       = coder_agent.main.id
   jfrog_url      = "https://example.jfrog.io"
   username_field = "email"
 
   package_managers = {
     pypi = ["pypi"]
   }
+
 }
 ```
 
@@ -76,8 +87,8 @@ The [JFrog extension](https://open-vsx.org/extension/JFrog/jfrog-vscode-extensio
 module "jfrog" {
   count                 = data.coder_workspace.me.start_count
   source                = "registry.coder.com/coder/jfrog-oauth/coder"
-  version               = "1.2.0"
-  agent_id              = coder_agent.example.id
+  version               = "1.2.3"
+  agent_id              = coder_agent.main.id
   jfrog_url             = "https://example.jfrog.io"
   username_field        = "username" # If you are using GitHub to login to both Coder and Artifactory, use username_field = "username"
   configure_code_server = true       # Add JFrog extension configuration for code-server
@@ -86,6 +97,7 @@ module "jfrog" {
     go   = ["go"]
     pypi = ["pypi"]
   }
+
 }
 ```
 

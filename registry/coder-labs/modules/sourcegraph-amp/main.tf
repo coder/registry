@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.7"
+      version = ">= 2.12"
     }
     external = {
       source  = "hashicorp/external"
@@ -55,7 +55,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.10.0"
+  default     = "v0.11.1"
 }
 
 variable "cli_app" {
@@ -140,7 +140,7 @@ variable "base_amp_config" {
   type        = string
   description = <<-EOT
     Base AMP configuration in JSON format. Can be overridden to customize AMP settings.
-    
+
     If empty, defaults enable thinking and todos for autonomous operation. Additional options include:
     - "amp.permissions": [] (tool permissions)
     - "amp.tools.stopTimeout": 600 (extend timeout for long operations)
@@ -148,7 +148,7 @@ variable "base_amp_config" {
     - "amp.tools.disable": ["builtin:open"] (disable tools for containers)
     - "amp.git.commit.ampThread.enabled": true (link commits to threads)
     - "amp.git.commit.coauthor.enabled": true (add Amp as co-author)
-    
+
     Reference: https://ampcode.com/manual
   EOT
   default     = ""
@@ -158,6 +158,16 @@ variable "mcp" {
   type        = string
   description = "Additional MCP servers configuration in JSON format to append to amp.mcpServers."
   default     = null
+}
+
+variable "mode" {
+  type        = string
+  description = "Set the agent mode (free, rush, smart) — controls the model, system prompt, and tool selection. Default: smart"
+  default     = "smart"
+  validation {
+    condition     = contains(["", "free", "rush", "smart"], var.mode)
+    error_message = "Invalid mode. Select one from (free, rush, smart)"
+  }
 }
 
 data "external" "env" {
@@ -170,6 +180,7 @@ locals {
   default_base_config = jsonencode({
     "amp.anthropic.thinking.enabled" = true
     "amp.todos.enabled"              = true
+    "amp.terminal.animation"         = false
   })
 
   user_config       = jsondecode(var.base_amp_config != "" ? var.base_amp_config : local.default_base_config)
@@ -209,7 +220,7 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.2.0"
+  version = "2.0.0"
 
   agent_id             = var.agent_id
   folder               = local.workdir
@@ -237,6 +248,7 @@ module "agentapi" {
      ARG_AMP_START_DIRECTORY='${var.workdir}' \
      ARG_AMP_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
      ARG_REPORT_TASKS='${var.report_tasks}' \
+     ARG_MODE='${var.mode}' \
      /tmp/start.sh
    EOT
 
@@ -256,4 +268,6 @@ module "agentapi" {
   EOT
 }
 
-
+output "task_app_id" {
+  value = module.agentapi.task_app_id
+}
