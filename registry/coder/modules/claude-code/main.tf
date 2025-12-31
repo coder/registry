@@ -86,7 +86,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.11.4"
+  default     = "v0.11.6"
 }
 
 variable "ai_prompt" {
@@ -286,6 +286,12 @@ resource "coder_env" "disable_autoupdater" {
   agent_id = var.agent_id
   name     = "DISABLE_AUTOUPDATER"
   value    = "1"
+}
+
+resource "coder_env" "claude_binary_path" {
+  agent_id = var.agent_id
+  name     = "PATH"
+  value    = "$HOME/.local/bin:$PATH"
 }
 
 locals {
