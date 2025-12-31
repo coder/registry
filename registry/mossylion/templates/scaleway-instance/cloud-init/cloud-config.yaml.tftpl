@@ -1,0 +1,35 @@
+#cloud-config
+cloud_final_modules:
+  - [scripts-user, always]
+hostname: ${hostname}
+users:
+  - name: ${linux_user}
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+
+# Setup persistent storage disk
+disk_setup:
+  /dev/sdb:
+    table_type: gpt
+    layout: true
+    overwrite: false
+
+fs_setup:
+  - label: persistent-home
+    filesystem: ext4
+    device: /dev/sdb1
+    partition: auto
+
+mounts:
+  - ["/dev/sdb1", "/home/${linux_user}", "ext4", "defaults", "0", "2"]
+
+# Fix ownership after mounting
+runcmd:
+  - chown -R ${linux_user}:${linux_user} /home/${linux_user}
+  - chmod 755 /home/${linux_user}
+
+# Automatically grow the partition
+growpart:
+  mode: auto
+  devices: ['/']
+  ignore_growroot_disabled: false
