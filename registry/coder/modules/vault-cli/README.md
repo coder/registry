@@ -13,7 +13,7 @@ Installs the [Vault](https://www.vaultproject.io/) CLI and optionally configures
 ```tf
 module "vault_cli" {
   source     = "registry.coder.com/coder/vault-cli/coder"
-  version    = "1.1.0"
+  version    = "1.1.1"
   agent_id   = coder_agent.example.id
   vault_addr = "https://vault.example.com"
 }
@@ -34,7 +34,7 @@ If you have a Vault token, you can provide it to automatically configure authent
 ```tf
 module "vault_cli" {
   source      = "registry.coder.com/coder/vault-cli/coder"
-  version     = "1.1.0"
+  version     = "1.1.1"
   agent_id    = coder_agent.example.id
   vault_addr  = "https://vault.example.com"
   vault_token = var.vault_token # Optional
@@ -50,7 +50,7 @@ Install the Vault CLI without any authentication:
 ```tf
 module "vault_cli" {
   source     = "registry.coder.com/coder/vault-cli/coder"
-  version    = "1.1.0"
+  version    = "1.1.1"
   agent_id   = coder_agent.example.id
   vault_addr = "https://vault.example.com"
 }
@@ -61,7 +61,7 @@ module "vault_cli" {
 ```tf
 module "vault_cli" {
   source            = "registry.coder.com/coder/vault-cli/coder"
-  version           = "1.1.0"
+  version           = "1.1.1"
   agent_id          = coder_agent.example.id
   vault_addr        = "https://vault.example.com"
   vault_cli_version = "1.15.0"
@@ -73,7 +73,7 @@ module "vault_cli" {
 ```tf
 module "vault_cli" {
   source      = "registry.coder.com/coder/vault-cli/coder"
-  version     = "1.1.0"
+  version     = "1.1.1"
   agent_id    = coder_agent.example.id
   vault_addr  = "https://vault.example.com"
   install_dir = "/home/coder/bin"
@@ -87,7 +87,7 @@ For Vault Enterprise users who need to specify a namespace:
 ```tf
 module "vault_cli" {
   source          = "registry.coder.com/coder/vault-cli/coder"
-  version         = "1.1.0"
+  version         = "1.1.1"
   agent_id        = coder_agent.example.id
   vault_addr      = "https://vault.example.com"
   vault_token     = var.vault_token
@@ -102,7 +102,7 @@ Install the Vault Enterprise binary. This is required if using SAML authenticati
 ```tf
 module "vault_cli" {
   source     = "registry.coder.com/coder/vault-cli/coder"
-  version    = "1.1.0"
+  version    = "1.1.1"
   agent_id   = coder_agent.example.id
   vault_addr = "https://vault.example.com"
   enterprise = true
