@@ -142,6 +142,30 @@ data "coder_parameter" "ssh_pubkey" {
   mutable      = false
 }
 
+data "coder_parameter" "availability_zone_suffix" {
+  name         = "availability_zone_suffix"
+  display_name = "Availability Zone"
+  description  = "Which availability zone should your workspace be deployed in?"
+  default      = "a"
+  mutable      = false
+  option {
+    name  = "Zone A"
+    value = "a"
+  }
+  option {
+    name  = "Zone B"
+    value = "b"
+  }
+  option {
+    name  = "Zone C"
+    value = "c"
+  }
+  option {
+    name  = "Zone D"
+    value = "d"
+  }
+}
+
 data "local_sensitive_file" "cache_repo_dockerconfigjson" {
   count    = var.cache_repo_docker_config_path == "" ? 0 : 1
   filename = var.cache_repo_docker_config_path
@@ -154,8 +178,7 @@ data "aws_iam_instance_profile" "vm_instance_profile" {
 
 # Be careful when modifying the below locals!
 locals {
-  # TODO: provide a way to pick the availability zone.
-  aws_availability_zone = "${module.aws_region.value}a"
+  aws_availability_zone = "${module.aws_region.value}${data.coder_parameter.availability_zone_suffix.value}"
 
   hostname   = lower(data.coder_workspace.me.name)
   linux_user = "coder"
