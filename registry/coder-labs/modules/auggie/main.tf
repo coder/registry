@@ -142,7 +142,7 @@ variable "auggie_model" {
 variable "report_tasks" {
   type        = bool
   description = "Whether to enable task reporting to Coder UI via AgentAPI"
-  default     = false
+  default     = true
 }
 
 variable "cli_app" {
