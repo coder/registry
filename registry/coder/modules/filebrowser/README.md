@@ -14,7 +14,7 @@ A file browser for your workspace.
 module "filebrowser" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/filebrowser/coder"
-  version  = "1.1.3"
+  version  = "1.1.4"
   agent_id = coder_agent.main.id
 }
 ```
@@ -29,7 +29,7 @@ module "filebrowser" {
 module "filebrowser" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/filebrowser/coder"
-  version  = "1.1.3"
+  version  = "1.1.4"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
@@ -41,7 +41,7 @@ module "filebrowser" {
 module "filebrowser" {
   count         = data.coder_workspace.me.start_count
   source        = "registry.coder.com/coder/filebrowser/coder"
-  version       = "1.1.3"
+  version       = "1.1.4"
   agent_id      = coder_agent.main.id
   database_path = ".config/filebrowser.db"
 }
@@ -53,7 +53,7 @@ module "filebrowser" {
 module "filebrowser" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/filebrowser/coder"
-  version    = "1.1.3"
+  version    = "1.1.4"
   agent_id   = coder_agent.main.id
   agent_name = "main"
   subdomain  = false
