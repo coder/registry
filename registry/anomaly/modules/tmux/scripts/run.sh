@@ -75,7 +75,7 @@ setup_tmux_config() {
   mkdir -p "$config_dir"
 
   if [ -n "$TMUX_CONFIG" ]; then
-    cat <<< "$TMUX_CONFIG" > "$config_file"
+    printf "%s" "$TMUX_CONFIG" > "$config_file"
     printf "$${BOLD}Custom tmux configuration applied at {$config_file} \n\n"
   else
     cat > "$config_file" << EOF
