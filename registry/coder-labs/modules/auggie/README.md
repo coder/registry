@@ -133,6 +133,35 @@ EOF
 }
 ```
 
+### Using the task_app_id Output
+
+```tf
+module "auggie" {
+  source   = "registry.coder.com/coder-labs/auggie/coder"
+  version  = "0.3.0"
+  agent_id = coder_agent.example.id
+  folder   = "/home/coder/project"
+
+  augment_session_token = <<-EOF
+  {"accessToken":"xxxx-yyyy-zzzz-jjjj","tenantURL":"https://d1.api.augmentcode.com/","scopes":["read","write"]}
+EOF
+
+  report_tasks = true
+}
+
+# Expose the task app ID as a template output
+output "auggie_task_app_id" {
+  value       = module.auggie.task_app_id
+  description = "The ID of the Auggie AgentAPI web app for task reporting"
+}
+```
+
+## Outputs
+
+| Name | Description |
+|------|-------------|
+| `task_app_id` | The ID of the AgentAPI web app, which can be used to reference the app in other resources or for task reporting integration |
+
 ### Troubleshooting
 
 If you have any issues, please take a look at the log files below.
