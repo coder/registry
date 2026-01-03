@@ -4,7 +4,7 @@ BOLD='\033[0;1m'
 
 # Convert templated variables to shell variables
 SAVE_INTERVAL="${SAVE_INTERVAL}"
-TMUX_CONFIG=$(echo -n "${TMUX_CONFIG:-}" | base64 -d)
+TMUX_CONFIG=$(echo -n "${TMUX_CONFIG}" | base64 -d)
 
 # Function to install tmux
 install_tmux() {
