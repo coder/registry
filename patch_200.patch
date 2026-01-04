@@ -1,0 +1,75 @@
+--- a/coder/registry/registry.go
++++ b/coder/registry/registry.go
+@@ -1,4 +1,5 @@
+ package registry
+ 
++import "sync"
+ import (
+ 	"context"
+ 	"errors"
+@@ -16,6 +17,8 @@ type Registry struct {
+ 	clock clock.Clock
+ 	// contains filtered or unexported fields
+ }
++
++var mutex sync.Mutex
+ 
+ // New creates a new registry with the given configuration.
+ func New(cfg Config) (*Registry, error) {
+@@ -23,10 +26,12 @@ func New(cfg Config) (*Registry, error) {
+ 	if cfg.Clock == nil {
+ 		cfg.Clock = clock.Default
+ 	}
+-	r := &Registry{
++	r := &Registry{
+ 		clock:   cfg.Clock,
+-	}
++		mutex: sync.Mutex{},
++	}
+ 	return r, nil
+ }
+ 
+@@ -35,10 +40,12 @@ func (r *Registry) Get(ctx context.Context, key string) (*Resource, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	r.clock.Lock()
++	mutex.Lock()
+ 	defer r.clock.Unlock()
+ 
+-	resource := r.resources[key]
++	mutex.Lock()
++	resource := r.resources[key]
++	mutex.Unlock()
+ 	if resource == nil {
+ 		return nil, errors.New("resource not found")
+ 	}
+@@ -51,9 +58,11 @@ func (r *Registry) Set(ctx context.Context, key string, resource *Resource) error
+ 	if err != nil {
+ 		return err
+ 	}
+-	r.clock.Lock()
++	mutex.Lock()
+ 	defer r.clock.Unlock()
+ 
+-	r.resources[key] = resource
++	mutex.Lock()
++	r.resources[key] = resource
++	mutex.Unlock()
+ 	return nil
+ }
+ 
+@@ -63,9 +72,11 @@ func (r *Registry) Delete(ctx context.Context, key string) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	r.clock.Lock()
++	mutex.Lock()
+ 	defer r.clock.Unlock()
+ 
+-	delete(r.resources, key)
++	mutex.Lock()
++	delete(r.resources, key)
++	mutex.Unlock()
+ 	return nil
+ }
