@@ -1,0 +1,127 @@
+diff --git a/coder/registry/registry.py b/coder/registry/registry.py
+--- a/coder/registry/registry.py
++++ b/coder/registry/registry.py
+@@ -123,6 +123,7 @@ class Registry:
+         self._items = {}
+         self._tags = defaultdict(set)
+         self._lock = threading.RLock()
++        self._initialized = False
+ 
+     def __contains__(self, key):
+         with self._lock:
+@@ -145,6 +146,9 @@ class Registry:
+ 
+     def register(self, key: str, item: Any) -> None:
+         """Register an item under the given key."""
++        if not self._initialized:
++            raise RuntimeError("Registry must be initialized before registration.")
++
+         with self._lock:
+             if key in self._items:
+                 raise KeyError(f"Item '{key}' already registered.")
+@@ -174,6 +178,10 @@ class Registry:
+ 
+     def initialize(self) -> None:
+         """Initialize the registry."""
++        with self._lock:
++            if self._initialized:
++                return
++            self._initialized = True
+ 
+     def get(self, key: str) -> Any:
+         """Retrieve an item by its key."""
+@@ -182,6 +190,8 @@ class Registry:
+             raise KeyError(f"Item '{key}' not found.")
+ 
+     def items(self) -> Dict[str, Any]:
++        with self._lock:
++            return self._items.copy()
+         """Return a copy of all registered items."""
+ 
+     def tags(self) -> Dict[str, Set[str]]:
+@@ -190,6 +200,8 @@ class Registry:
+         """Return a dictionary mapping each tag to the set of keys it applies to."""
+ 
+     def add_tag(self, key: str, tag: str) -> None:
++        with self._lock:
++            if key not in self._items:
+                 raise KeyError(f"Item '{key}' not registered.")
+             self._tags[tag].add(key)
+ 
+@@ -197,6 +209,8 @@ class Registry:
+     def remove_tag(self, key: str, tag: str) -> None:
+         """Remove a tag from an item."""
++        with self._lock:
++            if key not in self._items:
+                 raise KeyError(f"Item '{key}' not registered.")
+             self._tags[tag].discard(key)
+ 
+diff --git a/coder/registry/test_registry.py b/coder/registry/test_registry.py
+--- a/coder/registry/test_registry.py
++++ b/coder/registry/test_registry.py
+@@ -1,5 +1,6 @@
+ import unittest
+ 
++from coder.registry.registry import Registry
+ 
+ class TestRegistry(unittest.TestCase):
+     def setUp(self) -> None:
+@@ -8,20 +9,31 @@ class TestRegistry(unittest.TestCase):
+ 
+     def test_register_and_get_item(self) -> None:
+         item = "test_item"
+-        self.assertEqual(item, self.registry.get("key"))
++        self.registry.initialize()
++        self.registry.register("key", item)
++        self.assertEqual(item, self.registry.get("key"))
+ 
+     def test_register_duplicate_key(self) -> None:
+         self.registry.register("key", "item1")
+         with self.assertRaises(KeyError):
+-            self.registry.register("key", "item2")
++            self.registry.register("key", "item2")
+ 
+     def test_get_nonexistent_item(self) -> None:
+         with self.assertRaises(KeyError):
+             self.registry.get("nonexistent_key")
+ 
+     def test_items(self) -> None:
+-        self.assertEqual({}, dict(self.registry.items()))
++        self.registry.initialize()
++        self.registry.register("key1", "item1")
++        self.registry.register("key2", "item2")
++        expected = {"key1": "item1", "key2": "item2"}
++        self.assertEqual(expected, dict(self.registry.items()))
+ 
+     def test_tags(self) -> None:
+-        self.assertEqual({}, dict(self.registry.tags()))
++        self.registry.initialize()
++        self.registry.register("key", "item")
++        self.registry.add_tag("key", "tag1")
++        expected = {"tag1": {"key"}}
++        self.assertEqual(expected, dict(self.registry.tags()))
+ 
+     def test_add_tag(self) -> None:
+         self.registry.register("key", "item")
+@@ -35,6 +47,8 @@ class TestRegistry(unittest.TestCase):
+             self.assertRaises(KeyError, self.registry.add_tag, "nonexistent_key", "tag")
+ 
+     def test_remove_tag(self) -> None:
++        self.registry.initialize()
++
+         self.registry.register("key", "item")
+         self.registry.add_tag("key", "tag")
+         self.assertIn("key", self.registry.tags()["tag"])
+@@ -42,6 +56,8 @@ class TestRegistry(unittest.TestCase):
+ 
+     def test_remove_nonexistent_tag(self) -> None:
+         with self.assertRaises(KeyError):
+-            self.registry.remove_tag("nonexistent_key", "tag")
++            self.registry.remove_tag("nonexistent_key", "tag")
++
++    def test_registration_before_initialization(self) -> None:
++        with self.assertRaises(RuntimeError):
++            self.registry.register("key", "item")
+
+if __name__ == "__main__":
+     unittest.main()
