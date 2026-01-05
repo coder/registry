@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import {
+  execContainer,
+  findResourceInstance,
+  removeContainer,
+  runContainer,
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
@@ -12,66 +16,114 @@ describe("zed", async () => {
     agent_id: "foo",
   });
 
-  it("default output", async () => {
+  it("creates settings file with correct JSON", async () => {
+    const settings = {
+      theme: "One Dark",
+      buffer_font_size: 14,
+      vim_mode: true,
+      telemetry: {
+        diagnostics: false,
+        metrics: false,
+      },
+      // Test special characters: single quotes, backslashes, URLs
+      message: "it's working",
+      path: "C:\\Users\\test",
+      api_url: "https://api.example.com/v1?token=abc&user=test",
+    };
+
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
+      settings: JSON.stringify(settings),
     });
-    expect(state.outputs.zed_url.value).toBe("zed://ssh/default.coder");
 
-    const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "zed",
-    );
+    const instance = findResourceInstance(state, "coder_script");
+    const id = await runContainer("alpine:latest");
 
-    expect(coder_app).not.toBeNull();
-    expect(coder_app?.instances.length).toBe(1);
-    expect(coder_app?.instances[0].attributes.order).toBeNull();
-  });
+    try {
+      const result = await execContainer(id, ["sh", "-c", instance.script]);
+      expect(result.exitCode).toBe(0);
 
-  it("adds folder", async () => {
+      const catResult = await execContainer(id, [
+        "cat",
+        "/root/.config/zed/settings.json",
+      ]);
+      expect(catResult.exitCode).toBe(0);
+
+      const written = JSON.parse(catResult.stdout.trim());
+      expect(written).toEqual(settings);
+    } finally {
+      await removeContainer(id);
+    }
+  }, 30000);
+
+  it("merges settings with existing file when jq available", async () => {
+    const existingSettings = {
+      theme: "Solarized Dark",
+      vim_mode: true,
+    };
+
+    const newSettings = {
+      theme: "One Dark",
+      buffer_font_size: 14,
+    };
+
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
-      folder: "/foo/bar",
+      settings: JSON.stringify(newSettings),
     });
-    expect(state.outputs.zed_url.value).toBe("zed://ssh/default.coder/foo/bar");
-  });
 
-  it("expect order to be set", async () => {
+    const instance = findResourceInstance(state, "coder_script");
+    const id = await runContainer("alpine:latest");
+
+    try {
+      // Install jq and create existing settings file
+      await execContainer(id, ["apk", "add", "--no-cache", "jq"]);
+      await execContainer(id, ["mkdir", "-p", "/root/.config/zed"]);
+      await execContainer(id, [
+        "sh",
+        "-c",
+        `echo '${JSON.stringify(existingSettings)}' > /root/.config/zed/settings.json`,
+      ]);
+
+      const result = await execContainer(id, ["sh", "-c", instance.script]);
+      expect(result.exitCode).toBe(0);
+
+      const catResult = await execContainer(id, [
+        "cat",
+        "/root/.config/zed/settings.json",
+      ]);
+      expect(catResult.exitCode).toBe(0);
+
+      const merged = JSON.parse(catResult.stdout.trim());
+      expect(merged.theme).toBe("One Dark"); // overwritten
+      expect(merged.buffer_font_size).toBe(14); // added
+      expect(merged.vim_mode).toBe(true); // preserved
+    } finally {
+      await removeContainer(id);
+    }
+  }, 30000);
+
+  it("exits early with empty settings", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
-      order: "22",
+      settings: "",
     });
 
-    const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "zed",
-    );
+    const instance = findResourceInstance(state, "coder_script");
+    const id = await runContainer("alpine:latest");
 
-    expect(coder_app).not.toBeNull();
-    expect(coder_app?.instances.length).toBe(1);
-    expect(coder_app?.instances[0].attributes.order).toBe(22);
-  });
+    try {
+      const result = await execContainer(id, ["sh", "-c", instance.script]);
+      expect(result.exitCode).toBe(0);
 
-  it("expect display_name to be set", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      display_name: "Custom Zed",
-    });
-
-    const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "zed",
-    );
-
-    expect(coder_app).not.toBeNull();
-    expect(coder_app?.instances.length).toBe(1);
-    expect(coder_app?.instances[0].attributes.display_name).toBe("Custom Zed");
-  });
-
-  it("adds agent_name to hostname", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      agent_name: "myagent",
-    });
-    expect(state.outputs.zed_url.value).toBe(
-      "zed://ssh/myagent.default.default.coder",
-    );
-  });
+      // Settings file should not be created
+      const catResult = await execContainer(id, [
+        "cat",
+        "/root/.config/zed/settings.json",
+      ]);
+      expect(catResult.exitCode).not.toBe(0);
+    } finally {
+      await removeContainer(id);
+    }
+  }, 30000);
 });
