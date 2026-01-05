@@ -76,11 +76,11 @@ Note: Either `workspace` or `folder` can be used, but not both simultaneously. T
 
 ```tf
 module "vscode-web" {
-  count     = data.coder_workspace.me.start_count
-  source    = "registry.coder.com/coder/vscode-web/coder"
-  version   = "2.0.0"
-  agent_id  = coder_agent.example.id
-  workspace = "/home/coder/coder.code-workspace"
+  count          = data.coder_workspace.me.start_count
+  source         = "registry.coder.com/coder/vscode-web/coder"
+  version        = "2.0.0"
+  agent_id       = coder_agent.example.id
+  workspace      = "/home/coder/coder.code-workspace"
   accept_license = true
 }
 ```
