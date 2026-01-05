@@ -1,7 +1,7 @@
 ---
 display_name: "Cloud DevOps Workspace"
 description: "A multi-cloud DevOps workspace that runs on Amazon EKS and provides authenticated access to AWS, Azure, and GCP."
-icon: "https://raw.githubusercontent.com/coder/coder-icons/main/icons/cloud-devops.svg"
+icon: "../../../../.icons/cloud-devops.svg"
 tags:
   - devops
   - kubernetes
