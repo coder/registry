@@ -235,12 +235,12 @@ run "specific_major_version" {
     agent_id      = "foo"
     folder        = "/home/coder"
     default       = ["GO"]
-    major_version = "2024.3"
+    major_version = "2025.3"
   }
 
   assert {
-    condition     = output.ide_metadata["GO"].json_data.majorVersion == "2024.3"
-    error_message = "Expected the API to return a release for major version '2024.3', but got '${output.ide_metadata["GO"].json_data.majorVersion}'"
+    condition     = output.ide_metadata["GO"].json_data.majorVersion == "2025.3"
+    error_message = "Expected the API to return a release for major version '2025.3', but got '${output.ide_metadata["GO"].json_data.majorVersion}'"
   }
 }
 
