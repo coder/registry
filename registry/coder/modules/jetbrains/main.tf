@@ -70,8 +70,8 @@ variable "major_version" {
   description = "The major version of the IDE. i.e. 2025.1"
   default     = "latest"
   validation {
-    condition     = can(regex("^[0-9]{4}\\.[1-3]{1}$", var.major_version)) || var.major_version == "latest"
-    error_message = "The major_version must be a valid version number. i.e. 2025.1 or latest"
+    condition     = can(regex("^[0-9]{4}\\.[1-3]$", var.major_version)) || var.major_version == "latest"
+    error_message = "The major_version must be a valid version number (e.g., 2025.1) or 'latest'"
   }
 }
 
@@ -196,7 +196,7 @@ locals {
     length(local.filtered_releases[code]) > 0 ? local.filtered_releases[code][0] : null
   }
 
-  # Dynamically generate IDE configurations based on options with fallback to ide_config.
+  # Dynamically generate IDE configurations based on options with fallback to ide_config
   options_metadata = {
     for code in length(var.default) == 0 ? var.options : var.default : code => {
       icon       = var.ide_config[code].icon
