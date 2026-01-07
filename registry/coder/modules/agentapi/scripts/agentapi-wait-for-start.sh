@@ -11,10 +11,12 @@ port=${1:-3284}
 agentapi_started=false
 
 echo "Waiting for agentapi server to start on port $port..."
+start=$(date +%s)
 while true; do
     if curl -f "http://localhost:$port/status"; then
-      echo "$(date): agentapi response received"
       agentapi_started=true
+      elapsed=$(($(date +%s) - start))
+      echo "$(date): agentapi server started after $elapsed seconds"
       break
     else
       echo "$(date): agentapi server not responding"
