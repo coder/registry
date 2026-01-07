@@ -3,8 +3,8 @@ set -o errexit
 set -o pipefail
 
 port=${1:-3284}
-start_timeout=${2:-15}
-listen_timeout=${3:-15}
+start_timeout=${2:-30}
+listen_timeout=${3:-30}
 
 # This script waits for the agentapi server to start on port 3284.
 # It considers the server started after 3 consecutive successful responses.
@@ -29,6 +29,7 @@ while true; do
         continue
     fi
     echo "agentapi process started with pid ${agentapi_pid} after ${elapsed} seconds"
+    break
 done
 
 echo "Waiting for agentapi to start listening on port ${port}..."
