@@ -3,8 +3,8 @@ set -o errexit
 set -o pipefail
 
 port=${1:-3284}
-start_timeout=${2:-30}
-listen_timeout=${3:-30}
+start_timeout=${2:-60}
+listen_timeout=${3:-60}
 
 # This script waits for the agentapi server to start on port 3284.
 # It considers the server started after 3 consecutive successful responses.
