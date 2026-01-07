@@ -1,6 +1,7 @@
 #!/bin/bash
 set -o errexit
 set -o pipefail
+set -x
 
 use_prompt=${1:-false}
 port=${2:-3284}
