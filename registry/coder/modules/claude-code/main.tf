@@ -338,8 +338,8 @@ locals {
 }
 
 module "agentapi" {
-  source  = "github.com/coder/registry//registry/coder/modules/agentapi?ref=cj%2Fagentapi%2Fdebug"
-  version = "2.0.0"
+  source = "github.com/coder/registry//registry/coder/modules/agentapi?ref=cj%2Fagentapi%2Fdebug"
+  # version = "2.0.0"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
