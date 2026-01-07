@@ -3,7 +3,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.7"
+      version = ">= 2.12"
     }
   }
 }
@@ -242,7 +242,7 @@ resource "coder_env" "github_token" {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.2.0"
+  version = "2.0.0"
 
   agent_id             = var.agent_id
   folder               = local.workdir
@@ -268,7 +268,7 @@ module "agentapi" {
     set -o pipefail
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
     chmod +x /tmp/start.sh
-    
+
     ARG_WORKDIR='${local.workdir}' \
     ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
     ARG_SYSTEM_PROMPT='${base64encode(local.final_system_prompt)}' \
@@ -288,7 +288,7 @@ module "agentapi" {
     set -o pipefail
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     chmod +x /tmp/install.sh
-    
+
     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_REPORT_TASKS='${var.report_tasks}' \
     ARG_WORKDIR='${local.workdir}' \
@@ -299,4 +299,8 @@ module "agentapi" {
     ARG_COPILOT_MODEL='${var.copilot_model}' \
     /tmp/install.sh
   EOT
+}
+
+output "task_app_id" {
+  value = module.agentapi.task_app_id
 }
