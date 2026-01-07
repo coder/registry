@@ -3,30 +3,56 @@ set -o errexit
 set -o pipefail
 
 port=${1:-3284}
+start_timeout=${2:-15}
+listen_timeout=${3:-15}
 
 # This script waits for the agentapi server to start on port 3284.
 # It considers the server started after 3 consecutive successful responses.
 
 agentapi_started=false
 
-echo "Waiting for agentapi server to start on port $port..."
-for i in $(seq 1 150); do
+echo "Waiting for agentapi process to start..."
+start=$(date +%s)
+while true; do
+    now=$(date +%s)
+    elapsed=$(( now - start ))
+    if [[ "${elapsed}" -gt "${start_timeout}" ]]; then
+        echo "agentapi process not found after ${start_timeout} seconds"
+        exit 1
+    fi
+    set +e
+    agentapi_pid=$(pidof agentapi)
+    set -e
+    if [[ -z "${agentapi_pid}" ]]; then
+        echo "agentapi process not found (${elapsed}/${start_timeout})"
+        sleep 1
+        continue
+    fi
+    echo "agentapi process started with pid ${agentapi_pid} after ${elapsed} seconds"
+done
+
+echo "Waiting for agentapi to start listening on port ${port}..."
+start=$(date +%s)
+while true; do
+  now=$(date +%s)
+  elapsed=$(( now - start ))
+  if [[ "${elapsed}" -gt "${listen_timeout}" ]]; then
+    echo "agentapi server not listening on port ${port} after ${listen_timeout} seconds"
+    exit 1
+  fi
   for j in $(seq 1 3); do
-    sleep 0.1
-    if curl -fs -o /dev/null "http://localhost:$port/status"; then
-      echo "agentapi response received ($j/3)"
+    if curl -fs -o /dev/null "http://localhost:${port}/status"; then
+      echo "agentapi response received (${j}/3)"
+      sleep 0.1
+      continue
     else
-      echo "agentapi server not responding ($i/15)"
+      echo "agentapi server not responding (${elapsed}/${listen_timeout})"
+      sleep 1
       continue 2
     fi
   done
-  agentapi_started=true
+  echo "agentapi server started responding after ${elapsed} seconds"
   break
 done
 
-if [ "$agentapi_started" != "true" ]; then
-  echo "Error: agentapi server did not start on port $port after 15 seconds."
-  exit 1
-fi
-
-echo "agentapi server started on port $port."
+echo "agentapi server started on port ${port}."
