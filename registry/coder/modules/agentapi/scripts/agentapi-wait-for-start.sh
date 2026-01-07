@@ -24,6 +24,12 @@ while true; do
       else
         echo "$(date): agentapi pid: $agentapi_pid"
       fi
+      boundary_pid=$(pidof boundary)
+      if [ -z "$boundary_pid" ]; then
+        echo "$(date): boundary process not found"
+      else
+        echo "$(date): boundary pid: $boundary_pid"
+      fi
       sleep 1
       continue
     fi
