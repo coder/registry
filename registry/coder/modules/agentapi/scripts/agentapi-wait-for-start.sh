@@ -1,6 +1,7 @@
 #!/bin/bash
 set -o errexit
 set -o pipefail
+set -x
 
 port=${1:-3284}
 
@@ -13,7 +14,7 @@ echo "Waiting for agentapi server to start on port $port..."
 for i in $(seq 1 150); do
   for j in $(seq 1 3); do
     sleep 0.1
-    if curl -fs -o /dev/null "http://localhost:$port/status"; then
+    if curl -f "http://localhost:$port/status"; then
       echo "agentapi response received ($j/3)"
     else
       echo "agentapi server not responding ($i/15)"
