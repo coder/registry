@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -euo pipefail
+set -x
 
 command_exists() {
   command -v "$1" > /dev/null 2>&1
