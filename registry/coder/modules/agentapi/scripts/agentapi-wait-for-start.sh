@@ -18,6 +18,12 @@ while true; do
       break
     else
       echo "$(date): agentapi server not responding"
+      agentapi_pid=$(pidof agentapi)
+      if [ -z "$agentapi_pid" ]; then
+        echo "$(date): agentapi process not found"
+      else
+        echo "$(date): agentapi pid: $agentapi_pid"
+      fi
       sleep 1
       continue
     fi
