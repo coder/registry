@@ -1,26 +1,29 @@
 #!/bin/bash
 
 # Version Bump Script
-# Usage: ./version-bump.sh [--ci] <bump_type> [base_ref]
+# Usage: ./version-bump.sh [--ci] <bump_type> [base_ref] [head_ref]
 #   --ci: CI mode - run bump, check for changes, exit 1 if changes needed
 #   bump_type: patch, minor, or major
 #   base_ref: base reference for diff (default: origin/main)
+#   head_ref: head reference for diff (default: HEAD)
 
 set -euo pipefail
 
 CI_MODE=false
 
 usage() {
-  echo "Usage: $0 [--ci] <bump_type> [base_ref]"
+  echo "Usage: $0 [--ci] <bump_type> [base_ref] [head_ref]"
   echo "  --ci: CI mode - validates versions are already bumped (exits 1 if not)"
   echo "  bump_type: patch, minor, or major"
   echo "  base_ref: base reference for diff (default: origin/main)"
+  echo "  head_ref: head reference for diff (default: HEAD, used for fork PRs)"
   echo ""
   echo "Examples:"
   echo "  $0 patch                    # Update versions with patch bump"
   echo "  $0 minor                    # Update versions with minor bump"
   echo "  $0 major                    # Update versions with major bump"
   echo "  $0 --ci patch               # CI check: verify patch bump has been applied"
+  echo "  $0 --ci patch base_sha head_sha  # CI check with explicit refs (for fork PRs)"
   exit 1
 }
 
@@ -125,12 +128,13 @@ main() {
     shift
   fi
 
-  if [ $# -lt 1 ] || [ $# -gt 2 ]; then
+  if [ $# -lt 1 ] || [ $# -gt 3 ]; then
     usage
   fi
 
   local bump_type="$1"
   local base_ref="${2:-origin/main}"
+  local head_ref="${3:-HEAD}"
 
   case "$bump_type" in
     "patch" | "minor" | "major") ;;
@@ -144,7 +148,7 @@ main() {
   echo "🔍 Detecting modified modules..."
 
   local changed_files
-  changed_files=$(git diff --name-only "${base_ref}"...HEAD)
+  changed_files=$(git diff --name-only "${base_ref}".."${head_ref}")
   local modules
   modules=$(echo "$changed_files" | grep -E '^registry/[^/]+/modules/[^/]+/' | cut -d'/' -f1-4 | sort -u)
 

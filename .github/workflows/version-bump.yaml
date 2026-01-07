@@ -1,10 +1,11 @@
 name: Version Bump
 
+# Using pull_request_target to allow commenting on PRs from forks.
+# SECURITY: This workflow only checks out and runs code from the BASE branch,
+# never from the PR. The PR's changes are only used for git diff comparison.
 on:
-  pull_request:
+  pull_request_target:
     types: [labeled]
-    paths:
-      - "registry/**/modules/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,24 +20,50 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - name: Checkout code
+      - name: Checkout base branch
         uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Fetch PR head
+        run: |
+          git fetch origin refs/pull/${{ github.event.pull_request.number }}/head:pr-head
+          echo "PR_HEAD_SHA=$(git rev-parse pr-head)" >> $GITHUB_ENV
+
+      - name: Check for module changes
+        id: check-modules
+        run: |
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..pr-head)
+          if echo "$CHANGED_FILES" | grep -qE '^registry/[^/]+/modules/'; then
+            echo "has_module_changes=true" >> $GITHUB_OUTPUT
+            echo "✅ PR contains module changes"
+          else
+            echo "has_module_changes=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ PR does not contain module changes, skipping version bump check"
+          fi
+
+      - name: Checkout PR module files
+        if: steps.check-modules.outputs.has_module_changes == 'true'
+        run: git checkout pr-head -- registry/
+
       - name: Set up Bun
+        if: steps.check-modules.outputs.has_module_changes == 'true'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
       - name: Set up Terraform
+        if: steps.check-modules.outputs.has_module_changes == 'true'
         uses: coder/coder/.github/actions/setup-tf@main
 
       - name: Install dependencies
+        if: steps.check-modules.outputs.has_module_changes == 'true'
         run: bun install
 
       - name: Extract bump type from label
+        if: steps.check-modules.outputs.has_module_changes == 'true'
         id: bump-type
         run: |
           case "${{ github.event.label.name }}" in
@@ -56,10 +83,11 @@ jobs:
           esac
 
       - name: Check version bump
-        run: ./.github/scripts/version-bump.sh --ci "${{ steps.bump-type.outputs.type }}" origin/main
+        if: steps.check-modules.outputs.has_module_changes == 'true'
+        run: ./.github/scripts/version-bump.sh --ci "${{ steps.bump-type.outputs.type }}" ${{ github.event.pull_request.base.sha }} ${{ env.PR_HEAD_SHA }}
 
       - name: Comment on PR - Version bump required
-        if: failure()
+        if: failure() && steps.check-modules.outputs.has_module_changes == 'true'
         uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
