@@ -40,18 +40,6 @@ The agent is ephemeral by design (started on workspace start, stopped on stop). 
 
 Warning: This template stores SSH credentials (password or private key) in the Terraform state file and passes them as environment variables during deployment. In production environments, this can introduce security risks, as the state file contains sensitive information in plain text and may be accessible if not properly secured.
 
-## Parameters
-
-The template includes the following configurable parameters:
-
-- **Host**: The remote hostname, IPv4, or IPv6 address of the Linux system (default: `192.168.1.1`). Must match the regex `^[a-zA-Z0-9:.%\\-]+$`.
-- **Username**: The SSH username for connecting to the host (default: the workspace owner's name).
-- **SSH Auth Type**: The authentication method—either "password" or "SSH Key" (default: "password").
-- **SSH Password**: (Shown only if "password" is selected) The password for SSH login. Input is masked.
-- **SSH Private Key**: (Shown only if "SSH Key" is selected) The private key for SSH login, provided as a textarea. Input is masked.
-- **Port**: The SSH port on the remote host (default: `22`). Must be between 1 and 65535.
-- **Apps**: A multi-select list of applications to include in the workspace (default: `["VS Code Desktop"]`). Options: "VS Code Desktop", "VS Code Web", "Cursor".
-
 ## Usage
 
 1. Create a new workspace in Coder using this template.
