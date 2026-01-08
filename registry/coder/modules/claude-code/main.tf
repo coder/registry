@@ -338,12 +338,6 @@ module "agentapi" {
      ARG_REPORT_TASKS='${var.report_tasks}' \
      ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
      ARG_BOUNDARY_VERSION='${var.boundary_version}' \
-     ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
-     ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
-     ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join("|", var.boundary_additional_allowed_urls)}' \
-     ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
-     ARG_ENABLE_BOUNDARY_PPROF='${var.enable_boundary_pprof}' \
-     ARG_BOUNDARY_PPROF_PORT='${var.boundary_pprof_port}' \
      ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
      ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh
