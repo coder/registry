@@ -232,8 +232,6 @@ function start_agentapi() {
     mkdir -p "$ARG_BOUNDARY_LOG_DIR"
     printf "Starting with coder boundary enabled\n"
 
-    # Build boundary args with conditional --unprivileged flag
-    BOUNDARY_ARGS=(--log-dir "$ARG_BOUNDARY_LOG_DIR")
     # Add default allowed URLs
     BOUNDARY_ARGS+=(--allow "domain=anthropic.com" --allow "domain=registry.npmjs.org" --allow "domain=sentry.io" --allow "domain=claude.ai" --allow "domain=$ARG_CODER_HOST")
 
@@ -244,18 +242,6 @@ function start_agentapi() {
         # Quote the URL to preserve spaces within the allow rule
         BOUNDARY_ARGS+=(--allow "$url")
       done
-    fi
-
-    # Set HTTP Proxy port used by Boundary
-    BOUNDARY_ARGS+=(--proxy-port "$ARG_BOUNDARY_PROXY_PORT")
-
-    # Set log level for boundary
-    BOUNDARY_ARGS+=(--log-level "$ARG_BOUNDARY_LOG_LEVEL")
-
-    if [ "${ARG_ENABLE_BOUNDARY_PPROF:-false}" = "true" ]; then
-      # Enable boundary pprof server on specified port
-      BOUNDARY_ARGS+=(--pprof)
-      BOUNDARY_ARGS+=(--pprof-port "$ARG_BOUNDARY_PPROF_PORT")
     fi
 
     agentapi server --type claude --term-width 67 --term-height 1190 -- \

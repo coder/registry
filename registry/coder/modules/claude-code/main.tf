@@ -210,40 +210,10 @@ variable "boundary_version" {
   default     = "main"
 }
 
-variable "boundary_log_dir" {
-  type        = string
-  description = "Directory for boundary logs"
-  default     = "/tmp/boundary_logs"
-}
-
-variable "boundary_log_level" {
-  type        = string
-  description = "Log level for boundary process"
-  default     = "WARN"
-}
-
 variable "boundary_additional_allowed_urls" {
   type        = list(string)
   description = "Additional URLs to allow through boundary (in addition to default allowed URLs)"
   default     = []
-}
-
-variable "boundary_proxy_port" {
-  type        = string
-  description = "Port for HTTP Proxy used by Boundary"
-  default     = "8087"
-}
-
-variable "enable_boundary_pprof" {
-  type        = bool
-  description = "Whether to enable coder boundary pprof server"
-  default     = false
-}
-
-variable "boundary_pprof_port" {
-  type        = string
-  description = "Port for pprof server used by Boundary"
-  default     = "6067"
 }
 
 variable "compile_boundary_from_source" {
