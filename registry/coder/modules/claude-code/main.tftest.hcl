@@ -192,9 +192,9 @@ run "test_claude_code_with_boundary" {
   command = plan
 
   variables {
-    agent_id         = "test-agent-boundary"
-    workdir          = "/home/coder/boundary-test"
-    enable_boundary  = true
+    agent_id        = "test-agent-boundary"
+    workdir         = "/home/coder/boundary-test"
+    enable_boundary = true
   }
 
   assert {
