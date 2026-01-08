@@ -44,12 +44,12 @@ This example shows how to configure the Claude Code module to run the agent behi
 
 ```tf
 module "claude-code" {
-  source                           = "dev.registry.coder.com/coder/claude-code/coder"
-  version                          = "4.3.0"
-  agent_id                         = coder_agent.main.id
-  workdir                          = "/home/coder/project"
-  enable_boundary                  = true
-  boundary_version                 = "v0.5.1"
+  source           = "dev.registry.coder.com/coder/claude-code/coder"
+  version          = "4.3.0"
+  agent_id         = coder_agent.main.id
+  workdir          = "/home/coder/project"
+  enable_boundary  = true
+  boundary_version = "v0.5.1"
 }
 ```
 
