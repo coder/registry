@@ -210,12 +210,6 @@ variable "boundary_version" {
   default     = "main"
 }
 
-variable "boundary_additional_allowed_urls" {
-  type        = list(string)
-  description = "Additional URLs to allow through boundary (in addition to default allowed URLs)"
-  default     = []
-}
-
 variable "compile_boundary_from_source" {
   type        = bool
   description = "Whether to compile boundary from source instead of using the official install script"

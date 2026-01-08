@@ -235,15 +235,6 @@ function start_agentapi() {
     # Add default allowed URLs
     BOUNDARY_ARGS+=(--allow "domain=anthropic.com" --allow "domain=registry.npmjs.org" --allow "domain=sentry.io" --allow "domain=claude.ai" --allow "domain=$ARG_CODER_HOST")
 
-    # Add any additional allowed URLs from the variable
-    if [ -n "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS" ]; then
-      IFS='|' read -ra ADDITIONAL_URLS <<< "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS"
-      for url in "${ADDITIONAL_URLS[@]}"; do
-        # Quote the URL to preserve spaces within the allow rule
-        BOUNDARY_ARGS+=(--allow "$url")
-      done
-    fi
-
     agentapi server --type claude --term-width 67 --term-height 1190 -- \
       boundary-run "${BOUNDARY_ARGS[@]}" -- \
       claude "${ARGS[@]}"
