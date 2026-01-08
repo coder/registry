@@ -48,6 +48,13 @@ function install_boundary() {
   if [ "${ARG_COMPILE_FROM_SOURCE:-false}" = "true" ]; then
     # Install boundary by compiling from source
     echo "Compiling boundary from source (version: $ARG_BOUNDARY_VERSION)"
+
+    echo "Removing existing boundary directory to allow re-running the script safely"
+    if [ -d boundary ]; then
+      rm -rf boundary
+    fi
+
+    echo "Clone boundary repository"
     git clone https://github.com/coder/boundary.git
     cd boundary
     git checkout "$ARG_BOUNDARY_VERSION"
