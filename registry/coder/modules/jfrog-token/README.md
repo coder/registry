@@ -13,8 +13,8 @@ Install the JF CLI and authenticate package managers with Artifactory using Arti
 ```tf
 module "jfrog" {
   source                   = "registry.coder.com/coder/jfrog-token/coder"
-  version                  = "1.2.0"
-  agent_id                 = coder_agent.example.id
+  version                  = "1.2.2"
+  agent_id                 = coder_agent.main.id
   jfrog_url                = "https://XXXX.jfrog.io"
   artifactory_access_token = var.artifactory_access_token
   package_managers = {
@@ -25,6 +25,7 @@ module "jfrog" {
     conda  = ["conda", "conda-local"]
     maven  = ["maven", "maven-local"]
   }
+
 }
 ```
 
@@ -42,8 +43,8 @@ For detailed instructions, please see this [guide](https://coder.com/docs/v2/lat
 ```tf
 module "jfrog" {
   source                   = "registry.coder.com/coder/jfrog-token/coder"
-  version                  = "1.2.0"
-  agent_id                 = coder_agent.example.id
+  version                  = "1.2.2"
+  agent_id                 = coder_agent.main.id
   jfrog_url                = "https://YYYY.jfrog.io"
   artifactory_access_token = var.artifactory_access_token # An admin access token
   package_managers = {
@@ -53,6 +54,7 @@ module "jfrog" {
     conda = ["conda-local"]
     maven = ["maven-local"]
   }
+
 }
 ```
 
@@ -81,8 +83,8 @@ The [JFrog extension](https://open-vsx.org/extension/JFrog/jfrog-vscode-extensio
 ```tf
 module "jfrog" {
   source                   = "registry.coder.com/coder/jfrog-token/coder"
-  version                  = "1.2.0"
-  agent_id                 = coder_agent.example.id
+  version                  = "1.2.2"
+  agent_id                 = coder_agent.main.id
   jfrog_url                = "https://XXXX.jfrog.io"
   artifactory_access_token = var.artifactory_access_token
   configure_code_server    = true # Add JFrog extension configuration for code-server
@@ -91,6 +93,7 @@ module "jfrog" {
     go   = ["go"]
     pypi = ["pypi"]
   }
+
 }
 ```
 
@@ -101,14 +104,15 @@ data "coder_workspace" "me" {}
 
 module "jfrog" {
   source                   = "registry.coder.com/coder/jfrog-token/coder"
-  version                  = "1.2.0"
-  agent_id                 = coder_agent.example.id
+  version                  = "1.2.2"
+  agent_id                 = coder_agent.main.id
   jfrog_url                = "https://XXXX.jfrog.io"
   artifactory_access_token = var.artifactory_access_token
   token_description        = "Token for Coder workspace: ${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}"
   package_managers = {
     npm = ["npm"]
   }
+
 }
 ```
 

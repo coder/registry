@@ -106,22 +106,20 @@ module "code-server" {
   # This ensures that the latest non-breaking version of the module gets downloaded, you can also pin the module version to prevent breaking changes in production.
   version = "~> 1.0"
 
-  agent_id   = coder_agent.main.id
-  agent_name = "main"
-  order      = 1
+  agent_id = coder_agent.main.id
+  order    = 1
 }
 
 # See https://registry.coder.com/modules/coder/jetbrains
 module "jetbrains" {
-  count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/modules/coder/jetbrains/coder"
-  version    = "~> 1.0"
-  agent_id   = coder_agent.main.id
-  agent_name = "main"
-  folder     = "/home/coder"
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/jetbrains/coder"
+  version  = "~> 1.0"
+  agent_id = coder_agent.main.id
+  folder   = "/home/coder"
 }
 
-resource "kubernetes_persistent_volume_claim" "home" {
+resource "kubernetes_persistent_volume_claim_v1" "home" {
   metadata {
     name      = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}-home"
     namespace = var.namespace
@@ -137,7 +135,7 @@ resource "kubernetes_persistent_volume_claim" "home" {
   }
 }
 
-resource "kubernetes_pod" "main" {
+resource "kubernetes_pod_v1" "main" {
   count = data.coder_workspace.me.start_count
 
   metadata {
@@ -284,7 +282,7 @@ resource "kubernetes_pod" "main" {
     volume {
       name = "home"
       persistent_volume_claim {
-        claim_name = kubernetes_persistent_volume_claim.home.metadata.0.name
+        claim_name = kubernetes_persistent_volume_claim_v1.home.metadata.0.name
         read_only  = false
       }
     }

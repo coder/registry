@@ -4,7 +4,7 @@ BOLD='\033[0;1m'
 
 # Convert templated variables to shell variables
 SAVE_INTERVAL="${SAVE_INTERVAL}"
-TMUX_CONFIG="${TMUX_CONFIG}"
+TMUX_CONFIG=$(echo -n "${TMUX_CONFIG}" | base64 -d)
 
 # Function to install tmux
 install_tmux() {
@@ -73,7 +73,7 @@ setup_tmux_config() {
   mkdir -p "$config_dir"
 
   if [ -n "$TMUX_CONFIG" ]; then
-    printf "$TMUX_CONFIG" > "$config_file"
+    printf "%s" "$TMUX_CONFIG" > "$config_file"
     printf "$${BOLD}Custom tmux configuration applied at {$config_file} \n\n"
   else
     cat > "$config_file" << EOF
@@ -144,7 +144,7 @@ main() {
   printf "$${BOLD}✅ tmux setup complete! \n\n"
 
   printf "$${BOLD} Attempting to restore sessions\n"
-  tmux new-session -d \; source-file ~/.tmux.conf \; run-shell '~/.tmux/plugins/tmux-resurrect/scripts/restore.sh'
+  tmux new-session -d \; source-file ~/.tmux.conf \; run-shell "$HOME/.tmux/plugins/tmux-resurrect/scripts/restore.sh"
   printf "$${BOLD} Sessions restored: -> %s\n" "$(tmux ls)"
 
 }
