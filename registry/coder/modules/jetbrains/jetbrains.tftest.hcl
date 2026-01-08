@@ -2,15 +2,15 @@ variables {
   # Default IDE config, mirrored from main.tf for test assertions.
   # If main.tf defaults change, update this map to match.
   expected_ide_config = {
-    "CL" = { name = "CLion", icon = "/icon/clion.svg", build = "251.26927.39" },
-    "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "251.26927.50" },
-    "IU" = { name = "IntelliJ IDEA", icon = "/icon/intellij.svg", build = "251.26927.53" },
-    "PS" = { name = "PhpStorm", icon = "/icon/phpstorm.svg", build = "251.26927.60" },
-    "PY" = { name = "PyCharm", icon = "/icon/pycharm.svg", build = "251.26927.74" },
-    "RD" = { name = "Rider", icon = "/icon/rider.svg", build = "251.26927.67" },
-    "RM" = { name = "RubyMine", icon = "/icon/rubymine.svg", build = "251.26927.47" },
-    "RR" = { name = "RustRover", icon = "/icon/rustrover.svg", build = "251.26927.79" },
-    "WS" = { name = "WebStorm", icon = "/icon/webstorm.svg", build = "251.26927.40" }
+    "CL" = { name = "CLion", icon = "/icon/clion.svg", build = "253.29346.141" },
+    "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "253.28294.337" },
+    "IU" = { name = "IntelliJ IDEA", icon = "/icon/intellij.svg", build = "253.29346.138" },
+    "PS" = { name = "PhpStorm", icon = "/icon/phpstorm.svg", build = "253.29346.151" },
+    "PY" = { name = "PyCharm", icon = "/icon/pycharm.svg", build = "253.29346.142" },
+    "RD" = { name = "Rider", icon = "/icon/rider.svg", build = "253.29346.144" },
+    "RM" = { name = "RubyMine", icon = "/icon/rubymine.svg", build = "253.29346.140" },
+    "RR" = { name = "RustRover", icon = "/icon/rustrover.svg", build = "253.29346.139" },
+    "WS" = { name = "WebStorm", icon = "/icon/webstorm.svg", build = "253.29346.143" }
   }
 }
 
@@ -187,16 +187,16 @@ run "tooltip_when_provided" {
     agent_id = "foo"
     folder   = "/home/coder"
     default  = ["GO"]
-    tooltip  = "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button."
+    tooltip  = "You need to install [JetBrains Toolbox App](https://www.jetbrains.com/toolbox-app/) to use this button."
   }
 
   assert {
-    condition     = anytrue([for app in values(resource.coder_app.jetbrains) : app.tooltip == "You need to [Install Coder Desktop](https://coder.com/docs/user-guides/desktop#install-coder-desktop) to use this button."])
+    condition     = anytrue([for app in values(resource.coder_app.jetbrains) : app.tooltip == "You need to install [JetBrains Toolbox App](https://www.jetbrains.com/toolbox-app/) to use this button."])
     error_message = "Expected coder_app tooltip to be set when provided"
   }
 }
 
-run "tooltip_null_when_not_provided" {
+run "tooltip_default_when_not_provided" {
   command = plan
 
   variables {
@@ -206,8 +206,41 @@ run "tooltip_null_when_not_provided" {
   }
 
   assert {
-    condition     = anytrue([for app in values(resource.coder_app.jetbrains) : app.tooltip == null])
-    error_message = "Expected coder_app tooltip to be null when not provided"
+    condition     = anytrue([for app in values(resource.coder_app.jetbrains) : app.tooltip == "You need to install [JetBrains Toolbox App](https://www.jetbrains.com/toolbox-app/) to use this button."])
+    error_message = "Expected coder_app tooltip to be the default JetBrains Toolbox message when not provided"
+  }
+}
+
+run "channel_eap" {
+  command = plan
+
+  variables {
+    agent_id      = "foo"
+    folder        = "/home/coder"
+    default       = ["GO"]
+    channel       = "eap"
+    major_version = "latest"
+  }
+
+  assert {
+    condition     = output.ide_metadata["GO"].json_data.type == "eap"
+    error_message = "Expected the API to return a release of type 'eap', but got '${output.ide_metadata["GO"].json_data.type}'"
+  }
+}
+
+run "specific_major_version" {
+  command = plan
+
+  variables {
+    agent_id      = "foo"
+    folder        = "/home/coder"
+    default       = ["GO"]
+    major_version = "2025.3"
+  }
+
+  assert {
+    condition     = output.ide_metadata["GO"].json_data.majorVersion == "2025.3"
+    error_message = "Expected the API to return a release for major version '2025.3', but got '${output.ide_metadata["GO"].json_data.majorVersion}'"
   }
 }
 
@@ -292,5 +325,29 @@ run "output_multiple_ides" {
   assert {
     condition     = output.ide_metadata["PY"].build == var.expected_ide_config["PY"].build
     error_message = "Expected ide_metadata['PY'].build to be the fallback '${var.expected_ide_config["PY"].build}'"
+  }
+}
+run "validate_output_schema" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+  }
+
+  assert {
+    condition = alltrue([
+      for key, meta in output.ide_metadata : (
+        can(meta.icon) &&
+        can(meta.name) &&
+        can(meta.identifier) &&
+        can(meta.key) &&
+        can(meta.build) &&
+        # json_data can be null, but the key must exist
+        can(meta.json_data)
+      )
+    ])
+    error_message = "The ide_metadata output schema has changed. Please update the 'main.tf' and this test."
   }
 }
