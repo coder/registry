@@ -1,14 +1,14 @@
 name: Version Bump
 
 # Using pull_request_target to allow commenting on PRs from forks.
-# SECURITY: This workflow only checks out and runs code from the BASE branch,
-# never from the PR. The PR's changes are only used for git diff comparison.
+# SECURITY: Executable code (scripts, package.json) comes from the BASE branch only.
+# Only the registry/ directory (data files) is checked out from the PR for version checking.
 on:
   pull_request_target:
     types: [labeled]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
