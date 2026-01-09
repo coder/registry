@@ -45,20 +45,29 @@ describe("code-server", async () => {
 
     const id = await runContainer("ubuntu:latest");
     try {
-      await execContainer(id, ["bash", "-c", "apt-get update && apt-get install -y curl"]);
+      await execContainer(id, [
+        "bash",
+        "-c",
+        "apt-get update && apt-get install -y curl",
+      ]);
 
       const script = findResourceInstance(state, "coder_script").script;
       const result = await execContainer(id, ["bash", "-c", script]);
       expect(result.exitCode).toBe(0);
 
-      const version = await execContainer(id, ["/tmp/code-server/bin/code-server", "--version"]);
+      const version = await execContainer(id, [
+        "/tmp/code-server/bin/code-server",
+        "--version",
+      ]);
       expect(version.exitCode).toBe(0);
       expect(version.stdout).toMatch(/\d+\.\d+\.\d+/);
 
       const health = await execContainer(id, [
         "curl",
-        "--retry", "10",
-        "--retry-delay", "0",
+        "--retry",
+        "10",
+        "--retry-delay",
+        "1",
         "--retry-all-errors",
         "-sf",
         "http://localhost:13337/healthz",
