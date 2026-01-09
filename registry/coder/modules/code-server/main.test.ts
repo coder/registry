@@ -53,6 +53,10 @@ describe("code-server", async () => {
 
       const script = findResourceInstance(state, "coder_script").script;
       const result = await execContainer(id, ["bash", "-c", script]);
+      if (result.exitCode !== 0) {
+        console.log(result.stdout);
+        console.log(result.stderr);
+      }
       expect(result.exitCode).toBe(0);
 
       const version = await execContainer(id, [
