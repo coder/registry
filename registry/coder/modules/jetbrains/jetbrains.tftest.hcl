@@ -351,3 +351,35 @@ run "validate_output_schema" {
     error_message = "The ide_metadata output schema has changed. Please update the 'main.tf' and this test."
   }
 }
+
+run "plugins_script_created_when_plugins_provided" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["IU"]
+    plugins  = ["org.jetbrains.plugins.github"]
+  }
+
+  assert {
+    condition     = length(resource.coder_script.jetbrains_plugins) == 1
+    error_message = "Expected coder_script.jetbrains_plugins to be created when plugins are provided"
+  }
+}
+
+run "plugins_script_not_created_when_no_plugins" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["IU"]
+    plugins  = []
+  }
+
+  assert {
+    condition     = length(resource.coder_script.jetbrains_plugins) == 0
+    error_message = "Expected coder_script.jetbrains_plugins not to be created when no plugins are provided"
+  }
+}
