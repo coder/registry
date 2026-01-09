@@ -70,6 +70,18 @@ variable "devolutions_gateway_version" {
   description = "Version of Devolutions Gateway to install. Use 'latest' for the most recent version, or specify a version like '2025.3.2'."
 }
 
+variable "keepalive" {
+  type        = bool
+  description = "Extend workspace sessions during active RDP connections."
+  default     = true
+}
+
+variable "keepalive_interval" {
+  type        = number
+  description = "Frequency (in seconds) to check for active RDP connections."
+  default     = 60
+}
+
 resource "coder_script" "windows-rdp" {
   agent_id     = var.agent_id
   display_name = "windows-rdp"
@@ -90,6 +102,28 @@ resource "coder_script" "windows-rdp" {
   })
 
   run_on_start = true
+}
+
+resource "coder_script" "rdp-keepalive" {
+  count        = var.keepalive ? 1 : 0
+  agent_id     = var.agent_id
+  display_name = "RDP Keep Alive"
+  icon         = "/icon/rdp.svg"
+  run_on_start = true
+
+  script = <<-EOT
+    # Check for active RDP connections and report activity to Coder
+    Write-Host "Starting RDP Keep Alive (Interval: ${var.keepalive_interval}s)"
+    while ($true) {
+      $connections = Get-NetTCPConnection -LocalPort 3389 -State Established -ErrorAction SilentlyContinue
+      if ($connections) {
+        Write-Host "Active RDP connection detected. Reporting activity..."
+        # 'coder stat' reports activity to the agent, which bumps the workspace timeout
+        coder stat
+      }
+      Start-Sleep -Seconds ${var.keepalive_interval}
+    }
+  EOT
 }
 
 resource "coder_app" "windows-rdp" {
