@@ -16,7 +16,7 @@ A module that adds Nextflow to your Coder template.
 module "nextflow" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder-labs/nextflow/coder"
-  version  = "0.9.0"
-  agent_id = coder_agent.example.id
+  version  = "0.9.1"
+  agent_id = coder_agent.main.id
 }
 ```

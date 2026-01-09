@@ -1,0 +1,41 @@
+# Local and OS files
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+*.bak
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+crash.log
+
+# Node / Bun / Python / other tool artifacts
+node_modules/
+bun.lockb
+package-lock.json
+__pycache__/
+*.pyc
+
+# Cloud credentials and keys
+*.pem
+*.key
+*.p12
+*.json
+*.env
+.envrc
+aws-credentials
+gcp.json
+azure-creds.json
+
+# Archives
+*.zip
+*.tar.gz
+*.tgz
+
+# Workspace artifacts
+workspace/
+output/

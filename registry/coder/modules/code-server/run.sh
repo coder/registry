@@ -99,6 +99,7 @@ function extension_installed() {
   if [ "${USE_CACHED_EXTENSIONS}" != true ]; then
     return 1
   fi
+  # shellcheck disable=SC2066
   for _extension in "$${EXTENSIONS_ARRAY[@]}"; do
     if [ "$_extension" == "$1" ]; then
       echo "Extension $1 was already installed."
@@ -110,6 +111,7 @@ function extension_installed() {
 
 # Install each extension...
 IFS=',' read -r -a EXTENSIONLIST <<< "$${EXTENSIONS}"
+# shellcheck disable=SC2066
 for extension in "$${EXTENSIONLIST[@]}"; do
   if [ -z "$extension" ]; then
     continue
