@@ -86,7 +86,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.11.4"
+  default     = "v0.11.6"
 }
 
 variable "ai_prompt" {
@@ -208,42 +208,6 @@ variable "boundary_version" {
   type        = string
   description = "Boundary version, valid git reference should be provided (tag, commit, branch)"
   default     = "main"
-}
-
-variable "boundary_log_dir" {
-  type        = string
-  description = "Directory for boundary logs"
-  default     = "/tmp/boundary_logs"
-}
-
-variable "boundary_log_level" {
-  type        = string
-  description = "Log level for boundary process"
-  default     = "WARN"
-}
-
-variable "boundary_additional_allowed_urls" {
-  type        = list(string)
-  description = "Additional URLs to allow through boundary (in addition to default allowed URLs)"
-  default     = []
-}
-
-variable "boundary_proxy_port" {
-  type        = string
-  description = "Port for HTTP Proxy used by Boundary"
-  default     = "8087"
-}
-
-variable "enable_boundary_pprof" {
-  type        = bool
-  description = "Whether to enable coder boundary pprof server"
-  default     = false
-}
-
-variable "boundary_pprof_port" {
-  type        = string
-  description = "Port for pprof server used by Boundary"
-  default     = "6067"
 }
 
 variable "compile_boundary_from_source" {
@@ -374,12 +338,6 @@ module "agentapi" {
      ARG_REPORT_TASKS='${var.report_tasks}' \
      ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
      ARG_BOUNDARY_VERSION='${var.boundary_version}' \
-     ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
-     ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
-     ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join("|", var.boundary_additional_allowed_urls)}' \
-     ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
-     ARG_ENABLE_BOUNDARY_PPROF='${var.enable_boundary_pprof}' \
-     ARG_BOUNDARY_PPROF_PORT='${var.boundary_pprof_port}' \
      ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
      ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh

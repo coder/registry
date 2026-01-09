@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.7"
+      version = ">= 2.12"
     }
   }
 }
@@ -179,7 +179,7 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.2.0"
+  version = "2.0.0"
 
   agent_id             = var.agent_id
   folder               = local.folder
@@ -229,4 +229,8 @@ module "agentapi" {
     ARG_MCP_CONFIG='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
     /tmp/install.sh
   EOT
+}
+
+output "task_app_id" {
+  value = module.agentapi.task_app_id
 }
