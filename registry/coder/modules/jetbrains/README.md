@@ -136,6 +136,27 @@ module "jetbrains" {
 }
 ```
 
+### Plugin Pre-installation
+
+Automatically pre-install JetBrains IDE plugins on workspace start. Find plugin IDs at [JetBrains Marketplace](https://plugins.jetbrains.com/):
+
+```tf
+module "jetbrains" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/jetbrains/coder"
+  version  = "1.3.0"
+  agent_id = coder_agent.main.id
+  folder   = "/home/coder/project"
+  default  = ["IU"]
+
+  # Pre-install GitHub and Kubernetes plugins
+  plugins = [
+    "org.jetbrains.plugins.github",
+    "com.intellij.kubernetes"
+  ]
+}
+```
+
 ### Accessing the IDE Metadata
 
 You can now reference the output `ide_metadata` as a map.

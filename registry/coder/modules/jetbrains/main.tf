@@ -104,6 +104,18 @@ variable "options" {
   }
 }
 
+variable "plugins" {
+  type        = list(string)
+  description = "A list of JetBrains plugin IDs to pre-install. Find plugin IDs at https://plugins.jetbrains.com/"
+  default     = []
+}
+
+variable "plugins_dir" {
+  type        = string
+  description = "A custom directory to install plugins into. If empty, the module will attempt to find the correct directory for each IDE."
+  default     = ""
+}
+
 variable "releases_base_link" {
   type        = string
   description = "URL of the JetBrains releases base link."
@@ -268,6 +280,107 @@ resource "coder_app" "jetbrains" {
     local.options_metadata[each.key].build,
     var.agent_name != null ? "&agent_name=${var.agent_name}" : "",
   ])
+}
+
+resource "coder_script" "jetbrains_plugins" {
+  count        = length(var.plugins) > 0 ? 1 : 0
+  agent_id     = var.agent_id
+  display_name = "JetBrains Plugin Installer"
+  icon         = "/icon/jetbrains-toolbox.svg"
+  run_on_start = true
+
+  script = <<-EOT
+    #!/bin/bash
+    set -e
+
+    PLUGINS='${jsonencode(var.plugins)}'
+    CUSTOM_DIR='${var.plugins_dir}'
+    IDES='${jsonencode(var.options)}'
+
+    echo "=== JetBrains Plugin Pre-installer ==="
+    echo "Plugins to install: $PLUGINS"
+
+    # Determine base plugins directory
+    if [ -n "$CUSTOM_DIR" ]; then
+      PLUGINS_BASE="$CUSTOM_DIR"
+    else
+      if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        PLUGINS_BASE="$HOME/.local/share/JetBrains/Toolbox/apps"
+      elif [[ "$OSTYPE" == "darwin"* ]]; then
+        PLUGINS_BASE="$HOME/Library/Application Support/JetBrains/Toolbox/apps"
+      else
+        PLUGINS_BASE="$HOME/.config/JetBrains"
+      fi
+    fi
+
+    # Map of IDE product codes to directory names used by Toolbox
+    declare -A IDE_DIRS=(
+      ["CL"]="CLion"
+      ["GO"]="GoLand"
+      ["IU"]="IntelliJIdea"
+      ["IC"]="IdeaIC"
+      ["PS"]="PhpStorm"
+      ["PY"]="PyCharm"
+      ["PC"]="PyCharmCE"
+      ["RD"]="Rider"
+      ["RM"]="RubyMine"
+      ["RR"]="RustRover"
+      ["WS"]="WebStorm"
+    )
+
+    # Convert JSON lists to space-separated strings
+    PLUGIN_LIST=$(echo "$PLUGINS" | tr -d '[]"' | tr ',' ' ')
+    IDE_LIST=$(echo "$IDES" | tr -d '[]"' | tr ',' ' ')
+
+    for IDE_CODE in $IDE_LIST; do
+      IDE_DIR_NAME="$${IDE_DIRS[$IDE_CODE]}"
+      if [ -z "$IDE_DIR_NAME" ]; then
+        continue
+      fi
+
+      # Attempt to find the plugins directory for this IDE version
+      # Usually: $PLUGINS_BASE/$IDE_DIR_NAME/ch-0/$VERSION/plugins
+      # Since we don't know the exact version path, we search for the 'plugins' folder
+      
+      TARGET_PLUGINS_DIR=""
+      if [ -d "$PLUGINS_BASE/$IDE_DIR_NAME" ]; then
+        # Search for plugins subdirectory within the IDE app folder
+        TARGET_PLUGINS_DIR=$(find "$PLUGINS_BASE/$IDE_DIR_NAME" -type d -name "plugins" | head -n 1)
+      fi
+
+      # Fallback to standard config-based location if Toolbox structure not found
+      if [ -z "$TARGET_PLUGINS_DIR" ]; then
+        TARGET_PLUGINS_DIR="$HOME/.config/JetBrains/$IDE_DIR_NAME/plugins"
+      fi
+
+      mkdir -p "$TARGET_PLUGINS_DIR"
+      echo "Targeting plugins directory: $TARGET_PLUGINS_DIR"
+
+      for PLUGIN_ID in $PLUGIN_LIST; do
+        PLUGIN_ID=$(echo "$PLUGIN_ID" | xargs) # trim whitespace
+        if [ -z "$PLUGIN_ID" ]; then continue; fi
+
+        if [ -d "$TARGET_PLUGINS_DIR/$PLUGIN_ID" ]; then
+          echo "  ✓ Plugin $PLUGIN_ID already installed for $IDE_CODE"
+          continue
+        fi
+
+        echo "  Downloading $PLUGIN_ID..."
+        URL="https://plugins.jetbrains.com/pluginManager?action=download&id=$PLUGIN_ID"
+        ZIP_FILE="/tmp/$${PLUGIN_ID}.zip"
+
+        if curl -fsSL "$URL" -o "$ZIP_FILE"; then
+          unzip -q -o "$ZIP_FILE" -d "$TARGET_PLUGINS_DIR"
+          echo "  ✓ Plugin $PLUGIN_ID installed successfully"
+          rm "$ZIP_FILE"
+        else
+          echo "  ⚠ Failed to download plugin $PLUGIN_ID"
+        fi
+      done
+    done
+
+    echo "=== Plugin installation complete ==="
+  EOT
 }
 
 output "ide_metadata" {
