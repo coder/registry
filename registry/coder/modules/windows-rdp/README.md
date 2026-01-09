@@ -59,3 +59,17 @@ module "windows_rdp" {
   devolutions_gateway_version = "2025.2.2" # Specify a specific version
 }
 ```
+### Session Keep Alive
+
+Extend workspace sessions during active RDP connections. This is enabled by default and reports activity every 60 seconds if an active RDP connection is detected on port 3389.
+
+```tf
+module "windows_rdp" {
+  count              = data.coder_workspace.me.start_count
+  source             = "registry.coder.com/coder/windows-rdp/coder"
+  version            = "1.3.0"
+  agent_id           = coder_agent.main.id
+  keepalive          = true
+  keepalive_interval = 30 # Check every 30 seconds
+}
+```

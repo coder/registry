@@ -11,7 +11,31 @@ type TestVariables = Readonly<{
   share?: string;
   admin_username?: string;
   admin_password?: string;
+  keepalive?: boolean;
+  keepalive_interval?: number;
 }>;
+
+function findRdpKeepAliveScript(state: TerraformState): string | null {
+  for (const resource of state.resources) {
+    const isRdpScriptResource =
+      resource.type === "coder_script" && resource.name === "rdp-keepalive";
+
+    if (!isRdpScriptResource) {
+      continue;
+    }
+
+    for (const instance of resource.instances) {
+      if (
+        instance.attributes.display_name === "RDP Keep Alive" &&
+        typeof instance.attributes.script === "string"
+      ) {
+        return instance.attributes.script;
+      }
+    }
+  }
+
+  return null;
+}
 
 function findWindowsRdpScript(state: TerraformState): string | null {
   for (const resource of state.resources) {
@@ -127,5 +151,29 @@ describe("Web RDP", async () => {
 
     expect(customResultsGroup.username).toBe(customAdminUsername);
     expect(customResultsGroup.password).toBe(customAdminPassword);
+  });
+
+  it("Creates a keepalive script when enabled", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "foo",
+      keepalive: true,
+      keepalive_interval: 45,
+    });
+
+    const script = findRdpKeepAliveScript(state);
+    expect(script).toBeString();
+    expect(script).toContain("Get-NetTCPConnection -LocalPort 3389");
+    expect(script).toContain("coder stat");
+    expect(script).toContain("Start-Sleep -Seconds 45");
+  });
+
+  it("Does not create a keepalive script when disabled", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "foo",
+      keepalive: false,
+    });
+
+    const script = findRdpKeepAliveScript(state);
+    expect(script).toBeNull();
   });
 });
