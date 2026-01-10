@@ -1,9 +1,8 @@
 ---
 display_name: "Tao Chen"
-bio: ""
+bio: "I believe in the power of technology to simplify life. Currently a freelancer, working on ideas that matter."
 github: "IamTaoChen"
 avatar: "./.images/avatar.png"
-website: ""
 support_email: "IamTaoChen@gmail.com"
 status: "community"
 ---
