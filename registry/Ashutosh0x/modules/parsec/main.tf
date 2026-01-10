@@ -127,20 +127,20 @@ resource "coder_script" "parsec_windows" {
   script = <<-EOT
     echo "=== Installing Parsec (Windows) ==="
     
-    $InstallerPath = "$env:TEMP\parsec-windows.exe"
-    $ParsecUrl = "https://builds.parsec.app/package/parsec-windows.exe"
+    $$InstallerPath = "$$env:TEMP\parsec-windows.exe"
+    $$ParsecUrl = "https://builds.parsec.app/package/parsec-windows.exe"
 
     if (Test-Path "C:\Program Files\Parsec\parsecd.exe") {
         echo "Parsec is already installed."
     } else {
         echo "Downloading Parsec installer..."
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        Invoke-WebRequest -Uri $ParsecUrl -OutFile $InstallerPath
+        Invoke-WebRequest -Uri $$ParsecUrl -OutFile $$InstallerPath
 
         echo "Installing Parsec..."
         # /shared install allows access from login screen (service mode)
         # /silent suppresses UI
-        Start-Process -FilePath $InstallerPath -ArgumentList "/shared", "/silent" -Wait -NoNewWindow
+        Start-Process -FilePath $$InstallerPath -ArgumentList "/shared", "/silent" -Wait -NoNewWindow
 
         echo "Parsec installed successfully."
     }
