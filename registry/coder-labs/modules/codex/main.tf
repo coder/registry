@@ -165,7 +165,7 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.2.0"
+  version = "2.0.0"
 
   agent_id             = var.agent_id
   folder               = local.workdir
@@ -217,4 +217,8 @@ module "agentapi" {
     ARG_CODEX_INSTRUCTION_PROMPT='${base64encode(var.codex_system_prompt)}' \
     /tmp/install.sh
   EOT
+}
+
+output "task_app_id" {
+  value = module.agentapi.task_app_id
 }
