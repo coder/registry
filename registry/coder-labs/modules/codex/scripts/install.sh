@@ -115,7 +115,7 @@ append_mcp_servers_section() {
 [mcp_servers.Coder]
 command = "coder"
 args = ["exp", "mcp", "server"]
-env = { "CODER_MCP_APP_STATUS_SLUG" = "${ARG_CODER_MCP_APP_STATUS_SLUG}", "CODER_MCP_AI_AGENTAPI_URL" = "${CODER_MCP_AI_AGENTAPI_URL}" , "CODER_AGENT_URL" = "${CODER_AGENT_URL}", "CODER_AGENT_TOKEN" = "${CODER_AGENT_TOKEN}" }
+env = { "CODER_MCP_APP_STATUS_SLUG" = "${ARG_CODER_MCP_APP_STATUS_SLUG}", "CODER_MCP_AI_AGENTAPI_URL" = "${CODER_MCP_AI_AGENTAPI_URL}" , "CODER_AGENT_URL" = "${CODER_AGENT_URL}", "CODER_AGENT_TOKEN" = "${CODER_AGENT_TOKEN}", "CODER_MCP_ALLOWED_TOOLS": "coder_report_task" }
 description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."
 type = "stdio"
 
