@@ -46,7 +46,7 @@ module "codex" {
 ```tf
 resource "coder_ai_task" "task" {
   count  = data.coder_workspace.me.start_count
-  app_id = module.claude-code.task_app_id
+  app_id = module.codex.task_app_id
 }
 
 data "coder_task" "me" {}
