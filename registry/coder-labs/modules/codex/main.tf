@@ -71,6 +71,12 @@ variable "cli_app_display_name" {
   default     = "Codex CLI"
 }
 
+variable "enable_coder_aibridge" {
+  type        = bool
+  description = "Use AI Bridge for Codex. https://coder.com/docs/ai-coder/ai-bridge"
+  default     = false
+}
+
 variable "install_codex" {
   type        = bool
   description = "Whether to install Codex."
@@ -155,12 +161,31 @@ resource "coder_env" "openai_api_key" {
   value    = var.openai_api_key
 }
 
+resource "coder_env" "coder_aibridge_session_token" {
+  count    = var.enable_coder_aibridge ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CODER_AIBRIDGE_SESSION_TOKEN"
+  value    = data.coder_workspace_owner.me.session_token
+}
+
 locals {
   workdir         = trimsuffix(var.workdir, "/")
   app_slug        = "codex"
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".codex-module"
+  aibridge_config = <<-EOF
+  [model_providers.aibridge]
+  name = "AI Bridge"
+  base_url = "${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1"
+  env_key = "CODER_AIBRIDGE_SESSION_TOKEN" # can be injected as `coder_env` with value `data.coder_workspace_owner.me.session_token`
+  wire_api = "responses"
+
+  [profiles.aibridge]
+  model_provider = "aibridge"
+  model = "${var.codex_model}"
+  model_reasoning_effort = "medium" # this can also be extracted as a module input
+  EOF
 }
 
 module "agentapi" {
@@ -211,6 +236,7 @@ module "agentapi" {
     ARG_INSTALL='${var.install_codex}' \
     ARG_CODEX_VERSION='${var.codex_version}' \
     ARG_BASE_CONFIG_TOML='${base64encode(var.base_config_toml)}' \
+    ARG_AIBRIDGE_CONFIG='${base64encode(var.enable_coder_aibridge ? local.aibridge_config : "")}' \
     ARG_ADDITIONAL_MCP_SERVERS='${base64encode(var.additional_mcp_servers)}' \
     ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_CODEX_START_DIRECTORY='${local.workdir}' \

@@ -13,6 +13,7 @@ set -o nounset
 ARG_BASE_CONFIG_TOML=$(echo -n "$ARG_BASE_CONFIG_TOML" | base64 -d)
 ARG_ADDITIONAL_MCP_SERVERS=$(echo -n "$ARG_ADDITIONAL_MCP_SERVERS" | base64 -d)
 ARG_CODEX_INSTRUCTION_PROMPT=$(echo -n "$ARG_CODEX_INSTRUCTION_PROMPT" | base64 -d)
+ARG_AIBRIDGE_CONFIG=$(echo -n "$ARG_AIBRIDGE_CONFIG" | base64 -d)
 
 echo "=== Codex Module Configuration ==="
 printf "Install Codex: %s\n" "$ARG_INSTALL"
@@ -127,6 +128,15 @@ EOF
   fi
 }
 
+append_aibridge_config_section() {
+  local config_path="$1"
+
+  if [ -n "$ARG_AIBRIDGE_CONFIG" ]; then
+    printf "Adding AI Bridge configuration\n"
+    echo -e "\n# AI Bridge Configuration\n$ARG_AIBRIDGE_CONFIG" >> "$config_path"
+  fi
+}
+
 function populate_config_toml() {
   CONFIG_PATH="$HOME/.codex/config.toml"
   mkdir -p "$(dirname "$CONFIG_PATH")"
@@ -140,6 +150,7 @@ function populate_config_toml() {
   fi
 
   append_mcp_servers_section "$CONFIG_PATH"
+  append_aibridge_config_section "$CONFIG_PATH"
 }
 
 function add_instruction_prompt_if_exists() {
