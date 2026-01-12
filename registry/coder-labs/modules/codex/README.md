@@ -44,19 +44,19 @@ module "codex" {
 ### Tasks integration
 
 ```tf
-resource "coder_ai_task" "task" {
-  count  = data.coder_workspace.me.start_count
-  app_id = module.codex.task_app_id
-}
-
-data "coder_task" "me" {}
-
 module "coder-login" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/coder-login/coder"
   version  = "3.1.1"
   agent_id = coder_agent.example.id
 }
+
+resource "coder_ai_task" "task" {
+  count  = data.coder_workspace.me.start_count
+  app_id = module.codex.task_app_id
+}
+
+data "coder_task" "me" {}
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
