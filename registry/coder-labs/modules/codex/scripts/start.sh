@@ -20,7 +20,6 @@ ARG_CODEX_TASK_PROMPT=$(echo -n "$ARG_CODEX_TASK_PROMPT" | base64 -d)
 ARG_CONTINUE=${ARG_CONTINUE:-true}
 ARG_ENABLE_CODER_AIBRIDGE=${ARG_ENABLE_CODER_AIBRIDGE:-false}
 
-
 echo "=== Codex Launch Configuration ==="
 printf "OpenAI API Key: %s\n" "$([ -n "$ARG_OPENAI_API_KEY" ] && echo "Provided" || echo "Not provided")"
 printf "Codex Model: %s\n" "${ARG_CODEX_MODEL:-"Default"}"

@@ -78,9 +78,9 @@ variable "enable_coder_aibridge" {
 }
 
 variable "model_reasoning_effort" {
-  type = string
-    description = "The reasoning effort for the AI Bridge model. One of: none, low, medium, high."
-  default = "medium"
+  type        = string
+  description = "The reasoning effort for the AI Bridge model. One of: none, low, medium, high. https://platform.openai.com/docs/guides/latest-model#lower-reasoning-effort"
+  default     = "medium"
   validation {
     condition     = contains(["none", "low", "medium", "high"], var.model_reasoning_effort)
     error_message = "model_reasoning_effort must be one of: none, low, medium, high."
