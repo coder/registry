@@ -39,11 +39,9 @@ interface SetupProps {
   agentapiMockScript?: string;
 }
 
-const setup = async (
-  props?: SetupProps,
-): Promise<{ id: string; coderEnvVars: Record<string, string> }> => {
+const setup = async (props?: SetupProps): Promise<{ id: string }> => {
   const projectDir = "/home/coder/project";
-  const { id, coderEnvVars } = await setupUtil({
+  const { id } = await setupUtil({
     moduleDir: import.meta.dir,
     moduleVariables: {
       install_codex: props?.skipCodexMock ? "true" : "false",
@@ -64,7 +62,7 @@ const setup = async (
       content: await loadTestFile(import.meta.dir, "codex-mock.sh"),
     });
   }
-  return { id, coderEnvVars };
+  return { id };
 };
 
 setDefaultTimeout(60 * 1000);
