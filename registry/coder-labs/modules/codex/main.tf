@@ -178,13 +178,13 @@ locals {
   [model_providers.aibridge]
   name = "AI Bridge"
   base_url = "${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1"
-  env_key = "CODER_AIBRIDGE_SESSION_TOKEN" # can be injected as `coder_env` with value `data.coder_workspace_owner.me.session_token`
+  env_key = "CODER_AIBRIDGE_SESSION_TOKEN"
   wire_api = "responses"
 
   [profiles.aibridge]
   model_provider = "aibridge"
   model = "${var.codex_model}"
-  model_reasoning_effort = "medium" # this can also be extracted as a module input
+  model_reasoning_effort = "medium"
   EOF
 }
 
