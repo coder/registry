@@ -59,7 +59,8 @@ find_vscode_server() {
   for dir in "$${server_dirs[@]}"; do
     if [ -d "$dir" ]; then
       # Find the most recent server version
-      local latest=$(ls -t "$dir" 2> /dev/null | head -1)
+      local latest
+      latest=$(ls -t "$dir" 2> /dev/null | head -1)
       if [ -n "$latest" ] && [ -f "$dir/$latest/bin/code-server" ]; then
         echo "$dir/$latest/bin/code-server"
         return 0
