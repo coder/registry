@@ -13,6 +13,7 @@ set -o nounset
 ARG_BASE_CONFIG_TOML=$(echo -n "$ARG_BASE_CONFIG_TOML" | base64 -d)
 ARG_ADDITIONAL_MCP_SERVERS=$(echo -n "$ARG_ADDITIONAL_MCP_SERVERS" | base64 -d)
 ARG_CODEX_INSTRUCTION_PROMPT=$(echo -n "$ARG_CODEX_INSTRUCTION_PROMPT" | base64 -d)
+ARG_ENABLE_CODER_AIBRIDGE=${ARG_ENABLE_CODER_AIBRIDGE:-false}
 ARG_AIBRIDGE_CONFIG=$(echo -n "$ARG_AIBRIDGE_CONFIG" | base64 -d)
 
 echo "=== Codex Module Configuration ==="
@@ -25,6 +26,7 @@ printf "Has Additional MCP: %s\n" "$([ -n "$ARG_ADDITIONAL_MCP_SERVERS" ] && ech
 printf "Has System Prompt: %s\n" "$([ -n "$ARG_CODEX_INSTRUCTION_PROMPT" ] && echo "Yes" || echo "No")"
 printf "OpenAI API Key: %s\n" "$([ -n "$ARG_OPENAI_API_KEY" ] && echo "Provided" || echo "Not provided")"
 printf "Report Tasks: %s\n" "$ARG_REPORT_TASKS"
+printf "Enable Coder AI Bridge: %s\n" "$ARG_ENABLE_CODER_AIBRIDGE"
 echo "======================================"
 
 set +o nounset
@@ -150,7 +152,11 @@ function populate_config_toml() {
   fi
 
   append_mcp_servers_section "$CONFIG_PATH"
-  append_aibridge_config_section "$CONFIG_PATH"
+
+  if [ "$ARG_ENABLE_CODER_AIBRIDGE" = "true" ]; then
+    printf "Coder AI Bridge is enabled\n"
+    append_aibridge_config_section "$CONFIG_PATH"
+  fi
 }
 
 function add_instruction_prompt_if_exists() {

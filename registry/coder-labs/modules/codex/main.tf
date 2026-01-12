@@ -77,6 +77,16 @@ variable "enable_coder_aibridge" {
   default     = false
 }
 
+variable "model_reasoning_effort" {
+  type = string
+    description = "The reasoning effort for the AI Bridge model. One of: none, low, medium, high."
+  default = "medium"
+  validation {
+    condition     = contains(["none", "low", "medium", "high"], var.model_reasoning_effort)
+    error_message = "model_reasoning_effort must be one of: none, low, medium, high."
+  }
+}
+
 variable "install_codex" {
   type        = bool
   description = "Whether to install Codex."
@@ -122,7 +132,7 @@ variable "agentapi_version" {
 variable "codex_model" {
   type        = string
   description = "The model for Codex to use. Defaults to gpt-5.1-codex-max."
-  default     = ""
+  default     = "gpt-5.1-codex-max"
 }
 
 variable "pre_install_script" {
@@ -184,7 +194,7 @@ locals {
   [profiles.aibridge]
   model_provider = "aibridge"
   model = "${var.codex_model}"
-  model_reasoning_effort = "medium"
+  model_reasoning_effort = "${var.model_reasoning_effort}"
   EOF
 }
 
@@ -221,6 +231,7 @@ module "agentapi" {
      ARG_CODEX_START_DIRECTORY='${local.workdir}' \
      ARG_CODEX_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
      ARG_CONTINUE='${var.continue}' \
+     ARG_ENABLE_CODER_AIBRIDGE='${var.enable_coder_aibridge}' \
      /tmp/start.sh
    EOT
 
@@ -236,6 +247,7 @@ module "agentapi" {
     ARG_INSTALL='${var.install_codex}' \
     ARG_CODEX_VERSION='${var.codex_version}' \
     ARG_BASE_CONFIG_TOML='${base64encode(var.base_config_toml)}' \
+    ARG_ENABLE_CODER_AIBRIDGE='${var.enable_coder_aibridge}' \
     ARG_AIBRIDGE_CONFIG='${base64encode(var.enable_coder_aibridge ? local.aibridge_config : "")}' \
     ARG_ADDITIONAL_MCP_SERVERS='${base64encode(var.additional_mcp_servers)}' \
     ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
