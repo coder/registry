@@ -44,13 +44,12 @@ module "codex" {
 ### Tasks integration
 
 ```tf
-data "coder_parameter" "ai_prompt" {
-  type        = "string"
-  name        = "AI Prompt"
-  default     = ""
-  description = "Initial prompt for the Codex CLI"
-  mutable     = true
+resource "coder_ai_task" "task" {
+  count  = data.coder_workspace.me.start_count
+  app_id = module.claude-code.task_app_id
 }
+
+data "coder_task" "me" {}
 
 module "coder-login" {
   count    = data.coder_workspace.me.start_count
@@ -64,7 +63,7 @@ module "codex" {
   version        = "3.1.1"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
-  ai_prompt      = data.coder_parameter.ai_prompt.value
+  ai_prompt      = data.coder_task.me.prompt
   workdir        = "/home/coder/project"
 
   # Custom configuration for full auto mode
@@ -137,7 +136,7 @@ module "codex" {
 - Ensure your OpenAI API key has access to the specified model
 
 > [!IMPORTANT]
-> To use tasks with Codex CLI, ensure you have the `openai_api_key` variable set, and **you create a `coder_parameter` named `"AI Prompt"` and pass its value to the codex module's `ai_prompt` variable**. [Tasks Template Example](https://registry.coder.com/templates/coder-labs/tasks-docker).
+> To use tasks with Codex CLI, ensure you have the `openai_api_key` variable set**. [Tasks Template Example](https://registry.coder.com/templates/coder-labs/tasks-docker).
 > The module automatically configures Codex with your API key and model preferences.
 > workdir is a required variable for the module to function correctly.
 
