@@ -206,8 +206,8 @@ variable "enable_boundary" {
 
 variable "boundary_version" {
   type        = string
-  description = "Boundary version, valid git reference should be provided (tag, commit, branch)"
-  default     = "main"
+  description = "Boundary version, defaults to latest."
+  default     = "latest"
 }
 
 variable "compile_boundary_from_source" {
