@@ -13,7 +13,7 @@ Run Codex CLI in your workspace to access OpenAI's models through the Codex inte
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "3.1.1"
+  version        = "4.0.0"
   agent_id       = coder_agent.example.id
   openai_api_key = var.openai_api_key
   workdir        = "/home/coder/project"
@@ -22,7 +22,6 @@ module "codex" {
 
 ## Prerequisites
 
-- You must add the [Coder Login](https://registry.coder.com/modules/coder/coder-login) module to your template
 - OpenAI API key for Codex access
 
 ## Examples
@@ -33,7 +32,7 @@ module "codex" {
 module "codex" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "3.1.1"
+  version        = "4.0.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   workdir        = "/home/coder/project"
@@ -44,27 +43,19 @@ module "codex" {
 ### Tasks integration
 
 ```tf
-data "coder_parameter" "ai_prompt" {
-  type        = "string"
-  name        = "AI Prompt"
-  default     = ""
-  description = "Initial prompt for the Codex CLI"
-  mutable     = true
+resource "coder_ai_task" "task" {
+  count  = data.coder_workspace.me.start_count
+  app_id = module.codex.task_app_id
 }
 
-module "coder-login" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/coder-login/coder"
-  version  = "3.1.1"
-  agent_id = coder_agent.example.id
-}
+data "coder_task" "me" {}
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "3.1.1"
+  version        = "4.0.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
-  ai_prompt      = data.coder_parameter.ai_prompt.value
+  ai_prompt      = data.coder_task.me.prompt
   workdir        = "/home/coder/project"
 
   # Custom configuration for full auto mode
@@ -108,7 +99,7 @@ For custom Codex configuration, use `base_config_toml` and/or `additional_mcp_se
 ```tf
 module "codex" {
   source  = "registry.coder.com/coder-labs/codex/coder"
-  version = "3.1.1"
+  version = "4.0.0"
   # ... other variables ...
 
   # Override default configuration
@@ -137,7 +128,7 @@ module "codex" {
 - Ensure your OpenAI API key has access to the specified model
 
 > [!IMPORTANT]
-> To use tasks with Codex CLI, ensure you have the `openai_api_key` variable set, and **you create a `coder_parameter` named `"AI Prompt"` and pass its value to the codex module's `ai_prompt` variable**. [Tasks Template Example](https://registry.coder.com/templates/coder-labs/tasks-docker).
+> To use tasks with Codex CLI, ensure you have the `openai_api_key` variable set. [Tasks Template Example](https://registry.coder.com/templates/coder-labs/tasks-docker).
 > The module automatically configures Codex with your API key and model preferences.
 > workdir is a required variable for the module to function correctly.
 
