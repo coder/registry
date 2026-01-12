@@ -87,7 +87,7 @@ describe("claude-code", async () => {
         enable_boundary: "true",
       },
     });
-    await execModuleScript(id, coderEnvVars)
+    await execModuleScript(id, coderEnvVars);
 
     await expectAgentAPIStarted(id);
 
