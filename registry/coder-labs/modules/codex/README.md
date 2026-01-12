@@ -128,7 +128,7 @@ module "codex" {
 - Ensure your OpenAI API key has access to the specified model
 
 > [!IMPORTANT]
-> To use tasks with Codex CLI, ensure you have the `openai_api_key` variable set\*\*. [Tasks Template Example](https://registry.coder.com/templates/coder-labs/tasks-docker).
+> To use tasks with Codex CLI, ensure you have the `openai_api_key` variable set. [Tasks Template Example](https://registry.coder.com/templates/coder-labs/tasks-docker).
 > The module automatically configures Codex with your API key and model preferences.
 > workdir is a required variable for the module to function correctly.
 
