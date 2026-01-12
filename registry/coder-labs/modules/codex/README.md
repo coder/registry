@@ -22,7 +22,6 @@ module "codex" {
 
 ## Prerequisites
 
-- You must add the [Coder Login](https://registry.coder.com/modules/coder/coder-login) module to your template
 - OpenAI API key for Codex access
 
 ## Examples
@@ -44,13 +43,6 @@ module "codex" {
 ### Tasks integration
 
 ```tf
-module "coder-login" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/coder-login/coder"
-  version  = "4.0.0"
-  agent_id = coder_agent.example.id
-}
-
 resource "coder_ai_task" "task" {
   count  = data.coder_workspace.me.start_count
   app_id = module.codex.task_app_id
