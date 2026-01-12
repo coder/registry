@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.7"
+      version = ">= 2.12"
     }
   }
 }
@@ -110,12 +110,12 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.10.0"
+  default     = "v0.11.6"
 }
 
 variable "codex_model" {
   type        = string
-  description = "The model for Codex to use. Defaults to gpt-5."
+  description = "The model for Codex to use. Defaults to gpt-5.1-codex-max."
   default     = ""
 }
 
@@ -165,7 +165,7 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.2.0"
+  version = "2.0.0"
 
   agent_id             = var.agent_id
   folder               = local.workdir
@@ -217,4 +217,8 @@ module "agentapi" {
     ARG_CODEX_INSTRUCTION_PROMPT='${base64encode(var.codex_system_prompt)}' \
     /tmp/install.sh
   EOT
+}
+
+output "task_app_id" {
+  value = module.agentapi.task_app_id
 }
