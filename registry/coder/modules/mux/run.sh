@@ -97,7 +97,7 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
     fi
     # sed-based fallback
     if [ -z "$TARBALL_URL" ]; then
-      TARBALL_URL="$(printf "%s" "$META_ONE_LINE" | sed -n 's/.*\"tarball\":\"\\([^\"]*\\)\".*/\\1/p' | head -n1)"
+      TARBALL_URL="$(printf "%s" "$META_ONE_LINE" | sed -n 's/.*"tarball":"\([^"]*\)".*/\1/p' | head -n1)"
     fi
     # Fallback: resolve version then construct tarball URL
     if [ -z "$TARBALL_URL" ]; then
@@ -106,10 +106,10 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
         RESOLVED_VERSION="$(printf "%s" "$META_JSON" | node -e 'try{const fs=require("fs");const data=JSON.parse(fs.readFileSync(0,"utf8"));if(data&&data.version){console.log(data.version);}}catch(e){}')"
       fi
       if [ -z "$RESOLVED_VERSION" ]; then
-        RESOLVED_VERSION="$(printf "%s" "$META_ONE_LINE" | sed -n 's/.*\"version\":\"\\([^\"]*\\)\".*/\\1/p' | head -n1)"
+        RESOLVED_VERSION="$(printf "%s" "$META_ONE_LINE" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' | head -n1)"
       fi
       if [ -z "$RESOLVED_VERSION" ]; then
-        RESOLVED_VERSION="$(printf "%s" "$META_ONE_LINE" | grep -o '\"version\":\"[^\"]*\"' | head -n1 | cut -d '\"' -f4)"
+        RESOLVED_VERSION="$(printf "%s" "$META_ONE_LINE" | grep -o '"version":"[^"]*"' | head -n1 | cut -d '"' -f4)"
       fi
       if [ -n "$RESOLVED_VERSION" ]; then
         VERSION_TO_USE="$RESOLVED_VERSION"
@@ -141,9 +141,9 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
       fi
       if [ -z "$BIN_PATH" ]; then
         # sed fallbacks (handle both string and object forms)
-        BIN_PATH=$(sed -n 's/.*\"bin\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' "$TMP_DIR/package/package.json" | head -n1)
+        BIN_PATH=$(sed -n 's/.*"bin"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP_DIR/package/package.json" | head -n1)
         if [ -z "$BIN_PATH" ]; then
-          BIN_PATH=$(sed -n '/\"bin\"[[:space:]]*:[[:space:]]*{/,/}/p' "$TMP_DIR/package/package.json" | sed -n 's/.*\"mux\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' | head -n1)
+          BIN_PATH=$(sed -n '/"bin"[[:space:]]*:[[:space:]]*{/,/}/p' "$TMP_DIR/package/package.json" | sed -n 's/.*"mux"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
         fi
       fi
       if [ -n "$BIN_PATH" ] && [ -f "$TMP_DIR/package/$BIN_PATH" ]; then
