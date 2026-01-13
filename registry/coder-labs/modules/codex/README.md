@@ -124,7 +124,9 @@ module "codex" {
 
 ### AI Bridge Configuration
 
-For AI Bridge configuration set `enable_coder_aibridge` to `true`. [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management
+[AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a centralized AI gateway that securely intermediates between users’ coding tools and AI providers, managing authentication, auditing, and usage attribution.
+
+To the AI Bridge integration, first [set up AI Bridge](https://coder.com/docs/ai-coder/ai-bridge/setup) and set `enable_coder_aibridge` to `true`. 
 
 ```tf
 resource "coder_ai_task" "task" {
