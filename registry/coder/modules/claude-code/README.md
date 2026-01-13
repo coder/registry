@@ -3,7 +3,7 @@ display_name: Claude Code
 description: Run the Claude Code agent in your workspace.
 icon: ../../../../.icons/claude.svg
 verified: true
-tags: [agent, claude-code, ai, tasks, anthropic]
+tags: [agent, claude-code, ai, tasks, anthropic, aibridge]
 ---
 
 # Claude Code
@@ -58,13 +58,12 @@ module "claude-code" {
 This example shows how to configure the Claude Code module with an AI prompt, API key shared by all users of the template, and other custom settings.
 
 ```tf
-data "coder_parameter" "ai_prompt" {
-  type        = "string"
-  name        = "AI Prompt"
-  default     = ""
-  description = "Initial task prompt for Claude Code."
-  mutable     = true
+resource "coder_ai_task" "task" {
+  count  = data.coder_workspace.me.start_count
+  app_id = module.claude-code.task_app_id
 }
+
+data "coder_task" "me" {}
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
@@ -79,7 +78,7 @@ module "claude-code" {
   claude_code_version = "2.0.62" # Pin to a specific version
   agentapi_version    = "0.11.4"
 
-  ai_prompt = data.coder_parameter.ai_prompt.value
+  ai_prompt = data.coder_task.me.prompt
   model     = "sonnet"
 
   permission_mode = "plan"
@@ -287,6 +286,36 @@ module "claude-code" {
 
 > [!NOTE]
 > For additional Vertex AI configuration options (model selection, token limits, region overrides, etc.), see the [Claude Code Vertex AI documentation](https://docs.claude.com/en/docs/claude-code/google-vertex-ai).
+
+### AI Bridge Configuration
+
+For AI Bridge configuration set `enable_coder_aibridge` to `true`. [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management.
+
+```tf
+resource "coder_ai_task" "task" {
+  count  = data.coder_workspace.me.start_count
+  app_id = module.claude-code.task_app_id
+}
+
+data "coder_task" "me" {}
+
+module "claude-code" {
+  source                = "registry.coder.com/coder/claude-code/coder"
+  version               = "4.3.0"
+  agent_id              = coder_agent.main.id
+  workdir               = "/home/coder/project"
+  ai_prompt = data.coder_task.me.prompt
+  enable_coder_aibridge = true
+}
+```
+
+When `enable_coder_aibridge = true`, the module automatically sets:
+
+- `ANTHROPIC_BASE_URL` to `${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic`
+- `ANTHROPIC_AUTH_TOKEN` to the workspace owner's session token
+
+This allows Claude Code to route API requests through Coder's AI Bridge instead of directly to Anthropic's API.
+Template build will fail if either `claude_api_key` or `claude_code_oauth_token` is provided alongside `enable_coder_aibridge = true`.
 
 ## Troubleshooting
 

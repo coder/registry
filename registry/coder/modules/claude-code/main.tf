@@ -216,6 +216,24 @@ variable "compile_boundary_from_source" {
   default     = false
 }
 
+variable "enable_coder_aibridge" {
+  type        = bool
+  description = "Use AI Bridge for Claude Code. https://coder.com/docs/ai-coder/ai-bridge"
+  default     = false
+}
+
+check "aibridge_auth_conflict" {
+  assert {
+    condition     = !(var.enable_coder_aibridge && length(var.claude_api_key) > 0)
+    error_message = "claude_api_key cannot be provided when enable_coder_aibridge is true. AI Bridge uses Coder's authentication."
+  }
+
+  assert {
+    condition     = !(var.enable_coder_aibridge && length(var.claude_code_oauth_token) > 0)
+    error_message = "claude_code_oauth_token cannot be provided when enable_coder_aibridge is true. AI Bridge uses Coder's authentication."
+  }
+}
+
 resource "coder_env" "claude_code_md_path" {
   count = var.claude_md_path == "" ? 0 : 1
 
@@ -256,6 +274,20 @@ resource "coder_env" "claude_binary_path" {
   agent_id = var.agent_id
   name     = "PATH"
   value    = "$HOME/.local/bin:$PATH"
+}
+
+resource "coder_env" "anthropic_base_url" {
+  count    = var.enable_coder_aibridge ? 1 : 0
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_BASE_URL"
+  value    = "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic"
+}
+
+resource "coder_env" "anthropic_auth_token" {
+  count    = var.enable_coder_aibridge ? 1 : 0
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_AUTH_TOKEN"
+  value    = data.coder_workspace_owner.me.session_token
 }
 
 locals {
