@@ -240,19 +240,19 @@ resource "null_resource" "coder_stop" {
       "if [ -f \"$PID_FILE\" ]; then",
       "  PID=$(cat \"$PID_FILE\")",
       #   Check if it's actually a number and process exists
-      "  if [ -n \"$PID\" ] && [[ \"$PID\" =~ ^[0-9]+$ ]] && kill -0 \"$PID\" 2>/dev/null; then",
+      "  if [ -n \"$PID\" ] && echo \"$PID\" | grep -q '^[0-9][0-9]*$' && kill -0 \"$PID\" 2>/dev/null; then",
       "    echo \"Gracefully stopping process $PID...\"",
       #    First try graceful termination
       "    kill -TERM \"$PID\" 2>/dev/null || true",
       #     Wait and check repeatedly (up to ~15 seconds total)
-      "    for i in {1..15}; do",
+      "    for i in $(seq 1 15); do",
       "      sleep 1",
       "      if ! kill -0 \"$PID\" 2>/dev/null; then",
       "        echo \"Process $PID terminated gracefully\"",
       "        break",
       "      fi",
-      #    Show we're still waiting (every 5 seconds)
-      "      [ $((i % 5)) -eq 0 ] && echo \"Still waiting... ($i/15 seconds)\"",
+      #      Show we're still waiting (every 5 seconds)
+      "      expr $i % 5 = 0 >/dev/null && echo \"Still waiting... ($i/15 seconds)\"",
       "    done",
       #     Final check - only kill -9 if still alive"
       "    if kill -0 \"$PID\" 2>/dev/null; then",
