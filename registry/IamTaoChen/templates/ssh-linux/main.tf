@@ -234,16 +234,42 @@ resource "null_resource" "coder_stop" {
 
   provisioner "remote-exec" {
     inline = [
+      "set -u",
       "PID_FILE=${local.agent_id_file}",
+      # Only proceed if PID file exists
       "if [ -f \"$PID_FILE\" ]; then",
       "  PID=$(cat \"$PID_FILE\")",
-      "  if kill -0 \"$PID\" 2>/dev/null; then",
-      "    kill -TERM \"$PID\" || true",
-      "    sleep 5",
-      "    kill -KILL \"$PID\" || true",
+      #   Check if it's actually a number and process exists
+      "  if [ -n \"$PID\" ] && [[ \"$PID\" =~ ^[0-9]+$ ]] && kill -0 \"$PID\" 2>/dev/null; then",
+      "    echo \"Gracefully stopping process $PID...\"",
+      #    First try graceful termination
+      "    kill -TERM \"$PID\" 2>/dev/null || true",
+      #     Wait and check repeatedly (up to ~15 seconds total)
+      "    for i in {1..15}; do",
+      "      sleep 1",
+      "      if ! kill -0 \"$PID\" 2>/dev/null; then",
+      "        echo \"Process $PID terminated gracefully\"",
+      "        break",
+      "      fi",
+      #    Show we're still waiting (every 5 seconds)
+      "      [ $((i % 5)) -eq 0 ] && echo \"Still waiting... ($i/15 seconds)\"",
+      "    done",
+      #     Final check - only kill -9 if still alive"
+      "    if kill -0 \"$PID\" 2>/dev/null; then",
+      "      echo \"Process $PID did not terminate in time - sending SIGKILL\"",
+      "      kill -KILL \"$PID\" 2>/dev/null || true",
+      "    fi",
+      "  else",
+      "    echo \"No running process found for PID $PID (or invalid PID)\"",
       "  fi",
-      "  rm -r ${local.coder_cache_dir}",
+      "  ",
+      #  Clean lean up regardless of whether kill succeeded
+      "  rm -f \"$PID_FILE\"",
+      "  rm -rf ${local.coder_cache_dir} 2>/dev/null || true",
+      "else",
+      "  echo \"PID file not found: $PID_FILE - nothing to clean up\"",
       "fi",
+      "sync 2>/dev/null || true",
     ]
   }
 }
