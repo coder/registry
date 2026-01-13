@@ -12,6 +12,7 @@ ARG_CLAUDE_CODE_VERSION=${ARG_CLAUDE_CODE_VERSION:-}
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
 ARG_INSTALL_CLAUDE_CODE=${ARG_INSTALL_CLAUDE_CODE:-}
 ARG_CLAUDE_BINARY_PATH=${ARG_CLAUDE_BINARY_PATH:-"$HOME/.local/bin"}
+ARG_INSTALL_VIA_NPM=${ARG_INSTALL_VIA_NPM:-false}
 ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
 ARG_MCP=$(echo -n "${ARG_MCP:-}" | base64 -d)
@@ -24,6 +25,7 @@ printf "ARG_CLAUDE_CODE_VERSION: %s\n" "$ARG_CLAUDE_CODE_VERSION"
 printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
 printf "ARG_INSTALL_CLAUDE_CODE: %s\n" "$ARG_INSTALL_CLAUDE_CODE"
 printf "ARG_CLAUDE_BINARY_PATH: %s\n" "$ARG_CLAUDE_BINARY_PATH"
+printf "ARG_INSTALL_VIA_NPM: %s\n" "$ARG_INSTALL_VIA_NPM"
 printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
 printf "ARG_MCP_APP_STATUS_SLUG: %s\n" "$ARG_MCP_APP_STATUS_SLUG"
 printf "ARG_MCP: %s\n" "$ARG_MCP"
@@ -74,9 +76,9 @@ function install_claude_code_cli() {
     return
   fi
 
-  # Use npm for specific version pinning, official installer otherwise
-  if [ -n "$ARG_CLAUDE_CODE_VERSION" ] && [ "$ARG_CLAUDE_CODE_VERSION" != "latest" ]; then
-    echo "Installing Claude Code via npm (version pinning: $ARG_CLAUDE_CODE_VERSION)"
+  # Use npm when install_via_npm is true or for specific version pinning
+  if [ "$ARG_INSTALL_VIA_NPM" = "true" ] || { [ -n "$ARG_CLAUDE_CODE_VERSION" ] && [ "$ARG_CLAUDE_CODE_VERSION" != "latest" ]; }; then
+    echo "Installing Claude Code via npm (version: $ARG_CLAUDE_CODE_VERSION)"
     npm install -g "@anthropic-ai/claude-code@$ARG_CLAUDE_CODE_VERSION"
     echo "Installed Claude Code via npm. Version: $(claude --version || echo 'unknown')"
   else

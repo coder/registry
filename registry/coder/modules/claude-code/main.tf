@@ -204,6 +204,12 @@ variable "claude_binary_path" {
   default     = "$HOME/.local/bin"
 }
 
+variable "install_via_npm" {
+  type        = bool
+  description = "Install Claude Code via npm instead of the official installer. Useful if npm is preferred or the official installer fails."
+  default     = false
+}
+
 variable "enable_boundary" {
   type        = bool
   description = "Whether to enable coder boundary for network filtering"
@@ -363,6 +369,7 @@ module "agentapi" {
     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
     ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
+    ARG_INSTALL_VIA_NPM='${var.install_via_npm}' \
     ARG_REPORT_TASKS='${var.report_tasks}' \
     ARG_WORKDIR='${local.workdir}' \
     ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
