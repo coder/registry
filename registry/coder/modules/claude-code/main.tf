@@ -265,6 +265,13 @@ resource "coder_env" "claude_binary_path" {
   agent_id = var.agent_id
   name     = "PATH"
   value    = "${var.claude_binary_path}:$PATH"
+
+  lifecycle {
+    precondition {
+      condition     = var.claude_binary_path == "$HOME/.local/bin" || !var.install_claude_code
+      error_message = "Custom claude_binary_path can only be used when install_claude_code is false. The official installer and npm both install to fixed locations."
+    }
+  }
 }
 
 resource "coder_env" "anthropic_model" {
