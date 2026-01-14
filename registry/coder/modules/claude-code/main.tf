@@ -222,15 +222,16 @@ variable "enable_coder_aibridge" {
   default     = false
 }
 
-check "aibridge_auth_conflict" {
-  assert {
-    condition     = !(var.enable_coder_aibridge && length(var.claude_api_key) > 0)
-    error_message = "claude_api_key cannot be provided when enable_coder_aibridge is true. AI Bridge uses Coder's authentication."
-  }
-
-  assert {
-    condition     = !(var.enable_coder_aibridge && length(var.claude_code_oauth_token) > 0)
-    error_message = "claude_code_oauth_token cannot be provided when enable_coder_aibridge is true. AI Bridge uses Coder's authentication."
+resource "terraform_data" "validate_aibridge_auth" {
+  lifecycle {
+    precondition {
+      condition     = !(var.enable_coder_aibridge && length(var.claude_api_key) > 0)
+      error_message = "claude_api_key cannot be provided when enable_coder_aibridge is true. AI Bridge uses Coder's authentication."
+    }
+    precondition {
+      condition     = !(var.enable_coder_aibridge && length(var.claude_code_oauth_token) > 0)
+      error_message = "claude_code_oauth_token cannot be provided when enable_coder_aibridge is true. AI Bridge uses Coder's authentication."
+    }
   }
 }
 
