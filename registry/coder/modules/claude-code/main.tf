@@ -220,18 +220,15 @@ variable "enable_aibridge" {
   type        = bool
   description = "Use AI Bridge for Claude Code. https://coder.com/docs/ai-coder/ai-bridge"
   default     = false
-}
 
-resource "terraform_data" "validate_aibridge_auth" {
-  lifecycle {
-    precondition {
-      condition     = !(var.enable_aibridge && length(var.claude_api_key) > 0)
-      error_message = "claude_api_key cannot be provided when enable_aibridge is true. AI Bridge uses Coder's authentication."
-    }
-    precondition {
-      condition     = !(var.enable_aibridge && length(var.claude_code_oauth_token) > 0)
-      error_message = "claude_code_oauth_token cannot be provided when enable_aibridge is true. AI Bridge uses Coder's authentication."
-    }
+  validation {
+    condition     = !(var.enable_aibridge && length(var.claude_api_key) > 0)
+    error_message = "claude_api_key cannot be provided when enable_aibridge is true. AI Bridge uses Coder's authentication."
+  }
+
+  validation {
+    condition     = !(var.enable_aibridge && length(var.claude_code_oauth_token) > 0)
+    error_message = "claude_code_oauth_token cannot be provided when enable_aibridge is true. AI Bridge uses Coder's authentication."
   }
 }
 
