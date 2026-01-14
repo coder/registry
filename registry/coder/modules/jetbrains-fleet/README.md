@@ -3,13 +3,13 @@ display_name: JetBrains Fleet
 description: Add a one-click button to launch JetBrains Fleet to connect to your workspace.
 icon: ../../../../.icons/fleet.svg
 verified: true
-tags: [ide, jetbrains, fleet, deprecated]
+tags: [ide, jetbrains, fleet]
 ---
 
 # Jetbrains Fleet
 
 > [!WARNING]
-> **Deprecation Notice:** JetBrains has announced that Fleet will be discontinued. For more information, see [The Future of Fleet](https://blog.jetbrains.com/fleet/2025/12/the-future-of-fleet). Consider migrating to other JetBrains IDEs such as IntelliJ IDEA, PyCharm, or GoLand with the [JetBrains Gateway](https://registry.coder.com/modules/jetbrains-gateway) module.
+> **Deprecation Notice:** JetBrains has announced that Fleet will be discontinued. For more information, see [The Future of Fleet](https://blog.jetbrains.com/fleet/2025/12/the-future-of-fleet). Consider migrating to other JetBrains IDEs such as IntelliJ IDEA, PyCharm, or GoLand with the [JetBrains](https://registry.coder.com/modules/jetbrains) module.
 
 This module adds a Jetbrains Fleet button to your Coder workspace that opens the workspace in JetBrains Fleet using SSH remote development.
 
