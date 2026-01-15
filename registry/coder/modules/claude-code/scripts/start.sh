@@ -6,7 +6,6 @@ command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
 
-ARG_MODEL=${ARG_MODEL:-}
 ARG_RESUME_SESSION_ID=${ARG_RESUME_SESSION_ID:-}
 ARG_CONTINUE=${ARG_CONTINUE:-false}
 ARG_DANGEROUSLY_SKIP_PERMISSIONS=${ARG_DANGEROUSLY_SKIP_PERMISSIONS:-}
@@ -21,7 +20,6 @@ ARG_CODER_HOST=${ARG_CODER_HOST:-}
 
 echo "--------------------------------"
 
-printf "ARG_MODEL: %s\n" "$ARG_MODEL"
 printf "ARG_RESUME: %s\n" "$ARG_RESUME_SESSION_ID"
 printf "ARG_CONTINUE: %s\n" "$ARG_CONTINUE"
 printf "ARG_DANGEROUSLY_SKIP_PERMISSIONS: %s\n" "$ARG_DANGEROUSLY_SKIP_PERMISSIONS"
@@ -169,10 +167,6 @@ function start_agentapi() {
 
   mkdir -p "$ARG_WORKDIR"
   cd "$ARG_WORKDIR"
-
-  if [ -n "$ARG_MODEL" ]; then
-    ARGS+=(--model "$ARG_MODEL")
-  fi
 
   if [ -n "$ARG_PERMISSION_MODE" ]; then
     ARGS+=(--permission-mode "$ARG_PERMISSION_MODE")
