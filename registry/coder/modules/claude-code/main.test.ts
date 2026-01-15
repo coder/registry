@@ -182,23 +182,18 @@ describe("claude-code", async () => {
       expect(startLog.stdout).toContain(`--permission-mode ${mode}`);
     });
 
-    test("claude-model", async () => {
-      const model = "opus";
-      const { id } = await setup({
-        moduleVariables: {
-          model: model,
-          ai_prompt: "test prompt",
-        },
-      });
-      await execModuleScript(id);
-
-      const startLog = await execContainer(id, [
-        "bash",
-        "-c",
-        "cat /home/coder/.claude-module/agentapi-start.log",
-      ]);
-      expect(startLog.stdout).toContain(`--model ${model}`);
+  test("claude-model", async () => {
+    const model = "opus";
+    const { coderEnvVars } = await setup({
+      moduleVariables: {
+        model: model,
+        ai_prompt: "test prompt",
+      },
     });
+
+    // Verify ANTHROPIC_MODEL env var is set via coder_env
+    expect(coderEnvVars["ANTHROPIC_MODEL"]).toBe(model);
+  });
 
     test("claude-continue-resume-task-session", async () => {
       const { id } = await setup({
