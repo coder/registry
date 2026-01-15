@@ -281,6 +281,7 @@ resource "coder_env" "anthropic_base_url" {
   value    = "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic"
 }
 
+# https://code.claude.com/docs/en/settings#environment-variables
 resource "coder_env" "anthropic_auth_token" {
   count    = var.enable_aibridge ? 1 : 0
   agent_id = var.agent_id
@@ -388,6 +389,7 @@ module "agentapi" {
     ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
     ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
     ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
+    ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
     /tmp/install.sh
   EOT
 }
