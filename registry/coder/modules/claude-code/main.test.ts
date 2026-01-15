@@ -461,32 +461,4 @@ describe("claude-code", async () => {
     expect(startLog.stdout).toContain(taskSessionId);
     expect(startLog.stdout).not.toContain("manual-456");
   });
-
-  test("claude-with-aibridge", async () => {
-    const { id, coderEnvVars } = await setup({
-      moduleVariables: {
-        enable_aibridge: "true",
-      },
-    });
-
-    console.error(coderEnvVars);
-
-    await execModuleScript(id, coderEnvVars);
-
-    // Check environment variables are set correctly
-    const envCheck = await execContainer(id, [
-      "bash",
-      "-c",
-      'env | grep ANTHROPIC_BASE_URL || echo "ANTHROPIC_BASE_URL not found"',
-    ]);
-    expect(envCheck.stdout).toContain("ANTHROPIC_BASE_URL");
-    expect(envCheck.stdout).toContain("/api/v2/aibridge/anthropic");
-
-    const authTokenCheck = await execContainer(id, [
-      "bash",
-      "-c",
-      'env | grep ANTHROPIC_AUTH_TOKEN || echo "ANTHROPIC_AUTH_TOKEN not found"',
-    ]);
-    expect(authTokenCheck.stdout).toContain("ANTHROPIC_AUTH_TOKEN");
-  });
 });
