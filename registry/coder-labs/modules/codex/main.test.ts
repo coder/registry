@@ -458,7 +458,7 @@ describe("codex", async () => {
   test("codex-with-aibridge", async () => {
     const { id } = await setup({
       moduleVariables: {
-        enable_coder_aibridge: "true",
+        enable_aibridge: "true",
         model_reasoning_effort: "none",
       },
     });
@@ -475,7 +475,7 @@ describe("codex", async () => {
       "/home/coder/.codex/config.toml",
     );
     expect(startLog).toContain(
-      "Coder AI Bridge is enabled, using profile aibridge",
+      "AI Bridge is enabled, using profile aibridge",
     );
     expect(startLog).toContain(
       "Starting Codex with arguments: --profile aibridge",

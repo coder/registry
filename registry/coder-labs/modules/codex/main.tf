@@ -71,7 +71,7 @@ variable "cli_app_display_name" {
   default     = "Codex CLI"
 }
 
-variable "enable_coder_aibridge" {
+variable "enable_aibridge" {
   type        = bool
   description = "Use AI Bridge for Codex. https://coder.com/docs/ai-coder/ai-bridge"
   default     = false
@@ -172,7 +172,7 @@ resource "coder_env" "openai_api_key" {
 }
 
 resource "coder_env" "coder_aibridge_session_token" {
-  count    = var.enable_coder_aibridge ? 1 : 0
+  count    = var.enable_aibridge ? 1 : 0
   agent_id = var.agent_id
   name     = "CODER_AIBRIDGE_SESSION_TOKEN"
   value    = data.coder_workspace_owner.me.session_token
@@ -231,7 +231,7 @@ module "agentapi" {
      ARG_CODEX_START_DIRECTORY='${local.workdir}' \
      ARG_CODEX_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
      ARG_CONTINUE='${var.continue}' \
-     ARG_ENABLE_CODER_AIBRIDGE='${var.enable_coder_aibridge}' \
+     ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
      /tmp/start.sh
    EOT
 
@@ -247,8 +247,8 @@ module "agentapi" {
     ARG_INSTALL='${var.install_codex}' \
     ARG_CODEX_VERSION='${var.codex_version}' \
     ARG_BASE_CONFIG_TOML='${base64encode(var.base_config_toml)}' \
-    ARG_ENABLE_CODER_AIBRIDGE='${var.enable_coder_aibridge}' \
-    ARG_AIBRIDGE_CONFIG='${base64encode(var.enable_coder_aibridge ? local.aibridge_config : "")}' \
+    ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
+    ARG_AIBRIDGE_CONFIG='${base64encode(var.enable_aibridge ? local.aibridge_config : "")}' \
     ARG_ADDITIONAL_MCP_SERVERS='${base64encode(var.additional_mcp_servers)}' \
     ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_CODEX_START_DIRECTORY='${local.workdir}' \

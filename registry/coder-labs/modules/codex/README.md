@@ -126,7 +126,7 @@ module "codex" {
 
 [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a centralized AI gateway that securely intermediates between users’ coding tools and AI providers, managing authentication, auditing, and usage attribution.
 
-To the AI Bridge integration, first [set up AI Bridge](https://coder.com/docs/ai-coder/ai-bridge/setup) and set `enable_coder_aibridge` to `true`. 
+To the AI Bridge integration, first [set up AI Bridge](https://coder.com/docs/ai-coder/ai-bridge/setup) and set `enable_aibridge` to `true`. 
 
 ```tf
 resource "coder_ai_task" "task" {
@@ -143,7 +143,7 @@ module "codex" {
   openai_api_key        = "..."
   ai_prompt             = data.coder_task.me.prompt
   workdir               = "/home/coder/project"
-  enable_coder_aibridge = true
+  enable_aibridge = true
 }
 ```
 
