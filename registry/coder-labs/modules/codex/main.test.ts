@@ -474,9 +474,7 @@ describe("codex", async () => {
       id,
       "/home/coder/.codex/config.toml",
     );
-    expect(startLog).toContain(
-      "AI Bridge is enabled, using profile aibridge",
-    );
+    expect(startLog).toContain("AI Bridge is enabled, using profile aibridge");
     expect(startLog).toContain(
       "Starting Codex with arguments: --profile aibridge",
     );
