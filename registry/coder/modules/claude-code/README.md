@@ -136,6 +136,50 @@ module "claude-code" {
 }
 ```
 
+### Usage with AI Bridge Configuration
+
+For AI Bridge configuration set `enable_aibridge` to `true`. [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management.
+
+#### Usage with tasks and AI Bridge
+
+```tf
+resource "coder_ai_task" "task" {
+  count  = data.coder_workspace.me.start_count
+  app_id = module.claude-code.task_app_id
+}
+
+data "coder_task" "me" {}
+
+module "claude-code" {
+  source          = "registry.coder.com/coder/claude-code/coder"
+  version         = "4.4.0"
+  agent_id        = coder_agent.main.id
+  workdir         = "/home/coder/project"
+  ai_prompt       = data.coder_task.me.prompt
+  enable_aibridge = true
+}
+```
+
+#### Standalone usage and AI Bridge
+
+```tf
+module "claude-code" {
+  source          = "registry.coder.com/coder/claude-code/coder"
+  version         = "4.4.0"
+  agent_id        = coder_agent.main.id
+  workdir         = "/home/coder/project"
+  enable_aibridge = true
+}
+```
+
+When `enable_aibridge = true`, the module automatically sets:
+
+- `ANTHROPIC_BASE_URL` to `${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic`
+- `ANTHROPIC_AUTH_TOKEN` to the workspace owner's session token
+
+This allows Claude Code to route API requests through Coder's AI Bridge instead of directly to Anthropic's API.
+Template build will fail if either `claude_api_key` or `claude_code_oauth_token` is provided alongside `enable_aibridge = true`.
+
 ### Usage with AWS Bedrock
 
 #### Prerequisites
@@ -290,36 +334,6 @@ module "claude-code" {
 
 > [!NOTE]
 > For additional Vertex AI configuration options (model selection, token limits, region overrides, etc.), see the [Claude Code Vertex AI documentation](https://docs.claude.com/en/docs/claude-code/google-vertex-ai).
-
-### AI Bridge Configuration
-
-For AI Bridge configuration set `enable_aibridge` to `true`. [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management.
-
-```tf
-resource "coder_ai_task" "task" {
-  count  = data.coder_workspace.me.start_count
-  app_id = module.claude-code.task_app_id
-}
-
-data "coder_task" "me" {}
-
-module "claude-code" {
-  source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "4.4.0"
-  agent_id        = coder_agent.main.id
-  workdir         = "/home/coder/project"
-  ai_prompt       = data.coder_task.me.prompt
-  enable_aibridge = true
-}
-```
-
-When `enable_aibridge = true`, the module automatically sets:
-
-- `ANTHROPIC_BASE_URL` to `${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic`
-- `ANTHROPIC_AUTH_TOKEN` to the workspace owner's session token
-
-This allows Claude Code to route API requests through Coder's AI Bridge instead of directly to Anthropic's API.
-Template build will fail if either `claude_api_key` or `claude_code_oauth_token` is provided alongside `enable_aibridge = true`.
 
 ## Troubleshooting
 
