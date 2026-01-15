@@ -160,7 +160,7 @@ module "claude-code" {
 }
 ```
 
-#### Standalone usage and AI Bridge
+#### Standalone usage with AI Bridge
 
 ```tf
 module "claude-code" {
