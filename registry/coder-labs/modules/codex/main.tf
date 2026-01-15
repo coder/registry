@@ -131,8 +131,8 @@ variable "agentapi_version" {
 
 variable "codex_model" {
   type        = string
-  description = "The model for Codex to use. Defaults to gpt-5.1-codex-max."
-  default     = "gpt-5.1-codex-max"
+  description = "The model for Codex to use. Defaults to gpt-5.2-codex."
+  default     = "gpt-5.2-codex"
 }
 
 variable "pre_install_script" {
