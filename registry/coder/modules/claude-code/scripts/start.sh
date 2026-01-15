@@ -218,7 +218,7 @@ function start_agentapi() {
     printf "Starting with coder boundary enabled\n"
 
     # Add default allowed URLs
-    BOUNDARY_ARGS+=(--allow "domain=anthropic.com" --allow "domain=registry.npmjs.org" --allow "domain=sentry.io" --allow "domain=claude.ai" --allow "domain=$ARG_CODER_HOST")
+    BOUNDARY_ARGS+=()
 
     agentapi server --type claude --term-width 67 --term-height 1190 -- \
       boundary-run "${BOUNDARY_ARGS[@]}" -- \
