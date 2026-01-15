@@ -202,4 +202,7 @@ install_codex
 codex --version
 populate_config_toml
 add_instruction_prompt_if_exists
-add_auth_json
+
+if [ "$ARG_ENABLE_AIBRIDGE" = "false" ]; then
+  add_auth_json
+fi

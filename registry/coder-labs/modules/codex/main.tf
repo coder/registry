@@ -75,6 +75,11 @@ variable "enable_aibridge" {
   type        = bool
   description = "Use AI Bridge for Codex. https://coder.com/docs/ai-coder/ai-bridge"
   default     = false
+
+  validation {
+    condition     = !(var.enable_aibridge && length(var.openai_api_key) > 0)
+    error_message = "openai_api_key cannot be provided when enable_aibridge is true."
+  }
 }
 
 variable "model_reasoning_effort" {
