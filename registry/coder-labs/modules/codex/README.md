@@ -128,6 +128,8 @@ module "codex" {
 
 To the AI Bridge integration, first [set up AI Bridge](https://coder.com/docs/ai-coder/ai-bridge/setup) and set `enable_aibridge` to `true`.
 
+#### Usage with tasks and AI Bridge
+
 ```tf
 resource "coder_ai_task" "task" {
   count  = data.coder_workspace.me.start_count
@@ -140,8 +142,19 @@ module "codex" {
   source          = "registry.coder.com/coder-labs/codex/coder"
   version         = "4.1.0"
   agent_id        = coder_agent.example.id
-  openai_api_key  = "..."
   ai_prompt       = data.coder_task.me.prompt
+  workdir         = "/home/coder/project"
+  enable_aibridge = true
+}
+```
+
+#### Standalone usage with AI Bridge
+
+```tf
+module "codex" {
+  source          = "registry.coder.com/coder-labs/codex/coder"
+  version         = "4.1.0"
+  agent_id        = coder_agent.example.id
   workdir         = "/home/coder/project"
   enable_aibridge = true
 }
