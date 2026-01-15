@@ -86,7 +86,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.11.6"
+  default     = "v0.11.8"
 }
 
 variable "ai_prompt" {
@@ -128,7 +128,7 @@ variable "claude_api_key" {
 
 variable "model" {
   type        = string
-  description = "Sets the model for the current session with an alias for the latest model (sonnet or opus) or a model’s full name."
+  description = "Sets the default model for Claude Code via ANTHROPIC_MODEL env var. If empty, Claude Code uses its default. Supports aliases (sonnet, opus) or full model names."
   default     = ""
 }
 
@@ -198,6 +198,18 @@ variable "claude_md_path" {
   default     = "$HOME/.claude/CLAUDE.md"
 }
 
+variable "claude_binary_path" {
+  type        = string
+  description = "Directory where the Claude Code binary is located. Use this if Claude is pre-installed or installed outside the module to a non-default location."
+  default     = "$HOME/.local/bin"
+}
+
+variable "install_via_npm" {
+  type        = bool
+  description = "Install Claude Code via npm instead of the official installer. Useful if npm is preferred or the official installer fails."
+  default     = false
+}
+
 variable "enable_boundary" {
   type        = bool
   description = "Whether to enable coder boundary for network filtering"
@@ -217,8 +229,7 @@ variable "compile_boundary_from_source" {
 }
 
 resource "coder_env" "claude_code_md_path" {
-  count = var.claude_md_path == "" ? 0 : 1
-
+  count    = var.claude_md_path == "" ? 0 : 1
   agent_id = var.agent_id
   name     = "CODER_MCP_CLAUDE_MD_PATH"
   value    = var.claude_md_path
@@ -237,16 +248,14 @@ resource "coder_env" "claude_code_oauth_token" {
 }
 
 resource "coder_env" "claude_api_key" {
-  count = length(var.claude_api_key) > 0 ? 1 : 0
-
+  count    = length(var.claude_api_key) > 0 ? 1 : 0
   agent_id = var.agent_id
   name     = "CLAUDE_API_KEY"
   value    = var.claude_api_key
 }
 
 resource "coder_env" "disable_autoupdater" {
-  count = var.disable_autoupdater ? 1 : 0
-
+  count    = var.disable_autoupdater ? 1 : 0
   agent_id = var.agent_id
   name     = "DISABLE_AUTOUPDATER"
   value    = "1"
@@ -255,7 +264,21 @@ resource "coder_env" "disable_autoupdater" {
 resource "coder_env" "claude_binary_path" {
   agent_id = var.agent_id
   name     = "PATH"
-  value    = "$HOME/.local/bin:$PATH"
+  value    = "${var.claude_binary_path}:$PATH"
+
+  lifecycle {
+    precondition {
+      condition     = var.claude_binary_path == "$HOME/.local/bin" || !var.install_claude_code
+      error_message = "Custom claude_binary_path can only be used when install_claude_code is false. The official installer and npm both install to fixed locations."
+    }
+  }
+}
+
+resource "coder_env" "anthropic_model" {
+  count    = var.model != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_MODEL"
+  value    = var.model
 }
 
 locals {
@@ -328,7 +351,6 @@ module "agentapi" {
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
 
-     ARG_MODEL='${var.model}' \
      ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
      ARG_CONTINUE='${var.continue}' \
      ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
@@ -353,6 +375,8 @@ module "agentapi" {
     ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
+    ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
+    ARG_INSTALL_VIA_NPM='${var.install_via_npm}' \
     ARG_REPORT_TASKS='${var.report_tasks}' \
     ARG_WORKDIR='${local.workdir}' \
     ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
