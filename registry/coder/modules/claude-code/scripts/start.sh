@@ -217,7 +217,6 @@ function start_agentapi() {
 
     printf "Starting with coder boundary enabled\n"
 
-    # Add default allowed URLs
     BOUNDARY_ARGS+=()
 
     agentapi server --type claude --term-width 67 --term-height 1190 -- \
