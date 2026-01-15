@@ -213,9 +213,9 @@ describe("claude-code", async () => {
       "bash",
       "-c",
       `cat > ${sessionDir}/${taskSessionId}.jsonl << 'SESSIONEOF'
-  {"sessionId":"${taskSessionId}","message":{"content":"Task"},"timestamp":"2020-01-01T10:00:00.000Z"}
-  {"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-01T10:00:05.000Z"}
-  SESSIONEOF`,
+{"sessionId":"${taskSessionId}","message":{"content":"Task"},"timestamp":"2020-01-01T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-01T10:00:05.000Z"}
+SESSIONEOF`,
     ]);
 
     await execModuleScript(id);
@@ -309,9 +309,9 @@ describe("claude-code", async () => {
       moduleVariables: {
         subdomain: "false",
         post_install_script: dedent`
-          #!/bin/bash
-          env | grep AGENTAPI_CHAT_BASE_PATH || echo "AGENTAPI_CHAT_BASE_PATH not found"
-          `,
+        #!/bin/bash
+        env | grep AGENTAPI_CHAT_BASE_PATH || echo "AGENTAPI_CHAT_BASE_PATH not found"
+        `,
       },
     });
 
@@ -394,9 +394,9 @@ describe("claude-code", async () => {
       "bash",
       "-c",
       `cat > ${sessionDir}/generic-123.jsonl << 'EOF'
-  {"sessionId":"generic-123","message":{"content":"User session"},"timestamp":"2020-01-01T10:00:00.000Z"}
-  {"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-01T10:00:05.000Z"}
-  EOF`,
+{"sessionId":"generic-123","message":{"content":"User session"},"timestamp":"2020-01-01T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-01T10:00:05.000Z"}
+EOF`,
     ]);
 
     await execModuleScript(id);
@@ -433,9 +433,9 @@ describe("claude-code", async () => {
       "bash",
       "-c",
       `cat > ${sessionDir}/${taskSessionId}.jsonl << 'EOF'
-  {"sessionId":"${taskSessionId}","message":{"content":"Task"},"timestamp":"2020-01-01T10:00:00.000Z"}
-  {"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-01T10:00:05.000Z"}
-  EOF`,
+{"sessionId":"${taskSessionId}","message":{"content":"Task"},"timestamp":"2020-01-01T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-01T10:00:05.000Z"}
+EOF`,
     ]);
 
     // Create manual session (newer)
@@ -443,9 +443,9 @@ describe("claude-code", async () => {
       "bash",
       "-c",
       `cat > ${sessionDir}/manual-456.jsonl << 'EOF'
-  {"sessionId":"manual-456","message":{"content":"Manual"},"timestamp":"2020-01-02T10:00:00.000Z"}
-  {"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-02T10:00:05.000Z"}
-  EOF`,
+{"sessionId":"manual-456","message":{"content":"Manual"},"timestamp":"2020-01-02T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-02T10:00:05.000Z"}
+EOF`,
     ]);
 
     await execModuleScript(id);
