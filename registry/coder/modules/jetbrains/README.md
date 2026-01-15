@@ -136,6 +136,50 @@ module "jetbrains" {
 }
 ```
 
+### Pre-install Plugins
+
+Pre-install JetBrains plugins to ensure your team has the required tools ready when they open the IDE:
+
+```tf
+module "jetbrains" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/jetbrains/coder"
+  version  = "1.3.0"
+  agent_id = coder_agent.main.id
+  folder   = "/home/coder/project"
+  default  = ["IU", "GO"]
+
+  # Pre-install common plugins
+  plugins = [
+    "org.jetbrains.plugins.github",      # GitHub integration
+    "com.intellij.plugins.vscodekeymap", # VS Code keymap
+    "String Manipulation",               # String manipulation tools
+  ]
+}
+```
+
+> [!NOTE]
+> Plugin IDs can be found on the [JetBrains Marketplace](https://plugins.jetbrains.com). Go to any plugin's page and look under "Additional Information" for the Plugin ID.
+
+#### How Plugin Pre-installation Works
+
+1. **Project-level configuration**: Creates `.idea/externalDependencies.xml` in your project folder. When you open the project in your IDE, you'll be prompted to install any missing plugins.
+
+2. **Background installation**: A background process monitors for IDE installation and automatically installs plugins when the IDE becomes available.
+
+#### Popular Plugin IDs
+
+| Plugin           | ID                                  |
+| ---------------- | ----------------------------------- |
+| GitHub           | `org.jetbrains.plugins.github`      |
+| GitLab           | `org.jetbrains.plugins.gitlab`      |
+| Docker           | `Docker`                            |
+| Kubernetes       | `com.intellij.kubernetes`           |
+| VS Code Keymap   | `com.intellij.plugins.vscodekeymap` |
+| Rainbow Brackets | `izhangzhihao.rainbow.brackets`     |
+| SonarLint        | `org.sonarlint.idea`                |
+| Copilot          | `com.github.copilot`                |
+
 ### Accessing the IDE Metadata
 
 You can now reference the output `ide_metadata` as a map.

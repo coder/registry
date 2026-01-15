@@ -65,6 +65,22 @@ variable "tooltip" {
   default     = "You need to install [JetBrains Toolbox App](https://www.jetbrains.com/toolbox-app/) to use this button."
 }
 
+variable "plugins" {
+  type        = list(string)
+  description = <<-EOT
+    List of JetBrains plugin IDs to pre-install. Plugin IDs can be found on the
+    JetBrains Marketplace (https://plugins.jetbrains.com) under "Additional Information".
+    Example: ["org.jetbrains.plugins.github", "com.intellij.plugins.vscodekeymap"]
+  EOT
+  default     = []
+  validation {
+    condition = alltrue([
+      for plugin in var.plugins : can(regex("^[a-zA-Z0-9._-]+$", plugin))
+    ])
+    error_message = "Plugin IDs must contain only alphanumeric characters, dots, underscores, and hyphens."
+  }
+}
+
 variable "major_version" {
   type        = string
   description = "The major version of the IDE. i.e. 2025.1"
@@ -270,6 +286,18 @@ resource "coder_app" "jetbrains" {
   ])
 }
 
+resource "coder_script" "jetbrains_plugins" {
+  count        = length(var.plugins) > 0 ? 1 : 0
+  agent_id     = var.agent_id
+  display_name = "JetBrains Plugins"
+  icon         = "/icon/jetbrains-toolbox.svg"
+  script = templatefile("${path.module}/install_plugins.sh", {
+    PLUGINS     = join(",", var.plugins)
+    PROJECT_DIR = var.folder
+  })
+  run_on_start = true
+}
+
 output "ide_metadata" {
   description = "A map of the metadata for each selected JetBrains IDE."
   value = {
@@ -277,4 +305,9 @@ output "ide_metadata" {
     # 'key' will be the IDE key (e.g., "IC", "PY")
     for key, val in local.selected_ides : key => local.options_metadata[key]
   }
+}
+
+output "plugins" {
+  description = "List of plugin IDs configured for pre-installation."
+  value       = var.plugins
 }

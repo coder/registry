@@ -351,3 +351,135 @@ run "validate_output_schema" {
     error_message = "The ide_metadata output schema has changed. Please update the 'main.tf' and this test."
   }
 }
+
+# Plugin installation tests
+run "no_plugin_script_when_plugins_empty" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+    plugins  = []
+  }
+
+  assert {
+    condition     = length(resource.coder_script.jetbrains_plugins) == 0
+    error_message = "Expected no coder_script when plugins list is empty"
+  }
+}
+
+run "plugin_script_created_when_plugins_provided" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+    plugins  = ["org.jetbrains.plugins.github"]
+  }
+
+  assert {
+    condition     = length(resource.coder_script.jetbrains_plugins) == 1
+    error_message = "Expected coder_script to be created when plugins are provided"
+  }
+}
+
+run "plugin_script_has_correct_display_name" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+    plugins  = ["org.jetbrains.plugins.github"]
+  }
+
+  assert {
+    condition     = resource.coder_script.jetbrains_plugins[0].display_name == "JetBrains Plugins"
+    error_message = "Expected plugin script display_name to be 'JetBrains Plugins'"
+  }
+}
+
+run "plugin_script_runs_on_start" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+    plugins  = ["org.jetbrains.plugins.github"]
+  }
+
+  assert {
+    condition     = resource.coder_script.jetbrains_plugins[0].run_on_start == true
+    error_message = "Expected plugin script to run on start"
+  }
+}
+
+run "plugins_output_contains_correct_values" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+    plugins  = ["org.jetbrains.plugins.github", "Docker"]
+  }
+
+  assert {
+    condition     = length(output.plugins) == 2
+    error_message = "Expected plugins output to contain 2 items"
+  }
+
+  assert {
+    condition     = contains(output.plugins, "org.jetbrains.plugins.github")
+    error_message = "Expected plugins output to contain 'org.jetbrains.plugins.github'"
+  }
+
+  assert {
+    condition     = contains(output.plugins, "Docker")
+    error_message = "Expected plugins output to contain 'Docker'"
+  }
+}
+
+run "plugins_output_empty_when_not_provided" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+  }
+
+  assert {
+    condition     = length(output.plugins) == 0
+    error_message = "Expected plugins output to be empty when not provided"
+  }
+}
+
+run "multiple_plugins_supported" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+    plugins = [
+      "org.jetbrains.plugins.github",
+      "com.intellij.plugins.vscodekeymap",
+      "Docker",
+      "izhangzhihao.rainbow.brackets"
+    ]
+  }
+
+  assert {
+    condition     = length(output.plugins) == 4
+    error_message = "Expected plugins output to contain 4 items"
+  }
+
+  assert {
+    condition     = length(resource.coder_script.jetbrains_plugins) == 1
+    error_message = "Expected exactly one coder_script for plugins"
+  }
+}
