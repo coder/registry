@@ -13,7 +13,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "4.3.0"
+  version        = "4.4.2"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
@@ -44,8 +44,8 @@ This example shows how to configure the Claude Code module to run the agent behi
 
 ```tf
 module "claude-code" {
-  source           = "dev.registry.coder.com/coder/claude-code/coder"
-  version          = "4.3.0"
+  source           = "registry.coder.com/coder/claude-code/coder"
+  version          = "4.4.2"
   agent_id         = coder_agent.main.id
   workdir          = "/home/coder/project"
   enable_boundary  = true
@@ -56,6 +56,9 @@ module "claude-code" {
 ### Usage with Tasks and Advanced Configuration
 
 This example shows how to configure the Claude Code module with an AI prompt, API key shared by all users of the template, and other custom settings.
+
+> [!NOTE]
+> When a specific `claude_code_version` (other than "latest") is provided, the module will install Claude Code via npm instead of the official installer. This allows for version pinning. The `claude_binary_path` variable can be used to specify where a pre-installed Claude binary is located.
 
 ```tf
 data "coder_parameter" "ai_prompt" {
@@ -68,7 +71,7 @@ data "coder_parameter" "ai_prompt" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.3.0"
+  version  = "4.4.2"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -76,7 +79,8 @@ module "claude-code" {
   # OR
   claude_code_oauth_token = "xxxxx-xxxx-xxxx"
 
-  claude_code_version = "2.0.62" # Pin to a specific version
+  claude_code_version = "2.0.62"          # Pin to a specific version (uses npm)
+  claude_binary_path  = "/opt/claude/bin" # Path to pre-installed Claude binary
   agentapi_version    = "0.11.4"
 
   ai_prompt = data.coder_parameter.ai_prompt.value
@@ -104,7 +108,7 @@ Run and configure Claude Code as a standalone CLI in your workspace.
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "4.3.0"
+  version             = "4.4.2"
   agent_id            = coder_agent.main.id
   workdir             = "/home/coder/project"
   install_claude_code = true
@@ -126,7 +130,7 @@ variable "claude_code_oauth_token" {
 
 module "claude-code" {
   source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "4.3.0"
+  version                 = "4.4.2"
   agent_id                = coder_agent.main.id
   workdir                 = "/home/coder/project"
   claude_code_oauth_token = var.claude_code_oauth_token
@@ -199,7 +203,7 @@ resource "coder_env" "bedrock_api_key" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.3.0"
+  version  = "4.4.2"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
@@ -256,7 +260,7 @@ resource "coder_env" "google_application_credentials" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.3.0"
+  version  = "4.4.2"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "claude-sonnet-4@20250514"
