@@ -53,12 +53,9 @@ module "claude-code" {
 }
 ```
 
-### Usage with Tasks and Advanced Configuration
+### Usage with Tasks
 
-This example shows how to configure the Claude Code module with an AI prompt, API key shared by all users of the template, and other custom settings.
-
-> [!NOTE]
-> When a specific `claude_code_version` (other than "latest") is provided, the module will install Claude Code via npm instead of the official installer. This allows for version pinning. The `claude_binary_path` variable can be used to specify where a pre-installed Claude binary is located.
+This example shows how to configure Claude Code with Coder tasks.
 
 ```tf
 resource "coder_ai_task" "task" {
@@ -68,6 +65,27 @@ resource "coder_ai_task" "task" {
 
 data "coder_task" "me" {}
 
+module "claude-code" {
+  source         = "registry.coder.com/coder/claude-code/coder"
+  version        = "4.5.0"
+  agent_id       = coder_agent.main.id
+  workdir        = "/home/coder/project"
+  claude_api_key = "xxxx-xxxxx-xxxx"
+  ai_prompt      = data.coder_task.me.prompt
+
+  # Optional: route through AI Bridge (Premium feature)
+  # enable_aibridge = true
+}
+```
+
+### Advanced Configuration
+
+This example shows additional configuration options for version pinning, custom models, and MCP servers.
+
+> [!NOTE]
+> When a specific `claude_code_version` (other than "latest") is provided, the module will install Claude Code via npm instead of the official installer. This allows for version pinning. The `claude_binary_path` variable can be used to specify where a pre-installed Claude binary is located.
+
+```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
   version  = "4.5.0"
@@ -82,9 +100,7 @@ module "claude-code" {
   claude_binary_path  = "/opt/claude/bin" # Path to pre-installed Claude binary
   agentapi_version    = "0.11.4"
 
-  ai_prompt = data.coder_task.me.prompt
-  model     = "sonnet"
-
+  model           = "sonnet"
   permission_mode = "plan"
 
   mcp = <<-EOF
@@ -138,27 +154,9 @@ module "claude-code" {
 
 ### Usage with AI Bridge Configuration
 
-For AI Bridge configuration set `enable_aibridge` to `true`. [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management.
+[AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management. To use AI Bridge, set `enable_aibridge = true`.
 
-#### Usage with tasks and AI Bridge
-
-```tf
-resource "coder_ai_task" "task" {
-  count  = data.coder_workspace.me.start_count
-  app_id = module.claude-code.task_app_id
-}
-
-data "coder_task" "me" {}
-
-module "claude-code" {
-  source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "4.5.0"
-  agent_id        = coder_agent.main.id
-  workdir         = "/home/coder/project"
-  ai_prompt       = data.coder_task.me.prompt
-  enable_aibridge = true
-}
-```
+For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage with Tasks](#usage-with-tasks) example above.
 
 #### Standalone usage with AI Bridge
 
