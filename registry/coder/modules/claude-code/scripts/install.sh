@@ -18,6 +18,7 @@ ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
 ARG_MCP=$(echo -n "${ARG_MCP:-}" | base64 -d)
 ARG_ALLOWED_TOOLS=${ARG_ALLOWED_TOOLS:-}
 ARG_DISALLOWED_TOOLS=${ARG_DISALLOWED_TOOLS:-}
+ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
 
 echo "--------------------------------"
 
@@ -31,6 +32,7 @@ printf "ARG_MCP_APP_STATUS_SLUG: %s\n" "$ARG_MCP_APP_STATUS_SLUG"
 printf "ARG_MCP: %s\n" "$ARG_MCP"
 printf "ARG_ALLOWED_TOOLS: %s\n" "$ARG_ALLOWED_TOOLS"
 printf "ARG_DISALLOWED_TOOLS: %s\n" "$ARG_DISALLOWED_TOOLS"
+printf "ARG_ENABLE_AIBRIDGE %s\n" "$ARG_ENABLE_AIBRIDGE"
 
 echo "--------------------------------"
 
@@ -133,8 +135,8 @@ function setup_claude_configurations() {
 function configure_standalone_mode() {
   echo "Configuring Claude Code for standalone mode..."
 
-  if [ -z "${CLAUDE_API_KEY:-}" ]; then
-    echo "Note: CLAUDE_API_KEY not set, skipping authentication setup"
+  if [ -z "${CLAUDE_API_KEY:-}" ] && [ "$ARG_ENABLE_AIBRIDGE" = "false" ]; then
+    echo "Note: CLAUDE_API_KEY or enable_aibridge not set, skipping authentication setup"
     return
   fi
 
@@ -142,18 +144,16 @@ function configure_standalone_mode() {
   local workdir_normalized
   workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
 
-  # Create or update .claude.json with minimal configuration for API key auth
+  # Create or update .claude.json with minimal configuration
   # This skips the interactive login prompt and onboarding screens
   if [ -f "$claude_config" ]; then
     echo "Updating existing Claude configuration at $claude_config"
 
-    jq --arg apikey "${CLAUDE_API_KEY:-}" \
-      --arg workdir "$ARG_WORKDIR" \
+    jq --arg workdir "$ARG_WORKDIR" \
       '.autoUpdaterStatus = "disabled" |
         .bypassPermissionsModeAccepted = true |
         .hasAcknowledgedCostThreshold = true |
         .hasCompletedOnboarding = true |
-        .primaryApiKey = $apikey |
         .projects[$workdir].hasCompletedProjectOnboarding = true |
         .projects[$workdir].hasTrustDialogAccepted = true' \
       "$claude_config" > "${claude_config}.tmp" && mv "${claude_config}.tmp" "$claude_config"
@@ -165,7 +165,6 @@ function configure_standalone_mode() {
   "bypassPermissionsModeAccepted": true,
   "hasAcknowledgedCostThreshold": true,
   "hasCompletedOnboarding": true,
-  "primaryApiKey": "${CLAUDE_API_KEY:-}",
   "projects": {
     "$ARG_WORKDIR": {
       "hasCompletedProjectOnboarding": true,
@@ -174,6 +173,11 @@ function configure_standalone_mode() {
   }
 }
 EOF
+  fi
+
+  # Add API key only if set
+  if [ -n "${CLAUDE_API_KEY:-}" ]; then
+    jq --arg apikey "${CLAUDE_API_KEY}" '.primaryApiKey = $apikey' "$claude_config" > "${claude_config}.tmp" && mv "${claude_config}.tmp" "$claude_config"
   fi
 
   echo "Standalone mode configured successfully"
