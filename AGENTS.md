@@ -34,3 +34,4 @@ bun test main.test.ts          # Run single TS test (from module dir)
 - README examples updated with new version number; tooltip/behavior changes noted
 - Shell scripts handle errors gracefully (use `|| echo "Warning..."` for non-fatal failures)
 - No hardcoded values that should be configurable; no absolute URLs (use relative paths)
+- If AI-assisted: include model and tool/agent name at footer of PR body (e.g., "Generated with [Amp](thread-url) using Claude")
