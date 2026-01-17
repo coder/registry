@@ -53,6 +53,32 @@ module "claude-code" {
 }
 ```
 
+### Usage with AI Bridge Configuration
+
+[AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management. To use AI Bridge, set `enable_aibridge = true`.
+
+For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage with Tasks](#usage-with-tasks) example below.
+
+#### Standalone usage with AI Bridge
+
+```tf
+module "claude-code" {
+  source          = "registry.coder.com/coder/claude-code/coder"
+  version         = "4.5.0"
+  agent_id        = coder_agent.main.id
+  workdir         = "/home/coder/project"
+  enable_aibridge = true
+}
+```
+
+When `enable_aibridge = true`, the module automatically sets:
+
+- `ANTHROPIC_BASE_URL` to `${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic`
+- `ANTHROPIC_AUTH_TOKEN` to the workspace owner's session token
+
+This allows Claude Code to route API requests through Coder's AI Bridge instead of directly to Anthropic's API.
+Template build will fail if either `claude_api_key` or `claude_code_oauth_token` is provided alongside `enable_aibridge = true`.
+
 ### Usage with Tasks
 
 This example shows how to configure Claude Code with Coder tasks.
@@ -151,32 +177,6 @@ module "claude-code" {
   claude_code_oauth_token = var.claude_code_oauth_token
 }
 ```
-
-### Usage with AI Bridge Configuration
-
-[AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management. To use AI Bridge, set `enable_aibridge = true`.
-
-For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage with Tasks](#usage-with-tasks) example above.
-
-#### Standalone usage with AI Bridge
-
-```tf
-module "claude-code" {
-  source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "4.5.0"
-  agent_id        = coder_agent.main.id
-  workdir         = "/home/coder/project"
-  enable_aibridge = true
-}
-```
-
-When `enable_aibridge = true`, the module automatically sets:
-
-- `ANTHROPIC_BASE_URL` to `${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic`
-- `ANTHROPIC_AUTH_TOKEN` to the workspace owner's session token
-
-This allows Claude Code to route API requests through Coder's AI Bridge instead of directly to Anthropic's API.
-Template build will fail if either `claude_api_key` or `claude_code_oauth_token` is provided alongside `enable_aibridge = true`.
 
 ### Usage with AWS Bedrock
 
