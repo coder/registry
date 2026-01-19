@@ -154,7 +154,7 @@ function configure_standalone_mode() {
         .bypassPermissionsModeAccepted = true |
         .hasAcknowledgedCostThreshold = true |
         .hasCompletedOnboarding = true |
-        .primaryApiKey = $apikey |
+        .primaryApiKey = "${CLAUDE_API_KEY:-}" |
         .projects[$workdir].hasCompletedProjectOnboarding = true |
         .projects[$workdir].hasTrustDialogAccepted = true' \
       "$claude_config" > "${claude_config}.tmp" && mv "${claude_config}.tmp" "$claude_config"
