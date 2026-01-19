@@ -404,7 +404,6 @@ locals {
     set -o pipefail
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
     chmod +x /tmp/start.sh
-    chmod +x /tmp/remove-last-session-id.sh
 
     ${local.start_env_vars}
     /tmp/start.sh
