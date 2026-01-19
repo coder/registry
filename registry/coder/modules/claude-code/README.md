@@ -3,7 +3,7 @@ display_name: Claude Code
 description: Run the Claude Code agent in your workspace.
 icon: ../../../../.icons/claude.svg
 verified: true
-tags: [agent, claude-code, ai, tasks, anthropic]
+tags: [agent, claude-code, ai, tasks, anthropic, aibridge]
 ---
 
 # Claude Code
@@ -13,7 +13,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "4.2.6"
+  version        = "4.5.0"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
@@ -44,35 +44,77 @@ This example shows how to configure the Claude Code module to run the agent behi
 
 ```tf
 module "claude-code" {
-  source                           = "dev.registry.coder.com/coder/claude-code/coder"
-  version                          = "4.2.6"
-  agent_id                         = coder_agent.main.id
-  workdir                          = "/home/coder/project"
-  enable_boundary                  = true
-  boundary_version                 = "main"
-  boundary_log_dir                 = "/tmp/boundary_logs"
-  boundary_log_level               = "WARN"
-  boundary_additional_allowed_urls = ["GET *google.com"]
-  boundary_proxy_port              = "8087"
+  source           = "registry.coder.com/coder/claude-code/coder"
+  version          = "4.5.0"
+  agent_id         = coder_agent.main.id
+  workdir          = "/home/coder/project"
+  enable_boundary  = true
+  boundary_version = "v0.5.1"
 }
 ```
 
-### Usage with Tasks and Advanced Configuration
+### Usage with AI Bridge
 
-This example shows how to configure the Claude Code module with an AI prompt, API key shared by all users of the template, and other custom settings.
+[AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management. To use AI Bridge, set `enable_aibridge = true`.
+
+For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage with Tasks](#usage-with-tasks) example below.
+
+#### Standalone usage with AI Bridge
 
 ```tf
-data "coder_parameter" "ai_prompt" {
-  type        = "string"
-  name        = "AI Prompt"
-  default     = ""
-  description = "Initial task prompt for Claude Code."
-  mutable     = true
+module "claude-code" {
+  source          = "registry.coder.com/coder/claude-code/coder"
+  version         = "4.5.0"
+  agent_id        = coder_agent.main.id
+  workdir         = "/home/coder/project"
+  enable_aibridge = true
+}
+```
+
+When `enable_aibridge = true`, the module automatically sets:
+
+- `ANTHROPIC_BASE_URL` to `${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic`
+- `CLAUDE_API_KEY` to the workspace owner's session token
+
+This allows Claude Code to route API requests through Coder's AI Bridge instead of directly to Anthropic's API.
+Template build will fail if either `claude_api_key` or `claude_code_oauth_token` is provided alongside `enable_aibridge = true`.
+
+### Usage with Tasks
+
+This example shows how to configure Claude Code with Coder tasks.
+
+```tf
+resource "coder_ai_task" "task" {
+  count  = data.coder_workspace.me.start_count
+  app_id = module.claude-code.task_app_id
 }
 
+data "coder_task" "me" {}
+
+module "claude-code" {
+  source         = "registry.coder.com/coder/claude-code/coder"
+  version        = "4.5.0"
+  agent_id       = coder_agent.main.id
+  workdir        = "/home/coder/project"
+  claude_api_key = "xxxx-xxxxx-xxxx"
+  ai_prompt      = data.coder_task.me.prompt
+
+  # Optional: route through AI Bridge (Premium feature)
+  # enable_aibridge = true
+}
+```
+
+### Advanced Configuration
+
+This example shows additional configuration options for version pinning, custom models, and MCP servers.
+
+> [!NOTE]
+> When a specific `claude_code_version` (other than "latest") is provided, the module will install Claude Code via npm instead of the official installer. This allows for version pinning. The `claude_binary_path` variable can be used to specify where a pre-installed Claude binary is located.
+
+```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.2.6"
+  version  = "4.5.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -80,22 +122,20 @@ module "claude-code" {
   # OR
   claude_code_oauth_token = "xxxxx-xxxx-xxxx"
 
-  claude_code_version = "2.0.62" # Pin to a specific version
+  claude_code_version = "2.0.62"          # Pin to a specific version (uses npm)
+  claude_binary_path  = "/opt/claude/bin" # Path to pre-installed Claude binary
   agentapi_version    = "0.11.4"
 
-  ai_prompt = data.coder_parameter.ai_prompt.value
-  model     = "sonnet"
-
+  model           = "sonnet"
   permission_mode = "plan"
 
   mcp = <<-EOF
   {
     "mcpServers": {
       "my-custom-tool": {
-        "command": "my-tool-server"
+        "command": "my-tool-server",
         "args": ["--port", "8080"]
       }
-
     }
   }
   EOF
@@ -109,7 +149,7 @@ Run and configure Claude Code as a standalone CLI in your workspace.
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "4.2.6"
+  version             = "4.5.0"
   agent_id            = coder_agent.main.id
   workdir             = "/home/coder/project"
   install_claude_code = true
@@ -131,7 +171,7 @@ variable "claude_code_oauth_token" {
 
 module "claude-code" {
   source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "4.2.6"
+  version                 = "4.5.0"
   agent_id                = coder_agent.main.id
   workdir                 = "/home/coder/project"
   claude_code_oauth_token = var.claude_code_oauth_token
@@ -204,7 +244,7 @@ resource "coder_env" "bedrock_api_key" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.2.6"
+  version  = "4.5.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
@@ -261,7 +301,7 @@ resource "coder_env" "google_application_credentials" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.2.6"
+  version  = "4.5.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "claude-sonnet-4@20250514"

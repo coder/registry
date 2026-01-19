@@ -39,9 +39,11 @@ interface SetupProps {
   agentapiMockScript?: string;
 }
 
-const setup = async (props?: SetupProps): Promise<{ id: string }> => {
+const setup = async (
+  props?: SetupProps,
+): Promise<{ id: string; coderEnvVars: Record<string, string> }> => {
   const projectDir = "/home/coder/project";
-  const { id } = await setupUtil({
+  const { id, coderEnvVars } = await setupUtil({
     moduleDir: import.meta.dir,
     moduleVariables: {
       install_claude_code: props?.skipClaudeMock ? "true" : "false",
@@ -61,7 +63,7 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
       content: await loadTestFile(import.meta.dir, "claude-mock.sh"),
     });
   }
-  return { id };
+  return { id, coderEnvVars };
 };
 
 setDefaultTimeout(60 * 1000);
@@ -79,14 +81,14 @@ describe("claude-code", async () => {
 
   test("install-claude-code-version", async () => {
     const version_to_install = "1.0.40";
-    const { id } = await setup({
+    const { id, coderEnvVars } = await setup({
       skipClaudeMock: true,
       moduleVariables: {
         install_claude_code: "true",
         claude_code_version: version_to_install,
       },
     });
-    await execModuleScript(id);
+    await execModuleScript(id, coderEnvVars);
     const resp = await execContainer(id, [
       "bash",
       "-c",
@@ -96,14 +98,14 @@ describe("claude-code", async () => {
   });
 
   test("check-latest-claude-code-version-works", async () => {
-    const { id } = await setup({
+    const { id, coderEnvVars } = await setup({
       skipClaudeMock: true,
       skipAgentAPIMock: true,
       moduleVariables: {
         install_claude_code: "true",
       },
     });
-    await execModuleScript(id);
+    await execModuleScript(id, coderEnvVars);
     await expectAgentAPIStarted(id);
   });
 
@@ -133,13 +135,13 @@ describe("claude-code", async () => {
         },
       },
     });
-    const { id } = await setup({
+    const { id, coderEnvVars } = await setup({
       skipClaudeMock: true,
       moduleVariables: {
         mcp: mcpConfig,
       },
     });
-    await execModuleScript(id);
+    await execModuleScript(id, coderEnvVars);
 
     const resp = await readFileContainer(id, "/home/coder/.claude.json");
     expect(resp).toContain("test-cmd");
@@ -182,20 +184,15 @@ describe("claude-code", async () => {
 
   test("claude-model", async () => {
     const model = "opus";
-    const { id } = await setup({
+    const { coderEnvVars } = await setup({
       moduleVariables: {
         model: model,
         ai_prompt: "test prompt",
       },
     });
-    await execModuleScript(id);
 
-    const startLog = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/.claude-module/agentapi-start.log",
-    ]);
-    expect(startLog.stdout).toContain(`--model ${model}`);
+    // Verify ANTHROPIC_MODEL env var is set via coder_env
+    expect(coderEnvVars["ANTHROPIC_MODEL"]).toBe(model);
   });
 
   test("claude-continue-resume-task-session", async () => {

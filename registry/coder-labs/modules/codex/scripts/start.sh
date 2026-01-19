@@ -182,7 +182,7 @@ build_codex_args() {
 
     if [ -n "$ARG_CODEX_TASK_PROMPT" ]; then
       if [ "${ARG_REPORT_TASKS}" == "true" ]; then
-        PROMPT="Complete the task at hand in one go. Every step of the way, report your progress using coder_report_task tool with proper summary and statuses. Your task at hand: $ARG_CODEX_TASK_PROMPT"
+        PROMPT="Complete the task at hand in one go. Every step of the way, report your progress using Coder.coder_report_task tool with proper summary and statuses. Your task at hand: $ARG_CODEX_TASK_PROMPT"
       else
         PROMPT="Your task at hand: $ARG_CODEX_TASK_PROMPT"
       fi
