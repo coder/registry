@@ -170,6 +170,11 @@ has_any_sessions() {
 
 ARGS=()
 
+CORE_COMMAND=()
+if [[ "${ARG_REPORT_TASKS}" == "true" ]]; then
+  CORE_COMMAND+=(agentapi server --type claude --term-width 67 --term-height 1190 --)
+fi
+
 function start_agentapi() {
   # For Task reporting
   export CODER_MCP_ALLOWED_TOOLS="coder_report_task"
