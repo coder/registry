@@ -235,7 +235,7 @@ variable "enable_aibridge" {
 
   validation {
     condition     = !(var.enable_aibridge && length(var.claude_api_key) > 0)
-    error_message = "claude_api_key cannot be provided when enable_aibridge is true. AI Bridge automatically authenticates the client using their Coder credentials."
+    error_message = "claude_api_key cannot be provided when enable_aibridge is true. AI Bridge automatically authenticates the client using Coder credentials."
   }
 
   validation {
