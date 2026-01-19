@@ -74,7 +74,7 @@ module "claude-code" {
 When `enable_aibridge = true`, the module automatically sets:
 
 - `ANTHROPIC_BASE_URL` to `${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic`
-- `ANTHROPIC_AUTH_TOKEN` to the workspace owner's session token
+- `CLAUDE_API_KEY` to the workspace owner's session token
 
 This allows Claude Code to route API requests through Coder's AI Bridge instead of directly to Anthropic's API.
 Template build will fail if either `claude_api_key` or `claude_code_oauth_token` is provided alongside `enable_aibridge = true`.

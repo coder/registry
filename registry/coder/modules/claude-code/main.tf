@@ -264,10 +264,9 @@ resource "coder_env" "claude_code_oauth_token" {
 }
 
 resource "coder_env" "claude_api_key" {
-  count    = length(var.claude_api_key) > 0 ? 1 : 0
   agent_id = var.agent_id
   name     = "CLAUDE_API_KEY"
-  value    = var.claude_api_key
+  value    = var.enable_aibridge ? data.coder_workspace_owner.me.session_token : var.claude_api_key
 }
 
 resource "coder_env" "disable_autoupdater" {
@@ -302,14 +301,6 @@ resource "coder_env" "anthropic_base_url" {
   agent_id = var.agent_id
   name     = "ANTHROPIC_BASE_URL"
   value    = "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic"
-}
-
-# https://code.claude.com/docs/en/settings#environment-variables
-resource "coder_env" "anthropic_auth_token" {
-  count    = var.enable_aibridge ? 1 : 0
-  agent_id = var.agent_id
-  name     = "CLAUDE_API_KEY"
-  value    = data.coder_workspace_owner.me.session_token
 }
 
 locals {
