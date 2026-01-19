@@ -32,7 +32,7 @@ printf "ARG_MCP_APP_STATUS_SLUG: %s\n" "$ARG_MCP_APP_STATUS_SLUG"
 printf "ARG_MCP: %s\n" "$ARG_MCP"
 printf "ARG_ALLOWED_TOOLS: %s\n" "$ARG_ALLOWED_TOOLS"
 printf "ARG_DISALLOWED_TOOLS: %s\n" "$ARG_DISALLOWED_TOOLS"
-printf "ARG_ENABLE_AIBRIDGE %s\n" "$ARG_ENABLE_AIBRIDGE"
+printf "ARG_ENABLE_AIBRIDGE: %s\n" "$ARG_ENABLE_AIBRIDGE"
 
 echo "--------------------------------"
 
