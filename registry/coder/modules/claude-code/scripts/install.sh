@@ -136,7 +136,7 @@ function configure_standalone_mode() {
   echo "Configuring Claude Code for standalone mode..."
 
   if [ -z "${CLAUDE_API_KEY:-}" ] && [ "$ARG_ENABLE_AIBRIDGE" = "false" ]; then
-    echo "Note: CLAUDE_API_KEY or enable_aibridge not set, skipping authentication setup"
+    echo "Note: Neither CLAUDE_API_KEY nor enable_aibridge is set, skipping authentication setup"
     return
   fi
 
