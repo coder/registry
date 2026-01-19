@@ -240,7 +240,7 @@ variable "enable_aibridge" {
 
   validation {
     condition     = !(var.enable_aibridge && length(var.claude_code_oauth_token) > 0)
-    error_message = "claude_code_oauth_token cannot be provided when enable_aibridge is true. AI Bridge automatically authenticates the client using their Coder credentials."
+    error_message = "claude_code_oauth_token cannot be provided when enable_aibridge is true. AI Bridge automatically authenticates the client using Coder credentials."
   }
 }
 
