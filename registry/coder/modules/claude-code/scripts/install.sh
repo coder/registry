@@ -149,12 +149,12 @@ function configure_standalone_mode() {
   if [ -f "$claude_config" ]; then
     echo "Updating existing Claude configuration at $claude_config"
 
-    jq --arg workdir "$ARG_WORKDIR" \
+    jq --arg workdir "$ARG_WORKDIR" --arg apikey "${CLAUDE_API_KEY:-}" \
       '.autoUpdaterStatus = "disabled" |
         .bypassPermissionsModeAccepted = true |
         .hasAcknowledgedCostThreshold = true |
         .hasCompletedOnboarding = true |
-        .primaryApiKey = "${CLAUDE_API_KEY:-}" |
+        .primaryApiKey = $apikey |
         .projects[$workdir].hasCompletedProjectOnboarding = true |
         .projects[$workdir].hasTrustDialogAccepted = true' \
       "$claude_config" > "${claude_config}.tmp" && mv "${claude_config}.tmp" "$claude_config"
