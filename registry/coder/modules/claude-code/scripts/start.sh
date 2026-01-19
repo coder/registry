@@ -29,31 +29,31 @@ log() {
   fi
 }
 
-printf "ARG_RESUME: %s\n" "$ARG_RESUME_SESSION_ID"
-printf "ARG_CONTINUE: %s\n" "$ARG_CONTINUE"
-printf "ARG_DANGEROUSLY_SKIP_PERMISSIONS: %s\n" "$ARG_DANGEROUSLY_SKIP_PERMISSIONS"
-printf "ARG_PERMISSION_MODE: %s\n" "$ARG_PERMISSION_MODE"
-printf "ARG_AI_PROMPT: %s\n" "$ARG_AI_PROMPT"
-printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
-printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
-printf "ARG_ENABLE_BOUNDARY: %s\n" "$ARG_ENABLE_BOUNDARY"
-printf "ARG_BOUNDARY_VERSION: %s\n" "$ARG_BOUNDARY_VERSION"
-printf "ARG_COMPILE_FROM_SOURCE: %s\n" "$ARG_COMPILE_FROM_SOURCE"
-printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
+log "ARG_RESUME: %s\n" "$ARG_RESUME_SESSION_ID"
+log "ARG_CONTINUE: %s\n" "$ARG_CONTINUE"
+log "ARG_DANGEROUSLY_SKIP_PERMISSIONS: %s\n" "$ARG_DANGEROUSLY_SKIP_PERMISSIONS"
+log "ARG_PERMISSION_MODE: %s\n" "$ARG_PERMISSION_MODE"
+log "ARG_AI_PROMPT: %s\n" "$ARG_AI_PROMPT"
+log "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
+log "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
+log "ARG_ENABLE_BOUNDARY: %s\n" "$ARG_ENABLE_BOUNDARY"
+log "ARG_BOUNDARY_VERSION: %s\n" "$ARG_BOUNDARY_VERSION"
+log "ARG_COMPILE_FROM_SOURCE: %s\n" "$ARG_COMPILE_FROM_SOURCE"
+log "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
 
-echo "--------------------------------"
+log "--------------------------------\n"
 
 function install_boundary() {
   if [ "${ARG_COMPILE_FROM_SOURCE:-false}" = "true" ]; then
     # Install boundary by compiling from source
-    echo "Compiling boundary from source (version: $ARG_BOUNDARY_VERSION)"
+    log "Compiling boundary from source (version: $ARG_BOUNDARY_VERSION)\n"
 
-    echo "Removing existing boundary directory to allow re-running the script safely"
+    log "Removing existing boundary directory to allow re-running the script safely\n"
     if [ -d boundary ]; then
       rm -rf boundary
     fi
 
-    echo "Clone boundary repository"
+    log "Clone boundary repository\n"
     git clone https://github.com/coder/boundary.git
     cd boundary
     git checkout "$ARG_BOUNDARY_VERSION"
@@ -67,7 +67,7 @@ function install_boundary() {
     sudo chmod +x /usr/local/bin/boundary-run
   else
     # Install boundary using official install script
-    log "Installing boundary using official install script (version: $ARG_BOUNDARY_VERSION)"
+    log "Installing boundary using official install script (version: $ARG_BOUNDARY_VERSION)\n"
     curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "$ARG_BOUNDARY_VERSION"
   fi
 }
@@ -224,7 +224,7 @@ function start_agentapi() {
   if [ "${ARG_ENABLE_BOUNDARY:-false}" = "true" ]; then
     install_boundary
 
-    printf "Starting with coder boundary enabled\n"
+    log "Starting with coder boundary enabled\n"
 
     BOUNDARY_ARGS+=()
 
