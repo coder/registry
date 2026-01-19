@@ -29,10 +29,10 @@ run_vscode_web() {
 }
 
 # Check if the settings file exists...
-if [ ! -f ~/.vscode-server/data/Machine/settings.json ]; then
+if [ ! -f ~/.vscode-server/data/User/settings.json ]; then
   echo "⚙️ Creating settings file..."
-  mkdir -p ~/.vscode-server/data/Machine
-  echo "${SETTINGS}" > ~/.vscode-server/data/Machine/settings.json
+  mkdir -p ~/.vscode-server/data/User
+  echo "${SETTINGS}" > ~/.vscode-server/data/User/settings.json
 fi
 
 # Check if vscode-server is already installed for offline or cached mode
