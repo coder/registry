@@ -55,7 +55,9 @@ describe("vscode-web", async () => {
     const instance = findResourceInstance(state, "coder_script");
     // Verify the script uses User path, not Machine path
     expect(instance.script).toContain(".vscode-server/data/User/settings.json");
-    expect(instance.script).not.toContain(".vscode-server/data/Machine/settings.json");
+    expect(instance.script).not.toContain(
+      ".vscode-server/data/Machine/settings.json",
+    );
   });
 
   it("writes provided settings to ~/.vscode-server/data/User/settings.json", async () => {
