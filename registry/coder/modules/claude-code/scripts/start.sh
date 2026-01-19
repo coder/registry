@@ -229,7 +229,7 @@ function start_agentapi() {
     BOUNDARY_ARGS+=()
 
     "${CORE_COMMAND[@]}" boundary-run "${BOUNDARY_ARGS[@]}" -- \
-          claude "${ARGS[@]}"
+      claude "${ARGS[@]}"
   else
     "${CORE_COMMAND[@]}" claude "${ARGS[@]}"
   fi
