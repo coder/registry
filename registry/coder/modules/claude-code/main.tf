@@ -308,7 +308,7 @@ resource "coder_env" "anthropic_base_url" {
 resource "coder_env" "anthropic_auth_token" {
   count    = var.enable_aibridge ? 1 : 0
   agent_id = var.agent_id
-  name     = "ANTHROPIC_AUTH_TOKEN"
+  name     = "CLAUDE_API_KEY"
   value    = data.coder_workspace_owner.me.session_token
 }
 
