@@ -176,9 +176,9 @@ EOF
   fi
 
   # Add API key only if set
-  if [ -n "${CLAUDE_API_KEY:-}" ]; then
+#  if [ -n "${CLAUDE_API_KEY:-}" ]; then
     jq --arg apikey "${CLAUDE_API_KEY}" '.primaryApiKey = $apikey' "$claude_config" > "${claude_config}.tmp" && mv "${claude_config}.tmp" "$claude_config"
-  fi
+#  fi
 
   echo "Standalone mode configured successfully"
 }
