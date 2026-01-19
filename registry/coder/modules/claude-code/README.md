@@ -53,7 +53,7 @@ module "claude-code" {
 }
 ```
 
-### Usage with AI Bridge Configuration
+### Usage with AI Bridge
 
 [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management. To use AI Bridge, set `enable_aibridge = true`.
 
