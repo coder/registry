@@ -391,6 +391,7 @@ locals {
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
 
     chmod +x /tmp/install.sh
+    chmod +x /tmp/start.sh
     ${local.install_env_vars}
     /tmp/install.sh
   EOT
@@ -425,7 +426,7 @@ resource "coder_app" "agent_cli" {
   slug         = local.app_slug
   display_name = var.cli_app_display_name
 
-  command = length(trimprefix(var.cli_command, " ")) > 0 ? var.cli_command : "${local.start_env_vars}\n/tmp/start.sh"
+  command = length(trimprefix(var.cli_command, " ")) > 0 ? var.cli_command : local.agentapi_start_command
 }
 
 
