@@ -388,6 +388,8 @@ locals {
     set -o pipefail
     set -x
 
+    mkdir -p /home/coder/.claude-module
+
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
 
@@ -416,7 +418,7 @@ resource "coder_script" "install_agent" {
   agent_id     = var.agent_id
   display_name = "Install agent"
   run_on_start = true
-  log_path     = "/home/coder/install.log"
+  log_path     = "/home/coder/.claude-module/install.log"
   script       = local.install_command
 }
 
