@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+# set -euo pipefail
 
 LOGFILE="$HOME/.config/jetbrains/install_plugins.log"
 TOOLBOX_BASE="$HOME/.local/share/JetBrains/Toolbox/apps"
@@ -71,6 +71,8 @@ find_cli_launcher() {
 
   if [ -n "$latest_version" ] && [ -f "$latest_version/bin/$exe" ]; then
     echo "$latest_version/bin/$exe"
+  elif [ -f "$2/bin/$exe" ]; then
+    echo "$2/bin/$exe"
   else
     return 1
   fi
