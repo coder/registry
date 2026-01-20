@@ -6,7 +6,6 @@ command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
 
-ARG_MODEL=${ARG_MODEL:-}
 ARG_RESUME_SESSION_ID=${ARG_RESUME_SESSION_ID:-}
 ARG_CONTINUE=${ARG_CONTINUE:-false}
 ARG_DANGEROUSLY_SKIP_PERMISSIONS=${ARG_DANGEROUSLY_SKIP_PERMISSIONS:-}
@@ -16,17 +15,11 @@ ARG_AI_PROMPT=$(echo -n "${ARG_AI_PROMPT:-}" | base64 -d)
 ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 ARG_ENABLE_BOUNDARY=${ARG_ENABLE_BOUNDARY:-false}
 ARG_BOUNDARY_VERSION=${ARG_BOUNDARY_VERSION:-"main"}
-ARG_BOUNDARY_LOG_DIR=${ARG_BOUNDARY_LOG_DIR:-"/tmp/boundary_logs"}
-ARG_BOUNDARY_LOG_LEVEL=${ARG_BOUNDARY_LOG_LEVEL:-"WARN"}
-ARG_BOUNDARY_PROXY_PORT=${ARG_BOUNDARY_PROXY_PORT:-"8087"}
-ARG_ENABLE_BOUNDARY_PPROF=${ARG_ENABLE_BOUNDARY_PPROF:-false}
-ARG_BOUNDARY_PPROF_PORT=${ARG_BOUNDARY_PPROF_PORT:-"6067"}
 ARG_COMPILE_FROM_SOURCE=${ARG_COMPILE_FROM_SOURCE:-false}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
 
 echo "--------------------------------"
 
-printf "ARG_MODEL: %s\n" "$ARG_MODEL"
 printf "ARG_RESUME: %s\n" "$ARG_RESUME_SESSION_ID"
 printf "ARG_CONTINUE: %s\n" "$ARG_CONTINUE"
 printf "ARG_DANGEROUSLY_SKIP_PERMISSIONS: %s\n" "$ARG_DANGEROUSLY_SKIP_PERMISSIONS"
@@ -36,9 +29,6 @@ printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
 printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
 printf "ARG_ENABLE_BOUNDARY: %s\n" "$ARG_ENABLE_BOUNDARY"
 printf "ARG_BOUNDARY_VERSION: %s\n" "$ARG_BOUNDARY_VERSION"
-printf "ARG_BOUNDARY_LOG_DIR: %s\n" "$ARG_BOUNDARY_LOG_DIR"
-printf "ARG_BOUNDARY_LOG_LEVEL: %s\n" "$ARG_BOUNDARY_LOG_LEVEL"
-printf "ARG_BOUNDARY_PROXY_PORT: %s\n" "$ARG_BOUNDARY_PROXY_PORT"
 printf "ARG_COMPILE_FROM_SOURCE: %s\n" "$ARG_COMPILE_FROM_SOURCE"
 printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
 
@@ -48,6 +38,13 @@ function install_boundary() {
   if [ "${ARG_COMPILE_FROM_SOURCE:-false}" = "true" ]; then
     # Install boundary by compiling from source
     echo "Compiling boundary from source (version: $ARG_BOUNDARY_VERSION)"
+
+    echo "Removing existing boundary directory to allow re-running the script safely"
+    if [ -d boundary ]; then
+      rm -rf boundary
+    fi
+
+    echo "Clone boundary repository"
     git clone https://github.com/coder/boundary.git
     cd boundary
     git checkout "$ARG_BOUNDARY_VERSION"
@@ -171,10 +168,6 @@ function start_agentapi() {
   mkdir -p "$ARG_WORKDIR"
   cd "$ARG_WORKDIR"
 
-  if [ -n "$ARG_MODEL" ]; then
-    ARGS+=(--model "$ARG_MODEL")
-  fi
-
   if [ -n "$ARG_PERMISSION_MODE" ]; then
     ARGS+=(--permission-mode "$ARG_PERMISSION_MODE")
   fi
@@ -222,34 +215,9 @@ function start_agentapi() {
   if [ "${ARG_ENABLE_BOUNDARY:-false}" = "true" ]; then
     install_boundary
 
-    mkdir -p "$ARG_BOUNDARY_LOG_DIR"
     printf "Starting with coder boundary enabled\n"
 
-    # Build boundary args with conditional --unprivileged flag
-    BOUNDARY_ARGS=(--log-dir "$ARG_BOUNDARY_LOG_DIR")
-    # Add default allowed URLs
-    BOUNDARY_ARGS+=(--allow "domain=anthropic.com" --allow "domain=registry.npmjs.org" --allow "domain=sentry.io" --allow "domain=claude.ai" --allow "domain=$ARG_CODER_HOST")
-
-    # Add any additional allowed URLs from the variable
-    if [ -n "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS" ]; then
-      IFS='|' read -ra ADDITIONAL_URLS <<< "$ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS"
-      for url in "${ADDITIONAL_URLS[@]}"; do
-        # Quote the URL to preserve spaces within the allow rule
-        BOUNDARY_ARGS+=(--allow "$url")
-      done
-    fi
-
-    # Set HTTP Proxy port used by Boundary
-    BOUNDARY_ARGS+=(--proxy-port "$ARG_BOUNDARY_PROXY_PORT")
-
-    # Set log level for boundary
-    BOUNDARY_ARGS+=(--log-level "$ARG_BOUNDARY_LOG_LEVEL")
-
-    if [ "${ARG_ENABLE_BOUNDARY_PPROF:-false}" = "true" ]; then
-      # Enable boundary pprof server on specified port
-      BOUNDARY_ARGS+=(--pprof)
-      BOUNDARY_ARGS+=(--pprof-port "$ARG_BOUNDARY_PPROF_PORT")
-    fi
+    BOUNDARY_ARGS+=()
 
     agentapi server --type claude --term-width 67 --term-height 1190 -- \
       boundary-run "${BOUNDARY_ARGS[@]}" -- \

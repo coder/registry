@@ -28,7 +28,7 @@ if [[ ! -f "${DB_PATH}" ]]; then
   filebrowser users add admin "coderPASSWORD" --perm.admin=true --viewMode=mosaic 2>&1 | tee -a ${LOG_PATH}
 fi
 
-filebrowser config set --baseurl=${SERVER_BASE_PATH} --port=${PORT} --auth.method=noauth --root=$ROOT_DIR 2>&1 | tee -a ${LOG_PATH}
+filebrowser config set --baseURL=${SERVER_BASE_PATH} --port=${PORT} --auth.method=noauth --root=$ROOT_DIR 2>&1 | tee -a ${LOG_PATH}
 
 printf "👷 Starting filebrowser in background... \n\n"
 

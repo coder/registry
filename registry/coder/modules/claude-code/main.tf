@@ -86,7 +86,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.11.4"
+  default     = "v0.11.8"
 }
 
 variable "ai_prompt" {
@@ -128,7 +128,7 @@ variable "claude_api_key" {
 
 variable "model" {
   type        = string
-  description = "Sets the model for the current session with an alias for the latest model (sonnet or opus) or a model’s full name."
+  description = "Sets the default model for Claude Code via ANTHROPIC_MODEL env var. If empty, Claude Code uses its default. Supports aliases (sonnet, opus) or full model names."
   default     = ""
 }
 
@@ -198,6 +198,18 @@ variable "claude_md_path" {
   default     = "$HOME/.claude/CLAUDE.md"
 }
 
+variable "claude_binary_path" {
+  type        = string
+  description = "Directory where the Claude Code binary is located. Use this if Claude is pre-installed or installed outside the module to a non-default location."
+  default     = "$HOME/.local/bin"
+}
+
+variable "install_via_npm" {
+  type        = bool
+  description = "Install Claude Code via npm instead of the official installer. Useful if npm is preferred or the official installer fails."
+  default     = false
+}
+
 variable "enable_boundary" {
   type        = bool
   description = "Whether to enable coder boundary for network filtering"
@@ -210,51 +222,30 @@ variable "boundary_version" {
   default     = "main"
 }
 
-variable "boundary_log_dir" {
-  type        = string
-  description = "Directory for boundary logs"
-  default     = "/tmp/boundary_logs"
-}
-
-variable "boundary_log_level" {
-  type        = string
-  description = "Log level for boundary process"
-  default     = "WARN"
-}
-
-variable "boundary_additional_allowed_urls" {
-  type        = list(string)
-  description = "Additional URLs to allow through boundary (in addition to default allowed URLs)"
-  default     = []
-}
-
-variable "boundary_proxy_port" {
-  type        = string
-  description = "Port for HTTP Proxy used by Boundary"
-  default     = "8087"
-}
-
-variable "enable_boundary_pprof" {
-  type        = bool
-  description = "Whether to enable coder boundary pprof server"
-  default     = false
-}
-
-variable "boundary_pprof_port" {
-  type        = string
-  description = "Port for pprof server used by Boundary"
-  default     = "6067"
-}
-
 variable "compile_boundary_from_source" {
   type        = bool
   description = "Whether to compile boundary from source instead of using the official install script"
   default     = false
 }
 
-resource "coder_env" "claude_code_md_path" {
-  count = var.claude_md_path == "" ? 0 : 1
+variable "enable_aibridge" {
+  type        = bool
+  description = "Use AI Bridge for Claude Code. https://coder.com/docs/ai-coder/ai-bridge"
+  default     = false
 
+  validation {
+    condition     = !(var.enable_aibridge && length(var.claude_api_key) > 0)
+    error_message = "claude_api_key cannot be provided when enable_aibridge is true. AI Bridge automatically authenticates the client using Coder credentials."
+  }
+
+  validation {
+    condition     = !(var.enable_aibridge && length(var.claude_code_oauth_token) > 0)
+    error_message = "claude_code_oauth_token cannot be provided when enable_aibridge is true. AI Bridge automatically authenticates the client using Coder credentials."
+  }
+}
+
+resource "coder_env" "claude_code_md_path" {
+  count    = var.claude_md_path == "" ? 0 : 1
   agent_id = var.agent_id
   name     = "CODER_MCP_CLAUDE_MD_PATH"
   value    = var.claude_md_path
@@ -273,16 +264,13 @@ resource "coder_env" "claude_code_oauth_token" {
 }
 
 resource "coder_env" "claude_api_key" {
-  count = length(var.claude_api_key) > 0 ? 1 : 0
-
   agent_id = var.agent_id
   name     = "CLAUDE_API_KEY"
-  value    = var.claude_api_key
+  value    = var.enable_aibridge ? data.coder_workspace_owner.me.session_token : var.claude_api_key
 }
 
 resource "coder_env" "disable_autoupdater" {
-  count = var.disable_autoupdater ? 1 : 0
-
+  count    = var.disable_autoupdater ? 1 : 0
   agent_id = var.agent_id
   name     = "DISABLE_AUTOUPDATER"
   value    = "1"
@@ -291,7 +279,28 @@ resource "coder_env" "disable_autoupdater" {
 resource "coder_env" "claude_binary_path" {
   agent_id = var.agent_id
   name     = "PATH"
-  value    = "$HOME/.local/bin:$PATH"
+  value    = "${var.claude_binary_path}:$PATH"
+
+  lifecycle {
+    precondition {
+      condition     = var.claude_binary_path == "$HOME/.local/bin" || !var.install_claude_code
+      error_message = "Custom claude_binary_path can only be used when install_claude_code is false. The official installer and npm both install to fixed locations."
+    }
+  }
+}
+
+resource "coder_env" "anthropic_model" {
+  count    = var.model != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_MODEL"
+  value    = var.model
+}
+
+resource "coder_env" "anthropic_base_url" {
+  count    = var.enable_aibridge ? 1 : 0
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_BASE_URL"
+  value    = "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic"
 }
 
 locals {
@@ -364,7 +373,6 @@ module "agentapi" {
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
 
-     ARG_MODEL='${var.model}' \
      ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
      ARG_CONTINUE='${var.continue}' \
      ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
@@ -374,12 +382,6 @@ module "agentapi" {
      ARG_REPORT_TASKS='${var.report_tasks}' \
      ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
      ARG_BOUNDARY_VERSION='${var.boundary_version}' \
-     ARG_BOUNDARY_LOG_DIR='${var.boundary_log_dir}' \
-     ARG_BOUNDARY_LOG_LEVEL='${var.boundary_log_level}' \
-     ARG_BOUNDARY_ADDITIONAL_ALLOWED_URLS='${join("|", var.boundary_additional_allowed_urls)}' \
-     ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
-     ARG_ENABLE_BOUNDARY_PPROF='${var.enable_boundary_pprof}' \
-     ARG_BOUNDARY_PPROF_PORT='${var.boundary_pprof_port}' \
      ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
      ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh
@@ -395,11 +397,14 @@ module "agentapi" {
     ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
+    ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
+    ARG_INSTALL_VIA_NPM='${var.install_via_npm}' \
     ARG_REPORT_TASKS='${var.report_tasks}' \
     ARG_WORKDIR='${local.workdir}' \
     ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
     ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
     ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
+    ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
     /tmp/install.sh
   EOT
 }
