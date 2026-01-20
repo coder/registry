@@ -386,13 +386,11 @@ locals {
   install_command = <<-EOT
     #!/bin/bash
     set -o pipefail
-    set -x
 
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
 
     chmod +x /tmp/install.sh
-    chmod +x /tmp/start.sh
     ${local.install_env_vars}
     /tmp/install.sh
   EOT
