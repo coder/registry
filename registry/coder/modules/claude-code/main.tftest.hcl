@@ -42,7 +42,7 @@ run "test_claude_code_with_api_key" {
   }
 
   assert {
-    condition     = coder_env.claude_api_key[0].value == "test-api-key-123"
+    condition     = coder_env.claude_api_key.value == "test-api-key-123"
     error_message = "Claude API key value should match the input"
   }
 }
@@ -286,5 +286,96 @@ run "test_claude_report_tasks_disabled" {
   assert {
     condition     = endswith(trimspace(coder_env.claude_code_system_prompt.value), "</system>")
     error_message = "System prompt should end with </system>"
+  }
+}
+
+run "test_aibridge_enabled" {
+  command = plan
+
+  variables {
+    agent_id        = "test-agent-aibridge"
+    workdir         = "/home/coder/aibridge"
+    enable_aibridge = true
+  }
+
+  assert {
+    condition     = var.enable_aibridge == true
+    error_message = "AI Bridge should be enabled"
+  }
+
+  assert {
+    condition     = coder_env.anthropic_base_url[0].name == "ANTHROPIC_BASE_URL"
+    error_message = "ANTHROPIC_BASE_URL environment variable should be set"
+  }
+
+  assert {
+    condition     = length(regexall("/api/v2/aibridge/anthropic", coder_env.anthropic_base_url[0].value)) > 0
+    error_message = "ANTHROPIC_BASE_URL should point to AI Bridge endpoint"
+  }
+
+  assert {
+    condition     = coder_env.claude_api_key.name == "CLAUDE_API_KEY"
+    error_message = "CLAUDE_API_KEY environment variable should be set"
+  }
+
+  assert {
+    condition     = coder_env.claude_api_key.value == data.coder_workspace_owner.me.session_token
+    error_message = "CLAUDE_API_KEY should use workspace owner's session token when aibridge is enabled"
+  }
+}
+
+run "test_aibridge_validation_with_api_key" {
+  command = plan
+
+  variables {
+    agent_id        = "test-agent-validation"
+    workdir         = "/home/coder/test"
+    enable_aibridge = true
+    claude_api_key  = "test-api-key"
+  }
+
+  expect_failures = [
+    var.enable_aibridge,
+  ]
+}
+
+run "test_aibridge_validation_with_oauth_token" {
+  command = plan
+
+  variables {
+    agent_id                = "test-agent-validation"
+    workdir                 = "/home/coder/test"
+    enable_aibridge         = true
+    claude_code_oauth_token = "test-oauth-token"
+  }
+
+  expect_failures = [
+    var.enable_aibridge,
+  ]
+}
+
+run "test_aibridge_disabled_with_api_key" {
+  command = plan
+
+  variables {
+    agent_id        = "test-agent-no-aibridge"
+    workdir         = "/home/coder/test"
+    enable_aibridge = false
+    claude_api_key  = "test-api-key-xyz"
+  }
+
+  assert {
+    condition     = var.enable_aibridge == false
+    error_message = "AI Bridge should be disabled"
+  }
+
+  assert {
+    condition     = coder_env.claude_api_key.value == "test-api-key-xyz"
+    error_message = "CLAUDE_API_KEY should use the provided API key when aibridge is disabled"
+  }
+
+  assert {
+    condition     = length(coder_env.anthropic_base_url) == 0
+    error_message = "ANTHROPIC_BASE_URL should not be set when aibridge is disabled"
   }
 }
