@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -euo pipefail
 
 LOGFILE="$HOME/.config/jetbrains/install_plugins.log"
@@ -107,15 +107,19 @@ log "Waiting for IDE installation. Pending codes: ${pending_codes[*]}"
 MAX_ATTEMPTS=60 # 10 minutes
 attempt=0
 
+log "entering in loop"
+echo "echo :entering in loop"
 # Loop until all plugins installed
 while [ ${#pending_codes[@]} -gt 0 ] && [ $attempt -lt $MAX_ATTEMPTS ]; do
 
   if [ ! -d "$TOOLBOX_BASE" ]; then
     log "Toolbox directory not found yet, waiting..."
-    sleep 10
+    sleep 120
     continue
   fi
 
+  log "Toolbox directory found"
+  echo "echo :Toolbox directory found"
   for product_dir in "$TOOLBOX_BASE"/*; do
     [ -d "$product_dir" ] || continue
 
@@ -151,7 +155,8 @@ while [ ${#pending_codes[@]} -gt 0 ] && [ $attempt -lt $MAX_ATTEMPTS ]; do
     log "Finished $code. Remaining: ${pending_codes[*]:-none}"
 
   done
-
+  log "one plugin installed"
+  echo "echo :one plugin installed"
   # If still pending, wait and retry
   if [ ${#pending_codes[@]} -gt 0 ]; then
     sleep 10
