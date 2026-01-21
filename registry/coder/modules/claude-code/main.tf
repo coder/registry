@@ -166,6 +166,12 @@ variable "mcp" {
   default     = ""
 }
 
+variable "mcp_config_remote_path" {
+  type        = list(string)
+  description = "List of URLs that return JSON MCP server configurations (text/plain with valid JSON)"
+  default     = []
+}
+
 variable "allowed_tools" {
   type        = string
   description = "A list of tools that should be allowed without prompting the user for permission, in addition to settings.json files."
@@ -228,6 +234,22 @@ variable "compile_boundary_from_source" {
   default     = false
 }
 
+variable "enable_aibridge" {
+  type        = bool
+  description = "Use AI Bridge for Claude Code. https://coder.com/docs/ai-coder/ai-bridge"
+  default     = false
+
+  validation {
+    condition     = !(var.enable_aibridge && length(var.claude_api_key) > 0)
+    error_message = "claude_api_key cannot be provided when enable_aibridge is true. AI Bridge automatically authenticates the client using Coder credentials."
+  }
+
+  validation {
+    condition     = !(var.enable_aibridge && length(var.claude_code_oauth_token) > 0)
+    error_message = "claude_code_oauth_token cannot be provided when enable_aibridge is true. AI Bridge automatically authenticates the client using Coder credentials."
+  }
+}
+
 resource "coder_env" "claude_code_md_path" {
   count    = var.claude_md_path == "" ? 0 : 1
   agent_id = var.agent_id
@@ -248,10 +270,9 @@ resource "coder_env" "claude_code_oauth_token" {
 }
 
 resource "coder_env" "claude_api_key" {
-  count    = length(var.claude_api_key) > 0 ? 1 : 0
   agent_id = var.agent_id
   name     = "CLAUDE_API_KEY"
-  value    = var.claude_api_key
+  value    = var.enable_aibridge ? data.coder_workspace_owner.me.session_token : var.claude_api_key
 }
 
 resource "coder_env" "disable_autoupdater" {
@@ -279,6 +300,13 @@ resource "coder_env" "anthropic_model" {
   agent_id = var.agent_id
   name     = "ANTHROPIC_MODEL"
   value    = var.model
+}
+
+resource "coder_env" "anthropic_base_url" {
+  count    = var.enable_aibridge ? 1 : 0
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_BASE_URL"
+  value    = "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic"
 }
 
 locals {
@@ -382,6 +410,8 @@ module "agentapi" {
     ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
     ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
     ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
+    ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
+    ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
     /tmp/install.sh
   EOT
 }
