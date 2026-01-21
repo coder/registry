@@ -1,0 +1,55 @@
+name: GitHub Actions Security Analysis (zizmor)
+
+on:
+  pull_request:
+    branches: ["**"]
+    paths:
+      - ".github/workflows/**"
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  zizmor_pr_blocking:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor (blocking, HIGH only)
+        uses: zizmorcore/zizmor-action@e639db99335bc9038abc0e066dfcd72e23d26fb4 # v0.3.0
+        with:
+          advanced-security: false
+          annotations: true
+          min-severity: high
+          inputs: |
+            .github/workflows
+
+  zizmor_main_sarif:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor (SARIF)
+        uses: zizmorcore/zizmor-action@e639db99335bc9038abc0e066dfcd72e23d26fb4 # v0.3.0
+        with:
+          inputs: |
+            .github/workflows
