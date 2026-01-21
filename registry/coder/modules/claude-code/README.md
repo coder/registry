@@ -141,8 +141,8 @@ module "claude-code" {
   EOF
 
   mcp_config_remote_path = [
-    "https://gist.githubusercontent.com/35C4n0r/cd8dce70360e5d22a070ae21893caed4/raw/", # Format gist.githubusercontent.com/<user>/<gist_id>/raw/(optional: /<commit_sha>/<filename>)
-    "https://raw.githubusercontent.com/coder/coder/main/.mcp.json"                      # Format: raw.githubusercontent.com/<user>/<repo>/<branch>/<path>
+    "https://gist.githubusercontent.com/35C4n0r/cd8dce70360e5d22a070ae21893caed4/raw/",
+    "https://raw.githubusercontent.com/coder/coder/main/.mcp.json"
   ]
 }
 ```
