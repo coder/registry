@@ -461,4 +461,54 @@ EOF`,
     expect(startLog.stdout).toContain(taskSessionId);
     expect(startLog.stdout).not.toContain("manual-456");
   });
+
+  test("mcp-remote-urls", async () => {
+    const failingUrl = "http://localhost:19999/mcp.json";
+    const successUrl =
+      "https://raw.githubusercontent.com/coder/coder/main/.mcp.json";
+
+    const { id, coderEnvVars } = await setup({
+      skipClaudeMock: true,
+      moduleVariables: {
+        mcp_remote_urls: JSON.stringify([failingUrl, successUrl]),
+      },
+    });
+    await execModuleScript(id, coderEnvVars);
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.claude-module/install.log",
+    );
+
+    // Verify both URLs are attempted
+    expect(installLog).toContain(failingUrl);
+    expect(installLog).toContain(successUrl);
+
+    // First URL should fail gracefully
+    expect(installLog).toContain(
+      `Warning: Failed to fetch MCP configuration from '${failingUrl}'`,
+    );
+
+    // Second URL should succeed - no failure warning for it
+    expect(installLog).not.toContain(
+      `Warning: Failed to fetch MCP configuration from '${successUrl}'`,
+    );
+
+    // Should contain the MCP server add command from successful fetch
+    expect(installLog).toContain(
+      "Added stdio MCP server go-language-server to local config",
+    );
+
+    expect(installLog).toContain(
+      "Added stdio MCP server typescript-language-server to local config",
+    );
+
+    // Verify the MCP config was added to claude.json
+    const claudeConfig = await readFileContainer(
+      id,
+      "/home/coder/.claude.json",
+    );
+    expect(claudeConfig).toContain("typescript-language-server");
+    expect(claudeConfig).toContain("go-language-server");
+  });
 });

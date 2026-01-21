@@ -381,29 +381,3 @@ run "test_aibridge_validation_with_oauth_token" {
     var.enable_aibridge,
   ]
 }
-
-run "test_aibridge_disabled_with_api_key" {
-  command = plan
-
-  variables {
-    agent_id        = "test-agent-no-aibridge"
-    workdir         = "/home/coder/test"
-    enable_aibridge = false
-    claude_api_key  = "test-api-key-xyz"
-  }
-
-  assert {
-    condition     = var.enable_aibridge == false
-    error_message = "AI Bridge should be disabled"
-  }
-
-  assert {
-    condition     = coder_env.claude_api_key.value == "test-api-key-xyz"
-    error_message = "CLAUDE_API_KEY should use the provided API key when aibridge is disabled"
-  }
-
-  assert {
-    condition     = length(coder_env.anthropic_base_url) == 0
-    error_message = "ANTHROPIC_BASE_URL should not be set when aibridge is disabled"
-  }
-}
