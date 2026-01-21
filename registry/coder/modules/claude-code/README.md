@@ -139,8 +139,29 @@ module "claude-code" {
     }
   }
   EOF
+
+  mcp_remote_urls = [
+    "https://gist.githubusercontent.com/35C4n0r/cd8dce70360e5d22a070ae21893caed4/raw/", # Format gist.githubusercontent.com/<user>/<gist_id>/raw/(optional: /<commit_sha>/<filename>)
+    "https://raw.githubusercontent.com/coder/coder/main/.mcp.json" # Format: raw.githubusercontent.com/<user>/<repo>/<branch>/<path>
+  ]
 }
 ```
+
+> [!NOTE]
+> Remote URLs should return a JSON body in the following format:
+>
+> ```json
+> {
+>   "mcpServers": {
+>     "server-name": {
+>       "command": "some-command",
+>       "args": ["arg1", "arg2"]
+>     }
+>   }
+> }
+> ```
+>
+> The `Content-Type` header doesn't matter—both `text/plain` and `application/json` work fine.
 
 ### Standalone Mode
 

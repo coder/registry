@@ -152,6 +152,34 @@ run "test_claude_code_with_mcp_and_tools" {
   }
 }
 
+run "test_claude_code_with_mcp_remote_urls" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-mcp-remote"
+    workdir  = "/home/coder/mcp-remote-test"
+    mcp_remote_urls = [
+      "https://example.com/mcp-config.json",
+      "https://another.example.com/servers.json"
+    ]
+  }
+
+  assert {
+    condition     = length(var.mcp_remote_urls) == 2
+    error_message = "MCP remote URLs should have 2 entries"
+  }
+
+  assert {
+    condition     = var.mcp_remote_urls[0] == "https://example.com/mcp-config.json"
+    error_message = "First MCP remote URL should be set correctly"
+  }
+
+  assert {
+    condition     = var.mcp_remote_urls[1] == "https://another.example.com/servers.json"
+    error_message = "Second MCP remote URL should be set correctly"
+  }
+}
+
 run "test_claude_code_with_scripts" {
   command = plan
 
