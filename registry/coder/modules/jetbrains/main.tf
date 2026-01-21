@@ -272,7 +272,6 @@ resource "coder_script" "install_jetbrains_plugins" {
   agent_id           = var.agent_id
   display_name       = "Install JetBrains Plugins"
   run_on_start       = true
-  # start_blocks_login = false
   depends_on         = [coder_script.store_plugins]
 
   script = <<-EOT
