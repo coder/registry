@@ -166,6 +166,12 @@ variable "mcp" {
   default     = ""
 }
 
+variable "mcp_config_remote_path" {
+  type        = list(string)
+  description = "List of URLs that return JSON MCP server configurations (text/plain with valid JSON)"
+  default     = []
+}
+
 variable "allowed_tools" {
   type        = string
   description = "A list of tools that should be allowed without prompting the user for permission, in addition to settings.json files."
@@ -404,6 +410,7 @@ module "agentapi" {
     ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
     ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
     ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
+    ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
     ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
     /tmp/install.sh
   EOT
