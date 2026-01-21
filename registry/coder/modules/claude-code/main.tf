@@ -244,6 +244,12 @@ variable "enable_aibridge" {
   }
 }
 
+variable "cli_command" {
+  type        = string
+  description = "The command to run for the Claude Code CLI app when tasks are disabled."
+  default     = ""
+}
+
 resource "coder_env" "claude_code_md_path" {
   count    = var.claude_md_path == "" ? 0 : 1
   agent_id = var.agent_id
@@ -344,12 +350,89 @@ locals {
     var.report_tasks ? format("\n%s\n", local.report_tasks_system_prompt) : "",
     local.custom_system_prompt != "" ? format("\n%s\n", local.custom_system_prompt) : ""
   )
+
+  # Common environment variables for install script
+  install_env_vars = <<-EOT
+    export ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}'
+    export ARG_MCP_APP_STATUS_SLUG='${local.app_slug}'
+    export ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}'
+    export ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}'
+    export ARG_INSTALL_VIA_NPM='${var.install_via_npm}'
+    export ARG_REPORT_TASKS='${var.report_tasks}'
+    export ARG_WORKDIR='${local.workdir}'
+    export ARG_ALLOWED_TOOLS='${var.allowed_tools}'
+    export ARG_DISALLOWED_TOOLS='${var.disallowed_tools}'
+    export ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}'
+    export ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}'
+  EOT
+
+  # Common environment variables for start script
+  start_env_vars = <<-EOT
+    export ARG_RESUME_SESSION_ID='${var.resume_session_id}'
+    export ARG_CONTINUE='${var.continue}'
+    export ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}'
+    export ARG_PERMISSION_MODE='${var.permission_mode}'
+    export ARG_WORKDIR='${local.workdir}'
+    export ARG_AI_PROMPT='${base64encode(var.ai_prompt)}'
+    export ARG_REPORT_TASKS='${var.report_tasks}'
+    export ARG_ENABLE_BOUNDARY='${var.enable_boundary}'
+    export ARG_BOUNDARY_VERSION='${var.boundary_version}'
+    export ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}'
+    export ARG_CODER_HOST='${local.coder_host}'
+    export ARG_NON_AGENTAPI_CLI='${!var.report_tasks && var.cli_app ? true : false}'
+  EOT
+
+  # Reusable install script command
+  install_command = <<-EOT
+    #!/bin/bash
+    set -o pipefail
+
+    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
+
+    chmod +x /tmp/install.sh
+    ${local.install_env_vars}
+    /tmp/install.sh
+  EOT
+
+  # Reusable start script command for agentapi module
+  agentapi_start_command = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+    chmod +x /tmp/start.sh
+
+    ${local.start_env_vars}
+    /tmp/start.sh
+  EOT
 }
+
+resource "coder_script" "install_agent" {
+  count = !var.report_tasks ? 1 : 0
+
+  agent_id     = var.agent_id
+  display_name = "Install agent"
+  run_on_start = true
+  log_path     = "/home/coder/install.log"
+  script       = local.install_command
+}
+
+resource "coder_app" "agent_cli" {
+  count = (!var.report_tasks && var.cli_app) ? 1 : 0
+
+  agent_id     = var.agent_id
+  slug         = local.app_slug
+  display_name = var.cli_app_display_name
+
+  command = length(trimprefix(var.cli_command, " ")) > 0 ? var.cli_command : local.agentapi_start_command
+}
+
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
   version = "2.0.0"
 
+  count                = var.report_tasks ? 1 : 0
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
   web_app_order        = var.order
@@ -366,49 +449,10 @@ module "agentapi" {
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
-  start_script         = <<-EOT
-     #!/bin/bash
-     set -o errexit
-     set -o pipefail
-     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-     chmod +x /tmp/start.sh
-
-     ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
-     ARG_CONTINUE='${var.continue}' \
-     ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
-     ARG_PERMISSION_MODE='${var.permission_mode}' \
-     ARG_WORKDIR='${local.workdir}' \
-     ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
-     ARG_REPORT_TASKS='${var.report_tasks}' \
-     ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
-     ARG_BOUNDARY_VERSION='${var.boundary_version}' \
-     ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
-     ARG_CODER_HOST='${local.coder_host}' \
-     /tmp/start.sh
-   EOT
-
-  install_script = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
-    ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
-    ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
-    ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
-    ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
-    ARG_INSTALL_VIA_NPM='${var.install_via_npm}' \
-    ARG_REPORT_TASKS='${var.report_tasks}' \
-    ARG_WORKDIR='${local.workdir}' \
-    ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
-    ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
-    ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
-    ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
-    /tmp/install.sh
-  EOT
+  start_script         = local.agentapi_start_command
+  install_script       = local.install_command
 }
 
 output "task_app_id" {
-  value = module.agentapi.task_app_id
+  value = try(module.agentapi[0].task_app_id, null)
 }
