@@ -223,7 +223,7 @@ locals {
   selected_ides = length(var.default) == 0 ? toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ides[0].value, "[]"))) : toset(var.default)
 
   plugin_map_b64 = base64encode(jsonencode(var.jetbrains_plugins))
-  
+
   plugin_install_script = file("${path.module}/script/install_plugins.sh")
 }
 
@@ -268,11 +268,11 @@ resource "coder_script" "store_plugins" {
 }
 
 resource "coder_script" "install_jetbrains_plugins" {
-  count              = length(var.jetbrains_plugins) > 0 ? 1 : 0
-  agent_id           = var.agent_id
-  display_name       = "Install JetBrains Plugins"
-  run_on_start       = true
-  depends_on         = [coder_script.store_plugins]
+  count        = length(var.jetbrains_plugins) > 0 ? 1 : 0
+  agent_id     = var.agent_id
+  display_name = "Install JetBrains Plugins"
+  run_on_start = true
+  depends_on   = [coder_script.store_plugins]
 
   script = <<-EOT
     #!/bin/bash
