@@ -86,7 +86,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.11.6"
+  default     = "v0.11.8"
 }
 
 variable "ai_prompt" {
@@ -228,6 +228,22 @@ variable "compile_boundary_from_source" {
   default     = false
 }
 
+variable "enable_aibridge" {
+  type        = bool
+  description = "Use AI Bridge for Claude Code. https://coder.com/docs/ai-coder/ai-bridge"
+  default     = false
+
+  validation {
+    condition     = !(var.enable_aibridge && length(var.claude_api_key) > 0)
+    error_message = "claude_api_key cannot be provided when enable_aibridge is true. AI Bridge automatically authenticates the client using Coder credentials."
+  }
+
+  validation {
+    condition     = !(var.enable_aibridge && length(var.claude_code_oauth_token) > 0)
+    error_message = "claude_code_oauth_token cannot be provided when enable_aibridge is true. AI Bridge automatically authenticates the client using Coder credentials."
+  }
+}
+
 resource "coder_env" "claude_code_md_path" {
   count    = var.claude_md_path == "" ? 0 : 1
   agent_id = var.agent_id
@@ -248,10 +264,9 @@ resource "coder_env" "claude_code_oauth_token" {
 }
 
 resource "coder_env" "claude_api_key" {
-  count    = length(var.claude_api_key) > 0 ? 1 : 0
   agent_id = var.agent_id
   name     = "CLAUDE_API_KEY"
-  value    = var.claude_api_key
+  value    = var.enable_aibridge ? data.coder_workspace_owner.me.session_token : var.claude_api_key
 }
 
 resource "coder_env" "disable_autoupdater" {
@@ -279,6 +294,13 @@ resource "coder_env" "anthropic_model" {
   agent_id = var.agent_id
   name     = "ANTHROPIC_MODEL"
   value    = var.model
+}
+
+resource "coder_env" "anthropic_base_url" {
+  count    = var.enable_aibridge ? 1 : 0
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_BASE_URL"
+  value    = "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic"
 }
 
 locals {
@@ -382,6 +404,7 @@ module "agentapi" {
     ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
     ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
     ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
+    ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
     /tmp/install.sh
   EOT
 }

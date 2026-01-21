@@ -18,6 +18,7 @@ ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
 ARG_MCP=$(echo -n "${ARG_MCP:-}" | base64 -d)
 ARG_ALLOWED_TOOLS=${ARG_ALLOWED_TOOLS:-}
 ARG_DISALLOWED_TOOLS=${ARG_DISALLOWED_TOOLS:-}
+ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
 
 echo "--------------------------------"
 
@@ -31,6 +32,7 @@ printf "ARG_MCP_APP_STATUS_SLUG: %s\n" "$ARG_MCP_APP_STATUS_SLUG"
 printf "ARG_MCP: %s\n" "$ARG_MCP"
 printf "ARG_ALLOWED_TOOLS: %s\n" "$ARG_ALLOWED_TOOLS"
 printf "ARG_DISALLOWED_TOOLS: %s\n" "$ARG_DISALLOWED_TOOLS"
+printf "ARG_ENABLE_AIBRIDGE: %s\n" "$ARG_ENABLE_AIBRIDGE"
 
 echo "--------------------------------"
 
@@ -113,7 +115,7 @@ function setup_claude_configurations() {
       while IFS= read -r server_name && IFS= read -r server_json; do
         echo "------------------------"
         echo "Executing: claude mcp add-json \"$server_name\" '$server_json' (in $ARG_WORKDIR)"
-        claude mcp add-json "$server_name" "$server_json"
+        claude mcp add-json "$server_name" "$server_json" || echo "Warning: Failed to add MCP server '$server_name', continuing..."
         echo "------------------------"
         echo ""
       done < <(echo "$ARG_MCP" | jq -r '.mcpServers | to_entries[] | .key, (.value | @json)')
@@ -133,8 +135,8 @@ function setup_claude_configurations() {
 function configure_standalone_mode() {
   echo "Configuring Claude Code for standalone mode..."
 
-  if [ -z "${CLAUDE_API_KEY:-}" ]; then
-    echo "Note: CLAUDE_API_KEY not set, skipping authentication setup"
+  if [ -z "${CLAUDE_API_KEY:-}" ] && [ "$ARG_ENABLE_AIBRIDGE" = "false" ]; then
+    echo "Note: Neither claude_api_key nor enable_aibridge is set, skipping authentication setup"
     return
   fi
 
@@ -147,8 +149,7 @@ function configure_standalone_mode() {
   if [ -f "$claude_config" ]; then
     echo "Updating existing Claude configuration at $claude_config"
 
-    jq --arg apikey "${CLAUDE_API_KEY:-}" \
-      --arg workdir "$ARG_WORKDIR" \
+    jq --arg workdir "$ARG_WORKDIR" --arg apikey "${CLAUDE_API_KEY:-}" \
       '.autoUpdaterStatus = "disabled" |
         .bypassPermissionsModeAccepted = true |
         .hasAcknowledgedCostThreshold = true |
