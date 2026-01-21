@@ -462,7 +462,7 @@ EOF`,
     expect(startLog.stdout).not.toContain("manual-456");
   });
 
-  test("mcp-remote-urls", async () => {
+  test("mcp-config-remote-path", async () => {
     const failingUrl = "http://localhost:19999/mcp.json";
     const successUrl =
       "https://raw.githubusercontent.com/coder/coder/main/.mcp.json";
@@ -470,7 +470,7 @@ EOF`,
     const { id, coderEnvVars } = await setup({
       skipClaudeMock: true,
       moduleVariables: {
-        mcp_remote_urls: JSON.stringify([failingUrl, successUrl]),
+        mcp_config_remote_path: JSON.stringify([failingUrl, successUrl]),
       },
     });
     await execModuleScript(id, coderEnvVars);

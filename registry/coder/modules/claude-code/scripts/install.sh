@@ -16,7 +16,7 @@ ARG_INSTALL_VIA_NPM=${ARG_INSTALL_VIA_NPM:-false}
 ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
 ARG_MCP=$(echo -n "${ARG_MCP:-}" | base64 -d)
-ARG_MCP_REMOTE_URLS=$(echo -n "${ARG_MCP_REMOTE_URLS:-}" | base64 -d)
+ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n "${ARG_MCP_CONFIG_REMOTE_PATH:-}" | base64 -d)
 ARG_ALLOWED_TOOLS=${ARG_ALLOWED_TOOLS:-}
 ARG_DISALLOWED_TOOLS=${ARG_DISALLOWED_TOOLS:-}
 ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
@@ -31,7 +31,7 @@ printf "ARG_INSTALL_VIA_NPM: %s\n" "$ARG_INSTALL_VIA_NPM"
 printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
 printf "ARG_MCP_APP_STATUS_SLUG: %s\n" "$ARG_MCP_APP_STATUS_SLUG"
 printf "ARG_MCP: %s\n" "$ARG_MCP"
-printf "ARG_MCP_REMOTE_URLS: %s\n" "$ARG_MCP_REMOTE_URLS"
+printf "ARG_MCP_CONFIG_REMOTE_PATH: %s\n" "$ARG_MCP_CONFIG_REMOTE_PATH"
 printf "ARG_ALLOWED_TOOLS: %s\n" "$ARG_ALLOWED_TOOLS"
 printf "ARG_DISALLOWED_TOOLS: %s\n" "$ARG_DISALLOWED_TOOLS"
 printf "ARG_ENABLE_AIBRIDGE: %s\n" "$ARG_ENABLE_AIBRIDGE"
@@ -131,10 +131,10 @@ function setup_claude_configurations() {
     )
   fi
 
-  if [ -n "$ARG_MCP_REMOTE_URLS" ] && [ "$ARG_MCP_REMOTE_URLS" != "[]" ]; then
+  if [ -n "$ARG_MCP_CONFIG_REMOTE_PATH" ] && [ "$ARG_MCP_CONFIG_REMOTE_PATH" != "[]" ]; then
     (
       cd "$ARG_WORKDIR"
-      for url in $(echo "$ARG_MCP_REMOTE_URLS" | jq -r '.[]'); do
+      for url in $(echo "$ARG_MCP_CONFIG_REMOTE_PATH" | jq -r '.[]'); do
         echo "Fetching MCP configuration from: $url"
         mcp_json=$(curl -fsSL "$url") || {
           echo "Warning: Failed to fetch MCP configuration from '$url', continuing..."
