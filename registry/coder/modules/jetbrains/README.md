@@ -136,6 +136,29 @@ module "jetbrains" {
 }
 ```
 
+### Pre-install Plugins
+
+Provide a list of JetBrains Marketplace plugin IDs to install automatically after
+the RemoteDev server is available on the workspace.
+
+```tf
+module "jetbrains" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/jetbrains/coder"
+  version  = "1.3.0"
+  agent_id = coder_agent.main.id
+  folder   = "/home/coder/project"
+
+  plugins = [
+    "org.intellij.plugins.markdown",
+    "com.jetbrains.python",
+  ]
+}
+```
+
+> Note: Plugins are installed once the JetBrains RemoteDev server is present on
+> the workspace (triggered after the first Toolbox/Gateway connection).
+
 ### Accessing the IDE Metadata
 
 You can now reference the output `ide_metadata` as a map.

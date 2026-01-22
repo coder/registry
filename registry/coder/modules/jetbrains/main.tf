@@ -104,6 +104,12 @@ variable "options" {
   }
 }
 
+variable "plugins" {
+  type        = list(string)
+  description = "A list of JetBrains plugin IDs to install in the remote IDEs."
+  default     = []
+}
+
 variable "releases_base_link" {
   type        = string
   description = "URL of the JetBrains releases base link."
@@ -214,6 +220,7 @@ locals {
 
   # Convert the parameter value to a set for for_each
   selected_ides = length(var.default) == 0 ? toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ides[0].value, "[]"))) : toset(var.default)
+  plugins_string = join(" ", var.plugins)
 }
 
 data "coder_parameter" "jetbrains_ides" {
@@ -240,6 +247,42 @@ data "coder_parameter" "jetbrains_ides" {
 
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
+
+resource "coder_script" "jetbrains_plugins" {
+  count        = data.coder_workspace.me.start_count
+  agent_id     = var.agent_id
+  display_name = "JetBrains plugins"
+  icon         = "/icon/jetbrains.svg"
+  script       = <<-EOT
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    plugins="${local.plugins_string}"
+    if [ -z "$plugins" ]; then
+      echo "No JetBrains plugins configured."
+      exit 0
+    fi
+
+    remote_dev_root="${HOME}/.cache/JetBrains/RemoteDev/dist"
+    if [ ! -d "$remote_dev_root" ]; then
+      echo "JetBrains RemoteDev not installed yet. Connect once with Toolbox or Gateway to install the IDE."
+      exit 0
+    fi
+
+    mapfile -t servers < <(find "$remote_dev_root" -type f -path "*/bin/remote-dev-server.sh" 2>/dev/null)
+    if [ ${#servers[@]} -eq 0 ]; then
+      echo "RemoteDev server script not found yet."
+      exit 0
+    fi
+
+    for server in "${servers[@]}"; do
+      for plugin in $plugins; do
+        echo "Installing plugin ${plugin} via ${server}"
+        "${server}" installPlugins "${plugin}" || true
+      done
+    done
+  EOT
+}
 
 resource "coder_app" "jetbrains" {
   for_each     = local.selected_ides
