@@ -98,9 +98,9 @@ data "coder_parameter" "ssh_key_coder" {
   name         = "ssh_key_coder"
   display_name = "Public Key From Coder"
   description  = "Add this public key to your remote server's authorized_keys: \n\n${data.coder_workspace_owner.me.ssh_public_key}"
-  default = "********************"
+  default      = "********************"
   styling = jsonencode({
-    disabled = true
+    disabled   = true
     mask_input = true
   })
   order = 4
@@ -144,9 +144,9 @@ locals {
   coder_cache_dir = "${local.home_dir}/.coder/${data.coder_workspace.me.id}"
   agent_id_file   = "${local.coder_cache_dir}/agent.id"
   use_password    = data.coder_parameter.auth_type.value == "password"
-  use_key         = contains(["ssh_key", "ssh_key_coder"],data.coder_parameter.auth_type.value)
+  use_key         = contains(["ssh_key", "ssh_key_coder"], data.coder_parameter.auth_type.value)
   ssh_password    = local.use_password ? data.coder_parameter.ssh_password[0].value : null
-  ssh_private_key = data.coder_parameter.auth_type.value == "ssh_key_coder" ? data.coder_workspace_owner.me.ssh_private_key : (length(data.coder_parameter.ssh_key) > 0 ? data.coder_parameter.ssh_key[0].value : null )
+  ssh_private_key = data.coder_parameter.auth_type.value == "ssh_key_coder" ? data.coder_workspace_owner.me.ssh_private_key : (length(data.coder_parameter.ssh_key) > 0 ? data.coder_parameter.ssh_key[0].value : null)
   apps_candidate  = ["VS Code Desktop", "VS Code Web", "Cursor"]
   apps_selected   = (can(data.coder_parameter.apps.value) && data.coder_parameter.apps.value != "") ? jsondecode(data.coder_parameter.apps.value) : []
 }
