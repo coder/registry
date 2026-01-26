@@ -6,6 +6,9 @@ terraform {
     oci = {
       source = "oracle/oci"
     }
+    cloudinit = {
+      source = "hashicorp/cloudinit"
+    }
   }
 }
 
@@ -195,6 +198,11 @@ provider "oci" {
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
+# Get availability domains
+data "oci_identity_availability_domains" "ads" {
+  compartment_id = var.compartment_ocid
+}
+
 # Get the latest Ubuntu image
 data "oci_core_images" "ubuntu" {
   compartment_id           = var.compartment_ocid
@@ -302,7 +310,7 @@ data "cloudinit_config" "user_data" {
     content_type = "text/x-shellscript"
 
     content = templatefile("${path.module}/cloud-init/userdata.sh.tftpl", {
-      linux_user = local.linux_user
+      linux_user  = local.linux_user
       init_script = try(coder_agent.dev[0].init_script, "")
     })
   }
@@ -349,11 +357,6 @@ resource "oci_core_instance" "dev" {
   lifecycle {
     ignore_changes = [source_details[0].source_id]
   }
-}
-
-# Get availability domains
-data "oci_identity_availability_domains" "ads" {
-  compartment_id = var.compartment_ocid
 }
 
 # Instance state management
