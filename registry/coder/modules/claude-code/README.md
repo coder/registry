@@ -42,14 +42,46 @@ By default, Claude Code automatically resumes existing conversations when your w
 
 This example shows how to configure the Claude Code module to run the agent behind a process-level boundary that restricts its network access.
 
+By default, when `enable_boundary = true`, the module uses `coder boundary` subcommand (provided by Coder) without requiring any installation. You can also choose to install boundary from a release version or compile from source.
+
+#### Using coder boundary subcommand (default)
+
 ```tf
 module "claude-code" {
-  source           = "registry.coder.com/coder/claude-code/coder"
-  version          = "4.6.0"
-  agent_id         = coder_agent.main.id
-  workdir          = "/home/coder/project"
-  enable_boundary  = true
-  boundary_version = "v0.5.1"
+  source          = "registry.coder.com/coder/claude-code/coder"
+  version         = "4.6.0"
+  agent_id        = coder_agent.main.id
+  workdir         = "/home/coder/project"
+  enable_boundary = true
+  # use_boundary_directly defaults to false, so coder boundary subcommand is used
+}
+```
+
+#### Installing boundary binary from release
+
+```tf
+module "claude-code" {
+  source              = "registry.coder.com/coder/claude-code/coder"
+  version             = "4.6.0"
+  agent_id            = coder_agent.main.id
+  workdir             = "/home/coder/project"
+  enable_boundary     = true
+  use_boundary_directly = true
+  boundary_version     = "v0.5.1"
+}
+```
+
+#### Compiling from source (for developers)
+
+```tf
+module "claude-code" {
+  source                  = "registry.coder.com/coder/claude-code/coder"
+  version                 = "4.6.0"
+  agent_id                = coder_agent.main.id
+  workdir                 = "/home/coder/project"
+  enable_boundary         = true
+  compile_boundary_from_source = true
+  boundary_version        = "main"  # or any git ref (tag, commit, branch)
 }
 ```
 
