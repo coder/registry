@@ -229,7 +229,13 @@ function start_agentapi() {
       BOUNDARY_CMD=("boundary")
     else
       # Use coder boundary subcommand (default)
-      BOUNDARY_CMD=("coder" "boundary")
+      # Copy coder binary to coder-no-caps. Copying strips CAP_NET_ADMIN capabilities
+      # from the binary, which is necessary because boundary doesn't work with
+      # privileged binaries (you can't launch privileged binaries inside network
+      # namespaces unless you have sys_admin).
+      CODER_NO_CAPS="$(dirname $(which coder))/coder-no-caps"
+      cp "$(which coder)" "$CODER_NO_CAPS"
+      BOUNDARY_CMD=("$CODER_NO_CAPS" "boundary")
     fi
 
     agentapi server --type claude --term-width 67 --term-height 1190 -- \
