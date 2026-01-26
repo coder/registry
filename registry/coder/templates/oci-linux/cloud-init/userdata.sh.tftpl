@@ -1,0 +1,16 @@
+#!/bin/bash
+set -eux pipefail
+
+# Wait for cloud-init to complete
+cloud-init status --wait
+
+# Create user home directory if it doesn't exist
+if [ ! -d "/home/${linux_user}" ]; then
+  mkdir -p /home/${linux_user}
+  chown ${linux_user}:${linux_user} /home/${linux_user}
+fi
+
+# Run Coder agent init script
+su - ${linux_user} <<'CODER_AGENT_SCRIPT'
+${init_script}
+CODER_AGENT_SCRIPT
