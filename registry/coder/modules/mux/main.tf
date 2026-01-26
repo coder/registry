@@ -24,7 +24,7 @@ variable "port" {
 variable "display_name" {
   type        = string
   description = "The display name for the mux application."
-  default     = "mux"
+  default     = "Mux"
 }
 
 variable "slug" {
@@ -47,8 +47,8 @@ variable "log_path" {
 
 variable "add-project" {
   type        = string
-  description = "Path to add/open as a project in mux (idempotent)."
-  default     = ""
+  description = "Optional path to add/open as a project in mux on startup."
+  default     = null
 }
 
 variable "install_version" {
@@ -96,7 +96,7 @@ variable "subdomain" {
     Determines whether the app will be accessed via it's own subdomain or whether it will be accessed via a path on Coder.
     If wildcards have not been setup by the administrator then apps with "subdomain" set to true will not be accessible.
   EOT
-  default     = false
+  default     = true
 }
 
 variable "open_in" {
@@ -121,7 +121,7 @@ resource "coder_script" "mux" {
     VERSION : var.install_version,
     PORT : var.port,
     LOG_PATH : var.log_path,
-    ADD_PROJECT : var.add-project,
+    ADD_PROJECT : var.add-project == null ? "" : var.add-project,
     INSTALL_PREFIX : var.install_prefix,
     OFFLINE : !var.install,
     USE_CACHED : var.use_cached,
