@@ -234,6 +234,12 @@ variable "compile_boundary_from_source" {
   default     = false
 }
 
+variable "use_boundary_directly" {
+  type        = bool
+  description = "Whether to use boundary binary directly instead of coder boundary subcommand. When false (default), uses coder boundary subcommand. When true, installs and uses boundary binary from release."
+  default     = false
+}
+
 variable "enable_aibridge" {
   type        = bool
   description = "Use AI Bridge for Claude Code. https://coder.com/docs/ai-coder/ai-bridge"
@@ -389,6 +395,7 @@ module "agentapi" {
      ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
      ARG_BOUNDARY_VERSION='${var.boundary_version}' \
      ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
+     ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
      ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh
    EOT
