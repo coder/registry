@@ -233,7 +233,7 @@ function start_agentapi() {
       # from the binary, which is necessary because boundary doesn't work with
       # privileged binaries (you can't launch privileged binaries inside network
       # namespaces unless you have sys_admin).
-      CODER_NO_CAPS="$(dirname $(which coder))/coder-no-caps"
+      CODER_NO_CAPS="$(dirname "$(which coder)")/coder-no-caps"
       cp "$(which coder)" "$CODER_NO_CAPS"
       BOUNDARY_CMD=("$CODER_NO_CAPS" "boundary")
     fi
