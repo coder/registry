@@ -49,6 +49,19 @@ module "agentapi" {
 }
 ```
 
+## Task log snapshot
+
+Captures the last 10 messages from AgentAPI when a task workspace stops. This allows viewing conversation history while the task is paused.
+
+To enable for task workspaces:
+
+```tf
+module "agentapi" {
+  # ... other config
+  log_snapshot = true # default: true
+}
+```
+
 ## For module developers
 
 For a complete example of how to use this module, see the [Goose module](https://github.com/coder/registry/blob/main/registry/coder/modules/goose/main.tf).
