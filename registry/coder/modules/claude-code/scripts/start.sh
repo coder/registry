@@ -16,6 +16,7 @@ ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 ARG_ENABLE_BOUNDARY=${ARG_ENABLE_BOUNDARY:-false}
 ARG_BOUNDARY_VERSION=${ARG_BOUNDARY_VERSION:-"main"}
 ARG_COMPILE_FROM_SOURCE=${ARG_COMPILE_FROM_SOURCE:-false}
+ARG_USE_BOUNDARY_DIRECTLY=${ARG_USE_BOUNDARY_DIRECTLY:-false}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
 
 echo "--------------------------------"
@@ -30,12 +31,13 @@ printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
 printf "ARG_ENABLE_BOUNDARY: %s\n" "$ARG_ENABLE_BOUNDARY"
 printf "ARG_BOUNDARY_VERSION: %s\n" "$ARG_BOUNDARY_VERSION"
 printf "ARG_COMPILE_FROM_SOURCE: %s\n" "$ARG_COMPILE_FROM_SOURCE"
+printf "ARG_USE_BOUNDARY_DIRECTLY: %s\n" "$ARG_USE_BOUNDARY_DIRECTLY"
 printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
 
 echo "--------------------------------"
 
 function install_boundary() {
-  if [ "${ARG_COMPILE_FROM_SOURCE:-false}" = "true" ]; then
+  if [ "$ARG_COMPILE_FROM_SOURCE" = "true" ]; then
     # Install boundary by compiling from source
     echo "Compiling boundary from source (version: $ARG_BOUNDARY_VERSION)"
 
@@ -52,14 +54,16 @@ function install_boundary() {
     # Build the binary
     make build
 
-    # Install binary and wrapper script (optional)
+    # Install binary
     sudo cp boundary /usr/local/bin/
-    sudo cp scripts/boundary-wrapper.sh /usr/local/bin/boundary-run
-    sudo chmod +x /usr/local/bin/boundary-run
-  else
+    sudo chmod +x /usr/local/bin/boundary
+  elif [ "$ARG_USE_BOUNDARY_DIRECTLY" = "true" ]; then
     # Install boundary using official install script
     echo "Installing boundary using official install script (version: $ARG_BOUNDARY_VERSION)"
     curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "$ARG_BOUNDARY_VERSION"
+  else
+    # Use coder boundary subcommand (default) - no installation needed
+    echo "Using coder boundary subcommand (provided by Coder)"
   fi
 }
 
@@ -212,15 +216,30 @@ function start_agentapi() {
 
   printf "Running claude code with args: %s\n" "$(printf '%q ' "${ARGS[@]}")"
 
-  if [ "${ARG_ENABLE_BOUNDARY:-false}" = "true" ]; then
+  if [ "$ARG_ENABLE_BOUNDARY" = "true" ]; then
     install_boundary
 
     printf "Starting with coder boundary enabled\n"
 
     BOUNDARY_ARGS+=()
 
+    # Determine which boundary command to use
+    if [ "$ARG_COMPILE_FROM_SOURCE" = "true" ] || [ "$ARG_USE_BOUNDARY_DIRECTLY" = "true" ]; then
+      # Use boundary binary directly (from compilation or release installation)
+      BOUNDARY_CMD=("boundary")
+    else
+      # Use coder boundary subcommand (default)
+      # Copy coder binary to coder-no-caps. Copying strips CAP_NET_ADMIN capabilities
+      # from the binary, which is necessary because boundary doesn't work with
+      # privileged binaries (you can't launch privileged binaries inside network
+      # namespaces unless you have sys_admin).
+      CODER_NO_CAPS="$(dirname "$(which coder)")/coder-no-caps"
+      cp "$(which coder)" "$CODER_NO_CAPS"
+      BOUNDARY_CMD=("$CODER_NO_CAPS" "boundary")
+    fi
+
     agentapi server --type claude --term-width 67 --term-height 1190 -- \
-      boundary-run "${BOUNDARY_ARGS[@]}" -- \
+      "${BOUNDARY_CMD[@]}" "${BOUNDARY_ARGS[@]}" -- \
       claude "${ARGS[@]}"
   else
     agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
