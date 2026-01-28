@@ -136,6 +136,43 @@ module "jetbrains" {
 }
 ```
 
+### Plugin Auto‑Installer
+
+This module now supports automatic JetBrains plugin installation inside your workspace.
+
+To get a plugin ID, open the plugin’s page on the JetBrains Marketplace. Scroll down to Additional Information and look for Plugin ID. Use that value in the configuration below.
+
+```tf
+module "jetbrains" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/jetbrains/coder"
+  version  = "1.2.1"
+  agent_id = coder_agent.main.id
+  folder   = "/home/coder/project"
+  default  = ["IU", "PY"]
+
+  jetbrains_plugins = {
+    "PY" = ["com.koxudaxi.pydantic", "com.intellij.kubernetes"]
+    "IU" = ["<Plugin-ID>", "<Plugin-ID>"]
+    "WS" = ["<Plugin-ID>", "<Plugin-ID>"]
+    "GO" = ["<Plugin-ID>", "<Plugin-ID>"]
+    "CL" = ["<Plugin-ID>", "<Plugin-ID>"]
+    "PS" = ["<Plugin-ID>", "<Plugin-ID>"]
+    "RD" = ["<Plugin-ID>", "<Plugin-ID>"]
+    "RM" = ["<Plugin-ID>", "<Plugin-ID>"]
+    "RR" = ["<Plugin-ID>", "<Plugin-ID>"]
+  }
+}
+```
+
+> [!IMPORTANT]
+> This module prerequisites and limitations
+>
+> 1. Requires JetBrains Toolbox to be installed
+> 2. Requires jq to be available
+> 3. Only works on Debian/Ubuntu-based systems (due to apt-get usage)
+> 4. Plugins are installed when workspace starts, but may take time depending on IDE availability
+
 ### Accessing the IDE Metadata
 
 You can now reference the output `ide_metadata` as a map.
