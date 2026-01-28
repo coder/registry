@@ -17,43 +17,43 @@ variable "agent_id" {
 
 variable "port" {
   type        = number
-  description = "The port to run mux on."
+  description = "The port to run Mux on."
   default     = 4000
 }
 
 variable "display_name" {
   type        = string
-  description = "The display name for the mux application."
+  description = "The display name for the Mux application."
   default     = "Mux"
 }
 
 variable "slug" {
   type        = string
-  description = "The slug for the mux application."
+  description = "The slug for the Mux application."
   default     = "mux"
 }
 
 variable "install_prefix" {
   type        = string
-  description = "The prefix to install mux to."
+  description = "The prefix to install Mux to."
   default     = "/tmp/mux"
 }
 
 variable "log_path" {
   type        = string
-  description = "The path for mux logs."
+  description = "The path for Mux logs."
   default     = "/tmp/mux.log"
 }
 
 variable "add-project" {
   type        = string
-  description = "Optional path to add/open as a project in mux on startup."
+  description = "Optional path to add/open as a project in Mux on startup."
   default     = null
 }
 
 variable "install_version" {
   type        = string
-  description = "The version or dist-tag of mux to install."
+  description = "The version or dist-tag of Mux to install."
   default     = "next"
 }
 
@@ -80,13 +80,13 @@ variable "group" {
 
 variable "install" {
   type        = bool
-  description = "Install mux from the network (npm or tarball). If false, run without installing (requires a pre-installed mux)."
+  description = "Install Mux from the network (npm or tarball). If false, run without installing (requires a pre-installed Mux)."
   default     = true
 }
 
 variable "use_cached" {
   type        = bool
-  description = "Use cached copy of mux if present; otherwise install from npm"
+  description = "Use cached copy of Mux if present; otherwise install from npm"
   default     = false
 }
 
@@ -115,7 +115,7 @@ variable "open_in" {
 
 resource "coder_script" "mux" {
   agent_id     = var.agent_id
-  display_name = "mux"
+  display_name = var.display_name
   icon         = "/icon/mux.svg"
   script = templatefile("${path.module}/run.sh", {
     VERSION : var.install_version,

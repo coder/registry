@@ -1,14 +1,14 @@
 ---
-display_name: mux
+display_name: Mux
 description: Coding Agent Multiplexer - Run multiple AI agents in parallel
 icon: ../../../../.icons/mux.svg
 verified: true
 tags: [ai, agents, development, multiplexer]
 ---
 
-# mux
+# Mux
 
-Automatically install and run [mux](https://github.com/coder/mux) in a Coder workspace. By default, the module installs `mux@next` from npm (with a fallback to downloading the npm tarball if npm is unavailable). mux is a desktop application for parallel agentic development that enables developers to run multiple AI agents simultaneously across isolated workspaces.
+Automatically install and run [Mux](https://github.com/coder/mux) in a Coder workspace. By default, the module installs `mux@next` from npm (with a fallback to downloading the npm tarball if npm is unavailable). Mux is a desktop application for parallel agentic development that enables developers to run multiple AI agents simultaneously across isolated workspaces.
 
 ```tf
 module "mux" {
@@ -19,13 +19,13 @@ module "mux" {
 }
 ```
 
-![mux](../../.images/mux-product-hero.webp)
+![Mux](../../.images/mux-product-hero.webp)
 
 ## Features
 
 - **Parallel Agent Execution**: Run multiple AI agents simultaneously on different tasks
 - **Mux Workspace Isolation**: Each agent works in its own isolated environment
-- **Git Divergence Visualization**: Track changes across different mux agent workspaces
+- **Git Divergence Visualization**: Track changes across different Mux agent workspaces
 - **Long-Running Processes**: Resume AI work after interruptions
 - **Cost Tracking**: Monitor API usage across agents
 
@@ -58,7 +58,7 @@ module "mux" {
 
 ### Open a Project on Launch
 
-Start mux with `mux server --add-project /path/to/project`:
+Start Mux with `mux server --add-project /path/to/project`:
 
 ```tf
 module "mux" {
@@ -83,7 +83,7 @@ module "mux" {
 
 ### Use Cached Installation
 
-Run an existing copy of mux if found, otherwise install from npm:
+Run an existing copy of Mux if found, otherwise install from npm:
 
 ```tf
 module "mux" {
@@ -97,7 +97,7 @@ module "mux" {
 
 ### Skip Install
 
-Run without installing from the network (requires mux to be pre-installed):
+Run without installing from the network (requires Mux to be pre-installed):
 
 ```tf
 module "mux" {
@@ -115,6 +115,6 @@ module "mux" {
 
 ## Notes
 
-- mux is currently in preview and you may encounter bugs
+- Mux is currently in preview and you may encounter bugs
 - Requires internet connectivity for agent operations (unless `install` is set to false)
 - Installs `mux@next` from npm by default (falls back to the npm tarball if npm is unavailable)
