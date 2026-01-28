@@ -18,6 +18,7 @@ printf "Version: %s\n" "$(codex --version)"
 set -o nounset
 ARG_CODEX_TASK_PROMPT=$(echo -n "$ARG_CODEX_TASK_PROMPT" | base64 -d)
 ARG_CONTINUE=${ARG_CONTINUE:-true}
+ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
 
 echo "=== Codex Launch Configuration ==="
 printf "OpenAI API Key: %s\n" "$([ -n "$ARG_OPENAI_API_KEY" ] && echo "Provided" || echo "Not provided")"
@@ -26,6 +27,7 @@ printf "Start Directory: %s\n" "$ARG_CODEX_START_DIRECTORY"
 printf "Has Task Prompt: %s\n" "$([ -n "$ARG_CODEX_TASK_PROMPT" ] && echo "Yes" || echo "No")"
 printf "Report Tasks: %s\n" "$ARG_REPORT_TASKS"
 printf "Continue Sessions: %s\n" "$ARG_CONTINUE"
+printf "Enable Coder AI Bridge: %s\n" "$ARG_ENABLE_AIBRIDGE"
 echo "======================================"
 set +o nounset
 
@@ -153,7 +155,10 @@ setup_workdir() {
 build_codex_args() {
   CODEX_ARGS=()
 
-  if [ -n "$ARG_CODEX_MODEL" ]; then
+  if [ "$ARG_ENABLE_AIBRIDGE" = "true" ]; then
+    printf "AI Bridge is enabled, using profile aibridge\n"
+    CODEX_ARGS+=("--profile" "aibridge")
+  elif [ -n "$ARG_CODEX_MODEL" ]; then
     CODEX_ARGS+=("--model" "$ARG_CODEX_MODEL")
   fi
 
