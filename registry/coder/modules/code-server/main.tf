@@ -148,6 +148,12 @@ variable "open_in" {
   }
 }
 
+variable "trusted_domains" {
+  type        = list(string)
+  description = "A list of trusted domains for link protection. These domains will be added to the --link-protection-trusted-domains option."
+  default     = []
+}
+
 variable "additional_args" {
   type        = string
   description = "Additional command-line arguments to pass to code-server (e.g., '--disable-workspace-trust')."
@@ -174,6 +180,7 @@ resource "coder_script" "code-server" {
     EXTENSIONS_DIR : var.extensions_dir,
     FOLDER : var.folder,
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
+    TRUSTED_DOMAINS : join(",", var.trusted_domains),
     ADDITIONAL_ARGS : var.additional_args,
   })
   run_on_start = true
