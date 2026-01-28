@@ -42,8 +42,9 @@ fetch_and_build_messages_payload() {
     return 1
   fi
 
-  if ! jq --argjson n "$MAX_MESSAGES" '{messages: .[-$n:]}' < "$payload_file" > "${payload_file}.tmp"; then
-    error "Failed to build payload structure"
+  # Update messages field to keep only last N messages.
+  if ! jq --argjson n "$MAX_MESSAGES" '.messages |= .[-$n:]' < "$payload_file" > "${payload_file}.tmp"; then
+    error "Failed to select last $MAX_MESSAGES messages"
     return 1
   fi
   mv "${payload_file}.tmp" "$payload_file"
@@ -104,7 +105,7 @@ post_task_log_snapshot() {
   local payload_file="$1"
   local tmpdir="$2"
 
-  local snapshot_url="${CODER_AGENT_URL}/api/v2/workspaceagents/me/tasks/${TASK_ID}/log-snapshot"
+  local snapshot_url="${CODER_AGENT_URL}/api/v2/workspaceagents/me/tasks/${TASK_ID}/log-snapshot?format=agentapi"
   local response_file="${tmpdir}/response.txt"
 
   log "Posting log snapshot to Coder instance"

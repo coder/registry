@@ -288,13 +288,13 @@ describe("agentapi", async () => {
       await execContainer(containerId, [
         "bash",
         "-c",
-        `PRESET=${agentapiPreset} nohup node /usr/local/bin/mock-agentapi 3284 &`,
+        `PRESET=${agentapiPreset} nohup node /usr/local/bin/mock-agentapi 3284 > /tmp/mock-agentapi.log 2>&1 &`,
       ]);
 
       await execContainer(containerId, [
         "bash",
         "-c",
-        `HTTP_CODE=${httpCode} nohup node /usr/local/bin/mock-coder 8080 &`,
+        `HTTP_CODE=${httpCode} nohup node /usr/local/bin/mock-coder 18080 > /tmp/mock-coder.log 2>&1 &`,
       ]);
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -318,7 +318,7 @@ describe("agentapi", async () => {
       return await execContainer(containerId, [
         "bash",
         "-c",
-        `ARG_TASK_ID=${taskId} ARG_AGENTAPI_PORT=3284 CODER_AGENT_URL=http://localhost:8080 CODER_AGENT_TOKEN=test-token /tmp/shutdown.sh`,
+        `ARG_TASK_ID=${taskId} ARG_AGENTAPI_PORT=3284 CODER_AGENT_URL=http://localhost:18080 CODER_AGENT_TOKEN=test-token /tmp/shutdown.sh`,
       ]);
     };
 

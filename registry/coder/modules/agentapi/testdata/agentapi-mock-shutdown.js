@@ -61,7 +61,7 @@ if (process.env.PRESET === "normal") {
 const server = http.createServer((req, res) => {
   if (req.url === "/messages") {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(messages));
+    res.end(JSON.stringify({ messages }));
   } else if (req.url === "/status") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ status: "stable" }));
