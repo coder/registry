@@ -14,6 +14,8 @@ WAIT_FOR_START_SCRIPT="$ARG_WAIT_FOR_START_SCRIPT"
 POST_INSTALL_SCRIPT="$ARG_POST_INSTALL_SCRIPT"
 AGENTAPI_PORT="$ARG_AGENTAPI_PORT"
 AGENTAPI_CHAT_BASE_PATH="${ARG_AGENTAPI_CHAT_BASE_PATH:-}"
+TASK_ID="${ARG_TASK_ID:-}"
+TASK_LOG_SNAPSHOT="${ARG_TASK_LOG_SNAPSHOT:-true}"
 set +o nounset
 
 command_exists() {
@@ -23,6 +25,13 @@ command_exists() {
 module_path="$HOME/${MODULE_DIR_NAME}"
 mkdir -p "$module_path/scripts"
 
+# Check for jq dependency if task log snapshot is enabled.
+if [[ $TASK_LOG_SNAPSHOT == true ]] && [[ -n $TASK_ID ]]; then
+  if ! command_exists jq; then
+    echo "Warning: jq is not installed. Task log snapshot requires jq to capture conversation history."
+    echo "Install jq to enable log snapshot functionality when the workspace stops."
+  fi
+fi
 if [ ! -d "${WORKDIR}" ]; then
   echo "Warning: The specified folder '${WORKDIR}' does not exist."
   echo "Creating the folder..."
