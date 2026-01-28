@@ -55,7 +55,6 @@ module "mux" {
 }
 ```
 
-
 ### Open a Project on Launch
 
 Start Mux with `mux server --add-project /path/to/project`:
@@ -69,6 +68,7 @@ module "mux" {
   add-project = "/path/to/project"
 }
 ```
+
 ### Custom Port
 
 ```tf
