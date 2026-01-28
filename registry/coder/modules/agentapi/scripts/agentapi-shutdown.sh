@@ -28,7 +28,7 @@ log() {
 }
 
 error() {
-  echo "ERROR: $*" >&2
+  echo "Error: $*" >&2
 }
 
 fetch_and_build_messages_payload() {

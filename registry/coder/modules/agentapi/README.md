@@ -58,7 +58,7 @@ To enable for task workspaces:
 ```tf
 module "agentapi" {
   # ... other config
-  log_snapshot = true # default: true
+  task_log_snapshot = true # default: true
 }
 ```
 

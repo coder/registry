@@ -207,18 +207,19 @@ resource "coder_script" "agentapi" {
     ARG_POST_INSTALL_SCRIPT="$(echo -n '${local.encoded_post_install_script}' | base64 -d)" \
     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     ARG_AGENTAPI_CHAT_BASE_PATH='${local.agentapi_chat_base_path}' \
+    ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
+    ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
     /tmp/main.sh
     EOT
   run_on_start = true
 }
 
 resource "coder_script" "agentapi_shutdown" {
-  agent_id           = var.agent_id
-  display_name       = "AgentAPI Shutdown"
-  icon               = var.web_app_icon
-  run_on_stop        = true
-  start_blocks_login = false
-  script             = <<-EOT
+  agent_id     = var.agent_id
+  display_name = "AgentAPI Shutdown"
+  icon         = var.web_app_icon
+  run_on_stop  = true
+  script       = <<-EOT
     #!/bin/bash
     set -o pipefail
 
