@@ -332,8 +332,8 @@ describe("agentapi", async () => {
       const result = await runShutdownScript(id);
 
       expect(result.exitCode).toBe(0);
-      expect(result.stderr).toContain("Retrieved 5 messages for log snapshot");
-      expect(result.stderr).toContain("Log snapshot posted successfully");
+      expect(result.stdout).toContain("Retrieved 5 messages for log snapshot");
+      expect(result.stdout).toContain("Log snapshot posted successfully");
 
       const posted = await readFileContainer(id, "/tmp/snapshot-posted.json");
       const snapshot = JSON.parse(posted);
@@ -372,7 +372,7 @@ describe("agentapi", async () => {
       const result = await runShutdownScript(id);
 
       expect(result.exitCode).toBe(0);
-      expect(result.stderr).toContain("truncating final message content");
+      expect(result.stdout).toContain("truncating final message content");
 
       const posted = await readFileContainer(id, "/tmp/snapshot-posted.json");
       const snapshot = JSON.parse(posted);
@@ -392,7 +392,7 @@ describe("agentapi", async () => {
       const result = await runShutdownScript(id, "");
 
       expect(result.exitCode).toBe(0);
-      expect(result.stderr).toContain("No task ID, skipping log snapshot");
+      expect(result.stdout).toContain("No task ID, skipping log snapshot");
     });
 
     test("handles 404 gracefully for older Coder versions", async () => {
@@ -405,7 +405,7 @@ describe("agentapi", async () => {
       const result = await runShutdownScript(id);
 
       expect(result.exitCode).toBe(0);
-      expect(result.stderr).toContain(
+      expect(result.stdout).toContain(
         "Log snapshot endpoint not supported by this Coder version",
       );
     });

@@ -24,7 +24,7 @@ readonly FETCH_TIMEOUT=5
 readonly POST_TIMEOUT=10
 
 log() {
-  echo "$*" >&2
+  echo "$*"
 }
 
 error() {
