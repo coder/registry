@@ -113,7 +113,7 @@ module "claude-code" {
 This example shows additional configuration options for version pinning, custom models, and MCP servers.
 
 > [!NOTE]
-> When a specific `claude_code_version` (other than "latest") is provided, the module will install Claude Code via npm instead of the official installer. This allows for version pinning. The `claude_binary_path` variable can be used to specify where a pre-installed Claude binary is located.
+> The `claude_binary_path` variable can be used to specify where a pre-installed Claude binary is located.
 
 ```tf
 module "claude-code" {
@@ -126,7 +126,7 @@ module "claude-code" {
   # OR
   claude_code_oauth_token = "xxxxx-xxxx-xxxx"
 
-  claude_code_version = "2.0.62"          # Pin to a specific version (uses npm)
+  claude_code_version = "2.0.62"          # Pin to a specific version
   claude_binary_path  = "/opt/claude/bin" # Path to pre-installed Claude binary
   agentapi_version    = "0.11.4"
 

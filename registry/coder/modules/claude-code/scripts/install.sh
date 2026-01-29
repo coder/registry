@@ -93,8 +93,8 @@ function install_claude_code_cli() {
     return
   fi
 
-  # Use npm when install_via_npm is true or for specific version pinning
-  if [ "$ARG_INSTALL_VIA_NPM" = "true" ] || { [ -n "$ARG_CLAUDE_CODE_VERSION" ] && [ "$ARG_CLAUDE_CODE_VERSION" != "latest" ]; }; then
+  # Use npm when install_via_npm is true
+  if [ "$ARG_INSTALL_VIA_NPM" = "true" ]; then
     echo "Installing Claude Code via npm (version: $ARG_CLAUDE_CODE_VERSION)"
     npm install -g "@anthropic-ai/claude-code@$ARG_CLAUDE_CODE_VERSION"
     echo "Installed Claude Code via npm. Version: $(claude --version || echo 'unknown')"
