@@ -28,6 +28,21 @@ describe("dotfiles", async () => {
     expect(state.outputs.dotfiles_uri.value).toBe(default_dotfiles_uri);
   });
 
+  it("command uses bash for fish shell compatibility", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      manual_update: "true",
+      dotfiles_uri: "https://github.com/test/dotfiles",
+    });
+
+    const app = state.resources.find(
+      (r) => r.type === "coder_app" && r.name === "dotfiles"
+    );
+
+    expect(app).toBeDefined();
+    expect(app?.instances[0]?.attributes?.command).toContain("/bin/bash -c");
+  });
+
   it("set custom order for coder_parameter", async () => {
     const order = 99;
     const state = await runTerraformApply(import.meta.dir, {

@@ -99,7 +99,7 @@ resource "coder_app" "dotfiles" {
   icon         = "/icon/dotfiles.svg"
   order        = var.order
   group        = var.group
-  command = "/usr/bin/env bash -c ${shellquote(templatefile("${path.module}/run.sh", {
+  command = "/bin/bash -c ${jsonencode(templatefile("${path.module}/run.sh", {
     DOTFILES_URI : local.dotfiles_uri,
     DOTFILES_USER : local.user
   }))}"
