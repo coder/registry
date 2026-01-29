@@ -224,13 +224,19 @@ variable "enable_boundary" {
 
 variable "boundary_version" {
   type        = string
-  description = "Boundary version, valid git reference should be provided (tag, commit, branch)"
-  default     = "main"
+  description = "Boundary version. When use_boundary_directly is true, a release version should be provided or 'latest' for the latest release. When compile_boundary_from_source is true, a valid git reference should be provided (tag, commit, branch)."
+  default     = "latest"
 }
 
 variable "compile_boundary_from_source" {
   type        = bool
   description = "Whether to compile boundary from source instead of using the official install script"
+  default     = false
+}
+
+variable "use_boundary_directly" {
+  type        = bool
+  description = "Whether to use boundary binary directly instead of coder boundary subcommand. When false (default), uses coder boundary subcommand. When true, installs and uses boundary binary from release."
   default     = false
 }
 
@@ -389,6 +395,7 @@ module "agentapi" {
      ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
      ARG_BOUNDARY_VERSION='${var.boundary_version}' \
      ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
+     ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
      ARG_CODER_HOST='${local.coder_host}' \
      /tmp/start.sh
    EOT

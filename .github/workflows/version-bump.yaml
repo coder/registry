@@ -20,7 +20,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -31,7 +31,7 @@ jobs:
           bun-version: latest
 
       - name: Set up Terraform
-        uses: coder/coder/.github/actions/setup-tf@59cdd7e21f4d7da12567c0c29964d298fbf38f27 # v2.29.1
+        uses: coder/coder/.github/actions/setup-tf@b5360a9180613328a62d64efcfaac5a31980c746 # v2.29.2
 
       - name: Install dependencies
         run: bun install
