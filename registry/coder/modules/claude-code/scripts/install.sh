@@ -95,6 +95,7 @@ function install_claude_code_cli() {
 
   # Use npm when install_via_npm is true
   if [ "$ARG_INSTALL_VIA_NPM" = "true" ]; then
+    echo "WARNING: npm installation method will be deprecated and removed in the next major release."
     echo "Installing Claude Code via npm (version: $ARG_CLAUDE_CODE_VERSION)"
     npm install -g "@anthropic-ai/claude-code@$ARG_CLAUDE_CODE_VERSION"
     echo "Installed Claude Code via npm. Version: $(claude --version || echo 'unknown')"

@@ -115,6 +115,9 @@ This example shows additional configuration options for version pinning, custom 
 > [!NOTE]
 > The `claude_binary_path` variable can be used to specify where a pre-installed Claude binary is located.
 
+> [!WARNING]
+> **Deprecation Notice**: The npm installation method (`install_via_npm = true`) will be deprecated and removed in the next major release. Please use the default binary installation method instead.
+
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
