@@ -36,7 +36,7 @@ describe("dotfiles", async () => {
     });
 
     const app = state.resources.find(
-      (r) => r.type === "coder_app" && r.name === "dotfiles"
+      (r) => r.type === "coder_app" && r.name === "dotfiles",
     );
 
     expect(app).toBeDefined();
