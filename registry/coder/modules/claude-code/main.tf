@@ -224,8 +224,8 @@ variable "enable_boundary" {
 
 variable "boundary_version" {
   type        = string
-  description = "Boundary version, valid git reference should be provided (tag, commit, branch)"
-  default     = "main"
+  description = "Boundary version. When use_boundary_directly is true, a release version should be provided or 'latest' for the latest release. When compile_boundary_from_source is true, a valid git reference should be provided (tag, commit, branch)."
+  default     = "latest"
 }
 
 variable "compile_boundary_from_source" {
