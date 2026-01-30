@@ -257,4 +257,157 @@ describe("agentapi", async () => {
     );
     expect(agentApiStartLog).toContain("AGENTAPI_ALLOWED_HOSTS: *");
   });
+
+  describe("shutdown script", async () => {
+    const setupMocks = async (
+      containerId: string,
+      agentapiPreset: string,
+      httpCode: number = 204,
+    ) => {
+      const agentapiMock = await loadTestFile(
+        import.meta.dir,
+        "agentapi-mock-shutdown.js",
+      );
+      const coderMock = await loadTestFile(
+        import.meta.dir,
+        "coder-instance-mock.js",
+      );
+
+      await writeExecutable({
+        containerId,
+        filePath: "/usr/local/bin/mock-agentapi",
+        content: agentapiMock,
+      });
+
+      await writeExecutable({
+        containerId,
+        filePath: "/usr/local/bin/mock-coder",
+        content: coderMock,
+      });
+
+      await execContainer(containerId, [
+        "bash",
+        "-c",
+        `PRESET=${agentapiPreset} nohup node /usr/local/bin/mock-agentapi 3284 > /tmp/mock-agentapi.log 2>&1 &`,
+      ]);
+
+      await execContainer(containerId, [
+        "bash",
+        "-c",
+        `HTTP_CODE=${httpCode} nohup node /usr/local/bin/mock-coder 18080 > /tmp/mock-coder.log 2>&1 &`,
+      ]);
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    };
+
+    const runShutdownScript = async (
+      containerId: string,
+      taskId: string = "test-task",
+    ) => {
+      const shutdownScript = await loadTestFile(
+        import.meta.dir,
+        "../scripts/agentapi-shutdown.sh",
+      );
+
+      await writeExecutable({
+        containerId,
+        filePath: "/tmp/shutdown.sh",
+        content: shutdownScript,
+      });
+
+      return await execContainer(containerId, [
+        "bash",
+        "-c",
+        `ARG_TASK_ID=${taskId} ARG_AGENTAPI_PORT=3284 CODER_AGENT_URL=http://localhost:18080 CODER_AGENT_TOKEN=test-token /tmp/shutdown.sh`,
+      ]);
+    };
+
+    test("posts snapshot with normal messages", async () => {
+      const { id } = await setup({
+        moduleVariables: {},
+        skipAgentAPIMock: true,
+      });
+
+      await setupMocks(id, "normal");
+      const result = await runShutdownScript(id);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Retrieved 5 messages for log snapshot");
+      expect(result.stdout).toContain("Log snapshot posted successfully");
+
+      const posted = await readFileContainer(id, "/tmp/snapshot-posted.json");
+      const snapshot = JSON.parse(posted);
+      expect(snapshot.task_id).toBe("test-task");
+      expect(snapshot.payload.messages).toHaveLength(5);
+      expect(snapshot.payload.messages[0].content).toBe("Hello");
+      expect(snapshot.payload.messages[4].content).toBe("Great");
+    });
+
+    test("truncates to last 10 messages", async () => {
+      const { id } = await setup({
+        moduleVariables: {},
+        skipAgentAPIMock: true,
+      });
+
+      await setupMocks(id, "many");
+      const result = await runShutdownScript(id);
+
+      expect(result.exitCode).toBe(0);
+
+      const posted = await readFileContainer(id, "/tmp/snapshot-posted.json");
+      const snapshot = JSON.parse(posted);
+      expect(snapshot.task_id).toBe("test-task");
+      expect(snapshot.payload.messages).toHaveLength(10);
+      expect(snapshot.payload.messages[0].content).toBe("Message 6");
+      expect(snapshot.payload.messages[9].content).toBe("Message 15");
+    });
+
+    test("truncates huge message content", async () => {
+      const { id } = await setup({
+        moduleVariables: {},
+        skipAgentAPIMock: true,
+      });
+
+      await setupMocks(id, "huge");
+      const result = await runShutdownScript(id);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("truncating final message content");
+
+      const posted = await readFileContainer(id, "/tmp/snapshot-posted.json");
+      const snapshot = JSON.parse(posted);
+      expect(snapshot.task_id).toBe("test-task");
+      expect(snapshot.payload.messages).toHaveLength(1);
+      expect(snapshot.payload.messages[0].content).toContain(
+        "[...content truncated",
+      );
+    });
+
+    test("skips gracefully when TASK_ID is empty", async () => {
+      const { id } = await setup({
+        moduleVariables: {},
+        skipAgentAPIMock: true,
+      });
+
+      const result = await runShutdownScript(id, "");
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("No task ID, skipping log snapshot");
+    });
+
+    test("handles 404 gracefully for older Coder versions", async () => {
+      const { id } = await setup({
+        moduleVariables: {},
+        skipAgentAPIMock: true,
+      });
+
+      await setupMocks(id, "normal", 404);
+      const result = await runShutdownScript(id);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain(
+        "Log snapshot endpoint not supported by this Coder version",
+      );
+    });
+  });
 });
