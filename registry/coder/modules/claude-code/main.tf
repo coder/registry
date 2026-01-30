@@ -276,9 +276,11 @@ resource "coder_env" "claude_code_oauth_token" {
 }
 
 resource "coder_env" "claude_api_key" {
+  count = local.claude_api_key != "" ? 1 : 0
+
   agent_id = var.agent_id
   name     = "CLAUDE_API_KEY"
-  value    = var.enable_aibridge ? data.coder_workspace_owner.me.session_token : var.claude_api_key
+  value    = local.claude_api_key
 }
 
 resource "coder_env" "disable_autoupdater" {
@@ -324,7 +326,8 @@ locals {
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".claude-module"
   # Extract hostname from access_url for boundary --allow flag
-  coder_host = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
+  coder_host     = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
+  claude_api_key = var.enable_aibridge ? data.coder_workspace_owner.me.session_token : var.claude_api_key
 
   # Required prompts for the module to properly report task status to Coder
   report_tasks_system_prompt = <<-EOT
