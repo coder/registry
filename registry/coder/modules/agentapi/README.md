@@ -16,7 +16,7 @@ The AgentAPI module is a building block for modules that need to run an AgentAPI
 ```tf
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.0.0"
+  version = "2.1.0"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
@@ -46,6 +46,19 @@ module "agentapi" {
     ARG_GOOSE_VERSION='${var.goose_version}' \
     /tmp/install.sh
   EOT
+}
+```
+
+## Task log snapshot
+
+Captures the last 10 messages from AgentAPI when a task workspace stops. This allows viewing conversation history while the task is paused.
+
+To enable for task workspaces:
+
+```tf
+module "agentapi" {
+  # ... other config
+  task_log_snapshot = true # default: true
 }
 ```
 
