@@ -13,7 +13,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "4.7.1"
+  version        = "4.7.2"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
@@ -47,7 +47,7 @@ By default, when `enable_boundary = true`, the module uses `coder boundary` subc
 ```tf
 module "claude-code" {
   source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "4.7.1"
+  version         = "4.7.2"
   agent_id        = coder_agent.main.id
   workdir         = "/home/coder/project"
   enable_boundary = true
@@ -59,7 +59,7 @@ module "claude-code" {
 
 ### Usage with AI Bridge
 
-[AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management. To use AI Bridge, set `enable_aibridge = true`.
+[AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management. To use AI Bridge, set `enable_aibridge = true`. Requires Coder version >= 2.29.0.
 
 For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage with Tasks](#usage-with-tasks) example below.
 
@@ -68,7 +68,7 @@ For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage
 ```tf
 module "claude-code" {
   source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "4.7.1"
+  version         = "4.7.2"
   agent_id        = coder_agent.main.id
   workdir         = "/home/coder/project"
   enable_aibridge = true
@@ -97,7 +97,7 @@ data "coder_task" "me" {}
 
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "4.7.1"
+  version        = "4.7.2"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
@@ -121,7 +121,7 @@ This example shows additional configuration options for version pinning, custom 
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.7.1"
+  version  = "4.7.2"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -177,7 +177,7 @@ Run and configure Claude Code as a standalone CLI in your workspace.
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "4.7.1"
+  version             = "4.7.2"
   agent_id            = coder_agent.main.id
   workdir             = "/home/coder/project"
   install_claude_code = true
@@ -199,7 +199,7 @@ variable "claude_code_oauth_token" {
 
 module "claude-code" {
   source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "4.7.1"
+  version                 = "4.7.2"
   agent_id                = coder_agent.main.id
   workdir                 = "/home/coder/project"
   claude_code_oauth_token = var.claude_code_oauth_token
@@ -272,7 +272,7 @@ resource "coder_env" "bedrock_api_key" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.7.1"
+  version  = "4.7.2"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
@@ -329,7 +329,7 @@ resource "coder_env" "google_application_credentials" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.7.1"
+  version  = "4.7.2"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "claude-sonnet-4@20250514"
