@@ -41,7 +41,7 @@ jobs:
           LABEL_NAME: ${{ github.event.label.name }}
         id: bump-type
         run: |
-          case "$LABEL_NAME" in in
+          case "$LABEL_NAME" in
             "version:patch")
               echo "type=patch" >> $GITHUB_OUTPUT
               ;;
