@@ -41,13 +41,13 @@ variable "group" {
 variable "slug" {
   type        = string
   description = "The slug of the app."
-  default     = "cursor"
+  default     = "positron"
 }
 
 variable "display_name" {
   type        = string
   description = "The display name of the app."
-  default     = "Cursor Desktop"
+  default     = "Positron Desktop"
 }
 
 data "coder_workspace" "me" {}
@@ -55,15 +55,15 @@ data "coder_workspace_owner" "me" {}
 
 module "vscode-desktop-core" {
   source  = "registry.coder.com/coder/vscode-desktop-core/coder"
-  version = "1.0.0"
+  version = "1.0.1"
 
   agent_id = var.agent_id
 
-  coder_app_icon         = "/icon/positron.svg"
-  coder_app_slug         = var.slug
-  coder_app_display_name = var.display_name
-  coder_app_order        = var.order
-  coder_app_group        = var.group
+  web_app_icon         = "https://github.com/posit-dev/positron/raw/4b8cc97a7a7a9468c02cd5ac0ee685192030825d/src/vs/workbench/browser/media/positron-icon.svg"
+  web_app_slug         = var.slug
+  web_app_display_name = var.display_name
+  web_app_order        = var.order
+  web_app_group        = var.group
 
   folder      = var.folder
   open_recent = var.open_recent
