@@ -96,11 +96,11 @@ resource "coder_ai_task" "task" {
 data "coder_task" "me" {}
 
 module "claude-code" {
-  source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "4.7.3"
-  agent_id       = coder_agent.main.id
-  workdir        = "/home/coder/project"
-  ai_prompt      = data.coder_task.me.prompt
+  source    = "registry.coder.com/coder/claude-code/coder"
+  version   = "4.7.3"
+  agent_id  = coder_agent.main.id
+  workdir   = "/home/coder/project"
+  ai_prompt = data.coder_task.me.prompt
 
   # Optional: route through AI Bridge (Premium feature)
   # enable_aibridge = true
