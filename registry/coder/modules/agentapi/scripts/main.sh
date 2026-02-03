@@ -13,6 +13,10 @@ START_SCRIPT="$ARG_START_SCRIPT"
 WAIT_FOR_START_SCRIPT="$ARG_WAIT_FOR_START_SCRIPT"
 POST_INSTALL_SCRIPT="$ARG_POST_INSTALL_SCRIPT"
 AGENTAPI_PORT="$ARG_AGENTAPI_PORT"
+AGENTAPI_SERVER_TYPE="$ARG_AGENTAPI_SERVER_TYPE"
+AGENTAPI_TERM_WIDTH="$ARG_AGENTAPI_TERM_WIDTH"
+AGENTAPI_TERM_HEIGHT="$ARG_AGENTAPI_TERM_HEIGHT"
+AGENTAPI_INITIAL_PROMPT="${ARG_AGENTAPI_INITIAL_PROMPT:-}"
 AGENTAPI_CHAT_BASE_PATH="${ARG_AGENTAPI_CHAT_BASE_PATH:-}"
 TASK_ID="${ARG_TASK_ID:-}"
 TASK_LOG_SNAPSHOT="${ARG_TASK_LOG_SNAPSHOT:-true}"
@@ -106,5 +110,25 @@ cd "${WORKDIR}"
 export AGENTAPI_CHAT_BASE_PATH="${AGENTAPI_CHAT_BASE_PATH:-}"
 # Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
 export AGENTAPI_ALLOWED_HOSTS="*"
-nohup "$module_path/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &> "$module_path/agentapi-start.log" &
+
+# Call agentapi-start.sh to write agent-command.sh
+"$module_path/scripts/agentapi-start.sh" "$module_path"
+
+# Build agentapi server command arguments
+ARGS=(
+  "server"
+  "--type" "${AGENTAPI_SERVER_TYPE}"
+  "--port" "${AGENTAPI_PORT}"
+  "--term-width" "${AGENTAPI_TERM_WIDTH}"
+  "--term-height" "${AGENTAPI_TERM_HEIGHT}"
+)
+
+# Add optional initial prompt
+if [ -n "${AGENTAPI_INITIAL_PROMPT}" ]; then
+  ARGS+=("--initial-prompt" "${AGENTAPI_INITIAL_PROMPT}")
+fi
+
+# Start agentapi server with the agent-command.sh script
+nohup agentapi "${ARGS[@]}" -- "$module_path/agent-command.sh" &> "$module_path/agentapi-start.log" &
+
 "$module_path/scripts/agentapi-wait-for-start.sh" "${AGENTAPI_PORT}"

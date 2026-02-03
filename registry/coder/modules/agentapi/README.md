@@ -27,6 +27,7 @@ module "agentapi" {
   cli_app_slug         = "goose-cli"
   cli_app_display_name = "Goose CLI"
   module_dir_name      = local.module_dir_name
+  agentapi_server_type = "claude"
   install_agentapi     = var.install_agentapi
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
@@ -62,6 +63,44 @@ module "agentapi" {
 }
 ```
 
+## AgentAPI server configuration
+
+You can configure the AgentAPI server type, terminal dimensions, and initial prompt:
+
+```tf
+module "agentapi" {
+  # ... other config
+  agentapi_server_type    = "claude"                        # required
+  agentapi_term_width     = 67                              # default: 67
+  agentapi_term_height    = 1190                            # default: 1190
+  agentapi_initial_prompt = "You are a helpful assistant."  # optional
+}
+```
+
+**Note:** The `agentapi_initial_prompt` is recommended only if the agent doesn't support initial prompt in interaction mode.
+
 ## For module developers
 
 For a complete example of how to use this module, see the [Goose module](https://github.com/coder/registry/blob/main/registry/coder/modules/goose/main.tf).
+
+### Start script behavior
+
+The `start_script` should write the agent command to `$module_path/agent-command.sh` instead of starting the AgentAPI server directly. The module will start the server using:
+
+```bash
+agentapi server --type <type> --term-width <width> --term-height <height> -- ./agent-command.sh
+```
+
+Example start script:
+
+```bash
+#!/bin/bash
+module_path=${1:-"$HOME/.my-module"}
+
+cat > "$module_path/agent-command.sh" << 'EOF'
+#!/bin/bash
+exec my-agent-command
+EOF
+
+chmod +x "$module_path/agent-command.sh"
+```

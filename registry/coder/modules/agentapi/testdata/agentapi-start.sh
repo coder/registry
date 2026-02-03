@@ -2,21 +2,14 @@
 set -o errexit
 set -o pipefail
 
-use_prompt=${1:-false}
-port=${2:-3284}
+module_path=${1:-"$HOME/.agentapi-module"}
 
-module_path="$HOME/.agentapi-module"
-log_file_path="$module_path/agentapi.log"
+# Write the agent command to agent-command.sh
+cat > "$module_path/agent-command.sh" << 'EOF'
+#!/bin/bash
+exec bash -c aiagent
+EOF
 
-echo "using prompt: $use_prompt" >> /home/coder/test-agentapi-start.log
-echo "using port: $port" >> /home/coder/test-agentapi-start.log
+chmod +x "$module_path/agent-command.sh"
 
-AGENTAPI_CHAT_BASE_PATH="${AGENTAPI_CHAT_BASE_PATH:-}"
-if [ -n "$AGENTAPI_CHAT_BASE_PATH" ]; then
-  echo "Using AGENTAPI_CHAT_BASE_PATH: $AGENTAPI_CHAT_BASE_PATH" >> /home/coder/test-agentapi-start.log
-  export AGENTAPI_CHAT_BASE_PATH
-fi
-
-agentapi server --port "$port" --term-width 67 --term-height 1190 -- \
-  bash -c aiagent \
-  > "$log_file_path" 2>&1
+echo "Agent command written to $module_path/agent-command.sh"

@@ -128,6 +128,29 @@ variable "agentapi_port" {
   default     = 3284
 }
 
+variable "agentapi_server_type" {
+  type        = string
+  description = "The server type for AgentAPI, passed using --agent flag."
+}
+
+variable "agentapi_term_width" {
+  type        = number
+  description = "The terminal width for AgentAPI."
+  default     = 67
+}
+
+variable "agentapi_term_height" {
+  type        = number
+  description = "The terminal height for AgentAPI."
+  default     = 1190
+}
+
+variable "agentapi_initial_prompt" {
+  type        = string
+  description = "Initial prompt for the agent. Recommended only if the agent doesn't support initial prompt in interaction mode."
+  default     = null
+}
+
 variable "task_log_snapshot" {
   type        = bool
   description = "Capture last 10 messages when workspace stops for offline viewing while task is paused."
@@ -171,6 +194,7 @@ locals {
   encoded_pre_install_script         = var.pre_install_script != null ? base64encode(var.pre_install_script) : ""
   encoded_install_script             = var.install_script != null ? base64encode(var.install_script) : ""
   encoded_post_install_script        = var.post_install_script != null ? base64encode(var.post_install_script) : ""
+  encoded_initial_prompt             = var.agentapi_initial_prompt != null ? base64encode(var.agentapi_initial_prompt) : ""
   agentapi_start_script_b64          = base64encode(var.start_script)
   agentapi_wait_for_start_script_b64 = base64encode(file("${path.module}/scripts/agentapi-wait-for-start.sh"))
   // Chat base path is only set if not using a subdomain.
@@ -206,6 +230,10 @@ resource "coder_script" "agentapi" {
     ARG_WAIT_FOR_START_SCRIPT="$(echo -n '${local.agentapi_wait_for_start_script_b64}' | base64 -d)" \
     ARG_POST_INSTALL_SCRIPT="$(echo -n '${local.encoded_post_install_script}' | base64 -d)" \
     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
+    ARG_AGENTAPI_SERVER_TYPE='${var.agentapi_server_type}' \
+    ARG_AGENTAPI_TERM_WIDTH='${var.agentapi_term_width}' \
+    ARG_AGENTAPI_TERM_HEIGHT='${var.agentapi_term_height}' \
+    ARG_AGENTAPI_INITIAL_PROMPT="$(echo -n '${local.encoded_initial_prompt}' | base64 -d)" \
     ARG_AGENTAPI_CHAT_BASE_PATH='${local.agentapi_chat_base_path}' \
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
