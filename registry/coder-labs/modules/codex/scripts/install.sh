@@ -154,15 +154,13 @@ function populate_config_toml() {
   # Set aibridge as default profile when AI Bridge is enabled
   # This allows users to run `codex` without --profile flag
   if [ "$ARG_ENABLE_AIBRIDGE" = "true" ]; then
-    # Only prepend if profile key doesn't already exist
-    if ! grep -q "^profile\s*=" "$CONFIG_PATH"; then
-      printf "Setting aibridge as default profile\n"
-      local temp_config
-      temp_config=$(cat "$CONFIG_PATH")
-      echo -e "profile = \"aibridge\"\n\n$temp_config" > "$CONFIG_PATH"
-    else
-      printf "Profile already defined in base config, skipping default profile setup\n"
-    fi
+    printf "Setting aibridge as default profile\n"
+    # Remove any existing profile line from base config (since enable_aibridge=true is explicit)
+    sed -i '/^profile\s*=/d' "$CONFIG_PATH"
+    # Prepend profile = "aibridge" to the config
+    local temp_config
+    temp_config=$(cat "$CONFIG_PATH")
+    echo -e "profile = \"aibridge\"\n\n$temp_config" > "$CONFIG_PATH"
   fi
 
   append_mcp_servers_section "$CONFIG_PATH"
