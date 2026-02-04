@@ -219,6 +219,7 @@ locals {
 }
 
 module "agentapi" {
+  count   = local.tasks_enabled ? 1 : 0
   source  = "registry.coder.com/coder/agentapi/coder"
   version = "2.0.0"
 
@@ -233,7 +234,7 @@ module "agentapi" {
   cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
   cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
   module_dir_name      = local.module_dir_name
-  install_agentapi     = local.tasks_enabled
+  install_agentapi     = true
   agentapi_subdomain   = var.subdomain
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
@@ -277,6 +278,37 @@ module "agentapi" {
   EOT
 }
 
+
+# Standalone installation (when tasks are disabled)
+resource "coder_script" "standalone_install" {
+  count            = local.tasks_enabled ? 0 : 1
+  agent_id         = var.agent_id
+  display_name     = "Install Codex"
+  icon             = var.icon
+  run_on_start     = true
+  start_blocks_login = false
+  script = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
+    chmod +x /tmp/install.sh
+    ARG_OPENAI_API_KEY='${var.openai_api_key}' \
+    ARG_REPORT_TASKS='false' \
+    ARG_INSTALL='${var.install_codex}' \
+    ARG_CODEX_VERSION='${var.codex_version}' \
+    ARG_BASE_CONFIG_TOML='${base64encode(var.base_config_toml)}' \
+    ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
+    ARG_AIBRIDGE_CONFIG='${base64encode(var.enable_aibridge ? local.aibridge_config : "")}' \
+    ARG_ADDITIONAL_MCP_SERVERS='${base64encode(var.additional_mcp_servers)}' \
+    ARG_CODER_MCP_APP_STATUS_SLUG='' \
+    ARG_CODEX_START_DIRECTORY='${local.workdir}' \
+    ARG_CODEX_INSTRUCTION_PROMPT='${base64encode(var.codex_system_prompt)}' \
+    /tmp/install.sh
+  EOT
+}
+
 output "task_app_id" {
-  value = module.agentapi.task_app_id
+  value = local.tasks_enabled ? module.agentapi[0].task_app_id : null
 }
