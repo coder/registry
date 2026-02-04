@@ -134,6 +134,7 @@ variable "openai_api_key" {
   default     = ""
 }
 
+# TODO: Remove install_agentapi in next major version (5.0.0)
 variable "install_agentapi" {
   type        = bool
   description = "DEPRECATED: Use enable_tasks instead. Whether to install AgentAPI."
