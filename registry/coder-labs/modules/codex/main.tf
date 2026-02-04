@@ -281,13 +281,13 @@ module "agentapi" {
 
 # Standalone installation (when tasks are disabled)
 resource "coder_script" "standalone_install" {
-  count            = local.tasks_enabled ? 0 : 1
-  agent_id         = var.agent_id
-  display_name     = "Install Codex"
-  icon             = var.icon
-  run_on_start     = true
+  count              = local.tasks_enabled ? 0 : 1
+  agent_id           = var.agent_id
+  display_name       = "Install Codex"
+  icon               = var.icon
+  run_on_start       = true
   start_blocks_login = false
-  script = <<-EOT
+  script             = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
