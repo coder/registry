@@ -42,7 +42,7 @@ run "test_claude_code_with_api_key" {
   }
 
   assert {
-    condition     = coder_env.claude_api_key.value == "test-api-key-123"
+    condition     = coder_env.claude_api_key[0].value == "test-api-key-123"
     error_message = "Claude API key value should match the input"
   }
 }
@@ -298,6 +298,13 @@ run "test_aibridge_enabled" {
     enable_aibridge = true
   }
 
+  override_data {
+    target = data.coder_workspace_owner.me
+    values = {
+      session_token = "mock-session-token"
+    }
+  }
+
   assert {
     condition     = var.enable_aibridge == true
     error_message = "AI Bridge should be enabled"
@@ -314,12 +321,12 @@ run "test_aibridge_enabled" {
   }
 
   assert {
-    condition     = coder_env.claude_api_key.name == "CLAUDE_API_KEY"
+    condition     = coder_env.claude_api_key[0].name == "CLAUDE_API_KEY"
     error_message = "CLAUDE_API_KEY environment variable should be set"
   }
 
   assert {
-    condition     = coder_env.claude_api_key.value == data.coder_workspace_owner.me.session_token
+    condition     = coder_env.claude_api_key[0].value == data.coder_workspace_owner.me.session_token
     error_message = "CLAUDE_API_KEY should use workspace owner's session token when aibridge is enabled"
   }
 }
@@ -370,12 +377,27 @@ run "test_aibridge_disabled_with_api_key" {
   }
 
   assert {
-    condition     = coder_env.claude_api_key.value == "test-api-key-xyz"
+    condition     = coder_env.claude_api_key[0].value == "test-api-key-xyz"
     error_message = "CLAUDE_API_KEY should use the provided API key when aibridge is disabled"
   }
 
   assert {
     condition     = length(coder_env.anthropic_base_url) == 0
     error_message = "ANTHROPIC_BASE_URL should not be set when aibridge is disabled"
+  }
+}
+
+run "test_no_api_key_no_env" {
+  command = plan
+
+  variables {
+    agent_id        = "test-agent-no-key"
+    workdir         = "/home/coder/test"
+    enable_aibridge = false
+  }
+
+  assert {
+    condition     = length(coder_env.claude_api_key) == 0
+    error_message = "CLAUDE_API_KEY should not be created when no API key is provided and aibridge is disabled"
   }
 }
