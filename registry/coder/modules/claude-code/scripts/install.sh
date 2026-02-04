@@ -12,6 +12,7 @@ ARG_CLAUDE_CODE_VERSION=${ARG_CLAUDE_CODE_VERSION:-}
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
 ARG_INSTALL_CLAUDE_CODE=${ARG_INSTALL_CLAUDE_CODE:-}
 ARG_CLAUDE_BINARY_PATH=${ARG_CLAUDE_BINARY_PATH:-"$HOME/.local/bin"}
+ARG_CLAUDE_BINARY_PATH=$(eval echo "$ARG_CLAUDE_BINARY_PATH")
 ARG_INSTALL_VIA_NPM=${ARG_INSTALL_VIA_NPM:-false}
 ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
@@ -58,7 +59,7 @@ function add_path_to_shell_profiles() {
 
   for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
     if [ -f "$profile" ]; then
-      if ! grep -q "$path_dir" "$profile" 2>/dev/null; then
+      if ! grep -q "$path_dir" "$profile" 2> /dev/null; then
         echo "export PATH=\"\$PATH:$path_dir\"" >> "$profile"
         echo "Added $path_dir to $profile"
       fi
@@ -67,7 +68,7 @@ function add_path_to_shell_profiles() {
 
   local fish_config="$HOME/.config/fish/config.fish"
   if [ -f "$fish_config" ]; then
-    if ! grep -q "$path_dir" "$fish_config" 2>/dev/null; then
+    if ! grep -q "$path_dir" "$fish_config" 2> /dev/null; then
       echo "fish_add_path $path_dir" >> "$fish_config"
       echo "Added $path_dir to $fish_config"
     fi
