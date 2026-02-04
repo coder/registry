@@ -73,24 +73,17 @@ For a complete example of how to use this module, see the [Goose module](https:/
 
 ### Start script behavior
 
-The `start_script` should write the agent command to `$module_path/agent-command.sh` instead of starting the AgentAPI server directly. The module will start the server using:
-
-```bash
-agentapi server --type ./agent-command.sh < type > --term-width < width > --term-height < height > --
-```
+The `start_script` should write the agent command to `$module_path/agent-command.sh` instead of starting the AgentAPI server directly.
 
 Example start script:
 
 ```bash
 #!/bin/bash
-# Hardcode your module's path
 module_path="$HOME/.my-module"
 
-cat > "$module_path/agent-command.sh" << 'EOF'
+cat > "$module_path/agent-command.sh" << EOF
 #!/bin/bash
 my-agent-command --my-agent-flags
-# OR
-boundary my-agent-command --my-agent-flags
 EOF
 
 chmod +x "$module_path/agent-command.sh"
