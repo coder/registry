@@ -1,14 +1,14 @@
 ---
 display_name: Codex CLI
 icon: ../../../../.icons/openai.svg
-description: Run Codex CLI in your workspace with AgentAPI integration
+description: Run Codex CLI in your workspace with optional Tasks integration
 verified: true
 tags: [agent, codex, ai, openai, tasks, aibridge]
 ---
 
 # Codex CLI
 
-Run Codex CLI in your workspace to access OpenAI's models through the Codex interface, with custom pre/post install scripts. This module integrates with [AgentAPI](https://github.com/coder/agentapi) for Coder Tasks compatibility.
+Install Codex CLI in your workspace with optional Coder Tasks integration via [AgentAPI](https://github.com/coder/agentapi). The module supports AI Bridge, custom install scripts, and MCP server configuration.
 
 ```tf
 module "codex" {
@@ -22,11 +22,13 @@ module "codex" {
 
 ## Prerequisites
 
-- OpenAI API key for Codex access
+- OpenAI API key for Codex access (not required when `enable_aibridge = true`)
 
 ## Examples
 
-### Run standalone
+### Standalone (no Tasks UI)
+
+Use `enable_tasks = false` to install Codex without AgentAPI/Tasks. `workdir` is optional in this mode.
 
 ```tf
 module "codex" {
@@ -35,14 +37,14 @@ module "codex" {
   version        = "4.2.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
-  workdir        = "/home/coder/project"
-  report_tasks   = false
+  enable_tasks   = false
+  # workdir not required in standalone mode
 }
 ```
 
 ### Usage with AI Bridge
 
-[AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management. To use AI Bridge, set `enable_aibridge = true`. Requires Coder version 2.30+
+[AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management. Set `enable_aibridge = true` to use it (requires Coder 2.30+). When AI Bridge is enabled, authentication uses the workspace owner session token, so `openai_api_key` should be omitted.
 
 ```tf
 module "codex" {
@@ -51,11 +53,11 @@ module "codex" {
   agent_id        = coder_agent.example.id
   enable_aibridge = true
   enable_tasks    = false # Standalone mode - just CLI, no Tasks UI
-  # workdir not required in standalone mode!
+  # workdir not required in standalone mode
 }
 ```
 
-Users can run `codex` from any directory and it will automatically use the AI Bridge profile. For Tasks integration, add `enable_aibridge = true` to the [Usage with Tasks](#usage-with-tasks) example below.
+For Tasks integration, add `enable_aibridge = true` to the [Usage with Tasks](#usage-with-tasks) example below.
 
 When `enable_aibridge = true`, the module:
 
@@ -77,9 +79,7 @@ model = "<model>" # as configured in the module input
 model_reasoning_effort = "<model_reasoning_effort>" # as configured in the module input
 ```
 
-When running `codex` manually (without the Tasks UI), it automatically uses the AI Bridge profile.
-
-This allows Codex to route API requests through Coder's AI Bridge instead of directly to OpenAI's API.
+Codex uses the AI Bridge profile by default, so running `codex` manually does not require `--profile aibridge`.
 Template build will fail if `openai_api_key` is provided alongside `enable_aibridge = true`.
 
 ### Usage with Tasks
@@ -144,11 +144,11 @@ module "codex" {
 
 ## How it Works
 
-- **Install**: The module installs Codex CLI and sets up the environment
-- **System Prompt**: If `codex_system_prompt` is set, writes the prompt to `AGENTS.md` in the `~/.codex/` directory
-- **Start**: Launches Codex CLI in the specified directory, wrapped by AgentAPI
-- **Configuration**: Sets `OPENAI_API_KEY` environment variable and passes `--model` flag to Codex CLI (if variables provided)
-- **Session Continuity**: When `continue = true` (default), the module automatically tracks task sessions in `~/.codex-module/.codex-task-session`. On workspace restart, it resumes the existing session with full conversation history. Set `continue = false` to always start fresh sessions.
+- **Install**: Installs Codex CLI and prepares configuration.
+- **System Prompt**: If `codex_system_prompt` is set, writes it to `~/.codex/AGENTS.md`.
+- **Start**: When `enable_tasks = true`, launches Codex via AgentAPI in the selected `workdir`. When `enable_tasks = false`, only the install script runs.
+- **Configuration**: Writes `OPENAI_API_KEY` when provided, and sets the AI Bridge profile when `enable_aibridge = true`.
+- **Session Continuity**: When `continue = true` (default), task sessions are tracked in `~/.codex-module/.codex-task-session` for resume on restart. Set `continue = false` to always start fresh sessions.
 
 ## Configuration
 
@@ -170,8 +170,9 @@ network_access = true
 
 ## Troubleshooting
 
-- Check installation and startup logs in `~/.codex-module/`
-- Ensure your OpenAI API key has access to the specified model
+- Tasks mode: check installation/startup logs in `~/.codex-module/`.
+- Standalone mode: review the workspace script output for the "Install Codex" script.
+- Ensure your OpenAI API key has access to the specified model (unless using AI Bridge).
 
 > [!IMPORTANT]
 > To use tasks with Codex CLI, ensure you have the `openai_api_key` variable set. [Tasks Template Example](https://registry.coder.com/templates/coder-labs/tasks-docker).
