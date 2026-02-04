@@ -50,7 +50,7 @@ module "codex" {
   version         = "4.2.0"
   agent_id        = coder_agent.example.id
   enable_aibridge = true
-  enable_tasks    = false  # Standalone mode - just CLI, no Tasks UI
+  enable_tasks    = false # Standalone mode - just CLI, no Tasks UI
   # workdir not required in standalone mode!
 }
 ```
