@@ -1,0 +1,33 @@
+# RDP Keep-Alive Script
+# Monitors active RDP connections and reports activity to prevent workspace shutdown
+
+$checkInterval = ${keepalive_interval}
+
+Write-Host "Starting RDP keep-alive monitor (checking every $checkInterval seconds)..."
+
+while ($true) {
+    try {
+        # Check for active RDP connections on port 3389
+        $rdpConnections = Get-NetTCPConnection -LocalPort 3389 -State Established -ErrorAction SilentlyContinue
+        
+        if ($rdpConnections) {
+            $connectionCount = ($rdpConnections | Measure-Object).Count
+            Write-Host "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Active RDP connection(s) detected ($connectionCount). Reporting workspace activity..."
+            
+            # Report activity to Coder to extend workspace deadline
+            # The coder CLI will use the agent token automatically
+            & coder stat connectivity > $null 2>&1
+            
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Activity reported successfully."
+            } else {
+                Write-Host "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Warning: Failed to report activity (exit code: $LASTEXITCODE)"
+            }
+        }
+    }
+    catch {
+        Write-Host "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Error checking RDP connections: $_"
+    }
+    
+    Start-Sleep -Seconds $checkInterval
+}
