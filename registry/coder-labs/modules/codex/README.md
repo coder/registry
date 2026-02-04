@@ -44,12 +44,6 @@ module "codex" {
 
 [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management. To use AI Bridge, set `enable_aibridge = true`. Requires Coder version 2.30+
 
-For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage with Tasks](#usage-with-tasks) example below.
-
-#### Standalone usage with AI Bridge
-
-For simple Codex CLI usage without Tasks UI, set `enable_tasks = false`. This is ideal when you just want Codex installed with AI Bridge configuration for manual use.
-
 ```tf
 module "codex" {
   source          = "registry.coder.com/coder-labs/codex/coder"
@@ -61,19 +55,7 @@ module "codex" {
 }
 ```
 
-Users can then run `codex` from any directory and it will automatically use the AI Bridge profile.
-
-#### Tasks usage with AI Bridge
-
-```tf
-module "codex" {
-  source          = "registry.coder.com/coder-labs/codex/coder"
-  version         = "4.2.0"
-  agent_id        = coder_agent.example.id
-  workdir         = "/home/coder/project"
-  enable_aibridge = true
-}
-```
+Users can run `codex` from any directory and it will automatically use the AI Bridge profile. For Tasks integration, add `enable_aibridge = true` to the [Usage with Tasks](#usage-with-tasks) example below.
 
 When `enable_aibridge = true`, the module:
 
