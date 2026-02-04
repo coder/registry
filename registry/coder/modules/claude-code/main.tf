@@ -375,11 +375,11 @@ module "agentapi" {
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
   start_script         = <<-EOT
-     #!/bin/bash
-     set -o errexit
-     set -o pipefail
-     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-     chmod +x /tmp/start.sh
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+    chmod +x /tmp/start.sh
 
     ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
     ARG_CONTINUE='${var.continue}' \
@@ -395,7 +395,7 @@ module "agentapi" {
     ARG_CODER_HOST='${local.coder_host}' \
     ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
     /tmp/start.sh
-   EOT
+  EOT
 
   install_script = <<-EOT
     #!/bin/bash
