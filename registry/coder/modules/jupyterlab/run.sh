@@ -14,7 +14,7 @@ check_available_installer() {
     INSTALLER="uv"
     return
   fi
-  echo "No valid installer is not installed"
+  echo "No supported installer found."
   echo "Please install pipx or uv in your Dockerfile/VM image before running this script"
   exit 1
 }
