@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+ARG_CLAUDE_BINARY_PATH=${ARG_CLAUDE_BINARY_PATH:-"$HOME/.local/bin"}
+
+export PATH="$ARG_CLAUDE_BINARY_PATH:$PATH"
+
 command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
