@@ -362,8 +362,8 @@ locals {
 }
 
 module "agentapi" {
-  source = "git::https://github.com/coder/registry.git//registry/coder/modules/agentapi?ref=35C4n0r/feat-agentapi-architecture-improv"
-  # version = "2.0.0"
+  source  = "registry.coder.com/coder/agentapi/coder"
+  version = "2.0.0"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
@@ -377,7 +377,6 @@ module "agentapi" {
   cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
   agentapi_subdomain   = var.subdomain
   module_dir_name      = local.module_dir_name
-  agentapi_server_type = "claude"
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
@@ -386,7 +385,6 @@ module "agentapi" {
      #!/bin/bash
      set -o errexit
      set -o pipefail
-
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
 
