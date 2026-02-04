@@ -155,8 +155,15 @@ function populate_config_toml() {
   # This allows users to run `codex` without --profile flag
   if [ "$ARG_ENABLE_AIBRIDGE" = "true" ]; then
     printf "Setting aibridge as default profile\n"
-    # Remove any existing profile line from base config (since enable_aibridge=true is explicit)
-    sed -i '/^profile\s*=/d' "$CONFIG_PATH"
+    # Remove any existing top-level profile line (before first section header)
+    # This only removes profile = ... at top level, not inside [profiles.*] sections
+    awk '
+      BEGIN { in_top_level = 1 }
+      /^\[/ { in_top_level = 0 }
+      in_top_level && /^profile[ \t]*=/ { next }
+      { print }
+    ' "$CONFIG_PATH" > "${CONFIG_PATH}.tmp"
+    mv "${CONFIG_PATH}.tmp" "$CONFIG_PATH"
     # Prepend profile = "aibridge" to the config
     local temp_config
     temp_config=$(cat "$CONFIG_PATH")
