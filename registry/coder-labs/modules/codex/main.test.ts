@@ -41,14 +41,14 @@ interface SetupProps {
 
 const setup = async (props?: SetupProps): Promise<{ id: string }> => {
   const projectDir = "/home/coder/project";
-  
+
   const moduleVars: Record<string, string> = {
     install_codex: props?.skipCodexMock ? "true" : "false",
     codex_model: "gpt-4-turbo",
     workdir: "/home/coder",
     ...props?.moduleVariables,
   };
-  
+
   // For backward compatibility: install_agentapi takes precedence over enable_tasks
   // Only set install_agentapi when explicitly installing real AgentAPI
   if (props?.skipAgentAPIMock) {
@@ -56,7 +56,7 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
   }
   // Otherwise, let enable_tasks control whether agentapi module runs
   // (defaults to true unless explicitly disabled in moduleVariables)
-  
+
   const { id } = await setupUtil({
     moduleDir: import.meta.dir,
     moduleVariables: moduleVars,
