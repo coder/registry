@@ -151,6 +151,15 @@ function populate_config_toml() {
     write_minimal_default_config "$CONFIG_PATH"
   fi
 
+  # Set aibridge as default profile when AI Bridge is enabled
+  # This allows users to run `codex` without --profile flag
+  if [ "$ARG_ENABLE_AIBRIDGE" = "true" ]; then
+    printf "Setting aibridge as default profile\n"
+    local temp_config
+    temp_config=$(cat "$CONFIG_PATH")
+    echo -e "profile = \"aibridge\"\n\n$temp_config" > "$CONFIG_PATH"
+  fi
+
   append_mcp_servers_section "$CONFIG_PATH"
 
   if [ "$ARG_ENABLE_AIBRIDGE" = "true" ]; then

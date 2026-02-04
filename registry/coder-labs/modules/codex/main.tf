@@ -38,7 +38,19 @@ variable "icon" {
 
 variable "workdir" {
   type        = string
-  description = "The folder to run Codex in."
+  description = "The folder to run Codex in. Required when enable_tasks is true."
+  default     = null
+
+  validation {
+    condition     = var.workdir != null || !local.tasks_enabled
+    error_message = "workdir is required when enable_tasks is true. Set workdir or set enable_tasks = false for standalone CLI usage."
+  }
+}
+
+variable "enable_tasks" {
+  type        = bool
+  description = "Enable Tasks UI for Codex (requires workdir). When false, only installs Codex CLI with config for standalone usage."
+  default     = true
 }
 
 variable "report_tasks" {
@@ -124,8 +136,8 @@ variable "openai_api_key" {
 
 variable "install_agentapi" {
   type        = bool
-  description = "Whether to install AgentAPI."
-  default     = true
+  description = "DEPRECATED: Use enable_tasks instead. Whether to install AgentAPI."
+  default     = null
 }
 
 variable "agentapi_version" {
@@ -184,7 +196,9 @@ resource "coder_env" "coder_aibridge_session_token" {
 }
 
 locals {
-  workdir         = trimsuffix(var.workdir, "/")
+  # Use enable_tasks, but fall back to install_agentapi if explicitly set (for backward compat)
+  tasks_enabled   = var.install_agentapi != null ? var.install_agentapi : var.enable_tasks
+  workdir         = var.workdir != null ? trimsuffix(var.workdir, "/") : "/home/coder"
   app_slug        = "codex"
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
@@ -218,7 +232,7 @@ module "agentapi" {
   cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
   cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
   module_dir_name      = local.module_dir_name
-  install_agentapi     = var.install_agentapi
+  install_agentapi     = local.tasks_enabled
   agentapi_subdomain   = var.subdomain
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script

@@ -481,5 +481,28 @@ describe("codex", async () => {
     expect(configToml).toContain(
       "[profiles.aibridge]\n" + 'model_provider = "aibridge"',
     );
+    // Verify profile = "aibridge" is set at the top of the config
+    expect(configToml.startsWith('profile = "aibridge"')).toBe(true);
+  });
+
+  test("codex-standalone-mode", async () => {
+    // Test standalone mode without tasks (enable_tasks = false)
+    // workdir should default to /home/coder when not explicitly provided
+    const { id } = await setup({
+      moduleVariables: {
+        enable_tasks: "false",
+        enable_aibridge: "true",
+      },
+    });
+
+    await execModuleScript(id);
+
+    const configToml = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    // In standalone mode, config should still have aibridge profile set as default
+    expect(configToml.startsWith('profile = "aibridge"')).toBe(true);
+    expect(configToml).toContain("[profiles.aibridge]");
   });
 });

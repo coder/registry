@@ -13,7 +13,7 @@ Run Codex CLI in your workspace to access OpenAI's models through the Codex inte
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.1.0"
+  version        = "4.2.0"
   agent_id       = coder_agent.example.id
   openai_api_key = var.openai_api_key
   workdir        = "/home/coder/project"
@@ -32,7 +32,7 @@ module "codex" {
 module "codex" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.1.0"
+  version        = "4.2.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   workdir        = "/home/coder/project"
@@ -48,10 +48,27 @@ For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage
 
 #### Standalone usage with AI Bridge
 
+For simple Codex CLI usage without Tasks UI, set `enable_tasks = false`. This is ideal when you just want Codex installed with AI Bridge configuration for manual use.
+
 ```tf
 module "codex" {
   source          = "registry.coder.com/coder-labs/codex/coder"
-  version         = "4.1.0"
+  version         = "4.2.0"
+  agent_id        = coder_agent.example.id
+  enable_aibridge = true
+  enable_tasks    = false  # Standalone mode - just CLI, no Tasks UI
+  # workdir not required in standalone mode!
+}
+```
+
+Users can then run `codex` from any directory and it will automatically use the AI Bridge profile.
+
+#### Tasks usage with AI Bridge
+
+```tf
+module "codex" {
+  source          = "registry.coder.com/coder-labs/codex/coder"
+  version         = "4.2.0"
   agent_id        = coder_agent.example.id
   workdir         = "/home/coder/project"
   enable_aibridge = true
@@ -61,8 +78,11 @@ module "codex" {
 When `enable_aibridge = true`, the module:
 
 - Configures Codex to use the AI Bridge profile with `base_url` pointing to `${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1` and `env_key` pointing to the workspace owner's session token
+- Sets `profile = "aibridge"` at the top of `config.toml` so Codex uses AI Bridge by default
 
 ```toml
+profile = "aibridge"
+
 [model_providers.aibridge]
 name = "AI Bridge"
 base_url = "https://example.coder.com/api/v2/aibridge/openai/v1"
@@ -75,7 +95,7 @@ model = "<model>" # as configured in the module input
 model_reasoning_effort = "<model_reasoning_effort>" # as configured in the module input
 ```
 
-Codex then runs with `--profile aibridge`
+When running `codex` manually (without the Tasks UI), it automatically uses the AI Bridge profile.
 
 This allows Codex to route API requests through Coder's AI Bridge instead of directly to OpenAI's API.
 Template build will fail if `openai_api_key` is provided alongside `enable_aibridge = true`.
@@ -94,7 +114,7 @@ data "coder_task" "me" {}
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.1.0"
+  version        = "4.2.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   ai_prompt      = data.coder_task.me.prompt
@@ -112,7 +132,7 @@ This example shows additional configuration options for custom models, MCP serve
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.1.0"
+  version        = "4.2.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   workdir        = "/home/coder/project"
@@ -174,7 +194,7 @@ network_access = true
 > [!IMPORTANT]
 > To use tasks with Codex CLI, ensure you have the `openai_api_key` variable set. [Tasks Template Example](https://registry.coder.com/templates/coder-labs/tasks-docker).
 > The module automatically configures Codex with your API key and model preferences.
-> workdir is a required variable for the module to function correctly.
+> `workdir` is required when `enable_tasks = true` (default). For standalone CLI usage, set `enable_tasks = false` and `workdir` becomes optional.
 
 ## References
 
