@@ -15,7 +15,7 @@ Enable Remote Desktop + a web based client on Windows workspaces, powered by [de
 module "windows_rdp" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windows-rdp/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
 }
 ```
@@ -32,7 +32,7 @@ module "windows_rdp" {
 module "windows_rdp" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windows-rdp/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
 }
 ```
@@ -43,7 +43,7 @@ module "windows_rdp" {
 module "windows_rdp" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windows-rdp/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
 }
 ```
@@ -54,8 +54,30 @@ module "windows_rdp" {
 module "windows_rdp" {
   count                       = data.coder_workspace.me.start_count
   source                      = "registry.coder.com/coder/windows-rdp/coder"
-  version                     = "1.3.0"
+  version                     = "1.4.0"
   agent_id                    = coder_agent.main.id
   devolutions_gateway_version = "2025.2.2" # Specify a specific version
 }
 ```
+
+### With Keep-Alive for Active RDP Sessions
+
+Enable automatic workspace session extension while RDP connections are active. This prevents workspace shutdown during remote desktop use:
+
+```tf
+module "windows_rdp" {
+  count              = data.coder_workspace.me.start_count
+  source             = "registry.coder.com/coder/windows-rdp/coder"
+  version            = "1.4.0"
+  agent_id           = coder_agent.main.id
+  keepalive          = true # Enable RDP connection monitoring
+  keepalive_interval = 300  # Check every 5 minutes (default)
+}
+```
+
+The keep-alive feature monitors active RDP connections (port 3389) and reports workspace activity to Coder. When enabled:
+
+- Workspace remains active while RDP sessions are connected
+- Activity checks occur at the specified interval (default: 5 minutes)
+- Session timeout resumes normal countdown after RDP disconnection
+- No manual intervention required from users
