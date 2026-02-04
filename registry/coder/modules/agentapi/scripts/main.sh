@@ -122,13 +122,11 @@ ARGS=(
   "--term-width" "${AGENTAPI_TERM_WIDTH}"
   "--term-height" "${AGENTAPI_TERM_HEIGHT}"
 )
-
-# Add optional initial prompt
 if [ -n "${AGENTAPI_INITIAL_PROMPT}" ]; then
   ARGS+=("--initial-prompt" "${AGENTAPI_INITIAL_PROMPT}")
 fi
 
-# Start agentapi server with the agent-command.sh script (append logs to same file)
+# Start agentapi server with the agent-command.sh script
 nohup agentapi "${ARGS[@]}" -- "$module_path/agent-command.sh" &>> "$module_path/agentapi-start.log" &
 
 "$module_path/scripts/agentapi-wait-for-start.sh" "${AGENTAPI_PORT}"
