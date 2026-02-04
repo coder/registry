@@ -13,3 +13,5 @@ EOF
 chmod +x "$module_path/agent-command.sh"
 
 echo "Agent command written to $module_path/agent-command.sh"
+
+echo "Using AGENTAPI_CHAT_BASE_PATH: ${AGENTAPI_CHAT_BASE_PATH:-not set}" >> /home/coder/test-agentapi-start.log
