@@ -53,16 +53,28 @@ function add_mcp_servers() {
   done < <(echo "$mcp_json" | jq -r '.mcpServers | to_entries[] | .key, (.value | @json)')
 }
 
+function add_path_to_shell_profiles() {
+  local path_dir="$1"
+
+  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    if [ -f "$profile" ]; then
+      if ! grep -q "$path_dir" "$profile" 2>/dev/null; then
+        echo "export PATH=\"\$PATH:$path_dir\"" >> "$profile"
+        echo "Added $path_dir to $profile"
+      fi
+    fi
+  done
+
+  local fish_config="$HOME/.config/fish/config.fish"
+  if [ -f "$fish_config" ]; then
+    if ! grep -q "$path_dir" "$fish_config" 2>/dev/null; then
+      echo "fish_add_path $path_dir" >> "$fish_config"
+      echo "Added $path_dir to $fish_config"
+    fi
+  fi
+}
+
 function ensure_claude_in_path() {
-  if [ -z "${CODER_SCRIPT_BIN_DIR:-}" ]; then
-    return
-  fi
-
-  if [ -e "$CODER_SCRIPT_BIN_DIR/claude" ]; then
-    echo "Claude already available in CODER_SCRIPT_BIN_DIR"
-    return
-  fi
-
   local CLAUDE_BIN=""
   if command -v claude > /dev/null 2>&1; then
     CLAUDE_BIN=$(command -v claude)
@@ -72,12 +84,20 @@ function ensure_claude_in_path() {
     CLAUDE_BIN="$HOME/.local/bin/claude"
   fi
 
-  if [ -n "$CLAUDE_BIN" ] && [ -x "$CLAUDE_BIN" ]; then
+  if [ -z "$CLAUDE_BIN" ] || [ ! -x "$CLAUDE_BIN" ]; then
+    echo "Warning: Could not find claude binary"
+    return
+  fi
+
+  local CLAUDE_DIR
+  CLAUDE_DIR=$(dirname "$CLAUDE_BIN")
+
+  if [ -n "${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$CODER_SCRIPT_BIN_DIR/claude" ]; then
     ln -s "$CLAUDE_BIN" "$CODER_SCRIPT_BIN_DIR/claude"
     echo "Created symlink: $CODER_SCRIPT_BIN_DIR/claude -> $CLAUDE_BIN"
-  else
-    echo "Warning: Could not find claude binary to symlink"
   fi
+
+  add_path_to_shell_profiles "$CLAUDE_DIR"
 }
 
 function install_claude_code_cli() {
