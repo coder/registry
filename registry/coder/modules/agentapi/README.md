@@ -70,10 +70,10 @@ You can configure the AgentAPI server type, terminal dimensions, and initial pro
 ```tf
 module "agentapi" {
   # ... other config
-  agentapi_server_type    = "claude"                        # required
-  agentapi_term_width     = 67                              # default: 67
-  agentapi_term_height    = 1190                            # default: 1190
-  agentapi_initial_prompt = "You are a helpful assistant."  # optional
+  agentapi_server_type    = "claude"                       # required
+  agentapi_term_width     = 67                             # default: 67
+  agentapi_term_height    = 1190                           # default: 1190
+  agentapi_initial_prompt = "You are a helpful assistant." # optional
 }
 ```
 
@@ -95,7 +95,8 @@ Example start script:
 
 ```bash
 #!/bin/bash
-module_path=${1:-"$HOME/.my-module"}
+# Hardcode your module's path
+module_path="$HOME/.my-module"
 
 cat > "$module_path/agent-command.sh" << 'EOF'
 #!/bin/bash

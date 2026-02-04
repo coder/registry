@@ -6,6 +6,7 @@ command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
 
+MODULE_PATH="$HOME/.claude-module"
 ARG_RESUME_SESSION_ID=${ARG_RESUME_SESSION_ID:-}
 ARG_CONTINUE=${ARG_CONTINUE:-false}
 ARG_DANGEROUSLY_SKIP_PERMISSIONS=${ARG_DANGEROUSLY_SKIP_PERMISSIONS:-}
@@ -216,6 +217,7 @@ function start_agentapi() {
 
   printf "Running claude code with args: %s\n" "$(printf '%q ' "${ARGS[@]}")"
 
+  # Write the agent command to agent-command.sh
   if [ "$ARG_ENABLE_BOUNDARY" = "true" ]; then
     install_boundary
 
@@ -238,12 +240,28 @@ function start_agentapi() {
       BOUNDARY_CMD=("$CODER_NO_CAPS" "boundary")
     fi
 
-    agentapi server --type claude --term-width 67 --term-height 1190 -- \
-      "${BOUNDARY_CMD[@]}" "${BOUNDARY_ARGS[@]}" -- \
-      claude "${ARGS[@]}"
+    # Build properly quoted command arguments
+    boundary_cmd=$(printf '%q ' "${BOUNDARY_CMD[@]}" "${BOUNDARY_ARGS[@]}")
+    claude_args=$(printf '%q ' "${ARGS[@]}")
+
+    # Write command to agent-command.sh with boundary
+    cat > "$MODULE_PATH/agent-command.sh" << EOF
+#!/bin/bash
+${BOUNDARY_CMD[@]} -- claude ${ARGS[@]}
+EOF
   else
-    agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
+    # Build properly quoted command arguments
+    claude_args=$(printf '%q ' "${ARGS[@]}")
+
+    # Write command to agent-command.sh without boundary
+    cat > "$MODULE_PATH/agent-command.sh" << EOF
+#!/bin/bash
+claude ${ARGS[@]}
+EOF
   fi
+
+  chmod +x "$MODULE_PATH/agent-command.sh"
+  printf "Agent command written to %s\n" "$MODULE_PATH/agent-command.sh"
 }
 
 validate_claude_installation

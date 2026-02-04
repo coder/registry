@@ -374,6 +374,7 @@ module "agentapi" {
   cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
   agentapi_subdomain   = var.subdomain
   module_dir_name      = local.module_dir_name
+  agentapi_server_type = "claude"
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
@@ -382,6 +383,7 @@ module "agentapi" {
      #!/bin/bash
      set -o errexit
      set -o pipefail
+
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
 

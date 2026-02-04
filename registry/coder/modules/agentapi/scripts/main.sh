@@ -112,7 +112,7 @@ export AGENTAPI_CHAT_BASE_PATH="${AGENTAPI_CHAT_BASE_PATH:-}"
 export AGENTAPI_ALLOWED_HOSTS="*"
 
 # Call agentapi-start.sh to write agent-command.sh
-"$module_path/scripts/agentapi-start.sh" "$module_path"
+"$module_path/scripts/agentapi-start.sh"
 
 # Build agentapi server command arguments
 ARGS=(
