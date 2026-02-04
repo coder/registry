@@ -359,7 +359,7 @@ locals {
 }
 
 module "agentapi" {
-  source  = "git::https://github.com/coder/registry.git//registry/coder/modules/agentapi?ref=35C4n0r/feat-agentapi-architecture-improv"
+  source = "git::https://github.com/coder/registry.git//registry/coder/modules/agentapi?ref=35C4n0r/feat-agentapi-architecture-improv"
   # version = "2.0.0"
 
   agent_id             = var.agent_id
