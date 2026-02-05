@@ -70,26 +70,11 @@ describe("gcp-disk-snapshot", async () => {
       zone: "us-central1-a",
       project: "test-project",
       test_mode: true,
-      snapshot_retention_count: 2,
       storage_locations: JSON.stringify(["us-central1"]),
       labels: JSON.stringify({
         environment: "test",
         team: "engineering",
       }),
     });
-  });
-
-  it("validates retention count range", async () => {
-    await expect(
-      runTerraformApply(import.meta.dir, {
-        disk_self_link:
-          "projects/test-project/zones/us-central1-a/disks/test-disk",
-        default_image: "debian-cloud/debian-12",
-        zone: "us-central1-a",
-        project: "test-project",
-        test_mode: true,
-        snapshot_retention_count: 5, // Invalid: max is 3
-      }),
-    ).rejects.toThrow();
   });
 });

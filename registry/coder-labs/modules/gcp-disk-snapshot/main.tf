@@ -15,7 +15,6 @@ terraform {
 
 # Provider configuration for testing only
 # In production, the provider will be inherited from the calling module
-# Note: Using fake credentials for CI testing - Terraform will still validate syntax
 provider "google" {
   project = "test-project"
   region  = "us-central1"
@@ -69,17 +68,6 @@ variable "labels" {
   default     = {}
 }
 
-variable "snapshot_retention_count" {
-  description = "Number of snapshots to retain (1-3, default: 3). Uses rotating snapshot slots."
-  type        = number
-  default     = 3
-
-  validation {
-    condition     = var.snapshot_retention_count >= 1 && var.snapshot_retention_count <= 3
-    error_message = "snapshot_retention_count must be between 1 and 3."
-  }
-}
-
 variable "storage_locations" {
   description = "Cloud Storage bucket location to store the snapshot (regional or multi-regional)"
   type        = list(string)
@@ -96,52 +84,32 @@ locals {
   normalized_owner_name     = lower(replace(replace(data.coder_workspace_owner.me.name, "/[^a-z0-9-_]/", "-"), "--", "-"))
   normalized_template_name  = lower(replace(replace(data.coder_workspace.me.template_name, "/[^a-z0-9-_]/", "-"), "--", "-"))
 
-  # Base name for snapshots - uses rotating slots (1, 2, 3)
-  snapshot_base_name = "${local.normalized_owner_name}-${local.normalized_workspace_name}"
-
-  # Snapshot slot names (fixed, predictable names for rotation)
-  snapshot_slot_names = [
-    for i in range(var.snapshot_retention_count) : "${local.snapshot_base_name}-slot-${i + 1}"
-  ]
+  # Single snapshot name per workspace
+  snapshot_name = "${local.normalized_owner_name}-${local.normalized_workspace_name}-snapshot"
 }
 
-# Try to read existing snapshots to determine which slots are used
-# This data source will fail gracefully if snapshot doesn't exist
-data "google_compute_snapshot" "existing_snapshots" {
-  for_each = var.test_mode ? toset([]) : toset(local.snapshot_slot_names)
-  name     = each.value
-  project  = var.project
+# Try to read existing snapshot for this workspace
+data "google_compute_snapshot" "workspace_snapshot" {
+  count   = var.test_mode ? 0 : 1
+  name    = local.snapshot_name
+  project = var.project
 }
 
 locals {
-  # Determine which snapshots actually exist (have data)
-  existing_snapshot_names = var.test_mode ? [] : [
-    for name, snapshot in data.google_compute_snapshot.existing_snapshots : name
-    if can(snapshot.self_link)
-  ]
+  # Check if snapshot exists
+  snapshot_exists = var.test_mode ? false : can(data.google_compute_snapshot.workspace_snapshot[0].self_link)
 
-  # Sort by creation timestamp to find newest (for default selection)
-  # Since we can't easily sort in Terraform without timestamps, we'll use slot order
-  # Slot with highest number that exists is likely newest
-  available_snapshots = reverse(sort(local.existing_snapshot_names))
-
-  # Default to newest available snapshot
-  default_snapshot = length(local.available_snapshots) > 0 ? local.available_snapshots[0] : "none"
-
-  # Calculate next slot to use (round-robin)
-  # Count existing snapshots and use next slot, or slot 1 if all are full
-  next_slot_index    = length(local.existing_snapshot_names) >= var.snapshot_retention_count ? 0 : length(local.existing_snapshot_names)
-  next_snapshot_name = local.snapshot_slot_names[local.next_slot_index]
+  # Default to using snapshot if it exists
+  default_restore = local.snapshot_exists ? "snapshot" : "none"
 }
 
-# Parameter to select from available snapshots
-# Defaults to the most recent snapshot
+# Parameter to choose whether to restore from snapshot
 data "coder_parameter" "restore_snapshot" {
   name         = "restore_snapshot"
   display_name = "Restore from Snapshot"
-  description  = "Select a snapshot to restore from. Defaults to the most recent snapshot."
+  description  = "Restore workspace from the last snapshot, or start fresh."
   type         = "string"
-  default      = local.default_snapshot
+  default      = local.default_restore
   mutable      = true
   order        = 1
 
@@ -152,26 +120,23 @@ data "coder_parameter" "restore_snapshot" {
   }
 
   dynamic "option" {
-    for_each = local.available_snapshots
+    for_each = local.snapshot_exists ? [1] : []
     content {
-      name        = option.value
-      value       = option.value
-      description = "Restore from snapshot: ${option.value}"
+      name        = "Restore from snapshot"
+      value       = "snapshot"
+      description = "Restore from: ${local.snapshot_name}"
     }
   }
 }
 
-# Determine which snapshot to use
 locals {
-  use_snapshot      = data.coder_parameter.restore_snapshot.value != "none"
-  selected_snapshot = local.use_snapshot ? data.coder_parameter.restore_snapshot.value : null
+  use_snapshot = data.coder_parameter.restore_snapshot.value == "snapshot" && local.snapshot_exists
 }
 
-# Create snapshot when workspace is stopped
-# Uses the next available slot in rotation
+# Create/update snapshot when workspace is stopped
 resource "google_compute_snapshot" "workspace_snapshot" {
   count       = !var.test_mode && data.coder_workspace.me.transition == "stop" ? 1 : 0
-  name        = local.next_snapshot_name
+  name        = local.snapshot_name
   source_disk = var.disk_self_link
   zone        = var.zone
   project     = var.project
@@ -183,19 +148,13 @@ resource "google_compute_snapshot" "workspace_snapshot" {
     coder_owner     = local.normalized_owner_name
     coder_template  = local.normalized_template_name
     workspace_id    = data.coder_workspace.me.id
-    slot_number     = tostring(local.next_slot_index + 1)
   })
-
-  lifecycle {
-    # Allow replacing snapshots in the same slot
-    create_before_destroy = false
-  }
 }
 
 # Outputs
 output "snapshot_self_link" {
-  description = "The self_link of the selected snapshot to restore from (null if using fresh disk)"
-  value       = local.use_snapshot && !var.test_mode ? "projects/${var.project}/global/snapshots/${local.selected_snapshot}" : null
+  description = "The self_link of the snapshot to restore from (null if not using snapshot)"
+  value       = local.use_snapshot ? data.google_compute_snapshot.workspace_snapshot[0].self_link : null
 }
 
 output "use_snapshot" {
@@ -208,22 +167,12 @@ output "default_image" {
   value       = var.default_image
 }
 
-output "selected_snapshot_name" {
-  description = "The name of the selected snapshot (null if using fresh disk)"
-  value       = local.selected_snapshot
+output "snapshot_name" {
+  description = "The name of the workspace snapshot"
+  value       = local.snapshot_name
 }
 
-output "available_snapshots" {
-  description = "List of available snapshot names for this workspace"
-  value       = local.available_snapshots
-}
-
-output "created_snapshot_name" {
-  description = "The name of the snapshot created when workspace stopped (if any)"
-  value       = !var.test_mode && data.coder_workspace.me.transition == "stop" ? local.next_snapshot_name : null
-}
-
-output "snapshot_slots" {
-  description = "The snapshot slot names used for rotation"
-  value       = local.snapshot_slot_names
+output "snapshot_exists" {
+  description = "Whether a snapshot exists for this workspace"
+  value       = local.snapshot_exists
 }
