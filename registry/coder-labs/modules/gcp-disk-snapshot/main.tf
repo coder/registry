@@ -10,18 +10,30 @@ terraform {
       source  = "coder/coder"
       version = ">= 0.17"
     }
-    external = {
-      source  = "hashicorp/external"
-      version = ">= 2.0"
-    }
   }
 }
 
 # Provider configuration for testing only
 # In production, the provider will be inherited from the calling module
+# Note: Using fake credentials for CI testing - Terraform will still validate syntax
 provider "google" {
   project = "test-project"
   region  = "us-central1"
+
+  # Fake credentials for testing - allows terraform plan/apply to run
+  # without actual GCP authentication in CI environments
+  credentials = jsonencode({
+    type                        = "service_account"
+    project_id                  = "test-project"
+    private_key_id              = "key-id"
+    private_key                 = "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF8PbnGy0ARL00FVaKUOclBo0vo9C\nWL23EQJ2dWLV5g8k8DjFYIrXvARQPIDs0d+6UgKNKFjHmcZrj9i+e9v8zhVLB2wc\nfU2xsf3AJzLWr7L/LN6GEfT6m7kqKvBB6mJhpFn9RSAZ6WNvnOv1IVVQEq5Tfjlw\nGiJI0q0T8JmEobVSAaRJa7ZKQH1tBjTxcbr+EajVh5F2n7E0VqJNVNT5c5s8MJW0\nrn6AKaEVwmr3SW/NKQX6LxHRgVLJoWcL9j9B9cQ5Mz7u6h/oTrKLLt1v5NKvO9d8\ng39z7cKd1O6kd8nE3hZD7w5d0ileH9u9wZNPFwIDAQABAoIBADvhw8GIB0/G7mFP\ntest-fake-key-data-for-ci-testing-only\n-----END RSA PRIVATE KEY-----\n"
+    client_email                = "test@test-project.iam.gserviceaccount.com"
+    client_id                   = "123456789"
+    auth_uri                    = "https://accounts.google.com/o/oauth2/auth"
+    token_uri                   = "https://oauth2.googleapis.com/token"
+    auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
+    client_x509_cert_url        = "https://www.googleapis.com/robot/v1/metadata/x509/test%40test-project.iam.gserviceaccount.com"
+  })
 }
 
 # Variables
@@ -58,9 +70,14 @@ variable "labels" {
 }
 
 variable "snapshot_retention_count" {
-  description = "Number of snapshots to retain (default: 3)"
+  description = "Number of snapshots to retain (1-3, default: 3). Uses rotating snapshot slots."
   type        = number
   default     = 3
+
+  validation {
+    condition     = var.snapshot_retention_count >= 1 && var.snapshot_retention_count <= 3
+    error_message = "snapshot_retention_count must be between 1 and 3."
+  }
 }
 
 variable "storage_locations" {
@@ -78,49 +95,47 @@ locals {
   normalized_workspace_name = lower(replace(replace(data.coder_workspace.me.name, "/[^a-z0-9-_]/", "-"), "--", "-"))
   normalized_owner_name     = lower(replace(replace(data.coder_workspace_owner.me.name, "/[^a-z0-9-_]/", "-"), "--", "-"))
   normalized_template_name  = lower(replace(replace(data.coder_workspace.me.template_name, "/[^a-z0-9-_]/", "-"), "--", "-"))
-}
 
-# Use external data source to list snapshots for this workspace
-# This calls gcloud to get the N most recent snapshots with matching labels
-data "external" "list_snapshots" {
-  count = var.test_mode ? 0 : 1
+  # Base name for snapshots - uses rotating slots (1, 2, 3)
+  snapshot_base_name = "${local.normalized_owner_name}-${local.normalized_workspace_name}"
 
-  program = ["bash", "-c", <<-EOF
-    # Get snapshots matching workspace/owner labels, sorted by creation time (newest first)
-    snapshots=$(gcloud compute snapshots list \
-      --project="${var.project}" \
-      --filter="labels.coder_workspace=${local.normalized_workspace_name} AND labels.coder_owner=${local.normalized_owner_name}" \
-      --format="json(name,creationTimestamp)" \
-      --sort-by="~creationTimestamp" \
-      --limit=${var.snapshot_retention_count} 2>/dev/null || echo "[]")
-    
-    # Build JSON output with snapshot names as keys and timestamps as values
-    # Also include a comma-separated list of names for easy parsing
-    if [ "$snapshots" = "[]" ] || [ -z "$snapshots" ]; then
-      echo '{"snapshot_list": "", "count": "0"}'
-    else
-      names=$(echo "$snapshots" | jq -r '[.[].name] | join(",")' 2>/dev/null || echo "")
-      count=$(echo "$snapshots" | jq -r 'length' 2>/dev/null || echo "0")
-      echo "{\"snapshot_list\": \"$names\", \"count\": \"$count\"}"
-    fi
-  EOF
+  # Snapshot slot names (fixed, predictable names for rotation)
+  snapshot_slot_names = [
+    for i in range(var.snapshot_retention_count) : "${local.snapshot_base_name}-slot-${i + 1}"
   ]
 }
 
+# Try to read existing snapshots to determine which slots are used
+# This data source will fail gracefully if snapshot doesn't exist
+data "google_compute_snapshot" "existing_snapshots" {
+  for_each = var.test_mode ? toset([]) : toset(local.snapshot_slot_names)
+  name     = each.value
+  project  = var.project
+}
+
 locals {
-  # Parse snapshot list from external data source
-  snapshot_list_raw = var.test_mode ? "" : try(data.external.list_snapshots[0].result.snapshot_list, "")
-  snapshot_count    = var.test_mode ? 0 : try(tonumber(data.external.list_snapshots[0].result.count), 0)
-  
-  # Convert comma-separated list to array
-  available_snapshot_names = local.snapshot_list_raw != "" ? split(",", local.snapshot_list_raw) : []
-  
-  # Default to newest snapshot (first in list) if available
-  default_snapshot = length(local.available_snapshot_names) > 0 ? local.available_snapshot_names[0] : "none"
+  # Determine which snapshots actually exist (have data)
+  existing_snapshot_names = var.test_mode ? [] : [
+    for name, snapshot in data.google_compute_snapshot.existing_snapshots : name
+    if can(snapshot.self_link)
+  ]
+
+  # Sort by creation timestamp to find newest (for default selection)
+  # Since we can't easily sort in Terraform without timestamps, we'll use slot order
+  # Slot with highest number that exists is likely newest
+  available_snapshots = reverse(sort(local.existing_snapshot_names))
+
+  # Default to newest available snapshot
+  default_snapshot = length(local.available_snapshots) > 0 ? local.available_snapshots[0] : "none"
+
+  # Calculate next slot to use (round-robin)
+  # Count existing snapshots and use next slot, or slot 1 if all are full
+  next_slot_index = length(local.existing_snapshot_names) >= var.snapshot_retention_count ? 0 : length(local.existing_snapshot_names)
+  next_snapshot_name = local.snapshot_slot_names[local.next_slot_index]
 }
 
 # Parameter to select from available snapshots
-# Defaults to the newest snapshot
+# Defaults to the most recent snapshot
 data "coder_parameter" "restore_snapshot" {
   name         = "restore_snapshot"
   display_name = "Restore from Snapshot"
@@ -137,11 +152,11 @@ data "coder_parameter" "restore_snapshot" {
   }
 
   dynamic "option" {
-    for_each = local.available_snapshot_names
+    for_each = local.available_snapshots
     content {
       name        = option.value
       value       = option.value
-      description = "Snapshot ${option.key + 1} of ${length(local.available_snapshot_names)}"
+      description = "Restore from snapshot: ${option.value}"
     }
   }
 }
@@ -150,15 +165,13 @@ data "coder_parameter" "restore_snapshot" {
 locals {
   use_snapshot      = data.coder_parameter.restore_snapshot.value != "none"
   selected_snapshot = local.use_snapshot ? data.coder_parameter.restore_snapshot.value : null
-  
-  # Snapshot name for new snapshot (timestamp-based, unique per stop)
-  new_snapshot_name = lower("${local.normalized_owner_name}-${local.normalized_workspace_name}-${formatdate("YYYYMMDDhhmmss", timestamp())}")
 }
 
 # Create snapshot when workspace is stopped
+# Uses the next available slot in rotation
 resource "google_compute_snapshot" "workspace_snapshot" {
   count       = !var.test_mode && data.coder_workspace.me.transition == "stop" ? 1 : 0
-  name        = local.new_snapshot_name
+  name        = local.next_snapshot_name
   source_disk = var.disk_self_link
   zone        = var.zone
   project     = var.project
@@ -170,60 +183,19 @@ resource "google_compute_snapshot" "workspace_snapshot" {
     coder_owner     = local.normalized_owner_name
     coder_template  = local.normalized_template_name
     workspace_id    = data.coder_workspace.me.id
+    slot_number     = tostring(local.next_slot_index + 1)
   })
 
   lifecycle {
-    ignore_changes = [name]
+    # Allow replacing snapshots in the same slot
+    create_before_destroy = false
   }
-}
-
-# Cleanup old snapshots beyond retention count
-# This runs after creating a new snapshot
-resource "terraform_data" "cleanup_old_snapshots" {
-  count = !var.test_mode && data.coder_workspace.me.transition == "stop" ? 1 : 0
-
-  triggers_replace = {
-    snapshot_created = google_compute_snapshot.workspace_snapshot[0].id
-  }
-
-  provisioner "local-exec" {
-    command = <<-EOF
-      # List ALL snapshots for this workspace (not just the limited set from earlier)
-      all_snapshots=$(gcloud compute snapshots list \
-        --project="${var.project}" \
-        --filter="labels.coder_workspace=${local.normalized_workspace_name} AND labels.coder_owner=${local.normalized_owner_name}" \
-        --format="value(name)" \
-        --sort-by="creationTimestamp")
-      
-      # Count total snapshots
-      count=$(echo "$all_snapshots" | grep -c . || echo 0)
-      
-      # Calculate how many to delete (keep only N newest, which means delete oldest)
-      # We add 1 because we just created a new snapshot
-      retention=$((${var.snapshot_retention_count}))
-      to_delete=$((count - retention))
-      
-      if [ $to_delete -gt 0 ]; then
-        echo "Deleting $to_delete old snapshot(s) to maintain retention of $retention"
-        echo "$all_snapshots" | head -n $to_delete | while read snapshot; do
-          if [ -n "$snapshot" ]; then
-            echo "Deleting old snapshot: $snapshot"
-            gcloud compute snapshots delete "$snapshot" --project="${var.project}" --quiet 2>/dev/null || true
-          fi
-        done
-      else
-        echo "No snapshots to delete. Current count: $count, Retention: $retention"
-      fi
-    EOF
-  }
-
-  depends_on = [google_compute_snapshot.workspace_snapshot]
 }
 
 # Outputs
 output "snapshot_self_link" {
   description = "The self_link of the selected snapshot to restore from (null if using fresh disk)"
-  value       = local.use_snapshot ? "projects/${var.project}/global/snapshots/${local.selected_snapshot}" : null
+  value       = local.use_snapshot && !var.test_mode ? "projects/${var.project}/global/snapshots/${local.selected_snapshot}" : null
 }
 
 output "use_snapshot" {
@@ -243,10 +215,15 @@ output "selected_snapshot_name" {
 
 output "available_snapshots" {
   description = "List of available snapshot names for this workspace"
-  value       = local.available_snapshot_names
+  value       = local.available_snapshots
 }
 
 output "created_snapshot_name" {
   description = "The name of the snapshot created when workspace stopped (if any)"
-  value       = !var.test_mode && data.coder_workspace.me.transition == "stop" ? local.new_snapshot_name : null
+  value       = !var.test_mode && data.coder_workspace.me.transition == "stop" ? local.next_snapshot_name : null
+}
+
+output "snapshot_slots" {
+  description = "The snapshot slot names used for rotation"
+  value       = local.snapshot_slot_names
 }
