@@ -12,8 +12,8 @@ if [ -n "$DOTFILES_URI" ]; then
     echo "ERROR: DOTFILES_URI contains invalid characters" >&2
     exit 1
   fi
-  if ! [[ "$DOTFILES_URI" =~ ^(https?://|git@|git://) ]]; then
-    echo "ERROR: DOTFILES_URI must be a valid repository URL (https://, http://, git@, or git://)" >&2
+  if ! [[ "$DOTFILES_URI" =~ ^(https?://|ssh://|git@|git://) ]]; then
+    echo "ERROR: DOTFILES_URI must be a valid repository URL (https://, http://, ssh://, git@, or git://)" >&2
     exit 1
   fi
 fi
