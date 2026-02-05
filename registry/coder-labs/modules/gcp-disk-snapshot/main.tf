@@ -130,7 +130,7 @@ locals {
 
   # Calculate next slot to use (round-robin)
   # Count existing snapshots and use next slot, or slot 1 if all are full
-  next_slot_index = length(local.existing_snapshot_names) >= var.snapshot_retention_count ? 0 : length(local.existing_snapshot_names)
+  next_slot_index    = length(local.existing_snapshot_names) >= var.snapshot_retention_count ? 0 : length(local.existing_snapshot_names)
   next_snapshot_name = local.snapshot_slot_names[local.next_slot_index]
 }
 
