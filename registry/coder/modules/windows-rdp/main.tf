@@ -70,6 +70,22 @@ variable "devolutions_gateway_version" {
   description = "Version of Devolutions Gateway to install. Use 'latest' for the most recent version, or specify a version like '2025.3.2'."
 }
 
+variable "keepalive" {
+  type        = bool
+  default     = false
+  description = "Enable automatic workspace session extension while RDP is active. When enabled, the workspace will remain active as long as an RDP connection exists."
+}
+
+variable "keepalive_interval" {
+  type        = number
+  default     = 300
+  description = "Interval in seconds between RDP connection checks when keepalive is enabled. Default is 300 seconds (5 minutes)."
+  validation {
+    condition     = var.keepalive_interval >= 60 && var.keepalive_interval <= 3600
+    error_message = "keepalive_interval must be between 60 and 3600 seconds."
+  }
+}
+
 resource "coder_script" "windows-rdp" {
   agent_id     = var.agent_id
   display_name = "windows-rdp"
@@ -108,6 +124,20 @@ resource "coder_app" "windows-rdp" {
     interval  = 5
     threshold = 15
   }
+}
+
+resource "coder_script" "windows-rdp-keepalive" {
+  count        = var.keepalive ? 1 : 0
+  agent_id     = var.agent_id
+  display_name = "windows-rdp-keepalive"
+  icon         = "/icon/rdp.svg"
+
+  script = templatefile("${path.module}/keepalive-script.tftpl", {
+    keepalive_interval = var.keepalive_interval
+  })
+
+  run_on_start       = true
+  start_blocks_login = false
 }
 
 resource "coder_app" "rdp-docs" {
