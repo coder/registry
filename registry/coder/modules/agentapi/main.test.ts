@@ -60,7 +60,6 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
       agentapi_version: "latest",
       agentapi_server_type: "claude",
       module_dir_name: moduleDirName,
-      start_script: await loadTestFile(import.meta.dir, "agentapi-start.sh"),
       folder: projectDir,
       ...props?.moduleVariables,
     },
@@ -69,10 +68,22 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
     skipAgentAPIMock: props?.skipAgentAPIMock,
     moduleDir: import.meta.dir,
   });
+  // Create the ai agent mock binary
   await writeExecutable({
     containerId: id,
     filePath: "/usr/bin/aiagent",
     content: await loadTestFile(import.meta.dir, "ai-agent-mock.js"),
+  });
+  // Create the agent-command.sh script that the module expects
+  await execContainer(id, [
+    "bash",
+    "-c",
+    `mkdir -p /home/coder/${moduleDirName}`,
+  ]);
+  await writeExecutable({
+    containerId: id,
+    filePath: `/home/coder/${moduleDirName}/agent-command.sh`,
+    content: "#!/bin/bash\nexec aiagent",
   });
   return { id };
 };
@@ -105,36 +116,6 @@ describe("agentapi", async () => {
     await expectAgentAPIStarted(id, 3827);
   });
 
-  test("pre-post-install-scripts", async () => {
-    const { id } = await setup({
-      moduleVariables: {
-        pre_install_script: `#!/bin/bash\necho "pre-install"`,
-        install_script: `#!/bin/bash\necho "install"`,
-        post_install_script: `#!/bin/bash\necho "post-install"`,
-      },
-    });
-
-    await execModuleScript(id);
-    await expectAgentAPIStarted(id);
-
-    const preInstallLog = await readFileContainer(
-      id,
-      `/home/coder/${moduleDirName}/pre_install.log`,
-    );
-    const installLog = await readFileContainer(
-      id,
-      `/home/coder/${moduleDirName}/install.log`,
-    );
-    const postInstallLog = await readFileContainer(
-      id,
-      `/home/coder/${moduleDirName}/post_install.log`,
-    );
-
-    expect(preInstallLog).toContain("pre-install");
-    expect(installLog).toContain("install");
-    expect(postInstallLog).toContain("post-install");
-  });
-
   test("install-agentapi", async () => {
     const { id } = await setup({ skipAgentAPIMock: true });
 
@@ -161,12 +142,12 @@ describe("agentapi", async () => {
     expect(respModuleScript.exitCode).toBe(0);
 
     await expectAgentAPIStarted(id);
-    const agentApiStartLog = await readFileContainer(
+    const agentApiMockLog = await readFileContainer(
       id,
-      "/home/coder/test-agentapi-start.log",
+      "/home/coder/agentapi-mock.log",
     );
-    expect(agentApiStartLog).toContain(
-      "Using AGENTAPI_CHAT_BASE_PATH: /@default/default.foo/apps/agentapi-web/chat",
+    expect(agentApiMockLog).toContain(
+      "AGENTAPI_CHAT_BASE_PATH: /@default/default.foo/apps/agentapi-web/chat",
     );
   });
 

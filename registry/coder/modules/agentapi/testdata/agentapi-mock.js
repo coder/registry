@@ -9,7 +9,7 @@ const port = portIdx ? args[portIdx] : 3284;
 console.log(`starting server on port ${port}`);
 fs.writeFileSync(
   "/home/coder/agentapi-mock.log",
-  `AGENTAPI_ALLOWED_HOSTS: ${process.env.AGENTAPI_ALLOWED_HOSTS}`,
+  `AGENTAPI_ALLOWED_HOSTS: ${process.env.AGENTAPI_ALLOWED_HOSTS}\nAGENTAPI_CHAT_BASE_PATH: ${process.env.AGENTAPI_CHAT_BASE_PATH || "not set"}`,
 );
 
 http

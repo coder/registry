@@ -87,29 +87,6 @@ variable "cli_app_slug" {
   description = "The slug of the CLI workspace app."
 }
 
-variable "pre_install_script" {
-  type        = string
-  description = "Custom script to run before installing the agent used by AgentAPI."
-  default     = null
-}
-
-variable "install_script" {
-  type        = string
-  description = "Script to install the agent used by AgentAPI."
-  default     = ""
-}
-
-variable "post_install_script" {
-  type        = string
-  description = "Custom script to run after installing the agent used by AgentAPI."
-  default     = null
-}
-
-variable "start_script" {
-  type        = string
-  description = "Script that starts AgentAPI."
-}
-
 variable "install_agentapi" {
   type        = bool
   description = "Whether to install AgentAPI."
@@ -191,11 +168,7 @@ variable "module_dir_name" {
 locals {
   # we always trim the slash for consistency
   workdir                            = trimsuffix(var.folder, "/")
-  encoded_pre_install_script         = var.pre_install_script != null ? base64encode(var.pre_install_script) : ""
-  encoded_install_script             = var.install_script != null ? base64encode(var.install_script) : ""
-  encoded_post_install_script        = var.post_install_script != null ? base64encode(var.post_install_script) : ""
   encoded_initial_prompt             = var.agentapi_initial_prompt != null ? base64encode(var.agentapi_initial_prompt) : ""
-  agentapi_start_script_b64          = base64encode(var.start_script)
   agentapi_wait_for_start_script_b64 = base64encode(file("${path.module}/scripts/agentapi-wait-for-start.sh"))
   // Chat base path is only set if not using a subdomain.
   // NOTE:
@@ -210,7 +183,7 @@ locals {
 
 resource "coder_script" "agentapi" {
   agent_id     = var.agent_id
-  display_name = "Install and start AgentAPI"
+  display_name = "Start AgentAPI"
   icon         = var.web_app_icon
   script       = <<-EOT
     #!/bin/bash
@@ -222,13 +195,9 @@ resource "coder_script" "agentapi" {
 
     ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
     ARG_WORKDIR="$(echo -n '${base64encode(local.workdir)}' | base64 -d)" \
-    ARG_PRE_INSTALL_SCRIPT="$(echo -n '${local.encoded_pre_install_script}' | base64 -d)" \
-    ARG_INSTALL_SCRIPT="$(echo -n '${local.encoded_install_script}' | base64 -d)" \
     ARG_INSTALL_AGENTAPI='${var.install_agentapi}' \
     ARG_AGENTAPI_VERSION='${var.agentapi_version}' \
-    ARG_START_SCRIPT="$(echo -n '${local.agentapi_start_script_b64}' | base64 -d)" \
     ARG_WAIT_FOR_START_SCRIPT="$(echo -n '${local.agentapi_wait_for_start_script_b64}' | base64 -d)" \
-    ARG_POST_INSTALL_SCRIPT="$(echo -n '${local.encoded_post_install_script}' | base64 -d)" \
     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     ARG_AGENTAPI_SERVER_TYPE='${var.agentapi_server_type}' \
     ARG_AGENTAPI_TERM_WIDTH='${var.agentapi_term_width}' \
