@@ -67,8 +67,8 @@ variable "user" {
   default     = null
 
   validation {
-    condition     = var.user == null || can(regex("^[a-z_][a-z0-9_-]*$", var.user))
-    error_message = "Must be a valid Unix username (lowercase, starting with letter or underscore)."
+    condition     = var.user == null || can(regex("^[a-zA-Z_][a-zA-Z0-9_-]*$", var.user))
+    error_message = "Must be a valid username without special characters."
   }
 }
 

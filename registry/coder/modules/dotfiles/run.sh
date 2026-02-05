@@ -29,7 +29,11 @@ if [ -n "$${DOTFILES_URI// }" ]; then
   if [ "$DOTFILES_USER" = "$USER" ]; then
     coder dotfiles "$DOTFILES_URI" -y 2>&1 | tee ~/.dotfiles.log
   else
-    DOTFILES_USER_HOME=$(getent passwd "$DOTFILES_USER" | cut -d: -f6)
+    if command -v getent > /dev/null 2>&1; then
+      DOTFILES_USER_HOME=$(getent passwd "$DOTFILES_USER" | cut -d: -f6)
+    else
+      DOTFILES_USER_HOME=$(awk -F: -v user="$DOTFILES_USER" '$1 == user {print $6}' /etc/passwd)
+    fi
     if [ -z "$DOTFILES_USER_HOME" ]; then
       echo "ERROR: Could not determine home directory for user $DOTFILES_USER" >&2
       exit 1
