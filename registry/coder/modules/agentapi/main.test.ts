@@ -58,7 +58,7 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
       cli_app_display_name: "AgentAPI CLI",
       cli_app_slug: "agentapi-cli",
       agentapi_version: "latest",
-      agentapi_server_type: "claude",
+      agent_name: "claude",
       module_dir_name: moduleDirName,
       folder: projectDir,
       ...props?.moduleVariables,

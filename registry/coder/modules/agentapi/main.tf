@@ -180,8 +180,8 @@ locals {
   main_script             = file("${path.module}/scripts/main.sh")
   shutdown_script         = file("${path.module}/scripts/agentapi-shutdown.sh")
 
-  start_script_name         = "${var.agentapi_server_type}-start_script"
-  agentapi_main_script_name = "${var.agentapi_server_type}-main_script"
+  start_script_name         = "${var.agent_name}-start_script"
+  agentapi_main_script_name = "${var.agent_name}-main_script"
 }
 
 resource "coder_script" "agentapi" {
