@@ -179,6 +179,9 @@ locals {
   agentapi_chat_base_path = var.agentapi_subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${var.web_app_slug}/chat"
   main_script             = file("${path.module}/scripts/main.sh")
   shutdown_script         = file("${path.module}/scripts/agentapi-shutdown.sh")
+
+  start_script_name             = "${var.agentapi_server_type}-start_script"
+  agentapi_main_script_name = "${var.agentapi_server_type}-main_script"
 }
 
 resource "coder_script" "agentapi" {
@@ -189,6 +192,8 @@ resource "coder_script" "agentapi" {
     #!/bin/bash
     set -o errexit
     set -o pipefail
+
+    coder exp sync wait ${local.agentapi_main_script_name} ${local.start_script_name}
 
     echo -n '${base64encode(local.main_script)}' | base64 -d > /tmp/main.sh
     chmod +x /tmp/main.sh
