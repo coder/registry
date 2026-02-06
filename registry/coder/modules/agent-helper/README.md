@@ -14,7 +14,10 @@ tags: [internal, library]
 The Agent Helper module is a building block for modules that need to run multiple scripts in a specific order. It uses `coder exp sync` for dependency management and is designed for orchestrating pre-install, install, post-install, and start scripts.
 
 > [!NOTE]
-> The agent_name should be the same as that of passed in agentapi module's agentapi_server_type.
+>
+> - The `agent_name` should be the same as that of the agentapi module's `agent_name` if used together.
+> - The CLI app from this module is only enabled when `cli_app` is `true` and `report_task` is `false`.
+> - Setting `report_task` to `false` signifies that agentapi is disabled.
 
 ```tf
 module "agent_helper" {
