@@ -140,7 +140,7 @@ resource "coder_script" "install_script" {
       coder exp sync want ${local.install_script_name} ${local.log_file_creation_script_name}
     %{ endif ~}
     coder exp sync start ${local.install_script_name}
-    echo -n '${base64encode(local.encoded_install_script)}' | base64 -d > ${local.install_path}
+    echo -n '${base64encode(local.encoded_install_script)}' | base64 -d > '/tmp/test.sh'
     chmod +x ${local.install_path}
 
     ${local.install_path}
