@@ -208,6 +208,11 @@ variable "claude_binary_path" {
   type        = string
   description = "Directory where the Claude Code binary is located. Use this if Claude is pre-installed or installed outside the module to a non-default location."
   default     = "$HOME/.local/bin"
+
+  validation {
+    condition     = var.claude_binary_path == "$HOME/.local/bin" || !var.install_claude_code
+    error_message = "Custom claude_binary_path can only be used when install_claude_code is false. The official installer always installs to $HOME/.local/bin and does not support custom paths."
+  }
 }
 
 variable "install_via_npm" {
@@ -276,9 +281,11 @@ resource "coder_env" "claude_code_oauth_token" {
 }
 
 resource "coder_env" "claude_api_key" {
+  count = local.claude_api_key != "" ? 1 : 0
+
   agent_id = var.agent_id
   name     = "CLAUDE_API_KEY"
-  value    = var.enable_aibridge ? data.coder_workspace_owner.me.session_token : var.claude_api_key
+  value    = local.claude_api_key
 }
 
 resource "coder_env" "disable_autoupdater" {
@@ -288,18 +295,6 @@ resource "coder_env" "disable_autoupdater" {
   value    = "1"
 }
 
-resource "coder_env" "claude_binary_path" {
-  agent_id = var.agent_id
-  name     = "PATH"
-  value    = "${var.claude_binary_path}:$PATH"
-
-  lifecycle {
-    precondition {
-      condition     = var.claude_binary_path == "$HOME/.local/bin" || !var.install_claude_code
-      error_message = "Custom claude_binary_path can only be used when install_claude_code is false. The official installer and npm both install to fixed locations."
-    }
-  }
-}
 
 resource "coder_env" "anthropic_model" {
   count    = var.model != "" ? 1 : 0
@@ -324,7 +319,8 @@ locals {
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".claude-module"
   # Extract hostname from access_url for boundary --allow flag
-  coder_host = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
+  coder_host     = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
+  claude_api_key = var.enable_aibridge ? data.coder_workspace_owner.me.session_token : var.claude_api_key
 
   # Required prompts for the module to properly report task status to Coder
   report_tasks_system_prompt = <<-EOT
@@ -379,26 +375,27 @@ module "agentapi" {
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
   start_script         = <<-EOT
-     #!/bin/bash
-     set -o errexit
-     set -o pipefail
-     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-     chmod +x /tmp/start.sh
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+    chmod +x /tmp/start.sh
 
-     ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
-     ARG_CONTINUE='${var.continue}' \
-     ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
-     ARG_PERMISSION_MODE='${var.permission_mode}' \
-     ARG_WORKDIR='${local.workdir}' \
-     ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
-     ARG_REPORT_TASKS='${var.report_tasks}' \
-     ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
-     ARG_BOUNDARY_VERSION='${var.boundary_version}' \
-     ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
-     ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
-     ARG_CODER_HOST='${local.coder_host}' \
-     /tmp/start.sh
-   EOT
+    ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
+    ARG_CONTINUE='${var.continue}' \
+    ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
+    ARG_PERMISSION_MODE='${var.permission_mode}' \
+    ARG_WORKDIR='${local.workdir}' \
+    ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+    ARG_REPORT_TASKS='${var.report_tasks}' \
+    ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
+    ARG_BOUNDARY_VERSION='${var.boundary_version}' \
+    ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
+    ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
+    ARG_CODER_HOST='${local.coder_host}' \
+    ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
+    /tmp/start.sh
+  EOT
 
   install_script = <<-EOT
     #!/bin/bash
