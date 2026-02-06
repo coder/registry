@@ -193,7 +193,7 @@ resource "coder_script" "agentapi" {
     set -o errexit
     set -o pipefail
 
-    coder exp sync wait ${local.agentapi_main_script_name} ${local.start_script_name}
+    coder exp sync want ${local.agentapi_main_script_name} ${local.start_script_name}
 
     echo -n '${base64encode(local.main_script)}' | base64 -d > /tmp/main.sh
     chmod +x /tmp/main.sh
