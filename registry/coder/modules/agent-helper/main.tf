@@ -92,13 +92,13 @@ resource "coder_script" "log_file_creation_script" {
     coder exp sync start ${local.log_file_creation_script_name}
 
     mkdir -p ${local.module_dir_path}
-    if [ -n "${var.pre_install_script}" ]; then
-      touch ${local.pre_install_log_path}
-    fi
+    %{if var.pre_install_script != null~}
+    touch ${local.pre_install_log_path}
+    %{endif~}
     touch ${local.install_log_path}
-    if [ -n "${var.post_install_script}" ]; then
-      touch ${local.post_install_log_path}
-    fi
+    %{if var.post_install_script != null~}
+    touch ${local.post_install_log_path}
+    %{endif~}
     touch ${local.start_log_path}
   EOT
 }
@@ -132,11 +132,11 @@ resource "coder_script" "install_script" {
     set -o errexit
     set -o pipefail
     trap 'coder exp sync complete ${local.install_script_name}' EXIT
-    if [ -n "${var.pre_install_script}" ]; then
+    %{ if var.pre_install_script != null ~}
       coder exp sync want ${local.install_script_name} ${local.pre_install_script_name}
-    else
+    %{ else ~}
       coder exp sync want ${local.install_script_name} ${local.log_file_creation_script_name}
-    fi
+    %{ endif ~}
     coder exp sync start ${local.install_script_name}
     echo -n '${base64encode(local.encoded_install_script)}' | base64 -d > ${local.install_path}
     chmod +x ${local.install_path}
@@ -175,11 +175,11 @@ resource "coder_script" "start_script" {
     set -o pipefail
     trap 'coder exp sync complete ${local.start_script_name}' EXIT
 
-    if [ -n "${var.post_install_script}" ]; then
-      coder exp sync want ${local.start_script_name} ${local.install_script_name} ${local.post_install_script_name}
-    else
-      coder exp sync want ${local.start_script_name} ${local.install_script_name}
-    fi
+    %{if var.post_install_script != null~}
+    coder exp sync want ${local.start_script_name} ${local.install_script_name} ${local.post_install_script_name}
+    %{else~}
+    coder exp sync want ${local.start_script_name} ${local.install_script_name}
+    %{endif~}
     coder exp sync start ${local.start_script_name}
 
     echo -n '${base64encode(local.encoded_start_script)}' | base64 -d > ${local.start_path}
