@@ -115,6 +115,13 @@ export const setup = async (
   });
   props.registerCleanup(cleanup);
   await execContainer(id, ["bash", "-c", `mkdir -p '${projectDir}'`]);
+  // Add a mock coder CLI so that `coder exp sync` commands in the
+  // startup script succeed inside the test container.
+  await writeExecutable({
+    containerId: id,
+    filePath: "/usr/bin/coder",
+    content: "#!/bin/bash\nexit 0",
+  });
   if (!props?.skipAgentAPIMock) {
     await writeExecutable({
       containerId: id,
