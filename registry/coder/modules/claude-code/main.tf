@@ -352,6 +352,7 @@ locals {
     var.report_tasks ? format("\n%s\n", local.report_tasks_system_prompt) : "",
     local.custom_system_prompt != "" ? format("\n%s\n", local.custom_system_prompt) : ""
   )
+  agent_name = "claude"
 }
 
 
@@ -404,7 +405,7 @@ module "agent-helper" {
     /tmp/install.sh
   EOT
   agent_id        = var.agent_id
-  agent_name      = local.app_slug
+  agent_name      = local.agent_name
   module_dir_name = local.module_dir_name
 }
 
@@ -424,7 +425,7 @@ module "agentapi" {
   cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
   agentapi_subdomain   = var.subdomain
   module_dir_name      = local.module_dir_name
-  agentapi_server_type = "claude"
+  agentapi_server_type = local.agent_name
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
 }
