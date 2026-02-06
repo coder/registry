@@ -100,6 +100,6 @@ if [ -n "${AGENTAPI_INITIAL_PROMPT}" ]; then
 fi
 
 # Start agentapi server with the agent-command.sh script
-nohup agentapi "${ARGS[@]}" -- "$module_path/agent-command.sh" &>> "$module_path/agentapi-start.log" &
+nohup agentapi "${ARGS[@]}" -- "$module_path/agent-command.sh" &> "$module_path/agentapi-start.log" &
 
 "$module_path/scripts/agentapi-wait-for-start.sh" "${AGENTAPI_PORT}"
