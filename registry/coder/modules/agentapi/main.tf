@@ -105,9 +105,9 @@ variable "agentapi_port" {
   default     = 3284
 }
 
-variable "agentapi_server_type" {
+variable "agent_name" {
   type        = string
-  description = "The server type for AgentAPI, passed using --agent flag."
+  description = "The agent's name. This is used as server type for AgentAPI, passed using --agent flag."
 }
 
 variable "agentapi_term_width" {
@@ -206,7 +206,7 @@ resource "coder_script" "agentapi" {
     ARG_AGENTAPI_VERSION='${var.agentapi_version}' \
     ARG_WAIT_FOR_START_SCRIPT="$(echo -n '${local.agentapi_wait_for_start_script_b64}' | base64 -d)" \
     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
-    ARG_AGENTAPI_SERVER_TYPE='${var.agentapi_server_type}' \
+    ARG_AGENTAPI_SERVER_TYPE='${var.agent_name}' \
     ARG_AGENTAPI_TERM_WIDTH='${var.agentapi_term_width}' \
     ARG_AGENTAPI_TERM_HEIGHT='${var.agentapi_term_height}' \
     ARG_AGENTAPI_INITIAL_PROMPT="$(echo -n '${local.encoded_initial_prompt}' | base64 -d)" \
