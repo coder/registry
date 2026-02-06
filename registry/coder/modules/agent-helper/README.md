@@ -1,70 +1,77 @@
 ---
-display_name: AgentAPI
-description: Building block for modules that need to run an AgentAPI server
+display_name: Agent Helper
+description: Helper module for orchestrating script execution with proper dependencies
 icon: ../../../../.icons/coder.svg
-verified: true
-tags: [internal, library]
+verified: false
+tags: [internal, library, helper]
 ---
 
-# AgentAPI
+# Agent Helper
 
 > [!CAUTION]
-> We do not recommend using this module directly. Instead, please consider using one of our [Tasks-compatible AI agent modules](https://registry.coder.com/modules?search=tag%3Atasks).
+> This is an internal helper module intended for use by other Coder modules. Direct use is not recommended.
 
-The AgentAPI module is a building block for modules that need to run an AgentAPI server. It is intended primarily for internal use by Coder to create modules compatible with Tasks.
+The Agent Helper module orchestrates the execution of multiple scripts in a specific order using `coder exp sync` for dependency management. It's designed as a building block for modules that need to run pre-install, install, post-install, and start scripts with proper synchronization.
+
+## Features
+
+- **Ordered execution**: Ensures scripts run in the correct sequence using `coder exp sync`
+- **Optional scripts**: Pre-install and post-install scripts are optional
+- **Log management**: Automatically creates and manages log files for each script
+- **Dependency handling**: Properly chains script dependencies for reliable execution
+
+## Usage
 
 ```tf
-module "agentapi" {
-  source  = "registry.coder.com/coder/agentapi/coder"
-  version = "4.0.0"
+module "agent_helper" {
+  source  = "registry.coder.com/coder/agent-helper/coder"
+  version = "1.0.0"
 
-  agent_id             = var.agent_id
-  web_app_slug         = local.app_slug
-  web_app_order        = var.order
-  web_app_group        = var.group
-  web_app_icon         = var.icon
-  web_app_display_name = "ClaudeCode"
-  cli_app_slug         = "claude-cli"
-  cli_app_display_name = "Claude CLI"
-  module_dir_name      = local.module_dir_name
-  install_agentapi     = var.install_agentapi
-  agentapi_server_type = "claude"
-  agentapi_term_width  = 67
-  agentapi_term_height = 1190
+  agent_id        = coder_agent.main.id
+  agent_name      = "myagent"
+  module_dir_name = ".my-module"
+
+  pre_install_script = <<-EOT
+    #!/bin/bash
+    echo "Running pre-install tasks..."
+    # Your pre-install logic here
+  EOT
+
+  install_script = <<-EOT
+    #!/bin/bash
+    echo "Installing dependencies..."
+    # Your install logic here
+  EOT
+
+  post_install_script = <<-EOT
+    #!/bin/bash
+    echo "Running post-install configuration..."
+    # Your post-install logic here
+  EOT
+
+  start_script = <<-EOT
+    #!/bin/bash
+    echo "Starting the application..."
+    # Your start logic here
+  EOT
 }
 ```
 
-## Task log snapshot
+## Execution Order
 
-Captures the last 10 messages from AgentAPI when a task workspace stops. This allows viewing conversation history while the task is paused.
+1. **Log File Creation**: Creates the module directory and log files
+2. **Pre-Install Script** (if provided): Runs before installation
+3. **Install Script**: Runs the main installation
+4. **Post-Install Script** (if provided): Runs after installation
+5. **Start Script**: Starts the application
 
-To enable for task workspaces:
+The dependency chain ensures each script waits for its prerequisites to complete before running.
 
-```tf
-module "agentapi" {
-  # ... other config
-  task_log_snapshot = true # default: true
-}
-```
+## Log Files
 
-## For module developers
+All script output is logged to separate files in the module directory:
 
-For a complete example of how to use this module, see the [Goose module](https://github.com/coder/registry/blob/main/registry/coder/modules/goose/main.tf).
-
-### agent-command.sh
-
-The calling module must create an executable script at `$HOME/{module_dir_name}/agent-command.sh` before this module's script runs. This script should contain the command to start your AI agent.
-
-Example:
-
-```bash
-#!/bin/bash
-module_path="$HOME/.my-module"
-
-cat > "$module_path/agent-command.sh" << EOF
-#!/bin/bash
-my-agent-command --my-agent-flags
-EOF
-```
-
-The AgentAPI module will run this script with the agentapi server.
+- `$HOME/{module_dir_name}/pre_install.log` (if pre_install_script is provided)
+- `$HOME/{module_dir_name}/install.log`
+- `$HOME/{module_dir_name}/post_install.log` (if post_install_script is provided)
+- `$HOME/{module_dir_name}/start.log`
