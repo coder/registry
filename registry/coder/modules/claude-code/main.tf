@@ -354,27 +354,12 @@ locals {
   )
 }
 
-module "agentapi" {
-  source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.0.0"
 
-  agent_id             = var.agent_id
-  web_app_slug         = local.app_slug
-  web_app_order        = var.order
-  web_app_group        = var.group
-  web_app_icon         = var.icon
-  web_app_display_name = var.web_app_display_name
-  folder               = local.workdir
-  cli_app              = var.cli_app
-  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
-  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
-  agentapi_subdomain   = var.subdomain
-  module_dir_name      = local.module_dir_name
-  install_agentapi     = var.install_agentapi
-  agentapi_version     = var.agentapi_version
-  pre_install_script   = var.pre_install_script
-  post_install_script  = var.post_install_script
-  start_script         = <<-EOT
+module "agent-helper" {
+  source              = "git::https://github.com/coder/registry.git//registry/coder/modules/agent-helper?ref=35C4n0r/feat-agent-helper-module"
+  pre_install_script  = var.pre_install_script
+  post_install_script = var.post_install_script
+  start_script        = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
@@ -397,7 +382,7 @@ module "agentapi" {
     /tmp/start.sh
   EOT
 
-  install_script = <<-EOT
+  install_script  = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
@@ -418,6 +403,30 @@ module "agentapi" {
     ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
     /tmp/install.sh
   EOT
+  agent_id        = var.agent_id
+  agent_name      = local.app_slug
+  module_dir_name = local.module_dir_name
+}
+
+module "agentapi" {
+  source = "git::https://github.com/coder/registry.git//registry/coder/modules/agentapi?ref=35C4n0r/feat-agentapi-architecture-improv"
+  # version = "2.0.0"
+
+  agent_id             = var.agent_id
+  web_app_slug         = local.app_slug
+  web_app_order        = var.order
+  web_app_group        = var.group
+  web_app_icon         = var.icon
+  web_app_display_name = var.web_app_display_name
+  folder               = local.workdir
+  cli_app              = var.cli_app
+  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
+  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
+  agentapi_subdomain   = var.subdomain
+  module_dir_name      = local.module_dir_name
+  agentapi_server_type = "claude"
+  install_agentapi     = var.install_agentapi
+  agentapi_version     = var.agentapi_version
 }
 
 output "task_app_id" {
