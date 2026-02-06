@@ -6,7 +6,12 @@ import {
   setDefaultTimeout,
   beforeAll,
 } from "bun:test";
-import { execContainer, readFileContainer, runTerraformInit } from "~test";
+import {
+  execContainer,
+  readFileContainer,
+  runTerraformInit,
+  runTerraformApply,
+} from "~test";
 import {
   loadTestFile,
   writeExecutable,
@@ -61,6 +66,10 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
       agent_name: "claude",
       module_dir_name: moduleDirName,
       folder: projectDir,
+      pre_install_script: "echo 'Pre-install'",
+      install_script: "echo 'Install'",
+      post_install_script: "echo 'Post-install'",
+      start_script: "echo 'Start'",
       ...props?.moduleVariables,
     },
     registerCleanup,
@@ -238,6 +247,64 @@ describe("agentapi", async () => {
       "/home/coder/agentapi-mock.log",
     );
     expect(agentApiStartLog).toContain("AGENTAPI_ALLOWED_HOSTS: *");
+  });
+
+  test("enable-agentapi-false", async () => {
+    // Test that when enable_agentapi is false:
+    // 1. AgentAPI web app is not created
+    // 2. AgentAPI is not started
+    // 3. CLI app still works and uses agent-command.sh
+    const { id } = await setup({
+      moduleVariables: {
+        enable_agentapi: "false",
+        cli_app: "true",
+      },
+    });
+
+    const respModuleScript = await execModuleScript(id);
+    expect(respModuleScript.exitCode).toBe(0);
+
+    // Verify agentapi is not running on the default port
+    const respCheck = await execContainer(id, [
+      "bash",
+      "-c",
+      "curl -fs -o /dev/null http://localhost:3284/status || echo 'not running'",
+    ]);
+    expect(respCheck.stdout).toContain("not running");
+
+    // Verify agent-command.sh script exists and is executable
+    const respAgentCommand = await execContainer(id, [
+      "bash",
+      "-c",
+      `test -x /home/coder/${moduleDirName}/agent-command.sh && echo 'exists'`,
+    ]);
+    expect(respAgentCommand.stdout).toContain("exists");
+  });
+
+  test("task-app-id-output", async () => {
+    // Test that task_app_id output is null when enable_agentapi is false
+    const projectDir = "/home/coder/project";
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "test-agent",
+      experiment_report_tasks: "true",
+      install_agentapi: "false",
+      web_app_display_name: "AgentAPI Web",
+      web_app_slug: "agentapi-web",
+      web_app_icon: "/icon/coder.svg",
+      cli_app_display_name: "AgentAPI CLI",
+      cli_app_slug: "agentapi-cli",
+      agentapi_version: "latest",
+      agent_name: "claude",
+      module_dir_name: moduleDirName,
+      folder: projectDir,
+      pre_install_script: "echo 'Pre-install'",
+      install_script: "echo 'Install'",
+      post_install_script: "echo 'Post-install'",
+      start_script: "echo 'Start'",
+      enable_agentapi: "false",
+    });
+
+    expect(state.outputs.task_app_id.value).toBeNull();
   });
 
   describe("shutdown script", async () => {

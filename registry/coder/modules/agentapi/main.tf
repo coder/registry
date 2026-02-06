@@ -87,6 +87,35 @@ variable "cli_app_slug" {
   description = "The slug of the CLI workspace app."
 }
 
+variable "pre_install_script" {
+  type        = string
+  description = "Custom script to run before installing the agent used by AgentAPI."
+  default     = null
+}
+
+variable "install_script" {
+  type        = string
+  description = "Script to install the agent used by AgentAPI."
+  default     = ""
+}
+
+variable "post_install_script" {
+  type        = string
+  description = "Custom script to run after installing the agent used by AgentAPI."
+  default     = null
+}
+
+variable "start_script" {
+  type        = string
+  description = "Script that starts AgentAPI."
+}
+
+variable "enable_agentapi" {
+  type        = bool
+  description = "Whether to enable AgentAPI. If false, AgentAPI will not be installed or started, and the web app will not be created."
+  default     = true
+}
+
 variable "install_agentapi" {
   type        = bool
   description = "Whether to install AgentAPI."
@@ -182,9 +211,23 @@ locals {
 
   start_script_name         = "${var.agent_name}-start_script"
   agentapi_main_script_name = "${var.agent_name}-main_script"
+
+  module_dir_path = "$HOME/${var.module_dir_name}"
+}
+
+module "agent-helper" {
+  source              = "git::https://github.com/coder/registry.git//registry/coder/modules/agent-helper?ref=35C4n0r/feat-agent-helper-module"
+  agent_id            = var.agent_id
+  agent_name          = var.agent_name
+  module_dir_name     = var.module_dir_name
+  pre_install_script  = var.pre_install_script
+  install_script      = var.install_script
+  post_install_script = var.post_install_script
+  start_script        = var.start_script
 }
 
 resource "coder_script" "agentapi" {
+  count        = var.enable_agentapi ? 1 : 0
   agent_id     = var.agent_id
   display_name = "Start AgentAPI"
   icon         = var.web_app_icon
@@ -219,6 +262,7 @@ resource "coder_script" "agentapi" {
 }
 
 resource "coder_script" "agentapi_shutdown" {
+  count        = var.enable_agentapi ? 1 : 0
   agent_id     = var.agent_id
   display_name = "AgentAPI Shutdown"
   icon         = var.web_app_icon
@@ -238,6 +282,7 @@ resource "coder_script" "agentapi_shutdown" {
 }
 
 resource "coder_app" "agentapi_web" {
+  count        = var.enable_agentapi ? 1 : 0
   slug         = var.web_app_slug
   display_name = var.web_app_display_name
   agent_id     = var.agent_id
@@ -253,7 +298,7 @@ resource "coder_app" "agentapi_web" {
   }
 }
 
-resource "coder_app" "agentapi_cli" {
+resource "coder_app" "agent_cli" {
   count = var.cli_app ? 1 : 0
 
   slug         = var.cli_app_slug
@@ -266,7 +311,11 @@ resource "coder_app" "agentapi_cli" {
     export LANG=en_US.UTF-8
     export LC_ALL=en_US.UTF-8
 
+    %{if var.enable_agentapi~}
     agentapi attach
+    %{else}
+    ${local.module_dir_path}/agent-command.sh
+    %{endif}
     EOT
   icon         = var.cli_app_icon
   order        = var.cli_app_order
@@ -274,5 +323,5 @@ resource "coder_app" "agentapi_cli" {
 }
 
 output "task_app_id" {
-  value = coder_app.agentapi_web.id
+  value = var.enable_agentapi ? coder_app.agentapi_web[0].id : null
 }
