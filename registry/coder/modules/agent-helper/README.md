@@ -1,26 +1,20 @@
 ---
 display_name: Agent Helper
-description: Helper module for orchestrating script execution with proper dependencies
+description: Building block for modules that need orchestrated script execution
 icon: ../../../../.icons/coder.svg
 verified: false
-tags: [internal, library, helper]
+tags: [internal, library]
 ---
 
 # Agent Helper
 
 > [!CAUTION]
-> This is an internal helper module intended for use by other Coder modules. Direct use is not recommended.
+> We do not recommend using this module directly. It is intended primarily for internal use by Coder to create modules with orchestrated script execution.
 
-The Agent Helper module orchestrates the execution of multiple scripts in a specific order using `coder exp sync` for dependency management. It's designed as a building block for modules that need to run pre-install, install, post-install, and start scripts with proper synchronization.
+The Agent Helper module is a building block for modules that need to run multiple scripts in a specific order. It uses `coder exp sync` for dependency management and is designed for orchestrating pre-install, install, post-install, and start scripts.
 
-## Features
-
-- **Ordered execution**: Ensures scripts run in the correct sequence using `coder exp sync`
-- **Optional scripts**: Pre-install and post-install scripts are optional
-- **Log management**: Automatically creates and manages log files for each script
-- **Dependency handling**: Properly chains script dependencies for reliable execution
-
-## Usage
+> [!NOTE]
+> The agent_name should be the same as that of passed in agentapi module's agentapi_server_type.
 
 ```tf
 module "agent_helper" {
@@ -59,19 +53,12 @@ module "agent_helper" {
 
 ## Execution Order
 
-1. **Log File Creation**: Creates the module directory and log files
-2. **Pre-Install Script** (if provided): Runs before installation
-3. **Install Script**: Runs the main installation
-4. **Post-Install Script** (if provided): Runs after installation
-5. **Start Script**: Starts the application
+The module orchestrates scripts in the following order:
 
-The dependency chain ensures each script waits for its prerequisites to complete before running.
+1. **Log File Creation** - Creates module directory and log files
+2. **Pre-Install Script** (optional) - Runs before installation
+3. **Install Script** - Main installation
+4. **Post-Install Script** (optional) - Runs after installation
+5. **Start Script** - Starts the application
 
-## Log Files
-
-All script output is logged to separate files in the module directory:
-
-- `$HOME/{module_dir_name}/pre_install.log` (if pre_install_script is provided)
-- `$HOME/{module_dir_name}/install.log`
-- `$HOME/{module_dir_name}/post_install.log` (if post_install_script is provided)
-- `$HOME/{module_dir_name}/start.log`
+Each script waits for its prerequisites to complete before running using `coder exp sync` dependency management.
