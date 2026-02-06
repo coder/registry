@@ -107,6 +107,7 @@ resource "coder_script" "pre_install_script" {
   count        = var.pre_install_script != null ? 1 : 0
   agent_id     = var.agent_id
   display_name = "Pre-Install Script"
+  run_on_start = true
   log_path     = local.pre_install_log_path
   script       = <<-EOT
     #!/bin/bash
@@ -127,6 +128,7 @@ resource "coder_script" "install_script" {
   agent_id     = var.agent_id
   display_name = "Install Script"
   log_path     = local.install_log_path
+  run_on_start = true
   script       = <<-EOT
     #!/bin/bash
     set -o errexit
@@ -150,6 +152,7 @@ resource "coder_script" "post_install_script" {
   agent_id     = var.agent_id
   display_name = "Post-Install Script"
   log_path     = local.post_install_log_path
+  run_on_start = true
   script       = <<-EOT
     #!/bin/bash
     set -o errexit
@@ -169,6 +172,7 @@ resource "coder_script" "start_script" {
   agent_id     = var.agent_id
   display_name = "Start Script"
   log_path     = local.start_log_path
+  run_on_start = true
   script       = <<-EOT
     #!/bin/bash
     set -o errexit
