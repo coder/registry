@@ -60,13 +60,13 @@ locals {
   encoded_post_install_script = var.post_install_script != null ? base64encode(var.post_install_script) : ""
   encoded_start_script        = base64encode(var.start_script)
 
-  log_file_creation_script_name = var.agent_name + "-" + "log_file_creation_script"
-  pre_install_script_name       = var.agent_name + "-" + "pre_install_script"
-  install_script_name           = var.agent_name + "-" + "install_script"
-  post_install_script_name      = var.agent_name + "-" + "post_install_script"
-  start_script_name             = var.agent_name + "-" + "start_script"
+  log_file_creation_script_name = "${var.agent_name}-log_file_creation_script"
+  pre_install_script_name       = "${var.agent_name}-pre_install_script"
+  install_script_name           = "${var.agent_name}-install_script"
+  post_install_script_name      = "${var.agent_name}-post_install_script"
+  start_script_name             = "${var.agent_name}-start_script"
 
-  module_dir_path = "${HOME}/${var.module_dir_name}"
+  module_dir_path = "$HOME/${var.module_dir_name}"
 
   pre_install_path  = "${local.module_dir_path}/pre_install.sh"
   install_path      = "${local.module_dir_path}/install.sh"
