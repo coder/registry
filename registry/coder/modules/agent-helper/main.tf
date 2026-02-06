@@ -134,11 +134,11 @@ resource "coder_script" "install_script" {
     set -o errexit
     set -o pipefail
     trap 'coder exp sync complete ${local.install_script_name}' EXIT
-    %{ if var.pre_install_script != null ~}
+    %{if var.pre_install_script != null~}
       coder exp sync want ${local.install_script_name} ${local.pre_install_script_name}
-    %{ else ~}
+    %{else~}
       coder exp sync want ${local.install_script_name} ${local.log_file_creation_script_name}
-    %{ endif ~}
+    %{endif~}
     coder exp sync start ${local.install_script_name}
     echo -n '${local.encoded_install_script}' | base64 -d > ${local.install_path}
     chmod +x ${local.install_path}
