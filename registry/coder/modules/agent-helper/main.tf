@@ -82,6 +82,7 @@ locals {
 resource "coder_script" "log_file_creation_script" {
   agent_id     = var.agent_id
   display_name = "Log File Creation Script"
+  run_on_start = true
   script       = <<-EOT
     #!/bin/bash
     set -o errexit
