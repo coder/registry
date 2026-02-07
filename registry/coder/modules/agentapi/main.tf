@@ -258,7 +258,7 @@ resource "coder_script" "agentapi" {
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
     /tmp/main.sh
     EOT
-  run_on_start = true
+  run_on_start = false
 }
 
 resource "coder_script" "agentapi_shutdown" {
