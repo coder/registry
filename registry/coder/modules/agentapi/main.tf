@@ -213,6 +213,42 @@ locals {
   agentapi_main_script_name = "${var.agent_name}-main_script"
 
   module_dir_path = "$HOME/${var.module_dir_name}"
+
+  helper_pre_install_script = var.pre_install_script != null ? join("\n", [
+    "#!/bin/bash",
+    "set -o errexit",
+    "set -o pipefail",
+    "echo -n '${base64encode(var.pre_install_script)}' | base64 -d > /tmp/${var.agent_name}-pre-install.sh",
+    "chmod +x /tmp/${var.agent_name}-pre-install.sh",
+    "/tmp/${var.agent_name}-pre-install.sh",
+  ]) : null
+
+  helper_install_script = join("\n", [
+    "#!/bin/bash",
+    "set -o errexit",
+    "set -o pipefail",
+    "echo -n '${base64encode(var.install_script)}' | base64 -d > /tmp/${var.agent_name}-install.sh",
+    "chmod +x /tmp/${var.agent_name}-install.sh",
+    "/tmp/${var.agent_name}-install.sh",
+  ])
+
+  helper_post_install_script = var.post_install_script != null ? join("\n", [
+    "#!/bin/bash",
+    "set -o errexit",
+    "set -o pipefail",
+    "echo -n '${base64encode(var.post_install_script)}' | base64 -d > /tmp/${var.agent_name}-post-install.sh",
+    "chmod +x /tmp/${var.agent_name}-post-install.sh",
+    "/tmp/${var.agent_name}-post-install.sh",
+  ]) : null
+
+  helper_start_script = join("\n", [
+    "#!/bin/bash",
+    "set -o errexit",
+    "set -o pipefail",
+    "echo -n '${base64encode(var.start_script)}' | base64 -d > /tmp/${var.agent_name}-start.sh",
+    "chmod +x /tmp/${var.agent_name}-start.sh",
+    "/tmp/${var.agent_name}-start.sh",
+  ])
 }
 
 module "agent-helper" {
@@ -221,43 +257,10 @@ module "agent-helper" {
   agent_name      = var.agent_name
   module_dir_name = var.module_dir_name
 
-  pre_install_script = var.pre_install_script != null ? <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-    echo -n '${base64encode(var.pre_install_script)}' | base64 -d > /tmp/${var.agent_name}-pre-install.sh
-    chmod +x /tmp/${var.agent_name}-pre-install.sh
-    /tmp/${var.agent_name}-pre-install.sh
-  EOT
-  : null
-
-  install_script = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-    echo -n '${base64encode(var.install_script)}' | base64 -d > /tmp/${var.agent_name}-install.sh
-    chmod +x /tmp/${var.agent_name}-install.sh
-    /tmp/${var.agent_name}-install.sh
-  EOT
-
-  post_install_script = var.post_install_script != null ? <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-    echo -n '${base64encode(var.post_install_script)}' | base64 -d > /tmp/${var.agent_name}-post-install.sh
-    chmod +x /tmp/${var.agent_name}-post-install.sh
-    /tmp/${var.agent_name}-post-install.sh
-  EOT
-  : null
-
-  start_script = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-    echo -n '${base64encode(var.start_script)}' | base64 -d > /tmp/${var.agent_name}-start.sh
-    chmod +x /tmp/${var.agent_name}-start.sh
-    /tmp/${var.agent_name}-start.sh
-  EOT
+  pre_install_script  = local.helper_pre_install_script
+  install_script      = local.helper_install_script
+  post_install_script = local.helper_post_install_script
+  start_script        = local.helper_start_script
 }
 
 # resource "coder_script" "agentapi" {
