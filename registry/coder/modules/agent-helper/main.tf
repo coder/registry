@@ -115,10 +115,15 @@ locals {
   start_path        = "${local.module_dir_path}/start.sh"
   # agent_cli_path    = "${local.module_dir_path}/agent-command.sh"
 
-  pre_install_log_path  = "${local.module_dir_path}/pre_install.log"
-  install_log_path      = "${local.module_dir_path}/install.log"
-  post_install_log_path = "${local.module_dir_path}/post_install.log"
-  start_log_path        = "${local.module_dir_path}/start.log"
+  # pre_install_log_path  = "${local.module_dir_path}/pre_install.log"
+  # install_log_path      = "${local.module_dir_path}/install.log"
+  # post_install_log_path = "${local.module_dir_path}/post_install.log"
+  # start_log_path        = "${local.module_dir_path}/start.log"
+
+  pre_install_log_path  = "$HOME/pre_install.log"
+  install_log_path      = "$HOME/install.log"
+  post_install_log_path = "$HOME/post_install.log"
+  start_log_path        = "HOME/start.log"
 }
 
 resource "coder_script" "log_file_creation_script" {
