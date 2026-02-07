@@ -98,7 +98,8 @@ function extension_installed() {
   return 1
 }
 
-# Install each extension...
+# Install extensions...
+INSTALL_EXT_ARGS=()
 IFS=',' read -r -a EXTENSIONLIST <<< "$${EXTENSIONS}"
 # shellcheck disable=SC2066
 for extension in "$${EXTENSIONLIST[@]}"; do
@@ -109,19 +110,18 @@ for extension in "$${EXTENSIONLIST[@]}"; do
     continue
   fi
   printf "🧩 Installing extension $${CODE}$extension$${RESET}...\n"
-  output=$($CODE_SERVER "$EXTENSION_ARG" --force --install-extension "$extension")
+  INSTALL_EXT_ARGS+=(--install-extension "$extension")
+done
+# shellcheck disable=SC2170,SC2255
+if [ $${#INSTALL_EXT_ARGS[@]} -gt 0 ]; then
+  output=$($CODE_SERVER "$EXTENSION_ARG" --force "$${INSTALL_EXT_ARGS[@]}")
   if [ $? -ne 0 ]; then
-    echo "Failed to install extension: $extension: $output"
+    echo "Failed to install extensions: $output"
     exit 1
   fi
-done
+fi
 
 if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
-  if ! command -v jq > /dev/null; then
-    echo "jq is required to install extensions from a workspace file."
-    exit 0
-  fi
-
   WORKSPACE_DIR="$HOME"
   if [ -n "${FOLDER}" ]; then
     WORKSPACE_DIR="${FOLDER}"
@@ -129,14 +129,18 @@ if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
 
   if [ -f "$WORKSPACE_DIR/.vscode/extensions.json" ]; then
     printf "🧩 Installing extensions from %s/.vscode/extensions.json...\n" "$WORKSPACE_DIR"
-    # Use sed to remove single-line comments before parsing with jq
-    extensions=$(sed 's|//.*||g' "$WORKSPACE_DIR"/.vscode/extensions.json | jq -r '.recommendations[]')
+    extensions=$(FILE="$WORKSPACE_DIR/.vscode/extensions.json" "${INSTALL_PREFIX}/lib/node" -e '${PARSE_JSONC_JS}')
+    INSTALL_EXT_ARGS=()
     for extension in $extensions; do
       if extension_installed "$extension"; then
         continue
       fi
-      $CODE_SERVER "$EXTENSION_ARG" --force --install-extension "$extension"
+      INSTALL_EXT_ARGS+=(--install-extension "$extension")
     done
+    # shellcheck disable=SC2170,SC2255
+    if [ $${#INSTALL_EXT_ARGS[@]} -gt 0 ]; then
+      $CODE_SERVER "$EXTENSION_ARG" --force "$${INSTALL_EXT_ARGS[@]}"
+    fi
   fi
 fi
 
