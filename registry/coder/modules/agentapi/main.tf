@@ -257,47 +257,52 @@ module "agent-helper" {
   agent_name      = var.agent_name
   module_dir_name = var.module_dir_name
 
-  pre_install_script  = local.helper_pre_install_script
-  install_script      = local.helper_install_script
-  post_install_script = local.helper_post_install_script
-  start_script        = local.helper_start_script
+  # pre_install_script  = local.helper_pre_install_script
+  # install_script      = local.helper_install_script
+  # post_install_script = local.helper_post_install_script
+  # start_script        = local.helper_start_script
+
+  pre_install_script  = var.pre_install_script
+  install_script      = var.install_script
+  post_install_script = var.post_install_script
+  start_script        = var.start_script
 }
 
-# resource "coder_script" "agentapi" {
-#   count        = var.enable_agentapi ? 1 : 0
-#   agent_id     = var.agent_id
-#   display_name = "Start AgentAPI"
-#   icon         = var.web_app_icon
-#   script       = <<-EOT
-#     #!/bin/bash
-#     set -o errexit
-#     set -o pipefail
-#
-#     # trap 'coder exp sync complete ${local.agentapi_main_script_name}' EXIT
-#     # coder exp sync want ${local.agentapi_main_script_name} ${local.start_script_name}
-#     # coder exp sync start ${local.agentapi_main_script_name}
-#
-#     echo -n '${base64encode(local.main_script)}' | base64 -d > /tmp/main.sh
-#     chmod +x /tmp/main.sh
-#
-#     ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
-#     ARG_WORKDIR="$(echo -n '${base64encode(local.workdir)}' | base64 -d)" \
-#     ARG_INSTALL_AGENTAPI='${var.install_agentapi}' \
-#     ARG_AGENTAPI_VERSION='${var.agentapi_version}' \
-#     ARG_WAIT_FOR_START_SCRIPT="$(echo -n '${local.agentapi_wait_for_start_script_b64}' | base64 -d)" \
-#     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
-#     ARG_AGENTAPI_SERVER_TYPE='${var.agent_name}' \
-#     ARG_AGENTAPI_TERM_WIDTH='${var.agentapi_term_width}' \
-#     ARG_AGENTAPI_TERM_HEIGHT='${var.agentapi_term_height}' \
-#     ARG_AGENTAPI_INITIAL_PROMPT="$(echo -n '${local.encoded_initial_prompt}' | base64 -d)" \
-#     ARG_AGENTAPI_CHAT_BASE_PATH='${local.agentapi_chat_base_path}' \
-#     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
-#     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
-#     /tmp/main.sh
-#     EOT
-#   run_on_start = true
-#   depends_on = [module.agent-helper]
-# }
+resource "coder_script" "agentapi" {
+  count        = var.enable_agentapi ? 1 : 0
+  agent_id     = var.agent_id
+  display_name = "Start AgentAPI"
+  icon         = var.web_app_icon
+  script       = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    # trap 'coder exp sync complete ${local.agentapi_main_script_name}' EXIT
+    # coder exp sync want ${local.agentapi_main_script_name} ${local.start_script_name}
+    # coder exp sync start ${local.agentapi_main_script_name}
+
+    echo -n '${base64encode(local.main_script)}' | base64 -d > /tmp/main.sh
+    chmod +x /tmp/main.sh
+
+    ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
+    ARG_WORKDIR="$(echo -n '${base64encode(local.workdir)}' | base64 -d)" \
+    ARG_INSTALL_AGENTAPI='${var.install_agentapi}' \
+    ARG_AGENTAPI_VERSION='${var.agentapi_version}' \
+    ARG_WAIT_FOR_START_SCRIPT="$(echo -n '${local.agentapi_wait_for_start_script_b64}' | base64 -d)" \
+    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
+    ARG_AGENTAPI_SERVER_TYPE='${var.agent_name}' \
+    ARG_AGENTAPI_TERM_WIDTH='${var.agentapi_term_width}' \
+    ARG_AGENTAPI_TERM_HEIGHT='${var.agentapi_term_height}' \
+    ARG_AGENTAPI_INITIAL_PROMPT="$(echo -n '${local.encoded_initial_prompt}' | base64 -d)" \
+    ARG_AGENTAPI_CHAT_BASE_PATH='${local.agentapi_chat_base_path}' \
+    ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
+    ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
+    /tmp/main.sh
+    EOT
+  run_on_start = true
+  depends_on = [module.agent-helper]
+}
 
 resource "coder_script" "agentapi_shutdown" {
   count        = var.enable_agentapi ? 1 : 0
