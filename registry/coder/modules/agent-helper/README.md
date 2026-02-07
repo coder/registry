@@ -16,8 +16,6 @@ The Agent Helper module is a building block for modules that need to run multipl
 > [!NOTE]
 >
 > - The `agent_name` should be the same as that of the agentapi module's `agent_name` if used together.
-> - The CLI app from this module is only enabled when `cli_app` is `true` and `report_task` is `false`.
-> - Setting `report_task` to `false` signifies that agentapi is disabled.
 
 ```tf
 module "agent_helper" {
