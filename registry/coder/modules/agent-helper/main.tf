@@ -54,45 +54,45 @@ variable "module_dir_name" {
   description = "The name of the module directory."
 }
 
-variable "cli_app" {
-  type        = bool
-  description = "Whether to create the CLI workspace app."
-  default     = false
-}
-
-variable "cli_app_order" {
-  type        = number
-  description = "The order of the CLI workspace app."
-  default     = null
-}
-
-variable "cli_app_group" {
-  type        = string
-  description = "The group of the CLI workspace app."
-  default     = null
-}
-
-variable "cli_app_icon" {
-  type        = string
-  description = "The icon to use for the app."
-  default     = "/icon/claude.svg"
-}
-
-variable "cli_app_display_name" {
-  type        = string
-  description = "The display name of the CLI workspace app."
-}
-
-variable "cli_app_slug" {
-  type        = string
-  description = "The slug of the CLI workspace app."
-}
-
-variable "report_tasks" {
-  type        = bool
-  description = "Whether to enable task reporting."
-  default     = true
-}
+# variable "cli_app" {
+#   type        = bool
+#   description = "Whether to create the CLI workspace app."
+#   default     = false
+# }
+#
+# variable "cli_app_order" {
+#   type        = number
+#   description = "The order of the CLI workspace app."
+#   default     = null
+# }
+#
+# variable "cli_app_group" {
+#   type        = string
+#   description = "The group of the CLI workspace app."
+#   default     = null
+# }
+#
+# variable "cli_app_icon" {
+#   type        = string
+#   description = "The icon to use for the app."
+#   default     = "/icon/claude.svg"
+# }
+#
+# variable "cli_app_display_name" {
+#   type        = string
+#   description = "The display name of the CLI workspace app."
+# }
+#
+# variable "cli_app_slug" {
+#   type        = string
+#   description = "The slug of the CLI workspace app."
+# }
+#
+# variable "report_tasks" {
+#   type        = bool
+#   description = "Whether to enable task reporting."
+#   default     = true
+# }
 
 locals {
   encoded_pre_install_script  = var.pre_install_script != null ? base64encode(var.pre_install_script) : ""
@@ -113,7 +113,7 @@ locals {
   install_path      = "${local.module_dir_path}/install.sh"
   post_install_path = "${local.module_dir_path}/post_install.sh"
   start_path        = "${local.module_dir_path}/start.sh"
-  agent_cli_path    = "${local.module_dir_path}/agent-command.sh"
+  # agent_cli_path    = "${local.module_dir_path}/agent-command.sh"
 
   pre_install_log_path  = "${local.module_dir_path}/pre_install.log"
   install_log_path      = "${local.module_dir_path}/install.log"
@@ -289,31 +289,23 @@ resource "coder_script" "start_script" {
   EOT
 }
 
-resource "coder_app" "agent_cli" {
-  count = (!var.report_tasks && var.cli_app) ? 1 : 0
-
-  slug         = var.cli_app_slug
-  display_name = var.cli_app_display_name
-  agent_id     = var.agent_id
-  command      = <<-EOT
-    #!/bin/bash
-    # set -o errexit
-    # set -o pipefail
-    set -x
-
-    printf "[DEBUG] Starting agent_cli_app\n"
-    trap 'coder exp sync complete ${local.agent_cli_app_name}' EXIT
-    printf "[DEBUG] Setting up trap for agent_cli_app\n"
-    coder exp sync want ${local.agent_cli_app_name} ${local.start_script_name}
-    printf "[DEBUG] Waiting for start_script dependency\n"
-    coder exp sync start ${local.agent_cli_app_name}
-    printf "[DEBUG] Started sync for agent_cli_app\n"
-
-    printf "[DEBUG] Executing agent CLI command: ${local.agent_cli_path}\n"
-    ${local.agent_cli_path}
-    printf "[DEBUG] Completed agent CLI command execution\n"
-    EOT
-  icon         = var.cli_app_icon
-  order        = var.cli_app_order
-  group        = var.cli_app_group
-}
+# resource "coder_app" "agent_cli" {
+#   count = (!var.report_tasks && var.cli_app) ? 1 : 0
+#
+#   slug         = var.cli_app_slug
+#   display_name = var.cli_app_display_name
+#   agent_id     = var.agent_id
+#   command      = <<-EOT
+#     #!/bin/bash
+#     set -o errexit
+#     set -o pipefail
+#     trap 'coder exp sync complete ${local.agent_cli_app_name}' EXIT
+#     coder exp sync want ${local.agent_cli_app_name} ${local.start_script_name}
+#     coder exp sync start ${local.agent_cli_app_name}
+#
+#     ${local.agent_cli_path}
+#     EOT
+#   icon         = var.cli_app_icon
+#   order        = var.cli_app_order
+#   group        = var.cli_app_group
+# }
