@@ -251,17 +251,17 @@ locals {
   ])
 }
 
-module "agent-helper" {
-  source          = "git::https://github.com/coder/registry.git//registry/coder/modules/agent-helper?ref=35C4n0r/feat-agent-helper-module"
-  agent_id        = var.agent_id
-  agent_name      = var.agent_name
-  module_dir_name = var.module_dir_name
-
-  pre_install_script  = local.helper_pre_install_script
-  install_script      = local.helper_install_script
-  post_install_script = local.helper_post_install_script
-  start_script        = local.helper_start_script
-}
+# module "agent-helper" {
+#   source          = "git::https://github.com/coder/registry.git//registry/coder/modules/agent-helper?ref=35C4n0r/feat-agent-helper-module"
+#   agent_id        = var.agent_id
+#   agent_name      = var.agent_name
+#   module_dir_name = var.module_dir_name
+#
+#   pre_install_script  = local.helper_pre_install_script
+#   install_script      = local.helper_install_script
+#   post_install_script = local.helper_post_install_script
+#   start_script        = local.helper_start_script
+# }
 
 # resource "coder_script" "agentapi" {
 #   count        = var.enable_agentapi ? 1 : 0
