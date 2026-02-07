@@ -132,6 +132,8 @@ resource "coder_script" "log_file_creation_script" {
     # set -o pipefail
     set -x
 
+    touch /tmp/meow.log
+
     printf "[DEBUG] Starting log_file_creation_script\n"
     trap 'coder exp sync complete ${local.log_file_creation_script_name}' EXIT
     printf "[DEBUG] Setting up trap for log_file_creation_script\n"
