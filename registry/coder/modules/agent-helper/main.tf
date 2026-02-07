@@ -118,13 +118,14 @@ locals {
   pre_install_log_path  = "${local.module_dir_path}/pre_install.log"
   install_log_path      = "${local.module_dir_path}/install.log"
   post_install_log_path = "${local.module_dir_path}/post_install.log"
-  start_log_path        = "${local.module_dir_path}/start.log"
+  start_log_path        = "${local.module_dir_path}/start33.log"
 }
 
 resource "coder_script" "log_file_creation_script" {
   agent_id     = var.agent_id
   display_name = "Log File Creation Script"
   run_on_start = true
+  log_path = "/meow.log"
   script       = <<-EOT
     #!/bin/bash
     # set -o errexit
