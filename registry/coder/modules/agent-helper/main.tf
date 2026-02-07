@@ -123,7 +123,7 @@ locals {
   pre_install_log_path  = "$HOME/pre_install.log"
   install_log_path      = "$HOME/install.log"
   post_install_log_path = "$HOME/post_install.log"
-  start_log_path        = "HOME/start.log"
+  start_log_path        = "$HOME/start.log"
 }
 
 resource "coder_script" "log_file_creation_script" {
