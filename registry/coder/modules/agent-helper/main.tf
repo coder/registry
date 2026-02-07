@@ -163,6 +163,7 @@ resource "coder_script" "log_file_creation_script" {
 
 resource "coder_script" "pre_install_script" {
   count        = var.pre_install_script != null ? 1 : 0
+  depends_on = [coder_script.log_file_creation_script]
   agent_id     = var.agent_id
   display_name = "Pre-Install Script"
   run_on_start = true
@@ -194,6 +195,7 @@ resource "coder_script" "pre_install_script" {
 
 resource "coder_script" "install_script" {
   agent_id     = var.agent_id
+  depends_on = [coder_script.log_file_creation_script]
   display_name = "Install Script"
   log_path     = local.install_log_path
   run_on_start = true
@@ -228,6 +230,7 @@ resource "coder_script" "install_script" {
 
 resource "coder_script" "post_install_script" {
   count        = var.post_install_script != null ? 1 : 0
+  depends_on = [coder_script.log_file_creation_script]
   agent_id     = var.agent_id
   display_name = "Post-Install Script"
   log_path     = local.post_install_log_path
@@ -259,6 +262,7 @@ resource "coder_script" "post_install_script" {
 
 resource "coder_script" "start_script" {
   agent_id     = var.agent_id
+  depends_on = [coder_script.log_file_creation_script]
   display_name = "Start Script"
   log_path     = local.start_log_path
   run_on_start = true
