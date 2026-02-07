@@ -356,58 +356,58 @@ locals {
 }
 
 
-module "agent-helper" {
-  source              = "git::https://github.com/coder/registry.git//registry/coder/modules/agent-helper?ref=35C4n0r/feat-agent-helper-module"
-  pre_install_script  = var.pre_install_script
-  post_install_script = var.post_install_script
-  start_script        = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-    chmod +x /tmp/start.sh
-
-    ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
-    ARG_CONTINUE='${var.continue}' \
-    ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
-    ARG_PERMISSION_MODE='${var.permission_mode}' \
-    ARG_WORKDIR='${local.workdir}' \
-    ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
-    ARG_REPORT_TASKS='${var.report_tasks}' \
-    ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
-    ARG_BOUNDARY_VERSION='${var.boundary_version}' \
-    ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
-    ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
-    ARG_CODER_HOST='${local.coder_host}' \
-    ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
-    /tmp/start.sh
-  EOT
-
-  install_script  = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
-    ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
-    ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
-    ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
-    ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
-    ARG_INSTALL_VIA_NPM='${var.install_via_npm}' \
-    ARG_REPORT_TASKS='${var.report_tasks}' \
-    ARG_WORKDIR='${local.workdir}' \
-    ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
-    ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
-    ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
-    ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
-    ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
-    /tmp/install.sh
-  EOT
-  agent_id        = var.agent_id
-  agent_name      = local.agent_name
-  module_dir_name = local.module_dir_name
-}
+# module "agent-helper" {
+#   source              = "git::https://github.com/coder/registry.git//registry/coder/modules/agent-helper?ref=35C4n0r/feat-agent-helper-module"
+#   pre_install_script  = var.pre_install_script
+#   post_install_script = var.post_install_script
+#   start_script        = <<-EOT
+#     #!/bin/bash
+#     set -o errexit
+#     set -o pipefail
+#     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+#     chmod +x /tmp/start.sh
+#
+#     ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
+#     ARG_CONTINUE='${var.continue}' \
+#     ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
+#     ARG_PERMISSION_MODE='${var.permission_mode}' \
+#     ARG_WORKDIR='${local.workdir}' \
+#     ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+#     ARG_REPORT_TASKS='${var.report_tasks}' \
+#     ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
+#     ARG_BOUNDARY_VERSION='${var.boundary_version}' \
+#     ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
+#     ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
+#     ARG_CODER_HOST='${local.coder_host}' \
+#     ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
+#     /tmp/start.sh
+#   EOT
+#
+#   install_script  = <<-EOT
+#     #!/bin/bash
+#     set -o errexit
+#     set -o pipefail
+#
+#     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
+#     chmod +x /tmp/install.sh
+#     ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
+#     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
+#     ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
+#     ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
+#     ARG_INSTALL_VIA_NPM='${var.install_via_npm}' \
+#     ARG_REPORT_TASKS='${var.report_tasks}' \
+#     ARG_WORKDIR='${local.workdir}' \
+#     ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
+#     ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
+#     ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
+#     ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
+#     ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
+#     /tmp/install.sh
+#   EOT
+#   agent_id        = var.agent_id
+#   agent_name      = local.agent_name
+#   module_dir_name = local.module_dir_name
+# }
 
 module "agentapi" {
   source = "git::https://github.com/coder/registry.git//registry/coder/modules/agentapi?ref=35C4n0r/feat-agentapi-architecture-improv"
@@ -425,9 +425,55 @@ module "agentapi" {
   cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
   agentapi_subdomain   = var.subdomain
   module_dir_name      = local.module_dir_name
-  agentapi_server_type = local.agent_name
+  agent_name           = local.agent_name
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
+  pre_install_script   = var.pre_install_script
+  post_install_script  = var.post_install_script
+  start_script         = <<-EOT
+      #!/bin/bash
+      set -o errexit
+      set -o pipefail
+      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+      chmod +x /tmp/start.sh
+
+      ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
+      ARG_CONTINUE='${var.continue}' \
+      ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
+      ARG_PERMISSION_MODE='${var.permission_mode}' \
+      ARG_WORKDIR='${local.workdir}' \
+      ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+      ARG_REPORT_TASKS='${var.report_tasks}' \
+      ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
+      ARG_BOUNDARY_VERSION='${var.boundary_version}' \
+      ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
+      ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
+      ARG_CODER_HOST='${local.coder_host}' \
+      ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
+      /tmp/start.sh
+    EOT
+
+  install_script = <<-EOT
+      #!/bin/bash
+      set -o errexit
+      set -o pipefail
+
+      echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
+      chmod +x /tmp/install.sh
+      ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
+      ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
+      ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
+      ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
+      ARG_INSTALL_VIA_NPM='${var.install_via_npm}' \
+      ARG_REPORT_TASKS='${var.report_tasks}' \
+      ARG_WORKDIR='${local.workdir}' \
+      ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
+      ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
+      ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
+      ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
+      ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
+      /tmp/install.sh
+    EOT
 }
 
 output "task_app_id" {
