@@ -43,6 +43,10 @@ function Enable-RDP {
         # Set security layer to RDP Security Layer
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 1 -Force
         
+        # Enable RDP Keep Alive
+        New-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name "KeepAliveEnable" -Value 1 -PropertyType DWORD -Force
+        New-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services' -Name "KeepAliveInterval" -Value 1 -PropertyType DWORD -Force
+        
         Write-Output "[Coder RDP Setup] RDP enabled successfully"
     } catch {
         Write-Error "[Coder RDP Setup] Failed to enable RDP: $_"
