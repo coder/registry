@@ -125,7 +125,6 @@ resource "coder_script" "log_file_creation_script" {
   agent_id     = var.agent_id
   display_name = "Log File Creation Script"
   run_on_start = true
-  log_path = "/meow.log"
   script       = <<-EOT
     #!/bin/bash
     # set -o errexit
@@ -133,28 +132,28 @@ resource "coder_script" "log_file_creation_script" {
     set -x
 
     touch /tmp/meow.log
-
-    printf "[DEBUG] Starting log_file_creation_script\n"
-    trap 'coder exp sync complete ${local.log_file_creation_script_name}' EXIT
-    printf "[DEBUG] Setting up trap for log_file_creation_script\n"
-    coder exp sync start ${local.log_file_creation_script_name}
-    printf "[DEBUG] Started sync for log_file_creation_script\n"
-
-    printf "[DEBUG] Creating module directory: ${local.module_dir_path}\n"
-    mkdir -p ${local.module_dir_path}
-    %{if var.pre_install_script != null~}
-    printf "[DEBUG] Creating pre_install log file: ${local.pre_install_log_path}\n"
-    touch ${local.pre_install_log_path}
-    %{endif~}
-    printf "[DEBUG] Creating install log file: ${local.install_log_path}\n"
-    touch ${local.install_log_path}
-    %{if var.post_install_script != null~}
-    printf "[DEBUG] Creating post_install log file: ${local.post_install_log_path}\n"
-    touch ${local.post_install_log_path}
-    %{endif~}
-    printf "[DEBUG] Creating start log file: ${local.start_log_path}\n"
-    touch ${local.start_log_path}
-    printf "[DEBUG] Completed log_file_creation_script\n"
+    #
+    # printf "[DEBUG] Starting log_file_creation_script\n"
+    # trap 'coder exp sync complete ${local.log_file_creation_script_name}' EXIT
+    # printf "[DEBUG] Setting up trap for log_file_creation_script\n"
+    # coder exp sync start ${local.log_file_creation_script_name}
+    # printf "[DEBUG] Started sync for log_file_creation_script\n"
+    #
+    # printf "[DEBUG] Creating module directory: ${local.module_dir_path}\n"
+    # mkdir -p ${local.module_dir_path}
+    # %{if var.pre_install_script != null~}
+    # printf "[DEBUG] Creating pre_install log file: ${local.pre_install_log_path}\n"
+    # touch ${local.pre_install_log_path}
+    # %{endif~}
+    # printf "[DEBUG] Creating install log file: ${local.install_log_path}\n"
+    # touch ${local.install_log_path}
+    # %{if var.post_install_script != null~}
+    # printf "[DEBUG] Creating post_install log file: ${local.post_install_log_path}\n"
+    # touch ${local.post_install_log_path}
+    # %{endif~}
+    # printf "[DEBUG] Creating start log file: ${local.start_log_path}\n"
+    # touch ${local.start_log_path}
+    # printf "[DEBUG] Completed log_file_creation_script\n"
   EOT
 }
 
@@ -201,16 +200,16 @@ resource "coder_script" "install_script" {
     set -x
 
     printf "[DEBUG] Starting install_script\n"
-    trap 'coder exp sync complete ${local.install_script_name}' EXIT
-    printf "[DEBUG] Setting up trap for install_script\n"
-    %{if var.pre_install_script != null~}
-      printf "[DEBUG] Waiting for pre_install_script dependency\n"
-      coder exp sync want ${local.install_script_name} ${local.pre_install_script_name}
-    %{else~}
-      printf "[DEBUG] Waiting for log_file_creation_script dependency\n"
-      coder exp sync want ${local.install_script_name} ${local.log_file_creation_script_name}
-    %{endif~}
-    coder exp sync start ${local.install_script_name}
+    # trap 'coder exp sync complete ${local.install_script_name}' EXIT
+    # printf "[DEBUG] Setting up trap for install_script\n"
+    # %{if var.pre_install_script != null~}
+    #   printf "[DEBUG] Waiting for pre_install_script dependency\n"
+    #   coder exp sync want ${local.install_script_name} ${local.pre_install_script_name}
+    # %{else~}
+    #   printf "[DEBUG] Waiting for log_file_creation_script dependency\n"
+    #   coder exp sync want ${local.install_script_name} ${local.log_file_creation_script_name}
+    # %{endif~}
+    # coder exp sync start ${local.install_script_name}
     printf "[DEBUG] Started sync for install_script\n"
     printf "[DEBUG] Decoding install script to: ${local.install_path}\n"
     echo -n '${local.encoded_install_script}' | base64 -d > ${local.install_path}
