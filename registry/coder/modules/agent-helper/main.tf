@@ -127,21 +127,31 @@ resource "coder_script" "log_file_creation_script" {
   run_on_start = true
   script       = <<-EOT
     #!/bin/bash
-    set -o errexit
-    set -o pipefail
+    # set -o errexit
+    # set -o pipefail
+    set -x
 
+    printf "[DEBUG] Starting log_file_creation_script\n"
     trap 'coder exp sync complete ${local.log_file_creation_script_name}' EXIT
+    printf "[DEBUG] Setting up trap for log_file_creation_script\n"
     coder exp sync start ${local.log_file_creation_script_name}
+    printf "[DEBUG] Started sync for log_file_creation_script\n"
 
+    printf "[DEBUG] Creating module directory: ${local.module_dir_path}\n"
     mkdir -p ${local.module_dir_path}
     %{if var.pre_install_script != null~}
+    printf "[DEBUG] Creating pre_install log file: ${local.pre_install_log_path}\n"
     touch ${local.pre_install_log_path}
     %{endif~}
+    printf "[DEBUG] Creating install log file: ${local.install_log_path}\n"
     touch ${local.install_log_path}
     %{if var.post_install_script != null~}
+    printf "[DEBUG] Creating post_install log file: ${local.post_install_log_path}\n"
     touch ${local.post_install_log_path}
     %{endif~}
+    printf "[DEBUG] Creating start log file: ${local.start_log_path}\n"
     touch ${local.start_log_path}
+    printf "[DEBUG] Completed log_file_creation_script\n"
   EOT
 }
 
@@ -153,16 +163,26 @@ resource "coder_script" "pre_install_script" {
   log_path     = local.pre_install_log_path
   script       = <<-EOT
     #!/bin/bash
-    set -o errexit
-    set -o pipefail
-    trap 'coder exp sync complete ${local.pre_install_script_name}' EXIT
-    coder exp sync want ${local.pre_install_script_name} ${local.log_file_creation_script_name}
-    coder exp sync start ${local.pre_install_script_name}
+    # set -o errexit
+    # set -o pipefail
+    set -x
 
+    printf "[DEBUG] Starting pre_install_script\n"
+    trap 'coder exp sync complete ${local.pre_install_script_name}' EXIT
+    printf "[DEBUG] Setting up trap for pre_install_script\n"
+    coder exp sync want ${local.pre_install_script_name} ${local.log_file_creation_script_name}
+    printf "[DEBUG] Waiting for log_file_creation_script dependency\n"
+    coder exp sync start ${local.pre_install_script_name}
+    printf "[DEBUG] Started sync for pre_install_script\n"
+
+    printf "[DEBUG] Decoding pre_install script to: ${local.pre_install_path}\n"
     echo -n '${local.encoded_pre_install_script}' | base64 -d > ${local.pre_install_path}
+    printf "[DEBUG] Setting execute permissions on pre_install script\n"
     chmod +x ${local.pre_install_path}
 
+    printf "[DEBUG] Executing pre_install script\n"
     ${local.pre_install_path}
+    printf "[DEBUG] Completed pre_install script execution\n"
   EOT
 }
 
@@ -173,19 +193,30 @@ resource "coder_script" "install_script" {
   run_on_start = true
   script       = <<-EOT
     #!/bin/bash
-    set -o errexit
-    set -o pipefail
+    # set -o errexit
+    # set -o pipefail
+    set -x
+
+    printf "[DEBUG] Starting install_script\n"
     trap 'coder exp sync complete ${local.install_script_name}' EXIT
+    printf "[DEBUG] Setting up trap for install_script\n"
     %{if var.pre_install_script != null~}
+      printf "[DEBUG] Waiting for pre_install_script dependency\n"
       coder exp sync want ${local.install_script_name} ${local.pre_install_script_name}
     %{else~}
+      printf "[DEBUG] Waiting for log_file_creation_script dependency\n"
       coder exp sync want ${local.install_script_name} ${local.log_file_creation_script_name}
     %{endif~}
     coder exp sync start ${local.install_script_name}
+    printf "[DEBUG] Started sync for install_script\n"
+    printf "[DEBUG] Decoding install script to: ${local.install_path}\n"
     echo -n '${local.encoded_install_script}' | base64 -d > ${local.install_path}
+    printf "[DEBUG] Setting execute permissions on install script\n"
     chmod +x ${local.install_path}
 
+    printf "[DEBUG] Executing install script\n"
     ${local.install_path}
+    printf "[DEBUG] Completed install script execution\n"
   EOT
 }
 
@@ -197,16 +228,26 @@ resource "coder_script" "post_install_script" {
   run_on_start = true
   script       = <<-EOT
     #!/bin/bash
-    set -o errexit
-    set -o pipefail
-    trap 'coder exp sync complete ${local.post_install_script_name}' EXIT
-    coder exp sync want ${local.post_install_script_name} ${local.install_script_name}
-    coder exp sync start ${local.post_install_script_name}
+    # set -o errexit
+    # set -o pipefail
+    set -x
 
+    printf "[DEBUG] Starting post_install_script\n"
+    trap 'coder exp sync complete ${local.post_install_script_name}' EXIT
+    printf "[DEBUG] Setting up trap for post_install_script\n"
+    coder exp sync want ${local.post_install_script_name} ${local.install_script_name}
+    printf "[DEBUG] Waiting for install_script dependency\n"
+    coder exp sync start ${local.post_install_script_name}
+    printf "[DEBUG] Started sync for post_install_script\n"
+
+    printf "[DEBUG] Decoding post_install script to: ${local.post_install_path}\n"
     echo -n '${local.encoded_post_install_script}' | base64 -d > ${local.post_install_path}
+    printf "[DEBUG] Setting execute permissions on post_install script\n"
     chmod +x ${local.post_install_path}
 
+    printf "[DEBUG] Executing post_install script\n"
     ${local.post_install_path}
+    printf "[DEBUG] Completed post_install script execution\n"
   EOT
 }
 
@@ -217,21 +258,32 @@ resource "coder_script" "start_script" {
   run_on_start = true
   script       = <<-EOT
     #!/bin/bash
-    set -o errexit
-    set -o pipefail
+    # set -o errexit
+    # set -o pipefail
+    set -x
+
+    printf "[DEBUG] Starting start_script\n"
     trap 'coder exp sync complete ${local.start_script_name}' EXIT
+    printf "[DEBUG] Setting up trap for start_script\n"
 
     %{if var.post_install_script != null~}
+    printf "[DEBUG] Waiting for install_script and post_install_script dependencies\n"
     coder exp sync want ${local.start_script_name} ${local.install_script_name} ${local.post_install_script_name}
     %{else~}
+    printf "[DEBUG] Waiting for install_script dependency\n"
     coder exp sync want ${local.start_script_name} ${local.install_script_name}
     %{endif~}
     coder exp sync start ${local.start_script_name}
+    printf "[DEBUG] Started sync for start_script\n"
 
+    printf "[DEBUG] Decoding start script to: ${local.start_path}\n"
     echo -n '${local.encoded_start_script}' | base64 -d > ${local.start_path}
+    printf "[DEBUG] Setting execute permissions on start script\n"
     chmod +x ${local.start_path}
 
+    printf "[DEBUG] Executing start script\n"
     ${local.start_path}
+    printf "[DEBUG] Completed start script execution\n"
   EOT
 }
 
@@ -243,13 +295,21 @@ resource "coder_app" "agent_cli" {
   agent_id     = var.agent_id
   command      = <<-EOT
     #!/bin/bash
-    set -o errexit
-    set -o pipefail
-    trap 'coder exp sync complete ${local.agent_cli_app_name}' EXIT
-    coder exp sync want ${local.agent_cli_app_name} ${local.start_script_name}
-    coder exp sync start ${local.agent_cli_app_name}
+    # set -o errexit
+    # set -o pipefail
+    set -x
 
+    printf "[DEBUG] Starting agent_cli_app\n"
+    trap 'coder exp sync complete ${local.agent_cli_app_name}' EXIT
+    printf "[DEBUG] Setting up trap for agent_cli_app\n"
+    coder exp sync want ${local.agent_cli_app_name} ${local.start_script_name}
+    printf "[DEBUG] Waiting for start_script dependency\n"
+    coder exp sync start ${local.agent_cli_app_name}
+    printf "[DEBUG] Started sync for agent_cli_app\n"
+
+    printf "[DEBUG] Executing agent CLI command: ${local.agent_cli_path}\n"
     ${local.agent_cli_path}
+    printf "[DEBUG] Completed agent CLI command execution\n"
     EOT
   icon         = var.cli_app_icon
   order        = var.cli_app_order
