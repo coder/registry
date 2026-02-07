@@ -216,14 +216,48 @@ locals {
 }
 
 module "agent-helper" {
-  source              = "git::https://github.com/coder/registry.git//registry/coder/modules/agent-helper?ref=35C4n0r/feat-agent-helper-module"
-  agent_id            = var.agent_id
-  agent_name          = var.agent_name
-  module_dir_name     = var.module_dir_name
-  pre_install_script  = var.pre_install_script
-  install_script      = var.install_script
-  post_install_script = var.post_install_script
-  start_script        = var.start_script
+  source          = "git::https://github.com/coder/registry.git//registry/coder/modules/agent-helper?ref=35C4n0r/feat-agent-helper-module"
+  agent_id        = var.agent_id
+  agent_name      = var.agent_name
+  module_dir_name = var.module_dir_name
+
+  pre_install_script = var.pre_install_script != null ? <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+    echo -n '${base64encode(var.pre_install_script)}' | base64 -d > /tmp/${var.agent_name}-pre-install.sh
+    chmod +x /tmp/${var.agent_name}-pre-install.sh
+    /tmp/${var.agent_name}-pre-install.sh
+  EOT
+  : null
+
+  install_script = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+    echo -n '${base64encode(var.install_script)}' | base64 -d > /tmp/${var.agent_name}-install.sh
+    chmod +x /tmp/${var.agent_name}-install.sh
+    /tmp/${var.agent_name}-install.sh
+  EOT
+
+  post_install_script = var.post_install_script != null ? <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+    echo -n '${base64encode(var.post_install_script)}' | base64 -d > /tmp/${var.agent_name}-post-install.sh
+    chmod +x /tmp/${var.agent_name}-post-install.sh
+    /tmp/${var.agent_name}-post-install.sh
+  EOT
+  : null
+
+  start_script = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+    echo -n '${base64encode(var.start_script)}' | base64 -d > /tmp/${var.agent_name}-start.sh
+    chmod +x /tmp/${var.agent_name}-start.sh
+    /tmp/${var.agent_name}-start.sh
+  EOT
 }
 
 # resource "coder_script" "agentapi" {
