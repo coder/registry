@@ -260,7 +260,6 @@ resource "coder_script" "agentapi" {
     /tmp/main.sh
     EOT
   run_on_start = true
-  depends_on   = [module.agent-helper]
 }
 
 resource "coder_script" "agentapi_shutdown" {
