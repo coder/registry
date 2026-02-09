@@ -209,6 +209,7 @@ locals {
   main_script             = file("${path.module}/scripts/main.sh")
   shutdown_script         = file("${path.module}/scripts/agentapi-shutdown.sh")
 
+  start_script_name         = "${var.agent_name}-start_script"
   agentapi_main_script_name = "${var.agent_name}-main_script"
 
   module_dir_path = "$HOME/${var.module_dir_name}"
@@ -237,7 +238,7 @@ resource "coder_script" "agentapi" {
     set -o pipefail
 
     trap 'coder exp sync complete ${local.agentapi_main_script_name}' EXIT
-    coder exp sync want ${local.agentapi_main_script_name} ${module.agent-helper.start_script_name}
+    coder exp sync want ${local.agentapi_main_script_name} ${local.start_script_name}
     coder exp sync start ${local.agentapi_main_script_name}
 
     echo -n '${base64encode(local.main_script)}' | base64 -d > /tmp/main.sh
