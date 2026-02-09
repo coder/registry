@@ -119,6 +119,8 @@ resource "coder_script" "pre_install_script" {
     echo -n '${local.encoded_pre_install_script}' | base64 -d > ${local.pre_install_path}
     chmod +x ${local.pre_install_path}
 
+    mkdir -p ${local.module_dir_path}
+
     ${local.pre_install_path} > ${local.pre_install_log_path} 2>&1
   EOT
 }
@@ -139,6 +141,8 @@ resource "coder_script" "install_script" {
     coder exp sync start ${local.install_script_name}
     echo -n '${local.encoded_install_script}' | base64 -d > ${local.install_path}
     chmod +x ${local.install_path}
+
+    mkdir -p ${local.module_dir_path}
 
     ${local.install_path} > ${local.install_log_path} 2>&1
   EOT
