@@ -79,58 +79,53 @@ locals {
   start_log_path        = "${local.module_dir_path}/start.log"
 }
 
-resource "coder_script" "log_file_creation_script" {
-  agent_id     = var.agent_id
-  display_name = "Log File Creation Script"
-  run_on_start = true
-  script       = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-
-    trap 'coder exp sync complete ${local.log_file_creation_script_name}' EXIT
-    coder exp sync start ${local.log_file_creation_script_name}
-
-    mkdir -p ${local.module_dir_path}
-    %{if var.pre_install_script != null~}
-    touch ${local.pre_install_log_path}
-    %{endif~}
-    touch ${local.install_log_path}
-    %{if var.post_install_script != null~}
-    touch ${local.post_install_log_path}
-    %{endif~}
-    touch ${local.start_log_path}
-  EOT
-}
+# resource "coder_script" "log_file_creation_script" {
+#   agent_id     = var.agent_id
+#   display_name = "Log File Creation Script"
+#   run_on_start = true
+#   script       = <<-EOT
+#     #!/bin/bash
+#     set -o errexit
+#     set -o pipefail
+#
+#     trap 'coder exp sync complete ${local.log_file_creation_script_name}' EXIT
+#     coder exp sync start ${local.log_file_creation_script_name}
+#
+#     mkdir -p ${local.module_dir_path}
+#     %{if var.pre_install_script != null~}
+#     touch ${local.pre_install_log_path}
+#     %{endif~}
+#     touch ${local.install_log_path}
+#     %{if var.post_install_script != null~}
+#     touch ${local.post_install_log_path}
+#     %{endif~}
+#     touch ${local.start_log_path}
+#   EOT
+# }
 
 resource "coder_script" "pre_install_script" {
-  count        = var.pre_install_script != null ? 1 : 0
-  depends_on   = [coder_script.log_file_creation_script]
   agent_id     = var.agent_id
   display_name = "Pre-Install Script"
   run_on_start = true
-  log_path     = local.pre_install_log_path
   script       = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
 
     trap 'coder exp sync complete ${local.pre_install_script_name}' EXIT
-    coder exp sync want ${local.pre_install_script_name} ${local.log_file_creation_script_name}
+    coder exp sync want ${local.pre_install_script_name}
     coder exp sync start ${local.pre_install_script_name}
 
     echo -n '${local.encoded_pre_install_script}' | base64 -d > ${local.pre_install_path}
     chmod +x ${local.pre_install_path}
 
-    ${local.pre_install_path}
+    ${local.pre_install_path} > ${local.pre_install_log_path} 2>&1
   EOT
 }
 
 resource "coder_script" "install_script" {
   agent_id     = var.agent_id
-  depends_on   = [coder_script.log_file_creation_script]
   display_name = "Install Script"
-  log_path     = local.install_log_path
   run_on_start = true
   script       = <<-EOT
     #!/bin/bash
@@ -140,23 +135,19 @@ resource "coder_script" "install_script" {
     trap 'coder exp sync complete ${local.install_script_name}' EXIT
     %{if var.pre_install_script != null~}
       coder exp sync want ${local.install_script_name} ${local.pre_install_script_name}
-    %{else~}
-      coder exp sync want ${local.install_script_name} ${local.log_file_creation_script_name}
     %{endif~}
     coder exp sync start ${local.install_script_name}
     echo -n '${local.encoded_install_script}' | base64 -d > ${local.install_path}
     chmod +x ${local.install_path}
 
-    ${local.install_path}
+    ${local.install_path} > ${local.install_log_path} 2>&1
   EOT
 }
 
 resource "coder_script" "post_install_script" {
   count        = var.post_install_script != null ? 1 : 0
-  depends_on   = [coder_script.log_file_creation_script]
   agent_id     = var.agent_id
   display_name = "Post-Install Script"
-  log_path     = local.post_install_log_path
   run_on_start = true
   script       = <<-EOT
     #!/bin/bash
@@ -170,15 +161,13 @@ resource "coder_script" "post_install_script" {
     echo -n '${local.encoded_post_install_script}' | base64 -d > ${local.post_install_path}
     chmod +x ${local.post_install_path}
 
-    ${local.post_install_path}
+    ${local.post_install_path} > ${local.post_install_log_path} 2>&1
   EOT
 }
 
 resource "coder_script" "start_script" {
   agent_id     = var.agent_id
-  depends_on   = [coder_script.log_file_creation_script]
   display_name = "Start Script"
-  log_path     = local.start_log_path
   run_on_start = true
   script       = <<-EOT
     #!/bin/bash
@@ -197,6 +186,6 @@ resource "coder_script" "start_script" {
     echo -n '${local.encoded_start_script}' | base64 -d > ${local.start_path}
     chmod +x ${local.start_path}
 
-    ${local.start_path}
+    ${local.start_path} > ${local.start_log_path} 2>&1
   EOT
 }
