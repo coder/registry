@@ -70,6 +70,26 @@ variable "devolutions_gateway_version" {
   description = "Version of Devolutions Gateway to install. Use 'latest' for the most recent version, or specify a version like '2025.3.2'."
 }
 
+variable "keepalive" {
+  type        = bool
+  default     = false
+  description = "Enable automatic workspace activity reporting while an RDP connection is active. When enabled, the module monitors port 3389 for established connections and uses the Coder API to extend the workspace deadline, preventing autostop during active RDP sessions."
+}
+
+variable "keepalive_interval" {
+  type        = number
+  default     = 30
+  description = "Interval in seconds between RDP connection checks when keepalive is enabled."
+  validation {
+    condition     = var.keepalive_interval >= 10 && var.keepalive_interval <= 3600
+    error_message = "keepalive_interval must be between 10 and 3600 seconds."
+  }
+}
+
+data "coder_workspace" "me" {
+  count = var.keepalive ? 1 : 0
+}
+
 resource "coder_script" "windows-rdp" {
   agent_id     = var.agent_id
   display_name = "windows-rdp"
@@ -117,4 +137,20 @@ resource "coder_app" "rdp-docs" {
   icon         = "/icon/windows.svg"
   url          = "https://coder.com/docs/user-guides/workspace-access/remote-desktops#rdp"
   external     = true
+}
+
+resource "coder_script" "windows-rdp-keepalive" {
+  count        = var.keepalive ? 1 : 0
+  agent_id     = var.agent_id
+  display_name = "windows-rdp-keepalive"
+  icon         = "/icon/rdp.svg"
+
+  script = templatefile("${path.module}/rdp-keepalive.ps1.tftpl", {
+    keepalive_interval = var.keepalive_interval
+    coder_url          = data.coder_workspace.me[0].access_url
+    workspace_id       = data.coder_workspace.me[0].id
+  })
+
+  run_on_start       = true
+  start_blocks_login = false
 }

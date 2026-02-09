@@ -1,0 +1,78 @@
+# RDP Keep-Alive Monitor for Coder Workspaces
+# Detects active RDP connections on port 3389 and extends the workspace
+# deadline via the Coder API to prevent autostop during active sessions.
+
+$CheckInterval = ${keepalive_interval}
+$CoderURL = "${coder_url}"
+$WorkspaceID = "${workspace_id}"
+
+# The Coder agent sets CODER_AGENT_TOKEN in the environment automatically.
+$AgentToken = $env:CODER_AGENT_TOKEN
+
+if (-not $AgentToken) {
+    Write-Host "[RDP Keep-Alive] WARNING: CODER_AGENT_TOKEN not found. Activity reporting will not work."
+}
+
+function Test-RDPConnection {
+    try {
+        $connections = Get-NetTCPConnection -LocalPort 3389 -State Established -ErrorAction SilentlyContinue
+        if ($connections) {
+            return ($connections | Measure-Object).Count
+        }
+        return 0
+    }
+    catch {
+        return 0
+    }
+}
+
+function Send-ActivityBump {
+    # Extend the workspace deadline by the template's activity bump duration.
+    # We set the deadline far enough into the future that the server will clamp
+    # it to the template-configured activity bump value.
+    $newDeadline = (Get-Date).AddHours(12).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $body = @{ deadline = $newDeadline } | ConvertTo-Json
+    $url = "$CoderURL/api/v2/workspaces/$WorkspaceID/extend"
+
+    try {
+        $headers = @{
+            "Content-Type"        = "application/json"
+            "Coder-Session-Token" = $AgentToken
+        }
+        $response = Invoke-WebRequest -Uri $url -Method PUT -Headers $headers -Body $body -UseBasicParsing -ErrorAction Stop
+        return $true
+    }
+    catch {
+        Write-Host "[RDP Keep-Alive] Failed to extend deadline: $_"
+        return $false
+    }
+}
+
+Write-Host "[RDP Keep-Alive] Started monitoring RDP connections (interval: $($CheckInterval)s)"
+$wasActive = $false
+
+while ($true) {
+    $connectionCount = Test-RDPConnection
+
+    if ($connectionCount -gt 0) {
+        if (-not $wasActive) {
+            Write-Host "[RDP Keep-Alive] RDP connection(s) detected ($connectionCount active)"
+        }
+        $wasActive = $true
+
+        if ($AgentToken) {
+            $success = Send-ActivityBump
+            if ($success) {
+                Write-Host "[RDP Keep-Alive] Workspace deadline extended ($connectionCount active connection(s))"
+            }
+        }
+    }
+    else {
+        if ($wasActive) {
+            Write-Host "[RDP Keep-Alive] RDP connection(s) ended"
+        }
+        $wasActive = $false
+    }
+
+    Start-Sleep -Seconds $CheckInterval
+}

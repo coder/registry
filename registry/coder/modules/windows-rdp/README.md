@@ -15,7 +15,7 @@ Enable Remote Desktop + a web based client on Windows workspaces, powered by [de
 module "windows_rdp" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windows-rdp/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
 }
 ```
@@ -32,7 +32,7 @@ module "windows_rdp" {
 module "windows_rdp" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windows-rdp/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
 }
 ```
@@ -43,7 +43,7 @@ module "windows_rdp" {
 module "windows_rdp" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windows-rdp/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
 }
 ```
@@ -54,8 +54,25 @@ module "windows_rdp" {
 module "windows_rdp" {
   count                       = data.coder_workspace.me.start_count
   source                      = "registry.coder.com/coder/windows-rdp/coder"
-  version                     = "1.3.0"
+  version                     = "1.4.0"
   agent_id                    = coder_agent.main.id
   devolutions_gateway_version = "2025.2.2" # Specify a specific version
 }
 ```
+
+### With RDP Keep-Alive
+
+Automatically extend the workspace deadline while an RDP connection is active. This prevents workspace autostop during active remote desktop sessions:
+
+```tf
+module "windows_rdp" {
+  count              = data.coder_workspace.me.start_count
+  source             = "registry.coder.com/coder/windows-rdp/coder"
+  version            = "1.4.0"
+  agent_id           = coder_agent.main.id
+  keepalive          = true
+  keepalive_interval = 30 # Check every 30 seconds (default)
+}
+```
+
+When `keepalive` is enabled, a background script monitors port 3389 for established RDP connections. On detection, it calls the [Coder workspace extend API](https://coder.com/docs/reference/api/workspaces#extend-workspace-deadline-by-id) to bump the workspace deadline. When the RDP session disconnects, the normal autostop countdown resumes.
