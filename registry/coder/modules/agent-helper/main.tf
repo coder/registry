@@ -104,6 +104,7 @@ locals {
 # }
 
 resource "coder_script" "pre_install_script" {
+  count = var.pre_install_script == null ? 0 : 1
   agent_id     = var.agent_id
   display_name = "Pre-Install Script"
   run_on_start = true
@@ -112,14 +113,13 @@ resource "coder_script" "pre_install_script" {
     set -o errexit
     set -o pipefail
 
+    mkdir -p ${local.module_dir_path}
+
     trap 'coder exp sync complete ${local.pre_install_script_name}' EXIT
-    coder exp sync want ${local.pre_install_script_name}
     coder exp sync start ${local.pre_install_script_name}
 
     echo -n '${local.encoded_pre_install_script}' | base64 -d > ${local.pre_install_path}
     chmod +x ${local.pre_install_path}
-
-    mkdir -p ${local.module_dir_path}
 
     ${local.pre_install_path} > ${local.pre_install_log_path} 2>&1
   EOT
@@ -134,6 +134,8 @@ resource "coder_script" "install_script" {
     set -o errexit
     set -o pipefail
 
+    mkdir -p ${local.module_dir_path}
+
     trap 'coder exp sync complete ${local.install_script_name}' EXIT
     %{if var.pre_install_script != null~}
       coder exp sync want ${local.install_script_name} ${local.pre_install_script_name}
@@ -141,8 +143,6 @@ resource "coder_script" "install_script" {
     coder exp sync start ${local.install_script_name}
     echo -n '${local.encoded_install_script}' | base64 -d > ${local.install_path}
     chmod +x ${local.install_path}
-
-    mkdir -p ${local.module_dir_path}
 
     ${local.install_path} > ${local.install_log_path} 2>&1
   EOT
