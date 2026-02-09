@@ -238,7 +238,7 @@ resource "coder_script" "agentapi" {
     set -o pipefail
 
     trap 'coder exp sync complete ${local.agentapi_main_script_name}' EXIT
-    coder exp sync want ${local.agentapi_main_script_name} ${local.start_script_name}
+    coder exp sync want ${local.agentapi_main_script_name} ${module.agent-helper.start_script_name}
     coder exp sync start ${local.agentapi_main_script_name}
 
     echo -n '${base64encode(local.main_script)}' | base64 -d > /tmp/main.sh
@@ -260,6 +260,7 @@ resource "coder_script" "agentapi" {
     /tmp/main.sh
     EOT
   run_on_start = true
+  depends_on = [module.agent-helper]
 }
 
 resource "coder_script" "agentapi_shutdown" {
