@@ -60,7 +60,6 @@ locals {
   encoded_post_install_script = var.post_install_script != null ? base64encode(var.post_install_script) : ""
   encoded_start_script        = base64encode(var.start_script)
 
-  log_file_creation_script_name = "${var.agent_name}-log_file_creation_script"
   pre_install_script_name       = "${var.agent_name}-pre_install_script"
   install_script_name           = "${var.agent_name}-install_script"
   post_install_script_name      = "${var.agent_name}-post_install_script"
@@ -168,4 +167,24 @@ resource "coder_script" "start_script" {
 
     ${local.start_path} > ${local.start_log_path} 2>&1
   EOT
+}
+
+output "pre_install_script_name" {
+  description = "The name of the pre-install script for sync."
+  value       = local.pre_install_script_name
+}
+
+output "install_script_name" {
+  description = "The name of the install script for sync."
+  value       = local.install_script_name
+}
+
+output "post_install_script_name" {
+  description = "The name of the post-install script for sync."
+  value       = local.post_install_script_name
+}
+
+output "start_script_name" {
+  description = "The name of the start script for sync."
+  value       = local.start_script_name
 }
