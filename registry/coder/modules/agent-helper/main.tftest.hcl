@@ -14,22 +14,6 @@ run "test_with_all_scripts" {
     start_script        = "echo 'start'"
   }
 
-  # Verify log file creation script is created
-  assert {
-    condition     = coder_script.log_file_creation_script.agent_id == "test-agent-id"
-    error_message = "Log file creation script agent ID should match input"
-  }
-
-  assert {
-    condition     = coder_script.log_file_creation_script.display_name == "Log File Creation Script"
-    error_message = "Log file creation script should have correct display name"
-  }
-
-  assert {
-    condition     = coder_script.log_file_creation_script.run_on_start == true
-    error_message = "Log file creation script should run on start"
-  }
-
   # Verify pre_install_script is created when provided
   assert {
     condition     = length(coder_script.pre_install_script) == 1
@@ -44,6 +28,11 @@ run "test_with_all_scripts" {
   assert {
     condition     = coder_script.pre_install_script[0].display_name == "Pre-Install Script"
     error_message = "Pre-install script should have correct display name"
+  }
+
+  assert {
+    condition     = coder_script.pre_install_script[0].run_on_start == true
+    error_message = "Pre-install script should run on start"
   }
 
   # Verify install_script is created
@@ -76,6 +65,11 @@ run "test_with_all_scripts" {
   assert {
     condition     = coder_script.post_install_script[0].display_name == "Post-Install Script"
     error_message = "Post-install script should have correct display name"
+  }
+
+  assert {
+    condition     = coder_script.post_install_script[0].run_on_start == true
+    error_message = "Post-install script should run on start"
   }
 
   # Verify start_script is created
@@ -120,11 +114,6 @@ run "test_without_optional_scripts" {
   }
 
   # Verify required scripts are still created
-  assert {
-    condition     = coder_script.log_file_creation_script.agent_id == "test-agent-id"
-    error_message = "Log file creation script should be created"
-  }
-
   assert {
     condition     = coder_script.install_script.agent_id == "test-agent-id"
     error_message = "Install script should be created"
@@ -207,11 +196,6 @@ run "test_script_naming" {
 
   # Verify script names are constructed correctly
   # The script should contain references to custom-name-* in the sync commands
-  assert {
-    condition     = can(regex("custom-name-log_file_creation_script", coder_script.log_file_creation_script.script))
-    error_message = "Log file creation script should use custom agent_name in sync commands"
-  }
-
   assert {
     condition     = can(regex("custom-name-install_script", coder_script.install_script.script))
     error_message = "Install script should use custom agent_name in sync commands"
