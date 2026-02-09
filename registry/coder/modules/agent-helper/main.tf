@@ -79,32 +79,8 @@ locals {
   start_log_path        = "${local.module_dir_path}/start.log"
 }
 
-# resource "coder_script" "log_file_creation_script" {
-#   agent_id     = var.agent_id
-#   display_name = "Log File Creation Script"
-#   run_on_start = true
-#   script       = <<-EOT
-#     #!/bin/bash
-#     set -o errexit
-#     set -o pipefail
-#
-#     trap 'coder exp sync complete ${local.log_file_creation_script_name}' EXIT
-#     coder exp sync start ${local.log_file_creation_script_name}
-#
-#     mkdir -p ${local.module_dir_path}
-#     %{if var.pre_install_script != null~}
-#     touch ${local.pre_install_log_path}
-#     %{endif~}
-#     touch ${local.install_log_path}
-#     %{if var.post_install_script != null~}
-#     touch ${local.post_install_log_path}
-#     %{endif~}
-#     touch ${local.start_log_path}
-#   EOT
-# }
-
 resource "coder_script" "pre_install_script" {
-  count = var.pre_install_script == null ? 0 : 1
+  count        = var.pre_install_script == null ? 0 : 1
   agent_id     = var.agent_id
   display_name = "Pre-Install Script"
   run_on_start = true
