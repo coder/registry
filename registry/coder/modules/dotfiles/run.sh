@@ -5,6 +5,19 @@ set -euo pipefail
 DOTFILES_URI="${DOTFILES_URI}"
 DOTFILES_USER="${DOTFILES_USER}"
 
+# Validate DOTFILES_URI to prevent command injection (defense in depth)
+if [ -n "$DOTFILES_URI" ]; then
+  # shellcheck disable=SC2250
+  if [[ "$DOTFILES_URI" =~ [^a-zA-Z0-9._/:@-] ]]; then
+    echo "ERROR: DOTFILES_URI contains invalid characters" >&2
+    exit 1
+  fi
+  if ! [[ "$DOTFILES_URI" =~ ^(https?://|ssh://|git@|git://) ]]; then
+    echo "ERROR: DOTFILES_URI must be a valid repository URL (https://, http://, ssh://, git@, or git://)" >&2
+    exit 1
+  fi
+fi
+
 # shellcheck disable=SC2157
 if [ -n "$${DOTFILES_URI// }" ]; then
   if [ -z "$DOTFILES_USER" ]; then
@@ -16,12 +29,17 @@ if [ -n "$${DOTFILES_URI// }" ]; then
   if [ "$DOTFILES_USER" = "$USER" ]; then
     coder dotfiles "$DOTFILES_URI" -y 2>&1 | tee ~/.dotfiles.log
   else
-    # The `eval echo ~"$DOTFILES_USER"` part is used to dynamically get the home directory of the user, see https://superuser.com/a/484280
-    # eval echo ~coder -> "/home/coder"
-    # eval echo ~root  -> "/root"
+    if command -v getent > /dev/null 2>&1; then
+      DOTFILES_USER_HOME=$(getent passwd "$DOTFILES_USER" | cut -d: -f6)
+    else
+      DOTFILES_USER_HOME=$(awk -F: -v user="$DOTFILES_USER" '$1 == user {print $6}' /etc/passwd)
+    fi
+    if [ -z "$DOTFILES_USER_HOME" ]; then
+      echo "ERROR: Could not determine home directory for user $DOTFILES_USER" >&2
+      exit 1
+    fi
 
-    CODER_BIN=$(which coder)
-    DOTFILES_USER_HOME=$(eval echo ~"$DOTFILES_USER")
-    sudo -u "$DOTFILES_USER" sh -c "'$CODER_BIN' dotfiles '$DOTFILES_URI' -y 2>&1 | tee '$DOTFILES_USER_HOME'/.dotfiles.log"
+    CODER_BIN=$(command -v coder)
+    sudo -u "$DOTFILES_USER" "$CODER_BIN" dotfiles "$DOTFILES_URI" -y 2>&1 | tee "$DOTFILES_USER_HOME/.dotfiles.log"
   fi
 fi

@@ -13,6 +13,8 @@ set -o nounset
 ARG_BASE_CONFIG_TOML=$(echo -n "$ARG_BASE_CONFIG_TOML" | base64 -d)
 ARG_ADDITIONAL_MCP_SERVERS=$(echo -n "$ARG_ADDITIONAL_MCP_SERVERS" | base64 -d)
 ARG_CODEX_INSTRUCTION_PROMPT=$(echo -n "$ARG_CODEX_INSTRUCTION_PROMPT" | base64 -d)
+ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
+ARG_AIBRIDGE_CONFIG=$(echo -n "$ARG_AIBRIDGE_CONFIG" | base64 -d)
 
 echo "=== Codex Module Configuration ==="
 printf "Install Codex: %s\n" "$ARG_INSTALL"
@@ -24,6 +26,7 @@ printf "Has Additional MCP: %s\n" "$([ -n "$ARG_ADDITIONAL_MCP_SERVERS" ] && ech
 printf "Has System Prompt: %s\n" "$([ -n "$ARG_CODEX_INSTRUCTION_PROMPT" ] && echo "Yes" || echo "No")"
 printf "OpenAI API Key: %s\n" "$([ -n "$ARG_OPENAI_API_KEY" ] && echo "Provided" || echo "Not provided")"
 printf "Report Tasks: %s\n" "$ARG_REPORT_TASKS"
+printf "Enable Coder AI Bridge: %s\n" "$ARG_ENABLE_AIBRIDGE"
 echo "======================================"
 
 set +o nounset
@@ -115,7 +118,7 @@ append_mcp_servers_section() {
 [mcp_servers.Coder]
 command = "coder"
 args = ["exp", "mcp", "server"]
-env = { "CODER_MCP_APP_STATUS_SLUG" = "${ARG_CODER_MCP_APP_STATUS_SLUG}", "CODER_MCP_AI_AGENTAPI_URL" = "${CODER_MCP_AI_AGENTAPI_URL}" , "CODER_AGENT_URL" = "${CODER_AGENT_URL}", "CODER_AGENT_TOKEN" = "${CODER_AGENT_TOKEN}" }
+env = { "CODER_MCP_APP_STATUS_SLUG" = "${ARG_CODER_MCP_APP_STATUS_SLUG}", "CODER_MCP_AI_AGENTAPI_URL" = "${CODER_MCP_AI_AGENTAPI_URL}" , "CODER_AGENT_URL" = "${CODER_AGENT_URL}", "CODER_AGENT_TOKEN" = "${CODER_AGENT_TOKEN}", "CODER_MCP_ALLOWED_TOOLS" = "coder_report_task" }
 description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."
 type = "stdio"
 
@@ -124,6 +127,15 @@ EOF
   if [ -n "$ARG_ADDITIONAL_MCP_SERVERS" ]; then
     printf "Adding additional MCP servers\n"
     echo "$ARG_ADDITIONAL_MCP_SERVERS" >> "$config_path"
+  fi
+}
+
+append_aibridge_config_section() {
+  local config_path="$1"
+
+  if [ -n "$ARG_AIBRIDGE_CONFIG" ]; then
+    printf "Adding AI Bridge configuration\n"
+    echo -e "\n# AI Bridge Configuration\n$ARG_AIBRIDGE_CONFIG" >> "$config_path"
   fi
 }
 
@@ -140,6 +152,11 @@ function populate_config_toml() {
   fi
 
   append_mcp_servers_section "$CONFIG_PATH"
+
+  if [ "$ARG_ENABLE_AIBRIDGE" = "true" ]; then
+    printf "AI Bridge is enabled\n"
+    append_aibridge_config_section "$CONFIG_PATH"
+  fi
 }
 
 function add_instruction_prompt_if_exists() {
@@ -185,4 +202,7 @@ install_codex
 codex --version
 populate_config_toml
 add_instruction_prompt_if_exists
-add_auth_json
+
+if [ "$ARG_ENABLE_AIBRIDGE" = "false" ]; then
+  add_auth_json
+fi
