@@ -87,6 +87,27 @@ run "test_with_all_scripts" {
     condition     = coder_script.start_script.run_on_start == true
     error_message = "Start script should run on start"
   }
+
+  # Verify outputs for script names
+  assert {
+    condition     = output.pre_install_script_name == "test-agent-pre_install_script"
+    error_message = "Pre-install script name output should be correctly formatted"
+  }
+
+  assert {
+    condition     = output.install_script_name == "test-agent-install_script"
+    error_message = "Install script name output should be correctly formatted"
+  }
+
+  assert {
+    condition     = output.post_install_script_name == "test-agent-post_install_script"
+    error_message = "Post-install script name output should be correctly formatted"
+  }
+
+  assert {
+    condition     = output.start_script_name == "test-agent-start_script"
+    error_message = "Start script name output should be correctly formatted"
+  }
 }
 
 # Test with only required scripts (no pre/post install)
@@ -122,6 +143,27 @@ run "test_without_optional_scripts" {
   assert {
     condition     = coder_script.start_script.agent_id == "test-agent-id"
     error_message = "Start script should be created"
+  }
+
+  # Verify outputs
+  assert {
+    condition     = output.pre_install_script_name == "test-agent-pre_install_script"
+    error_message = "Pre-install script name output should be generated even when script is not created"
+  }
+
+  assert {
+    condition     = output.install_script_name == "test-agent-install_script"
+    error_message = "Install script name output should be correctly formatted"
+  }
+
+  assert {
+    condition     = output.post_install_script_name == "test-agent-post_install_script"
+    error_message = "Post-install script name output should be generated even when script is not created"
+  }
+
+  assert {
+    condition     = output.start_script_name == "test-agent-start_script"
+    error_message = "Start script name output should be correctly formatted"
   }
 }
 
@@ -204,5 +246,26 @@ run "test_script_naming" {
   assert {
     condition     = can(regex("custom-name-start_script", coder_script.start_script.script))
     error_message = "Start script should use custom agent_name in sync commands"
+  }
+
+  # Verify outputs use custom agent_name
+  assert {
+    condition     = output.pre_install_script_name == "custom-name-pre_install_script"
+    error_message = "Pre-install script name output should use custom agent_name"
+  }
+
+  assert {
+    condition     = output.install_script_name == "custom-name-install_script"
+    error_message = "Install script name output should use custom agent_name"
+  }
+
+  assert {
+    condition     = output.post_install_script_name == "custom-name-post_install_script"
+    error_message = "Post-install script name output should use custom agent_name"
+  }
+
+  assert {
+    condition     = output.start_script_name == "custom-name-start_script"
+    error_message = "Start script name output should use custom agent_name"
   }
 }
