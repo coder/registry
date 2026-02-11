@@ -173,6 +173,16 @@ variable "ide_config" {
   }
 }
 
+variable "plugins" {
+  type        = list(string)
+  description = <<-EOT
+    A list of JetBrains Marketplace plugin IDs to pre-install on all selected IDEs.
+    Plugin IDs can be found on each plugin's Marketplace page under "Plugin ID".
+    Example: ["com.intellij.kubernetes", "com.koxudaxi.pydantic"]
+  EOT
+  default     = []
+}
+
 locals {
   # Parse HTTP responses once with error handling for air-gapped environments
   parsed_responses = {
@@ -214,6 +224,21 @@ locals {
 
   # Convert the parameter value to a set for for_each
   selected_ides = length(var.default) == 0 ? toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ides[0].value, "[]"))) : toset(var.default)
+
+  # Plugin installation helpers
+  has_plugins            = length(var.plugins) > 0
+  install_plugins_script = file("${path.module}/scripts/install_plugins.sh")
+
+  # Build a map of { "PY": ["plugin1", "plugin2"], "IU": ["plugin1", "plugin2"] }
+  # where each selected IDE gets the same list of plugins
+  plugin_map = {
+    for code in local.selected_ides : code => var.plugins
+  }
+
+  # Build a map of { "PY": "253.29346.142", "IU": "253.29346.138" }
+  build_number_map = {
+    for code in local.selected_ides : code => local.options_metadata[code].build
+  }
 }
 
 data "coder_parameter" "jetbrains_ides" {
@@ -240,6 +265,30 @@ data "coder_parameter" "jetbrains_ides" {
 
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
+
+resource "coder_script" "jetbrains_plugins" {
+  count        = local.has_plugins ? 1 : 0
+  agent_id     = var.agent_id
+  display_name = "Pre-install JetBrains Plugins"
+  icon         = "/icon/jetbrains-toolbox.svg"
+  run_on_start = true
+  script       = <<-EOT
+    #!/bin/bash
+    set -euo pipefail
+
+    export PLUGIN_IDS="${base64encode(jsonencode(local.plugin_map))}"
+    export IDE_CODES="${join(",", local.selected_ides)}"
+    export BUILD_NUMBERS="${base64encode(jsonencode(local.build_number_map))}"
+
+    echo "${base64encode(local.install_plugins_script)}" | base64 -d > /tmp/jetbrains-install-plugins.sh
+    chmod +x /tmp/jetbrains-install-plugins.sh
+
+    # Run in background so workspace startup is not blocked
+    nohup /tmp/jetbrains-install-plugins.sh > /tmp/jetbrains-plugins-install.log 2>&1 &
+    echo "JetBrains plugin installation started in background (PID: $!)"
+    echo "Check /tmp/jetbrains-plugins-install.log for progress."
+  EOT
+}
 
 resource "coder_app" "jetbrains" {
   for_each     = local.selected_ides

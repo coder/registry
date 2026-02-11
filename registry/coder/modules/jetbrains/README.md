@@ -136,6 +136,34 @@ module "jetbrains" {
 }
 ```
 
+### Pre-install Plugins
+
+Automatically download and install JetBrains Marketplace plugins when the workspace starts. Plugins are downloaded from the Marketplace and extracted into the IDE's plugin directory in the background, so they're ready when the IDE launches.
+
+To find a plugin's ID, visit its page on the [JetBrains Marketplace](https://plugins.jetbrains.com/), scroll to "Additional Information", and look for "Plugin ID".
+
+```tf
+module "jetbrains" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/jetbrains/coder"
+  version  = "1.4.0"
+  agent_id = coder_agent.main.id
+  folder   = "/home/coder/project"
+  default  = ["PY", "IU"]
+
+  plugins = [
+    "com.koxudaxi.pydantic",    # Pydantic support
+    "com.intellij.kubernetes",   # Kubernetes
+  ]
+}
+```
+
+> [!NOTE]
+> Plugins are installed for all selected IDEs. The module downloads the correct version
+> compatible with each IDE's build number from the JetBrains Marketplace.
+> The installation runs in the background and does not block workspace startup.
+> Requires `curl`, `jq`, and `unzip` to be available in the workspace.
+
 ### Accessing the IDE Metadata
 
 You can now reference the output `ide_metadata` as a map.

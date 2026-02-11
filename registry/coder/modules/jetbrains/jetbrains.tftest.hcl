@@ -327,6 +327,54 @@ run "output_multiple_ides" {
     error_message = "Expected ide_metadata['PY'].build to be the fallback '${var.expected_ide_config["PY"].build}'"
   }
 }
+run "no_plugin_script_when_plugins_empty" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+    plugins  = []
+  }
+
+  assert {
+    condition     = length(resource.coder_script.jetbrains_plugins) == 0
+    error_message = "Expected no coder_script for plugins when plugins list is empty"
+  }
+}
+
+run "plugin_script_created_when_plugins_set" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+    plugins  = ["com.intellij.kubernetes"]
+  }
+
+  assert {
+    condition     = length(resource.coder_script.jetbrains_plugins) == 1
+    error_message = "Expected one coder_script for plugins when plugins list is non-empty"
+  }
+}
+
+run "plugin_script_with_multiple_ides" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO", "PY"]
+    plugins  = ["com.intellij.kubernetes", "com.koxudaxi.pydantic"]
+  }
+
+  assert {
+    condition     = length(resource.coder_script.jetbrains_plugins) == 1
+    error_message = "Expected one coder_script for plugins even with multiple IDEs"
+  }
+}
+
 run "validate_output_schema" {
   command = plan
 
