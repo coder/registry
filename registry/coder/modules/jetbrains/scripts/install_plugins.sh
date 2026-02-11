@@ -77,7 +77,7 @@ find_plugins_dir() {
       # Check if this dist matches our product code by looking at product-info.json
       if [ -f "$remote_dir/product-info.json" ]; then
         local found_code
-        found_code=$(grep -oE '"productCode"[[:space:]]*:[[:space:]]*"[^"]*"' "$remote_dir/product-info.json" 2> /dev/null | head -1 | cut -d'"' -f4)
+        found_code=$(jq -r '.productCode // empty' "$remote_dir/product-info.json" 2> /dev/null) || found_code=""
         if [ "$found_code" = "$code" ]; then
           echo "$remote_dir/plugins"
           return 0
@@ -224,8 +224,13 @@ for code in "${CODES[@]}"; do
     config_pattern=$(config_dir_pattern "$code")
     if [ -n "$config_pattern" ] && [ -n "$build" ]; then
       # Derive IDE version from build number (e.g., 253.x -> 2025.3, 242.x -> 2024.2)
-      # First 2 digits = year (20XX), 3rd digit = minor version
+      # The build major (first segment before '.') must be exactly 3 digits: YYM
+      # where YY = year suffix (20YY) and M = minor version.
       build_major=$(echo "$build" | cut -d'.' -f1)
+      if ! echo "$build_major" | grep -qE '^[0-9]{3}$'; then
+        log "WARNING: Unexpected build-number format '${build}' for $code (expected NNN.x). Skipping."
+        continue
+      fi
       year_suffix="${build_major:0:2}"
       minor_ver="${build_major:2:1}"
       ide_version="20${year_suffix}.${minor_ver}"
