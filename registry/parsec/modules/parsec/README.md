@@ -4,11 +4,11 @@ Integrate [Parsec](https://parsec.app/) cloud gaming and remote desktop into you
 
 ## Features
 
-- 🎮 Low-latency remote desktop and cloud gaming
-- 🚀 Automatic installation and configuration
-- 🔒 Secure access through Coder's authentication
-- 💻 Support for Ubuntu, Debian, Fedora, and RHEL-based distributions
-- 🌐 Web-based interface
+- Low-latency remote desktop and cloud gaming
+- Automatic installation and configuration
+- Secure access through Coder's authentication
+- Support for Ubuntu, Debian, Fedora, and RHEL-based distributions
+- Web-based interface
 
 ## Requirements
 
