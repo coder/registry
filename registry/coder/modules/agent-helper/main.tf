@@ -29,7 +29,7 @@ variable "pre_install_script" {
 variable "install_script" {
   type        = string
   description = "Script to install the agent used by AgentAPI."
-  default     = ""
+  default     = null
 }
 
 variable "post_install_script" {
