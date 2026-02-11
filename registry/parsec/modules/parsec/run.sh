@@ -50,7 +50,7 @@ install_deb() {
 
   CACHE_DIR="/var/lib/apt/lists/partial"
   # Check if the directory exists and was modified in the last 60 minutes
-  if [[ ! -d "$CACHE_DIR" ]] || ! find "$CACHE_DIR" -mmin -60 -print -quit &> /dev/null; then
+  if [[ ! -d "$CACHE_DIR" ]] || [[ -z "$(find "$CACHE_DIR" -mmin -60 -print -quit 2>/dev/null)" ]]; then
     echo "Stale package cache, updating..."
     sudo apt-get -o DPkg::Lock::Timeout=300 -qq update
   fi

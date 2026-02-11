@@ -1,3 +1,11 @@
+---
+display_name: Parsec
+description: Cloud gaming and remote desktop for Coder workspaces
+icon: ./icon.svg
+verified: false
+tags: [remote-desktop, gaming, parsec, streaming]
+---
+
 # Parsec Module for Coder
 
 Integrate [Parsec](https://parsec.app/) cloud gaming and remote desktop into your Coder workspaces.
