@@ -77,7 +77,7 @@ find_plugins_dir() {
       # Check if this dist matches our product code by looking at product-info.json
       if [ -f "$remote_dir/product-info.json" ]; then
         local found_code
-        found_code=$(grep -o '"productCode":"[^"]*"' "$remote_dir/product-info.json" 2> /dev/null | head -1 | cut -d'"' -f4)
+        found_code=$(grep -oE '"productCode"[[:space:]]*:[[:space:]]*"[^"]*"' "$remote_dir/product-info.json" 2> /dev/null | head -1 | cut -d'"' -f4)
         if [ "$found_code" = "$code" ]; then
           echo "$remote_dir/plugins"
           return 0
@@ -223,9 +223,13 @@ for code in "${CODES[@]}"; do
     # so plugins are ready when the IDE first starts
     config_pattern=$(config_dir_pattern "$code")
     if [ -n "$config_pattern" ] && [ -n "$build" ]; then
-      # Extract major version from build number (e.g., 253.29346.142 -> 2025.3 based on convention)
-      # Use a generic directory that the IDE will pick up
-      plugins_dir="$HOME/.local/share/JetBrains/${config_pattern}/plugins"
+      # Derive IDE version from build number (e.g., 253.x -> 2025.3, 242.x -> 2024.2)
+      # First 2 digits = year (20XX), 3rd digit = minor version
+      build_major=$(echo "$build" | cut -d'.' -f1)
+      year_suffix="${build_major:0:2}"
+      minor_ver="${build_major:2:1}"
+      ide_version="20${year_suffix}.${minor_ver}"
+      plugins_dir="$HOME/.local/share/JetBrains/${config_pattern}${ide_version}/plugins"
       log "IDE $code not found. Pre-creating plugins directory: $plugins_dir"
       mkdir -p "$plugins_dir"
     else
