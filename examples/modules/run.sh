@@ -1,26 +1,40 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
-# Convert templated variables to shell variables
-# shellcheck disable=SC2269
-LOG_PATH=${LOG_PATH}
+# These variables are injected via Terraform's templatefile
+LOG_PATH="${LOG_PATH}"
+PLUGINS="${PLUGINS}"
 
-# shellcheck disable=SC2034
-BOLD='\033[0;1m'
+echo "Starting JetBrains plugin installation..." >> "$LOG_PATH"
 
-# shellcheck disable=SC2059
-printf "$${BOLD}Installing MODULE_NAME ...\n\n"
+# Check if the PLUGINS list is not empty
+if [ -n "$PLUGINS" ]; then
+    # Standard JetBrains directory for Remote Development plugins
+    PLUGIN_DIR="$HOME/.local/share/JetBrains/plugins"
+    mkdir -p "$PLUGIN_DIR"
 
-# Add code here
-# Use variables from the templatefile function in main.tf
-# e.g. LOG_PATH, PORT, etc.
-
-printf "🥳 Installation complete!\n\n"
-
-printf "👷 Starting MODULE_NAME in background...\n\n"
-# Start the app in here
-# 1. Use & to run it in background
-# 2. redirct stdout and stderr to log files
-
-./app > "$${LOG_PATH}" 2>&1 &
-
-printf "check logs at %s\n\n" "$${LOG_PATH}"
+    for plugin_id in $PLUGINS; do
+        echo "Installing plugin: $plugin_id" >> "$LOG_PATH"
+        
+        # Fetch the latest download URL from JetBrains Marketplace API
+        # Using grep to extract the 'downloadUrl' field from the JSON response
+        DOWNLOAD_PATH=$(curl -s "https://plugins.jetbrains.com/api/plugins/$plugin_id/updates?size=1" | grep -oP '(?<="downloadUrl":")[^"]+')
+        
+        # Only proceed if a valid download path was found
+        if [ -n "$DOWNLOAD_PATH" ]; then
+            echo "Downloading $plugin_id..." >> "$LOG_PATH"
+            
+            # Download the plugin zip file to a temporary location
+            curl -L "https://plugins.jetbrains.com$DOWNLOAD_PATH" -o "/tmp/$plugin_id.zip"
+            
+            # Extract the plugin to the JetBrains plugins directory
+            # -o flag overwrites existing files if any
+            unzip -o "/tmp/$plugin_id.zip" -d "$PLUGIN_DIR"
+            
+            # Clean up the temporary zip file
+            rm "/tmp/$plugin_id.zip"
+            echo "Successfully installed $plugin_id" >> "$LOG_PATH"
+        else
+            echo "Error: Could not find download path for $plugin_id" >> "$LOG_PATH"
+        fi
+    done
+fi

@@ -1,6 +1,5 @@
 terraform {
   required_version = ">= 1.0"
-
   required_providers {
     coder = {
       source  = "coder/coder"
@@ -9,99 +8,50 @@ terraform {
   }
 }
 
-locals {
-  # A built-in icon like "/icon/code.svg" or a full URL of icon
-  icon_url = "https://raw.githubusercontent.com/coder/coder/main/site/static/icon/code.svg"
-  # a map of all possible values
-  options = {
-    "Option 1" = {
-      "name"  = "Option 1",
-      "value" = "1"
-      "icon"  = "/emojis/1.png"
-    }
-    "Option 2" = {
-      "name"  = "Option 2",
-      "value" = "2"
-      "icon"  = "/emojis/2.png"
-    }
-  }
-}
-
-# Add required variables for your modules and remove any unneeded variables
 variable "agent_id" {
   type        = string
   description = "The ID of a Coder agent."
 }
 
+# Variable to define which JetBrains plugins to install
+variable "plugins" {
+  type        = list(string)
+  description = "A list of JetBrains plugin IDs to pre-install (e.g. ['org.rust.lang', 'com.github.copilot'])."
+  default     = []
+}
+
 variable "log_path" {
   type        = string
   description = "The path to the module log file."
-  default     = "/tmp/module_name.log"
+  default     = "/tmp/jetbrains_plugins.log"
 }
 
 variable "port" {
   type        = number
-  description = "The port to run the application on."
+  description = "The port to run the IDE application on."
   default     = 19999
 }
 
-variable "mutable" {
-  type        = bool
-  description = "Whether the parameter is mutable."
-  default     = true
-}
-
-variable "order" {
-  type        = number
-  description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
-  default     = null
-}
-# Add other variables here
-
-
-resource "coder_script" "module_name" {
+# Resource to execute the plugin installation script on the agent
+resource "coder_script" "jetbrains_plugins" {
   agent_id     = var.agent_id
-  display_name = "Module Name"
-  icon         = local.icon_url
+  display_name = "JetBrains Plugin Pre-installer"
+  icon         = "https://raw.githubusercontent.com/coder/coder/main/site/static/icon/jetbrains.svg"
+  
+  # Injecting variables into the bash script using templatefile
   script = templatefile("${path.module}/run.sh", {
     LOG_PATH : var.log_path,
+    PLUGINS  : join(" ", var.plugins)
   })
+  
   run_on_start = true
-  run_on_stop  = false
 }
 
-resource "coder_app" "module_name" {
+# Coder app definition for the JetBrains IDE
+resource "coder_app" "jetbrains_app" {
   agent_id     = var.agent_id
-  slug         = "module-name"
-  display_name = "Module Name"
+  slug         = "jetbrains-ide"
+  display_name = "JetBrains IDE"
   url          = "http://localhost:${var.port}"
-  icon         = local.icon_url
-  subdomain    = false
-  share        = "owner"
-  order        = var.order
-
-  # Remove if the app does not have a healthcheck endpoint
-  healthcheck {
-    url       = "http://localhost:${var.port}/healthz"
-    interval  = 5
-    threshold = 6
-  }
-}
-
-data "coder_parameter" "module_name" {
-  type         = "string"
-  name         = "module_name"
-  display_name = "Module Name"
-  icon         = local.icon_url
-  mutable      = var.mutable
-  default      = local.options["Option 1"]["value"]
-
-  dynamic "option" {
-    for_each = local.options
-    content {
-      icon  = option.value.icon
-      name  = option.value.name
-      value = option.value.value
-    }
-  }
+  icon         = "https://raw.githubusercontent.com/coder/coder/main/site/static/icon/jetbrains.svg"
 }
