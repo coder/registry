@@ -64,10 +64,7 @@ describe("parse_jsonc_extensions", () => {
         "value-with,}-inside",
       ]
     }`);
-    expect(result).toEqual([
-      "value-with,]-inside",
-      "value-with,}-inside",
-    ]);
+    expect(result).toEqual(["value-with,]-inside", "value-with,}-inside"]);
   });
 
   it("handles .code-workspace format", async () => {

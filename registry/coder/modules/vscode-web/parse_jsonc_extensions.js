@@ -44,7 +44,13 @@ while (i < text.length) {
       i++;
       continue;
     }
-    if (pendingComma && (text[i] === " " || text[i] === "\t" || text[i] === "\n" || text[i] === "\r")) {
+    if (
+      pendingComma &&
+      (text[i] === " " ||
+        text[i] === "\t" ||
+        text[i] === "\n" ||
+        text[i] === "\r")
+    ) {
       pendingComma += text[i++];
       continue;
     }
