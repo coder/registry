@@ -13,23 +13,24 @@ if [ -n "$PLUGINS" ]; then
     for plugin_id in $PLUGINS; do
         echo "Installing plugin: $plugin_id" >> "$LOG_PATH"
         
-        # 1. FIXED: Using sed instead of grep -P for better compatibility
-        JSON_RESPONSE=$(curl -s "https://plugins.jetbrains.com/api/plugins/$plugin_id/updates?size=1")
-        DOWNLOAD_PATH=$(echo "$JSON_RESPONSE" | sed -n 's/.*"downloadUrl":"\([^"]*\)".*/\1/p')
+        # Fetch the latest download URL from JetBrains Marketplace API
+        # Using grep to extract the 'downloadUrl' field from the JSON response
+        DOWNLOAD_PATH=$(curl -s "https://plugins.jetbrains.com/api/plugins/$plugin_id/updates?size=1" | grep -oP '(?<="downloadUrl":")[^"]+')
         
+        # Only proceed if a valid download path was found
         if [ -n "$DOWNLOAD_PATH" ]; then
             echo "Downloading $plugin_id..." >> "$LOG_PATH"
             
-            # 2. FIXED: Checking if download and unzip actually work
-            if curl -L "https://plugins.jetbrains.com$DOWNLOAD_PATH" -o "/tmp/$plugin_id.zip" && \
-               unzip -o "/tmp/$plugin_id.zip" -d "$PLUGIN_DIR"; then
-                
-                rm "/tmp/$plugin_id.zip"
-                echo "Successfully installed $plugin_id" >> "$LOG_PATH"
-            else
-                echo "Error: Failed to download or extract $plugin_id" >> "$LOG_PATH"
-                # Optional: exit 1 (agar aap chahte ho ki script yahi ruk jaye)
-            fi
+            # Download the plugin zip file to a temporary location
+            curl -L "https://plugins.jetbrains.com$DOWNLOAD_PATH" -o "/tmp/$plugin_id.zip"
+            
+            # Extract the plugin to the JetBrains plugins directory
+            # -o flag overwrites existing files if any
+            unzip -o "/tmp/$plugin_id.zip" -d "$PLUGIN_DIR"
+            
+            # Clean up the temporary zip file
+            rm "/tmp/$plugin_id.zip"
+            echo "Successfully installed $plugin_id" >> "$LOG_PATH"
         else
             echo "Error: Could not find download path for $plugin_id" >> "$LOG_PATH"
         fi
