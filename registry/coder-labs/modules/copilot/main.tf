@@ -173,6 +173,35 @@ variable "post_install_script" {
   default     = null
 }
 
+variable "enable_aibridge_proxy" {
+  type        = bool
+  description = "Route Copilot traffic through AI Bridge Proxy. See https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy"
+  default     = false
+
+  validation {
+    condition     = !var.enable_aibridge_proxy || length(var.aibridge_proxy_auth_url) > 0
+    error_message = "aibridge_proxy_auth_url is required when enable_aibridge_proxy is true."
+  }
+
+  validation {
+    condition     = !var.enable_aibridge_proxy || length(var.aibridge_proxy_cert_path) > 0
+    error_message = "aibridge_proxy_cert_path is required when enable_aibridge_proxy is true."
+  }
+}
+
+variable "aibridge_proxy_auth_url" {
+  type        = string
+  description = "AI Bridge Proxy URL with authentication. Use the proxy_auth_url output from the aibridge-proxy module."
+  default     = ""
+  sensitive   = true
+}
+
+variable "aibridge_proxy_cert_path" {
+  type        = string
+  description = "Path to the AI Bridge Proxy CA certificate. Use the cert_path output from the aibridge-proxy module."
+  default     = ""
+}
+
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
@@ -279,6 +308,9 @@ module "agentapi" {
     ARG_TRUSTED_DIRECTORIES='${join(",", var.trusted_directories)}' \
     ARG_EXTERNAL_AUTH_ID='${var.external_auth_id}' \
     ARG_RESUME_SESSION='${var.resume_session}' \
+    ARG_ENABLE_AIBRIDGE_PROXY='${var.enable_aibridge_proxy}' \
+    ARG_AIBRIDGE_PROXY_AUTH_URL='${var.aibridge_proxy_auth_url}' \
+    ARG_AIBRIDGE_PROXY_CERT_PATH='${var.aibridge_proxy_cert_path}' \
     /tmp/start.sh
   EOT
 

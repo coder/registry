@@ -3,7 +3,7 @@ display_name: Copilot CLI
 description: GitHub Copilot CLI agent for AI-powered terminal assistance
 icon: ../../../../.icons/github.svg
 verified: false
-tags: [agent, copilot, ai, github, tasks]
+tags: [agent, copilot, ai, github, tasks, aibridge]
 ---
 
 # Copilot
@@ -163,6 +163,35 @@ module "copilot" {
   cli_app      = true
 }
 ```
+
+### Usage with AI Bridge Proxy
+
+[AI Bridge Proxy](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy) routes Copilot traffic through [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) for centralized LLM management and governance.
+The proxy environment variables are scoped to the Copilot process only and do not affect other workspace traffic.
+
+```tf
+module "aibridge-proxy" {
+  source    = "registry.coder.com/coder/aibridge-proxy/coder"
+  version   = "1.0.0"
+  agent_id  = coder_agent.main.id
+  proxy_url = "https://aiproxy.example.com"
+}
+
+module "copilot" {
+  source                   = "registry.coder.com/coder-labs/copilot/coder"
+  version                  = "0.4.0"
+  agent_id                 = coder_agent.main.id
+  workdir                  = "/home/coder/projects"
+  enable_aibridge_proxy    = true
+  aibridge_proxy_auth_url  = module.aibridge-proxy.proxy_auth_url
+  aibridge_proxy_cert_path = module.aibridge-proxy.cert_path
+}
+```
+
+> [!NOTE]
+> AI Bridge Proxy is a Premium Coder feature that requires [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) to be enabled.
+> See the [AI Bridge Proxy setup guide](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy/setup) for details on configuring the proxy on your Coder deployment.
+> GitHub authentication is still required for Copilot as the proxy authenticates with AI Bridge using the Coder session token, but does not replace GitHub authentication.
 
 ## Authentication
 
