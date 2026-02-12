@@ -22,6 +22,9 @@ ARG_DENY_TOOLS=${ARG_DENY_TOOLS:-}
 ARG_TRUSTED_DIRECTORIES=${ARG_TRUSTED_DIRECTORIES:-}
 ARG_EXTERNAL_AUTH_ID=${ARG_EXTERNAL_AUTH_ID:-github}
 ARG_RESUME_SESSION=${ARG_RESUME_SESSION:-true}
+ARG_ENABLE_AIBRIDGE_PROXY=${ARG_ENABLE_AIBRIDGE_PROXY:-false}
+ARG_AIBRIDGE_PROXY_AUTH_URL=${ARG_AIBRIDGE_PROXY_AUTH_URL:-}
+ARG_AIBRIDGE_PROXY_CERT_PATH=${ARG_AIBRIDGE_PROXY_CERT_PATH:-}
 
 validate_copilot_installation() {
   if ! command_exists copilot; then
@@ -118,6 +121,40 @@ setup_github_authentication() {
   return 0
 }
 
+setup_aibridge_proxy() {
+  if [ "$ARG_ENABLE_AIBRIDGE_PROXY" != "true" ]; then
+    return 0
+  fi
+
+  echo "Setting up AI Bridge Proxy..."
+
+  if [ -z "$ARG_AIBRIDGE_PROXY_AUTH_URL" ]; then
+    echo "ERROR: AI Bridge Proxy is enabled but no proxy auth URL provided."
+    exit 1
+  fi
+
+  if [ -z "$ARG_AIBRIDGE_PROXY_CERT_PATH" ]; then
+    echo "ERROR: AI Bridge Proxy is enabled but no certificate path provided."
+    exit 1
+  fi
+
+  if [ ! -f "$ARG_AIBRIDGE_PROXY_CERT_PATH" ]; then
+    echo "ERROR: AI Bridge Proxy certificate not found at $ARG_AIBRIDGE_PROXY_CERT_PATH."
+    echo "  Ensure the aibridge-proxy module has completed setup."
+    exit 1
+  fi
+
+  # Set proxy environment variables scoped to this process tree only.
+  # These are inherited by the agentapi/copilot process below,
+  # but do not affect other workspace processes, avoiding routing
+  # unnecessary traffic through the proxy.
+  export HTTPS_PROXY="$ARG_AIBRIDGE_PROXY_AUTH_URL"
+  export NODE_EXTRA_CA_CERTS="$ARG_AIBRIDGE_PROXY_CERT_PATH"
+
+  echo "✓ AI Bridge Proxy configured"
+  echo "  CA certificate: $ARG_AIBRIDGE_PROXY_CERT_PATH"
+}
+
 start_agentapi() {
   echo "Starting in directory: $ARG_WORKDIR"
   cd "$ARG_WORKDIR"
@@ -157,5 +194,6 @@ start_agentapi() {
 }
 
 setup_github_authentication
+setup_aibridge_proxy
 validate_copilot_installation
 start_agentapi
