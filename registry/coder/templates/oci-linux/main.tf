@@ -86,6 +86,7 @@ data "oci_identity_availability_domains" "ads" {
 }
 
 resource "oci_core_instance" "main" {
+  count               = data.coder_workspace.me.start_count
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
   compartment_id      = var.compartment_ocid
   display_name        = "coder-${data.coder_workspace.me.owner}-${data.coder_workspace.me.name}"
