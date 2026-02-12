@@ -54,6 +54,22 @@ describe("parse_jsonc_extensions", () => {
     ]);
   });
 
+  // Hardening: extension IDs can only contain [a-z0-9-] per vsce's nameRegex,
+  // so ",]" / ",}" cannot appear in practice. This test guards against the
+  // trailing-comma removal corrupting arbitrary string values just in case.
+  it("does not strip commas inside string values", async () => {
+    const result = await parseExtensions(`{
+      "recommendations": [
+        "value-with,]-inside",
+        "value-with,}-inside",
+      ]
+    }`);
+    expect(result).toEqual([
+      "value-with,]-inside",
+      "value-with,}-inside",
+    ]);
+  });
+
   it("handles .code-workspace format", async () => {
     const result = await parseExtensions(
       `{

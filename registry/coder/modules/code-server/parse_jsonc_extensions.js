@@ -10,6 +10,7 @@ var fs = require("fs");
 var text = fs.readFileSync(process.env.FILE, "utf8");
 var result = "";
 var inString = false;
+var pendingComma = "";
 var i = 0;
 
 while (i < text.length) {
@@ -24,7 +25,8 @@ while (i < text.length) {
   } else {
     if (text[i] === '"') {
       inString = true;
-      result += text[i++];
+      result += pendingComma + text[i++];
+      pendingComma = "";
       continue;
     }
     if (text[i] === "/" && text[i + 1] === "/") {
@@ -37,11 +39,22 @@ while (i < text.length) {
       i += 2;
       continue;
     }
-    result += text[i++];
+    if (text[i] === ",") {
+      pendingComma = ",";
+      i++;
+      continue;
+    }
+    if (pendingComma && (text[i] === " " || text[i] === "\t" || text[i] === "\n" || text[i] === "\r")) {
+      pendingComma += text[i++];
+      continue;
+    }
+    if (text[i] === "]" || text[i] === "}") {
+      pendingComma = "";
+    }
+    result += pendingComma + text[i++];
+    pendingComma = "";
   }
 }
-
-result = result.replace(/,(\s*[\]}])/g, "$1");
 var data = JSON.parse(result);
 var query = process.env.QUERY || "recommendations";
 var recommendations;
