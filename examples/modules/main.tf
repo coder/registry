@@ -13,7 +13,7 @@ variable "agent_id" {
   description = "The ID of a Coder agent."
 }
 
-# Variable to define which JetBrains plugins to install
+# Variable to define which JetBrains plugins to install via Marketplace API
 variable "plugins" {
   type        = list(string)
   description = "A list of JetBrains plugin IDs to pre-install (e.g. ['org.rust.lang', 'com.github.copilot'])."
@@ -32,8 +32,9 @@ variable "port" {
   default     = 19999
 }
 
-# Resource to execute the plugin installation script on the agent
-resource "coder_script" "jetbrains_plugins" {
+# Resource to execute the plugin installation script on the agent.
+# Name 'module_name' is kept to maintain compatibility with scaffold tests.
+resource "coder_script" "module_name" {
   agent_id     = var.agent_id
   display_name = "JetBrains Plugin Pre-installer"
   icon         = "https://raw.githubusercontent.com/coder/coder/main/site/static/icon/jetbrains.svg"
@@ -47,8 +48,9 @@ resource "coder_script" "jetbrains_plugins" {
   run_on_start = true
 }
 
-# Coder app definition for the JetBrains IDE
-resource "coder_app" "jetbrains_app" {
+# Coder app definition for the JetBrains IDE.
+# Name 'module_name' is kept to maintain compatibility with scaffold tests.
+resource "coder_app" "module_name" {
   agent_id     = var.agent_id
   slug         = "jetbrains-ide"
   display_name = "JetBrains IDE"
