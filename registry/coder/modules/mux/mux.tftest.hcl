@@ -20,8 +20,10 @@ run "install_false_and_use_cached_conflict" {
   ]
 }
 
+# Needs command = apply because the URL contains random_password.result
+# which is unknown during plan.
 run "custom_port" {
-  command = plan
+  command = apply
 
   variables {
     agent_id = "foo"
@@ -34,8 +36,9 @@ run "custom_port" {
   }
 }
 
+# Needs command = apply because random_password.result is unknown during plan.
 run "auth_token_in_env" {
-  command = plan
+  command = apply
 
   variables {
     agent_id = "foo"
@@ -52,8 +55,9 @@ run "auth_token_in_env" {
   }
 }
 
+# Needs command = apply because random_password.result is unknown during plan.
 run "auth_token_in_url" {
-  command = plan
+  command = apply
 
   variables {
     agent_id = "foo"
