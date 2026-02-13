@@ -193,6 +193,10 @@ module "copilot" {
 > See the [AI Bridge Proxy setup guide](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy/setup) for details on configuring the proxy on your Coder deployment.
 > GitHub authentication is still required for Copilot as the proxy authenticates with AI Bridge using the Coder session token, but does not replace GitHub authentication.
 
+> [!IMPORTANT]
+> When using AI Bridge Proxy, enable [startup coordination](https://coder.com/docs/admin/templates/startup-coordination) by setting `CODER_AGENT_SOCKET_SERVER_ENABLED=true` in the workspace container environment.
+> This ensures the Copilot module waits for the `aibridge-proxy` module to complete before starting. Without it, the Copilot start script may fail if the certificate is not yet available.
+
 ## Authentication
 
 The module supports multiple authentication methods (in priority order):
