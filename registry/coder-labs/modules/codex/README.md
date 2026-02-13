@@ -13,7 +13,7 @@ Run Codex CLI in your workspace to access OpenAI's models through the Codex inte
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.1.0"
+  version        = "4.1.1"
   agent_id       = coder_agent.example.id
   openai_api_key = var.openai_api_key
   workdir        = "/home/coder/project"
@@ -32,7 +32,7 @@ module "codex" {
 module "codex" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.1.0"
+  version        = "4.1.1"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   workdir        = "/home/coder/project"
@@ -51,7 +51,7 @@ For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage
 ```tf
 module "codex" {
   source          = "registry.coder.com/coder-labs/codex/coder"
-  version         = "4.1.0"
+  version         = "4.1.1"
   agent_id        = coder_agent.example.id
   workdir         = "/home/coder/project"
   enable_aibridge = true
@@ -94,7 +94,7 @@ data "coder_task" "me" {}
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.1.0"
+  version        = "4.1.1"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   ai_prompt      = data.coder_task.me.prompt
@@ -112,7 +112,7 @@ This example shows additional configuration options for custom models, MCP serve
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.1.0"
+  version        = "4.1.1"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   workdir        = "/home/coder/project"
