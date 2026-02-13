@@ -37,6 +37,23 @@ It is recommended that tool modules scope the proxy environment variables to the
 > If the setup script fails (e.g. the proxy is unreachable), the workspace will still start but the agent will report a startup script error.
 > Tools that depend on the proxy will not work until the issue is resolved. Check the workspace build logs for details.
 
+## Startup Coordination
+
+When used with tool-specific modules (e.g. [Copilot](https://registry.coder.com/modules/coder-labs/copilot)),
+the setup script signals completion via [`coder exp sync`](https://coder.com/docs/admin/templates/startup-coordination) so dependent modules can wait for the `aibridge-proxy` module to complete before starting.
+
+To enable startup coordination, set `CODER_AGENT_SOCKET_SERVER_ENABLED=true` in the workspace container environment:
+
+```hcl
+env = [
+  "CODER_AGENT_TOKEN=${coder_agent.main.token}",
+  "CODER_AGENT_SOCKET_SERVER_ENABLED=true",
+]
+```
+
+> [!NOTE]
+> Startup coordination requires Coder >= v2.30. Without it, the sync calls are skipped gracefully but dependent modules may fail to start if the `aibridge-proxy` setup has not completed in time.
+
 ## Examples
 
 ### Custom certificate path
