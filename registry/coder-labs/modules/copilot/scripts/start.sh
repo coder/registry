@@ -128,6 +128,14 @@ setup_aibridge_proxy() {
 
   echo "Setting up AI Bridge Proxy..."
 
+  # Wait for the aibridge-proxy module to finish.
+  # Uses startup coordination to block until aibridge-proxy-setup signals completion.
+  if command -v coder > /dev/null 2>&1; then
+    coder exp sync want "copilot-aibridge" "aibridge-proxy-setup" || true
+    coder exp sync start "copilot-aibridge" || true
+    trap 'coder exp sync complete "copilot-aibridge" > /dev/null 2>&1 || true' EXIT
+  fi
+
   if [ -z "$ARG_AIBRIDGE_PROXY_AUTH_URL" ]; then
     echo "ERROR: AI Bridge Proxy is enabled but no proxy auth URL provided."
     exit 1
