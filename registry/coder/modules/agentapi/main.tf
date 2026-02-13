@@ -215,7 +215,8 @@ locals {
 }
 
 module "agent-helper" {
-  source          = "git::https://github.com/coder/registry.git//registry/coder/modules/agent-helper?ref=35C4n0r/feat-agent-helper-module"
+  source          = "registry.coder.com/coder/agent-helper/coder"
+  version         = "1.0.0"
   agent_id        = var.agent_id
   agent_name      = var.agent_name
   module_dir_name = var.module_dir_name
