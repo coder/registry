@@ -7,6 +7,10 @@ terraform {
       source  = "coder/coder"
       version = ">= 2.5"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.0"
+    }
   }
 }
 
@@ -113,6 +117,21 @@ variable "open_in" {
   }
 }
 
+# Per-workspace auth token for cross-site request protection.
+# Injected into the Mux server process via coder_env and passed to the
+# browser frontend via the coder_app URL query string (?token=...).
+# The browser persists it to localStorage on first visit.
+resource "random_password" "mux_auth_token" {
+  length  = 64
+  special = false
+}
+
+resource "coder_env" "mux_auth_token" {
+  agent_id = var.agent_id
+  name     = "MUX_SERVER_AUTH_TOKEN"
+  value    = random_password.mux_auth_token.result
+}
+
 resource "coder_script" "mux" {
   agent_id     = var.agent_id
   display_name = var.display_name
@@ -140,7 +159,7 @@ resource "coder_app" "mux" {
   agent_id     = var.agent_id
   slug         = var.slug
   display_name = var.display_name
-  url          = "http://localhost:${var.port}"
+  url          = "http://localhost:${var.port}?token=${random_password.mux_auth_token.result}"
   icon         = "/icon/mux.svg"
   subdomain    = var.subdomain
   share        = var.share
@@ -154,5 +173,3 @@ resource "coder_app" "mux" {
     threshold = 6
   }
 }
-
-
