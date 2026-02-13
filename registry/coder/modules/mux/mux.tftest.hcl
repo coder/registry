@@ -20,7 +20,7 @@ run "install_false_and_use_cached_conflict" {
   ]
 }
 
-# Needs command = apply because the URL contains random_password.result
+# Needs command = apply because the URL contains random_password.result,
 # which is unknown during plan.
 run "custom_port" {
   command = apply
@@ -34,10 +34,15 @@ run "custom_port" {
     condition     = startswith(resource.coder_app.mux.url, "http://localhost:8080?token=")
     error_message = "coder_app URL must use the configured port and include auth token"
   }
+
+  assert {
+    condition     = trimprefix(resource.coder_app.mux.url, "http://localhost:8080?token=") == random_password.mux_auth_token.result
+    error_message = "URL token must match the generated auth token"
+  }
 }
 
 # Needs command = apply because random_password.result is unknown during plan.
-run "auth_token_in_env" {
+run "auth_token_in_server_script" {
   command = apply
 
   variables {
@@ -45,13 +50,13 @@ run "auth_token_in_env" {
   }
 
   assert {
-    condition     = resource.coder_env.mux_auth_token.name == "MUX_SERVER_AUTH_TOKEN"
-    error_message = "MUX_SERVER_AUTH_TOKEN env var must be set"
+    condition     = strcontains(resource.coder_script.mux.script, "MUX_SERVER_AUTH_TOKEN=")
+    error_message = "mux launch script must set MUX_SERVER_AUTH_TOKEN"
   }
 
   assert {
-    condition     = length(resource.coder_env.mux_auth_token.value) == 64
-    error_message = "Auth token must be 64 characters"
+    condition     = strcontains(resource.coder_script.mux.script, random_password.mux_auth_token.result)
+    error_message = "mux launch script must use the generated auth token"
   }
 }
 
@@ -69,8 +74,8 @@ run "auth_token_in_url" {
   }
 
   assert {
-    condition     = resource.coder_env.mux_auth_token.value == random_password.mux_auth_token.result
-    error_message = "env var and URL token must use the same generated secret"
+    condition     = trimprefix(resource.coder_app.mux.url, "http://localhost:4000?token=") == random_password.mux_auth_token.result
+    error_message = "URL token must match the generated auth token"
   }
 }
 

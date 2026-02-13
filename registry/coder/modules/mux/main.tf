@@ -117,19 +117,20 @@ variable "open_in" {
   }
 }
 
-# Per-workspace auth token for cross-site request protection.
-# Injected into the Mux server process via coder_env and passed to the
-# browser frontend via the coder_app URL query string (?token=...).
-# The browser persists it to localStorage on first visit.
+# Per-module auth token for cross-site request protection.
+# We pass this token into each mux process at launch time (process-scoped env)
+# and include it in the app URL query string (?token=...).
+#
+# Why process-scoped env instead of a shared coder_env value:
+# multiple mux module instances can target the same agent (different slug/port).
+# A single global MUX_SERVER_AUTH_TOKEN env key would cause collisions.
 resource "random_password" "mux_auth_token" {
   length  = 64
   special = false
 }
 
-resource "coder_env" "mux_auth_token" {
-  agent_id = var.agent_id
-  name     = "MUX_SERVER_AUTH_TOKEN"
-  value    = random_password.mux_auth_token.result
+locals {
+  mux_auth_token = random_password.mux_auth_token.result
 }
 
 resource "coder_script" "mux" {
@@ -144,6 +145,7 @@ resource "coder_script" "mux" {
     INSTALL_PREFIX : var.install_prefix,
     OFFLINE : !var.install,
     USE_CACHED : var.use_cached,
+    AUTH_TOKEN : local.mux_auth_token,
   })
   run_on_start = true
 
@@ -159,7 +161,7 @@ resource "coder_app" "mux" {
   agent_id     = var.agent_id
   slug         = var.slug
   display_name = var.display_name
-  url          = "http://localhost:${var.port}?token=${random_password.mux_auth_token.result}"
+  url          = "http://localhost:${var.port}?token=${local.mux_auth_token}"
   icon         = "/icon/mux.svg"
   subdomain    = var.subdomain
   share        = var.share

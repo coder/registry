@@ -63,7 +63,7 @@ Start Mux with `mux server --add-project /path/to/project`:
 module "mux" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/mux/coder"
-  version     = "1.0.8"
+  version     = "1.1.0"
   agent_id    = coder_agent.main.id
   add-project = "/path/to/project"
 }
@@ -89,7 +89,7 @@ Run an existing copy of Mux if found, otherwise install from npm:
 module "mux" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/mux/coder"
-  version    = "1.0.8"
+  version    = "1.1.0"
   agent_id   = coder_agent.main.id
   use_cached = true
 }
