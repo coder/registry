@@ -28,7 +28,7 @@ module "agentapi" {
   cli_app_display_name = "Claude CLI"
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
-  agentapi_server_type = "claude"
+  agent_name           = "claude"
   agentapi_term_width  = 67
   agentapi_term_height = 1190
 }
