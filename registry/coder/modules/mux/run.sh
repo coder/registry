@@ -22,11 +22,7 @@ function run_mux() {
   fi
   echo "🚀 Starting mux server on port $port_value..."
   echo "Check logs at ${LOG_PATH}!"
-  if [ -n "$auth_token_value" ]; then
-    MUX_SERVER_AUTH_TOKEN="$auth_token_value" PORT="$port_value" "$MUX_BINARY" "$@" > "${LOG_PATH}" 2>&1 &
-  else
-    PORT="$port_value" "$MUX_BINARY" "$@" > "${LOG_PATH}" 2>&1 &
-  fi
+  MUX_SERVER_AUTH_TOKEN="$auth_token_value" PORT="$port_value" "$MUX_BINARY" "$@" > "${LOG_PATH}" 2>&1 &
 }
 
 # Check if mux is already installed for offline mode
