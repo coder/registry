@@ -76,7 +76,7 @@ install_plugin() {
   file="$(ls)"
 
   # ---------- ZIP plugin ----------
-  if unzip -t "$file" >/dev/null 2>&1; then
+  if unzip -t "$file" > /dev/null 2>&1; then
     unzip -qq "$file"
 
     entries=(*)

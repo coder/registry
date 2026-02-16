@@ -285,13 +285,13 @@ resource "coder_script" "store_ide_config" {
     echo -n "${local.ide_config_b64}" | base64 -d > "$CONFIG_FILE"
     chmod 600 "$CONFIG_FILE"
   EOT
-} 
+}
 
 resource "coder_script" "install_jetbrains_plugins" {
   count        = length(var.jetbrains_plugins) > 0 ? 1 : 0
   agent_id     = var.agent_id
   display_name = "Install JetBrains Plugins"
-  run_on_start = true 
+  run_on_start = true
   depends_on   = [coder_script.store_plugins]
 
   script = <<-EOT
