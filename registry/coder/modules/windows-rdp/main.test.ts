@@ -35,11 +35,6 @@ function findWindowsRdpScript(state: TerraformState): string | null {
   return null;
 }
 
-/**
- * @todo It would be nice if we had a way to verify that the Devolutions root
- * HTML file is modified to include the import for the patched Coder script,
- * but the current test setup doesn't really make that viable
- */
 describe("Web RDP", async () => {
   await runTerraformInit(import.meta.dir);
   testRequiredVariables<TestVariables>(import.meta.dir, {
@@ -69,28 +64,9 @@ describe("Web RDP", async () => {
   });
 
   it("Injects Terraform's username and password into the JS patch file", async () => {
-    /**
-     * Using a regex as a quick-and-dirty way to get at the username and
-     * password values.
-     *
-     * Tried going through the trouble of extracting out the form entries
-     * variable from the main output, converting it from Prettier/JS-based JSON
-     * text to universal JSON text, and exposing it as a parsed JSON value. That
-     * got to be a bit too much, though.
-     *
-     * Regex is a little bit more verbose and pedantic than normal. Want to
-     * have some basic safety nets for validating the structure of the form
-     * entries variable after the JS file has had values injected. Even with all
-     * the wildcard classes set to lazy mode, we want to make sure that they
-     * don't overshoot and grab too much content.
-     *
-     * Written and tested via Regex101
-     * @see {@link https://regex101.com/r/UMgQpv/2}
-     */
     const formEntryValuesRe =
       /username:\s*\{[\s\S]*?value:\s*"(?<username>[^"]+)"[\s\S]*?password:\s*\{[\s\S]*?value:\s*"(?<password>[^"]+)"/;
 
-    // Test that things work with the default username/password
     const defaultState = await runTerraformApply<TestVariables>(
       import.meta.dir,
       {
@@ -107,7 +83,6 @@ describe("Web RDP", async () => {
     expect(defaultResultsGroup.username).toBe("Administrator");
     expect(defaultResultsGroup.password).toBe("coderRDP!");
 
-    // Test that custom usernames/passwords are also forwarded correctly
     const customAdminUsername = "crouton";
     const customAdminPassword = "VeryVeryVeryVeryVerySecurePassword97!";
     const customizedState = await runTerraformApply<TestVariables>(
