@@ -84,6 +84,12 @@ variable "manual_update" {
   default     = false
 }
 
+variable "post_clone_script" {
+  description = "Custom script to run after applying dotfiles. Runs every time, even if dotfiles were already applied."
+  type        = string
+  default     = null
+}
+
 data "coder_parameter" "dotfiles_uri" {
   count        = var.dotfiles_uri == null ? 1 : 0
   type         = "string"
@@ -102,15 +108,17 @@ data "coder_parameter" "dotfiles_uri" {
 }
 
 locals {
-  dotfiles_uri = var.dotfiles_uri != null ? var.dotfiles_uri : data.coder_parameter.dotfiles_uri[0].value
-  user         = var.user != null ? var.user : ""
+  dotfiles_uri              = var.dotfiles_uri != null ? var.dotfiles_uri : data.coder_parameter.dotfiles_uri[0].value
+  user                      = var.user != null ? var.user : ""
+  encoded_post_clone_script = var.post_clone_script != null ? base64encode(var.post_clone_script) : ""
 }
 
 resource "coder_script" "dotfiles" {
   agent_id = var.agent_id
   script = templatefile("${path.module}/run.sh", {
     DOTFILES_URI : local.dotfiles_uri,
-    DOTFILES_USER : local.user
+    DOTFILES_USER : local.user,
+    POST_CLONE_SCRIPT : local.encoded_post_clone_script
   })
   display_name = "Dotfiles"
   icon         = "/icon/dotfiles.svg"
@@ -127,7 +135,8 @@ resource "coder_app" "dotfiles" {
   group        = var.group
   command = templatefile("${path.module}/run.sh", {
     DOTFILES_URI : local.dotfiles_uri,
-    DOTFILES_USER : local.user
+    DOTFILES_USER : local.user,
+    POST_CLONE_SCRIPT : local.encoded_post_clone_script
   })
 }
 
