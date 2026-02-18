@@ -11,6 +11,8 @@ type TestVariables = Readonly<{
   share?: string;
   admin_username?: string;
   admin_password?: string;
+  keepalive?: boolean;
+  keepalive_interval?: number;
 }>;
 
 function findWindowsRdpScript(state: TerraformState): string | null {
@@ -25,6 +27,29 @@ function findWindowsRdpScript(state: TerraformState): string | null {
     for (const instance of resource.instances) {
       if (
         instance.attributes.display_name === "windows-rdp" &&
+        typeof instance.attributes.script === "string"
+      ) {
+        return instance.attributes.script;
+      }
+    }
+  }
+
+  return null;
+}
+
+function findKeepaliveScript(state: TerraformState): string | null {
+  for (const resource of state.resources) {
+    const isKeepaliveScriptResource =
+      resource.type === "coder_script" &&
+      resource.name === "windows-rdp-keepalive";
+
+    if (!isKeepaliveScriptResource) {
+      continue;
+    }
+
+    for (const instance of resource.instances) {
+      if (
+        instance.attributes.display_name === "windows-rdp-keepalive" &&
         typeof instance.attributes.script === "string"
       ) {
         return instance.attributes.script;
@@ -127,5 +152,40 @@ describe("Web RDP", async () => {
 
     expect(customResultsGroup.username).toBe(customAdminUsername);
     expect(customResultsGroup.password).toBe(customAdminPassword);
+  });
+
+  it("Does not create keepalive script when keepalive is disabled (default)", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "foo",
+    });
+
+    const keepaliveScript = findKeepaliveScript(state);
+    expect(keepaliveScript).toBeNull();
+  });
+
+  it("Creates keepalive script when keepalive is enabled", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "foo",
+      keepalive: true,
+    });
+
+    const keepaliveScript = findKeepaliveScript(state);
+    expect(keepaliveScript).toBeString();
+    expect(keepaliveScript).toContain("Get-NetTCPConnection");
+    expect(keepaliveScript).toContain("-LocalPort 3389");
+    expect(keepaliveScript).toContain("coder stat connectivity");
+  });
+
+  it("Uses correct keepalive interval", async () => {
+    const customInterval = 600;
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "foo",
+      keepalive: true,
+      keepalive_interval: customInterval,
+    });
+
+    const keepaliveScript = findKeepaliveScript(state);
+    expect(keepaliveScript).toBeString();
+    expect(keepaliveScript).toContain(`$checkInterval = ${customInterval}`);
   });
 });
