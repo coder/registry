@@ -254,50 +254,26 @@ data "coder_parameter" "jetbrains_ides" {
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
-resource "coder_script" "store_plugins" {
-  count        = length(var.jetbrains_plugins) > 0 ? 1 : 0
-  agent_id     = var.agent_id
-  display_name = "Store JetBrains Plugins List"
-  run_on_start = true
-  script       = <<-EOT
-    #!/bin/sh
-    set -eu
-
-    mkdir -p "$HOME/.config/jetbrains"
-    echo -n "${local.plugin_map_b64}" | base64 -d > "$HOME/.config/jetbrains/plugins.json"
-    chmod 600 "$HOME/.config/jetbrains/plugins.json"
-  EOT
-}
-
-resource "coder_script" "store_ide_config" {
-  agent_id     = var.agent_id
-  display_name = "Store JetBrains IDE Config"
-  run_on_start = true
-
-  script = <<-EOT
-    #!/bin/sh
-    set -eu
-
-    CONFIG_DIR="$HOME/.config/jetbrains"
-    CONFIG_FILE="$CONFIG_DIR/ide_config.json"
-
-    mkdir -p "$CONFIG_DIR"
-    echo -n "${local.ide_config_b64}" | base64 -d > "$CONFIG_FILE"
-    chmod 600 "$CONFIG_FILE"
-  EOT
-}
-
 resource "coder_script" "install_jetbrains_plugins" {
   count        = length(var.jetbrains_plugins) > 0 ? 1 : 0
   agent_id     = var.agent_id
   display_name = "Install JetBrains Plugins"
   run_on_start = true
-  depends_on   = [coder_script.store_plugins, coder_script.store_ide_config]
 
   script = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
+
+    CONFIG_DIR="$HOME/.config/jetbrains"
+
+    mkdir -p "$CONFIG_DIR"
+    echo -n "${local.plugin_map_b64}" | base64 -d > "$CONFIG_DIR/plugins.json"
+    chmod 600 "$CONFIG_DIR/plugins.json"
+
+    echo -n "${local.ide_config_b64}" | base64 -d > "$CONFIG_DIR/ide_config.json"
+    chmod 600 "$CONFIG_DIR/ide_config.json"
+
     echo -n '${base64encode(local.plugin_install_script)}' | base64 -d > /tmp/install_plugins.sh
     chmod +x /tmp/install_plugins.sh
     nohup /tmp/install_plugins.sh > /tmp/install_plugins.log 2>&1 &
