@@ -59,6 +59,12 @@ variable "web_app_display_name" {
   default     = "Claude Code"
 }
 
+variable "web_app_hidden" {
+  type        = bool
+  description = "Whether to hide the web app from the dashboard UI. The app still exists and functions (healthchecks, task status reporting), but is not visible in the workspace app list. Requires Coder v2.16+."
+  default     = false
+}
+
 variable "cli_app_display_name" {
   type        = string
   description = "Display name for the CLI app"
@@ -364,6 +370,7 @@ module "agentapi" {
   web_app_group        = var.group
   web_app_icon         = var.icon
   web_app_display_name = var.web_app_display_name
+  web_app_hidden       = var.web_app_hidden
   folder               = local.workdir
   cli_app              = var.cli_app
   cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null

@@ -47,6 +47,12 @@ variable "web_app_slug" {
   description = "The slug of the web app."
 }
 
+variable "web_app_hidden" {
+  type        = bool
+  description = "Whether to hide the web app from the dashboard UI. The app still exists and functions (healthchecks, task status), but is not visible in the workspace app list. Requires Coder v2.16+."
+  default     = false
+}
+
 variable "folder" {
   type        = string
   description = "The folder to run AgentAPI in."
@@ -242,6 +248,7 @@ resource "coder_app" "agentapi_web" {
   order        = var.web_app_order
   group        = var.web_app_group
   subdomain    = var.agentapi_subdomain
+  hidden       = var.web_app_hidden
   healthcheck {
     url       = "http://localhost:${var.agentapi_port}/status"
     interval  = 3
