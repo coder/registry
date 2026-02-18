@@ -186,6 +186,7 @@ resource "coder_script" "vscode-web" {
     FOLDER : var.folder,
     WORKSPACE : var.workspace,
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
+    PARSE_JSONC_JS : file("${path.module}/parse_jsonc_extensions.js"),
     SERVER_BASE_PATH : local.server_base_path,
     COMMIT_ID : var.commit_id,
     PLATFORM : var.platform,

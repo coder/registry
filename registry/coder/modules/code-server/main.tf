@@ -175,6 +175,7 @@ resource "coder_script" "code-server" {
     FOLDER : var.folder,
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
     ADDITIONAL_ARGS : var.additional_args,
+    PARSE_JSONC_JS : file("${path.module}/parse_jsonc_extensions.js"),
   })
   run_on_start = true
 
