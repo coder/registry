@@ -42,7 +42,7 @@ module "jetbrains" {
   version  = "1.3.0"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
-  default  = ["PY", "IU"] # Pre-configure GoLand and IntelliJ IDEA
+  default  = ["PY", "IU"] # Pre-configure PyCharm and IntelliJ IDEA
 }
 ```
 
