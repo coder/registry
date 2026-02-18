@@ -43,3 +43,14 @@ if [ -n "$${DOTFILES_URI// }" ]; then
     sudo -u "$DOTFILES_USER" "$CODER_BIN" dotfiles "$DOTFILES_URI" -y 2>&1 | tee "$DOTFILES_USER_HOME/.dotfiles.log"
   fi
 fi
+
+POST_CLONE_SCRIPT="${POST_CLONE_SCRIPT}"
+
+if [ -n "$POST_CLONE_SCRIPT" ]; then
+  echo "Running post-clone script..."
+  POST_CLONE_TMP=$(mktemp)
+  echo "$POST_CLONE_SCRIPT" | base64 -d > "$POST_CLONE_TMP"
+  chmod +x "$POST_CLONE_TMP"
+  $POST_CLONE_TMP
+  rm "$POST_CLONE_TMP"
+fi
