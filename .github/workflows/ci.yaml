@@ -12,9 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Detect changed files
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
         id: filter
         with:
           list-files: shell
@@ -37,9 +37,9 @@ jobs:
             all:
               - '**'
       - name: Set up Terraform
-        uses: coder/coder/.github/actions/setup-tf@main
+        uses: coder/coder/.github/actions/setup-tf@b5360a9180613328a62d64efcfaac5a31980c746 # v2.29.2
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2
         with:
           # We're using the latest version of Bun for now, but it might be worth
           # reconsidering. They've pushed breaking changes in patch releases
@@ -80,20 +80,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Install Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2
         with:
           bun-version: latest
       # Need Terraform for its formatter
       - name: Install Terraform
-        uses: coder/coder/.github/actions/setup-tf@main
+        uses: coder/coder/.github/actions/setup-tf@b5360a9180613328a62d64efcfaac5a31980c746 # v2.29.2
       - name: Install dependencies
         run: bun install
       - name: Validate formatting
         run: bun fmt:ci
       - name: Check for typos
-        uses: crate-ci/typos@v1.42.0
+        uses: crate-ci/typos@65120634e79d8374d1aa2f27e54baa0c364fff5a # v1.42.1
         with:
           config: .github/typos.toml
   validate-readme-files:
@@ -104,9 +104,9 @@ jobs:
     needs: validate-style
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
         with:
           go-version: "1.24.0"
       - name: Validate contributors

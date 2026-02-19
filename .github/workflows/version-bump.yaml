@@ -20,26 +20,28 @@ jobs:
       issues: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2
         with:
           bun-version: latest
 
       - name: Set up Terraform
-        uses: coder/coder/.github/actions/setup-tf@main
+        uses: coder/coder/.github/actions/setup-tf@b5360a9180613328a62d64efcfaac5a31980c746 # v2.29.2
 
       - name: Install dependencies
         run: bun install
 
       - name: Extract bump type from label
+        env:
+          LABEL_NAME: ${{ github.event.label.name }}
         id: bump-type
         run: |
-          case "${{ github.event.label.name }}" in
+          case "$LABEL_NAME" in
             "version:patch")
               echo "type=patch" >> $GITHUB_OUTPUT
               ;;
@@ -50,7 +52,7 @@ jobs:
               echo "type=major" >> $GITHUB_OUTPUT
               ;;
             *)
-              echo "Invalid version label: ${{ github.event.label.name }}"
+              echo "Invalid version label: ${LABEL_NAME}"
               exit 1
               ;;
           esac
@@ -60,7 +62,7 @@ jobs:
 
       - name: Comment on PR - Version bump required
         if: failure()
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

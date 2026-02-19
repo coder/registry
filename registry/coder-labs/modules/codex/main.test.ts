@@ -113,7 +113,7 @@ describe("codex", async () => {
       sandbox_mode = "danger-full-access"
       approval_policy = "never"
       preferred_auth_method = "apikey"
-      
+
       [custom_section]
       new_feature = true
     `.trim();
@@ -189,7 +189,7 @@ describe("codex", async () => {
       args = ["-y", "@modelcontextprotocol/server-github"]
       type = "stdio"
       description = "GitHub integration"
-      
+
       [mcp_servers.FileSystem]
       command = "npx"
       args = ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]
@@ -215,7 +215,7 @@ describe("codex", async () => {
       approval_policy = "untrusted"
       preferred_auth_method = "chatgpt"
       custom_setting = "test-value"
-      
+
       [advanced_settings]
       timeout = 30000
       debug = true
@@ -228,7 +228,7 @@ describe("codex", async () => {
       args = ["--serve", "--port", "8080"]
       type = "stdio"
       description = "Custom development tool"
-      
+
       [mcp_servers.DatabaseMCP]
       command = "python"
       args = ["-m", "database_mcp_server"]
@@ -453,5 +453,33 @@ describe("codex", async () => {
       `Starting Codex with arguments: --model gpt-4-turbo resume ${mockSessionId}`,
     );
     expect(startLog.stdout).not.toContain("test prompt");
+  });
+
+  test("codex-with-aibridge", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        enable_aibridge: "true",
+        model_reasoning_effort: "none",
+      },
+    });
+
+    await execModuleScript(id);
+
+    const startLog = await readFileContainer(
+      id,
+      "/home/coder/.codex-module/agentapi-start.log",
+    );
+
+    const configToml = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    expect(startLog).toContain("AI Bridge is enabled, using profile aibridge");
+    expect(startLog).toContain(
+      "Starting Codex with arguments: --profile aibridge",
+    );
+    expect(configToml).toContain(
+      "[profiles.aibridge]\n" + 'model_provider = "aibridge"',
+    );
   });
 });

@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.9"
 
   required_providers {
     coder = {
@@ -71,6 +71,27 @@ variable "cli_app_display_name" {
   default     = "Codex CLI"
 }
 
+variable "enable_aibridge" {
+  type        = bool
+  description = "Use AI Bridge for Codex. https://coder.com/docs/ai-coder/ai-bridge"
+  default     = false
+
+  validation {
+    condition     = !(var.enable_aibridge && length(var.openai_api_key) > 0)
+    error_message = "openai_api_key cannot be provided when enable_aibridge is true. AI Bridge automatically authenticates the client using Coder credentials."
+  }
+}
+
+variable "model_reasoning_effort" {
+  type        = string
+  description = "The reasoning effort for the AI Bridge model. One of: none, low, medium, high. https://platform.openai.com/docs/guides/latest-model#lower-reasoning-effort"
+  default     = "medium"
+  validation {
+    condition     = contains(["none", "low", "medium", "high"], var.model_reasoning_effort)
+    error_message = "model_reasoning_effort must be one of: none, low, medium, high."
+  }
+}
+
 variable "install_codex" {
   type        = bool
   description = "Whether to install Codex."
@@ -110,13 +131,13 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.11.6"
+  default     = "v0.11.8"
 }
 
 variable "codex_model" {
   type        = string
-  description = "The model for Codex to use. Defaults to gpt-5.1-codex-max."
-  default     = ""
+  description = "The model for Codex to use. Defaults to gpt-5.2-codex."
+  default     = "gpt-5.2-codex"
 }
 
 variable "pre_install_script" {
@@ -155,12 +176,31 @@ resource "coder_env" "openai_api_key" {
   value    = var.openai_api_key
 }
 
+resource "coder_env" "coder_aibridge_session_token" {
+  count    = var.enable_aibridge ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CODER_AIBRIDGE_SESSION_TOKEN"
+  value    = data.coder_workspace_owner.me.session_token
+}
+
 locals {
   workdir         = trimsuffix(var.workdir, "/")
   app_slug        = "codex"
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".codex-module"
+  aibridge_config = <<-EOF
+  [model_providers.aibridge]
+  name = "AI Bridge"
+  base_url = "${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1"
+  env_key = "CODER_AIBRIDGE_SESSION_TOKEN"
+  wire_api = "responses"
+
+  [profiles.aibridge]
+  model_provider = "aibridge"
+  model = "${var.codex_model}"
+  model_reasoning_effort = "${var.model_reasoning_effort}"
+  EOF
 }
 
 module "agentapi" {
@@ -196,6 +236,7 @@ module "agentapi" {
      ARG_CODEX_START_DIRECTORY='${local.workdir}' \
      ARG_CODEX_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
      ARG_CONTINUE='${var.continue}' \
+     ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
      /tmp/start.sh
    EOT
 
@@ -211,6 +252,8 @@ module "agentapi" {
     ARG_INSTALL='${var.install_codex}' \
     ARG_CODEX_VERSION='${var.codex_version}' \
     ARG_BASE_CONFIG_TOML='${base64encode(var.base_config_toml)}' \
+    ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
+    ARG_AIBRIDGE_CONFIG='${base64encode(var.enable_aibridge ? local.aibridge_config : "")}' \
     ARG_ADDITIONAL_MCP_SERVERS='${base64encode(var.additional_mcp_servers)}' \
     ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_CODEX_START_DIRECTORY='${local.workdir}' \
