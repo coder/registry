@@ -27,6 +27,10 @@ get_build_for_code() {
   jq -r --arg CODE "$1" '.[$CODE].build' "$IDE_CONFIG"
 }
 
+get_name_for_code() {
+  jq -r --arg CODE "$1" '.[$CODE].name' "$IDE_CONFIG"
+}
+
 get_data_dir_for_code() {
   local code="$1"
   local build="$2"
@@ -36,7 +40,7 @@ get_data_dir_for_code() {
   local year
   local minor
 
-  name="$(jq -r --arg CODE "$code" '.[$CODE].name' "$IDE_CONFIG")"
+  name="$(get_name_for_code "$code")"
 
   # build = 253.29346.142 → prefix = 253
   build_prefix="${build%%.*}"
@@ -55,6 +59,9 @@ install_plugin() {
   local dataDir="$3"
   local pluginId="$4"
 
+  local name
+  name="$(get_name_for_code "$code")"
+
   local plugins_dir="$IDE_BASE/$dataDir"
   mkdir -p "$plugins_dir"
 
@@ -64,7 +71,7 @@ install_plugin() {
   workdir="$(mktemp -d)"
   cd "$workdir"
 
-  log "Downloading $pluginId ($code-$build)"
+  log "[$name]" "Downloading $pluginId ($code-$build)"
 
   if ! curl -fsSL -OJ "$url"; then
     log "Download failed: $pluginId"
@@ -80,14 +87,14 @@ install_plugin() {
     unzip -qq "$file"
 
     entries=(*)
-    log "Extracted $file, found entries: ${entries[*]}"
+    log "[$name]" "Extracted $file, found entries: ${entries[*]}"
 
     if [ -d "${entries[0]}" ] && [ -d "${entries[0]}/lib" ]; then
       cp -r "${entries[0]}" "$plugins_dir/"
-      log "Installed ZIP plugin $pluginId"
+      log "[$name]" "Installed ZIP plugin $pluginId"
     elif [[ "$file" == *.jar ]]; then
       cp "$file" "$plugins_dir/"
-      log "Installed JAR plugin $pluginId"
+      log "[$name]" "Installed JAR plugin $pluginId"
     fi
   fi
 
