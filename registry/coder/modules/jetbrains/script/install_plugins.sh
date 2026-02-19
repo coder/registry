@@ -3,6 +3,7 @@ set -euo pipefail
 
 LOGFILE="$HOME/.config/jetbrains/install_plugins.log"
 CONFIG_DIR="$HOME/.config/jetbrains"
+IDE_CONFIG="$CONFIG_DIR/ide_config.json"
 PLUGIN_MAP="$CONFIG_DIR/plugins.json"
 IDE_BASE="$HOME/.local/share/JetBrains"
 
@@ -23,18 +24,7 @@ get_plugins_for_code() {
 }
 
 get_build_for_code() {
-  case "$1" in
-    CL) echo "253.29346.141" ;;
-    GO) echo "253.28294.337" ;;
-    IU) echo "253.29346.138" ;;
-    PS) echo "253.29346.151" ;;
-    PY) echo "253.29346.142" ;;
-    RD) echo "253.29346.144" ;;
-    RM) echo "253.29346.140" ;;
-    RR) echo "253.29346.139" ;;
-    WS) echo "253.29346.143" ;;
-    *) return 1 ;;
-  esac
+  jq -r --arg CODE "$1" '.[$CODE].build' "$IDE_CONFIG"
 }
 
 get_name_for_code() {
@@ -46,7 +36,7 @@ get_name_for_code() {
     PY) echo "PyCharm" ;;
     RD) echo "Rider" ;;
     RM) echo "RubyMine" ;;
-    RR) echo "ReSharper" ;;
+    RR) echo "RustRover" ;;
     WS) echo "WebStorm" ;;
     *) return 1 ;;
   esac
@@ -127,6 +117,7 @@ install_plugin() {
 log "Plugin installer started (build-based mode)"
 
 [ ! -f "$PLUGIN_MAP" ] && log "No plugins.json found" && exit 0
+[ ! -f "$IDE_CONFIG" ] && log "No ide_config.json found" && exit 0
 
 get_enabled_codes | while read -r code; do
   build="$(get_build_for_code "$code")"
