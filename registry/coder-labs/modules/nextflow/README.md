@@ -10,8 +10,6 @@ tags: [nextflow, workflow, hpc, bioinformatics]
 
 A module that adds Nextflow to your Coder template.
 
-![Nextflow](../../.images/nextflow.png)
-
 ```tf
 module "nextflow" {
   count    = data.coder_workspace.me.start_count

@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.12"
+      version = ">= 2.13"
     }
   }
 }
@@ -17,6 +17,8 @@ variable "agent_id" {
 data "coder_workspace" "me" {}
 
 data "coder_workspace_owner" "me" {}
+
+data "coder_task" "me" {}
 
 variable "web_app_order" {
   type        = number
@@ -126,6 +128,12 @@ variable "agentapi_port" {
   default     = 3284
 }
 
+variable "task_log_snapshot" {
+  type        = bool
+  description = "Capture last 10 messages when workspace stops for offline viewing while task is paused."
+  default     = true
+}
+
 locals {
   # agentapi_subdomain_false_min_version_expr matches a semantic version >= v0.3.3.
   # Initial support was added in v0.3.1 but configuration via environment variable
@@ -173,6 +181,7 @@ locals {
   //     for backward compatibility.
   agentapi_chat_base_path = var.agentapi_subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${var.web_app_slug}/chat"
   main_script             = file("${path.module}/scripts/main.sh")
+  shutdown_script         = file("${path.module}/scripts/agentapi-shutdown.sh")
 }
 
 resource "coder_script" "agentapi" {
@@ -198,9 +207,30 @@ resource "coder_script" "agentapi" {
     ARG_POST_INSTALL_SCRIPT="$(echo -n '${local.encoded_post_install_script}' | base64 -d)" \
     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     ARG_AGENTAPI_CHAT_BASE_PATH='${local.agentapi_chat_base_path}' \
+    ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
+    ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
     /tmp/main.sh
     EOT
   run_on_start = true
+}
+
+resource "coder_script" "agentapi_shutdown" {
+  agent_id     = var.agent_id
+  display_name = "AgentAPI Shutdown"
+  icon         = var.web_app_icon
+  run_on_stop  = true
+  script       = <<-EOT
+    #!/bin/bash
+    set -o pipefail
+
+    echo -n '${base64encode(local.shutdown_script)}' | base64 -d > /tmp/agentapi-shutdown.sh
+    chmod +x /tmp/agentapi-shutdown.sh
+
+    ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
+    ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
+    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
+    /tmp/agentapi-shutdown.sh
+    EOT
 }
 
 resource "coder_app" "agentapi_web" {

@@ -36,19 +36,40 @@ variable "default_dotfiles_uri" {
   type        = string
   description = "The default dotfiles URI if the workspace user does not provide one"
   default     = ""
+
+  validation {
+    condition = (
+      var.default_dotfiles_uri == "" ||
+      can(regex("^(https?://|ssh://|git@|git://)[a-zA-Z0-9._/:@-]+$", var.default_dotfiles_uri))
+    )
+    error_message = "Must be a valid dotfiles repository URL (https, git@, or git://) without special characters."
+  }
 }
 
 variable "dotfiles_uri" {
   type        = string
   description = "The URL to a dotfiles repository. (optional, when set, the user isn't prompted for their dotfiles)"
+  default     = null
 
-  default = null
+  validation {
+    condition = (
+      var.dotfiles_uri == null ||
+      var.dotfiles_uri == "" ||
+      can(regex("^(https?://|ssh://|git@|git://)[a-zA-Z0-9._/:@-]+$", var.dotfiles_uri))
+    )
+    error_message = "Must be a valid dotfiles repository URL (https, git@, or git://) without special characters."
+  }
 }
 
 variable "user" {
   type        = string
   description = "The name of the user to apply the dotfiles to. (optional, applies to the current user by default)"
   default     = null
+
+  validation {
+    condition     = var.user == null || can(regex("^[a-zA-Z_][a-zA-Z0-9_-]*$", var.user))
+    error_message = "Must be a valid username without special characters."
+  }
 }
 
 variable "coder_parameter_order" {
@@ -63,6 +84,12 @@ variable "manual_update" {
   default     = false
 }
 
+variable "post_clone_script" {
+  description = "Custom script to run after applying dotfiles. Runs every time, even if dotfiles were already applied."
+  type        = string
+  default     = null
+}
+
 data "coder_parameter" "dotfiles_uri" {
   count        = var.dotfiles_uri == null ? 1 : 0
   type         = "string"
@@ -73,18 +100,25 @@ data "coder_parameter" "dotfiles_uri" {
   description  = var.description
   mutable      = true
   icon         = "/icon/dotfiles.svg"
+
+  validation {
+    regex = "^$|^(https?://|ssh://|git@|git://)[a-zA-Z0-9._/:@-]+$"
+    error = "Must be a valid dotfiles repository URL (https, git@, or git://) without special characters."
+  }
 }
 
 locals {
-  dotfiles_uri = var.dotfiles_uri != null ? var.dotfiles_uri : data.coder_parameter.dotfiles_uri[0].value
-  user         = var.user != null ? var.user : ""
+  dotfiles_uri              = var.dotfiles_uri != null ? var.dotfiles_uri : data.coder_parameter.dotfiles_uri[0].value
+  user                      = var.user != null ? var.user : ""
+  encoded_post_clone_script = var.post_clone_script != null ? base64encode(var.post_clone_script) : ""
 }
 
 resource "coder_script" "dotfiles" {
   agent_id = var.agent_id
   script = templatefile("${path.module}/run.sh", {
     DOTFILES_URI : local.dotfiles_uri,
-    DOTFILES_USER : local.user
+    DOTFILES_USER : local.user,
+    POST_CLONE_SCRIPT : local.encoded_post_clone_script
   })
   display_name = "Dotfiles"
   icon         = "/icon/dotfiles.svg"
@@ -101,7 +135,8 @@ resource "coder_app" "dotfiles" {
   group        = var.group
   command = templatefile("${path.module}/run.sh", {
     DOTFILES_URI : local.dotfiles_uri,
-    DOTFILES_USER : local.user
+    DOTFILES_USER : local.user,
+    POST_CLONE_SCRIPT : local.encoded_post_clone_script
   })
 }
 

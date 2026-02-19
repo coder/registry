@@ -9,7 +9,9 @@ function run_mux() {
   rm -f "$HOME/.mux/server.lock"
 
   local port_value
+  local auth_token_value
   port_value="${PORT}"
+  auth_token_value="${AUTH_TOKEN}"
   if [ -z "$port_value" ]; then
     port_value="4000"
   fi
@@ -20,7 +22,7 @@ function run_mux() {
   fi
   echo "🚀 Starting mux server on port $port_value..."
   echo "Check logs at ${LOG_PATH}!"
-  PORT="$port_value" "$MUX_BINARY" "$@" > "${LOG_PATH}" 2>&1 &
+  MUX_SERVER_AUTH_TOKEN="$auth_token_value" PORT="$port_value" "$MUX_BINARY" "$@" > "${LOG_PATH}" 2>&1 &
 }
 
 # Check if mux is already installed for offline mode
