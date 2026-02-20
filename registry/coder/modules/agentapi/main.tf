@@ -164,6 +164,23 @@ variable "module_dir_name" {
   description = "Name of the subdirectory in the home directory for module files."
 }
 
+variable "enable_state_persistence" {
+  type        = bool
+  description = "Enable AgentAPI conversation state persistence across restarts."
+  default     = true
+}
+
+variable "state_file_path" {
+  type        = string
+  description = "Path to the AgentAPI state file. Defaults to $HOME/<module_dir_name>/state.json."
+  default     = ""
+}
+
+variable "pid_file_path" {
+  type        = string
+  description = "Path to the AgentAPI PID file. Defaults to $HOME/<module_dir_name>/agentapi.pid."
+  default     = ""
+}
 
 locals {
   # we always trim the slash for consistency
@@ -182,6 +199,7 @@ locals {
   agentapi_chat_base_path = var.agentapi_subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${var.web_app_slug}/chat"
   main_script             = file("${path.module}/scripts/main.sh")
   shutdown_script         = file("${path.module}/scripts/agentapi-shutdown.sh")
+  lib_script              = file("${path.module}/scripts/lib.sh")
 }
 
 resource "coder_script" "agentapi" {
@@ -195,6 +213,7 @@ resource "coder_script" "agentapi" {
 
     echo -n '${base64encode(local.main_script)}' | base64 -d > /tmp/main.sh
     chmod +x /tmp/main.sh
+    echo -n '${base64encode(local.lib_script)}' | base64 -d > /tmp/agentapi-lib.sh
 
     ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
     ARG_WORKDIR="$(echo -n '${base64encode(local.workdir)}' | base64 -d)" \
@@ -209,6 +228,9 @@ resource "coder_script" "agentapi" {
     ARG_AGENTAPI_CHAT_BASE_PATH='${local.agentapi_chat_base_path}' \
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
+    ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
+    ARG_STATE_FILE_PATH='${var.state_file_path}' \
+    ARG_PID_FILE_PATH='${var.pid_file_path}' \
     /tmp/main.sh
     EOT
   run_on_start = true
@@ -225,10 +247,14 @@ resource "coder_script" "agentapi_shutdown" {
 
     echo -n '${base64encode(local.shutdown_script)}' | base64 -d > /tmp/agentapi-shutdown.sh
     chmod +x /tmp/agentapi-shutdown.sh
+    echo -n '${base64encode(local.lib_script)}' | base64 -d > /tmp/agentapi-lib.sh
 
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
+    ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
+    ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
+    ARG_PID_FILE_PATH='${var.pid_file_path}' \
     /tmp/agentapi-shutdown.sh
     EOT
 }
