@@ -118,4 +118,5 @@ resource "coder_script" "git_config_user_email" {
 
     git config --global user.email "${local.git_user_email}"
   EOT
+  count        = data.coder_workspace_owner.me.email != "" ? 1 : 0
 }
