@@ -45,12 +45,13 @@ describe("mux", async () => {
     }
   }, 60000);
 
-  it("parses custom server_command arguments", async () => {
+  it("parses custom additional_arguments", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       install: false,
       log_path: "/tmp/mux.log",
-      server_command: "--open-mode pinned --add-project '/workspaces/my repo'",
+      additional_arguments:
+        "--open-mode pinned --add-project '/workspaces/my repo'",
     });
 
     const instance = findResourceInstance(state, "coder_script");

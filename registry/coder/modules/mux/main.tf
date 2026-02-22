@@ -55,9 +55,9 @@ variable "add-project" {
   default     = null
 }
 
-variable "server_command" {
+variable "additional_arguments" {
   type        = string
-  description = "Additional arguments for `mux server` (for example: `--add-project /path --open-mode pinned`)."
+  description = "Additional command-line arguments to pass to `mux server` (for example: `--add-project /path --open-mode pinned`)."
   default     = ""
 }
 
@@ -148,7 +148,7 @@ resource "coder_script" "mux" {
     PORT : var.port,
     LOG_PATH : var.log_path,
     ADD_PROJECT : var.add-project == null ? "" : var.add-project,
-    SERVER_COMMAND : var.server_command,
+    ADDITIONAL_ARGUMENTS : var.additional_arguments,
     INSTALL_PREFIX : var.install_prefix,
     OFFLINE : !var.install,
     USE_CACHED : var.use_cached,

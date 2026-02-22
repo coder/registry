@@ -71,16 +71,16 @@ module "mux" {
 
 ### Pass Arbitrary `mux server` Arguments
 
-Use `server_command` to append additional arguments to `mux server`.
+Use `additional_arguments` to append additional arguments to `mux server`.
 The module parses quoted values, so grouped arguments remain intact.
 
 ```tf
 module "mux" {
-  count          = data.coder_workspace.me.start_count
-  source         = "registry.coder.com/coder/mux/coder"
-  version        = "1.2.0"
-  agent_id       = coder_agent.main.id
-  server_command = "--open-mode pinned --add-project '/workspaces/my repo'"
+  count                = data.coder_workspace.me.start_count
+  source               = "registry.coder.com/coder/mux/coder"
+  version              = "1.2.0"
+  agent_id             = coder_agent.main.id
+  additional_arguments = "--open-mode pinned --add-project '/workspaces/my repo'"
 }
 ```
 

@@ -22,17 +22,17 @@ function run_mux() {
   fi
 
   # Parse additional user-supplied server arguments while preserving quoted groups.
-  if [ -n "${SERVER_COMMAND}" ]; then
-    local parsed_server_command
-    if ! parsed_server_command="$(printf "%s\n" "${SERVER_COMMAND}" | xargs -n1 printf "%s\n" 2> /dev/null)"; then
-      echo "❌ Failed to parse server_command. Ensure quotes are balanced."
+  if [ -n "${ADDITIONAL_ARGUMENTS}" ]; then
+    local parsed_additional_arguments
+    if ! parsed_additional_arguments="$(printf "%s\n" "${ADDITIONAL_ARGUMENTS}" | xargs -n1 printf "%s\n" 2> /dev/null)"; then
+      echo "❌ Failed to parse additional_arguments. Ensure quotes are balanced."
       exit 1
     fi
     while IFS= read -r parsed_arg; do
       [ -n "$parsed_arg" ] || continue
       set -- "$@" "$parsed_arg"
     done << EOF
-$${parsed_server_command}
+$${parsed_additional_arguments}
 EOF
   fi
 
