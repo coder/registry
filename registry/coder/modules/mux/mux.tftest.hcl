@@ -79,6 +79,20 @@ run "auth_token_in_url" {
   }
 }
 
+run "custom_server_command" {
+  command = plan
+
+  variables {
+    agent_id       = "foo"
+    server_command = "--open-mode pinned --add-project '/workspaces/my repo'"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "--open-mode pinned --add-project '/workspaces/my repo'")
+    error_message = "mux launch script must include the configured server command arguments"
+  }
+}
+
 run "custom_version" {
   command = plan
 
