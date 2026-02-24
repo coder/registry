@@ -53,7 +53,7 @@ variable "display_name" {
 variable "mcp" {
   type        = string
   description = "JSON-encoded string to configure MCP servers for Antigravity. When set, writes $HOME/.gemini/antigravity/mcp_config.json."
-  default     = ""
+  default     = null
 }
 
 data "coder_workspace" "me" {}
@@ -73,7 +73,7 @@ module "vscode-desktop-core" {
 
   folder      = var.folder
   open_recent = var.open_recent
-  mcp_config  = var.mcp
+  mcp_config  = var.mcp != null ? jsondecode(var.mcp) : null # turn MCP JSON string into map(any) for vscode-desktop-core module
 
   protocol      = "antigravity"
   config_folder = "$HOME/.gemini/antigravity"

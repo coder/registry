@@ -99,6 +99,7 @@ describe("antigravity", async () => {
 
   it("writes ~/.gemini/antigravity/mcp_config.json when mcp provided", async () => {
     const id = await runContainer("alpine");
+
     try {
       const mcp = JSON.stringify({
         servers: { demo: { url: "http://localhost:1234" } },
@@ -108,7 +109,7 @@ describe("antigravity", async () => {
         agent_id: "foo",
         mcp,
       });
-      
+
       const script = findResourceInstance(
         state,
         "coder_script",
@@ -121,6 +122,7 @@ describe("antigravity", async () => {
         console.log(resp.stderr);
       }
       expect(resp.exitCode).toBe(0);
+
       const content = await readFileContainer(
         id,
         "/root/.gemini/antigravity/mcp_config.json",

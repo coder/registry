@@ -54,8 +54,7 @@ data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
 module "vscode-desktop-core" {
-  source  = "registry.coder.com/coder/vscode-desktop-core/coder"
-  version = "1.0.0"
+  source = "git::https://github.com/coder/registry.git//registry/coder/modules/vscode-desktop-core?ref=phorcys/vscode-desktop-core-mcp"
 
   agent_id = var.agent_id
 
@@ -67,7 +66,9 @@ module "vscode-desktop-core" {
 
   folder      = var.folder
   open_recent = var.open_recent
-  protocol    = "positron"
+
+  protocol      = "positron"
+  config_folder = "$HOME/.positron" # TODO: verify this
 }
 
 output "positron_url" {

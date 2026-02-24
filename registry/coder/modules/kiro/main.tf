@@ -41,19 +41,18 @@ variable "group" {
 variable "mcp" {
   type        = string
   description = "JSON-encoded string to configure MCP servers for Kiro. When set, writes ~/.kiro/settings/mcp.json."
-  default     = ""
+  default     = null
 }
 
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
 locals {
-  mcp_b64 = var.mcp != "" ? base64encode(var.mcp) : ""
+  mcp_b64 = var.mcp != null ? base64encode(var.mcp) : null
 }
 
 module "vscode-desktop-core" {
-  source  = "registry.coder.com/coder/vscode-desktop-core/coder"
-  version = "1.0.0"
+  source = "git::https://github.com/coder/registry.git//registry/coder/modules/vscode-desktop-core?ref=phorcys/vscode-desktop-core-mcp"
 
   agent_id = var.agent_id
 
@@ -65,11 +64,14 @@ module "vscode-desktop-core" {
 
   folder      = var.folder
   open_recent = var.open_recent
-  protocol    = "kiro"
+  # TODO: set mcp_config instead of coder_script
+
+  protocol      = "kiro"
+  config_folder = "$HOME/.kiro"
 }
 
 resource "coder_script" "kiro_mcp" {
-  count              = var.mcp != "" ? 1 : 0
+  count              = var.mcp != null ? 1 : 0
   agent_id           = var.agent_id
   display_name       = "Kiro MCP"
   icon               = "/icon/kiro.svg"

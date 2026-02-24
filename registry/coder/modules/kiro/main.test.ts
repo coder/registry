@@ -58,7 +58,7 @@ describe("kiro", async () => {
     );
   });
 
-  it("writes ~/.kiro/settings/mcp.json when mcp provided", async () => {
+  it("writes ~/.kiro/settings/mcp.json when var.mcp provided", async () => {
     const id = await runContainer("alpine");
     try {
       const mcp = JSON.stringify({

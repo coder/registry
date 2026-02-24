@@ -79,7 +79,7 @@ describe("cursor", async () => {
     );
   });
 
-  it("writes ~/.cursor/mcp.json when mcp provided", async () => {
+  it("writes ~/.cursor/mcp.json when var.mcp provided", async () => {
     const id = await runContainer("alpine");
     try {
       const mcp = JSON.stringify({
