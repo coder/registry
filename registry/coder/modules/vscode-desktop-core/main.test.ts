@@ -3,6 +3,11 @@ import {
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
+  runContainer,
+  execContainer,
+  removeContainer,
+  findResourceInstance,
+  readFileContainer,
 } from "~test";
 
 // hardcoded coder_app name in main.tf
@@ -16,6 +21,7 @@ const defaultVariables = {
   coder_app_display_name: "VS Code Desktop",
 
   protocol: "vscode",
+  config_folder: "$HOME/.vscode"
 };
 
 describe("vscode-desktop-core", async () => {
@@ -134,4 +140,41 @@ describe("vscode-desktop-core", async () => {
       expect(coder_app?.instances[0].attributes.group).toBe("web-app-group");
     });
   });
+
+  it("writes mcp_config.json when mcp_config variable provided", async () => {
+    const id = await runContainer("alpine");
+
+    try {
+      const mcp_config = JSON.stringify({
+        servers: { demo: { url: "http://localhost:1234" } },
+      });
+
+      const state = await runTerraformApply(import.meta.dir, {
+        ...defaultVariables,
+
+        mcp_config,
+      });
+
+      const script = findResourceInstance(
+        state,
+        "coder_script",
+        "vscode-desktop-mcp",
+      ).script;
+
+      const resp = await execContainer(id, ["sh", "-c", script]);
+      if (resp.exitCode !== 0) {
+        console.log(resp.stdout);
+        console.log(resp.stderr);
+      }
+      expect(resp.exitCode).toBe(0);
+
+      const content = await readFileContainer(
+        id,
+        `${defaultVariables.config_folder.replace("$HOME", "/root")}/mcp_config.json`,
+      );
+      expect(content).toBe(mcp_config);
+    } finally {
+      await removeContainer(id);
+    }
+  }, 10000);
 });
