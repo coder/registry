@@ -345,12 +345,25 @@ if [ "${OFFLINE}" = true ]; then
   exit 1
 fi
 
+# Wait for VS Code Web server to be ready
+wait_for_server() {
+  printf "Waiting for VS Code Web to be ready...\n"
+  for i in $(seq 1 30); do
+    if curl -s -o /dev/null "http://127.0.0.1:${PORT}" 2> /dev/null; then
+      printf "VS Code Web is ready.\n"
+      return 0
+    fi
+    sleep 1
+  done
+  printf "Warning: VS Code Web did not become ready in time. Extensions may not be installed.\n"
+  return 1
+}
+
 # Handle use_cached mode
 if [ "${USE_CACHED}" = true ] && [ -n "$CODE_CMD" ]; then
   printf "Using cached VS Code CLI.\n"
   run_vscode_web_cli "$CODE_CMD"
-  sleep 2
-  install_extensions "$CODE_CMD"
+  wait_for_server && install_extensions "$CODE_CMD"
   exit 0
 fi
 
@@ -363,5 +376,4 @@ fi
 
 # Run VS Code Web first (extensions need the server running)
 run_vscode_web_cli "$CODE_CMD"
-sleep 2
-install_extensions "$CODE_CMD"
+wait_for_server && install_extensions "$CODE_CMD"
