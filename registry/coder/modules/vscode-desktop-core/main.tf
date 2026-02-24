@@ -27,9 +27,9 @@ variable "open_recent" {
 }
 
 variable "mcp_config" {
-  type        = string
-  description = "JSON-encoded string to configure MCP servers for the IDE. When set, writes mcp_config.json in var.config_folder."
-  default     = ""
+  type        = map(any)
+  description = "MCP server configuration for the IDE. When set, writes mcp_config.json in var.config_folder."
+  default     = null
 }
 
 variable "protocol" {
@@ -100,7 +100,7 @@ resource "coder_app" "vscode-desktop" {
 
 resource "coder_script" "vscode-desktop-mcp" {
   agent_id = var.agent_id
-  count    = var.mcp_config != "" ? 1 : 0
+  count    = var.mcp_config != null ? 1 : 0
 
   icon         = var.coder_app_icon
   display_name = "${var.coder_app_display_name} MCP"
@@ -116,7 +116,7 @@ resource "coder_script" "vscode-desktop-mcp" {
     IDE_MCP_CONFIG_PATH="$IDE_CONFIG_FOLDER/mcp_config.json"
 
     mkdir -p "$IDE_CONFIG_FOLDER"
-    echo -n "${base64encode(var.mcp_config)}" | base64 -d > "$IDE_MCP_CONFIG_PATH"
+    echo -n "${base64encode(jsonencode(var.mcp_config))}" | base64 -d > "$IDE_MCP_CONFIG_PATH"
     chmod 600 "$IDE_MCP_CONFIG_PATH"
   EOT
 }
