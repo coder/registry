@@ -41,13 +41,13 @@ variable "group" {
 variable "slug" {
   type        = string
   description = "The slug of the app."
-  default     = "cursor"
+  default     = "positron"
 }
 
 variable "display_name" {
   type        = string
   description = "The display name of the app."
-  default     = "Cursor Desktop"
+  default     = "Positron Desktop"
 }
 
 data "coder_workspace" "me" {}
@@ -55,7 +55,7 @@ data "coder_workspace_owner" "me" {}
 
 module "vscode-desktop-core" {
   source  = "registry.coder.com/coder/vscode-desktop-core/coder"
-  version = "1.0.0"
+  version = "1.0.2"
 
   agent_id = var.agent_id
 
