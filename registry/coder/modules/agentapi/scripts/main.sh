@@ -118,7 +118,7 @@ export AGENTAPI_PID_FILE="${PID_FILE_PATH:-$module_path/agentapi.pid}"
 if [ "${ENABLE_STATE_PERSISTENCE}" = "true" ]; then
   actual_version=$(agentapi_version)
   if version_at_least 0.12.0 "$actual_version"; then
-    export AGENTAPI_STATE_FILE="${STATE_FILE_PATH:-$module_path/state.json}"
+    export AGENTAPI_STATE_FILE="${STATE_FILE_PATH:-$module_path/agentapi-state.json}"
     export AGENTAPI_SAVE_STATE="true"
     export AGENTAPI_LOAD_STATE="true"
   else

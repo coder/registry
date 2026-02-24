@@ -172,7 +172,7 @@ variable "enable_state_persistence" {
 
 variable "state_file_path" {
   type        = string
-  description = "Path to the AgentAPI state file. Defaults to $HOME/<module_dir_name>/state.json."
+  description = "Path to the AgentAPI state file. Defaults to $HOME/<module_dir_name>/agentapi-state.json."
   default     = ""
 }
 

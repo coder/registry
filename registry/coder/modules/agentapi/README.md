@@ -68,7 +68,7 @@ AgentAPI can save and restore conversation state across workspace restarts.
 This is enabled by default and requires agentapi binary >= v0.12.0.
 
 State and PID files are stored in `$HOME/<module_dir_name>/` alongside other
-module files (e.g. `$HOME/.claude-module/state.json`).
+module files (e.g. `$HOME/.claude-module/agentapi-state.json`).
 
 To disable:
 

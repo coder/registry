@@ -308,7 +308,7 @@ describe("agentapi", async () => {
       "/home/coder/agentapi-mock.log",
     );
     expect(mockLog).toContain(
-      `AGENTAPI_STATE_FILE: /home/coder/${moduleDirName}/state.json`,
+      `AGENTAPI_STATE_FILE: /home/coder/${moduleDirName}/agentapi-state.json`,
     );
     expect(mockLog).toContain(
       `AGENTAPI_PID_FILE: /home/coder/${moduleDirName}/agentapi.pid`,
