@@ -53,19 +53,14 @@ variable "display_name" {
 variable "mcp" {
   type        = string
   description = "JSON-encoded string to configure MCP servers for Windsurf. When set, writes ~/.codeium/windsurf/mcp_config.json."
-  default     = ""
+  default     = null
 }
 
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
-locals {
-  mcp_b64 = var.mcp != "" ? base64encode(var.mcp) : ""
-}
-
 module "vscode-desktop-core" {
-  source  = "registry.coder.com/coder/vscode-desktop-core/coder"
-  version = "1.0.0"
+  source = "git::https://github.com/coder/registry.git//registry/coder/modules/vscode-desktop-core?ref=phorcys/vscode-desktop-core-mcp"
 
   agent_id = var.agent_id
 
@@ -77,23 +72,10 @@ module "vscode-desktop-core" {
 
   folder      = var.folder
   open_recent = var.open_recent
-  protocol    = "windsurf"
-}
+  mcp_config  = var.mcp != null ? jsondecode(var.mcp) : null # turn MCP JSON string into map(any) for vscode-desktop-core module
 
-resource "coder_script" "windsurf_mcp" {
-  count              = var.mcp != "" ? 1 : 0
-  agent_id           = var.agent_id
-  display_name       = "Windsurf MCP"
-  icon               = "/icon/windsurf.svg"
-  run_on_start       = true
-  start_blocks_login = false
-  script             = <<-EOT
-    #!/bin/sh
-    set -eu
-    mkdir -p "$HOME/.codeium/windsurf"
-    echo -n "${local.mcp_b64}" | base64 -d > "$HOME/.codeium/windsurf/mcp_config.json"
-    chmod 600 "$HOME/.codeium/windsurf/mcp_config.json"
-  EOT
+  protocol      = "windsurf"
+  config_folder = "$HOME/.codeium/windsurf"
 }
 
 output "windsurf_url" {

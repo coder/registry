@@ -52,53 +52,34 @@ variable "display_name" {
 
 variable "mcp" {
   type        = string
-  description = "JSON-encoded string to configure MCP servers for Antigravity. When set, writes ~/.gemini/antigravity/mcp_config.json."
-  default     = ""
+  description = "JSON-encoded string to configure MCP servers for Antigravity. When set, writes $HOME/.gemini/antigravity/mcp_config.json."
+  default     = null
 }
 
 data "coder_workspace" "me" {}
 
 data "coder_workspace_owner" "me" {}
 
-locals {
-  mcp_b64 = var.mcp != "" ? base64encode(var.mcp) : ""
-}
-
 module "vscode-desktop-core" {
-  source  = "registry.coder.com/coder/vscode-desktop-core/coder"
-  version = "1.0.1"
+  source = "git::https://github.com/coder/registry.git//registry/coder/modules/vscode-desktop-core?ref=phorcys/vscode-desktop-core-mcp"
 
   agent_id = var.agent_id
 
-  web_app_icon         = "/icon/antigravity.svg"
-  web_app_slug         = var.slug
-  web_app_display_name = var.display_name
-  web_app_order        = var.order
-  web_app_group        = var.group
+  coder_app_icon         = "/icon/antigravity.svg"
+  coder_app_slug         = var.slug
+  coder_app_display_name = var.display_name
+  coder_app_order        = var.order
+  coder_app_group        = var.group
 
   folder      = var.folder
   open_recent = var.open_recent
-  protocol    = "antigravity"
-}
+  mcp_config  = var.mcp != null ? jsondecode(var.mcp) : null # turn MCP JSON string into map(any) for vscode-desktop-core module
 
-resource "coder_script" "antigravity_mcp" {
-  count              = var.mcp != "" ? 1 : 0
-  agent_id           = var.agent_id
-  display_name       = "Antigravity MCP"
-  icon               = "/icon/antigravity.svg"
-  run_on_start       = true
-  start_blocks_login = false
-  script             = <<-EOT
-    #!/bin/sh
-    set -eu
-    mkdir -p "$HOME/.gemini/antigravity"
-    echo -n "${local.mcp_b64}" | base64 -d > "$HOME/.gemini/antigravity/mcp_config.json"
-    chmod 600 "$HOME/.gemini/antigravity/mcp_config.json"
-  EOT
+  protocol      = "antigravity"
+  config_folder = "$HOME/.gemini/antigravity"
 }
 
 output "antigravity_url" {
   value       = module.vscode-desktop-core.ide_uri
   description = "Antigravity IDE URL."
 }
-
