@@ -81,26 +81,34 @@ describe("cursor", async () => {
 
   it("writes ~/.cursor/mcp.json when var.mcp provided", async () => {
     const id = await runContainer("alpine");
+
     try {
       const mcp = JSON.stringify({
         servers: { demo: { url: "http://localhost:1234" } },
       });
+
       const state = await runTerraformApply(import.meta.dir, {
         agent_id: "foo",
         mcp,
       });
+
       const script = findResourceInstance(
         state,
         "coder_script",
-        "cursor_mcp",
+        "vscode-desktop-mcp", // from "vscode-desktop-core" module
       ).script;
+
       const resp = await execContainer(id, ["sh", "-c", script]);
       if (resp.exitCode !== 0) {
         console.log(resp.stdout);
         console.log(resp.stderr);
       }
       expect(resp.exitCode).toBe(0);
-      const content = await readFileContainer(id, "/root/.cursor/mcp.json");
+
+      const content = await readFileContainer(
+        id,
+        "/root/.cursor/mcp.json",
+      );
       expect(content).toBe(mcp);
     } finally {
       await removeContainer(id);

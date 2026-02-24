@@ -52,17 +52,12 @@ variable "display_name" {
 
 variable "mcp" {
   type        = string
-  description = "JSON-encoded string to configure MCP servers for Cursor. When set, writes ~/.cursor/mcp.json."
+  description = "JSON-encoded string to configure MCP servers for Cursor. When set, writes $HOME/.cursor/mcp.json."
   default     = null
 }
 
 data "coder_workspace" "me" {}
-
 data "coder_workspace_owner" "me" {}
-
-locals {
-  mcp_b64 = var.mcp != null ? base64encode(var.mcp) : null
-}
 
 module "vscode-desktop-core" {
   source = "git::https://github.com/coder/registry.git//registry/coder/modules/vscode-desktop-core?ref=phorcys/vscode-desktop-core-mcp"
@@ -77,26 +72,10 @@ module "vscode-desktop-core" {
 
   folder      = var.folder
   open_recent = var.open_recent
-  # TODO: set mcp_config instead of coder_script
+  mcp_config  = var.mcp != null ? jsondecode(var.mcp) : null # turn MCP JSON string into map(any) for vscode-desktop-core module
 
   protocol      = "cursor"
   config_folder = "$HOME/.cursor"
-}
-
-resource "coder_script" "cursor_mcp" {
-  count              = var.mcp != null ? 1 : 0
-  agent_id           = var.agent_id
-  display_name       = "Cursor MCP"
-  icon               = "/icon/cursor.svg"
-  run_on_start       = true
-  start_blocks_login = false
-  script             = <<-EOT
-    #!/bin/sh
-    set -eu
-    mkdir -p "$HOME/.cursor"
-    echo -n "${local.mcp_b64}" | base64 -d > "$HOME/.cursor/mcp.json"
-    chmod 600 "$HOME/.cursor/mcp.json"
-  EOT
 }
 
 output "cursor_url" {
