@@ -108,7 +108,7 @@ resource "coder_script" "vscode-desktop-mcp" {
   run_on_start       = true
   start_blocks_login = false
 
-  script             = <<-EOT
+  script = <<-EOT
     #!/bin/sh
     set -euo pipefail
 

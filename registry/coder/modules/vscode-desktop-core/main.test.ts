@@ -21,7 +21,7 @@ const defaultVariables = {
   coder_app_display_name: "VS Code Desktop",
 
   protocol: "vscode",
-  config_folder: "$HOME/.vscode"
+  config_folder: "$HOME/.vscode",
 };
 
 describe("vscode-desktop-core", async () => {
