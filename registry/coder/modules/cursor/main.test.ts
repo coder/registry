@@ -105,10 +105,7 @@ describe("cursor", async () => {
       }
       expect(resp.exitCode).toBe(0);
 
-      const content = await readFileContainer(
-        id,
-        "/root/.cursor/mcp.json",
-      );
+      const content = await readFileContainer(id, "/root/.cursor/mcp.json");
       expect(content).toBe(mcp);
     } finally {
       await removeContainer(id);

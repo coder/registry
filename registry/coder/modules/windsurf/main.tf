@@ -52,7 +52,7 @@ variable "display_name" {
 
 variable "mcp" {
   type        = string
-  description = "JSON-encoded string to configure MCP servers for Windsurf. When set, writes ~/.codeium/windsurf/mcp_config.json."
+  description = "JSON-encoded string to configure MCP servers for Windsurf. When set, writes $HOME/.codeium/windsurf/mcp_config.json."
   default     = null
 }
 
