@@ -41,13 +41,13 @@ variable "group" {
 variable "slug" {
   type        = string
   description = "The slug of the app."
-  default     = "cursor"
+  default     = "positron"
 }
 
 variable "display_name" {
   type        = string
   description = "The display name of the app."
-  default     = "Cursor Desktop"
+  default     = "Positron Desktop"
 }
 
 data "coder_workspace" "me" {}
