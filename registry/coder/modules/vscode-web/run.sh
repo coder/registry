@@ -345,11 +345,11 @@ if [ "${OFFLINE}" = true ]; then
   exit 1
 fi
 
-# Wait for VS Code Web server to be ready
+# Wait for VS Code Web server to be fully ready (server downloads on first run)
 wait_for_server() {
   printf "Waiting for VS Code Web to be ready...\n"
   for i in $(seq 1 30); do
-    if curl -s -o /dev/null "http://127.0.0.1:${PORT}" 2> /dev/null; then
+    if grep -q "Extension host agent started" "${LOG_PATH}" 2> /dev/null; then
       printf "VS Code Web is ready.\n"
       return 0
     fi
