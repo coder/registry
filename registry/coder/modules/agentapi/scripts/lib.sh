@@ -26,6 +26,7 @@ version_at_least() {
   local min_minor="${BASH_REMATCH[2]}"
   local min_patch="${BASH_REMATCH[3]}"
 
+  # Arithmetic expressions set exit status: 0 (true) if non-zero, 1 (false) if zero.
   if ((act_major != min_major)); then
     ((act_major > min_major))
     return
