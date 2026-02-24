@@ -116,8 +116,12 @@ resource "coder_script" "vscode-desktop-mcp" {
     IDE_MCP_CONFIG_PATH="$IDE_CONFIG_FOLDER/mcp_config.json"
 
     mkdir -p "$IDE_CONFIG_FOLDER"
+
     echo -n "${base64encode(jsonencode(var.mcp_config))}" | base64 -d > "$IDE_MCP_CONFIG_PATH"
     chmod 600 "$IDE_MCP_CONFIG_PATH"
+
+    # Cursor/Windsurf use this config instead, no need for chmod as symlinks do not have modes
+    ln -s "$IDE_MCP_CONFIG_PATH" "$IDE_CONFIG_FOLDER/mcp.json"
   EOT
 }
 
