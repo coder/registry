@@ -51,9 +51,9 @@ module "vscode-web" {
 }
 ```
 
-### Pre-configure Settings
+### Pre-configure Machine Settings
 
-Configure VS Code's [settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-json-file) file:
+Configure VS Code's [Machine settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-json-file). These settings are merged with any existing machine settings on startup:
 
 ```tf
 module "vscode-web" {
@@ -68,6 +68,8 @@ module "vscode-web" {
   accept_license = true
 }
 ```
+
+> **Note:** Merging settings requires `jq` or `python3`. If neither is available, existing machine settings will be preserved. User settings configured through the VS Code UI are stored in browser local storage and will not persist across different browsers or devices.
 
 ### Open an existing workspace on startup
 

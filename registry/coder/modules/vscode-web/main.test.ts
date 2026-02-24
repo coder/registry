@@ -500,7 +500,7 @@ chmod +x /usr/local/bin/code`,
       expect(parentDirResult.stdout).toContain("Machine");
     });
 
-    it("does not overwrite existing settings file", async () => {
+    it("merges settings with existing settings file", async () => {
       const state = await runTerraformApply(import.meta.dir, {
         agent_id: "foo",
         accept_license: true,
@@ -510,7 +510,15 @@ chmod +x /usr/local/bin/code`,
       const containerId = await runContainer("ubuntu:22.04");
       cleanupContainers.push(containerId);
 
-      // Create a mock code CLI
+      // Install jq and create mock code CLI
+      await execContainer(containerId, ["apt-get", "update", "-qq"]);
+      await execContainer(containerId, [
+        "apt-get",
+        "install",
+        "-y",
+        "-qq",
+        "jq",
+      ]);
       await execContainer(containerId, [
         "bash",
         "-c",
@@ -532,17 +540,18 @@ chmod +x /usr/local/bin/code`,
 
       await execContainer(containerId, ["bash", "-c", script.script]);
 
-      // Check that existing settings file was NOT overwritten
+      // Check that settings were merged (both existing and new should be present)
       const settingsResult = await execContainer(containerId, [
         "cat",
         "/root/.vscode-server/data/Machine/settings.json",
       ]);
 
       expect(settingsResult.exitCode).toBe(0);
-      // Should contain existing setting, not the new one
+      // Should contain both existing and new settings
       expect(settingsResult.stdout).toContain("existing.setting");
       expect(settingsResult.stdout).toContain("existing_value");
-      expect(settingsResult.stdout).not.toContain("new.setting");
+      expect(settingsResult.stdout).toContain("new.setting");
+      expect(settingsResult.stdout).toContain("new_value");
     });
 
     it("creates valid JSON settings file", async () => {

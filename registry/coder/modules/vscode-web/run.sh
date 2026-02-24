@@ -5,6 +5,47 @@ RESET='\033[0m'
 CODE='\033[36;40;1m'
 EXTENSIONS=("${EXTENSIONS}")
 
+# Merge settings from module with existing settings file
+# Uses jq if available, falls back to Python3 for deep merge
+merge_settings() {
+  local new_settings="$1"
+  local settings_file="$2"
+
+  if [ -z "$new_settings" ] || [ "$new_settings" = "{}" ]; then
+    return 0
+  fi
+
+  if [ ! -f "$settings_file" ]; then
+    mkdir -p "$(dirname "$settings_file")"
+    printf '%s\n' "$new_settings" > "$settings_file"
+    printf "Creating settings file...\n"
+    return 0
+  fi
+
+  local tmpfile
+  tmpfile="$(mktemp)"
+
+  if command -v jq > /dev/null 2>&1; then
+    if jq -s '.[0] * .[1]' "$settings_file" <(printf '%s\n' "$new_settings") > "$tmpfile" 2> /dev/null; then
+      mv "$tmpfile" "$settings_file"
+      printf "Merging settings...\n"
+      return 0
+    fi
+  fi
+
+  if command -v python3 > /dev/null 2>&1; then
+    if python3 -c "import json,sys;m=lambda a,b:{**a,**{k:m(a[k],v)if k in a and type(a[k])==type(v)==dict else v for k,v in b.items()}};print(json.dumps(m(json.load(open(sys.argv[1])),json.loads(sys.argv[2])),indent=2))" "$settings_file" "$new_settings" > "$tmpfile" 2> /dev/null; then
+      mv "$tmpfile" "$settings_file"
+      printf "Merging settings...\n"
+      return 0
+    fi
+  fi
+
+  rm -f "$tmpfile"
+  printf "Warning: Could not merge settings. Keeping existing settings.\n"
+  return 0
+}
+
 # Set extension directory argument
 EXTENSION_ARG=""
 if [ -n "${EXTENSIONS_DIR}" ]; then
@@ -251,11 +292,11 @@ install_extensions() {
   fi
 }
 
-# Create settings file if it doesn't exist
-if [ ! -f ~/.vscode-server/data/Machine/settings.json ]; then
-  printf "Creating settings file...\n"
-  mkdir -p ~/.vscode-server/data/Machine
-  echo "${SETTINGS}" > ~/.vscode-server/data/Machine/settings.json
+# Apply machine settings (merge with existing if present)
+SETTINGS_B64='${SETTINGS_B64}'
+if [ -n "$SETTINGS_B64" ]; then
+  SETTINGS_JSON="$(echo -n "$SETTINGS_B64" | base64 -d)"
+  merge_settings "$SETTINGS_JSON" ~/.vscode-server/data/Machine/settings.json
 fi
 
 # Determine which command to use

@@ -99,7 +99,7 @@ variable "group" {
 
 variable "settings" {
   type        = any
-  description = "A map of settings to apply to VS Code web."
+  description = "A map of settings to apply to VS Code Web's Machine settings. These settings are merged with any existing machine settings on startup."
   default     = {}
 }
 
@@ -167,6 +167,10 @@ variable "commit_id" {
 data "coder_workspace_owner" "me" {}
 data "coder_workspace" "me" {}
 
+locals {
+  settings_b64 = var.settings != {} ? base64encode(jsonencode(var.settings)) : ""
+}
+
 resource "coder_script" "vscode-web" {
   agent_id     = var.agent_id
   display_name = "VS Code Web"
@@ -177,8 +181,7 @@ resource "coder_script" "vscode-web" {
     INSTALL_PREFIX : var.install_prefix,
     EXTENSIONS : join(",", var.extensions),
     TELEMETRY_LEVEL : var.telemetry_level,
-    // This is necessary otherwise the quotes are stripped!
-    SETTINGS : replace(jsonencode(var.settings), "\"", "\\\""),
+    SETTINGS_B64 : local.settings_b64,
     OFFLINE : var.offline,
     USE_CACHED : var.use_cached,
     DISABLE_TRUST : var.disable_trust,
