@@ -12,12 +12,18 @@ ARG_CLAUDE_CODE_VERSION=${ARG_CLAUDE_CODE_VERSION:-}
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
 ARG_INSTALL_CLAUDE_CODE=${ARG_INSTALL_CLAUDE_CODE:-}
 ARG_CLAUDE_BINARY_PATH=${ARG_CLAUDE_BINARY_PATH:-"$HOME/.local/bin"}
+ARG_CLAUDE_BINARY_PATH="${ARG_CLAUDE_BINARY_PATH/#\~/$HOME}"
+ARG_CLAUDE_BINARY_PATH="${ARG_CLAUDE_BINARY_PATH//\$HOME/$HOME}"
 ARG_INSTALL_VIA_NPM=${ARG_INSTALL_VIA_NPM:-false}
 ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
 ARG_MCP=$(echo -n "${ARG_MCP:-}" | base64 -d)
+ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n "${ARG_MCP_CONFIG_REMOTE_PATH:-}" | base64 -d)
 ARG_ALLOWED_TOOLS=${ARG_ALLOWED_TOOLS:-}
 ARG_DISALLOWED_TOOLS=${ARG_DISALLOWED_TOOLS:-}
+ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
+
+export PATH="$ARG_CLAUDE_BINARY_PATH:$PATH"
 
 echo "--------------------------------"
 
@@ -29,44 +35,71 @@ printf "ARG_INSTALL_VIA_NPM: %s\n" "$ARG_INSTALL_VIA_NPM"
 printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
 printf "ARG_MCP_APP_STATUS_SLUG: %s\n" "$ARG_MCP_APP_STATUS_SLUG"
 printf "ARG_MCP: %s\n" "$ARG_MCP"
+printf "ARG_MCP_CONFIG_REMOTE_PATH: %s\n" "$ARG_MCP_CONFIG_REMOTE_PATH"
 printf "ARG_ALLOWED_TOOLS: %s\n" "$ARG_ALLOWED_TOOLS"
 printf "ARG_DISALLOWED_TOOLS: %s\n" "$ARG_DISALLOWED_TOOLS"
+printf "ARG_ENABLE_AIBRIDGE: %s\n" "$ARG_ENABLE_AIBRIDGE"
 
 echo "--------------------------------"
 
+function add_mcp_servers() {
+  local mcp_json="$1"
+  local source_desc="$2"
+
+  while IFS= read -r server_name && IFS= read -r server_json; do
+    echo "------------------------"
+    echo "Executing: claude mcp add-json \"$server_name\" '$server_json' ($source_desc)"
+    claude mcp add-json "$server_name" "$server_json" || echo "Warning: Failed to add MCP server '$server_name', continuing..."
+    echo "------------------------"
+    echo ""
+  done < <(echo "$mcp_json" | jq -r '.mcpServers | to_entries[] | .key, (.value | @json)')
+}
+
+function add_path_to_shell_profiles() {
+  local path_dir="$1"
+
+  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    if [ -f "$profile" ]; then
+      if ! grep -q "$path_dir" "$profile" 2> /dev/null; then
+        echo "export PATH=\"\$PATH:$path_dir\"" >> "$profile"
+        echo "Added $path_dir to $profile"
+      fi
+    fi
+  done
+
+  local fish_config="$HOME/.config/fish/config.fish"
+  if [ -f "$fish_config" ]; then
+    if ! grep -q "$path_dir" "$fish_config" 2> /dev/null; then
+      echo "fish_add_path $path_dir" >> "$fish_config"
+      echo "Added $path_dir to $fish_config"
+    fi
+  fi
+}
+
 function ensure_claude_in_path() {
-  if [ -z "${CODER_SCRIPT_BIN_DIR:-}" ]; then
-    echo "CODER_SCRIPT_BIN_DIR not set, skipping PATH setup"
+  local CLAUDE_BIN=""
+  if command -v claude > /dev/null 2>&1; then
+    CLAUDE_BIN=$(command -v claude)
+  elif [ -x "$ARG_CLAUDE_BINARY_PATH/claude" ]; then
+    CLAUDE_BIN="$ARG_CLAUDE_BINARY_PATH/claude"
+  elif [ -x "$HOME/.local/bin/claude" ]; then
+    CLAUDE_BIN="$HOME/.local/bin/claude"
+  fi
+
+  if [ -z "$CLAUDE_BIN" ] || [ ! -x "$CLAUDE_BIN" ]; then
+    echo "Warning: Could not find claude binary"
     return
   fi
 
-  if [ ! -e "$CODER_SCRIPT_BIN_DIR/claude" ]; then
-    local CLAUDE_BIN=""
-    if command -v claude > /dev/null 2>&1; then
-      CLAUDE_BIN=$(command -v claude)
-    elif [ -x "$ARG_CLAUDE_BINARY_PATH/claude" ]; then
-      CLAUDE_BIN="$ARG_CLAUDE_BINARY_PATH/claude"
-    elif [ -x "$HOME/.local/bin/claude" ]; then
-      CLAUDE_BIN="$HOME/.local/bin/claude"
-    fi
+  local CLAUDE_DIR
+  CLAUDE_DIR=$(dirname "$CLAUDE_BIN")
 
-    if [ -n "$CLAUDE_BIN" ] && [ -x "$CLAUDE_BIN" ]; then
-      ln -s "$CLAUDE_BIN" "$CODER_SCRIPT_BIN_DIR/claude"
-      echo "Created symlink: $CODER_SCRIPT_BIN_DIR/claude -> $CLAUDE_BIN"
-    else
-      echo "Warning: Could not find claude binary to symlink"
-    fi
-  else
-    echo "Claude already available in CODER_SCRIPT_BIN_DIR"
+  if [ -n "${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$CODER_SCRIPT_BIN_DIR/claude" ]; then
+    ln -s "$CLAUDE_BIN" "$CODER_SCRIPT_BIN_DIR/claude"
+    echo "Created symlink: $CODER_SCRIPT_BIN_DIR/claude -> $CLAUDE_BIN"
   fi
 
-  local marker="# Added by claude-code module"
-  for profile in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
-    if [ -f "$profile" ] && ! grep -q "$marker" "$profile" 2> /dev/null; then
-      printf "\n%s\nexport PATH=\"%s:\$PATH\"\n" "$marker" "$CODER_SCRIPT_BIN_DIR" >> "$profile"
-      echo "Added $CODER_SCRIPT_BIN_DIR to PATH in $profile"
-    fi
-  done
+  add_path_to_shell_profiles "$CLAUDE_DIR"
 }
 
 function install_claude_code_cli() {
@@ -76,8 +109,9 @@ function install_claude_code_cli() {
     return
   fi
 
-  # Use npm when install_via_npm is true or for specific version pinning
-  if [ "$ARG_INSTALL_VIA_NPM" = "true" ] || { [ -n "$ARG_CLAUDE_CODE_VERSION" ] && [ "$ARG_CLAUDE_CODE_VERSION" != "latest" ]; }; then
+  # Use npm when install_via_npm is true
+  if [ "$ARG_INSTALL_VIA_NPM" = "true" ]; then
+    echo "WARNING: npm installation method will be deprecated and removed in the next major release."
     echo "Installing Claude Code via npm (version: $ARG_CLAUDE_CODE_VERSION)"
     npm install -g "@anthropic-ai/claude-code@$ARG_CLAUDE_CODE_VERSION"
     echo "Installed Claude Code via npm. Version: $(claude --version || echo 'unknown')"
@@ -110,13 +144,25 @@ function setup_claude_configurations() {
   if [ "$ARG_MCP" != "" ]; then
     (
       cd "$ARG_WORKDIR"
-      while IFS= read -r server_name && IFS= read -r server_json; do
-        echo "------------------------"
-        echo "Executing: claude mcp add-json \"$server_name\" '$server_json' (in $ARG_WORKDIR)"
-        claude mcp add-json "$server_name" "$server_json" || echo "Warning: Failed to add MCP server '$server_name', continuing..."
-        echo "------------------------"
-        echo ""
-      done < <(echo "$ARG_MCP" | jq -r '.mcpServers | to_entries[] | .key, (.value | @json)')
+      add_mcp_servers "$ARG_MCP" "in $ARG_WORKDIR"
+    )
+  fi
+
+  if [ -n "$ARG_MCP_CONFIG_REMOTE_PATH" ] && [ "$ARG_MCP_CONFIG_REMOTE_PATH" != "[]" ]; then
+    (
+      cd "$ARG_WORKDIR"
+      for url in $(echo "$ARG_MCP_CONFIG_REMOTE_PATH" | jq -r '.[]'); do
+        echo "Fetching MCP configuration from: $url"
+        mcp_json=$(curl -fsSL "$url") || {
+          echo "Warning: Failed to fetch MCP configuration from '$url', continuing..."
+          continue
+        }
+        if ! echo "$mcp_json" | jq -e '.mcpServers' > /dev/null 2>&1; then
+          echo "Warning: Invalid MCP configuration from '$url' (missing mcpServers), continuing..."
+          continue
+        fi
+        add_mcp_servers "$mcp_json" "from $url"
+      done
     )
   fi
 
@@ -133,8 +179,8 @@ function setup_claude_configurations() {
 function configure_standalone_mode() {
   echo "Configuring Claude Code for standalone mode..."
 
-  if [ -z "${CLAUDE_API_KEY:-}" ]; then
-    echo "Note: CLAUDE_API_KEY not set, skipping authentication setup"
+  if [ -z "${CLAUDE_API_KEY:-}" ] && [ "$ARG_ENABLE_AIBRIDGE" = "false" ]; then
+    echo "Note: Neither claude_api_key nor enable_aibridge is set, skipping authentication setup"
     return
   fi
 
@@ -147,8 +193,7 @@ function configure_standalone_mode() {
   if [ -f "$claude_config" ]; then
     echo "Updating existing Claude configuration at $claude_config"
 
-    jq --arg apikey "${CLAUDE_API_KEY:-}" \
-      --arg workdir "$ARG_WORKDIR" \
+    jq --arg workdir "$ARG_WORKDIR" --arg apikey "${CLAUDE_API_KEY:-}" \
       '.autoUpdaterStatus = "disabled" |
         .bypassPermissionsModeAccepted = true |
         .hasAcknowledgedCostThreshold = true |
