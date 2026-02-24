@@ -281,6 +281,7 @@ describe("agentapi", async () => {
   test("state-persistence-custom-paths", async () => {
     const { id } = await setup({
       moduleVariables: {
+        enable_state_persistence: "true",
         state_file_path: "/home/coder/custom/state.json",
         pid_file_path: "/home/coder/custom/agentapi.pid",
       },
@@ -300,7 +301,11 @@ describe("agentapi", async () => {
   });
 
   test("state-persistence-default-paths", async () => {
-    const { id } = await setup();
+    const { id } = await setup({
+      moduleVariables: {
+        enable_state_persistence: "true",
+      },
+    });
     await execModuleScript(id);
     await expectAgentAPIStarted(id);
     const mockLog = await readFileContainer(
@@ -365,7 +370,7 @@ describe("agentapi", async () => {
       containerId: string,
       taskId: string = "test-task",
       pidFilePath: string = "",
-      enableStatePersistence: string = "true",
+      enableStatePersistence: string = "false",
     ) => {
       const shutdownScript = await loadTestFile(
         import.meta.dir,
@@ -506,11 +511,13 @@ describe("agentapi", async () => {
         skipAgentAPIMock: true,
       });
       await setupMocks(id, "normal");
-      // Pass a non-existent PID file path
+      // Pass a non-existent PID file path with persistence enabled to
+      // exercise the SIGUSR1 path with a missing PID.
       const result = await runShutdownScript(
         id,
         "test-task",
         "/tmp/nonexistent.pid",
+        "true",
       );
 
       expect(result.exitCode).toBe(0);
@@ -525,7 +532,7 @@ describe("agentapi", async () => {
       const pidFile = "/tmp/agentapi-test.pid";
       // HTTP 500 will cause snapshot to fail
       await setupMocks(id, "normal", 500, pidFile);
-      const result = await runShutdownScript(id, "test-task", pidFile);
+      const result = await runShutdownScript(id, "test-task", pidFile, "true");
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain(

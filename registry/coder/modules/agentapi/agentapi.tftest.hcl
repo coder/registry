@@ -15,8 +15,8 @@ run "default_values" {
   command = plan
 
   assert {
-    condition     = var.enable_state_persistence == true
-    error_message = "enable_state_persistence should default to true"
+    condition     = var.enable_state_persistence == false
+    error_message = "enable_state_persistence should default to false"
   }
 
   assert {

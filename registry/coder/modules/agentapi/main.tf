@@ -167,7 +167,7 @@ variable "module_dir_name" {
 variable "enable_state_persistence" {
   type        = bool
   description = "Enable AgentAPI conversation state persistence across restarts."
-  default     = true
+  default     = false
 }
 
 variable "state_file_path" {
