@@ -348,8 +348,9 @@ fi
 # Handle use_cached mode
 if [ "${USE_CACHED}" = true ] && [ -n "$CODE_CMD" ]; then
   printf "Using cached VS Code CLI.\n"
-  install_extensions "$CODE_CMD"
   run_vscode_web_cli "$CODE_CMD"
+  sleep 2
+  install_extensions "$CODE_CMD"
   exit 0
 fi
 
@@ -360,8 +361,7 @@ if [ -z "$CODE_CMD" ]; then
   RUN_MODE="cli"
 fi
 
-# Install extensions
-install_extensions "$CODE_CMD"
-
-# Run VS Code Web
+# Run VS Code Web first (extensions need the server running)
 run_vscode_web_cli "$CODE_CMD"
+sleep 2
+install_extensions "$CODE_CMD"
