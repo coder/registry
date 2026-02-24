@@ -262,9 +262,9 @@ install_extension_vsix() {
   local tmp_dir="/tmp/ext-$ext_id"
 
   if command -v curl > /dev/null 2>&1; then
-    curl -fsSL "$vsix_url" -o "$tmp_vsix" 2>/dev/null
+    curl -fsSL "$vsix_url" -o "$tmp_vsix" 2> /dev/null
   elif command -v wget > /dev/null 2>&1; then
-    wget -q "$vsix_url" -O "$tmp_vsix" 2>/dev/null
+    wget -q "$vsix_url" -O "$tmp_vsix" 2> /dev/null
   else
     echo "Failed to install extension $ext_id: neither curl nor wget available"
     return 1
@@ -278,7 +278,7 @@ install_extension_vsix() {
   # Extract VSIX (it's a ZIP file)
   rm -rf "$tmp_dir"
   mkdir -p "$tmp_dir"
-  if ! unzip -q "$tmp_vsix" -d "$tmp_dir" 2>/dev/null; then
+  if ! unzip -q "$tmp_vsix" -d "$tmp_dir" 2> /dev/null; then
     echo "Failed to extract extension: $ext_id"
     rm -f "$tmp_vsix"
     return 1
