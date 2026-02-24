@@ -65,7 +65,7 @@ locals {
 
 module "vscode-desktop-core" {
   source  = "registry.coder.com/coder/vscode-desktop-core/coder"
-  version = "1.0.0"
+  version = "1.0.2"
 
   agent_id = var.agent_id
 
