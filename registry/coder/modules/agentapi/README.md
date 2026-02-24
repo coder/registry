@@ -65,17 +65,17 @@ module "agentapi" {
 ## State Persistence
 
 AgentAPI can save and restore conversation state across workspace restarts.
-This is enabled by default and requires agentapi binary >= v0.12.0.
+This is disabled by default and requires agentapi binary >= v0.12.0.
 
 State and PID files are stored in `$HOME/<module_dir_name>/` alongside other
 module files (e.g. `$HOME/.claude-module/agentapi-state.json`).
 
-To disable:
+To enable:
 
 ```tf
 module "agentapi" {
   # ... other config
-  enable_state_persistence = false
+  enable_state_persistence = true
 }
 ```
 
