@@ -11,9 +11,9 @@ const appName = "vscode-desktop";
 const defaultVariables = {
   agent_id: "foo",
 
-  web_app_icon: "/icon/code.svg",
-  web_app_slug: "vscode",
-  web_app_display_name: "VS Code Desktop",
+  coder_app_icon: "/icon/code.svg",
+  coder_app_slug: "vscode",
+  coder_app_display_name: "VS Code Desktop",
 
   protocol: "vscode",
 };
@@ -99,16 +99,16 @@ describe("vscode-desktop-core", async () => {
       );
 
       expect(coder_app?.instances[0].attributes.slug).toBe(
-        defaultVariables.web_app_slug,
+        defaultVariables.coder_app_slug,
       );
       expect(coder_app?.instances[0].attributes.display_name).toBe(
-        defaultVariables.web_app_display_name,
+        defaultVariables.coder_app_display_name,
       );
     });
 
     it("sets order", async () => {
       const state = await runTerraformApply(import.meta.dir, {
-        web_app_order: "5",
+        coder_app_order: "5",
 
         ...defaultVariables,
       });
@@ -122,7 +122,7 @@ describe("vscode-desktop-core", async () => {
 
     it("sets group", async () => {
       const state = await runTerraformApply(import.meta.dir, {
-        web_app_group: "web-app-group",
+        coder_app_group: "web-app-group",
 
         ...defaultVariables,
       });
