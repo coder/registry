@@ -248,26 +248,72 @@ run_vscode_server() {
   "$SERVER_CMD" serve-local $ARGS > "${LOG_PATH}" 2>&1 &
 }
 
-install_extensions() {
-  local CODE_CMD="$1"
+# Install a single extension by downloading VSIX from marketplace
+install_extension_vsix() {
+  local ext_id="$1"
+  local publisher
+  local ext_name
+  publisher="$${ext_id%%.*}"
+  ext_name="$${ext_id#*.}"
 
-  # Use remote CLI if available (set by wait_for_server), otherwise fall back to provided CLI
-  local EXT_CMD="$CODE_CMD"
-  if [ -n "$REMOTE_CLI_PATH" ] && [ -x "$REMOTE_CLI_PATH" ]; then
-    EXT_CMD="$REMOTE_CLI_PATH"
+  # Download VSIX from marketplace
+  local vsix_url="https://$publisher.gallery.vsassets.io/_apis/public/gallery/publisher/$publisher/extension/$ext_name/latest/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage"
+  local tmp_vsix="/tmp/ext-$ext_id.vsix"
+  local tmp_dir="/tmp/ext-$ext_id"
+
+  if command -v curl > /dev/null 2>&1; then
+    curl -fsSL "$vsix_url" -o "$tmp_vsix" 2>/dev/null
+  elif command -v wget > /dev/null 2>&1; then
+    wget -q "$vsix_url" -O "$tmp_vsix" 2>/dev/null
+  else
+    echo "Failed to install extension $ext_id: neither curl nor wget available"
+    return 1
   fi
 
+  if [ ! -f "$tmp_vsix" ]; then
+    echo "Failed to download extension: $ext_id"
+    return 1
+  fi
+
+  # Extract VSIX (it's a ZIP file)
+  rm -rf "$tmp_dir"
+  mkdir -p "$tmp_dir"
+  if ! unzip -q "$tmp_vsix" -d "$tmp_dir" 2>/dev/null; then
+    echo "Failed to extract extension: $ext_id"
+    rm -f "$tmp_vsix"
+    return 1
+  fi
+
+  # Get version from package.json
+  local version=""
+  if [ -f "$tmp_dir/extension/package.json" ]; then
+    version=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$tmp_dir/extension/package.json" | head -1 | cut -d'"' -f4)
+  fi
+  if [ -z "$version" ]; then
+    version="0.0.0"
+  fi
+
+  # Install to extensions directory
+  local ext_dir="$HOME/.vscode-server/extensions/$ext_id-$version"
+  mkdir -p "$HOME/.vscode-server/extensions"
+  rm -rf "$ext_dir"
+  mv "$tmp_dir/extension" "$ext_dir"
+
+  # Cleanup
+  rm -rf "$tmp_vsix" "$tmp_dir"
+  printf "Extension $ext_id v$version installed successfully.\n"
+  return 0
+}
+
+install_extensions() {
   # Install specified extensions
   IFS=',' read -r -a EXTENSIONLIST <<< "$${EXTENSIONS}"
   for extension in "$${EXTENSIONLIST[@]}"; do
     if [ -z "$extension" ]; then
       continue
     fi
-    printf "Installing extension $${CODE}$extension$${RESET}...\n"
-    output=$("$EXT_CMD" $EXTENSION_ARG --install-extension "$extension" --force 2>&1)
-    if [ $? -ne 0 ]; then
-      echo "Failed to install extension: $extension: $output"
-    fi
+    printf "Installing extension $extension...\n"
+    install_extension_vsix "$extension"
   done
 
   # Auto-install extensions from workspace or folder
@@ -279,7 +325,7 @@ install_extensions() {
         printf "Installing extensions from %s...\n" "${WORKSPACE}"
         extensions=$(sed 's|//.*||g' "${WORKSPACE}" | jq -r '(.extensions.recommendations // [])[]')
         for extension in $extensions; do
-          "$EXT_CMD" $EXTENSION_ARG --install-extension "$extension" --force
+          install_extension_vsix "$extension"
         done
       else
         WORKSPACE_DIR="$HOME"
@@ -290,7 +336,7 @@ install_extensions() {
           printf "Installing extensions from %s/.vscode/extensions.json...\n" "$WORKSPACE_DIR"
           extensions=$(sed 's|//.*||g' "$WORKSPACE_DIR/.vscode/extensions.json" | jq -r '.recommendations[]')
           for extension in $extensions; do
-            "$EXT_CMD" $EXTENSION_ARG --install-extension "$extension" --force
+            install_extension_vsix "$extension"
           done
         fi
       fi
@@ -351,37 +397,11 @@ if [ "${OFFLINE}" = true ]; then
   exit 1
 fi
 
-# Wait for VS Code Web server to be fully ready (server downloads on first run)
-# Sets REMOTE_CLI_PATH and VSCODE_IPC_HOOK_CLI for extension installation
-wait_for_server() {
-  printf "Waiting for VS Code Web to be ready...\n"
-  for i in $(seq 1 30); do
-    if grep -q "Extension host agent started" "${LOG_PATH}" 2> /dev/null; then
-      # Extract the commit ID and set up the remote CLI path
-      COMMIT_ID=$(grep -o "Starting server [a-f0-9]*" "${LOG_PATH}" 2> /dev/null | head -1 | cut -d' ' -f3)
-      if [ -n "$COMMIT_ID" ]; then
-        REMOTE_CLI_PATH="$HOME/.vscode/cli/serve-web/$COMMIT_ID/bin/remote-cli/code"
-        export REMOTE_CLI_PATH
-      fi
-      # Find the IPC socket (created by the server for CLI communication)
-      VSCODE_IPC_HOOK_CLI=$(ls -t /tmp/vscode-ipc-*.sock 2> /dev/null | head -1)
-      if [ -n "$VSCODE_IPC_HOOK_CLI" ]; then
-        export VSCODE_IPC_HOOK_CLI
-      fi
-      printf "VS Code Web is ready.\n"
-      return 0
-    fi
-    sleep 1
-  done
-  printf "Warning: VS Code Web did not become ready in time. Extensions may not be installed.\n"
-  return 1
-}
-
 # Handle use_cached mode
 if [ "${USE_CACHED}" = true ] && [ -n "$CODE_CMD" ]; then
   printf "Using cached VS Code CLI.\n"
+  install_extensions
   run_vscode_web_cli "$CODE_CMD"
-  wait_for_server && install_extensions "$CODE_CMD"
   exit 0
 fi
 
@@ -392,6 +412,6 @@ if [ -z "$CODE_CMD" ]; then
   RUN_MODE="cli"
 fi
 
-# Run VS Code Web first (extensions need the server running)
+# Install extensions and run VS Code Web
+install_extensions
 run_vscode_web_cli "$CODE_CMD"
-wait_for_server && install_extensions "$CODE_CMD"
