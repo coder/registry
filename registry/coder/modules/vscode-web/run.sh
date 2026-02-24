@@ -251,6 +251,12 @@ run_vscode_server() {
 install_extensions() {
   local CODE_CMD="$1"
 
+  # Use remote CLI if available (set by wait_for_server), otherwise fall back to provided CLI
+  local EXT_CMD="$CODE_CMD"
+  if [ -n "$REMOTE_CLI_PATH" ] && [ -x "$REMOTE_CLI_PATH" ]; then
+    EXT_CMD="$REMOTE_CLI_PATH"
+  fi
+
   # Install specified extensions
   IFS=',' read -r -a EXTENSIONLIST <<< "$${EXTENSIONS}"
   for extension in "$${EXTENSIONLIST[@]}"; do
@@ -258,7 +264,7 @@ install_extensions() {
       continue
     fi
     printf "Installing extension $${CODE}$extension$${RESET}...\n"
-    output=$("$CODE_CMD" $EXTENSION_ARG --install-extension "$extension" --force 2>&1)
+    output=$("$EXT_CMD" $EXTENSION_ARG --install-extension "$extension" --force 2>&1)
     if [ $? -ne 0 ]; then
       echo "Failed to install extension: $extension: $output"
     fi
@@ -273,7 +279,7 @@ install_extensions() {
         printf "Installing extensions from %s...\n" "${WORKSPACE}"
         extensions=$(sed 's|//.*||g' "${WORKSPACE}" | jq -r '(.extensions.recommendations // [])[]')
         for extension in $extensions; do
-          "$CODE_CMD" $EXTENSION_ARG --install-extension "$extension" --force
+          "$EXT_CMD" $EXTENSION_ARG --install-extension "$extension" --force
         done
       else
         WORKSPACE_DIR="$HOME"
@@ -284,7 +290,7 @@ install_extensions() {
           printf "Installing extensions from %s/.vscode/extensions.json...\n" "$WORKSPACE_DIR"
           extensions=$(sed 's|//.*||g' "$WORKSPACE_DIR/.vscode/extensions.json" | jq -r '.recommendations[]')
           for extension in $extensions; do
-            "$CODE_CMD" $EXTENSION_ARG --install-extension "$extension" --force
+            "$EXT_CMD" $EXTENSION_ARG --install-extension "$extension" --force
           done
         fi
       fi
@@ -346,10 +352,22 @@ if [ "${OFFLINE}" = true ]; then
 fi
 
 # Wait for VS Code Web server to be fully ready (server downloads on first run)
+# Sets REMOTE_CLI_PATH and VSCODE_IPC_HOOK_CLI for extension installation
 wait_for_server() {
   printf "Waiting for VS Code Web to be ready...\n"
   for i in $(seq 1 30); do
     if grep -q "Extension host agent started" "${LOG_PATH}" 2> /dev/null; then
+      # Extract the commit ID and set up the remote CLI path
+      COMMIT_ID=$(grep -o "Starting server [a-f0-9]*" "${LOG_PATH}" 2> /dev/null | head -1 | cut -d' ' -f3)
+      if [ -n "$COMMIT_ID" ]; then
+        REMOTE_CLI_PATH="$HOME/.vscode/cli/serve-web/$COMMIT_ID/bin/remote-cli/code"
+        export REMOTE_CLI_PATH
+      fi
+      # Find the IPC socket (created by the server for CLI communication)
+      VSCODE_IPC_HOOK_CLI=$(ls -t /tmp/vscode-ipc-*.sock 2> /dev/null | head -1)
+      if [ -n "$VSCODE_IPC_HOOK_CLI" ]; then
+        export VSCODE_IPC_HOOK_CLI
+      fi
       printf "VS Code Web is ready.\n"
       return 0
     fi
