@@ -168,9 +168,9 @@ capture_task_log_snapshot() {
     return 1
   fi
 
-  local tmpdir
+  # Not local, must be visible to the EXIT trap after the function returns.
   tmpdir=$(mktemp -d)
-  trap 'rm -rf "$tmpdir"' EXIT
+  trap 'trap - EXIT; rm -rf "$tmpdir"' EXIT
 
   local payload_file="${tmpdir}/payload.json"
 

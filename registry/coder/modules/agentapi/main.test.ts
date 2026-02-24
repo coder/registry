@@ -413,6 +413,7 @@ describe("agentapi", async () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain("Retrieved 5 messages for log snapshot");
       expect(result.stdout).toContain("Log snapshot posted successfully");
+      expect(result.stdout).not.toContain("Log snapshot capture failed");
 
       const posted = await readFileContainer(id, "/tmp/snapshot-posted.json");
       const snapshot = JSON.parse(posted);
