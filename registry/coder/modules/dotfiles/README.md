@@ -68,6 +68,20 @@ module "dotfiles-root" {
 }
 ```
 
+## SSH vs HTTPS URLs
+
+If your Git provider (e.g. GitLab, GitHub Enterprise) restricts HTTPS cloning, use an SSH URL instead:
+
+```text
+# HTTPS (may fail if HTTP cloning is disabled)
+https://gitlab.example.com/user/dotfiles.git
+
+# SSH (uses the workspace's SSH key)
+git@gitlab.example.com:user/dotfiles.git
+```
+
+During workspace startup the dotfiles clone happens early, before external auth tokens may be fully available. SSH URLs avoid this issue because they authenticate via the workspace's SSH key rather than a token.
+
 ## Setting a default dotfiles repository
 
 You can set a default dotfiles repository for all users by setting the `default_dotfiles_uri` variable:
