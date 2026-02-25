@@ -7,6 +7,10 @@ terraform {
       source  = "coder/coder"
       version = ">= 2.5"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.0"
+    }
   }
 }
 
@@ -49,6 +53,12 @@ variable "add-project" {
   type        = string
   description = "Optional path to add/open as a project in Mux on startup."
   default     = null
+}
+
+variable "additional_arguments" {
+  type        = string
+  description = "Additional command-line arguments to pass to `mux server` (for example: `--add-project /path --open-mode pinned`)."
+  default     = ""
 }
 
 variable "install_version" {
@@ -113,6 +123,22 @@ variable "open_in" {
   }
 }
 
+# Per-module auth token for cross-site request protection.
+# We pass this token into each mux process at launch time (process-scoped env)
+# and include it in the app URL query string (?token=...).
+#
+# Why process-scoped env instead of a shared coder_env value:
+# multiple mux module instances can target the same agent (different slug/port).
+# A single global MUX_SERVER_AUTH_TOKEN env key would cause collisions.
+resource "random_password" "mux_auth_token" {
+  length  = 64
+  special = false
+}
+
+locals {
+  mux_auth_token = random_password.mux_auth_token.result
+}
+
 resource "coder_script" "mux" {
   agent_id     = var.agent_id
   display_name = var.display_name
@@ -122,9 +148,11 @@ resource "coder_script" "mux" {
     PORT : var.port,
     LOG_PATH : var.log_path,
     ADD_PROJECT : var.add-project == null ? "" : var.add-project,
+    ADDITIONAL_ARGUMENTS : var.additional_arguments,
     INSTALL_PREFIX : var.install_prefix,
     OFFLINE : !var.install,
     USE_CACHED : var.use_cached,
+    AUTH_TOKEN : local.mux_auth_token,
   })
   run_on_start = true
 
@@ -140,7 +168,7 @@ resource "coder_app" "mux" {
   agent_id     = var.agent_id
   slug         = var.slug
   display_name = var.display_name
-  url          = "http://localhost:${var.port}"
+  url          = "http://localhost:${var.port}?token=${local.mux_auth_token}"
   icon         = "/icon/mux.svg"
   subdomain    = var.subdomain
   share        = var.share
@@ -154,5 +182,3 @@ resource "coder_app" "mux" {
     threshold = 6
   }
 }
-
-

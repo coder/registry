@@ -20,8 +20,10 @@ run "install_false_and_use_cached_conflict" {
   ]
 }
 
+# Needs command = apply because the URL contains random_password.result,
+# which is unknown during plan.
 run "custom_port" {
-  command = plan
+  command = apply
 
   variables {
     agent_id = "foo"
@@ -29,8 +31,65 @@ run "custom_port" {
   }
 
   assert {
-    condition     = resource.coder_app.mux.url == "http://localhost:8080"
-    error_message = "coder_app URL must use the configured port"
+    condition     = startswith(resource.coder_app.mux.url, "http://localhost:8080?token=")
+    error_message = "coder_app URL must use the configured port and include auth token"
+  }
+
+  assert {
+    condition     = trimprefix(resource.coder_app.mux.url, "http://localhost:8080?token=") == random_password.mux_auth_token.result
+    error_message = "URL token must match the generated auth token"
+  }
+}
+
+# Needs command = apply because random_password.result is unknown during plan.
+run "auth_token_in_server_script" {
+  command = apply
+
+  variables {
+    agent_id = "foo"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "MUX_SERVER_AUTH_TOKEN=")
+    error_message = "mux launch script must set MUX_SERVER_AUTH_TOKEN"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, random_password.mux_auth_token.result)
+    error_message = "mux launch script must use the generated auth token"
+  }
+}
+
+# Needs command = apply because random_password.result is unknown during plan.
+run "auth_token_in_url" {
+  command = apply
+
+  variables {
+    agent_id = "foo"
+  }
+
+  assert {
+    condition     = startswith(resource.coder_app.mux.url, "http://localhost:4000?token=")
+    error_message = "coder_app URL must include auth token query parameter"
+  }
+
+  assert {
+    condition     = trimprefix(resource.coder_app.mux.url, "http://localhost:4000?token=") == random_password.mux_auth_token.result
+    error_message = "URL token must match the generated auth token"
+  }
+}
+
+run "custom_additional_arguments" {
+  command = plan
+
+  variables {
+    agent_id             = "foo"
+    additional_arguments = "--open-mode pinned --add-project '/workspaces/my repo'"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "--open-mode pinned --add-project '/workspaces/my repo'")
+    error_message = "mux launch script must include the configured additional arguments"
   }
 }
 
@@ -62,5 +121,3 @@ run "use_cached_only_success" {
     use_cached = true
   }
 }
-
-

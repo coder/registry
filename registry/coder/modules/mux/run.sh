@@ -9,7 +9,9 @@ function run_mux() {
   rm -f "$HOME/.mux/server.lock"
 
   local port_value
+  local auth_token_value
   port_value="${PORT}"
+  auth_token_value="${AUTH_TOKEN}"
   if [ -z "$port_value" ]; then
     port_value="4000"
   fi
@@ -18,9 +20,25 @@ function run_mux() {
   if [ -n "${ADD_PROJECT}" ]; then
     set -- "$@" --add-project "${ADD_PROJECT}"
   fi
+
+  # Parse additional user-supplied server arguments while preserving quoted groups.
+  if [ -n "${ADDITIONAL_ARGUMENTS}" ]; then
+    local parsed_additional_arguments
+    if ! parsed_additional_arguments="$(printf "%s\n" "${ADDITIONAL_ARGUMENTS}" | xargs -n1 printf "%s\n" 2> /dev/null)"; then
+      echo "❌ Failed to parse additional_arguments. Ensure quotes are balanced."
+      exit 1
+    fi
+    while IFS= read -r parsed_arg; do
+      [ -n "$parsed_arg" ] || continue
+      set -- "$@" "$parsed_arg"
+    done << EOF
+$${parsed_additional_arguments}
+EOF
+  fi
+
   echo "🚀 Starting mux server on port $port_value..."
   echo "Check logs at ${LOG_PATH}!"
-  PORT="$port_value" "$MUX_BINARY" "$@" > "${LOG_PATH}" 2>&1 &
+  MUX_SERVER_AUTH_TOKEN="$auth_token_value" PORT="$port_value" "$MUX_BINARY" "$@" > "${LOG_PATH}" 2>&1 &
 }
 
 # Check if mux is already installed for offline mode
