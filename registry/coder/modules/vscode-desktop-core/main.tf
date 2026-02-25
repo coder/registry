@@ -31,28 +31,28 @@ variable "protocol" {
   description = "The URI protocol the IDE."
 }
 
-variable "web_app_icon" {
+variable "coder_app_icon" {
   type        = string
   description = "The icon of the coder_app."
 }
 
-variable "web_app_slug" {
+variable "coder_app_slug" {
   type        = string
   description = "The slug of the coder_app."
 }
 
-variable "web_app_display_name" {
+variable "coder_app_display_name" {
   type        = string
   description = "The display name of the coder_app."
 }
 
-variable "web_app_order" {
+variable "coder_app_order" {
   type        = number
   description = "The order of the coder_app."
   default     = null
 }
 
-variable "web_app_group" {
+variable "coder_app_group" {
   type        = string
   description = "The group of the coder_app."
   default     = null
@@ -65,12 +65,12 @@ resource "coder_app" "vscode-desktop" {
   agent_id = var.agent_id
   external = true
 
-  icon         = var.web_app_icon
-  slug         = var.web_app_slug
-  display_name = var.web_app_display_name
+  icon         = var.coder_app_icon
+  slug         = var.coder_app_slug
+  display_name = var.coder_app_display_name
 
-  order = var.web_app_order
-  group = var.web_app_group
+  order = var.coder_app_order
+  group = var.coder_app_group
 
   url = join("", [
     var.protocol,
