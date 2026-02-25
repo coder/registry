@@ -73,13 +73,13 @@ describe("devcontainers-cli", async () => {
 
   testRequiredVariables(import.meta.dir, {
     agent_id: "some-agent-id",
-    start_blocks_login: boolean = false;
+    start_blocks_login: false,
   });
 
   it("misses all package managers", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "some-agent-id",
-      start_blocks_login: boolean = false;
+      start_blocks_login: false,
     });
     const output = await executeScriptInContainer(state, "docker:dind");
     expect(output.exitCode).toBe(1);
@@ -91,7 +91,7 @@ describe("devcontainers-cli", async () => {
   it("installs devcontainers-cli with npm", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "some-agent-id",
-      start_blocks_login: boolean = false;
+      start_blocks_login: false,
     });
 
     const output = await executeScriptInContainerWithPackageManager(
@@ -112,7 +112,7 @@ describe("devcontainers-cli", async () => {
   it("installs devcontainers-cli with yarn", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "some-agent-id",
-      start_blocks_login: boolean = false;
+      start_blocks_login: false,
     });
 
     const output = await executeScriptInContainerWithPackageManager(
@@ -133,7 +133,7 @@ describe("devcontainers-cli", async () => {
   it("displays warning if docker is not installed", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "some-agent-id",
-      start_blocks_login: boolean = false;
+      start_blocks_login: false,
     });
 
     const output = await executeScriptInContainerWithPackageManager(
