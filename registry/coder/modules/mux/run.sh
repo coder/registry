@@ -20,6 +20,22 @@ function run_mux() {
   if [ -n "${ADD_PROJECT}" ]; then
     set -- "$@" --add-project "${ADD_PROJECT}"
   fi
+
+  # Parse additional user-supplied server arguments while preserving quoted groups.
+  if [ -n "${ADDITIONAL_ARGUMENTS}" ]; then
+    local parsed_additional_arguments
+    if ! parsed_additional_arguments="$(printf "%s\n" "${ADDITIONAL_ARGUMENTS}" | xargs -n1 printf "%s\n" 2> /dev/null)"; then
+      echo "❌ Failed to parse additional_arguments. Ensure quotes are balanced."
+      exit 1
+    fi
+    while IFS= read -r parsed_arg; do
+      [ -n "$parsed_arg" ] || continue
+      set -- "$@" "$parsed_arg"
+    done << EOF
+$${parsed_additional_arguments}
+EOF
+  fi
+
   echo "🚀 Starting mux server on port $port_value..."
   echo "Check logs at ${LOG_PATH}!"
   MUX_SERVER_AUTH_TOKEN="$auth_token_value" PORT="$port_value" "$MUX_BINARY" "$@" > "${LOG_PATH}" 2>&1 &

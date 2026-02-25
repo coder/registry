@@ -79,6 +79,20 @@ run "auth_token_in_url" {
   }
 }
 
+run "custom_additional_arguments" {
+  command = plan
+
+  variables {
+    agent_id             = "foo"
+    additional_arguments = "--open-mode pinned --add-project '/workspaces/my repo'"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "--open-mode pinned --add-project '/workspaces/my repo'")
+    error_message = "mux launch script must include the configured additional arguments"
+  }
+}
+
 run "custom_version" {
   command = plan
 
