@@ -80,7 +80,7 @@ https://gitlab.example.com/user/dotfiles.git
 git@gitlab.example.com:user/dotfiles.git
 ```
 
-During workspace startup the dotfiles clone happens early, before external auth tokens may be fully available. SSH URLs avoid this issue because they authenticate via the workspace's SSH key rather than a token.
+When a Git provider has HTTPS cloning disabled server-side, the clone will silently fail (the `.git` folder may exist but the working tree will be empty). SSH URLs avoid this because they authenticate with the workspace's SSH key instead of a token-based HTTPS flow.
 
 ## Setting a default dotfiles repository
 
