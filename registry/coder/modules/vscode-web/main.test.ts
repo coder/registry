@@ -177,4 +177,122 @@ chmod +x /tmp/vscode-web/bin/code-server`,
     expect(settingsResult.stdout).toContain("new.setting");
     expect(settingsResult.stdout).toContain("new_value");
   });
+
+  it("merges settings using python3 fallback when jq unavailable", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      accept_license: true,
+      use_cached: true,
+      settings: '{"new.setting": "new_value"}',
+    });
+
+    const containerId = await runContainer("ubuntu:22.04");
+    cleanupContainers.push(containerId);
+
+    // Install python3 (ubuntu:22.04 doesn't have it by default)
+    await execContainer(containerId, ["apt-get", "update", "-qq"]);
+    await execContainer(containerId, [
+      "apt-get",
+      "install",
+      "-y",
+      "-qq",
+      "python3",
+    ]);
+
+    // Create mock code-server CLI (no jq installed)
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /tmp/vscode-web/bin && cat > /tmp/vscode-web/bin/code-server << 'MOCKEOF'
+#!/bin/bash
+echo "Mock code-server running"
+exit 0
+MOCKEOF
+chmod +x /tmp/vscode-web/bin/code-server`,
+    ]);
+
+    // Pre-create an existing settings file
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /root/.vscode-server/data/Machine && echo '{"existing.setting": "existing_value"}' > /root/.vscode-server/data/Machine/settings.json`,
+    ]);
+
+    const script = findResourceInstance(state, "coder_script");
+
+    const scriptResult = await execContainer(containerId, [
+      "bash",
+      "-c",
+      script.script,
+    ]);
+    expect(scriptResult.exitCode).toBe(0);
+
+    // Check that settings were merged using python3 fallback
+    const settingsResult = await execContainer(containerId, [
+      "cat",
+      "/root/.vscode-server/data/Machine/settings.json",
+    ]);
+
+    expect(settingsResult.exitCode).toBe(0);
+    // Should contain both existing and new settings
+    expect(settingsResult.stdout).toContain("existing.setting");
+    expect(settingsResult.stdout).toContain("existing_value");
+    expect(settingsResult.stdout).toContain("new.setting");
+    expect(settingsResult.stdout).toContain("new_value");
+  });
+
+  it("preserves existing settings when neither jq nor python3 available", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      accept_license: true,
+      use_cached: true,
+      settings: '{"new.setting": "new_value"}',
+    });
+
+    // Use ubuntu without installing jq or python3 (neither available by default)
+    const containerId = await runContainer("ubuntu:22.04");
+    cleanupContainers.push(containerId);
+
+    // Create mock code-server CLI
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /tmp/vscode-web/bin && cat > /tmp/vscode-web/bin/code-server << 'MOCKEOF'
+#!/bin/bash
+echo "Mock code-server running"
+exit 0
+MOCKEOF
+chmod +x /tmp/vscode-web/bin/code-server`,
+    ]);
+
+    // Pre-create an existing settings file
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /root/.vscode-server/data/Machine && echo '{"existing.setting": "existing_value"}' > /root/.vscode-server/data/Machine/settings.json`,
+    ]);
+
+    const script = findResourceInstance(state, "coder_script");
+
+    // Run script - should warn but not fail
+    const scriptResult = await execContainer(containerId, [
+      "bash",
+      "-c",
+      script.script,
+    ]);
+    expect(scriptResult.exitCode).toBe(0);
+    expect(scriptResult.stdout).toContain("Could not merge settings");
+
+    // Existing settings should be preserved (not overwritten)
+    const settingsResult = await execContainer(containerId, [
+      "cat",
+      "/root/.vscode-server/data/Machine/settings.json",
+    ]);
+
+    expect(settingsResult.exitCode).toBe(0);
+    expect(settingsResult.stdout).toContain("existing.setting");
+    expect(settingsResult.stdout).toContain("existing_value");
+    expect(settingsResult.stdout).not.toContain("new.setting");
+    expect(settingsResult.stdout).not.toContain("new_value");
+  });
 });

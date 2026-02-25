@@ -72,8 +72,11 @@ run_vscode_web() {
 # Apply machine settings (merge with existing if present)
 SETTINGS_B64='${SETTINGS_B64}'
 if [ -n "$SETTINGS_B64" ]; then
-  SETTINGS_JSON="$(echo -n "$SETTINGS_B64" | base64 -d)"
-  merge_settings "$SETTINGS_JSON" ~/.vscode-server/data/Machine/settings.json
+  if SETTINGS_JSON="$(echo -n "$SETTINGS_B64" | base64 -d 2> /dev/null)" && [ -n "$SETTINGS_JSON" ]; then
+    merge_settings "$SETTINGS_JSON" ~/.vscode-server/data/Machine/settings.json
+  else
+    printf "Warning: Failed to decode settings. Skipping settings configuration.\n"
+  fi
 fi
 
 # Check if vscode-server is already installed for offline or cached mode
