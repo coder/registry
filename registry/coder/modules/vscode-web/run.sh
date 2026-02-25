@@ -4,13 +4,54 @@ BOLD='\033[0;1m'
 EXTENSIONS=("${EXTENSIONS}")
 VSCODE_WEB="${INSTALL_PREFIX}/bin/code-server"
 
+# Merge settings from module with existing settings file
+# Uses jq if available, falls back to Python3 for deep merge
+merge_settings() {
+  local new_settings="$1"
+  local settings_file="$2"
+
+  if [ -z "$new_settings" ] || [ "$new_settings" = "{}" ]; then
+    return 0
+  fi
+
+  if [ ! -f "$settings_file" ]; then
+    mkdir -p "$(dirname "$settings_file")"
+    printf '%s\n' "$new_settings" > "$settings_file"
+    printf "⚙️ Creating settings file...\n"
+    return 0
+  fi
+
+  local tmpfile
+  tmpfile="$(mktemp)"
+
+  if command -v jq > /dev/null 2>&1; then
+    if jq -s '.[0] * .[1]' "$settings_file" <(printf '%s\n' "$new_settings") > "$tmpfile" 2> /dev/null; then
+      mv "$tmpfile" "$settings_file"
+      printf "⚙️ Merging settings...\n"
+      return 0
+    fi
+  fi
+
+  if command -v python3 > /dev/null 2>&1; then
+    if python3 -c "import json,sys;m=lambda a,b:{**a,**{k:m(a[k],v)if k in a and type(a[k])==type(v)==dict else v for k,v in b.items()}};print(json.dumps(m(json.load(open(sys.argv[1])),json.loads(sys.argv[2])),indent=2))" "$settings_file" "$new_settings" > "$tmpfile" 2> /dev/null; then
+      mv "$tmpfile" "$settings_file"
+      printf "⚙️ Merging settings...\n"
+      return 0
+    fi
+  fi
+
+  rm -f "$tmpfile"
+  printf "Warning: Could not merge settings (jq or python3 required). Keeping existing settings.\n"
+  return 0
+}
+
 # Set extension directory
 EXTENSION_ARG=""
 if [ -n "${EXTENSIONS_DIR}" ]; then
   EXTENSION_ARG="--extensions-dir=${EXTENSIONS_DIR}"
 fi
 
-# Set extension directory
+# Set server base path
 SERVER_BASE_PATH_ARG=""
 if [ -n "${SERVER_BASE_PATH}" ]; then
   SERVER_BASE_PATH_ARG="--server-base-path=${SERVER_BASE_PATH}"
@@ -28,11 +69,11 @@ run_vscode_web() {
   "$VSCODE_WEB" serve-local "$EXTENSION_ARG" "$SERVER_BASE_PATH_ARG" "$DISABLE_TRUST_ARG" --port "${PORT}" --host 127.0.0.1 --accept-server-license-terms --without-connection-token --telemetry-level "${TELEMETRY_LEVEL}" > "${LOG_PATH}" 2>&1 &
 }
 
-# Check if the settings file exists...
-if [ ! -f ~/.vscode-server/data/Machine/settings.json ]; then
-  echo "⚙️ Creating settings file..."
-  mkdir -p ~/.vscode-server/data/Machine
-  echo "${SETTINGS}" > ~/.vscode-server/data/Machine/settings.json
+# Apply machine settings (merge with existing if present)
+SETTINGS_B64='${SETTINGS_B64}'
+if [ -n "$SETTINGS_B64" ]; then
+  SETTINGS_JSON="$(echo -n "$SETTINGS_B64" | base64 -d)"
+  merge_settings "$SETTINGS_JSON" ~/.vscode-server/data/Machine/settings.json
 fi
 
 # Check if vscode-server is already installed for offline or cached mode
