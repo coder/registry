@@ -84,18 +84,20 @@ describe("vscode-web", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       accept_license: true,
+      use_cached: true,
       settings: '{"editor.fontSize": 14}',
     });
 
     const containerId = await runContainer("ubuntu:22.04");
     cleanupContainers.push(containerId);
 
-    // Create a mock code-server CLI
+    // Create a mock code-server CLI that the script expects
     await execContainer(containerId, [
       "bash",
       "-c",
       `mkdir -p /tmp/vscode-web/bin && cat > /tmp/vscode-web/bin/code-server << 'MOCKEOF'
 #!/bin/bash
+echo "Mock code-server running"
 exit 0
 MOCKEOF
 chmod +x /tmp/vscode-web/bin/code-server`,
@@ -103,7 +105,12 @@ chmod +x /tmp/vscode-web/bin/code-server`,
 
     const script = findResourceInstance(state, "coder_script");
 
-    await execContainer(containerId, ["bash", "-c", script.script]);
+    const scriptResult = await execContainer(containerId, [
+      "bash",
+      "-c",
+      script.script,
+    ]);
+    expect(scriptResult.exitCode).toBe(0);
 
     // Check that settings file was created
     const settingsResult = await execContainer(containerId, [
@@ -120,6 +127,7 @@ chmod +x /tmp/vscode-web/bin/code-server`,
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       accept_license: true,
+      use_cached: true,
       settings: '{"new.setting": "new_value"}',
     });
 
@@ -134,6 +142,7 @@ chmod +x /tmp/vscode-web/bin/code-server`,
       "-c",
       `mkdir -p /tmp/vscode-web/bin && cat > /tmp/vscode-web/bin/code-server << 'MOCKEOF'
 #!/bin/bash
+echo "Mock code-server running"
 exit 0
 MOCKEOF
 chmod +x /tmp/vscode-web/bin/code-server`,
@@ -148,7 +157,12 @@ chmod +x /tmp/vscode-web/bin/code-server`,
 
     const script = findResourceInstance(state, "coder_script");
 
-    await execContainer(containerId, ["bash", "-c", script.script]);
+    const scriptResult = await execContainer(containerId, [
+      "bash",
+      "-c",
+      script.script,
+    ]);
+    expect(scriptResult.exitCode).toBe(0);
 
     // Check that settings were merged (both existing and new should be present)
     const settingsResult = await execContainer(containerId, [
