@@ -73,7 +73,6 @@ describe("devcontainers-cli", async () => {
 
   testRequiredVariables(import.meta.dir, {
     agent_id: "some-agent-id",
-    start_blocks_login: false,
   });
 
   it("misses all package managers", async () => {
