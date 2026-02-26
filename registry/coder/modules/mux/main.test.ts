@@ -35,7 +35,7 @@ describe("mux", async () => {
     }
     expect(output.exitCode).toBe(0);
     const expectedLines = [
-      "📥 npm not found; downloading tarball from npm registry...",
+      "📥 No package manager found; downloading tarball from registry...",
       "🥳 mux has been installed in /tmp/mux",
       "🚀 Starting mux server on port 4000...",
       "Check logs at /tmp/mux.log!",
@@ -111,7 +111,7 @@ chmod +x /tmp/mux/mux`,
     expect(output.exitCode).toBe(0);
     const expectedLines = [
       "📦 Installing mux via npm into /tmp/mux...",
-      "⏭️  Skipping npm lifecycle scripts with --ignore-scripts",
+      "⏭️  Skipping lifecycle scripts with --ignore-scripts",
       "🥳 mux has been installed in /tmp/mux",
       "🚀 Starting mux server on port 4000...",
       "Check logs at /tmp/mux.log!",
