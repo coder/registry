@@ -49,7 +49,7 @@ variable "report_tasks" {
 
 variable "web_app" {
   type        = bool
-  description = "Whether to create the web app for Claude Code. When false, AgentAPI still runs but no web UI app icon is shown in the Coder dashboard."
+  description = "Whether to create the web app for Claude Code. When false, AgentAPI still runs but no web UI app icon is shown in the Coder dashboard. Note: the web app is required for Coder Tasks (coder_ai_task) — do not disable this if you are using Tasks."
   default     = true
 }
 
