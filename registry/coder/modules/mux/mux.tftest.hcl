@@ -121,3 +121,35 @@ run "use_cached_only_success" {
     use_cached = true
   }
 }
+
+run "custom_npm_registry" {
+  command = plan
+
+  variables {
+    agent_id            = "foo"
+    custom_npm_registry = "https://my-artifactory.example.com/npm"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "https://my-artifactory.example.com/npm")
+    error_message = "mux launch script must use the configured custom npm registry URL"
+  }
+
+  assert {
+    condition     = !strcontains(resource.coder_script.mux.script, "registry.npmjs.org")
+    error_message = "mux launch script must not contain hardcoded registry.npmjs.org when custom registry is set"
+  }
+}
+
+run "custom_npm_registry_validation" {
+  command = plan
+
+  variables {
+    agent_id            = "foo"
+    custom_npm_registry = "not-a-url"
+  }
+
+  expect_failures = [
+    var.custom_npm_registry
+  ]
+}

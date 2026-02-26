@@ -78,7 +78,7 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
     else
       PKG_SPEC="$PKG@${VERSION}"
     fi
-    if ! npm install --no-audit --no-fund --omit=dev --ignore-scripts "$PKG_SPEC"; then
+    if ! npm install --no-audit --no-fund --omit=dev --ignore-scripts --registry "${NPM_REGISTRY}" "$PKG_SPEC"; then
       echo "❌ Failed to install mux via npm"
       exit 1
     fi
@@ -97,7 +97,7 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
     if [ -z "$VERSION_TO_USE" ]; then
       VERSION_TO_USE="next"
     fi
-    META_URL="https://registry.npmjs.org/mux/$VERSION_TO_USE"
+    META_URL="${NPM_REGISTRY}/mux/$VERSION_TO_USE"
     META_JSON="$(curl -fsSL "$META_URL" || true)"
     if [ -z "$META_JSON" ]; then
       echo "❌ Failed to fetch npm metadata: $META_URL"
@@ -136,7 +136,7 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
         echo "❌ Could not determine version for mux"
         exit 1
       fi
-      TARBALL_URL="https://registry.npmjs.org/mux/-/mux-$VERSION_TO_USE.tgz"
+      TARBALL_URL="${NPM_REGISTRY}/mux/-/mux-$VERSION_TO_USE.tgz"
     fi
     TMP_DIR="$(mktemp -d)"
     TAR_PATH="$TMP_DIR/mux.tgz"

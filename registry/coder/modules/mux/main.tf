@@ -67,6 +67,16 @@ variable "install_version" {
   default     = "next"
 }
 
+variable "custom_npm_registry" {
+  type        = string
+  description = "The base URL of the npm registry to install Mux from (e.g. https://registry.npmjs.org, https://my-artifactory.example.com/npm)."
+  default     = "https://registry.npmjs.org"
+  validation {
+    condition     = can(regex("^https?://", var.custom_npm_registry))
+    error_message = "custom_npm_registry must be a valid URL starting with 'https://' or 'http://'."
+  }
+}
+
 variable "share" {
   type    = string
   default = "owner"
@@ -153,6 +163,7 @@ resource "coder_script" "mux" {
     OFFLINE : !var.install,
     USE_CACHED : var.use_cached,
     AUTH_TOKEN : local.mux_auth_token,
+    NPM_REGISTRY : var.custom_npm_registry,
   })
   run_on_start = true
 
