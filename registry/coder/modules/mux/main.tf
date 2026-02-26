@@ -67,6 +67,23 @@ variable "install_version" {
   default     = "next"
 }
 
+variable "package_manager" {
+  type        = string
+  description = "Package manager to install Mux. 'auto' detects npm, pnpm, or bun (falling back to tarball download). Set to 'npm', 'pnpm', or 'bun' to force a specific one."
+  default     = "auto"
+  validation {
+    condition     = contains(["auto", "npm", "pnpm", "bun"], var.package_manager)
+    error_message = "The 'package_manager' variable must be one of: 'auto', 'npm', 'pnpm', 'bun'."
+  }
+}
+
+variable "registry_url" {
+  type        = string
+  description = "The npm-compatible registry URL to install Mux from. Override this for private registries or mirrors."
+  default     = "https://registry.npmjs.org"
+}
+
+
 variable "share" {
   type    = string
   default = "owner"
@@ -137,6 +154,7 @@ resource "random_password" "mux_auth_token" {
 
 locals {
   mux_auth_token = random_password.mux_auth_token.result
+  registry_url   = trimsuffix(var.registry_url, "/")
 }
 
 resource "coder_script" "mux" {
@@ -153,6 +171,8 @@ resource "coder_script" "mux" {
     OFFLINE : !var.install,
     USE_CACHED : var.use_cached,
     AUTH_TOKEN : local.mux_auth_token,
+    PACKAGE_MANAGER : var.package_manager,
+    REGISTRY_URL : local.registry_url,
   })
   run_on_start = true
 
