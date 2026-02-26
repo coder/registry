@@ -21,10 +21,10 @@ variable "start_blocks_login" {
 }
 
 resource "coder_script" "devcontainers-cli" {
-  agent_id     = var.agent_id
-  display_name = "devcontainers-cli"
-  icon         = "/icon/devcontainers.svg"
-  script       = templatefile("${path.module}/run.sh", {})
-  run_on_start = true
+  agent_id           = var.agent_id
+  display_name       = "devcontainers-cli"
+  icon               = "/icon/devcontainers.svg"
+  script             = templatefile("${path.module}/run.sh", {})
+  run_on_start       = true
   start_blocks_login = var.start_blocks_login
 }
