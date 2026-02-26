@@ -361,10 +361,11 @@ locals {
 }
 
 module "agentapi" {
-  source = "../agentapi"
+  source  = "registry.coder.com/coder/agentapi/coder"
+  version = "2.0.0"
 
   agent_id             = var.agent_id
-  web_app              = var.web_app
+  # TODO: pass web_app = var.web_app once agentapi module is published with web_app support
   web_app_slug         = local.app_slug
   web_app_order        = var.order
   web_app_group        = var.group
