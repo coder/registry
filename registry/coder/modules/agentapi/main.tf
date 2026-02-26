@@ -55,7 +55,7 @@ variable "folder" {
 
 variable "web_app" {
   type        = bool
-  description = "Whether to create the web workspace app."
+  description = "Whether to create the web workspace app. Note: the web app is required for Coder Tasks (coder_ai_task) — do not disable this if you are using Tasks."
   default     = true
 }
 
