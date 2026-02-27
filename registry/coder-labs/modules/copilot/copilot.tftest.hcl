@@ -249,13 +249,13 @@ run "aibridge_proxy_defaults" {
   }
 
   assert {
-    condition     = var.aibridge_proxy_auth_url == ""
-    error_message = "aibridge_proxy_auth_url should default to empty"
+    condition     = var.aibridge_proxy_auth_url == null
+    error_message = "aibridge_proxy_auth_url should default to null"
   }
 
   assert {
-    condition     = var.aibridge_proxy_cert_path == ""
-    error_message = "aibridge_proxy_cert_path should default to empty"
+    condition     = var.aibridge_proxy_cert_path == null
+    error_message = "aibridge_proxy_cert_path should default to null"
   }
 }
 
