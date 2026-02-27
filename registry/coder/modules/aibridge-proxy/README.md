@@ -42,6 +42,9 @@ It is recommended that tool modules scope the proxy environment variables to the
 When used with tool-specific modules (e.g. [Copilot](https://registry.coder.com/modules/coder-labs/copilot)),
 the setup script signals completion via [`coder exp sync`](https://coder.com/docs/admin/templates/startup-coordination) so dependent modules can wait for the `aibridge-proxy` module to complete before starting.
 
+Dependent modules are unblocked once the setup script finishes, regardless of success or failure.
+If the setup fails, dependent modules are expected to detect the failure and handle the error accordingly.
+
 To enable startup coordination, set `CODER_AGENT_SOCKET_SERVER_ENABLED=true` in the workspace container environment:
 
 ```hcl
