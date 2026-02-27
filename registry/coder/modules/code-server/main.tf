@@ -44,7 +44,7 @@ variable "settings" {
   default     = {}
 }
 
-variable "machine-settings" {
+variable "machine_settings" {
   type        = any
   description = "A map of template level machine settings to apply to code-server. This will be overwritten at each container start."
   default     = {}
@@ -167,7 +167,7 @@ resource "coder_script" "code-server" {
     INSTALL_PREFIX : var.install_prefix,
     // This is necessary otherwise the quotes are stripped!
     SETTINGS : replace(jsonencode(var.settings), "\"", "\\\""),
-    MACHINE_SETTINGS : replace(jsonencode(var.machine-settings), "\"", "\\\""),
+    MACHINE_SETTINGS : replace(jsonencode(var.machine_settings), "\"", "\\\""),
     OFFLINE : var.offline,
     USE_CACHED : var.use_cached,
     USE_CACHED_EXTENSIONS : var.use_cached_extensions,
