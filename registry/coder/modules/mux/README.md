@@ -65,7 +65,7 @@ module "mux" {
   source      = "registry.coder.com/coder/mux/coder"
   version     = "1.3.0"
   agent_id    = coder_agent.main.id
-  add-project = "/path/to/project"
+  add_project = "/path/to/project"
 }
 ```
 
