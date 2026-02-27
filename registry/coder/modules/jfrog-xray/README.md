@@ -1,7 +1,7 @@
 ---
 display_name: JFrog Xray
 description: Display container image vulnerability scan results from JFrog Xray in workspace metadata
-icon: ../../../../.icons/jfrog.svg
+icon: ../../../../.icons/jfrog-xray.svg
 verified: true
 tags: [integration, jfrog, security]
 ---
@@ -101,17 +101,6 @@ module "jfrog_xray" {
   image       = "docker-local/codercom/enterprise-base:latest"
 }
 ```
-
-## Variables
-
-| Name | Description | Type | Default | Required |
-| --- | --- | --- | --- | --- |
-| `resource_id` | The resource ID to attach the vulnerability metadata to | `string` | n/a | yes |
-| `xray_url` | The URL of the JFrog Xray instance | `string` | n/a | yes |
-| `xray_token` | The access token for JFrog Xray authentication | `string` | n/a | yes |
-| `image` | The container image in format `repo/path:tag` | `string` | n/a | yes |
-| `repo` | JFrog Artifactory repository name (auto-extracted from `image` if not set) | `string` | `""` | no |
-| `repo_path` | Repository path with image name and tag (auto-extracted from `image` if not set) | `string` | `""` | no |
 
 ## Image Format Examples
 

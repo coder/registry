@@ -85,7 +85,7 @@ resource "coder_metadata" "xray_vulnerabilities" {
   count       = data.coder_workspace.me.start_count
   resource_id = var.resource_id
 
-  icon = "../../../../.icons/jfrog.svg"
+  icon = "../../../../.icons/jfrog-xray.svg"
 
   item {
     key   = "Image"

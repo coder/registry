@@ -47,7 +47,7 @@ describe("jfrog-xray", async () => {
     });
     const metadata = findResourceInstance(state, "coder_metadata");
     expect(metadata.resource_id).toBe("test-resource-id");
-    expect(metadata.icon).toBe("../../../../.icons/jfrog.svg");
+    expect(metadata.icon).toBe("../../../../.icons/jfrog-xray.svg");
 
     const items = metadata.item as Array<{ key: string; value: string }>;
     const keys = items.map((i) => i.key);
