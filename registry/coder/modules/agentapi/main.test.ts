@@ -155,7 +155,7 @@ describe("agentapi", async () => {
     const cacheDir = "/home/coder/.agentapi-cache";
     const { id } = await setup({
       moduleVariables: {
-        cache_dir: cacheDir,
+        agentapi_cache_dir: cacheDir,
       },
     });
 
@@ -182,7 +182,7 @@ describe("agentapi", async () => {
     const { id } = await setup({
       skipAgentAPIMock: true,
       moduleVariables: {
-        cache_dir: cacheDir,
+        agentapi_cache_dir: cacheDir,
       },
     });
 

@@ -164,7 +164,7 @@ variable "module_dir_name" {
   description = "Name of the subdirectory in the home directory for module files."
 }
 
-variable "cache_dir" {
+variable "agentapi_cache_dir" {
   type        = string
   description = "Path to a directory where the AgentAPI binary will be cached after download. On subsequent workspace starts, the cached binary is used instead of downloading again. Useful with persistent volumes to avoid repeated downloads."
   default     = ""
@@ -214,7 +214,7 @@ resource "coder_script" "agentapi" {
     ARG_AGENTAPI_CHAT_BASE_PATH='${local.agentapi_chat_base_path}' \
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
-    ARG_CACHE_DIR='${var.cache_dir}' \
+    ARG_CACHE_DIR='${var.agentapi_cache_dir}' \
     /tmp/main.sh
     EOT
   run_on_start = true

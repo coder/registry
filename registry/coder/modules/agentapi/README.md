@@ -64,12 +64,12 @@ module "agentapi" {
 
 ## Caching the AgentAPI binary
 
-When `cache_dir` is set, the AgentAPI binary is cached to that directory after the first download. On subsequent workspace starts, the cached binary is used instead of re-downloading from GitHub. This is particularly useful when workspaces use a persistent volume.
+When `agentapi_cache_dir` is set, the AgentAPI binary is cached to that directory after the first download. On subsequent workspace starts, the cached binary is used instead of re-downloading from GitHub. This is particularly useful when workspaces use a persistent volume.
 
 ```tf
 module "agentapi" {
   # ... other config
-  cache_dir = "/home/coder/.cache/agentapi"
+  agentapi_cache_dir = "/home/coder/.cache/agentapi"
 }
 ```
 
