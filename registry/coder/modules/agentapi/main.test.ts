@@ -157,6 +157,7 @@ describe("agentapi", async () => {
     const pinnedVersion = "v0.10.0";
     const { id } = await setup({
       moduleVariables: {
+        install_agentapi: "true",
         agentapi_cache_dir: cacheDir,
         agentapi_version: pinnedVersion,
       },
