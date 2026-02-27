@@ -14,9 +14,12 @@ fi
 
 set -euo pipefail
 
-# Signal startup coordination
+# Signal startup coordination.
+# The trap ensures 'complete' is always called (even on failure) so dependent
+# scripts unblock promptly and can check for the certificate themselves.
 if command -v coder > /dev/null 2>&1; then
   coder exp sync start "aibridge-proxy-setup" > /dev/null 2>&1 || true
+  trap 'coder exp sync complete "aibridge-proxy-setup" > /dev/null 2>&1 || true' EXIT
 fi
 
 if [ -z "$ACCESS_URL" ]; then
@@ -74,10 +77,3 @@ fi
 
 echo "AI Bridge Proxy CA certificate saved to $CERT_PATH"
 echo "✅ AI Bridge Proxy setup complete."
-
-# Signal successful completion to unblock dependent scripts.
-# Only called on success, if the script fails, dependents remain blocked
-# until timeout, preventing them from starting without a valid certificate.
-if command -v coder > /dev/null 2>&1; then
-  coder exp sync complete "aibridge-proxy-setup" > /dev/null 2>&1 || true
-fi
