@@ -148,7 +148,7 @@ setup_aibridge_proxy() {
 
   if [ ! -f "$ARG_AIBRIDGE_PROXY_CERT_PATH" ]; then
     echo "ERROR: AI Bridge Proxy certificate not found at $ARG_AIBRIDGE_PROXY_CERT_PATH."
-    echo "  Ensure the aibridge-proxy module has completed setup."
+    echo "  Ensure the aibridge-proxy module has successfully completed setup."
     exit 1
   fi
 

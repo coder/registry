@@ -195,7 +195,7 @@ module "copilot" {
 
 > [!IMPORTANT]
 > When using AI Bridge Proxy, enable [startup coordination](https://coder.com/docs/admin/templates/startup-coordination) by setting `CODER_AGENT_SOCKET_SERVER_ENABLED=true` in the workspace container environment.
-> This ensures the Copilot module waits for the `aibridge-proxy` module to complete before starting. Without it, the Copilot start script may fail if the certificate is not yet available.
+> This ensures the Copilot module waits for the `aibridge-proxy` module to complete before starting. Without it, the Copilot start script may fail if the AI Bridge Proxy setup has not completed in time.
 
 ## Authentication
 
