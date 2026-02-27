@@ -64,29 +64,31 @@ if [ "${INSTALL_AGENTAPI}" = "true" ]; then
     exit 1
   fi
 
-  resolved_version="${AGENTAPI_VERSION}"
   if [ "${AGENTAPI_VERSION}" = "latest" ]; then
     # for the latest release the download URL pattern is different than for tagged releases
     # https://docs.github.com/en/repositories/releasing-projects-on-github/linking-to-releases
     download_url="https://github.com/coder/agentapi/releases/latest/download/$binary_name"
-    # Resolve the actual version tag so the cache key is stable (e.g. v0.10.0, not "latest").
-    # GitHub redirects /releases/latest to /releases/tag/vX.Y.Z; we extract the tag from that URL.
-    resolved_version=$(curl \
-      --retry 3 \
-      --retry-delay 3 \
-      --fail \
-      --retry-all-errors \
-      -Ls \
-      -o /dev/null \
-      -w '%{url_effective}' \
-      "https://github.com/coder/agentapi/releases/latest" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "latest")
-    echo "Resolved AgentAPI latest version to: ${resolved_version}"
   else
     download_url="https://github.com/coder/agentapi/releases/download/${AGENTAPI_VERSION}/$binary_name"
   fi
 
   cached_binary=""
   if [ -n "${CACHE_DIR}" ]; then
+    resolved_version="${AGENTAPI_VERSION}"
+    if [ "${AGENTAPI_VERSION}" = "latest" ]; then
+      # Resolve the actual version tag so the cache key is stable (e.g. v0.10.0, not "latest").
+      # GitHub redirects /releases/latest to /releases/tag/vX.Y.Z; we extract the tag from that URL.
+      resolved_version=$(curl \
+        --retry 3 \
+        --retry-delay 3 \
+        --fail \
+        --retry-all-errors \
+        -Ls \
+        -o /dev/null \
+        -w '%{url_effective}' \
+        "https://github.com/coder/agentapi/releases/latest" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "latest")
+      echo "Resolved AgentAPI latest version to: ${resolved_version}"
+    fi
     cached_binary="${CACHE_DIR}/${binary_name}-${resolved_version}"
   fi
 
