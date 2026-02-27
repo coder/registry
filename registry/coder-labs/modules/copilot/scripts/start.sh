@@ -131,8 +131,8 @@ setup_aibridge_proxy() {
   # Wait for the aibridge-proxy module to finish.
   # Uses startup coordination to block until aibridge-proxy-setup signals completion.
   if command -v coder > /dev/null 2>&1; then
-    coder exp sync want "copilot-aibridge" "aibridge-proxy-setup" || true
-    coder exp sync start "copilot-aibridge" || true
+    coder exp sync want "copilot-aibridge" "aibridge-proxy-setup" > /dev/null 2>&1 || true
+    coder exp sync start "copilot-aibridge" > /dev/null 2>&1 || true
     trap 'coder exp sync complete "copilot-aibridge" > /dev/null 2>&1 || true' EXIT
   fi
 
