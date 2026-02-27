@@ -134,6 +134,12 @@ variable "agentapi_version" {
   default     = "v0.11.8"
 }
 
+variable "cache_dir" {
+  type        = string
+  description = "Path to a directory where the AgentAPI binary will be cached after download. On subsequent workspace starts, the cached binary is used instead of downloading again."
+  default     = ""
+}
+
 variable "codex_model" {
   type        = string
   description = "The model for Codex to use. Defaults to gpt-5.2-codex."
@@ -221,6 +227,7 @@ module "agentapi" {
   install_agentapi     = var.install_agentapi
   agentapi_subdomain   = var.subdomain
   agentapi_version     = var.agentapi_version
+  cache_dir            = var.cache_dir
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
   start_script         = <<-EOT

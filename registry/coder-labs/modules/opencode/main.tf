@@ -89,6 +89,12 @@ variable "agentapi_version" {
   default     = "v0.11.2"
 }
 
+variable "cache_dir" {
+  type        = string
+  description = "Path to a directory where the AgentAPI binary will be cached after download. On subsequent workspace starts, the cached binary is used instead of downloading again."
+  default     = ""
+}
+
 variable "ai_prompt" {
   type        = string
   description = "Initial task prompt for OpenCode."
@@ -163,6 +169,7 @@ module "agentapi" {
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
+  cache_dir            = var.cache_dir
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
   start_script         = <<-EOT
