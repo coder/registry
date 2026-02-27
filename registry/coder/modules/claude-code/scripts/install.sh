@@ -17,6 +17,7 @@ ARG_CLAUDE_BINARY_PATH="${ARG_CLAUDE_BINARY_PATH//\$HOME/$HOME}"
 ARG_INSTALL_VIA_NPM=${ARG_INSTALL_VIA_NPM:-false}
 ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
+ARG_AGENTAPI_PORT=${ARG_AGENTAPI_PORT:-3284}
 ARG_MCP=$(echo -n "${ARG_MCP:-}" | base64 -d)
 ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n "${ARG_MCP_CONFIG_REMOTE_PATH:-}" | base64 -d)
 ARG_ALLOWED_TOOLS=${ARG_ALLOWED_TOOLS:-}
@@ -34,6 +35,7 @@ printf "ARG_CLAUDE_BINARY_PATH: %s\n" "$ARG_CLAUDE_BINARY_PATH"
 printf "ARG_INSTALL_VIA_NPM: %s\n" "$ARG_INSTALL_VIA_NPM"
 printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
 printf "ARG_MCP_APP_STATUS_SLUG: %s\n" "$ARG_MCP_APP_STATUS_SLUG"
+printf "ARG_AGENTAPI_PORT: %s\n" "$ARG_AGENTAPI_PORT"
 printf "ARG_MCP: %s\n" "$ARG_MCP"
 printf "ARG_MCP_CONFIG_REMOTE_PATH: %s\n" "$ARG_MCP_CONFIG_REMOTE_PATH"
 printf "ARG_ALLOWED_TOOLS: %s\n" "$ARG_ALLOWED_TOOLS"
@@ -228,7 +230,7 @@ function report_tasks() {
   if [ "$ARG_REPORT_TASKS" = "true" ]; then
     echo "Configuring Claude Code to report tasks via Coder MCP..."
     export CODER_MCP_APP_STATUS_SLUG="$ARG_MCP_APP_STATUS_SLUG"
-    export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
+    export CODER_MCP_AI_AGENTAPI_URL="http://localhost:${ARG_AGENTAPI_PORT:-3284}"
     coder exp mcp configure claude-code "$ARG_WORKDIR"
   else
     configure_standalone_mode
