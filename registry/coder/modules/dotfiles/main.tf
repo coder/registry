@@ -40,7 +40,7 @@ variable "default_dotfiles_uri" {
   validation {
     condition = (
       var.default_dotfiles_uri == "" ||
-      can(regex("^(https?://|ssh://|git@|git://)[a-zA-Z0-9._/:@-]+$", var.default_dotfiles_uri))
+      can(regex("^(https?://|ssh://|git@|git://)[a-zA-Z0-9._/:@~-]+$", var.default_dotfiles_uri))
     )
     error_message = "Must be a valid dotfiles repository URL (https, git@, or git://) without special characters."
   }
@@ -55,7 +55,7 @@ variable "dotfiles_uri" {
     condition = (
       var.dotfiles_uri == null ||
       var.dotfiles_uri == "" ||
-      can(regex("^(https?://|ssh://|git@|git://)[a-zA-Z0-9._/:@-]+$", var.dotfiles_uri))
+      can(regex("^(https?://|ssh://|git@|git://)[a-zA-Z0-9._/:@~-]+$", var.dotfiles_uri))
     )
     error_message = "Must be a valid dotfiles repository URL (https, git@, or git://) without special characters."
   }
@@ -102,7 +102,7 @@ data "coder_parameter" "dotfiles_uri" {
   icon         = "/icon/dotfiles.svg"
 
   validation {
-    regex = "^$|^(https?://|ssh://|git@|git://)[a-zA-Z0-9._/:@-]+$"
+    regex = "^$|^(https?://|ssh://|git@|git://)[a-zA-Z0-9._/:@~-]+$"
     error = "Must be a valid dotfiles repository URL (https, git@, or git://) without special characters."
   }
 }
