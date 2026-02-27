@@ -49,7 +49,7 @@ variable "log_path" {
   default     = "/tmp/mux.log"
 }
 
-variable "add-project" {
+variable "add_project" {
   type        = string
   description = "Optional path to add/open as a project in Mux on startup."
   default     = null
@@ -165,7 +165,7 @@ resource "coder_script" "mux" {
     VERSION : var.install_version,
     PORT : var.port,
     LOG_PATH : var.log_path,
-    ADD_PROJECT : var.add-project == null ? "" : var.add-project,
+    ADD_PROJECT : var.add_project == null ? "" : var.add_project,
     ADDITIONAL_ARGUMENTS : var.additional_arguments,
     INSTALL_PREFIX : var.install_prefix,
     OFFLINE : !var.install,
