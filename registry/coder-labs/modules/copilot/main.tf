@@ -248,7 +248,7 @@ resource "coder_env" "github_token" {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.0.0"
+  version = "2.2.0"
 
   agent_id             = var.agent_id
   folder               = local.workdir
