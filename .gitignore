@@ -149,3 +149,4 @@ gha-creds-*.json
 
 # IDEs
 .idea
+.serena

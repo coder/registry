@@ -149,6 +149,71 @@ describe("agentapi", async () => {
     expect(respAgentAPI.exitCode).toBe(0);
   });
 
+  test("cache-dir-uses-cached-binary", async () => {
+    // Verify that when a cached binary exists in the cache dir, it is used
+    // instead of downloading. Use a pinned version so the cache filename is
+    // deterministic (resolving "latest" requires a network call).
+    const cacheDir = "/home/coder/.agentapi-cache";
+    const pinnedVersion = "v0.10.0";
+    const { id } = await setup({
+      moduleVariables: {
+        install_agentapi: "true",
+        agentapi_cache_dir: cacheDir,
+        agentapi_version: pinnedVersion,
+      },
+    });
+
+    // Pre-populate the cache directory with a fake agentapi binary.
+    // The binary is named after the arch and pinned version.
+    const cachedBinary = `${cacheDir}/agentapi-linux-amd64-${pinnedVersion}`;
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `mkdir -p ${cacheDir} && cp /usr/bin/agentapi ${cachedBinary}`,
+    ]);
+
+    const respModuleScript = await execModuleScript(id);
+    expect(respModuleScript.exitCode).toBe(0);
+    expect(respModuleScript.stdout).toContain(
+      `Using cached AgentAPI binary from ${cachedBinary}`,
+    );
+
+    await expectAgentAPIStarted(id);
+  });
+
+  test("cache-dir-saves-binary-after-download", async () => {
+    // Verify that after downloading agentapi, the binary is saved to the cache
+    // dir under the resolved version name. Use a pinned version so the cache
+    // filename is deterministic.
+    const cacheDir = "/home/coder/.agentapi-cache";
+    const pinnedVersion = "v0.10.0";
+    const { id } = await setup({
+      skipAgentAPIMock: true,
+      moduleVariables: {
+        agentapi_cache_dir: cacheDir,
+        agentapi_version: pinnedVersion,
+      },
+    });
+
+    const cachedBinary = `${cacheDir}/agentapi-linux-amd64-${pinnedVersion}`;
+    const respModuleScript = await execModuleScript(id);
+    expect(respModuleScript.exitCode).toBe(0);
+    expect(respModuleScript.stdout).toContain(
+      `Caching AgentAPI binary to ${cachedBinary}`,
+    );
+
+    await expectAgentAPIStarted(id);
+
+    // Verify the binary was saved to the cache directory.
+    const respCacheCheck = await execContainer(id, [
+      "bash",
+      "-c",
+      `test -f ${cachedBinary} && echo "cached"`,
+    ]);
+    expect(respCacheCheck.exitCode).toBe(0);
+    expect(respCacheCheck.stdout).toContain("cached");
+  });
+
   test("no-subdomain-base-path", async () => {
     const { id } = await setup({
       moduleVariables: {

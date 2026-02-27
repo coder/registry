@@ -16,6 +16,7 @@ AGENTAPI_PORT="$ARG_AGENTAPI_PORT"
 AGENTAPI_CHAT_BASE_PATH="${ARG_AGENTAPI_CHAT_BASE_PATH:-}"
 TASK_ID="${ARG_TASK_ID:-}"
 TASK_LOG_SNAPSHOT="${ARG_TASK_LOG_SNAPSHOT:-true}"
+CACHE_DIR="${ARG_CACHE_DIR:-}"
 set +o nounset
 
 command_exists() {
@@ -62,6 +63,7 @@ if [ "${INSTALL_AGENTAPI}" = "true" ]; then
     echo "Error: Unsupported architecture: $arch"
     exit 1
   fi
+
   if [ "${AGENTAPI_VERSION}" = "latest" ]; then
     # for the latest release the download URL pattern is different than for tagged releases
     # https://docs.github.com/en/repositories/releasing-projects-on-github/linking-to-releases
@@ -69,17 +71,52 @@ if [ "${INSTALL_AGENTAPI}" = "true" ]; then
   else
     download_url="https://github.com/coder/agentapi/releases/download/${AGENTAPI_VERSION}/$binary_name"
   fi
-  curl \
-    --retry 5 \
-    --retry-delay 5 \
-    --fail \
-    --retry-all-errors \
-    -L \
-    -C - \
-    -o agentapi \
-    "$download_url"
-  chmod +x agentapi
-  sudo mv agentapi /usr/local/bin/agentapi
+
+  cached_binary=""
+  if [ -n "${CACHE_DIR}" ]; then
+    resolved_version="${AGENTAPI_VERSION}"
+    if [ "${AGENTAPI_VERSION}" = "latest" ]; then
+      # Resolve the actual version tag so the cache key is stable (e.g. v0.10.0, not "latest").
+      # GitHub redirects /releases/latest to /releases/tag/vX.Y.Z; we extract the tag from that URL.
+      resolved_version=$(curl \
+        --retry 3 \
+        --retry-delay 3 \
+        --fail \
+        --retry-all-errors \
+        -Ls \
+        -o /dev/null \
+        -w '%{url_effective}' \
+        "https://github.com/coder/agentapi/releases/latest" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "latest")
+      echo "Resolved AgentAPI latest version to: ${resolved_version}"
+    fi
+    cached_binary="${CACHE_DIR}/${binary_name}-${resolved_version}"
+  fi
+
+  if [ -n "${cached_binary}" ] && [ -f "${cached_binary}" ]; then
+    echo "Using cached AgentAPI binary from ${cached_binary}"
+    cp "${cached_binary}" agentapi
+    chmod +x agentapi
+    sudo mv agentapi /usr/local/bin/agentapi
+  else
+    curl \
+      --retry 5 \
+      --retry-delay 5 \
+      --fail \
+      --retry-all-errors \
+      -L \
+      -C - \
+      -o agentapi \
+      "$download_url"
+    chmod +x agentapi
+
+    if [ -n "${cached_binary}" ]; then
+      echo "Caching AgentAPI binary to ${cached_binary}"
+      mkdir -p "${CACHE_DIR}"
+      cp agentapi "${cached_binary}"
+    fi
+
+    sudo mv agentapi /usr/local/bin/agentapi
+  fi
 fi
 if ! command_exists agentapi; then
   echo "Error: AgentAPI is not installed. Please enable install_agentapi or install it manually."
