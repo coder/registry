@@ -13,7 +13,7 @@ Run [Kiro CLI](https://kiro.dev/) in your workspace to access AI coding assistan
 ```tf
 module "kiro-cli" {
   source   = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version  = "1.0.1"
+  version  = "1.1.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder"
 
@@ -96,7 +96,7 @@ data "coder_task" "me" {}
 module "kiro-cli" {
   count           = data.coder_task.me.enabled ? data.coder_workspace.me.start_count : 0
   source          = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version         = "1.0.1"
+  version         = "1.1.0"
   agent_id        = coder_agent.example.id
   workdir         = "/home/coder"
   auth_tarball    = var.kiro_cli_auth_tarball
@@ -221,7 +221,7 @@ If no custom `agent_config` is provided, the default agent name "agent" is used.
 ```tf
 module "kiro-cli" {
   source       = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version      = "1.0.1"
+  version      = "1.1.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.kiro_cli_auth_tarball
@@ -251,7 +251,7 @@ This example will:
 ```tf
 module "kiro-cli" {
   source          = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version         = "1.0.1"
+  version         = "1.1.0"
   agent_id        = coder_agent.example.id
   workdir         = "/home/coder"
   auth_tarball    = var.kiro_cli_auth_tarball
@@ -272,7 +272,7 @@ module "kiro-cli" {
 ```tf
 module "kiro-cli" {
   source       = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version      = "1.0.1"
+  version      = "1.1.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.kiro_cli_auth_tarball
@@ -298,7 +298,7 @@ module "kiro-cli" {
 ```tf
 module "kiro-cli" {
   source           = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version          = "1.0.1"
+  version          = "1.1.0"
   agent_id         = coder_agent.example.id
   workdir          = "/home/coder"
   auth_tarball     = var.kiro_cli_auth_tarball
@@ -312,7 +312,7 @@ module "kiro-cli" {
 ```tf
 module "kiro-cli" {
   source       = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version      = "1.0.1"
+  version      = "1.1.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.kiro_cli_auth_tarball
@@ -333,7 +333,7 @@ module "kiro-cli" {
 ```tf
 module "kiro-cli" {
   source       = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version      = "1.0.1"
+  version      = "1.1.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.kiro_cli_auth_tarball
@@ -351,7 +351,7 @@ For environments without direct internet access, you can host Kiro CLI installat
 ```tf
 module "kiro-cli" {
   source       = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version      = "1.0.1"
+  version      = "1.1.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.kiro_cli_auth_tarball
