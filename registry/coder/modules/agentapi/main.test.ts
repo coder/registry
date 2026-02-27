@@ -149,6 +149,61 @@ describe("agentapi", async () => {
     expect(respAgentAPI.exitCode).toBe(0);
   });
 
+  test("cache-dir-uses-cached-binary", async () => {
+    // Verify that when a cached binary exists in the cache dir, it is used
+    // instead of downloading.
+    const cacheDir = "/home/coder/.agentapi-cache";
+    const { id } = await setup({
+      moduleVariables: {
+        cache_dir: cacheDir,
+      },
+    });
+
+    // Pre-populate the cache directory with a fake agentapi binary.
+    // The binary is named after the arch: agentapi-linux-amd64-latest
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `mkdir -p ${cacheDir} && cp /usr/bin/agentapi ${cacheDir}/agentapi-linux-amd64-latest`,
+    ]);
+
+    const respModuleScript = await execModuleScript(id);
+    expect(respModuleScript.exitCode).toBe(0);
+    expect(respModuleScript.stdout).toContain(
+      `Using cached AgentAPI binary from ${cacheDir}/agentapi-linux-amd64-latest`,
+    );
+
+    await expectAgentAPIStarted(id);
+  });
+
+  test("cache-dir-saves-binary-after-download", async () => {
+    // Verify that after downloading agentapi, the binary is saved to the cache dir.
+    const cacheDir = "/home/coder/.agentapi-cache";
+    const { id } = await setup({
+      skipAgentAPIMock: true,
+      moduleVariables: {
+        cache_dir: cacheDir,
+      },
+    });
+
+    const respModuleScript = await execModuleScript(id);
+    expect(respModuleScript.exitCode).toBe(0);
+    expect(respModuleScript.stdout).toContain(
+      `Caching AgentAPI binary to ${cacheDir}/agentapi-linux-amd64-latest`,
+    );
+
+    await expectAgentAPIStarted(id);
+
+    // Verify the binary was saved to the cache directory.
+    const respCacheCheck = await execContainer(id, [
+      "bash",
+      "-c",
+      `test -f ${cacheDir}/agentapi-linux-amd64-latest && echo "cached"`,
+    ]);
+    expect(respCacheCheck.exitCode).toBe(0);
+    expect(respCacheCheck.stdout).toContain("cached");
+  });
+
   test("no-subdomain-base-path", async () => {
     const { id } = await setup({
       moduleVariables: {
