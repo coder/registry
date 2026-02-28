@@ -173,6 +173,12 @@ variable "ide_config" {
   }
 }
 
+variable "jetbrains_plugins" {
+  type        = map(list(string))
+  description = "Map of IDE product codes to plugin ID lists. Example: { IU = [\"com.foo\"], GO = [\"org.bar\"] }."
+  default     = {}
+}
+
 locals {
   # Parse HTTP responses once with error handling for air-gapped environments
   parsed_responses = {
@@ -214,6 +220,10 @@ locals {
 
   # Convert the parameter value to a set for for_each
   selected_ides = length(var.default) == 0 ? toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ides[0].value, "[]"))) : toset(var.default)
+
+  plugin_map_b64 = base64encode(jsonencode(var.jetbrains_plugins))
+
+  plugin_install_script = file("${path.module}/script/install_plugins.sh")
 }
 
 data "coder_parameter" "jetbrains_ides" {
@@ -240,6 +250,30 @@ data "coder_parameter" "jetbrains_ides" {
 
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
+
+resource "coder_script" "install_jetbrains_plugins" {
+  count        = length(var.jetbrains_plugins) > 0 ? 1 : 0
+  agent_id     = var.agent_id
+  display_name = "Install JetBrains Plugins"
+  run_on_start = true
+
+  script = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    CONFIG_DIR="$HOME/.config/jetbrains"
+
+    mkdir -p "$CONFIG_DIR"
+    echo -n "${local.plugin_map_b64}" | base64 -d > "$CONFIG_DIR/plugins.json"
+    chmod 600 "$CONFIG_DIR/plugins.json"
+
+    echo -n '${base64encode(local.plugin_install_script)}' | base64 -d > /tmp/install_plugins.sh
+    chmod +x /tmp/install_plugins.sh
+
+    /tmp/install_plugins.sh > /tmp/install_plugins.log 2>&1 &
+  EOT
+}
 
 resource "coder_app" "jetbrains" {
   for_each     = local.selected_ides
