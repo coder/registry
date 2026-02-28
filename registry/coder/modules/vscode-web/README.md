@@ -8,13 +8,13 @@ tags: [ide, vscode, web]
 
 # VS Code Web
 
-Automatically install [Visual Studio Code Server](https://code.visualstudio.com/docs/remote/vscode-server) in a workspace and create an app to access it via the dashboard.
+Automatically install the [VS Code CLI](https://code.visualstudio.com/docs/editor/command-line) and run `code serve-web` in a workspace to access VS Code via the browser.
 
 ```tf
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.4.3"
+  version        = "2.0.0"
   agent_id       = coder_agent.example.id
   accept_license = true
 }
@@ -30,7 +30,7 @@ module "vscode-web" {
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.4.3"
+  version        = "2.0.0"
   agent_id       = coder_agent.example.id
   install_prefix = "/home/coder/.vscode-web"
   folder         = "/home/coder"
@@ -44,22 +44,22 @@ module "vscode-web" {
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.4.3"
+  version        = "2.0.0"
   agent_id       = coder_agent.example.id
   extensions     = ["github.copilot", "ms-python.python", "ms-toolsai.jupyter"]
   accept_license = true
 }
 ```
 
-### Pre-configure Settings
+### Pre-configure Machine Settings
 
-Configure VS Code's [settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-json-file) file:
+Configure VS Code's [Machine settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-json-file). These settings are merged with any existing machine settings on startup:
 
 ```tf
 module "vscode-web" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/vscode-web/coder"
-  version    = "1.4.3"
+  version    = "2.0.0"
   agent_id   = coder_agent.example.id
   extensions = ["dracula-theme.theme-dracula"]
   settings = {
@@ -69,20 +69,7 @@ module "vscode-web" {
 }
 ```
 
-### Pin a specific VS Code Web version
-
-By default, this module installs the latest. To pin a specific version, retrieve the commit ID from the [VS Code Update API](https://update.code.visualstudio.com/api/commits/stable/server-linux-x64-web) and verify its corresponding release on the [VS Code GitHub Releases](https://github.com/microsoft/vscode/releases).
-
-```tf
-module "vscode-web" {
-  count          = data.coder_workspace.me.start_count
-  source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.4.3"
-  agent_id       = coder_agent.example.id
-  commit_id      = "e54c774e0add60467559eb0d1e229c6452cf8447"
-  accept_license = true
-}
-```
+> **Note:** Merging settings requires `jq` or `python3`. If neither is available, existing machine settings will be preserved. User settings configured through the VS Code UI are stored in browser local storage and will not persist across different browsers or devices.
 
 ### Open an existing workspace on startup
 
@@ -91,10 +78,43 @@ Note: Either `workspace` or `folder` can be used, but not both simultaneously. T
 
 ```tf
 module "vscode-web" {
-  count     = data.coder_workspace.me.start_count
-  source    = "registry.coder.com/coder/vscode-web/coder"
-  version   = "1.4.3"
-  agent_id  = coder_agent.example.id
-  workspace = "/home/coder/coder.code-workspace"
+  count          = data.coder_workspace.me.start_count
+  source         = "registry.coder.com/coder/vscode-web/coder"
+  version        = "2.0.0"
+  agent_id       = coder_agent.example.id
+  workspace      = "/home/coder/coder.code-workspace"
+  accept_license = true
 }
 ```
+
+### Use VS Code Insiders
+
+Use the VS Code Insiders release channel to get the latest features and bug fixes:
+
+```tf
+module "vscode-web" {
+  count           = data.coder_workspace.me.start_count
+  source          = "registry.coder.com/coder/vscode-web/coder"
+  version         = "2.0.0"
+  agent_id        = coder_agent.example.id
+  release_channel = "insiders"
+  accept_license  = true
+}
+```
+
+### Pin a specific VS Code version
+
+Use the `commit_id` variable to pin a specific VS Code Server version by its commit SHA:
+
+```tf
+module "vscode-web" {
+  count          = data.coder_workspace.me.start_count
+  source         = "registry.coder.com/coder/vscode-web/coder"
+  version        = "2.0.0"
+  agent_id       = coder_agent.example.id
+  commit_id      = "e54c774e0add60467559eb0d1e229c6452cf8447"
+  accept_license = true
+}
+```
+
+You can find the commit SHA for a specific VS Code version on the [VS Code releases page](https://code.visualstudio.com/updates) or by checking the "About" dialog in VS Code.
