@@ -163,9 +163,15 @@ describe("agentapi", async () => {
       },
     });
 
+    // Derive the binary name from the container's architecture so the test is
+    // portable across amd64 and arm64 hosts.
+    const archResult = await execContainer(id, ["uname", "-m"]);
+    expect(archResult.exitCode).toBe(0);
+    const agentArch =
+      archResult.stdout.trim() === "aarch64" ? "linux-arm64" : "linux-amd64";
+
     // Pre-populate the cache directory with a fake agentapi binary.
-    // The binary is named after the arch and pinned version.
-    const cachedBinary = `${cacheDir}/agentapi-linux-amd64-${pinnedVersion}`;
+    const cachedBinary = `${cacheDir}/agentapi-${agentArch}-${pinnedVersion}`;
     await execContainer(id, [
       "bash",
       "-c",
@@ -195,7 +201,14 @@ describe("agentapi", async () => {
       },
     });
 
-    const cachedBinary = `${cacheDir}/agentapi-linux-amd64-${pinnedVersion}`;
+    // Derive the binary name from the container's architecture so the test is
+    // portable across amd64 and arm64 hosts.
+    const archResult = await execContainer(id, ["uname", "-m"]);
+    expect(archResult.exitCode).toBe(0);
+    const agentArch =
+      archResult.stdout.trim() === "aarch64" ? "linux-arm64" : "linux-amd64";
+
+    const cachedBinary = `${cacheDir}/agentapi-${agentArch}-${pinnedVersion}`;
     const respModuleScript = await execModuleScript(id);
     expect(respModuleScript.exitCode).toBe(0);
     expect(respModuleScript.stdout).toContain(

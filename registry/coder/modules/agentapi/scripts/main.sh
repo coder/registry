@@ -86,10 +86,19 @@ if [ "${INSTALL_AGENTAPI}" = "true" ]; then
         -Ls \
         -o /dev/null \
         -w '%{url_effective}' \
-        "https://github.com/coder/agentapi/releases/latest" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "latest")
-      echo "Resolved AgentAPI latest version to: ${resolved_version}"
+        "https://github.com/coder/agentapi/releases/latest" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || true)
+      if [ -z "${resolved_version}" ]; then
+        echo "Warning: Failed to resolve latest AgentAPI version tag; proceeding without cache for this run."
+      else
+        echo "Resolved AgentAPI latest version to: ${resolved_version}"
+      fi
     fi
-    cached_binary="${CACHE_DIR}/${binary_name}-${resolved_version}"
+    if [ -n "${resolved_version}" ]; then
+      # Sanitize the version so it is safe to use as a filename component.
+      # Allow only alphanumerics, dots, underscores, and hyphens; replace others with '_'.
+      safe_version=$(printf '%s' "${resolved_version}" | tr -c 'A-Za-z0-9._-' '_')
+      cached_binary="${CACHE_DIR}/${binary_name}-${safe_version}"
+    fi
   fi
 
   if [ -n "${cached_binary}" ] && [ -f "${cached_binary}" ]; then
@@ -111,8 +120,17 @@ if [ "${INSTALL_AGENTAPI}" = "true" ]; then
 
     if [ -n "${cached_binary}" ]; then
       echo "Caching AgentAPI binary to ${cached_binary}"
-      mkdir -p "${CACHE_DIR}"
-      cp agentapi "${cached_binary}"
+      # Write atomically via a temp file so concurrent workspace starts on a shared
+      # volume never observe a partially-written binary.
+      if ! mkdir -p "${CACHE_DIR}"; then
+        echo "Warning: Failed to create cache directory ${CACHE_DIR}. Continuing without caching."
+      else
+        tmp_cached_binary="${cached_binary}.$$"
+        if ! cp agentapi "${tmp_cached_binary}" || ! mv -f "${tmp_cached_binary}" "${cached_binary}"; then
+          rm -f "${tmp_cached_binary}"
+          echo "Warning: Failed to cache AgentAPI binary to ${cached_binary}. Continuing without caching."
+        fi
+      fi
     fi
 
     sudo mv agentapi /usr/local/bin/agentapi

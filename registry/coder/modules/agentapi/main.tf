@@ -214,7 +214,7 @@ resource "coder_script" "agentapi" {
     ARG_AGENTAPI_CHAT_BASE_PATH='${local.agentapi_chat_base_path}' \
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
-    ARG_CACHE_DIR='${var.agentapi_cache_dir}' \
+    ARG_CACHE_DIR="$(echo -n '${base64encode(var.agentapi_cache_dir)}' | base64 -d)" \
     /tmp/main.sh
     EOT
   run_on_start = true
