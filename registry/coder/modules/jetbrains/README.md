@@ -14,7 +14,7 @@ This module adds JetBrains IDE buttons to launch IDEs directly from the dashboar
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
@@ -39,7 +39,7 @@ When `default` contains IDE codes, those IDEs are created directly without user 
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   default  = ["PY", "IU"] # Pre-configure PyCharm and IntelliJ IDEA
@@ -52,7 +52,7 @@ module "jetbrains" {
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   # Show parameter with limited options
@@ -66,7 +66,7 @@ module "jetbrains" {
 module "jetbrains" {
   count         = data.coder_workspace.me.start_count
   source        = "registry.coder.com/coder/jetbrains/coder"
-  version       = "1.3.0"
+  version       = "1.4.0"
   agent_id      = coder_agent.main.id
   folder        = "/home/coder/project"
   default       = ["IU", "PY"]
@@ -81,7 +81,7 @@ module "jetbrains" {
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
   folder   = "/workspace/project"
 
@@ -108,7 +108,7 @@ module "jetbrains" {
 module "jetbrains_pycharm" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
   folder   = "/workspace/project"
 
@@ -128,7 +128,7 @@ Add helpful tooltip text that appears when users hover over the IDE app buttons:
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   default  = ["IU", "PY"]
@@ -165,7 +165,7 @@ module "jetbrains" {
 }
 ```
 
-> [!IMPORTANT] \
+> [!IMPORTANT]
 > After installing the IDE, restart the workspace.
 > When the workspace starts again, the scripts will detect the installed IDE and automatically install the configured plugins.
 >
