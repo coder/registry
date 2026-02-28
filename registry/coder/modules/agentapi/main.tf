@@ -55,7 +55,7 @@ variable "folder" {
 
 variable "web_app" {
   type        = bool
-  description = "Whether to create the web workspace app. Note: the web app is required for Coder Tasks (coder_ai_task) — do not disable this if you are using Tasks."
+  description = "Whether to create the web workspace app. This is automatically enabled when using Coder Tasks, regardless of this setting."
   default     = true
 }
 
@@ -172,6 +172,11 @@ variable "module_dir_name" {
 
 
 locals {
+  # If this is a Task, always create the web app regardless of var.web_app
+  # since coder_ai_task requires the app to function.
+  is_task = try(data.coder_task.me.enabled, false)
+  web_app = var.web_app || local.is_task
+
   # we always trim the slash for consistency
   workdir                            = trimsuffix(var.folder, "/")
   encoded_pre_install_script         = var.pre_install_script != null ? base64encode(var.pre_install_script) : ""
@@ -240,7 +245,7 @@ resource "coder_script" "agentapi_shutdown" {
 }
 
 resource "coder_app" "agentapi_web" {
-  count = var.web_app ? 1 : 0
+  count = local.web_app ? 1 : 0
 
   slug         = var.web_app_slug
   display_name = var.web_app_display_name
@@ -278,5 +283,5 @@ resource "coder_app" "agentapi_cli" {
 }
 
 output "task_app_id" {
-  value = var.web_app ? coder_app.agentapi_web[0].id : ""
+  value = local.web_app ? coder_app.agentapi_web[0].id : ""
 }
