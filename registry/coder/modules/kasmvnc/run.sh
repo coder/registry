@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
 
+# DEBUG=1
 set -eo pipefail
 
 error() {
-  printf "💀 ERROR: %s\n" "$@"
+  printf "💀 ERROR: %s\n" "$*" >&2
   exit 1
+}
+
+warn() {
+  printf "⚠️  WARN: %s\n" "$*" >&2
+}
+
+debug() {
+  [[ "$${DEBUG:-0}" == "1" ]] || return 0
+  printf "🐛 DEBUG: %s\n" "$*" >&2
 }
 
 # Function to check if KasmVNC is already installed
@@ -282,6 +292,68 @@ patch_kasm_http_files() {
   fix_server_index_file "$homedir"
 }
 
+health_check_with_retries() {
+  local max_attempts=3
+  local attempt=1
+  local check_tool
+
+  if command -v curl &> /dev/null; then
+    check_tool=(curl -s -f -o /dev/null)
+  elif command -v wget &> /dev/null; then
+    check_tool=(wget -q -O-)
+  elif command -v busybox &> /dev/null; then
+    check_tool=(busybox wget -O-)
+  else
+    error "No download tool available (curl, wget, or busybox required)"
+  fi
+
+  while (( attempt <= max_attempts )); do
+    if "$${check_tool[@]}" "http://127.0.0.1:${PORT}/app" >/dev/null 2>&1; then
+      debug "Attempt $attempt: service is ready"
+      return 0
+    fi
+
+    echo "Attempt $attempt: service not ready yet"
+    sleep 1
+    ((attempt++))
+  done
+
+  return 1
+}
+
+
+check_port_owned_by_user() {
+  local port="$1"
+  local user
+  user="$(whoami)"
+
+  if ! command -v lsof >/dev/null 2>&1; then
+    warn "lsof not found, skip port ownership check"
+    return 1
+  fi
+
+  debug "Checking port $port with lsof (user=$user)"
+
+  local out
+  out="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null)"
+
+  debug "lsof output:"
+  debug "$out"
+
+  if [[ -z "$out" ]]; then
+    debug "No process is listening on port $port"
+    return 1
+  fi
+
+  if ! echo "$out" | awk -v u="$user" '$3 == u {found=1} END {exit !found}'; then
+    debug "Port $port is not owned by user $user"
+    return 1
+  fi
+
+  return 0
+}
+
+
 if [[ "${SUBDOMAIN}" == "false" ]]; then
   echo "🩹 Patching up webserver files to support path-sharing..."
   patch_kasm_http_files
@@ -292,18 +364,31 @@ VNC_LOG="/tmp/kasmvncserver.log"
 printf "🚀 Starting KasmVNC server...\n"
 
 set +e
-kasmvncserver -select-de "${DESKTOP_ENVIRONMENT}" -disableBasicAuth > "$VNC_LOG" 2>&1
+kasmvncserver -select-de "${DESKTOP_ENVIRONMENT}" -websocketPort "${PORT}" -disableBasicAuth > "$VNC_LOG" 2>&1
 RETVAL=$?
 set -e
 
 if [[ $RETVAL -ne 0 ]]; then
-  echo "ERROR: Failed to start KasmVNC server. Return code: $RETVAL"
-  if [[ -f "$VNC_LOG" ]]; then
-    echo "Full logs:"
-    cat "$VNC_LOG"
-  else
-    echo "ERROR: Log file not found: $VNC_LOG"
+
+  debug "KasmVNC error code: $RETVAL"
+
+  if [[ $RETVAL -eq 255 ]]; then
+    if check_port_owned_by_user "${PORT}"; then
+      echo "Port ${PORT} is already owned by $(whoami), running health check..."
+
+      if health_check_with_retries; then
+        debug "Health check succeeded, treating as success"
+        exit 0
+      else
+        echo "ERROR: KasmVNC server on port ${PORT} failed health check"
+        [[ -f "$VNC_LOG" ]] && cat "$VNC_LOG"
+        exit 1
+      fi
+    fi
   fi
+
+  echo "ERROR: Failed to start KasmVNC server. Return code: $RETVAL"
+  [[ -f "$VNC_LOG" ]] && cat "$VNC_LOG"
   exit 1
 fi
 
