@@ -223,7 +223,7 @@ locals {
 
   plugin_map_b64 = base64encode(jsonencode(var.jetbrains_plugins))
 
-  plugin_install_script = file("${path.module}/script/install_plugins.sh")
+  plugin_install_script = file("${path.module}/scripts/install_plugins.sh")
 }
 
 data "coder_parameter" "jetbrains_ides" {
@@ -271,7 +271,7 @@ resource "coder_script" "install_jetbrains_plugins" {
     echo -n '${base64encode(local.plugin_install_script)}' | base64 -d > /tmp/install_plugins.sh
     chmod +x /tmp/install_plugins.sh
 
-    /tmp/install_plugins.sh > /tmp/install_plugins.log 2>&1 &
+    /tmp/install_plugins.sh > /tmp/install_plugins.log 2>&1
   EOT
 }
 
