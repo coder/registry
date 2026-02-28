@@ -156,6 +156,29 @@ is_valid_session() {
   return 0
 }
 
+# Clean up all Claude session state files for a given session ID.
+# Claude CLI tracks session state across multiple directories, not just the
+# .jsonl transcript. If only the .jsonl is removed, Claude will reject the
+# session ID as "already in use" due to leftover metadata files.
+# See: https://github.com/coder/registry/issues/726
+cleanup_stale_session() {
+  local session_id="$1"
+  printf "Cleaning up stale session state for: %s\n" "$session_id"
+
+  # Remove session transcript from all project directories
+  find "$HOME/.claude/projects" -name "${session_id}.jsonl" -delete 2>/dev/null || true
+  # Remove session lock directories
+  find "$HOME/.claude/projects" -type d -name "${session_id}" -exec rm -rf {} + 2>/dev/null || true
+  # Remove debug logs
+  rm -f "$HOME/.claude/debug/${session_id}.txt" 2>/dev/null || true
+  # Remove todo state
+  find "$HOME/.claude/todos" -name "${session_id}*.json" -delete 2>/dev/null || true
+  # Remove environment state
+  rm -rf "$HOME/.claude/session-env/${session_id}" 2>/dev/null || true
+
+  printf "Stale session state cleaned up for: %s\n" "$session_id"
+}
+
 has_any_sessions() {
   local project_dir
   project_dir=$(get_project_dir)
@@ -197,6 +220,9 @@ function start_agentapi() {
         echo "Resuming task session: $TASK_SESSION_ID"
         ARGS+=(--resume "$TASK_SESSION_ID" --dangerously-skip-permissions)
       else
+        # Clean up all session state to prevent "Session ID already in use"
+        # errors from leftover metadata files (debug, todos, session-env, etc.)
+        cleanup_stale_session "$TASK_SESSION_ID"
         echo "Starting new task session: $TASK_SESSION_ID"
         ARGS+=(--session-id "$TASK_SESSION_ID" --dangerously-skip-permissions)
         [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
