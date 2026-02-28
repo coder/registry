@@ -54,6 +54,8 @@ data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
 module "vscode-desktop-core" {
+  count = data.coder_workspace.me.start_count
+
   source  = "registry.coder.com/coder/vscode-desktop-core/coder"
   version = "1.0.2"
 

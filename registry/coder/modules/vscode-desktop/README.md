@@ -16,7 +16,7 @@ Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder)
 module "vscode" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/vscode-desktop/coder"
-  version  = "1.2.1"
+  version  = "1.2.2"
   agent_id = coder_agent.main.id
 }
 ```
@@ -29,7 +29,7 @@ module "vscode" {
 module "vscode" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/vscode-desktop/coder"
-  version  = "1.2.1"
+  version  = "1.2.2"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
