@@ -309,16 +309,22 @@ describe("agentapi", async () => {
         "../scripts/agentapi-shutdown.sh",
       );
 
+      const shutdownScriptPath = `/home/coder/${moduleDirName}/scripts/agentapi-shutdown.sh`;
+      await execContainer(containerId, [
+        "bash",
+        "-c",
+        `mkdir -p /home/coder/${moduleDirName}/scripts`,
+      ]);
       await writeExecutable({
         containerId,
-        filePath: "/tmp/shutdown.sh",
+        filePath: shutdownScriptPath,
         content: shutdownScript,
       });
 
       return await execContainer(containerId, [
         "bash",
         "-c",
-        `ARG_TASK_ID=${taskId} ARG_AGENTAPI_PORT=3284 CODER_AGENT_URL=http://localhost:18080 CODER_AGENT_TOKEN=test-token /tmp/shutdown.sh`,
+        `ARG_TASK_ID=${taskId} ARG_AGENTAPI_PORT=3284 CODER_AGENT_URL=http://localhost:18080 CODER_AGENT_TOKEN=test-token ${shutdownScriptPath}`,
       ]);
     };
 

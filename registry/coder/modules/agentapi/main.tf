@@ -193,8 +193,10 @@ resource "coder_script" "agentapi" {
     set -o errexit
     set -o pipefail
 
-    echo -n '${base64encode(local.main_script)}' | base64 -d > /tmp/main.sh
-    chmod +x /tmp/main.sh
+    SCRIPT_DIR="$HOME/${var.module_dir_name}/scripts"
+    mkdir -p "$SCRIPT_DIR"
+    echo -n '${base64encode(local.main_script)}' | base64 -d > "$SCRIPT_DIR/agentapi-main.sh"
+    chmod +x "$SCRIPT_DIR/agentapi-main.sh"
 
     ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
     ARG_WORKDIR="$(echo -n '${base64encode(local.workdir)}' | base64 -d)" \
@@ -209,7 +211,7 @@ resource "coder_script" "agentapi" {
     ARG_AGENTAPI_CHAT_BASE_PATH='${local.agentapi_chat_base_path}' \
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
-    /tmp/main.sh
+    "$SCRIPT_DIR/agentapi-main.sh"
     EOT
   run_on_start = true
 }
@@ -223,13 +225,15 @@ resource "coder_script" "agentapi_shutdown" {
     #!/bin/bash
     set -o pipefail
 
-    echo -n '${base64encode(local.shutdown_script)}' | base64 -d > /tmp/agentapi-shutdown.sh
-    chmod +x /tmp/agentapi-shutdown.sh
+    SCRIPT_DIR="$HOME/${var.module_dir_name}/scripts"
+    mkdir -p "$SCRIPT_DIR"
+    echo -n '${base64encode(local.shutdown_script)}' | base64 -d > "$SCRIPT_DIR/agentapi-shutdown.sh"
+    chmod +x "$SCRIPT_DIR/agentapi-shutdown.sh"
 
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
-    /tmp/agentapi-shutdown.sh
+    "$SCRIPT_DIR/agentapi-shutdown.sh"
     EOT
 }
 
