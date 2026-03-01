@@ -180,8 +180,8 @@ function configure_standalone_mode() {
   echo "Configuring Claude Code for standalone mode..."
 
   if [ -z "${CLAUDE_API_KEY:-}" ] \
-     && [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] \
-     && [ "${ARG_ENABLE_AIBRIDGE:-false}" = "false" ]; then
+    && [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] \
+    && [ "${ARG_ENABLE_AIBRIDGE:-false}" = "false" ]; then
     echo "Note: No CLAUDE_API_KEY, no CLAUDE_CODE_OAUTH_TOKEN, and AIBridge disabled — skipping authentication setup"
     return
   fi
