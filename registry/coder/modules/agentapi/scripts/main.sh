@@ -73,7 +73,6 @@ if [ "${INSTALL_AGENTAPI}" = "true" ]; then
     --retry 5 \
     --retry-delay 5 \
     --fail \
-    --retry-all-errors \
     -L \
     -C - \
     -o agentapi \
