@@ -16,7 +16,7 @@ The AgentAPI module is a building block for modules that need to run an AgentAPI
 ```tf
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.1.1"
+  version = "2.2.0"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
@@ -61,6 +61,19 @@ module "agentapi" {
   task_log_snapshot = true # default: true
 }
 ```
+
+## Caching the AgentAPI binary
+
+When `agentapi_cache_dir` is set, the AgentAPI binary is cached to that directory after the first download. On subsequent workspace starts, the cached binary is used instead of re-downloading from GitHub. This is particularly useful when workspaces use a persistent volume.
+
+```tf
+module "agentapi" {
+  # ... other config
+  agentapi_cache_dir = "/home/coder/.cache/agentapi"
+}
+```
+
+The cached binary is stored with a name that includes the architecture and version (e.g., `agentapi-linux-amd64-v0.10.0`) so different versions can coexist in the same cache directory.
 
 ## For module developers
 

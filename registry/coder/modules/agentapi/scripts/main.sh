@@ -16,6 +16,7 @@ AGENTAPI_PORT="$ARG_AGENTAPI_PORT"
 AGENTAPI_CHAT_BASE_PATH="${ARG_AGENTAPI_CHAT_BASE_PATH:-}"
 TASK_ID="${ARG_TASK_ID:-}"
 TASK_LOG_SNAPSHOT="${ARG_TASK_LOG_SNAPSHOT:-true}"
+CACHE_DIR="${ARG_CACHE_DIR:-}"
 set +o nounset
 
 command_exists() {
@@ -62,6 +63,7 @@ if [ "${INSTALL_AGENTAPI}" = "true" ]; then
     echo "Error: Unsupported architecture: $arch"
     exit 1
   fi
+
   if [ "${AGENTAPI_VERSION}" = "latest" ]; then
     # for the latest release the download URL pattern is different than for tagged releases
     # https://docs.github.com/en/repositories/releasing-projects-on-github/linking-to-releases
@@ -69,17 +71,70 @@ if [ "${INSTALL_AGENTAPI}" = "true" ]; then
   else
     download_url="https://github.com/coder/agentapi/releases/download/${AGENTAPI_VERSION}/$binary_name"
   fi
-  curl \
-    --retry 5 \
-    --retry-delay 5 \
-    --fail \
-    --retry-all-errors \
-    -L \
-    -C - \
-    -o agentapi \
-    "$download_url"
-  chmod +x agentapi
-  sudo mv agentapi /usr/local/bin/agentapi
+
+  cached_binary=""
+  if [ -n "${CACHE_DIR}" ]; then
+    resolved_version="${AGENTAPI_VERSION}"
+    if [ "${AGENTAPI_VERSION}" = "latest" ]; then
+      # Resolve the actual version tag so the cache key is stable (e.g. v0.10.0, not "latest").
+      # GitHub redirects /releases/latest to /releases/tag/vX.Y.Z; we extract the tag from that URL.
+      resolved_version=$(curl \
+        --retry 3 \
+        --retry-delay 3 \
+        --fail \
+        --retry-all-errors \
+        -Ls \
+        -o /dev/null \
+        -w '%{url_effective}' \
+        "https://github.com/coder/agentapi/releases/latest" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || true)
+      if [ -z "${resolved_version}" ]; then
+        echo "Warning: Failed to resolve latest AgentAPI version tag; proceeding without cache for this run."
+      else
+        echo "Resolved AgentAPI latest version to: ${resolved_version}"
+      fi
+    fi
+    if [ -n "${resolved_version}" ]; then
+      # Sanitize the version so it is safe to use as a filename component.
+      # Allow only alphanumerics, dots, underscores, and hyphens; replace others with '_'.
+      safe_version=$(printf '%s' "${resolved_version}" | tr -c 'A-Za-z0-9._-' '_')
+      cached_binary="${CACHE_DIR}/${binary_name}-${safe_version}"
+    fi
+  fi
+
+  if [ -n "${cached_binary}" ] && [ -f "${cached_binary}" ]; then
+    echo "Using cached AgentAPI binary from ${cached_binary}"
+    cp "${cached_binary}" agentapi
+    chmod +x agentapi
+    sudo mv agentapi /usr/local/bin/agentapi
+  else
+    curl \
+      --retry 5 \
+      --retry-delay 5 \
+      --fail \
+      --retry-all-errors \
+      -L \
+      -C - \
+      -o agentapi \
+      "$download_url"
+    chmod +x agentapi
+
+    if [ -n "${cached_binary}" ]; then
+      echo "Caching AgentAPI binary to ${cached_binary}"
+      # Write atomically via a temp file so concurrent workspace starts on a shared
+      # volume never observe a partially-written binary.
+      if ! mkdir -p "${CACHE_DIR}"; then
+        echo "Warning: Failed to create cache directory ${CACHE_DIR}. Continuing without caching."
+      else
+        tmp_cached_binary="${cached_binary}.$$"
+        if ! cp agentapi "${tmp_cached_binary}" || ! mv -f "${tmp_cached_binary}" "${cached_binary}"; then
+          rm -f "${tmp_cached_binary}"
+          echo "Warning: Failed to cache AgentAPI binary to ${cached_binary}. Continuing without caching."
+        fi
+      fi
+    fi
+
+    sudo mv agentapi /usr/local/bin/agentapi
+  fi
 fi
 if ! command_exists agentapi; then
   echo "Error: AgentAPI is not installed. Please enable install_agentapi or install it manually."
