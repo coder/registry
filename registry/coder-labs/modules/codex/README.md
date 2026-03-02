@@ -147,7 +147,7 @@ This example shows how to enable network filtering using Coder Boundary to restr
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.1.1"
+  version        = "4.2.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   workdir        = "/home/coder/project"
@@ -168,7 +168,7 @@ When `enable_boundary = true`:
 - `landjail` uses Landlock V4 (no special capabilities needed, requires kernel 6.7+)
 - `nsjail` uses Linux namespaces (may require Docker seccomp modifications)
 
-For more information, see [Coder Boundary Documentation](https://coder.com/docs/admin/security/boundary).
+For more information, see [Agent Boundaries Documentation](https://coder.com/docs/ai-coder/agent-boundaries).
 
 ## How it Works
 

@@ -108,7 +108,7 @@ export LC_ALL=en_US.UTF-8
 cd "${WORKDIR}"
 
 # Set up boundary if enabled
-BOUNDARY_WRAPPER=""
+export BOUNDARY_WRAPPER=""
 if [ "${ENABLE_BOUNDARY}" = "true" ]; then
   echo "Setting up coder boundary..."
 
@@ -135,11 +135,10 @@ EOF
   if command_exists coder; then
     CODER_NO_CAPS="$(dirname "$(which coder)")/coder-no-caps"
     cp "$(which coder)" "$CODER_NO_CAPS"
-    BOUNDARY_WRAPPER="$CODER_NO_CAPS boundary --"
+    export BOUNDARY_WRAPPER="$CODER_NO_CAPS boundary --"
     echo "Boundary wrapper configured: ${BOUNDARY_WRAPPER}"
   else
     echo "Warning: coder command not found, boundary will not be enabled"
-    BOUNDARY_WRAPPER=""
   fi
 fi
 
@@ -147,11 +146,5 @@ export AGENTAPI_CHAT_BASE_PATH="${AGENTAPI_CHAT_BASE_PATH:-}"
 # Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
 export AGENTAPI_ALLOWED_HOSTS="*"
 
-# Start agentapi with or without boundary wrapper
-if [ -n "${BOUNDARY_WRAPPER}" ]; then
-  echo "Starting agentapi with boundary wrapper..."
-  nohup ${BOUNDARY_WRAPPER} "$module_path/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &> "$module_path/agentapi-start.log" &
-else
-  nohup "$module_path/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &> "$module_path/agentapi-start.log" &
-fi
+nohup "$module_path/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &> "$module_path/agentapi-start.log" &
 "$module_path/scripts/agentapi-wait-for-start.sh" "${AGENTAPI_PORT}"
