@@ -84,6 +84,12 @@ variable "agentapi_version" {
   default     = "v0.10.0"
 }
 
+variable "agentapi_cache_dir" {
+  type        = string
+  description = "Path to a directory where the AgentAPI binary will be cached after download. On subsequent workspace starts, the cached binary is used instead of downloading again."
+  default     = ""
+}
+
 variable "gemini_model" {
   type        = string
   description = "The model to use for Gemini (e.g., gemini-2.5-pro)."
@@ -177,7 +183,7 @@ EOT
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.0.0"
+  version = "2.2.0"
 
   agent_id             = var.agent_id
   folder               = local.folder
@@ -191,6 +197,7 @@ module "agentapi" {
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
+  agentapi_cache_dir   = var.agentapi_cache_dir
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
   install_script       = <<-EOT
