@@ -170,6 +170,34 @@ variable "codex_system_prompt" {
   default     = "You are a helpful coding assistant. Start every response with `Codex says:`"
 }
 
+variable "enable_boundary" {
+  type        = bool
+  description = "Enable coder boundary for network filtering"
+  default     = false
+}
+
+variable "boundary_jail_type" {
+  type        = string
+  description = "Jail type: nsjail (default) or landjail"
+  default     = "nsjail"
+  validation {
+    condition     = contains(["nsjail", "landjail"], var.boundary_jail_type)
+    error_message = "Must be nsjail or landjail."
+  }
+}
+
+variable "boundary_proxy_port" {
+  type        = number
+  description = "HTTP proxy port for boundary"
+  default     = 8087
+}
+
+variable "boundary_config_path" {
+  type        = string
+  description = "Path to boundary config.yaml file. If not provided, a minimal config with jail_type and proxy_port will be generated."
+  default     = ""
+}
+
 resource "coder_env" "openai_api_key" {
   agent_id = var.agent_id
   name     = "OPENAI_API_KEY"
@@ -205,7 +233,7 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.0.0"
+  version = "2.2.0"
 
   agent_id             = var.agent_id
   folder               = local.workdir
@@ -223,6 +251,10 @@ module "agentapi" {
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
+  enable_boundary      = var.enable_boundary
+  boundary_jail_type   = var.boundary_jail_type
+  boundary_proxy_port  = var.boundary_proxy_port
+  boundary_config_path = var.boundary_config_path
   start_script         = <<-EOT
      #!/bin/bash
      set -o errexit

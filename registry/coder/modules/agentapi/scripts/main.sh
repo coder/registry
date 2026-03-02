@@ -16,6 +16,10 @@ AGENTAPI_PORT="$ARG_AGENTAPI_PORT"
 AGENTAPI_CHAT_BASE_PATH="${ARG_AGENTAPI_CHAT_BASE_PATH:-}"
 TASK_ID="${ARG_TASK_ID:-}"
 TASK_LOG_SNAPSHOT="${ARG_TASK_LOG_SNAPSHOT:-true}"
+ENABLE_BOUNDARY="${ARG_ENABLE_BOUNDARY:-false}"
+BOUNDARY_JAIL_TYPE="${ARG_BOUNDARY_JAIL_TYPE:-nsjail}"
+BOUNDARY_PROXY_PORT="${ARG_BOUNDARY_PROXY_PORT:-8087}"
+BOUNDARY_CONFIG_PATH="${ARG_BOUNDARY_CONFIG_PATH:-}"
 set +o nounset
 
 command_exists() {
@@ -103,8 +107,51 @@ export LC_ALL=en_US.UTF-8
 
 cd "${WORKDIR}"
 
+# Set up boundary if enabled
+BOUNDARY_WRAPPER=""
+if [ "${ENABLE_BOUNDARY}" = "true" ]; then
+  echo "Setting up coder boundary..."
+
+  # Create boundary config directory
+  mkdir -p ~/.config/coder_boundary
+
+  # Write boundary config if custom path not provided
+  if [ -z "${BOUNDARY_CONFIG_PATH}" ]; then
+    echo "Generating boundary config with jail_type=${BOUNDARY_JAIL_TYPE} and proxy_port=${BOUNDARY_PROXY_PORT}"
+    cat > ~/.config/coder_boundary/config.yaml <<EOF
+jail_type: ${BOUNDARY_JAIL_TYPE}
+proxy_port: ${BOUNDARY_PROXY_PORT}
+log_level: warn
+EOF
+  else
+    echo "Using custom boundary config from ${BOUNDARY_CONFIG_PATH}"
+    cp "${BOUNDARY_CONFIG_PATH}" ~/.config/coder_boundary/config.yaml
+  fi
+
+  chmod 600 ~/.config/coder_boundary/config.yaml
+
+  # Copy coder binary to strip CAP_NET_ADMIN capabilities
+  # This is necessary because boundary doesn't work with privileged binaries
+  if command_exists coder; then
+    CODER_NO_CAPS="$(dirname "$(which coder)")/coder-no-caps"
+    cp "$(which coder)" "$CODER_NO_CAPS"
+    BOUNDARY_WRAPPER="$CODER_NO_CAPS boundary --"
+    echo "Boundary wrapper configured: ${BOUNDARY_WRAPPER}"
+  else
+    echo "Warning: coder command not found, boundary will not be enabled"
+    BOUNDARY_WRAPPER=""
+  fi
+fi
+
 export AGENTAPI_CHAT_BASE_PATH="${AGENTAPI_CHAT_BASE_PATH:-}"
 # Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
 export AGENTAPI_ALLOWED_HOSTS="*"
-nohup "$module_path/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &> "$module_path/agentapi-start.log" &
+
+# Start agentapi with or without boundary wrapper
+if [ -n "${BOUNDARY_WRAPPER}" ]; then
+  echo "Starting agentapi with boundary wrapper..."
+  nohup ${BOUNDARY_WRAPPER} "$module_path/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &> "$module_path/agentapi-start.log" &
+else
+  nohup "$module_path/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &> "$module_path/agentapi-start.log" &
+fi
 "$module_path/scripts/agentapi-wait-for-start.sh" "${AGENTAPI_PORT}"

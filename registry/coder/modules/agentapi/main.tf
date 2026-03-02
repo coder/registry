@@ -164,6 +164,34 @@ variable "module_dir_name" {
   description = "Name of the subdirectory in the home directory for module files."
 }
 
+variable "enable_boundary" {
+  type        = bool
+  description = "Enable coder boundary for network filtering"
+  default     = false
+}
+
+variable "boundary_jail_type" {
+  type        = string
+  description = "Jail type: nsjail (default) or landjail"
+  default     = "nsjail"
+  validation {
+    condition     = contains(["nsjail", "landjail"], var.boundary_jail_type)
+    error_message = "Must be nsjail or landjail."
+  }
+}
+
+variable "boundary_proxy_port" {
+  type        = number
+  description = "HTTP proxy port for boundary"
+  default     = 8087
+}
+
+variable "boundary_config_path" {
+  type        = string
+  description = "Path to boundary config.yaml file. If not provided, a minimal config with jail_type and proxy_port will be generated."
+  default     = ""
+}
+
 
 locals {
   # we always trim the slash for consistency
@@ -209,6 +237,10 @@ resource "coder_script" "agentapi" {
     ARG_AGENTAPI_CHAT_BASE_PATH='${local.agentapi_chat_base_path}' \
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
+    ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
+    ARG_BOUNDARY_JAIL_TYPE='${var.boundary_jail_type}' \
+    ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
+    ARG_BOUNDARY_CONFIG_PATH='${var.boundary_config_path}' \
     /tmp/main.sh
     EOT
   run_on_start = true
