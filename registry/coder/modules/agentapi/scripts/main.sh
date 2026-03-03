@@ -144,7 +144,8 @@ EOF
     export BOUNDARY_WRAPPER="$CODER_NO_CAPS boundary --"
     echo "Boundary wrapper configured: ${BOUNDARY_WRAPPER}"
   else
-    echo "Warning: coder command not found, boundary will not be enabled"
+    echo "Error: ENABLE_BOUNDARY=true, but 'coder' command not found. Boundary cannot be enabled." >&2
+    exit 1
   fi
 fi
 
