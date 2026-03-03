@@ -38,8 +38,7 @@ By default, Claude Code automatically resumes existing conversations when your w
 
 ## State Persistence
 
-AgentAPI can save and restore conversation state across workspace restarts.
-This is enabled by default.
+AgentAPI can save and restore its conversation state to disk across workspace restarts. This complements `continue` (which resumes the Claude CLI session) by also preserving the AgentAPI-level context. Enabled by default, requires agentapi >= v0.12.0 (older versions skip it with a warning).
 
 To disable:
 
