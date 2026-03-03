@@ -7,6 +7,10 @@ terraform {
       source  = "coder/coder"
       version = ">= 2.5"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.0"
+    }
   }
 }
 
@@ -17,45 +21,68 @@ variable "agent_id" {
 
 variable "port" {
   type        = number
-  description = "The port to run mux on."
+  description = "The port to run Mux on."
   default     = 4000
 }
 
 variable "display_name" {
   type        = string
-  description = "The display name for the mux application."
-  default     = "mux"
+  description = "The display name for the Mux application."
+  default     = "Mux"
 }
 
 variable "slug" {
   type        = string
-  description = "The slug for the mux application."
+  description = "The slug for the Mux application."
   default     = "mux"
 }
 
 variable "install_prefix" {
   type        = string
-  description = "The prefix to install mux to."
+  description = "The prefix to install Mux to."
   default     = "/tmp/mux"
 }
 
 variable "log_path" {
   type        = string
-  description = "The path for mux logs."
+  description = "The path for Mux logs."
   default     = "/tmp/mux.log"
 }
 
-variable "add-project" {
+variable "add_project" {
   type        = string
-  description = "Path to add/open as a project in mux (idempotent)."
+  description = "Optional path to add/open as a project in Mux on startup."
+  default     = null
+}
+
+variable "additional_arguments" {
+  type        = string
+  description = "Additional command-line arguments to pass to `mux server` (for example: `--add-project /path --open-mode pinned`)."
   default     = ""
 }
 
 variable "install_version" {
   type        = string
-  description = "The version or dist-tag of mux to install."
+  description = "The version or dist-tag of Mux to install."
   default     = "next"
 }
+
+variable "package_manager" {
+  type        = string
+  description = "Package manager to install Mux. 'auto' detects npm, pnpm, or bun (falling back to tarball download). Set to 'npm', 'pnpm', or 'bun' to force a specific one."
+  default     = "auto"
+  validation {
+    condition     = contains(["auto", "npm", "pnpm", "bun"], var.package_manager)
+    error_message = "The 'package_manager' variable must be one of: 'auto', 'npm', 'pnpm', 'bun'."
+  }
+}
+
+variable "registry_url" {
+  type        = string
+  description = "The npm-compatible registry URL to install Mux from. Override this for private registries or mirrors."
+  default     = "https://registry.npmjs.org"
+}
+
 
 variable "share" {
   type    = string
@@ -80,13 +107,13 @@ variable "group" {
 
 variable "install" {
   type        = bool
-  description = "Install mux from the network (npm or tarball). If false, run without installing (requires a pre-installed mux)."
+  description = "Install Mux from the network (npm or tarball). If false, run without installing (requires a pre-installed Mux)."
   default     = true
 }
 
 variable "use_cached" {
   type        = bool
-  description = "Use cached copy of mux if present; otherwise install from npm"
+  description = "Use cached copy of Mux if present; otherwise install from npm"
   default     = false
 }
 
@@ -96,7 +123,7 @@ variable "subdomain" {
     Determines whether the app will be accessed via it's own subdomain or whether it will be accessed via a path on Coder.
     If wildcards have not been setup by the administrator then apps with "subdomain" set to true will not be accessible.
   EOT
-  default     = false
+  default     = true
 }
 
 variable "open_in" {
@@ -113,18 +140,39 @@ variable "open_in" {
   }
 }
 
+# Per-module auth token for cross-site request protection.
+# We pass this token into each mux process at launch time (process-scoped env)
+# and include it in the app URL query string (?token=...).
+#
+# Why process-scoped env instead of a shared coder_env value:
+# multiple mux module instances can target the same agent (different slug/port).
+# A single global MUX_SERVER_AUTH_TOKEN env key would cause collisions.
+resource "random_password" "mux_auth_token" {
+  length  = 64
+  special = false
+}
+
+locals {
+  mux_auth_token = random_password.mux_auth_token.result
+  registry_url   = trimsuffix(var.registry_url, "/")
+}
+
 resource "coder_script" "mux" {
   agent_id     = var.agent_id
-  display_name = "mux"
+  display_name = var.display_name
   icon         = "/icon/mux.svg"
   script = templatefile("${path.module}/run.sh", {
     VERSION : var.install_version,
     PORT : var.port,
     LOG_PATH : var.log_path,
-    ADD_PROJECT : var.add-project,
+    ADD_PROJECT : var.add_project == null ? "" : var.add_project,
+    ADDITIONAL_ARGUMENTS : var.additional_arguments,
     INSTALL_PREFIX : var.install_prefix,
     OFFLINE : !var.install,
     USE_CACHED : var.use_cached,
+    AUTH_TOKEN : local.mux_auth_token,
+    PACKAGE_MANAGER : var.package_manager,
+    REGISTRY_URL : local.registry_url,
   })
   run_on_start = true
 
@@ -140,7 +188,7 @@ resource "coder_app" "mux" {
   agent_id     = var.agent_id
   slug         = var.slug
   display_name = var.display_name
-  url          = "http://localhost:${var.port}"
+  url          = "http://localhost:${var.port}?token=${local.mux_auth_token}"
   icon         = "/icon/mux.svg"
   subdomain    = var.subdomain
   share        = var.share
@@ -154,5 +202,3 @@ resource "coder_app" "mux" {
     threshold = 6
   }
 }
-
-

@@ -137,11 +137,12 @@ locals {
   hcloud_server_types = {
     for st in jsondecode(data.http.hcloud_server_types.response_body).server_types :
     st.name => {
-      cores      = st.cores
-      memory_gb  = st.memory
-      disk_gb    = st.disk
-      locations  = [for l in st.locations : l.name]
-      deprecated = st.deprecated
+      cores        = st.cores
+      memory_gb    = st.memory
+      disk_gb      = st.disk
+      architecture = st.architecture
+      locations    = [for l in st.locations : l.name]
+      deprecated   = st.deprecated
     }
     if st.deprecated == false
   }
@@ -162,6 +163,19 @@ locals {
       data.coder_parameter.hcloud_location.value
     )
   ]
+
+  # Map Hetzner architecture (x86 or arm) to Coder agent architecture (amd64 or arm64)
+  agent_arch = try(
+    lookup(
+      {
+        "x86" = "amd64"
+        "arm" = "arm64"
+      },
+      local.hcloud_server_types[data.coder_parameter.hcloud_server_type.value].architecture,
+      "amd64" # Fallback if not returned
+    ),
+    "amd64" # Fallback for template setup
+  )
 }
 
 data "coder_provisioner" "me" {}
@@ -187,7 +201,7 @@ data "coder_parameter" "home_volume_size" {
 
 resource "coder_agent" "main" {
   os   = "linux"
-  arch = "amd64"
+  arch = local.agent_arch
 
   metadata {
     key          = "cpu"

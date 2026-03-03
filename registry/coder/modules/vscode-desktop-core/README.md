@@ -16,15 +16,15 @@ The VSCode Desktop Core module is a building block for modules that need to expo
 ```tf
 module "vscode-desktop-core" {
   source  = "registry.coder.com/coder/vscode-desktop-core/coder"
-  version = "1.0.1"
+  version = "1.0.2"
 
   agent_id = var.agent_id
 
-  web_app_icon         = "/icon/code.svg"
-  web_app_slug         = "vscode"
-  web_app_display_name = "VS Code Desktop"
-  web_app_order        = var.order
-  web_app_group        = var.group
+  coder_app_icon         = "/icon/code.svg"
+  coder_app_slug         = "vscode"
+  coder_app_display_name = "VS Code Desktop"
+  coder_app_order        = var.order
+  coder_app_group        = var.group
 
   folder      = var.folder
   open_recent = var.open_recent

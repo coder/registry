@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.12"
+      version = ">= 2.13"
     }
   }
 }
@@ -17,6 +17,8 @@ variable "agent_id" {
 data "coder_workspace" "me" {}
 
 data "coder_workspace_owner" "me" {}
+
+data "coder_task" "me" {}
 
 variable "web_app_order" {
   type        = number
@@ -126,6 +128,12 @@ variable "agentapi_port" {
   default     = 3284
 }
 
+variable "task_log_snapshot" {
+  type        = bool
+  description = "Capture last 10 messages when workspace stops for offline viewing while task is paused."
+  default     = true
+}
+
 locals {
   # agentapi_subdomain_false_min_version_expr matches a semantic version >= v0.3.3.
   # Initial support was added in v0.3.1 but configuration via environment variable
@@ -156,6 +164,23 @@ variable "module_dir_name" {
   description = "Name of the subdirectory in the home directory for module files."
 }
 
+variable "enable_state_persistence" {
+  type        = bool
+  description = "Enable AgentAPI conversation state persistence across restarts."
+  default     = false
+}
+
+variable "state_file_path" {
+  type        = string
+  description = "Path to the AgentAPI state file. Defaults to $HOME/<module_dir_name>/agentapi-state.json."
+  default     = ""
+}
+
+variable "pid_file_path" {
+  type        = string
+  description = "Path to the AgentAPI PID file. Defaults to $HOME/<module_dir_name>/agentapi.pid."
+  default     = ""
+}
 
 locals {
   # we always trim the slash for consistency
@@ -173,6 +198,8 @@ locals {
   //     for backward compatibility.
   agentapi_chat_base_path = var.agentapi_subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${var.web_app_slug}/chat"
   main_script             = file("${path.module}/scripts/main.sh")
+  shutdown_script         = file("${path.module}/scripts/agentapi-shutdown.sh")
+  lib_script              = file("${path.module}/scripts/lib.sh")
 }
 
 resource "coder_script" "agentapi" {
@@ -186,6 +213,7 @@ resource "coder_script" "agentapi" {
 
     echo -n '${base64encode(local.main_script)}' | base64 -d > /tmp/main.sh
     chmod +x /tmp/main.sh
+    echo -n '${base64encode(local.lib_script)}' | base64 -d > /tmp/agentapi-lib.sh
 
     ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
     ARG_WORKDIR="$(echo -n '${base64encode(local.workdir)}' | base64 -d)" \
@@ -198,9 +226,37 @@ resource "coder_script" "agentapi" {
     ARG_POST_INSTALL_SCRIPT="$(echo -n '${local.encoded_post_install_script}' | base64 -d)" \
     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     ARG_AGENTAPI_CHAT_BASE_PATH='${local.agentapi_chat_base_path}' \
+    ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
+    ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
+    ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
+    ARG_STATE_FILE_PATH='${var.state_file_path}' \
+    ARG_PID_FILE_PATH='${var.pid_file_path}' \
     /tmp/main.sh
     EOT
   run_on_start = true
+}
+
+resource "coder_script" "agentapi_shutdown" {
+  agent_id     = var.agent_id
+  display_name = "AgentAPI Shutdown"
+  icon         = var.web_app_icon
+  run_on_stop  = true
+  script       = <<-EOT
+    #!/bin/bash
+    set -o pipefail
+
+    echo -n '${base64encode(local.shutdown_script)}' | base64 -d > /tmp/agentapi-shutdown.sh
+    chmod +x /tmp/agentapi-shutdown.sh
+    echo -n '${base64encode(local.lib_script)}' | base64 -d > /tmp/agentapi-lib.sh
+
+    ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
+    ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
+    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
+    ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
+    ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
+    ARG_PID_FILE_PATH='${var.pid_file_path}' \
+    /tmp/agentapi-shutdown.sh
+    EOT
 }
 
 resource "coder_app" "agentapi_web" {
