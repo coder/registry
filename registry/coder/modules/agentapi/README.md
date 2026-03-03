@@ -62,6 +62,33 @@ module "agentapi" {
 }
 ```
 
+## State Persistence
+
+AgentAPI can save and restore conversation state across workspace restarts.
+This is disabled by default and requires agentapi binary >= v0.12.0.
+
+State and PID files are stored in `$HOME/<module_dir_name>/` alongside other
+module files (e.g. `$HOME/.claude-module/agentapi-state.json`).
+
+To enable:
+
+```tf
+module "agentapi" {
+  # ... other config
+  enable_state_persistence = true
+}
+```
+
+To override file paths:
+
+```tf
+module "agentapi" {
+  # ... other config
+  state_file_path = "/custom/path/state.json"
+  pid_file_path   = "/custom/path/agentapi.pid"
+}
+```
+
 ## For module developers
 
 For a complete example of how to use this module, see the [Goose module](https://github.com/coder/registry/blob/main/registry/coder/modules/goose/main.tf).

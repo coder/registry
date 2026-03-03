@@ -136,8 +136,8 @@ variable "agentapi_version" {
 
 variable "codex_model" {
   type        = string
-  description = "The model for Codex to use. Defaults to gpt-5.2-codex."
-  default     = "gpt-5.2-codex"
+  description = "The model for Codex to use. Defaults to gpt-5.3-codex."
+  default     = "gpt-5.3-codex"
 }
 
 variable "pre_install_script" {
@@ -212,12 +212,13 @@ resource "coder_env" "coder_aibridge_session_token" {
 }
 
 locals {
-  workdir         = trimsuffix(var.workdir, "/")
-  app_slug        = "codex"
-  install_script  = file("${path.module}/scripts/install.sh")
-  start_script    = file("${path.module}/scripts/start.sh")
-  module_dir_name = ".codex-module"
-  aibridge_config = <<-EOF
+  workdir            = trimsuffix(var.workdir, "/")
+  app_slug           = "codex"
+  install_script     = file("${path.module}/scripts/install.sh")
+  start_script       = file("${path.module}/scripts/start.sh")
+  module_dir_name    = ".codex-module"
+  latest_codex_model = "gpt-5.3-codex"
+  aibridge_config    = <<-EOF
   [model_providers.aibridge]
   name = "AI Bridge"
   base_url = "${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1"
@@ -281,6 +282,8 @@ module "agentapi" {
     chmod +x /tmp/install.sh
     ARG_OPENAI_API_KEY='${var.openai_api_key}' \
     ARG_REPORT_TASKS='${var.report_tasks}' \
+    ARG_CODEX_MODEL='${var.codex_model}' \
+    ARG_LATEST_CODEX_MODEL='${local.latest_codex_model}' \
     ARG_INSTALL='${var.install_codex}' \
     ARG_CODEX_VERSION='${var.codex_version}' \
     ARG_BASE_CONFIG_TOML='${base64encode(var.base_config_toml)}' \

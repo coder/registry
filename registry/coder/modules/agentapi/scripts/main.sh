@@ -20,7 +20,13 @@ ENABLE_BOUNDARY="${ARG_ENABLE_BOUNDARY:-false}"
 BOUNDARY_JAIL_TYPE="${ARG_BOUNDARY_JAIL_TYPE:-nsjail}"
 BOUNDARY_PROXY_PORT="${ARG_BOUNDARY_PROXY_PORT:-8087}"
 BOUNDARY_CONFIG_PATH="${ARG_BOUNDARY_CONFIG_PATH:-}"
+ENABLE_STATE_PERSISTENCE="${ARG_ENABLE_STATE_PERSISTENCE:-false}"
+STATE_FILE_PATH="${ARG_STATE_FILE_PATH:-}"
+PID_FILE_PATH="${ARG_PID_FILE_PATH:-}"
 set +o nounset
+
+# shellcheck source=lib.sh
+source /tmp/agentapi-lib.sh
 
 command_exists() {
   command -v "$1" > /dev/null 2>&1
@@ -146,5 +152,18 @@ export AGENTAPI_CHAT_BASE_PATH="${AGENTAPI_CHAT_BASE_PATH:-}"
 # Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
 export AGENTAPI_ALLOWED_HOSTS="*"
 
+export AGENTAPI_PID_FILE="${PID_FILE_PATH:-$module_path/agentapi.pid}"
+# Only set state env vars when persistence is enabled and the binary supports
+# it. State persistence requires agentapi >= v0.12.0.
+if [ "${ENABLE_STATE_PERSISTENCE}" = "true" ]; then
+  actual_version=$(agentapi_version)
+  if version_at_least 0.12.0 "$actual_version"; then
+    export AGENTAPI_STATE_FILE="${STATE_FILE_PATH:-$module_path/agentapi-state.json}"
+    export AGENTAPI_SAVE_STATE="true"
+    export AGENTAPI_LOAD_STATE="true"
+  else
+    echo "Warning: State persistence requires agentapi >= v0.12.0 (current: ${actual_version:-unknown}), skipping."
+  fi
+fi
 nohup "$module_path/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &> "$module_path/agentapi-start.log" &
 "$module_path/scripts/agentapi-wait-for-start.sh" "${AGENTAPI_PORT}"
