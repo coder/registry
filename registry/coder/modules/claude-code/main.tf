@@ -261,6 +261,12 @@ variable "enable_aibridge" {
   }
 }
 
+variable "enable_state_persistence" {
+  type        = bool
+  description = "Enable AgentAPI conversation state persistence across restarts."
+  default     = true
+}
+
 resource "coder_env" "claude_code_md_path" {
   count    = var.claude_md_path == "" ? 0 : 1
   agent_id = var.agent_id
@@ -356,25 +362,26 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.0.0"
+  version = "2.2.0"
 
-  agent_id             = var.agent_id
-  web_app_slug         = local.app_slug
-  web_app_order        = var.order
-  web_app_group        = var.group
-  web_app_icon         = var.icon
-  web_app_display_name = var.web_app_display_name
-  folder               = local.workdir
-  cli_app              = var.cli_app
-  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
-  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
-  agentapi_subdomain   = var.subdomain
-  module_dir_name      = local.module_dir_name
-  install_agentapi     = var.install_agentapi
-  agentapi_version     = var.agentapi_version
-  pre_install_script   = var.pre_install_script
-  post_install_script  = var.post_install_script
-  start_script         = <<-EOT
+  agent_id                 = var.agent_id
+  web_app_slug             = local.app_slug
+  web_app_order            = var.order
+  web_app_group            = var.group
+  web_app_icon             = var.icon
+  web_app_display_name     = var.web_app_display_name
+  folder                   = local.workdir
+  cli_app                  = var.cli_app
+  cli_app_slug             = var.cli_app ? "${local.app_slug}-cli" : null
+  cli_app_display_name     = var.cli_app ? var.cli_app_display_name : null
+  agentapi_subdomain       = var.subdomain
+  module_dir_name          = local.module_dir_name
+  install_agentapi         = var.install_agentapi
+  agentapi_version         = var.agentapi_version
+  enable_state_persistence = var.enable_state_persistence
+  pre_install_script       = var.pre_install_script
+  post_install_script      = var.post_install_script
+  start_script             = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
