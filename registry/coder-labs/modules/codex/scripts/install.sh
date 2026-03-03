@@ -96,7 +96,7 @@ write_minimal_default_config() {
   ARG_DEFAULT_PROFILE=""
 
   if [[ "${ARG_ENABLE_AIBRIDGE}" = "true" ]]; then
-    ARG_DEFAULT_PROFILE='"profile" = "aibridge"'
+    ARG_DEFAULT_PROFILE='profile = "aibridge"'
   fi
 
   cat << EOF > "$config_path"
