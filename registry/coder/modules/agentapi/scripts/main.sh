@@ -124,7 +124,7 @@ if [ "${ENABLE_BOUNDARY}" = "true" ]; then
   # Write boundary config if custom path not provided
   if [ -z "${BOUNDARY_CONFIG_PATH}" ]; then
     echo "Generating boundary config with jail_type=${BOUNDARY_JAIL_TYPE} and proxy_port=${BOUNDARY_PROXY_PORT}"
-    cat > ~/.config/coder_boundary/config.yaml <<EOF
+    cat > ~/.config/coder_boundary/config.yaml << EOF
 jail_type: ${BOUNDARY_JAIL_TYPE}
 proxy_port: ${BOUNDARY_PROXY_PORT}
 log_level: warn
