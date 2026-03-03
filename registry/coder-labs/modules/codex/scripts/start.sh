@@ -210,13 +210,7 @@ capture_session_id() {
 
 start_codex() {
   printf "Starting Codex with arguments: %s\n" "${CODEX_ARGS[*]}"
-  if [ -n "${BOUNDARY_WRAPPER:-}" ]; then
-    printf "Starting with coder boundary enabled\n"
-    agentapi server --type codex --term-width 67 --term-height 1190 -- \
-      ${BOUNDARY_WRAPPER} codex "${CODEX_ARGS[@]}" &
-  else
-    agentapi server --type codex --term-width 67 --term-height 1190 -- codex "${CODEX_ARGS[@]}" &
-  fi
+  agentapi server --type codex --term-width 67 --term-height 1190 -- codex "${CODEX_ARGS[@]}" &
   capture_session_id
 }
 

@@ -140,36 +140,6 @@ module "codex" {
 > [!WARNING]
 > This module configures Codex with a `workspace-write` sandbox that allows AI tasks to read/write files in the specified workdir. While the sandbox provides security boundaries, Codex can still modify files within the workspace. Use this module _only_ in trusted environments and be aware of the security implications.
 
-### Network Filtering with Coder Boundary
-
-This example shows how to enable network filtering using Coder Boundary to restrict outbound network access.
-
-```tf
-module "codex" {
-  source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.2.0"
-  agent_id       = coder_agent.example.id
-  openai_api_key = "..."
-  workdir        = "/home/coder/project"
-
-  # Enable boundary with landjail (requires Linux 6.7+)
-  enable_boundary      = true
-  boundary_jail_type   = "landjail"  # or "nsjail" (default)
-  boundary_proxy_port  = 8087        # optional, default is 8087
-
-  # Optional: provide custom boundary config with allowlist
-  # boundary_config_path = "/path/to/config.yaml"
-}
-```
-
-When `enable_boundary = true`:
-- All network traffic from Codex is routed through a filtering proxy
-- Only allowlisted domains are accessible (configure via `~/.config/coder_boundary/config.yaml`)
-- `landjail` uses Landlock V4 (no special capabilities needed, requires kernel 6.7+)
-- `nsjail` uses Linux namespaces (may require Docker seccomp modifications)
-
-For more information, see [Agent Boundaries Documentation](https://coder.com/docs/ai-coder/agent-boundaries).
-
 ## How it Works
 
 - **Install**: The module installs Codex CLI and sets up the environment
