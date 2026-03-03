@@ -54,7 +54,7 @@ fi
 
 # If there is no cached install OR we don't want to use a cached install
 if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
-  printf "$${BOLD}Installing mux from npm...\n"
+  printf "$${BOLD}Installing mux...\n"
 
   # Clean up from other install (in case install prefix changed).
   if [ -n "$CODER_SCRIPT_BIN_DIR" ] && [ -e "$CODER_SCRIPT_BIN_DIR/mux" ]; then
@@ -63,41 +63,76 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
 
   mkdir -p "$(dirname "$MUX_BINARY")"
 
-  if command -v npm > /dev/null 2>&1; then
-    echo "📦 Installing mux via npm into ${INSTALL_PREFIX}..."
+  # Determine which package manager to use
+  PM_CMD=""
+  if [ "${PACKAGE_MANAGER}" = "auto" ]; then
+    for pm in npm pnpm bun; do
+      if command -v "$pm" > /dev/null 2>&1; then
+        PM_CMD="$pm"
+        break
+      fi
+    done
+  else
+    PM_CMD="${PACKAGE_MANAGER}"
+    if ! command -v "$PM_CMD" > /dev/null 2>&1; then
+      echo "❌ Configured package manager '${PACKAGE_MANAGER}' not found on PATH"
+      exit 1
+    fi
+  fi
+
+  if [ -n "$PM_CMD" ]; then
+    echo "📦 Installing mux via $PM_CMD into ${INSTALL_PREFIX}..."
     NPM_WORKDIR="${INSTALL_PREFIX}/npm"
     mkdir -p "$NPM_WORKDIR"
     cd "$NPM_WORKDIR" || exit 1
     if [ ! -f package.json ]; then
       echo '{}' > package.json
     fi
-    echo "⏭️  Skipping npm lifecycle scripts with --ignore-scripts"
+    echo "⏭️  Skipping lifecycle scripts with --ignore-scripts"
     PKG="mux"
     if [ -z "${VERSION}" ] || [ "${VERSION}" = "latest" ]; then
       PKG_SPEC="$PKG@latest"
     else
       PKG_SPEC="$PKG@${VERSION}"
     fi
-    if ! npm install --no-audit --no-fund --omit=dev --ignore-scripts "$PKG_SPEC"; then
-      echo "❌ Failed to install mux via npm"
+    INSTALL_OK=true
+    case "$PM_CMD" in
+      npm)
+        if ! npm install --no-audit --no-fund --omit=dev --ignore-scripts --registry "${REGISTRY_URL}" "$PKG_SPEC"; then
+          INSTALL_OK=false
+        fi
+        ;;
+      pnpm)
+        if ! pnpm add --ignore-scripts --registry "${REGISTRY_URL}" "$PKG_SPEC"; then
+          INSTALL_OK=false
+        fi
+        ;;
+      bun)
+        if ! bun add --ignore-scripts --registry "${REGISTRY_URL}" "$PKG_SPEC"; then
+          INSTALL_OK=false
+        fi
+        ;;
+    esac
+    if [ "$INSTALL_OK" != true ]; then
+      echo "❌ Failed to install mux via $PM_CMD"
       exit 1
     fi
     # Determine the installed binary path
     BIN_DIR="$NPM_WORKDIR/node_modules/.bin"
     CANDIDATE="$BIN_DIR/mux"
     if [ ! -f "$CANDIDATE" ]; then
-      echo "❌ Could not locate mux binary after npm install"
+      echo "❌ Could not locate mux binary after $PM_CMD install"
       exit 1
     fi
     chmod +x "$CANDIDATE" || true
     ln -sf "$CANDIDATE" "$MUX_BINARY"
   else
-    echo "📥 npm not found; downloading tarball from npm registry..."
+    echo "📥 No package manager found; downloading tarball from registry..."
     VERSION_TO_USE="${VERSION}"
     if [ -z "$VERSION_TO_USE" ]; then
       VERSION_TO_USE="next"
     fi
-    META_URL="https://registry.npmjs.org/mux/$VERSION_TO_USE"
+    META_URL="${REGISTRY_URL}/mux/$VERSION_TO_USE"
     META_JSON="$(curl -fsSL "$META_URL" || true)"
     if [ -z "$META_JSON" ]; then
       echo "❌ Failed to fetch npm metadata: $META_URL"
@@ -136,7 +171,7 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
         echo "❌ Could not determine version for mux"
         exit 1
       fi
-      TARBALL_URL="https://registry.npmjs.org/mux/-/mux-$VERSION_TO_USE.tgz"
+      TARBALL_URL="${REGISTRY_URL}/mux/-/mux-$VERSION_TO_USE.tgz"
     fi
     TMP_DIR="$(mktemp -d)"
     TAR_PATH="$TMP_DIR/mux.tgz"

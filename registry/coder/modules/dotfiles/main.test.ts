@@ -26,6 +26,7 @@ describe("dotfiles", async () => {
       "git@github.com:coder/dotfiles.git",
       "git://github.com/coder/dotfiles.git",
       "ssh://git@github.com/coder/dotfiles.git",
+      "ssh://git@bitbucket.example.org:7999/~myusername/dotfiles.git",
     ];
     for (const url of validUrls) {
       const state = await runTerraformApply(import.meta.dir, {
