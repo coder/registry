@@ -29,7 +29,7 @@ variable "agent_id" {
 variable "description" {
   type        = string
   description = "A custom description for the dotfiles parameter. This is shown in the UI - and allows you to customize the instructions you give to your users."
-  default     = "Enter a URL for a [dotfiles repository](https://dotfiles.github.io) to personalize your workspace"
+  default     = "Enter a URL for a [dotfiles repository](https://dotfiles.github.io) to personalize your workspace. Use an SSH URL (e.g. `git@host:user/repo`) if your Git provider restricts HTTPS cloning."
 }
 
 variable "default_dotfiles_uri" {

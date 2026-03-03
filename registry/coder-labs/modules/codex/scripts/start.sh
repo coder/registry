@@ -155,11 +155,8 @@ setup_workdir() {
 build_codex_args() {
   CODEX_ARGS=()
 
-  if [ "$ARG_ENABLE_AIBRIDGE" = "true" ]; then
-    printf "AI Bridge is enabled, using profile aibridge\n"
-    CODEX_ARGS+=("--profile" "aibridge")
-  elif [ -n "$ARG_CODEX_MODEL" ]; then
-    CODEX_ARGS+=("--model" "$ARG_CODEX_MODEL")
+  if [[ -n "${ARG_CODEX_MODEL}" ]] && [[ "${ARG_ENABLE_AIBRIDGE}" != "true" ]]; then
+    CODEX_ARGS+=("--model" "${ARG_CODEX_MODEL}")
   fi
 
   if [ "$ARG_CONTINUE" = "true" ]; then
@@ -213,7 +210,7 @@ capture_session_id() {
 
 start_codex() {
   printf "Starting Codex with arguments: %s\n" "${CODEX_ARGS[*]}"
-  agentapi server --term-width 67 --term-height 1190 -- codex "${CODEX_ARGS[@]}" &
+  agentapi server --type codex --term-width 67 --term-height 1190 -- codex "${CODEX_ARGS[@]}" &
   capture_session_id
 }
 
