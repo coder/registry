@@ -464,22 +464,15 @@ describe("codex", async () => {
     });
 
     await execModuleScript(id);
-
-    const startLog = await readFileContainer(
-      id,
-      "/home/coder/.codex-module/agentapi-start.log",
-    );
-
     const configToml = await readFileContainer(
       id,
       "/home/coder/.codex/config.toml",
     );
-    expect(startLog).toContain("AI Bridge is enabled, using profile aibridge");
-    expect(startLog).toContain(
-      "Starting Codex with arguments: --profile aibridge",
-    );
     expect(configToml).toContain(
       "[profiles.aibridge]\n" + 'model_provider = "aibridge"',
+    );
+    expect(configToml).toContain(
+      'profile = "aibridge"',
     );
   });
 });
