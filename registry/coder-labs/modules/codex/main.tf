@@ -184,13 +184,13 @@ resource "coder_env" "coder_aibridge_session_token" {
 }
 
 locals {
-  workdir         = trimsuffix(var.workdir, "/")
-  app_slug        = "codex"
-  install_script  = file("${path.module}/scripts/install.sh")
-  start_script    = file("${path.module}/scripts/start.sh")
-  module_dir_name = ".codex-module"
+  workdir            = trimsuffix(var.workdir, "/")
+  app_slug           = "codex"
+  install_script     = file("${path.module}/scripts/install.sh")
+  start_script       = file("${path.module}/scripts/start.sh")
+  module_dir_name    = ".codex-module"
   latest_codex_model = "gpt-5.3-codex"
-  aibridge_config = <<-EOF
+  aibridge_config    = <<-EOF
   [model_providers.aibridge]
   name = "AI Bridge"
   base_url = "${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1"
