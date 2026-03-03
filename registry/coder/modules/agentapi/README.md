@@ -16,36 +16,21 @@ The AgentAPI module is a building block for modules that need to run an AgentAPI
 ```tf
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.1.1"
+  version = "3.0.0"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
   web_app_order        = var.order
   web_app_group        = var.group
   web_app_icon         = var.icon
-  web_app_display_name = "Goose"
-  cli_app_slug         = "goose-cli"
-  cli_app_display_name = "Goose CLI"
+  web_app_display_name = "ClaudeCode"
+  cli_app_slug         = "claude-cli"
+  cli_app_display_name = "Claude CLI"
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
-  pre_install_script   = var.pre_install_script
-  post_install_script  = var.post_install_script
-  start_script         = local.start_script
-  install_script       = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
-
-    ARG_PROVIDER='${var.goose_provider}' \
-    ARG_MODEL='${var.goose_model}' \
-    ARG_GOOSE_CONFIG="$(echo -n '${base64encode(local.combined_extensions)}' | base64 -d)" \
-    ARG_INSTALL='${var.install_goose}' \
-    ARG_GOOSE_VERSION='${var.goose_version}' \
-    /tmp/install.sh
-  EOT
+  agent_name           = "claude"
+  agentapi_term_width  = 67
+  agentapi_term_height = 1190
 }
 ```
 
@@ -65,3 +50,21 @@ module "agentapi" {
 ## For module developers
 
 For a complete example of how to use this module, see the [Goose module](https://github.com/coder/registry/blob/main/registry/coder/modules/goose/main.tf).
+
+### agent-command.sh
+
+The calling module must create an executable script at `$HOME/{module_dir_name}/agent-command.sh` before this module's script runs. This script should contain the command to start your AI agent.
+
+Example:
+
+```bash
+#!/bin/bash
+module_path="$HOME/.my-module"
+
+cat > "$module_path/agent-command.sh" << EOF
+#!/bin/bash
+my-agent-command --my-agent-flags
+EOF
+```
+
+The AgentAPI module will run this script with the agentapi server.
