@@ -245,6 +245,17 @@ describe("agentapi", async () => {
     }
   });
 
+  test("validate-boundary-jail-type", async () => {
+    expect(
+      setup({
+        moduleVariables: {
+          enable_boundary: "true",
+          boundary_jail_type: "invalid",
+        },
+      }),
+    ).rejects.toThrow("Must be nsjail or landjail.");
+  });
+
   test("agentapi-allowed-hosts", async () => {
     // verify that the agentapi binary has access to the AGENTAPI_ALLOWED_HOSTS environment variable
     // set in main.sh
@@ -611,6 +622,134 @@ describe("agentapi", async () => {
       expect(result.stdout).not.toContain("Sending SIGUSR1");
       // Should still send SIGTERM (graceful shutdown always happens).
       expect(result.stdout).toContain("Sending SIGTERM to AgentAPI");
+    });
+
+    test("boundary-disabled-by-default", async () => {
+      const { id } = await setup();
+      await execModuleScript(id);
+      await expectAgentAPIStarted(id);
+      // Config file should NOT exist when boundary is disabled
+      const configCheck = await execContainer(id, [
+        "bash",
+        "-c",
+        "test -f /home/coder/.config/coder_boundary/config.yaml && echo exists || echo missing",
+      ]);
+      expect(configCheck.stdout.trim()).toBe("missing");
+      // BOUNDARY_WRAPPER should NOT be in the mock log
+      const mockLog = await readFileContainer(
+        id,
+        "/home/coder/agentapi-mock.log",
+      );
+      expect(mockLog).not.toContain("BOUNDARY_WRAPPER:");
+    });
+    test("boundary-enabled-generates-config", async () => {
+      const { id } = await setup({
+        moduleVariables: {
+          enable_boundary: "true",
+          boundary_jail_type: "landjail",
+          boundary_proxy_port: "8087",
+        },
+      });
+      // Add mock coder binary for boundary setup
+      await writeExecutable({
+        containerId: id,
+        filePath: "/usr/bin/coder",
+        content: `#!/bin/bash
+if [ "$1" = "boundary" ]; then
+ shift; shift; exec "$@"
+fi
+echo "mock coder"`,
+      });
+      await execModuleScript(id);
+      await expectAgentAPIStarted(id);
+      // Config file should exist with correct values
+      const config = await readFileContainer(
+        id,
+        "/home/coder/.config/coder_boundary/config.yaml",
+      );
+      expect(config).toContain("jail_type: landjail");
+      expect(config).toContain("proxy_port: 8087");
+      expect(config).toContain("log_level: warn");
+      // Config should have restrictive permissions (600)
+      const perms = await execContainer(id, [
+        "bash",
+        "-c",
+        "stat -c '%a' /home/coder/.config/coder_boundary/config.yaml",
+      ]);
+      expect(perms.stdout.trim()).toBe("600");
+      // BOUNDARY_WRAPPER should be exported and contain 'boundary'
+      const mockLog = await readFileContainer(
+        id,
+        "/home/coder/agentapi-mock.log",
+      );
+      expect(mockLog).toContain("BOUNDARY_WRAPPER:");
+      expect(mockLog).toContain("boundary --");
+    });
+    test("boundary-custom-config-path", async () => {
+      const { id } = await setup({
+        moduleVariables: {
+          enable_boundary: "true",
+          boundary_config_path: "/tmp/custom-boundary.yaml",
+        },
+      });
+      // Write a custom config file before running the module script
+      await execContainer(id, [
+        "bash",
+        "-c",
+        `cat > /tmp/custom-boundary.yaml <<'EOF'
+jail_type: nsjail
+proxy_port: 9999
+log_level: debug
+allowlist:
+  - "domain=example.com"
+EOF`,
+      ]);
+
+      // Add mock coder binary for boundary setup
+      await writeExecutable({
+        containerId: id,
+        filePath: "/usr/bin/coder",
+        content: `#!/bin/bash
+if [ "$1" = "boundary" ]; then
+ shift; shift; exec "$@"
+fi
+echo "mock coder"`,
+      });
+
+      await execModuleScript(id);
+      await expectAgentAPIStarted(id);
+      // Should have copied the custom config, not generated one
+      const config = await readFileContainer(
+        id,
+        "/home/coder/.config/coder_boundary/config.yaml",
+      );
+      expect(config).toContain("proxy_port: 9999");
+      expect(config).toContain("domain=example.com");
+    });
+    test("boundary-enabled-no-coder-binary", async () => {
+      const { id } = await setup({
+        moduleVariables: {
+          enable_boundary: "true",
+        },
+      });
+
+      await execContainer(
+        id,
+        [
+          "bash",
+          "-c",
+          "rm -f /usr/bin/coder /usr/local/bin/coder 2>/dev/null; hash -r",
+        ],
+        ["--user", "root"],
+      );
+
+      const resp = await execModuleScript(id);
+
+      // Script should fail because coder binary is required
+      expect(resp.exitCode).not.toBe(0);
+
+      const scriptLog = await readFileContainer(id, "/home/coder/script.log");
+      expect(scriptLog).toContain("Boundary cannot be enabled");
     });
   });
 });
