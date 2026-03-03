@@ -201,9 +201,6 @@ locals {
   model_provider = "aibridge"
   model = "${var.codex_model}"
   model_reasoning_effort = "${var.model_reasoning_effort}"
-
-  [notice.model_migration]
-  "${var.codex_model}" = "${local.latest_codex_model}"
   EOF
 }
 
