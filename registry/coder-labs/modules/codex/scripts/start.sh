@@ -213,7 +213,7 @@ capture_session_id() {
 
 start_codex() {
   printf "Starting Codex with arguments: %s\n" "${CODEX_ARGS[*]}"
-  agentapi server --term-width 67 --term-height 1190 -- codex "${CODEX_ARGS[@]}" &
+  agentapi server --type codex --term-width 67 --term-height 1190 -- codex "${CODEX_ARGS[@]}" &
   capture_session_id
 }
 
