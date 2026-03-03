@@ -318,6 +318,7 @@ locals {
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".claude-module"
+  agentapi_port   = 3284
   # Extract hostname from access_url for boundary --allow flag
   coder_host     = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
   claude_api_key = var.enable_aibridge ? data.coder_workspace_owner.me.session_token : var.claude_api_key
@@ -378,8 +379,11 @@ module "agentapi" {
     #!/bin/bash
     set -o errexit
     set -o pipefail
-    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-    chmod +x /tmp/start.sh
+
+    SCRIPT_DIR="$HOME/${local.module_dir_name}/scripts"
+    mkdir -p "$SCRIPT_DIR"
+    echo -n '${base64encode(local.start_script)}' | base64 -d > "$SCRIPT_DIR/claude-code-start.sh"
+    chmod +x "$SCRIPT_DIR/claude-code-start.sh"
 
     ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
     ARG_CONTINUE='${var.continue}' \
@@ -394,7 +398,7 @@ module "agentapi" {
     ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
     ARG_CODER_HOST='${local.coder_host}' \
     ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
-    /tmp/start.sh
+    "$SCRIPT_DIR/claude-code-start.sh"
   EOT
 
   install_script = <<-EOT
@@ -402,8 +406,10 @@ module "agentapi" {
     set -o errexit
     set -o pipefail
 
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
+    SCRIPT_DIR="$HOME/${local.module_dir_name}/scripts"
+    mkdir -p "$SCRIPT_DIR"
+    echo -n '${base64encode(local.install_script)}' | base64 -d > "$SCRIPT_DIR/claude-code-install.sh"
+    chmod +x "$SCRIPT_DIR/claude-code-install.sh"
     ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
@@ -416,7 +422,8 @@ module "agentapi" {
     ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
     ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
     ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
-    /tmp/install.sh
+    ARG_AGENTAPI_PORT='${local.agentapi_port}' \
+    "$SCRIPT_DIR/claude-code-install.sh"
   EOT
 }
 
