@@ -261,6 +261,12 @@ variable "enable_aibridge" {
   }
 }
 
+variable "web_app_hidden" {
+  type        = bool
+  description = "Whether to hide the web app from the UI."
+  default     = false
+}
+
 variable "enable_state_persistence" {
   type        = bool
   description = "Enable AgentAPI conversation state persistence across restarts."
@@ -378,6 +384,7 @@ module "agentapi" {
   module_dir_name          = local.module_dir_name
   install_agentapi         = var.install_agentapi
   agentapi_version         = var.agentapi_version
+  web_app_hidden           = var.web_app_hidden
   enable_state_persistence = var.enable_state_persistence
   pre_install_script       = var.pre_install_script
   post_install_script      = var.post_install_script
