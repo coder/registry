@@ -109,7 +109,7 @@ ${ARG_DEFAULT_PROFILE}
 [sandbox_workspace_write]
 network_access = true
 
-[notice.model_migration]
+[notice.model_migrations]
 "${ARG_CODEX_MODEL}" = "${ARG_LATEST_CODEX_MODEL}"
 EOF
 }
