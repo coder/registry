@@ -139,10 +139,14 @@ EOF
   # Copy coder binary to strip CAP_NET_ADMIN capabilities
   # This is necessary because boundary doesn't work with privileged binaries
   if command_exists coder; then
-    CODER_NO_CAPS="$(dirname "$(which coder)")/coder-no-caps"
-    cp "$(which coder)" "$CODER_NO_CAPS"
-    export BOUNDARY_WRAPPER="$CODER_NO_CAPS boundary --"
-    echo "Boundary wrapper configured: ${BOUNDARY_WRAPPER}"
+    # Use a user-writable location under the module directory for the copied binary
+    CODER_NO_CAPS="$module_path/coder-no-caps"
+    if cp "$(which coder)" "$CODER_NO_CAPS"; then
+      export BOUNDARY_WRAPPER="$CODER_NO_CAPS boundary --"
+      echo "Boundary wrapper configured: ${BOUNDARY_WRAPPER}"
+    else
+      echo "Warning: Failed to copy coder binary to ${CODER_NO_CAPS}, boundary will not be enabled"
+    fi
   else
     echo "Error: ENABLE_BOUNDARY=true, but 'coder' command not found. Boundary cannot be enabled." >&2
     exit 1
