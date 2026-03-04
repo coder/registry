@@ -13,7 +13,7 @@ Run [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/about-c
 ```tf
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "0.3.0"
+  version  = "0.4.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/projects"
 }
@@ -51,7 +51,7 @@ data "coder_parameter" "ai_prompt" {
 
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "0.3.0"
+  version  = "0.4.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/projects"
 
@@ -71,7 +71,7 @@ Customize tool permissions, MCP servers, and Copilot settings:
 ```tf
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "0.3.0"
+  version  = "0.4.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/projects"
 
@@ -142,7 +142,7 @@ variable "github_token" {
 
 module "copilot" {
   source       = "registry.coder.com/coder-labs/copilot/coder"
-  version      = "0.3.0"
+  version      = "0.4.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder/projects"
   github_token = var.github_token
@@ -156,7 +156,7 @@ Run Copilot as a command-line tool without task reporting or web interface. This
 ```tf
 module "copilot" {
   source       = "registry.coder.com/coder-labs/copilot/coder"
-  version      = "0.3.0"
+  version      = "0.4.0"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   report_tasks = false
@@ -189,7 +189,7 @@ module "copilot" {
 ```
 
 > [!NOTE]
-> AI Bridge Proxy is a Premium Coder feature that requires [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) to be enabled.
+> AI Bridge Proxy is a Premium Coder feature that requires [AI Governance Add-On](https://coder.com/docs/ai-coder/ai-governance).
 > See the [AI Bridge Proxy setup guide](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy/setup) for details on configuring the proxy on your Coder deployment.
 > GitHub authentication is still required for Copilot as the proxy authenticates with AI Bridge using the Coder session token, but does not replace GitHub authentication.
 
