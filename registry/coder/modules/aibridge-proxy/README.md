@@ -9,7 +9,7 @@ tags: [helper, aibridge]
 # AI Bridge Proxy
 
 This module configures a Coder workspace to use [AI Bridge Proxy](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy).
-It downloads the proxy's CA certificate from the Coder deployment and exposes outputs that tool-specific modules can use to route their traffic through the proxy.
+It downloads the proxy's CA certificate from the Coder deployment and provides Terraform outputs (`proxy_auth_url` and `cert_path`) that tool-specific modules can use to route their traffic through the proxy.
 
 ```tf
 module "aibridge-proxy" {
@@ -21,16 +21,18 @@ module "aibridge-proxy" {
 ```
 
 > [!NOTE]
-> AI Bridge Proxy is a Premium Coder feature that requires [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) to be enabled.
+> AI Bridge Proxy is a Premium Coder feature that requires [AI Governance Add-On](https://coder.com/docs/ai-coder/ai-governance).
 > See the [AI Bridge Proxy setup guide](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy/setup) for details on configuring the proxy on your Coder deployment.
 
 ## How it works
 
-AI Bridge Proxy is an HTTP proxy that intercepts traffic to AI providers and forwards it through [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge), enabling centralized LLM management, governance, and cost tracking.
+[AI Bridge Proxy](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy) is an HTTP proxy that intercepts traffic to AI providers and forwards it through [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge), enabling centralized LLM management, governance, and cost tracking.
 Any process with the proxy environment variables set will route **all** its traffic through the proxy.
 
-This module does **not** set proxy environment variables globally on the workspace.
-Instead, it provides outputs (`proxy_auth_url` and `cert_path`) for use by tool-specific modules.
+This module **does not** set proxy environment variables globally on the workspace.
+Instead, it provides Terraform outputs (`proxy_auth_url` and `cert_path`) that tool-specific modules consume to configure proxy routing.
+See the [Copilot module](https://registry.coder.com/modules/coder-labs/copilot) for a working integration example.
+
 It is recommended that tool modules scope the proxy environment variables to their own process rather than setting them globally on the workspace, to avoid routing unnecessary traffic through the proxy.
 
 > [!WARNING]
@@ -55,7 +57,8 @@ env = [
 ```
 
 > [!NOTE]
-> Startup coordination requires Coder >= v2.30. Without it, the sync calls are skipped gracefully but dependent modules may fail to start if the `aibridge-proxy` setup has not completed in time.
+> [Startup coordination](https://coder.com/docs/admin/templates/startup-coordination) requires Coder >= v2.30.
+> Without it, the sync calls are skipped gracefully but dependent modules may fail to start if the `aibridge-proxy` setup has not completed in time.
 
 ## Examples
 
