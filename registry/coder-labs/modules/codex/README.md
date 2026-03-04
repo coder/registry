@@ -13,7 +13,7 @@ Run Codex CLI in your workspace to access OpenAI's models through the Codex inte
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.1.2"
+  version        = "4.2.0"
   agent_id       = coder_agent.example.id
   openai_api_key = var.openai_api_key
   workdir        = "/home/coder/project"
@@ -32,7 +32,7 @@ module "codex" {
 module "codex" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.1.2"
+  version        = "4.2.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   workdir        = "/home/coder/project"
@@ -51,7 +51,7 @@ For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage
 ```tf
 module "codex" {
   source          = "registry.coder.com/coder-labs/codex/coder"
-  version         = "4.1.2"
+  version         = "4.2.0"
   agent_id        = coder_agent.example.id
   workdir         = "/home/coder/project"
   enable_aibridge = true
@@ -63,6 +63,8 @@ When `enable_aibridge = true`, the module:
 - Configures Codex to use the AI Bridge profile with `base_url` pointing to `${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1` and `env_key` pointing to the workspace owner's session token
 
 ```toml
+profile = "aibridge" # sets the default profile to aibridge
+
 [model_providers.aibridge]
 name = "AI Bridge"
 base_url = "https://example.coder.com/api/v2/aibridge/openai/v1"
@@ -74,8 +76,6 @@ model_provider = "aibridge"
 model = "<model>" # as configured in the module input
 model_reasoning_effort = "<model_reasoning_effort>" # as configured in the module input
 ```
-
-Codex then runs with `--profile aibridge`
 
 This allows Codex to route API requests through Coder's AI Bridge instead of directly to OpenAI's API.
 Template build will fail if `openai_api_key` is provided alongside `enable_aibridge = true`.
@@ -94,7 +94,7 @@ data "coder_task" "me" {}
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.1.2"
+  version        = "4.2.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   ai_prompt      = data.coder_task.me.prompt
@@ -112,7 +112,7 @@ This example shows additional configuration options for custom models, MCP serve
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.1.2"
+  version        = "4.2.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   workdir        = "/home/coder/project"
@@ -147,6 +147,19 @@ module "codex" {
 - **Start**: Launches Codex CLI in the specified directory, wrapped by AgentAPI
 - **Configuration**: Sets `OPENAI_API_KEY` environment variable and passes `--model` flag to Codex CLI (if variables provided)
 - **Session Continuity**: When `continue = true` (default), the module automatically tracks task sessions in `~/.codex-module/.codex-task-session`. On workspace restart, it resumes the existing session with full conversation history. Set `continue = false` to always start fresh sessions.
+
+## State Persistence
+
+AgentAPI can save and restore its conversation state to disk across workspace restarts. This complements `continue` (which resumes the Codex CLI session) by also preserving the AgentAPI-level context. Enabled by default, requires agentapi >= v0.12.0 (older versions skip it with a warning).
+
+To disable:
+
+```tf
+module "codex" {
+  # ... other config
+  enable_state_persistence = false
+}
+```
 
 ## Configuration
 
