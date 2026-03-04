@@ -55,8 +55,8 @@ variable "repo_path" {
 }
 
 provider "xray" {
-  url                    = var.xray_url
-  access_token           = var.xray_token
+  url                     = var.xray_url
+  access_token            = var.xray_token
   skip_xray_version_check = true
 }
 
