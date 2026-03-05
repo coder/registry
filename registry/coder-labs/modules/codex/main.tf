@@ -131,7 +131,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.11.8"
+  default     = "v0.12.1"
 }
 
 variable "codex_model" {
