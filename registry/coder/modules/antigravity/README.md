@@ -16,7 +16,7 @@ Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder)
 module "antigravity" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/antigravity/coder"
-  version  = "1.0.1"
+  version  = "1.0.2"
   agent_id = coder_agent.example.id
 }
 ```
@@ -29,7 +29,7 @@ module "antigravity" {
 module "antigravity" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/antigravity/coder"
-  version  = "1.0.1"
+  version  = "1.0.2"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
 }
@@ -45,7 +45,7 @@ The following example configures Antigravity to use the GitHub MCP server with a
 module "antigravity" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/antigravity/coder"
-  version  = "1.0.1"
+  version  = "1.0.2"
   agent_id = coder_agent.example.id
   folder   = "/home/coder/project"
   mcp = jsonencode({
