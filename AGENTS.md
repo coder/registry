@@ -28,6 +28,8 @@ bun test main.test.ts                                 # Run single TS test (from
 - Use semantic versioning; bump version via script when modifying modules
 - Docker tests require Linux or Colima/OrbStack (not Docker Desktop)
 - Use `tf` (not `hcl`) for code blocks in README; use relative icon paths (e.g., `../../../../.icons/`)
+- **Do NOT include input/output variable tables in module or template READMEs.** The registry automatically generates these from `variables.tf` and `outputs.tf`. Adding them to the README is redundant and creates maintenance drift.
+- A brief usage example (e.g., a `module "..." { }` block) is encouraged, but not tables enumerating inputs/outputs.
 
 ## PR Review Checklist
 
