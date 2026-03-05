@@ -37,7 +37,7 @@ jobs:
             all:
               - '**'
       - name: Set up Terraform
-        uses: coder/coder/.github/actions/setup-tf@b5360a9180613328a62d64efcfaac5a31980c746 # v2.29.2
+        uses: coder/coder/.github/actions/setup-tf@fa050ee0abc24ddf1bf91fb26148a9c3b2bd1481 # v2.30.2
       - name: Set up Bun
         uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2
         with:
@@ -87,13 +87,13 @@ jobs:
           bun-version: latest
       # Need Terraform for its formatter
       - name: Install Terraform
-        uses: coder/coder/.github/actions/setup-tf@b5360a9180613328a62d64efcfaac5a31980c746 # v2.29.2
+        uses: coder/coder/.github/actions/setup-tf@fa050ee0abc24ddf1bf91fb26148a9c3b2bd1481 # v2.30.2
       - name: Install dependencies
         run: bun install
       - name: Validate formatting
         run: bun fmt:ci
       - name: Check for typos
-        uses: crate-ci/typos@65120634e79d8374d1aa2f27e54baa0c364fff5a # v1.42.1
+        uses: crate-ci/typos@631208b7aac2daa8b707f55e7331f9112b0e062d # v1.44.0
         with:
           config: .github/typos.toml
   validate-readme-files:
@@ -106,7 +106,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Set up Go
-        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
         with:
           go-version: "1.24.0"
       - name: Validate contributors
