@@ -15,9 +15,9 @@ module "jfrog_xray" {
   source  = "registry.coder.com/coder/jfrog-xray/coder"
   version = "1.0.0"
 
-  xray_url   = "${var.jfrog_url}/xray"
+  xray_url   = "https://example.jfrog.io/xray"
   xray_token = var.artifactory_access_token
-  image      = var.docker_image
+  image      = "docker-local/myapp/backend:v1.0.0"
 }
 
 resource "coder_metadata" "xray_scan" {
@@ -27,7 +27,7 @@ resource "coder_metadata" "xray_scan" {
 
   item {
     key   = "Image"
-    value = var.docker_image
+    value = "docker-local/myapp/backend:v1.0.0"
   }
   item {
     key   = "Total Vulnerabilities"
@@ -73,7 +73,7 @@ terraform {
 }
 
 provider "xray" {
-  url          = "${var.jfrog_url}/xray"
+  url          = "https://example.jfrog.io/xray"
   access_token = var.artifactory_access_token
 }
 ```
@@ -87,7 +87,7 @@ module "jfrog_xray" {
   source  = "registry.coder.com/coder/jfrog-xray/coder"
   version = "1.0.0"
 
-  xray_url       = "${var.jfrog_url}/xray"
+  xray_url       = "https://example.jfrog.io/xray"
   xray_token     = var.artifactory_access_token
   image          = "docker-remote/library/nginx:latest"
   use_cache_repo = true
