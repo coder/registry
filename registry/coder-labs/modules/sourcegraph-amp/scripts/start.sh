@@ -1,15 +1,17 @@
 #!/bin/bash
-set -euo pipefail
 
 # Load user environment
-# shellcheck source=/dev/null
-source "$HOME/.bashrc"
-# shellcheck source=/dev/null
-if [ -f "$HOME/.nvm/nvm.sh" ]; then
-  source "$HOME"/.nvm/nvm.sh
-else
-  export PATH="$HOME/.npm-global/bin:$PATH"
+if [ -f "$HOME/.bashrc" ]; then
+  source "$HOME/.bashrc"
 fi
+
+if [ -f "$HOME/.nvm/nvm.sh" ]; then
+  source "$HOME/.nvm/nvm.sh"
+fi
+
+set -euo pipefail
+
+export PATH="$HOME/.local/bin:$HOME/.amp/bin:$HOME/.npm-global/bin:$PATH"
 
 function ensure_command() {
   command -v "$1" &> /dev/null || {
@@ -18,10 +20,22 @@ function ensure_command() {
   }
 }
 
+ARG_AMP_START_DIRECTORY=${ARG_AMP_START_DIRECTORY:-"$HOME"}
+ARG_AMP_API_KEY=${ARG_AMP_API_KEY:-}
+ARG_AMP_TASK_PROMPT=$(echo -n "${ARG_AMP_TASK_PROMPT:-}" | base64 -d)
+ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
+
+echo "--------------------------------"
+printf "Workspace: %s\n" "$ARG_AMP_START_DIRECTORY"
+printf "Task Prompt: %s\n" "$ARG_AMP_TASK_PROMPT"
+printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
+printf "ARG_MODE: %s\n" "$ARG_MODE"
+echo "--------------------------------"
+
 ensure_command amp
 echo "AMP version: $(amp --version)"
 
-dir="$SOURCEGRAPH_AMP_START_DIRECTORY"
+dir="$ARG_AMP_START_DIRECTORY"
 if [[ -d "$dir" ]]; then
   echo "Using existing directory: $dir"
 else
@@ -30,20 +44,30 @@ else
 fi
 cd "$dir"
 
-if [ -n "$SOURCEGRAPH_AMP_API_KEY" ]; then
-  printf "sourcegraph_amp_api_key provided !\n"
-  export AMP_API_KEY=$SOURCEGRAPH_AMP_API_KEY
+if [ -n "$ARG_AMP_API_KEY" ]; then
+  printf "amp_api_key provided !\n"
+  export AMP_API_KEY=$ARG_AMP_API_KEY
 else
-  printf "sourcegraph_amp_api_key not provided\n"
+  printf "amp_api_key not provided\n"
 fi
 
-if [ -n "${SOURCEGRAPH_AMP_TASK_PROMPT:-}" ]; then
-  printf "sourcegraph amp task prompt provided : $SOURCEGRAPH_AMP_TASK_PROMPT"
-  PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $SOURCEGRAPH_AMP_TASK_PROMPT"
+ARGS=()
 
+if [ -n "$ARG_MODE" ]; then
+  printf "Running agent in: %s mode" "$ARG_MODE"
+  ARGS+=(--mode "$ARG_MODE")
+fi
+
+if [ -n "$ARG_AMP_TASK_PROMPT" ]; then
+  if [ "$ARG_REPORT_TASKS" == "true" ]; then
+    printf "amp task prompt provided : %s" "$ARG_AMP_TASK_PROMPT\n"
+    PROMPT="Every step of the way, report your progress using coder_report_task tool with proper summary and statuses. Your task at hand: $ARG_AMP_TASK_PROMPT"
+  else
+    PROMPT="$ARG_AMP_TASK_PROMPT"
+  fi
   # Pipe the prompt into amp, which will be run inside agentapi
-  agentapi server --term-width=67 --term-height=1190 -- bash -c "echo \"$PROMPT\" | amp"
+  agentapi server --type amp --term-width=67 --term-height=1190 -- bash -c "echo \"$PROMPT\" | amp" "${ARGS[@]}"
 else
   printf "No task prompt given.\n"
-  agentapi server --term-width=67 --term-height=1190 -- amp
+  agentapi server --type amp --term-width=67 --term-height=1190 -- amp "${ARGS[@]}"
 fi

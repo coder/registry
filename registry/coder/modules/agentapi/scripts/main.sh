@@ -14,7 +14,15 @@ WAIT_FOR_START_SCRIPT="$ARG_WAIT_FOR_START_SCRIPT"
 POST_INSTALL_SCRIPT="$ARG_POST_INSTALL_SCRIPT"
 AGENTAPI_PORT="$ARG_AGENTAPI_PORT"
 AGENTAPI_CHAT_BASE_PATH="${ARG_AGENTAPI_CHAT_BASE_PATH:-}"
+TASK_ID="${ARG_TASK_ID:-}"
+TASK_LOG_SNAPSHOT="${ARG_TASK_LOG_SNAPSHOT:-true}"
+ENABLE_STATE_PERSISTENCE="${ARG_ENABLE_STATE_PERSISTENCE:-false}"
+STATE_FILE_PATH="${ARG_STATE_FILE_PATH:-}"
+PID_FILE_PATH="${ARG_PID_FILE_PATH:-}"
 set +o nounset
+
+# shellcheck source=lib.sh
+source /tmp/agentapi-lib.sh
 
 command_exists() {
   command -v "$1" > /dev/null 2>&1
@@ -23,6 +31,13 @@ command_exists() {
 module_path="$HOME/${MODULE_DIR_NAME}"
 mkdir -p "$module_path/scripts"
 
+# Check for jq dependency if task log snapshot is enabled.
+if [[ $TASK_LOG_SNAPSHOT == true ]] && [[ -n $TASK_ID ]]; then
+  if ! command_exists jq; then
+    echo "Warning: jq is not installed. Task log snapshot requires jq to capture conversation history."
+    echo "Install jq to enable log snapshot functionality when the workspace stops."
+  fi
+fi
 if [ ! -d "${WORKDIR}" ]; then
   echo "Warning: The specified folder '${WORKDIR}' does not exist."
   echo "Creating the folder..."
@@ -97,5 +112,18 @@ cd "${WORKDIR}"
 export AGENTAPI_CHAT_BASE_PATH="${AGENTAPI_CHAT_BASE_PATH:-}"
 # Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
 export AGENTAPI_ALLOWED_HOSTS="*"
+export AGENTAPI_PID_FILE="${PID_FILE_PATH:-$module_path/agentapi.pid}"
+# Only set state env vars when persistence is enabled and the binary supports
+# it. State persistence requires agentapi >= v0.12.0.
+if [ "${ENABLE_STATE_PERSISTENCE}" = "true" ]; then
+  actual_version=$(agentapi_version)
+  if version_at_least 0.12.0 "$actual_version"; then
+    export AGENTAPI_STATE_FILE="${STATE_FILE_PATH:-$module_path/agentapi-state.json}"
+    export AGENTAPI_SAVE_STATE="true"
+    export AGENTAPI_LOAD_STATE="true"
+  else
+    echo "Warning: State persistence requires agentapi >= v0.12.0 (current: ${actual_version:-unknown}), skipping."
+  fi
+fi
 nohup "$module_path/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &> "$module_path/agentapi-start.log" &
 "$module_path/scripts/agentapi-wait-for-start.sh" "${AGENTAPI_PORT}"

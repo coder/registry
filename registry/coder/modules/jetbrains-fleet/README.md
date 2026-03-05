@@ -8,6 +8,9 @@ tags: [ide, jetbrains, fleet]
 
 # Jetbrains Fleet
 
+> [!WARNING]
+> **Deprecation Notice:** JetBrains has announced that Fleet will be discontinued. For more information, see [The Future of Fleet](https://blog.jetbrains.com/fleet/2025/12/the-future-of-fleet). Consider migrating to other JetBrains IDEs such as IntelliJ IDEA, PyCharm, or GoLand with the [JetBrains](https://registry.coder.com/modules/jetbrains) module.
+
 This module adds a Jetbrains Fleet button to your Coder workspace that opens the workspace in JetBrains Fleet using SSH remote development.
 
 JetBrains Fleet is a next-generation IDE that supports collaborative development and distributed architectures. It connects to your Coder workspace via SSH, providing a seamless remote development experience.
@@ -16,8 +19,8 @@ JetBrains Fleet is a next-generation IDE that supports collaborative development
 module "jetbrains_fleet" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains-fleet/coder"
-  version  = "1.0.1"
-  agent_id = coder_agent.example.id
+  version  = "1.0.3"
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -37,8 +40,8 @@ module "jetbrains_fleet" {
 module "jetbrains_fleet" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains-fleet/coder"
-  version  = "1.0.1"
-  agent_id = coder_agent.example.id
+  version  = "1.0.3"
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -48,8 +51,8 @@ module "jetbrains_fleet" {
 module "jetbrains_fleet" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains-fleet/coder"
-  version  = "1.0.1"
-  agent_id = coder_agent.example.id
+  version  = "1.0.3"
+  agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
 ```
@@ -60,8 +63,8 @@ module "jetbrains_fleet" {
 module "jetbrains_fleet" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/coder/jetbrains-fleet/coder"
-  version      = "1.0.1"
-  agent_id     = coder_agent.example.id
+  version      = "1.0.3"
+  agent_id     = coder_agent.main.id
   display_name = "Fleet"
   group        = "JetBrains IDEs"
   order        = 1
@@ -74,8 +77,8 @@ module "jetbrains_fleet" {
 module "jetbrains_fleet" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/jetbrains-fleet/coder"
-  version    = "1.0.1"
-  agent_id   = coder_agent.example.id
+  version    = "1.0.3"
+  agent_id   = coder_agent.main.id
   agent_name = coder_agent.example.name
 }
 ```

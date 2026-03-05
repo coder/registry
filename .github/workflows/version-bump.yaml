@@ -20,26 +20,28 @@ jobs:
       issues: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2
         with:
           bun-version: latest
 
       - name: Set up Terraform
-        uses: coder/coder/.github/actions/setup-tf@main
+        uses: coder/coder/.github/actions/setup-tf@b5360a9180613328a62d64efcfaac5a31980c746 # v2.29.2
 
       - name: Install dependencies
         run: bun install
 
       - name: Extract bump type from label
+        env:
+          LABEL_NAME: ${{ github.event.label.name }}
         id: bump-type
         run: |
-          case "${{ github.event.label.name }}" in
+          case "$LABEL_NAME" in
             "version:patch")
               echo "type=patch" >> $GITHUB_OUTPUT
               ;;
@@ -50,67 +52,40 @@ jobs:
               echo "type=major" >> $GITHUB_OUTPUT
               ;;
             *)
-              echo "Invalid version label: ${{ github.event.label.name }}"
+              echo "Invalid version label: ${LABEL_NAME}"
               exit 1
               ;;
           esac
 
-      - name: Check version bump requirements
-        id: version-check
-        run: |
-          output_file=$(mktemp)
-          if ./.github/scripts/version-bump.sh "${{ steps.bump-type.outputs.type }}" origin/main > "$output_file" 2>&1; then
-            echo "Script completed successfully"
-          else
-            echo "Script failed"
-            cat "$output_file"
-            exit 1
-          fi
+      - name: Check version bump
+        run: ./.github/scripts/version-bump.sh --ci "${{ steps.bump-type.outputs.type }}" origin/main
 
-          {
-            echo "output<<EOF"
-            cat "$output_file"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
-
-          cat "$output_file"
-
-          if git diff --quiet; then
-            echo "versions_up_to_date=true" >> $GITHUB_OUTPUT
-            echo "✅ All module versions are already up to date"
-          else
-            echo "versions_up_to_date=false" >> $GITHUB_OUTPUT
-            echo "❌ Module versions need to be updated"
-            echo "Files that would be changed:"
-            git diff --name-only
-            echo ""
-            echo "Diff preview:"
-            git diff
-            
-            git checkout .
-            git clean -fd
-            
-            exit 1
-          fi
-
-      - name: Comment on PR - Failure
-        if: failure() && steps.version-check.outputs.versions_up_to_date == 'false'
-        uses: actions/github-script@v7
+      - name: Comment on PR - Version bump required
+        if: failure()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const output = `${{ steps.version-check.outputs.output }}`;
             const bumpType = `${{ steps.bump-type.outputs.type }}`;
 
-            let comment = `## ❌ Version Bump Validation Failed\n\n`;
-            comment += `**Bump Type:** \`${bumpType}\`\n\n`;
-            comment += `Module versions need to be updated but haven't been bumped yet.\n\n`;
-            comment += `**Required Actions:**\n`;
-            comment += `1. Run the version bump script locally: \`./.github/scripts/version-bump.sh ${bumpType}\`\n`;
-            comment += `2. Commit the changes: \`git add . && git commit -m "chore: bump module versions (${bumpType})"\`\n`;
-            comment += `3. Push the changes: \`git push\`\n\n`;
-            comment += `### Script Output:\n\`\`\`\n${output}\n\`\`\`\n\n`;
-            comment += `> Please update the module versions and push the changes to continue.`;
+            const comment = [
+              '## Version Bump Required',
+              '',
+              'One or more modules in this PR need their versions updated.',
+              '',
+              '**To fix this:**',
+              '1. Run the version bump script locally:',
+              '   ```bash',
+              `   ./.github/scripts/version-bump.sh ${bumpType}`,
+              '   ```',
+              '2. Commit the changes:',
+              '   ```bash',
+              `   git add . && git commit -m "chore: bump module versions (${bumpType})"`,
+              '   ```',
+              '3. Push your changes',
+              '',
+              'The CI will automatically re-run once you push the updated versions.'
+            ].join('\n');
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,

@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.7"
+      version = ">= 2.12"
     }
   }
 }
@@ -56,7 +56,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.5.0"
+  default     = "v0.10.0"
 }
 
 variable "force" {
@@ -113,6 +113,7 @@ locals {
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".cursor-cli-module"
+  folder          = trimsuffix(var.folder, "/")
 }
 
 # Expose status slug and API key to the agent environment
@@ -131,9 +132,10 @@ resource "coder_env" "cursor_api_key" {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.1.1"
+  version = "2.0.0"
 
   agent_id             = var.agent_id
+  folder               = local.folder
   web_app_slug         = local.app_slug
   web_app_order        = var.order
   web_app_group        = var.group
@@ -176,4 +178,8 @@ module "agentapi" {
     ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     /tmp/install.sh
   EOT
+}
+
+output "task_app_id" {
+  value = module.agentapi.task_app_id
 }

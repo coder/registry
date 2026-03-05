@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.7"
+      version = ">= 2.12"
     }
   }
 }
@@ -81,7 +81,7 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.2.3"
+  default     = "v0.10.0"
 }
 
 variable "gemini_model" {
@@ -172,13 +172,15 @@ EOT
   install_script  = file("${path.module}/scripts/install.sh")
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".gemini-module"
+  folder          = trimsuffix(var.folder, "/")
 }
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "1.1.1"
+  version = "2.0.0"
 
   agent_id             = var.agent_id
+  folder               = local.folder
   web_app_slug         = local.app_slug
   web_app_order        = var.order
   web_app_group        = var.group
@@ -223,4 +225,8 @@ module "agentapi" {
      GEMINI_TASK_PROMPT='${var.task_prompt}' \
      /tmp/start.sh
    EOT
+}
+
+output "task_app_id" {
+  value = module.agentapi.task_app_id
 }

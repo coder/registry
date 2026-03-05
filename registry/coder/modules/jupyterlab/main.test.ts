@@ -77,7 +77,7 @@ describe("jupyterlab", async () => {
     expect(output.exitCode).toBe(1);
     expect(output.stdout).toEqual([
       "Checking for a supported installer",
-      "No valid installer is not installed",
+      "No supported installer found.",
       "Please install pipx or uv in your Dockerfile/VM image before running this script",
     ]);
   });

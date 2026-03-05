@@ -50,7 +50,7 @@ ARGS=()
 
 # global flags
 if [ -n "$ARG_MODEL" ]; then
-  ARGS+=("-m" "$ARG_MODEL")
+  ARGS+=("--model" "$ARG_MODEL")
 fi
 if [ "$ARG_FORCE" = "true" ]; then
   ARGS+=("-f")

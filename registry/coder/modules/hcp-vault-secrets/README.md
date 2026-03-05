@@ -26,8 +26,8 @@ This module lets you fetch all or selective secrets from a [HCP Vault Secrets](h
 ```tf
 module "vault" {
   source     = "registry.coder.com/coder/hcp-vault-secrets/coder"
-  version    = "1.0.34"
-  agent_id   = coder_agent.example.id
+  version    = "1.0.35"
+  agent_id   = coder_agent.main.id
   app_name   = "demo-app"
   project_id = "aaa-bbb-ccc"
 }
@@ -52,8 +52,8 @@ To fetch all secrets from the HCP Vault Secrets app, skip the `secrets` input.
 ```tf
 module "vault" {
   source     = "registry.coder.com/coder/hcp-vault-secrets/coder"
-  version    = "1.0.34"
-  agent_id   = coder_agent.example.id
+  version    = "1.0.35"
+  agent_id   = coder_agent.main.id
   app_name   = "demo-app"
   project_id = "aaa-bbb-ccc"
 }
@@ -66,8 +66,8 @@ To fetch selective secrets from the HCP Vault Secrets app, set the `secrets` inp
 ```tf
 module "vault" {
   source     = "registry.coder.com/coder/hcp-vault-secrets/coder"
-  version    = "1.0.34"
-  agent_id   = coder_agent.example.id
+  version    = "1.0.35"
+  agent_id   = coder_agent.main.id
   app_name   = "demo-app"
   project_id = "aaa-bbb-ccc"
   secrets    = ["MY_SECRET_1", "MY_SECRET_2"]
@@ -81,8 +81,8 @@ Set `client_id` and `client_secret` as module inputs.
 ```tf
 module "vault" {
   source        = "registry.coder.com/coder/hcp-vault-secrets/coder"
-  version       = "1.0.34"
-  agent_id      = coder_agent.example.id
+  version       = "1.0.35"
+  agent_id      = coder_agent.main.id
   app_name      = "demo-app"
   project_id    = "aaa-bbb-ccc"
   client_id     = "HCP_CLIENT_ID"

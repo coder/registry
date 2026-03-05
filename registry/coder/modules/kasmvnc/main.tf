@@ -23,7 +23,7 @@ variable "port" {
 variable "kasm_version" {
   type        = string
   description = "Version of KasmVNC to install."
-  default     = "1.3.2"
+  default     = "1.4.0"
 }
 
 variable "desktop_environment" {
@@ -31,7 +31,7 @@ variable "desktop_environment" {
   description = "Specifies the desktop environment of the workspace. This should be pre-installed on the workspace."
 
   validation {
-    condition     = contains(["xfce", "kde", "gnome", "lxde", "lxqt"], var.desktop_environment)
+    condition     = contains(["cinnamon", "mate", "lxde", "lxqt", "kde", "gnome", "xfce", "manual"], var.desktop_environment)
     error_message = "Invalid desktop environment. Please specify a valid desktop environment."
   }
 }
@@ -52,6 +52,15 @@ variable "subdomain" {
   type        = bool
   default     = true
   description = "Is subdomain sharing enabled in your cluster?"
+}
+
+variable "share" {
+  type    = string
+  default = "owner"
+  validation {
+    condition     = var.share == "owner" || var.share == "authenticated" || var.share == "public"
+    error_message = "Incorrect value. Please set either 'owner', 'authenticated', or 'public'."
+  }
 }
 
 resource "coder_script" "kasm_vnc" {
@@ -75,7 +84,7 @@ resource "coder_app" "kasm_vnc" {
   url          = "http://localhost:${var.port}"
   icon         = "/icon/kasmvnc.svg"
   subdomain    = var.subdomain
-  share        = "owner"
+  share        = var.share
   order        = var.order
   group        = var.group
 

@@ -28,7 +28,7 @@ variable "open_recent" {
 
 variable "protocol" {
   type        = string
-  description = "The URI protocol for the IDE."
+  description = "The URI protocol the IDE."
 }
 
 variable "coder_app_icon" {
@@ -72,18 +72,31 @@ resource "coder_app" "vscode-desktop" {
   order = var.coder_app_order
   group = var.coder_app_group
 
-  # While the call to "join" is not strictly necessary, it makes the URL more readable.
   url = join("", [
-    "${var.protocol}://coder.coder-remote/open",
+    var.protocol,
+    "://coder.coder-remote/open",
+    "?owner=",
+    data.coder_workspace_owner.me.name,
+    "&workspace=",
+    data.coder_workspace.me.name,
+    var.folder != "" ? join("", ["&folder=", var.folder]) : "",
+    var.open_recent ? "&openRecent" : "",
+    "&url=",
+    data.coder_workspace.me.access_url,
+    "&token=$SESSION_TOKEN",
+  ])
+
+  /*
+    url = join("", [
+    "vscode://coder.coder-remote/open",
     "?owner=${data.coder_workspace_owner.me.name}",
     "&workspace=${data.coder_workspace.me.name}",
     var.folder != "" ? join("", ["&folder=", var.folder]) : "",
     var.open_recent ? "&openRecent" : "",
     "&url=${data.coder_workspace.me.access_url}",
-    # NOTE: There is a protocol whitelist for the token replacement, so this will only work with the protocols hardcoded in the front-end.
-    # (https://github.com/coder/coder/blob/6ba4b5bbc95e2e528d7f5b1e31fffa200ae1a6db/site/src/modules/apps/apps.ts#L18)
     "&token=$SESSION_TOKEN",
   ])
+  */
 }
 
 output "ide_uri" {

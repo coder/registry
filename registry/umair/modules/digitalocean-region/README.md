@@ -2,7 +2,7 @@
 display_name: DigitalOcean Region
 description: A parameter with human region names and icons
 icon: ../../../../.icons/digital-ocean.svg
-verified: true
+verified: false
 tags: [helper, parameter, digitalocean, regions]
 ---
 

@@ -1,37 +1,26 @@
 import {
   test,
   afterEach,
-  expect,
   describe,
   setDefaultTimeout,
   beforeAll,
+  expect,
 } from "bun:test";
-import path from "path";
+import { execContainer, readFileContainer, runTerraformInit } from "~test";
 import {
-  execContainer,
-  findResourceInstance,
-  readFileContainer,
-  removeContainer,
-  runContainer,
-  runTerraformApply,
-  runTerraformInit,
-  writeCoder,
-  writeFileContainer,
-} from "~test";
+  loadTestFile,
+  writeExecutable,
+  setup as setupUtil,
+  execModuleScript,
+  expectAgentAPIStarted,
+} from "../agentapi/test-util";
+import dedent from "dedent";
 
 let cleanupFunctions: (() => Promise<void>)[] = [];
-
 const registerCleanup = (cleanup: () => Promise<void>) => {
   cleanupFunctions.push(cleanup);
 };
-
-// Cleanup logic depends on the fact that bun's built-in test runner
-// runs tests sequentially.
-// https://bun.sh/docs/test/discovery#execution-order
-// Weird things would happen if tried to run tests in parallel.
-// One test could clean up resources that another test was still using.
 afterEach(async () => {
-  // reverse the cleanup functions so that they are run in the correct order
   const cleanupFnsCopy = cleanupFunctions.slice().reverse();
   cleanupFunctions = [];
   for (const cleanup of cleanupFnsCopy) {
@@ -43,298 +32,483 @@ afterEach(async () => {
   }
 });
 
-const setupContainer = async ({
-  image,
-  vars,
-}: {
-  image?: string;
-  vars?: Record<string, string>;
-} = {}) => {
-  const state = await runTerraformApply(import.meta.dir, {
-    agent_id: "foo",
-    ...vars,
-  });
-  const coderScript = findResourceInstance(state, "coder_script");
-  const id = await runContainer(image ?? "codercom/enterprise-node:latest");
-  registerCleanup(() => removeContainer(id));
-  return { id, coderScript };
-};
-
-const loadTestFile = async (...relativePath: string[]) => {
-  return await Bun.file(
-    path.join(import.meta.dir, "testdata", ...relativePath),
-  ).text();
-};
-
-const writeExecutable = async ({
-  containerId,
-  filePath,
-  content,
-}: {
-  containerId: string;
-  filePath: string;
-  content: string;
-}) => {
-  await writeFileContainer(containerId, filePath, content, {
-    user: "root",
-  });
-  await execContainer(
-    containerId,
-    ["bash", "-c", `chmod 755 ${filePath}`],
-    ["--user", "root"],
-  );
-};
-
-const writeAgentAPIMockControl = async ({
-  containerId,
-  content,
-}: {
-  containerId: string;
-  content: string;
-}) => {
-  await writeFileContainer(containerId, "/tmp/agentapi-mock.control", content, {
-    user: "coder",
-  });
-};
-
 interface SetupProps {
   skipAgentAPIMock?: boolean;
   skipClaudeMock?: boolean;
+  moduleVariables?: Record<string, string>;
+  agentapiMockScript?: string;
 }
 
-const projectDir = "/home/coder/project";
-
-const setup = async (props?: SetupProps): Promise<{ id: string }> => {
-  const { id, coderScript } = await setupContainer({
-    vars: {
-      experiment_report_tasks: "true",
+const setup = async (
+  props?: SetupProps,
+): Promise<{ id: string; coderEnvVars: Record<string, string> }> => {
+  const projectDir = "/home/coder/project";
+  const { id, coderEnvVars } = await setupUtil({
+    moduleDir: import.meta.dir,
+    moduleVariables: {
+      install_claude_code: props?.skipClaudeMock ? "true" : "false",
       install_agentapi: props?.skipAgentAPIMock ? "true" : "false",
-      install_claude_code: "false",
-      agentapi_version: "preview",
-      folder: projectDir,
+      workdir: projectDir,
+      ...props?.moduleVariables,
     },
+    registerCleanup,
+    projectDir,
+    skipAgentAPIMock: props?.skipAgentAPIMock,
+    agentapiMockScript: props?.agentapiMockScript,
   });
-  await execContainer(id, ["bash", "-c", `mkdir -p '${projectDir}'`]);
-  // the module script assumes that there is a coder executable in the PATH
-  await writeCoder(id, await loadTestFile("coder-mock.js"));
-  if (!props?.skipAgentAPIMock) {
-    await writeExecutable({
-      containerId: id,
-      filePath: "/usr/bin/agentapi",
-      content: await loadTestFile("agentapi-mock.js"),
-    });
-  }
   if (!props?.skipClaudeMock) {
     await writeExecutable({
       containerId: id,
       filePath: "/usr/bin/claude",
-      content: await loadTestFile("claude-mock.js"),
+      content: await loadTestFile(import.meta.dir, "claude-mock.sh"),
     });
   }
-  await writeExecutable({
-    containerId: id,
-    filePath: "/home/coder/script.sh",
-    content: coderScript.script,
-  });
-  return { id };
+  return { id, coderEnvVars };
 };
 
-const expectAgentAPIStarted = async (id: string) => {
-  const resp = await execContainer(id, [
-    "bash",
-    "-c",
-    `curl -fs -o /dev/null "http://localhost:3284/status"`,
-  ]);
-  if (resp.exitCode !== 0) {
-    console.log("agentapi not started");
-    console.log(resp.stdout);
-    console.log(resp.stderr);
-  }
-  expect(resp.exitCode).toBe(0);
-};
-
-const execModuleScript = async (id: string) => {
-  const resp = await execContainer(id, [
-    "bash",
-    "-c",
-    `set -o errexit; set -o pipefail; cd /home/coder && ./script.sh 2>&1 | tee /home/coder/script.log`,
-  ]);
-  if (resp.exitCode !== 0) {
-    console.log(resp.stdout);
-    console.log(resp.stderr);
-  }
-  return resp;
-};
-
-// increase the default timeout to 60 seconds
 setDefaultTimeout(60 * 1000);
 
-// we don't run these tests in CI because they take too long and make network
-// calls. they are dedicated for local development.
 describe("claude-code", async () => {
   beforeAll(async () => {
     await runTerraformInit(import.meta.dir);
   });
 
-  // test that the script runs successfully if claude starts without any errors
   test("happy-path", async () => {
     const { id } = await setup();
+    await execModuleScript(id);
+    await expectAgentAPIStarted(id);
+  });
+
+  test("install-claude-code-version", async () => {
+    const version_to_install = "1.0.40";
+    const { id, coderEnvVars } = await setup({
+      skipClaudeMock: true,
+      moduleVariables: {
+        install_claude_code: "true",
+        claude_code_version: version_to_install,
+      },
+    });
+    await execModuleScript(id, coderEnvVars);
+    const resp = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/install.log",
+    ]);
+    expect(resp.stdout).toContain(version_to_install);
+  });
+
+  test("check-latest-claude-code-version-works", async () => {
+    const { id, coderEnvVars } = await setup({
+      skipClaudeMock: true,
+      skipAgentAPIMock: true,
+      moduleVariables: {
+        install_claude_code: "true",
+      },
+    });
+    await execModuleScript(id, coderEnvVars);
+    await expectAgentAPIStarted(id);
+  });
+
+  test("claude-api-key", async () => {
+    const apiKey = "test-api-key-123";
+    const { id } = await setup({
+      moduleVariables: {
+        claude_api_key: apiKey,
+      },
+    });
+    await execModuleScript(id);
+
+    const envCheck = await execContainer(id, [
+      "bash",
+      "-c",
+      'env | grep CLAUDE_API_KEY || echo "CLAUDE_API_KEY not found"',
+    ]);
+    expect(envCheck.stdout).toContain("CLAUDE_API_KEY");
+  });
+
+  test("claude-mcp-config", async () => {
+    const mcpConfig = JSON.stringify({
+      mcpServers: {
+        test: {
+          command: "test-cmd",
+          type: "stdio",
+        },
+      },
+    });
+    const { id, coderEnvVars } = await setup({
+      skipClaudeMock: true,
+      moduleVariables: {
+        mcp: mcpConfig,
+      },
+    });
+    await execModuleScript(id, coderEnvVars);
+
+    const resp = await readFileContainer(id, "/home/coder/.claude.json");
+    expect(resp).toContain("test-cmd");
+  });
+
+  test("claude-task-prompt", async () => {
+    const prompt = "This is a task prompt for Claude.";
+    const { id } = await setup({
+      moduleVariables: {
+        ai_prompt: prompt,
+      },
+    });
+    await execModuleScript(id);
 
     const resp = await execContainer(id, [
       "bash",
       "-c",
-      "sudo /home/coder/script.sh",
+      "cat /home/coder/.claude-module/agentapi-start.log",
     ]);
-    expect(resp.exitCode).toBe(0);
-
-    await expectAgentAPIStarted(id);
+    expect(resp.stdout).toContain(prompt);
   });
 
-  // test that the script removes lastSessionId from the .claude.json file
-  test("last-session-id-removed", async () => {
-    const { id } = await setup();
+  test("claude-permission-mode", async () => {
+    const mode = "plan";
+    const { id } = await setup({
+      moduleVariables: {
+        permission_mode: mode,
+        ai_prompt: "test prompt",
+      },
+    });
+    await execModuleScript(id);
 
-    await writeFileContainer(
-      id,
-      "/home/coder/.claude.json",
-      JSON.stringify({
-        projects: {
-          [projectDir]: {
-            lastSessionId: "123",
-          },
-        },
-      }),
-    );
-
-    const catResp = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/.claude.json",
-    ]);
-    expect(catResp.exitCode).toBe(0);
-    expect(catResp.stdout).toContain("lastSessionId");
-
-    const respModuleScript = await execModuleScript(id);
-    expect(respModuleScript.exitCode).toBe(0);
-
-    await expectAgentAPIStarted(id);
-
-    const catResp2 = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/.claude.json",
-    ]);
-    expect(catResp2.exitCode).toBe(0);
-    expect(catResp2.stdout).not.toContain("lastSessionId");
-  });
-
-  // test that the script handles a .claude.json file that doesn't contain
-  // a lastSessionId field
-  test("last-session-id-not-found", async () => {
-    const { id } = await setup();
-
-    await writeFileContainer(
-      id,
-      "/home/coder/.claude.json",
-      JSON.stringify({
-        projects: {
-          "/home/coder": {},
-        },
-      }),
-    );
-
-    const respModuleScript = await execModuleScript(id);
-    expect(respModuleScript.exitCode).toBe(0);
-
-    await expectAgentAPIStarted(id);
-
-    const catResp = await execContainer(id, [
+    const startLog = await execContainer(id, [
       "bash",
       "-c",
       "cat /home/coder/.claude-module/agentapi-start.log",
     ]);
-    expect(catResp.exitCode).toBe(0);
-    expect(catResp.stdout).toContain(
-      "No lastSessionId found in .claude.json - nothing to do",
-    );
+    expect(startLog.stdout).toContain(`--permission-mode ${mode}`);
   });
 
-  // test that if claude fails to run with the --continue flag and returns a
-  // no conversation found error, then the module script retries without the flag
-  test("no-conversation-found", async () => {
-    const { id } = await setup();
-    await writeAgentAPIMockControl({
-      containerId: id,
-      content: "no-conversation-found",
+  test("claude-model", async () => {
+    const model = "opus";
+    const { coderEnvVars } = await setup({
+      moduleVariables: {
+        model: model,
+        ai_prompt: "test prompt",
+      },
     });
-    // check that mocking works
-    const respAgentAPI = await execContainer(id, [
-      "bash",
-      "-c",
-      "agentapi --continue",
-    ]);
-    expect(respAgentAPI.exitCode).toBe(1);
-    expect(respAgentAPI.stderr).toContain("No conversation found to continue");
 
-    const respModuleScript = await execModuleScript(id);
-    expect(respModuleScript.exitCode).toBe(0);
-
-    await expectAgentAPIStarted(id);
+    // Verify ANTHROPIC_MODEL env var is set via coder_env
+    expect(coderEnvVars["ANTHROPIC_MODEL"]).toBe(model);
   });
 
-  test("install-agentapi", async () => {
-    const { id } = await setup({ skipAgentAPIMock: true });
-
-    const respModuleScript = await execModuleScript(id);
-    expect(respModuleScript.exitCode).toBe(0);
-
-    await expectAgentAPIStarted(id);
-    const respAgentAPI = await execContainer(id, [
-      "bash",
-      "-c",
-      "agentapi --version",
-    ]);
-    expect(respAgentAPI.exitCode).toBe(0);
-  });
-
-  // the coder binary should be executed with specific env vars
-  // that are set by the module script
-  test("coder-env-vars", async () => {
-    const { id } = await setup();
-
-    const respModuleScript = await execModuleScript(id);
-    expect(respModuleScript.exitCode).toBe(0);
-
-    const respCoderMock = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/coder-mock-output.json",
-    ]);
-    if (respCoderMock.exitCode !== 0) {
-      console.log(respCoderMock.stdout);
-      console.log(respCoderMock.stderr);
-    }
-    expect(respCoderMock.exitCode).toBe(0);
-    expect(JSON.parse(respCoderMock.stdout)).toEqual({
-      statusSlug: "ccw",
-      agentApiUrl: "http://localhost:3284",
+  test("claude-continue-resume-task-session", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        continue: "true",
+        report_tasks: "true",
+        ai_prompt: "test prompt",
+      },
     });
+
+    // Create a mock task session file with the hardcoded task session ID
+    // Note: Claude CLI creates files without "session-" prefix when using --session-id
+    const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
+    const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
+    await execContainer(id, ["mkdir", "-p", sessionDir]);
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > ${sessionDir}/${taskSessionId}.jsonl << 'SESSIONEOF'
+{"sessionId":"${taskSessionId}","message":{"content":"Task"},"timestamp":"2020-01-01T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-01T10:00:05.000Z"}
+SESSIONEOF`,
+    ]);
+
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/agentapi-start.log",
+    ]);
+    expect(startLog.stdout).toContain("--resume");
+    expect(startLog.stdout).toContain(taskSessionId);
+    expect(startLog.stdout).toContain("Resuming task session");
+    expect(startLog.stdout).toContain("--dangerously-skip-permissions");
   });
 
-  // verify that the agentapi binary has access to the AGENTAPI_ALLOWED_HOSTS environment variable
-  // set in main.tf
-  test("agentapi-allowed-hosts", async () => {
-    const { id } = await setup();
+  test("pre-post-install-scripts", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        pre_install_script: "#!/bin/bash\necho 'claude-pre-install-script'",
+        post_install_script: "#!/bin/bash\necho 'claude-post-install-script'",
+      },
+    });
+    await execModuleScript(id);
 
-    const respModuleScript = await execModuleScript(id);
-    expect(respModuleScript.exitCode).toBe(0);
-
-    await expectAgentAPIStarted(id);
-
-    const agentApiStartLog = await readFileContainer(
+    const preInstallLog = await readFileContainer(
       id,
-      "/home/coder/agentapi-mock.log",
+      "/home/coder/.claude-module/pre_install.log",
     );
-    expect(agentApiStartLog).toContain("AGENTAPI_ALLOWED_HOSTS: *");
+    expect(preInstallLog).toContain("claude-pre-install-script");
+
+    const postInstallLog = await readFileContainer(
+      id,
+      "/home/coder/.claude-module/post_install.log",
+    );
+    expect(postInstallLog).toContain("claude-post-install-script");
+  });
+
+  test("workdir-variable", async () => {
+    const workdir = "/home/coder/claude-test-folder";
+    const { id } = await setup({
+      skipClaudeMock: false,
+      moduleVariables: {
+        workdir,
+      },
+    });
+    await execModuleScript(id);
+
+    const resp = await readFileContainer(
+      id,
+      "/home/coder/.claude-module/agentapi-start.log",
+    );
+    expect(resp).toContain(workdir);
+  });
+
+  test("coder-mcp-config-created", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        install_claude_code: "false",
+      },
+    });
+    await execModuleScript(id);
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.claude-module/install.log",
+    );
+    expect(installLog).toContain(
+      "Configuring Claude Code to report tasks via Coder MCP",
+    );
+  });
+
+  test("dangerously-skip-permissions", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        dangerously_skip_permissions: "true",
+      },
+    });
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/agentapi-start.log",
+    ]);
+    expect(startLog.stdout).toContain(`--dangerously-skip-permissions`);
+  });
+
+  test("subdomain-false", async () => {
+    const { id } = await setup({
+      skipAgentAPIMock: true,
+      moduleVariables: {
+        subdomain: "false",
+        post_install_script: dedent`
+        #!/bin/bash
+        env | grep AGENTAPI_CHAT_BASE_PATH || echo "AGENTAPI_CHAT_BASE_PATH not found"
+        `,
+      },
+    });
+
+    await execModuleScript(id);
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/post_install.log",
+    ]);
+    expect(startLog.stdout).toContain(
+      "ARG_AGENTAPI_CHAT_BASE_PATH=/@default/default.foo/apps/ccw/chat",
+    );
+  });
+
+  test("partial-initialization-detection", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        continue: "true",
+        report_tasks: "true",
+        ai_prompt: "test prompt",
+      },
+    });
+
+    const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
+    const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
+    await execContainer(id, ["mkdir", "-p", sessionDir]);
+
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `echo '{"sessionId":"${taskSessionId}"}' > ${sessionDir}/${taskSessionId}.jsonl`,
+    ]);
+
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/agentapi-start.log",
+    ]);
+
+    // Should start new session, not try to resume invalid one
+    expect(startLog.stdout).toContain("Starting new task session");
+    expect(startLog.stdout).toContain("--session-id");
+  });
+
+  test("standalone-first-build-no-sessions", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        continue: "true",
+        report_tasks: "false",
+      },
+    });
+
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/agentapi-start.log",
+    ]);
+
+    // Should start fresh, not try to continue
+    expect(startLog.stdout).toContain("No sessions found");
+    expect(startLog.stdout).toContain("starting fresh standalone session");
+    expect(startLog.stdout).not.toContain("--continue");
+  });
+
+  test("standalone-with-sessions-continues", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        continue: "true",
+        report_tasks: "false",
+      },
+    });
+
+    const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
+    await execContainer(id, ["mkdir", "-p", sessionDir]);
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > ${sessionDir}/generic-123.jsonl << 'EOF'
+{"sessionId":"generic-123","message":{"content":"User session"},"timestamp":"2020-01-01T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-01T10:00:05.000Z"}
+EOF`,
+    ]);
+
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/agentapi-start.log",
+    ]);
+
+    // Should continue existing session
+    expect(startLog.stdout).toContain("Sessions found");
+    expect(startLog.stdout).toContain(
+      "Continuing most recent standalone session",
+    );
+    expect(startLog.stdout).toContain("--continue");
+  });
+
+  test("task-mode-ignores-manual-sessions", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        continue: "true",
+        report_tasks: "true",
+        ai_prompt: "test prompt",
+      },
+    });
+
+    const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
+    const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
+    await execContainer(id, ["mkdir", "-p", sessionDir]);
+
+    // Create task session (without "session-" prefix, as CLI does)
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > ${sessionDir}/${taskSessionId}.jsonl << 'EOF'
+{"sessionId":"${taskSessionId}","message":{"content":"Task"},"timestamp":"2020-01-01T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-01T10:00:05.000Z"}
+EOF`,
+    ]);
+
+    // Create manual session (newer)
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > ${sessionDir}/manual-456.jsonl << 'EOF'
+{"sessionId":"manual-456","message":{"content":"Manual"},"timestamp":"2020-01-02T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-02T10:00:05.000Z"}
+EOF`,
+    ]);
+
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/agentapi-start.log",
+    ]);
+
+    // Should resume task session, not manual session
+    expect(startLog.stdout).toContain("Resuming task session");
+    expect(startLog.stdout).toContain(taskSessionId);
+    expect(startLog.stdout).not.toContain("manual-456");
+  });
+
+  test("mcp-config-remote-path", async () => {
+    const failingUrl = "http://localhost:19999/mcp.json";
+    const successUrl =
+      "https://raw.githubusercontent.com/coder/coder/main/.mcp.json";
+
+    const { id, coderEnvVars } = await setup({
+      skipClaudeMock: true,
+      moduleVariables: {
+        mcp_config_remote_path: JSON.stringify([failingUrl, successUrl]),
+      },
+    });
+    await execModuleScript(id, coderEnvVars);
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.claude-module/install.log",
+    );
+
+    // Verify both URLs are attempted
+    expect(installLog).toContain(failingUrl);
+    expect(installLog).toContain(successUrl);
+
+    // First URL should fail gracefully
+    expect(installLog).toContain(
+      `Warning: Failed to fetch MCP configuration from '${failingUrl}'`,
+    );
+
+    // Second URL should succeed - no failure warning for it
+    expect(installLog).not.toContain(
+      `Warning: Failed to fetch MCP configuration from '${successUrl}'`,
+    );
+
+    // Should contain the MCP server add command from successful fetch
+    expect(installLog).toContain(
+      "Added stdio MCP server go-language-server to local config",
+    );
+
+    expect(installLog).toContain(
+      "Added stdio MCP server typescript-language-server to local config",
+    );
+
+    // Verify the MCP config was added to claude.json
+    const claudeConfig = await readFileContainer(
+      id,
+      "/home/coder/.claude.json",
+    );
+    expect(claudeConfig).toContain("typescript-language-server");
+    expect(claudeConfig).toContain("go-language-server");
   });
 });

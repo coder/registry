@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.9"
 
   required_providers {
     coder = {
@@ -59,13 +59,19 @@ variable "coder_parameter_order" {
   default     = null
 }
 
+variable "tooltip" {
+  type        = string
+  description = "Markdown text that is displayed when hovering over workspace apps."
+  default     = "You need to install [JetBrains Toolbox App](https://www.jetbrains.com/toolbox-app/) to use this button."
+}
+
 variable "major_version" {
   type        = string
   description = "The major version of the IDE. i.e. 2025.1"
   default     = "latest"
   validation {
-    condition     = can(regex("^[0-9]{4}\\.[0-2]{1}$", var.major_version)) || var.major_version == "latest"
-    error_message = "The major_version must be a valid version number. i.e. 2025.1 or latest"
+    condition     = can(regex("^[0-9]{4}\\.[1-3]$", var.major_version)) || var.major_version == "latest"
+    error_message = "The major_version must be a valid version number (e.g., 2025.1) or 'latest'"
   }
 }
 
@@ -120,7 +126,7 @@ variable "download_base_link" {
 
 data "http" "jetbrains_ide_versions" {
   for_each = length(var.default) == 0 ? var.options : var.default
-  url      = "${var.releases_base_link}/products/releases?code=${each.key}&type=${var.channel}&latest=true${var.major_version == "latest" ? "" : "&major_version=${var.major_version}"}"
+  url      = "${var.releases_base_link}/products/releases?code=${each.key}&type=${var.channel}${var.major_version == "latest" ? "&latest=true" : ""}"
 }
 
 variable "ide_config" {
@@ -132,9 +138,9 @@ variable "ide_config" {
     - build: The build number of the IDE.
     Example:
     {
-      "CL" = { name = "CLion", icon = "/icon/clion.svg", build = "251.26927.39" },
-      "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "251.26927.50" },
-      "IU" = { name = "IntelliJ IDEA", icon = "/icon/intellij.svg", build = "251.26927.53" },
+      "CL" = { name = "CLion", icon = "/icon/clion.svg", build = "253.29346.141" },
+      "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "253.28294.337" },
+      "IU" = { name = "IntelliJ IDEA", icon = "/icon/intellij.svg", build = "253.29346.138" },
     }
   EOT
   type = map(object({
@@ -143,21 +149,22 @@ variable "ide_config" {
     build = string
   }))
   default = {
-    "CL" = { name = "CLion", icon = "/icon/clion.svg", build = "251.26927.39" },
-    "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "251.26927.50" },
-    "IU" = { name = "IntelliJ IDEA", icon = "/icon/intellij.svg", build = "251.26927.53" },
-    "PS" = { name = "PhpStorm", icon = "/icon/phpstorm.svg", build = "251.26927.60" },
-    "PY" = { name = "PyCharm", icon = "/icon/pycharm.svg", build = "251.26927.74" },
-    "RD" = { name = "Rider", icon = "/icon/rider.svg", build = "251.26927.67" },
-    "RM" = { name = "RubyMine", icon = "/icon/rubymine.svg", build = "251.26927.47" },
-    "RR" = { name = "RustRover", icon = "/icon/rustrover.svg", build = "251.26927.79" },
-    "WS" = { name = "WebStorm", icon = "/icon/webstorm.svg", build = "251.26927.40" }
+    "CL" = { name = "CLion", icon = "/icon/clion.svg", build = "253.29346.141" },
+    "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "253.28294.337" },
+    "IU" = { name = "IntelliJ IDEA", icon = "/icon/intellij.svg", build = "253.29346.138" },
+    "PS" = { name = "PhpStorm", icon = "/icon/phpstorm.svg", build = "253.29346.151" },
+    "PY" = { name = "PyCharm", icon = "/icon/pycharm.svg", build = "253.29346.142" },
+    "RD" = { name = "Rider", icon = "/icon/rider.svg", build = "253.29346.144" },
+    "RM" = { name = "RubyMine", icon = "/icon/rubymine.svg", build = "253.29346.140" },
+    "RR" = { name = "RustRover", icon = "/icon/rustrover.svg", build = "253.29346.139" },
+    "WS" = { name = "WebStorm", icon = "/icon/webstorm.svg", build = "253.29346.143" }
   }
   validation {
     condition     = length(var.ide_config) > 0
     error_message = "The ide_config must not be empty."
   }
-  # ide_config must be a superset of var.. options
+  # ide_config must be a superset of var.options
+  # Requires Terraform 1.9+ for cross-variable validation references
   validation {
     condition = alltrue([
       for code in var.options : contains(keys(var.ide_config), code)
@@ -175,6 +182,20 @@ locals {
     )
   }
 
+  # Filter the parsed response for the requested major version if not "latest"
+  filtered_releases = {
+    for code in length(var.default) == 0 ? var.options : var.default : code => [
+      for r in try(local.parsed_responses[code][keys(local.parsed_responses[code])[0]], []) :
+      r if var.major_version == "latest" || r.majorVersion == var.major_version
+    ]
+  }
+
+  # Select the latest release for the requested major version (first item in the filtered list)
+  selected_releases = {
+    for code in length(var.default) == 0 ? var.options : var.default : code =>
+    length(local.filtered_releases[code]) > 0 ? local.filtered_releases[code][0] : null
+  }
+
   # Dynamically generate IDE configurations based on options with fallback to ide_config
   options_metadata = {
     for code in length(var.default) == 0 ? var.options : var.default : code => {
@@ -184,13 +205,10 @@ locals {
       key        = code
 
       # Use API build number if available, otherwise fall back to ide_config build number
-      build = length(keys(local.parsed_responses[code])) > 0 ? (
-        local.parsed_responses[code][keys(local.parsed_responses[code])[0]][0].build
-      ) : var.ide_config[code].build
+      build = local.selected_releases[code] != null ? local.selected_releases[code].build : var.ide_config[code].build
 
-      # Store API data for potential future use (only if API is available)
-      json_data    = length(keys(local.parsed_responses[code])) > 0 ? local.parsed_responses[code][keys(local.parsed_responses[code])[0]][0] : null
-      response_key = length(keys(local.parsed_responses[code])) > 0 ? keys(local.parsed_responses[code])[0] : null
+      # Store API data for potential future use
+      json_data = local.selected_releases[code]
     }
   }
 
@@ -232,6 +250,7 @@ resource "coder_app" "jetbrains" {
   external     = true
   order        = var.coder_app_order
   group        = var.group
+  tooltip      = var.tooltip
   url = join("", [
     "jetbrains://gateway/coder?&workspace=", # requires 2.6.3+ version of Toolbox
     data.coder_workspace.me.name,
@@ -249,4 +268,13 @@ resource "coder_app" "jetbrains" {
     local.options_metadata[each.key].build,
     var.agent_name != null ? "&agent_name=${var.agent_name}" : "",
   ])
+}
+
+output "ide_metadata" {
+  description = "A map of the metadata for each selected JetBrains IDE."
+  value = {
+    # We iterate directly over the selected_ides map.
+    # 'key' will be the IDE key (e.g., "IC", "PY")
+    for key, val in local.selected_ides : key => local.options_metadata[key]
+  }
 }

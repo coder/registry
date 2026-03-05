@@ -2,6 +2,7 @@
 
 # Convert all templated variables to shell variables
 INSTALL_VERSION=${INSTALL_VERSION}
+VAULT_NAMESPACE=${VAULT_NAMESPACE}
 
 fetch() {
   dest="$1"
@@ -44,6 +45,7 @@ install() {
   if [ "$${INSTALL_VERSION}" = "latest" ]; then
     LATEST_VERSION=$(curl -s https://releases.hashicorp.com/vault/ | grep -v 'rc' | grep -oE 'vault/[0-9]+\.[0-9]+\.[0-9]+' | sed 's/vault\///' | sort -V | tail -n 1)
     printf "Latest version of Vault is %s.\n\n" "$${LATEST_VERSION}"
+    # shellcheck disable=SC2157
     if [ -z "$${LATEST_VERSION}" ]; then
       printf "Failed to determine the latest Vault version.\n"
       return 1
@@ -61,14 +63,16 @@ install() {
     fi
   fi
 
+  # shellcheck disable=SC2170
   if [ $${installation_needed} -eq 1 ]; then
     # Download and install Vault
+    # shellcheck disable=SC2157
     if [ -z "$${CURRENT_VERSION}" ]; then
       printf "Installing Vault CLI ...\n\n"
     else
       printf "Upgrading Vault CLI from version %s to %s ...\n\n" "$${CURRENT_VERSION}" "${INSTALL_VERSION}"
     fi
-    fetch vault.zip "https://releases.hashicorp.com/vault/$${INSTALL_VERSION}/vault_$${INSTALL_VERSION}_linux_amd64.zip"
+    fetch vault.zip "https://releases.hashicorp.com/vault/$${INSTALL_VERSION}/vault_$${INSTALL_VERSION}_linux_$${ARCH}.zip"
     if [ $? -ne 0 ]; then
       printf "Failed to download Vault.\n"
       return 1
@@ -101,3 +105,8 @@ if ! (
   exit 1
 fi
 rm -rf "$TMP"
+
+if [ -n "$${VAULT_NAMESPACE}" ]; then
+  export VAULT_NAMESPACE
+  printf "📁 Using Vault namespace: %s\n\n" "$${VAULT_NAMESPACE}"
+fi

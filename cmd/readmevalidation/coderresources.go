@@ -82,33 +82,43 @@ func validateCoderResourceDescription(description string) error {
 	return nil
 }
 
-func isPermittedRelativeURL(checkURL string) bool {
-	// Would normally be skittish about having relative paths like this, but it should be safe because we have
-	// guarantees about the structure of the repo, and where this logic will run.
-	return strings.HasPrefix(checkURL, "./") || strings.HasPrefix(checkURL, "/") || strings.HasPrefix(checkURL, "../../../../.icons")
+func isPermittedRelativeURL(checkURL string, readmeFilePath string) error {
+	// Icon URLs must reference the top-level .icons directory
+	expectedPrefix := "../../../../.icons/"
+	if !strings.HasPrefix(checkURL, expectedPrefix) {
+		return xerrors.Errorf("icon URL %q must reference the top-level .icons directory using %q", checkURL, expectedPrefix)
+	}
+
+	// Resolve the path relative to the README file and check if it exists
+	readmeDir := path.Dir(readmeFilePath)
+	resolvedPath := path.Join(readmeDir, checkURL)
+
+	if _, err := os.Stat(resolvedPath); err != nil {
+		if os.IsNotExist(err) {
+			return xerrors.Errorf("icon file does not exist at resolved path %q (referenced as %q)", resolvedPath, checkURL)
+		}
+		return xerrors.Errorf("error checking icon file at %q: %v", resolvedPath, err)
+	}
+
+	return nil
 }
 
-func validateCoderResourceIconURL(iconURL string) []error {
+func validateCoderResourceIconURL(iconURL string, filePath string) []error {
 	if iconURL == "" {
 		return []error{xerrors.New("icon URL cannot be empty")}
 	}
 
 	var errs []error
 
-	// If the URL does not have a relative path.
-	if !strings.HasPrefix(iconURL, ".") && !strings.HasPrefix(iconURL, "/") {
-		if _, err := url.ParseRequestURI(iconURL); err != nil {
-			errs = append(errs, xerrors.New("absolute icon URL is not correctly formatted"))
-		}
-		if strings.Contains(iconURL, "?") {
-			errs = append(errs, xerrors.New("icon URLs cannot contain query parameters"))
-		}
+	// Reject absolute HTTP/HTTPS URLs - all icons must be local to the repository
+	if strings.HasPrefix(iconURL, "http://") || strings.HasPrefix(iconURL, "https://") {
+		errs = append(errs, xerrors.Errorf("icon URL must reference the top-level .icons directory, not an absolute URL %q", iconURL))
 		return errs
 	}
 
-	// If the URL has a relative path.
-	if !isPermittedRelativeURL(iconURL) {
-		errs = append(errs, xerrors.Errorf("relative icon URL %q must either be scoped to that module's directory, or the top-level /.icons directory (this can usually be done by starting the path with \"../../../.icons\")", iconURL))
+	// Validate that the icon references ../../../../.icons/ and exists
+	if err := isPermittedRelativeURL(iconURL, filePath); err != nil {
+		errs = append(errs, err)
 	}
 
 	return errs
@@ -153,7 +163,7 @@ func validateCoderResourceFrontmatter(resourceType string, filePath string, fm c
 		errs = append(errs, addFilePathToError(filePath, err))
 	}
 
-	for _, err := range validateCoderResourceIconURL(fm.IconURL) {
+	for _, err := range validateCoderResourceIconURL(fm.IconURL, filePath) {
 		errs = append(errs, addFilePathToError(filePath, err))
 	}
 	for _, err := range validateSupportedOperatingSystems(fm.OperatingSystems) {

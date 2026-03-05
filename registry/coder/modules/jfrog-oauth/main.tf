@@ -59,6 +59,7 @@ variable "package_managers" {
     pypi   = optional(list(string), [])
     docker = optional(list(string), [])
     conda  = optional(list(string), [])
+    maven  = optional(list(string), [])
   })
   description = <<-EOF
     A map of package manager names to their respective artifactory repositories. Unused package managers can be omitted.
@@ -69,13 +70,33 @@ variable "package_managers" {
         pypi   = ["YOUR_PYPI_REPO_KEY", "ANOTHER_PYPI_REPO_KEY"]
         docker = ["YOUR_DOCKER_REPO_KEY", "ANOTHER_DOCKER_REPO_KEY"]
         conda  = ["YOUR_CONDA_REPO_KEY", "ANOTHER_CONDA_REPO_KEY"]
+        maven  = ["YOUR_MAVEN_REPO_KEY", "ANOTHER_MAVEN_REPO_KEY"]
       }
   EOF
 }
 
 locals {
-  # The username field to use for artifactory
-  username   = var.username_field == "email" ? data.coder_workspace_owner.me.email : data.coder_workspace_owner.me.name
+  jwt_parts   = try(split(".", data.coder_external_auth.jfrog.access_token), [])
+  jwt_payload = try(local.jwt_parts[1], "")
+  payload_padding = local.jwt_payload == "" ? "" : (
+    length(local.jwt_payload) % 4 == 0 ? "" :
+    length(local.jwt_payload) % 4 == 2 ? "==" :
+    length(local.jwt_payload) % 4 == 3 ? "=" :
+    ""
+  )
+
+  jwt_username = try(
+    regex(
+      "/users/([^/]+)",
+      jsondecode(base64decode("${local.jwt_payload}${local.payload_padding}"))["sub"]
+    )[0],
+    ""
+  )
+
+  username = coalesce(
+    local.jwt_username != "" ? local.jwt_username : null,
+    var.username_field == "email" ? data.coder_workspace_owner.me.email : data.coder_workspace_owner.me.name
+  )
   jfrog_host = split("://", var.jfrog_url)[1]
   common_values = {
     JFROG_URL                = var.jfrog_url
@@ -102,6 +123,9 @@ locals {
   )
   conda_conf = templatefile(
     "${path.module}/conda.conf.tftpl", merge(local.common_values, { REPOS = var.package_managers.conda })
+  )
+  maven_settings = templatefile(
+    "${path.module}/settings.xml.tftpl", merge(local.common_values, { REPOS = var.package_managers.maven })
   )
 }
 
@@ -133,9 +157,19 @@ resource "coder_script" "jfrog" {
       HAS_CONDA             = length(var.package_managers.conda) == 0 ? "" : "YES"
       CONDA_CONF            = local.conda_conf
       REPOSITORY_CONDA      = try(element(var.package_managers.conda, 0), "")
+      HAS_MAVEN             = length(var.package_managers.maven) == 0 ? "" : "YES"
+      MAVEN_SETTINGS        = local.maven_settings
+      REPOSITORY_MAVEN      = try(element(var.package_managers.maven, 0), "")
     }
   ))
   run_on_start = true
+
+  lifecycle {
+    precondition {
+      condition     = data.coder_external_auth.jfrog.access_token != ""
+      error_message = "JFrog access token is empty. Please authenticate with JFrog using external auth."
+    }
+  }
 }
 
 resource "coder_env" "jfrog_ide_url" {

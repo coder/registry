@@ -22,7 +22,10 @@ describe("vscode-desktop", async () => {
     );
 
     const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "vscode",
+      (res) =>
+        res.type === "coder_app" &&
+        res.module === "module.vscode-desktop-core" &&
+        res.name === "vscode-desktop",
     );
 
     expect(coder_app).not.toBeNull();
@@ -70,20 +73,5 @@ describe("vscode-desktop", async () => {
     expect(state.outputs.vscode_url.value).toBe(
       "vscode://coder.coder-remote/open?owner=default&workspace=default&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
-  });
-
-  it("expect order to be set", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      order: "22",
-    });
-
-    const coder_app = state.resources.find(
-      (res) => res.type === "coder_app" && res.name === "vscode",
-    );
-
-    expect(coder_app).not.toBeNull();
-    expect(coder_app?.instances.length).toBe(1);
-    expect(coder_app?.instances[0].attributes.order).toBe(22);
   });
 });

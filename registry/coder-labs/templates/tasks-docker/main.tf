@@ -1,7 +1,8 @@
 terraform {
   required_providers {
     coder = {
-      source = "coder/coder"
+      source  = "coder/coder"
+      version = ">= 2.13"
     }
     docker = {
       source = "kreuzwerker/docker"
@@ -12,43 +13,36 @@ terraform {
 # This template requires a valid Docker socket
 # However, you can reference our Kubernetes/VM
 # example templates and adapt the Claude Code module
-# 
-# see: https://registry.coder.com/templates 
+#
+# see: https://registry.coder.com/templates
 provider "docker" {}
+
+# A `coder_ai_task` resource enables Tasks and associates
+# the task with the coder_app that will act as an AI agent.
+resource "coder_ai_task" "task" {
+  count  = data.coder_workspace.me.start_count
+  app_id = module.claude-code[count.index].task_app_id
+}
+
+# You can read the task prompt from the `coder_task` data source.
+data "coder_task" "me" {}
 
 # The Claude Code module does the automatic task reporting
 # Other agent modules: https://registry.coder.com/modules?search=agent
-# Or use a custom agent:  
+# Or use a custom agent:
 module "claude-code" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "2.0.0"
+  version             = "4.0.0"
   agent_id            = coder_agent.main.id
-  agent_name          = "main"
-  folder              = "/home/coder/projects"
-  install_claude_code = true
-  claude_code_version = "latest"
+  workdir             = "/home/coder/projects"
   order               = 999
-
-  experiment_post_install_script = data.coder_parameter.setup_script.value
-
-  # This enables Coder Tasks
-  experiment_report_tasks = true
-}
-
-# You can also use a model provider, like AWS Bedrock or Vertex by replacing
-# this with the special env vars from the Claude Code docs.
-# see: https://docs.anthropic.com/en/docs/claude-code/third-party-integrations
-variable "anthropic_api_key" {
-  type        = string
-  description = "Generate one at: https://console.anthropic.com/settings/keys"
-  sensitive   = true
-}
-resource "coder_env" "anthropic_api_key" {
-  agent_id   = coder_agent.main.id
-  agent_name = "main"
-  name       = "CODER_MCP_CLAUDE_API_KEY"
-  value      = var.anthropic_api_key
+  claude_api_key      = ""
+  ai_prompt           = data.coder_task.me.prompt
+  system_prompt       = data.coder_parameter.system_prompt.value
+  model               = "sonnet"
+  permission_mode     = "plan"
+  post_install_script = data.coder_parameter.setup_script.value
 }
 
 # We are using presets to set the prompts, image, and set up instructions
@@ -68,13 +62,13 @@ data "coder_workspace_preset" "default" {
         (servers, dev watchers, GUI apps).
       -	Built-in tools - use for everything else:
        (file operations, git commands, builds & installs, one-off shell commands)
-	    
+
       Remember this decision rule:
       - Stays running? → desktop-commander
       - Finishes immediately? → built-in tools
-      
+
       -- Context --
-      There is an existing app and tmux dev server running on port 8000. Be sure to read it's CLAUDE.md (./realworld-django-rest-framework-angular/CLAUDE.md) to learn more about it. 
+      There is an existing app and tmux dev server running on port 8000. Be sure to read it's CLAUDE.md (./realworld-django-rest-framework-angular/CLAUDE.md) to learn more about it.
 
       Since this app is for demo purposes and the user is previewing the homepage and subsequent pages, aim to make the first visual change/prototype very quickly so the user can preview it, then focus on backend or logic which can be a more involved, long-running architecture plan.
 
@@ -124,7 +118,7 @@ data "coder_workspace_preset" "default" {
 
   # Pre-builds is a Coder Premium
   # feature to speed up workspace creation
-  # 
+  #
   # see https://coder.com/docs/admin/templates/extending-templates/prebuilt-workspaces
   # prebuilds {
   #   instances = 1
@@ -142,13 +136,6 @@ data "coder_parameter" "system_prompt" {
   form_type    = "textarea"
   description  = "System prompt for the agent with generalized instructions"
   mutable      = false
-}
-data "coder_parameter" "ai_prompt" {
-  type        = "string"
-  name        = "AI Prompt"
-  default     = ""
-  description = "Write a prompt for Claude Code"
-  mutable     = true
 }
 data "coder_parameter" "setup_script" {
   name         = "setup_script"
@@ -172,26 +159,6 @@ data "coder_parameter" "preview_port" {
   type         = "number"
   default      = "3000"
   mutable      = false
-}
-
-# Other variables for Claude Code
-resource "coder_env" "claude_task_prompt" {
-  agent_id   = coder_agent.main.id
-  agent_name = "main"
-  name       = "CODER_MCP_CLAUDE_TASK_PROMPT"
-  value      = data.coder_parameter.ai_prompt.value
-}
-resource "coder_env" "app_status_slug" {
-  agent_id   = coder_agent.main.id
-  agent_name = "main"
-  name       = "CODER_MCP_APP_STATUS_SLUG"
-  value      = "ccw"
-}
-resource "coder_env" "claude_system_prompt" {
-  agent_id   = coder_agent.main.id
-  agent_name = "main"
-  name       = "CODER_MCP_CLAUDE_SYSTEM_PROMPT"
-  value      = data.coder_parameter.system_prompt.value
 }
 
 data "coder_provisioner" "me" {}
@@ -301,38 +268,27 @@ module "code-server" {
   # This ensures that the latest non-breaking version of the module gets downloaded, you can also pin the module version to prevent breaking changes in production.
   version = "~> 1.0"
 
-  agent_id   = coder_agent.main.id
-  agent_name = "main"
-  order      = 1
-}
-
-module "vscode" {
-  count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/coder/vscode-desktop/coder"
-  version    = "1.1.0"
-  agent_id   = coder_agent.main.id
-  agent_name = "main"
+  agent_id = coder_agent.main.id
+  order    = 1
 }
 
 module "windsurf" {
-  count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/coder/windsurf/coder"
-  version    = "1.1.0"
-  agent_id   = coder_agent.main.id
-  agent_name = "main"
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/windsurf/coder"
+  version  = "1.1.0"
+  agent_id = coder_agent.main.id
 }
 
 module "cursor" {
-  count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/coder/cursor/coder"
-  version    = "1.2.0"
-  agent_id   = coder_agent.main.id
-  agent_name = "main"
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/cursor/coder"
+  version  = "1.2.0"
+  agent_id = coder_agent.main.id
 }
 
 module "jetbrains" {
   count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/modules/coder/jetbrains/coder"
+  source     = "registry.coder.com/coder/jetbrains/coder"
   version    = "~> 1.0"
   agent_id   = coder_agent.main.id
   agent_name = "main"
@@ -368,7 +324,6 @@ resource "docker_volume" "home_volume" {
 
 resource "coder_app" "preview" {
   agent_id     = coder_agent.main.id
-  agent_name   = "main"
   slug         = "preview"
   display_name = "Preview your app"
   icon         = "${data.coder_workspace.me.access_url}/emojis/1f50e.png"

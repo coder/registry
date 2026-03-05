@@ -1,10 +1,10 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.9"
 
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.7"
+      version = ">= 2.12"
     }
   }
 }
@@ -36,11 +36,71 @@ variable "icon" {
   default     = "/icon/claude.svg"
 }
 
-variable "folder" {
+variable "workdir" {
   type        = string
   description = "The folder to run Claude Code in."
-  default     = "/home/coder"
 }
+
+variable "report_tasks" {
+  type        = bool
+  description = "Whether to enable task reporting to Coder UI via AgentAPI"
+  default     = true
+}
+
+variable "cli_app" {
+  type        = bool
+  description = "Whether to create a CLI app for Claude Code"
+  default     = false
+}
+
+variable "web_app_display_name" {
+  type        = string
+  description = "Display name for the web app"
+  default     = "Claude Code"
+}
+
+variable "cli_app_display_name" {
+  type        = string
+  description = "Display name for the CLI app"
+  default     = "Claude Code CLI"
+}
+
+variable "pre_install_script" {
+  type        = string
+  description = "Custom script to run before installing Claude Code. Can be used for dependency ordering between modules (e.g., waiting for git-clone to complete before Claude Code initialization)."
+  default     = null
+}
+
+variable "post_install_script" {
+  type        = string
+  description = "Custom script to run after installing Claude Code."
+  default     = null
+}
+
+variable "install_agentapi" {
+  type        = bool
+  description = "Whether to install AgentAPI."
+  default     = true
+}
+
+variable "agentapi_version" {
+  type        = string
+  description = "The version of AgentAPI to install."
+  default     = "v0.11.8"
+}
+
+variable "ai_prompt" {
+  type        = string
+  description = "Initial task prompt for Claude Code."
+  default     = ""
+}
+
+variable "subdomain" {
+  type        = bool
+  description = "Whether to use a subdomain for AgentAPI."
+  default     = false
+}
+
 
 variable "install_claude_code" {
   type        = bool
@@ -54,245 +114,319 @@ variable "claude_code_version" {
   default     = "latest"
 }
 
-variable "experiment_cli_app" {
+variable "disable_autoupdater" {
   type        = bool
-  description = "Whether to create the CLI workspace app."
+  description = "Disable Claude Code automatic updates. When true, Claude Code will stay on the installed version."
   default     = false
 }
 
-variable "experiment_cli_app_order" {
-  type        = number
-  description = "The order of the CLI workspace app."
-  default     = null
-}
-
-variable "experiment_cli_app_group" {
+variable "claude_api_key" {
   type        = string
-  description = "The group of the CLI workspace app."
-  default     = null
+  description = "The API key to use for the Claude Code server."
+  default     = ""
 }
 
-variable "experiment_report_tasks" {
+variable "model" {
+  type        = string
+  description = "Sets the default model for Claude Code via ANTHROPIC_MODEL env var. If empty, Claude Code uses its default. Supports aliases (sonnet, opus) or full model names."
+  default     = ""
+}
+
+variable "resume_session_id" {
+  type        = string
+  description = "Resume a specific session by ID."
+  default     = ""
+}
+
+variable "continue" {
   type        = bool
-  description = "Whether to enable task reporting."
+  description = "Automatically continue existing sessions on workspace restart. When true, resumes existing conversation if found, otherwise runs prompt or starts new session. When false, always starts fresh (ignores existing sessions)."
+  default     = true
+}
+
+variable "dangerously_skip_permissions" {
+  type        = bool
+  description = "Skip the permission prompts. Use with caution. This will be set to true if using Coder Tasks"
   default     = false
 }
 
-variable "experiment_pre_install_script" {
+variable "permission_mode" {
   type        = string
-  description = "Custom script to run before installing Claude Code."
-  default     = null
+  description = "Permission mode for the cli, check https://docs.anthropic.com/en/docs/claude-code/iam#permission-modes"
+  default     = ""
+  validation {
+    condition     = contains(["", "default", "acceptEdits", "plan", "bypassPermissions"], var.permission_mode)
+    error_message = "interaction_mode must be one of: default, acceptEdits, plan, bypassPermissions."
+  }
 }
 
-variable "experiment_post_install_script" {
+variable "mcp" {
   type        = string
-  description = "Custom script to run after installing Claude Code."
-  default     = null
+  description = "MCP JSON to be added to the claude code local scope"
+  default     = ""
 }
 
+variable "mcp_config_remote_path" {
+  type        = list(string)
+  description = "List of URLs that return JSON MCP server configurations (text/plain with valid JSON)"
+  default     = []
+}
 
-variable "install_agentapi" {
+variable "allowed_tools" {
+  type        = string
+  description = "A list of tools that should be allowed without prompting the user for permission, in addition to settings.json files."
+  default     = ""
+}
+
+variable "disallowed_tools" {
+  type        = string
+  description = "A list of tools that should be disallowed without prompting the user for permission, in addition to settings.json files."
+  default     = ""
+
+}
+
+variable "claude_code_oauth_token" {
+  type        = string
+  description = "Set up a long-lived authentication token (requires Claude subscription). Generated using `claude setup-token` command"
+  sensitive   = true
+  default     = ""
+}
+
+variable "system_prompt" {
+  type        = string
+  description = "The system prompt to use for the Claude Code server."
+  default     = ""
+}
+
+variable "claude_md_path" {
+  type        = string
+  description = "The path to CLAUDE.md."
+  default     = "$HOME/.claude/CLAUDE.md"
+}
+
+variable "claude_binary_path" {
+  type        = string
+  description = "Directory where the Claude Code binary is located. Use this if Claude is pre-installed or installed outside the module to a non-default location."
+  default     = "$HOME/.local/bin"
+
+  validation {
+    condition     = var.claude_binary_path == "$HOME/.local/bin" || !var.install_claude_code
+    error_message = "Custom claude_binary_path can only be used when install_claude_code is false. The official installer always installs to $HOME/.local/bin and does not support custom paths."
+  }
+}
+
+variable "install_via_npm" {
   type        = bool
-  description = "Whether to install AgentAPI."
+  description = "Install Claude Code via npm instead of the official installer. Useful if npm is preferred or the official installer fails."
+  default     = false
+}
+
+variable "enable_boundary" {
+  type        = bool
+  description = "Whether to enable coder boundary for network filtering"
+  default     = false
+}
+
+variable "boundary_version" {
+  type        = string
+  description = "Boundary version. When use_boundary_directly is true, a release version should be provided or 'latest' for the latest release. When compile_boundary_from_source is true, a valid git reference should be provided (tag, commit, branch)."
+  default     = "latest"
+}
+
+variable "compile_boundary_from_source" {
+  type        = bool
+  description = "Whether to compile boundary from source instead of using the official install script"
+  default     = false
+}
+
+variable "use_boundary_directly" {
+  type        = bool
+  description = "Whether to use boundary binary directly instead of coder boundary subcommand. When false (default), uses coder boundary subcommand. When true, installs and uses boundary binary from release."
+  default     = false
+}
+
+variable "enable_aibridge" {
+  type        = bool
+  description = "Use AI Bridge for Claude Code. https://coder.com/docs/ai-coder/ai-bridge"
+  default     = false
+
+  validation {
+    condition     = !(var.enable_aibridge && length(var.claude_api_key) > 0)
+    error_message = "claude_api_key cannot be provided when enable_aibridge is true. AI Bridge automatically authenticates the client using Coder credentials."
+  }
+
+  validation {
+    condition     = !(var.enable_aibridge && length(var.claude_code_oauth_token) > 0)
+    error_message = "claude_code_oauth_token cannot be provided when enable_aibridge is true. AI Bridge automatically authenticates the client using Coder credentials."
+  }
+}
+
+variable "enable_state_persistence" {
+  type        = bool
+  description = "Enable AgentAPI conversation state persistence across restarts."
   default     = true
 }
 
-variable "agentapi_version" {
-  type        = string
-  description = "The version of AgentAPI to install."
-  default     = "v0.3.3"
+resource "coder_env" "claude_code_md_path" {
+  count    = var.claude_md_path == "" ? 0 : 1
+  agent_id = var.agent_id
+  name     = "CODER_MCP_CLAUDE_MD_PATH"
+  value    = var.claude_md_path
 }
 
-variable "subdomain" {
-  type        = bool
-  description = "Whether to use a subdomain for the Claude Code app."
-  default     = true
+resource "coder_env" "claude_code_system_prompt" {
+  agent_id = var.agent_id
+  name     = "CODER_MCP_CLAUDE_SYSTEM_PROMPT"
+  value    = local.final_system_prompt
+}
+
+resource "coder_env" "claude_code_oauth_token" {
+  agent_id = var.agent_id
+  name     = "CLAUDE_CODE_OAUTH_TOKEN"
+  value    = var.claude_code_oauth_token
+}
+
+resource "coder_env" "claude_api_key" {
+  count = local.claude_api_key != "" ? 1 : 0
+
+  agent_id = var.agent_id
+  name     = "CLAUDE_API_KEY"
+  value    = local.claude_api_key
+}
+
+resource "coder_env" "disable_autoupdater" {
+  count    = var.disable_autoupdater ? 1 : 0
+  agent_id = var.agent_id
+  name     = "DISABLE_AUTOUPDATER"
+  value    = "1"
+}
+
+
+resource "coder_env" "anthropic_model" {
+  count    = var.model != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_MODEL"
+  value    = var.model
+}
+
+resource "coder_env" "anthropic_base_url" {
+  count    = var.enable_aibridge ? 1 : 0
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_BASE_URL"
+  value    = "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic"
 }
 
 locals {
   # we have to trim the slash because otherwise coder exp mcp will
-  # set up an invalid claude config 
-  workdir                            = trimsuffix(var.folder, "/")
-  encoded_pre_install_script         = var.experiment_pre_install_script != null ? base64encode(var.experiment_pre_install_script) : ""
-  encoded_post_install_script        = var.experiment_post_install_script != null ? base64encode(var.experiment_post_install_script) : ""
-  agentapi_start_script_b64          = base64encode(file("${path.module}/scripts/agentapi-start.sh"))
-  agentapi_wait_for_start_script_b64 = base64encode(file("${path.module}/scripts/agentapi-wait-for-start.sh"))
-  remove_last_session_id_script_b64  = base64encode(file("${path.module}/scripts/remove-last-session-id.sh"))
-  claude_code_app_slug               = "ccw"
-  // Chat base path is only set if not using a subdomain.
-  // NOTE:
-  //   - Initial support for --chat-base-path was added in v0.3.1 but configuration
-  //     via environment variable AGENTAPI_CHAT_BASE_PATH was added in v0.3.3.
-  //   - As CODER_WORKSPACE_AGENT_NAME is a recent addition we use agent ID
-  //     for backward compatibility.
-  agentapi_chat_base_path = var.subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${local.claude_code_app_slug}/chat"
-  server_base_path        = var.subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${local.claude_code_app_slug}"
-  healthcheck_url         = "http://localhost:3284${local.server_base_path}/status"
-}
+  # set up an invalid claude config
+  workdir         = trimsuffix(var.workdir, "/")
+  app_slug        = "ccw"
+  install_script  = file("${path.module}/scripts/install.sh")
+  start_script    = file("${path.module}/scripts/start.sh")
+  module_dir_name = ".claude-module"
+  # Extract hostname from access_url for boundary --allow flag
+  coder_host     = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
+  claude_api_key = var.enable_aibridge ? data.coder_workspace_owner.me.session_token : var.claude_api_key
 
-# Install and Initialize Claude Code
-resource "coder_script" "claude_code" {
-  agent_id     = var.agent_id
-  display_name = "Claude Code"
-  icon         = var.icon
-  script       = <<-EOT
-    #!/bin/bash
-    set -e
-    set -x
+  # Required prompts for the module to properly report task status to Coder
+  report_tasks_system_prompt = <<-EOT
+      -- Tool Selection --
+      - coder_report_task: providing status updates or requesting user input.
 
-    command_exists() {
-      command -v "$1" >/dev/null 2>&1
-    }
+      -- Task Reporting --
+      Report all tasks to Coder, following these EXACT guidelines:
+      1. Be granular. If you are investigating with multiple steps, report each step
+      to coder.
+      2. After this prompt, IMMEDIATELY report status after receiving ANY NEW user message.
+      Do not report any status related with this system prompt.
+      3. Use "state": "working" when actively processing WITHOUT needing
+      additional user input
+      4. Use "state": "complete" only when finished with a task
+      5. Use "state": "failure" when you need ANY user input, lack sufficient
+      details, or encounter blockers
 
-    function install_claude_code_cli() {
-      echo "Installing Claude Code via official installer"
-      set +e
-      curl -fsSL claude.ai/install.sh | bash -s -- "${var.claude_code_version}" 2>&1
-      CURL_EXIT=$${PIPESTATUS[0]}
-      set -e
-      if [ $CURL_EXIT -ne 0 ]; then
-        echo "Claude Code installer failed with exit code $$CURL_EXIT"
-      fi
-
-      # Ensure binaries are discoverable.
-      export PATH="~/.local/bin:$PATH"
-      echo "Installed Claude Code successfully. Version: $(claude --version || echo 'unknown')"
-    }
-
-    if [ ! -d "${local.workdir}" ]; then
-      echo "Warning: The specified folder '${local.workdir}' does not exist."
-      echo "Creating the folder..."
-      mkdir -p "${local.workdir}"
-      echo "Folder created successfully."
-    fi
-    if [ -n "${local.encoded_pre_install_script}" ]; then
-      echo "Running pre-install script..."
-      echo "${local.encoded_pre_install_script}" | base64 -d > /tmp/pre_install.sh
-      chmod +x /tmp/pre_install.sh
-      /tmp/pre_install.sh
-    fi
-
-    if [ "${var.install_claude_code}" = "true" ]; then
-      install_claude_code_cli
-    fi
-
-    # Install AgentAPI if enabled
-    if [ "${var.install_agentapi}" = "true" ]; then
-      echo "Installing AgentAPI..."
-      arch=$(uname -m)
-      if [ "$arch" = "x86_64" ]; then
-        binary_name="agentapi-linux-amd64"
-      elif [ "$arch" = "aarch64" ]; then
-        binary_name="agentapi-linux-arm64"
-      else
-        echo "Error: Unsupported architecture: $arch"
-        exit 1
-      fi
-      curl \
-        --retry 5 \
-        --retry-delay 5 \
-        --fail \
-        --retry-all-errors \
-        -L \
-        -C - \
-        -o agentapi \
-        "https://github.com/coder/agentapi/releases/download/${var.agentapi_version}/$binary_name"
-      chmod +x agentapi
-      sudo mv agentapi /usr/local/bin/agentapi
-    fi
-    if ! command_exists agentapi; then
-      echo "Error: AgentAPI is not installed. Please enable install_agentapi or install it manually."
-      exit 1
-    fi
-
-    # this must be kept in sync with the agentapi-start.sh script
-    module_path="$HOME/.claude-module"
-    mkdir -p "$module_path/scripts"
-
-    # save the prompt for the agentapi start command
-    echo -n "$CODER_MCP_CLAUDE_TASK_PROMPT" > "$module_path/prompt.txt"
-
-    echo -n "${local.agentapi_start_script_b64}" | base64 -d > "$module_path/scripts/agentapi-start.sh"
-    echo -n "${local.agentapi_wait_for_start_script_b64}" | base64 -d > "$module_path/scripts/agentapi-wait-for-start.sh"
-    echo -n "${local.remove_last_session_id_script_b64}" | base64 -d > "$module_path/scripts/remove-last-session-id.sh"
-    chmod +x "$module_path/scripts/agentapi-start.sh"
-    chmod +x "$module_path/scripts/agentapi-wait-for-start.sh"
-
-    if [ "${var.experiment_report_tasks}" = "true" ]; then
-      echo "Configuring Claude Code to report tasks via Coder MCP..."
-      export CODER_MCP_APP_STATUS_SLUG="${local.claude_code_app_slug}"
-      export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
-      coder exp mcp configure claude-code "${local.workdir}"
-    fi
-
-    if [ -n "${local.encoded_post_install_script}" ]; then
-      echo "Running post-install script..."
-      echo "${local.encoded_post_install_script}" | base64 -d > /tmp/post_install.sh
-      chmod +x /tmp/post_install.sh
-      /tmp/post_install.sh
-    fi
-
-    if ! command_exists claude; then
-      echo "Error: Claude Code is not installed. Please enable install_claude_code or install it manually."
-      exit 1
-    fi
-
-    export LANG=en_US.UTF-8
-    export LC_ALL=en_US.UTF-8
-
-    cd "${local.workdir}"
-
-    # Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
-    export AGENTAPI_ALLOWED_HOSTS="*"
-    
-    # Set chat base path for non-subdomain routing (only set if not using subdomain)
-    export AGENTAPI_CHAT_BASE_PATH="${local.agentapi_chat_base_path}"
-
-    nohup "$module_path/scripts/agentapi-start.sh" use_prompt &> "$module_path/agentapi-start.log" &
-    "$module_path/scripts/agentapi-wait-for-start.sh"
+      In your summary on coder_report_task:
+      - Be specific about what you're doing
+      - Clearly indicate what information you need from the user when in "failure" state
+      - Keep it under 160 characters
+      - Make it actionable
     EOT
-  run_on_start = true
+
+  # Only include coder system prompts if report_tasks is enabled
+  custom_system_prompt = trimspace(try(var.system_prompt, ""))
+  final_system_prompt = format("<system>%s%s</system>",
+    var.report_tasks ? format("\n%s\n", local.report_tasks_system_prompt) : "",
+    local.custom_system_prompt != "" ? format("\n%s\n", local.custom_system_prompt) : ""
+  )
 }
 
-resource "coder_app" "claude_code_web" {
-  # use a short slug to mitigate https://github.com/coder/coder/issues/15178
-  slug         = local.claude_code_app_slug
-  display_name = "Claude Code Web"
-  agent_id     = var.agent_id
-  url          = "http://localhost:3284/"
-  icon         = var.icon
-  order        = var.order
-  group        = var.group
-  subdomain    = var.subdomain
-  healthcheck {
-    url       = local.healthcheck_url
-    interval  = 3
-    threshold = 20
-  }
-}
+module "agentapi" {
+  source  = "registry.coder.com/coder/agentapi/coder"
+  version = "2.2.0"
 
-resource "coder_app" "claude_code" {
-  count = var.experiment_cli_app ? 1 : 0
-
-  slug         = "claude-code"
-  display_name = "Claude Code CLI"
-  agent_id     = var.agent_id
-  command      = <<-EOT
+  agent_id                 = var.agent_id
+  web_app_slug             = local.app_slug
+  web_app_order            = var.order
+  web_app_group            = var.group
+  web_app_icon             = var.icon
+  web_app_display_name     = var.web_app_display_name
+  folder                   = local.workdir
+  cli_app                  = var.cli_app
+  cli_app_slug             = var.cli_app ? "${local.app_slug}-cli" : null
+  cli_app_display_name     = var.cli_app ? var.cli_app_display_name : null
+  agentapi_subdomain       = var.subdomain
+  module_dir_name          = local.module_dir_name
+  install_agentapi         = var.install_agentapi
+  agentapi_version         = var.agentapi_version
+  enable_state_persistence = var.enable_state_persistence
+  pre_install_script       = var.pre_install_script
+  post_install_script      = var.post_install_script
+  start_script             = <<-EOT
     #!/bin/bash
-    set -e
+    set -o errexit
+    set -o pipefail
+    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
+    chmod +x /tmp/start.sh
 
-    export LANG=en_US.UTF-8
-    export LC_ALL=en_US.UTF-8
+    ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
+    ARG_CONTINUE='${var.continue}' \
+    ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
+    ARG_PERMISSION_MODE='${var.permission_mode}' \
+    ARG_WORKDIR='${local.workdir}' \
+    ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
+    ARG_REPORT_TASKS='${var.report_tasks}' \
+    ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
+    ARG_BOUNDARY_VERSION='${var.boundary_version}' \
+    ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
+    ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
+    ARG_CODER_HOST='${local.coder_host}' \
+    ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
+    /tmp/start.sh
+  EOT
 
-    agentapi attach
-    EOT
-  icon         = var.icon
-  order        = var.experiment_cli_app_order
-  group        = var.experiment_cli_app_group
+  install_script = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
+    chmod +x /tmp/install.sh
+    ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
+    ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
+    ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
+    ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
+    ARG_INSTALL_VIA_NPM='${var.install_via_npm}' \
+    ARG_REPORT_TASKS='${var.report_tasks}' \
+    ARG_WORKDIR='${local.workdir}' \
+    ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
+    ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
+    ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
+    ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
+    ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
+    /tmp/install.sh
+  EOT
 }
 
-resource "coder_ai_task" "claude_code" {
-  sidebar_app {
-    id = coder_app.claude_code_web.id
-  }
+output "task_app_id" {
+  value = module.agentapi.task_app_id
 }

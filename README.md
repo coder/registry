@@ -39,7 +39,7 @@ module "cursor" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/cursor/coder"
   version  = "1.0.19"
-  agent_id = coder_agent.example.id
+  agent_id = coder_agent.main.id
 }
 ```
 
@@ -48,3 +48,7 @@ Simply include that snippet inside your Coder template, defining any data depend
 ## Contributing
 
 We are always accepting new contributions. [Please see our contributing guide for more information.](./CONTRIBUTING.md)
+
+## For Maintainers
+
+Guidelines for maintainers reviewing PRs and managing releases. [See the maintainer guide for more information.](./MAINTAINER.md)

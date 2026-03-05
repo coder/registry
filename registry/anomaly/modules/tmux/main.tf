@@ -55,7 +55,7 @@ resource "coder_script" "tmux" {
   display_name = "tmux"
   icon         = "/icon/terminal.svg"
   script = templatefile("${path.module}/scripts/run.sh", {
-    TMUX_CONFIG   = var.tmux_config
+    TMUX_CONFIG   = base64encode(var.tmux_config)
     SAVE_INTERVAL = var.save_interval
   })
   run_on_start = true

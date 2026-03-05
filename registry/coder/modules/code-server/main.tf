@@ -44,7 +44,7 @@ variable "settings" {
   default     = {}
 }
 
-variable "machine-settings" {
+variable "machine_settings" {
   type        = any
   description = "A map of template level machine settings to apply to code-server. This will be overwritten at each container start."
   default     = {}
@@ -148,6 +148,12 @@ variable "open_in" {
   }
 }
 
+variable "additional_args" {
+  type        = string
+  description = "Additional command-line arguments to pass to code-server (e.g., '--disable-workspace-trust')."
+  default     = ""
+}
+
 resource "coder_script" "code-server" {
   agent_id     = var.agent_id
   display_name = "code-server"
@@ -161,13 +167,14 @@ resource "coder_script" "code-server" {
     INSTALL_PREFIX : var.install_prefix,
     // This is necessary otherwise the quotes are stripped!
     SETTINGS : replace(jsonencode(var.settings), "\"", "\\\""),
-    MACHINE_SETTINGS : replace(jsonencode(var.machine-settings), "\"", "\\\""),
+    MACHINE_SETTINGS : replace(jsonencode(var.machine_settings), "\"", "\\\""),
     OFFLINE : var.offline,
     USE_CACHED : var.use_cached,
     USE_CACHED_EXTENSIONS : var.use_cached_extensions,
     EXTENSIONS_DIR : var.extensions_dir,
     FOLDER : var.folder,
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
+    ADDITIONAL_ARGS : var.additional_args,
   })
   run_on_start = true
 

@@ -55,13 +55,11 @@ describe("jfrog-token", async () => {
   const user = "default";
   const token = "xxx";
 
-  it("can run apply with required variables", async () => {
-    testRequiredVariables<TestVariables>(import.meta.dir, {
-      agent_id: "some-agent-id",
-      jfrog_url: fakeFrogUrl,
-      artifactory_access_token: "XXXX",
-      package_managers: "{}",
-    });
+  testRequiredVariables<TestVariables>(import.meta.dir, {
+    agent_id: "some-agent-id",
+    jfrog_url: fakeFrogUrl,
+    artifactory_access_token: "XXXX",
+    package_managers: "{}",
   });
 
   it("generates an npmrc with scoped repos", async () => {
@@ -185,6 +183,45 @@ EOF`;
     expect(coderScript.script).toContain(condaStanza);
     expect(coderScript.script).toContain(
       'if [ -z "YES" ]; then\n  not_configured conda',
+    );
+  });
+  it("generates a maven settings.xml with multiple repos", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "some-agent-id",
+      jfrog_url: fakeFrogUrl,
+      artifactory_access_token: "XXXX",
+      package_managers: JSON.stringify({
+        maven: ["central", "snapshots", "local"],
+      }),
+    });
+
+    const coderScript = findResourceInstance(state, "coder_script");
+
+    expect(coderScript.script).toContain("jf mvnc --global");
+    expect(coderScript.script).toContain('--server-id-resolve="0"');
+    expect(coderScript.script).toContain('--repo-resolve-releases "central"');
+    expect(coderScript.script).toContain('--repo-resolve-snapshots "central"');
+    expect(coderScript.script).toContain('--server-id-deploy="0"');
+    expect(coderScript.script).toContain('--repo-deploy-releases "central"');
+    expect(coderScript.script).toContain('--repo-deploy-snapshots "central"');
+
+    expect(coderScript.script).toContain("<servers>");
+    expect(coderScript.script).toContain("<id>central</id>");
+    expect(coderScript.script).toContain("<id>snapshots</id>");
+    expect(coderScript.script).toContain("<id>local</id>");
+
+    expect(coderScript.script).toContain(
+      `<url>${fakeFrogUrl}/artifactory/central</url>`,
+    );
+    expect(coderScript.script).toContain(
+      `<url>${fakeFrogUrl}/artifactory/snapshots</url>`,
+    );
+    expect(coderScript.script).toContain(
+      `<url>${fakeFrogUrl}/artifactory/local</url>`,
+    );
+
+    expect(coderScript.script).toContain(
+      'if [ -z "YES" ]; then\n  not_configured maven',
     );
   });
 });

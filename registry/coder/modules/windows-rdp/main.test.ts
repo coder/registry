@@ -59,9 +59,11 @@ describe("Web RDP", async () => {
     expect(lines).toEqual(
       expect.arrayContaining<string>([
         '$moduleName = "DevolutionsGateway"',
-        // Devolutions does versioning in the format year.minor.patch
-        expect.stringMatching(/^\$moduleVersion = "\d{4}\.\d+\.\d+"$/),
-        "Install-Module -Name $moduleName -RequiredVersion $moduleVersion -Force",
+        // Default is "latest" to automatically get the newest version
+        '$moduleVersion = "latest"',
+        "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12",
+        "Set-PSRepository -Name PSGallery -InstallationPolicy Trusted",
+        "Install-Module -Name $moduleName -Force",
       ]),
     );
   });
@@ -86,7 +88,7 @@ describe("Web RDP", async () => {
      * @see {@link https://regex101.com/r/UMgQpv/2}
      */
     const formEntryValuesRe =
-      /^const formFieldEntries = \{$.*?^\s+username: \{$.*?^\s*?querySelector.*?,$.*?^\s*value: "(?<username>.+?)",$.*?password: \{$.*?^\s+querySelector: .*?,$.*?^\s*value: "(?<password>.+?)",$.*?^};$/ms;
+      /username:\s*\{[\s\S]*?value:\s*"(?<username>[^"]+)"[\s\S]*?password:\s*\{[\s\S]*?value:\s*"(?<password>[^"]+)"/;
 
     // Test that things work with the default username/password
     const defaultState = await runTerraformApply<TestVariables>(

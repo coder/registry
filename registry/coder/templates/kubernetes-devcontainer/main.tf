@@ -40,7 +40,7 @@ variable "use_kubeconfig" {
 
 variable "namespace" {
   type        = string
-  default     = "default"
+  default     = "coder"
   description = "The Kubernetes namespace to create workspaces in (must exist prior to creating workspaces). If the Coder host is itself running as a Pod on the same Kubernetes cluster as you are deploying workspaces to, set this to the same namespace."
 }
 
@@ -62,7 +62,7 @@ data "coder_parameter" "cpu" {
   display_name = "CPU"
   description  = "CPU limit (cores)."
   default      = "2"
-  icon         = "/emojis/1f5a5.png"
+  icon         = "/icon/memory.svg"
   mutable      = true
   validation {
     min = 1
@@ -139,7 +139,7 @@ variable "cache_repo_secret_name" {
   type        = string
 }
 
-data "kubernetes_secret" "cache_repo_dockerconfig_secret" {
+data "kubernetes_secret_v1" "cache_repo_dockerconfig_secret" {
   count = var.cache_repo_secret_name == "" ? 0 : 1
   metadata {
     name      = var.cache_repo_secret_name
@@ -161,10 +161,12 @@ locals {
     # ENVBUILDER_GIT_URL and ENVBUILDER_CACHE_REPO will be overridden by the provider
     # if the cache repo is enabled.
     "ENVBUILDER_GIT_URL" : var.cache_repo == "" ? local.repo_url : "",
+    # Used for when SSH is an available authentication mechanism for git providers
+    "ENVBUILDER_GIT_SSH_PRIVATE_KEY_BASE64" : base64encode(try(data.coder_workspace_owner.me.ssh_private_key, "")),
     # Use the docker gateway if the access URL is 127.0.0.1
     "ENVBUILDER_INIT_SCRIPT" : replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal"),
     "ENVBUILDER_FALLBACK_IMAGE" : data.coder_parameter.fallback_image.value,
-    "ENVBUILDER_DOCKER_CONFIG_BASE64" : base64encode(try(data.kubernetes_secret.cache_repo_dockerconfig_secret[0].data[".dockerconfigjson"], "")),
+    "ENVBUILDER_DOCKER_CONFIG_BASE64" : base64encode(try(data.kubernetes_secret_v1.cache_repo_dockerconfig_secret[0].data[".dockerconfigjson"], "")),
     "ENVBUILDER_PUSH_IMAGE" : var.cache_repo == "" ? "" : "true"
     # You may need to adjust this if you get an error regarding deleting files when building the workspace.
     # For example, when testing in KinD, it was necessary to set `/product_name` and `/product_uuid` in
@@ -184,7 +186,7 @@ resource "envbuilder_cached_image" "cached" {
   insecure      = var.insecure_cache_repo
 }
 
-resource "kubernetes_persistent_volume_claim" "workspaces" {
+resource "kubernetes_persistent_volume_claim_v1" "workspaces" {
   metadata {
     name      = "coder-${lower(data.coder_workspace.me.id)}-workspaces"
     namespace = var.namespace
@@ -215,10 +217,10 @@ resource "kubernetes_persistent_volume_claim" "workspaces" {
   }
 }
 
-resource "kubernetes_deployment" "main" {
+resource "kubernetes_deployment_v1" "main" {
   count = data.coder_workspace.me.start_count
   depends_on = [
-    kubernetes_persistent_volume_claim.workspaces
+    kubernetes_persistent_volume_claim_v1.workspaces
   ]
   wait_for_rollout = false
   metadata {
@@ -262,9 +264,10 @@ resource "kubernetes_deployment" "main" {
         container {
           name              = "dev"
           image             = var.cache_repo == "" ? local.devcontainer_builder_image : envbuilder_cached_image.cached.0.image
-          image_pull_policy = "Always"
-          security_context {}
-
+          image_pull_policy = "IfNotPresent"
+          security_context {
+            privileged = true
+          }
           # Set the environment using cached_image.cached.0.env if the cache repo is enabled.
           # Otherwise, use the local.envbuilder_env.
           # You could alternatively write the environment variables to a ConfigMap or Secret
@@ -297,7 +300,7 @@ resource "kubernetes_deployment" "main" {
         volume {
           name = "workspaces"
           persistent_volume_claim {
-            claim_name = kubernetes_persistent_volume_claim.workspaces.metadata.0.name
+            claim_name = kubernetes_persistent_volume_claim_v1.workspaces.metadata.0.name
             read_only  = false
           }
         }
@@ -352,21 +355,22 @@ resource "coder_agent" "main" {
   # if you don't want to display any information.
   # For basic resources, you can use the `coder stat` command.
   # If you need more control, you can write your own script.
-  metadata {
-    display_name = "CPU Usage"
-    key          = "0_cpu_usage"
-    script       = "coder stat cpu"
-    interval     = 10
-    timeout      = 1
-  }
-
-  metadata {
-    display_name = "RAM Usage"
-    key          = "1_ram_usage"
-    script       = "coder stat mem"
-    interval     = 10
-    timeout      = 1
-  }
+  # Note: May not work on AWS Linux Nodes See: https://github.com/coder/clistat/issues/17
+  # metadata {
+  #   display_name = "CPU Usage"
+  #   key          = "0_cpu_usage"
+  #   script       = "coder stat cpu"
+  #   interval     = 10
+  #   timeout      = 1
+  # }
+  # Note: May not work on AWS Linux Nodes
+  # metadata {
+  #   display_name = "RAM Usage"
+  #   key          = "1_ram_usage"
+  #   script       = "coder stat mem"
+  #   interval     = 10
+  #   timeout      = 1
+  # }
 
   metadata {
     display_name = "Workspaces Disk"
@@ -422,15 +426,14 @@ module "code-server" {
   # This ensures that the latest non-breaking version of the module gets downloaded, you can also pin the module version to prevent breaking changes in production.
   version = "~> 1.0"
 
-  agent_id   = coder_agent.main.id
-  agent_name = "main"
-  order      = 1
+  agent_id = coder_agent.main.id
+  order    = 1
 }
 
 # See https://registry.coder.com/modules/coder/jetbrains
 module "jetbrains" {
   count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/modules/coder/jetbrains/coder"
+  source     = "registry.coder.com/coder/jetbrains/coder"
   version    = "~> 1.0"
   agent_id   = coder_agent.main.id
   agent_name = "main"

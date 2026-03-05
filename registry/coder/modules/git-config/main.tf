@@ -44,6 +44,9 @@ data "coder_parameter" "user_email" {
   description  = "Git user.email to be used for commits. Leave empty to default to Coder user's email."
   display_name = "Git config user.email"
   mutable      = true
+  styling = jsonencode({
+    placeholder = data.coder_workspace_owner.me.email
+  })
 }
 
 data "coder_parameter" "username" {
@@ -55,6 +58,9 @@ data "coder_parameter" "username" {
   description  = "Git user.name to be used for commits. Leave empty to default to Coder user's Full Name."
   display_name = "Full Name for Git config"
   mutable      = true
+  styling = jsonencode({
+    placeholder = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
+  })
 }
 
 resource "coder_env" "git_author_name" {

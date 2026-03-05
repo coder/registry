@@ -13,15 +13,22 @@ set -o nounset
 ARG_BASE_CONFIG_TOML=$(echo -n "$ARG_BASE_CONFIG_TOML" | base64 -d)
 ARG_ADDITIONAL_MCP_SERVERS=$(echo -n "$ARG_ADDITIONAL_MCP_SERVERS" | base64 -d)
 ARG_CODEX_INSTRUCTION_PROMPT=$(echo -n "$ARG_CODEX_INSTRUCTION_PROMPT" | base64 -d)
+ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
+ARG_AIBRIDGE_CONFIG=$(echo -n "$ARG_AIBRIDGE_CONFIG" | base64 -d)
 
 echo "=== Codex Module Configuration ==="
 printf "Install Codex: %s\n" "$ARG_INSTALL"
 printf "Codex Version: %s\n" "$ARG_CODEX_VERSION"
 printf "App Slug: %s\n" "$ARG_CODER_MCP_APP_STATUS_SLUG"
+printf "Codex Model: %s\n" "${ARG_CODEX_MODEL:-"Default"}"
+printf "Latest Codex Model: %s\n" "${ARG_LATEST_CODEX_MODEL}"
 printf "Start Directory: %s\n" "$ARG_CODEX_START_DIRECTORY"
 printf "Has Base Config: %s\n" "$([ -n "$ARG_BASE_CONFIG_TOML" ] && echo "Yes" || echo "No")"
 printf "Has Additional MCP: %s\n" "$([ -n "$ARG_ADDITIONAL_MCP_SERVERS" ] && echo "Yes" || echo "No")"
 printf "Has System Prompt: %s\n" "$([ -n "$ARG_CODEX_INSTRUCTION_PROMPT" ] && echo "Yes" || echo "No")"
+printf "OpenAI API Key: %s\n" "$([ -n "$ARG_OPENAI_API_KEY" ] && echo "Provided" || echo "Not provided")"
+printf "Report Tasks: %s\n" "$ARG_REPORT_TASKS"
+printf "Enable Coder AI Bridge: %s\n" "$ARG_ENABLE_AIBRIDGE"
 echo "======================================"
 
 set +o nounset
@@ -85,20 +92,37 @@ function install_codex() {
 
 write_minimal_default_config() {
   local config_path="$1"
+
+  ARG_DEFAULT_PROFILE=""
+
+  if [[ "${ARG_ENABLE_AIBRIDGE}" = "true" ]]; then
+    ARG_DEFAULT_PROFILE='profile = "aibridge"'
+  fi
+
   cat << EOF > "$config_path"
 # Minimal Default Codex Configuration
 sandbox_mode = "workspace-write"
 approval_policy = "never"
 preferred_auth_method = "apikey"
+${ARG_DEFAULT_PROFILE}
 
 [sandbox_workspace_write]
 network_access = true
 
+[notice.model_migrations]
+"${ARG_CODEX_MODEL}" = "${ARG_LATEST_CODEX_MODEL}"
 EOF
 }
 
 append_mcp_servers_section() {
   local config_path="$1"
+
+  if [ "${ARG_REPORT_TASKS}" == "false" ]; then
+    ARG_CODER_MCP_APP_STATUS_SLUG=""
+    CODER_MCP_AI_AGENTAPI_URL=""
+  else
+    CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
+  fi
 
   cat << EOF >> "$config_path"
 
@@ -106,7 +130,7 @@ append_mcp_servers_section() {
 [mcp_servers.Coder]
 command = "coder"
 args = ["exp", "mcp", "server"]
-env = { "CODER_MCP_APP_STATUS_SLUG" = "${ARG_CODER_MCP_APP_STATUS_SLUG}", "CODER_MCP_AI_AGENTAPI_URL" = "http://localhost:3284", "CODER_AGENT_URL" = "${CODER_AGENT_URL}", "CODER_AGENT_TOKEN" = "${CODER_AGENT_TOKEN}" }
+env = { "CODER_MCP_APP_STATUS_SLUG" = "${ARG_CODER_MCP_APP_STATUS_SLUG}", "CODER_MCP_AI_AGENTAPI_URL" = "${CODER_MCP_AI_AGENTAPI_URL}" , "CODER_AGENT_URL" = "${CODER_AGENT_URL}", "CODER_AGENT_TOKEN" = "${CODER_AGENT_TOKEN}", "CODER_MCP_ALLOWED_TOOLS" = "coder_report_task" }
 description = "Report ALL tasks and statuses (in progress, done, failed) you are working on."
 type = "stdio"
 
@@ -115,6 +139,15 @@ EOF
   if [ -n "$ARG_ADDITIONAL_MCP_SERVERS" ]; then
     printf "Adding additional MCP servers\n"
     echo "$ARG_ADDITIONAL_MCP_SERVERS" >> "$config_path"
+  fi
+}
+
+append_aibridge_config_section() {
+  local config_path="$1"
+
+  if [ -n "$ARG_AIBRIDGE_CONFIG" ]; then
+    printf "Adding AI Bridge configuration\n"
+    echo -e "\n# AI Bridge Configuration\n$ARG_AIBRIDGE_CONFIG" >> "$config_path"
   fi
 }
 
@@ -131,6 +164,11 @@ function populate_config_toml() {
   fi
 
   append_mcp_servers_section "$CONFIG_PATH"
+
+  if [ "$ARG_ENABLE_AIBRIDGE" = "true" ]; then
+    printf "AI Bridge is enabled\n"
+    append_aibridge_config_section "$CONFIG_PATH"
+  fi
 }
 
 function add_instruction_prompt_if_exists() {
@@ -159,7 +197,24 @@ function add_instruction_prompt_if_exists() {
   fi
 }
 
+function add_auth_json() {
+  AUTH_JSON_PATH="$HOME/.codex/auth.json"
+  mkdir -p "$(dirname "$AUTH_JSON_PATH")"
+  AUTH_JSON=$(
+    cat << EOF
+{
+  "OPENAI_API_KEY": "${ARG_OPENAI_API_KEY}"
+}
+EOF
+  )
+  echo "$AUTH_JSON" > "$AUTH_JSON_PATH"
+}
+
 install_codex
 codex --version
 populate_config_toml
 add_instruction_prompt_if_exists
+
+if [ "$ARG_ENABLE_AIBRIDGE" = "false" ]; then
+  add_auth_json
+fi
