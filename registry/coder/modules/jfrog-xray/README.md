@@ -44,9 +44,18 @@ resource "coder_metadata" "xray_scan" {
 
 ## Provider Configuration
 
-The `xray` provider must be configured in your template:
+The `xray` provider must be declared and configured in your template:
 
 ```tf
+terraform {
+  required_providers {
+    xray = {
+      source  = "jfrog/xray"
+      version = ">= 2.0"
+    }
+  }
+}
+
 provider "xray" {
   url          = "${var.jfrog_url}/xray"
   access_token = var.artifactory_access_token
@@ -68,26 +77,3 @@ module "jfrog_xray" {
   use_cache_repo = true
 }
 ```
-
-## Inputs
-
-| Name             | Description                                          | Type     | Default | Required |
-| ---------------- | ---------------------------------------------------- | -------- | ------- | -------- |
-| `xray_url`       | JFrog Xray URL (e.g., https://example.jfrog.io/xray) | `string` | -       | yes      |
-| `xray_token`     | Access token for JFrog Xray authentication           | `string` | -       | yes      |
-| `image`          | Container image in format `repo/path/image:tag`      | `string` | -       | yes      |
-| `repo`           | Override the repository name extracted from image    | `string` | `""`    | no       |
-| `repo_path`      | Override the Xray repository path                    | `string` | `""`    | no       |
-| `use_cache_repo` | Append `-cache` to repo name (for remote repos)      | `bool`   | `false` | no       |
-
-## Outputs
-
-| Name            | Description                                 |
-| --------------- | ------------------------------------------- |
-| `critical`      | Number of critical severity vulnerabilities |
-| `high`          | Number of high severity vulnerabilities     |
-| `medium`        | Number of medium severity vulnerabilities   |
-| `low`           | Number of low severity vulnerabilities      |
-| `total`         | Total number of vulnerabilities             |
-| `artifact_name` | Name of the scanned artifact                |
-| `violations`    | Number of Xray policy violations            |
