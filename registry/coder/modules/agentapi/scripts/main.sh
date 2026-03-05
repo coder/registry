@@ -127,7 +127,7 @@ if [ "${ENABLE_BOUNDARY}" = "true" ]; then
     if cp "$(which coder)" "$CODER_NO_CAPS"; then
       # Write a wrapper script to avoid word-splitting issues with exported strings.
       BOUNDARY_WRAPPER_SCRIPT="$module_path/boundary-wrapper.sh"
-      cat > "${BOUNDARY_WRAPPER_SCRIPT}" <<'WRAPPER_EOF'
+      cat > "${BOUNDARY_WRAPPER_SCRIPT}" << 'WRAPPER_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
