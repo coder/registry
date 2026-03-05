@@ -88,9 +88,9 @@ run "test_aibridge_disabled_with_api_key" {
   command = plan
 
   variables {
-    agent_id       = "test-agent"
-    workdir        = "/home/coder"
-    openai_api_key = "test-key"
+    agent_id        = "test-agent"
+    workdir         = "/home/coder"
+    openai_api_key  = "test-key"
     enable_aibridge = false
   }
 
@@ -109,21 +109,21 @@ run "test_custom_options" {
   command = plan
 
   variables {
-    agent_id               = "test-agent"
-    workdir                = "/home/coder/project"
-    openai_api_key         = "test-key"
-    order                  = 5
-    group                  = "ai-tools"
-    icon                   = "/icon/custom.svg"
-    web_app_display_name   = "Custom Codex"
-    cli_app                = true
-    cli_app_display_name   = "Codex Terminal"
-    subdomain              = true
-    report_tasks           = false
-    continue               = false
-    codex_model            = "gpt-4o"
-    codex_version          = "0.1.0"
-    agentapi_version       = "v0.12.0"
+    agent_id             = "test-agent"
+    workdir              = "/home/coder/project"
+    openai_api_key       = "test-key"
+    order                = 5
+    group                = "ai-tools"
+    icon                 = "/icon/custom.svg"
+    web_app_display_name = "Custom Codex"
+    cli_app              = true
+    cli_app_display_name = "Codex Terminal"
+    subdomain            = true
+    report_tasks         = false
+    continue             = false
+    codex_model          = "gpt-4o"
+    codex_version        = "0.1.0"
+    agentapi_version     = "v0.12.0"
   }
 
   assert {
