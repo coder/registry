@@ -30,14 +30,14 @@ for (const v of [
       `\n${v}: ${process.env[v]}`,
     );
   }
-  // Log boundary env vars.
-  for (const v of ["BOUNDARY_WRAPPER"]) {
-    if (process.env[v]) {
-      fs.appendFileSync(
-        "/home/coder/agentapi-mock.log",
-        `\n${v}: ${process.env[v]}`,
-      );
-    }
+}
+// Log boundary env vars.
+for (const v of ["AGENTAPI_BOUNDARY_PREFIX"]) {
+  if (process.env[v]) {
+    fs.appendFileSync(
+      "/home/coder/agentapi-mock.log",
+      `\n${v}: ${process.env[v]}`,
+    );
   }
 }
 

@@ -245,17 +245,6 @@ describe("agentapi", async () => {
     }
   });
 
-  test("validate-boundary-jail-type", async () => {
-    expect(
-      setup({
-        moduleVariables: {
-          enable_boundary: "true",
-          boundary_jail_type: "invalid",
-        },
-      }),
-    ).rejects.toThrow("Must be nsjail or landjail.");
-  });
-
   test("agentapi-allowed-hosts", async () => {
     // verify that the agentapi binary has access to the AGENTAPI_ALLOWED_HOSTS environment variable
     // set in main.sh
@@ -635,12 +624,12 @@ describe("agentapi", async () => {
         "test -f /home/coder/.config/coder_boundary/config.yaml && echo exists || echo missing",
       ]);
       expect(configCheck.stdout.trim()).toBe("missing");
-      // BOUNDARY_WRAPPER should NOT be in the mock log
+      // AGENTAPI_BOUNDARY_PREFIX should NOT be in the mock log
       const mockLog = await readFileContainer(
         id,
         "/home/coder/agentapi-mock.log",
       );
-      expect(mockLog).not.toContain("BOUNDARY_WRAPPER:");
+      expect(mockLog).not.toContain("AGENTAPI_BOUNDARY_PREFIX:");
     });
     test("boundary-enabled-generates-config", async () => {
       const { id } = await setup({
@@ -677,12 +666,12 @@ echo "mock coder"`,
         "stat -c '%a' /home/coder/.config/coder_boundary/config.yaml",
       ]);
       expect(perms.stdout.trim()).toBe("600");
-      // BOUNDARY_WRAPPER should be exported and contain 'boundary'
+      // AGENTAPI_BOUNDARY_PREFIX should be exported and contain 'boundary'
       const mockLog = await readFileContainer(
         id,
         "/home/coder/agentapi-mock.log",
       );
-      expect(mockLog).toContain("BOUNDARY_WRAPPER:");
+      expect(mockLog).toContain("AGENTAPI_BOUNDARY_PREFIX:");
       expect(mockLog).toContain("boundary --");
     });
     test("boundary-custom-config-path", async () => {

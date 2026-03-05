@@ -17,8 +17,6 @@ AGENTAPI_CHAT_BASE_PATH="${ARG_AGENTAPI_CHAT_BASE_PATH:-}"
 TASK_ID="${ARG_TASK_ID:-}"
 TASK_LOG_SNAPSHOT="${ARG_TASK_LOG_SNAPSHOT:-true}"
 ENABLE_BOUNDARY="${ARG_ENABLE_BOUNDARY:-false}"
-BOUNDARY_JAIL_TYPE="${ARG_BOUNDARY_JAIL_TYPE:-nsjail}"
-BOUNDARY_PROXY_PORT="${ARG_BOUNDARY_PROXY_PORT:-8087}"
 BOUNDARY_CONFIG_PATH="${ARG_BOUNDARY_CONFIG_PATH:-}"
 ENABLE_STATE_PERSISTENCE="${ARG_ENABLE_STATE_PERSISTENCE:-false}"
 STATE_FILE_PATH="${ARG_STATE_FILE_PATH:-}"
@@ -114,38 +112,33 @@ export LC_ALL=en_US.UTF-8
 cd "${WORKDIR}"
 
 # Set up boundary if enabled
-export BOUNDARY_WRAPPER=""
+export AGENTAPI_BOUNDARY_PREFIX=""
 if [ "${ENABLE_BOUNDARY}" = "true" ]; then
   echo "Setting up coder boundary..."
-
-  # Create boundary config directory
+  # Copy the user-provided boundary config
   mkdir -p ~/.config/coder_boundary
-
-  # Write boundary config if custom path not provided
-  if [ -z "${BOUNDARY_CONFIG_PATH}" ]; then
-    echo "Generating boundary config with jail_type=${BOUNDARY_JAIL_TYPE} and proxy_port=${BOUNDARY_PROXY_PORT}"
-    cat > ~/.config/coder_boundary/config.yaml << EOF
-jail_type: ${BOUNDARY_JAIL_TYPE}
-proxy_port: ${BOUNDARY_PROXY_PORT}
-log_level: warn
-EOF
-  else
-    echo "Using custom boundary config from ${BOUNDARY_CONFIG_PATH}"
-    cp "${BOUNDARY_CONFIG_PATH}" ~/.config/coder_boundary/config.yaml
-  fi
-
+  echo "Using boundary config from ${BOUNDARY_CONFIG_PATH}"
+  cp "${BOUNDARY_CONFIG_PATH}" ~/.config/coder_boundary/config.yaml
   chmod 600 ~/.config/coder_boundary/config.yaml
-
-  # Copy coder binary to strip CAP_NET_ADMIN capabilities
-  # This is necessary because boundary doesn't work with privileged binaries
+  # Copy coder binary to strip CAP_NET_ADMIN capabilities.
+  # This is necessary because boundary doesn't work with privileged binaries.
   if command_exists coder; then
-    # Use a user-writable location under the module directory for the copied binary
     CODER_NO_CAPS="$module_path/coder-no-caps"
     if cp "$(which coder)" "$CODER_NO_CAPS"; then
-      export BOUNDARY_WRAPPER="$CODER_NO_CAPS boundary --"
-      echo "Boundary wrapper configured: ${BOUNDARY_WRAPPER}"
+      # Write a wrapper script to avoid word-splitting issues with exported strings.
+      BOUNDARY_WRAPPER_SCRIPT="$module_path/boundary-wrapper.sh"
+      cat > "${BOUNDARY_WRAPPER_SCRIPT}" <<'WRAPPER_EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "${SCRIPT_DIR}/coder-no-caps" boundary -- "$@"
+WRAPPER_EOF
+      chmod +x "${BOUNDARY_WRAPPER_SCRIPT}"
+      export AGENTAPI_BOUNDARY_PREFIX="${BOUNDARY_WRAPPER_SCRIPT}"
+      echo "Boundary wrapper configured: ${AGENTAPI_BOUNDARY_PREFIX}"
     else
-      echo "Warning: Failed to copy coder binary to ${CODER_NO_CAPS}, boundary will not be enabled"
+      echo "Error: Failed to copy coder binary to ${CODER_NO_CAPS}. Boundary cannot be enabled." >&2
+      exit 1
     fi
   else
     echo "Error: ENABLE_BOUNDARY=true, but 'coder' command not found. Boundary cannot be enabled." >&2

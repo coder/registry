@@ -166,30 +166,17 @@ variable "module_dir_name" {
 
 variable "enable_boundary" {
   type        = bool
-  description = "Enable coder boundary for network filtering"
+  description = "Enable coder boundary for network filtering. Requires boundary_config_path to be set."
   default     = false
 }
-
-variable "boundary_jail_type" {
-  type        = string
-  description = "Jail type: nsjail (default) or landjail"
-  default     = "nsjail"
-  validation {
-    condition     = contains(["nsjail", "landjail"], var.boundary_jail_type)
-    error_message = "Must be nsjail or landjail."
-  }
-}
-
-variable "boundary_proxy_port" {
-  type        = number
-  description = "HTTP proxy port for boundary"
-  default     = 8087
-}
-
 variable "boundary_config_path" {
   type        = string
-  description = "Path to boundary config.yaml file. If not provided, a minimal config with jail_type and proxy_port will be generated."
+  description = "Path to boundary config.yaml file. Required when enable_boundary is true. Must contain allowlist, jail_type, proxy_port, and log_level."
   default     = ""
+  validation {
+    condition     = !var.enable_boundary || var.boundary_config_path != ""
+    error_message = "boundary_config_path is required when enable_boundary is true."
+  }
 }
 
 variable "enable_state_persistence" {
@@ -257,8 +244,6 @@ resource "coder_script" "agentapi" {
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
     ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
-    ARG_BOUNDARY_JAIL_TYPE='${var.boundary_jail_type}' \
-    ARG_BOUNDARY_PROXY_PORT='${var.boundary_proxy_port}' \
     ARG_BOUNDARY_CONFIG_PATH='${var.boundary_config_path}' \
     ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
     ARG_STATE_FILE_PATH='${var.state_file_path}' \
