@@ -3,7 +3,7 @@ display_name: JFrog Xray
 description: Fetch container image vulnerability scan results from JFrog Xray
 icon: ../../../../.icons/jfrog-xray.svg
 verified: true
-tags: [integration, jfrog, security]
+tags: [jfrog, xray]
 ---
 
 # JFrog Xray
@@ -17,7 +17,7 @@ module "jfrog_xray" {
 
   xray_url   = "${var.jfrog_url}/xray"
   xray_token = var.artifactory_access_token
-  image      = "docker-local/myapp:latest"
+  image      = var.docker_image
 }
 
 resource "coder_metadata" "xray_scan" {
@@ -26,12 +26,28 @@ resource "coder_metadata" "xray_scan" {
   icon        = "/icon/shield.svg"
 
   item {
-    key   = "Vulnerabilities"
+    key   = "Image"
+    value = var.docker_image
+  }
+  item {
+    key   = "Total Vulnerabilities"
     value = module.jfrog_xray.total
   }
   item {
     key   = "Critical"
     value = module.jfrog_xray.critical
+  }
+  item {
+    key   = "High"
+    value = module.jfrog_xray.high
+  }
+  item {
+    key   = "Medium"
+    value = module.jfrog_xray.medium
+  }
+  item {
+    key   = "Low"
+    value = module.jfrog_xray.low
   }
 }
 ```
