@@ -2,7 +2,6 @@ import { serve } from "bun";
 import { describe, expect, it } from "bun:test";
 import {
   createJSONResponse,
-  findResourceInstance,
   runTerraformInit,
   runTerraformApply,
   testRequiredVariables,
@@ -32,48 +31,35 @@ describe("jfrog-xray", async () => {
   const fakeXrayUrl = `http://${fakeXrayHost.hostname}:${fakeXrayHost.port}`;
 
   testRequiredVariables(import.meta.dir, {
-    resource_id: "test-resource-id",
     xray_url: fakeXrayUrl,
     xray_token: "test-token",
     image: "docker-local/test/image:latest",
   });
 
-  it("creates metadata with vulnerability counts", async () => {
+  it("outputs vulnerability counts", async () => {
     const state = await runTerraformApply(import.meta.dir, {
-      resource_id: "test-resource-id",
       xray_url: fakeXrayUrl,
       xray_token: "test-token",
       image: "docker-local/codercom/enterprise-base:latest",
     });
-    const metadata = findResourceInstance(state, "coder_metadata");
-    expect(metadata.resource_id).toBe("test-resource-id");
-    expect(metadata.icon).toBe("../../../../.icons/jfrog-xray.svg");
-
-    const items = metadata.item as Array<{ key: string; value: string }>;
-    const keys = items.map((i) => i.key);
-    expect(keys).toContain("Image");
-    expect(keys).toContain("Total Vulnerabilities");
-    expect(keys).toContain("Critical");
-    expect(keys).toContain("High");
-    expect(keys).toContain("Medium");
-    expect(keys).toContain("Low");
-
-    const imageItem = items.find((i) => i.key === "Image");
-    expect(imageItem?.value).toBe(
-      "docker-local/codercom/enterprise-base:latest",
-    );
+    const outputs = state.values?.outputs;
+    expect(outputs).toBeDefined();
+    expect(outputs?.critical).toBeDefined();
+    expect(outputs?.high).toBeDefined();
+    expect(outputs?.medium).toBeDefined();
+    expect(outputs?.low).toBeDefined();
+    expect(outputs?.total).toBeDefined();
   });
 
   it("allows custom repo and repo_path override", async () => {
     const state = await runTerraformApply(import.meta.dir, {
-      resource_id: "test-resource-id",
       xray_url: fakeXrayUrl,
       xray_token: "test-token",
       image: "docker-local/codercom/enterprise-base:latest",
       repo: "custom-repo",
       repo_path: "/custom/path:v1.0",
     });
-    const metadata = findResourceInstance(state, "coder_metadata");
-    expect(metadata.resource_id).toBe("test-resource-id");
+    const outputs = state.values?.outputs;
+    expect(outputs).toBeDefined();
   });
 });

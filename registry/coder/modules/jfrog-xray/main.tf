@@ -13,11 +13,6 @@ terraform {
   }
 }
 
-variable "resource_id" {
-  description = "The resource ID to attach the vulnerability metadata to."
-  type        = string
-}
-
 variable "xray_url" {
   description = "The URL of the JFrog Xray instance (e.g., https://example.jfrog.io/xray)."
   type        = string
@@ -54,12 +49,6 @@ variable "repo_path" {
   default     = ""
 }
 
-provider "xray" {
-  url                     = var.xray_url
-  access_token            = var.xray_token
-  skip_xray_version_check = true
-}
-
 locals {
   image_parts = split("/", var.image)
   parsed_repo = var.repo != "" ? var.repo : local.image_parts[0]
@@ -79,41 +68,27 @@ data "xray_artifacts_scan" "image_scan" {
   repo_path = local.parsed_path
 }
 
-data "coder_workspace" "me" {}
+output "critical" {
+  description = "Number of critical vulnerabilities"
+  value       = local.critical
+}
 
-resource "coder_metadata" "xray_vulnerabilities" {
-  count       = data.coder_workspace.me.start_count
-  resource_id = var.resource_id
+output "high" {
+  description = "Number of high vulnerabilities"
+  value       = local.high
+}
 
-  icon = "../../../../.icons/jfrog-xray.svg"
+output "medium" {
+  description = "Number of medium vulnerabilities"
+  value       = local.medium
+}
 
-  item {
-    key   = "Image"
-    value = var.image
-  }
+output "low" {
+  description = "Number of low vulnerabilities"
+  value       = local.low
+}
 
-  item {
-    key   = "Total Vulnerabilities"
-    value = tostring(local.total)
-  }
-
-  item {
-    key   = "Critical"
-    value = tostring(local.critical)
-  }
-
-  item {
-    key   = "High"
-    value = tostring(local.high)
-  }
-
-  item {
-    key   = "Medium"
-    value = tostring(local.medium)
-  }
-
-  item {
-    key   = "Low"
-    value = tostring(local.low)
-  }
+output "total" {
+  description = "Total number of vulnerabilities"
+  value       = local.total
 }
