@@ -211,7 +211,7 @@ describe("jfrog-xray", async () => {
         xray_url: remoteRepoUrl,
         xray_token: "test-token",
         image: "docker-remote/codercom/enterprise-base:ubuntu",
-        use_cache_repo: "true",
+        use_cache_repo: true,
       },
       getProviderEnv(remoteRepoUrl),
     );

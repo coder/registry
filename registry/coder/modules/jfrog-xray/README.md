@@ -58,26 +58,6 @@ resource "coder_metadata" "xray_scan" {
 2. JFrog Xray must be configured to scan your repositories
 3. A valid JFrog access token with Xray read permissions
 
-## Provider Configuration
-
-The `xray` provider must be declared and configured in your template:
-
-```tf
-terraform {
-  required_providers {
-    xray = {
-      source  = "jfrog/xray"
-      version = ">= 2.0"
-    }
-  }
-}
-
-provider "xray" {
-  url          = "https://example.jfrog.io/xray"
-  access_token = var.artifactory_access_token
-}
-```
-
 ## Remote Repositories
 
 When scanning images from remote (proxy) repositories, set `use_cache_repo = true`. This is because Artifactory stores cached images in a companion `-cache` repository where Xray indexes the scan results.

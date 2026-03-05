@@ -2,15 +2,16 @@ terraform {
   required_version = ">= 1.0"
 
   required_providers {
-    coder = {
-      source  = "coder/coder"
-      version = ">= 0.12"
-    }
     xray = {
       source  = "jfrog/xray"
       version = ">= 2.0"
     }
   }
+}
+
+provider "xray" {
+  url          = var.xray_url
+  access_token = var.xray_token
 }
 
 variable "xray_url" {
