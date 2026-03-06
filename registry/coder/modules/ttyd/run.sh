@@ -23,11 +23,24 @@ BIN_DIR="$${HOME}/.local/bin"
 mkdir -p "$${BIN_DIR}"
 export PATH="$${BIN_DIR}:$${PATH}"
 
-if ! command -v ttyd &> /dev/null; then
-  DOWNLOAD_URL="https://github.com/tsl0922/ttyd/releases/download/${VERSION}/$${BINARY}"
-  printf "Downloading ttyd from %s\n" "$${DOWNLOAD_URL}"
-  curl -fsSL "$${DOWNLOAD_URL}" -o "$${BIN_DIR}/ttyd"
-  chmod +x "$${BIN_DIR}/ttyd"
+TTYD_BIN="$${BIN_DIR}/ttyd"
+LOCK_DIR="/tmp/ttyd-install.lock"
+
+if [[ ! -f "$${TTYD_BIN}" ]]; then
+  if mkdir "$${LOCK_DIR}" 2> /dev/null; then
+    if [[ ! -f "$${TTYD_BIN}" ]]; then
+      DOWNLOAD_URL="https://github.com/tsl0922/ttyd/releases/download/${VERSION}/$${BINARY}"
+      printf "Downloading ttyd from %s\n" "$${DOWNLOAD_URL}"
+      curl -fsSL "$${DOWNLOAD_URL}" -o "$${TTYD_BIN}"
+      chmod +x "$${TTYD_BIN}"
+    fi
+    rmdir "$${LOCK_DIR}" 2> /dev/null || true
+  else
+    printf "Waiting for ttyd installation to complete...\n"
+    while [[ -d "$${LOCK_DIR}" ]] && [[ ! -f "$${TTYD_BIN}" ]]; do
+      sleep 0.5
+    done
+  fi
 fi
 
 printf "Installation complete!\n\n"
