@@ -89,6 +89,42 @@ module "agentapi" {
 }
 ```
 
+## Boundary (Network Filtering)
+
+The agentapi module supports optional [Agent Boundaries](https://coder.com/docs/ai-coder/agent-boundaries)
+for network filtering. When enabled, the module sets up a `AGENTAPI_BOUNDARY_PREFIX` environment
+variable that points to a wrapper script. Agent modules should use this prefix in their
+start scripts to run the agent process through boundary.
+
+Boundary requires a `config.yaml` file with your allowlist, jail type, proxy port, and log
+level. See the [Agent Boundaries documentation](https://coder.com/docs/ai-coder/agent-boundaries)
+for configuration details.
+To enable:
+
+```tf
+module "agentapi" {
+  # ... other config
+  enable_boundary = true
+  boundary_config = file("${path.module}/boundary-config.yaml")
+}
+```
+
+### Contract for agent modules
+
+When `enable_boundary = true`, the agentapi module exports `AGENTAPI_BOUNDARY_PREFIX`
+as an environment variable pointing to a wrapper script. Agent module start scripts
+should check for this variable and use it to prefix the agent command:
+
+```bash
+if [ -n "${AGENTAPI_BOUNDARY_PREFIX:-}" ]; then
+  agentapi server -- "${AGENTAPI_BOUNDARY_PREFIX}" my-agent "${ARGS[@]}" &
+else
+  agentapi server -- my-agent "${ARGS[@]}" &
+fi
+```
+
+This ensures only the agent process is sandboxed while agentapi itself runs unrestricted.
+
 ## For module developers
 
 For a complete example of how to use this module, see the [Goose module](https://github.com/coder/registry/blob/main/registry/coder/modules/goose/main.tf).
