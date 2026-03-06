@@ -50,8 +50,8 @@ if [ -n "${ADDITIONAL_ARGS}" ]; then
 fi
 
 printf "👷 Starting ttyd in background...\n"
-printf "🖥️  Running: ttyd $${ARGS} ${COMMAND}\n\n"
+printf "🖥️  Running: ttyd $${ARGS} -- ${COMMAND}\n\n"
 
-ttyd $${ARGS} ${COMMAND} >> ${LOG_PATH} 2>&1 &
+ttyd $${ARGS} -- ${COMMAND} >> ${LOG_PATH} 2>&1 &
 
 printf "📝 Logs at ${LOG_PATH}\n"
