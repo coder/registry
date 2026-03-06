@@ -34,8 +34,13 @@ describe("dotfiles", async () => {
       agent_id: "foo",
       coder_parameter_order: order.toString(),
     });
-    expect(state.resources).toHaveLength(2);
-    expect(state.resources[0].instances[0].attributes.order).toBe(order);
+    expect(state.resources).toHaveLength(3);
+    const parameters = state.resources.filter(
+      (r) => r.type === "coder_parameter",
+    );
+    for (const param of parameters) {
+      expect(param.instances[0].attributes.order).toBe(order);
+    }
   });
 
   it("set custom dotfiles_branch", async () => {
@@ -58,6 +63,6 @@ describe("dotfiles", async () => {
     expect(state.resources).toHaveLength(3);
     const branchParameter = state.resources.find(r => r.type === "coder_parameter" && r.instances[0].attributes.name === "dotfiles_branch");
     expect(branchParameter).toBeDefined();
-    expect(branchParameter?.instances[0].attributes.default).toBe("main");
+    expect(branchParameter?.instances[0].attributes.default).toBe("");
   });
 });

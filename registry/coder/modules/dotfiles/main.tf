@@ -41,7 +41,7 @@ variable "default_dotfiles_uri" {
 variable "default_dotfiles_branch" {
   type        = string
   description = "The default dotfiles branch if the workspace user does not provide one"
-  default     = "main"
+  default     = ""
 }
 
 variable "dotfiles_uri" {
@@ -55,6 +55,11 @@ variable "dotfiles_branch" {
   type        = string
   description = "The branch to use for the dotfiles repository (optional, when set, the user isn't prompted for the branch)"
   default     = null
+
+  validation {
+    condition     = var.dotfiles_branch == null || var.dotfiles_branch != ""
+    error_message = "dotfiles_branch cannot be an empty string. Use null to prompt the user or provide a valid branch name."
+  }
 }
 
 variable "user" {
@@ -92,6 +97,7 @@ data "coder_parameter" "dotfiles_branch" {
   type         = "string"
   name         = "dotfiles_branch"
   display_name = "Dotfiles Branch"
+  order        = var.coder_parameter_order
   default      = var.default_dotfiles_branch
   description  = "The branch to use for the dotfiles repository"
   mutable      = true
