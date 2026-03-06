@@ -16,25 +16,13 @@ module "ttyd" {
   source   = "registry.coder.com/coder/ttyd/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
+  command  = "bash"
 }
 ```
 
 ## Examples
 
-### Run htop in the browser
-
-```tf
-module "ttyd" {
-  count        = data.coder_workspace.me.start_count
-  source       = "registry.coder.com/coder/ttyd/coder"
-  version      = "1.0.0"
-  agent_id     = coder_agent.main.id
-  display_name = "htop"
-  command      = ["htop"]
-}
-```
-
-### Shared persistent terminal with tmux
+### Custom command
 
 ```tf
 module "ttyd" {
@@ -43,26 +31,12 @@ module "ttyd" {
   version      = "1.0.0"
   agent_id     = coder_agent.main.id
   display_name = "Shared Terminal"
-  command      = ["tmux", "new-session", "-A", "-s", "main"]
+  command      = "tmux new-session -A -s main"
   share        = "authenticated"
 }
 ```
 
-### Readonly log viewer
-
-```tf
-module "ttyd" {
-  count        = data.coder_workspace.me.start_count
-  source       = "registry.coder.com/coder/ttyd/coder"
-  version      = "1.0.0"
-  agent_id     = coder_agent.main.id
-  display_name = "App Logs"
-  command      = ["tail", "-f", "/var/log/app.log"]
-  writable     = false
-}
-```
-
-### Custom ttyd options
+### Readonly with custom ttyd options
 
 ```tf
 module "ttyd" {
@@ -70,21 +44,9 @@ module "ttyd" {
   source          = "registry.coder.com/coder/ttyd/coder"
   version         = "1.0.0"
   agent_id        = coder_agent.main.id
-  command         = ["bash"]
-  additional_args = "-t fontSize=18 -t disableLeaveAlert=true"
-}
-```
-
-### Serve from the same domain (no subdomain)
-
-```tf
-module "ttyd" {
-  count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/coder/ttyd/coder"
-  version    = "1.0.0"
-  agent_id   = coder_agent.main.id
-  agent_name = "main"
-  subdomain  = false
+  command         = "tail -f /var/log/app.log"
+  writable        = false
+  additional_args = "-t fontSize=18"
 }
 ```
 
