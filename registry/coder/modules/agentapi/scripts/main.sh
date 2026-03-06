@@ -16,7 +16,15 @@ AGENTAPI_PORT="$ARG_AGENTAPI_PORT"
 AGENTAPI_CHAT_BASE_PATH="${ARG_AGENTAPI_CHAT_BASE_PATH:-}"
 TASK_ID="${ARG_TASK_ID:-}"
 TASK_LOG_SNAPSHOT="${ARG_TASK_LOG_SNAPSHOT:-true}"
+ENABLE_BOUNDARY="${ARG_ENABLE_BOUNDARY:-false}"
+BOUNDARY_CONFIG="${ARG_BOUNDARY_CONFIG:-}"
+ENABLE_STATE_PERSISTENCE="${ARG_ENABLE_STATE_PERSISTENCE:-false}"
+STATE_FILE_PATH="${ARG_STATE_FILE_PATH:-}"
+PID_FILE_PATH="${ARG_PID_FILE_PATH:-}"
 set +o nounset
+
+# shellcheck source=lib.sh
+source /tmp/agentapi-lib.sh
 
 command_exists() {
   command -v "$1" > /dev/null 2>&1
@@ -103,8 +111,57 @@ export LC_ALL=en_US.UTF-8
 
 cd "${WORKDIR}"
 
+# Set up boundary if enabled
+export AGENTAPI_BOUNDARY_PREFIX=""
+if [ "${ENABLE_BOUNDARY}" = "true" ]; then
+  echo "Setting up coder boundary..."
+  # Copy the user-provided boundary config
+  mkdir -p ~/.config/coder_boundary
+  echo "Writing boundary config to ~/.config/coder_boundary/config.yaml"
+  echo -n "${BOUNDARY_CONFIG}" > ~/.config/coder_boundary/config.yaml
+  chmod 600 ~/.config/coder_boundary/config.yaml
+  # Copy coder binary to strip CAP_NET_ADMIN capabilities.
+  # This is necessary because boundary doesn't work with privileged binaries.
+  if command_exists coder; then
+    CODER_NO_CAPS="$module_path/coder-no-caps"
+    if cp "$(which coder)" "$CODER_NO_CAPS"; then
+      # Write a wrapper script to avoid word-splitting issues with exported strings.
+      BOUNDARY_WRAPPER_SCRIPT="$module_path/boundary-wrapper.sh"
+      cat > "${BOUNDARY_WRAPPER_SCRIPT}" << 'WRAPPER_EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "${SCRIPT_DIR}/coder-no-caps" boundary -- "$@"
+WRAPPER_EOF
+      chmod +x "${BOUNDARY_WRAPPER_SCRIPT}"
+      export AGENTAPI_BOUNDARY_PREFIX="${BOUNDARY_WRAPPER_SCRIPT}"
+      echo "Boundary wrapper configured: ${AGENTAPI_BOUNDARY_PREFIX}"
+    else
+      echo "Error: Failed to copy coder binary to ${CODER_NO_CAPS}. Boundary cannot be enabled." >&2
+      exit 1
+    fi
+  else
+    echo "Error: ENABLE_BOUNDARY=true, but 'coder' command not found. Boundary cannot be enabled." >&2
+    exit 1
+  fi
+fi
+
 export AGENTAPI_CHAT_BASE_PATH="${AGENTAPI_CHAT_BASE_PATH:-}"
 # Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
 export AGENTAPI_ALLOWED_HOSTS="*"
+
+export AGENTAPI_PID_FILE="${PID_FILE_PATH:-$module_path/agentapi.pid}"
+# Only set state env vars when persistence is enabled and the binary supports
+# it. State persistence requires agentapi >= v0.12.0.
+if [ "${ENABLE_STATE_PERSISTENCE}" = "true" ]; then
+  actual_version=$(agentapi_version)
+  if version_at_least 0.12.0 "$actual_version"; then
+    export AGENTAPI_STATE_FILE="${STATE_FILE_PATH:-$module_path/agentapi-state.json}"
+    export AGENTAPI_SAVE_STATE="true"
+    export AGENTAPI_LOAD_STATE="true"
+  else
+    echo "Warning: State persistence requires agentapi >= v0.12.0 (current: ${actual_version:-unknown}), skipping."
+  fi
+fi
 nohup "$module_path/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &> "$module_path/agentapi-start.log" &
 "$module_path/scripts/agentapi-wait-for-start.sh" "${AGENTAPI_PORT}"
