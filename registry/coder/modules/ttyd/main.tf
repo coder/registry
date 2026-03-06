@@ -43,13 +43,8 @@ variable "port" {
 }
 
 variable "command" {
-  type        = list(string)
-  description = "The command and arguments for ttyd to run."
-  default     = ["bash"]
-  validation {
-    condition     = length(var.command) > 0
-    error_message = "The command must not be empty."
-  }
+  type        = string
+  description = "The command for ttyd to run (e.g., bash, fish, htop)."
 }
 
 variable "writable" {
@@ -132,7 +127,7 @@ resource "coder_script" "ttyd" {
   icon         = "/icon/terminal.svg"
   script = templatefile("${path.module}/run.sh", {
     PORT            = var.port,
-    COMMAND         = join(" ", var.command),
+    COMMAND         = var.command,
     WRITABLE        = var.writable,
     MAX_CLIENTS     = var.max_clients,
     ADDITIONAL_ARGS = var.additional_args,
@@ -144,6 +139,7 @@ resource "coder_script" "ttyd" {
 }
 
 resource "coder_app" "ttyd" {
+  count        = var.command != "" ? 1 : 0
   agent_id     = var.agent_id
   slug         = var.slug
   display_name = var.display_name

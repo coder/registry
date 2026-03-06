@@ -10,15 +10,10 @@ import {
 function testBaseLine(output: scriptOutput) {
   expect(output.exitCode).toBe(0);
 
-  const expectedLines = [
-    "Installing ttyd",
-    "Installation complete!",
-    "Starting ttyd in background...",
-  ];
-
-  for (const line of expectedLines) {
-    expect(output.stdout).toContain(line);
-  }
+  const stdout = output.stdout.join("\n");
+  expect(stdout).toContain("Installing ttyd");
+  expect(stdout).toContain("Installation complete!");
+  expect(stdout).toContain("Starting ttyd in background...");
 }
 
 describe("ttyd", async () => {
@@ -26,22 +21,13 @@ describe("ttyd", async () => {
 
   testRequiredVariables(import.meta.dir, {
     agent_id: "foo",
+    command: "bash",
   });
 
-  it("fails with empty command", async () => {
-    await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      command: "[]",
-    }).catch((e) => {
-      if (!e.message.startsWith("\nError: Invalid value for variable")) {
-        throw e;
-      }
-    });
-  });
-
-  it("runs with default", async () => {
+  it("runs with bash", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
+      command: "bash",
     });
 
     const output = await executeScriptInContainer(
@@ -57,7 +43,7 @@ describe("ttyd", async () => {
   it("runs with custom command", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
-      command: '["htop"]',
+      command: "htop",
     });
 
     const output = await executeScriptInContainer(
@@ -68,12 +54,13 @@ describe("ttyd", async () => {
     );
 
     testBaseLine(output);
-    expect(output.stdout).toContain("htop");
+    expect(output.stdout.join("\n")).toContain("htop");
   }, 30000);
 
   it("runs with writable=false", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
+      command: "bash",
       writable: "false",
     });
 
@@ -90,6 +77,7 @@ describe("ttyd", async () => {
   it("runs with subdomain=false", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
+      command: "bash",
       agent_name: "main",
       subdomain: "false",
     });
@@ -107,6 +95,7 @@ describe("ttyd", async () => {
   it("runs with additional_args", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
+      command: "bash",
       additional_args: "-t fontSize=18",
     });
 
@@ -118,6 +107,6 @@ describe("ttyd", async () => {
     );
 
     testBaseLine(output);
-    expect(output.stdout).toContain("fontSize=18");
+    expect(output.stdout.join("\n")).toContain("fontSize=18");
   }, 30000);
 });

@@ -8,10 +8,10 @@ printf "$${BOLD}Installing ttyd ${VERSION}\n\n"
 
 ARCH=$(uname -m)
 case "$${ARCH}" in
-  x86_64)  BINARY="ttyd.x86_64" ;;
+  x86_64) BINARY="ttyd.x86_64" ;;
   aarch64) BINARY="ttyd.aarch64" ;;
-  armv7l)  BINARY="ttyd.armhf" ;;
-  armv6l)  BINARY="ttyd.arm" ;;
+  armv7l) BINARY="ttyd.armhf" ;;
+  armv6l) BINARY="ttyd.arm" ;;
   *)
     echo "ERROR: Unsupported architecture: $${ARCH}" >&2
     exit 1
@@ -31,13 +31,18 @@ fi
 
 printf "🥳 Installation complete!\n\n"
 
+if [ -z "${COMMAND}" ]; then
+  printf "No command specified, skipping ttyd startup.\n"
+  exit 0
+fi
+
 ARGS="-p ${PORT}"
 
 if [ "${WRITABLE}" = "true" ]; then
   ARGS="$${ARGS} -W"
 fi
 
-if [ "${MAX_CLIENTS}" -gt 0 ] 2>/dev/null; then
+if [ "${MAX_CLIENTS}" -gt 0 ] 2> /dev/null; then
   ARGS="$${ARGS} -m ${MAX_CLIENTS}"
 fi
 
