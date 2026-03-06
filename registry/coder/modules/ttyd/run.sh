@@ -55,10 +55,15 @@ if [[ -n "${ADDITIONAL_ARGS}" ]]; then
   ARGS="$${ARGS} ${ADDITIONAL_ARGS}"
 fi
 
+TTYD_LOG_PATH="${LOG_PATH}"
+TTYD_LOG_PATH="$${TTYD_LOG_PATH/#\~/$${HOME}}"
+TTYD_LOG_DIR="$${TTYD_LOG_PATH%/*}"
+mkdir -p "$${TTYD_LOG_DIR}"
+
 printf "Starting ttyd in background...\n"
 printf "Running: ttyd %s -- %s\n\n" "$${ARGS}" "${COMMAND}"
 
 # shellcheck disable=SC2086
-ttyd $${ARGS} -- ${COMMAND} >> "${LOG_PATH}" 2>&1 &
+ttyd $${ARGS} -- ${COMMAND} >> "$${TTYD_LOG_PATH}" 2>&1 &
 
-printf "Logs at %s\n" "${LOG_PATH}"
+printf "Logs at %s\n" "$${TTYD_LOG_PATH}"

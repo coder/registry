@@ -67,8 +67,8 @@ variable "additional_args" {
 
 variable "log_path" {
   type        = string
-  description = "The path to log ttyd output to."
-  default     = "/tmp/ttyd.log"
+  description = "The path to log ttyd output to. Defaults to ~/.local/state/ttyd/ttyd.log (XDG-compliant)."
+  default     = ""
 }
 
 variable "ttyd_version" {
@@ -131,7 +131,7 @@ resource "coder_script" "ttyd" {
     WRITABLE        = var.writable,
     MAX_CLIENTS     = var.max_clients,
     ADDITIONAL_ARGS = var.additional_args,
-    LOG_PATH        = var.log_path,
+    LOG_PATH        = local.log_path,
     VERSION         = var.ttyd_version,
     BASE_PATH       = local.base_path,
   })
@@ -160,4 +160,5 @@ resource "coder_app" "ttyd" {
 
 locals {
   base_path = var.subdomain ? "" : format("/@%s/%s%s/apps/%s", data.coder_workspace_owner.me.name, data.coder_workspace.me.name, var.agent_name != null ? ".${var.agent_name}" : "", var.slug)
+  log_path  = var.log_path != "" ? var.log_path : "~/.local/state/ttyd/ttyd.log"
 }
