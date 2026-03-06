@@ -711,7 +711,7 @@ log_level: warn`,
       const scriptLog = await readFileContainer(id, "/home/coder/script.log");
       expect(scriptLog).toContain("Boundary cannot be enabled");
     });
-    
+
     test("validate-boundary-requires-config", async () => {
       expect(
         setup({
