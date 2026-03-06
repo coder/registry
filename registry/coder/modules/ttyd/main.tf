@@ -89,7 +89,7 @@ variable "share" {
 variable "subdomain" {
   type        = bool
   description = <<-EOT
-    Determines whether the app will be accessed via it's own subdomain or whether it will be accessed via a path on Coder.
+    Determines whether the app will be accessed via its own subdomain or whether it will be accessed via a path on Coder.
     If wildcards have not been setup by the administrator then apps with "subdomain" set to true will not be accessible.
   EOT
   default     = true
