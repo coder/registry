@@ -166,16 +166,17 @@ variable "module_dir_name" {
 
 variable "enable_boundary" {
   type        = bool
-  description = "Enable coder boundary for network filtering. Requires boundary_config_path to be set."
+  description = "Enable coder boundary for network filtering. Requires boundary_config to be set."
   default     = false
 }
-variable "boundary_config_path" {
+
+variable "boundary_config" {
   type        = string
-  description = "Path to boundary config.yaml file. Required when enable_boundary is true. Must contain allowlist, jail_type, proxy_port, and log_level."
+  description = "Content of boundary config.yaml file. Required when enable_boundary is true. Must contain allowlist, jail_type, proxy_port, and log_level."
   default     = ""
   validation {
-    condition     = !var.enable_boundary || var.boundary_config_path != ""
-    error_message = "boundary_config_path is required when enable_boundary is true."
+    condition     = !var.enable_boundary || var.boundary_config != ""
+    error_message = "boundary_config is required when enable_boundary is true."
   }
 }
 
@@ -244,7 +245,7 @@ resource "coder_script" "agentapi" {
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
     ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
-    ARG_BOUNDARY_CONFIG_PATH='${var.boundary_config_path}' \
+    ARG_BOUNDARY_CONFIG="$(echo -n '${base64encode(var.boundary_config)}' | base64 -d)" \
     ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
     ARG_STATE_FILE_PATH='${var.state_file_path}' \
     ARG_PID_FILE_PATH='${var.pid_file_path}' \

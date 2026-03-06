@@ -17,7 +17,7 @@ AGENTAPI_CHAT_BASE_PATH="${ARG_AGENTAPI_CHAT_BASE_PATH:-}"
 TASK_ID="${ARG_TASK_ID:-}"
 TASK_LOG_SNAPSHOT="${ARG_TASK_LOG_SNAPSHOT:-true}"
 ENABLE_BOUNDARY="${ARG_ENABLE_BOUNDARY:-false}"
-BOUNDARY_CONFIG_PATH="${ARG_BOUNDARY_CONFIG_PATH:-}"
+BOUNDARY_CONFIG="${ARG_BOUNDARY_CONFIG:-}"
 ENABLE_STATE_PERSISTENCE="${ARG_ENABLE_STATE_PERSISTENCE:-false}"
 STATE_FILE_PATH="${ARG_STATE_FILE_PATH:-}"
 PID_FILE_PATH="${ARG_PID_FILE_PATH:-}"
@@ -117,8 +117,8 @@ if [ "${ENABLE_BOUNDARY}" = "true" ]; then
   echo "Setting up coder boundary..."
   # Copy the user-provided boundary config
   mkdir -p ~/.config/coder_boundary
-  echo "Using boundary config from ${BOUNDARY_CONFIG_PATH}"
-  cp "${BOUNDARY_CONFIG_PATH}" ~/.config/coder_boundary/config.yaml
+  echo "Writing boundary config to ~/.config/coder_boundary/config.yaml"
+  echo -n "${BOUNDARY_CONFIG}" > ~/.config/coder_boundary/config.yaml
   chmod 600 ~/.config/coder_boundary/config.yaml
   # Copy coder binary to strip CAP_NET_ADMIN capabilities.
   # This is necessary because boundary doesn't work with privileged binaries.
