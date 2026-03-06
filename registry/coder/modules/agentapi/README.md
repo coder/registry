@@ -95,6 +95,7 @@ The agentapi module supports optional [Agent Boundaries](https://coder.com/docs/
 for network filtering. When enabled, the module sets up a `AGENTAPI_BOUNDARY_PREFIX` environment
 variable that points to a wrapper script. Agent modules should use this prefix in their
 start scripts to run the agent process through boundary.
+
 Boundary requires a `config.yaml` file with your allowlist, jail type, proxy port, and log
 level. See the [Agent Boundaries documentation](https://coder.com/docs/ai-coder/agent-boundaries)
 for configuration details.
