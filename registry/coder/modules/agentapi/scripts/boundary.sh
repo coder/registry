@@ -19,14 +19,14 @@ install_boundary() {
 
     echo "Cloning boundary repository"
     git clone https://github.com/coder/boundary.git
-    cd boundary
+    cd boundary || exit 1
     git checkout "${BOUNDARY_VERSION}"
 
     make build
 
     sudo cp boundary /usr/local/bin/
     sudo chmod +x /usr/local/bin/boundary
-    cd -
+    cd - || exit 1
   elif [ "${USE_BOUNDARY_DIRECTLY}" = "true" ]; then
     echo "Installing boundary using official install script (version: ${BOUNDARY_VERSION})"
     curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "${BOUNDARY_VERSION}"
