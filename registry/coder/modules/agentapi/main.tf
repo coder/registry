@@ -180,6 +180,24 @@ variable "boundary_config" {
   }
 }
 
+variable "boundary_version" {
+  type        = string
+  description = "Boundary version. When use_boundary_directly is true, a release version should be provided or 'latest' for the latest release. When compile_boundary_from_source is true, a valid git reference should be provided (tag, commit, branch)."
+  default     = "latest"
+}
+
+variable "compile_boundary_from_source" {
+  type        = bool
+  description = "Whether to compile boundary from source instead of using the official install script."
+  default     = false
+}
+
+variable "use_boundary_directly" {
+  type        = bool
+  description = "Whether to use boundary binary directly instead of coder boundary subcommand. When false (default), uses coder boundary subcommand. When true, installs and uses boundary binary from release."
+  default     = false
+}
+
 variable "enable_state_persistence" {
   type        = bool
   description = "Enable AgentAPI conversation state persistence across restarts."
@@ -216,6 +234,7 @@ locals {
   main_script             = file("${path.module}/scripts/main.sh")
   shutdown_script         = file("${path.module}/scripts/agentapi-shutdown.sh")
   lib_script              = file("${path.module}/scripts/lib.sh")
+  boundary_script         = file("${path.module}/scripts/boundary.sh")
 }
 
 resource "coder_script" "agentapi" {
@@ -230,6 +249,9 @@ resource "coder_script" "agentapi" {
     echo -n '${base64encode(local.main_script)}' | base64 -d > /tmp/main.sh
     chmod +x /tmp/main.sh
     echo -n '${base64encode(local.lib_script)}' | base64 -d > /tmp/agentapi-lib.sh
+    
+    echo -n '${base64encode(local.boundary_script)}' | base64 -d > /tmp/agentapi-boundary.sh
+    chmod +x /tmp/agentapi-boundary.sh
 
     ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
     ARG_WORKDIR="$(echo -n '${base64encode(local.workdir)}' | base64 -d)" \
@@ -246,6 +268,9 @@ resource "coder_script" "agentapi" {
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
     ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
     ARG_BOUNDARY_CONFIG="$(echo -n '${base64encode(var.boundary_config)}' | base64 -d)" \
+    ARG_BOUNDARY_VERSION='${var.boundary_version}' \
+    ARG_COMPILE_BOUNDARY_FROM_SOURCE='${var.compile_boundary_from_source}' \
+    ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
     ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
     ARG_STATE_FILE_PATH='${var.state_file_path}' \
     ARG_PID_FILE_PATH='${var.pid_file_path}' \
