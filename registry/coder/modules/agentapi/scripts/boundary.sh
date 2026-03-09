@@ -45,12 +45,6 @@ setup_boundary() {
   # Install boundary binary if needed
   install_boundary
 
-  # Write the user-provided boundary config
-  mkdir -p ~/.config/coder_boundary
-  echo "Writing boundary config to ~/.config/coder_boundary/config.yaml"
-  echo -n "${BOUNDARY_CONFIG}" > ~/.config/coder_boundary/config.yaml
-  chmod 600 ~/.config/coder_boundary/config.yaml
-
   # Determine which boundary command to use and create wrapper script
   BOUNDARY_WRAPPER_SCRIPT="$module_path/boundary-wrapper.sh"
 

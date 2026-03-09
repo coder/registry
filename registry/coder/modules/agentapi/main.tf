@@ -170,14 +170,10 @@ variable "enable_boundary" {
   default     = false
 }
 
-variable "boundary_config" {
+variable "boundary_config_path" {
   type        = string
-  description = "Content of boundary config.yaml file. Required when enable_boundary is true. Must contain allowlist, jail_type, proxy_port, and log_level."
+  description = "Path to boundary config.yaml inside the workspace. If provided, exposed as BOUNDARY_CONFIG env var. Users should mount the config file using a coder_script resource."
   default     = ""
-  validation {
-    condition     = !var.enable_boundary || var.boundary_config != ""
-    error_message = "boundary_config is required when enable_boundary is true."
-  }
 }
 
 variable "boundary_version" {
@@ -214,6 +210,13 @@ variable "pid_file_path" {
   type        = string
   description = "Path to the AgentAPI PID file. Defaults to $HOME/<module_dir_name>/agentapi.pid."
   default     = ""
+}
+
+resource "coder_env" "boundary_config" {
+  count    = var.enable_boundary && var.boundary_config_path != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "BOUNDARY_CONFIG"
+  value    = var.boundary_config_path
 }
 
 locals {
@@ -267,7 +270,6 @@ resource "coder_script" "agentapi" {
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
     ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
-    ARG_BOUNDARY_CONFIG="$(echo -n '${base64encode(var.boundary_config)}' | base64 -d)" \
     ARG_BOUNDARY_VERSION='${var.boundary_version}' \
     ARG_COMPILE_BOUNDARY_FROM_SOURCE='${var.compile_boundary_from_source}' \
     ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \

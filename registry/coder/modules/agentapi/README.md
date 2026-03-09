@@ -104,8 +104,8 @@ To enable:
 ```tf
 module "agentapi" {
   # ... other config
-  enable_boundary = true
-  boundary_config = file("${path.module}/boundary-config.yaml")
+  enable_boundary      = true
+  boundary_config_path = "/home/coder/.config/coder_boundary/config.yaml"
 
   # Optional: install boundary binary instead of using coder subcommand
   # use_boundary_directly        = true
