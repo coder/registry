@@ -78,8 +78,9 @@ variable "ttyd_version" {
 }
 
 variable "share" {
-  type    = string
-  default = "owner"
+  type        = string
+  description = "Who can access the app: 'owner' (workspace owner only), 'authenticated' (logged-in users), or 'public' (anyone)."
+  default     = "owner"
   validation {
     condition     = var.share == "owner" || var.share == "authenticated" || var.share == "public"
     error_message = "Incorrect value. Please set either 'owner', 'authenticated', or 'public'."
