@@ -13,7 +13,7 @@ Run any command and expose it as a web-based terminal via [ttyd](https://github.
 ```tf
 module "ttyd" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/ttyd/coder"
+  source   = "registry.coder.com/coder-labs/ttyd/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
   command  = "bash"
@@ -27,7 +27,7 @@ module "ttyd" {
 ```tf
 module "ttyd" {
   count        = data.coder_workspace.me.start_count
-  source       = "registry.coder.com/coder/ttyd/coder"
+  source       = "registry.coder.com/coder-labs/ttyd/coder"
   version      = "1.0.0"
   agent_id     = coder_agent.main.id
   display_name = "Shared Terminal"
@@ -41,7 +41,7 @@ module "ttyd" {
 ```tf
 module "ttyd" {
   count           = data.coder_workspace.me.start_count
-  source          = "registry.coder.com/coder/ttyd/coder"
+  source          = "registry.coder.com/coder-labs/ttyd/coder"
   version         = "1.0.0"
   agent_id        = coder_agent.main.id
   command         = "tail -f /var/log/app.log"
