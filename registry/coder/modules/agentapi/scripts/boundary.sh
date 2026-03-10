@@ -3,6 +3,20 @@
 # Sourced by main.sh when ENABLE_BOUNDARY=true.
 # Exports AGENTAPI_BOUNDARY_PREFIX for use by module start scripts.
 
+validate_boundary_subcommand() {
+  if command_exists coder; then
+    if coder boundary --help > /dev/null 2>&1; then
+      return 0
+    else
+      echo "Error: 'coder' command found but does not support 'boundary' subcommand. Please enable install_boundary."
+      exit 1
+    fi
+  else
+    echo "Error: ENABLE_BOUNDARY=true, but 'coder' command not found. Boundary cannot be enabled." >&2
+    exit 1
+  fi
+}
+
 # Install boundary binary if needed.
 # Uses one of three strategies:
 #   1. Compile from source (compile_boundary_from_source=true)
@@ -31,7 +45,7 @@ install_boundary() {
     echo "Installing boundary using official install script (version: ${BOUNDARY_VERSION})"
     curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "${BOUNDARY_VERSION}"
   else
-  validate_boundary_subcommand
+    validate_boundary_subcommand
     echo "Using coder boundary subcommand (provided by Coder)"
   fi
 }
