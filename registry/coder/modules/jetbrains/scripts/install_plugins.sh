@@ -219,7 +219,6 @@ done
 
 if [ ${#pending_codes[@]} -gt 0 ]; then
   log "These IDEs not found: ${pending_codes[*]}"
-  exit 1
 fi
 
-log "All plugins installed. Exiting."
+log "Exiting."
