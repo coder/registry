@@ -172,7 +172,7 @@ variable "enable_boundary" {
 
 variable "boundary_config_path" {
   type        = string
-  description = "Path to boundary config.yaml inside the workspace. If provided, exposed as BOUNDARY_CONFIG env var. Users should mount the config file using a coder_script resource."
+  description = "Path to boundary config.yaml inside the workspace. If provided, exposed as BOUNDARY_CONFIG env var."
   default     = ""
 }
 
