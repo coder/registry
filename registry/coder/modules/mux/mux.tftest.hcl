@@ -93,6 +93,24 @@ run "custom_additional_arguments" {
   }
 }
 
+run "launcher_logs_external_kills" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "shell exit code $exit_code")
+    error_message = "mux launcher must log the shell exit code when the server dies unexpectedly"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "SIGKILL usually means the process was killed externally or by the OOM killer.")
+    error_message = "mux launcher must explain SIGKILL exits in the log"
+  }
+}
+
 run "custom_version" {
   command = plan
 
