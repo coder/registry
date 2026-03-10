@@ -20,6 +20,8 @@ echo "=== Codex Module Configuration ==="
 printf "Install Codex: %s\n" "$ARG_INSTALL"
 printf "Codex Version: %s\n" "$ARG_CODEX_VERSION"
 printf "App Slug: %s\n" "$ARG_CODER_MCP_APP_STATUS_SLUG"
+printf "Codex Model: %s\n" "${ARG_CODEX_MODEL:-"Default"}"
+printf "Latest Codex Model: %s\n" "${ARG_LATEST_CODEX_MODEL}"
 printf "Start Directory: %s\n" "$ARG_CODEX_START_DIRECTORY"
 printf "Has Base Config: %s\n" "$([ -n "$ARG_BASE_CONFIG_TOML" ] && echo "Yes" || echo "No")"
 printf "Has Additional MCP: %s\n" "$([ -n "$ARG_ADDITIONAL_MCP_SERVERS" ] && echo "Yes" || echo "No")"
@@ -90,15 +92,25 @@ function install_codex() {
 
 write_minimal_default_config() {
   local config_path="$1"
+
+  ARG_DEFAULT_PROFILE=""
+
+  if [[ "${ARG_ENABLE_AIBRIDGE}" = "true" ]]; then
+    ARG_DEFAULT_PROFILE='profile = "aibridge"'
+  fi
+
   cat << EOF > "$config_path"
 # Minimal Default Codex Configuration
 sandbox_mode = "workspace-write"
 approval_policy = "never"
 preferred_auth_method = "apikey"
+${ARG_DEFAULT_PROFILE}
 
 [sandbox_workspace_write]
 network_access = true
 
+[notice.model_migrations]
+"${ARG_CODEX_MODEL}" = "${ARG_LATEST_CODEX_MODEL}"
 EOF
 }
 

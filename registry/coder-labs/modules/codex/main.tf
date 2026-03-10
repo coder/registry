@@ -131,13 +131,13 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.11.8"
+  default     = "v0.12.1"
 }
 
 variable "codex_model" {
   type        = string
-  description = "The model for Codex to use. Defaults to gpt-5.2-codex."
-  default     = "gpt-5.2-codex"
+  description = "The model for Codex to use. Defaults to gpt-5.3-codex."
+  default     = "gpt-5.3-codex"
 }
 
 variable "pre_install_script" {
@@ -164,6 +164,12 @@ variable "continue" {
   default     = true
 }
 
+variable "enable_state_persistence" {
+  type        = bool
+  description = "Enable AgentAPI conversation state persistence across restarts."
+  default     = true
+}
+
 variable "codex_system_prompt" {
   type        = string
   description = "System instructions written to AGENTS.md in the ~/.codex directory"
@@ -184,12 +190,13 @@ resource "coder_env" "coder_aibridge_session_token" {
 }
 
 locals {
-  workdir         = trimsuffix(var.workdir, "/")
-  app_slug        = "codex"
-  install_script  = file("${path.module}/scripts/install.sh")
-  start_script    = file("${path.module}/scripts/start.sh")
-  module_dir_name = ".codex-module"
-  aibridge_config = <<-EOF
+  workdir            = trimsuffix(var.workdir, "/")
+  app_slug           = "codex"
+  install_script     = file("${path.module}/scripts/install.sh")
+  start_script       = file("${path.module}/scripts/start.sh")
+  module_dir_name    = ".codex-module"
+  latest_codex_model = "gpt-5.3-codex"
+  aibridge_config    = <<-EOF
   [model_providers.aibridge]
   name = "AI Bridge"
   base_url = "${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1"
@@ -205,25 +212,26 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.0.0"
+  version = "2.2.0"
 
-  agent_id             = var.agent_id
-  folder               = local.workdir
-  web_app_slug         = local.app_slug
-  web_app_order        = var.order
-  web_app_group        = var.group
-  web_app_icon         = var.icon
-  web_app_display_name = var.web_app_display_name
-  cli_app              = var.cli_app
-  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
-  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
-  module_dir_name      = local.module_dir_name
-  install_agentapi     = var.install_agentapi
-  agentapi_subdomain   = var.subdomain
-  agentapi_version     = var.agentapi_version
-  pre_install_script   = var.pre_install_script
-  post_install_script  = var.post_install_script
-  start_script         = <<-EOT
+  agent_id                 = var.agent_id
+  folder                   = local.workdir
+  web_app_slug             = local.app_slug
+  web_app_order            = var.order
+  web_app_group            = var.group
+  web_app_icon             = var.icon
+  web_app_display_name     = var.web_app_display_name
+  cli_app                  = var.cli_app
+  cli_app_slug             = var.cli_app ? "${local.app_slug}-cli" : null
+  cli_app_display_name     = var.cli_app ? var.cli_app_display_name : null
+  module_dir_name          = local.module_dir_name
+  install_agentapi         = var.install_agentapi
+  agentapi_subdomain       = var.subdomain
+  agentapi_version         = var.agentapi_version
+  enable_state_persistence = var.enable_state_persistence
+  pre_install_script       = var.pre_install_script
+  post_install_script      = var.post_install_script
+  start_script             = <<-EOT
      #!/bin/bash
      set -o errexit
      set -o pipefail
@@ -249,6 +257,8 @@ module "agentapi" {
     chmod +x /tmp/install.sh
     ARG_OPENAI_API_KEY='${var.openai_api_key}' \
     ARG_REPORT_TASKS='${var.report_tasks}' \
+    ARG_CODEX_MODEL='${var.codex_model}' \
+    ARG_LATEST_CODEX_MODEL='${local.latest_codex_model}' \
     ARG_INSTALL='${var.install_codex}' \
     ARG_CODEX_VERSION='${var.codex_version}' \
     ARG_BASE_CONFIG_TOML='${base64encode(var.base_config_toml)}' \
