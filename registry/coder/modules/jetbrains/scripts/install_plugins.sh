@@ -4,6 +4,7 @@
 LOGFILE="$HOME/.config/jetbrains/install_plugins.log"
 TOOLBOX_BASE="$HOME/.local/share/JetBrains/Toolbox/apps"
 PLUGIN_MAP_FILE="$HOME/.config/jetbrains/plugins.json"
+PLUGIN_ALREADY_INSTALLED_MAP="$HOME/.config/jetbrains"
 
 if command -v apt-get > /dev/null 2>&1; then
   sudo apt-get update
@@ -27,6 +28,30 @@ get_enabled_codes() {
 
 get_plugins_for_code() {
   jq -r --arg CODE "$1" '.[$CODE][]?' "$PLUGIN_MAP_FILE" 2> /dev/null || true
+}
+
+# Returns only plugins that are NOT already installed
+check_plugins_installed() {
+  local code="$1"
+  shift
+  local plugins=("$@")
+
+  local installed_file="$PLUGIN_ALREADY_INSTALLED_MAP/${code}_installed.json"
+
+  # If no installed file exists, all plugins need to be installed
+  if [ ! -f "$installed_file" ]; then
+    printf '%s\n' "${plugins[@]}"
+    return 0
+  fi
+
+  installed_plugins=$(jq -r '.[]?' "$installed_file" 2>/dev/null)
+
+  for plugin in "${plugins[@]}"; do
+    if ! echo "$installed_plugins" | grep -Fxq "$plugin"; then
+      echo "$plugin"
+    fi
+  done
+  return 0
 }
 
 # -------- Product code mapping --------
@@ -78,10 +103,38 @@ find_cli_launcher() {
   fi
 }
 
+# Marks a plugin as installed by adding it to the installed plugins JSON file
+mark_plugins_installed() {
+  local code="$1"
+  local plugin="$2"
+
+  local installed_file="$PLUGIN_ALREADY_INSTALLED_MAP/${code}_installed.json"
+
+  mkdir -p "$PLUGIN_ALREADY_INSTALLED_MAP"
+
+  # Create file with empty array if it doesn't exist
+  if [ ! -f "$installed_file" ]; then
+    echo '[]' > "$installed_file" || {
+      log "Error: Failed to create $installed_file"
+      return 1
+    }
+  fi
+
+  jq --arg PLUGIN "$plugin" '. += [$PLUGIN]' "$installed_file" > "${installed_file}.tmp" 2>/dev/null && \
+  mv "${installed_file}.tmp" "$installed_file" || {
+    log "Error: Failed to update $installed_file with plugin $plugin"
+    rm -f "${installed_file}.tmp"
+    return 1
+  }
+  log "Marked plugin as installed: $plugin"
+  return 0
+}
+
 install_plugin() {
   log "Installing plugin: $2"
   if "$1" installPlugins "$2"; then
     log "Successfully installed plugin: $2"
+    return 0
   else
     log "Failed to install plugin: $2"
     return 1
@@ -111,56 +164,60 @@ fi
 
 log "Waiting for IDE installation. Pending codes: ${pending_codes[*]}"
 
-MAX_ATTEMPTS=10
-attempt=0
-
 # Loop until all plugins installed
-while [ ${#pending_codes[@]} -gt 0 ] && [ $attempt -lt $MAX_ATTEMPTS ]; do
+for product_dir in "$TOOLBOX_BASE"/*; do
+  [ -d "$product_dir" ] || continue
 
-  for product_dir in "$TOOLBOX_BASE"/*; do
-    [ -d "$product_dir" ] || continue
+  product_name="$(basename "$product_dir")"
+  code="$(map_folder_to_code "$product_name")"
 
-    product_name="$(basename "$product_dir")"
-    code="$(map_folder_to_code "$product_name")"
+  # Only process codes user requested
+  if [[ ! " ${pending_codes[*]} " =~ " $code " ]]; then
+    continue
+  fi
 
-    # Only process codes user requested
-    if [[ ! " ${pending_codes[*]} " =~ " $code " ]]; then
-      continue
-    fi
+  plugins="$(get_plugins_for_code "$code")"
+  if [ -z "$plugins" ]; then
+    log "No plugins for $code"
+    continue
+  fi
 
-    cli_launcher_path="$(find_cli_launcher "$code" "$product_dir")" || continue
-
-    log "Detected IDE $code at $product_dir"
-
-    plugins="$(get_plugins_for_code "$code")"
-    if [ -z "$plugins" ]; then
-      log "No plugins for $code"
-      continue
-    fi
-
-    while read -r plugin; do
-      install_plugin "$cli_launcher_path" "$plugin"
-    done <<< "$plugins"
-
-    # remove code from pending list after success
+  # Get only plugins that are not already installed
+  mapfile -t new_plugins < <(check_plugins_installed "$code" $(echo "$plugins" | tr '\n' ' '))
+  if [ ${#new_plugins[@]} -eq 0 ]; then
+    log "All plugins for $code are already installed"
+    # Remove code from pending list since all plugins are installed
     tmp=()
     for c in "${pending_codes[@]}"; do
-      [ "$c" != "$code" ] && tmp+=("$c")
+      [ "$c" != "$code" ] && tmp+=("$c") 
     done
     pending_codes=("${tmp[@]}")
-
-    log "Finished $code. Remaining: ${pending_codes[*]:-none}"
-
-  done
-  # If still pending, wait and retry
-  if [ ${#pending_codes[@]} -gt 0 ]; then
-    sleep 5
-    ((attempt++))
+    continue
   fi
+
+  cli_launcher_path="$(find_cli_launcher "$code" "$product_dir")" || continue
+  log "Detected IDE $code at $product_dir"
+  log "Plugins to install for $code: ${#new_plugins[@]} plugin(s)"
+
+  # Install only the plugins that are not yet installed
+  for plugin in "${new_plugins[@]}"; do
+    if install_plugin "$cli_launcher_path" "$plugin"; then
+      # Mark plugin as installed after successful installation
+      mark_plugins_installed "$code" "$plugin"
+    fi
+  done
+
+  # remove code from pending list after success
+  tmp=()
+  for c in "${pending_codes[@]}"; do
+    [ "$c" != "$code" ] && tmp+=("$c")
+  done
+  pending_codes=("${tmp[@]}")
+  log "Finished $code. Remaining: ${pending_codes[*]:-none}"
 done
 
 if [ ${#pending_codes[@]} -gt 0 ]; then
-  log "Timeout: IDEs not found: ${pending_codes[*]}"
+  log "These IDEs not found: ${pending_codes[*]}"
   exit 1
 fi
 
