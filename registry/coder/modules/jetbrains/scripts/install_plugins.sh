@@ -44,7 +44,7 @@ check_plugins_installed() {
     return 0
   fi
 
-  installed_plugins=$(jq -r '.[]?' "$installed_file" 2>/dev/null)
+  installed_plugins=$(jq -r '.[]?' "$installed_file" 2> /dev/null)
 
   for plugin in "${plugins[@]}"; do
     if ! echo "$installed_plugins" | grep -Fxq "$plugin"; then
@@ -120,8 +120,8 @@ mark_plugins_installed() {
     }
   fi
 
-  jq --arg PLUGIN "$plugin" '. += [$PLUGIN]' "$installed_file" > "${installed_file}.tmp" 2>/dev/null && \
-  mv "${installed_file}.tmp" "$installed_file" || {
+  jq --arg PLUGIN "$plugin" '. += [$PLUGIN]' "$installed_file" > "${installed_file}.tmp" 2> /dev/null \
+    && mv "${installed_file}.tmp" "$installed_file" || {
     log "Error: Failed to update $installed_file with plugin $plugin"
     rm -f "${installed_file}.tmp"
     return 1
@@ -176,20 +176,21 @@ for product_dir in "$TOOLBOX_BASE"/*; do
     continue
   fi
 
-  plugins="$(get_plugins_for_code "$code")"
-  if [ -z "$plugins" ]; then
+  # Store plugins as array for consistency
+  mapfile -t plugins_list < <(get_plugins_for_code "$code")
+  if [ ${#plugins_list[@]} -eq 0 ]; then
     log "No plugins for $code"
     continue
   fi
 
   # Get only plugins that are not already installed
-  mapfile -t new_plugins < <(check_plugins_installed "$code" $(echo "$plugins" | tr '\n' ' '))
+  mapfile -t new_plugins < <(check_plugins_installed "$code" "${plugins_list[@]}")
   if [ ${#new_plugins[@]} -eq 0 ]; then
     log "All plugins for $code are already installed"
     # Remove code from pending list since all plugins are installed
     tmp=()
     for c in "${pending_codes[@]}"; do
-      [ "$c" != "$code" ] && tmp+=("$c") 
+      [ "$c" != "$code" ] && tmp+=("$c")
     done
     pending_codes=("${tmp[@]}")
     continue
