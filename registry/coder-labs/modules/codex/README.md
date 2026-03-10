@@ -140,6 +140,32 @@ module "codex" {
 > [!WARNING]
 > This module configures Codex with a `workspace-write` sandbox that allows AI tasks to read/write files in the specified workdir. While the sandbox provides security boundaries, Codex can still modify files within the workspace. Use this module _only_ in trusted environments and be aware of the security implications.
 
+### Network Filtering with Coder Boundary
+
+This example shows how to enable network filtering using Coder Boundary to restrict outbound network access.
+
+```tf
+module "codex" {
+  source         = "registry.coder.com/coder-labs/codex/coder"
+  version        = "4.2.0"
+  agent_id       = coder_agent.example.id
+  openai_api_key = "..."
+  workdir        = "/home/coder/project"
+  # Enable boundary
+  enable_boundary      = true
+  boundary_config_path = "/home/coder/.config/coder_boundary/config.yaml"
+  # Optional: install boundary binary instead of using coder subcommand
+  # use_boundary_directly = true
+  # boundary_version      = "0.6.0"
+}
+```
+
+When `enable_boundary = true`:
+
+- All network traffic from Codex is routed through a filtering proxy
+- Only allowlisted domains are accessible (configure via boundary config.yaml)
+- Users must mount the boundary config file into the workspace (see [Agent Boundaries docs](https://coder.com/docs/ai-coder/agent-boundaries#configuration))
+
 ## How it Works
 
 - **Install**: The module installs Codex CLI and sets up the environment
