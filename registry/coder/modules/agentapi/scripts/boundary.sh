@@ -31,6 +31,7 @@ install_boundary() {
     echo "Installing boundary using official install script (version: ${BOUNDARY_VERSION})"
     curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "${BOUNDARY_VERSION}"
   else
+  validate_boundary_subcommand
     echo "Using coder boundary subcommand (provided by Coder)"
   fi
 }
