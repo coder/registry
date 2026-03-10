@@ -16,7 +16,7 @@ The AgentAPI module is a building block for modules that need to run an AgentAPI
 ```tf
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.2.0"
+  version = "2.3.0"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
@@ -67,8 +67,7 @@ module "agentapi" {
 AgentAPI can save and restore conversation state across workspace restarts.
 This is disabled by default and requires agentapi binary >= v0.12.0.
 
-State and PID files are stored in `$HOME/<module_dir_name>/` alongside other
-module files (e.g. `$HOME/.claude-module/agentapi-state.json`).
+State and PID files are stored in `$HOME/<module_dir_name>/` alongside other module files (e.g. `$HOME/.claude-module/agentapi-state.json`).
 
 To enable:
 
