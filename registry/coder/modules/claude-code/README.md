@@ -233,7 +233,7 @@ module "claude-code" {
   workdir                 = "/home/coder/project"
   claude_code_oauth_token = var.claude_code_oauth_token
   enable_remote_control   = true
-  remote_control_name     = "My Project"  # Optional: custom session name
+  # remote_control_name   = "Custom Name"  # Optional: defaults to workspace name
 }
 ```
 

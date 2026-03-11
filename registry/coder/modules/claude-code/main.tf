@@ -275,7 +275,7 @@ variable "enable_remote_control" {
 
 variable "remote_control_name" {
   type        = string
-  description = "Custom session name for Remote Control, visible in the session list at claude.ai/code. Only used when enable_remote_control is true."
+  description = "Custom session name for Remote Control, visible in the session list at claude.ai/code. Only used when enable_remote_control is true. Defaults to the workspace name."
   default     = ""
 }
 
@@ -414,7 +414,7 @@ module "agentapi" {
     ARG_CODER_HOST='${local.coder_host}' \
     ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
     ARG_ENABLE_REMOTE_CONTROL='${var.enable_remote_control}' \
-    ARG_REMOTE_CONTROL_NAME='${var.remote_control_name}' \
+    ARG_REMOTE_CONTROL_NAME='${var.remote_control_name != "" ? var.remote_control_name : data.coder_workspace.me.name}' \
     /tmp/start.sh
   EOT
 
