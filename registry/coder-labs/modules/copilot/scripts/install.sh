@@ -19,31 +19,13 @@ ARG_EXTERNAL_AUTH_ID=${ARG_EXTERNAL_AUTH_ID:-github}
 ARG_COPILOT_VERSION=${ARG_COPILOT_VERSION:-0.0.334}
 ARG_COPILOT_MODEL=${ARG_COPILOT_MODEL:-claude-sonnet-4.5}
 
-validate_prerequisites() {
-  if ! command_exists node; then
-    echo "ERROR: Node.js not found. Copilot requires Node.js v22+."
-    echo "Install with: curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt-get install -y nodejs"
-    exit 1
-  fi
-
-  if ! command_exists npm; then
-    echo "ERROR: npm not found. Copilot requires npm v10+."
-    exit 1
-  fi
-
-  node_version=$(node --version | sed 's/v//' | cut -d. -f1)
-  if [ "$node_version" -lt 22 ]; then
-    echo "WARNING: Node.js v$node_version detected. Copilot requires v22+."
-  fi
-}
-
 install_copilot() {
   if ! command_exists copilot; then
     echo "Installing GitHub Copilot CLI (version: ${ARG_COPILOT_VERSION})..."
     if [ "$ARG_COPILOT_VERSION" = "latest" ]; then
-      npm install -g @github/copilot
+      curl -fsSL https://gh.io/copilot-install | bash
     else
-      npm install -g "@github/copilot@${ARG_COPILOT_VERSION}"
+      VERSION="${ARG_COPILOT_VERSION}" curl -fsSL https://gh.io/copilot-install | bash
     fi
 
     if ! command_exists copilot; then
@@ -190,27 +172,15 @@ add_custom_mcp_servers() {
     local updated_config
     updated_config=$(jq --argjson custom "$custom_servers" '.mcpServers += $custom' "$mcp_config_file")
     echo "$updated_config" > "$mcp_config_file"
-  elif command_exists node; then
-    node -e "
-      const fs = require('fs');
-      const existing = JSON.parse(fs.readFileSync('$mcp_config_file', 'utf8'));
-      const input = JSON.parse(\`$ARG_MCP_CONFIG\`);
-      const custom = input.mcpServers || {};
-      existing.mcpServers = {...existing.mcpServers, ...custom};
-      fs.writeFileSync('$mcp_config_file', JSON.stringify(existing, null, 2));
-    "
   else
-    echo "WARNING: jq and node not available, cannot merge custom MCP servers"
+    echo "WARNING: jq not available, cannot merge custom MCP servers"
   fi
 }
 
 configure_copilot_model() {
-  if [ -n "$ARG_COPILOT_MODEL" ] && [ "$ARG_COPILOT_MODEL" != "claude-sonnet-4.5" ]; then
-    echo "Setting Copilot model to: $ARG_COPILOT_MODEL"
-    copilot config model "$ARG_COPILOT_MODEL" || {
-      echo "WARNING: Failed to set model via copilot config, will use environment variable fallback"
-      export COPILOT_MODEL="$ARG_COPILOT_MODEL"
-    }
+  if [[ -n "${ARG_COPILOT_MODEL}" ]]; then
+    echo "Setting Copilot model to: ${ARG_COPILOT_MODEL}"
+    export COPILOT_MODEL="${ARG_COPILOT_MODEL}"
   fi
 }
 
@@ -227,7 +197,6 @@ configure_coder_integration() {
   fi
 }
 
-validate_prerequisites
 install_copilot
 check_github_authentication
 setup_copilot_configurations
