@@ -96,6 +96,55 @@ chmod +x /tmp/mux/mux`,
     }
   }, 60000);
 
+  it("logs signal-based exits after startup", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      install: false,
+      log_path: "/tmp/mux.log",
+    });
+
+    const instance = findResourceInstance(state, "coder_script");
+    const id = await runContainer("alpine/curl");
+
+    try {
+      const setup = await execContainer(id, [
+        "sh",
+        "-c",
+        `apk add --no-cache bash >/dev/null
+mkdir -p /tmp/mux
+cat <<'EOF' > /tmp/mux/mux
+#!/usr/bin/env sh
+target_pid="$$"
+(
+  sleep 1
+  kill -9 "$target_pid"
+) &
+while true; do
+  sleep 1
+done
+EOF
+chmod +x /tmp/mux/mux`,
+      ]);
+      expect(setup.exitCode).toBe(0);
+
+      const output = await execContainer(id, ["sh", "-c", instance.script]);
+      if (output.exitCode !== 0) {
+        console.log("STDOUT:\n" + output.stdout);
+        console.log("STDERR:\n" + output.stderr);
+      }
+      expect(output.exitCode).toBe(0);
+
+      await execContainer(id, ["sh", "-c", "sleep 2"]);
+      const log = await readFileContainer(id, "/tmp/mux.log");
+      expect(log).toContain("shell exit code 137");
+      expect(log).toContain(
+        "SIGKILL usually means the process was killed externally or by the OOM killer.",
+      );
+    } finally {
+      await removeContainer(id);
+    }
+  }, 60000);
+
   it("runs with npm present", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
