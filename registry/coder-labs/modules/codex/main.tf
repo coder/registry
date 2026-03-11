@@ -241,9 +241,8 @@ locals {
 }
 
 module "agentapi" {
-  # source  = "registry.coder.com/coder/agentapi/coder"
-  # version = "2.2.0"
-  source = "git::https://github.com/shanewhite97/registry.git//registry/coder/modules/agentapi?ref=feat/agent-api-boundary-support"
+  source  = "registry.coder.com/coder/agentapi/coder"
+  version = "2.3.0"
 
   agent_id                     = var.agent_id
   folder                       = local.workdir
