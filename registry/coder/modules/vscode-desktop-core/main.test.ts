@@ -21,7 +21,7 @@ const defaultVariables = {
   coder_app_display_name: "VS Code Desktop",
 
   protocol: "vscode",
-  config_folder: "$HOME/.vscode",
+  config_dir: "$HOME/.vscode",
 };
 
 describe("vscode-desktop-core", async () => {
@@ -170,7 +170,7 @@ describe("vscode-desktop-core", async () => {
 
       const content = await readFileContainer(
         id,
-        `${defaultVariables.config_folder.replace("$HOME", "/root")}/mcp_config.json`,
+        `${defaultVariables.config_dir.replace("$HOME", "/root")}/mcp_config.json`,
       );
       expect(content).toBe(mcp_config);
     } finally {

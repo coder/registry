@@ -28,7 +28,7 @@ variable "open_recent" {
 
 variable "mcp_config" {
   type        = map(any)
-  description = "MCP server configuration for the IDE. When set, writes mcp_config.json in var.config_folder."
+  description = "MCP server configuration for the IDE. When set, writes mcp_config.json in var.config_dir."
   default     = null
 }
 
@@ -112,7 +112,7 @@ resource "coder_script" "vscode-desktop-mcp" {
     #!/bin/sh
     set -euo pipefail
 
-    IDE_CONFIG_FOLDER="${var.config_folder}"
+    IDE_CONFIG_FOLDER="${var.config_dir}"
     IDE_MCP_CONFIG_PATH="$IDE_CONFIG_FOLDER/mcp_config.json"
 
     mkdir -p "$IDE_CONFIG_FOLDER"
