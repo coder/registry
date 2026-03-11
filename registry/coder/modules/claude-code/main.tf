@@ -225,6 +225,33 @@ variable "enable_boundary" {
   type        = bool
   description = "Whether to enable coder boundary for network filtering"
   default     = false
+
+  validation {
+    condition     = !var.enable_boundary || var.boundary_config != null || var.boundary_config_path != null
+    error_message = "When enable_boundary is true, at least one of boundary_config or boundary_config_path must be provided."
+  }
+
+  validation {
+    condition     = !var.enable_boundary || var.boundary_config == null || var.boundary_config_path == null
+    error_message = "Only one of boundary_config or boundary_config_path can be provided, not both."
+  }
+
+  validation {
+    condition     = (var.boundary_config == null && var.boundary_config_path == null) || var.enable_boundary
+    error_message = "boundary_config and boundary_config_path can only be set when enable_boundary is true."
+  }
+}
+
+variable "boundary_config" {
+  type        = string
+  description = "Inline YAML config for coder boundary network filtering rules. Written to ~/.config/coder_boundary/config.yaml before boundary starts. Mutually exclusive with boundary_config_path."
+  default     = null
+}
+
+variable "boundary_config_path" {
+  type        = string
+  description = "Path to an existing boundary config file on disk. Symlinked to ~/.config/coder_boundary/config.yaml before boundary starts. Mutually exclusive with boundary_config."
+  default     = null
 }
 
 variable "boundary_version" {
@@ -400,6 +427,8 @@ module "agentapi" {
     ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
     ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
     ARG_CODER_HOST='${local.coder_host}' \
+    ARG_BOUNDARY_CONFIG='${var.boundary_config != null ? base64encode(var.boundary_config) : ""}' \
+    ARG_BOUNDARY_CONFIG_PATH='${var.boundary_config_path != null ? var.boundary_config_path : ""}' \
     ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
     /tmp/start.sh
   EOT
