@@ -87,7 +87,7 @@ Use this when the config file is provisioned separately or managed outside the t
 ```tf
 module "claude-code" {
   source               = "registry.coder.com/coder/claude-code/coder"
-  version              = "4.8.0"
+  version              = "4.9.0"
   agent_id             = coder_agent.main.id
   workdir              = "/home/coder/project"
   enable_boundary      = true
