@@ -186,16 +186,16 @@ start_agentapi() {
       echo "Using initial prompt with system context"
       if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
         echo "Copilot arguments: ${COPILOT_ARGS[*]}"
-        agentapi server -I="$initial_prompt" --type copilot --term-width 120 --term-height 40 -- copilot "${COPILOT_ARGS[@]}"
+        agentapi server -I="$initial_prompt" --type copilot --term-width 67 --term-height 1190 -- copilot "${COPILOT_ARGS[@]}"
       else
-        agentapi server -I="$initial_prompt" --type copilot --term-width 120 --term-height 40 -- copilot
+        agentapi server -I="$initial_prompt" --type copilot --term-width 67 --term-height 1190 -- copilot
       fi
     else
       if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
         echo "Copilot arguments: ${COPILOT_ARGS[*]}"
-        agentapi server --type copilot --term-width 120 --term-height 40 -- copilot "${COPILOT_ARGS[@]}"
+        agentapi server --type copilot --term-width 67 --term-height 1190 -- copilot "${COPILOT_ARGS[@]}"
       else
-        agentapi server --type copilot --term-width 120 --term-height 40 -- copilot
+        agentapi server --type copilot --term-width 67 --term-height 1190 -- copilot
       fi
     fi
   fi
