@@ -175,6 +175,9 @@ module "jetbrains" {
 > 2. Requires jq to be available
 > 3. Only works on Debian/Ubuntu-based systems (due to apt-get usage)
 
+> [!WARNING]
+> Some plugins are disabled by default due to JetBrains security defaults, so you need to enable them manually.
+
 ### Accessing the IDE Metadata
 
 You can now reference the output `ide_metadata` as a map.

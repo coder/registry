@@ -18,7 +18,7 @@ mkdir -p "$(dirname "$LOGFILE")"
 exec > >(tee -a "$LOGFILE") 2>&1
 
 log() {
-  printf '%s %s\n' "$(date --iso-8601=seconds)" "$*" | tee -a "$LOGFILE"
+  printf '%s %s\n' "$(date --iso-8601=seconds)" "$*"
 }
 
 # -------- Read plugin JSON --------
