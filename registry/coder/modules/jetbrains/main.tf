@@ -262,7 +262,7 @@ resource "coder_script" "install_jetbrains_plugins" {
     set -o errexit
     set -o pipefail
 
-    CONFIG_DIR="$HOME/.config/jetbrains"
+    CONFIG_DIR="$HOME/.config/Jetbrains"
 
     mkdir -p "$CONFIG_DIR"
     echo -n "${local.plugin_map_b64}" | base64 -d > "$CONFIG_DIR/plugins.json"
