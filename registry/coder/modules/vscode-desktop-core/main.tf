@@ -37,7 +37,7 @@ variable "protocol" {
   description = "The URI protocol the IDE."
 }
 
-variable "config_folder" {
+variable "config_dir" {
   type        = string
   description = "The path of the IDE's configuration folder."
 }
