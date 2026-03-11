@@ -173,7 +173,7 @@ module "jetbrains" {
 >
 > 1. Requires JetBrains Toolbox to be installed
 > 2. Requires jq to be available
-> 3. Only works on Debian/Ubuntu-based systems (due to apt-get usage)
+> 3. only works in a Linux environment.
 
 > [!WARNING]
 > Some plugins are disabled by default due to JetBrains security defaults, so you might need to enable them manually.
