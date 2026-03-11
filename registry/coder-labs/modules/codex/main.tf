@@ -176,6 +176,36 @@ variable "codex_system_prompt" {
   default     = "You are a helpful coding assistant. Start every response with `Codex says:`"
 }
 
+variable "enable_boundary" {
+  type        = bool
+  description = "Enable coder boundary for network filtering."
+  default     = false
+}
+
+variable "boundary_config_path" {
+  type        = string
+  description = "Path to boundary config.yaml inside the workspace. If provided, exposed as BOUNDARY_CONFIG env var."
+  default     = ""
+}
+
+variable "boundary_version" {
+  type        = string
+  description = "Boundary version. When use_boundary_directly is true, a release version should be provided or 'latest' for the latest release."
+  default     = "latest"
+}
+
+variable "compile_boundary_from_source" {
+  type        = bool
+  description = "Whether to compile boundary from source instead of using the official install script."
+  default     = false
+}
+
+variable "use_boundary_directly" {
+  type        = bool
+  description = "Whether to use boundary binary directly instead of coder boundary subcommand."
+  default     = false
+}
+
 resource "coder_env" "openai_api_key" {
   agent_id = var.agent_id
   name     = "OPENAI_API_KEY"
@@ -212,26 +242,31 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.2.0"
+  version = "2.3.0"
 
-  agent_id                 = var.agent_id
-  folder                   = local.workdir
-  web_app_slug             = local.app_slug
-  web_app_order            = var.order
-  web_app_group            = var.group
-  web_app_icon             = var.icon
-  web_app_display_name     = var.web_app_display_name
-  cli_app                  = var.cli_app
-  cli_app_slug             = var.cli_app ? "${local.app_slug}-cli" : null
-  cli_app_display_name     = var.cli_app ? var.cli_app_display_name : null
-  module_dir_name          = local.module_dir_name
-  install_agentapi         = var.install_agentapi
-  agentapi_subdomain       = var.subdomain
-  agentapi_version         = var.agentapi_version
-  enable_state_persistence = var.enable_state_persistence
-  pre_install_script       = var.pre_install_script
-  post_install_script      = var.post_install_script
-  start_script             = <<-EOT
+  agent_id                     = var.agent_id
+  folder                       = local.workdir
+  web_app_slug                 = local.app_slug
+  web_app_order                = var.order
+  web_app_group                = var.group
+  web_app_icon                 = var.icon
+  web_app_display_name         = var.web_app_display_name
+  cli_app                      = var.cli_app
+  cli_app_slug                 = var.cli_app ? "${local.app_slug}-cli" : null
+  cli_app_display_name         = var.cli_app ? var.cli_app_display_name : null
+  module_dir_name              = local.module_dir_name
+  install_agentapi             = var.install_agentapi
+  agentapi_subdomain           = var.subdomain
+  agentapi_version             = var.agentapi_version
+  enable_state_persistence     = var.enable_state_persistence
+  pre_install_script           = var.pre_install_script
+  post_install_script          = var.post_install_script
+  enable_boundary              = var.enable_boundary
+  boundary_config_path         = var.boundary_config_path
+  boundary_version             = var.boundary_version
+  compile_boundary_from_source = var.compile_boundary_from_source
+  use_boundary_directly        = var.use_boundary_directly
+  start_script                 = <<-EOT
      #!/bin/bash
      set -o errexit
      set -o pipefail

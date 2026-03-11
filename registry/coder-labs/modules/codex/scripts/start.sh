@@ -210,7 +210,16 @@ capture_session_id() {
 
 start_codex() {
   printf "Starting Codex with arguments: %s\n" "${CODEX_ARGS[*]}"
-  agentapi server --type codex --term-width 67 --term-height 1190 -- codex "${CODEX_ARGS[@]}" &
+  # AGENTAPI_BOUNDARY_PREFIX is set by the agentapi module's main.sh when
+  # enable_boundary=true. It points to a wrapper script that runs the command
+  # through coder boundary, sandboxing only the agent process.
+  if [ -n "${AGENTAPI_BOUNDARY_PREFIX:-}" ]; then
+    printf "Starting with coder boundary enabled\n"
+    agentapi server --type codex --term-width 67 --term-height 1190 -- \
+      "${AGENTAPI_BOUNDARY_PREFIX}" codex "${CODEX_ARGS[@]}" &
+  else
+    agentapi server --type codex --term-width 67 --term-height 1190 -- codex "${CODEX_ARGS[@]}" &
+  fi
   capture_session_id
 }
 
