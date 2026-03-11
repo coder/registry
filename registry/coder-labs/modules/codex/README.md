@@ -13,7 +13,7 @@ Run Codex CLI in your workspace to access OpenAI's models through the Codex inte
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.2.0"
+  version        = "4.3.0"
   agent_id       = coder_agent.example.id
   openai_api_key = var.openai_api_key
   workdir        = "/home/coder/project"
@@ -32,7 +32,7 @@ module "codex" {
 module "codex" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.2.0"
+  version        = "4.3.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   workdir        = "/home/coder/project"
@@ -51,7 +51,7 @@ For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage
 ```tf
 module "codex" {
   source          = "registry.coder.com/coder-labs/codex/coder"
-  version         = "4.2.0"
+  version         = "4.3.0"
   agent_id        = coder_agent.example.id
   workdir         = "/home/coder/project"
   enable_aibridge = true
@@ -94,7 +94,7 @@ data "coder_task" "me" {}
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.2.0"
+  version        = "4.3.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   ai_prompt      = data.coder_task.me.prompt
@@ -105,6 +105,26 @@ module "codex" {
 }
 ```
 
+### Usage with Agent Boundaries
+
+This example shows how to configure the Codex module to run the agent behind a process-level boundary that restricts its network access.
+
+By default, when `enable_boundary = true`, the module uses `coder boundary` subcommand (provided by Coder) without requiring any installation.
+
+```tf
+module "codex" {
+  source          = "registry.coder.com/coder-labs/codex/coder"
+  version         = "4.3.0"
+  agent_id        = coder_agent.main.id
+  openai_api_key  = var.openai_api_key
+  workdir         = "/home/coder/project"
+  enable_boundary = true
+}
+```
+
+> [!NOTE]
+> For developers: The module also supports installing boundary from a release version (`use_boundary_directly = true`) or compiling from source (`compile_boundary_from_source = true`). These are escape hatches for development and testing purposes.
+
 ### Advanced Configuration
 
 This example shows additional configuration options for custom models, MCP servers, and base configuration.
@@ -112,7 +132,7 @@ This example shows additional configuration options for custom models, MCP serve
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.2.0"
+  version        = "4.3.0"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   workdir        = "/home/coder/project"
