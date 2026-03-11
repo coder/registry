@@ -187,8 +187,6 @@ function configure_standalone_mode() {
   fi
 
   local claude_config="$HOME/.claude.json"
-  local workdir_normalized
-  workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
 
   # Create or update .claude.json with minimal configuration for API key auth
   # This skips the interactive login prompt and onboarding screens
@@ -200,27 +198,27 @@ function configure_standalone_mode() {
         .bypassPermissionsModeAccepted = true |
         .hasAcknowledgedCostThreshold = true |
         .hasCompletedOnboarding = true |
-        .primaryApiKey = $apikey |
         .projects[$workdir].hasCompletedProjectOnboarding = true |
-        .projects[$workdir].hasTrustDialogAccepted = true' \
+        .projects[$workdir].hasTrustDialogAccepted = true |
+        if $apikey != "" then .primaryApiKey = $apikey else . end' \
       "$claude_config" > "${claude_config}.tmp" && mv "${claude_config}.tmp" "$claude_config"
   else
     echo "Creating new Claude configuration at $claude_config"
-    cat > "$claude_config" << EOF
-{
-  "autoUpdaterStatus": "disabled",
-  "bypassPermissionsModeAccepted": true,
-  "hasAcknowledgedCostThreshold": true,
-  "hasCompletedOnboarding": true,
-  "primaryApiKey": "${CLAUDE_API_KEY:-}",
-  "projects": {
-    "$ARG_WORKDIR": {
-      "hasCompletedProjectOnboarding": true,
-      "hasTrustDialogAccepted": true
-    }
-  }
-}
-EOF
+    jq -n --arg workdir "$ARG_WORKDIR" --arg apikey "${CLAUDE_API_KEY:-}" \
+      '{
+        autoUpdaterStatus: "disabled",
+        bypassPermissionsModeAccepted: true,
+        hasAcknowledgedCostThreshold: true,
+        hasCompletedOnboarding: true,
+        projects: {
+          ($workdir): {
+            hasCompletedProjectOnboarding: true,
+            hasTrustDialogAccepted: true
+          }
+        }
+      } |
+      if $apikey != "" then . + {primaryApiKey: $apikey} else . end' \
+      > "$claude_config"
   fi
 
   echo "Standalone mode configured successfully"

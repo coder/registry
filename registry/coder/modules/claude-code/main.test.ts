@@ -415,6 +415,58 @@ EOF`,
     expect(startLog.stdout).toContain("--continue");
   });
 
+  test("standalone-oauth-only-does-not-create-empty-primary-api-key", async () => {
+    const { id, coderEnvVars } = await setup({
+      moduleVariables: {
+        report_tasks: "false",
+        claude_code_oauth_token: "oauth-token-123",
+      },
+    });
+
+    await execModuleScript(id, coderEnvVars);
+
+    const claudeConfig = JSON.parse(
+      await readFileContainer(id, "/home/coder/.claude.json"),
+    );
+
+    expect(claudeConfig.primaryApiKey).toBeUndefined();
+    expect(claudeConfig.hasCompletedOnboarding).toBe(true);
+    expect(
+      claudeConfig.projects["/home/coder/project"]
+        .hasCompletedProjectOnboarding,
+    ).toBe(true);
+  });
+
+  test("standalone-oauth-only-preserves-existing-primary-api-key", async () => {
+    const existingApiKey = "existing-api-key";
+    const { id, coderEnvVars } = await setup({
+      moduleVariables: {
+        report_tasks: "false",
+        claude_code_oauth_token: "oauth-token-123",
+      },
+    });
+
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > /home/coder/.claude.json << 'EOF'
+{"primaryApiKey":"${existingApiKey}","projects":{}}
+EOF`,
+    ]);
+
+    await execModuleScript(id, coderEnvVars);
+
+    const claudeConfig = JSON.parse(
+      await readFileContainer(id, "/home/coder/.claude.json"),
+    );
+
+    expect(claudeConfig.primaryApiKey).toBe(existingApiKey);
+    expect(claudeConfig.hasCompletedOnboarding).toBe(true);
+    expect(
+      claudeConfig.projects["/home/coder/project"].hasTrustDialogAccepted,
+    ).toBe(true);
+  });
+
   test("task-mode-ignores-manual-sessions", async () => {
     const { id } = await setup({
       moduleVariables: {
