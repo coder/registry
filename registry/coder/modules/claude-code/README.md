@@ -218,6 +218,25 @@ module "claude-code" {
 }
 ```
 
+### Usage with Remote Control
+
+[Remote Control](https://code.claude.com/docs/en/remote-control.md) allows you to access your Claude Code session from [claude.ai/code](https://claude.ai/code) or the Claude mobile app. The session runs locally in your workspace while you interact with it from any browser or device.
+
+> [!NOTE]
+> Remote Control requires a Claude subscription (Pro, Max, Team, or Enterprise). API keys are not supported. You must authenticate using `claude_code_oauth_token`.
+
+```tf
+module "claude-code" {
+  source                  = "registry.coder.com/coder/claude-code/coder"
+  version                 = "4.8.0"
+  agent_id                = coder_agent.main.id
+  workdir                 = "/home/coder/project"
+  claude_code_oauth_token = var.claude_code_oauth_token
+  enable_remote_control   = true
+  remote_control_name     = "My Project"  # Optional: custom session name
+}
+```
+
 ### Usage with AWS Bedrock
 
 #### Prerequisites

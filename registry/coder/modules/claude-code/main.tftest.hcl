@@ -417,6 +417,46 @@ run "test_disable_state_persistence" {
 }
 
 
+run "test_enable_remote_control_default" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    workdir  = "/home/coder"
+  }
+
+  assert {
+    condition     = var.enable_remote_control == false
+    error_message = "enable_remote_control should default to false"
+  }
+
+  assert {
+    condition     = var.remote_control_name == ""
+    error_message = "remote_control_name should default to empty string"
+  }
+}
+
+run "test_enable_remote_control" {
+  command = plan
+
+  variables {
+    agent_id              = "test-agent-rc"
+    workdir               = "/home/coder/project"
+    enable_remote_control = true
+    remote_control_name   = "My Project"
+  }
+
+  assert {
+    condition     = var.enable_remote_control == true
+    error_message = "enable_remote_control should be true when explicitly enabled"
+  }
+
+  assert {
+    condition     = var.remote_control_name == "My Project"
+    error_message = "remote_control_name should be set to 'My Project'"
+  }
+}
+
 run "test_no_api_key_no_env" {
   command = plan
 

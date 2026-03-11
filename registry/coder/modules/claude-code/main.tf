@@ -267,6 +267,18 @@ variable "enable_state_persistence" {
   default     = true
 }
 
+variable "enable_remote_control" {
+  type        = bool
+  description = "Enable Claude Code Remote Control, allowing the session to be accessed from claude.ai/code or the Claude mobile app. Requires a Claude subscription (Pro, Max, Team, or Enterprise). API keys are not supported. See https://code.claude.com/docs/en/remote-control.md"
+  default     = false
+}
+
+variable "remote_control_name" {
+  type        = string
+  description = "Custom session name for Remote Control, visible in the session list at claude.ai/code. Only used when enable_remote_control is true."
+  default     = ""
+}
+
 resource "coder_env" "claude_code_md_path" {
   count    = var.claude_md_path == "" ? 0 : 1
   agent_id = var.agent_id
@@ -401,6 +413,8 @@ module "agentapi" {
     ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
     ARG_CODER_HOST='${local.coder_host}' \
     ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
+    ARG_ENABLE_REMOTE_CONTROL='${var.enable_remote_control}' \
+    ARG_REMOTE_CONTROL_NAME='${var.remote_control_name}' \
     /tmp/start.sh
   EOT
 

@@ -24,6 +24,8 @@ ARG_BOUNDARY_VERSION=${ARG_BOUNDARY_VERSION:-"latest"}
 ARG_COMPILE_FROM_SOURCE=${ARG_COMPILE_FROM_SOURCE:-false}
 ARG_USE_BOUNDARY_DIRECTLY=${ARG_USE_BOUNDARY_DIRECTLY:-false}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
+ARG_ENABLE_REMOTE_CONTROL=${ARG_ENABLE_REMOTE_CONTROL:-false}
+ARG_REMOTE_CONTROL_NAME=${ARG_REMOTE_CONTROL_NAME:-}
 
 echo "--------------------------------"
 
@@ -39,6 +41,8 @@ printf "ARG_BOUNDARY_VERSION: %s\n" "$ARG_BOUNDARY_VERSION"
 printf "ARG_COMPILE_FROM_SOURCE: %s\n" "$ARG_COMPILE_FROM_SOURCE"
 printf "ARG_USE_BOUNDARY_DIRECTLY: %s\n" "$ARG_USE_BOUNDARY_DIRECTLY"
 printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
+printf "ARG_ENABLE_REMOTE_CONTROL: %s\n" "$ARG_ENABLE_REMOTE_CONTROL"
+printf "ARG_REMOTE_CONTROL_NAME: %s\n" "$ARG_REMOTE_CONTROL_NAME"
 
 echo "--------------------------------"
 
@@ -220,6 +224,15 @@ function start_agentapi() {
     [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
   fi
 
+  # Build the claude command - either regular or remote-control mode.
+  CLAUDE_CMD=("claude")
+  if [ "$ARG_ENABLE_REMOTE_CONTROL" = "true" ]; then
+    CLAUDE_CMD+=("remote-control")
+    if [ -n "$ARG_REMOTE_CONTROL_NAME" ]; then
+      CLAUDE_CMD+=("--name" "$ARG_REMOTE_CONTROL_NAME")
+    fi
+  fi
+
   printf "Running claude code with args: %s\n" "$(printf '%q ' "${ARGS[@]}")"
 
   if [ "$ARG_ENABLE_BOUNDARY" = "true" ]; then
@@ -246,9 +259,9 @@ function start_agentapi() {
 
     agentapi server --type claude --term-width 67 --term-height 1190 -- \
       "${BOUNDARY_CMD[@]}" "${BOUNDARY_ARGS[@]}" -- \
-      claude "${ARGS[@]}"
+      "${CLAUDE_CMD[@]}" "${ARGS[@]}"
   else
-    agentapi server --type claude --term-width 67 --term-height 1190 -- claude "${ARGS[@]}"
+    agentapi server --type claude --term-width 67 --term-height 1190 -- "${CLAUDE_CMD[@]}" "${ARGS[@]}"
   fi
 }
 
