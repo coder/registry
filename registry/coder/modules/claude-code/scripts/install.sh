@@ -27,6 +27,7 @@ export PATH="$ARG_CLAUDE_BINARY_PATH:$PATH"
 
 echo "--------------------------------"
 
+printf "TASK_APP_ID: %s\n" "${TASK_APP_ID}"
 printf "ARG_CLAUDE_CODE_VERSION: %s\n" "$ARG_CLAUDE_CODE_VERSION"
 printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
 printf "ARG_INSTALL_CLAUDE_CODE: %s\n" "$ARG_INSTALL_CLAUDE_CODE"

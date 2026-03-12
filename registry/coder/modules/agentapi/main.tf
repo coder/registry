@@ -219,6 +219,12 @@ resource "coder_env" "boundary_config" {
   value    = var.boundary_config_path
 }
 
+resource "coder_env" "task_app_id" {
+  agent_id = var.agent_id
+  name     = "TASK_APP_ID"
+  value    = coder_app.agentapi_web.id
+}
+
 locals {
   # we always trim the slash for consistency
   workdir                            = trimsuffix(var.folder, "/")
