@@ -388,6 +388,8 @@ module "agentapi" {
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
     chmod +x /tmp/start.sh
 
+    printf "Workspace ID: %s\n" "${data.coder_workspace.me.id}"
+
     ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
     ARG_CONTINUE='${var.continue}' \
     ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
