@@ -13,7 +13,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "4.8.0"
+  version        = "4.9.0"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
@@ -55,15 +55,43 @@ module "claude-code" {
 
 This example shows how to configure the Claude Code module to run the agent behind a process-level boundary that restricts its network access.
 
-By default, when `enable_boundary = true`, the module uses `coder boundary` subcommand (provided by Coder) without requiring any installation.
+When `enable_boundary = true`, you must provide network filtering rules via one of two options:
+
+- `boundary_config` — inline YAML string (config lives in the template)
+- `boundary_config_path` — path to a config file already on disk
+
+The module writes the config to `~/.config/coder_boundary/config.yaml` automatically.
+
+#### Inline boundary config
 
 ```tf
 module "claude-code" {
   source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "4.8.0"
+  version         = "4.9.0"
   agent_id        = coder_agent.main.id
   workdir         = "/home/coder/project"
   enable_boundary = true
+
+  boundary_config = <<-EOT
+    allow:
+      - "*.anthropic.com"
+      - "*.github.com"
+  EOT
+}
+```
+
+#### Boundary config from file path
+
+Use this when the config file is provisioned separately or managed outside the template:
+
+```tf
+module "claude-code" {
+  source               = "registry.coder.com/coder/claude-code/coder"
+  version              = "4.9.0"
+  agent_id             = coder_agent.main.id
+  workdir              = "/home/coder/project"
+  enable_boundary      = true
+  boundary_config_path = "/home/coder/.config/coder_boundary/config.yaml"
 }
 ```
 
@@ -81,7 +109,7 @@ For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage
 ```tf
 module "claude-code" {
   source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "4.8.0"
+  version         = "4.9.0"
   agent_id        = coder_agent.main.id
   workdir         = "/home/coder/project"
   enable_aibridge = true
@@ -110,7 +138,7 @@ data "coder_task" "me" {}
 
 module "claude-code" {
   source    = "registry.coder.com/coder/claude-code/coder"
-  version   = "4.8.0"
+  version   = "4.9.0"
   agent_id  = coder_agent.main.id
   workdir   = "/home/coder/project"
   ai_prompt = data.coder_task.me.prompt
@@ -133,7 +161,7 @@ This example shows additional configuration options for version pinning, custom 
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.8.0"
+  version  = "4.9.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -189,7 +217,7 @@ Run and configure Claude Code as a standalone CLI in your workspace.
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "4.8.0"
+  version             = "4.9.0"
   agent_id            = coder_agent.main.id
   workdir             = "/home/coder/project"
   install_claude_code = true
@@ -211,7 +239,7 @@ variable "claude_code_oauth_token" {
 
 module "claude-code" {
   source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "4.8.0"
+  version                 = "4.9.0"
   agent_id                = coder_agent.main.id
   workdir                 = "/home/coder/project"
   claude_code_oauth_token = var.claude_code_oauth_token
@@ -284,7 +312,7 @@ resource "coder_env" "bedrock_api_key" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.8.0"
+  version  = "4.9.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
@@ -341,7 +369,7 @@ resource "coder_env" "google_application_credentials" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.8.0"
+  version  = "4.9.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "claude-sonnet-4@20250514"

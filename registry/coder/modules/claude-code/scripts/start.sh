@@ -24,6 +24,10 @@ ARG_BOUNDARY_VERSION=${ARG_BOUNDARY_VERSION:-"latest"}
 ARG_COMPILE_FROM_SOURCE=${ARG_COMPILE_FROM_SOURCE:-false}
 ARG_USE_BOUNDARY_DIRECTLY=${ARG_USE_BOUNDARY_DIRECTLY:-false}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
+ARG_BOUNDARY_CONFIG=${ARG_BOUNDARY_CONFIG:-}
+ARG_BOUNDARY_CONFIG_PATH=${ARG_BOUNDARY_CONFIG_PATH:-}
+ARG_BOUNDARY_CONFIG_PATH="${ARG_BOUNDARY_CONFIG_PATH/#\~/$HOME}"
+ARG_BOUNDARY_CONFIG_PATH="${ARG_BOUNDARY_CONFIG_PATH//\$HOME/$HOME}"
 
 echo "--------------------------------"
 
@@ -223,6 +227,29 @@ function start_agentapi() {
   printf "Running claude code with args: %s\n" "$(printf '%q ' "${ARGS[@]}")"
 
   if [ "$ARG_ENABLE_BOUNDARY" = "true" ]; then
+    BOUNDARY_CONFIG_DIR="$HOME/.config/coder_boundary"
+    BOUNDARY_CONFIG_FILE="$BOUNDARY_CONFIG_DIR/config.yaml"
+
+    if [ -n "$ARG_BOUNDARY_CONFIG" ]; then
+      printf "Writing inline boundary config to %s\n" "$BOUNDARY_CONFIG_FILE"
+      mkdir -p "$BOUNDARY_CONFIG_DIR"
+      echo -n "$ARG_BOUNDARY_CONFIG" | base64 -d > "$BOUNDARY_CONFIG_FILE"
+      if [ ! -s "$BOUNDARY_CONFIG_FILE" ]; then
+        printf "Error: boundary configuration file '%s' does not exist or is empty after writing inline config.\n" "$BOUNDARY_CONFIG_FILE" >&2
+        exit 1
+      fi
+    elif [ -n "$ARG_BOUNDARY_CONFIG_PATH" ]; then
+      printf "Linking boundary config from %s to %s\n" "$ARG_BOUNDARY_CONFIG_PATH" "$BOUNDARY_CONFIG_FILE"
+      if [ "$ARG_BOUNDARY_CONFIG_PATH" != "$BOUNDARY_CONFIG_FILE" ]; then
+        mkdir -p "$BOUNDARY_CONFIG_DIR"
+        ln -sf "$ARG_BOUNDARY_CONFIG_PATH" "$BOUNDARY_CONFIG_FILE"
+      fi
+      if [ ! -s "$BOUNDARY_CONFIG_FILE" ]; then
+        printf "Error: boundary configuration file '%s' does not exist or is empty. Check that '%s' exists and is not empty.\n" "$BOUNDARY_CONFIG_FILE" "$ARG_BOUNDARY_CONFIG_PATH" >&2
+        exit 1
+      fi
+    fi
+
     install_boundary
 
     printf "Starting with coder boundary enabled\n"
