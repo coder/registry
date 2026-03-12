@@ -15,6 +15,9 @@ function run_mux() {
   if [ -z "$port_value" ]; then
     port_value="4000"
   fi
+
+  mkdir -p "$(dirname "${LOG_PATH}")"
+
   # Build args for mux (POSIX-compatible, avoid bash arrays)
   set -- server --port "$port_value"
   if [ -n "${ADD_PROJECT}" ]; then
@@ -31,16 +34,93 @@ function run_mux() {
     while IFS= read -r parsed_arg; do
       [ -n "$parsed_arg" ] || continue
       set -- "$@" "$parsed_arg"
-    done << EOF
+    done << EOF_ARGS
 $${parsed_additional_arguments}
-EOF
+EOF_ARGS
   fi
 
   echo "🚀 Starting mux server on port $port_value..."
   echo "Check logs at ${LOG_PATH}!"
-  MUX_SERVER_AUTH_TOKEN="$auth_token_value" PORT="$port_value" "$MUX_BINARY" "$@" > "${LOG_PATH}" 2>&1 &
+  echo "ℹ️ Unexpected exits will be appended to ${LOG_PATH} by the launcher."
+
+  nohup env \
+    LOG_PATH="${LOG_PATH}" \
+    MUX_BINARY="$MUX_BINARY" \
+    AUTH_TOKEN="$auth_token_value" \
+    PORT_VALUE="$port_value" \
+    bash -s -- "$@" > /dev/null 2>&1 << 'EOF_LAUNCHER' &
+signal_name() {
+  local signal_number="$1"
+  local resolved_signal
+
+  resolved_signal="$(kill -l "$signal_number" 2> /dev/null || true)"
+  if [ -n "$resolved_signal" ]; then
+    printf '%s' "$resolved_signal"
+    return 0
+  fi
+
+  printf 'SIG%s' "$signal_number"
 }
 
+append_kernel_kill_context() {
+  local mux_pid="$1"
+  local kernel_context=""
+
+  if command -v dmesg > /dev/null 2>&1; then
+    kernel_context="$(dmesg -T 2> /dev/null | grep -Ei "Killed process $mux_pid|out of memory|oom-killer|oom reaper" | tail -n 10 || true)"
+  fi
+
+  if [ -z "$kernel_context" ] && command -v journalctl > /dev/null 2>&1; then
+    kernel_context="$(journalctl -k -n 200 --no-pager 2> /dev/null | grep -Ei "Killed process $mux_pid|out of memory|oom-killer|oom reaper" | tail -n 10 || true)"
+  fi
+
+  if [ -n "$kernel_context" ]; then
+    echo "Recent kernel kill context:"
+    echo "$kernel_context"
+  else
+    echo "No kernel OOM/kill context was available (dmesg/journalctl unavailable or permission denied)."
+  fi
+}
+
+log_mux_exit() {
+  local mux_pid="$1"
+  local exit_code="$2"
+  local timestamp
+
+  timestamp="$(date -Iseconds 2> /dev/null || date)"
+
+  if [ "$exit_code" -eq 0 ]; then
+    echo "[$timestamp] mux server exited cleanly."
+    return 0
+  fi
+
+  if [ "$exit_code" -gt 128 ]; then
+    local signal_number=$((exit_code - 128))
+    local signal_label
+
+    signal_label="$(signal_name "$signal_number")"
+    echo "[$timestamp] mux server exited due to signal $signal_label ($signal_number); shell exit code $exit_code."
+
+    if [ "$signal_number" -eq 9 ]; then
+      echo "[$timestamp] SIGKILL usually means the process was killed externally or by the OOM killer."
+      append_kernel_kill_context "$mux_pid"
+    fi
+
+    echo "[$timestamp] Check the earlier mux log lines for any in-process crash breadcrumbs from mux itself."
+    return 0
+  fi
+
+  echo "[$timestamp] mux server exited with code $exit_code."
+  echo "[$timestamp] Check the earlier mux log lines for any in-process crash breadcrumbs from mux itself."
+}
+
+MUX_SERVER_AUTH_TOKEN="$AUTH_TOKEN" PORT="$PORT_VALUE" "$MUX_BINARY" "$@" >> "$LOG_PATH" 2>&1 &
+mux_pid=$!
+wait "$mux_pid"
+exit_code=$?
+log_mux_exit "$mux_pid" "$exit_code" >> "$LOG_PATH" 2>&1
+EOF_LAUNCHER
+}
 # Check if mux is already installed for offline mode
 if [ "${OFFLINE}" = true ]; then
   if [ -f "$MUX_BINARY" ]; then
