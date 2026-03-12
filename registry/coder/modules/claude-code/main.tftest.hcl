@@ -202,6 +202,13 @@ run "test_claude_code_with_boundary_inline_config" {
     EOT
   }
 
+  override_data {
+    target = data.coder_workspace.me
+    values = {
+      access_url = "https://coder.example.com"
+    }
+  }
+
   assert {
     condition     = var.enable_boundary == true
     error_message = "Boundary should be enabled"
@@ -213,8 +220,18 @@ run "test_claude_code_with_boundary_inline_config" {
   }
 
   assert {
-    condition     = local.coder_host != ""
-    error_message = "Coder host should be extracted from access URL"
+    condition     = local.coder_host == "coder.example.com"
+    error_message = "Coder host should be 'coder.example.com' after stripping https:// from access URL"
+  }
+
+  assert {
+    condition     = local.boundary_config_b64 != ""
+    error_message = "Boundary config should be base64-encoded for the start script"
+  }
+
+  assert {
+    condition     = base64decode(local.boundary_config_b64) == var.boundary_config
+    error_message = "Base64-encoded boundary config should decode back to the original config"
   }
 }
 
@@ -239,18 +256,19 @@ run "test_claude_code_with_boundary_config_path" {
   }
 }
 
-run "test_boundary_without_config_fails" {
+run "test_claude_code_with_boundary_no_config" {
   command = plan
 
   variables {
-    agent_id        = "test-agent-boundary-fail"
+    agent_id        = "test-agent-boundary"
     workdir         = "/home/coder/boundary-test"
     enable_boundary = true
   }
 
-  expect_failures = [
-    var.enable_boundary,
-  ]
+  assert {
+    condition     = var.enable_boundary == true
+    error_message = "Boundary should be enabled"
+  }
 }
 
 run "test_boundary_both_configs_fails" {
