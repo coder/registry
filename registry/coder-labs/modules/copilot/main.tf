@@ -119,6 +119,12 @@ variable "subdomain" {
   default     = false
 }
 
+variable "enable_state_persistence" {
+  type        = bool
+  description = "Enable AgentAPI conversation state persistence across restarts."
+  default     = true
+}
+
 variable "order" {
   type        = number
   description = "The order determines the position of app in the UI presentation."
@@ -291,11 +297,12 @@ module "agentapi" {
   cli_app_icon         = var.cli_app ? var.icon : null
   cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
   agentapi_subdomain   = var.subdomain
-  module_dir_name      = local.module_dir_name
-  install_agentapi     = var.install_agentapi
-  agentapi_version     = var.agentapi_version
-  pre_install_script   = var.pre_install_script
-  post_install_script  = var.post_install_script
+  module_dir_name          = local.module_dir_name
+  install_agentapi         = var.install_agentapi
+  agentapi_version         = var.agentapi_version
+  enable_state_persistence = var.enable_state_persistence
+  pre_install_script       = var.pre_install_script
+  post_install_script      = var.post_install_script
 
   start_script = <<-EOT
     #!/bin/bash
