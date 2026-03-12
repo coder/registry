@@ -13,6 +13,7 @@ command_exists() {
 }
 
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
+ARG_ALLOW_ALL=${ARG_ALLOW_ALL:-true}
 ARG_AI_PROMPT=$(echo -n "${ARG_AI_PROMPT:-}" | base64 -d 2> /dev/null || echo "")
 ARG_SYSTEM_PROMPT=$(echo -n "${ARG_SYSTEM_PROMPT:-}" | base64 -d 2> /dev/null || echo "")
 ARG_COPILOT_MODEL=${ARG_COPILOT_MODEL:-}
@@ -72,6 +73,10 @@ build_copilot_args() {
         COPILOT_ARGS+=(--deny-tool "$tool")
       fi
     done
+  fi
+
+  if [ "$ARG_ALLOW_ALL" = "true" ]; then
+    COPILOT_ARGS+=(--allow-all)
   fi
 }
 
@@ -183,20 +188,14 @@ start_agentapi() {
     initial_prompt=$(build_initial_prompt)
 
     if [ -n "$initial_prompt" ]; then
-      echo "Using initial prompt with system context"
-      if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
-        echo "Copilot arguments: ${COPILOT_ARGS[*]}"
-        agentapi server -I="$initial_prompt" --type copilot --term-width 67 --term-height 1190 -- copilot "${COPILOT_ARGS[@]}"
-      else
-        agentapi server -I="$initial_prompt" --type copilot --term-width 67 --term-height 1190 -- copilot
-      fi
+      COPILOT_ARGS+=(-i "$initial_prompt")
+    fi
+
+    if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
+      echo "Copilot arguments: ${COPILOT_ARGS[*]}"
+      agentapi server --type copilot --term-width 67 --term-height 1190 -- copilot "${COPILOT_ARGS[@]}"
     else
-      if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
-        echo "Copilot arguments: ${COPILOT_ARGS[*]}"
-        agentapi server --type copilot --term-width 67 --term-height 1190 -- copilot "${COPILOT_ARGS[@]}"
-      else
-        agentapi server --type copilot --term-width 67 --term-height 1190 -- copilot
-      fi
+      agentapi server --type copilot --term-width 67 --term-height 1190 -- copilot
     fi
   fi
 }

@@ -155,6 +155,12 @@ variable "cli_app_display_name" {
   default     = "Copilot"
 }
 
+variable "allow_all" {
+  type        = bool
+  description = "Allow all tools without prompting (equivalent to --allow-all)."
+  default     = true
+}
+
 variable "resume_session" {
   type        = bool
   description = "Whether to automatically resume the latest Copilot session on workspace restart."
@@ -299,6 +305,7 @@ module "agentapi" {
     chmod +x /tmp/start.sh
 
     ARG_WORKDIR='${local.workdir}' \
+    ARG_ALLOW_ALL='${var.allow_all}' \
     ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
     ARG_SYSTEM_PROMPT='${base64encode(local.final_system_prompt)}' \
     ARG_COPILOT_MODEL='${var.copilot_model}' \
