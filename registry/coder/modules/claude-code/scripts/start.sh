@@ -26,6 +26,8 @@ ARG_USE_BOUNDARY_DIRECTLY=${ARG_USE_BOUNDARY_DIRECTLY:-false}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
 ARG_BOUNDARY_CONFIG=${ARG_BOUNDARY_CONFIG:-}
 ARG_BOUNDARY_CONFIG_PATH=${ARG_BOUNDARY_CONFIG_PATH:-}
+ARG_BOUNDARY_CONFIG_PATH="${ARG_BOUNDARY_CONFIG_PATH/#\~/$HOME}"
+ARG_BOUNDARY_CONFIG_PATH="${ARG_BOUNDARY_CONFIG_PATH//\$HOME/$HOME}"
 
 echo "--------------------------------"
 
@@ -238,6 +240,11 @@ function start_agentapi() {
         mkdir -p "$BOUNDARY_CONFIG_DIR"
         ln -sf "$ARG_BOUNDARY_CONFIG_PATH" "$BOUNDARY_CONFIG_FILE"
       fi
+    fi
+
+    if [ ! -s "$BOUNDARY_CONFIG_FILE" ]; then
+      printf "Error: boundary configuration file '%s' does not exist or is empty. Check boundary_config/boundary_config_path.\n" "$BOUNDARY_CONFIG_FILE" >&2
+      exit 1
     fi
 
     install_boundary
