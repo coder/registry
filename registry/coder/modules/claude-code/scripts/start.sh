@@ -234,17 +234,20 @@ function start_agentapi() {
       printf "Writing inline boundary config to %s\n" "$BOUNDARY_CONFIG_FILE"
       mkdir -p "$BOUNDARY_CONFIG_DIR"
       echo -n "$ARG_BOUNDARY_CONFIG" | base64 -d > "$BOUNDARY_CONFIG_FILE"
+      if [ ! -s "$BOUNDARY_CONFIG_FILE" ]; then
+        printf "Error: boundary configuration file '%s' does not exist or is empty after writing inline config.\n" "$BOUNDARY_CONFIG_FILE" >&2
+        exit 1
+      fi
     elif [ -n "$ARG_BOUNDARY_CONFIG_PATH" ]; then
       printf "Linking boundary config from %s to %s\n" "$ARG_BOUNDARY_CONFIG_PATH" "$BOUNDARY_CONFIG_FILE"
       if [ "$ARG_BOUNDARY_CONFIG_PATH" != "$BOUNDARY_CONFIG_FILE" ]; then
         mkdir -p "$BOUNDARY_CONFIG_DIR"
         ln -sf "$ARG_BOUNDARY_CONFIG_PATH" "$BOUNDARY_CONFIG_FILE"
       fi
-    fi
-
-    if [ ! -s "$BOUNDARY_CONFIG_FILE" ]; then
-      printf "Error: boundary configuration file '%s' does not exist or is empty. Check boundary_config/boundary_config_path.\n" "$BOUNDARY_CONFIG_FILE" >&2
-      exit 1
+      if [ ! -s "$BOUNDARY_CONFIG_FILE" ]; then
+        printf "Error: boundary configuration file '%s' does not exist or is empty. Check that '%s' exists and is not empty.\n" "$BOUNDARY_CONFIG_FILE" "$ARG_BOUNDARY_CONFIG_PATH" >&2
+        exit 1
+      fi
     fi
 
     install_boundary
