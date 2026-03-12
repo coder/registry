@@ -241,12 +241,22 @@ variable "boundary_config" {
   type        = string
   description = "Inline YAML config for coder boundary network filtering rules. Written to ~/.config/coder_boundary/config.yaml before boundary starts. Mutually exclusive with boundary_config_path."
   default     = null
+
+  validation {
+    condition     = var.boundary_config == null || trimspace(var.boundary_config) != ""
+    error_message = "boundary_config must not be empty or whitespace-only when provided."
+  }
 }
 
 variable "boundary_config_path" {
   type        = string
   description = "Path to an existing boundary config file on disk. Symlinked to ~/.config/coder_boundary/config.yaml before boundary starts. Mutually exclusive with boundary_config."
   default     = null
+
+  validation {
+    condition     = var.boundary_config_path == null || trimspace(var.boundary_config_path) != ""
+    error_message = "boundary_config_path must not be empty or whitespace-only when provided."
+  }
 }
 
 variable "boundary_version" {

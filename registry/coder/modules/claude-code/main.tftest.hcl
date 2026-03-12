@@ -317,6 +317,66 @@ run "test_boundary_config_path_without_boundary_fails" {
   ]
 }
 
+run "test_boundary_empty_config_fails" {
+  command = plan
+
+  variables {
+    agent_id        = "test-agent-empty-config"
+    workdir         = "/home/coder/boundary-test"
+    enable_boundary = true
+    boundary_config = ""
+  }
+
+  expect_failures = [
+    var.boundary_config,
+  ]
+}
+
+run "test_boundary_empty_config_path_fails" {
+  command = plan
+
+  variables {
+    agent_id             = "test-agent-empty-config-path"
+    workdir              = "/home/coder/boundary-test"
+    enable_boundary      = true
+    boundary_config_path = ""
+  }
+
+  expect_failures = [
+    var.boundary_config_path,
+  ]
+}
+
+run "test_boundary_whitespace_config_fails" {
+  command = plan
+
+  variables {
+    agent_id        = "test-agent-whitespace-config"
+    workdir         = "/home/coder/boundary-test"
+    enable_boundary = true
+    boundary_config = "   "
+  }
+
+  expect_failures = [
+    var.boundary_config,
+  ]
+}
+
+run "test_boundary_whitespace_config_path_fails" {
+  command = plan
+
+  variables {
+    agent_id             = "test-agent-whitespace-config-path"
+    workdir              = "/home/coder/boundary-test"
+    enable_boundary      = true
+    boundary_config_path = "   "
+  }
+
+  expect_failures = [
+    var.boundary_config_path,
+  ]
+}
+
 run "test_claude_code_system_prompt" {
   command = plan
 
