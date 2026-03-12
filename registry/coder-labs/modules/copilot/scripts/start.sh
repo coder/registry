@@ -23,27 +23,34 @@ ARG_DENY_TOOLS=${ARG_DENY_TOOLS:-}
 ARG_TRUSTED_DIRECTORIES=${ARG_TRUSTED_DIRECTORIES:-}
 ARG_EXTERNAL_AUTH_ID=${ARG_EXTERNAL_AUTH_ID:-github}
 ARG_RESUME_SESSION=${ARG_RESUME_SESSION:-true}
+ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 ARG_ENABLE_AIBRIDGE_PROXY=${ARG_ENABLE_AIBRIDGE_PROXY:-false}
 ARG_AIBRIDGE_PROXY_AUTH_URL=${ARG_AIBRIDGE_PROXY_AUTH_URL:-}
 ARG_AIBRIDGE_PROXY_CERT_PATH=${ARG_AIBRIDGE_PROXY_CERT_PATH:-}
 
 validate_copilot_installation() {
   if ! command_exists copilot; then
-    echo "ERROR: Copilot not installed. Run: npm install -g @github/copilot"
+    echo "ERROR: Copilot not installed or not in PATH. Please ensure Copilot CLI is installed and accessible."
     exit 1
   fi
 }
 
 build_initial_prompt() {
   local initial_prompt=""
+  local task_prompt="$ARG_AI_PROMPT"
 
-  if [ -n "$ARG_AI_PROMPT" ]; then
+  # Add task reporting instruction when report_tasks is enabled
+  if [ -n "$ARG_AI_PROMPT" ] && [ "$ARG_REPORT_TASKS" = "true" ]; then
+    task_prompt="Every step of the way, report your progress using Coder.coder_report_task tool with proper summary and statuses. Your task at hand: $ARG_AI_PROMPT"
+  fi
+
+  if [ -n "$task_prompt" ]; then
     if [ -n "$ARG_SYSTEM_PROMPT" ]; then
       initial_prompt="$ARG_SYSTEM_PROMPT
 
-$ARG_AI_PROMPT"
+$task_prompt"
     else
-      initial_prompt="$ARG_AI_PROMPT"
+      initial_prompt="$task_prompt"
     fi
   fi
 

@@ -285,18 +285,18 @@ module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
   version = "2.2.0"
 
-  agent_id             = var.agent_id
-  folder               = local.workdir
-  web_app_slug         = local.app_slug
-  web_app_order        = var.order
-  web_app_group        = var.group
-  web_app_icon         = var.icon
-  web_app_display_name = var.web_app_display_name
-  cli_app              = var.cli_app
-  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
-  cli_app_icon         = var.cli_app ? var.icon : null
-  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
-  agentapi_subdomain   = var.subdomain
+  agent_id                 = var.agent_id
+  folder                   = local.workdir
+  web_app_slug             = local.app_slug
+  web_app_order            = var.order
+  web_app_group            = var.group
+  web_app_icon             = var.icon
+  web_app_display_name     = var.web_app_display_name
+  cli_app                  = var.cli_app
+  cli_app_slug             = var.cli_app ? "${local.app_slug}-cli" : null
+  cli_app_icon             = var.cli_app ? var.icon : null
+  cli_app_display_name     = var.cli_app ? var.cli_app_display_name : null
+  agentapi_subdomain       = var.subdomain
   module_dir_name          = local.module_dir_name
   install_agentapi         = var.install_agentapi
   agentapi_version         = var.agentapi_version
@@ -322,6 +322,7 @@ module "agentapi" {
     ARG_TRUSTED_DIRECTORIES='${join(",", var.trusted_directories)}' \
     ARG_EXTERNAL_AUTH_ID='${var.external_auth_id}' \
     ARG_RESUME_SESSION='${var.resume_session}' \
+    ARG_REPORT_TASKS='${var.report_tasks}' \
     ARG_ENABLE_AIBRIDGE_PROXY='${var.enable_aibridge_proxy}' \
     ARG_AIBRIDGE_PROXY_AUTH_URL='${var.aibridge_proxy_auth_url != null ? var.aibridge_proxy_auth_url : ""}' \
     ARG_AIBRIDGE_PROXY_CERT_PATH='${var.aibridge_proxy_cert_path != null ? var.aibridge_proxy_cert_path : ""}' \
