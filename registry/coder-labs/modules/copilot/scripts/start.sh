@@ -31,7 +31,7 @@ validate_copilot_installation() {
 }
 
 build_initial_prompt() {
- local initial_prompt=""
+  local initial_prompt=""
 
   if [ -n "$ARG_AI_PROMPT" ]; then
     if [ -n "$ARG_SYSTEM_PROMPT" ]; then
