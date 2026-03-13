@@ -6,11 +6,31 @@ TOOLBOX_BASE="$HOME/.local/share/JetBrains/Toolbox/apps"
 PLUGIN_MAP_FILE="$HOME/.config/jetbrains/plugins.json"
 PLUGIN_ALREADY_INSTALLED_MAP="$HOME/.config/jetbrains"
 
-if command -v apt-get > /dev/null 2>&1; then
-  sudo apt-get update
-  sudo apt-get install -y libfreetype6
-else
-  echo "Warning: 'apt-get' not found. Please ensure 'libfreetype6' is installed manually for your distribution." >&2
+# -------- Install dependencies --------
+install_dependencies() {
+  if command -v apt-get > /dev/null 2>&1; then
+    sudo apt-get update
+    sudo apt-get install -y libfreetype6 jq
+  elif command -v dnf > /dev/null 2>&1; then
+    sudo dnf install -y freetype-devel jq
+  elif command -v yum > /dev/null 2>&1; then
+    sudo yum install -y freetype-devel jq
+  elif command -v pacman > /dev/null 2>&1; then
+    sudo pacman -Sy --noconfirm freetype2 jq
+  elif command -v apk > /dev/null 2>&1; then
+    sudo apk add --no-cache freetype-dev jq
+  else
+    echo "Warning: Package manager not found. Please ensure 'libfreetype6' and 'jq' are installed manually for your distribution." >&2
+    return 1
+  fi
+}
+
+install_dependencies || true
+
+# Verify jq is available
+if ! command -v jq > /dev/null 2>&1; then
+  echo "Error: 'jq' is required but not installed. Please install it manually." >&2
+  exit 1
 fi
 
 mkdir -p "$(dirname "$LOGFILE")"
