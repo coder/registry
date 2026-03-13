@@ -19,6 +19,9 @@ module "copilot" {
 }
 ```
 
+> [!WARNING]
+> **Security Notice**: This module runs Copilot with `--allow-all` by default, which enables all permissions (equivalent to `--allow-all-tools --allow-all-paths --allow-all-urls`). This bypasses permission prompts and allows Copilot unrestricted access to tools, file paths, and URLs. Use this module _only_ in trusted environments.
+
 > [!IMPORTANT]
 > This example assumes you have [Coder external authentication](https://coder.com/docs/admin/external-auth) configured with `id = "github"`. If not, you can provide a direct token using the `github_token` variable or provide the correct external authentication id for GitHub by setting `external_auth_id = "my-github"`.
 
