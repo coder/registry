@@ -76,7 +76,7 @@ setup_copilot_configurations() {
 }
 
 setup_copilot_config() {
-  export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+  export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME}"
   local copilot_config_dir="$XDG_CONFIG_HOME/.copilot"
   local copilot_config_file="$copilot_config_dir/config.json"
   local mcp_config_file="$copilot_config_dir/mcp-config.json"
