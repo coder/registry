@@ -72,8 +72,8 @@ module "nodejs" {
     "20",
     "node"
   ]
-  default_node_version  = "20"
-  pre_install_script    = "echo 'Pre-install setup'"
-  post_install_script   = "npm install -g typescript"
+  default_node_version = "20"
+  pre_install_script   = "echo 'Pre-install setup'"
+  post_install_script  = "npm install -g typescript"
 }
 ```
