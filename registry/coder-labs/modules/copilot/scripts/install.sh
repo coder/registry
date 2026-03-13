@@ -20,11 +20,7 @@ ARG_COPILOT_MODEL=${ARG_COPILOT_MODEL:-claude-sonnet-4.5}
 install_copilot() {
   if ! command_exists copilot; then
     echo "Installing GitHub Copilot CLI (version: ${ARG_COPILOT_VERSION})..."
-    if [ "$ARG_COPILOT_VERSION" = "latest" ]; then
-      curl -fsSL https://gh.io/copilot-install | bash
-    else
-      curl -fsSL https://gh.io/copilot-install | VERSION="${ARG_COPILOT_VERSION}" bash
-    fi
+    curl -fsSL https://gh.io/copilot-install | VERSION="${ARG_COPILOT_VERSION}" bash
 
     if ! command_exists copilot; then
       echo "PATH after installation: $PATH"
