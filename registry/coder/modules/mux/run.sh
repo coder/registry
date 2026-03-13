@@ -5,15 +5,28 @@ RESET='\033[0m'
 MUX_BINARY="${INSTALL_PREFIX}/mux"
 
 function run_mux() {
-  # Remove stale server lock if present
-  rm -f "$HOME/.mux/server.lock"
-
   local port_value
   local auth_token_value
+  local restart_on_kill_value
+  local restart_delay_seconds_value
+  local max_restart_attempts_value
+
   port_value="${PORT}"
   auth_token_value="${AUTH_TOKEN}"
+  restart_on_kill_value="${RESTART_ON_KILL}"
+  restart_delay_seconds_value="${RESTART_DELAY_SECONDS}"
+  max_restart_attempts_value="${MAX_RESTART_ATTEMPTS}"
+
   if [ -z "$port_value" ]; then
     port_value="4000"
+  fi
+
+  if [ -z "$restart_delay_seconds_value" ]; then
+    restart_delay_seconds_value="5"
+  fi
+
+  if [ -z "$max_restart_attempts_value" ]; then
+    max_restart_attempts_value="0"
   fi
 
   mkdir -p "$(dirname "${LOG_PATH}")"
@@ -42,12 +55,23 @@ EOF_ARGS
   echo "🚀 Starting mux server on port $port_value..."
   echo "Check logs at ${LOG_PATH}!"
   echo "ℹ️ Unexpected exits will be appended to ${LOG_PATH} by the launcher."
+  if [ "$restart_on_kill_value" = true ]; then
+    echo "ℹ️ Auto-restart after signal-based exits is enabled with a $${restart_delay_seconds_value}-second delay."
+    if [ "$max_restart_attempts_value" = "0" ]; then
+      echo "ℹ️ Automatic restarts are unlimited until mux exits cleanly or with a non-restartable signal."
+    else
+      echo "ℹ️ Mux will stop restarting after $${max_restart_attempts_value} signal-triggered restart attempts."
+    fi
+  fi
 
   nohup env \
     LOG_PATH="${LOG_PATH}" \
     MUX_BINARY="$MUX_BINARY" \
     AUTH_TOKEN="$auth_token_value" \
     PORT_VALUE="$port_value" \
+    RESTART_ON_KILL_VALUE="$restart_on_kill_value" \
+    RESTART_DELAY_SECONDS_VALUE="$restart_delay_seconds_value" \
+    MAX_RESTART_ATTEMPTS_VALUE="$max_restart_attempts_value" \
     bash -s -- "$@" > /dev/null 2>&1 << 'EOF_LAUNCHER' &
 signal_name() {
   local signal_number="$1"
@@ -82,6 +106,28 @@ append_kernel_kill_context() {
   fi
 }
 
+cleanup_mux_lock() {
+  rm -f "$HOME/.mux/server.lock"
+}
+
+should_restart_mux() {
+  local exit_code="$1"
+  local signal_number
+
+  if [ "$RESTART_ON_KILL_VALUE" != "true" ] || [ "$exit_code" -le 128 ]; then
+    return 1
+  fi
+
+  signal_number=$((exit_code - 128))
+  case "$signal_number" in
+    1|2|15)
+      return 1
+      ;;
+  esac
+
+  return 0
+}
+
 log_mux_exit() {
   local mux_pid="$1"
   local exit_code="$2"
@@ -114,11 +160,52 @@ log_mux_exit() {
   echo "[$timestamp] Check the earlier mux log lines for any in-process crash breadcrumbs from mux itself."
 }
 
-MUX_SERVER_AUTH_TOKEN="$AUTH_TOKEN" PORT="$PORT_VALUE" "$MUX_BINARY" "$@" >> "$LOG_PATH" 2>&1 &
-mux_pid=$!
-wait "$mux_pid"
-exit_code=$?
-log_mux_exit "$mux_pid" "$exit_code" >> "$LOG_PATH" 2>&1
+log_mux_restart_wait() {
+  local timestamp
+
+  timestamp="$(date -Iseconds 2> /dev/null || date)"
+  echo "[$timestamp] Waiting $${RESTART_DELAY_SECONDS_VALUE} seconds before restarting mux after the signal-based exit."
+}
+
+log_mux_restart_cleanup() {
+  local timestamp
+
+  timestamp="$(date -Iseconds 2> /dev/null || date)"
+  echo "[$timestamp] Removing $HOME/.mux/server.lock before restarting mux."
+}
+
+log_mux_restart_cap_reached() {
+  local timestamp
+
+  timestamp="$(date -Iseconds 2> /dev/null || date)"
+  echo "[$timestamp] Reached the max restart attempts limit ($MAX_RESTART_ATTEMPTS_VALUE); not restarting mux again."
+}
+
+restart_attempt_count=0
+while true; do
+  cleanup_mux_lock
+  MUX_SERVER_AUTH_TOKEN="$AUTH_TOKEN" PORT="$PORT_VALUE" "$MUX_BINARY" "$@" >> "$LOG_PATH" 2>&1 &
+  mux_pid=$!
+  wait "$mux_pid"
+  exit_code=$?
+  log_mux_exit "$mux_pid" "$exit_code" >> "$LOG_PATH" 2>&1
+
+  if should_restart_mux "$exit_code"; then
+    if [ "$MAX_RESTART_ATTEMPTS_VALUE" -gt 0 ] && [ "$restart_attempt_count" -ge "$MAX_RESTART_ATTEMPTS_VALUE" ]; then
+      log_mux_restart_cap_reached >> "$LOG_PATH" 2>&1
+      break
+    fi
+
+    restart_attempt_count=$((restart_attempt_count + 1))
+    log_mux_restart_wait >> "$LOG_PATH" 2>&1
+    sleep "$RESTART_DELAY_SECONDS_VALUE"
+    cleanup_mux_lock
+    log_mux_restart_cleanup >> "$LOG_PATH" 2>&1
+    continue
+  fi
+
+  break
+done
 EOF_LAUNCHER
 }
 # Check if mux is already installed for offline mode
