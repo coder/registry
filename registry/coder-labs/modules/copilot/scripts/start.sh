@@ -1,9 +1,5 @@
 #!/bin/bash
 
-if [ -f "$HOME/.bashrc" ]; then
-  source "$HOME"/.bashrc
-fi
-
 set -euo pipefail
 
 export PATH="$HOME/.local/bin:$PATH"
@@ -13,6 +9,7 @@ command_exists() {
 }
 
 ARG_WORKDIR=${ARG_WORKDIR:-"$HOME"}
+ARG_ALLOW_ALL=${ARG_ALLOW_ALL:-true}
 ARG_AI_PROMPT=$(echo -n "${ARG_AI_PROMPT:-}" | base64 -d 2> /dev/null || echo "")
 ARG_SYSTEM_PROMPT=$(echo -n "${ARG_SYSTEM_PROMPT:-}" | base64 -d 2> /dev/null || echo "")
 ARG_COPILOT_MODEL=${ARG_COPILOT_MODEL:-}
@@ -28,7 +25,7 @@ ARG_AIBRIDGE_PROXY_CERT_PATH=${ARG_AIBRIDGE_PROXY_CERT_PATH:-}
 
 validate_copilot_installation() {
   if ! command_exists copilot; then
-    echo "ERROR: Copilot not installed. Run: npm install -g @github/copilot"
+    echo "ERROR: Copilot not installed or not in PATH. Please ensure Copilot CLI is installed and accessible."
     exit 1
   fi
 }
@@ -72,6 +69,20 @@ build_copilot_args() {
         COPILOT_ARGS+=(--deny-tool "$tool")
       fi
     done
+  fi
+
+  if [ "$ARG_ALLOW_ALL" = "true" ]; then
+    COPILOT_ARGS+=(--allow-all)
+  fi
+
+  if check_existing_session; then
+    COPILOT_ARGS+=(--continue)
+  else
+    local initial_prompt
+    initial_prompt=$(build_initial_prompt)
+    if [[ -n "${initial_prompt}" ]]; then
+      COPILOT_ARGS+=(-i "${initial_prompt}")
+    fi
   fi
 }
 
@@ -169,35 +180,11 @@ start_agentapi() {
 
   build_copilot_args
 
-  if check_existing_session; then
-    echo "Continuing latest Copilot session..."
-    if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
-      echo "Copilot arguments: ${COPILOT_ARGS[*]}"
-      agentapi server --type copilot --term-width 120 --term-height 40 -- copilot --continue "${COPILOT_ARGS[@]}"
-    else
-      agentapi server --type copilot --term-width 120 --term-height 40 -- copilot --continue
-    fi
+  if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
+    echo "Copilot arguments: ${COPILOT_ARGS[*]}"
+    agentapi server --type copilot --term-width 67 --term-height 1190 -- copilot "${COPILOT_ARGS[@]}"
   else
-    echo "Starting new Copilot session..."
-    local initial_prompt
-    initial_prompt=$(build_initial_prompt)
-
-    if [ -n "$initial_prompt" ]; then
-      echo "Using initial prompt with system context"
-      if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
-        echo "Copilot arguments: ${COPILOT_ARGS[*]}"
-        agentapi server -I="$initial_prompt" --type copilot --term-width 120 --term-height 40 -- copilot "${COPILOT_ARGS[@]}"
-      else
-        agentapi server -I="$initial_prompt" --type copilot --term-width 120 --term-height 40 -- copilot
-      fi
-    else
-      if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
-        echo "Copilot arguments: ${COPILOT_ARGS[*]}"
-        agentapi server --type copilot --term-width 120 --term-height 40 -- copilot "${COPILOT_ARGS[@]}"
-      else
-        agentapi server --type copilot --term-width 120 --term-height 40 -- copilot
-      fi
-    fi
+    agentapi server --type copilot --term-width 67 --term-height 1190 -- copilot
   fi
 }
 

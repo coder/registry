@@ -13,11 +13,14 @@ Run [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/about-c
 ```tf
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "0.4.0"
+  version  = "0.5.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/projects"
 }
 ```
+
+> [!WARNING]
+> **Security Notice**: This module runs Copilot with `--allow-all` by default, which enables all permissions (equivalent to `--allow-all-tools --allow-all-paths --allow-all-urls`). This bypasses permission prompts and allows Copilot unrestricted access to tools, file paths, and URLs. Use this module _only_ in trusted environments.
 
 > [!IMPORTANT]
 > This example assumes you have [Coder external authentication](https://coder.com/docs/admin/external-auth) configured with `id = "github"`. If not, you can provide a direct token using the `github_token` variable or provide the correct external authentication id for GitHub by setting `external_auth_id = "my-github"`.
@@ -51,7 +54,7 @@ data "coder_parameter" "ai_prompt" {
 
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "0.4.0"
+  version  = "0.5.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/projects"
 
@@ -71,7 +74,7 @@ Customize tool permissions, MCP servers, and Copilot settings:
 ```tf
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "0.4.0"
+  version  = "0.5.0"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/projects"
 
@@ -214,6 +217,19 @@ By default, the module resumes the latest Copilot session when the workspace res
 
 > [!NOTE]
 > Session resumption requires persistent storage for the home directory or workspace volume. Without persistent storage, sessions will not resume across workspace restarts.
+
+## State Persistence
+
+AgentAPI can save and restore its conversation state to disk across workspace restarts. This complements `resume_session` (which resumes the Copilot CLI session) by also preserving the AgentAPI-level context. Enabled by default, requires agentapi >= v0.12.0 (older versions skip it with a warning).
+
+To disable:
+
+```tf
+module "copilot" {
+  # ... other config
+  enable_state_persistence = false
+}
+```
 
 ## Troubleshooting
 
