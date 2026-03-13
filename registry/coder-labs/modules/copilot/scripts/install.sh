@@ -23,7 +23,7 @@ install_copilot() {
     if [ "$ARG_COPILOT_VERSION" = "latest" ]; then
       curl -fsSL https://gh.io/copilot-install | bash
     else
-      VERSION="${ARG_COPILOT_VERSION}" curl -fsSL https://gh.io/copilot-install | bash
+      curl -fsSL https://gh.io/copilot-install | VERSION="${ARG_COPILOT_VERSION}" bash
     fi
 
     if ! command_exists copilot; then
