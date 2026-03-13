@@ -145,6 +145,143 @@ chmod +x /tmp/mux/mux`,
     }
   }, 60000);
 
+  it("restarts after a clean exit when enabled", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      install: false,
+      log_path: "/tmp/mux.log",
+      restart_on_kill: true,
+      restart_delay_seconds: 1,
+      max_restart_attempts: 1,
+    });
+
+    const instance = findResourceInstance(state, "coder_script");
+    const id = await runContainer("alpine/curl");
+
+    try {
+      const setup = await execContainer(id, [
+        "sh",
+        "-c",
+        `apk add --no-cache bash >/dev/null
+mkdir -p /tmp/mux
+cat <<'EOF' > /tmp/mux/mux
+#!/usr/bin/env sh
+run_count_file="/tmp/mux-run-count"
+run_count=0
+if [ -f "$run_count_file" ]; then
+  run_count=$(cat "$run_count_file")
+fi
+run_count=$((run_count + 1))
+printf '%s' "$run_count" > "$run_count_file"
+echo "run=$run_count"
+if [ "$run_count" -eq 1 ]; then
+  mkdir -p "$HOME/.mux"
+  touch "$HOME/.mux/server.lock"
+  exit 0
+fi
+if [ -f "$HOME/.mux/server.lock" ]; then
+  echo "lock=present"
+else
+  echo "lock=cleaned"
+fi
+exit 0
+EOF
+chmod +x /tmp/mux/mux`,
+      ]);
+      expect(setup.exitCode).toBe(0);
+
+      const output = await execContainer(id, ["sh", "-c", instance.script]);
+      if (output.exitCode !== 0) {
+        console.log("STDOUT:\n" + output.stdout);
+        console.log("STDERR:\n" + output.stderr);
+      }
+      expect(output.exitCode).toBe(0);
+
+      await execContainer(id, ["sh", "-c", "sleep 4"]);
+      const log = await readFileContainer(id, "/tmp/mux.log");
+      const runCount = await readFileContainer(id, "/tmp/mux-run-count");
+      expect(log).toContain("run=1");
+      expect(log).toContain("mux server exited cleanly.");
+      expect(log).toContain(
+        "Waiting 1 seconds before restarting mux after it exited.",
+      );
+      expect(log).toContain(
+        "Removing /root/.mux/server.lock before restarting mux.",
+      );
+      expect(log).toContain("run=2");
+      expect(log).toContain("lock=cleaned");
+      expect(log).toContain(
+        "Reached the max restart attempts limit (1); not restarting mux again.",
+      );
+      expect(runCount.trim()).toBe("2");
+    } finally {
+      await removeContainer(id);
+    }
+  }, 60000);
+
+  it("restarts after SIGTERM when enabled", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      install: false,
+      log_path: "/tmp/mux.log",
+      restart_on_kill: true,
+      restart_delay_seconds: 1,
+      max_restart_attempts: 1,
+    });
+
+    const instance = findResourceInstance(state, "coder_script");
+    const id = await runContainer("alpine/curl");
+
+    try {
+      const setup = await execContainer(id, [
+        "sh",
+        "-c",
+        `apk add --no-cache bash >/dev/null
+mkdir -p /tmp/mux
+cat <<'EOF' > /tmp/mux/mux
+#!/usr/bin/env sh
+run_count_file="/tmp/mux-run-count"
+run_count=0
+if [ -f "$run_count_file" ]; then
+  run_count=$(cat "$run_count_file")
+fi
+run_count=$((run_count + 1))
+printf '%s' "$run_count" > "$run_count_file"
+echo "run=$run_count"
+if [ "$run_count" -eq 1 ]; then
+  kill -TERM $$
+fi
+exit 0
+EOF
+chmod +x /tmp/mux/mux`,
+      ]);
+      expect(setup.exitCode).toBe(0);
+
+      const output = await execContainer(id, ["sh", "-c", instance.script]);
+      if (output.exitCode !== 0) {
+        console.log("STDOUT:\n" + output.stdout);
+        console.log("STDERR:\n" + output.stderr);
+      }
+      expect(output.exitCode).toBe(0);
+
+      await execContainer(id, ["sh", "-c", "sleep 4"]);
+      const log = await readFileContainer(id, "/tmp/mux.log");
+      const runCount = await readFileContainer(id, "/tmp/mux-run-count");
+      expect(log).toContain("run=1");
+      expect(log).toContain("signal TERM (15); shell exit code 143.");
+      expect(log).toContain(
+        "Waiting 1 seconds before restarting mux after it exited.",
+      );
+      expect(log).toContain("run=2");
+      expect(log).toContain(
+        "Reached the max restart attempts limit (1); not restarting mux again.",
+      );
+      expect(runCount.trim()).toBe("2");
+    } finally {
+      await removeContainer(id);
+    }
+  }, 60000);
+
   it("runs with npm present", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
