@@ -190,6 +190,19 @@ run "invalid_max_restart_attempts" {
   ]
 }
 
+run "fractional_max_restart_attempts" {
+  command = plan
+
+  variables {
+    agent_id             = "foo"
+    max_restart_attempts = 0.5
+  }
+
+  expect_failures = [
+    var.max_restart_attempts
+  ]
+}
+
 run "invalid_restart_delay_seconds" {
   command = plan
 

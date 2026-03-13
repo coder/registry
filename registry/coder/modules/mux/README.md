@@ -86,7 +86,7 @@ module "mux" {
 
 ### Restart After Mux Exits
 
-Enable automatic restarts after Mux exits, including clean exits and intentional shutdown signals such as `SIGTERM`. The launcher waits for `restart_delay_seconds`, removes `~/.mux/server.lock`, and starts Mux again. Set `max_restart_attempts` to stop retrying after a fixed number of restarts, or leave it at `0` for unlimited retries.
+Enable automatic restarts after Mux exits, including clean exits and intentional shutdown signals such as `SIGTERM`. The launcher waits for `restart_delay_seconds`, removes `~/.mux/server.lock`, and starts Mux again. Set `max_restart_attempts` to a whole number to stop retrying after a fixed number of restarts, or leave it at `0` for unlimited retries.
 
 ```tf
 module "mux" {
@@ -181,4 +181,4 @@ module "mux" {
 - Falls back to a direct tarball download when no package manager is found
 - Appends best-effort signal and external-kill diagnostics to `log_path` if the mux process dies after startup
 - Set `restart_on_kill = true` to wait `restart_delay_seconds`, remove `~/.mux/server.lock`, and restart Mux after it exits
-- Set `max_restart_attempts` to cap restart attempts, or leave it at `0` for unlimited retries
+- Set `max_restart_attempts` to a whole-number cap on restart attempts, or leave it at `0` for unlimited retries

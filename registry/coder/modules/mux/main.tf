@@ -68,12 +68,12 @@ variable "restart_delay_seconds" {
 
 variable "max_restart_attempts" {
   type        = number
-  description = "Maximum number of restart attempts before giving up. Set to 0 for unlimited restarts when restart_on_kill is enabled."
+  description = "Maximum whole-number restart attempts before giving up. Set to 0 for unlimited restarts when restart_on_kill is enabled."
   default     = 0
 
   validation {
-    condition     = var.max_restart_attempts >= 0
-    error_message = "The 'max_restart_attempts' variable must be greater than or equal to 0."
+    condition     = var.max_restart_attempts >= 0 && floor(var.max_restart_attempts) == var.max_restart_attempts
+    error_message = "The 'max_restart_attempts' variable must be a whole number greater than or equal to 0."
   }
 }
 
