@@ -15,7 +15,7 @@ Automatically installs [Node.js](https://github.com/nodejs/node) via [`nvm`](htt
 module "nodejs" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/thezoker/nodejs/coder"
-  version  = "1.0.13"
+  version  = "1.0.14"
   agent_id = coder_agent.example.id
 }
 ```
@@ -28,16 +28,34 @@ This installs multiple versions of Node.js:
 module "nodejs" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/thezoker/nodejs/coder"
-  version  = "1.0.13"
+  version  = "1.0.14"
   agent_id = coder_agent.example.id
   node_versions = [
     "18",
     "20",
     "node"
   ]
-  default_node_version = "1.0.13"
+  default_node_version = "20"
 }
 ```
+
+## Pre and Post Install Scripts
+
+Use `pre_install_script` and `post_install_script` to run custom scripts before and after Node.js installation. These use `coder exp sync` for reliable script ordering, making them useful for dependency coordination between modules.
+
+```tf
+module "nodejs" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/thezoker/nodejs/coder"
+  version  = "1.0.14"
+  agent_id = coder_agent.example.id
+
+  pre_install_script  = "echo 'Setting up prerequisites...'"
+  post_install_script = "npm install -g yarn pnpm"
+}
+```
+
+The module exports sync script names (`pre_install_script_name`, `install_script_name`, `post_install_script_name`) that other modules can use with `coder exp sync want` to coordinate execution order.
 
 ## Full example
 
@@ -47,15 +65,17 @@ A example with all available options:
 module "nodejs" {
   count              = data.coder_workspace.me.start_count
   source             = "registry.coder.com/thezoker/nodejs/coder"
-  version            = "1.0.13"
+  version            = "1.0.14"
   agent_id           = coder_agent.example.id
-  nvm_version        = "1.0.13"
+  nvm_version        = "v0.39.7"
   nvm_install_prefix = "/opt/nvm"
   node_versions = [
-    "16",
     "18",
+    "20",
     "node"
   ]
-  default_node_version = "1.0.13"
+  default_node_version  = "20"
+  pre_install_script    = "echo 'Pre-install setup'"
+  post_install_script   = "npm install -g typescript"
 }
 ```
