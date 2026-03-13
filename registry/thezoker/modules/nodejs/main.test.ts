@@ -7,6 +7,4 @@ describe("nodejs", async () => {
   testRequiredVariables(import.meta.dir, {
     agent_id: "foo",
   });
-
-  // More tests depend on shebang refactors
 });

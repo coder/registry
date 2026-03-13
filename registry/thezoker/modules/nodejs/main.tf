@@ -38,6 +38,18 @@ variable "default_node_version" {
   default     = "node"
 }
 
+variable "pre_install_script" {
+  type        = string
+  description = "Custom script to run before installing Node.js."
+  default     = null
+}
+
+variable "post_install_script" {
+  type        = string
+  description = "Custom script to run after installing Node.js."
+  default     = null
+}
+
 resource "coder_script" "nodejs" {
   agent_id     = var.agent_id
   display_name = "Node.js:"
@@ -46,6 +58,8 @@ resource "coder_script" "nodejs" {
     INSTALL_PREFIX : var.nvm_install_prefix,
     NODE_VERSIONS : join(",", var.node_versions),
     DEFAULT : var.default_node_version,
+    PRE_INSTALL_SCRIPT : var.pre_install_script != null ? var.pre_install_script : "",
+    POST_INSTALL_SCRIPT : var.post_install_script != null ? var.post_install_script : "",
   })
   run_on_start       = true
   start_blocks_login = true
