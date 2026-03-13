@@ -27,6 +27,7 @@ install_copilot() {
     fi
 
     if ! command_exists copilot; then
+      echo "PATH after installation: $PATH"
       echo "ERROR: Failed to install Copilot"
       exit 1
     fi
