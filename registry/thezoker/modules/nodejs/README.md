@@ -41,7 +41,7 @@ module "nodejs" {
 
 ## Pre and Post Install Scripts
 
-Use `pre_install_script` and `post_install_script` to run custom scripts before and after Node.js installation. These use `coder exp sync` for reliable script ordering, making them useful for dependency coordination between modules.
+Use `pre_install_script` and `post_install_script` to run custom scripts before and after Node.js installation.
 
 ```tf
 module "nodejs" {
@@ -54,8 +54,6 @@ module "nodejs" {
   post_install_script = "npm install -g yarn pnpm"
 }
 ```
-
-The module exports sync script names (`pre_install_script_name`, `install_script_name`, `post_install_script_name`) that other modules can use with `coder exp sync want` to coordinate execution order.
 
 ## Full example
 
