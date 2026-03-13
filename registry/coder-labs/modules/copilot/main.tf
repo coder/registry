@@ -322,7 +322,6 @@ module "agentapi" {
     ARG_TRUSTED_DIRECTORIES='${join(",", var.trusted_directories)}' \
     ARG_EXTERNAL_AUTH_ID='${var.external_auth_id}' \
     ARG_RESUME_SESSION='${var.resume_session}' \
-    ARG_REPORT_TASKS='${var.report_tasks}' \
     ARG_ENABLE_AIBRIDGE_PROXY='${var.enable_aibridge_proxy}' \
     ARG_AIBRIDGE_PROXY_AUTH_URL='${var.aibridge_proxy_auth_url != null ? var.aibridge_proxy_auth_url : ""}' \
     ARG_AIBRIDGE_PROXY_CERT_PATH='${var.aibridge_proxy_cert_path != null ? var.aibridge_proxy_cert_path : ""}' \

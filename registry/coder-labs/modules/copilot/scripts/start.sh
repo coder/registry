@@ -1,9 +1,5 @@
 #!/bin/bash
 
-if [ -f "$HOME/.bashrc" ]; then
-  source "$HOME"/.bashrc
-fi
-
 set -euo pipefail
 
 export PATH="$HOME/.local/bin:$PATH"
@@ -23,7 +19,6 @@ ARG_DENY_TOOLS=${ARG_DENY_TOOLS:-}
 ARG_TRUSTED_DIRECTORIES=${ARG_TRUSTED_DIRECTORIES:-}
 ARG_EXTERNAL_AUTH_ID=${ARG_EXTERNAL_AUTH_ID:-github}
 ARG_RESUME_SESSION=${ARG_RESUME_SESSION:-true}
-ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 ARG_ENABLE_AIBRIDGE_PROXY=${ARG_ENABLE_AIBRIDGE_PROXY:-false}
 ARG_AIBRIDGE_PROXY_AUTH_URL=${ARG_AIBRIDGE_PROXY_AUTH_URL:-}
 ARG_AIBRIDGE_PROXY_CERT_PATH=${ARG_AIBRIDGE_PROXY_CERT_PATH:-}
@@ -36,21 +31,15 @@ validate_copilot_installation() {
 }
 
 build_initial_prompt() {
-  local initial_prompt=""
-  local task_prompt="$ARG_AI_PROMPT"
+ local initial_prompt=""
 
-  # Add task reporting instruction when report_tasks is enabled
-  if [ -n "$ARG_AI_PROMPT" ] && [ "$ARG_REPORT_TASKS" = "true" ]; then
-    task_prompt="Every step of the way, report your progress using Coder.coder_report_task tool with proper summary and statuses. Your task at hand: $ARG_AI_PROMPT"
-  fi
-
-  if [ -n "$task_prompt" ]; then
+  if [ -n "$ARG_AI_PROMPT" ]; then
     if [ -n "$ARG_SYSTEM_PROMPT" ]; then
       initial_prompt="$ARG_SYSTEM_PROMPT
 
-$task_prompt"
+$ARG_AI_PROMPT"
     else
-      initial_prompt="$task_prompt"
+      initial_prompt="$ARG_AI_PROMPT"
     fi
   fi
 
@@ -84,6 +73,16 @@ build_copilot_args() {
 
   if [ "$ARG_ALLOW_ALL" = "true" ]; then
     COPILOT_ARGS+=(--allow-all)
+  fi
+
+  if check_existing_session; then
+    COPILOT_ARGS+=(--continue)
+  else
+    local initial_prompt
+    initial_prompt=$(build_initial_prompt)
+    if [[ -n "${initial_prompt}" ]]; then
+      COPILOT_ARGS+=(-i "${initial_prompt}")
+    fi
   fi
 }
 
@@ -181,29 +180,11 @@ start_agentapi() {
 
   build_copilot_args
 
-  if check_existing_session; then
-    echo "Continuing latest Copilot session..."
-    if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
-      echo "Copilot arguments: ${COPILOT_ARGS[*]}"
-      agentapi server --type copilot --term-width 120 --term-height 40 -- copilot --continue "${COPILOT_ARGS[@]}"
-    else
-      agentapi server --type copilot --term-width 120 --term-height 40 -- copilot --continue
-    fi
+  if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
+    echo "Copilot arguments: ${COPILOT_ARGS[*]}"
+    agentapi server --type copilot --term-width 67 --term-height 1190 -- copilot "${COPILOT_ARGS[@]}"
   else
-    echo "Starting new Copilot session..."
-    local initial_prompt
-    initial_prompt=$(build_initial_prompt)
-
-    if [ -n "$initial_prompt" ]; then
-      COPILOT_ARGS+=(-i "$initial_prompt")
-    fi
-
-    if [ ${#COPILOT_ARGS[@]} -gt 0 ]; then
-      echo "Copilot arguments: ${COPILOT_ARGS[*]}"
-      agentapi server --type copilot --term-width 67 --term-height 1190 -- copilot "${COPILOT_ARGS[@]}"
-    else
-      agentapi server --type copilot --term-width 67 --term-height 1190 -- copilot
-    fi
+    agentapi server --type copilot --term-width 67 --term-height 1190 -- copilot
   fi
 }
 
