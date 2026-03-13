@@ -16,7 +16,7 @@ Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder)
 module "positron" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/cytoshahar/positron/coder"
-  version  = "1.0.2"
+  version  = "1.0.3"
   agent_id = coder_agent.main.id
 }
 ```
@@ -29,7 +29,7 @@ module "positron" {
 module "positron" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/cytoshahar/positron/coder"
-  version  = "1.0.2"
+  version  = "1.0.3"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
