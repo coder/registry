@@ -131,13 +131,23 @@ run "restart_on_kill_enabled" {
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "Waiting $${RESTART_DELAY_SECONDS_VALUE} seconds before restarting mux after the signal-based exit.")
+    condition     = strcontains(resource.coder_script.mux.script, "Waiting $${RESTART_DELAY_SECONDS_VALUE} seconds before restarting mux after it exited.")
     error_message = "mux launcher must log the restart delay before relaunching"
   }
 
   assert {
     condition     = strcontains(resource.coder_script.mux.script, "Removing $HOME/.mux/server.lock before restarting mux.")
     error_message = "mux launcher must clean up the server lock before relaunching"
+  }
+
+  assert {
+    condition     = !strcontains(resource.coder_script.mux.script, "\"$exit_code\" -le 128")
+    error_message = "mux launcher must no longer exclude non-signal exits from restart handling"
+  }
+
+  assert {
+    condition     = !strcontains(resource.coder_script.mux.script, "1|2|15)")
+    error_message = "mux launcher must no longer exclude intentional signals from restart handling"
   }
 }
 
@@ -157,7 +167,7 @@ run "restart_on_kill_with_restart_cap" {
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "Mux will stop restarting after $${max_restart_attempts_value} signal-triggered restart attempts.")
+    condition     = strcontains(resource.coder_script.mux.script, "Mux will stop restarting after $${max_restart_attempts_value} restart attempts.")
     error_message = "mux launcher must describe the configured restart cap"
   }
 

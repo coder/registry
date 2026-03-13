@@ -51,13 +51,13 @@ variable "log_path" {
 
 variable "restart_on_kill" {
   type        = bool
-  description = "Restart Mux after signal-based exits by waiting briefly, removing the server lock, and launching it again."
+  description = "Restart Mux after it exits by waiting briefly, removing the server lock, and launching it again."
   default     = false
 }
 
 variable "restart_delay_seconds" {
   type        = number
-  description = "How long to wait before restarting Mux after a signal-based exit when restart_on_kill is enabled."
+  description = "How long to wait before restarting Mux after it exits when restart_on_kill is enabled."
   default     = 5
 
   validation {
@@ -68,7 +68,7 @@ variable "restart_delay_seconds" {
 
 variable "max_restart_attempts" {
   type        = number
-  description = "Maximum number of signal-triggered restart attempts before giving up. Set to 0 for unlimited restarts when restart_on_kill is enabled."
+  description = "Maximum number of restart attempts before giving up. Set to 0 for unlimited restarts when restart_on_kill is enabled."
   default     = 0
 
   validation {

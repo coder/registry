@@ -54,13 +54,13 @@ EOF_ARGS
 
   echo "🚀 Starting mux server on port $port_value..."
   echo "Check logs at ${LOG_PATH}!"
-  echo "ℹ️ Unexpected exits will be appended to ${LOG_PATH} by the launcher."
+  echo "ℹ️ Mux exit details will be appended to ${LOG_PATH} by the launcher."
   if [ "$restart_on_kill_value" = true ]; then
-    echo "ℹ️ Auto-restart after signal-based exits is enabled with a $${restart_delay_seconds_value}-second delay."
+    echo "ℹ️ Auto-restart after mux exits is enabled with a $${restart_delay_seconds_value}-second delay."
     if [ "$max_restart_attempts_value" = "0" ]; then
-      echo "ℹ️ Automatic restarts are unlimited until mux exits cleanly or with a non-restartable signal."
+      echo "ℹ️ Automatic restarts are unlimited for every mux exit."
     else
-      echo "ℹ️ Mux will stop restarting after $${max_restart_attempts_value} signal-triggered restart attempts."
+      echo "ℹ️ Mux will stop restarting after $${max_restart_attempts_value} restart attempts."
     fi
   fi
 
@@ -111,21 +111,7 @@ cleanup_mux_lock() {
 }
 
 should_restart_mux() {
-  local exit_code="$1"
-  local signal_number
-
-  if [ "$RESTART_ON_KILL_VALUE" != "true" ] || [ "$exit_code" -le 128 ]; then
-    return 1
-  fi
-
-  signal_number=$((exit_code - 128))
-  case "$signal_number" in
-    1|2|15)
-      return 1
-      ;;
-  esac
-
-  return 0
+  [ "$RESTART_ON_KILL_VALUE" = "true" ]
 }
 
 log_mux_exit() {
@@ -164,7 +150,7 @@ log_mux_restart_wait() {
   local timestamp
 
   timestamp="$(date -Iseconds 2> /dev/null || date)"
-  echo "[$timestamp] Waiting $${RESTART_DELAY_SECONDS_VALUE} seconds before restarting mux after the signal-based exit."
+  echo "[$timestamp] Waiting $${RESTART_DELAY_SECONDS_VALUE} seconds before restarting mux after it exited."
 }
 
 log_mux_restart_cleanup() {
@@ -190,7 +176,7 @@ while true; do
   exit_code=$?
   log_mux_exit "$mux_pid" "$exit_code" >> "$LOG_PATH" 2>&1
 
-  if should_restart_mux "$exit_code"; then
+  if should_restart_mux; then
     if [ "$MAX_RESTART_ATTEMPTS_VALUE" -gt 0 ] && [ "$restart_attempt_count" -ge "$MAX_RESTART_ATTEMPTS_VALUE" ]; then
       log_mux_restart_cap_reached >> "$LOG_PATH" 2>&1
       break
