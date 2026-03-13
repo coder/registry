@@ -16,6 +16,10 @@ AGENTAPI_PORT="$ARG_AGENTAPI_PORT"
 AGENTAPI_CHAT_BASE_PATH="${ARG_AGENTAPI_CHAT_BASE_PATH:-}"
 TASK_ID="${ARG_TASK_ID:-}"
 TASK_LOG_SNAPSHOT="${ARG_TASK_LOG_SNAPSHOT:-true}"
+ENABLE_BOUNDARY="${ARG_ENABLE_BOUNDARY:-false}"
+BOUNDARY_VERSION="${ARG_BOUNDARY_VERSION:-latest}"
+COMPILE_BOUNDARY_FROM_SOURCE="${ARG_COMPILE_BOUNDARY_FROM_SOURCE:-false}"
+USE_BOUNDARY_DIRECTLY="${ARG_USE_BOUNDARY_DIRECTLY:-false}"
 ENABLE_STATE_PERSISTENCE="${ARG_ENABLE_STATE_PERSISTENCE:-false}"
 STATE_FILE_PATH="${ARG_STATE_FILE_PATH:-}"
 PID_FILE_PATH="${ARG_PID_FILE_PATH:-}"
@@ -109,9 +113,18 @@ export LC_ALL=en_US.UTF-8
 
 cd "${WORKDIR}"
 
+# Set up boundary if enabled
+export AGENTAPI_BOUNDARY_PREFIX=""
+if [ "${ENABLE_BOUNDARY}" = "true" ]; then
+  # shellcheck source=boundary.sh
+  source /tmp/agentapi-boundary.sh
+  setup_boundary "$module_path"
+fi
+
 export AGENTAPI_CHAT_BASE_PATH="${AGENTAPI_CHAT_BASE_PATH:-}"
 # Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
 export AGENTAPI_ALLOWED_HOSTS="*"
+
 export AGENTAPI_PID_FILE="${PID_FILE_PATH:-$module_path/agentapi.pid}"
 # Only set state env vars when persistence is enabled and the binary supports
 # it. State persistence requires agentapi >= v0.12.0.
