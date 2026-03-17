@@ -233,10 +233,6 @@ locals {
   env_key = "CODER_AIBRIDGE_SESSION_TOKEN"
   wire_api = "responses"
 
-  [profiles.aibridge]
-  model_provider = "aibridge"
-  model = "${var.codex_model}"
-  model_reasoning_effort = "${var.model_reasoning_effort}"
   EOF
 }
 

@@ -93,10 +93,10 @@ function install_codex() {
 write_minimal_default_config() {
   local config_path="$1"
 
-  ARG_DEFAULT_PROFILE=""
+  ARG_DEFAULT_MODEL_PROVIDER=""
 
   if [[ "${ARG_ENABLE_AIBRIDGE}" = "true" ]]; then
-    ARG_DEFAULT_PROFILE='profile = "aibridge"'
+    ARG_DEFAULT_MODEL_PROVIDER='model_providers = "aibridge"'
   fi
 
   cat << EOF > "$config_path"
@@ -104,7 +104,7 @@ write_minimal_default_config() {
 sandbox_mode = "workspace-write"
 approval_policy = "never"
 preferred_auth_method = "apikey"
-${ARG_DEFAULT_PROFILE}
+${ARG_DEFAULT_MODEL_PROVIDER}
 
 [sandbox_workspace_write]
 network_access = true
