@@ -225,7 +225,7 @@ locals {
   install_script     = file("${path.module}/scripts/install.sh")
   start_script       = file("${path.module}/scripts/start.sh")
   module_dir_name    = ".codex-module"
-  latest_codex_model = "gpt-5.3-codex"
+  latest_codex_model = "gpt-5.4"
   aibridge_config    = <<-EOF
   [model_providers.aibridge]
   name = "AI Bridge"
