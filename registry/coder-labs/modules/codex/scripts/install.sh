@@ -93,10 +93,14 @@ function install_codex() {
 write_minimal_default_config() {
   local config_path="$1"
 
-  ARG_DEFAULT_MODEL_PROVIDER=""
+  ARG_OPTIONAL_TOP_LEVEL_CONFIG=""
 
   if [[ "${ARG_ENABLE_AIBRIDGE}" = "true" ]]; then
-    ARG_DEFAULT_MODEL_PROVIDER='model_providers = "aibridge"'
+    ARG_OPTIONAL_TOP_LEVEL_CONFIG='model_provider = "aibridge"'
+  fi
+
+  if [[ "${ARG_MODEL_REASONING_EFFORT}" != "" ]]; then
+    ARG_OPTIONAL_TOP_LEVEL_CONFIG+=$'\n'"model_reasoning_effort = \"${ARG_MODEL_REASONING_EFFORT}\""
   fi
 
   cat << EOF > "$config_path"
@@ -104,13 +108,17 @@ write_minimal_default_config() {
 sandbox_mode = "workspace-write"
 approval_policy = "never"
 preferred_auth_method = "apikey"
-${ARG_DEFAULT_MODEL_PROVIDER}
+${ARG_OPTIONAL_TOP_LEVEL_CONFIG}
 
 [sandbox_workspace_write]
 network_access = true
 
 [notice.model_migrations]
 "${ARG_CODEX_MODEL}" = "${ARG_LATEST_CODEX_MODEL}"
+
+[projects."${ARG_CODEX_START_DIRECTORY}"]
+trust_level = "trusted"
+
 EOF
 }
 

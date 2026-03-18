@@ -63,18 +63,13 @@ When `enable_aibridge = true`, the module:
 - Configures Codex to use the AI Bridge profile with `base_url` pointing to `${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1` and `env_key` pointing to the workspace owner's session token
 
 ```toml
-profile = "aibridge" # sets the default profile to aibridge
+model_provider = "aibridge" # sets the default profile to aibridge
 
 [model_providers.aibridge]
 name = "AI Bridge"
 base_url = "https://example.coder.com/api/v2/aibridge/openai/v1"
 env_key = "CODER_AIBRIDGE_SESSION_TOKEN"
 wire_api = "responses"
-
-[profiles.aibridge]
-model_provider = "aibridge"
-model = "<model>" # as configured in the module input
-model_reasoning_effort = "<model_reasoning_effort>" # as configured in the module input
 ```
 
 This allows Codex to route API requests through Coder's AI Bridge instead of directly to OpenAI's API.

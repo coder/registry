@@ -84,10 +84,10 @@ variable "enable_aibridge" {
 
 variable "model_reasoning_effort" {
   type        = string
-  description = "The reasoning effort for the AI Bridge model. One of: none, low, medium, high. https://platform.openai.com/docs/guides/latest-model#lower-reasoning-effort"
-  default     = "medium"
+  description = "The reasoning effort for the model. One of: none, low, medium, high. https://platform.openai.com/docs/guides/latest-model#lower-reasoning-effort"
+  default     = ""
   validation {
-    condition     = contains(["none", "low", "medium", "high"], var.model_reasoning_effort)
+    condition     = contains(["", "none", "minimal", "low", "medium", "high", "xhigh"], var.model_reasoning_effort)
     error_message = "model_reasoning_effort must be one of: none, low, medium, high."
   }
 }
@@ -137,7 +137,7 @@ variable "agentapi_version" {
 variable "codex_model" {
   type        = string
   description = "The model for Codex to use. Defaults to gpt-5.3-codex."
-  default     = "gpt-5.3-codex"
+  default     = "gpt-5.4"
 }
 
 variable "pre_install_script" {
@@ -298,6 +298,7 @@ module "agentapi" {
     ARG_ADDITIONAL_MCP_SERVERS='${base64encode(var.additional_mcp_servers)}' \
     ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_CODEX_START_DIRECTORY='${local.workdir}' \
+    ARG_MODEL_REASONING_EFFORT='${var.model_reasoning_effort}' \
     ARG_CODEX_INSTRUCTION_PROMPT='${base64encode(var.codex_system_prompt)}' \
     /tmp/install.sh
   EOT
