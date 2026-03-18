@@ -60,10 +60,10 @@ module "codex" {
 
 When `enable_aibridge = true`, the module:
 
-- Configures Codex to use the AI Bridge profile with `base_url` pointing to `${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1` and `env_key` pointing to the workspace owner's session token
+- Configures Codex to use the aibridge model_provider with `base_url` pointing to `${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1` and `env_key` pointing to the workspace owner's session token
 
 ```toml
-model_provider = "aibridge" # sets the default profile to aibridge
+model_provider = "aibridge"
 
 [model_providers.aibridge]
 name = "AI Bridge"
