@@ -13,7 +13,7 @@ Run Codex CLI in your workspace to access OpenAI's models through the Codex inte
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.3.0"
+  version        = "4.3.1"
   agent_id       = coder_agent.example.id
   openai_api_key = var.openai_api_key
   workdir        = "/home/coder/project"
@@ -32,7 +32,7 @@ module "codex" {
 module "codex" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.3.0"
+  version        = "4.3.1"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   workdir        = "/home/coder/project"
@@ -51,7 +51,7 @@ For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage
 ```tf
 module "codex" {
   source          = "registry.coder.com/coder-labs/codex/coder"
-  version         = "4.3.0"
+  version         = "4.3.1"
   agent_id        = coder_agent.example.id
   workdir         = "/home/coder/project"
   enable_aibridge = true
@@ -60,21 +60,16 @@ module "codex" {
 
 When `enable_aibridge = true`, the module:
 
-- Configures Codex to use the AI Bridge profile with `base_url` pointing to `${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1` and `env_key` pointing to the workspace owner's session token
+- Configures Codex to use the aibridge model_provider with `base_url` pointing to `${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1` and `env_key` pointing to the workspace owner's session token
 
 ```toml
-profile = "aibridge" # sets the default profile to aibridge
+model_provider = "aibridge"
 
 [model_providers.aibridge]
 name = "AI Bridge"
 base_url = "https://example.coder.com/api/v2/aibridge/openai/v1"
 env_key = "CODER_AIBRIDGE_SESSION_TOKEN"
 wire_api = "responses"
-
-[profiles.aibridge]
-model_provider = "aibridge"
-model = "<model>" # as configured in the module input
-model_reasoning_effort = "<model_reasoning_effort>" # as configured in the module input
 ```
 
 This allows Codex to route API requests through Coder's AI Bridge instead of directly to OpenAI's API.
@@ -94,7 +89,7 @@ data "coder_task" "me" {}
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.3.0"
+  version        = "4.3.1"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   ai_prompt      = data.coder_task.me.prompt
@@ -114,7 +109,7 @@ By default, when `enable_boundary = true`, the module uses `coder boundary` subc
 ```tf
 module "codex" {
   source          = "registry.coder.com/coder-labs/codex/coder"
-  version         = "4.3.0"
+  version         = "4.3.1"
   agent_id        = coder_agent.main.id
   openai_api_key  = var.openai_api_key
   workdir         = "/home/coder/project"
@@ -132,7 +127,7 @@ This example shows additional configuration options for custom models, MCP serve
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.3.0"
+  version        = "4.3.1"
   agent_id       = coder_agent.example.id
   openai_api_key = "..."
   workdir        = "/home/coder/project"

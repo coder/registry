@@ -155,7 +155,7 @@ setup_workdir() {
 build_codex_args() {
   CODEX_ARGS=()
 
-  if [[ -n "${ARG_CODEX_MODEL}" ]] && [[ "${ARG_ENABLE_AIBRIDGE}" != "true" ]]; then
+  if [[ -n "${ARG_CODEX_MODEL}" ]]; then
     CODEX_ARGS+=("--model" "${ARG_CODEX_MODEL}")
   fi
 
