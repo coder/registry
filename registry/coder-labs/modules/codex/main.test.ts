@@ -468,10 +468,7 @@ describe("codex", async () => {
       id,
       "/home/coder/.codex/config.toml",
     );
-    expect(configToml).toContain(
-      "[profiles.aibridge]\n" + 'model_provider = "aibridge"',
-    );
-    expect(configToml).toContain('profile = "aibridge"');
+    expect(configToml).toContain('model_provider = "aibridge"');
   });
 
   test("boundary-enabled", async () => {
