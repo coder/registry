@@ -29,6 +29,11 @@ run "test_nodejs_basic" {
     condition     = var.post_install_script == null
     error_message = "post_install_script should default to null"
   }
+
+  assert {
+    condition     = output.install_script_name == "nodejs-install_script"
+    error_message = "install_script_name output should be set"
+  }
 }
 
 run "test_with_scripts" {
@@ -48,6 +53,16 @@ run "test_with_scripts" {
   assert {
     condition     = var.post_install_script == "echo 'Post-install script'"
     error_message = "Post-install script should be set correctly"
+  }
+
+  assert {
+    condition     = output.pre_install_script_name == "nodejs-pre_install_script"
+    error_message = "pre_install_script_name output should be set"
+  }
+
+  assert {
+    condition     = output.post_install_script_name == "nodejs-post_install_script"
+    error_message = "post_install_script_name output should be set"
   }
 }
 

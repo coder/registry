@@ -4,16 +4,9 @@ NVM_VERSION='${NVM_VERSION}'
 NODE_VERSIONS='${NODE_VERSIONS}'
 INSTALL_PREFIX='${INSTALL_PREFIX}'
 DEFAULT='${DEFAULT}'
-PRE_INSTALL_SCRIPT='${PRE_INSTALL_SCRIPT}'
-POST_INSTALL_SCRIPT='${POST_INSTALL_SCRIPT}'
 BOLD='\033[0;1m'
 CODE='\033[36;40;1m'
 RESET='\033[0m'
-
-if [ -n "$${PRE_INSTALL_SCRIPT}" ]; then
-  printf "$${BOLD}Running pre-install script...$${RESET}\n"
-  eval "$${PRE_INSTALL_SCRIPT}"
-fi
 
 printf "$${BOLD}Installing nvm!$${RESET}\n"
 
@@ -57,9 +50,4 @@ done
 if [ -n "$${DEFAULT}" ]; then
   printf "🛠️ Setting default node version $${CODE}$DEFAULT$${RESET}...\n"
   output=$(nvm alias default $DEFAULT 2>&1)
-fi
-
-if [ -n "$${POST_INSTALL_SCRIPT}" ]; then
-  printf "$${BOLD}Running post-install script...$${RESET}\n"
-  eval "$${POST_INSTALL_SCRIPT}"
 fi

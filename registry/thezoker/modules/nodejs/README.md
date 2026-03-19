@@ -55,6 +55,28 @@ module "nodejs" {
 }
 ```
 
+## Cross-Module Dependency Ordering
+
+This module uses `coder exp sync` to coordinate execution ordering with other modules. It exposes the following outputs for use with `coder exp sync want`:
+
+- `install_script_name` — the sync name for the main Node.js installation script
+- `pre_install_script_name` — the sync name for the pre-install script
+- `post_install_script_name` — the sync name for the post-install script
+
+For example, to ensure another module waits for Node.js to be fully installed:
+
+```tf
+module "nodejs" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/thezoker/nodejs/coder"
+  version  = "1.1.0"
+  agent_id = coder_agent.example.id
+}
+
+# In another module's coder_script, wait for Node.js installation:
+# coder exp sync want my-script ${module.nodejs[0].install_script_name}
+```
+
 ## Full example
 
 A example with all available options:
