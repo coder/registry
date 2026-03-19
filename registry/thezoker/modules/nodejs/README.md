@@ -15,7 +15,7 @@ Automatically installs [Node.js](https://github.com/nodejs/node) via [`nvm`](htt
 module "nodejs" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/thezoker/nodejs/coder"
-  version  = "1.0.14"
+  version  = "1.1.0"
   agent_id = coder_agent.example.id
 }
 ```
@@ -28,7 +28,7 @@ This installs multiple versions of Node.js:
 module "nodejs" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/thezoker/nodejs/coder"
-  version  = "1.0.14"
+  version  = "1.1.0"
   agent_id = coder_agent.example.id
   node_versions = [
     "18",
@@ -47,7 +47,7 @@ Use `pre_install_script` and `post_install_script` to run custom scripts before 
 module "nodejs" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/thezoker/nodejs/coder"
-  version  = "1.0.14"
+  version  = "1.1.0"
   agent_id = coder_agent.example.id
 
   pre_install_script  = "echo 'Setting up prerequisites...'"
@@ -63,7 +63,7 @@ A example with all available options:
 module "nodejs" {
   count              = data.coder_workspace.me.start_count
   source             = "registry.coder.com/thezoker/nodejs/coder"
-  version            = "1.0.14"
+  version            = "1.1.0"
   agent_id           = coder_agent.example.id
   nvm_version        = "v0.39.7"
   nvm_install_prefix = "/opt/nvm"
