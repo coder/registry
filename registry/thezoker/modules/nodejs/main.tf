@@ -99,9 +99,9 @@ resource "coder_script" "pre_install_script" {
 }
 
 resource "coder_script" "nodejs" {
-  agent_id     = var.agent_id
-  display_name = "Node.js: Install"
-  script       = <<-EOT
+  agent_id           = var.agent_id
+  display_name       = "Node.js: Install"
+  script             = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
