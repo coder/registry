@@ -4,9 +4,19 @@ set -o pipefail
 
 source "$HOME"/.bashrc
 
+set -o nounset
+
+GEMINI_API_KEY=$(echo -n "$GEMINI_API_KEY" | base64 -d)
+GOOGLE_API_KEY=$(echo -n "$GOOGLE_API_KEY" | base64 -d)
+GOOGLE_GENAI_USE_VERTEXAI=$(echo -n "$GOOGLE_GENAI_USE_VERTEXAI" | base64 -d)
+GEMINI_YOLO_MODE=$(echo -n "$GEMINI_YOLO_MODE" | base64 -d)
+GEMINI_MODEL=$(echo -n "$GEMINI_MODEL" | base64 -d)
+GEMINI_START_DIRECTORY=$(echo -n "$GEMINI_START_DIRECTORY" | base64 -d)
+GEMINI_TASK_PROMPT=$(echo -n "$GEMINI_TASK_PROMPT" | base64 -d)
+
+set +o nounset
+
 command_exists() {
-  command -v "$1" > /dev/null 2>&1
-}
 
 if [ -f "$HOME/.nvm/nvm.sh" ]; then
   source "$HOME"/.nvm/nvm.sh
@@ -68,7 +78,8 @@ if [ -n "$GEMINI_API_KEY" ] || [ -n "$GOOGLE_API_KEY" ]; then
   fi
 else
   printf "No API key provided (neither GEMINI_API_KEY nor GOOGLE_API_KEY)\n"
+  exit 1
 fi
 
-agentapi server --term-width 67 --term-height 1190 -- \
+agentapi server --type gemini --term-width 67 --term-height 1190 -- \
   bash -c "$(printf '%q ' gemini "${GEMINI_ARGS[@]}")"

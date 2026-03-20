@@ -111,6 +111,19 @@ module "gemini" {
 > [!WARNING]
 > YOLO mode automatically approves all tool calls without user confirmation. The agent has access to your machine's file system and terminal. Only enable in trusted, isolated environments.
 
+## State Persistence
+
+AgentAPI can save and restore its conversation state to disk across workspace restarts. This complements `continue` (which resumes the Gemini CLI session) by also preserving the AgentAPI-level context. Enabled by default, requires agentapi >= v0.12.0 (older versions skip it with a warning).
+
+To disable:
+
+```tf
+module "gemini" {
+  # ... other config
+  enable_state_persistence = false
+}
+```
+
 ### Using Vertex AI (Enterprise)
 
 For enterprise users who prefer Google's Vertex AI platform:

@@ -126,6 +126,12 @@ variable "enable_yolo_mode" {
   default     = false
 }
 
+# variable "enable_state_persistence" {
+#   type        = bool
+#   description = "Enable AgentAPI conversation state persistence across restarts."
+#   default     = true
+# }
+
 resource "coder_env" "gemini_api_key" {
   agent_id = var.agent_id
   name     = "GEMINI_API_KEY"
@@ -179,21 +185,22 @@ module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
   version = "2.0.0"
 
-  agent_id             = var.agent_id
-  folder               = local.folder
-  web_app_slug         = local.app_slug
-  web_app_order        = var.order
-  web_app_group        = var.group
-  web_app_icon         = var.icon
-  web_app_display_name = "Gemini"
-  cli_app_slug         = "${local.app_slug}-cli"
-  cli_app_display_name = "Gemini CLI"
-  module_dir_name      = local.module_dir_name
-  install_agentapi     = var.install_agentapi
-  agentapi_version     = var.agentapi_version
-  pre_install_script   = var.pre_install_script
-  post_install_script  = var.post_install_script
-  install_script       = <<-EOT
+  agent_id                 = var.agent_id
+  folder                   = local.folder
+  web_app_slug             = local.app_slug
+  web_app_order            = var.order
+  web_app_group            = var.group
+  web_app_icon             = var.icon
+  web_app_display_name     = "Gemini"
+  cli_app_slug             = "${local.app_slug}-cli"
+  cli_app_display_name     = "Gemini CLI"
+  module_dir_name          = local.module_dir_name
+  install_agentapi         = var.install_agentapi
+  agentapi_version         = var.agentapi_version
+  # enable_state_persistence = var.enable_state_persistence
+  pre_install_script       = var.pre_install_script
+  post_install_script      = var.post_install_script
+  install_script           = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
@@ -216,13 +223,13 @@ module "agentapi" {
 
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
-     GEMINI_API_KEY='${var.gemini_api_key}' \
-     GOOGLE_API_KEY='${var.gemini_api_key}' \
-     GOOGLE_GENAI_USE_VERTEXAI='${var.use_vertexai}' \
-     GEMINI_YOLO_MODE='${var.enable_yolo_mode}' \
-     GEMINI_MODEL='${var.gemini_model}' \
-     GEMINI_START_DIRECTORY='${var.folder}' \
-     GEMINI_TASK_PROMPT='${var.task_prompt}' \
+     GEMINI_API_KEY='${base64encode(var.gemini_api_key)}' \
+     GOOGLE_API_KEY='${base64encode(var.gemini_api_key)}' \
+     GOOGLE_GENAI_USE_VERTEXAI='${base64encode(var.use_vertexai)}' \
+     GEMINI_YOLO_MODE='${base64encode(var.enable_yolo_mode)}' \
+     GEMINI_MODEL='${base64encode(var.gemini_model)}' \
+     GEMINI_START_DIRECTORY='${base64encode(var.folder)}' \
+     GEMINI_TASK_PROMPT='${base64encode(var.task_prompt)}' \
      /tmp/start.sh
    EOT
 }
