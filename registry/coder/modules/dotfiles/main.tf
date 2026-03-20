@@ -29,7 +29,7 @@ variable "agent_id" {
 variable "description" {
   type        = string
   description = "A custom description for the dotfiles parameter. This is shown in the UI - and allows you to customize the instructions you give to your users."
-  default     = "Enter a URL for a [dotfiles repository](https://dotfiles.github.io) to personalize your workspace"
+  default     = "Enter a URL for a [dotfiles repository](https://dotfiles.github.io) to personalize your workspace. Use an SSH URL (e.g. `git@host:user/repo`) if your Git provider restricts HTTPS cloning."
 }
 
 variable "default_dotfiles_uri" {
@@ -40,10 +40,16 @@ variable "default_dotfiles_uri" {
   validation {
     condition = (
       var.default_dotfiles_uri == "" ||
-      can(regex("^(https?://|ssh://|git@|git://)[a-zA-Z0-9._/:@-]+$", var.default_dotfiles_uri))
+      can(regex("^(https?://|ssh://|git@|git://)[a-zA-Z0-9._/:@~-]+$", var.default_dotfiles_uri))
     )
     error_message = "Must be a valid dotfiles repository URL (https, git@, or git://) without special characters."
   }
+}
+
+variable "default_dotfiles_branch" {
+  type        = string
+  description = "The default dotfiles branch if the workspace user does not provide one"
+  default     = ""
 }
 
 variable "dotfiles_uri" {
@@ -55,9 +61,20 @@ variable "dotfiles_uri" {
     condition = (
       var.dotfiles_uri == null ||
       var.dotfiles_uri == "" ||
-      can(regex("^(https?://|ssh://|git@|git://)[a-zA-Z0-9._/:@-]+$", var.dotfiles_uri))
+      can(regex("^(https?://|ssh://|git@|git://)[a-zA-Z0-9._/:@~-]+$", var.dotfiles_uri))
     )
     error_message = "Must be a valid dotfiles repository URL (https, git@, or git://) without special characters."
+  }
+}
+
+variable "dotfiles_branch" {
+  type        = string
+  description = "The branch to use for the dotfiles repository (optional, when set, the user isn't prompted for the branch)"
+  default     = null
+
+  validation {
+    condition     = var.dotfiles_branch == null || var.dotfiles_branch != ""
+    error_message = "dotfiles_branch cannot be an empty string. Use null to prompt the user or provide a valid branch name."
   }
 }
 
@@ -102,13 +119,26 @@ data "coder_parameter" "dotfiles_uri" {
   icon         = "/icon/dotfiles.svg"
 
   validation {
-    regex = "^$|^(https?://|ssh://|git@|git://)[a-zA-Z0-9._/:@-]+$"
+    regex = "^$|^(https?://|ssh://|git@|git://)[a-zA-Z0-9._/:@~-]+$"
     error = "Must be a valid dotfiles repository URL (https, git@, or git://) without special characters."
   }
 }
 
+data "coder_parameter" "dotfiles_branch" {
+  count        = var.dotfiles_branch == null ? 1 : 0
+  type         = "string"
+  name         = "dotfiles_branch"
+  display_name = "Dotfiles Branch"
+  order        = var.coder_parameter_order
+  default      = var.default_dotfiles_branch
+  description  = "The branch to use for the dotfiles repository"
+  mutable      = true
+  icon         = "/icon/dotfiles.svg"
+}
+
 locals {
   dotfiles_uri              = var.dotfiles_uri != null ? var.dotfiles_uri : data.coder_parameter.dotfiles_uri[0].value
+  dotfiles_branch           = var.dotfiles_branch != null ? var.dotfiles_branch : data.coder_parameter.dotfiles_branch[0].value
   user                      = var.user != null ? var.user : ""
   encoded_post_clone_script = var.post_clone_script != null ? base64encode(var.post_clone_script) : ""
 }
@@ -118,6 +148,7 @@ resource "coder_script" "dotfiles" {
   script = templatefile("${path.module}/run.sh", {
     DOTFILES_URI : local.dotfiles_uri,
     DOTFILES_USER : local.user,
+    DOTFILES_BRANCH : local.dotfiles_branch,
     POST_CLONE_SCRIPT : local.encoded_post_clone_script
   })
   display_name = "Dotfiles"
@@ -136,6 +167,7 @@ resource "coder_app" "dotfiles" {
   command = "/bin/bash -c \"$(echo ${base64encode(templatefile("${path.module}/run.sh", {
     DOTFILES_URI : local.dotfiles_uri,
     DOTFILES_USER : local.user,
+    DOTFILES_BRANCH : local.dotfiles_branch,
     POST_CLONE_SCRIPT : local.encoded_post_clone_script
   }))} | base64 -d)\""
 }

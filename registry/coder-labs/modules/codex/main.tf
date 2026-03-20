@@ -84,10 +84,10 @@ variable "enable_aibridge" {
 
 variable "model_reasoning_effort" {
   type        = string
-  description = "The reasoning effort for the AI Bridge model. One of: none, low, medium, high. https://platform.openai.com/docs/guides/latest-model#lower-reasoning-effort"
-  default     = "medium"
+  description = "The reasoning effort for the model. One of: none, low, medium, high. https://platform.openai.com/docs/guides/latest-model#lower-reasoning-effort"
+  default     = ""
   validation {
-    condition     = contains(["none", "low", "medium", "high"], var.model_reasoning_effort)
+    condition     = contains(["", "none", "minimal", "low", "medium", "high", "xhigh"], var.model_reasoning_effort)
     error_message = "model_reasoning_effort must be one of: none, low, medium, high."
   }
 }
@@ -131,13 +131,13 @@ variable "install_agentapi" {
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.11.8"
+  default     = "v0.12.1"
 }
 
 variable "codex_model" {
   type        = string
-  description = "The model for Codex to use. Defaults to gpt-5.2-codex."
-  default     = "gpt-5.2-codex"
+  description = "The model for Codex to use. Defaults to gpt-5.3-codex."
+  default     = "gpt-5.4"
 }
 
 variable "pre_install_script" {
@@ -164,10 +164,46 @@ variable "continue" {
   default     = true
 }
 
+variable "enable_state_persistence" {
+  type        = bool
+  description = "Enable AgentAPI conversation state persistence across restarts."
+  default     = true
+}
+
 variable "codex_system_prompt" {
   type        = string
   description = "System instructions written to AGENTS.md in the ~/.codex directory"
   default     = "You are a helpful coding assistant. Start every response with `Codex says:`"
+}
+
+variable "enable_boundary" {
+  type        = bool
+  description = "Enable coder boundary for network filtering."
+  default     = false
+}
+
+variable "boundary_config_path" {
+  type        = string
+  description = "Path to boundary config.yaml inside the workspace. If provided, exposed as BOUNDARY_CONFIG env var."
+  default     = ""
+}
+
+variable "boundary_version" {
+  type        = string
+  description = "Boundary version. When use_boundary_directly is true, a release version should be provided or 'latest' for the latest release."
+  default     = "latest"
+}
+
+variable "compile_boundary_from_source" {
+  type        = bool
+  description = "Whether to compile boundary from source instead of using the official install script."
+  default     = false
+}
+
+variable "use_boundary_directly" {
+  type        = bool
+  description = "Whether to use boundary binary directly instead of coder boundary subcommand."
+  default     = false
 }
 
 resource "coder_env" "openai_api_key" {
@@ -184,46 +220,49 @@ resource "coder_env" "coder_aibridge_session_token" {
 }
 
 locals {
-  workdir         = trimsuffix(var.workdir, "/")
-  app_slug        = "codex"
-  install_script  = file("${path.module}/scripts/install.sh")
-  start_script    = file("${path.module}/scripts/start.sh")
-  module_dir_name = ".codex-module"
-  aibridge_config = <<-EOF
+  workdir            = trimsuffix(var.workdir, "/")
+  app_slug           = "codex"
+  install_script     = file("${path.module}/scripts/install.sh")
+  start_script       = file("${path.module}/scripts/start.sh")
+  module_dir_name    = ".codex-module"
+  latest_codex_model = "gpt-5.4"
+  aibridge_config    = <<-EOF
   [model_providers.aibridge]
   name = "AI Bridge"
   base_url = "${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1"
   env_key = "CODER_AIBRIDGE_SESSION_TOKEN"
   wire_api = "responses"
 
-  [profiles.aibridge]
-  model_provider = "aibridge"
-  model = "${var.codex_model}"
-  model_reasoning_effort = "${var.model_reasoning_effort}"
   EOF
 }
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.0.0"
+  version = "2.3.0"
 
-  agent_id             = var.agent_id
-  folder               = local.workdir
-  web_app_slug         = local.app_slug
-  web_app_order        = var.order
-  web_app_group        = var.group
-  web_app_icon         = var.icon
-  web_app_display_name = var.web_app_display_name
-  cli_app              = var.cli_app
-  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
-  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
-  module_dir_name      = local.module_dir_name
-  install_agentapi     = var.install_agentapi
-  agentapi_subdomain   = var.subdomain
-  agentapi_version     = var.agentapi_version
-  pre_install_script   = var.pre_install_script
-  post_install_script  = var.post_install_script
-  start_script         = <<-EOT
+  agent_id                     = var.agent_id
+  folder                       = local.workdir
+  web_app_slug                 = local.app_slug
+  web_app_order                = var.order
+  web_app_group                = var.group
+  web_app_icon                 = var.icon
+  web_app_display_name         = var.web_app_display_name
+  cli_app                      = var.cli_app
+  cli_app_slug                 = var.cli_app ? "${local.app_slug}-cli" : null
+  cli_app_display_name         = var.cli_app ? var.cli_app_display_name : null
+  module_dir_name              = local.module_dir_name
+  install_agentapi             = var.install_agentapi
+  agentapi_subdomain           = var.subdomain
+  agentapi_version             = var.agentapi_version
+  enable_state_persistence     = var.enable_state_persistence
+  pre_install_script           = var.pre_install_script
+  post_install_script          = var.post_install_script
+  enable_boundary              = var.enable_boundary
+  boundary_config_path         = var.boundary_config_path
+  boundary_version             = var.boundary_version
+  compile_boundary_from_source = var.compile_boundary_from_source
+  use_boundary_directly        = var.use_boundary_directly
+  start_script                 = <<-EOT
      #!/bin/bash
      set -o errexit
      set -o pipefail
@@ -249,6 +288,8 @@ module "agentapi" {
     chmod +x /tmp/install.sh
     ARG_OPENAI_API_KEY='${var.openai_api_key}' \
     ARG_REPORT_TASKS='${var.report_tasks}' \
+    ARG_CODEX_MODEL='${var.codex_model}' \
+    ARG_LATEST_CODEX_MODEL='${local.latest_codex_model}' \
     ARG_INSTALL='${var.install_codex}' \
     ARG_CODEX_VERSION='${var.codex_version}' \
     ARG_BASE_CONFIG_TOML='${base64encode(var.base_config_toml)}' \
@@ -257,6 +298,7 @@ module "agentapi" {
     ARG_ADDITIONAL_MCP_SERVERS='${base64encode(var.additional_mcp_servers)}' \
     ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_CODEX_START_DIRECTORY='${local.workdir}' \
+    ARG_MODEL_REASONING_EFFORT='${var.model_reasoning_effort}' \
     ARG_CODEX_INSTRUCTION_PROMPT='${base64encode(var.codex_system_prompt)}' \
     /tmp/install.sh
   EOT
