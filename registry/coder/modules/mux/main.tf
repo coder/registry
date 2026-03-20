@@ -49,6 +49,34 @@ variable "log_path" {
   default     = "/tmp/mux.log"
 }
 
+variable "restart_on_kill" {
+  type        = bool
+  description = "Restart Mux after it exits by waiting briefly, removing the server lock, and launching it again."
+  default     = false
+}
+
+variable "restart_delay_seconds" {
+  type        = number
+  description = "How long to wait before restarting Mux after it exits when restart_on_kill is enabled."
+  default     = 5
+
+  validation {
+    condition     = var.restart_delay_seconds >= 0
+    error_message = "The 'restart_delay_seconds' variable must be greater than or equal to 0."
+  }
+}
+
+variable "max_restart_attempts" {
+  type        = number
+  description = "Maximum whole-number restart attempts before giving up. Set to 0 for unlimited restarts when restart_on_kill is enabled."
+  default     = 0
+
+  validation {
+    condition     = var.max_restart_attempts >= 0 && floor(var.max_restart_attempts) == var.max_restart_attempts
+    error_message = "The 'max_restart_attempts' variable must be a whole number greater than or equal to 0."
+  }
+}
+
 variable "add_project" {
   type        = string
   description = "Optional path to add/open as a project in Mux on startup."
@@ -171,6 +199,9 @@ resource "coder_script" "mux" {
     OFFLINE : !var.install,
     USE_CACHED : var.use_cached,
     AUTH_TOKEN : local.mux_auth_token,
+    RESTART_ON_KILL : var.restart_on_kill,
+    RESTART_DELAY_SECONDS : var.restart_delay_seconds,
+    MAX_RESTART_ATTEMPTS : var.max_restart_attempts,
     PACKAGE_MANAGER : var.package_manager,
     REGISTRY_URL : local.registry_url,
   })
