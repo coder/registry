@@ -17,6 +17,8 @@ GEMINI_TASK_PROMPT=$(echo -n "$GEMINI_TASK_PROMPT" | base64 -d)
 set +o nounset
 
 command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
 
 if [ -f "$HOME/.nvm/nvm.sh" ]; then
   source "$HOME"/.nvm/nvm.sh

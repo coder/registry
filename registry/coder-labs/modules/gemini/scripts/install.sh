@@ -22,18 +22,42 @@ echo "--------------------------------"
 set +o nounset
 
 function check_dependencies() {
-  if ! command_exists node; then
-    printf "Error: Node.js is not installed. Please install Node.js manually or use the pre_install_script to install it.\n"
-    exit 1
-  fi
+  
 
   if ! command_exists npm; then
     printf "Error: npm is not installed. Please install npm manually or use the pre_install_script to install it.\n"
-    exit 1
+    if ! command_exists node; then
+      printf "Error: Node.js is not installed. Please install Node.js manually or use the pre_install_script to install it.\n"
+      install_node
+    fi
   fi
+}
 
-  printf "Node.js version: %s\n" "$(node --version)"
-  printf "npm version: %s\n" "$(npm --version)"
+function install_node() {
+  if ! command_exists npm; then
+    printf "npm not found, checking for Node.js installation...\n"
+    if ! command_exists node; then
+      printf "Node.js not found, installing Node.js via NVM...\n"
+      export NVM_DIR="$HOME/.nvm"
+      if [ ! -d "$NVM_DIR" ]; then
+        mkdir -p "$NVM_DIR"
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+      else
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+      fi
+
+      nvm install --lts
+      nvm use --lts
+      nvm alias default node
+
+      printf "Node.js installed: %s\n" "$(node --version)"
+      printf "npm installed: %s\n" "$(npm --version)"
+    else
+      printf "Node.js is installed but npm is not available. Please install npm manually.\n"
+      exit 1
+    fi
+  fi
 }
 
 function install_gemini() {
