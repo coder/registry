@@ -216,7 +216,7 @@ module "agentapi" {
     GEMINI_SYSTEM_PROMPT='${base64encode(var.gemini_system_prompt)}' \
     /tmp/install.sh
   EOT
-  start_script         = <<-EOT
+  start_script             = <<-EOT
      #!/bin/bash
      set -o errexit
      set -o pipefail

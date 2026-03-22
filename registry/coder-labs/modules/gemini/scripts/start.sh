@@ -72,7 +72,6 @@ if [ -n "$GEMINI_YOLO_MODE" ] && [ "$GEMINI_YOLO_MODE" = "true" ]; then
   GEMINI_ARGS=(--yolo)
 fi
 
-
 SESSION_FOLDER_NAME=$(basename "${GEMINI_START_DIRECTORY}")
 if [ ! -d "$GEMINI_START_DIRECTORY/.gemini/tmp/$SESSION_FOLDER_NAME/chats/" ]; then
   printf "No existing Gemini chats found. Starting Gemini CLI in interactive mode.\n"
