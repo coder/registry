@@ -56,22 +56,6 @@ else
   }
 fi
 
-if [ -n "$GEMINI_TASK_PROMPT" ]; then
-  printf "Running automated task: %s\n" "$GEMINI_TASK_PROMPT"
-  PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"
-  PROMPT_FILE="$MODULE_DIR/prompt.txt"
-  echo -n "$PROMPT" > "$PROMPT_FILE"
-  GEMINI_ARGS=(--prompt-interactive "$PROMPT")
-else
-  printf "Starting Gemini CLI in interactive mode.\n"
-  GEMINI_ARGS=()
-fi
-
-if [ -n "$GEMINI_YOLO_MODE" ] && [ "$GEMINI_YOLO_MODE" = "true" ]; then
-  printf "YOLO mode enabled - will auto-approve all tool calls\n"
-  GEMINI_ARGS+=(--yolo)
-fi
-
 if [ -n "$GEMINI_API_KEY" ] || [ -n "$GOOGLE_API_KEY" ]; then
   if [ -n "$GOOGLE_GENAI_USE_VERTEXAI" ] && [ "$GOOGLE_GENAI_USE_VERTEXAI" = "true" ]; then
     printf "Using Vertex AI with API key\n"
@@ -83,5 +67,29 @@ else
   exit 1
 fi
 
-agentapi server --type gemini --term-width 67 --term-height 1190 -- \
-  bash -c "$(printf '%q ' gemini "${GEMINI_ARGS[@]}")"
+if [ -n "$GEMINI_YOLO_MODE" ] && [ "$GEMINI_YOLO_MODE" = "true" ]; then
+  printf "YOLO mode enabled - will auto-approve all tool calls\n"
+  GEMINI_ARGS+=(--yolo)
+fi
+
+
+if [ ! -d "$HOME/.gemini/tmp/$GEMINI_START_DIRECTORY/chats/" ]; then
+  printf "No existing Gemini chats found. Starting Gemini CLI in interactive mode.\n"
+  if [ -n "$GEMINI_TASK_PROMPT" ]; then
+    printf "Running automated task: %s\n" "$GEMINI_TASK_PROMPT"
+    PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"
+    PROMPT_FILE="$MODULE_DIR/prompt.txt"
+    echo -n "$PROMPT" > "$PROMPT_FILE"
+    GEMINI_ARGS=(--prompt-interactive "$PROMPT")
+  else
+    printf "Starting Gemini CLI in interactive mode.\n"
+    GEMINI_ARGS=()
+  fi
+  agentapi server --type gemini --term-width 67 --term-height 1190 -- \
+    bash -c "$(printf '%q ' gemini "${GEMINI_ARGS[@]}")"
+else
+  printf "Existing Gemini chats detected. Starting Gemini CLI in interactive mode with existing chats.\n"
+  GEMINI_ARGS=(--resume)
+  agentapi server --type gemini --term-width 67 --term-height 1190 -- \
+    bash -c "$(printf '%q ' gemini "${GEMINI_ARGS[@]}")"
+fi

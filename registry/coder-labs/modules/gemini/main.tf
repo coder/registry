@@ -126,11 +126,11 @@ variable "enable_yolo_mode" {
   default     = false
 }
 
-# variable "enable_state_persistence" {
-#   type        = bool
-#   description = "Enable AgentAPI conversation state persistence across restarts."
-#   default     = true
-# }
+variable "enable_state_persistence" {
+  type        = bool
+  description = "Enable AgentAPI conversation state persistence across restarts."
+  default     = true
+}
 
 resource "coder_env" "gemini_api_key" {
   agent_id = var.agent_id
@@ -197,7 +197,7 @@ module "agentapi" {
   module_dir_name          = local.module_dir_name
   install_agentapi         = var.install_agentapi
   agentapi_version         = var.agentapi_version
-  # enable_state_persistence = var.enable_state_persistence
+  enable_state_persistence = var.enable_state_persistence
   pre_install_script       = var.pre_install_script
   post_install_script      = var.post_install_script
   install_script           = <<-EOT
