@@ -73,7 +73,12 @@ if [ -n "$GEMINI_YOLO_MODE" ] && [ "$GEMINI_YOLO_MODE" = "true" ]; then
 fi
 
 SESSION_FOLDER_NAME=$(basename "${GEMINI_START_DIRECTORY}")
-if [ ! -d "$GEMINI_START_DIRECTORY/.gemini/tmp/$SESSION_FOLDER_NAME/chats/" ]; then
+if [ -d "$GEMINI_START_DIRECTORY/.gemini/tmp/$SESSION_FOLDER_NAME/chats/" ]; then
+  printf "Existing Gemini chats detected. Starting Gemini CLI in interactive mode with existing chats.\n"
+  GEMINI_ARGS+=(--resume)
+  agentapi server --type gemini --term-width 67 --term-height 1190 -- \
+    bash -c "$(printf '%q ' gemini "${GEMINI_ARGS[@]}")"
+else
   printf "No existing Gemini chats found. Starting Gemini CLI in interactive mode.\n"
   if [ -n "$GEMINI_TASK_PROMPT" ]; then
     printf "Running automated task: %s\n" "$GEMINI_TASK_PROMPT"
@@ -85,11 +90,6 @@ if [ ! -d "$GEMINI_START_DIRECTORY/.gemini/tmp/$SESSION_FOLDER_NAME/chats/" ]; t
     printf "Starting Gemini CLI in interactive mode.\n"
     GEMINI_ARGS+=()
   fi
-  agentapi server --type gemini --term-width 67 --term-height 1190 -- \
-    bash -c "$(printf '%q ' gemini "${GEMINI_ARGS[@]}")"
-else
-  printf "Existing Gemini chats detected. Starting Gemini CLI in interactive mode with existing chats.\n"
-  GEMINI_ARGS+=(--resume)
   agentapi server --type gemini --term-width 67 --term-height 1190 -- \
     bash -c "$(printf '%q ' gemini "${GEMINI_ARGS[@]}")"
 fi
