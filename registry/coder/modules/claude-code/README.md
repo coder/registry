@@ -13,7 +13,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "4.7.5"
+  version        = "4.8.1"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
@@ -36,6 +36,19 @@ module "claude-code" {
 
 By default, Claude Code automatically resumes existing conversations when your workspace restarts. Sessions are tracked per workspace directory, so conversations continue where you left off. If no session exists (first start), your `ai_prompt` will run normally. To disable this behavior and always start fresh, set `continue = false`
 
+## State Persistence
+
+AgentAPI can save and restore its conversation state to disk across workspace restarts. This complements `continue` (which resumes the Claude CLI session) by also preserving the AgentAPI-level context. Enabled by default, requires agentapi >= v0.12.0 (older versions skip it with a warning).
+
+To disable:
+
+```tf
+module "claude-code" {
+  # ... other config
+  enable_state_persistence = false
+}
+```
+
 ## Examples
 
 ### Usage with Agent Boundaries
@@ -47,7 +60,7 @@ By default, when `enable_boundary = true`, the module uses `coder boundary` subc
 ```tf
 module "claude-code" {
   source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "4.7.5"
+  version         = "4.8.1"
   agent_id        = coder_agent.main.id
   workdir         = "/home/coder/project"
   enable_boundary = true
@@ -68,7 +81,7 @@ For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage
 ```tf
 module "claude-code" {
   source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "4.7.5"
+  version         = "4.8.1"
   agent_id        = coder_agent.main.id
   workdir         = "/home/coder/project"
   enable_aibridge = true
@@ -97,7 +110,7 @@ data "coder_task" "me" {}
 
 module "claude-code" {
   source    = "registry.coder.com/coder/claude-code/coder"
-  version   = "4.7.5"
+  version   = "4.8.1"
   agent_id  = coder_agent.main.id
   workdir   = "/home/coder/project"
   ai_prompt = data.coder_task.me.prompt
@@ -120,7 +133,7 @@ This example shows additional configuration options for version pinning, custom 
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.7.5"
+  version  = "4.8.1"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -176,7 +189,7 @@ Run and configure Claude Code as a standalone CLI in your workspace.
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "4.7.5"
+  version             = "4.8.1"
   agent_id            = coder_agent.main.id
   workdir             = "/home/coder/project"
   install_claude_code = true
@@ -198,7 +211,7 @@ variable "claude_code_oauth_token" {
 
 module "claude-code" {
   source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "4.7.5"
+  version                 = "4.8.1"
   agent_id                = coder_agent.main.id
   workdir                 = "/home/coder/project"
   claude_code_oauth_token = var.claude_code_oauth_token
@@ -271,7 +284,7 @@ resource "coder_env" "bedrock_api_key" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.7.5"
+  version  = "4.8.1"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
@@ -328,7 +341,7 @@ resource "coder_env" "google_application_credentials" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.7.5"
+  version  = "4.8.1"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "claude-sonnet-4@20250514"

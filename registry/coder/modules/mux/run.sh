@@ -5,16 +5,32 @@ RESET='\033[0m'
 MUX_BINARY="${INSTALL_PREFIX}/mux"
 
 function run_mux() {
-  # Remove stale server lock if present
-  rm -f "$HOME/.mux/server.lock"
-
   local port_value
   local auth_token_value
+  local restart_on_kill_value
+  local restart_delay_seconds_value
+  local max_restart_attempts_value
+
   port_value="${PORT}"
   auth_token_value="${AUTH_TOKEN}"
+  restart_on_kill_value="${RESTART_ON_KILL}"
+  restart_delay_seconds_value="${RESTART_DELAY_SECONDS}"
+  max_restart_attempts_value="${MAX_RESTART_ATTEMPTS}"
+
   if [ -z "$port_value" ]; then
     port_value="4000"
   fi
+
+  if [ -z "$restart_delay_seconds_value" ]; then
+    restart_delay_seconds_value="5"
+  fi
+
+  if [ -z "$max_restart_attempts_value" ]; then
+    max_restart_attempts_value="0"
+  fi
+
+  mkdir -p "$(dirname "${LOG_PATH}")"
+
   # Build args for mux (POSIX-compatible, avoid bash arrays)
   set -- server --port "$port_value"
   if [ -n "${ADD_PROJECT}" ]; then
@@ -31,16 +47,153 @@ function run_mux() {
     while IFS= read -r parsed_arg; do
       [ -n "$parsed_arg" ] || continue
       set -- "$@" "$parsed_arg"
-    done << EOF
+    done << EOF_ARGS
 $${parsed_additional_arguments}
-EOF
+EOF_ARGS
   fi
 
   echo "🚀 Starting mux server on port $port_value..."
   echo "Check logs at ${LOG_PATH}!"
-  MUX_SERVER_AUTH_TOKEN="$auth_token_value" PORT="$port_value" "$MUX_BINARY" "$@" > "${LOG_PATH}" 2>&1 &
+  echo "ℹ️ Mux exit details will be appended to ${LOG_PATH} by the launcher."
+  if [ "$restart_on_kill_value" = true ]; then
+    echo "ℹ️ Auto-restart after mux exits is enabled with a $${restart_delay_seconds_value}-second delay."
+    if [ "$max_restart_attempts_value" = "0" ]; then
+      echo "ℹ️ Automatic restarts are unlimited for every mux exit."
+    else
+      echo "ℹ️ Mux will stop restarting after $${max_restart_attempts_value} restart attempts."
+    fi
+  fi
+
+  nohup env \
+    LOG_PATH="${LOG_PATH}" \
+    MUX_BINARY="$MUX_BINARY" \
+    AUTH_TOKEN="$auth_token_value" \
+    PORT_VALUE="$port_value" \
+    RESTART_ON_KILL_VALUE="$restart_on_kill_value" \
+    RESTART_DELAY_SECONDS_VALUE="$restart_delay_seconds_value" \
+    MAX_RESTART_ATTEMPTS_VALUE="$max_restart_attempts_value" \
+    bash -s -- "$@" > /dev/null 2>&1 << 'EOF_LAUNCHER' &
+signal_name() {
+  local signal_number="$1"
+  local resolved_signal
+
+  resolved_signal="$(kill -l "$signal_number" 2> /dev/null || true)"
+  if [ -n "$resolved_signal" ]; then
+    printf '%s' "$resolved_signal"
+    return 0
+  fi
+
+  printf 'SIG%s' "$signal_number"
 }
 
+append_kernel_kill_context() {
+  local mux_pid="$1"
+  local kernel_context=""
+
+  if command -v dmesg > /dev/null 2>&1; then
+    kernel_context="$(dmesg -T 2> /dev/null | grep -Ei "Killed process $mux_pid|out of memory|oom-killer|oom reaper" | tail -n 10 || true)"
+  fi
+
+  if [ -z "$kernel_context" ] && command -v journalctl > /dev/null 2>&1; then
+    kernel_context="$(journalctl -k -n 200 --no-pager 2> /dev/null | grep -Ei "Killed process $mux_pid|out of memory|oom-killer|oom reaper" | tail -n 10 || true)"
+  fi
+
+  if [ -n "$kernel_context" ]; then
+    echo "Recent kernel kill context:"
+    echo "$kernel_context"
+  else
+    echo "No kernel OOM/kill context was available (dmesg/journalctl unavailable or permission denied)."
+  fi
+}
+
+cleanup_mux_lock() {
+  rm -f "$HOME/.mux/server.lock"
+}
+
+should_restart_mux() {
+  [ "$RESTART_ON_KILL_VALUE" = "true" ]
+}
+
+log_mux_exit() {
+  local mux_pid="$1"
+  local exit_code="$2"
+  local timestamp
+
+  timestamp="$(date -Iseconds 2> /dev/null || date)"
+
+  if [ "$exit_code" -eq 0 ]; then
+    echo "[$timestamp] mux server exited cleanly."
+    return 0
+  fi
+
+  if [ "$exit_code" -gt 128 ]; then
+    local signal_number=$((exit_code - 128))
+    local signal_label
+
+    signal_label="$(signal_name "$signal_number")"
+    echo "[$timestamp] mux server exited due to signal $signal_label ($signal_number); shell exit code $exit_code."
+
+    if [ "$signal_number" -eq 9 ]; then
+      echo "[$timestamp] SIGKILL usually means the process was killed externally or by the OOM killer."
+      append_kernel_kill_context "$mux_pid"
+    fi
+
+    echo "[$timestamp] Check the earlier mux log lines for any in-process crash breadcrumbs from mux itself."
+    return 0
+  fi
+
+  echo "[$timestamp] mux server exited with code $exit_code."
+  echo "[$timestamp] Check the earlier mux log lines for any in-process crash breadcrumbs from mux itself."
+}
+
+log_mux_restart_wait() {
+  local timestamp
+
+  timestamp="$(date -Iseconds 2> /dev/null || date)"
+  echo "[$timestamp] Waiting $${RESTART_DELAY_SECONDS_VALUE} seconds before restarting mux after it exited."
+}
+
+log_mux_restart_cleanup() {
+  local timestamp
+
+  timestamp="$(date -Iseconds 2> /dev/null || date)"
+  echo "[$timestamp] Removing $HOME/.mux/server.lock before restarting mux."
+}
+
+log_mux_restart_cap_reached() {
+  local timestamp
+
+  timestamp="$(date -Iseconds 2> /dev/null || date)"
+  echo "[$timestamp] Reached the max restart attempts limit ($MAX_RESTART_ATTEMPTS_VALUE); not restarting mux again."
+}
+
+restart_attempt_count=0
+while true; do
+  cleanup_mux_lock
+  MUX_SERVER_AUTH_TOKEN="$AUTH_TOKEN" PORT="$PORT_VALUE" "$MUX_BINARY" "$@" >> "$LOG_PATH" 2>&1 &
+  mux_pid=$!
+  wait "$mux_pid"
+  exit_code=$?
+  log_mux_exit "$mux_pid" "$exit_code" >> "$LOG_PATH" 2>&1
+
+  if should_restart_mux; then
+    if [ "$MAX_RESTART_ATTEMPTS_VALUE" -gt 0 ] && [ "$restart_attempt_count" -ge "$MAX_RESTART_ATTEMPTS_VALUE" ]; then
+      log_mux_restart_cap_reached >> "$LOG_PATH" 2>&1
+      break
+    fi
+
+    restart_attempt_count=$((restart_attempt_count + 1))
+    log_mux_restart_wait >> "$LOG_PATH" 2>&1
+    sleep "$RESTART_DELAY_SECONDS_VALUE"
+    cleanup_mux_lock
+    log_mux_restart_cleanup >> "$LOG_PATH" 2>&1
+    continue
+  fi
+
+  break
+done
+EOF_LAUNCHER
+}
 # Check if mux is already installed for offline mode
 if [ "${OFFLINE}" = true ]; then
   if [ -f "$MUX_BINARY" ]; then

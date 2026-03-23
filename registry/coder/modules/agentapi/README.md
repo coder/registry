@@ -47,6 +47,73 @@ module "agentapi" {
 }
 ```
 
+## State Persistence
+
+AgentAPI can save and restore conversation state across workspace restarts.
+This is disabled by default and requires agentapi binary >= v0.12.0.
+
+State and PID files are stored in `$HOME/<module_dir_name>/` alongside other module files (e.g. `$HOME/.claude-module/agentapi-state.json`).
+
+To enable:
+
+```tf
+module "agentapi" {
+  # ... other config
+  enable_state_persistence = true
+}
+```
+
+To override file paths:
+
+```tf
+module "agentapi" {
+  # ... other config
+  state_file_path = "/custom/path/state.json"
+  pid_file_path   = "/custom/path/agentapi.pid"
+}
+```
+
+## Boundary (Network Filtering)
+
+The agentapi module supports optional [Agent Boundaries](https://coder.com/docs/ai-coder/agent-boundaries)
+for network filtering. When enabled, the module sets up a `AGENTAPI_BOUNDARY_PREFIX` environment
+variable that points to a wrapper script. Agent modules should use this prefix in their
+start scripts to run the agent process through boundary.
+
+Boundary requires a `config.yaml` file with your allowlist, jail type, proxy port, and log
+level. See the [Agent Boundaries documentation](https://coder.com/docs/ai-coder/agent-boundaries)
+for configuration details.
+To enable:
+
+```tf
+module "agentapi" {
+  # ... other config
+  enable_boundary      = true
+  boundary_config_path = "/home/coder/.config/coder_boundary/config.yaml"
+
+  # Optional: install boundary binary instead of using coder subcommand
+  # use_boundary_directly        = true
+  # boundary_version              = "0.6.0"
+  # compile_boundary_from_source  = false
+}
+```
+
+### Contract for agent modules
+
+When `enable_boundary = true`, the agentapi module exports `AGENTAPI_BOUNDARY_PREFIX`
+as an environment variable pointing to a wrapper script. Agent module start scripts
+should check for this variable and use it to prefix the agent command:
+
+```bash
+if [ -n "${AGENTAPI_BOUNDARY_PREFIX:-}" ]; then
+  agentapi server -- "${AGENTAPI_BOUNDARY_PREFIX}" my-agent "${ARGS[@]}" &
+else
+  agentapi server -- my-agent "${ARGS[@]}" &
+fi
+```
+
+This ensures only the agent process is sandboxed while agentapi itself runs unrestricted.
+
 ## For module developers
 
 For a complete example of how to use this module, see the [Goose module](https://github.com/coder/registry/blob/main/registry/coder/modules/goose/main.tf).
