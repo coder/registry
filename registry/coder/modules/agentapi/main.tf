@@ -191,6 +191,21 @@ variable "agentapi_subdomain" {
 variable "module_dir_name" {
   type        = string
   description = "Name of the subdirectory in the home directory for module files."
+  default = null
+  validation {
+    condition = var.module_dir_name == null || var.module_dir_path == null
+    error_message = "Cannot set both module_dir_name and module_dir_path. Please set only one of them to specify the module directory location."
+  }
+}
+
+variable "module_dir_path" {
+  type        = string
+  description = "Path to the module directory."
+  default     = null
+  validation {
+    condition = var.module_dir_name == null || var.module_dir_path == null
+    error_message = "Cannot set both module_dir_name and module_dir_path. Please set only one of them to specify the module directory location."
+  }
 }
 
 variable "enable_boundary" {
@@ -267,7 +282,7 @@ locals {
 
   agentapi_main_script_name = "${var.agent_name}-main_script"
 
-  module_dir_path = "$HOME/${var.module_dir_name}"
+  module_dir_path = var.module_dir_path == null ? "$HOME/.coder-modules/coder/${var.module_dir_name}" : var.module_dir_path
 }
 
 module "agent-helper" {
@@ -281,6 +296,25 @@ module "agent-helper" {
   install_script      = var.install_script
   post_install_script = var.post_install_script
   start_script        = var.start_script
+}
+
+resource "coder_script" "boundary" {
+  count        = var.enable_boundary ? 1 : 0
+  agent_id     = ""
+  display_name = ""
+  script       = <<EOT
+    #!/bin/bash
+    set -o pipefail
+
+    echo -n '${base64encode(local.boundary_script)}' | base64 -d > /tmp/boundary.sh
+    chmod +x /tmp/boundary.sh
+
+    ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
+    ARG_BOUNDARY_VERSION='${var.boundary_version}' \
+    ARG_COMPILE_BOUNDARY_FROM_SOURCE='${var.compile_boundary_from_source}' \
+    ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
+    /tmp/boundary.sh
+    EOT
 }
 
 resource "coder_script" "agentapi" {
@@ -317,10 +351,6 @@ resource "coder_script" "agentapi" {
     ARG_AGENTAPI_CHAT_BASE_PATH='${local.agentapi_chat_base_path}' \
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
-    ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
-    ARG_BOUNDARY_VERSION='${var.boundary_version}' \
-    ARG_COMPILE_BOUNDARY_FROM_SOURCE='${var.compile_boundary_from_source}' \
-    ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
     ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
     ARG_STATE_FILE_PATH='${var.state_file_path}' \
     ARG_PID_FILE_PATH='${var.pid_file_path}' \

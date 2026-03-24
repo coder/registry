@@ -11,14 +11,14 @@ max_attempts=150
 
 agentapi_started=false
 
-echo "Waiting for agentapi server to start on port $port..."
-for i in $(seq 1 "$max_attempts"); do
+echo "Waiting for agentapi server to start on port ${port}..."
+for i in $(seq 1 "${max_attempts}"); do
   for j in $(seq 1 3); do
     sleep 0.1
-    if curl -fs -o /dev/null "http://localhost:$port/status"; then
-      echo "agentapi response received ($j/3)"
+    if curl -fs -o /dev/null "http://localhost:${port}/status"; then
+      echo "agentapi response received (${j}/3)"
     else
-      echo "agentapi server not responding ($i/$max_attempts)"
+      echo "agentapi server not responding (${i}/${max_attempts})"
       continue 2
     fi
   done
@@ -26,9 +26,9 @@ for i in $(seq 1 "$max_attempts"); do
   break
 done
 
-if [ "$agentapi_started" != "true" ]; then
-  echo "Error: agentapi server did not start on port $port after $max_attempts attempts."
+if [[ "${agentapi_started}" != "true" ]]; then
+  echo "Error: agentapi server did not start on port ${port} after ${max_attempts} attempts."
   exit 1
 fi
 
-echo "agentapi server started on port $port."
+echo "agentapi server started on port ${port}."

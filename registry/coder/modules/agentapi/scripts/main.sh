@@ -118,7 +118,6 @@ if [ "${ENABLE_STATE_PERSISTENCE}" = "true" ]; then
     echo "Warning: State persistence requires agentapi >= v0.12.0 (current: ${actual_version:-unknown}), skipping."
   fi
 fi
-nohup "$module_path/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &> "$module_path/agentapi-start.log" &
 
 # Build agentapi server command arguments
 ARGS=(
