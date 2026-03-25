@@ -374,8 +374,6 @@ Cleanup of `*.tfstate` files and `modules-test` Docker containers is handled aut
 | Validate         | `./scripts/terraform_validate.sh`                     | Repo       |
 | Version bump     | `.github/scripts/version-bump.sh patch\|minor\|major` | Module dir |
 
-Always run `bun run fmt` before committing.
-
 ## Version Management
 
 Bump version via `.github/scripts/version-bump.sh` when modifying modules:
@@ -386,13 +384,14 @@ Bump version via `.github/scripts/version-bump.sh` when modifying modules:
 
 The script automatically updates `version` references in README usage examples.
 
-## PR Checklist
+## Final Checks
 
-- [ ] Version bumped if module changed (script also updates README examples)
-- [ ] Breaking changes documented (removed inputs, changed defaults, new required variables)
-- [ ] New variables have sensible defaults
-- [ ] Tests pass: `bun run tftest` and `bun run tstest`
-- [ ] Shell scripts handle errors gracefully (`|| echo "Warning..."` for non-fatal)
-- [ ] No hardcoded values that should be configurable
-- [ ] No absolute URLs (use relative paths)
-- [ ] AI attribution in PR footer (e.g. "Generated with Claude")
+Before considering the work complete, verify:
+
+- New variables have sensible defaults for backward compatibility
+- Breaking changes are documented if any inputs were removed, defaults changed, or new required variables added
+- Tests pass: `bun run tftest` and `bun run tstest`
+- Shell scripts handle errors gracefully (`|| echo "Warning..."` for non-fatal failures)
+- No hardcoded values that should be configurable via variables
+- No absolute URLs (use relative paths)
+- `bun run fmt` has been run

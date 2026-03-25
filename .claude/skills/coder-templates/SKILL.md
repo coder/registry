@@ -381,13 +381,12 @@ Templates do NOT require `.tftest.hcl` or `main.test.ts`. Testing is done by pus
 | Format all | `bun run fmt`                     | Repo  |
 | Validate   | `./scripts/terraform_validate.sh` | Repo  |
 
-Always run `bun run fmt` before committing.
+## Final Checks
 
-## PR Checklist
+Before considering the work complete, verify:
 
-- [ ] Template provisions and starts successfully
-- [ ] README documents prerequisites and architecture
-- [ ] Shell scripts handle errors gracefully (`|| echo "Warning..."` for non-fatal)
-- [ ] No hardcoded values that should be configurable
-- [ ] No absolute URLs (use relative paths)
-- [ ] AI attribution in PR footer (e.g. "Generated with Claude")
+- README documents prerequisites and architecture
+- Shell scripts handle errors gracefully (`|| echo "Warning..."` for non-fatal failures)
+- No hardcoded values that should be configurable via variables or parameters
+- No absolute URLs (use relative paths)
+- `bun run fmt` has been run
