@@ -216,7 +216,7 @@ Key patterns:
 
 - Provider version constraints must reflect actual functionality requirements. Only set a minimum `coder` provider version when the template uses a resource, attribute, or behavior introduced in that version. The same applies to infrastructure providers (Docker, AWS, etc.); check provider changelogs to confirm.
 - Include `data.coder_workspace.me` and `data.coder_workspace_owner.me` for workspace and owner metadata. Include `data.coder_provisioner.me` only when you need the provisioner's `arch` or `os` for `coder_agent` (typical for Docker, Kubernetes, Incus); omit when the workspace OS/arch is fixed (e.g. cloud VMs with a known image).
-- Use `data "coder_parameter"` for UI-facing options. When creating a new template, include parameters for the standard configurable options for that platform (e.g. region, CPU, memory, disk size for cloud/VM templates). Use existing templates for the same platform if they exist as a reference for which parameters to include and what defaults to set.
+- Use `data "coder_parameter"` for user-facing knobs. For new templates, include standard options for the platform (e.g. region, CPU, memory, disk size for cloud/VM templates); align with same-platform templates. Expose stated preferences as the parameter `default` with additional sensible `option` values unless the user explicitly restricts that dimension.
 - Use `locals {}` for computed values: username, environment variables, startup scripts, URL assembly
 - Use `data.coder_workspace.me.start_count` as `count` on ephemeral resources
 - Connect containers/VMs to the agent via `coder_agent.main.init_script` and `CODER_AGENT_TOKEN`
