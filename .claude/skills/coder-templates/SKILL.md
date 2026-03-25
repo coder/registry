@@ -386,8 +386,9 @@ Templates do NOT require `.tftest.hcl` or `main.test.ts`. Testing is done by pus
 
 Before considering the work complete, verify:
 
+- `terraform init && terraform validate` passes in the template directory
+- `bun run fmt` has been run
 - README documents prerequisites and architecture
 - Shell scripts handle errors gracefully (`|| echo "Warning..."` for non-fatal failures)
 - No hardcoded values that should be configurable via variables or parameters
 - No absolute URLs (use relative paths)
-- `bun run fmt` has been run
