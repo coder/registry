@@ -223,6 +223,7 @@ Key patterns:
 - Add `metadata` blocks for workspace dashboard stats (`coder stat cpu`, `coder stat mem`, etc.)
 - Optionally use `display_apps` block to hide specific built-in apps (defaults show all)
 - Always search the registry at <https://registry.coder.com> before implementing any functionality from scratch. If a module already exists for what you need (region selectors, IDE integrations, developer tools, etc.), consume it rather than reimplementing it. When multiple modules serve similar purposes, prefer the actively maintained one and check that you are not using a deprecated or superseded module.
+- Before consuming a module, verify its accepted variables. If you are inside the registry repo, read the module's `main.tf` directly (e.g. `registry/coder/modules/code-server/main.tf`). Otherwise, read the module's page at `https://registry.coder.com/modules/<namespace>/<module-name>` which includes the full source and variable definitions. Never pass arguments to a module without confirming they exist.
 - Do not add comments that narrate what the code does or label sections. Only comment when explaining something non-obvious (e.g. why a workaround exists, a subtle constraint, or an unusual design choice).
 - Label infrastructure resources with `coder.owner` and `coder.workspace_id` for tracking orphans
 - Use `lifecycle { ignore_changes = all }` on persistent volumes to prevent data loss
