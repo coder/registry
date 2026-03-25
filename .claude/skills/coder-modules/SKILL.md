@@ -391,7 +391,7 @@ Before considering the work complete, verify:
 - New variables have sensible defaults for backward compatibility
 - Breaking changes are documented if any inputs were removed, defaults changed, or new required variables added
 - Tests pass: `bun run tftest` and `bun run tstest`
+- `bun run fmt` has been run
 - Shell scripts handle errors gracefully (`|| echo "Warning..."` for non-fatal failures)
 - No hardcoded values that should be configurable via variables
-- No absolute URLs (use relative paths)
-- `bun run fmt` has been run
+- Asset and icon paths in frontmatter and Terraform must be relative (e.g. `../../../../.icons/`), not absolute. External hyperlinks to docs or other websites are fine.
