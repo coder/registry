@@ -49,9 +49,9 @@ variable "agent_name" {
 
 }
 
-variable "module_dir_name" {
+variable "module_dir_path" {
   type        = string
-  description = "The name of the module directory."
+  description = "Path of the module directory."
 }
 
 locals {
@@ -65,17 +65,15 @@ locals {
   post_install_script_name = "${var.agent_name}-post_install_script"
   start_script_name        = "${var.agent_name}-start_script"
 
-  module_dir_path = "$HOME/${var.module_dir_name}"
+  pre_install_path  = "${var.module_dir_path}/pre_install.sh"
+  install_path      = "${var.module_dir_path}/install.sh"
+  post_install_path = "${var.module_dir_path}/post_install.sh"
+  start_path        = "${var.module_dir_path}/start.sh"
 
-  pre_install_path  = "${local.module_dir_path}/pre_install.sh"
-  install_path      = "${local.module_dir_path}/install.sh"
-  post_install_path = "${local.module_dir_path}/post_install.sh"
-  start_path        = "${local.module_dir_path}/start.sh"
-
-  pre_install_log_path  = "${local.module_dir_path}/pre_install.log"
-  install_log_path      = "${local.module_dir_path}/install.log"
-  post_install_log_path = "${local.module_dir_path}/post_install.log"
-  start_log_path        = "${local.module_dir_path}/start.log"
+  pre_install_log_path  = "${var.module_dir_path}/pre_install.log"
+  install_log_path      = "${var.module_dir_path}/install.log"
+  post_install_log_path = "${var.module_dir_path}/post_install.log"
+  start_log_path        = "${var.module_dir_path}/start.log"
 }
 
 resource "coder_script" "pre_install_script" {
@@ -88,7 +86,7 @@ resource "coder_script" "pre_install_script" {
     set -o errexit
     set -o pipefail
 
-    mkdir -p ${local.module_dir_path}
+    mkdir -p ${var.module_dir_path}
 
     trap 'coder exp sync complete ${local.pre_install_script_name}' EXIT
     coder exp sync start ${local.pre_install_script_name}
@@ -109,7 +107,7 @@ resource "coder_script" "install_script" {
     set -o errexit
     set -o pipefail
 
-    mkdir -p ${local.module_dir_path}
+    mkdir -p ${var.module_dir_path}
 
     trap 'coder exp sync complete ${local.install_script_name}' EXIT
     %{if var.pre_install_script != null~}
