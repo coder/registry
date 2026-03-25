@@ -127,7 +127,7 @@ Key patterns:
 - Common variable: `agent_id` (string, required, no default)
 - Common variable: `order` (number, default `null`, controls UI position)
 - Use `locals {}` for computed values: URL normalization, base64 encoding, `file()` script content, config assembly
-- Modules can consume other registry modules via `module` blocks (e.g. `cursor` uses `vscode-desktop-core`, CLI wrappers use `agentapi`). Before consuming a module, verify its accepted variables by reading its `main.tf` directly if inside the registry repo, or by reading its page at `https://registry.coder.com/modules/<namespace>/<module-name>`. Never pass arguments without confirming they exist.
+- Modules can consume other registry modules via `module` blocks (e.g. `cursor` uses `vscode-desktop-core`, CLI wrappers use `agentapi`). Before consuming a module, read its `main.tf` and `README.md` to understand the full interface: accepted variables, outputs, prerequisites, and runtime requirements. If you are inside the registry repo, read these files directly. Otherwise, read the module's page at `https://registry.coder.com/modules/<namespace>/<module-name>` which includes the full source, README, and variable definitions. Never pass arguments without confirming they exist.
 - `coder_script` icons use the `/icon/<name>.svg` format. The `display_name` is typically the product name (e.g. "code-server", "Git Clone", "File Browser").
 - Do not add comments that narrate what the code does or label sections. Only comment when explaining something non-obvious (e.g. why a workaround exists, a subtle constraint, or an unusual design choice).
 
