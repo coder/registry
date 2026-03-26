@@ -17,6 +17,8 @@ Before writing or modifying any code:
 4. **Clarify before building.** If the request is ambiguous (e.g. unclear which Coder resource to use, whether a `coder_app` vs `coder_script` is appropriate, what variables to expose, or which namespace to use), ask for clarification rather than guessing. Never assume a namespace; always confirm with the user.
 5. **Plan the structure.** Decide on script organization (root `run.sh`, `scripts/` directory, or inline), what variables to expose, and what tests to write.
 
+Always prefer the proper implementation over a simpler shortcut. Modules are infrastructure that users depend on. Doing less work is not the same as reducing complexity if it leaves the module incomplete or fragile.
+
 ## Documentation References
 
 ### Coder
@@ -61,7 +63,7 @@ Names must be lowercase alphanumeric with hyphens or underscores (e.g. `coder/my
 
 Creates `registry/<namespace>/modules/<module-name>/` with:
 
-- `main.tf`: Terraform config with coder provider
+- `main.tf`: Terraform config with common resource patterns and variables — read this as the primary reference for module structure
 - `README.md`: frontmatter and usage examples
 - `MODULE_NAME.tftest.hcl`: Terraform native tests
 - `run.sh`: install/start-up script template
@@ -71,57 +73,11 @@ If the namespace is new, the script also creates `registry/<namespace>/` with a 
 - `registry/<namespace>/.images/avatar.svg` (or `.png`): square image, 400x400px minimum
 - The namespace README `avatar` field pointing to `./.images/avatar.svg`
 
-The generated namespace README contains placeholder fields (`display_name`, `bio`, `status`, `github`, `avatar`, etc.) that the user must fill out. The `status` field is required and must be `official`, `partner`, or `community` (typically `community` for new contributors). After completing the module, inform the user that the namespace README needs to be updated with their information.
+The scaffolding script does not create the `.images/` directory or avatar file. When a new namespace is created, create `registry/<namespace>/.images/` and add a placeholder `avatar.svg` so the directory structure is ready for the user to replace with their real avatar.
 
-## main.tf
+The generated namespace README contains placeholder fields (`display_name`, `bio`, `status`, `github`, `avatar`, etc.) that the user must fill out. The `status` field is required and must be `official`, `partner`, or `community` (typically `community` for new contributors).
 
-```tf
-terraform {
-  required_version = ">= 1.0"
-
-  required_providers {
-    coder = {
-      source  = "coder/coder"
-      version = ">= 2.5"
-    }
-  }
-}
-
-variable "agent_id" {
-  type        = string
-  description = "The ID of a Coder agent."
-}
-
-resource "coder_script" "my_tool" {
-  agent_id     = var.agent_id
-  display_name = "My Tool"
-  icon         = local.icon_url
-  script = templatefile("${path.module}/run.sh", {
-    LOG_PATH : var.log_path,
-  })
-  run_on_start = true
-  run_on_stop  = false
-}
-
-resource "coder_app" "my_tool" {
-  agent_id     = var.agent_id
-  slug         = "my-tool"
-  display_name = "My Tool"
-  url          = "http://localhost:${var.port}"
-  icon         = local.icon_url
-  subdomain    = false
-  share        = "owner"
-  order        = var.order
-
-  healthcheck {
-    url       = "http://localhost:${var.port}/healthz"
-    interval  = 5
-    threshold = 6
-  }
-}
-```
-
-Key patterns:
+## Key Patterns
 
 - Provider version constraints must reflect actual functionality requirements. Only raise the minimum `coder` provider version (e.g. `>= 2.5` to `>= 2.8`) when the module uses a resource, attribute, or behavior introduced in that version; check the provider changelog to confirm.
 - Variable names MUST be `snake_case` (no hyphens; validation rejects them)
@@ -130,6 +86,8 @@ Key patterns:
 - Common variable: `order` (number, default `null`, controls UI position)
 - Use `locals {}` for computed values: URL normalization, base64 encoding, `file()` script content, config assembly
 - Modules can consume other registry modules via `module` blocks (e.g. `cursor` uses `vscode-desktop-core`, CLI wrappers use `agentapi`). Before consuming a module, read its `main.tf` and `README.md` to understand the full interface: accepted variables, outputs, prerequisites, and runtime requirements. If you are inside the registry repo, read these files directly. Otherwise, read the module's page at `https://registry.coder.com/modules/<namespace>/<module-name>` which includes the full source, README, and variable definitions. Never pass arguments without confirming they exist.
+- Most modules expose configuration via `variable` blocks, letting the template pass values. Use `coder_parameter` inside a module only when the module needs to present a UI choice directly to the workspace user (e.g. region selectors, IDE pickers).
+- For parameter-only modules (region selectors, etc.), use `dynamic "option"` with `for_each` from a `locals` map and expose an `output` for the selected value.
 - `coder_script` icons use the `/icon/<name>.svg` format. The `display_name` is typically the product name (e.g. "code-server", "Git Clone", "File Browser").
 - Do not add comments that narrate what the code does or label sections. Only comment when explaining something non-obvious (e.g. why a workaround exists, a subtle constraint, or an unusual design choice).
 
@@ -180,7 +138,7 @@ Workflow:
 2. **Use existing icons when they fit.** If the tool already has an icon in `.icons/` and `/icon/`, use those.
 3. **When an icon doesn't exist,** reference the expected path anyway (e.g. `../../../../.icons/my-tool.svg` and `/icon/my-tool.svg`) so the structure is correct. Try to source the official SVG from the tool's branding page or repository. If you can obtain it, add it to `.icons/` in this repo.
 4. **Don't substitute a generic icon.** If the tool has its own brand identity, use the correct name even if the file doesn't exist yet. Don't fall back to generic icons like `coder.svg` or `terminal.svg`.
-5. **Notify the user.** After completing the module, inform the user in your response if any icons were referenced but not found. Note that missing icons need to be sourced and added to both this repo's `.icons/` directory and the `coder/coder` repo at `site/static/icon/`.
+5. **Track missing icons** so you can report them in your response.
 
 ## Scripts
 
@@ -368,17 +326,16 @@ Cleanup of `*.tfstate` files and `modules-test` Docker containers is handled aut
 
 ## Commands
 
-| Task             | Command                                                 | Scope      |
-| ---------------- | ------------------------------------------------------- | ---------- |
-| Format all       | `bun run fmt`                                           | Repo       |
-| Terraform tests  | `bun run tftest`                                        | Repo       |
-| TypeScript tests | `bun run tstest`                                        | Repo       |
-| Single TF test   | `terraform init -upgrade && terraform test -verbose`    | Module dir |
-| Single TS test   | `bun test main.test.ts`                                 | Module dir |
-| Validate         | `./scripts/terraform_validate.sh`                       | Repo       |
-| ShellCheck       | `bun run shellcheck`                                    | Repo       |
-| README validate  | `go build ./cmd/readmevalidation && ./readmevalidation` | Repo       |
-| Version bump     | `.github/scripts/version-bump.sh patch\|minor\|major`   | Repo       |
+| Task             | Command                                               | Scope      |
+| ---------------- | ----------------------------------------------------- | ---------- |
+| Format all       | `bun run fmt`                                         | Repo       |
+| Terraform tests  | `bun run tftest`                                      | Repo       |
+| TypeScript tests | `bun run tstest`                                      | Repo       |
+| Single TF test   | `terraform init -upgrade && terraform test -verbose`  | Module dir |
+| Single TS test   | `bun test main.test.ts`                               | Module dir |
+| Validate         | `./scripts/terraform_validate.sh`                     | Repo       |
+| ShellCheck       | `bun run shellcheck`                                  | Repo       |
+| Version bump     | `.github/scripts/version-bump.sh patch\|minor\|major` | Repo       |
 
 ## Version Management
 
@@ -397,9 +354,16 @@ Before considering the work complete, verify:
 - Tests pass: `bun run tftest` and `bun run tstest`
 - `bun run fmt` has been run
 - `bun run shellcheck` passes if the module includes shell scripts
-- `go build ./cmd/readmevalidation && ./readmevalidation` passes (validates frontmatter, icon paths, body structure, GFM alerts)
 - New variables have sensible defaults for backward compatibility
 - Breaking changes are documented if any inputs were removed, defaults changed, or new required variables added
 - Shell scripts handle errors gracefully (`|| echo "Warning..."` for non-fatal failures)
 - No hardcoded values that should be configurable via variables
 - Asset and icon paths in frontmatter and Terraform must be relative (e.g. `../../../../.icons/`), not absolute. External hyperlinks to docs or other websites are fine.
+
+## Response to the User
+
+In your response, include:
+
+- If a new namespace was created, remind the user to fill out the namespace README (`display_name`, `bio`, `status`, `github`, etc.) and replace the placeholder avatar. Note that this is only needed if they plan to contribute to the registry.
+- If any icons were referenced but not found, list them and note they need to be sourced and added to both this repo's `.icons/` directory and the `coder/coder` repo at `site/static/icon/`.
+- A note that to contribute the module to the public registry, they can open a pull request to <https://github.com/coder/registry>.

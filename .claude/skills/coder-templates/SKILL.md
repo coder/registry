@@ -19,6 +19,8 @@ Before writing or modifying any code:
 
 When updating an existing template, read and understand all of its current resources, parameters, and module consumption before making changes. If you observe patterns that deviate from the coder template standards (e.g. missing metadata blocks, hardcoded values that should be parameters, inline implementations that existing modules could replace, missing error handling in scripts), note these to the user as improvement opportunities in your response.
 
+Always prefer the proper implementation over a simpler shortcut. Templates are infrastructure that users depend on. Doing less work is not the same as reducing complexity if it leaves the template incomplete or fragile.
+
 Features marked as "Premium" in this skill require a Coder Premium license. When your implementation uses a Premium feature, note this in your response to the user so they can verify their deployment supports it.
 
 ## Documentation References
@@ -30,6 +32,7 @@ Features marked as "Premium" in this skill require a Coder Premium license. When
 - Creating templates: <https://coder.com/docs/admin/templates/creating-templates>
 - Extending templates: <https://coder.com/docs/admin/templates/extending-templates>
 - Template parameters: <https://coder.com/docs/admin/templates/extending-templates/parameters>
+- Dynamic parameters: <https://coder.com/docs/admin/templates/extending-templates/dynamic-parameters>
 - Workspace presets: <https://coder.com/docs/admin/templates/extending-templates/parameters#workspace-presets>
 - Prebuilt workspaces: <https://coder.com/docs/admin/templates/extending-templates/prebuilt-workspaces>
 - Tasks: <https://coder.com/docs/ai-coder/tasks>
@@ -88,11 +91,11 @@ From repo root:
 ./scripts/new_template.sh namespace/template-name
 ```
 
-Names must be lowercase alphanumeric with hyphens or underscores (e.g. `my-org/python-docker`).
+Names must be lowercase alphanumeric with hyphens or underscores (e.g. `my-org/aws-ec2`).
 
 Creates `registry/<namespace>/templates/<template-name>/` with:
 
-- `main.tf`: full workspace Terraform config
+- `main.tf`: full workspace Terraform config with common patterns — read this as the primary reference for template structure
 - `README.md`: frontmatter and documentation
 
 If the namespace is new, the script also creates `registry/<namespace>/` with a README. New namespaces additionally need:
@@ -100,126 +103,14 @@ If the namespace is new, the script also creates `registry/<namespace>/` with a 
 - `registry/<namespace>/.images/avatar.svg` (or `.png`): square image, 400x400px minimum
 - The namespace README `avatar` field pointing to `./.images/avatar.svg`
 
-The generated namespace README contains placeholder fields (`display_name`, `bio`, `status`, `github`, `avatar`, etc.) that the user must fill out. The `status` field is required and must be `official`, `partner`, or `community` (typically `community` for new contributors). After completing the template, inform the user that the namespace README needs to be updated with their information.
+The scaffolding script does not create the `.images/` directory or avatar file. When a new namespace is created, create `registry/<namespace>/.images/` and add a placeholder `avatar.svg` so the directory structure is ready for the user to replace with their real avatar.
 
-## main.tf
+The generated namespace README contains placeholder fields (`display_name`, `bio`, `status`, `github`, `avatar`, etc.) that the user must fill out. The `status` field is required and must be `official`, `partner`, or `community` (typically `community` for new contributors).
 
-Templates define the full workspace stack: providers, agent, infrastructure resources, and module consumption.
-
-```tf
-terraform {
-  required_providers {
-    coder = {
-      source = "coder/coder"
-    }
-    docker = {
-      source = "kreuzwerker/docker"
-    }
-  }
-}
-
-data "coder_provisioner" "me" {}
-data "coder_workspace" "me" {}
-data "coder_workspace_owner" "me" {}
-
-resource "coder_agent" "main" {
-  arch           = data.coder_provisioner.me.arch
-  os             = "linux"
-  startup_script = <<-EOT
-    set -e
-    if [ ! -f ~/.init_done ]; then
-      cp -rT /etc/skel ~
-      touch ~/.init_done
-    fi
-  EOT
-
-  env = {
-    GIT_AUTHOR_NAME     = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_AUTHOR_EMAIL    = "${data.coder_workspace_owner.me.email}"
-    GIT_COMMITTER_NAME  = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_COMMITTER_EMAIL = "${data.coder_workspace_owner.me.email}"
-  }
-
-  metadata {
-    display_name = "CPU Usage"
-    key          = "cpu"
-    script       = "coder stat cpu"
-    interval     = 10
-    timeout      = 1
-  }
-
-  metadata {
-    display_name = "RAM Usage"
-    key          = "memory"
-    script       = "coder stat mem"
-    interval     = 10
-    timeout      = 1
-  }
-
-  metadata {
-    display_name = "Home Disk"
-    key          = "disk"
-    script       = "coder stat disk --path $${HOME}"
-    interval     = 60
-    timeout      = 1
-  }
-
-}
-
-module "code-server" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/code-server/coder"
-  version  = "~> 1.0"
-  agent_id = coder_agent.main.id
-}
-
-resource "docker_volume" "home_volume" {
-  name = "coder-${data.coder_workspace.me.id}-home"
-  lifecycle {
-    ignore_changes = all
-  }
-  labels {
-    label = "coder.owner"
-    value = data.coder_workspace_owner.me.name
-  }
-  labels {
-    label = "coder.workspace_id"
-    value = data.coder_workspace.me.id
-  }
-}
-
-resource "docker_container" "workspace" {
-  count      = data.coder_workspace.me.start_count
-  image      = "codercom/enterprise-base:ubuntu"
-  name       = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}"
-  hostname   = data.coder_workspace.me.name
-  entrypoint = ["sh", "-c", replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")]
-  env        = ["CODER_AGENT_TOKEN=${coder_agent.main.token}"]
-  host {
-    host = "host.docker.internal"
-    ip   = "host-gateway"
-  }
-  volumes {
-    container_path = "/home/coder"
-    volume_name    = docker_volume.home_volume.name
-    read_only      = false
-  }
-  labels {
-    label = "coder.owner"
-    value = data.coder_workspace_owner.me.name
-  }
-  labels {
-    label = "coder.workspace_id"
-    value = data.coder_workspace.me.id
-  }
-}
-```
-
-Key patterns:
+## Key Patterns
 
 - Provider version constraints must reflect actual functionality requirements. Only set a minimum `coder` provider version when the template uses a resource, attribute, or behavior introduced in that version. The same applies to infrastructure providers (Docker, AWS, etc.); check provider changelogs to confirm.
 - Include `data.coder_workspace.me` and `data.coder_workspace_owner.me` for workspace and owner metadata. Include `data.coder_provisioner.me` only when you need the provisioner's `arch` or `os` for `coder_agent` (typical for Docker, Kubernetes, Incus); omit when the workspace OS/arch is fixed (e.g. cloud VMs with a known image).
-- Use `data "coder_parameter"` for user-facing knobs. For new templates, include standard options for the platform (e.g. region, CPU, memory, disk size for cloud/VM templates); align with same-platform templates in `registry/` when available, otherwise use the registry website. Expose stated preferences as the parameter `default` with additional sensible `option` values unless the user explicitly restricts that dimension.
 - Use `locals {}` for computed values: username, environment variables, startup scripts, URL assembly
 - Use `data.coder_workspace.me.start_count` as `count` on ephemeral resources
 - Connect containers/VMs to the agent via `coder_agent.main.init_script` and `CODER_AGENT_TOKEN`
@@ -241,6 +132,18 @@ Templates can include files beyond `main.tf` + `README.md`:
 - `cloud-init/*.tftpl`: cloud-init configs for VM provisioning (AWS, Azure, GCP), loaded via `templatefile()`. Prefer this subdirectory over placing cloud-init files at the template root.
 - `build/Dockerfile`: custom container images built by the template
 - `.tftpl` files: any Terraform template files for scripts, configs, or cloud-init data
+
+### Parameters
+
+Use `data "coder_parameter"` for user-facing workspace options. Typical parameters: region/instance type/CPU/memory/disk for cloud VMs; container image or runtime version for Docker (pass as `build_arg` when using a local Dockerfile). Use same-platform templates in `registry/` as a starting reference, not a rigid pattern. Expose stated preferences as the parameter `default` with additional sensible `option` values unless the user explicitly restricts it.
+
+- Prefer `dynamic "option"` blocks with `for_each` from a `locals` map over static `option` blocks. See the region selector modules (e.g. `coder/aws-region`) for the pattern.
+- Use `form_type` for richer UI controls: `dropdown` (searchable), `multi-select` (for `list(string)`), `slider` (numeric), `radio`, `checkbox`, `textarea`.
+- Conditional parameters: use `count` to show/hide a parameter based on another parameter's value.
+- `mutable = false` for infrastructure that can't change after creation (region, disk); `mutable = true` for runtime config.
+- `ephemeral = true` for one-shot build options that don't persist between starts.
+- `validation {}` with `min`/`max`/`monotonic` for numbers, `regex`/`error` for strings.
+- Dynamic parameter features require Coder provider `>= 2.4.0`.
 
 ### Presets
 
@@ -374,20 +277,19 @@ Workflow:
 2. **Use existing icons when they fit.** Most templates use a platform icon (aws, gcp, azure, docker, kubernetes) that already exists.
 3. **When an icon doesn't exist,** reference the expected path anyway so the structure is correct. Try to source the official SVG from the platform's branding page or repository. If you can obtain it, add it to `.icons/` in this repo.
 4. **Don't substitute a generic icon.** If the platform has its own brand identity, use the correct name even if the file doesn't exist yet.
-5. **Notify the user.** After completing the template, inform the user in your response if any icons were referenced but not found. Note that missing icons need to be sourced and added to both this repo's `.icons/` directory and the `coder/coder` repo at `site/static/icon/`.
+5. **Track missing icons** so you can report them in your response.
 
 ## Testing
 
-Templates do NOT require `.tftest.hcl` or `main.test.ts`. Testing is done by pushing the template to a Coder deployment with `coder templates push`.
+Templates do NOT require `.tftest.hcl` or `main.test.ts`. Testing is done by pushing the template to a Coder deployment.
 
 ## Commands
 
-| Task            | Command                                                 | Scope |
-| --------------- | ------------------------------------------------------- | ----- |
-| Format all      | `bun run fmt`                                           | Repo  |
-| Validate        | `./scripts/terraform_validate.sh`                       | Repo  |
-| ShellCheck      | `bun run shellcheck`                                    | Repo  |
-| README validate | `go build ./cmd/readmevalidation && ./readmevalidation` | Repo  |
+| Task       | Command                           | Scope |
+| ---------- | --------------------------------- | ----- |
+| Format all | `bun run fmt`                     | Repo  |
+| Validate   | `./scripts/terraform_validate.sh` | Repo  |
+| ShellCheck | `bun run shellcheck`              | Repo  |
 
 ## Final Checks
 
@@ -396,8 +298,24 @@ Before considering the work complete, verify:
 - `terraform init && terraform validate` passes in the template directory
 - `bun run fmt` has been run
 - `bun run shellcheck` passes if the template includes shell scripts
-- `go build ./cmd/readmevalidation && ./readmevalidation` passes (validates frontmatter, icon paths, body structure, GFM alerts)
 - README documents prerequisites and architecture
 - Shell scripts handle errors gracefully (`|| echo "Warning..."` for non-fatal failures). If a script sources external files (`$HOME/.bashrc`, `/etc/bashrc`, `/etc/os-release`), the `source` must come before `set -u`; CI enforces this ordering.
 - No hardcoded values that should be configurable via variables or parameters
 - Asset and icon paths in frontmatter and Terraform must be relative (e.g. `../../../../.icons/`), not absolute. External hyperlinks to docs or other websites are fine.
+
+## Response to the User
+
+In your response, include:
+
+- A ready-to-run push command with real values filled in. Use `-d` to point at the template directory (so it works from the repo root), `-m` for a short description, and `-y` to skip interactive prompts:
+
+```bash
+coder templates push \
+  registry/ \
+  -m "Initial version: <brief description>" \
+  -y < template-name > -d < namespace > /templates/ < template-name > /
+```
+
+- If a new namespace was created, remind the user to fill out the namespace README (`display_name`, `bio`, `status`, `github`, etc.) and replace the placeholder avatar. Note that this is only needed if they plan to contribute to the registry.
+- If any icons were referenced but not found, list them and note they need to be sourced and added to both this repo's `.icons/` directory and the `coder/coder` repo at `site/static/icon/`.
+- A note that to contribute the template to the public registry, they can open a pull request to <https://github.com/coder/registry>.
