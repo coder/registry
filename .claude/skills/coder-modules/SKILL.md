@@ -57,6 +57,8 @@ From repo root:
 ./scripts/new_module.sh namespace/module-name
 ```
 
+Names must be lowercase alphanumeric with hyphens or underscores (e.g. `coder/my-tool`).
+
 Creates `registry/<namespace>/modules/<module-name>/` with:
 
 - `main.tf`: Terraform config with coder provider
@@ -66,10 +68,10 @@ Creates `registry/<namespace>/modules/<module-name>/` with:
 
 If the namespace is new, the script also creates `registry/<namespace>/` with a README. New namespaces additionally need:
 
-- `registry/<namespace>/.images/avatar.png` (or `.svg`): square image, 400x400px minimum
-- The namespace README `avatar` field pointing to `./.images/avatar.png`
+- `registry/<namespace>/.images/avatar.svg` (or `.png`): square image, 400x400px minimum
+- The namespace README `avatar` field pointing to `./.images/avatar.svg`
 
-The generated namespace README contains placeholder fields (name, links, avatar) that the user must fill out. After completing the module, inform the user that the namespace README needs to be updated with their information.
+The generated namespace README contains placeholder fields (`display_name`, `bio`, `status`, `github`, `avatar`, etc.) that the user must fill out. The `status` field is required and must be `official`, `partner`, or `community` (typically `community` for new contributors). After completing the module, inform the user that the namespace README needs to be updated with their information.
 
 ## main.tf
 
@@ -202,9 +204,11 @@ resource "coder_script" "my_tool" {
 
 Use `$${VAR}` (double dollar) in the shell script for Terraform `templatefile` escaping.
 
+If a script sources external files (`$HOME/.bashrc`, `/etc/bashrc`, `/etc/os-release`), the `source` statement must come before `set -u`; CI enforces this ordering.
+
 ### `scripts/` directory + `file()` (complex modules)
 
-Separate `scripts/install.sh` and `scripts/start.sh` loaded via `file()` into `locals`, then passed to a child module or encoded inline. Used by `claude-code`, `copilot`, `codex`, `cursor-cli`, `amazon-q`.
+Separate `scripts/install.sh` and `scripts/start.sh` loaded via `file()` into `locals`, then passed to a child module or encoded inline. Used by `coder/claude-code`, `coder-labs/copilot`, `coder-labs/codex`, `coder-labs/cursor-cli`, `coder/amazon-q` for example.
 
 ```tf
 locals {
@@ -213,7 +217,7 @@ locals {
 }
 ```
 
-Use `file()` when scripts don't need Terraform variable interpolation. For config templates, use a `templates/` directory with `templatefile()` (e.g. `amazon-q/templates/agent-config.json.tpl`).
+Use `file()` when scripts don't need Terraform variable interpolation. For config templates, use a `templates/` directory with `templatefile()` (e.g. `coder/amazon-q/templates/agent-config.json.tpl`).
 
 ### Inline heredoc (minimal modules)
 
@@ -339,7 +343,7 @@ describe("my-tool", () => {
 **Terraform helpers:**
 
 - `runTerraformInit(dir)`: runs `terraform init`.
-- `runTerraformApply(dir, vars, customEnv?)`: runs `terraform apply` with a random state file and returns `TerraformState`. Variables are passed as `TF_VAR_*`. Safe to run in parallel.
+- `runTerraformApply(dir, vars, customEnv?)`: runs `terraform apply` with a random state file and returns `TerraformState`. Variables are passed as `TF_VAR_*`. Safe to run in parallel. `TerraformState` has `outputs: Record<string, TerraformOutput>` and `resources: TerraformStateResource[]`.
 - `testRequiredVariables(dir, vars)`: auto-generates test cases (one success with all vars, plus one per var verifying apply fails without it). Pass `{}` if there are no required vars.
 - `findResourceInstance(state, type, name?)`: finds the first resource instance by type. Throws if not found. Optionally filters by name.
 
@@ -347,7 +351,7 @@ describe("my-tool", () => {
 
 - `runContainer(image, init?)`: starts a detached container and returns its ID. Labeled `modules-test=true` for auto-cleanup.
 - `removeContainer(id)`: force-removes a container.
-- `execContainer(id, cmd, args?)`: runs a command in a container and returns `{ exitCode, stdout, stderr }`.
+- `execContainer(id, cmd[], args?[])`: runs a command in a container and returns `{ exitCode, stdout, stderr }`.
 - `executeScriptInContainer(state, image, shell?, before?)`: finds `coder_script` in state, runs it in a container, and returns `{ exitCode, stdout: string[], stderr: string[] }`.
 
 **File helpers:**
@@ -364,15 +368,17 @@ Cleanup of `*.tfstate` files and `modules-test` Docker containers is handled aut
 
 ## Commands
 
-| Task             | Command                                               | Scope      |
-| ---------------- | ----------------------------------------------------- | ---------- |
-| Format all       | `bun run fmt`                                         | Repo       |
-| Terraform tests  | `bun run tftest`                                      | Repo       |
-| TypeScript tests | `bun run tstest`                                      | Repo       |
-| Single TF test   | `terraform init -upgrade && terraform test -verbose`  | Module dir |
-| Single TS test   | `bun test main.test.ts`                               | Module dir |
-| Validate         | `./scripts/terraform_validate.sh`                     | Repo       |
-| Version bump     | `.github/scripts/version-bump.sh patch\|minor\|major` | Module dir |
+| Task             | Command                                                 | Scope      |
+| ---------------- | ------------------------------------------------------- | ---------- |
+| Format all       | `bun run fmt`                                           | Repo       |
+| Terraform tests  | `bun run tftest`                                        | Repo       |
+| TypeScript tests | `bun run tstest`                                        | Repo       |
+| Single TF test   | `terraform init -upgrade && terraform test -verbose`    | Module dir |
+| Single TS test   | `bun test main.test.ts`                                 | Module dir |
+| Validate         | `./scripts/terraform_validate.sh`                       | Repo       |
+| ShellCheck       | `bun run shellcheck`                                    | Repo       |
+| README validate  | `go build ./cmd/readmevalidation && ./readmevalidation` | Repo       |
+| Version bump     | `.github/scripts/version-bump.sh patch\|minor\|major`   | Repo       |
 
 ## Version Management
 
@@ -388,10 +394,12 @@ The script automatically updates `version` references in README usage examples.
 
 Before considering the work complete, verify:
 
-- New variables have sensible defaults for backward compatibility
-- Breaking changes are documented if any inputs were removed, defaults changed, or new required variables added
 - Tests pass: `bun run tftest` and `bun run tstest`
 - `bun run fmt` has been run
+- `bun run shellcheck` passes if the module includes shell scripts
+- `go build ./cmd/readmevalidation && ./readmevalidation` passes (validates frontmatter, icon paths, body structure, GFM alerts)
+- New variables have sensible defaults for backward compatibility
+- Breaking changes are documented if any inputs were removed, defaults changed, or new required variables added
 - Shell scripts handle errors gracefully (`|| echo "Warning..."` for non-fatal failures)
 - No hardcoded values that should be configurable via variables
 - Asset and icon paths in frontmatter and Terraform must be relative (e.g. `../../../../.icons/`), not absolute. External hyperlinks to docs or other websites are fine.

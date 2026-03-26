@@ -12,7 +12,7 @@ Coder workspace templates are complete workspace definitions that live under `re
 Before writing or modifying any code:
 
 1. **Understand the request.** What platform is the template targeting (Docker, AWS, GCP, Azure, Kubernetes)? What kind of workspace (VM, container, devcontainer)?
-2. **Research existing templates and modules.** Search the registry for similar templates. Read their `main.tf` to understand patterns for that platform, especially how they handle agent setup, persistent storage, and module consumption. Also search for platform-specific helper modules (e.g. region selectors) that provide ready-made `coder_parameter` blocks; prefer these over hard-coding option lists.
+2. **Research existing templates and modules.** Look under `registry/` in this repo for similar templates and modules first; if you are not in the repo or cannot find a match, browse <https://registry.coder.com>. Read `main.tf` to understand patterns for that platform, especially how they handle agent setup, persistent storage, and module consumption. Prefer platform-specific helper modules (e.g. region selectors) that provide ready-made `coder_parameter` blocks over hard-coding option lists.
 3. **Check provider docs.** Verify the infrastructure provider resources you plan to use. Check both the Coder provider and the platform provider (AWS, Docker, etc.) version-specific docs if needed.
 4. **Clarify before building.** If the request is ambiguous (e.g. unclear platform, whether to use devcontainers vs plain VMs, what parameters to expose, or which namespace to use), ask for clarification rather than guessing. Never assume a namespace; always confirm with the user.
 5. **Plan the structure.** Decide on infrastructure resources, what `coder_parameter` options to expose, which registry modules to consume, and whether additional files like cloud-init configs are needed. When the user describes requirements in terms of their development needs rather than specific Terraform changes (e.g. "I need Node 20 + Postgres 16" or "make this template work for data science"), summarize what you plan to add or change before proceeding. Keep it brief: list the parameters, modules, and infrastructure changes. Skip this for straightforward requests where the action is clear (e.g. "add the code-server module" or "change the default region to us-west-2").
@@ -74,6 +74,7 @@ All provider docs follow `https://registry.terraform.io/providers/ORG/NAME/lates
 | Azure      | `hashicorp/azurerm`    |
 | GCP        | `hashicorp/google`     |
 | Kubernetes | `hashicorp/kubernetes` |
+| Cloud-Init | `hashicorp/cloudinit`  |
 
 Browse all providers: <https://registry.terraform.io/browse/providers>
 
@@ -87,6 +88,8 @@ From repo root:
 ./scripts/new_template.sh namespace/template-name
 ```
 
+Names must be lowercase alphanumeric with hyphens or underscores (e.g. `my-org/python-docker`).
+
 Creates `registry/<namespace>/templates/<template-name>/` with:
 
 - `main.tf`: full workspace Terraform config
@@ -94,10 +97,10 @@ Creates `registry/<namespace>/templates/<template-name>/` with:
 
 If the namespace is new, the script also creates `registry/<namespace>/` with a README. New namespaces additionally need:
 
-- `registry/<namespace>/.images/avatar.png` (or `.svg`): square image, 400x400px minimum
-- The namespace README `avatar` field pointing to `./.images/avatar.png`
+- `registry/<namespace>/.images/avatar.svg` (or `.png`): square image, 400x400px minimum
+- The namespace README `avatar` field pointing to `./.images/avatar.svg`
 
-The generated namespace README contains placeholder fields (name, links, avatar) that the user must fill out. After completing the template, inform the user that the namespace README needs to be updated with their information.
+The generated namespace README contains placeholder fields (`display_name`, `bio`, `status`, `github`, `avatar`, etc.) that the user must fill out. The `status` field is required and must be `official`, `partner`, or `community` (typically `community` for new contributors). After completing the template, inform the user that the namespace README needs to be updated with their information.
 
 ## main.tf
 
@@ -216,24 +219,26 @@ Key patterns:
 
 - Provider version constraints must reflect actual functionality requirements. Only set a minimum `coder` provider version when the template uses a resource, attribute, or behavior introduced in that version. The same applies to infrastructure providers (Docker, AWS, etc.); check provider changelogs to confirm.
 - Include `data.coder_workspace.me` and `data.coder_workspace_owner.me` for workspace and owner metadata. Include `data.coder_provisioner.me` only when you need the provisioner's `arch` or `os` for `coder_agent` (typical for Docker, Kubernetes, Incus); omit when the workspace OS/arch is fixed (e.g. cloud VMs with a known image).
-- Use `data "coder_parameter"` for user-facing knobs. For new templates, include standard options for the platform (e.g. region, CPU, memory, disk size for cloud/VM templates); align with same-platform templates. Expose stated preferences as the parameter `default` with additional sensible `option` values unless the user explicitly restricts that dimension.
+- Use `data "coder_parameter"` for user-facing knobs. For new templates, include standard options for the platform (e.g. region, CPU, memory, disk size for cloud/VM templates); align with same-platform templates in `registry/` when available, otherwise use the registry website. Expose stated preferences as the parameter `default` with additional sensible `option` values unless the user explicitly restricts that dimension.
 - Use `locals {}` for computed values: username, environment variables, startup scripts, URL assembly
 - Use `data.coder_workspace.me.start_count` as `count` on ephemeral resources
 - Connect containers/VMs to the agent via `coder_agent.main.init_script` and `CODER_AGENT_TOKEN`
 - Add `metadata` blocks for workspace dashboard stats (`coder stat cpu`, `coder stat mem`, etc.)
+- Use `coder_metadata` on the primary compute resource to surface key details (region, instance type, image, disk size) in the workspace dashboard
 - Optionally use `display_apps` block to hide specific built-in apps (defaults show all)
-- Always search the registry at <https://registry.coder.com> before implementing any functionality from scratch. If a module already exists for what you need (region selectors, IDE integrations, developer tools, etc.), consume it rather than reimplementing it. When multiple modules serve similar purposes, prefer the actively maintained one and check that you are not using a deprecated or superseded module.
-- Before consuming a module, read its `main.tf` and `README.md` to understand the full interface: accepted variables, outputs, prerequisites, and runtime requirements. If you are inside the registry repo, read these files directly. Otherwise, read the module's page at `https://registry.coder.com/modules/<namespace>/<module-name>`. Never pass arguments without confirming they exist.
+- Before implementing functionality from scratch, look for an existing module under `registry/*/modules/` in this repo; if you cannot find one or are not in the repo, search <https://registry.coder.com>. If a module already exists for what you need, consume it rather than reimplementing it. When multiple modules serve similar purposes, prefer the actively maintained one and check that you are not using a deprecated or superseded module.
+- Before consuming a module, read its `main.tf` and `README.md` to understand the full interface: accepted variables, outputs, prerequisites, and runtime requirements. Prefer paths under `registry/<namespace>/modules/<name>/` in this workspace; otherwise use `https://registry.coder.com/modules/<namespace>/<module-name>`. Never pass arguments without confirming they exist.
 - After identifying a module's prerequisites, verify the template's base image satisfies them. If it lacks a required tool, either switch to an image that includes it or ensure the prerequisite is installed before the module's script runs. These runtime issues are not caught by `terraform validate`; they only surface when the workspace starts.
-- Do not add comments that narrate what the code does or label sections. Only comment when explaining something non-obvious (e.g. why a workaround exists, a subtle constraint, or an unusual design choice).
+- Module source URLs use `registry.coder.com/<namespace>/<module>/coder`. Older templates may use `registry.coder.com/modules/...`; prefer the shorter form when writing new modules or templates.
 - Label infrastructure resources with `coder.owner` and `coder.workspace_id` for tracking orphans
 - Use `lifecycle { ignore_changes = all }` on persistent volumes to prevent data loss
+- Do not add comments that narrate what the code does or label sections. Only comment when explaining something non-obvious (e.g. why a workaround exists, a subtle constraint, or an unusual design choice).
 
 ### Additional files
 
 Templates can include files beyond `main.tf` + `README.md`:
 
-- `cloud-init/*.tftpl`: cloud-init configs for VM provisioning (AWS, Azure, GCP), loaded via `templatefile()`
+- `cloud-init/*.tftpl`: cloud-init configs for VM provisioning (AWS, Azure, GCP), loaded via `templatefile()`. Prefer this subdirectory over placing cloud-init files at the template root.
 - `build/Dockerfile`: custom container images built by the template
 - `.tftpl` files: any Terraform template files for scripts, configs, or cloud-init data
 
@@ -354,7 +359,6 @@ Content rules:
 - Opening paragraph describing what the template provisions. Be specific about the platform, compute type, and key capabilities (e.g. "Provision Kubernetes pods on an existing Amazon EKS cluster as Coder workspaces with persistent home volumes") rather than generic (e.g. "AWS Kubernetes template"). The frontmatter `description` field should follow the same principle.
 - **Prerequisites** section (infrastructure requirements, provider credentials)
 - **Architecture** section (what resources are created, what's ephemeral vs persistent)
-- **Customization** section (how to modify startup scripts, add software, configure providers)
 - Code fences labeled `tf` (NOT `hcl`)
 - Relative icon paths (e.g. `../../../../.icons/`)
 - **Do NOT include tables or lists that enumerate variables, parameters, or outputs.** The registry generates variable and output documentation automatically from the Terraform source. Workspace parameter options are visible in the Coder UI. Describe what the template does and how to use it in prose, not by listing every configurable field.
@@ -378,10 +382,12 @@ Templates do NOT require `.tftest.hcl` or `main.test.ts`. Testing is done by pus
 
 ## Commands
 
-| Task       | Command                           | Scope |
-| ---------- | --------------------------------- | ----- |
-| Format all | `bun run fmt`                     | Repo  |
-| Validate   | `./scripts/terraform_validate.sh` | Repo  |
+| Task            | Command                                                 | Scope |
+| --------------- | ------------------------------------------------------- | ----- |
+| Format all      | `bun run fmt`                                           | Repo  |
+| Validate        | `./scripts/terraform_validate.sh`                       | Repo  |
+| ShellCheck      | `bun run shellcheck`                                    | Repo  |
+| README validate | `go build ./cmd/readmevalidation && ./readmevalidation` | Repo  |
 
 ## Final Checks
 
@@ -389,7 +395,9 @@ Before considering the work complete, verify:
 
 - `terraform init && terraform validate` passes in the template directory
 - `bun run fmt` has been run
+- `bun run shellcheck` passes if the template includes shell scripts
+- `go build ./cmd/readmevalidation && ./readmevalidation` passes (validates frontmatter, icon paths, body structure, GFM alerts)
 - README documents prerequisites and architecture
-- Shell scripts handle errors gracefully (`|| echo "Warning..."` for non-fatal failures)
+- Shell scripts handle errors gracefully (`|| echo "Warning..."` for non-fatal failures). If a script sources external files (`$HOME/.bashrc`, `/etc/bashrc`, `/etc/os-release`), the `source` must come before `set -u`; CI enforces this ordering.
 - No hardcoded values that should be configurable via variables or parameters
 - Asset and icon paths in frontmatter and Terraform must be relative (e.g. `../../../../.icons/`), not absolute. External hyperlinks to docs or other websites are fine.
