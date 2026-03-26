@@ -287,7 +287,7 @@ resource "coder_env" "claude_code_oauth_token" {
 }
 
 resource "coder_env" "claude_api_key" {
-  count = local.claude_api_key != "" ? 1 : 0
+  count = var.enable_aibridge || var.claude_api_key != "" ? 1 : 0
 
   agent_id = var.agent_id
   name     = "CLAUDE_API_KEY"
