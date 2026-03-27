@@ -39,7 +39,7 @@ variable "icon" {
 variable "folder" {
   type        = string
   description = "The folder to run Gemini in."
-  default     = "/home/coder/project"
+  default     = "/home/coder"
 }
 
 variable "install_gemini" {
@@ -78,10 +78,16 @@ variable "install_agentapi" {
   default     = true
 }
 
+variable "continue" {
+  type        = bool
+  description = "Automatically continue existing sessions on workspace restart. When true, resumes existing conversation if found, otherwise runs prompt or starts new session. When false, always starts fresh (ignores existing sessions)."
+  default     = true
+}
+
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.10.0"
+  default     = "v0.12.0"
 }
 
 variable "gemini_model" {
@@ -230,6 +236,7 @@ module "agentapi" {
      GEMINI_MODEL='${base64encode(var.gemini_model)}' \
      GEMINI_START_DIRECTORY='${base64encode(var.folder)}' \
      GEMINI_TASK_PROMPT='${base64encode(var.task_prompt)}' \
+     ARG_CONTINUE='${base64encode(var.continue)}' \
      /tmp/start.sh
    EOT
 }

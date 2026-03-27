@@ -3,7 +3,7 @@ run "test_gemini_basic" {
 
   variables {
     agent_id = "test-agent-123"
-    folder   = "/home/coder/projects"
+    folder   = "/home/coder"
   }
 
   assert {
@@ -12,7 +12,7 @@ run "test_gemini_basic" {
   }
 
   assert {
-    condition     = var.folder == "/home/coder/projects"
+    condition     = var.folder == "/home/coder"
     error_message = "Folder variable should be set correctly"
   }
 
@@ -52,12 +52,132 @@ run "test_gemini_with_api_key" {
   }
 }
 
+run "test_gemini_with_custom_options" {
+  command = plan
+
+  variables {
+    agent_id              = "test-agent-789"
+    folder                = "/home/coder/custom"
+    order                 = 5
+    group                 = "development"
+    icon                  = "/icon/custom.svg"
+    gemini_version        = "1.0.0"
+    gemini_model          = "gemini-pro"
+    agentapi_version      = "v0.13.0"
+    continue              = false
+    pre_install_script    = "echo 'Pre-install script'"
+    post_install_script   = "echo 'Post-install script'"
+    task_prompt           = "Automate this task"
+    additional_extensions = "{ \"my-extension\": {} }"
+    gemini_system_prompt  = "Custom system prompt"
+  }
+
+  assert {
+    condition     = var.order == 5
+    error_message = "Order variable should be set to 5"
+  }
+
+  assert {
+    condition     = var.group == "development"
+    error_message = "Group variable should be set to 'development'"
+  }
+
+  assert {
+    condition     = var.icon == "/icon/custom.svg"
+    error_message = "Icon variable should be set to custom icon"
+  }
+
+  assert {
+    condition     = var.gemini_version == "1.0.0"
+    error_message = "Gemini version should be set to '1.0.0'"
+  }
+
+  assert {
+    condition     = var.gemini_model == "gemini-pro"
+    error_message = "Gemini model variable should be set to 'gemini-pro'"
+  }
+
+  assert {
+    condition     = var.agentapi_version == "v0.13.0"
+    error_message = "AgentAPI version should be set to 'v0.13.0'"
+  }
+
+  assert {
+    condition     = var.continue == false
+    error_message = "Continue should be set to false"
+  }
+
+  assert {
+    condition     = var.pre_install_script == "echo 'Pre-install script'"
+    error_message = "Pre-install script should be set correctly"
+  }
+
+  assert {
+    condition     = var.post_install_script == "echo 'Post-install script'"
+    error_message = "Post-install script should be set correctly"
+  }
+
+  assert {
+    condition     = var.task_prompt == "Automate this task"
+    error_message = "Task prompt should be set correctly"
+  }
+
+  assert {
+    condition     = var.additional_extensions == "{ \"my-extension\": {} }"
+    error_message = "Additional extensions should be set correctly"
+  }
+
+  assert {
+    condition     = var.gemini_system_prompt == "Custom system prompt"
+    error_message = "Gemini system prompt should be set correctly"
+  }
+}
+
+run "test_gemini_system_prompt" {
+  command = plan
+
+  variables {
+    agent_id             = "test-agent-system-prompt"
+    folder               = "/home/coder/test"
+    gemini_system_prompt = "Custom addition"
+  }
+
+  assert {
+    condition     = trimspace(coder_env.gemini_system_prompt.value) != ""
+    error_message = "System prompt should not be empty"
+  }
+
+  assert {
+    condition     = length(regexall("Custom addition", coder_env.gemini_system_prompt.value)) > 0
+    error_message = "System prompt should have system_prompt variable value"
+  }
+}
+
+run "test_no_api_key_no_env" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-no-key"
+    folder   = "/home/coder/test"
+  }
+
+  assert {
+    condition     = length(coder_env.gemini_api_key) == 0
+    error_message = "GEMINI_API_KEY should not be created when no API key is provided"
+  }
+
+  assert {
+    condition     = length(coder_env.google_api_key) == 0
+    error_message = "GOOGLE_API_KEY should not be created when no API key is provided"
+  }
+}
+
 run "test_enable_state_persistence_default" {
   command = plan
 
   variables {
     agent_id = "test-agent"
-    folder   = "/home/coder"
+    workdir  = "/home/coder"
   }
 
   assert {
@@ -71,7 +191,7 @@ run "test_disable_state_persistence" {
 
   variables {
     agent_id                 = "test-agent"
-    folder                   = "/home/coder"
+    workdir                  = "/home/coder"
     enable_state_persistence = false
   }
 
