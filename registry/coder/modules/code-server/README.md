@@ -72,7 +72,7 @@ module "code-server" {
 
 ### Install multiple extensions
 
-Just run code-server in the background, don't fetch it from GitHub:
+Install multiple extensions from [OpenVSX](https://open-vsx.org/) by adding them to the `extensions` list:
 
 ```tf
 module "code-server" {
