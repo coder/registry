@@ -50,7 +50,7 @@ coder template push incus-instance -d .
 
 ## Warnings
 
-Incus often works with cloud image, please use `cloud` tagged images such as `images:ubuntu/22.04/cloud` to be able to use cloud-init (Using non cloud tagged images will lead into your workspaces not working as the coder agent installs through cloud-init)
+Incus often works with cloud images. Use images tagged with `cloud`, such as `images:ubuntu/22.04/cloud`, to enable cloud-init. Using non-cloud images will prevent workspaces from functioning correctly because the Coder agent is installed via cloud-init.
 
 ## References
 
