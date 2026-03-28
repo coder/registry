@@ -166,7 +166,6 @@ resource "coder_agent" "dev" {
 locals {
   hostname         = lower(data.coder_workspace.me.name)
   vm_name          = "coder-${lower(data.coder_workspace_owner.me.name)}-${local.hostname}"
-  snippet_filename = "${local.vm_name}.yml"
   base_user        = replace(replace(replace(lower(data.coder_workspace_owner.me.name), " ", "-"), "/", "-"), "@", "-")             # to avoid special characters in the username
   linux_user       = contains(["root", "admin", "daemon", "bin", "sys"], local.base_user) ? "${local.base_user}1" : local.base_user # to avoid conflict with system users
 
