@@ -3,7 +3,7 @@ display_name: Incus Instance
 description: Provision Instance on Incus/LXD as Coder workspaces
 icon: ../../../../.icons/proxmox.svg
 verified: false
-tags: [incus, lxc, vm, cloud-init, container]
+tags: [incus, lxc, vm]
 ---
 
 > Based on the work of [umair](https://github.com/l-nmch/registry/tree/main/registry/umair)
