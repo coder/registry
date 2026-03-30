@@ -166,9 +166,9 @@ module "code-server" {
   # to prevent breaking changes in production.
   version = "~> 1.0"
 
-  agent_id   = coder_agent.main.id
-  order      = 2
-  folder     = "/home/rstudio"
+  agent_id = coder_agent.main.id
+  order    = 2
+  folder   = "/home/rstudio"
 }
 
 resource "docker_image" "main" {
