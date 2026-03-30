@@ -167,7 +167,6 @@ module "code-server" {
   version = "~> 1.0"
 
   agent_id   = coder_agent.main.id
-  agent_name = "main"
   order      = 2
   folder     = "/home/rstudio"
 }
