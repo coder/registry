@@ -89,8 +89,6 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 ```
 
-The image is automatically rebuilt when the Dockerfile changes.
-
 ### Adding LaTeX for PDF rendering
 
 RMarkdown can render PDF output when LaTeX is available. Add the following to the startup script to install TinyTeX:

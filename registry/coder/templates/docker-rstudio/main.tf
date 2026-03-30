@@ -174,9 +174,6 @@ resource "docker_image" "main" {
       RSTUDIO_VERSION = var.rstudio_version
     }
   }
-  triggers = {
-    dir_sha1 = sha1(join("", [for f in fileset(path.module, "build/*") : filesha1(f)]))
-  }
 }
 
 resource "docker_volume" "home_volume" {
