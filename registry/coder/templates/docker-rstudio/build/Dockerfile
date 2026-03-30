@@ -7,4 +7,4 @@ RUN apt-get update \
   cmake \
  && rm -rf /var/lib/apt/lists/*
 
-RUN R -e "install.packages('rmarkdown', repos = 'https://cloud.r-project.org')"
+RUN R -e "install.packages('rmarkdown')"
