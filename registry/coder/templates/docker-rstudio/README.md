@@ -51,7 +51,7 @@ sudo -u coder docker ps
 
 This template provisions the following resources:
 
-- Docker image (`rocker/rstudio` — includes R and RStudio Server)
+- Docker image (built from `build/Dockerfile`, extending `rocker/rstudio` with system dependencies)
 - Docker container (ephemeral — destroyed on workspace stop)
 - Docker volume (persistent on `/home/rstudio`)
 
@@ -69,6 +69,21 @@ Set the `rstudio_version` variable to any valid [rocker/rstudio tag](https://hub
 ### Installing additional R packages
 
 Add `install.packages()` calls to the `startup_script` in the `coder_agent` resource. Packages installed under the home directory are persisted across restarts.
+
+### Adding system dependencies
+
+The `build/Dockerfile` extends the `rocker/rstudio` base image with system packages required by modules (e.g. `curl` for code-server, `cmake` for R package compilation). If you add modules that need additional system-level tools, add them to the `Dockerfile`:
+
+```dockerfile
+RUN apt-get update \
+ && apt-get install -y \
+  curl \
+  cmake \
+  your-package-here \
+ && rm -rf /var/lib/apt/lists/*
+```
+
+The image is automatically rebuilt when the Dockerfile changes.
 
 ### Adding LaTeX for PDF rendering
 
