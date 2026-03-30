@@ -63,11 +63,6 @@ resource "coder_agent" "main" {
         --www-port=8787 \
         --server-user=$(whoami) &
     fi
-
-    # Install RMarkdown if it is not already available. The
-    # installation is persisted in the home-directory R library
-    # so it only runs once per workspace.
-    R --quiet -e "if (!require('rmarkdown', quietly = TRUE)) install.packages('rmarkdown', repos = 'https://cloud.r-project.org')"
   EOT
 
   # These environment variables allow you to make Git commits

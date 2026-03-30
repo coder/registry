@@ -68,7 +68,13 @@ Set the `rstudio_version` variable to any valid [rocker/rstudio tag](https://hub
 
 ### Installing additional R packages
 
-Add `install.packages()` calls to the `startup_script` in the `coder_agent` resource. Packages installed under the home directory are persisted across restarts.
+R packages are pre-installed via the `build/Dockerfile` so they are available immediately when the workspace starts. To add more packages, add `install.packages()` calls to the Dockerfile:
+
+```dockerfile
+RUN R -e "install.packages(c('tidyverse', 'shiny'), repos = 'https://cloud.r-project.org')"
+```
+
+Packages installed at build time avoid long startup delays from compiling R packages from source on every workspace start.
 
 ### Adding system dependencies
 
