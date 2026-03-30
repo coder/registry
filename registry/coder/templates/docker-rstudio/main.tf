@@ -55,13 +55,13 @@ resource "coder_agent" "main" {
         --server-daemonize=0 \
         --auth-none=1 \
         --www-port=8787 \
-        --server-user=$(whoami) > /tmp/rserver.log 2>&1 &
+        --server-user=rstudio > /tmp/rserver.log 2>&1 &
     elif [ -x /usr/lib/rstudio-server/bin/rserver ]; then
       sudo /usr/lib/rstudio-server/bin/rserver \
         --server-daemonize=0 \
         --auth-none=1 \
         --www-port=8787 \
-        --server-user=$(whoami) > /tmp/rserver.log 2>&1 &
+        --server-user=rstudio > /tmp/rserver.log 2>&1 &
     fi
   EOT
 
