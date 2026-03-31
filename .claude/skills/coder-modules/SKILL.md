@@ -59,7 +59,7 @@ From repo root:
 ./scripts/new_module.sh namespace/module-name
 ```
 
-Names must be lowercase alphanumeric with hyphens or underscores (e.g. `coder/my-tool`).
+Names must be lowercase alphanumeric with hyphens (e.g. `coder/my-tool`). Underscores are not allowed.
 
 Creates `registry/<namespace>/modules/<module-name>/` with:
 

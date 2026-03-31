@@ -91,7 +91,7 @@ From repo root:
 ./scripts/new_template.sh namespace/template-name
 ```
 
-Names must be lowercase alphanumeric with hyphens or underscores (e.g. `my-org/aws-ec2`).
+Names must be lowercase alphanumeric with hyphens (e.g. `my-org/aws-ec2`). Underscores are not allowed.
 
 Creates `registry/<namespace>/templates/<template-name>/` with:
 
