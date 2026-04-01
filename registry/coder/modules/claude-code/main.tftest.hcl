@@ -387,6 +387,35 @@ run "test_aibridge_disabled_with_api_key" {
   }
 }
 
+run "test_enable_state_persistence_default" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    workdir  = "/home/coder"
+  }
+
+  assert {
+    condition     = var.enable_state_persistence == true
+    error_message = "enable_state_persistence should default to true"
+  }
+}
+
+run "test_disable_state_persistence" {
+  command = plan
+
+  variables {
+    agent_id                 = "test-agent"
+    workdir                  = "/home/coder"
+    enable_state_persistence = false
+  }
+
+  assert {
+    condition     = var.enable_state_persistence == false
+    error_message = "enable_state_persistence should be false when explicitly disabled"
+  }
+}
+
 run "test_no_api_key_no_env" {
   command = plan
 
@@ -399,5 +428,20 @@ run "test_no_api_key_no_env" {
   assert {
     condition     = length(coder_env.claude_api_key) == 0
     error_message = "CLAUDE_API_KEY should not be created when no API key is provided and aibridge is disabled"
+  }
+}
+
+run "test_api_key_count_with_aibridge_no_override" {
+  command = plan
+
+  variables {
+    agent_id        = "test-agent-count"
+    workdir         = "/home/coder/test"
+    enable_aibridge = true
+  }
+
+  assert {
+    condition     = length(coder_env.claude_api_key) == 1
+    error_message = "CLAUDE_API_KEY env should be created when aibridge is enabled, regardless of session_token value"
   }
 }

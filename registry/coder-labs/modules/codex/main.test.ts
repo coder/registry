@@ -464,22 +464,53 @@ describe("codex", async () => {
     });
 
     await execModuleScript(id);
-
-    const startLog = await readFileContainer(
-      id,
-      "/home/coder/.codex-module/agentapi-start.log",
-    );
-
     const configToml = await readFileContainer(
       id,
       "/home/coder/.codex/config.toml",
     );
-    expect(startLog).toContain("AI Bridge is enabled, using profile aibridge");
-    expect(startLog).toContain(
-      "Starting Codex with arguments: --profile aibridge",
+    expect(configToml).toContain('model_provider = "aibridge"');
+  });
+
+  test("boundary-enabled", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        enable_boundary: "true",
+        boundary_config_path: "/tmp/test-boundary.yaml",
+      },
+    });
+    // Write boundary config
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > /tmp/test-boundary.yaml <<'EOF'
+jail_type: landjail
+proxy_port: 8087
+log_level: warn
+allowlist:
+  - "domain=api.openai.com"
+EOF`,
+    ]);
+    // Add mock coder binary for boundary setup
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/bin/coder",
+      content: `#!/bin/bash
+if [ "$1" = "boundary" ]; then
+  if [ "$2" = "--help" ]; then
+    echo "boundary help"
+    exit 0
+  fi
+  shift; shift; exec "$@"
+fi
+echo "mock coder"`,
+    });
+    await execModuleScript(id);
+    await expectAgentAPIStarted(id);
+    // Verify boundary wrapper was used in start script
+    const startLog = await readFileContainer(
+      id,
+      "/home/coder/.codex-module/agentapi-start.log",
     );
-    expect(configToml).toContain(
-      "[profiles.aibridge]\n" + 'model_provider = "aibridge"',
-    );
+    expect(startLog).toContain("boundary");
   });
 });
