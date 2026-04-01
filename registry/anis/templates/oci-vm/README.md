@@ -27,6 +27,8 @@ Before deploying, ensure your Oracle Cloud tenancy has:
 > This template **does not create networking resources** (VCN, subnet, gateway, etc.).  
 > You must reference an existing subnet using its **OCID** via the `subnet_id` variable.
 
+> The available regions and instance shapes listed in this template are examples only, not all shapes are available in every region, and availability depends on your OCI tenancy and subscription tier. Check the [OCI documentation](https://docs.oracle.com/en-us/iaas/Content/Compute/References/computeshapes.htm) to confirm which shapes are available in your target region before deploying.
+
 ### OCI Authentication
 
 You’ll also need the following credentials:
@@ -39,6 +41,16 @@ You’ll also need the following credentials:
 - **Subnet OCID**
 
 [OCI Documentation](https://docs.oracle.com/en-us/iaas/Content/dev/terraform/configuring.htm#api-key-auth)
+
+---
+
+## Workspace Lifecycle
+
+| Event                 | OCI Resources                                                                           |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| **Workspace started** | A new compute instance (`oci_core_instance`) is created and the home volume is attached |
+| **Workspace stopped** | The compute instance is destroyed, but the home volume (`oci_core_volume`) persists     |
+| **Workspace deleted** | All resources are destroyed, including the home volume                                  |
 
 ---
 

@@ -36,7 +36,11 @@ variable "fingerprint" {
 variable "private_key" {
   description = "Private Key File"
   type        = string
-  default     = ""
+  default     = <<EOT
+-----BEGIN PRIVATE KEY-----
+YourKeyHere
+-----END PRIVATE KEY-----
+EOT
 }
 
 variable "subnet_id" {
@@ -294,7 +298,6 @@ resource "oci_core_volume" "home_volume" {
 resource "oci_core_volume_attachment" "attach_home" {
   count           = data.coder_workspace.me.start_count
   attachment_type = "paravirtualized"
-  compartment_id  = local.compartment_id
   instance_id     = oci_core_instance.workspace[0].id
   #device           = "/dev/sdb"
   volume_id = oci_core_volume.home_volume.id
