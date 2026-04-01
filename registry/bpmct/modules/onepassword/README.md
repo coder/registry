@@ -15,8 +15,8 @@ account token. Can also install the
 for code-server and VS Code.
 
 ```tf
-module "1password" {
-  source                = "registry.coder.com/bpmct/1password/coder"
+module "onepassword" {
+  source                = "registry.coder.com/bpmct/onepassword/coder"
   version               = "1.0.0"
   agent_id              = coder_agent.main.id
   service_account_token = var.op_service_account_token
@@ -38,8 +38,8 @@ variable "op_service_account_token" {
   sensitive = true
 }
 
-module "1password" {
-  source                = "registry.coder.com/bpmct/1password/coder"
+module "onepassword" {
+  source                = "registry.coder.com/bpmct/onepassword/coder"
   version               = "1.0.0"
   agent_id              = coder_agent.main.id
   service_account_token = var.op_service_account_token
@@ -53,8 +53,8 @@ You'll be prompted for your password when you run `op signin` in the
 terminal.
 
 ```tf
-module "1password" {
-  source             = "registry.coder.com/bpmct/1password/coder"
+module "onepassword" {
+  source             = "registry.coder.com/bpmct/onepassword/coder"
   version            = "1.0.0"
   agent_id           = coder_agent.main.id
   account_address    = "myteam.1password.com"
@@ -69,8 +69,8 @@ Set `install_vscode_extension = true` to install the 1Password extension
 for code-server and VS Code.
 
 ```tf
-module "1password" {
-  source                   = "registry.coder.com/bpmct/1password/coder"
+module "onepassword" {
+  source                   = "registry.coder.com/bpmct/onepassword/coder"
   version                  = "1.0.0"
   agent_id                 = coder_agent.main.id
   service_account_token    = var.op_service_account_token
@@ -83,8 +83,8 @@ module "1password" {
 Run custom logic before or after the CLI is installed.
 
 ```tf
-module "1password" {
-  source                = "registry.coder.com/bpmct/1password/coder"
+module "onepassword" {
+  source                = "registry.coder.com/bpmct/onepassword/coder"
   version               = "1.0.0"
   agent_id              = coder_agent.main.id
   service_account_token = var.op_service_account_token
