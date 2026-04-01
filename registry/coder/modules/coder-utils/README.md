@@ -1,17 +1,17 @@
 ---
-display_name: Coder Helper
+display_name: Coder Utils
 description: Building block for modules that need orchestrated script execution
 icon: ../../../../.icons/coder.svg
 verified: false
 tags: [internal, library]
 ---
 
-# Coder Helper
+# Coder Utils
 
 > [!CAUTION]
 > We do not recommend using this module directly. It is intended primarily for internal use by Coder to create modules with orchestrated script execution.
 
-The Coder Helper module is a building block for modules that need to run multiple scripts in a specific order. It uses `coder exp sync` for dependency management and is designed for orchestrating pre-install, install, post-install, and start scripts.
+The Coder Utils module is a building block for modules that need to run multiple scripts in a specific order. It uses `coder exp sync` for dependency management and is designed for orchestrating pre-install, install, post-install, and start scripts.
 
 > [!NOTE]
 >
@@ -19,7 +19,7 @@ The Coder Helper module is a building block for modules that need to run multipl
 
 ```tf
 module "coder_helper" {
-  source  = "registry.coder.com/coder/coder-helper/coder"
+  source  = "registry.coder.com/coder/coder-utils/coder"
   version = "1.0.0"
 
   agent_id        = coder_agent.main.id
