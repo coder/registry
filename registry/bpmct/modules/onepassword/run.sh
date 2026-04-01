@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-# Convert templated variables to shell variables
 SERVICE_ACCOUNT_TOKEN="${SERVICE_ACCOUNT_TOKEN}"
 ACCOUNT_ADDRESS="${ACCOUNT_ADDRESS}"
 ACCOUNT_EMAIL="${ACCOUNT_EMAIL}"
@@ -74,19 +73,17 @@ install() {
   if command -v op > /dev/null 2>&1; then
     CURRENT_VERSION=$(op --version 2> /dev/null || true)
     if [ "$${CURRENT_VERSION}" = "$${OP_CLI_VERSION}" ]; then
-      printf "1Password CLI %s is already installed.\n" "$${CURRENT_VERSION}"
+      printf "Already installed.\n"
       return 0
     fi
   fi
 
   DOWNLOAD_URL="https://cache.agilebits.com/dist/1P/op2/pkg/v$${OP_CLI_VERSION}/op_$${OS}_$${ARCH}_v$${OP_CLI_VERSION}.zip"
-  printf "Downloading from %s\n" "$${DOWNLOAD_URL}"
 
   TEMP_DIR=$(mktemp -d)
   cd "$${TEMP_DIR}" || return 1
 
   if ! fetch_to_file op.zip "$${DOWNLOAD_URL}"; then
-    printf "Failed to download 1Password CLI.\n"
     rm -rf "$${TEMP_DIR}" && return 1
   fi
 
@@ -109,28 +106,21 @@ install() {
     mkdir -p ~/.local/bin && mv op ~/.local/bin/op
     INSTALL_DIR=~/.local/bin
   fi
-  printf "1Password CLI installed to %s.\n" "$${INSTALL_DIR}"
+  printf "Installed to %s.\n" "$${INSTALL_DIR}"
 
   rm -rf "$${TEMP_DIR}"
 }
 
-# --- Pre-Install ---
 run_script "$${PRE_INSTALL_SCRIPT}" "pre-install"
 
-# --- Install ---
 if ! install; then
   printf "Failed to install 1Password CLI.\n"
   exit 1
 fi
 
-# --- Authentication ---
 if [ -n "$${SERVICE_ACCOUNT_TOKEN}" ]; then
   printf "Service account token configured.\n"
 elif [ -n "$${ACCOUNT_ADDRESS}" ] && [ -n "$${ACCOUNT_EMAIL}" ]; then
-  # The op CLI requires a tty for password input so we cannot sign in
-  # fully non-interactively. If expect is available and a password was
-  # provided, we attempt automated sign-in. Otherwise we print the
-  # command the user can paste into their terminal.
   ADD_ARGS="--address $${ACCOUNT_ADDRESS} --email $${ACCOUNT_EMAIL}"
   if [ -n "$${ACCOUNT_SECRET_KEY}" ]; then
     ADD_ARGS="$${ADD_ARGS} --secret-key $${ACCOUNT_SECRET_KEY}"
@@ -161,7 +151,7 @@ elif [ -n "$${ACCOUNT_ADDRESS}" ] && [ -n "$${ACCOUNT_EMAIL}" ]; then
         done
       fi
     else
-      printf "WARNING: Sign-in failed. Run manually: op signin --account %s\n" "$${ACCOUNT_ADDRESS}"
+      printf "Sign-in failed. Run manually: op signin --account %s\n" "$${ACCOUNT_ADDRESS}"
     fi
   else
     printf "To sign in, run in your terminal:\n"
@@ -169,25 +159,18 @@ elif [ -n "$${ACCOUNT_ADDRESS}" ] && [ -n "$${ACCOUNT_EMAIL}" ]; then
   fi
 fi
 
-# --- VS Code Extension ---
 if [ "$${INSTALL_VSCODE_EXTENSION}" = "true" ]; then
   EXTENSION_ID="1Password.op-vscode"
-
-  # Wait for code-server/VS Code to be installed by a parallel script.
   for _ in 1 2 3 4 5 6; do
     command -v code-server > /dev/null 2>&1 || command -v code > /dev/null 2>&1 && break
     sleep 5
   done
-
   if command -v code-server > /dev/null 2>&1; then
-    printf "Installing %s for code-server...\n" "$${EXTENSION_ID}"
     cd /tmp && code-server --install-extension "$${EXTENSION_ID}" --force 2>&1 || true
   fi
   if command -v code > /dev/null 2>&1; then
-    printf "Installing %s for VS Code...\n" "$${EXTENSION_ID}"
     cd /tmp && code --install-extension "$${EXTENSION_ID}" --force 2>&1 || true
   fi
 fi
 
-# --- Post-Install ---
 run_script "$${POST_INSTALL_SCRIPT}" "post-install"
