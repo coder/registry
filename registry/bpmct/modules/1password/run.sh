@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Convert all templated variables to shell variables.
+# Convert templated variables to shell variables
 SERVICE_ACCOUNT_TOKEN="${SERVICE_ACCOUNT_TOKEN}"
 ACCOUNT_ADDRESS="${ACCOUNT_ADDRESS}"
 ACCOUNT_EMAIL="${ACCOUNT_EMAIL}"
@@ -9,30 +9,39 @@ ACCOUNT_PASSWORD="${ACCOUNT_PASSWORD}"
 INSTALL_DIR="${INSTALL_DIR}"
 OP_CLI_VERSION="${OP_CLI_VERSION}"
 INSTALL_VSCODE_EXTENSION="${INSTALL_VSCODE_EXTENSION}"
+PRE_INSTALL_SCRIPT="${PRE_INSTALL_SCRIPT}"
 POST_INSTALL_SCRIPT="${POST_INSTALL_SCRIPT}"
 
 fetch() {
-  url="$1"
   if command -v curl > /dev/null 2>&1; then
-    curl -sSL --fail "$${url}"
+    curl -sSL --fail "$1"
   elif command -v wget > /dev/null 2>&1; then
-    wget -qO- "$${url}"
+    wget -qO- "$1"
   else
-    printf "curl or wget is not installed.\n"
-    return 1
+    printf "curl or wget is not installed.\n" && return 1
   fi
 }
 
 fetch_to_file() {
-  dest="$1"
-  url="$2"
   if command -v curl > /dev/null 2>&1; then
-    curl -sSL --fail "$${url}" -o "$${dest}"
+    curl -sSL --fail "$2" -o "$1"
   elif command -v wget > /dev/null 2>&1; then
-    wget -O "$${dest}" "$${url}"
+    wget -O "$1" "$2"
   else
-    printf "curl or wget is not installed.\n"
-    return 1
+    printf "curl or wget is not installed.\n" && return 1
+  fi
+}
+
+run_script() {
+  local ENCODED="$1" LABEL="$2"
+  if [ -n "$${ENCODED}" ]; then
+    printf "Running %s script...\n" "$${LABEL}"
+    SCRIPT_PATH=$(mktemp /tmp/op-"$${LABEL}"-XXXXXX.sh)
+    printf '%s' "$${ENCODED}" | base64 -d > "$${SCRIPT_PATH}"
+    chmod +x "$${SCRIPT_PATH}"
+    # shellcheck disable=SC2288
+    "$${SCRIPT_PATH}" || printf "WARNING: %s script failed.\n" "$${LABEL}"
+    rm -f "$${SCRIPT_PATH}"
   fi
 }
 
@@ -43,29 +52,25 @@ install() {
   elif [ "$${ARCH}" = "aarch64" ]; then
     ARCH="arm64"
   else
-    printf "Unsupported architecture: %s\n" "$${ARCH}"
-    return 1
+    printf "Unsupported architecture: %s\n" "$${ARCH}" && return 1
   fi
 
   OS=$(uname -s | tr '[:upper:]' '[:lower:]')
   if [ "$${OS}" != "linux" ] && [ "$${OS}" != "darwin" ]; then
-    printf "Unsupported OS: %s\n" "$${OS}"
-    return 1
+    printf "Unsupported OS: %s\n" "$${OS}" && return 1
   fi
 
-  # Resolve version.
   if [ "$${OP_CLI_VERSION}" = "latest" ]; then
     OP_CLI_VERSION=$(fetch "https://app-updates.agilebits.com/check/1/0/CLI2/en/2.0.0/N" \
       | grep -oE '"version":"[^"]+"' | head -1 | cut -d'"' -f4) || true
     if [ -z "$${OP_CLI_VERSION}" ]; then
-      printf "Failed to determine latest 1Password CLI version. Falling back to 2.30.3.\n"
+      printf "Failed to resolve latest version, falling back to 2.30.3.\n"
       OP_CLI_VERSION="2.30.3"
     fi
   fi
 
   printf "1Password CLI version: %s\n" "$${OP_CLI_VERSION}"
 
-  # Check if already installed at the right version.
   if command -v op > /dev/null 2>&1; then
     CURRENT_VERSION=$(op --version 2> /dev/null || true)
     if [ "$${CURRENT_VERSION}" = "$${OP_CLI_VERSION}" ]; then
@@ -74,8 +79,6 @@ install() {
     fi
   fi
 
-  # Build download URL.
-  # https://developer.1password.com/docs/cli/get-started/#install
   DOWNLOAD_URL="https://cache.agilebits.com/dist/1P/op2/pkg/v$${OP_CLI_VERSION}/op_$${OS}_$${ARCH}_v$${OP_CLI_VERSION}.zip"
   printf "Downloading from %s\n" "$${DOWNLOAD_URL}"
 
@@ -84,8 +87,7 @@ install() {
 
   if ! fetch_to_file op.zip "$${DOWNLOAD_URL}"; then
     printf "Failed to download 1Password CLI.\n"
-    rm -rf "$${TEMP_DIR}"
-    return 1
+    rm -rf "$${TEMP_DIR}" && return 1
   fi
 
   if command -v unzip > /dev/null 2>&1; then
@@ -94,48 +96,46 @@ install() {
     busybox unzip op.zip -d .
   else
     printf "unzip is not installed.\n"
-    rm -rf "$${TEMP_DIR}"
-    return 1
+    rm -rf "$${TEMP_DIR}" && return 1
   fi
 
   chmod +x op
 
   if [ -n "$${INSTALL_DIR}" ] && [ -w "$${INSTALL_DIR}" ]; then
     mv op "$${INSTALL_DIR}/op"
-    printf "1Password CLI installed to %s.\n" "$${INSTALL_DIR}"
   elif [ -n "$${INSTALL_DIR}" ] && sudo mv op "$${INSTALL_DIR}/op" 2> /dev/null; then
-    printf "1Password CLI installed to %s.\n" "$${INSTALL_DIR}"
+    true
   else
-    mkdir -p ~/.local/bin
-    mv op ~/.local/bin/op
-    printf "1Password CLI installed to ~/.local/bin. Add it to your PATH.\n"
+    mkdir -p ~/.local/bin && mv op ~/.local/bin/op
+    INSTALL_DIR=~/.local/bin
   fi
+  printf "1Password CLI installed to %s.\n" "$${INSTALL_DIR}"
 
   rm -rf "$${TEMP_DIR}"
-  return 0
 }
 
+# --- Pre-Install ---
+run_script "$${PRE_INSTALL_SCRIPT}" "pre-install"
+
+# --- Install ---
 if ! install; then
   printf "Failed to install 1Password CLI.\n"
   exit 1
 fi
 
 # --- Authentication ---
-
 if [ -n "$${SERVICE_ACCOUNT_TOKEN}" ]; then
-  printf "1Password service account token configured via OP_SERVICE_ACCOUNT_TOKEN.\n"
+  printf "Service account token configured.\n"
 elif [ -n "$${ACCOUNT_ADDRESS}" ] && [ -n "$${ACCOUNT_EMAIL}" ]; then
-  # Pre-register the account so the user only needs to run 'op signin'.
-  # The op CLI requires a tty for password input, so we cannot sign in
-  # non-interactively here. We register the account details so the user
-  # can sign in with a single command in their terminal.
+  # The op CLI requires a tty for password input so we cannot sign in
+  # fully non-interactively. If expect is available and a password was
+  # provided, we attempt automated sign-in. Otherwise we print the
+  # command the user can paste into their terminal.
   ADD_ARGS="--address $${ACCOUNT_ADDRESS} --email $${ACCOUNT_EMAIL}"
   if [ -n "$${ACCOUNT_SECRET_KEY}" ]; then
     ADD_ARGS="$${ADD_ARGS} --secret-key $${ACCOUNT_SECRET_KEY}"
   fi
 
-  # Use expect to feed the password non-interactively if available
-  # and a password was provided.
   if [ -n "$${ACCOUNT_PASSWORD}" ] && command -v expect > /dev/null 2>&1; then
     OP_SESSION=$(expect -c "
       log_user 0
@@ -148,69 +148,46 @@ elif [ -n "$${ACCOUNT_ADDRESS}" ] && [ -n "$${ACCOUNT_EMAIL}" ]; then
       puts -nonewline \$output
     " 2>&1)
     if op account list 2> /dev/null | grep -q "$${ACCOUNT_ADDRESS}"; then
-      printf "Account %s registered and signed in.\n" "$${ACCOUNT_ADDRESS}"
+      printf "Signed in to %s.\n" "$${ACCOUNT_ADDRESS}"
       if [ -n "$${OP_SESSION}" ]; then
-        SESSION_FILE="$${HOME}/.op/session"
         mkdir -p "$${HOME}/.op"
         SESSION_VAR="OP_SESSION_$(printf '%s' "$${ACCOUNT_ADDRESS}" | tr '.' '_' | tr '-' '_')"
-        printf 'export %s="%s"\n' "$${SESSION_VAR}" "$${OP_SESSION}" > "$${SESSION_FILE}"
-        chmod 600 "$${SESSION_FILE}"
+        printf 'export %s="%s"\n' "$${SESSION_VAR}" "$${OP_SESSION}" > "$${HOME}/.op/session"
+        chmod 600 "$${HOME}/.op/session"
         for rc in "$${HOME}/.bashrc" "$${HOME}/.zshrc"; do
           if [ -f "$${rc}" ] && ! grep -q ".op/session" "$${rc}" 2> /dev/null; then
-            printf '\n# 1Password CLI session\n[ -f ~/.op/session ] && . ~/.op/session\n' >> "$${rc}"
+            printf '\n[ -f ~/.op/session ] && . ~/.op/session\n' >> "$${rc}"
           fi
         done
-        printf "Session token written to ~/.op/session.\n"
       fi
     else
-      printf "WARNING: Failed to register account. Sign in manually: op signin --account %s\n" "$${ACCOUNT_ADDRESS}"
+      printf "WARNING: Sign-in failed. Run manually: op signin --account %s\n" "$${ACCOUNT_ADDRESS}"
     fi
   else
-    printf "Run the following in your terminal to sign in:\n"
+    printf "To sign in, run in your terminal:\n"
     printf "  op account add %s\n" "$${ADD_ARGS}"
   fi
-else
-  printf "No credentials provided. Use 'op signin' to authenticate.\n"
 fi
 
 # --- VS Code Extension ---
-
 if [ "$${INSTALL_VSCODE_EXTENSION}" = "true" ]; then
   EXTENSION_ID="1Password.op-vscode"
 
-  # Wait briefly for code-server to be installed by a parallel
-  # coder_script (e.g. the code-server module).
-  for i in 1 2 3 4 5 6; do
-    if command -v code-server > /dev/null 2>&1 || command -v code > /dev/null 2>&1; then
-      break
-    fi
-    printf "Waiting for code-server/VS Code to be available...\n"
+  # Wait for code-server/VS Code to be installed by a parallel script.
+  for _ in 1 2 3 4 5 6; do
+    command -v code-server > /dev/null 2>&1 || command -v code > /dev/null 2>&1 && break
     sleep 5
   done
 
-  # Install for code-server if available.
   if command -v code-server > /dev/null 2>&1; then
     printf "Installing %s for code-server...\n" "$${EXTENSION_ID}"
     cd /tmp && code-server --install-extension "$${EXTENSION_ID}" --force 2>&1 || true
   fi
-
-  # Install for VS Code CLI if available.
   if command -v code > /dev/null 2>&1; then
     printf "Installing %s for VS Code...\n" "$${EXTENSION_ID}"
     cd /tmp && code --install-extension "$${EXTENSION_ID}" --force 2>&1 || true
   fi
 fi
 
-# --- Post-Install Script ---
-
-if [ -n "$${POST_INSTALL_SCRIPT}" ]; then
-  printf "Running post-install script...\n"
-  SCRIPT_PATH=$(mktemp /tmp/op-post-install-XXXXXX.sh)
-  printf '%s' "$${POST_INSTALL_SCRIPT}" | base64 -d > "$${SCRIPT_PATH}"
-  chmod +x "$${SCRIPT_PATH}"
-  # shellcheck disable=SC2288
-  if ! "$${SCRIPT_PATH}"; then
-    printf "WARNING: Post-install script failed.\n"
-  fi
-  rm -f "$${SCRIPT_PATH}"
-fi
+# --- Post-Install ---
+run_script "$${POST_INSTALL_SCRIPT}" "post-install"

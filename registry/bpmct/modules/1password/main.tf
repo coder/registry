@@ -16,17 +16,14 @@ variable "agent_id" {
 
 variable "service_account_token" {
   type        = string
-  description = <<-EOF
-  A 1Password service account token used to authenticate the CLI.
-  If set, account-based sign-in is skipped entirely.
-  EOF
+  description = "A 1Password service account token. If set, account-based sign-in is skipped."
   default     = ""
   sensitive   = true
 }
 
 variable "account_address" {
   type        = string
-  description = "The 1Password account sign-in address (e.g. teamcoder.1password.com)."
+  description = "The 1Password account sign-in address (e.g. myteam.1password.com)."
   default     = ""
 }
 
@@ -59,6 +56,24 @@ variable "op_cli_version" {
   }
 }
 
+variable "install_vscode_extension" {
+  type        = bool
+  description = "Install the 1Password VS Code extension for both VS Code and code-server."
+  default     = false
+}
+
+variable "pre_install_script" {
+  type        = string
+  description = "Custom script to run before installing the 1Password CLI."
+  default     = null
+}
+
+variable "post_install_script" {
+  type        = string
+  description = "Custom script to run after installing the 1Password CLI."
+  default     = null
+}
+
 data "coder_parameter" "account_password" {
   count        = var.account_address != "" && var.service_account_token == "" ? 1 : 0
   type         = "string"
@@ -69,19 +84,7 @@ data "coder_parameter" "account_password" {
   default      = ""
 }
 
-variable "install_vscode_extension" {
-  type        = bool
-  description = "Install the 1Password VS Code extension for both VS Code and code-server."
-  default     = false
-}
-
-variable "post_install_script" {
-  type        = string
-  description = "Custom script to run after installing the 1Password CLI."
-  default     = null
-}
-
-resource "coder_script" "onepassword_cli" {
+resource "coder_script" "1password" {
   agent_id     = var.agent_id
   display_name = "1Password CLI"
   icon         = "/icon/1password.svg"
@@ -94,6 +97,7 @@ resource "coder_script" "onepassword_cli" {
     INSTALL_DIR              = var.install_dir
     OP_CLI_VERSION           = var.op_cli_version
     INSTALL_VSCODE_EXTENSION = var.install_vscode_extension
+    PRE_INSTALL_SCRIPT       = var.pre_install_script != null ? base64encode(var.pre_install_script) : ""
     POST_INSTALL_SCRIPT      = var.post_install_script != null ? base64encode(var.post_install_script) : ""
   })
   run_on_start       = true

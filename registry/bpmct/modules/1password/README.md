@@ -15,8 +15,7 @@ account token. Can also install the
 for code-server and VS Code.
 
 ```tf
-module "onepassword" {
-  count                 = data.coder_workspace.me.start_count
+module "1password" {
   source                = "registry.coder.com/bpmct/1password/coder"
   version               = "1.0.0"
   agent_id              = coder_agent.main.id
@@ -39,8 +38,7 @@ variable "op_service_account_token" {
   sensitive = true
 }
 
-module "onepassword" {
-  count                 = data.coder_workspace.me.start_count
+module "1password" {
   source                = "registry.coder.com/bpmct/1password/coder"
   version               = "1.0.0"
   agent_id              = coder_agent.main.id
@@ -55,8 +53,7 @@ You'll be prompted for your password when you run `op signin` in the
 terminal.
 
 ```tf
-module "onepassword" {
-  count              = data.coder_workspace.me.start_count
+module "1password" {
   source             = "registry.coder.com/bpmct/1password/coder"
   version            = "1.0.0"
   agent_id           = coder_agent.main.id
@@ -72,12 +69,27 @@ Set `install_vscode_extension = true` to install the 1Password extension
 for code-server and VS Code.
 
 ```tf
-module "onepassword" {
-  count                    = data.coder_workspace.me.start_count
+module "1password" {
   source                   = "registry.coder.com/bpmct/1password/coder"
   version                  = "1.0.0"
   agent_id                 = coder_agent.main.id
   service_account_token    = var.op_service_account_token
   install_vscode_extension = true
+}
+```
+
+## Custom Scripts
+
+Run custom logic before or after the CLI is installed.
+
+```tf
+module "1password" {
+  source                = "registry.coder.com/bpmct/1password/coder"
+  version               = "1.0.0"
+  agent_id              = coder_agent.main.id
+  service_account_token = var.op_service_account_token
+  post_install_script   = <<-EOT
+    op read "op://Vault/item/field" > ~/.secret
+  EOT
 }
 ```
