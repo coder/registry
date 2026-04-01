@@ -86,11 +86,11 @@ resource "coder_script" "onepassword_cli" {
   display_name = "1Password CLI"
   icon         = "/icon/1password.svg"
   script = templatefile("${path.module}/run.sh", {
-    SERVICE_ACCOUNT_TOKEN = var.service_account_token
-    ACCOUNT_ADDRESS       = var.account_address
-    ACCOUNT_EMAIL         = var.account_email
-    ACCOUNT_SECRET_KEY    = var.account_secret_key
-    ACCOUNT_PASSWORD      = var.account_address != "" && var.service_account_token == "" ? data.coder_parameter.account_password[0].value : ""
+    SERVICE_ACCOUNT_TOKEN    = var.service_account_token
+    ACCOUNT_ADDRESS          = var.account_address
+    ACCOUNT_EMAIL            = var.account_email
+    ACCOUNT_SECRET_KEY       = var.account_secret_key
+    ACCOUNT_PASSWORD         = var.account_address != "" && var.service_account_token == "" ? data.coder_parameter.account_password[0].value : ""
     INSTALL_DIR              = var.install_dir
     OP_CLI_VERSION           = var.op_cli_version
     INSTALL_VSCODE_EXTENSION = var.install_vscode_extension

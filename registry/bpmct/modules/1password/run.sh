@@ -55,8 +55,8 @@ install() {
 
   # Resolve version.
   if [ "$${OP_CLI_VERSION}" = "latest" ]; then
-    OP_CLI_VERSION=$(fetch "https://app-updates.agilebits.com/check/1/0/CLI2/en/2.0.0/N" |
-      grep -oE '"version":"[^"]+"' | head -1 | cut -d'"' -f4) || true
+    OP_CLI_VERSION=$(fetch "https://app-updates.agilebits.com/check/1/0/CLI2/en/2.0.0/N" \
+      | grep -oE '"version":"[^"]+"' | head -1 | cut -d'"' -f4) || true
     if [ -z "$${OP_CLI_VERSION}" ]; then
       printf "Failed to determine latest 1Password CLI version. Falling back to 2.30.3.\n"
       OP_CLI_VERSION="2.30.3"
@@ -67,7 +67,7 @@ install() {
 
   # Check if already installed at the right version.
   if command -v op > /dev/null 2>&1; then
-    CURRENT_VERSION=$(op --version 2>/dev/null || true)
+    CURRENT_VERSION=$(op --version 2> /dev/null || true)
     if [ "$${CURRENT_VERSION}" = "$${OP_CLI_VERSION}" ]; then
       printf "1Password CLI %s is already installed.\n" "$${CURRENT_VERSION}"
       return 0
@@ -103,7 +103,7 @@ install() {
   if [ -n "$${INSTALL_DIR}" ] && [ -w "$${INSTALL_DIR}" ]; then
     mv op "$${INSTALL_DIR}/op"
     printf "1Password CLI installed to %s.\n" "$${INSTALL_DIR}"
-  elif [ -n "$${INSTALL_DIR}" ] && sudo mv op "$${INSTALL_DIR}/op" 2>/dev/null; then
+  elif [ -n "$${INSTALL_DIR}" ] && sudo mv op "$${INSTALL_DIR}/op" 2> /dev/null; then
     printf "1Password CLI installed to %s.\n" "$${INSTALL_DIR}"
   else
     mkdir -p ~/.local/bin
@@ -147,7 +147,7 @@ elif [ -n "$${ACCOUNT_ADDRESS}" ] && [ -n "$${ACCOUNT_EMAIL}" ]; then
       set output \$expect_out(buffer)
       puts -nonewline \$output
     " 2>&1)
-    if op account list 2>/dev/null | grep -q "$${ACCOUNT_ADDRESS}"; then
+    if op account list 2> /dev/null | grep -q "$${ACCOUNT_ADDRESS}"; then
       printf "Account %s registered and signed in.\n" "$${ACCOUNT_ADDRESS}"
       if [ -n "$${OP_SESSION}" ]; then
         SESSION_FILE="$${HOME}/.op/session"
@@ -156,7 +156,7 @@ elif [ -n "$${ACCOUNT_ADDRESS}" ] && [ -n "$${ACCOUNT_EMAIL}" ]; then
         printf 'export %s="%s"\n' "$${SESSION_VAR}" "$${OP_SESSION}" > "$${SESSION_FILE}"
         chmod 600 "$${SESSION_FILE}"
         for rc in "$${HOME}/.bashrc" "$${HOME}/.zshrc"; do
-          if [ -f "$${rc}" ] && ! grep -q ".op/session" "$${rc}" 2>/dev/null; then
+          if [ -f "$${rc}" ] && ! grep -q ".op/session" "$${rc}" 2> /dev/null; then
             printf '\n# 1Password CLI session\n[ -f ~/.op/session ] && . ~/.op/session\n' >> "$${rc}"
           fi
         done
@@ -208,6 +208,7 @@ if [ -n "$${POST_INSTALL_SCRIPT}" ]; then
   SCRIPT_PATH=$(mktemp /tmp/op-post-install-XXXXXX.sh)
   printf '%s' "$${POST_INSTALL_SCRIPT}" | base64 -d > "$${SCRIPT_PATH}"
   chmod +x "$${SCRIPT_PATH}"
+  # shellcheck disable=SC2288
   if ! "$${SCRIPT_PATH}"; then
     printf "WARNING: Post-install script failed.\n"
   fi

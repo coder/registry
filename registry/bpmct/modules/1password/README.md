@@ -73,11 +73,11 @@ for code-server and VS Code.
 
 ```tf
 module "onepassword" {
-  count                   = data.coder_workspace.me.start_count
-  source                  = "registry.coder.com/bpmct/1password/coder"
-  version                 = "1.0.0"
-  agent_id                = coder_agent.main.id
-  service_account_token   = var.op_service_account_token
+  count                    = data.coder_workspace.me.start_count
+  source                   = "registry.coder.com/bpmct/1password/coder"
+  version                  = "1.0.0"
+  agent_id                 = coder_agent.main.id
+  service_account_token    = var.op_service_account_token
   install_vscode_extension = true
 }
 ```
