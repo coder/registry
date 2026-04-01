@@ -1,7 +1,7 @@
 ---
 display_name: Incus Instance
 description: Provision Instance on Incus/LXD as Coder workspaces
-icon: ../../../../.icons/proxmox.svg
+icon: ../../../../.icons/lxc.svg
 verified: false
 tags: [incus, lxc, vm]
 ---
