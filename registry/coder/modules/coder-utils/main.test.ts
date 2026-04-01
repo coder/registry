@@ -1,7 +1,7 @@
 import { describe } from "bun:test";
 import { runTerraformInit, testRequiredVariables } from "~test";
 
-describe("agent-helper", async () => {
+describe("coder-utils", async () => {
   await runTerraformInit(import.meta.dir);
 
   testRequiredVariables(import.meta.dir, {
