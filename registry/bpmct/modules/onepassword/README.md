@@ -17,7 +17,7 @@ for code-server and VS Code.
 ```tf
 module "onepassword" {
   source                = "registry.coder.com/bpmct/onepassword/coder"
-  version               = "1.0.0"
+  version               = "1.0.1"
   agent_id              = coder_agent.main.id
   service_account_token = var.op_service_account_token
 }
@@ -40,7 +40,7 @@ variable "op_service_account_token" {
 
 module "onepassword" {
   source                = "registry.coder.com/bpmct/onepassword/coder"
-  version               = "1.0.0"
+  version               = "1.0.1"
   agent_id              = coder_agent.main.id
   service_account_token = var.op_service_account_token
 }
@@ -55,7 +55,7 @@ terminal.
 ```tf
 module "onepassword" {
   source             = "registry.coder.com/bpmct/onepassword/coder"
-  version            = "1.0.0"
+  version            = "1.0.1"
   agent_id           = coder_agent.main.id
   account_address    = "myteam.1password.com"
   account_email      = "you@example.com"
@@ -71,7 +71,7 @@ for code-server and VS Code.
 ```tf
 module "onepassword" {
   source                   = "registry.coder.com/bpmct/onepassword/coder"
-  version                  = "1.0.0"
+  version                  = "1.0.1"
   agent_id                 = coder_agent.main.id
   service_account_token    = var.op_service_account_token
   install_vscode_extension = true
@@ -85,7 +85,7 @@ Run custom logic before or after the CLI is installed.
 ```tf
 module "onepassword" {
   source                = "registry.coder.com/bpmct/onepassword/coder"
-  version               = "1.0.0"
+  version               = "1.0.1"
   agent_id              = coder_agent.main.id
   service_account_token = var.op_service_account_token
   post_install_script   = <<-EOT
