@@ -75,6 +75,12 @@ variable "install_vscode_extension" {
   default     = false
 }
 
+variable "post_install_script" {
+  type        = string
+  description = "Custom script to run after installing the 1Password CLI."
+  default     = null
+}
+
 resource "coder_script" "onepassword_cli" {
   agent_id     = var.agent_id
   display_name = "1Password CLI"
@@ -88,6 +94,7 @@ resource "coder_script" "onepassword_cli" {
     INSTALL_DIR              = var.install_dir
     OP_CLI_VERSION           = var.op_cli_version
     INSTALL_VSCODE_EXTENSION = var.install_vscode_extension
+    POST_INSTALL_SCRIPT      = var.post_install_script != null ? base64encode(var.post_install_script) : ""
   })
   run_on_start       = true
   start_blocks_login = true

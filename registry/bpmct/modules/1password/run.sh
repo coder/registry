@@ -9,6 +9,7 @@ ACCOUNT_PASSWORD="${ACCOUNT_PASSWORD}"
 INSTALL_DIR="${INSTALL_DIR}"
 OP_CLI_VERSION="${OP_CLI_VERSION}"
 INSTALL_VSCODE_EXTENSION="${INSTALL_VSCODE_EXTENSION}"
+POST_INSTALL_SCRIPT="${POST_INSTALL_SCRIPT}"
 
 fetch() {
   url="$1"
@@ -198,4 +199,17 @@ if [ "$${INSTALL_VSCODE_EXTENSION}" = "true" ]; then
     printf "Installing %s for VS Code...\n" "$${EXTENSION_ID}"
     cd /tmp && code --install-extension "$${EXTENSION_ID}" --force 2>&1 || true
   fi
+fi
+
+# --- Post-Install Script ---
+
+if [ -n "$${POST_INSTALL_SCRIPT}" ]; then
+  printf "Running post-install script...\n"
+  SCRIPT_PATH=$(mktemp /tmp/op-post-install-XXXXXX.sh)
+  printf '%s' "$${POST_INSTALL_SCRIPT}" | base64 -d > "$${SCRIPT_PATH}"
+  chmod +x "$${SCRIPT_PATH}"
+  if ! "$${SCRIPT_PATH}"; then
+    printf "WARNING: Post-install script failed.\n"
+  fi
+  rm -f "$${SCRIPT_PATH}"
 fi
