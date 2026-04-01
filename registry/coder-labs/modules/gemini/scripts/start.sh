@@ -27,7 +27,7 @@ else
   export PATH="$HOME/.npm-global/bin:$PATH"
 fi
 
-printf "Version: %s\n" "$(gemini --version)"
+printf "Gemini CLI Version: %s\n" "$(gemini --version)"
 
 MODULE_DIR="$HOME/.gemini-module"
 mkdir -p "$MODULE_DIR"
@@ -68,18 +68,27 @@ else
 fi
 
 GEMINI_ARGS=()
-if [ -n "$GEMINI_YOLO_MODE" ] && [ "$GEMINI_YOLO_MODE" = "true" ]; then
-  printf "YOLO mode enabled - will auto-approve all tool calls\n"
-  GEMINI_ARGS+=(--yolo)
-fi
-
-if [ "$ARG_CONTINUE" = "true" ]; then
-  SESSION_FOLDER_NAME=$(basename "${GEMINI_START_DIRECTORY}")
-  if [ -d "$GEMINI_START_DIRECTORY/.gemini/tmp/$SESSION_FOLDER_NAME/chats/" ]; then
-    printf "Existing Gemini chats detected. Starting Gemini CLI in interactive mode with existing chats.\n"
-    GEMINI_ARGS+=(--resume)
+configure_gemini() {
+  if [ "$ARG_CONTINUE" = "true" ]; then
+    SESSION_FOLDER_NAME=$(basename "${GEMINI_START_DIRECTORY}")
+    if [ -d "$GEMINI_START_DIRECTORY/.gemini/tmp/$SESSION_FOLDER_NAME/chats/" ]; then
+      printf "Existing Gemini chats detected. Starting Gemini CLI in interactive mode with existing chats.\n"
+      GEMINI_ARGS+=(--resume)
+    else
+      printf "No existing Gemini chats found. Starting Gemini CLI in interactive mode.\n"
+      if [ -n "$GEMINI_TASK_PROMPT" ]; then
+        printf "Running automated task: %s\n" "$GEMINI_TASK_PROMPT"
+        PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"
+        PROMPT_FILE="$MODULE_DIR/prompt.txt"
+        echo -n "$PROMPT" > "$PROMPT_FILE"
+        GEMINI_ARGS+=(--prompt-interactive "$PROMPT")
+      else
+        printf "Starting Gemini CLI in interactive mode.\n"
+        GEMINI_ARGS+=()
+      fi
+    fi
   else
-    printf "No existing Gemini chats found. Starting Gemini CLI in interactive mode.\n"
+    printf "Continue disabled, starting fresh Gemini CLI session\n"
     if [ -n "$GEMINI_TASK_PROMPT" ]; then
       printf "Running automated task: %s\n" "$GEMINI_TASK_PROMPT"
       PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"
@@ -91,19 +100,18 @@ if [ "$ARG_CONTINUE" = "true" ]; then
       GEMINI_ARGS+=()
     fi
   fi
-else
-  printf "Continue disabled, starting fresh Gemini CLI session\n"
-  if [ -n "$GEMINI_TASK_PROMPT" ]; then
-    printf "Running automated task: %s\n" "$GEMINI_TASK_PROMPT"
-    PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"
-    PROMPT_FILE="$MODULE_DIR/prompt.txt"
-    echo -n "$PROMPT" > "$PROMPT_FILE"
-    GEMINI_ARGS+=(--prompt-interactive "$PROMPT")
-  else
-    printf "Starting Gemini CLI in interactive mode.\n"
-    GEMINI_ARGS+=()
+
+  if [ -n "$GEMINI_MODEL" ]; then
+    GEMINI_ARGS+=(--model "$GEMINI_MODEL")
   fi
-fi
+
+  if [ -n "$GEMINI_YOLO_MODE" ] && [ "$GEMINI_YOLO_MODE" = "true" ]; then
+    printf "YOLO mode enabled - will auto-approve all tool calls\n"
+    GEMINI_ARGS+=(--approval-mode=yolo)
+  fi
+}
+
+configure_gemini 
 
 agentapi server --type gemini --term-width 67 --term-height 1190 -- \
   bash -c "$(printf '%q ' gemini "${GEMINI_ARGS[@]}")"
