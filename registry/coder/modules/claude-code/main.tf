@@ -47,6 +47,12 @@ variable "report_tasks" {
   default     = true
 }
 
+variable "web_app" {
+  type        = bool
+  description = "Whether to create the web app for Claude Code. When false, AgentAPI still runs but no web UI app icon is shown in the Coder dashboard. This is automatically enabled when using Coder Tasks, regardless of this setting."
+  default     = true
+}
+
 variable "cli_app" {
   type        = bool
   description = "Whether to create a CLI app for Claude Code"
@@ -362,9 +368,10 @@ locals {
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.2.0"
+  version = "2.4.0"
 
-  agent_id                 = var.agent_id
+  agent_id = var.agent_id
+  web_app  = var.web_app
   web_app_slug             = local.app_slug
   web_app_order            = var.order
   web_app_group            = var.group
