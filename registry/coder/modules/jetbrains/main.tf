@@ -223,9 +223,6 @@ locals {
     }
   }
 
-  # Convert the parameter value to a set for for_each
-  selected_ides = length(var.default) == 0 ? toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ides[0].value, "[]"))) : toset(var.default)
-
   plugin_map_b64 = base64encode(jsonencode(var.jetbrains_plugins))
 
   plugin_install_script = file("${path.module}/scripts/install_plugins.sh")
