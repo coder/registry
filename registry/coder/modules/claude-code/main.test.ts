@@ -198,7 +198,6 @@ describe("claude-code", async () => {
       "cat /home/coder/.claude-module/agentapi-start.log",
     ]);
     expect(startLog.stdout).toContain(`--permission-mode ${mode}`);
-    expect(startLog.stdout).toContain("--enable-auto-mode");
   });
 
   test("claude-model", async () => {

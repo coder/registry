@@ -237,27 +237,20 @@ function report_tasks() {
   fi
 }
 
-function accept_bypass_permissions() {
-  # Pre-accept the bypass permissions TOS prompt so it doesn't appear
-  # interactively. This is needed whenever --dangerously-skip-permissions or
-  # --permission-mode bypassPermissions will be used at start time.
-  # When report_tasks is true, the start script always passes
-  # --dangerously-skip-permissions, so we must also accept in that case.
+function accept_permission_mode() {
+  # Pre-accept permission mode prompts so they don't appear interactively.
+  # Claude Code shows a confirmation dialog for bypass permissions and auto
+  # modes that blocks non-interactive/headless usage.
   # Workaround for: https://github.com/anthropics/claude-code/issues/25503
   local claude_config="$HOME/.claude.json"
+  local jq_filter="$1"
 
   if [ -f "$claude_config" ]; then
-    jq '.bypassPermissionsModeAccepted = true' \
+    jq "$jq_filter" \
       "$claude_config" > "${claude_config}.tmp" && mv "${claude_config}.tmp" "$claude_config"
   else
-    cat > "$claude_config" << 'EOF'
-{
-  "bypassPermissionsModeAccepted": true
-}
-EOF
+    echo "{}" | jq "$jq_filter" > "$claude_config"
   fi
-
-  echo "Pre-accepted bypass permissions mode prompt"
 }
 
 install_claude_code_cli
@@ -269,5 +262,11 @@ report_tasks
 if [ "$ARG_REPORT_TASKS" = "true" ] \
   || [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ] \
   || [ "$ARG_PERMISSION_MODE" = "bypassPermissions" ]; then
-  accept_bypass_permissions
+  accept_permission_mode '.bypassPermissionsModeAccepted = true'
+  echo "Pre-accepted bypass permissions mode prompt"
+fi
+
+if [ "$ARG_PERMISSION_MODE" = "auto" ]; then
+  accept_permission_mode '.autoModeAccepted = true'
+  echo "Pre-accepted auto mode prompt"
 fi
