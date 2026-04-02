@@ -182,6 +182,25 @@ describe("claude-code", async () => {
     expect(startLog.stdout).toContain(`--permission-mode ${mode}`);
   });
 
+  test("claude-auto-permission-mode", async () => {
+    const mode = "auto";
+    const { id } = await setup({
+      moduleVariables: {
+        permission_mode: mode,
+        ai_prompt: "test prompt",
+      },
+    });
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/agentapi-start.log",
+    ]);
+    expect(startLog.stdout).toContain(`--permission-mode ${mode}`);
+    expect(startLog.stdout).toContain("--enable-auto-mode");
+  });
+
   test("claude-model", async () => {
     const model = "opus";
     const { coderEnvVars } = await setup({

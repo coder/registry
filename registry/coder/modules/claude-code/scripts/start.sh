@@ -180,6 +180,9 @@ function start_agentapi() {
 
   if [ -n "$ARG_PERMISSION_MODE" ]; then
     ARGS+=(--permission-mode "$ARG_PERMISSION_MODE")
+    if [ "$ARG_PERMISSION_MODE" = "auto" ]; then
+      ARGS+=(--enable-auto-mode)
+    fi
   fi
 
   if [ -n "$ARG_RESUME_SESSION_ID" ]; then

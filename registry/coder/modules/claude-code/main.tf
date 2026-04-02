@@ -155,8 +155,8 @@ variable "permission_mode" {
   description = "Permission mode for the cli, check https://docs.anthropic.com/en/docs/claude-code/iam#permission-modes"
   default     = ""
   validation {
-    condition     = contains(["", "default", "acceptEdits", "plan", "bypassPermissions"], var.permission_mode)
-    error_message = "interaction_mode must be one of: default, acceptEdits, plan, bypassPermissions."
+    condition     = contains(["", "default", "acceptEdits", "plan", "auto", "bypassPermissions"], var.permission_mode)
+    error_message = "interaction_mode must be one of: default, acceptEdits, plan, auto, bypassPermissions."
   }
 }
 
@@ -423,6 +423,8 @@ module "agentapi" {
     ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
     ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
     ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
+    ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
+    ARG_PERMISSION_MODE='${var.permission_mode}' \
     /tmp/install.sh
   EOT
 }

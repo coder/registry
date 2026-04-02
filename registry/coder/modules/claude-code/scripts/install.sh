@@ -22,6 +22,8 @@ ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n "${ARG_MCP_CONFIG_REMOTE_PATH:-}" | base64 
 ARG_ALLOWED_TOOLS=${ARG_ALLOWED_TOOLS:-}
 ARG_DISALLOWED_TOOLS=${ARG_DISALLOWED_TOOLS:-}
 ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
+ARG_DANGEROUSLY_SKIP_PERMISSIONS=${ARG_DANGEROUSLY_SKIP_PERMISSIONS:-false}
+ARG_PERMISSION_MODE=${ARG_PERMISSION_MODE:-}
 
 export PATH="$ARG_CLAUDE_BINARY_PATH:$PATH"
 
@@ -235,6 +237,37 @@ function report_tasks() {
   fi
 }
 
+function accept_bypass_permissions() {
+  # Pre-accept the bypass permissions TOS prompt so it doesn't appear
+  # interactively. This is needed whenever --dangerously-skip-permissions or
+  # --permission-mode bypassPermissions will be used at start time.
+  # When report_tasks is true, the start script always passes
+  # --dangerously-skip-permissions, so we must also accept in that case.
+  # Workaround for: https://github.com/anthropics/claude-code/issues/25503
+  local claude_config="$HOME/.claude.json"
+
+  if [ -f "$claude_config" ]; then
+    jq '.bypassPermissionsModeAccepted = true' \
+      "$claude_config" > "${claude_config}.tmp" && mv "${claude_config}.tmp" "$claude_config"
+  else
+    cat > "$claude_config" << 'EOF'
+{
+  "bypassPermissionsModeAccepted": true
+}
+EOF
+  fi
+
+  echo "Pre-accepted bypass permissions mode prompt"
+}
+
 install_claude_code_cli
 setup_claude_configurations
 report_tasks
+
+# When bypass permissions will be used, pre-accept the TOS prompt.
+# report_tasks=true always uses --dangerously-skip-permissions in start.sh.
+if [ "$ARG_REPORT_TASKS" = "true" ] \
+  || [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ] \
+  || [ "$ARG_PERMISSION_MODE" = "bypassPermissions" ]; then
+  accept_bypass_permissions
+fi
