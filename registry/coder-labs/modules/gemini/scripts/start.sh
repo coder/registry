@@ -111,7 +111,7 @@ configure_gemini() {
   fi
 }
 
-configure_gemini 
+configure_gemini
 
 agentapi server --type gemini --term-width 67 --term-height 1190 -- \
   bash -c "$(printf '%q ' gemini "${GEMINI_ARGS[@]}")"
