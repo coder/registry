@@ -1,4 +1,4 @@
-# Test for agent-helper module
+# Test for coder-utils module
 
 # Test with all scripts provided
 run "test_with_all_scripts" {
