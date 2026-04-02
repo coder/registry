@@ -84,7 +84,7 @@ data "coder_parameter" "account_password" {
   default      = ""
 }
 
-resource "coder_script" "1password" {
+resource "coder_script" "onepassword" {
   agent_id     = var.agent_id
   display_name = "1Password CLI"
   icon         = "/icon/1password.svg"
