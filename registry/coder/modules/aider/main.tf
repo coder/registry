@@ -182,6 +182,11 @@ variable "base_aider_config" {
   default     = null
 }
 
+variable "agentapi_port" {
+  type        = number
+  description = "The port for the AgentAPI server."
+  default     = 3284
+}
 
 locals {
   app_slug              = "aider"
@@ -246,6 +251,7 @@ module "agentapi" {
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
+  agentapi_port        = var.agentapi_port
   start_script         = <<-EOT
     #!/bin/bash
     set -o errexit

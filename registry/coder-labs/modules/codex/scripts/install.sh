@@ -129,7 +129,7 @@ append_mcp_servers_section() {
     ARG_CODER_MCP_APP_STATUS_SLUG=""
     CODER_MCP_AI_AGENTAPI_URL=""
   else
-    CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
+    CODER_MCP_AI_AGENTAPI_URL="http://localhost:${ARG_AGENTAPI_PORT:-3284}"
   fi
 
   cat << EOF >> "$config_path"
@@ -219,7 +219,6 @@ EOF
 }
 
 install_codex
-codex --version
 populate_config_toml
 add_instruction_prompt_if_exists
 

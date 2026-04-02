@@ -267,6 +267,12 @@ variable "enable_state_persistence" {
   default     = true
 }
 
+variable "agentapi_port" {
+  type        = number
+  description = "The port for the AgentAPI server."
+  default     = 3284
+}
+
 resource "coder_env" "claude_code_md_path" {
   count    = var.claude_md_path == "" ? 0 : 1
   agent_id = var.agent_id
@@ -379,6 +385,7 @@ module "agentapi" {
   install_agentapi         = var.install_agentapi
   agentapi_version         = var.agentapi_version
   enable_state_persistence = var.enable_state_persistence
+  agentapi_port            = var.agentapi_port
   pre_install_script       = var.pre_install_script
   post_install_script      = var.post_install_script
   start_script             = <<-EOT
@@ -423,6 +430,7 @@ module "agentapi" {
     ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
     ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
     ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
+    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     /tmp/install.sh
   EOT
 }

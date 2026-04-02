@@ -94,6 +94,12 @@ variable "post_install_script" {
   default     = null
 }
 
+variable "agentapi_port" {
+  type        = number
+  description = "The port for the AgentAPI server."
+  default     = 3284
+}
+
 variable "additional_extensions" {
   type        = string
   description = "Additional extensions configuration in YAML format to append to the config."
@@ -113,7 +119,7 @@ coder:
   enabled: true
   envs:
     CODER_MCP_APP_STATUS_SLUG: ${local.app_slug}
-    CODER_MCP_AI_AGENTAPI_URL: http://localhost:3284
+    CODER_MCP_AI_AGENTAPI_URL: http://localhost:${var.agentapi_port}
   name: Coder
   timeout: 3000
   type: stdio
@@ -158,6 +164,7 @@ module "agentapi" {
   post_install_script  = var.post_install_script
   start_script         = local.start_script
   folder               = local.folder
+  agentapi_port        = var.agentapi_port
   install_script       = <<-EOT
     #!/bin/bash
     set -o errexit

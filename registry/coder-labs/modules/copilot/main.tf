@@ -189,6 +189,12 @@ variable "enable_aibridge_proxy" {
   }
 }
 
+variable "agentapi_port" {
+  type        = number
+  description = "The port for the AgentAPI server."
+  default     = 3284
+}
+
 variable "aibridge_proxy_auth_url" {
   type        = string
   description = "AI Bridge Proxy URL with authentication. Use the proxy_auth_url output from the aibridge-proxy module."
@@ -290,6 +296,7 @@ module "agentapi" {
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
+  agentapi_port        = var.agentapi_port
 
   start_script = <<-EOT
     #!/bin/bash
@@ -329,6 +336,7 @@ module "agentapi" {
     ARG_EXTERNAL_AUTH_ID='${var.external_auth_id}' \
     ARG_COPILOT_VERSION='${var.copilot_version}' \
     ARG_COPILOT_MODEL='${var.copilot_model}' \
+    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     /tmp/install.sh
   EOT
 }

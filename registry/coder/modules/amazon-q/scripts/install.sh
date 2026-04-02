@@ -134,7 +134,7 @@ function configure_agent() {
       --agent "$ARG_AGENT_NAME" \
       --args "exp,mcp,server,--allowed-tools,coder_report_task,--instructions,'$ARG_CODER_MCP_INSTRUCTIONS_DECODED'" \
       --env "CODER_MCP_APP_STATUS_SLUG=${ARG_CODER_MCP_APP_STATUS_SLUG}" \
-      --env "CODER_MCP_AI_AGENTAPI_URL=http://localhost:3284" \
+      --env "CODER_MCP_AI_AGENTAPI_URL=http://localhost:${ARG_AGENTAPI_PORT:-3284}" \
       --env "CODER_AGENT_URL=${CODER_AGENT_URL}" \
       --env "CODER_AGENT_TOKEN=${CODER_AGENT_TOKEN}" \
       --force || echo "Warning: Failed to add Coder MCP server"

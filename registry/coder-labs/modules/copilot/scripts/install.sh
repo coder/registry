@@ -147,7 +147,7 @@ setup_coder_mcp_server() {
 set -e
 
 export CODER_MCP_APP_STATUS_SLUG="${ARG_MCP_APP_STATUS_SLUG}"
-export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
+export CODER_MCP_AI_AGENTAPI_URL="http://localhost:${ARG_AGENTAPI_PORT:-3284}"
 export CODER_AGENT_URL="${CODER_AGENT_URL}"
 export CODER_AGENT_TOKEN="${CODER_AGENT_TOKEN}"
 
@@ -218,7 +218,7 @@ configure_coder_integration() {
   if [ "$ARG_REPORT_TASKS" = "true" ] && [ -n "$ARG_MCP_APP_STATUS_SLUG" ]; then
     echo "Configuring Copilot task reporting..."
     export CODER_MCP_APP_STATUS_SLUG="$ARG_MCP_APP_STATUS_SLUG"
-    export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
+    export CODER_MCP_AI_AGENTAPI_URL="http://localhost:${ARG_AGENTAPI_PORT:-3284}"
     echo "✓ Coder MCP server configured for task reporting"
   else
     echo "Task reporting disabled or no app status slug provided."

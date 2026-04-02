@@ -70,7 +70,7 @@ set -e
 
 # --- Set environment variables ---
 export CODER_MCP_APP_STATUS_SLUG="${ARG_CODER_MCP_APP_STATUS_SLUG}"
-export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
+export CODER_MCP_AI_AGENTAPI_URL="http://localhost:${ARG_AGENTAPI_PORT:-3284}"
 export CODER_AGENT_URL="${CODER_AGENT_URL}"
 export CODER_AGENT_TOKEN="${CODER_AGENT_TOKEN}"
 

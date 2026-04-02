@@ -1,0 +1,47 @@
+#cloud-config
+hostname: ${hostname}
+
+users:
+  - name: coder
+    groups: sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+
+package_update: true
+packages:
+  - qemu-guest-agent
+  - curl
+  - git
+  - build-essential
+  - python3
+  - python3-pip
+  - python3-venv
+  - unzip
+  - jq
+
+runcmd:
+  - systemctl enable qemu-guest-agent
+  - systemctl start qemu-guest-agent
+
+  # Install Node.js 22.x
+  - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+  - apt-get install -y nodejs
+
+  # Install GitHub CLI
+  - curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /usr/share/keyrings/githubcli-archive-keyring.gpg
+  - echo "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+  - apt-get update && apt-get install -y gh
+
+%{ if install_docker == "true" ~}
+  # Install Docker Engine and Compose
+  - curl -fsSL https://get.docker.com | sh
+  - usermod -aG docker coder
+%{ endif ~}
+
+  # Bootstrap Coder agent using official init script
+  - |
+    echo "${coder_init_script_b64}" | base64 -d > /tmp/coder-init.sh
+    chmod +x /tmp/coder-init.sh
+    export CODER_AGENT_TOKEN="${coder_agent_token}"
+    sudo -u coder --preserve-env=CODER_AGENT_TOKEN /tmp/coder-init.sh

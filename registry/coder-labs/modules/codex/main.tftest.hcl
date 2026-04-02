@@ -100,7 +100,7 @@ run "test_aibridge_disabled_with_api_key" {
   }
 
   assert {
-    condition     = coder_env.openai_api_key.value == "test-key"
+    condition     = coder_env.openai_api_key[0].value == "test-key"
     error_message = "OpenAI API key should be set correctly"
   }
 }

@@ -108,6 +108,12 @@ variable "post_install_script" {
   default     = null
 }
 
+variable "agentapi_port" {
+  type        = number
+  description = "The port for the AgentAPI server."
+  default     = 3284
+}
+
 locals {
   app_slug        = "cursorcli"
   install_script  = file("${path.module}/scripts/install.sh")
@@ -148,6 +154,7 @@ module "agentapi" {
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
+  agentapi_port        = var.agentapi_port
   start_script         = <<-EOT
      #!/bin/bash
      set -o errexit
@@ -176,6 +183,7 @@ module "agentapi" {
     ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
     ARG_FOLDER='${var.folder}' \
     ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
+    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     /tmp/install.sh
   EOT
 }

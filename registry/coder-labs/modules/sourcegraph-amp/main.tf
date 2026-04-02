@@ -160,6 +160,12 @@ variable "mcp" {
   default     = null
 }
 
+variable "agentapi_port" {
+  type        = number
+  description = "The port for the AgentAPI server."
+  default     = 3284
+}
+
 variable "mode" {
   type        = string
   description = "Set the agent mode (free, rush, smart) — controls the model, system prompt, and tool selection. Default: smart"
@@ -192,7 +198,7 @@ locals {
       "args"    = ["exp", "mcp", "server"]
       "env" = {
         "CODER_MCP_APP_STATUS_SLUG" = var.report_tasks == true ? local.app_slug : ""
-        "CODER_MCP_AI_AGENTAPI_URL" = var.report_tasks == true ? "http://localhost:3284" : ""
+        "CODER_MCP_AI_AGENTAPI_URL" = var.report_tasks == true ? "http://localhost:${var.agentapi_port}" : ""
         "CODER_AGENT_TOKEN"         = data.external.env.result.CODER_AGENT_TOKEN
         "CODER_AGENT_URL"           = data.external.env.result.CODER_AGENT_URL
       }
@@ -237,6 +243,7 @@ module "agentapi" {
   agentapi_version     = var.agentapi_version
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
+  agentapi_port        = var.agentapi_port
   start_script         = <<-EOT
      #!/bin/bash
      set -o errexit
