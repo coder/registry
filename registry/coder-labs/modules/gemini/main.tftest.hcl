@@ -47,7 +47,7 @@ run "test_gemini_with_api_key" {
   }
 
   assert {
-    condition     = coder_env.gemini_api_key[0].value == "test-api-key-123"
+    condition     = coder_env.gemini_api_key.value == "test-api-key-123"
     error_message = "Gemini API key value should match the input"
   }
 }
@@ -62,7 +62,7 @@ run "test_gemini_with_custom_options" {
     group                 = "development"
     icon                  = "/icon/custom.svg"
     gemini_version        = "1.0.0"
-    gemini_model          = "gemini-pro"
+    gemini_model          = "gemini-2.5-pro"
     agentapi_version      = "v0.13.0"
     continue              = false
     pre_install_script    = "echo 'Pre-install script'"
@@ -93,8 +93,8 @@ run "test_gemini_with_custom_options" {
   }
 
   assert {
-    condition     = var.gemini_model == "gemini-pro"
-    error_message = "Gemini model variable should be set to 'gemini-pro'"
+    condition     = var.gemini_model == "gemini-2.5-pro"
+    error_message = "Gemini model variable should be set to 'gemini-2.5-pro'"
   }
 
   assert {
@@ -143,12 +143,12 @@ run "test_gemini_system_prompt" {
   }
 
   assert {
-    condition     = trimspace(coder_env.gemini_system_prompt.value) != ""
+    condition     = trimspace(var.gemini_system_prompt) != ""
     error_message = "System prompt should not be empty"
   }
 
   assert {
-    condition     = length(regexall("Custom addition", coder_env.gemini_system_prompt.value)) > 0
+    condition     = length(regexall("Custom addition", var.gemini_system_prompt)) > 0
     error_message = "System prompt should have system_prompt variable value"
   }
 }
@@ -162,13 +162,29 @@ run "test_no_api_key_no_env" {
   }
 
   assert {
-    condition     = length(coder_env.gemini_api_key) == 0
+    condition     = coder_env.gemini_api_key.value == ""
     error_message = "GEMINI_API_KEY should not be created when no API key is provided"
   }
 
   assert {
-    condition     = length(coder_env.google_api_key) == 0
+    condition     = coder_env.google_api_key.value == ""
     error_message = "GOOGLE_API_KEY should not be created when no API key is provided"
+  }
+}
+
+run "test_gemini_with_vertexai" {
+  command = plan
+
+  variables {
+    agent_id       = "test-agent-vertexai"
+    folder         = "/home/coder"
+    use_vertexai   = true
+    gemini_api_key = "test-key"
+  }
+
+  assert {
+    condition     = coder_env.gemini_use_vertex_ai.value == true
+    error_message = "GOOGLE_GENAI_USE_VERTEXAI should be true when use_vertexai is enabled"
   }
 }
 
@@ -177,7 +193,7 @@ run "test_enable_state_persistence_default" {
 
   variables {
     agent_id = "test-agent"
-    workdir  = "/home/coder"
+    folder   = "/home/coder"
   }
 
   assert {
@@ -191,7 +207,7 @@ run "test_disable_state_persistence" {
 
   variables {
     agent_id                 = "test-agent"
-    workdir                  = "/home/coder"
+    folder                   = "/home/coder"
     enable_state_persistence = false
   }
 
