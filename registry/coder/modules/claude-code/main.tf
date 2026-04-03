@@ -370,7 +370,7 @@ module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
   version = "2.4.0"
 
-  agent_id = var.agent_id
+  agent_id                 = var.agent_id
   web_app                  = var.web_app
   web_app_slug             = local.app_slug
   web_app_order            = var.order
