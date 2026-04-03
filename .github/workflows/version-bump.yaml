@@ -26,12 +26,12 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@ecf28ddc73e819eb6fa29df6b34ef8921c743461 # v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: latest
 
       - name: Set up Terraform
-        uses: coder/coder/.github/actions/setup-tf@deaacff8437e3f4ee84bc51c4e5162f6dd7d190e # v2.31.3
+        uses: coder/coder/.github/actions/setup-tf@f7650296ceb9b020c79cd525ac7bd3c7f252ae1d # v2.31.6
 
       - name: Install dependencies
         run: bun install

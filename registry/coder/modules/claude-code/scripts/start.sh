@@ -88,7 +88,7 @@ TASK_SESSION_ID="cd32e253-ca16-4fd3-9825-d837e74ae3c2"
 
 get_project_dir() {
   local workdir_normalized
-  workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
+  workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/._' '-')
   echo "$HOME/.claude/projects/${workdir_normalized}"
 }
 

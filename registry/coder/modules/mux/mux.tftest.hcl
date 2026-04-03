@@ -111,6 +111,111 @@ run "launcher_logs_external_kills" {
   }
 }
 
+run "restart_on_kill_enabled" {
+  command = plan
+
+  variables {
+    agent_id              = "foo"
+    restart_on_kill       = true
+    restart_delay_seconds = 7
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "restart_on_kill_value=\"true\"")
+    error_message = "mux launcher must receive the restart_on_kill setting"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "restart_delay_seconds_value=\"7\"")
+    error_message = "mux launcher must receive the configured restart delay"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "Waiting $${RESTART_DELAY_SECONDS_VALUE} seconds before restarting mux after it exited.")
+    error_message = "mux launcher must log the restart delay before relaunching"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "Removing $HOME/.mux/server.lock before restarting mux.")
+    error_message = "mux launcher must clean up the server lock before relaunching"
+  }
+
+  assert {
+    condition     = !strcontains(resource.coder_script.mux.script, "\"$exit_code\" -le 128")
+    error_message = "mux launcher must no longer exclude non-signal exits from restart handling"
+  }
+
+  assert {
+    condition     = !strcontains(resource.coder_script.mux.script, "1|2|15)")
+    error_message = "mux launcher must no longer exclude intentional signals from restart handling"
+  }
+}
+
+run "restart_on_kill_with_restart_cap" {
+  command = plan
+
+  variables {
+    agent_id              = "foo"
+    restart_on_kill       = true
+    restart_delay_seconds = 7
+    max_restart_attempts  = 2
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "max_restart_attempts_value=\"2\"")
+    error_message = "mux launcher must receive the configured restart cap"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "Mux will stop restarting after $${max_restart_attempts_value} restart attempts.")
+    error_message = "mux launcher must describe the configured restart cap"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "Reached the max restart attempts limit ($MAX_RESTART_ATTEMPTS_VALUE); not restarting mux again.")
+    error_message = "mux launcher must log when it hits the restart cap"
+  }
+}
+
+run "invalid_max_restart_attempts" {
+  command = plan
+
+  variables {
+    agent_id             = "foo"
+    max_restart_attempts = -1
+  }
+
+  expect_failures = [
+    var.max_restart_attempts
+  ]
+}
+
+run "fractional_max_restart_attempts" {
+  command = plan
+
+  variables {
+    agent_id             = "foo"
+    max_restart_attempts = 0.5
+  }
+
+  expect_failures = [
+    var.max_restart_attempts
+  ]
+}
+
+run "invalid_restart_delay_seconds" {
+  command = plan
+
+  variables {
+    agent_id              = "foo"
+    restart_delay_seconds = -1
+  }
+
+  expect_failures = [
+    var.restart_delay_seconds
+  ]
+}
+
 run "custom_version" {
   command = plan
 
