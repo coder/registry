@@ -4,7 +4,7 @@ terraform {
       source = "coder/coder"
     }
     incus = {
-      source = "lxc/incus"
+      source  = "lxc/incus"
       version = "1.0.2"
     }
   }
@@ -13,9 +13,9 @@ terraform {
 provider "coder" {}
 
 provider "incus" {
-  accept_remote_certificate = true
+  accept_remote_certificate    = true
   generate_client_certificates = true
-  default_remote            = var.remote_name
+  default_remote               = var.remote_name
   remote {
     name    = var.remote_name
     address = var.remote_address
@@ -25,41 +25,41 @@ provider "incus" {
 
 variable "remote_name" {
   description = "Incus remote host/cluster name"
-  type    = string
-  default = "remote"  
+  type        = string
+  default     = "remote"
 }
 
 variable "remote_address" {
   description = "Incus remote address (e.g. https://lxc.example.com:8443)"
-  type    = string 
+  type        = string
 }
 
 variable "remote_token" {
   description = "Incus remote API token with permissions to manage instances"
-  type    = string
-  sensitive = true
+  type        = string
+  sensitive   = true
 }
 
 variable "remote_project" {
   description = "Incus remote project to use for instances"
-  type    = string
-  default = "default"
+  type        = string
+  default     = "default"
 }
 
 variable "remote_network" {
   description = "Incus remote network to attach instances to"
-  type    = string
+  type        = string
 }
 
 variable "remote_profiles" {
   description = "Incus remote profiles to use for instances"
-  type    = list(string)
-  default = []
+  type        = list(string)
+  default     = []
 }
 
 variable "remote_storage_pool" {
   description = "Incus remote storage pool to use for instances"
-  type    = string
+  type        = string
 }
 
 data "coder_workspace" "me" {}
@@ -110,12 +110,12 @@ data "coder_parameter" "instance_type" {
   mutable      = true
 
   option {
-    name = "Virtual Machine"
+    name  = "Virtual Machine"
     value = "virtual-machine"
   }
-  
+
   option {
-    name = "LXC Container"
+    name  = "LXC Container"
     value = "container"
   }
 }
@@ -164,10 +164,10 @@ resource "coder_agent" "dev" {
 }
 
 locals {
-  hostname         = lower(data.coder_workspace.me.name)
-  vm_name          = "coder-${lower(data.coder_workspace_owner.me.name)}-${local.hostname}"
-  base_user        = replace(replace(replace(lower(data.coder_workspace_owner.me.name), " ", "-"), "/", "-"), "@", "-")             # to avoid special characters in the username
-  linux_user       = contains(["root", "admin", "daemon", "bin", "sys"], local.base_user) ? "${local.base_user}1" : local.base_user # to avoid conflict with system users
+  hostname   = lower(data.coder_workspace.me.name)
+  vm_name    = "coder-${lower(data.coder_workspace_owner.me.name)}-${local.hostname}"
+  base_user  = replace(replace(replace(lower(data.coder_workspace_owner.me.name), " ", "-"), "/", "-"), "@", "-")             # to avoid special characters in the username
+  linux_user = contains(["root", "admin", "daemon", "bin", "sys"], local.base_user) ? "${local.base_user}1" : local.base_user # to avoid conflict with system users
 
   rendered_user_data = templatefile("${path.module}/cloud-init/user-data.tftpl", {
     coder_token           = coder_agent.dev.token
@@ -178,16 +178,16 @@ locals {
 }
 
 resource "incus_instance" "workspace" {
-  count  = data.coder_workspace.me.start_count
-  name   = local.vm_name
-  image  = data.coder_parameter.image.value
+  count    = data.coder_workspace.me.start_count
+  name     = local.vm_name
+  image    = data.coder_parameter.image.value
   type     = data.coder_parameter.instance_type.value
   profiles = var.remote_profiles
   project  = var.remote_project
-  running = true
+  running  = true
   config = {
-    "limits.cpu"     = tostring(data.coder_parameter.cpu_cores.value)
-    "limits.memory"  = "${data.coder_parameter.memory_mb.value}MiB"
+    "limits.cpu"           = tostring(data.coder_parameter.cpu_cores.value)
+    "limits.memory"        = "${data.coder_parameter.memory_mb.value}MiB"
     "cloud-init.user-data" = local.rendered_user_data
   }
 
