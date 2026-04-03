@@ -125,7 +125,7 @@ variable "download_base_link" {
 }
 
 data "http" "jetbrains_ide_versions" {
-  for_each = length(var.default) == 0 ? var.options : var.default
+  for_each = local.selected_ides
   url      = "${var.releases_base_link}/products/releases?code=${each.key}&type=${var.channel}${var.major_version == "latest" ? "&latest=true" : ""}"
 }
 
@@ -174,9 +174,14 @@ variable "ide_config" {
 }
 
 locals {
+  # Determine the user's actual IDE selection.
+  # This is computed before the HTTP data source so that version lookups
+  # are only performed for IDEs the user chose — not every option.
+  selected_ides = length(var.default) == 0 ? toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ides[0].value, "[]"))) : toset(var.default)
+
   # Parse HTTP responses once with error handling for air-gapped environments
   parsed_responses = {
-    for code in length(var.default) == 0 ? var.options : var.default : code => try(
+    for code in local.selected_ides : code => try(
       jsondecode(data.http.jetbrains_ide_versions[code].response_body),
       {} # Return empty object if API call fails
     )
@@ -184,7 +189,7 @@ locals {
 
   # Filter the parsed response for the requested major version if not "latest"
   filtered_releases = {
-    for code in length(var.default) == 0 ? var.options : var.default : code => [
+    for code in local.selected_ides : code => [
       for r in try(local.parsed_responses[code][keys(local.parsed_responses[code])[0]], []) :
       r if var.major_version == "latest" || r.majorVersion == var.major_version
     ]
@@ -192,13 +197,13 @@ locals {
 
   # Select the latest release for the requested major version (first item in the filtered list)
   selected_releases = {
-    for code in length(var.default) == 0 ? var.options : var.default : code =>
+    for code in local.selected_ides : code =>
     length(local.filtered_releases[code]) > 0 ? local.filtered_releases[code][0] : null
   }
 
-  # Dynamically generate IDE configurations based on options with fallback to ide_config
+  # Dynamically generate IDE configurations based on selected IDEs with fallback to ide_config
   options_metadata = {
-    for code in length(var.default) == 0 ? var.options : var.default : code => {
+    for code in local.selected_ides : code => {
       icon       = var.ide_config[code].icon
       name       = var.ide_config[code].name
       identifier = code
@@ -211,9 +216,6 @@ locals {
       json_data = local.selected_releases[code]
     }
   }
-
-  # Convert the parameter value to a set for for_each
-  selected_ides = length(var.default) == 0 ? toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ides[0].value, "[]"))) : toset(var.default)
 }
 
 data "coder_parameter" "jetbrains_ides" {
