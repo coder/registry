@@ -163,7 +163,7 @@ describe("gemini", async () => {
       id,
       "/home/coder/.gemini-module/agentapi-start.log",
     );
-    expect(resp).toContain("Using Vertex AI with API key");
+    expect(resp).toContain("GOOGLE_GENAI_USE_VERTEXAI='true'");
   });
 
   test("gemini-model", async () => {

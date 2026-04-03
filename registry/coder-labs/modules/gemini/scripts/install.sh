@@ -107,29 +107,9 @@ function append_extensions_to_settings_json() {
     '.mcpServers = (.mcpServers // {} + $base + $add)' \
     "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
 
-  jq '.theme = "Default" | .selectedAuthType = "gemini-api-key" | .security.folderTrust.enabled = true' "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
+  jq '.theme = "Default" | .selectedAuthType = "gemini-api-key"' "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
 
   printf "[append_extensions_to_settings_json] Merge complete.\n"
-}
-
-function configure_trusted_folders() {
-  TRUSTED_FOLDERS_PATH="$HOME/.gemini/trustedFolders.json"
-  mkdir -p "$(dirname "$TRUSTED_FOLDERS_PATH")"
-
-  printf "Pre-trusting Gemini start directory: %s\n" "${GEMINI_START_DIRECTORY}"
-
-  if [ -f "$TRUSTED_FOLDERS_PATH" ]; then
-    EXISTING=$(cat "$TRUSTED_FOLDERS_PATH")
-  else
-    EXISTING='{}'
-  fi
-
-  UPDATED=$(echo "$EXISTING" | jq \
-    --arg folder "${GEMINI_START_DIRECTORY}" \
-    '.[$folder] = "TRUST_FOLDER"')
-
-  echo "$UPDATED" > "$TRUSTED_FOLDERS_PATH"
-  printf "Trusted folders updated: %s\n" "$TRUSTED_FOLDERS_PATH"
 }
 
 function add_system_prompt_if_exists() {
@@ -161,5 +141,4 @@ function add_system_prompt_if_exists() {
 
 install_gemini
 populate_settings_json
-configure_trusted_folders
 add_system_prompt_if_exists

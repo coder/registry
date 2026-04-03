@@ -227,10 +227,10 @@ module "agentapi" {
      chmod +x /tmp/start.sh
      GEMINI_API_KEY='${base64encode(var.gemini_api_key)}' \
      GOOGLE_API_KEY='${base64encode(var.gemini_api_key)}' \
-     GOOGLE_GENAI_USE_VERTEXAI='${base64encode(var.use_vertexai)}' \
      GEMINI_YOLO_MODE='${base64encode(var.enable_yolo_mode)}' \
-     GEMINI_MODEL='${base64encode(var.gemini_model)}' \
-     GEMINI_START_DIRECTORY='${base64encode(var.folder)}' \
+     GOOGLE_GENAI_USE_VERTEXAI='${var.use_vertexai}' \
+     GEMINI_MODEL='${var.gemini_model}' \
+     GEMINI_START_DIRECTORY='${var.folder}' \
      GEMINI_TASK_PROMPT='${base64encode(var.task_prompt)}' \
      ARG_CONTINUE='${base64encode(var.continue)}' \
      /tmp/start.sh
