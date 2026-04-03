@@ -22,7 +22,6 @@ ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n "${ARG_MCP_CONFIG_REMOTE_PATH:-}" | base64 
 ARG_ALLOWED_TOOLS=${ARG_ALLOWED_TOOLS:-}
 ARG_DISALLOWED_TOOLS=${ARG_DISALLOWED_TOOLS:-}
 ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
-ARG_DANGEROUSLY_SKIP_PERMISSIONS=${ARG_DANGEROUSLY_SKIP_PERMISSIONS:-false}
 ARG_PERMISSION_MODE=${ARG_PERMISSION_MODE:-}
 
 export PATH="$ARG_CLAUDE_BINARY_PATH:$PATH"
@@ -197,6 +196,7 @@ function configure_standalone_mode() {
 
     jq --arg workdir "$ARG_WORKDIR" --arg apikey "${CLAUDE_API_KEY:-}" \
       '.autoUpdaterStatus = "disabled" |
+        .autoModeAccepted = true |
         .bypassPermissionsModeAccepted = true |
         .hasAcknowledgedCostThreshold = true |
         .hasCompletedOnboarding = true |
@@ -209,6 +209,7 @@ function configure_standalone_mode() {
     cat > "$claude_config" << EOF
 {
   "autoUpdaterStatus": "disabled",
+  "autoModeAccepted": true,
   "bypassPermissionsModeAccepted": true,
   "hasAcknowledgedCostThreshold": true,
   "hasCompletedOnboarding": true,
@@ -237,36 +238,28 @@ function report_tasks() {
   fi
 }
 
-function accept_permission_mode() {
-  # Pre-accept permission mode prompts so they don't appear interactively.
-  # Claude Code shows a confirmation dialog for bypass permissions and auto
-  # modes that blocks non-interactive/headless usage.
-  # Workaround for: https://github.com/anthropics/claude-code/issues/25503
+function accept_auto_mode() {
+  # Pre-accept the auto mode TOS prompt so it doesn't appear interactively.
+  # Claude Code shows a confirmation dialog for auto mode that blocks
+  # non-interactive/headless usage.
+  # Note: bypassPermissions acceptance is already handled by
+  # coder exp mcp configure (task mode) and configure_standalone_mode.
   local claude_config="$HOME/.claude.json"
-  local jq_filter="$1"
 
   if [ -f "$claude_config" ]; then
-    jq "$jq_filter" \
+    jq '.autoModeAccepted = true' \
       "$claude_config" > "${claude_config}.tmp" && mv "${claude_config}.tmp" "$claude_config"
   else
-    echo "{}" | jq "$jq_filter" > "$claude_config"
+    echo '{"autoModeAccepted": true}' > "$claude_config"
   fi
+
+  echo "Pre-accepted auto mode prompt"
 }
 
 install_claude_code_cli
 setup_claude_configurations
 report_tasks
 
-# When bypass permissions will be used, pre-accept the TOS prompt.
-# report_tasks=true always uses --dangerously-skip-permissions in start.sh.
-if [ "$ARG_REPORT_TASKS" = "true" ] \
-  || [ "$ARG_DANGEROUSLY_SKIP_PERMISSIONS" = "true" ] \
-  || [ "$ARG_PERMISSION_MODE" = "bypassPermissions" ]; then
-  accept_permission_mode '.bypassPermissionsModeAccepted = true'
-  echo "Pre-accepted bypass permissions mode prompt"
-fi
-
 if [ "$ARG_PERMISSION_MODE" = "auto" ]; then
-  accept_permission_mode '.autoModeAccepted = true'
-  echo "Pre-accepted auto mode prompt"
+  accept_auto_mode
 fi
