@@ -45,11 +45,27 @@ variable "gemini_api_key" {
 }
 
 module "gemini" {
-  source         = "registry.coder.com/coder-labs/gemini/coder"
-  version        = "3.0.1"
-  agent_id       = coder_agent.main.id
-  gemini_api_key = var.gemini_api_key
-  folder         = "/home/coder"
+  source             = "registry.coder.com/coder-labs/gemini/coder"
+  version            = "3.0.1"
+  agent_id           = coder_agent.main.id
+  gemini_api_key     = var.gemini_api_key
+  folder             = "/home/coder"
+  pre_install_script = <<-EOT
+    #!/bin/bash
+    set -e
+
+    echo "Installing Node.js via NodeSource..."
+
+    sudo apt-get update -qq && sudo apt-get install -y curl ca-certificates
+
+    curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo bash -
+
+    sudo apt-get install -y nodejs
+
+    echo "Node version: $(node -v)"
+    echo "npm version: $(npm -v)"
+    echo "Node install complete."
+  EOT
 }
 ```
 
