@@ -347,3 +347,32 @@ run "aibridge_proxy_with_copilot_config" {
     error_message = "copilot_model environment variable should be set alongside proxy"
   }
 }
+
+run "enable_state_persistence_default" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    workdir  = "/home/coder"
+  }
+
+  assert {
+    condition     = var.enable_state_persistence == true
+    error_message = "enable_state_persistence should default to true"
+  }
+}
+
+run "disable_state_persistence" {
+  command = plan
+
+  variables {
+    agent_id                 = "test-agent"
+    workdir                  = "/home/coder"
+    enable_state_persistence = false
+  }
+
+  assert {
+    condition     = var.enable_state_persistence == false
+    error_message = "enable_state_persistence should be false when explicitly disabled"
+  }
+}
