@@ -18,9 +18,9 @@ The Coder Utils module is a building block for modules that need to run multiple
 > - The `agent_name` should be the same as that of the agentapi module's `agent_name` if used together.
 
 ```tf
-module "coder_helper" {
+module "coder_utils" {
   source  = "registry.coder.com/coder/coder-utils/coder"
-  version = "1.0.0"
+  version = "1.0.1"
 
   agent_id        = coder_agent.main.id
   agent_name      = "myagent"
