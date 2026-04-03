@@ -13,7 +13,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "4.9.0"
+  version        = "4.9.2"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
