@@ -8,3 +8,5 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 RUN R -e "install.packages('rmarkdown')"
+
+RUN echo "auth-minimum-user-id=0" >>/etc/rstudio/rserver.conf
