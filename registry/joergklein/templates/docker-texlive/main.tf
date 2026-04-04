@@ -11,6 +11,13 @@ terraform {
 
 locals {
   username = data.coder_workspace_owner.me.name
+
+   build_context_hash = sha1(join("", [
+    for f in fileset("${path.module}/build", "**") :
+    filesha1("${path.module}/build/${f}")
+  ]))
+
+  latest_rebuild_trigger = var.texlive_version == "latest" ? formatdate("YYYY-ww", timestamp()) : ""
 }
 
 variable "docker_socket" {
@@ -36,6 +43,7 @@ data "coder_workspace_owner" "me" {}
 resource "coder_agent" "main" {
   arch           = data.coder_provisioner.me.arch
   os             = "linux"
+
   startup_script = <<-EOT
     set -e
     if [ ! -f ~/.init_done ]; then
@@ -46,9 +54,9 @@ resource "coder_agent" "main" {
 
   env = {
     GIT_AUTHOR_NAME     = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_AUTHOR_EMAIL    = "${data.coder_workspace_owner.me.email}"
+    GIT_AUTHOR_EMAIL    = data.coder_workspace_owner.me.email
     GIT_COMMITTER_NAME  = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_COMMITTER_EMAIL = "${data.coder_workspace_owner.me.email}"
+    GIT_COMMITTER_EMAIL = data.coder_workspace_owner.me.email
   }
 
   metadata {
@@ -88,21 +96,31 @@ module "code-server" {
 }
 
 resource "docker_image" "texlive" {
-  name = "texlive:${var.texlive_version}"
+  name = "registry.example.com/texlive:${var.texlive_version}-${data.coder_workspace.me.id}-${substr(local.build_context_hash, 0, 8)}"
+
   build {
-    context    = "./build"
+    context    = "${path.module}/build"
     dockerfile = "Dockerfile"
+
     build_args = {
       TEXLIVE_VERSION = var.texlive_version
     }
+  }
+
+  triggers = {
+    dir_hash        = local.build_context_hash
+    texlive_version = var.texlive_version
+    latest_rebuild  = local.latest_rebuild_trigger
   }
 }
 
 resource "docker_volume" "home_volume" {
   name = "coder-${data.coder_workspace.me.id}-home"
+
   lifecycle {
     ignore_changes = all
   }
+
   labels {
     label = "coder.owner"
     value = data.coder_workspace_owner.me.name
@@ -126,8 +144,14 @@ resource "docker_container" "workspace" {
   image    = docker_image.texlive.image_id
   name     = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}"
   hostname = data.coder_workspace.me.name
-  entrypoint = ["sh", "-c", replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")]
-  env        = ["CODER_AGENT_TOKEN=${coder_agent.main.token}"]
+
+  entrypoint = [
+    "sh",
+    "-c",
+    replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
+  ]
+
+  env = ["CODER_AGENT_TOKEN=${coder_agent.main.token}"]
 
   host {
     host = "host.docker.internal"
@@ -156,4 +180,24 @@ resource "docker_container" "workspace" {
     label = "coder.workspace_name"
     value = data.coder_workspace.me.name
   }
+}
+
+resource "null_resource" "cleanup_old_texlive_images" {
+  triggers = {
+    current_image = docker_image.texlive.name
+  }
+
+  provisioner "local-exec" {
+    command = <<EOT
+CURRENT_ID=$(docker inspect --format='{{.Id}}' ${docker_image.texlive.name})
+
+docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}" \
+  | grep "registry.example.com/texlive:${var.texlive_version}-${data.coder_workspace.me.id}" \
+  | grep -v "$CURRENT_ID" \
+  | awk '{print $2}' \
+  | xargs -r docker rmi -f
+EOT
+  }
+
+  depends_on = [docker_image.texlive]
 }
