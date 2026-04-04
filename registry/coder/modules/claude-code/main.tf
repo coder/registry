@@ -233,12 +233,12 @@ variable "enable_boundary" {
   default     = false
 
   validation {
-    condition     = !var.enable_boundary || var.boundary_config == null || var.boundary_config_path == null
+    condition     = !var.enable_boundary || (var.boundary_config == null || trimspace(var.boundary_config) == "") || (var.boundary_config_path == null || trimspace(var.boundary_config_path) == "")
     error_message = "Only one of boundary_config or boundary_config_path can be provided, not both."
   }
 
   validation {
-    condition     = (var.boundary_config == null && var.boundary_config_path == null) || var.enable_boundary
+    condition     = ((var.boundary_config == null || trimspace(var.boundary_config) == "") && (var.boundary_config_path == null || trimspace(var.boundary_config_path) == "")) || var.enable_boundary
     error_message = "boundary_config and boundary_config_path can only be set when enable_boundary is true."
   }
 }
