@@ -1,10 +1,10 @@
 #!/bin/bash
 # set -euo pipefail
 
-LOGFILE="$HOME/.config/Jetbrains/install_plugins.log"
+LOGFILE="$HOME/.config/JetBrains/install_plugins.log"
 TOOLBOX_BASE="$HOME/.local/share/JetBrains/Toolbox/apps"
-PLUGIN_MAP_FILE="$HOME/.config/Jetbrains/plugins.json"
-PLUGIN_ALREADY_INSTALLED_MAP="$HOME/.config/Jetbrains"
+PLUGIN_MAP_FILE="$HOME/.config/JetBrains/plugins.json"
+PLUGIN_ALREADY_INSTALLED_MAP="$HOME/.config/JetBrains"
 
 # Verify jq is available
 if ! command -v jq > /dev/null 2>&1; then
