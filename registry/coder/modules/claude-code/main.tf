@@ -364,7 +364,7 @@ locals {
   module_dir_name = ".claude-module"
   # Extract hostname from access_url for boundary --allow flag
   coder_host          = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
-  boundary_config_b64 = var.boundary_config != null ? base64encode(var.boundary_config) : ""
+  boundary_config_b64 = var.boundary_config != null && trimspace(var.boundary_config) != "" ? base64encode(var.boundary_config) : ""
   claude_api_key      = var.enable_aibridge ? data.coder_workspace_owner.me.session_token : var.claude_api_key
 
   # Required prompts for the module to properly report task status to Coder
@@ -441,7 +441,7 @@ module "agentapi" {
     ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
     ARG_CODER_HOST='${local.coder_host}' \
     ARG_BOUNDARY_CONFIG='${local.boundary_config_b64}' \
-    ARG_BOUNDARY_CONFIG_PATH='${var.boundary_config_path != null ? var.boundary_config_path : ""}' \
+    ARG_BOUNDARY_CONFIG_PATH='${var.boundary_config_path != null && trimspace(var.boundary_config_path) != "" ? trimspace(var.boundary_config_path) : ""}' \
     ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
     /tmp/start.sh
   EOT

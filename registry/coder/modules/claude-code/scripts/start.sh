@@ -250,6 +250,11 @@ function start_agentapi() {
       fi
     fi
 
+    if [ ! -s "$BOUNDARY_CONFIG_FILE" ]; then
+      printf "Error: boundary configuration file '%s' does not exist or is empty. Check ARG_BOUNDARY_CONFIG/ARG_BOUNDARY_CONFIG_PATH.\n" "$BOUNDARY_CONFIG_FILE" >&2
+      exit 1
+    fi
+
     install_boundary
 
     printf "Starting with coder boundary enabled\n"
