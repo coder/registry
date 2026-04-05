@@ -239,6 +239,9 @@ function start_agentapi() {
         exit 1
       fi
     elif [ -n "$ARG_BOUNDARY_CONFIG_PATH" ]; then
+      # Expand leading tilde and literal $HOME so paths like ~/.config/... work correctly
+      ARG_BOUNDARY_CONFIG_PATH="${ARG_BOUNDARY_CONFIG_PATH/#\~/$HOME}"
+      ARG_BOUNDARY_CONFIG_PATH="${ARG_BOUNDARY_CONFIG_PATH/\$HOME/$HOME}"
       printf "Linking boundary config from %s to %s\n" "$ARG_BOUNDARY_CONFIG_PATH" "$BOUNDARY_CONFIG_FILE"
       if [ "$ARG_BOUNDARY_CONFIG_PATH" != "$BOUNDARY_CONFIG_FILE" ]; then
         mkdir -p "$BOUNDARY_CONFIG_DIR"
