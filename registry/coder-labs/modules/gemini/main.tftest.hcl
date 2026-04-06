@@ -183,7 +183,7 @@ run "test_gemini_with_vertexai" {
   }
 
   assert {
-    condition     = coder_env.gemini_use_vertex_ai.value == true
+    condition     = coder_env.gemini_use_vertex_ai.value == "true"
     error_message = "GOOGLE_GENAI_USE_VERTEXAI should be true when use_vertexai is enabled"
   }
 }

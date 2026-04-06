@@ -15,6 +15,12 @@ GEMINI_START_DIRECTORY=$GEMINI_START_DIRECTORY
 GEMINI_MODEL=$GEMINI_MODEL
 GOOGLE_GENAI_USE_VERTEXAI=$GOOGLE_GENAI_USE_VERTEXAI
 
+echo "--------------------------------"
+printf "gemini task_prompt: %s\n" "$GEMINI_TASK_PROMPT"
+printf "gemini start directory: %s\n" "$GEMINI_START_DIRECTORY"
+printf "gemini model: %s\n" "$GEMINI_MODEL"
+echo "--------------------------------"
+
 set +o nounset
 
 command_exists() {
@@ -113,5 +119,8 @@ configure_gemini() {
 
 configure_gemini
 
+# agentapi server --type gemini --term-width 67 --term-height 1190 -- \
+#   bash -c "$(printf '%q ' gemini "${GEMINI_ARGS[@]}")"
+
 agentapi server --type gemini --term-width 67 --term-height 1190 -- \
-  bash -c "$(printf '%q ' gemini "${GEMINI_ARGS[@]}")"
+  gemini "${GEMINI_ARGS[@]}"

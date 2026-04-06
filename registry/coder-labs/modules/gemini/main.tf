@@ -170,8 +170,7 @@ locals {
       "CODER_MCP_APP_STATUS_SLUG": "${local.app_slug}",
       "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284"
     },
-    "timeout": 3000,
-    "trust": true
+    "timeout": 3000
   }
 }
 EOT
