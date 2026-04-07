@@ -37,7 +37,7 @@ jobs:
             all:
               - '**'
       - name: Set up Terraform
-        uses: coder/coder/.github/actions/setup-tf@f7650296ceb9b020c79cd525ac7bd3c7f252ae1d # v2.31.6
+        uses: coder/coder/.github/actions/setup-tf@a7e9dfa7dc18625e4e0c155af3b0928a8cb3354a # v2.31.7
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
@@ -87,13 +87,13 @@ jobs:
           bun-version: latest
       # Need Terraform for its formatter
       - name: Install Terraform
-        uses: coder/coder/.github/actions/setup-tf@f7650296ceb9b020c79cd525ac7bd3c7f252ae1d # v2.31.6
+        uses: coder/coder/.github/actions/setup-tf@a7e9dfa7dc18625e4e0c155af3b0928a8cb3354a # v2.31.7
       - name: Install dependencies
         run: bun install
       - name: Validate formatting
         run: bun fmt:ci
       - name: Check for typos
-        uses: crate-ci/typos@631208b7aac2daa8b707f55e7331f9112b0e062d # v1.44.0
+        uses: crate-ci/typos@02ea592e44b3a53c302f697cddca7641cd051c3d # v1.45.0
         with:
           config: .github/typos.toml
   validate-readme-files:
