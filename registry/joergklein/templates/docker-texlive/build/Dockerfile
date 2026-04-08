@@ -3,9 +3,11 @@ FROM registry.gitlab.com/islandoftex/images/texlive:${TEXLIVE_VERSION}
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-      curl \
-      unzip \
-      wget \
+       curl \
+       inkscape \
+       unzip \
+       vim \
+       wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Set locale to UTF-8
