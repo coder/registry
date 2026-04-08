@@ -183,8 +183,23 @@ run "test_claude_code_permission_mode_validation" {
   }
 
   assert {
-    condition     = contains(["", "default", "acceptEdits", "plan", "bypassPermissions"], var.permission_mode)
+    condition     = contains(["", "default", "acceptEdits", "plan", "auto", "bypassPermissions"], var.permission_mode)
     error_message = "Permission mode should be one of the valid options"
+  }
+}
+
+run "test_claude_code_auto_permission_mode" {
+  command = plan
+
+  variables {
+    agent_id        = "test-agent-auto"
+    workdir         = "/home/coder/test"
+    permission_mode = "auto"
+  }
+
+  assert {
+    condition     = var.permission_mode == "auto"
+    error_message = "Permission mode should be set to auto"
   }
 }
 
