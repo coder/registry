@@ -9,17 +9,6 @@ terraform {
   }
 }
 
-locals {
-  username = data.coder_workspace_owner.me.name
-
-   build_context_hash = sha1(join("", [
-    for f in fileset("${path.module}/build", "**") :
-    filesha1("${path.module}/build/${f}")
-  ]))
-
-  latest_rebuild_trigger = var.texlive_version == "latest" ? formatdate("YYYY-ww", timestamp()) : ""
-}
-
 variable "docker_socket" {
   default     = ""
   description = "(Optional) Docker socket URI"
@@ -40,9 +29,26 @@ data "coder_provisioner" "me" {}
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
+locals {
+  username = try(data.coder_workspace_owner.me.name, "unknown_user")
+  start_count = try(data.coder_workspace.me.start_count, 0)
+
+  build_context_hash = sha1(join("", [
+    for f in fileset("${path.module}/build", "**") :
+    try(filesha1("${path.module}/build/${f}"), "")
+  ]))
+
+  date_tag = formatdate("YYYY-MM-DD-HH-mm", timestamp())
+
+  weekly_trigger = try(
+    formatdate("YYYY", timestamp()) + "-W" + tostring(ceil(tonumber(formatdate("DDD", timestamp())) / 7)),
+    "2026-W01"
+  )
+}
+
 resource "coder_agent" "main" {
-  arch           = data.coder_provisioner.me.arch
-  os             = "linux"
+  arch = try(data.coder_provisioner.me.arch, "x86_64")
+  os   = "linux"
 
   startup_script = <<-EOT
     set -e
@@ -53,10 +59,10 @@ resource "coder_agent" "main" {
   EOT
 
   env = {
-    GIT_AUTHOR_NAME     = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_AUTHOR_EMAIL    = data.coder_workspace_owner.me.email
-    GIT_COMMITTER_NAME  = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_COMMITTER_EMAIL = data.coder_workspace_owner.me.email
+    GIT_AUTHOR_NAME     = coalesce(try(data.coder_workspace_owner.me.full_name, ""), local.username)
+    GIT_AUTHOR_EMAIL    = try(data.coder_workspace_owner.me.email, "unknown@example.com")
+    GIT_COMMITTER_NAME  = coalesce(try(data.coder_workspace_owner.me.full_name, ""), local.username)
+    GIT_COMMITTER_EMAIL = try(data.coder_workspace_owner.me.email, "unknown@example.com")
   }
 
   metadata {
@@ -85,18 +91,17 @@ resource "coder_agent" "main" {
 }
 
 module "code-server" {
-  count  = data.coder_workspace.me.start_count
+  count  = local.start_count
   source = "registry.coder.com/coder/code-server/coder"
 
-  version    = "~> 1.0"
-  agent_id   = coder_agent.main.id
-  agent_name = "main"
-  order      = 1
-  folder     = "/home/texlive"
+  version  = "~> 1.0"
+  agent_id = coder_agent.main.id
+  order    = 1
+  folder   = "/home/texlive"
 }
 
 resource "docker_image" "texlive" {
-  name = "registry.example.com/texlive:${var.texlive_version}-${data.coder_workspace.me.id}-${substr(local.build_context_hash, 0, 8)}"
+  name = "registry.example.com/texlive:TL${var.texlive_version}-${try(data.coder_workspace.me.id, 0)}-${substr(local.build_context_hash, 0, 8)}-${local.date_tag}"
 
   build {
     context    = "${path.module}/build"
@@ -110,12 +115,12 @@ resource "docker_image" "texlive" {
   triggers = {
     dir_hash        = local.build_context_hash
     texlive_version = var.texlive_version
-    latest_rebuild  = local.latest_rebuild_trigger
+    latest_rebuild  = local.weekly_trigger
   }
 }
 
 resource "docker_volume" "home_volume" {
-  name = "coder-${data.coder_workspace.me.id}-home"
+  name = "coder-${try(data.coder_workspace.me.id, 0)}-home"
 
   lifecycle {
     ignore_changes = all
@@ -123,27 +128,27 @@ resource "docker_volume" "home_volume" {
 
   labels {
     label = "coder.owner"
-    value = data.coder_workspace_owner.me.name
+    value = local.username
   }
   labels {
     label = "coder.owner_id"
-    value = data.coder_workspace_owner.me.id
+    value = try(data.coder_workspace_owner.me.id, "0")
   }
   labels {
     label = "coder.workspace_id"
-    value = data.coder_workspace.me.id
+    value = try(data.coder_workspace.me.id, "0")
   }
   labels {
     label = "coder.workspace_name_at_creation"
-    value = data.coder_workspace.me.name
+    value = try(data.coder_workspace.me.name, "unknown_workspace")
   }
 }
 
 resource "docker_container" "workspace" {
-  count    = data.coder_workspace.me.start_count
+  count    = local.start_count
   image    = docker_image.texlive.image_id
-  name     = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}"
-  hostname = data.coder_workspace.me.name
+  name     = "coder-${local.username}-${lower(try(data.coder_workspace.me.name, "workspace"))}"
+  hostname = try(data.coder_workspace.me.name, "workspace")
 
   entrypoint = [
     "sh",
@@ -166,19 +171,19 @@ resource "docker_container" "workspace" {
 
   labels {
     label = "coder.owner"
-    value = data.coder_workspace_owner.me.name
+    value = local.username
   }
   labels {
     label = "coder.owner_id"
-    value = data.coder_workspace_owner.me.id
+    value = try(data.coder_workspace_owner.me.id, "0")
   }
   labels {
     label = "coder.workspace_id"
-    value = data.coder_workspace.me.id
+    value = try(data.coder_workspace.me.id, "0")
   }
   labels {
     label = "coder.workspace_name"
-    value = data.coder_workspace.me.name
+    value = try(data.coder_workspace.me.name, "workspace")
   }
 }
 
@@ -192,7 +197,7 @@ resource "null_resource" "cleanup_old_texlive_images" {
 CURRENT_ID=$(docker inspect --format='{{.Id}}' ${docker_image.texlive.name})
 
 docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}" \
-  | grep "registry.example.com/texlive:${var.texlive_version}-${data.coder_workspace.me.id}" \
+  | grep "registry.example.com/texlive:${var.texlive_version}-${try(data.coder_workspace.me.id, 0)}" \
   | grep -v "$CURRENT_ID" \
   | awk '{print $2}' \
   | xargs -r docker rmi -f
