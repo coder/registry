@@ -134,6 +134,12 @@ variable "agentapi_version" {
   default     = "v0.12.1"
 }
 
+variable "agentapi_port" {
+  type        = number
+  description = "The port used by AgentAPI."
+  default     = 3284
+}
+
 variable "codex_model" {
   type        = string
   description = "The model for Codex to use. Defaults to gpt-5.3-codex."
@@ -254,6 +260,7 @@ module "agentapi" {
   install_agentapi             = var.install_agentapi
   agentapi_subdomain           = var.subdomain
   agentapi_version             = var.agentapi_version
+  agentapi_port                = var.agentapi_port
   enable_state_persistence     = var.enable_state_persistence
   pre_install_script           = var.pre_install_script
   post_install_script          = var.post_install_script

@@ -73,6 +73,12 @@ variable "agentapi_version" {
   }
 }
 
+variable "agentapi_port" {
+  type        = number
+  description = "The port used by AgentAPI."
+  default     = 3284
+}
+
 variable "pre_install_script" {
   type        = string
   description = "Custom script to run before installing Auggie."
@@ -194,6 +200,7 @@ module "agentapi" {
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
+  agentapi_port        = var.agentapi_port
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
   start_script         = <<-EOT
