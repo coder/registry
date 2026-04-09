@@ -79,12 +79,12 @@ The `build/Dockerfile` extends the `registry.gitlab.com/islandoftex/images/texli
 
 ```dockerfile
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-       curl \
-       inkscape \
-       unzip \
-       vim \
-       wget \
-       your-package-here \
-    && rm -rf /var/lib/apt/lists/*
+ && apt-get install -y --no-install-recommends \
+  curl \
+  inkscape \
+  unzip \
+  vim \
+  wget \
+  your-package-here \
+ && rm -rf /var/lib/apt/lists/*
 ```

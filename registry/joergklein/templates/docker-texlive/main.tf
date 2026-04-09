@@ -30,7 +30,7 @@ data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
 locals {
-  username = try(data.coder_workspace_owner.me.name, "unknown_user")
+  username    = try(data.coder_workspace_owner.me.name, "unknown_user")
   start_count = try(data.coder_workspace.me.start_count, 0)
 
   build_context_hash = sha1(join("", [
