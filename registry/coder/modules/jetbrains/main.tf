@@ -125,51 +125,67 @@ variable "download_base_link" {
 }
 
 data "http" "jetbrains_ide_versions" {
-  for_each = local.selected_ides
+  for_each = var.ide_config == null ? local.selected_ides : toset([])
   url      = "${var.releases_base_link}/products/releases?code=${each.key}&type=${var.channel}${var.major_version == "latest" ? "&latest=true" : ""}"
 }
 
 variable "ide_config" {
   description = <<-EOT
-    A map of JetBrains IDE configurations.
-    The key is the product code and the value is an object with the following properties:
-    - name: The name of the IDE.
-    - icon: The icon of the IDE.
-    - build: The build number of the IDE.
+    Optional map of JetBrains IDE configurations keyed by product code.
+    When null (default), the module fetches the latest build numbers from
+    the JetBrains API at plan time. When set, all HTTP calls are skipped
+    and the provided build numbers are used directly — useful for
+    air-gapped environments or pinning specific versions.
+
+    Each value must contain:
+    - build: Full build number (e.g. "253.28294.337").
+
+    Optionally override the default display name or icon:
+    - name:  Display name of the IDE (e.g. "GoLand").
+    - icon:  Path or URL to the IDE icon (e.g. "/icon/goland.svg").
+
     Example:
     {
-      "CL" = { name = "CLion", icon = "/icon/clion.svg", build = "253.29346.141" },
-      "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "253.28294.337" },
-      "IU" = { name = "IntelliJ IDEA", icon = "/icon/intellij.svg", build = "253.29346.138" },
+      "GO" = { build = "261.22158.291" },
+      "IU" = { build = "261.22158.277" },
     }
   EOT
   type = map(object({
-    name  = string
-    icon  = string
     build = string
+    name  = optional(string)
+    icon  = optional(string)
   }))
-  default = {
-    "CL" = { name = "CLion", icon = "/icon/clion.svg", build = "253.29346.141" },
-    "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "253.28294.337" },
-    "IU" = { name = "IntelliJ IDEA", icon = "/icon/intellij.svg", build = "253.29346.138" },
-    "PS" = { name = "PhpStorm", icon = "/icon/phpstorm.svg", build = "253.29346.151" },
-    "PY" = { name = "PyCharm", icon = "/icon/pycharm.svg", build = "253.29346.142" },
-    "RD" = { name = "Rider", icon = "/icon/rider.svg", build = "253.29346.144" },
-    "RM" = { name = "RubyMine", icon = "/icon/rubymine.svg", build = "253.29346.140" },
-    "RR" = { name = "RustRover", icon = "/icon/rustrover.svg", build = "253.29346.139" },
-    "WS" = { name = "WebStorm", icon = "/icon/webstorm.svg", build = "253.29346.143" }
-  }
+  default = null
   validation {
-    condition     = length(var.ide_config) > 0
+    condition     = var.ide_config == null || length(var.ide_config) > 0
     error_message = "The ide_config must not be empty."
   }
   # ide_config must be a superset of var.options
   # Requires Terraform 1.9+ for cross-variable validation references
   validation {
-    condition = alltrue([
+    condition = var.ide_config == null || alltrue([
       for code in var.options : contains(keys(var.ide_config), code)
     ])
-    error_message = "The ide_config must be a superset of var.options."
+    error_message = "The ide_config must contain entries for all IDE codes in var.options. Either add the missing entries to ide_config or narrow var.options to match."
+  }
+  # ide_config must also cover all codes in var.default to avoid
+  # key-not-found errors when building options_metadata.
+  validation {
+    condition = var.ide_config == null || alltrue([
+      for code in var.default : contains(keys(var.ide_config), code)
+    ])
+    error_message = "The ide_config must contain entries for all IDE codes in var.default."
+  }
+  # major_version, channel, and releases_base_link only affect the
+  # HTTP call, which is skipped when ide_config is set. Reject
+  # non-default values to avoid silently ignoring user intent.
+  validation {
+    condition = var.ide_config == null || (
+      var.major_version == "latest" &&
+      var.channel == "release" &&
+      var.releases_base_link == "https://data.services.jetbrains.com"
+    )
+    error_message = "major_version, channel, and releases_base_link have no effect when ide_config is set. Remove them or unset ide_config."
   }
 }
 
@@ -180,46 +196,61 @@ variable "jetbrains_plugins" {
 }
 
 locals {
+  # Static IDE metadata for name and icon lookups when ide_config is null.
+  ide_metadata = {
+    "CL" = { name = "CLion", icon = "/icon/clion.svg" }
+    "GO" = { name = "GoLand", icon = "/icon/goland.svg" }
+    "IU" = { name = "IntelliJ IDEA", icon = "/icon/intellij.svg" }
+    "PS" = { name = "PhpStorm", icon = "/icon/phpstorm.svg" }
+    "PY" = { name = "PyCharm", icon = "/icon/pycharm.svg" }
+    "RD" = { name = "Rider", icon = "/icon/rider.svg" }
+    "RM" = { name = "RubyMine", icon = "/icon/rubymine.svg" }
+    "RR" = { name = "RustRover", icon = "/icon/rustrover.svg" }
+    "WS" = { name = "WebStorm", icon = "/icon/webstorm.svg" }
+  }
+
   # Determine the user's actual IDE selection.
   # This is computed before the HTTP data source so that version lookups
   # are only performed for IDEs the user chose — not every option.
   selected_ides = length(var.default) == 0 ? toset(jsondecode(coalesce(data.coder_parameter.jetbrains_ides[0].value, "[]"))) : toset(var.default)
 
-  # Parse HTTP responses once with error handling for air-gapped environments
+  # Parse HTTP responses. Only populated when ide_config is null
+  # and the module fetches versions from the JetBrains API.
+  # No try() fallback — if the API is expected and fails, Terraform
+  # should error rather than silently using stale build numbers.
   parsed_responses = {
-    for code in local.selected_ides : code => try(
-      jsondecode(data.http.jetbrains_ide_versions[code].response_body),
-      {} # Return empty object if API call fails
-    )
+    for code, response in data.http.jetbrains_ide_versions :
+    code => jsondecode(response.response_body)
   }
 
   # Filter the parsed response for the requested major version if not "latest"
   filtered_releases = {
-    for code in local.selected_ides : code => [
-      for r in try(local.parsed_responses[code][keys(local.parsed_responses[code])[0]], []) :
+    for code, parsed in local.parsed_responses : code => [
+      for r in parsed[keys(parsed)[0]] :
       r if var.major_version == "latest" || r.majorVersion == var.major_version
     ]
   }
 
   # Select the latest release for the requested major version (first item in the filtered list)
   selected_releases = {
-    for code in local.selected_ides : code =>
-    length(local.filtered_releases[code]) > 0 ? local.filtered_releases[code][0] : null
+    for code, releases in local.filtered_releases :
+    code => length(releases) > 0 ? releases[0] : null
   }
 
-  # Dynamically generate IDE configurations based on selected IDEs with fallback to ide_config
+  # Dynamically generate IDE configurations based on selected IDEs
   options_metadata = {
     for code in local.selected_ides : code => {
-      icon       = var.ide_config[code].icon
-      name       = var.ide_config[code].name
+      icon       = var.ide_config != null ? coalesce(var.ide_config[code].icon, local.ide_metadata[code].icon) : local.ide_metadata[code].icon
+      name       = var.ide_config != null ? coalesce(var.ide_config[code].name, local.ide_metadata[code].name) : local.ide_metadata[code].name
       identifier = code
       key        = code
 
-      # Use API build number if available, otherwise fall back to ide_config build number
-      build = local.selected_releases[code] != null ? local.selected_releases[code].build : var.ide_config[code].build
+      # When ide_config is set, use the pinned build number directly.
+      # When fetching from API, use the API result (fails if unavailable).
+      build = var.ide_config != null ? var.ide_config[code].build : local.selected_releases[code].build
 
-      # Store API data for potential future use
-      json_data = local.selected_releases[code]
+      # API response data, null when using ide_config.
+      json_data = var.ide_config != null ? null : local.selected_releases[code]
     }
   }
 
@@ -243,8 +274,8 @@ data "coder_parameter" "jetbrains_ides" {
   dynamic "option" {
     for_each = var.options
     content {
-      icon  = var.ide_config[option.value].icon
-      name  = var.ide_config[option.value].name
+      icon  = var.ide_config != null ? coalesce(var.ide_config[option.value].icon, local.ide_metadata[option.value].icon) : local.ide_metadata[option.value].icon
+      name  = var.ide_config != null ? coalesce(var.ide_config[option.value].name, local.ide_metadata[option.value].name) : local.ide_metadata[option.value].name
       value = option.value
     }
   }

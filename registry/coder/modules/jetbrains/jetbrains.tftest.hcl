@@ -1,53 +1,3 @@
-variables {
-  # Default IDE config, mirrored from main.tf for test assertions.
-  # If main.tf defaults change, update this map to match.
-  expected_ide_config = {
-    "CL" = { name = "CLion", icon = "/icon/clion.svg", build = "253.29346.141" },
-    "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "253.28294.337" },
-    "IU" = { name = "IntelliJ IDEA", icon = "/icon/intellij.svg", build = "253.29346.138" },
-    "PS" = { name = "PhpStorm", icon = "/icon/phpstorm.svg", build = "253.29346.151" },
-    "PY" = { name = "PyCharm", icon = "/icon/pycharm.svg", build = "253.29346.142" },
-    "RD" = { name = "Rider", icon = "/icon/rider.svg", build = "253.29346.144" },
-    "RM" = { name = "RubyMine", icon = "/icon/rubymine.svg", build = "253.29346.140" },
-    "RR" = { name = "RustRover", icon = "/icon/rustrover.svg", build = "253.29346.139" },
-    "WS" = { name = "WebStorm", icon = "/icon/webstorm.svg", build = "253.29346.143" }
-  }
-}
-
-run "validate_test_config_matches_defaults" {
-  command = plan
-
-  variables {
-    # Provide minimal vars to allow plan to read module variables
-    agent_id = "foo"
-    folder   = "/home/coder"
-  }
-
-  assert {
-    condition     = length(var.ide_config) == length(var.expected_ide_config)
-    error_message = "Test configuration mismatch: 'var.ide_config' in main.tf has ${length(var.ide_config)} items, but 'var.expected_ide_config' in the test file has ${length(var.expected_ide_config)} items. Please update the test file's global variables block."
-  }
-
-  assert {
-    # Check that all keys in the test local are present in the module's default
-    condition = alltrue([
-      for key in keys(var.expected_ide_config) :
-      can(var.ide_config[key])
-    ])
-    error_message = "Test configuration mismatch: Keys in 'var.expected_ide_config' are out of sync with 'var.ide_config' defaults. Please update the test file's global variables block."
-  }
-
-  assert {
-    # Check if all build numbers in the test local match the module's defaults
-    # This relies on the previous two assertions passing (same length, same keys)
-    condition = alltrue([
-      for key, config in var.expected_ide_config :
-      var.ide_config[key].build == config.build
-    ])
-    error_message = "Test configuration mismatch: One or more build numbers in 'var.expected_ide_config' do not match the defaults in 'var.ide_config'. Please update the test file's global variables block."
-  }
-}
-
 run "requires_agent_and_folder" {
   command = plan
 
@@ -259,15 +209,17 @@ run "output_empty_when_default_empty" {
   }
 }
 
-run "output_single_ide_uses_fallback_build" {
+run "uses_ide_config_when_set" {
   command = plan
 
   variables {
     agent_id = "foo"
     folder   = "/home/coder"
     default  = ["GO"]
-    # Force HTTP data source to fail to test fallback logic
-    releases_base_link = "https://coder.com"
+    options  = ["GO"]
+    ide_config = {
+      "GO" = { name = "GoLand Custom", icon = "/icon/goland.svg", build = "999.99999.999" }
+    }
   }
 
   assert {
@@ -281,30 +233,38 @@ run "output_single_ide_uses_fallback_build" {
   }
 
   assert {
-    condition     = output.ide_metadata["GO"].name == var.expected_ide_config["GO"].name
-    error_message = "Expected ide_metadata['GO'].name to be '${var.expected_ide_config["GO"].name}'"
+    condition     = output.ide_metadata["GO"].name == "GoLand Custom"
+    error_message = "Expected ide_metadata['GO'].name to be 'GoLand Custom'"
   }
 
   assert {
-    condition     = output.ide_metadata["GO"].build == var.expected_ide_config["GO"].build
-    error_message = "Expected ide_metadata['GO'].build to use the fallback '${var.expected_ide_config["GO"].build}'"
+    condition     = output.ide_metadata["GO"].build == "999.99999.999"
+    error_message = "Expected ide_metadata['GO'].build to use the pinned build '999.99999.999'"
   }
 
   assert {
-    condition     = output.ide_metadata["GO"].icon == var.expected_ide_config["GO"].icon
-    error_message = "Expected ide_metadata['GO'].icon to be '${var.expected_ide_config["GO"].icon}'"
+    condition     = output.ide_metadata["GO"].icon == "/icon/goland.svg"
+    error_message = "Expected ide_metadata['GO'].icon to be '/icon/goland.svg'"
+  }
+
+  assert {
+    condition     = output.ide_metadata["GO"].json_data == null
+    error_message = "Expected ide_metadata['GO'].json_data to be null when using ide_config"
   }
 }
 
-run "output_multiple_ides" {
+run "uses_ide_config_for_multiple_ides" {
   command = plan
 
   variables {
     agent_id = "foo"
     folder   = "/home/coder"
     default  = ["IU", "PY"]
-    # Force HTTP data source to fail to test fallback logic
-    releases_base_link = "https://coder.com"
+    options  = ["IU", "PY"]
+    ide_config = {
+      "IU" = { name = "IntelliJ IDEA", icon = "/icon/intellij.svg", build = "111.11111.111" }
+      "PY" = { name = "PyCharm", icon = "/icon/pycharm.svg", build = "222.22222.222" }
+    }
   }
 
   assert {
@@ -318,15 +278,50 @@ run "output_multiple_ides" {
   }
 
   assert {
-    condition     = output.ide_metadata["PY"].name == var.expected_ide_config["PY"].name
-    error_message = "Expected ide_metadata['PY'].name to be '${var.expected_ide_config["PY"].name}'"
+    condition     = output.ide_metadata["PY"].name == "PyCharm"
+    error_message = "Expected ide_metadata['PY'].name to be 'PyCharm'"
   }
 
   assert {
-    condition     = output.ide_metadata["PY"].build == var.expected_ide_config["PY"].build
-    error_message = "Expected ide_metadata['PY'].build to be the fallback '${var.expected_ide_config["PY"].build}'"
+    condition     = output.ide_metadata["PY"].build == "222.22222.222"
+    error_message = "Expected ide_metadata['PY'].build to be the pinned build '222.22222.222'"
+  }
+
+  assert {
+    condition     = output.ide_metadata["IU"].build == "111.11111.111"
+    error_message = "Expected ide_metadata['IU'].build to be the pinned build '111.11111.111'"
+  }
+
+  assert {
+    condition     = output.ide_metadata["IU"].json_data == null
+    error_message = "Expected ide_metadata['IU'].json_data to be null when using ide_config"
+  }
+
+  assert {
+    condition     = output.ide_metadata["PY"].json_data == null
+    error_message = "Expected ide_metadata['PY'].json_data to be null when using ide_config"
   }
 }
+
+run "ide_config_build_in_url" {
+  command = apply
+
+  variables {
+    agent_id = "test-agent-123"
+    folder   = "/home/coder/project"
+    default  = ["GO"]
+    options  = ["GO"]
+    ide_config = {
+      "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "999.99999.999" }
+    }
+  }
+
+  assert {
+    condition     = anytrue([for app in values(resource.coder_app.jetbrains) : length(regexall("ide_build_number=999.99999.999", app.url)) > 0])
+    error_message = "URL must include the pinned build number from ide_config"
+  }
+}
+
 run "validate_output_schema" {
   command = plan
 
@@ -334,6 +329,10 @@ run "validate_output_schema" {
     agent_id = "foo"
     folder   = "/home/coder"
     default  = ["GO"]
+    options  = ["GO"]
+    ide_config = {
+      "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "253.28294.337" }
+    }
   }
 
   assert {
@@ -384,4 +383,108 @@ run "plugin_script_created_when_plugins_provided" {
     condition     = length(resource.coder_script.install_jetbrains_plugins) == 1
     error_message = "Expected script to be created when plugins are provided"
   }
+}
+
+run "rejects_major_version_with_ide_config" {
+  command = plan
+
+  variables {
+    agent_id      = "foo"
+    folder        = "/home/coder"
+    default       = ["GO"]
+    options       = ["GO"]
+    major_version = "2025.3"
+    ide_config = {
+      "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "253.31033.129" }
+    }
+  }
+
+  expect_failures = [
+    var.ide_config,
+  ]
+}
+
+run "rejects_default_not_in_ide_config" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO", "IU"]
+    options  = ["GO", "IU"]
+    ide_config = {
+      "GO" = { build = "253.31033.129" }
+    }
+  }
+
+  expect_failures = [
+    var.ide_config,
+  ]
+}
+
+run "ide_config_with_build_only" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+    options  = ["GO"]
+    ide_config = {
+      "GO" = { build = "999.99999.999" }
+    }
+  }
+
+  assert {
+    condition     = output.ide_metadata["GO"].name == "GoLand"
+    error_message = "Expected name to fall back to ide_metadata when not set in ide_config"
+  }
+
+  assert {
+    condition     = output.ide_metadata["GO"].icon == "/icon/goland.svg"
+    error_message = "Expected icon to fall back to ide_metadata when not set in ide_config"
+  }
+
+  assert {
+    condition     = output.ide_metadata["GO"].build == "999.99999.999"
+    error_message = "Expected build to use ide_config value"
+  }
+}
+
+run "rejects_releases_base_link_with_ide_config" {
+  command = plan
+
+  variables {
+    agent_id           = "foo"
+    folder             = "/home/coder"
+    default            = ["GO"]
+    options            = ["GO"]
+    releases_base_link = "https://internal.mirror.example.com"
+    ide_config = {
+      "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "253.31033.129" }
+    }
+  }
+
+  expect_failures = [
+    var.ide_config,
+  ]
+}
+
+run "rejects_channel_with_ide_config" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+    options  = ["GO"]
+    channel  = "eap"
+    ide_config = {
+      "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "253.31033.129" }
+    }
+  }
+
+  expect_failures = [
+    var.ide_config,
+  ]
 }
