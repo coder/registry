@@ -164,7 +164,7 @@ locals {
     "enabled": true,
     "env": {
       "CODER_MCP_APP_STATUS_SLUG": "${local.app_slug}",
-      "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284"
+      "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:${var.agentapi_port}"
     },
     "name": "Coder",
     "timeout": 3000,
@@ -214,6 +214,7 @@ module "agentapi" {
     ADDITIONAL_EXTENSIONS='${base64encode(replace(var.additional_extensions != null ? var.additional_extensions : "", "'", "'\\''"))}' \
     GEMINI_START_DIRECTORY='${var.folder}' \
     GEMINI_SYSTEM_PROMPT='${base64encode(var.gemini_system_prompt)}' \
+    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     /tmp/install.sh
   EOT
   start_script         = <<-EOT

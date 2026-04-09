@@ -307,6 +307,7 @@ module "agentapi" {
     ARG_CODEX_START_DIRECTORY='${local.workdir}' \
     ARG_MODEL_REASONING_EFFORT='${var.model_reasoning_effort}' \
     ARG_CODEX_INSTRUCTION_PROMPT='${base64encode(var.codex_system_prompt)}' \
+    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     /tmp/install.sh
   EOT
 }

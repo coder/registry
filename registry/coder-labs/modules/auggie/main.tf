@@ -234,6 +234,7 @@ module "agentapi" {
     ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
     ARG_AUGGIE_RULES='${base64encode(var.rules)}' \
     ARG_MCP_CONFIG='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
+    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     /tmp/install.sh
   EOT
 }

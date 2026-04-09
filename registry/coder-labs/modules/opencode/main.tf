@@ -201,6 +201,7 @@ module "agentapi" {
     ARG_WORKDIR='${local.workdir}' \
     ARG_AUTH_JSON='${var.auth_json != null ? base64encode(replace(var.auth_json, "'", "'\\''")) : ""}' \
     ARG_OPENCODE_CONFIG='${var.config_json != null ? base64encode(replace(var.config_json, "'", "'\\''")) : ""}' \
+    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     /tmp/install.sh
   EOT
 }

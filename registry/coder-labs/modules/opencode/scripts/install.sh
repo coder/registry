@@ -94,7 +94,7 @@ setup_coder_mcp_server() {
   # Set environment variables based on task reporting setting
   echo "Configuring OpenCode task reporting"
   export CODER_MCP_APP_STATUS_SLUG="$ARG_MCP_APP_STATUS_SLUG"
-  export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
+  export CODER_MCP_AI_AGENTAPI_URL="http://localhost:${ARG_AGENTAPI_PORT:-3284}"
   echo "Coder integration configured for task reporting"
 
   # Add coder MCP server configuration to the JSON file
