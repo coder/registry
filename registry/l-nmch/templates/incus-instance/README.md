@@ -6,9 +6,9 @@ verified: false
 tags: [incus, lxc, vm]
 ---
 
-> Based on the work of [umair](https://github.com/l-nmch/registry/tree/main/registry/umair)
-
 # Incus VM Template for Coder
+
+> Based on the work of [umair](https://github.com/l-nmch/registry/tree/main/registry/umair)
 
 Provision Linux VMs & Containers on Incus/LXD as [Coder workspaces](https://coder.com/docs/workspaces). The template deploys an instance with cloud-init, and runs the Coder agent under the workspace owner's Linux user.
 
