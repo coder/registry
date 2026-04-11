@@ -244,6 +244,10 @@ function start_agentapi() {
         mkdir -p "$BOUNDARY_CONFIG_DIR"
         ln -sf "$ARG_BOUNDARY_CONFIG_PATH" "$BOUNDARY_CONFIG_FILE"
       fi
+      if [ ! -f "$ARG_BOUNDARY_CONFIG_PATH" ]; then
+        printf "Error: boundary_config_path '%s' does not exist or is not a regular file. Ensure the file exists at this path before starting.\n" "$ARG_BOUNDARY_CONFIG_PATH" >&2
+        exit 1
+      fi
       if [ ! -s "$BOUNDARY_CONFIG_FILE" ]; then
         printf "Error: boundary configuration file '%s' does not exist or is empty. Check that '%s' exists and is not empty.\n" "$BOUNDARY_CONFIG_FILE" "$ARG_BOUNDARY_CONFIG_PATH" >&2
         exit 1
