@@ -22,6 +22,7 @@ ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n "${ARG_MCP_CONFIG_REMOTE_PATH:-}" | base64 
 ARG_ALLOWED_TOOLS=${ARG_ALLOWED_TOOLS:-}
 ARG_DISALLOWED_TOOLS=${ARG_DISALLOWED_TOOLS:-}
 ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
+ARG_PERMISSION_MODE=${ARG_PERMISSION_MODE:-}
 
 export PATH="$ARG_CLAUDE_BINARY_PATH:$PATH"
 
@@ -195,6 +196,7 @@ function configure_standalone_mode() {
 
     jq --arg workdir "$ARG_WORKDIR" --arg apikey "${CLAUDE_API_KEY:-}" \
       '.autoUpdaterStatus = "disabled" |
+        .autoModeAccepted = true |
         .bypassPermissionsModeAccepted = true |
         .hasAcknowledgedCostThreshold = true |
         .hasCompletedOnboarding = true |
@@ -207,6 +209,7 @@ function configure_standalone_mode() {
     jq -n --arg workdir "$ARG_WORKDIR" --arg apikey "${CLAUDE_API_KEY:-}" \
       '{
         autoUpdaterStatus: "disabled",
+        autoModeAccepted: true,
         bypassPermissionsModeAccepted: true,
         hasAcknowledgedCostThreshold: true,
         hasCompletedOnboarding: true,
@@ -235,6 +238,28 @@ function report_tasks() {
   fi
 }
 
+function accept_auto_mode() {
+  # Pre-accept the auto mode TOS prompt so it doesn't appear interactively.
+  # Claude Code shows a confirmation dialog for auto mode that blocks
+  # non-interactive/headless usage.
+  # Note: bypassPermissions acceptance is already handled by
+  # coder exp mcp configure (task mode) and configure_standalone_mode.
+  local claude_config="$HOME/.claude.json"
+
+  if [ -f "$claude_config" ]; then
+    jq '.autoModeAccepted = true' \
+      "$claude_config" > "${claude_config}.tmp" && mv "${claude_config}.tmp" "$claude_config"
+  else
+    echo '{"autoModeAccepted": true}' > "$claude_config"
+  fi
+
+  echo "Pre-accepted auto mode prompt"
+}
+
 install_claude_code_cli
 setup_claude_configurations
 report_tasks
+
+if [ "$ARG_PERMISSION_MODE" = "auto" ]; then
+  accept_auto_mode
+fi
