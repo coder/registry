@@ -77,9 +77,8 @@ locals {
   post_install_log_path = "${local.module_dir_path}/post_install.log"
   start_log_path        = "${local.module_dir_path}/start.log"
 
-  # Sync dependency resolution: each stage waits for its predecessors.
-  # Chain order: pre_install -> install -> post_install -> start
-  # install_script is always present (required), so it anchors the chain.
+  install_sync_deps = var.pre_install_script != null ? local.pre_install_script_name : null
+
   start_sync_deps = (
     var.post_install_script != null
     ? "${local.install_script_name} ${local.post_install_script_name}"
@@ -121,8 +120,8 @@ resource "coder_script" "install_script" {
     mkdir -p ${local.module_dir_path}
 
     trap 'coder exp sync complete ${local.install_script_name}' EXIT
-    %{if var.pre_install_script != null~}
-      coder exp sync want ${local.install_script_name} ${local.pre_install_script_name}
+    %{if local.install_sync_deps != null~}
+    coder exp sync want ${local.install_script_name} ${local.install_sync_deps}
     %{endif~}
     coder exp sync start ${local.install_script_name}
     echo -n '${local.encoded_install_script}' | base64 -d > ${local.install_path}
