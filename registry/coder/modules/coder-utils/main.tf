@@ -66,7 +66,7 @@ locals {
   post_install_script_name = "${var.agent_name}-post_install_script"
   start_script_name        = "${var.agent_name}-start_script"
 
-  module_dir_path = "$HOME/${var.module_dir_name}"
+  module_dir_path = "$HOME/.coder-modules/coder/coder-utils/${var.module_dir_name}"
 
   pre_install_path  = "${local.module_dir_path}/pre_install.sh"
   install_path      = "${local.module_dir_path}/install.sh"
@@ -154,6 +154,8 @@ resource "coder_script" "post_install_script" {
     set -o errexit
     set -o pipefail
 
+    mkdir -p ${local.module_dir_path}
+
     trap 'coder exp sync complete ${local.post_install_script_name}' EXIT
     %{if local.post_install_sync_deps != null~}
     coder exp sync want ${local.post_install_script_name} ${local.post_install_sync_deps}
@@ -176,6 +178,8 @@ resource "coder_script" "start_script" {
     #!/bin/bash
     set -o errexit
     set -o pipefail
+
+    mkdir -p ${local.module_dir_path}
 
     trap 'coder exp sync complete ${local.start_script_name}' EXIT
 
