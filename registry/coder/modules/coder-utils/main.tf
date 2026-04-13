@@ -197,20 +197,20 @@ resource "coder_script" "start_script" {
 
 output "pre_install_script_name" {
   description = "The name of the pre-install script for sync."
-  value       = var.pre_install_script != null ? local.pre_install_script_name : null
+  value       = var.pre_install_script != null ? local.pre_install_script_name : ""
 }
 
 output "install_script_name" {
   description = "The name of the install script for sync."
-  value       = var.install_script != null ? local.install_script_name : null
+  value       = var.install_script != null ? local.install_script_name : ""
 }
 
 output "post_install_script_name" {
   description = "The name of the post-install script for sync."
-  value       = var.post_install_script != null ? local.post_install_script_name : null
+  value       = var.post_install_script != null ? local.post_install_script_name : ""
 }
 
 output "start_script_name" {
   description = "The name of the start script for sync."
-  value       = var.start_script != null ? local.start_script_name : null
+  value       = var.start_script != null ? local.start_script_name : ""
 }

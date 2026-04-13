@@ -167,8 +167,8 @@ run "test_without_optional_pre_post_scripts" {
 
   # Verify outputs are null for unprovided scripts
   assert {
-    condition     = output.pre_install_script_name == null
-    error_message = "Pre-install script name output should be null when script is not provided"
+    condition     = output.pre_install_script_name == ""
+    error_message = "Pre-install script name output should be empty when script is not provided"
   }
 
   assert {
@@ -177,8 +177,8 @@ run "test_without_optional_pre_post_scripts" {
   }
 
   assert {
-    condition     = output.post_install_script_name == null
-    error_message = "Post-install script name output should be null when script is not provided"
+    condition     = output.post_install_script_name == ""
+    error_message = "Post-install script name output should be empty when script is not provided"
   }
 
   assert {
@@ -218,25 +218,25 @@ run "test_no_scripts" {
     error_message = "Start script should not be created when not provided"
   }
 
-  # Verify all outputs are null
+  # Verify all outputs are empty strings
   assert {
-    condition     = output.pre_install_script_name == null
-    error_message = "Pre-install script name output should be null"
+    condition     = output.pre_install_script_name == ""
+    error_message = "Pre-install script name output should be empty"
   }
 
   assert {
-    condition     = output.install_script_name == null
-    error_message = "Install script name output should be null"
+    condition     = output.install_script_name == ""
+    error_message = "Install script name output should be empty"
   }
 
   assert {
-    condition     = output.post_install_script_name == null
-    error_message = "Post-install script name output should be null"
+    condition     = output.post_install_script_name == ""
+    error_message = "Post-install script name output should be empty"
   }
 
   assert {
-    condition     = output.start_script_name == null
-    error_message = "Start script name output should be null"
+    condition     = output.start_script_name == ""
+    error_message = "Start script name output should be empty"
   }
 }
 
@@ -267,8 +267,8 @@ run "test_start_only" {
   }
 
   assert {
-    condition     = output.install_script_name == null
-    error_message = "Install script name output should be null"
+    condition     = output.install_script_name == ""
+    error_message = "Install script name output should be empty"
   }
 
   assert {
@@ -304,8 +304,8 @@ run "test_install_only" {
   }
 
   assert {
-    condition     = output.start_script_name == null
-    error_message = "Start script name output should be null"
+    condition     = output.start_script_name == ""
+    error_message = "Start script name output should be empty"
   }
 }
 
@@ -392,8 +392,8 @@ run "test_script_naming" {
 
   # Verify outputs use custom agent_name
   assert {
-    condition     = output.pre_install_script_name == null
-    error_message = "Pre-install script name output should be null when not provided"
+    condition     = output.pre_install_script_name == ""
+    error_message = "Pre-install script name output should be empty when not provided"
   }
 
   assert {
@@ -402,8 +402,8 @@ run "test_script_naming" {
   }
 
   assert {
-    condition     = output.post_install_script_name == null
-    error_message = "Post-install script name output should be null when not provided"
+    condition     = output.post_install_script_name == ""
+    error_message = "Post-install script name output should be empty when not provided"
   }
 
   assert {
@@ -463,7 +463,7 @@ run "test_post_install_without_install" {
   }
 
   assert {
-    condition     = output.install_script_name == null
-    error_message = "Install script name output should be null"
+    condition     = output.install_script_name == ""
+    error_message = "Install script name output should be empty"
   }
 }
