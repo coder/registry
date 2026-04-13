@@ -9,6 +9,9 @@ terraform {
   }
 }
 
+# -------------------------
+# Variables
+# -------------------------
 variable "docker_socket" {
   type    = string
   default = ""
@@ -19,14 +22,23 @@ variable "texlive_version" {
   default = "latest"
 }
 
+# -------------------------
+# Provider
+# -------------------------
 provider "docker" {
   host = var.docker_socket != "" ? var.docker_socket : null
 }
 
+# -------------------------
+# Coder data
+# -------------------------
 data "coder_provisioner" "me" {}
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
+# -------------------------
+# Locals
+# -------------------------
 locals {
   username    = try(data.coder_workspace_owner.me.name, "unknown")
   start_count = try(data.coder_workspace.me.start_count, 0)
@@ -37,6 +49,9 @@ locals {
   ]))
 }
 
+# -------------------------
+# Coder Agent
+# -------------------------
 resource "coder_agent" "main" {
   arch = try(data.coder_provisioner.me.arch, "x86_64")
   os   = "linux"
@@ -81,6 +96,9 @@ resource "coder_agent" "main" {
   }
 }
 
+# -------------------------
+# Code Server
+# -------------------------
 module "code-server" {
   count   = local.start_count
   source  = "registry.coder.com/coder/code-server/coder"
@@ -90,6 +108,9 @@ module "code-server" {
   folder   = "/home/texlive"
 }
 
+# -------------------------
+# Docker Image
+# -------------------------
 resource "docker_image" "texlive" {
   name = "coder-${data.coder_workspace.me.id}-texlive"
 
@@ -110,6 +131,9 @@ resource "docker_image" "texlive" {
   }
 }
 
+# -------------------------
+# Volume (correct docker provider syntax)
+# -------------------------
 resource "docker_volume" "home_volume" {
   name = "coder-${try(data.coder_workspace.me.id, 0)}-home"
 
@@ -133,6 +157,9 @@ resource "docker_volume" "home_volume" {
   }
 }
 
+# -------------------------
+# Container
+# -------------------------
 resource "docker_container" "workspace" {
   count = local.start_count
 
