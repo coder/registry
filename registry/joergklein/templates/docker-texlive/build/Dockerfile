@@ -32,7 +32,3 @@ RUN mkdir -p /home/texlive/texmf/web2c \
 
 # Icon
 COPY icon/ /icon/
-
-  vim \
-  wget \
- && rm -rf /var/lib/apt/lists/*
