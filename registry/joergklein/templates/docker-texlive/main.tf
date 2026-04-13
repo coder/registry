@@ -59,6 +59,9 @@ resource "coder_agent" "main" {
   EOT
 
   env = {
+    HOME                = "/home/texlive"
+    XDG_DATA_HOME       = "/home/texlive/.local/share"
+    XDG_CONFIG_HOME     = "/home/texlive/.config"
     GIT_AUTHOR_NAME     = coalesce(try(data.coder_workspace_owner.me.full_name, ""), local.username)
     GIT_AUTHOR_EMAIL    = try(data.coder_workspace_owner.me.email, "unknown@example.com")
     GIT_COMMITTER_NAME  = coalesce(try(data.coder_workspace_owner.me.full_name, ""), local.username)
