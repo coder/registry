@@ -38,9 +38,9 @@ run "plan_with_use_directly" {
   command = plan
 
   variables {
-    agent_id             = "test-agent-id"
+    agent_id              = "test-agent-id"
     use_boundary_directly = true
-    boundary_version     = "latest"
+    boundary_version      = "latest"
   }
 
   assert {
