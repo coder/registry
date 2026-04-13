@@ -2,7 +2,7 @@
 display_name: "Jörg Klein"
 bio: "Data Scientists"
 github: "joergklein"
-avatar: "./.images/avatar.jpeg"
+avatar: "./.images/avatar.jpg"
 status: "community"
 ---
 

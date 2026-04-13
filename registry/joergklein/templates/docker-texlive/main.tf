@@ -9,9 +9,6 @@ terraform {
   }
 }
 
-# -------------------------
-# Variables
-# -------------------------
 variable "docker_socket" {
   type    = string
   default = ""
@@ -22,35 +19,17 @@ variable "texlive_version" {
   default = "latest"
 }
 
-# -------------------------
-# Provider
-# -------------------------
 provider "docker" {
   host = var.docker_socket != "" ? var.docker_socket : null
 }
 
-# -------------------------
-# Coder data
-# -------------------------
 data "coder_provisioner" "me" {}
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
-# -------------------------
-# Locals (SAFE - no multiline ternary)
-# -------------------------
 locals {
   username    = try(data.coder_workspace_owner.me.name, "unknown")
   start_count = try(data.coder_workspace.me.start_count, 0)
-
-  year   = formatdate("YYYY", timestamp())
-  month  = formatdate("MM", timestamp())
-  day    = formatdate("DD", timestamp())
-  hour   = formatdate("hh", timestamp())
-  minute = formatdate("mm", timestamp())
-
-  # SAFE single-line ternary (fixes your parser error)
-  image_tag = var.texlive_version == "latest" ? "latest" : "TL${var.texlive_version}-${local.year}-${local.month}-${local.day}-${local.hour}-${local.minute}"
 
   build_context_hash = sha1(join("", [
     for f in fileset("${path.module}/build", "**") :
@@ -58,9 +37,6 @@ locals {
   ]))
 }
 
-# -------------------------
-# Coder Agent
-# -------------------------
 resource "coder_agent" "main" {
   arch = try(data.coder_provisioner.me.arch, "x86_64")
   os   = "linux"
@@ -105,9 +81,6 @@ resource "coder_agent" "main" {
   }
 }
 
-# -------------------------
-# Code Server
-# -------------------------
 module "code-server" {
   count   = local.start_count
   source  = "registry.coder.com/coder/code-server/coder"
@@ -117,11 +90,8 @@ module "code-server" {
   folder   = "/home/texlive"
 }
 
-# -------------------------
-# Docker Image
-# -------------------------
 resource "docker_image" "texlive" {
-  name = "registry.example.com/texlive:${local.image_tag}"
+  name = "coder-${data.coder_workspace.me.id}-texlive"
 
   build {
     context    = "${path.module}/build"
@@ -137,13 +107,9 @@ resource "docker_image" "texlive" {
   triggers = {
     dir_hash        = local.build_context_hash
     texlive_version = var.texlive_version
-    image_tag       = local.image_tag
   }
 }
 
-# -------------------------
-# Volume (correct docker provider syntax)
-# -------------------------
 resource "docker_volume" "home_volume" {
   name = "coder-${try(data.coder_workspace.me.id, 0)}-home"
 
@@ -167,9 +133,6 @@ resource "docker_volume" "home_volume" {
   }
 }
 
-# -------------------------
-# Container
-# -------------------------
 resource "docker_container" "workspace" {
   count = local.start_count
 
