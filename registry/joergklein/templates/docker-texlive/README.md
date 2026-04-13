@@ -1,7 +1,7 @@
 ---
 display_name: Docker TeX Live
 description: Provision Docker containers with TeX Live, code-server
-icon: ../../../../.icons/docker.svg
+icon: ../../../../.icons/texlive.png
 tags: [docker, texlive]
 ---
 
