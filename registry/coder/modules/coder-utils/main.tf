@@ -141,8 +141,6 @@ resource "coder_script" "post_install_script" {
     set -o errexit
     set -o pipefail
 
-    mkdir -p ${local.module_dir_path}
-
     trap 'coder exp sync complete ${local.post_install_script_name}' EXIT
     coder exp sync want ${local.post_install_script_name} ${local.install_script_name}
     coder exp sync start ${local.post_install_script_name}
@@ -163,8 +161,6 @@ resource "coder_script" "start_script" {
     #!/bin/bash
     set -o errexit
     set -o pipefail
-
-    mkdir -p ${local.module_dir_path}
 
     trap 'coder exp sync complete ${local.start_script_name}' EXIT
 
