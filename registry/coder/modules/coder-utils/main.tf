@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.9"
 
   required_providers {
     coder = {
@@ -29,7 +29,6 @@ variable "pre_install_script" {
 variable "install_script" {
   type        = string
   description = "Script to install the agent used by AgentAPI."
-  default     = null
 }
 
 variable "post_install_script" {
@@ -57,7 +56,7 @@ variable "module_dir_name" {
 
 locals {
   encoded_pre_install_script  = var.pre_install_script != null ? base64encode(var.pre_install_script) : ""
-  encoded_install_script      = var.install_script != null ? base64encode(var.install_script) : ""
+  encoded_install_script      = base64encode(var.install_script)
   encoded_post_install_script = var.post_install_script != null ? base64encode(var.post_install_script) : ""
   encoded_start_script        = var.start_script != null ? base64encode(var.start_script) : ""
 
@@ -78,23 +77,13 @@ locals {
   post_install_log_path = "${local.module_dir_path}/post_install.log"
   start_log_path        = "${local.module_dir_path}/start.log"
 
-  # Sync dependency resolution: each stage waits for its closest predecessor.
+  # Sync dependency resolution: each stage waits for its predecessors.
   # Chain order: pre_install -> install -> post_install -> start
-  post_install_sync_deps = (
-    var.install_script != null ? local.install_script_name : (
-      var.pre_install_script != null ? local.pre_install_script_name : null
-    )
-  )
-
+  # install_script is always present (required), so it anchors the chain.
   start_sync_deps = (
-    var.post_install_script != null && var.install_script != null
-    ? "${local.install_script_name} ${local.post_install_script_name}" : (
-      var.post_install_script != null ? local.post_install_script_name : (
-        var.install_script != null ? local.install_script_name : (
-          var.pre_install_script != null ? local.pre_install_script_name : null
-        )
-      )
-    )
+    var.post_install_script != null
+    ? "${local.install_script_name} ${local.post_install_script_name}"
+    : local.install_script_name
   )
 }
 
@@ -121,7 +110,6 @@ resource "coder_script" "pre_install_script" {
 }
 
 resource "coder_script" "install_script" {
-  count        = var.install_script != null ? 1 : 0
   agent_id     = var.agent_id
   display_name = "Install Script"
   run_on_start = true
@@ -157,9 +145,7 @@ resource "coder_script" "post_install_script" {
     mkdir -p ${local.module_dir_path}
 
     trap 'coder exp sync complete ${local.post_install_script_name}' EXIT
-    %{if local.post_install_sync_deps != null~}
-    coder exp sync want ${local.post_install_script_name} ${local.post_install_sync_deps}
-    %{endif~}
+    coder exp sync want ${local.post_install_script_name} ${local.install_script_name}
     coder exp sync start ${local.post_install_script_name}
 
     echo -n '${local.encoded_post_install_script}' | base64 -d > ${local.post_install_path}
@@ -183,9 +169,7 @@ resource "coder_script" "start_script" {
 
     trap 'coder exp sync complete ${local.start_script_name}' EXIT
 
-    %{if local.start_sync_deps != null~}
     coder exp sync want ${local.start_script_name} ${local.start_sync_deps}
-    %{endif~}
     coder exp sync start ${local.start_script_name}
 
     echo -n '${local.encoded_start_script}' | base64 -d > ${local.start_path}
@@ -202,7 +186,7 @@ output "pre_install_script_name" {
 
 output "install_script_name" {
   description = "The name of the install script for sync."
-  value       = var.install_script != null ? local.install_script_name : ""
+  value       = local.install_script_name
 }
 
 output "post_install_script_name" {

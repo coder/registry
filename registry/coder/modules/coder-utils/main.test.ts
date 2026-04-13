@@ -8,5 +8,6 @@ describe("coder-utils", async () => {
     agent_id: "test-agent-id",
     agent_name: "test-agent",
     module_dir_name: ".test-module",
+    install_script: "echo 'install'",
   });
 });

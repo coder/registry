@@ -35,24 +35,19 @@ run "test_with_all_scripts" {
     error_message = "Pre-install script should run on start"
   }
 
-  # Verify install_script is created when provided
+  # Verify install_script is always created
   assert {
-    condition     = length(coder_script.install_script) == 1
-    error_message = "Install script should be created when install_script is provided"
-  }
-
-  assert {
-    condition     = coder_script.install_script[0].agent_id == "test-agent-id"
+    condition     = coder_script.install_script.agent_id == "test-agent-id"
     error_message = "Install script agent ID should match input"
   }
 
   assert {
-    condition     = coder_script.install_script[0].display_name == "Install Script"
+    condition     = coder_script.install_script.display_name == "Install Script"
     error_message = "Install script should have correct display name"
   }
 
   assert {
-    condition     = coder_script.install_script[0].run_on_start == true
+    condition     = coder_script.install_script.run_on_start == true
     error_message = "Install script should run on start"
   }
 
@@ -120,8 +115,8 @@ run "test_with_all_scripts" {
   }
 }
 
-# Test with only install and start scripts (no pre/post install)
-run "test_without_optional_pre_post_scripts" {
+# Test with only install_script (minimum required input)
+run "test_install_only" {
   command = plan
 
   variables {
@@ -129,83 +124,12 @@ run "test_without_optional_pre_post_scripts" {
     agent_name      = "test-agent"
     module_dir_name = ".test-module"
     install_script  = "echo 'install'"
-    start_script    = "echo 'start'"
   }
 
-  # Verify pre_install_script is NOT created when not provided
-  assert {
-    condition     = length(coder_script.pre_install_script) == 0
-    error_message = "Pre-install script should not be created when pre_install_script is null"
-  }
-
-  # Verify post_install_script is NOT created when not provided
-  assert {
-    condition     = length(coder_script.post_install_script) == 0
-    error_message = "Post-install script should not be created when post_install_script is null"
-  }
-
-  # Verify install and start scripts are still created
-  assert {
-    condition     = length(coder_script.install_script) == 1
-    error_message = "Install script should be created"
-  }
-
-  assert {
-    condition     = coder_script.install_script[0].agent_id == "test-agent-id"
-    error_message = "Install script agent ID should match input"
-  }
-
-  assert {
-    condition     = length(coder_script.start_script) == 1
-    error_message = "Start script should be created"
-  }
-
-  assert {
-    condition     = coder_script.start_script[0].agent_id == "test-agent-id"
-    error_message = "Start script agent ID should match input"
-  }
-
-  # Verify outputs are null for unprovided scripts
-  assert {
-    condition     = output.pre_install_script_name == ""
-    error_message = "Pre-install script name output should be empty when script is not provided"
-  }
-
-  assert {
-    condition     = output.install_script_name == "test-agent-install_script"
-    error_message = "Install script name output should be correctly formatted"
-  }
-
-  assert {
-    condition     = output.post_install_script_name == ""
-    error_message = "Post-install script name output should be empty when script is not provided"
-  }
-
-  assert {
-    condition     = output.start_script_name == "test-agent-start_script"
-    error_message = "Start script name output should be correctly formatted"
-  }
-}
-
-# Test with no scripts provided (all optional)
-run "test_no_scripts" {
-  command = plan
-
-  variables {
-    agent_id        = "test-agent-id"
-    agent_name      = "test-agent"
-    module_dir_name = ".test-module"
-  }
-
-  # Verify no scripts are created
+  # Verify optional scripts are NOT created
   assert {
     condition     = length(coder_script.pre_install_script) == 0
     error_message = "Pre-install script should not be created when not provided"
-  }
-
-  assert {
-    condition     = length(coder_script.install_script) == 0
-    error_message = "Install script should not be created when not provided"
   }
 
   assert {
@@ -218,15 +142,21 @@ run "test_no_scripts" {
     error_message = "Start script should not be created when not provided"
   }
 
-  # Verify all outputs are empty strings
+  # Verify install_script is created
+  assert {
+    condition     = coder_script.install_script.agent_id == "test-agent-id"
+    error_message = "Install script should be created"
+  }
+
+  # Verify outputs
   assert {
     condition     = output.pre_install_script_name == ""
     error_message = "Pre-install script name output should be empty"
   }
 
   assert {
-    condition     = output.install_script_name == ""
-    error_message = "Install script name output should be empty"
+    condition     = output.install_script_name == "test-agent-install_script"
+    error_message = "Install script name output should be correctly formatted"
   }
 
   assert {
@@ -240,45 +170,8 @@ run "test_no_scripts" {
   }
 }
 
-# Test with only start_script (no install)
-run "test_start_only" {
-  command = plan
-
-  variables {
-    agent_id        = "test-agent-id"
-    agent_name      = "test-agent"
-    module_dir_name = ".test-module"
-    start_script    = "echo 'start'"
-  }
-
-  assert {
-    condition     = length(coder_script.install_script) == 0
-    error_message = "Install script should not be created when not provided"
-  }
-
-  assert {
-    condition     = length(coder_script.start_script) == 1
-    error_message = "Start script should be created when provided"
-  }
-
-  assert {
-    condition     = coder_script.start_script[0].agent_id == "test-agent-id"
-    error_message = "Start script agent ID should match input"
-  }
-
-  assert {
-    condition     = output.install_script_name == ""
-    error_message = "Install script name output should be empty"
-  }
-
-  assert {
-    condition     = output.start_script_name == "test-agent-start_script"
-    error_message = "Start script name output should be correctly formatted"
-  }
-}
-
-# Test with only install_script (no start)
-run "test_install_only" {
+# Test with install and start scripts (no pre/post install)
+run "test_install_and_start" {
   command = plan
 
   variables {
@@ -286,16 +179,43 @@ run "test_install_only" {
     agent_name      = "test-agent"
     module_dir_name = ".test-module"
     install_script  = "echo 'install'"
+    start_script    = "echo 'start'"
   }
 
   assert {
-    condition     = length(coder_script.install_script) == 1
-    error_message = "Install script should be created when provided"
+    condition     = length(coder_script.pre_install_script) == 0
+    error_message = "Pre-install script should not be created when not provided"
   }
 
   assert {
-    condition     = length(coder_script.start_script) == 0
-    error_message = "Start script should not be created when not provided"
+    condition     = length(coder_script.post_install_script) == 0
+    error_message = "Post-install script should not be created when not provided"
+  }
+
+  assert {
+    condition     = coder_script.install_script.agent_id == "test-agent-id"
+    error_message = "Install script should be created"
+  }
+
+  assert {
+    condition     = length(coder_script.start_script) == 1
+    error_message = "Start script should be created"
+  }
+
+  assert {
+    condition     = coder_script.start_script[0].agent_id == "test-agent-id"
+    error_message = "Start script agent ID should match input"
+  }
+
+  # start should sync-want install (no post_install)
+  assert {
+    condition     = can(regex("sync want test-agent-start_script test-agent-install_script", coder_script.start_script[0].script))
+    error_message = "Start script should sync-want install_script"
+  }
+
+  assert {
+    condition     = output.pre_install_script_name == ""
+    error_message = "Pre-install script name output should be empty"
   }
 
   assert {
@@ -304,8 +224,13 @@ run "test_install_only" {
   }
 
   assert {
-    condition     = output.start_script_name == ""
-    error_message = "Start script name output should be empty"
+    condition     = output.post_install_script_name == ""
+    error_message = "Post-install script name output should be empty"
+  }
+
+  assert {
+    condition     = output.start_script_name == "test-agent-start_script"
+    error_message = "Start script name output should be correctly formatted"
   }
 }
 
@@ -321,7 +246,6 @@ run "test_with_mock_data" {
     start_script    = "echo 'start'"
   }
 
-  # Mock the data sources for testing
   override_data {
     target = data.coder_workspace.me
     values = {
@@ -354,9 +278,8 @@ run "test_with_mock_data" {
     }
   }
 
-  # Verify scripts are created with mocked data
   assert {
-    condition     = coder_script.install_script[0].agent_id == "mock-agent"
+    condition     = coder_script.install_script.agent_id == "mock-agent"
     error_message = "Install script should use the mocked agent ID"
   }
 
@@ -378,10 +301,8 @@ run "test_script_naming" {
     start_script    = "echo 'start'"
   }
 
-  # Verify script names are constructed correctly
-  # The script should contain references to custom-name-* in the sync commands
   assert {
-    condition     = can(regex("custom-name-install_script", coder_script.install_script[0].script))
+    condition     = can(regex("custom-name-install_script", coder_script.install_script.script))
     error_message = "Install script should use custom agent_name in sync commands"
   }
 
@@ -390,7 +311,6 @@ run "test_script_naming" {
     error_message = "Start script should use custom agent_name in sync commands"
   }
 
-  # Verify outputs use custom agent_name
   assert {
     condition     = output.pre_install_script_name == ""
     error_message = "Pre-install script name output should be empty when not provided"
@@ -412,58 +332,28 @@ run "test_script_naming" {
   }
 }
 
-# Test with post_install but no install (sync deps should fall back to pre_install)
-run "test_post_install_without_install" {
+# Test start script sync deps with post_install present
+run "test_start_syncs_with_post_install" {
   command = plan
 
   variables {
     agent_id            = "test-agent-id"
     agent_name          = "test-agent"
     module_dir_name     = ".test-module"
-    pre_install_script  = "echo 'pre-install'"
+    install_script      = "echo 'install'"
     post_install_script = "echo 'post-install'"
     start_script        = "echo 'start'"
   }
 
+  # start should sync-want both install and post_install
   assert {
-    condition     = length(coder_script.pre_install_script) == 1
-    error_message = "Pre-install script should be created"
+    condition     = can(regex("sync want test-agent-start_script test-agent-install_script test-agent-post_install_script", coder_script.start_script[0].script))
+    error_message = "Start script should sync-want both install_script and post_install_script"
   }
 
+  # post_install should sync-want install
   assert {
-    condition     = length(coder_script.install_script) == 0
-    error_message = "Install script should not be created"
-  }
-
-  assert {
-    condition     = length(coder_script.post_install_script) == 1
-    error_message = "Post-install script should be created"
-  }
-
-  assert {
-    condition     = length(coder_script.start_script) == 1
-    error_message = "Start script should be created"
-  }
-
-  # post_install should sync-want pre_install (since install is absent)
-  assert {
-    condition     = can(regex("sync want test-agent-post_install_script test-agent-pre_install_script", coder_script.post_install_script[0].script))
-    error_message = "Post-install script should sync-want pre_install_script when install_script is absent"
-  }
-
-  # start should sync-want post_install (since install is absent)
-  assert {
-    condition     = can(regex("sync want test-agent-start_script test-agent-post_install_script", coder_script.start_script[0].script))
-    error_message = "Start script should sync-want post_install_script when install_script is absent"
-  }
-
-  assert {
-    condition     = output.pre_install_script_name == "test-agent-pre_install_script"
-    error_message = "Pre-install script name output should be set"
-  }
-
-  assert {
-    condition     = output.install_script_name == ""
-    error_message = "Install script name output should be empty"
+    condition     = can(regex("sync want test-agent-post_install_script test-agent-install_script", coder_script.post_install_script[0].script))
+    error_message = "Post-install script should sync-want install_script"
   }
 }
