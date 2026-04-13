@@ -51,6 +51,12 @@ run "test_with_all_scripts" {
     error_message = "Install script should run on start"
   }
 
+  # install should sync-want pre_install
+  assert {
+    condition     = can(regex("sync want test-agent-install_script test-agent-pre_install_script", coder_script.install_script.script))
+    error_message = "Install script should sync-want pre_install_script when pre_install is provided"
+  }
+
   # Verify post_install_script is created when provided
   assert {
     condition     = length(coder_script.post_install_script) == 1
@@ -329,6 +335,34 @@ run "test_script_naming" {
   assert {
     condition     = output.start_script_name == "custom-name-start_script"
     error_message = "Start script name output should use custom agent_name"
+  }
+}
+
+# Test install syncs with pre_install when provided
+run "test_install_syncs_with_pre_install" {
+  command = plan
+
+  variables {
+    agent_id           = "test-agent-id"
+    agent_name         = "test-agent"
+    module_dir_name    = ".test-module"
+    pre_install_script = "echo 'pre-install'"
+    install_script     = "echo 'install'"
+  }
+
+  assert {
+    condition     = length(coder_script.pre_install_script) == 1
+    error_message = "Pre-install script should be created"
+  }
+
+  assert {
+    condition     = can(regex("sync want test-agent-install_script test-agent-pre_install_script", coder_script.install_script.script))
+    error_message = "Install script should sync-want pre_install_script"
+  }
+
+  assert {
+    condition     = output.pre_install_script_name == "test-agent-pre_install_script"
+    error_message = "Pre-install script name output should be set"
   }
 }
 

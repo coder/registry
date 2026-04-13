@@ -56,10 +56,9 @@ module "coder_utils" {
 
 The module orchestrates scripts in the following order:
 
-1. **Log File Creation** - Creates module directory and log files
-2. **Pre-Install Script** (optional) - Runs before installation
-3. **Install Script** (optional) - Main installation
-4. **Post-Install Script** (optional) - Runs after installation
-5. **Start Script** (optional) - Starts the application
+1. **Pre-Install Script** (optional) - Runs before installation
+2. **Install Script** (required) - Main installation
+3. **Post-Install Script** (optional) - Runs after installation
+4. **Start Script** (optional) - Starts the application
 
 Each script waits for its prerequisites to complete before running using `coder exp sync` dependency management.
