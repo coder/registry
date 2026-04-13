@@ -20,7 +20,7 @@ The Coder Utils module is a building block for modules that need to run multiple
 ```tf
 module "coder_utils" {
   source  = "registry.coder.com/coder/coder-utils/coder"
-  version = "1.0.1"
+  version = "1.1.0"
 
   agent_id        = coder_agent.main.id
   agent_name      = "myagent"
@@ -58,8 +58,8 @@ The module orchestrates scripts in the following order:
 
 1. **Log File Creation** - Creates module directory and log files
 2. **Pre-Install Script** (optional) - Runs before installation
-3. **Install Script** - Main installation
+3. **Install Script** (optional) - Main installation
 4. **Post-Install Script** (optional) - Runs after installation
-5. **Start Script** - Starts the application
+5. **Start Script** (optional) - Starts the application
 
 Each script waits for its prerequisites to complete before running using `coder exp sync` dependency management.
