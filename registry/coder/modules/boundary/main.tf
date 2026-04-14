@@ -35,13 +35,13 @@ variable "use_boundary_directly" {
 
 variable "pre_install_script" {
   type        = string
-  description = "Custom script to run before installing Codex."
+  description = "Custom script to run before installing Boundary."
   default     = null
 }
 
 variable "post_install_script" {
   type        = string
-  description = "Custom script to run after installing Codex."
+  description = "Custom script to run after installing Boundary."
   default     = null
 }
 
