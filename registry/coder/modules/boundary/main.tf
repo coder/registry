@@ -33,16 +33,34 @@ variable "use_boundary_directly" {
   default     = false
 }
 
+variable "pre_install_script" {
+  type        = string
+  description = "Custom script to run before installing Codex."
+  default     = null
+}
+
+variable "post_install_script" {
+  type        = string
+  description = "Custom script to run after installing Codex."
+  default     = null
+}
+
 locals {
   boundary_script             = file("${path.module}/scripts/install.sh")
   module_directory            = "$HOME/.coder-modules/coder/boundary"
   boundary_script_destination = "${local.module_directory}/install.sh"
+  boundary_wrapper_path       = "${local.module_directory}/boundary-wrapper.sh"
 }
 
-resource "coder_script" "boundary_script" {
-  agent_id     = var.agent_id
-  display_name = "Boundary Installation Script"
-  script       = <<-EOT
+module "coder_utils" {
+  source = "git::https://github.com/coder/registry.git//registry/coder/modules/coder-utils?ref=feat/coder-utils-optional-install-start"
+  # version             = "1.0.1"
+  agent_id            = var.agent_id
+  agent_name          = "coder_boundary"
+  module_directory    = local.module_directory
+  pre_install_script  = var.pre_install_script
+  post_install_script = var.post_install_script
+  install_script      = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
@@ -54,6 +72,22 @@ resource "coder_script" "boundary_script" {
     ARG_COMPILE_BOUNDARY_FROM_SOURCE="${var.compile_boundary_from_source}" \
     ARG_USE_BOUNDARY_DIRECTLY="${var.use_boundary_directly}" \
     ARG_MODULE_DIR="${local.module_directory}" \
+    ARG_BOUNDARY_WRAPPER_PATH="${local.boundary_wrapper_path}" \
     "${local.boundary_script_destination}"
 EOT
+}
+
+resource "coder_env" "agentapi_boundary_prefix" {
+  agent_id = var.agent_id
+  name     = "AGENTAPI_BOUNDARY_PREFIX"
+  value    = local.boundary_wrapper_path
+}
+
+output "boundary_wrapper_path" {
+  description = "Path to the boundary wrapper script."
+  value       = local.boundary_wrapper_path
+}
+
+output "sync_script_names" {
+  value = module.coder_utils
 }

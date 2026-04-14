@@ -6,6 +6,7 @@ BOUNDARY_VERSION="${ARG_BOUNDARY_VERSION:-latest}"
 COMPILE_BOUNDARY_FROM_SOURCE="${ARG_COMPILE_BOUNDARY_FROM_SOURCE:-false}"
 USE_BOUNDARY_DIRECTLY="${ARG_USE_BOUNDARY_DIRECTLY:-false}"
 MODULE_DIR="${ARG_MODULE_DIR:-}"
+BOUNDARY_WRAPPER_PATH="${ARG_BOUNDARY_WRAPPER_PATH:-}"
 set +o nounset
 
 validate_boundary_subcommand() {
@@ -13,7 +14,7 @@ validate_boundary_subcommand() {
     if coder boundary --help > /dev/null 2>&1; then
       return 0
     else
-      echo "Error: 'coder' command found but does not support 'boundary' subcommand. Please enable install_boundary."
+      echo "Error: 'coder' command found but does not support 'boundary' subcommand. Set use_boundary_directly=true or compile_boundary_from_source=true."
       exit 1
     fi
   else
@@ -59,6 +60,7 @@ install_boundary() {
 # Exports AGENTAPI_BOUNDARY_PREFIX pointing to the wrapper script.
 setup_boundary() {
   local module_path="${MODULE_DIR}"
+  local wrapper_path="${BOUNDARY_WRAPPER_PATH}"
 
   echo "Setting up coder boundary..."
 
@@ -66,7 +68,7 @@ setup_boundary() {
   install_boundary
 
   # Determine which boundary command to use and create wrapper script
-  BOUNDARY_WRAPPER_SCRIPT="${module_path}/boundary-wrapper.sh"
+  BOUNDARY_WRAPPER_SCRIPT="${wrapper_path}"
 
   if [[ "${COMPILE_BOUNDARY_FROM_SOURCE}" = "true" ]] || [[ "${USE_BOUNDARY_DIRECTLY}" = "true" ]]; then
     # Use boundary binary directly (from compilation or release installation)
