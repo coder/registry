@@ -101,22 +101,22 @@ run "test_with_all_scripts" {
 
   # Verify outputs for script names
   assert {
-    condition     = output.pre_install_script_name == "test-agent-pre_install_script"
+    condition     = output.script_names.pre_install == "test-agent-pre_install_script"
     error_message = "Pre-install script name output should be correctly formatted"
   }
 
   assert {
-    condition     = output.install_script_name == "test-agent-install_script"
+    condition     = output.script_names.install == "test-agent-install_script"
     error_message = "Install script name output should be correctly formatted"
   }
 
   assert {
-    condition     = output.post_install_script_name == "test-agent-post_install_script"
+    condition     = output.script_names.post_install == "test-agent-post_install_script"
     error_message = "Post-install script name output should be correctly formatted"
   }
 
   assert {
-    condition     = output.start_script_name == "test-agent-start_script"
+    condition     = output.script_names.start == "test-agent-start_script"
     error_message = "Start script name output should be correctly formatted"
   }
 }
@@ -156,22 +156,22 @@ run "test_install_only" {
 
   # Verify outputs
   assert {
-    condition     = output.pre_install_script_name == ""
+    condition     = output.script_names.pre_install == ""
     error_message = "Pre-install script name output should be empty"
   }
 
   assert {
-    condition     = output.install_script_name == "test-agent-install_script"
+    condition     = output.script_names.install == "test-agent-install_script"
     error_message = "Install script name output should be correctly formatted"
   }
 
   assert {
-    condition     = output.post_install_script_name == ""
+    condition     = output.script_names.post_install == ""
     error_message = "Post-install script name output should be empty"
   }
 
   assert {
-    condition     = output.start_script_name == ""
+    condition     = output.script_names.start == ""
     error_message = "Start script name output should be empty"
   }
 }
@@ -220,22 +220,22 @@ run "test_install_and_start" {
   }
 
   assert {
-    condition     = output.pre_install_script_name == ""
+    condition     = output.script_names.pre_install == ""
     error_message = "Pre-install script name output should be empty"
   }
 
   assert {
-    condition     = output.install_script_name == "test-agent-install_script"
+    condition     = output.script_names.install == "test-agent-install_script"
     error_message = "Install script name output should be correctly formatted"
   }
 
   assert {
-    condition     = output.post_install_script_name == ""
+    condition     = output.script_names.post_install == ""
     error_message = "Post-install script name output should be empty"
   }
 
   assert {
-    condition     = output.start_script_name == "test-agent-start_script"
+    condition     = output.script_names.start == "test-agent-start_script"
     error_message = "Start script name output should be correctly formatted"
   }
 }
@@ -318,22 +318,22 @@ run "test_script_naming" {
   }
 
   assert {
-    condition     = output.pre_install_script_name == ""
+    condition     = output.script_names.pre_install == ""
     error_message = "Pre-install script name output should be empty when not provided"
   }
 
   assert {
-    condition     = output.install_script_name == "custom-name-install_script"
+    condition     = output.script_names.install == "custom-name-install_script"
     error_message = "Install script name output should use custom agent_name"
   }
 
   assert {
-    condition     = output.post_install_script_name == ""
+    condition     = output.script_names.post_install == ""
     error_message = "Post-install script name output should be empty when not provided"
   }
 
   assert {
-    condition     = output.start_script_name == "custom-name-start_script"
+    condition     = output.script_names.start == "custom-name-start_script"
     error_message = "Start script name output should use custom agent_name"
   }
 }
@@ -361,7 +361,7 @@ run "test_install_syncs_with_pre_install" {
   }
 
   assert {
-    condition     = output.pre_install_script_name == "test-agent-pre_install_script"
+    condition     = output.script_names.pre_install == "test-agent-pre_install_script"
     error_message = "Pre-install script name output should be set"
   }
 }

@@ -172,22 +172,12 @@ resource "coder_script" "start_script" {
   EOT
 }
 
-output "pre_install_script_name" {
-  description = "The name of the pre-install script for sync."
-  value       = var.pre_install_script != null ? local.pre_install_script_name : ""
-}
-
-output "install_script_name" {
-  description = "The name of the install script for sync."
-  value       = local.install_script_name
-}
-
-output "post_install_script_name" {
-  description = "The name of the post-install script for sync."
-  value       = var.post_install_script != null ? local.post_install_script_name : ""
-}
-
-output "start_script_name" {
-  description = "The name of the start script for sync."
-  value       = var.start_script != null ? local.start_script_name : ""
+output "script_names" {
+  description = "The names of the scripts for sync."
+  value = {
+    pre_install  = var.pre_install_script != null ? local.pre_install_script_name : ""
+    install      = local.install_script_name
+    post_install = var.post_install_script != null ? local.post_install_script_name : ""
+    start        = var.start_script != null ? local.start_script_name : ""
+  }
 }
