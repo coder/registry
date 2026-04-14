@@ -7,7 +7,7 @@ describe("coder-utils", async () => {
   testRequiredVariables(import.meta.dir, {
     agent_id: "test-agent-id",
     agent_name: "test-agent",
-    module_dir_name: ".test-module",
+    module_directory: ".test-module",
     install_script: "echo 'install'",
   });
 });
