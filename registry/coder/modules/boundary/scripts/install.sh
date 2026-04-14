@@ -10,11 +10,11 @@ BOUNDARY_WRAPPER_PATH="${ARG_BOUNDARY_WRAPPER_PATH:-}"
 set +o nounset
 
 validate_boundary_subcommand() {
-  if hash coder; then
+  if command -v coder > /dev/null 2>&1; then
     if coder boundary --help > /dev/null 2>&1; then
       return 0
     else
-      echo "Error: 'coder' command found but does not support 'boundary' subcommand. Set use_boundary_directly=true or compile_boundary_from_source=true."
+      echo "Error: 'coder' command found but does not support 'boundary' subcommand. Set use_boundary_directly=true or compile_boundary_from_source=true." >&2
       exit 1
     fi
   else
