@@ -12,11 +12,12 @@ import {
   runTerraformInit,
   runTerraformApply,
   testRequiredVariables,
+  runContainer,
+  removeContainer,
 } from "~test";
 import {
   loadTestFile,
   writeExecutable,
-  setup as setupUtil,
   execModuleScript,
   extractCoderEnvVars,
 } from "../agentapi/test-util";
@@ -45,16 +46,20 @@ interface SetupProps {
 const setup = async (
   props?: SetupProps,
 ): Promise<{ id: string; coderEnvVars: Record<string, string> }> => {
-  const { id, coderEnvVars } = await setupUtil({
-    moduleDir: import.meta.dir,
-    moduleVariables: {
-      ...props?.moduleVariables,
-    },
-    registerCleanup,
-    skipAgentAPIMock: true, // boundary module doesn't need agentapi mock
+  const state = await runTerraformApply(import.meta.dir, {
+    agent_id: "foo",
+    ...props?.moduleVariables,
   });
 
-  // Create a mock coder binary with boundary subcommand support
+  const coderEnvVars = extractCoderEnvVars(state);
+  const id = await runContainer("codercom/enterprise-node:latest");
+  registerCleanup(async () => {
+    await removeContainer(id);
+  });
+
+  await execContainer(id, ["bash", "-c", "mkdir -p /home/coder/project"]);
+
+  // Create a mock coder binary with boundary subcommand and exp sync support
   if (!props?.skipCoderMock) {
     await writeExecutable({
       containerId: id,
@@ -62,6 +67,49 @@ const setup = async (
       content: await loadTestFile(import.meta.dir, "coder-mock.sh"),
     });
   }
+
+  // Extract ALL coder_scripts from the state (coder-utils creates multiple)
+  const allScripts = state.resources
+    .filter((r) => r.type === "coder_script")
+    .map((r) => ({
+      name: r.name,
+      script: r.instances[0].attributes.script as string,
+    }));
+
+  // Run scripts in lifecycle order
+  const executionOrder = [
+    "pre_install_script",
+    "install_script",
+    "post_install_script",
+  ];
+  const orderedScripts = executionOrder
+    .map((name) => allScripts.find((s) => s.name === name))
+    .filter((s): s is NonNullable<typeof s> => s != null);
+
+  // Write each script individually and create a combined runner
+  const scriptPaths: string[] = [];
+  for (const s of orderedScripts) {
+    const scriptPath = `/home/coder/${s.name}.sh`;
+    await writeExecutable({
+      containerId: id,
+      filePath: scriptPath,
+      content: s.script,
+    });
+    scriptPaths.push(scriptPath);
+  }
+
+  const combinedScript = [
+    "#!/bin/bash",
+    "set -o errexit",
+    "set -o pipefail",
+    ...scriptPaths.map((p) => `bash "${p}"`),
+  ].join("\n");
+
+  await writeExecutable({
+    containerId: id,
+    filePath: "/home/coder/script.sh",
+    content: combinedScript,
+  });
 
   return { id, coderEnvVars };
 };
@@ -206,15 +254,15 @@ describe("boundary", async () => {
     const { id } = await setup();
     await execModuleScript(id);
 
-    // Try executing the wrapper script with --help
+    // Try executing the wrapper script with a command
     const wrapperResult = await execContainer(id, [
       "bash",
       "-c",
-      "/home/coder/.coder-modules/coder/boundary/boundary-wrapper.sh --help",
+      "/home/coder/.coder-modules/coder/boundary/boundary-wrapper.sh echo boundary-test",
     ]);
 
-    // The mock should respond with help text
-    expect(wrapperResult.stdout).toContain("boundary");
+    // The mock executes the command after -- separator
+    expect(wrapperResult.stdout).toContain("boundary-test");
   });
 
   test("installation-idempotency", async () => {

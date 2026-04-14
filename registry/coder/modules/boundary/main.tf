@@ -53,7 +53,7 @@ variable "module_directory" {
 
 locals {
   boundary_script             = file("${path.module}/scripts/install.sh")
-  boundary_script_destination = "${var.module_directory}/install.sh"
+  boundary_script_destination = "${var.module_directory}/boundary-install.sh"
   boundary_wrapper_path       = "${var.module_directory}/boundary-wrapper.sh"
 }
 

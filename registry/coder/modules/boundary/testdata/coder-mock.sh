@@ -2,6 +2,12 @@
 
 # Mock coder command for testing boundary module
 # Handles: coder boundary [--help | -- <command>]
+# Handles: coder exp sync [want|start|complete] (no-op for testing)
+
+# Handle exp sync commands (no-op for testing)
+if [[ "$1" == "exp" ]] && [[ "$2" == "sync" ]]; then
+  exit 0
+fi
 
 if [[ "$1" == "boundary" ]]; then
   shift
