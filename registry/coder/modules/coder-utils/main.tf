@@ -49,9 +49,9 @@ variable "agent_name" {
 
 }
 
-variable "module_dir_name" {
+variable "module_directory" {
   type        = string
-  description = "The name of the module directory."
+  description = "The module's working directory for scripts and logs."
 }
 
 locals {
@@ -65,17 +65,15 @@ locals {
   post_install_script_name = "${var.agent_name}-post_install_script"
   start_script_name        = "${var.agent_name}-start_script"
 
-  module_dir_path = "$HOME/.coder-modules/coder/coder-utils/${var.module_dir_name}"
+  pre_install_path  = "${var.module_directory}/pre_install.sh"
+  install_path      = "${var.module_directory}/install.sh"
+  post_install_path = "${var.module_directory}/post_install.sh"
+  start_path        = "${var.module_directory}/start.sh"
 
-  pre_install_path  = "${local.module_dir_path}/pre_install.sh"
-  install_path      = "${local.module_dir_path}/install.sh"
-  post_install_path = "${local.module_dir_path}/post_install.sh"
-  start_path        = "${local.module_dir_path}/start.sh"
-
-  pre_install_log_path  = "${local.module_dir_path}/pre_install.log"
-  install_log_path      = "${local.module_dir_path}/install.log"
-  post_install_log_path = "${local.module_dir_path}/post_install.log"
-  start_log_path        = "${local.module_dir_path}/start.log"
+  pre_install_log_path  = "${var.module_directory}/pre_install.log"
+  install_log_path      = "${var.module_directory}/install.log"
+  post_install_log_path = "${var.module_directory}/post_install.log"
+  start_log_path        = "${var.module_directory}/start.log"
 
   install_sync_deps = var.pre_install_script != null ? local.pre_install_script_name : null
 
@@ -96,7 +94,7 @@ resource "coder_script" "pre_install_script" {
     set -o errexit
     set -o pipefail
 
-    mkdir -p ${local.module_dir_path}
+    mkdir -p ${var.module_directory}
 
     trap 'coder exp sync complete ${local.pre_install_script_name}' EXIT
     coder exp sync start ${local.pre_install_script_name}
@@ -117,7 +115,7 @@ resource "coder_script" "install_script" {
     set -o errexit
     set -o pipefail
 
-    mkdir -p ${local.module_dir_path}
+    mkdir -p ${var.module_directory}
 
     trap 'coder exp sync complete ${local.install_script_name}' EXIT
     %{if local.install_sync_deps != null~}

@@ -7,7 +7,7 @@ run "test_with_all_scripts" {
   variables {
     agent_id            = "test-agent-id"
     agent_name          = "test-agent"
-    module_dir_name     = ".test-module"
+    module_directory    = ".test-module"
     pre_install_script  = "echo 'pre-install'"
     install_script      = "echo 'install'"
     post_install_script = "echo 'post-install'"
@@ -126,10 +126,10 @@ run "test_install_only" {
   command = plan
 
   variables {
-    agent_id        = "test-agent-id"
-    agent_name      = "test-agent"
-    module_dir_name = ".test-module"
-    install_script  = "echo 'install'"
+    agent_id         = "test-agent-id"
+    agent_name       = "test-agent"
+    module_directory = ".test-module"
+    install_script   = "echo 'install'"
   }
 
   # Verify optional scripts are NOT created
@@ -181,11 +181,11 @@ run "test_install_and_start" {
   command = plan
 
   variables {
-    agent_id        = "test-agent-id"
-    agent_name      = "test-agent"
-    module_dir_name = ".test-module"
-    install_script  = "echo 'install'"
-    start_script    = "echo 'start'"
+    agent_id         = "test-agent-id"
+    agent_name       = "test-agent"
+    module_directory = ".test-module"
+    install_script   = "echo 'install'"
+    start_script     = "echo 'start'"
   }
 
   assert {
@@ -245,11 +245,11 @@ run "test_with_mock_data" {
   command = plan
 
   variables {
-    agent_id        = "mock-agent"
-    agent_name      = "mock-agent"
-    module_dir_name = ".mock-module"
-    install_script  = "echo 'install'"
-    start_script    = "echo 'start'"
+    agent_id         = "mock-agent"
+    agent_name       = "mock-agent"
+    module_directory = ".mock-module"
+    install_script   = "echo 'install'"
+    start_script     = "echo 'start'"
   }
 
   override_data {
@@ -300,11 +300,11 @@ run "test_script_naming" {
   command = plan
 
   variables {
-    agent_id        = "test-agent"
-    agent_name      = "custom-name"
-    module_dir_name = ".test-module"
-    install_script  = "echo 'install'"
-    start_script    = "echo 'start'"
+    agent_id         = "test-agent"
+    agent_name       = "custom-name"
+    module_directory = ".test-module"
+    install_script   = "echo 'install'"
+    start_script     = "echo 'start'"
   }
 
   assert {
@@ -345,7 +345,7 @@ run "test_install_syncs_with_pre_install" {
   variables {
     agent_id           = "test-agent-id"
     agent_name         = "test-agent"
-    module_dir_name    = ".test-module"
+    module_directory   = ".test-module"
     pre_install_script = "echo 'pre-install'"
     install_script     = "echo 'install'"
   }
@@ -373,7 +373,7 @@ run "test_start_syncs_with_post_install" {
   variables {
     agent_id            = "test-agent-id"
     agent_name          = "test-agent"
-    module_dir_name     = ".test-module"
+    module_directory    = ".test-module"
     install_script      = "echo 'install'"
     post_install_script = "echo 'post-install'"
     start_script        = "echo 'start'"
