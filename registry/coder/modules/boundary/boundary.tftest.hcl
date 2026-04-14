@@ -7,15 +7,32 @@ run "plan_with_required_vars" {
     agent_id = "test-agent-id"
   }
 
-  # Verify the coder_script resource is created with correct agent_id
+  # Verify the coder_env resource is created with correct agent_id
   assert {
-    condition     = coder_script.boundary_script.agent_id == "test-agent-id"
-    error_message = "boundary_script agent_id should match the input variable"
+    condition     = coder_env.agentapi_boundary_prefix.agent_id == "test-agent-id"
+    error_message = "agentapi_boundary_prefix agent_id should match the input variable"
   }
 
   assert {
-    condition     = coder_script.boundary_script.display_name == "Boundary Installation Script"
-    error_message = "display_name should be 'Boundary Installation Script'"
+    condition     = coder_env.agentapi_boundary_prefix.name == "AGENTAPI_BOUNDARY_PREFIX"
+    error_message = "Environment variable name should be 'AGENTAPI_BOUNDARY_PREFIX'"
+  }
+
+  assert {
+    condition     = coder_env.agentapi_boundary_prefix.value == "$HOME/.coder-modules/coder/boundary/boundary-wrapper.sh"
+    error_message = "Environment variable value should be the boundary wrapper path"
+  }
+
+  # Verify the boundary_wrapper_path output
+  assert {
+    condition     = output.boundary_wrapper_path == "$HOME/.coder-modules/coder/boundary/boundary-wrapper.sh"
+    error_message = "boundary_wrapper_path output should be correct"
+  }
+
+  # Verify the sync_script_names output contains the install script name
+  assert {
+    condition     = output.sync_script_names.script_names.install == "coder_boundary-install_script"
+    error_message = "sync_script_names should contain the install script name"
   }
 }
 
@@ -29,8 +46,18 @@ run "plan_with_compile_from_source" {
   }
 
   assert {
-    condition     = coder_script.boundary_script.agent_id == "test-agent-id"
-    error_message = "boundary_script agent_id should match the input variable"
+    condition     = coder_env.agentapi_boundary_prefix.agent_id == "test-agent-id"
+    error_message = "agentapi_boundary_prefix agent_id should match the input variable"
+  }
+
+  assert {
+    condition     = output.boundary_wrapper_path == "$HOME/.coder-modules/coder/boundary/boundary-wrapper.sh"
+    error_message = "boundary_wrapper_path output should be correct"
+  }
+
+  assert {
+    condition     = output.sync_script_names.script_names.install == "coder_boundary-install_script"
+    error_message = "sync_script_names should contain the install script name"
   }
 }
 
@@ -44,7 +71,67 @@ run "plan_with_use_directly" {
   }
 
   assert {
-    condition     = coder_script.boundary_script.agent_id == "test-agent-id"
-    error_message = "boundary_script agent_id should match the input variable"
+    condition     = coder_env.agentapi_boundary_prefix.agent_id == "test-agent-id"
+    error_message = "agentapi_boundary_prefix agent_id should match the input variable"
+  }
+
+  assert {
+    condition     = output.boundary_wrapper_path == "$HOME/.coder-modules/coder/boundary/boundary-wrapper.sh"
+    error_message = "boundary_wrapper_path output should be correct"
+  }
+
+  assert {
+    condition     = output.sync_script_names.script_names.install == "coder_boundary-install_script"
+    error_message = "sync_script_names should contain the install script name"
+  }
+}
+
+run "plan_with_custom_hooks" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent-id"
+    pre_install_script  = "echo 'Before install'"
+    post_install_script = "echo 'After install'"
+  }
+
+  assert {
+    condition     = coder_env.agentapi_boundary_prefix.agent_id == "test-agent-id"
+    error_message = "agentapi_boundary_prefix agent_id should match the input variable"
+  }
+
+  assert {
+    condition     = output.sync_script_names.script_names.install == "coder_boundary-install_script"
+    error_message = "sync_script_names should contain the install script name"
+  }
+
+  # Verify pre and post install script names are set
+  assert {
+    condition     = output.sync_script_names.script_names.pre_install == "coder_boundary-pre_install_script"
+    error_message = "sync_script_names should contain the pre_install script name"
+  }
+
+  assert {
+    condition     = output.sync_script_names.script_names.post_install == "coder_boundary-post_install_script"
+    error_message = "sync_script_names should contain the post_install script name"
+  }
+}
+
+run "plan_with_custom_module_directory" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent-id"
+    module_directory = "/custom/path"
+  }
+
+  assert {
+    condition     = coder_env.agentapi_boundary_prefix.value == "/custom/path/boundary-wrapper.sh"
+    error_message = "Environment variable should use custom module directory"
+  }
+
+  assert {
+    condition     = output.boundary_wrapper_path == "/custom/path/boundary-wrapper.sh"
+    error_message = "boundary_wrapper_path output should use custom module directory"
   }
 }

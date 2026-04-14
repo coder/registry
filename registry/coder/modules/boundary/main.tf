@@ -45,11 +45,16 @@ variable "post_install_script" {
   default     = null
 }
 
+variable "module_directory" {
+  type        = string
+  description = "Directory where the boundary module scripts will be located. Default is $HOME/.coder-modules/coder/boundary."
+  default     = "$HOME/.coder-modules/coder/boundary"
+}
+
 locals {
   boundary_script             = file("${path.module}/scripts/install.sh")
-  module_directory            = "$HOME/.coder-modules/coder/boundary"
-  boundary_script_destination = "${local.module_directory}/install.sh"
-  boundary_wrapper_path       = "${local.module_directory}/boundary-wrapper.sh"
+  boundary_script_destination = "${var.module_directory}/install.sh"
+  boundary_wrapper_path       = "${var.module_directory}/boundary-wrapper.sh"
 }
 
 module "coder_utils" {
@@ -57,7 +62,7 @@ module "coder_utils" {
   # version             = "1.0.1"
   agent_id            = var.agent_id
   agent_name          = "coder_boundary"
-  module_directory    = local.module_directory
+  module_directory    = var.module_directory
   pre_install_script  = var.pre_install_script
   post_install_script = var.post_install_script
   install_script      = <<-EOT
@@ -71,7 +76,7 @@ module "coder_utils" {
     ARG_BOUNDARY_VERSION="${var.boundary_version}" \
     ARG_COMPILE_BOUNDARY_FROM_SOURCE="${var.compile_boundary_from_source}" \
     ARG_USE_BOUNDARY_DIRECTLY="${var.use_boundary_directly}" \
-    ARG_MODULE_DIR="${local.module_directory}" \
+    ARG_MODULE_DIR="${var.module_directory}" \
     ARG_BOUNDARY_WRAPPER_PATH="${local.boundary_wrapper_path}" \
     "${local.boundary_script_destination}"
 EOT
