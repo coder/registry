@@ -35,10 +35,7 @@ commands that should run in network isolation:
 ```bash
 if [ -n "${AGENTAPI_BOUNDARY_PREFIX:-}" ]; then
   # Run command with boundary wrapper
-  "${AGENTAPI_BOUNDARY_PREFIX}" my-command --args
-else
-  # Run command normally
-  my-command --args
+  "${AGENTAPI_BOUNDARY_PREFIX}" --config "./config.yaml" --other-args -- ai-agent
 fi
 ```
 
