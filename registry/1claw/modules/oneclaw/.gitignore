@@ -1,0 +1,12 @@
+.coder/
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfplan
+tests/.terraform/
+tests/.terraform.lock.hcl
+tests/*.tfstate
+tests/*.tfstate.backup
+*.env*
+.provision-state.json
