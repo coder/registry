@@ -261,7 +261,7 @@ describe("boundary", async () => {
       "/home/coder/.coder-modules/coder/boundary/boundary-wrapper.sh echo boundary-test",
     ]);
 
-    // The mock executes the command after -- separator
+    // The wrapper passes the command directly to the boundary command
     expect(wrapperResult.stdout).toContain("boundary-test");
   });
 

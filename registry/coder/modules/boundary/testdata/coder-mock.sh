@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Mock coder command for testing boundary module
-# Handles: coder boundary [--help | -- <command>]
+# Handles: coder boundary [--help | <command>]
 # Handles: coder exp sync [want|start|complete] (no-op for testing)
 
 # Handle exp sync commands (no-op for testing)
@@ -30,16 +30,8 @@ EOF
     exit 0
   fi
 
-  # Handle command execution after --
-  if [[ "$1" == "--" ]]; then
-    shift
-    # Execute the command that follows
-    exec "$@"
-  fi
-
-  # If no -- separator, just print help
-  echo "Error: Expected '--' separator before command"
-  exit 1
+  # Execute the remaining arguments as a command
+  exec "$@"
 fi
 
 echo "Mock coder: Unknown command: $*"
