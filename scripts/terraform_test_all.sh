@@ -13,7 +13,7 @@ set -euo pipefail
 run_dir() {
   local dir="$1"
   echo "==> Running terraform test in $dir"
-  (cd "$dir" && terraform init -upgrade -input=false -no-color > /dev/null && terraform test -no-color -verbose)
+  (cd "$dir" && terraform init -upgrade -input=false -no-color > /dev/null && terraform test -no-color)
 }
 
 echo "==> Detecting changed files..."
@@ -45,8 +45,19 @@ else
       module="${BASH_REMATCH[2]}"
       module_dir="registry/${namespace}/modules/${module}"
 
-      if [[ -d "$module_dir" ]] && [[ ! " ${MODULE_DIRS[*]} " =~ " $module_dir " ]]; then
-        MODULE_DIRS+=("$module_dir")
+      if [[ -d "$module_dir" ]]; then
+        found_duplicate=false
+        if [[ ${#MODULE_DIRS[@]} -gt 0 ]]; then
+          for existing_dir in "${MODULE_DIRS[@]}"; do
+            if [[ "$existing_dir" == "$module_dir" ]]; then
+              found_duplicate=true
+              break
+            fi
+          done
+        fi
+        if [[ "$found_duplicate" == false ]]; then
+          MODULE_DIRS+=("$module_dir")
+        fi
       fi
     fi
   done <<< "$CHANGED_FILES"
@@ -67,7 +78,16 @@ else
   for module_dir in "${MODULE_DIRS[@]}"; do
     while IFS= read -r test_file; do
       test_dir=$(dirname "$test_file")
-      if [[ ! " ${test_dirs[*]} " =~ " $test_dir " ]]; then
+      found_test_dup=false
+      if [[ ${#test_dirs[@]} -gt 0 ]]; then
+        for existing_test in "${test_dirs[@]}"; do
+          if [[ "$existing_test" == "$test_dir" ]]; then
+            found_test_dup=true
+            break
+          fi
+        done
+      fi
+      if [[ "$found_test_dup" == false ]]; then
         test_dirs+=("$test_dir")
       fi
     done < <(find "$module_dir" -type f -name "*.tftest.hcl")

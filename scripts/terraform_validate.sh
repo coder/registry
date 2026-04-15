@@ -87,8 +87,19 @@ main() {
         local module_dir
         module_dir="registry/${namespace}/modules/${module}"
 
-        if [[ -d "$module_dir" ]] && [[ ! " ${MODULE_DIRS[*]} " =~ " $module_dir " ]]; then
-          MODULE_DIRS+=("$module_dir")
+        if [[ -d "$module_dir" ]]; then
+          found_duplicate=false
+          if [[ ${#MODULE_DIRS[@]} -gt 0 ]]; then
+            for existing_dir in "${MODULE_DIRS[@]}"; do
+              if [[ "$existing_dir" == "$module_dir" ]]; then
+                found_duplicate=true
+                break
+              fi
+            done
+          fi
+          if [[ "$found_duplicate" == false ]]; then
+            MODULE_DIRS+=("$module_dir")
+          fi
         fi
       fi
     done <<< "$CHANGED_FILES"
