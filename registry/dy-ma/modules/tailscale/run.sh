@@ -118,8 +118,8 @@ generate_auth_key() {
     && die "OAuth token response did not contain an access_token. Check your client ID and secret."
 
   log "Generating single-use auth key..."
-  local key_response
-  key_response=$(curl -fsSL -X POST \
+  local key_response http_status
+  key_response=$(curl -sSL -w "\n%{http_code}" -X POST \
     -H "Authorization: Bearer $access_token" \
     -H "Content-Type: application/json" \
     -d "{
@@ -135,8 +135,12 @@ generate_auth_key() {
       },
       \"expirySeconds\": 300
     }" \
-    "$TAILSCALE_API_URL/api/v2/tailnet/$TAILNET/keys") \
-    || die "Failed to generate auth key."
+    "$TAILSCALE_API_URL/api/v2/tailnet/$TAILNET/keys")
+  http_status=$(echo "$key_response" | tail -1)
+  key_response=$(echo "$key_response" | head -n -1)
+  if [ "$http_status" != "200" ]; then
+    die "Failed to generate auth key (HTTP $http_status): $key_response"
+  fi
 
   local auth_key
   auth_key=$(echo "$key_response" | jq -r '.key')
