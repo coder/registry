@@ -20,6 +20,7 @@ describe("tailscale", async () => {
     accept_routes?: boolean;
     advertise_routes?: string;
     ssh?: boolean;
+    extra_flags?: string;
     state_dir?: string;
   };
 

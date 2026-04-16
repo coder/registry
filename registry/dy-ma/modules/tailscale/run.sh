@@ -19,6 +19,7 @@ ACCEPT_DNS="${ACCEPT_DNS}"
 ACCEPT_ROUTES="${ACCEPT_ROUTES}"
 ADVERTISE_ROUTES="${ADVERTISE_ROUTES}"
 SSH="${SSH}"
+EXTRA_FLAGS="${EXTRA_FLAGS}"
 STATE_DIR="${STATE_DIR}"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -165,6 +166,7 @@ bring_up() {
   [ -n "$ADVERTISE_ROUTES" ]                 && flags="$flags --advertise-routes=$ADVERTISE_ROUTES"
   [ "$SSH" = "true" ]                        && flags="$flags --ssh"
   [ "$mode" = "userspace" ]                  && flags="$flags --netfilter-mode=off"
+  [ -n "$EXTRA_FLAGS" ]                      && flags="$flags $EXTRA_FLAGS"
 
   if [ -n "$auth_key" ]; then
     # shellcheck disable=SC2086

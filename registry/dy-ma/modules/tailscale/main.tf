@@ -12,7 +12,7 @@ terraform {
 data "coder_workspace" "me" {}
 
 locals {
-  icon_url  = "/icon/tailscale.svg"
+  icon_url  = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/tailscale.svg"
   hostname  = var.hostname != "" ? var.hostname : data.coder_workspace.me.name
   tags_json = jsonencode(var.tags)
   tags_csv  = join(",", var.tags)
@@ -160,6 +160,16 @@ variable "ssh" {
 }
 
 
+variable "extra_flags" {
+  type    = string
+  default = ""
+  description = <<-EOF
+    Additional flags to append to the `tailscale up` command verbatim.
+    Use this for any options not covered by dedicated variables, e.g.
+    `--exit-node=100.x.y.z` or `--shields-up`.
+  EOF
+}
+
 variable "state_dir" {
   type    = string
   default = ""
@@ -193,6 +203,7 @@ resource "coder_script" "install_tailscale" {
     ACCEPT_ROUTES       = var.accept_routes
     ADVERTISE_ROUTES    = join(",", var.advertise_routes)
     SSH                 = var.ssh
+    EXTRA_FLAGS         = var.extra_flags
     STATE_DIR           = var.state_dir
   })
   run_on_start = true
