@@ -55,11 +55,11 @@ install_tailscale() {
     if [ ! -f /etc/apt/sources.list.d/tailscale.list ]; then
       . /etc/os-release
       [ -z "$VERSION_CODENAME" ] && die "Cannot determine OS codename from /etc/os-release."
-      curl -fsSL "https://pkgs.tailscale.com/stable/${ID}/${VERSION_CODENAME}.gpg" \
+      curl -fsSL "https://pkgs.tailscale.com/stable/$${ID}/$${VERSION_CODENAME}.gpg" \
         | sudo gpg --batch --no-tty --dearmor -o /usr/share/keyrings/tailscale-archive-keyring.gpg \
-        || die "Failed to add Tailscale GPG key for ${ID}/${VERSION_CODENAME}."
+        || die "Failed to add Tailscale GPG key for $${ID}/$${VERSION_CODENAME}."
       echo "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] \
-https://pkgs.tailscale.com/stable/${ID} ${VERSION_CODENAME} main" \
+https://pkgs.tailscale.com/stable/$${ID} $${VERSION_CODENAME} main" \
         | sudo tee /etc/apt/sources.list.d/tailscale.list >/dev/null
       sudo apt-get update -qq
     fi
