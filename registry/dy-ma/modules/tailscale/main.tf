@@ -11,14 +11,11 @@ terraform {
 
 data "coder_workspace" "me" {}
 
-data "coder_workspace_owner" "me" {}
-
 locals {
   icon_url  = "/icon/tailscale.svg"
   hostname  = var.hostname != "" ? var.hostname : data.coder_workspace.me.name
-  state_dir = var.state_dir != "" ? var.state_dir : "/home/${data.coder_workspace_owner.me.name}/.config/tailscale"
   tags_json = jsonencode(var.tags)
-  tags_csv = join(",", var.tags)
+  tags_csv  = join(",", var.tags)
 }
 
 # Add required variables for your modules and remove any unneeded variables
@@ -162,23 +159,15 @@ variable "ssh" {
   description = "Enable Tailscale SSH. Allows other tailnet nodes to ssh into this workspace as defined by your tailnet policy."
 }
 
-variable "tailscale_version" {
-  type = string
-  default = "latest"
-  description = "Tailscale version to install."
-  validation {
-    condition     = can(regex("^(latest|[0-9]+\\.[0-9]+\\.[0-9]+)$", var.tailscale_version))
-    error_message = "Must be \"latest\" or a version like \"1.80.0\"."
-  }
-}
 
 variable "state_dir" {
-  type = string
+  type    = string
   default = ""
   description = <<-EOF
-    Directory for tailscaled state. Defaults to $HOME/.config/tailscale so
-    that node identity persists across workspace stop/start on VMs.
-    For ephemeral pods set to a non-persistent path like /tmp/tailscale-state.
+    Directory for tailscaled state files. Leave empty to use tailscaled's
+    default location. Override to a persistent path on VMs (e.g.
+    /var/lib/tailscale) or a non-persistent path on ephemeral pods
+    (e.g. /tmp/tailscale-state).
   EOF
 }
 
@@ -204,8 +193,7 @@ resource "coder_script" "install_tailscale" {
     ACCEPT_ROUTES       = var.accept_routes
     ADVERTISE_ROUTES    = join(",", var.advertise_routes)
     SSH                 = var.ssh
-    VERSION             = var.tailscale_version
-    STATE_DIR           = local.state_dir
+    STATE_DIR           = var.state_dir
   })
   run_on_start = true
   run_on_stop  = false
@@ -213,10 +201,10 @@ resource "coder_script" "install_tailscale" {
 
 output "hostname" {
   description = "Hostname registered in tailnet."
-  value = local.hostname
+  value       = local.hostname
 }
 
 output "state_dir" {
-  description = "Directory where tailscaled state is persisted."
-  value = local.state_dir
+  description = "Directory where tailscaled state is persisted. Empty string means tailscaled's default location."
+  value       = var.state_dir
 }

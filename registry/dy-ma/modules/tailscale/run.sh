@@ -19,7 +19,6 @@ ACCEPT_DNS="${ACCEPT_DNS}"
 ACCEPT_ROUTES="${ACCEPT_ROUTES}"
 ADVERTISE_ROUTES="${ADVERTISE_ROUTES}"
 SSH="${SSH}"
-VERSION="${VERSION}"
 STATE_DIR="${STATE_DIR}"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -32,52 +31,12 @@ has()  { command -v "$1" &>/dev/null; }
 
 install_tailscale() {
   if has tailscale; then
-    installed=$(tailscale version 2>/dev/null | awk 'NR==1{print $1}')
-    if [ "$VERSION" = "latest" ] || [ "$installed" = "$VERSION" ]; then
-      log "Tailscale already installed ($installed), skipping."
-      return
-    fi
-    log "Version mismatch (installed: $installed, want: $VERSION), reinstalling..."
-  fi
-
-  log "Installing Tailscale (version: $VERSION)..."
-
-  # For latest, the official install script handles all distro detection reliably.
-  if [ "$VERSION" = "latest" ]; then
-    curl -fsSL https://tailscale.com/install.sh | sh
-    log "Installed: $(tailscale version | head -1)"
+    log "Tailscale already installed ($(tailscale version 2>/dev/null | awk 'NR==1{print $1}')), skipping."
     return
   fi
 
-  # For pinned versions, use the package manager.
-  if has apt-get; then
-    export DEBIAN_FRONTEND=noninteractive
-    if [ ! -f /etc/apt/sources.list.d/tailscale.list ]; then
-      . /etc/os-release
-      [ -z "$VERSION_CODENAME" ] && die "Cannot determine OS codename from /etc/os-release."
-      curl -fsSL "https://pkgs.tailscale.com/stable/$${ID}/$${VERSION_CODENAME}.gpg" \
-        | sudo gpg --batch --no-tty --dearmor -o /usr/share/keyrings/tailscale-archive-keyring.gpg \
-        || die "Failed to add Tailscale GPG key for $${ID}/$${VERSION_CODENAME}."
-      echo "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] \
-https://pkgs.tailscale.com/stable/$${ID} $${VERSION_CODENAME} main" \
-        | sudo tee /etc/apt/sources.list.d/tailscale.list >/dev/null
-      sudo apt-get update -qq
-    fi
-    sudo apt-get install -y -qq "tailscale=${VERSION}"
-
-  elif has dnf || has yum; then
-    PKG=$(has dnf && echo dnf || echo yum)
-    if [ ! -f /etc/yum.repos.d/tailscale.repo ]; then
-      curl -fsSL https://pkgs.tailscale.com/stable/rhel/9/tailscale.repo \
-        | sudo tee /etc/yum.repos.d/tailscale.repo >/dev/null \
-        || die "Failed to add Tailscale yum repo."
-    fi
-    sudo "$PKG" install -y "tailscale-${VERSION}"
-
-  else
-    die "No supported package manager found. Cannot install pinned version $VERSION."
-  fi
-
+  log "Installing Tailscale..."
+  curl -fsSL https://tailscale.com/install.sh | sh
   log "Installed: $(tailscale version | head -1)"
 }
 
@@ -100,10 +59,12 @@ resolve_networking_mode() {
 start_tailscaled() {
   local mode="$1"
 
-  mkdir -p "$STATE_DIR"
-
   # Build daemon flags
-  local daemon_flags="--state=$STATE_DIR/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock"
+  local daemon_flags="--socket=/var/run/tailscale/tailscaled.sock"
+  if [ -n "$STATE_DIR" ]; then
+    mkdir -p "$STATE_DIR"
+    daemon_flags="--state=$STATE_DIR/tailscaled.state $daemon_flags"
+  fi
   if [ "$mode" = "userspace" ]; then
     daemon_flags="$daemon_flags --tun=userspace-networking"
     [ "$SOCKS5_PORT" != "0" ] && daemon_flags="$daemon_flags --socks5-server=localhost:$SOCKS5_PORT"

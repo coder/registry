@@ -20,7 +20,6 @@ describe("tailscale", async () => {
     accept_routes?: boolean;
     advertise_routes?: string;
     ssh?: boolean;
-    tailscale_version?: string;
     state_dir?: string;
   };
 
@@ -41,13 +40,11 @@ describe("tailscale", async () => {
     expect(state.outputs.hostname.value).toBe("my-workspace");
   });
 
-  it("defaults state_dir to ~/.config/tailscale under workspace owner home", async () => {
+  it("defaults state_dir to empty string", async () => {
     const state = await runTerraformApply<TestVariables>(import.meta.dir, {
       agent_id: "some-agent-id",
     });
-    expect(state.outputs.state_dir.value).toMatch(
-      /^\/home\/.+\/.config\/tailscale$/,
-    );
+    expect(state.outputs.state_dir.value).toBe("");
   });
 
   it("uses explicit state_dir", async () => {
@@ -81,26 +78,7 @@ describe("tailscale", async () => {
     }
   });
 
-  it("rejects tailscale_version with leading v", async () => {
-    try {
-      await runTerraformApply<TestVariables>(import.meta.dir, {
-        agent_id: "some-agent-id",
-        tailscale_version: "v1.80.0",
-      });
-      throw new Error("expected apply to fail");
-    } catch (e) {
-      expect(e).toBeInstanceOf(Error);
-    }
-  });
-
-  it("accepts a pinned tailscale_version", async () => {
-    await runTerraformApply<TestVariables>(import.meta.dir, {
-      agent_id: "some-agent-id",
-      tailscale_version: "1.80.0",
-    });
-  });
-
-  it("rejects tags without tag: prefix", async () => {
+it("rejects tags without tag: prefix", async () => {
     try {
       await runTerraformApply<TestVariables>(import.meta.dir, {
         agent_id: "some-agent-id",
