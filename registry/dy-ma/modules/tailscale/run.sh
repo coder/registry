@@ -42,43 +42,40 @@ install_tailscale() {
 
   log "Installing Tailscale (version: $VERSION)..."
 
+  # For latest, the official install script handles all distro detection reliably.
+  if [ "$VERSION" = "latest" ]; then
+    curl -fsSL https://tailscale.com/install.sh | sh
+    log "Installed: $(tailscale version | head -1)"
+    return
+  fi
+
+  # For pinned versions, use the package manager.
   if has apt-get; then
     export DEBIAN_FRONTEND=noninteractive
     if [ ! -f /etc/apt/sources.list.d/tailscale.list ]; then
-      curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/$(. /etc/os-release && echo "$VERSION_CODENAME").gpg \
-        | sudo gpg --dearmor -o /usr/share/keyrings/tailscale-archive-keyring.gpg 2>/dev/null \
-        || curl -fsSL https://pkgs.tailscale.com/stable/debian/$(. /etc/os-release && echo "$VERSION_CODENAME").gpg \
-             | sudo gpg --dearmor -o /usr/share/keyrings/tailscale-archive-keyring.gpg
       . /etc/os-release
+      [ -z "$VERSION_CODENAME" ] && die "Cannot determine OS codename from /etc/os-release."
+      curl -fsSL "https://pkgs.tailscale.com/stable/${ID}/${VERSION_CODENAME}.gpg" \
+        | sudo gpg --batch --no-tty --dearmor -o /usr/share/keyrings/tailscale-archive-keyring.gpg \
+        || die "Failed to add Tailscale GPG key for ${ID}/${VERSION_CODENAME}."
       echo "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] \
-https://pkgs.tailscale.com/stable/$ID $VERSION_CODENAME main" \
+https://pkgs.tailscale.com/stable/${ID} ${VERSION_CODENAME} main" \
         | sudo tee /etc/apt/sources.list.d/tailscale.list >/dev/null
       sudo apt-get update -qq
     fi
-    if [ "$VERSION" = "latest" ]; then
-      sudo apt-get install -y -qq tailscale
-    else
-      sudo apt-get install -y -qq "tailscale=$VERSION"
-    fi
+    sudo apt-get install -y -qq "tailscale=${VERSION}"
 
   elif has dnf || has yum; then
     PKG=$(has dnf && echo dnf || echo yum)
     if [ ! -f /etc/yum.repos.d/tailscale.repo ]; then
-      sudo "$PKG" config-manager --add-repo \
-        https://pkgs.tailscale.com/stable/rhel/9/tailscale.repo 2>/dev/null \
-        || curl -fsSL https://pkgs.tailscale.com/stable/rhel/9/tailscale.repo \
-             | sudo tee /etc/yum.repos.d/tailscale.repo >/dev/null
+      curl -fsSL https://pkgs.tailscale.com/stable/rhel/9/tailscale.repo \
+        | sudo tee /etc/yum.repos.d/tailscale.repo >/dev/null \
+        || die "Failed to add Tailscale yum repo."
     fi
-    if [ "$VERSION" = "latest" ]; then
-      sudo "$PKG" install -y tailscale
-    else
-      sudo "$PKG" install -y "tailscale-$VERSION"
-    fi
+    sudo "$PKG" install -y "tailscale-${VERSION}"
 
   else
-    log "No supported package manager found, using install script (latest only)."
-    [ "$VERSION" != "latest" ] && log "WARNING: install script cannot pin versions."
-    curl -fsSL https://tailscale.com/install.sh | sh
+    die "No supported package manager found. Cannot install pinned version $VERSION."
   fi
 
   log "Installed: $(tailscale version | head -1)"
