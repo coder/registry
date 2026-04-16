@@ -119,7 +119,7 @@ generate_auth_key() {
 
   log "Generating single-use auth key..."
   local key_response http_status
-  key_response=$(curl -sSL -w "\n%{http_code}" -X POST \
+  key_response=$(curl -sSL -w "\n%%{http_code}" -X POST \
     -H "Authorization: Bearer $access_token" \
     -H "Content-Type: application/json" \
     -d "{
