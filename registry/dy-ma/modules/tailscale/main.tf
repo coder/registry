@@ -14,7 +14,7 @@ data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
 locals {
-  icon_url  = "https://raw.githubusercontent.com/coder/coder/main/site/static/icon/code.svg"
+  icon_url  = "/icon/tailscale.svg"
   hostname  = var.hostname != "" ? var.hostname : data.coder_workspace.me.name
   state_dir = var.state_dir != "" ? var.state_dir : "/home/${data.coder_workspace_owner.me.name}/.config/tailscale"
   tags_json = jsonencode(var.tags)

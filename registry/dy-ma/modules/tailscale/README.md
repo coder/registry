@@ -1,71 +1,117 @@
 ---
-display_name: tailscale
-description: Describe what this module does
-icon: ../../../../.icons/<A_RELEVANT_ICON>.svg
+display_name: Tailscale
+description: Joins the workspace to your Tailscale network using OAuth or a pre-generated auth key.
+icon: ../../../../.icons/tailscale.svg
 verified: false
-tags: [helper]
+tags: [networking, tailscale]
 ---
 
-# tailscale
+# Tailscale
 
-<!-- Describes what this module does -->
+Installs [Tailscale](https://tailscale.com) and joins the workspace to your tailnet on start. Supports kernel and userspace networking, and works with both Tailscale's hosted service and self-hosted [Headscale](https://headscale.net).
 
 ```tf
 module "tailscale" {
-  count   = data.coder_workspace.me.start_count
-  source  = "registry.coder.com/NAMESPACE/tailscale/coder"
-  version = "1.0.0"
+  count               = data.coder_workspace.me.start_count
+  source              = "registry.coder.com/dy-ma/tailscale/coder"
+  version             = "1.0.0"
+  agent_id            = coder_agent.main.id
+  oauth_client_id     = var.tailscale_oauth_client_id
+  oauth_client_secret = var.tailscale_oauth_client_secret
 }
 ```
 
-<!-- Add a screencast or screenshot here  put them in .images directory -->
+Add the corresponding variables to your template so Terraform can receive the credentials:
+
+```tf
+variable "tailscale_oauth_client_id" {
+  type      = string
+  sensitive = true
+}
+
+variable "tailscale_oauth_client_secret" {
+  type      = string
+  sensitive = true
+}
+```
+
+Set them as [template variables](https://coder.com/docs/admin/templates/managing-templates/variables) in the Coder dashboard, or via environment variables when running `terraform apply` locally:
+
+```sh
+export TF_VAR_tailscale_oauth_client_id="tskey-client-xxxx"
+export TF_VAR_tailscale_oauth_client_secret="tskey-secret-xxxx"
+```
+
+> **Creating OAuth credentials:** In the Tailscale admin console go to **Settings → OAuth Clients** and create a client with the `auth_keys` scope and the ACL tags your workspaces will use (e.g. `tag:coder-workspace`).
 
 ## Examples
 
-### Example 1
+### VM workspace (persistent identity)
 
-Install the Dracula theme from [OpenVSX](https://open-vsx.org/):
+For VMs or long-lived containers where you want the node to keep its identity across workspace stop/start:
 
 ```tf
+module "tailscale" {
+  count               = data.coder_workspace.me.start_count
+  source              = "registry.coder.com/dy-ma/tailscale/coder"
+  version             = "1.0.0"
+  agent_id            = coder_agent.main.id
+  oauth_client_id     = var.tailscale_oauth_client_id
+  oauth_client_secret = var.tailscale_oauth_client_secret
+  ephemeral           = false
+  networking_mode     = "kernel"
+  state_dir           = "/var/lib/tailscale"
+}
+```
+
+### Ephemeral pod / unprivileged container
+
+For Kubernetes pods or Docker containers without access to `/dev/net/tun`. Userspace mode exposes a SOCKS5 proxy on port `1080` and an HTTP proxy on port `3128` for outbound tailnet access:
+
+```tf
+module "tailscale" {
+  count               = data.coder_workspace.me.start_count
+  source              = "registry.coder.com/dy-ma/tailscale/coder"
+  version             = "1.0.0"
+  agent_id            = coder_agent.main.id
+  oauth_client_id     = var.tailscale_oauth_client_id
+  oauth_client_secret = var.tailscale_oauth_client_secret
+  ephemeral           = true
+  networking_mode     = "userspace"
+  state_dir           = "/tmp/tailscale-state"
+}
+```
+
+### Pre-generated auth key
+
+If you prefer to manage key rotation externally, pass an auth key directly and skip the OAuth flow:
+
+```tf
+variable "tailscale_auth_key" {
+  type      = string
+  sensitive = true
+}
+
 module "tailscale" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/NAMESPACE/tailscale/coder"
+  source   = "registry.coder.com/dy-ma/tailscale/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
-  extensions = [
-    "dracula-theme.theme-dracula"
-  ]
+  auth_key = var.tailscale_auth_key
 }
 ```
 
-Enter the `<author>.<name>` into the extensions array and code-server will automatically install on start.
+### Headscale
 
-### Example 2
-
-Configure VS Code's [settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settingsjson) file:
+Point `tailscale_api_url` at your Headscale server and use a pre-generated auth key (Headscale does not support the Tailscale OAuth flow):
 
 ```tf
 module "tailscale" {
-  count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/NAMESPACE/tailscale/coder"
-  version    = "1.0.0"
-  agent_id   = coder_agent.main.id
-  extensions = ["dracula-theme.theme-dracula"]
-  settings = {
-    "workbench.colorTheme" = "Dracula"
-  }
-}
-```
-
-### Example 3
-
-Run code-server in the background, don't fetch it from GitHub:
-
-```tf
-module "tailscale" {
-  source   = "registry.coder.com/NAMESPACE/tailscale/coder"
-  version  = "1.0.0"
-  agent_id = coder_agent.main.id
-  offline  = true
+  count             = data.coder_workspace.me.start_count
+  source            = "registry.coder.com/dy-ma/tailscale/coder"
+  version           = "1.0.0"
+  agent_id          = coder_agent.main.id
+  auth_key          = var.tailscale_auth_key
+  tailscale_api_url = "https://headscale.example.com"
 }
 ```
