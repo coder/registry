@@ -23,7 +23,7 @@ STATE_DIR="${STATE_DIR}"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-log()  { echo "[tailscale] $*"; }
+log()  { echo "[tailscale] $*" >&2; }
 die()  { echo "[tailscale] ERROR: $*" >&2; exit 1; }
 has()  { command -v "$1" &>/dev/null; }
 
