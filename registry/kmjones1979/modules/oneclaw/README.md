@@ -1,7 +1,7 @@
 ---
 display_name: 1Claw
 description: Vault-backed secrets and MCP server wiring for 1Claw in Coder workspaces
-icon: ../../../../.icons/vault.svg
+icon: ../../../../.icons/1claw.svg
 verified: false
 tags: [secrets, mcp, ai]
 ---
