@@ -18,16 +18,15 @@ locals {
   tags_csv  = join(",", var.tags)
 }
 
-# Add required variables for your modules and remove any unneeded variables
 variable "agent_id" {
   type        = string
   description = "The ID of a Coder agent."
 }
 
 variable "auth_key" {
-  type      = string
-  sensitive = true
-  default   = ""
+  type        = string
+  sensitive   = true
+  default     = ""
   description = <<-EOF
     A pre-generated Tailscale or Headscale auth key. When set, the OAuth
     client credentials flow is skipped and this key is passed directly to
@@ -41,8 +40,8 @@ variable "auth_key" {
 }
 
 variable "tailscale_api_url" {
-  type    = string
-  default = "https://api.tailscale.com"
+  type        = string
+  default     = "https://api.tailscale.com"
   description = <<-EOF
     Base URL of the control server. Defaults to Tailscale's hosted service.
     Set this to your own server URL (e.g. a Headscale instance).
@@ -50,56 +49,56 @@ variable "tailscale_api_url" {
 }
 
 variable "oauth_client_id" {
-  type      = string
-  sensitive = true
-  default   = ""
+  type        = string
+  sensitive   = true
+  default     = ""
   description = "Tailscale OAuth client ID with the auth_keys scope."
 }
 
 variable "oauth_client_secret" {
-  type      = string
-  sensitive = true
-  default   = ""
+  type        = string
+  sensitive   = true
+  default     = ""
   description = "Tailscale OAuth client secret with the auth_keys scope."
 }
 
 variable "tailnet" {
-  type = string
-  default = "-"
+  type        = string
+  default     = "-"
   description = "Tailnet name. Defaults to '-' which resolves to the default tailnet for the Oauth client."
 }
 
 variable "hostname" {
-  type = string
-  default = ""
+  type        = string
+  default     = ""
   description = "Hostname to register in the tailnet. Leave blank to use the workspace name."
 }
 
 variable "tags" {
-  type = list(string)
-  default = [ "tag:coder-workspace" ]
+  type        = list(string)
+  default     = ["tag:coder-workspace"]
   description = "ACL tags to apply to the node."
   validation {
-    condition = alltrue([for t in var.tags : startswith(t, "tag:")])
+    condition     = alltrue([for t in var.tags : startswith(t, "tag:")])
     error_message = "All tags must start with \"tag:\"."
   }
 }
 
 variable "ephemeral" {
-  type = bool
-  default = true
+  type        = bool
+  default     = true
   description = "Whether to register the node as ephemeral."
 }
 
 variable "preauthorized" {
-  type = bool
-  default = true
+  type        = bool
+  default     = true
   description = "Skip manual device approval when the node joins the tailnet"
 }
 
 variable "networking_mode" {
-  type = string
-  default = "auto"
+  type        = string
+  default     = "auto"
   description = <<-EOF
     Tailscale networking mode.
 
@@ -112,14 +111,14 @@ variable "networking_mode" {
                 tailnet access.
   EOF
   validation {
-    condition = contains(["auto", "kernel", "userspace"], var.networking_mode)
+    condition     = contains(["auto", "kernel", "userspace"], var.networking_mode)
     error_message = "networking_mode must be one of: auto, kernel, userspace."
   }
 }
 
 variable "socks5_proxy_port" {
-  type = number
-  default = 1080
+  type        = number
+  default     = 1080
   description = <<-EOF
     Port for the SOCKS5 proxy exposed by tailscaled in userspace mode.
     Set to 0 to disable. Only active when networking_mode resolves to userspace.
@@ -127,8 +126,8 @@ variable "socks5_proxy_port" {
 }
 
 variable "http_proxy_port" {
-  type = number
-  default = 3128
+  type        = number
+  default     = 3128
   description = <<-EOF
     Port for the HTTP proxy exposed by tailscaled in userspace mode.
     Set to 0 to disable. Only active when networking_mode resolves to userspace.
@@ -136,33 +135,32 @@ variable "http_proxy_port" {
 }
 
 variable "accept_dns" {
-  type = bool
-  default = true
+  type        = bool
+  default     = true
   description = "Accept DNS configuration from the tailnet (MagicDNS)."
 }
 
 variable "accept_routes" {
-  type = bool
-  default = false
+  type        = bool
+  default     = false
   description = "Accept subnet routes advertised by other nodes in the tailnet"
 }
 
 variable "advertise_routes" {
-  type = list(string)
-  default = []
+  type        = list(string)
+  default     = []
   description = "CIDR ranges this workspace should advertise as subnet routes."
 }
 
 variable "ssh" {
-  type = bool
-  default = false
+  type        = bool
+  default     = false
   description = "Enable Tailscale SSH. Allows other tailnet nodes to ssh into this workspace as defined by your tailnet policy."
 }
 
-
 variable "extra_flags" {
-  type    = string
-  default = ""
+  type        = string
+  default     = ""
   description = <<-EOF
     Additional flags to append to the `tailscale up` command verbatim.
     Use this for any options not covered by dedicated variables, e.g.
@@ -171,8 +169,8 @@ variable "extra_flags" {
 }
 
 variable "state_dir" {
-  type    = string
-  default = ""
+  type        = string
+  default     = ""
   description = <<-EOF
     Directory for tailscaled state files. Leave empty to use tailscaled's
     default location. Override to a persistent path on VMs (e.g.

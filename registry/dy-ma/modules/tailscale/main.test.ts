@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { runTerraformApply, runTerraformInit, testRequiredVariables } from "~test";
+import {
+  runTerraformApply,
+  runTerraformInit,
+  testRequiredVariables,
+} from "~test";
 
 describe("tailscale", async () => {
   type TestVariables = {
@@ -79,7 +83,7 @@ describe("tailscale", async () => {
     }
   });
 
-it("rejects tags without tag: prefix", async () => {
+  it("rejects tags without tag: prefix", async () => {
     try {
       await runTerraformApply<TestVariables>(import.meta.dir, {
         agent_id: "some-agent-id",

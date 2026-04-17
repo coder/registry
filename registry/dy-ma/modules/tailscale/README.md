@@ -16,32 +16,13 @@ module "tailscale" {
   source              = "registry.coder.com/dy-ma/tailscale/coder"
   version             = "1.0.0"
   agent_id            = coder_agent.main.id
-  oauth_client_id     = var.tailscale_oauth_client_id
-  oauth_client_secret = var.tailscale_oauth_client_secret
+  oauth_client_id     = "kFvxxxxxxxxxx"
+  oauth_client_secret = "tskey-client-xxxx"
 }
 ```
 
-Add the corresponding variables to your template so Terraform can receive the credentials:
-
-```tf
-variable "tailscale_oauth_client_id" {
-  type      = string
-  sensitive = true
-}
-
-variable "tailscale_oauth_client_secret" {
-  type      = string
-  sensitive = true
-}
-```
-
-Set them as [template variables](https://coder.com/docs/admin/templates/managing-templates/variables) in the Coder dashboard, or via environment variables when running `terraform apply` locally:
-
-```sh
-export TF_VAR_tailscale_oauth_client_id="tskey-client-xxxx"
-export TF_VAR_tailscale_oauth_client_secret="tskey-secret-xxxx"
-```
-
+> Do not hardcode credentials in your template. Pass them via Terraform variables, `TF_VAR_*` environment variables, or your preferred secrets manager.
+>
 > **Creating OAuth credentials:** In the Tailscale admin console go to **Settings → OAuth Clients** and create a client with the `auth_keys` scope and the ACL tags your workspaces will use (e.g. `tag:coder-workspace`).
 
 ## Examples
@@ -56,8 +37,8 @@ module "tailscale" {
   source              = "registry.coder.com/dy-ma/tailscale/coder"
   version             = "1.0.0"
   agent_id            = coder_agent.main.id
-  oauth_client_id     = var.tailscale_oauth_client_id
-  oauth_client_secret = var.tailscale_oauth_client_secret
+  oauth_client_id     = "kFvxxxxxxxxxx"
+  oauth_client_secret = "tskey-client-xxxx"
   ephemeral           = false
   networking_mode     = "kernel"
   state_dir           = "/var/lib/tailscale"
@@ -74,8 +55,8 @@ module "tailscale" {
   source              = "registry.coder.com/dy-ma/tailscale/coder"
   version             = "1.0.0"
   agent_id            = coder_agent.main.id
-  oauth_client_id     = var.tailscale_oauth_client_id
-  oauth_client_secret = var.tailscale_oauth_client_secret
+  oauth_client_id     = "kFvxxxxxxxxxx"
+  oauth_client_secret = "tskey-client-xxxx"
   ephemeral           = true
   networking_mode     = "userspace"
   state_dir           = "/tmp/tailscale-state"
@@ -87,23 +68,18 @@ module "tailscale" {
 If you prefer to manage key rotation externally, pass an auth key directly and skip the OAuth flow:
 
 ```tf
-variable "tailscale_auth_key" {
-  type      = string
-  sensitive = true
-}
-
 module "tailscale" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/dy-ma/tailscale/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
-  auth_key = var.tailscale_auth_key
+  auth_key = "tskey-auth-xxxx"
 }
 ```
 
 ### Headscale
 
-Point `tailscale_api_url` at your Headscale server and use a pre-generated auth key (Headscale does not support the Tailscale OAuth flow):
+Point `tailscale_api_url` at your Headscale server and pass a pre-generated auth key:
 
 ```tf
 module "tailscale" {
@@ -111,7 +87,65 @@ module "tailscale" {
   source            = "registry.coder.com/dy-ma/tailscale/coder"
   version           = "1.0.0"
   agent_id          = coder_agent.main.id
-  auth_key          = var.tailscale_auth_key
+  auth_key          = "tskey-auth-xxxx"
   tailscale_api_url = "https://headscale.example.com"
+}
+```
+
+### Tailscale SSH
+
+Enable Tailscale SSH so tailnet members can reach workspaces directly without managing keys. The `tags` variable (default `["tag:coder-workspace"]`) controls which ACL tag the node advertises — override it if your policy uses a different tag.
+
+```tf
+module "tailscale" {
+  count               = data.coder_workspace.me.start_count
+  source              = "registry.coder.com/dy-ma/tailscale/coder"
+  version             = "1.0.0"
+  agent_id            = coder_agent.main.id
+  oauth_client_id     = "kFvxxxxxxxxxx"
+  oauth_client_secret = "tskey-client-xxxx"
+  ssh                 = true
+  tags                = ["tag:coder-workspace"] # override if needed
+}
+```
+
+You also need to allow SSH access in your [Tailscale ACL policy](https://login.tailscale.com/admin/acls). At minimum, add an SSH rule and a traffic rule for the tag:
+
+```json
+{
+  "tagOwners": {
+    "tag:coder-workspace": ["autogroup:admin"]
+  },
+  "acls": [
+    {
+      "action": "accept",
+      "src": ["autogroup:member"],
+      "dst": ["tag:coder-workspace:*"]
+    }
+  ],
+  "ssh": [
+    {
+      "action": "check",
+      "src": ["autogroup:member"],
+      "dst": ["tag:coder-workspace"],
+      "users": ["autogroup:nonroot", "root"]
+    }
+  ]
+}
+```
+
+### Extra flags
+
+Pass any additional `tailscale up` flags not covered by dedicated variables:
+
+```tf
+module "tailscale" {
+  count               = data.coder_workspace.me.start_count
+  source              = "registry.coder.com/dy-ma/tailscale/coder"
+  version             = "1.0.0"
+  agent_id            = coder_agent.main.id
+  oauth_client_id     = "kFvxxxxxxxxxx"
+  oauth_client_secret = "tskey-client-xxxx"
+  extra_flags         = "--exit-node=100.64.0.1"
 }
 ```

@@ -24,15 +24,18 @@ STATE_DIR="${STATE_DIR}"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-log()  { echo "[tailscale] $*" >&2; }
-die()  { echo "[tailscale] ERROR: $*" >&2; exit 1; }
-has()  { command -v "$1" &>/dev/null; }
+log() { echo "[tailscale] $*" >&2; }
+die() {
+  echo "[tailscale] ERROR: $*" >&2
+  exit 1
+}
+has() { command -v "$1" &> /dev/null; }
 
 # ── 1. Install Tailscale ──────────────────────────────────────────────────────
 
 install_tailscale() {
   if has tailscale; then
-    log "Tailscale already installed ($(tailscale version 2>/dev/null | awk 'NR==1{print $1}')), skipping."
+    log "Tailscale already installed ($(tailscale version 2> /dev/null | awk 'NR==1{print $1}')), skipping."
     return
   fi
 
@@ -72,25 +75,25 @@ start_tailscaled() {
     [ "$HTTP_PROXY_PORT" != "0" ] && daemon_flags="$daemon_flags --outbound-http-proxy-listen=localhost:$HTTP_PROXY_PORT"
   fi
 
-  if has systemctl && systemctl is-system-running --quiet 2>/dev/null; then
+  if has systemctl && systemctl is-system-running --quiet 2> /dev/null; then
     if [ "$mode" = "userspace" ]; then
       # Drop-in override so we don't touch the upstream unit file
       sudo mkdir -p /etc/systemd/system/tailscaled.service.d
       printf '[Service]\nExecStart=\nExecStart=-/usr/sbin/tailscaled %s\n' \
         "$daemon_flags" \
-        | sudo tee /etc/systemd/system/tailscaled.service.d/coder.conf >/dev/null
+        | sudo tee /etc/systemd/system/tailscaled.service.d/coder.conf > /dev/null
       sudo systemctl daemon-reload
     fi
     sudo systemctl enable --now tailscaled
     log "tailscaled started via systemd."
   else
-    if pgrep -x tailscaled &>/dev/null; then
+    if pgrep -x tailscaled &> /dev/null; then
       log "tailscaled already running."
       return
     fi
     sudo mkdir -p /var/run/tailscale
     # shellcheck disable=SC2086
-    sudo tailscaled $daemon_flags &>/tmp/tailscaled.log &
+    sudo tailscaled $daemon_flags &> /tmp/tailscaled.log &
     sleep 2
     log "tailscaled started in background."
   fi
@@ -103,7 +106,7 @@ start_tailscaled() {
 
 generate_auth_key() {
   has curl || die "curl is required."
-  has jq   || die "jq is required."
+  has jq || die "jq is required."
 
   log "Fetching Tailscale access token..."
   local token_response
@@ -162,11 +165,11 @@ bring_up() {
   flags="$flags --advertise-tags=$TAGS_CSV"
   flags="$flags --accept-dns=$ACCEPT_DNS"
   [ "$TAILSCALE_API_URL" != "https://api.tailscale.com" ] && flags="$flags --login-server=$TAILSCALE_API_URL"
-  [ "$ACCEPT_ROUTES" = "true" ]              && flags="$flags --accept-routes"
-  [ -n "$ADVERTISE_ROUTES" ]                 && flags="$flags --advertise-routes=$ADVERTISE_ROUTES"
-  [ "$SSH" = "true" ]                        && flags="$flags --ssh"
-  [ "$mode" = "userspace" ]                  && flags="$flags --netfilter-mode=off"
-  [ -n "$EXTRA_FLAGS" ]                      && flags="$flags $EXTRA_FLAGS"
+  [ "$ACCEPT_ROUTES" = "true" ] && flags="$flags --accept-routes"
+  [ -n "$ADVERTISE_ROUTES" ] && flags="$flags --advertise-routes=$ADVERTISE_ROUTES"
+  [ "$SSH" = "true" ] && flags="$flags --ssh"
+  [ "$mode" = "userspace" ] && flags="$flags --netfilter-mode=off"
+  [ -n "$EXTRA_FLAGS" ] && flags="$flags $EXTRA_FLAGS"
 
   if [ -n "$auth_key" ]; then
     # shellcheck disable=SC2086
@@ -192,7 +195,7 @@ configure_proxy_env() {
 
   if [ -n "$lines" ]; then
     printf '# Set by tailscale Coder module%s\n' "$lines" \
-      | sudo tee /etc/profile.d/tailscale-proxy.sh >/dev/null
+      | sudo tee /etc/profile.d/tailscale-proxy.sh > /dev/null
     log "Proxy env vars written to /etc/profile.d/tailscale-proxy.sh"
   fi
 }
@@ -212,7 +215,7 @@ main() {
   if [ -n "$AUTH_KEY" ]; then
     log "Using provided auth key."
     auth_key="$AUTH_KEY"
-  elif sudo tailscale status --json 2>/dev/null | grep -q '"BackendState":"Running"'; then
+  elif sudo tailscale status --json 2> /dev/null | grep -q '"BackendState":"Running"'; then
     log "Tailscale already connected. Re-applying flags..."
     # auth_key stays empty — bring_up will skip --auth-key
   else
