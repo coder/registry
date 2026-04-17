@@ -17,16 +17,6 @@ if [ -n "$AGENTAPI_CHAT_BASE_PATH" ]; then
   export AGENTAPI_CHAT_BASE_PATH
 fi
 
-# Use boundary wrapper if configured by agentapi module.
-# AGENTAPI_BOUNDARY_PREFIX is set by the agentapi module's main.sh
-# and points to a wrapper script that runs the command through coder boundary.
-if [ -n "${AGENTAPI_BOUNDARY_PREFIX:-}" ]; then
-  echo "Starting with boundary: ${AGENTAPI_BOUNDARY_PREFIX}" >> /home/coder/test-agentapi-start.log
-  agentapi server --port "$port" --term-width 67 --term-height 1190 -- \
-    "${AGENTAPI_BOUNDARY_PREFIX}" bash -c aiagent \
-    > "$log_file_path" 2>&1
-else
-  agentapi server --port "$port" --term-width 67 --term-height 1190 -- \
-    bash -c aiagent \
-    > "$log_file_path" 2>&1
-fi
+agentapi server --port "$port" --term-width 67 --term-height 1190 -- \
+  bash -c aiagent \
+  > "$log_file_path" 2>&1

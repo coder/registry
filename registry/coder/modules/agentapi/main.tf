@@ -93,29 +93,6 @@ variable "cli_app_slug" {
   description = "The slug of the CLI workspace app."
 }
 
-variable "pre_install_script" {
-  type        = string
-  description = "Custom script to run before installing the agent used by AgentAPI."
-  default     = null
-}
-
-variable "install_script" {
-  type        = string
-  description = "Script to install the agent used by AgentAPI."
-  default     = ""
-}
-
-variable "post_install_script" {
-  type        = string
-  description = "Custom script to run after installing the agent used by AgentAPI."
-  default     = null
-}
-
-variable "start_script" {
-  type        = string
-  description = "Script that starts AgentAPI."
-}
-
 variable "install_agentapi" {
   type        = bool
   description = "Whether to install AgentAPI."
@@ -170,36 +147,6 @@ variable "module_dir_name" {
   description = "Name of the subdirectory in the home directory for module files."
 }
 
-variable "enable_boundary" {
-  type        = bool
-  description = "Enable coder boundary for network filtering. Requires boundary_config to be set."
-  default     = false
-}
-
-variable "boundary_config_path" {
-  type        = string
-  description = "Path to boundary config.yaml inside the workspace. If provided, exposed as BOUNDARY_CONFIG env var."
-  default     = ""
-}
-
-variable "boundary_version" {
-  type        = string
-  description = "Boundary version. When use_boundary_directly is true, a release version should be provided or 'latest' for the latest release. When compile_boundary_from_source is true, a valid git reference should be provided (tag, commit, branch)."
-  default     = "latest"
-}
-
-variable "compile_boundary_from_source" {
-  type        = bool
-  description = "Whether to compile boundary from source instead of using the official install script."
-  default     = false
-}
-
-variable "use_boundary_directly" {
-  type        = bool
-  description = "Whether to use boundary binary directly instead of coder boundary subcommand. When false (default), uses coder boundary subcommand. When true, installs and uses boundary binary from release."
-  default     = false
-}
-
 variable "enable_state_persistence" {
   type        = bool
   description = "Enable AgentAPI conversation state persistence across restarts."
@@ -218,11 +165,10 @@ variable "pid_file_path" {
   default     = ""
 }
 
-resource "coder_env" "boundary_config" {
-  count    = var.enable_boundary && var.boundary_config_path != "" ? 1 : 0
-  agent_id = var.agent_id
-  name     = "BOUNDARY_CONFIG"
-  value    = var.boundary_config_path
+variable "module_directory" {
+  type        = string
+  description = ""
+  default     = "$HOME/.coder-modules/coder/agentapi"
 }
 
 locals {
@@ -233,10 +179,6 @@ locals {
 
   # we always trim the slash for consistency
   workdir                            = trimsuffix(var.folder, "/")
-  encoded_pre_install_script         = var.pre_install_script != null ? base64encode(var.pre_install_script) : ""
-  encoded_install_script             = var.install_script != null ? base64encode(var.install_script) : ""
-  encoded_post_install_script        = var.post_install_script != null ? base64encode(var.post_install_script) : ""
-  agentapi_start_script_b64          = base64encode(var.start_script)
   agentapi_wait_for_start_script_b64 = base64encode(file("${path.module}/scripts/agentapi-wait-for-start.sh"))
   // Chat base path is only set if not using a subdomain.
   // NOTE:
@@ -248,7 +190,10 @@ locals {
   main_script             = file("${path.module}/scripts/main.sh")
   shutdown_script         = file("${path.module}/scripts/agentapi-shutdown.sh")
   lib_script              = file("${path.module}/scripts/lib.sh")
-  boundary_script         = file("${path.module}/scripts/boundary.sh")
+
+  main_script_destination     = "${var.module_directory}/main.sh"
+  lib_script_destination      = "${var.module_directory}/agentapi-lib.sh"
+  shutdown_script_destination = "${var.module_directory}/agentapi-shutdown.sh"
 }
 
 resource "coder_script" "agentapi" {
@@ -260,34 +205,24 @@ resource "coder_script" "agentapi" {
     set -o errexit
     set -o pipefail
 
-    echo -n '${base64encode(local.main_script)}' | base64 -d > /tmp/main.sh
+    echo -n '${base64encode(local.main_script)}' | base64 -d > "${local.main_script_destination}"
     chmod +x /tmp/main.sh
-    echo -n '${base64encode(local.lib_script)}' | base64 -d > /tmp/agentapi-lib.sh
-    
-    echo -n '${base64encode(local.boundary_script)}' | base64 -d > /tmp/agentapi-boundary.sh
-    chmod +x /tmp/agentapi-boundary.sh
+    echo -n '${base64encode(local.lib_script)}' | base64 -d > "${local.lib_script_destination}"
 
     ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
     ARG_WORKDIR="$(echo -n '${base64encode(local.workdir)}' | base64 -d)" \
-    ARG_PRE_INSTALL_SCRIPT="$(echo -n '${local.encoded_pre_install_script}' | base64 -d)" \
-    ARG_INSTALL_SCRIPT="$(echo -n '${local.encoded_install_script}' | base64 -d)" \
     ARG_INSTALL_AGENTAPI='${var.install_agentapi}' \
     ARG_AGENTAPI_VERSION='${var.agentapi_version}' \
-    ARG_START_SCRIPT="$(echo -n '${local.agentapi_start_script_b64}' | base64 -d)" \
     ARG_WAIT_FOR_START_SCRIPT="$(echo -n '${local.agentapi_wait_for_start_script_b64}' | base64 -d)" \
-    ARG_POST_INSTALL_SCRIPT="$(echo -n '${local.encoded_post_install_script}' | base64 -d)" \
     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     ARG_AGENTAPI_CHAT_BASE_PATH='${local.agentapi_chat_base_path}' \
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
-    ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
-    ARG_BOUNDARY_VERSION='${var.boundary_version}' \
-    ARG_COMPILE_BOUNDARY_FROM_SOURCE='${var.compile_boundary_from_source}' \
-    ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
     ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
     ARG_STATE_FILE_PATH='${var.state_file_path}' \
     ARG_PID_FILE_PATH='${var.pid_file_path}' \
-    /tmp/main.sh
+    ARG_LIB_SCRIPT_PATH='${local.lib_script_destination}' \
+    "${local.main_script_destination}"
     EOT
   run_on_start = true
 }
@@ -301,9 +236,9 @@ resource "coder_script" "agentapi_shutdown" {
     #!/bin/bash
     set -o pipefail
 
-    echo -n '${base64encode(local.shutdown_script)}' | base64 -d > /tmp/agentapi-shutdown.sh
+    echo -n '${base64encode(local.shutdown_script)}' | base64 -d > "${local.shutdown_script_destination}"
     chmod +x /tmp/agentapi-shutdown.sh
-    echo -n '${base64encode(local.lib_script)}' | base64 -d > /tmp/agentapi-lib.sh
+    echo -n '${base64encode(local.lib_script)}' | base64 -d > "${local.lib_script_destination}"
 
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
@@ -311,7 +246,8 @@ resource "coder_script" "agentapi_shutdown" {
     ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
     ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
     ARG_PID_FILE_PATH='${var.pid_file_path}' \
-    /tmp/agentapi-shutdown.sh
+    ARG_LIB_SCRIPT_PATH='${local.lib_script_destination}' \
+    "${local.shutdown_script_destination}"
     EOT
 }
 
