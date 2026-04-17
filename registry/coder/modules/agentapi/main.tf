@@ -222,7 +222,7 @@ resource "coder_script" "agentapi" {
     ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
     ARG_STATE_FILE_PATH='${var.state_file_path}' \
     ARG_PID_FILE_PATH='${var.pid_file_path}' \
-    ARG_LIB_SCRIPT_PATH='${local.lib_script_destination}' \
+    ARG_LIB_SCRIPT_PATH="${local.lib_script_destination}" \
     "${local.main_script_destination}"
     EOT
   run_on_start = true
@@ -248,7 +248,7 @@ resource "coder_script" "agentapi_shutdown" {
     ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
     ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
     ARG_PID_FILE_PATH='${var.pid_file_path}' \
-    ARG_LIB_SCRIPT_PATH='${local.lib_script_destination}' \
+    ARG_LIB_SCRIPT_PATH="${local.lib_script_destination}" \
     "${local.shutdown_script_destination}"
     EOT
 }
