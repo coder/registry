@@ -205,8 +205,9 @@ resource "coder_script" "agentapi" {
     set -o errexit
     set -o pipefail
 
+    mkdir -p "${var.module_directory}"
     echo -n '${base64encode(local.main_script)}' | base64 -d > "${local.main_script_destination}"
-    chmod +x /tmp/main.sh
+    chmod +x "${local.main_script_destination}"
     echo -n '${base64encode(local.lib_script)}' | base64 -d > "${local.lib_script_destination}"
 
     ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
@@ -236,8 +237,9 @@ resource "coder_script" "agentapi_shutdown" {
     #!/bin/bash
     set -o pipefail
 
+    mkdir -p "${var.module_directory}"
     echo -n '${base64encode(local.shutdown_script)}' | base64 -d > "${local.shutdown_script_destination}"
-    chmod +x /tmp/agentapi-shutdown.sh
+    chmod +x "${local.shutdown_script_destination}"
     echo -n '${base64encode(local.lib_script)}' | base64 -d > "${local.lib_script_destination}"
 
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
