@@ -75,7 +75,11 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
   // Write the test start script directly to the module scripts dir,
   // since start_script is no longer a Terraform variable.
   const startScript = await loadTestFile(import.meta.dir, "agentapi-start.sh");
-  await execContainer(id, ["bash", "-c", `mkdir -p /home/coder/${moduleDirName}/scripts`]);
+  await execContainer(id, [
+    "bash",
+    "-c",
+    `mkdir -p /home/coder/${moduleDirName}/scripts`,
+  ]);
   await writeExecutable({
     containerId: id,
     filePath: `/home/coder/${moduleDirName}/scripts/agentapi-start.sh`,
