@@ -59,7 +59,6 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
       cli_app_slug: "agentapi-cli",
       agentapi_version: "latest",
       module_dir_name: moduleDirName,
-      start_script: await loadTestFile(import.meta.dir, "agentapi-start.sh"),
       folder: projectDir,
       ...props?.moduleVariables,
     },
@@ -72,6 +71,15 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
     containerId: id,
     filePath: "/usr/bin/aiagent",
     content: await loadTestFile(import.meta.dir, "ai-agent-mock.js"),
+  });
+  // Write the test start script directly to the module scripts dir,
+  // since start_script is no longer a Terraform variable.
+  const startScript = await loadTestFile(import.meta.dir, "agentapi-start.sh");
+  await execContainer(id, ["bash", "-c", `mkdir -p /home/coder/${moduleDirName}/scripts`]);
+  await writeExecutable({
+    containerId: id,
+    filePath: `/home/coder/${moduleDirName}/scripts/agentapi-start.sh`,
+    content: startScript,
   });
   return { id };
 };
@@ -102,36 +110,6 @@ describe("agentapi", async () => {
     });
     await execModuleScript(id);
     await expectAgentAPIStarted(id, 3827);
-  });
-
-  test("pre-post-install-scripts", async () => {
-    const { id } = await setup({
-      moduleVariables: {
-        pre_install_script: `#!/bin/bash\necho "pre-install"`,
-        install_script: `#!/bin/bash\necho "install"`,
-        post_install_script: `#!/bin/bash\necho "post-install"`,
-      },
-    });
-
-    await execModuleScript(id);
-    await expectAgentAPIStarted(id);
-
-    const preInstallLog = await readFileContainer(
-      id,
-      `/home/coder/${moduleDirName}/pre_install.log`,
-    );
-    const installLog = await readFileContainer(
-      id,
-      `/home/coder/${moduleDirName}/install.log`,
-    );
-    const postInstallLog = await readFileContainer(
-      id,
-      `/home/coder/${moduleDirName}/post_install.log`,
-    );
-
-    expect(preInstallLog).toContain("pre-install");
-    expect(installLog).toContain("install");
-    expect(postInstallLog).toContain("post-install");
   });
 
   test("install-agentapi", async () => {
@@ -397,7 +375,7 @@ describe("agentapi", async () => {
       return await execContainer(containerId, [
         "bash",
         "-c",
-        `ARG_TASK_ID=${taskId} ARG_AGENTAPI_PORT=3284 ARG_PID_FILE_PATH=${pidFilePath} ARG_ENABLE_STATE_PERSISTENCE=${enableStatePersistence} CODER_AGENT_URL=http://localhost:18080 CODER_AGENT_TOKEN=test-token /tmp/shutdown.sh`,
+        `ARG_TASK_ID=${taskId} ARG_AGENTAPI_PORT=3284 ARG_PID_FILE_PATH=${pidFilePath} ARG_ENABLE_STATE_PERSISTENCE=${enableStatePersistence} ARG_LIB_SCRIPT_PATH=/tmp/agentapi-lib.sh CODER_AGENT_URL=http://localhost:18080 CODER_AGENT_TOKEN=test-token /tmp/shutdown.sh`,
       ]);
     };
 
@@ -572,7 +550,7 @@ describe("agentapi", async () => {
       const result = await execContainer(id, [
         "bash",
         "-c",
-        `ARG_TASK_ID=test-task ARG_AGENTAPI_PORT=3284 ARG_MODULE_DIR_NAME=${moduleDirName} ARG_ENABLE_STATE_PERSISTENCE=true CODER_AGENT_URL=http://localhost:18080 CODER_AGENT_TOKEN=test-token /tmp/shutdown.sh`,
+        `ARG_TASK_ID=test-task ARG_AGENTAPI_PORT=3284 ARG_MODULE_DIR_NAME=${moduleDirName} ARG_ENABLE_STATE_PERSISTENCE=true ARG_LIB_SCRIPT_PATH=/tmp/agentapi-lib.sh CODER_AGENT_URL=http://localhost:18080 CODER_AGENT_TOKEN=test-token /tmp/shutdown.sh`,
       ]);
 
       expect(result.exitCode).toBe(0);
