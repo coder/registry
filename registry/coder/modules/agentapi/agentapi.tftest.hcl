@@ -8,7 +8,6 @@ variables {
   cli_app_display_name = "Test CLI"
   cli_app_slug         = "test-cli"
   start_script         = "echo test"
-  module_dir_name      = ".test-module"
 }
 
 run "default_values" {
@@ -49,11 +48,6 @@ run "default_values" {
   assert {
     condition     = can(regex("ARG_PID_FILE_PATH", coder_script.agentapi_shutdown.script))
     error_message = "shutdown script should contain ARG_PID_FILE_PATH"
-  }
-
-  assert {
-    condition     = can(regex("ARG_MODULE_DIR_NAME", coder_script.agentapi_shutdown.script))
-    error_message = "shutdown script should contain ARG_MODULE_DIR_NAME"
   }
 
   assert {

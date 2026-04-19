@@ -3,7 +3,7 @@ set -e
 set -x
 
 set -o nounset
-MODULE_DIR_NAME="$ARG_MODULE_DIR_NAME"
+MODULE_DIRECTORY="$ARG_MODULE_DIRECTORY"
 WORKDIR="$ARG_WORKDIR"
 INSTALL_AGENTAPI="$ARG_INSTALL_AGENTAPI"
 AGENTAPI_VERSION="$ARG_AGENTAPI_VERSION"
@@ -25,8 +25,7 @@ command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
 
-module_path="$HOME/${MODULE_DIR_NAME}"
-mkdir -p "$module_path/scripts"
+mkdir -p "${MODULE_DIRECTORY}/scripts"
 
 # Check for jq dependency if task log snapshot is enabled.
 if [[ $TASK_LOG_SNAPSHOT == true ]] && [[ -n $TASK_ID ]]; then

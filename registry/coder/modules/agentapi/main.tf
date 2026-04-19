@@ -142,11 +142,6 @@ variable "agentapi_subdomain" {
   }
 }
 
-variable "module_dir_name" {
-  type        = string
-  description = "Name of the subdirectory in the home directory for module files."
-}
-
 variable "enable_state_persistence" {
   type        = bool
   description = "Enable AgentAPI conversation state persistence across restarts."
@@ -155,13 +150,13 @@ variable "enable_state_persistence" {
 
 variable "state_file_path" {
   type        = string
-  description = "Path to the AgentAPI state file. Defaults to $HOME/<module_dir_name>/agentapi-state.json."
+  description = "Path to the AgentAPI state file. Defaults to <module_directory>/agentapi-state.json."
   default     = ""
 }
 
 variable "pid_file_path" {
   type        = string
-  description = "Path to the AgentAPI PID file. Defaults to $HOME/<module_dir_name>/agentapi.pid."
+  description = "Path to the AgentAPI PID file. Defaults to <module_directory>/agentapi.pid."
   default     = ""
 }
 
@@ -210,7 +205,7 @@ resource "coder_script" "agentapi" {
     chmod +x "${local.main_script_destination}"
     echo -n '${base64encode(local.lib_script)}' | base64 -d > "${local.lib_script_destination}"
 
-    ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
+    ARG_MODULE_DIRECTORY='${var.module_directory}' \
     ARG_WORKDIR="$(echo -n '${base64encode(local.workdir)}' | base64 -d)" \
     ARG_INSTALL_AGENTAPI='${var.install_agentapi}' \
     ARG_AGENTAPI_VERSION='${var.agentapi_version}' \
@@ -242,11 +237,11 @@ resource "coder_script" "agentapi_shutdown" {
     chmod +x "${local.shutdown_script_destination}"
     echo -n '${base64encode(local.lib_script)}' | base64 -d > "${local.lib_script_destination}"
 
+    ARG_MODULE_DIRECTORY='${var.module_directory}' \
     ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
     ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
     ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
-    ARG_MODULE_DIR_NAME='${var.module_dir_name}' \
     ARG_PID_FILE_PATH='${var.pid_file_path}' \
     ARG_LIB_SCRIPT_PATH="${local.lib_script_destination}" \
     "${local.shutdown_script_destination}"
