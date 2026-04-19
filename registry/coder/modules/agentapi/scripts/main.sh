@@ -76,8 +76,8 @@ if ! command_exists agentapi; then
   exit 1
 fi
 
-echo -n "${WAIT_FOR_START_SCRIPT}" > "$module_path/scripts/agentapi-wait-for-start.sh"
-chmod +x "$module_path/scripts/agentapi-wait-for-start.sh"
+echo -n "${WAIT_FOR_START_SCRIPT}" > "${MODULE_DIRECTORY}/scripts/agentapi-wait-for-start.sh"
+chmod +x "${MODULE_DIRECTORY}/scripts/agentapi-wait-for-start.sh"
 
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
@@ -88,18 +88,18 @@ export AGENTAPI_CHAT_BASE_PATH="${AGENTAPI_CHAT_BASE_PATH:-}"
 # Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
 export AGENTAPI_ALLOWED_HOSTS="*"
 
-export AGENTAPI_PID_FILE="${PID_FILE_PATH:-$module_path/agentapi.pid}"
+export AGENTAPI_PID_FILE="${PID_FILE_PATH:-${MODULE_DIRECTORY}/agentapi.pid}"
 # Only set state env vars when persistence is enabled and the binary supports
 # it. State persistence requires agentapi >= v0.12.0.
 if [ "${ENABLE_STATE_PERSISTENCE}" = "true" ]; then
   actual_version=$(agentapi_version)
   if version_at_least 0.12.0 "$actual_version"; then
-    export AGENTAPI_STATE_FILE="${STATE_FILE_PATH:-$module_path/agentapi-state.json}"
+    export AGENTAPI_STATE_FILE="${STATE_FILE_PATH:-${MODULE_DIRECTORY}/agentapi-state.json}"
     export AGENTAPI_SAVE_STATE="true"
     export AGENTAPI_LOAD_STATE="true"
   else
     echo "Warning: State persistence requires agentapi >= v0.12.0 (current: ${actual_version:-unknown}), skipping."
   fi
 fi
-nohup "$module_path/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &> "$module_path/agentapi-start.log" &
-"$module_path/scripts/agentapi-wait-for-start.sh" "${AGENTAPI_PORT}"
+nohup "${MODULE_DIRECTORY}/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &> "${MODULE_DIRECTORY}/agentapi-start.log" &
+"${MODULE_DIRECTORY}/scripts/agentapi-wait-for-start.sh" "${AGENTAPI_PORT}"

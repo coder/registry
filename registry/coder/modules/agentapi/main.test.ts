@@ -44,7 +44,7 @@ interface SetupProps {
   moduleVariables?: Record<string, string>;
 }
 
-const moduleDirName = ".agentapi-module";
+const moduleDirectory = "/home/coder/.agentapi-module";
 
 const setup = async (props?: SetupProps): Promise<{ id: string }> => {
   const projectDir = "/home/coder/project";
@@ -58,7 +58,7 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
       cli_app_display_name: "AgentAPI CLI",
       cli_app_slug: "agentapi-cli",
       agentapi_version: "latest",
-      module_dir_name: moduleDirName,
+      module_directory: moduleDirectory,
       folder: projectDir,
       ...props?.moduleVariables,
     },
@@ -78,11 +78,11 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
   await execContainer(id, [
     "bash",
     "-c",
-    `mkdir -p /home/coder/${moduleDirName}/scripts`,
+    `mkdir -p ${moduleDirectory}/scripts`,
   ]);
   await writeExecutable({
     containerId: id,
-    filePath: `/home/coder/${moduleDirName}/scripts/agentapi-start.sh`,
+    filePath: `${moduleDirectory}/scripts/agentapi-start.sh`,
     content: startScript,
   });
   return { id };
@@ -295,10 +295,10 @@ describe("agentapi", async () => {
       "/home/coder/agentapi-mock.log",
     );
     expect(mockLog).toContain(
-      `AGENTAPI_STATE_FILE: /home/coder/${moduleDirName}/agentapi-state.json`,
+      `AGENTAPI_STATE_FILE: ${moduleDirectory}/agentapi-state.json`,
     );
     expect(mockLog).toContain(
-      `AGENTAPI_PID_FILE: /home/coder/${moduleDirName}/agentapi.pid`,
+      `AGENTAPI_PID_FILE: ${moduleDirectory}/agentapi.pid`,
     );
     expect(mockLog).toContain("AGENTAPI_SAVE_STATE: true");
     expect(mockLog).toContain("AGENTAPI_LOAD_STATE: true");
@@ -524,15 +524,15 @@ describe("agentapi", async () => {
       expect(result.stdout).toContain("Sending SIGTERM to AgentAPI");
     });
 
-    test("resolves default PID path from MODULE_DIR_NAME", async () => {
+    test("resolves default PID path from MODULE_DIRECTORY", async () => {
       const { id } = await setup({
         moduleVariables: {},
         skipAgentAPIMock: true,
       });
-      // Start mock with PID file at the module_dir_name default location.
-      const defaultPidPath = `/home/coder/${moduleDirName}/agentapi.pid`;
+      // Start mock with PID file at the module_directory default location.
+      const defaultPidPath = `${moduleDirectory}/agentapi.pid`;
       await setupMocks(id, "normal", 204, defaultPidPath);
-      // Don't pass pidFilePath - let shutdown script compute it from MODULE_DIR_NAME.
+      // Don't pass pidFilePath - let shutdown script compute it from MODULE_DIRECTORY.
       const shutdownScript = await loadTestFile(
         import.meta.dir,
         "../scripts/agentapi-shutdown.sh",
@@ -554,7 +554,7 @@ describe("agentapi", async () => {
       const result = await execContainer(id, [
         "bash",
         "-c",
-        `ARG_TASK_ID=test-task ARG_AGENTAPI_PORT=3284 ARG_MODULE_DIR_NAME=${moduleDirName} ARG_ENABLE_STATE_PERSISTENCE=true ARG_LIB_SCRIPT_PATH=/tmp/agentapi-lib.sh CODER_AGENT_URL=http://localhost:18080 CODER_AGENT_TOKEN=test-token /tmp/shutdown.sh`,
+        `ARG_TASK_ID=test-task ARG_AGENTAPI_PORT=3284 ARG_MODULE_DIRECTORY=${moduleDirectory} ARG_ENABLE_STATE_PERSISTENCE=true ARG_LIB_SCRIPT_PATH=/tmp/agentapi-lib.sh CODER_AGENT_URL=http://localhost:18080 CODER_AGENT_TOKEN=test-token /tmp/shutdown.sh`,
       ]);
 
       expect(result.exitCode).toBe(0);
@@ -568,7 +568,7 @@ describe("agentapi", async () => {
         skipAgentAPIMock: true,
       });
       await setupMocks(id, "normal", 204);
-      // No pidFilePath and no MODULE_DIR_NAME, so no PID file can be resolved.
+      // No pidFilePath and no MODULE_DIRECTORY, so no PID file can be resolved.
       const result = await runShutdownScript(id, "test-task", "", "false");
 
       expect(result.exitCode).toBe(0);

@@ -5,8 +5,8 @@ set -o pipefail
 use_prompt=${1:-false}
 port=${2:-3284}
 
-module_path="$HOME/.agentapi-module"
-log_file_path="$module_path/agentapi.log"
+module_directory="$HOME/.agentapi-module"
+log_file_path="$module_directory/agentapi.log"
 
 echo "using prompt: $use_prompt" >> /home/coder/test-agentapi-start.log
 echo "using port: $port" >> /home/coder/test-agentapi-start.log
