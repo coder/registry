@@ -26,26 +26,8 @@ module "agentapi" {
   web_app_display_name = "Goose"
   cli_app_slug         = "goose-cli"
   cli_app_display_name = "Goose CLI"
-  module_dir_name      = local.module_dir_name
+  module_directory     = local.module_directory
   install_agentapi     = var.install_agentapi
-  pre_install_script   = var.pre_install_script
-  post_install_script  = var.post_install_script
-  start_script         = local.start_script
-  install_script       = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
-
-    ARG_PROVIDER='${var.goose_provider}' \
-    ARG_MODEL='${var.goose_model}' \
-    ARG_GOOSE_CONFIG="$(echo -n '${base64encode(local.combined_extensions)}' | base64 -d)" \
-    ARG_INSTALL='${var.install_goose}' \
-    ARG_GOOSE_VERSION='${var.goose_version}' \
-    /tmp/install.sh
-  EOT
 }
 ```
 
@@ -67,7 +49,7 @@ module "agentapi" {
 AgentAPI can save and restore conversation state across workspace restarts.
 This is disabled by default and requires agentapi binary >= v0.12.0.
 
-State and PID files are stored in `$HOME/<module_dir_name>/` alongside other module files (e.g. `$HOME/.claude-module/agentapi-state.json`).
+State and PID files are stored in the `module_directory` alongside other module files (e.g. `$HOME/.coder-modules/coder/claude-code/agentapi-state.json`).
 
 To enable:
 
