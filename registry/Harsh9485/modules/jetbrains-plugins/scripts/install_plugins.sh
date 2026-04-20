@@ -1,5 +1,5 @@
 #!/bin/bash
-# set -euo pipefail
+set -euo pipefail
 
 LOGFILE="$HOME/.config/JetBrains/install_plugins.log"
 TOOLBOX_BASE="$HOME/.local/share/JetBrains/Toolbox/apps"
