@@ -31,7 +31,7 @@ jobs:
           bun-version: latest
 
       - name: Set up Terraform
-        uses: coder/coder/.github/actions/setup-tf@2f5d21d1be7864b3e21d9c0b8e87d3ba229a1140 # v2.31.9
+        uses: coder/coder/.github/actions/setup-tf@34584e909bbe6f501fb2cbdc994325b4d3f9e2ef # v2.32.0
 
       - name: Install dependencies
         run: bun install
