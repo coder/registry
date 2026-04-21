@@ -18,7 +18,7 @@ integration.
 ```tf
 module "jetbrains_plugins" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/Harsh9485/jetbrains-plugins/coder"
+  source   = "registry.coder.com/harsh9485/jetbrains-plugins/coder"
   version  = "0.1.0"
   agent_id = coder_agent.main.id
 
@@ -56,7 +56,7 @@ module "jetbrains" {
 
 module "jetbrains_plugins" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/Harsh9485/jetbrains-plugins/coder"
+  source   = "registry.coder.com/harsh9485/jetbrains-plugins/coder"
   version  = "0.1.0"
   agent_id = coder_agent.main.id
 
