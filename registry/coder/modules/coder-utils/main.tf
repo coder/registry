@@ -199,3 +199,19 @@ output "script_names" {
     start        = var.start_script != null ? local.start_script_name : ""
   }
 }
+
+# Filtered, run-order list of the `coder exp sync` names for every
+# coder_script this module actually creates. Absent scripts (pre/post/start
+# when their inputs are null) are omitted entirely, not padded with empty
+# strings. Downstream modules can use this with
+# `coder exp sync want <self> <each of these>` to serialize their own
+# scripts behind the install pipeline.
+output "scripts" {
+  description = "Ordered list of `coder exp sync` names for the coder_script resources this module creates, in the run order it enforces (pre_install, install, post_install, start). Scripts that were not configured are absent from the list."
+  value = concat(
+    var.pre_install_script != null ? [local.pre_install_script_name] : [],
+    [local.install_script_name],
+    var.post_install_script != null ? [local.post_install_script_name] : [],
+    var.start_script != null ? [local.start_script_name] : [],
+  )
+}

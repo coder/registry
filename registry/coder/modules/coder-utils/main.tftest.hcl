@@ -490,3 +490,91 @@ run "test_optional_scripts_absent_by_default" {
     error_message = "Start coder_script should not be created when start_script is unset"
   }
 }
+
+# Verify `scripts` output is a filtered, run-order list
+run "test_scripts_output_with_all" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent-id"
+    agent_name          = "test-agent"
+    module_directory    = ".test-module"
+    pre_install_script  = "echo pre"
+    install_script      = "echo install"
+    post_install_script = "echo post"
+    start_script        = "echo start"
+  }
+
+  assert {
+    condition     = length(output.scripts) == 4
+    error_message = "scripts should have 4 entries when every script is set"
+  }
+
+  assert {
+    condition     = output.scripts[0] == "test-agent-pre_install_script"
+    error_message = "scripts[0] must be the pre-install name"
+  }
+
+  assert {
+    condition     = output.scripts[1] == "test-agent-install_script"
+    error_message = "scripts[1] must be the install name"
+  }
+
+  assert {
+    condition     = output.scripts[2] == "test-agent-post_install_script"
+    error_message = "scripts[2] must be the post-install name"
+  }
+
+  assert {
+    condition     = output.scripts[3] == "test-agent-start_script"
+    error_message = "scripts[3] must be the start name"
+  }
+}
+
+run "test_scripts_output_with_install_only" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent-id"
+    agent_name       = "test-agent"
+    module_directory = ".test-module"
+    install_script   = "echo install"
+  }
+
+  assert {
+    condition     = length(output.scripts) == 1
+    error_message = "scripts should have exactly 1 entry (install) when pre/post/start are unset"
+  }
+
+  assert {
+    condition     = output.scripts[0] == "test-agent-install_script"
+    error_message = "scripts[0] must be the install name"
+  }
+}
+
+run "test_scripts_output_with_install_and_post" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent-id"
+    agent_name          = "test-agent"
+    module_directory    = ".test-module"
+    install_script      = "echo install"
+    post_install_script = "echo post"
+  }
+
+  assert {
+    condition     = length(output.scripts) == 2
+    error_message = "scripts should have 2 entries (install, post)"
+  }
+
+  assert {
+    condition     = output.scripts[0] == "test-agent-install_script"
+    error_message = "scripts[0] must be the install name"
+  }
+
+  assert {
+    condition     = output.scripts[1] == "test-agent-post_install_script"
+    error_message = "scripts[1] must be the post-install name"
+  }
+}
