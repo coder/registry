@@ -193,12 +193,19 @@ function start_agentapi() {
       local session_file
       session_file=$(get_task_session_file)
 
+      # Only force --dangerously-skip-permissions for tasks when no explicit
+      # permission_mode was configured. An explicit mode (or managed_settings
+      # policy) should govern the permission posture instead. Same fix as #846.
+      if [ -z "$ARG_PERMISSION_MODE" ]; then
+        ARGS+=(--dangerously-skip-permissions)
+      fi
+
       if task_session_exists && is_valid_session "$session_file"; then
         echo "Resuming task session: $TASK_SESSION_ID"
-        ARGS+=(--resume "$TASK_SESSION_ID" --dangerously-skip-permissions)
+        ARGS+=(--resume "$TASK_SESSION_ID")
       else
         echo "Starting new task session: $TASK_SESSION_ID"
-        ARGS+=(--session-id "$TASK_SESSION_ID" --dangerously-skip-permissions)
+        ARGS+=(--session-id "$TASK_SESSION_ID")
         [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
       fi
 

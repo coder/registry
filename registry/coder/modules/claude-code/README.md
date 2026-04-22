@@ -21,7 +21,7 @@ module "claude-code" {
 ```
 
 > [!WARNING]
-> **Security Notice**: This module uses the `--dangerously-skip-permissions` flag when running Claude Code tasks. This flag bypasses standard permission checks and allows Claude Code broader access to your system than normally permitted. While this enables more functionality, it also means Claude Code can potentially execute commands with the same privileges as the user running it. Use this module _only_ in trusted environments and be aware of the security implications.
+> **Security Notice**: When no `permission_mode` or `managed_settings` policy is configured, this module passes `--dangerously-skip-permissions` to Claude Code tasks for backward compatibility. That flag bypasses all permission checks. For production use, set `managed_settings.permissions.defaultMode` (see [Enterprise policy via managed settings](#enterprise-policy-via-managed-settings)) so Claude Code runs under an explicit, admin-controlled permission posture instead.
 
 > [!NOTE]
 > By default, this module is configured to run the embedded chat interface as a path-based application. In production, we recommend that you configure a [wildcard access URL](https://coder.com/docs/admin/setup#wildcard-access-url) and set `subdomain = true`. See [here](https://coder.com/docs/tutorials/best-practices/security-best-practices#disable-path-based-apps) for more details.
@@ -31,6 +31,35 @@ module "claude-code" {
 - An **Anthropic API key** or a _Claude Session Token_ is required for tasks.
   - You can get the API key from the [Anthropic Console](https://console.anthropic.com/dashboard).
   - You can get the Session Token using the `claude setup-token` command. This is a long-lived authentication token (requires Claude subscription)
+
+### Enterprise policy via managed settings
+
+The `managed_settings` input writes a policy file to `/etc/claude-code/managed-settings.d/10-coder.json` inside the workspace. Claude Code reads this directory at startup with the highest configuration precedence, so users cannot override these values in their own `~/.claude/settings.json`. This is a local file mechanism and works with any inference backend (Anthropic API, AWS Bedrock, Google Vertex AI, or AI Bridge / AI Gateway).
+
+```tf
+module "claude-code" {
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "4.9.2"
+  agent_id = coder_agent.main.id
+  workdir  = "/home/coder/project"
+
+  managed_settings = {
+    permissions = {
+      defaultMode                  = "acceptEdits"
+      disableBypassPermissionsMode = "disable"
+      deny                         = ["Bash(curl:*)", "Bash(wget:*)", "WebFetch"]
+    }
+    env = {
+      DISABLE_TELEMETRY = "0"
+    }
+  }
+}
+```
+
+See the [Claude Code settings reference](https://docs.anthropic.com/en/docs/claude-code/settings) for the full schema (`permissions`, `env`, `hooks`, `apiKeyHelper`, `model`, and more).
+
+> [!NOTE]
+> The legacy `permission_mode`, `allowed_tools`, and `disallowed_tools` variables are deprecated in favor of `managed_settings.permissions`. For one release they are automatically mapped into the policy file when `managed_settings` is not set.
 
 ### Session Resumption Behavior
 

@@ -23,6 +23,7 @@ ARG_ALLOWED_TOOLS=${ARG_ALLOWED_TOOLS:-}
 ARG_DISALLOWED_TOOLS=${ARG_DISALLOWED_TOOLS:-}
 ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
 ARG_PERMISSION_MODE=${ARG_PERMISSION_MODE:-}
+ARG_MANAGED_SETTINGS_JSON=$(echo -n "${ARG_MANAGED_SETTINGS_JSON:-}" | base64 -d)
 
 export PATH="$ARG_CLAUDE_BINARY_PATH:$PATH"
 
@@ -40,6 +41,7 @@ printf "ARG_MCP_CONFIG_REMOTE_PATH: %s\n" "$ARG_MCP_CONFIG_REMOTE_PATH"
 printf "ARG_ALLOWED_TOOLS: %s\n" "$ARG_ALLOWED_TOOLS"
 printf "ARG_DISALLOWED_TOOLS: %s\n" "$ARG_DISALLOWED_TOOLS"
 printf "ARG_ENABLE_AIBRIDGE: %s\n" "$ARG_ENABLE_AIBRIDGE"
+printf "ARG_MANAGED_SETTINGS_JSON: %s\n" "$ARG_MANAGED_SETTINGS_JSON"
 
 echo "--------------------------------"
 
@@ -177,6 +179,32 @@ function setup_claude_configurations() {
 
 }
 
+function write_managed_settings() {
+  if [ -z "$ARG_MANAGED_SETTINGS_JSON" ]; then
+    return
+  fi
+
+  local dropin_dir="/etc/claude-code/managed-settings.d"
+  local target="$dropin_dir/10-coder.json"
+
+  if ! echo "$ARG_MANAGED_SETTINGS_JSON" | jq empty 2> /dev/null; then
+    echo "Warning: managed_settings is not valid JSON, skipping policy write"
+    return
+  fi
+
+  if command_exists sudo; then
+    sudo mkdir -p "$dropin_dir"
+    echo "$ARG_MANAGED_SETTINGS_JSON" | sudo tee "$target" > /dev/null
+    sudo chmod 0644 "$target"
+  else
+    mkdir -p "$dropin_dir"
+    echo "$ARG_MANAGED_SETTINGS_JSON" > "$target"
+    chmod 0644 "$target"
+  fi
+
+  echo "Wrote Claude Code managed settings to $target"
+}
+
 function configure_standalone_mode() {
   echo "Configuring Claude Code for standalone mode..."
 
@@ -194,13 +222,10 @@ function configure_standalone_mode() {
   if [ -f "$claude_config" ]; then
     echo "Updating existing Claude configuration at $claude_config"
 
-    jq --arg workdir "$ARG_WORKDIR" --arg apikey "${CLAUDE_API_KEY:-}" \
+    jq --arg workdir "$ARG_WORKDIR" \
       '.autoUpdaterStatus = "disabled" |
-        .autoModeAccepted = true |
-        .bypassPermissionsModeAccepted = true |
         .hasAcknowledgedCostThreshold = true |
         .hasCompletedOnboarding = true |
-        .primaryApiKey = $apikey |
         .projects[$workdir].hasCompletedProjectOnboarding = true |
         .projects[$workdir].hasTrustDialogAccepted = true' \
       "$claude_config" > "${claude_config}.tmp" && mv "${claude_config}.tmp" "$claude_config"
@@ -209,11 +234,8 @@ function configure_standalone_mode() {
     cat > "$claude_config" << EOF
 {
   "autoUpdaterStatus": "disabled",
-  "autoModeAccepted": true,
-  "bypassPermissionsModeAccepted": true,
   "hasAcknowledgedCostThreshold": true,
   "hasCompletedOnboarding": true,
-  "primaryApiKey": "${CLAUDE_API_KEY:-}",
   "projects": {
     "$ARG_WORKDIR": {
       "hasCompletedProjectOnboarding": true,
@@ -258,6 +280,7 @@ function accept_auto_mode() {
 
 install_claude_code_cli
 setup_claude_configurations
+write_managed_settings
 report_tasks
 
 if [ "$ARG_PERMISSION_MODE" = "auto" ]; then
