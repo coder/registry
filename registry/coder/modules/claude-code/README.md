@@ -70,9 +70,30 @@ module "claude-code" {
 }
 ```
 
-### Custom endpoint (AI Bridge, Bedrock, Vertex, LiteLLM, a private proxy)
+### Coder AI Bridge
 
-Set the endpoint and token through `env`. Nothing is baked in; the [Claude Code env-vars reference](https://docs.claude.com/en/docs/claude-code/env-vars) lists every supported name.
+Route Claude Code through [Coder AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) (Premium, requires Coder >= 2.29.0). AI Bridge authenticates with the workspace owner's session token, so no API key is needed.
+
+```tf
+data "coder_workspace" "me" {}
+
+data "coder_workspace_owner" "me" {}
+
+module "claude-code" {
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "5.0.0"
+  agent_id = coder_agent.main.id
+
+  env = {
+    ANTHROPIC_BASE_URL   = "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic"
+    ANTHROPIC_AUTH_TOKEN = data.coder_workspace_owner.me.session_token
+  }
+}
+```
+
+### Other custom endpoints (Bedrock, Vertex, LiteLLM, a private proxy)
+
+Same pattern with your own endpoint and token. The [Claude Code env-vars reference](https://docs.claude.com/en/docs/claude-code/env-vars) lists every supported name.
 
 ```tf
 module "claude-code" {
