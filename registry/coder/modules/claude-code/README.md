@@ -237,6 +237,9 @@ cat $HOME/.claude-module/post_install.log
 
 ## Upgrading from v4.x
 
+> [!CAUTION]
+> If your template depends on Coder Tasks (`report_tasks`, `ai_prompt`, `continue`, `resume_session_id`, `enable_state_persistence`, `dangerously_skip_permissions`) or AgentAPI web-app integration (`web_app`, `cli_app`, `install_agentapi`, `agentapi_version`), stay on `v4.x` until the dedicated `claude-code-tasks` and `agentapi` modules ship. v5.0.0 removes all of that surface.
+
 Breaking changes in v5.0.0:
 
 - `claude_api_key`, `claude_code_oauth_token`, `model`, `disable_autoupdater`, `claude_md_path` removed as dedicated variables. Set them through `env` instead. The module now emits `ANTHROPIC_API_KEY` (the variable Claude Code actually reads), not `CLAUDE_API_KEY`.
