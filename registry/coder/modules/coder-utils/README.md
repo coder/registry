@@ -22,9 +22,9 @@ module "coder_utils" {
   source  = "registry.coder.com/coder/coder-utils/coder"
   version = "1.1.0"
 
-  agent_id        = coder_agent.main.id
-  agent_name      = "myagent"
-  module_dir_name = ".my-module"
+  agent_id         = coder_agent.main.id
+  agent_name       = "myagent"
+  module_directory = ".my-module"
 
   pre_install_script = <<-EOT
     #!/bin/bash
@@ -62,3 +62,24 @@ The module orchestrates scripts in the following order:
 4. **Start Script** (optional) - Starts the application
 
 Each script waits for its prerequisites to complete before running using `coder exp sync` dependency management.
+
+## Customizing Script Display
+
+By default each `coder_script` renders in the Coder UI as plain "Install Script", "Pre-Install Script", etc. Downstream modules can brand them:
+
+```tf
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "1.1.0"
+
+  agent_id         = coder_agent.main.id
+  agent_name       = "myagent"
+  module_directory = ".my-module"
+  install_script   = "echo installing"
+
+  display_name_prefix = "Claude Code" # yields "Claude Code: Install Script", etc.
+  icon                = "/icon/claude.svg"
+}
+```
+
+Both variables are optional. `display_name_prefix` defaults to `""` (no prefix), and `icon` defaults to `null` (use the Coder provider's default).

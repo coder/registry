@@ -391,3 +391,75 @@ run "test_start_syncs_with_post_install" {
     error_message = "Post-install script should sync-want install_script"
   }
 }
+
+# Verify display_name_prefix is prepended to every script's display_name
+run "test_display_name_prefix_applied" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent-id"
+    agent_name          = "test-agent"
+    module_directory    = ".test-module"
+    display_name_prefix = "Claude Code"
+    pre_install_script  = "echo 'pre-install'"
+    install_script      = "echo 'install'"
+    post_install_script = "echo 'post-install'"
+    start_script        = "echo 'start'"
+  }
+
+  assert {
+    condition     = coder_script.pre_install_script[0].display_name == "Claude Code: Pre-Install Script"
+    error_message = "Pre-install script display_name should be prefixed"
+  }
+
+  assert {
+    condition     = coder_script.install_script.display_name == "Claude Code: Install Script"
+    error_message = "Install script display_name should be prefixed"
+  }
+
+  assert {
+    condition     = coder_script.post_install_script[0].display_name == "Claude Code: Post-Install Script"
+    error_message = "Post-install script display_name should be prefixed"
+  }
+
+  assert {
+    condition     = coder_script.start_script[0].display_name == "Claude Code: Start Script"
+    error_message = "Start script display_name should be prefixed"
+  }
+}
+
+# Verify icon is propagated to every coder_script
+run "test_icon_applied" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent-id"
+    agent_name          = "test-agent"
+    module_directory    = ".test-module"
+    icon                = "/icon/claude.svg"
+    pre_install_script  = "echo 'pre-install'"
+    install_script      = "echo 'install'"
+    post_install_script = "echo 'post-install'"
+    start_script        = "echo 'start'"
+  }
+
+  assert {
+    condition     = coder_script.pre_install_script[0].icon == "/icon/claude.svg"
+    error_message = "Pre-install script icon should match input"
+  }
+
+  assert {
+    condition     = coder_script.install_script.icon == "/icon/claude.svg"
+    error_message = "Install script icon should match input"
+  }
+
+  assert {
+    condition     = coder_script.post_install_script[0].icon == "/icon/claude.svg"
+    error_message = "Post-install script icon should match input"
+  }
+
+  assert {
+    condition     = coder_script.start_script[0].icon == "/icon/claude.svg"
+    error_message = "Start script icon should match input"
+  }
+}

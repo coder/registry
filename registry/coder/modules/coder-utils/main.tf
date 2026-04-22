@@ -54,6 +54,18 @@ variable "module_directory" {
   description = "The module's working directory for scripts and logs."
 }
 
+variable "display_name_prefix" {
+  type        = string
+  description = "Prefix for each coder_script display_name. Example: setting 'Claude Code' yields 'Claude Code: Install Script', 'Claude Code: Pre-Install Script', etc. When unset, scripts show as plain 'Install Script'."
+  default     = ""
+}
+
+variable "icon" {
+  type        = string
+  description = "Icon shown in the Coder UI for every coder_script this module creates. Falls back to the Coder provider's default when unset."
+  default     = null
+}
+
 locals {
   encoded_pre_install_script  = var.pre_install_script != null ? base64encode(var.pre_install_script) : ""
   encoded_install_script      = base64encode(var.install_script)
@@ -82,12 +94,15 @@ locals {
     ? "${local.install_script_name} ${local.post_install_script_name}"
     : local.install_script_name
   )
+
+  display_name_prefix = var.display_name_prefix != "" ? "${var.display_name_prefix}: " : ""
 }
 
 resource "coder_script" "pre_install_script" {
   count        = var.pre_install_script == null ? 0 : 1
   agent_id     = var.agent_id
-  display_name = "Pre-Install Script"
+  display_name = "${local.display_name_prefix}Pre-Install Script"
+  icon         = var.icon
   run_on_start = true
   script       = <<-EOT
     #!/bin/bash
@@ -108,7 +123,8 @@ resource "coder_script" "pre_install_script" {
 
 resource "coder_script" "install_script" {
   agent_id     = var.agent_id
-  display_name = "Install Script"
+  display_name = "${local.display_name_prefix}Install Script"
+  icon         = var.icon
   run_on_start = true
   script       = <<-EOT
     #!/bin/bash
@@ -132,7 +148,8 @@ resource "coder_script" "install_script" {
 resource "coder_script" "post_install_script" {
   count        = var.post_install_script != null ? 1 : 0
   agent_id     = var.agent_id
-  display_name = "Post-Install Script"
+  display_name = "${local.display_name_prefix}Post-Install Script"
+  icon         = var.icon
   run_on_start = true
   script       = <<-EOT
     #!/bin/bash
@@ -153,7 +170,8 @@ resource "coder_script" "post_install_script" {
 resource "coder_script" "start_script" {
   count        = var.start_script != null ? 1 : 0
   agent_id     = var.agent_id
-  display_name = "Start Script"
+  display_name = "${local.display_name_prefix}Start Script"
+  icon         = var.icon
   run_on_start = true
   script       = <<-EOT
     #!/bin/bash
