@@ -16,21 +16,28 @@ import {
   type TerraformState,
 } from "~test";
 import { loadTestFile, writeExecutable } from "../agentapi/test-util";
-import type { TerraformState } from "~test";
+
+// Terraform state resource attributes are untyped JSON; this alias makes the
+// shape explicit everywhere we unpack it.
+type ResourceAttributes = Record<string, unknown>;
+
+const getStringAttr = (attrs: ResourceAttributes, key: string): string =>
+  String(attrs[key] ?? "");
 
 /**
- * Walk every instance of every coder_env resource and return a flat map of
- * env var names to values. The upstream extractCoderEnvVars helper only
- * reads `instances[0]`, which misses every for_each entry past the first.
+ * Walk every instance of every `coder_env` resource and return a flat map of
+ * env var names to values. The `extractCoderEnvVars` helper in
+ * `agentapi/test-util.ts` only reads `instances[0]`, which misses every
+ * `for_each` entry past the first. This local version covers all instances.
  */
 const extractCoderEnvVars = (state: TerraformState): Record<string, string> => {
   const envVars: Record<string, string> = {};
   for (const resource of state.resources) {
     if (resource.type !== "coder_env") continue;
     for (const instance of resource.instances) {
-      const attrs = instance.attributes as Record<string, unknown>;
-      const name = attrs.name as string;
-      const value = attrs.value as string;
+      const attrs = instance.attributes as ResourceAttributes;
+      const name = getStringAttr(attrs, "name");
+      const value = getStringAttr(attrs, "value");
       if (name && value) envVars[name] = value;
     }
   }
@@ -59,7 +66,7 @@ interface SetupProps {
 }
 
 // Order scripts in the same sequence coder-utils enforces at runtime via
-// `coder exp sync`: pre_install -> install -> post_install.
+// `coder exp sync`: first pre_install, then install, then post_install.
 const SCRIPT_ORDER = [
   "Pre-Install Script",
   "Install Script",
@@ -71,10 +78,10 @@ const collectScripts = (state: TerraformState): string[] => {
   for (const resource of state.resources) {
     if (resource.type !== "coder_script") continue;
     for (const instance of resource.instances) {
-      const attrs = instance.attributes as Record<string, unknown>;
+      const attrs = instance.attributes as ResourceAttributes;
       scripts.push({
-        displayName: String(attrs.display_name ?? ""),
-        script: String(attrs.script ?? ""),
+        displayName: getStringAttr(attrs, "display_name"),
+        script: getStringAttr(attrs, "script"),
       });
     }
   }
@@ -167,7 +174,10 @@ describe("claude-code", async () => {
     await runTerraformInit(import.meta.dir);
   });
 
-  test("happy-path", async () => {
+  test("install-script-runs-with-mock", async () => {
+    // Default setup: install_claude_code=false with a mocked claude binary.
+    // Verifies that install.sh is assembled, written by coder-utils, executed
+    // on the agent, and leaves a readable install.log.
     const { id } = await setup();
     await runModuleScripts(id);
     const installLog = await readFileContainer(
@@ -175,6 +185,7 @@ describe("claude-code", async () => {
       "/home/coder/.claude-module/install.log",
     );
     expect(installLog).toContain("ARG_INSTALL_CLAUDE_CODE");
+    expect(installLog).toContain("Skipping Claude Code installation");
   });
 
   test("install-claude-code-version", async () => {
@@ -230,7 +241,9 @@ describe("claude-code", async () => {
     expect(coderEnvVars["DISABLE_AUTOUPDATER"]).toBe("1");
     expect(coderEnvVars["CUSTOM_VAR"]).toBe("hello");
     expect(coderEnvVars["CLAUDE_API_KEY"]).toBeUndefined();
-    await runModuleScripts(id);
+    // Export the Terraform-declared env vars into the script execution
+    // context so the install script sees the values the module produced.
+    await runModuleScripts(id, coderEnvVars);
   });
 
   test("no-claude-no-mcp-is-fine", async () => {
@@ -319,7 +332,10 @@ describe("claude-code", async () => {
   });
 
   test("claude-mcp-remote-user-scope", async () => {
-    const failingUrl = "http://localhost:19999/mcp.json";
+    // HTTPS URL on an unreachable port so the fetch fails with the expected
+    // "Warning: Failed to fetch" message (the module validation enforces
+    // https:// so plain http URLs are rejected at plan time).
+    const failingUrl = "https://127.0.0.1:19999/mcp.json";
     const successUrl =
       "https://raw.githubusercontent.com/coder/coder/main/.mcp.json";
 
@@ -363,8 +379,8 @@ describe("claude-code", async () => {
 
     const scripts = state.resources.filter((r) => r.type === "coder_script");
     const displayNames = scripts.flatMap((r) =>
-      r.instances.map(
-        (i) => (i.attributes as Record<string, unknown>).display_name,
+      r.instances.map((i) =>
+        getStringAttr(i.attributes as ResourceAttributes, "display_name"),
       ),
     );
     expect(displayNames).toEqual(["Claude Code: Install Script"]);

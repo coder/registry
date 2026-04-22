@@ -122,6 +122,62 @@ run "test_with_pre_post_install" {
     condition     = var.post_install_script == "echo post"
     error_message = "post_install_script should be forwarded"
   }
+
+  # coder-utils exposes `script_names` with empty strings for scripts it did
+  # not create; a non-empty name confirms the downstream resource was emitted.
+  assert {
+    condition     = module.coder-utils.script_names.pre_install != ""
+    error_message = "Pre-install script name should be populated when pre_install_script is set"
+  }
+
+  assert {
+    condition     = module.coder-utils.script_names.post_install != ""
+    error_message = "Post-install script name should be populated when post_install_script is set"
+  }
+
+  assert {
+    condition     = module.coder-utils.script_names.install != ""
+    error_message = "Install script name should always be populated"
+  }
+}
+
+run "test_defaults_produce_only_install_script" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+  }
+
+  assert {
+    condition     = module.coder-utils.script_names.pre_install == ""
+    error_message = "Pre-install script should be absent by default"
+  }
+
+  assert {
+    condition     = module.coder-utils.script_names.post_install == ""
+    error_message = "Post-install script should be absent by default"
+  }
+
+  assert {
+    condition     = module.coder-utils.script_names.start == ""
+    error_message = "Start script should never be created by claude-code"
+  }
+
+  assert {
+    condition     = module.coder-utils.script_names.install != ""
+    error_message = "Install script must always be created"
+  }
+}
+
+run "test_mcp_remote_rejects_http" {
+  command = plan
+
+  variables {
+    agent_id               = "test-agent"
+    mcp_config_remote_path = ["http://example.com/mcp.json"]
+  }
+
+  expect_failures = [var.mcp_config_remote_path]
 }
 
 run "test_claude_binary_path_validation" {
