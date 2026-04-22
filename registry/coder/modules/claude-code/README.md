@@ -20,42 +20,35 @@ It does not start Claude, create a web app, or orchestrate Tasks. Compose with d
 
 ```tf
 module "claude-code" {
-  source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.0.0"
-  agent_id          = coder_agent.main.id
-  anthropic_api_key = var.anthropic_api_key
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "5.0.0"
+  agent_id = coder_agent.main.id
+
+  env = {
+    ANTHROPIC_API_KEY = var.anthropic_api_key
+  }
 }
 ```
 
-## Authentication
-
-Two sensitive shortcuts are provided as dedicated variables. Every other env var goes through the `env` map.
-
-- `anthropic_api_key`: sets `ANTHROPIC_API_KEY`. Marked sensitive.
-- `claude_code_oauth_token`: sets `CLAUDE_CODE_OAUTH_TOKEN` (generate with `claude setup-token`). Marked sensitive.
-
-```tf
-# Claude.ai subscription
-module "claude-code" {
-  source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "5.0.0"
-  agent_id                = coder_agent.main.id
-  claude_code_oauth_token = var.claude_code_oauth_token
-}
-```
-
-## Arbitrary environment variables (`env`)
+## Environment variables (`env`)
 
 Pass any Claude Code env var (or any custom var your pre/post scripts consume) through the `env` map. Each key/value pair becomes one `coder_env` resource on the agent.
 
+Declare your Terraform variable with `sensitive = true` to keep secrets out of plan output. Values retain their sensitivity when passed through the module.
+
 ```tf
+variable "anthropic_api_key" {
+  type      = string
+  sensitive = true
+}
+
 module "claude-code" {
-  source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.0.0"
-  agent_id          = coder_agent.main.id
-  anthropic_api_key = var.anthropic_api_key
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "5.0.0"
+  agent_id = coder_agent.main.id
 
   env = {
+    ANTHROPIC_API_KEY   = var.anthropic_api_key
     ANTHROPIC_MODEL     = "opus"
     DISABLE_AUTOUPDATER = "1"
     MY_CUSTOM_VAR       = "hello"
@@ -63,7 +56,21 @@ module "claude-code" {
 }
 ```
 
-### Using a custom endpoint (AI Bridge, Bedrock, Vertex, LiteLLM, a private proxy)
+### Claude.ai subscription
+
+```tf
+module "claude-code" {
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "5.0.0"
+  agent_id = coder_agent.main.id
+
+  env = {
+    CLAUDE_CODE_OAUTH_TOKEN = var.claude_code_oauth_token
+  }
+}
+```
+
+### Custom endpoint (AI Bridge, Bedrock, Vertex, LiteLLM, a private proxy)
 
 Set the endpoint and token through `env`. Nothing is baked in; the [Claude Code env-vars reference](https://docs.claude.com/en/docs/claude-code/env-vars) lists every supported name.
 
@@ -80,9 +87,6 @@ module "claude-code" {
 }
 ```
 
-> [!NOTE]
-> `ANTHROPIC_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` are rejected in `env` because they have dedicated sensitive variables (`anthropic_api_key`, `claude_code_oauth_token`). Every other env var is allowed.
-
 ## MCP configuration
 
 MCP servers are applied at **user scope** via `claude mcp add-json --scope user`. They end up in `~/.claude.json` and apply across every project the user opens.
@@ -91,10 +95,13 @@ MCP servers are applied at **user scope** via `claude mcp add-json --scope user`
 
 ```tf
 module "claude-code" {
-  source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.0.0"
-  agent_id          = coder_agent.main.id
-  anthropic_api_key = var.anthropic_api_key
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "5.0.0"
+  agent_id = coder_agent.main.id
+
+  env = {
+    ANTHROPIC_API_KEY = var.anthropic_api_key
+  }
 
   mcp = jsonencode({
     mcpServers = {
@@ -113,10 +120,13 @@ Each URL must return JSON in the shape `{"mcpServers": {...}}`. `Content-Type` i
 
 ```tf
 module "claude-code" {
-  source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.0.0"
-  agent_id          = coder_agent.main.id
-  anthropic_api_key = var.anthropic_api_key
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "5.0.0"
+  agent_id = coder_agent.main.id
+
+  env = {
+    ANTHROPIC_API_KEY = var.anthropic_api_key
+  }
 
   mcp_config_remote_path = [
     "https://raw.githubusercontent.com/coder/coder/main/.mcp.json",
@@ -155,10 +165,13 @@ Use `pre_install_script` and `post_install_script` for custom setup (e.g. writin
 
 ```tf
 module "claude-code" {
-  source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.0.0"
-  agent_id          = coder_agent.main.id
-  anthropic_api_key = var.anthropic_api_key
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "5.0.0"
+  agent_id = coder_agent.main.id
+
+  env = {
+    ANTHROPIC_API_KEY = var.anthropic_api_key
+  }
 
   pre_install_script = <<-EOT
     #!/bin/bash
@@ -188,9 +201,8 @@ cat $HOME/.claude-module/post_install.log
 
 Breaking changes in v5.0.0:
 
-- `claude_api_key` renamed to `anthropic_api_key`. Now sets `ANTHROPIC_API_KEY` (the variable Claude Code actually reads), not `CLAUDE_API_KEY`.
-- All Tasks, AgentAPI, Boundary, AI Bridge, and web-app variables removed. Compose dedicated modules or set env vars via the `env` map.
-- `model`, `disable_autoupdater`, and `claude_md_path` variables removed. Set `ANTHROPIC_MODEL` and `DISABLE_AUTOUPDATER` via `env`. Claude Code discovers `~/.claude/CLAUDE.md` automatically.
+- `claude_api_key`, `claude_code_oauth_token`, `model`, `disable_autoupdater`, `claude_md_path` removed as dedicated variables. Set them through `env` instead. The module now emits `ANTHROPIC_API_KEY` (the variable Claude Code actually reads), not `CLAUDE_API_KEY`.
+- All Tasks, AgentAPI, Boundary, AI Bridge, and web-app variables removed. Compose dedicated modules or set env vars via `env`.
 - `workdir` removed. MCP applies at user scope.
 - `install_via_npm` removed. Official installer only.
 - `allowed_tools` / `disallowed_tools` removed. Write `~/.claude/settings.json` via `pre_install_script` with `permissions.allow` / `permissions.deny` arrays.

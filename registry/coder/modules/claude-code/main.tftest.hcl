@@ -16,54 +16,6 @@ run "test_defaults" {
     condition     = length(coder_env.env) == 0
     error_message = "No env vars should be set by default"
   }
-
-  assert {
-    condition     = length(coder_env.anthropic_api_key) == 0
-    error_message = "ANTHROPIC_API_KEY should not be set by default"
-  }
-
-  assert {
-    condition     = length(coder_env.claude_code_oauth_token) == 0
-    error_message = "CLAUDE_CODE_OAUTH_TOKEN should not be set by default"
-  }
-}
-
-run "test_with_anthropic_api_key" {
-  command = plan
-
-  variables {
-    agent_id          = "test-agent"
-    anthropic_api_key = "sk-live-test"
-  }
-
-  assert {
-    condition     = coder_env.anthropic_api_key[0].name == "ANTHROPIC_API_KEY"
-    error_message = "Shortcut must create a coder_env named ANTHROPIC_API_KEY"
-  }
-
-  assert {
-    condition     = coder_env.anthropic_api_key[0].value == "sk-live-test"
-    error_message = "anthropic_api_key value must round-trip"
-  }
-}
-
-run "test_with_oauth_token" {
-  command = plan
-
-  variables {
-    agent_id                = "test-agent"
-    claude_code_oauth_token = "oauth-test-token"
-  }
-
-  assert {
-    condition     = coder_env.claude_code_oauth_token[0].name == "CLAUDE_CODE_OAUTH_TOKEN"
-    error_message = "Shortcut must create a coder_env named CLAUDE_CODE_OAUTH_TOKEN"
-  }
-
-  assert {
-    condition     = coder_env.claude_code_oauth_token[0].value == "oauth-test-token"
-    error_message = "claude_code_oauth_token value must round-trip"
-  }
 }
 
 run "test_with_env_map" {
@@ -72,11 +24,23 @@ run "test_with_env_map" {
   variables {
     agent_id = "test-agent"
     env = {
-      ANTHROPIC_MODEL     = "opus"
-      ANTHROPIC_BASE_URL  = "https://proxy.example.com"
-      DISABLE_AUTOUPDATER = "1"
-      CUSTOM_VAR          = "hello"
+      ANTHROPIC_API_KEY       = "sk-live"
+      CLAUDE_CODE_OAUTH_TOKEN = "oauth-live"
+      ANTHROPIC_MODEL         = "opus"
+      ANTHROPIC_BASE_URL      = "https://proxy.example.com"
+      DISABLE_AUTOUPDATER     = "1"
+      CUSTOM_VAR              = "hello"
     }
+  }
+
+  assert {
+    condition     = coder_env.env["ANTHROPIC_API_KEY"].value == "sk-live"
+    error_message = "env[ANTHROPIC_API_KEY] should be set"
+  }
+
+  assert {
+    condition     = coder_env.env["CLAUDE_CODE_OAUTH_TOKEN"].value == "oauth-live"
+    error_message = "env[CLAUDE_CODE_OAUTH_TOKEN] should be set"
   }
 
   assert {
@@ -100,67 +64,9 @@ run "test_with_env_map" {
   }
 
   assert {
-    condition     = length(coder_env.env) == 4
-    error_message = "should create exactly 4 coder_env resources from env"
+    condition     = length(coder_env.env) == 6
+    error_message = "should create exactly 6 coder_env resources"
   }
-}
-
-run "test_env_and_shortcut_coexist" {
-  command = plan
-
-  variables {
-    agent_id          = "test-agent"
-    anthropic_api_key = "sk-live"
-    env = {
-      ANTHROPIC_MODEL = "sonnet"
-    }
-  }
-
-  assert {
-    condition     = coder_env.anthropic_api_key[0].value == "sk-live"
-    error_message = "shortcut should set ANTHROPIC_API_KEY"
-  }
-
-  assert {
-    condition     = coder_env.env["ANTHROPIC_MODEL"].value == "sonnet"
-    error_message = "env map should set ANTHROPIC_MODEL"
-  }
-
-  assert {
-    condition     = length(coder_env.env) == 1
-    error_message = "env resource should have one entry"
-  }
-
-  assert {
-    condition     = length(coder_env.anthropic_api_key) == 1
-    error_message = "anthropic_api_key resource should have one entry"
-  }
-}
-
-run "test_env_map_api_key_conflict" {
-  command = plan
-
-  variables {
-    agent_id = "test-agent"
-    env = {
-      ANTHROPIC_API_KEY = "sk-wrong-channel"
-    }
-  }
-
-  expect_failures = [var.env]
-}
-
-run "test_env_map_oauth_token_conflict" {
-  command = plan
-
-  variables {
-    agent_id = "test-agent"
-    env = {
-      CLAUDE_CODE_OAUTH_TOKEN = "oauth-wrong-channel"
-    }
-  }
-
-  expect_failures = [var.env]
 }
 
 run "test_with_mcp_inline" {

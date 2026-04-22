@@ -212,41 +212,25 @@ describe("claude-code", async () => {
     expect(resp.stdout).toMatch(/\d+\.\d+\.\d+/);
   });
 
-  test("anthropic-api-key", async () => {
-    const apiKey = "sk-test-api-key-123";
+  test("env-map-passthrough", async () => {
     const { id, coderEnvVars } = await setup({
       moduleVariables: {
-        anthropic_api_key: apiKey,
-      },
-    });
-    expect(coderEnvVars["ANTHROPIC_API_KEY"]).toBe(apiKey);
-    expect(coderEnvVars["CLAUDE_API_KEY"]).toBeUndefined();
-    await runModuleScripts(id);
-  });
-
-  test("claude-oauth-token", async () => {
-    const token = "oauth-live-token";
-    const { coderEnvVars } = await setup({
-      moduleVariables: {
-        claude_code_oauth_token: token,
-      },
-    });
-    expect(coderEnvVars["CLAUDE_CODE_OAUTH_TOKEN"]).toBe(token);
-  });
-
-  test("env-map-passthrough", async () => {
-    const { coderEnvVars } = await setup({
-      moduleVariables: {
         env: JSON.stringify({
+          ANTHROPIC_API_KEY: "sk-test-api-key-123",
+          CLAUDE_CODE_OAUTH_TOKEN: "oauth-live-token",
           ANTHROPIC_MODEL: "opus",
           DISABLE_AUTOUPDATER: "1",
           CUSTOM_VAR: "hello",
         }),
       },
     });
+    expect(coderEnvVars["ANTHROPIC_API_KEY"]).toBe("sk-test-api-key-123");
+    expect(coderEnvVars["CLAUDE_CODE_OAUTH_TOKEN"]).toBe("oauth-live-token");
     expect(coderEnvVars["ANTHROPIC_MODEL"]).toBe("opus");
     expect(coderEnvVars["DISABLE_AUTOUPDATER"]).toBe("1");
     expect(coderEnvVars["CUSTOM_VAR"]).toBe("hello");
+    expect(coderEnvVars["CLAUDE_API_KEY"]).toBeUndefined();
+    await runModuleScripts(id);
   });
 
   test("claude-mcp-inline-user-scope", async () => {

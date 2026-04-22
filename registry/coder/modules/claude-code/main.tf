@@ -14,34 +14,10 @@ variable "agent_id" {
   description = "The ID of a Coder agent."
 }
 
-variable "anthropic_api_key" {
-  type        = string
-  description = "Convenience shortcut for setting ANTHROPIC_API_KEY. Equivalent to adding ANTHROPIC_API_KEY to `env`."
-  default     = ""
-  sensitive   = true
-}
-
-variable "claude_code_oauth_token" {
-  type        = string
-  description = "Convenience shortcut for setting CLAUDE_CODE_OAUTH_TOKEN. Generate with `claude setup-token`. Equivalent to adding CLAUDE_CODE_OAUTH_TOKEN to `env`."
-  default     = ""
-  sensitive   = true
-}
-
 variable "env" {
   type        = map(string)
-  description = "Arbitrary environment variables to export to the Coder agent. Each key/value pair becomes a `coder_env` resource. Use this for any Claude Code env var (ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN, ANTHROPIC_MODEL, CLAUDE_CODE_USE_BEDROCK, etc.) or for custom vars your pre/post scripts consume."
+  description = "Environment variables to export to the Coder agent. Each key/value pair becomes one coder_env resource. Use this for any Claude Code env var (ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, ANTHROPIC_BASE_URL, ANTHROPIC_MODEL, CLAUDE_CODE_USE_BEDROCK, etc.) or for custom vars your pre/post scripts consume. Declare your Terraform variable with `sensitive = true` to keep secrets out of plan output."
   default     = {}
-
-  validation {
-    condition     = !contains(keys(var.env), "ANTHROPIC_API_KEY")
-    error_message = "Use the `anthropic_api_key` variable instead of setting ANTHROPIC_API_KEY via `env`. It is marked sensitive and handled as a dedicated resource."
-  }
-
-  validation {
-    condition     = !contains(keys(var.env), "CLAUDE_CODE_OAUTH_TOKEN")
-    error_message = "Use the `claude_code_oauth_token` variable instead of setting CLAUDE_CODE_OAUTH_TOKEN via `env`. It is marked sensitive and handled as a dedicated resource."
-  }
 }
 
 variable "claude_code_version" {
@@ -92,32 +68,18 @@ variable "post_install_script" {
 }
 
 locals {
-  # `env` fans out to one `coder_env` per entry via for_each. Sensitive
-  # shortcuts (anthropic_api_key, claude_code_oauth_token) can't be merged in
-  # because Terraform forbids sensitive values as for_each keys. They're
-  # emitted as dedicated resources below instead.
   install_script = file("${path.module}/scripts/install.sh")
 }
 
+# Fan var.env out into one coder_env per entry. Keys are lifted out of
+# their sensitivity taint with `nonsensitive` so Terraform can use them as
+# for_each instance addresses; values retain any sensitivity attached by
+# the caller's variable declaration.
 resource "coder_env" "env" {
-  for_each = var.env
+  for_each = nonsensitive(toset(keys(var.env)))
   agent_id = var.agent_id
   name     = each.key
-  value    = each.value
-}
-
-resource "coder_env" "anthropic_api_key" {
-  count    = var.anthropic_api_key != "" ? 1 : 0
-  agent_id = var.agent_id
-  name     = "ANTHROPIC_API_KEY"
-  value    = var.anthropic_api_key
-}
-
-resource "coder_env" "claude_code_oauth_token" {
-  count    = var.claude_code_oauth_token != "" ? 1 : 0
-  agent_id = var.agent_id
-  name     = "CLAUDE_CODE_OAUTH_TOKEN"
-  value    = var.claude_code_oauth_token
+  value    = var.env[each.key]
 }
 
 module "coder-utils" {
