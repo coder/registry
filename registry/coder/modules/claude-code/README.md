@@ -225,6 +225,71 @@ module "claude-code" {
 }
 ```
 
+## Unattended mode (skip setup wizard and permission prompts)
+
+For template-admin setups where Claude Code should just work — CI agents, headless workspaces, AI coding agents that do not have a human to click through the first-run wizard or confirm bypass-permissions mode — pre-write `settings.json` and `~/.claude.json` via `pre_install_script`.
+
+```tf
+module "claude-code" {
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "5.0.0"
+  agent_id = coder_agent.main.id
+
+  env = {
+    ANTHROPIC_API_KEY = var.anthropic_api_key
+  }
+
+  pre_install_script = <<-EOT
+    #!/bin/bash
+    set -euo pipefail
+
+    # Settings: default to bypassPermissions so tool calls do not prompt,
+    # silence the "dangerous mode" consent banner, and keep a deny list for
+    # anything the agent must never read.
+    mkdir -p "$HOME/.claude"
+    cat > "$HOME/.claude/settings.json" <<'JSON'
+    {
+      "permissions": {
+        "defaultMode": "bypassPermissions",
+        "deny": ["Read(./.env)", "Read(./secrets/**)", "Read(**/*.pem)"]
+      },
+      "skipDangerousModePermissionPrompt": true
+    }
+    JSON
+
+    # User config: skip the theme and first-run onboarding flow. The official
+    # installer creates ~/.claude.json before this pre_install_script runs,
+    # so merge rather than overwrite to preserve installer-managed keys
+    # (userID, autoUpdates, migrationVersion, firstStartTime).
+    if [ -f "$HOME/.claude.json" ]; then
+      tmp=$(mktemp)
+      jq '. + {hasCompletedOnboarding: true}' "$HOME/.claude.json" > "$tmp" \
+        && mv "$tmp" "$HOME/.claude.json"
+    else
+      printf '%s\n' '{"hasCompletedOnboarding": true}' > "$HOME/.claude.json"
+    fi
+  EOT
+}
+```
+
+Keys verified live against Claude Code CLI v2.1.117:
+
+| File                      | Key                                 | Effect                                                                                |
+| ------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------- |
+| `~/.claude/settings.json` | `permissions.defaultMode`           | `"bypassPermissions"`, `"acceptEdits"`, `"plan"`, `"auto"`, `"default"`, `"dontAsk"`. |
+| `~/.claude/settings.json` | `permissions.allow` / `deny`        | Per-tool allowlist / denylist (e.g. `"Bash(git *)"`, `"Read(./secrets/**)"`).         |
+| `~/.claude/settings.json` | `skipDangerousModePermissionPrompt` | Silences the one-time "enable bypassPermissions mode" consent banner.                 |
+| `~/.claude.json`          | `hasCompletedOnboarding`            | Skips the first-run theme picker and welcome screens.                                 |
+
+> [!NOTE]
+> Pre-writing these files makes sense for automation and agents. Human users who expect the usual onboarding and per-project trust dialog should not use this pattern.
+
+For one-off non-interactive runs, prefer the runtime flag instead of pre-writing config:
+
+```bash
+claude -p "$PROMPT" --dangerously-skip-permissions --permission-mode bypassPermissions
+```
+
 ## Outputs
 
 | Output    | Type           | Description                                                                                                                                                                                     |
