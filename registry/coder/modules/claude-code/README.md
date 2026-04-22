@@ -182,6 +182,34 @@ module "claude-code" {
 >
 > The `Content-Type` header doesn't matter—both `text/plain` and `application/json` work fine.
 
+### Telemetry export (OpenTelemetry)
+
+Claude Code can emit OpenTelemetry metrics and events covering token usage, tool calls, session lifecycle, and errors. Set `telemetry.enabled = true` and point `otlp_endpoint` at your OTLP collector. The module automatically tags every span and metric with `coder.workspace_id`, `coder.workspace_name`, `coder.workspace_owner`, and `coder.template_name` via `OTEL_RESOURCE_ATTRIBUTES`, so Claude Code telemetry can be joined directly against Coder's [audit logs](https://coder.com/docs/admin/security/audit-logs) and `exectrace` records on `workspace_id`.
+
+```tf
+module "claude-code" {
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "4.9.2"
+  agent_id = coder_agent.main.id
+  workdir  = "/home/coder/project"
+
+  telemetry = {
+    enabled       = true
+    otlp_endpoint = "http://otel-collector.observability:4317"
+    otlp_protocol = "grpc"
+    otlp_headers = {
+      authorization = "Bearer ${var.otel_collector_token}"
+    }
+    resource_attributes = {
+      "service.name"       = "claude-code"
+      "deployment.cluster" = var.cluster_name
+    }
+  }
+}
+```
+
+See the [Claude Code monitoring documentation](https://docs.anthropic.com/en/docs/claude-code/monitoring-usage) for the full list of exported metrics and events.
+
 ### Standalone Mode
 
 Run and configure Claude Code as a standalone CLI in your workspace.
