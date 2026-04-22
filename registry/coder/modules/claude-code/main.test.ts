@@ -126,8 +126,9 @@ const setup = async (
 };
 
 const runModuleScripts = async (id: string, env?: Record<string, string>) => {
-  const envArgs = env
-    ? Object.entries(env)
+  const entries = env ? Object.entries(env) : [];
+  const envArgs = entries.length
+    ? entries
         .map(([key, value]) => `export ${key}="${value.replace(/"/g, '\\"')}"`)
         .join(" && ") + " && "
     : "";
@@ -215,22 +216,6 @@ describe("claude-code", async () => {
       },
     });
     expect(coderEnvVars["CLAUDE_CODE_OAUTH_TOKEN"]).toBe(token);
-  });
-
-  test("aibridge-env-vars", async () => {
-    // In the test env data.coder_workspace_owner.me.session_token is empty,
-    // so ANTHROPIC_AUTH_TOKEN is emitted with an empty value (filtered out by
-    // extractCoderEnvVars). Verify ANTHROPIC_BASE_URL and confirm
-    // ANTHROPIC_API_KEY is absent.
-    const { coderEnvVars } = await setup({
-      moduleVariables: {
-        enable_aibridge: "true",
-      },
-    });
-    expect(coderEnvVars["ANTHROPIC_BASE_URL"]).toContain(
-      "/api/v2/aibridge/anthropic",
-    );
-    expect(coderEnvVars["ANTHROPIC_API_KEY"]).toBeUndefined();
   });
 
   test("claude-model", async () => {

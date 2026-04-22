@@ -18,23 +18,8 @@ run "test_defaults" {
   }
 
   assert {
-    condition     = var.enable_aibridge == false
-    error_message = "enable_aibridge should default to false"
-  }
-
-  assert {
     condition     = length(coder_env.anthropic_api_key) == 0
     error_message = "ANTHROPIC_API_KEY should not be set by default"
-  }
-
-  assert {
-    condition     = length(coder_env.anthropic_auth_token) == 0
-    error_message = "ANTHROPIC_AUTH_TOKEN should not be set by default"
-  }
-
-  assert {
-    condition     = length(coder_env.anthropic_base_url) == 0
-    error_message = "ANTHROPIC_BASE_URL should not be set by default"
   }
 
   assert {
@@ -69,16 +54,6 @@ run "test_with_anthropic_api_key" {
   assert {
     condition     = coder_env.anthropic_api_key[0].value == "sk-live-test"
     error_message = "ANTHROPIC_API_KEY value should match input"
-  }
-
-  assert {
-    condition     = length(coder_env.anthropic_auth_token) == 0
-    error_message = "ANTHROPIC_AUTH_TOKEN should not be set when only anthropic_api_key is provided"
-  }
-
-  assert {
-    condition     = length(coder_env.anthropic_base_url) == 0
-    error_message = "ANTHROPIC_BASE_URL should not be set when AI Bridge is disabled"
   }
 }
 
@@ -126,33 +101,6 @@ run "test_with_disable_autoupdater" {
   assert {
     condition     = coder_env.disable_autoupdater[0].value == "1"
     error_message = "DISABLE_AUTOUPDATER should be '1' when disable_autoupdater is true"
-  }
-}
-
-run "test_with_claude_md_path_default" {
-  command = plan
-
-  variables {
-    agent_id = "test-agent"
-  }
-
-  assert {
-    condition     = coder_env.claude_code_md_path[0].value == "$HOME/.claude/CLAUDE.md"
-    error_message = "CODER_MCP_CLAUDE_MD_PATH should default to $HOME/.claude/CLAUDE.md"
-  }
-}
-
-run "test_with_claude_md_path_empty" {
-  command = plan
-
-  variables {
-    agent_id       = "test-agent"
-    claude_md_path = ""
-  }
-
-  assert {
-    condition     = length(coder_env.claude_code_md_path) == 0
-    error_message = "CODER_MCP_CLAUDE_MD_PATH should not be set when claude_md_path is empty"
   }
 }
 
@@ -209,73 +157,6 @@ run "test_with_pre_post_install" {
     condition     = var.post_install_script == "echo post"
     error_message = "post_install_script should be forwarded"
   }
-}
-
-run "test_with_aibridge" {
-  command = plan
-
-  variables {
-    agent_id        = "test-agent"
-    enable_aibridge = true
-  }
-
-  override_data {
-    target = data.coder_workspace.me
-    values = {
-      access_url = "https://coder.test"
-    }
-  }
-
-  override_data {
-    target = data.coder_workspace_owner.me
-    values = {
-      session_token = "session-token-mock"
-    }
-  }
-
-  assert {
-    condition     = coder_env.anthropic_auth_token[0].name == "ANTHROPIC_AUTH_TOKEN"
-    error_message = "AI Bridge should set ANTHROPIC_AUTH_TOKEN"
-  }
-
-  assert {
-    condition     = coder_env.anthropic_auth_token[0].value == "session-token-mock"
-    error_message = "ANTHROPIC_AUTH_TOKEN should use the workspace owner session token"
-  }
-
-  assert {
-    condition     = coder_env.anthropic_base_url[0].value == "https://coder.test/api/v2/aibridge/anthropic"
-    error_message = "ANTHROPIC_BASE_URL should be built from the workspace access URL"
-  }
-
-  assert {
-    condition     = length(coder_env.anthropic_api_key) == 0
-    error_message = "ANTHROPIC_API_KEY must not be set when AI Bridge is enabled"
-  }
-}
-
-run "test_aibridge_api_key_conflict" {
-  command = plan
-
-  variables {
-    agent_id          = "test-agent"
-    enable_aibridge   = true
-    anthropic_api_key = "sk-live"
-  }
-
-  expect_failures = [var.enable_aibridge]
-}
-
-run "test_aibridge_oauth_conflict" {
-  command = plan
-
-  variables {
-    agent_id                = "test-agent"
-    enable_aibridge         = true
-    claude_code_oauth_token = "oauth-live"
-  }
-
-  expect_failures = [var.enable_aibridge]
 }
 
 run "test_claude_binary_path_validation" {

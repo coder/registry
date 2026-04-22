@@ -3,7 +3,7 @@ display_name: Claude Code
 description: Install and configure the Claude Code CLI in your workspace.
 icon: ../../../../.icons/claude.svg
 verified: true
-tags: [agent, claude-code, ai, anthropic, aibridge]
+tags: [agent, claude-code, ai, anthropic]
 ---
 
 # Claude Code
@@ -13,10 +13,10 @@ Install and configure the [Claude Code](https://docs.anthropic.com/en/docs/claud
 This module does three things:
 
 1. Installs Claude Code via the [official installer](https://claude.ai/install.sh).
-2. Wires up authentication through environment variables.
+2. Wires up authentication through the environment variables Claude Code reads natively.
 3. Optionally applies user-scope MCP server configuration.
 
-It does not start Claude, create a web app, or orchestrate Tasks. For those, see the dedicated `claude-code-tasks`, `agentapi`, and `boundary` modules.
+It does not start Claude, create a web app, or orchestrate Tasks. Compose with dedicated modules for those concerns.
 
 ```tf
 module "claude-code" {
@@ -33,7 +33,6 @@ Choose one of:
 
 - `anthropic_api_key`: Anthropic API key. Sets `ANTHROPIC_API_KEY`.
 - `claude_code_oauth_token`: Long-lived Claude.ai subscription token (generate with `claude setup-token`). Sets `CLAUDE_CODE_OAUTH_TOKEN`.
-- `enable_aibridge = true`: Routes through Coder [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge). Sets `ANTHROPIC_AUTH_TOKEN` (workspace owner session token) and `ANTHROPIC_BASE_URL`. Cannot combine with an API key or OAuth token.
 
 ```tf
 # Claude.ai subscription
@@ -43,15 +42,32 @@ module "claude-code" {
   agent_id                = coder_agent.main.id
   claude_code_oauth_token = var.claude_code_oauth_token
 }
+```
 
-# AI Bridge (Premium, requires Coder >= 2.29.0)
+For custom endpoints (AI Bridge, Bedrock, Vertex AI, LiteLLM, a private gateway), set the env vars Claude Code reads directly via `coder_env`:
+
+```tf
+# Example: route through a custom Anthropic-compatible proxy.
+resource "coder_env" "anthropic_base_url" {
+  agent_id = coder_agent.main.id
+  name     = "ANTHROPIC_BASE_URL"
+  value    = "https://proxy.example.com/anthropic"
+}
+
+resource "coder_env" "anthropic_auth_token" {
+  agent_id = coder_agent.main.id
+  name     = "ANTHROPIC_AUTH_TOKEN"
+  value    = var.proxy_token
+}
+
 module "claude-code" {
-  source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "5.0.0"
-  agent_id        = coder_agent.main.id
-  enable_aibridge = true
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "5.0.0"
+  agent_id = coder_agent.main.id
 }
 ```
+
+See Claude Code's [environment variables reference](https://docs.claude.com/en/docs/claude-code/env-vars) for the full list (`ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX`, `ANTHROPIC_VERTEX_PROJECT_ID`, etc.).
 
 ## MCP configuration
 
@@ -144,39 +160,6 @@ module "claude-code" {
 }
 ```
 
-## Using AWS Bedrock or Google Vertex
-
-The module does not own Bedrock/Vertex env vars; set them yourself with `coder_env` resources.
-
-```tf
-resource "coder_env" "bedrock_use" {
-  agent_id = coder_agent.main.id
-  name     = "CLAUDE_CODE_USE_BEDROCK"
-  value    = "1"
-}
-
-resource "coder_env" "aws_region" {
-  agent_id = coder_agent.main.id
-  name     = "AWS_REGION"
-  value    = "us-east-1"
-}
-
-resource "coder_env" "aws_bearer_token_bedrock" {
-  agent_id = coder_agent.main.id
-  name     = "AWS_BEARER_TOKEN_BEDROCK"
-  value    = var.aws_bearer_token_bedrock
-}
-
-module "claude-code" {
-  source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.0.0"
-  agent_id = coder_agent.main.id
-  model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
-}
-```
-
-See the [Bedrock](https://docs.claude.com/en/docs/claude-code/amazon-bedrock) and [Vertex AI](https://docs.claude.com/en/docs/claude-code/google-vertex-ai) pages for additional env var options.
-
 ## Troubleshooting
 
 Module logs live at `$HOME/.claude-module/`:
@@ -191,10 +174,10 @@ cat $HOME/.claude-module/post_install.log
 
 Breaking changes in v5.0.0:
 
-- `claude_api_key` renamed to `anthropic_api_key` and emits `ANTHROPIC_API_KEY` (not `CLAUDE_API_KEY`). This matches Claude Code's documented variable.
-- All Tasks, AgentAPI, Boundary, and web-app variables removed. See the dedicated modules.
-- `workdir` removed. MCP applies at user scope. Project-specific config belongs in the repo.
+- `claude_api_key` renamed to `anthropic_api_key`. Now sets `ANTHROPIC_API_KEY` (the variable Claude Code actually reads), not `CLAUDE_API_KEY`.
+- All Tasks, AgentAPI, Boundary, AI Bridge, and web-app variables removed. Compose dedicated modules or set env vars via `coder_env`.
+- `workdir` removed. MCP applies at user scope.
+- `claude_md_path` removed. Claude Code discovers `~/.claude/CLAUDE.md` automatically.
 - `install_via_npm` removed. Official installer only.
 - `allowed_tools` / `disallowed_tools` removed. Write `~/.claude/settings.json` via `pre_install_script` with `permissions.allow` / `permissions.deny` arrays.
-- `task_app_id` output removed. Read it from the Tasks module.
-- AI Bridge now uses `ANTHROPIC_AUTH_TOKEN` instead of `CLAUDE_API_KEY`.
+- `task_app_id` output removed.
