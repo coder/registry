@@ -133,4 +133,18 @@ apply_mcp() {
 }
 
 install_claude_code_cli
+
+# Guard: MCP add commands require the claude binary. If Claude is absent
+# (install_claude_code=false and no pre_install_script installed it), fail
+# loudly instead of silently no-oping every `claude mcp add-json` call.
+if ! command -v claude > /dev/null 2>&1; then
+  if [ -n "$ARG_MCP" ] || { [ -n "$ARG_MCP_CONFIG_REMOTE_PATH" ] && [ "$ARG_MCP_CONFIG_REMOTE_PATH" != "[]" ]; }; then
+    echo "Error: MCP configuration was provided but the claude binary is not on PATH." >&2
+    echo "Either set install_claude_code = true, install Claude via a pre_install_script, or point claude_binary_path at a pre-installed binary." >&2
+    exit 1
+  fi
+  echo "Note: claude binary not found on PATH. Skipping MCP configuration."
+  exit 0
+fi
+
 apply_mcp

@@ -233,6 +233,67 @@ describe("claude-code", async () => {
     await runModuleScripts(id);
   });
 
+  test("no-claude-no-mcp-is-fine", async () => {
+    // install_claude_code=false and no MCP requested: install log records
+    // the note and no resource tries to call the claude binary. The
+    // overall coder-utils pipeline succeeds.
+    const { id, coderEnvVars } = await setup({
+      moduleVariables: {
+        install_claude_code: "false",
+      },
+    });
+    // Remove the claude mock so command -v claude fails in the container.
+    // /usr/bin requires root, so exec as root.
+    await execContainer(
+      id,
+      [
+        "bash",
+        "-c",
+        "rm -f /usr/bin/claude /home/coder/.local/bin/claude 2>/dev/null; hash -r",
+      ],
+      ["--user", "root"],
+    );
+    const resp = await runModuleScripts(id, coderEnvVars);
+    expect(resp.exitCode).toBe(0);
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.claude-module/install.log",
+    );
+    expect(installLog).toContain("claude binary not found on PATH");
+  });
+
+  test("mcp-without-claude-fails-loudly", async () => {
+    // install_claude_code=false + mcp requested + no claude binary: the
+    // install script must exit non-zero with a clear error in the log
+    // instead of silently no-oping every claude mcp add-json call.
+    const { id, coderEnvVars } = await setup({
+      moduleVariables: {
+        install_claude_code: "false",
+        mcp: JSON.stringify({
+          mcpServers: { test: { command: "test-cmd" } },
+        }),
+      },
+    });
+    await execContainer(
+      id,
+      [
+        "bash",
+        "-c",
+        "rm -f /usr/bin/claude /home/coder/.local/bin/claude 2>/dev/null; hash -r",
+      ],
+      ["--user", "root"],
+    );
+    const resp = await runModuleScripts(id, coderEnvVars);
+    expect(resp.exitCode).not.toBe(0);
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.claude-module/install.log",
+    );
+    expect(installLog).toContain(
+      "MCP configuration was provided but the claude binary is not on PATH",
+    );
+  });
+
   test("claude-mcp-inline-user-scope", async () => {
     const mcpConfig = JSON.stringify({
       mcpServers: {
