@@ -68,7 +68,22 @@ variable "post_install_script" {
 }
 
 locals {
-  install_script = file("${path.module}/scripts/install.sh")
+  # Prepend ARG_* exports pulled from Terraform variables directly in front of
+  # the install script body. coder-utils then takes the combined string,
+  # writes it to $HOME/.claude-module/install.sh, and runs it. One file on
+  # disk, one base64 round-trip, no /tmp wrapper.
+  install_script = join("\n", [
+    "#!/bin/bash",
+    "set -euo pipefail",
+    "",
+    "export ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}'",
+    "export ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}'",
+    "export ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}'",
+    "export ARG_MCP='${var.mcp != "" ? base64encode(var.mcp) : ""}'",
+    "export ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}'",
+    "",
+    file("${path.module}/scripts/install.sh"),
+  ])
 }
 
 # Fan var.env out into one coder_env per entry. Keys are lifted out of
@@ -93,19 +108,5 @@ module "coder-utils" {
   pre_install_script  = var.pre_install_script
   post_install_script = var.post_install_script
 
-  install_script = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
-
-    ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
-    ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
-    ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
-    ARG_MCP='${var.mcp != "" ? base64encode(var.mcp) : ""}' \
-    ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
-    /tmp/install.sh
-  EOT
+  install_script = local.install_script
 }
