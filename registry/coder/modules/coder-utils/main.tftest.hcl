@@ -463,3 +463,30 @@ run "test_icon_applied" {
     error_message = "Start script icon should match input"
   }
 }
+
+# Verify optional scripts are not created when their variables are unset
+run "test_optional_scripts_absent_by_default" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent-id"
+    agent_name       = "test-agent"
+    module_directory = ".test-module"
+    install_script   = "echo install"
+  }
+
+  assert {
+    condition     = length(coder_script.pre_install_script) == 0
+    error_message = "Pre-install coder_script should not be created when pre_install_script is unset"
+  }
+
+  assert {
+    condition     = length(coder_script.post_install_script) == 0
+    error_message = "Post-install coder_script should not be created when post_install_script is unset"
+  }
+
+  assert {
+    condition     = length(coder_script.start_script) == 0
+    error_message = "Start coder_script should not be created when start_script is unset"
+  }
+}
