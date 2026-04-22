@@ -365,12 +365,12 @@ resource "coder_script" "wait_for_claude" {
 
 ## Troubleshooting
 
-Module logs live at `$HOME/.claude-module/`:
+Module logs live at `$HOME/.coder-modules/claude-code/`:
 
 ```bash
-cat $HOME/.claude-module/install.log
-cat $HOME/.claude-module/pre_install.log
-cat $HOME/.claude-module/post_install.log
+cat $HOME/.coder-modules/claude-code/install.log
+cat $HOME/.coder-modules/claude-code/pre_install.log
+cat $HOME/.coder-modules/claude-code/post_install.log
 ```
 
 ## Upgrading from v4.x

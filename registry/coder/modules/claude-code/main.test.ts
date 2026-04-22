@@ -182,7 +182,7 @@ describe("claude-code", async () => {
     await runModuleScripts(id);
     const installLog = await readFileContainer(
       id,
-      "/home/coder/.claude-module/install.log",
+      "/home/coder/.coder-modules/claude-code/install.log",
     );
     expect(installLog).toContain("ARG_INSTALL_CLAUDE_CODE");
     expect(installLog).toContain("Skipping Claude Code installation");
@@ -201,7 +201,7 @@ describe("claude-code", async () => {
     const resp = await execContainer(id, [
       "bash",
       "-c",
-      "cat /home/coder/.claude-module/install.log",
+      "cat /home/coder/.coder-modules/claude-code/install.log",
     ]);
     expect(resp.stdout).toContain(version_to_install);
   });
@@ -270,7 +270,7 @@ describe("claude-code", async () => {
     expect(resp.exitCode).toBe(0);
     const installLog = await readFileContainer(
       id,
-      "/home/coder/.claude-module/install.log",
+      "/home/coder/.coder-modules/claude-code/install.log",
     );
     expect(installLog).toContain("claude binary not found on PATH");
   });
@@ -300,7 +300,7 @@ describe("claude-code", async () => {
     expect(resp.exitCode).not.toBe(0);
     const installLog = await readFileContainer(
       id,
-      "/home/coder/.claude-module/install.log",
+      "/home/coder/.coder-modules/claude-code/install.log",
     );
     expect(installLog).toContain(
       "MCP configuration was provided but the claude binary is not on PATH",
@@ -325,7 +325,7 @@ describe("claude-code", async () => {
 
     const installLog = await readFileContainer(
       id,
-      "/home/coder/.claude-module/install.log",
+      "/home/coder/.coder-modules/claude-code/install.log",
     );
     expect(installLog).toContain("claude mcp add-json --scope user");
     expect(installLog).toContain("test-server");
@@ -349,7 +349,7 @@ describe("claude-code", async () => {
 
     const installLog = await readFileContainer(
       id,
-      "/home/coder/.claude-module/install.log",
+      "/home/coder/.coder-modules/claude-code/install.log",
     );
 
     expect(installLog).toContain(failingUrl);
@@ -397,13 +397,13 @@ describe("claude-code", async () => {
 
     const preInstallLog = await readFileContainer(
       id,
-      "/home/coder/.claude-module/pre_install.log",
+      "/home/coder/.coder-modules/claude-code/pre_install.log",
     );
     expect(preInstallLog).toContain("claude-pre-install-script");
 
     const postInstallLog = await readFileContainer(
       id,
-      "/home/coder/.claude-module/post_install.log",
+      "/home/coder/.coder-modules/claude-code/post_install.log",
     );
     expect(postInstallLog).toContain("claude-post-install-script");
   });

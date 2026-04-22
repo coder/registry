@@ -78,7 +78,7 @@ locals {
   # [A-Za-z0-9+/=], so an attacker-controlled string value (e.g. a template
   # parameter forwarded into `claude_code_version`) cannot break out of the
   # single-quoted shell literal. coder-utils takes the combined string,
-  # writes it to $HOME/.claude-module/install.sh, and runs it. One file on
+  # writes it to $HOME/.coder-modules/claude-code/install.sh, and runs it. One file on
   # disk, one base64 round-trip, no /tmp wrapper.
   install_script = join("\n", [
     "#!/bin/bash",
@@ -111,7 +111,7 @@ module "coder-utils" {
 
   agent_id         = var.agent_id
   agent_name       = "claude-code"
-  module_directory = "$HOME/.claude-module"
+  module_directory = "$HOME/.coder-modules/claude-code"
 
   display_name_prefix = "Claude Code"
   icon                = "/icon/claude.svg"
