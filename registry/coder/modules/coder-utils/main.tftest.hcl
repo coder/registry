@@ -578,3 +578,41 @@ run "test_scripts_output_with_install_and_post" {
     error_message = "scripts[1] must be the post-install name"
   }
 }
+
+# Every script must stream combined stdout+stderr to both the agent log
+# (via stdout) and the on-disk log file (via tee), so workspace users
+# watching `coder_script` output in the UI see progress live and can
+# read the same content from the log file after the fact.
+run "test_scripts_tee_stdout_and_log_file" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent-id"
+    agent_name          = "test-agent"
+    module_directory    = ".test-module"
+    pre_install_script  = "echo pre"
+    install_script      = "echo install"
+    post_install_script = "echo post"
+    start_script        = "echo start"
+  }
+
+  assert {
+    condition     = can(regex("pre_install.sh 2>&1 \\| tee .*pre_install.log", coder_script.pre_install_script[0].script))
+    error_message = "pre_install wrapper must tee combined output to the log file and stdout"
+  }
+
+  assert {
+    condition     = can(regex("install.sh 2>&1 \\| tee .*install.log", coder_script.install_script.script))
+    error_message = "install wrapper must tee combined output to the log file and stdout"
+  }
+
+  assert {
+    condition     = can(regex("post_install.sh 2>&1 \\| tee .*post_install.log", coder_script.post_install_script[0].script))
+    error_message = "post_install wrapper must tee combined output to the log file and stdout"
+  }
+
+  assert {
+    condition     = can(regex("start.sh 2>&1 \\| tee .*start.log", coder_script.start_script[0].script))
+    error_message = "start wrapper must tee combined output to the log file and stdout"
+  }
+}

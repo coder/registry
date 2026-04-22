@@ -117,7 +117,7 @@ resource "coder_script" "pre_install_script" {
     echo -n '${local.encoded_pre_install_script}' | base64 -d > ${local.pre_install_path}
     chmod +x ${local.pre_install_path}
 
-    ${local.pre_install_path} > ${local.pre_install_log_path} 2>&1
+    ${local.pre_install_path} 2>&1 | tee ${local.pre_install_log_path}
   EOT
 }
 
@@ -141,7 +141,7 @@ resource "coder_script" "install_script" {
     echo -n '${local.encoded_install_script}' | base64 -d > ${local.install_path}
     chmod +x ${local.install_path}
 
-    ${local.install_path} > ${local.install_log_path} 2>&1
+    ${local.install_path} 2>&1 | tee ${local.install_log_path}
   EOT
 }
 
@@ -163,7 +163,7 @@ resource "coder_script" "post_install_script" {
     echo -n '${local.encoded_post_install_script}' | base64 -d > ${local.post_install_path}
     chmod +x ${local.post_install_path}
 
-    ${local.post_install_path} > ${local.post_install_log_path} 2>&1
+    ${local.post_install_path} 2>&1 | tee ${local.post_install_log_path}
   EOT
 }
 
@@ -186,7 +186,7 @@ resource "coder_script" "start_script" {
     echo -n '${local.encoded_start_script}' | base64 -d > ${local.start_path}
     chmod +x ${local.start_path}
 
-    ${local.start_path} > ${local.start_log_path} 2>&1
+    ${local.start_path} 2>&1 | tee ${local.start_log_path}
   EOT
 }
 
