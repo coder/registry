@@ -30,46 +30,11 @@ variable "group" {
   default     = null
 }
 
-variable "icon" {
-  type        = string
-  description = "The icon to use for the app."
-  default     = "/icon/claude.svg"
-}
-
 variable "workdir" {
   type        = string
   description = "The folder to run Claude Code in."
 }
 
-variable "report_tasks" {
-  type        = bool
-  description = "Whether to enable task reporting to Coder UI via AgentAPI"
-  default     = true
-}
-
-variable "web_app" {
-  type        = bool
-  description = "Whether to create the web app for Claude Code. When false, AgentAPI still runs but no web UI app icon is shown in the Coder dashboard. This is automatically enabled when using Coder Tasks, regardless of this setting."
-  default     = true
-}
-
-variable "cli_app" {
-  type        = bool
-  description = "Whether to create a CLI app for Claude Code"
-  default     = false
-}
-
-variable "web_app_display_name" {
-  type        = string
-  description = "Display name for the web app"
-  default     = "Claude Code"
-}
-
-variable "cli_app_display_name" {
-  type        = string
-  description = "Display name for the CLI app"
-  default     = "Claude Code CLI"
-}
 
 variable "pre_install_script" {
   type        = string
@@ -95,18 +60,11 @@ variable "agentapi_version" {
   default     = "v0.11.8"
 }
 
-variable "ai_prompt" {
-  type        = string
-  description = "Initial task prompt for Claude Code."
-  default     = ""
-}
-
 variable "subdomain" {
   type        = bool
   description = "Whether to use a subdomain for AgentAPI."
   default     = false
 }
-
 
 variable "install_claude_code" {
   type        = bool
@@ -136,34 +94,6 @@ variable "model" {
   type        = string
   description = "Sets the default model for Claude Code via ANTHROPIC_MODEL env var. If empty, Claude Code uses its default. Supports aliases (sonnet, opus) or full model names."
   default     = ""
-}
-
-variable "resume_session_id" {
-  type        = string
-  description = "Resume a specific session by ID."
-  default     = ""
-}
-
-variable "continue" {
-  type        = bool
-  description = "Automatically continue existing sessions on workspace restart. When true, resumes existing conversation if found, otherwise runs prompt or starts new session. When false, always starts fresh (ignores existing sessions)."
-  default     = true
-}
-
-variable "dangerously_skip_permissions" {
-  type        = bool
-  description = "Skip the permission prompts. Use with caution. This will be set to true if using Coder Tasks"
-  default     = false
-}
-
-variable "permission_mode" {
-  type        = string
-  description = "Permission mode for the cli, check https://docs.anthropic.com/en/docs/claude-code/iam#permission-modes"
-  default     = ""
-  validation {
-    condition     = contains(["", "default", "acceptEdits", "plan", "auto", "bypassPermissions"], var.permission_mode)
-    error_message = "interaction_mode must be one of: default, acceptEdits, plan, auto, bypassPermissions."
-  }
 }
 
 variable "mcp" {
@@ -198,12 +128,6 @@ variable "claude_code_oauth_token" {
   default     = ""
 }
 
-variable "system_prompt" {
-  type        = string
-  description = "The system prompt to use for the Claude Code server."
-  default     = ""
-}
-
 variable "claude_md_path" {
   type        = string
   description = "The path to CLAUDE.md."
@@ -224,30 +148,6 @@ variable "claude_binary_path" {
 variable "install_via_npm" {
   type        = bool
   description = "Install Claude Code via npm instead of the official installer. Useful if npm is preferred or the official installer fails."
-  default     = false
-}
-
-variable "enable_boundary" {
-  type        = bool
-  description = "Whether to enable coder boundary for network filtering"
-  default     = false
-}
-
-variable "boundary_version" {
-  type        = string
-  description = "Boundary version. When use_boundary_directly is true, a release version should be provided or 'latest' for the latest release. When compile_boundary_from_source is true, a valid git reference should be provided (tag, commit, branch)."
-  default     = "latest"
-}
-
-variable "compile_boundary_from_source" {
-  type        = bool
-  description = "Whether to compile boundary from source instead of using the official install script"
-  default     = false
-}
-
-variable "use_boundary_directly" {
-  type        = bool
-  description = "Whether to use boundary binary directly instead of coder boundary subcommand. When false (default), uses coder boundary subcommand. When true, installs and uses boundary binary from release."
   default     = false
 }
 
@@ -280,12 +180,6 @@ resource "coder_env" "claude_code_md_path" {
   value    = var.claude_md_path
 }
 
-resource "coder_env" "claude_code_system_prompt" {
-  agent_id = var.agent_id
-  name     = "CODER_MCP_CLAUDE_SYSTEM_PROMPT"
-  value    = local.final_system_prompt
-}
-
 resource "coder_env" "claude_code_oauth_token" {
   agent_id = var.agent_id
   name     = "CLAUDE_CODE_OAUTH_TOKEN"
@@ -306,7 +200,6 @@ resource "coder_env" "disable_autoupdater" {
   name     = "DISABLE_AUTOUPDATER"
   value    = "1"
 }
-
 
 resource "coder_env" "anthropic_model" {
   count    = var.model != "" ? 1 : 0
@@ -358,60 +251,11 @@ locals {
       - Make it actionable
     EOT
 
-  # Only include coder system prompts if report_tasks is enabled
-  custom_system_prompt = trimspace(try(var.system_prompt, ""))
-  final_system_prompt = format("<system>%s%s</system>",
-    var.report_tasks ? format("\n%s\n", local.report_tasks_system_prompt) : "",
-    local.custom_system_prompt != "" ? format("\n%s\n", local.custom_system_prompt) : ""
-  )
 }
 
-module "agentapi" {
-  source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.4.0"
-
-  agent_id                 = var.agent_id
-  web_app                  = var.web_app
-  web_app_slug             = local.app_slug
-  web_app_order            = var.order
-  web_app_group            = var.group
-  web_app_icon             = var.icon
-  web_app_display_name     = var.web_app_display_name
-  folder                   = local.workdir
-  cli_app                  = var.cli_app
-  cli_app_slug             = var.cli_app ? "${local.app_slug}-cli" : null
-  cli_app_display_name     = var.cli_app ? var.cli_app_display_name : null
-  agentapi_subdomain       = var.subdomain
-  module_dir_name          = local.module_dir_name
-  install_agentapi         = var.install_agentapi
-  agentapi_version         = var.agentapi_version
-  enable_state_persistence = var.enable_state_persistence
-  pre_install_script       = var.pre_install_script
-  post_install_script      = var.post_install_script
-  start_script             = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-    chmod +x /tmp/start.sh
-
-    ARG_RESUME_SESSION_ID='${var.resume_session_id}' \
-    ARG_CONTINUE='${var.continue}' \
-    ARG_DANGEROUSLY_SKIP_PERMISSIONS='${var.dangerously_skip_permissions}' \
-    ARG_PERMISSION_MODE='${var.permission_mode}' \
-    ARG_WORKDIR='${local.workdir}' \
-    ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
-    ARG_REPORT_TASKS='${var.report_tasks}' \
-    ARG_ENABLE_BOUNDARY='${var.enable_boundary}' \
-    ARG_BOUNDARY_VERSION='${var.boundary_version}' \
-    ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
-    ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
-    ARG_CODER_HOST='${local.coder_host}' \
-    ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
-    /tmp/start.sh
-  EOT
-
-  install_script = <<-EOT
+resource "coder_script" "install_claude_code" {
+  agent_id     = var.agent_id
+  script      = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
@@ -423,18 +267,13 @@ module "agentapi" {
     ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
     ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
     ARG_INSTALL_VIA_NPM='${var.install_via_npm}' \
-    ARG_REPORT_TASKS='${var.report_tasks}' \
     ARG_WORKDIR='${local.workdir}' \
     ARG_ALLOWED_TOOLS='${var.allowed_tools}' \
     ARG_DISALLOWED_TOOLS='${var.disallowed_tools}' \
     ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
     ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
     ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
-    ARG_PERMISSION_MODE='${var.permission_mode}' \
     /tmp/install.sh
   EOT
-}
-
-output "task_app_id" {
-  value = module.agentapi.task_app_id
+  display_name = "ClaudeCode Install Script"
 }

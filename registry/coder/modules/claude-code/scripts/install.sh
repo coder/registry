@@ -15,7 +15,6 @@ ARG_CLAUDE_BINARY_PATH=${ARG_CLAUDE_BINARY_PATH:-"$HOME/.local/bin"}
 ARG_CLAUDE_BINARY_PATH="${ARG_CLAUDE_BINARY_PATH/#\~/$HOME}"
 ARG_CLAUDE_BINARY_PATH="${ARG_CLAUDE_BINARY_PATH//\$HOME/$HOME}"
 ARG_INSTALL_VIA_NPM=${ARG_INSTALL_VIA_NPM:-false}
-ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
 ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
 ARG_MCP=$(echo -n "${ARG_MCP:-}" | base64 -d)
 ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n "${ARG_MCP_CONFIG_REMOTE_PATH:-}" | base64 -d)
@@ -33,7 +32,6 @@ printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
 printf "ARG_INSTALL_CLAUDE_CODE: %s\n" "$ARG_INSTALL_CLAUDE_CODE"
 printf "ARG_CLAUDE_BINARY_PATH: %s\n" "$ARG_CLAUDE_BINARY_PATH"
 printf "ARG_INSTALL_VIA_NPM: %s\n" "$ARG_INSTALL_VIA_NPM"
-printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
 printf "ARG_MCP_APP_STATUS_SLUG: %s\n" "$ARG_MCP_APP_STATUS_SLUG"
 printf "ARG_MCP: %s\n" "$ARG_MCP"
 printf "ARG_MCP_CONFIG_REMOTE_PATH: %s\n" "$ARG_MCP_CONFIG_REMOTE_PATH"
@@ -227,17 +225,6 @@ EOF
   echo "Standalone mode configured successfully"
 }
 
-function report_tasks() {
-  if [ "$ARG_REPORT_TASKS" = "true" ]; then
-    echo "Configuring Claude Code to report tasks via Coder MCP..."
-    export CODER_MCP_APP_STATUS_SLUG="$ARG_MCP_APP_STATUS_SLUG"
-    export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
-    coder exp mcp configure claude-code "$ARG_WORKDIR"
-  else
-    configure_standalone_mode
-  fi
-}
-
 function accept_auto_mode() {
   # Pre-accept the auto mode TOS prompt so it doesn't appear interactively.
   # Claude Code shows a confirmation dialog for auto mode that blocks
@@ -258,7 +245,7 @@ function accept_auto_mode() {
 
 install_claude_code_cli
 setup_claude_configurations
-report_tasks
+cofigure_standalone_mode
 
 if [ "$ARG_PERMISSION_MODE" = "auto" ]; then
   accept_auto_mode
