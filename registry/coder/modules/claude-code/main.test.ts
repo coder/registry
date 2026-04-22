@@ -321,6 +321,18 @@ SESSIONEOF`,
     expect(startLog.stdout).toContain(`--dangerously-skip-permissions`);
   });
 
+  test("dangerous-mode-startup-modal-pre-accepted", async () => {
+    const { id } = await setup();
+    await execModuleScript(id);
+
+    const settings = await readFileContainer(
+      id,
+      "/home/coder/.claude/settings.json",
+    );
+    const parsed = JSON.parse(settings);
+    expect(parsed.permissions.skipDangerousModePermissionPrompt).toBe(true);
+  });
+
   test("subdomain-false", async () => {
     const { id } = await setup({
       skipAgentAPIMock: true,

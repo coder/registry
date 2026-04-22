@@ -256,9 +256,31 @@ function accept_auto_mode() {
   echo "Pre-accepted auto mode prompt"
 }
 
+function accept_dangerous_mode() {
+  # Pre-accept the --dangerously-skip-permissions startup modal so it
+  # doesn't block non-interactive/headless usage. As of Claude Code
+  # >= 2.1.87 the legacy `bypassPermissionsModeAccepted` flag in
+  # ~/.claude.json no longer suppresses this modal — the check moved
+  # to ~/.claude/settings.json under permissions.skipDangerousModePermissionPrompt.
+  # The key is idempotent and only has effect when the flag is passed,
+  # so it is safe to write unconditionally.
+  local settings="$HOME/.claude/settings.json"
+  mkdir -p "$(dirname "$settings")"
+
+  if [ -f "$settings" ]; then
+    jq '.permissions.skipDangerousModePermissionPrompt = true' \
+      "$settings" > "${settings}.tmp" && mv "${settings}.tmp" "$settings"
+  else
+    echo '{"permissions":{"skipDangerousModePermissionPrompt":true}}' > "$settings"
+  fi
+
+  echo "Pre-accepted dangerous permissions mode"
+}
+
 install_claude_code_cli
 setup_claude_configurations
 report_tasks
+accept_dangerous_mode
 
 if [ "$ARG_PERMISSION_MODE" = "auto" ]; then
   accept_auto_mode
