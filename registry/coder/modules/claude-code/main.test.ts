@@ -347,6 +347,29 @@ describe("claude-code", async () => {
     expect(installLog).toContain("claude mcp add-json --scope user");
   });
 
+  test("no-extra-scripts-when-pre-post-unset", async () => {
+    // When pre_install_script / post_install_script are not provided,
+    // coder-utils must skip creating their coder_script resources. This
+    // keeps the agent's scripts list clean in the Coder UI.
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      install_claude_code: "false",
+    });
+
+    const scriptCount = state.resources
+      .filter((r) => r.type === "coder_script")
+      .reduce((n, r) => n + r.instances.length, 0);
+    expect(scriptCount).toBe(1);
+
+    const scripts = state.resources.filter((r) => r.type === "coder_script");
+    const displayNames = scripts.flatMap((r) =>
+      r.instances.map(
+        (i) => (i.attributes as Record<string, unknown>).display_name,
+      ),
+    );
+    expect(displayNames).toEqual(["Claude Code: Install Script"]);
+  });
+
   test("pre-post-install-scripts", async () => {
     const { id } = await setup({
       moduleVariables: {
