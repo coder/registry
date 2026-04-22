@@ -29,7 +29,7 @@ module "claude-code" {
 
 ## Environment variables (`env`)
 
-Pass any Claude Code env var (or any custom var your pre/post scripts consume) through the `env` map. Each key/value pair becomes one `coder_env` resource on the agent.
+Pass any Claude Code env var (or any custom var your pre/post scripts consume) through the `env` map. Each pair is exposed as an environment variable to the workspace.
 
 ```tf
 variable "anthropic_api_key" {
@@ -69,7 +69,7 @@ module "claude-code" {
 
 Route Claude Code through [Coder AI Gateway](https://coder.com/docs/ai-coder/ai-gateway) for centralized auditing and token usage tracking. Requires Coder Premium with the AI Governance add-on and `CODER_AIBRIDGE_ENABLED=true` on the server.
 
-Point `ANTHROPIC_BASE_URL` at your deployment's `/api/v2/aibridge/anthropic` endpoint and authenticate with the workspace owner's session token via `ANTHROPIC_AUTH_TOKEN`. Claude Code reads both variables natively; no API key is required.
+Point `ANTHROPIC_BASE_URL` at your deployment's `/api/v2/aibridge/anthropic` endpoint and authenticate with the workspace owner's session token via `ANTHROPIC_AUTH_TOKEN`. Claude Code reads both variables directly, so no API key is required.
 
 ```tf
 data "coder_workspace" "me" {}
@@ -124,7 +124,7 @@ module "claude-code" {
 
 Route Claude Code through [Google Vertex AI](https://docs.claude.com/en/docs/claude-code/google-vertex-ai). Requires a GCP project with Vertex AI enabled, Claude models enabled via Model Garden, and a service account with the Vertex AI User role.
 
-The service account JSON has to land on the workspace filesystem where Claude can read it, so authenticating gcloud happens in `pre_install_script`:
+The service account JSON must be written to disk where Claude can read it, so gcloud authentication happens in `pre_install_script`:
 
 ```tf
 variable "vertex_sa_json" {
@@ -236,7 +236,7 @@ module "claude-code" {
 
 ## Using a pre-installed binary
 
-`claude_binary_path` is only consulted when `install_claude_code = false`. The official installer always drops the binary at `$HOME/.local/bin/claude` and does not accept a custom destination, so combining `install_claude_code = true` with a custom `claude_binary_path` is rejected at plan time.
+`claude_binary_path` is only consulted when `install_claude_code = false`. The official installer always drops the binary at `$HOME/.local/bin/claude` and does not accept a custom destination, so combining `install_claude_code = true` with a custom `claude_binary_path` is rejected before the workspace deploys.
 
 To use a binary you bake into the image (or install via a separate module), set `install_claude_code = false` and point `claude_binary_path` at the directory containing it:
 
@@ -280,7 +280,7 @@ module "claude-code" {
 
 ## Unattended mode (skip setup wizard and permission prompts)
 
-For template-admin setups where Claude Code should just work — CI agents, headless workspaces, AI coding agents that do not have a human to click through the first-run wizard or confirm bypass-permissions mode — pre-write `settings.json` and `~/.claude.json` via `pre_install_script`.
+For templates that need Claude Code to run without human interaction (CI agents, headless workspaces, AI coding agents that cannot click through the first-run wizard or confirm bypass-permissions mode), pre-write `settings.json` and `~/.claude.json` via `pre_install_script`.
 
 ```tf
 module "claude-code" {
@@ -335,7 +335,7 @@ claude -p "$PROMPT" --dangerously-skip-permissions --permission-mode bypassPermi
 
 ## Outputs
 
-`scripts` is a list of `coder exp sync` names for every `coder_script` this module creates, in the order `coder-utils` runs them. Use it to gate a downstream `coder_script` behind Claude Code's install:
+`scripts` is the list of script names this module creates, in run order. Use it with `coder exp sync` to make another `coder_script` wait until Claude Code finishes installing:
 
 ```tf
 module "claude-code" {
@@ -360,7 +360,7 @@ resource "coder_script" "wait_for_claude" {
 
 ## Troubleshooting
 
-Module logs live at `$HOME/.coder-modules/claude-code/`:
+Module logs are written to `$HOME/.coder-modules/claude-code/`:
 
 ```bash
 cat $HOME/.coder-modules/claude-code/install.log
@@ -375,8 +375,8 @@ cat $HOME/.coder-modules/claude-code/post_install.log
 
 Breaking changes in v5.0.0:
 
-- `claude_api_key`, `claude_code_oauth_token`, `model`, `disable_autoupdater`, `claude_md_path` removed as dedicated variables. Set them through `env` instead. The module now emits `ANTHROPIC_API_KEY` (the variable Claude Code actually reads), not `CLAUDE_API_KEY`.
-- All Tasks, AgentAPI, Boundary, AI Bridge (now **AI Gateway**), and web-app variables removed. Compose dedicated modules or set env vars via `env`. See the AI Gateway example above for the replacement pattern.
+- `claude_api_key`, `claude_code_oauth_token`, `model`, `disable_autoupdater`, `claude_md_path` removed as dedicated variables. Set them through `env` instead. The module now sets `ANTHROPIC_API_KEY` (the variable Claude Code actually reads), not `CLAUDE_API_KEY`.
+- All Tasks, AgentAPI, Boundary, AI Bridge (now **AI Gateway**), and web-app variables removed. Use dedicated modules instead, or set env vars through the `env` map. See the AI Gateway example above for the replacement pattern.
 - `workdir` removed. MCP applies at user scope.
 - `install_via_npm` removed. Official installer only.
 - `allowed_tools` / `disallowed_tools` removed. Write `~/.claude/settings.json` via `pre_install_script` with `permissions.allow` / `permissions.deny` arrays.
