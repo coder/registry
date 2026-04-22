@@ -122,19 +122,11 @@ module "coder-utils" {
   install_script = local.install_script
 }
 
-# Sync names for the coder_scripts this module actually creates, in the order
-# coder-utils enforces at runtime (pre-install, then install, then
-# post-install). Downstream modules can `coder exp sync want <self> <each>` to
-# serialize behind the install. claude-code never emits a start script so it
-# is never in the list. If pre- or post-install scripts are not configured,
-# they are absent from the list entirely, not included as empty strings.
+# Passthrough of coder-utils' run-ordered, filtered sync-name list.
+# claude-code adds no scripts of its own beyond what coder-utils creates for
+# pre_install, install, and post_install, so downstream modules can gate
+# behind this with `coder exp sync want`.
 output "scripts" {
   description = "Ordered list of `coder exp sync` names for every coder_script this module creates. Use these to gate downstream scripts behind Claude Code's install with `coder exp sync want`."
-  value = [
-    for name in [
-      module.coder-utils.script_names.pre_install,
-      module.coder-utils.script_names.install,
-      module.coder-utils.script_names.post_install,
-    ] : name if name != ""
-  ]
+  value       = module.coder-utils.scripts
 }
