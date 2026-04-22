@@ -10,13 +10,10 @@ tags: [agent, claude-code, ai, anthropic]
 
 Install and configure the [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) CLI in your workspace.
 
-This module does three things:
+This module does two things:
 
 1. Installs Claude Code via the [official installer](https://claude.ai/install.sh).
-2. Exports environment variables to the Coder agent.
-3. Optionally applies user-scope MCP server configuration.
-
-It does not start Claude, create a web app, or orchestrate Tasks. Compose with dedicated modules for those concerns.
+2. Optionally applies user-scope MCP server configuration.
 
 ```tf
 module "claude-code" {
@@ -33,8 +30,6 @@ module "claude-code" {
 ## Environment variables (`env`)
 
 Pass any Claude Code env var (or any custom var your pre/post scripts consume) through the `env` map. Each key/value pair becomes one `coder_env` resource on the agent.
-
-Declare your Terraform variable with `sensitive = true` to keep secrets out of plan output. Values retain their sensitivity when passed through the module.
 
 ```tf
 variable "anthropic_api_key" {
