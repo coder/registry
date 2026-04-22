@@ -105,6 +105,9 @@ module "coder-utils" {
   agent_name       = "claude-code"
   module_directory = "$HOME/.claude-module"
 
+  display_name_prefix = "Claude Code"
+  icon                = "/icon/claude.svg"
+
   pre_install_script  = var.pre_install_script
   post_install_script = var.post_install_script
 
