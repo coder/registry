@@ -460,3 +460,82 @@ run "test_api_key_count_with_aibridge_no_override" {
     error_message = "CLAUDE_API_KEY env should be created when aibridge is enabled, regardless of session_token value"
   }
 }
+
+run "test_api_key_helper" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-helper"
+    workdir  = "/home/coder/test"
+    api_key_helper = {
+      script = "#!/bin/sh\nvault kv get -field=key secret/anthropic\n"
+      ttl_ms = 60000
+    }
+  }
+
+  assert {
+    condition     = length(coder_env.api_key_helper_ttl_ms) == 1
+    error_message = "CLAUDE_CODE_API_KEY_HELPER_TTL_MS env should be created when api_key_helper is set"
+  }
+
+  assert {
+    condition     = coder_env.api_key_helper_ttl_ms[0].value == "60000"
+    error_message = "CLAUDE_CODE_API_KEY_HELPER_TTL_MS should match api_key_helper.ttl_ms"
+  }
+
+  assert {
+    condition     = length(coder_env.claude_api_key) == 0
+    error_message = "CLAUDE_API_KEY env should not be created when api_key_helper is the auth source"
+  }
+}
+
+run "test_api_key_helper_default_ttl" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-helper-default"
+    workdir  = "/home/coder/test"
+    api_key_helper = {
+      script = "#!/bin/sh\necho key\n"
+    }
+  }
+
+  assert {
+    condition     = coder_env.api_key_helper_ttl_ms[0].value == "300000"
+    error_message = "ttl_ms should default to 300000 (5 minutes)"
+  }
+}
+
+run "test_api_key_helper_validation_with_api_key" {
+  command = plan
+
+  variables {
+    agent_id       = "test-agent-helper-validation"
+    workdir        = "/home/coder/test"
+    claude_api_key = "test-key"
+    api_key_helper = {
+      script = "#!/bin/sh\necho key\n"
+    }
+  }
+
+  expect_failures = [
+    var.api_key_helper,
+  ]
+}
+
+run "test_api_key_helper_validation_with_aibridge" {
+  command = plan
+
+  variables {
+    agent_id        = "test-agent-helper-validation-aibridge"
+    workdir         = "/home/coder/test"
+    enable_aibridge = true
+    api_key_helper = {
+      script = "#!/bin/sh\necho key\n"
+    }
+  }
+
+  expect_failures = [
+    var.api_key_helper,
+  ]
+}

@@ -23,6 +23,7 @@ ARG_ALLOWED_TOOLS=${ARG_ALLOWED_TOOLS:-}
 ARG_DISALLOWED_TOOLS=${ARG_DISALLOWED_TOOLS:-}
 ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
 ARG_PERMISSION_MODE=${ARG_PERMISSION_MODE:-}
+ARG_API_KEY_HELPER_SCRIPT=${ARG_API_KEY_HELPER_SCRIPT:-}
 
 export PATH="$ARG_CLAUDE_BINARY_PATH:$PATH"
 
@@ -180,8 +181,8 @@ function setup_claude_configurations() {
 function configure_standalone_mode() {
   echo "Configuring Claude Code for standalone mode..."
 
-  if [ -z "${CLAUDE_API_KEY:-}" ] && [ "$ARG_ENABLE_AIBRIDGE" = "false" ]; then
-    echo "Note: Neither claude_api_key nor enable_aibridge is set, skipping authentication setup"
+  if [ -z "${CLAUDE_API_KEY:-}" ] && [ "$ARG_ENABLE_AIBRIDGE" = "false" ] && [ -z "$ARG_API_KEY_HELPER_SCRIPT" ]; then
+    echo "Note: No authentication configured (claude_api_key, enable_aibridge, or api_key_helper), skipping authentication setup"
     return
   fi
 
@@ -189,18 +190,18 @@ function configure_standalone_mode() {
   local workdir_normalized
   workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
 
-  # Create or update .claude.json with minimal configuration for API key auth
-  # This skips the interactive login prompt and onboarding screens
+  # Pre-accept onboarding and trust prompts so the CLI starts non-interactively.
+  # The API key itself is supplied via env (ANTHROPIC_API_KEY / CLAUDE_API_KEY)
+  # or apiKeyHelper, never written to this file.
   if [ -f "$claude_config" ]; then
     echo "Updating existing Claude configuration at $claude_config"
 
-    jq --arg workdir "$ARG_WORKDIR" --arg apikey "${CLAUDE_API_KEY:-}" \
+    jq --arg workdir "$ARG_WORKDIR" \
       '.autoUpdaterStatus = "disabled" |
         .autoModeAccepted = true |
         .bypassPermissionsModeAccepted = true |
         .hasAcknowledgedCostThreshold = true |
         .hasCompletedOnboarding = true |
-        .primaryApiKey = $apikey |
         .projects[$workdir].hasCompletedProjectOnboarding = true |
         .projects[$workdir].hasTrustDialogAccepted = true' \
       "$claude_config" > "${claude_config}.tmp" && mv "${claude_config}.tmp" "$claude_config"
@@ -213,7 +214,6 @@ function configure_standalone_mode() {
   "bypassPermissionsModeAccepted": true,
   "hasAcknowledgedCostThreshold": true,
   "hasCompletedOnboarding": true,
-  "primaryApiKey": "${CLAUDE_API_KEY:-}",
   "projects": {
     "$ARG_WORKDIR": {
       "hasCompletedProjectOnboarding": true,
@@ -225,6 +225,30 @@ EOF
   fi
 
   echo "Standalone mode configured successfully"
+}
+
+function setup_api_key_helper() {
+  if [ -z "$ARG_API_KEY_HELPER_SCRIPT" ]; then
+    return
+  fi
+
+  echo "Configuring apiKeyHelper for short-lived credentials..."
+
+  mkdir -p "$HOME/.claude"
+  local helper_path="$HOME/.claude/coder-api-key-helper.sh"
+  echo -n "$ARG_API_KEY_HELPER_SCRIPT" | base64 -d > "$helper_path"
+  chmod 0700 "$helper_path"
+
+  local managed_dir="/etc/claude-code/managed-settings.d"
+  if command_exists sudo; then
+    sudo mkdir -p "$managed_dir"
+    printf '{\n  "apiKeyHelper": "%s"\n}\n' "$helper_path" | sudo tee "$managed_dir/20-coder-apikeyhelper.json" > /dev/null
+  else
+    mkdir -p "$managed_dir"
+    printf '{\n  "apiKeyHelper": "%s"\n}\n' "$helper_path" > "$managed_dir/20-coder-apikeyhelper.json"
+  fi
+
+  echo "apiKeyHelper registered at $helper_path (settings: $managed_dir/20-coder-apikeyhelper.json)"
 }
 
 function report_tasks() {
@@ -258,6 +282,7 @@ function accept_auto_mode() {
 
 install_claude_code_cli
 setup_claude_configurations
+setup_api_key_helper
 report_tasks
 
 if [ "$ARG_PERMISSION_MODE" = "auto" ]; then
