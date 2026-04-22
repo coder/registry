@@ -267,6 +267,44 @@ variable "enable_aibridge" {
   }
 }
 
+variable "anthropic_base_url" {
+  type        = string
+  description = "Override the Anthropic API base URL (sets ANTHROPIC_BASE_URL). Use for self-hosted LLM gateways or proxies. Mutually exclusive with enable_aibridge."
+  default     = ""
+
+  validation {
+    condition     = !(var.anthropic_base_url != "" && var.enable_aibridge)
+    error_message = "anthropic_base_url cannot be provided when enable_aibridge is true. AI Bridge sets ANTHROPIC_BASE_URL automatically."
+  }
+}
+
+variable "use_bedrock" {
+  type        = bool
+  description = "Run Claude Code against Amazon Bedrock (sets CLAUDE_CODE_USE_BEDROCK=1). Authentication uses the workspace's AWS credentials (IRSA, instance profile, or AWS_* env vars). Mutually exclusive with enable_aibridge and use_vertex."
+  default     = false
+
+  validation {
+    condition     = !(var.use_bedrock && var.enable_aibridge)
+    error_message = "use_bedrock cannot be combined with enable_aibridge."
+  }
+
+  validation {
+    condition     = !(var.use_bedrock && var.use_vertex)
+    error_message = "use_bedrock and use_vertex are mutually exclusive."
+  }
+}
+
+variable "use_vertex" {
+  type        = bool
+  description = "Run Claude Code against Google Vertex AI (sets CLAUDE_CODE_USE_VERTEX=1). Authentication uses Application Default Credentials (Workload Identity or GOOGLE_APPLICATION_CREDENTIALS). Mutually exclusive with enable_aibridge and use_bedrock."
+  default     = false
+
+  validation {
+    condition     = !(var.use_vertex && var.enable_aibridge)
+    error_message = "use_vertex cannot be combined with enable_aibridge."
+  }
+}
+
 variable "enable_state_persistence" {
   type        = bool
   description = "Enable AgentAPI conversation state persistence across restarts."
@@ -316,10 +354,24 @@ resource "coder_env" "anthropic_model" {
 }
 
 resource "coder_env" "anthropic_base_url" {
-  count    = var.enable_aibridge ? 1 : 0
+  count    = (var.enable_aibridge || var.anthropic_base_url != "") ? 1 : 0
   agent_id = var.agent_id
   name     = "ANTHROPIC_BASE_URL"
-  value    = "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic"
+  value    = var.enable_aibridge ? "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic" : var.anthropic_base_url
+}
+
+resource "coder_env" "use_bedrock" {
+  count    = var.use_bedrock ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CLAUDE_CODE_USE_BEDROCK"
+  value    = "1"
+}
+
+resource "coder_env" "use_vertex" {
+  count    = var.use_vertex ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CLAUDE_CODE_USE_VERTEX"
+  value    = "1"
 }
 
 locals {
@@ -431,6 +483,9 @@ module "agentapi" {
     ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
     ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
     ARG_PERMISSION_MODE='${var.permission_mode}' \
+    ARG_USE_BEDROCK='${var.use_bedrock}' \
+    ARG_USE_VERTEX='${var.use_vertex}' \
+    ARG_ANTHROPIC_BASE_URL='${var.anthropic_base_url}' \
     /tmp/install.sh
   EOT
 }

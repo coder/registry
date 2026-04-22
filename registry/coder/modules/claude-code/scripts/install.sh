@@ -23,6 +23,9 @@ ARG_ALLOWED_TOOLS=${ARG_ALLOWED_TOOLS:-}
 ARG_DISALLOWED_TOOLS=${ARG_DISALLOWED_TOOLS:-}
 ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
 ARG_PERMISSION_MODE=${ARG_PERMISSION_MODE:-}
+ARG_USE_BEDROCK=${ARG_USE_BEDROCK:-false}
+ARG_USE_VERTEX=${ARG_USE_VERTEX:-false}
+ARG_ANTHROPIC_BASE_URL=${ARG_ANTHROPIC_BASE_URL:-}
 
 export PATH="$ARG_CLAUDE_BINARY_PATH:$PATH"
 
@@ -40,6 +43,9 @@ printf "ARG_MCP_CONFIG_REMOTE_PATH: %s\n" "$ARG_MCP_CONFIG_REMOTE_PATH"
 printf "ARG_ALLOWED_TOOLS: %s\n" "$ARG_ALLOWED_TOOLS"
 printf "ARG_DISALLOWED_TOOLS: %s\n" "$ARG_DISALLOWED_TOOLS"
 printf "ARG_ENABLE_AIBRIDGE: %s\n" "$ARG_ENABLE_AIBRIDGE"
+printf "ARG_USE_BEDROCK: %s\n" "$ARG_USE_BEDROCK"
+printf "ARG_USE_VERTEX: %s\n" "$ARG_USE_VERTEX"
+printf "ARG_ANTHROPIC_BASE_URL: %s\n" "$ARG_ANTHROPIC_BASE_URL"
 
 echo "--------------------------------"
 
@@ -179,6 +185,19 @@ function setup_claude_configurations() {
 
 function configure_standalone_mode() {
   echo "Configuring Claude Code for standalone mode..."
+
+  if [ "$ARG_USE_BEDROCK" = "true" ]; then
+    echo "Using Amazon Bedrock (CLAUDE_CODE_USE_BEDROCK=1); Anthropic API key not required, skipping authentication setup"
+    return
+  fi
+  if [ "$ARG_USE_VERTEX" = "true" ]; then
+    echo "Using Google Vertex AI (CLAUDE_CODE_USE_VERTEX=1); Anthropic API key not required, skipping authentication setup"
+    return
+  fi
+  if [ -n "$ARG_ANTHROPIC_BASE_URL" ]; then
+    echo "Using custom ANTHROPIC_BASE_URL ($ARG_ANTHROPIC_BASE_URL); skipping built-in authentication setup"
+    return
+  fi
 
   if [ -z "${CLAUDE_API_KEY:-}" ] && [ "$ARG_ENABLE_AIBRIDGE" = "false" ]; then
     echo "Note: Neither claude_api_key nor enable_aibridge is set, skipping authentication setup"

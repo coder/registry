@@ -460,3 +460,133 @@ run "test_api_key_count_with_aibridge_no_override" {
     error_message = "CLAUDE_API_KEY env should be created when aibridge is enabled, regardless of session_token value"
   }
 }
+
+run "test_use_bedrock" {
+  command = plan
+
+  variables {
+    agent_id    = "test-agent-bedrock"
+    workdir     = "/home/coder/test"
+    use_bedrock = true
+  }
+
+  assert {
+    condition     = coder_env.use_bedrock[0].name == "CLAUDE_CODE_USE_BEDROCK"
+    error_message = "CLAUDE_CODE_USE_BEDROCK env var should be created when use_bedrock is true"
+  }
+
+  assert {
+    condition     = coder_env.use_bedrock[0].value == "1"
+    error_message = "CLAUDE_CODE_USE_BEDROCK should be set to 1"
+  }
+
+  assert {
+    condition     = length(coder_env.claude_api_key) == 0
+    error_message = "CLAUDE_API_KEY should not be created when use_bedrock is true and no claude_api_key is provided"
+  }
+
+  assert {
+    condition     = length(coder_env.use_vertex) == 0
+    error_message = "CLAUDE_CODE_USE_VERTEX should not be created when use_bedrock is true"
+  }
+}
+
+run "test_use_vertex" {
+  command = plan
+
+  variables {
+    agent_id   = "test-agent-vertex"
+    workdir    = "/home/coder/test"
+    use_vertex = true
+  }
+
+  assert {
+    condition     = coder_env.use_vertex[0].name == "CLAUDE_CODE_USE_VERTEX"
+    error_message = "CLAUDE_CODE_USE_VERTEX env var should be created when use_vertex is true"
+  }
+
+  assert {
+    condition     = coder_env.use_vertex[0].value == "1"
+    error_message = "CLAUDE_CODE_USE_VERTEX should be set to 1"
+  }
+}
+
+run "test_anthropic_base_url_explicit" {
+  command = plan
+
+  variables {
+    agent_id           = "test-agent-baseurl"
+    workdir            = "/home/coder/test"
+    anthropic_base_url = "https://llm-gateway.example.com/anthropic"
+  }
+
+  assert {
+    condition     = coder_env.anthropic_base_url[0].value == "https://llm-gateway.example.com/anthropic"
+    error_message = "ANTHROPIC_BASE_URL should match the explicit anthropic_base_url input"
+  }
+
+  assert {
+    condition     = length(coder_env.claude_api_key) == 0
+    error_message = "CLAUDE_API_KEY should not be created when only anthropic_base_url is provided"
+  }
+}
+
+run "test_bedrock_aibridge_validation" {
+  command = plan
+
+  variables {
+    agent_id        = "test-agent-validation"
+    workdir         = "/home/coder/test"
+    use_bedrock     = true
+    enable_aibridge = true
+  }
+
+  expect_failures = [
+    var.use_bedrock,
+  ]
+}
+
+run "test_vertex_aibridge_validation" {
+  command = plan
+
+  variables {
+    agent_id        = "test-agent-validation"
+    workdir         = "/home/coder/test"
+    use_vertex      = true
+    enable_aibridge = true
+  }
+
+  expect_failures = [
+    var.use_vertex,
+  ]
+}
+
+run "test_bedrock_vertex_validation" {
+  command = plan
+
+  variables {
+    agent_id    = "test-agent-validation"
+    workdir     = "/home/coder/test"
+    use_bedrock = true
+    use_vertex  = true
+  }
+
+  expect_failures = [
+    var.use_bedrock,
+  ]
+}
+
+run "test_base_url_aibridge_validation" {
+  command = plan
+
+  variables {
+    agent_id           = "test-agent-validation"
+    workdir            = "/home/coder/test"
+    anthropic_base_url = "https://gateway.example.com"
+    enable_aibridge    = true
+  }
+
+  expect_failures = [
+    var.anthropic_base_url,
+  ]
+}

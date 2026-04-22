@@ -220,99 +220,60 @@ module "claude-code" {
 
 ### Usage with AWS Bedrock
 
+Set `use_bedrock = true` to route Claude Code through Amazon Bedrock. The module sets `CLAUDE_CODE_USE_BEDROCK=1` and skips Anthropic API key setup; authentication is handled by the AWS SDK credential chain inside the workspace.
+
 #### Prerequisites
 
-AWS account with Bedrock access, Claude models enabled in Bedrock console, and appropriate IAM permissions.
-
-Configure Claude Code to use AWS Bedrock for accessing Claude models through your AWS infrastructure.
+AWS account with Bedrock access, Claude models enabled in the Bedrock console, and IAM permissions for `bedrock:InvokeModel*` on the workspace's identity.
 
 ```tf
-resource "coder_env" "bedrock_use" {
-  agent_id = coder_agent.main.id
-  name     = "CLAUDE_CODE_USE_BEDROCK"
-  value    = "1"
+module "claude-code" {
+  source      = "registry.coder.com/coder/claude-code/coder"
+  version     = "4.9.2"
+  agent_id    = coder_agent.main.id
+  workdir     = "/home/coder/project"
+  use_bedrock = true
+  model       = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
 }
 
 resource "coder_env" "aws_region" {
   agent_id = coder_agent.main.id
   name     = "AWS_REGION"
-  value    = "us-east-1" # Choose your preferred region
+  value    = "us-east-1"
 }
+```
 
-# Option 1: Using AWS credentials
+> [!TIP]
+> Prefer attaching an IAM role to the workspace (EKS IRSA, EC2 instance profile, or ECS task role) over passing static `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` through Terraform variables. Claude Code picks up the role via the standard AWS credential chain with no additional configuration.
 
-variable "aws_access_key_id" {
-  type        = string
-  description = "Your AWS access key ID. Create this in the AWS IAM console under 'Security credentials'."
-  sensitive   = true
-  value       = "xxxx-xxx-xxxx"
-}
+If your workspaces cannot use an attached IAM role, you can still pass static credentials or a Bedrock bearer token via `coder_env` resources alongside the module:
 
-variable "aws_secret_access_key" {
-  type        = string
-  description = "Your AWS secret access key. This is shown once when you create an access key in the AWS IAM console."
-  sensitive   = true
-  value       = "xxxx-xxx-xxxx"
-}
-
-resource "coder_env" "aws_access_key_id" {
-  agent_id = coder_agent.main.id
-  name     = "AWS_ACCESS_KEY_ID"
-  value    = var.aws_access_key_id
-}
-
-resource "coder_env" "aws_secret_access_key" {
-  agent_id = coder_agent.main.id
-  name     = "AWS_SECRET_ACCESS_KEY"
-  value    = var.aws_secret_access_key
-}
-
-# Option 2: Using Bedrock API key (simpler)
-
-variable "aws_bearer_token_bedrock" {
-  type        = string
-  description = "Your AWS Bedrock bearer token. This provides access to Bedrock without needing separate access key and secret key."
-  sensitive   = true
-  value       = "xxxx-xxx-xxxx"
-}
-
-resource "coder_env" "bedrock_api_key" {
+```tf
+resource "coder_env" "aws_bearer_token_bedrock" {
   agent_id = coder_agent.main.id
   name     = "AWS_BEARER_TOKEN_BEDROCK"
   value    = var.aws_bearer_token_bedrock
 }
-
-module "claude-code" {
-  source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.9.2"
-  agent_id = coder_agent.main.id
-  workdir  = "/home/coder/project"
-  model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
-}
 ```
 
-> [!NOTE]
-> For additional Bedrock configuration options (model selection, token limits, region overrides, etc.), see the [Claude Code Bedrock documentation](https://docs.claude.com/en/docs/claude-code/amazon-bedrock).
+See the [Claude Code Bedrock documentation](https://docs.claude.com/en/docs/claude-code/amazon-bedrock) for region overrides, model selection, and token limit tuning.
 
 ### Usage with Google Vertex AI
 
+Set `use_vertex = true` to route Claude Code through Google Vertex AI. The module sets `CLAUDE_CODE_USE_VERTEX=1` and skips Anthropic API key setup; authentication uses Google Application Default Credentials inside the workspace.
+
 #### Prerequisites
 
-GCP project with Vertex AI API enabled, Claude models enabled through Model Garden, service account with Vertex AI permissions, and appropriate IAM permissions (Vertex AI User role).
-
-Configure Claude Code to use Google Vertex AI for accessing Claude models through Google Cloud Platform.
+A GCP project with the Vertex AI API enabled, Claude models enabled in Model Garden, and the workspace identity granted the `Vertex AI User` role.
 
 ```tf
-variable "vertex_sa_json" {
-  type        = string
-  description = "The complete JSON content of your Google Cloud service account key file. Create a service account in the GCP Console under 'IAM & Admin > Service Accounts', then create and download a JSON key. Copy the entire JSON content into this variable."
-  sensitive   = true
-}
-
-resource "coder_env" "vertex_use" {
-  agent_id = coder_agent.main.id
-  name     = "CLAUDE_CODE_USE_VERTEX"
-  value    = "1"
+module "claude-code" {
+  source     = "registry.coder.com/coder/claude-code/coder"
+  version    = "4.9.2"
+  agent_id   = coder_agent.main.id
+  workdir    = "/home/coder/project"
+  use_vertex = true
+  model      = "claude-sonnet-4@20250514"
 }
 
 resource "coder_env" "vertex_project_id" {
@@ -326,52 +287,28 @@ resource "coder_env" "cloud_ml_region" {
   name     = "CLOUD_ML_REGION"
   value    = "global"
 }
+```
 
-resource "coder_env" "vertex_sa_json" {
-  agent_id = coder_agent.main.id
-  name     = "VERTEX_SA_JSON"
-  value    = var.vertex_sa_json
-}
+> [!TIP]
+> Prefer GKE Workload Identity or an attached service account over shipping a service-account JSON key through Terraform. Claude Code picks up Application Default Credentials automatically. If you must use a key file, mount it and set `GOOGLE_APPLICATION_CREDENTIALS` via a `coder_env` resource.
 
-resource "coder_env" "google_application_credentials" {
-  agent_id = coder_agent.main.id
-  name     = "GOOGLE_APPLICATION_CREDENTIALS"
-  value    = "/tmp/gcp-sa.json"
-}
+See the [Claude Code Vertex AI documentation](https://docs.claude.com/en/docs/claude-code/google-vertex-ai) for additional configuration options.
 
+### Usage with a custom API gateway
+
+Set `anthropic_base_url` to point Claude Code at a self-hosted gateway or proxy that speaks the Anthropic Messages API. The module sets `ANTHROPIC_BASE_URL` and skips its built-in Anthropic authentication setup; provide whatever credentials your gateway requires via `coder_env`.
+
+```tf
 module "claude-code" {
-  source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.9.2"
-  agent_id = coder_agent.main.id
-  workdir  = "/home/coder/project"
-  model    = "claude-sonnet-4@20250514"
-
-  pre_install_script = <<-EOT
-    #!/bin/bash
-    # Write the service account JSON to a file
-    echo "$VERTEX_SA_JSON" > /tmp/gcp-sa.json
-
-    # Install prerequisite packages
-    sudo apt-get update
-    sudo apt-get install -y apt-transport-https ca-certificates gnupg curl
-
-    # Add Google Cloud public key
-    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
-
-    # Add Google Cloud SDK repo to apt sources
-    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
-
-    # Update and install the Google Cloud SDK
-    sudo apt-get update && sudo apt-get install -y google-cloud-cli
-
-    # Authenticate gcloud with the service account
-    gcloud auth activate-service-account --key-file=/tmp/gcp-sa.json
-  EOT
+  source             = "registry.coder.com/coder/claude-code/coder"
+  version            = "4.9.2"
+  agent_id           = coder_agent.main.id
+  workdir            = "/home/coder/project"
+  anthropic_base_url = "https://llm-gateway.example.com/anthropic"
 }
 ```
 
-> [!NOTE]
-> For additional Vertex AI configuration options (model selection, token limits, region overrides, etc.), see the [Claude Code Vertex AI documentation](https://docs.claude.com/en/docs/claude-code/google-vertex-ai).
+`anthropic_base_url` is mutually exclusive with `enable_aibridge` (which sets `ANTHROPIC_BASE_URL` to the Coder AI Bridge endpoint automatically).
 
 ## Troubleshooting
 
@@ -390,7 +327,7 @@ cat ~/.claude-module/post_install.log
 ```
 
 > [!NOTE]
-> To use tasks with Claude Code, you must provide an `anthropic_api_key` or `claude_code_oauth_token`.
+> To use tasks with Claude Code, the workspace must be authenticated to a model provider: set `claude_api_key` or `claude_code_oauth_token` for Anthropic's API, `enable_aibridge = true` for Coder AI Bridge, `use_bedrock = true` / `use_vertex = true` for cloud providers, or `anthropic_base_url` for a custom gateway.
 > The `workdir` variable is required and specifies the directory where Claude Code will run.
 
 ## References
