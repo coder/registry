@@ -16,7 +16,7 @@ variable "agent_id" {
 
 variable "env" {
   type        = map(string)
-  description = "Environment variables to export to the workspace. Use this for any Claude Code env var (ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, CLAUDE_CODE_USE_BEDROCK, etc.) or for custom vars your pre/post scripts consume. Keys that are also wired by a convenience input (model, claude_code_oauth_token, enable_ai_gateway, disable_auto_updater) fail at plan time; use one or the other."
+  description = "Environment variables to export to the workspace. Use this for any Claude Code env var (ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, CLAUDE_CODE_USE_BEDROCK, etc.) or for custom vars your pre/post scripts consume. Keys that are also wired by a convenience input (model, claude_code_oauth_token, enable_ai_gateway, disable_autoupdater) fail at plan time; use one or the other."
   default     = {}
 
   validation {
@@ -40,8 +40,8 @@ variable "env" {
   }
 
   validation {
-    condition     = !var.disable_auto_updater || !contains(keys(var.env), "DISABLE_AUTOUPDATER")
-    error_message = "Set DISABLE_AUTOUPDATER via the `disable_auto_updater` input or the `env` map, not both."
+    condition     = !var.disable_autoupdater || !contains(keys(var.env), "DISABLE_AUTOUPDATER")
+    error_message = "Set DISABLE_AUTOUPDATER via the `disable_autoupdater` input or the `env` map, not both."
   }
 }
 
@@ -64,7 +64,7 @@ variable "enable_ai_gateway" {
   default     = false
 }
 
-variable "disable_auto_updater" {
+variable "disable_autoupdater" {
   type        = bool
   description = "Turn off Claude Code's built-in auto-updater by setting DISABLE_AUTOUPDATER=1. Useful for air-gapped workspaces or when the image pins a specific version."
   default     = false
@@ -145,7 +145,7 @@ locals {
     ANTHROPIC_AUTH_TOKEN = data.coder_workspace_owner.me.session_token
   } : {}
 
-  auto_updater_env = var.disable_auto_updater ? {
+  autoupdater_env = var.disable_autoupdater ? {
     DISABLE_AUTOUPDATER = "1"
   } : {}
 
@@ -156,7 +156,7 @@ locals {
     local.model_env,
     local.oauth_token_env,
     local.ai_gateway_env,
-    local.auto_updater_env,
+    local.autoupdater_env,
     var.env,
   )
 

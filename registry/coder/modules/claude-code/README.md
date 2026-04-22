@@ -29,7 +29,7 @@ module "claude-code" {
 
 ## Environment variables (`env`) and convenience inputs
 
-The convenience inputs `model`, `claude_code_oauth_token`, `enable_ai_gateway`, and `disable_auto_updater` cover the most common Claude Code configuration. For anything else, pass raw env vars through the `env` map. The convenience inputs and the `env` map merge into one set. Setting the same env key through both routes fails before the workspace deploys.
+The convenience inputs `model`, `claude_code_oauth_token`, `enable_ai_gateway`, and `disable_autoupdater` cover the most common Claude Code configuration. For anything else, pass raw env vars through the `env` map. The convenience inputs and the `env` map merge into one set. Setting the same env key through both routes fails before the workspace deploys.
 
 ```tf
 variable "anthropic_api_key" {
@@ -42,8 +42,8 @@ module "claude-code" {
   version  = "5.0.0"
   agent_id = coder_agent.main.id
 
-  model                = "opus"
-  disable_auto_updater = true
+  model               = "opus"
+  disable_autoupdater = true
 
   env = {
     ANTHROPIC_API_KEY = var.anthropic_api_key
@@ -374,7 +374,6 @@ Breaking changes in v5.0.0:
 
 - `claude_api_key` removed. Set `ANTHROPIC_API_KEY` through the `env` map (the variable Claude Code actually reads, not `CLAUDE_API_KEY`).
 - `claude_md_path` removed. Write the file in `pre_install_script`.
-- `disable_autoupdater` renamed to `disable_auto_updater`.
 - `model`, `claude_code_oauth_token`, and the AI Gateway wiring stay as dedicated inputs (`model`, `claude_code_oauth_token`, `enable_ai_gateway`); see the examples above.
 - All Tasks, AgentAPI, Boundary, and web-app variables removed. Use dedicated modules instead, or set env vars through the `env` map.
 - `workdir` removed. MCP applies at user scope.

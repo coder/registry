@@ -282,17 +282,17 @@ run "test_claude_code_oauth_token_convenience" {
   }
 }
 
-run "test_disable_auto_updater_convenience" {
+run "test_disable_autoupdater_convenience" {
   command = plan
 
   variables {
-    agent_id             = "test-agent"
-    disable_auto_updater = true
+    agent_id            = "test-agent"
+    disable_autoupdater = true
   }
 
   assert {
     condition     = coder_env.env["DISABLE_AUTOUPDATER"].value == "1"
-    error_message = "disable_auto_updater must set DISABLE_AUTOUPDATER=1"
+    error_message = "disable_autoupdater must set DISABLE_AUTOUPDATER=1"
   }
 }
 
@@ -412,12 +412,12 @@ run "test_ai_gateway_conflicts_with_env_auth_token" {
   expect_failures = [var.env]
 }
 
-run "test_auto_updater_conflicts_with_env" {
+run "test_autoupdater_conflicts_with_env" {
   command = plan
 
   variables {
-    agent_id             = "test-agent"
-    disable_auto_updater = true
+    agent_id            = "test-agent"
+    disable_autoupdater = true
     env = {
       DISABLE_AUTOUPDATER = "0"
     }
