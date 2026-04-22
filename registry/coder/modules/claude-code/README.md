@@ -72,7 +72,7 @@ module "claude-code" {
 
 ### Coder AI Gateway
 
-Route Claude Code through [Coder AI Gateway](https://coder.com/docs/ai-coder/ai-gateway) for centralized auditing, token usage tracking, and MCP policy enforcement. Requires Coder Premium with the AI Governance add-on and `CODER_AIBRIDGE_ENABLED=true` on the server.
+Route Claude Code through [Coder AI Gateway](https://coder.com/docs/ai-coder/ai-gateway) for centralized auditing and token usage tracking. Requires Coder Premium with the AI Governance add-on and `CODER_AIBRIDGE_ENABLED=true` on the server.
 
 Point `ANTHROPIC_BASE_URL` at your deployment's `/api/v2/aibridge/anthropic` endpoint and authenticate with the workspace owner's session token via `ANTHROPIC_AUTH_TOKEN`. Claude Code reads both variables natively; no API key is required.
 
@@ -96,7 +96,75 @@ module "claude-code" {
 > [!NOTE]
 > AI Gateway was previously named AI Bridge. The server-side endpoints and environment variables still use the `aibridge` prefix; only the product name changed.
 
-### Other custom endpoints (Bedrock, Vertex, LiteLLM, a private proxy)
+### AWS Bedrock
+
+Route Claude Code through [AWS Bedrock](https://docs.claude.com/en/docs/claude-code/amazon-bedrock) to access Claude models via your AWS account. Requires an AWS account with Bedrock access, the target Claude models enabled in the Bedrock console, and IAM permissions that allow `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream`.
+
+Pick either an access key pair or a Bedrock bearer token for auth; do not set both.
+
+```tf
+variable "aws_bearer_token_bedrock" {
+  type      = string
+  sensitive = true
+}
+
+module "claude-code" {
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "5.0.0"
+  agent_id = coder_agent.main.id
+
+  env = {
+    CLAUDE_CODE_USE_BEDROCK  = "1"
+    AWS_REGION               = "us-east-1"
+    ANTHROPIC_MODEL          = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    AWS_BEARER_TOKEN_BEDROCK = var.aws_bearer_token_bedrock
+    # Or, with access keys instead of the bearer token:
+    # AWS_ACCESS_KEY_ID     = var.aws_access_key_id
+    # AWS_SECRET_ACCESS_KEY = var.aws_secret_access_key
+  }
+}
+```
+
+### Google Vertex AI
+
+Route Claude Code through [Google Vertex AI](https://docs.claude.com/en/docs/claude-code/google-vertex-ai). Requires a GCP project with Vertex AI enabled, Claude models enabled via Model Garden, and a service account with the Vertex AI User role.
+
+The service account JSON has to land on the workspace filesystem where Claude can read it, so authenticating gcloud happens in `pre_install_script`:
+
+```tf
+variable "vertex_sa_json" {
+  type        = string
+  description = "Full JSON body of a GCP service account key with Vertex AI User."
+  sensitive   = true
+}
+
+module "claude-code" {
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "5.0.0"
+  agent_id = coder_agent.main.id
+
+  env = {
+    CLAUDE_CODE_USE_VERTEX         = "1"
+    ANTHROPIC_VERTEX_PROJECT_ID    = "your-gcp-project-id"
+    CLOUD_ML_REGION                = "global"
+    ANTHROPIC_MODEL                = "claude-sonnet-4@20250514"
+    GOOGLE_APPLICATION_CREDENTIALS = "$HOME/.config/gcloud/sa.json"
+    VERTEX_SA_JSON                 = var.vertex_sa_json
+  }
+
+  pre_install_script = <<-EOT
+    #!/bin/bash
+    set -euo pipefail
+    mkdir -p "$HOME/.config/gcloud"
+    printf '%s' "$VERTEX_SA_JSON" > "$HOME/.config/gcloud/sa.json"
+    chmod 600 "$HOME/.config/gcloud/sa.json"
+  EOT
+}
+```
+
+Install `gcloud` itself in the workspace image, in `pre_install_script`, or via a separate Coder module; this example leaves that choice to the template author.
+
+### Other custom endpoints (LiteLLM, a private proxy)
 
 Same pattern with your own endpoint and token. The [Claude Code env-vars reference](https://docs.claude.com/en/docs/claude-code/env-vars) lists every supported name.
 
@@ -173,7 +241,9 @@ module "claude-code" {
 
 ## Using a pre-installed binary
 
-Set `install_claude_code = false` and point `claude_binary_path` at the directory containing the binary.
+`claude_binary_path` is only consulted when `install_claude_code = false`. The official installer always drops the binary at `$HOME/.local/bin/claude` and does not accept a custom destination, so combining `install_claude_code = true` with a custom `claude_binary_path` is rejected at plan time.
+
+To use a binary you bake into the image (or install via a separate module), set `install_claude_code = false` and point `claude_binary_path` at the directory containing it:
 
 ```tf
 module "claude-code" {
@@ -184,18 +254,6 @@ module "claude-code" {
   claude_binary_path  = "/opt/claude/bin"
 }
 ```
-
-## Scripts produced
-
-By default this module creates exactly one `coder_script` on the agent: `Claude Code: Install Script`. Additional scripts appear only when you opt in:
-
-| Script                             | Created when                  |
-| ---------------------------------- | ----------------------------- |
-| `Claude Code: Install Script`      | Always.                       |
-| `Claude Code: Pre-Install Script`  | `pre_install_script` is set.  |
-| `Claude Code: Post-Install Script` | `post_install_script` is set. |
-
-No start script is produced in any configuration. Compose with a dedicated module (e.g. a future Tasks module) if you need one.
 
 ## Extending with pre/post install scripts
 
@@ -272,19 +330,9 @@ module "claude-code" {
 }
 ```
 
-Keys verified live against Claude Code CLI v2.1.117:
+Key reference: [`permissions`](https://docs.claude.com/en/docs/claude-code/settings) in `~/.claude/settings.json`, [`hasCompletedOnboarding`](https://docs.claude.com/en/docs/claude-code/settings) in `~/.claude.json`.
 
-| File                      | Key                                 | Effect                                                                                |
-| ------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------- |
-| `~/.claude/settings.json` | `permissions.defaultMode`           | `"bypassPermissions"`, `"acceptEdits"`, `"plan"`, `"auto"`, `"default"`, `"dontAsk"`. |
-| `~/.claude/settings.json` | `permissions.allow` / `deny`        | Per-tool allowlist / denylist (e.g. `"Bash(git *)"`, `"Read(./secrets/**)"`).         |
-| `~/.claude/settings.json` | `skipDangerousModePermissionPrompt` | Silences the one-time "enable bypassPermissions mode" consent banner.                 |
-| `~/.claude.json`          | `hasCompletedOnboarding`            | Skips the first-run theme picker and welcome screens.                                 |
-
-> [!NOTE]
-> Pre-writing these files makes sense for automation and agents. Human users who expect the usual onboarding and per-project trust dialog should not use this pattern.
-
-For one-off non-interactive runs, prefer the runtime flag instead of pre-writing config:
+For one-off non-interactive runs, prefer a runtime flag over pre-writing config:
 
 ```bash
 claude -p "$PROMPT" --dangerously-skip-permissions --permission-mode bypassPermissions
@@ -292,11 +340,7 @@ claude -p "$PROMPT" --dangerously-skip-permissions --permission-mode bypassPermi
 
 ## Outputs
 
-| Output    | Type           | Description                                                                                                                                                                                     |
-| --------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scripts` | `list(string)` | `coder exp sync` names for every `coder_script` this module actually creates, in the run order `coder-utils` enforces (pre-install, install, post-install). Absent scripts are not in the list. |
-
-Use `scripts` to gate a downstream module behind Claude Code's install:
+`scripts` is a list of `coder exp sync` names for every `coder_script` this module creates, in the order `coder-utils` runs them. Use it to gate a downstream `coder_script` behind Claude Code's install:
 
 ```tf
 module "claude-code" {
