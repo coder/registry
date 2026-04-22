@@ -16,16 +16,32 @@ variable "agent_id" {
 
 variable "anthropic_api_key" {
   type        = string
-  description = "Anthropic API key. Exported as ANTHROPIC_API_KEY."
+  description = "Convenience shortcut for setting ANTHROPIC_API_KEY. Equivalent to adding ANTHROPIC_API_KEY to `env`."
   default     = ""
   sensitive   = true
 }
 
 variable "claude_code_oauth_token" {
   type        = string
-  description = "Long-lived Claude.ai subscription token. Generate with `claude setup-token`. Exported as CLAUDE_CODE_OAUTH_TOKEN."
+  description = "Convenience shortcut for setting CLAUDE_CODE_OAUTH_TOKEN. Generate with `claude setup-token`. Equivalent to adding CLAUDE_CODE_OAUTH_TOKEN to `env`."
   default     = ""
   sensitive   = true
+}
+
+variable "env" {
+  type        = map(string)
+  description = "Arbitrary environment variables to export to the Coder agent. Each key/value pair becomes a `coder_env` resource. Use this for any Claude Code env var (ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN, ANTHROPIC_MODEL, CLAUDE_CODE_USE_BEDROCK, etc.) or for custom vars your pre/post scripts consume."
+  default     = {}
+
+  validation {
+    condition     = !contains(keys(var.env), "ANTHROPIC_API_KEY")
+    error_message = "Use the `anthropic_api_key` variable instead of setting ANTHROPIC_API_KEY via `env`. It is marked sensitive and handled as a dedicated resource."
+  }
+
+  validation {
+    condition     = !contains(keys(var.env), "CLAUDE_CODE_OAUTH_TOKEN")
+    error_message = "Use the `claude_code_oauth_token` variable instead of setting CLAUDE_CODE_OAUTH_TOKEN via `env`. It is marked sensitive and handled as a dedicated resource."
+  }
 }
 
 variable "claude_code_version" {
@@ -49,18 +65,6 @@ variable "claude_binary_path" {
     condition     = var.claude_binary_path == "$HOME/.local/bin" || !var.install_claude_code
     error_message = "Custom claude_binary_path can only be used when install_claude_code is false. The official installer always installs to $HOME/.local/bin and does not support custom paths."
   }
-}
-
-variable "disable_autoupdater" {
-  type        = bool
-  description = "Disable Claude Code automatic updates. Sets DISABLE_AUTOUPDATER=1."
-  default     = false
-}
-
-variable "model" {
-  type        = string
-  description = "Default model for Claude Code. Exported as ANTHROPIC_MODEL. Supports aliases (sonnet, opus) or full model names."
-  default     = ""
 }
 
 variable "mcp" {
@@ -87,6 +91,21 @@ variable "post_install_script" {
   default     = null
 }
 
+locals {
+  # `env` fans out to one `coder_env` per entry via for_each. Sensitive
+  # shortcuts (anthropic_api_key, claude_code_oauth_token) can't be merged in
+  # because Terraform forbids sensitive values as for_each keys. They're
+  # emitted as dedicated resources below instead.
+  install_script = file("${path.module}/scripts/install.sh")
+}
+
+resource "coder_env" "env" {
+  for_each = var.env
+  agent_id = var.agent_id
+  name     = each.key
+  value    = each.value
+}
+
 resource "coder_env" "anthropic_api_key" {
   count    = var.anthropic_api_key != "" ? 1 : 0
   agent_id = var.agent_id
@@ -99,24 +118,6 @@ resource "coder_env" "claude_code_oauth_token" {
   agent_id = var.agent_id
   name     = "CLAUDE_CODE_OAUTH_TOKEN"
   value    = var.claude_code_oauth_token
-}
-
-resource "coder_env" "anthropic_model" {
-  count    = var.model != "" ? 1 : 0
-  agent_id = var.agent_id
-  name     = "ANTHROPIC_MODEL"
-  value    = var.model
-}
-
-resource "coder_env" "disable_autoupdater" {
-  count    = var.disable_autoupdater ? 1 : 0
-  agent_id = var.agent_id
-  name     = "DISABLE_AUTOUPDATER"
-  value    = "1"
-}
-
-locals {
-  install_script = file("${path.module}/scripts/install.sh")
 }
 
 module "coder-utils" {

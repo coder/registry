@@ -15,11 +15,27 @@ import {
   removeContainer,
   type TerraformState,
 } from "~test";
-import {
-  loadTestFile,
-  writeExecutable,
-  extractCoderEnvVars,
-} from "../agentapi/test-util";
+import { loadTestFile, writeExecutable } from "../agentapi/test-util";
+import type { TerraformState } from "~test";
+
+/**
+ * Walk every instance of every coder_env resource and return a flat map of
+ * env var names to values. The upstream extractCoderEnvVars helper only
+ * reads `instances[0]`, which misses every for_each entry past the first.
+ */
+const extractCoderEnvVars = (state: TerraformState): Record<string, string> => {
+  const envVars: Record<string, string> = {};
+  for (const resource of state.resources) {
+    if (resource.type !== "coder_env") continue;
+    for (const instance of resource.instances) {
+      const attrs = instance.attributes as Record<string, unknown>;
+      const name = attrs.name as string;
+      const value = attrs.value as string;
+      if (name && value) envVars[name] = value;
+    }
+  }
+  return envVars;
+};
 
 let cleanupFunctions: (() => Promise<void>)[] = [];
 const registerCleanup = (cleanup: () => Promise<void>) => {
@@ -218,14 +234,19 @@ describe("claude-code", async () => {
     expect(coderEnvVars["CLAUDE_CODE_OAUTH_TOKEN"]).toBe(token);
   });
 
-  test("claude-model", async () => {
-    const model = "opus";
+  test("env-map-passthrough", async () => {
     const { coderEnvVars } = await setup({
       moduleVariables: {
-        model: model,
+        env: JSON.stringify({
+          ANTHROPIC_MODEL: "opus",
+          DISABLE_AUTOUPDATER: "1",
+          CUSTOM_VAR: "hello",
+        }),
       },
     });
-    expect(coderEnvVars["ANTHROPIC_MODEL"]).toBe(model);
+    expect(coderEnvVars["ANTHROPIC_MODEL"]).toBe("opus");
+    expect(coderEnvVars["DISABLE_AUTOUPDATER"]).toBe("1");
+    expect(coderEnvVars["CUSTOM_VAR"]).toBe("hello");
   });
 
   test("claude-mcp-inline-user-scope", async () => {

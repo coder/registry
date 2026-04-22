@@ -13,7 +13,7 @@ Install and configure the [Claude Code](https://docs.anthropic.com/en/docs/claud
 This module does three things:
 
 1. Installs Claude Code via the [official installer](https://claude.ai/install.sh).
-2. Wires up authentication through the environment variables Claude Code reads natively.
+2. Exports environment variables to the Coder agent.
 3. Optionally applies user-scope MCP server configuration.
 
 It does not start Claude, create a web app, or orchestrate Tasks. Compose with dedicated modules for those concerns.
@@ -29,10 +29,10 @@ module "claude-code" {
 
 ## Authentication
 
-Choose one of:
+Two sensitive shortcuts are provided as dedicated variables. Every other env var goes through the `env` map.
 
-- `anthropic_api_key`: Anthropic API key. Sets `ANTHROPIC_API_KEY`.
-- `claude_code_oauth_token`: Long-lived Claude.ai subscription token (generate with `claude setup-token`). Sets `CLAUDE_CODE_OAUTH_TOKEN`.
+- `anthropic_api_key`: sets `ANTHROPIC_API_KEY`. Marked sensitive.
+- `claude_code_oauth_token`: sets `CLAUDE_CODE_OAUTH_TOKEN` (generate with `claude setup-token`). Marked sensitive.
 
 ```tf
 # Claude.ai subscription
@@ -44,30 +44,44 @@ module "claude-code" {
 }
 ```
 
-For custom endpoints (AI Bridge, Bedrock, Vertex AI, LiteLLM, a private gateway), set the env vars Claude Code reads directly via `coder_env`:
+## Arbitrary environment variables (`env`)
+
+Pass any Claude Code env var (or any custom var your pre/post scripts consume) through the `env` map. Each key/value pair becomes one `coder_env` resource on the agent.
 
 ```tf
-# Example: route through a custom Anthropic-compatible proxy.
-resource "coder_env" "anthropic_base_url" {
-  agent_id = coder_agent.main.id
-  name     = "ANTHROPIC_BASE_URL"
-  value    = "https://proxy.example.com/anthropic"
-}
+module "claude-code" {
+  source            = "registry.coder.com/coder/claude-code/coder"
+  version           = "5.0.0"
+  agent_id          = coder_agent.main.id
+  anthropic_api_key = var.anthropic_api_key
 
-resource "coder_env" "anthropic_auth_token" {
-  agent_id = coder_agent.main.id
-  name     = "ANTHROPIC_AUTH_TOKEN"
-  value    = var.proxy_token
+  env = {
+    ANTHROPIC_MODEL     = "opus"
+    DISABLE_AUTOUPDATER = "1"
+    MY_CUSTOM_VAR       = "hello"
+  }
 }
+```
 
+### Using a custom endpoint (AI Bridge, Bedrock, Vertex, LiteLLM, a private proxy)
+
+Set the endpoint and token through `env`. Nothing is baked in; the [Claude Code env-vars reference](https://docs.claude.com/en/docs/claude-code/env-vars) lists every supported name.
+
+```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
   version  = "5.0.0"
   agent_id = coder_agent.main.id
+
+  env = {
+    ANTHROPIC_BASE_URL   = "https://proxy.example.com/anthropic"
+    ANTHROPIC_AUTH_TOKEN = var.proxy_token
+  }
 }
 ```
 
-See Claude Code's [environment variables reference](https://docs.claude.com/en/docs/claude-code/env-vars) for the full list (`ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX`, `ANTHROPIC_VERTEX_PROJECT_ID`, etc.).
+> [!NOTE]
+> `ANTHROPIC_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` are rejected in `env` because they have dedicated sensitive variables (`anthropic_api_key`, `claude_code_oauth_token`). Every other env var is allowed.
 
 ## MCP configuration
 
@@ -175,9 +189,9 @@ cat $HOME/.claude-module/post_install.log
 Breaking changes in v5.0.0:
 
 - `claude_api_key` renamed to `anthropic_api_key`. Now sets `ANTHROPIC_API_KEY` (the variable Claude Code actually reads), not `CLAUDE_API_KEY`.
-- All Tasks, AgentAPI, Boundary, AI Bridge, and web-app variables removed. Compose dedicated modules or set env vars via `coder_env`.
+- All Tasks, AgentAPI, Boundary, AI Bridge, and web-app variables removed. Compose dedicated modules or set env vars via the `env` map.
+- `model`, `disable_autoupdater`, and `claude_md_path` variables removed. Set `ANTHROPIC_MODEL` and `DISABLE_AUTOUPDATER` via `env`. Claude Code discovers `~/.claude/CLAUDE.md` automatically.
 - `workdir` removed. MCP applies at user scope.
-- `claude_md_path` removed. Claude Code discovers `~/.claude/CLAUDE.md` automatically.
 - `install_via_npm` removed. Official installer only.
 - `allowed_tools` / `disallowed_tools` removed. Write `~/.claude/settings.json` via `pre_install_script` with `permissions.allow` / `permissions.deny` arrays.
 - `task_app_id` output removed.
