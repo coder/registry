@@ -66,6 +66,26 @@ const setup = async (
   return { id, coderEnvVars };
 };
 
+// start.sh derives TASK_SESSION_ID as uuid5(NAMESPACE_URL, "coder-workspace://" + workspace_id).
+// The workspace_id comes from data.coder_workspace.me.id which the coder
+// provider resolves from the host environment, so we recompute it here from
+// the rendered script rather than hardcoding a value that varies by host.
+const deriveTaskSessionId = async (id: string): Promise<string> => {
+  const script = await readFileContainer(id, "/home/coder/script.sh");
+  const m = script.match(/ARG_WORKSPACE_ID='([^']*)'/);
+  const workspaceId = m?.[1] ?? "";
+  if (workspaceId === "") {
+    return "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
+  }
+  const resp = await execContainer(id, [
+    "python3",
+    "-c",
+    'import uuid,sys; print(uuid.uuid5(uuid.NAMESPACE_URL, "coder-workspace://" + sys.argv[1]))',
+    workspaceId,
+  ]);
+  return resp.stdout.trim();
+};
+
 setDefaultTimeout(60 * 1000);
 
 describe("claude-code", async () => {
@@ -222,9 +242,8 @@ describe("claude-code", async () => {
       },
     });
 
-    // Create a mock task session file with the hardcoded task session ID
     // Note: Claude CLI creates files without "session-" prefix when using --session-id
-    const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
+    const taskSessionId = await deriveTaskSessionId(id);
     const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
     await execContainer(id, ["mkdir", "-p", sessionDir]);
     await execContainer(id, [
@@ -353,7 +372,7 @@ SESSIONEOF`,
       },
     });
 
-    const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
+    const taskSessionId = await deriveTaskSessionId(id);
     const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
     await execContainer(id, ["mkdir", "-p", sessionDir]);
 
@@ -374,6 +393,10 @@ SESSIONEOF`,
     // Should start new session, not try to resume invalid one
     expect(startLog.stdout).toContain("Starting new task session");
     expect(startLog.stdout).toContain("--session-id");
+
+    // Invalid session file should be quarantined, not deleted
+    const ls = await execContainer(id, ["ls", sessionDir]);
+    expect(ls.stdout).toContain(`${taskSessionId}.jsonl.bak`);
   });
 
   test("standalone-first-build-no-sessions", async () => {
@@ -442,7 +465,7 @@ EOF`,
       },
     });
 
-    const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
+    const taskSessionId = await deriveTaskSessionId(id);
     const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
     await execContainer(id, ["mkdir", "-p", sessionDir]);
 
@@ -528,5 +551,72 @@ EOF`,
     );
     expect(claudeConfig).toContain("typescript-language-server");
     expect(claudeConfig).toContain("go-language-server");
+  });
+
+  test("task-session-id-derived-from-workspace", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        continue: "true",
+        report_tasks: "true",
+        ai_prompt: "test prompt",
+      },
+    });
+    const expected = await deriveTaskSessionId(id);
+
+    await execModuleScript(id);
+
+    const startLog = await readFileContainer(
+      id,
+      "/home/coder/.claude-module/agentapi-start.log",
+    );
+    expect(startLog).toContain(`TASK_SESSION_ID: ${expected}`);
+    expect(startLog).toContain(`--session-id ${expected}`);
+    // The legacy hardcoded ID must not be used when a workspace ID is available
+    if (expected !== "cd32e253-ca16-4fd3-9825-d837e74ae3c2") {
+      expect(startLog).not.toContain(
+        "--session-id cd32e253-ca16-4fd3-9825-d837e74ae3c2",
+      );
+    }
+  });
+
+  test("lifecycle-settings-written", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        transcript_retention_days: "7",
+      },
+    });
+    await execModuleScript(id);
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.claude-module/install.log",
+    );
+    expect(installLog).toContain("Wrote lifecycle settings to");
+
+    const settings = await readFileContainer(
+      id,
+      "/etc/claude-code/managed-settings.d/30-coder-lifecycle.json",
+    );
+    const parsed = JSON.parse(settings);
+    expect(parsed.cleanupPeriodDays).toBe(7);
+    expect(parsed.hooks.Stop[0].hooks[0].type).toBe("command");
+    expect(parsed.hooks.Stop[0].hooks[0].command).toContain("touch");
+    expect(parsed.hooks.Stop[0].hooks[0].command).toContain(
+      "/home/coder/.claude-module/last-stop",
+    );
+  });
+
+  test("lifecycle-settings-default-retention", async () => {
+    const { id } = await setup({});
+    await execModuleScript(id);
+
+    const settings = await readFileContainer(
+      id,
+      "/etc/claude-code/managed-settings.d/30-coder-lifecycle.json",
+    );
+    const parsed = JSON.parse(settings);
+    // Stop hook is always present; cleanupPeriodDays only when explicitly set
+    expect(parsed.hooks.Stop).toBeDefined();
+    expect(parsed.cleanupPeriodDays).toBeUndefined();
   });
 });

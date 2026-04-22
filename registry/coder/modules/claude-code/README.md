@@ -36,6 +36,25 @@ module "claude-code" {
 
 By default, Claude Code automatically resumes existing conversations when your workspace restarts. Sessions are tracked per workspace directory, so conversations continue where you left off. If no session exists (first start), your `ai_prompt` will run normally. To disable this behavior and always start fresh, set `continue = false`
 
+### Session lifecycle
+
+When task reporting is enabled the module pins Claude Code to a session ID derived from `data.coder_workspace.me.id` (UUIDv5). This keeps the conversation stable across restarts of the same workspace while remaining unique per workspace, avoiding the "Session ID already in use" error that can occur when home directories are templated or shared.
+
+The module also writes a managed settings drop-in at `/etc/claude-code/managed-settings.d/30-coder-lifecycle.json` that:
+
+- registers a `Stop` hook which touches `~/.claude-module/last-stop` whenever Claude finishes a turn, so template authors can wire workspace autostop or activity tracking off that file's modification time
+- sets `cleanupPeriodDays` when `transcript_retention_days` is provided, so session JSONL transcripts are pruned automatically
+
+```tf
+module "claude-code" {
+  source                    = "registry.coder.com/coder/claude-code/coder"
+  version                   = "4.9.2"
+  agent_id                  = coder_agent.main.id
+  workdir                   = "/home/coder/project"
+  transcript_retention_days = 7
+}
+```
+
 ## State Persistence
 
 AgentAPI can save and restore its conversation state to disk across workspace restarts. This complements `continue` (which resumes the Claude CLI session) by also preserving the AgentAPI-level context. Enabled by default, requires agentapi >= v0.12.0 (older versions skip it with a warning).

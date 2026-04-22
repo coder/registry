@@ -23,6 +23,8 @@ ARG_ALLOWED_TOOLS=${ARG_ALLOWED_TOOLS:-}
 ARG_DISALLOWED_TOOLS=${ARG_DISALLOWED_TOOLS:-}
 ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
 ARG_PERMISSION_MODE=${ARG_PERMISSION_MODE:-}
+ARG_WORKSPACE_ID=${ARG_WORKSPACE_ID:-}
+ARG_TRANSCRIPT_RETENTION_DAYS=${ARG_TRANSCRIPT_RETENTION_DAYS:-}
 
 export PATH="$ARG_CLAUDE_BINARY_PATH:$PATH"
 
@@ -40,6 +42,8 @@ printf "ARG_MCP_CONFIG_REMOTE_PATH: %s\n" "$ARG_MCP_CONFIG_REMOTE_PATH"
 printf "ARG_ALLOWED_TOOLS: %s\n" "$ARG_ALLOWED_TOOLS"
 printf "ARG_DISALLOWED_TOOLS: %s\n" "$ARG_DISALLOWED_TOOLS"
 printf "ARG_ENABLE_AIBRIDGE: %s\n" "$ARG_ENABLE_AIBRIDGE"
+printf "ARG_WORKSPACE_ID: %s\n" "$ARG_WORKSPACE_ID"
+printf "ARG_TRANSCRIPT_RETENTION_DAYS: %s\n" "$ARG_TRANSCRIPT_RETENTION_DAYS"
 
 echo "--------------------------------"
 
@@ -238,6 +242,47 @@ function report_tasks() {
   fi
 }
 
+function configure_lifecycle_settings() {
+  # Write a managed-settings drop-in that:
+  #  - registers a Stop hook touching a sentinel file whose mtime can be
+  #    polled by Coder autostop logic to detect when the agent went idle
+  #  - optionally sets cleanupPeriodDays so transcripts age out
+  # Managed settings live at /etc/claude-code on Linux and are read by the
+  # Claude CLI on every backend (Anthropic API, Bedrock, Vertex, gateway).
+  local module_path="$HOME/.claude-module"
+  mkdir -p "$module_path"
+
+  local settings_dir="/etc/claude-code/managed-settings.d"
+  local settings_file="$settings_dir/30-coder-lifecycle.json"
+  local sentinel="$module_path/last-stop"
+
+  if command_exists sudo; then
+    SUDO="sudo"
+  else
+    SUDO=""
+  fi
+
+  if ! $SUDO mkdir -p "$settings_dir" 2> /dev/null; then
+    echo "Warning: cannot create $settings_dir (no write access); skipping lifecycle settings"
+    return
+  fi
+
+  local hook_json
+  hook_json=$(
+    jq -n --arg sentinel "$sentinel" \
+      '{hooks: {Stop: [{hooks: [{type: "command", command: ("touch " + ($sentinel | @sh))}]}]}}'
+  )
+
+  local payload="$hook_json"
+  if [ -n "$ARG_TRANSCRIPT_RETENTION_DAYS" ]; then
+    payload=$(echo "$hook_json" | jq --argjson days "$ARG_TRANSCRIPT_RETENTION_DAYS" '. + {cleanupPeriodDays: $days}')
+  fi
+
+  echo "$payload" | $SUDO tee "$settings_file" > /dev/null
+  $SUDO chmod 0644 "$settings_file"
+  echo "Wrote lifecycle settings to $settings_file"
+}
+
 function accept_auto_mode() {
   # Pre-accept the auto mode TOS prompt so it doesn't appear interactively.
   # Claude Code shows a confirmation dialog for auto mode that blocks
@@ -259,6 +304,7 @@ function accept_auto_mode() {
 install_claude_code_cli
 setup_claude_configurations
 report_tasks
+configure_lifecycle_settings
 
 if [ "$ARG_PERMISSION_MODE" = "auto" ]; then
   accept_auto_mode
