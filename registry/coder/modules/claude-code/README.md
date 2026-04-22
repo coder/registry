@@ -70,9 +70,11 @@ module "claude-code" {
 }
 ```
 
-### Coder AI Bridge
+### Coder AI Gateway
 
-Route Claude Code through [Coder AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) (Premium, requires Coder >= 2.29.0). AI Bridge authenticates with the workspace owner's session token, so no API key is needed.
+Route Claude Code through [Coder AI Gateway](https://coder.com/docs/ai-coder/ai-gateway) for centralized auditing, token usage tracking, and MCP policy enforcement. Requires Coder Premium with the AI Governance add-on and `CODER_AIBRIDGE_ENABLED=true` on the server.
+
+Point `ANTHROPIC_BASE_URL` at your deployment's `/api/v2/aibridge/anthropic` endpoint and authenticate with the workspace owner's session token via `ANTHROPIC_AUTH_TOKEN`. Claude Code reads both variables natively; no API key is required.
 
 ```tf
 data "coder_workspace" "me" {}
@@ -90,6 +92,9 @@ module "claude-code" {
   }
 }
 ```
+
+> [!NOTE]
+> AI Gateway was previously named AI Bridge. The server-side endpoints and environment variables still use the `aibridge` prefix; only the product name changed.
 
 ### Other custom endpoints (Bedrock, Vertex, LiteLLM, a private proxy)
 
@@ -180,6 +185,18 @@ module "claude-code" {
 }
 ```
 
+## Scripts produced
+
+By default this module creates exactly one `coder_script` on the agent: `Claude Code: Install Script`. Additional scripts appear only when you opt in:
+
+| Script                             | Created when                  |
+| ---------------------------------- | ----------------------------- |
+| `Claude Code: Install Script`      | Always.                       |
+| `Claude Code: Pre-Install Script`  | `pre_install_script` is set.  |
+| `Claude Code: Post-Install Script` | `post_install_script` is set. |
+
+No start script is produced in any configuration. Compose with a dedicated module (e.g. a future Tasks module) if you need one.
+
 ## Extending with pre/post install scripts
 
 Use `pre_install_script` and `post_install_script` for custom setup (e.g. writing `~/.claude/settings.json` permission rules, installing cloud SDKs, pulling secrets).
@@ -223,7 +240,7 @@ cat $HOME/.claude-module/post_install.log
 Breaking changes in v5.0.0:
 
 - `claude_api_key`, `claude_code_oauth_token`, `model`, `disable_autoupdater`, `claude_md_path` removed as dedicated variables. Set them through `env` instead. The module now emits `ANTHROPIC_API_KEY` (the variable Claude Code actually reads), not `CLAUDE_API_KEY`.
-- All Tasks, AgentAPI, Boundary, AI Bridge, and web-app variables removed. Compose dedicated modules or set env vars via `env`.
+- All Tasks, AgentAPI, Boundary, AI Bridge (now **AI Gateway**), and web-app variables removed. Compose dedicated modules or set env vars via `env`. See the AI Gateway example above for the replacement pattern.
 - `workdir` removed. MCP applies at user scope.
 - `install_via_npm` removed. Official installer only.
 - `allowed_tools` / `disallowed_tools` removed. Write `~/.claude/settings.json` via `pre_install_script` with `permissions.allow` / `permissions.deny` arrays.
