@@ -27,9 +27,9 @@ module "claude-code" {
 }
 ```
 
-## Environment variables (`env`)
+## Environment variables (`env`) and convenience inputs
 
-Pass any Claude Code env var (or any custom var your pre/post scripts consume) through the `env` map. Each pair is exposed as an environment variable to the workspace.
+The convenience inputs `model`, `claude_code_oauth_token`, `enable_ai_gateway`, and `disable_auto_updater` cover the most common Claude Code configuration. For anything else, pass raw env vars through the `env` map. The convenience inputs and the `env` map merge into one set. Setting the same env key through both routes fails before the workspace deploys.
 
 ```tf
 variable "anthropic_api_key" {
@@ -42,11 +42,12 @@ module "claude-code" {
   version  = "5.0.0"
   agent_id = coder_agent.main.id
 
+  model                = "opus"
+  disable_auto_updater = true
+
   env = {
-    ANTHROPIC_API_KEY   = var.anthropic_api_key
-    ANTHROPIC_MODEL     = "opus"
-    DISABLE_AUTOUPDATER = "1"
-    MY_CUSTOM_VAR       = "hello"
+    ANTHROPIC_API_KEY = var.anthropic_api_key
+    MY_CUSTOM_VAR     = "hello"
   }
 }
 ```
@@ -54,14 +55,16 @@ module "claude-code" {
 ### Claude.ai subscription
 
 ```tf
-module "claude-code" {
-  source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.0.0"
-  agent_id = coder_agent.main.id
+variable "claude_code_oauth_token" {
+  type      = string
+  sensitive = true
+}
 
-  env = {
-    CLAUDE_CODE_OAUTH_TOKEN = var.claude_code_oauth_token
-  }
+module "claude-code" {
+  source                  = "registry.coder.com/coder/claude-code/coder"
+  version                 = "5.0.0"
+  agent_id                = coder_agent.main.id
+  claude_code_oauth_token = var.claude_code_oauth_token
 }
 ```
 
@@ -69,24 +72,16 @@ module "claude-code" {
 
 Route Claude Code through [Coder AI Gateway](https://coder.com/docs/ai-coder/ai-gateway) for centralized auditing and token usage tracking. Requires Coder Premium with the AI Governance add-on and `CODER_AIBRIDGE_ENABLED=true` on the server.
 
-Point `ANTHROPIC_BASE_URL` at your deployment's `/api/v2/aibridge/anthropic` endpoint and authenticate with the workspace owner's session token via `ANTHROPIC_AUTH_TOKEN`. Claude Code reads both variables directly, so no API key is required.
-
 ```tf
-data "coder_workspace" "me" {}
-
-data "coder_workspace_owner" "me" {}
-
 module "claude-code" {
-  source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.0.0"
-  agent_id = coder_agent.main.id
-
-  env = {
-    ANTHROPIC_BASE_URL   = "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic"
-    ANTHROPIC_AUTH_TOKEN = data.coder_workspace_owner.me.session_token
-  }
+  source            = "registry.coder.com/coder/claude-code/coder"
+  version           = "5.0.0"
+  agent_id          = coder_agent.main.id
+  enable_ai_gateway = true
 }
 ```
+
+`enable_ai_gateway = true` wires `ANTHROPIC_BASE_URL` to your deployment's `/api/v2/aibridge/anthropic` endpoint and `ANTHROPIC_AUTH_TOKEN` to the workspace owner's session token. Claude Code reads both directly, so no API key is required.
 
 > [!NOTE]
 > AI Gateway was previously named AI Bridge. The server-side endpoints and environment variables still use the `aibridge` prefix; only the product name changed.
@@ -108,10 +103,11 @@ module "claude-code" {
   version  = "5.0.0"
   agent_id = coder_agent.main.id
 
+  model = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+
   env = {
     CLAUDE_CODE_USE_BEDROCK  = "1"
     AWS_REGION               = "us-east-1"
-    ANTHROPIC_MODEL          = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
     AWS_BEARER_TOKEN_BEDROCK = var.aws_bearer_token_bedrock
     # Or, with access keys instead of the bearer token:
     # AWS_ACCESS_KEY_ID     = var.aws_access_key_id
@@ -138,11 +134,12 @@ module "claude-code" {
   version  = "5.0.0"
   agent_id = coder_agent.main.id
 
+  model = "claude-sonnet-4@20250514"
+
   env = {
     CLAUDE_CODE_USE_VERTEX         = "1"
     ANTHROPIC_VERTEX_PROJECT_ID    = "your-gcp-project-id"
     CLOUD_ML_REGION                = "global"
-    ANTHROPIC_MODEL                = "claude-sonnet-4@20250514"
     GOOGLE_APPLICATION_CREDENTIALS = "$HOME/.config/gcloud/sa.json"
     VERTEX_SA_JSON                 = var.vertex_sa_json
   }
@@ -375,8 +372,11 @@ cat $HOME/.coder-modules/claude-code/post_install.log
 
 Breaking changes in v5.0.0:
 
-- `claude_api_key`, `claude_code_oauth_token`, `model`, `disable_autoupdater`, `claude_md_path` removed as dedicated variables. Set them through `env` instead. The module now sets `ANTHROPIC_API_KEY` (the variable Claude Code actually reads), not `CLAUDE_API_KEY`.
-- All Tasks, AgentAPI, Boundary, AI Bridge (now **AI Gateway**), and web-app variables removed. Use dedicated modules instead, or set env vars through the `env` map. See the AI Gateway example above for the replacement pattern.
+- `claude_api_key` removed. Set `ANTHROPIC_API_KEY` through the `env` map (the variable Claude Code actually reads, not `CLAUDE_API_KEY`).
+- `claude_md_path` removed. Write the file in `pre_install_script`.
+- `disable_autoupdater` renamed to `disable_auto_updater`.
+- `model`, `claude_code_oauth_token`, and the AI Gateway wiring stay as dedicated inputs (`model`, `claude_code_oauth_token`, `enable_ai_gateway`); see the examples above.
+- All Tasks, AgentAPI, Boundary, and web-app variables removed. Use dedicated modules instead, or set env vars through the `env` map.
 - `workdir` removed. MCP applies at user scope.
 - `install_via_npm` removed. Official installer only.
 - `allowed_tools` / `disallowed_tools` removed. Write `~/.claude/settings.json` via `pre_install_script` with `permissions.allow` / `permissions.deny` arrays.

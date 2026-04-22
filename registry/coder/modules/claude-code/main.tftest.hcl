@@ -248,3 +248,180 @@ run "test_claude_binary_path_validation" {
 
   expect_failures = [var.claude_binary_path]
 }
+
+run "test_model_convenience" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    model    = "opus"
+  }
+
+  assert {
+    condition     = coder_env.env["ANTHROPIC_MODEL"].value == "opus"
+    error_message = "model input must set ANTHROPIC_MODEL"
+  }
+
+  assert {
+    condition     = length(coder_env.env) == 1
+    error_message = "only ANTHROPIC_MODEL should be set"
+  }
+}
+
+run "test_claude_code_oauth_token_convenience" {
+  command = plan
+
+  variables {
+    agent_id                = "test-agent"
+    claude_code_oauth_token = "oauth-live"
+  }
+
+  assert {
+    condition     = coder_env.env["CLAUDE_CODE_OAUTH_TOKEN"].value == "oauth-live"
+    error_message = "claude_code_oauth_token must set CLAUDE_CODE_OAUTH_TOKEN"
+  }
+}
+
+run "test_disable_auto_updater_convenience" {
+  command = plan
+
+  variables {
+    agent_id             = "test-agent"
+    disable_auto_updater = true
+  }
+
+  assert {
+    condition     = coder_env.env["DISABLE_AUTOUPDATER"].value == "1"
+    error_message = "disable_auto_updater must set DISABLE_AUTOUPDATER=1"
+  }
+}
+
+run "test_enable_ai_gateway_convenience" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent"
+    enable_ai_gateway = true
+  }
+
+  override_data {
+    target = data.coder_workspace.me
+    values = {
+      access_url = "https://coder.example.com"
+    }
+  }
+
+  override_data {
+    target = data.coder_workspace_owner.me
+    values = {
+      session_token = "mock-session-token"
+    }
+  }
+
+  assert {
+    condition     = coder_env.env["ANTHROPIC_BASE_URL"].value == "https://coder.example.com/api/v2/aibridge/anthropic"
+    error_message = "enable_ai_gateway must wire ANTHROPIC_BASE_URL to the aibridge endpoint"
+  }
+
+  assert {
+    condition     = coder_env.env["ANTHROPIC_AUTH_TOKEN"].value == "mock-session-token"
+    error_message = "enable_ai_gateway must wire ANTHROPIC_AUTH_TOKEN to the workspace owner session token"
+  }
+}
+
+run "test_convenience_and_env_merge" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    model    = "opus"
+    env = {
+      ANTHROPIC_API_KEY = "sk-live"
+    }
+  }
+
+  assert {
+    condition     = coder_env.env["ANTHROPIC_MODEL"].value == "opus"
+    error_message = "convenience input must still apply when env is set"
+  }
+
+  assert {
+    condition     = coder_env.env["ANTHROPIC_API_KEY"].value == "sk-live"
+    error_message = "env entries must still apply when a convenience input is set"
+  }
+
+  assert {
+    condition     = length(coder_env.env) == 2
+    error_message = "merged env must have exactly 2 entries"
+  }
+}
+
+run "test_model_conflicts_with_env" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    model    = "opus"
+    env = {
+      ANTHROPIC_MODEL = "sonnet"
+    }
+  }
+
+  expect_failures = [var.env]
+}
+
+run "test_oauth_token_conflicts_with_env" {
+  command = plan
+
+  variables {
+    agent_id                = "test-agent"
+    claude_code_oauth_token = "oauth-live"
+    env = {
+      CLAUDE_CODE_OAUTH_TOKEN = "oauth-from-env"
+    }
+  }
+
+  expect_failures = [var.env]
+}
+
+run "test_ai_gateway_conflicts_with_env_base_url" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent"
+    enable_ai_gateway = true
+    env = {
+      ANTHROPIC_BASE_URL = "https://custom.example.com"
+    }
+  }
+
+  expect_failures = [var.env]
+}
+
+run "test_ai_gateway_conflicts_with_env_auth_token" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent"
+    enable_ai_gateway = true
+    env = {
+      ANTHROPIC_AUTH_TOKEN = "custom-token"
+    }
+  }
+
+  expect_failures = [var.env]
+}
+
+run "test_auto_updater_conflicts_with_env" {
+  command = plan
+
+  variables {
+    agent_id             = "test-agent"
+    disable_auto_updater = true
+    env = {
+      DISABLE_AUTOUPDATER = "0"
+    }
+  }
+
+  expect_failures = [var.env]
+}
