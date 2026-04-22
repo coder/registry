@@ -98,27 +98,6 @@ run "test_with_all_scripts" {
     condition     = coder_script.start_script[0].run_on_start == true
     error_message = "Start script should run on start"
   }
-
-  # Verify outputs for script names
-  assert {
-    condition     = output.script_names.pre_install == "test-agent-pre_install_script"
-    error_message = "Pre-install script name output should be correctly formatted"
-  }
-
-  assert {
-    condition     = output.script_names.install == "test-agent-install_script"
-    error_message = "Install script name output should be correctly formatted"
-  }
-
-  assert {
-    condition     = output.script_names.post_install == "test-agent-post_install_script"
-    error_message = "Post-install script name output should be correctly formatted"
-  }
-
-  assert {
-    condition     = output.script_names.start == "test-agent-start_script"
-    error_message = "Start script name output should be correctly formatted"
-  }
 }
 
 # Test with only install_script (minimum required input)
@@ -152,27 +131,6 @@ run "test_install_only" {
   assert {
     condition     = coder_script.install_script.agent_id == "test-agent-id"
     error_message = "Install script should be created"
-  }
-
-  # Verify outputs
-  assert {
-    condition     = output.script_names.pre_install == ""
-    error_message = "Pre-install script name output should be empty"
-  }
-
-  assert {
-    condition     = output.script_names.install == "test-agent-install_script"
-    error_message = "Install script name output should be correctly formatted"
-  }
-
-  assert {
-    condition     = output.script_names.post_install == ""
-    error_message = "Post-install script name output should be empty"
-  }
-
-  assert {
-    condition     = output.script_names.start == ""
-    error_message = "Start script name output should be empty"
   }
 }
 
@@ -217,26 +175,6 @@ run "test_install_and_start" {
   assert {
     condition     = can(regex("sync want test-agent-start_script test-agent-install_script", coder_script.start_script[0].script))
     error_message = "Start script should sync-want install_script"
-  }
-
-  assert {
-    condition     = output.script_names.pre_install == ""
-    error_message = "Pre-install script name output should be empty"
-  }
-
-  assert {
-    condition     = output.script_names.install == "test-agent-install_script"
-    error_message = "Install script name output should be correctly formatted"
-  }
-
-  assert {
-    condition     = output.script_names.post_install == ""
-    error_message = "Post-install script name output should be empty"
-  }
-
-  assert {
-    condition     = output.script_names.start == "test-agent-start_script"
-    error_message = "Start script name output should be correctly formatted"
   }
 }
 
@@ -316,26 +254,6 @@ run "test_script_naming" {
     condition     = can(regex("custom-name-start_script", coder_script.start_script[0].script))
     error_message = "Start script should use custom agent_name in sync commands"
   }
-
-  assert {
-    condition     = output.script_names.pre_install == ""
-    error_message = "Pre-install script name output should be empty when not provided"
-  }
-
-  assert {
-    condition     = output.script_names.install == "custom-name-install_script"
-    error_message = "Install script name output should use custom agent_name"
-  }
-
-  assert {
-    condition     = output.script_names.post_install == ""
-    error_message = "Post-install script name output should be empty when not provided"
-  }
-
-  assert {
-    condition     = output.script_names.start == "custom-name-start_script"
-    error_message = "Start script name output should use custom agent_name"
-  }
 }
 
 # Test install syncs with pre_install when provided
@@ -358,11 +276,6 @@ run "test_install_syncs_with_pre_install" {
   assert {
     condition     = can(regex("sync want test-agent-install_script test-agent-pre_install_script", coder_script.install_script.script))
     error_message = "Install script should sync-want pre_install_script"
-  }
-
-  assert {
-    condition     = output.script_names.pre_install == "test-agent-pre_install_script"
-    error_message = "Pre-install script name output should be set"
   }
 }
 

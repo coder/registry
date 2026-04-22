@@ -190,16 +190,6 @@ resource "coder_script" "start_script" {
   EOT
 }
 
-output "script_names" {
-  description = "The names of the scripts for sync."
-  value = {
-    pre_install  = var.pre_install_script != null ? local.pre_install_script_name : ""
-    install      = local.install_script_name
-    post_install = var.post_install_script != null ? local.post_install_script_name : ""
-    start        = var.start_script != null ? local.start_script_name : ""
-  }
-}
-
 # Filtered, run-order list of the `coder exp sync` names for every
 # coder_script this module actually creates. Absent scripts (pre/post/start
 # when their inputs are null) are omitted entirely, not padded with empty
