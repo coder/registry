@@ -51,8 +51,13 @@ variable "mcp" {
 
 variable "mcp_config_remote_path" {
   type        = list(string)
-  description = "List of URLs that return MCP JSON (same shape as `mcp`). Each is fetched and applied at user scope."
+  description = "List of HTTPS URLs that return MCP JSON (same shape as `mcp`). Each is fetched and applied at user scope."
   default     = []
+
+  validation {
+    condition     = alltrue([for url in var.mcp_config_remote_path : can(regex("^https://", url))])
+    error_message = "mcp_config_remote_path entries must use https:// to avoid MITM attacks and SSRF to plaintext-only internal services."
+  }
 }
 
 variable "pre_install_script" {
@@ -68,18 +73,21 @@ variable "post_install_script" {
 }
 
 locals {
-  # Prepend ARG_* exports pulled from Terraform variables directly in front of
-  # the install script body. coder-utils then takes the combined string,
+  # All ARG_* values are base64-encoded in Terraform and decoded inside
+  # install.sh. Base64 is the safe channel: the encoded form contains only
+  # [A-Za-z0-9+/=], so an attacker-controlled string value (e.g. a template
+  # parameter forwarded into `claude_code_version`) cannot break out of the
+  # single-quoted shell literal. coder-utils takes the combined string,
   # writes it to $HOME/.claude-module/install.sh, and runs it. One file on
   # disk, one base64 round-trip, no /tmp wrapper.
   install_script = join("\n", [
     "#!/bin/bash",
     "set -euo pipefail",
     "",
-    "export ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}'",
-    "export ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}'",
-    "export ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}'",
-    "export ARG_MCP='${var.mcp != "" ? base64encode(var.mcp) : ""}'",
+    "export ARG_CLAUDE_CODE_VERSION='${base64encode(var.claude_code_version)}'",
+    "export ARG_INSTALL_CLAUDE_CODE='${base64encode(tostring(var.install_claude_code))}'",
+    "export ARG_CLAUDE_BINARY_PATH='${base64encode(var.claude_binary_path)}'",
+    "export ARG_MCP='${base64encode(var.mcp)}'",
     "export ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}'",
     "",
     file("${path.module}/scripts/install.sh"),

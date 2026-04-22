@@ -6,32 +6,63 @@ command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
 
-ARG_CLAUDE_CODE_VERSION=${ARG_CLAUDE_CODE_VERSION:-}
+# Decode every ARG_* from base64. Terraform base64-encodes all values so that
+# attacker-controlled input (e.g. a workspace parameter forwarded into
+# `claude_code_version`) cannot break out of the shell literal and inject
+# commands. An empty input decodes to an empty string.
+decode_arg() {
+  local raw="${1:-}"
+  if [ -z "$raw" ]; then
+    printf ''
+    return
+  fi
+  printf '%s' "$raw" | base64 -d
+}
+
+ARG_CLAUDE_CODE_VERSION=$(decode_arg "${ARG_CLAUDE_CODE_VERSION:-}")
+ARG_CLAUDE_CODE_VERSION=${ARG_CLAUDE_CODE_VERSION:-latest}
+ARG_INSTALL_CLAUDE_CODE=$(decode_arg "${ARG_INSTALL_CLAUDE_CODE:-}")
 ARG_INSTALL_CLAUDE_CODE=${ARG_INSTALL_CLAUDE_CODE:-true}
+ARG_CLAUDE_BINARY_PATH=$(decode_arg "${ARG_CLAUDE_BINARY_PATH:-}")
 ARG_CLAUDE_BINARY_PATH=${ARG_CLAUDE_BINARY_PATH:-"$HOME/.local/bin"}
 ARG_CLAUDE_BINARY_PATH="${ARG_CLAUDE_BINARY_PATH/#\~/$HOME}"
 ARG_CLAUDE_BINARY_PATH="${ARG_CLAUDE_BINARY_PATH//\$HOME/$HOME}"
-ARG_MCP=$(echo -n "${ARG_MCP:-}" | base64 -d)
-ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n "${ARG_MCP_CONFIG_REMOTE_PATH:-}" | base64 -d)
+ARG_MCP=$(decode_arg "${ARG_MCP:-}")
+ARG_MCP_CONFIG_REMOTE_PATH=$(decode_arg "${ARG_MCP_CONFIG_REMOTE_PATH:-}")
 
 export PATH="$ARG_CLAUDE_BINARY_PATH:$PATH"
 
+# Log only non-sensitive ARG_* values. ARG_MCP (inline JSON) and
+# ARG_MCP_CONFIG_REMOTE_PATH (URL list) may contain credentials embedded in
+# MCP server configs or internal URLs, so we log only presence, not content.
 echo "--------------------------------"
 printf "ARG_CLAUDE_CODE_VERSION: %s\n" "$ARG_CLAUDE_CODE_VERSION"
 printf "ARG_INSTALL_CLAUDE_CODE: %s\n" "$ARG_INSTALL_CLAUDE_CODE"
 printf "ARG_CLAUDE_BINARY_PATH: %s\n" "$ARG_CLAUDE_BINARY_PATH"
-printf "ARG_MCP: %s\n" "$ARG_MCP"
-printf "ARG_MCP_CONFIG_REMOTE_PATH: %s\n" "$ARG_MCP_CONFIG_REMOTE_PATH"
+if [ -n "$ARG_MCP" ]; then
+  printf "ARG_MCP: [set, %d bytes]\n" "${#ARG_MCP}"
+else
+  printf "ARG_MCP: [unset]\n"
+fi
+if [ -n "$ARG_MCP_CONFIG_REMOTE_PATH" ] && [ "$ARG_MCP_CONFIG_REMOTE_PATH" != "[]" ]; then
+  local_url_count=$(echo "$ARG_MCP_CONFIG_REMOTE_PATH" | jq -r '. | length' 2> /dev/null || echo "?")
+  printf "ARG_MCP_CONFIG_REMOTE_PATH: [%s URL(s)]\n" "$local_url_count"
+else
+  printf "ARG_MCP_CONFIG_REMOTE_PATH: [unset]\n"
+fi
 echo "--------------------------------"
 
-# Ensures $ARG_CLAUDE_BINARY_PATH is on PATH across the common shell profiles so
-# interactive shells started by the user can find the installed claude binary.
+# Ensures $ARG_CLAUDE_BINARY_PATH is on PATH across the common shell profiles
+# so interactive shells started by the user can find the installed claude
+# binary.
 add_path_to_shell_profiles() {
   local path_dir="$1"
 
   for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
     if [ -f "$profile" ]; then
-      if ! grep -q "$path_dir" "$profile" 2> /dev/null; then
+      # grep -F treats the path as a literal string so regex metacharacters
+      # (uncommon but valid in paths) don't cause false negatives.
+      if ! grep -qF "$path_dir" "$profile" 2> /dev/null; then
         echo "export PATH=\"\$PATH:$path_dir\"" >> "$profile"
         echo "Added $path_dir to $profile"
       fi
@@ -40,7 +71,7 @@ add_path_to_shell_profiles() {
 
   local fish_config="$HOME/.config/fish/config.fish"
   if [ -f "$fish_config" ]; then
-    if ! grep -q "$path_dir" "$fish_config" 2> /dev/null; then
+    if ! grep -qF "$path_dir" "$fish_config" 2> /dev/null; then
       echo "fish_add_path $path_dir" >> "$fish_config"
       echo "Added $path_dir to $fish_config"
     fi
@@ -75,6 +106,11 @@ ensure_claude_in_path() {
   add_path_to_shell_profiles "$CLAUDE_DIR"
 }
 
+# Totals across all MCP sources. Populated by add_mcp_servers, inspected at
+# the end of apply_mcp so the user sees whether any server actually landed.
+MCP_ADDED=0
+MCP_FAILED=0
+
 # Adds each MCP server from the provided JSON at user scope. The claude CLI
 # writes to ~/.claude.json; this module does not touch that file directly.
 add_mcp_servers() {
@@ -84,8 +120,12 @@ add_mcp_servers() {
   while IFS= read -r server_name && IFS= read -r server_json; do
     echo "------------------------"
     echo "Executing: claude mcp add-json --scope user \"$server_name\" ($source_desc)"
-    claude mcp add-json --scope user "$server_name" "$server_json" \
-      || echo "Warning: Failed to add MCP server '$server_name', continuing..."
+    if claude mcp add-json --scope user "$server_name" "$server_json"; then
+      MCP_ADDED=$((MCP_ADDED + 1))
+    else
+      MCP_FAILED=$((MCP_FAILED + 1))
+      echo "Warning: Failed to add MCP server '$server_name', continuing..."
+    fi
     echo "------------------------"
   done < <(echo "$mcp_json" | jq -r '.mcpServers | to_entries[] | .key, (.value | @json)')
 }
@@ -117,7 +157,10 @@ apply_mcp() {
   fi
 
   if [ -n "$ARG_MCP_CONFIG_REMOTE_PATH" ] && [ "$ARG_MCP_CONFIG_REMOTE_PATH" != "[]" ]; then
-    for url in $(echo "$ARG_MCP_CONFIG_REMOTE_PATH" | jq -r '.[]'); do
+    # Read one URL per line so URLs with whitespace stay intact. A plain
+    # `for url in $(...)` would word-split and break URLs silently.
+    while IFS= read -r url; do
+      [ -z "$url" ] && continue
       echo "Fetching MCP configuration from: $url"
       mcp_json=$(curl -fsSL "$url") || {
         echo "Warning: Failed to fetch MCP configuration from '$url', continuing..."
@@ -128,7 +171,16 @@ apply_mcp() {
         continue
       fi
       add_mcp_servers "$mcp_json" "from $url"
-    done
+    done < <(echo "$ARG_MCP_CONFIG_REMOTE_PATH" | jq -r '.[]')
+  fi
+
+  local attempted=$((MCP_ADDED + MCP_FAILED))
+  if [ "$attempted" -gt 0 ]; then
+    echo "MCP configuration complete: $MCP_ADDED added, $MCP_FAILED failed."
+    if [ "$MCP_FAILED" -gt 0 ] && [ "$MCP_ADDED" -eq 0 ]; then
+      echo "Error: all $MCP_FAILED MCP server(s) failed to register." >&2
+      exit 1
+    fi
   fi
 }
 
