@@ -6,211 +6,218 @@ terraform {
       source  = "coder/coder"
       version = ">= 2.12"
     }
-    null = {
-      source  = "hashicorp/null"
-      version = ">= 3.0"
-    }
   }
 }
 
-locals {
-  # Which mode are we in?
-  tf_native_mode = var.master_api_key != ""
-  bootstrap_mode = var.human_api_key != "" && !local.tf_native_mode
-  manual_mode    = !local.tf_native_mode && !local.bootstrap_mode
+variable "agent_id" {
+  type        = string
+  description = "The ID of a Coder agent."
+}
 
-  provision_state_file = "${path.module}/.provision-state.json"
+variable "vault_id" {
+  type        = string
+  description = "The 1Claw vault ID to scope MCP access to. Optional when using bootstrap mode (human_api_key)."
+  default     = ""
 
-  provision_vault_name = (
-    var.provision_vault_name != "" ? var.provision_vault_name :
-    "coder-${data.coder_workspace.me.name}"
-  )
-  provision_agent_name = (
-    var.provision_agent_name != "" ? var.provision_agent_name :
-    "coder-${data.coder_workspace.me.name}-agent"
-  )
+  validation {
+    condition     = var.vault_id == "" || can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.vault_id))
+    error_message = "vault_id must be a valid UUID or empty (for bootstrap mode)."
+  }
+}
 
-  # Resolve effective vault_id and api_token.
-  # In TF-native mode these come from the provision state file after null_resource runs.
-  effective_vault_id = local.tf_native_mode ? local.provisioned_vault_id : var.vault_id
-  effective_token    = local.tf_native_mode ? local.provisioned_token : var.api_token
+variable "api_token" {
+  type        = string
+  sensitive   = true
+  description = "1Claw agent API key (starts with ocv_). Optional when using bootstrap mode (human_api_key)."
+  default     = ""
+}
 
-  # Read provision state (only meaningful after null_resource.oneclaw_provision has run).
-  provision_state = local.tf_native_mode && fileexists(local.provision_state_file) ? jsondecode(file(local.provision_state_file)) : {}
+variable "human_api_key" {
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "One-time human 1ck_ API key for auto-provisioning. On first workspace start, creates a vault, agent, and policy automatically. Credentials are cached in ~/.1claw/bootstrap.json for subsequent starts."
+}
 
-  provisioned_vault_id = lookup(local.provision_state, "vault_id", "")
-  provisioned_token    = lookup(local.provision_state, "agent_api_key", "")
-  provisioned_agent_id = lookup(local.provision_state, "agent_id", "")
+variable "bootstrap_vault_name" {
+  type        = string
+  default     = "coder-workspace"
+  description = "Name for the auto-created vault (only used when vault_id is not provided and human_api_key is set)."
+}
+
+variable "bootstrap_agent_name" {
+  type        = string
+  default     = ""
+  description = "Name for the auto-created agent. Defaults to coder-<workspace_name>."
+}
+
+variable "bootstrap_policy_path" {
+  type        = string
+  default     = "**"
+  description = "Secret path pattern for the auto-created policy (glob). Defaults to all secrets."
+}
+
+variable "agent_id_1claw" {
+  type        = string
+  description = "Optional 1Claw agent UUID. When omitted, the MCP server resolves the agent from the API key prefix."
+  default     = ""
+}
+
+variable "mcp_host" {
+  type        = string
+  description = "Base URL of the 1Claw MCP server."
+  default     = "https://mcp.1claw.xyz/mcp"
+
+  validation {
+    condition     = can(regex("^https?://", var.mcp_host))
+    error_message = "mcp_host must start with http:// or https://."
+  }
+}
+
+variable "base_url" {
+  type        = string
+  description = "Base URL of the 1Claw Vault API (used by ONECLAW_BASE_URL env var)."
+  default     = "https://api.1claw.xyz"
+
+  validation {
+    condition     = can(regex("^https?://", var.base_url))
+    error_message = "base_url must start with http:// or https://."
+  }
+}
+
+variable "install_cursor_config" {
+  type        = bool
+  description = "Whether to write MCP config to the Cursor IDE config path."
+  default     = true
+}
+
+variable "install_claude_config" {
+  type        = bool
+  description = "Whether to write MCP config to the Claude Code config path."
+  default     = true
+}
+
+variable "cursor_config_path" {
+  type        = string
+  description = "Path where the Cursor MCP config file is written."
+  default     = "$HOME/.cursor/mcp.json"
+}
+
+variable "claude_config_path" {
+  type        = string
+  description = "Path where the Claude Code MCP config file is written."
+  default     = "$HOME/.config/claude/mcp.json"
+}
+
+variable "icon" {
+  type        = string
+  description = "Icon to display for the setup script in the Coder UI."
+  default     = "/icon/vault.svg"
+}
+
+variable "order" {
+  type        = number
+  description = "The order determines the position of app in the UI presentation."
+  default     = null
 }
 
 data "coder_workspace" "me" {}
 
 data "coder_workspace_owner" "me" {}
 
-# ===========================================================================
-# Terraform-native provisioning (apply-time create, destroy-time cleanup)
-# ===========================================================================
-
-resource "null_resource" "oneclaw_provision" {
-  count = local.tf_native_mode ? 1 : 0
-
-  # All values needed at destroy time must live in triggers (Terraform restriction).
-  triggers = {
-    workspace_id   = data.coder_workspace.me.id
-    workspace_name = data.coder_workspace.me.name
-    vault_name     = local.provision_vault_name
-    agent_name     = local.provision_agent_name
-    state_file     = local.provision_state_file
-    base_url       = var.base_url
-    master_api_key = var.master_api_key
-    destroy_vault  = tostring(var.auto_destroy_vault)
-  }
-
-  provisioner "local-exec" {
-    interpreter = ["bash", "-c"]
-    command = templatefile("${path.module}/scripts/provision.sh", {
-      BASE_URL          = var.base_url
-      MASTER_API_KEY    = var.master_api_key
-      WORKSPACE_ID      = data.coder_workspace.me.id
-      WORKSPACE_NAME    = data.coder_workspace.me.name
-      VAULT_NAME        = local.provision_vault_name
-      AGENT_NAME        = local.provision_agent_name
-      POLICY_PATH       = var.provision_policy_path
-      TOKEN_TTL_SECONDS = tostring(var.token_ttl_hours * 3600)
-      STATE_FILE        = local.provision_state_file
-    })
-  }
-
-  provisioner "local-exec" {
-    when        = destroy
-    interpreter = ["bash", "-c"]
-    command     = <<-EOT
-      set -euo pipefail
-      STATE_FILE="${self.triggers.state_file}"
-      API_URL="${self.triggers.base_url}"
-      MASTER_KEY="${self.triggers.master_api_key}"
-      DESTROY_VAULT="${self.triggers.destroy_vault}"
-
-      if [ ! -f "$STATE_FILE" ]; then
-        echo "[1claw-deprovision] No state file — nothing to clean up"
-        exit 0
-      fi
-
-      VAULT_ID=$(python3 -c "import json; print(json.load(open('$STATE_FILE'))['vault_id'])")
-      AGENT_ID=$(python3 -c "import json; print(json.load(open('$STATE_FILE'))['agent_id'])")
-      echo "[1claw-deprovision] Agent: $AGENT_ID  Vault: $VAULT_ID"
-
-      # Authenticate
-      AUTH=$(curl -sf -w "\n%%{http_code}" \
-        -H "Content-Type: application/json" \
-        -d "{\"api_key\": \"$MASTER_KEY\"}" \
-        "$API_URL/v1/auth/api-key-token" 2>&1) || {
-        echo "[1claw-deprovision] WARN: Auth failed — manual cleanup needed"
-        rm -f "$STATE_FILE"; exit 0
-      }
-      AUTH_HTTP=$(echo "$AUTH" | tail -1)
-      AUTH_BODY=$(echo "$AUTH" | sed '$d')
-      if [ "$(echo "$AUTH_HTTP" | head -c1)" != "2" ]; then
-        echo "[1claw-deprovision] WARN: Auth HTTP $AUTH_HTTP — manual cleanup needed"
-        rm -f "$STATE_FILE"; exit 0
-      fi
-      JWT=$(python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])" <<< "$AUTH_BODY")
-
-      # Delete agent
-      echo "[1claw-deprovision] Deleting agent $AGENT_ID..."
-      curl -sf -X DELETE -H "Authorization: Bearer $JWT" "$API_URL/v1/agents/$AGENT_ID" >/dev/null 2>&1 \
-        && echo "[1claw-deprovision] Agent deleted" \
-        || echo "[1claw-deprovision] WARN: Agent delete failed (may already be gone)"
-
-      # Optionally delete vault
-      if [ "$DESTROY_VAULT" = "true" ]; then
-        echo "[1claw-deprovision] Deleting vault $VAULT_ID..."
-        curl -sf -X DELETE -H "Authorization: Bearer $JWT" "$API_URL/v1/vaults/$VAULT_ID" >/dev/null 2>&1 \
-          && echo "[1claw-deprovision] Vault deleted" \
-          || echo "[1claw-deprovision] WARN: Vault delete failed (may have secrets or already be gone)"
-      else
-        echo "[1claw-deprovision] Vault $VAULT_ID retained (set auto_destroy_vault = true to delete)"
-      fi
-
-      rm -f "$STATE_FILE"
-      echo "[1claw-deprovision] Cleanup complete"
-    EOT
-  }
+locals {
+  bootstrap_mode = var.human_api_key != ""
+  bootstrap_agent_name = (
+    var.bootstrap_agent_name != "" ? var.bootstrap_agent_name :
+    "coder-${data.coder_workspace.me.name}"
+  )
 }
 
-# ===========================================================================
-# Environment variables (injected into the workspace agent)
-# ===========================================================================
-
-resource "coder_env" "oneclaw_vault_id" {
-  count    = local.effective_vault_id != "" ? 1 : 0
+resource "coder_env" "vault_id" {
+  count    = var.vault_id != "" ? 1 : 0
   agent_id = var.agent_id
   name     = "ONECLAW_VAULT_ID"
-  value    = local.effective_vault_id
+  value    = var.vault_id
 }
 
-resource "coder_env" "oneclaw_agent_api_key" {
-  count    = local.effective_token != "" ? 1 : 0
+resource "coder_env" "agent_api_key" {
+  count    = var.api_token != "" ? 1 : 0
   agent_id = var.agent_id
   name     = "ONECLAW_AGENT_API_KEY"
-  value    = local.effective_token
+  value    = var.api_token
 }
 
 resource "coder_env" "oneclaw_agent_id" {
-  count    = var.agent_id_1claw != "" || local.provisioned_agent_id != "" ? 1 : 0
+  count    = var.agent_id_1claw != "" ? 1 : 0
   agent_id = var.agent_id
   name     = "ONECLAW_AGENT_ID"
-  value    = var.agent_id_1claw != "" ? var.agent_id_1claw : local.provisioned_agent_id
+  value    = var.agent_id_1claw
 }
 
-resource "coder_env" "oneclaw_base_url" {
+resource "coder_env" "base_url" {
   agent_id = var.agent_id
   name     = "ONECLAW_BASE_URL"
   value    = var.base_url
 }
 
-# ===========================================================================
-# Shell bootstrap (optional, first-run provisioning inside the workspace)
-# ===========================================================================
-
-resource "coder_script" "oneclaw_bootstrap" {
-  count              = local.bootstrap_mode ? 1 : 0
-  agent_id           = var.agent_id
-  display_name       = "1Claw Bootstrap"
-  icon               = var.icon
-  run_on_start       = true
-  start_blocks_login = true
-
-  script = templatefile("${path.module}/scripts/bootstrap.sh", {
-    HUMAN_API_KEY = var.human_api_key
-    BASE_URL      = var.base_url
-    VAULT_ID      = var.vault_id
-    VAULT_NAME    = var.bootstrap_vault_name
-    AGENT_NAME    = var.bootstrap_agent_name != "" ? var.bootstrap_agent_name : "coder-${data.coder_workspace.me.name}"
-    POLICY_PATH   = var.bootstrap_policy_path
-    STATE_DIR     = "$HOME/.1claw"
-  })
+# Sensitive values are passed via coder_env (not templated into the script body)
+# so they don't appear in the Coder agent's script log. The agent log is 0600 on
+# the coder user, but that's the same user the AI runs as in most images, so we
+# want to avoid any on-disk copy of the 1ck_ key in the workspace.
+resource "coder_env" "human_api_key" {
+  count    = local.bootstrap_mode ? 1 : 0
+  agent_id = var.agent_id
+  name     = "_ONECLAW_HUMAN_API_KEY"
+  value    = var.human_api_key
 }
 
-# ===========================================================================
-# MCP config file injection
-# ===========================================================================
-
-resource "coder_script" "oneclaw_mcp_setup" {
+resource "coder_script" "run" {
   agent_id           = var.agent_id
-  display_name       = "1Claw MCP Setup"
+  display_name       = "1Claw"
   icon               = var.icon
   run_on_start       = true
-  start_blocks_login = false
+  start_blocks_login = local.bootstrap_mode
 
-  script = templatefile("${path.module}/scripts/setup.sh", {
-    MCP_HOST              = var.mcp_host
-    VAULT_ID              = local.effective_vault_id
-    API_TOKEN             = local.effective_token
+  script = templatefile("${path.module}/scripts/run.sh", {
     BOOTSTRAP_MODE        = local.bootstrap_mode ? "true" : "false"
-    INSTALL_CURSOR_CONFIG = var.install_cursor_config
-    INSTALL_CLAUDE_CONFIG = var.install_claude_config
+    BASE_URL              = var.base_url
+    VAULT_ID_INPUT        = var.vault_id
+    VAULT_NAME            = var.bootstrap_vault_name
+    AGENT_NAME            = local.bootstrap_agent_name
+    POLICY_PATH           = var.bootstrap_policy_path
+    STATE_DIR             = "$HOME/.1claw"
+    MCP_HOST              = var.mcp_host
+    INSTALL_CURSOR_CONFIG = var.install_cursor_config ? "true" : "false"
+    INSTALL_CLAUDE_CONFIG = var.install_claude_config ? "true" : "false"
     CURSOR_CONFIG_PATH    = var.cursor_config_path
     CLAUDE_CONFIG_PATH    = var.claude_config_path
   })
+}
+
+output "mcp_config_path" {
+  description = "Primary MCP config file path (Cursor). Use this to reference the config from downstream resources."
+  value       = var.cursor_config_path
+}
+
+output "claude_config_path" {
+  description = "Claude Code MCP config file path."
+  value       = var.install_claude_config ? var.claude_config_path : ""
+}
+
+output "vault_id" {
+  description = "The 1Claw vault ID configured for this workspace (manual mode only; bootstrap mode resolves the vault ID inside the workspace)."
+  value       = var.vault_id
+  sensitive   = true
+}
+
+output "agent_id_1claw" {
+  description = "The 1Claw agent UUID, if provided via variable."
+  value       = var.agent_id_1claw
+  sensitive   = true
+}
+
+output "provisioning_mode" {
+  description = "Which provisioning mode is active: bootstrap or manual."
+  value       = local.bootstrap_mode ? "bootstrap" : "manual"
+  sensitive   = true
 }
