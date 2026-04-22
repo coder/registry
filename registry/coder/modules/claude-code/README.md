@@ -225,6 +225,35 @@ module "claude-code" {
 }
 ```
 
+## Outputs
+
+| Output    | Type           | Description                                                                                                                                                                                     |
+| --------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts` | `list(string)` | `coder exp sync` names for every `coder_script` this module actually creates, in the run order `coder-utils` enforces (pre-install, install, post-install). Absent scripts are not in the list. |
+
+Use `scripts` to gate a downstream module behind Claude Code's install:
+
+```tf
+module "claude-code" {
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "5.0.0"
+  agent_id = coder_agent.main.id
+}
+
+resource "coder_script" "wait_for_claude" {
+  agent_id     = coder_agent.main.id
+  display_name = "Wait for Claude Code"
+  run_on_start = true
+  script       = <<-EOT
+    #!/bin/bash
+    coder exp sync want my-downstream-script ${join(" ", module.claude-code.scripts)}
+    coder exp sync start my-downstream-script
+    # your logic here
+    coder exp sync complete my-downstream-script
+  EOT
+}
+```
+
 ## Troubleshooting
 
 Module logs live at `$HOME/.claude-module/`:

@@ -139,6 +139,27 @@ run "test_with_pre_post_install" {
     condition     = module.coder-utils.script_names.install != ""
     error_message = "Install script name should always be populated"
   }
+
+  # `scripts` output is a filtered, run-order list. All three expected.
+  assert {
+    condition     = length(output.scripts) == 3
+    error_message = "scripts output should have exactly 3 entries when pre/post are set"
+  }
+
+  assert {
+    condition     = output.scripts[0] == module.coder-utils.script_names.pre_install
+    error_message = "scripts[0] must be the pre-install name (run-order)"
+  }
+
+  assert {
+    condition     = output.scripts[1] == module.coder-utils.script_names.install
+    error_message = "scripts[1] must be the install name (run-order)"
+  }
+
+  assert {
+    condition     = output.scripts[2] == module.coder-utils.script_names.post_install
+    error_message = "scripts[2] must be the post-install name (run-order)"
+  }
 }
 
 run "test_defaults_produce_only_install_script" {
@@ -166,6 +187,42 @@ run "test_defaults_produce_only_install_script" {
   assert {
     condition     = module.coder-utils.script_names.install != ""
     error_message = "Install script must always be created"
+  }
+
+  # Defaults: `scripts` output holds exactly one entry (install).
+  assert {
+    condition     = length(output.scripts) == 1
+    error_message = "scripts output should contain exactly 1 entry by default"
+  }
+
+  assert {
+    condition     = output.scripts[0] == module.coder-utils.script_names.install
+    error_message = "scripts[0] must be the install script name"
+  }
+}
+
+run "test_scripts_output_excludes_post_when_only_pre_set" {
+  command = plan
+
+  variables {
+    agent_id           = "test-agent"
+    pre_install_script = "echo only-pre"
+  }
+
+  # With only pre_install set, `scripts` holds 2 entries: pre, install.
+  assert {
+    condition     = length(output.scripts) == 2
+    error_message = "scripts output should contain exactly 2 entries when only pre is set"
+  }
+
+  assert {
+    condition     = output.scripts[0] == module.coder-utils.script_names.pre_install
+    error_message = "scripts[0] must be pre-install when it is set"
+  }
+
+  assert {
+    condition     = output.scripts[1] == module.coder-utils.script_names.install
+    error_message = "scripts[1] must be install when post is unset"
   }
 }
 
