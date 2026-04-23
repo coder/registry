@@ -54,7 +54,7 @@ variable "module_directory" {
 locals {
   boundary_script             = file("${path.module}/scripts/install.sh")
   boundary_script_destination = "${var.module_directory}/scripts/install.sh"
-  boundary_wrapper_path = "${var.module_directory}/scripts/boundary-wrapper.sh"
+  boundary_wrapper_path       = "${var.module_directory}/scripts/boundary-wrapper.sh"
 }
 
 module "coder_utils" {
