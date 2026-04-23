@@ -58,7 +58,8 @@ locals {
 }
 
 module "coder_utils" {
-  source              = "git::https://github.com/coder/registry.git//registry/coder/modules/coder-utils?ref=main"
+  source              = "registry.coder.com/coder/coder-utils/coder"
+  version             = "1.3.0"
   agent_id            = var.agent_id
   agent_name          = "coder_boundary"
   display_name_prefix = "Boundary"
