@@ -51,7 +51,6 @@ For any new module that runs scripts (or when reworking an existing one), use th
 
 - `coder-utils` handles script ordering via `coder exp sync`, materializes scripts under `module_directory`, and writes logs to `module_directory/logs/` automatically, which aligns with the Module Data Layout above.
 - Set `module_directory = "$HOME/.coder-modules/<namespace>/<module-name>"` so the standard root and `logs/` subdirectory fall out for free.
-- See https://github.com/coder/registry/pull/870 for a reference migration (logs nested under `module_directory/logs`).
 
 ## Code Style
 
