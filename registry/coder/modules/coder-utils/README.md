@@ -20,11 +20,11 @@ The Coder Utils module is a building block for modules that need to run multiple
 ```tf
 module "coder_utils" {
   source  = "registry.coder.com/coder/coder-utils/coder"
-  version = "1.0.1"
+  version = "1.2.0"
 
-  agent_id        = coder_agent.main.id
-  agent_name      = "myagent"
-  module_dir_name = ".my-module"
+  agent_id         = coder_agent.main.id
+  agent_name       = "myagent"
+  module_directory = ".my-module"
 
   pre_install_script = <<-EOT
     #!/bin/bash
@@ -56,10 +56,41 @@ module "coder_utils" {
 
 The module orchestrates scripts in the following order:
 
-1. **Log File Creation** - Creates module directory and log files
-2. **Pre-Install Script** (optional) - Runs before installation
-3. **Install Script** - Main installation
-4. **Post-Install Script** (optional) - Runs after installation
-5. **Start Script** - Starts the application
+1. **Pre-Install Script** (optional) - Runs before installation
+2. **Install Script** (required) - Main installation
+3. **Post-Install Script** (optional) - Runs after installation
+4. **Start Script** (optional) - Starts the application
 
 Each script waits for its prerequisites to complete before running using `coder exp sync` dependency management.
+
+## Customizing Script Display
+
+By default each `coder_script` renders in the Coder UI as plain "Install Script", "Pre-Install Script", etc. Downstream modules can brand them:
+
+```tf
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "1.2.0"
+
+  agent_id         = coder_agent.main.id
+  agent_name       = "myagent"
+  module_directory = ".my-module"
+  install_script   = "echo installing"
+
+  display_name_prefix = "Claude Code" # yields "Claude Code: Install Script", etc.
+  icon                = "/icon/claude.svg"
+}
+```
+
+Both variables are optional. `display_name_prefix` defaults to `""` (no prefix), and `icon` defaults to `null` (use the Coder provider's default).
+
+## Log file locations
+
+The module writes each script's stdout+stderr to `${module_directory}/logs/`:
+
+- `pre_install.log`
+- `install.log`
+- `post_install.log`
+- `start.log`
+
+Each `coder_script` `mkdir -p`s this subdirectory before its `tee` runs, so the first script to execute creates it.
