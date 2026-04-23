@@ -31,7 +31,7 @@ run "plan_with_required_vars" {
 
   # Verify the sync_script_names output contains the install script name
   assert {
-    condition     = output.sync_script_names.script_names.install == "coder_boundary-install_script"
+    condition     = contains(output.sync_script_names, "coder_boundary-install_script")
     error_message = "sync_script_names should contain the install script name"
   }
 }
@@ -56,7 +56,7 @@ run "plan_with_compile_from_source" {
   }
 
   assert {
-    condition     = output.sync_script_names.script_names.install == "coder_boundary-install_script"
+    condition     = contains(output.sync_script_names, "coder_boundary-install_script")
     error_message = "sync_script_names should contain the install script name"
   }
 }
@@ -81,7 +81,7 @@ run "plan_with_use_directly" {
   }
 
   assert {
-    condition     = output.sync_script_names.script_names.install == "coder_boundary-install_script"
+    condition     = contains(output.sync_script_names, "coder_boundary-install_script")
     error_message = "sync_script_names should contain the install script name"
   }
 }
@@ -101,18 +101,18 @@ run "plan_with_custom_hooks" {
   }
 
   assert {
-    condition     = output.sync_script_names.script_names.install == "coder_boundary-install_script"
+    condition     = contains(output.sync_script_names, "coder_boundary-install_script")
     error_message = "sync_script_names should contain the install script name"
   }
 
   # Verify pre and post install script names are set
   assert {
-    condition     = output.sync_script_names.script_names.pre_install == "coder_boundary-pre_install_script"
+    condition     = contains(output.sync_script_names, "coder_boundary-pre_install_script")
     error_message = "sync_script_names should contain the pre_install script name"
   }
 
   assert {
-    condition     = output.sync_script_names.script_names.post_install == "coder_boundary-post_install_script"
+    condition     = contains(output.sync_script_names, "coder_boundary-post_install_script")
     error_message = "sync_script_names should contain the post_install script name"
   }
 }

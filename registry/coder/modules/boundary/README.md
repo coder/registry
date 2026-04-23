@@ -61,13 +61,13 @@ resource "coder_script" "my_app" {
 
 ### Script Synchronization
 
-The `sync_script_names` output provides script names that can be used with `coder exp sync` to coordinate script execution. This is useful when your scripts need to wait for boundary installation to complete before running.
+The `sync_script_names` output provides a list of script names that can be used with `coder exp sync` to coordinate script execution. This is useful when your scripts need to wait for boundary installation to complete before running.
 
-Available sync script names:
+The list may contain the following script names:
 
-- `sync_script_names.script_names.pre_install` - Pre-installation script (if configured)
-- `sync_script_names.script_names.install` - Main boundary installation script
-- `sync_script_names.script_names.post_install` - Post-installation script (if configured)
+- `coder_boundary-pre_install_script` - Pre-installation script (if configured)
+- `coder_boundary-install_script` - Main boundary installation script
+- `coder_boundary-post_install_script` - Post-installation script (if configured)
 
 ## Examples
 
