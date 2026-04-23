@@ -303,8 +303,8 @@ function accept_auto_mode() {
 
 install_claude_code_cli
 setup_claude_configurations
-report_tasks
 configure_lifecycle_settings
+report_tasks
 
 if [ "$ARG_PERMISSION_MODE" = "auto" ]; then
   accept_auto_mode

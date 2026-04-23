@@ -67,23 +67,16 @@ const setup = async (
 };
 
 // start.sh derives TASK_SESSION_ID as uuid5(NAMESPACE_URL, "coder-workspace://" + workspace_id).
-// The workspace_id comes from data.coder_workspace.me.id which the coder
-// provider resolves from the host environment, so we recompute it here from
-// the rendered script rather than hardcoding a value that varies by host.
-const deriveTaskSessionId = async (id: string): Promise<string> => {
-  const script = await readFileContainer(id, "/home/coder/script.sh");
-  const m = script.match(/ARG_WORKSPACE_ID='([^']*)'/);
-  const workspaceId = m?.[1] ?? "";
-  if (workspaceId === "") {
-    return "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
-  }
-  const resp = await execContainer(id, [
-    "python3",
-    "-c",
-    'import uuid,sys; print(uuid.uuid5(uuid.NAMESPACE_URL, "coder-workspace://" + sys.argv[1]))',
-    workspaceId,
-  ]);
-  return resp.stdout.trim();
+// The coder provider populates data.coder_workspace.me.id from CODER_WORKSPACE_ID,
+// generating a random value per terraform-apply when unset. Pin it so the
+// expected session ID is stable across hosts and runs.
+const TEST_CODER_WORKSPACE_ID = "e3aee544-5dbb-4c97-846c-ee9e50a6a06f";
+process.env.CODER_WORKSPACE_ID = TEST_CODER_WORKSPACE_ID;
+// uuid5(NAMESPACE_URL, "coder-workspace://" + TEST_CODER_WORKSPACE_ID)
+const TEST_TASK_SESSION_ID = "feac99e4-b036-54e7-8ecb-b12e95960344";
+
+const deriveTaskSessionId = async (_id: string): Promise<string> => {
+  return TEST_TASK_SESSION_ID;
 };
 
 setDefaultTimeout(60 * 1000);
