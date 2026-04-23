@@ -20,7 +20,7 @@ The Coder Utils module is a building block for modules that need to run multiple
 ```tf
 module "coder_utils" {
   source  = "registry.coder.com/coder/coder-utils/coder"
-  version = "1.2.0"
+  version = "1.3.0"
 
   agent_id         = coder_agent.main.id
   agent_name       = "myagent"
@@ -70,7 +70,7 @@ By default each `coder_script` renders in the Coder UI as plain "Install Script"
 ```tf
 module "coder_utils" {
   source  = "registry.coder.com/coder/coder-utils/coder"
-  version = "1.2.0"
+  version = "1.3.0"
 
   agent_id         = coder_agent.main.id
   agent_name       = "myagent"
@@ -94,3 +94,14 @@ The module writes each script's stdout+stderr to `${module_directory}/logs/`:
 - `start.log`
 
 Each `coder_script` `mkdir -p`s this subdirectory before its `tee` runs, so the first script to execute creates it.
+
+## Script file locations
+
+The module materializes each script to `${module_directory}/scripts/` before running it:
+
+- `${agent_name}-utils-pre_install.sh`
+- `${agent_name}-utils-install.sh`
+- `${agent_name}-utils-post_install.sh`
+- `${agent_name}-utils-start.sh`
+
+The `${agent_name}-utils-` prefix namespaces files per-agent so multiple `coder-utils` instances can safely share a `module_directory`. The pre-install and install `coder_script`s `mkdir -p` this subdirectory; post-install and start sync-depend on install, so the directory already exists by the time they run.
