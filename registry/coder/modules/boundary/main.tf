@@ -82,9 +82,9 @@ module "coder_utils" {
 EOT
 }
 
-resource "coder_env" "agentapi_boundary_prefix" {
+resource "coder_env" "boundary_wrapper_path" {
   agent_id = var.agent_id
-  name     = "AGENTAPI_BOUNDARY_PREFIX"
+  name     = "BOUNDARY_WRAPPER_PATH"
   value    = local.boundary_wrapper_path
 }
 

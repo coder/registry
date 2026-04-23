@@ -60,19 +60,15 @@ install_boundary() {
 # Exports AGENTAPI_BOUNDARY_PREFIX pointing to the wrapper script.
 setup_boundary() {
   local module_path="${MODULE_DIR}"
-  local wrapper_path="${BOUNDARY_WRAPPER_PATH}"
 
   echo "Setting up coder boundary..."
 
   # Install boundary binary if needed
   install_boundary
 
-  # Determine which boundary command to use and create wrapper script
-  BOUNDARY_WRAPPER_SCRIPT="${wrapper_path}"
-
   if [[ "${COMPILE_BOUNDARY_FROM_SOURCE}" = "true" ]] || [[ "${USE_BOUNDARY_DIRECTLY}" = "true" ]]; then
     # Use boundary binary directly (from compilation or release installation)
-    cat > "${BOUNDARY_WRAPPER_SCRIPT}" << 'WRAPPER_EOF'
+    cat > "${BOUNDARY_WRAPPER_PATH}" << 'WRAPPER_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 exec boundary "$@"
@@ -88,7 +84,7 @@ WRAPPER_EOF
       echo "Error: Failed to copy coder binary to ${CODER_NO_CAPS}. boundary cannot be enabled." >&2
       exit 1
     fi
-    cat > "${BOUNDARY_WRAPPER_SCRIPT}" << 'WRAPPER_EOF'
+    cat > "${BOUNDARY_WRAPPER_PATH}" << 'WRAPPER_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -96,8 +92,7 @@ exec "${SCRIPT_DIR}/coder-no-caps" boundary "$@"
 WRAPPER_EOF
   fi
 
-  chmod +x "${BOUNDARY_WRAPPER_SCRIPT}"
-  export AGENTAPI_BOUNDARY_PREFIX="${BOUNDARY_WRAPPER_SCRIPT}"
+  chmod +x "${BOUNDARY_WRAPPER_PATH}"
   echo "boundary wrapper configured: ${AGENTAPI_BOUNDARY_PREFIX}"
 }
 
