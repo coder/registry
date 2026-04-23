@@ -57,8 +57,7 @@ locals {
 }
 
 module "coder_utils" {
-  source              = "registry.coder.com/coder/coder-utils/coder"
-  version             = "1.2.0"
+  source              = "git::https://github.com/coder/registry.git//registry/coder/modules/coder-utils?ref=matifali/coder-utils-nest-scripts"
   agent_id            = var.agent_id
   agent_name          = "coder_boundary"
   display_name_prefix = "Boundary"
