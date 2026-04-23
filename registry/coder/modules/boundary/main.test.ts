@@ -141,13 +141,13 @@ describe("boundary", async () => {
       "BOUNDARY_WRAPPER_PATH",
     );
     expect(boundaryEnv?.instances[0]?.attributes.value).toBe(
-      "$HOME/.coder-modules/coder/boundary/boundary-wrapper.sh",
+      "$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh",
     );
 
     // Verify the outputs are set correctly
     const coderEnvVars = extractCoderEnvVars(state);
     expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBe(
-      "$HOME/.coder-modules/coder/boundary/boundary-wrapper.sh",
+      "$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh",
     );
   });
 
@@ -160,7 +160,7 @@ describe("boundary", async () => {
 
     const coderEnvVars = extractCoderEnvVars(state);
     expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBe(
-      `${customDir}/boundary-wrapper.sh`,
+      `${customDir}/scripts/boundary-wrapper.sh`,
     );
   });
 
@@ -171,7 +171,7 @@ describe("boundary", async () => {
     // Verify the wrapper script was created
     const wrapperContent = await readFileContainer(
       id,
-      "/home/coder/.coder-modules/coder/boundary/boundary-wrapper.sh",
+      "/home/coder/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh",
     );
     expect(wrapperContent).toContain("#!/usr/bin/env bash");
     expect(wrapperContent).toContain("coder-no-caps");
@@ -182,7 +182,7 @@ describe("boundary", async () => {
       "stat",
       "-c",
       "%a",
-      "/home/coder/.coder-modules/coder/boundary/boundary-wrapper.sh",
+      "/home/coder/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh",
     ]);
     expect(statResult.stdout.trim()).toMatch(/7[0-9][0-9]/); // Should be executable (7xx)
 
@@ -197,7 +197,7 @@ describe("boundary", async () => {
     // Check install log
     const installLog = await readFileContainer(
       id,
-      "/home/coder/.coder-modules/coder/boundary/install.log",
+      "/home/coder/.coder-modules/coder/boundary/logs/install.log",
     );
     expect(installLog).toContain("Using coder boundary subcommand");
     expect(installLog).toContain("boundary wrapper configured");
@@ -222,21 +222,21 @@ describe("boundary", async () => {
     // Verify pre-install script ran
     const preInstallLog = await readFileContainer(
       id,
-      "/home/coder/.coder-modules/coder/boundary/pre_install.log",
+      "/home/coder/.coder-modules/coder/boundary/logs/pre_install.log",
     );
     expect(preInstallLog).toContain(preInstallMarker);
 
     // Verify post-install script ran
     const postInstallLog = await readFileContainer(
       id,
-      "/home/coder/.coder-modules/coder/boundary/post_install.log",
+      "/home/coder/.coder-modules/coder/boundary/logs/post_install.log",
     );
     expect(postInstallLog).toContain(postInstallMarker);
 
     // Verify main install still ran
     const installLog = await readFileContainer(
       id,
-      "/home/coder/.coder-modules/coder/boundary/install.log",
+      "/home/coder/.coder-modules/coder/boundary/logs/install.log",
     );
     expect(installLog).toContain("boundary wrapper configured");
   });
@@ -246,7 +246,7 @@ describe("boundary", async () => {
 
     // Verify BOUNDARY_WRAPPER_PATH is in the coder env vars
     expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBe(
-      "$HOME/.coder-modules/coder/boundary/boundary-wrapper.sh",
+      "$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh",
     );
   });
 
@@ -258,7 +258,7 @@ describe("boundary", async () => {
     const wrapperResult = await execContainer(id, [
       "bash",
       "-c",
-      "/home/coder/.coder-modules/coder/boundary/boundary-wrapper.sh echo boundary-test",
+      "/home/coder/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh echo boundary-test",
     ]);
 
     // The wrapper passes the command directly to the boundary command
@@ -272,7 +272,7 @@ describe("boundary", async () => {
     await execModuleScript(id);
     const firstInstallLog = await readFileContainer(
       id,
-      "/home/coder/.coder-modules/coder/boundary/install.log",
+      "/home/coder/.coder-modules/coder/boundary/logs/install.log",
     );
 
     // Run again

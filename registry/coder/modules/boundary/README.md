@@ -61,7 +61,7 @@ resource "coder_script" "my_app" {
 
 ### Script Synchronization
 
-The `sync_script_names` output provides a list of script names that can be used with `coder exp sync` to coordinate script execution. This is useful when your scripts need to wait for boundary installation to complete before running.
+The `scripts` output provides a list of script names that can be used with `coder exp sync` to coordinate script execution. This is useful when your scripts need to wait for boundary installation to complete before running.
 
 The list may contain the following script names:
 
