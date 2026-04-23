@@ -1,5 +1,5 @@
 #!/bin/bash
-# Exports AGENTAPI_BOUNDARY_PREFIX for use by module start scripts.
+# Exports BOUNDARY_WRAPPER_PATH for use by module start scripts.
 
 set -o nounset
 BOUNDARY_VERSION="${ARG_BOUNDARY_VERSION:-latest}"
@@ -57,7 +57,7 @@ install_boundary() {
 }
 
 # Set up boundary: install, write config, create wrapper script.
-# Exports AGENTAPI_BOUNDARY_PREFIX pointing to the wrapper script.
+# Exports BOUNDARY_WRAPPER_PATH pointing to the wrapper script.
 setup_boundary() {
   local module_path="${MODULE_DIR}"
 
@@ -93,7 +93,7 @@ WRAPPER_EOF
   fi
 
   chmod +x "${BOUNDARY_WRAPPER_PATH}"
-  echo "boundary wrapper configured: ${AGENTAPI_BOUNDARY_PREFIX}"
+  echo "boundary wrapper configured: ${BOUNDARY_WRAPPER_PATH}"
 }
 
 setup_boundary

@@ -9,17 +9,17 @@ run "plan_with_required_vars" {
 
   # Verify the coder_env resource is created with correct agent_id
   assert {
-    condition     = coder_env.agentapi_boundary_prefix.agent_id == "test-agent-id"
-    error_message = "agentapi_boundary_prefix agent_id should match the input variable"
+    condition     = coder_env.boundary_wrapper_path.agent_id == "test-agent-id"
+    error_message = "boundary_wrapper_path agent_id should match the input variable"
   }
 
   assert {
-    condition     = coder_env.agentapi_boundary_prefix.name == "AGENTAPI_BOUNDARY_PREFIX"
-    error_message = "Environment variable name should be 'AGENTAPI_BOUNDARY_PREFIX'"
+    condition     = coder_env.boundary_wrapper_path.name == "BOUNDARY_WRAPPER_PATH"
+    error_message = "Environment variable name should be 'BOUNDARY_WRAPPER_PATH'"
   }
 
   assert {
-    condition     = coder_env.agentapi_boundary_prefix.value == "$HOME/.coder-modules/coder/boundary/boundary-wrapper.sh"
+    condition     = coder_env.boundary_wrapper_path.value == "$HOME/.coder-modules/coder/boundary/boundary-wrapper.sh"
     error_message = "Environment variable value should be the boundary wrapper path"
   }
 
@@ -46,8 +46,8 @@ run "plan_with_compile_from_source" {
   }
 
   assert {
-    condition     = coder_env.agentapi_boundary_prefix.agent_id == "test-agent-id"
-    error_message = "agentapi_boundary_prefix agent_id should match the input variable"
+    condition     = coder_env.boundary_wrapper_path.agent_id == "test-agent-id"
+    error_message = "boundary_wrapper_path agent_id should match the input variable"
   }
 
   assert {
@@ -71,8 +71,8 @@ run "plan_with_use_directly" {
   }
 
   assert {
-    condition     = coder_env.agentapi_boundary_prefix.agent_id == "test-agent-id"
-    error_message = "agentapi_boundary_prefix agent_id should match the input variable"
+    condition     = coder_env.boundary_wrapper_path.agent_id == "test-agent-id"
+    error_message = "boundary_wrapper_path agent_id should match the input variable"
   }
 
   assert {
@@ -96,8 +96,8 @@ run "plan_with_custom_hooks" {
   }
 
   assert {
-    condition     = coder_env.agentapi_boundary_prefix.agent_id == "test-agent-id"
-    error_message = "agentapi_boundary_prefix agent_id should match the input variable"
+    condition     = coder_env.boundary_wrapper_path.agent_id == "test-agent-id"
+    error_message = "boundary_wrapper_path agent_id should match the input variable"
   }
 
   assert {
@@ -126,7 +126,7 @@ run "plan_with_custom_module_directory" {
   }
 
   assert {
-    condition     = coder_env.agentapi_boundary_prefix.value == "/custom/path/boundary-wrapper.sh"
+    condition     = coder_env.boundary_wrapper_path.value == "/custom/path/boundary-wrapper.sh"
     error_message = "Environment variable should use custom module directory"
   }
 
