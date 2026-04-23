@@ -77,10 +77,12 @@ locals {
   post_install_script_name = "${var.agent_name}-post_install_script"
   start_script_name        = "${var.agent_name}-start_script"
 
-  pre_install_path  = "${var.module_directory}/pre_install.sh"
-  install_path      = "${var.module_directory}/install.sh"
-  post_install_path = "${var.module_directory}/post_install.sh"
-  start_path        = "${var.module_directory}/start.sh"
+  utils_script_path = "${var.module_directory}/${var.agent_name}-utils"
+
+  pre_install_path  = "${local.utils_script_path}/pre_install.sh"
+  install_path      = "${local.utils_script_path}/install.sh"
+  post_install_path = "${local.utils_script_path}/post_install.sh"
+  start_path        = "${local.utils_script_path}/start.sh"
 
   pre_install_log_path  = "${local.log_directory}/pre_install.log"
   install_log_path      = "${local.log_directory}/install.log"
