@@ -510,22 +510,80 @@ run "test_scripts_tee_stdout_and_log_file" {
   }
 
   assert {
-    condition     = can(regex("pre_install.sh 2>&1 \\| tee .*pre_install.log", coder_script.pre_install_script[0].script))
-    error_message = "pre_install wrapper must tee combined output to the log file and stdout"
+    condition     = can(regex("pre_install.sh 2>&1 \\| tee .*logs/pre_install.log", coder_script.pre_install_script[0].script))
+    error_message = "pre_install wrapper must tee combined output to the logs/ subdirectory"
   }
 
   assert {
-    condition     = can(regex("install.sh 2>&1 \\| tee .*install.log", coder_script.install_script.script))
-    error_message = "install wrapper must tee combined output to the log file and stdout"
+    condition     = can(regex("install.sh 2>&1 \\| tee .*logs/install.log", coder_script.install_script.script))
+    error_message = "install wrapper must tee combined output to the logs/ subdirectory"
   }
 
   assert {
-    condition     = can(regex("post_install.sh 2>&1 \\| tee .*post_install.log", coder_script.post_install_script[0].script))
-    error_message = "post_install wrapper must tee combined output to the log file and stdout"
+    condition     = can(regex("post_install.sh 2>&1 \\| tee .*logs/post_install.log", coder_script.post_install_script[0].script))
+    error_message = "post_install wrapper must tee combined output to the logs/ subdirectory"
   }
 
   assert {
-    condition     = can(regex("start.sh 2>&1 \\| tee .*start.log", coder_script.start_script[0].script))
-    error_message = "start wrapper must tee combined output to the log file and stdout"
+    condition     = can(regex("start.sh 2>&1 \\| tee .*logs/start.log", coder_script.start_script[0].script))
+    error_message = "start wrapper must tee combined output to the logs/ subdirectory"
+  }
+}
+
+# Logs unconditionally land under ${module_directory}/logs/. Each script
+# mkdirs that path before tee runs so the first script to execute creates it.
+run "test_logs_nested_under_module_directory" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent-id"
+    agent_name          = "test-agent"
+    module_directory    = ".test-module"
+    pre_install_script  = "echo pre"
+    install_script      = "echo install"
+    post_install_script = "echo post"
+    start_script        = "echo start"
+  }
+
+  assert {
+    condition     = can(regex("tee .test-module/logs/pre_install.log", coder_script.pre_install_script[0].script))
+    error_message = "pre_install log must land under module_directory/logs"
+  }
+
+  assert {
+    condition     = can(regex("tee .test-module/logs/install.log", coder_script.install_script.script))
+    error_message = "install log must land under module_directory/logs"
+  }
+
+  assert {
+    condition     = can(regex("tee .test-module/logs/post_install.log", coder_script.post_install_script[0].script))
+    error_message = "post_install log must land under module_directory/logs"
+  }
+
+  assert {
+    condition     = can(regex("tee .test-module/logs/start.log", coder_script.start_script[0].script))
+    error_message = "start log must land under module_directory/logs"
+  }
+
+  # Each script must mkdir -p the logs/ sub-path so tee does not fail
+  # before install runs.
+  assert {
+    condition     = can(regex("mkdir -p .test-module/logs", coder_script.pre_install_script[0].script))
+    error_message = "pre_install script must mkdir -p the logs/ sub-path"
+  }
+
+  assert {
+    condition     = can(regex("mkdir -p .test-module/logs", coder_script.install_script.script))
+    error_message = "install script must mkdir -p the logs/ sub-path"
+  }
+
+  assert {
+    condition     = can(regex("mkdir -p .test-module/logs", coder_script.post_install_script[0].script))
+    error_message = "post_install script must mkdir -p the logs/ sub-path"
+  }
+
+  assert {
+    condition     = can(regex("mkdir -p .test-module/logs", coder_script.start_script[0].script))
+    error_message = "start script must mkdir -p the logs/ sub-path"
   }
 }

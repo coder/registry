@@ -83,3 +83,14 @@ module "coder_utils" {
 ```
 
 Both variables are optional. `display_name_prefix` defaults to `""` (no prefix), and `icon` defaults to `null` (use the Coder provider's default).
+
+## Log file locations
+
+The module writes each script's stdout+stderr to `${module_directory}/logs/`:
+
+- `pre_install.log`
+- `install.log`
+- `post_install.log`
+- `start.log`
+
+Each `coder_script` `mkdir -p`s this subdirectory before its `tee` runs, so the first script to execute creates it.
