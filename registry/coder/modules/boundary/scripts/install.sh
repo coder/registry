@@ -66,6 +66,9 @@ setup_boundary() {
   # Install boundary binary if needed
   install_boundary
 
+  # Ensure the wrapper script directory exists.
+  mkdir -p "$(dirname "${BOUNDARY_WRAPPER_PATH}")"
+
   if [[ "${COMPILE_BOUNDARY_FROM_SOURCE}" = "true" ]] || [[ "${USE_BOUNDARY_DIRECTLY}" = "true" ]]; then
     # Use boundary binary directly (from compilation or release installation)
     cat > "${BOUNDARY_WRAPPER_PATH}" << 'WRAPPER_EOF'
