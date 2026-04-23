@@ -20,7 +20,7 @@ The Coder Utils module is a building block for modules that need to run multiple
 ```tf
 module "coder_utils" {
   source  = "registry.coder.com/coder/coder-utils/coder"
-  version = "1.1.0"
+  version = "1.2.0"
 
   agent_id         = coder_agent.main.id
   agent_name       = "myagent"
@@ -70,7 +70,7 @@ By default each `coder_script` renders in the Coder UI as plain "Install Script"
 ```tf
 module "coder_utils" {
   source  = "registry.coder.com/coder/coder-utils/coder"
-  version = "1.1.0"
+  version = "1.2.0"
 
   agent_id         = coder_agent.main.id
   agent_name       = "myagent"
@@ -83,3 +83,14 @@ module "coder_utils" {
 ```
 
 Both variables are optional. `display_name_prefix` defaults to `""` (no prefix), and `icon` defaults to `null` (use the Coder provider's default).
+
+## Log file locations
+
+The module writes each script's stdout+stderr to `${module_directory}/logs/`:
+
+- `pre_install.log`
+- `install.log`
+- `post_install.log`
+- `start.log`
+
+Each `coder_script` `mkdir -p`s this subdirectory before its `tee` runs, so the first script to execute creates it.

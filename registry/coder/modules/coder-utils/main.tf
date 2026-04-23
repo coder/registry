@@ -51,7 +51,7 @@ variable "agent_name" {
 
 variable "module_directory" {
   type        = string
-  description = "The module's working directory for scripts and logs."
+  description = "The module's working directory for the install/pre/post/start scripts this module writes. Logs land under a `logs/` subdirectory of this path."
 }
 
 variable "display_name_prefix" {
@@ -82,10 +82,12 @@ locals {
   post_install_path = "${var.module_directory}/post_install.sh"
   start_path        = "${var.module_directory}/start.sh"
 
-  pre_install_log_path  = "${var.module_directory}/pre_install.log"
-  install_log_path      = "${var.module_directory}/install.log"
-  post_install_log_path = "${var.module_directory}/post_install.log"
-  start_log_path        = "${var.module_directory}/start.log"
+  pre_install_log_path  = "${local.log_directory}/pre_install.log"
+  install_log_path      = "${local.log_directory}/install.log"
+  post_install_log_path = "${local.log_directory}/post_install.log"
+  start_log_path        = "${local.log_directory}/start.log"
+
+  log_directory = "${var.module_directory}/logs"
 
   install_sync_deps = var.pre_install_script != null ? local.pre_install_script_name : null
 
@@ -110,6 +112,7 @@ resource "coder_script" "pre_install_script" {
     set -o pipefail
 
     mkdir -p ${var.module_directory}
+    mkdir -p ${local.log_directory}
 
     trap 'coder exp sync complete ${local.pre_install_script_name}' EXIT
     coder exp sync start ${local.pre_install_script_name}
@@ -132,6 +135,7 @@ resource "coder_script" "install_script" {
     set -o pipefail
 
     mkdir -p ${var.module_directory}
+    mkdir -p ${local.log_directory}
 
     trap 'coder exp sync complete ${local.install_script_name}' EXIT
     %{if local.install_sync_deps != null~}
