@@ -190,7 +190,7 @@ describe("boundary", async () => {
     const coderNoCapsResult = await execContainer(id, [
       "test",
       "-f",
-      "/home/coder/.coder-modules/coder/boundary/coder-no-caps",
+      "/home/coder/.coder-modules/coder/boundary/scripts/coder-no-caps",
     ]);
     expect(coderNoCapsResult.exitCode).toBe(0);
 

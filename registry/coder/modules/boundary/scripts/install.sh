@@ -82,7 +82,7 @@ WRAPPER_EOF
     # This is necessary because boundary doesn't work with privileged binaries
     # (you can't launch privileged binaries inside network namespaces unless
     # you have sys_admin).
-    CODER_NO_CAPS="${module_path}/coder-no-caps"
+    CODER_NO_CAPS="${module_path}/scripts/coder-no-caps"
     if ! cp "$(command -v coder)" "${CODER_NO_CAPS}"; then
       echo "Error: Failed to copy coder binary to ${CODER_NO_CAPS}. boundary cannot be enabled." >&2
       exit 1
@@ -91,7 +91,7 @@ WRAPPER_EOF
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "${SCRIPT_DIR}/../coder-no-caps" boundary "$@"
+exec "${SCRIPT_DIR}/coder-no-caps" boundary "$@"
 WRAPPER_EOF
   fi
 
