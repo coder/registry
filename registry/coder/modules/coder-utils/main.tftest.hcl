@@ -565,8 +565,9 @@ run "test_logs_nested_under_module_directory" {
     error_message = "start log must land under module_directory/logs"
   }
 
-  # Each script must mkdir -p the logs/ sub-path so tee does not fail
-  # before install runs.
+  # Only pre_install and install mkdir the logs/ sub-path. post_install
+  # and start sync-depend on install so the directory already exists by
+  # the time they run.
   assert {
     condition     = can(regex("mkdir -p .test-module/logs", coder_script.pre_install_script[0].script))
     error_message = "pre_install script must mkdir -p the logs/ sub-path"
@@ -575,15 +576,5 @@ run "test_logs_nested_under_module_directory" {
   assert {
     condition     = can(regex("mkdir -p .test-module/logs", coder_script.install_script.script))
     error_message = "install script must mkdir -p the logs/ sub-path"
-  }
-
-  assert {
-    condition     = can(regex("mkdir -p .test-module/logs", coder_script.post_install_script[0].script))
-    error_message = "post_install script must mkdir -p the logs/ sub-path"
-  }
-
-  assert {
-    condition     = can(regex("mkdir -p .test-module/logs", coder_script.start_script[0].script))
-    error_message = "start script must mkdir -p the logs/ sub-path"
   }
 }
