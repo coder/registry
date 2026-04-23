@@ -53,12 +53,12 @@ variable "module_directory" {
 
 locals {
   boundary_script             = file("${path.module}/scripts/install.sh")
-  boundary_script_destination = "${var.module_directory}/scripts/boundary-install.sh"
+  boundary_script_destination = "${var.module_directory}/scripts/install.sh"
   boundary_wrapper_path = "${var.module_directory}/scripts/boundary-wrapper.sh"
 }
 
 module "coder_utils" {
-  source              = "git::https://github.com/coder/registry.git//registry/coder/modules/coder-utils?ref=matifali/coder-utils-nest-scripts"
+  source              = "git::https://github.com/coder/registry.git//registry/coder/modules/coder-utils?ref=main"
   agent_id            = var.agent_id
   agent_name          = "coder_boundary"
   display_name_prefix = "Boundary"
