@@ -113,7 +113,7 @@ resource "coder_script" "pre_install_script" {
     set -o errexit
     set -o pipefail
 
-    mkdir -p ${var.module_directory}
+    mkdir -p ${local.utils_script_path}
     mkdir -p ${local.log_directory}
 
     trap 'coder exp sync complete ${local.pre_install_script_name}' EXIT
@@ -136,7 +136,7 @@ resource "coder_script" "install_script" {
     set -o errexit
     set -o pipefail
 
-    mkdir -p ${var.module_directory}
+    mkdir -p ${local.utils_script_path}
     mkdir -p ${local.log_directory}
 
     trap 'coder exp sync complete ${local.install_script_name}' EXIT

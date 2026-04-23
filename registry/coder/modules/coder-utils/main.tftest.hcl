@@ -578,3 +578,95 @@ run "test_logs_nested_under_module_directory" {
     error_message = "install script must mkdir -p the logs/ sub-path"
   }
 }
+
+# Scripts are written to ${module_directory}/${agent_name}-utils/ so the
+# wrapper must mkdir that directory and all script paths must nest under it.
+run "test_scripts_nested_under_utils_directory" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent-id"
+    agent_name          = "test-agent"
+    module_directory    = ".test-module"
+    pre_install_script  = "echo pre"
+    install_script      = "echo install"
+    post_install_script = "echo post"
+    start_script        = "echo start"
+  }
+
+  # pre_install and install create the utils directory.
+  assert {
+    condition     = can(regex("mkdir -p .test-module/test-agent-utils", coder_script.pre_install_script[0].script))
+    error_message = "pre_install script must mkdir -p the utils directory"
+  }
+
+  assert {
+    condition     = can(regex("mkdir -p .test-module/test-agent-utils", coder_script.install_script.script))
+    error_message = "install script must mkdir -p the utils directory"
+  }
+
+  # Every script writes its file under the utils directory.
+  assert {
+    condition     = can(regex("base64 -d > .test-module/test-agent-utils/pre_install.sh", coder_script.pre_install_script[0].script))
+    error_message = "pre_install script must write to the utils directory"
+  }
+
+  assert {
+    condition     = can(regex("base64 -d > .test-module/test-agent-utils/install.sh", coder_script.install_script.script))
+    error_message = "install script must write to the utils directory"
+  }
+
+  assert {
+    condition     = can(regex("base64 -d > .test-module/test-agent-utils/post_install.sh", coder_script.post_install_script[0].script))
+    error_message = "post_install script must write to the utils directory"
+  }
+
+  assert {
+    condition     = can(regex("base64 -d > .test-module/test-agent-utils/start.sh", coder_script.start_script[0].script))
+    error_message = "start script must write to the utils directory"
+  }
+
+  # Every script executes from the utils directory.
+  assert {
+    condition     = can(regex(".test-module/test-agent-utils/pre_install.sh 2>&1", coder_script.pre_install_script[0].script))
+    error_message = "pre_install script must execute from the utils directory"
+  }
+
+  assert {
+    condition     = can(regex(".test-module/test-agent-utils/install.sh 2>&1", coder_script.install_script.script))
+    error_message = "install script must execute from the utils directory"
+  }
+
+  assert {
+    condition     = can(regex(".test-module/test-agent-utils/post_install.sh 2>&1", coder_script.post_install_script[0].script))
+    error_message = "post_install script must execute from the utils directory"
+  }
+
+  assert {
+    condition     = can(regex(".test-module/test-agent-utils/start.sh 2>&1", coder_script.start_script[0].script))
+    error_message = "start script must execute from the utils directory"
+  }
+}
+
+# The utils directory name includes agent_name so multiple modules sharing
+# the same module_directory do not collide.
+run "test_utils_directory_uses_agent_name" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent-id"
+    agent_name       = "custom-name"
+    module_directory = ".test-module"
+    install_script   = "echo install"
+  }
+
+  assert {
+    condition     = can(regex("mkdir -p .test-module/custom-name-utils", coder_script.install_script.script))
+    error_message = "utils directory must include agent_name"
+  }
+
+  assert {
+    condition     = can(regex("base64 -d > .test-module/custom-name-utils/install.sh", coder_script.install_script.script))
+    error_message = "install script must be written under agent-name-specific utils directory"
+  }
+}
