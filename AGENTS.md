@@ -33,17 +33,25 @@ For a Coder-owned module named `claude-code`, the root is `$HOME/.coder-modules/
 
 Within that root, use these standard subdirectories:
 
-| Subdirectory | Purpose                                   | Example                                                      |
-| ------------ | ----------------------------------------- | ------------------------------------------------------------ |
-| `logs/`      | Output from install, start, or any script | `$HOME/.coder-modules/coder/claude-code/logs/install.log`    |
-| `scripts/`   | Scripts materialized at runtime (if any)  | `$HOME/.coder-modules/coder/claude-code/scripts/install.sh`  |
-| `config/`    | Generated or user-supplied configuration  | `$HOME/.coder-modules/coder/boundary/config/boundary.config` |
+| Subdirectory | Purpose                                   | Example                                                     |
+| ------------ | ----------------------------------------- | ----------------------------------------------------------- |
+| `logs/`      | Output from install, start, or any script | `$HOME/.coder-modules/coder/claude-code/logs/install.log`   |
+| `scripts/`   | Scripts materialized at runtime (if any)  | `$HOME/.coder-modules/coder/claude-code/scripts/install.sh` |
 
 - Name log files after the script that produced them (`install.sh` writes to `logs/install.log`, `start.sh` writes to `logs/start.log`).
 - Always `mkdir -p` the target directory before writing; do not assume it exists.
 - Do not write module runtime data to `$HOME` directly, to ad-hoc paths like `~/.<module>-module/`, or to `/tmp/` for anything that must survive the session.
+- Tool-specific data (config files, caches, state, etc.) lives wherever the tool expects; only standardize paths the module itself controls.
 - READMEs and tests should reference paths under this root so troubleshooting has one place to look.
 - New modules MUST follow this layout. Existing modules should migrate to it when they are next touched.
+
+## Use `coder-utils` for Script Orchestration
+
+For any new module that runs scripts (or when reworking an existing one), use the [`coder-utils`](registry/coder/modules/coder-utils) module to orchestrate `pre_install`, `install`, `post_install`, and `start` scripts instead of hand-rolling `coder_script` resources.
+
+- `coder-utils` handles script ordering via `coder exp sync`, materializes scripts under `module_directory`, and writes logs to `module_directory/logs/` automatically, which aligns with the Module Data Layout above.
+- Set `module_directory = "$HOME/.coder-modules/<namespace>/<module-name>"` so the standard root and `logs/` subdirectory fall out for free.
+- See https://github.com/coder/registry/pull/870 for a reference migration (logs nested under `module_directory/logs`).
 
 ## Code Style
 
