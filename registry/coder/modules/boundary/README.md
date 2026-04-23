@@ -35,7 +35,7 @@ commands that should run in network isolation:
 ```bash
 if [ -n "${BOUNDARY_WRAPPER_PATH:-}" ]; then
   # Run command with boundary wrapper
-  "${BOUNDARY_WRAPPER_PATH}" my-command --args
+  "${BOUNDARY_WRAPPER_PATH}" --config=~/.config/coder_boundary/config.yaml --log-level=info -- my-command --args
 fi
 ```
 
@@ -54,7 +54,7 @@ resource "coder_script" "my_app" {
   script   = <<-EOT
     # Access the boundary wrapper path
     WRAPPER="${module.boundary[0].boundary_wrapper_path}"
-    "$WRAPPER" my-command --args
+    "$WRAPPER" ~/.config/coder_boundary/config.yaml -- my-command --args
   EOT
 }
 ```
