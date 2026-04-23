@@ -49,8 +49,8 @@ Within that root, use these standard subdirectories:
 
 For any new module that runs scripts (or when reworking an existing one), use the [`coder-utils`](registry/coder/modules/coder-utils) module to orchestrate `pre_install`, `install`, `post_install`, and `start` scripts instead of hand-rolling `coder_script` resources.
 
-- `coder-utils` handles script ordering via `coder exp sync`, materializes scripts under `module_directory`, and writes logs to `module_directory/logs/` automatically, which aligns with the Module Data Layout above.
-- Set `module_directory = "$HOME/.coder-modules/<namespace>/<module-name>"` so the standard root and `logs/` subdirectory fall out for free.
+- `coder-utils` handles script ordering via `coder exp sync`, materializes scripts under `module_directory/scripts/` (prefixed with `${agent_name}-utils-`), and writes logs to `module_directory/logs/` automatically, which aligns with the Module Data Layout above.
+- Set `module_directory = "$HOME/.coder-modules/<namespace>/<module-name>"` so the standard root, `scripts/`, and `logs/` subdirectories fall out for free.
 
 ## Code Style
 
