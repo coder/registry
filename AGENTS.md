@@ -21,6 +21,30 @@ bun test main.test.ts                                 # Run single TS test (from
 - **Templates**: `registry/[ns]/templates/[name]/` with `main.tf`, `README.md`
 - **Validation**: `cmd/readmevalidation/` (Go) validates structure/frontmatter; URLs must be relative, not absolute
 
+## Module Data Layout
+
+All runtime data a module writes on the workspace MUST live under a single per-module root:
+
+```
+$HOME/.coder-modules/<namespace>/<module-name>/
+```
+
+For a Coder-owned module named `claude-code`, the root is `$HOME/.coder-modules/coder/claude-code/`.
+
+Within that root, use these standard subdirectories:
+
+| Subdirectory | Purpose                                   | Example                                                      |
+| ------------ | ----------------------------------------- | ------------------------------------------------------------ |
+| `logs/`      | Output from install, start, or any script | `$HOME/.coder-modules/coder/claude-code/logs/install.log`    |
+| `scripts/`   | Scripts materialized at runtime (if any)  | `$HOME/.coder-modules/coder/claude-code/scripts/install.sh`  |
+| `config/`    | Generated or user-supplied configuration  | `$HOME/.coder-modules/coder/boundary/config/boundary.config` |
+
+- Name log files after the script that produced them (`install.sh` writes to `logs/install.log`, `start.sh` writes to `logs/start.log`).
+- Always `mkdir -p` the target directory before writing; do not assume it exists.
+- Do not write module runtime data to `$HOME` directly, to ad-hoc paths like `~/.<module>-module/`, or to `/tmp/` for anything that must survive the session.
+- READMEs and tests should reference paths under this root so troubleshooting has one place to look.
+- New modules MUST follow this layout. Existing modules should migrate to it when they are next touched.
+
 ## Code Style
 
 - Every module MUST have `.tftest.hcl` tests; optional `main.test.ts` for container/script tests
