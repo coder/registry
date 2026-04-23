@@ -14,7 +14,7 @@ This module:
 
 - Installs boundary (via coder subcommand, direct installation, or compilation from source)
 - Creates a wrapper script at `$HOME/.coder-modules/coder/boundary/boundary-wrapper.sh`
-- Exports `AGENTAPI_BOUNDARY_PREFIX` as a workspace environment variable
+- Exports `BOUNDARY_WRAPPER_PATH` as a workspace environment variable
 - Provides the wrapper path via the `boundary_wrapper_path` output
 
 ```tf
@@ -28,14 +28,14 @@ module "boundary" {
 
 ## Usage
 
-The `AGENTAPI_BOUNDARY_PREFIX` environment variable is automatically available to all
+The `BOUNDARY_WRAPPER_PATH` environment variable is automatically available to all
 workspace processes. Start scripts should check for this variable and use it to prefix
 commands that should run in network isolation:
 
 ```bash
-if [ -n "${AGENTAPI_BOUNDARY_PREFIX:-}" ]; then
+if [ -n "${BOUNDARY_WRAPPER_PATH:-}" ]; then
   # Run command with boundary wrapper
-  "${AGENTAPI_BOUNDARY_PREFIX}" --config "./config.yaml" --other-args -- ai-agent
+  "${BOUNDARY_WRAPPER_PATH}" my-command --args
 fi
 ```
 

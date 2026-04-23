@@ -132,13 +132,13 @@ describe("boundary", async () => {
 
     const resources = state.resources;
 
-    // Verify coder_env resource for AGENTAPI_BOUNDARY_PREFIX
+    // Verify coder_env resource for BOUNDARY_WRAPPER_PATH
     const boundaryEnv = resources.find(
-      (r) => r.type === "coder_env" && r.name === "agentapi_boundary_prefix",
+      (r) => r.type === "coder_env" && r.name === "boundary_wrapper_path",
     );
     expect(boundaryEnv).toBeDefined();
     expect(boundaryEnv?.instances[0]?.attributes.name).toBe(
-      "AGENTAPI_BOUNDARY_PREFIX",
+      "BOUNDARY_WRAPPER_PATH",
     );
     expect(boundaryEnv?.instances[0]?.attributes.value).toBe(
       "$HOME/.coder-modules/coder/boundary/boundary-wrapper.sh",
@@ -146,7 +146,7 @@ describe("boundary", async () => {
 
     // Verify the outputs are set correctly
     const coderEnvVars = extractCoderEnvVars(state);
-    expect(coderEnvVars["AGENTAPI_BOUNDARY_PREFIX"]).toBe(
+    expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBe(
       "$HOME/.coder-modules/coder/boundary/boundary-wrapper.sh",
     );
   });
@@ -159,7 +159,7 @@ describe("boundary", async () => {
     });
 
     const coderEnvVars = extractCoderEnvVars(state);
-    expect(coderEnvVars["AGENTAPI_BOUNDARY_PREFIX"]).toBe(
+    expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBe(
       `${customDir}/boundary-wrapper.sh`,
     );
   });
@@ -244,8 +244,8 @@ describe("boundary", async () => {
   test("env-var-set-correctly", async () => {
     const { id, coderEnvVars } = await setup();
 
-    // Verify AGENTAPI_BOUNDARY_PREFIX is in the coder env vars
-    expect(coderEnvVars["AGENTAPI_BOUNDARY_PREFIX"]).toBe(
+    // Verify BOUNDARY_WRAPPER_PATH is in the coder env vars
+    expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBe(
       "$HOME/.coder-modules/coder/boundary/boundary-wrapper.sh",
     );
   });
