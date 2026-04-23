@@ -3,7 +3,7 @@ display_name: Boundary
 description: Configures boundary for network isolation in Coder workspaces
 icon: ../../../../.icons/coder.svg
 verified: true
-tags: [boundary, coder, AI, agents]
+tags: [boundary, ai, agents, firewall]
 ---
 
 # Boundary
@@ -13,7 +13,7 @@ Installs boundary for network isolation in Coder workspaces.
 This module:
 
 - Installs boundary (via coder subcommand, direct installation, or compilation from source)
-- Creates a wrapper script at `$HOME/.coder-modules/coder/boundary/boundary-wrapper.sh`
+- Creates a wrapper script at `$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh`
 - Exports `BOUNDARY_WRAPPER_PATH` as a workspace environment variable
 - Provides the wrapper path via the `boundary_wrapper_path` output
 
@@ -54,7 +54,7 @@ resource "coder_script" "my_app" {
   script   = <<-EOT
     # Access the boundary wrapper path
     WRAPPER="${module.boundary[0].boundary_wrapper_path}"
-    "$WRAPPER" ~/.config/coder_boundary/config.yaml -- my-command --args
+    "$WRAPPER" --config=~/.config/coder_boundary/config.yaml -- my-command --args
   EOT
 }
 ```

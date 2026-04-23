@@ -54,12 +54,12 @@ variable "module_directory" {
 locals {
   boundary_script             = file("${path.module}/scripts/install.sh")
   boundary_script_destination = "${var.module_directory}/boundary-install.sh"
-  boundary_wrapper_path       = "${var.module_directory}/boundary-wrapper.sh"
+  boundary_wrapper_path       = "${var.module_directory}/scripts/boundary-wrapper.sh"
 }
 
 module "coder_utils" {
   source              = "registry.coder.com/coder/coder-utils/coder"
-  version             = "1.1.0"
+  version             = "1.2.0"
   agent_id            = var.agent_id
   agent_name          = "coder_boundary"
   display_name_prefix = "Boundary"
@@ -94,6 +94,6 @@ output "boundary_wrapper_path" {
   value       = local.boundary_wrapper_path
 }
 
-output "sync_script_names" {
+output "scripts" {
   value = module.coder_utils.scripts
 }
