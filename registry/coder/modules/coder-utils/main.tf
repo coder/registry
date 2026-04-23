@@ -43,15 +43,14 @@ variable "start_script" {
   default     = null
 }
 
-variable "agent_name" {
-  type        = string
-  description = "The name of the agent. This is used to construct unique script names for the experiment sync."
-
-}
-
 variable "module_directory" {
   type        = string
-  description = "The module's working directory. Scripts this module writes land under `scripts/` and their logs under `logs/` in this path."
+  description = "The calling module's working directory. Must follow the pattern '$HOME/.coder-modules/<namespace>/<module-name>'."
+
+  validation {
+    condition     = can(regex("^\\$HOME/\\.coder-modules/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$", var.module_directory))
+    error_message = "module_directory must match the pattern '$HOME/.coder-modules/<namespace>/<module-name>' (e.g. '$HOME/.coder-modules/coder/claude-code')."
+  }
 }
 
 variable "display_name_prefix" {
@@ -67,20 +66,23 @@ variable "icon" {
 }
 
 locals {
+  path_parts  = split("/", var.module_directory)
+  caller_name = "${local.path_parts[length(local.path_parts) - 2]}-${local.path_parts[length(local.path_parts) - 1]}"
+
   encoded_pre_install_script  = var.pre_install_script != null ? base64encode(var.pre_install_script) : ""
   encoded_install_script      = base64encode(var.install_script)
   encoded_post_install_script = var.post_install_script != null ? base64encode(var.post_install_script) : ""
   encoded_start_script        = var.start_script != null ? base64encode(var.start_script) : ""
 
-  pre_install_script_name  = "${var.agent_name}-pre_install_script"
-  install_script_name      = "${var.agent_name}-install_script"
-  post_install_script_name = "${var.agent_name}-post_install_script"
-  start_script_name        = "${var.agent_name}-start_script"
+  pre_install_script_name  = "${local.caller_name}-pre_install_script"
+  install_script_name      = "${local.caller_name}-install_script"
+  post_install_script_name = "${local.caller_name}-post_install_script"
+  start_script_name        = "${local.caller_name}-start_script"
 
-  pre_install_path  = "${local.scripts_directory}/${var.agent_name}-utils-pre_install.sh"
-  install_path      = "${local.scripts_directory}/${var.agent_name}-utils-install.sh"
-  post_install_path = "${local.scripts_directory}/${var.agent_name}-utils-post_install.sh"
-  start_path        = "${local.scripts_directory}/${var.agent_name}-utils-start.sh"
+  pre_install_path  = "${local.scripts_directory}/pre_install.sh"
+  install_path      = "${local.scripts_directory}/install.sh"
+  post_install_path = "${local.scripts_directory}/post_install.sh"
+  start_path        = "${local.scripts_directory}/start.sh"
 
   pre_install_log_path  = "${local.log_directory}/pre_install.log"
   install_log_path      = "${local.log_directory}/install.log"
