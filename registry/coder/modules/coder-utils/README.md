@@ -99,9 +99,9 @@ Each `coder_script` `mkdir -p`s this subdirectory before its `tee` runs, so the 
 
 The module materializes each script to `${module_directory}/scripts/` before running it:
 
-- `pre_install.sh`
-- `install.sh`
-- `post_install.sh`
-- `start.sh`
+- `${agent_name}-utils-pre_install.sh`
+- `${agent_name}-utils-install.sh`
+- `${agent_name}-utils-post_install.sh`
+- `${agent_name}-utils-start.sh`
 
-The pre-install and install `coder_script`s `mkdir -p` this subdirectory; post-install and start sync-depend on install, so the directory already exists by the time they run.
+The `${agent_name}-utils-` prefix namespaces files per-agent so multiple `coder-utils` instances can safely share a `module_directory`. The pre-install and install `coder_script`s `mkdir -p` this subdirectory; post-install and start sync-depend on install, so the directory already exists by the time they run.

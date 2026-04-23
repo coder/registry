@@ -596,22 +596,22 @@ run "test_scripts_nested_under_module_directory" {
   }
 
   assert {
-    condition     = can(regex("> .test-module/scripts/pre_install.sh", coder_script.pre_install_script[0].script))
+    condition     = can(regex("> .test-module/scripts/test-agent-utils-pre_install.sh", coder_script.pre_install_script[0].script))
     error_message = "pre_install script must be written under module_directory/scripts"
   }
 
   assert {
-    condition     = can(regex("> .test-module/scripts/install.sh", coder_script.install_script.script))
+    condition     = can(regex("> .test-module/scripts/test-agent-utils-install.sh", coder_script.install_script.script))
     error_message = "install script must be written under module_directory/scripts"
   }
 
   assert {
-    condition     = can(regex("> .test-module/scripts/post_install.sh", coder_script.post_install_script[0].script))
+    condition     = can(regex("> .test-module/scripts/test-agent-utils-post_install.sh", coder_script.post_install_script[0].script))
     error_message = "post_install script must be written under module_directory/scripts"
   }
 
   assert {
-    condition     = can(regex("> .test-module/scripts/start.sh", coder_script.start_script[0].script))
+    condition     = can(regex("> .test-module/scripts/test-agent-utils-start.sh", coder_script.start_script[0].script))
     error_message = "start script must be written under module_directory/scripts"
   }
 
