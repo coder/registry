@@ -8,7 +8,7 @@ tags: [boundary, ai, agents, firewall]
 
 # Boundary
 
-Installs boundary for network isolation in Coder workspaces.
+Installs [boundary](https://coder.com/docs/ai-coder/agent-firewall) for network isolation in Coder workspaces.
 
 This module:
 
