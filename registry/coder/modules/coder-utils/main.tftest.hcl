@@ -578,3 +578,53 @@ run "test_logs_nested_under_module_directory" {
     error_message = "install script must mkdir -p the logs/ sub-path"
   }
 }
+
+# Scripts unconditionally land under ${module_directory}/scripts/. Each
+# script that materializes its own `.sh` file mkdirs that path first; the
+# first script to execute creates it for the rest.
+run "test_scripts_nested_under_module_directory" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent-id"
+    agent_name          = "test-agent"
+    module_directory    = ".test-module"
+    pre_install_script  = "echo pre"
+    install_script      = "echo install"
+    post_install_script = "echo post"
+    start_script        = "echo start"
+  }
+
+  assert {
+    condition     = can(regex("> .test-module/scripts/pre_install.sh", coder_script.pre_install_script[0].script))
+    error_message = "pre_install script must be written under module_directory/scripts"
+  }
+
+  assert {
+    condition     = can(regex("> .test-module/scripts/install.sh", coder_script.install_script.script))
+    error_message = "install script must be written under module_directory/scripts"
+  }
+
+  assert {
+    condition     = can(regex("> .test-module/scripts/post_install.sh", coder_script.post_install_script[0].script))
+    error_message = "post_install script must be written under module_directory/scripts"
+  }
+
+  assert {
+    condition     = can(regex("> .test-module/scripts/start.sh", coder_script.start_script[0].script))
+    error_message = "start script must be written under module_directory/scripts"
+  }
+
+  # Only pre_install and install mkdir the scripts/ sub-path. post_install
+  # and start sync-depend on install so the directory already exists by
+  # the time they run.
+  assert {
+    condition     = can(regex("mkdir -p .test-module/scripts", coder_script.pre_install_script[0].script))
+    error_message = "pre_install script must mkdir -p the scripts/ sub-path"
+  }
+
+  assert {
+    condition     = can(regex("mkdir -p .test-module/scripts", coder_script.install_script.script))
+    error_message = "install script must mkdir -p the scripts/ sub-path"
+  }
+}

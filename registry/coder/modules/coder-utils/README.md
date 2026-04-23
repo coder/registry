@@ -94,3 +94,14 @@ The module writes each script's stdout+stderr to `${module_directory}/logs/`:
 - `start.log`
 
 Each `coder_script` `mkdir -p`s this subdirectory before its `tee` runs, so the first script to execute creates it.
+
+## Script file locations
+
+The module materializes each script to `${module_directory}/scripts/` before running it:
+
+- `pre_install.sh`
+- `install.sh`
+- `post_install.sh`
+- `start.sh`
+
+The pre-install and install `coder_script`s `mkdir -p` this subdirectory; post-install and start sync-depend on install, so the directory already exists by the time they run.
