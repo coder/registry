@@ -20,7 +20,7 @@ The Coder Utils module is a building block for modules that need to run multiple
 ```tf
 module "coder_utils" {
   source  = "registry.coder.com/coder/coder-utils/coder"
-  version = "1.1.0"
+  version = "1.2.0"
 
   agent_id         = coder_agent.main.id
   agent_name       = "myagent"
@@ -70,7 +70,7 @@ By default each `coder_script` renders in the Coder UI as plain "Install Script"
 ```tf
 module "coder_utils" {
   source  = "registry.coder.com/coder/coder-utils/coder"
-  version = "1.1.0"
+  version = "1.2.0"
 
   agent_id         = coder_agent.main.id
   agent_name       = "myagent"
