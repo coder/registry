@@ -58,10 +58,11 @@ locals {
 }
 
 module "coder_utils" {
-  source = "git::https://github.com/coder/registry.git//registry/coder/modules/coder-utils?ref=feat/coder-utils-optional-install-start"
-  # version             = "1.0.1"
+  source              = "registry.coder.com/coder/coder-utils/coder"
+  version             = "1.1.0"
   agent_id            = var.agent_id
   agent_name          = "coder_boundary"
+  display_name_prefix = "Boundary"
   module_directory    = var.module_directory
   pre_install_script  = var.pre_install_script
   post_install_script = var.post_install_script
@@ -94,5 +95,5 @@ output "boundary_wrapper_path" {
 }
 
 output "sync_script_names" {
-  value = module.coder_utils
+  value = module.coder_utils.scripts
 }
