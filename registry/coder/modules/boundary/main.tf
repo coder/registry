@@ -53,7 +53,6 @@ variable "module_directory" {
 
 locals {
   boundary_script             = file("${path.module}/scripts/install.sh")
-  boundary_script_destination = "${var.module_directory}/scripts/boundary-install.sh"
   boundary_wrapper_path       = "${var.module_directory}/scripts/boundary-wrapper.sh"
 }
 
@@ -70,16 +69,14 @@ module "coder_utils" {
     #!/bin/bash
     set -o errexit
     set -o pipefail
-    mkdir -p "$(dirname "${local.boundary_script_destination}")"
-    echo -n '${base64encode(local.boundary_script)}' | base64 -d > "${local.boundary_script_destination}"
-    chmod +x "${local.boundary_script_destination}"
+    chmod +x "${local.boundary_script}"
 
     ARG_BOUNDARY_VERSION="${var.boundary_version}" \
     ARG_COMPILE_BOUNDARY_FROM_SOURCE="${var.compile_boundary_from_source}" \
     ARG_USE_BOUNDARY_DIRECTLY="${var.use_boundary_directly}" \
     ARG_MODULE_DIR="${var.module_directory}" \
     ARG_BOUNDARY_WRAPPER_PATH="${local.boundary_wrapper_path}" \
-    "${local.boundary_script_destination}"
+    "${local.boundary_script}"
 EOT
 }
 
