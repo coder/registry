@@ -21,7 +21,7 @@ This module:
 module "boundary" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/boundary/coder"
-  version  = "1.0.0"
+  version  = "0.0.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -45,7 +45,7 @@ Alternatively, you can use the module output to access the wrapper path in Terra
 module "boundary" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/boundary/coder"
-  version  = "1.0.0"
+  version  = "0.0.1"
   agent_id = coder_agent.main.id
 }
 
