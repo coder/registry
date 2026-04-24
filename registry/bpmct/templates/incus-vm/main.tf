@@ -257,7 +257,7 @@ resource "incus_instance" "dev" {
         free-page-reporting = "on"
       QEMUCONF
       "security.secureboot"    = false
-      "boot.autostart"         = true
+      "boot.autostart"         = data.coder_workspace.me.start_count == 1
       "user.coder-agent-token" = local.agent_token
     },
     local.is_nixos ? {} : {
