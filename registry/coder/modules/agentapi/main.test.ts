@@ -44,7 +44,7 @@ interface SetupProps {
   moduleVariables?: Record<string, string>;
 }
 
-const moduleDirName = ".agentapi-module";
+const moduleDirectory = "/home/coder/.agentapi-module";
 
 const setup = async (props?: SetupProps): Promise<{ id: string }> => {
   const projectDir = "/home/coder/project";
@@ -58,8 +58,7 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
       cli_app_display_name: "AgentAPI CLI",
       cli_app_slug: "agentapi-cli",
       agentapi_version: "latest",
-      module_dir_name: moduleDirName,
-      start_script: await loadTestFile(import.meta.dir, "agentapi-start.sh"),
+      module_directory: moduleDirectory,
       folder: projectDir,
       ...props?.moduleVariables,
     },
@@ -72,6 +71,19 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
     containerId: id,
     filePath: "/usr/bin/aiagent",
     content: await loadTestFile(import.meta.dir, "ai-agent-mock.js"),
+  });
+  // Write the test start script directly to the module scripts dir,
+  // since start_script is no longer a Terraform variable.
+  const startScript = await loadTestFile(import.meta.dir, "agentapi-start.sh");
+  await execContainer(id, [
+    "bash",
+    "-c",
+    `mkdir -p ${moduleDirectory}/scripts`,
+  ]);
+  await writeExecutable({
+    containerId: id,
+    filePath: `${moduleDirectory}/scripts/agentapi-start.sh`,
+    content: startScript,
   });
   return { id };
 };
@@ -102,36 +114,6 @@ describe("agentapi", async () => {
     });
     await execModuleScript(id);
     await expectAgentAPIStarted(id, 3827);
-  });
-
-  test("pre-post-install-scripts", async () => {
-    const { id } = await setup({
-      moduleVariables: {
-        pre_install_script: `#!/bin/bash\necho "pre-install"`,
-        install_script: `#!/bin/bash\necho "install"`,
-        post_install_script: `#!/bin/bash\necho "post-install"`,
-      },
-    });
-
-    await execModuleScript(id);
-    await expectAgentAPIStarted(id);
-
-    const preInstallLog = await readFileContainer(
-      id,
-      `/home/coder/${moduleDirName}/pre_install.log`,
-    );
-    const installLog = await readFileContainer(
-      id,
-      `/home/coder/${moduleDirName}/install.log`,
-    );
-    const postInstallLog = await readFileContainer(
-      id,
-      `/home/coder/${moduleDirName}/post_install.log`,
-    );
-
-    expect(preInstallLog).toContain("pre-install");
-    expect(installLog).toContain("install");
-    expect(postInstallLog).toContain("post-install");
   });
 
   test("install-agentapi", async () => {
@@ -313,10 +295,10 @@ describe("agentapi", async () => {
       "/home/coder/agentapi-mock.log",
     );
     expect(mockLog).toContain(
-      `AGENTAPI_STATE_FILE: /home/coder/${moduleDirName}/agentapi-state.json`,
+      `AGENTAPI_STATE_FILE: ${moduleDirectory}/agentapi-state.json`,
     );
     expect(mockLog).toContain(
-      `AGENTAPI_PID_FILE: /home/coder/${moduleDirName}/agentapi.pid`,
+      `AGENTAPI_PID_FILE: ${moduleDirectory}/agentapi.pid`,
     );
     expect(mockLog).toContain("AGENTAPI_SAVE_STATE: true");
     expect(mockLog).toContain("AGENTAPI_LOAD_STATE: true");
@@ -397,7 +379,7 @@ describe("agentapi", async () => {
       return await execContainer(containerId, [
         "bash",
         "-c",
-        `ARG_TASK_ID=${taskId} ARG_AGENTAPI_PORT=3284 ARG_PID_FILE_PATH=${pidFilePath} ARG_ENABLE_STATE_PERSISTENCE=${enableStatePersistence} CODER_AGENT_URL=http://localhost:18080 CODER_AGENT_TOKEN=test-token /tmp/shutdown.sh`,
+        `ARG_TASK_ID=${taskId} ARG_AGENTAPI_PORT=3284 ARG_PID_FILE_PATH=${pidFilePath} ARG_ENABLE_STATE_PERSISTENCE=${enableStatePersistence} ARG_LIB_SCRIPT_PATH=/tmp/agentapi-lib.sh CODER_AGENT_URL=http://localhost:18080 CODER_AGENT_TOKEN=test-token /tmp/shutdown.sh`,
       ]);
     };
 
@@ -542,15 +524,15 @@ describe("agentapi", async () => {
       expect(result.stdout).toContain("Sending SIGTERM to AgentAPI");
     });
 
-    test("resolves default PID path from MODULE_DIR_NAME", async () => {
+    test("resolves default PID path from MODULE_DIRECTORY", async () => {
       const { id } = await setup({
         moduleVariables: {},
         skipAgentAPIMock: true,
       });
-      // Start mock with PID file at the module_dir_name default location.
-      const defaultPidPath = `/home/coder/${moduleDirName}/agentapi.pid`;
+      // Start mock with PID file at the module_directory default location.
+      const defaultPidPath = `${moduleDirectory}/agentapi.pid`;
       await setupMocks(id, "normal", 204, defaultPidPath);
-      // Don't pass pidFilePath - let shutdown script compute it from MODULE_DIR_NAME.
+      // Don't pass pidFilePath - let shutdown script compute it from MODULE_DIRECTORY.
       const shutdownScript = await loadTestFile(
         import.meta.dir,
         "../scripts/agentapi-shutdown.sh",
@@ -572,7 +554,7 @@ describe("agentapi", async () => {
       const result = await execContainer(id, [
         "bash",
         "-c",
-        `ARG_TASK_ID=test-task ARG_AGENTAPI_PORT=3284 ARG_MODULE_DIR_NAME=${moduleDirName} ARG_ENABLE_STATE_PERSISTENCE=true CODER_AGENT_URL=http://localhost:18080 CODER_AGENT_TOKEN=test-token /tmp/shutdown.sh`,
+        `ARG_TASK_ID=test-task ARG_AGENTAPI_PORT=3284 ARG_MODULE_DIRECTORY=${moduleDirectory} ARG_ENABLE_STATE_PERSISTENCE=true ARG_LIB_SCRIPT_PATH=/tmp/agentapi-lib.sh CODER_AGENT_URL=http://localhost:18080 CODER_AGENT_TOKEN=test-token /tmp/shutdown.sh`,
       ]);
 
       expect(result.exitCode).toBe(0);
@@ -586,7 +568,7 @@ describe("agentapi", async () => {
         skipAgentAPIMock: true,
       });
       await setupMocks(id, "normal", 204);
-      // No pidFilePath and no MODULE_DIR_NAME, so no PID file can be resolved.
+      // No pidFilePath and no MODULE_DIRECTORY, so no PID file can be resolved.
       const result = await runShutdownScript(id, "test-task", "", "false");
 
       expect(result.exitCode).toBe(0);
@@ -611,111 +593,6 @@ describe("agentapi", async () => {
       expect(result.stdout).not.toContain("Sending SIGUSR1");
       // Should still send SIGTERM (graceful shutdown always happens).
       expect(result.stdout).toContain("Sending SIGTERM to AgentAPI");
-    });
-  });
-
-  describe("boundary", async () => {
-    test("boundary-disabled-by-default", async () => {
-      const { id } = await setup();
-      await execModuleScript(id);
-      await expectAgentAPIStarted(id);
-      // Config file should NOT exist when boundary is disabled
-      const configCheck = await execContainer(id, [
-        "bash",
-        "-c",
-        "test -f /home/coder/.config/coder_boundary/config.yaml && echo exists || echo missing",
-      ]);
-      expect(configCheck.stdout.trim()).toBe("missing");
-      // AGENTAPI_BOUNDARY_PREFIX should NOT be in the mock log
-      const mockLog = await readFileContainer(
-        id,
-        "/home/coder/agentapi-mock.log",
-      );
-      expect(mockLog).not.toContain("AGENTAPI_BOUNDARY_PREFIX:");
-    });
-
-    test("boundary-enabled", async () => {
-      const { id } = await setup({
-        moduleVariables: {
-          enable_boundary: "true",
-          boundary_config_path: "/tmp/test-boundary.yaml",
-        },
-      });
-      // Write boundary config to the path before running the module
-      await execContainer(id, [
-        "bash",
-        "-c",
-        `cat > /tmp/test-boundary.yaml <<'EOF'
-jail_type: landjail
-proxy_port: 8087
-log_level: warn
-allowlist:
-  - "domain=api.example.com"
-EOF`,
-      ]);
-      // Add mock coder binary for boundary setup
-      await writeExecutable({
-        containerId: id,
-        filePath: "/usr/bin/coder",
-        content: `#!/bin/bash
-if [ "$1" = "boundary" ]; then
- shift; shift; exec "$@"
-fi
-echo "mock coder"`,
-      });
-      await execModuleScript(id);
-      await expectAgentAPIStarted(id);
-      // Verify the config file exists at the specified path
-      const config = await readFileContainer(id, "/tmp/test-boundary.yaml");
-      expect(config).toContain("jail_type: landjail");
-      expect(config).toContain("proxy_port: 8087");
-      expect(config).toContain("domain=api.example.com");
-      // AGENTAPI_BOUNDARY_PREFIX should be exported
-      const mockLog = await readFileContainer(
-        id,
-        "/home/coder/agentapi-mock.log",
-      );
-      expect(mockLog).toContain("AGENTAPI_BOUNDARY_PREFIX:");
-      // E2E: start script should have used the wrapper
-      const startLog = await readFileContainer(
-        id,
-        "/home/coder/test-agentapi-start.log",
-      );
-      expect(startLog).toContain("Starting with boundary:");
-    });
-
-    test("boundary-enabled-no-coder-binary", async () => {
-      const { id } = await setup({
-        moduleVariables: {
-          enable_boundary: "true",
-          boundary_config_path: "/tmp/test-boundary.yaml",
-        },
-      });
-      // Write boundary config
-      await execContainer(id, [
-        "bash",
-        "-c",
-        `cat > /tmp/test-boundary.yaml <<'EOF'
-jail_type: landjail
-proxy_port: 8087
-log_level: warn
-EOF`,
-      ]);
-      // Remove coder binary to simulate it not being available
-      await execContainer(
-        id,
-        [
-          "bash",
-          "-c",
-          "rm -f /usr/bin/coder /usr/local/bin/coder 2>/dev/null; hash -r",
-        ],
-        ["--user", "root"],
-      );
-      const resp = await execModuleScript(id);
-      // Script should fail because coder binary is required
-      expect(resp.exitCode).not.toBe(0);
-      const scriptLog = await readFileContainer(id, "/home/coder/script.log");
-      expect(scriptLog).toContain("Boundary cannot be enabled");
     });
   });
 });
