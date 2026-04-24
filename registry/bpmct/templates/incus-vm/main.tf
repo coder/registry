@@ -254,7 +254,6 @@ resource "incus_instance" "dev" {
     name = "root"
     type = "disk"
     properties = {
-      pool = local.storage_pool
       path = "/"
       size = "${local.disk}GiB"
     }
@@ -395,7 +394,6 @@ resource "incus_instance_snapshot" "on_stop" {
 
 locals {
   incus_remote      = data.coder_parameter.host.value == "ThinkStation" ? "thinkstation" : "local"
-  storage_pool      = data.coder_parameter.host.value == "ThinkStation" ? "hdd" : "default"
   workspace_user    = lower(data.coder_workspace_owner.me.name)
   cpu               = data.coder_parameter.cpu.value
   memory            = data.coder_parameter.memory.value
