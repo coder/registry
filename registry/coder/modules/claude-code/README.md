@@ -20,7 +20,7 @@ module "claude-code" {
 ```
 
 > [!WARNING]
-> If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for [Coder Tasks](https://coder.com/docs/ai-coder/tasks) and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). We plan to add those back in a follow-up. Keep using v4.x.x if you depend on them. See [#861](https://github.com/coder/registry/pulls/861) for the full migration guide.
+> If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for [Coder Tasks](https://coder.com/docs/ai-coder/tasks) and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). We plan to add those back in a follow-up. Keep using v4.x.x if you depend on them. See [#861](https://github.com/coder/registry/pull/861) for the full migration guide.
 
 ## Prerequisites
 
