@@ -58,12 +58,12 @@ Store each script as a `.tftpl` file under `scripts/`. Render it at **plan time*
 
 **Encoding rules for template variables:**
 
-| Value type | Terraform side | Template (`.tftpl`) side |
-|---|---|---|
-| String / path | pass as-is | `ARG_FOO='${ARG_FOO}'` |
-| Boolean | `tostring(var.foo)` | `ARG_FOO='${ARG_FOO}'` |
-| Free-form string (may contain quotes) | `base64encode(var.foo)` | `ARG_FOO=$(echo -n '${ARG_FOO}' \| base64 -d)` |
-| Object / list (JSON) | `base64encode(jsonencode(var.foo))` | `ARG_FOO=$(echo -n '${ARG_FOO}' \| base64 -d)` |
+| Value type                            | Terraform side                      | Template (`.tftpl`) side                       |
+| ------------------------------------- | ----------------------------------- | ---------------------------------------------- |
+| String / path                         | pass as-is                          | `ARG_FOO='${ARG_FOO}'`                         |
+| Boolean                               | `tostring(var.foo)`                 | `ARG_FOO='${ARG_FOO}'`                         |
+| Free-form string (may contain quotes) | `base64encode(var.foo)`             | `ARG_FOO=$(echo -n '${ARG_FOO}' \| base64 -d)` |
+| Object / list (JSON)                  | `base64encode(jsonencode(var.foo))` | `ARG_FOO=$(echo -n '${ARG_FOO}' \| base64 -d)` |
 
 In `.tftpl` files, write literal bash `$` as `$$` (e.g., `$${HOME}`) so Terraform does not treat them as template interpolations.
 
@@ -86,7 +86,7 @@ module "coder_utils" {
   pre_install_script  = var.pre_install_script
   install_script      = local.install_script
   post_install_script = var.post_install_script
-  start_script        = var.start_script  # optional; omit if the module does not start a process
+  start_script        = var.start_script # optional; omit if the module does not start a process
 }
 ```
 
