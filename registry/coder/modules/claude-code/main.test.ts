@@ -213,6 +213,40 @@ describe("claude-code", async () => {
     expect(coderEnvVars["ANTHROPIC_MODEL"]).toBe(model);
   });
 
+  test("telemetry-otel", async () => {
+    const { coderEnvVars } = await setup({
+      moduleVariables: {
+        telemetry: JSON.stringify({
+          enabled: true,
+          otlp_endpoint: "http://collector:4317",
+          otlp_headers: { authorization: "Bearer xyz" },
+          resource_attributes: { "service.name": "claude-code" },
+        }),
+      },
+    });
+
+    expect(coderEnvVars["CLAUDE_CODE_ENABLE_TELEMETRY"]).toBe("1");
+    expect(coderEnvVars["OTEL_EXPORTER_OTLP_ENDPOINT"]).toBe(
+      "http://collector:4317",
+    );
+    expect(coderEnvVars["OTEL_EXPORTER_OTLP_PROTOCOL"]).toBe("http/protobuf");
+    expect(coderEnvVars["OTEL_EXPORTER_OTLP_HEADERS"]).toBe(
+      "authorization=Bearer xyz",
+    );
+    const attrs = coderEnvVars["OTEL_RESOURCE_ATTRIBUTES"];
+    expect(attrs).toContain("coder.workspace_id=");
+    expect(attrs).toContain("coder.workspace_owner=");
+    expect(attrs).toContain("coder.template_name=");
+    expect(attrs).toContain("service.name=claude-code");
+  });
+
+  test("telemetry-disabled-by-default", async () => {
+    const { coderEnvVars } = await setup();
+    expect(coderEnvVars["CLAUDE_CODE_ENABLE_TELEMETRY"]).toBeUndefined();
+    expect(coderEnvVars["OTEL_EXPORTER_OTLP_ENDPOINT"]).toBeUndefined();
+    expect(coderEnvVars["OTEL_RESOURCE_ATTRIBUTES"]).toBeUndefined();
+  });
+
   test("claude-continue-resume-task-session", async () => {
     const { id } = await setup({
       moduleVariables: {
