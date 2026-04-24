@@ -111,10 +111,26 @@ data "coder_parameter" "memory" {
   default      = 4
   icon         = "/icon/memory.svg"
   mutable      = true
-  order        = 3
+  order        = 4
   validation {
     min = 1
     max = data.coder_parameter.host.value == "ThinkStation" ? 24 : 12
+  }
+}
+
+data "coder_parameter" "disk" {
+  name         = "disk"
+  display_name = "Disk (GB)"
+  description  = "Root disk size in GB."
+  type         = "number"
+  form_type    = "slider"
+  default      = 20
+  icon         = "/icon/database.svg"
+  mutable      = true
+  order        = 3
+  validation {
+    min = 10
+    max = 200
   }
 }
 
@@ -231,6 +247,16 @@ resource "incus_instance" "dev" {
         vendorid  = device.value.vendorid
         productid = device.value.productid
       }
+    }
+  }
+
+  device {
+    name = "root"
+    type = "disk"
+    properties = {
+      pool = "default"
+      path = "/"
+      size = "${local.disk}GiB"
     }
   }
 
@@ -372,6 +398,7 @@ locals {
   workspace_user    = lower(data.coder_workspace_owner.me.name)
   cpu               = data.coder_parameter.cpu.value
   memory            = data.coder_parameter.memory.value
+  disk              = data.coder_parameter.disk.value
   agent_id          = data.coder_workspace.me.start_count == 1 ? coder_agent.main[0].id : ""
   agent_token       = data.coder_workspace.me.start_count == 1 ? coder_agent.main[0].token : ""
   agent_init_script = data.coder_workspace.me.start_count == 1 ? coder_agent.main[0].init_script : ""

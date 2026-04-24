@@ -67,25 +67,22 @@ resource "null_resource" "provision_nixos" {
 
   security.sudo.wheelNeedsPassword = false;
 
-  # Use the shared host nix-daemon instead of running our own.
-  # The host mounts /nix (from /data/nix) into this VM via the nix-shared
-  # Incus profile, so the daemon socket is already present at
-  # /nix/var/nix/daemon-socket/socket.
+  # The nix-shared Incus profile mounts /data/nix (the full nix tree) from the
+  # ThinkStation HDD at /nix-host inside this VM (via virtiofs/9p). We configure
+  # nix to use /nix-host as the store root (URI: local?root=/nix-host), so all
+  # package installs/builds go to the large shared HDD store at /data/nix/store.
+  # The VM's own /nix/store (sda2) is used only for the OS itself.
+  #
+  # /nix/var/nix (DB, channels, socket) stays local to each VM.
+  # Deduplication is automatic since nix store paths are content-addressed.
   nix.settings.trusted-users = [ "root" "$WUSER" ];
   nix.settings.allowed-users = [ "*" ];
+  nix.settings.store = "local?root=/nix-host&state=/nix/var/nix&log=/nix/var/log/nix";
 
-  # Disable the VM's own nix-daemon — we use the host one.
-  systemd.services.nix-daemon.enable = lib.mkForce false;
-  systemd.sockets.nix-daemon.enable = lib.mkForce false;
-
-  # Override the default read-only bind of /nix/store from the VM's own
-  # disk partition. With the host /nix already mounted at /nix via virtio-fs,
-  # we just bind /nix/store from there (read-write so the daemon can write).
-  fileSystems."/nix/store" = lib.mkForce {
-    device = "/nix/store";
-    options = [ "bind" "rw" ];
-    depends = [ "/nix" ];
-  };
+  # Create the mountpoint for the virtiofs share (Incus mounts it here).
+  system.activationScripts.nix-host-dir = ''
+    mkdir -p /nix-host
+  '';
 
   systemd.services.coder-agent = {
     description = "Coder Agent";
@@ -115,6 +112,37 @@ NIXMOD_EOF
         env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -c \
         "grep -q coder.nix /etc/nixos/configuration.nix || \
          sed -i 's|imports = \[|imports = [\n    ./coder.nix|' /etc/nixos/configuration.nix"
+
+      # Pre-patch /etc/nix/nix.conf with the correct store URI before nixos-rebuild
+      # runs.  The coder.nix module sets nix.settings.store via NixOS options, but
+      # those only take effect *after* nixos-rebuild switch completes — meaning the
+      # rebuild itself would use the old nix.conf.  By patching the file now we
+      # ensure the correct store (with local DB paths to avoid SQLite-over-9p
+      # errors) is in effect for the rebuild.
+      incus exec "$REMOTE:$INSTANCE" -- \
+        env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -c \
+        "if [ -d /nix-host/nix/store ]; then \
+           echo 'nix-host mount detected, patching /etc/nix/nix.conf store URI...'; \
+           STORE_URI='local?root=/nix-host&state=/nix/var/nix&log=/nix/var/log/nix'; \
+           if grep -q '^store' /etc/nix/nix.conf; then \
+             sed -i \"s|^store.*|store = \$STORE_URI|\" /etc/nix/nix.conf; \
+           else \
+             echo \"store = \$STORE_URI\" >> /etc/nix/nix.conf; \
+           fi; \
+           echo 'nix.conf store line:'; grep store /etc/nix/nix.conf; \
+         fi"
+
+      # Restore the nixos channel if it was wiped (e.g. by a previous failed
+      # provisioning run that mounted the host /nix/var/nix over the VM's).
+      incus exec "$REMOTE:$INSTANCE" -- \
+        env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -c \
+        "NIX_CHANNEL_URL=https://channels.nixos.org/nixos-25.11; \
+         CHANNEL_LINK=/nix/var/nix/profiles/per-user/root/channels; \
+         if [ ! -e \"\$CHANNEL_LINK\" ]; then \
+           echo 'Restoring nixos channel...'; \
+           nix-channel --add \"\$NIX_CHANNEL_URL\" nixos; \
+           nix-channel --update nixos; \
+         fi"
 
       echo "Running nixos-rebuild switch (this may take a few minutes)..."
       incus exec "$REMOTE:$INSTANCE" -- \
