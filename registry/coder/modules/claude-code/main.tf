@@ -231,6 +231,38 @@ variable "enable_boundary" {
   type        = bool
   description = "Whether to enable coder boundary for network filtering"
   default     = false
+
+  validation {
+    condition     = !var.enable_boundary || (var.boundary_config == null || trimspace(var.boundary_config) == "") || (var.boundary_config_path == null || trimspace(var.boundary_config_path) == "")
+    error_message = "Only one of boundary_config or boundary_config_path can be provided, not both."
+  }
+
+  validation {
+    condition     = ((var.boundary_config == null || trimspace(var.boundary_config) == "") && (var.boundary_config_path == null || trimspace(var.boundary_config_path) == "")) || var.enable_boundary
+    error_message = "boundary_config and boundary_config_path can only be set when enable_boundary is true."
+  }
+}
+
+variable "boundary_config" {
+  type        = string
+  description = "Inline YAML config for coder boundary network filtering rules. Written to ~/.config/coder_boundary/config.yaml before boundary starts. Mutually exclusive with boundary_config_path."
+  default     = null
+
+  validation {
+    condition     = var.boundary_config == null || trimspace(var.boundary_config) != ""
+    error_message = "boundary_config must not be empty or whitespace-only when provided."
+  }
+}
+
+variable "boundary_config_path" {
+  type        = string
+  description = "Path to an existing boundary config file on disk. Symlinked to ~/.config/coder_boundary/config.yaml before boundary starts. Mutually exclusive with boundary_config."
+  default     = null
+
+  validation {
+    condition     = var.boundary_config_path == null || trimspace(var.boundary_config_path) != ""
+    error_message = "boundary_config_path must not be empty or whitespace-only when provided."
+  }
 }
 
 variable "boundary_version" {
@@ -331,8 +363,9 @@ locals {
   start_script    = file("${path.module}/scripts/start.sh")
   module_dir_name = ".claude-module"
   # Extract hostname from access_url for boundary --allow flag
-  coder_host     = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
-  claude_api_key = var.enable_aibridge ? data.coder_workspace_owner.me.session_token : var.claude_api_key
+  coder_host          = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
+  boundary_config_b64 = var.boundary_config != null && trimspace(var.boundary_config) != "" ? base64encode(var.boundary_config) : ""
+  claude_api_key      = var.enable_aibridge ? data.coder_workspace_owner.me.session_token : var.claude_api_key
 
   # Required prompts for the module to properly report task status to Coder
   report_tasks_system_prompt = <<-EOT
@@ -407,6 +440,8 @@ module "agentapi" {
     ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
     ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
     ARG_CODER_HOST='${local.coder_host}' \
+    ARG_BOUNDARY_CONFIG='${local.boundary_config_b64}' \
+    ARG_BOUNDARY_CONFIG_PATH='${var.boundary_config_path != null && trimspace(var.boundary_config_path) != "" ? trimspace(var.boundary_config_path) : ""}' \
     ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
     /tmp/start.sh
   EOT
