@@ -529,4 +529,73 @@ EOF`,
     expect(claudeConfig).toContain("typescript-language-server");
     expect(claudeConfig).toContain("go-language-server");
   });
+
+  test("use-bedrock-no-api-key", async () => {
+    const { id, coderEnvVars } = await setup({
+      moduleVariables: {
+        use_bedrock: "true",
+        report_tasks: "false",
+      },
+    });
+    await execModuleScript(id, coderEnvVars);
+
+    expect(coderEnvVars["CLAUDE_CODE_USE_BEDROCK"]).toBe("1");
+    expect(coderEnvVars["CLAUDE_API_KEY"]).toBeUndefined();
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.claude-module/install.log",
+    );
+    expect(installLog).toContain(
+      "Using Amazon Bedrock (CLAUDE_CODE_USE_BEDROCK=1)",
+    );
+    expect(installLog).not.toContain(
+      "Neither claude_api_key nor enable_aibridge is set",
+    );
+  });
+
+  test("use-vertex-no-api-key", async () => {
+    const { id, coderEnvVars } = await setup({
+      moduleVariables: {
+        use_vertex: "true",
+        report_tasks: "false",
+      },
+    });
+    await execModuleScript(id, coderEnvVars);
+
+    expect(coderEnvVars["CLAUDE_CODE_USE_VERTEX"]).toBe("1");
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.claude-module/install.log",
+    );
+    expect(installLog).toContain(
+      "Using Google Vertex AI (CLAUDE_CODE_USE_VERTEX=1)",
+    );
+    expect(installLog).not.toContain(
+      "Neither claude_api_key nor enable_aibridge is set",
+    );
+  });
+
+  test("anthropic-base-url", async () => {
+    const baseUrl = "https://llm-gateway.example.com/anthropic";
+    const { id, coderEnvVars } = await setup({
+      moduleVariables: {
+        anthropic_base_url: baseUrl,
+        report_tasks: "false",
+      },
+    });
+    await execModuleScript(id, coderEnvVars);
+
+    expect(coderEnvVars["ANTHROPIC_BASE_URL"]).toBe(baseUrl);
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.claude-module/install.log",
+    );
+    expect(installLog).toContain("Using custom ANTHROPIC_BASE_URL");
+    expect(installLog).not.toContain(
+      "Neither claude_api_key nor enable_aibridge is set",
+    );
+  });
 });
