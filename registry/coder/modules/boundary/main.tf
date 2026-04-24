@@ -54,11 +54,11 @@ variable "module_directory" {
 locals {
   boundary_wrapper_path = "${var.module_directory}/scripts/boundary-wrapper.sh"
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
-    BOUNDARY_VERSION              = var.boundary_version
-    COMPILE_BOUNDARY_FROM_SOURCE  = tostring(var.compile_boundary_from_source)
-    USE_BOUNDARY_DIRECTLY         = tostring(var.use_boundary_directly)
-    MODULE_DIR                    = var.module_directory
-    BOUNDARY_WRAPPER_PATH         = local.boundary_wrapper_path
+    BOUNDARY_VERSION             = var.boundary_version
+    COMPILE_BOUNDARY_FROM_SOURCE = tostring(var.compile_boundary_from_source)
+    USE_BOUNDARY_DIRECTLY        = tostring(var.use_boundary_directly)
+    MODULE_DIR                   = var.module_directory
+    BOUNDARY_WRAPPER_PATH        = local.boundary_wrapper_path
   })
 }
 
