@@ -252,13 +252,16 @@ describe("claude-code", async () => {
   });
 
   test("claude-no-policy-keys-in-claudejson", async () => {
-    const { id } = await setup({
+    const { id, coderEnvVars } = await setup({
       moduleVariables: {
         report_tasks: "false",
         claude_api_key: "sk-test-standalone",
       },
     });
-    await execModuleScript(id);
+    // configure_standalone_mode reads CLAUDE_API_KEY from the environment;
+    // in production the coder agent exports coder_env values, in tests we
+    // pass them explicitly.
+    await execModuleScript(id, coderEnvVars);
 
     const cfg = await readFileContainer(id, "/home/coder/.claude.json");
     expect(cfg).toContain("hasCompletedOnboarding");

@@ -169,14 +169,10 @@ function setup_claude_configurations() {
     )
   fi
 
-  if [ -n "$ARG_ALLOWED_TOOLS" ]; then
-    coder --allowedTools "$ARG_ALLOWED_TOOLS"
-  fi
-
-  if [ -n "$ARG_DISALLOWED_TOOLS" ]; then
-    coder --disallowedTools "$ARG_DISALLOWED_TOOLS"
-  fi
-
+  # ARG_ALLOWED_TOOLS / ARG_DISALLOWED_TOOLS are mapped into the
+  # managed-settings policy file via the legacy_permissions shim in main.tf,
+  # so the `coder --allowedTools` / `coder --disallowedTools` calls that used
+  # to live here are no longer needed.
 }
 
 function write_managed_settings() {
