@@ -300,7 +300,7 @@ describe("claude-code", async () => {
       },
     });
     await runScripts(id, scripts);
-    // install.sh echoes ARG_WORKDIR and creates the directory if missing.
+    // install.sh.tftpl echoes ARG_WORKDIR and creates the directory if missing.
     const installLog = await readFileContainer(
       id,
       "/home/coder/.coder-modules/coder/claude-code/logs/install.log",

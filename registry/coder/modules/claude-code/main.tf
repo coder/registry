@@ -73,7 +73,7 @@ variable "model" {
 
 variable "mcp" {
   type        = string
-  description = "MCP JSON to be added to the claude code local scope"
+  description = "JSON-encoded string to configure MCP servers for Claude Code. When set, writes MCP configuration into the Claude Code local scope."
   default     = ""
 }
 
@@ -163,38 +163,30 @@ resource "coder_env" "anthropic_base_url" {
 }
 
 locals {
-  workdir         = trimsuffix(var.workdir, "/")
-  install_script  = file("${path.module}/scripts/install.sh")
+  workdir = trimsuffix(var.workdir, "/")
+  install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
+    ARG_CLAUDE_CODE_VERSION    = var.claude_code_version
+    ARG_INSTALL_CLAUDE_CODE    = tostring(var.install_claude_code)
+    ARG_CLAUDE_BINARY_PATH     = var.claude_binary_path
+    ARG_WORKDIR                = local.workdir
+    ARG_MCP                    = var.mcp != "" ? base64encode(var.mcp) : ""
+    ARG_MCP_CONFIG_REMOTE_PATH = base64encode(jsonencode(var.mcp_config_remote_path))
+    ARG_ENABLE_AI_GATEWAY      = tostring(var.enable_ai_gateway)
+  })
   module_dir_name = ".coder-modules/coder/claude-code"
 }
 
 module "coder_utils" {
   source  = "registry.coder.com/coder/coder-utils/coder"
-  version = "1.3.0"
+  version = "0.0.1"
 
   agent_id            = var.agent_id
-  agent_name          = "claude-code"
   module_directory    = "$HOME/${local.module_dir_name}"
   display_name_prefix = "Claude Code"
   icon                = var.icon
   pre_install_script  = var.pre_install_script
   post_install_script = var.post_install_script
-  install_script      = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
-    ARG_CLAUDE_CODE_VERSION='${var.claude_code_version}' \
-    ARG_INSTALL_CLAUDE_CODE='${var.install_claude_code}' \
-    ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
-    ARG_WORKDIR='${local.workdir}' \
-    ARG_MCP='${var.mcp != null ? base64encode(replace(var.mcp, "'", "'\\''")) : ""}' \
-    ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
-    ARG_ENABLE_AI_GATEWAY='${var.enable_ai_gateway}' \
-    /tmp/install.sh
-  EOT
+  install_script      = local.install_script
 }
 
 # Pass-through of coder-utils script outputs so upstream modules can serialize

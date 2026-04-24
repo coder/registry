@@ -250,7 +250,7 @@ run "test_script_outputs_install_only" {
   }
 
   assert {
-    condition     = length(output.scripts) == 1 && output.scripts[0] == "claude-code-install_script"
+    condition     = length(output.scripts) == 1 && output.scripts[0] == "coder-claude-code-install_script"
     error_message = "scripts output should list only the install script when pre/post are not configured"
   }
 }
@@ -266,7 +266,7 @@ run "test_script_outputs_with_pre_and_post" {
   }
 
   assert {
-    condition     = output.scripts == ["claude-code-pre_install_script", "claude-code-install_script", "claude-code-post_install_script"]
+    condition     = output.scripts == ["coder-claude-code-pre_install_script", "coder-claude-code-install_script", "coder-claude-code-post_install_script"]
     error_message = "scripts output should list pre_install, install, post_install in run order"
   }
 }
