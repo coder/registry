@@ -6,8 +6,7 @@ run "test_with_all_scripts" {
 
   variables {
     agent_id            = "test-agent-id"
-    agent_name          = "test-agent"
-    module_directory    = ".test-module"
+    module_directory    = "$HOME/.coder-modules/test/example"
     pre_install_script  = "echo 'pre-install'"
     install_script      = "echo 'install'"
     post_install_script = "echo 'post-install'"
@@ -53,7 +52,7 @@ run "test_with_all_scripts" {
 
   # install should sync-want pre_install
   assert {
-    condition     = can(regex("sync want test-agent-install_script test-agent-pre_install_script", coder_script.install_script.script))
+    condition     = can(regex("sync want test-example-install_script test-example-pre_install_script", coder_script.install_script.script))
     error_message = "Install script should sync-want pre_install_script when pre_install is provided"
   }
 
@@ -100,14 +99,27 @@ run "test_with_all_scripts" {
   }
 }
 
+run "test_invalid_module_directory" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent-id"
+    module_directory = "$HOME/.coder-modules/test"
+    install_script   = "echo 'install'"
+  }
+
+  expect_failures = [
+    var.module_directory,
+  ]
+}
+
 # Test with only install_script (minimum required input)
 run "test_install_only" {
   command = plan
 
   variables {
     agent_id         = "test-agent-id"
-    agent_name       = "test-agent"
-    module_directory = ".test-module"
+    module_directory = "$HOME/.coder-modules/test/example"
     install_script   = "echo 'install'"
   }
 
@@ -140,8 +152,7 @@ run "test_install_and_start" {
 
   variables {
     agent_id         = "test-agent-id"
-    agent_name       = "test-agent"
-    module_directory = ".test-module"
+    module_directory = "$HOME/.coder-modules/test/example"
     install_script   = "echo 'install'"
     start_script     = "echo 'start'"
   }
@@ -173,7 +184,7 @@ run "test_install_and_start" {
 
   # start should sync-want install (no post_install)
   assert {
-    condition     = can(regex("sync want test-agent-start_script test-agent-install_script", coder_script.start_script[0].script))
+    condition     = can(regex("sync want test-example-start_script test-example-install_script", coder_script.start_script[0].script))
     error_message = "Start script should sync-want install_script"
   }
 }
@@ -184,8 +195,7 @@ run "test_with_mock_data" {
 
   variables {
     agent_id         = "mock-agent"
-    agent_name       = "mock-agent"
-    module_directory = ".mock-module"
+    module_directory = "$HOME/.coder-modules/test/mock"
     install_script   = "echo 'install'"
     start_script     = "echo 'start'"
   }
@@ -233,26 +243,25 @@ run "test_with_mock_data" {
   }
 }
 
-# Test script naming with custom agent_name
-run "test_script_naming" {
+# Test sync naming derived from module_directory
+run "test_script_naming_from_module_directory" {
   command = plan
 
   variables {
     agent_id         = "test-agent"
-    agent_name       = "custom-name"
-    module_directory = ".test-module"
+    module_directory = "$HOME/.coder-modules/custom/name"
     install_script   = "echo 'install'"
     start_script     = "echo 'start'"
   }
 
   assert {
     condition     = can(regex("custom-name-install_script", coder_script.install_script.script))
-    error_message = "Install script should use custom agent_name in sync commands"
+    error_message = "Install script should derive sync names from module_directory"
   }
 
   assert {
     condition     = can(regex("custom-name-start_script", coder_script.start_script[0].script))
-    error_message = "Start script should use custom agent_name in sync commands"
+    error_message = "Start script should derive sync names from module_directory"
   }
 }
 
@@ -262,8 +271,7 @@ run "test_install_syncs_with_pre_install" {
 
   variables {
     agent_id           = "test-agent-id"
-    agent_name         = "test-agent"
-    module_directory   = ".test-module"
+    module_directory   = "$HOME/.coder-modules/test/example"
     pre_install_script = "echo 'pre-install'"
     install_script     = "echo 'install'"
   }
@@ -274,7 +282,7 @@ run "test_install_syncs_with_pre_install" {
   }
 
   assert {
-    condition     = can(regex("sync want test-agent-install_script test-agent-pre_install_script", coder_script.install_script.script))
+    condition     = can(regex("sync want test-example-install_script test-example-pre_install_script", coder_script.install_script.script))
     error_message = "Install script should sync-want pre_install_script"
   }
 }
@@ -285,8 +293,7 @@ run "test_start_syncs_with_post_install" {
 
   variables {
     agent_id            = "test-agent-id"
-    agent_name          = "test-agent"
-    module_directory    = ".test-module"
+    module_directory    = "$HOME/.coder-modules/test/example"
     install_script      = "echo 'install'"
     post_install_script = "echo 'post-install'"
     start_script        = "echo 'start'"
@@ -294,13 +301,13 @@ run "test_start_syncs_with_post_install" {
 
   # start should sync-want both install and post_install
   assert {
-    condition     = can(regex("sync want test-agent-start_script test-agent-install_script test-agent-post_install_script", coder_script.start_script[0].script))
+    condition     = can(regex("sync want test-example-start_script test-example-install_script test-example-post_install_script", coder_script.start_script[0].script))
     error_message = "Start script should sync-want both install_script and post_install_script"
   }
 
   # post_install should sync-want install
   assert {
-    condition     = can(regex("sync want test-agent-post_install_script test-agent-install_script", coder_script.post_install_script[0].script))
+    condition     = can(regex("sync want test-example-post_install_script test-example-install_script", coder_script.post_install_script[0].script))
     error_message = "Post-install script should sync-want install_script"
   }
 }
@@ -311,8 +318,7 @@ run "test_display_name_prefix_applied" {
 
   variables {
     agent_id            = "test-agent-id"
-    agent_name          = "test-agent"
-    module_directory    = ".test-module"
+    module_directory    = "$HOME/.coder-modules/test/example"
     display_name_prefix = "Claude Code"
     pre_install_script  = "echo 'pre-install'"
     install_script      = "echo 'install'"
@@ -347,8 +353,7 @@ run "test_icon_applied" {
 
   variables {
     agent_id            = "test-agent-id"
-    agent_name          = "test-agent"
-    module_directory    = ".test-module"
+    module_directory    = "$HOME/.coder-modules/test/example"
     icon                = "/icon/claude.svg"
     pre_install_script  = "echo 'pre-install'"
     install_script      = "echo 'install'"
@@ -383,8 +388,7 @@ run "test_optional_scripts_absent_by_default" {
 
   variables {
     agent_id         = "test-agent-id"
-    agent_name       = "test-agent"
-    module_directory = ".test-module"
+    module_directory = "$HOME/.coder-modules/test/example"
     install_script   = "echo install"
   }
 
@@ -410,8 +414,7 @@ run "test_scripts_output_with_all" {
 
   variables {
     agent_id            = "test-agent-id"
-    agent_name          = "test-agent"
-    module_directory    = ".test-module"
+    module_directory    = "$HOME/.coder-modules/test/example"
     pre_install_script  = "echo pre"
     install_script      = "echo install"
     post_install_script = "echo post"
@@ -424,22 +427,22 @@ run "test_scripts_output_with_all" {
   }
 
   assert {
-    condition     = output.scripts[0] == "test-agent-pre_install_script"
+    condition     = output.scripts[0] == "test-example-pre_install_script"
     error_message = "scripts[0] must be the pre-install name"
   }
 
   assert {
-    condition     = output.scripts[1] == "test-agent-install_script"
+    condition     = output.scripts[1] == "test-example-install_script"
     error_message = "scripts[1] must be the install name"
   }
 
   assert {
-    condition     = output.scripts[2] == "test-agent-post_install_script"
+    condition     = output.scripts[2] == "test-example-post_install_script"
     error_message = "scripts[2] must be the post-install name"
   }
 
   assert {
-    condition     = output.scripts[3] == "test-agent-start_script"
+    condition     = output.scripts[3] == "test-example-start_script"
     error_message = "scripts[3] must be the start name"
   }
 }
@@ -449,8 +452,7 @@ run "test_scripts_output_with_install_only" {
 
   variables {
     agent_id         = "test-agent-id"
-    agent_name       = "test-agent"
-    module_directory = ".test-module"
+    module_directory = "$HOME/.coder-modules/test/example"
     install_script   = "echo install"
   }
 
@@ -460,7 +462,7 @@ run "test_scripts_output_with_install_only" {
   }
 
   assert {
-    condition     = output.scripts[0] == "test-agent-install_script"
+    condition     = output.scripts[0] == "test-example-install_script"
     error_message = "scripts[0] must be the install name"
   }
 }
@@ -470,8 +472,7 @@ run "test_scripts_output_with_install_and_post" {
 
   variables {
     agent_id            = "test-agent-id"
-    agent_name          = "test-agent"
-    module_directory    = ".test-module"
+    module_directory    = "$HOME/.coder-modules/test/example"
     install_script      = "echo install"
     post_install_script = "echo post"
   }
@@ -482,12 +483,12 @@ run "test_scripts_output_with_install_and_post" {
   }
 
   assert {
-    condition     = output.scripts[0] == "test-agent-install_script"
+    condition     = output.scripts[0] == "test-example-install_script"
     error_message = "scripts[0] must be the install name"
   }
 
   assert {
-    condition     = output.scripts[1] == "test-agent-post_install_script"
+    condition     = output.scripts[1] == "test-example-post_install_script"
     error_message = "scripts[1] must be the post-install name"
   }
 }
@@ -501,8 +502,7 @@ run "test_scripts_tee_stdout_and_log_file" {
 
   variables {
     agent_id            = "test-agent-id"
-    agent_name          = "test-agent"
-    module_directory    = ".test-module"
+    module_directory    = "$HOME/.coder-modules/test/example"
     pre_install_script  = "echo pre"
     install_script      = "echo install"
     post_install_script = "echo post"
@@ -510,22 +510,22 @@ run "test_scripts_tee_stdout_and_log_file" {
   }
 
   assert {
-    condition     = can(regex("pre_install.sh 2>&1 \\| tee .*logs/pre_install.log", coder_script.pre_install_script[0].script))
+    condition     = can(regex("pre_install\\.sh 2>&1 \\| tee .*logs/pre_install\\.log", coder_script.pre_install_script[0].script))
     error_message = "pre_install wrapper must tee combined output to the logs/ subdirectory"
   }
 
   assert {
-    condition     = can(regex("install.sh 2>&1 \\| tee .*logs/install.log", coder_script.install_script.script))
+    condition     = can(regex("install\\.sh 2>&1 \\| tee .*logs/install\\.log", coder_script.install_script.script))
     error_message = "install wrapper must tee combined output to the logs/ subdirectory"
   }
 
   assert {
-    condition     = can(regex("post_install.sh 2>&1 \\| tee .*logs/post_install.log", coder_script.post_install_script[0].script))
+    condition     = can(regex("post_install\\.sh 2>&1 \\| tee .*logs/post_install\\.log", coder_script.post_install_script[0].script))
     error_message = "post_install wrapper must tee combined output to the logs/ subdirectory"
   }
 
   assert {
-    condition     = can(regex("start.sh 2>&1 \\| tee .*logs/start.log", coder_script.start_script[0].script))
+    condition     = can(regex("start\\.sh 2>&1 \\| tee .*logs/start\\.log", coder_script.start_script[0].script))
     error_message = "start wrapper must tee combined output to the logs/ subdirectory"
   }
 }
@@ -537,8 +537,7 @@ run "test_logs_nested_under_module_directory" {
 
   variables {
     agent_id            = "test-agent-id"
-    agent_name          = "test-agent"
-    module_directory    = ".test-module"
+    module_directory    = "$HOME/.coder-modules/test/example"
     pre_install_script  = "echo pre"
     install_script      = "echo install"
     post_install_script = "echo post"
@@ -546,22 +545,22 @@ run "test_logs_nested_under_module_directory" {
   }
 
   assert {
-    condition     = can(regex("tee .test-module/logs/pre_install.log", coder_script.pre_install_script[0].script))
+    condition     = strcontains(coder_script.pre_install_script[0].script, "tee $HOME/.coder-modules/test/example/logs/pre_install.log")
     error_message = "pre_install log must land under module_directory/logs"
   }
 
   assert {
-    condition     = can(regex("tee .test-module/logs/install.log", coder_script.install_script.script))
+    condition     = strcontains(coder_script.install_script.script, "tee $HOME/.coder-modules/test/example/logs/install.log")
     error_message = "install log must land under module_directory/logs"
   }
 
   assert {
-    condition     = can(regex("tee .test-module/logs/post_install.log", coder_script.post_install_script[0].script))
+    condition     = strcontains(coder_script.post_install_script[0].script, "tee $HOME/.coder-modules/test/example/logs/post_install.log")
     error_message = "post_install log must land under module_directory/logs"
   }
 
   assert {
-    condition     = can(regex("tee .test-module/logs/start.log", coder_script.start_script[0].script))
+    condition     = strcontains(coder_script.start_script[0].script, "tee $HOME/.coder-modules/test/example/logs/start.log")
     error_message = "start log must land under module_directory/logs"
   }
 
@@ -569,12 +568,12 @@ run "test_logs_nested_under_module_directory" {
   # and start sync-depend on install so the directory already exists by
   # the time they run.
   assert {
-    condition     = can(regex("mkdir -p .test-module/logs", coder_script.pre_install_script[0].script))
+    condition     = strcontains(coder_script.pre_install_script[0].script, "mkdir -p $HOME/.coder-modules/test/example/logs")
     error_message = "pre_install script must mkdir -p the logs/ sub-path"
   }
 
   assert {
-    condition     = can(regex("mkdir -p .test-module/logs", coder_script.install_script.script))
+    condition     = strcontains(coder_script.install_script.script, "mkdir -p $HOME/.coder-modules/test/example/logs")
     error_message = "install script must mkdir -p the logs/ sub-path"
   }
 }
@@ -587,8 +586,7 @@ run "test_scripts_nested_under_module_directory" {
 
   variables {
     agent_id            = "test-agent-id"
-    agent_name          = "test-agent"
-    module_directory    = ".test-module"
+    module_directory    = "$HOME/.coder-modules/test/example"
     pre_install_script  = "echo pre"
     install_script      = "echo install"
     post_install_script = "echo post"
@@ -596,22 +594,22 @@ run "test_scripts_nested_under_module_directory" {
   }
 
   assert {
-    condition     = can(regex("> .test-module/scripts/test-agent-utils-pre_install.sh", coder_script.pre_install_script[0].script))
+    condition     = strcontains(coder_script.pre_install_script[0].script, "> $HOME/.coder-modules/test/example/scripts/pre_install.sh")
     error_message = "pre_install script must be written under module_directory/scripts"
   }
 
   assert {
-    condition     = can(regex("> .test-module/scripts/test-agent-utils-install.sh", coder_script.install_script.script))
+    condition     = strcontains(coder_script.install_script.script, "> $HOME/.coder-modules/test/example/scripts/install.sh")
     error_message = "install script must be written under module_directory/scripts"
   }
 
   assert {
-    condition     = can(regex("> .test-module/scripts/test-agent-utils-post_install.sh", coder_script.post_install_script[0].script))
+    condition     = strcontains(coder_script.post_install_script[0].script, "> $HOME/.coder-modules/test/example/scripts/post_install.sh")
     error_message = "post_install script must be written under module_directory/scripts"
   }
 
   assert {
-    condition     = can(regex("> .test-module/scripts/test-agent-utils-start.sh", coder_script.start_script[0].script))
+    condition     = strcontains(coder_script.start_script[0].script, "> $HOME/.coder-modules/test/example/scripts/start.sh")
     error_message = "start script must be written under module_directory/scripts"
   }
 
@@ -619,12 +617,12 @@ run "test_scripts_nested_under_module_directory" {
   # and start sync-depend on install so the directory already exists by
   # the time they run.
   assert {
-    condition     = can(regex("mkdir -p .test-module/scripts", coder_script.pre_install_script[0].script))
+    condition     = strcontains(coder_script.pre_install_script[0].script, "mkdir -p $HOME/.coder-modules/test/example/scripts")
     error_message = "pre_install script must mkdir -p the scripts/ sub-path"
   }
 
   assert {
-    condition     = can(regex("mkdir -p .test-module/scripts", coder_script.install_script.script))
+    condition     = strcontains(coder_script.install_script.script, "mkdir -p $HOME/.coder-modules/test/example/scripts")
     error_message = "install script must mkdir -p the scripts/ sub-path"
   }
 }
