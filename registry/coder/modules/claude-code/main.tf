@@ -158,7 +158,7 @@ variable "dangerously_skip_permissions" {
 
 variable "permission_mode" {
   type        = string
-  description = "Permission mode for the cli, check https://docs.anthropic.com/en/docs/claude-code/iam#permission-modes"
+  description = "Deprecated: use managed_settings.permissions.defaultMode instead. Permission mode for the cli, check https://docs.anthropic.com/en/docs/claude-code/iam#permission-modes"
   default     = ""
   validation {
     condition     = contains(["", "default", "acceptEdits", "plan", "auto", "bypassPermissions"], var.permission_mode)
@@ -180,15 +180,20 @@ variable "mcp_config_remote_path" {
 
 variable "allowed_tools" {
   type        = string
-  description = "A list of tools that should be allowed without prompting the user for permission, in addition to settings.json files."
+  description = "Deprecated: use managed_settings.permissions.allow instead. A comma-separated list of tools that should be allowed without prompting the user for permission."
   default     = ""
 }
 
 variable "disallowed_tools" {
   type        = string
-  description = "A list of tools that should be disallowed without prompting the user for permission, in addition to settings.json files."
+  description = "Deprecated: use managed_settings.permissions.deny instead. A comma-separated list of tools that should be disallowed without prompting the user for permission."
   default     = ""
+}
 
+variable "managed_settings" {
+  type        = any
+  description = "Policy settings written to /etc/claude-code/managed-settings.d/10-coder.json. Highest-precedence client config; works with any inference backend (Anthropic API, Bedrock, Vertex, AI Gateway). See https://docs.anthropic.com/en/docs/claude-code/settings for the schema."
+  default     = null
 }
 
 variable "claude_code_oauth_token" {
@@ -334,6 +339,23 @@ locals {
   coder_host     = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
   claude_api_key = var.enable_aibridge ? data.coder_workspace_owner.me.session_token : var.claude_api_key
 
+  # Deprecation shim: map legacy permission vars into managed-settings shape
+  # when managed_settings is not provided. Removed once the legacy vars are dropped.
+  legacy_permissions = merge(
+    var.permission_mode != "" ? { defaultMode = var.permission_mode } : {},
+    var.allowed_tools != "" ? { allow = [for t in split(",", var.allowed_tools) : trimspace(t)] } : {},
+    var.disallowed_tools != "" ? { deny = [for t in split(",", var.disallowed_tools) : trimspace(t)] } : {},
+  )
+  managed_settings_json = (
+    var.managed_settings != null
+    ? jsonencode(var.managed_settings)
+    : (
+      length(local.legacy_permissions) > 0
+      ? jsonencode({ permissions = local.legacy_permissions })
+      : ""
+    )
+  )
+
   # Required prompts for the module to properly report task status to Coder
   report_tasks_system_prompt = <<-EOT
       -- Tool Selection --
@@ -431,6 +453,7 @@ module "agentapi" {
     ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
     ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
     ARG_PERMISSION_MODE='${var.permission_mode}' \
+    ARG_MANAGED_SETTINGS_JSON='${base64encode(local.managed_settings_json)}' \
     /tmp/install.sh
   EOT
 }

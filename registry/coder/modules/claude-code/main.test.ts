@@ -198,6 +198,75 @@ describe("claude-code", async () => {
       "cat /home/coder/.claude-module/agentapi-start.log",
     ]);
     expect(startLog.stdout).toContain(`--permission-mode ${mode}`);
+    // With an explicit permission_mode, tasks must not also force
+    // --dangerously-skip-permissions on top of it.
+    expect(startLog.stdout).not.toContain("--dangerously-skip-permissions");
+  });
+
+  test("claude-managed-settings-written", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        managed_settings: JSON.stringify({
+          permissions: {
+            defaultMode: "acceptEdits",
+            deny: ["Bash(rm -rf*)"],
+          },
+        }),
+      },
+    });
+    await execModuleScript(id);
+
+    const policy = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /etc/claude-code/managed-settings.d/10-coder.json",
+    ]);
+    expect(policy.exitCode).toBe(0);
+    expect(policy.stdout).toContain('"defaultMode":"acceptEdits"');
+    expect(policy.stdout).toContain('"deny":["Bash(rm -rf*)"]');
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.claude-module/install.log",
+    );
+    expect(installLog).toContain("Wrote Claude Code managed settings");
+  });
+
+  test("claude-managed-settings-legacy-shim", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        permission_mode: "plan",
+        disallowed_tools: "Bash(curl:*),WebFetch",
+      },
+    });
+    await execModuleScript(id);
+
+    const policy = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /etc/claude-code/managed-settings.d/10-coder.json",
+    ]);
+    expect(policy.exitCode).toBe(0);
+    expect(policy.stdout).toContain('"defaultMode":"plan"');
+    expect(policy.stdout).toContain('"deny":["Bash(curl:*)","WebFetch"]');
+  });
+
+  test("claude-no-policy-keys-in-claudejson", async () => {
+    const { id, coderEnvVars } = await setup({
+      moduleVariables: {
+        report_tasks: "false",
+        claude_api_key: "sk-test-standalone",
+      },
+    });
+    // configure_standalone_mode reads CLAUDE_API_KEY from the environment;
+    // in production the coder agent exports coder_env values, in tests we
+    // pass them explicitly.
+    await execModuleScript(id, coderEnvVars);
+
+    const cfg = await readFileContainer(id, "/home/coder/.claude.json");
+    expect(cfg).toContain("hasCompletedOnboarding");
+    expect(cfg).not.toContain("bypassPermissionsModeAccepted");
+    expect(cfg).not.toContain("primaryApiKey");
   });
 
   test("claude-model", async () => {
