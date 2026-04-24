@@ -14,15 +14,9 @@ ARG_INSTALL_CLAUDE_CODE=${ARG_INSTALL_CLAUDE_CODE:-}
 ARG_CLAUDE_BINARY_PATH=${ARG_CLAUDE_BINARY_PATH:-"$HOME/.local/bin"}
 ARG_CLAUDE_BINARY_PATH="${ARG_CLAUDE_BINARY_PATH/#\~/$HOME}"
 ARG_CLAUDE_BINARY_PATH="${ARG_CLAUDE_BINARY_PATH//\$HOME/$HOME}"
-ARG_INSTALL_VIA_NPM=${ARG_INSTALL_VIA_NPM:-false}
-ARG_REPORT_TASKS=${ARG_REPORT_TASKS:-true}
-ARG_MCP_APP_STATUS_SLUG=${ARG_MCP_APP_STATUS_SLUG:-}
 ARG_MCP=$(echo -n "${ARG_MCP:-}" | base64 -d)
 ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n "${ARG_MCP_CONFIG_REMOTE_PATH:-}" | base64 -d)
-ARG_ALLOWED_TOOLS=${ARG_ALLOWED_TOOLS:-}
-ARG_DISALLOWED_TOOLS=${ARG_DISALLOWED_TOOLS:-}
-ARG_ENABLE_AIBRIDGE=${ARG_ENABLE_AIBRIDGE:-false}
-ARG_PERMISSION_MODE=${ARG_PERMISSION_MODE:-}
+ARG_ENABLE_AI_GATEWAY=${ARG_ENABLE_AI_GATEWAY:-false}
 
 export PATH="$ARG_CLAUDE_BINARY_PATH:$PATH"
 
@@ -32,14 +26,9 @@ printf "ARG_CLAUDE_CODE_VERSION: %s\n" "$ARG_CLAUDE_CODE_VERSION"
 printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
 printf "ARG_INSTALL_CLAUDE_CODE: %s\n" "$ARG_INSTALL_CLAUDE_CODE"
 printf "ARG_CLAUDE_BINARY_PATH: %s\n" "$ARG_CLAUDE_BINARY_PATH"
-printf "ARG_INSTALL_VIA_NPM: %s\n" "$ARG_INSTALL_VIA_NPM"
-printf "ARG_REPORT_TASKS: %s\n" "$ARG_REPORT_TASKS"
-printf "ARG_MCP_APP_STATUS_SLUG: %s\n" "$ARG_MCP_APP_STATUS_SLUG"
 printf "ARG_MCP: %s\n" "$ARG_MCP"
 printf "ARG_MCP_CONFIG_REMOTE_PATH: %s\n" "$ARG_MCP_CONFIG_REMOTE_PATH"
-printf "ARG_ALLOWED_TOOLS: %s\n" "$ARG_ALLOWED_TOOLS"
-printf "ARG_DISALLOWED_TOOLS: %s\n" "$ARG_DISALLOWED_TOOLS"
-printf "ARG_ENABLE_AIBRIDGE: %s\n" "$ARG_ENABLE_AIBRIDGE"
+printf "ARG_ENABLE_AI_GATEWAY: %s\n" "$ARG_ENABLE_AI_GATEWAY"
 
 echo "--------------------------------"
 
@@ -110,23 +99,15 @@ function install_claude_code_cli() {
     return
   fi
 
-  # Use npm when install_via_npm is true
-  if [ "$ARG_INSTALL_VIA_NPM" = "true" ]; then
-    echo "WARNING: npm installation method will be deprecated and removed in the next major release."
-    echo "Installing Claude Code via npm (version: $ARG_CLAUDE_CODE_VERSION)"
-    npm install -g "@anthropic-ai/claude-code@$ARG_CLAUDE_CODE_VERSION"
-    echo "Installed Claude Code via npm. Version: $(claude --version || echo 'unknown')"
-  else
-    echo "Installing Claude Code via official installer"
-    set +e
-    curl -fsSL claude.ai/install.sh | bash -s -- "$ARG_CLAUDE_CODE_VERSION" 2>&1
-    CURL_EXIT=${PIPESTATUS[0]}
-    set -e
-    if [ $CURL_EXIT -ne 0 ]; then
-      echo "Claude Code installer failed with exit code $CURL_EXIT"
-    fi
-    echo "Installed Claude Code successfully. Version: $(claude --version || echo 'unknown')"
+  echo "Installing Claude Code via official installer"
+  set +e
+  curl -fsSL claude.ai/install.sh | bash -s -- "$ARG_CLAUDE_CODE_VERSION" 2>&1
+  CURL_EXIT=${PIPESTATUS[0]}
+  set -e
+  if [ $CURL_EXIT -ne 0 ]; then
+    echo "Claude Code installer failed with exit code $CURL_EXIT"
   fi
+  echo "Installed Claude Code successfully. Version: $(claude --version || echo 'unknown')"
 
   ensure_claude_in_path
 }
@@ -139,7 +120,7 @@ function setup_claude_configurations() {
     echo "Folder created successfully."
   fi
 
-  module_path="$HOME/.claude-module"
+  module_path="$HOME/.coder-modules/coder/claude-code"
   mkdir -p "$module_path"
 
   if [ "$ARG_MCP" != "" ]; then
@@ -167,34 +148,24 @@ function setup_claude_configurations() {
     )
   fi
 
-  if [ -n "$ARG_ALLOWED_TOOLS" ]; then
-    coder --allowedTools "$ARG_ALLOWED_TOOLS"
-  fi
-
-  if [ -n "$ARG_DISALLOWED_TOOLS" ]; then
-    coder --disallowedTools "$ARG_DISALLOWED_TOOLS"
-  fi
-
 }
 
 function configure_standalone_mode() {
   echo "Configuring Claude Code for standalone mode..."
 
-  if [ -z "${CLAUDE_API_KEY:-}" ] && [ "$ARG_ENABLE_AIBRIDGE" = "false" ]; then
-    echo "Note: Neither claude_api_key nor enable_aibridge is set, skipping authentication setup"
+  if [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ "$ARG_ENABLE_AI_GATEWAY" = "false" ]; then
+    echo "Note: No authentication configured (anthropic_api_key, claude_code_oauth_token, enable_ai_gateway), skipping onboarding bypass"
     return
   fi
 
   local claude_config="$HOME/.claude.json"
-  local workdir_normalized
-  workdir_normalized=$(echo "$ARG_WORKDIR" | tr '/' '-')
 
   # Create or update .claude.json with minimal configuration for API key auth
   # This skips the interactive login prompt and onboarding screens
   if [ -f "$claude_config" ]; then
     echo "Updating existing Claude configuration at $claude_config"
 
-    jq --arg workdir "$ARG_WORKDIR" --arg apikey "${CLAUDE_API_KEY:-}" \
+    jq --arg workdir "$ARG_WORKDIR" --arg apikey "${ANTHROPIC_API_KEY:-}" \
       '.autoUpdaterStatus = "disabled" |
         .autoModeAccepted = true |
         .bypassPermissionsModeAccepted = true |
@@ -213,7 +184,7 @@ function configure_standalone_mode() {
   "bypassPermissionsModeAccepted": true,
   "hasAcknowledgedCostThreshold": true,
   "hasCompletedOnboarding": true,
-  "primaryApiKey": "${CLAUDE_API_KEY:-}",
+  "primaryApiKey": "${ANTHROPIC_API_KEY:-}",
   "projects": {
     "$ARG_WORKDIR": {
       "hasCompletedProjectOnboarding": true,
@@ -227,39 +198,6 @@ EOF
   echo "Standalone mode configured successfully"
 }
 
-function report_tasks() {
-  if [ "$ARG_REPORT_TASKS" = "true" ]; then
-    echo "Configuring Claude Code to report tasks via Coder MCP..."
-    export CODER_MCP_APP_STATUS_SLUG="$ARG_MCP_APP_STATUS_SLUG"
-    export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
-    coder exp mcp configure claude-code "$ARG_WORKDIR"
-  else
-    configure_standalone_mode
-  fi
-}
-
-function accept_auto_mode() {
-  # Pre-accept the auto mode TOS prompt so it doesn't appear interactively.
-  # Claude Code shows a confirmation dialog for auto mode that blocks
-  # non-interactive/headless usage.
-  # Note: bypassPermissions acceptance is already handled by
-  # coder exp mcp configure (task mode) and configure_standalone_mode.
-  local claude_config="$HOME/.claude.json"
-
-  if [ -f "$claude_config" ]; then
-    jq '.autoModeAccepted = true' \
-      "$claude_config" > "${claude_config}.tmp" && mv "${claude_config}.tmp" "$claude_config"
-  else
-    echo '{"autoModeAccepted": true}' > "$claude_config"
-  fi
-
-  echo "Pre-accepted auto mode prompt"
-}
-
 install_claude_code_cli
 setup_claude_configurations
-report_tasks
-
-if [ "$ARG_PERMISSION_MODE" = "auto" ]; then
-  accept_auto_mode
-fi
+configure_standalone_mode

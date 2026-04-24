@@ -1,152 +1,115 @@
 ---
 display_name: Claude Code
-description: Run the Claude Code agent in your workspace.
+description: Install and configure the Claude Code CLI in your workspace.
 icon: ../../../../.icons/claude.svg
 verified: true
-tags: [agent, claude-code, ai, tasks, anthropic, aibridge]
+tags: [agent, claude-code, ai, anthropic, ai-gateway]
 ---
 
 # Claude Code
 
-Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview) agent in your workspace to generate code and perform tasks. This module integrates with [AgentAPI](https://github.com/coder/agentapi) for task reporting in the Coder UI.
+Install and configure the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview) CLI in your workspace. Starting Claude is left to the caller (template command, IDE launcher, or a custom `coder_script`).
 
 ```tf
 module "claude-code" {
-  source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "4.9.2"
-  agent_id       = coder_agent.main.id
-  workdir        = "/home/coder/project"
-  claude_api_key = "xxxx-xxxxx-xxxx"
+  source            = "registry.coder.com/coder/claude-code/coder"
+  version           = "5.0.0"
+  agent_id          = coder_agent.main.id
+  workdir           = "/home/coder/project"
+  anthropic_api_key = "xxxx-xxxxx-xxxx"
 }
 ```
-
-> [!WARNING]
-> **Security Notice**: This module uses the `--dangerously-skip-permissions` flag when running Claude Code tasks. This flag bypasses standard permission checks and allows Claude Code broader access to your system than normally permitted. While this enables more functionality, it also means Claude Code can potentially execute commands with the same privileges as the user running it. Use this module _only_ in trusted environments and be aware of the security implications.
-
-> [!NOTE]
-> By default, this module is configured to run the embedded chat interface as a path-based application. In production, we recommend that you configure a [wildcard access URL](https://coder.com/docs/admin/setup#wildcard-access-url) and set `subdomain = true`. See [here](https://coder.com/docs/tutorials/best-practices/security-best-practices#disable-path-based-apps) for more details.
 
 ## Prerequisites
 
-- An **Anthropic API key** or a _Claude Session Token_ is required for tasks.
-  - You can get the API key from the [Anthropic Console](https://console.anthropic.com/dashboard).
-  - You can get the Session Token using the `claude setup-token` command. This is a long-lived authentication token (requires Claude subscription)
+Provide exactly one authentication method:
 
-### Session Resumption Behavior
-
-By default, Claude Code automatically resumes existing conversations when your workspace restarts. Sessions are tracked per workspace directory, so conversations continue where you left off. If no session exists (first start), your `ai_prompt` will run normally. To disable this behavior and always start fresh, set `continue = false`
-
-## State Persistence
-
-AgentAPI can save and restore its conversation state to disk across workspace restarts. This complements `continue` (which resumes the Claude CLI session) by also preserving the AgentAPI-level context. Enabled by default, requires agentapi >= v0.12.0 (older versions skip it with a warning).
-
-To disable:
-
-```tf
-module "claude-code" {
-  # ... other config
-  enable_state_persistence = false
-}
-```
+- **Anthropic API key**: get one from the [Anthropic Console](https://console.anthropic.com/dashboard) and pass it as `anthropic_api_key`.
+- **Claude.ai OAuth token** (Pro, Max, or Enterprise accounts): generate one by running `claude setup-token` locally and pass it as `claude_code_oauth_token`.
+- **Coder AI Gateway** (Coder Premium, Coder >= 2.30.0): set `enable_ai_gateway = true`. The module authenticates against the gateway using the workspace owner's session token. Do not combine with `anthropic_api_key` or `claude_code_oauth_token`.
 
 ## Examples
 
-### Usage with Agent Boundaries
+### Standalone mode with a launcher app
 
-This example shows how to configure the Claude Code module to run the agent behind a process-level boundary that restricts its network access.
-
-By default, when `enable_boundary = true`, the module uses `coder boundary` subcommand (provided by Coder) without requiring any installation.
+Authenticate Claude directly against Anthropic's API and add a `coder_app` that users can click from the workspace dashboard to open an interactive Claude session.
 
 ```tf
+locals {
+  claude_workdir = "/home/coder/project"
+}
+
 module "claude-code" {
-  source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "4.9.2"
-  agent_id        = coder_agent.main.id
-  workdir         = "/home/coder/project"
-  enable_boundary = true
+  source            = "registry.coder.com/coder/claude-code/coder"
+  version           = "5.0.0"
+  agent_id          = coder_agent.main.id
+  workdir           = local.claude_workdir
+  anthropic_api_key = "xxxx-xxxxx-xxxx"
+}
+
+resource "coder_app" "claude" {
+  agent_id     = coder_agent.main.id
+  slug         = "claude"
+  display_name = "Claude Code"
+  icon         = "/icon/claude.svg"
+  open_in      = "slim-window"
+  command      = <<-EOT
+    #!/bin/bash
+    set -e
+    cd ${local.claude_workdir}
+    claude
+  EOT
 }
 ```
 
 > [!NOTE]
-> For developers: The module also supports installing boundary from a release version (`use_boundary_directly = true`) or compiling from source (`compile_boundary_from_source = true`). These are escape hatches for development and testing purposes.
+> `coder_app.command` runs when the user clicks the app tile. Combine with `anthropic_api_key`, `claude_code_oauth_token`, or `enable_ai_gateway = true` on the module to pre-authenticate the CLI.
 
-### Usage with AI Bridge
+### Usage with AI Gateway
 
-[AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management. To use AI Bridge, set `enable_aibridge = true`. Requires Coder version >= 2.29.0.
-
-For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage with Tasks](#usage-with-tasks) example below.
-
-#### Standalone usage with AI Bridge
+[AI Gateway](https://coder.com/docs/ai-coder/ai-gateway) is a Premium Coder feature that provides centralized LLM proxy management. Requires Coder >= 2.30.0.
 
 ```tf
 module "claude-code" {
-  source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "4.9.2"
-  agent_id        = coder_agent.main.id
-  workdir         = "/home/coder/project"
-  enable_aibridge = true
+  source            = "registry.coder.com/coder/claude-code/coder"
+  version           = "5.0.0"
+  agent_id          = coder_agent.main.id
+  workdir           = "/home/coder/project"
+  enable_ai_gateway = true
 }
 ```
 
-When `enable_aibridge = true`, the module automatically sets:
+When `enable_ai_gateway = true`, the module sets:
 
 - `ANTHROPIC_BASE_URL` to `${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic`
-- `CLAUDE_API_KEY` to the workspace owner's session token
+- `ANTHROPIC_AUTH_TOKEN` to the workspace owner's Coder session token
 
-This allows Claude Code to route API requests through Coder's AI Bridge instead of directly to Anthropic's API.
-Template build will fail if either `claude_api_key` or `claude_code_oauth_token` is provided alongside `enable_aibridge = true`.
+Claude Code then routes API requests through Coder's AI Gateway instead of directly to Anthropic.
 
-### Usage with Tasks
-
-This example shows how to configure Claude Code with Coder tasks.
-
-```tf
-resource "coder_ai_task" "task" {
-  count  = data.coder_workspace.me.start_count
-  app_id = module.claude-code.task_app_id
-}
-
-data "coder_task" "me" {}
-
-module "claude-code" {
-  source    = "registry.coder.com/coder/claude-code/coder"
-  version   = "4.9.2"
-  agent_id  = coder_agent.main.id
-  workdir   = "/home/coder/project"
-  ai_prompt = data.coder_task.me.prompt
-
-  # Optional: route through AI Bridge (Premium feature)
-  # enable_aibridge = true
-}
-```
+> [!CAUTION]
+> `enable_ai_gateway = true` is mutually exclusive with `anthropic_api_key` and `claude_code_oauth_token`. Setting any of them together fails at plan time.
 
 ### Advanced Configuration
 
-This example shows additional configuration options for version pinning, custom models, and MCP servers.
-
-> [!NOTE]
-> The `claude_binary_path` variable can be used to specify where a pre-installed Claude binary is located.
-
-> [!WARNING]
-> **Deprecation Notice**: The npm installation method (`install_via_npm = true`) will be deprecated and removed in the next major release. Please use the default binary installation method instead.
+This example shows version pinning, a pre-installed binary path, a custom model, and MCP servers.
 
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.9.2"
+  version  = "5.0.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
-  claude_api_key = "xxxx-xxxxx-xxxx"
-  # OR
-  claude_code_oauth_token = "xxxxx-xxxx-xxxx"
+  anthropic_api_key = "xxxx-xxxxx-xxxx"
 
-  claude_code_version = "2.0.62"          # Pin to a specific version
-  claude_binary_path  = "/opt/claude/bin" # Path to pre-installed Claude binary
-  agentapi_version    = "0.11.4"
+  claude_code_version = "2.0.62" # Pin to a specific Claude CLI version.
 
-  model           = "sonnet"
-  permission_mode = "plan"
+  # Skip the module's installer and point at a pre-installed Claude binary.
+  # claude_binary_path can only be customized when install_claude_code is false.
+  install_claude_code = false
+  claude_binary_path  = "/opt/claude/bin"
+
+  model = "sonnet"
 
   mcp = <<-EOF
   {
@@ -167,6 +130,9 @@ module "claude-code" {
 ```
 
 > [!NOTE]
+> Swap `anthropic_api_key` for `claude_code_oauth_token = "xxxxx-xxxx-xxxx"` to authenticate via a Claude.ai OAuth token instead. Pass exactly one.
+
+> [!NOTE]
 > Remote URLs should return a JSON body in the following format:
 >
 > ```json
@@ -180,41 +146,37 @@ module "claude-code" {
 > }
 > ```
 >
-> The `Content-Type` header doesn't matter—both `text/plain` and `application/json` work fine.
+> The `Content-Type` header doesn't matter, both `text/plain` and `application/json` work fine.
 
-### Standalone Mode
+### Serialize a downstream `coder_script` after the install pipeline
 
-Run and configure Claude Code as a standalone CLI in your workspace.
+The module exposes the `coder exp sync` name of each script it creates via the `scripts` output: an ordered list (`pre_install`, `install`, `post_install`) of names for scripts this module actually creates. Scripts that were not configured are absent from the list.
+
+Downstream `coder_script` resources can wait for this module's install pipeline to finish using `coder exp sync want <self> <each name>`:
 
 ```tf
 module "claude-code" {
-  source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "4.9.2"
-  agent_id            = coder_agent.main.id
-  workdir             = "/home/coder/project"
-  install_claude_code = true
-  claude_code_version = "2.0.62"
-  report_tasks        = false
-}
-```
-
-### Usage with Claude Code Subscription
-
-```tf
-
-variable "claude_code_oauth_token" {
-  type        = string
-  description = "Generate one using `claude setup-token` command"
-  sensitive   = true
-  value       = "xxxx-xxx-xxxx"
+  source            = "registry.coder.com/coder/claude-code/coder"
+  version           = "5.0.0"
+  agent_id          = coder_agent.main.id
+  workdir           = "/home/coder/project"
+  anthropic_api_key = "xxxx-xxxxx-xxxx"
 }
 
-module "claude-code" {
-  source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "4.9.2"
-  agent_id                = coder_agent.main.id
-  workdir                 = "/home/coder/project"
-  claude_code_oauth_token = var.claude_code_oauth_token
+resource "coder_script" "post_claude" {
+  agent_id     = coder_agent.main.id
+  display_name = "Run after Claude Code install"
+  run_on_start = true
+  script       = <<-EOT
+    #!/bin/bash
+    set -euo pipefail
+    trap 'coder exp sync complete post-claude' EXIT
+    coder exp sync want post-claude ${join(" ", module.claude-code.scripts)}
+    coder exp sync start post-claude
+
+    # Your work here runs after claude-code finishes installing.
+    claude --version
+  EOT
 }
 ```
 
@@ -245,14 +207,12 @@ variable "aws_access_key_id" {
   type        = string
   description = "Your AWS access key ID. Create this in the AWS IAM console under 'Security credentials'."
   sensitive   = true
-  value       = "xxxx-xxx-xxxx"
 }
 
 variable "aws_secret_access_key" {
   type        = string
   description = "Your AWS secret access key. This is shown once when you create an access key in the AWS IAM console."
   sensitive   = true
-  value       = "xxxx-xxx-xxxx"
 }
 
 resource "coder_env" "aws_access_key_id" {
@@ -273,7 +233,6 @@ variable "aws_bearer_token_bedrock" {
   type        = string
   description = "Your AWS Bedrock bearer token. This provides access to Bedrock without needing separate access key and secret key."
   sensitive   = true
-  value       = "xxxx-xxx-xxxx"
 }
 
 resource "coder_env" "bedrock_api_key" {
@@ -284,7 +243,7 @@ resource "coder_env" "bedrock_api_key" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.9.2"
+  version  = "5.0.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
@@ -341,7 +300,7 @@ resource "coder_env" "google_application_credentials" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.9.2"
+  version  = "5.0.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "claude-sonnet-4@20250514"
@@ -375,26 +334,17 @@ module "claude-code" {
 
 ## Troubleshooting
 
-If you encounter any issues, check the log files in the `~/.claude-module` directory within your workspace for detailed information.
+If you encounter any issues, check the log files in the `~/.coder-modules/coder/claude-code/logs` directory within your workspace for detailed information.
 
 ```bash
 # Installation logs
-cat ~/.claude-module/install.log
-
-# Startup logs
-cat ~/.claude-module/agentapi-start.log
+cat ~/.coder-modules/coder/claude-code/logs/install.log
 
 # Pre/post install script logs
-cat ~/.claude-module/pre_install.log
-cat ~/.claude-module/post_install.log
+cat ~/.coder-modules/coder/claude-code/logs/pre_install.log
+cat ~/.coder-modules/coder/claude-code/logs/post_install.log
 ```
-
-> [!NOTE]
-> To use tasks with Claude Code, you must provide an `anthropic_api_key` or `claude_code_oauth_token`.
-> The `workdir` variable is required and specifies the directory where Claude Code will run.
 
 ## References
 
 - [Claude Code Documentation](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview)
-- [AgentAPI Documentation](https://github.com/coder/agentapi)
-- [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)
