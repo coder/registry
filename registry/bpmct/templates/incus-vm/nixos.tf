@@ -79,10 +79,36 @@ resource "null_resource" "provision_nixos" {
   nix.settings.allowed-users = [ "*" ];
   nix.settings.store = "local?root=/nix-host&state=/nix/var/nix&log=/nix/var/log/nix";
 
-  # Create the mountpoint for the virtiofs share (Incus mounts it here).
+  # Create the mountpoint for the virtiofs/9p share (Incus mounts it here).
   system.activationScripts.nix-host-dir = ''
     mkdir -p /nix-host
   '';
+
+  # Bind-mount /nix-host/nix/store over /nix/store so that result symlinks
+  # from nix-build (which point to /nix/store/...) resolve correctly.
+  #
+  # Background: the VM image bakes the NixOS closure into /nix/store on sda2
+  # (ext4, read-only).  The nix-shared profile mounts the ThinkStation HDD
+  # share at /nix-host/nix via 9p.  nix.settings.store redirects nix daemon
+  # writes to /nix-host/nix/store, but the result symlinks still say
+  # /nix/store/... — which points at the stale ext4 partition.  The bind mount
+  # below shadows the ext4 mount with the live HDD store, so both nix internals
+  # and result symlinks work correctly.
+  #
+  # We order after local-fs.target (the 9p virtio share is mounted as part of
+  # local-fs) and before nix-daemon so the daemon always sees the unified store.
+  systemd.mounts = [
+    {
+      what       = "/nix-host/nix/store";
+      where      = "/nix/store";
+      type       = "none";
+      options    = "bind";
+      after      = [ "local-fs.target" ];
+      before     = [ "nix-daemon.service" ];
+      wantedBy   = [ "multi-user.target" ];
+      requiredBy = [ "nix-daemon.service" ];
+    }
+  ];
 
   systemd.services.coder-agent = {
     description = "Coder Agent";
@@ -145,6 +171,15 @@ NIXMOD_EOF
          fi"
 
       echo "Running nixos-rebuild switch (this may take a few minutes)..."
+      # Pre-apply the bind mount before nixos-rebuild so the newly built system
+      # derivation lands in /nix/store (via the HDD store) and activation can
+      # find it.  Without this, nixos-rebuild writes to /nix-host/nix/store but
+      # activation checks /nix/store (the ext4 ro partition) and aborts.
+      incus exec "$REMOTE:$INSTANCE" -- \
+        env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -c \
+        "if [ -d /nix-host/nix/store ]; then \
+           /run/current-system/sw/bin/mount --bind /nix-host/nix/store /nix/store 2>/dev/null && echo 'Bind-mounted /nix-host/nix/store -> /nix/store' || echo 'Bind mount skipped (already mounted or not needed)'; \
+         fi"
       incus exec "$REMOTE:$INSTANCE" -- \
         env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -l -c \
         "nixos-rebuild switch; EC=\$?; [ \$EC -eq 0 ] || [ \$EC -eq 4 ] || exit \$EC"
