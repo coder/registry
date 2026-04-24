@@ -13,7 +13,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "4.9.2"
+  version        = "4.9.3"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
@@ -60,7 +60,7 @@ By default, when `enable_boundary = true`, the module uses `coder boundary` subc
 ```tf
 module "claude-code" {
   source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "4.9.2"
+  version         = "4.9.3"
   agent_id        = coder_agent.main.id
   workdir         = "/home/coder/project"
   enable_boundary = true
@@ -81,7 +81,7 @@ For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage
 ```tf
 module "claude-code" {
   source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "4.9.2"
+  version         = "4.9.3"
   agent_id        = coder_agent.main.id
   workdir         = "/home/coder/project"
   enable_aibridge = true
@@ -110,7 +110,7 @@ data "coder_task" "me" {}
 
 module "claude-code" {
   source    = "registry.coder.com/coder/claude-code/coder"
-  version   = "4.9.2"
+  version   = "4.9.3"
   agent_id  = coder_agent.main.id
   workdir   = "/home/coder/project"
   ai_prompt = data.coder_task.me.prompt
@@ -133,7 +133,7 @@ This example shows additional configuration options for version pinning, custom 
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.9.2"
+  version  = "4.9.3"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -189,7 +189,7 @@ Run and configure Claude Code as a standalone CLI in your workspace.
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "4.9.2"
+  version             = "4.9.3"
   agent_id            = coder_agent.main.id
   workdir             = "/home/coder/project"
   install_claude_code = true
@@ -211,7 +211,7 @@ variable "claude_code_oauth_token" {
 
 module "claude-code" {
   source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "4.9.2"
+  version                 = "4.9.3"
   agent_id                = coder_agent.main.id
   workdir                 = "/home/coder/project"
   claude_code_oauth_token = var.claude_code_oauth_token
@@ -229,7 +229,7 @@ AWS account with Bedrock access, Claude models enabled in the Bedrock console, a
 ```tf
 module "claude-code" {
   source      = "registry.coder.com/coder/claude-code/coder"
-  version     = "4.9.2"
+  version     = "4.9.3"
   agent_id    = coder_agent.main.id
   workdir     = "/home/coder/project"
   use_bedrock = true
@@ -269,7 +269,7 @@ A GCP project with the Vertex AI API enabled, Claude models enabled in Model Gar
 ```tf
 module "claude-code" {
   source     = "registry.coder.com/coder/claude-code/coder"
-  version    = "4.9.2"
+  version    = "4.9.3"
   agent_id   = coder_agent.main.id
   workdir    = "/home/coder/project"
   use_vertex = true
@@ -301,7 +301,7 @@ Set `anthropic_base_url` to point Claude Code at a self-hosted gateway or proxy 
 ```tf
 module "claude-code" {
   source             = "registry.coder.com/coder/claude-code/coder"
-  version            = "4.9.2"
+  version            = "4.9.3"
   agent_id           = coder_agent.main.id
   workdir            = "/home/coder/project"
   anthropic_base_url = "https://llm-gateway.example.com/anthropic"
