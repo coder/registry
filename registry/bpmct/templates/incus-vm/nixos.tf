@@ -67,6 +67,26 @@ resource "null_resource" "provision_nixos" {
 
   security.sudo.wheelNeedsPassword = false;
 
+  # Use the shared host nix-daemon instead of running our own.
+  # The host mounts /nix (from /data/nix) into this VM via the nix-shared
+  # Incus profile, so the daemon socket is already present at
+  # /nix/var/nix/daemon-socket/socket.
+  nix.settings.trusted-users = [ "root" "$WUSER" ];
+  nix.settings.allowed-users = [ "*" ];
+
+  # Disable the VM's own nix-daemon — we use the host one.
+  systemd.services.nix-daemon.enable = lib.mkForce false;
+  systemd.sockets.nix-daemon.enable = lib.mkForce false;
+
+  # Override the default read-only bind of /nix/store from the VM's own
+  # disk partition. With the host /nix already mounted at /nix via virtio-fs,
+  # we just bind /nix/store from there (read-write so the daemon can write).
+  fileSystems."/nix/store" = lib.mkForce {
+    device = "/nix/store";
+    options = [ "bind" "rw" ];
+    depends = [ "/nix" ];
+  };
+
   systemd.services.coder-agent = {
     description = "Coder Agent";
     after = [ "network-online.target" ];
