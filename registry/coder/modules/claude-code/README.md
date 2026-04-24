@@ -13,7 +13,7 @@ Run the [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude
 ```tf
 module "claude-code" {
   source         = "registry.coder.com/coder/claude-code/coder"
-  version        = "4.9.2"
+  version        = "4.9.3"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   claude_api_key = "xxxx-xxxxx-xxxx"
@@ -60,7 +60,7 @@ By default, when `enable_boundary = true`, the module uses `coder boundary` subc
 ```tf
 module "claude-code" {
   source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "4.9.2"
+  version         = "4.9.3"
   agent_id        = coder_agent.main.id
   workdir         = "/home/coder/project"
   enable_boundary = true
@@ -81,7 +81,7 @@ For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage
 ```tf
 module "claude-code" {
   source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "4.9.2"
+  version         = "4.9.3"
   agent_id        = coder_agent.main.id
   workdir         = "/home/coder/project"
   enable_aibridge = true
@@ -110,7 +110,7 @@ data "coder_task" "me" {}
 
 module "claude-code" {
   source    = "registry.coder.com/coder/claude-code/coder"
-  version   = "4.9.2"
+  version   = "4.9.3"
   agent_id  = coder_agent.main.id
   workdir   = "/home/coder/project"
   ai_prompt = data.coder_task.me.prompt
@@ -133,7 +133,7 @@ This example shows additional configuration options for version pinning, custom 
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.9.2"
+  version  = "4.9.3"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -189,7 +189,7 @@ Run and configure Claude Code as a standalone CLI in your workspace.
 ```tf
 module "claude-code" {
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "4.9.2"
+  version             = "4.9.3"
   agent_id            = coder_agent.main.id
   workdir             = "/home/coder/project"
   install_claude_code = true
@@ -211,12 +211,58 @@ variable "claude_code_oauth_token" {
 
 module "claude-code" {
   source                  = "registry.coder.com/coder/claude-code/coder"
-  version                 = "4.9.2"
+  version                 = "4.9.3"
   agent_id                = coder_agent.main.id
   workdir                 = "/home/coder/project"
   claude_code_oauth_token = var.claude_code_oauth_token
 }
 ```
+
+### Short-lived credentials via api_key_helper
+
+For production deployments we recommend `api_key_helper` over a static `claude_api_key`. The module writes the helper script into the workspace and registers it via Claude Code's [`apiKeyHelper` setting](https://docs.anthropic.com/en/docs/claude-code/settings#available-settings). Claude invokes the script whenever it needs a key and caches the result for `ttl_ms` milliseconds (default 5 minutes), so the credential never lands in Terraform state, the agent environment, or `~/.claude.json`.
+
+#### HashiCorp Vault
+
+```tf
+module "claude-code" {
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "4.9.3"
+  agent_id = coder_agent.main.id
+  workdir  = "/home/coder/project"
+
+  api_key_helper = {
+    script = <<-EOT
+      #!/bin/sh
+      exec vault kv get -field=key secret/anthropic
+    EOT
+    ttl_ms = 300000
+  }
+}
+```
+
+#### AWS Secrets Manager
+
+```tf
+module "claude-code" {
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "4.9.3"
+  agent_id = coder_agent.main.id
+  workdir  = "/home/coder/project"
+
+  api_key_helper = {
+    script = <<-EOT
+      #!/bin/sh
+      exec aws secretsmanager get-secret-value \
+        --secret-id anthropic/api-key \
+        --query SecretString --output text
+    EOT
+  }
+}
+```
+
+> [!NOTE]
+> `api_key_helper` is mutually exclusive with `claude_api_key`, `claude_code_oauth_token`, and `enable_aibridge`. The script runs as the workspace user, so any CLI it calls (`vault`, `aws`, `gcloud`) must already be installed and authenticated in the workspace, for example via Workload Identity or a `pre_install_script`.
 
 ### Usage with AWS Bedrock
 
@@ -284,7 +330,7 @@ resource "coder_env" "bedrock_api_key" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.9.2"
+  version  = "4.9.3"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
@@ -341,7 +387,7 @@ resource "coder_env" "google_application_credentials" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "4.9.2"
+  version  = "4.9.3"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "claude-sonnet-4@20250514"

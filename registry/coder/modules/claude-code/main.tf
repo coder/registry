@@ -128,8 +128,9 @@ variable "disable_autoupdater" {
 
 variable "claude_api_key" {
   type        = string
-  description = "The API key to use for the Claude Code server."
+  description = "Anthropic API key. Sets ANTHROPIC_API_KEY in the workspace environment. Prefer api_key_helper for short-lived credentials."
   default     = ""
+  sensitive   = true
 }
 
 variable "model" {
@@ -196,6 +197,25 @@ variable "claude_code_oauth_token" {
   description = "Set up a long-lived authentication token (requires Claude subscription). Generated using `claude setup-token` command"
   sensitive   = true
   default     = ""
+}
+
+variable "api_key_helper" {
+  type = object({
+    script = string
+    ttl_ms = optional(number, 300000)
+  })
+  description = "Script that prints an Anthropic API key to stdout. Written to ~/.claude/coder-api-key-helper.sh and registered via the apiKeyHelper setting in /etc/claude-code/managed-settings.d/. Use for short-lived credentials from Vault, AWS Secrets Manager, cloud IAM, etc. ttl_ms is how long Claude caches each key (default 5 minutes)."
+  default     = null
+
+  validation {
+    condition     = var.api_key_helper == null || (var.claude_api_key == "" && var.claude_code_oauth_token == "")
+    error_message = "api_key_helper cannot be combined with claude_api_key or claude_code_oauth_token. Use exactly one authentication method."
+  }
+
+  validation {
+    condition     = var.api_key_helper == null || !var.enable_aibridge
+    error_message = "api_key_helper cannot be combined with enable_aibridge. AI Bridge handles authentication via the workspace owner's session token."
+  }
 }
 
 variable "system_prompt" {
@@ -305,6 +325,13 @@ resource "coder_env" "disable_autoupdater" {
   agent_id = var.agent_id
   name     = "DISABLE_AUTOUPDATER"
   value    = "1"
+}
+
+resource "coder_env" "api_key_helper_ttl_ms" {
+  count    = var.api_key_helper != null ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CLAUDE_CODE_API_KEY_HELPER_TTL_MS"
+  value    = tostring(var.api_key_helper.ttl_ms)
 }
 
 
@@ -431,6 +458,7 @@ module "agentapi" {
     ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
     ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
     ARG_PERMISSION_MODE='${var.permission_mode}' \
+    ARG_API_KEY_HELPER_SCRIPT='${var.api_key_helper != null ? base64encode(var.api_key_helper.script) : ""}' \
     /tmp/install.sh
   EOT
 }

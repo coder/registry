@@ -126,6 +126,60 @@ describe("claude-code", async () => {
     expect(envCheck.stdout).toContain("CLAUDE_API_KEY");
   });
 
+  test("claude-api-key-not-written-to-claude-json", async () => {
+    const apiKey = "sk-ant-test-do-not-persist";
+    const { id, coderEnvVars } = await setup({
+      moduleVariables: {
+        claude_api_key: apiKey,
+        report_tasks: "false",
+      },
+    });
+    await execModuleScript(id, coderEnvVars);
+
+    const claudeConfig = await readFileContainer(
+      id,
+      "/home/coder/.claude.json",
+    );
+    expect(claudeConfig).toContain("hasCompletedOnboarding");
+    expect(claudeConfig).not.toContain("primaryApiKey");
+    expect(claudeConfig).not.toContain(apiKey);
+  });
+
+  test("api-key-helper", async () => {
+    const helperBody = "#!/bin/sh\nvault kv get -field=key secret/anthropic\n";
+    const { id, coderEnvVars } = await setup({
+      moduleVariables: {
+        api_key_helper: JSON.stringify({ script: helperBody, ttl_ms: 60000 }),
+        report_tasks: "false",
+      },
+    });
+    await execModuleScript(id);
+
+    expect(coderEnvVars["CLAUDE_CODE_API_KEY_HELPER_TTL_MS"]).toBe("60000");
+
+    const helper = await execContainer(id, [
+      "bash",
+      "-c",
+      "stat -c '%a' /home/coder/.claude/coder-api-key-helper.sh && cat /home/coder/.claude/coder-api-key-helper.sh",
+    ]);
+    expect(helper.stdout).toContain("700");
+    expect(helper.stdout).toContain("vault kv get -field=key secret/anthropic");
+
+    const managed = await readFileContainer(
+      id,
+      "/etc/claude-code/managed-settings.d/20-coder-apikeyhelper.json",
+    );
+    expect(managed).toContain('"apiKeyHelper"');
+    expect(managed).toContain("/home/coder/.claude/coder-api-key-helper.sh");
+
+    const claudeConfig = await readFileContainer(
+      id,
+      "/home/coder/.claude.json",
+    );
+    expect(claudeConfig).toContain("hasCompletedOnboarding");
+    expect(claudeConfig).not.toContain("primaryApiKey");
+  });
+
   test("claude-mcp-config", async () => {
     const mcpConfig = JSON.stringify({
       mcpServers: {
