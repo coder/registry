@@ -63,7 +63,8 @@ locals {
 }
 
 module "coder_utils" {
-  source              = "git::https://github.com/coder/registry.git//registry/coder/modules/coder-utils?ref=35C4n0r/feat-boundary-module"
+  source              = "registry.coder.com/coder/coder-utils/coder"
+  version             = "0.0.1"
   agent_id            = var.agent_id
   display_name_prefix = "Boundary"
   module_directory    = var.module_directory
