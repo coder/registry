@@ -77,7 +77,7 @@ The list may contain the following script names:
 module "boundary" {
   count                        = data.coder_workspace.me.start_count
   source                       = "registry.coder.com/coder/boundary/coder"
-  version                      = "1.0.0"
+  version                      = "0.0.1"
   agent_id                     = coder_agent.main.id
   compile_boundary_from_source = true
   boundary_version             = "main"
@@ -90,7 +90,7 @@ module "boundary" {
 module "boundary" {
   count                 = data.coder_workspace.me.start_count
   source                = "registry.coder.com/coder/boundary/coder"
-  version               = "1.0.0"
+  version               = "0.0.1"
   agent_id              = coder_agent.main.id
   use_boundary_directly = true
   boundary_version      = "latest"
