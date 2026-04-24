@@ -208,9 +208,7 @@ resource "incus_image" "image" {
   remote = local.incus_remote
   source_image = {
     remote = "images"
-    # NixOS images on images.linuxcontainers.org use just "nixos/25.11" (no arch suffix in alias).
-    # Other distros like ubuntu append the arch: "ubuntu/jammy/cloud/amd64".
-    name         = local.is_nixos ? data.coder_parameter.image.value : "${data.coder_parameter.image.value}/${data.coder_parameter.host.value == "ThinkStation" ? "amd64" : "arm64"}"
+    name   = local.is_nixos ? data.coder_parameter.image.value : "${data.coder_parameter.image.value}/${data.coder_parameter.host.value == "ThinkStation" ? "amd64" : "arm64"}"
     type         = "virtual-machine"
     architecture = data.coder_parameter.host.value == "ThinkStation" ? "x86_64" : "aarch64"
   }
@@ -357,112 +355,6 @@ resource "null_resource" "token_refresh" {
   }
 }
 
-# Provisioner for NixOS VMs.
-# NixOS does not support cloud-init in the traditional sense.
-# We use incus file push + nixos-rebuild to declare the user and coder-agent service.
-resource "null_resource" "provision_nixos" {
-  count = data.coder_workspace.me.start_count == 1 && local.is_nixos ? 1 : 0
-
-  triggers = {
-    agent_token = local.agent_token
-    instance    = incus_instance.dev.name
-  }
-
-  depends_on = [incus_instance.dev]
-
-  provisioner "local-exec" {
-    # Write the nix module and coder agent files into the VM, then run nixos-rebuild.
-    # We use incus file push for files containing sensitive values or complex content,
-    # and incus exec for commands. This avoids shell quoting issues with heredocs.
-    command = <<-EOT
-      set -e
-      REMOTE="${local.incus_remote}"
-      INSTANCE="${incus_instance.dev.name}"
-      WUSER="${local.workspace_user}"
-      ARCH="${data.coder_parameter.host.value == "ThinkStation" ? "amd64" : "arm64"}"
-
-      echo "Waiting for NixOS VM incus-agent to be ready..."
-      for i in $(seq 1 60); do
-        if incus exec "$REMOTE:$INSTANCE" -- true 2>/dev/null; then
-          echo "incus-agent ready after $i attempts"
-          break
-        fi
-        echo "Attempt $i: incus-agent not ready yet, waiting..."
-        sleep 5
-      done
-
-      # Write init script into the VM
-      incus exec "$REMOTE:$INSTANCE" -- mkdir -p /opt/coder
-      echo "${base64encode(local.agent_init_script)}" | base64 -d | incus file push - "$REMOTE:$INSTANCE/opt/coder/init"
-      incus exec "$REMOTE:$INSTANCE" -- chmod 755 /opt/coder/init
-
-      # Write env file into the VM
-      printf 'CODER_AGENT_TOKEN=${local.agent_token}\nCODER_AGENT_URL=${data.coder_workspace.me.access_url}\n' \
-        | incus file push - "$REMOTE:$INSTANCE/opt/coder/init.env" --mode 0600
-
-      # Write the NixOS coder module, substituting the username
-      NIXMOD=$(cat <<NIXMOD_EOF
-{ config, pkgs, lib, ... }:
-{
-  users.users."$WUSER" = {
-    isNormalUser = true;
-    uid = 1000;
-    home = "/home/$WUSER";
-    shell = pkgs.bash;
-    extraGroups = [ "wheel" ];
-  };
-
-  security.sudo.wheelNeedsPassword = false;
-
-  systemd.services.coder-agent = {
-    description = "Coder Agent";
-    after = [ "network-online.target" ];
-    wants = [ "network-online.target" ];
-    wantedBy = [ "multi-user.target" ];
-    serviceConfig = {
-      User = "$WUSER";
-      EnvironmentFile = "/opt/coder/init.env";
-      ExecStart = "/opt/coder/init";
-      Environment = "PATH=/run/current-system/sw/bin:/run/wrappers/bin:/usr/local/bin:/usr/bin:/bin";
-      Restart = "always";
-      RestartSec = 10;
-      TimeoutStopSec = 90;
-      KillMode = "process";
-      OOMScoreAdjust = -900;
-      SyslogIdentifier = "coder-agent";
-    };
-  };
-}
-NIXMOD_EOF
-)
-      echo "$NIXMOD" | incus file push - "$REMOTE:$INSTANCE/etc/nixos/coder.nix"
-
-      # Patch configuration.nix to import coder.nix if not already imported
-      incus exec "$REMOTE:$INSTANCE" -- \
-        env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -c \
-        "grep -q coder.nix /etc/nixos/configuration.nix || \
-         sed -i 's|imports = \[|imports = [\n    ./coder.nix|' /etc/nixos/configuration.nix"
-
-      echo "Running nixos-rebuild switch (this may take a few minutes)..."
-      incus exec "$REMOTE:$INSTANCE" -- \
-        env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -l -c \
-        "nixos-rebuild switch; EC=\$?; [ \$EC -eq 0 ] || [ \$EC -eq 4 ] || exit \$EC"
-
-      echo "Restarting coder-agent service..."
-      incus exec "$REMOTE:$INSTANCE" -- \
-        env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -c \
-        "systemctl daemon-reload; systemctl restart coder-agent.service; sleep 3; systemctl status coder-agent.service || true"
-
-      # Ensure home dir ownership (nixos-rebuild will have created the user home)
-      incus exec "$REMOTE:$INSTANCE" -- \
-        env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -c \
-        "mkdir -p /home/$WUSER && chown 1000:1000 /home/$WUSER && chmod 755 /home/$WUSER"
-
-      echo "NixOS provisioning complete."
-    EOT
-  }
-}
-
 resource "incus_instance_snapshot" "on_stop" {
   count    = data.coder_parameter.snapshot_on_stop.value == "true" ? 1 : 0
   remote   = local.incus_remote
@@ -482,9 +374,6 @@ locals {
   agent_id          = data.coder_workspace.me.start_count == 1 ? coder_agent.main[0].id : ""
   agent_token       = data.coder_workspace.me.start_count == 1 ? coder_agent.main[0].token : ""
   agent_init_script = data.coder_workspace.me.start_count == 1 ? coder_agent.main[0].init_script : ""
-
-  # Detect NixOS image
-  is_nixos = startswith(data.coder_parameter.image.value, "nixos/")
 
   # USB device map — add more entries here as needed
   usb_devices = {
