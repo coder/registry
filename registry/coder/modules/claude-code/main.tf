@@ -273,6 +273,17 @@ variable "enable_state_persistence" {
   default     = true
 }
 
+variable "transcript_retention_days" {
+  type        = number
+  description = "Days to keep Claude Code session transcripts before automatic cleanup. Maps to Claude Code's cleanupPeriodDays setting. Defaults to Claude Code's built-in retention (30 days) when unset."
+  default     = null
+
+  validation {
+    condition     = var.transcript_retention_days == null ? true : var.transcript_retention_days >= 1
+    error_message = "transcript_retention_days must be at least 1."
+  }
+}
+
 resource "coder_env" "claude_code_md_path" {
   count    = var.claude_md_path == "" ? 0 : 1
   agent_id = var.agent_id
@@ -407,6 +418,7 @@ module "agentapi" {
     ARG_COMPILE_FROM_SOURCE='${var.compile_boundary_from_source}' \
     ARG_USE_BOUNDARY_DIRECTLY='${var.use_boundary_directly}' \
     ARG_CODER_HOST='${local.coder_host}' \
+    ARG_WORKSPACE_ID='${data.coder_workspace.me.id}' \
     ARG_CLAUDE_BINARY_PATH='${var.claude_binary_path}' \
     /tmp/start.sh
   EOT
@@ -431,6 +443,8 @@ module "agentapi" {
     ARG_MCP_CONFIG_REMOTE_PATH='${base64encode(jsonencode(var.mcp_config_remote_path))}' \
     ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
     ARG_PERMISSION_MODE='${var.permission_mode}' \
+    ARG_WORKSPACE_ID='${data.coder_workspace.me.id}' \
+    ARG_TRANSCRIPT_RETENTION_DAYS='${var.transcript_retention_days != null ? var.transcript_retention_days : ""}' \
     /tmp/install.sh
   EOT
 }

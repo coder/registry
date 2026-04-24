@@ -24,6 +24,7 @@ ARG_BOUNDARY_VERSION=${ARG_BOUNDARY_VERSION:-"latest"}
 ARG_COMPILE_FROM_SOURCE=${ARG_COMPILE_FROM_SOURCE:-false}
 ARG_USE_BOUNDARY_DIRECTLY=${ARG_USE_BOUNDARY_DIRECTLY:-false}
 ARG_CODER_HOST=${ARG_CODER_HOST:-}
+ARG_WORKSPACE_ID=${ARG_WORKSPACE_ID:-}
 
 echo "--------------------------------"
 
@@ -39,6 +40,7 @@ printf "ARG_BOUNDARY_VERSION: %s\n" "$ARG_BOUNDARY_VERSION"
 printf "ARG_COMPILE_FROM_SOURCE: %s\n" "$ARG_COMPILE_FROM_SOURCE"
 printf "ARG_USE_BOUNDARY_DIRECTLY: %s\n" "$ARG_USE_BOUNDARY_DIRECTLY"
 printf "ARG_CODER_HOST: %s\n" "$ARG_CODER_HOST"
+printf "ARG_WORKSPACE_ID: %s\n" "$ARG_WORKSPACE_ID"
 
 echo "--------------------------------"
 
@@ -82,9 +84,27 @@ function validate_claude_installation() {
   fi
 }
 
-# Hardcoded task session ID for Coder task reporting
-# This ensures all task sessions use a consistent, predictable ID
-TASK_SESSION_ID="cd32e253-ca16-4fd3-9825-d837e74ae3c2"
+# Derive a stable task session ID from the workspace ID so that the Claude
+# session is consistent across restarts of the same workspace but unique
+# across different workspaces. A globally hardcoded ID causes "Session ID
+# already in use" collisions when a home directory is shared or templated
+# across workspaces (https://github.com/coder/registry/issues/726).
+LEGACY_TASK_SESSION_ID="cd32e253-ca16-4fd3-9825-d837e74ae3c2"
+derive_task_session_id() {
+  if [ -z "$ARG_WORKSPACE_ID" ]; then
+    printf '%s' "$LEGACY_TASK_SESSION_ID"
+    return
+  fi
+  if command_exists python3; then
+    python3 -c 'import uuid,sys; print(uuid.uuid5(uuid.NAMESPACE_URL, "coder-workspace://" + sys.argv[1]))' "$ARG_WORKSPACE_ID"
+    return
+  fi
+  # Coder workspace IDs are already RFC 4122 UUIDs, so fall back to using the
+  # workspace ID directly when python3 is unavailable.
+  printf '%s' "$ARG_WORKSPACE_ID"
+}
+TASK_SESSION_ID=$(derive_task_session_id)
+printf "TASK_SESSION_ID: %s\n" "$TASK_SESSION_ID"
 
 get_project_dir() {
   local workdir_normalized
@@ -120,8 +140,8 @@ is_valid_session() {
   fi
 
   if [ ! -s "$session_file" ]; then
-    printf "Session validation failed: file is empty, removing stale file\n"
-    rm -f "$session_file"
+    printf "Session validation failed: file is empty, quarantining stale file\n"
+    mv -f "$session_file" "$session_file.bak"
     return 1
   fi
 
@@ -130,16 +150,16 @@ is_valid_session() {
   local line_count
   line_count=$(wc -l < "$session_file")
   if [ "$line_count" -lt 2 ]; then
-    printf "Session validation failed: incomplete (only %s lines), removing incomplete file\n" "$line_count"
-    rm -f "$session_file"
+    printf "Session validation failed: incomplete (only %s lines), quarantining incomplete file\n" "$line_count"
+    mv -f "$session_file" "$session_file.bak"
     return 1
   fi
 
   # Validate JSONL format by checking first 3 lines
   # Claude session files use JSONL (JSON Lines) format where each line is valid JSON
   if ! head -3 "$session_file" | jq empty 2> /dev/null; then
-    printf "Session validation failed: invalid JSONL format, removing corrupt file\n"
-    rm -f "$session_file"
+    printf "Session validation failed: invalid JSONL format, quarantining corrupt file\n"
+    mv -f "$session_file" "$session_file.bak"
     return 1
   fi
 
@@ -147,8 +167,8 @@ is_valid_session() {
   # This ensures the file structure matches Claude's session format
   if ! grep -q '"sessionId"' "$session_file" \
     || ! grep -m 1 '"sessionId"' "$session_file" | jq -e '.sessionId' > /dev/null 2>&1; then
-    printf "Session validation failed: no valid sessionId found, removing malformed file\n"
-    rm -f "$session_file"
+    printf "Session validation failed: no valid sessionId found, quarantining malformed file\n"
+    mv -f "$session_file" "$session_file.bak"
     return 1
   fi
 
