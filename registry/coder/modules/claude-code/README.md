@@ -15,10 +15,17 @@ module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
   version           = "5.0.0"
   agent_id          = coder_agent.main.id
-  workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
 }
 ```
+
+## workdir
+
+`workdir` is optional. When set, the module pre-creates the directory if it is missing and pre-accepts the Claude Code trust/onboarding prompt for it in `~/.claude.json`. Leave `workdir` unset if you only want the module to install the CLI and configure authentication; users can still open any project interactively and accept the trust dialog per project.
+
+## MCP scope
+
+Servers configured through `mcp` or `mcp_config_remote_path` are added at Claude Code's [user scope](https://docs.claude.com/en/docs/claude-code/mcp#scope), which makes them available across every project the workspace owner opens. For project-local MCP servers, commit a `.mcp.json` file to the project repository instead of passing it through this module.
 
 ## Prerequisites
 

@@ -26,7 +26,8 @@ variable "icon" {
 
 variable "workdir" {
   type        = string
-  description = "Project directory to pre-configure for Claude Code. The module creates this directory if it is missing, registers MCP servers against it, and pre-accepts the trust/onboarding prompts for it in ~/.claude.json."
+  description = "Optional project directory. When set, the module pre-creates it if missing and pre-accepts the Claude Code trust/onboarding prompt for it in ~/.claude.json."
+  default     = null
 }
 
 variable "pre_install_script" {
@@ -73,13 +74,13 @@ variable "model" {
 
 variable "mcp" {
   type        = string
-  description = "JSON-encoded string to configure MCP servers for Claude Code. When set, writes MCP configuration into the Claude Code local scope."
+  description = "JSON-encoded string of MCP server configurations. When set, servers are added at Claude Code's user scope so they are available across every project the workspace owner opens."
   default     = ""
 }
 
 variable "mcp_config_remote_path" {
   type        = list(string)
-  description = "List of URLs that return JSON MCP server configurations (text/plain with valid JSON)"
+  description = "List of URLs that return JSON MCP server configurations (text/plain with valid JSON). Servers are added at Claude Code's user scope."
   default     = []
 }
 
@@ -163,7 +164,7 @@ resource "coder_env" "anthropic_base_url" {
 }
 
 locals {
-  workdir = trimsuffix(var.workdir, "/")
+  workdir = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_CLAUDE_CODE_VERSION    = var.claude_code_version
     ARG_INSTALL_CLAUDE_CODE    = tostring(var.install_claude_code)

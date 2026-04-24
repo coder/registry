@@ -270,3 +270,16 @@ run "test_script_outputs_with_pre_and_post" {
     error_message = "scripts output should list pre_install, install, post_install in run order"
   }
 }
+
+run "test_workdir_optional" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-no-workdir"
+  }
+
+  assert {
+    condition     = var.workdir == null
+    error_message = "workdir should default to null when omitted"
+  }
+}

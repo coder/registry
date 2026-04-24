@@ -38,8 +38,8 @@ function add_mcp_servers() {
 
   while IFS= read -r server_name && IFS= read -r server_json; do
     echo "------------------------"
-    echo "Executing: claude mcp add-json \"$${server_name}\" '$${server_json}' ($${source_desc})"
-    claude mcp add-json "$${server_name}" "$${server_json}" || echo "Warning: Failed to add MCP server '$${server_name}', continuing..."
+    echo "Executing: claude mcp add-json --scope user \"$${server_name}\" '$${server_json}' ($${source_desc})"
+    claude mcp add-json --scope user "$${server_name}" "$${server_json}" || echo "Warning: Failed to add MCP server '$${server_name}', continuing..."
     echo "------------------------"
     echo ""
   done < <(echo "$${mcp_json}" | jq -r '.mcpServers | to_entries[] | .key, (.value | @json)')
@@ -113,7 +113,7 @@ function install_claude_code_cli() {
 }
 
 function setup_claude_configurations() {
-  if [ ! -d "$${ARG_WORKDIR}" ]; then
+  if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
     echo "Warning: The specified folder '$${ARG_WORKDIR}' does not exist."
     echo "Creating the folder..."
     mkdir -p "$${ARG_WORKDIR}"
@@ -124,28 +124,22 @@ function setup_claude_configurations() {
   mkdir -p "$${module_path}"
 
   if [ "$${ARG_MCP}" != "" ]; then
-    (
-      cd "$${ARG_WORKDIR}"
-      add_mcp_servers "$${ARG_MCP}" "in $${ARG_WORKDIR}"
-    )
+    add_mcp_servers "$${ARG_MCP}" "from module input"
   fi
 
   if [ -n "$${ARG_MCP_CONFIG_REMOTE_PATH}" ] && [ "$${ARG_MCP_CONFIG_REMOTE_PATH}" != "[]" ]; then
-    (
-      cd "$${ARG_WORKDIR}"
-      for url in $(echo "$${ARG_MCP_CONFIG_REMOTE_PATH}" | jq -r '.[]'); do
-        echo "Fetching MCP configuration from: $${url}"
-        mcp_json=$(curl -fsSL "$${url}") || {
-          echo "Warning: Failed to fetch MCP configuration from '$${url}', continuing..."
-          continue
-        }
-        if ! echo "$${mcp_json}" | jq -e '.mcpServers' > /dev/null 2>&1; then
-          echo "Warning: Invalid MCP configuration from '$${url}' (missing mcpServers), continuing..."
-          continue
-        fi
-        add_mcp_servers "$${mcp_json}" "from $${url}"
-      done
-    )
+    for url in $(echo "$${ARG_MCP_CONFIG_REMOTE_PATH}" | jq -r '.[]'); do
+      echo "Fetching MCP configuration from: $${url}"
+      mcp_json=$(curl -fsSL "$${url}") || {
+        echo "Warning: Failed to fetch MCP configuration from '$${url}', continuing..."
+        continue
+      }
+      if ! echo "$${mcp_json}" | jq -e '.mcpServers' > /dev/null 2>&1; then
+        echo "Warning: Invalid MCP configuration from '$${url}' (missing mcpServers), continuing..."
+        continue
+      fi
+      add_mcp_servers "$${mcp_json}" "from $${url}"
+    done
   fi
 
 }
@@ -163,15 +157,11 @@ function configure_standalone_mode() {
   if [ -f "$${claude_config}" ]; then
     echo "Updating existing Claude configuration at $${claude_config}"
 
-    jq --arg workdir "$${ARG_WORKDIR}" --arg apikey "$${ANTHROPIC_API_KEY:-}" \
-      '.autoUpdaterStatus = "disabled" |
+    jq '.autoUpdaterStatus = "disabled" |
         .autoModeAccepted = true |
         .bypassPermissionsModeAccepted = true |
         .hasAcknowledgedCostThreshold = true |
-        .hasCompletedOnboarding = true |
-        .primaryApiKey = $apikey |
-        .projects[$workdir].hasCompletedProjectOnboarding = true |
-        .projects[$workdir].hasTrustDialogAccepted = true' \
+        .hasCompletedOnboarding = true' \
       "$${claude_config}" > "$${claude_config}.tmp" && mv "$${claude_config}.tmp" "$${claude_config}"
   else
     echo "Creating new Claude configuration at $${claude_config}"
@@ -181,16 +171,17 @@ function configure_standalone_mode() {
   "autoModeAccepted": true,
   "bypassPermissionsModeAccepted": true,
   "hasAcknowledgedCostThreshold": true,
-  "hasCompletedOnboarding": true,
-  "primaryApiKey": "$${ANTHROPIC_API_KEY:-}",
-  "projects": {
-    "$${ARG_WORKDIR}": {
-      "hasCompletedProjectOnboarding": true,
-      "hasTrustDialogAccepted": true
-    }
-  }
+  "hasCompletedOnboarding": true
 }
 EOF
+  fi
+
+  if [ -n "$${ARG_WORKDIR}" ]; then
+    echo "Pre-accepting trust dialog for $${ARG_WORKDIR}"
+    jq --arg workdir "$${ARG_WORKDIR}" \
+      '.projects[$workdir].hasCompletedProjectOnboarding = true |
+        .projects[$workdir].hasTrustDialogAccepted = true' \
+      "$${claude_config}" > "$${claude_config}.tmp" && mv "$${claude_config}.tmp" "$${claude_config}"
   fi
 
   echo "Standalone mode configured successfully"

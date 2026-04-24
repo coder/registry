@@ -343,10 +343,10 @@ describe("claude-code", async () => {
 
     // Should contain the MCP server add command from the successful fetch.
     expect(installLog).toContain(
-      "Added stdio MCP server go-language-server to local config",
+      "Added stdio MCP server go-language-server to user config",
     );
     expect(installLog).toContain(
-      "Added stdio MCP server typescript-language-server to local config",
+      "Added stdio MCP server typescript-language-server to user config",
     );
 
     // Verify the MCP config was added to .claude.json.
@@ -380,7 +380,6 @@ describe("claude-code", async () => {
       "/home/coder/.claude.json",
     );
     const parsed = JSON.parse(claudeConfig);
-    expect(parsed.primaryApiKey).toBe(apiKey);
     expect(parsed.autoUpdaterStatus).toBe("disabled");
     expect(parsed.hasCompletedOnboarding).toBe(true);
     expect(parsed.bypassPermissionsModeAccepted).toBe(true);
@@ -405,8 +404,9 @@ describe("claude-code", async () => {
     expect(installLog).toContain("Standalone mode configured successfully");
     expect(installLog).not.toContain("skipping onboarding bypass");
 
-    // Onboarding bypass flags must be present; primaryApiKey is unused when
-    // auth happens via CLAUDE_CODE_OAUTH_TOKEN.
+    // Onboarding bypass flags must be present. Authentication happens via
+    // the ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN env vars, not via
+    // .claude.json.
     const claudeConfig = await readFileContainer(
       id,
       "/home/coder/.claude.json",
