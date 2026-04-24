@@ -170,6 +170,35 @@ run "test_auggie_with_scripts" {
   }
 }
 
+run "test_auggie_default_agentapi_port" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    folder   = "/home/coder"
+  }
+
+  assert {
+    condition     = var.agentapi_port == 3284
+    error_message = "agentapi_port should default to 3284"
+  }
+}
+
+run "test_auggie_custom_agentapi_port" {
+  command = plan
+
+  variables {
+    agent_id      = "test-agent"
+    folder        = "/home/coder"
+    agentapi_port = 3285
+  }
+
+  assert {
+    condition     = var.agentapi_port == 3285
+    error_message = "agentapi_port should be configurable"
+  }
+}
+
 run "test_auggie_interaction_mode_validation" {
   command = plan
 

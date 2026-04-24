@@ -84,6 +84,12 @@ variable "agentapi_version" {
   default     = "v0.10.0"
 }
 
+variable "agentapi_port" {
+  type        = number
+  description = "The port used by AgentAPI."
+  default     = 3284
+}
+
 variable "gemini_model" {
   type        = string
   description = "The model to use for Gemini (e.g., gemini-2.5-pro)."
@@ -158,7 +164,7 @@ locals {
     "enabled": true,
     "env": {
       "CODER_MCP_APP_STATUS_SLUG": "${local.app_slug}",
-      "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284"
+      "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:${var.agentapi_port}"
     },
     "name": "Coder",
     "timeout": 3000,
@@ -191,6 +197,7 @@ module "agentapi" {
   module_dir_name      = local.module_dir_name
   install_agentapi     = var.install_agentapi
   agentapi_version     = var.agentapi_version
+  agentapi_port        = var.agentapi_port
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
   install_script       = <<-EOT
@@ -207,6 +214,7 @@ module "agentapi" {
     ADDITIONAL_EXTENSIONS='${base64encode(replace(var.additional_extensions != null ? var.additional_extensions : "", "'", "'\\''"))}' \
     GEMINI_START_DIRECTORY='${var.folder}' \
     GEMINI_SYSTEM_PROMPT='${base64encode(var.gemini_system_prompt)}' \
+    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
     /tmp/install.sh
   EOT
   start_script         = <<-EOT

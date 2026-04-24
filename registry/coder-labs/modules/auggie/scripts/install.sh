@@ -85,7 +85,7 @@ function create_coder_mcp() {
      "command": "coder",
      "env": {
        "CODER_MCP_APP_STATUS_SLUG": "${ARG_MCP_APP_STATUS_SLUG}",
-       "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284",
+       "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:${ARG_AGENTAPI_PORT:-3284}",
        "CODER_AGENT_URL": "${CODER_AGENT_URL:-}",
        "CODER_AGENT_TOKEN": "${CODER_AGENT_TOKEN:-}"
      }
