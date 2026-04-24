@@ -31,7 +31,7 @@ run "plan_with_required_vars" {
 
   # Verify the scripts output contains the install script name
   assert {
-    condition     = contains(output.scripts, "coder_boundary-install_script")
+    condition     = contains(output.scripts, "coder-boundary-install_script")
     error_message = "scripts should contain the install script name"
   }
 }
@@ -56,7 +56,7 @@ run "plan_with_compile_from_source" {
   }
 
   assert {
-    condition     = contains(output.scripts, "coder_boundary-install_script")
+    condition     = contains(output.scripts, "coder-boundary-install_script")
     error_message = "scripts should contain the install script name"
   }
 }
@@ -81,7 +81,7 @@ run "plan_with_use_directly" {
   }
 
   assert {
-    condition     = contains(output.scripts, "coder_boundary-install_script")
+    condition     = contains(output.scripts, "coder-boundary-install_script")
     error_message = "scripts should contain the install script name"
   }
 }
@@ -101,18 +101,18 @@ run "plan_with_custom_hooks" {
   }
 
   assert {
-    condition     = contains(output.scripts, "coder_boundary-install_script")
+    condition     = contains(output.scripts, "coder-boundary-install_script")
     error_message = "scripts should contain the install script name"
   }
 
   # Verify pre and post install script names are set
   assert {
-    condition     = contains(output.scripts, "coder_boundary-pre_install_script")
+    condition     = contains(output.scripts, "coder-boundary-pre_install_script")
     error_message = "scripts should contain the pre_install script name"
   }
 
   assert {
-    condition     = contains(output.scripts, "coder_boundary-post_install_script")
+    condition     = contains(output.scripts, "coder-boundary-post_install_script")
     error_message = "scripts should contain the post_install script name"
   }
 }
@@ -122,16 +122,16 @@ run "plan_with_custom_module_directory" {
 
   variables {
     agent_id         = "test-agent-id"
-    module_directory = "/custom/path"
+    module_directory = "$HOME/.coder-modules/custom/boundary"
   }
 
   assert {
-    condition     = coder_env.boundary_wrapper_path.value == "/custom/path/scripts/boundary-wrapper.sh"
+    condition     = coder_env.boundary_wrapper_path.value == "$HOME/.coder-modules/custom/boundary/scripts/boundary-wrapper.sh"
     error_message = "Environment variable should use custom module directory"
   }
 
   assert {
-    condition     = output.boundary_wrapper_path == "/custom/path/scripts/boundary-wrapper.sh"
+    condition     = output.boundary_wrapper_path == "$HOME/.coder-modules/custom/boundary/scripts/boundary-wrapper.sh"
     error_message = "boundary_wrapper_path output should use custom module directory"
   }
 }

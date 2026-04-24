@@ -65,9 +65,9 @@ The `scripts` output provides a list of script names that can be used with `code
 
 The list may contain the following script names:
 
-- `coder_boundary-pre_install_script` - Pre-installation script (if configured)
-- `coder_boundary-install_script` - Main boundary installation script
-- `coder_boundary-post_install_script` - Post-installation script (if configured)
+- `coder-boundary-pre_install_script` - Pre-installation script (if configured)
+- `coder-boundary-install_script` - Main boundary installation script
+- `coder-boundary-post_install_script` - Post-installation script (if configured)
 
 ## Examples
 

@@ -152,7 +152,7 @@ describe("boundary", async () => {
   });
 
   test("terraform-state-custom-module-directory", async () => {
-    const customDir = "/custom/boundary/path";
+    const customDir = "$HOME/.coder-modules/custom/boundary";
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "test-agent-id",
       module_directory: customDir,

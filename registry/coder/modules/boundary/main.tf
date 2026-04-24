@@ -52,35 +52,24 @@ variable "module_directory" {
 }
 
 locals {
-  boundary_script             = file("${path.module}/scripts/install.sh")
-  boundary_script_destination = "${var.module_directory}/scripts/install.sh"
-  boundary_wrapper_path       = "${var.module_directory}/scripts/boundary-wrapper.sh"
+  boundary_wrapper_path = "${var.module_directory}/scripts/boundary-wrapper.sh"
+  install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
+    BOUNDARY_VERSION              = var.boundary_version
+    COMPILE_BOUNDARY_FROM_SOURCE  = tostring(var.compile_boundary_from_source)
+    USE_BOUNDARY_DIRECTLY         = tostring(var.use_boundary_directly)
+    MODULE_DIR                    = var.module_directory
+    BOUNDARY_WRAPPER_PATH         = local.boundary_wrapper_path
+  })
 }
 
 module "coder_utils" {
-  source              = "registry.coder.com/coder/coder-utils/coder"
-  version             = "1.3.0"
+  source              = "git::https://github.com/coder/registry.git//registry/coder/modules/coder-utils?ref=35C4n0r/feat-boundary-module"
   agent_id            = var.agent_id
-  agent_name          = "coder_boundary"
   display_name_prefix = "Boundary"
   module_directory    = var.module_directory
   pre_install_script  = var.pre_install_script
   post_install_script = var.post_install_script
-  install_script      = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-   mkdir -p "$(dirname "${local.boundary_script_destination}")"
-    echo -n '${base64encode(local.boundary_script)}' | base64 -d > "${local.boundary_script_destination}"
-    chmod +x "${local.boundary_script_destination}"
-
-    ARG_BOUNDARY_VERSION="${var.boundary_version}" \
-    ARG_COMPILE_BOUNDARY_FROM_SOURCE="${var.compile_boundary_from_source}" \
-    ARG_USE_BOUNDARY_DIRECTLY="${var.use_boundary_directly}" \
-    ARG_MODULE_DIR="${var.module_directory}" \
-    ARG_BOUNDARY_WRAPPER_PATH="${local.boundary_wrapper_path}" \
-    "${local.boundary_script_destination}"
-EOT
+  install_script      = local.install_script
 }
 
 resource "coder_env" "boundary_wrapper_path" {

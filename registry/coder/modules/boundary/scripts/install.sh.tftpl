@@ -1,13 +1,14 @@
 #!/bin/bash
-# Exports BOUNDARY_WRAPPER_PATH for use by module start scripts.
+# Sets up boundary for network isolation in Coder workspaces.
 
-set -o nounset
-BOUNDARY_VERSION="${ARG_BOUNDARY_VERSION:-latest}"
-COMPILE_BOUNDARY_FROM_SOURCE="${ARG_COMPILE_BOUNDARY_FROM_SOURCE:-false}"
-USE_BOUNDARY_DIRECTLY="${ARG_USE_BOUNDARY_DIRECTLY:-false}"
-MODULE_DIR="${ARG_MODULE_DIR:-}"
-BOUNDARY_WRAPPER_PATH="${ARG_BOUNDARY_WRAPPER_PATH:-}"
-set +o nounset
+set -o errexit
+set -o pipefail
+
+BOUNDARY_VERSION='${BOUNDARY_VERSION}'
+COMPILE_BOUNDARY_FROM_SOURCE='${COMPILE_BOUNDARY_FROM_SOURCE}'
+USE_BOUNDARY_DIRECTLY='${USE_BOUNDARY_DIRECTLY}'
+MODULE_DIR="${MODULE_DIR}"
+BOUNDARY_WRAPPER_PATH="${BOUNDARY_WRAPPER_PATH}"
 
 validate_boundary_subcommand() {
   if command -v coder > /dev/null 2>&1; then
@@ -29,8 +30,8 @@ validate_boundary_subcommand() {
 #   2. Install from release (use_boundary_directly=true)
 #   3. Use coder boundary subcommand (default, no installation needed)
 install_boundary() {
-  if [[ "${COMPILE_BOUNDARY_FROM_SOURCE}" = "true" ]]; then
-    echo "Compiling boundary from source (version: ${BOUNDARY_VERSION})"
+  if [[ "$${COMPILE_BOUNDARY_FROM_SOURCE}" = "true" ]]; then
+    echo "Compiling boundary from source (version: $${BOUNDARY_VERSION})"
 
     # Remove existing boundary directory to allow re-running safely
     if [[ -d boundary ]]; then
@@ -40,38 +41,35 @@ install_boundary() {
     echo "Cloning boundary repository"
     git clone https://github.com/coder/boundary.git
     cd boundary || exit 1
-    git checkout "${BOUNDARY_VERSION}"
+    git checkout "$${BOUNDARY_VERSION}"
 
     make build
 
     sudo cp boundary /usr/local/bin/
     sudo chmod +x /usr/local/bin/boundary
     cd - || exit 1
-  elif [[ "${USE_BOUNDARY_DIRECTLY}" = "true" ]]; then
-    echo "Installing boundary using official install script (version: ${BOUNDARY_VERSION})"
-    curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "${BOUNDARY_VERSION}"
+  elif [[ "$${USE_BOUNDARY_DIRECTLY}" = "true" ]]; then
+    echo "Installing boundary using official install script (version: $${BOUNDARY_VERSION})"
+    curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "$${BOUNDARY_VERSION}"
   else
     validate_boundary_subcommand
     echo "Using coder boundary subcommand (provided by Coder)"
   fi
 }
 
-# Set up boundary: install, write config, create wrapper script.
-# Exports BOUNDARY_WRAPPER_PATH pointing to the wrapper script.
+# Set up boundary: install, create wrapper script.
 setup_boundary() {
-  local module_path="${MODULE_DIR}"
-
   echo "Setting up coder boundary..."
 
   # Install boundary binary if needed
   install_boundary
 
   # Ensure the wrapper script directory exists.
-  mkdir -p "$(dirname "${BOUNDARY_WRAPPER_PATH}")"
+  mkdir -p "$(dirname "$${BOUNDARY_WRAPPER_PATH}")"
 
-  if [[ "${COMPILE_BOUNDARY_FROM_SOURCE}" = "true" ]] || [[ "${USE_BOUNDARY_DIRECTLY}" = "true" ]]; then
+  if [[ "$${COMPILE_BOUNDARY_FROM_SOURCE}" = "true" ]] || [[ "$${USE_BOUNDARY_DIRECTLY}" = "true" ]]; then
     # Use boundary binary directly (from compilation or release installation)
-    cat > "${BOUNDARY_WRAPPER_PATH}" << 'WRAPPER_EOF'
+    cat > "$${BOUNDARY_WRAPPER_PATH}" << 'WRAPPER_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 exec boundary "$@"
@@ -82,21 +80,21 @@ WRAPPER_EOF
     # This is necessary because boundary doesn't work with privileged binaries
     # (you can't launch privileged binaries inside network namespaces unless
     # you have sys_admin).
-    CODER_NO_CAPS="${module_path}/scripts/coder-no-caps"
-    if ! cp "$(command -v coder)" "${CODER_NO_CAPS}"; then
-      echo "Error: Failed to copy coder binary to ${CODER_NO_CAPS}. boundary cannot be enabled." >&2
+    CODER_NO_CAPS="$${MODULE_DIR}/scripts/coder-no-caps"
+    if ! cp "$(command -v coder)" "$${CODER_NO_CAPS}"; then
+      echo "Error: Failed to copy coder binary to $${CODER_NO_CAPS}. boundary cannot be enabled." >&2
       exit 1
     fi
-    cat > "${BOUNDARY_WRAPPER_PATH}" << 'WRAPPER_EOF'
+    cat > "$${BOUNDARY_WRAPPER_PATH}" << 'WRAPPER_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "${SCRIPT_DIR}/coder-no-caps" boundary "$@"
+SCRIPT_DIR="$(cd "$(dirname "$${BASH_SOURCE[0]}")" && pwd)"
+exec "$${SCRIPT_DIR}/coder-no-caps" boundary "$@"
 WRAPPER_EOF
   fi
 
-  chmod +x "${BOUNDARY_WRAPPER_PATH}"
-  echo "boundary wrapper configured: ${BOUNDARY_WRAPPER_PATH}"
+  chmod +x "$${BOUNDARY_WRAPPER_PATH}"
+  echo "boundary wrapper configured: $${BOUNDARY_WRAPPER_PATH}"
 }
 
 setup_boundary
