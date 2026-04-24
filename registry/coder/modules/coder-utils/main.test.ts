@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { runTerraformApply, runTerraformInit, testRequiredVariables } from "~test";
+import {
+  runTerraformApply,
+  runTerraformInit,
+  testRequiredVariables,
+} from "~test";
 
 describe("coder-utils", async () => {
   await runTerraformInit(import.meta.dir);
@@ -22,9 +26,7 @@ describe("coder-utils", async () => {
         throw new Error("Unknown error generated");
       }
 
-      expect(ex.message).toContain(
-        "module_directory must match the pattern",
-      );
+      expect(ex.message).toContain("module_directory must match the pattern");
       expect(ex.message).toContain(
         "'$HOME/.coder-modules/<namespace>/<module-name>'",
       );
