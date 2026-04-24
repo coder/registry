@@ -19,13 +19,8 @@ module "claude-code" {
 }
 ```
 
-## workdir
-
-`workdir` is optional. When set, the module pre-creates the directory if it is missing and pre-accepts the Claude Code trust/onboarding prompt for it in `~/.claude.json`. Leave `workdir` unset if you only want the module to install the CLI and configure authentication; users can still open any project interactively and accept the trust dialog per project.
-
-## MCP scope
-
-Servers configured through `mcp` or `mcp_config_remote_path` are added at Claude Code's [user scope](https://docs.claude.com/en/docs/claude-code/mcp#scope), which makes them available across every project the workspace owner opens. For project-local MCP servers, commit a `.mcp.json` file to the project repository instead of passing it through this module.
+> [!WARNING]
+> If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for [Coder Tasks](https://coder.com/docs/ai-coder/tasks) and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). We plan to add those back in a follow-up. Keep using v4.x.x if you depend on them. See [#861](https://github.com/coder/registry/pulls/861) for the full migration guide.
 
 ## Prerequisites
 
@@ -34,6 +29,10 @@ Provide exactly one authentication method:
 - **Anthropic API key**: get one from the [Anthropic Console](https://console.anthropic.com/dashboard) and pass it as `anthropic_api_key`.
 - **Claude.ai OAuth token** (Pro, Max, or Enterprise accounts): generate one by running `claude setup-token` locally and pass it as `claude_code_oauth_token`.
 - **Coder AI Gateway** (Coder Premium, Coder >= 2.30.0): set `enable_ai_gateway = true`. The module authenticates against the gateway using the workspace owner's session token. Do not combine with `anthropic_api_key` or `claude_code_oauth_token`.
+
+## workdir
+
+`workdir` is optional. When set, the module pre-creates the directory if it is missing and pre-accepts the Claude Code trust/onboarding prompt for it in `~/.claude.json`. Leave `workdir` unset if you only want the module to install the CLI and configure authentication; users can still open any project interactively and accept the trust dialog per project.
 
 ## Examples
 
@@ -138,6 +137,9 @@ module "claude-code" {
 
 > [!NOTE]
 > Swap `anthropic_api_key` for `claude_code_oauth_token = "xxxxx-xxxx-xxxx"` to authenticate via a Claude.ai OAuth token instead. Pass exactly one.
+
+> [!NOTE]
+> Servers configured through `mcp` or `mcp_config_remote_path` are added at Claude Code's [user scope](https://docs.claude.com/en/docs/claude-code/mcp#scope), making them available across every project the workspace owner opens. For project-local MCP servers, commit a `.mcp.json` to the project repository instead.
 
 > [!NOTE]
 > Remote URLs should return a JSON body in the following format:
