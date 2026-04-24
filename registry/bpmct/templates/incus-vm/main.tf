@@ -236,7 +236,7 @@ resource "incus_instance" "dev" {
   name    = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
   image   = incus_image.image.fingerprint
   type     = "virtual-machine"
-  profiles = local.is_nixos && data.coder_parameter.host.value == "ThinkStation" ? ["thinkstation", "nix-shared"] : (data.coder_parameter.host.value == "ThinkStation" ? ["thinkstation"] : ["default"])
+  profiles = data.coder_parameter.host.value == "ThinkStation" ? ["thinkstation"] : ["default"]
 
   dynamic "device" {
     for_each = local.usb_device != null ? [local.usb_device] : []

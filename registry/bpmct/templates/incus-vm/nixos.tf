@@ -9,11 +9,22 @@
 #
 # This provisioner runs on every workspace start (null_resource is recreated
 # each cycle), which also handles token rotation.
+#
+# Binary cache: an Attic server runs on the ThinkStation at 10.78.3.1:8080.
+# VMs use it as a substituter so builds are shared across all NixOS VMs.
+# A post-build hook auto-pushes new store paths to the cache after each build.
 
 locals {
   # NixOS images on images.linuxcontainers.org use just "nixos/25.11" with no
   # arch suffix in the alias — unlike Ubuntu which appends e.g. "/amd64".
   is_nixos = startswith(data.coder_parameter.image.value, "nixos/")
+
+  # Attic binary cache on ThinkStation (incusbr0 gateway, always reachable from VMs).
+  attic_url       = "http://10.78.3.1:8080"
+  attic_cache     = "main"
+  attic_pubkey    = "main:+O2V0KSKDos1vrth+xucxa7DCW3UX05JVwc+2WKKEUw="
+  # Push token — pull+push to main cache, no admin rights.
+  attic_push_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjI2NDA5Nzk5NjQsIm5iZiI6MTc3NzA2NjM2NCwic3ViIjoibml4b3Mtdm0iLCJodHRwczovL2p3dC5hdHRpYy5ycy92MSI6eyJjYWNoZXMiOnsibWFpbiI6eyJyIjoxLCJ3IjoxfX19fQ.GhVnty_hfoEjp1WHId9a8UUGahtbDJpTL-gt7tJqkwM"
 }
 
 resource "null_resource" "provision_nixos" {
@@ -33,6 +44,10 @@ resource "null_resource" "provision_nixos" {
       INSTANCE="${incus_instance.dev.name}"
       WUSER="${local.workspace_user}"
       ARCH="${data.coder_parameter.host.value == "ThinkStation" ? "amd64" : "arm64"}"
+      ATTIC_URL="${local.attic_url}"
+      ATTIC_CACHE="${local.attic_cache}"
+      ATTIC_PUBKEY="${local.attic_pubkey}"
+      ATTIC_TOKEN="${local.attic_push_token}"
 
       echo "Waiting for NixOS VM incus-agent to be ready..."
       for i in $(seq 1 60); do
@@ -53,6 +68,16 @@ resource "null_resource" "provision_nixos" {
       printf 'CODER_AGENT_TOKEN=${local.agent_token}\nCODER_AGENT_URL=${data.coder_workspace.me.access_url}\n' \
         | incus file push - "$REMOTE:$INSTANCE/opt/coder/init.env" --mode 0600
 
+      # Write the attic post-build hook script.
+      # Runs after every nix build and pushes new store paths to the cache.
+      printf '#!/bin/sh\nset -eu\nexport HOME=/root\nexport ATTIC_SERVER="%s"\n[ -f /etc/nix/attic-token ] && TOKEN=$(cat /etc/nix/attic-token) || exit 0\n/run/current-system/sw/bin/attic --server "$ATTIC_SERVER" push %s $OUT_PATHS 2>&1 || true\n' \
+        "$ATTIC_URL" "$ATTIC_CACHE" \
+        | incus file push - "$REMOTE:$INSTANCE/etc/nix/post-build-hook.sh" --mode 0755
+
+      # Write the attic push token (readable by nix-daemon = root)
+      printf '%s' "$ATTIC_TOKEN" \
+        | incus file push - "$REMOTE:$INSTANCE/etc/nix/attic-token" --mode 0600
+
       # Write the NixOS coder module, substituting the username
       NIXMOD=$(cat <<NIXMOD_EOF
 { config, pkgs, lib, ... }:
@@ -67,48 +92,26 @@ resource "null_resource" "provision_nixos" {
 
   security.sudo.wheelNeedsPassword = false;
 
-  # The nix-shared Incus profile mounts /data/nix (the full nix tree) from the
-  # ThinkStation HDD at /nix-host inside this VM (via virtiofs/9p). We configure
-  # nix to use /nix-host as the store root (URI: local?root=/nix-host), so all
-  # package installs/builds go to the large shared HDD store at /data/nix/store.
-  # The VM's own /nix/store (sda2) is used only for the OS itself.
-  #
-  # /nix/var/nix (DB, channels, socket) stays local to each VM.
-  # Deduplication is automatic since nix store paths are content-addressed.
   nix.settings.trusted-users = [ "root" "$WUSER" ];
   nix.settings.allowed-users = [ "*" ];
-  nix.settings.store = "local?root=/nix-host&state=/nix/var/nix&log=/nix/var/log/nix";
 
-  # Create the mountpoint for the virtiofs/9p share (Incus mounts it here).
-  system.activationScripts.nix-host-dir = ''
-    mkdir -p /nix-host
-  '';
-
-  # Bind-mount /nix-host/nix/store over /nix/store so that result symlinks
-  # from nix-build (which point to /nix/store/...) resolve correctly.
-  #
-  # Background: the VM image bakes the NixOS closure into /nix/store on sda2
-  # (ext4, read-only).  The nix-shared profile mounts the ThinkStation HDD
-  # share at /nix-host/nix via 9p.  nix.settings.store redirects nix daemon
-  # writes to /nix-host/nix/store, but the result symlinks still say
-  # /nix/store/... — which points at the stale ext4 partition.  The bind mount
-  # below shadows the ext4 mount with the live HDD store, so both nix internals
-  # and result symlinks work correctly.
-  #
-  # We order after local-fs.target (the 9p virtio share is mounted as part of
-  # local-fs) and before nix-daemon so the daemon always sees the unified store.
-  systemd.mounts = [
-    {
-      what       = "/nix-host/nix/store";
-      where      = "/nix/store";
-      type       = "none";
-      options    = "bind";
-      after      = [ "local-fs.target" ];
-      before     = [ "nix-daemon.service" ];
-      wantedBy   = [ "multi-user.target" ];
-      requiredBy = [ "nix-daemon.service" ];
-    }
+  # Attic binary cache on ThinkStation — shared across all NixOS VMs.
+  # Builds are fetched from here on cache hit; new builds are pushed via
+  # the post-build hook below.
+  nix.settings.substituters = [
+    "https://cache.nixos.org"
+    "$ATTIC_URL/$ATTIC_CACHE"
   ];
+  nix.settings.trusted-public-keys = [
+    "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+    "$ATTIC_PUBKEY"
+  ];
+
+  # Auto-push every build result to the Attic cache.
+  nix.settings.post-build-hook = "/etc/nix/post-build-hook.sh";
+
+  # attic client — needed by the post-build hook.
+  environment.systemPackages = [ pkgs.attic-client ];
 
   systemd.services.coder-agent = {
     description = "Coder Agent";
@@ -139,27 +142,7 @@ NIXMOD_EOF
         "grep -q coder.nix /etc/nixos/configuration.nix || \
          sed -i 's|imports = \[|imports = [\n    ./coder.nix|' /etc/nixos/configuration.nix"
 
-      # Pre-patch /etc/nix/nix.conf with the correct store URI before nixos-rebuild
-      # runs.  The coder.nix module sets nix.settings.store via NixOS options, but
-      # those only take effect *after* nixos-rebuild switch completes — meaning the
-      # rebuild itself would use the old nix.conf.  By patching the file now we
-      # ensure the correct store (with local DB paths to avoid SQLite-over-9p
-      # errors) is in effect for the rebuild.
-      incus exec "$REMOTE:$INSTANCE" -- \
-        env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -c \
-        "if [ -d /nix-host/nix/store ]; then \
-           echo 'nix-host mount detected, patching /etc/nix/nix.conf store URI...'; \
-           STORE_URI='local?root=/nix-host&state=/nix/var/nix&log=/nix/var/log/nix'; \
-           if grep -q '^store' /etc/nix/nix.conf; then \
-             sed -i \"s|^store.*|store = \$STORE_URI|\" /etc/nix/nix.conf; \
-           else \
-             echo \"store = \$STORE_URI\" >> /etc/nix/nix.conf; \
-           fi; \
-           echo 'nix.conf store line:'; grep store /etc/nix/nix.conf; \
-         fi"
-
-      # Restore the nixos channel if it was wiped (e.g. by a previous failed
-      # provisioning run that mounted the host /nix/var/nix over the VM's).
+      # Restore the nixos channel if missing
       incus exec "$REMOTE:$INSTANCE" -- \
         env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -c \
         "NIX_CHANNEL_URL=https://channels.nixos.org/nixos-25.11; \
@@ -171,15 +154,6 @@ NIXMOD_EOF
          fi"
 
       echo "Running nixos-rebuild switch (this may take a few minutes)..."
-      # Pre-apply the bind mount before nixos-rebuild so the newly built system
-      # derivation lands in /nix/store (via the HDD store) and activation can
-      # find it.  Without this, nixos-rebuild writes to /nix-host/nix/store but
-      # activation checks /nix/store (the ext4 ro partition) and aborts.
-      incus exec "$REMOTE:$INSTANCE" -- \
-        env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -c \
-        "if [ -d /nix-host/nix/store ]; then \
-           /run/current-system/sw/bin/mount --bind /nix-host/nix/store /nix/store 2>/dev/null && echo 'Bind-mounted /nix-host/nix/store -> /nix/store' || echo 'Bind mount skipped (already mounted or not needed)'; \
-         fi"
       incus exec "$REMOTE:$INSTANCE" -- \
         env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -l -c \
         "nixos-rebuild switch; EC=\$?; [ \$EC -eq 0 ] || [ \$EC -eq 4 ] || exit \$EC"
@@ -189,7 +163,7 @@ NIXMOD_EOF
         env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -c \
         "systemctl daemon-reload; systemctl restart coder-agent.service; sleep 3; systemctl status coder-agent.service || true"
 
-      # Ensure home dir ownership (nixos-rebuild will have created the user home)
+      # Ensure home dir ownership
       incus exec "$REMOTE:$INSTANCE" -- \
         env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -c \
         "mkdir -p /home/$WUSER && chown 1000:1000 /home/$WUSER && chmod 755 /home/$WUSER"
