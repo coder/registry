@@ -195,10 +195,19 @@ function start_agentapi() {
 
       if task_session_exists && is_valid_session "$session_file"; then
         echo "Resuming task session: $TASK_SESSION_ID"
-        ARGS+=(--resume "$TASK_SESSION_ID" --dangerously-skip-permissions)
+        ARGS+=(--resume "$TASK_SESSION_ID")
+        # Only add --dangerously-skip-permissions when no explicit permission mode
+        # is set (backward compat) or when bypassPermissions is chosen.
+        # Other modes like "auto" handle permissions themselves.
+        if [ -z "$ARG_PERMISSION_MODE" ] || [ "$ARG_PERMISSION_MODE" = "bypassPermissions" ]; then
+          ARGS+=(--dangerously-skip-permissions)
+        fi
       else
         echo "Starting new task session: $TASK_SESSION_ID"
-        ARGS+=(--session-id "$TASK_SESSION_ID" --dangerously-skip-permissions)
+        ARGS+=(--session-id "$TASK_SESSION_ID")
+        if [ -z "$ARG_PERMISSION_MODE" ] || [ "$ARG_PERMISSION_MODE" = "bypassPermissions" ]; then
+          ARGS+=(--dangerously-skip-permissions)
+        fi
         [ -n "$ARG_AI_PROMPT" ] && ARGS+=(-- "$ARG_AI_PROMPT")
       fi
 

@@ -180,6 +180,8 @@ describe("claude-code", async () => {
       "cat /home/coder/.claude-module/agentapi-start.log",
     ]);
     expect(startLog.stdout).toContain(`--permission-mode ${mode}`);
+    // Auto mode should not include --dangerously-skip-permissions
+    expect(startLog.stdout).not.toContain("--dangerously-skip-permissions");
   });
 
   test("claude-auto-permission-mode", async () => {
@@ -246,7 +248,46 @@ SESSIONEOF`,
     expect(startLog.stdout).toContain("--resume");
     expect(startLog.stdout).toContain(taskSessionId);
     expect(startLog.stdout).toContain("Resuming task session");
+    // Default (no permission_mode) should still include --dangerously-skip-permissions
     expect(startLog.stdout).toContain("--dangerously-skip-permissions");
+  });
+
+  test("claude-continue-resume-task-session-auto-mode", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        continue: "true",
+        report_tasks: "true",
+        permission_mode: "auto",
+        ai_prompt: "test prompt",
+      },
+    });
+
+    // Create a mock task session file with the hardcoded task session ID
+    const taskSessionId = "cd32e253-ca16-4fd3-9825-d837e74ae3c2";
+    const sessionDir = `/home/coder/.claude/projects/-home-coder-project`;
+    await execContainer(id, ["mkdir", "-p", sessionDir]);
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > ${sessionDir}/${taskSessionId}.jsonl << 'SESSIONEOF'
+{"sessionId":"${taskSessionId}","message":{"content":"Task"},"timestamp":"2020-01-01T10:00:00.000Z"}
+{"type":"assistant","message":{"content":"Response"},"timestamp":"2020-01-01T10:00:05.000Z"}
+SESSIONEOF`,
+    ]);
+
+    await execModuleScript(id);
+
+    const startLog = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude-module/agentapi-start.log",
+    ]);
+    expect(startLog.stdout).toContain("--resume");
+    expect(startLog.stdout).toContain(taskSessionId);
+    expect(startLog.stdout).toContain("Resuming task session");
+    expect(startLog.stdout).toContain("--permission-mode auto");
+    // Auto mode should NOT include --dangerously-skip-permissions
+    expect(startLog.stdout).not.toContain("--dangerously-skip-permissions");
   });
 
   test("pre-post-install-scripts", async () => {
