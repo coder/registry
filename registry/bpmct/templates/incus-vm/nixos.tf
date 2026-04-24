@@ -98,14 +98,8 @@ resource "null_resource" "provision_nixos" {
   # Attic binary cache on ThinkStation — shared across all NixOS VMs.
   # Builds are fetched from here on cache hit; new builds are pushed via
   # the post-build hook below.
-  nix.settings.substituters = [
-    "https://cache.nixos.org"
-    "$ATTIC_URL/$ATTIC_CACHE"
-  ];
-  nix.settings.trusted-public-keys = [
-    "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-    "$ATTIC_PUBKEY"
-  ];
+  nix.settings.extra-substituters = [ "$ATTIC_URL/$ATTIC_CACHE" ];
+  nix.settings.extra-trusted-public-keys = [ "$ATTIC_PUBKEY" ];
 
   # Auto-push every build result to the Attic cache.
   nix.settings.post-build-hook = "/etc/nix/post-build-hook.sh";
