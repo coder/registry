@@ -26,7 +26,7 @@ module "rdp_desktop" {
   source     = "registry.coder.com/coder/local-windows-rdp/coder"
   version    = "1.0.3"
   agent_id   = coder_agent.main.id
-  agent_name = coder_agent.main.name
+  agent_name = "main"
 }
 ```
 
@@ -59,7 +59,7 @@ module "rdp_desktop" {
   source     = "registry.coder.com/coder/local-windows-rdp/coder"
   version    = "1.0.3"
   agent_id   = coder_agent.main.id
-  agent_name = coder_agent.main.name
+  agent_name = "main"
 }
 ```
 
