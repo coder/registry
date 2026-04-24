@@ -236,7 +236,7 @@ resource "incus_instance" "dev" {
   name    = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
   image   = incus_image.image.fingerprint
   type     = "virtual-machine"
-  profiles = local.is_nixos && data.coder_parameter.host.value == "ThinkStation" ? ["default", "nix-shared"] : ["default"]
+  profiles = local.is_nixos && data.coder_parameter.host.value == "ThinkStation" ? ["thinkstation", "nix-shared"] : (data.coder_parameter.host.value == "ThinkStation" ? ["thinkstation"] : ["default"])
 
   dynamic "device" {
     for_each = local.usb_device != null ? [local.usb_device] : []
@@ -250,21 +250,13 @@ resource "incus_instance" "dev" {
     }
   }
 
-  device {
-    name = "root"
-    type = "disk"
-    properties = {
-      path = "/"
-      size = "${local.disk}GiB"
-    }
-  }
-
   lifecycle {
     ignore_changes = [
       config["cloud-init.user-data"],
       config["user.coder-agent-token"],
       config["raw.qemu.conf"],
       image,
+      device,
     ]
   }
 
@@ -337,6 +329,27 @@ runcmd:
 EOF
     }
   )
+}
+
+# Set disk size. Pool is set by the profile at creation time.
+resource "null_resource" "root_disk" {
+  triggers = {
+    instance = incus_instance.dev.name
+    size     = local.disk
+  }
+
+  depends_on = [incus_instance.dev]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      REMOTE="${local.incus_remote}"
+      INSTANCE="${incus_instance.dev.name}"
+      SIZE="${local.disk}GiB"
+      # Override size only — pool is already set by the profile at creation time
+      incus config device override "$REMOTE:$INSTANCE" root size=$SIZE 2>/dev/null || \
+        incus config device set "$REMOTE:$INSTANCE" root size=$SIZE
+    EOT
+  }
 }
 
 # Token refresh for Ubuntu/cloud-init VMs
