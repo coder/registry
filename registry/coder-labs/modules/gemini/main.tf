@@ -78,10 +78,16 @@ variable "install_agentapi" {
   default     = true
 }
 
+variable "continue" {
+  type        = bool
+  description = "Automatically continue existing sessions on workspace restart. When true, resumes existing conversation if found, otherwise runs prompt or starts new session. When false, always starts fresh (ignores existing sessions)."
+  default     = true
+}
+
 variable "agentapi_version" {
   type        = string
   description = "The version of AgentAPI to install."
-  default     = "v0.10.0"
+  default     = "v0.12.0"
 }
 
 variable "gemini_model" {
@@ -126,6 +132,12 @@ variable "enable_yolo_mode" {
   default     = false
 }
 
+variable "enable_state_persistence" {
+  type        = bool
+  description = "Enable AgentAPI conversation state persistence across restarts."
+  default     = true
+}
+
 resource "coder_env" "gemini_api_key" {
   agent_id = var.agent_id
   name     = "GEMINI_API_KEY"
@@ -148,22 +160,17 @@ locals {
   base_extensions = <<-EOT
 {
   "coder": {
+    "command": "coder",
     "args": [
       "exp",
       "mcp",
       "server"
     ],
-    "command": "coder",
-    "description": "Report ALL tasks and statuses (in progress, done, failed) you are working on.",
-    "enabled": true,
     "env": {
       "CODER_MCP_APP_STATUS_SLUG": "${local.app_slug}",
       "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284"
     },
-    "name": "Coder",
-    "timeout": 3000,
-    "type": "stdio",
-    "trust": true
+    "timeout": 3000
   }
 }
 EOT
@@ -177,23 +184,24 @@ EOT
 
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.0.0"
+  version = "2.2.0"
 
-  agent_id             = var.agent_id
-  folder               = local.folder
-  web_app_slug         = local.app_slug
-  web_app_order        = var.order
-  web_app_group        = var.group
-  web_app_icon         = var.icon
-  web_app_display_name = "Gemini"
-  cli_app_slug         = "${local.app_slug}-cli"
-  cli_app_display_name = "Gemini CLI"
-  module_dir_name      = local.module_dir_name
-  install_agentapi     = var.install_agentapi
-  agentapi_version     = var.agentapi_version
-  pre_install_script   = var.pre_install_script
-  post_install_script  = var.post_install_script
-  install_script       = <<-EOT
+  agent_id                 = var.agent_id
+  folder                   = local.folder
+  web_app_slug             = local.app_slug
+  web_app_order            = var.order
+  web_app_group            = var.group
+  web_app_icon             = var.icon
+  web_app_display_name     = "Gemini"
+  cli_app_slug             = "${local.app_slug}-cli"
+  cli_app_display_name     = "Gemini CLI"
+  module_dir_name          = local.module_dir_name
+  install_agentapi         = var.install_agentapi
+  agentapi_version         = var.agentapi_version
+  enable_state_persistence = var.enable_state_persistence
+  pre_install_script       = var.pre_install_script
+  post_install_script      = var.post_install_script
+  install_script           = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
@@ -209,20 +217,21 @@ module "agentapi" {
     GEMINI_SYSTEM_PROMPT='${base64encode(var.gemini_system_prompt)}' \
     /tmp/install.sh
   EOT
-  start_script         = <<-EOT
+  start_script             = <<-EOT
      #!/bin/bash
      set -o errexit
      set -o pipefail
 
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
      chmod +x /tmp/start.sh
-     GEMINI_API_KEY='${var.gemini_api_key}' \
-     GOOGLE_API_KEY='${var.gemini_api_key}' \
+     GEMINI_API_KEY='${base64encode(var.gemini_api_key)}' \
+     GOOGLE_API_KEY='${base64encode(var.gemini_api_key)}' \
+     GEMINI_YOLO_MODE='${base64encode(var.enable_yolo_mode)}' \
      GOOGLE_GENAI_USE_VERTEXAI='${var.use_vertexai}' \
-     GEMINI_YOLO_MODE='${var.enable_yolo_mode}' \
      GEMINI_MODEL='${var.gemini_model}' \
      GEMINI_START_DIRECTORY='${var.folder}' \
-     GEMINI_TASK_PROMPT='${var.task_prompt}' \
+     GEMINI_TASK_PROMPT='${base64encode(var.task_prompt)}' \
+     ARG_CONTINUE='${base64encode(var.continue)}' \
      /tmp/start.sh
    EOT
 }

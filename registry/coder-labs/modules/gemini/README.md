@@ -13,9 +13,9 @@ Run [Gemini CLI](https://github.com/google-gemini/gemini-cli) in your workspace 
 ```tf
 module "gemini" {
   source   = "registry.coder.com/coder-labs/gemini/coder"
-  version  = "3.0.0"
+  version  = "3.0.1"
   agent_id = coder_agent.main.id
-  folder   = "/home/coder/project"
+  folder   = "/home/coder"
 }
 ```
 
@@ -45,11 +45,27 @@ variable "gemini_api_key" {
 }
 
 module "gemini" {
-  source         = "registry.coder.com/coder-labs/gemini/coder"
-  version        = "3.0.0"
-  agent_id       = coder_agent.main.id
-  gemini_api_key = var.gemini_api_key
-  folder         = "/home/coder/project"
+  source             = "registry.coder.com/coder-labs/gemini/coder"
+  version            = "3.0.1"
+  agent_id           = coder_agent.main.id
+  gemini_api_key     = var.gemini_api_key
+  folder             = "/home/coder"
+  pre_install_script = <<-EOT
+    #!/bin/bash
+    set -e
+
+    echo "Installing Node.js via NodeSource..."
+
+    sudo apt-get update -qq && sudo apt-get install -y curl ca-certificates
+
+    curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo bash -
+
+    sudo apt-get install -y nodejs
+
+    echo "Node version: $(node -v)"
+    echo "npm version: $(npm -v)"
+    echo "Node install complete."
+  EOT
 }
 ```
 
@@ -57,7 +73,7 @@ This basic setup will:
 
 - Install Gemini CLI in the workspace
 - Configure authentication with your API key
-- Set Gemini to run in `/home/coder/project` directory
+- Set Gemini to run in `/home/coder` directory
 - Enable interactive use from the terminal
 - Set up MCP server integration for task reporting
 
@@ -94,11 +110,11 @@ data "coder_parameter" "ai_prompt" {
 module "gemini" {
   count                = data.coder_workspace.me.start_count
   source               = "registry.coder.com/coder-labs/gemini/coder"
-  version              = "3.0.0"
+  version              = "3.0.1"
   agent_id             = coder_agent.main.id
   gemini_api_key       = var.gemini_api_key
   gemini_model         = "gemini-2.5-flash"
-  folder               = "/home/coder/project"
+  folder               = "/home/coder"
   task_prompt          = data.coder_parameter.ai_prompt.value
   enable_yolo_mode     = true # Auto-approve all tool calls for automation
   gemini_system_prompt = <<-EOT
@@ -111,6 +127,23 @@ module "gemini" {
 > [!WARNING]
 > YOLO mode automatically approves all tool calls without user confirmation. The agent has access to your machine's file system and terminal. Only enable in trusted, isolated environments.
 
+### Session Resumption Behavior
+
+By default, Gemini CLI automatically resumes existing conversations when your workspace restarts. Sessions are tracked per workspace directory, so conversations continue where you left off. If no session exists (first start), your `ai_prompt` will run normally. To disable this behavior and always start fresh, set `continue = false`
+
+## State Persistence
+
+AgentAPI can save and restore its conversation state to disk across workspace restarts. This complements `continue` (which resumes the Gemini CLI session) by also preserving the AgentAPI-level context. Enabled by default, requires agentapi >= v0.12.0 (older versions skip it with a warning).
+
+To disable:
+
+```tf
+module "gemini" {
+  # ... other config
+  enable_state_persistence = false
+}
+```
+
 ### Using Vertex AI (Enterprise)
 
 For enterprise users who prefer Google's Vertex AI platform:
@@ -118,10 +151,10 @@ For enterprise users who prefer Google's Vertex AI platform:
 ```tf
 module "gemini" {
   source         = "registry.coder.com/coder-labs/gemini/coder"
-  version        = "3.0.0"
+  version        = "3.0.1"
   agent_id       = coder_agent.main.id
   gemini_api_key = var.gemini_api_key
-  folder         = "/home/coder/project"
+  folder         = "/home/coder"
   use_vertexai   = true
 }
 ```
