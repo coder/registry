@@ -75,11 +75,6 @@ data "coder_parameter" "image" {
     icon  = "/icon/nix.svg"
   }
 
-  option {
-    name  = "NixOS Unstable"
-    value = "nixos/unstable"
-    icon  = "/icon/nix.svg"
-  }
 }
 
 data "coder_parameter" "cpu" {
@@ -223,7 +218,9 @@ resource "coder_agent" "main" {
 resource "incus_image" "image" {
   remote = local.incus_remote
   source_image = {
-    remote = "images"
+    # NixOS images are imported locally (linuxcontainers.org doesn't carry NixOS).
+    # Ubuntu/other images are pulled from the public images: simplestreams remote.
+    remote = local.is_nixos ? "local" : "images"
     name   = local.is_nixos ? data.coder_parameter.image.value : "${data.coder_parameter.image.value}/${data.coder_parameter.host.value == "ThinkStation" ? "amd64" : "arm64"}"
     type         = "virtual-machine"
     architecture = data.coder_parameter.host.value == "ThinkStation" ? "x86_64" : "aarch64"
