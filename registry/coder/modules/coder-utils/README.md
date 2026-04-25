@@ -13,18 +13,13 @@ tags: [internal, library]
 
 The Coder Utils module is a building block for modules that need to run multiple scripts in a specific order. It uses `coder exp sync` for dependency management and is designed for orchestrating pre-install, install, post-install, and start scripts.
 
-> [!NOTE]
->
-> - The `agent_name` should be the same as that of the agentapi module's `agent_name` if used together.
-
 ```tf
 module "coder_utils" {
   source  = "registry.coder.com/coder/coder-utils/coder"
-  version = "1.1.0"
+  version = "0.0.1"
 
   agent_id         = coder_agent.main.id
-  agent_name       = "myagent"
-  module_directory = ".my-module"
+  module_directory = "$HOME/.coder-modules/coder/claude-code"
 
   pre_install_script = <<-EOT
     #!/bin/bash
@@ -70,11 +65,10 @@ By default each `coder_script` renders in the Coder UI as plain "Install Script"
 ```tf
 module "coder_utils" {
   source  = "registry.coder.com/coder/coder-utils/coder"
-  version = "1.1.0"
+  version = "0.0.1"
 
   agent_id         = coder_agent.main.id
-  agent_name       = "myagent"
-  module_directory = ".my-module"
+  module_directory = "$HOME/.coder-modules/coder/claude-code"
   install_script   = "echo installing"
 
   display_name_prefix = "Claude Code" # yields "Claude Code: Install Script", etc.
@@ -83,3 +77,25 @@ module "coder_utils" {
 ```
 
 Both variables are optional. `display_name_prefix` defaults to `""` (no prefix), and `icon` defaults to `null` (use the Coder provider's default).
+
+## Log file locations
+
+The module writes each script's stdout+stderr to `${module_directory}/logs/`:
+
+- `pre_install.log`
+- `install.log`
+- `post_install.log`
+- `start.log`
+
+Each `coder_script` `mkdir -p`s this subdirectory before its `tee` runs, so the first script to execute creates it.
+
+## Script file locations
+
+The module materializes each script to `${module_directory}/scripts/` before running it:
+
+- `pre_install.sh`
+- `install.sh`
+- `post_install.sh`
+- `start.sh`
+
+The pre-install and install `coder_script`s `mkdir -p` this subdirectory; post-install and start sync-depend on install, so the directory already exists by the time they run.
