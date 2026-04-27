@@ -435,4 +435,47 @@ describe("claude-code", async () => {
     ]);
     expect(resp.stdout.trim()).toBe("ABSENT");
   });
+
+  test("claude-managed-settings-written", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        managed_settings: JSON.stringify({
+          permissions: {
+            defaultMode: "acceptEdits",
+            disableBypassPermissionsMode: "disable",
+            deny: ["Bash(rm -rf*)"],
+          },
+        }),
+      },
+    });
+    await runScripts(id, scripts);
+
+    const policy = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /etc/claude-code/managed-settings.d/10-coder.json",
+    ]);
+    expect(policy.exitCode).toBe(0);
+    expect(policy.stdout).toContain('"defaultMode":"acceptEdits"');
+    expect(policy.stdout).toContain('"disableBypassPermissionsMode":"disable"');
+    expect(policy.stdout).toContain('"deny":["Bash(rm -rf*)"]');
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+    );
+    expect(installLog).toContain("Wrote Claude Code managed settings");
+  });
+
+  test("claude-managed-settings-not-set", async () => {
+    const { id, scripts } = await setup();
+    await runScripts(id, scripts);
+
+    const resp = await execContainer(id, [
+      "bash",
+      "-c",
+      "test -e /etc/claude-code/managed-settings.d/10-coder.json && echo EXISTS || echo ABSENT",
+    ]);
+    expect(resp.stdout.trim()).toBe("ABSENT");
+  });
 });

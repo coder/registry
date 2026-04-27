@@ -283,3 +283,47 @@ run "test_workdir_optional" {
     error_message = "workdir should default to null when omitted"
   }
 }
+
+run "test_managed_settings" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-managed-settings"
+    workdir  = "/home/coder/project"
+    managed_settings = {
+      permissions = {
+        defaultMode                  = "acceptEdits"
+        disableBypassPermissionsMode = "disable"
+        deny                         = ["Bash(rm -rf*)"]
+      }
+    }
+  }
+
+  assert {
+    condition     = var.managed_settings.permissions.defaultMode == "acceptEdits"
+    error_message = "managed_settings should accept the permissions object"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "/etc/claude-code/managed-settings.d")
+    error_message = "install script should reference the managed-settings.d drop-in directory"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, base64encode(jsonencode(var.managed_settings)))
+    error_message = "install script should embed the base64-encoded managed_settings JSON"
+  }
+}
+
+run "test_managed_settings_default_null" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-managed-settings-default"
+  }
+
+  assert {
+    condition     = var.managed_settings == null
+    error_message = "managed_settings should default to null when omitted"
+  }
+}
