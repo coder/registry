@@ -119,13 +119,13 @@ data "coder_parameter" "disk" {
   description  = "Root disk size in GB."
   type         = "number"
   form_type    = "slider"
-  default      = 20
+  default      = 50
   icon         = "/icon/database.svg"
   mutable      = true
   order        = 3
   validation {
     min = 10
-    max = 200
+    max = 500
   }
 }
 
