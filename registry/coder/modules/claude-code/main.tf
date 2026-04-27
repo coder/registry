@@ -118,6 +118,18 @@ variable "enable_ai_gateway" {
   }
 }
 
+variable "telemetry" {
+  type = object({
+    enabled             = optional(bool, false)
+    otlp_endpoint       = optional(string, "")
+    otlp_protocol       = optional(string, "http/protobuf")
+    otlp_headers        = optional(map(string), {})
+    resource_attributes = optional(map(string), {})
+  })
+  default     = {}
+  description = "Configure Claude Code OpenTelemetry export. When enabled, sets CLAUDE_CODE_ENABLE_TELEMETRY and the standard OTEL_EXPORTER_OTLP_* environment variables. Coder workspace identifiers (coder.workspace_id, coder.workspace_name, coder.workspace_owner, coder.template_name) are automatically appended to OTEL_RESOURCE_ATTRIBUTES so Claude Code telemetry can be joined with Coder audit and exectrace logs."
+}
+
 resource "coder_env" "claude_code_oauth_token" {
   count    = var.claude_code_oauth_token != "" ? 1 : 0
   agent_id = var.agent_id
@@ -161,6 +173,55 @@ resource "coder_env" "anthropic_base_url" {
   agent_id = var.agent_id
   name     = "ANTHROPIC_BASE_URL"
   value    = "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic"
+}
+
+locals {
+  # Always inject Coder workspace identifiers so OTEL data can be joined with
+  # Coder's audit log / exectrace on workspace_id without per-template wiring.
+  otel_resource_attributes = merge(
+    var.telemetry.resource_attributes,
+    {
+      "coder.workspace_id"    = data.coder_workspace.me.id
+      "coder.workspace_name"  = data.coder_workspace.me.name
+      "coder.workspace_owner" = data.coder_workspace_owner.me.name
+      "coder.template_name"   = data.coder_workspace.me.template_name
+    },
+  )
+}
+
+resource "coder_env" "claude_code_enable_telemetry" {
+  count    = var.telemetry.enabled ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CLAUDE_CODE_ENABLE_TELEMETRY"
+  value    = "1"
+}
+
+resource "coder_env" "otel_exporter_otlp_endpoint" {
+  count    = var.telemetry.enabled && var.telemetry.otlp_endpoint != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "OTEL_EXPORTER_OTLP_ENDPOINT"
+  value    = var.telemetry.otlp_endpoint
+}
+
+resource "coder_env" "otel_exporter_otlp_protocol" {
+  count    = var.telemetry.enabled ? 1 : 0
+  agent_id = var.agent_id
+  name     = "OTEL_EXPORTER_OTLP_PROTOCOL"
+  value    = var.telemetry.otlp_protocol
+}
+
+resource "coder_env" "otel_exporter_otlp_headers" {
+  count    = var.telemetry.enabled && length(var.telemetry.otlp_headers) > 0 ? 1 : 0
+  agent_id = var.agent_id
+  name     = "OTEL_EXPORTER_OTLP_HEADERS"
+  value    = join(",", [for k, v in var.telemetry.otlp_headers : "${k}=${v}"])
+}
+
+resource "coder_env" "otel_resource_attributes" {
+  count    = var.telemetry.enabled ? 1 : 0
+  agent_id = var.agent_id
+  name     = "OTEL_RESOURCE_ATTRIBUTES"
+  value    = join(",", [for k, v in local.otel_resource_attributes : "${k}=${v}"])
 }
 
 locals {
