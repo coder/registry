@@ -1,0 +1,10 @@
+# Boundary configuration for network isolation.
+# Copy this file into your template directory and customize the allowlist
+# for your agent's needs. See https://coder.com/docs/ai-coder/agent-firewall
+# for the full reference.
+allowlist:
+  - "domain=dev.coder.com" # Replace with your Coder deployment domain
+jail_type: nsjail
+log_dir: /tmp/boundary_logs
+proxy_port: 8087
+log_level: warn

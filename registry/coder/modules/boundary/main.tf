@@ -9,7 +9,6 @@ terraform {
   }
 }
 
-# Add required variables for your modules and remove any unneeded variables
 variable "agent_id" {
   type        = string
   description = "The ID of a Coder agent."
@@ -85,5 +84,6 @@ output "boundary_wrapper_path" {
 }
 
 output "scripts" {
-  value = module.coder_utils.scripts
+  description = "List of script names for coder exp sync coordination."
+  value       = module.coder_utils.scripts
 }
