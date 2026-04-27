@@ -215,15 +215,16 @@ resource "coder_agent" "main" {
   }
 }
 
+# For non-NixOS images, copy from the public images: simplestreams remote.
+# NixOS is not on linuxcontainers.org — pre-imported on the incus host and
+# aliased (e.g. nixos/25.11). The provider cannot copy same-remote, so we
+# skip this resource for NixOS and reference the alias directly below.
 resource "incus_image" "image" {
+  count  = local.is_nixos ? 0 : 1
   remote = local.incus_remote
   source_image = {
-    # NixOS images are stored directly on the target incus host (linuxcontainers.org
-    # doesn't carry NixOS). Use the same remote as the destination so the provider
-    # resolves the alias locally on that host rather than on the provisioner.
-    # Ubuntu/other images are pulled from the public images: simplestreams remote.
-    remote = local.is_nixos ? local.incus_remote : "images"
-    name   = local.is_nixos ? data.coder_parameter.image.value : "${data.coder_parameter.image.value}/${data.coder_parameter.host.value == "ThinkStation" ? "amd64" : "arm64"}"
+    remote       = "images"
+    name         = "${data.coder_parameter.image.value}/${data.coder_parameter.host.value == "ThinkStation" ? "amd64" : "arm64"}"
     type         = "virtual-machine"
     architecture = data.coder_parameter.host.value == "ThinkStation" ? "x86_64" : "aarch64"
   }
@@ -233,7 +234,8 @@ resource "incus_instance" "dev" {
   remote  = local.incus_remote
   running = data.coder_workspace.me.start_count == 1
   name    = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
-  image   = incus_image.image.fingerprint
+  # NixOS: reference pre-imported alias directly; Ubuntu: use copied fingerprint.
+  image   = local.is_nixos ? data.coder_parameter.image.value : incus_image.image[0].fingerprint
   type     = "virtual-machine"
   profiles = data.coder_parameter.host.value == "ThinkStation" ? ["thinkstation"] : ["default"]
 
