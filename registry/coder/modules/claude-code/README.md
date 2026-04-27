@@ -13,7 +13,7 @@ Install and configure the [Claude Code](https://docs.anthropic.com/en/docs/agent
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.0.0"
+  version           = "5.1.0"
   agent_id          = coder_agent.main.id
   anthropic_api_key = "xxxx-xxxxx-xxxx"
 }
@@ -47,7 +47,7 @@ locals {
 
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.0.0"
+  version           = "5.1.0"
   agent_id          = coder_agent.main.id
   workdir           = local.claude_workdir
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -78,7 +78,7 @@ resource "coder_app" "claude" {
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.0.0"
+  version           = "5.1.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -102,7 +102,7 @@ This example shows version pinning, a pre-installed binary path, a custom model,
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.0.0"
+  version  = "5.1.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -166,7 +166,7 @@ Downstream `coder_script` resources can wait for this module's install pipeline 
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.0.0"
+  version           = "5.1.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -188,6 +188,26 @@ resource "coder_script" "post_claude" {
   EOT
 }
 ```
+
+### Session lifecycle
+
+The module writes a small managed-settings drop-in to `/etc/claude-code/managed-settings.d/30-coder-lifecycle.json` that:
+
+- registers a `Stop` hook which touches `~/.coder-modules/coder/claude-code/last-stop` whenever Claude finishes a turn. Templates can read that file's modification time to drive workspace autostop or activity tracking.
+- sets `cleanupPeriodDays` when `transcript_retention_days` is provided, so Claude Code prunes session JSONL transcripts under `~/.claude/projects/` automatically. When unset, Claude Code's default retention (30 days) applies.
+
+```tf
+module "claude-code" {
+  source                    = "registry.coder.com/coder/claude-code/coder"
+  version                   = "5.1.0"
+  agent_id                  = coder_agent.main.id
+  workdir                   = "/home/coder/project"
+  anthropic_api_key         = "xxxx-xxxxx-xxxx"
+  transcript_retention_days = 7
+}
+```
+
+The drop-in is a local file read by the Claude CLI at startup; it works with any inference backend (Anthropic API, Bedrock, Vertex, AI Gateway). If `/etc/claude-code` is not writable in the workspace image and `sudo` is unavailable, the install script logs a warning and skips the write.
 
 ### Usage with AWS Bedrock
 
@@ -252,7 +272,7 @@ resource "coder_env" "bedrock_api_key" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.0.0"
+  version  = "5.1.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
@@ -309,7 +329,7 @@ resource "coder_env" "google_application_credentials" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.0.0"
+  version  = "5.1.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "claude-sonnet-4@20250514"

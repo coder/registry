@@ -435,4 +435,44 @@ describe("claude-code", async () => {
     ]);
     expect(resp.stdout.trim()).toBe("ABSENT");
   });
+
+  test("lifecycle-settings-written", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        transcript_retention_days: "7",
+      },
+    });
+    await runScripts(id, scripts);
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+    );
+    expect(installLog).toContain("Wrote Claude Code lifecycle settings to");
+
+    const policy = await readFileContainer(
+      id,
+      "/etc/claude-code/managed-settings.d/30-coder-lifecycle.json",
+    );
+    const parsed = JSON.parse(policy);
+    expect(parsed.cleanupPeriodDays).toBe(7);
+    expect(parsed.hooks.Stop[0].hooks[0].type).toBe("command");
+    expect(parsed.hooks.Stop[0].hooks[0].command).toContain(
+      "/home/coder/.coder-modules/coder/claude-code/last-stop",
+    );
+  });
+
+  test("lifecycle-settings-default-retention", async () => {
+    const { id, scripts } = await setup();
+    await runScripts(id, scripts);
+
+    const policy = await readFileContainer(
+      id,
+      "/etc/claude-code/managed-settings.d/30-coder-lifecycle.json",
+    );
+    const parsed = JSON.parse(policy);
+    // Stop hook is always present; cleanupPeriodDays only when explicitly set.
+    expect(parsed.hooks.Stop[0].hooks[0].type).toBe("command");
+    expect(parsed.cleanupPeriodDays).toBeUndefined();
+  });
 });

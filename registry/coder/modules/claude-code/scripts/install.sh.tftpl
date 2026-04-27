@@ -17,6 +17,7 @@ ARG_CLAUDE_BINARY_PATH="$${ARG_CLAUDE_BINARY_PATH//\$HOME/$HOME}"
 ARG_MCP=$(echo -n '${ARG_MCP}' | base64 -d)
 ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n '${ARG_MCP_CONFIG_REMOTE_PATH}' | base64 -d)
 ARG_ENABLE_AI_GATEWAY='${ARG_ENABLE_AI_GATEWAY}'
+ARG_TRANSCRIPT_RETENTION_DAYS='${ARG_TRANSCRIPT_RETENTION_DAYS}'
 
 export PATH="$${ARG_CLAUDE_BINARY_PATH}:$PATH"
 
@@ -29,6 +30,7 @@ printf "ARG_CLAUDE_BINARY_PATH: %s\n" "$${ARG_CLAUDE_BINARY_PATH}"
 printf "ARG_MCP: %s\n" "$${ARG_MCP}"
 printf "ARG_MCP_CONFIG_REMOTE_PATH: %s\n" "$${ARG_MCP_CONFIG_REMOTE_PATH}"
 printf "ARG_ENABLE_AI_GATEWAY: %s\n" "$${ARG_ENABLE_AI_GATEWAY}"
+printf "ARG_TRANSCRIPT_RETENTION_DAYS: %s\n" "$${ARG_TRANSCRIPT_RETENTION_DAYS}"
 
 echo "--------------------------------"
 
@@ -144,6 +146,36 @@ function setup_claude_configurations() {
 
 }
 
+function configure_lifecycle_settings() {
+  local dropin_dir="/etc/claude-code/managed-settings.d"
+  local target="$${dropin_dir}/30-coder-lifecycle.json"
+  # Bake the absolute path at install time so the hook does not depend on
+  # $HOME being set identically when Claude Code executes it.
+  local sentinel="$HOME/.coder-modules/coder/claude-code/last-stop"
+
+  local payload
+  payload=$(jq -n \
+    --arg cmd "touch $${sentinel}" \
+    --arg retention "$${ARG_TRANSCRIPT_RETENTION_DAYS}" \
+    '{
+      hooks: { Stop: [{ hooks: [{ type: "command", command: $cmd }] }] }
+    } + (if $retention != "" then { cleanupPeriodDays: ($retention | tonumber) } else {} end)')
+
+  if command_exists sudo && sudo -n true 2> /dev/null; then
+    sudo mkdir -p "$${dropin_dir}"
+    echo "$${payload}" | sudo tee "$${target}" > /dev/null
+    sudo chmod 0644 "$${target}"
+  elif mkdir -p "$${dropin_dir}" 2> /dev/null; then
+    echo "$${payload}" > "$${target}"
+    chmod 0644 "$${target}"
+  else
+    echo "Warning: cannot write to $${dropin_dir} (no sudo and directory not writable); skipping lifecycle settings"
+    return
+  fi
+
+  echo "Wrote Claude Code lifecycle settings to $${target}"
+}
+
 function configure_standalone_mode() {
   echo "Configuring Claude Code for standalone mode..."
 
@@ -189,4 +221,5 @@ EOF
 
 install_claude_code_cli
 setup_claude_configurations
+configure_lifecycle_settings
 configure_standalone_mode
