@@ -17,6 +17,7 @@ ARG_CLAUDE_BINARY_PATH="$${ARG_CLAUDE_BINARY_PATH//\$HOME/$HOME}"
 ARG_MCP=$(echo -n '${ARG_MCP}' | base64 -d)
 ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n '${ARG_MCP_CONFIG_REMOTE_PATH}' | base64 -d)
 ARG_ENABLE_AI_GATEWAY='${ARG_ENABLE_AI_GATEWAY}'
+ARG_API_KEY_HELPER_SCRIPT=$(echo -n '${ARG_API_KEY_HELPER_SCRIPT}' | base64 -d)
 
 export PATH="$${ARG_CLAUDE_BINARY_PATH}:$PATH"
 
@@ -29,6 +30,7 @@ printf "ARG_CLAUDE_BINARY_PATH: %s\n" "$${ARG_CLAUDE_BINARY_PATH}"
 printf "ARG_MCP: %s\n" "$${ARG_MCP}"
 printf "ARG_MCP_CONFIG_REMOTE_PATH: %s\n" "$${ARG_MCP_CONFIG_REMOTE_PATH}"
 printf "ARG_ENABLE_AI_GATEWAY: %s\n" "$${ARG_ENABLE_AI_GATEWAY}"
+printf "ARG_API_KEY_HELPER_SCRIPT: %s\n" "$${ARG_API_KEY_HELPER_SCRIPT:+(set)}"
 
 echo "--------------------------------"
 
@@ -144,11 +146,40 @@ function setup_claude_configurations() {
 
 }
 
+function setup_api_key_helper() {
+  if [ -z "$${ARG_API_KEY_HELPER_SCRIPT}" ]; then
+    return
+  fi
+
+  echo "Configuring api_key_helper for short-lived credentials..."
+
+  mkdir -p "$HOME/.claude"
+  local helper_path="$HOME/.claude/coder-api-key-helper.sh"
+  printf '%s' "$${ARG_API_KEY_HELPER_SCRIPT}" > "$${helper_path}"
+  chmod 0700 "$${helper_path}"
+
+  local dropin_dir="/etc/claude-code/managed-settings.d"
+  local target="$${dropin_dir}/20-coder-apikeyhelper.json"
+  if command_exists sudo; then
+    sudo mkdir -p "$${dropin_dir}"
+    printf '{"apiKeyHelper":"%s"}\n' "$${helper_path}" | sudo tee "$${target}" > /dev/null
+    sudo chmod 0644 "$${target}"
+  elif mkdir -p "$${dropin_dir}" 2> /dev/null; then
+    printf '{"apiKeyHelper":"%s"}\n' "$${helper_path}" > "$${target}"
+    chmod 0644 "$${target}"
+  else
+    echo "Warning: cannot write to $${dropin_dir} (no sudo and not writable); api_key_helper will not be registered"
+    return
+  fi
+
+  echo "Wrote api_key_helper script to $${helper_path} and registered via $${target}"
+}
+
 function configure_standalone_mode() {
   echo "Configuring Claude Code for standalone mode..."
 
-  if [ -z "$${ANTHROPIC_API_KEY:-}" ] && [ -z "$${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ "$${ARG_ENABLE_AI_GATEWAY}" = "false" ]; then
-    echo "Note: No authentication configured (anthropic_api_key, claude_code_oauth_token, enable_ai_gateway), skipping onboarding bypass"
+  if [ -z "$${ANTHROPIC_API_KEY:-}" ] && [ -z "$${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ "$${ARG_ENABLE_AI_GATEWAY}" = "false" ] && [ -z "$${ARG_API_KEY_HELPER_SCRIPT}" ]; then
+    echo "Note: No authentication configured (anthropic_api_key, claude_code_oauth_token, enable_ai_gateway, api_key_helper), skipping onboarding bypass"
     return
   fi
 
@@ -189,4 +220,5 @@ EOF
 
 install_claude_code_cli
 setup_claude_configurations
+setup_api_key_helper
 configure_standalone_mode
