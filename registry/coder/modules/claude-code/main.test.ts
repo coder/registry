@@ -435,4 +435,70 @@ describe("claude-code", async () => {
     ]);
     expect(resp.stdout.trim()).toBe("ABSENT");
   });
+
+  test("use-bedrock-no-api-key", async () => {
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        use_bedrock: "true",
+      },
+    });
+    expect(coderEnvVars["CLAUDE_CODE_USE_BEDROCK"]).toBe("1");
+    expect(coderEnvVars["ANTHROPIC_API_KEY"]).toBeUndefined();
+
+    await runScripts(id, scripts, coderEnvVars);
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+    );
+    expect(installLog).toContain(
+      "Using Amazon Bedrock (CLAUDE_CODE_USE_BEDROCK=1)",
+    );
+    expect(installLog).not.toContain("No authentication configured");
+    expect(installLog).toContain("Standalone mode configured successfully");
+
+    // Onboarding bypass should still be written so the CLI starts headlessly.
+    const claudeConfig = await readFileContainer(
+      id,
+      "/home/coder/.claude.json",
+    );
+    expect(JSON.parse(claudeConfig).hasCompletedOnboarding).toBe(true);
+  });
+
+  test("use-vertex-no-api-key", async () => {
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        use_vertex: "true",
+      },
+    });
+    expect(coderEnvVars["CLAUDE_CODE_USE_VERTEX"]).toBe("1");
+
+    await runScripts(id, scripts, coderEnvVars);
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+    );
+    expect(installLog).toContain(
+      "Using Google Vertex AI (CLAUDE_CODE_USE_VERTEX=1)",
+    );
+    expect(installLog).not.toContain("No authentication configured");
+  });
+
+  test("anthropic-base-url-custom", async () => {
+    const baseUrl = "https://llm-gateway.example.com/anthropic";
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        anthropic_base_url: baseUrl,
+      },
+    });
+    expect(coderEnvVars["ANTHROPIC_BASE_URL"]).toBe(baseUrl);
+
+    await runScripts(id, scripts, coderEnvVars);
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+    );
+    expect(installLog).toContain("Using custom ANTHROPIC_BASE_URL");
+    expect(installLog).toContain(baseUrl);
+    expect(installLog).not.toContain("No authentication configured");
+  });
 });

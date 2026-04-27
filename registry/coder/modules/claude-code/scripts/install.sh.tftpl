@@ -17,6 +17,9 @@ ARG_CLAUDE_BINARY_PATH="$${ARG_CLAUDE_BINARY_PATH//\$HOME/$HOME}"
 ARG_MCP=$(echo -n '${ARG_MCP}' | base64 -d)
 ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n '${ARG_MCP_CONFIG_REMOTE_PATH}' | base64 -d)
 ARG_ENABLE_AI_GATEWAY='${ARG_ENABLE_AI_GATEWAY}'
+ARG_USE_BEDROCK='${ARG_USE_BEDROCK}'
+ARG_USE_VERTEX='${ARG_USE_VERTEX}'
+ARG_ANTHROPIC_BASE_URL='${ARG_ANTHROPIC_BASE_URL}'
 
 export PATH="$${ARG_CLAUDE_BINARY_PATH}:$PATH"
 
@@ -29,6 +32,9 @@ printf "ARG_CLAUDE_BINARY_PATH: %s\n" "$${ARG_CLAUDE_BINARY_PATH}"
 printf "ARG_MCP: %s\n" "$${ARG_MCP}"
 printf "ARG_MCP_CONFIG_REMOTE_PATH: %s\n" "$${ARG_MCP_CONFIG_REMOTE_PATH}"
 printf "ARG_ENABLE_AI_GATEWAY: %s\n" "$${ARG_ENABLE_AI_GATEWAY}"
+printf "ARG_USE_BEDROCK: %s\n" "$${ARG_USE_BEDROCK}"
+printf "ARG_USE_VERTEX: %s\n" "$${ARG_USE_VERTEX}"
+printf "ARG_ANTHROPIC_BASE_URL: %s\n" "$${ARG_ANTHROPIC_BASE_URL}"
 
 echo "--------------------------------"
 
@@ -147,8 +153,22 @@ function setup_claude_configurations() {
 function configure_standalone_mode() {
   echo "Configuring Claude Code for standalone mode..."
 
-  if [ -z "$${ANTHROPIC_API_KEY:-}" ] && [ -z "$${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ "$${ARG_ENABLE_AI_GATEWAY}" = "false" ]; then
-    echo "Note: No authentication configured (anthropic_api_key, claude_code_oauth_token, enable_ai_gateway), skipping onboarding bypass"
+  local have_auth="false"
+  if [ -n "$${ANTHROPIC_API_KEY:-}" ] || [ -n "$${CLAUDE_CODE_OAUTH_TOKEN:-}" ] || [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ]; then
+    have_auth="true"
+  elif [ "$${ARG_USE_BEDROCK}" = "true" ]; then
+    echo "Using Amazon Bedrock (CLAUDE_CODE_USE_BEDROCK=1); Anthropic API key not required."
+    have_auth="true"
+  elif [ "$${ARG_USE_VERTEX}" = "true" ]; then
+    echo "Using Google Vertex AI (CLAUDE_CODE_USE_VERTEX=1); Anthropic API key not required."
+    have_auth="true"
+  elif [ -n "$${ARG_ANTHROPIC_BASE_URL}" ]; then
+    echo "Using custom ANTHROPIC_BASE_URL ($${ARG_ANTHROPIC_BASE_URL}); Anthropic API key not required."
+    have_auth="true"
+  fi
+
+  if [ "$${have_auth}" = "false" ]; then
+    echo "Note: No authentication configured (anthropic_api_key, claude_code_oauth_token, enable_ai_gateway, use_bedrock, use_vertex, anthropic_base_url), skipping onboarding bypass"
     return
   fi
 
