@@ -186,8 +186,6 @@ function configure_standalone_mode() {
     echo "Updating existing Claude configuration at $${claude_config}"
 
     jq '.autoUpdaterStatus = "disabled" |
-        .autoModeAccepted = true |
-        .bypassPermissionsModeAccepted = true |
         .hasAcknowledgedCostThreshold = true |
         .hasCompletedOnboarding = true' \
       "$${claude_config}" > "$${claude_config}.tmp" && mv "$${claude_config}.tmp" "$${claude_config}"
@@ -196,8 +194,6 @@ function configure_standalone_mode() {
     cat > "$${claude_config}" << EOF
 {
   "autoUpdaterStatus": "disabled",
-  "autoModeAccepted": true,
-  "bypassPermissionsModeAccepted": true,
   "hasAcknowledgedCostThreshold": true,
   "hasCompletedOnboarding": true
 }

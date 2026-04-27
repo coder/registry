@@ -382,10 +382,13 @@ describe("claude-code", async () => {
     const parsed = JSON.parse(claudeConfig);
     expect(parsed.autoUpdaterStatus).toBe("disabled");
     expect(parsed.hasCompletedOnboarding).toBe(true);
-    expect(parsed.bypassPermissionsModeAccepted).toBe(true);
     expect(parsed.hasAcknowledgedCostThreshold).toBe(true);
     expect(parsed.projects[workdir].hasCompletedProjectOnboarding).toBe(true);
     expect(parsed.projects[workdir].hasTrustDialogAccepted).toBe(true);
+    // Permission posture is delivered via /etc/claude-code/managed-settings.d/,
+    // not user-writable ~/.claude.json acceptance flags.
+    expect(parsed.bypassPermissionsModeAccepted).toBeUndefined();
+    expect(parsed.autoModeAccepted).toBeUndefined();
   });
 
   test("standalone-mode-with-oauth-token", async () => {
@@ -413,7 +416,7 @@ describe("claude-code", async () => {
     );
     const parsed = JSON.parse(claudeConfig);
     expect(parsed.hasCompletedOnboarding).toBe(true);
-    expect(parsed.bypassPermissionsModeAccepted).toBe(true);
+    expect(parsed.bypassPermissionsModeAccepted).toBeUndefined();
   });
 
   test("standalone-mode-no-auth", async () => {
