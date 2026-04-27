@@ -118,6 +118,44 @@ variable "enable_ai_gateway" {
   }
 }
 
+variable "anthropic_base_url" {
+  type        = string
+  description = "Override the Anthropic API base URL (sets ANTHROPIC_BASE_URL). Use for self-hosted gateways or proxies that speak the Anthropic Messages API. Mutually exclusive with enable_ai_gateway, which sets ANTHROPIC_BASE_URL to the Coder AI Gateway endpoint."
+  default     = ""
+
+  validation {
+    condition     = !(var.anthropic_base_url != "" && var.enable_ai_gateway)
+    error_message = "anthropic_base_url cannot be provided when enable_ai_gateway is true. AI Gateway sets ANTHROPIC_BASE_URL automatically."
+  }
+}
+
+variable "use_bedrock" {
+  type        = bool
+  description = "Run Claude Code against Amazon Bedrock (sets CLAUDE_CODE_USE_BEDROCK=1). Authentication uses the workspace's AWS credential chain (IRSA, instance profile, or AWS_* env vars). Mutually exclusive with enable_ai_gateway and use_vertex."
+  default     = false
+
+  validation {
+    condition     = !(var.use_bedrock && var.enable_ai_gateway)
+    error_message = "use_bedrock cannot be combined with enable_ai_gateway."
+  }
+
+  validation {
+    condition     = !(var.use_bedrock && var.use_vertex)
+    error_message = "use_bedrock cannot be combined with use_vertex. Choose at most one provider backend."
+  }
+}
+
+variable "use_vertex" {
+  type        = bool
+  description = "Run Claude Code against Google Vertex AI (sets CLAUDE_CODE_USE_VERTEX=1). Authentication uses Google Application Default Credentials inside the workspace. Mutually exclusive with enable_ai_gateway and use_bedrock."
+  default     = false
+
+  validation {
+    condition     = !(var.use_vertex && var.enable_ai_gateway)
+    error_message = "use_vertex cannot be combined with enable_ai_gateway."
+  }
+}
+
 resource "coder_env" "claude_code_oauth_token" {
   count    = var.claude_code_oauth_token != "" ? 1 : 0
   agent_id = var.agent_id
@@ -157,10 +195,24 @@ resource "coder_env" "anthropic_model" {
 }
 
 resource "coder_env" "anthropic_base_url" {
-  count    = var.enable_ai_gateway ? 1 : 0
+  count    = var.enable_ai_gateway || var.anthropic_base_url != "" ? 1 : 0
   agent_id = var.agent_id
   name     = "ANTHROPIC_BASE_URL"
-  value    = "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic"
+  value    = var.enable_ai_gateway ? "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic" : var.anthropic_base_url
+}
+
+resource "coder_env" "use_bedrock" {
+  count    = var.use_bedrock ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CLAUDE_CODE_USE_BEDROCK"
+  value    = "1"
+}
+
+resource "coder_env" "use_vertex" {
+  count    = var.use_vertex ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CLAUDE_CODE_USE_VERTEX"
+  value    = "1"
 }
 
 locals {
@@ -173,6 +225,9 @@ locals {
     ARG_MCP                    = var.mcp != "" ? base64encode(var.mcp) : ""
     ARG_MCP_CONFIG_REMOTE_PATH = base64encode(jsonencode(var.mcp_config_remote_path))
     ARG_ENABLE_AI_GATEWAY      = tostring(var.enable_ai_gateway)
+    ARG_USE_BEDROCK            = tostring(var.use_bedrock)
+    ARG_USE_VERTEX             = tostring(var.use_vertex)
+    ARG_ANTHROPIC_BASE_URL     = var.anthropic_base_url
   })
   module_dir_name = ".coder-modules/coder/claude-code"
 }
