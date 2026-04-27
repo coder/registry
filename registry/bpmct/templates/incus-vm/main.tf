@@ -218,9 +218,11 @@ resource "coder_agent" "main" {
 resource "incus_image" "image" {
   remote = local.incus_remote
   source_image = {
-    # NixOS images are imported locally (linuxcontainers.org doesn't carry NixOS).
+    # NixOS images are stored directly on the target incus host (linuxcontainers.org
+    # doesn't carry NixOS). Use the same remote as the destination so the provider
+    # resolves the alias locally on that host rather than on the provisioner.
     # Ubuntu/other images are pulled from the public images: simplestreams remote.
-    remote = local.is_nixos ? "local" : "images"
+    remote = local.is_nixos ? local.incus_remote : "images"
     name   = local.is_nixos ? data.coder_parameter.image.value : "${data.coder_parameter.image.value}/${data.coder_parameter.host.value == "ThinkStation" ? "amd64" : "arm64"}"
     type         = "virtual-machine"
     architecture = data.coder_parameter.host.value == "ThinkStation" ? "x86_64" : "aarch64"
