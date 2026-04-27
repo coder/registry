@@ -435,4 +435,51 @@ describe("claude-code", async () => {
     ]);
     expect(resp.stdout.trim()).toBe("ABSENT");
   });
+
+  test("api-key-helper", async () => {
+    const helperBody = "#!/bin/sh\nvault kv get -field=key secret/anthropic\n";
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        api_key_helper: JSON.stringify({ script: helperBody, ttl_ms: 60000 }),
+      },
+    });
+    expect(coderEnvVars["CLAUDE_CODE_API_KEY_HELPER_TTL_MS"]).toBe("60000");
+
+    await runScripts(id, scripts, coderEnvVars);
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+    );
+    expect(installLog).toContain("Configuring api_key_helper");
+    expect(installLog).toContain(
+      "Wrote api_key_helper script to /home/coder/.claude/coder-api-key-helper.sh",
+    );
+    // api_key_helper counts as authentication, so onboarding bypass runs.
+    expect(installLog).not.toContain("skipping onboarding bypass");
+    expect(installLog).toContain("Standalone mode configured successfully");
+
+    const helper = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude/coder-api-key-helper.sh && stat -c '%a' /home/coder/.claude/coder-api-key-helper.sh",
+    ]);
+    expect(helper.exitCode).toBe(0);
+    expect(helper.stdout).toContain("vault kv get -field=key secret/anthropic");
+    expect(helper.stdout).toContain("700");
+
+    const managed = await readFileContainer(
+      id,
+      "/etc/claude-code/managed-settings.d/20-coder-apikeyhelper.json",
+    );
+    expect(managed).toContain('"apiKeyHelper"');
+    expect(managed).toContain("/home/coder/.claude/coder-api-key-helper.sh");
+
+    const claudeConfig = await readFileContainer(
+      id,
+      "/home/coder/.claude.json",
+    );
+    const parsed = JSON.parse(claudeConfig);
+    expect(parsed.hasCompletedOnboarding).toBe(true);
+  });
 });

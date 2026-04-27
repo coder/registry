@@ -283,3 +283,77 @@ run "test_workdir_optional" {
     error_message = "workdir should default to null when omitted"
   }
 }
+
+run "test_api_key_helper" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-helper"
+    workdir  = "/home/coder/test"
+    api_key_helper = {
+      script = "#!/bin/sh\nvault kv get -field=key secret/anthropic\n"
+      ttl_ms = 60000
+    }
+  }
+
+  assert {
+    condition     = coder_env.api_key_helper_ttl[0].name == "CLAUDE_CODE_API_KEY_HELPER_TTL_MS"
+    error_message = "api_key_helper_ttl env var name should be CLAUDE_CODE_API_KEY_HELPER_TTL_MS"
+  }
+
+  assert {
+    condition     = coder_env.api_key_helper_ttl[0].value == "60000"
+    error_message = "api_key_helper_ttl env var value should match ttl_ms"
+  }
+}
+
+run "test_api_key_helper_default_ttl" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-helper-default"
+    workdir  = "/home/coder/test"
+    api_key_helper = {
+      script = "#!/bin/sh\necho key\n"
+    }
+  }
+
+  assert {
+    condition     = coder_env.api_key_helper_ttl[0].value == "300000"
+    error_message = "ttl_ms should default to 300000 (5 minutes)"
+  }
+}
+
+run "test_api_key_helper_validation_with_api_key" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent-validation"
+    workdir           = "/home/coder/test"
+    anthropic_api_key = "sk-test"
+    api_key_helper = {
+      script = "echo key"
+    }
+  }
+
+  expect_failures = [
+    var.api_key_helper,
+  ]
+}
+
+run "test_api_key_helper_validation_with_ai_gateway" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent-validation"
+    workdir           = "/home/coder/test"
+    enable_ai_gateway = true
+    api_key_helper = {
+      script = "echo key"
+    }
+  }
+
+  expect_failures = [
+    var.api_key_helper,
+  ]
+}
