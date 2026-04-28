@@ -29,19 +29,20 @@ validate_boundary_subcommand() {
     exit 1
   fi
 
-  # Run a no-op command through coder boundary to verify the subcommand
-  # exists AND the deployment license includes the boundary feature.
-  # 'coder boundary --help' always succeeds, so we use 'true' as a
-  # harmless command to surface license or capability errors.
+  # Run a no-op command through coder boundary to verify the deployment
+  # license includes the boundary feature. Only a license entitlement
+  # error is fatal here; other failures (missing nsjail, etc.) are
+  # expected at validation time and will be reported at runtime.
   local output
   if ! output=$(coder boundary -- true 2>&1); then
-    echo "Error: 'coder boundary' is not available." >&2
-    echo "$${output}" >&2
-    echo "" >&2
-    echo "If your Coder deployment is not licensed for boundary, set" >&2
-    echo "use_boundary_directly=true or compile_boundary_from_source=true" >&2
-    echo "to use the standalone boundary binary instead." >&2
-    exit 1
+    if echo "$${output}" | grep -qi "license is not entitled"; then
+      echo "Error: your Coder deployment is not licensed for the boundary feature." >&2
+      echo "$${output}" >&2
+      echo "" >&2
+      echo "Set use_boundary_directly=true or compile_boundary_from_source=true" >&2
+      echo "to use the standalone boundary binary instead." >&2
+      exit 1
+    fi
   fi
 }
 
