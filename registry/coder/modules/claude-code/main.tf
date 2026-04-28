@@ -181,10 +181,13 @@ locals {
   otel_resource_attributes = merge(
     var.telemetry.resource_attributes,
     {
-      "coder.workspace_id"    = data.coder_workspace.me.id
-      "coder.workspace_name"  = data.coder_workspace.me.name
-      "coder.workspace_owner" = data.coder_workspace_owner.me.name
-      "coder.template_name"   = data.coder_workspace.me.template_name
+      "coder.workspace_id"             = data.coder_workspace.me.id
+      "coder.workspace_name"           = data.coder_workspace.me.name
+      "coder.template_name"            = data.coder_workspace.me.template_name
+      "coder.template_version"         = data.coder_workspace.me.template_version
+      "coder.access_url"               = data.coder_workspace.me.access_url
+      "coder.workspace_owner_id"       = data.coder_workspace_owner.me.id
+      "coder.workspace_owner_username" = data.coder_workspace_owner.me.name
     },
   )
 }
