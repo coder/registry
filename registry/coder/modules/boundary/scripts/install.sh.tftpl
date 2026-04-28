@@ -29,10 +29,7 @@ validate_boundary_subcommand() {
     exit 1
   fi
 
-  # Run a no-op command through coder boundary to verify the deployment
-  # license includes the boundary feature. Only a license entitlement
-  # error is fatal here; other failures (missing nsjail, etc.) are
-  # expected at validation time and will be reported at runtime.
+  # Only a license entitlement error is fatal here.
   local output
   if ! output=$(coder boundary -- true 2>&1); then
     if echo "$${output}" | grep -qi "license is not entitled"; then
