@@ -43,6 +43,10 @@ interface SetupProps {
   skipCoderMock?: boolean;
 }
 
+const MODULE_DIR = "/home/coder/.coder-modules/coder/boundary";
+const CONFIG_PATH = `${MODULE_DIR}/config/config.yaml`;
+const WRAPPER_PATH = `${MODULE_DIR}/scripts/boundary-wrapper.sh`;
+
 const setup = async (
   props?: SetupProps,
 ): Promise<{ id: string; coderEnvVars: Record<string, string> }> => {
@@ -132,17 +136,11 @@ describe("boundary", async () => {
 
     const resources = state.resources;
 
-    // Verify coder_env resource for BOUNDARY_WRAPPER_PATH
-    const boundaryEnv = resources.find(
+    // BOUNDARY_WRAPPER_PATH env should NOT exist (only output)
+    const wrapperEnv = resources.find(
       (r) => r.type === "coder_env" && r.name === "boundary_wrapper_path",
     );
-    expect(boundaryEnv).toBeDefined();
-    expect(boundaryEnv?.instances[0]?.attributes.name).toBe(
-      "BOUNDARY_WRAPPER_PATH",
-    );
-    expect(boundaryEnv?.instances[0]?.attributes.value).toBe(
-      "$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh",
-    );
+    expect(wrapperEnv).toBeUndefined();
 
     // Verify coder_env resource for BOUNDARY_CONFIG
     const configEnv = resources.find(
@@ -151,16 +149,14 @@ describe("boundary", async () => {
     expect(configEnv).toBeDefined();
     expect(configEnv?.instances[0]?.attributes.name).toBe("BOUNDARY_CONFIG");
     expect(configEnv?.instances[0]?.attributes.value).toBe(
-      "$HOME/.config/coder_boundary/config.yaml",
+      "$HOME/.coder-modules/coder/boundary/config/config.yaml",
     );
 
     // Verify the outputs are set correctly
     const coderEnvVars = extractCoderEnvVars(state);
-    expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBe(
-      "$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh",
-    );
+    expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBeUndefined();
     expect(coderEnvVars["BOUNDARY_CONFIG"]).toBe(
-      "$HOME/.config/coder_boundary/config.yaml",
+      "$HOME/.coder-modules/coder/boundary/config/config.yaml",
     );
   });
 
@@ -171,9 +167,14 @@ describe("boundary", async () => {
       module_directory: customDir,
     });
 
-    const coderEnvVars = extractCoderEnvVars(state);
-    expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBe(
+    // Verify output uses custom dir
+    const outputs = state.outputs;
+    expect(outputs["boundary_wrapper_path"]?.value).toBe(
       `${customDir}/scripts/boundary-wrapper.sh`,
+    );
+    // Config path follows module directory
+    expect(outputs["boundary_config_path"]?.value).toBe(
+      `${customDir}/config/config.yaml`,
     );
   });
 
@@ -188,7 +189,7 @@ describe("boundary", async () => {
     const coderEnvVars = extractCoderEnvVars(state);
     // Inline config still writes to the managed path.
     expect(coderEnvVars["BOUNDARY_CONFIG"]).toBe(
-      "$HOME/.config/coder_boundary/config.yaml",
+      "$HOME/.coder-modules/coder/boundary/config/config.yaml",
     );
   });
 
@@ -208,10 +209,7 @@ describe("boundary", async () => {
     await execModuleScript(id);
 
     // Verify the wrapper script was created
-    const wrapperContent = await readFileContainer(
-      id,
-      "/home/coder/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh",
-    );
+    const wrapperContent = await readFileContainer(id, WRAPPER_PATH);
     expect(wrapperContent).toContain("#!/usr/bin/env bash");
     expect(wrapperContent).toContain("coder-no-caps");
     expect(wrapperContent).toContain("boundary");
@@ -221,31 +219,29 @@ describe("boundary", async () => {
       "stat",
       "-c",
       "%a",
-      "/home/coder/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh",
+      WRAPPER_PATH,
     ]);
-    expect(statResult.stdout.trim()).toMatch(/7[0-9][0-9]/); // Should be executable (7xx)
+    expect(statResult.stdout.trim()).toMatch(/7[0-9][0-9]/);
 
     // Verify coder-no-caps binary was created
     const coderNoCapsResult = await execContainer(id, [
       "test",
       "-f",
-      "/home/coder/.coder-modules/coder/boundary/scripts/coder-no-caps",
+      `${MODULE_DIR}/scripts/coder-no-caps`,
     ]);
     expect(coderNoCapsResult.exitCode).toBe(0);
 
-    // Verify default boundary config was written
-    const configContent = await readFileContainer(
-      id,
-      "/home/coder/.config/coder_boundary/config.yaml",
-    );
+    // Verify default boundary config was written inside module directory
+    const configContent = await readFileContainer(id, CONFIG_PATH);
     expect(configContent).toContain("allowlist:");
     expect(configContent).toContain("domain=api.anthropic.com");
+    expect(configContent).toContain("domain=api.openai.com");
     expect(configContent).toContain("proxy_port: 8087");
 
     // Check install log
     const installLog = await readFileContainer(
       id,
-      "/home/coder/.coder-modules/coder/boundary/logs/install.log",
+      `${MODULE_DIR}/logs/install.log`,
     );
     expect(installLog).toContain("Using coder boundary subcommand");
     expect(installLog).toContain("Boundary config written to");
@@ -263,10 +259,7 @@ describe("boundary", async () => {
     await execModuleScript(id);
 
     // Verify the inline config was written
-    const configContent = await readFileContainer(
-      id,
-      "/home/coder/.config/coder_boundary/config.yaml",
-    );
+    const configContent = await readFileContainer(id, CONFIG_PATH);
     expect(configContent).toContain("domain=custom.example.com");
     expect(configContent).toContain("log_level: info");
   });
@@ -280,17 +273,13 @@ describe("boundary", async () => {
     await execModuleScript(id);
 
     // Verify NO config was written to the default path
-    const checkResult = await execContainer(id, [
-      "test",
-      "-f",
-      "/home/coder/.config/coder_boundary/config.yaml",
-    ]);
+    const checkResult = await execContainer(id, ["test", "-f", CONFIG_PATH]);
     expect(checkResult.exitCode).not.toBe(0);
 
     // Check install log confirms skip
     const installLog = await readFileContainer(
       id,
-      "/home/coder/.coder-modules/coder/boundary/logs/install.log",
+      `${MODULE_DIR}/logs/install.log`,
     );
     expect(installLog).toContain(
       "Using external boundary config, skipping config write",
@@ -316,36 +305,34 @@ describe("boundary", async () => {
     // Verify pre-install script ran
     const preInstallLog = await readFileContainer(
       id,
-      "/home/coder/.coder-modules/coder/boundary/logs/pre_install.log",
+      `${MODULE_DIR}/logs/pre_install.log`,
     );
     expect(preInstallLog).toContain(preInstallMarker);
 
     // Verify post-install script ran
     const postInstallLog = await readFileContainer(
       id,
-      "/home/coder/.coder-modules/coder/boundary/logs/post_install.log",
+      `${MODULE_DIR}/logs/post_install.log`,
     );
     expect(postInstallLog).toContain(postInstallMarker);
 
     // Verify main install still ran
     const installLog = await readFileContainer(
       id,
-      "/home/coder/.coder-modules/coder/boundary/logs/install.log",
+      `${MODULE_DIR}/logs/install.log`,
     );
     expect(installLog).toContain("boundary wrapper configured");
   });
 
   test("env-var-set-correctly", async () => {
-    const { id, coderEnvVars } = await setup();
+    const { coderEnvVars } = await setup();
 
-    // Verify BOUNDARY_WRAPPER_PATH is in the coder env vars
-    expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBe(
-      "$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh",
-    );
+    // BOUNDARY_WRAPPER_PATH env var should NOT exist
+    expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBeUndefined();
 
     // Verify BOUNDARY_CONFIG is in the coder env vars
     expect(coderEnvVars["BOUNDARY_CONFIG"]).toBe(
-      "$HOME/.config/coder_boundary/config.yaml",
+      "$HOME/.coder-modules/coder/boundary/config/config.yaml",
     );
   });
 
@@ -357,7 +344,7 @@ describe("boundary", async () => {
     const wrapperResult = await execContainer(id, [
       "bash",
       "-c",
-      "/home/coder/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh echo boundary-test",
+      `${WRAPPER_PATH} echo boundary-test`,
     ]);
 
     // The wrapper passes the command directly to the boundary command
@@ -371,7 +358,7 @@ describe("boundary", async () => {
     await execModuleScript(id);
     const firstInstallLog = await readFileContainer(
       id,
-      "/home/coder/.coder-modules/coder/boundary/logs/install.log",
+      `${MODULE_DIR}/logs/install.log`,
     );
 
     // Run again

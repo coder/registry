@@ -7,22 +7,6 @@ run "plan_with_required_vars" {
     agent_id = "test-agent-id"
   }
 
-  # Verify the coder_env resource is created with correct agent_id
-  assert {
-    condition     = coder_env.boundary_wrapper_path.agent_id == "test-agent-id"
-    error_message = "boundary_wrapper_path agent_id should match the input variable"
-  }
-
-  assert {
-    condition     = coder_env.boundary_wrapper_path.name == "BOUNDARY_WRAPPER_PATH"
-    error_message = "Environment variable name should be 'BOUNDARY_WRAPPER_PATH'"
-  }
-
-  assert {
-    condition     = coder_env.boundary_wrapper_path.value == "$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh"
-    error_message = "Environment variable value should be the boundary wrapper path"
-  }
-
   # Verify BOUNDARY_CONFIG env var with default config path
   assert {
     condition     = coder_env.boundary_config.name == "BOUNDARY_CONFIG"
@@ -30,8 +14,8 @@ run "plan_with_required_vars" {
   }
 
   assert {
-    condition     = coder_env.boundary_config.value == "$HOME/.config/coder_boundary/config.yaml"
-    error_message = "BOUNDARY_CONFIG should default to ~/.config/coder_boundary/config.yaml"
+    condition     = coder_env.boundary_config.value == "$HOME/.coder-modules/coder/boundary/config/config.yaml"
+    error_message = "BOUNDARY_CONFIG should default to module_directory/config/config.yaml"
   }
 
   # Verify the boundary_wrapper_path output
@@ -42,7 +26,7 @@ run "plan_with_required_vars" {
 
   # Verify boundary_config_path output defaults to the managed path
   assert {
-    condition     = output.boundary_config_path == "$HOME/.config/coder_boundary/config.yaml"
+    condition     = output.boundary_config_path == "$HOME/.coder-modules/coder/boundary/config/config.yaml"
     error_message = "boundary_config_path output should default to managed config path"
   }
 
@@ -60,11 +44,6 @@ run "plan_with_compile_from_source" {
     agent_id                     = "test-agent-id"
     compile_boundary_from_source = true
     boundary_version             = "main"
-  }
-
-  assert {
-    condition     = coder_env.boundary_wrapper_path.agent_id == "test-agent-id"
-    error_message = "boundary_wrapper_path agent_id should match the input variable"
   }
 
   assert {
@@ -88,11 +67,6 @@ run "plan_with_use_directly" {
   }
 
   assert {
-    condition     = coder_env.boundary_wrapper_path.agent_id == "test-agent-id"
-    error_message = "boundary_wrapper_path agent_id should match the input variable"
-  }
-
-  assert {
     condition     = output.boundary_wrapper_path == "$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh"
     error_message = "boundary_wrapper_path output should be correct"
   }
@@ -110,11 +84,6 @@ run "plan_with_custom_hooks" {
     agent_id            = "test-agent-id"
     pre_install_script  = "echo 'Before install'"
     post_install_script = "echo 'After install'"
-  }
-
-  assert {
-    condition     = coder_env.boundary_wrapper_path.agent_id == "test-agent-id"
-    error_message = "boundary_wrapper_path agent_id should match the input variable"
   }
 
   assert {
@@ -143,13 +112,14 @@ run "plan_with_custom_module_directory" {
   }
 
   assert {
-    condition     = coder_env.boundary_wrapper_path.value == "$HOME/.coder-modules/custom/boundary/scripts/boundary-wrapper.sh"
-    error_message = "Environment variable should use custom module directory"
-  }
-
-  assert {
     condition     = output.boundary_wrapper_path == "$HOME/.coder-modules/custom/boundary/scripts/boundary-wrapper.sh"
     error_message = "boundary_wrapper_path output should use custom module directory"
+  }
+
+  # Config path should also follow the module directory
+  assert {
+    condition     = output.boundary_config_path == "$HOME/.coder-modules/custom/boundary/config/config.yaml"
+    error_message = "boundary_config_path output should use custom module directory"
   }
 }
 
@@ -164,12 +134,12 @@ run "plan_with_inline_boundary_config" {
   # BOUNDARY_CONFIG should still point to the managed path since we write
   # the inline content there.
   assert {
-    condition     = coder_env.boundary_config.value == "$HOME/.config/coder_boundary/config.yaml"
+    condition     = coder_env.boundary_config.value == "$HOME/.coder-modules/coder/boundary/config/config.yaml"
     error_message = "BOUNDARY_CONFIG should point to managed config path when using inline config"
   }
 
   assert {
-    condition     = output.boundary_config_path == "$HOME/.config/coder_boundary/config.yaml"
+    condition     = output.boundary_config_path == "$HOME/.coder-modules/coder/boundary/config/config.yaml"
     error_message = "boundary_config_path output should point to managed config path"
   }
 }

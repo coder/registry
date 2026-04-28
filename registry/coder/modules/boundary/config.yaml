@@ -1,11 +1,20 @@
 allowlist:
-  # Your Coder deployment domain (required — replace with your own).
+  # Your Coder deployment domain (auto-filled from access URL when
+  # using the default config; replace if customising manually).
   - domain=your-deployment.coder.com
 
   # Anthropic Services
   - domain=api.anthropic.com
   - domain=statsig.anthropic.com
   - domain=claude.ai
+
+  # OpenAI Services
+  - domain=api.openai.com
+  - domain=platform.openai.com
+  - domain=openai.com
+  - domain=chatgpt.com
+  - domain=*.oaiusercontent.com
+  - domain=*.oaistatic.com
 
   # Version Control
   - domain=github.com

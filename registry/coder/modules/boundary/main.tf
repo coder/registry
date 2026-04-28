@@ -9,6 +9,8 @@ terraform {
   }
 }
 
+data "coder_workspace" "me" {}
+
 variable "agent_id" {
   type        = string
   description = "The ID of a Coder agent."
@@ -70,11 +72,16 @@ variable "module_directory" {
 locals {
   boundary_wrapper_path = "${var.module_directory}/scripts/boundary-wrapper.sh"
 
+  # Extract domain from the Coder access URL for the default config
+  # allowlist (e.g., "https://dev.coder.com/" -> "dev.coder.com").
+  coder_domain = try(regex("^https?://([^/:]+)", data.coder_workspace.me.access_url)[0], "")
+
   # Config handling: resolve which config content to write and where
   # BOUNDARY_CONFIG points to.
-  default_boundary_config        = file("${path.module}/config.yaml")
+  raw_default_config             = file("${path.module}/config.yaml")
+  default_boundary_config        = local.coder_domain != "" ? replace(local.raw_default_config, "domain=your-deployment.coder.com", "domain=${local.coder_domain}") : local.raw_default_config
   boundary_config_content        = var.boundary_config != null ? var.boundary_config : local.default_boundary_config
-  boundary_config_dir            = "$HOME/.config/coder_boundary"
+  boundary_config_dir            = "${var.module_directory}/config"
   boundary_config_file_path      = "${local.boundary_config_dir}/config.yaml"
   effective_boundary_config_path = var.boundary_config_path != null ? var.boundary_config_path : local.boundary_config_file_path
   write_boundary_config          = var.boundary_config_path == null
@@ -101,12 +108,6 @@ module "coder_utils" {
   pre_install_script  = var.pre_install_script
   post_install_script = var.post_install_script
   install_script      = local.install_script
-}
-
-resource "coder_env" "boundary_wrapper_path" {
-  agent_id = var.agent_id
-  name     = "BOUNDARY_WRAPPER_PATH"
-  value    = local.boundary_wrapper_path
 }
 
 resource "coder_env" "boundary_config" {

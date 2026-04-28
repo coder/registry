@@ -14,9 +14,10 @@ This module:
 
 - Installs boundary (via coder subcommand, direct installation, or compilation from source)
 - Creates a wrapper script at `$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh`
-- Writes a default boundary config to `~/.config/coder_boundary/config.yaml` (customizable)
-- Exports `BOUNDARY_WRAPPER_PATH` and `BOUNDARY_CONFIG` as workspace environment variables
-- Provides the wrapper path and config path via outputs
+- Writes a default boundary config to `$HOME/.coder-modules/coder/boundary/config/config.yaml` (customizable)
+- Automatically adds your Coder deployment domain to the config allowlist
+- Exports `BOUNDARY_CONFIG` as a workspace environment variable
+- Provides the wrapper path, config path, and script names via outputs
 
 ```tf
 module "boundary" {
@@ -31,12 +32,15 @@ module "boundary" {
 
 The module ships with a comprehensive default config based on the
 [Coder dogfood allowlist](./config.yaml). It covers Anthropic services,
-version control, package managers, container registries, cloud platforms,
-and common development tools.
+OpenAI services, version control, package managers, container registries,
+cloud platforms, and common development tools.
 
-By default the config is written to `~/.config/coder_boundary/config.yaml`
-and the `BOUNDARY_CONFIG` env var points there. You can override it in two
-ways:
+The Coder deployment domain is automatically added to the allowlist using
+`data.coder_workspace.me.access_url`.
+
+By default the config is written to
+`$HOME/.coder-modules/coder/boundary/config/config.yaml` and the
+`BOUNDARY_CONFIG` env var points there. You can override it in two ways:
 
 ### Inline config
 
@@ -53,6 +57,7 @@ module "boundary" {
     allowlist:
       - domain=your-deployment.coder.com
       - domain=api.anthropic.com
+      - domain=api.openai.com
     log_dir: /tmp/boundary_logs
     proxy_port: 8087
     log_level: warn
@@ -84,18 +89,8 @@ for the full config reference.
 
 ## Usage
 
-The `BOUNDARY_WRAPPER_PATH` environment variable is automatically available to all
-workspace processes. Start scripts should check for this variable and use it to prefix
-commands that should run in network isolation:
-
-```bash
-if [ -n "${BOUNDARY_WRAPPER_PATH:-}" ]; then
-  # Run command with boundary wrapper
-  "${BOUNDARY_WRAPPER_PATH}" -- my-command --args
-fi
-```
-
-Alternatively, you can use the module output to access the wrapper path in Terraform:
+Use the `boundary_wrapper_path` output to access the wrapper path in Terraform
+and pass it to scripts that should run commands in network isolation:
 
 ```tf
 module "boundary" {
@@ -108,7 +103,6 @@ module "boundary" {
 resource "coder_script" "my_app" {
   agent_id = coder_agent.main.id
   script   = <<-EOT
-    # Access the boundary wrapper path
     WRAPPER="${module.boundary[0].boundary_wrapper_path}"
     "$WRAPPER" -- my-command --args
   EOT
@@ -163,7 +157,7 @@ resource "coder_script" "claude_with_boundary" {
     coder exp sync start claude-boundary
 
     # Run Claude inside the boundary wrapper.
-    "$BOUNDARY_WRAPPER_PATH" -- claude
+    "${module.boundary[0].boundary_wrapper_path}" -- claude
   EOT
 }
 ```
