@@ -78,8 +78,9 @@ locals {
 
   # Config handling: resolve which config content to write and where
   # BOUNDARY_CONFIG points to.
-  raw_default_config             = file("${path.module}/config.yaml")
-  default_boundary_config        = local.coder_domain != "" ? replace(local.raw_default_config, "domain=your-deployment.coder.com", "domain=${local.coder_domain}") : local.raw_default_config
+  default_boundary_config        = templatefile("${path.module}/config.yaml.tftpl", {
+    CODER_DOMAIN = local.coder_domain
+  })
   boundary_config_content        = var.boundary_config != null ? var.boundary_config : local.default_boundary_config
   boundary_config_dir            = "${var.module_directory}/config"
   boundary_config_file_path      = "${local.boundary_config_dir}/config.yaml"
