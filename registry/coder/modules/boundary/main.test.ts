@@ -158,6 +158,15 @@ describe("boundary", async () => {
     expect(coderEnvVars["BOUNDARY_CONFIG"]).toBe(
       "$HOME/.coder-modules/coder/boundary/config/config.yaml",
     );
+
+    // Verify boundary_config_path output
+    expect(state.outputs["boundary_config_path"]?.value).toBe(
+      "$HOME/.coder-modules/coder/boundary/config/config.yaml",
+    );
+
+    // Verify scripts output contains install script
+    const scripts = state.outputs["scripts"]?.value as string[];
+    expect(scripts).toContain("coder-boundary-install_script");
   });
 
   test("terraform-state-custom-module-directory", async () => {
@@ -237,6 +246,10 @@ describe("boundary", async () => {
     expect(configContent).toContain("domain=api.anthropic.com");
     expect(configContent).toContain("domain=api.openai.com");
     expect(configContent).toContain("proxy_port: 8087");
+
+    // Verify Coder domain was auto-filled from data.coder_workspace.me
+    // (the placeholder should be replaced with the actual deployment domain).
+    expect(configContent).not.toContain("domain=your-deployment.coder.com");
 
     // Check install log
     const installLog = await readFileContainer(
