@@ -31,13 +31,13 @@ validate_boundary_subcommand() {
 
   # Only a license entitlement error is fatal here.
   local output
-  if ! output=$(coder boundary -- true 2>&1); then
+  echo "Checking for license"
+  coder boundary
+  if ! output=$(coder boundary 2>&1); then
     if echo "$${output}" | grep -qi "license is not entitled"; then
       echo "Error: your Coder deployment is not licensed for the boundary feature." >&2
       echo "$${output}" >&2
       echo "" >&2
-      echo "Set use_boundary_directly=true or compile_boundary_from_source=true" >&2
-      echo "to use the standalone boundary binary instead." >&2
       exit 1
     fi
   fi
