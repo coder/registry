@@ -144,10 +144,23 @@ describe("boundary", async () => {
       "$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh",
     );
 
+    // Verify coder_env resource for BOUNDARY_CONFIG
+    const configEnv = resources.find(
+      (r) => r.type === "coder_env" && r.name === "boundary_config",
+    );
+    expect(configEnv).toBeDefined();
+    expect(configEnv?.instances[0]?.attributes.name).toBe("BOUNDARY_CONFIG");
+    expect(configEnv?.instances[0]?.attributes.value).toBe(
+      "$HOME/.config/coder_boundary/config.yaml",
+    );
+
     // Verify the outputs are set correctly
     const coderEnvVars = extractCoderEnvVars(state);
     expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBe(
       "$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh",
+    );
+    expect(coderEnvVars["BOUNDARY_CONFIG"]).toBe(
+      "$HOME/.config/coder_boundary/config.yaml",
     );
   });
 
@@ -162,6 +175,32 @@ describe("boundary", async () => {
     expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBe(
       `${customDir}/scripts/boundary-wrapper.sh`,
     );
+  });
+
+  test("terraform-state-inline-config", async () => {
+    const inlineConfig =
+      "allowlist:\n  - domain=example.com\nlog_level: debug\n";
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "test-agent-id",
+      boundary_config: inlineConfig,
+    });
+
+    const coderEnvVars = extractCoderEnvVars(state);
+    // Inline config still writes to the managed path.
+    expect(coderEnvVars["BOUNDARY_CONFIG"]).toBe(
+      "$HOME/.config/coder_boundary/config.yaml",
+    );
+  });
+
+  test("terraform-state-config-path", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "test-agent-id",
+      boundary_config_path: "/workspace/my-config.yaml",
+    });
+
+    const coderEnvVars = extractCoderEnvVars(state);
+    // BOUNDARY_CONFIG should point to the user-provided path.
+    expect(coderEnvVars["BOUNDARY_CONFIG"]).toBe("/workspace/my-config.yaml");
   });
 
   test("happy-path-coder-subcommand", async () => {
@@ -194,13 +233,68 @@ describe("boundary", async () => {
     ]);
     expect(coderNoCapsResult.exitCode).toBe(0);
 
+    // Verify default boundary config was written
+    const configContent = await readFileContainer(
+      id,
+      "/home/coder/.config/coder_boundary/config.yaml",
+    );
+    expect(configContent).toContain("allowlist:");
+    expect(configContent).toContain("domain=api.anthropic.com");
+    expect(configContent).toContain("proxy_port: 8087");
+
     // Check install log
     const installLog = await readFileContainer(
       id,
       "/home/coder/.coder-modules/coder/boundary/logs/install.log",
     );
     expect(installLog).toContain("Using coder boundary subcommand");
+    expect(installLog).toContain("Boundary config written to");
     expect(installLog).toContain("boundary wrapper configured");
+  });
+
+  test("inline-config-written", async () => {
+    const customConfig =
+      "allowlist:\n  - domain=custom.example.com\nlog_level: info\n";
+    const { id } = await setup({
+      moduleVariables: {
+        boundary_config: customConfig,
+      },
+    });
+    await execModuleScript(id);
+
+    // Verify the inline config was written
+    const configContent = await readFileContainer(
+      id,
+      "/home/coder/.config/coder_boundary/config.yaml",
+    );
+    expect(configContent).toContain("domain=custom.example.com");
+    expect(configContent).toContain("log_level: info");
+  });
+
+  test("config-path-skips-write", async () => {
+    const { id } = await setup({
+      moduleVariables: {
+        boundary_config_path: "/workspace/external-config.yaml",
+      },
+    });
+    await execModuleScript(id);
+
+    // Verify NO config was written to the default path
+    const checkResult = await execContainer(id, [
+      "test",
+      "-f",
+      "/home/coder/.config/coder_boundary/config.yaml",
+    ]);
+    expect(checkResult.exitCode).not.toBe(0);
+
+    // Check install log confirms skip
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/boundary/logs/install.log",
+    );
+    expect(installLog).toContain(
+      "Using external boundary config, skipping config write",
+    );
   });
 
   // Note: Tests for use_boundary_directly and compile_from_source are skipped
@@ -247,6 +341,11 @@ describe("boundary", async () => {
     // Verify BOUNDARY_WRAPPER_PATH is in the coder env vars
     expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBe(
       "$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh",
+    );
+
+    // Verify BOUNDARY_CONFIG is in the coder env vars
+    expect(coderEnvVars["BOUNDARY_CONFIG"]).toBe(
+      "$HOME/.config/coder_boundary/config.yaml",
     );
   });
 

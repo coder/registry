@@ -14,8 +14,9 @@ This module:
 
 - Installs boundary (via coder subcommand, direct installation, or compilation from source)
 - Creates a wrapper script at `$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh`
-- Exports `BOUNDARY_WRAPPER_PATH` as a workspace environment variable
-- Provides the wrapper path via the `boundary_wrapper_path` output
+- Writes a default boundary config to `~/.config/coder_boundary/config.yaml` (customizable)
+- Exports `BOUNDARY_WRAPPER_PATH` and `BOUNDARY_CONFIG` as workspace environment variables
+- Provides the wrapper path and config path via outputs
 
 ```tf
 module "boundary" {
@@ -28,26 +29,58 @@ module "boundary" {
 
 ## Configuration
 
-Boundary reads its policy from a `config.yaml` file. A sample is included in
-this module at [`config.yaml`](./config.yaml). Copy it into your template
-directory and customize the `allowlist` for the domains your agent needs.
+The module ships with a comprehensive default config based on the
+[Coder dogfood allowlist](./config.yaml). It covers Anthropic services,
+version control, package managers, container registries, cloud platforms,
+and common development tools.
+
+By default the config is written to `~/.config/coder_boundary/config.yaml`
+and the `BOUNDARY_CONFIG` env var points there. You can override it in two
+ways:
+
+### Inline config
+
+Pass the full YAML content directly:
+
+```tf
+module "boundary" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/boundary/coder"
+  version  = "0.0.1"
+  agent_id = coder_agent.main.id
+
+  boundary_config = <<-YAML
+    allowlist:
+      - domain=your-deployment.coder.com
+      - domain=api.anthropic.com
+    log_dir: /tmp/boundary_logs
+    proxy_port: 8087
+    log_level: warn
+  YAML
+}
+```
+
+### External config file
+
+Point to an existing config file in the workspace. The module will not
+write any config and `BOUNDARY_CONFIG` will point to your path:
+
+```tf
+module "boundary" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/boundary/coder"
+  version  = "0.0.1"
+  agent_id = coder_agent.main.id
+
+  boundary_config_path = "/workspace/my-boundary-config.yaml"
+}
+```
+
+> **Note:** `boundary_config` and `boundary_config_path` are mutually
+> exclusive — setting both produces a validation error.
 
 See the [Agent Firewall docs](https://coder.com/docs/ai-coder/agent-firewall)
 for the full config reference.
-
-To write the config into the workspace at startup, use a `coder_script`:
-
-```tf
-resource "coder_script" "boundary_config" {
-  agent_id     = coder_agent.main.id
-  display_name = "Boundary Config"
-  run_on_start = true
-  script       = <<-EOT
-    mkdir -p ~/.config/coder_boundary
-    cp ${path.module}/config.yaml ~/.config/coder_boundary/config.yaml
-  EOT
-}
-```
 
 ## Usage
 
@@ -114,17 +147,6 @@ module "claude_code" {
   source   = "registry.coder.com/coder/claude-code/coder"
   version  = "5.3.0"
   agent_id = coder_agent.main.id
-}
-
-# Write boundary config into the workspace.
-resource "coder_script" "boundary_config" {
-  agent_id     = coder_agent.main.id
-  display_name = "Boundary Config"
-  run_on_start = true
-  script       = <<-EOT
-    mkdir -p ~/.config/coder_boundary
-    cp ${path.module}/config.yaml ~/.config/coder_boundary/config.yaml
-  EOT
 }
 
 # Launch Claude behind the boundary wrapper after both modules

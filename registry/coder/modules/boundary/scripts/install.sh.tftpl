@@ -9,6 +9,9 @@ COMPILE_BOUNDARY_FROM_SOURCE='${COMPILE_BOUNDARY_FROM_SOURCE}'
 USE_BOUNDARY_DIRECTLY='${USE_BOUNDARY_DIRECTLY}'
 MODULE_DIR="${MODULE_DIR}"
 BOUNDARY_WRAPPER_PATH="${BOUNDARY_WRAPPER_PATH}"
+WRITE_BOUNDARY_CONFIG='${WRITE_BOUNDARY_CONFIG}'
+BOUNDARY_CONFIG_DIR="${BOUNDARY_CONFIG_DIR}"
+BOUNDARY_CONFIG_FILE="${BOUNDARY_CONFIG_FILE}"
 
 validate_boundary_subcommand() {
   if command -v coder > /dev/null 2>&1; then
@@ -57,12 +60,29 @@ install_boundary() {
   fi
 }
 
-# Set up boundary: install, create wrapper script.
+# Write boundary config file if the module is responsible for it.
+write_boundary_config() {
+  if [[ "$${WRITE_BOUNDARY_CONFIG}" != "true" ]]; then
+    echo "Using external boundary config, skipping config write."
+    return 0
+  fi
+
+  mkdir -p "$${BOUNDARY_CONFIG_DIR}"
+  cat > "$${BOUNDARY_CONFIG_FILE}" << '__BOUNDARY_CONFIG_EOF__'
+${BOUNDARY_CONFIG_CONTENT}
+__BOUNDARY_CONFIG_EOF__
+  echo "Boundary config written to $${BOUNDARY_CONFIG_FILE}"
+}
+
+# Set up boundary: install, write config, create wrapper script.
 setup_boundary() {
   echo "Setting up coder boundary..."
 
   # Install boundary binary if needed
   install_boundary
+
+  # Write boundary config
+  write_boundary_config
 
   # Ensure the wrapper script directory exists.
   mkdir -p "$(dirname "$${BOUNDARY_WRAPPER_PATH}")"
