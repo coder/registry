@@ -124,40 +124,37 @@ The list may contain the following script names:
 ### With Claude Code
 
 Use boundary alongside the `claude-code` module to run Claude in a
-network-isolated environment. The `coder_script` below waits for both
+network-isolated environment. The `coder_app` below waits for both
 modules to finish installing before launching Claude behind the boundary
 wrapper.
 
 ```tf
 module "boundary" {
-  count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/boundary/coder"
   version  = "0.0.1"
   agent_id = coder_agent.main.id
 }
 
 module "claude_code" {
-  count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/claude-code/coder"
   version  = "5.3.0"
   agent_id = coder_agent.main.id
 }
 
-# Launch Claude behind the boundary wrapper after both modules
-# have finished installing.
-resource "coder_script" "claude_with_boundary" {
+resource "coder_app" "claude_with_boundary" {
   agent_id     = coder_agent.main.id
+  slug         = "claude-cli"
   display_name = "Claude (Boundary)"
-  run_on_start = true
-  script       = <<-EOT
+  command      = <<-EOT
     # Wait for boundary and claude-code install scripts to complete.
     coder exp sync want claude-boundary \
-      ${join(" ", module.boundary[0].scripts)} \
-      ${join(" ", module.claude_code[0].scripts)}
-    coder exp sync start claude-boundary
+      ${join(" ", module.boundary.scripts)} \
+      ${join(" ", module.claude_code.scripts)} > /dev/null 2>&1
+    coder exp sync start claude-boundary > /dev/null 2>&1
 
     # Run Claude inside the boundary wrapper.
-    "${module.boundary[0].boundary_wrapper_path}" -- claude
+    "${module.boundary.boundary_wrapper_path}" \
+      --config="${module.boundary.boundary_config_path}" -- claude
   EOT
 }
 ```
