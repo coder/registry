@@ -93,7 +93,7 @@ start_tailscaled() {
     fi
     sudo mkdir -p /var/run/tailscale
     # shellcheck disable=SC2086
-    sudo tailscaled $daemon_flags &> /tmp/tailscaled.log &
+    sudo tailscaled $daemon_flags 2>&1 | sudo tee /tmp/tailscaled.log > /dev/null &
     sleep 2
     log "tailscaled started in background."
   fi
