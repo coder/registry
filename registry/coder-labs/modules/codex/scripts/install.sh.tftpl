@@ -1,0 +1,152 @@
+#!/bin/bash
+
+set -euo pipefail
+
+BOLD='\033[0;1m'
+
+command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+ARG_INSTALL='${ARG_INSTALL}'
+ARG_CODEX_VERSION='${ARG_CODEX_VERSION}'
+ARG_WORKDIR='${ARG_WORKDIR}'
+ARG_CODEX_MODEL='${ARG_CODEX_MODEL}'
+ARG_LATEST_CODEX_MODEL='${ARG_LATEST_CODEX_MODEL}'
+ARG_BASE_CONFIG_TOML=$(echo -n '${ARG_BASE_CONFIG_TOML}' | base64 -d)
+ARG_ADDITIONAL_MCP_SERVERS=$(echo -n '${ARG_ADDITIONAL_MCP_SERVERS}' | base64 -d)
+ARG_ENABLE_AI_GATEWAY='${ARG_ENABLE_AI_GATEWAY}'
+ARG_AIBRIDGE_CONFIG=$(echo -n '${ARG_AIBRIDGE_CONFIG}' | base64 -d)
+ARG_MODEL_REASONING_EFFORT='${ARG_MODEL_REASONING_EFFORT}'
+
+echo "--------------------------------"
+printf "ARG_INSTALL: %s\n" "$${ARG_INSTALL}"
+printf "ARG_CODEX_VERSION: %s\n" "$${ARG_CODEX_VERSION}"
+printf "ARG_WORKDIR: %s\n" "$${ARG_WORKDIR}"
+printf "ARG_CODEX_MODEL: %s\n" "$${ARG_CODEX_MODEL}"
+printf "ARG_ENABLE_AI_GATEWAY: %s\n" "$${ARG_ENABLE_AI_GATEWAY}"
+echo "--------------------------------"
+
+function install_node() {
+  if ! command_exists npm; then
+    printf "npm not found, checking for Node.js installation...\n"
+    if ! command_exists node; then
+      printf "Node.js not found, installing Node.js via NVM...\n"
+      export NVM_DIR="$HOME/.nvm"
+      if [ ! -d "$NVM_DIR" ]; then
+        mkdir -p "$NVM_DIR"
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+      else
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+      fi
+
+      nvm install --lts
+      nvm use --lts
+      nvm alias default node
+
+      printf "Node.js installed: %s\n" "$(node --version)"
+      printf "npm installed: %s\n" "$(npm --version)"
+    else
+      printf "Node.js is installed but npm is not available.\n"
+      exit 1
+    fi
+  fi
+}
+
+function install_codex() {
+  if [ "$${ARG_INSTALL}" != "true" ]; then
+    echo "Skipping Codex installation as per configuration."
+    return
+  fi
+
+  install_node
+
+  if ! command_exists nvm; then
+    mkdir -p "$HOME"/.npm-global
+    npm config set prefix "$HOME/.npm-global"
+    export PATH="$HOME/.npm-global/bin:$PATH"
+
+    if ! grep -q "export PATH=$HOME/.npm-global/bin:\$PATH" ~/.bashrc 2>/dev/null; then
+      echo "export PATH=$HOME/.npm-global/bin:\$PATH" >> ~/.bashrc
+    fi
+  fi
+
+  printf "%s Installing Codex CLI\n" "$${BOLD}"
+
+  if [ -n "$${ARG_CODEX_VERSION}" ]; then
+    npm install -g "@openai/codex@$${ARG_CODEX_VERSION}"
+  else
+    npm install -g "@openai/codex"
+  fi
+  printf "%s Installed Codex CLI: %s\n" "$${BOLD}" "$(codex --version)"
+}
+
+function write_minimal_default_config() {
+  local config_path="$1"
+  local optional_config=""
+
+  if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ]; then
+    optional_config='model_provider = "aibridge"'
+  fi
+
+  if [ -n "$${ARG_MODEL_REASONING_EFFORT}" ]; then
+    optional_config+=$'\n'"model_reasoning_effort = \"$${ARG_MODEL_REASONING_EFFORT}\""
+  fi
+
+  cat << EOF > "$${config_path}"
+sandbox_mode = "workspace-write"
+approval_policy = "never"
+preferred_auth_method = "apikey"
+$${optional_config}
+
+[sandbox_workspace_write]
+network_access = true
+
+[notice.model_migrations]
+"$${ARG_CODEX_MODEL}" = "$${ARG_LATEST_CODEX_MODEL}"
+
+EOF
+
+  if [ -n "$${ARG_WORKDIR}" ]; then
+    cat << EOF >> "$${config_path}"
+[projects."$${ARG_WORKDIR}"]
+trust_level = "trusted"
+
+EOF
+  fi
+}
+
+function populate_config_toml() {
+  local config_path="$HOME/.codex/config.toml"
+  mkdir -p "$(dirname "$${config_path}")"
+
+  if [ -n "$${ARG_BASE_CONFIG_TOML}" ]; then
+    printf "Using provided base configuration\n"
+    echo "$${ARG_BASE_CONFIG_TOML}" > "$${config_path}"
+  else
+    printf "Using minimal default configuration\n"
+    write_minimal_default_config "$${config_path}"
+  fi
+
+  if [ -n "$${ARG_ADDITIONAL_MCP_SERVERS}" ]; then
+    printf "Adding additional MCP servers\n"
+    echo "$${ARG_ADDITIONAL_MCP_SERVERS}" >> "$${config_path}"
+  fi
+
+  if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] && [ -n "$${ARG_AIBRIDGE_CONFIG}" ]; then
+    printf "Adding AI Gateway configuration\n"
+    echo -e "\n$${ARG_AIBRIDGE_CONFIG}" >> "$${config_path}"
+  fi
+}
+
+function setup_workdir() {
+  if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
+    echo "Creating workdir: $${ARG_WORKDIR}"
+    mkdir -p "$${ARG_WORKDIR}"
+  fi
+}
+
+install_codex
+populate_config_toml
+setup_workdir

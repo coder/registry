@@ -18,18 +18,6 @@ data "coder_workspace" "me" {}
 
 data "coder_workspace_owner" "me" {}
 
-variable "order" {
-  type        = number
-  description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
-  default     = null
-}
-
-variable "group" {
-  type        = string
-  description = "The name of a group that this app belongs to."
-  default     = null
-}
-
 variable "icon" {
   type        = string
   description = "The icon to use for the app."
@@ -38,106 +26,8 @@ variable "icon" {
 
 variable "workdir" {
   type        = string
-  description = "The folder to run Codex in."
-}
-
-variable "report_tasks" {
-  type        = bool
-  description = "Whether to enable task reporting to Coder UI via AgentAPI"
-  default     = true
-}
-
-variable "subdomain" {
-  type        = bool
-  description = "Whether to use a subdomain for AgentAPI."
-  default     = false
-}
-
-variable "cli_app" {
-  type        = bool
-  description = "Whether to create a CLI app for Codex"
-  default     = false
-}
-
-variable "web_app_display_name" {
-  type        = string
-  description = "Display name for the web app"
-  default     = "Codex"
-}
-
-variable "cli_app_display_name" {
-  type        = string
-  description = "Display name for the CLI app"
-  default     = "Codex CLI"
-}
-
-variable "enable_aibridge" {
-  type        = bool
-  description = "Use AI Bridge for Codex. https://coder.com/docs/ai-coder/ai-bridge"
-  default     = false
-
-  validation {
-    condition     = !(var.enable_aibridge && length(var.openai_api_key) > 0)
-    error_message = "openai_api_key cannot be provided when enable_aibridge is true. AI Bridge automatically authenticates the client using Coder credentials."
-  }
-}
-
-variable "model_reasoning_effort" {
-  type        = string
-  description = "The reasoning effort for the model. One of: none, low, medium, high. https://platform.openai.com/docs/guides/latest-model#lower-reasoning-effort"
-  default     = ""
-  validation {
-    condition     = contains(["", "none", "minimal", "low", "medium", "high", "xhigh"], var.model_reasoning_effort)
-    error_message = "model_reasoning_effort must be one of: none, low, medium, high."
-  }
-}
-
-variable "install_codex" {
-  type        = bool
-  description = "Whether to install Codex."
-  default     = true
-}
-
-variable "codex_version" {
-  type        = string
-  description = "The version of Codex to install."
-  default     = "" # empty string means the latest available version
-}
-
-variable "base_config_toml" {
-  type        = string
-  description = "Complete base TOML configuration for Codex (without mcp_servers section). If empty, uses minimal default configuration with workspace-write sandbox mode and never approval policy. For advanced options, see https://github.com/openai/codex/blob/main/codex-rs/config.md"
-  default     = ""
-}
-
-variable "additional_mcp_servers" {
-  type        = string
-  description = "Additional MCP servers configuration in TOML format. These will be merged with the required Coder MCP server in the [mcp_servers] section."
-  default     = ""
-}
-
-variable "openai_api_key" {
-  type        = string
-  description = "OpenAI API key for Codex CLI"
-  default     = ""
-}
-
-variable "install_agentapi" {
-  type        = bool
-  description = "Whether to install AgentAPI."
-  default     = true
-}
-
-variable "agentapi_version" {
-  type        = string
-  description = "The version of AgentAPI to install."
-  default     = "v0.12.1"
-}
-
-variable "codex_model" {
-  type        = string
-  description = "The model for Codex to use. Defaults to gpt-5.3-codex."
-  default     = "gpt-5.4"
+  description = "Optional project directory. When set, the module pre-creates it if missing and adds it as a trusted project in Codex config.toml."
+  default     = null
 }
 
 variable "pre_install_script" {
@@ -152,79 +42,81 @@ variable "post_install_script" {
   default     = null
 }
 
-variable "ai_prompt" {
-  type        = string
-  description = "Initial task prompt for Codex CLI when launched via Tasks"
-  default     = ""
-}
-
-variable "continue" {
+variable "install_codex" {
   type        = bool
-  description = "Automatically continue existing sessions on workspace restart. When true, resumes existing conversation if found, otherwise runs prompt or starts new session. When false, always starts fresh (ignores existing sessions)."
+  description = "Whether to install Codex."
   default     = true
 }
 
-variable "enable_state_persistence" {
-  type        = bool
-  description = "Enable AgentAPI conversation state persistence across restarts."
-  default     = true
-}
-
-variable "codex_system_prompt" {
+variable "codex_version" {
   type        = string
-  description = "System instructions written to AGENTS.md in the ~/.codex directory"
-  default     = "You are a helpful coding assistant. Start every response with `Codex says:`"
-}
-
-variable "enable_boundary" {
-  type        = bool
-  description = "Enable coder boundary for network filtering."
-  default     = false
-}
-
-variable "boundary_config_path" {
-  type        = string
-  description = "Path to boundary config.yaml inside the workspace. If provided, exposed as BOUNDARY_CONFIG env var."
+  description = "The version of Codex to install."
   default     = ""
 }
 
-variable "boundary_version" {
+variable "openai_api_key" {
   type        = string
-  description = "Boundary version. When use_boundary_directly is true, a release version should be provided or 'latest' for the latest release."
-  default     = "latest"
+  description = "OpenAI API key for Codex CLI."
+  default     = ""
 }
 
-variable "compile_boundary_from_source" {
-  type        = bool
-  description = "Whether to compile boundary from source instead of using the official install script."
-  default     = false
+variable "codex_model" {
+  type        = string
+  description = "The model for Codex to use."
+  default     = "gpt-5.4"
 }
 
-variable "use_boundary_directly" {
+variable "base_config_toml" {
+  type        = string
+  description = "Complete base TOML configuration for Codex (without mcp_servers section). If empty, uses minimal default configuration with workspace-write sandbox mode and never approval policy."
+  default     = ""
+}
+
+variable "additional_mcp_servers" {
+  type        = string
+  description = "Additional MCP servers configuration in TOML format."
+  default     = ""
+}
+
+variable "model_reasoning_effort" {
+  type        = string
+  description = "The reasoning effort for the model."
+  default     = ""
+  validation {
+    condition     = contains(["", "none", "minimal", "low", "medium", "high", "xhigh"], var.model_reasoning_effort)
+    error_message = "model_reasoning_effort must be one of: none, minimal, low, medium, high, xhigh."
+  }
+}
+
+variable "enable_ai_gateway" {
   type        = bool
-  description = "Whether to use boundary binary directly instead of coder boundary subcommand."
+  description = "Use AI Gateway for Codex. https://coder.com/docs/ai-coder/ai-gateway"
   default     = false
+
+  validation {
+    condition     = !(var.enable_ai_gateway && length(var.openai_api_key) > 0)
+    error_message = "openai_api_key cannot be provided when enable_ai_gateway is true. AI Gateway automatically authenticates the client using Coder credentials."
+  }
 }
 
 resource "coder_env" "openai_api_key" {
+  count    = var.openai_api_key != "" ? 1 : 0
   agent_id = var.agent_id
   name     = "OPENAI_API_KEY"
   value    = var.openai_api_key
 }
 
-resource "coder_env" "coder_aibridge_session_token" {
-  count    = var.enable_aibridge ? 1 : 0
+# Authenticates the client against Coder's AI Gateway using the workspace
+# owner's session token. Referenced by config.toml model_providers.aibridge.
+resource "coder_env" "ai_gateway_session_token" {
+  count    = var.enable_ai_gateway ? 1 : 0
   agent_id = var.agent_id
   name     = "CODER_AIBRIDGE_SESSION_TOKEN"
   value    = data.coder_workspace_owner.me.session_token
 }
 
 locals {
-  workdir            = trimsuffix(var.workdir, "/")
-  app_slug           = "codex"
-  install_script     = file("${path.module}/scripts/install.sh")
-  start_script       = file("${path.module}/scripts/start.sh")
-  module_dir_name    = ".codex-module"
+  workdir            = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
   latest_codex_model = "gpt-5.4"
   aibridge_config    = <<-EOF
   [model_providers.aibridge]
@@ -234,76 +126,35 @@ locals {
   wire_api = "responses"
 
   EOF
+  install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
+    ARG_INSTALL                = tostring(var.install_codex)
+    ARG_CODEX_VERSION          = var.codex_version
+    ARG_WORKDIR                = local.workdir
+    ARG_CODEX_MODEL            = var.codex_model
+    ARG_LATEST_CODEX_MODEL     = local.latest_codex_model
+    ARG_BASE_CONFIG_TOML       = var.base_config_toml != "" ? base64encode(var.base_config_toml) : ""
+    ARG_ADDITIONAL_MCP_SERVERS = var.additional_mcp_servers != "" ? base64encode(var.additional_mcp_servers) : ""
+    ARG_ENABLE_AI_GATEWAY      = tostring(var.enable_ai_gateway)
+    ARG_AIBRIDGE_CONFIG        = var.enable_ai_gateway ? base64encode(local.aibridge_config) : ""
+    ARG_MODEL_REASONING_EFFORT = var.model_reasoning_effort
+  })
+  module_dir_name = ".coder-modules/coder-labs/codex"
 }
 
-module "agentapi" {
-  source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.3.0"
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.1"
 
-  agent_id                     = var.agent_id
-  folder                       = local.workdir
-  web_app_slug                 = local.app_slug
-  web_app_order                = var.order
-  web_app_group                = var.group
-  web_app_icon                 = var.icon
-  web_app_display_name         = var.web_app_display_name
-  cli_app                      = var.cli_app
-  cli_app_slug                 = var.cli_app ? "${local.app_slug}-cli" : null
-  cli_app_display_name         = var.cli_app ? var.cli_app_display_name : null
-  module_dir_name              = local.module_dir_name
-  install_agentapi             = var.install_agentapi
-  agentapi_subdomain           = var.subdomain
-  agentapi_version             = var.agentapi_version
-  enable_state_persistence     = var.enable_state_persistence
-  pre_install_script           = var.pre_install_script
-  post_install_script          = var.post_install_script
-  enable_boundary              = var.enable_boundary
-  boundary_config_path         = var.boundary_config_path
-  boundary_version             = var.boundary_version
-  compile_boundary_from_source = var.compile_boundary_from_source
-  use_boundary_directly        = var.use_boundary_directly
-  start_script                 = <<-EOT
-     #!/bin/bash
-     set -o errexit
-     set -o pipefail
-
-     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-     chmod +x /tmp/start.sh
-     ARG_OPENAI_API_KEY='${var.openai_api_key}' \
-     ARG_REPORT_TASKS='${var.report_tasks}' \
-     ARG_CODEX_MODEL='${var.codex_model}' \
-     ARG_CODEX_START_DIRECTORY='${local.workdir}' \
-     ARG_CODEX_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
-     ARG_CONTINUE='${var.continue}' \
-     ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
-     /tmp/start.sh
-   EOT
-
-  install_script = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
-    ARG_OPENAI_API_KEY='${var.openai_api_key}' \
-    ARG_REPORT_TASKS='${var.report_tasks}' \
-    ARG_CODEX_MODEL='${var.codex_model}' \
-    ARG_LATEST_CODEX_MODEL='${local.latest_codex_model}' \
-    ARG_INSTALL='${var.install_codex}' \
-    ARG_CODEX_VERSION='${var.codex_version}' \
-    ARG_BASE_CONFIG_TOML='${base64encode(var.base_config_toml)}' \
-    ARG_ENABLE_AIBRIDGE='${var.enable_aibridge}' \
-    ARG_AIBRIDGE_CONFIG='${base64encode(var.enable_aibridge ? local.aibridge_config : "")}' \
-    ARG_ADDITIONAL_MCP_SERVERS='${base64encode(var.additional_mcp_servers)}' \
-    ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
-    ARG_CODEX_START_DIRECTORY='${local.workdir}' \
-    ARG_MODEL_REASONING_EFFORT='${var.model_reasoning_effort}' \
-    ARG_CODEX_INSTRUCTION_PROMPT='${base64encode(var.codex_system_prompt)}' \
-    /tmp/install.sh
-  EOT
+  agent_id            = var.agent_id
+  module_directory    = "$HOME/${local.module_dir_name}"
+  display_name_prefix = "Codex"
+  icon                = var.icon
+  pre_install_script  = var.pre_install_script
+  post_install_script = var.post_install_script
+  install_script      = local.install_script
 }
 
-output "task_app_id" {
-  value = module.agentapi.task_app_id
+output "scripts" {
+  description = "Ordered list of coder exp sync names for the coder_script resources this module creates, in run order (pre_install, install, post_install). Scripts that were not configured are absent from the list."
+  value       = module.coder_utils.scripts
 }
