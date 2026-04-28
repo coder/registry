@@ -32,7 +32,6 @@ validate_boundary_subcommand() {
   # Only a license entitlement error is fatal here.
   local output
   echo "Checking for license"
-  coder boundary
   if ! output=$(coder boundary 2>&1); then
     if echo "$${output}" | grep -qi "license is not entitled"; then
       echo "Error: your Coder deployment is not licensed for the boundary feature." >&2
