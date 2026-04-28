@@ -86,7 +86,7 @@ locals {
     MODULE_DIR                   = var.module_directory
     BOUNDARY_WRAPPER_PATH        = local.boundary_wrapper_path
     WRITE_BOUNDARY_CONFIG        = tostring(local.write_boundary_config)
-    BOUNDARY_CONFIG_CONTENT      = local.write_boundary_config ? local.boundary_config_content : ""
+    BOUNDARY_CONFIG_CONTENT_B64  = local.write_boundary_config ? base64encode(local.boundary_config_content) : ""
     BOUNDARY_CONFIG_DIR          = local.boundary_config_dir
     BOUNDARY_CONFIG_FILE         = local.boundary_config_file_path
   })
