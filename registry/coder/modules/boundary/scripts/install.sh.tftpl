@@ -38,6 +38,9 @@ validate_boundary_subcommand() {
       echo "$${output}" >&2
       echo "" >&2
       exit 1
+    else
+        echo "Warning: 'coder boundary' command failed with unexpected error. boundary may not work properly. Error details:" >&2
+        echo "$${output}" >&2
     fi
   fi
 }
