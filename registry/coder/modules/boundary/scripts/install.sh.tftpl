@@ -29,7 +29,6 @@ validate_boundary_subcommand() {
     exit 1
   fi
 
-  # Only a license entitlement error is fatal here.
   local output
   echo "Checking for license"
   if ! output=$(coder boundary 2>&1); then
@@ -38,9 +37,6 @@ validate_boundary_subcommand() {
       echo "$${output}" >&2
       echo "" >&2
       exit 1
-    else
-        echo "Warning: 'coder boundary' command failed with unexpected error. boundary may not work properly. Error details:" >&2
-        echo "$${output}" >&2
     fi
   fi
 }
