@@ -257,7 +257,6 @@ describe("codex", async () => {
     await runScripts(id, scripts);
     const resp = await readFileContainer(id, "/home/coder/.codex/config.toml");
     expect(resp).toContain('preferred_auth_method = "apikey"');
-    expect(resp).toContain("[notice.model_migrations]");
   });
 
   test("pre-post-install-scripts", async () => {

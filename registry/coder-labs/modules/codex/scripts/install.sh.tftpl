@@ -11,8 +11,6 @@ command_exists() {
 ARG_INSTALL='${ARG_INSTALL}'
 ARG_CODEX_VERSION='${ARG_CODEX_VERSION}'
 ARG_WORKDIR='${ARG_WORKDIR}'
-ARG_CODEX_MODEL='${ARG_CODEX_MODEL}'
-ARG_LATEST_CODEX_MODEL='${ARG_LATEST_CODEX_MODEL}'
 ARG_BASE_CONFIG_TOML=$(echo -n '${ARG_BASE_CONFIG_TOML}' | base64 -d)
 ARG_ADDITIONAL_MCP_SERVERS=$(echo -n '${ARG_ADDITIONAL_MCP_SERVERS}' | base64 -d)
 ARG_ENABLE_AI_GATEWAY='${ARG_ENABLE_AI_GATEWAY}'
@@ -23,7 +21,6 @@ echo "--------------------------------"
 printf "ARG_INSTALL: %s\n" "$${ARG_INSTALL}"
 printf "ARG_CODEX_VERSION: %s\n" "$${ARG_CODEX_VERSION}"
 printf "ARG_WORKDIR: %s\n" "$${ARG_WORKDIR}"
-printf "ARG_CODEX_MODEL: %s\n" "$${ARG_CODEX_MODEL}"
 printf "ARG_ENABLE_AI_GATEWAY: %s\n" "$${ARG_ENABLE_AI_GATEWAY}"
 echo "--------------------------------"
 
@@ -97,9 +94,6 @@ function write_minimal_default_config() {
   cat << EOF > "$${config_path}"
 preferred_auth_method = "apikey"
 $${optional_config}
-
-[notice.model_migrations]
-"$${ARG_CODEX_MODEL}" = "$${ARG_LATEST_CODEX_MODEL}"
 
 EOF
 

@@ -76,9 +76,6 @@ variable "base_config_toml" {
       # model_provider = "aibridge"           (when enable_ai_gateway = true)
       # model_reasoning_effort = "<value>"    (when model_reasoning_effort is set)
 
-      [notice.model_migrations]
-      "<codex_model>" = "<latest_codex_model>"
-
       [projects."<workdir>"]                  (when workdir is set)
       trust_level = "trusted"
 
@@ -132,9 +129,8 @@ resource "coder_env" "ai_gateway_session_token" {
 }
 
 locals {
-  workdir            = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
-  latest_codex_model = "gpt-5.4"
-  aibridge_config    = <<-EOF
+  workdir         = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
+  aibridge_config = <<-EOF
   [model_providers.aibridge]
   name = "AI Bridge"
   base_url = "${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1"
@@ -146,8 +142,6 @@ locals {
     ARG_INSTALL                = tostring(var.install_codex)
     ARG_CODEX_VERSION          = var.codex_version
     ARG_WORKDIR                = local.workdir
-    ARG_CODEX_MODEL            = var.codex_model
-    ARG_LATEST_CODEX_MODEL     = local.latest_codex_model
     ARG_BASE_CONFIG_TOML       = var.base_config_toml != "" ? base64encode(var.base_config_toml) : ""
     ARG_ADDITIONAL_MCP_SERVERS = var.additional_mcp_servers != "" ? base64encode(var.additional_mcp_servers) : ""
     ARG_ENABLE_AI_GATEWAY      = tostring(var.enable_ai_gateway)
