@@ -63,28 +63,60 @@ data "coder_parameter" "username" {
   })
 }
 
+locals {
+  git_user_name  = coalesce(try(data.coder_parameter.username[0].value, ""), data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
+  git_user_email = coalesce(try(data.coder_parameter.user_email[0].value, ""), data.coder_workspace_owner.me.email)
+}
+
 resource "coder_env" "git_author_name" {
   agent_id = var.agent_id
   name     = "GIT_AUTHOR_NAME"
-  value    = coalesce(try(data.coder_parameter.username[0].value, ""), data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
+  value    = local.git_user_name
 }
 
 resource "coder_env" "git_commmiter_name" {
   agent_id = var.agent_id
   name     = "GIT_COMMITTER_NAME"
-  value    = coalesce(try(data.coder_parameter.username[0].value, ""), data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
+  value    = local.git_user_name
 }
 
 resource "coder_env" "git_author_email" {
   agent_id = var.agent_id
   name     = "GIT_AUTHOR_EMAIL"
-  value    = coalesce(try(data.coder_parameter.user_email[0].value, ""), data.coder_workspace_owner.me.email)
+  value    = local.git_user_email
   count    = data.coder_workspace_owner.me.email != "" ? 1 : 0
 }
 
 resource "coder_env" "git_commmiter_email" {
   agent_id = var.agent_id
   name     = "GIT_COMMITTER_EMAIL"
-  value    = coalesce(try(data.coder_parameter.user_email[0].value, ""), data.coder_workspace_owner.me.email)
+  value    = local.git_user_email
   count    = data.coder_workspace_owner.me.email != "" ? 1 : 0
+}
+
+resource "coder_script" "git_config_user_name" {
+  agent_id     = var.agent_id
+  run_on_start = true
+  display_name = "Configure git user name globally"
+  script       = <<EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    git config --global user.name "${local.git_user_name}"
+  EOT
+}
+
+resource "coder_script" "git_config_user_email" {
+  agent_id     = var.agent_id
+  run_on_start = true
+  display_name = "Configure git user email globally"
+  script       = <<EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    git config --global user.email "${local.git_user_email}"
+  EOT
+  count        = data.coder_workspace_owner.me.email != "" ? 1 : 0
 }
