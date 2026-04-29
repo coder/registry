@@ -60,12 +60,6 @@ variable "openai_api_key" {
   default     = ""
 }
 
-variable "codex_model" {
-  type        = string
-  description = "The model for Codex to use."
-  default     = "gpt-5.4"
-}
-
 variable "base_config_toml" {
   type        = string
   description = <<-EOT

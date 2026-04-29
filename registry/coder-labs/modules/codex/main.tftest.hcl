@@ -39,18 +39,12 @@ run "test_codex_custom_options" {
     agent_id      = "test-agent"
     workdir       = "/home/coder/project"
     icon          = "/icon/custom.svg"
-    codex_model   = "gpt-4o"
     codex_version = "0.1.0"
   }
 
   assert {
     condition     = var.icon == "/icon/custom.svg"
     error_message = "Icon should be set to custom icon"
-  }
-
-  assert {
-    condition     = var.codex_model == "gpt-4o"
-    error_message = "codex_model should be set to 'gpt-4o'"
   }
 }
 

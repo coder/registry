@@ -92,7 +92,6 @@ module "codex" {
   openai_api_key = var.openai_api_key
 
   codex_version = "0.1.0"
-  codex_model   = "gpt-4o"
 
   base_config_toml = <<-EOT
     sandbox_mode = "danger-full-access"

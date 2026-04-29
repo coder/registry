@@ -15,7 +15,10 @@ import {
   runTerraformInit,
   TerraformState,
 } from "~test";
-import { extractCoderEnvVars, writeExecutable } from "../../../coder/modules/agentapi/test-util";
+import {
+  extractCoderEnvVars,
+  writeExecutable,
+} from "../../../coder/modules/agentapi/test-util";
 import path from "path";
 
 interface ModuleScripts {
@@ -309,6 +312,37 @@ describe("codex", async () => {
       "/home/coder/.codex/config.toml",
     );
     expect(configToml).toContain('model_provider = "aibridge"');
+    expect(configToml).toContain('model_reasoning_effort = "none"');
     expect(configToml).toContain("[model_providers.aibridge]");
+  });
+
+  test("workdir-trusted-project", async () => {
+    const workdir = "/home/coder/trusted-project";
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        workdir,
+      },
+    });
+    await runScripts(id, scripts);
+    const configToml = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    expect(configToml).toContain(`[projects."${workdir}"]`);
+    expect(configToml).toContain('trust_level = "trusted"');
+  });
+
+  test("no-workdir-no-project-section", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        workdir: "",
+      },
+    });
+    await runScripts(id, scripts);
+    const configToml = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    expect(configToml).not.toContain("[projects.");
   });
 });
