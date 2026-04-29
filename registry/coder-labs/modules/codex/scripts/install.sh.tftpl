@@ -4,9 +4,6 @@ set -euo pipefail
 
 BOLD='\033[0;1m'
 
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-
 command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
@@ -30,6 +27,11 @@ function install_codex() {
   if [ "$${ARG_INSTALL}" != "true" ]; then
     echo "Skipping Codex installation as per configuration."
     return
+  fi
+
+  if [ -s "$HOME/.nvm/nvm.sh" ]; then
+    export NVM_DIR="$HOME/.nvm"
+    . "$NVM_DIR/nvm.sh"
   fi
 
   printf "%s Installing Codex CLI\n" "$${BOLD}"
