@@ -12,7 +12,7 @@ terraform {
 data "coder_workspace" "me" {}
 
 locals {
-  icon_url  = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/tailscale.svg"
+  icon_url  = "${path.module}/../../../../.icons/tailscale.svg"
   hostname  = var.hostname != "" ? var.hostname : data.coder_workspace.me.name
   tags_json = jsonencode(var.tags)
   tags_csv  = join(",", var.tags)
