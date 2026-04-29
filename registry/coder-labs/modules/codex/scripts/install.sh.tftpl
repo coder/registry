@@ -11,6 +11,7 @@ command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
 
+ARG_INSTALL='${ARG_INSTALL}'
 ARG_CODEX_VERSION='${ARG_CODEX_VERSION}'
 ARG_WORKDIR='${ARG_WORKDIR}'
 ARG_BASE_CONFIG_TOML=$(echo -n '${ARG_BASE_CONFIG_TOML}' | base64 -d)
@@ -26,6 +27,11 @@ printf "ARG_ENABLE_AI_GATEWAY: %s\n" "$${ARG_ENABLE_AI_GATEWAY}"
 echo "--------------------------------"
 
 function install_codex() {
+  if [ "$${ARG_INSTALL}" != "true" ]; then
+    echo "Skipping Codex installation as per configuration."
+    return
+  fi
+
   printf "%s Installing Codex CLI\n" "$${BOLD}"
 
   if [ -n "$${ARG_CODEX_VERSION}" ]; then

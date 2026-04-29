@@ -42,6 +42,12 @@ variable "post_install_script" {
   default     = null
 }
 
+variable "install_codex" {
+  type        = bool
+  description = "Whether to install Codex."
+  default     = true
+}
+
 variable "codex_version" {
   type        = string
   description = "The version of Codex to install."
@@ -127,6 +133,7 @@ locals {
 
   EOF
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
+    ARG_INSTALL                = tostring(var.install_codex)
     ARG_CODEX_VERSION          = var.codex_version
     ARG_WORKDIR                = local.workdir
     ARG_BASE_CONFIG_TOML       = var.base_config_toml != "" ? base64encode(var.base_config_toml) : ""

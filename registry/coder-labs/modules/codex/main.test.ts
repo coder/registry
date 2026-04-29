@@ -101,6 +101,7 @@ const setup = async (
   const state = await runTerraformApply(moduleDir, {
     agent_id: "foo",
     workdir: projectDir,
+    install_codex: "false",
     ...props?.moduleVariables,
   });
   const scripts = collectScripts(state);
@@ -184,7 +185,24 @@ describe("codex", async () => {
       id,
       "/home/coder/.coder-modules/coder-labs/codex/logs/install.log",
     );
-    expect(installLog).toContain("Installed Codex CLI");
+    expect(installLog).toContain("Skipping Codex installation");
+  });
+
+  test("install-codex-version", async () => {
+    const version = "0.10.0";
+    const { id, coderEnvVars, scripts } = await setup({
+      skipCodexMock: true,
+      moduleVariables: {
+        install_codex: "true",
+        codex_version: version,
+      },
+    });
+    await runScripts(id, scripts, coderEnvVars);
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder-labs/codex/logs/install.log",
+    );
+    expect(installLog).toContain(version);
   });
 
   test("openai-api-key", async () => {
