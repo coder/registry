@@ -68,7 +68,7 @@ variable "codex_model" {
 
 variable "base_config_toml" {
   type        = string
-  description = "Complete base TOML configuration for Codex (without mcp_servers section). If empty, uses minimal default configuration with workspace-write sandbox mode and never approval policy."
+  description = "Complete base TOML configuration for Codex (without mcp_servers section). If empty, uses minimal default configuration."
   default     = ""
 }
 

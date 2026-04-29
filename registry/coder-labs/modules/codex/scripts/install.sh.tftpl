@@ -95,13 +95,8 @@ function write_minimal_default_config() {
   fi
 
   cat << EOF > "$${config_path}"
-sandbox_mode = "workspace-write"
-approval_policy = "never"
 preferred_auth_method = "apikey"
 $${optional_config}
-
-[sandbox_workspace_write]
-network_access = true
 
 [notice.model_migrations]
 "$${ARG_CODEX_MODEL}" = "$${ARG_LATEST_CODEX_MODEL}"

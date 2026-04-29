@@ -139,21 +139,7 @@ resource "coder_script" "post_codex" {
 
 ## Configuration
 
-### Default Configuration
-
-When no custom `base_config_toml` is provided, the module uses these defaults:
-
-```toml
-sandbox_mode = "workspace-write"
-approval_policy = "never"
-preferred_auth_method = "apikey"
-
-[sandbox_workspace_write]
-network_access = true
-```
-
-> [!NOTE]
-> For containerized workspaces (Docker/Kubernetes), you may need `sandbox_mode = "danger-full-access"` to avoid permission issues. For advanced options, see [Codex config docs](https://github.com/openai/codex/blob/main/codex-rs/config.md).
+When no custom `base_config_toml` is provided, the module uses a minimal default with `preferred_auth_method = "apikey"`. For advanced options, see [Codex config docs](https://github.com/openai/codex/blob/main/codex-rs/config.md).
 
 ## Troubleshooting
 

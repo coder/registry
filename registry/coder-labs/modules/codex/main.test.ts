@@ -256,10 +256,8 @@ describe("codex", async () => {
     const { id, scripts } = await setup();
     await runScripts(id, scripts);
     const resp = await readFileContainer(id, "/home/coder/.codex/config.toml");
-    expect(resp).toContain('sandbox_mode = "workspace-write"');
-    expect(resp).toContain('approval_policy = "never"');
-    expect(resp).toContain("[sandbox_workspace_write]");
-    expect(resp).toContain("network_access = true");
+    expect(resp).toContain('preferred_auth_method = "apikey"');
+    expect(resp).toContain("[notice.model_migrations]");
   });
 
   test("pre-post-install-scripts", async () => {
