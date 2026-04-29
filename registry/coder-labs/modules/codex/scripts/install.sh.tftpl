@@ -1,12 +1,11 @@
 #!/bin/bash
 
-if [ -f "$HOME/.bashrc" ]; then
-  source "$HOME"/.bashrc
-fi
-
 set -euo pipefail
 
 BOLD='\033[0;1m'
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 
 command_exists() {
   command -v "$1" > /dev/null 2>&1
