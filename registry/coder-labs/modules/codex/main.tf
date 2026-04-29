@@ -73,8 +73,8 @@ variable "base_config_toml" {
     When empty, the module generates a minimal default:
 
       preferred_auth_method = "apikey"
-      # model_provider = "aibridge"           (when enable_ai_gateway = true)
-      # model_reasoning_effort = "<value>"    (when model_reasoning_effort is set)
+      # model_provider = "aibridge"           (sets the default profile, when enable_ai_gateway = true)
+      # model_reasoning_effort = "<value>"    (sets the reasoning effort, when model_reasoning_effort is set)
 
       [projects."<workdir>"]                  (when workdir is set)
       trust_level = "trusted"
