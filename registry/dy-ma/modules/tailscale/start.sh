@@ -24,27 +24,14 @@ STATE_DIR="${STATE_DIR}"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-log() { echo "[tailscale] $*" >&2; }
+log() { echo "[tailscale-start] $*" >&2; }
 die() {
-  echo "[tailscale] ERROR: $*" >&2
+  echo "[tailscale-start] ERROR: $*" >&2
   exit 1
 }
 has() { command -v "$1" &> /dev/null; }
 
-# ── 1. Install Tailscale ──────────────────────────────────────────────────────
-
-install_tailscale() {
-  if has tailscale; then
-    log "Tailscale already installed ($(tailscale version 2> /dev/null | awk 'NR==1{print $1}')), skipping."
-    return
-  fi
-
-  log "Installing Tailscale..."
-  curl -fsSL https://tailscale.com/install.sh | sh
-  log "Installed: $(tailscale version | head -1)"
-}
-
-# ── 2. Detect networking mode ─────────────────────────────────────────────────
+# ── Detect networking mode ────────────────────────────────────────────────────
 
 resolve_networking_mode() {
   if [ "$NETWORKING_MODE" != "auto" ]; then
@@ -58,7 +45,7 @@ resolve_networking_mode() {
   fi
 }
 
-# ── 3. Start tailscaled ───────────────────────────────────────────────────────
+# ── Start tailscaled ──────────────────────────────────────────────────────────
 
 start_tailscaled() {
   local mode="$1"
@@ -99,7 +86,7 @@ start_tailscaled() {
   fi
 }
 
-# ── 4. Generate a single-use auth key ─────────────────────────────────────────
+# ── Generate a single-use auth key ────────────────────────────────────────────
 # OAuth creds stay on this machine. We exchange them for a short-lived
 # access token, use that to create a 5-minute single-use auth key, then
 # discard both. The auth key is the only thing passed to tailscale up.
@@ -154,7 +141,7 @@ generate_auth_key() {
   echo "$auth_key"
 }
 
-# ── 5. Bring up Tailscale ─────────────────────────────────────────────────────
+# ── Bring up Tailscale ────────────────────────────────────────────────────────
 
 bring_up() {
   local auth_key="$1"
@@ -181,7 +168,7 @@ bring_up() {
   fi
 }
 
-# ── 6. Set proxy env vars (userspace only) ────────────────────────────────────
+# ── Set proxy env vars (userspace only) ───────────────────────────────────────
 
 configure_proxy_env() {
   local mode="$1"
@@ -203,8 +190,6 @@ configure_proxy_env() {
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 main() {
-  install_tailscale
-
   local mode
   mode=$(resolve_networking_mode)
   log "Networking mode: $mode"

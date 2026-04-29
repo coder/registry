@@ -179,11 +179,19 @@ variable "state_dir" {
   EOF
 }
 
-resource "coder_script" "install_tailscale" {
-  agent_id     = var.agent_id
-  display_name = "Tailscale"
-  icon         = local.icon_url
-  script = templatefile("${path.module}/run.sh", {
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.1"
+
+  agent_id         = var.agent_id
+  module_directory = "$HOME/.coder-modules/dy-ma/tailscale"
+
+  display_name_prefix = "Tailscale"
+  icon                = local.icon_url
+
+  install_script = file("${path.module}/install.sh")
+
+  start_script = templatefile("${path.module}/start.sh", {
     TAILSCALE_API_URL   = var.tailscale_api_url
     AUTH_KEY            = var.auth_key
     OAUTH_CLIENT_ID     = var.oauth_client_id
@@ -204,8 +212,6 @@ resource "coder_script" "install_tailscale" {
     EXTRA_FLAGS         = var.extra_flags
     STATE_DIR           = var.state_dir
   })
-  run_on_start = true
-  run_on_stop  = false
 }
 
 output "hostname" {
