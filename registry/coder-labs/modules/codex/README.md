@@ -73,6 +73,13 @@ When `enable_ai_gateway = true`, the module configures Codex to use the `aibridg
 > [!CAUTION]
 > `enable_ai_gateway = true` is mutually exclusive with `openai_api_key`. Setting both fails at plan time.
 
+> [!NOTE]
+> If you provide a custom `base_config_toml`, the module writes it verbatim and does not inject `model_provider = "aibridge"` automatically. Add it to your config yourself:
+>
+> ```toml
+> model_provider = "aibridge"
+> ```
+
 ### Advanced Configuration
 
 ```tf
