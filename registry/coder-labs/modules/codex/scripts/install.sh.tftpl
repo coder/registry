@@ -32,6 +32,10 @@ function install_codex() {
   if [ -s "$HOME/.nvm/nvm.sh" ]; then
     export NVM_DIR="$HOME/.nvm"
     . "$NVM_DIR/nvm.sh"
+  elif ! command_exists nvm; then
+    mkdir -p "$HOME/.npm-global"
+    npm config set prefix "$HOME/.npm-global"
+    export PATH="$HOME/.npm-global/bin:$PATH"
   fi
 
   printf "%s Installing Codex CLI\n" "$${BOLD}"
