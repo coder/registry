@@ -46,7 +46,7 @@ start_agentapi() {
     echo "Starting agentapi with initial prompt"
     agentapi server -I="$initial_prompt" --type aider --term-width=67 --term-height=1190 -- aider --model $ARG_MODEL --yes-always
   else
-    agentapi server --term-width=67 --term-height=1190 -- aider --model $ARG_MODEL --yes-always
+    agentapi server --type aider --term-width=67 --term-height=1190 -- aider --model $ARG_MODEL --yes-always
   fi
 }
 
