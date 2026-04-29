@@ -152,5 +152,4 @@ cat ~/.coder-modules/coder-labs/codex/logs/post_install.log
 ## References
 
 - [Codex CLI Documentation](https://github.com/openai/codex)
-- [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)
 - [AI Gateway](https://coder.com/docs/ai-coder/ai-gateway)
