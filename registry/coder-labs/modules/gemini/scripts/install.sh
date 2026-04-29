@@ -1,6 +1,5 @@
 #!/bin/bash
 
-BOLD='\033[0;1m'
 source "$HOME"/.bashrc
 command_exists() {
   command -v "$1" > /dev/null 2>&1
@@ -40,7 +39,7 @@ function install_gemini() {
   if [ "${ARG_INSTALL}" = "true" ]; then
     check_dependencies
 
-    printf "%s Installing Gemini CLI\n" "${BOLD}"
+    printf "Installing Gemini CLI\n"
 
     NPM_GLOBAL_PREFIX="${HOME}/.npm-global"
     if [ ! -d "$NPM_GLOBAL_PREFIX" ]; then
@@ -61,7 +60,7 @@ function install_gemini() {
       echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> "$HOME/.bashrc"
     fi
 
-    printf "%s Successfully installed Gemini CLI. Version: %s\n" "${BOLD}" "$(gemini --version)"
+    printf "Successfully installed Gemini CLI. Version: %s\n" "$(gemini --version)"
   fi
 }
 
@@ -140,13 +139,6 @@ function add_system_prompt_if_exists() {
   fi
 }
 
-function configure_mcp() {
-  export CODER_MCP_APP_STATUS_SLUG="gemini"
-  export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
-  coder exp mcp configure gemini "${GEMINI_START_DIRECTORY}"
-}
-
 install_gemini
 populate_settings_json
 add_system_prompt_if_exists
-configure_mcp
