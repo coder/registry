@@ -22,14 +22,6 @@ module "codex" {
 > [!WARNING]
 > If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for [Coder Tasks](https://coder.com/docs/ai-coder/tasks) and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). Keep using v4.x.x if you depend on them.
 
-## Prerequisites
-
-- OpenAI API key, or Coder AI Gateway (`enable_ai_gateway = true`, requires Coder >= 2.30.0).
-
-## workdir
-
-`workdir` is optional. When set, the module pre-creates the directory if it is missing and adds it as a trusted project in `~/.codex/config.toml`. Leave `workdir` unset if you only want the module to install the CLI and configure authentication.
-
 ## Examples
 
 ### Standalone mode with a launcher app
