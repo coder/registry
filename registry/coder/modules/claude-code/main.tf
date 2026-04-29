@@ -60,6 +60,16 @@ variable "disable_autoupdater" {
   default     = false
 }
 
+variable "transcript_retention_days" {
+  type        = number
+  description = "Days to keep Claude Code session transcripts before automatic cleanup. Maps to Claude Code's cleanupPeriodDays setting via /etc/claude-code/managed-settings.d/. Defaults to Claude Code's built-in retention (30 days) when unset."
+  default     = null
+  validation {
+    condition     = var.transcript_retention_days == null ? true : var.transcript_retention_days >= 1
+    error_message = "transcript_retention_days must be at least 1."
+  }
+}
+
 variable "anthropic_api_key" {
   type        = string
   description = "API key passed to Claude Code via the ANTHROPIC_API_KEY env var."
@@ -166,13 +176,14 @@ resource "coder_env" "anthropic_base_url" {
 locals {
   workdir = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
-    ARG_CLAUDE_CODE_VERSION    = var.claude_code_version
-    ARG_INSTALL_CLAUDE_CODE    = tostring(var.install_claude_code)
-    ARG_CLAUDE_BINARY_PATH     = var.claude_binary_path
-    ARG_WORKDIR                = local.workdir
-    ARG_MCP                    = var.mcp != "" ? base64encode(var.mcp) : ""
-    ARG_MCP_CONFIG_REMOTE_PATH = base64encode(jsonencode(var.mcp_config_remote_path))
-    ARG_ENABLE_AI_GATEWAY      = tostring(var.enable_ai_gateway)
+    ARG_CLAUDE_CODE_VERSION       = var.claude_code_version
+    ARG_INSTALL_CLAUDE_CODE       = tostring(var.install_claude_code)
+    ARG_CLAUDE_BINARY_PATH        = var.claude_binary_path
+    ARG_WORKDIR                   = local.workdir
+    ARG_MCP                       = var.mcp != "" ? base64encode(var.mcp) : ""
+    ARG_MCP_CONFIG_REMOTE_PATH    = base64encode(jsonencode(var.mcp_config_remote_path))
+    ARG_ENABLE_AI_GATEWAY         = tostring(var.enable_ai_gateway)
+    ARG_TRANSCRIPT_RETENTION_DAYS = var.transcript_retention_days != null ? tostring(var.transcript_retention_days) : ""
   })
   module_dir_name = ".coder-modules/coder/claude-code"
 }
