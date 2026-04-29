@@ -95,6 +95,11 @@ resource "null_resource" "provision_nixos" {
   nix.settings.trusted-users = [ "root" "$WUSER" ];
   nix.settings.allowed-users = [ "*" ];
 
+  # Make <nixpkgs> resolve for all users via NIX_PATH, and allow unfree
+  # packages by default so nix-build works without extra env vars.
+  nix.nixPath = [ "nixpkgs=/nix/var/nix/profiles/per-user/root/channels/nixos" ];
+  nixpkgs.config.allowUnfree = true;
+
   # Attic binary cache on ThinkStation — shared across all NixOS VMs.
   # Builds are fetched from here on cache hit; new builds are pushed via
   # the post-build hook below.
@@ -136,15 +141,26 @@ NIXMOD_EOF
         "grep -q coder.nix /etc/nixos/configuration.nix || \
          sed -i 's|imports = \[|imports = [\n    ./coder.nix|' /etc/nixos/configuration.nix"
 
-      # Restore the nixos channel if missing
+      # Restore the nixos channel for root if missing — this is what NIX_PATH
+      # points at so <nixpkgs> resolves for all users.
       incus exec "$REMOTE:$INSTANCE" -- \
         env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -c \
         "NIX_CHANNEL_URL=https://channels.nixos.org/nixos-25.11; \
          CHANNEL_LINK=/nix/var/nix/profiles/per-user/root/channels; \
-         if [ ! -e \"\$CHANNEL_LINK\" ]; then \
+         if [ ! -e \"\$CHANNEL_LINK/nixos\" ]; then \
            echo 'Restoring nixos channel...'; \
            nix-channel --add \"\$NIX_CHANNEL_URL\" nixos; \
            nix-channel --update nixos; \
+         fi"
+
+      # Set up user-level nixpkgs config (allowUnfree) so nix-build works
+      # without NIXPKGS_ALLOW_UNFREE=1 for the workspace user.
+      incus exec "$REMOTE:$INSTANCE" -- \
+        env PATH=/run/current-system/sw/bin /run/current-system/sw/bin/bash -c \
+        "mkdir -p /home/$WUSER/.config/nixpkgs && \
+         if [ ! -f /home/$WUSER/.config/nixpkgs/config.nix ]; then \
+           printf '{ allowUnfree = true; }\n' > /home/$WUSER/.config/nixpkgs/config.nix; \
+           chown -R 1000:1000 /home/$WUSER/.config; \
          fi"
 
       echo "Running nixos-rebuild switch (this may take a few minutes)..."
