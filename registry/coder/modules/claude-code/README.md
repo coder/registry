@@ -13,7 +13,7 @@ Install and configure the [Claude Code](https://docs.anthropic.com/en/docs/agent
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.1.0"
+  version           = "5.2.0"
   agent_id          = coder_agent.main.id
   anthropic_api_key = "xxxx-xxxxx-xxxx"
 }
@@ -47,7 +47,7 @@ locals {
 
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.1.0"
+  version           = "5.2.0"
   agent_id          = coder_agent.main.id
   workdir           = local.claude_workdir
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -78,7 +78,7 @@ resource "coder_app" "claude" {
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.1.0"
+  version           = "5.2.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -102,7 +102,7 @@ The `managed_settings` input writes a policy file to `/etc/claude-code/managed-s
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.1.0"
+  version           = "5.2.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -129,7 +129,7 @@ This example shows version pinning, a pre-installed binary path, a custom model,
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.1.0"
+  version  = "5.2.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -193,7 +193,7 @@ Downstream `coder_script` resources can wait for this module's install pipeline 
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.1.0"
+  version           = "5.2.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -279,7 +279,7 @@ resource "coder_env" "bedrock_api_key" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.1.0"
+  version  = "5.2.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
@@ -336,7 +336,7 @@ resource "coder_env" "google_application_credentials" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.1.0"
+  version  = "5.2.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "claude-sonnet-4@20250514"
@@ -377,7 +377,7 @@ The module automatically tags every span and metric with `coder.workspace_id`, `
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.1.0"
+  version           = "5.2.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
