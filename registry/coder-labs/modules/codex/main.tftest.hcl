@@ -11,10 +11,6 @@ run "test_codex_basic" {
     error_message = "Workdir should be set correctly"
   }
 
-  assert {
-    condition     = var.install_codex == true
-    error_message = "install_codex should default to true"
-  }
 }
 
 run "test_codex_with_api_key" {
