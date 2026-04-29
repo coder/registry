@@ -70,7 +70,8 @@ resource "null_resource" "provision_nixos" {
 
       # Write the attic post-build hook script.
       # Runs after every nix build and pushes new store paths to the cache.
-      printf '#!/bin/sh\nset -eu\nexport HOME=/root\nexport ATTIC_SERVER="%s"\n[ -f /etc/nix/attic-token ] && TOKEN=$(cat /etc/nix/attic-token) || exit 0\n/run/current-system/sw/bin/attic --server "$ATTIC_SERVER" push %s $OUT_PATHS 2>&1 || true\n' \
+      # attic-client uses `attic login <server> <url> <token>` + `attic push <server>:<cache>`.
+      printf '#!/bin/sh\nset -eu\nexport HOME=/root\nATTIC_URL="%s"\nATTIC_CACHE="%s"\n[ -f /etc/nix/attic-token ] || exit 0\nTOKEN=$(cat /etc/nix/attic-token)\n/run/current-system/sw/bin/attic login thinkstation "$ATTIC_URL" "$TOKEN" 2>/dev/null || true\n/run/current-system/sw/bin/attic push "thinkstation:$ATTIC_CACHE" $OUT_PATHS 2>&1 || true\n' \
         "$ATTIC_URL" "$ATTIC_CACHE" \
         | incus file push - "$REMOTE:$INSTANCE/etc/nix/post-build-hook.sh" --mode 0755
 
