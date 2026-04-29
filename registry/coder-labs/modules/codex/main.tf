@@ -68,7 +68,23 @@ variable "codex_model" {
 
 variable "base_config_toml" {
   type        = string
-  description = "Complete base TOML configuration for Codex (without mcp_servers section). If empty, uses minimal default configuration."
+  description = <<-EOT
+    Complete base TOML configuration for Codex (without mcp_servers section).
+    When empty, the module generates a minimal default:
+
+      preferred_auth_method = "apikey"
+      # model_provider = "aibridge"           (when enable_ai_gateway = true)
+      # model_reasoning_effort = "<value>"    (when model_reasoning_effort is set)
+
+      [notice.model_migrations]
+      "<codex_model>" = "<latest_codex_model>"
+
+      [projects."<workdir>"]                  (when workdir is set)
+      trust_level = "trusted"
+
+    When non-empty, the value is written verbatim as the base of config.toml;
+    additional_mcp_servers and AI Gateway sections are still appended after it.
+  EOT
   default     = ""
 }
 
