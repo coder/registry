@@ -372,3 +372,32 @@ run "continue_flag_configuration" {
     error_message = "Continue flag should be enabled when specified"
   }
 }
+
+run "default_agentapi_port" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    workdir  = "/home/coder/project"
+  }
+
+  assert {
+    condition     = var.agentapi_port == 3284
+    error_message = "agentapi_port should default to 3284"
+  }
+}
+
+run "custom_agentapi_port" {
+  command = plan
+
+  variables {
+    agent_id      = "test-agent"
+    workdir       = "/home/coder/project"
+    agentapi_port = 3285
+  }
+
+  assert {
+    condition     = var.agentapi_port == 3285
+    error_message = "agentapi_port should be configurable"
+  }
+}
