@@ -12,12 +12,13 @@ readonly TASK_ID="${ARG_TASK_ID:-}"
 readonly TASK_LOG_SNAPSHOT="${ARG_TASK_LOG_SNAPSHOT:-true}"
 readonly AGENTAPI_PORT="${ARG_AGENTAPI_PORT:-3284}"
 readonly ENABLE_STATE_PERSISTENCE="${ARG_ENABLE_STATE_PERSISTENCE:-false}"
-readonly MODULE_DIR_NAME="${ARG_MODULE_DIR_NAME:-}"
-readonly PID_FILE_PATH="${ARG_PID_FILE_PATH:-${MODULE_DIR_NAME:+$HOME/$MODULE_DIR_NAME/agentapi.pid}}"
+readonly MODULE_DIRECTORY="${ARG_MODULE_DIRECTORY:-}"
+readonly PID_FILE_PATH="${ARG_PID_FILE_PATH:-${MODULE_DIRECTORY:+${MODULE_DIRECTORY}/agentapi.pid}}"
+readonly LIB_SCRIPT_PATH="${ARG_LIB_SCRIPT_PATH}"
 
 # Source shared utilities (written by the coder_script wrapper).
 # shellcheck source=lib.sh
-source /tmp/agentapi-lib.sh
+source "${LIB_SCRIPT_PATH}"
 
 # Runtime environment variables.
 readonly CODER_AGENT_URL="${CODER_AGENT_URL:-}"

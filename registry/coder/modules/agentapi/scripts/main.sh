@@ -3,37 +3,29 @@ set -e
 set -x
 
 set -o nounset
-MODULE_DIR_NAME="$ARG_MODULE_DIR_NAME"
+MODULE_DIRECTORY="$ARG_MODULE_DIRECTORY"
 WORKDIR="$ARG_WORKDIR"
-PRE_INSTALL_SCRIPT="$ARG_PRE_INSTALL_SCRIPT"
-INSTALL_SCRIPT="$ARG_INSTALL_SCRIPT"
 INSTALL_AGENTAPI="$ARG_INSTALL_AGENTAPI"
 AGENTAPI_VERSION="$ARG_AGENTAPI_VERSION"
-START_SCRIPT="$ARG_START_SCRIPT"
 WAIT_FOR_START_SCRIPT="$ARG_WAIT_FOR_START_SCRIPT"
-POST_INSTALL_SCRIPT="$ARG_POST_INSTALL_SCRIPT"
 AGENTAPI_PORT="$ARG_AGENTAPI_PORT"
 AGENTAPI_CHAT_BASE_PATH="${ARG_AGENTAPI_CHAT_BASE_PATH:-}"
 TASK_ID="${ARG_TASK_ID:-}"
 TASK_LOG_SNAPSHOT="${ARG_TASK_LOG_SNAPSHOT:-true}"
-ENABLE_BOUNDARY="${ARG_ENABLE_BOUNDARY:-false}"
-BOUNDARY_VERSION="${ARG_BOUNDARY_VERSION:-latest}"
-COMPILE_BOUNDARY_FROM_SOURCE="${ARG_COMPILE_BOUNDARY_FROM_SOURCE:-false}"
-USE_BOUNDARY_DIRECTLY="${ARG_USE_BOUNDARY_DIRECTLY:-false}"
 ENABLE_STATE_PERSISTENCE="${ARG_ENABLE_STATE_PERSISTENCE:-false}"
 STATE_FILE_PATH="${ARG_STATE_FILE_PATH:-}"
 PID_FILE_PATH="${ARG_PID_FILE_PATH:-}"
+LIB_SCRIPT_PATH="$ARG_LIB_SCRIPT_PATH"
 set +o nounset
 
 # shellcheck source=lib.sh
-source /tmp/agentapi-lib.sh
+source "${LIB_SCRIPT_PATH}"
 
 command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
 
-module_path="$HOME/${MODULE_DIR_NAME}"
-mkdir -p "$module_path/scripts"
+mkdir -p "${MODULE_DIRECTORY}/scripts"
 
 # Check for jq dependency if task log snapshot is enabled.
 if [[ $TASK_LOG_SNAPSHOT == true ]] && [[ -n $TASK_ID ]]; then
@@ -48,18 +40,6 @@ if [ ! -d "${WORKDIR}" ]; then
   mkdir -p "${WORKDIR}"
   echo "Folder created successfully."
 fi
-if [ -n "${PRE_INSTALL_SCRIPT}" ]; then
-  echo "Running pre-install script..."
-  echo -n "${PRE_INSTALL_SCRIPT}" > "$module_path/pre_install.sh"
-  chmod +x "$module_path/pre_install.sh"
-  "$module_path/pre_install.sh" 2>&1 | tee "$module_path/pre_install.log"
-fi
-
-echo "Running install script..."
-echo -n "${INSTALL_SCRIPT}" > "$module_path/install.sh"
-chmod +x "$module_path/install.sh"
-"$module_path/install.sh" 2>&1 | tee "$module_path/install.log"
-
 # Install AgentAPI if enabled
 if [ "${INSTALL_AGENTAPI}" = "true" ]; then
   echo "Installing AgentAPI..."
@@ -96,47 +76,30 @@ if ! command_exists agentapi; then
   exit 1
 fi
 
-echo -n "${START_SCRIPT}" > "$module_path/scripts/agentapi-start.sh"
-echo -n "${WAIT_FOR_START_SCRIPT}" > "$module_path/scripts/agentapi-wait-for-start.sh"
-chmod +x "$module_path/scripts/agentapi-start.sh"
-chmod +x "$module_path/scripts/agentapi-wait-for-start.sh"
-
-if [ -n "${POST_INSTALL_SCRIPT}" ]; then
-  echo "Running post-install script..."
-  echo -n "${POST_INSTALL_SCRIPT}" > "$module_path/post_install.sh"
-  chmod +x "$module_path/post_install.sh"
-  "$module_path/post_install.sh" 2>&1 | tee "$module_path/post_install.log"
-fi
+echo -n "${WAIT_FOR_START_SCRIPT}" > "${MODULE_DIRECTORY}/scripts/agentapi-wait-for-start.sh"
+chmod +x "${MODULE_DIRECTORY}/scripts/agentapi-wait-for-start.sh"
 
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
 cd "${WORKDIR}"
 
-# Set up boundary if enabled
-export AGENTAPI_BOUNDARY_PREFIX=""
-if [ "${ENABLE_BOUNDARY}" = "true" ]; then
-  # shellcheck source=boundary.sh
-  source /tmp/agentapi-boundary.sh
-  setup_boundary "$module_path"
-fi
-
 export AGENTAPI_CHAT_BASE_PATH="${AGENTAPI_CHAT_BASE_PATH:-}"
 # Disable host header check since AgentAPI is proxied by Coder (which does its own validation)
 export AGENTAPI_ALLOWED_HOSTS="*"
 
-export AGENTAPI_PID_FILE="${PID_FILE_PATH:-$module_path/agentapi.pid}"
+export AGENTAPI_PID_FILE="${PID_FILE_PATH:-${MODULE_DIRECTORY}/agentapi.pid}"
 # Only set state env vars when persistence is enabled and the binary supports
 # it. State persistence requires agentapi >= v0.12.0.
 if [ "${ENABLE_STATE_PERSISTENCE}" = "true" ]; then
   actual_version=$(agentapi_version)
   if version_at_least 0.12.0 "$actual_version"; then
-    export AGENTAPI_STATE_FILE="${STATE_FILE_PATH:-$module_path/agentapi-state.json}"
+    export AGENTAPI_STATE_FILE="${STATE_FILE_PATH:-${MODULE_DIRECTORY}/agentapi-state.json}"
     export AGENTAPI_SAVE_STATE="true"
     export AGENTAPI_LOAD_STATE="true"
   else
     echo "Warning: State persistence requires agentapi >= v0.12.0 (current: ${actual_version:-unknown}), skipping."
   fi
 fi
-nohup "$module_path/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &> "$module_path/agentapi-start.log" &
-"$module_path/scripts/agentapi-wait-for-start.sh" "${AGENTAPI_PORT}"
+nohup "${MODULE_DIRECTORY}/scripts/agentapi-start.sh" true "${AGENTAPI_PORT}" &> "${MODULE_DIRECTORY}/agentapi-start.log" &
+"${MODULE_DIRECTORY}/scripts/agentapi-wait-for-start.sh" "${AGENTAPI_PORT}"
