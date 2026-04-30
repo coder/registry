@@ -98,12 +98,6 @@ variable "agentapi" {
   default = {}
 }
 
-variable "enable_boundary" {
-  type        = bool
-  description = "Whether to enable Boundary for this agent. If false, the Boundary module will not be included and Boundary will not be installed, but the start script will still run."
-  default     = false
-}
-
 variable "cli_app_display_name" {
   type        = string
   description = "Display name for the CLI app. Only applicable if `enable_agentapi` is false."
@@ -115,24 +109,21 @@ variable "cli_app_display_name" {
   }
 }
 
-variable "boundary" {
-  description = <<-EOT
-    Boundary configuration:
-    - `version`: Boundary version. When `use_binary_directly` is true, a release version should be provided or 'latest' for the latest release.
-    - `compile_from_source`: Whether to compile boundary from source instead of using the official install script.
-    - `use_binary_directly`: Whether to use boundary binary directly instead of coder boundary subcommand.
-    - `pre_install_script`: Custom script to run before installing Boundary.
-    - `post_install_script`: Custom script to run after installing Boundary.
-    - `module_directory`: Directory where the Boundary module files are stored.
-  EOT
-  type = object({
-    version             = optional(string, "latest")
-    compile_from_source = optional(bool, false)
-    use_binary_directly = optional(bool, false)
-    pre_install_script  = optional(string, null)
-    post_install_script = optional(string, null)
-    module_directory    = optional(string, "$HOME/.coder-modules/coder/boundary")
-  })
+variable "enable_boundary" {
+  type        = bool
+  description = "Whether to enable Boundary for this agent. If false, the Boundary module will not be included and Boundary will not be installed, but the start script will still run."
+  default     = false
+}
+
+variable "boundary_wrapper_path" {
+  type        = string
+  description = "Path to the Boundary CLI wrapper script. Only applicable if `enable_boundary` is true."
+  default     = ""
+
+  validation {
+    condition     = var.enable_boundary == false || (var.enable_boundary == true && var.boundary_wrapper_path != "")
+    error_message = "boundary_wrapper_path must be set when enable_boundary is true."
+  }
 }
 
 locals {
@@ -144,8 +135,9 @@ locals {
   }
 
   export_merged_variables = merge(local.export_variables, {
-    "ARG_ENABLE_AGENTAPI" = var.enable_agentapi
-    "ARG_ENABLE_BOUNDARY" = var.enable_boundary
+    "ARG_ENABLE_AGENTAPI"       = var.enable_agentapi
+    "ARG_ENABLE_BOUNDARY"       = var.enable_boundary
+    "ARG_BOUNDARY_WRAPPER_PATH" = var.boundary_wrapper_path
   })
 
   default_app_slugs = {
@@ -205,20 +197,6 @@ resource "coder_app" "non_agentapi_cli" {
   display_name = var.cli_app_display_name
   command      = ""
   slug         = local.cli_app_slug
-}
-
-module "boundary" {
-  count = var.enable_boundary ? 1 : 0
-
-  source = "git::https://github.com/coder/registry.git//registry/coder/modules/boundary?ref=35C4n0r/feat-boundary-module"
-
-  agent_id                     = var.agent_id
-  compile_boundary_from_source = var.boundary.compile_from_source
-  use_boundary_directly        = var.boundary.use_binary_directly
-  boundary_version             = var.boundary.version
-  pre_install_script           = var.boundary.pre_install_script
-  post_install_script          = var.boundary.post_install_script
-  module_directory             = var.boundary.module_directory
 }
 
 output "task_app_id" {
