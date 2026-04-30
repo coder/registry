@@ -301,7 +301,6 @@ describe("codex", async () => {
 
   test("codex-with-ai-gateway", async () => {
     const { id, coderEnvVars, scripts } = await setup({
-      skipCodexMock: true,
       moduleVariables: {
         enable_ai_gateway: "true",
         model_reasoning_effort: "none",
@@ -345,5 +344,66 @@ describe("codex", async () => {
       "/home/coder/.codex/config.toml",
     );
     expect(configToml).not.toContain("[projects.");
+  });
+
+  test("ai-gateway-with-custom-base-config", async () => {
+    const baseConfig = [
+      'sandbox_mode = "danger-full-access"',
+      'model_provider = "aibridge"',
+    ].join("\n");
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        enable_ai_gateway: "true",
+        base_config_toml: baseConfig,
+      },
+    });
+    await runScripts(id, scripts, coderEnvVars);
+    const configToml = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    expect(configToml).toContain('model_provider = "aibridge"');
+    expect(configToml).toContain("[model_providers.aibridge]");
+  });
+
+  test("ai-gateway-custom-config-no-duplicate-provider", async () => {
+    const baseConfig = [
+      'model_provider = "aibridge"',
+      "",
+      "[model_providers.aibridge]",
+      'name = "Custom AI Bridge"',
+      'base_url = "https://custom.example.com"',
+      'env_key = "CODER_AIBRIDGE_SESSION_TOKEN"',
+      'wire_api = "responses"',
+    ].join("\n");
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        enable_ai_gateway: "true",
+        base_config_toml: baseConfig,
+      },
+    });
+    await runScripts(id, scripts, coderEnvVars);
+    const configToml = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    const matches = configToml.match(/\[model_providers\.aibridge\]/g) || [];
+    expect(matches.length).toBe(1);
+    expect(configToml).toContain("Custom AI Bridge");
+  });
+
+  test("install-codex-latest", async () => {
+    const { id, coderEnvVars, scripts } = await setup({
+      skipCodexMock: true,
+      moduleVariables: {
+        install_codex: "true",
+      },
+    });
+    await runScripts(id, scripts, coderEnvVars);
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder-labs/codex/logs/install.log",
+    );
+    expect(installLog).toContain("Installed Codex CLI");
   });
 });

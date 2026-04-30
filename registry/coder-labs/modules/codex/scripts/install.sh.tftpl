@@ -9,8 +9,8 @@ command_exists() {
 }
 
 ARG_INSTALL='${ARG_INSTALL}'
-ARG_CODEX_VERSION='${ARG_CODEX_VERSION}'
-ARG_WORKDIR='${ARG_WORKDIR}'
+ARG_CODEX_VERSION=$(echo -n '${ARG_CODEX_VERSION}' | base64 -d)
+ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
 ARG_BASE_CONFIG_TOML=$(echo -n '${ARG_BASE_CONFIG_TOML}' | base64 -d)
 ARG_ADDITIONAL_MCP_SERVERS=$(echo -n '${ARG_ADDITIONAL_MCP_SERVERS}' | base64 -d)
 ARG_ENABLE_AI_GATEWAY='${ARG_ENABLE_AI_GATEWAY}'
@@ -18,15 +18,20 @@ ARG_AIBRIDGE_CONFIG=$(echo -n '${ARG_AIBRIDGE_CONFIG}' | base64 -d)
 ARG_MODEL_REASONING_EFFORT='${ARG_MODEL_REASONING_EFFORT}'
 
 echo "--------------------------------"
-printf "ARG_CODEX_VERSION: %s\n" "$${ARG_CODEX_VERSION}"
-printf "ARG_WORKDIR: %s\n" "$${ARG_WORKDIR}"
-printf "ARG_ENABLE_AI_GATEWAY: %s\n" "$${ARG_ENABLE_AI_GATEWAY}"
+printf "codex_version: %s\n" "$${ARG_CODEX_VERSION}"
+printf "workdir: %s\n" "$${ARG_WORKDIR}"
+printf "enable_ai_gateway: %s\n" "$${ARG_ENABLE_AI_GATEWAY}"
 echo "--------------------------------"
 
 function install_codex() {
   if [ "$${ARG_INSTALL}" != "true" ]; then
     echo "Skipping Codex installation as per configuration."
     return
+  fi
+
+  if ! command_exists npm; then
+    echo "Error: npm is required to install Codex. Install Node.js/npm first or set install_codex = false."
+    exit 1
   fi
 
   if [ -s "$HOME/.nvm/nvm.sh" ]; then
@@ -93,8 +98,12 @@ function populate_config_toml() {
   fi
 
   if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] && [ -n "$${ARG_AIBRIDGE_CONFIG}" ]; then
-    printf "Adding AI Gateway configuration\n"
-    echo -e "\n$${ARG_AIBRIDGE_CONFIG}" >> "$${config_path}"
+    if ! grep -q '\[model_providers\.aibridge\]' "$${config_path}" 2>/dev/null; then
+      printf "Adding AI Gateway configuration\n"
+      echo -e "\n$${ARG_AIBRIDGE_CONFIG}" >> "$${config_path}"
+    else
+      printf "AI Gateway provider already defined in config, skipping append\n"
+    fi
   fi
 }
 

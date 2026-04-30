@@ -20,7 +20,7 @@ module "codex" {
 ```
 
 > [!WARNING]
-> If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for [Coder Tasks](https://coder.com/docs/ai-coder/tasks) and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). Keep using v4.x.x if you depend on them.
+> If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for [Coder Tasks](https://coder.com/docs/ai-coder/tasks) and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). v5 also assumes npm is pre-installed; it no longer bootstraps Node.js. Keep using v4.x.x if you depend on them.
 
 ## Examples
 
@@ -152,4 +152,3 @@ cat ~/.coder-modules/coder-labs/codex/logs/post_install.log
 ## References
 
 - [Codex CLI Documentation](https://github.com/openai/codex)
-- [AI Gateway](https://coder.com/docs/ai-coder/ai-gateway)

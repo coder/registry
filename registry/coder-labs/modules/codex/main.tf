@@ -50,13 +50,14 @@ variable "install_codex" {
 
 variable "codex_version" {
   type        = string
-  description = "The version of Codex to install."
+  description = "The version of Codex to install. Empty string installs the latest available version."
   default     = ""
 }
 
 variable "openai_api_key" {
   type        = string
   description = "OpenAI API key for Codex CLI."
+  sensitive   = true
   default     = ""
 }
 
@@ -87,7 +88,7 @@ variable "additional_mcp_servers" {
 
 variable "model_reasoning_effort" {
   type        = string
-  description = "The reasoning effort for the model."
+  description = "The reasoning effort for the model. One of: none, minimal, low, medium, high, xhigh. See https://platform.openai.com/docs/guides/latest-model#lower-reasoning-effort"
   default     = ""
   validation {
     condition     = contains(["", "none", "minimal", "low", "medium", "high", "xhigh"], var.model_reasoning_effort)
@@ -134,8 +135,8 @@ locals {
   EOF
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_INSTALL                = tostring(var.install_codex)
-    ARG_CODEX_VERSION          = var.codex_version
-    ARG_WORKDIR                = local.workdir
+    ARG_CODEX_VERSION          = var.codex_version != "" ? base64encode(var.codex_version) : ""
+    ARG_WORKDIR                = local.workdir != "" ? base64encode(local.workdir) : ""
     ARG_BASE_CONFIG_TOML       = var.base_config_toml != "" ? base64encode(var.base_config_toml) : ""
     ARG_ADDITIONAL_MCP_SERVERS = var.additional_mcp_servers != "" ? base64encode(var.additional_mcp_servers) : ""
     ARG_ENABLE_AI_GATEWAY      = tostring(var.enable_ai_gateway)
