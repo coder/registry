@@ -130,6 +130,12 @@ variable "telemetry" {
   description = "Configure Claude Code OpenTelemetry export. When enabled, sets CLAUDE_CODE_ENABLE_TELEMETRY and the standard OTEL_EXPORTER_OTLP_* environment variables. Coder workspace identifiers (coder.workspace_id, coder.workspace_name, coder.workspace_owner, coder.template_name) are automatically appended to OTEL_RESOURCE_ATTRIBUTES so Claude Code telemetry can be joined with Coder audit and exectrace logs."
 }
 
+variable "module_directory" {
+  type        = string
+  description = "The directory where the module is installed. Defaults to $HOME/.coder-modules/coder/claude-code."
+  default     = "$HOME/.coder-modules/coder/claude-code"
+}
+
 resource "coder_env" "claude_code_oauth_token" {
   count    = var.claude_code_oauth_token != "" ? 1 : 0
   agent_id = var.agent_id
@@ -238,7 +244,6 @@ locals {
     ARG_MCP_CONFIG_REMOTE_PATH = base64encode(jsonencode(var.mcp_config_remote_path))
     ARG_ENABLE_AI_GATEWAY      = tostring(var.enable_ai_gateway)
   })
-  module_dir_name = ".coder-modules/coder/claude-code"
 }
 
 module "coder_utils" {
@@ -246,7 +251,7 @@ module "coder_utils" {
   version = "0.0.1"
 
   agent_id            = var.agent_id
-  module_directory    = "$HOME/${local.module_dir_name}"
+  module_directory    = var.module_directory
   display_name_prefix = "Claude Code"
   icon                = var.icon
   pre_install_script  = var.pre_install_script
@@ -260,4 +265,12 @@ module "coder_utils" {
 output "scripts" {
   description = "Ordered list of coder exp sync names for the coder_script resources this module actually creates, in run order (pre_install, install, post_install). Scripts that were not configured are absent from the list."
   value       = module.coder_utils.scripts
+}
+
+output "agent_reference" {
+  value = {
+    agent_ref         = "claude-code"
+    agent_module_dir  = var.module_directory
+    agent_binary_path = concat(var.claude_binary_path, "/claude")
+  }
 }
