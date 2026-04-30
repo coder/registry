@@ -29,15 +29,17 @@ function install_codex() {
     return
   fi
 
+  if [ -s "$HOME/.nvm/nvm.sh" ]; then
+    export NVM_DIR="$HOME/.nvm"
+    . "$NVM_DIR/nvm.sh"
+  fi
+
   if ! command_exists npm; then
     echo "Error: npm is required to install Codex. Install Node.js/npm first or set install_codex = false."
     exit 1
   fi
 
-  if [ -s "$HOME/.nvm/nvm.sh" ]; then
-    export NVM_DIR="$HOME/.nvm"
-    . "$NVM_DIR/nvm.sh"
-  elif ! command_exists nvm; then
+  if ! command_exists nvm; then
     mkdir -p "$HOME/.npm-global"
     npm config set prefix "$HOME/.npm-global"
     export PATH="$HOME/.npm-global/bin:$PATH"
