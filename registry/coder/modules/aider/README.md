@@ -1,6 +1,6 @@
 ---
 display_name: Aider
-description: Run Aider AI pair programming in your workspace
+description: Install and configure Aider AI pair programming in your workspace
 icon: ../../../../.icons/aider.svg
 verified: true
 tags: [agent, ai, aider]
@@ -8,60 +8,42 @@ tags: [agent, ai, aider]
 
 # Aider
 
-Run [Aider](https://aider.chat) AI pair programming in your workspace. This module installs Aider with AgentAPI for seamless Coder Tasks Support.
+Install and configure [Aider](https://aider.chat) AI pair programming in your workspace. Starting Aider is left to the caller (template command, IDE launcher, or a custom `coder_script`).
 
 ```tf
-variable "api_key" {
-  type        = string
-  description = "API key"
-  sensitive   = true
+locals {
+  aider_workdir = "/home/coder/project"
 }
 
 module "aider" {
   source      = "registry.coder.com/coder/aider/coder"
   version     = "2.0.2"
   agent_id    = coder_agent.main.id
-  api_key     = var.api_key
+  api_key     = xxxx-xxxx-xxxx-xxxx"
   ai_provider = "google"
   model       = "gemini"
 }
+
+resource "coder_app" "aider" {
+  agent_id     = coder_agent.main.id
+  slug         = "aider"
+  display_name = "Aider"
+  icon         = "/icon/aider.svg"
+  open_in      = "slim-window"
+  command      = <<-EOT
+    #!/bin/bash
+    set -e
+    cd ${local.aider_workdir}
+    aider --model module.aider.model
+  EOT
+}
 ```
+> [!WARNING]
+> If upgrading from v2.x.x of this module: v3 is a major refactor that drops support for [Coder Tasks](https://coder.com/docs/ai-coder/tasks). We plan to add those back in a follow-up. Keep using v2.x.x if you depend on them.
 
 ## Prerequisites
 
 - pipx is automatically installed if not already available
-
-## Usage Example
-
-```tf
-data "coder_parameter" "ai_prompt" {
-  name        = "AI Prompt"
-  description = "Write an initial prompt for Aider to work on."
-  type        = "string"
-  default     = ""
-  mutable     = true
-}
-
-variable "gemini_api_key" {
-  type        = string
-  description = "Gemini API key"
-  sensitive   = true
-}
-
-module "aider" {
-  source           = "registry.coder.com/coder/aider/coder"
-  version          = "2.0.2"
-  agent_id         = coder_agent.main.id
-  api_key          = var.gemini_api_key
-  install_aider    = true
-  workdir          = "/home/coder"
-  ai_provider      = "google"
-  model            = "gemini"
-  install_agentapi = true
-  ai_prompt        = data.coder_parameter.ai_prompt.value
-  system_prompt    = "..."
-}
-```
 
 ### Using a custom provider
 
@@ -79,8 +61,8 @@ module "aider" {
   agent_id            = coder_agent.main.id
   workdir             = "/home/coder"
   ai_provider         = "custom"
-  custom_env_var_name = "MY_CUSTOM_API_KEY"
-  model               = "custom-model"
+  custom_env_var_name = "OPENROUTER_API_KEY"
+  model               = "openrouter/anthropic/claude-3-haiku"
   api_key             = var.custom_api_key
 }
 ```
@@ -105,11 +87,8 @@ For a complete and up-to-date list of supported aliases and models, please refer
 ## Troubleshooting
 
 - If `aider` is not found, ensure `install_aider = true` and your API key is valid
-- Logs are written under `/home/coder/.aider-module/` (`install.log`, `agentapi-start.log`) for debugging
-- If AgentAPI fails to start, verify that your container has network access and executable permissions for the scripts
+- Logs are written under `.coder-modules/coder/aider/logs/install.log` (`install.log`) for debugging
 
 ## References
 
 - [Aider Documentation](https://aider.chat/docs)
-- [AgentAPI Documentation](https://github.com/coder/agentapi)
-- [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)
