@@ -148,7 +148,7 @@ locals {
   base_extensions = <<-EOT
 {
   "coder": {
-    "command": "/tmp/coder.WQWVyS/coder",
+    "command": "coder",
     "args": [
       "exp",
       "mcp",

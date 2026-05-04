@@ -144,7 +144,7 @@ function add_system_prompt_if_exists() {
 function patch_coder_mcp_command() {
   CODER_BIN=$(which coder)
   SETTINGS_PATH="$HOME/.gemini/settings.json"
-  
+
   if [ -z "$CODER_BIN" ]; then
     printf "Warning: could not find coder binary, MCP command path not patched.\n"
     return

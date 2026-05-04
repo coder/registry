@@ -105,7 +105,7 @@ module "gemini" {
     You are a helpful coding assistant. Always explain your code changes clearly.
     YOU MUST REPORT ALL TASKS TO CODER.
   EOT
-  pre_install_script = <<-EOT
+  pre_install_script   = <<-EOT
     #!/bin/bash
     set -e
 
