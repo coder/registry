@@ -19,14 +19,54 @@ import {
   extractCoderEnvVars,
   writeExecutable,
 } from "../../../coder/modules/agentapi/test-util";
-import {
-  collectScripts,
-  runScripts,
-  ModuleScripts,
-} from "../../../coder/modules/agentapi/coder-utils-test-helpers";
 import path from "path";
 
-const DISPLAY_NAME_PREFIX = "Codex";
+interface ModuleScripts {
+  pre_install?: string;
+  install: string;
+  post_install?: string;
+}
+
+const SCRIPT_SUFFIXES = [
+  "Pre-Install Script",
+  "Install Script",
+  "Post-Install Script",
+] as const;
+
+const collectScripts = (state: TerraformState): ModuleScripts => {
+  const byDisplayName: Record<string, string> = {};
+  for (const resource of state.resources) {
+    if (resource.type !== "coder_script") continue;
+    for (const instance of resource.instances) {
+      const attrs = instance.attributes as Record<string, unknown>;
+      const displayName = attrs.display_name as string | undefined;
+      const script = attrs.script as string | undefined;
+      if (displayName && script) {
+        byDisplayName[displayName] = script;
+      }
+    }
+  }
+  const scripts: Partial<ModuleScripts> = {};
+  for (const suffix of SCRIPT_SUFFIXES) {
+    const key = `Codex: ${suffix}`;
+    if (!(key in byDisplayName)) continue;
+    switch (suffix) {
+      case "Pre-Install Script":
+        scripts.pre_install = byDisplayName[key];
+        break;
+      case "Install Script":
+        scripts.install = byDisplayName[key];
+        break;
+      case "Post-Install Script":
+        scripts.post_install = byDisplayName[key];
+        break;
+    }
+  }
+  if (!scripts.install) {
+    throw new Error("install script not found in terraform state");
+  }
+  return scripts as ModuleScripts;
+};
 
 let cleanupFunctions: (() => Promise<void>)[] = [];
 const registerCleanup = (cleanup: () => Promise<void>) => {
@@ -64,7 +104,7 @@ const setup = async (
     install_codex: "false",
     ...props?.moduleVariables,
   });
-  const scripts = collectScripts(state, DISPLAY_NAME_PREFIX);
+  const scripts = collectScripts(state);
   const coderEnvVars = extractCoderEnvVars(state);
 
   const id = await runContainer("codercom/enterprise-node:latest");
@@ -92,6 +132,43 @@ const setup = async (
     });
   }
   return { id, coderEnvVars, scripts };
+};
+
+const runScripts = async (
+  id: string,
+  scripts: ModuleScripts,
+  env?: Record<string, string>,
+) => {
+  const entries = env ? Object.entries(env) : [];
+  const envArgs =
+    entries.length > 0
+      ? entries
+          .map(
+            ([key, value]) => `export ${key}="${value.replace(/"/g, '\\"')}"`,
+          )
+          .join(" && ") + " && "
+      : "";
+  const ordered: [string, string | undefined][] = [
+    ["pre_install", scripts.pre_install],
+    ["install", scripts.install],
+    ["post_install", scripts.post_install],
+  ];
+  for (const [name, script] of ordered) {
+    if (!script) continue;
+    const target = `/tmp/coder-utils-${name}.sh`;
+    await writeExecutable({
+      containerId: id,
+      filePath: target,
+      content: script,
+    });
+    const resp = await execContainer(id, ["bash", "-c", `${envArgs}${target}`]);
+    if (resp.exitCode !== 0) {
+      console.log(`script ${name} failed:`);
+      console.log(resp.stdout);
+      console.log(resp.stderr);
+      throw new Error(`coder-utils ${name} script exited ${resp.exitCode}`);
+    }
+  }
 };
 
 setDefaultTimeout(60 * 1000);
