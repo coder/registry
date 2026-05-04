@@ -36,23 +36,29 @@ function install_codex() {
     . "$NVM_DIR/nvm.sh"
   fi
 
-  if ! command_exists npm; then
-    echo "Error: npm is required to install Codex. Install Node.js/npm first or set install_codex = false."
+  # Detect a package manager for global installs.
+  if command_exists npm; then
+    PKG_INSTALL="npm install -g"
+    if ! command_exists nvm; then
+      mkdir -p "$HOME/.npm-global"
+      npm config set prefix "$HOME/.npm-global"
+      export PATH="$HOME/.npm-global/bin:$PATH"
+    fi
+  elif command_exists pnpm; then
+    PKG_INSTALL="pnpm add -g"
+  elif command_exists bun; then
+    PKG_INSTALL="bun add -g"
+  else
+    echo "Error: npm, pnpm, or bun is required to install Codex. Install one of them first or set install_codex = false."
     exit 1
-  fi
-
-  if ! command_exists nvm; then
-    mkdir -p "$HOME/.npm-global"
-    npm config set prefix "$HOME/.npm-global"
-    export PATH="$HOME/.npm-global/bin:$PATH"
   fi
 
   printf "%s Installing Codex CLI\n" "$${BOLD}"
 
   if [ -n "$${ARG_CODEX_VERSION}" ]; then
-    npm install -g "@openai/codex@$${ARG_CODEX_VERSION}"
+    $PKG_INSTALL "@openai/codex@$${ARG_CODEX_VERSION}"
   else
-    npm install -g "@openai/codex"
+    $PKG_INSTALL "@openai/codex"
   fi
   printf "%s Installed Codex CLI: %s\n" "$${BOLD}" "$(codex --version)"
 }
@@ -62,7 +68,7 @@ function write_minimal_default_config() {
   local optional_config=""
 
   if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ]; then
-    optional_config='model_provider = "aibridge"'
+    optional_config='model_provider = "aigateway"'
   fi
 
   if [ -n "$${ARG_MODEL_REASONING_EFFORT}" ]; then
@@ -102,7 +108,7 @@ function populate_config_toml() {
   fi
 
   if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] && [ -n "$${ARG_AIBRIDGE_CONFIG}" ]; then
-    if ! grep -q '\[model_providers\.aibridge\]' "$${config_path}" 2>/dev/null; then
+    if ! grep -q '\[model_providers\.aigateway\]' "$${config_path}" 2>/dev/null; then
       printf "Adding AI Gateway configuration\n"
       echo -e "\n$${ARG_AIBRIDGE_CONFIG}" >> "$${config_path}"
     else

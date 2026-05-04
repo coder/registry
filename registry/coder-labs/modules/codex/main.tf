@@ -68,7 +68,7 @@ variable "base_config_toml" {
     When empty, the module generates a minimal default:
 
       preferred_auth_method = "apikey"
-      # model_provider = "aibridge"           (sets the default profile, when enable_ai_gateway = true)
+      # model_provider = "aigateway"           (sets the default profile, when enable_ai_gateway = true)
       # model_reasoning_effort = "<value>"    (sets the reasoning effort, when model_reasoning_effort is set)
 
       [projects."<workdir>"]                  (when workdir is set)
@@ -117,7 +117,7 @@ resource "coder_env" "openai_api_key" {
 }
 
 # Authenticates the client against Coder's AI Gateway using the workspace
-# owner's session token. Referenced by config.toml model_providers.aibridge.
+# owner's session token. Referenced by config.toml model_providers.aigateway.
 resource "coder_env" "ai_gateway_session_token" {
   count    = var.enable_ai_gateway ? 1 : 0
   agent_id = var.agent_id
@@ -128,7 +128,7 @@ resource "coder_env" "ai_gateway_session_token" {
 locals {
   workdir         = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
   aibridge_config = <<-EOF
-  [model_providers.aibridge]
+  [model_providers.aigateway]
   name = "AI Gateway"
   base_url = "${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1"
   env_key = "CODER_AIBRIDGE_SESSION_TOKEN"

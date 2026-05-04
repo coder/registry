@@ -314,9 +314,9 @@ describe("codex", async () => {
       id,
       "/home/coder/.codex/config.toml",
     );
-    expect(configToml).toContain('model_provider = "aibridge"');
+    expect(configToml).toContain('model_provider = "aigateway"');
     expect(configToml).toContain('model_reasoning_effort = "none"');
-    expect(configToml).toContain("[model_providers.aibridge]");
+    expect(configToml).toContain("[model_providers.aigateway]");
   });
 
   test("model-reasoning-effort-standalone", async () => {
@@ -367,7 +367,7 @@ describe("codex", async () => {
   test("ai-gateway-with-custom-base-config", async () => {
     const baseConfig = [
       'sandbox_mode = "danger-full-access"',
-      'model_provider = "aibridge"',
+      'model_provider = "aigateway"',
     ].join("\n");
     const { id, coderEnvVars, scripts } = await setup({
       moduleVariables: {
@@ -380,15 +380,15 @@ describe("codex", async () => {
       id,
       "/home/coder/.codex/config.toml",
     );
-    expect(configToml).toContain('model_provider = "aibridge"');
-    expect(configToml).toContain("[model_providers.aibridge]");
+    expect(configToml).toContain('model_provider = "aigateway"');
+    expect(configToml).toContain("[model_providers.aigateway]");
   });
 
   test("ai-gateway-custom-config-no-duplicate-provider", async () => {
     const baseConfig = [
-      'model_provider = "aibridge"',
+      'model_provider = "aigateway"',
       "",
-      "[model_providers.aibridge]",
+      "[model_providers.aigateway]",
       'name = "Custom AI Bridge"',
       'base_url = "https://custom.example.com"',
       'env_key = "CODER_AIBRIDGE_SESSION_TOKEN"',
@@ -405,7 +405,7 @@ describe("codex", async () => {
       id,
       "/home/coder/.codex/config.toml",
     );
-    const matches = configToml.match(/\[model_providers\.aibridge\]/g) || [];
+    const matches = configToml.match(/\[model_providers\.aigateway\]/g) || [];
     expect(matches.length).toBe(1);
     expect(configToml).toContain("Custom AI Bridge");
   });

@@ -77,16 +77,16 @@ module "codex" {
 }
 ```
 
-When `enable_ai_gateway = true`, the module configures Codex to use the `aibridge` model provider in `config.toml` with the workspace owner's session token for authentication.
+When `enable_ai_gateway = true`, the module configures Codex to use the `aigateway` model provider in `config.toml` with the workspace owner's session token for authentication.
 
 > [!CAUTION]
 > `enable_ai_gateway = true` is mutually exclusive with `openai_api_key`. Setting both fails at plan time.
 
 > [!NOTE]
-> If you provide a custom `base_config_toml`, the module writes it verbatim and does not inject `model_provider = "aibridge"` automatically. Add it to your config yourself:
+> If you provide a custom `base_config_toml`, the module writes it verbatim and does not inject `model_provider = "aigateway"` automatically. Add it to your config yourself:
 >
 > ```toml
-> model_provider = "aibridge"
+> model_provider = "aigateway"
 > ```
 
 ### Advanced Configuration
