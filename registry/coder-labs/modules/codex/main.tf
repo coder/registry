@@ -76,6 +76,8 @@ variable "base_config_toml" {
 
     When non-empty, the value is written verbatim as the base of config.toml;
     additional_mcp_servers and AI Gateway sections are still appended after it.
+    Note: model_reasoning_effort and workdir trust are only applied in the
+    default config. Include them in your custom config if needed.
   EOT
   default     = ""
 }
@@ -127,7 +129,7 @@ locals {
   workdir         = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
   aibridge_config = <<-EOF
   [model_providers.aibridge]
-  name = "AI Bridge"
+  name = "AI Gateway"
   base_url = "${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1"
   env_key = "CODER_AIBRIDGE_SESSION_TOKEN"
   wire_api = "responses"

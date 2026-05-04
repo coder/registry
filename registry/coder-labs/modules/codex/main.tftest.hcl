@@ -43,8 +43,13 @@ run "test_codex_custom_options" {
   }
 
   assert {
-    condition     = var.icon == "/icon/custom.svg"
-    error_message = "Icon should be set to custom icon"
+    condition     = var.codex_version == "0.1.0"
+    error_message = "codex_version should be set"
+  }
+
+  assert {
+    condition     = length(output.scripts) > 0
+    error_message = "scripts output should be non-empty with custom options"
   }
 }
 
@@ -146,13 +151,8 @@ run "test_codex_with_scripts" {
   }
 
   assert {
-    condition     = var.pre_install_script == "echo 'Pre-install script'"
-    error_message = "Pre-install script should be set correctly"
-  }
-
-  assert {
-    condition     = var.post_install_script == "echo 'Post-install script'"
-    error_message = "Post-install script should be set correctly"
+    condition     = length(output.scripts) == 3
+    error_message = "scripts output should have 3 entries when pre/post are configured"
   }
 }
 

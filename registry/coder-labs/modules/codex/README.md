@@ -22,6 +22,15 @@ module "codex" {
 > [!WARNING]
 > If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for [Coder Tasks](https://coder.com/docs/ai-coder/tasks) and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). v5 also assumes npm is pre-installed; it no longer bootstraps Node.js. Keep using v4.x.x if you depend on them.
 
+## Migrating from v4
+
+1. Remove all v4-only variables: `order`, `group`, `report_tasks`, `subdomain`, `cli_app`, `web_app_display_name`, `cli_app_display_name`, `install_agentapi`, `agentapi_version`, `ai_prompt`, `continue`, `enable_state_persistence`, `codex_system_prompt`, `enable_boundary`, `boundary_config_path`, `boundary_version`, `compile_boundary_from_source`, `use_boundary_directly`, `codex_model`.
+2. Rename `enable_aibridge` to `enable_ai_gateway`.
+3. Remove any `coder_ai_task` resources that referenced `module.codex.task_app_id`.
+4. Add a `coder_app` or `coder_script` to start Codex (v5 only installs and configures the CLI).
+5. Ensure npm is available in your workspace image (v5 no longer bootstraps Node.js).
+6. Update debug/log paths from `~/.codex-module/` to `~/.coder-modules/coder-labs/codex/logs/`.
+
 ## Examples
 
 ### Standalone mode with a launcher app
@@ -48,7 +57,7 @@ resource "coder_app" "codex" {
   command      = <<-EOT
     #!/bin/bash
     set -e
-    cd ${local.codex_workdir}
+    cd "${local.codex_workdir}"
     codex
   EOT
 }
