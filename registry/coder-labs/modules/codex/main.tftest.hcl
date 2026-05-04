@@ -167,6 +167,37 @@ run "test_custom_options" {
   }
 }
 
+run "test_default_agentapi_port" {
+  command = plan
+
+  variables {
+    agent_id       = "test-agent"
+    workdir        = "/home/coder"
+    openai_api_key = "test-key"
+  }
+
+  assert {
+    condition     = var.agentapi_port == 3284
+    error_message = "agentapi_port should default to 3284"
+  }
+}
+
+run "test_custom_agentapi_port" {
+  command = plan
+
+  variables {
+    agent_id       = "test-agent"
+    workdir        = "/home/coder"
+    openai_api_key = "test-key"
+    agentapi_port  = 3285
+  }
+
+  assert {
+    condition     = var.agentapi_port == 3285
+    error_message = "agentapi_port should be configurable"
+  }
+}
+
 run "test_no_api_key_no_aibridge" {
   command = plan
 
