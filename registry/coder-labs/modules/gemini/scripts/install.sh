@@ -17,6 +17,7 @@ echo "--------------------------------"
 printf "gemini_config: %s\n" "$ARG_GEMINI_CONFIG"
 printf "install: %s\n" "$ARG_INSTALL"
 printf "gemini_version: %s\n" "$ARG_GEMINI_VERSION"
+printf "BASE_EXTENSIONS: %s\n" "$BASE_EXTENSIONS"
 echo "--------------------------------"
 
 set +o nounset
@@ -140,6 +141,25 @@ function add_system_prompt_if_exists() {
   fi
 }
 
+function patch_coder_mcp_command() {
+  CODER_BIN=$(which coder)
+  SETTINGS_PATH="$HOME/.gemini/settings.json"
+  
+  if [ -z "$CODER_BIN" ]; then
+    printf "Warning: could not find coder binary, MCP command path not patched.\n"
+    return
+  fi
+
+  printf "Patching coder MCP command path to: %s\n" "$CODER_BIN"
+
+  TMP_SETTINGS=$(mktemp)
+  jq --arg bin "$CODER_BIN" \
+    '.mcpServers.coder.command = $bin' \
+    "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
+
+  printf "Patch complete.\n"
+}
+
 function configure_mcp() {
   export CODER_MCP_APP_STATUS_SLUG="gemini"
   export CODER_MCP_AI_AGENTAPI_URL="http://localhost:3284"
@@ -149,4 +169,5 @@ function configure_mcp() {
 install_gemini
 populate_settings_json
 add_system_prompt_if_exists
+patch_coder_mcp_command
 configure_mcp

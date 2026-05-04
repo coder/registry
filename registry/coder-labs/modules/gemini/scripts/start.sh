@@ -71,4 +71,4 @@ else
 fi
 
 agentapi server --term-width 67 --term-height 1190 -- \
-  bash -c "$(printf '%q ' gemini "${GEMINI_ARGS[@]}")"
+  bash -c "$(printf '%q ' gemini --debug "${GEMINI_ARGS[@]}")"
