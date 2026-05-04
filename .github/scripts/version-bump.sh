@@ -141,15 +141,15 @@ main() {
       ;;
   esac
 
-  echo "🔍 Detecting modified modules..."
+  echo "🔍 Detecting modified modules and skills..."
 
   local changed_files
   changed_files=$(git diff --name-only "${base_ref}"...HEAD)
   local modules
-  modules=$(echo "$changed_files" | grep -E '^registry/[^/]+/modules/[^/]+/' | cut -d'/' -f1-4 | sort -u)
+  modules=$(echo "$changed_files" | grep -E '^registry/[^/]+/(modules|skills)/[^/]+/' | cut -d'/' -f1-4 | sort -u)
 
   if [ -z "$modules" ]; then
-    echo "❌ No modules detected in changes"
+    echo "❌ No modules or skills detected in changes"
     exit 1
   fi
 
