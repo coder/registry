@@ -8,7 +8,7 @@ tags: [agent, codex, ai, openai, ai-gateway]
 
 # Codex CLI
 
-Install and configure the [Codex CLI](https://github.com/openai/codex) in your workspace. Starting Codex is left to the caller (template command, IDE launcher, or a custom `coder_script`).
+Install and configure the [Codex CLI](https://github.com/openai/codex) in your workspace.
 
 ```tf
 module "codex" {
