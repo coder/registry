@@ -63,6 +63,9 @@ resource "coder_app" "codex" {
 }
 ```
 
+> [!NOTE]
+> The `coder_app` command re-executes on every pane reconnect. This works for interactive `codex` (which stays alive), but one-shot commands like `codex exec` will re-run each time. For one-shot prompts, use a `coder_script` (runs once at startup) and a `coder_app` that attaches to the existing session (e.g. via tmux/screen).
+
 ### Usage with AI Gateway
 
 [AI Gateway](https://coder.com/docs/ai-coder/ai-gateway) is a Premium Coder feature that provides centralized LLM proxy management. Requires Coder >= 2.30.0.

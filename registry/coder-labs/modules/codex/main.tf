@@ -144,6 +144,7 @@ locals {
     ARG_ENABLE_AI_GATEWAY      = tostring(var.enable_ai_gateway)
     ARG_AIBRIDGE_CONFIG        = var.enable_ai_gateway ? base64encode(local.aibridge_config) : ""
     ARG_MODEL_REASONING_EFFORT = var.model_reasoning_effort
+    ARG_OPENAI_API_KEY         = var.openai_api_key != "" ? base64encode(var.openai_api_key) : ""
   })
   module_dir_name = ".coder-modules/coder-labs/codex"
 }

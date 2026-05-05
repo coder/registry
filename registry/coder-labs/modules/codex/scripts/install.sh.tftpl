@@ -16,6 +16,7 @@ ARG_ADDITIONAL_MCP_SERVERS=$(echo -n '${ARG_ADDITIONAL_MCP_SERVERS}' | base64 -d
 ARG_ENABLE_AI_GATEWAY='${ARG_ENABLE_AI_GATEWAY}'
 ARG_AIBRIDGE_CONFIG=$(echo -n '${ARG_AIBRIDGE_CONFIG}' | base64 -d)
 ARG_MODEL_REASONING_EFFORT='${ARG_MODEL_REASONING_EFFORT}'
+ARG_OPENAI_API_KEY=$(echo -n '${ARG_OPENAI_API_KEY}' | base64 -d)
 
 echo "--------------------------------"
 printf "codex_version: %s\n" "$${ARG_CODEX_VERSION}"
@@ -25,9 +26,55 @@ printf "install_codex: %s\n" "$${ARG_INSTALL}"
 printf "model_reasoning_effort: %s\n" "$${ARG_MODEL_REASONING_EFFORT}"
 echo "--------------------------------"
 
+function add_path_to_shell_profiles() {
+  local path_dir="$1"
+
+  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    if [ -f "$${profile}" ]; then
+      if ! grep -q "$${path_dir}" "$${profile}" 2> /dev/null; then
+        echo "export PATH=\"\$PATH:$${path_dir}\"" >> "$${profile}"
+        echo "Added $${path_dir} to $${profile}"
+      fi
+    fi
+  done
+
+  local fish_config="$HOME/.config/fish/config.fish"
+  if [ -f "$${fish_config}" ]; then
+    if ! grep -q "$${path_dir}" "$${fish_config}" 2> /dev/null; then
+      echo "fish_add_path $${path_dir}" >> "$${fish_config}"
+      echo "Added $${path_dir} to $${fish_config}"
+    fi
+  fi
+}
+
+function ensure_codex_in_path() {
+  local CODEX_BIN=""
+  if command -v codex > /dev/null 2>&1; then
+    CODEX_BIN=$(command -v codex)
+  elif [ -x "$HOME/.npm-global/bin/codex" ]; then
+    CODEX_BIN="$HOME/.npm-global/bin/codex"
+  fi
+
+  if [ -z "$${CODEX_BIN}" ] || [ ! -x "$${CODEX_BIN}" ]; then
+    echo "Warning: Could not find codex binary after install"
+    return
+  fi
+
+  local CODEX_DIR
+  CODEX_DIR=$(dirname "$${CODEX_BIN}")
+
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/codex" ]; then
+    ln -s "$${CODEX_BIN}" "$${CODER_SCRIPT_BIN_DIR}/codex"
+    echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/codex -> $${CODEX_BIN}"
+  fi
+
+  add_path_to_shell_profiles "$${CODEX_DIR}"
+}
+
 function install_codex() {
   if [ "$${ARG_INSTALL}" != "true" ]; then
     echo "Skipping Codex installation as per configuration."
+    ensure_codex_in_path
     return
   fi
 
@@ -61,6 +108,7 @@ function install_codex() {
     $PKG_INSTALL "@openai/codex"
   fi
   printf "%s Installed Codex CLI: %s\n" "$${BOLD}" "$(codex --version)"
+  ensure_codex_in_path
 }
 
 function write_minimal_default_config() {
@@ -124,6 +172,23 @@ function setup_workdir() {
   fi
 }
 
+function add_auth_json() {
+  if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] || [ -z "$${ARG_OPENAI_API_KEY}" ]; then
+    return
+  fi
+
+  local auth_path="$HOME/.codex/auth.json"
+  mkdir -p "$(dirname "$${auth_path}")"
+
+  cat << EOF > "$${auth_path}"
+{
+  "OPENAI_API_KEY": "$${ARG_OPENAI_API_KEY}"
+}
+EOF
+  echo "Seeded auth.json with API key"
+}
+
 install_codex
 populate_config_toml
 setup_workdir
+add_auth_json
