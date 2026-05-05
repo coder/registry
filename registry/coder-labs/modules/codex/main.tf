@@ -50,8 +50,8 @@ variable "install_codex" {
 
 variable "codex_version" {
   type        = string
-  description = "The version of Codex to install. Empty string installs the latest available version."
-  default     = ""
+  description = "The version of Codex to install."
+  default     = "latest"
 }
 
 variable "openai_api_key" {
@@ -75,16 +75,16 @@ variable "base_config_toml" {
       trust_level = "trusted"
 
     When non-empty, the value is written verbatim as the base of config.toml;
-    additional_mcp_servers and AI Gateway sections are still appended after it.
+    mcp and AI Gateway sections are still appended after it.
     Note: model_reasoning_effort and workdir trust are only applied in the
     default config. Include them in your custom config if needed.
   EOT
   default     = ""
 }
 
-variable "additional_mcp_servers" {
+variable "mcp" {
   type        = string
-  description = "Additional MCP servers configuration in TOML format."
+  description = "MCP server configurations in TOML format. When set, servers are appended to the Codex config.toml."
   default     = ""
 }
 
@@ -140,7 +140,7 @@ locals {
     ARG_CODEX_VERSION          = var.codex_version != "" ? base64encode(var.codex_version) : ""
     ARG_WORKDIR                = local.workdir != "" ? base64encode(local.workdir) : ""
     ARG_BASE_CONFIG_TOML       = var.base_config_toml != "" ? base64encode(var.base_config_toml) : ""
-    ARG_ADDITIONAL_MCP_SERVERS = var.additional_mcp_servers != "" ? base64encode(var.additional_mcp_servers) : ""
+    ARG_MCP                    = var.mcp != "" ? base64encode(var.mcp) : ""
     ARG_ENABLE_AI_GATEWAY      = tostring(var.enable_ai_gateway)
     ARG_AIBRIDGE_CONFIG        = var.enable_ai_gateway ? base64encode(local.aibridge_config) : ""
     ARG_MODEL_REASONING_EFFORT = var.model_reasoning_effort
