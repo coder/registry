@@ -7,11 +7,6 @@ run "test_codex_basic" {
   }
 
   assert {
-    condition     = var.workdir == "/home/coder"
-    error_message = "Workdir should be set correctly"
-  }
-
-  assert {
     condition     = var.install_codex == true
     error_message = "install_codex should default to true"
   }
@@ -39,12 +34,7 @@ run "test_codex_custom_options" {
     agent_id      = "test-agent"
     workdir       = "/home/coder/project"
     icon          = "/icon/custom.svg"
-    codex_version = "0.1.0"
-  }
-
-  assert {
-    condition     = var.codex_version == "0.1.0"
-    error_message = "codex_version should be set"
+    codex_version = "0.128.0"
   }
 
   assert {
@@ -67,11 +57,6 @@ run "test_ai_gateway_enabled" {
     values = {
       session_token = "mock-session-token"
     }
-  }
-
-  assert {
-    condition     = var.enable_ai_gateway == true
-    error_message = "AI Gateway should be enabled"
   }
 
   assert {
@@ -194,7 +179,7 @@ run "test_workdir_optional" {
   }
 
   assert {
-    condition     = var.workdir == null
-    error_message = "workdir should default to null when omitted"
+    condition     = length(output.scripts) == 1
+    error_message = "scripts output should have install script even without workdir"
   }
 }

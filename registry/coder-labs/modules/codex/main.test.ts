@@ -424,4 +424,24 @@ describe("codex", async () => {
     );
     expect(installLog).toContain("Installed Codex CLI");
   });
+
+  test("custom-config-drops-reasoning-effort", async () => {
+    const baseConfig = [
+      'sandbox_mode = "danger-full-access"',
+      'preferred_auth_method = "apikey"',
+    ].join("\n");
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        base_config_toml: baseConfig,
+        model_reasoning_effort: "high",
+      },
+    });
+    await runScripts(id, scripts);
+    const configToml = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    expect(configToml).toContain('sandbox_mode = "danger-full-access"');
+    expect(configToml).not.toContain("model_reasoning_effort");
+  });
 });
