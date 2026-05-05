@@ -182,6 +182,7 @@ function add_auth_json() {
 
   cat << EOF > "$${auth_path}"
 {
+  "auth_mode": "apikey",
   "OPENAI_API_KEY": "$${ARG_OPENAI_API_KEY}"
 }
 EOF
