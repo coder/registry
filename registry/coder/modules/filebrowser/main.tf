@@ -20,7 +20,7 @@ data "coder_workspace_owner" "me" {}
 
 variable "agent_name" {
   type        = string
-  description = "The name of the coder_agent resource. (Only required if subdomain is false and the template uses multiple agents.)"
+  description = "The name of the coder_agent resource. Required when `subdomain` is `false` so the path-based base URL matches the URL Coder serves."
   default     = null
 }
 
@@ -102,6 +102,13 @@ resource "coder_script" "filebrowser" {
     SERVER_BASE_PATH : local.server_base_path
   })
   run_on_start = true
+
+  lifecycle {
+    precondition {
+      condition     = var.subdomain || var.agent_name != null
+      error_message = "`agent_name` is required when `subdomain` is `false`. Coder always builds path-based app URLs as `/@<owner>/<workspace>.<agent>/apps/<slug>/`, so the filebrowser base URL must include the agent name to match. Set `agent_name = \"<your coder_agent name>\"` (e.g. `\"main\"`)."
+    }
+  }
 }
 
 resource "coder_app" "filebrowser" {
