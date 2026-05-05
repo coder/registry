@@ -210,9 +210,6 @@ main() {
 
   bring_up "$auth_key" "$mode"
   configure_proxy_env "$mode"
-
-  log "Status:"
-  tailscale status
 }
 
 main
