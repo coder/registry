@@ -149,7 +149,7 @@ resource "coder_script" "post_codex" {
 
 ## Configuration
 
-When no custom `base_config_toml` is provided, the module uses a minimal default with `preferred_auth_method = "apikey"`. For advanced options, see [Codex config docs](https://github.com/openai/codex/blob/main/codex-rs/config.md).
+When no custom `base_config_toml` is provided, the module uses a minimal default with `preferred_auth_method = "apikey"`. For advanced options, see [Codex config docs](https://github.com/openai/codex/blob/main/docs/config.md).
 
 ## Troubleshooting
 
