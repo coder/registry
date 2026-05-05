@@ -4,6 +4,25 @@ set -o pipefail
 
 source "$HOME"/.bashrc
 
+set -o nounset
+
+GEMINI_API_KEY=$(echo -n "$GEMINI_API_KEY" | base64 -d)
+GOOGLE_API_KEY=$(echo -n "$GOOGLE_API_KEY" | base64 -d)
+GEMINI_YOLO_MODE=$(echo -n "$GEMINI_YOLO_MODE" | base64 -d)
+GEMINI_TASK_PROMPT=$(echo -n "$GEMINI_TASK_PROMPT" | base64 -d)
+ARG_CONTINUE=$(echo -n "$ARG_CONTINUE" | base64 -d)
+GEMINI_START_DIRECTORY=$GEMINI_START_DIRECTORY
+GEMINI_MODEL=$GEMINI_MODEL
+GOOGLE_GENAI_USE_VERTEXAI=$GOOGLE_GENAI_USE_VERTEXAI
+
+echo "--------------------------------"
+printf "gemini task_prompt: %s\n" "$GEMINI_TASK_PROMPT"
+printf "gemini start directory: %s\n" "$GEMINI_START_DIRECTORY"
+printf "gemini model: %s\n" "$GEMINI_MODEL"
+echo "--------------------------------"
+
+set +o nounset
+
 command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
@@ -14,7 +33,7 @@ else
   export PATH="$HOME/.npm-global/bin:$PATH"
 fi
 
-printf "Version: %s\n" "$(gemini --version)"
+printf "Gemini CLI Version: %s\n" "$(gemini --version)"
 
 MODULE_DIR="$HOME/.gemini-module"
 mkdir -p "$MODULE_DIR"
@@ -44,22 +63,6 @@ else
   }
 fi
 
-if [ -n "$GEMINI_TASK_PROMPT" ]; then
-  printf "Running automated task: %s\n" "$GEMINI_TASK_PROMPT"
-  PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"
-  PROMPT_FILE="$MODULE_DIR/prompt.txt"
-  echo -n "$PROMPT" > "$PROMPT_FILE"
-  GEMINI_ARGS=(--prompt-interactive "$PROMPT")
-else
-  printf "Starting Gemini CLI in interactive mode.\n"
-  GEMINI_ARGS=()
-fi
-
-if [ -n "$GEMINI_YOLO_MODE" ] && [ "$GEMINI_YOLO_MODE" = "true" ]; then
-  printf "YOLO mode enabled - will auto-approve all tool calls\n"
-  GEMINI_ARGS+=(--yolo)
-fi
-
 if [ -n "$GEMINI_API_KEY" ] || [ -n "$GOOGLE_API_KEY" ]; then
   if [ -n "$GOOGLE_GENAI_USE_VERTEXAI" ] && [ "$GOOGLE_GENAI_USE_VERTEXAI" = "true" ]; then
     printf "Using Vertex AI with API key\n"
@@ -70,5 +73,54 @@ else
   printf "No API key provided (neither GEMINI_API_KEY nor GOOGLE_API_KEY)\n"
 fi
 
-agentapi server --term-width 67 --term-height 1190 -- \
-  bash -c "$(printf '%q ' gemini "${GEMINI_ARGS[@]}")"
+GEMINI_ARGS=()
+configure_gemini() {
+  if [ "$ARG_CONTINUE" = "true" ]; then
+    SESSION_FOLDER_NAME=$(basename "${GEMINI_START_DIRECTORY}")
+    if [ -d "$GEMINI_START_DIRECTORY/.gemini/tmp/$SESSION_FOLDER_NAME/chats/" ]; then
+      printf "Existing Gemini chats detected. Starting Gemini CLI in interactive mode with existing chats.\n"
+      GEMINI_ARGS+=(--resume)
+    else
+      printf "No existing Gemini chats found. Starting Gemini CLI in interactive mode.\n"
+      if [ -n "$GEMINI_TASK_PROMPT" ]; then
+        printf "Running automated task: %s\n" "$GEMINI_TASK_PROMPT"
+        PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"
+        PROMPT_FILE="$MODULE_DIR/prompt.txt"
+        echo -n "$PROMPT" > "$PROMPT_FILE"
+        GEMINI_ARGS+=(--prompt-interactive "$PROMPT")
+      else
+        printf "Starting Gemini CLI in interactive mode.\n"
+        GEMINI_ARGS+=()
+      fi
+    fi
+  else
+    printf "Continue disabled, starting fresh Gemini CLI session\n"
+    if [ -n "$GEMINI_TASK_PROMPT" ]; then
+      printf "Running automated task: %s\n" "$GEMINI_TASK_PROMPT"
+      PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"
+      PROMPT_FILE="$MODULE_DIR/prompt.txt"
+      echo -n "$PROMPT" > "$PROMPT_FILE"
+      GEMINI_ARGS+=(--prompt-interactive "$PROMPT")
+    else
+      printf "Starting Gemini CLI in interactive mode.\n"
+      GEMINI_ARGS+=()
+    fi
+  fi
+
+  if [ -n "$GEMINI_MODEL" ]; then
+    GEMINI_ARGS+=(--model "$GEMINI_MODEL")
+  fi
+
+  if [ -n "$GEMINI_YOLO_MODE" ] && [ "$GEMINI_YOLO_MODE" = "true" ]; then
+    printf "YOLO mode enabled - will auto-approve all tool calls\n"
+    GEMINI_ARGS+=(--approval-mode=yolo)
+  fi
+}
+
+configure_gemini
+
+# agentapi server --type gemini --term-width 67 --term-height 1190 -- \
+#   bash -c "$(printf '%q ' gemini "${GEMINI_ARGS[@]}")"
+
+agentapi server --type gemini --term-width 67 --term-height 1190 -- \
+  gemini "${GEMINI_ARGS[@]}"
