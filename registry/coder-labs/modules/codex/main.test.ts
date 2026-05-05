@@ -246,7 +246,7 @@ describe("codex", async () => {
     ].join("\n");
     const { id, scripts } = await setup({
       moduleVariables: {
-        additional_mcp_servers: additional,
+        mcp: additional,
       },
     });
     await runScripts(id, scripts);

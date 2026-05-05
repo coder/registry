@@ -12,7 +12,7 @@ ARG_INSTALL='${ARG_INSTALL}'
 ARG_CODEX_VERSION=$(echo -n '${ARG_CODEX_VERSION}' | base64 -d)
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
 ARG_BASE_CONFIG_TOML=$(echo -n '${ARG_BASE_CONFIG_TOML}' | base64 -d)
-ARG_ADDITIONAL_MCP_SERVERS=$(echo -n '${ARG_ADDITIONAL_MCP_SERVERS}' | base64 -d)
+ARG_MCP=$(echo -n '${ARG_MCP}' | base64 -d)
 ARG_ENABLE_AI_GATEWAY='${ARG_ENABLE_AI_GATEWAY}'
 ARG_AIBRIDGE_CONFIG=$(echo -n '${ARG_AIBRIDGE_CONFIG}' | base64 -d)
 ARG_MODEL_REASONING_EFFORT='${ARG_MODEL_REASONING_EFFORT}'
@@ -150,9 +150,9 @@ function populate_config_toml() {
     write_minimal_default_config "$${config_path}"
   fi
 
-  if [ -n "$${ARG_ADDITIONAL_MCP_SERVERS}" ]; then
-    printf "Adding additional MCP servers\n"
-    echo "$${ARG_ADDITIONAL_MCP_SERVERS}" >> "$${config_path}"
+  if [ -n "$${ARG_MCP}" ]; then
+    printf "Adding MCP servers\n"
+    echo "$${ARG_MCP}" >> "$${config_path}"
   fi
 
   if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] && [ -n "$${ARG_AIBRIDGE_CONFIG}" ]; then

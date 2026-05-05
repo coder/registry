@@ -101,7 +101,7 @@ module "codex" {
     preferred_auth_method = "apikey"
   EOT
 
-  additional_mcp_servers = <<-EOT
+  mcp = <<-EOT
     [mcp_servers.GitHub]
     command = "npx"
     args = ["-y", "@modelcontextprotocol/server-github"]
