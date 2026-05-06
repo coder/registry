@@ -47,7 +47,7 @@ variable "boundary_config" {
 
 variable "boundary_config_path" {
   type        = string
-  description = "Path to an existing boundary config file in the workspace. When set, no config is written and BOUNDARY_CONFIG points to this path. Mutually exclusive with boundary_config."
+  description = "Path to an existing boundary config file in the workspace. When set, no config is written and the boundary_config_path output points to this path. Mutually exclusive with boundary_config."
   default     = null
 }
 
@@ -77,7 +77,7 @@ locals {
   coder_domain = try(regex("^https?://([^/:]+)", data.coder_workspace.me.access_url)[0], "")
 
   # Config handling: resolve which config content to write and where
-  # BOUNDARY_CONFIG points to.
+  # boundary_config_path output points to.
   default_boundary_config = templatefile("${path.module}/config.yaml.tftpl", {
     CODER_DOMAIN = local.coder_domain
   })
@@ -109,12 +109,6 @@ module "coder_utils" {
   pre_install_script  = var.pre_install_script
   post_install_script = var.post_install_script
   install_script      = local.install_script
-}
-
-resource "coder_env" "boundary_config" {
-  agent_id = var.agent_id
-  name     = "BOUNDARY_CONFIG"
-  value    = local.effective_boundary_config_path
 }
 
 output "boundary_wrapper_path" {

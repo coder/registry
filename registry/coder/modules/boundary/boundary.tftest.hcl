@@ -7,17 +7,6 @@ run "plan_with_required_vars" {
     agent_id = "test-agent-id"
   }
 
-  # Verify BOUNDARY_CONFIG env var with default config path
-  assert {
-    condition     = coder_env.boundary_config.name == "BOUNDARY_CONFIG"
-    error_message = "Environment variable name should be 'BOUNDARY_CONFIG'"
-  }
-
-  assert {
-    condition     = coder_env.boundary_config.value == "$HOME/.coder-modules/coder/boundary/config/config.yaml"
-    error_message = "BOUNDARY_CONFIG should default to module_directory/config/config.yaml"
-  }
-
   # Verify the boundary_wrapper_path output
   assert {
     condition     = output.boundary_wrapper_path == "$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh"
@@ -131,13 +120,7 @@ run "plan_with_inline_boundary_config" {
     boundary_config = "allowlist:\n  - domain=example.com\nlog_level: debug\n"
   }
 
-  # BOUNDARY_CONFIG should still point to the managed path since we write
-  # the inline content there.
-  assert {
-    condition     = coder_env.boundary_config.value == "$HOME/.coder-modules/coder/boundary/config/config.yaml"
-    error_message = "BOUNDARY_CONFIG should point to managed config path when using inline config"
-  }
-
+  # Inline config should still point to the managed path.
   assert {
     condition     = output.boundary_config_path == "$HOME/.coder-modules/coder/boundary/config/config.yaml"
     error_message = "boundary_config_path output should point to managed config path"
@@ -152,12 +135,7 @@ run "plan_with_boundary_config_path" {
     boundary_config_path = "/workspace/my-boundary-config.yaml"
   }
 
-  # BOUNDARY_CONFIG should point to the user-provided path.
-  assert {
-    condition     = coder_env.boundary_config.value == "/workspace/my-boundary-config.yaml"
-    error_message = "BOUNDARY_CONFIG should point to user-provided config path"
-  }
-
+  # boundary_config_path output should point to the user-provided path.
   assert {
     condition     = output.boundary_config_path == "/workspace/my-boundary-config.yaml"
     error_message = "boundary_config_path output should point to user-provided path"

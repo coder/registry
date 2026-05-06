@@ -136,28 +136,14 @@ describe("boundary", async () => {
 
     const resources = state.resources;
 
-    // BOUNDARY_WRAPPER_PATH env should NOT exist (only output)
-    const wrapperEnv = resources.find(
-      (r) => r.type === "coder_env" && r.name === "boundary_wrapper_path",
-    );
-    expect(wrapperEnv).toBeUndefined();
-
-    // Verify coder_env resource for BOUNDARY_CONFIG
-    const configEnv = resources.find(
-      (r) => r.type === "coder_env" && r.name === "boundary_config",
-    );
-    expect(configEnv).toBeDefined();
-    expect(configEnv?.instances[0]?.attributes.name).toBe("BOUNDARY_CONFIG");
-    expect(configEnv?.instances[0]?.attributes.value).toBe(
-      "$HOME/.coder-modules/coder/boundary/config/config.yaml",
-    );
+    // No coder_env resources should exist
+    const envResources = resources.filter((r) => r.type === "coder_env");
+    expect(envResources).toHaveLength(0);
 
     // Verify the outputs are set correctly
     const coderEnvVars = extractCoderEnvVars(state);
     expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBeUndefined();
-    expect(coderEnvVars["BOUNDARY_CONFIG"]).toBe(
-      "$HOME/.coder-modules/coder/boundary/config/config.yaml",
-    );
+    expect(coderEnvVars["BOUNDARY_CONFIG"]).toBeUndefined();
 
     // Verify boundary_config_path output
     expect(state.outputs["boundary_config_path"]?.value).toBe(
@@ -195,9 +181,8 @@ describe("boundary", async () => {
       boundary_config: inlineConfig,
     });
 
-    const coderEnvVars = extractCoderEnvVars(state);
     // Inline config still writes to the managed path.
-    expect(coderEnvVars["BOUNDARY_CONFIG"]).toBe(
+    expect(state.outputs["boundary_config_path"]?.value).toBe(
       "$HOME/.coder-modules/coder/boundary/config/config.yaml",
     );
   });
@@ -208,9 +193,10 @@ describe("boundary", async () => {
       boundary_config_path: "/workspace/my-config.yaml",
     });
 
-    const coderEnvVars = extractCoderEnvVars(state);
-    // BOUNDARY_CONFIG should point to the user-provided path.
-    expect(coderEnvVars["BOUNDARY_CONFIG"]).toBe("/workspace/my-config.yaml");
+    // boundary_config_path output should point to the user-provided path.
+    expect(state.outputs["boundary_config_path"]?.value).toBe(
+      "/workspace/my-config.yaml",
+    );
   });
 
   test("happy-path-coder-subcommand", async () => {
@@ -337,16 +323,12 @@ describe("boundary", async () => {
     expect(installLog).toContain("boundary wrapper configured");
   });
 
-  test("env-var-set-correctly", async () => {
+  test("no-env-vars", async () => {
     const { coderEnvVars } = await setup();
 
-    // BOUNDARY_WRAPPER_PATH env var should NOT exist
+    // No env vars should be exported by this module.
     expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBeUndefined();
-
-    // Verify BOUNDARY_CONFIG is in the coder env vars
-    expect(coderEnvVars["BOUNDARY_CONFIG"]).toBe(
-      "$HOME/.coder-modules/coder/boundary/config/config.yaml",
-    );
+    expect(coderEnvVars["BOUNDARY_CONFIG"]).toBeUndefined();
   });
 
   test("wrapper-script-execution", async () => {

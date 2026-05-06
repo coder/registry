@@ -16,7 +16,6 @@ This module:
 - Creates a wrapper script at `$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh`
 - Writes a default boundary config to `$HOME/.coder-modules/coder/boundary/config/config.yaml` (customizable)
 - Automatically adds your Coder deployment domain to the config allowlist
-- Exports `BOUNDARY_CONFIG` as a workspace environment variable
 - Provides the wrapper path, config path, and script names via outputs
 
 ```tf
@@ -39,8 +38,9 @@ The Coder deployment domain is automatically added to the allowlist using
 `data.coder_workspace.me.access_url`.
 
 By default the config is written to
-`$HOME/.coder-modules/coder/boundary/config/config.yaml` and the
-`BOUNDARY_CONFIG` env var points there. You can override it in two ways:
+`$HOME/.coder-modules/coder/boundary/config/config.yaml`. You can
+access the resolved path via the `boundary_config_path` output. Override
+it in two ways:
 
 ### Inline config
 
@@ -68,7 +68,8 @@ module "boundary" {
 ### External config file
 
 Point to an existing config file in the workspace. The module will not
-write any config and `BOUNDARY_CONFIG` will point to your path:
+write any config and the `boundary_config_path` output will point to
+your path:
 
 ```tf
 module "boundary" {
