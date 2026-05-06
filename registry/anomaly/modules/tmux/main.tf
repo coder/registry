@@ -50,16 +50,16 @@ variable "sessions" {
   default     = ["default"]
 }
 
-resource "coder_script" "tmux" {
+module "coder_utils" {
+  source       = "registry.coder.com/coder/coder-utils/coder"
+  version      = "0.0.1"
   agent_id     = var.agent_id
-  display_name = "tmux"
   icon         = "/icon/terminal.svg"
-  script = templatefile("${path.module}/scripts/run.sh", {
-    TMUX_CONFIG   = base64encode(var.tmux_config)
+  install_script = templatefile("${path.module}/scripts/run.sh", {
+    TMUX_CONFIG = base64encode(var.tmux_config)
     SAVE_INTERVAL = var.save_interval
   })
-  run_on_start = true
-  run_on_stop  = false
+  module_directory = "$HOME/.coder-modules/anomaly/tmux"
 }
 
 resource "coder_app" "tmux_sessions" {
@@ -75,4 +75,9 @@ resource "coder_app" "tmux_sessions" {
   command = templatefile("${path.module}/scripts/start.sh", {
     SESSION_NAME = each.value
   })
+}
+
+output "scripts" {
+  description = "Ordered list of coder exp sync names for the coder_script resources this module actually creates, in run order (pre_install, install, post_install). Scripts that were not configured are absent from the list."
+  value       = module.coder_utils.scripts
 }
