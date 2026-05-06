@@ -26,7 +26,15 @@ if has apt-get; then
   sudo tee /usr/local/bin/apt-get >/dev/null <<EOF
 #!/usr/bin/env bash
 echo "[apt-get-wrapper] invoked with: \$*" >&2
-exec "$orig_apt" -o APT::Lock::Timeout=120 -o DPkg::Lock::Timeout=120 "\$@"
+# APT has no built-in timeout for /var/lib/apt/lists/lock (used by apt-get update),
+# so poll until it's free before proceeding. DPkg::Lock::Timeout covers the dpkg lock.
+if [ "\${1:-}" = "update" ]; then
+  while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
+    echo "[apt-get-wrapper] waiting for apt lists lock..." >&2
+    sleep 2
+  done
+fi
+exec "$orig_apt" -o DPkg::Lock::Timeout=120 "\$@"
 EOF
   sudo chmod +x /usr/local/bin/apt-get
 fi
