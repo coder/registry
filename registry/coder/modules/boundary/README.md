@@ -140,3 +140,7 @@ module "boundary" {
 
 See the [Agent Firewall docs](https://coder.com/docs/ai-coder/agent-firewall)
 for the full config reference.
+
+
+## References
+- [Boundary Documentation](https://coder.com/docs/ai-coder/agent-firewall)
