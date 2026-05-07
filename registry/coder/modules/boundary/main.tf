@@ -16,50 +16,50 @@ variable "agent_id" {
   description = "The ID of a Coder agent."
 }
 
-variable "agent_firewall_version" {
+variable "boundary_version" {
   type        = string
-  description = "Agent firewall version. When use_agent_firewall_directly is true, a release version should be provided or 'latest' for the latest release. When compile_agent_firewall_from_source is true, a valid git reference should be provided (tag, commit, branch)."
+  description = "Boundary version. When use_boundary_directly is true, a release version should be provided or 'latest' for the latest release. When compile_boundary_from_source is true, a valid git reference should be provided (tag, commit, branch)."
   default     = "latest"
 }
 
-variable "compile_agent_firewall_from_source" {
+variable "compile_boundary_from_source" {
   type        = bool
-  description = "Whether to compile agent firewall from source instead of using the official install script."
+  description = "Whether to compile boundary from source instead of using the official install script."
   default     = false
 }
 
-variable "use_agent_firewall_directly" {
+variable "use_boundary_directly" {
   type        = bool
-  description = "Whether to use agent firewall binary directly instead of `coder boundary` subcommand. When false (default), uses `coder boundary` subcommand. When true, installs and uses agent firewall binary from release."
+  description = "Whether to use boundary binary directly instead of `coder boundary` subcommand. When false (default), uses `coder boundary` subcommand. When true, installs and uses boundary binary from release."
   default     = false
 }
 
-variable "agent_firewall_config" {
+variable "boundary_config" {
   type        = string
-  description = "Inline agent firewall configuration content (YAML). Overrides the module's default config. Mutually exclusive with agent_firewall_config_path."
+  description = "Inline boundary configuration content (YAML). Overrides the module's default config. Mutually exclusive with boundary_config_path."
   default     = null
 
   validation {
-    condition     = !(var.agent_firewall_config != null && var.agent_firewall_config_path != null)
-    error_message = "Only one of agent_firewall_config or agent_firewall_config_path may be set."
+    condition     = !(var.boundary_config != null && var.boundary_config_path != null)
+    error_message = "Only one of boundary_config or boundary_config_path may be set."
   }
 }
 
-variable "agent_firewall_config_path" {
+variable "boundary_config_path" {
   type        = string
-  description = "Path to an existing agent firewall config file in the workspace. When set, no config is written and the agent_firewall_config_path output points to this path. Mutually exclusive with agent_firewall_config."
+  description = "Path to an existing boundary config file in the workspace. When set, no config is written and the boundary_config_path output points to this path. Mutually exclusive with boundary_config."
   default     = null
 }
 
 variable "pre_install_script" {
   type        = string
-  description = "Custom script to run before installing agent firewall."
+  description = "Custom script to run before installing boundary."
   default     = null
 }
 
 variable "post_install_script" {
   type        = string
-  description = "Custom script to run after installing agent firewall."
+  description = "Custom script to run after installing boundary."
   default     = null
 }
 
@@ -77,21 +77,21 @@ locals {
   coder_domain = try(regex("^https?://([^/:]+)", data.coder_workspace.me.access_url)[0], "")
 
   # Config handling: resolve which config content to write and where
-  # agent_firewall_config_path output points to.
+  # boundary_config_path output points to.
   default_boundary_config = templatefile("${path.module}/config.yaml.tftpl", {
     CODER_DOMAIN     = local.coder_domain
     BOUNDARY_LOG_DIR = "${var.module_directory}/logs/boundary_logs"
   })
-  boundary_config_content        = var.agent_firewall_config != null ? var.agent_firewall_config : local.default_boundary_config
+  boundary_config_content        = var.boundary_config != null ? var.boundary_config : local.default_boundary_config
   boundary_config_dir            = "${var.module_directory}/config"
   boundary_config_file_path      = "${local.boundary_config_dir}/config.yaml"
-  effective_boundary_config_path = var.agent_firewall_config_path != null ? var.agent_firewall_config_path : local.boundary_config_file_path
-  write_boundary_config          = var.agent_firewall_config_path == null
+  effective_boundary_config_path = var.boundary_config_path != null ? var.boundary_config_path : local.boundary_config_file_path
+  write_boundary_config          = var.boundary_config_path == null
 
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
-    BOUNDARY_VERSION             = var.agent_firewall_version
-    COMPILE_BOUNDARY_FROM_SOURCE = tostring(var.compile_agent_firewall_from_source)
-    USE_BOUNDARY_DIRECTLY        = tostring(var.use_agent_firewall_directly)
+    BOUNDARY_VERSION             = var.boundary_version
+    COMPILE_BOUNDARY_FROM_SOURCE = tostring(var.compile_boundary_from_source)
+    USE_BOUNDARY_DIRECTLY        = tostring(var.use_boundary_directly)
     MODULE_DIR                   = var.module_directory
     BOUNDARY_WRAPPER_PATH        = local.boundary_wrapper_path
     WRITE_BOUNDARY_CONFIG        = tostring(local.write_boundary_config)
@@ -112,13 +112,13 @@ module "coder_utils" {
   install_script      = local.install_script
 }
 
-output "agent_firewall_wrapper_path" {
-  description = "Path to the agent firewall wrapper script."
+output "boundary_wrapper_path" {
+  description = "Path to the boundary wrapper script."
   value       = local.boundary_wrapper_path
 }
 
-output "agent_firewall_config_path" {
-  description = "Effective path to the agent firewall config file."
+output "boundary_config_path" {
+  description = "Effective path to the boundary config file."
   value       = local.effective_boundary_config_path
 }
 

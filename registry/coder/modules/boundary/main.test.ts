@@ -145,13 +145,13 @@ describe("boundary", async () => {
     expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBeUndefined();
     expect(coderEnvVars["BOUNDARY_CONFIG"]).toBeUndefined();
 
-    // Verify agent_firewall_config_path output
-    expect(state.outputs["agent_firewall_config_path"]?.value).toBe(
+    // Verify boundary_config_path output
+    expect(state.outputs["boundary_config_path"]?.value).toBe(
       "$HOME/.coder-modules/coder/boundary/config/config.yaml",
     );
 
-    // Verify agent_firewall_wrapper_path output
-    expect(state.outputs["agent_firewall_wrapper_path"]?.value).toBe(
+    // Verify boundary_wrapper_path output
+    expect(state.outputs["boundary_wrapper_path"]?.value).toBe(
       "$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh",
     );
 
@@ -169,11 +169,11 @@ describe("boundary", async () => {
 
     // Verify output uses custom dir
     const outputs = state.outputs;
-    expect(outputs["agent_firewall_wrapper_path"]?.value).toBe(
+    expect(outputs["boundary_wrapper_path"]?.value).toBe(
       `${customDir}/scripts/boundary-wrapper.sh`,
     );
     // Config path follows module directory
-    expect(outputs["agent_firewall_config_path"]?.value).toBe(
+    expect(outputs["boundary_config_path"]?.value).toBe(
       `${customDir}/config/config.yaml`,
     );
   });
@@ -183,11 +183,11 @@ describe("boundary", async () => {
       "allowlist:\n  - domain=example.com\nlog_level: debug\n";
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "test-agent-id",
-      agent_firewall_config: inlineConfig,
+      boundary_config: inlineConfig,
     });
 
     // Inline config still writes to the managed path.
-    expect(state.outputs["agent_firewall_config_path"]?.value).toBe(
+    expect(state.outputs["boundary_config_path"]?.value).toBe(
       "$HOME/.coder-modules/coder/boundary/config/config.yaml",
     );
   });
@@ -195,11 +195,11 @@ describe("boundary", async () => {
   test("terraform-state-config-path", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "test-agent-id",
-      agent_firewall_config_path: "/workspace/my-config.yaml",
+      boundary_config_path: "/workspace/my-config.yaml",
     });
 
-    // agent_firewall_config_path output should point to the user-provided path.
-    expect(state.outputs["agent_firewall_config_path"]?.value).toBe(
+    // boundary_config_path output should point to the user-provided path.
+    expect(state.outputs["boundary_config_path"]?.value).toBe(
       "/workspace/my-config.yaml",
     );
   });
@@ -261,7 +261,7 @@ describe("boundary", async () => {
       "allowlist:\n  - domain=custom.example.com\nlog_level: info\n";
     const { id } = await setup({
       moduleVariables: {
-        agent_firewall_config: customConfig,
+        boundary_config: customConfig,
       },
     });
     await execModuleScript(id);
@@ -275,7 +275,7 @@ describe("boundary", async () => {
   test("config-path-skips-write", async () => {
     const { id } = await setup({
       moduleVariables: {
-        agent_firewall_config_path: "/workspace/external-config.yaml",
+        boundary_config_path: "/workspace/external-config.yaml",
       },
     });
     await execModuleScript(id);
@@ -294,8 +294,8 @@ describe("boundary", async () => {
     );
   });
 
-  // Note: Tests for use_agent_firewall_directly and
-  // compile_agent_firewall_from_source are skipped because they require
+  // Note: Tests for use_boundary_directly and
+  // compile_boundary_from_source are skipped because they require
   // network access (downloading boundary) or compilation which are too
   // slow for unit tests. These modes are tested manually.
 

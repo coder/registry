@@ -37,7 +37,7 @@ The Coder deployment domain is automatically added to the allowlist using
 
 By default the config is written to
 `$HOME/.coder-modules/coder/boundary/config/config.yaml`. You can
-access the resolved path via the `agent_firewall_config_path` output. Override
+access the resolved path via the `boundary_config_path` output. Override
 it in two ways:
 
 ### Inline config
@@ -50,7 +50,7 @@ module "boundary" {
   version  = "0.0.1"
   agent_id = coder_agent.main.id
 
-  agent_firewall_config = <<-YAML
+  boundary_config = <<-YAML
     allowlist:
       - domain=your-deployment.coder.com
       - domain=api.anthropic.com
@@ -65,7 +65,7 @@ module "boundary" {
 ### External config file
 
 Point to an existing config file in the workspace. The module will not
-write any config and the `agent_firewall_config_path` output will point to
+write any config and the `boundary_config_path` output will point to
 your path:
 
 ```tf
@@ -74,11 +74,11 @@ module "boundary" {
   version  = "0.0.1"
   agent_id = coder_agent.main.id
 
-  agent_firewall_config_path = "/workspace/my-boundary-config.yaml"
+  boundary_config_path = "/workspace/my-boundary-config.yaml"
 }
 ```
 
-> **Note:** `agent_firewall_config` and `agent_firewall_config_path` are mutually
+> **Note:** `boundary_config` and `boundary_config_path` are mutually
 > exclusive, setting both produces a validation error.
 
 See the [Agent Firewall docs](https://coder.com/docs/ai-coder/agent-firewall)
@@ -86,7 +86,7 @@ for the full config reference.
 
 ## Usage
 
-Use the `agent_firewall_wrapper_path` output to access the wrapper path in Terraform
+Use the `boundary_wrapper_path` output to access the wrapper path in Terraform
 and pass it to scripts that should run commands in network isolation:
 
 ```tf
@@ -99,7 +99,7 @@ module "boundary" {
 resource "coder_script" "my_app" {
   agent_id = coder_agent.main.id
   script   = <<-EOT
-    WRAPPER="${module.boundary.agent_firewall_wrapper_path}"
+    WRAPPER="${module.boundary.boundary_wrapper_path}"
     "$WRAPPER" -- my-command --args
   EOT
 }
@@ -142,7 +142,7 @@ resource "coder_script" "claude_with_boundary" {
       ${join(" ", module.boundary.scripts)} \
       ${join(" ", module.claude-code.scripts)}
     coder exp sync start claude-boundary
-  "${module.boundary.agent_firewall_wrapper_path}" --config="${module.boundary.agent_firewall_config_path}" -- claude -p "Fix issue #840 from coder/coder"
+  "${module.boundary.boundary_wrapper_path}" --config="${module.boundary.boundary_config_path}" -- claude -p "Fix issue #840 from coder/coder"
   EOT
 }
 ```
@@ -164,7 +164,7 @@ resource "coder_app" "claude_with_boundary" {
     #!/bin/bash
     set -e
     exec tmux new-session -A -s claude-code \
-      '"${module.boundary.agent_firewall_wrapper_path}" --config="${module.boundary.agent_firewall_config_path}" -- claude'
+      '"${module.boundary.boundary_wrapper_path}" --config="${module.boundary.boundary_config_path}" -- claude'
   EOT
 }
 ```
