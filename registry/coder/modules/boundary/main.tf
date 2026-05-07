@@ -80,6 +80,7 @@ locals {
   # boundary_config_path output points to.
   default_boundary_config = templatefile("${path.module}/config.yaml.tftpl", {
     CODER_DOMAIN = local.coder_domain
+    MODULE_DIR   = var.module_directory
   })
   boundary_config_content        = var.boundary_config != null ? var.boundary_config : local.default_boundary_config
   boundary_config_dir            = "${var.module_directory}/config"
