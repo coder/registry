@@ -38,6 +38,7 @@ resource "coder_app" "aider" {
   EOT
 }
 ```
+
 > [!WARNING]
 > If upgrading from v2.x.x of this module: v3 is a major refactor that drops support for [Coder Tasks](https://coder.com/docs/ai-coder/tasks). We plan to add those back in a follow-up. Keep using v2.x.x if you depend on them.
 

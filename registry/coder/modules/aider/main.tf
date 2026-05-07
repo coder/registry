@@ -112,8 +112,8 @@ variable "base_aider_config" {
 
 
 locals {
-  app_slug              = "aider"
-  base_aider_config     = var.base_aider_config != null ? "${replace(trimspace(var.base_aider_config), "\n", "\n  ")}" : ""  
+  app_slug          = "aider"
+  base_aider_config = var.base_aider_config != null ? "${replace(trimspace(var.base_aider_config), "\n", "\n  ")}" : ""
 
   # Map providers to their environment variable names
   provider_env_vars = {
