@@ -16,6 +16,7 @@ This module:
 - Creates a wrapper script at `$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh`
 - Writes a default boundary config to `$HOME/.coder-modules/coder/boundary/config/config.yaml` (customizable)
 - Provides the wrapper path, config path, and script names via outputs
+- Uses coder-utils and output `scripts` for synchronization. https://registry.coder.com/modules/coder/coder-utils?tab=outputs
 
 ```tf
 module "boundary" {
@@ -84,38 +85,9 @@ module "boundary" {
 See the [Agent Firewall docs](https://coder.com/docs/ai-coder/agent-firewall)
 for the full config reference.
 
-## Usage
+## Usage Examples
 
-Use the `boundary_wrapper_path` output to access the wrapper path in Terraform
-and pass it to scripts that should run commands in network isolation:
-
-```tf
-module "boundary" {
-  source   = "registry.coder.com/coder/boundary/coder"
-  version  = "0.0.1"
-  agent_id = coder_agent.main.id
-}
-
-resource "coder_script" "my_app" {
-  agent_id = coder_agent.main.id
-  script   = <<-EOT
-    WRAPPER="${module.boundary.boundary_wrapper_path}"
-    "$WRAPPER" -- my-command --args
-  EOT
-}
-```
-
-### Script Synchronization
-
-The `scripts` output provides a list of script names that can be used with `coder exp sync` to coordinate script execution. This is useful when your scripts need to wait for boundary installation to complete before running.
-
-The list may contain the following script names:
-
-- `coder-boundary-pre_install_script` - Pre-installation script (if configured)
-- `coder-boundary-install_script` - Main boundary installation script
-- `coder-boundary-post_install_script` - Post-installation script (if configured)
-
-## Examples
+Use the `boundary_wrapper_path` output to access the wrapper path and `boundary_config_path` to access config path in Terraform and pass it to scripts that should run commands in network isolation.
 
 ### With Claude Code
 
