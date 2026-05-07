@@ -55,7 +55,7 @@ module "boundary" {
       - domain=your-deployment.coder.com
       - domain=api.anthropic.com
       - domain=api.openai.com
-    log_dir: /tmp/boundary_logs
+    log_dir: $HOME/.coder-modules/coder/boundary/logs/boundary_logs
     proxy_port: 8087
     log_level: warn
   YAML
