@@ -16,12 +16,69 @@ This module:
 - Creates a wrapper script at `$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh`
 - Writes a default boundary config to `$HOME/.coder-modules/coder/boundary/config/config.yaml` (customizable)
 - Provides the wrapper path, config path, and script names via outputs
+- Uses coder-utils and output `scripts` for synchronization. https://registry.coder.com/modules/coder/coder-utils?tab=outputs
 
 ```tf
 module "boundary" {
   source   = "registry.coder.com/coder/boundary/coder"
   version  = "0.0.1"
   agent_id = coder_agent.main.id
+}
+```
+
+## Examples
+
+Use the `boundary_wrapper_path` output to access the wrapper path and `boundary_config_path` to access config path in Terraform and pass it to scripts that should run commands in network isolation.
+
+### With Claude Code
+
+Use boundary alongside the `claude-code` module to run Claude in a
+network-isolated environment.
+
+#### As an automated task
+
+```tf
+module "boundary" {
+  source   = "registry.coder.com/coder/boundary/coder"
+  version  = "0.0.1"
+  agent_id = coder_agent.main.id
+}
+
+resource "coder_script" "claude_with_boundary" {
+  agent_id     = coder_agent.main.id
+  display_name = "Claude (Boundary)"
+  run_on_start = true
+  script       = <<-EOT
+    #!/bin/bash
+    set -e
+    coder exp sync want claude-boundary \
+      ${join(" ", module.boundary.scripts)} \
+      ${join(" ", module.claude-code.scripts)}
+    coder exp sync start claude-boundary
+  "${module.boundary.boundary_wrapper_path}" --config="${module.boundary.boundary_config_path}" -- claude -p "Fix issue #840 from coder/coder"
+  EOT
+}
+```
+
+#### As a Coder app
+
+```tf
+module "boundary" {
+  source   = "registry.coder.com/coder/boundary/coder"
+  version  = "0.0.1"
+  agent_id = coder_agent.main.id
+}
+
+resource "coder_app" "claude_with_boundary" {
+  agent_id     = coder_agent.main.id
+  display_name = "Claude Code"
+  slug         = "claude-code"
+  command      = <<-EOT
+    #!/bin/bash
+    set -e
+    exec tmux new-session -A -s claude-code \
+      '"${module.boundary.boundary_wrapper_path}" --config="${module.boundary.boundary_config_path}" -- claude'
+  EOT
 }
 ```
 
@@ -83,88 +140,3 @@ module "boundary" {
 
 See the [Agent Firewall docs](https://coder.com/docs/ai-coder/agent-firewall)
 for the full config reference.
-
-## Usage
-
-Use the `boundary_wrapper_path` output to access the wrapper path in Terraform
-and pass it to scripts that should run commands in network isolation:
-
-```tf
-module "boundary" {
-  source   = "registry.coder.com/coder/boundary/coder"
-  version  = "0.0.1"
-  agent_id = coder_agent.main.id
-}
-
-resource "coder_script" "my_app" {
-  agent_id = coder_agent.main.id
-  script   = <<-EOT
-    WRAPPER="${module.boundary.boundary_wrapper_path}"
-    "$WRAPPER" -- my-command --args
-  EOT
-}
-```
-
-### Script Synchronization
-
-The `scripts` output provides a list of script names that can be used with `coder exp sync` to coordinate script execution. This is useful when your scripts need to wait for boundary installation to complete before running.
-
-The list may contain the following script names:
-
-- `coder-boundary-pre_install_script` - Pre-installation script (if configured)
-- `coder-boundary-install_script` - Main boundary installation script
-- `coder-boundary-post_install_script` - Post-installation script (if configured)
-
-## Examples
-
-### With Claude Code
-
-Use boundary alongside the `claude-code` module to run Claude in a
-network-isolated environment.
-
-#### As an automated task
-
-```tf
-module "boundary" {
-  source   = "registry.coder.com/coder/boundary/coder"
-  version  = "0.0.1"
-  agent_id = coder_agent.main.id
-}
-
-resource "coder_script" "claude_with_boundary" {
-  agent_id     = coder_agent.main.id
-  display_name = "Claude (Boundary)"
-  run_on_start = true
-  script       = <<-EOT
-    #!/bin/bash
-    set -e
-    coder exp sync want claude-boundary \
-      ${join(" ", module.boundary.scripts)} \
-      ${join(" ", module.claude-code.scripts)}
-    coder exp sync start claude-boundary
-  "${module.boundary.boundary_wrapper_path}" --config="${module.boundary.boundary_config_path}" -- claude -p "Fix issue #840 from coder/coder"
-  EOT
-}
-```
-
-#### As a Coder app
-
-```tf
-module "boundary" {
-  source   = "registry.coder.com/coder/boundary/coder"
-  version  = "0.0.1"
-  agent_id = coder_agent.main.id
-}
-
-resource "coder_app" "claude_with_boundary" {
-  agent_id     = coder_agent.main.id
-  display_name = "Claude Code"
-  slug         = "claude-code"
-  command      = <<-EOT
-    #!/bin/bash
-    set -e
-    exec tmux new-session -A -s claude-code \
-      '"${module.boundary.boundary_wrapper_path}" --config="${module.boundary.boundary_config_path}" -- claude'
-  EOT
-}
-```
