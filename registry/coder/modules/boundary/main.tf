@@ -88,15 +88,15 @@ locals {
   write_boundary_config          = var.boundary_config_path == null
 
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
-    BOUNDARY_VERSION             = base64encode(var.boundary_version)
-    COMPILE_BOUNDARY_FROM_SOURCE = base64encode(tostring(var.compile_boundary_from_source))
-    USE_BOUNDARY_DIRECTLY        = base64encode(tostring(var.use_boundary_directly))
-    MODULE_DIR                   = base64encode(var.module_directory)
-    BOUNDARY_WRAPPER_PATH        = base64encode(local.boundary_wrapper_path)
-    WRITE_BOUNDARY_CONFIG        = base64encode(tostring(local.write_boundary_config))
-    BOUNDARY_CONFIG_CONTENT      = local.write_boundary_config ? base64encode(local.boundary_config_content) : base64encode("")
-    BOUNDARY_CONFIG_DIR          = base64encode(local.boundary_config_dir)
-    BOUNDARY_CONFIG_FILE         = base64encode(local.boundary_config_file_path)
+    BOUNDARY_VERSION             = var.boundary_version
+    COMPILE_BOUNDARY_FROM_SOURCE = tostring(var.compile_boundary_from_source)
+    USE_BOUNDARY_DIRECTLY        = tostring(var.use_boundary_directly)
+    MODULE_DIR                   = var.module_directory
+    BOUNDARY_WRAPPER_PATH        = local.boundary_wrapper_path
+    WRITE_BOUNDARY_CONFIG        = tostring(local.write_boundary_config)
+    BOUNDARY_CONFIG_CONTENT_B64  = local.write_boundary_config ? base64encode(local.boundary_config_content) : ""
+    BOUNDARY_CONFIG_DIR          = local.boundary_config_dir
+    BOUNDARY_CONFIG_FILE         = local.boundary_config_file_path
   })
 }
 
