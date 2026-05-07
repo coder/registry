@@ -15,7 +15,6 @@ This module:
 - Installs boundary (via coder subcommand, direct installation, or compilation from source)
 - Creates a wrapper script at `$HOME/.coder-modules/coder/boundary/scripts/boundary-wrapper.sh`
 - Writes a default boundary config to `$HOME/.coder-modules/coder/boundary/config/config.yaml` (customizable)
-- Automatically adds your Coder deployment domain to the config allowlist
 - Provides the wrapper path, config path, and script names via outputs
 
 ```tf
@@ -29,7 +28,7 @@ module "boundary" {
 ## Configuration
 
 The module ships with a comprehensive default config based on the
-[Coder dogfood allowlist](./config.yaml). It covers Anthropic services,
+[Coder dogfood allowlist](https://github.com/coder/coder/blob/main/dogfood/coder/boundary-config.yaml). It covers Anthropic services,
 OpenAI services, version control, package managers, container registries,
 cloud platforms, and common development tools.
 
@@ -80,7 +79,7 @@ module "boundary" {
 ```
 
 > **Note:** `boundary_config` and `boundary_config_path` are mutually
-> exclusive — setting both produces a validation error.
+> exclusive, setting both produces a validation error.
 
 See the [Agent Firewall docs](https://coder.com/docs/ai-coder/agent-firewall)
 for the full config reference.
