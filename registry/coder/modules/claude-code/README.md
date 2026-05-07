@@ -13,7 +13,7 @@ Install and configure the [Claude Code](https://docs.anthropic.com/en/docs/agent
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.0.0"
+  version           = "5.1.0"
   agent_id          = coder_agent.main.id
   anthropic_api_key = "xxxx-xxxxx-xxxx"
 }
@@ -47,7 +47,7 @@ locals {
 
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.0.0"
+  version           = "5.1.0"
   agent_id          = coder_agent.main.id
   workdir           = local.claude_workdir
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -78,7 +78,7 @@ resource "coder_app" "claude" {
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.0.0"
+  version           = "5.1.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -102,7 +102,7 @@ This example shows version pinning, a pre-installed binary path, a custom model,
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.0.0"
+  version  = "5.1.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -166,7 +166,7 @@ Downstream `coder_script` resources can wait for this module's install pipeline 
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.0.0"
+  version           = "5.1.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -252,7 +252,7 @@ resource "coder_env" "bedrock_api_key" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.0.0"
+  version  = "5.1.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
@@ -309,7 +309,7 @@ resource "coder_env" "google_application_credentials" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.0.0"
+  version  = "5.1.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "claude-sonnet-4@20250514"
@@ -340,6 +340,34 @@ module "claude-code" {
 
 > [!NOTE]
 > For additional Vertex AI configuration options (model selection, token limits, region overrides, etc.), see the [Claude Code Vertex AI documentation](https://docs.claude.com/en/docs/claude-code/google-vertex-ai).
+
+### Telemetry export (OpenTelemetry)
+
+Claude Code can emit OpenTelemetry metrics and events covering token usage, tool calls, session lifecycle, and errors (see the [monitoring docs](https://docs.anthropic.com/en/docs/claude-code/monitoring-usage)). Set `telemetry.enabled = true` and point `otlp_endpoint` at your OTLP collector.
+
+The module automatically tags every span and metric with `coder.workspace_id`, `coder.workspace_name`, `coder.workspace_owner`, and `coder.template_name` via `OTEL_RESOURCE_ATTRIBUTES`, so Claude Code telemetry can be joined directly against Coder's [audit logs](https://coder.com/docs/admin/security/audit-logs) and `exectrace` records on `workspace_id`.
+
+```tf
+module "claude-code" {
+  source            = "registry.coder.com/coder/claude-code/coder"
+  version           = "5.1.0"
+  agent_id          = coder_agent.main.id
+  workdir           = "/home/coder/project"
+  anthropic_api_key = "xxxx-xxxxx-xxxx"
+
+  telemetry = {
+    enabled       = true
+    otlp_endpoint = "http://otel-collector.observability:4317"
+    otlp_protocol = "grpc"
+    otlp_headers = {
+      authorization = "Bearer ${var.otel_token}"
+    }
+    resource_attributes = {
+      "service.name" = "claude-code"
+    }
+  }
+}
+```
 
 ## Troubleshooting
 
