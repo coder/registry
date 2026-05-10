@@ -14,7 +14,7 @@ This module:
 
 - Installs agent-firewall (via coder subcommand, direct installation, or compilation from source)
 - Creates a wrapper script at `$HOME/.coder-modules/coder/agent-firewall/scripts/agent-firewall-wrapper.sh`
-- Writes a [default agent-firewall config](./config.yaml.tftpl) to `$HOME/.coder-modules/coder/agent-firewall/config/config.yaml` (customizable)
+- Writes a [default agent-firewall config](https://github.com/coder/registry/blob/main/registry/coder/modules/agent-firewall/config.yaml.tftpl) to `$HOME/.coder-modules/coder/agent-firewall/config/config.yaml` (customizable)
 - Provides the wrapper path, config path, and script names via outputs
 - Uses coder-utils and output `scripts` for synchronization. https://registry.coder.com/modules/coder/coder-utils?tab=outputs
 
