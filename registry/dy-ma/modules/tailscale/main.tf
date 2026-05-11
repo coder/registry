@@ -16,9 +16,9 @@ locals {
   hostname = var.hostname != "" ? var.hostname : data.coder_workspace.me.name
   start_script = templatefile("${path.module}/scripts/start.sh.tftpl", {
     TAILSCALE_API_URL   = var.tailscale_api_url
-    AUTH_KEY            = base64encode(var.auth_key)
-    OAUTH_CLIENT_ID     = base64encode(var.oauth_client_id)
-    OAUTH_CLIENT_SECRET = base64encode(var.oauth_client_secret)
+    AUTH_KEY            = nonsensitive(base64encode(var.auth_key))
+    OAUTH_CLIENT_ID     = nonsensitive(base64encode(var.oauth_client_id))
+    OAUTH_CLIENT_SECRET = nonsensitive(base64encode(var.oauth_client_secret))
     TAILNET             = var.tailnet
     HOSTNAME            = local.hostname
     TAGS_JSON           = base64encode(jsonencode(var.tags))
