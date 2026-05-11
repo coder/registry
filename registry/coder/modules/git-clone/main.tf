@@ -68,6 +68,12 @@ variable "post_clone_script" {
   default     = null
 }
 
+variable "pre_clone_script" {
+  description = "Custom script to run before cloning the repository. Runs before git clone, even if the repository already exists."
+  type        = string
+  default     = null
+}
+
 locals {
   # Remove query parameters and fragments from the URL
   url = replace(replace(var.url, "/\\?.*/", ""), "/#.*/", "")
@@ -89,6 +95,8 @@ locals {
   web_url = startswith(local.clone_url, "git@") ? replace(replace(local.clone_url, ":", "/"), "git@", "https://") : local.clone_url
   # Encode the post_clone_script for passing to the shell script
   encoded_post_clone_script = var.post_clone_script != null ? base64encode(var.post_clone_script) : ""
+  # Encode the pre_clone_script for passing to the shell script
+  encoded_pre_clone_script = var.pre_clone_script != null ? base64encode(var.pre_clone_script) : ""
 }
 
 output "repo_dir" {
@@ -129,6 +137,7 @@ resource "coder_script" "git_clone" {
     BRANCH_NAME : local.branch_name,
     DEPTH = var.depth,
     POST_CLONE_SCRIPT : local.encoded_post_clone_script,
+    PRE_CLONE_SCRIPT : local.encoded_pre_clone_script,
   })
   display_name       = "Git Clone"
   icon               = "/icon/git.svg"

@@ -7,6 +7,7 @@ BRANCH_NAME="${BRANCH_NAME}"
 CLONE_PATH="$${CLONE_PATH/#\~/$${HOME}}"
 DEPTH="${DEPTH}"
 POST_CLONE_SCRIPT="${POST_CLONE_SCRIPT}"
+PRE_CLONE_SCRIPT="${PRE_CLONE_SCRIPT}"
 
 # Check if the variable is empty...
 if [ -z "$REPO_URL" ]; then
@@ -31,6 +32,16 @@ fi
 if [ ! -d "$CLONE_PATH" ]; then
   echo "Creating directory $CLONE_PATH..."
   mkdir -p "$CLONE_PATH"
+fi
+
+# Run pre-clone script if provided
+if [ -n "$PRE_CLONE_SCRIPT" ]; then
+  echo "Running pre-clone script..."
+  PRE_CLONE_TMP=$(mktemp)
+  echo "$PRE_CLONE_SCRIPT" | base64 -d > "$PRE_CLONE_TMP"
+  chmod +x "$PRE_CLONE_TMP"
+  $PRE_CLONE_TMP
+  rm "$PRE_CLONE_TMP"
 fi
 
 # Check if the directory is empty
