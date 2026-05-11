@@ -1,10 +1,6 @@
 ---
 name: coder-modules
 description: Creates and updates Coder Registry modules with proper scaffolding, Terraform testing, README frontmatter, and version management
-license: Apache-2.0
-version: "1.0.0"
-author: coder
-tags: terraform, coder, modules, registry, integrations
 ---
 
 # Coder Modules

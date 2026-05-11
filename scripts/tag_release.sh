@@ -264,27 +264,6 @@ extract_version_from_module_block() {
   return 1
 }
 
-extract_version_from_skill_frontmatter() {
-  local skill_path="$1"
-
-  [ ! -f "$skill_path" ] && {
-    log "DEBUG" "SKILL.md not found: $skill_path"
-    return 1
-  }
-
-  local version
-  version=$(awk '/^---$/ { count++; next } count == 1 && /^version:/ { gsub(/["'\''[:space:]]/, "", $2); print $2; exit }' "$skill_path")
-
-  if [ -n "$version" ]; then
-    log "DEBUG" "Found version from SKILL.md frontmatter: $version"
-    echo "$version"
-    return 0
-  fi
-
-  log "DEBUG" "No version found in SKILL.md frontmatter: $skill_path"
-  return 1
-}
-
 check_module_needs_tagging() {
   local namespace="$1"
   local module_name="$2"
@@ -331,7 +310,7 @@ detect_modules_needing_tags() {
   local all_modules
   # Find all module directories, excluding hidden directories
   # This works on both macOS and Linux
-  all_modules=$(find registry -mindepth 3 -maxdepth 3 -type d \( -path "*/modules/*" -o -path "*/skills/*" \) ! -name ".*" | sort -u || echo "")
+  all_modules=$(find registry -mindepth 3 -maxdepth 3 -type d -path "*/modules/*" ! -name ".*" | sort -u || echo "")
 
   [ -z "$all_modules" ] && {
     log "ERROR" "No modules found to check"
@@ -361,16 +340,7 @@ detect_modules_needing_tags() {
     local readme_path="$module_path/README.md"
     local readme_version
 
-    # Skills store their version in SKILL.md frontmatter, not in
-    # a Terraform module block inside README.md.
-    if [[ "$module_path" == */skills/* ]]; then
-      if ! readme_version=$(extract_version_from_skill_frontmatter "$module_path/SKILL.md"); then
-        log "WARN" "$namespace/$module_name: No version found in SKILL.md, skipping"
-        add_json_warning "$namespace/$module_name" "No version found in SKILL.md, skipping" "missing_version"
-        skipped=$((skipped + 1))
-        continue
-      fi
-    elif ! readme_version=$(extract_version_from_readme "$readme_path" "$namespace" "$module_name"); then
+    if ! readme_version=$(extract_version_from_readme "$readme_path" "$namespace" "$module_name"); then
       log "WARN" "$namespace/$module_name: No version found in README, skipping"
       add_json_warning "$namespace/$module_name" "No version found in README, skipping" "missing_version"
       skipped=$((skipped + 1))

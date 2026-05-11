@@ -1,10 +1,6 @@
 ---
 name: coder-templates
 description: Creates and updates Coder Registry workspace templates with agent setup, infrastructure provisioning, and module consumption
-license: Apache-2.0
-version: "1.0.0"
-author: coder
-tags: terraform, coder, templates, registry, infrastructure
 ---
 
 # Coder Templates
