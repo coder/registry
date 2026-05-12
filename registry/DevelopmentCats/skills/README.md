@@ -1,10 +1,16 @@
 ---
-display_name: DevCats Skills
-description: Test skills for validating registry skill catalogue integration
 icon: ../../../.icons/coder.svg
-tags: [test, git, code-review]
 sources:
-  - DevelopmentCats/skills@main
+  - repo: DevelopmentCats/skills@main
+    skills:
+      code-review:
+        display_name: Code Review
+        icon: ../../../.icons/coder.svg
+        tags: [code-review, quality]
+      git-workflow:
+        display_name: Git Workflow
+        icon: ../../../.icons/coder.svg
+        tags: [git, workflow]
 ---
 
 # DevCats Skills

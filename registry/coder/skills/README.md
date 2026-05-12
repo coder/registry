@@ -1,10 +1,12 @@
 ---
-display_name: Coder Skills
-description: Agent skills for installing, configuring, and developing with Coder
 icon: ../../../.icons/coder.svg
-tags: [skill, coder, deployment, terraform, modules, templates]
 sources:
-  - coder/skills@main
+  - repo: coder/skills@main
+    skills:
+      setup:
+        display_name: Setup & Configuration
+        icon: ../../../.icons/coder.svg
+        tags: [coder, deployment, configuration]
 ---
 
 # Coder Skills
