@@ -4,8 +4,7 @@ description: Agent skills for installing, configuring, and developing with Coder
 icon: ../../../.icons/coder.svg
 tags: [skill, coder, deployment, terraform, modules, templates]
 sources:
-  - repo: "coder/skills"
-    ref: "main"
+  - coder/skills@main
 ---
 
 # Coder Skills
