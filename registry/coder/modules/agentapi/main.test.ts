@@ -67,6 +67,13 @@ const setup = async (props?: SetupProps): Promise<{ id: string }> => {
     skipAgentAPIMock: props?.skipAgentAPIMock,
     moduleDir: import.meta.dir,
   });
+  // Mock `coder` CLI so `coder exp sync` calls from coder-utils wrappers
+  // succeed without a real control plane.
+  await writeExecutable({
+    containerId: id,
+    filePath: "/usr/bin/coder",
+    content: "#!/bin/bash\nexit 0\n",
+  });
   await writeExecutable({
     containerId: id,
     filePath: "/usr/bin/aiagent",

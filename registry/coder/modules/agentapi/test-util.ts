@@ -46,7 +46,25 @@ export const setupContainer = async ({
     agent_id: "foo",
     ...vars,
   });
-  const coderScript = findResourceInstance(state, "coder_script");
+  // Find the run_on_start script. With coder-utils the install script lives
+  // inside a module and the shutdown script is a separate resource, so we
+  // pick the first coder_script that has run_on_start = true.
+  let coderScript: { script: string; [k: string]: unknown } | undefined;
+  for (const resource of state.resources) {
+    if (resource.type !== "coder_script") continue;
+    for (const instance of resource.instances) {
+      const attrs = instance.attributes as Record<string, unknown>;
+      if (attrs.run_on_start === true) {
+        coderScript = attrs as { script: string; [k: string]: unknown };
+        break;
+      }
+    }
+    if (coderScript) break;
+  }
+  if (!coderScript) {
+    // Fallback to original behavior for backwards compatibility.
+    coderScript = findResourceInstance(state, "coder_script");
+  }
   const coderEnvVars = extractCoderEnvVars(state);
   const id = await runContainer(image ?? "codercom/enterprise-node:latest");
   return {
