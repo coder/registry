@@ -173,8 +173,7 @@ locals {
   web_app = var.web_app || local.is_task
 
   # we always trim the slash for consistency
-  workdir                            = trimsuffix(var.folder, "/")
-  agentapi_wait_for_start_script_b64 = base64encode(file("${path.module}/scripts/agentapi-wait-for-start.sh"))
+  workdir = trimsuffix(var.folder, "/")
   // Chat base path is only set if not using a subdomain.
   // NOTE:
   //   - Initial support for --chat-base-path was added in v0.3.1 but configuration
@@ -182,45 +181,38 @@ locals {
   //   - As CODER_WORKSPACE_AGENT_NAME is a recent addition we use agent ID
   //     for backward compatibility.
   agentapi_chat_base_path = var.agentapi_subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${var.web_app_slug}/chat"
-  main_script             = file("${path.module}/scripts/main.sh")
   shutdown_script         = file("${path.module}/scripts/agentapi-shutdown.sh")
   lib_script              = file("${path.module}/scripts/lib.sh")
 
-  main_script_destination     = "${var.module_directory}/main.sh"
-  lib_script_destination      = "${var.module_directory}/agentapi-lib.sh"
   shutdown_script_destination = "${var.module_directory}/agentapi-shutdown.sh"
+  lib_script_destination      = "${var.module_directory}/agentapi-lib.sh"
+
+  install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
+    ARG_MODULE_DIRECTORY        = var.module_directory
+    ARG_WORKDIR                 = local.workdir
+    ARG_INSTALL_AGENTAPI        = tostring(var.install_agentapi)
+    ARG_AGENTAPI_VERSION        = var.agentapi_version
+    ARG_WAIT_FOR_START_SCRIPT   = base64encode(file("${path.module}/scripts/agentapi-wait-for-start.sh"))
+    ARG_AGENTAPI_PORT           = tostring(var.agentapi_port)
+    ARG_AGENTAPI_CHAT_BASE_PATH = local.agentapi_chat_base_path
+    ARG_TASK_ID                 = try(data.coder_task.me.id, "")
+    ARG_TASK_LOG_SNAPSHOT        = tostring(var.task_log_snapshot)
+    ARG_ENABLE_STATE_PERSISTENCE = tostring(var.enable_state_persistence)
+    ARG_STATE_FILE_PATH         = var.state_file_path
+    ARG_PID_FILE_PATH           = var.pid_file_path
+    ARG_LIB_SCRIPT              = base64encode(local.lib_script)
+  })
 }
 
-resource "coder_script" "agentapi" {
-  agent_id     = var.agent_id
-  display_name = "Install and start AgentAPI"
-  icon         = var.web_app_icon
-  script       = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.1"
 
-    mkdir -p "${var.module_directory}"
-    echo -n '${base64encode(local.main_script)}' | base64 -d > "${local.main_script_destination}"
-    chmod +x "${local.main_script_destination}"
-    echo -n '${base64encode(local.lib_script)}' | base64 -d > "${local.lib_script_destination}"
-
-    ARG_MODULE_DIRECTORY='${var.module_directory}' \
-    ARG_WORKDIR="$(echo -n '${base64encode(local.workdir)}' | base64 -d)" \
-    ARG_INSTALL_AGENTAPI='${var.install_agentapi}' \
-    ARG_AGENTAPI_VERSION='${var.agentapi_version}' \
-    ARG_WAIT_FOR_START_SCRIPT="$(echo -n '${local.agentapi_wait_for_start_script_b64}' | base64 -d)" \
-    ARG_AGENTAPI_PORT='${var.agentapi_port}' \
-    ARG_AGENTAPI_CHAT_BASE_PATH='${local.agentapi_chat_base_path}' \
-    ARG_TASK_ID='${try(data.coder_task.me.id, "")}' \
-    ARG_TASK_LOG_SNAPSHOT='${var.task_log_snapshot}' \
-    ARG_ENABLE_STATE_PERSISTENCE='${var.enable_state_persistence}' \
-    ARG_STATE_FILE_PATH='${var.state_file_path}' \
-    ARG_PID_FILE_PATH='${var.pid_file_path}' \
-    ARG_LIB_SCRIPT_PATH="${local.lib_script_destination}" \
-    "${local.main_script_destination}"
-    EOT
-  run_on_start = true
+  agent_id            = var.agent_id
+  module_directory    = var.module_directory
+  display_name_prefix = "AgentAPI"
+  icon                = var.web_app_icon
+  install_script      = local.install_script
 }
 
 resource "coder_script" "agentapi_shutdown" {
@@ -288,4 +280,9 @@ resource "coder_app" "agentapi_cli" {
 
 output "task_app_id" {
   value = local.web_app ? coder_app.agentapi_web[0].id : ""
+}
+
+output "scripts" {
+  description = "Ordered list of coder exp sync names for the coder_script resources this module creates, in run order. Scripts that were not configured are absent from the list."
+  value       = module.coder_utils.scripts
 }
