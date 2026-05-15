@@ -5,6 +5,7 @@ on:
     types: [labeled]
     paths:
       - "registry/**/modules/**"
+      - "registry/**/skills/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
