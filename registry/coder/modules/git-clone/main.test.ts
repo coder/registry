@@ -261,4 +261,16 @@ describe("git-clone", async () => {
     expect(output.stdout).toContain("Running post-clone script...");
     expect(output.stdout).toContain("Post-clone script executed");
   });
+
+  it("runs pre-clone script", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "fake-url",
+      pre_clone_script: "echo 'Pre-clone script executed'",
+    });
+    const output = await executeScriptInContainer(state, "alpine/git");
+    expect(output.stdout).toContain("Running pre-clone script...");
+    expect(output.stdout).toContain("Pre-clone script executed");
+    expect(output.stdout).toContain("Cloning fake-url to ~/fake-url...");
+  });
 });

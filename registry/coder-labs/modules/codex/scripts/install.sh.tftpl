@@ -1,0 +1,195 @@
+#!/bin/bash
+
+set -euo pipefail
+
+BOLD='\033[0;1m'
+
+command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+ARG_INSTALL='${ARG_INSTALL}'
+ARG_CODEX_VERSION=$(echo -n '${ARG_CODEX_VERSION}' | base64 -d)
+ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
+ARG_BASE_CONFIG_TOML=$(echo -n '${ARG_BASE_CONFIG_TOML}' | base64 -d)
+ARG_MCP=$(echo -n '${ARG_MCP}' | base64 -d)
+ARG_ENABLE_AI_GATEWAY='${ARG_ENABLE_AI_GATEWAY}'
+ARG_AIBRIDGE_CONFIG=$(echo -n '${ARG_AIBRIDGE_CONFIG}' | base64 -d)
+ARG_MODEL_REASONING_EFFORT='${ARG_MODEL_REASONING_EFFORT}'
+ARG_OPENAI_API_KEY=$(echo -n '${ARG_OPENAI_API_KEY}' | base64 -d)
+
+echo "--------------------------------"
+printf "codex_version: %s\n" "$${ARG_CODEX_VERSION}"
+printf "workdir: %s\n" "$${ARG_WORKDIR}"
+printf "enable_ai_gateway: %s\n" "$${ARG_ENABLE_AI_GATEWAY}"
+printf "install_codex: %s\n" "$${ARG_INSTALL}"
+printf "model_reasoning_effort: %s\n" "$${ARG_MODEL_REASONING_EFFORT}"
+echo "--------------------------------"
+
+function add_path_to_shell_profiles() {
+  local path_dir="$1"
+
+  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    if [ -f "$${profile}" ]; then
+      if ! grep -q "$${path_dir}" "$${profile}" 2> /dev/null; then
+        echo "export PATH=\"\$PATH:$${path_dir}\"" >> "$${profile}"
+        echo "Added $${path_dir} to $${profile}"
+      fi
+    fi
+  done
+
+  local fish_config="$HOME/.config/fish/config.fish"
+  if [ -f "$${fish_config}" ]; then
+    if ! grep -q "$${path_dir}" "$${fish_config}" 2> /dev/null; then
+      echo "fish_add_path $${path_dir}" >> "$${fish_config}"
+      echo "Added $${path_dir} to $${fish_config}"
+    fi
+  fi
+}
+
+function ensure_codex_in_path() {
+  local CODEX_BIN=""
+  if command -v codex > /dev/null 2>&1; then
+    CODEX_BIN=$(command -v codex)
+  elif [ -x "$HOME/.npm-global/bin/codex" ]; then
+    CODEX_BIN="$HOME/.npm-global/bin/codex"
+  fi
+
+  if [ -z "$${CODEX_BIN}" ] || [ ! -x "$${CODEX_BIN}" ]; then
+    echo "Warning: Could not find codex binary after install"
+    return
+  fi
+
+  local CODEX_DIR
+  CODEX_DIR=$(dirname "$${CODEX_BIN}")
+
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/codex" ]; then
+    ln -s "$${CODEX_BIN}" "$${CODER_SCRIPT_BIN_DIR}/codex"
+    echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/codex -> $${CODEX_BIN}"
+  fi
+
+  add_path_to_shell_profiles "$${CODEX_DIR}"
+}
+
+function install_codex() {
+  if [ "$${ARG_INSTALL}" != "true" ]; then
+    echo "Skipping Codex installation as per configuration."
+    ensure_codex_in_path
+    return
+  fi
+
+  if [ -s "$HOME/.nvm/nvm.sh" ]; then
+    export NVM_DIR="$HOME/.nvm"
+    . "$NVM_DIR/nvm.sh"
+  fi
+
+  # Detect a package manager for global installs.
+  if command_exists npm; then
+    PKG_INSTALL="npm install -g"
+    if ! command_exists nvm; then
+      mkdir -p "$HOME/.npm-global"
+      npm config set prefix "$HOME/.npm-global"
+      export PATH="$HOME/.npm-global/bin:$PATH"
+    fi
+  elif command_exists pnpm; then
+    PKG_INSTALL="pnpm add -g"
+  elif command_exists bun; then
+    PKG_INSTALL="bun add -g"
+  else
+    echo "Error: npm, pnpm, or bun is required to install Codex. Install one of them first or set install_codex = false."
+    exit 1
+  fi
+
+  printf "%s Installing Codex CLI\n" "$${BOLD}"
+
+  if [ -n "$${ARG_CODEX_VERSION}" ]; then
+    $PKG_INSTALL "@openai/codex@$${ARG_CODEX_VERSION}"
+  else
+    $PKG_INSTALL "@openai/codex"
+  fi
+  printf "%s Installed Codex CLI: %s\n" "$${BOLD}" "$(codex --version)"
+  ensure_codex_in_path
+}
+
+function write_minimal_default_config() {
+  local config_path="$1"
+  local optional_config=""
+
+  if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ]; then
+    optional_config='model_provider = "aigateway"'
+  fi
+
+  if [ -n "$${ARG_MODEL_REASONING_EFFORT}" ]; then
+    optional_config+=$'\n'"model_reasoning_effort = \"$${ARG_MODEL_REASONING_EFFORT}\""
+  fi
+
+  cat << EOF > "$${config_path}"
+preferred_auth_method = "apikey"
+$${optional_config}
+
+EOF
+
+  if [ -n "$${ARG_WORKDIR}" ]; then
+    cat << EOF >> "$${config_path}"
+[projects."$${ARG_WORKDIR}"]
+trust_level = "trusted"
+
+EOF
+  fi
+}
+
+function populate_config_toml() {
+  local config_path="$HOME/.codex/config.toml"
+  mkdir -p "$(dirname "$${config_path}")"
+
+  if [ -n "$${ARG_BASE_CONFIG_TOML}" ]; then
+    printf "Using provided base configuration\n"
+    echo "$${ARG_BASE_CONFIG_TOML}" > "$${config_path}"
+  else
+    printf "Using minimal default configuration\n"
+    write_minimal_default_config "$${config_path}"
+  fi
+
+  if [ -n "$${ARG_MCP}" ]; then
+    printf "Adding MCP servers\n"
+    echo "$${ARG_MCP}" >> "$${config_path}"
+  fi
+
+  if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] && [ -n "$${ARG_AIBRIDGE_CONFIG}" ]; then
+    if ! grep -q '\[model_providers\.aigateway\]' "$${config_path}" 2>/dev/null; then
+      printf "Adding AI Gateway configuration\n"
+      echo -e "\n$${ARG_AIBRIDGE_CONFIG}" >> "$${config_path}"
+    else
+      printf "AI Gateway provider already defined in config, skipping append\n"
+    fi
+  fi
+}
+
+function setup_workdir() {
+  if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
+    echo "Creating workdir: $${ARG_WORKDIR}"
+    mkdir -p "$${ARG_WORKDIR}"
+  fi
+}
+
+function add_auth_json() {
+  if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] || [ -z "$${ARG_OPENAI_API_KEY}" ]; then
+    return
+  fi
+
+  local auth_path="$HOME/.codex/auth.json"
+  mkdir -p "$(dirname "$${auth_path}")"
+
+  cat << EOF > "$${auth_path}"
+{
+  "auth_mode": "apikey",
+  "OPENAI_API_KEY": "$${ARG_OPENAI_API_KEY}"
+}
+EOF
+  echo "Seeded auth.json with API key"
+}
+
+install_codex
+populate_config_toml
+setup_workdir
+add_auth_json

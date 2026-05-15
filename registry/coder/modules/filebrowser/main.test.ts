@@ -102,4 +102,19 @@ describe("filebrowser", async () => {
 
     testBaseLine(output);
   }, 15000);
+
+  it("fails when subdomain=false and agent_name is not provided", async () => {
+    let caught: Error | undefined;
+    try {
+      await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        subdomain: false,
+      });
+    } catch (e) {
+      caught = e as Error;
+    }
+    expect(caught).toBeDefined();
+    expect(caught!.message).toContain("agent_name");
+    expect(caught!.message).toContain("subdomain");
+  }, 15000);
 });

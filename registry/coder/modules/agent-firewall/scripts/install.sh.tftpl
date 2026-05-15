@@ -1,0 +1,131 @@
+#!/bin/bash
+# Sets up boundary for network isolation in Coder workspaces.
+
+set -euo pipefail
+
+BOUNDARY_VERSION='${BOUNDARY_VERSION}'
+COMPILE_BOUNDARY_FROM_SOURCE='${COMPILE_BOUNDARY_FROM_SOURCE}'
+USE_BOUNDARY_DIRECTLY='${USE_BOUNDARY_DIRECTLY}'
+MODULE_DIR="${MODULE_DIR}"
+BOUNDARY_WRAPPER_PATH="${BOUNDARY_WRAPPER_PATH}"
+WRITE_BOUNDARY_CONFIG='${WRITE_BOUNDARY_CONFIG}'
+BOUNDARY_CONFIG_CONTENT=$(echo -n '${BOUNDARY_CONFIG_CONTENT_B64}' | base64 -d | sed "s|\$HOME|$HOME|g")
+BOUNDARY_CONFIG_DIR="${BOUNDARY_CONFIG_DIR}"
+BOUNDARY_CONFIG_FILE="${BOUNDARY_CONFIG_FILE}"
+
+printf "BOUNDARY_VERSION: %s\n" "$${BOUNDARY_VERSION}"
+printf "COMPILE_BOUNDARY_FROM_SOURCE: %s\n" "$${COMPILE_BOUNDARY_FROM_SOURCE}"
+printf "USE_BOUNDARY_DIRECTLY: %s\n" "$${USE_BOUNDARY_DIRECTLY}"
+printf "MODULE_DIR: %s\n" "$${MODULE_DIR}"
+printf "BOUNDARY_WRAPPER_PATH: %s\n" "$${BOUNDARY_WRAPPER_PATH}"
+printf "WRITE_BOUNDARY_CONFIG: %s\n" "$${WRITE_BOUNDARY_CONFIG}"
+printf "BOUNDARY_CONFIG_DIR: %s\n" "$${BOUNDARY_CONFIG_DIR}"
+printf "BOUNDARY_CONFIG_FILE: %s\n" "$${BOUNDARY_CONFIG_FILE}"
+
+validate_boundary_subcommand() {
+  if ! command -v coder > /dev/null 2>&1; then
+    echo "Error: 'coder' command not found. boundary cannot be enabled." >&2
+    exit 1
+  fi
+
+  local output
+  echo "Checking for license"
+  if ! output=$(coder boundary 2>&1); then
+    if echo "$${output}" | grep -qi "license is not entitled"; then
+      echo "Error: your Coder deployment is not licensed for the boundary feature." >&2
+      echo "$${output}" >&2
+      echo "" >&2
+      exit 1
+    fi
+  fi
+}
+
+# Install boundary binary if needed.
+# Uses one of three strategies:
+#   1. Compile from source (compile_boundary_from_source=true)
+#   2. Install from release (use_boundary_directly=true)
+#   3. Use coder boundary subcommand (default, no installation needed)
+install_boundary() {
+  if [[ "$${COMPILE_BOUNDARY_FROM_SOURCE}" = "true" ]]; then
+    echo "Compiling boundary from source (version: $${BOUNDARY_VERSION})"
+
+    # Remove existing boundary directory to allow re-running safely
+    if [[ -d boundary ]]; then
+      rm -rf boundary
+    fi
+
+    echo "Cloning boundary repository"
+    git clone https://github.com/coder/boundary.git
+    cd boundary || exit 1
+    git checkout "$${BOUNDARY_VERSION}"
+
+    make build
+
+    sudo cp boundary /usr/local/bin/
+    sudo chmod +x /usr/local/bin/boundary
+    cd - || exit 1
+  elif [[ "$${USE_BOUNDARY_DIRECTLY}" = "true" ]]; then
+    echo "Installing boundary using official install script (version: $${BOUNDARY_VERSION})"
+    curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "$${BOUNDARY_VERSION}"
+  else
+    validate_boundary_subcommand
+    echo "Using coder boundary subcommand (provided by Coder)"
+  fi
+}
+
+# Write boundary config file if the module is responsible for it.
+write_boundary_config() {
+  if [[ "$${WRITE_BOUNDARY_CONFIG}" != "true" ]]; then
+    echo "Using external boundary config, skipping config write."
+    return 0
+  fi
+
+  mkdir -p "$${BOUNDARY_CONFIG_DIR}"
+  echo "$${BOUNDARY_CONFIG_CONTENT}" > "$${BOUNDARY_CONFIG_FILE}"
+  echo "Boundary config written to $${BOUNDARY_CONFIG_FILE}"
+}
+
+# Set up boundary: install, write config, create wrapper script.
+setup_boundary() {
+  echo "Setting up coder boundary..."
+
+  # Install boundary binary if needed
+  install_boundary
+
+  # Write boundary config
+  write_boundary_config
+
+  # Ensure the wrapper script directory exists.
+  mkdir -p "$(dirname "$${BOUNDARY_WRAPPER_PATH}")"
+
+  if [[ "$${COMPILE_BOUNDARY_FROM_SOURCE}" = "true" ]] || [[ "$${USE_BOUNDARY_DIRECTLY}" = "true" ]]; then
+    # Use boundary binary directly (from compilation or release installation)
+    cat > "$${BOUNDARY_WRAPPER_PATH}" << 'WRAPPER_EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exec boundary "$@"
+WRAPPER_EOF
+  else
+    # Use coder boundary subcommand (default)
+    # Copy coder binary to strip CAP_NET_ADMIN capabilities.
+    # This is necessary because boundary doesn't work with privileged binaries
+    # (you can't launch privileged binaries inside network namespaces unless
+    # you have sys_admin).
+    CODER_NO_CAPS="$${MODULE_DIR}/scripts/coder-no-caps"
+    if ! cp "$(command -v coder)" "$${CODER_NO_CAPS}"; then
+      echo "Error: Failed to copy coder binary to $${CODER_NO_CAPS}. boundary cannot be enabled." >&2
+      exit 1
+    fi
+    cat > "$${BOUNDARY_WRAPPER_PATH}" << 'WRAPPER_EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$${BASH_SOURCE[0]}")" && pwd)"
+exec "$${SCRIPT_DIR}/coder-no-caps" boundary "$@"
+WRAPPER_EOF
+  fi
+
+  chmod +x "$${BOUNDARY_WRAPPER_PATH}"
+  echo "boundary wrapper configured: $${BOUNDARY_WRAPPER_PATH}"
+}
+
+setup_boundary
