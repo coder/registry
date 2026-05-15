@@ -18,76 +18,16 @@ data "coder_workspace" "me" {}
 
 data "coder_workspace_owner" "me" {}
 
-variable "order" {
-  type        = number
-  description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
-  default     = null
-}
-
-variable "group" {
-  type        = string
-  description = "The name of a group that this app belongs to."
-  default     = null
-}
-
 variable "icon" {
   type        = string
   description = "The icon to use for the app."
   default     = "/icon/gemini.svg"
 }
 
-variable "folder" {
+variable "workdir" {
   type        = string
-  description = "The folder to run Gemini in."
-  default     = "/home/coder"
-}
-
-variable "install_gemini" {
-  type        = bool
-  description = "Whether to install Gemini."
-  default     = true
-}
-
-variable "gemini_version" {
-  type        = string
-  description = "The version of Gemini to install."
-  default     = ""
-}
-
-variable "gemini_settings_json" {
-  type        = string
-  description = "json to use in ~/.gemini/settings.json."
-  default     = ""
-}
-
-variable "gemini_api_key" {
-  type        = string
-  description = "Gemini API Key"
-  default     = ""
-}
-
-variable "use_vertexai" {
-  type        = bool
-  description = "Whether to use vertex ai"
-  default     = false
-}
-
-variable "install_agentapi" {
-  type        = bool
-  description = "Whether to install AgentAPI for web UI and task automation."
-  default     = true
-}
-
-variable "agentapi_version" {
-  type        = string
-  description = "The version of AgentAPI to install."
-  default     = "v0.10.0"
-}
-
-variable "gemini_model" {
-  type        = string
-  description = "The model to use for Gemini (e.g., gemini-2.5-pro)."
-  default     = ""
+  description = "Optional project directory. When set, the module pre-creates it if missing and adds it as a trusted project in Gemini settings."
+  default     = null
 }
 
 variable "pre_install_script" {
@@ -102,47 +42,77 @@ variable "post_install_script" {
   default     = null
 }
 
-variable "task_prompt" {
+variable "install_gemini" {
+  type        = bool
+  description = "Whether to install Gemini."
+  default     = true
+}
+
+variable "gemini_version" {
   type        = string
-  description = "Task prompt for automated Gemini execution"
+  description = "The version of Gemini to install."
+  default     = "latest"
+}
+
+variable "gemini_api_key" {
+  type        = string
+  description = "Gemini API Key for CLI and API access."
+  sensitive   = true
+  default     = ""
+}
+
+variable "gemini_settings_json" {
+  type        = string
+  description = "JSON to use in ~/.gemini/settings.json. If empty, a default is generated."
+  default     = ""
+}
+
+variable "use_vertexai" {
+  type        = bool
+  description = "Whether to use Vertex AI."
+  default     = false
+}
+
+variable "gemini_model" {
+  type        = string
+  description = "The model to use for Gemini (e.g., gemini-2.5-pro)."
   default     = ""
 }
 
 variable "additional_extensions" {
   type        = string
-  description = "Additional extensions configuration in json format to append to the config."
+  description = "Additional extensions configuration in JSON format to append to the config."
   default     = null
 }
 
-variable "gemini_system_prompt" {
-  type        = string
-  description = "System prompt for Gemini. It will be added to GEMINI.md in the specified folder."
-  default     = ""
-}
-
-variable "enable_yolo_mode" {
-  type        = bool
-  description = "Enable YOLO mode to automatically approve all tool calls without user confirmation. Use with caution."
-  default     = false
-}
-
 resource "coder_env" "gemini_api_key" {
+  count    = var.gemini_api_key != "" ? 1 : 0
   agent_id = var.agent_id
   name     = "GEMINI_API_KEY"
   value    = var.gemini_api_key
 }
 
 resource "coder_env" "google_api_key" {
+  count    = var.gemini_api_key != "" ? 1 : 0
   agent_id = var.agent_id
   name     = "GOOGLE_API_KEY"
   value    = var.gemini_api_key
 }
 
 resource "coder_env" "gemini_use_vertex_ai" {
+  count    = var.use_vertexai ? 1 : 0
   agent_id = var.agent_id
   name     = "GOOGLE_GENAI_USE_VERTEXAI"
   value    = var.use_vertexai
 }
+
+resource "coder_env" "gemini_model" {
+  count    = var.gemini_model != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "GEMINI_MODEL"
+  value    = var.gemini_model
+}
+
 
 locals {
   base_extensions = <<-EOT
@@ -155,72 +125,40 @@ locals {
       "server"
     ],
     "env": {
-      "CODER_MCP_APP_STATUS_SLUG": "${local.app_slug}",
+      "CODER_MCP_APP_STATUS_SLUG": "gemini",
       "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284"
     }
   }
 }
 EOT
 
-  app_slug        = "gemini"
-  install_script  = file("${path.module}/scripts/install.sh")
-  start_script    = file("${path.module}/scripts/start.sh")
-  module_dir_name = ".gemini-module"
-  folder          = trimsuffix(var.folder, "/")
+  workdir = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
+  install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
+    ARG_INSTALL_GEMINI        = tostring(var.install_gemini)
+    ARG_GEMINI_VERSION        = var.gemini_version != "" ? base64encode(var.gemini_version) : ""
+    ARG_GEMINI_CONFIG         = var.gemini_settings_json != "" ? base64encode(var.gemini_settings_json) : ""
+    ARG_ADDITIONAL_EXTENSIONS = var.additional_extensions != null ? base64encode(var.additional_extensions) : ""
+    ARG_BASE_EXTENSIONS       = base64encode(local.base_extensions)
+    ARG_WORKDIR               = local.workdir != "" ? base64encode(local.workdir) : ""
+  })
+  module_dir_name = ".coder-modules/coder-labs/gemini"
 }
 
-module "agentapi" {
-  source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.0.0"
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.1"
 
-  agent_id             = var.agent_id
-  folder               = local.folder
-  web_app_slug         = local.app_slug
-  web_app_order        = var.order
-  web_app_group        = var.group
-  web_app_icon         = var.icon
-  web_app_display_name = "Gemini"
-  cli_app_slug         = "${local.app_slug}-cli"
-  cli_app_display_name = "Gemini CLI"
-  module_dir_name      = local.module_dir_name
-  install_agentapi     = var.install_agentapi
-  agentapi_version     = var.agentapi_version
-  pre_install_script   = var.pre_install_script
-  post_install_script  = var.post_install_script
-  install_script       = <<-EOT
-    #!/bin/bash
-    set -o errexit
-    set -o pipefail
-
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
-    ARG_INSTALL='${var.install_gemini}' \
-    ARG_GEMINI_VERSION='${var.gemini_version}' \
-    ARG_GEMINI_CONFIG='${base64encode(var.gemini_settings_json)}' \
-    BASE_EXTENSIONS='${base64encode(replace(local.base_extensions, "'", "'\\''"))}' \
-    ADDITIONAL_EXTENSIONS='${base64encode(replace(var.additional_extensions != null ? var.additional_extensions : "", "'", "'\\''"))}' \
-    GEMINI_START_DIRECTORY='${var.folder}' \
-    GEMINI_SYSTEM_PROMPT='${base64encode(var.gemini_system_prompt)}' \
-    /tmp/install.sh
-  EOT
-  start_script         = <<-EOT
-     #!/bin/bash
-     set -o errexit
-     set -o pipefail
-
-     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-     chmod +x /tmp/start.sh
-     GEMINI_API_KEY='${var.gemini_api_key}' \
-     GOOGLE_API_KEY='${var.gemini_api_key}' \
-     GOOGLE_GENAI_USE_VERTEXAI='${var.use_vertexai}' \
-     GEMINI_YOLO_MODE='${var.enable_yolo_mode}' \
-     GEMINI_MODEL='${var.gemini_model}' \
-     GEMINI_START_DIRECTORY='${var.folder}' \
-     GEMINI_TASK_PROMPT='${var.task_prompt}' \
-     /tmp/start.sh
-   EOT
+  agent_id            = var.agent_id
+  module_directory    = "$HOME/${local.module_dir_name}"
+  display_name_prefix = "Gemini"
+  icon                = var.icon
+  pre_install_script  = var.pre_install_script
+  post_install_script = var.post_install_script
+  install_script      = local.install_script
 }
 
-output "task_app_id" {
-  value = module.agentapi.task_app_id
+
+output "scripts" {
+  description = "Ordered list of coder exp sync names for the coder_script resources this module creates, in run order (pre_install, install, post_install). Scripts that were not configured are absent from the list."
+  value       = module.coder_utils.scripts
 }

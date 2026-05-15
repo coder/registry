@@ -6,13 +6,67 @@ import {
   beforeAll,
   expect,
 } from "bun:test";
-import { execContainer, readFileContainer, runTerraformInit } from "~test";
 import {
+  execContainer,
+  readFileContainer,
+  removeContainer,
+  runContainer,
+  runTerraformApply,
+  runTerraformInit,
+  TerraformState,
+} from "~test";
+import {
+  extractCoderEnvVars,
   writeExecutable,
-  setup as setupUtil,
-  execModuleScript,
-  expectAgentAPIStarted,
 } from "../../../coder/modules/agentapi/test-util";
+import path from "path";
+
+interface ModuleScripts {
+  pre_install?: string;
+  install: string;
+  post_install?: string;
+}
+
+const SCRIPT_SUFFIXES = [
+  "Pre-Install Script",
+  "Install Script",
+  "Post-Install Script",
+] as const;
+
+const collectScripts = (state: TerraformState): ModuleScripts => {
+  const byDisplayName: Record<string, string> = {};
+  for (const resource of state.resources) {
+    if (resource.type !== "coder_script") continue;
+    for (const instance of resource.instances) {
+      const attrs = instance.attributes as Record<string, unknown>;
+      const displayName = attrs.display_name as string | undefined;
+      const script = attrs.script as string | undefined;
+      if (displayName && script) {
+        byDisplayName[displayName] = script;
+      }
+    }
+  }
+  const scripts: Partial<ModuleScripts> = {};
+  for (const suffix of SCRIPT_SUFFIXES) {
+    const key = `Gemini: ${suffix}`;
+    if (!(key in byDisplayName)) continue;
+    switch (suffix) {
+      case "Pre-Install Script":
+        scripts.pre_install = byDisplayName[key];
+        break;
+      case "Install Script":
+        scripts.install = byDisplayName[key];
+        break;
+      case "Post-Install Script":
+        scripts.post_install = byDisplayName[key];
+        break;
+    }
+  }
+  if (!scripts.install) {
+    throw new Error("install script not found in terraform state");
+  }
+  return scripts as ModuleScripts;
+};
 
 let cleanupFunctions: (() => Promise<void>)[] = [];
 const registerCleanup = (cleanup: () => Promise<void>) => {
@@ -31,247 +85,194 @@ afterEach(async () => {
 });
 
 interface SetupProps {
-  skipAgentAPIMock?: boolean;
   skipGeminiMock?: boolean;
   moduleVariables?: Record<string, string>;
-  agentapiMockScript?: string;
 }
 
-const setup = async (props?: SetupProps): Promise<{ id: string }> => {
+const setup = async (
+  props?: SetupProps,
+): Promise<{
+  id: string;
+  coderEnvVars: Record<string, string>;
+  scripts: ModuleScripts;
+}> => {
   const projectDir = "/home/coder/project";
-  const { id } = await setupUtil({
-    moduleDir: import.meta.dir,
-    moduleVariables: {
-      install_gemini: props?.skipGeminiMock ? "true" : "false",
-      install_agentapi: props?.skipAgentAPIMock ? "true" : "false",
-      gemini_model: "test-model",
-      ...props?.moduleVariables,
-    },
-    registerCleanup,
-    projectDir,
-    skipAgentAPIMock: props?.skipAgentAPIMock,
-    agentapiMockScript: props?.agentapiMockScript,
+  const moduleDir = path.resolve(import.meta.dir);
+  const state = await runTerraformApply(moduleDir, {
+    agent_id: "foo",
+    workdir: projectDir,
+    install_gemini: "false",
+    ...props?.moduleVariables,
+  });
+  const scripts = collectScripts(state);
+  const coderEnvVars = extractCoderEnvVars(state);
+
+  const id = await runContainer("codercom/enterprise-node:latest");
+  registerCleanup(async () => {
+    if (process.env["DEBUG"] === "true" || process.env["DEBUG"] === "1") {
+      console.log(`Not removing container ${id} in debug mode`);
+      return;
+    }
+    await removeContainer(id);
+  });
+
+  await execContainer(id, ["bash", "-c", `mkdir -p '${projectDir}'`]);
+  await writeExecutable({
+    containerId: id,
+    filePath: "/usr/bin/coder",
+    content: "#!/bin/bash\nexit 0\n",
   });
   if (!props?.skipGeminiMock) {
-    const geminiMockContent = `#!/bin/bash
-
-if [[ "$1" == "--version" ]]; then
-  echo "HELLO: $(bash -c env)"
-  echo "gemini version v2.5.0"
-  exit 0
-fi
-
-set -e
-
-while true; do
-    echo "$(date) - gemini-mock"
-    sleep 15
-done`;
     await writeExecutable({
       containerId: id,
       filePath: "/usr/bin/gemini",
-      content: geminiMockContent,
+      content: await Bun.file(
+        path.join(moduleDir, "testdata", "gemini-mock.sh"),
+      ).text(),
     });
   }
-  return { id };
+  return { id, coderEnvVars, scripts };
+};
+
+const runScripts = async (
+  id: string,
+  scripts: ModuleScripts,
+  env?: Record<string, string>,
+) => {
+  const entries = env ? Object.entries(env) : [];
+  const envArgs =
+    entries.length > 0
+      ? entries
+          .map(
+            ([key, value]) => `export ${key}="${value.replace(/"/g, '\\"')}"`,
+          )
+          .join(" && ") + " && "
+      : "";
+  const ordered: [string, string | undefined][] = [
+    ["pre_install", scripts.pre_install],
+    ["install", scripts.install],
+    ["post_install", scripts.post_install],
+  ];
+  for (const [name, script] of ordered) {
+    if (!script) continue;
+    const target = `/tmp/coder-utils-${name}.sh`;
+    await writeExecutable({
+      containerId: id,
+      filePath: target,
+      content: script,
+    });
+    const resp = await execContainer(id, ["bash", "-c", `${envArgs}${target}`]);
+    if (resp.exitCode !== 0) {
+      console.log(`script ${name} failed:`);
+      console.log(resp.stdout);
+      console.log(resp.stderr);
+      throw new Error(`coder-utils ${name} script exited ${resp.exitCode}`);
+    }
+  }
 };
 
 setDefaultTimeout(60 * 1000);
 
-describe("gemini", async () => {
+describe("Gemini", async () => {
   beforeAll(async () => {
     await runTerraformInit(import.meta.dir);
   });
 
-  test("agent-api", async () => {
-    const { id } = await setup();
-    await execModuleScript(id);
-    await expectAgentAPIStarted(id);
+  test("happy-path", async () => {
+    const { id, scripts } = await setup();
+    await runScripts(id, scripts);
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder-labs/gemini/logs/install.log",
+    );
+    expect(installLog).toContain("Skipping Gemini installation");
   });
 
   test("install-gemini-version", async () => {
-    const version_to_install = "0.1.13";
-    const { id } = await setup({
+    const version = "0.10.0";
+    const { id, coderEnvVars, scripts } = await setup({
       skipGeminiMock: true,
       moduleVariables: {
         install_gemini: "true",
-        gemini_version: version_to_install,
+        gemini_version: version,
       },
     });
-    await execModuleScript(id);
-    const resp = await execContainer(id, [
-      "bash",
-      "-c",
-      `cat /home/coder/.gemini-module/install.log || true`,
-    ]);
-    expect(resp.stdout).toContain(version_to_install);
-  });
-
-  test("install-gemini-latest", async () => {
-    const { id } = await setup({
-      skipGeminiMock: true,
-      moduleVariables: {
-        install_gemini: "true",
-        gemini_version: "",
-      },
-    });
-    await execModuleScript(id);
-    await expectAgentAPIStarted(id);
-  });
-
-  test("gemini-settings-json", async () => {
-    const settings = '{"foo": "bar"}';
-    const { id } = await setup({
-      moduleVariables: {
-        gemini_settings_json: settings,
-      },
-    });
-    await execModuleScript(id);
-    const resp = await readFileContainer(
+    await runScripts(id, scripts, coderEnvVars);
+    const installLog = await readFileContainer(
       id,
-      "/home/coder/.gemini/settings.json",
+      "/home/coder/.coder-modules/coder-labs/gemini/logs/install.log",
     );
-    expect(resp).toContain("foo");
-    expect(resp).toContain("bar");
+    expect(installLog).toContain(version);
   });
 
-  test("gemini-api-key", async () => {
+  test("api-key", async () => {
     const apiKey = "test-api-key-123";
-    const { id } = await setup({
+    const { coderEnvVars } = await setup({
       moduleVariables: {
         gemini_api_key: apiKey,
       },
     });
-    await execModuleScript(id);
-
-    const resp = await readFileContainer(
-      id,
-      "/home/coder/.gemini-module/agentapi-start.log",
-    );
-    expect(resp).toContain("Using direct Gemini API with API key");
+    expect(coderEnvVars["GEMINI_API_KEY"]).toBe(apiKey);
+    expect(coderEnvVars["GOOGLE_API_KEY"]).toBe(apiKey);
   });
 
-  test("use-vertexai", async () => {
-    const { id } = await setup({
-      skipGeminiMock: false,
+  test("additional-mcp-servers", async () => {
+    const settings = `{
+  "mcp": {
+    "servers": {
+      "my-local-server": {
+        "command": "python",
+        "args": ["path/to/server.py"]
+      },
+      "my-node-server": {
+        "command": "npx",
+        "args": ["-y", "@username/server-name"]
+      }
+    }
+  }
+}`;
+    const { id, scripts } = await setup({
       moduleVariables: {
-        use_vertexai: "true",
+        gemini_settings_json: settings,
       },
     });
-    await execModuleScript(id);
-    const resp = await readFileContainer(
-      id,
-      "/home/coder/.gemini-module/agentapi-start.log",
-    );
-    expect(resp).toContain("GOOGLE_GENAI_USE_VERTEXAI='true'");
-  });
-
-  test("gemini-model", async () => {
-    const model = "gemini-2.5-pro";
-    const { id } = await setup({
-      skipGeminiMock: false,
-      moduleVariables: {
-        gemini_model: model,
-      },
-    });
-    await execModuleScript(id);
-    const resp = await readFileContainer(
-      id,
-      "/home/coder/.gemini-module/agentapi-start.log",
-    );
-    expect(resp).toContain(model);
-  });
-
-  test("pre-post-install-scripts", async () => {
-    const { id } = await setup({
-      moduleVariables: {
-        pre_install_script: "#!/bin/bash\necho 'pre-install-script'",
-        post_install_script: "#!/bin/bash\necho 'post-install-script'",
-      },
-    });
-    await execModuleScript(id);
-    const preInstallLog = await readFileContainer(
-      id,
-      "/home/coder/.gemini-module/pre_install.log",
-    );
-    expect(preInstallLog).toContain("pre-install-script");
-    const postInstallLog = await readFileContainer(
-      id,
-      "/home/coder/.gemini-module/post_install.log",
-    );
-    expect(postInstallLog).toContain("post-install-script");
-  });
-
-  test("folder-variable", async () => {
-    const folder = "/tmp/gemini-test-folder";
-    const { id } = await setup({
-      skipGeminiMock: false,
-      moduleVariables: {
-        folder,
-      },
-    });
-    await execModuleScript(id);
-    const resp = await readFileContainer(
-      id,
-      "/home/coder/.gemini-module/agentapi-start.log",
-    );
-    expect(resp).toContain(folder);
-  });
-
-  test("additional-extensions", async () => {
-    const additional = '{"custom": {"enabled": true}}';
-    const { id } = await setup({
-      moduleVariables: {
-        additional_extensions: additional,
-      },
-    });
-    await execModuleScript(id);
+    await runScripts(id, scripts);
     const resp = await readFileContainer(
       id,
       "/home/coder/.gemini/settings.json",
     );
-    expect(resp).toContain("custom");
-    expect(resp).toContain("enabled");
+    expect(resp).toContain("mcp");
+    expect(resp).toContain("my-local-server");
   });
 
-  test("gemini-system-prompt", async () => {
-    const prompt = "This is a system prompt for Gemini.";
-    const { id } = await setup({
+  test("pre-post-install-scripts", async () => {
+    const { id, scripts } = await setup({
       moduleVariables: {
-        gemini_system_prompt: prompt,
+        pre_install_script: "#!/bin/bash\necho 'gemini-pre-install-script'",
+        post_install_script: "#!/bin/bash\necho 'gemini-post-install-script'",
       },
     });
-    await execModuleScript(id);
-    const resp = await readFileContainer(id, "/home/coder/GEMINI.md");
-    expect(resp).toContain(prompt);
-  });
+    await runScripts(id, scripts);
 
-  test("task-prompt", async () => {
-    const taskPrompt = "Create a simple Hello World function";
-    const { id } = await setup({
-      moduleVariables: {
-        task_prompt: taskPrompt,
-      },
-    });
-    await execModuleScript(id, {
-      GEMINI_TASK_PROMPT: taskPrompt,
-    });
-    const resp = await readFileContainer(
+    const preInstallLog = await readFileContainer(
       id,
-      "/home/coder/.gemini-module/agentapi-start.log",
+      "/home/coder/.coder-modules/coder-labs/gemini/logs/pre_install.log",
     );
-    expect(resp).toContain("Running automated task:");
+    expect(preInstallLog).toContain("gemini-pre-install-script");
+
+    const postInstallLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder-labs/gemini/logs/post_install.log",
+    );
+    expect(postInstallLog).toContain("gemini-post-install-script");
   });
 
-  test("start-without-prompt", async () => {
-    const { id } = await setup();
-    await execModuleScript(id);
-    const prompt = await execContainer(id, [
-      "ls",
-      "-l",
-      "/home/coder/GEMINI.md",
-    ]);
-    expect(prompt.exitCode).not.toBe(0);
-    expect(prompt.stderr).toContain("No such file or directory");
+  test("use-vertexai", async () => {
+    const { coderEnvVars } = await setup({
+      moduleVariables: {
+        use_vertexai: "true",
+      },
+    });
+    expect(coderEnvVars["GOOGLE_GENAI_USE_VERTEXAI"]).toBe("true");
   });
 });
