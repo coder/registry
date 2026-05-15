@@ -18,25 +18,8 @@ Skills are sourced from [coder/skills](https://github.com/coder/skills)
 and served through the registry's API, MCP tools, and
 [well-known discovery endpoint](https://agentskills.io/specification).
 
-## Install
-
-Install directly from the source repo:
-
-```bash
-# Install a specific skill
-npx skills add coder/skills@setup
-
-# Install all Coder skills
-npx skills add coder/skills
-```
-
-Or install from the registry:
-
-```bash
-npx skills add https://registry.coder.com
-```
-
 ## Available Skills
 
-Skills are discovered automatically from the source repo at build time.
-Browse the full list at [registry.coder.com/skills](https://registry.coder.com/skills).
+| Skill | Description |
+|-------|-------------|
+| [Setup & Configuration](https://registry.coder.com/skills/coder/setup) | Install, deploy, or bootstrap a new Coder deployment end-to-end. Covers Docker, Kubernetes/Helm, VM, cloud, HTTPS/domain setup, first admin creation, starter templates, and first workspace. |
