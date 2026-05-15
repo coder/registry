@@ -4,7 +4,7 @@ sources:
   - repo: coder/skills@main
     skills:
       setup:
-        display_name: Setup & Configuration
+        display_name: Coder Setup
         icon: ../../../.icons/coder.svg
         tags: [coder, deployment, configuration]
 ---
