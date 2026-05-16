@@ -250,13 +250,14 @@ describe("git-clone", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       url: "fake-url",
+      base_dir: "/tmp",
       post_clone_script: "echo 'Post-clone script executed'",
     });
     const output = await executeScriptInContainer(
       state,
       "alpine/git",
       "sh",
-      "mkdir -p ~/fake-url && echo 'existing' > ~/fake-url/file.txt",
+      "mkdir -p /tmp/fake-url && echo 'existing' > /tmp/fake-url/file.txt",
     );
     expect(output.stdout).toContain("Running post-clone script...");
     expect(output.stdout).toContain("Post-clone script executed");
@@ -272,5 +273,36 @@ describe("git-clone", async () => {
     expect(output.stdout).toContain("Running pre-clone script...");
     expect(output.stdout).toContain("Pre-clone script executed");
     expect(output.stdout).toContain("Cloning fake-url to ~/fake-url...");
+  });
+
+  it("fails when pre-clone script fails", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "fake-url",
+      pre_clone_script: "echo 'Pre-clone script failed'; exit 42",
+    });
+    const output = await executeScriptInContainer(state, "alpine/git");
+    expect(output.exitCode).toBe(42);
+    expect(output.stdout).toContain("Running pre-clone script...");
+    expect(output.stdout).toContain("Pre-clone script failed");
+    expect(output.stdout).not.toContain("Cloning fake-url to ~/fake-url...");
+  });
+
+  it("fails when post-clone script fails", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "fake-url",
+      base_dir: "/tmp",
+      post_clone_script: "echo 'Post-clone script failed'; exit 43",
+    });
+    const output = await executeScriptInContainer(
+      state,
+      "alpine/git",
+      "sh",
+      "mkdir -p /tmp/fake-url && echo 'existing' > /tmp/fake-url/file.txt",
+    );
+    expect(output.exitCode).toBe(43);
+    expect(output.stdout).toContain("Running post-clone script...");
+    expect(output.stdout).toContain("Post-clone script failed");
   });
 });
