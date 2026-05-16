@@ -22,7 +22,7 @@ variable "vault_addr" {
 variable "vault_token" {
   type        = string
   description = "The Vault token to use for authentication. If not provided, only the CLI will be installed."
-  default     = ""
+  default     = null
   sensitive   = true
 }
 
@@ -62,7 +62,7 @@ resource "coder_script" "vault_cli" {
   icon         = "/icon/vault.svg"
   script = templatefile("${path.module}/run.sh", {
     VAULT_ADDR        = var.vault_addr
-    VAULT_TOKEN       = var.vault_token
+    VAULT_TOKEN       = var.vault_token != null ? var.vault_token : ""
     INSTALL_DIR       = var.install_dir
     VAULT_CLI_VERSION = var.vault_cli_version
     ENTERPRISE        = var.enterprise
@@ -78,7 +78,7 @@ resource "coder_env" "vault_addr" {
 }
 
 resource "coder_env" "vault_token" {
-  count    = var.vault_token != "" ? 1 : 0
+  count    = var.vault_token != null ? 1 : 0
   agent_id = var.agent_id
   name     = "VAULT_TOKEN"
   value    = var.vault_token
