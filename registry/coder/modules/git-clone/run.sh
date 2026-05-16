@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
 REPO_URL="${REPO_URL}"
 CLONE_PATH="${CLONE_PATH}"
 BRANCH_NAME="${BRANCH_NAME}"
