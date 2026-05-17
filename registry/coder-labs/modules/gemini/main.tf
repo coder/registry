@@ -26,7 +26,7 @@ variable "icon" {
 
 variable "workdir" {
   type        = string
-  description = "Optional project directory. When set, the module pre-creates it if missing and adds it as a trusted project in Gemini settings."
+  description = "project directory. When set, the module pre-creates it if missing and adds it as a trusted project in Gemini settings."
   default     = null
 }
 
@@ -123,11 +123,7 @@ locals {
       "exp",
       "mcp",
       "server"
-    ],
-    "env": {
-      "CODER_MCP_APP_STATUS_SLUG": "gemini",
-      "CODER_MCP_AI_AGENTAPI_URL": "http://localhost:3284"
-    }
+    ]
   }
 }
 EOT

@@ -149,7 +149,7 @@ function append_extensions_to_settings_json() {
 }
 
 function patch_coder_mcp_command() {
-  CODER_BIN=$(which coder)
+  CODER_BIN=$(which coder 2>/dev/null || true)
   SETTINGS_PATH="$HOME/.gemini/settings.json"
   if [ -z "$CODER_BIN" ]; then
     printf "Warning: could not find coder binary, MCP command path not patched.\n"

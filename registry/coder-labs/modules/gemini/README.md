@@ -15,7 +15,7 @@ module "gemini" {
   source   = "registry.coder.com/coder-labs/gemini/coder"
   version  = "4.0.0"
   agent_id = coder_agent.main.id
-  folder   = "/home/coder/project"
+  workdir  = "/home/coder/project"
 }
 ```
 
@@ -69,7 +69,7 @@ module "gemini" {
   agent_id           = coder_agent.main.id
   gemini_api_key     = var.gemini_api_key
   gemini_model       = "gemini-2.5-flash"
-  workdir            = locals.workdir
+  workdir            = local.gemini_workdir
   pre_install_script = <<-EOT
     #!/bin/bash
     set -e
@@ -92,7 +92,7 @@ resource "coder_app" "gemini" {
   agent_id     = coder_agent.main.id
   slug         = "gemini"
   display_name = "Gemini"
-  icon         = "/icon/openai.svg"
+  icon         = "/icon/gemini.svg"
   open_in      = "slim-window"
   command      = <<-EOT
     #!/bin/bash
