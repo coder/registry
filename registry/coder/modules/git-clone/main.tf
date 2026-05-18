@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.9"
 
   required_providers {
     coder = {
@@ -60,6 +60,26 @@ variable "depth" {
   description = "If > 0, perform a shallow clone using this depth."
   type        = number
   default     = 0
+}
+
+variable "recurse_submodules" {
+  description = "If true, clone submodules recursively (equivalent to `git clone --recurse-submodules`)."
+  type        = bool
+  default     = false
+}
+
+variable "clone_jobs" {
+  description = "If set, fetch submodules in parallel using this many jobs (equivalent to `git clone --jobs <n>`). Only takes effect when `recurse_submodules = true`."
+  type        = number
+  default     = null
+  validation {
+    condition     = var.clone_jobs == null || var.clone_jobs > 0
+    error_message = "clone_jobs must be a positive integer when set."
+  }
+  validation {
+    condition     = var.clone_jobs == null || var.recurse_submodules
+    error_message = "clone_jobs only affects submodule fetching, so it requires recurse_submodules = true."
+  }
 }
 
 variable "post_clone_script" {
@@ -135,7 +155,9 @@ resource "coder_script" "git_clone" {
     CLONE_PATH = local.clone_path,
     REPO_URL : local.clone_url,
     BRANCH_NAME : local.branch_name,
-    DEPTH = var.depth,
+    DEPTH              = var.depth,
+    RECURSE_SUBMODULES = tostring(var.recurse_submodules),
+    CLONE_JOBS         = coalesce(var.clone_jobs, 0),
     POST_CLONE_SCRIPT : local.encoded_post_clone_script,
     PRE_CLONE_SCRIPT : local.encoded_pre_clone_script,
   })

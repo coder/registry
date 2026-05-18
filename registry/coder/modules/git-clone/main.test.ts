@@ -1,10 +1,36 @@
 import { describe, expect, it } from "bun:test";
 import {
-  executeScriptInContainer,
+  execContainer,
+  findResourceInstance,
+  runContainer,
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
+  type scriptOutput,
+  type TerraformState,
 } from "~test";
+
+// The clone script uses bash arrays, which busybox `sh` (alpine's default
+// shell) cannot parse. Install bash in the container, then run the script
+// with bash. The optional `before` setup step still runs with `sh`.
+const executeScriptInContainer = async (
+  state: TerraformState,
+  image: string,
+  before?: string,
+): Promise<scriptOutput> => {
+  const instance = findResourceInstance(state, "coder_script");
+  const id = await runContainer(image);
+  await execContainer(id, ["sh", "-c", "apk add --no-cache bash >/dev/null"]);
+  if (before) {
+    await execContainer(id, ["sh", "-c", before]);
+  }
+  const resp = await execContainer(id, ["bash", "-c", instance.script]);
+  return {
+    exitCode: resp.exitCode,
+    stdout: resp.stdout.trim().split("\n"),
+    stderr: resp.stderr.trim().split("\n"),
+  };
+};
 
 describe("git-clone", async () => {
   await runTerraformInit(import.meta.dir);
@@ -31,8 +57,8 @@ describe("git-clone", async () => {
     });
     const output = await executeScriptInContainer(state, "alpine/git");
     expect(output.stdout).toEqual([
-      "Creating directory ~/fake-url...",
-      "Cloning fake-url to ~/fake-url...",
+      "Creating directory /root/fake-url...",
+      "Cloning fake-url to /root/fake-url...",
     ]);
     expect(output.stderr.join(" ")).toContain("fatal");
     expect(output.stderr.join(" ")).toContain("fake-url");
@@ -207,8 +233,8 @@ describe("git-clone", async () => {
     const output = await executeScriptInContainer(state, "alpine/git");
     expect(output.exitCode).toBe(0);
     expect(output.stdout).toEqual([
-      "Creating directory ~/repo-tests.log...",
-      "Cloning https://github.com/michaelbrewer/repo-tests.log to ~/repo-tests.log on branch feat/branch...",
+      "Creating directory /root/repo-tests.log...",
+      "Cloning https://github.com/michaelbrewer/repo-tests.log to /root/repo-tests.log on branch feat/branch...",
     ]);
   });
 
@@ -220,8 +246,8 @@ describe("git-clone", async () => {
     const output = await executeScriptInContainer(state, "alpine/git");
     expect(output.exitCode).toBe(0);
     expect(output.stdout).toEqual([
-      "Creating directory ~/repo-tests.log...",
-      "Cloning https://gitlab.com/mike.brew/repo-tests.log to ~/repo-tests.log on branch feat/branch...",
+      "Creating directory /root/repo-tests.log...",
+      "Cloning https://gitlab.com/mike.brew/repo-tests.log to /root/repo-tests.log on branch feat/branch...",
     ]);
   });
 
@@ -241,8 +267,8 @@ describe("git-clone", async () => {
     const output = await executeScriptInContainer(state, "alpine/git");
     expect(output.exitCode).toBe(0);
     expect(output.stdout).toEqual([
-      "Creating directory ~/repo-tests.log...",
-      "Cloning https://github.com/michaelbrewer/repo-tests.log to ~/repo-tests.log on branch feat/branch...",
+      "Creating directory /root/repo-tests.log...",
+      "Cloning https://github.com/michaelbrewer/repo-tests.log to /root/repo-tests.log on branch feat/branch...",
     ]);
   });
 
@@ -256,7 +282,6 @@ describe("git-clone", async () => {
     const output = await executeScriptInContainer(
       state,
       "alpine/git",
-      "sh",
       "mkdir -p /tmp/fake-url && echo 'existing' > /tmp/fake-url/file.txt",
     );
     expect(output.stdout).toContain("Running post-clone script...");
@@ -272,7 +297,7 @@ describe("git-clone", async () => {
     const output = await executeScriptInContainer(state, "alpine/git");
     expect(output.stdout).toContain("Running pre-clone script...");
     expect(output.stdout).toContain("Pre-clone script executed");
-    expect(output.stdout).toContain("Cloning fake-url to ~/fake-url...");
+    expect(output.stdout).toContain("Cloning fake-url to /root/fake-url...");
   });
 
   it("fails when pre-clone script fails", async () => {
@@ -285,7 +310,64 @@ describe("git-clone", async () => {
     expect(output.exitCode).toBe(42);
     expect(output.stdout).toContain("Running pre-clone script...");
     expect(output.stdout).toContain("Pre-clone script failed");
-    expect(output.stdout).not.toContain("Cloning fake-url to ~/fake-url...");
+    expect(output.stdout).not.toContain(
+      "Cloning fake-url to /root/fake-url...",
+    );
+  });
+
+  it("defaults recurse_submodules to false and clone_jobs to 0", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "fake-url",
+    });
+    const script = findResourceInstance(state, "coder_script").script;
+    expect(script).toContain('RECURSE_SUBMODULES="false"');
+    expect(script).toContain('CLONE_JOBS="0"');
+  });
+
+  it("sets RECURSE_SUBMODULES=true when recurse_submodules is enabled", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "fake-url",
+      recurse_submodules: "true",
+    });
+    const script = findResourceInstance(state, "coder_script").script;
+    expect(script).toContain('RECURSE_SUBMODULES="true"');
+  });
+
+  it("sets CLONE_JOBS when clone_jobs > 0", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "fake-url",
+      recurse_submodules: "true",
+      clone_jobs: "8",
+    });
+    const script = findResourceInstance(state, "coder_script").script;
+    expect(script).toContain('CLONE_JOBS="8"');
+  });
+
+  it("rejects non-positive clone_jobs", async () => {
+    const t = async () => {
+      await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        url: "fake-url",
+        clone_jobs: "-1",
+      });
+    };
+    expect(t).toThrow("clone_jobs must be a positive integer when set.");
+  });
+
+  it("rejects clone_jobs without recurse_submodules", async () => {
+    const t = async () => {
+      await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        url: "fake-url",
+        clone_jobs: "4",
+      });
+    };
+    expect(t).toThrow(
+      "clone_jobs only affects submodule fetching, so it requires recurse_submodules",
+    );
   });
 
   it("fails when post-clone script fails", async () => {
@@ -298,7 +380,6 @@ describe("git-clone", async () => {
     const output = await executeScriptInContainer(
       state,
       "alpine/git",
-      "sh",
       "mkdir -p /tmp/fake-url && echo 'existing' > /tmp/fake-url/file.txt",
     );
     expect(output.exitCode).toBe(43);

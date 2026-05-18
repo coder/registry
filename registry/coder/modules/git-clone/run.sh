@@ -8,6 +8,8 @@ BRANCH_NAME="${BRANCH_NAME}"
 # Expand home if it's specified!
 CLONE_PATH="$${CLONE_PATH/#\~/$${HOME}}"
 DEPTH="${DEPTH}"
+RECURSE_SUBMODULES="${RECURSE_SUBMODULES}"
+CLONE_JOBS="${CLONE_JOBS}"
 POST_CLONE_SCRIPT="${POST_CLONE_SCRIPT}"
 PRE_CLONE_SCRIPT="${PRE_CLONE_SCRIPT}"
 
@@ -46,23 +48,27 @@ if [ -n "$PRE_CLONE_SCRIPT" ]; then
   rm "$PRE_CLONE_TMP"
 fi
 
+# Build optional git clone flags
+CLONE_FLAGS=()
+if [ "$DEPTH" -gt 0 ]; then
+  CLONE_FLAGS+=(--depth "$DEPTH")
+fi
+if [ "$RECURSE_SUBMODULES" = "true" ]; then
+  CLONE_FLAGS+=(--recurse-submodules)
+fi
+if [ "$CLONE_JOBS" -gt 0 ]; then
+  CLONE_FLAGS+=(--jobs "$CLONE_JOBS")
+fi
+
 # Check if the directory is empty
 # and if it is, clone the repo, otherwise skip cloning
 if [ -z "$(ls -A "$CLONE_PATH")" ]; then
   if [ -z "$BRANCH_NAME" ]; then
     echo "Cloning $REPO_URL to $CLONE_PATH..."
-    if [ "$DEPTH" -gt 0 ]; then
-      git clone --depth "$DEPTH" "$REPO_URL" "$CLONE_PATH"
-    else
-      git clone "$REPO_URL" "$CLONE_PATH"
-    fi
+    git clone "$${CLONE_FLAGS[@]}" "$REPO_URL" "$CLONE_PATH"
   else
     echo "Cloning $REPO_URL to $CLONE_PATH on branch $BRANCH_NAME..."
-    if [ "$DEPTH" -gt 0 ]; then
-      git clone --depth "$DEPTH" -b "$BRANCH_NAME" "$REPO_URL" "$CLONE_PATH"
-    else
-      git clone "$REPO_URL" -b "$BRANCH_NAME" "$CLONE_PATH"
-    fi
+    git clone "$${CLONE_FLAGS[@]}" -b "$BRANCH_NAME" "$REPO_URL" "$CLONE_PATH"
   fi
 else
   echo "$CLONE_PATH already exists and isn't empty, skipping clone!"
