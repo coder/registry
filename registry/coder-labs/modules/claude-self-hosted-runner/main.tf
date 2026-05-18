@@ -123,10 +123,20 @@ output "agent_metadata" {
       key          = "0_lock_status"
       interval     = 10
       timeout      = 5
-      script       = <<-EOT
-        val=$(curl -fsS http://127.0.0.1:8080/metrics 2>/dev/null \
-          | awk '/^claude_code_self_hosted_runner_locked_account[[:space:]]/ {print $2; exit}')
-        if [ "$val" = "1" ]; then
+      # The runner does not expose its locked state via /metrics or
+      # /healthz in the current BYOC build, so we infer it from
+      # active_sessions and latch a sticky flag on disk: once a
+      # session has landed, the runner is locked to that Anthropic
+      # user for its entire lifetime per Anthropic's spec, even when
+      # the active count drops back to zero between sessions.
+      script = <<-EOT
+        flag="$HOME/.claude/locked"
+        active=$(curl -fsS http://127.0.0.1:8080/healthz 2>/dev/null \
+          | jq -r '.active_sessions // 0')
+        if [ "$${active:-0}" -gt 0 ] && [ ! -f "$flag" ]; then
+          touch "$flag" 2>/dev/null || true
+        fi
+        if [ -f "$flag" ]; then
           printf 'locked'
         else
           printf 'unlocked'
