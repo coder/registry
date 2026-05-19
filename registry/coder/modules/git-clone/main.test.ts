@@ -10,9 +10,6 @@ import {
   type TerraformState,
 } from "~test";
 
-// The clone script uses bash arrays, which busybox `sh` (alpine's default
-// shell) cannot parse. Install bash in the container, then run the script
-// with bash. The optional `before` setup step still runs with `sh`.
 const executeScriptInContainer = async (
   state: TerraformState,
   image: string,
