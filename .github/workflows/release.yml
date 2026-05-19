@@ -34,12 +34,7 @@ jobs:
           echo "module=$MODULE" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-          # Determine whether this tag is for a module or a skill.
-          if [ -d "registry/$NAMESPACE/skills/$MODULE" ]; then
-            echo "module_path=registry/$NAMESPACE/skills/$MODULE" >> $GITHUB_OUTPUT
-          else
-            echo "module_path=registry/$NAMESPACE/modules/$MODULE" >> $GITHUB_OUTPUT
-          fi
+          echo "module_path=registry/$NAMESPACE/modules/$MODULE" >> $GITHUB_OUTPUT
 
           RELEASE_TITLE="$NAMESPACE/$MODULE $VERSION"
           echo "release_title=$RELEASE_TITLE" >> $GITHUB_OUTPUT
