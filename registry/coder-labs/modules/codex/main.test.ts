@@ -505,65 +505,6 @@ describe("codex", async () => {
     expect(configToml).toContain('command = "remote-mcp-cmd"');
   });
 
-  test("mcp-config-remote-path-invalid-toml", async () => {
-    const projectDir = "/home/coder/project";
-    const moduleDir = path.resolve(import.meta.dir);
-    const state = await runTerraformApply(moduleDir, {
-      agent_id: "foo",
-      workdir: projectDir,
-      install_codex: "false",
-      mcp_config_remote_path: JSON.stringify(["file:///tmp/invalid-mcp.toml"]),
-    });
-    const scripts = collectScripts(state);
-    const coderEnvVars = extractCoderEnvVars(state);
-
-    const id = await runContainer("codercom/enterprise-node:latest");
-    registerCleanup(async () => {
-      if (process.env["DEBUG"] === "true" || process.env["DEBUG"] === "1") {
-        console.log(`Not removing container ${id} in debug mode`);
-        return;
-      }
-      await removeContainer(id);
-    });
-
-    await execContainer(id, ["bash", "-c", `mkdir -p '${projectDir}'`]);
-    await writeExecutable({
-      containerId: id,
-      filePath: "/usr/bin/coder",
-      content: "#!/bin/bash\nexit 0\n",
-    });
-    await writeExecutable({
-      containerId: id,
-      filePath: "/usr/bin/codex",
-      content: await Bun.file(
-        path.join(moduleDir, "testdata", "codex-mock.sh"),
-      ).text(),
-    });
-    // Fetched body has no [mcp_servers.*] section — the install script should
-    // reject it rather than appending random content to config.toml.
-    await execContainer(id, [
-      "bash",
-      "-c",
-      `cat > /tmp/invalid-mcp.toml <<'EOF'\nnot_a_valid_mcp_section = true\nEOF`,
-    ]);
-
-    await runScripts(id, scripts, coderEnvVars);
-
-    const installLog = await readFileContainer(
-      id,
-      "/home/coder/.coder-modules/coder-labs/codex/logs/install.log",
-    );
-    expect(installLog).toContain(
-      "Warning: Invalid MCP configuration from 'file:///tmp/invalid-mcp.toml'",
-    );
-
-    const configToml = await readFileContainer(
-      id,
-      "/home/coder/.codex/config.toml",
-    );
-    expect(configToml).not.toContain("not_a_valid_mcp_section");
-  });
-
   test("custom-config-drops-reasoning-effort", async () => {
     const baseConfig = [
       'sandbox_mode = "danger-full-access"',

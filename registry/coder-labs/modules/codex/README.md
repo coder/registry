@@ -116,7 +116,7 @@ module "codex" {
 ```
 
 > [!NOTE]
-> Servers configured through `mcp` or `mcp_config_remote_path` are appended to `~/.codex/config.toml`, so they apply to every Codex session in the workspace. Each remote URL must return a body in Codex's native TOML format with one or more `[mcp_servers.<name>]` sections; entries that don't contain a `[mcp_servers.*]` are rejected with a warning.
+> Servers configured through `mcp` or `mcp_config_remote_path` are appended to `~/.codex/config.toml`, so they apply to every Codex session in the workspace. Each remote URL should return a body in Codex's native TOML format, e.g.:
 >
 > ```toml
 > [mcp_servers.my-tool]
@@ -125,7 +125,7 @@ module "codex" {
 > type = "stdio"
 > ```
 >
-> A fetch failure (network error, non-2xx response, or invalid body) logs a warning and continues with the remaining URLs.
+> Fetch failures (network errors or non-2xx responses) log a warning and the install continues with the remaining URLs. Bodies are appended verbatim without further validation, so make sure the URL returns valid Codex TOML.
 
 ### Serialize a downstream `coder_script` after the install pipeline
 
