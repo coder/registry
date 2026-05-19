@@ -59,6 +59,7 @@ describe("git-clone", async () => {
     expect(output.stdout).toEqual([
       "Creating directory /root/fake-url...",
       "Cloning fake-url to /root/fake-url...",
+      "Running: git clone  fake-url /root/fake-url",
     ]);
     expect(output.stderr.join(" ")).toContain("fatal");
     expect(output.stderr.join(" ")).toContain("fake-url");
@@ -235,6 +236,7 @@ describe("git-clone", async () => {
     expect(output.stdout).toEqual([
       "Creating directory /root/repo-tests.log...",
       "Cloning https://github.com/michaelbrewer/repo-tests.log to /root/repo-tests.log on branch feat/branch...",
+      "Running: git clone  -b feat/branch https://github.com/michaelbrewer/repo-tests.log /root/repo-tests.log",
     ]);
   });
 
@@ -248,6 +250,7 @@ describe("git-clone", async () => {
     expect(output.stdout).toEqual([
       "Creating directory /root/repo-tests.log...",
       "Cloning https://gitlab.com/mike.brew/repo-tests.log to /root/repo-tests.log on branch feat/branch...",
+      "Running: git clone  -b feat/branch https://gitlab.com/mike.brew/repo-tests.log /root/repo-tests.log",
     ]);
   });
 
@@ -269,6 +272,7 @@ describe("git-clone", async () => {
     expect(output.stdout).toEqual([
       "Creating directory /root/repo-tests.log...",
       "Cloning https://github.com/michaelbrewer/repo-tests.log to /root/repo-tests.log on branch feat/branch...",
+      "Running: git clone  -b feat/branch https://github.com/michaelbrewer/repo-tests.log /root/repo-tests.log",
     ]);
   });
 
