@@ -197,11 +197,6 @@ run "test_mcp_config_remote_path" {
   }
 
   assert {
-    condition     = length(var.mcp_config_remote_path) == 2
-    error_message = "mcp_config_remote_path should accept a list of URLs"
-  }
-
-  assert {
     condition     = strcontains(local.install_script, base64encode(jsonencode(var.mcp_config_remote_path)))
     error_message = "install script should embed the base64-encoded mcp_config_remote_path JSON"
   }

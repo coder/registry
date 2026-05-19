@@ -469,7 +469,7 @@ describe("codex", async () => {
       ).text(),
     });
     // Drop the remote TOML payload at a path the install script will fetch
-    // via file:// — keeps the test self-contained (no external network).
+    // via file://. Keeps the test self-contained (no external network).
     await execContainer(id, [
       "bash",
       "-c",
