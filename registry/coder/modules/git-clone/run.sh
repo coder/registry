@@ -7,9 +7,7 @@ CLONE_PATH="${CLONE_PATH}"
 BRANCH_NAME="${BRANCH_NAME}"
 # Expand home if it's specified!
 CLONE_PATH="$${CLONE_PATH/#\~/$${HOME}}"
-DEPTH="${DEPTH}"
-RECURSE_SUBMODULES="${RECURSE_SUBMODULES}"
-CLONE_JOBS="${CLONE_JOBS}"
+EXTRA_ARGS_B64="${EXTRA_ARGS}"
 POST_CLONE_SCRIPT="${POST_CLONE_SCRIPT}"
 PRE_CLONE_SCRIPT="${PRE_CLONE_SCRIPT}"
 
@@ -50,14 +48,10 @@ fi
 
 # Build optional git clone flags
 CLONE_FLAGS=()
-if [ "$DEPTH" -gt 0 ]; then
-  CLONE_FLAGS+=(--depth "$DEPTH")
-fi
-if [ "$RECURSE_SUBMODULES" = "true" ]; then
-  CLONE_FLAGS+=(--recurse-submodules)
-fi
-if [ "$CLONE_JOBS" -gt 0 ]; then
-  CLONE_FLAGS+=(--jobs "$CLONE_JOBS")
+if [ -n "$EXTRA_ARGS_B64" ]; then
+  while IFS= read -r arg || [ -n "$arg" ]; do
+    [ -n "$arg" ] && CLONE_FLAGS+=("$arg")
+  done < <(echo "$EXTRA_ARGS_B64" | base64 -d)
 fi
 
 # Check if the directory is empty

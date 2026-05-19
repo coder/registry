@@ -316,58 +316,24 @@ describe("git-clone", async () => {
     );
   });
 
-  it("defaults recurse_submodules to false and clone_jobs to 0", async () => {
+  it("defaults extra_args to empty", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       url: "fake-url",
     });
     const script = findResourceInstance(state, "coder_script").script;
-    expect(script).toContain('RECURSE_SUBMODULES="false"');
-    expect(script).toContain('CLONE_JOBS="0"');
+    expect(script).toContain('EXTRA_ARGS_B64=""');
   });
 
-  it("sets RECURSE_SUBMODULES=true when recurse_submodules is enabled", async () => {
+  it("passes extra_args to git clone", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       url: "fake-url",
-      recurse_submodules: "true",
+      extra_args: '["--recurse-submodules", "--jobs=8"]',
     });
-    const script = findResourceInstance(state, "coder_script").script;
-    expect(script).toContain('RECURSE_SUBMODULES="true"');
-  });
-
-  it("sets CLONE_JOBS when clone_jobs > 0", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      url: "fake-url",
-      recurse_submodules: "true",
-      clone_jobs: "8",
-    });
-    const script = findResourceInstance(state, "coder_script").script;
-    expect(script).toContain('CLONE_JOBS="8"');
-  });
-
-  it("rejects non-positive clone_jobs", async () => {
-    const t = async () => {
-      await runTerraformApply(import.meta.dir, {
-        agent_id: "foo",
-        url: "fake-url",
-        clone_jobs: "-1",
-      });
-    };
-    expect(t).toThrow("clone_jobs must be a positive integer when set.");
-  });
-
-  it("rejects clone_jobs without recurse_submodules", async () => {
-    const t = async () => {
-      await runTerraformApply(import.meta.dir, {
-        agent_id: "foo",
-        url: "fake-url",
-        clone_jobs: "4",
-      });
-    };
-    expect(t).toThrow(
-      "clone_jobs only affects submodule fetching, so it requires recurse_submodules",
+    const output = await executeScriptInContainer(state, "alpine/git");
+    expect(output.stdout).toContain(
+      "Running: git clone --recurse-submodules --jobs=8 fake-url /root/fake-url",
     );
   });
 

@@ -185,12 +185,12 @@ module "git-clone" {
 }
 ```
 
-## Git shallow clone
+## Extra `git clone` arguments
 
-Limit the clone history to speed-up workspace startup by setting `depth`.
-
-When `depth` is greater than `0` the module runs `git clone --depth <depth>`.
-If not defined, the default, `0`, performs a full clone.
+Pass any additional flags through `extra_args` (one element per argument).
+This lets you enable anything `git clone` supports without the module having
+to expose it explicitly — for example a shallow clone, submodules, parallel
+fetches, or partial clones.
 
 ```tf
 module "git-clone" {
@@ -199,27 +199,12 @@ module "git-clone" {
   version  = "1.4.0"
   agent_id = coder_agent.example.id
   url      = "https://github.com/coder/coder"
-  depth    = 1
-}
-```
-
-## Recurse submodules
-
-Set `recurse_submodules = true` to initialize and clone submodules during the
-clone (equivalent to `git clone --recurse-submodules`).
-
-Pair it with `clone_jobs` to fetch submodules in parallel (equivalent to
-`git clone --jobs <n>`) and speed up workspace start.
-
-```tf
-module "git-clone" {
-  count              = data.coder_workspace.me.start_count
-  source             = "registry.coder.com/coder/git-clone/coder"
-  version            = "1.4.0"
-  agent_id           = coder_agent.example.id
-  url                = "https://github.com/coder/coder"
-  recurse_submodules = true
-  clone_jobs         = 8
+  extra_args = [
+    "--depth=1",
+    "--recurse-submodules",
+    "--jobs=8",
+    "--filter=blob:none",
+  ]
 }
 ```
 
