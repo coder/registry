@@ -164,7 +164,7 @@ function populate_config_toml() {
         echo "Warning: Failed to fetch MCP configuration from '$${url}', continuing..."
         continue
       }
-      if ! echo "$${mcp_toml}" | grep -qE '^\[mcp_servers\.'; then
+      if ! echo "$${mcp_toml}" | grep -qE '^[[:space:]]*\[mcp_servers\.'; then
         echo "Warning: Invalid MCP configuration from '$${url}' (missing [mcp_servers.*] section), continuing..."
         continue
       fi
