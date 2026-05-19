@@ -7,7 +7,7 @@ CLONE_PATH="${CLONE_PATH}"
 BRANCH_NAME="${BRANCH_NAME}"
 # Expand home if it's specified!
 CLONE_PATH="$${CLONE_PATH/#\~/$${HOME}}"
-EXTRA_ARGS_B64="${EXTRA_ARGS}"
+EXTRA_ARGS="${EXTRA_ARGS}"
 POST_CLONE_SCRIPT="${POST_CLONE_SCRIPT}"
 PRE_CLONE_SCRIPT="${PRE_CLONE_SCRIPT}"
 
@@ -47,11 +47,11 @@ if [ -n "$PRE_CLONE_SCRIPT" ]; then
 fi
 
 # Build optional git clone flags
-CLONE_FLAGS=()
-if [ -n "$EXTRA_ARGS_B64" ]; then
+extra_args=()
+if [ -n "$EXTRA_ARGS" ]; then
   while IFS= read -r arg || [ -n "$arg" ]; do
-    [ -n "$arg" ] && CLONE_FLAGS+=("$arg")
-  done < <(echo "$EXTRA_ARGS_B64" | base64 -d)
+    [ -n "$arg" ] && extra_args+=("$arg")
+  done < <(echo "$EXTRA_ARGS" | base64 -d)
 fi
 
 # Check if the directory is empty
@@ -59,12 +59,12 @@ fi
 if [ -z "$(ls -A "$CLONE_PATH")" ]; then
   if [ -z "$BRANCH_NAME" ]; then
     echo "Cloning $REPO_URL to $CLONE_PATH..."
-    echo "Running: git clone $${CLONE_FLAGS[*]} $REPO_URL $CLONE_PATH"
-    git clone "$${CLONE_FLAGS[@]}" "$REPO_URL" "$CLONE_PATH"
+    echo "Running: git clone $${extra_args[@]:+$${extra_args[@]} }$REPO_URL $CLONE_PATH"
+    git clone $${extra_args[@]+"$${extra_args[@]}"} "$REPO_URL" "$CLONE_PATH"
   else
     echo "Cloning $REPO_URL to $CLONE_PATH on branch $BRANCH_NAME..."
-    echo "Running: git clone $${CLONE_FLAGS[*]} -b $BRANCH_NAME $REPO_URL $CLONE_PATH"
-    git clone "$${CLONE_FLAGS[@]}" -b "$BRANCH_NAME" "$REPO_URL" "$CLONE_PATH"
+    echo "Running: git clone $${extra_args[@]:+$${extra_args[@]} }-b $BRANCH_NAME $REPO_URL $CLONE_PATH"
+    git clone $${extra_args[@]+"$${extra_args[@]}"} -b "$BRANCH_NAME" "$REPO_URL" "$CLONE_PATH"
   fi
 else
   echo "$CLONE_PATH already exists and isn't empty, skipping clone!"

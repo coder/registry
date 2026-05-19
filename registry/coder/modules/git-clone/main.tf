@@ -97,8 +97,7 @@ locals {
   encoded_post_clone_script = var.post_clone_script != null ? base64encode(var.post_clone_script) : ""
   # Encode the pre_clone_script for passing to the shell script
   encoded_pre_clone_script = var.pre_clone_script != null ? base64encode(var.pre_clone_script) : ""
-  # Encode extra clone args (newline-separated) so the shell script can split them into an array safely
-  encoded_extra_args = base64encode(join("\n", var.extra_args))
+  encoded_extra_args       = base64encode(join("\n", var.extra_args))
 }
 
 output "repo_dir" {

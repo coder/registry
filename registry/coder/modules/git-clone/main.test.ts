@@ -29,6 +29,20 @@ const executeScriptInContainer = async (
   };
 };
 
+// Drops a fake `git` onto PATH that prints each argv entry on its own line.
+// Lets tests prove that arguments (including ones with embedded spaces) reach
+// `git clone` as single argv tokens, which the echo line cannot show because
+// it joins with spaces.
+const installFakeGit = [
+  "cat > /usr/local/bin/git <<'SHIM'",
+  "#!/bin/sh",
+  'for arg in "$@"; do',
+  '  printf "argv:%s\\n" "$arg"',
+  "done",
+  "SHIM",
+  "chmod +x /usr/local/bin/git",
+].join("\n");
+
 describe("git-clone", async () => {
   await runTerraformInit(import.meta.dir);
 
@@ -56,7 +70,7 @@ describe("git-clone", async () => {
     expect(output.stdout).toEqual([
       "Creating directory /root/fake-url...",
       "Cloning fake-url to /root/fake-url...",
-      "Running: git clone  fake-url /root/fake-url",
+      "Running: git clone fake-url /root/fake-url",
     ]);
     expect(output.stderr.join(" ")).toContain("fatal");
     expect(output.stderr.join(" ")).toContain("fake-url");
@@ -233,7 +247,7 @@ describe("git-clone", async () => {
     expect(output.stdout).toEqual([
       "Creating directory /root/repo-tests.log...",
       "Cloning https://github.com/michaelbrewer/repo-tests.log to /root/repo-tests.log on branch feat/branch...",
-      "Running: git clone  -b feat/branch https://github.com/michaelbrewer/repo-tests.log /root/repo-tests.log",
+      "Running: git clone -b feat/branch https://github.com/michaelbrewer/repo-tests.log /root/repo-tests.log",
     ]);
   });
 
@@ -247,7 +261,7 @@ describe("git-clone", async () => {
     expect(output.stdout).toEqual([
       "Creating directory /root/repo-tests.log...",
       "Cloning https://gitlab.com/mike.brew/repo-tests.log to /root/repo-tests.log on branch feat/branch...",
-      "Running: git clone  -b feat/branch https://gitlab.com/mike.brew/repo-tests.log /root/repo-tests.log",
+      "Running: git clone -b feat/branch https://gitlab.com/mike.brew/repo-tests.log /root/repo-tests.log",
     ]);
   });
 
@@ -269,7 +283,7 @@ describe("git-clone", async () => {
     expect(output.stdout).toEqual([
       "Creating directory /root/repo-tests.log...",
       "Cloning https://github.com/michaelbrewer/repo-tests.log to /root/repo-tests.log on branch feat/branch...",
-      "Running: git clone  -b feat/branch https://github.com/michaelbrewer/repo-tests.log /root/repo-tests.log",
+      "Running: git clone -b feat/branch https://github.com/michaelbrewer/repo-tests.log /root/repo-tests.log",
     ]);
   });
 
@@ -322,18 +336,67 @@ describe("git-clone", async () => {
       url: "fake-url",
     });
     const script = findResourceInstance(state, "coder_script").script;
-    expect(script).toContain('EXTRA_ARGS_B64=""');
+    expect(script).toContain('EXTRA_ARGS=""');
   });
 
   it("passes extra_args to git clone", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       url: "fake-url",
-      extra_args: '["--recurse-submodules", "--jobs=8"]',
+      extra_args: JSON.stringify([
+        "--recurse-submodules",
+        "--jobs=8",
+        "--config=user.name=Coder User",
+        "-c",
+        "core.sshCommand=ssh -i /tmp/key",
+      ]),
     });
-    const output = await executeScriptInContainer(state, "alpine/git");
-    expect(output.stdout).toContain(
-      "Running: git clone --recurse-submodules --jobs=8 fake-url /root/fake-url",
+    const output = await executeScriptInContainer(
+      state,
+      "alpine/git",
+      installFakeGit,
+    );
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout.join("\n")).toContain(
+      [
+        "argv:clone",
+        "argv:--recurse-submodules",
+        "argv:--jobs=8",
+        "argv:--config=user.name=Coder User",
+        "argv:-c",
+        "argv:core.sshCommand=ssh -i /tmp/key",
+        "argv:fake-url",
+        "argv:/root/fake-url",
+      ].join("\n"),
+    );
+  });
+
+  it("passes extra_args alongside branch_name in the correct order", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "fake-url",
+      branch_name: "feat/branch",
+      extra_args: JSON.stringify([
+        "--recurse-submodules",
+        "--config=user.name=Coder User",
+      ]),
+    });
+    const output = await executeScriptInContainer(
+      state,
+      "alpine/git",
+      installFakeGit,
+    );
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout.join("\n")).toContain(
+      [
+        "argv:clone",
+        "argv:--recurse-submodules",
+        "argv:--config=user.name=Coder User",
+        "argv:-b",
+        "argv:feat/branch",
+        "argv:fake-url",
+        "argv:/root/fake-url",
+      ].join("\n"),
     );
   });
 

@@ -189,8 +189,13 @@ module "git-clone" {
 
 Pass any additional flags through `extra_args` (one element per argument).
 This lets you enable anything `git clone` supports without the module having
-to expose it explicitly — for example a shallow clone, submodules, parallel
+to expose it explicitly, for example a shallow clone, submodules, parallel
 fetches, or partial clones.
+
+> Do not put secrets in `extra_args`. The resolved `git clone` command
+> (including every element of `extra_args`) is echoed to the workspace
+> startup log, so values like `--config=http.extraHeader=Authorization: Bearer <token>`
+> would appear there in plaintext.
 
 ```tf
 module "git-clone" {
