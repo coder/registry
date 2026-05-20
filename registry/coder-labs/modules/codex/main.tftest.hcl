@@ -2,43 +2,17 @@ run "test_codex_basic" {
   command = plan
 
   variables {
-    agent_id       = "test-agent"
-    workdir        = "/home/coder"
-    openai_api_key = "test-key"
-  }
-
-  assert {
-    condition     = var.agent_id == "test-agent"
-    error_message = "Agent ID should be set correctly"
-  }
-
-  assert {
-    condition     = var.workdir == "/home/coder"
-    error_message = "Workdir should be set correctly"
+    agent_id = "test-agent"
+    workdir  = "/home/coder"
   }
 
   assert {
     condition     = var.install_codex == true
     error_message = "install_codex should default to true"
   }
-
-  assert {
-    condition     = var.install_agentapi == true
-    error_message = "install_agentapi should default to true"
-  }
-
-  assert {
-    condition     = var.report_tasks == true
-    error_message = "report_tasks should default to true"
-  }
-
-  assert {
-    condition     = var.continue == true
-    error_message = "continue should default to true"
-  }
 }
 
-run "test_enable_state_persistence_default" {
+run "test_codex_with_api_key" {
   command = plan
 
   variables {
@@ -48,126 +22,96 @@ run "test_enable_state_persistence_default" {
   }
 
   assert {
-    condition     = var.enable_state_persistence == true
-    error_message = "enable_state_persistence should default to true"
-  }
-}
-
-run "test_disable_state_persistence" {
-  command = plan
-
-  variables {
-    agent_id                 = "test-agent"
-    workdir                  = "/home/coder"
-    openai_api_key           = "test-key"
-    enable_state_persistence = false
-  }
-
-  assert {
-    condition     = var.enable_state_persistence == false
-    error_message = "enable_state_persistence should be false when explicitly disabled"
-  }
-}
-
-run "test_codex_with_aibridge" {
-  command = plan
-
-  variables {
-    agent_id        = "test-agent"
-    workdir         = "/home/coder"
-    enable_aibridge = true
-  }
-
-  assert {
-    condition     = var.enable_aibridge == true
-    error_message = "enable_aibridge should be set to true"
-  }
-}
-
-run "test_aibridge_disabled_with_api_key" {
-  command = plan
-
-  variables {
-    agent_id        = "test-agent"
-    workdir         = "/home/coder"
-    openai_api_key  = "test-key"
-    enable_aibridge = false
-  }
-
-  assert {
-    condition     = var.enable_aibridge == false
-    error_message = "enable_aibridge should be false"
-  }
-
-  assert {
-    condition     = coder_env.openai_api_key.value == "test-key"
+    condition     = coder_env.openai_api_key[0].value == "test-key"
     error_message = "OpenAI API key should be set correctly"
   }
 }
 
-run "test_custom_options" {
+run "test_codex_custom_options" {
   command = plan
 
   variables {
-    agent_id             = "test-agent"
-    workdir              = "/home/coder/project"
-    openai_api_key       = "test-key"
-    order                = 5
-    group                = "ai-tools"
-    icon                 = "/icon/custom.svg"
-    web_app_display_name = "Custom Codex"
-    cli_app              = true
-    cli_app_display_name = "Codex Terminal"
-    subdomain            = true
-    report_tasks         = false
-    continue             = false
-    codex_model          = "gpt-4o"
-    codex_version        = "0.1.0"
-    agentapi_version     = "v0.12.0"
+    agent_id      = "test-agent"
+    workdir       = "/home/coder/project"
+    icon          = "/icon/custom.svg"
+    codex_version = "0.128.0"
   }
 
   assert {
-    condition     = var.order == 5
-    error_message = "Order should be set to 5"
-  }
-
-  assert {
-    condition     = var.group == "ai-tools"
-    error_message = "Group should be set to 'ai-tools'"
-  }
-
-  assert {
-    condition     = var.icon == "/icon/custom.svg"
-    error_message = "Icon should be set to custom icon"
-  }
-
-  assert {
-    condition     = var.cli_app == true
-    error_message = "cli_app should be enabled"
-  }
-
-  assert {
-    condition     = var.subdomain == true
-    error_message = "subdomain should be enabled"
-  }
-
-  assert {
-    condition     = var.report_tasks == false
-    error_message = "report_tasks should be disabled"
-  }
-
-  assert {
-    condition     = var.continue == false
-    error_message = "continue should be disabled"
-  }
-
-  assert {
-    condition     = var.codex_model == "gpt-4o"
-    error_message = "codex_model should be set to 'gpt-4o'"
+    condition     = length(output.scripts) > 0
+    error_message = "scripts output should be non-empty with custom options"
   }
 }
 
-run "test_no_api_key_no_aibridge" {
+run "test_ai_gateway_enabled" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent"
+    workdir           = "/home/coder"
+    enable_ai_gateway = true
+  }
+
+  override_data {
+    target = data.coder_workspace_owner.me
+    values = {
+      session_token = "mock-session-token"
+    }
+  }
+
+  assert {
+    condition     = coder_env.ai_gateway_session_token[0].name == "CODER_AIBRIDGE_SESSION_TOKEN"
+    error_message = "CODER_AIBRIDGE_SESSION_TOKEN should be set"
+  }
+
+  assert {
+    condition     = coder_env.ai_gateway_session_token[0].value == data.coder_workspace_owner.me.session_token
+    error_message = "Session token should use workspace owner's token"
+  }
+
+  assert {
+    condition     = length(coder_env.openai_api_key) == 0
+    error_message = "OPENAI_API_KEY should not be created when ai_gateway is enabled"
+  }
+}
+
+run "test_ai_gateway_validation_with_api_key" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent"
+    workdir           = "/home/coder"
+    enable_ai_gateway = true
+    openai_api_key    = "test-key"
+  }
+
+  expect_failures = [
+    var.enable_ai_gateway,
+  ]
+}
+
+run "test_ai_gateway_disabled_with_api_key" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent"
+    workdir           = "/home/coder"
+    enable_ai_gateway = false
+    openai_api_key    = "test-key-xyz"
+  }
+
+  assert {
+    condition     = coder_env.openai_api_key[0].value == "test-key-xyz"
+    error_message = "OPENAI_API_KEY should use the provided API key"
+  }
+
+  assert {
+    condition     = length(coder_env.ai_gateway_session_token) == 0
+    error_message = "Session token should not be set when ai_gateway is disabled"
+  }
+}
+
+run "test_no_api_key_no_env" {
   command = plan
 
   variables {
@@ -176,12 +120,66 @@ run "test_no_api_key_no_aibridge" {
   }
 
   assert {
-    condition     = var.openai_api_key == ""
-    error_message = "openai_api_key should be empty when not provided"
+    condition     = length(coder_env.openai_api_key) == 0
+    error_message = "OPENAI_API_KEY should not be created when no API key is provided"
+  }
+}
+
+run "test_codex_with_scripts" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent"
+    workdir             = "/home/coder"
+    pre_install_script  = "echo 'Pre-install script'"
+    post_install_script = "echo 'Post-install script'"
   }
 
   assert {
-    condition     = var.enable_aibridge == false
-    error_message = "enable_aibridge should default to false"
+    condition     = length(output.scripts) == 3
+    error_message = "scripts output should have 3 entries when pre/post are configured"
+  }
+}
+
+run "test_script_outputs_install_only" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    workdir  = "/home/coder"
+  }
+
+  assert {
+    condition     = length(output.scripts) == 1 && output.scripts[0] == "coder-labs-codex-install_script"
+    error_message = "scripts output should list only the install script when pre/post are not configured"
+  }
+}
+
+run "test_script_outputs_with_pre_and_post" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent"
+    workdir             = "/home/coder"
+    pre_install_script  = "echo pre"
+    post_install_script = "echo post"
+  }
+
+  assert {
+    condition     = output.scripts == ["coder-labs-codex-pre_install_script", "coder-labs-codex-install_script", "coder-labs-codex-post_install_script"]
+    error_message = "scripts output should list pre_install, install, post_install in run order"
+  }
+}
+
+run "test_workdir_optional" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+  }
+
+  assert {
+    condition     = length(output.scripts) == 1
+    error_message = "scripts output should have install script even without workdir"
   }
 }

@@ -1,149 +1,107 @@
 ---
 display_name: Codex CLI
 icon: ../../../../.icons/openai.svg
-description: Run Codex CLI in your workspace with AgentAPI integration
+description: Install and configure the Codex CLI in your workspace.
 verified: true
-tags: [agent, codex, ai, openai, tasks, aibridge]
+tags: [agent, codex, ai, openai, ai-gateway]
 ---
 
 # Codex CLI
 
-Run Codex CLI in your workspace to access OpenAI's models through the Codex interface, with custom pre/post install scripts. This module integrates with [AgentAPI](https://github.com/coder/agentapi) for Coder Tasks compatibility.
+Install and configure the [Codex CLI](https://github.com/openai/codex) in your workspace.
 
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.3.1"
-  agent_id       = coder_agent.example.id
+  version        = "5.0.0"
+  agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
-  workdir        = "/home/coder/project"
 }
 ```
 
-## Prerequisites
-
-- OpenAI API key for Codex access
+> [!WARNING]
+> If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for [Coder Tasks](https://coder.com/docs/ai-coder/tasks) and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). v5 also assumes npm is pre-installed; it no longer bootstraps Node.js. Keep using v4.x.x if you depend on them. See the [PR description](https://github.com/coder/registry/pull/879) for a full migration guide.
 
 ## Examples
 
-### Run standalone
+### Standalone mode with a launcher app
 
 ```tf
-module "codex" {
-  count          = data.coder_workspace.me.start_count
-  source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.3.1"
-  agent_id       = coder_agent.example.id
-  openai_api_key = "..."
-  workdir        = "/home/coder/project"
-  report_tasks   = false
+locals {
+  codex_workdir = "/home/coder/project"
 }
-```
-
-### Usage with AI Bridge
-
-[AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) is a Premium Coder feature that provides centralized LLM proxy management. To use AI Bridge, set `enable_aibridge = true`. Requires Coder version 2.30+
-
-For tasks integration with AI Bridge, add `enable_aibridge = true` to the [Usage with Tasks](#usage-with-tasks) example below.
-
-#### Standalone usage with AI Bridge
-
-```tf
-module "codex" {
-  source          = "registry.coder.com/coder-labs/codex/coder"
-  version         = "4.3.1"
-  agent_id        = coder_agent.example.id
-  workdir         = "/home/coder/project"
-  enable_aibridge = true
-}
-```
-
-When `enable_aibridge = true`, the module:
-
-- Configures Codex to use the aibridge model_provider with `base_url` pointing to `${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1` and `env_key` pointing to the workspace owner's session token
-
-```toml
-model_provider = "aibridge"
-
-[model_providers.aibridge]
-name = "AI Bridge"
-base_url = "https://example.coder.com/api/v2/aibridge/openai/v1"
-env_key = "CODER_AIBRIDGE_SESSION_TOKEN"
-wire_api = "responses"
-```
-
-This allows Codex to route API requests through Coder's AI Bridge instead of directly to OpenAI's API.
-Template build will fail if `openai_api_key` is provided alongside `enable_aibridge = true`.
-
-### Usage with Tasks
-
-This example shows how to configure Codex with Coder tasks.
-
-```tf
-resource "coder_ai_task" "task" {
-  count  = data.coder_workspace.me.start_count
-  app_id = module.codex.task_app_id
-}
-
-data "coder_task" "me" {}
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.3.1"
-  agent_id       = coder_agent.example.id
-  openai_api_key = "..."
-  ai_prompt      = data.coder_task.me.prompt
-  workdir        = "/home/coder/project"
-
-  # Optional: route through AI Bridge (Premium feature)
-  # enable_aibridge = true
+  version        = "5.0.0"
+  agent_id       = coder_agent.main.id
+  workdir        = local.codex_workdir
+  openai_api_key = var.openai_api_key
 }
-```
 
-### Usage with Agent Boundaries
-
-This example shows how to configure the Codex module to run the agent behind a process-level boundary that restricts its network access.
-
-By default, when `enable_boundary = true`, the module uses `coder boundary` subcommand (provided by Coder) without requiring any installation.
-
-```tf
-module "codex" {
-  source          = "registry.coder.com/coder-labs/codex/coder"
-  version         = "4.3.1"
-  agent_id        = coder_agent.main.id
-  openai_api_key  = var.openai_api_key
-  workdir         = "/home/coder/project"
-  enable_boundary = true
+resource "coder_app" "codex" {
+  agent_id     = coder_agent.main.id
+  slug         = "codex"
+  display_name = "Codex"
+  icon         = "/icon/openai.svg"
+  open_in      = "slim-window"
+  command      = <<-EOT
+    #!/bin/bash
+    set -e
+    cd "${local.codex_workdir}"
+    codex
+  EOT
 }
 ```
 
 > [!NOTE]
-> For developers: The module also supports installing boundary from a release version (`use_boundary_directly = true`) or compiling from source (`compile_boundary_from_source = true`). These are escape hatches for development and testing purposes.
+> The `coder_app` command re-executes on every pane reconnect. This works for interactive `codex` (which stays alive), but one-shot commands like `codex exec` will re-run each time. For one-shot prompts, use a `coder_script` (runs once at startup) and a `coder_app` that attaches to the existing session (e.g. via tmux/screen).
+
+### Usage with AI Gateway
+
+[AI Gateway](https://coder.com/docs/ai-coder/ai-gateway) is a Premium Coder feature that provides centralized LLM proxy management. Requires Coder >= 2.30.0.
+
+```tf
+module "codex" {
+  source            = "registry.coder.com/coder-labs/codex/coder"
+  version           = "5.0.0"
+  agent_id          = coder_agent.main.id
+  workdir           = "/home/coder/project"
+  enable_ai_gateway = true
+}
+```
+
+When `enable_ai_gateway = true`, the module configures Codex to use the `aigateway` model provider in `config.toml` with the workspace owner's session token for authentication.
+
+> [!CAUTION]
+> `enable_ai_gateway = true` is mutually exclusive with `openai_api_key`. Setting both fails at plan time.
+
+> [!NOTE]
+> If you provide a custom `base_config_toml`, the module writes it verbatim and does not inject `model_provider = "aigateway"` automatically. Add it to your config yourself:
+>
+> ```toml
+> model_provider = "aigateway"
+> ```
 
 ### Advanced Configuration
-
-This example shows additional configuration options for custom models, MCP servers, and base configuration.
 
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "4.3.1"
-  agent_id       = coder_agent.example.id
-  openai_api_key = "..."
+  version        = "5.0.0"
+  agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
+  openai_api_key = var.openai_api_key
 
-  codex_version = "0.1.0"  # Pin to a specific version
-  codex_model   = "gpt-4o" # Custom model
+  codex_version = "0.128.0"
 
-  # Override default configuration
   base_config_toml = <<-EOT
     sandbox_mode = "danger-full-access"
     approval_policy = "never"
     preferred_auth_method = "apikey"
   EOT
 
-  # Add extra MCP servers
-  additional_mcp_servers = <<-EOT
+  mcp = <<-EOT
     [mcp_servers.GitHub]
     command = "npx"
     args = ["-y", "@modelcontextprotocol/server-github"]
@@ -152,61 +110,49 @@ module "codex" {
 }
 ```
 
-> [!WARNING]
-> This module configures Codex with a `workspace-write` sandbox that allows AI tasks to read/write files in the specified workdir. While the sandbox provides security boundaries, Codex can still modify files within the workspace. Use this module _only_ in trusted environments and be aware of the security implications.
+### Serialize a downstream `coder_script` after the install pipeline
 
-## How it Works
-
-- **Install**: The module installs Codex CLI and sets up the environment
-- **System Prompt**: If `codex_system_prompt` is set, writes the prompt to `AGENTS.md` in the `~/.codex/` directory
-- **Start**: Launches Codex CLI in the specified directory, wrapped by AgentAPI
-- **Configuration**: Sets `OPENAI_API_KEY` environment variable and passes `--model` flag to Codex CLI (if variables provided)
-- **Session Continuity**: When `continue = true` (default), the module automatically tracks task sessions in `~/.codex-module/.codex-task-session`. On workspace restart, it resumes the existing session with full conversation history. Set `continue = false` to always start fresh sessions.
-
-## State Persistence
-
-AgentAPI can save and restore its conversation state to disk across workspace restarts. This complements `continue` (which resumes the Codex CLI session) by also preserving the AgentAPI-level context. Enabled by default, requires agentapi >= v0.12.0 (older versions skip it with a warning).
-
-To disable:
+The module exposes the `scripts` output: an ordered list of `coder exp sync` names for the scripts this module creates (pre_install, install, post_install). Scripts that were not configured are absent.
 
 ```tf
 module "codex" {
-  # ... other config
-  enable_state_persistence = false
+  source         = "registry.coder.com/coder-labs/codex/coder"
+  version        = "5.0.0"
+  agent_id       = coder_agent.main.id
+  openai_api_key = var.openai_api_key
+}
+
+resource "coder_script" "post_codex" {
+  agent_id     = coder_agent.main.id
+  display_name = "Run after Codex install"
+  run_on_start = true
+  script       = <<-EOT
+    #!/bin/bash
+    set -euo pipefail
+    trap 'coder exp sync complete post-codex' EXIT
+    coder exp sync want post-codex ${join(" ", module.codex.scripts)}
+    coder exp sync start post-codex
+
+    codex --version
+  EOT
 }
 ```
 
 ## Configuration
 
-### Default Configuration
-
-When no custom `base_config_toml` is provided, the module uses these secure defaults:
-
-```toml
-sandbox_mode = "workspace-write"
-approval_policy = "never"
-preferred_auth_method = "apikey"
-
-[sandbox_workspace_write]
-network_access = true
-```
-
-> [!NOTE]
-> If no custom configuration is provided, the module uses secure defaults. The Coder MCP server is always included automatically. For containerized workspaces (Docker/Kubernetes), you may need `sandbox_mode = "danger-full-access"` to avoid permission issues. For advanced options, see [Codex config docs](https://github.com/openai/codex/blob/main/codex-rs/config.md).
+When no custom `base_config_toml` is provided, the module uses a minimal default with `preferred_auth_method = "apikey"`. For advanced options, see [Codex config docs](https://developers.openai.com/codex/config-advanced).
 
 ## Troubleshooting
 
-- Check installation and startup logs in `~/.codex-module/`
-- Ensure your OpenAI API key has access to the specified model
+Check the log files in `~/.coder-modules/coder-labs/codex/logs/` for detailed information.
 
-> [!IMPORTANT]
-> To use tasks with Codex CLI, ensure you have the `openai_api_key` variable set. [Tasks Template Example](https://registry.coder.com/templates/coder-labs/tasks-docker).
-> The module automatically configures Codex with your API key and model preferences.
-> workdir is a required variable for the module to function correctly.
+```bash
+cat ~/.coder-modules/coder-labs/codex/logs/install.log
+cat ~/.coder-modules/coder-labs/codex/logs/pre_install.log
+cat ~/.coder-modules/coder-labs/codex/logs/post_install.log
+```
 
 ## References
 
 - [Codex CLI Documentation](https://github.com/openai/codex)
-- [AgentAPI Documentation](https://github.com/coder/agentapi)
-- [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)
-- [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge)
+- [AI Gateway](https://coder.com/docs/ai-coder/ai-gateway)
