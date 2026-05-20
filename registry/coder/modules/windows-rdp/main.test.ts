@@ -11,6 +11,7 @@ type TestVariables = Readonly<{
   share?: string;
   admin_username?: string;
   admin_password?: string;
+  keepalive_interval_seconds?: number;
 }>;
 
 function findWindowsRdpScript(state: TerraformState): string | null {
@@ -127,5 +128,20 @@ describe("Web RDP", async () => {
 
     expect(customResultsGroup.username).toBe(customAdminUsername);
     expect(customResultsGroup.password).toBe(customAdminPassword);
+  });
+
+  it("Can install an RDP keepalive monitor", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "foo",
+      keepalive_interval_seconds: 30,
+    });
+
+    const rdpScript = findWindowsRdpScript(state);
+    expect(rdpScript).toBeString();
+    expect(rdpScript).toContain("Install-RDPKeepaliveMonitor");
+    expect(rdpScript).toContain("$keepaliveIntervalSeconds = 30");
+    expect(rdpScript).toContain("Get-NetTCPConnection");
+    expect(rdpScript).toContain("Invoke-CoderAgentActivity");
+    expect(rdpScript).toContain("CoderRdpKeepalive");
   });
 });

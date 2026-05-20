@@ -125,7 +125,94 @@ if ($isPatched -eq $null) {
 }
 }
 
+function Install-RDPKeepaliveMonitor {
+$keepaliveEnabled = [System.Convert]::ToBoolean("${keepalive_enabled}")
+$keepaliveIntervalSeconds = ${keepalive_interval_seconds}
+$keepaliveExtensionMinutes = ${keepalive_extension_minutes}
+$workspaceId = "${workspace_id}"
+
+if (-not $keepaliveEnabled) {
+    return
+}
+
+$scriptDir = "C:\coder"
+$scriptPath = Join-Path $scriptDir "rdp-keepalive.ps1"
+$logPath = Join-Path $scriptDir "rdp-keepalive.log"
+
+New-Item -ItemType Directory -Path $scriptDir -Force | Out-Null
+
+@"
+`$ErrorActionPreference = "Continue"
+`$workspaceId = "$workspaceId"
+`$intervalSeconds = $keepaliveIntervalSeconds
+`$extensionMinutes = $keepaliveExtensionMinutes
+`$logPath = "$logPath"
+
+function Write-KeepaliveLog {
+    param ([string]`$message)
+    `$timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    "`$timestamp `$message" | Add-Content -Path `$logPath
+}
+
+function Test-RDPConnectionActive {
+    try {
+        `$connections = @(Get-NetTCPConnection -LocalPort 3389 -State Established -ErrorAction Stop)
+        return `$connections.Count -gt 0
+    }
+    catch {
+        Write-KeepaliveLog "Unable to inspect RDP connections: `$(`$_.Exception.Message)"
+        return `$false
+    }
+}
+
+function Invoke-CoderAgentActivity {
+    if ([string]::IsNullOrWhiteSpace(`$env:CODER_AGENT_TOKEN) -or [string]::IsNullOrWhiteSpace(`$env:CODER_AGENT_URL)) {
+        Write-KeepaliveLog "CODER_AGENT_TOKEN or CODER_AGENT_URL is not available"
+        return
+    }
+
+    `$deadline = (Get-Date).ToUniversalTime().AddMinutes(`$extensionMinutes).ToString("yyyy-MM-ddTHH:mm:ssZ")
+    `$uri = "`$env:CODER_AGENT_URL/api/v2/workspaces/`$workspaceId/extend"
+    `$headers = @{
+        "Coder-Session-Token" = `$env:CODER_AGENT_TOKEN
+        "Content-Type" = "application/json"
+    }
+    `$body = @{ deadline = `$deadline } | ConvertTo-Json -Compress
+
+    try {
+        Invoke-RestMethod -Method Put -Uri `$uri -Headers `$headers -Body `$body | Out-Null
+        Write-KeepaliveLog "Extended workspace deadline to `$deadline"
+    }
+    catch {
+        Write-KeepaliveLog "Unable to extend workspace deadline: `$(`$_.Exception.Message)"
+    }
+}
+
+while (`$true) {
+    if (Test-RDPConnectionActive) {
+        Invoke-CoderAgentActivity
+    }
+
+    Start-Sleep -Seconds `$intervalSeconds
+}
+"@ | Set-Content -Path $scriptPath -Encoding UTF8
+
+Get-CimInstance Win32_Process -Filter "name = 'powershell.exe'" |
+    Where-Object { $_.CommandLine -like "*CoderRdpKeepalive*" } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+
+$keepaliveCommand = "& { `$env:CODER_RDP_KEEPALIVE = 'CoderRdpKeepalive'; & '$scriptPath' }"
+Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @(
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-Command",
+    $keepaliveCommand
+)
+}
+
 Set-AdminPassword -adminPassword "${admin_password}"
 Configure-RDP
 Install-DevolutionsGateway
 Patch-Devolutions-HTML
+Install-RDPKeepaliveMonitor

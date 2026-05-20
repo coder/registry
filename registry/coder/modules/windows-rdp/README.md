@@ -59,3 +59,21 @@ module "windows_rdp" {
   devolutions_gateway_version = "2025.2.2" # Specify a specific version
 }
 ```
+
+### RDP Keepalive
+
+The module keeps the workspace active while an RDP session is connected by
+checking for established local RDP connections and extending the workspace
+deadline with the agent token.
+
+```tf
+module "windows_rdp" {
+  count                       = data.coder_workspace.me.start_count
+  source                      = "registry.coder.com/coder/windows-rdp/coder"
+  version                     = "1.3.0"
+  agent_id                    = coder_agent.main.id
+  keepalive_enabled           = true
+  keepalive_interval_seconds  = 60
+  keepalive_extension_minutes = 30
+}
+```
