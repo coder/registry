@@ -12,15 +12,14 @@ ARG_INSTALL_GEMINI='${ARG_INSTALL_GEMINI}'
 ARG_GEMINI_VERSION=$(echo -n '${ARG_GEMINI_VERSION}' | base64 -d)
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
 ARG_GEMINI_CONFIG=$(echo -n '${ARG_GEMINI_CONFIG}' | base64 -d)
-ARG_BASE_EXTENSIONS=$(echo -n '${ARG_BASE_EXTENSIONS}' | base64 -d)
-ARG_ADDITIONAL_EXTENSIONS=$(echo -n '${ARG_ADDITIONAL_EXTENSIONS}' | base64 -d)
+ARG_MCP=$(echo -n '${ARG_MCP}' | base64 -d)
 
 echo "--------------------------------"
 printf "gemini_config: %s\n" "$${ARG_GEMINI_CONFIG}"
 printf "install: %s\n" "$${ARG_INSTALL_GEMINI}"
 printf "gemini_version: %s\n" "$${ARG_GEMINI_VERSION}"
 printf "workdir: %s\n" "$${ARG_WORKDIR}"
-printf "BASE_EXTENSIONS: %s\n" "$${ARG_BASE_EXTENSIONS}"
+printf "ARG_MCP: %s\n" "$${ARG_MCP}"
 echo "--------------------------------"
 
 
@@ -100,68 +99,114 @@ function install_gemini() {
   ensure_gemini_in_path
 }
 
-function populate_settings_json() {
-  if [ -n "$${ARG_GEMINI_CONFIG}" ]; then
-    SETTINGS_PATH="$HOME/.gemini/settings.json"
-    mkdir -p "$(dirname "$SETTINGS_PATH")"
-    printf "Custom gemini_config is provided!\n"
-    echo "$${ARG_GEMINI_CONFIG}" > "$HOME/.gemini/settings.json"
-  else
-    printf "No custom gemini_config provided, using default settings.json.\n"
-    append_extensions_to_settings_json
-  fi
-}
+function add_mcp_servers() {
+  local mcp_json="$1"
 
-function append_extensions_to_settings_json() {
-  SETTINGS_PATH="$HOME/.gemini/settings.json"
-  mkdir -p "$(dirname "$SETTINGS_PATH")"
-  printf "[append_extensions_to_settings_json] Starting extension merge process...\n"
-  if [ -z "$${ARG_BASE_EXTENSIONS:-}" ]; then
-    printf "[append_extensions_to_settings_json] BASE_EXTENSIONS is empty, skipping merge.\n"
-    return
-  fi
-  if [ ! -f "$SETTINGS_PATH" ]; then
-    printf "%s does not exist. Creating with merged mcpServers structure.\n" "$SETTINGS_PATH"
-    ADD_EXT_JSON='{}'
-    if [ -n "$${ARG_ADDITIONAL_EXTENSIONS:-}" ]; then
-      ADD_EXT_JSON="$${ARG_ADDITIONAL_EXTENSIONS}"
+  echo "$${mcp_json}" | jq -c 'to_entries[]' | while read -r entry; do
+    local server_name
+    local server_json
+
+    server_name=$(echo "$${entry}" | jq -r '.key')
+    server_json=$(echo "$${entry}" | jq -c '.value')
+
+    echo "------------------------"
+    echo "Adding MCP server '$server_name'"
+
+    local cmd_args=()
+    local transport
+    transport=$(echo "$${server_json}" | jq -r '.transport // empty')
+
+    if [ -n "$${transport}" ]; then
+      local url
+      url=$(echo "$${server_json}" | jq -r '.url')
+      cmd_args+=(--transport "$${transport}")
+      while IFS= read -r header; do
+        cmd_args+=(--header "$${header}")
+      done < <(
+        echo "$${server_json}" | jq -r '
+          .headers // {}
+          | to_entries[]
+          | "\(.key): \(.value)"
+        '
+      )
+      cmd_args+=("$server_name" "$url")
+    else
+      local command
+      command=$(echo "$${server_json}" | jq -r '.command')
+
+      while IFS= read -r env_var; do
+        cmd_args+=(-e "$${env_var}")
+      done < <(
+        echo "$${server_json}" | jq -r '
+          .env // {}
+          | to_entries[]
+          | "\(.key)=\(.value)"
+        '
+      )
+
+      cmd_args+=("$${server_name}" "$${command}")
+
+      while IFS= read -r arg; do
+        cmd_args+=("$${arg}")
+      done < <(
+        echo "$${server_json}" | jq -r '.args // [] | .[]'
+      )
     fi
-    printf '{"mcpServers":%s}\n' "$(jq -s 'add' <(echo "$${ARG_BASE_EXTENSIONS}") <(echo "$${ADD_EXT_JSON}"))" > "$SETTINGS_PATH"
-  fi
 
-  TMP_SETTINGS=$(mktemp)
-  ADD_EXT_JSON='{}'
-  if [ -n "$${ARG_ADDITIONAL_EXTENSIONS:-}" ]; then
-    printf "[append_extensions_to_settings_json] ADDITIONAL_EXTENSIONS is set.\n"
-    ADD_EXT_JSON="$${ARG_ADDITIONAL_EXTENSIONS}"
+    echo "Running:"
+    printf 'gemini mcp add %q' "$${cmd_args[@]}"
+
+    gemini mcp add "$${cmd_args[@]}" || echo "Warning: Failed to add MCP server '$${server_name}'"
+    echo "------------------------"
+  done
+}
+
+function setup_mcp_configurations() {
+  # Add MCP servers from module input
+  if [ "$${ARG_MCP}" != "" ]; then
+    add_mcp_servers "$${ARG_MCP}"
   else
-    printf "[append_extensions_to_settings_json] ADDITIONAL_EXTENSIONS is empty or not set.\n"
+    printf "No MCP servers to add from ARG_MCP.\n"
   fi
-
-  printf "[append_extensions_to_settings_json] Merging BASE_EXTENSIONS and ADDITIONAL_EXTENSIONS into mcpServers...\n"
-  jq --argjson base "$${ARG_BASE_EXTENSIONS}" --argjson add "$${ADD_EXT_JSON}" \
-    '.mcpServers = (.mcpServers // {} + $base + $add)' \
-    "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
-
-  jq '.theme = "Default" | .selectedAuthType = "gemini-api-key"' "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
-
-  printf "[append_extensions_to_settings_json] Merge complete.\n"
 }
 
-function patch_coder_mcp_command() {
-  CODER_BIN=$(which coder 2>/dev/null || true)
-  SETTINGS_PATH="$HOME/.gemini/settings.json"
-  if [ -z "$CODER_BIN" ]; then
-    printf "Warning: could not find coder binary, MCP command path not patched.\n"
-    return
-  fi
-  printf "Patching coder MCP command path to: %s\n" "$CODER_BIN"
-  TMP_SETTINGS=$(mktemp)
-  jq --arg bin "$CODER_BIN" \
-    '.mcpServers.coder.command = $bin' \
-    "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
-  printf "Patch complete.\n"
-}
+# function populate_settings_json() {
+#   if [ -n "$${ARG_GEMINI_CONFIG}" ]; then
+#     SETTINGS_PATH="$HOME/.gemini/settings.json"
+#     mkdir -p "$(dirname "$SETTINGS_PATH")"
+#     printf "Custom gemini_config is provided!\n"
+#     echo "$${ARG_GEMINI_CONFIG}" > "$HOME/.gemini/settings.json"
+#   else
+#     printf "No custom gemini_config provided, using default settings.json.\n"
+#     additional_config_to_settings_json
+#   fi
+# }
+
+# function additional_config_to_settings_json() {
+#   SETTINGS_PATH="$HOME/.gemini/settings.json"
+#   if [ -f "$SETTINGS_PATH" ]; then
+#     TMP_SETTINGS=$(mktemp)
+#     jq '.theme = "Default" | .selectedAuthType = "gemini-api-key"' "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
+#     printf "[additional_config_to_settings_json] Merge complete.\n"
+#   else
+#     printf "[additional_config_to_settings_json] Not found settings.json file.\n"
+#   fi
+# }
+
+# function patch_coder_mcp_command() {
+#   CODER_BIN=$(which coder 2>/dev/null || true)
+#   SETTINGS_PATH="$HOME/.gemini/settings.json"
+#   if [ -z "$CODER_BIN" ]; then
+#     printf "Warning: could not find coder binary, MCP command path not patched.\n"
+#     return
+#   fi
+#   printf "Patching coder MCP command path to: %s\n" "$CODER_BIN"
+#   TMP_SETTINGS=$(mktemp)
+#   jq --arg bin "$CODER_BIN" \
+#     '.mcpServers.coder.command = $bin' \
+#     "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
+#   printf "Patch complete.\n"
+# }
 
 function setup_workdir() {
   if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
@@ -171,6 +216,7 @@ function setup_workdir() {
 }
 
 install_gemini
-populate_settings_json
+setup_mcp_configurations
+# populate_settings_json
+# patch_coder_mcp_command
 setup_workdir
-patch_coder_mcp_command

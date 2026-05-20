@@ -63,7 +63,7 @@ variable "gemini_api_key" {
 
 variable "gemini_settings_json" {
   type        = string
-  description = "JSON to use in ~/.gemini/settings.json. If empty, a default is generated."
+  description = "JSON to use in ~/.gemini/settings.json. If empty."
   default     = ""
 }
 
@@ -79,10 +79,10 @@ variable "gemini_model" {
   default     = ""
 }
 
-variable "additional_extensions" {
-  type        = string
-  description = "Additional extensions configuration in JSON format to append to the config."
-  default     = null
+variable "mcp" {
+  type        = map(any)
+  description = "JSON-encoded string of MCP server configurations. When set, servers are added to Gemini's settings so they are available across every project. Format: {\"mcpServers\": {\"server-name\": {\"command\": \"cmd\", \"args\": []}}}."
+  default     = {}
 }
 
 resource "coder_env" "gemini_api_key" {
@@ -133,9 +133,8 @@ EOT
     ARG_INSTALL_GEMINI        = tostring(var.install_gemini)
     ARG_GEMINI_VERSION        = var.gemini_version != "" ? base64encode(var.gemini_version) : ""
     ARG_GEMINI_CONFIG         = var.gemini_settings_json != "" ? base64encode(var.gemini_settings_json) : ""
-    ARG_ADDITIONAL_EXTENSIONS = var.additional_extensions != null ? base64encode(var.additional_extensions) : ""
-    ARG_BASE_EXTENSIONS       = base64encode(local.base_extensions)
     ARG_WORKDIR               = local.workdir != "" ? base64encode(local.workdir) : ""
+    ARG_MCP                   = length(var.mcp) > 0 ? base64encode(jsonencode(var.mcp)) : ""
   })
   module_dir_name = ".coder-modules/coder-labs/gemini"
 }
