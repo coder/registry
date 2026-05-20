@@ -1,0 +1,14 @@
+#cloud-config
+hostname: ${hostname}
+manage_etc_hosts: true
+
+users:
+  - name: ${linux_user}
+    groups: sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+
+runcmd:
+  - echo '${init_script}' | base64 -d > /tmp/coder-agent-init.sh
+  - chmod 0755 /tmp/coder-agent-init.sh
+  - sudo -u ${linux_user} /bin/bash /tmp/coder-agent-init.sh
