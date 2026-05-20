@@ -66,14 +66,14 @@ type coderSkillsReadme struct {
 // indentation in the frontmatter block. The skills README uses nested YAML
 // (per-skill metadata under each source), which the indentation-trimming
 // behavior of the shared separateFrontmatter helper destroys.
-func separateSkillsFrontmatter(readmeText string) (string, string, error) {
+func separateSkillsFrontmatter(readmeText string) (frontmatter string, body string, err error) {
 	if readmeText == "" {
 		return "", "", xerrors.New("README is empty")
 	}
 
 	const fence = "---"
-	var fm strings.Builder
-	var body strings.Builder
+	var fmBuilder strings.Builder
+	var bodyBuilder strings.Builder
 	fenceCount := 0
 
 	lineScanner := bufio.NewScanner(strings.NewReader(strings.TrimSpace(readmeText)))
@@ -87,21 +87,21 @@ func separateSkillsFrontmatter(readmeText string) (string, string, error) {
 			break
 		}
 		if fenceCount >= 2 {
-			body.WriteString(nextLine)
-			body.WriteString("\n")
+			bodyBuilder.WriteString(nextLine)
+			bodyBuilder.WriteString("\n")
 		} else {
-			fm.WriteString(nextLine)
-			fm.WriteString("\n")
+			fmBuilder.WriteString(nextLine)
+			fmBuilder.WriteString("\n")
 		}
 	}
 	if fenceCount < 2 {
 		return "", "", xerrors.New("README does not have two sets of frontmatter fences")
 	}
-	if strings.TrimSpace(fm.String()) == "" {
+	if strings.TrimSpace(fmBuilder.String()) == "" {
 		return "", "", xerrors.New("readme has frontmatter fences but no frontmatter content")
 	}
 
-	return fm.String(), strings.TrimSpace(body.String()), nil
+	return fmBuilder.String(), strings.TrimSpace(bodyBuilder.String()), nil
 }
 
 // isPermittedSkillsIconURL validates that an icon URL references the
