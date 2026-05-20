@@ -111,52 +111,86 @@ function install_codex() {
   ensure_codex_in_path
 }
 
+function install_dasel() {
+  if command_exists dasel; then
+    return 0
+  fi
+
+  local os arch install_dir
+  os=$(uname -s | tr '[:upper:]' '[:lower:]')
+  arch=$(uname -m)
+  case "$${arch}" in
+    x86_64)        arch="amd64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    armv7l|armv6l) arch="arm32" ;;
+    i386|i686)     arch="386"   ;;
+    *)
+      printf "Error: unsupported architecture %s\n" "$${arch}" >&2
+      return 1
+      ;;
+  esac
+
+  install_dir="$${CODER_SCRIPT_BIN_DIR:-$HOME/.local/bin}"
+  mkdir -p "$${install_dir}"
+
+  local url="https://github.com/TomWright/dasel/releases/download/v2.8.1/dasel_$${os}_$${arch}"
+  printf "Installing dasel from %s\n" "$${url}"
+  if curl -fsSL "$${url}" -o "$${install_dir}/dasel" && chmod +x "$${install_dir}/dasel"; then
+    export PATH="$${install_dir}:$PATH"
+    printf "Installed %s\n" "$(dasel --version)"
+  else
+    printf "Error: failed to download dasel\n" >&2
+    rm -f "$${install_dir}/dasel"
+    return 1
+  fi
+}
+
 function write_minimal_default_config() {
   local config_path="$1"
-  local optional_config=""
+
+  dasel -f "$${config_path}" 'preferred_auth_method' > /dev/null 2>&1 || \
+    dasel put -f "$${config_path}" -t string -v 'apikey' 'preferred_auth_method'
 
   if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ]; then
-    optional_config='model_provider = "aigateway"'
+    dasel -f "$${config_path}" 'model_provider' > /dev/null 2>&1 || \
+      dasel put -f "$${config_path}" -t string -v 'aigateway' 'model_provider'
   fi
 
   if [ -n "$${ARG_MODEL_REASONING_EFFORT}" ]; then
-    optional_config+=$'\n'"model_reasoning_effort = \"$${ARG_MODEL_REASONING_EFFORT}\""
+    dasel -f "$${config_path}" 'model_reasoning_effort' > /dev/null 2>&1 || \
+      dasel put -f "$${config_path}" -t string -v "$${ARG_MODEL_REASONING_EFFORT}" 'model_reasoning_effort'
   fi
 
-  cat << EOF > "$${config_path}"
-preferred_auth_method = "apikey"
-$${optional_config}
-
-EOF
-
   if [ -n "$${ARG_WORKDIR}" ]; then
-    cat << EOF >> "$${config_path}"
-[projects."$${ARG_WORKDIR}"]
-trust_level = "trusted"
-
-EOF
+    dasel -f "$${config_path}" "projects.$${ARG_WORKDIR}.trust_level" > /dev/null 2>&1 || \
+      dasel put -f "$${config_path}" -t string -v 'trusted' "projects.$${ARG_WORKDIR}.trust_level"
   fi
 }
 
 function populate_config_toml() {
   local config_path="$HOME/.codex/config.toml"
   mkdir -p "$(dirname "$${config_path}")"
+  touch "$${config_path}"
 
   if [ -n "$${ARG_BASE_CONFIG_TOML}" ]; then
-    printf "Using provided base configuration\n"
-    echo "$${ARG_BASE_CONFIG_TOML}" > "$${config_path}"
+    if ! grep -qF "$${ARG_BASE_CONFIG_TOML%%$'\n'*}" "$${config_path}" 2>/dev/null; then
+      printf "Using provided base configuration\n"
+      printf '%s\n' "$${ARG_BASE_CONFIG_TOML}" >> "$${config_path}"
+    fi
   else
     printf "Using minimal default configuration\n"
     write_minimal_default_config "$${config_path}"
   fi
 
   if [ -n "$${ARG_MCP}" ]; then
-    printf "Adding MCP servers\n"
-    echo "$${ARG_MCP}" >> "$${config_path}"
+    if ! grep -qF "$${ARG_MCP%%$'\n'*}" "$${config_path}" 2>/dev/null; then
+      printf "Adding MCP servers\n"
+      echo "$${ARG_MCP}" >> "$${config_path}"
+    fi
   fi
 
   if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] && [ -n "$${ARG_AIBRIDGE_CONFIG}" ]; then
-    if ! grep -q '\[model_providers\.aigateway\]' "$${config_path}" 2>/dev/null; then
+    if ! dasel -f "$${config_path}" 'model_providers.aigateway' > /dev/null 2>&1; then
       printf "Adding AI Gateway configuration\n"
       echo -e "\n$${ARG_AIBRIDGE_CONFIG}" >> "$${config_path}"
     else
@@ -190,6 +224,7 @@ EOF
 }
 
 install_codex
+install_dasel
 populate_config_toml
 setup_workdir
 add_auth_json
