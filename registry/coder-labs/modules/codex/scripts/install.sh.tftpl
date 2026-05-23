@@ -26,6 +26,40 @@ printf "install_codex: %s\n" "$${ARG_INSTALL}"
 printf "model_reasoning_effort: %s\n" "$${ARG_MODEL_REASONING_EFFORT}"
 echo "--------------------------------"
 
+
+function install_dasel() {
+  if command_exists dasel; then
+    return 0
+  fi
+
+  local os arch install_dir url
+  os=$$(uname -s | tr '[:upper:]' '[:lower:]')
+  arch=$$(uname -m)
+  case "$${arch}" in
+    x86_64)        arch="amd64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *)
+      printf "Error: unsupported architecture %s\n" "$${arch}" >&2
+      return 1
+      ;;
+  esac
+
+  install_dir="$${CODER_SCRIPT_BIN_DIR:-$$HOME/.local/bin}"
+  mkdir -p "$${install_dir}"
+
+  url="https://github.com/TomWright/dasel/releases/download/v3.4.0/dasel_$${os}_$${arch}"
+  printf "Installing dasel from %s\n" "$${url}"
+  if curl -fsSL "$${url}" -o "$${install_dir}/dasel" && chmod +x "$${install_dir}/dasel"; then
+    export PATH="$${install_dir}:$$PATH"
+    printf "Installed %s\n" "$$(dasel --version)"
+  else
+    printf "Error: failed to download dasel\n" >&2
+    rm -f "$${install_dir}/dasel"
+    return 1
+  fi
+}
+
+
 function add_path_to_shell_profiles() {
   local path_dir="$1"
 
@@ -112,56 +146,63 @@ function install_codex() {
 }
 
 function write_minimal_default_config() {
-  local config_path="$1"
-  local optional_config=""
+  local config_path="$$1"
+  local optional_config='preferred_auth_method = "apikey"'
 
-  if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ]; then
-    optional_config='model_provider = "aigateway"'
+  if [[ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ]]; then
+    optional_config+=$$'\n''model_provider = "aigateway"'
   fi
 
-  if [ -n "$${ARG_MODEL_REASONING_EFFORT}" ]; then
-    optional_config+=$'\n'"model_reasoning_effort = \"$${ARG_MODEL_REASONING_EFFORT}\""
+  if [[ -n "$${ARG_MODEL_REASONING_EFFORT}" ]]; then
+    optional_config+=$$'\n'"model_reasoning_effort = \"$${ARG_MODEL_REASONING_EFFORT}\""
   fi
 
-  cat << EOF > "$${config_path}"
-preferred_auth_method = "apikey"
-$${optional_config}
-
-EOF
-
-  if [ -n "$${ARG_WORKDIR}" ]; then
-    cat << EOF >> "$${config_path}"
-[projects."$${ARG_WORKDIR}"]
-trust_level = "trusted"
-
-EOF
+  if [[ -n "$${ARG_WORKDIR}" ]]; then
+    optional_config+=$$'\n'"[projects.\"$${ARG_WORKDIR}\"]"
+    optional_config+=$$'\n''trust_level = "trusted"'
   fi
+
+  merge_tmp="$$(mktemp)"
+  echo "$${optional_config}" > "$${merge_tmp}"
+  dasel -i toml --root "merge(parse(\"toml\", readFile(\"$${merge_tmp}\")), \$root)" \
+    < "$${config_path}" > "$${config_path}.tmp" \
+    && mv "$${config_path}.tmp" "$${config_path}"
+  rm -f "$${merge_tmp}"
 }
 
 function populate_config_toml() {
   local config_path="$HOME/.codex/config.toml"
-  mkdir -p "$(dirname "$${config_path}")"
+  mkdir -p "$$(dirname "$${config_path}")"
 
-  if [ -n "$${ARG_BASE_CONFIG_TOML}" ]; then
-    printf "Using provided base configuration\n"
-    echo "$${ARG_BASE_CONFIG_TOML}" > "$${config_path}"
-  else
+  if [ ! -f "$${config_path}" ]; then
     printf "Using minimal default configuration\n"
     write_minimal_default_config "$${config_path}"
   fi
 
-  if [ -n "$${ARG_MCP}" ]; then
-    printf "Adding MCP servers\n"
-    echo "$${ARG_MCP}" >> "$${config_path}"
+  local merge_config=""
+
+  if [ -n "$${ARG_BASE_CONFIG_TOML}" ]; then
+    printf "Using provided base configuration\n"
+    merge_config+="$${ARG_BASE_CONFIG_TOML}"
   fi
 
-  if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] && [ -n "$${ARG_AIBRIDGE_CONFIG}" ]; then
-    if ! grep -q '\[model_providers\.aigateway\]' "$${config_path}" 2>/dev/null; then
-      printf "Adding AI Gateway configuration\n"
-      echo -e "\n$${ARG_AIBRIDGE_CONFIG}" >> "$${config_path}"
-    else
-      printf "AI Gateway provider already defined in config, skipping append\n"
-    fi
+  if [ -n "$${ARG_MCP}" ]; then
+    printf "Adding MCP servers\n"
+    merge_config+=$$'\n'"$${ARG_MCP}"
+  fi
+
+  if [[ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ]] && [[ -n "$${ARG_AIBRIDGE_CONFIG}" ]]; then
+    printf "Adding AI Gateway configuration\n"
+    merge_config+=$$'\n'"$${ARG_AIBRIDGE_CONFIG}"
+  fi
+
+  if [ -n "$${merge_config}" ]; then
+    merge_tmp="$$(mktemp)"
+    echo "$${merge_config}" > "$${merge_tmp}"
+    dasel -i toml --root "merge(parse(\"toml\", readFile(\"$${merge_tmp}\")), \$root)" \
+      < "$${config_path}" > "$${config_path}.tmp" \
+      && mv "$${config_path}.tmp" "$${config_path}"
+    rm -f "$${merge_tmp}"
   fi
 }
 
@@ -190,6 +231,7 @@ EOF
 }
 
 install_codex
+install_dasel
 populate_config_toml
 setup_workdir
 add_auth_json
