@@ -51,7 +51,7 @@ function install_dasel() {
   printf "Installing dasel from %s\n" "$${url}"
   if curl -fsSL "$${url}" -o "$${install_dir}/dasel" && chmod +x "$${install_dir}/dasel"; then
     export PATH="$${install_dir}:$PATH"
-    printf "Installed %s\n" "$(dasel --version)"
+    printf "Installed %s\n" "$(dasel version)"
   else
     printf "Error: failed to download dasel\n" >&2
     rm -f "$${install_dir}/dasel"
@@ -179,6 +179,8 @@ function write_minimal_default_config() {
     optional_config+=$'\n'"[projects.\"$${ARG_WORKDIR}\"]"
     optional_config+=$'\n''trust_level = "trusted"'
   fi
+
+  echo "OPTIONAL CONFIG: $${optional_config}"
 
   merge_toml_config "$${config_path}" "$${optional_config}"
 }
