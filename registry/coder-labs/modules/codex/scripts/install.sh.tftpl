@@ -111,57 +111,140 @@ function install_codex() {
   ensure_codex_in_path
 }
 
+function install_dasel() {
+  if command_exists dasel; then
+    return 0
+  fi
+
+  local os arch install_dir
+  os=$(uname -s | tr '[:upper:]' '[:lower:]')
+  arch=$(uname -m)
+  case "$${arch}" in
+    x86_64)        arch="amd64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    armv7l|armv6l) arch="arm32" ;;
+    i386|i686)     arch="386"   ;;
+    *)
+      printf "Error: unsupported architecture %s\n" "$${arch}" >&2
+      return 1
+      ;;
+  esac
+
+  install_dir="$${CODER_SCRIPT_BIN_DIR:-$HOME/.local/bin}"
+  mkdir -p "$${install_dir}"
+
+  local url="https://github.com/TomWright/dasel/releases/download/v2.8.1/dasel_$${os}_$${arch}"
+  printf "Installing dasel from %s\n" "$${url}"
+  if curl -fsSL "$${url}" -o "$${install_dir}/dasel" && chmod +x "$${install_dir}/dasel"; then
+    export PATH="$${install_dir}:$PATH"
+    printf "Installed %s\n" "$(dasel --version)"
+  else
+    printf "Error: failed to download dasel\n" >&2
+    rm -f "$${install_dir}/dasel"
+    return 1
+  fi
+}
+
 function write_minimal_default_config() {
   local config_path="$1"
-  local optional_config=""
+
+  dasel -f "$${config_path}" 'preferred_auth_method' > /dev/null 2>&1 || \
+    dasel put -f "$${config_path}" -t string -v 'apikey' 'preferred_auth_method'
 
   if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ]; then
-    optional_config='model_provider = "aigateway"'
+    dasel -f "$${config_path}" 'model_provider' > /dev/null 2>&1 || \
+      dasel put -f "$${config_path}" -t string -v 'aigateway' 'model_provider'
   fi
 
   if [ -n "$${ARG_MODEL_REASONING_EFFORT}" ]; then
-    optional_config+=$'\n'"model_reasoning_effort = \"$${ARG_MODEL_REASONING_EFFORT}\""
+    dasel -f "$${config_path}" 'model_reasoning_effort' > /dev/null 2>&1 || \
+      dasel put -f "$${config_path}" -t string -v "$${ARG_MODEL_REASONING_EFFORT}" 'model_reasoning_effort'
   fi
-
-  cat << EOF > "$${config_path}"
-preferred_auth_method = "apikey"
-$${optional_config}
-
-EOF
 
   if [ -n "$${ARG_WORKDIR}" ]; then
-    cat << EOF >> "$${config_path}"
-[projects."$${ARG_WORKDIR}"]
-trust_level = "trusted"
-
-EOF
+    dasel -f "$${config_path}" "projects.$${ARG_WORKDIR}.trust_level" > /dev/null 2>&1 || \
+      dasel put -f "$${config_path}" -t string -v 'trusted' "projects.$${ARG_WORKDIR}.trust_level"
   fi
+}
+
+# apply_toml_keys parses a TOML string and for every key it contains checks
+# whether that key already exists in config_path.  Only absent keys are
+# written, so any value the user has already set is left untouched.
+function apply_toml_keys() {
+  local content="$1" config_path="$2"
+  local tmp_toml tmp_py
+  tmp_toml=$(mktemp --suffix=.toml)
+  tmp_py=$(mktemp --suffix=.py)
+  printf '%s\n' "$${content}" > "$${tmp_toml}"
+
+  cat > "$${tmp_py}" << 'PYEOF'
+import json, subprocess, sys
+
+config_path = sys.argv[1]
+
+try:
+    data = json.load(sys.stdin)
+except (json.JSONDecodeError, ValueError):
+    sys.exit(0)
+
+
+def flatten(obj, prefix=""):
+    out = {}
+    for k, v in obj.items():
+        key = f"{prefix}.{k}" if prefix else k
+        if isinstance(v, dict):
+            out.update(flatten(v, key))
+        else:
+            out[key] = v
+    return out
+
+
+for path, value in flatten(data).items():
+    present = subprocess.run(
+        ["dasel", "-f", config_path, path], capture_output=True
+    )
+    if present.returncode == 0:
+        continue
+    if isinstance(value, bool):
+        t, v = "bool", str(value).lower()
+    elif isinstance(value, (int, float)):
+        t, v = "string", str(value)
+    elif isinstance(value, list):
+        t, v = "json", json.dumps(value)
+    else:
+        t, v = "string", str(value)
+    subprocess.run(
+        ["dasel", "put", "-f", config_path, "-t", t, "-v", v, path],
+        check=True,
+    )
+PYEOF
+
+  dasel -f "$${tmp_toml}" -w json -s '.' 2>/dev/null | \
+    python3 "$${tmp_py}" "$${config_path}" || true
+  rm -f "$${tmp_toml}" "$${tmp_py}"
 }
 
 function populate_config_toml() {
   local config_path="$HOME/.codex/config.toml"
   mkdir -p "$(dirname "$${config_path}")"
+  touch "$${config_path}"
 
   if [ -n "$${ARG_BASE_CONFIG_TOML}" ]; then
-    printf "Using provided base configuration\n"
-    echo "$${ARG_BASE_CONFIG_TOML}" > "$${config_path}"
+    printf "Applying provided base configuration\n"
+    apply_toml_keys "$${ARG_BASE_CONFIG_TOML}" "$${config_path}"
   else
-    printf "Using minimal default configuration\n"
+    printf "Applying minimal default configuration\n"
     write_minimal_default_config "$${config_path}"
   fi
 
   if [ -n "$${ARG_MCP}" ]; then
-    printf "Adding MCP servers\n"
-    echo "$${ARG_MCP}" >> "$${config_path}"
+    printf "Applying MCP server configuration\n"
+    apply_toml_keys "$${ARG_MCP}" "$${config_path}"
   fi
 
   if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] && [ -n "$${ARG_AIBRIDGE_CONFIG}" ]; then
-    if ! grep -q '\[model_providers\.aigateway\]' "$${config_path}" 2>/dev/null; then
-      printf "Adding AI Gateway configuration\n"
-      echo -e "\n$${ARG_AIBRIDGE_CONFIG}" >> "$${config_path}"
-    else
-      printf "AI Gateway provider already defined in config, skipping append\n"
-    fi
+    printf "Applying AI Gateway configuration\n"
+    apply_toml_keys "$${ARG_AIBRIDGE_CONFIG}" "$${config_path}"
   fi
 }
 
@@ -190,6 +273,7 @@ EOF
 }
 
 install_codex
+install_dasel
 populate_config_toml
 setup_workdir
 add_auth_json
