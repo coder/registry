@@ -173,8 +173,9 @@ function write_minimal_default_config() {
 function populate_config_toml() {
   local config_path="$HOME/.codex/config.toml"
   mkdir -p "$(dirname "$${config_path}")"
+  touch "$${config_path}"
 
-  if [ ! -f "$${config_path}" ]; then
+  if [ ! -s "$${config_path}" ]; then
     printf "Using minimal default configuration\n"
     write_minimal_default_config "$${config_path}"
   fi
