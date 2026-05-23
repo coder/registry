@@ -157,7 +157,7 @@ function merge_toml_config() {
   local merge_tmp
   merge_tmp="$(mktemp)"
   echo "$${content}" > "$${merge_tmp}"
-  dasel -i toml --root "merge(parse(\"toml\", readFile(\"$${merge_tmp}\")), \$root)" \
+  dasel -i toml -o toml "{parse(\"toml\", readFile(\"$${merge_tmp}\"))..., \$root...}" \
     < "$${config_path}" > "$${config_path}.tmp" \
     && mv "$${config_path}.tmp" "$${config_path}"
   rm -f "$${merge_tmp}"
