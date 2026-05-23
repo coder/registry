@@ -154,13 +154,19 @@ function merge_toml_config() {
     return
   fi
 
-  local merge_tmp
-  merge_tmp="$(mktemp)"
+  local merge_tmp existing_json new_json
+  merge_tmp=$(mktemp)
+  existing_json=$(mktemp)
+  new_json=$(mktemp)
   echo "$${content}" > "$${merge_tmp}"
-  dasel -i toml -o toml "{parse(\"toml\", readFile(\"$${merge_tmp}\"))..., \$root...}" \
-    < "$${config_path}" > "$${config_path}.tmp" \
+
+  dasel -i toml -o json < "$${config_path}" > "$${existing_json}"
+  dasel -i toml -o json < "$${merge_tmp}" > "$${new_json}"
+
+  jq -s '.[0] * .[1]' "$${new_json}" "$${existing_json}" \
+    | dasel -i json -o toml > "$${config_path}.tmp" \
     && mv "$${config_path}.tmp" "$${config_path}"
-  rm -f "$${merge_tmp}"
+  rm -f "$${merge_tmp}" "$${existing_json}" "$${new_json}"
 }
 
 function write_minimal_default_config() {
