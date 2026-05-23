@@ -145,6 +145,24 @@ function install_codex() {
   ensure_codex_in_path
 }
 
+function merge_toml_config() {
+  local config_path="$1"
+  local content="$2"
+
+  if [ ! -s "$${config_path}" ]; then
+    echo "$${content}" > "$${config_path}"
+    return
+  fi
+
+  local merge_tmp
+  merge_tmp="$(mktemp)"
+  echo "$${content}" > "$${merge_tmp}"
+  dasel -i toml --root "merge(parse(\"toml\", readFile(\"$${merge_tmp}\")), \$root)" \
+    < "$${config_path}" > "$${config_path}.tmp" \
+    && mv "$${config_path}.tmp" "$${config_path}"
+  rm -f "$${merge_tmp}"
+}
+
 function write_minimal_default_config() {
   local config_path="$1"
   local optional_config='preferred_auth_method = "apikey"'
@@ -162,12 +180,7 @@ function write_minimal_default_config() {
     optional_config+=$'\n''trust_level = "trusted"'
   fi
 
-  merge_tmp="$(mktemp)"
-  echo "$${optional_config}" > "$${merge_tmp}"
-  dasel -i toml --root "merge(parse(\"toml\", readFile(\"$${merge_tmp}\")), \$root)" \
-    < "$${config_path}" > "$${config_path}.tmp" \
-    && mv "$${config_path}.tmp" "$${config_path}"
-  rm -f "$${merge_tmp}"
+  merge_toml_config "$${config_path}" "$${optional_config}"
 }
 
 function populate_config_toml() {
@@ -175,21 +188,19 @@ function populate_config_toml() {
   mkdir -p "$(dirname "$${config_path}")"
   touch "$${config_path}"
 
-  if [ ! -s "$${config_path}" ]; then
+  if [ -n "$${ARG_BASE_CONFIG_TOML}" ]; then
+    printf "Using provided base configuration\n"
+    merge_toml_config "$${config_path}" "$${ARG_BASE_CONFIG_TOML}"
+  else
     printf "Using minimal default configuration\n"
     write_minimal_default_config "$${config_path}"
   fi
 
   local merge_config=""
 
-  if [ -n "$${ARG_BASE_CONFIG_TOML}" ]; then
-    printf "Using provided base configuration\n"
-    merge_config+="$${ARG_BASE_CONFIG_TOML}"
-  fi
-
   if [ -n "$${ARG_MCP}" ]; then
     printf "Adding MCP servers\n"
-    merge_config+=$'\n'"$${ARG_MCP}"
+    merge_config+="$${ARG_MCP}"
   fi
 
   if [[ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ]] && [[ -n "$${ARG_AIBRIDGE_CONFIG}" ]]; then
@@ -198,15 +209,9 @@ function populate_config_toml() {
   fi
 
   if [ -n "$${merge_config}" ]; then
-    merge_tmp="$(mktemp)"
-    echo "$${merge_config}" > "$${merge_tmp}"
-    dasel -i toml --root "merge(parse(\"toml\", readFile(\"$${merge_tmp}\")), \$root)" \
-      < "$${config_path}" > "$${config_path}.tmp" \
-      && mv "$${config_path}.tmp" "$${config_path}"
-    rm -f "$${merge_tmp}"
+    merge_toml_config "$${config_path}" "$${merge_config}"
   fi
 }
-
 function setup_workdir() {
   if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
     echo "Creating workdir: $${ARG_WORKDIR}"
