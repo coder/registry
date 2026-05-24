@@ -186,8 +186,6 @@ function write_minimal_default_config() {
     optional_config+=$'\n''trust_level = "trusted"'
   fi
 
-  echo "OPTIONAL CONFIG: $${optional_config}"
-
   merge_toml_config "$${config_path}" "$${optional_config}"
 }
 
