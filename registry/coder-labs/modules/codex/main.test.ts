@@ -314,8 +314,8 @@ describe("codex", async () => {
       id,
       "/home/coder/.codex/config.toml",
     );
-    expect(configToml).toContain('model_provider = "aigateway"');
-    expect(configToml).toContain('model_reasoning_effort = "none"');
+    expect(configToml).toMatch(/model_provider\s*=\s*['"]aigateway['"]/);
+    expect(configToml).toMatch(/model_reasoning_effort\s*=\s*['"]none['"]/);
     expect(configToml).toContain("[model_providers.aigateway]");
   });
 
@@ -380,7 +380,7 @@ describe("codex", async () => {
       id,
       "/home/coder/.codex/config.toml",
     );
-    expect(configToml).toContain('model_provider = "aigateway"');
+    expect(configToml).toMatch(/model_provider\s*=\s*['"]aigateway['"]/);
     expect(configToml).toContain("[model_providers.aigateway]");
   });
 
@@ -526,33 +526,27 @@ EOF`,
 
   test("idempotent-run-twice-no-change", async () => {
     const { id, scripts } = await setup();
-    await runScripts(id, scripts);
-    const configAfterFirst = await readFileContainer(
-      id,
-      "/home/coder/.codex/config.toml",
-    );
 
-    // Second run without any user edits
-    await runScripts(id, scripts);
-    const configAfterSecond = await readFileContainer(
-      id,
-      "/home/coder/.codex/config.toml",
-    );
-
-    // Config should still contain the same keys
-    expect(configAfterSecond).toContain("preferred_auth_method");
-    // The values must match (quotes may change on roundtrip, compare via JSON)
-    const toJson = async (toml: string) => {
+    // Convert the container config file to JSON for comparison
+    const configToJson = async () => {
       const resp = await execContainer(id, [
         "bash",
         "-c",
-        `echo '${toml.replace(/'/g, "'\\''")}' | dasel -i toml -o json`,
+        "dasel -i toml -o json < /home/coder/.codex/config.toml",
       ]);
       return JSON.parse(resp.stdout);
     };
-    expect(await toJson(configAfterSecond)).toEqual(
-      await toJson(configAfterFirst),
-    );
+
+    // First run
+    await runScripts(id, scripts);
+    const jsonAfterFirst = await configToJson();
+
+    // Second run without any user edits
+    await runScripts(id, scripts);
+    const jsonAfterSecond = await configToJson();
+
+    // Data must be identical (quotes may differ, so compare JSON not strings)
+    expect(jsonAfterSecond).toEqual(jsonAfterFirst);
   });
 
   test("idempotent-mcp-new-servers-added-existing-kept", async () => {
