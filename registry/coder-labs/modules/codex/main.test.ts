@@ -527,26 +527,26 @@ EOF`,
   test("idempotent-run-twice-no-change", async () => {
     const { id, scripts } = await setup();
 
-    // Convert the container config file to JSON for comparison
-    const configToJson = async () => {
-      const resp = await execContainer(id, [
-        "bash",
-        "-c",
-        "dasel -i toml -o json < /home/coder/.codex/config.toml",
-      ]);
-      return JSON.parse(resp.stdout);
-    };
-
     // First run
     await runScripts(id, scripts);
-    const jsonAfterFirst = await configToJson();
 
-    // Second run without any user edits
+    // Second run triggers a dasel roundtrip (quotes may change)
     await runScripts(id, scripts);
-    const jsonAfterSecond = await configToJson();
+    const configAfterSecond = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
 
-    // Data must be identical (quotes may differ, so compare JSON not strings)
-    expect(jsonAfterSecond).toEqual(jsonAfterFirst);
+    // Third run: if idempotent, output must be identical to second run
+    await runScripts(id, scripts);
+    const configAfterThird = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+
+    // After the first roundtrip the serialization is stable, so a byte
+    // comparison is valid from the second run onward.
+    expect(configAfterThird).toEqual(configAfterSecond);
   });
 
   test("idempotent-mcp-new-servers-added-existing-kept", async () => {
