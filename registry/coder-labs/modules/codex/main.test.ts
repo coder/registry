@@ -425,6 +425,309 @@ describe("codex", async () => {
     expect(installLog).toContain("Installed Codex CLI");
   });
 
+  test("idempotent-defaults-preserve-user-edits", async () => {
+    const { id, scripts } = await setup();
+    await runScripts(id, scripts);
+
+    // User edits the config between restarts
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > /home/coder/.codex/config.toml << 'EOF'
+preferred_auth_method = "login"
+custom_user_key = "my_value"
+
+[projects."/home/coder/project"]
+trust_level = "trusted"
+EOF`,
+    ]);
+
+    // Second run: user edits must survive
+    await runScripts(id, scripts);
+    const config = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    // User's overridden value preserved (not reset to "apikey")
+    expect(config).toMatch(/preferred_auth_method\s*=\s*['"]login['"]/);
+    // User's custom key preserved
+    expect(config).toMatch(/custom_user_key\s*=\s*['"]my_value['"]/);
+  });
+
+  test("idempotent-mcp-deep-merge", async () => {
+    const mcpConfig = [
+      "[mcp_servers.github]",
+      'command = "npx"',
+      'args = ["-y", "@modelcontextprotocol/server-github"]',
+      'type = "stdio"',
+      "",
+      "[mcp_servers.filesystem]",
+      'command = "npx"',
+      'args = ["-y", "@modelcontextprotocol/server-filesystem"]',
+      'type = "stdio"',
+    ].join("\n");
+    const { id, scripts } = await setup({
+      moduleVariables: { mcp: mcpConfig },
+    });
+    await runScripts(id, scripts);
+
+    // User customizes the github MCP server between restarts
+    await execContainer(id, [
+      "bash",
+      "-c",
+      [
+        "CONFIG=/home/coder/.codex/config.toml",
+        // Replace the github command the user has customized
+        "sed -i \"s/command = .npx./command = 'my-custom-npx'/\" $CONFIG",
+      ].join(" && "),
+    ]);
+
+    // Second run
+    await runScripts(id, scripts);
+    const config = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    // User's customized github command preserved
+    expect(config).toMatch(/command\s*=\s*['"]my-custom-npx['"]/);
+    // filesystem server still present (not lost by shallow merge)
+    expect(config).toContain("mcp_servers");
+    expect(config).toContain("filesystem");
+  });
+
+  test("idempotent-base-config-preserves-user-edits", async () => {
+    const baseConfig = [
+      'sandbox_mode = "danger-full-access"',
+      'preferred_auth_method = "apikey"',
+    ].join("\n");
+    const { id, scripts } = await setup({
+      moduleVariables: { base_config_toml: baseConfig },
+    });
+    await runScripts(id, scripts);
+
+    // User changes sandbox_mode
+    await execContainer(id, [
+      "bash",
+      "-c",
+      "sed -i 's/danger-full-access/sandbox/' /home/coder/.codex/config.toml",
+    ]);
+
+    // Second run
+    await runScripts(id, scripts);
+    const config = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    // User's change preserved
+    expect(config).toMatch(/sandbox_mode\s*=\s*['"]sandbox['"]/);
+    // Original key from base config still present
+    expect(config).toContain("preferred_auth_method");
+  });
+
+  test("idempotent-run-twice-no-change", async () => {
+    const { id, scripts } = await setup();
+    await runScripts(id, scripts);
+    const configAfterFirst = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+
+    // Second run without any user edits
+    await runScripts(id, scripts);
+    const configAfterSecond = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+
+    // Config should still contain the same keys
+    expect(configAfterSecond).toContain("preferred_auth_method");
+    // The values must match (quotes may change on roundtrip, compare via JSON)
+    const toJson = async (toml: string) => {
+      const resp = await execContainer(id, [
+        "bash",
+        "-c",
+        `echo '${toml.replace(/'/g, "'\\''")}' | dasel -i toml -o json`,
+      ]);
+      return JSON.parse(resp.stdout);
+    };
+    expect(await toJson(configAfterSecond)).toEqual(
+      await toJson(configAfterFirst),
+    );
+  });
+
+  test("idempotent-mcp-new-servers-added-existing-kept", async () => {
+    // First run: one MCP server
+    const mcpRun1 = [
+      "[mcp_servers.github]",
+      'command = "npx"',
+      'args = ["-y", "@modelcontextprotocol/server-github"]',
+      'type = "stdio"',
+    ].join("\n");
+    const { id, scripts } = await setup({
+      moduleVariables: { mcp: mcpRun1 },
+    });
+    await runScripts(id, scripts);
+
+    // User adds their own MCP server manually
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat >> /home/coder/.codex/config.toml << 'EOF'
+
+[mcp_servers.custom]
+command = "my-tool"
+args = ["--serve"]
+type = "stdio"
+EOF`,
+    ]);
+
+    // Second run: same module config
+    await runScripts(id, scripts);
+    const config = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    // Module's github server still present
+    expect(config).toContain("github");
+    // User's manually-added custom server preserved
+    expect(config).toMatch(/command\s*=\s*['"]my-tool['"]/);
+  });
+
+  test("idempotent-ai-gateway-preserves-user-provider", async () => {
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        enable_ai_gateway: "true",
+      },
+    });
+    await runScripts(id, scripts, coderEnvVars);
+
+    // User changes model_provider
+    await execContainer(id, [
+      "bash",
+      "-c",
+      "sed -i 's/model_provider = .*/model_provider = \"custom_provider\"/' /home/coder/.codex/config.toml",
+    ]);
+
+    // Second run
+    await runScripts(id, scripts, coderEnvVars);
+    const config = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    // User's custom provider survives
+    expect(config).toMatch(/model_provider\s*=\s*['"]custom_provider['"]/);
+  });
+
+  test("base-config-plus-mcp-combined", async () => {
+    const baseConfig = [
+      'sandbox_mode = "danger-full-access"',
+      'preferred_auth_method = "apikey"',
+    ].join("\n");
+    const mcpConfig = [
+      "[mcp_servers.github]",
+      'command = "npx"',
+      'args = ["-y", "@modelcontextprotocol/server-github"]',
+      'type = "stdio"',
+    ].join("\n");
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        base_config_toml: baseConfig,
+        mcp: mcpConfig,
+      },
+    });
+    await runScripts(id, scripts);
+    const config = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    // Base config keys present
+    expect(config).toContain("sandbox_mode");
+    expect(config).toContain("preferred_auth_method");
+    // MCP server present
+    expect(config).toContain("mcp_servers");
+    expect(config).toContain("github");
+  });
+
+  test("all-config-sources-combined", async () => {
+    const baseConfig = [
+      'sandbox_mode = "danger-full-access"',
+      'preferred_auth_method = "apikey"',
+    ].join("\n");
+    const mcpConfig = [
+      "[mcp_servers.github]",
+      'command = "npx"',
+      'args = ["-y", "@modelcontextprotocol/server-github"]',
+      'type = "stdio"',
+    ].join("\n");
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        enable_ai_gateway: "true",
+        base_config_toml: baseConfig,
+        mcp: mcpConfig,
+      },
+    });
+    await runScripts(id, scripts, coderEnvVars);
+    const config = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    // Base config
+    expect(config).toContain("sandbox_mode");
+    expect(config).toContain("preferred_auth_method");
+    // MCP
+    expect(config).toContain("github");
+    // AI gateway
+    expect(config).toContain("model_providers");
+  });
+
+  test("idempotent-all-sources-user-edits-survive", async () => {
+    const baseConfig = [
+      'sandbox_mode = "danger-full-access"',
+      'preferred_auth_method = "apikey"',
+    ].join("\n");
+    const mcpConfig = [
+      "[mcp_servers.github]",
+      'command = "npx"',
+      'args = ["-y", "@modelcontextprotocol/server-github"]',
+      'type = "stdio"',
+    ].join("\n");
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        enable_ai_gateway: "true",
+        base_config_toml: baseConfig,
+        mcp: mcpConfig,
+      },
+    });
+    await runScripts(id, scripts, coderEnvVars);
+
+    // User edits multiple things
+    await execContainer(id, [
+      "bash",
+      "-c",
+      [
+        "CONFIG=/home/coder/.codex/config.toml",
+        // Change auth method
+        "sed -i \"s/preferred_auth_method.*/preferred_auth_method = 'oauth'/\" $CONFIG",
+        // Add a custom top-level key
+        "echo 'user_note = \"do not touch\"' >> $CONFIG",
+      ].join(" && "),
+    ]);
+
+    // Second run
+    await runScripts(id, scripts, coderEnvVars);
+    const config = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    // User edits survived
+    expect(config).toMatch(/preferred_auth_method\s*=\s*['"]oauth['"]/);
+    expect(config).toContain("user_note");
+    // Module config still present
+    expect(config).toContain("sandbox_mode");
+    expect(config).toContain("github");
+    expect(config).toContain("model_providers");
+  });
+
   test("custom-config-drops-reasoning-effort", async () => {
     const baseConfig = [
       'sandbox_mode = "danger-full-access"',
