@@ -103,17 +103,21 @@ locals {
   module_dir        = "$HOME/.coder-modules/coder/git-clone"
   scripts_directory = "${local.module_dir}/scripts"
   log_directory     = "${local.module_dir}/logs"
-  clone_script_path = "${local.scripts_directory}/clone.sh"
-  clone_log_path    = "${local.log_directory}/clone.log"
+  clone_script_path  = "${local.scripts_directory}/clone.sh"
+  clone_log_path     = "${local.log_directory}/clone.log"
+  pre_clone_log_path  = "${local.log_directory}/pre_clone.log"
+  post_clone_log_path = "${local.log_directory}/post_clone.log"
 
   encoded_clone_script = base64encode(templatefile("${path.module}/run.sh", {
-    CLONE_PATH        = local.clone_path,
-    REPO_URL          = local.clone_url,
-    BRANCH_NAME       = local.branch_name,
-    EXTRA_ARGS        = local.encoded_extra_args,
-    POST_CLONE_SCRIPT = local.encoded_post_clone_script,
-    PRE_CLONE_SCRIPT  = local.encoded_pre_clone_script,
-    SCRIPTS_DIR       = local.scripts_directory,
+    CLONE_PATH          = local.clone_path,
+    REPO_URL            = local.clone_url,
+    BRANCH_NAME         = local.branch_name,
+    EXTRA_ARGS          = local.encoded_extra_args,
+    POST_CLONE_SCRIPT   = local.encoded_post_clone_script,
+    PRE_CLONE_SCRIPT    = local.encoded_pre_clone_script,
+    SCRIPTS_DIR         = local.scripts_directory,
+    PRE_CLONE_LOG_PATH  = local.pre_clone_log_path,
+    POST_CLONE_LOG_PATH = local.post_clone_log_path,
   }))
 }
 
