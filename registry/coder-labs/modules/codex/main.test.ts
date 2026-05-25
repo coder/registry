@@ -231,8 +231,8 @@ describe("codex", async () => {
     });
     await runScripts(id, scripts);
     const resp = await readFileContainer(id, "/home/coder/.codex/config.toml");
-    expect(resp).toContain('sandbox_mode = "danger-full-access"');
-    expect(resp).toContain('preferred_auth_method = "apikey"');
+    expect(resp).toMatch(/sandbox_mode\s*=\s*['"]danger-full-access['"]/);
+    expect(resp).toMatch(/preferred_auth_method\s*=\s*['"]apikey['"]/);
     expect(resp).toContain("[custom_section]");
   });
 
@@ -259,7 +259,7 @@ describe("codex", async () => {
     const { id, scripts } = await setup();
     await runScripts(id, scripts);
     const resp = await readFileContainer(id, "/home/coder/.codex/config.toml");
-    expect(resp).toContain('preferred_auth_method = "apikey"');
+    expect(resp).toMatch(/preferred_auth_method\s*=\s*['"]apikey['"]/);
     expect(resp).not.toContain("model_provider");
     expect(resp).not.toContain("[model_providers.");
     expect(resp).not.toContain("model_reasoning_effort");
@@ -330,7 +330,7 @@ describe("codex", async () => {
       id,
       "/home/coder/.codex/config.toml",
     );
-    expect(configToml).toContain('model_reasoning_effort = "high"');
+    expect(configToml).toMatch(/model_reasoning_effort\s*=\s*['"]high['"]/);
     expect(configToml).not.toContain("model_provider");
   });
 
@@ -346,8 +346,8 @@ describe("codex", async () => {
       id,
       "/home/coder/.codex/config.toml",
     );
-    expect(configToml).toContain(`[projects."${workdir}"]`);
-    expect(configToml).toContain('trust_level = "trusted"');
+    expect(configToml).toMatch(new RegExp(`projects.*${workdir.replace(/\//g, '\\/')}.*`));
+    expect(configToml).toMatch(/trust_level\s*=\s*['"]trusted['"]/);
   });
 
   test("no-workdir-no-project-section", async () => {
@@ -738,7 +738,7 @@ EOF`,
       id,
       "/home/coder/.codex/config.toml",
     );
-    expect(configToml).toContain('sandbox_mode = "danger-full-access"');
+    expect(configToml).toMatch(/sandbox_mode\s*=\s*['"]danger-full-access['"]/);
     expect(configToml).not.toContain("model_reasoning_effort");
   });
 });

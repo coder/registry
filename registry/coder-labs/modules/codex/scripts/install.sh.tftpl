@@ -145,78 +145,64 @@ function install_codex() {
   ensure_codex_in_path
 }
 
-function merge_toml_config() {
-  local config_path="$1"
-  local content="$2"
-
-  if [ ! -s "$${config_path}" ]; then
-    echo "$${content}" > "$${config_path}"
-    return
-  fi
-
-  local merge_tmp existing_json new_json
-  merge_tmp=$(mktemp)
-  existing_json=$(mktemp)
-  new_json=$(mktemp)
-  echo "$${content}" > "$${merge_tmp}"
-
-  dasel -i toml -o json < "$${config_path}" > "$${existing_json}"
-  dasel -i toml -o json < "$${merge_tmp}" > "$${new_json}"
-
-  jq -s '.[0] * .[1]' "$${new_json}" "$${existing_json}" \
-    | dasel -i json -o toml > "$${config_path}.tmp" \
-    && mv "$${config_path}.tmp" "$${config_path}"
-  rm -f "$${merge_tmp}" "$${existing_json}" "$${new_json}"
-}
-
+# Builds the minimal default config as a JSON string on stdout.
 function write_minimal_default_config() {
-  local config_path="$1"
-  local optional_config='preferred_auth_method = "apikey"'
+  local json
+  json=$(jq -n '{preferred_auth_method: "apikey"}')
 
-  if [[ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ]]; then
-    optional_config+=$'\n''model_provider = "aigateway"'
+  if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ]; then
+    json=$(echo "$${json}" | jq '.model_provider = "aigateway"')
   fi
 
-  if [[ -n "$${ARG_MODEL_REASONING_EFFORT}" ]]; then
-    optional_config+=$'\n'"model_reasoning_effort = \"$${ARG_MODEL_REASONING_EFFORT}\""
+  if [ -n "$${ARG_MODEL_REASONING_EFFORT}" ]; then
+    json=$(echo "$${json}" | jq --arg v "$${ARG_MODEL_REASONING_EFFORT}" '.model_reasoning_effort = $v')
   fi
 
-  if [[ -n "$${ARG_WORKDIR}" ]]; then
-    optional_config+=$'\n'"[projects.\"$${ARG_WORKDIR}\"]"
-    optional_config+=$'\n''trust_level = "trusted"'
+  if [ -n "$${ARG_WORKDIR}" ]; then
+    json=$(echo "$${json}" | jq --arg w "$${ARG_WORKDIR}" '.projects[$w].trust_level = "trusted"')
   fi
 
-  merge_toml_config "$${config_path}" "$${optional_config}"
+  echo "$${json}"
 }
 
 function populate_config_toml() {
   local config_path="$HOME/.codex/config.toml"
   mkdir -p "$(dirname "$${config_path}")"
-  touch "$${config_path}"
+
+  # Build the new config entirely in JSON.
+  local new_json
 
   if [ -n "$${ARG_BASE_CONFIG_TOML}" ]; then
     printf "Using provided base configuration\n"
-    merge_toml_config "$${config_path}" "$${ARG_BASE_CONFIG_TOML}"
+    new_json=$(echo "$${ARG_BASE_CONFIG_TOML}" | dasel -i toml -o json)
   else
     printf "Using minimal default configuration\n"
-    write_minimal_default_config "$${config_path}"
+    new_json=$(write_minimal_default_config)
   fi
-
-  local merge_config=""
 
   if [ -n "$${ARG_MCP}" ]; then
     printf "Adding MCP servers\n"
-    merge_config+="$${ARG_MCP}"
+    local mcp_json
+    mcp_json=$(echo "$${ARG_MCP}" | dasel -i toml -o json)
+    new_json=$(echo "$${mcp_json}" "$${new_json}" | jq -s '.[0] * .[1]')
   fi
 
-  if [[ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ]] && [[ -n "$${ARG_AIBRIDGE_CONFIG}" ]]; then
+  if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] && [ -n "$${ARG_AIBRIDGE_CONFIG}" ]; then
     printf "Adding AI Gateway configuration\n"
-    merge_config+=$'\n'"$${ARG_AIBRIDGE_CONFIG}"
+    local aibridge_json
+    aibridge_json=$(echo "$${ARG_AIBRIDGE_CONFIG}" | dasel -i toml -o json)
+    new_json=$(echo "$${aibridge_json}" "$${new_json}" | jq -s '.[0] * .[1]')
   fi
 
-  if [ -n "$${merge_config}" ]; then
-    merge_toml_config "$${config_path}" "$${merge_config}"
+  # Deep-merge with existing config (existing user values win).
+  if [ -s "$${config_path}" ]; then
+    local existing_json
+    existing_json=$(dasel -i toml -o json < "$${config_path}")
+    new_json=$(echo "$${new_json}" "$${existing_json}" | jq -s '.[0] * .[1]')
   fi
+
+  # Single conversion: JSON to TOML.
+  echo "$${new_json}" | dasel -i json -o toml > "$${config_path}"
 }
 function setup_workdir() {
   if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
