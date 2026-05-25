@@ -100,11 +100,11 @@ locals {
   encoded_extra_args       = base64encode(join("\n", var.extra_args))
 
   # Module directory paths (matches coder-utils convention)
-  module_dir        = "$HOME/.coder-modules/coder/git-clone"
-  scripts_directory = "${local.module_dir}/scripts"
-  log_directory     = "${local.module_dir}/logs"
-  clone_script_path  = "${local.scripts_directory}/clone.sh"
-  clone_log_path     = "${local.log_directory}/clone.log"
+  module_dir          = "$HOME/.coder-modules/coder/git-clone"
+  scripts_directory   = "${local.module_dir}/scripts"
+  log_directory       = "${local.module_dir}/logs"
+  clone_script_path   = "${local.scripts_directory}/clone.sh"
+  clone_log_path      = "${local.log_directory}/clone.log"
   pre_clone_log_path  = "${local.log_directory}/pre_clone.log"
   post_clone_log_path = "${local.log_directory}/post_clone.log"
 
