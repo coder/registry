@@ -67,13 +67,13 @@ describe("git-clone", async () => {
       url: "fake-url",
     });
     const output = await executeScriptInContainer(state, "alpine/git");
-    expect(output.stdout).toEqual([
-      "Creating directory /root/fake-url...",
-      "Cloning fake-url to /root/fake-url...",
+    expect(output.stdout).toContain("Creating directory /root/fake-url...");
+    expect(output.stdout).toContain("Cloning fake-url to /root/fake-url...");
+    expect(output.stdout).toContain(
       "Running: git clone fake-url /root/fake-url",
-    ]);
-    expect(output.stderr.join(" ")).toContain("fatal");
-    expect(output.stderr.join(" ")).toContain("fake-url");
+    );
+    expect(output.stdout.join(" ")).toContain("fatal");
+    expect(output.stdout.join(" ")).toContain("fake-url");
   });
 
   it("repo_dir should match repo name for https", async () => {
@@ -244,11 +244,15 @@ describe("git-clone", async () => {
     });
     const output = await executeScriptInContainer(state, "alpine/git");
     expect(output.exitCode).toBe(0);
-    expect(output.stdout).toEqual([
+    expect(output.stdout).toContain(
       "Creating directory /root/repo-tests.log...",
+    );
+    expect(output.stdout).toContain(
       "Cloning https://github.com/michaelbrewer/repo-tests.log to /root/repo-tests.log on branch feat/branch...",
+    );
+    expect(output.stdout).toContain(
       "Running: git clone -b feat/branch https://github.com/michaelbrewer/repo-tests.log /root/repo-tests.log",
-    ]);
+    );
   });
 
   it("runs with gitlab clone with switch to feat/branch", async () => {
@@ -258,11 +262,15 @@ describe("git-clone", async () => {
     });
     const output = await executeScriptInContainer(state, "alpine/git");
     expect(output.exitCode).toBe(0);
-    expect(output.stdout).toEqual([
+    expect(output.stdout).toContain(
       "Creating directory /root/repo-tests.log...",
+    );
+    expect(output.stdout).toContain(
       "Cloning https://gitlab.com/mike.brew/repo-tests.log to /root/repo-tests.log on branch feat/branch...",
+    );
+    expect(output.stdout).toContain(
       "Running: git clone -b feat/branch https://gitlab.com/mike.brew/repo-tests.log /root/repo-tests.log",
-    ]);
+    );
   });
 
   it("runs with github clone with branch_name set to feat/branch", async () => {
@@ -280,11 +288,15 @@ describe("git-clone", async () => {
 
     const output = await executeScriptInContainer(state, "alpine/git");
     expect(output.exitCode).toBe(0);
-    expect(output.stdout).toEqual([
+    expect(output.stdout).toContain(
       "Creating directory /root/repo-tests.log...",
+    );
+    expect(output.stdout).toContain(
       "Cloning https://github.com/michaelbrewer/repo-tests.log to /root/repo-tests.log on branch feat/branch...",
+    );
+    expect(output.stdout).toContain(
       "Running: git clone -b feat/branch https://github.com/michaelbrewer/repo-tests.log /root/repo-tests.log",
-    ]);
+    );
   });
 
   it("runs post-clone script", async () => {
@@ -336,7 +348,10 @@ describe("git-clone", async () => {
       url: "fake-url",
     });
     const script = findResourceInstance(state, "coder_script").script;
-    expect(script).toContain('EXTRA_ARGS=""');
+    const match = script.match(/echo -n '([^']+)'/);
+    expect(match).not.toBeNull();
+    const cloneScript = Buffer.from(match![1], "base64").toString();
+    expect(cloneScript).toContain('EXTRA_ARGS=""');
   });
 
   it("passes extra_args to git clone", async () => {
@@ -398,6 +413,24 @@ describe("git-clone", async () => {
         "argv:/root/fake-url",
       ].join("\n"),
     );
+  });
+
+  it("writes output to logs/clone.log under module directory", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "fake-url",
+    });
+    const instance = findResourceInstance(state, "coder_script");
+    const id = await runContainer("alpine/git");
+    await execContainer(id, ["sh", "-c", "apk add --no-cache bash >/dev/null"]);
+    await execContainer(id, ["bash", "-c", instance.script]);
+    const log = await execContainer(id, [
+      "cat",
+      "/root/.coder-modules/coder/git-clone/logs/clone.log",
+    ]);
+    expect(log.exitCode).toBe(0);
+    expect(log.stdout).toContain("Cloning fake-url to /root/fake-url...");
+    expect(log.stdout).toContain("Running: git clone fake-url /root/fake-url");
   });
 
   it("fails when post-clone script fails", async () => {

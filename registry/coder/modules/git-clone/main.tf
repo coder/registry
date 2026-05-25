@@ -98,6 +98,23 @@ locals {
   # Encode the pre_clone_script for passing to the shell script
   encoded_pre_clone_script = var.pre_clone_script != null ? base64encode(var.pre_clone_script) : ""
   encoded_extra_args       = base64encode(join("\n", var.extra_args))
+
+  # Module directory paths (matches coder-utils convention)
+  module_dir        = "$HOME/.coder-modules/coder/git-clone"
+  scripts_directory = "${local.module_dir}/scripts"
+  log_directory     = "${local.module_dir}/logs"
+  clone_script_path = "${local.scripts_directory}/clone.sh"
+  clone_log_path    = "${local.log_directory}/clone.log"
+
+  encoded_clone_script = base64encode(templatefile("${path.module}/run.sh", {
+    CLONE_PATH        = local.clone_path,
+    REPO_URL          = local.clone_url,
+    BRANCH_NAME       = local.branch_name,
+    EXTRA_ARGS        = local.encoded_extra_args,
+    POST_CLONE_SCRIPT = local.encoded_post_clone_script,
+    PRE_CLONE_SCRIPT  = local.encoded_pre_clone_script,
+    SCRIPTS_DIR       = local.scripts_directory,
+  }))
 }
 
 output "repo_dir" {
@@ -131,15 +148,21 @@ output "branch_name" {
 }
 
 resource "coder_script" "git_clone" {
-  agent_id = var.agent_id
-  script = templatefile("${path.module}/run.sh", {
-    CLONE_PATH = local.clone_path,
-    REPO_URL : local.clone_url,
-    BRANCH_NAME : local.branch_name,
-    EXTRA_ARGS = local.encoded_extra_args,
-    POST_CLONE_SCRIPT : local.encoded_post_clone_script,
-    PRE_CLONE_SCRIPT : local.encoded_pre_clone_script,
-  })
+  agent_id           = var.agent_id
+  script             = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    mkdir -p ${local.module_dir}
+    mkdir -p ${local.scripts_directory}
+    mkdir -p ${local.log_directory}
+
+    echo -n '${local.encoded_clone_script}' | base64 -d > ${local.clone_script_path}
+    chmod +x ${local.clone_script_path}
+
+    ${local.clone_script_path} 2>&1 | tee ${local.clone_log_path}
+  EOT
   display_name       = "Git Clone"
   icon               = "/icon/git.svg"
   run_on_start       = true

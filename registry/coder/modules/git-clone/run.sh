@@ -10,6 +10,7 @@ CLONE_PATH="$${CLONE_PATH/#\~/$${HOME}}"
 EXTRA_ARGS="${EXTRA_ARGS}"
 POST_CLONE_SCRIPT="${POST_CLONE_SCRIPT}"
 PRE_CLONE_SCRIPT="${PRE_CLONE_SCRIPT}"
+SCRIPTS_DIR="${SCRIPTS_DIR}"
 
 # Check if the variable is empty...
 if [ -z "$REPO_URL" ]; then
@@ -39,11 +40,10 @@ fi
 # Run pre-clone script if provided
 if [ -n "$PRE_CLONE_SCRIPT" ]; then
   echo "Running pre-clone script..."
-  PRE_CLONE_TMP=$(mktemp)
-  echo "$PRE_CLONE_SCRIPT" | base64 -d > "$PRE_CLONE_TMP"
-  chmod +x "$PRE_CLONE_TMP"
-  $PRE_CLONE_TMP
-  rm "$PRE_CLONE_TMP"
+  PRE_CLONE_PATH="$SCRIPTS_DIR/pre_clone.sh"
+  echo "$PRE_CLONE_SCRIPT" | base64 -d > "$PRE_CLONE_PATH"
+  chmod +x "$PRE_CLONE_PATH"
+  "$PRE_CLONE_PATH"
 fi
 
 # Build optional git clone flags
@@ -73,10 +73,9 @@ fi
 # Run post-clone script if provided
 if [ -n "$POST_CLONE_SCRIPT" ]; then
   echo "Running post-clone script..."
-  POST_CLONE_TMP=$(mktemp)
-  echo "$POST_CLONE_SCRIPT" | base64 -d > "$POST_CLONE_TMP"
-  chmod +x "$POST_CLONE_TMP"
+  POST_CLONE_PATH="$SCRIPTS_DIR/post_clone.sh"
+  echo "$POST_CLONE_SCRIPT" | base64 -d > "$POST_CLONE_PATH"
+  chmod +x "$POST_CLONE_PATH"
   cd "$CLONE_PATH" || exit
-  $POST_CLONE_TMP
-  rm "$POST_CLONE_TMP"
+  "$POST_CLONE_PATH"
 fi
