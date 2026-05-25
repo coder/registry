@@ -26,38 +26,6 @@ printf "install_codex: %s\n" "$${ARG_INSTALL}"
 printf "model_reasoning_effort: %s\n" "$${ARG_MODEL_REASONING_EFFORT}"
 echo "--------------------------------"
 
-function install_dasel() {
-  if command_exists dasel; then
-    return 0
-  fi
-
-  local os arch install_dir url
-  os=$(uname -s | tr '[:upper:]' '[:lower:]')
-  arch=$(uname -m)
-  case "$${arch}" in
-    x86_64)        arch="amd64" ;;
-    aarch64|arm64) arch="arm64" ;;
-    *)
-      printf "Error: unsupported architecture %s\n" "$${arch}" >&2
-      return 1
-      ;;
-  esac
-
-  install_dir="$${CODER_SCRIPT_BIN_DIR:-$HOME/.local/bin}"
-  mkdir -p "$${install_dir}"
-
-  url="https://github.com/TomWright/dasel/releases/download/v3.4.0/dasel_$${os}_$${arch}"
-  printf "Installing dasel from %s\n" "$${url}"
-  if curl -fsSL "$${url}" -o "$${install_dir}/dasel" && chmod +x "$${install_dir}/dasel"; then
-    export PATH="$${install_dir}:$PATH"
-    printf "Installed %s\n" "$(dasel version)"
-  else
-    printf "Error: failed to download dasel\n" >&2
-    rm -f "$${install_dir}/dasel"
-    return 1
-  fi
-}
-
 function add_path_to_shell_profiles() {
   local path_dir="$1"
 
@@ -143,69 +111,86 @@ function install_codex() {
   ensure_codex_in_path
 }
 
-# Builds the minimal default config as a JSON string on stdout.
-function build_minimal_default_config() {
-  local json
-  json=$(jq -n '{preferred_auth_method: "apikey"}')
+function write_minimal_default_config() {
+  local config_path="$1"
+  local optional_config=""
 
   if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ]; then
-    json=$(echo "$${json}" | jq '.model_provider = "aigateway"')
+    optional_config='model_provider = "aigateway"'
   fi
 
   if [ -n "$${ARG_MODEL_REASONING_EFFORT}" ]; then
-    json=$(echo "$${json}" | jq --arg v "$${ARG_MODEL_REASONING_EFFORT}" '.model_reasoning_effort = $v')
+    optional_config+=$'\n'"model_reasoning_effort = \"$${ARG_MODEL_REASONING_EFFORT}\""
   fi
+
+  cat << EOF > "$${config_path}"
+preferred_auth_method = "apikey"
+$${optional_config}
+
+EOF
 
   if [ -n "$${ARG_WORKDIR}" ]; then
-    json=$(echo "$${json}" | jq --arg w "$${ARG_WORKDIR}" '.projects[$w].trust_level = "trusted"')
-  fi
+    cat << EOF >> "$${config_path}"
+[projects."$${ARG_WORKDIR}"]
+trust_level = "trusted"
 
-  echo "$${json}"
+EOF
+  fi
 }
 
 function populate_config_toml() {
   local config_path="$HOME/.codex/config.toml"
   mkdir -p "$(dirname "$${config_path}")"
 
-  # Build the new config entirely in JSON.
-  local new_json
+  local MANAGED_START="# >>> coder-managed: codex module >>>"
+  local MANAGED_END="# <<< coder-managed: codex module <<<"
+
+  # Build managed-block content in a temp file.
+  local managed
+  managed=$(mktemp)
 
   if [ -n "$${ARG_BASE_CONFIG_TOML}" ]; then
     printf "Using provided base configuration\n"
-    new_json=$(echo "$${ARG_BASE_CONFIG_TOML}" | dasel -i toml -o json)
+    printf '%s\n' "$${ARG_BASE_CONFIG_TOML}" > "$${managed}"
   else
     printf "Using minimal default configuration\n"
-    new_json=$(build_minimal_default_config)
+    write_minimal_default_config "$${managed}"
   fi
 
   if [ -n "$${ARG_MCP}" ]; then
     printf "Adding MCP servers\n"
-    local mcp_json
-    mcp_json=$(echo "$${ARG_MCP}" | dasel -i toml -o json)
-    new_json=$(echo "$${mcp_json}" "$${new_json}" | jq -s '.[0] * .[1]')
+    printf '%s\n' "$${ARG_MCP}" >> "$${managed}"
   fi
 
   if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] && [ -n "$${ARG_AIBRIDGE_CONFIG}" ]; then
-    printf "Adding AI Gateway configuration\n"
-    local aibridge_json
-    aibridge_json=$(echo "$${ARG_AIBRIDGE_CONFIG}" | dasel -i toml -o json)
-    new_json=$(echo "$${aibridge_json}" "$${new_json}" | jq -s '.[0] * .[1]')
-  fi
-
-  # Deep-merge with existing config (existing user values win).
-  if [ -s "$${config_path}" ]; then
-    local existing_json
-    if ! existing_json=$(dasel -i toml -o json < "$${config_path}" 2>/dev/null); then
-      printf "Error: existing %s contains invalid TOML, cannot merge\n" "$${config_path}" >&2
-      exit 1
+    if ! grep -q '\[model_providers\.aigateway\]' "$${managed}" 2>/dev/null; then
+      printf "Adding AI Gateway configuration\n"
+      printf '\n%s\n' "$${ARG_AIBRIDGE_CONFIG}" >> "$${managed}"
+    else
+      printf "AI Gateway provider already defined in config, skipping append\n"
     fi
-    new_json=$(echo "$${new_json}" "$${existing_json}" | jq -s '.[0] * .[1]')
   fi
 
-  # Single conversion: JSON to TOML (atomic via temp file).
+  # Preserve user content outside the managed block from the existing config.
+  local user_content=""
+  if [ -s "$${config_path}" ] && grep -qF "$${MANAGED_START}" "$${config_path}"; then
+    user_content=$(sed '/# >>> coder-managed: codex module >>>/,/# <<< coder-managed: codex module <<</d' "$${config_path}")
+    # Trim leading blank lines.
+    user_content=$(printf '%s' "$${user_content}" | sed '/./,$!d')
+  fi
+
+  # Assemble final config atomically: managed block, then user content.
   local tmp
   tmp=$(mktemp "$${config_path}.XXXXXX")
-  echo "$${new_json}" | dasel -i json -o toml > "$${tmp}" && mv "$${tmp}" "$${config_path}"
+  {
+    printf '%s\n' "$${MANAGED_START}"
+    cat "$${managed}"
+    printf '%s\n' "$${MANAGED_END}"
+    if [ -n "$${user_content}" ]; then
+      printf '\n%s\n' "$${user_content}"
+    fi
+  } > "$${tmp}" && mv "$${tmp}" "$${config_path}"
+  rm -f "$${managed}"
 }
 
 function setup_workdir() {
@@ -233,11 +218,6 @@ EOF
 }
 
 install_codex
-install_dasel
-if ! command_exists jq; then
-  printf "Error: jq is required but not installed.\n" >&2
-  exit 1
-fi
 populate_config_toml
 setup_workdir
 add_auth_json
