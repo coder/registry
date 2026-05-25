@@ -346,7 +346,9 @@ describe("codex", async () => {
       id,
       "/home/coder/.codex/config.toml",
     );
-    expect(configToml).toMatch(new RegExp(`projects.*${workdir.replace(/\//g, '\\/')}.*`));
+    expect(configToml).toMatch(
+      new RegExp(`projects.*${workdir.replace(/\//g, "\\/")}.*`),
+    );
     expect(configToml).toMatch(/trust_level\s*=\s*['"]trusted['"]/);
   });
 
