@@ -346,9 +346,7 @@ describe("codex", async () => {
       id,
       "/home/coder/.codex/config.toml",
     );
-    expect(configToml).toMatch(
-      new RegExp(`projects.*${workdir.replace(/\//g, "\\/")}.*`),
-    );
+    expect(configToml).toMatch(new RegExp(`\\[projects\\..*${workdir}.*\\]`));
     expect(configToml).toMatch(/trust_level\s*=\s*['"]trusted['"]/);
   });
 
@@ -473,14 +471,14 @@ EOF`,
     });
     await runScripts(id, scripts);
 
-    // User customizes the github MCP server between restarts
+    // User customizes ONLY the github MCP server between restarts
     await execContainer(id, [
       "bash",
       "-c",
       [
         "CONFIG=/home/coder/.codex/config.toml",
-        // Replace the github command the user has customized
-        "sed -i \"s/command = .npx./command = 'my-custom-npx'/\" $CONFIG",
+        // Use sed address range to only replace command under github section
+        "sed -i '/github/,/^$/{ s/command = .*/command = '\"'\"'my-custom-npx'\"'\"'/; }' $CONFIG",
       ].join(" && "),
     ]);
 
@@ -492,9 +490,9 @@ EOF`,
     );
     // User's customized github command preserved
     expect(config).toMatch(/command\s*=\s*['"]my-custom-npx['"]/);
-    // filesystem server still present (not lost by shallow merge)
-    expect(config).toContain("mcp_servers");
+    // filesystem server still present with original command
     expect(config).toContain("filesystem");
+    expect(config).toMatch(/command\s*=\s*['"]npx['"]/);
   });
 
   test("idempotent-base-config-preserves-user-edits", async () => {
@@ -526,7 +524,7 @@ EOF`,
     expect(config).toContain("preferred_auth_method");
   });
 
-  test("idempotent-run-twice-no-change", async () => {
+  test("idempotent-stable-after-roundtrip", async () => {
     const { id, scripts } = await setup();
 
     // First run
@@ -637,11 +635,11 @@ EOF`,
       "/home/coder/.codex/config.toml",
     );
     // Base config keys present
-    expect(config).toContain("sandbox_mode");
-    expect(config).toContain("preferred_auth_method");
+    expect(config).toMatch(/sandbox_mode\s*=\s*['"]danger-full-access['"]/);
+    expect(config).toMatch(/preferred_auth_method\s*=\s*['"]apikey['"]/);
     // MCP server present
     expect(config).toContain("mcp_servers");
-    expect(config).toContain("github");
+    expect(config).toMatch(/command\s*=\s*['"]npx['"]/);
   });
 
   test("all-config-sources-combined", async () => {
@@ -668,12 +666,12 @@ EOF`,
       "/home/coder/.codex/config.toml",
     );
     // Base config
-    expect(config).toContain("sandbox_mode");
-    expect(config).toContain("preferred_auth_method");
+    expect(config).toMatch(/sandbox_mode\s*=\s*['"]danger-full-access['"]/);
+    expect(config).toMatch(/preferred_auth_method\s*=\s*['"]apikey['"]/);
     // MCP
-    expect(config).toContain("github");
+    expect(config).toMatch(/command\s*=\s*['"]npx['"]/);
     // AI gateway
-    expect(config).toContain("model_providers");
+    expect(config).toContain("[model_providers.aigateway]");
   });
 
   test("idempotent-all-sources-user-edits-survive", async () => {
@@ -717,11 +715,11 @@ EOF`,
     );
     // User edits survived
     expect(config).toMatch(/preferred_auth_method\s*=\s*['"]oauth['"]/);
-    expect(config).toContain("user_note");
+    expect(config).toMatch(/user_note\s*=\s*['"]do not touch['"]/);
     // Module config still present
-    expect(config).toContain("sandbox_mode");
+    expect(config).toMatch(/sandbox_mode\s*=\s*['"]danger-full-access['"]/);
     expect(config).toContain("github");
-    expect(config).toContain("model_providers");
+    expect(config).toContain("[model_providers.aigateway]");
   });
 
   test("custom-config-drops-reasoning-effort", async () => {

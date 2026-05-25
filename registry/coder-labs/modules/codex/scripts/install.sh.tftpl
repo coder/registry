@@ -26,7 +26,6 @@ printf "install_codex: %s\n" "$${ARG_INSTALL}"
 printf "model_reasoning_effort: %s\n" "$${ARG_MODEL_REASONING_EFFORT}"
 echo "--------------------------------"
 
-
 function install_dasel() {
   if command_exists dasel; then
     return 0
@@ -58,7 +57,6 @@ function install_dasel() {
     return 1
   fi
 }
-
 
 function add_path_to_shell_profiles() {
   local path_dir="$1"
@@ -146,7 +144,7 @@ function install_codex() {
 }
 
 # Builds the minimal default config as a JSON string on stdout.
-function write_minimal_default_config() {
+function build_minimal_default_config() {
   local json
   json=$(jq -n '{preferred_auth_method: "apikey"}')
 
@@ -177,7 +175,7 @@ function populate_config_toml() {
     new_json=$(echo "$${ARG_BASE_CONFIG_TOML}" | dasel -i toml -o json)
   else
     printf "Using minimal default configuration\n"
-    new_json=$(write_minimal_default_config)
+    new_json=$(build_minimal_default_config)
   fi
 
   if [ -n "$${ARG_MCP}" ]; then
@@ -197,13 +195,19 @@ function populate_config_toml() {
   # Deep-merge with existing config (existing user values win).
   if [ -s "$${config_path}" ]; then
     local existing_json
-    existing_json=$(dasel -i toml -o json < "$${config_path}")
+    if ! existing_json=$(dasel -i toml -o json < "$${config_path}" 2>/dev/null); then
+      printf "Error: existing %s contains invalid TOML, cannot merge\n" "$${config_path}" >&2
+      exit 1
+    fi
     new_json=$(echo "$${new_json}" "$${existing_json}" | jq -s '.[0] * .[1]')
   fi
 
-  # Single conversion: JSON to TOML.
-  echo "$${new_json}" | dasel -i json -o toml > "$${config_path}"
+  # Single conversion: JSON to TOML (atomic via temp file).
+  local tmp
+  tmp=$(mktemp "$${config_path}.XXXXXX")
+  echo "$${new_json}" | dasel -i json -o toml > "$${tmp}" && mv "$${tmp}" "$${config_path}"
 }
+
 function setup_workdir() {
   if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
     echo "Creating workdir: $${ARG_WORKDIR}"
@@ -230,6 +234,10 @@ EOF
 
 install_codex
 install_dasel
+if ! command_exists jq; then
+  printf "Error: jq is required but not installed.\n" >&2
+  exit 1
+fi
 populate_config_toml
 setup_workdir
 add_auth_json
