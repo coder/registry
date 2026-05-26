@@ -189,17 +189,14 @@ module "git-clone" {
 
 > [!NOTE]
 > **Upgrading from v1.x?** The `depth` variable was removed in v2.0.0. Use `extra_args = ["--depth=1"]` instead.
+> Do not pass `-b` or `--branch` in `extra_args` when `branch_name` is
+> already set (or extracted from the URL). Git silently accepts the last
+> `-b` flag, so the two values would conflict.
 
 Pass any additional flags through `extra_args` (one element per argument).
 This lets you enable anything `git clone` supports without the module having
 to expose it explicitly, for example a shallow clone, submodules, parallel
 fetches, or partial clones.
-
-> [!WARNING]
-> Do not pass `-b` or `--branch` in `extra_args` when `branch_name` is
-> already set (or extracted from the URL). Git silently accepts the last
-> `-b` flag, so the two values would conflict.
-
 
 ```tf
 module "git-clone" {
