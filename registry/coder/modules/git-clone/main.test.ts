@@ -69,9 +69,7 @@ describe("git-clone", async () => {
     const output = await executeScriptInContainer(state, "alpine/git");
     expect(output.stdout).toContain("Creating directory /root/fake-url...");
     expect(output.stdout).toContain("Cloning fake-url to /root/fake-url...");
-    expect(output.stdout).toContain(
-      "Running: git clone fake-url /root/fake-url",
-    );
+    expect(output.exitCode).not.toBe(0);
     expect(output.stdout.join(" ")).toContain("fatal");
     expect(output.stdout.join(" ")).toContain("fake-url");
   });
@@ -250,9 +248,6 @@ describe("git-clone", async () => {
     expect(output.stdout).toContain(
       "Cloning https://github.com/michaelbrewer/repo-tests.log to /root/repo-tests.log on branch feat/branch...",
     );
-    expect(output.stdout).toContain(
-      "Running: git clone -b feat/branch https://github.com/michaelbrewer/repo-tests.log /root/repo-tests.log",
-    );
   });
 
   it("runs with gitlab clone with switch to feat/branch", async () => {
@@ -267,9 +262,6 @@ describe("git-clone", async () => {
     );
     expect(output.stdout).toContain(
       "Cloning https://gitlab.com/mike.brew/repo-tests.log to /root/repo-tests.log on branch feat/branch...",
-    );
-    expect(output.stdout).toContain(
-      "Running: git clone -b feat/branch https://gitlab.com/mike.brew/repo-tests.log /root/repo-tests.log",
     );
   });
 
@@ -293,9 +285,6 @@ describe("git-clone", async () => {
     );
     expect(output.stdout).toContain(
       "Cloning https://github.com/michaelbrewer/repo-tests.log to /root/repo-tests.log on branch feat/branch...",
-    );
-    expect(output.stdout).toContain(
-      "Running: git clone -b feat/branch https://github.com/michaelbrewer/repo-tests.log /root/repo-tests.log",
     );
   });
 
@@ -348,7 +337,7 @@ describe("git-clone", async () => {
       url: "fake-url",
     });
     const script = findResourceInstance(state, "coder_script").script;
-    const match = script.match(/echo -n '([^']+)'/);
+    const match = script.match(/'([A-Za-z0-9+/=]+)'\s*\|\s*base64\s+-d/);
     expect(match).not.toBeNull();
     const cloneScript = Buffer.from(match![1], "base64").toString();
     expect(cloneScript).toContain('EXTRA_ARGS=""');
@@ -425,12 +414,13 @@ describe("git-clone", async () => {
     await execContainer(id, ["sh", "-c", "apk add --no-cache bash >/dev/null"]);
     await execContainer(id, ["bash", "-c", instance.script]);
     const log = await execContainer(id, [
-      "cat",
-      "/root/.coder-modules/coder/git-clone/logs/clone.log",
+      "bash",
+      "-c",
+      "cat /root/.coder-modules/coder/git-clone/*/logs/clone.log",
     ]);
     expect(log.exitCode).toBe(0);
     expect(log.stdout).toContain("Cloning fake-url to /root/fake-url...");
-    expect(log.stdout).toContain("Running: git clone fake-url /root/fake-url");
+
   });
 
   it("fails when post-clone script fails", async () => {

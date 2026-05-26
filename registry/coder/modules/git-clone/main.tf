@@ -100,7 +100,9 @@ locals {
   encoded_extra_args       = base64encode(join("\n", var.extra_args))
 
   # Module directory paths (matches coder-utils convention)
-  module_dir          = "$HOME/.coder-modules/coder/git-clone"
+  # Use folder_name so two git-clone instances in the same template get
+  # separate script and log directories.
+  module_dir          = "$HOME/.coder-modules/coder/git-clone/${local.folder_name}"
   scripts_directory   = "${local.module_dir}/scripts"
   log_directory       = "${local.module_dir}/logs"
   clone_script_path   = "${local.scripts_directory}/clone.sh"

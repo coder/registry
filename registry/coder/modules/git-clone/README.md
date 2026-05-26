@@ -187,6 +187,8 @@ module "git-clone" {
 
 ## Extra `git clone` arguments
 
+> **Upgrading from v1.x?** The `depth` variable was removed in v2.0.0. Use `extra_args = ["--depth=1"]` instead.
+
 Pass any additional flags through `extra_args` (one element per argument).
 This lets you enable anything `git clone` supports without the module having
 to expose it explicitly, for example a shallow clone, submodules, parallel
@@ -258,3 +260,14 @@ module "git-clone" {
   EOT
 }
 ```
+
+## Troubleshooting
+
+Clone output is logged to `~/.coder-modules/coder/git-clone/<instance>/logs/clone.log`:
+
+    cat ~/.coder-modules/coder/git-clone/*/logs/clone.log
+
+Pre-clone and post-clone script output is logged alongside:
+
+    cat ~/.coder-modules/coder/git-clone/*/logs/pre_clone.log
+    cat ~/.coder-modules/coder/git-clone/*/logs/post_clone.log

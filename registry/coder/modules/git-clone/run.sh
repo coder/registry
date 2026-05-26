@@ -61,11 +61,9 @@ fi
 if [ -z "$(ls -A "$CLONE_PATH")" ]; then
   if [ -z "$BRANCH_NAME" ]; then
     echo "Cloning $REPO_URL to $CLONE_PATH..."
-    echo "Running: git clone $${extra_args[@]:+$${extra_args[@]} }$REPO_URL $CLONE_PATH"
     git clone $${extra_args[@]+"$${extra_args[@]}"} "$REPO_URL" "$CLONE_PATH"
   else
     echo "Cloning $REPO_URL to $CLONE_PATH on branch $BRANCH_NAME..."
-    echo "Running: git clone $${extra_args[@]:+$${extra_args[@]} }-b $BRANCH_NAME $REPO_URL $CLONE_PATH"
     git clone $${extra_args[@]+"$${extra_args[@]}"} -b "$BRANCH_NAME" "$REPO_URL" "$CLONE_PATH"
   fi
 else
