@@ -543,6 +543,47 @@ EOF`,
     expect(config).toMatch(/command\s*=\s*"my-tool"/);
   });
 
+  test("idempotent-user-bare-keys-stay-at-root-scope", async () => {
+    const { id, scripts } = await setup();
+    await runScripts(id, scripts);
+
+    // User adds bare keys AND a section after the managed block.
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat >> /home/coder/.codex/config.toml << 'EOF'
+
+my_custom_key = "hello"
+sandbox_mode = "full"
+
+[mcp_servers.user_tool]
+command = "my-tool"
+EOF`,
+    ]);
+
+    // Second run
+    await runScripts(id, scripts);
+    const config = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+
+    // User bare keys must appear BEFORE the managed block start marker
+    // so they remain at TOML root scope.
+    const startIdx = config.indexOf(MANAGED_START);
+    const customKeyIdx = config.indexOf('my_custom_key = "hello"');
+    const sandboxIdx = config.indexOf('sandbox_mode = "full"');
+    expect(customKeyIdx).toBeGreaterThan(-1);
+    expect(sandboxIdx).toBeGreaterThan(-1);
+    expect(customKeyIdx).toBeLessThan(startIdx);
+    expect(sandboxIdx).toBeLessThan(startIdx);
+
+    // User section preserved after managed block
+    const endIdx = config.indexOf(MANAGED_END);
+    const sectionIdx = config.indexOf("[mcp_servers.user_tool]");
+    expect(sectionIdx).toBeGreaterThan(endIdx);
+  });
+
   test("idempotent-managed-block-regenerated", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {
@@ -580,13 +621,16 @@ EOF`,
     const { id, scripts } = await setup();
     await runScripts(id, scripts);
 
-    // User adds comments and a section after the managed block.
+    // User adds a bare-key comment, a bare key, then a section with comments.
     await execContainer(id, [
       "bash",
       "-c",
       `cat >> /home/coder/.codex/config.toml << 'EOF'
 
-# My personal settings for local development
+# My personal top-level setting
+my_flag = true
+
+# My personal MCP server
 [mcp_servers.notes]
 command = "notes-server"
 # This server is for my personal notes
@@ -600,8 +644,10 @@ EOF`,
       id,
       "/home/coder/.codex/config.toml",
     );
-    // User comments preserved
-    expect(config).toContain("# My personal settings for local development");
+    // Bare-key comment hoisted above managed block
+    expect(config).toContain("# My personal top-level setting");
+    // Section comments preserved below managed block
+    expect(config).toContain("# My personal MCP server");
     expect(config).toContain("# This server is for my personal notes");
     expect(config).toContain("[mcp_servers.notes]");
   });

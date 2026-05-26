@@ -179,15 +179,38 @@ function populate_config_toml() {
     user_content=$(printf '%s' "$${user_content}" | sed '/./,$!d')
   fi
 
-  # Assemble final config atomically: managed block, then user content.
+  # Split user content into bare keys (before any [section]) and sections.
+  # Bare keys go above the managed block so they stay at TOML root scope;
+  # sections go below it where each [header] resets scope naturally.
+  local user_bare="" user_sections=""
+  if [ -n "$${user_content}" ]; then
+    local first_section
+    first_section=$(printf '%s\n' "$${user_content}" | grep -n '^\[' | head -1 | cut -d: -f1)
+    if [ -n "$${first_section}" ]; then
+      user_bare=$(printf '%s\n' "$${user_content}" | head -n "$((first_section - 1))")
+      user_sections=$(printf '%s\n' "$${user_content}" | tail -n "+$${first_section}")
+      # Trim trailing blank lines from bare portion.
+      user_bare=$(printf '%s' "$${user_bare}" | sed -e :a -e '/^\n*$/{ $d; N; ba; }')
+    else
+      user_bare="$${user_content}"
+    fi
+  fi
+
+  # Assemble final config atomically:
+  #   user bare keys  (root scope)
+  #   managed block   (bare keys first, then [sections])
+  #   user sections   (each [header] resets scope)
   local tmp
   tmp=$(mktemp "$${config_path}.XXXXXX")
   {
+    if [ -n "$${user_bare}" ]; then
+      printf '%s\n\n' "$${user_bare}"
+    fi
     printf '%s\n' "$${MANAGED_START}"
     cat "$${managed}"
     printf '%s\n' "$${MANAGED_END}"
-    if [ -n "$${user_content}" ]; then
-      printf '\n%s\n' "$${user_content}"
+    if [ -n "$${user_sections}" ]; then
+      printf '\n%s\n' "$${user_sections}"
     fi
   } > "$${tmp}" && mv "$${tmp}" "$${config_path}"
   rm -f "$${managed}"
