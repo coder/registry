@@ -160,14 +160,14 @@ resource "coder_script" "git_clone" {
     set -o errexit
     set -o pipefail
 
-    mkdir -p ${local.module_dir}
-    mkdir -p ${local.scripts_directory}
-    mkdir -p ${local.log_directory}
+    mkdir -p "${local.module_dir}"
+    mkdir -p "${local.scripts_directory}"
+    mkdir -p "${local.log_directory}"
 
-    echo -n '${local.encoded_clone_script}' | base64 -d > ${local.clone_script_path}
-    chmod +x ${local.clone_script_path}
+    echo -n '${local.encoded_clone_script}' | base64 -d > "${local.clone_script_path}"
+    chmod +x "${local.clone_script_path}"
 
-    ${local.clone_script_path} 2>&1 | tee ${local.clone_log_path}
+    "${local.clone_script_path}" 2>&1 | tee "${local.clone_log_path}"
   EOT
   display_name       = "Git Clone"
   icon               = "/icon/git.svg"

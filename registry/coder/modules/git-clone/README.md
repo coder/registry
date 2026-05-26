@@ -194,10 +194,15 @@ This lets you enable anything `git clone` supports without the module having
 to expose it explicitly, for example a shallow clone, submodules, parallel
 fetches, or partial clones.
 
-> Do not put secrets in `extra_args`. The resolved `git clone` command
-> (including every element of `extra_args`) is echoed to the workspace
-> startup log, so values like `--config=http.extraHeader=Authorization: Bearer <token>`
-> would appear there in plaintext.
+> Do not pass `-b` or `--branch` in `extra_args` when `branch_name` is
+> already set (or extracted from the URL). Git silently accepts the last
+> `-b` flag, so the two values would conflict.
+
+> Do not put secrets in `extra_args`. The values are embedded in the
+> clone script on disk (`~/.coder-modules/.../scripts/clone.sh`) and
+> stored in Terraform state, so values like
+> `--config=http.extraHeader=Authorization: Bearer <token>` would be
+> readable in plaintext.
 
 ```tf
 module "git-clone" {

@@ -336,11 +336,15 @@ describe("git-clone", async () => {
       agent_id: "foo",
       url: "fake-url",
     });
-    const script = findResourceInstance(state, "coder_script").script;
-    const match = script.match(/'([A-Za-z0-9+/=]+)'\s*\|\s*base64\s+-d/);
-    expect(match).not.toBeNull();
-    const cloneScript = Buffer.from(match![1], "base64").toString();
-    expect(cloneScript).toContain('EXTRA_ARGS=""');
+    const output = await executeScriptInContainer(
+      state,
+      "alpine/git",
+      installFakeGit,
+    );
+    // With no extra_args the only argv tokens should be clone, url, path.
+    expect(output.stdout.join("\n")).toContain(
+      ["argv:clone", "argv:fake-url", "argv:/root/fake-url"].join("\n"),
+    );
   });
 
   it("passes extra_args to git clone", async () => {
@@ -420,7 +424,6 @@ describe("git-clone", async () => {
     ]);
     expect(log.exitCode).toBe(0);
     expect(log.stdout).toContain("Cloning fake-url to /root/fake-url...");
-
   });
 
   it("fails when post-clone script fails", async () => {
