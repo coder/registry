@@ -171,10 +171,16 @@ function populate_config_toml() {
     fi
   fi
 
-  # Preserve user content outside the managed block from the existing config.
+  # Preserve user content from the existing config.
   local user_content=""
-  if [ -s "$${config_path}" ] && grep -qF "$${MANAGED_START}" "$${config_path}"; then
-    user_content=$(sed '/# >>> coder-managed: codex module >>>/,/# <<< coder-managed: codex module <<</d' "$${config_path}")
+  if [ -s "$${config_path}" ]; then
+    if grep -qF "$${MANAGED_START}" "$${config_path}"; then
+      # Strip the managed block; everything else is user content.
+      user_content=$(sed '/# >>> coder-managed: codex module >>>/,/# <<< coder-managed: codex module <<</d' "$${config_path}")
+    else
+      # No markers (pre-upgrade or hand-written config). Treat the whole file as user content.
+      user_content=$(cat "$${config_path}")
+    fi
     # Trim leading blank lines.
     user_content=$(printf '%s' "$${user_content}" | sed '/./,$!d')
   fi

@@ -711,7 +711,7 @@ EOF`,
     expect(config).toMatch(/command\s*=\s*"my-tool"/);
   });
 
-  test("idempotent-no-markers-overwrites", async () => {
+  test("idempotent-no-markers-preserves-user-config", async () => {
     const { id, scripts } = await setup();
 
     // Simulate a legacy config without markers (pre-upgrade).
@@ -721,22 +721,31 @@ EOF`,
       `mkdir -p /home/coder/.codex && cat > /home/coder/.codex/config.toml << 'EOF'
 preferred_auth_method = "login"
 legacy_key = "old_value"
+
+[mcp_servers.legacy]
+command = "legacy-tool"
+type = "stdio"
 EOF`,
     ]);
 
-    // First run with marker-block code: no markers found, overwrites.
+    // First run with marker-block code: no markers found, entire file is user content.
     await runScripts(id, scripts);
     const config = await readFileContainer(
       id,
       "/home/coder/.codex/config.toml",
     );
-    // New managed block is written
+    // Managed block is written
     expect(config).toContain(MANAGED_START);
     expect(config).toContain(MANAGED_END);
-    expect(config).toMatch(/preferred_auth_method\s*=\s*"apikey"/);
-    // Legacy content is gone (no markers to preserve it)
-    expect(config).not.toContain("legacy_key");
-    expect(config).not.toContain("old_value");
+    // Legacy bare keys hoisted above managed block at root scope
+    const startIdx = config.indexOf(MANAGED_START);
+    expect(config.indexOf('preferred_auth_method = "login"')).toBeLessThan(
+      startIdx,
+    );
+    expect(config.indexOf('legacy_key = "old_value"')).toBeLessThan(startIdx);
+    // Legacy section preserved after managed block
+    const endIdx = config.indexOf(MANAGED_END);
+    expect(config.indexOf("[mcp_servers.legacy]")).toBeGreaterThan(endIdx);
   });
 
   test("idempotent-all-sources-user-content-survives", async () => {
