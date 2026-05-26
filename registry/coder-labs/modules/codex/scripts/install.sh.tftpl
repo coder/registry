@@ -196,7 +196,7 @@ function populate_config_toml() {
       user_bare=$(printf '%s\n' "$${user_content}" | head -n "$((first_section - 1))")
       user_sections=$(printf '%s\n' "$${user_content}" | tail -n "+$${first_section}")
       # Trim trailing blank lines from bare portion.
-      user_bare=$(printf '%s' "$${user_bare}" | sed -e :a -e '/^\n*$/{ $d; N; ba; }')
+      user_bare=$(printf '%s' "$${user_bare}" | sed -e :x -e '/^\n*$/{ $d; N; bx; }')
     else
       user_bare="$${user_content}"
     fi
