@@ -61,3 +61,50 @@ run "adds_open_recent" {
     error_message = "URL must include openRecent parameter"
   }
 }
+
+run "writes_mcp_json" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/foo/bar"
+    mcp = jsonencode({
+      mcpServers = {
+        demo = { url = "http://localhost:1234" }
+      }
+    })
+  }
+
+  assert {
+    condition = strcontains(coder_script.trae_cn_mcp[0].script, base64encode(jsonencode({
+      mcpServers = {
+        demo = { url = "http://localhost:1234" }
+      }
+    })))
+    error_message = "coder_script must contain base64-encoded MCP JSON"
+  }
+
+  assert {
+    condition     = strcontains(coder_script.trae_cn_mcp[0].script, base64encode("/foo/bar/.trae/mcp.json"))
+    error_message = "coder_script must contain the default folder MCP path"
+  }
+}
+
+run "writes_custom_mcp_path" {
+  command = plan
+
+  variables {
+    agent_id        = "foo"
+    mcp_config_path = "$HOME/.config/trae/mcp.json"
+    mcp = jsonencode({
+      mcpServers = {
+        demo = { url = "http://localhost:1234" }
+      }
+    })
+  }
+
+  assert {
+    condition     = strcontains(coder_script.trae_cn_mcp[0].script, base64encode("$HOME/.config/trae/mcp.json"))
+    error_message = "coder_script must contain the custom MCP path"
+  }
+}
