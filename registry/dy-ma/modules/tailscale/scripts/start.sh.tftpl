@@ -127,7 +127,7 @@ get_access_token() {
 # tailnet, causing Tailscale to assign a collision-avoidance name instead of
 # the requested hostname. This function deletes any offline nodes matching
 # this workspace's hostname before re-registering.
-# Requires devices:read + devices:delete OAuth scopes. If the client only has
+# Requires devices:core write access for the tag. If the client only has
 # auth_keys scope, the list call returns 403 and cleanup is skipped silently.
 
 cleanup_stale_nodes() {

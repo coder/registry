@@ -23,7 +23,9 @@ module "tailscale" {
 
 > Do not hardcode credentials in your template. Pass them via Terraform variables, `TF_VAR_*` environment variables, or your preferred secrets manager.
 >
-> **Creating OAuth credentials:** In the Tailscale admin console go to **Settings → OAuth Clients** and create a client with the `auth_keys` scope and the ACL tags your workspaces will use (e.g. `tag:coder-workspace`).
+> **Creating OAuth credentials:** In the Tailscale admin console go to **Settings → OAuth Clients** and create a client with the `auth_keys` scope and the ACL tags your workspaces will use (e.g. `tag:coder-workspace`). If using `ephemeral = true`, also grant `devices:core` write access for your tag to enable automatic cleanup of stale nodes on restart.
+
+> **Security note:** OAuth credentials are rendered (base64-encoded) into the startup script at `~/.coder-modules/dy-ma/tailscale/scripts/start.sh` on the workspace filesystem. Base64 is not encryption — the raw values are recoverable with `base64 -d`. Treat read access to the workspace filesystem as equivalent to credential access.
 
 ## Examples
 
@@ -149,3 +151,11 @@ module "tailscale" {
   extra_flags         = "--exit-node=100.64.0.1"
 }
 ```
+
+## Notes
+
+### Hostname vs. MagicDNS name
+
+`output.hostname` returns the hostname this module *requested* Tailscale register — not necessarily the MagicDNS name Tailscale actually assigned. With `ephemeral = true`, if the previous workspace node is still listed as offline in the tailnet when the workspace restarts, Tailscale may assign a collision-avoidance name (e.g. `my-workspace-2`) instead of the requested one.
+
+To prevent this, the module automatically removes offline nodes with the same hostname before re-registering. This cleanup requires `devices:core` write access for your tag in addition to `auth_keys`. If those scopes are absent the cleanup is skipped silently and the collision-avoidance name may appear.
