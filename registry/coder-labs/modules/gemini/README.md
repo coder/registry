@@ -13,7 +13,7 @@ Run [Gemini CLI](https://github.com/google-gemini/gemini-cli) in your workspace 
 ```tf
 module "gemini" {
   source   = "registry.coder.com/coder-labs/gemini/coder"
-  version  = "3.0.0"
+  version  = "3.0.1"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
@@ -46,7 +46,7 @@ variable "gemini_api_key" {
 
 module "gemini" {
   source         = "registry.coder.com/coder-labs/gemini/coder"
-  version        = "3.0.0"
+  version        = "3.0.1"
   agent_id       = coder_agent.main.id
   gemini_api_key = var.gemini_api_key
   folder         = "/home/coder/project"
@@ -94,7 +94,7 @@ data "coder_parameter" "ai_prompt" {
 module "gemini" {
   count                = data.coder_workspace.me.start_count
   source               = "registry.coder.com/coder-labs/gemini/coder"
-  version              = "3.0.0"
+  version              = "3.0.1"
   agent_id             = coder_agent.main.id
   gemini_api_key       = var.gemini_api_key
   gemini_model         = "gemini-2.5-flash"
@@ -104,6 +104,22 @@ module "gemini" {
   gemini_system_prompt = <<-EOT
     You are a helpful coding assistant. Always explain your code changes clearly.
     YOU MUST REPORT ALL TASKS TO CODER.
+  EOT
+  pre_install_script   = <<-EOT
+    #!/bin/bash
+    set -e
+
+    echo "Installing Node.js via NodeSource..."
+
+    sudo apt-get update -qq && sudo apt-get install -y curl ca-certificates
+
+    curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo bash -
+
+    sudo apt-get install -y nodejs
+
+    echo "Node version: $(node -v)"
+    echo "npm version: $(npm -v)"
+    echo "Node install complete."
   EOT
 }
 ```
@@ -118,7 +134,7 @@ For enterprise users who prefer Google's Vertex AI platform:
 ```tf
 module "gemini" {
   source         = "registry.coder.com/coder-labs/gemini/coder"
-  version        = "3.0.0"
+  version        = "3.0.1"
   agent_id       = coder_agent.main.id
   gemini_api_key = var.gemini_api_key
   folder         = "/home/coder/project"

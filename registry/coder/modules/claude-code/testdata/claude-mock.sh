@@ -5,9 +5,6 @@ if [[ "$1" == "--version" ]]; then
   exit 0
 fi
 
-set -e
-
-while true; do
-  echo "$(date) - claude-mock"
-  sleep 15
-done
+# Mirror invocation for test assertions and exit cleanly.
+echo "claude invoked with: $*"
+exit 0
