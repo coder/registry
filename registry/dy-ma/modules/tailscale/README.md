@@ -156,6 +156,6 @@ module "tailscale" {
 
 ### Hostname vs. MagicDNS name
 
-`output.hostname` returns the hostname this module *requested* Tailscale register — not necessarily the MagicDNS name Tailscale actually assigned. With `ephemeral = true`, if the previous workspace node is still listed as offline in the tailnet when the workspace restarts, Tailscale may assign a collision-avoidance name (e.g. `my-workspace-2`) instead of the requested one.
+`output.hostname` returns the hostname this module _requested_ Tailscale register — not necessarily the MagicDNS name Tailscale actually assigned. With `ephemeral = true`, if the previous workspace node is still listed as offline in the tailnet when the workspace restarts, Tailscale may assign a collision-avoidance name (e.g. `my-workspace-2`) instead of the requested one.
 
 To prevent this, the module automatically removes offline nodes with the same hostname before re-registering. This cleanup requires `devices:core` write access for your tag in addition to `auth_keys`. If those scopes are absent the cleanup is skipped silently and the collision-avoidance name may appear.
