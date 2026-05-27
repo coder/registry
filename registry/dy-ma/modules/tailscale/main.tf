@@ -34,6 +34,7 @@ locals {
     SSH                 = tostring(var.ssh)
     EXTRA_FLAGS         = var.extra_flags
     STATE_DIR           = var.state_dir
+    EXPORT_PROXY_ENV    = tostring(var.export_proxy_env)
   })
 }
 
@@ -151,6 +152,18 @@ variable "http_proxy_port" {
   EOF
   type        = number
   default     = 3128
+}
+
+variable "export_proxy_env" {
+  description = <<-EOF
+    When true (default), writes proxy environment variables
+    (ALL_PROXY, http_proxy, https_proxy) to /etc/profile.d/tailscale-proxy.sh
+    in userspace networking mode. This routes all outbound HTTP traffic from
+    login shells through tailscaled. Set to false if you only want tailnet
+    traffic proxied, or if other tooling manages proxy configuration.
+  EOF
+  type        = bool
+  default     = true
 }
 
 variable "accept_dns" {

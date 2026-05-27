@@ -21,6 +21,7 @@ ADVERTISE_ROUTES='${ADVERTISE_ROUTES}'
 SSH='${SSH}'
 EXTRA_FLAGS='${EXTRA_FLAGS}'
 STATE_DIR='${STATE_DIR}'
+EXPORT_PROXY_ENV='${EXPORT_PROXY_ENV}'
 
 echo "--------------------------------"
 printf "TAILSCALE_API_URL: %s\n" "$${TAILSCALE_API_URL}"
@@ -50,8 +51,6 @@ die() {
 }
 has() { command -v "$1" &> /dev/null; }
 
-# ── Detect networking mode ────────────────────────────────────────────────────
-
 resolve_networking_mode() {
   if [ "$${NETWORKING_MODE}" != "auto" ]; then
     echo "$${NETWORKING_MODE}"
@@ -63,8 +62,6 @@ resolve_networking_mode() {
     echo "userspace"
   fi
 }
-
-# ── Start tailscaled ──────────────────────────────────────────────────────────
 
 start_tailscaled() {
   local mode="$1"
@@ -105,12 +102,7 @@ start_tailscaled() {
   fi
 }
 
-# ── Generate a single-use auth key ────────────────────────────────────────────
-# OAuth creds stay on this machine. We exchange them for a short-lived
-# access token, use that to create a 5-minute single-use auth key, then
-# discard both. The auth key is the only thing passed to tailscale up.
-
-generate_auth_key() {
+get_access_token() {
   has curl || die "curl is required."
   has jq || die "jq is required."
 
@@ -126,6 +118,71 @@ generate_auth_key() {
   access_token=$(echo "$${token_response}" | jq -r '.access_token')
   [ "$${access_token}" = "null" ] || [ -z "$${access_token}" ] \
     && die "OAuth token response did not contain an access_token. Check your client ID and secret."
+
+  echo "$${access_token}"
+}
+
+# ── Clean up stale ephemeral nodes ────────────────────────────────────────────
+# On restart, the previous ephemeral node may still appear as offline in the
+# tailnet, causing Tailscale to assign a collision-avoidance name instead of
+# the requested hostname. This function deletes any offline nodes matching
+# this workspace's hostname before re-registering.
+# Requires devices:read + devices:delete OAuth scopes. If the client only has
+# auth_keys scope, the list call returns 403 and cleanup is skipped silently.
+
+cleanup_stale_nodes() {
+  local access_token="$$1"
+  [ "$${EPHEMERAL}" != "true" ] && return
+
+  log "Checking for stale offline nodes with hostname '$${TS_HOSTNAME}'..."
+
+  local devices_response http_status
+  devices_response=$(curl -sSL -w "\n%%{http_code}" \
+    -H "Authorization: Bearer $${access_token}" \
+    "$${TAILSCALE_API_URL}/api/v2/tailnet/$${TAILNET}/devices")
+  http_status=$(echo "$${devices_response}" | tail -1)
+  devices_response=$(echo "$${devices_response}" | head -n -1)
+
+  if [ "$${http_status}" = "403" ]; then
+    log "OAuth client lacks devices scope; skipping stale node cleanup."
+    return
+  fi
+  if [ "$${http_status}" != "200" ]; then
+    log "Warning: failed to list devices (HTTP $${http_status}); skipping cleanup."
+    return
+  fi
+
+  local stale_ids
+  stale_ids=$(echo "$${devices_response}" | jq -r --arg h "$${TS_HOSTNAME}" \
+    '.devices[] | select(.hostname == $h and .online == false) | .id')
+
+  if [ -z "$${stale_ids}" ]; then
+    log "No stale nodes found."
+    return
+  fi
+
+  while IFS= read -r device_id; do
+    [ -z "$${device_id}" ] && continue
+    log "Removing stale node $${device_id}..."
+    local del_status
+    del_status=$(curl -sSL -o /dev/null -w "%%{http_code}" -X DELETE \
+      -H "Authorization: Bearer $${access_token}" \
+      "$${TAILSCALE_API_URL}/api/v2/device/$${device_id}")
+    if [ "$${del_status}" = "200" ] || [ "$${del_status}" = "204" ]; then
+      log "Removed stale node $${device_id}."
+    else
+      log "Warning: failed to remove node $${device_id} (HTTP $${del_status}); continuing."
+    fi
+  done <<< "$${stale_ids}"
+}
+
+# ── Generate a single-use auth key ────────────────────────────────────────────
+# OAuth creds stay on this machine. We exchange them for a short-lived
+# access token, use that to create a 5-minute single-use auth key, then
+# discard both. The auth key is the only thing passed to tailscale up.
+
+generate_auth_key() {
+  local access_token="$$1"
 
   log "Generating single-use auth key..."
   local key_response http_status
@@ -160,8 +217,6 @@ generate_auth_key() {
   echo "$${auth_key}"
 }
 
-# ── Bring up Tailscale ────────────────────────────────────────────────────────
-
 bring_up() {
   local auth_key="$1"
   local mode="$2"
@@ -187,11 +242,10 @@ bring_up() {
   fi
 }
 
-# ── Set proxy env vars (userspace only) ───────────────────────────────────────
-
 configure_proxy_env() {
   local mode="$1"
   [ "$${mode}" != "userspace" ] && return
+  [ "$${EXPORT_PROXY_ENV}" != "true" ] && return
 
   local lines=""
   [ "$${SOCKS5_PORT}" != "0" ] \
@@ -205,8 +259,6 @@ configure_proxy_env() {
     log "Proxy env vars written to /etc/profile.d/tailscale-proxy.sh"
   fi
 }
-
-# ── Main ──────────────────────────────────────────────────────────────────────
 
 main() {
   local mode
@@ -223,8 +275,11 @@ main() {
     log "Tailscale already connected. Re-applying flags..."
     # auth_key stays empty — bring_up will skip --auth-key
   else
-    log "Not connected. Generating auth key via OAuth..."
-    auth_key=$(generate_auth_key)
+    log "Not connected. Authenticating via OAuth..."
+    local access_token
+    access_token=$(get_access_token)
+    cleanup_stale_nodes "$${access_token}"
+    auth_key=$(generate_auth_key "$${access_token}")
   fi
 
   bring_up "$${auth_key}" "$${mode}"
