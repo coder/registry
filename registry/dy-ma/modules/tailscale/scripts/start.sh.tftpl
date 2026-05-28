@@ -131,7 +131,7 @@ get_access_token() {
 # auth_keys scope, the list call returns 403 and cleanup is skipped silently.
 
 cleanup_stale_nodes() {
-  local access_token="$$1"
+  local access_token="$1"
   [ "$${EPHEMERAL}" != "true" ] && return
 
   log "Checking for stale offline nodes with hostname '$${TS_HOSTNAME}'..."
@@ -182,7 +182,7 @@ cleanup_stale_nodes() {
 # discard both. The auth key is the only thing passed to tailscale up.
 
 generate_auth_key() {
-  local access_token="$$1"
+  local access_token="$1"
 
   log "Generating single-use auth key..."
   local key_response http_status
