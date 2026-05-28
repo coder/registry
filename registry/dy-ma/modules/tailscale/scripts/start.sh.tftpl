@@ -154,7 +154,7 @@ cleanup_stale_nodes() {
 
   local stale_ids
   stale_ids=$(echo "$${devices_response}" | jq -r --arg h "$${TS_HOSTNAME}" \
-    '.devices[] | select(.hostname == $h and .online == false) | .id')
+    '.devices[] | select(.hostname == $h and .online != true) | .id')
 
   if [ -z "$${stale_ids}" ]; then
     log "No stale nodes found."
