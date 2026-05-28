@@ -70,7 +70,7 @@ start_tailscaled() {
   local daemon_flags="--socket=/var/run/tailscale/tailscaled.sock"
   if [ -n "$${STATE_DIR}" ]; then
     mkdir -p "$${STATE_DIR}"
-    daemon_flags="--state=$${STATE_DIR}/tailscaled.state $${daemon_flags}"
+    daemon_flags="--statedir=$${STATE_DIR} $${daemon_flags}"
   fi
   if [ "$${mode}" = "userspace" ]; then
     daemon_flags="$${daemon_flags} --tun=userspace-networking"
