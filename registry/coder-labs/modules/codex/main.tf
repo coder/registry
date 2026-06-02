@@ -50,7 +50,7 @@ variable "install_codex" {
 
 variable "codex_version" {
   type        = string
-  description = "The version of Codex to install."
+  description = "The version of Codex to install. Accepts 'latest' or a semver like '0.10.0'."
   default     = "latest"
 }
 
@@ -137,7 +137,7 @@ locals {
   EOF
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_INSTALL                = tostring(var.install_codex)
-    ARG_CODEX_VERSION          = var.codex_version != "" ? base64encode(var.codex_version) : ""
+    ARG_CODEX_VERSION          = var.codex_version
     ARG_WORKDIR                = local.workdir != "" ? base64encode(local.workdir) : ""
     ARG_BASE_CONFIG_TOML       = var.base_config_toml != "" ? base64encode(var.base_config_toml) : ""
     ARG_MCP                    = var.mcp != "" ? base64encode(var.mcp) : ""
