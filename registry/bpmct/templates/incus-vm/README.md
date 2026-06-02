@@ -67,7 +67,7 @@ List existing pools:
 incus storage list
 ```
 
-The pool name defaults to `default` and can be changed per-workspace via the **Storage Pool** parameter.
+The pool name defaults to `default` and can be overridden when pushing the template with `--variable storage_pool=<name>`.
 
 ## Usage
 

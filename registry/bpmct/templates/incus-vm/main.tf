@@ -27,6 +27,12 @@ variable "arch" {
   }
 }
 
+variable "storage_pool" {
+  description = "Incus storage pool for the root disk. Run `incus storage list` on the host to see available pools."
+  type        = string
+  default     = "default"
+}
+
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
@@ -102,21 +108,10 @@ data "coder_parameter" "disk" {
   }
 }
 
-data "coder_parameter" "storage_pool" {
-  name         = "storage_pool"
-  display_name = "Storage Pool"
-  description  = "Incus storage pool for the root disk. Run `incus storage list` on the host to see available pools."
-  type         = "string"
-  default      = "default"
-  mutable      = false
-  order        = 5
-}
-
 resource "coder_agent" "main" {
   count = data.coder_workspace.me.start_count
   arch  = var.arch
   os    = "linux"
-  dir   = "/home/${local.workspace_user}"
 
   metadata {
     display_name = "CPU Usage"
@@ -220,7 +215,7 @@ resource "incus_instance" "dev" {
     type = "disk"
     properties = {
       path = "/"
-      pool = data.coder_parameter.storage_pool.value
+      pool = var.storage_pool
       size = "${data.coder_parameter.disk.value}GiB"
     }
   }
@@ -279,6 +274,10 @@ resource "coder_metadata" "info" {
   item {
     key   = "image"
     value = "images:${data.coder_parameter.image.value}/${var.arch}"
+  }
+  item {
+    key   = "storage_pool"
+    value = var.storage_pool
   }
   item {
     key   = "arch"
