@@ -27,49 +27,65 @@ data "coder_workspace_owner" "me" {}
 data "coder_parameter" "remote" {
   name         = "remote"
   display_name = "Incus Remote"
-  description  = "The Incus remote to run this VM on. Must be configured on the Coder provisioner with `incus remote add`."
+  description  = "The Incus remote to run this VM on. Must match a remote configured via `incus remote add` on the provisioner."
   type         = "string"
   default      = "local"
   mutable      = false
   order        = 1
 
-  option {
-    name  = "local (same machine as Coder)"
-    value = "local"
-  }
-
-  # Add more remotes here — one option per host you have added via `incus remote add`.
+  # Add one option block per remote you have configured on the provisioner.
+  # Run `incus remote list` on the provisioner to see what's available.
   # option {
   #   name  = "my-server"
   #   value = "my-server"
   # }
 }
 
-data "coder_parameter" "image" {
-  name         = "image"
-  display_name = "Image"
-  description  = "The VM image to use. Images are pulled from https://images.linuxcontainers.org and cached on the host. Use the `images:` remote format, e.g. `ubuntu/noble/cloud/amd64`."
+data "coder_parameter" "arch" {
+  name         = "arch"
+  display_name = "Architecture"
+  description  = "CPU architecture of the VM. Must match the Incus remote host."
   type         = "string"
-  default      = "ubuntu/noble/cloud/amd64"
-  icon         = "/icon/image.svg"
-  mutable      = true
+  default      = "amd64"
+  mutable      = false
   order        = 2
 
   option {
+    name  = "amd64 (x86-64)"
+    value = "amd64"
+  }
+
+  option {
+    name  = "arm64 (aarch64)"
+    value = "arm64"
+  }
+}
+
+data "coder_parameter" "image" {
+  name         = "image"
+  display_name = "Image"
+  description  = "Base image name from images.linuxcontainers.org — without the arch suffix (e.g. `ubuntu/noble/cloud`). The selected architecture is appended automatically."
+  type         = "string"
+  default      = "ubuntu/noble/cloud"
+  icon         = "/icon/image.svg"
+  mutable      = true
+  order        = 3
+
+  option {
     name  = "Ubuntu 24.04 LTS (Noble)"
-    value = "ubuntu/noble/cloud/amd64"
+    value = "ubuntu/noble/cloud"
     icon  = "/icon/ubuntu.svg"
   }
 
   option {
     name  = "Ubuntu 22.04 LTS (Jammy)"
-    value = "ubuntu/jammy/cloud/amd64"
+    value = "ubuntu/jammy/cloud"
     icon  = "/icon/ubuntu.svg"
   }
 
   option {
     name  = "Debian 12 (Bookworm)"
-    value = "debian/12/cloud/amd64"
+    value = "debian/12/cloud"
     icon  = "/icon/debian.svg"
   }
 }
@@ -77,12 +93,12 @@ data "coder_parameter" "image" {
 data "coder_parameter" "cpu" {
   name         = "cpu"
   display_name = "CPU"
-  description  = "Number of vCPUs to allocate."
+  description  = "Number of vCPUs."
   type         = "number"
   default      = 2
   icon         = "https://raw.githubusercontent.com/matifali/logos/main/cpu-3.svg"
   mutable      = true
-  order        = 3
+  order        = 4
   validation {
     min = 1
     max = 16
@@ -92,12 +108,11 @@ data "coder_parameter" "cpu" {
 data "coder_parameter" "memory" {
   name         = "memory"
   display_name = "Memory (GB)"
-  description  = "Amount of memory in GB."
   type         = "number"
   default      = 4
   icon         = "/icon/memory.svg"
   mutable      = true
-  order        = 4
+  order        = 5
   validation {
     min = 1
     max = 64
@@ -107,12 +122,11 @@ data "coder_parameter" "memory" {
 data "coder_parameter" "disk" {
   name         = "disk"
   display_name = "Disk (GB)"
-  description  = "Root disk size in GB."
   type         = "number"
   default      = 30
   icon         = "/icon/database.svg"
   mutable      = true
-  order        = 5
+  order        = 6
   validation {
     min = 10
     max = 500
@@ -122,11 +136,11 @@ data "coder_parameter" "disk" {
 data "coder_parameter" "storage_pool" {
   name         = "storage_pool"
   display_name = "Storage Pool"
-  description  = "Incus storage pool to use for the VM root disk."
+  description  = "Incus storage pool for the root disk. Run `incus storage list` on the host to see available pools."
   type         = "string"
   default      = "default"
   mutable      = false
-  order        = 6
+  order        = 7
 }
 
 # ---------------------------------------------------------------------------
@@ -135,7 +149,7 @@ data "coder_parameter" "storage_pool" {
 
 resource "coder_agent" "main" {
   count = data.coder_workspace.me.start_count
-  arch  = "amd64"
+  arch  = data.coder_parameter.arch.value
   os    = "linux"
   dir   = "/home/${local.workspace_user}"
 
@@ -172,14 +186,17 @@ module "code-server" {
 }
 
 # ---------------------------------------------------------------------------
-# Image — cached from images.linuxcontainers.org
+# Image
 # ---------------------------------------------------------------------------
 
-resource "incus_cached_image" "image" {
-  remote        = data.coder_parameter.remote.value
-  source_remote = "images"
-  source_image  = data.coder_parameter.image.value
-  type          = "virtual-machine"
+resource "incus_image" "image" {
+  remote = data.coder_parameter.remote.value
+  source_image = {
+    remote       = "images"
+    name         = "${data.coder_parameter.image.value}/${data.coder_parameter.arch.value}"
+    type         = "virtual-machine"
+    architecture = data.coder_parameter.arch.value == "amd64" ? "x86_64" : "aarch64"
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -190,7 +207,7 @@ resource "incus_instance" "dev" {
   remote  = data.coder_parameter.remote.value
   running = data.coder_workspace.me.start_count == 1
   name    = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
-  image   = incus_cached_image.image.fingerprint
+  image   = incus_image.image.fingerprint
   type    = "virtual-machine"
 
   config = {
@@ -263,7 +280,7 @@ resource "incus_instance" "dev" {
 }
 
 # ---------------------------------------------------------------------------
-# Token refresh on every start (handles token rotation without rebuilding)
+# Token refresh on every start
 # ---------------------------------------------------------------------------
 
 resource "null_resource" "token_refresh" {
@@ -280,11 +297,9 @@ resource "null_resource" "token_refresh" {
     command = <<-EOT
       REMOTE="${data.coder_parameter.remote.value}"
       INSTANCE="${incus_instance.dev.name}"
-      echo "Waiting for VM agent to be ready..."
+      echo "Waiting for VM agent..."
       for i in $(seq 1 40); do
-        if incus exec "$REMOTE:$INSTANCE" -- true 2>/dev/null; then
-          break
-        fi
+        incus exec "$REMOTE:$INSTANCE" -- true 2>/dev/null && break
         echo "Attempt $i: not ready, waiting..."
         sleep 5
       done
@@ -321,7 +336,11 @@ resource "coder_metadata" "info" {
   }
   item {
     key   = "image"
-    value = "images:${data.coder_parameter.image.value}"
+    value = "images:${data.coder_parameter.image.value}/${data.coder_parameter.arch.value}"
+  }
+  item {
+    key   = "arch"
+    value = data.coder_parameter.arch.value
   }
   item {
     key   = "cpu"
