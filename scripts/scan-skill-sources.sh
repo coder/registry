@@ -54,12 +54,17 @@ for src in "${sources[@]}"; do
     ref="main"
   fi
   safe="${repo//\//_}__${ref}"
+  out_file="${OUT_DIR}/${safe}.sarif"
   echo "==> Scanning ${repo}@${ref}"
-  if ! skillspector scan "https://github.com/${repo}" \
+  # SkillSpector exits non-zero when findings are present even though it
+  # still writes the SARIF file. Treat a missing SARIF as the only true
+  # crash; severity gating happens in the workflow against the SARIF.
+  skillspector scan "https://github.com/${repo}" \
     --no-llm \
     --format sarif \
-    --output "${OUT_DIR}/${safe}.sarif"; then
-    echo "skillspector crashed scanning ${repo}@${ref}" >&2
+    --output "${out_file}" || true
+  if [[ ! -s "${out_file}" ]]; then
+    echo "skillspector did not produce SARIF for ${repo}@${ref}" >&2
     scan_failed=1
   fi
 done
