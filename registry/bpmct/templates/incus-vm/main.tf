@@ -20,10 +20,6 @@ provider "incus" {}
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
-# ---------------------------------------------------------------------------
-# Parameters
-# ---------------------------------------------------------------------------
-
 data "coder_parameter" "remote" {
   name         = "remote"
   display_name = "Incus Remote"
@@ -143,10 +139,6 @@ data "coder_parameter" "storage_pool" {
   order        = 7
 }
 
-# ---------------------------------------------------------------------------
-# Agent
-# ---------------------------------------------------------------------------
-
 resource "coder_agent" "main" {
   count = data.coder_workspace.me.start_count
   arch  = data.coder_parameter.arch.value
@@ -185,10 +177,6 @@ module "code-server" {
   agent_id = coder_agent.main[0].id
 }
 
-# ---------------------------------------------------------------------------
-# Image
-# ---------------------------------------------------------------------------
-
 resource "incus_image" "image" {
   remote = data.coder_parameter.remote.value
   source_image = {
@@ -198,10 +186,6 @@ resource "incus_image" "image" {
     architecture = data.coder_parameter.arch.value == "amd64" ? "x86_64" : "aarch64"
   }
 }
-
-# ---------------------------------------------------------------------------
-# VM instance
-# ---------------------------------------------------------------------------
 
 resource "incus_instance" "dev" {
   remote  = data.coder_parameter.remote.value
@@ -279,10 +263,6 @@ resource "incus_instance" "dev" {
   }
 }
 
-# ---------------------------------------------------------------------------
-# Token refresh on every start
-# ---------------------------------------------------------------------------
-
 resource "null_resource" "token_refresh" {
   count = data.coder_workspace.me.start_count
 
@@ -318,10 +298,6 @@ resource "null_resource" "token_refresh" {
   }
 }
 
-# ---------------------------------------------------------------------------
-# Metadata
-# ---------------------------------------------------------------------------
-
 resource "coder_metadata" "info" {
   count       = data.coder_workspace.me.start_count
   resource_id = incus_instance.dev.name
@@ -355,10 +331,6 @@ resource "coder_metadata" "info" {
     value = "${data.coder_parameter.disk.value} GiB"
   }
 }
-
-# ---------------------------------------------------------------------------
-# Locals
-# ---------------------------------------------------------------------------
 
 locals {
   workspace_user    = lower(data.coder_workspace_owner.me.name)
