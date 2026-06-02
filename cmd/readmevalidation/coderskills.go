@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -13,8 +14,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"golang.org/x/xerrors"
 	"gopkg.in/yaml.v3"
 )
@@ -471,6 +470,10 @@ func collectUniqueSkillsSources(readmes []coderSkillsReadme) ([]skillsSourceKey,
 // Today only branch refs are supported. This matches the behavior of the
 // registry-server build pipeline, which clones via plumbing.NewBranchReferenceName.
 // When that pipeline grows tag/SHA support, this function should grow it too.
+//
+// Uses the system git binary instead of a Go Git library so we do not have
+// to vendor one for a single shallow clone per source. Every CI runner and
+// developer laptop already has git on PATH.
 func fetchSkillsSourceContent(repo, ref string) (skillsSourceContent, func(), error) {
 	dir, err := os.MkdirTemp("", strings.ReplaceAll(repo, "/", "_")+"_*")
 	if err != nil {
@@ -484,14 +487,10 @@ func fetchSkillsSourceContent(repo, ref string) (skillsSourceContent, func(), er
 	}
 
 	url := "https://github.com/" + repo + ".git"
-	opts := &git.CloneOptions{
-		URL:           url,
-		Depth:         1,
-		ReferenceName: plumbing.NewBranchReferenceName(ref),
-		SingleBranch:  true,
-	}
-	if _, err := git.PlainClone(dir, false, opts); err != nil {
-		return skillsSourceContent{}, cleanup, xerrors.Errorf("cloning %s@%s: %w", repo, ref, err)
+	cmd := exec.Command("git", "clone", "--depth=1", "--branch", ref, "--single-branch", url, dir)
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return skillsSourceContent{}, cleanup, xerrors.Errorf("cloning %s@%s: %v: %s", repo, ref, err, strings.TrimSpace(string(out)))
 	}
 
 	skillsDir := filepath.Join(dir, "skills")

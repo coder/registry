@@ -16,7 +16,7 @@ OUT_DIR="${1:-./sarif}"
 mkdir -p "${OUT_DIR}"
 
 for bin in skillspector yq; do
-  if ! command -v "${bin}" >/dev/null 2>&1; then
+  if ! command -v "${bin}" > /dev/null 2>&1; then
     echo "Required binary '${bin}' is not installed or not on PATH." >&2
     exit 2
   fi
@@ -30,7 +30,7 @@ for f in registry/*/skills/README.md; do
 done
 
 declare -a sources=()
-if (( ${#readme_files[@]} > 0 )); then
+if ((${#readme_files[@]} > 0)); then
   raw_sources=""
   for f in "${readme_files[@]}"; do
     frontmatter="$(awk '/^---$/{c++; next} c==1{print} c>=2{exit}' "${f}")"
@@ -41,7 +41,7 @@ if (( ${#readme_files[@]} > 0 )); then
   mapfile -t sources <<< "${sorted_sources}"
 fi
 
-if (( ${#sources[@]} == 0 )); then
+if ((${#sources[@]} == 0)); then
   echo "No skills sources declared; nothing to scan."
   exit 0
 fi
@@ -56,9 +56,9 @@ for src in "${sources[@]}"; do
   safe="${repo//\//_}__${ref}"
   echo "==> Scanning ${repo}@${ref}"
   if ! skillspector scan "https://github.com/${repo}" \
-        --no-llm \
-        --format sarif \
-        --output "${OUT_DIR}/${safe}.sarif"; then
+    --no-llm \
+    --format sarif \
+    --output "${OUT_DIR}/${safe}.sarif"; then
     echo "skillspector crashed scanning ${repo}@${ref}" >&2
     scan_failed=1
   fi
