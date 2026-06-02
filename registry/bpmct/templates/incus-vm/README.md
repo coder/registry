@@ -1,6 +1,6 @@
 ---
 display_name: Incus VM
-description: Run a full virtual machine on a remote Incus host
+description: Run a full virtual machine on a local Incus host
 icon: ../../../../.icons/lxc.svg
 verified: false
 tags: [local, incus, vm, virtual-machine]
@@ -9,12 +9,6 @@ tags: [local, incus, vm, virtual-machine]
 # Incus VM
 
 Provision a full KVM virtual machine on an [Incus](https://linuxcontainers.org/incus/) host. Unlike the system container template, this creates an isolated VM with its own kernel. Images are pulled from [images.linuxcontainers.org](https://images.linuxcontainers.org) and cached on the host.
-
-Unlike the upstream `coder/incus` template, this variant:
-
-- Launches a **virtual machine** (`type = "virtual-machine"`) instead of a system container
-- Supports **remote Incus hosts** via `incus remote add` — the Coder provisioner does not need to be on the same machine as Incus
-- Handles **token rotation** on every workspace start via a `null_resource` provisioner
 
 ## Prerequisites
 
@@ -27,59 +21,27 @@ sudo apt-get install incus
 sudo incus admin init
 ```
 
-Verify it's running:
+Verify it's working:
 
 ```sh
 incus list
 ```
 
-### 2. Add the host as a remote on the Coder provisioner
+### 2. Run the Coder provisioner on the same machine
 
-The Coder provisioner (the machine running `coderd` or a provisioner daemon) needs to reach the Incus API on the VM host. Run these commands **on the Coder provisioner**.
+This template uses Incus via the local Unix socket, so the Coder provisioner (or `coderd` itself) must run on the same machine as Incus. The simplest setup is a [provisioner daemon](https://coder.com/docs/admin/provisioners) running directly on the Incus host.
 
-**On the VM host** — generate a trust token:
+### 3. Set the architecture when pushing the template
 
-```sh
-incus config trust add coder-provisioner
-```
-
-This prints a one-time token. Copy it.
-
-**On the Coder provisioner** — add the remote using that token:
+The `arch` variable must match your Incus host's CPU architecture. Pass it when pushing:
 
 ```sh
-incus remote add my-server https://<host-ip-or-hostname>:8443 --token <paste-token-here>
+# For amd64 (x86-64) hosts:
+coder templates push incus-vm --directory . --variable arch=amd64
+
+# For arm64 (aarch64) hosts:
+coder templates push incus-vm --directory . --variable arch=arm64
 ```
-
-Verify connectivity:
-
-```sh
-incus list my-server:
-```
-
-> **Tip:** The remote name you use here (`my-server` in the example) is what you'll enter in the **Incus Remote** workspace parameter. Add one `option` block per remote in `main.tf`.
-
-### 3. Create a storage pool on the VM host
-
-The template uses an Incus storage pool to back the VM root disk. If you don't already have one, create it on the VM host:
-
-```sh
-incus storage create default btrfs
-```
-
-Or to back it with a specific directory or block device:
-
-```sh
-incus storage create hdd btrfs source=/data/incus-pool
-```
-
-List existing pools:
-
-```sh
-incus storage list
-```
-
-Set the pool name in the **Storage Pool** workspace parameter (default: `default`).
 
 ### 4. Ensure the VM host has KVM
 
@@ -89,45 +51,46 @@ VMs require hardware virtualisation. Check on the host:
 ls /dev/kvm
 ```
 
-If the device is missing, enable virtualisation in your BIOS/UEFI or, in a nested setup, pass through the kvm module.
+If the device is missing, enable virtualisation in your BIOS/UEFI or, in a nested setup, pass through the `kvm` module.
 
-### 5. Add image options (optional)
+### 5. Create a storage pool (if needed)
 
-Images are cached automatically from `images.linuxcontainers.org` when a workspace is first created. You can pre-cache an image manually on the host to speed up the first launch:
-
-```sh
-incus image copy images:ubuntu/noble/cloud/amd64 local: --vm --alias ubuntu/noble/cloud/amd64
-```
-
-List cached images:
+The template uses an Incus storage pool to back the VM root disk. If you don't already have one:
 
 ```sh
-incus image list
+incus storage create default btrfs
 ```
 
-To add a custom image option, edit `main.tf` and add an `option` block inside `data.coder_parameter.image`.
+List existing pools:
+
+```sh
+incus storage list
+```
+
+The pool name defaults to `default` and can be changed per-workspace via the **Storage Pool** parameter.
 
 ## Usage
 
 1. Push this template to your Coder deployment:
 
    ```sh
-   coder templates push incus-vm --directory .
+   coder templates push incus-vm --directory . --variable arch=amd64
    ```
 
-2. Create a workspace and select your Incus remote, image, and resource sizes.
+2. Create a workspace and select an image and resource sizes.
 
 3. Connect via `coder ssh <workspace>` or open VS Code in the browser.
 
-## Adding additional remotes
+## Advanced: using a remote Incus host
 
-Edit the `data.coder_parameter.remote` block in `main.tf` and add an `option` for each host:
+By default this template connects to the local Incus socket. If you want the provisioner to target a separate Incus host over the network, add a `remote` parameter and use `incus remote add` to register the host on the provisioner machine:
 
-```terraform
-option {
-  name  = "my-server"
-  value = "my-server"
-}
+```sh
+# On the Incus host — generate a trust token:
+incus config trust add coder-provisioner
+
+# On the provisioner — add the remote:
+incus remote add my-server https://<host-ip>:8443 --token <paste-token>
 ```
 
-The `value` must exactly match the remote name shown in `incus remote list` on the provisioner.
+Then update `main.tf` to accept a `remote` parameter and pass it to the `incus_image` and `incus_instance` resources. See the [Incus remote docs](https://linuxcontainers.org/incus/docs/main/remotes/) for details.

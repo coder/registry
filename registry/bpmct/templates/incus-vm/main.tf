@@ -17,55 +17,28 @@ terraform {
 
 provider "incus" {}
 
+variable "arch" {
+  description = "CPU architecture of the VM host. Set this when pushing the template to match your Incus host. Valid values: amd64, arm64."
+  type        = string
+  default     = "amd64"
+  validation {
+    condition     = contains(["amd64", "arm64"], var.arch)
+    error_message = "arch must be amd64 or arm64."
+  }
+}
+
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
-
-data "coder_parameter" "remote" {
-  name         = "remote"
-  display_name = "Incus Remote"
-  description  = "The Incus remote to run this VM on. Must match a remote configured via `incus remote add` on the provisioner."
-  type         = "string"
-  default      = "local"
-  mutable      = false
-  order        = 1
-
-  # Add one option block per remote you have configured on the provisioner.
-  # Run `incus remote list` on the provisioner to see what's available.
-  # option {
-  #   name  = "my-server"
-  #   value = "my-server"
-  # }
-}
-
-data "coder_parameter" "arch" {
-  name         = "arch"
-  display_name = "Architecture"
-  description  = "CPU architecture of the VM. Must match the Incus remote host."
-  type         = "string"
-  default      = "amd64"
-  mutable      = false
-  order        = 2
-
-  option {
-    name  = "amd64 (x86-64)"
-    value = "amd64"
-  }
-
-  option {
-    name  = "arm64 (aarch64)"
-    value = "arm64"
-  }
-}
 
 data "coder_parameter" "image" {
   name         = "image"
   display_name = "Image"
-  description  = "Base image name from images.linuxcontainers.org — without the arch suffix (e.g. `ubuntu/noble/cloud`). The selected architecture is appended automatically."
+  description  = "Base image name from images.linuxcontainers.org (e.g. `ubuntu/noble/cloud`). The template architecture is appended automatically."
   type         = "string"
   default      = "ubuntu/noble/cloud"
   icon         = "/icon/image.svg"
   mutable      = true
-  order        = 3
+  order        = 1
 
   option {
     name  = "Ubuntu 24.04 LTS (Noble)"
@@ -94,7 +67,7 @@ data "coder_parameter" "cpu" {
   default      = 2
   icon         = "https://raw.githubusercontent.com/matifali/logos/main/cpu-3.svg"
   mutable      = true
-  order        = 4
+  order        = 2
   validation {
     min = 1
     max = 16
@@ -108,7 +81,7 @@ data "coder_parameter" "memory" {
   default      = 4
   icon         = "/icon/memory.svg"
   mutable      = true
-  order        = 5
+  order        = 3
   validation {
     min = 1
     max = 64
@@ -122,7 +95,7 @@ data "coder_parameter" "disk" {
   default      = 30
   icon         = "/icon/database.svg"
   mutable      = true
-  order        = 6
+  order        = 4
   validation {
     min = 10
     max = 500
@@ -136,12 +109,12 @@ data "coder_parameter" "storage_pool" {
   type         = "string"
   default      = "default"
   mutable      = false
-  order        = 7
+  order        = 5
 }
 
 resource "coder_agent" "main" {
   count = data.coder_workspace.me.start_count
-  arch  = data.coder_parameter.arch.value
+  arch  = var.arch
   os    = "linux"
   dir   = "/home/${local.workspace_user}"
 
@@ -178,17 +151,15 @@ module "code-server" {
 }
 
 resource "incus_image" "image" {
-  remote = data.coder_parameter.remote.value
   source_image = {
     remote       = "images"
-    name         = "${data.coder_parameter.image.value}/${data.coder_parameter.arch.value}"
+    name         = "${data.coder_parameter.image.value}/${var.arch}"
     type         = "virtual-machine"
-    architecture = data.coder_parameter.arch.value == "amd64" ? "x86_64" : "aarch64"
+    architecture = var.arch == "amd64" ? "x86_64" : "aarch64"
   }
 }
 
 resource "incus_instance" "dev" {
-  remote  = data.coder_parameter.remote.value
   running = data.coder_workspace.me.start_count == 1
   name    = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
   image   = incus_image.image.fingerprint
@@ -275,16 +246,15 @@ resource "null_resource" "token_refresh" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      REMOTE="${data.coder_parameter.remote.value}"
       INSTANCE="${incus_instance.dev.name}"
       echo "Waiting for VM agent..."
       for i in $(seq 1 40); do
-        incus exec "$REMOTE:$INSTANCE" -- true 2>/dev/null && break
+        incus exec "$INSTANCE" -- true 2>/dev/null && break
         echo "Attempt $i: not ready, waiting..."
         sleep 5
       done
       echo "Waiting for cloud-init..."
-      incus exec "$REMOTE:$INSTANCE" -- bash -c '
+      incus exec "$INSTANCE" -- bash -c '
         for i in $(seq 1 60); do
           [ -f /var/lib/cloud/instance/boot-finished ] && break
           sleep 5
@@ -292,8 +262,8 @@ resource "null_resource" "token_refresh" {
       '
       echo "Refreshing agent token..."
       printf 'CODER_AGENT_TOKEN=${local.agent_token}\nCODER_AGENT_URL=${data.coder_workspace.me.access_url}\n' \
-        | incus exec "$REMOTE:$INSTANCE" -- bash -c 'cat > /opt/coder/init.env && chmod 600 /opt/coder/init.env'
-      incus exec "$REMOTE:$INSTANCE" -- systemctl restart coder-agent.service
+        | incus exec "$INSTANCE" -- bash -c 'cat > /opt/coder/init.env && chmod 600 /opt/coder/init.env'
+      incus exec "$INSTANCE" -- systemctl restart coder-agent.service
     EOT
   }
 }
@@ -307,16 +277,12 @@ resource "coder_metadata" "info" {
     value = incus_instance.dev.name
   }
   item {
-    key   = "remote"
-    value = data.coder_parameter.remote.value
-  }
-  item {
     key   = "image"
-    value = "images:${data.coder_parameter.image.value}/${data.coder_parameter.arch.value}"
+    value = "images:${data.coder_parameter.image.value}/${var.arch}"
   }
   item {
     key   = "arch"
-    value = data.coder_parameter.arch.value
+    value = var.arch
   }
   item {
     key   = "cpu"
