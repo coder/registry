@@ -155,6 +155,11 @@ jobs:
           pip install "skillspector @ git+https://github.com/NVIDIA/SkillSpector.git@2eb844780ab163f01468ecf142c40a2ec0fcaec0"
       - name: Scan declared skill sources
         run: ./scripts/scan-skill-sources.sh ./sarif
+      - name: Upload SARIF artifact (debug)
+        uses: actions/upload-artifact@v4
+        with:
+          name: skills-sarif-ci
+          path: sarif/
       - name: Upload SARIF to code scanning
         uses: github/codeql-action/upload-sarif@9e8d0789d4a0fa9ceb6b1738f7e269594bdd67f0 # v3.28.9
         with:
