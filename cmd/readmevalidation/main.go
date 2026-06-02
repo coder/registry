@@ -44,6 +44,15 @@ func main() {
 		errs = append(errs, err)
 	}
 
+	if os.Getenv("READMEVALIDATION_ONLINE") == "1" {
+		skillsReadmes, err := parseAllCoderSkillsReadmes()
+		if err != nil {
+			errs = append(errs, err)
+		} else if err := validateAllCoderSkillsOnline(skillsReadmes); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	if len(errs) == 0 {
 		logger.Info(context.Background(), "processed all READMEs in directory", "dir", rootRegistryPath)
 		os.Exit(0)

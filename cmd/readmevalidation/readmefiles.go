@@ -35,6 +35,12 @@ const (
 	// is having all its relative URLs be validated for whether they point to
 	// valid resources.
 	validationPhaseCrossReference validationPhase = "Cross-referencing relative asset URLs"
+
+	// validationPhaseUpstream indicates when external skill source repos
+	// declared in a skills README's frontmatter are being cloned and walked
+	// to confirm every catalogue override slug exists upstream and every
+	// upstream SKILL.md has the required agentskills.io v0.2.0 frontmatter.
+	validationPhaseUpstream validationPhase = "Upstream skill source verification"
 	// --- end of validationPhases ---.
 )
 
