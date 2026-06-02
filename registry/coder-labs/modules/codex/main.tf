@@ -50,7 +50,7 @@ variable "install_codex" {
 
 variable "codex_version" {
   type        = string
-  description = "The version of Codex to install. Accepts 'latest' or a semver like '0.10.0'."
+  description = "The version of Codex to install."
   default     = "latest"
 }
 
