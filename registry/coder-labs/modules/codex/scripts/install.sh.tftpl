@@ -78,6 +78,7 @@ function install_codex() {
 
   printf "%s Installing Codex CLI\n" "$${BOLD}"
   curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_RELEASE="$${ARG_CODEX_VERSION}" CODEX_NON_INTERACTIVE=1 sh
+  export PATH="$HOME/.local/bin:$PATH"
   printf "%s Installed Codex CLI: %s\n" "$${BOLD}" "$(codex --version)"
   ensure_codex_in_path
 }
