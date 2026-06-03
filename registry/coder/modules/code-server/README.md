@@ -84,6 +84,20 @@ module "code-server" {
 }
 ```
 
+### Open a Workspace File
+
+Open a [`.code-workspace`](https://coder.com/docs/code-server/FAQ#how-does-code-server-decide-what-workspace-or-folder-to-open) file instead of a folder. `folder` and `workspace` are mutually exclusive.
+
+```tf
+module "code-server" {
+  count     = data.coder_workspace.me.start_count
+  source    = "registry.coder.com/coder/code-server/coder"
+  version   = "1.4.4"
+  agent_id  = coder_agent.example.id
+  workspace = "/home/coder/project/my.code-workspace"
+}
+```
+
 ### Pass Additional Arguments
 
 You can pass additional command-line arguments to code-server using the `additional_args` variable. For example, to disable workspace trust:
