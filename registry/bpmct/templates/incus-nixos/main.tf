@@ -104,30 +104,6 @@ resource "coder_agent" "main" {
   count = data.coder_workspace.me.start_count
   arch  = var.arch
   os    = "linux"
-
-  metadata {
-    display_name = "CPU Usage"
-    key          = "0_cpu_usage"
-    script       = "coder stat cpu"
-    interval     = 10
-    timeout      = 1
-  }
-
-  metadata {
-    display_name = "RAM Usage"
-    key          = "1_ram_usage"
-    script       = "coder stat mem"
-    interval     = 10
-    timeout      = 1
-  }
-
-  metadata {
-    display_name = "Disk"
-    key          = "2_disk"
-    script       = "coder stat disk --path /"
-    interval     = 60
-    timeout      = 1
-  }
 }
 
 resource "incus_image" "nixos" {
