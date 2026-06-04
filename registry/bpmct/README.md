@@ -8,4 +8,4 @@ status: community
 
 # Ben Potter
 
-Tinkerer and Product Manager at Coder. Building modules to make dev environments better.
+Tinkerer and Product Manager at Coder.
