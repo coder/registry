@@ -79,6 +79,20 @@ module "windows_rdp" {
 }
 ```
 
+If your Coder deployment does not allow the workspace agent token to update the
+workspace deadline, provide a scoped Coder token with permission to update the
+workspace:
+
+```tf
+module "windows_rdp" {
+  count                         = data.coder_workspace.me.start_count
+  source                        = "registry.coder.com/coder/windows-rdp/coder"
+  version                       = "1.3.0"
+  agent_id                      = coder_agent.main.id
+  keepalive_coder_session_token = var.rdp_keepalive_coder_session_token
+}
+```
+
 To disable the monitor:
 
 ```tf

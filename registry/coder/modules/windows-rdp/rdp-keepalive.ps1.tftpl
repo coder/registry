@@ -3,6 +3,7 @@ $ErrorActionPreference = "Continue"
 $workspaceId = "${workspace_id}"
 $intervalSeconds = ${interval_seconds}
 $extensionMinutes = ${extension_minutes}
+$configuredSessionToken = "${coder_session_token}"
 $logPath = Join-Path $env:ProgramData "Coder\windows-rdp\rdp-keepalive.log"
 
 function Write-KeepaliveLog {
@@ -37,12 +38,20 @@ function Get-CoderAgentBaseUrl {
     return $env:CODER_AGENT_URL.TrimEnd([char]"/")
 }
 
-function Invoke-CoderWorkspaceExtend {
-    if ([string]::IsNullOrWhiteSpace($env:CODER_AGENT_TOKEN)) {
-        Write-KeepaliveLog "CODER_AGENT_TOKEN is not available"
-        return
+function Get-CoderSessionToken {
+    if (-not [string]::IsNullOrWhiteSpace($configuredSessionToken)) {
+        return $configuredSessionToken
     }
 
+    if (-not [string]::IsNullOrWhiteSpace($env:CODER_AGENT_TOKEN)) {
+        return $env:CODER_AGENT_TOKEN
+    }
+
+    Write-KeepaliveLog "No Coder session token is available"
+    return $null
+}
+
+function Invoke-CoderWorkspaceExtend {
     if ([string]::IsNullOrWhiteSpace($workspaceId)) {
         Write-KeepaliveLog "workspace id is not available"
         return
@@ -53,10 +62,15 @@ function Invoke-CoderWorkspaceExtend {
         return
     }
 
+    $sessionToken = Get-CoderSessionToken
+    if ([string]::IsNullOrWhiteSpace($sessionToken)) {
+        return
+    }
+
     $deadline = (Get-Date).ToUniversalTime().AddMinutes($extensionMinutes).ToString("yyyy-MM-ddTHH:mm:ssZ")
     $uri = "$baseUrl/api/v2/workspaces/$workspaceId/extend"
     $headers = @{
-        "Coder-Session-Token" = $env:CODER_AGENT_TOKEN
+        "Coder-Session-Token" = $sessionToken
     }
     $body = @{
         deadline = $deadline
