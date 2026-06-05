@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.9"
 
   required_providers {
     coder = {
@@ -60,8 +60,15 @@ variable "workspace" {
   type        = string
   description = "The path to a `.code-workspace` file to open in code-server. Mutually exclusive with `folder`."
   default     = ""
+  validation {
+    condition     = var.workspace == "" || endswith(var.workspace, ".code-workspace")
+    error_message = "workspace must be a path to a .code-workspace file"
+  }
+  validation {
+    condition     = var.folder == "" || var.workspace == ""
+    error_message = "folder and workspace are mutually exclusive; set at most one"
+  }
 }
-
 variable "install_prefix" {
   type        = string
   description = "The prefix to install code-server to."
