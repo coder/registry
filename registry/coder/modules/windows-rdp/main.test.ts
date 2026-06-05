@@ -153,7 +153,7 @@ describe("Web RDP", async () => {
     expect(rdpScript).toContain("$intervalSeconds = 60");
     expect(rdpScript).toContain("$extensionMinutes = 30");
     expect(rdpScript).toContain(
-      "Get-NetTCPConnection -LocalPort 3389 -State Established",
+      "Get-NetTCPConnection -LocalPort 3389 -State Established -ErrorAction SilentlyContinue",
     );
     expect(rdpScript).toContain(
       '"Coder-Session-Token" = $env:CODER_AGENT_TOKEN',

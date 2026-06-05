@@ -17,7 +17,7 @@ function Write-KeepaliveLog {
 function Test-RDPConnectionActive {
     try {
         $connections = @(
-            Get-NetTCPConnection -LocalPort 3389 -State Established -ErrorAction Stop
+            Get-NetTCPConnection -LocalPort 3389 -State Established -ErrorAction SilentlyContinue
         )
 
         return $connections.Count -gt 0
