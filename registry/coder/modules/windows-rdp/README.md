@@ -80,16 +80,21 @@ module "windows_rdp" {
 ```
 
 If your Coder deployment does not allow the workspace agent token to update the
-workspace deadline, provide a scoped Coder token with permission to update the
-workspace:
+workspace deadline, use the `coder-login` module alongside `windows-rdp`. The `coder-login` module injects a scoped token into the `CODER_SESSION_TOKEN` environment variable, which the keepalive monitor will automatically use if present:
 
 ```tf
+module "coder-login" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/coder-login/coder"
+  version  = "1.1.1"
+  agent_id = coder_agent.main.id
+}
+
 module "windows_rdp" {
-  count                         = data.coder_workspace.me.start_count
-  source                        = "registry.coder.com/coder/windows-rdp/coder"
-  version                       = "1.3.0"
-  agent_id                      = coder_agent.main.id
-  keepalive_coder_session_token = var.rdp_keepalive_coder_session_token
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/windows-rdp/coder"
+  version  = "1.3.0"
+  agent_id = coder_agent.main.id
 }
 ```
 

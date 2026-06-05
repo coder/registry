@@ -98,12 +98,6 @@ variable "keepalive_extension_minutes" {
   }
 }
 
-variable "keepalive_coder_session_token" {
-  type        = string
-  default     = null
-  sensitive   = true
-  description = "Optional Coder session or API token used to extend the workspace deadline. If unset, the monitor uses CODER_AGENT_TOKEN."
-}
 
 data "coder_workspace" "me" {}
 
@@ -121,7 +115,6 @@ resource "coder_script" "windows-rdp" {
       workspace_id        = data.coder_workspace.me.id
       interval_seconds    = var.keepalive_interval_seconds
       extension_minutes   = var.keepalive_extension_minutes
-      coder_session_token = var.keepalive_coder_session_token != null ? var.keepalive_coder_session_token : ""
     })
 
     # Wanted to have this be in the powershell template file, but Terraform

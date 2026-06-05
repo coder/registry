@@ -3,7 +3,6 @@ $ErrorActionPreference = "Continue"
 $workspaceId = "${workspace_id}"
 $intervalSeconds = ${interval_seconds}
 $extensionMinutes = ${extension_minutes}
-$configuredSessionToken = "${coder_session_token}"
 $logPath = Join-Path $env:ProgramData "Coder\windows-rdp\rdp-keepalive.log"
 
 function Write-KeepaliveLog {
@@ -39,8 +38,8 @@ function Get-CoderAgentBaseUrl {
 }
 
 function Get-CoderSessionToken {
-    if (-not [string]::IsNullOrWhiteSpace($configuredSessionToken)) {
-        return $configuredSessionToken
+    if (-not [string]::IsNullOrWhiteSpace($env:CODER_SESSION_TOKEN)) {
+        return $env:CODER_SESSION_TOKEN
     }
 
     if (-not [string]::IsNullOrWhiteSpace($env:CODER_AGENT_TOKEN)) {

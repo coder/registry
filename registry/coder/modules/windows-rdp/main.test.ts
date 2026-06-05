@@ -14,7 +14,6 @@ type TestVariables = Readonly<{
   keepalive_enabled?: boolean;
   keepalive_interval_seconds?: number;
   keepalive_extension_minutes?: number;
-  keepalive_coder_session_token?: string;
 }>;
 
 function findWindowsRdpScript(state: TerraformState): string | null {
@@ -157,6 +156,9 @@ describe("Web RDP", async () => {
       "Get-NetTCPConnection -LocalPort 3389 -State Established -ErrorAction SilentlyContinue",
     );
     expect(rdpScript).toContain(
+      'if (-not [string]::IsNullOrWhiteSpace($env:CODER_SESSION_TOKEN))',
+    );
+    expect(rdpScript).toContain(
       'if (-not [string]::IsNullOrWhiteSpace($env:CODER_AGENT_TOKEN))',
     );
     expect(rdpScript).toContain(
@@ -170,22 +172,6 @@ describe("Web RDP", async () => {
     );
   });
 
-  it("Can use an explicit Coder session token for RDP keepalive", async () => {
-    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
-      agent_id: "foo",
-      keepalive_coder_session_token: "test-session-token",
-    });
-
-    const rdpScript = findWindowsRdpScript(state);
-    expect(rdpScript).toBeString();
-    expect(rdpScript).toContain(
-      '$configuredSessionToken = "test-session-token"',
-    );
-    expect(rdpScript).toContain(
-      'if (-not [string]::IsNullOrWhiteSpace($configuredSessionToken))',
-    );
-    expect(rdpScript).toContain("return $configuredSessionToken");
-  });
 
   it("Customizes the RDP keepalive interval and extension window", async () => {
     const state = await runTerraformApply<TestVariables>(import.meta.dir, {
