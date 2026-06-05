@@ -128,6 +128,8 @@ if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
     if [ -f "${WORKSPACE}" ]; then
       RECOMMENDATIONS_FILE="${WORKSPACE}"
       RECOMMENDATIONS_QUERY=".extensions.recommendations[]?"
+    else
+      echo "⚠️ Workspace file ${WORKSPACE} not found, skipping extension recommendations."
     fi
   else
     WORKSPACE_DIR="$HOME"

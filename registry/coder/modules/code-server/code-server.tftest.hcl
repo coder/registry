@@ -88,6 +88,6 @@ run "folder_and_workspace_conflict" {
   }
 
   expect_failures = [
-    resource.coder_script.code-server
+    var.workspace
   ]
 }
