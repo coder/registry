@@ -172,7 +172,6 @@ describe("Web RDP", async () => {
     );
   });
 
-
   it("Customizes the RDP keepalive interval and extension window", async () => {
     const state = await runTerraformApply<TestVariables>(import.meta.dir, {
       agent_id: "foo",

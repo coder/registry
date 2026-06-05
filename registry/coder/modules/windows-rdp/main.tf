@@ -98,7 +98,6 @@ variable "keepalive_extension_minutes" {
   }
 }
 
-
 data "coder_workspace" "me" {}
 
 resource "coder_script" "windows-rdp" {
