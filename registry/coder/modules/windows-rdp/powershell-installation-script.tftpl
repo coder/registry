@@ -125,7 +125,48 @@ if ($isPatched -eq $null) {
 }
 }
 
+function Stop-RDPKeepaliveMonitor {
+    param (
+        [string]$scriptPath
+    )
+
+    Get-CimInstance Win32_Process -Filter "name = 'powershell.exe'" |
+        Where-Object { $_.CommandLine -and $_.CommandLine -like "*$scriptPath*" } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+}
+
+function Install-RDPKeepaliveMonitor {
+$keepaliveEnabled = [System.Convert]::ToBoolean("${keepalive_enabled}")
+$keepaliveRoot = Join-Path $env:ProgramData "Coder\windows-rdp"
+$scriptPath = Join-Path $keepaliveRoot "rdp-keepalive.ps1"
+$logPath = Join-Path $keepaliveRoot "rdp-keepalive.log"
+
+New-Item -ItemType Directory -Path $keepaliveRoot -Force | Out-Null
+Stop-RDPKeepaliveMonitor -scriptPath $scriptPath
+
+if (-not $keepaliveEnabled) {
+    if (Test-Path $scriptPath) {
+        Remove-Item -Path $scriptPath -Force
+    }
+    "RDP keepalive disabled" | Set-Content -Path $logPath
+    return
+}
+
+@'
+${keepalive_script_contents}
+'@ | Set-Content -Path $scriptPath -Encoding UTF8
+
+Start-Process -FilePath "powershell.exe" -WindowStyle Hidden -ArgumentList @(
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    $scriptPath
+)
+}
+
 Set-AdminPassword -adminPassword "${admin_password}"
 Configure-RDP
 Install-DevolutionsGateway
 Patch-Devolutions-HTML
+Install-RDPKeepaliveMonitor

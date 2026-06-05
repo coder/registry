@@ -1,0 +1,82 @@
+$ErrorActionPreference = "Continue"
+
+$workspaceId = "${workspace_id}"
+$intervalSeconds = ${interval_seconds}
+$extensionMinutes = ${extension_minutes}
+$logPath = Join-Path $env:ProgramData "Coder\windows-rdp\rdp-keepalive.log"
+
+function Write-KeepaliveLog {
+    param (
+        [string]$Message
+    )
+
+    $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    "$timestamp $Message" | Add-Content -Path $logPath
+}
+
+function Test-RDPConnectionActive {
+    try {
+        $connections = @(
+            Get-NetTCPConnection -LocalPort 3389 -State Established -ErrorAction Stop
+        )
+
+        return $connections.Count -gt 0
+    }
+    catch {
+        Write-KeepaliveLog "Unable to inspect RDP connections: $($_.Exception.Message)"
+        return $false
+    }
+}
+
+function Get-CoderAgentBaseUrl {
+    if ([string]::IsNullOrWhiteSpace($env:CODER_AGENT_URL)) {
+        Write-KeepaliveLog "CODER_AGENT_URL is not available"
+        return $null
+    }
+
+    return $env:CODER_AGENT_URL.TrimEnd([char]"/")
+}
+
+function Invoke-CoderWorkspaceExtend {
+    if ([string]::IsNullOrWhiteSpace($env:CODER_AGENT_TOKEN)) {
+        Write-KeepaliveLog "CODER_AGENT_TOKEN is not available"
+        return
+    }
+
+    if ([string]::IsNullOrWhiteSpace($workspaceId)) {
+        Write-KeepaliveLog "workspace id is not available"
+        return
+    }
+
+    $baseUrl = Get-CoderAgentBaseUrl
+    if ([string]::IsNullOrWhiteSpace($baseUrl)) {
+        return
+    }
+
+    $deadline = (Get-Date).ToUniversalTime().AddMinutes($extensionMinutes).ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $uri = "$baseUrl/api/v2/workspaces/$workspaceId/extend"
+    $headers = @{
+        "Coder-Session-Token" = $env:CODER_AGENT_TOKEN
+    }
+    $body = @{
+        deadline = $deadline
+    } | ConvertTo-Json -Compress
+
+    try {
+        Invoke-RestMethod -Method Put -Uri $uri -Headers $headers -ContentType "application/json" -Body $body | Out-Null
+        Write-KeepaliveLog "Extended workspace deadline to $deadline"
+    }
+    catch {
+        Write-KeepaliveLog "Unable to extend workspace deadline: $($_.Exception.Message)"
+    }
+}
+
+Write-KeepaliveLog "Starting Coder RDP keepalive monitor for workspace $workspaceId"
+
+while ($true) {
+    if (Test-RDPConnectionActive) {
+        Invoke-CoderWorkspaceExtend
+    }
+
+    Start-Sleep -Seconds $intervalSeconds
+}

@@ -11,6 +11,9 @@ type TestVariables = Readonly<{
   share?: string;
   admin_username?: string;
   admin_password?: string;
+  keepalive_enabled?: boolean;
+  keepalive_interval_seconds?: number;
+  keepalive_extension_minutes?: number;
 }>;
 
 function findWindowsRdpScript(state: TerraformState): string | null {
@@ -127,5 +130,67 @@ describe("Web RDP", async () => {
 
     expect(customResultsGroup.username).toBe(customAdminUsername);
     expect(customResultsGroup.password).toBe(customAdminPassword);
+  });
+
+  it("Installs the RDP keepalive monitor by default", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "foo",
+    });
+
+    const rdpScript = findWindowsRdpScript(state);
+    expect(rdpScript).toBeString();
+    expect(rdpScript).toContain("Install-RDPKeepaliveMonitor");
+    expect(rdpScript).toContain(
+      '$keepaliveEnabled = [System.Convert]::ToBoolean("true")',
+    );
+    expect(rdpScript).toContain(
+      'Join-Path $env:ProgramData "Coder\\windows-rdp"',
+    );
+    expect(rdpScript).toContain("Stop-RDPKeepaliveMonitor");
+    expect(rdpScript).toContain(
+      'Start-Process -FilePath "powershell.exe" -WindowStyle Hidden',
+    );
+    expect(rdpScript).toContain("$intervalSeconds = 60");
+    expect(rdpScript).toContain("$extensionMinutes = 30");
+    expect(rdpScript).toContain(
+      "Get-NetTCPConnection -LocalPort 3389 -State Established",
+    );
+    expect(rdpScript).toContain(
+      '"Coder-Session-Token" = $env:CODER_AGENT_TOKEN',
+    );
+    expect(rdpScript).toContain(
+      '$uri = "$baseUrl/api/v2/workspaces/$workspaceId/extend"',
+    );
+    expect(rdpScript).toContain(
+      'Invoke-RestMethod -Method Put -Uri $uri -Headers $headers -ContentType "application/json" -Body $body',
+    );
+  });
+
+  it("Customizes the RDP keepalive interval and extension window", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "foo",
+      keepalive_interval_seconds: 15,
+      keepalive_extension_minutes: 45,
+    });
+
+    const rdpScript = findWindowsRdpScript(state);
+    expect(rdpScript).toBeString();
+    expect(rdpScript).toContain("$intervalSeconds = 15");
+    expect(rdpScript).toContain("$extensionMinutes = 45");
+  });
+
+  it("Can disable the RDP keepalive monitor", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "foo",
+      keepalive_enabled: false,
+    });
+
+    const rdpScript = findWindowsRdpScript(state);
+    expect(rdpScript).toBeString();
+    expect(rdpScript).toContain(
+      '$keepaliveEnabled = [System.Convert]::ToBoolean("false")',
+    );
+    expect(rdpScript).toContain("RDP keepalive disabled");
+    expect(rdpScript).toContain("Remove-Item -Path $scriptPath -Force");
   });
 });

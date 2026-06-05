@@ -70,6 +70,36 @@ variable "devolutions_gateway_version" {
   description = "Version of Devolutions Gateway to install. Use 'latest' for the most recent version, or specify a version like '2025.3.2'."
 }
 
+variable "keepalive_enabled" {
+  type        = bool
+  default     = true
+  description = "Whether to keep the workspace active while an RDP session is connected."
+}
+
+variable "keepalive_interval_seconds" {
+  type        = number
+  default     = 60
+  description = "How often the RDP keepalive monitor checks for active RDP sessions."
+
+  validation {
+    condition     = var.keepalive_interval_seconds >= 10
+    error_message = "keepalive_interval_seconds must be at least 10 seconds."
+  }
+}
+
+variable "keepalive_extension_minutes" {
+  type        = number
+  default     = 30
+  description = "How far ahead to extend the workspace deadline when an RDP session is active."
+
+  validation {
+    condition     = var.keepalive_extension_minutes >= 30
+    error_message = "keepalive_extension_minutes must be at least 30 minutes."
+  }
+}
+
+data "coder_workspace" "me" {}
+
 resource "coder_script" "windows-rdp" {
   agent_id     = var.agent_id
   display_name = "windows-rdp"
@@ -79,6 +109,12 @@ resource "coder_script" "windows-rdp" {
     admin_username              = var.admin_username
     admin_password              = var.admin_password
     devolutions_gateway_version = var.devolutions_gateway_version
+    keepalive_enabled           = var.keepalive_enabled
+    keepalive_script_contents = templatefile("${path.module}/rdp-keepalive.ps1.tftpl", {
+      workspace_id      = data.coder_workspace.me.id
+      interval_seconds  = var.keepalive_interval_seconds
+      extension_minutes = var.keepalive_extension_minutes
+    })
 
     # Wanted to have this be in the powershell template file, but Terraform
     # doesn't allow recursive calls to the templatefile function. Have to feed
