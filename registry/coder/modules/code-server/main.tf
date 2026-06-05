@@ -202,11 +202,6 @@ resource "coder_script" "code-server" {
       condition     = !var.offline || !var.use_cached
       error_message = "Offline and Use Cached can not be used together"
     }
-
-    precondition {
-      condition     = var.folder == "" || var.workspace == ""
-      error_message = "folder and workspace are mutually exclusive; set at most one"
-    }
   }
 }
 

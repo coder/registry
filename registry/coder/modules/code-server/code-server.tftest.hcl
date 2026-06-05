@@ -91,3 +91,12 @@ run "folder_and_workspace_conflict" {
     var.workspace
   ]
 }
+
+run "workspace_extension_rejected" {
+  command = plan
+  variables {
+    agent_id  = "foo"
+    workspace = "/home/coder/project/settings.json"
+  }
+  expect_failures = [var.workspace]
+}
