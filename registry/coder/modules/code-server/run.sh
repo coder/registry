@@ -116,6 +116,17 @@ for extension in "$${EXTENSIONLIST[@]}"; do
   fi
 done
 
+# Strip JSONC features (block/line comments, trailing commas) for jq parsing
+strip_jsonc_for_extensions() {
+  sed 's|//.*||g' "$1" | sed -E '
+    :a
+    N
+    $!ba
+    s#/[*]([^*]|[*]+[^*/])*[*]+/##g
+    s/,[^]}"]*([]}])/\1/g
+  '
+}
+
 if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
   if ! command -v jq > /dev/null; then
     echo "jq is required to install extensions from a workspace file."
@@ -129,8 +140,8 @@ if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
 
   if [ -f "$WORKSPACE_DIR/.vscode/extensions.json" ]; then
     printf "🧩 Installing extensions from %s/.vscode/extensions.json...\n" "$WORKSPACE_DIR"
-    # Use sed to remove single-line comments before parsing with jq
-    extensions=$(sed 's|//.*||g' "$WORKSPACE_DIR"/.vscode/extensions.json | jq -r '.recommendations[]')
+    extensions=$(strip_jsonc_for_extensions "$WORKSPACE_DIR/.vscode/extensions.json" \
+      | jq -r '(.recommendations // [])[]')
     for extension in $extensions; do
       if extension_installed "$extension"; then
         continue
