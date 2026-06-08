@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <g fill="#40BE46">
+    <!-- Eye shape -->
+    <path d="M100 40C55 40 20 80 10 100c10 20 45 60 90 60s80-40 90-60c-10-20-45-60-90-60zm0 100c-35 0-63-28-75-40 12-12 40-40 75-40s63 28 75 40c-12 12-40 40-75 40z"/>
+    <!-- Inner circle (magnifying glass lens) -->
+    <path d="M100 72a28 28 0 1 0 0 56 28 28 0 0 0 0-56zm0 44a16 16 0 1 1 0-32 16 16 0 0 1 0 32z"/>
+    <!-- Horizontal line below -->
+    <rect x="25" y="170" width="150" height="12" rx="6"/>
+  </g>
+</svg>

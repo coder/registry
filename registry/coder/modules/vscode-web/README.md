@@ -14,7 +14,7 @@ Automatically install [Visual Studio Code Server](https://code.visualstudio.com/
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.4.3"
+  version        = "1.5.0"
   agent_id       = coder_agent.example.id
   accept_license = true
 }
@@ -30,7 +30,7 @@ module "vscode-web" {
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.4.3"
+  version        = "1.5.0"
   agent_id       = coder_agent.example.id
   install_prefix = "/home/coder/.vscode-web"
   folder         = "/home/coder"
@@ -44,22 +44,22 @@ module "vscode-web" {
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.4.3"
+  version        = "1.5.0"
   agent_id       = coder_agent.example.id
   extensions     = ["github.copilot", "ms-python.python", "ms-toolsai.jupyter"]
   accept_license = true
 }
 ```
 
-### Pre-configure Settings
+### Pre-configure Machine Settings
 
-Configure VS Code's [settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-json-file) file:
+Configure VS Code's [Machine settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-json-file). These settings are merged with any existing machine settings on startup:
 
 ```tf
 module "vscode-web" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/vscode-web/coder"
-  version    = "1.4.3"
+  version    = "1.5.0"
   agent_id   = coder_agent.example.id
   extensions = ["dracula-theme.theme-dracula"]
   settings = {
@@ -69,6 +69,9 @@ module "vscode-web" {
 }
 ```
 
+> [!WARNING]
+> Merging settings requires `jq` or `python3`. If neither is available, existing machine settings will be preserved. User settings configured through the VS Code UI are stored in browser local storage and will not persist across different browsers or devices.
+
 ### Pin a specific VS Code Web version
 
 By default, this module installs the latest. To pin a specific version, retrieve the commit ID from the [VS Code Update API](https://update.code.visualstudio.com/api/commits/stable/server-linux-x64-web) and verify its corresponding release on the [VS Code GitHub Releases](https://github.com/microsoft/vscode/releases).
@@ -77,7 +80,7 @@ By default, this module installs the latest. To pin a specific version, retrieve
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.4.3"
+  version        = "1.5.0"
   agent_id       = coder_agent.example.id
   commit_id      = "e54c774e0add60467559eb0d1e229c6452cf8447"
   accept_license = true
@@ -93,7 +96,7 @@ Note: Either `workspace` or `folder` can be used, but not both simultaneously. T
 module "vscode-web" {
   count     = data.coder_workspace.me.start_count
   source    = "registry.coder.com/coder/vscode-web/coder"
-  version   = "1.4.3"
+  version   = "1.5.0"
   agent_id  = coder_agent.example.id
   workspace = "/home/coder/coder.code-workspace"
 }

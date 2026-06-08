@@ -14,7 +14,7 @@ This module adds JetBrains IDE buttons to launch IDEs directly from the dashboar
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
@@ -39,7 +39,7 @@ When `default` contains IDE codes, those IDEs are created directly without user 
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   default  = ["PY", "IU"] # Pre-configure PyCharm and IntelliJ IDEA
@@ -52,7 +52,7 @@ module "jetbrains" {
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   # Show parameter with limited options
@@ -66,7 +66,7 @@ module "jetbrains" {
 module "jetbrains" {
   count         = data.coder_workspace.me.start_count
   source        = "registry.coder.com/coder/jetbrains/coder"
-  version       = "1.3.0"
+  version       = "1.4.0"
   agent_id      = coder_agent.main.id
   folder        = "/home/coder/project"
   default       = ["IU", "PY"]
@@ -75,30 +75,37 @@ module "jetbrains" {
 }
 ```
 
-### Custom IDE Configuration
+### Pinned Versions (Air-Gapped / Cached)
+
+When `ide_config` is set, the module makes zero HTTP calls and uses the
+provided build numbers directly. This is ideal for air-gapped environments
+or when caching IDE installations.
+
+> [!TIP]
+> To find the latest build number for an IDE, query the JetBrains releases API:
+>
+> ```sh
+> curl -s "https://data.services.jetbrains.com/products/releases?code=GO&type=release&latest=true" | jq 'to_entries[0].value[0] | {build, version}'
+> ```
+>
+> Replace `GO` with the product code for the IDE you want (e.g. `IU`, `PY`, `CL`).
 
 ```tf
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
-  folder   = "/workspace/project"
+  folder   = "/home/coder/project"
 
-  # Custom IDE metadata (display names and icons)
+  # Only build is required. Name and icon fall back to built-in defaults.
   ide_config = {
-    "IU" = {
-      name  = "IntelliJ IDEA"
-      icon  = "/custom/icons/intellij.svg"
-      build = "251.26927.53"
-    }
-
-    "PY" = {
-      name  = "PyCharm"
-      icon  = "/custom/icons/pycharm.svg"
-      build = "251.23774.211"
-    }
+    "GO" = { build = "261.22158.291" }
+    "PY" = { build = "261.22158.340" }
+    # Add entries for other IDEs as needed.
   }
+
+  options = ["GO", "PY"] # Must match the keys in ide_config.
 }
 ```
 
@@ -108,7 +115,7 @@ module "jetbrains" {
 module "jetbrains_pycharm" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
   folder   = "/workspace/project"
 
@@ -128,7 +135,7 @@ Add helpful tooltip text that appears when users hover over the IDE app buttons:
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   default  = ["IU", "PY"]
@@ -165,9 +172,9 @@ resource "coder_metadata" "container_info" {
 
 ### Version Resolution
 
-- Build numbers are fetched from the JetBrains API for the latest compatible versions when internet access is available
-- If the API is unreachable (air-gapped environments), the module automatically falls back to build numbers from `ide_config`
-- `major_version` and `channel` control which API endpoint is queried (when API access is available)
+- **`ide_config` not set (default)**: Build numbers are fetched from the JetBrains releases API. If the API is unreachable, Terraform will return an error rather than silently using stale versions.
+- **`ide_config` set**: The module skips all HTTP calls and uses the provided build numbers directly. No network access required. Ideal for air-gapped deployments or when caching IDE installations.
+- `major_version` and `channel` control which API endpoint is queried (only when `ide_config` is not set).
 
 ## Supported IDEs
 

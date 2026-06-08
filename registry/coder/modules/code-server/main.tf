@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.9"
 
   required_providers {
     coder = {
@@ -44,7 +44,7 @@ variable "settings" {
   default     = {}
 }
 
-variable "machine-settings" {
+variable "machine_settings" {
   type        = any
   description = "A map of template level machine settings to apply to code-server. This will be overwritten at each container start."
   default     = {}
@@ -56,6 +56,19 @@ variable "folder" {
   default     = ""
 }
 
+variable "workspace" {
+  type        = string
+  description = "The path to a `.code-workspace` file to open in code-server. Mutually exclusive with `folder`."
+  default     = ""
+  validation {
+    condition     = var.workspace == "" || endswith(var.workspace, ".code-workspace")
+    error_message = "workspace must be a path to a .code-workspace file"
+  }
+  validation {
+    condition     = var.folder == "" || var.workspace == ""
+    error_message = "folder and workspace are mutually exclusive; set at most one"
+  }
+}
 variable "install_prefix" {
   type        = string
   description = "The prefix to install code-server to."
@@ -167,12 +180,13 @@ resource "coder_script" "code-server" {
     INSTALL_PREFIX : var.install_prefix,
     // This is necessary otherwise the quotes are stripped!
     SETTINGS : replace(jsonencode(var.settings), "\"", "\\\""),
-    MACHINE_SETTINGS : replace(jsonencode(var.machine-settings), "\"", "\\\""),
+    MACHINE_SETTINGS : replace(jsonencode(var.machine_settings), "\"", "\\\""),
     OFFLINE : var.offline,
     USE_CACHED : var.use_cached,
     USE_CACHED_EXTENSIONS : var.use_cached_extensions,
     EXTENSIONS_DIR : var.extensions_dir,
     FOLDER : var.folder,
+    WORKSPACE : var.workspace,
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
     ADDITIONAL_ARGS : var.additional_args,
   })
@@ -195,7 +209,7 @@ resource "coder_app" "code-server" {
   agent_id     = var.agent_id
   slug         = var.slug
   display_name = var.display_name
-  url          = "http://localhost:${var.port}/${var.folder != "" ? "?folder=${urlencode(var.folder)}" : ""}"
+  url          = "http://localhost:${var.port}/${var.folder != "" ? "?folder=${urlencode(var.folder)}" : var.workspace != "" ? "?workspace=${urlencode(var.workspace)}" : ""}"
   icon         = "/icon/code.svg"
   subdomain    = var.subdomain
   share        = var.share

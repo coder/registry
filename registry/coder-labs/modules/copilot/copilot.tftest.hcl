@@ -117,18 +117,23 @@ run "copilot_model_not_created_for_default" {
   }
 }
 
-run "model_validation_accepts_valid_models" {
+run "copilot_model_accepts_custom_model" {
   command = plan
 
   variables {
     agent_id      = "test-agent"
     workdir       = "/home/coder"
-    copilot_model = "gpt-5"
+    copilot_model = "o3-pro"
   }
 
   assert {
-    condition     = contains(["claude-sonnet-4", "claude-sonnet-4.5", "gpt-5"], var.copilot_model)
-    error_message = "Model should be one of the valid options"
+    condition     = var.copilot_model == "o3-pro"
+    error_message = "copilot_model should accept any model string"
+  }
+
+  assert {
+    condition     = length(resource.coder_env.copilot_model) == 1
+    error_message = "copilot_model env var should be created for non-default model"
   }
 }
 
@@ -232,5 +237,118 @@ run "app_slug_is_consistent" {
   assert {
     condition     = local.module_dir_name == ".copilot-module"
     error_message = "module_dir_name should be '.copilot-module'"
+  }
+}
+
+run "aibridge_proxy_defaults" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    workdir  = "/home/coder"
+  }
+
+  assert {
+    condition     = var.enable_aibridge_proxy == false
+    error_message = "enable_aibridge_proxy should default to false"
+  }
+
+  assert {
+    condition     = var.aibridge_proxy_auth_url == null
+    error_message = "aibridge_proxy_auth_url should default to null"
+  }
+
+  assert {
+    condition     = var.aibridge_proxy_cert_path == null
+    error_message = "aibridge_proxy_cert_path should default to null"
+  }
+}
+
+run "aibridge_proxy_enabled" {
+  command = plan
+
+  variables {
+    agent_id                 = "test-agent-aibridge-proxy"
+    workdir                  = "/home/coder"
+    enable_aibridge_proxy    = true
+    aibridge_proxy_auth_url  = "https://coder:mock-token@aiproxy.example.com"
+    aibridge_proxy_cert_path = "/tmp/aibridge-proxy/ca-cert.pem"
+  }
+
+  assert {
+    condition     = var.enable_aibridge_proxy == true
+    error_message = "AI Bridge Proxy should be enabled"
+  }
+
+  assert {
+    condition     = var.aibridge_proxy_auth_url == "https://coder:mock-token@aiproxy.example.com"
+    error_message = "AI Bridge Proxy auth URL should match the input variable"
+  }
+
+  assert {
+    condition     = var.aibridge_proxy_cert_path == "/tmp/aibridge-proxy/ca-cert.pem"
+    error_message = "AI Bridge Proxy cert path should match the input variable"
+  }
+}
+
+run "aibridge_proxy_validation_missing_proxy_auth_url" {
+  command = plan
+
+  variables {
+    agent_id                 = "test-agent-validation"
+    workdir                  = "/home/coder"
+    enable_aibridge_proxy    = true
+    aibridge_proxy_auth_url  = ""
+    aibridge_proxy_cert_path = "/tmp/aibridge-proxy/ca-cert.pem"
+  }
+
+  expect_failures = [
+    var.enable_aibridge_proxy,
+  ]
+}
+
+run "aibridge_proxy_validation_missing_cert_path" {
+  command = plan
+
+  variables {
+    agent_id                 = "test-agent-validation"
+    workdir                  = "/home/coder"
+    enable_aibridge_proxy    = true
+    aibridge_proxy_auth_url  = "https://coder:mock-token@aiproxy.example.com"
+    aibridge_proxy_cert_path = ""
+  }
+
+  expect_failures = [
+    var.enable_aibridge_proxy,
+  ]
+}
+
+run "aibridge_proxy_with_copilot_config" {
+  command = plan
+
+  variables {
+    agent_id                 = "test-agent"
+    workdir                  = "/home/coder"
+    copilot_model            = "gpt-5"
+    github_token             = "ghp_test123"
+    allow_all_tools          = true
+    enable_aibridge_proxy    = true
+    aibridge_proxy_auth_url  = "https://coder:mock-token@aiproxy.example.com"
+    aibridge_proxy_cert_path = "/tmp/aibridge-proxy/ca-cert.pem"
+  }
+
+  assert {
+    condition     = var.enable_aibridge_proxy == true
+    error_message = "AI Bridge Proxy should be enabled"
+  }
+
+  assert {
+    condition     = length(resource.coder_env.github_token) == 1
+    error_message = "github_token environment variable should be set alongside proxy"
+  }
+
+  assert {
+    condition     = length(resource.coder_env.copilot_model) == 1
+    error_message = "copilot_model environment variable should be set alongside proxy"
   }
 }

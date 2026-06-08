@@ -3,7 +3,25 @@
 // Usage: MESSAGES='[...]' node agentapi-mock-shutdown.js [port]
 
 const http = require("http");
+const fs = require("fs");
 const port = process.argv[2] || 3284;
+
+// Write PID file for shutdown script.
+if (process.env.AGENTAPI_PID_FILE) {
+  const path = require("path");
+  fs.mkdirSync(path.dirname(process.env.AGENTAPI_PID_FILE), {
+    recursive: true,
+  });
+  fs.writeFileSync(process.env.AGENTAPI_PID_FILE, String(process.pid));
+}
+
+// Handle SIGUSR1 (state save signal from shutdown script).
+process.on("SIGUSR1", () => {
+  fs.writeFileSync(
+    "/tmp/sigusr1-received",
+    `SIGUSR1 received at ${Date.now()}\n`,
+  );
+});
 
 // Parse messages from environment or use default
 let messages = [];
