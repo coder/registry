@@ -13,14 +13,14 @@ Install and configure the [Codex CLI](https://github.com/openai/codex) in your w
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.0.1"
+  version        = "5.1.1"
   agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
 }
 ```
 
 > [!WARNING]
-> If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for [Coder Tasks](https://coder.com/docs/ai-coder/tasks) and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). v5 also assumes npm is pre-installed; it no longer bootstraps Node.js. Keep using v4.x.x if you depend on them. See the [PR description](https://github.com/coder/registry/pull/879) for a full migration guide.
+> If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for [Coder Tasks](https://coder.com/docs/ai-coder/tasks) and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). Keep using v4.x.x if you depend on them. See the [PR description](https://github.com/coder/registry/pull/879) for a full migration guide.
 
 ## Examples
 
@@ -33,7 +33,7 @@ locals {
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.0.1"
+  version        = "5.1.1"
   agent_id       = coder_agent.main.id
   workdir        = local.codex_workdir
   openai_api_key = var.openai_api_key
@@ -64,7 +64,7 @@ resource "coder_app" "codex" {
 ```tf
 module "codex" {
   source            = "registry.coder.com/coder-labs/codex/coder"
-  version           = "5.0.1"
+  version           = "5.1.1"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -88,7 +88,7 @@ When `enable_ai_gateway = true`, the module configures Codex to use the `aigatew
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.0.1"
+  version        = "5.1.1"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   openai_api_key = var.openai_api_key
@@ -117,7 +117,7 @@ The module exposes the `scripts` output: an ordered list of `coder exp sync` nam
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.0.1"
+  version        = "5.1.1"
   agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
 }
