@@ -1,0 +1,222 @@
+#!/bin/bash
+set -euo pipefail
+
+BOLD='\033[0;1m'
+
+command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+# Decode arguments (all base64 except booleans)
+ARG_INSTALL_GEMINI='${ARG_INSTALL_GEMINI}'
+ARG_GEMINI_VERSION=$(echo -n '${ARG_GEMINI_VERSION}' | base64 -d)
+ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
+ARG_GEMINI_CONFIG=$(echo -n '${ARG_GEMINI_CONFIG}' | base64 -d)
+ARG_MCP=$(echo -n '${ARG_MCP}' | base64 -d)
+
+echo "--------------------------------"
+printf "gemini_config: %s\n" "$${ARG_GEMINI_CONFIG}"
+printf "install: %s\n" "$${ARG_INSTALL_GEMINI}"
+printf "gemini_version: %s\n" "$${ARG_GEMINI_VERSION}"
+printf "workdir: %s\n" "$${ARG_WORKDIR}"
+printf "ARG_MCP: %s\n" "$${ARG_MCP}"
+echo "--------------------------------"
+
+
+function check_dependencies() {
+  if ! command_exists node; then
+    printf "Error: Node.js is not installed. Please install Node.js manually or use the pre_install_script to install it.\n"
+    exit 1
+  fi
+  if ! command_exists npm; then
+    printf "Error: npm is not installed. Please install npm manually or use the pre_install_script to install it.\n"
+    exit 1
+  fi
+  printf "Node.js version: %s\n" "$(node --version)"
+  printf "npm version: %s\n" "$(npm --version)"
+}
+
+
+function add_path_to_shell_profiles() {
+  local path_dir="$1"
+  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    if [ -f "$${profile}" ]; then
+      if ! grep -q "$${path_dir}" "$${profile}" 2> /dev/null; then
+        echo "export PATH=\"\$PATH:$${path_dir}\"" >> "$${profile}"
+        echo "Added $${path_dir} to $${profile}"
+      fi
+    fi
+  done
+  local fish_config="$HOME/.config/fish/config.fish"
+  if [ -f "$${fish_config}" ]; then
+    if ! grep -q "$${path_dir}" "$${fish_config}" 2> /dev/null; then
+      echo "fish_add_path $${path_dir}" >> "$${fish_config}"
+      echo "Added $${path_dir} to $${fish_config}"
+    fi
+  fi
+}
+
+function ensure_gemini_in_path() {
+  local GEMINI_BIN=""
+  if command -v gemini > /dev/null 2>&1; then
+    GEMINI_BIN=$(command -v gemini)
+  elif [ -x "$HOME/.npm-global/bin/gemini" ]; then
+    GEMINI_BIN="$HOME/.npm-global/bin/gemini"
+  fi
+  if [ -z "$${GEMINI_BIN}" ] || [ ! -x "$${GEMINI_BIN}" ]; then
+    echo "Warning: Could not find gemini binary after install"
+    return
+  fi
+  local GEMINI_DIR
+  GEMINI_DIR=$(dirname "$${GEMINI_BIN}")
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/gemini" ]; then
+    ln -s "$${GEMINI_BIN}" "$${CODER_SCRIPT_BIN_DIR}/gemini"
+    echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/gemini -> $${GEMINI_BIN}"
+  fi
+  add_path_to_shell_profiles "$${GEMINI_DIR}"
+}
+
+function install_gemini() {
+  if [ "$${ARG_INSTALL_GEMINI}" != "true" ]; then
+    echo "Skipping Gemini installation as per configuration."
+    ensure_gemini_in_path
+    return
+  fi
+  check_dependencies
+  printf "%s Installing Gemini CLI\n" "$${BOLD}"
+  NPM_GLOBAL_PREFIX="$HOME/.npm-global"
+  if [ ! -d "$${NPM_GLOBAL_PREFIX}" ]; then
+    mkdir -p "$${NPM_GLOBAL_PREFIX}"
+  fi
+  npm config set prefix "$${NPM_GLOBAL_PREFIX}"
+  export PATH="$${NPM_GLOBAL_PREFIX}/bin:$PATH"
+  if [ -n "$${ARG_GEMINI_VERSION}" ]; then
+    npm install -g "@google/gemini-cli@$${ARG_GEMINI_VERSION}"
+  else
+    npm install -g "@google/gemini-cli"
+  fi
+  printf "%s Installed Gemini CLI: %s\n" "$${BOLD}" "$(gemini --version || echo 'unknown')"
+  ensure_gemini_in_path
+}
+
+function add_mcp_servers() {
+  local mcp_json="$1"
+
+  echo "$${mcp_json}" | jq -c 'to_entries[]' | while read -r entry; do
+    local server_name
+    local server_json
+
+    server_name=$(echo "$${entry}" | jq -r '.key')
+    server_json=$(echo "$${entry}" | jq -c '.value')
+
+    echo "------------------------"
+    echo "Adding MCP server '$server_name'"
+
+    local cmd_args=()
+    local transport
+    transport=$(echo "$${server_json}" | jq -r '.transport // empty')
+
+    if [ -n "$${transport}" ]; then
+      local url
+      url=$(echo "$${server_json}" | jq -r '.url')
+      cmd_args+=(--transport "$${transport}")
+      while IFS= read -r header; do
+        cmd_args+=(--header "$${header}")
+      done < <(
+        echo "$${server_json}" | jq -r '
+          .headers // {}
+          | to_entries[]
+          | "\(.key): \(.value)"
+        '
+      )
+      cmd_args+=("$server_name" "$url")
+    else
+      local command
+      command=$(echo "$${server_json}" | jq -r '.command')
+
+      while IFS= read -r env_var; do
+        cmd_args+=(-e "$${env_var}")
+      done < <(
+        echo "$${server_json}" | jq -r '
+          .env // {}
+          | to_entries[]
+          | "\(.key)=\(.value)"
+        '
+      )
+
+      cmd_args+=("$${server_name}" "$${command}")
+
+      while IFS= read -r arg; do
+        cmd_args+=("$${arg}")
+      done < <(
+        echo "$${server_json}" | jq -r '.args // [] | .[]'
+      )
+    fi
+
+    echo "Running:"
+    printf 'gemini mcp add %q' "$${cmd_args[@]}"
+
+    gemini mcp add "$${cmd_args[@]}" || echo "Warning: Failed to add MCP server '$${server_name}'"
+    echo "------------------------"
+  done
+}
+
+function setup_mcp_configurations() {
+  # Add MCP servers from module input
+  if [ "$${ARG_MCP}" != "" ]; then
+    add_mcp_servers "$${ARG_MCP}"
+  else
+    printf "No MCP servers to add from ARG_MCP.\n"
+  fi
+}
+
+# function populate_settings_json() {
+#   if [ -n "$${ARG_GEMINI_CONFIG}" ]; then
+#     SETTINGS_PATH="$HOME/.gemini/settings.json"
+#     mkdir -p "$(dirname "$SETTINGS_PATH")"
+#     printf "Custom gemini_config is provided!\n"
+#     echo "$${ARG_GEMINI_CONFIG}" > "$HOME/.gemini/settings.json"
+#   else
+#     printf "No custom gemini_config provided, using default settings.json.\n"
+#     additional_config_to_settings_json
+#   fi
+# }
+
+# function additional_config_to_settings_json() {
+#   SETTINGS_PATH="$HOME/.gemini/settings.json"
+#   if [ -f "$SETTINGS_PATH" ]; then
+#     TMP_SETTINGS=$(mktemp)
+#     jq '.theme = "Default" | .selectedAuthType = "gemini-api-key"' "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
+#     printf "[additional_config_to_settings_json] Merge complete.\n"
+#   else
+#     printf "[additional_config_to_settings_json] Not found settings.json file.\n"
+#   fi
+# }
+
+# function patch_coder_mcp_command() {
+#   CODER_BIN=$(which coder 2>/dev/null || true)
+#   SETTINGS_PATH="$HOME/.gemini/settings.json"
+#   if [ -z "$CODER_BIN" ]; then
+#     printf "Warning: could not find coder binary, MCP command path not patched.\n"
+#     return
+#   fi
+#   printf "Patching coder MCP command path to: %s\n" "$CODER_BIN"
+#   TMP_SETTINGS=$(mktemp)
+#   jq --arg bin "$CODER_BIN" \
+#     '.mcpServers.coder.command = $bin' \
+#     "$SETTINGS_PATH" > "$TMP_SETTINGS" && mv "$TMP_SETTINGS" "$SETTINGS_PATH"
+#   printf "Patch complete.\n"
+# }
+
+function setup_workdir() {
+  if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
+    echo "Creating workdir: $${ARG_WORKDIR}"
+    mkdir -p "$${ARG_WORKDIR}"
+  fi
+}
+
+install_gemini
+setup_mcp_configurations
+# populate_settings_json
+# patch_coder_mcp_command
+setup_workdir
