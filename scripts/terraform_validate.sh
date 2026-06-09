@@ -11,6 +11,34 @@ set -euo pipefail
 #
 # This script only validates changed modules. Documentation and template changes are ignored.
 
+# Validates that Terraform variable names use underscores (snake_case) instead
+# of hyphens. Hyphens are technically valid but deprecated and non-idiomatic.
+# See: https://developer.hashicorp.com/terraform/language/values/variables
+validate_variable_names() {
+  local dir="$1"
+  local found_issues=0
+
+  while IFS= read -r tf_file; do
+    while IFS= read -r match; do
+      local line_num
+      line_num=$(echo "$match" | cut -d: -f1)
+      local line_content
+      line_content=$(echo "$match" | cut -d: -f2-)
+      local var_name
+      var_name=$(echo "$line_content" | sed -n 's/.*variable "\([^"]*\)".*/\1/p')
+
+      if [[ -n "$var_name" ]]; then
+        echo "  ERROR: $tf_file:$line_num"
+        echo "    Variable \"$var_name\" contains a hyphen."
+        echo "    Rename to \"${var_name//-/_}\" (use underscores instead of hyphens)."
+        found_issues=$((found_issues + 1))
+      fi
+    done < <(grep -n 'variable "[^"]*-[^"]*"' "$tf_file" 2> /dev/null || true)
+  done < <(find "$dir" -name '*.tf' -type f | sort)
+
+  return "$found_issues"
+}
+
 validate_terraform_directory() {
   local dir="$1"
   echo "Running \`terraform validate\` in $dir"
@@ -86,6 +114,16 @@ main() {
     # files
     if test -f "$dir/main.tf"; then
       if ! validate_terraform_directory "$dir"; then
+        status=1
+      fi
+    fi
+  done
+
+  echo ""
+  echo "==> Validating Terraform variable names use snake_case..."
+  for dir in $subdirs; do
+    if test -f "$dir/main.tf"; then
+      if ! validate_variable_names "$dir"; then
         status=1
       fi
     fi

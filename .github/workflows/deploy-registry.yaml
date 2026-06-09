@@ -9,11 +9,12 @@ on:
       # Matches release/<namespace>/<resource_name>/<semantic_version>
       # (e.g., "release/whizus/exoscale-zone/v1.0.13")
       - "release/*/*/v*.*.*"
-    branches: # Templates get released when merged to main
+    branches: # Templates and skills get released when merged to main
       - main
     paths:
       - ".github/workflows/deploy-registry.yaml"
       - "registry/**/templates/**"
+      - "registry/**/skills/**"
       - "registry/**/README.md"
       - ".icons/**"
 
@@ -28,7 +29,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
         with:

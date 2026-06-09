@@ -54,6 +54,15 @@ variable "subdomain" {
   description = "Is subdomain sharing enabled in your cluster?"
 }
 
+variable "share" {
+  type    = string
+  default = "owner"
+  validation {
+    condition     = var.share == "owner" || var.share == "authenticated" || var.share == "public"
+    error_message = "Incorrect value. Please set either 'owner', 'authenticated', or 'public'."
+  }
+}
+
 resource "coder_script" "kasm_vnc" {
   agent_id     = var.agent_id
   display_name = "KasmVNC"
@@ -75,7 +84,7 @@ resource "coder_app" "kasm_vnc" {
   url          = "http://localhost:${var.port}"
   icon         = "/icon/kasmvnc.svg"
   subdomain    = var.subdomain
-  share        = "owner"
+  share        = var.share
   order        = var.order
   group        = var.group
 

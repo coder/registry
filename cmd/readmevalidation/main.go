@@ -39,6 +39,10 @@ func main() {
 	if err != nil {
 		errs = append(errs, err)
 	}
+	err = validateAllCoderSkills()
+	if err != nil {
+		errs = append(errs, err)
+	}
 
 	if len(errs) == 0 {
 		logger.Info(context.Background(), "processed all READMEs in directory", "dir", rootRegistryPath)

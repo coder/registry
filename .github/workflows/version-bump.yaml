@@ -20,18 +20,18 @@ jobs:
       issues: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: latest
 
       - name: Set up Terraform
-        uses: coder/coder/.github/actions/setup-tf@59cdd7e21f4d7da12567c0c29964d298fbf38f27 # v2.29.1
+        uses: coder/coder/.github/actions/setup-tf@3006da5ef7a9c27755aa5b2f3f5f05d2c8971a58 # v2.34.0
 
       - name: Install dependencies
         run: bun install
@@ -41,7 +41,7 @@ jobs:
           LABEL_NAME: ${{ github.event.label.name }}
         id: bump-type
         run: |
-          case "$LABEL_NAME" in in
+          case "$LABEL_NAME" in
             "version:patch")
               echo "type=patch" >> $GITHUB_OUTPUT
               ;;
@@ -62,7 +62,7 @@ jobs:
 
       - name: Comment on PR - Version bump required
         if: failure()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
