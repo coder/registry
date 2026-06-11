@@ -425,6 +425,86 @@ describe("codex", async () => {
     expect(installLog).toContain("Installed Codex CLI");
   });
 
+  test("mcp-config-remote-path", async () => {
+    const remoteToml = [
+      "[mcp_servers.remote-fetched]",
+      'command = "remote-mcp-cmd"',
+      'args = ["--from-url"]',
+      'type = "stdio"',
+    ].join("\n");
+    const projectDir = "/home/coder/project";
+    const moduleDir = path.resolve(import.meta.dir);
+    const state = await runTerraformApply(moduleDir, {
+      agent_id: "foo",
+      workdir: projectDir,
+      install_codex: "false",
+      mcp_config_remote_path: JSON.stringify([
+        "http://localhost:19999/mcp.toml",
+        "file:///tmp/remote-mcp.toml",
+      ]),
+    });
+    const scripts = collectScripts(state);
+    const coderEnvVars = extractCoderEnvVars(state);
+
+    const id = await runContainer("codercom/enterprise-node:latest");
+    registerCleanup(async () => {
+      if (process.env["DEBUG"] === "true" || process.env["DEBUG"] === "1") {
+        console.log(`Not removing container ${id} in debug mode`);
+        return;
+      }
+      await removeContainer(id);
+    });
+
+    await execContainer(id, ["bash", "-c", `mkdir -p '${projectDir}'`]);
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/bin/coder",
+      content: "#!/bin/bash\nexit 0\n",
+    });
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/bin/codex",
+      content: await Bun.file(
+        path.join(moduleDir, "testdata", "codex-mock.sh"),
+      ).text(),
+    });
+    // Drop the remote TOML payload at a path the install script will fetch
+    // via file://. Keeps the test self-contained (no external network).
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > /tmp/remote-mcp.toml <<'EOF'\n${remoteToml}\nEOF`,
+    ]);
+
+    await runScripts(id, scripts, coderEnvVars);
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder-labs/codex/logs/install.log",
+    );
+    // Both URLs were attempted.
+    expect(installLog).toContain("http://localhost:19999/mcp.toml");
+    expect(installLog).toContain("file:///tmp/remote-mcp.toml");
+    // First URL fails gracefully.
+    expect(installLog).toContain(
+      "Warning: Failed to fetch MCP configuration from 'http://localhost:19999/mcp.toml'",
+    );
+    // Second URL succeeds.
+    expect(installLog).not.toContain(
+      "Warning: Failed to fetch MCP configuration from 'file:///tmp/remote-mcp.toml'",
+    );
+    expect(installLog).toContain(
+      "Appending MCP servers from file:///tmp/remote-mcp.toml",
+    );
+
+    const configToml = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    expect(configToml).toContain("[mcp_servers.remote-fetched]");
+    expect(configToml).toContain('command = "remote-mcp-cmd"');
+  });
+
   test("custom-config-drops-reasoning-effort", async () => {
     const baseConfig = [
       'sandbox_mode = "danger-full-access"',

@@ -88,6 +88,12 @@ variable "mcp" {
   default     = ""
 }
 
+variable "mcp_config_remote_path" {
+  type        = list(string)
+  description = "List of URLs that return MCP server configurations in TOML format (matching Codex's native config format). Fetched at install time and appended to config.toml."
+  default     = []
+}
+
 variable "model_reasoning_effort" {
   type        = string
   description = "The reasoning effort for the model. One of: none, minimal, low, medium, high, xhigh. See https://platform.openai.com/docs/guides/latest-model#lower-reasoning-effort"
@@ -141,6 +147,7 @@ locals {
     ARG_WORKDIR                = local.workdir != "" ? base64encode(local.workdir) : ""
     ARG_BASE_CONFIG_TOML       = var.base_config_toml != "" ? base64encode(var.base_config_toml) : ""
     ARG_MCP                    = var.mcp != "" ? base64encode(var.mcp) : ""
+    ARG_MCP_CONFIG_REMOTE_PATH = base64encode(jsonencode(var.mcp_config_remote_path))
     ARG_ENABLE_AI_GATEWAY      = tostring(var.enable_ai_gateway)
     ARG_AIBRIDGE_CONFIG        = var.enable_ai_gateway ? base64encode(local.aibridge_config) : ""
     ARG_MODEL_REASONING_EFFORT = var.model_reasoning_effort

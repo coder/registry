@@ -13,6 +13,7 @@ ARG_CODEX_VERSION='${ARG_CODEX_VERSION}'
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
 ARG_BASE_CONFIG_TOML=$(echo -n '${ARG_BASE_CONFIG_TOML}' | base64 -d)
 ARG_MCP=$(echo -n '${ARG_MCP}' | base64 -d)
+ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n '${ARG_MCP_CONFIG_REMOTE_PATH}' | base64 -d)
 ARG_ENABLE_AI_GATEWAY='${ARG_ENABLE_AI_GATEWAY}'
 ARG_AIBRIDGE_CONFIG=$(echo -n '${ARG_AIBRIDGE_CONFIG}' | base64 -d)
 ARG_MODEL_REASONING_EFFORT='${ARG_MODEL_REASONING_EFFORT}'
@@ -24,6 +25,7 @@ printf "workdir: %s\n" "$${ARG_WORKDIR}"
 printf "enable_ai_gateway: %s\n" "$${ARG_ENABLE_AI_GATEWAY}"
 printf "install_codex: %s\n" "$${ARG_INSTALL}"
 printf "model_reasoning_effort: %s\n" "$${ARG_MODEL_REASONING_EFFORT}"
+printf "mcp_config_remote_path: %s\n" "$${ARG_MCP_CONFIG_REMOTE_PATH}"
 echo "--------------------------------"
 
 function add_path_to_shell_profiles() {
@@ -125,6 +127,22 @@ function populate_config_toml() {
   if [ -n "$${ARG_MCP}" ]; then
     printf "Adding MCP servers\n"
     echo "$${ARG_MCP}" >> "$${config_path}"
+  fi
+
+  if [ -n "$${ARG_MCP_CONFIG_REMOTE_PATH}" ] && [ "$${ARG_MCP_CONFIG_REMOTE_PATH}" != "[]" ]; then
+    if ! command -v jq > /dev/null 2>&1; then
+      printf "Error: 'jq' is required to process mcp_config_remote_path but was not found. Skipping remote MCP config fetch.\n" >&2
+    else
+    for url in $(echo "$${ARG_MCP_CONFIG_REMOTE_PATH}" | jq -r '.[]'); do
+      echo "Fetching MCP configuration from: $${url}"
+      mcp_toml=$(curl -fsSL "$${url}") || {
+        echo "Warning: Failed to fetch MCP configuration from '$${url}', continuing..."
+        continue
+      }
+      printf "Appending MCP servers from %s\n" "$${url}"
+      printf '\n%s\n' "$${mcp_toml}" >> "$${config_path}"
+    done
+    fi
   fi
 
   if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] && [ -n "$${ARG_AIBRIDGE_CONFIG}" ]; then

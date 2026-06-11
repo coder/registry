@@ -107,8 +107,25 @@ module "codex" {
     args = ["-y", "@modelcontextprotocol/server-github"]
     type = "stdio"
   EOT
+
+  mcp_config_remote_path = [
+    "https://example.com/team-mcp-servers.toml",
+    "https://raw.githubusercontent.com/your-org/your-repo/main/.codex/mcp.toml",
+  ]
 }
 ```
+
+> [!NOTE]
+> Servers configured through `mcp` or `mcp_config_remote_path` are appended to `~/.codex/config.toml`, so they apply to every Codex session in the workspace. Each remote URL should return a body in Codex's native TOML format, e.g.:
+>
+> ```toml
+> [mcp_servers.my-tool]
+> command = "my-tool-server"
+> args = ["--port", "8080"]
+> type = "stdio"
+> ```
+>
+> Fetch failures (network errors or non-2xx responses) log a warning and the install continues with the remaining URLs. Bodies are appended verbatim without further validation, so make sure the URL returns valid Codex TOML.
 
 ### Serialize a downstream `coder_script` after the install pipeline
 
