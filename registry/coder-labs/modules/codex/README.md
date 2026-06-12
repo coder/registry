@@ -107,8 +107,26 @@ module "codex" {
     args = ["-y", "@modelcontextprotocol/server-github"]
     type = "stdio"
   EOT
+
+  mcp_config_remote_path = [
+    "https://example.com/codex/mcp.toml",
+    "https://raw.githubusercontent.com/acme/platform/main/.codex-mcp.toml",
+  ]
 }
 ```
+
+> [!NOTE]
+> Servers configured through `mcp` or `mcp_config_remote_path` are appended to Codex's user `config.toml`, making them available across every project the workspace owner opens.
+
+> [!NOTE]
+> Remote URLs should return valid TOML snippets, for example:
+>
+> ```toml
+> [mcp_servers.github]
+> command = "npx"
+> args = ["-y", "@modelcontextprotocol/server-github"]
+> type = "stdio"
+> ```
 
 ### Serialize a downstream `coder_script` after the install pipeline
 

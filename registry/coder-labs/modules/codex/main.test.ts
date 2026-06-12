@@ -255,6 +255,54 @@ describe("codex", async () => {
     expect(resp).toContain("GitHub integration");
   });
 
+  test("remote-mcp-configs", async () => {
+    const successUrl = "file:///tmp/codex-remote-mcp.toml";
+    const failingUrl = "file:///tmp/does-not-exist.toml";
+    const remoteConfig = [
+      "[mcp_servers.RemoteGitHub]",
+      'command = "npx"',
+      'args = ["-y", "@modelcontextprotocol/server-github"]',
+      'type = "stdio"',
+      "",
+      "[mcp_servers.RemoteFilesystem]",
+      'command = "npx"',
+      'args = ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]',
+      'type = "stdio"',
+    ].join("\n");
+
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        mcp_config_remote_path: JSON.stringify([failingUrl, successUrl]),
+      },
+    });
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat <<'EOF' > /tmp/codex-remote-mcp.toml\n${remoteConfig}\nEOF`,
+    ]);
+    await runScripts(id, scripts);
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder-labs/codex/logs/install.log",
+    );
+    expect(installLog).toContain(failingUrl);
+    expect(installLog).toContain(successUrl);
+    expect(installLog).toContain(
+      `Warning: Failed to fetch MCP configuration from '${failingUrl}'`,
+    );
+    expect(installLog).toContain(
+      `Appending remote MCP config from ${successUrl}`,
+    );
+
+    const configToml = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    expect(configToml).toContain("[mcp_servers.RemoteGitHub]");
+    expect(configToml).toContain("[mcp_servers.RemoteFilesystem]");
+  });
+
   test("minimal-default-config", async () => {
     const { id, scripts } = await setup();
     await runScripts(id, scripts);
