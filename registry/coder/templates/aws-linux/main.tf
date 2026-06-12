@@ -232,19 +232,9 @@ data "cloudinit_config" "user_data" {
     content_type = "text/cloud-config"
 
     content = templatefile("${path.module}/cloud-init/cloud-config.yaml.tftpl", {
-      hostname   = local.hostname
-      linux_user = local.linux_user
-    })
-  }
-
-  part {
-    filename     = "userdata.sh"
-    content_type = "text/x-shellscript"
-
-    content = templatefile("${path.module}/cloud-init/userdata.sh.tftpl", {
-      linux_user = local.linux_user
-
-      init_script = try(coder_agent.dev[0].init_script, "")
+      hostname    = local.hostname
+      linux_user  = local.linux_user
+      init_script = base64encode(try(coder_agent.dev[0].init_script, ""))
     })
   }
 }
