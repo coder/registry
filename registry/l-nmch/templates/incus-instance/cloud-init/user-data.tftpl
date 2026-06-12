@@ -1,0 +1,53 @@
+#cloud-config
+hostname: ${hostname}
+
+users:
+  - name: ${linux_user}
+    groups: [sudo]
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+
+package_update: false
+package_upgrade: false
+packages:
+  - curl
+  - ca-certificates
+  - git
+  - jq
+
+write_files:
+  - path: /opt/coder/init.sh
+    permissions: "0755"
+    owner: root:root
+    encoding: b64
+    content: |
+      ${coder_init_script_b64}
+
+  - path: /etc/systemd/system/coder-agent.service
+    permissions: "0644"
+    owner: root:root
+    content: |
+      [Unit]
+      Description=Coder Agent
+      Wants=network-online.target
+      After=network-online.target
+
+      [Service]
+      Type=simple
+      User=${linux_user}
+      WorkingDirectory=/home/${linux_user}
+      Environment=HOME=/home/${linux_user}
+      Environment=CODER_AGENT_TOKEN=${coder_token}
+      ExecStart=/opt/coder/init.sh
+      OOMScoreAdjust=-1000
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - systemctl daemon-reload
+  - systemctl enable --now coder-agent.service
+
+final_message: "Cloud-init complete on ${hostname}" 
