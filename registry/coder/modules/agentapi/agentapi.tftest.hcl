@@ -7,8 +7,6 @@ variables {
   web_app_slug         = "test"
   cli_app_display_name = "Test CLI"
   cli_app_slug         = "test-cli"
-  start_script         = "echo test"
-  module_dir_name      = ".test-module"
 }
 
 run "default_values" {
@@ -29,31 +27,10 @@ run "default_values" {
     error_message = "pid_file_path should default to empty string"
   }
 
-  # Verify start script contains state persistence ARG_ vars.
-  assert {
-    condition     = can(regex("ARG_ENABLE_STATE_PERSISTENCE", coder_script.agentapi.script))
-    error_message = "start script should contain ARG_ENABLE_STATE_PERSISTENCE"
-  }
-
-  assert {
-    condition     = can(regex("ARG_STATE_FILE_PATH", coder_script.agentapi.script))
-    error_message = "start script should contain ARG_STATE_FILE_PATH"
-  }
-
-  assert {
-    condition     = can(regex("ARG_PID_FILE_PATH", coder_script.agentapi.script))
-    error_message = "start script should contain ARG_PID_FILE_PATH"
-  }
-
   # Verify shutdown script contains PID-related ARG_ vars.
   assert {
     condition     = can(regex("ARG_PID_FILE_PATH", coder_script.agentapi_shutdown.script))
     error_message = "shutdown script should contain ARG_PID_FILE_PATH"
-  }
-
-  assert {
-    condition     = can(regex("ARG_MODULE_DIR_NAME", coder_script.agentapi_shutdown.script))
-    error_message = "shutdown script should contain ARG_MODULE_DIR_NAME"
   }
 
   assert {
@@ -74,11 +51,10 @@ run "state_persistence_disabled" {
     error_message = "enable_state_persistence should be false"
   }
 
-  # Even when disabled, the ARG_ vars should still be in the script
-  # (the shell script handles the conditional logic).
+  # Verify shutdown script contains the disabled flag.
   assert {
-    condition     = can(regex("ARG_ENABLE_STATE_PERSISTENCE='false'", coder_script.agentapi.script))
-    error_message = "start script should contain ARG_ENABLE_STATE_PERSISTENCE='false'"
+    condition     = can(regex("ARG_ENABLE_STATE_PERSISTENCE='false'", coder_script.agentapi_shutdown.script))
+    error_message = "shutdown script should contain ARG_ENABLE_STATE_PERSISTENCE='false'"
   }
 }
 
@@ -90,19 +66,18 @@ run "custom_paths" {
     pid_file_path   = "/custom/agentapi.pid"
   }
 
-  assert {
-    condition     = can(regex("/custom/state.json", coder_script.agentapi.script))
-    error_message = "start script should contain custom state_file_path"
-  }
-
-  assert {
-    condition     = can(regex("/custom/agentapi.pid", coder_script.agentapi.script))
-    error_message = "start script should contain custom pid_file_path"
-  }
-
-  # Verify custom paths also appear in shutdown script.
+  # Verify custom paths appear in shutdown script.
   assert {
     condition     = can(regex("/custom/agentapi.pid", coder_script.agentapi_shutdown.script))
     error_message = "shutdown script should contain custom pid_file_path"
+  }
+}
+
+run "scripts_output" {
+  command = plan
+
+  assert {
+    condition     = length(output.scripts) == 1 && output.scripts[0] == "coder-agentapi-install_script"
+    error_message = "scripts output should list the install script sync name"
   }
 }

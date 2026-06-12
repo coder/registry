@@ -31,16 +31,6 @@ for (const v of [
     );
   }
 }
-// Log boundary env vars.
-for (const v of ["AGENTAPI_BOUNDARY_PREFIX"]) {
-  if (process.env[v]) {
-    fs.appendFileSync(
-      "/home/coder/agentapi-mock.log",
-      `\n${v}: ${process.env[v]}`,
-    );
-  }
-}
-
 // Write PID file for shutdown script.
 if (process.env.AGENTAPI_PID_FILE) {
   const path = require("path");
