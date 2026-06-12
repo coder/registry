@@ -92,7 +92,7 @@ function install_codex() {
   printf "Downloading %s\n" "$${url}"
   local tmp_dir
   tmp_dir=$(mktemp -d)
-  curl -fsL -o "$${tmp_dir}/codex.tar.gz" "$${url}"
+  curl -fsSL -o "$${tmp_dir}/codex.tar.gz" "$${url}"
 
   tar -xzf "$${tmp_dir}/codex.tar.gz" -C "$${tmp_dir}"
   mkdir -p "$HOME/.local/bin"
