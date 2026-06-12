@@ -21,16 +21,6 @@ run "test_aider_basic" {
     condition     = var.install_aider == true
     error_message = "install_aider should default to true"
   }
-
-  assert {
-    condition     = var.install_agentapi == true
-    error_message = "install_agentapi should default to true"
-  }
-
-  assert {
-    condition     = var.report_tasks == false
-    error_message = "report_tasks should default to false"
-  }
 }
 
 run "test_with_api_key" {
@@ -55,14 +45,10 @@ run "test_custom_options" {
   variables {
     agent_id          = "test-agent-789"
     workdir           = "/home/coder/custom"
-    order             = 5
-    group             = "development"
     icon              = "/icon/custom.svg"
     model             = "4o"
     ai_prompt         = "Help me write better code"
     install_aider     = false
-    install_agentapi  = false
-    agentapi_version  = "v0.10.0"
     api_key           = ""
     base_aider_config = "read:\n  - CONVENTIONS.md"
   }
@@ -70,11 +56,6 @@ run "test_custom_options" {
   assert {
     condition     = var.order == 5
     error_message = "Order variable should be set to 5"
-  }
-
-  assert {
-    condition     = var.group == "development"
-    error_message = "Group variable should be set to 'development'"
   }
 
   assert {
@@ -95,16 +76,6 @@ run "test_custom_options" {
   assert {
     condition     = var.install_aider == false
     error_message = "install_aider should be set to false"
-  }
-
-  assert {
-    condition     = var.install_agentapi == false
-    error_message = "install_agentapi should be set to false"
-  }
-
-  assert {
-    condition     = var.agentapi_version == "v0.10.0"
-    error_message = "AgentAPI version should be set to 'v0.10.0'"
   }
 }
 

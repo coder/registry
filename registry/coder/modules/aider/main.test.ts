@@ -83,38 +83,6 @@ describe("Aider", async () => {
     await expectAgentAPIStarted(id);
   });
 
-  test("api-key", async () => {
-    const apiKey = "test-api-key-123";
-    const { id } = await setup({
-      moduleVariables: {
-        api_key: apiKey,
-        model: "gemini",
-      },
-    });
-    await execModuleScript(id);
-    const resp = await readFileContainer(
-      id,
-      "/home/coder/.aider-module/agentapi-start.log",
-    );
-    expect(resp).toContain("API key provided!");
-  });
-
-  test("custom-folder", async () => {
-    const workdir = "/tmp/aider-test";
-    const { id } = await setup({
-      moduleVariables: {
-        workdir,
-        model: "gemini",
-      },
-    });
-    await execModuleScript(id);
-    const resp = await readFileContainer(
-      id,
-      "/home/coder/.aider-module/install.log",
-    );
-    expect(resp).toContain(workdir);
-  });
-
   test("pre-post-install-scripts", async () => {
     const { id } = await setup({
       moduleVariables: {
@@ -126,12 +94,12 @@ describe("Aider", async () => {
     await execModuleScript(id);
     const preLog = await readFileContainer(
       id,
-      "/home/coder/.aider-module/pre_install.log",
+      "/home/coder/.coder-modules/coder/aider/logs/pre_install.log",
     );
     expect(preLog).toContain("pre-install-script");
     const postLog = await readFileContainer(
       id,
-      "/home/coder/.aider-module/post_install.log",
+      "/home/coder/.coder-modules/coder/aider/logs/post_install.log",
     );
     expect(postLog).toContain("post-install-script");
   });
