@@ -136,27 +136,84 @@ function populate_config_toml() {
   local config_path="$HOME/.codex/config.toml"
   mkdir -p "$(dirname "$${config_path}")"
 
+  local MANAGED_START="# >>> coder-managed: codex module >>>"
+  local MANAGED_END="# <<< coder-managed: codex module <<<"
+
+  # Build managed-block content in a temp file.
+  local managed
+  managed=$(mktemp)
+
   if [ -n "$${ARG_BASE_CONFIG_TOML}" ]; then
     printf "Using provided base configuration\n"
-    echo "$${ARG_BASE_CONFIG_TOML}" > "$${config_path}"
+    printf '%s\n' "$${ARG_BASE_CONFIG_TOML}" > "$${managed}"
   else
     printf "Using minimal default configuration\n"
-    write_minimal_default_config "$${config_path}"
+    write_minimal_default_config "$${managed}"
   fi
 
   if [ -n "$${ARG_MCP}" ]; then
     printf "Adding MCP servers\n"
-    echo "$${ARG_MCP}" >> "$${config_path}"
+    printf '%s\n' "$${ARG_MCP}" >> "$${managed}"
   fi
 
   if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] && [ -n "$${ARG_AIBRIDGE_CONFIG}" ]; then
-    if ! grep -q '\[model_providers\.aigateway\]' "$${config_path}" 2>/dev/null; then
+    if ! grep -q '\[model_providers\.aigateway\]' "$${managed}" 2>/dev/null; then
       printf "Adding AI Gateway configuration\n"
-      echo -e "\n$${ARG_AIBRIDGE_CONFIG}" >> "$${config_path}"
+      printf '\n%s\n' "$${ARG_AIBRIDGE_CONFIG}" >> "$${managed}"
     else
       printf "AI Gateway provider already defined in config, skipping append\n"
     fi
   fi
+
+  # Preserve user content from the existing config.
+  local user_content=""
+  if [ -s "$${config_path}" ]; then
+    if grep -qF "$${MANAGED_START}" "$${config_path}"; then
+      # Strip the managed block; everything else is user content.
+      user_content=$(sed '/# >>> coder-managed: codex module >>>/,/# <<< coder-managed: codex module <<</d' "$${config_path}")
+    else
+      # No markers (pre-upgrade or hand-written config). Treat the whole file as user content.
+      user_content=$(cat "$${config_path}")
+    fi
+    # Trim leading blank lines.
+    user_content=$(printf '%s' "$${user_content}" | sed '/./,$!d')
+  fi
+
+  # Split user content into bare keys (before any [section]) and sections.
+  # Bare keys go above the managed block so they stay at TOML root scope;
+  # sections go below it where each [header] resets scope naturally.
+  local user_bare="" user_sections=""
+  if [ -n "$${user_content}" ]; then
+    local first_section
+    first_section=$(printf '%s\n' "$${user_content}" | grep -n '^\[' | head -1 | cut -d: -f1)
+    if [ -n "$${first_section}" ]; then
+      user_bare=$(printf '%s\n' "$${user_content}" | head -n "$((first_section - 1))")
+      user_sections=$(printf '%s\n' "$${user_content}" | tail -n "+$${first_section}")
+      # Trim trailing blank lines from bare portion.
+      user_bare=$(printf '%s' "$${user_bare}" | sed -e :x -e '/^\n*$/{ $d; N; bx; }')
+    else
+      user_bare="$${user_content}"
+    fi
+  fi
+
+  # Assemble final config atomically:
+  #   user bare keys  (root scope)
+  #   managed block   (bare keys first, then [sections])
+  #   user sections   (each [header] resets scope)
+  local tmp
+  tmp=$(mktemp "$${config_path}.XXXXXX")
+  {
+    if [ -n "$${user_bare}" ]; then
+      printf '%s\n\n' "$${user_bare}"
+    fi
+    printf '%s\n' "$${MANAGED_START}"
+    cat "$${managed}"
+    printf '%s\n' "$${MANAGED_END}"
+    if [ -n "$${user_sections}" ]; then
+      printf '\n%s\n' "$${user_sections}"
+    fi
+  } > "$${tmp}" && mv "$${tmp}" "$${config_path}"
+  rm -f "$${managed}"
 }
 
 function setup_workdir() {
