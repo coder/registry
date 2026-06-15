@@ -38,6 +38,28 @@ variable "group" {
   default     = null
 }
 
+variable "extensions" {
+  type        = list(string)
+  description = "A list of extensions to pre-install when the workspace starts. Use the format 'publisher.extension-name'."
+  default     = []
+}
+
+variable "settings" {
+  type        = map(any)
+  description = "Machine-level VS Code settings to apply on the remote host. These are merged with existing machine settings on startup."
+  default     = {}
+}
+
+variable "extensions_dir" {
+  type        = string
+  description = "Override the directory to store extensions in."
+  default     = ""
+}
+
+locals {
+  settings_b64 = length(var.settings) > 0 ? base64encode(jsonencode(var.settings)) : ""
+}
+
 module "vscode-desktop-core" {
   source  = "registry.coder.com/coder/vscode-desktop-core/coder"
   version = "1.0.2"
@@ -53,6 +75,23 @@ module "vscode-desktop-core" {
   folder      = var.folder
   open_recent = var.open_recent
   protocol    = "vscode"
+}
+
+resource "coder_script" "vscode-desktop-extensions" {
+  count    = length(var.extensions) > 0 || length(var.settings) > 0 ? 1 : 0
+  agent_id = var.agent_id
+
+  icon         = "/icon/code.svg"
+  display_name = "VS Code Desktop Extensions"
+
+  run_on_start       = true
+  start_blocks_login = false
+
+  script = templatefile("${path.module}/install-extensions.sh", {
+    EXTENSIONS     = join(",", var.extensions)
+    SETTINGS_B64   = local.settings_b64
+    EXTENSIONS_DIR = var.extensions_dir
+  })
 }
 
 output "vscode_url" {

@@ -16,7 +16,7 @@ Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder)
 module "vscode" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/vscode-desktop/coder"
-  version  = "1.2.1"
+  version  = "1.3.0"
   agent_id = coder_agent.main.id
 }
 ```
@@ -29,8 +29,51 @@ module "vscode" {
 module "vscode" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/vscode-desktop/coder"
-  version  = "1.2.1"
+  version  = "1.3.0"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
+}
+```
+
+### Pre-install extensions
+
+Pre-install VS Code extensions so they are ready when the user first connects:
+
+```tf
+module "vscode" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/vscode-desktop/coder"
+  version  = "1.3.0"
+  agent_id = coder_agent.main.id
+  folder   = "/home/coder/project"
+  extensions = [
+    "ms-python.python",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+  ]
+}
+```
+
+### Pre-install extensions with custom settings
+
+Apply machine-level settings on the remote host. Settings are merged with any existing machine settings:
+
+```tf
+module "vscode" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/vscode-desktop/coder"
+  version  = "1.3.0"
+  agent_id = coder_agent.main.id
+  folder   = "/home/coder/project"
+  extensions = [
+    "ms-python.python",
+    "esbenp.prettier-vscode",
+  ]
+  settings = {
+    "editor.fontSize"    = 14
+    "editor.tabSize"     = 2
+    "editor.formatOnSave" = true
+    "python.defaultInterpreterPath" = "/usr/bin/python3"
+  }
 }
 ```
