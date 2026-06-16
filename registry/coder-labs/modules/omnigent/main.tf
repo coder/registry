@@ -101,15 +101,14 @@ locals {
   )
 
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
-    ARG_OMNIGENT_VERSION_IS_LATEST = tostring(var.omnigent_version == "latest")
-    ARG_OMNIGENT_VERSION_B64       = var.omnigent_version != "latest" ? base64encode(var.omnigent_version) : ""
-    ARG_PORT                       = tostring(var.port)
-    ARG_WRITE_SERVER_CONFIG        = tostring(var.server_config != null)
-    ARG_SERVER_CONFIG_B64          = var.server_config != null ? base64encode(var.server_config) : ""
-    ARG_SERVER_CONFIG_FILE         = local.server_config_file
-    ARG_SERVER_CONFIG_DIR          = "${local.module_dir}/config"
-    ARG_AGENTS_B64                 = length(var.agents) > 0 ? base64encode(join("\n", [for a in var.agents : "${a.name}\t${base64encode(a.content)}"])) : ""
-    ARG_AGENTS_DIR                 = local.agents_dir
+    ARG_OMNIGENT_VERSION_B64 = var.omnigent_version != "latest" ? base64encode(var.omnigent_version) : ""
+    ARG_PORT                 = tostring(var.port)
+    ARG_WRITE_SERVER_CONFIG  = tostring(var.server_config != null)
+    ARG_SERVER_CONFIG_B64    = var.server_config != null ? base64encode(var.server_config) : ""
+    ARG_SERVER_CONFIG_FILE   = local.server_config_file
+    ARG_SERVER_CONFIG_DIR    = "${local.module_dir}/config"
+    ARG_AGENTS_B64           = length(var.agents) > 0 ? base64encode(join("\n", [for a in var.agents : "${a.name}\t${base64encode(a.content)}"])) : ""
+    ARG_AGENTS_DIR           = local.agents_dir
   })
 
   start_script = templatefile("${path.module}/scripts/start.sh.tftpl", {

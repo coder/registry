@@ -10,7 +10,7 @@ tags: [agent, omnigent, ai, multi-agent]
 
 Run a private [Omnigent](https://github.com/omnigent-dev) multi-agent coding orchestrator server inside your Coder workspace. Each workspace gets its own isolated Omnigent instance with a stable, derived admin password — no shared credentials, no manual password management.
 
-The module installs Omnigent via `uv tool install`, starts the server on a configurable port, waits for the health endpoint, and registers the local workspace as a host. The admin password is derived from the workspace ID at runtime and never stored in Terraform state.
+The module installs Omnigent via the [official install script](https://omnigent.ai/install.sh), starts the server on a configurable port, waits for the health endpoint, and registers the local workspace as a host. The admin password is derived from the workspace ID at runtime and never stored in Terraform state.
 
 ```tf
 module "omnigent" {

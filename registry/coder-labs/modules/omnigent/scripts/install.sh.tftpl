@@ -3,8 +3,8 @@ set -euo pipefail
 
 BOLD='\033[0;1m'
 
-ARG_OMNIGENT_VERSION_IS_LATEST='${ARG_OMNIGENT_VERSION_IS_LATEST}'
 ARG_OMNIGENT_VERSION=$(echo -n '${ARG_OMNIGENT_VERSION_B64}' | base64 -d)
+# Empty = latest; non-empty = pinned version
 ARG_PORT='${ARG_PORT}'
 ARG_WRITE_SERVER_CONFIG='${ARG_WRITE_SERVER_CONFIG}'
 ARG_SERVER_CONFIG=$(echo -n '${ARG_SERVER_CONFIG_B64}' | base64 -d)
@@ -14,34 +14,20 @@ ARG_AGENTS=$(echo -n '${ARG_AGENTS_B64}' | base64 -d)
 ARG_AGENTS_DIR='${ARG_AGENTS_DIR}'
 
 echo "--------------------------------"
-printf "omnigent_version (latest=%s): %s\n" "$${ARG_OMNIGENT_VERSION_IS_LATEST}" "$${ARG_OMNIGENT_VERSION:-latest}"
+printf "omnigent_version: %s\n" "$${ARG_OMNIGENT_VERSION:-latest}"
 printf "port: %s\n" "$${ARG_PORT}"
 printf "write_server_config: %s\n" "$${ARG_WRITE_SERVER_CONFIG}"
 echo "--------------------------------"
 
-export PATH="$${HOME}/.local/bin:$${PATH}"
-
-# Install uv if missing
-if ! command -v uv &>/dev/null; then
-  printf "%s Installing uv\n" "$${BOLD}"
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-  export PATH="$${HOME}/.local/bin:$${PATH}"
+# Install omnigent via official installer
+INSTALL_ARGS="--non-interactive"
+if [ -n "$${ARG_OMNIGENT_VERSION}" ]; then
+  INSTALL_ARGS="$${INSTALL_ARGS} --version $${ARG_OMNIGENT_VERSION}"
 fi
+printf "%s Installing omnigent%s\n" "$${BOLD}" "$${ARG_OMNIGENT_VERSION:+ $${ARG_OMNIGENT_VERSION}}"
+# shellcheck disable=SC2086
+curl -fsSL https://omnigent.ai/install.sh | sh -s -- $${INSTALL_ARGS}
 
-# Install or upgrade omnigent
-if [ "$${ARG_OMNIGENT_VERSION_IS_LATEST}" = "true" ]; then
-  if ! command -v omnigent &>/dev/null; then
-    printf "%s Installing omnigent (latest)\n" "$${BOLD}"
-    uv tool install omnigent
-  else
-    printf "%s Upgrading omnigent\n" "$${BOLD}"
-    uv tool upgrade omnigent || echo "Warning: upgrade failed, continuing with existing version"
-  fi
-else
-  printf "%s Installing omnigent %s\n" "$${BOLD}" "$${ARG_OMNIGENT_VERSION}"
-  uv tool install "omnigent==$${ARG_OMNIGENT_VERSION}" --force-reinstall
-fi
-export PATH="$${HOME}/.local/bin:$${PATH}"
 printf "%s Installed omnigent: %s\n" "$${BOLD}" "$(omnigent --version)"
 
 # Configure client to point to the local server
