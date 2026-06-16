@@ -1,0 +1,37 @@
+#!/bin/bash
+set -euo pipefail
+
+MODULE_DIR="$${HOME}/.coder-modules/coder-labs/omnigent"
+LOG_FILE="$${MODULE_DIR}/logs/start.log"
+ARG_PORT='${ARG_PORT}'
+
+mkdir -p "$${MODULE_DIR}/logs"
+
+# Derive a stable admin password from the workspace ID (first 16 hex chars)
+OMNIGENT_ADMIN_PASSWORD=$(echo -n "$${CODER_WORKSPACE_ID}" | tr -d '-' | cut -c1-16)
+
+if ! curl -sf "http://localhost:$${ARG_PORT}/health" &>/dev/null; then
+  echo "Starting Omnigent server on port $${ARG_PORT}..."
+  export OMNIGENT_ACCOUNTS_INIT_ADMIN_PASSWORD="$${OMNIGENT_ADMIN_PASSWORD}"
+  nohup omnigent server --host 127.0.0.1 --port "$${ARG_PORT}" --no-open \
+    >> "$${LOG_FILE}" 2>&1 &
+else
+  echo "Omnigent server already running on port $${ARG_PORT}, skipping start."
+fi
+
+echo "Waiting for Omnigent server..."
+for i in $(seq 1 90); do
+  if curl -sf "http://localhost:$${ARG_PORT}/health" &>/dev/null; then
+    echo "Omnigent server is ready."
+    break
+  fi
+  if [ "$${i}" -eq 90 ]; then
+    echo "ERROR: Omnigent server did not start within 90 seconds." >&2
+    cat "$${LOG_FILE}" >&2 || true
+    exit 1
+  fi
+  sleep 1
+done
+
+# Register local workspace as a host
+omnigent host ""

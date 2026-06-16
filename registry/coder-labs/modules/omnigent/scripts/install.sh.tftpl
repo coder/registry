@@ -1,0 +1,38 @@
+#!/bin/bash
+set -euo pipefail
+
+BOLD='\033[0;1m'
+
+ARG_OMNIGENT_VERSION='${ARG_OMNIGENT_VERSION}'
+ARG_PORT='${ARG_PORT}'
+
+echo "--------------------------------"
+printf "omnigent_version: %s\n" "$${ARG_OMNIGENT_VERSION}"
+printf "port: %s\n" "$${ARG_PORT}"
+echo "--------------------------------"
+
+# Install uv if missing
+if ! command -v uv &>/dev/null; then
+  printf "%s Installing uv\n" "$${BOLD}"
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+export PATH="$${HOME}/.local/bin:$${PATH}"
+
+# Install or upgrade omnigent
+if [ "$${ARG_OMNIGENT_VERSION}" = "latest" ]; then
+  if ! command -v omnigent &>/dev/null; then
+    printf "%s Installing omnigent (latest)\n" "$${BOLD}"
+    uv tool install omnigent
+  else
+    printf "%s Upgrading omnigent\n" "$${BOLD}"
+    uv tool upgrade omnigent 2>/dev/null || true
+  fi
+else
+  printf "%s Installing omnigent %s\n" "$${BOLD}" "$${ARG_OMNIGENT_VERSION}"
+  uv tool install "omnigent==$${ARG_OMNIGENT_VERSION}" --force-reinstall
+fi
+export PATH="$${HOME}/.local/bin:$${PATH}"
+printf "%s Installed omnigent: %s\n" "$${BOLD}" "$(omnigent --version)"
+
+# Configure client to point to the local server
+omnigent config set server=http://localhost:$${ARG_PORT}
