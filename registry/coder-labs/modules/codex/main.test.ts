@@ -541,6 +541,10 @@ EOF`,
     // User section preserved
     expect(config).toContain("[mcp_servers.user_tool]");
     expect(config).toMatch(/command\s*=\s*"my-tool"/);
+    // User section must appear after the managed block, not inside or before it.
+    const endIdx = config.indexOf(MANAGED_END);
+    const sectionIdx = config.indexOf("[mcp_servers.user_tool]");
+    expect(sectionIdx).toBeGreaterThan(endIdx);
   });
 
   test("idempotent-user-bare-keys-stay-at-root-scope", async () => {
@@ -746,6 +750,14 @@ EOF`,
     // Legacy section preserved after managed block
     const endIdx = config.indexOf(MANAGED_END);
     expect(config.indexOf("[mcp_servers.legacy]")).toBeGreaterThan(endIdx);
+
+    // Second run: the migrated file must be stable (no double-hoisting, no duplicate markers).
+    await runScripts(id, scripts);
+    const configAfterSecond = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    expect(configAfterSecond).toEqual(config);
   });
 
   test("idempotent-all-sources-user-content-survives", async () => {
