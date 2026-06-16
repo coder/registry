@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.12"
+      version = ">= 2.13"
     }
   }
 }
@@ -52,13 +52,70 @@ variable "order" {
   default     = null
 }
 
+variable "server_config" {
+  description = "Inline server_config.yaml content for the Omnigent server. Supports policies, policy_modules, admins, and allowed_domains keys. When set, written to the module directory and passed as -c to the server. Mutually exclusive with server_config_path."
+  type        = string
+  default     = null
+  validation {
+    condition     = !(var.server_config != null && var.server_config_path != null)
+    error_message = "Only one of server_config or server_config_path may be set."
+  }
+}
+
+variable "server_config_path" {
+  description = "Path to an existing server_config.yaml in the workspace. When set, passed directly as -c to the server; no config file is written by this module. Mutually exclusive with server_config."
+  type        = string
+  default     = null
+}
+
+variable "agents" {
+  description = "Custom agent YAML definitions to pre-register at server startup. Each entry is written to the module directory and passed as --agent flags."
+  type = list(object({
+    name    = string
+    content = string
+  }))
+  default = []
+}
+
+variable "pre_install_script" {
+  description = "Custom script to run before installing Omnigent."
+  type        = string
+  default     = null
+}
+
+variable "post_install_script" {
+  description = "Custom script to run after installing Omnigent."
+  type        = string
+  default     = null
+}
+
 locals {
+  module_dir         = "$HOME/.coder-modules/coder-labs/omnigent"
+  server_config_file = "${local.module_dir}/config/server.yaml"
+  agents_dir         = "${local.module_dir}/agents"
+
+  effective_server_config_path = (
+    var.server_config_path != null ? var.server_config_path :
+    var.server_config != null ? local.server_config_file :
+    null
+  )
+
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
-    ARG_OMNIGENT_VERSION = var.omnigent_version
-    ARG_PORT             = tostring(var.port)
+    ARG_OMNIGENT_VERSION_IS_LATEST = tostring(var.omnigent_version == "latest")
+    ARG_OMNIGENT_VERSION_B64       = var.omnigent_version != "latest" ? base64encode(var.omnigent_version) : ""
+    ARG_PORT                       = tostring(var.port)
+    ARG_WRITE_SERVER_CONFIG        = tostring(var.server_config != null)
+    ARG_SERVER_CONFIG_B64          = var.server_config != null ? base64encode(var.server_config) : ""
+    ARG_SERVER_CONFIG_FILE         = local.server_config_file
+    ARG_SERVER_CONFIG_DIR          = "${local.module_dir}/config"
+    ARG_AGENTS_B64                 = length(var.agents) > 0 ? base64encode(join("\n", [for a in var.agents : "${a.name}\t${base64encode(a.content)}"])) : ""
+    ARG_AGENTS_DIR                 = local.agents_dir
   })
+
   start_script = templatefile("${path.module}/scripts/start.sh.tftpl", {
-    ARG_PORT = tostring(var.port)
+    ARG_PORT                         = tostring(var.port)
+    ARG_EFFECTIVE_SERVER_CONFIG_PATH = local.effective_server_config_path != null ? local.effective_server_config_path : ""
+    ARG_AGENTS_DIR                   = local.agents_dir
   })
 }
 
@@ -67,9 +124,11 @@ module "coder_utils" {
   version = "0.0.1"
 
   agent_id            = var.agent_id
-  module_directory    = "$HOME/.coder-modules/coder-labs/omnigent"
+  module_directory    = local.module_dir
   display_name_prefix = "Omnigent"
   icon                = var.icon
+  pre_install_script  = var.pre_install_script
+  post_install_script = var.post_install_script
   install_script      = local.install_script
   start_script        = local.start_script
 }
@@ -99,4 +158,9 @@ output "scripts" {
 output "port" {
   description = "Port the Omnigent server is listening on."
   value       = var.port
+}
+
+output "server_config_path" {
+  description = "Effective path to the server config file, or empty string if no config is used."
+  value       = local.effective_server_config_path != null ? local.effective_server_config_path : ""
 }

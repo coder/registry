@@ -3,29 +3,39 @@ set -euo pipefail
 
 BOLD='\033[0;1m'
 
-ARG_OMNIGENT_VERSION='${ARG_OMNIGENT_VERSION}'
+ARG_OMNIGENT_VERSION_IS_LATEST='${ARG_OMNIGENT_VERSION_IS_LATEST}'
+ARG_OMNIGENT_VERSION=$(echo -n '${ARG_OMNIGENT_VERSION_B64}' | base64 -d)
 ARG_PORT='${ARG_PORT}'
+ARG_WRITE_SERVER_CONFIG='${ARG_WRITE_SERVER_CONFIG}'
+ARG_SERVER_CONFIG=$(echo -n '${ARG_SERVER_CONFIG_B64}' | base64 -d)
+ARG_SERVER_CONFIG_FILE='${ARG_SERVER_CONFIG_FILE}'
+ARG_SERVER_CONFIG_DIR='${ARG_SERVER_CONFIG_DIR}'
+ARG_AGENTS=$(echo -n '${ARG_AGENTS_B64}' | base64 -d)
+ARG_AGENTS_DIR='${ARG_AGENTS_DIR}'
 
 echo "--------------------------------"
-printf "omnigent_version: %s\n" "$${ARG_OMNIGENT_VERSION}"
+printf "omnigent_version (latest=%s): %s\n" "$${ARG_OMNIGENT_VERSION_IS_LATEST}" "$${ARG_OMNIGENT_VERSION:-latest}"
 printf "port: %s\n" "$${ARG_PORT}"
+printf "write_server_config: %s\n" "$${ARG_WRITE_SERVER_CONFIG}"
 echo "--------------------------------"
+
+export PATH="$${HOME}/.local/bin:$${PATH}"
 
 # Install uv if missing
 if ! command -v uv &>/dev/null; then
   printf "%s Installing uv\n" "$${BOLD}"
   curl -LsSf https://astral.sh/uv/install.sh | sh
+  export PATH="$${HOME}/.local/bin:$${PATH}"
 fi
-export PATH="$${HOME}/.local/bin:$${PATH}"
 
 # Install or upgrade omnigent
-if [ "$${ARG_OMNIGENT_VERSION}" = "latest" ]; then
+if [ "$${ARG_OMNIGENT_VERSION_IS_LATEST}" = "true" ]; then
   if ! command -v omnigent &>/dev/null; then
     printf "%s Installing omnigent (latest)\n" "$${BOLD}"
     uv tool install omnigent
   else
     printf "%s Upgrading omnigent\n" "$${BOLD}"
-    uv tool upgrade omnigent 2>/dev/null || true
+    uv tool upgrade omnigent || echo "Warning: upgrade failed, continuing with existing version"
   fi
 else
   printf "%s Installing omnigent %s\n" "$${BOLD}" "$${ARG_OMNIGENT_VERSION}"
@@ -36,3 +46,21 @@ printf "%s Installed omnigent: %s\n" "$${BOLD}" "$(omnigent --version)"
 
 # Configure client to point to the local server
 omnigent config set server=http://localhost:$${ARG_PORT}
+
+# Write server config file if provided
+if [ "$${ARG_WRITE_SERVER_CONFIG}" = "true" ]; then
+  mkdir -p "$${ARG_SERVER_CONFIG_DIR}"
+  printf "%s Writing server config to %s\n" "$${BOLD}" "$${ARG_SERVER_CONFIG_FILE}"
+  echo "$${ARG_SERVER_CONFIG}" > "$${ARG_SERVER_CONFIG_FILE}"
+fi
+
+# Write agent YAML files
+if [ -n "$${ARG_AGENTS}" ]; then
+  mkdir -p "$${ARG_AGENTS_DIR}"
+  while IFS=$'\t' read -r agent_name agent_content_b64; do
+    [ -z "$${agent_name}" ] && continue
+    agent_file="$${ARG_AGENTS_DIR}/$${agent_name}.yaml"
+    printf "%s Writing agent: %s -> %s\n" "$${BOLD}" "$${agent_name}" "$${agent_file}"
+    echo -n "$${agent_content_b64}" | base64 -d > "$${agent_file}"
+  done <<< "$${ARG_AGENTS}"
+fi

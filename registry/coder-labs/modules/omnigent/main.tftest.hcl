@@ -142,3 +142,62 @@ run "test_invalid_share" {
 
   expect_failures = [var.share]
 }
+
+run "test_server_config" {
+  command = plan
+
+  variables {
+    agent_id      = "test-agent"
+    server_config = "policies: {}"
+  }
+
+  assert {
+    condition     = var.server_config == "policies: {}"
+    error_message = "server_config should be set"
+  }
+}
+
+run "test_server_config_path" {
+  command = plan
+
+  variables {
+    agent_id           = "test-agent"
+    server_config_path = "/home/coder/.omnigent/server.yaml"
+  }
+
+  assert {
+    condition     = output.server_config_path == "/home/coder/.omnigent/server.yaml"
+    error_message = "server_config_path output should match the provided path"
+  }
+}
+
+run "test_server_config_mutual_exclusion" {
+  command = plan
+
+  variables {
+    agent_id           = "test-agent"
+    server_config      = "policies: {}"
+    server_config_path = "/home/coder/.omnigent/server.yaml"
+  }
+
+  expect_failures = [var.server_config]
+}
+
+run "test_agents" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    agents = [
+      {
+        name    = "reviewer"
+        content = "name: reviewer\ninstructions: You are a reviewer."
+      }
+    ]
+  }
+
+  assert {
+    condition     = length(var.agents) == 1
+    error_message = "agents should have one entry"
+  }
+}

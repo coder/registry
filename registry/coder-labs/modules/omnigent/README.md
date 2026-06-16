@@ -22,16 +22,6 @@ module "omnigent" {
 
 ## Examples
 
-### Standalone with default settings
-
-```tf
-module "omnigent" {
-  source   = "registry.coder.com/coder-labs/omnigent/coder"
-  version  = "1.0.0"
-  agent_id = coder_agent.main.id
-}
-```
-
 ### With a custom port
 
 ```tf
@@ -69,11 +59,68 @@ module "claude_code" {
 }
 ```
 
+### Policies (server-wide)
+
+```tf
+module "omnigent" {
+  source   = "registry.coder.com/coder-labs/omnigent/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+
+  server_config = <<-YAML
+    policies:
+      cap_tool_calls:
+        type: function
+        handler: omnigent.policies.builtins.safety.max_tool_calls_per_session
+        factory_params:
+          limit: 50
+      require_approval:
+        type: function
+        handler: omnigent.policies.builtins.safety.ask_on_os_tools
+  YAML
+}
+```
+
+### Custom agents
+
+```tf
+module "omnigent" {
+  source   = "registry.coder.com/coder-labs/omnigent/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+
+  agents = [
+    {
+      name    = "reviewer"
+      content = <<-YAML
+        name: reviewer
+        instructions: You are an expert code reviewer. Focus on correctness, security, and clarity.
+        executor:
+          harness: claude-sdk
+          model: claude-sonnet-4-5
+      YAML
+    }
+  ]
+}
+```
+
+### Bring-your-own config file
+
+```tf
+module "omnigent" {
+  source             = "registry.coder.com/coder-labs/omnigent/coder"
+  version            = "1.0.0"
+  agent_id           = coder_agent.main.id
+  server_config_path = "/home/coder/.omnigent/server_config.yaml"
+}
+```
+
 ## Troubleshooting
 
-Server logs are written to `~/.coder-modules/coder-labs/omnigent/logs/start.log`. If the Omnigent app shows as unhealthy or the server fails to start, check:
+Script logs are written to `~/.coder-modules/coder-labs/omnigent/logs/`. If the Omnigent app shows as unhealthy or the server fails to start, check:
 
 ```bash
+cat ~/.coder-modules/coder-labs/omnigent/logs/server.log
 cat ~/.coder-modules/coder-labs/omnigent/logs/start.log
 cat ~/.coder-modules/coder-labs/omnigent/logs/install.log
 ```
@@ -82,4 +129,12 @@ The health endpoint is available at `http://localhost:<port>/health`. You can ch
 
 ```bash
 curl -sf http://localhost:6767/health && echo "healthy" || echo "not ready"
+```
+
+### Finding the admin password
+
+The admin password is derived from the workspace ID at runtime. To retrieve it inside the workspace:
+
+```bash
+echo -n "$CODER_WORKSPACE_ID" | tr -d '-' | cut -c1-16
 ```
