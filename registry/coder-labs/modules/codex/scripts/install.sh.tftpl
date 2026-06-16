@@ -77,7 +77,29 @@ function install_codex() {
   fi
 
   printf "%s Installing Codex CLI\n" "$${BOLD}"
-  curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_RELEASE="$${ARG_CODEX_VERSION}" CODEX_NON_INTERACTIVE=1 sh
+
+  local arch
+  arch=$(uname -m)
+  local target="$${arch}-unknown-linux-musl"
+  local version="$${ARG_CODEX_VERSION}"
+
+  local url="https://github.com/openai/codex/releases/download/rust-v$${version}/codex-$${target}.tar.gz"
+
+  if [ "$${version}" = "latest" ]; then
+    url="https://github.com/openai/codex/releases/latest/download/codex-$${target}.tar.gz"
+  fi
+
+  printf "Downloading %s\n" "$${url}"
+  local tmp_dir
+  tmp_dir=$(mktemp -d)
+  curl -fsSL -o "$${tmp_dir}/codex.tar.gz" "$${url}"
+
+  tar -xzf "$${tmp_dir}/codex.tar.gz" -C "$${tmp_dir}"
+  mkdir -p "$HOME/.local/bin"
+  mv "$${tmp_dir}/codex-$${target}" "$HOME/.local/bin/codex"
+  chmod +x "$HOME/.local/bin/codex"
+  rm -rf "$${tmp_dir}"
+
   export PATH="$HOME/.local/bin:$PATH"
   printf "%s Installed Codex CLI: %s\n" "$${BOLD}" "$(codex --version)"
   ensure_codex_in_path
