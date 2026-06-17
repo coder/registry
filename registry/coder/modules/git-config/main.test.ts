@@ -20,7 +20,7 @@ describe("git-config", async () => {
     });
 
     const resources = state.resources;
-    expect(resources).toHaveLength(8);
+    expect(resources).toHaveLength(7);
     expect(resources).toMatchObject([
       { type: "coder_workspace", name: "me" },
       { type: "coder_workspace_owner", name: "me" },
@@ -28,8 +28,7 @@ describe("git-config", async () => {
       { type: "coder_env", name: "git_author_name" },
       { type: "coder_env", name: "git_commmiter_email" },
       { type: "coder_env", name: "git_commmiter_name" },
-      { type: "coder_script", name: "git_config_user_email" },
-      { type: "coder_script", name: "git_config_user_name" },
+      { type: "coder_script", name: "git_user_config" },
     ]);
   });
 
@@ -40,7 +39,7 @@ describe("git-config", async () => {
     });
 
     const resources = state.resources;
-    expect(resources).toHaveLength(10);
+    expect(resources).toHaveLength(9);
     expect(resources).toMatchObject([
       { type: "coder_parameter", name: "user_email" },
       { type: "coder_parameter", name: "username" },
@@ -50,8 +49,7 @@ describe("git-config", async () => {
       { type: "coder_env", name: "git_author_name" },
       { type: "coder_env", name: "git_commmiter_email" },
       { type: "coder_env", name: "git_commmiter_name" },
-      { type: "coder_script", name: "git_config_user_email" },
-      { type: "coder_script", name: "git_config_user_name" },
+      { type: "coder_script", name: "git_user_config" },
     ]);
   });
 
@@ -67,7 +65,7 @@ describe("git-config", async () => {
     );
 
     const resources = state.resources;
-    expect(resources).toHaveLength(8);
+    expect(resources).toHaveLength(7);
     expect(resources).toMatchObject([
       { type: "coder_workspace", name: "me" },
       { type: "coder_workspace_owner", name: "me" },
@@ -75,8 +73,7 @@ describe("git-config", async () => {
       { type: "coder_env", name: "git_author_name" },
       { type: "coder_env", name: "git_commmiter_email" },
       { type: "coder_env", name: "git_commmiter_name" },
-      { type: "coder_script", name: "git_config_user_email" },
-      { type: "coder_script", name: "git_config_user_name" },
+      { type: "coder_script", name: "git_user_config" },
     ]);
   });
 
@@ -89,7 +86,7 @@ describe("git-config", async () => {
       coder_parameter_order: order.toString(),
     });
     const resources = state.resources;
-    expect(resources).toHaveLength(10);
+    expect(resources).toHaveLength(9);
     expect(resources).toMatchObject([
       { type: "coder_parameter", name: "user_email" },
       { type: "coder_parameter", name: "username" },
@@ -99,8 +96,7 @@ describe("git-config", async () => {
       { type: "coder_env", name: "git_author_name" },
       { type: "coder_env", name: "git_commmiter_email" },
       { type: "coder_env", name: "git_commmiter_name" },
-      { type: "coder_script", name: "git_config_user_email" },
-      { type: "coder_script", name: "git_config_user_name" },
+      { type: "coder_script", name: "git_user_config" },
     ]);
     // user_email order is the same as the order
     expect(resources[0].instances[0].attributes.order).toBe(order);
@@ -118,7 +114,7 @@ describe("git-config", async () => {
       coder_parameter_order: order.toString(),
     });
     const resources = state.resources;
-    expect(resources).toHaveLength(9);
+    expect(resources).toHaveLength(8);
     expect(resources).toMatchObject([
       { type: "coder_parameter", name: "username" },
       { type: "coder_workspace", name: "me" },
@@ -127,8 +123,7 @@ describe("git-config", async () => {
       { type: "coder_env", name: "git_author_name" },
       { type: "coder_env", name: "git_commmiter_email" },
       { type: "coder_env", name: "git_commmiter_name" },
-      { type: "coder_script", name: "git_config_user_email" },
-      { type: "coder_script", name: "git_config_user_name" },
+      { type: "coder_script", name: "git_user_config" },
     ]);
     // user_email was not created
     // username order is incremented by 1
