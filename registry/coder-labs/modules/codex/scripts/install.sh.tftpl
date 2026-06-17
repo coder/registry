@@ -9,7 +9,7 @@ command_exists() {
 }
 
 ARG_INSTALL='${ARG_INSTALL}'
-ARG_CODEX_VERSION=$(echo -n '${ARG_CODEX_VERSION}' | base64 -d)
+ARG_CODEX_VERSION='${ARG_CODEX_VERSION}'
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
 ARG_BASE_CONFIG_TOML=$(echo -n '${ARG_BASE_CONFIG_TOML}' | base64 -d)
 ARG_MCP=$(echo -n '${ARG_MCP}' | base64 -d)
@@ -51,8 +51,6 @@ function ensure_codex_in_path() {
   local CODEX_BIN=""
   if command -v codex > /dev/null 2>&1; then
     CODEX_BIN=$(command -v codex)
-  elif [ -x "$HOME/.npm-global/bin/codex" ]; then
-    CODEX_BIN="$HOME/.npm-global/bin/codex"
   fi
 
   if [ -z "$${CODEX_BIN}" ] || [ ! -x "$${CODEX_BIN}" ]; then
@@ -78,35 +76,31 @@ function install_codex() {
     return
   fi
 
-  if [ -s "$HOME/.nvm/nvm.sh" ]; then
-    export NVM_DIR="$HOME/.nvm"
-    . "$NVM_DIR/nvm.sh"
-  fi
-
-  # Detect a package manager for global installs.
-  if command_exists npm; then
-    PKG_INSTALL="npm install -g"
-    if ! command_exists nvm; then
-      mkdir -p "$HOME/.npm-global"
-      npm config set prefix "$HOME/.npm-global"
-      export PATH="$HOME/.npm-global/bin:$PATH"
-    fi
-  elif command_exists pnpm; then
-    PKG_INSTALL="pnpm add -g"
-  elif command_exists bun; then
-    PKG_INSTALL="bun add -g"
-  else
-    echo "Error: npm, pnpm, or bun is required to install Codex. Install one of them first or set install_codex = false."
-    exit 1
-  fi
-
   printf "%s Installing Codex CLI\n" "$${BOLD}"
 
-  if [ -n "$${ARG_CODEX_VERSION}" ]; then
-    $PKG_INSTALL "@openai/codex@$${ARG_CODEX_VERSION}"
-  else
-    $PKG_INSTALL "@openai/codex"
+  local arch
+  arch=$(uname -m)
+  local target="$${arch}-unknown-linux-musl"
+  local version="$${ARG_CODEX_VERSION}"
+
+  local url="https://github.com/openai/codex/releases/download/rust-v$${version}/codex-$${target}.tar.gz"
+
+  if [ "$${version}" = "latest" ]; then
+    url="https://github.com/openai/codex/releases/latest/download/codex-$${target}.tar.gz"
   fi
+
+  printf "Downloading %s\n" "$${url}"
+  local tmp_dir
+  tmp_dir=$(mktemp -d)
+  curl -fsSL -o "$${tmp_dir}/codex.tar.gz" "$${url}"
+
+  tar -xzf "$${tmp_dir}/codex.tar.gz" -C "$${tmp_dir}"
+  mkdir -p "$HOME/.local/bin"
+  mv "$${tmp_dir}/codex-$${target}" "$HOME/.local/bin/codex"
+  chmod +x "$HOME/.local/bin/codex"
+  rm -rf "$${tmp_dir}"
+
+  export PATH="$HOME/.local/bin:$PATH"
   printf "%s Installed Codex CLI: %s\n" "$${BOLD}" "$(codex --version)"
   ensure_codex_in_path
 }

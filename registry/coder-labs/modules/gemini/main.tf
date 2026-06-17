@@ -216,7 +216,7 @@ module "agentapi" {
      GEMINI_YOLO_MODE='${var.enable_yolo_mode}' \
      GEMINI_MODEL='${var.gemini_model}' \
      GEMINI_START_DIRECTORY='${var.folder}' \
-     GEMINI_TASK_PROMPT='${var.task_prompt}' \
+     GEMINI_TASK_PROMPT='${base64encode(var.task_prompt)}' \
      /tmp/start.sh
    EOT
 }
