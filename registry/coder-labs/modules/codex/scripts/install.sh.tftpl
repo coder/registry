@@ -166,6 +166,7 @@ function populate_config_toml() {
   fi
 
   # Preserve user content from the existing config.
+  # On the first run (no markers), the file is overwritten fresh.
   local user_content=""
   if [ -s "$${config_path}" ]; then
     if grep -qF "$${MANAGED_START}" "$${config_path}"; then
@@ -179,9 +180,6 @@ function populate_config_toml() {
         printf "Warning: codex config has managed-block start marker but no end marker; treating entire file as user content\n"
         user_content=$(cat "$${config_path}")
       fi
-    else
-      # No markers (pre-upgrade or hand-written config). Treat the whole file as user content.
-      user_content=$(cat "$${config_path}")
     fi
     # Trim leading blank lines.
     user_content=$(printf '%s' "$${user_content}" | sed '/./,$!d')
@@ -201,27 +199,6 @@ function populate_config_toml() {
       user_bare=$(printf '%s' "$${user_bare}" | sed -e :x -e '/^\n*$/{ $d; N; bx; }')
     else
       user_bare="$${user_content}"
-    fi
-  fi
-
-  # Drop user bare keys that also appear in the managed block to prevent TOML
-  # duplicate-key errors (the TOML spec forbids duplicate keys at the same scope).
-  # This occurs during pre-marker upgrades when the legacy config already contained
-  # a key the managed block emits (e.g. preferred_auth_method).
-  if [ -n "$${user_bare}" ]; then
-    local managed_keys
-    managed_keys=$(awk '/^\[/{exit} /^[a-zA-Z_]/{sub(/[[:space:]]*=.*/,""); print}' "$${managed}")
-    if [ -n "$${managed_keys}" ]; then
-      user_bare=$(printf '%s\n' "$${user_bare}" | while IFS= read -r line; do
-        local line_key
-        line_key=$(printf '%s' "$${line}" | sed -n 's/^[[:space:]]*\([a-zA-Z_][a-zA-Z0-9_-]*\)[[:space:]]*=.*/\1/p')
-        if [ -n "$${line_key}" ] && printf '%s\n' "$${managed_keys}" | grep -qxF "$${line_key}"; then
-          : # Key exists in the managed block; omit to avoid a duplicate-key error.
-        else
-          printf '%s\n' "$${line}"
-        fi
-      done)
-      user_bare=$(printf '%s' "$${user_bare}" | sed -e :x -e '/^\n*$/{ $d; N; bx; }')
     fi
   fi
 

@@ -715,7 +715,7 @@ EOF`,
     expect(config).toMatch(/command\s*=\s*"my-tool"/);
   });
 
-  test("idempotent-no-markers-preserves-user-config", async () => {
+  test("no-markers-first-run-overwrites", async () => {
     const { id, scripts } = await setup();
 
     // Simulate a legacy config without markers (pre-upgrade).
@@ -732,7 +732,7 @@ type = "stdio"
 EOF`,
     ]);
 
-    // First run with marker-block code: no markers found, entire file is user content.
+    // First run: no markers found, file is overwritten entirely by the managed block.
     await runScripts(id, scripts);
     const config = await readFileContainer(
       id,
@@ -741,17 +741,12 @@ EOF`,
     // Managed block is written
     expect(config).toContain(MANAGED_START);
     expect(config).toContain(MANAGED_END);
-    // Legacy bare keys hoisted above managed block at root scope
-    const startIdx = config.indexOf(MANAGED_START);
-    expect(config.indexOf('preferred_auth_method = "login"')).toBeLessThan(
-      startIdx,
-    );
-    expect(config.indexOf('legacy_key = "old_value"')).toBeLessThan(startIdx);
-    // Legacy section preserved after managed block
-    const endIdx = config.indexOf(MANAGED_END);
-    expect(config.indexOf("[mcp_servers.legacy]")).toBeGreaterThan(endIdx);
+    // Legacy content is gone
+    expect(config).not.toContain('preferred_auth_method = "login"');
+    expect(config).not.toContain('legacy_key = "old_value"');
+    expect(config).not.toContain("[mcp_servers.legacy]");
 
-    // Second run: the migrated file must be stable (no double-hoisting, no duplicate markers).
+    // Second run: output must be stable.
     await runScripts(id, scripts);
     const configAfterSecond = await readFileContainer(
       id,
