@@ -213,7 +213,7 @@ function populate_config_toml() {
       while [ "$${first_section_lineno}" -gt 1 ]; do
         prev=$(printf '%s\n' "$${user_content}" | sed -n "$((first_section_lineno - 1))p")
         case "$${prev}" in
-          '#'*|'') first_section_lineno=$((first_section_lineno - 1)) ;;
+          '#'*) first_section_lineno=$((first_section_lineno - 1)) ;;
           *) break ;;
         esac
       done
