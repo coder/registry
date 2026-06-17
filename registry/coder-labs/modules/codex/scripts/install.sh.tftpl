@@ -139,8 +139,18 @@ function populate_config_toml() {
   local MANAGED_START="# >>> coder-managed: codex module >>>"
   local MANAGED_END="# <<< coder-managed: codex module <<<"
 
+  # Reject inputs that contain the managed-block markers to prevent embedding
+  # spurious markers that would corrupt the block structure on subsequent runs.
+  for _arg in "$${ARG_BASE_CONFIG_TOML}" "$${ARG_MCP}"; do
+    if [ -n "$${_arg}" ] && printf '%s' "$${_arg}" | grep -qF "$${MANAGED_START}"; then
+      printf 'Error: a codex module input contains a managed-block marker; aborting.\n' >&2
+      return 1
+    fi
+  done
+
   # Build managed-block content in a temp file.
-  local managed
+  local managed="" config_tmp=""
+  trap 'rm -f "$${managed:-}" "$${config_tmp:-}"' EXIT
   managed=$(mktemp)
 
   if [ -n "$${ARG_BASE_CONFIG_TOML}" ]; then
@@ -167,18 +177,21 @@ function populate_config_toml() {
 
   # Preserve user content from the existing config.
   # On the first run (no markers), the file is overwritten fresh.
-  local user_content=""
+  local existing_config="" user_content=""
   if [ -s "$${config_path}" ]; then
-    if grep -qF "$${MANAGED_START}" "$${config_path}"; then
-      if grep -qF "$${MANAGED_END}" "$${config_path}"; then
+    existing_config=$(cat "$${config_path}")
+  fi
+  if [ -n "$${existing_config}" ]; then
+    if printf '%s\n' "$${existing_config}" | grep -qF "$${MANAGED_START}"; then
+      if printf '%s\n' "$${existing_config}" | grep -qF "$${MANAGED_END}"; then
         # Strip the managed block; everything else is user content.
-        user_content=$(sed '/# >>> coder-managed: codex module >>>/,/# <<< coder-managed: codex module <<</d' "$${config_path}")
+        user_content=$(printf '%s\n' "$${existing_config}" | sed '/# >>> coder-managed: codex module >>>/,/# <<< coder-managed: codex module <<</d')
       else
         # Start marker present but end marker missing (file was truncated or hand-edited).
         # Treat the entire file as user content to avoid silently deleting everything
         # after the orphaned start marker.
         printf "Warning: codex config has managed-block start marker but no end marker; treating entire file as user content\n"
-        user_content=$(cat "$${config_path}")
+        user_content="$${existing_config}"
       fi
     fi
     # Trim leading blank lines.
@@ -188,13 +201,24 @@ function populate_config_toml() {
   # Split user content into bare keys (before any [section]) and sections.
   # Bare keys go above the managed block so they stay at TOML root scope;
   # sections go below it where each [header] resets scope naturally.
+  # Note: grep '^\[' may also match a bare '[' at the start of a multi-line array
+  # literal; this is low risk for Codex configs which do not use that syntax.
   local user_bare="" user_sections=""
   if [ -n "$${user_content}" ]; then
-    local first_section
-    first_section=$(printf '%s\n' "$${user_content}" | grep -n '^\[' | head -1 | cut -d: -f1)
-    if [ -n "$${first_section}" ]; then
-      user_bare=$(printf '%s\n' "$${user_content}" | head -n "$((first_section - 1))")
-      user_sections=$(printf '%s\n' "$${user_content}" | tail -n "+$${first_section}")
+    local first_section_lineno prev
+    first_section_lineno=$(printf '%s\n' "$${user_content}" | grep -n '^\[' | head -1 | cut -d: -f1)
+    if [ -n "$${first_section_lineno}" ]; then
+      # Walk backward past comment and blank lines so they stay
+      # attached to the section below rather than split into user_bare.
+      while [ "$${first_section_lineno}" -gt 1 ]; do
+        prev=$(printf '%s\n' "$${user_content}" | sed -n "$((first_section_lineno - 1))p")
+        case "$${prev}" in
+          '#'*|'') first_section_lineno=$((first_section_lineno - 1)) ;;
+          *) break ;;
+        esac
+      done
+      user_bare=$(printf '%s\n' "$${user_content}" | head -n "$((first_section_lineno - 1))")
+      user_sections=$(printf '%s\n' "$${user_content}" | tail -n "+$${first_section_lineno}")
       # Trim trailing blank lines from bare portion.
       user_bare=$(printf '%s' "$${user_bare}" | sed -e :x -e '/^\n*$/{ $d; N; bx; }')
     else
@@ -206,8 +230,7 @@ function populate_config_toml() {
   #   user bare keys  (root scope)
   #   managed block   (bare keys first, then [sections])
   #   user sections   (each [header] resets scope)
-  local tmp
-  tmp=$(mktemp "$${config_path}.XXXXXX")
+  config_tmp=$(mktemp "$${config_path}.XXXXXX")
   {
     if [ -n "$${user_bare}" ]; then
       printf '%s\n\n' "$${user_bare}"
@@ -218,7 +241,7 @@ function populate_config_toml() {
     if [ -n "$${user_sections}" ]; then
       printf '\n%s\n' "$${user_sections}"
     fi
-  } > "$${tmp}" && mv "$${tmp}" "$${config_path}"
+  } > "$${config_tmp}" && mv "$${config_tmp}" "$${config_path}"
   rm -f "$${managed}"
 }
 

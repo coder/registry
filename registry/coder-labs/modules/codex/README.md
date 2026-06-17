@@ -142,6 +142,9 @@ resource "coder_script" "post_codex" {
 
 When no custom `base_config_toml` is provided, the module uses a minimal default with `preferred_auth_method = "apikey"`. For advanced options, see [Codex config docs](https://developers.openai.com/codex/config-advanced).
 
+> [!NOTE]
+> Content you add outside the managed block is preserved across workspace restarts. `[section]` headers you place below `# <<< coder-managed: codex module <<<` must not duplicate a table name already defined inside the managed block. Duplicate table definitions are invalid per the TOML spec and will cause Codex to reject the config.
+
 ## Troubleshooting
 
 Check the log files in `~/.coder-modules/coder-labs/codex/logs/` for detailed information.

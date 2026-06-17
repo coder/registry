@@ -659,21 +659,41 @@ EOF`,
   test("idempotent-stable-after-roundtrip", async () => {
     const { id, scripts } = await setup();
 
-    // First run
+    // First run: write the managed block.
     await runScripts(id, scripts);
-    const configAfterFirst = await readFileContainer(
-      id,
-      "/home/coder/.codex/config.toml",
-    );
 
-    // Second run: no format conversion, should be byte-identical.
+    // User appends content outside the managed block.
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat >> /home/coder/.codex/config.toml << 'EOF'
+
+roundtrip_key = "present"
+
+# User's personal server
+[mcp_servers.roundtrip]
+command = "roundtrip-tool"
+type = "stdio"
+EOF`,
+    ]);
+
+    // Second run: managed block is regenerated with user content in place.
     await runScripts(id, scripts);
     const configAfterSecond = await readFileContainer(
       id,
       "/home/coder/.codex/config.toml",
     );
 
-    expect(configAfterSecond).toEqual(configAfterFirst);
+    // Third run: output must be byte-identical (no double-hoisting or newline drift).
+    await runScripts(id, scripts);
+    const configAfterThird = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+
+    expect(configAfterThird).toEqual(configAfterSecond);
+    expect(configAfterThird).toContain('roundtrip_key = "present"');
+    expect(configAfterThird).toContain("[mcp_servers.roundtrip]");
   });
 
   test("idempotent-mcp-new-servers-added-existing-kept", async () => {
