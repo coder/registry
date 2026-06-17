@@ -551,14 +551,13 @@ EOF`,
     const { id, scripts } = await setup();
     await runScripts(id, scripts);
 
-    // User adds bare keys AND a section after the managed block.
+    // User prepends bare keys before the managed block and appends a section after it.
     await execContainer(id, [
       "bash",
       "-c",
-      `cat >> /home/coder/.codex/config.toml << 'EOF'
-
-my_custom_key = "hello"
-sandbox_mode = "full"
+      `config=/home/coder/.codex/config.toml
+{ printf 'my_custom_key = "hello"\\nsandbox_mode = "full"\\n\\n'; cat "$config"; } > /tmp/codex_c.toml && mv /tmp/codex_c.toml "$config"
+cat >> "$config" << 'EOF'
 
 [mcp_servers.user_tool]
 command = "my-tool"
@@ -572,8 +571,7 @@ EOF`,
       "/home/coder/.codex/config.toml",
     );
 
-    // User bare keys must appear BEFORE the managed block start marker
-    // so they remain at TOML root scope.
+    // Bare keys placed before the managed block must remain before MANAGED_START.
     const startIdx = config.indexOf(MANAGED_START);
     const customKeyIdx = config.indexOf('my_custom_key = "hello"');
     const sandboxIdx = config.indexOf('sandbox_mode = "full"');
@@ -582,7 +580,7 @@ EOF`,
     expect(customKeyIdx).toBeLessThan(startIdx);
     expect(sandboxIdx).toBeLessThan(startIdx);
 
-    // User section preserved after managed block
+    // Section appended after the managed block must remain after MANAGED_END.
     const endIdx = config.indexOf(MANAGED_END);
     const sectionIdx = config.indexOf("[mcp_servers.user_tool]");
     expect(sectionIdx).toBeGreaterThan(endIdx);
@@ -648,7 +646,7 @@ EOF`,
       id,
       "/home/coder/.codex/config.toml",
     );
-    // Bare-key comment hoisted above managed block
+    // Bare-key comment preserved in output
     expect(config).toContain("# My personal top-level setting");
     // Section comments preserved below managed block
     expect(config).toContain("# My personal MCP server");
