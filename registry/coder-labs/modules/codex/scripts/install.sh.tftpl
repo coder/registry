@@ -142,7 +142,7 @@ function populate_config_toml() {
   # Reject inputs that contain the managed-block markers to prevent embedding
   # spurious markers that would corrupt the block structure on subsequent runs.
   for _arg in "$${ARG_BASE_CONFIG_TOML}" "$${ARG_MCP}"; do
-    if [ -n "$${_arg}" ] && printf '%s' "$${_arg}" | grep -qF "$${MANAGED_START}"; then
+    if [ -n "$${_arg}" ] && printf '%s' "$${_arg}" | grep -qF -e "$${MANAGED_START}" -e "$${MANAGED_END}"; then
       printf 'Error: a codex module input contains a managed-block marker; aborting.\n' >&2
       return 1
     fi

@@ -143,7 +143,26 @@ resource "coder_script" "post_codex" {
 When no custom `base_config_toml` is provided, the module uses a minimal default with `preferred_auth_method = "apikey"`. For advanced options, see [Codex config docs](https://developers.openai.com/codex/config-advanced).
 
 > [!NOTE]
-> Content you add outside the managed block is preserved across workspace restarts. `[section]` headers you place below `# <<< coder-managed: codex module <<<` must not duplicate a table name already defined inside the managed block. Duplicate table definitions are invalid per the TOML spec and will cause Codex to reject the config.
+> Content you add outside the managed block is preserved across workspace restarts. The module structures the file as:
+>
+> ```toml
+> # bare keys you add above the managed block (root scope)
+> my_flag = true
+>
+> # >>> coder-managed: codex module >>>
+> preferred_auth_method = "apikey"
+> # ... module-managed content ...
+> # <<< coder-managed: codex module <<<
+>
+> # [sections] you add below the managed block
+> [mcp_servers.my_tool]
+> command = "my-tool"
+> ```
+>
+> Two constraints to keep the TOML valid:
+>
+> - Bare keys you place **above** the managed block must not duplicate keys already inside it (duplicate keys are a TOML error).
+> - `[section]` headers you place **below** the managed block must not duplicate a table name already defined inside it (same reason). Bare keys placed after the managed block will fall under whatever `[section]` preceded them — place bare keys above the block to keep them at root scope.
 
 ## Troubleshooting
 
