@@ -136,27 +136,86 @@ function populate_config_toml() {
   local config_path="$HOME/.codex/config.toml"
   mkdir -p "$(dirname "$${config_path}")"
 
+  local MANAGED_START="# >>> coder-managed: codex module >>>"
+  local MANAGED_END="# <<< coder-managed: codex module <<<"
+
+  # Reject inputs that contain the managed-block markers to prevent embedding
+  # spurious markers that would corrupt the block structure on subsequent runs.
+  for _arg in "$${ARG_BASE_CONFIG_TOML}" "$${ARG_MCP}"; do
+    if [ -n "$${_arg}" ] && printf '%s' "$${_arg}" | grep -qF -e "$${MANAGED_START}" -e "$${MANAGED_END}"; then
+      printf 'Error: a codex module input contains a managed-block marker; aborting.\n' >&2
+      return 1
+    fi
+  done
+
+  # Build managed-block content in a temp file.
+  local managed="" config_tmp=""
+  trap 'rm -f "$${managed:-}" "$${config_tmp:-}"' EXIT
+  managed=$(mktemp)
+
   if [ -n "$${ARG_BASE_CONFIG_TOML}" ]; then
     printf "Using provided base configuration\n"
-    echo "$${ARG_BASE_CONFIG_TOML}" > "$${config_path}"
+    printf '%s\n' "$${ARG_BASE_CONFIG_TOML}" > "$${managed}"
   else
     printf "Using minimal default configuration\n"
-    write_minimal_default_config "$${config_path}"
+    write_minimal_default_config "$${managed}"
   fi
 
   if [ -n "$${ARG_MCP}" ]; then
     printf "Adding MCP servers\n"
-    echo "$${ARG_MCP}" >> "$${config_path}"
+    printf '%s\n' "$${ARG_MCP}" >> "$${managed}"
   fi
 
   if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] && [ -n "$${ARG_AIBRIDGE_CONFIG}" ]; then
-    if ! grep -q '\[model_providers\.aigateway\]' "$${config_path}" 2>/dev/null; then
+    if ! grep -q '\[model_providers\.aigateway\]' "$${managed}" 2>/dev/null; then
       printf "Adding AI Gateway configuration\n"
-      echo -e "\n$${ARG_AIBRIDGE_CONFIG}" >> "$${config_path}"
+      printf '\n%s\n' "$${ARG_AIBRIDGE_CONFIG}" >> "$${managed}"
     else
       printf "AI Gateway provider already defined in config, skipping append\n"
     fi
   fi
+
+  # Preserve user content from the existing config.
+  # user_before = everything before MANAGED_START
+  # user_after  = everything after MANAGED_END
+  # On the first run (no markers), both are empty and the file is written fresh.
+  local existing_config="" user_before="" user_after=""
+  if [ -s "$${config_path}" ]; then
+    existing_config=$(cat "$${config_path}")
+  fi
+  if [ -n "$${existing_config}" ]; then
+    if printf '%s\n' "$${existing_config}" | grep -qF "$${MANAGED_START}"; then
+      if printf '%s\n' "$${existing_config}" | grep -qF "$${MANAGED_END}"; then
+        user_before=$(printf '%s\n' "$${existing_config}" | awk -v m="$${MANAGED_START}" '$0==m{exit} {print}')
+        user_after=$(printf '%s\n' "$${existing_config}" | awk -v m="$${MANAGED_END}" 'found{print} $0==m{found=1}')
+        user_before=$(printf '%s\n' "$${user_before}" | sed '/./,$!d')
+        user_after=$(printf '%s\n' "$${user_after}" | sed '/./,$!d')
+      else
+        # Start marker present but end marker missing (file was truncated or hand-edited).
+        # Treat everything as user_before to avoid silently deleting data.
+        printf "Warning: codex config has managed-block start marker but no end marker; treating entire file as user content\n"
+        user_before="$${existing_config}"
+      fi
+    fi
+  fi
+
+  # Assemble final config atomically:
+  #   user_before  (content that was before the managed block)
+  #   managed block
+  #   user_after   (content that was after the managed block)
+  config_tmp=$(mktemp "$${config_path}.XXXXXX")
+  {
+    if [ -n "$${user_before}" ]; then
+      printf '%s\n\n' "$${user_before}"
+    fi
+    printf '%s\n' "$${MANAGED_START}"
+    cat "$${managed}"
+    printf '%s\n' "$${MANAGED_END}"
+    if [ -n "$${user_after}" ]; then
+      printf '\n%s\n' "$${user_after}"
+    fi
+  } > "$${config_tmp}" && mv "$${config_tmp}" "$${config_path}"
+  rm -f "$${managed}"
 }
 
 function setup_workdir() {
