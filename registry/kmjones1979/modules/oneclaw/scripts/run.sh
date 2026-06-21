@@ -8,19 +8,38 @@ die() {
   exit 1
 }
 
+# expand_path replaces a leading "~" and any literal "$HOME" occurrences with the
+# workspace user's $HOME without invoking `eval`, which would allow arbitrary
+# command substitution if a templated path ever contained $(...) or backticks.
+expand_path() {
+  local p="$1"
+  p="$${p//\$HOME/$HOME}"
+  # The case patterns below match a literal "~" and "~/<rest>"; we deliberately
+  # do not want shell tilde expansion here, hence the literal quoting.
+  # shellcheck disable=SC2088
+  case "$p" in
+    "~") p="$HOME" ;;
+    "~/"*) p="$HOME/$${p#\~/}" ;;
+  esac
+  printf '%s' "$p"
+}
+
 BOOTSTRAP_MODE="${BOOTSTRAP_MODE}"
 API_URL="${BASE_URL}"
 VAULT_ID_INPUT="${VAULT_ID_INPUT}"
 VAULT_NAME_IN="${VAULT_NAME}"
 AGENT_NAME_IN="${AGENT_NAME}"
 POLICY_PATH_IN="${POLICY_PATH}"
-STATE_DIR=$(eval echo "${STATE_DIR}")
+STATE_DIR=$(expand_path "${STATE_DIR}")
 STATE_FILE="$STATE_DIR/bootstrap.json"
 
 # Sensitive values come from env vars injected by coder_env (sensitive = true),
 # NOT from templatefile() substitutions, so they do not appear in the Coder
-# agent's rendered-script log (/tmp/coder-agent.log).
+# agent's rendered-script log (/tmp/coder-agent.log). The bootstrap key is also
+# unset from the env immediately after read so it does not linger in this
+# process's /proc/<pid>/environ for the duration of the run.
 HUMAN_KEY="$${_ONECLAW_HUMAN_API_KEY:-}"
+unset _ONECLAW_HUMAN_API_KEY
 API_TOKEN="$${ONECLAW_AGENT_API_KEY:-}"
 VAULT_ID="$${ONECLAW_VAULT_ID:-}"
 
@@ -81,6 +100,7 @@ bootstrap() {
     "$API_URL/v1/auth/api-key-token" 2>&1) || die "Failed to authenticate with human API key"
 
   # Key is no longer needed; scrub from process memory before any other work.
+  # (_ONECLAW_HUMAN_API_KEY was already unset at the top of the script.)
   HUMAN_KEY=""
   unset HUMAN_KEY
 
@@ -105,13 +125,17 @@ bootstrap() {
       log "Vault creation failed — looking for existing vault named '$VAULT_NAME_IN'"
       local list_response
       list_response=$(api_call GET "/v1/vaults" "$jwt") || die "Failed to list vaults"
-      vault=$(echo "$list_response" | python3 -c "
+      # Pass the vault name via argv (NOT interpolated into the Python source)
+      # so quotes/newlines in the name cannot break the program or be used for
+      # code injection. The JSON payload is fed on stdin via a here-string.
+      vault=$(python3 -c '
 import json, sys
-for v in json.load(sys.stdin).get('vaults', []):
-    if v['name'] == '$VAULT_NAME_IN':
-        print(v['id']); sys.exit(0)
+target = sys.argv[1]
+for v in json.load(sys.stdin).get("vaults", []):
+    if v["name"] == target:
+        print(v["id"]); sys.exit(0)
 sys.exit(1)
-") || die "Could not find existing vault named '$VAULT_NAME_IN'"
+' "$VAULT_NAME_IN" <<< "$list_response") || die "Could not find existing vault named '$VAULT_NAME_IN'"
       log "Found existing vault: $vault"
     }
     if [ -z "$vault" ]; then
@@ -161,7 +185,7 @@ PYEOF
 
 write_mcp_config() {
   local target_path="$1" label="$2" tmp_file="$3"
-  target_path=$(eval echo "$target_path")
+  target_path=$(expand_path "$target_path")
   local target_dir
   target_dir=$(dirname "$target_path")
   [ -d "$target_dir" ] || mkdir -p "$target_dir"
@@ -196,12 +220,11 @@ if [ "$BOOTSTRAP_MODE" = "true" ]; then
   bootstrap
 fi
 
-# Scrub the human bootstrap key from both the local var and the inherited env,
-# so downstream processes (shells, AI agents) cannot read it from this script's
-# /proc/<pid>/environ or from their own inherited environment.
+# Belt-and-suspenders: ensure HUMAN_KEY is gone even if bootstrap() short-
+# circuited because the state file already existed. _ONECLAW_HUMAN_API_KEY was
+# already unset at the top of the script so it is no longer in our environ.
 HUMAN_KEY=""
 unset HUMAN_KEY
-unset _ONECLAW_HUMAN_API_KEY
 
 # Bootstrap runs first and writes creds to the state file; load them now.
 if [ -z "$API_TOKEN" ] && [ -f "$STATE_FILE" ]; then
@@ -212,7 +235,7 @@ fi
 
 if [ -z "$API_TOKEN" ] || [ -z "$VAULT_ID" ]; then
   log "WARNING: No API token or vault ID available — skipping MCP config"
-  log "Provide api_token + vault_id, or set human_api_key/master_api_key"
+  log "Provide api_token + vault_id (manual mode), or set human_api_key (bootstrap mode)"
   exit 0
 fi
 

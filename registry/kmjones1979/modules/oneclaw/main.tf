@@ -115,15 +115,7 @@ variable "icon" {
   default     = "/icon/vault.svg"
 }
 
-variable "order" {
-  type        = number
-  description = "The order determines the position of app in the UI presentation."
-  default     = null
-}
-
 data "coder_workspace" "me" {}
-
-data "coder_workspace_owner" "me" {}
 
 locals {
   bootstrap_mode = var.human_api_key != ""
