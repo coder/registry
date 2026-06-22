@@ -103,7 +103,7 @@ locals {
 
 module "coder_utils" {
   source              = "registry.coder.com/coder/coder-utils/coder"
-  version             = "0.0.2"
+  version             = "0.0.1"
   agent_id            = var.agent_id
   display_name_prefix = "Agent Firewall"
   module_directory    = var.module_directory
