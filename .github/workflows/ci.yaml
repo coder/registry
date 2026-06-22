@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Detect changed files
         uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
@@ -37,7 +37,7 @@ jobs:
             all:
               - '**'
       - name: Set up Terraform
-        uses: coder/coder/.github/actions/setup-tf@d7774e5c4ca222ee89a8b6aa82b61c1f8bb81d1f # v2.34.2
+        uses: coder/coder/.github/actions/setup-tf@4653f32eb4840de54e8dca04a069fb7e61664cf6 # v2.34.3
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
@@ -80,14 +80,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: latest
       # Need Terraform for its formatter
       - name: Install Terraform
-        uses: coder/coder/.github/actions/setup-tf@d7774e5c4ca222ee89a8b6aa82b61c1f8bb81d1f # v2.34.2
+        uses: coder/coder/.github/actions/setup-tf@4653f32eb4840de54e8dca04a069fb7e61664cf6 # v2.34.3
       - name: Install dependencies
         run: bun install
       - name: Validate formatting
@@ -104,7 +104,7 @@ jobs:
     needs: validate-style
     steps:
       - name: Check out code
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Set up Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
