@@ -84,7 +84,7 @@ resource "coder_app" "claude_with_agent_firewall" {
 
 ### With Codex
 
-Use agent-firewall alongside the `codex` module the same way as other AI modules.
+Use agent-firewall alongside the [`codex`](https://registry.coder.com/modules/coder-labs/codex) module the same way as other AI modules.
 
 > [!WARNING]
 > **MCP subprocesses and TLS verification**
@@ -95,8 +95,9 @@ Use agent-firewall alongside the `codex` module the same way as other AI modules
 > intercepting proxy. This is a known upstream issue:
 > [openai/codex#29124](https://github.com/openai/codex/issues/29124).
 >
-> **Workaround:** pass the required vars through explicitly via `env_vars` in each
-> `[mcp_servers.*]` block in `~/.codex/config.toml`:
+> **Workaround:** pass the vars your MCP server's runtime needs via `env_vars` in
+> each `[mcp_servers.*]` block in `~/.codex/config.toml`. For example, for a
+> Node.js-based server:
 >
 > ```toml
 > [mcp_servers.memory]
@@ -106,20 +107,20 @@ Use agent-firewall alongside the `codex` module the same way as other AI modules
 > ```
 >
 > This must be repeated for every MCP server. There is no global default in Codex.
->
-> **All vars agent-firewall injects** (from [`landjail/child.go`](https://github.com/coder/boundary/blob/main/landjail/child.go)):
->
-> | Variable                     | Description                              |
-> | ---------------------------- | ---------------------------------------- |
-> | `NODE_EXTRA_CA_CERTS`        | CA cert for Node.js TLS verification     |
-> | `SSL_CERT_FILE`              | CA cert for OpenSSL/LibreSSL-based tools |
-> | `SSL_CERT_DIR`               | CA cert directory for OpenSSL            |
-> | `CURL_CA_BUNDLE`             | CA cert for curl                         |
-> | `GIT_SSL_CAINFO`             | CA cert for Git                          |
-> | `REQUESTS_CA_BUNDLE`         | CA cert for Python requests              |
-> | `HTTPS_PROXY` / `HTTP_PROXY` | Proxy address for HTTPS/HTTP traffic     |
-> | `https_proxy` / `http_proxy` | Lowercase aliases for the above          |
-> | `NO_PROXY` / `no_proxy`      | Cleared to prevent bypassing the proxy   |
+
+The full list of vars agent-firewall injects (from [`landjail/child.go`](https://github.com/coder/boundary/blob/main/landjail/child.go)). Add the ones relevant to your MCP server's runtime:
+
+| Variable                     | Description                              |
+| ---------------------------- | ---------------------------------------- |
+| `NODE_EXTRA_CA_CERTS`        | CA cert for Node.js TLS verification     |
+| `SSL_CERT_FILE`              | CA cert for OpenSSL/LibreSSL-based tools |
+| `SSL_CERT_DIR`               | CA cert directory for OpenSSL            |
+| `CURL_CA_BUNDLE`             | CA cert for curl                         |
+| `GIT_SSL_CAINFO`             | CA cert for Git                          |
+| `REQUESTS_CA_BUNDLE`         | CA cert for Python requests              |
+| `HTTPS_PROXY` / `HTTP_PROXY` | Proxy address for HTTPS/HTTP traffic     |
+| `https_proxy` / `http_proxy` | Lowercase aliases for the above          |
+| `NO_PROXY` / `no_proxy`      | Cleared to prevent bypassing the proxy   |
 
 ## Configuration
 
