@@ -27,7 +27,7 @@ locals {
       (
         flock 9
         sudo apt-get update
-        sudo apt-get install -y curl ca-certificates tmux bubblewrap
+        sudo apt-get install -y curl ca-certificates jq tmux bubblewrap
       ) 9>/tmp/coder-ai-tools-apt.lock
     fi
   EOT

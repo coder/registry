@@ -46,4 +46,4 @@ module "omnigent" {
 - Docker with `sysbox-runc` runtime installed on the Coder host
 - Coder Premium with AI Gateway enabled
 
-The template installs `tmux` and `bubblewrap` before the AI tools start because Omnigent launches the Claude Code and Codex harnesses through local terminal sessions.
+The template installs `jq`, `tmux`, and `bubblewrap` before the AI tools start because the Claude Code module uses `jq` for setup and Omnigent launches the Claude Code and Codex harnesses through local terminal sessions.
