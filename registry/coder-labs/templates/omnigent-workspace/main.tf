@@ -18,6 +18,21 @@ data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 data "coder_provisioner" "me" {}
 
+locals {
+  ai_tools_pre_install_script = <<-EOT
+    #!/bin/bash
+    set -euo pipefail
+
+    if command -v apt-get >/dev/null 2>&1; then
+      (
+        flock 9
+        sudo apt-get update
+        sudo apt-get install -y curl ca-certificates tmux bubblewrap
+      ) 9>/tmp/coder-ai-tools-apt.lock
+    fi
+  EOT
+}
+
 resource "coder_agent" "main" {
   arch           = data.coder_provisioner.me.arch
   os             = "linux"
@@ -66,16 +81,18 @@ module "codex" {
   source  = "registry.coder.com/coder-labs/codex/coder"
   version = "5.0.0"
 
-  agent_id          = coder_agent.main.id
-  enable_ai_gateway = true
+  agent_id           = coder_agent.main.id
+  enable_ai_gateway  = true
+  pre_install_script = local.ai_tools_pre_install_script
 }
 
 module "claude_code" {
   source  = "registry.coder.com/coder/claude-code/coder"
   version = ">= 4.0.0"
 
-  agent_id          = coder_agent.main.id
-  enable_ai_gateway = true
+  agent_id           = coder_agent.main.id
+  enable_ai_gateway  = true
+  pre_install_script = local.ai_tools_pre_install_script
 }
 
 module "omnigent" {
