@@ -6,6 +6,7 @@ export PATH="$${HOME}/.local/bin:$${PATH}"
 MODULE_DIR="$${HOME}/.coder-modules/coder-labs/omnigent"
 START_LOG="$${MODULE_DIR}/logs/start.log"
 SERVER_LOG="$${MODULE_DIR}/logs/server.log"
+HOST_LOG="$${MODULE_DIR}/logs/host.log"
 ARG_PORT='${ARG_PORT}'
 ARG_EFFECTIVE_SERVER_CONFIG_PATH='${ARG_EFFECTIVE_SERVER_CONFIG_PATH}'
 ARG_AGENTS_DIR='${ARG_AGENTS_DIR}'
@@ -57,5 +58,11 @@ for i in $(seq 1 90); do
   sleep 1
 done
 
-# Register local workspace as a host
-omnigent host ""
+# Register local workspace as a host. `omnigent host` stays attached, so run it
+# in the background to let the Coder startup script finish.
+if ! pgrep -f "[o]mnigent host" >/dev/null 2>&1; then
+  echo "Starting Omnigent host..."
+  nohup omnigent host "" >> "$${HOST_LOG}" 2>&1 &
+else
+  echo "Omnigent host already running, skipping start."
+fi

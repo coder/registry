@@ -114,6 +114,24 @@ run "test_install_script_installs_uv" {
   }
 }
 
+run "test_start_script_backgrounds_host" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "nohup omnigent host")
+    error_message = "start script should run the Omnigent host in the background"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "host.log")
+    error_message = "start script should write Omnigent host logs to host.log"
+  }
+}
+
 run "test_port_output" {
   command = plan
 

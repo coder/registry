@@ -123,6 +123,7 @@ Script logs are written to `~/.coder-modules/coder-labs/omnigent/logs/`. If the 
 cat ~/.coder-modules/coder-labs/omnigent/logs/server.log
 cat ~/.coder-modules/coder-labs/omnigent/logs/start.log
 cat ~/.coder-modules/coder-labs/omnigent/logs/install.log
+cat ~/.coder-modules/coder-labs/omnigent/logs/host.log
 ```
 
 The health endpoint is available at `http://localhost:<port>/health`. You can check it directly:
