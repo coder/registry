@@ -13,11 +13,31 @@ ARG_SERVER_CONFIG_DIR='${ARG_SERVER_CONFIG_DIR}'
 ARG_AGENTS=$(echo -n '${ARG_AGENTS_B64}' | base64 -d)
 ARG_AGENTS_DIR='${ARG_AGENTS_DIR}'
 
+export PATH="$${HOME}/.local/bin:$${PATH}"
+
 echo "--------------------------------"
 printf "omnigent_version: %s\n" "$${ARG_OMNIGENT_VERSION:-latest}"
 printf "port: %s\n" "$${ARG_PORT}"
 printf "write_server_config: %s\n" "$${ARG_WRITE_SERVER_CONFIG}"
 echo "--------------------------------"
+
+if ! command -v curl >/dev/null 2>&1; then
+  echo "ERROR: curl is required to install uv and Omnigent." >&2
+  exit 1
+fi
+
+if ! command -v uv >/dev/null 2>&1; then
+  printf "%s Installing uv\n" "$${BOLD}"
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  export PATH="$${HOME}/.local/bin:$${PATH}"
+fi
+
+if ! command -v uv >/dev/null 2>&1; then
+  echo "ERROR: uv installation failed. Install from https://docs.astral.sh/uv/getting-started/installation/, then rerun." >&2
+  exit 1
+fi
+
+printf "%s Found uv: %s\n" "$${BOLD}" "$(uv --version)"
 
 # Install omnigent via official installer
 INSTALL_ARGS="--non-interactive"
@@ -27,6 +47,8 @@ fi
 printf "%s Installing omnigent%s\n" "$${BOLD}" "$${ARG_OMNIGENT_VERSION:+ $${ARG_OMNIGENT_VERSION}}"
 # shellcheck disable=SC2086
 curl -fsSL https://omnigent.ai/install.sh | sh -s -- $${INSTALL_ARGS}
+
+export PATH="$${HOME}/.local/bin:$${PATH}"
 
 printf "%s Installed omnigent: %s\n" "$${BOLD}" "$(omnigent --version)"
 

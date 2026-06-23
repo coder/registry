@@ -96,6 +96,24 @@ run "test_scripts_output" {
   }
 }
 
+run "test_install_script_installs_uv" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "https://astral.sh/uv/install.sh")
+    error_message = "install script should install uv when it is missing"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "command -v uv")
+    error_message = "install script should check whether uv is available"
+  }
+}
+
 run "test_port_output" {
   command = plan
 
