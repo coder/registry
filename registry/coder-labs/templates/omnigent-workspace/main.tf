@@ -18,18 +18,6 @@ data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 data "coder_provisioner" "me" {}
 
-variable "anthropic_api_key" {
-  description = "Anthropic API key for Claude Code."
-  type        = string
-  sensitive   = true
-}
-
-variable "openai_api_key" {
-  description = "OpenAI API key for Codex."
-  type        = string
-  sensitive   = true
-}
-
 resource "coder_agent" "main" {
   arch           = data.coder_provisioner.me.arch
   os             = "linux"
@@ -74,24 +62,38 @@ resource "coder_agent" "main" {
   }
 }
 
-module "omnigent" {
-  source   = "registry.coder.com/coder-labs/omnigent/coder"
-  version  = "1.0.0"
-  agent_id = coder_agent.main.id
-}
-
 module "codex" {
-  source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.0.0"
-  agent_id       = coder_agent.main.id
-  openai_api_key = var.openai_api_key
+  source  = "registry.coder.com/coder-labs/codex/coder"
+  version = "5.0.0"
+
+  agent_id          = coder_agent.main.id
+  enable_ai_gateway = true
 }
 
 module "claude_code" {
-  source            = "registry.coder.com/coder/claude-code/coder"
-  version           = ">= 4.0.0"
+  source  = "registry.coder.com/coder/claude-code/coder"
+  version = ">= 4.0.0"
+
   agent_id          = coder_agent.main.id
-  anthropic_api_key = var.anthropic_api_key
+  enable_ai_gateway = true
+}
+
+module "omnigent" {
+  source  = "registry.coder.com/coder-labs/omnigent/coder"
+  version = "1.0.0"
+
+  agent_id = coder_agent.main.id
+
+  # Omnigent snapshots the host's available tools when the host starts. Wait for
+  # Claude Code and Codex to install and configure AI Gateway first, otherwise
+  # the Omnigent UI shows these harnesses as needing setup until the host restarts.
+  pre_install_script = <<-EOT
+    #!/bin/bash
+    set -euo pipefail
+    coder exp sync want coder-labs-omnigent-ai-tools ${join(" ", concat(module.claude_code.scripts, module.codex.scripts))}
+    coder exp sync start coder-labs-omnigent-ai-tools
+    coder exp sync complete coder-labs-omnigent-ai-tools
+  EOT
 }
 
 resource "docker_volume" "home_volume" {

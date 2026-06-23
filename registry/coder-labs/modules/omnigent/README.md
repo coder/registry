@@ -35,27 +35,30 @@ module "omnigent" {
 
 ### With AI tools (Omnigent + Claude Code + Codex)
 
-Compose Omnigent alongside other AI agent modules to create a full multi-agent workspace:
+Compose Omnigent alongside other AI agent modules to create a full multi-agent workspace. This example authenticates Claude Code and Codex through Coder AI Gateway.
 
 ```tf
-module "omnigent" {
-  source   = "registry.coder.com/coder-labs/omnigent/coder"
-  version  = "1.0.0"
-  agent_id = coder_agent.main.id
-}
-
 module "codex" {
-  source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.0.0"
-  agent_id       = coder_agent.main.id
-  openai_api_key = var.openai_api_key
+  source  = "registry.coder.com/coder-labs/codex/coder"
+  version = "5.0.0"
+
+  agent_id          = coder_agent.main.id
+  enable_ai_gateway = true
 }
 
 module "claude_code" {
-  source            = "registry.coder.com/coder/claude-code/coder"
-  version           = ">= 4.0.0"
+  source  = "registry.coder.com/coder/claude-code/coder"
+  version = ">= 4.0.0"
+
   agent_id          = coder_agent.main.id
-  anthropic_api_key = var.anthropic_api_key
+  enable_ai_gateway = true
+}
+
+module "omnigent" {
+  source  = "registry.coder.com/coder-labs/omnigent/coder"
+  version = "1.0.0"
+
+  agent_id = coder_agent.main.id
 }
 ```
 
