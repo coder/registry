@@ -79,7 +79,7 @@ resource "coder_agent" "main" {
 
 module "codex" {
   source  = "registry.coder.com/coder-labs/codex/coder"
-  version = "5.0.0"
+  version = "5.2.0"
 
   agent_id           = coder_agent.main.id
   enable_ai_gateway  = true
@@ -88,7 +88,7 @@ module "codex" {
 
 module "claude_code" {
   source  = "registry.coder.com/coder/claude-code/coder"
-  version = ">= 4.0.0"
+  version = "5.2.0"
 
   agent_id           = coder_agent.main.id
   enable_ai_gateway  = true
