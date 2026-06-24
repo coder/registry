@@ -42,6 +42,18 @@ The “Version Bump” CI uses this label to validate required updates (README v
 go build ./cmd/readmevalidation && ./readmevalidation
 ```
 
+## Stale PR Policy
+
+The [`Stale PR Cleanup`](./.github/workflows/stale.yaml) workflow runs daily and manages inactive pull requests:
+
+- A PR with no activity for **15 days** gets the `stale` label.
+- A PR with the `stale` label is **closed 3 days later** if it sees no further activity.
+- A PR labeled `waiting-for-info` is **exempt** from the stale flow. Apply this label when the PR is waiting on the author so the bot doesn't penalize them for a reviewer-side pause.
+- Any new commit or comment removes the `stale` label automatically; the 15-day clock then restarts on the next stale sweep.
+- Closed PRs can always be reopened by the author or a maintainer if work resumes.
+
+The workflow only manages pull requests. Issues are not staled.
+
 ## Making a Release
 
 ### Automated Tag and Release Process
