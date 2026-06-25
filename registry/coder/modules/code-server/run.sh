@@ -122,15 +122,29 @@ if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
     exit 0
   fi
 
-  WORKSPACE_DIR="$HOME"
-  if [ -n "${FOLDER}" ]; then
-    WORKSPACE_DIR="${FOLDER}"
+  RECOMMENDATIONS_FILE=""
+  RECOMMENDATIONS_QUERY=".recommendations[]"
+  if [ -n "${WORKSPACE}" ]; then
+    if [ -f "${WORKSPACE}" ]; then
+      RECOMMENDATIONS_FILE="${WORKSPACE}"
+      RECOMMENDATIONS_QUERY=".extensions.recommendations[]?"
+    else
+      echo "⚠️ Workspace file ${WORKSPACE} not found, skipping extension recommendations."
+    fi
+  else
+    WORKSPACE_DIR="$HOME"
+    if [ -n "${FOLDER}" ]; then
+      WORKSPACE_DIR="${FOLDER}"
+    fi
+    if [ -f "$WORKSPACE_DIR/.vscode/extensions.json" ]; then
+      RECOMMENDATIONS_FILE="$WORKSPACE_DIR/.vscode/extensions.json"
+    fi
   fi
 
-  if [ -f "$WORKSPACE_DIR/.vscode/extensions.json" ]; then
-    printf "🧩 Installing extensions from %s/.vscode/extensions.json...\n" "$WORKSPACE_DIR"
+  if [ -n "$RECOMMENDATIONS_FILE" ]; then
+    printf "🧩 Installing extensions from %s...\n" "$RECOMMENDATIONS_FILE"
     # Use sed to remove single-line comments before parsing with jq
-    extensions=$(sed 's|//.*||g' "$WORKSPACE_DIR"/.vscode/extensions.json | jq -r '.recommendations[]')
+    extensions=$(sed 's|//.*||g' "$RECOMMENDATIONS_FILE" | jq -r "$RECOMMENDATIONS_QUERY")
     for extension in $extensions; do
       if extension_installed "$extension"; then
         continue
