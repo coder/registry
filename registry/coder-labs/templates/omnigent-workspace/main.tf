@@ -19,17 +19,69 @@ data "coder_workspace_owner" "me" {}
 data "coder_provisioner" "me" {}
 
 locals {
-  ai_tools_pre_install_script = <<-EOT
+  repo_ready_sync_name = "coder-labs-omnigent-git-clone"
+
+  ai_tools_pre_install_commands = <<-EOT
+    missing_packages=()
+    command -v curl >/dev/null 2>&1 || missing_packages+=(curl)
+    command -v jq >/dev/null 2>&1 || missing_packages+=(jq)
+    command -v tmux >/dev/null 2>&1 || missing_packages+=(tmux)
+    command -v bwrap >/dev/null 2>&1 || missing_packages+=(bubblewrap)
+
+    need_node=false
+    if ! command -v node >/dev/null 2>&1; then
+      need_node=true
+    elif ! node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 22 ? 0 : 1)' >/dev/null 2>&1; then
+      need_node=true
+    fi
+
+    if [ "$${#missing_packages[@]}" -eq 0 ] && [ "$${need_node}" = false ]; then
+      exit 0
+    fi
+
+    if ! command -v apt-get >/dev/null 2>&1; then
+      echo "ERROR: missing required tools and apt-get is not available to install them." >&2
+      printf 'Missing packages: %s\n' "$${missing_packages[*]:-none}" >&2
+      printf 'Need Node.js 22+: %s\n' "$${need_node}" >&2
+      exit 1
+    fi
+
+    (
+      flock 9
+      sudo apt-get update
+
+      if [ "$${need_node}" = true ]; then
+        if ! command -v curl >/dev/null 2>&1; then
+          sudo apt-get install -y curl ca-certificates
+        fi
+        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+      fi
+
+      if [ "$${#missing_packages[@]}" -gt 0 ]; then
+        sudo apt-get install -y ca-certificates "$${missing_packages[@]}"
+      fi
+    ) 9>/tmp/coder-ai-tools-apt.lock
+  EOT
+
+  codex_pre_install_script = <<-EOT
     #!/bin/bash
     set -euo pipefail
+    coder exp sync want coder-labs-codex-repo-ready ${local.repo_ready_sync_name}
+    coder exp sync start coder-labs-codex-repo-ready
+    coder exp sync complete coder-labs-codex-repo-ready
 
-    if command -v apt-get >/dev/null 2>&1; then
-      (
-        flock 9
-        sudo apt-get update
-        sudo apt-get install -y curl ca-certificates jq tmux bubblewrap
-      ) 9>/tmp/coder-ai-tools-apt.lock
-    fi
+    ${local.ai_tools_pre_install_commands}
+  EOT
+
+  claude_code_pre_install_script = <<-EOT
+    #!/bin/bash
+    set -euo pipefail
+    coder exp sync want coder-claude-code-repo-ready ${local.repo_ready_sync_name}
+    coder exp sync start coder-claude-code-repo-ready
+    coder exp sync complete coder-claude-code-repo-ready
+
+    ${local.ai_tools_pre_install_commands}
   EOT
 }
 
@@ -77,13 +129,32 @@ resource "coder_agent" "main" {
   }
 }
 
+module "git_clone" {
+  source  = "registry.coder.com/coder/git-clone/coder"
+  version = "2.0.1"
+
+  agent_id    = coder_agent.main.id
+  url         = "https://github.com/coder/coder"
+  base_dir    = "/home/coder/workspace"
+  folder_name = "coder"
+  extra_args  = ["--depth=1"]
+
+  post_clone_script = <<-EOT
+    #!/bin/bash
+    set -euo pipefail
+    coder exp sync start ${local.repo_ready_sync_name}
+    coder exp sync complete ${local.repo_ready_sync_name}
+  EOT
+}
+
 module "codex" {
   source  = "registry.coder.com/coder-labs/codex/coder"
   version = "5.2.0"
 
   agent_id           = coder_agent.main.id
+  workdir            = module.git_clone.repo_dir
   enable_ai_gateway  = true
-  pre_install_script = local.ai_tools_pre_install_script
+  pre_install_script = local.codex_pre_install_script
 }
 
 module "claude_code" {
@@ -91,8 +162,9 @@ module "claude_code" {
   version = "5.2.0"
 
   agent_id           = coder_agent.main.id
+  workdir            = module.git_clone.repo_dir
   enable_ai_gateway  = true
-  pre_install_script = local.ai_tools_pre_install_script
+  pre_install_script = local.claude_code_pre_install_script
 }
 
 module "omnigent" {
