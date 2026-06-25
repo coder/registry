@@ -10,14 +10,6 @@ tags: [secrets, mcp, ai]
 
 Give every Coder workspace scoped access to [1Claw](https://1claw.xyz) so AI coding agents can read secrets from an encrypted vault instead of hardcoded credentials. The module merges a `streamable-http` MCP server entry into Cursor and Claude Code config files without overwriting other MCP servers.
 
-Upstream source: [github.com/1clawAI/1claw-coder-workspace-module](https://github.com/1clawAI/1claw-coder-workspace-module).
-
-## Usage
-
-### Bootstrap mode (recommended)
-
-Creates a vault, agent, and access policy on the first workspace boot using a human `1ck_` API key, then caches credentials in `~/.1claw/bootstrap.json` for subsequent starts.
-
 ```tf
 module "oneclaw" {
   source        = "registry.coder.com/kmjones1979/oneclaw/coder"
@@ -26,6 +18,14 @@ module "oneclaw" {
   human_api_key = var.oneclaw_human_key
 }
 ```
+
+Upstream source: [github.com/1clawAI/1claw-coder-workspace-module](https://github.com/1clawAI/1claw-coder-workspace-module).
+
+## Usage
+
+### Bootstrap mode (recommended)
+
+Creates a vault, agent, and access policy on the first workspace boot using a human `1ck_` API key, then caches credentials in `~/.1claw/bootstrap.json` for subsequent starts. This is the configuration shown at the top of this README.
 
 #### Post-bootstrap cleanup (recommended)
 
