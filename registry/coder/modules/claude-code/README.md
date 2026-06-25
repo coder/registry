@@ -13,7 +13,7 @@ Install and configure the [Claude Code](https://docs.anthropic.com/en/docs/agent
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.1.0"
+  version           = "5.2.0"
   agent_id          = coder_agent.main.id
   anthropic_api_key = "xxxx-xxxxx-xxxx"
 }
@@ -47,7 +47,7 @@ locals {
 
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.1.0"
+  version           = "5.2.0"
   agent_id          = coder_agent.main.id
   workdir           = local.claude_workdir
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -78,7 +78,7 @@ resource "coder_app" "claude" {
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.1.0"
+  version           = "5.2.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -95,6 +95,33 @@ Claude Code then routes API requests through Coder's AI Gateway instead of direc
 > [!CAUTION]
 > `enable_ai_gateway = true` is mutually exclusive with `anthropic_api_key` and `claude_code_oauth_token`. Setting any of them together fails at plan time.
 
+### Enterprise policy via managed settings
+
+The `managed_settings` input writes a policy file to `/etc/claude-code/managed-settings.d/10-coder.json` inside the workspace. Claude Code reads this directory at startup with the highest configuration precedence, so users cannot override these values in their own `~/.claude/settings.json`. This is a local file mechanism and works with any inference backend (Anthropic API, AWS Bedrock, Google Vertex AI, or AI Gateway).
+
+```tf
+module "claude-code" {
+  source            = "registry.coder.com/coder/claude-code/coder"
+  version           = "5.2.0"
+  agent_id          = coder_agent.main.id
+  workdir           = "/home/coder/project"
+  anthropic_api_key = "xxxx-xxxxx-xxxx"
+
+  managed_settings = {
+    permissions = {
+      defaultMode                  = "acceptEdits"
+      disableBypassPermissionsMode = "disable"
+      deny                         = ["Bash(curl:*)", "Bash(wget:*)", "WebFetch"]
+    }
+    env = {
+      DISABLE_TELEMETRY = "0"
+    }
+  }
+}
+```
+
+See the [Claude Code settings reference](https://docs.anthropic.com/en/docs/claude-code/settings) for the full schema. Common keys: `permissions` (`defaultMode`, `allow`, `deny`, `disableBypassPermissionsMode`, `additionalDirectories`), `env`, `model`, `apiKeyHelper`, `hooks`, `cleanupPeriodDays`.
+
 ### Advanced Configuration
 
 This example shows version pinning, a pre-installed binary path, a custom model, and MCP servers.
@@ -102,7 +129,7 @@ This example shows version pinning, a pre-installed binary path, a custom model,
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.1.0"
+  version  = "5.2.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -166,7 +193,7 @@ Downstream `coder_script` resources can wait for this module's install pipeline 
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.1.0"
+  version           = "5.2.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -252,7 +279,7 @@ resource "coder_env" "bedrock_api_key" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.1.0"
+  version  = "5.2.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
@@ -309,7 +336,7 @@ resource "coder_env" "google_application_credentials" {
 
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.1.0"
+  version  = "5.2.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   model    = "claude-sonnet-4@20250514"
@@ -350,7 +377,7 @@ The module automatically tags every span and metric with `coder.workspace_id`, `
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.1.0"
+  version           = "5.2.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"

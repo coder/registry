@@ -102,6 +102,12 @@ variable "claude_binary_path" {
   }
 }
 
+variable "managed_settings" {
+  type        = any
+  description = "Policy settings written to /etc/claude-code/managed-settings.d/10-coder.json. Highest-precedence client config; works with any inference backend (Anthropic API, Bedrock, Vertex, AI Gateway). See https://docs.anthropic.com/en/docs/claude-code/settings for the schema."
+  default     = null
+}
+
 variable "enable_ai_gateway" {
   type        = bool
   description = "Use AI Gateway for Claude Code. https://coder.com/docs/ai-coder/ai-gateway"
@@ -237,6 +243,7 @@ locals {
     ARG_MCP                    = var.mcp != "" ? base64encode(var.mcp) : ""
     ARG_MCP_CONFIG_REMOTE_PATH = base64encode(jsonencode(var.mcp_config_remote_path))
     ARG_ENABLE_AI_GATEWAY      = tostring(var.enable_ai_gateway)
+    ARG_MANAGED_SETTINGS_JSON  = var.managed_settings != null ? base64encode(jsonencode(var.managed_settings)) : ""
   })
   module_dir_name = ".coder-modules/coder/claude-code"
 }
