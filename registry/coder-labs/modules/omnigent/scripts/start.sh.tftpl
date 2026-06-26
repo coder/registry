@@ -37,6 +37,23 @@ origin_from_url() {
   esac
 }
 
+append_runner_env_passthrough() {
+  local name="$${1:-}"
+  [ -n "$${name}" ] || return 0
+  [ -n "$${!name:-}" ] || return 0
+  case ",$${OMNIGENT_RUNNER_ENV_PASSTHROUGH:-}," in
+    *",$${name},"*) ;;
+    *)
+      if [ -n "$${OMNIGENT_RUNNER_ENV_PASSTHROUGH:-}" ]; then
+        OMNIGENT_RUNNER_ENV_PASSTHROUGH="$${OMNIGENT_RUNNER_ENV_PASSTHROUGH},$${name}"
+      else
+        OMNIGENT_RUNNER_ENV_PASSTHROUGH="$${name}"
+      fi
+      ;;
+  esac
+  export OMNIGENT_RUNNER_ENV_PASSTHROUGH
+}
+
 OMNIGENT_ALLOWED_ORIGINS="$${ARG_ALLOWED_ORIGINS}"
 append_allowed_origin "$(origin_from_url "$${CODER_AGENT_URL:-}")"
 
@@ -54,6 +71,11 @@ if [ -n "$${VSCODE_PROXY_URI:-}" ]; then
     fi
   fi
 fi
+
+# Omnigent host runners only receive a limited environment allowlist. Include
+# Coder AI Gateway's OpenAI token when the workspace exposes it so Codex can
+# authenticate from sessions launched through Omnigent.
+append_runner_env_passthrough "OPENAI_CODER_AIGATEWAY_SESSION_TOKEN"
 
 # Derive a stable admin password from the workspace ID (first 16 hex chars)
 OMNIGENT_ADMIN_PASSWORD=$(echo -n "$${CODER_WORKSPACE_ID}" | tr -d '-' | cut -c1-16)

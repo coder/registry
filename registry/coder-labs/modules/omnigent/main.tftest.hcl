@@ -231,6 +231,34 @@ run "test_start_script_connects_host_to_app_server" {
   }
 }
 
+run "test_start_script_passes_ai_gateway_token_to_runners" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "append_runner_env_passthrough")
+    error_message = "start script should append runner env passthrough entries"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "OPENAI_CODER_AIGATEWAY_SESSION_TOKEN")
+    error_message = "start script should pass the Coder AI Gateway OpenAI token to Omnigent runners"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "OMNIGENT_RUNNER_ENV_PASSTHROUGH=\"$${OMNIGENT_RUNNER_ENV_PASSTHROUGH},$${name}\"")
+    error_message = "start script should preserve existing runner env passthrough values"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "*\",$${name},\"*) ;;")
+    error_message = "start script should avoid duplicate runner env passthrough entries"
+  }
+}
+
 run "test_port_output" {
   command = plan
 
