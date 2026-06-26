@@ -398,7 +398,7 @@ describe("codex", async () => {
       "[model_providers.aigateway]",
       'name = "Custom AI Bridge"',
       'base_url = "https://custom.example.com"',
-      'env_key = "CODER_AIBRIDGE_SESSION_TOKEN"',
+      'env_key = "OPENAI_CODER_AIGATEWAY_SESSION_TOKEN"',
       'wire_api = "responses"',
     ].join("\n");
     const { id, coderEnvVars, scripts } = await setup({
