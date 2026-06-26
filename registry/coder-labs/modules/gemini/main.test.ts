@@ -263,6 +263,34 @@ describe("gemini", async () => {
     expect(resp).toContain("Running automated task:");
   });
 
+  test("task-prompt-with-special-characters", async () => {
+    // A single quote in the prompt previously broke shell quoting in the start
+    // script. The prompt must be passed through verbatim and never interpreted
+    // by the shell.
+    const taskPrompt = `dummy prompt' ; touch /tmp/task-prompt-marker ; echo '`;
+    const { id } = await setup({
+      moduleVariables: {
+        task_prompt: taskPrompt,
+      },
+    });
+    await execModuleScript(id);
+
+    // No part of the prompt should be executed by the shell.
+    const marker = await execContainer(id, [
+      "bash",
+      "-c",
+      "test -e /tmp/task-prompt-marker && echo CREATED || echo SAFE",
+    ]);
+    expect(marker.stdout).toContain("SAFE");
+
+    // The prompt must be passed through verbatim, including the single quotes.
+    const promptFile = await readFileContainer(
+      id,
+      "/home/coder/.gemini-module/prompt.txt",
+    );
+    expect(promptFile).toContain(taskPrompt);
+  });
+
   test("start-without-prompt", async () => {
     const { id } = await setup();
     await execModuleScript(id);

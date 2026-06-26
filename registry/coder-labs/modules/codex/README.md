@@ -13,14 +13,14 @@ Install and configure the [Codex CLI](https://github.com/openai/codex) in your w
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.1.0"
+  version        = "5.2.0"
   agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
 }
 ```
 
 > [!WARNING]
-> If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for [Coder Tasks](https://coder.com/docs/ai-coder/tasks) and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). v5 also assumes npm is pre-installed; it no longer bootstraps Node.js. Keep using v4.x.x if you depend on them. See the [PR description](https://github.com/coder/registry/pull/879) for a full migration guide.
+> If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for [Coder Tasks](https://coder.com/docs/ai-coder/tasks) and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). Keep using v4.x.x if you depend on them. See the [PR description](https://github.com/coder/registry/pull/879) for a full migration guide.
 
 ## Examples
 
@@ -33,7 +33,7 @@ locals {
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.1.0"
+  version        = "5.2.0"
   agent_id       = coder_agent.main.id
   workdir        = local.codex_workdir
   openai_api_key = var.openai_api_key
@@ -64,7 +64,7 @@ resource "coder_app" "codex" {
 ```tf
 module "codex" {
   source            = "registry.coder.com/coder-labs/codex/coder"
-  version           = "5.1.0"
+  version           = "5.2.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -88,7 +88,7 @@ When `enable_ai_gateway = true`, the module configures Codex to use the `aigatew
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.1.0"
+  version        = "5.2.0"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   openai_api_key = var.openai_api_key
@@ -134,7 +134,7 @@ The module exposes the `scripts` output: an ordered list of `coder exp sync` nam
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.1.0"
+  version        = "5.2.0"
   agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
 }
@@ -158,6 +158,28 @@ resource "coder_script" "post_codex" {
 ## Configuration
 
 When no custom `base_config_toml` is provided, the module uses a minimal default with `preferred_auth_method = "apikey"`. For advanced options, see [Codex config docs](https://developers.openai.com/codex/config-advanced).
+
+> [!NOTE]
+> Content you add outside the managed block is preserved across workspace restarts. The module structures the file as:
+>
+> ```toml
+> # bare keys you add above the managed block (root scope)
+> my_flag = true
+>
+> # >>> coder-managed: codex module >>>
+> preferred_auth_method = "apikey"
+> # ... module-managed content ...
+> # <<< coder-managed: codex module <<<
+>
+> # [sections] you add below the managed block
+> [mcp_servers.my_tool]
+> command = "my-tool"
+> ```
+>
+> Two constraints to keep the TOML valid:
+>
+> - Bare keys you place **above** the managed block must not duplicate keys already inside it (duplicate keys are a TOML error).
+> - `[section]` headers you place **below** the managed block must not duplicate a table name already defined inside it (same reason). Bare keys placed after the managed block will fall under whatever `[section]` preceded them — place bare keys above the block to keep them at root scope.
 
 ## Troubleshooting
 

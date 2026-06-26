@@ -240,5 +240,5 @@ locals {
     "http://localhost:${var.port}${local.server_base_path}?folder=${urlencode(var.folder)}" :
     "http://localhost:${var.port}${local.server_base_path}"
   )
-  healthcheck_url = var.subdomain ? "http://localhost:${var.port}/healthz" : "http://localhost:${var.port}${local.server_base_path}/healthz"
+  healthcheck_url = var.subdomain ? "http://localhost:${var.port}/version" : "http://localhost:${var.port}${local.server_base_path}/version"
 }
