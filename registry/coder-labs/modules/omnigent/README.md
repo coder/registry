@@ -33,6 +33,20 @@ module "omnigent" {
 }
 ```
 
+### With additional trusted origins
+
+The module automatically trusts Coder app origins derived from `CODER_AGENT_URL` and `VSCODE_PROXY_URI` when those environment variables are available. If you expose Omnigent through another reverse proxy, add that browser origin explicitly:
+
+```tf
+module "omnigent" {
+  source   = "registry.coder.com/coder-labs/omnigent/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+
+  allowed_origins = ["https://omnigent.example.com"]
+}
+```
+
 ### With AI tools (Omnigent + Claude Code + Codex)
 
 Compose Omnigent alongside other AI agent modules to create a full multi-agent workspace. This example authenticates Claude Code and Codex through Coder AI Gateway.

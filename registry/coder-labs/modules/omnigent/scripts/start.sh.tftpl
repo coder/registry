@@ -10,8 +10,51 @@ HOST_LOG="$${MODULE_DIR}/logs/host.log"
 ARG_PORT='${ARG_PORT}'
 ARG_EFFECTIVE_SERVER_CONFIG_PATH='${ARG_EFFECTIVE_SERVER_CONFIG_PATH}'
 ARG_AGENTS_DIR='${ARG_AGENTS_DIR}'
+ARG_ALLOWED_ORIGINS='${ARG_ALLOWED_ORIGINS}'
 
 mkdir -p "$${MODULE_DIR}/logs"
+
+append_allowed_origin() {
+  local origin="$${1:-}"
+  [ -n "$${origin}" ] || return 0
+  case ",$${OMNIGENT_ALLOWED_ORIGINS}," in
+    *",$${origin},"*) ;;
+    *)
+      if [ -n "$${OMNIGENT_ALLOWED_ORIGINS}" ]; then
+        OMNIGENT_ALLOWED_ORIGINS="$${OMNIGENT_ALLOWED_ORIGINS},$${origin}"
+      else
+        OMNIGENT_ALLOWED_ORIGINS="$${origin}"
+      fi
+      ;;
+  esac
+}
+
+origin_from_url() {
+  local url="$${1:-}"
+  case "$${url}" in
+    http://*|https://*)
+      printf '%s\n' "$${url}" | sed -E 's#^(https?://[^/]+).*#\1#'
+      ;;
+  esac
+}
+
+OMNIGENT_ALLOWED_ORIGINS="$${ARG_ALLOWED_ORIGINS}"
+append_allowed_origin "$(origin_from_url "$${CODER_AGENT_URL:-}")"
+
+# Coder app requests arrive with the browser Origin set to the app proxy URL.
+# Trust both the named app URL and the direct port-forward URL when Coder exposes
+# VSCODE_PROXY_URI in the workspace environment.
+if [ -n "$${VSCODE_PROXY_URI:-}" ]; then
+  port_proxy_url="$${VSCODE_PROXY_URI//\{\{port\}\}/$${ARG_PORT}}"
+  append_allowed_origin "$(origin_from_url "$${port_proxy_url}")"
+
+  if [ -n "$${CODER_WORKSPACE_AGENT_NAME:-}" ]; then
+    named_app_url="$${VSCODE_PROXY_URI//\{\{port\}\}--$${CODER_WORKSPACE_AGENT_NAME}--/omnigent--}"
+    if [ "$${named_app_url}" != "$${VSCODE_PROXY_URI}" ]; then
+      append_allowed_origin "$(origin_from_url "$${named_app_url}")"
+    fi
+  fi
+fi
 
 # Derive a stable admin password from the workspace ID (first 16 hex chars)
 OMNIGENT_ADMIN_PASSWORD=$(echo -n "$${CODER_WORKSPACE_ID}" | tr -d '-' | cut -c1-16)
@@ -38,6 +81,10 @@ if ! curl -sf "http://localhost:$${ARG_PORT}/health" &>/dev/null; then
   fi
 
   export OMNIGENT_ACCOUNTS_INIT_ADMIN_PASSWORD="$${OMNIGENT_ADMIN_PASSWORD}"
+  if [ -n "$${OMNIGENT_ALLOWED_ORIGINS}" ]; then
+    export OMNIGENT_WS_ALLOWED_ORIGINS="$${OMNIGENT_ALLOWED_ORIGINS}"
+    echo "Allowing Omnigent browser origins: $${OMNIGENT_WS_ALLOWED_ORIGINS}"
+  fi
   # shellcheck disable=SC2086
   nohup omnigent server $${SERVER_FLAGS} >> "$${SERVER_LOG}" 2>&1 &
 else

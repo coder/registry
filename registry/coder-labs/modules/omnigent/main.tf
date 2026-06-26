@@ -30,6 +30,12 @@ variable "port" {
   }
 }
 
+variable "allowed_origins" {
+  description = "Additional trusted browser origins for Omnigent HTTP/WebSocket CSRF checks. Use this when exposing Omnigent through a reverse proxy not covered by the automatic Coder app origin detection."
+  type        = list(string)
+  default     = []
+}
+
 variable "omnigent_version" {
   description = "Omnigent version to install. 'latest' installs the newest release."
   type        = string
@@ -115,6 +121,7 @@ locals {
     ARG_PORT                         = tostring(var.port)
     ARG_EFFECTIVE_SERVER_CONFIG_PATH = local.effective_server_config_path != null ? local.effective_server_config_path : ""
     ARG_AGENTS_DIR                   = local.agents_dir
+    ARG_ALLOWED_ORIGINS              = join(",", var.allowed_origins)
   })
 }
 

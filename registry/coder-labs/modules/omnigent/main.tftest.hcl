@@ -50,6 +50,45 @@ run "test_custom_port" {
   }
 }
 
+run "test_allowed_origins" {
+  command = plan
+
+  variables {
+    agent_id        = "test-agent"
+    allowed_origins = ["https://omnigent--workspace--owner--apps.example.com"]
+  }
+
+  assert {
+    condition     = contains(var.allowed_origins, "https://omnigent--workspace--owner--apps.example.com")
+    error_message = "allowed_origins should include the configured origin"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "OMNIGENT_WS_ALLOWED_ORIGINS")
+    error_message = "start script should export Omnigent's trusted origin allowlist"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "https://omnigent--workspace--owner--apps.example.com")
+    error_message = "start script should include the configured origin"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "CODER_AGENT_URL")
+    error_message = "start script should allow the path-based Coder app origin"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "VSCODE_PROXY_URI")
+    error_message = "start script should derive Coder app origins from VSCODE_PROXY_URI"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "omnigent--")
+    error_message = "start script should allow the named Omnigent Coder app origin"
+  }
+}
+
 run "test_custom_share" {
   command = plan
 
