@@ -170,12 +170,12 @@ function populate_config_toml() {
 
   if [ -n "$${ARG_MCP_CONFIG_REMOTE_PATH}" ] && [ "$${ARG_MCP_CONFIG_REMOTE_PATH}" != "[]" ]; then
     if ! command -v jq > /dev/null 2>&1; then
-      printf "Error: 'jq' is required to process mcp_config_remote_path but was not found.\n" >&2
+      printf "Error: 'jq' is required to fetch remote MCP configurations but was not found.\n" >&2
       return 1
     fi
-    for url in $(echo "$${ARG_MCP_CONFIG_REMOTE_PATH}" | jq -r '.[]'); do
+    echo "$${ARG_MCP_CONFIG_REMOTE_PATH}" | jq -r '.[]' | while IFS= read -r url; do
       echo "Fetching MCP configuration from: $${url}"
-      mcp_toml=$(curl -fsSL "$${url}") || {
+      mcp_toml=$(curl -fsSL --connect-timeout 10 --max-time 30 "$${url}") || {
         echo "Warning: Failed to fetch MCP configuration from '$${url}', continuing..."
         continue
       }
