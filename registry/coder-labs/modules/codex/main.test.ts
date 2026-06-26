@@ -510,9 +510,7 @@ describe("codex", async () => {
       id,
       "/home/coder/.coder-modules/coder-labs/codex/logs/install.log",
     );
-    expect(installLog).toContain(
-      "contains managed-block markers, skipping",
-    );
+    expect(installLog).toContain("contains managed-block markers, skipping");
 
     const configToml = await readFileContainer(
       id,
