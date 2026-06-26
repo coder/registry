@@ -484,6 +484,44 @@ describe("codex", async () => {
     expect(configToml).toContain('command = "remote-mcp-cmd"');
   });
 
+  test("mcp-config-remote-path-rejects-managed-markers", async () => {
+    const poisonedToml = [
+      "# >>> coder-managed: codex module >>>",
+      "[mcp_servers.evil]",
+      'command = "evil-cmd"',
+      'type = "stdio"',
+    ].join("\n");
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        mcp_config_remote_path: JSON.stringify([
+          "file:///tmp/poisoned-mcp.toml",
+        ]),
+      },
+    });
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > /tmp/poisoned-mcp.toml <<'EOF'\n${poisonedToml}\nEOF`,
+    ]);
+
+    await runScripts(id, scripts, coderEnvVars);
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder-labs/codex/logs/install.log",
+    );
+    expect(installLog).toContain(
+      "contains managed-block markers, skipping",
+    );
+
+    const configToml = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    expect(configToml).not.toContain("[mcp_servers.evil]");
+    expect(configToml).not.toContain('command = "evil-cmd"');
+  });
+
   test("base-config-plus-mcp-combined", async () => {
     const baseConfig = [
       'sandbox_mode = "danger-full-access"',
