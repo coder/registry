@@ -179,7 +179,7 @@ function populate_config_toml() {
         continue
       }
       printf "Appending MCP servers from %s\n" "$${url}"
-      printf '\n%s\n' "$${mcp_toml}" >> "$${config_path}"
+      printf '\n%s\n' "$${mcp_toml}" >> "$${managed}"
     done
     fi
   fi
