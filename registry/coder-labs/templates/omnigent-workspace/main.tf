@@ -149,7 +149,7 @@ module "git_clone" {
 
 module "codex" {
   source  = "registry.coder.com/coder-labs/codex/coder"
-  version = "5.2.0"
+  version = "5.2.1"
 
   agent_id           = coder_agent.main.id
   workdir            = module.git_clone.repo_dir

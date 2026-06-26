@@ -52,19 +52,25 @@ module "omnigent" {
 Compose Omnigent alongside other AI agent modules to create a full multi-agent workspace. This example authenticates Claude Code and Codex through Coder AI Gateway.
 
 ```tf
+locals {
+  workdir = "/home/coder/project"
+}
+
 module "codex" {
   source  = "registry.coder.com/coder-labs/codex/coder"
-  version = "5.0.0"
+  version = "5.2.1"
 
   agent_id          = coder_agent.main.id
+  workdir           = local.workdir
   enable_ai_gateway = true
 }
 
 module "claude_code" {
   source  = "registry.coder.com/coder/claude-code/coder"
-  version = ">= 4.0.0"
+  version = "5.2.0"
 
   agent_id          = coder_agent.main.id
+  workdir           = local.workdir
   enable_ai_gateway = true
 }
 
@@ -73,6 +79,15 @@ module "omnigent" {
   version = "1.0.0"
 
   agent_id = coder_agent.main.id
+
+  # Wait for Claude Code and Codex setup before Omnigent snapshots host tools.
+  pre_install_script = <<-EOT
+    #!/bin/bash
+    set -euo pipefail
+    coder exp sync want coder-labs-omnigent-ai-tools ${join(" ", concat(module.claude_code.scripts, module.codex.scripts))}
+    coder exp sync start coder-labs-omnigent-ai-tools
+    coder exp sync complete coder-labs-omnigent-ai-tools
+  EOT
 }
 ```
 
