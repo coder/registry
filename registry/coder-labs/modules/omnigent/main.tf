@@ -34,6 +34,12 @@ variable "allowed_origins" {
   description = "Additional trusted browser origins for Omnigent HTTP/WebSocket CSRF checks. Use this when exposing Omnigent through a reverse proxy not covered by the automatic Coder app origin detection."
   type        = list(string)
   default     = []
+  validation {
+    condition = alltrue([
+      for origin in var.allowed_origins : trimspace(origin) == origin && can(regex("^https?://[^/?#,[:space:]]+$", origin))
+    ])
+    error_message = "allowed_origins entries must be origins like https://omnigent.example.com (scheme, host, optional port; no path)."
+  }
 }
 
 variable "omnigent_version" {
@@ -81,6 +87,17 @@ variable "agents" {
     content = string
   }))
   default = []
+  validation {
+    condition = alltrue([
+      for agent in var.agents : (
+        length(trimspace(agent.name)) > 0 &&
+        !strcontains(agent.name, "\t") &&
+        !strcontains(agent.name, "\n") &&
+        !strcontains(agent.name, "\r")
+      )
+    ])
+    error_message = "agents entries must have a non-empty name without tab or newline characters."
+  }
 }
 
 variable "pre_install_script" {
@@ -121,7 +138,7 @@ locals {
     ARG_PORT                         = tostring(var.port)
     ARG_EFFECTIVE_SERVER_CONFIG_PATH = local.effective_server_config_path != null ? local.effective_server_config_path : ""
     ARG_AGENTS_DIR                   = local.agents_dir
-    ARG_ALLOWED_ORIGINS              = join(",", var.allowed_origins)
+    ARG_ALLOWED_ORIGINS_B64          = base64encode(join(",", var.allowed_origins))
   })
 }
 

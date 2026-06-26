@@ -4,13 +4,12 @@ set -euo pipefail
 export PATH="$${HOME}/.local/bin:$${PATH}"
 
 MODULE_DIR="$${HOME}/.coder-modules/coder-labs/omnigent"
-START_LOG="$${MODULE_DIR}/logs/start.log"
 SERVER_LOG="$${MODULE_DIR}/logs/server.log"
 HOST_LOG="$${MODULE_DIR}/logs/host.log"
 ARG_PORT='${ARG_PORT}'
 ARG_EFFECTIVE_SERVER_CONFIG_PATH='${ARG_EFFECTIVE_SERVER_CONFIG_PATH}'
 ARG_AGENTS_DIR='${ARG_AGENTS_DIR}'
-ARG_ALLOWED_ORIGINS='${ARG_ALLOWED_ORIGINS}'
+ARG_ALLOWED_ORIGINS=$(echo -n '${ARG_ALLOWED_ORIGINS_B64}' | base64 -d)
 
 mkdir -p "$${MODULE_DIR}/logs"
 
@@ -63,11 +62,11 @@ if ! curl -sf "http://localhost:$${ARG_PORT}/health" &>/dev/null; then
   echo "Starting Omnigent server on port $${ARG_PORT}..."
 
   # Build server flags
-  SERVER_FLAGS="--host 127.0.0.1 --port $${ARG_PORT} --no-open"
+  SERVER_FLAGS=(--host 127.0.0.1 --port "$${ARG_PORT}" --no-open)
 
   # Add config file if set and present
   if [ -n "$${ARG_EFFECTIVE_SERVER_CONFIG_PATH}" ] && [ -f "$${ARG_EFFECTIVE_SERVER_CONFIG_PATH}" ]; then
-    SERVER_FLAGS="$${SERVER_FLAGS} -c $${ARG_EFFECTIVE_SERVER_CONFIG_PATH}"
+    SERVER_FLAGS+=(-c "$${ARG_EFFECTIVE_SERVER_CONFIG_PATH}")
     echo "Using server config: $${ARG_EFFECTIVE_SERVER_CONFIG_PATH}"
   fi
 
@@ -75,7 +74,7 @@ if ! curl -sf "http://localhost:$${ARG_PORT}/health" &>/dev/null; then
   if [ -d "$${ARG_AGENTS_DIR}" ]; then
     for agent_file in "$${ARG_AGENTS_DIR}"/*.yaml; do
       [ -f "$${agent_file}" ] || continue
-      SERVER_FLAGS="$${SERVER_FLAGS} --agent $${agent_file}"
+      SERVER_FLAGS+=(--agent "$${agent_file}")
       echo "Registering agent: $${agent_file}"
     done
   fi
@@ -85,8 +84,7 @@ if ! curl -sf "http://localhost:$${ARG_PORT}/health" &>/dev/null; then
     export OMNIGENT_WS_ALLOWED_ORIGINS="$${OMNIGENT_ALLOWED_ORIGINS}"
     echo "Allowing Omnigent browser origins: $${OMNIGENT_WS_ALLOWED_ORIGINS}"
   fi
-  # shellcheck disable=SC2086
-  nohup omnigent server $${SERVER_FLAGS} >> "$${SERVER_LOG}" 2>&1 &
+  nohup omnigent server "$${SERVER_FLAGS[@]}" >> "$${SERVER_LOG}" 2>&1 &
 else
   echo "Omnigent server already running on port $${ARG_PORT}, skipping start."
 fi

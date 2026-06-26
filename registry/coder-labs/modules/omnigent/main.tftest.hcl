@@ -69,8 +69,8 @@ run "test_allowed_origins" {
   }
 
   assert {
-    condition     = strcontains(local.start_script, "https://omnigent--workspace--owner--apps.example.com")
-    error_message = "start script should include the configured origin"
+    condition     = strcontains(local.start_script, base64encode("https://omnigent--workspace--owner--apps.example.com"))
+    error_message = "start script should include the encoded configured origin"
   }
 
   assert {
@@ -87,6 +87,17 @@ run "test_allowed_origins" {
     condition     = strcontains(local.start_script, "omnigent--")
     error_message = "start script should allow the named Omnigent Coder app origin"
   }
+}
+
+run "test_invalid_allowed_origin_path" {
+  command = plan
+
+  variables {
+    agent_id        = "test-agent"
+    allowed_origins = ["https://omnigent.example.com/path"]
+  }
+
+  expect_failures = [var.allowed_origins]
 }
 
 run "test_custom_share" {
@@ -153,6 +164,19 @@ run "test_install_script_installs_uv" {
   }
 }
 
+run "test_install_script_clears_stale_agents" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "rm -f \"$${ARG_AGENTS_DIR}\"/*.yaml")
+    error_message = "install script should clear stale generated agent YAML files"
+  }
+}
+
 run "test_start_script_backgrounds_host" {
   command = plan
 
@@ -168,6 +192,24 @@ run "test_start_script_backgrounds_host" {
   assert {
     condition     = strcontains(local.start_script, "host.log")
     error_message = "start script should write Omnigent host logs to host.log"
+  }
+}
+
+run "test_start_script_quotes_server_flags" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "SERVER_FLAGS=(")
+    error_message = "start script should build server flags as a bash array"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "omnigent server \"$${SERVER_FLAGS[@]}\"")
+    error_message = "start script should pass server flags without word splitting"
   }
 }
 
@@ -274,6 +316,22 @@ run "test_server_config_mutual_exclusion" {
   }
 
   expect_failures = [var.server_config]
+}
+
+run "test_invalid_agent_name" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    agents = [
+      {
+        name    = "bad\tname"
+        content = "name: reviewer\ninstructions: You are a reviewer."
+      }
+    ]
+  }
+
+  expect_failures = [var.agents]
 }
 
 run "test_agents" {

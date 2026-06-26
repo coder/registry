@@ -59,15 +59,19 @@ omnigent config set server=http://localhost:$${ARG_PORT}
 if [ "$${ARG_WRITE_SERVER_CONFIG}" = "true" ]; then
   mkdir -p "$${ARG_SERVER_CONFIG_DIR}"
   printf "%s Writing server config to %s\n" "$${BOLD}" "$${ARG_SERVER_CONFIG_FILE}"
-  echo "$${ARG_SERVER_CONFIG}" > "$${ARG_SERVER_CONFIG_FILE}"
+  printf '%s\n' "$${ARG_SERVER_CONFIG}" > "$${ARG_SERVER_CONFIG_FILE}"
 fi
 
-# Write agent YAML files
+# Write agent YAML files. Clear stale generated files first so removed agents
+# are not re-registered on the next start.
+mkdir -p "$${ARG_AGENTS_DIR}"
+rm -f "$${ARG_AGENTS_DIR}"/*.yaml
 if [ -n "$${ARG_AGENTS}" ]; then
-  mkdir -p "$${ARG_AGENTS_DIR}"
-  while IFS=$'\t' read -r agent_name agent_content_b64; do
+  agent_index=0
+  while IFS=$'	' read -r agent_name agent_content_b64; do
     [ -z "$${agent_name}" ] && continue
-    agent_file="$${ARG_AGENTS_DIR}/$${agent_name}.yaml"
+    agent_index=$((agent_index + 1))
+    agent_file="$${ARG_AGENTS_DIR}/agent-$${agent_index}.yaml"
     printf "%s Writing agent: %s -> %s\n" "$${BOLD}" "$${agent_name}" "$${agent_file}"
     echo -n "$${agent_content_b64}" | base64 -d > "$${agent_file}"
   done <<< "$${ARG_AGENTS}"
