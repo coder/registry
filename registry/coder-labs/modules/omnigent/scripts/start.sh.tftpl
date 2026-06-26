@@ -58,11 +58,12 @@ for i in $(seq 1 90); do
   sleep 1
 done
 
-# Register local workspace as a host. `omnigent host` stays attached, so run it
-# in the background to let the Coder startup script finish.
-if ! pgrep -f "[o]mnigent host" >/dev/null 2>&1; then
+# Register local workspace as a host against the Coder app server. Passing an
+# empty server URL makes Omnigent spawn and connect to a separate local server,
+# leaving the Coder app server with an offline host record for filesystem calls.
+if ! pgrep -f "[o]mnigent host.*http://localhost:$${ARG_PORT}" >/dev/null 2>&1; then
   echo "Starting Omnigent host..."
-  nohup omnigent host "" >> "$${HOST_LOG}" 2>&1 &
+  nohup omnigent host --server "http://localhost:$${ARG_PORT}" >> "$${HOST_LOG}" 2>&1 &
 else
   echo "Omnigent host already running, skipping start."
 fi

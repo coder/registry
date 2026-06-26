@@ -132,6 +132,24 @@ run "test_start_script_backgrounds_host" {
   }
 }
 
+run "test_start_script_connects_host_to_app_server" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "omnigent host --server")
+    error_message = "start script should connect the host to the Coder app server"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "http://localhost:$${ARG_PORT}")
+    error_message = "start script should pass the configured Omnigent server port to the host"
+  }
+}
+
 run "test_port_output" {
   command = plan
 
