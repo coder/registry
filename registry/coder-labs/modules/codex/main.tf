@@ -118,10 +118,12 @@ resource "coder_env" "openai_api_key" {
 
 # Authenticates the client against Coder's AI Gateway using the workspace
 # owner's session token. Referenced by config.toml model_providers.aigateway.
+# Uses OPENAI_ prefix so the variable is preserved in OIAgent's filtered
+# subprocess environment (OIAgent strips non-OPENAI_ env vars).
 resource "coder_env" "ai_gateway_session_token" {
   count    = var.enable_ai_gateway ? 1 : 0
   agent_id = var.agent_id
-  name     = "CODER_AIBRIDGE_SESSION_TOKEN"
+  name     = "OPENAI_CODER_AIGATEWAY_SESSION_TOKEN"
   value    = data.coder_workspace_owner.me.session_token
 }
 
@@ -131,7 +133,7 @@ locals {
   [model_providers.aigateway]
   name = "AI Gateway"
   base_url = "${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1"
-  env_key = "CODER_AIBRIDGE_SESSION_TOKEN"
+  env_key = "OPENAI_CODER_AIGATEWAY_SESSION_TOKEN"
   wire_api = "responses"
 
   EOF
