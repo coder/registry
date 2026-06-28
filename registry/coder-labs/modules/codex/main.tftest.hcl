@@ -60,8 +60,8 @@ run "test_ai_gateway_enabled" {
   }
 
   assert {
-    condition     = coder_env.ai_gateway_session_token[0].name == "CODER_AIBRIDGE_SESSION_TOKEN"
-    error_message = "CODER_AIBRIDGE_SESSION_TOKEN should be set"
+    condition     = coder_env.ai_gateway_session_token[0].name == "OPENAI_CODER_AIGATEWAY_SESSION_TOKEN"
+    error_message = "OPENAI_CODER_AIGATEWAY_SESSION_TOKEN should be set"
   }
 
   assert {
