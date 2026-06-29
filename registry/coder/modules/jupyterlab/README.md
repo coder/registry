@@ -12,12 +12,34 @@ A module that adds JupyterLab in your Coder template.
 
 ![JupyterLab](../../.images/jupyterlab.png)
 
+JupyterLab listens on `127.0.0.1` by default so that unauthenticated traffic
+must pass through Coder's application proxy.
+
+## Usage
+
 ```tf
 module "jupyterlab" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jupyterlab/coder"
-  version  = "1.2.2"
+  version  = "1.3.0"
   agent_id = coder_agent.main.id
+}
+```
+
+## External network access
+
+> [!WARNING]
+> For advanced environments that require direct network access, set `host`
+> explicitly. Binding to `0.0.0.0` exposes the unauthenticated service to every
+> reachable network interface and is less secure.
+
+```tf
+module "jupyterlab" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/jupyterlab/coder"
+  version  = "1.3.0"
+  agent_id = coder_agent.main.id
+  host     = "0.0.0.0"
 }
 ```
 
@@ -29,7 +51,7 @@ JupyterLab is automatically configured to work with Coder's iframe embedding. Fo
 module "jupyterlab" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jupyterlab/coder"
-  version  = "1.2.2"
+  version  = "1.3.0"
   agent_id = coder_agent.main.id
   config = {
     ServerApp = {
