@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+
+if [ -f "$HOME/.bashrc" ]; then
+  # shellcheck disable=SC1090
+  source "$HOME/.bashrc"
+fi
+
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+  # shellcheck disable=SC1091
+  source "$HOME/.nvm/nvm.sh"
+fi
+
+set -euo pipefail
+
+ARG_CLOUDCLI_VERSION='${ARG_CLOUDCLI_VERSION}'
+MODULE_ROOT="$HOME/.coder-modules/edd88-pixel/cloudcli"
+RUNTIME_DIR="$MODULE_ROOT/runtime"
+PACKAGE_DIR="$RUNTIME_DIR/node_modules/@cloudcli-ai/cloudcli"
+CLOUDCLI_BIN="$RUNTIME_DIR/node_modules/.bin/cloudcli"
+PACKAGE_SPEC="@cloudcli-ai/cloudcli@$ARG_CLOUDCLI_VERSION"
+
+require_command() {
+  if ! command -v "$1" > /dev/null 2>&1; then
+    printf 'Error: %s is required. Install Node.js 22 or newer with npm in the workspace image.\n' "$1" >&2
+    exit 1
+  fi
+}
+
+require_supported_node() {
+  local node_version
+  local node_major
+
+  node_version="$(node --version)"
+  node_major="$${node_version#v}"
+  node_major="$${node_major%%.*}"
+
+  if ! [[ "$node_major" =~ ^[0-9]+$ ]] || ((node_major < 22)); then
+    printf 'Error: CloudCLI requires Node.js 22 or newer; found %s.\n' "$node_version" >&2
+    exit 1
+  fi
+
+  printf 'Using Node.js %s and npm %s.\n' "$node_version" "$(npm --version)"
+}
+
+installed_version() {
+  if [ ! -f "$PACKAGE_DIR/package.json" ]; then
+    return 1
+  fi
+
+  PACKAGE_JSON="$PACKAGE_DIR/package.json" node -p "require(process.env.PACKAGE_JSON).version"
+}
+
+require_command node
+require_command npm
+require_supported_node
+
+mkdir -p "$RUNTIME_DIR" "$MODULE_ROOT/data" "$MODULE_ROOT/run"
+
+current_version="$(installed_version || true)"
+if [ "$current_version" = "$ARG_CLOUDCLI_VERSION" ] && [ -x "$CLOUDCLI_BIN" ]; then
+  printf 'CloudCLI %s is already installed in %s.\n' "$current_version" "$RUNTIME_DIR"
+  exit 0
+fi
+
+printf 'Installing %s in %s.\n' "$PACKAGE_SPEC" "$RUNTIME_DIR"
+npm install \
+  --prefix "$RUNTIME_DIR" \
+  --no-save \
+  --package-lock=false \
+  --omit=dev \
+  --no-audit \
+  --no-fund \
+  "$PACKAGE_SPEC"
+
+if [ ! -x "$CLOUDCLI_BIN" ]; then
+  printf 'Error: CloudCLI installation completed without creating %s.\n' "$CLOUDCLI_BIN" >&2
+  exit 1
+fi
+
+current_version="$(installed_version)"
+if [ "$current_version" != "$ARG_CLOUDCLI_VERSION" ]; then
+  printf 'Error: expected CloudCLI %s but npm installed %s.\n' "$ARG_CLOUDCLI_VERSION" "$current_version" >&2
+  exit 1
+fi
+
+printf 'Installed CloudCLI %s successfully.\n' "$current_version"
