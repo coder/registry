@@ -24,7 +24,7 @@ HEALTH_URL="http://127.0.0.1:$ARG_PORT/health"
 
 health_ready() {
   if command -v curl > /dev/null 2>&1; then
-    curl --fail --silent --show-error --max-time 2 "$HEALTH_URL" > /dev/null
+    curl --fail --silent --max-time 2 "$HEALTH_URL" > /dev/null
     return
   fi
 
@@ -158,6 +158,7 @@ nohup "$CLOUDCLI_BIN" start \
   >> "$SERVICE_LOG" 2>&1 &
 cloudcli_pid=$!
 printf '%s\n' "$cloudcli_pid" > "$PID_FILE"
+printf 'Waiting for CloudCLI to come online...\n'
 
 for _ in $(seq 1 60); do
   if health_ready; then

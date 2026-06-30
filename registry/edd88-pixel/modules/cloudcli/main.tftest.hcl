@@ -23,6 +23,11 @@ run "defaults_are_secure" {
   }
 
   assert {
+    condition     = coder_app.cloudcli.icon == "https://avatars.githubusercontent.com/u/252026187?s=200&v=4"
+    error_message = "The app must use the CloudCLI project icon."
+  }
+
+  assert {
     condition     = one(coder_app.cloudcli.healthcheck).url == "http://localhost:3001/health"
     error_message = "The health check must use CloudCLI's /health endpoint."
   }
@@ -55,6 +60,14 @@ run "defaults_are_secure" {
   assert {
     condition     = strcontains(coder_script.start_script.script, "coder exp sync start --timeout 30m edd88-pixel-cloudcli-start_script")
     error_message = "The start script must allow slow first-time CloudCLI installations to finish."
+  }
+
+  assert {
+    condition = (
+      strcontains(local.start_script, "Waiting for CloudCLI to come online...") &&
+      !strcontains(local.start_script, "--show-error")
+    )
+    error_message = "Readiness polling must log a calm status message without transient curl warnings."
   }
 }
 

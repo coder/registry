@@ -23,6 +23,28 @@ module "cloudcli" {
 
 The workspace image must provide Node.js 22 or newer and npm. Install and authenticate at least one CloudCLI-supported coding agent, such as Claude Code, Cursor CLI, Codex, Gemini CLI, or OpenCode, before using this module. The module reuses those existing agent installations and credentials; it does not install agents or modify their authentication, permissions, settings, or MCP configuration.
 
+For example, install and authenticate Claude Code alongside CloudCLI:
+
+```tf
+module "claude-code" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "5.2.0"
+  agent_id = coder_agent.main.id
+
+  anthropic_api_key = var.anthropic_api_key
+}
+
+module "cloudcli" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/edd88-pixel/cloudcli/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+}
+```
+
+See the [Claude Code module](https://registry.coder.com/modules/coder/claude-code) for OAuth and Coder AI Gateway authentication alternatives.
+
 ## Security
 
 CloudCLI has access to files and authenticated coding agents inside the workspace. This module therefore:
@@ -33,6 +55,12 @@ CloudCLI has access to files and authenticated coding agents inside the workspac
 - stores module-managed logs, runtime data, and process state under `$HOME/.coder-modules/edd88-pixel/cloudcli`.
 
 No public listener, TLS proxy, tunnel, process manager, or nested container runtime is created.
+
+> [!IMPORTANT]
+> CloudCLI currently requires Coder's [wildcard access URL](https://coder.com/docs/admin/networking/wildcard-access-url). Its frontend uses root-relative API and WebSocket routes that are not compatible with Coder's path-based app proxy.
+
+> [!NOTE]
+> CloudCLI's open source single-user mode currently requires a one-time account setup. The Coder app remains restricted to the workspace owner, but this module does not bypass CloudCLI's authentication.
 
 ## Limit project discovery
 

@@ -63,6 +63,7 @@ variable "group" {
 }
 
 locals {
+  icon_url          = "https://avatars.githubusercontent.com/u/252026187?s=200&v=4"
   module_directory  = "$HOME/.coder-modules/edd88-pixel/cloudcli"
   start_script_name = "edd88-pixel-cloudcli-start_script"
   start_script_path = "${local.module_directory}/scripts/start.sh"
@@ -85,14 +86,14 @@ module "coder_utils" {
   agent_id            = var.agent_id
   module_directory    = local.module_directory
   display_name_prefix = "CloudCLI"
-  icon                = "/icon/cloudcli.svg"
+  icon                = local.icon_url
   install_script      = local.install_script
 }
 
 resource "coder_script" "start_script" {
   agent_id           = var.agent_id
   display_name       = "CloudCLI: Start Script"
-  icon               = "/icon/cloudcli.svg"
+  icon               = local.icon_url
   run_on_start       = true
   start_blocks_login = false
 
@@ -113,12 +114,13 @@ resource "coder_script" "start_script" {
   EOT
 }
 
+# CloudCLI 1.35.0 uses root-relative API and WebSocket routes, so Coder's path proxy cannot serve it correctly.
 resource "coder_app" "cloudcli" {
   agent_id     = var.agent_id
   slug         = "cloudcli"
   display_name = "CloudCLI"
   url          = "http://localhost:${var.port}"
-  icon         = "/icon/cloudcli.svg"
+  icon         = local.icon_url
   subdomain    = true
   share        = "owner"
   order        = var.order

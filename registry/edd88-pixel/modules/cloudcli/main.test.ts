@@ -213,6 +213,7 @@ const startCloudCLI = async (result: SetupResult) => {
     console.error(response.stderr);
   }
   expect(response.exitCode).toBe(0);
+  return response;
 };
 
 afterEach(async () => {
@@ -297,7 +298,9 @@ describe("cloudcli", async () => {
       ],
       ["--user", "root"],
     );
-    await startCloudCLI(result);
+    const response = await startCloudCLI(result);
+    expect(response.stdout).toContain("Waiting for CloudCLI to come online...");
+    expect(response.stderr).not.toContain("curl:");
 
     const health = await execContainer(
       result.id,
