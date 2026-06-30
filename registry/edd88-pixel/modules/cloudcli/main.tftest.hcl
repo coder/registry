@@ -51,6 +51,11 @@ run "defaults_are_secure" {
     condition     = length(output.scripts) == 2
     error_message = "The coder-utils pipeline must expose install and start scripts."
   }
+
+  assert {
+    condition     = strcontains(coder_script.start_script.script, "coder exp sync start --timeout 30m edd88-pixel-cloudcli-start_script")
+    error_message = "The start script must allow slow first-time CloudCLI installations to finish."
+  }
 }
 
 run "custom_configuration" {

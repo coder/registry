@@ -63,7 +63,10 @@ variable "group" {
 }
 
 locals {
-  module_directory = "$HOME/.coder-modules/edd88-pixel/cloudcli"
+  module_directory  = "$HOME/.coder-modules/edd88-pixel/cloudcli"
+  start_script_name = "edd88-pixel-cloudcli-start_script"
+  start_script_path = "${local.module_directory}/scripts/start.sh"
+  start_log_path    = "${local.module_directory}/logs/start.log"
 
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_CLOUDCLI_VERSION = var.cloudcli_version
@@ -84,7 +87,30 @@ module "coder_utils" {
   display_name_prefix = "CloudCLI"
   icon                = "/icon/cloudcli.svg"
   install_script      = local.install_script
-  start_script        = local.start_script
+}
+
+resource "coder_script" "start_script" {
+  agent_id           = var.agent_id
+  display_name       = "CloudCLI: Start Script"
+  icon               = "/icon/cloudcli.svg"
+  run_on_start       = true
+  start_blocks_login = false
+
+  script = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    trap 'coder exp sync complete ${local.start_script_name}' EXIT
+
+    coder exp sync want ${local.start_script_name} ${module.coder_utils.scripts[0]}
+    coder exp sync start --timeout 30m ${local.start_script_name}
+
+    echo -n '${base64encode(local.start_script)}' | base64 -d > ${local.start_script_path}
+    chmod +x ${local.start_script_path}
+
+    ${local.start_script_path} 2>&1 | tee ${local.start_log_path}
+  EOT
 }
 
 resource "coder_app" "cloudcli" {
@@ -107,5 +133,5 @@ resource "coder_app" "cloudcli" {
 
 output "scripts" {
   description = "Ordered list of coder exp sync names produced by the CloudCLI install and start pipeline."
-  value       = module.coder_utils.scripts
+  value       = concat(module.coder_utils.scripts, [local.start_script_name])
 }
