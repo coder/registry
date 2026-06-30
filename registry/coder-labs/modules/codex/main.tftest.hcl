@@ -60,8 +60,8 @@ run "test_ai_gateway_enabled" {
   }
 
   assert {
-    condition     = coder_env.ai_gateway_session_token[0].name == "CODER_AIBRIDGE_SESSION_TOKEN"
-    error_message = "CODER_AIBRIDGE_SESSION_TOKEN should be set"
+    condition     = coder_env.ai_gateway_session_token[0].name == "OPENAI_CODER_AIGATEWAY_SESSION_TOKEN"
+    error_message = "OPENAI_CODER_AIGATEWAY_SESSION_TOKEN should be set"
   }
 
   assert {
@@ -181,5 +181,36 @@ run "test_workdir_optional" {
   assert {
     condition     = length(output.scripts) == 1
     error_message = "scripts output should have install script even without workdir"
+  }
+}
+
+run "test_mcp_config_remote_path" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    workdir  = "/home/coder"
+    mcp_config_remote_path = [
+      "https://example.com/mcp-one.toml",
+      "https://example.com/mcp-two.toml",
+    ]
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, base64encode(jsonencode(var.mcp_config_remote_path)))
+    error_message = "install script should embed the base64-encoded mcp_config_remote_path JSON"
+  }
+}
+
+run "test_mcp_config_remote_path_default" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+  }
+
+  assert {
+    condition     = length(var.mcp_config_remote_path) == 0
+    error_message = "mcp_config_remote_path should default to an empty list"
   }
 }
