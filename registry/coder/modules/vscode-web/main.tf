@@ -150,7 +150,7 @@ variable "subdomain" {
 
 variable "open_in" {
   description = <<-EOT
-    Determines where the app will be opened. Valid values are `"tab"` and `"slim-window" (default)`.
+    Determines where the app will be opened. Valid values are `"tab"` and `"slim-window"` (default).
     `"tab"` opens in a new tab in the same browser window.
     `"slim-window"` opens a new browser window without navigation controls.
   EOT
