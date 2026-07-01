@@ -1,0 +1,117 @@
+#!/bin/bash
+
+set -euo pipefail
+
+BOLD='\033[0;1m'
+
+command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+ARG_PLANDEX_VERSION='${ARG_PLANDEX_VERSION}'
+ARG_INSTALL_PLANDEX='${ARG_INSTALL_PLANDEX}'
+ARG_WORKDIR='${ARG_WORKDIR}'
+
+# Plandex's official installer drops the binary in /usr/local/bin (with sudo)
+# or $HOME/.local/bin (without). Prepend the latter so the binary is on PATH
+# regardless of which path the installer chose.
+export PATH="$HOME/.local/bin:$PATH"
+
+echo "--------------------------------"
+printf "ARG_PLANDEX_VERSION: %s\n" "$ARG_PLANDEX_VERSION"
+printf "ARG_INSTALL_PLANDEX: %s\n" "$ARG_INSTALL_PLANDEX"
+printf "ARG_WORKDIR: %s\n" "$ARG_WORKDIR"
+echo "--------------------------------"
+
+add_path_to_shell_profiles() {
+  local path_dir="$1"
+
+  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    if [ -f "$profile" ]; then
+      if ! grep -q "$path_dir" "$profile" 2> /dev/null; then
+        echo "export PATH=\"\$PATH:$path_dir\"" >> "$profile"
+        echo "Added $path_dir to $profile"
+      fi
+    fi
+  done
+
+  local fish_config="$HOME/.config/fish/config.fish"
+  if [ -f "$fish_config" ]; then
+    if ! grep -q "$path_dir" "$fish_config" 2> /dev/null; then
+      echo "fish_add_path $path_dir" >> "$fish_config"
+      echo "Added $path_dir to $fish_config"
+    fi
+  fi
+}
+
+ensure_plandex_in_path() {
+  local PLANDEX_BIN=""
+  if command -v plandex > /dev/null 2>&1; then
+    PLANDEX_BIN=$(command -v plandex)
+  elif [ -x "$HOME/.local/bin/plandex" ]; then
+    PLANDEX_BIN="$HOME/.local/bin/plandex"
+  elif [ -x "/usr/local/bin/plandex" ]; then
+    PLANDEX_BIN="/usr/local/bin/plandex"
+  fi
+
+  if [ -z "$PLANDEX_BIN" ] || [ ! -x "$PLANDEX_BIN" ]; then
+    echo "Warning: Could not find plandex binary on PATH after install."
+    return
+  fi
+
+  local PLANDEX_DIR
+  PLANDEX_DIR=$(dirname "$PLANDEX_BIN")
+
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$CODER_SCRIPT_BIN_DIR/plandex" ]; then
+    ln -s "$PLANDEX_BIN" "$CODER_SCRIPT_BIN_DIR/plandex"
+    echo "Created symlink: $CODER_SCRIPT_BIN_DIR/plandex -> $PLANDEX_BIN"
+  fi
+
+  add_path_to_shell_profiles "$PLANDEX_DIR"
+}
+
+install_plandex_cli() {
+  if [ "$ARG_INSTALL_PLANDEX" != "true" ]; then
+    echo "Skipping Plandex installation as per configuration."
+    ensure_plandex_in_path
+    return
+  fi
+
+  if command_exists plandex; then
+    echo "Plandex already installed: $(plandex version 2> /dev/null || echo 'unknown version')"
+    ensure_plandex_in_path
+    return
+  fi
+
+  printf "$${BOLD}Installing Plandex CLI (version: %s)...\n" "$ARG_PLANDEX_VERSION"
+
+  if [ "$ARG_PLANDEX_VERSION" = "latest" ]; then
+    curl -sL https://plandex.ai/install.sh | bash
+  else
+    # The Plandex installer reads the PLANDEX_VERSION env var to pin a specific
+    # version. Strip a leading 'v' so users can pass either '2.2.1' or 'v2.2.1'.
+    local pinned_version="$${ARG_PLANDEX_VERSION#v}"
+    curl -sL https://plandex.ai/install.sh | PLANDEX_VERSION="$pinned_version" bash
+  fi
+
+  ensure_plandex_in_path
+
+  if ! command_exists plandex; then
+    echo "ERROR: Plandex installation appears to have failed."
+    exit 1
+  fi
+
+  echo "Installed Plandex successfully: $(plandex version 2> /dev/null || echo 'unknown version')"
+}
+
+setup_workdir() {
+  if [ -n "$ARG_WORKDIR" ] && [ ! -d "$ARG_WORKDIR" ]; then
+    echo "Workdir '$ARG_WORKDIR' does not exist; creating it."
+    mkdir -p "$ARG_WORKDIR"
+  fi
+}
+
+install_plandex_cli
+setup_workdir
+
+echo "Plandex module setup completed."
