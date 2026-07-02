@@ -62,20 +62,20 @@ install_agent_firewall() {
   if [[ "$${COMPILE_AGENT_FIREWALL_FROM_SOURCE}" = "true" ]]; then
     echo "Compiling agent-firewall from source (version: $${AGENT_FIREWALL_VERSION})"
 
-    # Remove existing boundary directory to allow re-running safely
-    if [[ -d boundary ]]; then
-      rm -rf boundary
+    # Remove existing agent-firewall directory to allow re-running safely
+    if [[ -d agent-firewall ]]; then
+      rm -rf agent-firewall
     fi
 
     echo "Cloning boundary repository"
-    git clone https://github.com/coder/boundary.git
-    cd boundary || exit 1
+    git clone https://github.com/coder/boundary.git agent-firewall
+    cd agent-firewall || exit 1
     git checkout "$${AGENT_FIREWALL_VERSION}"
 
     make build
 
-    sudo cp boundary /usr/local/bin/
-    sudo chmod +x /usr/local/bin/boundary
+    sudo cp boundary /usr/local/bin/agent-firewall
+    sudo chmod +x /usr/local/bin/agent-firewall
     cd - || exit 1
   elif [[ "$${USE_AGENT_FIREWALL_DIRECTLY}" = "true" ]]; then
     echo "Installing agent-firewall using official install script (version: $${AGENT_FIREWALL_VERSION})"
@@ -116,7 +116,7 @@ setup_agent_firewall() {
     cat > "$${AGENT_FIREWALL_WRAPPER_PATH}" << 'WRAPPER_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-exec boundary "$@"
+exec agent-firewall "$@"
 WRAPPER_EOF
   else
     # Use detected coder subcommand (agent-firewall or boundary)
