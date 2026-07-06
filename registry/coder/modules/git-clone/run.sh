@@ -67,7 +67,7 @@ if echo "$REPO_URL" | grep -qE '^git@|^ssh://'; then
   if ! ssh-keygen -F "$SSH_HOST" > /dev/null 2>&1; then
     echo "Adding host key for $SSH_HOST to known_hosts..."
     if command -v ssh-keyscan > /dev/null 2>&1; then
-      if KNOWN_HOST_ENTRY=$(ssh-keyscan -H -t rsa,ecdsa,ed25519 "$SSH_HOST" 2>/dev/null) && [ -n "$KNOWN_HOST_ENTRY" ]; then
+      if KNOWN_HOST_ENTRY=$(ssh-keyscan -H -t rsa,ecdsa,ed25519 "$SSH_HOST" 2> /dev/null) && [ -n "$KNOWN_HOST_ENTRY" ]; then
         printf '%s\n' "$KNOWN_HOST_ENTRY" >> "$HOME/.ssh/known_hosts"
         echo "Host key for $SSH_HOST added to known_hosts."
       else
