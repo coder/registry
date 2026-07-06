@@ -382,6 +382,55 @@ run "test_icon_applied" {
   }
 }
 
+run "test_start_blocks_login_applied" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent-id"
+    module_directory    = "$HOME/.coder-modules/test/example"
+    pre_install_script  = "echo pre"
+    install_script      = "echo install"
+    post_install_script = "echo post"
+    start_script        = "echo start"
+    start_blocks_login  = true
+  }
+
+  assert {
+    condition     = coder_script.pre_install_script[0].start_blocks_login
+    error_message = "Pre-install script should block login when configured"
+  }
+
+  assert {
+    condition     = coder_script.install_script.start_blocks_login
+    error_message = "Install script should block login when configured"
+  }
+
+  assert {
+    condition     = coder_script.post_install_script[0].start_blocks_login
+    error_message = "Post-install script should block login when configured"
+  }
+
+  assert {
+    condition     = coder_script.start_script[0].start_blocks_login
+    error_message = "Start script should block login when configured"
+  }
+}
+
+run "test_start_blocks_login_disabled_by_default" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent-id"
+    module_directory = "$HOME/.coder-modules/test/example"
+    install_script   = "echo install"
+  }
+
+  assert {
+    condition     = !coder_script.install_script.start_blocks_login
+    error_message = "Install script should not block login by default"
+  }
+}
+
 # Verify optional scripts are not created when their variables are unset
 run "test_optional_scripts_absent_by_default" {
   command = plan

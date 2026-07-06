@@ -65,6 +65,12 @@ variable "icon" {
   default     = null
 }
 
+variable "start_blocks_login" {
+  description = "Whether configured scripts block workspace login until they complete."
+  type        = bool
+  default     = false
+}
+
 locals {
   path_parts  = split("/", var.module_directory)
   caller_name = "${local.path_parts[length(local.path_parts) - 2]}-${local.path_parts[length(local.path_parts) - 1]}"
@@ -104,12 +110,13 @@ locals {
 }
 
 resource "coder_script" "pre_install_script" {
-  count        = var.pre_install_script == null ? 0 : 1
-  agent_id     = var.agent_id
-  display_name = "${local.display_name_prefix}Pre-Install Script"
-  icon         = var.icon
-  run_on_start = true
-  script       = <<-EOT
+  count              = var.pre_install_script == null ? 0 : 1
+  agent_id           = var.agent_id
+  display_name       = "${local.display_name_prefix}Pre-Install Script"
+  icon               = var.icon
+  run_on_start       = true
+  start_blocks_login = var.start_blocks_login
+  script             = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
@@ -129,11 +136,12 @@ resource "coder_script" "pre_install_script" {
 }
 
 resource "coder_script" "install_script" {
-  agent_id     = var.agent_id
-  display_name = "${local.display_name_prefix}Install Script"
-  icon         = var.icon
-  run_on_start = true
-  script       = <<-EOT
+  agent_id           = var.agent_id
+  display_name       = "${local.display_name_prefix}Install Script"
+  icon               = var.icon
+  run_on_start       = true
+  start_blocks_login = var.start_blocks_login
+  script             = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
@@ -155,12 +163,13 @@ resource "coder_script" "install_script" {
 }
 
 resource "coder_script" "post_install_script" {
-  count        = var.post_install_script != null ? 1 : 0
-  agent_id     = var.agent_id
-  display_name = "${local.display_name_prefix}Post-Install Script"
-  icon         = var.icon
-  run_on_start = true
-  script       = <<-EOT
+  count              = var.post_install_script != null ? 1 : 0
+  agent_id           = var.agent_id
+  display_name       = "${local.display_name_prefix}Post-Install Script"
+  icon               = var.icon
+  run_on_start       = true
+  start_blocks_login = var.start_blocks_login
+  script             = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
@@ -177,12 +186,13 @@ resource "coder_script" "post_install_script" {
 }
 
 resource "coder_script" "start_script" {
-  count        = var.start_script != null ? 1 : 0
-  agent_id     = var.agent_id
-  display_name = "${local.display_name_prefix}Start Script"
-  icon         = var.icon
-  run_on_start = true
-  script       = <<-EOT
+  count              = var.start_script != null ? 1 : 0
+  agent_id           = var.agent_id
+  display_name       = "${local.display_name_prefix}Start Script"
+  icon               = var.icon
+  run_on_start       = true
+  start_blocks_login = var.start_blocks_login
+  script             = <<-EOT
     #!/bin/bash
     set -o errexit
     set -o pipefail
