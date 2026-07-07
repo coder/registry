@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PYTHON_PACKAGES='${PYTHON_PACKAGES}'
+UPDATE_PACKAGES='${UPDATE_PACKAGES}'
+CREATE_PYTHON_ALIAS='${CREATE_PYTHON_ALIAS}'
+
+if ! command -v apt-get >/dev/null 2>&1; then
+  echo "apt-get not found; this module supports Debian/Ubuntu workspaces only."
+  exit 1
+fi
+
+if ! command -v dpkg-query >/dev/null 2>&1; then
+  echo "dpkg-query not found; cannot determine installed packages."
+  exit 1
+fi
+
+read -r -a packages <<< "$${PYTHON_PACKAGES}"
+
+missing_packages=()
+for package in "$${packages[@]}"; do
+  if ! dpkg-query -W -f='$${Status}' "$${package}" 2>/dev/null | grep -q "install ok installed"; then
+    missing_packages+=("$${package}")
+  fi
+done
+
+if [ "$${#missing_packages[@]}" -eq 0 ]; then
+  echo "All requested Python packages are already installed."
+else
+  if [ "$${UPDATE_PACKAGES}" = "true" ]; then
+    echo "Updating apt package index..."
+    sudo apt-get -o DPkg::Lock::Timeout=300 update
+  else
+    echo "Skipping apt-get update because update_packages=false."
+  fi
+
+  echo "Installing missing Python packages: $${missing_packages[*]}"
+  DEBIAN_FRONTEND=noninteractive sudo apt-get -o DPkg::Lock::Timeout=300 install -y "$${missing_packages[@]}"
+fi
+
+if command -v python3 >/dev/null 2>&1; then
+  python3 --version
+fi
+
+if [ "$${CREATE_PYTHON_ALIAS}" = "true" ] && ! command -v python >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
+  echo "Creating python alias for python3 at /usr/local/bin/python..."
+  sudo ln -sf "$(command -v python3)" /usr/local/bin/python
+fi
+
+if command -v python >/dev/null 2>&1; then
+  python --version
+fi
+
+if command -v pip3 >/dev/null 2>&1; then
+  pip3 --version || true
+elif command -v pip >/dev/null 2>&1; then
+  pip --version || true
+else
+  echo "pip not found after install; skipping pip version check."
+fi
