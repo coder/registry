@@ -148,6 +148,20 @@ variable "subdomain" {
   default     = true
 }
 
+variable "open_in" {
+  description = <<-EOT
+    Determines where the app will be opened. Valid values are `"tab"` and `"slim-window"` (default).
+    `"tab"` opens in a new tab in the same browser window.
+    `"slim-window"` opens a new browser window without navigation controls.
+  EOT
+  type        = string
+  default     = "slim-window"
+  validation {
+    condition     = contains(["tab", "slim-window"], var.open_in)
+    error_message = "The 'open_in' variable must be one of: 'tab', 'slim-window'."
+  }
+}
+
 variable "platform" {
   type        = string
   description = "The platform to use for the VS Code Web."
@@ -223,6 +237,7 @@ resource "coder_app" "vscode-web" {
   share        = var.share
   order        = var.order
   group        = var.group
+  open_in      = var.open_in
 
   healthcheck {
     url       = local.healthcheck_url
@@ -240,5 +255,5 @@ locals {
     "http://localhost:${var.port}${local.server_base_path}?folder=${urlencode(var.folder)}" :
     "http://localhost:${var.port}${local.server_base_path}"
   )
-  healthcheck_url = var.subdomain ? "http://localhost:${var.port}/healthz" : "http://localhost:${var.port}${local.server_base_path}/healthz"
+  healthcheck_url = var.subdomain ? "http://localhost:${var.port}/version" : "http://localhost:${var.port}${local.server_base_path}/version"
 }

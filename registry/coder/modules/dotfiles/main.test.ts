@@ -1,9 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import {
+  findResourceInstance,
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
 } from "~test";
+import { readableStreamToText, spawn } from "bun";
 
 describe("dotfiles", async () => {
   await runTerraformInit(import.meta.dir);
@@ -34,6 +36,24 @@ describe("dotfiles", async () => {
         dotfiles_uri: url,
       });
       expect(state.outputs.dotfiles_uri.value).toBe(url);
+
+      // Run the rendered shell script to verify the shell-side URI
+      // validation also accepts the URL. The script will fail later
+      // (no coder binary available), but it must not fail at the
+      // URI validation step.
+      const instance = findResourceInstance(state, "coder_script");
+      const proc = spawn(["bash", "-c", instance.script], {
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const stderr = await readableStreamToText(proc.stderr);
+      await proc.exited;
+      expect(stderr).not.toContain(
+        "ERROR: DOTFILES_URI contains invalid characters",
+      );
+      expect(stderr).not.toContain(
+        "ERROR: DOTFILES_URI must be a valid repository URL",
+      );
     }
   });
 
@@ -54,6 +74,21 @@ describe("dotfiles", async () => {
         }),
       ).rejects.toThrow();
     }
+  });
+
+  it("command uses bash for fish shell compatibility", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      manual_update: "true",
+      dotfiles_uri: "https://github.com/test/dotfiles",
+    });
+
+    const app = state.resources.find(
+      (r) => r.type === "coder_app" && r.name === "dotfiles",
+    );
+
+    expect(app).toBeDefined();
+    expect(app?.instances[0]?.attributes?.command).toContain("/bin/bash -c");
   });
 
   it("set custom order for coder_parameter", async () => {

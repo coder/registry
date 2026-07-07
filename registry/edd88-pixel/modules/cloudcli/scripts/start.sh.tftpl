@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+
+if [ -f "$HOME/.bashrc" ]; then
+  # shellcheck disable=SC1090
+  source "$HOME/.bashrc"
+fi
+
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+  # shellcheck disable=SC1091
+  source "$HOME/.nvm/nvm.sh"
+fi
+
+set -euo pipefail
+
+ARG_PORT='${ARG_PORT}'
+ARG_WORKSPACES_ROOT_B64='${ARG_WORKSPACES_ROOT_B64}'
+MODULE_ROOT="$HOME/.coder-modules/edd88-pixel/cloudcli"
+CLOUDCLI_BIN="$MODULE_ROOT/runtime/node_modules/.bin/cloudcli"
+DATA_DIR="$MODULE_ROOT/data"
+RUN_DIR="$MODULE_ROOT/run"
+PID_FILE="$RUN_DIR/cloudcli.pid"
+SERVICE_LOG="$MODULE_ROOT/logs/cloudcli.log"
+HEALTH_URL="http://127.0.0.1:$ARG_PORT/health"
+
+health_ready() {
+  if command -v curl > /dev/null 2>&1; then
+    curl --fail --silent --max-time 2 "$HEALTH_URL" > /dev/null
+    return
+  fi
+
+  if command -v wget > /dev/null 2>&1; then
+    wget --quiet --timeout=2 --output-document=/dev/null "$HEALTH_URL"
+    return
+  fi
+
+  node -e '
+    const http = require("node:http");
+    const request = http.get(process.argv[1], { timeout: 2000 }, (response) => {
+      response.resume();
+      process.exit(response.statusCode >= 200 && response.statusCode < 400 ? 0 : 1);
+    });
+    request.on("timeout", () => request.destroy());
+    request.on("error", () => process.exit(1));
+  ' "$HEALTH_URL"
+}
+
+port_in_use() {
+  node -e '
+    const net = require("node:net");
+    const socket = net.createConnection({
+      host: process.argv[1],
+      port: Number(process.argv[2]),
+      timeout: 500,
+    });
+    socket.on("connect", () => {
+      socket.destroy();
+      process.exit(0);
+    });
+    socket.on("timeout", () => {
+      socket.destroy();
+      process.exit(1);
+    });
+    socket.on("error", () => process.exit(1));
+  ' "127.0.0.1" "$ARG_PORT"
+}
+
+stop_started_process() {
+  local pid="$1"
+
+  if kill -0 "$pid" 2> /dev/null; then
+    kill "$pid" 2> /dev/null || true
+    wait "$pid" 2> /dev/null || true
+  fi
+  rm -f "$PID_FILE"
+}
+
+verify_loopback_listener() {
+  local listeners
+  local address
+  local port_hex=""
+
+  if command -v ss > /dev/null 2>&1; then
+    listeners="$(ss -H -ltn "sport = :$ARG_PORT" | awk '{print $4}')"
+  elif [ -r /proc/net/tcp ]; then
+    printf -v port_hex '%04X' "$ARG_PORT"
+    listeners="$(
+      awk -v port=":$port_hex" \
+        '$4 == "0A" && substr($2, length($2) - length(port) + 1) == port { print $2 }' \
+        /proc/net/tcp
+    )"
+  else
+    return 0
+  fi
+
+  if [ -z "$listeners" ]; then
+    printf 'Error: CloudCLI health check succeeded but no listener was found on port %s.\n' "$ARG_PORT" >&2
+    return 1
+  fi
+
+  while IFS= read -r address; do
+    if [ "$address" != "127.0.0.1:$ARG_PORT" ] &&
+      { [ -z "$port_hex" ] || [ "$address" != "0100007F:$port_hex" ]; }; then
+      printf 'Error: CloudCLI listener %s is not restricted to IPv4 loopback.\n' "$address" >&2
+      return 1
+    fi
+  done <<< "$listeners"
+}
+
+if [ ! -x "$CLOUDCLI_BIN" ]; then
+  printf 'Error: CloudCLI is not installed at %s.\n' "$CLOUDCLI_BIN" >&2
+  exit 1
+fi
+
+mkdir -p "$DATA_DIR" "$RUN_DIR" "$(dirname "$SERVICE_LOG")"
+
+if health_ready; then
+  if ! verify_loopback_listener; then
+    printf 'Error: the existing healthy process was left running.\n' >&2
+    exit 1
+  fi
+  printf 'CloudCLI is already healthy at %s; leaving the existing process running.\n' "$HEALTH_URL"
+  exit 0
+fi
+
+if [ -f "$PID_FILE" ]; then
+  existing_pid="$(cat "$PID_FILE")"
+  if [[ "$existing_pid" =~ ^[0-9]+$ ]] && kill -0 "$existing_pid" 2> /dev/null; then
+    printf 'Error: CloudCLI process %s is running but its health check is failing.\n' "$existing_pid" >&2
+    exit 1
+  fi
+
+  printf 'Removing stale CloudCLI PID file.\n'
+  rm -f "$PID_FILE"
+fi
+
+if port_in_use; then
+  printf 'Error: port %s is already used by another process; no process was terminated.\n' "$ARG_PORT" >&2
+  exit 1
+fi
+
+export HOST="127.0.0.1"
+export SERVER_PORT="$ARG_PORT"
+export PORT="$ARG_PORT"
+export DATABASE_PATH="$DATA_DIR/auth.db"
+export ENABLE_HTTPS="false"
+
+if [ -n "$ARG_WORKSPACES_ROOT_B64" ]; then
+  WORKSPACES_ROOT="$(printf '%s' "$ARG_WORKSPACES_ROOT_B64" | base64 --decode)"
+  export WORKSPACES_ROOT
+else
+  unset WORKSPACES_ROOT
+fi
+
+printf 'Starting CloudCLI on %s with data stored under %s.\n' "$HEALTH_URL" "$DATA_DIR"
+nohup "$CLOUDCLI_BIN" start \
+  --port "$ARG_PORT" \
+  --database-path "$DATABASE_PATH" \
+  >> "$SERVICE_LOG" 2>&1 &
+cloudcli_pid=$!
+printf '%s\n' "$cloudcli_pid" > "$PID_FILE"
+printf 'Waiting for CloudCLI to come online...\n'
+
+for _ in $(seq 1 60); do
+  if health_ready; then
+    if ! verify_loopback_listener; then
+      stop_started_process "$cloudcli_pid"
+      exit 1
+    fi
+    printf 'CloudCLI is ready at %s.\n' "$HEALTH_URL"
+    exit 0
+  fi
+
+  if ! kill -0 "$cloudcli_pid" 2> /dev/null; then
+    wait "$cloudcli_pid" || exit_code=$?
+    rm -f "$PID_FILE"
+    printf 'Error: CloudCLI exited before becoming healthy (exit code %s). See %s.\n' "$${exit_code:-unknown}" "$SERVICE_LOG" >&2
+    exit 1
+  fi
+
+  sleep 1
+done
+
+printf 'Error: CloudCLI did not become healthy within 60 seconds. See %s.\n' "$SERVICE_LOG" >&2
+stop_started_process "$cloudcli_pid"
+exit 1

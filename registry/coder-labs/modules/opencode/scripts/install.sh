@@ -39,7 +39,7 @@ install_opencode() {
       if [ "$ARG_OPENCODE_VERSION" = "latest" ]; then
         curl -fsSL https://opencode.ai/install | bash
       else
-        VERSION=$ARG_OPENCODE_VERSION curl -fsSL https://opencode.ai/install | bash
+        curl -fsSL https://opencode.ai/install | VERSION="${ARG_OPENCODE_VERSION}" bash
       fi
       export PATH=/home/coder/.opencode/bin:$PATH
       printf "Opencode location: %s\n" "$(which opencode)"

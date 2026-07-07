@@ -69,6 +69,7 @@ locals {
 }
 
 resource "coder_script" "zed_settings" {
+  count        = var.settings != "" ? 1 : 0
   agent_id     = var.agent_id
   display_name = "Configure Zed settings"
   icon         = "/icon/zed.svg"
@@ -77,9 +78,6 @@ resource "coder_script" "zed_settings" {
     #!/usr/bin/env bash
     set -eu
     SETTINGS_B64='${local.settings_b64}'
-    if [ -z "$${SETTINGS_B64}" ]; then
-      exit 0
-    fi
     SETTINGS_JSON="$(echo -n "$${SETTINGS_B64}" | base64 -d)"
     if [ -z "$${SETTINGS_JSON}" ] || [ "$${SETTINGS_JSON}" = "{}" ]; then
       exit 0

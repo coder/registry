@@ -117,18 +117,23 @@ run "copilot_model_not_created_for_default" {
   }
 }
 
-run "model_validation_accepts_valid_models" {
+run "copilot_model_accepts_custom_model" {
   command = plan
 
   variables {
     agent_id      = "test-agent"
     workdir       = "/home/coder"
-    copilot_model = "gpt-5"
+    copilot_model = "o3-pro"
   }
 
   assert {
-    condition     = contains(["claude-sonnet-4", "claude-sonnet-4.5", "gpt-5"], var.copilot_model)
-    error_message = "Model should be one of the valid options"
+    condition     = var.copilot_model == "o3-pro"
+    error_message = "copilot_model should accept any model string"
+  }
+
+  assert {
+    condition     = length(resource.coder_env.copilot_model) == 1
+    error_message = "copilot_model env var should be created for non-default model"
   }
 }
 

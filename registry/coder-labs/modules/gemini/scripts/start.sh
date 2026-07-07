@@ -44,6 +44,13 @@ else
   }
 fi
 
+# The task prompt is base64-encoded in main.tf so prompts containing single
+# quotes or other shell metacharacters do not break the start script. Decode
+# it before use.
+if [ -n "${GEMINI_TASK_PROMPT:-}" ]; then
+  GEMINI_TASK_PROMPT=$(echo -n "$GEMINI_TASK_PROMPT" | base64 -d)
+fi
+
 if [ -n "$GEMINI_TASK_PROMPT" ]; then
   printf "Running automated task: %s\n" "$GEMINI_TASK_PROMPT"
   PROMPT="Every step of the way, report tasks to Coder with proper descriptions and statuses. Your task at hand: $GEMINI_TASK_PROMPT"

@@ -33,12 +33,8 @@ variable "github_token" {
 
 variable "copilot_model" {
   type        = string
-  description = "Model to use. Supported values: claude-sonnet-4, claude-sonnet-4.5 (default), gpt-5."
+  description = "The model to use for Copilot. Any model supported by GitHub Copilot can be used."
   default     = "claude-sonnet-4.5"
-  validation {
-    condition     = contains(["claude-sonnet-4", "claude-sonnet-4.5", "gpt-5"], var.copilot_model)
-    error_message = "copilot_model must be one of: claude-sonnet-4, claude-sonnet-4.5, gpt-5."
-  }
 }
 
 variable "copilot_config" {
