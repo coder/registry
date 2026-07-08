@@ -138,37 +138,31 @@ module "coder-login" {
   agent_id = local.agent_id
 }
 
-resource "incus_volume" "home" {
+resource "incus_storage_volume" "home" {
   name = "coder-${data.coder_workspace.me.id}-home"
   pool = local.pool
 }
 
-resource "incus_volume" "docker" {
+resource "incus_storage_volume" "docker" {
   name = "coder-${data.coder_workspace.me.id}-docker"
   pool = local.pool
 }
 
-resource "incus_cached_image" "image" {
-  source_remote = "images"
-  source_image  = data.coder_parameter.image.value
-}
-
-resource "incus_instance_file" "agent_token" {
-  count              = data.coder_workspace.me.start_count
-  instance           = incus_instance.dev.name
-  content            = <<EOF
-CODER_AGENT_TOKEN=${local.agent_token}
-EOF
-  create_directories = true
-  target_path        = "/opt/coder/init.env"
+resource "incus_image" "image" {
+  source_image = {
+    remote = "images"
+    name   = data.coder_parameter.image.value
+  }
 }
 
 resource "incus_instance" "dev" {
   running = data.coder_workspace.me.start_count == 1
   name    = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
-  image   = incus_cached_image.image.fingerprint
+  image   = incus_image.image.fingerprint
 
   config = {
+    "limits.cpu"                           = data.coder_parameter.cpu.value
+    "limits.memory"                        = "${data.coder_parameter.cpu.value}GiB"
     "security.nesting"                     = true
     "security.syscalls.intercept.mknod"    = true
     "security.syscalls.intercept.setxattr" = true
@@ -190,6 +184,10 @@ write_files:
     permissions: "0755"
     encoding: b64
     content: ${base64encode(local.agent_init_script)}
+  - path: /opt/coder/init.env
+    permissions: "0644"
+    encoding: b64
+    content: ${base64encode("CODER_AGENT_TOKEN=${local.agent_token}\n")}
   - path: /etc/systemd/system/coder-agent.service
     permissions: "0644"
     content: |
@@ -246,18 +244,13 @@ runcmd:
 EOF
   }
 
-  limits = {
-    cpu    = data.coder_parameter.cpu.value
-    memory = "${data.coder_parameter.cpu.value}GiB"
-  }
-
   device {
     name = "home"
     type = "disk"
     properties = {
       path   = "/home/${local.workspace_user}"
       pool   = local.pool
-      source = incus_volume.home.name
+      source = incus_storage_volume.home.name
     }
   }
 
@@ -267,7 +260,7 @@ EOF
     properties = {
       path   = "/var/lib/docker"
       pool   = local.pool
-      source = incus_volume.docker.name
+      source = incus_storage_volume.docker.name
     }
   }
 
@@ -296,11 +289,11 @@ resource "coder_metadata" "info" {
   resource_id = incus_instance.dev.name
   item {
     key   = "memory"
-    value = incus_instance.dev.limits.memory
+    value = incus_instance.dev.config["limits.memory"]
   }
   item {
     key   = "cpus"
-    value = incus_instance.dev.limits.cpu
+    value = incus_instance.dev.config["limits.cpu"]
   }
   item {
     key   = "instance"
@@ -308,10 +301,10 @@ resource "coder_metadata" "info" {
   }
   item {
     key   = "image"
-    value = "${incus_cached_image.image.source_remote}:${incus_cached_image.image.source_image}"
+    value = "${incus_image.image.source_image.remote}:${incus_image.image.source_image.name}"
   }
   item {
     key   = "image_fingerprint"
-    value = substr(incus_cached_image.image.fingerprint, 0, 12)
+    value = substr(incus_image.image.fingerprint, 0, 12)
   }
 }
