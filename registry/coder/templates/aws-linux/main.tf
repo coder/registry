@@ -202,7 +202,6 @@ module "code-server" {
   version = "~> 1.0"
 
   agent_id   = coder_agent.dev[0].id
-  agent_name = "dev"
   order      = 1
 }
 
