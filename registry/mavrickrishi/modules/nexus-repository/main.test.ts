@@ -1,4 +1,5 @@
-import { describe, expect, it } from "bun:test";
+import { spawn } from "bun";
+import { beforeAll, describe, expect, it } from "bun:test";
 import {
   executeScriptInContainer,
   runTerraformApply,
@@ -6,8 +7,22 @@ import {
   testRequiredVariables,
 } from "~test";
 
+// Image used by every container-based test below. Pulling it the first time a
+// test runs can exceed the per-test timeout, so pre-pull it once up front.
+const TEST_IMAGE = "ubuntu:20.04";
+
 describe("nexus-repository", async () => {
   await runTerraformInit(import.meta.dir);
+
+  // Warm the Docker image cache before any container test runs so the one-time
+  // pull cost isn't charged against (and doesn't time out) the first test.
+  beforeAll(async () => {
+    const proc = spawn(["docker", "pull", TEST_IMAGE], {
+      stdout: "ignore",
+      stderr: "ignore",
+    });
+    await proc.exited;
+  }, 300_000);
 
   testRequiredVariables(import.meta.dir, {
     agent_id: "test-agent",
@@ -25,7 +40,7 @@ describe("nexus-repository", async () => {
       }),
     });
 
-    const output = await executeScriptInContainer(state, "ubuntu:20.04");
+    const output = await executeScriptInContainer(state, TEST_IMAGE);
     expect(output.stdout.join("\n")).toContain("☕ Configuring Maven...");
     expect(output.stdout.join("\n")).toContain("🥳 Configuration complete!");
   });
@@ -40,7 +55,7 @@ describe("nexus-repository", async () => {
       }),
     });
 
-    const output = await executeScriptInContainer(state, "ubuntu:20.04");
+    const output = await executeScriptInContainer(state, TEST_IMAGE);
     expect(output.stdout.join("\n")).toContain("📦 Configuring npm...");
     expect(output.stdout.join("\n")).toContain("🥳 Configuration complete!");
   });
@@ -55,7 +70,7 @@ describe("nexus-repository", async () => {
       }),
     });
 
-    const output = await executeScriptInContainer(state, "ubuntu:20.04");
+    const output = await executeScriptInContainer(state, TEST_IMAGE);
     expect(output.stdout.join("\n")).toContain("🐍 Configuring pip...");
     expect(output.stdout.join("\n")).toContain("🥳 Configuration complete!");
   });
@@ -72,7 +87,7 @@ describe("nexus-repository", async () => {
       }),
     });
 
-    const output = await executeScriptInContainer(state, "ubuntu:20.04");
+    const output = await executeScriptInContainer(state, TEST_IMAGE);
     expect(output.stdout.join("\n")).toContain("☕ Configuring Maven...");
     expect(output.stdout.join("\n")).toContain("📦 Configuring npm...");
     expect(output.stdout.join("\n")).toContain("🐍 Configuring pip...");
@@ -89,7 +104,7 @@ describe("nexus-repository", async () => {
       package_managers: JSON.stringify({}),
     });
 
-    const output = await executeScriptInContainer(state, "ubuntu:20.04");
+    const output = await executeScriptInContainer(state, TEST_IMAGE);
     expect(output.stdout.join("\n")).toContain(
       "🤔 no maven repository is set, skipping maven configuration.",
     );
@@ -114,7 +129,7 @@ describe("nexus-repository", async () => {
       }),
     });
 
-    const output = await executeScriptInContainer(state, "ubuntu:20.04");
+    const output = await executeScriptInContainer(state, TEST_IMAGE);
     expect(output.stdout.join("\n")).toContain("🐹 Configuring Go...");
     expect(output.stdout.join("\n")).toContain(
       "Go proxy configured via GOPROXY environment variable",
