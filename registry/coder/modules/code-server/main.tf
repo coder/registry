@@ -40,13 +40,13 @@ variable "slug" {
 
 variable "settings" {
   type        = any
-  description = "A map of settings to apply to code-server."
+  description = "A map of settings to apply to code-server's User settings. These settings are merged with any existing user settings on startup."
   default     = {}
 }
 
 variable "machine_settings" {
   type        = any
-  description = "A map of template level machine settings to apply to code-server. This will be overwritten at each container start."
+  description = "A map of template level machine settings to apply to code-server. These settings are merged with any existing machine settings on startup."
   default     = {}
 }
 
@@ -167,6 +167,11 @@ variable "additional_args" {
   default     = ""
 }
 
+locals {
+  settings_b64         = var.settings != {} ? base64encode(jsonencode(var.settings)) : ""
+  machine_settings_b64 = var.machine_settings != {} ? base64encode(jsonencode(var.machine_settings)) : ""
+}
+
 resource "coder_script" "code-server" {
   agent_id     = var.agent_id
   display_name = "code-server"
@@ -178,9 +183,8 @@ resource "coder_script" "code-server" {
     PORT : var.port,
     LOG_PATH : var.log_path,
     INSTALL_PREFIX : var.install_prefix,
-    // This is necessary otherwise the quotes are stripped!
-    SETTINGS : replace(jsonencode(var.settings), "\"", "\\\""),
-    MACHINE_SETTINGS : replace(jsonencode(var.machine_settings), "\"", "\\\""),
+    SETTINGS_B64 : local.settings_b64,
+    MACHINE_SETTINGS_B64 : local.machine_settings_b64,
     OFFLINE : var.offline,
     USE_CACHED : var.use_cached,
     USE_CACHED_EXTENSIONS : var.use_cached_extensions,
