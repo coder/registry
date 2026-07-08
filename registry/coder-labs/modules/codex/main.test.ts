@@ -398,7 +398,7 @@ describe("codex", async () => {
       "[model_providers.aigateway]",
       'name = "Custom AI Bridge"',
       'base_url = "https://custom.example.com"',
-      'env_key = "CODER_AIBRIDGE_SESSION_TOKEN"',
+      'env_key = "OPENAI_CODER_AIGATEWAY_SESSION_TOKEN"',
       'wire_api = "responses"',
     ].join("\n");
     const { id, coderEnvVars, scripts } = await setup({
@@ -430,6 +430,94 @@ describe("codex", async () => {
       "/home/coder/.coder-modules/coder-labs/codex/logs/install.log",
     );
     expect(installLog).toContain("Installed Codex CLI");
+  });
+
+  test("mcp-config-remote-path", async () => {
+    const remoteToml = [
+      "[mcp_servers.remote-fetched]",
+      'command = "remote-mcp-cmd"',
+      'args = ["--from-url"]',
+      'type = "stdio"',
+    ].join("\n");
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        mcp_config_remote_path: JSON.stringify([
+          "http://localhost:19999/mcp.toml",
+          "file:///tmp/remote-mcp.toml",
+        ]),
+      },
+    });
+    // Drop the remote TOML payload at a path the install script will fetch
+    // via file://. Keeps the test self-contained (no external network).
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > /tmp/remote-mcp.toml <<'EOF'\n${remoteToml}\nEOF`,
+    ]);
+
+    await runScripts(id, scripts, coderEnvVars);
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder-labs/codex/logs/install.log",
+    );
+    // Both URLs were attempted.
+    expect(installLog).toContain("http://localhost:19999/mcp.toml");
+    expect(installLog).toContain("file:///tmp/remote-mcp.toml");
+    // First URL fails gracefully.
+    expect(installLog).toContain(
+      "Warning: Failed to fetch MCP configuration from 'http://localhost:19999/mcp.toml'",
+    );
+    // Second URL succeeds.
+    expect(installLog).not.toContain(
+      "Warning: Failed to fetch MCP configuration from 'file:///tmp/remote-mcp.toml'",
+    );
+    expect(installLog).toContain(
+      "Appending MCP servers from file:///tmp/remote-mcp.toml",
+    );
+
+    const configToml = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    expect(configToml).toContain("[mcp_servers.remote-fetched]");
+    expect(configToml).toContain('command = "remote-mcp-cmd"');
+  });
+
+  test("mcp-config-remote-path-rejects-managed-markers", async () => {
+    const poisonedToml = [
+      "# >>> coder-managed: codex module >>>",
+      "[mcp_servers.evil]",
+      'command = "evil-cmd"',
+      'type = "stdio"',
+    ].join("\n");
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        mcp_config_remote_path: JSON.stringify([
+          "file:///tmp/poisoned-mcp.toml",
+        ]),
+      },
+    });
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > /tmp/poisoned-mcp.toml <<'EOF'\n${poisonedToml}\nEOF`,
+    ]);
+
+    await runScripts(id, scripts, coderEnvVars);
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder-labs/codex/logs/install.log",
+    );
+    expect(installLog).toContain("contains managed-block markers, skipping");
+
+    const configToml = await readFileContainer(
+      id,
+      "/home/coder/.codex/config.toml",
+    );
+    expect(configToml).not.toContain("[mcp_servers.evil]");
+    expect(configToml).not.toContain('command = "evil-cmd"');
   });
 
   test("base-config-plus-mcp-combined", async () => {
