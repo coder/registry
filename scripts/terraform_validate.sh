@@ -37,7 +37,7 @@ validate_variable_names() {
         found_issues=$((found_issues + 1))
       fi
     done < <(grep -n 'variable "[^"]*-[^"]*"' "$tf_file" 2> /dev/null || true)
-  done < <(find "$dir" -name '*.tf' -type f | sort)
+  done < <(find "$dir" -path '*/.terraform/*' -prune -o -name '*.tf' -type f -print | sort)
 
   return "$found_issues"
 }
