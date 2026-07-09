@@ -40,7 +40,7 @@ See [bpmct/coder-railway](https://github.com/bpmct/coder-railway) for the full w
 
 ### 1. Railway API token
 
-Create a Railway workspace/team token at [railway.com/account/tokens](https://railway.com/account/tokens). It must be a user or team token (not a project token) so that the template can call `projectCreate`.
+Create a Railway account/team token at [railway.com/account/tokens](https://railway.com/account/tokens). It must be an account or team token (not a project token) so that the template can call `projectCreate`.
 
 ### 2. Push the template with the token
 
