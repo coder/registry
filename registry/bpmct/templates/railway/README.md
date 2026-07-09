@@ -79,9 +79,26 @@ Persistent (survive stop/start): project, service, volume, project token. Epheme
 
 ### Custom workspace image
 
-The default image is `ghcr.io/bpmct/railway-coder-workspace:latest`, which is `codercom/enterprise-base:ubuntu` plus a small entrypoint that decodes `CODER_INIT_SCRIPT_B64` and runs the Coder agent. Source: [`build/Dockerfile`](https://github.com/bpmct/coder-railway/blob/main/build/Dockerfile).
+The default image is `ghcr.io/bpmct/railway-coder-workspace:latest`, which is `codercom/enterprise-base:ubuntu` plus a small entrypoint that fixes Railway volume ownership, decodes `CODER_INIT_SCRIPT_B64`, and runs the Coder agent as the `coder` user. The Dockerfile and entrypoint are vendored in this template under [`build/`](./build) so you can read, fork, or extend them without leaving the registry:
 
-To use your own image:
+- [`build/Dockerfile`](./build/Dockerfile) - 10 lines, thin layer on `codercom/enterprise-base:ubuntu`.
+- [`build/entrypoint.sh`](./build/entrypoint.sh) - Railway volume `chown`, skeleton seed, `CODER_INIT_SCRIPT_B64` decode + drop to `coder`.
+
+**Adding your own tools:** the default image is deliberately minimal, so most teams will want to extend it. Two patterns:
+
+1. **Extend the default image** (recommended for most cases). Write a Dockerfile that starts `FROM ghcr.io/bpmct/railway-coder-workspace:latest` and layer whatever you need on top. Entrypoint and Coder agent wiring are inherited, so you only touch what you actually need.
+
+   ```dockerfile
+   FROM ghcr.io/bpmct/railway-coder-workspace:latest
+   USER root
+   RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client redis-tools \
+    && rm -rf /var/lib/apt/lists/*
+   ```
+
+2. **Duplicate `build/` and build from a different base**, if you need to swap the base image entirely (e.g. `codercom/example-universal:ubuntu`, an internal golden image, or a non-Ubuntu distro). Copy [`build/entrypoint.sh`](./build/entrypoint.sh) verbatim - the image contract that the template relies on (volume chown, `CODER_INIT_SCRIPT_B64` decode, drop to `coder` user) lives in that entrypoint, not in the base image.
+
+Build, push to any registry, and point the template at it:
 
 ```sh
 coder templates push railway --directory . \
@@ -91,7 +108,7 @@ coder templates push railway --directory . \
 
 For private registries, also set `image_registry_username` and `image_registry_password`.
 
-The only requirement on the image is that its ENTRYPOINT consumes:
+The only contract the template requires from the image is that its `ENTRYPOINT` consumes:
 
 - `CODER_INIT_SCRIPT_B64`: base64-encoded Coder agent init script.
 - `CODER_AGENT_TOKEN`: Coder agent token.
