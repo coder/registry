@@ -53,9 +53,9 @@ module "code-server" {
 
 Enter the `<author>.<name>` into the extensions array and code-server will automatically install on start.
 
-### Pre-configure Settings
+### Pre-configure User Settings
 
-Configure VS Code's [settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-json-file) file:
+Configure VS Code's [User settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-json-file). These settings are merged with any existing user settings on startup:
 
 ```tf
 module "code-server" {
@@ -69,6 +69,9 @@ module "code-server" {
   }
 }
 ```
+
+> [!WARNING]
+> Merging settings requires `jq` or `python3`. If neither is available, existing settings will be preserved.
 
 ### Install multiple extensions
 
