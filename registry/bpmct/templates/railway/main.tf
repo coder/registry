@@ -108,7 +108,7 @@ locals {
   railway_api  = "https://backboard.railway.app/graphql/v2"
   state_dir    = "${path.module}/.railway-state"
   scripts_dir  = "${path.module}/scripts"
-  project_name = substr("coder-${local.username}-${local.workspace}", 0, 32)
+  project_name = lower(substr("coder-${local.username}-${local.workspace}", 0, 32))
 }
 
 data "coder_provisioner" "me" {}
