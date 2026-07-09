@@ -18,8 +18,8 @@ if [ -n "$EXISTING" ]; then
   EXISTING_EID=$(echo "$EXISTING" | awk '{print $2}')
   if [ -n "$EXISTING_PID" ]; then
     echo "Project $PROJECT_NAME already exists: $EXISTING_PID"
-    echo "$EXISTING_PID" >"$STATE_DIR/project_id"
-    echo "$EXISTING_EID" >"$STATE_DIR/environment_id"
+    echo "$EXISTING_PID" > "$STATE_DIR/project_id"
+    echo "$EXISTING_EID" > "$STATE_DIR/environment_id"
     exit 0
   fi
 fi
@@ -34,7 +34,7 @@ for ATTEMPT in 1 2 3 4 5; do
     -H "Authorization: Bearer $TOKEN" \
     -H 'Content-Type: application/json' \
     -d "{\"query\": \"mutation(\$input: ProjectCreateInput!) { projectCreate(input: \$input) { id environments { edges { node { id name } } } } }\", \"variables\": { \"input\": { \"name\": \"$PROJECT_NAME\" } } }" || echo '000')
-  RESP=$(cat /tmp/proj-resp.$$ 2>/dev/null || echo '')
+  RESP=$(cat /tmp/proj-resp.$$ 2> /dev/null || echo '')
   rm -f /tmp/proj-resp.$$
   echo "HTTP $HTTP_CODE"
   echo "$RESP" | head -c 500
@@ -42,8 +42,8 @@ for ATTEMPT in 1 2 3 4 5; do
 
   # Success path: HTTP 200 with projectCreate.id in response.
   if [ "$HTTP_CODE" = "200" ] && echo "$RESP" | grep -q '"projectCreate":{"id":"'; then
-    echo "$RESP" | sed 's/.*"projectCreate":{"id":"\([^"]*\)".*/\1/' >"$STATE_DIR/project_id"
-    echo "$RESP" | sed 's/.*"node":{"id":"\([^"]*\)".*/\1/' >"$STATE_DIR/environment_id"
+    echo "$RESP" | sed 's/.*"projectCreate":{"id":"\([^"]*\)".*/\1/' > "$STATE_DIR/project_id"
+    echo "$RESP" | sed 's/.*"node":{"id":"\([^"]*\)".*/\1/' > "$STATE_DIR/environment_id"
     echo "projectCreate succeeded"
     exit 0
   fi
@@ -56,8 +56,8 @@ for ATTEMPT in 1 2 3 4 5; do
     AFTER_EID=$(echo "$AFTER" | awk '{print $2}')
     if [ -n "$AFTER_PID" ]; then
       echo "Found project created by attempt $ATTEMPT despite error: $AFTER_PID"
-      echo "$AFTER_PID" >"$STATE_DIR/project_id"
-      echo "$AFTER_EID" >"$STATE_DIR/environment_id"
+      echo "$AFTER_PID" > "$STATE_DIR/project_id"
+      echo "$AFTER_EID" > "$STATE_DIR/environment_id"
       exit 0
     fi
   fi

@@ -46,14 +46,14 @@ Create a Railway workspace/team token at [railway.com/account/tokens](https://ra
 
 ```sh
 coder templates push railway --directory . \
-  --variable railway_token=<your-railway-token>
+  --variable railway_token=YOUR_RAILWAY_TOKEN
 ```
 
 The Railway master token is stored as a Terraform variable at the template level and is never exposed to workspace users. If `enable_project_management` is set to `true`, each workspace also gets its own project-scoped Railway token (a much narrower blast radius) injected as `$RAILWAY_TOKEN` inside the workspace, and the Railway CLI is auto-installed and pre-authenticated:
 
 ```sh
 coder templates push railway --directory . \
-  --variable railway_token=<your-railway-token> \
+  --variable railway_token=YOUR_RAILWAY_TOKEN \
   --variable enable_project_management=true
 ```
 
@@ -85,7 +85,7 @@ To use your own image:
 
 ```sh
 coder templates push railway --directory . \
-  --variable railway_token=<your-railway-token> \
+  --variable railway_token=YOUR_RAILWAY_TOKEN \
   --variable workspace_image=ghcr.io/yourorg/your-image:tag
 ```
 

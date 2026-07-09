@@ -15,7 +15,7 @@ gql() {
   local query="$1"
   local tmpjson
   tmpjson=$(mktemp)
-  printf '{"query": "%s"}' "$query" >"$tmpjson"
+  printf '{"query": "%s"}' "$query" > "$tmpjson"
   curl -s --max-time 120 -X POST "$API" \
     -H "Authorization: Bearer $TOKEN" \
     -H 'Content-Type: application/json' \
@@ -70,8 +70,8 @@ lookup_service_and_env() {
 # fallback Railway API lookup.
 load_state() {
   [ -n "${STATE_DIR:-}" ] || return 0
-  [ -f "$STATE_DIR/project_id" ]     && PROJECT_ID=$(cat "$STATE_DIR/project_id")
-  [ -f "$STATE_DIR/service_id" ]     && SERVICE_ID=$(cat "$STATE_DIR/service_id")
+  [ -f "$STATE_DIR/project_id" ] && PROJECT_ID=$(cat "$STATE_DIR/project_id")
+  [ -f "$STATE_DIR/service_id" ] && SERVICE_ID=$(cat "$STATE_DIR/service_id")
   [ -f "$STATE_DIR/environment_id" ] && ENV_ID=$(cat "$STATE_DIR/environment_id")
   return 0
 }

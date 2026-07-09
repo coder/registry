@@ -19,13 +19,19 @@ load_state
 if [ -z "$PROJECT_ID" ] || [ -z "$SERVICE_ID" ] || [ -z "$ENV_ID" ]; then
   PE=$(lookup_project_and_env)
   PROJECT_ID=$(echo "$PE" | awk '{print $1}')
-  ENV_ID=$(echo "$PE"     | awk '{print $2}')
-  [ -z "$PROJECT_ID" ] && { echo "FATAL: project $PROJECT_NAME not found" >&2; exit 1; }
+  ENV_ID=$(echo "$PE" | awk '{print $2}')
+  [ -z "$PROJECT_ID" ] && {
+    echo "FATAL: project $PROJECT_NAME not found" >&2
+    exit 1
+  }
   DETAIL=$(gql "{ project(id: \\\"$PROJECT_ID\\\") { services { edges { node { id name } } } } }")
   SERVICE_ID=$(echo "$DETAIL" | grep -o '"id":"[^"]*","name":"workspace"' \
     | sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1 || true)
 fi
-[ -z "$SERVICE_ID" ] || [ -z "$ENV_ID" ] && { echo "FATAL: service or env not found" >&2; exit 1; }
+[ -z "$SERVICE_ID" ] || [ -z "$ENV_ID" ] && {
+  echo "FATAL: service or env not found" >&2
+  exit 1
+}
 
 # Project tokens cannot be retrieved by value after creation. Delete
 # any existing token with our managed name so we can mint a fresh one.
@@ -34,7 +40,7 @@ OLD_ID=$(echo "$EXISTING" | grep -o '"id":"[^"]*","name":"'"$TOKEN_NAME"'"' \
   | sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1 || true)
 if [ -n "$OLD_ID" ]; then
   echo "Removing existing project token $OLD_ID"
-  gql "mutation { projectTokenDelete(id: \\\"$OLD_ID\\\") }" >/dev/null || true
+  gql "mutation { projectTokenDelete(id: \\\"$OLD_ID\\\") }" > /dev/null || true
 fi
 
 # Create the project-scoped token.

@@ -20,12 +20,18 @@ load_state
 
 if [ -z "$PROJECT_ID" ] || [ -z "$SERVICE_ID" ] || [ -z "$ENV_ID" ]; then
   PROJECT_ID=$(lookup_project_id)
-  [ -z "$PROJECT_ID" ] && { echo "FATAL: project not found"; exit 1; }
+  [ -z "$PROJECT_ID" ] && {
+    echo "FATAL: project not found"
+    exit 1
+  }
   SE=$(lookup_service_and_env "$PROJECT_ID")
   SERVICE_ID=$(echo "$SE" | awk '{print $1}')
-  ENV_ID=$(echo "$SE"     | awk '{print $2}')
+  ENV_ID=$(echo "$SE" | awk '{print $2}')
 fi
-[ -z "$SERVICE_ID" ] || [ -z "$ENV_ID" ] && { echo "FATAL: service/env not found"; exit 1; }
+[ -z "$SERVICE_ID" ] || [ -z "$ENV_ID" ] && {
+  echo "FATAL: service/env not found"
+  exit 1
+}
 
 # Helper: upsert a single variable with retry. Railway's
 # variableUpsert has been observed taking 60s+ under load and
@@ -60,5 +66,5 @@ upsert_var() {
 }
 
 upsert_var "CODER_INIT_SCRIPT_B64" "$CODER_INIT_SCRIPT_B64"
-upsert_var "CODER_AGENT_TOKEN"     "$CODER_AGENT_TOKEN"
-upsert_var "RAILWAY_RUN_UID"       "0"
+upsert_var "CODER_AGENT_TOKEN" "$CODER_AGENT_TOKEN"
+upsert_var "RAILWAY_RUN_UID" "0"

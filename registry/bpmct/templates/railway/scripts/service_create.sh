@@ -12,7 +12,10 @@ PROJECT_ID=""
 if [ -z "$PROJECT_ID" ]; then
   PROJECT_ID=$(lookup_project_id)
 fi
-[ -z "$PROJECT_ID" ] && { echo "FATAL: project not found"; exit 1; }
+[ -z "$PROJECT_ID" ] && {
+  echo "FATAL: project not found"
+  exit 1
+}
 
 # If a "workspace" service already exists, reuse it.
 EXISTING=$(gql "{ project(id: \\\"$PROJECT_ID\\\") { services { edges { node { id name } } } } }")
@@ -21,7 +24,7 @@ EXISTING_SVC=$(echo "$EXISTING" | grep -o '"id":"[^"]*","name":"workspace"' \
 if [ -n "$EXISTING_SVC" ]; then
   echo "Service already exists: $EXISTING_SVC"
   mkdir -p "$STATE_DIR"
-  echo "$EXISTING_SVC" >"$STATE_DIR/service_id"
+  echo "$EXISTING_SVC" > "$STATE_DIR/service_id"
   exit 0
 fi
 
@@ -35,7 +38,10 @@ for ATTEMPT in 1 2 3 4 5; do
   echo "serviceCreate attempt $ATTEMPT failed, retrying in 3s..."
   [ "$ATTEMPT" -lt 5 ] && sleep 3
 done
-if ! echo "$RESP" | grep -q '"serviceCreate"'; then echo "FATAL: serviceCreate failed"; exit 1; fi
+if ! echo "$RESP" | grep -q '"serviceCreate"'; then
+  echo "FATAL: serviceCreate failed"
+  exit 1
+fi
 
 mkdir -p "$STATE_DIR"
-echo "$RESP" | sed 's/.*"serviceCreate":{"id":"\([^"]*\)".*/\1/' >"$STATE_DIR/service_id"
+echo "$RESP" | sed 's/.*"serviceCreate":{"id":"\([^"]*\)".*/\1/' > "$STATE_DIR/service_id"

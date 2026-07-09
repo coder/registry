@@ -9,7 +9,7 @@ TOKEN_NAME='coder-managed'
 
 PE=$(lookup_project_and_env)
 PROJ=$(echo "$PE" | awk '{print $1}')
-ENV=$(echo "$PE"  | awk '{print $2}')
+ENV=$(echo "$PE" | awk '{print $2}')
 if [ -z "$PROJ" ]; then
   echo "Project $PROJECT_NAME already gone, nothing to clean up."
   exit 0
@@ -24,10 +24,10 @@ EXISTING=$(gql "{ projectTokens(projectId: \\\"$PROJ\\\") { edges { node { id na
 TOKEN_ID=$(echo "$EXISTING" | grep -o '"id":"[^"]*","name":"'"$TOKEN_NAME"'"' \
   | sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1 || true)
 if [ -n "$TOKEN_ID" ]; then
-  gql "mutation { projectTokenDelete(id: \\\"$TOKEN_ID\\\") }" >/dev/null || true
+  gql "mutation { projectTokenDelete(id: \\\"$TOKEN_ID\\\") }" > /dev/null || true
 fi
 
 # Delete the RAILWAY_TOKEN env var.
 if [ -n "$SVC" ] && [ -n "$ENV" ]; then
-  gql "mutation { variableDelete(input: { projectId: \\\"$PROJ\\\", serviceId: \\\"$SVC\\\", environmentId: \\\"$ENV\\\", name: \\\"RAILWAY_TOKEN\\\" }) }" >/dev/null || true
+  gql "mutation { variableDelete(input: { projectId: \\\"$PROJ\\\", serviceId: \\\"$SVC\\\", environmentId: \\\"$ENV\\\", name: \\\"RAILWAY_TOKEN\\\" }) }" > /dev/null || true
 fi

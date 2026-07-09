@@ -11,7 +11,7 @@ PROJECT_ID=$(lookup_project_id)
 
 SE=$(lookup_service_and_env "$PROJECT_ID")
 SERVICE_ID=$(echo "$SE" | awk '{print $1}')
-ENV_ID=$(echo "$SE"     | awk '{print $2}')
+ENV_ID=$(echo "$SE" | awk '{print $2}')
 [ -z "$SERVICE_ID" ] || [ -z "$ENV_ID" ] && exit 0
 
 for VAR_NAME in CODER_INIT_SCRIPT_B64 CODER_AGENT_TOKEN RAILWAY_RUN_UID; do
