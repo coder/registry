@@ -1,0 +1,31 @@
+#!/bin/bash
+set -o errexit
+set -o pipefail
+
+SESSION_NAME="${ARG_SESSION_NAME}"
+FOLDER="${ARG_FOLDER}"
+COMMAND=$(echo -n '${ARG_COMMAND}' | base64 -d)
+LOG_PATH="${ARG_LOG_PATH}"
+SYNC_NAME="${ARG_SYNC_NAME}"
+
+mkdir -p "$(dirname "$LOG_PATH")"
+
+trap 'coder exp sync complete "$SYNC_NAME"' EXIT
+coder exp sync want "$SYNC_NAME" "${ARG_INSTALL_SYNC}"
+coder exp sync start "$SYNC_NAME"
+
+(
+  export PATH="$HOME/.local/bin:$PATH"
+
+  mkdir -p "$FOLDER"
+  cd "$FOLDER"
+
+  if boo ls 2>/dev/null | grep -qF "$SESSION_NAME"; then
+    echo "boo session '$${SESSION_NAME}' already exists; skipping creation"
+    exit 0
+  fi
+
+  echo "Creating boo session '$${SESSION_NAME}'..."
+  boo new "$SESSION_NAME" -d -- bash -c "$COMMAND"
+  echo "boo session '$${SESSION_NAME}' created"
+) 2>&1 | tee "$LOG_PATH"

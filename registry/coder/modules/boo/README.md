@@ -1,0 +1,154 @@
+---
+display_name: Boo
+description: Run commands in persistent boo terminal sessions, one app per session.
+icon: ../../../../.icons/boo.svg
+verified: false
+tags: [terminal, multiplexer, session, boo]
+---
+
+# Boo
+
+Install [boo](https://github.com/coder/boo) and run commands in persistent, named terminal sessions. Boo is a GNU screen-style terminal multiplexer built on [libghostty](https://github.com/ghostty-org/ghostty) (Zig). Pass a map of session names to commands and the module creates one `coder_app` and one start script per session, all serialized after the install pipeline.
+
+```tf
+module "boo" {
+  source   = "registry.coder.com/coder/boo/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+  sessions = {
+    shell = "bash"
+  }
+}
+```
+
+## Usage
+
+### Multiple sessions
+
+Create separate persistent sessions for a dev server and an interactive shell, each with its own dashboard app.
+
+```tf
+module "boo" {
+  source   = "registry.coder.com/coder/boo/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+  folder   = "/home/coder/project"
+  sessions = {
+    server = "npm run dev"
+    shell  = "bash"
+  }
+}
+```
+
+This creates:
+
+- `coder_app` slugs `boo-server` and `boo-shell`
+- Display names `Boo: server` and `Boo: shell`
+- Logs at `~/.coder-modules/coder/boo/logs/server/start.log` and `.../shell/start.log`
+
+### Pin a specific boo version
+
+```tf
+module "boo" {
+  source      = "registry.coder.com/coder/boo/coder"
+  version     = "1.0.0"
+  agent_id    = coder_agent.main.id
+  boo_version = "v0.6.4"
+  sessions    = { shell = "bash" }
+}
+```
+
+### Skip installation (boo pre-installed in image)
+
+```tf
+module "boo" {
+  source      = "registry.coder.com/coder/boo/coder"
+  version     = "1.0.0"
+  agent_id    = coder_agent.main.id
+  install_boo = false
+  sessions    = { shell = "bash" }
+}
+```
+
+### Customize app appearance
+
+```tf
+module "boo" {
+  source       = "registry.coder.com/coder/boo/coder"
+  version      = "1.0.0"
+  agent_id     = coder_agent.main.id
+  display_name = "Terminal"
+  slug         = "term"
+  icon         = "/icon/terminal.svg"
+  order        = 1
+  group        = "Development"
+  sessions     = { shell = "bash" }
+}
+```
+
+Apps are named `Terminal: shell` with slug `term-shell`.
+
+### Use pre/post install hooks
+
+```tf
+module "boo" {
+  source              = "registry.coder.com/coder/boo/coder"
+  version             = "1.0.0"
+  agent_id            = coder_agent.main.id
+  pre_install_script  = "echo 'Preparing environment...'"
+  post_install_script = "echo 'boo ready'"
+  sessions            = { shell = "bash" }
+}
+```
+
+### Serialize another module behind boo
+
+Use `output.scripts` to wait for all boo sessions to start before running downstream work.
+
+```tf
+module "boo" {
+  source   = "registry.coder.com/coder/boo/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+  sessions = { server = "npm run dev", shell = "bash" }
+}
+
+resource "coder_script" "after_boo" {
+  agent_id     = coder_agent.main.id
+  display_name = "After Boo"
+  run_on_start = true
+  script       = <<-EOT
+    #!/bin/bash
+    coder exp sync want after-boo ${join(" ", module.boo.scripts)}
+    coder exp sync start after-boo
+    trap 'coder exp sync complete after-boo' EXIT
+    echo "All boo sessions are up"
+  EOT
+}
+```
+
+## Naming
+
+App slugs and display names are derived from session names:
+
+| `slug` (default `"boo"`) | session name   | app slug            | display name         |
+| ------------------------ | -------------- | ------------------- | -------------------- |
+| `"boo"`                  | `"shell"`      | `"boo-shell"`       | `"Boo: shell"`       |
+| `"term"`                 | `"dev_server"` | `"term-dev-server"` | `"term: dev_server"` |
+
+Session names must be valid as Terraform map keys. Underscores in session names are replaced with hyphens in app slugs.
+
+## Troubleshooting
+
+Logs are written per session under `~/.coder-modules/coder/boo/logs/`:
+
+```
+~/.coder-modules/coder/boo/logs/
+├── install.log
+├── <session_name>/
+│   └── start.log
+```
+
+Check `install.log` for installation errors. Check `<session_name>/start.log` for session creation errors.
+
+If an app does not connect, verify the session exists by running `boo ls` in a terminal.
