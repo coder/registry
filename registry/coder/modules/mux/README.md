@@ -63,7 +63,7 @@ Start Mux with `mux server --add-project /path/to/project`:
 module "mux" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/mux/coder"
-  version  = "1.5.0"
+  version     = "1.5.0"
   agent_id    = coder_agent.main.id
   add_project = "/path/to/project"
 }
@@ -78,7 +78,7 @@ The module parses quoted values, so grouped arguments remain intact.
 module "mux" {
   count                = data.coder_workspace.me.start_count
   source               = "registry.coder.com/coder/mux/coder"
-  version  = "1.5.0"
+  version              = "1.5.0"
   agent_id             = coder_agent.main.id
   additional_arguments = "--open-mode pinned --add-project '/workspaces/my repo'"
 }
@@ -92,7 +92,7 @@ Enable automatic restarts after Mux exits, including clean exits and intentional
 module "mux" {
   count                 = data.coder_workspace.me.start_count
   source                = "registry.coder.com/coder/mux/coder"
-  version  = "1.5.0"
+  version               = "1.5.0"
   agent_id              = coder_agent.main.id
   restart_on_kill       = true
   restart_delay_seconds = 3
@@ -120,7 +120,7 @@ Force a specific package manager instead of auto-detection:
 module "mux" {
   count           = data.coder_workspace.me.start_count
   source          = "registry.coder.com/coder/mux/coder"
-  version  = "1.5.0"
+  version         = "1.5.0"
   agent_id        = coder_agent.main.id
   package_manager = "pnpm" # or "npm", "bun"
 }
@@ -134,7 +134,7 @@ Use a private or mirrored npm registry:
 module "mux" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/coder/mux/coder"
-  version  = "1.5.0"
+  version      = "1.5.0"
   agent_id     = coder_agent.main.id
   registry_url = "https://npm.pkg.github.com"
 }
@@ -148,7 +148,7 @@ Run an existing copy of Mux if found, otherwise install from npm:
 module "mux" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/mux/coder"
-  version  = "1.5.0"
+  version    = "1.5.0"
   agent_id   = coder_agent.main.id
   use_cached = true
 }
