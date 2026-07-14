@@ -104,22 +104,22 @@ module "coder_utils" {
   install_script      = local.install_script
 }
 
-resource "coder_script" "boo_start" {
-  for_each = var.sessions
+# resource "coder_script" "boo_start" {
+#   for_each = var.sessions
 
-  agent_id     = var.agent_id
-  display_name = "${var.display_name}: Start ${each.key}"
-  icon         = var.icon
-  run_on_start = true
-  script = templatefile("${path.module}/scripts/start.sh.tftpl", {
-    ARG_SESSION_NAME = each.key
-    ARG_FOLDER       = var.folder
-    ARG_COMMAND      = base64encode(each.value)
-    ARG_LOG_PATH     = "${local.module_dir}/logs/${each.key}/start.log"
-    ARG_SYNC_NAME    = "coder-boo-${each.key}-start_script"
-    ARG_INSTALL_SYNC = local.install_phase_last
-  })
-}
+#   agent_id     = var.agent_id
+#   display_name = "${var.display_name}: Start ${each.key}"
+#   icon         = var.icon
+#   run_on_start = true
+#   script = templatefile("${path.module}/scripts/start.sh.tftpl", {
+#     ARG_SESSION_NAME = each.key
+#     ARG_FOLDER       = var.folder
+#     ARG_COMMAND      = base64encode(each.value)
+#     ARG_LOG_PATH     = "${local.module_dir}/logs/${each.key}/start.log"
+#     ARG_SYNC_NAME    = "coder-boo-${each.key}-start_script"
+#     ARG_INSTALL_SYNC = local.install_phase_last
+#   })
+# }
 
 resource "coder_app" "boo" {
   for_each = var.sessions
@@ -128,7 +128,16 @@ resource "coder_app" "boo" {
   slug         = "${var.slug}-${replace(each.key, "_", "-")}"
   display_name = "${var.display_name}: ${each.key}"
   icon         = var.icon
-  command      = "coder exp sync want ${var.slug}-${replace(each.key, "_", "-")} coder-boo-${each.key}-start_script && export PATH=\"$HOME/.local/bin:$PATH\" && boo attach ${each.key}"
+  command      = <<-EOT
+  #!/bin/bash
+  export PATH=\"$HOME/.local/bin:$PATH\"
+  if boo peek '${each.key}' >/dev/null 2>&1; then
+    boo attach '${each.key}'
+  else
+    boo new '${each.key}'
+    '${each.value}'
+  fi
+  EOT
   order        = var.order
   group        = var.group
 }
