@@ -16,88 +16,24 @@
 import { readdir, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import {
+  CATEGORY_ID,
+  MARKER,
+  REPO_ID,
+  REPO_NAME,
+  REPO_OWNER,
+  type SummaryScores,
+  findDiscussionByTitle,
+  graphql,
+  parseSummary,
+} from "./lib";
 
 const REGISTRY_ROOT = path.resolve(import.meta.dir, "..", "..");
 const MODULES_DIR = path.join(REGISTRY_ROOT, "registry", "coder", "modules");
 const SCORECARD_PATH = path.join(import.meta.dir, "SCORECARD.md");
 
-const REPO_ID = "R_kgDOOVbRAA"; // coder/registry
-const CATEGORY_ID = "DIC_kwDOOVbRAM4DBMLT"; // "Modules" category
-const REPO_OWNER = "coder";
-const REPO_NAME = "registry";
-
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-5";
 const MAX_FILE_BYTES = 30_000;
-
-const MARKER = "<!-- module-scorecard -->";
-const RESULTS_PATH = path.join(import.meta.dir, ".scorecard-results.json");
-
-interface SummaryScores {
-  track: "Agent" | "IDE" | "Utility";
-  presentation: string;
-  integration: string;
-  credential: string;
-  network: string;
-  engineering: string;
-  overall: string;
-  overallNum: number;
-}
-
-interface Result extends SummaryScores {
-  module: string;
-  name: string;
-  url: string;
-  scoredAt: string;
-}
-
-function parseSummary(scorecard: string): SummaryScores | null {
-  const lines = scorecard.split("\n");
-  const headerIdx = lines.findIndex(
-    (l) =>
-      l.startsWith("|") && l.includes("Overall") && l.includes("Presentation"),
-  );
-  if (headerIdx === -1) return null;
-  const headers = lines[headerIdx]
-    .split("|")
-    .map((c) => c.trim())
-    .filter(Boolean);
-  const cells = lines[headerIdx + 2]
-    ?.split("|")
-    .map((c) => c.trim().replace(/\*\*/g, ""))
-    .filter(Boolean);
-  if (!cells || cells.length !== headers.length) return null;
-  const get = (name: string) => {
-    const i = headers.findIndex((h) => h.toLowerCase().includes(name));
-    return i === -1 ? "\u2014" : cells[i];
-  };
-  const integrationIdx = headers.findIndex((h) => /integration/i.test(h));
-  const track: SummaryScores["track"] =
-    integrationIdx === -1
-      ? "Utility"
-      : /agent/i.test(headers[integrationIdx])
-        ? "Agent"
-        : "IDE";
-  const overall = get("overall");
-  return {
-    track,
-    presentation: get("presentation"),
-    integration: integrationIdx === -1 ? "\u2014" : cells[integrationIdx],
-    credential: get("credential"),
-    network: get("restricted"),
-    engineering: get("engineering"),
-    overall,
-    overallNum: Number(overall.match(/(\d+)\s*\/\s*100/)?.[1] ?? 0),
-  };
-}
-
-async function saveResult(result: Result): Promise<void> {
-  let results: Record<string, Result> = {};
-  if (existsSync(RESULTS_PATH)) {
-    results = JSON.parse(await readFile(RESULTS_PATH, "utf8"));
-  }
-  results[result.module] = result;
-  await Bun.write(RESULTS_PATH, JSON.stringify(results, null, 2) + "\n");
-}
 
 async function displayName(moduleName: string): Promise<string> {
   const readme = await readFile(
@@ -300,60 +236,11 @@ Do not add any prose before or after the scorecard.`;
   return fixOverall(text.trim());
 }
 
-async function graphql<T>(
-  query: string,
-  variables: Record<string, unknown>,
-): Promise<T> {
-  const res = await fetch("https://api.github.com/graphql", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.GITHUB_DISCUSSIONS_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ query, variables }),
-  });
-  const body = (await res.json()) as { data?: T; errors?: unknown[] };
-  if (!res.ok || body.errors?.length) {
-    throw new Error(
-      `GitHub GraphQL error: ${JSON.stringify(body.errors ?? body)}`,
-    );
-  }
-  return body.data!;
-}
-
-async function findDiscussion(
-  title: string,
-): Promise<{ id: string; url: string; body: string } | null> {
-  const q = `"${title}" in:title repo:${REPO_OWNER}/${REPO_NAME}`;
-  const data = await graphql<{
-    search: {
-      nodes: { id: string; title: string; url: string; body: string }[];
-    };
-  }>(
-    `
-      query ($q: String!) {
-        search(query: $q, type: DISCUSSION, first: 10) {
-          nodes {
-            ... on Discussion {
-              id
-              title
-              url
-              body
-            }
-          }
-        }
-      }
-    `,
-    { q },
-  );
-  return data.search.nodes.find((n) => n.title === title) ?? null;
-}
-
 async function upsertDiscussion(
   title: string,
   body: string,
 ): Promise<{ id: string; url: string; created: boolean }> {
-  const existing = await findDiscussion(title);
+  const existing = await findDiscussionByTitle(title);
   if (existing) {
     await graphql(
       `
@@ -493,7 +380,7 @@ async function main() {
         // PR mode: compare against the module's current discussion and
         // build a report instead of touching any discussion.
         const summary = parseSummary(scorecard);
-        const existing = await findDiscussion(`${name} module`);
+        const existing = await findDiscussionByTitle(`${name} module`);
         const parsed = existing ? parseSummary(existing.body) : null;
         const baseline =
           existing && parsed ? { ...parsed, url: existing.url } : null;
@@ -507,18 +394,6 @@ async function main() {
         `${name} module`,
         discussionBody(mod, name, scorecard),
       );
-      const summary = parseSummary(scorecard);
-      if (summary) {
-        await saveResult({
-          module: mod,
-          name,
-          url,
-          scoredAt: new Date().toISOString(),
-          ...summary,
-        });
-      } else {
-        process.stderr.write(`warn: could not parse summary for ${mod}\n`);
-      }
       process.stderr.write(`${created ? "created" : "updated"} ${url}\n`);
     } catch (err) {
       process.stderr.write(`FAILED: ${err}\n`);

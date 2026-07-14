@@ -92,6 +92,6 @@ jobs:
       - name: Update index discussion
         env:
           GITHUB_DISCUSSIONS_TOKEN: ${{ secrets.SCORECARD_DISCUSSIONS_TOKEN }}
-        # --from-github rebuilds the full result set from the module
-        # discussions, so a single-module run still produces a complete index.
-        run: bun run .github/scorecard/scorecard-index.ts --from-github
+        # The index reads scores back from the module discussions, so a
+        # single-module run still produces a complete index.
+        run: bun run .github/scorecard/scorecard-index.ts
