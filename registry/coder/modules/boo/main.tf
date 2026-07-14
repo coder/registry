@@ -134,6 +134,7 @@ resource "coder_app" "boo" {
   if boo peek '${each.key}' >/dev/null 2>&1; then
     boo attach '${each.key}'
   else
+    mkdir -p "${local.module_dir}/logs/${each.key}"
     boo new '${each.key}' -- bash -c "${each.value} 2>&1 | tee ${local.module_dir}/logs/${each.key}/start.log" 
   fi
   EOT
