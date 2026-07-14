@@ -1,0 +1,56 @@
+# Scores every module in the coder namespace against
+# .github/scorecard/SCORECARD.md using Claude, then posts (or updates) one
+# GitHub Discussion per module plus the pinned "📊 Module Scorecards" index.
+#
+# The rubric lives in .github/scorecard/SCORECARD.md. The scoring script
+# reads it directly at runtime, so editing that file changes the criteria
+# for the next run, and pushing a change to it re-runs scoring immediately.
+#
+# Required repository secrets:
+#   SCORECARD_ANTHROPIC_API_KEY  Anthropic API key used for scoring
+#   SCORECARD_DISCUSSIONS_TOKEN  GitHub PAT with Discussions read/write
+
+name: Module Scorecards
+
+on:
+  schedule:
+    # Weekly, Mondays 06:00 UTC
+    - cron: "0 6 * * 1"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/scorecard/SCORECARD.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: module-scorecards
+  cancel-in-progress: false
+
+jobs:
+  score:
+    name: Score modules and update discussions
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Score modules and update module discussions
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.SCORECARD_ANTHROPIC_API_KEY }}
+          GITHUB_DISCUSSIONS_TOKEN: ${{ secrets.SCORECARD_DISCUSSIONS_TOKEN }}
+        run: bun run .github/scorecard/score-modules.ts
+
+      - name: Update index discussion
+        env:
+          GITHUB_DISCUSSIONS_TOKEN: ${{ secrets.SCORECARD_DISCUSSIONS_TOKEN }}
+        run: bun run .github/scorecard/scorecard-index.ts
