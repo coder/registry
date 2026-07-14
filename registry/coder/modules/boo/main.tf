@@ -130,7 +130,7 @@ resource "coder_app" "boo" {
   icon         = var.icon
   command      = <<-EOT
   #!/bin/bash
-  export PATH=\"$HOME/.local/bin:$PATH\"
+  export PATH="$HOME/.local/bin:$PATH"
   if boo peek '${each.key}' >/dev/null 2>&1; then
     boo attach '${each.key}'
   else
