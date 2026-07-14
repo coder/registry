@@ -23,6 +23,7 @@ import {
   REPO_NAME,
   REPO_OWNER,
   type SummaryScores,
+  findDiscussionByModuleUrl,
   findDiscussionByTitle,
   graphql,
   parseSummary,
@@ -380,12 +381,24 @@ async function main() {
         // PR mode: compare against the module's current discussion and
         // build a report instead of touching any discussion.
         const summary = parseSummary(scorecard);
-        const existing = await findDiscussionByTitle(`${name} module`);
+        let existing = await findDiscussionByTitle(`${name} module`);
+        let renameWarning = "";
+        if (!existing) {
+          // A display_name rename breaks the title lookup while the old
+          // discussion still exists. Fall back to the registry URL and
+          // flag it so a reviewer retitles or deletes the old one; the
+          // post-merge run creates a fresh discussion under the new name.
+          existing = await findDiscussionByModuleUrl(mod);
+          if (existing) {
+            renameWarning = `\n\n> [!WARNING]\n> This module's display name appears to have changed. Its existing scorecard discussion is titled "${existing.title}" (${existing.url}). After merge, a new discussion named "${name} module" will be created; a maintainer should retitle or delete the old one to avoid duplicates.`;
+          }
+        }
         const parsed = existing ? parseSummary(existing.body) : null;
         const baseline =
           existing && parsed ? { ...parsed, url: existing.url } : null;
         prSections.push(
-          prReportSection(mod, name, scorecard, summary, baseline),
+          prReportSection(mod, name, scorecard, summary, baseline) +
+            renameWarning,
         );
         process.stderr.write("compared\n");
         continue;

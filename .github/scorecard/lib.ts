@@ -122,3 +122,35 @@ export async function findDiscussionByTitle(
   );
   return data.search.nodes.find((n) => n.title === title) ?? null;
 }
+
+// Finds a module's scorecard discussion by the registry URL in its body,
+// regardless of title. Used to detect display_name renames, where the
+// title lookup misses but the discussion still exists.
+export async function findDiscussionByModuleUrl(
+  module: string,
+): Promise<DiscussionRef | null> {
+  const url = `registry.coder.com/modules/coder/${module}`;
+  const q = `"${url}" in:body repo:${REPO_OWNER}/${REPO_NAME}`;
+  const data = await graphql<{ search: { nodes: DiscussionRef[] } }>(
+    `
+      query ($q: String!) {
+        search(query: $q, type: DISCUSSION, first: 10) {
+          nodes {
+            ... on Discussion {
+              id
+              title
+              url
+              body
+            }
+          }
+        }
+      }
+    `,
+    { q },
+  );
+  return (
+    data.search.nodes.find(
+      (n) => n.body.includes(MARKER) && n.body.includes(`/${module})`),
+    ) ?? null
+  );
+}
