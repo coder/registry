@@ -125,6 +125,7 @@ interface Args {
   modules?: string[];
   dryRun: boolean;
   limit?: number;
+  prReport?: string;
 }
 
 function parseArgs(): Args {
@@ -140,6 +141,9 @@ function parseArgs(): Args {
         break;
       case "--limit":
         args.limit = Number(argv[++i]);
+        break;
+      case "--pr-report":
+        args.prReport = argv[++i];
         break;
       default:
         console.error(`Unknown argument: ${argv[i]}`);
@@ -279,6 +283,7 @@ Do not add any prose before or after the scorecard.`;
     body: JSON.stringify({
       model: ANTHROPIC_MODEL,
       max_tokens: 4096,
+      temperature: 0,
       messages: [{ role: "user", content: prompt }],
     }),
   });
@@ -318,10 +323,12 @@ async function graphql<T>(
 
 async function findDiscussion(
   title: string,
-): Promise<{ id: string; url: string } | null> {
+): Promise<{ id: string; url: string; body: string } | null> {
   const q = `"${title}" in:title repo:${REPO_OWNER}/${REPO_NAME}`;
   const data = await graphql<{
-    search: { nodes: { id: string; title: string; url: string }[] };
+    search: {
+      nodes: { id: string; title: string; url: string; body: string }[];
+    };
   }>(
     `
       query ($q: String!) {
@@ -331,6 +338,7 @@ async function findDiscussion(
               id
               title
               url
+              body
             }
           }
         }
@@ -386,6 +394,48 @@ async function upsertDiscussion(
   return { ...data.createDiscussion.discussion, created: true };
 }
 
+// Builds one PR-report section comparing a fresh scorecard against the
+// module's current discussion (the last scoring from main), so PRs can see
+// whether they improve, regress, or hold the score.
+function prReportSection(
+  mod: string,
+  name: string,
+  scorecard: string,
+  summary: SummaryScores | null,
+  baseline: (SummaryScores & { url: string }) | null,
+): string {
+  const details = `<details>\n<summary><strong>Full scorecard for this PR</strong></summary>\n\n${scorecard}\n\n</details>`;
+  if (!summary) {
+    return `### \`coder/${mod}\`\n\nCould not parse the generated scorecard; see full output below.\n\n${details}`;
+  }
+  if (!baseline) {
+    return `### \`coder/${mod}\`: first scorecard, **${summary.overall}**\n\nNo existing scorecard discussion found for ${name}; this is the initial score. A dedicated discussion is created after merge.\n\n${details}`;
+  }
+  const delta = summary.overallNum - baseline.overallNum;
+  const themes: [string, string, string][] = [
+    ["Presentation & Onboarding", baseline.presentation, summary.presentation],
+    ["Integration", baseline.integration, summary.integration],
+    ["Credential Hygiene", baseline.credential, summary.credential],
+    ["Restricted-Network", baseline.network, summary.network],
+    ["Engineering Quality", baseline.engineering, summary.engineering],
+    ["**Overall**", `**${baseline.overall}**`, `**${summary.overall}**`],
+  ];
+  const table = [
+    "| Theme | Before | After |",
+    "|---|---:|---:|",
+    ...themes.map(([t, b, a]) => `| ${t} | ${b} | ${a} |`),
+  ].join("\n");
+  let verdict: string;
+  if (delta < 0) {
+    verdict = `\u26a0\ufe0f **Score regression**: ${baseline.overallNum} \u2192 ${summary.overallNum} (${delta}). Check the drilldown for which criteria dropped.`;
+  } else if (delta > 0) {
+    verdict = `\u2705 **Score improvement**: ${baseline.overallNum} \u2192 ${summary.overallNum} (+${delta}).`;
+  } else {
+    verdict = `\u2705 **Score unchanged** at ${summary.overall}. This PR does not affect the module's scorecard; the results are still good.`;
+  }
+  return `### [\`coder/${mod}\`](${baseline.url}): ${baseline.overallNum} \u2192 ${summary.overallNum}\n\n${verdict}\n\n${table}\n\n${details}`;
+}
+
 function discussionBody(
   moduleName: string,
   name: string,
@@ -420,6 +470,7 @@ async function main() {
       .sort();
   if (args.limit) modules = modules.slice(0, args.limit);
 
+  const prSections: string[] = [];
   for (const mod of modules) {
     if (!existsSync(path.join(MODULES_DIR, mod, "README.md"))) {
       console.error(`skip ${mod}: no README.md`);
@@ -438,6 +489,20 @@ async function main() {
         continue;
       }
       const name = await displayName(mod);
+      if (args.prReport) {
+        // PR mode: compare against the module's current discussion and
+        // build a report instead of touching any discussion.
+        const summary = parseSummary(scorecard);
+        const existing = await findDiscussion(`${name} module`);
+        const parsed = existing ? parseSummary(existing.body) : null;
+        const baseline =
+          existing && parsed ? { ...parsed, url: existing.url } : null;
+        prSections.push(
+          prReportSection(mod, name, scorecard, summary, baseline),
+        );
+        process.stderr.write("compared\n");
+        continue;
+      }
       const { url, created } = await upsertDiscussion(
         `${name} module`,
         discussionBody(mod, name, scorecard),
@@ -458,6 +523,15 @@ async function main() {
     } catch (err) {
       process.stderr.write(`FAILED: ${err}\n`);
     }
+  }
+
+  if (args.prReport) {
+    const report =
+      prSections.length > 0
+        ? `## Module Scorecard Check\n\n${prSections.join("\n\n")}\n\n---\nScored against [SCORECARD.md](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md) with \`${ANTHROPIC_MODEL}\`. Language-model scores are advisory.\n<!-- module-scorecard-pr -->`
+        : "";
+    await Bun.write(args.prReport, report);
+    process.stderr.write(`wrote PR report to ${args.prReport}\n`);
   }
 }
 
