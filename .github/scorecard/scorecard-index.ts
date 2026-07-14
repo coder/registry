@@ -144,9 +144,11 @@ ${body}
     .join("\n");
 
   const now = new Date().toISOString().slice(0, 10);
-  return `Every module in the \`coder\` namespace, scored against [SCORECARD.md](https://github.com/coder/registry/blob/main/.github/scorecard/SCORECARD.md). Each module links to its dedicated discussion, where you can share thoughts, questions, and feedback.
+  return `**What is this?** Every module in the \`coder\` namespace gets a scorecard: a 0-100 quality score across themes like presentation, credential hygiene, restricted-network readiness, engineering quality, and Coder platform integration. The tables below list every scored module, and each links to a dedicated discussion where you can share thoughts, questions, and feedback.
 
-**Why a scorecard?** It gives us a shared definition of quality (and a goalpost) for modules: what we care about for each one, in one place, for any contributor. It is not a strict gate today, though it may become one, and the criteria will evolve over time. It also helps catch regressions, for example a feature or documented capability being removed, since scores are re-evaluated whenever a module changes.
+**Why?** The scorecard gives us a shared definition of quality (and a goalpost) for modules: what we care about for each one, in one place, for any contributor. It is not a strict gate today, though it may become one, and the criteria will evolve over time. It also helps catch regressions, for example a feature or documented capability being removed, since scores are re-evaluated whenever a module changes.
+
+**How is it generated?** Scores are produced by Claude evaluating each module's code, tests, and README against the criteria in [SCORECARD.md](https://github.com/coder/registry/blob/main/.github/scorecard/SCORECARD.md), with strict calibration rules and deterministic totals. A GitHub Action re-scores a module whenever it changes on \`main\`, re-scores everything weekly or when the criteria change, and comments on PRs that would change a module's score. Language-model scores are advisory; if one looks wrong, say so in the module's discussion.
 
 **Looking for a way to contribute?** Low scores are contribution opportunities. Pick a module, open its discussion to see exactly which criteria it misses (visual previews, air-gapped install docs, tests, session persistence, and so on), and open a PR against [\`registry/coder/modules/<module>\`](https://github.com/coder/registry/tree/main/registry/coder/modules).
 
