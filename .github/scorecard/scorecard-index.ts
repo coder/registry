@@ -144,16 +144,16 @@ ${body}
     .join("\n");
 
   const now = new Date().toISOString().slice(0, 10);
-  return `**What is this?** Every module in the \`coder\` namespace gets a scorecard: a 0-100 quality score across themes like presentation, credential hygiene, restricted-network readiness, engineering quality, and Coder platform integration. The tables below list every scored module, and each links to a dedicated discussion where you can share thoughts, questions, and feedback.
+  return `Every module in the \`coder\` namespace gets a scorecard: a 0-100 score for how well it covers the things we care about in a module, like clear configuration examples, secret handling, air-gapped installs, tests, and Coder platform integration. Each module below links to a dedicated discussion where its scorecard lives and where you can leave thoughts, questions, and feedback.
 
-**Why?** The scorecard gives us a shared definition of quality (and a goalpost) for modules: what we care about for each one, in one place, for any contributor. It is not a strict gate today, though it may become one, and the criteria will evolve over time. It also helps catch regressions, for example a feature or documented capability being removed, since scores are re-evaluated whenever a module changes.
+We built this to have a shared definition of quality for modules. Anyone contributing can see what a good module looks like in one place instead of rediscovering it in review. It is not a gate today (it may become one), and the criteria will change over time. It also catches regressions: modules are re-scored when they change, so a removed feature or deleted doc shows up as a dropped score.
 
-**How is it generated?** Scores are produced by Claude evaluating each module's code, tests, and README against the criteria in [SCORECARD.md](https://github.com/coder/registry/blob/main/.github/scorecard/SCORECARD.md), with strict calibration rules and deterministic totals. A GitHub Action re-scores a module whenever it changes on \`main\`, re-scores everything weekly or when the criteria change, and comments on PRs that would change a module's score. Language-model scores are advisory; if one looks wrong, say so in the module's discussion.
+Scores come from Claude reading each module's code, tests, and README against [SCORECARD.md](https://github.com/coder/registry/blob/main/.github/scorecard/SCORECARD.md), with calibration rules to keep it strict and totals computed by script. A GitHub Action re-scores a module when it changes on \`main\`, re-scores everything weekly or when the criteria change, and comments on PRs that would move a module's score. The scores are advisory. If one looks wrong, say so in the module's discussion.
 
-**Looking for a way to contribute?** Low scores are contribution opportunities. Pick a module, open its discussion to see exactly which criteria it misses (visual previews, air-gapped install docs, tests, session persistence, and so on), and open a PR against [\`registry/coder/modules/<module>\`](https://github.com/coder/registry/tree/main/registry/coder/modules).
+**Want to contribute?** Low scores are a ready-made backlog. Pick a module, open its discussion to see exactly which criteria it misses (a visual preview, air-gapped install docs, tests, session persistence), and open a PR against [\`registry/coder/modules/<module>\`](https://github.com/coder/registry/tree/main/registry/coder/modules).
 
 ${sections}
-**Notes**: N/A means the theme does not apply by construction and is excluded from the denominator.
+**Notes**: N/A means the theme does not apply to that module (for example, a module that downloads nothing has no install URL to mirror) and is excluded from its total.
 
 ---
 Updated ${now}. Scores refresh when modules change.
