@@ -134,8 +134,8 @@ resource "coder_app" "boo" {
   if boo peek '${each.key}' >/dev/null 2>&1; then
     boo attach '${each.key}'
   else
-    boo new '${each.key}'
-    '${each.value}'
+    boo new '${each.key}' -- bash -c "${each.value}" 
+    
   fi
   EOT
   order        = var.order
