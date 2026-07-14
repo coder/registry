@@ -146,6 +146,8 @@ ${body}
   const now = new Date().toISOString().slice(0, 10);
   return `Every module in the \`coder\` namespace, scored against [SCORECARD.md](https://github.com/coder/registry/blob/main/.github/scorecard/SCORECARD.md). Each module links to its dedicated discussion, where you can share thoughts, questions, and feedback.
 
+**Why a scorecard?** It gives us a shared definition of quality (and a goalpost) for modules: what we care about for each one, in one place, for any contributor. It is not a strict gate today, though it may become one, and the criteria will evolve over time. It also helps catch regressions, for example a feature or documented capability being removed, since scores are re-evaluated whenever a module changes.
+
 **Looking for a way to contribute?** Low scores are contribution opportunities. Pick a module, open its discussion to see exactly which criteria it misses (visual previews, air-gapped install docs, tests, session persistence, and so on), and open a PR against [\`registry/coder/modules/<module>\`](https://github.com/coder/registry/tree/main/registry/coder/modules).
 
 ${sections}
