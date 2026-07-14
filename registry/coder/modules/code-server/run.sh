@@ -19,24 +19,64 @@ function run_code_server() {
   $CODE_SERVER "$EXTENSION_ARG" --auth none --port "${PORT}" --app-name "${APP_NAME}" ${ADDITIONAL_ARGS} > "${LOG_PATH}" 2>&1 &
 }
 
-# Check if the settings file exists...
-if [ ! -f ~/.local/share/code-server/User/settings.json ]; then
-  echo "⚙️ Creating settings file..."
-  mkdir -p ~/.local/share/code-server/User
-  if command -v jq &> /dev/null; then
-    echo "${SETTINGS}" | jq '.' > ~/.local/share/code-server/User/settings.json
+# Merge settings from module with existing settings file
+merge_settings() {
+  local new_settings="$1"
+  local settings_file="$2"
+
+  if [ -z "$new_settings" ] || [ "$new_settings" = "{}" ]; then
+    return 0
+  fi
+
+  if [ ! -f "$settings_file" ]; then
+    mkdir -p "$(dirname "$settings_file")"
+    printf '%s\n' "$new_settings" > "$settings_file"
+    printf "⚙️ Creating settings file...\n"
+    return 0
+  fi
+
+  local tmpfile
+  tmpfile="$(mktemp)"
+
+  if command -v jq > /dev/null 2>&1; then
+    if jq -s '.[0] * .[1]' "$settings_file" <(printf '%s\n' "$new_settings") > "$tmpfile" 2> /dev/null; then
+      mv "$tmpfile" "$settings_file"
+      printf "⚙️ Merging settings...\n"
+      return 0
+    fi
+  fi
+
+  if command -v python3 > /dev/null 2>&1; then
+    if python3 -c "import json,sys;m=lambda a,b:{**a,**{k:m(a[k],v)if k in a and type(a[k])==type(v)==dict else v for k,v in b.items()}};print(json.dumps(m(json.load(open(sys.argv[1])),json.loads(sys.argv[2])),indent=2))" "$settings_file" "$new_settings" > "$tmpfile" 2> /dev/null; then
+      mv "$tmpfile" "$settings_file"
+      printf "⚙️ Merging settings...\n"
+      return 0
+    fi
+  fi
+
+  rm -f "$tmpfile"
+  printf "Warning: Could not merge settings (jq or python3 required). Keeping existing settings.\n"
+  return 0
+}
+
+# Apply user settings (merge with existing if present)
+SETTINGS_B64='${SETTINGS_B64}'
+if [ -n "$SETTINGS_B64" ]; then
+  if SETTINGS_JSON="$(echo -n "$SETTINGS_B64" | base64 -d 2> /dev/null)" && [ -n "$SETTINGS_JSON" ]; then
+    merge_settings "$SETTINGS_JSON" ~/.local/share/code-server/User/settings.json
   else
-    echo "${SETTINGS}" > ~/.local/share/code-server/User/settings.json
+    printf "Warning: Failed to decode settings. Skipping settings configuration.\n"
   fi
 fi
 
-# Apply/overwrite template based settings
-echo "⚙️ Creating machine settings file..."
-mkdir -p ~/.local/share/code-server/Machine
-if command -v jq &> /dev/null; then
-  echo "${MACHINE_SETTINGS}" | jq '.' > ~/.local/share/code-server/Machine/settings.json
-else
-  echo "${MACHINE_SETTINGS}" > ~/.local/share/code-server/Machine/settings.json
+# Apply machine settings (merge with existing if present)
+MACHINE_SETTINGS_B64='${MACHINE_SETTINGS_B64}'
+if [ -n "$MACHINE_SETTINGS_B64" ]; then
+  if MACHINE_SETTINGS_JSON="$(echo -n "$MACHINE_SETTINGS_B64" | base64 -d 2> /dev/null)" && [ -n "$MACHINE_SETTINGS_JSON" ]; then
+    merge_settings "$MACHINE_SETTINGS_JSON" ~/.local/share/code-server/Machine/settings.json
+  else
+    printf "Warning: Failed to decode machine settings. Skipping machine settings configuration.\n"
+  fi
 fi
 
 # Check if code-server is already installed for offline

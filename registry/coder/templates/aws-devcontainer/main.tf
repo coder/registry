@@ -16,7 +16,8 @@ terraform {
 }
 
 module "aws_region" {
-  source  = "https://registry.coder.com/modules/aws-region"
+  source  = "registry.coder.com/coder/aws-region/coder"
+  version = "~> 1.0"
   default = "us-east-1"
 }
 
@@ -326,7 +327,6 @@ module "code-server" {
   count  = data.coder_workspace.me.start_count
   source = "registry.coder.com/coder/code-server/coder"
   # This ensures that the latest non-breaking version of the module gets downloaded, you can also pin the module version to prevent breaking changes in production.
-  version    = "~> 1.0"
-  agent_id   = coder_agent.dev[0].id
-  agent_name = "dev"
+  version  = "~> 1.0"
+  agent_id = coder_agent.dev[0].id
 }
