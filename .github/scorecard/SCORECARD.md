@@ -51,12 +51,13 @@ Utility modules are scored on Universal criteria only, then normalized:
 
 ## Notes
 
-| Topic            | Rule                                                                                                                                                                                                                                           |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Track assignment | Every score should record which track was used                                                                                                                                                                                                 |
-| If applicable    | Criteria or themes marked _if applicable_ are excluded when the concern does not exist by construction, for example a module that downloads nothing. Excluded points are removed from the denominator and the final score is normalized to 100 |
-| N/A handling     | Outside _if applicable_ criteria, missing support scores zero. Only Utility modules skip the track section                                                                                                                                     |
-| Scoring          | Full = implemented and documented; half = partial, awkward, or under-documented; zero = absent                                                                                                                                                 |
+| Topic                    | Rule                                                                                                                                                                                                                                           |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Track assignment         | Every score should record which track was used                                                                                                                                                                                                 |
+| Internal building blocks | Modules whose README cautions against direct use (for example "we do not recommend using this module directly") are excluded from scoring entirely                                                                                             |
+| If applicable            | Criteria or themes marked _if applicable_ are excluded when the concern does not exist by construction, for example a module that downloads nothing. Excluded points are removed from the denominator and the final score is normalized to 100 |
+| N/A handling             | Outside _if applicable_ criteria, missing support scores zero. Only Utility modules skip the track section                                                                                                                                     |
+| Scoring                  | Full = implemented and documented; half = partial, awkward, or under-documented; zero = absent                                                                                                                                                 |
 
 ## Grading
 

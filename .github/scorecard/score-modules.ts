@@ -108,6 +108,19 @@ async function displayName(moduleName: string): Promise<string> {
   return match ? match[1].trim() : moduleName;
 }
 
+// Internal building-block modules caution against direct use and are not
+// meant to be consumed by template authors, so they are excluded from
+// scoring entirely.
+async function isInternalBuildingBlock(moduleName: string): Promise<boolean> {
+  const readme = await readFile(
+    path.join(MODULES_DIR, moduleName, "README.md"),
+    "utf8",
+  );
+  return /do not recommend using this module directly|not intended to be used directly|internal building block/i.test(
+    readme,
+  );
+}
+
 interface Args {
   modules?: string[];
   dryRun: boolean;
@@ -410,6 +423,10 @@ async function main() {
   for (const mod of modules) {
     if (!existsSync(path.join(MODULES_DIR, mod, "README.md"))) {
       console.error(`skip ${mod}: no README.md`);
+      continue;
+    }
+    if (await isInternalBuildingBlock(mod)) {
+      process.stderr.write(`skip ${mod}: internal building block\n`);
       continue;
     }
     process.stderr.write(`scoring ${mod}... `);
