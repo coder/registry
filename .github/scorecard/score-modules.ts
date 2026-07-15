@@ -119,11 +119,19 @@ async function gatherModuleContext(moduleName: string): Promise<string> {
 
 function fixOverall(scorecard: string): string {
   // Find the summary table's data row: first row whose cells are bold
-  // "**a / b**" fractions (or N/A), ending with the overall cell.
+  // "**a / b**" fractions (or N/A), ending with the overall cell. The
+  // overall cell may use any denominator (e.g. "67 / 75" from a utility
+  // module); it is recomputed and rewritten as "/ 100" regardless.
   const lines = scorecard.split("\n");
-  const rowIdx = lines.findIndex(
-    (l) => /^\|\s*\*\*\d/.test(l.trim()) && l.includes("/ 100"),
-  );
+  const rowIdx = lines.findIndex((l) => {
+    const t = l.trim();
+    if (!/^\|\s*(\*\*\d|N\/A)/i.test(t)) return false;
+    const cells = t.split("|").filter((c) => c.trim() !== "");
+    return (
+      cells.length >= 3 &&
+      cells.every((c) => /n\/a/i.test(c) || /\d+\s*\/\s*\d+/.test(c))
+    );
+  });
   if (rowIdx === -1) return scorecard;
   const cells = lines[rowIdx]
     .split("|")
@@ -145,7 +153,7 @@ function fixOverall(scorecard: string): string {
   lines[rowIdx] = `| ${cells.join(" | ")} |`;
   let out = lines.join("\n");
   out = out.replace(
-    /#### Overall — \d+(?:\.\d+)? \/ 100/g,
+    /#### Overall — \d+(?:\.\d+)? \/ \d+/g,
     `#### Overall — ${overall} / 100`,
   );
   // Rewrite or append the normalization line under the Overall heading.
@@ -179,13 +187,30 @@ ${context}
 Score the module strictly against the rubric. Rules:
 - First decide the track: Agent, IDE, or Utility. Agent = AI coding agents (CLI agents like Claude Code, Goose, Aider). IDE = editors/IDEs users open (code-server, JetBrains, VS Code). Utility = everything else (auth, regions, git helpers, file browsers, etc).
 - Score each criterion 0, half, or full. Full = implemented AND documented. Half = partial, awkward, or under-documented. Zero = absent.
-- Apply "if applicable" exclusions per the rubric: when a concern does not exist by construction, mark the criterion N/A, exclude its points from the denominator, and normalize the final score to 100.
+- BE STRICT. When evidence is ambiguous or missing, score lower. Never rationalize credit.
+- Never credit workarounds achievable outside the module. "The URL could be proxied or mirrored at the network level" is NOT a mirrorable artifact source; that criterion requires an actual module input variable that overrides the download/install URL. A hardcoded URL scores 0 regardless of what admins could do around it.
+- "Documented" means an explicit README section or example. Endpoints or behavior that are merely implicit, inferable, or visible only in source code do not count as documented.
+- Apply "if applicable" exclusions per the rubric: when a concern does not exist by construction, mark the criterion N/A, exclude its points from the denominator, and normalize the final score to 100. Do not use N/A for concerns that exist but are unaddressed.
 - Utility modules skip the track section (denominator 75 before any N/A exclusions), then normalize: round(raw / denominator * 100).
 - Notes must be specific and evidence-based (reference actual variables, README sections, or files you saw). Never invent features.
 
+Calibration anchors. Apply these literally; they override any generous reading:
+- Visual preview: 0 unless the README embeds an actual image, GIF, or video. Icons and links do not count.
+- Secrets marked sensitive: README examples that inline literal or placeholder keys (like api_key = "xxxx-xxxxx-xxxx") count as inline secrets, capping this criterion at half even when module inputs are marked sensitive.
+- AI governance covers AI Gateway AND Agent Firewall. Full credit requires both documented; exactly one documented earns half. Support that a README says was dropped or removed counts as absent.
+- Session continuity: 0 unless the README explicitly documents resuming sessions or running in a persistent session manager.
+- Egress transparency: without a dedicated network/offline/air-gapped README section, at most half, no matter how many endpoints appear across examples.
+- Mirrorable artifact source and Bring-your-own binary are distinct. Offline or skip-install modes belong to Bring-your-own binary ONLY and never earn Mirrorable credit. To give ANY Mirrorable credit you must name, in the notes, the exact module variable whose value replaces the tool's download URL in the install path. Install-location variables (like install_prefix), version pins, and cache/offline toggles are not download URL overrides. If you cannot name such a variable, score 0. Never use "could be mirrored", "effectively", or "spirit of the criterion" reasoning.
+- Egress transparency full credit requires the dedicated section to enumerate the actual endpoints or domains contacted. A section that describes offline behavior without listing endpoints earns half.
+- Runs without sudo: inspect the actual scripts. Full only if they never invoke sudo or degrade gracefully when it is absent. Root required for core functionality scores 0. Sudo used only for optional features with a working non-root fallback earns half.
+- Restricted-Environment N/A: the download-related criteria (Mirrorable artifact source, Bring-your-own binary, Egress transparency) go N/A when the module downloads or installs nothing of its own (for example, it only invokes tools already in the image or calls the Coder API). A module whose only external interaction is operating on user-provided URLs (like cloning a repo the caller specifies) downloads nothing of its own. Runs without sudo applies whenever the module executes any script, and goes N/A only for modules with no scripts at all. Score 0 only when a concern exists and the module lacks the capability.
+- Runs without sudo is an exception to the documentation requirement: scripts that verifiably never invoke sudo earn full credit from the code alone, no README mention needed.
+- Half credit is exactly half the criterion's max points, not an arbitrary fraction.
+- A perfect theme score should be rare. If you scored every criterion in a theme full, re-check each against its disqualifiers before finalizing.
+
 Output ONLY the scorecard markdown in EXACTLY this structure (this example shows an Agent module; use IDE Integration or omit the track section for Utility):
 
-| Presentation & Onboarding | Agent Integration | Credential Hygiene | Restricted-Network Readiness | Engineering Quality | Overall |
+| Presentation & Onboarding | Agent Integration | Credential Hygiene | Restricted-Environment Readiness | Engineering Quality | Overall |
 |---:|---:|---:|---:|---:|---:|
 | **X / 25** | **X / 25** | **X / 20** | **X / 20 or N/A** | **X / 10** | **X / 100** |
 
@@ -304,7 +329,7 @@ function prReportSection(
     ["Presentation & Onboarding", baseline.presentation, summary.presentation],
     ["Integration", baseline.integration, summary.integration],
     ["Credential Hygiene", baseline.credential, summary.credential],
-    ["Restricted-Network", baseline.network, summary.network],
+    ["Restricted-Environment", baseline.network, summary.network],
     ["Engineering Quality", baseline.engineering, summary.engineering],
     ["**Overall**", `**${baseline.overall}**`, `**${summary.overall}**`],
   ];
