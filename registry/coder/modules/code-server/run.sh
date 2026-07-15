@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -x
 
 EXTENSIONS=("${EXTENSIONS}")
 BOLD='\033[0;1m'
