@@ -137,6 +137,7 @@ resource "coder_app" "boo" {
     mkdir -p "${local.module_dir}/logs/${each.key}"
     boo new '${each.key}' -d
     boo send '${each.key}' --text "bash -c \"${each.value} 2>&1 | tee ${local.module_dir}/logs/${each.key}/start.log"\" --enter
+    boo attach '${each.key}'
   fi
   EOT
   order        = var.order
