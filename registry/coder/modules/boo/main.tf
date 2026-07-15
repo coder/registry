@@ -135,8 +135,11 @@ resource "coder_app" "boo" {
     boo attach '${each.key}'
   else
     mkdir -p "${local.module_dir}/logs/${each.key}"
+    SCRIPT="${local.module_dir}/logs/${each.key}/start.sh"
+    printf '%s' '${base64encode(each.value)}' | base64 -d > "$SCRIPT"
+    chmod +x "$SCRIPT"
     boo new '${each.key}' -d
-    boo send '${each.key}' --text "bash -c \"${each.value} 2>&1 | tee ${local.module_dir}/logs/${each.key}/start.log"\" --enter
+    boo send '${each.key}' --text "$SCRIPT 2>&1 | tee ${local.module_dir}/logs/${each.key}/start.log" --enter
     boo attach '${each.key}'
   fi
   EOT
