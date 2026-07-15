@@ -167,6 +167,12 @@ variable "additional_args" {
   default     = ""
 }
 
+variable "debug" {
+  type        = bool
+  description = "Enable debug mode for the code-server startup script, which dynamically runs set -x."
+  default     = false
+}
+
 locals {
   settings_b64         = var.settings != {} ? base64encode(jsonencode(var.settings)) : ""
   machine_settings_b64 = var.machine_settings != {} ? base64encode(jsonencode(var.machine_settings)) : ""
@@ -193,6 +199,7 @@ resource "coder_script" "code-server" {
     WORKSPACE : var.workspace,
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
     ADDITIONAL_ARGS : var.additional_args,
+    DEBUG : var.debug,
   })
   run_on_start = true
 

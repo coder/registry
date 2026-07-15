@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-set -x
+
+# Enable debug mode dynamically if the flag is true
+if [ "${DEBUG}" = true ]; then
+  set -x
+fi
 
 EXTENSIONS=("${EXTENSIONS}")
 BOLD='\033[0;1m'
