@@ -104,23 +104,6 @@ module "coder_utils" {
   install_script      = local.install_script
 }
 
-# resource "coder_script" "boo_start" {
-#   for_each = var.sessions
-
-#   agent_id     = var.agent_id
-#   display_name = "${var.display_name}: Start ${each.key}"
-#   icon         = var.icon
-#   run_on_start = true
-#   script = templatefile("${path.module}/scripts/start.sh.tftpl", {
-#     ARG_SESSION_NAME = each.key
-#     ARG_FOLDER       = var.folder
-#     ARG_COMMAND      = base64encode(each.value)
-#     ARG_LOG_PATH     = "${local.module_dir}/logs/${each.key}/start.log"
-#     ARG_SYNC_NAME    = "coder-boo-${each.key}-start_script"
-#     ARG_INSTALL_SYNC = local.install_phase_last
-#   })
-# }
-
 resource "coder_app" "boo" {
   for_each = var.sessions
 
@@ -134,12 +117,13 @@ resource "coder_app" "boo" {
   if boo peek '${each.key}' >/dev/null 2>&1; then
     boo attach '${each.key}'
   else
-    mkdir -p "${local.module_dir}/logs/${each.key}"
-    SCRIPT="${local.module_dir}/logs/${each.key}/start.sh"
+    SESSION_DIR="${local.module_dir}/${each.key}"
+    mkdir -p "$SESSION_DIR/scripts" "$SESSION_DIR/logs"
+    SCRIPT="$SESSION_DIR/scripts/start.sh"
     printf '%s' '${base64encode(each.value)}' | base64 -d > "$SCRIPT"
     chmod +x "$SCRIPT"
     boo new '${each.key}' -d
-    boo send '${each.key}' --text "$SCRIPT 2>&1 | tee ${local.module_dir}/logs/${each.key}/start.log" --enter
+    boo send '${each.key}' --text "$SCRIPT 2>&1 | tee $SESSION_DIR/logs/start.log" --enter
     boo attach '${each.key}'
   fi
   EOT
