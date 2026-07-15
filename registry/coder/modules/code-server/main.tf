@@ -44,10 +44,22 @@ variable "settings" {
   default     = {}
 }
 
+variable "overwrite_settings" {
+  type        = bool
+  description = "If true, overwrites the User settings.json instead of attempting to merge."
+  default     = false
+}
+
 variable "machine_settings" {
   type        = any
   description = "A map of template level machine settings to apply to code-server. These settings are merged with any existing machine settings on startup."
   default     = {}
+}
+
+variable "overwrite_machine_settings" {
+  type        = bool
+  description = "If true, overwrites the Machine settings.json instead of attempting to merge."
+  default     = false
 }
 
 variable "folder" {
@@ -167,6 +179,12 @@ variable "additional_args" {
   default     = ""
 }
 
+variable "debug" {
+  type        = bool
+  description = "Enable debug mode for the code-server startup script, which dynamically runs set -x."
+  default     = false
+}
+
 locals {
   settings_b64         = var.settings != {} ? base64encode(jsonencode(var.settings)) : ""
   machine_settings_b64 = var.machine_settings != {} ? base64encode(jsonencode(var.machine_settings)) : ""
@@ -184,7 +202,9 @@ resource "coder_script" "code-server" {
     LOG_PATH : var.log_path,
     INSTALL_PREFIX : var.install_prefix,
     SETTINGS_B64 : local.settings_b64,
+    OVERWRITE_SETTINGS : var.overwrite_settings,
     MACHINE_SETTINGS_B64 : local.machine_settings_b64,
+    OVERWRITE_MACHINE_SETTINGS : var.overwrite_machine_settings,
     OFFLINE : var.offline,
     USE_CACHED : var.use_cached,
     USE_CACHED_EXTENSIONS : var.use_cached_extensions,
@@ -193,6 +213,7 @@ resource "coder_script" "code-server" {
     WORKSPACE : var.workspace,
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
     ADDITIONAL_ARGS : var.additional_args,
+    DEBUG : var.debug,
   })
   run_on_start = true
 
