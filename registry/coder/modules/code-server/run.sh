@@ -28,15 +28,17 @@ function run_code_server() {
 merge_settings() {
   local new_settings="$1"
   local settings_file="$2"
+	local overwrite="$3"
 
   if [ -z "$new_settings" ] || [ "$new_settings" = "{}" ]; then
     return 0
   fi
 
-  if [ ! -f "$settings_file" ]; then
+	# If file doesn't exist OR overwrite is explicitly true, write and skip merge
+  if [ ! -f "$settings_file" ] || [ "$overwrite" = "true" ]; then
     mkdir -p "$(dirname "$settings_file")"
     printf '%s\n' "$new_settings" > "$settings_file"
-    printf "⚙️ Creating settings file...\n"
+    printf "⚙️ Creating or overwriting settings file...\n"
     return 0
   fi
 
@@ -77,21 +79,23 @@ merge_settings() {
   return 0
 }
 
-# Apply user settings (merge with existing if present)
+# Apply user settings (merge or overwrite based on flag)
 SETTINGS_B64='${SETTINGS_B64}'
 if [ -n "$SETTINGS_B64" ]; then
   if SETTINGS_JSON="$(echo -n "$SETTINGS_B64" | base64 -d 2> /dev/null)" && [ -n "$SETTINGS_JSON" ]; then
-    merge_settings "$SETTINGS_JSON" ~/.local/share/code-server/User/settings.json
+    # Return 1 triggers exit 1 to halt execution if validation fails
+    merge_settings "$SETTINGS_JSON" ~/.local/share/code-server/User/settings.json "${OVERWRITE_SETTINGS}" || exit 1
   else
     printf "Warning: Failed to decode settings. Skipping settings configuration.\n"
   fi
 fi
 
-# Apply machine settings (merge with existing if present)
+# Apply machine settings (merge or overwrite based on flag)
 MACHINE_SETTINGS_B64='${MACHINE_SETTINGS_B64}'
 if [ -n "$MACHINE_SETTINGS_B64" ]; then
   if MACHINE_SETTINGS_JSON="$(echo -n "$MACHINE_SETTINGS_B64" | base64 -d 2> /dev/null)" && [ -n "$MACHINE_SETTINGS_JSON" ]; then
-    merge_settings "$MACHINE_SETTINGS_JSON" ~/.local/share/code-server/Machine/settings.json
+    # Return 1 triggers exit 1 to halt execution if validation fails
+    merge_settings "$MACHINE_SETTINGS_JSON" ~/.local/share/code-server/Machine/settings.json "${OVERWRITE_MACHINE_SETTINGS}" || exit 1
   else
     printf "Warning: Failed to decode machine settings. Skipping machine settings configuration.\n"
   fi
