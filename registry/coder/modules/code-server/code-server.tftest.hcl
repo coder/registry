@@ -100,3 +100,36 @@ run "workspace_extension_rejected" {
   }
   expect_failures = [var.workspace]
 }
+
+run "debug_flag_enabled" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    debug    = true
+  }
+}
+
+run "overwrite_settings_flags" {
+  command = plan
+
+  variables {
+    agent_id                   = "foo"
+    overwrite_settings         = true
+    overwrite_machine_settings = true
+  }
+}
+
+run "settings_jsonencode_with_interpolation" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    settings = {
+      "window.title" = "My Window"
+    }
+    machine_settings = {
+      "git.blame.editorDecoration.template" = "$${authorName}"
+    }
+  }
+}
