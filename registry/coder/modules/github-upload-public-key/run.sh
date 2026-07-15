@@ -87,7 +87,8 @@ if [ "$PUBLIC_KEY" = "$GITHUB_MATCH" ]; then
 fi
 
 echo "Your Coder public key is not in GitHub. Adding it now..."
-CODER_PUBLIC_KEY_NAME="$CODER_ACCESS_URL Workspaces"
+CODER_PUBLIC_KEY_NAME="${CODER_PUBLIC_KEY_NAME}"
+[ -n "$CODER_PUBLIC_KEY_NAME" ] || CODER_PUBLIC_KEY_NAME="$CODER_ACCESS_URL Workspaces"
 UPLOAD_RESPONSE=$(
   curl -L -s \
     -X POST \

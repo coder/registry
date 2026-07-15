@@ -26,6 +26,12 @@ variable "github_api_url" {
   default     = "https://api.github.com"
 }
 
+variable "key_name" {
+  description = "The title assigned to the uploaded SSH key in GitHub. Defaults to '<Coder access URL> Workspaces'."
+  type        = string
+  default     = null
+}
+
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
@@ -36,6 +42,7 @@ resource "coder_script" "github_upload_public_key" {
     CODER_ACCESS_URL : data.coder_workspace.me.access_url,
     CODER_EXTERNAL_AUTH_ID : var.external_auth_id,
     GITHUB_API_URL : var.github_api_url,
+    CODER_PUBLIC_KEY_NAME : var.key_name == null ? "" : var.key_name,
   })
   display_name = "Github Upload Public Key"
   icon         = "/icon/github.svg"
