@@ -113,7 +113,7 @@ function buildBody(results: Record<string, Result>): string {
 
 ${blurb}
 
-| Module | Presentation & Onboarding |${integrationHeader} Credential Hygiene | Restricted-Network | Engineering Quality | Overall |
+| Module | Presentation & Onboarding |${integrationHeader} Credential Hygiene | Restricted-Environment | Engineering Quality | Overall |
 |---|---:|${integrationSep}---:|---:|---:|---:|
 ${body}
 `;
