@@ -43,19 +43,32 @@ merge_settings() {
   local tmpfile
   tmpfile="$(mktemp)"
 
+	# Validate existing JSON if we are attempting a merge
   if command -v jq > /dev/null 2>&1; then
-    if jq -s '.[0] * .[1]' "$settings_file" <(printf '%s\n' "$new_settings") > "$tmpfile" 2> /dev/null; then
+    if ! jq empty "$settings_file" > /dev/null 2>&1; then
+      printf "❌ Error: Existing settings file %s contains invalid JSON.\n" "$settings_file"
+      return 1
+		elif jq -s '.[0] * .[1]' "$settings_file" <(printf '%s\n' "$new_settings") > "$tmpfile" 2> /dev/null; then
       mv "$tmpfile" "$settings_file"
       printf "⚙️ Merging settings...\n"
       return 0
+		else
+			rm -f "$tmpfile"
+      printf "❌ Error: JQ failed to write the new settings file %s.\n" "$settings_file"
+      return 1
     fi
-  fi
-
-  if command -v python3 > /dev/null 2>&1; then
-    if python3 -c "import json,sys;m=lambda a,b:{**a,**{k:m(a[k],v)if k in a and type(a[k])==type(v)==dict else v for k,v in b.items()}};print(json.dumps(m(json.load(open(sys.argv[1])),json.loads(sys.argv[2])),indent=2))" "$settings_file" "$new_settings" > "$tmpfile" 2> /dev/null; then
+  elif command -v python3 > /dev/null 2>&1; then
+    if ! python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$settings_file" > /dev/null 2>&1; then
+      printf "❌ Error: Existing settings file %s contains invalid JSON.\n" "$settings_file"
+      return 1
+		elif python3 -c "import json,sys;m=lambda a,b:{**a,**{k:m(a[k],v)if k in a and type(a[k])==type(v)==dict else v for k,v in b.items()}};print(json.dumps(m(json.load(open(sys.argv[1])),json.loads(sys.argv[2])),indent=2))" "$settings_file" "$new_settings" > "$tmpfile" 2> /dev/null; then
       mv "$tmpfile" "$settings_file"
       printf "⚙️ Merging settings...\n"
       return 0
+		else
+			rm -f "$tmpfile"
+      printf "❌ Error: Python failed to write the new settings file %s.\n" "$settings_file"
+      return 1
     fi
   fi
 
