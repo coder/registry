@@ -24,59 +24,80 @@ function run_code_server() {
   $CODE_SERVER "$EXTENSION_ARG" --auth none --port "${PORT}" --app-name "${APP_NAME}" ${ADDITIONAL_ARGS} > "${LOG_PATH}" 2>&1 &
 }
 
-# Merge settings from module with existing settings file
-merge_settings() {
+# Merge, validate, save, and format settings.json
+save_settings() {
   local new_settings="$1"
   local settings_file="$2"
-	local overwrite="$3"
+  local overwrite="$3"
 
   if [ -z "$new_settings" ] || [ "$new_settings" = "{}" ]; then
     return 0
   fi
 
-	# If file doesn't exist OR overwrite is explicitly true, write and skip merge
-  if [ ! -f "$settings_file" ] || [ "$overwrite" = "true" ]; then
-    mkdir -p "$(dirname "$settings_file")"
-    printf '%s\n' "$new_settings" > "$settings_file"
-    printf "⚙️ Creating or overwriting settings file...\n"
-    return 0
+  local tool=""
+  if command -v jq > /dev/null 2>&1; then
+    tool="jq"
+  elif command -v python3 > /dev/null 2>&1; then
+    tool="python3"
   fi
 
+  mkdir -p "$(dirname "$settings_file")"
   local tmpfile
   tmpfile="$(mktemp)"
 
-	# Validate existing JSON if we are attempting a merge
-  if command -v jq > /dev/null 2>&1; then
-    if ! jq empty "$settings_file" > /dev/null 2>&1; then
-      printf "❌ Error: Existing settings file %s contains invalid JSON.\n" "$settings_file"
-      return 1
-		elif jq -s '.[0] * .[1]' "$settings_file" <(printf '%s\n' "$new_settings") > "$tmpfile" 2> /dev/null; then
-      mv "$tmpfile" "$settings_file"
-      printf "⚙️ Merging settings...\n"
-      return 0
-		else
-			rm -f "$tmpfile"
-      printf "❌ Error: JQ failed to write the new settings file %s.\n" "$settings_file"
-      return 1
+  # Create or Replace settings.json
+  if [ ! -f "$settings_file" ] || [ "$overwrite" = "true" ]; then
+    if [ "$tool" = "jq" ]; then
+      jq . <(printf '%s' "$new_settings") > "$tmpfile" 2> /dev/null || printf '%s\n' "$new_settings" > "$tmpfile"
+    elif [ "$tool" = "python3" ]; then
+      python3 -c "import json,sys; print(json.dumps(json.loads(sys.argv[1]), indent=2))" "$new_settings" > "$tmpfile" 2> /dev/null || printf '%s\n' "$new_settings" > "$tmpfile"
+    else
+      printf '%s\n' "$new_settings" > "$tmpfile"
     fi
-  elif command -v python3 > /dev/null 2>&1; then
-    if ! python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$settings_file" > /dev/null 2>&1; then
-      printf "❌ Error: Existing settings file %s contains invalid JSON.\n" "$settings_file"
-      return 1
-		elif python3 -c "import json,sys;m=lambda a,b:{**a,**{k:m(a[k],v)if k in a and type(a[k])==type(v)==dict else v for k,v in b.items()}};print(json.dumps(m(json.load(open(sys.argv[1])),json.loads(sys.argv[2])),indent=2))" "$settings_file" "$new_settings" > "$tmpfile" 2> /dev/null; then
-      mv "$tmpfile" "$settings_file"
-      printf "⚙️ Merging settings...\n"
-      return 0
-		else
-			rm -f "$tmpfile"
-      printf "❌ Error: Python failed to write the new settings file %s.\n" "$settings_file"
-      return 1
-    fi
+    mv "$tmpfile" "$settings_file"
+    printf "⚙️ Creating or replacing settings file...\n"
+    return 0
   fi
 
-  rm -f "$tmpfile"
-  printf "Warning: Could not merge settings (jq or python3 required). Keeping existing settings.\n"
-  return 0
+  # Check if required tooling exists to facilitate the merge
+  if [ -z "$tool" ]; then
+    rm -f "$tmpfile"
+    printf "Warning: Could not merge settings (jq or python3 required). Keeping existing settings.\n"
+    return 0
+  fi
+
+  # Validate existing JSON
+  local is_valid=0
+  if [ "$tool" = "jq" ]; then
+    jq empty "$settings_file" > /dev/null 2>&1 || is_valid=1
+  else
+    python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$settings_file" > /dev/null 2>&1 || is_valid=1
+  fi
+
+  if [ $is_valid -ne 0 ]; then
+    rm -f "$tmpfile"
+    printf "❌ Error: Existing settings file %s contains invalid JSON.\n" "$settings_file"
+    return 1
+  fi
+
+  # Merge to temp settings.json
+  local merge_success=0
+  if [ "$tool" = "jq" ]; then
+    jq -s '.[0] * .[1]' "$settings_file" <(printf '%s\n' "$new_settings") > "$tmpfile" 2> /dev/null || merge_success=1
+  else
+    python3 -c "import json,sys;m=lambda a,b:{**a,**{k:m(a[k],v)if k in a and type(a[k])==type(v)==dict else v for k,v in b.items()}};print(json.dumps(m(json.load(open(sys.argv[1])),json.loads(sys.argv[2])),indent=2))" "$settings_file" "$new_settings" > "$tmpfile" 2> /dev/null || merge_success=1
+  fi
+
+  # Update settings.json with the newly merged configuration
+  if [ $merge_success -eq 0 ]; then
+    mv "$tmpfile" "$settings_file"
+    printf "⚙️ Merging settings...\n"
+    return 0
+  else
+    rm -f "$tmpfile"
+    printf "❌ Error: %s failed to write the new settings file %s.\n" "$tool" "$settings_file"
+    return 1
+  fi
 }
 
 # Apply user settings (merge or overwrite based on flag)
@@ -84,7 +105,7 @@ SETTINGS_B64='${SETTINGS_B64}'
 if [ -n "$SETTINGS_B64" ]; then
   if SETTINGS_JSON="$(echo -n "$SETTINGS_B64" | base64 -d 2> /dev/null)" && [ -n "$SETTINGS_JSON" ]; then
     # Return 1 triggers exit 1 to halt execution if validation fails
-    merge_settings "$SETTINGS_JSON" ~/.local/share/code-server/User/settings.json "${OVERWRITE_SETTINGS}" || exit 1
+    save_settings "$SETTINGS_JSON" ~/.local/share/code-server/User/settings.json "${OVERWRITE_SETTINGS}" || exit 1
   else
     printf "Warning: Failed to decode settings. Skipping settings configuration.\n"
   fi
@@ -95,7 +116,7 @@ MACHINE_SETTINGS_B64='${MACHINE_SETTINGS_B64}'
 if [ -n "$MACHINE_SETTINGS_B64" ]; then
   if MACHINE_SETTINGS_JSON="$(echo -n "$MACHINE_SETTINGS_B64" | base64 -d 2> /dev/null)" && [ -n "$MACHINE_SETTINGS_JSON" ]; then
     # Return 1 triggers exit 1 to halt execution if validation fails
-    merge_settings "$MACHINE_SETTINGS_JSON" ~/.local/share/code-server/Machine/settings.json "${OVERWRITE_MACHINE_SETTINGS}" || exit 1
+    save_settings "$MACHINE_SETTINGS_JSON" ~/.local/share/code-server/Machine/settings.json "${OVERWRITE_MACHINE_SETTINGS}" || exit 1
   else
     printf "Warning: Failed to decode machine settings. Skipping machine settings configuration.\n"
   fi
