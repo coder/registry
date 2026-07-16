@@ -334,8 +334,9 @@ JSONCEOF`,
     ]);
 
     expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Installing extensions from");
     expect(result.stdout).not.toContain("INSTALLED:");
-    expect(result.stderr).not.toContain("Cannot iterate over null");
+    expect(result.stderr).not.toContain("jq: error");
   });
 
   it("installs and runs code-server", async () => {

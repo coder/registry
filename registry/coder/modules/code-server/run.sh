@@ -172,7 +172,7 @@ done
 #   3. Trailing commas - slurps the whole file so a comma and its closing
 #      bracket may sit on different lines.
 # The ':a;$!{N;ba}' slurp is single-line safe (it falls through on the last or
-# only line), unlike ':a;N;$!ba', which drops single-line input entirely.
+# only line).
 strip_jsonc_for_extensions() {
   sed -E ':a
 $!{

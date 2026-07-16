@@ -385,6 +385,54 @@ JSONCEOF`,
     expect(result.stdout).toContain("INSTALLED:esbenp.prettier-vscode");
   });
 
+  it("does not error on an extensions.json without a recommendations key", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      accept_license: true,
+      auto_install_extensions: true,
+    });
+
+    const containerId = await runContainer("ubuntu:22.04");
+    cleanupContainers.push(containerId);
+
+    await execContainer(containerId, ["apt-get", "update", "-qq"]);
+    await execContainer(containerId, ["apt-get", "install", "-y", "-qq", "jq"]);
+
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /tmp/vscode-web/bin && cat > /tmp/vscode-web/bin/code-server << 'MOCKEOF'
+${MOCK_VSCODE_WEB}
+MOCKEOF
+chmod +x /tmp/vscode-web/bin/code-server
+${STUB_DOWNLOAD}`,
+    ]);
+
+    // Valid JSON, but no `recommendations` key. The null-safe query
+    // `(.recommendations // [])[]` must not make jq error on the missing key.
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /root/.vscode && cat > /root/.vscode/extensions.json << 'JSONCEOF'
+{
+  "unwantedRecommendations": ["ms-python.python"]
+}
+JSONCEOF`,
+    ]);
+
+    const script = findResourceInstance(state, "coder_script");
+    const result = await execContainer(containerId, [
+      "bash",
+      "-c",
+      script.script,
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Installing extensions from");
+    expect(result.stdout).not.toContain("INSTALLED:");
+    expect(result.stderr).not.toContain("jq: error");
+  });
+
   it("auto-installs extensions from a JSONC .code-workspace with URL-valued settings", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
