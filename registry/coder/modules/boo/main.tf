@@ -118,13 +118,13 @@ resource "coder_app" "boo" {
     boo attach '${each.key}'
   else
     SESSION_DIR="${local.module_dir}/${each.key}"
-    mkdir -p "$SESSION_DIR/scripts" "$SESSION_DIR/logs"
+    mkdir -p "$SESSION_DIR/scripts"
     SCRIPT="$SESSION_DIR/scripts/start.sh"
     printf '%s' '${base64encode(each.value)}' | base64 -d > "$SCRIPT"
     chmod +x "$SCRIPT"
     boo new '${each.key}' -d
     boo wait '${each.key}' --idle
-    boo send '${each.key}' --text "$SCRIPT 2>&1 | tee $SESSION_DIR/logs/start.log" --enter
+    boo send '${each.key}' --text "$SCRIPT" --enter
     boo attach '${each.key}'
   fi
   EOT
