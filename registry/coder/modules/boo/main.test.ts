@@ -103,10 +103,13 @@ afterEach(async () => {
   }
 });
 
+const defaultSession =
+  '[{"session_name":"main","display_name":"Main","slug":"boo-main","command":"bash"}]';
+
 const setup = async (moduleVariables?: Record<string, string>) => {
   const state = await runTerraformApply(import.meta.dir, {
     agent_id: "foo",
-    sessions: '{"main":"bash"}',
+    sessions: defaultSession,
     install_boo: "false",
     ...moduleVariables,
   });
@@ -157,7 +160,7 @@ describe("boo", async () => {
   test("defaults", async () => {
     const { state } = await setup();
     const app = findAppBySlug(state, "boo-main");
-    expect(app.display_name).toBe("Boo: main");
+    expect(app.display_name).toBe("Main");
     expect(app.icon).toBe("/icon/coder.svg");
     expect(app.order).toBeNull();
     expect(app.group).toBeNull();
@@ -166,42 +169,54 @@ describe("boo", async () => {
   test("multiple-sessions-create-multiple-apps", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
-      sessions: '{"alpha":"bash","beta":"vim"}',
+      sessions:
+        '[{"session_name":"alpha","display_name":"Alpha","slug":"alpha","command":"bash"},{"session_name":"beta","display_name":"Beta","slug":"beta","command":"vim"}]',
     });
     expect(countApps(state)).toBe(2);
-    const alpha = findAppBySlug(state, "boo-alpha");
-    const beta = findAppBySlug(state, "boo-beta");
-    expect(alpha.display_name).toBe("Boo: alpha");
-    expect(beta.display_name).toBe("Boo: beta");
+    const alpha = findAppBySlug(state, "alpha");
+    const beta = findAppBySlug(state, "beta");
+    expect(alpha.display_name).toBe("Alpha");
+    expect(beta.display_name).toBe("Beta");
   });
 
-  test("underscore-in-session-name-becomes-hyphen-in-slug", async () => {
+  test("per-session-slug-and-display-name", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
-      sessions: '{"my_session":"bash"}',
+      sessions:
+        '[{"session_name":"main","display_name":"Terminal: main","slug":"term-main","command":"bash"}]',
     });
-    const app = findAppBySlug(state, "boo-my-session");
-    expect(app.slug).toBe("boo-my-session");
-    expect(app.display_name).toBe("Boo: my_session");
-  });
-
-  test("uppercase-and-spaces-in-session-name-normalized-in-slug", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      sessions: '{"Claude Code":"claude","Codex":"codex"}',
-    });
-    const claude = findAppBySlug(state, "boo-claude-code");
-    expect(claude.slug).toBe("boo-claude-code");
-    expect(claude.display_name).toBe("Boo: Claude Code");
-    const codex = findAppBySlug(state, "boo-codex");
-    expect(codex.slug).toBe("boo-codex");
-    expect(codex.display_name).toBe("Boo: Codex");
-  });
-
-  test("custom-slug-and-display-name", async () => {
-    const { state } = await setup({ slug: "term", display_name: "Terminal" });
     const app = findAppBySlug(state, "term-main");
+    expect(app.slug).toBe("term-main");
     expect(app.display_name).toBe("Terminal: main");
+  });
+
+  test("session-name-used-in-boo-command", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      sessions:
+        '[{"session_name":"my-session","display_name":"My Session","slug":"my-boo","command":"bash"}]',
+    });
+    const app = findAppBySlug(state, "my-boo");
+    expect(app.command as string).toContain("'my-session'");
+    expect(app.command as string).not.toContain("'my-boo'");
+  });
+
+  test("derived-slug-from-session-name", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      sessions: '[{"session_name":"my.dev_server","command":"bash"}]',
+    });
+    const app = findAppBySlug(state, "my-dev-server");
+    expect(app.slug).toBe("my-dev-server");
+  });
+
+  test("derived-display-name-from-session-name", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      sessions: '[{"session_name":"my-session","command":"bash"}]',
+    });
+    const app = findAppBySlug(state, "my-session");
+    expect(app.display_name).toBe("my-session");
   });
 
   test("order-and-group", async () => {
@@ -236,7 +251,6 @@ describe("boo", async () => {
       "-c",
       `export PATH="$HOME/.local/bin:$PATH" && /tmp/boo-install.sh 2>&1 || true`,
     ]);
-    // Write and run the install script directly to capture output
     await writeExecutable({
       containerId: id,
       filePath: "/tmp/boo-install.sh",
@@ -263,7 +277,7 @@ describe("boo", async () => {
   test("custom-install-script-url", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
-      sessions: '{"main":"bash"}',
+      sessions: defaultSession,
       install_boo: "true",
       install_script_url: "https://mirror.example.com/boo/install.sh",
     });

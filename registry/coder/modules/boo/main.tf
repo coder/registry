@@ -15,9 +15,14 @@ variable "agent_id" {
 }
 
 variable "sessions" {
-  type        = map(string)
-  description = "Map of session names to commands. A boo session and coder_app are created for each entry."
-  default     = {}
+  type = list(object({
+    session_name = string
+    display_name = optional(string)
+    slug         = optional(string)
+    command      = string
+  }))
+  description = "List of boo sessions to create. Each entry requires session_name and command. display_name defaults to session_name; slug is derived from session_name (lowercased, '.' and '_' replaced with '-') when omitted."
+  default     = []
 }
 
 variable "install_boo" {
@@ -30,18 +35,6 @@ variable "boo_version" {
   type        = string
   description = "The version of boo to install. Use 'latest' to accept any installed version or always install the latest release."
   default     = "latest"
-}
-
-variable "display_name" {
-  type        = string
-  description = "The display name prefix for boo apps. Each app is shown as '<display_name>: <session_name>'."
-  default     = "Boo"
-}
-
-variable "slug" {
-  type        = string
-  description = "The slug prefix for boo apps. Each app slug is '<slug>-<session_name>'."
-  default     = "boo"
 }
 
 variable "icon" {
@@ -89,12 +82,16 @@ locals {
     ARG_INSTALL_SCRIPT_URL = var.install_script_url
   })
 
-  session_slugs = {
-    for k, v in var.sessions : k => replace(
-      replace(lower(k), "/[^a-z0-9]+/", "-"),
-      "/^-+|-+$/", ""
-    )
-  }
+  sessions_resolved = [
+    for s in var.sessions : {
+      session_name = s.session_name
+      display_name = s.display_name != null ? s.display_name : s.session_name
+      slug         = s.slug != null ? s.slug : replace(lower(s.session_name), "/[._]/", "-")
+      command      = s.command
+    }
+  ]
+
+  sessions_map = { for s in local.sessions_resolved : s.slug => s }
 }
 
 module "coder_utils" {
@@ -111,27 +108,27 @@ module "coder_utils" {
 }
 
 resource "coder_app" "boo" {
-  for_each = var.sessions
+  for_each = local.sessions_map
 
   agent_id     = var.agent_id
-  slug         = "${var.slug}-${local.session_slugs[each.key]}"
-  display_name = "${var.display_name}: ${each.key}"
+  slug         = each.value.slug
+  display_name = each.value.display_name
   icon         = var.icon
   command      = <<-EOT
   #!/bin/bash
   export PATH="$HOME/.local/bin:$PATH"
-  if boo peek '${each.key}' >/dev/null 2>&1; then
-    boo attach '${each.key}'
+  if boo peek '${each.value.session_name}' >/dev/null 2>&1; then
+    boo attach '${each.value.session_name}'
   else
-    SESSION_DIR="${local.module_dir}/${each.key}"
+    SESSION_DIR="${local.module_dir}/${each.value.session_name}"
     mkdir -p "$SESSION_DIR/scripts"
     SCRIPT="$SESSION_DIR/scripts/start.sh"
-    printf '%s' '${base64encode(each.value)}' | base64 -d > "$SCRIPT"
+    printf '%s' '${base64encode(each.value.command)}' | base64 -d > "$SCRIPT"
     chmod +x "$SCRIPT"
-    boo new '${each.key}' -d
-    boo wait '${each.key}' --idle
-    boo send '${each.key}' --text "$SCRIPT" --enter
-    boo attach '${each.key}'
+    boo new '${each.value.session_name}' -d
+    boo wait '${each.value.session_name}' --idle
+    boo send '${each.value.session_name}' --text "$SCRIPT" --enter
+    boo attach '${each.value.session_name}'
   fi
   EOT
   order        = var.order

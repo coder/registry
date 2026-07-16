@@ -10,7 +10,7 @@ tags: [terminal, multiplexer, session, boo]
 
 ![Boo sessions in a Coder workspace](../../.images/boo.png)
 
-Install [boo](https://github.com/coder/boo) and run commands in persistent, named terminal sessions. Boo is a GNU screen-style terminal multiplexer built on [libghostty](https://github.com/ghostty-org/ghostty) (Zig). Pass a map of session names to commands and the module creates one `coder_app` per session. Clicking an app creates the session and attaches to it; clicking again reattaches to the running session.
+Install [boo](https://github.com/coder/boo) and run commands in persistent, named terminal sessions. Boo is a GNU screen-style terminal multiplexer built on [libghostty](https://github.com/ghostty-org/ghostty) (Zig).
 
 ```tf
 module "boo" {
@@ -22,6 +22,8 @@ module "boo" {
 
 ## Usage
 
+Pass a list of session definitions and the module creates one `coder_app` per session. Each session requires `session_name` and `command`; `display_name` and `slug` are optional. Clicking an app creates the session and attaches to it; clicking again reattaches to the running session.
+
 ### Multiple sessions
 
 Create separate persistent sessions for a dev server and an interactive shell, each with its own coder_app.
@@ -31,40 +33,53 @@ module "boo" {
   source   = "registry.coder.com/coder/boo/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
-  sessions = {
-    server = "npm run dev"
-    shell  = "bash"
-  }
+  sessions = [
+    {
+      session_name = "server"
+      display_name = "Server"
+      slug         = "server"
+      command      = "npm run dev"
+    },
+    {
+      session_name = "shell"
+      display_name = "Shell"
+      slug         = "shell"
+      command      = "bash"
+    },
+  ]
 }
 ```
 
 This creates:
 
-- `coder_app` slugs `boo-server` and `boo-shell`
-- Display names `Boo: server` and `Boo: shell`
+- `coder_app` slugs `server` and `shell`
+- Display names `Server` and `Shell`
 
 ### Multi-line commands
 
-Session commands can be full shell scripts. The script is written to `~/.coder-modules/coder/boo/<session>/scripts/start.sh` and executed inside the boo session.
+Session commands can be full shell scripts. The script is written to `~/.coder-modules/coder/boo/<session_name>/scripts/start.sh` and executed inside the boo session.
 
 ```tf
 module "boo" {
   source   = "registry.coder.com/coder/boo/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
-  sessions = {
-    watcher = <<-EOT
-      #!/bin/bash
-      while true; do
-        echo "$(date): watching..."
-        sleep 10
-      done
-    EOT
-  }
+  sessions = [
+    {
+      session_name = "watcher"
+      display_name = "Watcher"
+      slug         = "watcher"
+      command      = <<-EOT
+        #!/bin/bash
+        while true; do
+          echo "$(date): watching..."
+          sleep 10
+        done
+      EOT
+    },
+  ]
 }
 ```
-
-Apps are named `Boo: watcher` with slug `boo-watcher`.
 
 ### Use pre/post install hooks
 
@@ -75,7 +90,14 @@ module "boo" {
   agent_id            = coder_agent.main.id
   pre_install_script  = "echo 'Preparing environment...'"
   post_install_script = "echo 'boo ready'"
-  sessions            = { shell = "bash" }
+  sessions = [
+    {
+      session_name = "shell"
+      display_name = "Shell"
+      slug         = "shell"
+      command      = "bash"
+    },
+  ]
 }
 ```
 
@@ -88,7 +110,14 @@ module "boo" {
   source   = "registry.coder.com/coder/boo/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
-  sessions = { shell = "bash" }
+  sessions = [
+    {
+      session_name = "shell"
+      display_name = "Shell"
+      slug         = "shell"
+      command      = "bash"
+    },
+  ]
 }
 
 resource "coder_script" "after_boo" {
@@ -105,21 +134,9 @@ resource "coder_script" "after_boo" {
 }
 ```
 
-## Naming
-
-App slugs and display names are derived from the `slug`, `display_name`, and session name variable.
-For example:
-
-| `slug`   | `display_name` | session name    | app slug            | display name         |
-| -------- | -------------- | --------------- | ------------------- | -------------------- |
-| `"boo"`  | `"Boo"`        | `"Claude Code"` | `"boo-claude-code"` | `"Boo: Claude Code"` |
-| `"term"` | `"Terminal"`   | `"shell"`       | `"term-shell"`      | `"Terminal: shell"`  |
-
-Session names are normalized for app slugs: lowercased, runs of non-alphanumeric characters replaced with a single hyphen, leading/trailing hyphens trimmed. Display names always use the raw session key.
-
 ## Troubleshooting
 
-The install log is written under `~/.coder-modules/coder/boo/logs/`. Session scripts are written to `~/.coder-modules/coder/boo/<session>/scripts/start.sh`.
+The install log is written under `~/.coder-modules/coder/boo/logs/`. Session scripts are written to `~/.coder-modules/coder/boo/<session_name>/scripts/start.sh`.
 
 ```
 ~/.coder-modules/coder/boo/

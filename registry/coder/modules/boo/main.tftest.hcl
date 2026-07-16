@@ -7,7 +7,7 @@ run "test_defaults" {
 
   assert {
     condition     = length(var.sessions) == 0
-    error_message = "sessions should default to {}"
+    error_message = "sessions should default to []"
   }
 
   assert {
@@ -21,16 +21,6 @@ run "test_defaults" {
   }
 
   assert {
-    condition     = var.display_name == "Boo"
-    error_message = "display_name should default to 'Boo'"
-  }
-
-  assert {
-    condition     = var.slug == "boo"
-    error_message = "slug should default to 'boo'"
-  }
-
-  assert {
     condition     = var.icon == "/icon/coder.svg"
     error_message = "icon should default to '/icon/coder.svg'"
   }
@@ -41,13 +31,13 @@ run "test_defaults" {
   }
 
   assert {
-    condition     = var.install_script_url == "https://raw.githubusercontent.com/coder/boo/main/install.sh"
-    error_message = "install_script_url should default to the upstream GitHub URL"
+    condition     = var.group == null
+    error_message = "group should default to null"
   }
 
   assert {
-    condition     = var.group == null
-    error_message = "group should default to null"
+    condition     = var.install_script_url == "https://raw.githubusercontent.com/coder/boo/main/install.sh"
+    error_message = "install_script_url should default to the upstream GitHub URL"
   }
 }
 
@@ -56,12 +46,24 @@ run "test_single_session" {
 
   variables {
     agent_id = "test-agent-single"
-    sessions = { dev = "make dev" }
+    sessions = [
+      {
+        session_name = "dev"
+        display_name = "Dev Server"
+        slug         = "dev"
+        command      = "make dev"
+      }
+    ]
   }
 
   assert {
-    condition     = var.sessions["dev"] == "make dev"
-    error_message = "sessions map should contain the correct command for key 'dev'"
+    condition     = var.sessions[0].session_name == "dev"
+    error_message = "session_name should be 'dev'"
+  }
+
+  assert {
+    condition     = var.sessions[0].command == "make dev"
+    error_message = "command should be 'make dev'"
   }
 }
 
@@ -70,11 +72,26 @@ run "test_multiple_sessions" {
 
   variables {
     agent_id = "test-agent-multi"
-    sessions = {
-      server = "npm run dev"
-      worker = "npm run worker"
-      shell  = "bash"
-    }
+    sessions = [
+      {
+        session_name = "server"
+        display_name = "Server"
+        slug         = "server"
+        command      = "npm run dev"
+      },
+      {
+        session_name = "worker"
+        display_name = "Worker"
+        slug         = "worker"
+        command      = "npm run worker"
+      },
+      {
+        session_name = "shell"
+        display_name = "Shell"
+        slug         = "shell"
+        command      = "bash"
+      }
+    ]
   }
 
   assert {
@@ -83,13 +100,8 @@ run "test_multiple_sessions" {
   }
 
   assert {
-    condition     = var.sessions["server"] == "npm run dev"
-    error_message = "sessions['server'] should be 'npm run dev'"
-  }
-
-  assert {
-    condition     = var.sessions["worker"] == "npm run worker"
-    error_message = "sessions['worker'] should be 'npm run worker'"
+    condition     = var.sessions[0].command == "npm run dev"
+    error_message = "first session command should be 'npm run dev'"
   }
 }
 
@@ -97,8 +109,15 @@ run "test_skip_install" {
   command = plan
 
   variables {
-    agent_id    = "test-agent-skip"
-    sessions    = { main = "bash" }
+    agent_id = "test-agent-skip"
+    sessions = [
+      {
+        session_name = "main"
+        display_name = "Main"
+        slug         = "main"
+        command      = "bash"
+      }
+    ]
     install_boo = false
   }
 
@@ -112,8 +131,15 @@ run "test_pinned_version" {
   command = plan
 
   variables {
-    agent_id    = "test-agent-pinned"
-    sessions    = { main = "bash" }
+    agent_id = "test-agent-pinned"
+    sessions = [
+      {
+        session_name = "main"
+        display_name = "Main"
+        slug         = "main"
+        command      = "bash"
+      }
+    ]
     boo_version = "v0.6.4"
   }
 
@@ -123,27 +149,22 @@ run "test_pinned_version" {
   }
 }
 
-run "test_custom_app" {
+run "test_icon_order_group" {
   command = plan
 
   variables {
-    agent_id     = "test-agent-app"
-    sessions     = { main = "bash" }
-    slug         = "my-boo"
-    display_name = "My Boo"
-    icon         = "/icon/custom.svg"
-    order        = 10
-    group        = "terminals"
-  }
-
-  assert {
-    condition     = var.slug == "my-boo"
-    error_message = "slug should be 'my-boo'"
-  }
-
-  assert {
-    condition     = var.display_name == "My Boo"
-    error_message = "display_name should be 'My Boo'"
+    agent_id = "test-agent-app"
+    sessions = [
+      {
+        session_name = "main"
+        display_name = "Main"
+        slug         = "boo-main"
+        command      = "bash"
+      }
+    ]
+    icon  = "/icon/custom.svg"
+    order = 10
+    group = "terminals"
   }
 
   assert {
@@ -166,8 +187,15 @@ run "test_hooks" {
   command = plan
 
   variables {
-    agent_id            = "test-agent-hooks"
-    sessions            = { main = "bash" }
+    agent_id = "test-agent-hooks"
+    sessions = [
+      {
+        session_name = "main"
+        display_name = "Main"
+        slug         = "main"
+        command      = "bash"
+      }
+    ]
     pre_install_script  = "echo 'pre-install'"
     post_install_script = "echo 'post-install'"
   }
@@ -188,7 +216,14 @@ run "test_scripts_output_single_session" {
 
   variables {
     agent_id = "test-agent-output-single"
-    sessions = { main = "bash" }
+    sessions = [
+      {
+        session_name = "main"
+        display_name = "Main"
+        slug         = "main"
+        command      = "bash"
+      }
+    ]
   }
 
   assert {
@@ -202,10 +237,20 @@ run "test_scripts_output_multi_session" {
 
   variables {
     agent_id = "test-agent-output-multi"
-    sessions = {
-      alpha = "bash"
-      beta  = "bash"
-    }
+    sessions = [
+      {
+        session_name = "alpha"
+        display_name = "Alpha"
+        slug         = "alpha"
+        command      = "bash"
+      },
+      {
+        session_name = "beta"
+        display_name = "Beta"
+        slug         = "beta"
+        command      = "bash"
+      }
+    ]
   }
 
   assert {
@@ -219,9 +264,16 @@ run "test_scripts_output_with_hooks" {
 
   variables {
     agent_id            = "test-agent-output-hooks"
-    sessions            = { main = "bash" }
     pre_install_script  = "echo pre"
     post_install_script = "echo post"
+    sessions = [
+      {
+        session_name = "main"
+        display_name = "Main"
+        slug         = "main"
+        command      = "bash"
+      }
+    ]
   }
 
   assert {
@@ -235,8 +287,15 @@ run "test_custom_install_script_url" {
 
   variables {
     agent_id           = "test-agent-url"
-    sessions           = { main = "bash" }
     install_script_url = "https://mirror.example.com/boo/install.sh"
+    sessions = [
+      {
+        session_name = "main"
+        display_name = "Main"
+        slug         = "main"
+        command      = "bash"
+      }
+    ]
   }
 
   assert {
@@ -245,31 +304,62 @@ run "test_custom_install_script_url" {
   }
 }
 
-run "test_slug_normalization" {
+run "test_session_name_in_command" {
   command = plan
 
   variables {
-    agent_id = "test-agent-slug-norm"
-    sessions = {
-      "Claude Code" = "claude"
-      "Codex"       = "codex"
-      my_session    = "bash"
-    }
+    agent_id = "test-agent-cmd"
+    sessions = [
+      {
+        session_name = "my-session"
+        display_name = "My Session"
+        slug         = "my-boo"
+        command      = "bash"
+      }
+    ]
   }
 
   assert {
-    condition     = local.session_slugs["Claude Code"] == "claude-code"
-    error_message = "'Claude Code' should normalize to 'claude-code'"
+    condition     = can(regex("'my-session'", coder_app.boo["my-boo"].command))
+    error_message = "boo command should use session_name 'my-session', not slug 'my-boo'"
+  }
+}
+
+run "test_derived_slug" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-derived-slug"
+    sessions = [
+      {
+        session_name = "my.dev_server"
+        command      = "bash"
+      }
+    ]
   }
 
   assert {
-    condition     = local.session_slugs["Codex"] == "codex"
-    error_message = "'Codex' should normalize to 'codex'"
+    condition     = coder_app.boo["my-dev-server"].slug == "my-dev-server"
+    error_message = "slug should be derived as 'my-dev-server' from session_name 'my.dev_server'"
+  }
+}
+
+run "test_derived_display_name" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-derived-dn"
+    sessions = [
+      {
+        session_name = "my-session"
+        command      = "bash"
+      }
+    ]
   }
 
   assert {
-    condition     = local.session_slugs["my_session"] == "my-session"
-    error_message = "'my_session' should normalize to 'my-session'"
+    condition     = coder_app.boo["my-session"].display_name == "my-session"
+    error_message = "display_name should default to session_name 'my-session' when omitted"
   }
 }
 
@@ -282,7 +372,7 @@ run "test_install_only" {
 
   assert {
     condition     = length(var.sessions) == 0
-    error_message = "sessions should default to {}"
+    error_message = "sessions should default to []"
   }
 
   assert {
