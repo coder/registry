@@ -1,7 +1,7 @@
 ---
 display_name: Boo
 description: Run commands in persistent boo terminal sessions, one app per session.
-icon: ../../../../.icons/boo.svg
+icon: ../../../../.icons/coder.svg
 verified: false
 tags: [terminal, multiplexer, session, boo]
 ---

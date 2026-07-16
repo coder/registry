@@ -31,8 +31,8 @@ run "test_defaults" {
   }
 
   assert {
-    condition     = var.icon == "/icon/boo.svg"
-    error_message = "icon should default to '/icon/boo.svg'"
+    condition     = var.icon == "/icon/coder.svg"
+    error_message = "icon should default to '/icon/coder.svg'"
   }
 
   assert {

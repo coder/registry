@@ -47,7 +47,7 @@ variable "slug" {
 variable "icon" {
   type        = string
   description = "The icon to use for boo apps and scripts."
-  default     = "/icon/boo.svg"
+  default     = "/icon/coder.svg"
 }
 
 variable "order" {

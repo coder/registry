@@ -158,7 +158,7 @@ describe("boo", async () => {
     const { state } = await setup();
     const app = findAppBySlug(state, "boo-main");
     expect(app.display_name).toBe("Boo: main");
-    expect(app.icon).toBe("/icon/boo.svg");
+    expect(app.icon).toBe("/icon/coder.svg");
     expect(app.order).toBeNull();
     expect(app.group).toBeNull();
   });
