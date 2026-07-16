@@ -7,11 +7,6 @@ run "test_defaults" {
   }
 
   assert {
-    condition     = var.folder == "/home/coder"
-    error_message = "folder should default to '/home/coder'"
-  }
-
-  assert {
     condition     = var.install_boo == true
     error_message = "install_boo should default to true"
   }
@@ -53,17 +48,11 @@ run "test_single_session" {
   variables {
     agent_id = "test-agent-single"
     sessions = { dev = "make dev" }
-    folder   = "/home/coder/project"
   }
 
   assert {
     condition     = var.sessions["dev"] == "make dev"
     error_message = "sessions map should contain the correct command for key 'dev'"
-  }
-
-  assert {
-    condition     = var.folder == "/home/coder/project"
-    error_message = "folder should be '/home/coder/project'"
   }
 }
 
@@ -194,8 +183,8 @@ run "test_scripts_output_single_session" {
   }
 
   assert {
-    condition     = output.scripts == ["coder-boo-install_script", "coder-boo-main-start_script"]
-    error_message = "scripts output should list install_script then session start_script"
+    condition     = output.scripts == ["coder-boo-install_script"]
+    error_message = "scripts output should list install_script"
   }
 }
 
@@ -211,8 +200,8 @@ run "test_scripts_output_multi_session" {
   }
 
   assert {
-    condition     = output.scripts == ["coder-boo-install_script", "coder-boo-alpha-start_script", "coder-boo-beta-start_script"]
-    error_message = "scripts output should list install_script then session start_scripts sorted by name"
+    condition     = output.scripts == ["coder-boo-install_script"]
+    error_message = "scripts output should list install_script"
   }
 }
 
@@ -227,7 +216,7 @@ run "test_scripts_output_with_hooks" {
   }
 
   assert {
-    condition     = output.scripts == ["coder-boo-pre_install_script", "coder-boo-install_script", "coder-boo-post_install_script", "coder-boo-main-start_script"]
-    error_message = "scripts output should list all four scripts in run order"
+    condition     = output.scripts == ["coder-boo-pre_install_script", "coder-boo-install_script", "coder-boo-post_install_script"]
+    error_message = "scripts output should list pre_install, install, and post_install scripts in run order"
   }
 }

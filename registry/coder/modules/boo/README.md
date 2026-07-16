@@ -8,7 +8,7 @@ tags: [terminal, multiplexer, session, boo]
 
 # Boo
 
-Install [boo](https://github.com/coder/boo) and run commands in persistent, named terminal sessions. Boo is a GNU screen-style terminal multiplexer built on [libghostty](https://github.com/ghostty-org/ghostty) (Zig). Pass a map of session names to commands and the module creates one `coder_app` and one start script per session, all serialized after the install pipeline.
+Install [boo](https://github.com/coder/boo) and run commands in persistent, named terminal sessions. Boo is a GNU screen-style terminal multiplexer built on [libghostty](https://github.com/ghostty-org/ghostty) (Zig). Pass a map of session names to commands and the module creates one `coder_app` per session. Clicking an app creates the session and attaches to it; clicking again reattaches to the running session.
 
 ```tf
 module "boo" {
@@ -32,7 +32,6 @@ module "boo" {
   source   = "registry.coder.com/coder/boo/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
-  folder   = "/home/coder/project"
   sessions = {
     server = "npm run dev"
     shell  = "bash"
@@ -44,7 +43,27 @@ This creates:
 
 - `coder_app` slugs `boo-server` and `boo-shell`
 - Display names `Boo: server` and `Boo: shell`
-- Logs at `~/.coder-modules/coder/boo/logs/server/start.log` and `.../shell/start.log`
+
+### Multi-line commands
+
+Session commands can be full shell scripts. The script is written to `~/.coder-modules/coder/boo/<session>/scripts/start.sh` and executed inside the boo session.
+
+```tf
+module "boo" {
+  source   = "registry.coder.com/coder/boo/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+  sessions = {
+    watcher = <<-EOT
+      #!/bin/bash
+      while true; do
+        echo "$(date): watching..."
+        sleep 10
+      done
+    EOT
+  }
+}
+```
 
 ### Pin a specific boo version
 
@@ -101,16 +120,16 @@ module "boo" {
 }
 ```
 
-### Serialize another module behind boo
+### Serialize another module behind the boo install
 
-Use `output.scripts` to wait for all boo sessions to start before running downstream work.
+Use `output.scripts` to wait for the boo install pipeline to complete before running downstream work.
 
 ```tf
 module "boo" {
   source   = "registry.coder.com/coder/boo/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
-  sessions = { server = "npm run dev", shell = "bash" }
+  sessions = { shell = "bash" }
 }
 
 resource "coder_script" "after_boo" {
@@ -122,7 +141,7 @@ resource "coder_script" "after_boo" {
     coder exp sync want after-boo ${join(" ", module.boo.scripts)}
     coder exp sync start after-boo
     trap 'coder exp sync complete after-boo' EXIT
-    echo "All boo sessions are up"
+    echo "boo install complete"
   EOT
 }
 ```
@@ -140,15 +159,15 @@ Session names must be valid as Terraform map keys. Underscores in session names 
 
 ## Troubleshooting
 
-Logs are written per session under `~/.coder-modules/coder/boo/logs/`:
+The install log is written under `~/.coder-modules/coder/boo/logs/`. Session scripts are written to `~/.coder-modules/coder/boo/<session>/scripts/start.sh`.
 
 ```
-~/.coder-modules/coder/boo/logs/
-├── install.log
-├── <session_name>/
-│   └── start.log
+~/.coder-modules/coder/boo/
+├── logs/
+│   └── install.log
+└── <session_name>/
+    └── scripts/
+        └── start.sh
 ```
 
-Check `install.log` for installation errors. Check `<session_name>/start.log` for session creation errors.
-
-If an app does not connect, verify the session exists by running `boo ls` in a terminal.
+Check `install.log` for installation errors. If an app does not connect, verify the session exists by running `boo ls` in a terminal.

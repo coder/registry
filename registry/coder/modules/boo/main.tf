@@ -19,12 +19,6 @@ variable "sessions" {
   description = "Map of session names to commands. A boo session and coder_app are created for each entry."
 }
 
-variable "folder" {
-  type        = string
-  description = "The working directory for boo sessions."
-  default     = "/home/coder"
-}
-
 variable "install_boo" {
   type        = bool
   description = "Whether to install boo."
@@ -86,9 +80,6 @@ locals {
     ARG_INSTALL_BOO = tostring(var.install_boo)
     ARG_BOO_VERSION = var.boo_version
   })
-
-  # Last sync name from the install pipeline; per-session start scripts wait on this.
-  install_phase_last = module.coder_utils.scripts[length(module.coder_utils.scripts) - 1]
 }
 
 module "coder_utils" {
@@ -133,9 +124,6 @@ resource "coder_app" "boo" {
 }
 
 output "scripts" {
-  description = "Ordered list of coder exp sync names for the coder_script resources this module creates, in run order. Includes install phase scripts followed by per-session start scripts (sorted by session name)."
-  value = concat(
-    module.coder_utils.scripts,
-    [for name in sort(keys(var.sessions)) : "coder-boo-${name}-start_script"]
-  )
+  description = "Ordered list of coder exp sync names for the install pipeline scripts, in run order."
+  value       = module.coder_utils.scripts
 }
