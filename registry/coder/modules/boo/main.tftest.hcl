@@ -6,7 +6,7 @@ run "test_defaults" {
   }
 
   assert {
-    condition     = var.sessions == {}
+    condition     = length(var.sessions) == 0
     error_message = "sessions should default to {}"
   }
 
@@ -261,7 +261,7 @@ run "test_install_only" {
   }
 
   assert {
-    condition     = var.sessions == {}
+    condition     = length(var.sessions) == 0
     error_message = "sessions should default to {}"
   }
 
