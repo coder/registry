@@ -8,6 +8,8 @@ tags: [terminal, multiplexer, session, boo]
 
 # Boo
 
+![Boo sessions in a Coder workspace](../../.images/boo.png)
+
 Install [boo](https://github.com/coder/boo) and run commands in persistent, named terminal sessions. Boo is a GNU screen-style terminal multiplexer built on [libghostty](https://github.com/ghostty-org/ghostty) (Zig). Pass a map of session names to commands and the module creates one `coder_app` per session. Clicking an app creates the session and attaches to it; clicking again reattaches to the running session.
 
 ```tf
