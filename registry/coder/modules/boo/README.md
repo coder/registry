@@ -15,9 +15,6 @@ module "boo" {
   source   = "registry.coder.com/coder/boo/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
-  sessions = {
-    shell = "bash"
-  }
 }
 ```
 
@@ -25,7 +22,7 @@ module "boo" {
 
 ### Multiple sessions
 
-Create separate persistent sessions for a dev server and an interactive shell, each with its own dashboard app.
+Create separate persistent sessions for a dev server and an interactive shell, each with its own coder_app.
 
 ```tf
 module "boo" {
@@ -65,47 +62,7 @@ module "boo" {
 }
 ```
 
-### Pin a specific boo version
-
-```tf
-module "boo" {
-  source      = "registry.coder.com/coder/boo/coder"
-  version     = "1.0.0"
-  agent_id    = coder_agent.main.id
-  boo_version = "v0.6.4"
-  sessions    = { shell = "bash" }
-}
-```
-
-### Skip installation (boo pre-installed in image)
-
-```tf
-module "boo" {
-  source      = "registry.coder.com/coder/boo/coder"
-  version     = "1.0.0"
-  agent_id    = coder_agent.main.id
-  install_boo = false
-  sessions    = { shell = "bash" }
-}
-```
-
-### Customize app appearance
-
-```tf
-module "boo" {
-  source       = "registry.coder.com/coder/boo/coder"
-  version      = "1.0.0"
-  agent_id     = coder_agent.main.id
-  display_name = "Terminal"
-  slug         = "term"
-  icon         = "/icon/terminal.svg"
-  order        = 1
-  group        = "Development"
-  sessions     = { shell = "bash" }
-}
-```
-
-Apps are named `Terminal: shell` with slug `term-shell`.
+Apps are named `Boo: watcher` with slug `boo-watcher`.
 
 ### Use pre/post install hooks
 
@@ -148,14 +105,15 @@ resource "coder_script" "after_boo" {
 
 ## Naming
 
-App slugs and display names are derived from session names:
+App slugs and display names are derived from the `slug`, `display_name`, and session name variable.
+For example:
 
-| `slug` (default `"boo"`) | session name   | app slug            | display name         |
-| ------------------------ | -------------- | ------------------- | -------------------- |
-| `"boo"`                  | `"shell"`      | `"boo-shell"`       | `"Boo: shell"`       |
-| `"term"`                 | `"dev_server"` | `"term-dev-server"` | `"term: dev_server"` |
+| `slug`   | `display_name` | session name    | app slug            | display name         |
+| -------- | -------------- | --------------- | ------------------- | -------------------- |
+| `"boo"`  | `"Boo"`        | `"Claude Code"` | `"boo-claude-code"` | `"Boo: Claude Code"` |
+| `"term"` | `"Terminal"`   | `"shell"`       | `"term-shell"`      | `"Terminal: shell"`  |
 
-Session names must be valid as Terraform map keys. Underscores in session names are replaced with hyphens in app slugs.
+Session names are normalized for app slugs: lowercased, runs of non-alphanumeric characters replaced with a single hyphen, leading/trailing hyphens trimmed. Display names always use the raw session key.
 
 ## Troubleshooting
 

@@ -185,6 +185,19 @@ describe("boo", async () => {
     expect(app.display_name).toBe("Boo: my_session");
   });
 
+  test("uppercase-and-spaces-in-session-name-normalized-in-slug", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      sessions: '{"Claude Code":"claude","Codex":"codex"}',
+    });
+    const claude = findAppBySlug(state, "boo-claude-code");
+    expect(claude.slug).toBe("boo-claude-code");
+    expect(claude.display_name).toBe("Boo: Claude Code");
+    const codex = findAppBySlug(state, "boo-codex");
+    expect(codex.slug).toBe("boo-codex");
+    expect(codex.display_name).toBe("Boo: Codex");
+  });
+
   test("custom-slug-and-display-name", async () => {
     const { state } = await setup({ slug: "term", display_name: "Terminal" });
     const app = findAppBySlug(state, "term-main");
@@ -245,5 +258,13 @@ describe("boo", async () => {
     });
     expect(scripts.pre_install).toBeDefined();
     expect(scripts.post_install).toBeDefined();
+  });
+
+  test("install-only-no-sessions", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      install_boo: "false",
+    });
+    expect(countApps(state)).toBe(0);
   });
 });

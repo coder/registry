@@ -3,7 +3,11 @@ run "test_defaults" {
 
   variables {
     agent_id = "test-agent-defaults"
-    sessions = { main = "bash" }
+  }
+
+  assert {
+    condition     = var.sessions == {}
+    error_message = "sessions should default to {}"
   }
 
   assert {
@@ -218,5 +222,51 @@ run "test_scripts_output_with_hooks" {
   assert {
     condition     = output.scripts == ["coder-boo-pre_install_script", "coder-boo-install_script", "coder-boo-post_install_script"]
     error_message = "scripts output should list pre_install, install, and post_install scripts in run order"
+  }
+}
+
+run "test_slug_normalization" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-slug-norm"
+    sessions = {
+      "Claude Code" = "claude"
+      "Codex"       = "codex"
+      my_session    = "bash"
+    }
+  }
+
+  assert {
+    condition     = local.session_slugs["Claude Code"] == "claude-code"
+    error_message = "'Claude Code' should normalize to 'claude-code'"
+  }
+
+  assert {
+    condition     = local.session_slugs["Codex"] == "codex"
+    error_message = "'Codex' should normalize to 'codex'"
+  }
+
+  assert {
+    condition     = local.session_slugs["my_session"] == "my-session"
+    error_message = "'my_session' should normalize to 'my-session'"
+  }
+}
+
+run "test_install_only" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-install-only"
+  }
+
+  assert {
+    condition     = var.sessions == {}
+    error_message = "sessions should default to {}"
+  }
+
+  assert {
+    condition     = length(coder_app.boo) == 0
+    error_message = "no coder_app resources should be created with no sessions"
   }
 }

@@ -17,6 +17,7 @@ variable "agent_id" {
 variable "sessions" {
   type        = map(string)
   description = "Map of session names to commands. A boo session and coder_app are created for each entry."
+  default     = {}
 }
 
 variable "install_boo" {
@@ -80,6 +81,13 @@ locals {
     ARG_INSTALL_BOO = tostring(var.install_boo)
     ARG_BOO_VERSION = var.boo_version
   })
+
+  session_slugs = {
+    for k, v in var.sessions : k => replace(
+      replace(lower(k), "/[^a-z0-9]+/", "-"),
+      "/^-+|-+$/", ""
+    )
+  }
 }
 
 module "coder_utils" {
@@ -99,7 +107,7 @@ resource "coder_app" "boo" {
   for_each = var.sessions
 
   agent_id     = var.agent_id
-  slug         = "${var.slug}-${replace(each.key, "_", "-")}"
+  slug         = "${var.slug}-${local.session_slugs[each.key]}"
   display_name = "${var.display_name}: ${each.key}"
   icon         = var.icon
   command      = <<-EOT
