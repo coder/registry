@@ -260,6 +260,22 @@ describe("boo", async () => {
     expect(scripts.post_install).toBeDefined();
   });
 
+  test("custom-install-script-url", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      sessions: '{"main":"bash"}',
+      install_boo: "true",
+      install_script_url: "https://mirror.example.com/boo/install.sh",
+    });
+    const scripts = collectScripts(state);
+    const match = scripts.install.match(
+      /echo -n '([A-Za-z0-9+/=]+)' \| base64 -d/,
+    );
+    expect(match).not.toBeNull();
+    const decoded = Buffer.from(match![1], "base64").toString("utf8");
+    expect(decoded).toContain("https://mirror.example.com/boo/install.sh");
+  });
+
   test("install-only-no-sessions", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",

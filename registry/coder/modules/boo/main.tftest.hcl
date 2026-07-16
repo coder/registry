@@ -41,6 +41,11 @@ run "test_defaults" {
   }
 
   assert {
+    condition     = var.install_script_url == "https://raw.githubusercontent.com/coder/boo/main/install.sh"
+    error_message = "install_script_url should default to the upstream GitHub URL"
+  }
+
+  assert {
     condition     = var.group == null
     error_message = "group should default to null"
   }
@@ -222,6 +227,21 @@ run "test_scripts_output_with_hooks" {
   assert {
     condition     = output.scripts == ["coder-boo-pre_install_script", "coder-boo-install_script", "coder-boo-post_install_script"]
     error_message = "scripts output should list pre_install, install, and post_install scripts in run order"
+  }
+}
+
+run "test_custom_install_script_url" {
+  command = plan
+
+  variables {
+    agent_id           = "test-agent-url"
+    sessions           = { main = "bash" }
+    install_script_url = "https://mirror.example.com/boo/install.sh"
+  }
+
+  assert {
+    condition     = var.install_script_url == "https://mirror.example.com/boo/install.sh"
+    error_message = "install_script_url should be overridable"
   }
 }
 

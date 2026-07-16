@@ -4,6 +4,7 @@ set -o pipefail
 
 INSTALL_BOO="${ARG_INSTALL_BOO}"
 BOO_VERSION="${ARG_BOO_VERSION}"
+INSTALL_SCRIPT_URL="${ARG_INSTALL_SCRIPT_URL}"
 
 if [ "$INSTALL_BOO" != "true" ]; then
   echo "Skipping boo installation (install_boo=false)"
@@ -35,5 +36,5 @@ if [ "$BOO_VERSION" != "latest" ]; then
 fi
 
 echo "Installing boo..."
-curl -fsSL https://raw.githubusercontent.com/coder/boo/main/install.sh | sh
+curl -fsSL "$INSTALL_SCRIPT_URL" | sh
 echo "boo installation complete"

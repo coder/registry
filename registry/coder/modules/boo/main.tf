@@ -62,6 +62,12 @@ variable "group" {
   default     = null
 }
 
+variable "install_script_url" {
+  type        = string
+  description = "URL of the boo install.sh script. Override for air-gapped or mirrored environments."
+  default     = "https://raw.githubusercontent.com/coder/boo/main/install.sh"
+}
+
 variable "pre_install_script" {
   type        = string
   description = "Custom script to run before installing boo."
@@ -78,8 +84,9 @@ locals {
   module_dir = "$HOME/.coder-modules/coder/boo"
 
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
-    ARG_INSTALL_BOO = tostring(var.install_boo)
-    ARG_BOO_VERSION = var.boo_version
+    ARG_INSTALL_BOO        = tostring(var.install_boo)
+    ARG_BOO_VERSION        = var.boo_version
+    ARG_INSTALL_SCRIPT_URL = var.install_script_url
   })
 
   session_slugs = {
