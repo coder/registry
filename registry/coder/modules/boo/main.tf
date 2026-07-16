@@ -123,6 +123,7 @@ resource "coder_app" "boo" {
     printf '%s' '${base64encode(each.value)}' | base64 -d > "$SCRIPT"
     chmod +x "$SCRIPT"
     boo new '${each.key}' -d
+    boo wait '${each.key}' --idle
     boo send '${each.key}' --text "$SCRIPT 2>&1 | tee $SESSION_DIR/logs/start.log" --enter
     boo attach '${each.key}'
   fi
