@@ -156,6 +156,39 @@ for extension in "$${EXTENSIONLIST[@]}"; do
   fi
 done
 
+# Strip JSONC features (block/line comments, trailing commas) so jq can parse
+# .vscode/extensions.json and .code-workspace files. Portable across GNU, BSD,
+# and BusyBox sed (Coder workspaces run on Linux, macOS and Alpine).
+#
+# Three passes, because each concern needs a different scope and order:
+#   1. Block comments  - slurps the whole file so /* ... */ can span lines.
+#      Runs first so a URL such as /* see https://example */ is removed as a
+#      unit and its // is never seen by the line-comment pass.
+#   2. Line comments   - per line, so // ... stops at end of line without the
+#      non-portable [^\n] class (BSD sed reads \n inside a bracket as a literal
+#      backslash and n, silently corrupting IDs containing "n"). A // preceded
+#      by ':' is preserved so URLs in string values (e.g. proxy settings in a
+#      .code-workspace) survive.
+#   3. Trailing commas - slurps the whole file so a comma and its closing
+#      bracket may sit on different lines.
+# The ':a;$!{N;ba}' slurp is single-line safe (it falls through on the last or
+# only line).
+strip_jsonc_for_extensions() {
+  sed -E ':a
+$!{
+N
+ba
+}
+s#/[*]([^*]|[*]+[^*/])*[*]+/##g' "$1" \
+    | sed -E 's#^[[:space:]]*//.*##; s#([^:])//.*#\1#' \
+    | sed -E ':a
+$!{
+N
+ba
+}
+s/,[^]}"]*([]}])/\1/g'
+}
+
 if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
   if ! command -v jq > /dev/null; then
     echo "jq is required to install extensions from a workspace file."
@@ -163,11 +196,11 @@ if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
   fi
 
   RECOMMENDATIONS_FILE=""
-  RECOMMENDATIONS_QUERY=".recommendations[]"
+  RECOMMENDATIONS_QUERY='(.recommendations // [])[]'
   if [ -n "${WORKSPACE}" ]; then
     if [ -f "${WORKSPACE}" ]; then
       RECOMMENDATIONS_FILE="${WORKSPACE}"
-      RECOMMENDATIONS_QUERY=".extensions.recommendations[]?"
+      RECOMMENDATIONS_QUERY='(.extensions.recommendations // [])[]'
     else
       echo "⚠️ Workspace file ${WORKSPACE} not found, skipping extension recommendations."
     fi
@@ -183,8 +216,8 @@ if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
 
   if [ -n "$RECOMMENDATIONS_FILE" ]; then
     printf "🧩 Installing extensions from %s...\n" "$RECOMMENDATIONS_FILE"
-    # Use sed to remove single-line comments before parsing with jq
-    extensions=$(sed 's|//.*||g' "$RECOMMENDATIONS_FILE" | jq -r "$RECOMMENDATIONS_QUERY")
+    # Strip JSONC comments and trailing commas before parsing with jq
+    extensions=$(strip_jsonc_for_extensions "$RECOMMENDATIONS_FILE" | jq -r "$RECOMMENDATIONS_QUERY")
     for extension in $extensions; do
       if extension_installed "$extension"; then
         continue
