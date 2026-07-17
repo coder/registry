@@ -21,7 +21,7 @@ This module:
 ```tf
 module "agent-firewall" {
   source   = "registry.coder.com/coder/agent-firewall/coder"
-  version  = "0.0.2"
+  version  = "0.0.3"
   agent_id = coder_agent.main.id
 }
 ```
@@ -40,7 +40,7 @@ network-isolated environment.
 ```tf
 module "agent-firewall" {
   source   = "registry.coder.com/coder/agent-firewall/coder"
-  version  = "0.0.2"
+  version  = "0.0.3"
   agent_id = coder_agent.main.id
 }
 
@@ -65,7 +65,7 @@ resource "coder_script" "claude_with_agent_firewall" {
 ```tf
 module "agent-firewall" {
   source   = "registry.coder.com/coder/agent-firewall/coder"
-  version  = "0.0.2"
+  version  = "0.0.3"
   agent_id = coder_agent.main.id
 }
 
@@ -144,7 +144,7 @@ Pass the full YAML content directly:
 ```tf
 module "agent-firewall" {
   source   = "registry.coder.com/coder/agent-firewall/coder"
-  version  = "0.0.2"
+  version  = "0.0.3"
   agent_id = coder_agent.main.id
 
   agent_firewall_config = <<-YAML
@@ -168,7 +168,7 @@ your path. The file must exist on disk before agent-firewall starts.
 ```tf
 module "agent-firewall" {
   source   = "registry.coder.com/coder/agent-firewall/coder"
-  version  = "0.0.2"
+  version  = "0.0.3"
   agent_id = coder_agent.main.id
 
   agent_firewall_config_path = "/workspace/my-agent-firewall-config.yaml"

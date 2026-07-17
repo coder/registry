@@ -150,6 +150,39 @@ for extension in "$${EXTENSIONLIST[@]}"; do
   fi
 done
 
+# Strip JSONC features (block/line comments, trailing commas) so jq can parse
+# .vscode/extensions.json and .code-workspace files. Portable across GNU, BSD,
+# and BusyBox sed (Coder workspaces run on Linux, macOS and Alpine).
+#
+# Three passes, because each concern needs a different scope and order:
+#   1. Block comments  - slurps the whole file so /* ... */ can span lines.
+#      Runs first so a URL such as /* see https://example */ is removed as a
+#      unit and its // is never seen by the line-comment pass.
+#   2. Line comments   - per line, so // ... stops at end of line without the
+#      non-portable [^\n] class (BSD sed reads \n inside a bracket as a literal
+#      backslash and n, silently corrupting IDs containing "n"). A // preceded
+#      by ':' is preserved so URLs in string values (e.g. proxy settings in a
+#      .code-workspace) survive.
+#   3. Trailing commas - slurps the whole file so a comma and its closing
+#      bracket may sit on different lines.
+# The ':a;$!{N;ba}' slurp is single-line safe (it falls through on the last or
+# only line).
+strip_jsonc_for_extensions() {
+  sed -E ':a
+$!{
+N
+ba
+}
+s#/[*]([^*]|[*]+[^*/])*[*]+/##g' "$1" \
+    | sed -E 's#^[[:space:]]*//.*##; s#([^:])//.*#\1#' \
+    | sed -E ':a
+$!{
+N
+ba
+}
+s/,[^]}"]*([]}])/\1/g'
+}
+
 if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
   if ! command -v jq > /dev/null; then
     echo "jq is required to install extensions from a workspace file."
@@ -157,8 +190,8 @@ if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
     # Prefer WORKSPACE if set and points to a file
     if [ -n "${WORKSPACE}" ] && [ -f "${WORKSPACE}" ]; then
       printf "🧩 Installing extensions from %s...\n" "${WORKSPACE}"
-      # Strip single-line comments then parse .extensions.recommendations[]
-      extensions=$(sed 's|//.*||g' "${WORKSPACE}" | jq -r '(.extensions.recommendations // [])[]')
+      extensions=$(strip_jsonc_for_extensions "${WORKSPACE}" \
+        | jq -r '(.extensions.recommendations // [])[]')
       for extension in $extensions; do
         $VSCODE_WEB "$EXTENSION_ARG" --install-extension "$extension" --force
       done
@@ -170,7 +203,8 @@ if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
       fi
       if [ -f "$WORKSPACE_DIR/.vscode/extensions.json" ]; then
         printf "🧩 Installing extensions from %s/.vscode/extensions.json...\n" "$WORKSPACE_DIR"
-        extensions=$(sed 's|//.*||g' "$WORKSPACE_DIR/.vscode/extensions.json" | jq -r '.recommendations[]')
+        extensions=$(strip_jsonc_for_extensions "$WORKSPACE_DIR/.vscode/extensions.json" \
+          | jq -r '(.recommendations // [])[]')
         for extension in $extensions; do
           $VSCODE_WEB "$EXTENSION_ARG" --install-extension "$extension" --force
         done
