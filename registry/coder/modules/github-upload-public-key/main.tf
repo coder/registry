@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 0.23"
+      version = ">= 2.13"
     }
   }
 }
@@ -29,15 +29,22 @@ variable "github_api_url" {
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
-resource "coder_script" "github_upload_public_key" {
-  agent_id = var.agent_id
-  script = templatefile("${path.module}/run.sh", {
+locals {
+  script = templatefile("${path.module}/run.sh.tftpl", {
     CODER_OWNER_SESSION_TOKEN : data.coder_workspace_owner.me.session_token,
     CODER_ACCESS_URL : data.coder_workspace.me.access_url,
     CODER_EXTERNAL_AUTH_ID : var.external_auth_id,
     GITHUB_API_URL : var.github_api_url,
   })
-  display_name = "Github Upload Public Key"
-  icon         = "/icon/github.svg"
-  run_on_start = true
+}
+
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.1"
+
+  agent_id            = var.agent_id
+  module_directory    = "$HOME/.coder-modules/coder/github-upload-public-key"
+  display_name_prefix = "GitHub Upload Public Key"
+  icon                = "/icon/github.svg"
+  install_script      = local.script
 }
