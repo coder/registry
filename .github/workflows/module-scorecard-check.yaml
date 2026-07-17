@@ -1,0 +1,83 @@
+# Scores modules changed in a pull request against
+# .github/scorecard/SCORECARD.md and posts a sticky comment comparing the
+# PR's score to the module's current scorecard discussion. Flags
+# regressions, celebrates improvements, and confirms unchanged scores.
+#
+# Never creates or updates discussions; the comparison is read-only against
+# GitHub and only writes the PR comment. Skipped for fork PRs because it
+# requires secrets.
+#
+# Required repository secrets:
+#   SCORECARD_ANTHROPIC_API_KEY  Anthropic API key used for scoring
+#   SCORECARD_DISCUSSIONS_TOKEN  GitHub PAT with Discussions read (baseline lookup)
+
+name: Module Scorecard Check
+
+on:
+  pull_request:
+    paths:
+      - "registry/coder/modules/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: module-scorecard-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Compare module scores against main
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: latest
+
+      - name: Determine changed modules
+        id: changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          MODULES=$(git diff --name-only "${BASE_SHA}"...HEAD | grep -oP '^registry/coder/modules/\K[^/]+' | sort -u | paste -sd, -)
+          echo "modules=${MODULES}" >> "${GITHUB_OUTPUT}"
+          echo "Changed modules: ${MODULES:-none}"
+
+      - name: Score changed modules
+        if: steps.changed.outputs.modules != ''
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.SCORECARD_ANTHROPIC_API_KEY }}
+          GITHUB_DISCUSSIONS_TOKEN: ${{ secrets.SCORECARD_DISCUSSIONS_TOKEN }}
+          MODULES: ${{ steps.changed.outputs.modules }}
+        run: bun run .github/scorecard/score-modules.ts --modules "${MODULES}" --pr-report /tmp/scorecard-report.md
+
+      - name: Upsert PR comment
+        if: steps.changed.outputs.modules != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # No report means every changed module was skipped (for example,
+          # internal building blocks); leave no comment in that case.
+          if [[ ! -s /tmp/scorecard-report.md ]]; then
+            echo "No scorecard report generated; skipping comment."
+            exit 0
+          fi
+          MARKER="<!-- module-scorecard-pr -->"
+          COMMENT_ID=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --paginate --jq ".[] | select(.body | contains(\"${MARKER}\")) | .id" | head -1)
+          if [[ -n "${COMMENT_ID}" ]]; then
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" -F body=@/tmp/scorecard-report.md > /dev/null
+            echo "Updated comment ${COMMENT_ID}"
+          else
+            gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -F body=@/tmp/scorecard-report.md > /dev/null
+            echo "Created comment"
+          fi
