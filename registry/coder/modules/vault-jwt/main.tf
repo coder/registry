@@ -55,8 +55,8 @@ variable "vault_cli_version" {
 }
 
 variable "display_name" {
-  type        = string
   description = "The display name of the coder_script resource shown in the workspace logs."
+  type        = string
   default     = "Vault (JWT)"
 }
 
