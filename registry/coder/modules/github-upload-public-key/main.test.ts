@@ -35,15 +35,44 @@ afterEach(async () => {
   }
 });
 
+const setupServer = () => {
+  return serve({
+    fetch: (req) => {
+      const url = new URL(req.url);
+      if (url.pathname === "/api/v2/users/me/gitsshkey") {
+        return createJSONResponse({ public_key: "exists" });
+      }
+      if (url.pathname === "/user/keys") {
+        if (req.method === "POST") {
+          return createJSONResponse({ key: "created" }, 201);
+        }
+        // key already exists when the token is "findkey"
+        if (req.headers.get("Authorization") === "Bearer findkey") {
+          return createJSONResponse([{ key: "foo" }, { key: "exists" }]);
+        }
+        return createJSONResponse([{ key: "foo" }]);
+      }
+      return createJSONResponse({ error: "not_found" }, 404);
+    },
+    port: 0,
+  });
+};
+
 const setupContainer = async (
+  githubToken: string,
   image = "lorello/alpine-bash",
   vars: Record<string, string> = {},
 ) => {
   const server = setupServer();
+  const url = server.url.toString().slice(0, -1);
+
   const state = await runTerraformApply(import.meta.dir, {
     agent_id: "foo",
+    github_api_url: url,
+    coder_access_url: url,
     ...vars,
   });
+
   const instance = findResourceInstance(state, "coder_script");
   const id = await runContainer(image);
 
@@ -54,60 +83,28 @@ const setupContainer = async (
     await removeContainer(id);
   });
 
-  return { id, instance, server };
-};
+  // Mock coder binary: return the GitHub token for external-auth, exit 0 for
+  // everything else (exp sync start/complete).
+  await writeCoder(
+    id,
+    `#!/bin/bash
+if [ "$1" = "external-auth" ]; then
+  echo "${githubToken}"
+fi
+exit 0
+`,
+  );
 
-const setupServer = () => {
-  const fakeGithubHost = serve({
-    fetch: (req) => {
-      const url = new URL(req.url);
-      if (url.pathname === "/api/v2/users/me/gitsshkey") {
-        return createJSONResponse({
-          public_key: "exists",
-        });
-      }
+  // Write the coder_utils wrapper to a temp file and run it, matching the
+  // codex/claude-code test pattern so that baked-in URLs are exercised directly.
+  const scriptPath = "/tmp/github-upload-public-key-install.sh";
+  const exec = await execContainer(id, [
+    "bash",
+    "-c",
+    `cat > '${scriptPath}' << 'WRAPPER_EOF'\n${instance.script}\nWRAPPER_EOF\nchmod +x '${scriptPath}'\n'${scriptPath}'`,
+  ]);
 
-      if (url.pathname === "/user/keys") {
-        if (req.method === "POST") {
-          return createJSONResponse(
-            {
-              key: "created",
-            },
-            201,
-          );
-        }
-
-        // case: key already exists
-        if (req.headers.get("Authorization") === "Bearer findkey") {
-          return createJSONResponse([
-            {
-              key: "foo",
-            },
-            {
-              key: "exists",
-            },
-          ]);
-        }
-
-        // case: key does not exist
-        return createJSONResponse([
-          {
-            key: "foo",
-          },
-        ]);
-      }
-
-      return createJSONResponse(
-        {
-          error: "not_found",
-        },
-        404,
-      );
-    },
-    port: 0,
-  });
-
-  return fakeGithubHost;
+  return { id, exec, server };
 };
 
 setDefaultTimeout(30 * 1000);
@@ -122,20 +119,7 @@ describe("github-upload-public-key", () => {
   });
 
   it("creates new key if one does not exist", async () => {
-    const { instance, id, server } = await setupContainer();
-    await writeCoder(id, "echo foo");
-
-    const url = server.url.toString().slice(0, -1);
-    const exec = await execContainer(id, [
-      "env",
-      `CODER_ACCESS_URL=${url}`,
-      `GITHUB_API_URL=${url}`,
-      "CODER_OWNER_SESSION_TOKEN=foo",
-      "CODER_EXTERNAL_AUTH_ID=github",
-      "bash",
-      "-c",
-      instance.script,
-    ]);
+    const { exec } = await setupContainer("foo");
     expect(exec.stdout).toContain(
       "Your Coder public key has been added to GitHub!",
     );
@@ -143,24 +127,8 @@ describe("github-upload-public-key", () => {
   });
 
   it("does nothing if one already exists", async () => {
-    const { instance, id, server } = await setupContainer();
-    // use keyword to make server return a existing key
-    await writeCoder(id, "echo findkey");
-
-    const url = server.url.toString().slice(0, -1);
-    const exec = await execContainer(id, [
-      "env",
-      `CODER_ACCESS_URL=${url}`,
-      `GITHUB_API_URL=${url}`,
-      "CODER_OWNER_SESSION_TOKEN=foo",
-      "CODER_EXTERNAL_AUTH_ID=github",
-      "bash",
-      "-c",
-      instance.script,
-    ]);
-    expect(exec.stdout).toContain(
-      "Your Coder public key is already on GitHub!",
-    );
+    const { exec } = await setupContainer("findkey");
+    expect(exec.stdout).toContain("Your Coder public key is already on GitHub!");
     expect(exec.exitCode).toBe(0);
   });
 });

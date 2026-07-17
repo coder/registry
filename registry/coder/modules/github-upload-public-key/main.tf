@@ -26,15 +26,22 @@ variable "github_api_url" {
   default     = "https://api.github.com"
 }
 
+variable "coder_access_url" {
+  type        = string
+  description = "Override the Coder access URL. Defaults to the workspace access URL when unset."
+  default     = ""
+}
+
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
 locals {
+  coder_access_url = var.coder_access_url != "" ? var.coder_access_url : data.coder_workspace.me.access_url
   script = templatefile("${path.module}/run.sh.tftpl", {
-    CODER_OWNER_SESSION_TOKEN : data.coder_workspace_owner.me.session_token,
-    CODER_ACCESS_URL : data.coder_workspace.me.access_url,
-    CODER_EXTERNAL_AUTH_ID : var.external_auth_id,
-    GITHUB_API_URL : var.github_api_url,
+    ARG_CODER_OWNER_SESSION_TOKEN : data.coder_workspace_owner.me.session_token,
+    ARG_CODER_ACCESS_URL          : local.coder_access_url,
+    ARG_CODER_EXTERNAL_AUTH_ID    : var.external_auth_id,
+    ARG_GITHUB_API_URL            : var.github_api_url,
   })
 }
 
