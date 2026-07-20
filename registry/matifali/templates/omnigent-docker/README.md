@@ -3,7 +3,7 @@ display_name: Omnigent Docker
 icon: ../../../../.icons/omnigent.svg
 description: Docker workspace with Omnigent, Claude Code, and Codex pre-installed.
 verified: false
-tags: [docker, omnigent, claude-code, codex, ai, multi-agent]
+tags: [docker, container, omnigent, ai, agent, ai-gateway]
 ---
 
 # Omnigent Docker
