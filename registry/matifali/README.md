@@ -2,7 +2,7 @@
 display_name: "Atif Ali"
 bio: "Developer Experience and Ecosystem at Coder, focused on IDEs, agents, AI governance, and platform polish."
 github: "matifali"
-avatar: "https://github.com/matifali.png"
+avatar: "./.images/avatar.png"
 website: "https://matifali.dev"
 status: "community"
 ---
