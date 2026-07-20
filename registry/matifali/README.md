@@ -13,8 +13,8 @@ Developer Experience and Ecosystem at Coder, focused on IDEs, agents, AI governa
 
 ## Modules
 
-- **[omnigent](https://registry.coder.com/modules/matifali/omnigent)**: Run a private Omnigent multi-agent coding server in your Coder workspace.
+- **[omnigent](https://registry.coder.com/modules/matifali/omnigent)**: Run a private Omnigent multi-agent coding server.
 
 ## Templates
 
-- **[omnigent-docker](https://registry.coder.com/templates/matifali/omnigent-docker)**: Docker workspace with Omnigent, Claude Code, Codex, and Coder AI Gateway.
+- **[omnigent-docker](https://registry.coder.com/templates/matifali/omnigent-docker)**: Omnigent with Claude Code, Codex, and Coder AI Gateway on Docker.
