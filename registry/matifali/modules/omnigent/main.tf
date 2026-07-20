@@ -113,7 +113,7 @@ variable "post_install_script" {
 }
 
 locals {
-  module_dir         = "$HOME/.coder-modules/coder-labs/omnigent"
+  module_dir         = "$HOME/.coder-modules/matifali/omnigent"
   server_config_file = "${local.module_dir}/config/server.yaml"
   agents_dir         = "${local.module_dir}/agents"
 
