@@ -32,7 +32,7 @@ origin_from_url() {
   local url="$${1:-}"
   case "$${url}" in
     http://*|https://*)
-      printf '%s\n' "$${url}" | sed -E 's#^(https?://[^/]+).*#\1#'
+      printf '%s\n' "$${url}" | sed -E 's#^(https?://[^/]+).*#\1#' | tr '[:upper:]' '[:lower:]'
       ;;
   esac
 }
