@@ -149,7 +149,7 @@ module "git_clone" {
 
 module "codex" {
   source  = "registry.coder.com/coder-labs/codex/coder"
-  version = "~> 5.2, >= 5.2.1"
+  version = "~> 5.2"
 
   agent_id           = coder_agent.main.id
   workdir            = module.git_clone.repo_dir
@@ -169,7 +169,7 @@ module "claude_code" {
 
 module "omnigent" {
   source  = "registry.coder.com/matifali/omnigent/coder"
-  version = "~> 0.0, >= 0.0.1"
+  version = "~> 0.0"
 
   agent_id = coder_agent.main.id
 
