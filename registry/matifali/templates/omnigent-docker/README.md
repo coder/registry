@@ -19,7 +19,7 @@ The template clones `https://github.com/coder/coder` into `/home/coder/workspace
 ```tf
 module "git_clone" {
   source  = "registry.coder.com/coder/git-clone/coder"
-  version = "2.0.1"
+  version = ">= 2.0.1, < 3.0.0"
 
   agent_id    = coder_agent.main.id
   url         = "https://github.com/coder/coder"
@@ -29,7 +29,7 @@ module "git_clone" {
 
 module "codex" {
   source  = "registry.coder.com/coder-labs/codex/coder"
-  version = "5.2.1"
+  version = ">= 5.2.1, < 6.0.0"
 
   agent_id          = coder_agent.main.id
   workdir           = module.git_clone.repo_dir
@@ -38,7 +38,7 @@ module "codex" {
 
 module "claude_code" {
   source  = "registry.coder.com/coder/claude-code/coder"
-  version = "5.2.0"
+  version = ">= 5.2.0, < 6.0.0"
 
   agent_id          = coder_agent.main.id
   workdir           = module.git_clone.repo_dir
@@ -47,7 +47,7 @@ module "claude_code" {
 
 module "omnigent" {
   source  = "registry.coder.com/matifali/omnigent/coder"
-  version = "0.0.1"
+  version = ">= 0.0.1, < 1.0.0"
 
   agent_id = coder_agent.main.id
 }
