@@ -1,5 +1,5 @@
 ---
-display_name: "Muhammad Atif Ali"
+display_name: "Atif Ali"
 bio: "Developer Experience and Ecosystem at Coder, focused on IDEs, agents, AI governance, and platform polish."
 github: "matifali"
 website: "https://matifali.dev"
