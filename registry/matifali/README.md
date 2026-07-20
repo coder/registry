@@ -16,4 +16,4 @@ Developer Experience and Ecosystem at Coder, focused on IDEs, agents, AI governa
 
 ## Templates
 
-- **[omnigent-workspace](https://registry.coder.com/templates/matifali/omnigent-workspace)**: Docker workspace with Omnigent, Claude Code, Codex, and Coder AI Gateway.
+- **[omnigent-docker](https://registry.coder.com/templates/matifali/omnigent-docker)**: Docker workspace with Omnigent, Claude Code, Codex, and Coder AI Gateway.
