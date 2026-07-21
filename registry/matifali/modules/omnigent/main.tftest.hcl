@@ -21,6 +21,16 @@ run "test_defaults" {
   }
 
   assert {
+    condition     = var.icon == "/icon/omnigent.svg"
+    error_message = "icon should default to the Coder runtime icon path"
+  }
+
+  assert {
+    condition     = coder_app.omnigent.icon == "/icon/omnigent.svg"
+    error_message = "coder_app icon should use the default runtime icon path"
+  }
+
+  assert {
     condition     = coder_app.omnigent.url == "http://localhost:6767"
     error_message = "coder_app url should use default port 6767"
   }

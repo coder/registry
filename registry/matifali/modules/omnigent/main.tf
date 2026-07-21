@@ -17,7 +17,7 @@ variable "agent_id" {
 variable "icon" {
   description = "Icon for Omnigent scripts and app."
   type        = string
-  default     = "../../../../.icons/omnigent.svg"
+  default     = "/icon/omnigent.svg"
 }
 
 variable "port" {
