@@ -62,7 +62,8 @@ variable "disable_autoupdater" {
 
 variable "anthropic_api_key" {
   type        = string
-  description = "API key passed to Claude Code via the ANTHROPIC_API_KEY env var."
+  description = "API key passed to Claude Code via the ANTHROPIC_API_KEY env var. Prefer api_key_helper for short-lived credentials."
+  sensitive   = true
   default     = ""
 }
 
@@ -136,6 +137,25 @@ variable "telemetry" {
   description = "Configure Claude Code OpenTelemetry export. When enabled, sets CLAUDE_CODE_ENABLE_TELEMETRY and the standard OTEL_EXPORTER_OTLP_* environment variables. Coder workspace identifiers (coder.workspace_id, coder.workspace_name, coder.workspace_owner, coder.template_name) are automatically appended to OTEL_RESOURCE_ATTRIBUTES so Claude Code telemetry can be joined with Coder audit and exectrace logs."
 }
 
+variable "api_key_helper" {
+  type = object({
+    script = string
+    ttl_ms = optional(number, 300000)
+  })
+  description = "Script that prints an Anthropic API key to stdout. Written to ~/.claude/coder-api-key-helper.sh and registered via the apiKeyHelper setting in /etc/claude-code/managed-settings.d/. Use for short-lived credentials from Vault, AWS Secrets Manager, cloud IAM, etc. ttl_ms is how long Claude Code caches each key (default 5 minutes)."
+  default     = null
+
+  validation {
+    condition     = var.api_key_helper == null || (var.anthropic_api_key == "" && var.claude_code_oauth_token == "")
+    error_message = "api_key_helper cannot be combined with anthropic_api_key or claude_code_oauth_token. Use exactly one authentication method."
+  }
+
+  validation {
+    condition     = var.api_key_helper == null || !var.enable_ai_gateway
+    error_message = "api_key_helper cannot be combined with enable_ai_gateway. AI Gateway authenticates using the workspace owner's session token."
+  }
+}
+
 resource "coder_env" "claude_code_oauth_token" {
   count    = var.claude_code_oauth_token != "" ? 1 : 0
   agent_id = var.agent_id
@@ -179,6 +199,13 @@ resource "coder_env" "anthropic_base_url" {
   agent_id = var.agent_id
   name     = "ANTHROPIC_BASE_URL"
   value    = "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic"
+}
+
+resource "coder_env" "api_key_helper_ttl" {
+  count    = var.api_key_helper != null ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CLAUDE_CODE_API_KEY_HELPER_TTL_MS"
+  value    = tostring(var.api_key_helper.ttl_ms)
 }
 
 locals {
@@ -244,6 +271,7 @@ locals {
     ARG_MCP_CONFIG_REMOTE_PATH = base64encode(jsonencode(var.mcp_config_remote_path))
     ARG_ENABLE_AI_GATEWAY      = tostring(var.enable_ai_gateway)
     ARG_MANAGED_SETTINGS_JSON  = var.managed_settings != null ? base64encode(jsonencode(var.managed_settings)) : ""
+    ARG_API_KEY_HELPER_SCRIPT  = var.api_key_helper != null ? base64encode(var.api_key_helper.script) : ""
   })
   module_dir_name = ".coder-modules/coder/claude-code"
 }
