@@ -39,7 +39,7 @@ const setupContainer = async (
   image = "lorello/alpine-bash",
   vars: Record<string, string> = {},
 ) => {
-  const server = setupServer();
+  const { server, uploadedKeyNames } = setupServer();
   const state = await runTerraformApply(import.meta.dir, {
     agent_id: "foo",
     ...vars,
@@ -54,12 +54,13 @@ const setupContainer = async (
     await removeContainer(id);
   });
 
-  return { id, instance, server };
+  return { id, instance, server, uploadedKeyNames };
 };
 
 const setupServer = () => {
-  const fakeGithubHost = serve({
-    fetch: (req) => {
+  const uploadedKeyNames: string[] = [];
+  const server = serve({
+    fetch: async (req) => {
       const url = new URL(req.url);
       if (url.pathname === "/api/v2/users/me/gitsshkey") {
         return createJSONResponse({
@@ -69,6 +70,8 @@ const setupServer = () => {
 
       if (url.pathname === "/user/keys") {
         if (req.method === "POST") {
+          const body = (await req.json()) as { title: string };
+          uploadedKeyNames.push(body.title);
           return createJSONResponse(
             {
               key: "created",
@@ -107,7 +110,7 @@ const setupServer = () => {
     port: 0,
   });
 
-  return fakeGithubHost;
+  return { server, uploadedKeyNames };
 };
 
 setDefaultTimeout(30 * 1000);
@@ -122,7 +125,7 @@ describe("github-upload-public-key", () => {
   });
 
   it("creates new key if one does not exist", async () => {
-    const { instance, id, server } = await setupContainer();
+    const { instance, id, server, uploadedKeyNames } = await setupContainer();
     await writeCoder(id, "echo foo");
 
     const url = server.url.toString().slice(0, -1);
@@ -140,6 +143,33 @@ describe("github-upload-public-key", () => {
       "Your Coder public key has been added to GitHub!",
     );
     expect(exec.exitCode).toBe(0);
+    expect(uploadedKeyNames).toEqual([`${url} Workspaces`]);
+  });
+
+  it("uses a custom key name", async () => {
+    const keyName = "ACME Coder Workspaces";
+    const { instance, id, server, uploadedKeyNames } = await setupContainer(
+      undefined,
+      { key_name: keyName },
+    );
+    await writeCoder(id, "echo foo");
+
+    const url = server.url.toString().slice(0, -1);
+    const exec = await execContainer(id, [
+      "env",
+      `CODER_ACCESS_URL=${url}`,
+      `GITHUB_API_URL=${url}`,
+      "CODER_OWNER_SESSION_TOKEN=foo",
+      "CODER_EXTERNAL_AUTH_ID=github",
+      "bash",
+      "-c",
+      instance.script,
+    ]);
+    expect(exec.stdout).toContain(
+      "Your Coder public key has been added to GitHub!",
+    );
+    expect(exec.exitCode).toBe(0);
+    expect(uploadedKeyNames).toEqual([keyName]);
   });
 
   it("does nothing if one already exists", async () => {
