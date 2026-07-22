@@ -327,3 +327,113 @@ run "test_managed_settings_default_null" {
     error_message = "managed_settings should default to null when omitted"
   }
 }
+
+run "test_use_bedrock" {
+  command = plan
+
+  variables {
+    agent_id    = "test-agent-bedrock"
+    workdir     = "/home/coder/test"
+    use_bedrock = true
+  }
+
+  assert {
+    condition     = coder_env.use_bedrock[0].name == "CLAUDE_CODE_USE_BEDROCK" && coder_env.use_bedrock[0].value == "1"
+    error_message = "CLAUDE_CODE_USE_BEDROCK env var should be set to 1 when use_bedrock is true"
+  }
+
+  assert {
+    condition     = length(coder_env.use_vertex) == 0
+    error_message = "CLAUDE_CODE_USE_VERTEX should not be set when only use_bedrock is true"
+  }
+}
+
+run "test_use_vertex" {
+  command = plan
+
+  variables {
+    agent_id   = "test-agent-vertex"
+    workdir    = "/home/coder/test"
+    use_vertex = true
+  }
+
+  assert {
+    condition     = coder_env.use_vertex[0].name == "CLAUDE_CODE_USE_VERTEX" && coder_env.use_vertex[0].value == "1"
+    error_message = "CLAUDE_CODE_USE_VERTEX env var should be set to 1 when use_vertex is true"
+  }
+}
+
+run "test_anthropic_base_url_custom" {
+  command = plan
+
+  variables {
+    agent_id           = "test-agent-baseurl"
+    workdir            = "/home/coder/test"
+    anthropic_base_url = "https://llm-gateway.example.com/anthropic"
+  }
+
+  assert {
+    condition     = coder_env.anthropic_base_url[0].value == "https://llm-gateway.example.com/anthropic"
+    error_message = "ANTHROPIC_BASE_URL should be set to the custom value when anthropic_base_url is provided"
+  }
+}
+
+run "test_anthropic_base_url_validation_with_ai_gateway" {
+  command = plan
+
+  variables {
+    agent_id           = "test-agent-validation"
+    workdir            = "/home/coder/test"
+    enable_ai_gateway  = true
+    anthropic_base_url = "https://example.com"
+  }
+
+  expect_failures = [
+    var.anthropic_base_url,
+  ]
+}
+
+run "test_use_bedrock_validation_with_ai_gateway" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent-validation"
+    workdir           = "/home/coder/test"
+    enable_ai_gateway = true
+    use_bedrock       = true
+  }
+
+  expect_failures = [
+    var.use_bedrock,
+  ]
+}
+
+run "test_use_vertex_validation_with_ai_gateway" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent-validation"
+    workdir           = "/home/coder/test"
+    enable_ai_gateway = true
+    use_vertex        = true
+  }
+
+  expect_failures = [
+    var.use_vertex,
+  ]
+}
+
+run "test_use_bedrock_validation_with_use_vertex" {
+  command = plan
+
+  variables {
+    agent_id    = "test-agent-validation"
+    workdir     = "/home/coder/test"
+    use_bedrock = true
+    use_vertex  = true
+  }
+
+  expect_failures = [
+    var.use_bedrock,
+  ]
+}
