@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, setDefaultTimeout } from "bun:test";
 import {
   execContainer,
   executeScriptInContainer,
@@ -10,7 +10,10 @@ import {
   runTerraformInit,
   testRequiredVariables,
   type TerraformState,
+  writeFileContainer,
 } from "~test";
+
+setDefaultTimeout(30_000);
 
 // executes the coder script after installing pip
 const executeScriptInContainerWithPip = async (
@@ -166,4 +169,69 @@ describe("jupyterlab", async () => {
     );
     expect(configScripts.length).toBe(1);
   });
+
+  it("binds to loopback by default without changing Coder URLs", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+    });
+    const script = findResourceInstance(
+      state,
+      "coder_script",
+      "jupyterlab",
+    ).script;
+    const app = findResourceInstance(state, "coder_app", "jupyterlab");
+
+    expect(script).toContain("--ServerApp.ip='127.0.0.1'");
+    expect(script).not.toContain("0.0.0.0");
+    expect(script).not.toContain("--ServerApp.ip='*'");
+    expect(app.url).toBe("http://localhost:19999");
+
+    const id = await runContainer("alpine");
+    try {
+      await writeFileContainer(
+        id,
+        "/usr/local/bin/jupyter-lab",
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > /tmp/jupyter-args\n",
+      );
+      await execContainer(id, ["chmod", "755", "/usr/local/bin/jupyter-lab"]);
+      const result = await execContainer(id, ["sh", "-c", script]);
+      expect(result.exitCode).toBe(0);
+      const args = await readFileContainer(id, "/tmp/jupyter-args");
+      expect(args).toContain("--ServerApp.ip=127.0.0.1");
+    } finally {
+      await removeContainer(id);
+    }
+  });
+
+  it("preserves path mode and renders an explicit external host", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      host: "0.0.0.0",
+      subdomain: false,
+    });
+    const script = findResourceInstance(
+      state,
+      "coder_script",
+      "jupyterlab",
+    ).script;
+
+    expect(script).toContain("--ServerApp.ip='0.0.0.0'");
+    expect(script).toContain("--ServerApp.base_url=/@");
+    expect(script).toContain("/apps/jupyterlab");
+  });
+
+  for (const unsafeHost of [
+    "127.0.0.1; touch /tmp/injected",
+    "127.0.0.1 $(id)",
+    "127.0.0.1`id`",
+    "127.0.0.1'quoted",
+  ]) {
+    it(`rejects unsafe host ${JSON.stringify(unsafeHost)}`, async () => {
+      const apply = runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        host: unsafeHost,
+      });
+      await expect(apply).rejects.toThrow("host must contain only");
+    });
+  }
 });

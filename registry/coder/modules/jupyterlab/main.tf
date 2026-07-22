@@ -41,6 +41,17 @@ variable "log_path" {
   default     = "/tmp/jupyterlab.log"
 }
 
+variable "host" {
+  description = "The host address that JupyterLab listens on."
+  type        = string
+  default     = "127.0.0.1"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$", var.host))
+    error_message = "host must contain only letters, numbers, dots, and hyphens, and must start and end with a letter or number."
+  }
+}
+
 variable "port" {
   type        = number
   description = "The port to run jupyterlab on."
@@ -100,6 +111,7 @@ resource "coder_script" "jupyterlab" {
   icon         = "/icon/jupyter.svg"
   script = templatefile("${path.module}/run.sh", {
     LOG_PATH : var.log_path,
+    HOST : var.host,
     PORT : var.port
     BASE_URL : var.subdomain ? "" : "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}/apps/jupyterlab"
   })

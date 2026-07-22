@@ -49,10 +49,10 @@ fi
 
 printf "👷 Starting jupyterlab in background..."
 printf "check logs at ${LOG_PATH}"
-$JUPYTER --no-browser \
+"$JUPYTER" --no-browser \
   "$BASE_URL_FLAG" \
-  --ServerApp.ip='*' \
-  --ServerApp.port="${PORT}" \
+  --ServerApp.ip='${HOST}' \
+  --ServerApp.port='${PORT}' \
   --ServerApp.token='' \
   --ServerApp.password='' \
   > "${LOG_PATH}" 2>&1 &
