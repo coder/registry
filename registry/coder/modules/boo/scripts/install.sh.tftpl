@@ -1,0 +1,40 @@
+#!/bin/bash
+set -o errexit
+set -o pipefail
+
+INSTALL_BOO="${ARG_INSTALL_BOO}"
+BOO_VERSION="${ARG_BOO_VERSION}"
+INSTALL_SCRIPT_URL="${ARG_INSTALL_SCRIPT_URL}"
+
+if [ "$INSTALL_BOO" != "true" ]; then
+  echo "Skipping boo installation (install_boo=false)"
+  exit 0
+fi
+
+export PATH="$HOME/.local/bin:$PATH"
+
+if command -v boo &>/dev/null; then
+  INSTALLED_VERSION=$(boo -V 2>&1 | tr -d 'v\n' || true)
+
+  if [ "$BOO_VERSION" = "latest" ]; then
+    echo "boo $${INSTALLED_VERSION} already installed; skipping (boo_version=latest)"
+    exit 0
+  fi
+
+  REQUESTED_VERSION=$(echo -n "$BOO_VERSION" | sed 's/^v//')
+  if [ "$INSTALLED_VERSION" = "$REQUESTED_VERSION" ]; then
+    echo "boo $${INSTALLED_VERSION} already installed and matches requested version; skipping"
+    exit 0
+  fi
+
+  echo "boo $${INSTALLED_VERSION} installed but $${REQUESTED_VERSION} requested; reinstalling"
+fi
+
+export BOO_INSTALL_DIR="$HOME/.local/bin"
+if [ "$BOO_VERSION" != "latest" ]; then
+  export BOO_VERSION=$(echo -n "$BOO_VERSION" | sed 's/^v//')
+fi
+
+echo "Installing boo..."
+curl -fsSL "$INSTALL_SCRIPT_URL" | sh
+echo "boo installation complete"
