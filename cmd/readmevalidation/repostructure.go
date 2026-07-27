@@ -16,6 +16,35 @@ var supportedUserNameSpaceDirectories = append(supportedResourceTypes, ".images"
 // validNameRe validates that names contain only alphanumeric characters and hyphens
 var validNameRe = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$`)
 
+// validNamespaceRe validates that a namespace directory name is lowercase and contains only alphanumeric characters
+// and hyphens. A namespace becomes part of the case-sensitive module source path
+// (registry.coder.com/<namespace>/<module>/coder), so mixed case produces paths that are inconsistent and easy to
+// mistype.
+var validNamespaceRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
+
+// grandfatheredMixedCaseNamespaces lists the namespaces that existed before the lowercase rule. Renaming them would
+// break the module source paths that users already reference in their Terraform configurations, so they are exempt.
+// Do not add new entries.
+var grandfatheredMixedCaseNamespaces = []string{
+	"AJ0070",
+	"BenraouaneSoufiane",
+	"Excellencedev",
+	"IamTaoChen",
+}
+
+// validateNamespaceName validates the directory name of a single namespace under /registry.
+func validateNamespaceName(namespaceName string) error {
+	if slices.Contains(grandfatheredMixedCaseNamespaces, namespaceName) {
+		return nil
+	}
+	if validNamespaceRe.MatchString(namespaceName) {
+		return nil
+	}
+	if validNameRe.MatchString(namespaceName) {
+		return xerrors.Errorf("namespace name must be lowercase (use %q)", strings.ToLower(namespaceName))
+	}
+	return xerrors.New("namespace name contains invalid characters (only lowercase alphanumeric characters and hyphens are allowed)")
+}
 
 // validateCoderResourceSubdirectory validates that the structure of a module or template within a namespace follows all
 // expected file conventions
@@ -91,8 +120,8 @@ func validateRegistryDirectory() []error {
 		}
 
 		// Validate namespace name
-		if !validNameRe.MatchString(nDir.Name()) {
-			allErrs = append(allErrs, xerrors.Errorf("%q: namespace name contains invalid characters (only alphanumeric characters and hyphens are allowed)", namespacePath))
+		if err := validateNamespaceName(nDir.Name()); err != nil {
+			allErrs = append(allErrs, xerrors.Errorf("%q: %w", namespacePath, err))
 			continue
 		}
 
