@@ -43,6 +43,9 @@ module "nodejs" {
 
 Use `pre_install_script` and `post_install_script` to run custom scripts before and after Node.js is installed. They are orchestrated with the [`coder-utils`](https://registry.coder.com/modules/coder/coder-utils) module, which runs them in order via `coder exp sync`.
 
+> [!NOTE]
+> Node.js is installed via nvm, which only loads automatically in interactive login shells. `post_install_script` runs in a fresh non-interactive shell, so source nvm first to put `node` and `npm` on `PATH`. nvm is installed at `$HOME/<nvm_install_prefix>/nvm` (default `$HOME/.nvm/nvm`).
+
 ```tf
 module "nodejs" {
   count    = data.coder_workspace.me.start_count
@@ -51,7 +54,11 @@ module "nodejs" {
   agent_id = coder_agent.example.id
 
   pre_install_script  = "echo 'Setting up prerequisites...'"
-  post_install_script = "npm install -g yarn pnpm"
+  post_install_script = <<-EOT
+    export NVM_DIR="$HOME/.nvm/nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+    npm install -g yarn pnpm
+  EOT
 }
 ```
 
@@ -74,6 +81,10 @@ module "nodejs" {
   ]
   default_node_version = "1.0.13"
   pre_install_script   = "echo 'Pre-install setup'"
-  post_install_script  = "npm install -g typescript"
+  post_install_script  = <<-EOT
+    export NVM_DIR="$HOME/opt/nvm/nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+    npm install -g typescript
+  EOT
 }
 ```
