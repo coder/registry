@@ -73,7 +73,7 @@ module "nodejs" {
   version            = "1.1.0"
   agent_id           = coder_agent.example.id
   nvm_version        = "1.0.13"
-  nvm_install_prefix = "/opt/nvm"
+  nvm_install_prefix = ".nvm"
   node_versions = [
     "16",
     "18",
@@ -82,7 +82,7 @@ module "nodejs" {
   default_node_version = "1.0.13"
   pre_install_script   = "echo 'Pre-install setup'"
   post_install_script  = <<-EOT
-    export NVM_DIR="$HOME/opt/nvm/nvm"
+    export NVM_DIR="$HOME/.nvm/nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
     npm install -g typescript
   EOT
