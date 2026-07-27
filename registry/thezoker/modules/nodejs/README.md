@@ -35,7 +35,7 @@ module "nodejs" {
     "20",
     "node"
   ]
-  default_node_version = "1.0.13"
+  default_node_version = "20"
 }
 ```
 
@@ -72,14 +72,14 @@ module "nodejs" {
   source             = "registry.coder.com/thezoker/nodejs/coder"
   version            = "1.1.0"
   agent_id           = coder_agent.example.id
-  nvm_version        = "1.0.13"
+  nvm_version        = "v0.40.1"
   nvm_install_prefix = ".nvm"
   node_versions = [
     "16",
     "18",
     "node"
   ]
-  default_node_version = "1.0.13"
+  default_node_version = "18"
   pre_install_script   = "echo 'Pre-install setup'"
   post_install_script  = <<-EOT
     export NVM_DIR="$HOME/.nvm/nvm"
