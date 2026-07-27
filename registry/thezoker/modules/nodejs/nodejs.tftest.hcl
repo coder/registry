@@ -29,41 +29,6 @@ run "test_nodejs_basic" {
     condition     = var.post_install_script == null
     error_message = "post_install_script should default to null"
   }
-
-  assert {
-    condition     = output.install_script_name == "nodejs-install_script"
-    error_message = "install_script_name output should be set"
-  }
-}
-
-run "test_with_scripts" {
-  command = plan
-
-  variables {
-    agent_id            = "test-agent-scripts"
-    pre_install_script  = "echo 'Pre-install script'"
-    post_install_script = "echo 'Post-install script'"
-  }
-
-  assert {
-    condition     = var.pre_install_script == "echo 'Pre-install script'"
-    error_message = "Pre-install script should be set correctly"
-  }
-
-  assert {
-    condition     = var.post_install_script == "echo 'Post-install script'"
-    error_message = "Post-install script should be set correctly"
-  }
-
-  assert {
-    condition     = output.pre_install_script_name == "nodejs-pre_install_script"
-    error_message = "pre_install_script_name output should be set"
-  }
-
-  assert {
-    condition     = output.post_install_script_name == "nodejs-post_install_script"
-    error_message = "post_install_script_name output should be set"
-  }
 }
 
 run "test_custom_options" {
@@ -83,22 +48,45 @@ run "test_custom_options" {
   }
 
   assert {
-    condition     = var.nvm_install_prefix == ".custom-nvm"
-    error_message = "nvm_install_prefix should be set correctly"
-  }
-
-  assert {
     condition     = length(var.node_versions) == 3
     error_message = "node_versions should have 3 entries"
   }
 
   assert {
-    condition     = var.default_node_version == "20"
-    error_message = "default_node_version should be set to 20"
+    condition     = strcontains(local.install_script, "v0.39.7")
+    error_message = "install script should embed the configured nvm_version"
   }
 }
 
-run "test_with_pre_install_only" {
+run "test_script_outputs_install_only" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-outputs"
+  }
+
+  assert {
+    condition     = length(output.scripts) == 1 && output.scripts[0] == "thezoker-nodejs-install_script"
+    error_message = "scripts output should list only the install script when pre/post are not configured"
+  }
+}
+
+run "test_script_outputs_with_pre_and_post" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent-outputs-all"
+    pre_install_script  = "echo 'Pre-install script'"
+    post_install_script = "echo 'Post-install script'"
+  }
+
+  assert {
+    condition     = output.scripts == ["thezoker-nodejs-pre_install_script", "thezoker-nodejs-install_script", "thezoker-nodejs-post_install_script"]
+    error_message = "scripts output should list pre_install, install, post_install in run order"
+  }
+}
+
+run "test_script_outputs_with_pre_install_only" {
   command = plan
 
   variables {
@@ -107,17 +95,12 @@ run "test_with_pre_install_only" {
   }
 
   assert {
-    condition     = var.pre_install_script != null
-    error_message = "Pre-install script should be set"
-  }
-
-  assert {
-    condition     = var.post_install_script == null
-    error_message = "Post-install script should default to null"
+    condition     = output.scripts == ["thezoker-nodejs-pre_install_script", "thezoker-nodejs-install_script"]
+    error_message = "scripts output should list pre_install then install when only pre is configured"
   }
 }
 
-run "test_with_post_install_only" {
+run "test_script_outputs_with_post_install_only" {
   command = plan
 
   variables {
@@ -126,12 +109,7 @@ run "test_with_post_install_only" {
   }
 
   assert {
-    condition     = var.pre_install_script == null
-    error_message = "Pre-install script should default to null"
-  }
-
-  assert {
-    condition     = var.post_install_script != null
-    error_message = "Post-install script should be set"
+    condition     = output.scripts == ["thezoker-nodejs-install_script", "thezoker-nodejs-post_install_script"]
+    error_message = "scripts output should list install then post_install when only post is configured"
   }
 }
