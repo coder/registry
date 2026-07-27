@@ -56,14 +56,20 @@ variable "folder_name" {
   default     = ""
 }
 
-variable "depth" {
-  description = "If > 0, perform a shallow clone using this depth."
-  type        = number
-  default     = 0
+variable "extra_args" {
+  description = "Extra arguments to pass to `git clone`, one element per argument (e.g. `[\"--recurse-submodules\", \"--jobs=8\", \"--filter=blob:none\"]`)."
+  type        = list(string)
+  default     = []
 }
 
 variable "post_clone_script" {
   description = "Custom script to run after cloning the repository. Runs always after git clone, even if the repository already exists."
+  type        = string
+  default     = null
+}
+
+variable "pre_clone_script" {
+  description = "Custom script to run before cloning the repository. Runs before git clone, even if the repository already exists."
   type        = string
   default     = null
 }
@@ -89,6 +95,32 @@ locals {
   web_url = startswith(local.clone_url, "git@") ? replace(replace(local.clone_url, ":", "/"), "git@", "https://") : local.clone_url
   # Encode the post_clone_script for passing to the shell script
   encoded_post_clone_script = var.post_clone_script != null ? base64encode(var.post_clone_script) : ""
+  # Encode the pre_clone_script for passing to the shell script
+  encoded_pre_clone_script = var.pre_clone_script != null ? base64encode(var.pre_clone_script) : ""
+  encoded_extra_args       = base64encode(join("\n", var.extra_args))
+
+  # Module directory paths (matches coder-utils convention)
+  # Use folder_name so two git-clone instances in the same template get
+  # separate script and log directories.
+  module_dir          = "$HOME/.coder-modules/coder/git-clone/${local.folder_name}"
+  scripts_directory   = "${local.module_dir}/scripts"
+  log_directory       = "${local.module_dir}/logs"
+  clone_script_path   = "${local.scripts_directory}/clone.sh"
+  clone_log_path      = "${local.log_directory}/clone.log"
+  pre_clone_log_path  = "${local.log_directory}/pre_clone.log"
+  post_clone_log_path = "${local.log_directory}/post_clone.log"
+
+  encoded_clone_script = base64encode(templatefile("${path.module}/run.sh", {
+    CLONE_PATH          = local.clone_path,
+    REPO_URL            = local.clone_url,
+    BRANCH_NAME         = local.branch_name,
+    EXTRA_ARGS          = local.encoded_extra_args,
+    POST_CLONE_SCRIPT   = local.encoded_post_clone_script,
+    PRE_CLONE_SCRIPT    = local.encoded_pre_clone_script,
+    SCRIPTS_DIR         = local.scripts_directory,
+    PRE_CLONE_LOG_PATH  = local.pre_clone_log_path,
+    POST_CLONE_LOG_PATH = local.post_clone_log_path,
+  }))
 }
 
 output "repo_dir" {
@@ -122,14 +154,21 @@ output "branch_name" {
 }
 
 resource "coder_script" "git_clone" {
-  agent_id = var.agent_id
-  script = templatefile("${path.module}/run.sh", {
-    CLONE_PATH = local.clone_path,
-    REPO_URL : local.clone_url,
-    BRANCH_NAME : local.branch_name,
-    DEPTH = var.depth,
-    POST_CLONE_SCRIPT : local.encoded_post_clone_script,
-  })
+  agent_id           = var.agent_id
+  script             = <<-EOT
+    #!/bin/bash
+    set -o errexit
+    set -o pipefail
+
+    mkdir -p "${local.module_dir}"
+    mkdir -p "${local.scripts_directory}"
+    mkdir -p "${local.log_directory}"
+
+    echo -n '${local.encoded_clone_script}' | base64 -d > "${local.clone_script_path}"
+    chmod +x "${local.clone_script_path}"
+
+    "${local.clone_script_path}" 2>&1 | tee "${local.clone_log_path}"
+  EOT
   display_name       = "Git Clone"
   icon               = "/icon/git.svg"
   run_on_start       = true

@@ -11,7 +11,7 @@ import (
 	"golang.org/x/xerrors"
 )
 
-var supportedUserNameSpaceDirectories = append(supportedResourceTypes, ".images")
+var supportedUserNameSpaceDirectories = append(supportedResourceTypes, ".images", "skills")
 
 // validNameRe validates that names contain only alphanumeric characters and hyphens
 var validNameRe = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$`)
