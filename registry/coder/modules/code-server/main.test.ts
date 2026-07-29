@@ -18,6 +18,39 @@ import {
 
 setDefaultTimeout(2 * 60 * 1000);
 
+// Mock code-server CLI that records every `--install-extension <id>` call as
+// "INSTALLED:<id>" on stdout so tests can assert which extensions the script
+// tried to install. `--list-extensions` returns nothing (no cached extensions).
+const MOCK_CODE_SERVER = `#!/bin/bash
+if [ "$1" = "--list-extensions" ]; then
+  exit 0
+fi
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "--install-extension" ]; then
+    echo "INSTALLED:$arg"
+  fi
+  prev="$arg"
+done
+exit 0`;
+
+// A .vscode/extensions.json exercising every JSONC feature the stripper must
+// handle: a standalone line comment, an end-of-line comment, a block comment
+// containing a URL (the case the previous sed pipeline corrupted), a multi-line
+// block comment, and a trailing comma.
+const JSONC_EXTENSIONS_JSON = `{
+  // Recommended extensions for this workspace
+  "recommendations": [
+    "ms-python.python", // Python language support
+    /* linting - see https://open-vsx.org for the registry */
+    "dbaeumer.vscode-eslint",
+    /*
+     * Formatting tools
+     */
+    "esbenp.prettier-vscode", // trailing comma below is intentional
+  ]
+}`;
+
 let cleanupContainers: string[] = [];
 
 afterEach(async () => {
@@ -212,6 +245,98 @@ chmod +x /tmp/code-server/bin/code-server`,
     expect(settingsResult.stdout).toContain("machine_value");
     expect(settingsResult.stdout).toContain("template.setting");
     expect(settingsResult.stdout).toContain("template_value");
+  });
+
+  it("auto-installs recommended extensions from a JSONC extensions.json", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      use_cached: true,
+      auto_install_extensions: true,
+    });
+
+    const containerId = await runContainer("ubuntu:22.04");
+    cleanupContainers.push(containerId);
+
+    await execContainer(containerId, ["apt-get", "update", "-qq"]);
+    await execContainer(containerId, ["apt-get", "install", "-y", "-qq", "jq"]);
+
+    // use_cached + a pre-existing binary skips the real install so the script
+    // reaches the auto-install path.
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /tmp/code-server/bin && cat > /tmp/code-server/bin/code-server << 'MOCKEOF'
+${MOCK_CODE_SERVER}
+MOCKEOF
+chmod +x /tmp/code-server/bin/code-server`,
+    ]);
+
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /root/.vscode && cat > /root/.vscode/extensions.json << 'JSONCEOF'
+${JSONC_EXTENSIONS_JSON}
+JSONCEOF`,
+    ]);
+
+    const script = findResourceInstance(state, "coder_script");
+    const result = await execContainer(containerId, [
+      "bash",
+      "-c",
+      script.script,
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("INSTALLED:ms-python.python");
+    expect(result.stdout).toContain("INSTALLED:dbaeumer.vscode-eslint");
+    expect(result.stdout).toContain("INSTALLED:esbenp.prettier-vscode");
+  });
+
+  it("does not error on an extensions.json without a recommendations key", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      use_cached: true,
+      auto_install_extensions: true,
+    });
+
+    const containerId = await runContainer("ubuntu:22.04");
+    cleanupContainers.push(containerId);
+
+    await execContainer(containerId, ["apt-get", "update", "-qq"]);
+    await execContainer(containerId, ["apt-get", "install", "-y", "-qq", "jq"]);
+
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /tmp/code-server/bin && cat > /tmp/code-server/bin/code-server << 'MOCKEOF'
+${MOCK_CODE_SERVER}
+MOCKEOF
+chmod +x /tmp/code-server/bin/code-server`,
+    ]);
+
+    // Valid JSON, but no `recommendations` key. The null-safe query
+    // `(.recommendations // [])[]` must not make jq error on the missing key.
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /root/.vscode && cat > /root/.vscode/extensions.json << 'JSONCEOF'
+{
+  "unwantedRecommendations": ["ms-python.python"]
+}
+JSONCEOF`,
+    ]);
+
+    const script = findResourceInstance(state, "coder_script");
+    const result = await execContainer(containerId, [
+      "bash",
+      "-c",
+      script.script,
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Installing extensions from");
+    expect(result.stdout).not.toContain("INSTALLED:");
+    expect(result.stderr).not.toContain("jq: error");
   });
 
   it("installs and runs code-server", async () => {

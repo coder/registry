@@ -44,11 +44,24 @@ validate_variable_names() {
 
 validate_terraform_directory() {
   local dir="$1"
+  local rc=0
   echo "Running \`terraform validate\` in $dir"
   pushd "$dir" > /dev/null
-  terraform init -upgrade
-  terraform validate
+
+  # `terraform validate` requires modules to be installed first. If
+  # `terraform init` fails (for example a bad module source), skip validate
+  # so we surface the real init error instead of misleading
+  # "Module not installed" errors.
+  if ! terraform init -upgrade; then
+    echo "  ERROR: \`terraform init\` failed in $dir" >&2
+    popd > /dev/null
+    return 1
+  fi
+
+  terraform validate || rc=1
+
   popd > /dev/null
+  return "$rc"
 }
 
 main() {

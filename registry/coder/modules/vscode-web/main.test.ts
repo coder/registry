@@ -18,6 +18,51 @@ import {
 // Set timeout to 2 minutes for tests that install packages
 setDefaultTimeout(2 * 60 * 1000);
 
+// Mock vscode-web CLI that records every `--install-extension <id>` call as
+// "INSTALLED:<id>" on stdout so tests can assert which extensions the script
+// tried to install.
+const MOCK_VSCODE_WEB = `#!/bin/bash
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "--install-extension" ]; then
+    echo "INSTALLED:$arg"
+  fi
+  prev="$arg"
+done
+exit 0`;
+
+// Stub curl/tar so the download is a no-op: the script only reaches the
+// extension-install path when neither use_cached nor offline is set (both exit
+// early), so the real download must be short-circuited while the pre-placed
+// mock binary survives.
+const STUB_DOWNLOAD = `cat > /usr/local/bin/curl << 'CURLEOF'
+#!/bin/bash
+echo '"stub-commit"'
+CURLEOF
+cat > /usr/local/bin/tar << 'TAREOF'
+#!/bin/bash
+cat > /dev/null 2>&1 || true
+exit 0
+TAREOF
+chmod +x /usr/local/bin/curl /usr/local/bin/tar`;
+
+// A .vscode/extensions.json exercising every JSONC feature the stripper must
+// handle: a standalone line comment, an end-of-line comment, a block comment
+// containing a URL (the case the previous sed pipeline corrupted), a multi-line
+// block comment, and a trailing comma.
+const JSONC_EXTENSIONS_JSON = `{
+  // Recommended extensions for this workspace
+  "recommendations": [
+    "ms-python.python", // Python language support
+    /* linting - see https://open-vsx.org for the registry */
+    "dbaeumer.vscode-eslint",
+    /*
+     * Formatting tools
+     */
+    "esbenp.prettier-vscode", // trailing comma below is intentional
+  ]
+}`;
+
 let cleanupContainers: string[] = [];
 
 afterEach(async () => {
@@ -294,5 +339,157 @@ chmod +x /tmp/vscode-web/bin/code-server`,
     expect(settingsResult.stdout).toContain("existing_value");
     expect(settingsResult.stdout).not.toContain("new.setting");
     expect(settingsResult.stdout).not.toContain("new_value");
+  });
+
+  it("auto-installs recommended extensions from a JSONC extensions.json", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      accept_license: true,
+      auto_install_extensions: true,
+    });
+
+    const containerId = await runContainer("ubuntu:22.04");
+    cleanupContainers.push(containerId);
+
+    await execContainer(containerId, ["apt-get", "update", "-qq"]);
+    await execContainer(containerId, ["apt-get", "install", "-y", "-qq", "jq"]);
+
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /tmp/vscode-web/bin && cat > /tmp/vscode-web/bin/code-server << 'MOCKEOF'
+${MOCK_VSCODE_WEB}
+MOCKEOF
+chmod +x /tmp/vscode-web/bin/code-server
+${STUB_DOWNLOAD}`,
+    ]);
+
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /root/.vscode && cat > /root/.vscode/extensions.json << 'JSONCEOF'
+${JSONC_EXTENSIONS_JSON}
+JSONCEOF`,
+    ]);
+
+    const script = findResourceInstance(state, "coder_script");
+    const result = await execContainer(containerId, [
+      "bash",
+      "-c",
+      script.script,
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("INSTALLED:ms-python.python");
+    expect(result.stdout).toContain("INSTALLED:dbaeumer.vscode-eslint");
+    expect(result.stdout).toContain("INSTALLED:esbenp.prettier-vscode");
+  });
+
+  it("does not error on an extensions.json without a recommendations key", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      accept_license: true,
+      auto_install_extensions: true,
+    });
+
+    const containerId = await runContainer("ubuntu:22.04");
+    cleanupContainers.push(containerId);
+
+    await execContainer(containerId, ["apt-get", "update", "-qq"]);
+    await execContainer(containerId, ["apt-get", "install", "-y", "-qq", "jq"]);
+
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /tmp/vscode-web/bin && cat > /tmp/vscode-web/bin/code-server << 'MOCKEOF'
+${MOCK_VSCODE_WEB}
+MOCKEOF
+chmod +x /tmp/vscode-web/bin/code-server
+${STUB_DOWNLOAD}`,
+    ]);
+
+    // Valid JSON, but no `recommendations` key. The null-safe query
+    // `(.recommendations // [])[]` must not make jq error on the missing key.
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /root/.vscode && cat > /root/.vscode/extensions.json << 'JSONCEOF'
+{
+  "unwantedRecommendations": ["ms-python.python"]
+}
+JSONCEOF`,
+    ]);
+
+    const script = findResourceInstance(state, "coder_script");
+    const result = await execContainer(containerId, [
+      "bash",
+      "-c",
+      script.script,
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Installing extensions from");
+    expect(result.stdout).not.toContain("INSTALLED:");
+    expect(result.stderr).not.toContain("jq: error");
+  });
+
+  it("auto-installs extensions from a JSONC .code-workspace with URL-valued settings", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      accept_license: true,
+      auto_install_extensions: true,
+      workspace: "/root/team.code-workspace",
+    });
+
+    const containerId = await runContainer("ubuntu:22.04");
+    cleanupContainers.push(containerId);
+
+    await execContainer(containerId, ["apt-get", "update", "-qq"]);
+    await execContainer(containerId, ["apt-get", "install", "-y", "-qq", "jq"]);
+
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /tmp/vscode-web/bin && cat > /tmp/vscode-web/bin/code-server << 'MOCKEOF'
+${MOCK_VSCODE_WEB}
+MOCKEOF
+chmod +x /tmp/vscode-web/bin/code-server
+${STUB_DOWNLOAD}`,
+    ]);
+
+    // A .code-workspace whose settings hold a URL. The `://` in the URL must
+    // survive JSONC stripping (it is not a comment) so jq can parse the file
+    // and read .extensions.recommendations.
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `cat > /root/team.code-workspace << 'JSONCEOF'
+{
+  // Team workspace configuration
+  "folders": [{ "path": "." }],
+  "settings": {
+    "http.proxy": "https://proxy.corp.example:8080", // corporate proxy URL
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      /* linting - https://open-vsx.org */
+      "dbaeumer.vscode-eslint",
+    ]
+  }
+}
+JSONCEOF`,
+    ]);
+
+    const script = findResourceInstance(state, "coder_script");
+    const result = await execContainer(containerId, [
+      "bash",
+      "-c",
+      script.script,
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("INSTALLED:ms-python.python");
+    expect(result.stdout).toContain("INSTALLED:dbaeumer.vscode-eslint");
   });
 });

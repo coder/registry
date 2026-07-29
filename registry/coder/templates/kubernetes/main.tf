@@ -31,6 +31,16 @@ variable "namespace" {
   description = "The Kubernetes namespace to create workspaces in (must exist prior to creating workspaces). If the Coder host is itself running as a Pod on the same Kubernetes cluster as you are deploying workspaces to, set this to the same namespace."
 }
 
+variable "image" {
+  description = <<-EOF
+  Container image for workspaces. The image determines which tools and
+  languages are available in the workspace by default. See the template
+  README for guidance on choosing an image.
+  EOF
+  type        = string
+  default     = "codercom/example-base:ubuntu"
+}
+
 data "coder_parameter" "cpu" {
   name         = "cpu"
   display_name = "CPU"
@@ -285,7 +295,7 @@ resource "kubernetes_deployment_v1" "main" {
 
         container {
           name              = "dev"
-          image             = "codercom/enterprise-base:ubuntu"
+          image             = var.image
           image_pull_policy = "IfNotPresent"
           command           = ["sh", "-c", coder_agent.main.init_script]
           security_context {
