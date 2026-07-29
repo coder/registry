@@ -47,8 +47,10 @@
    *
    * All properties should be defined as placeholder templates in the form
    * VALUE_NAME. The Coder module, when spun up, should then run some logic to
-   * replace the template slots with actual values. These values should never
-   * change from within JavaScript itself.
+   * replace the template slots with actual values. The module JSON-escapes each
+   * value before injecting it, so characters like backslashes and quotes stay
+   * intact inside these string literals. These values should never change from
+   * within JavaScript itself.
    *
    * @satisfies {FormFieldEntries}
    */
