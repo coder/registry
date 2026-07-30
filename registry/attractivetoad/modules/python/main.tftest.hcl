@@ -33,8 +33,8 @@ run "plan_with_defaults" {
   }
 
   assert {
-    condition     = strcontains(local.install_script, "sudo apt-get -o DPkg::Lock::Timeout=300 update")
-    error_message = "Expected apt-get update to wait for dpkg locks."
+    condition     = strcontains(local.install_script, "run_apt_get update")
+    error_message = "Expected apt-get update to retry package-manager lock conflicts."
   }
 
   assert {

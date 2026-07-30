@@ -16,6 +16,38 @@ if ! command -v dpkg-query >/dev/null 2>&1; then
   exit 1
 fi
 
+run_apt_get() {
+  local attempt=1
+  local max_attempts=60
+  local output
+  local status
+
+  while true; do
+    set +e
+    output=$(sudo env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 "$@" 2>&1)
+    status=$?
+    set -e
+    printf '%s\n' "$${output}"
+
+    if [ "$${status}" -eq 0 ]; then
+      return 0
+    fi
+
+    if ! grep -Eq "Could not get lock|Unable to (acquire|lock)" <<< "$${output}"; then
+      return "$${status}"
+    fi
+
+    if [ "$${attempt}" -ge "$${max_attempts}" ]; then
+      echo "Timed out waiting for apt locks after $${max_attempts} attempts."
+      return "$${status}"
+    fi
+
+    echo "Another process is using apt; retrying in 5 seconds ($${attempt}/$${max_attempts})..."
+    attempt=$((attempt + 1))
+    sleep 5
+  done
+}
+
 mapfile -t build_packages < <(echo -n "$${ARG_BUILD_PACKAGES_B64}" | base64 -d)
 
 missing_packages=()
@@ -30,13 +62,13 @@ if [ "$${#missing_packages[@]}" -eq 0 ]; then
 else
   if [ "$${ARG_UPDATE_PACKAGES}" = "true" ]; then
     echo "Updating apt package index..."
-    sudo apt-get -o DPkg::Lock::Timeout=300 update
+    run_apt_get update
   else
     echo "Skipping apt-get update because update_packages=false."
   fi
 
   echo "Installing packages required to build Python: $${missing_packages[*]}"
-  DEBIAN_FRONTEND=noninteractive sudo apt-get -o DPkg::Lock::Timeout=300 install -y "$${missing_packages[@]}"
+  run_apt_get install -y "$${missing_packages[@]}"
 fi
 
 export PYENV_ROOT="$${HOME}/.pyenv"
