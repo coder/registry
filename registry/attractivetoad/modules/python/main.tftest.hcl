@@ -8,13 +8,13 @@ run "plan_with_defaults" {
   }
 
   assert {
-    condition     = join(",", var.python_packages) == "python3,python3-pip,python3-venv"
-    error_message = "Expected default Python package list."
+    condition     = var.python_version == "3.13.5"
+    error_message = "Expected default Python version."
   }
 
   assert {
-    condition     = var.create_python_alias == true
-    error_message = "Expected python alias creation to be enabled by default."
+    condition     = var.pyenv_git_ref == "master"
+    error_message = "Expected pyenv to install from its master branch by default."
   }
 
   assert {
@@ -28,12 +28,17 @@ run "plan_with_defaults" {
   }
 
   assert {
-    condition     = output.scripts == ["attractivetoad-python-install"]
+    condition     = output.scripts == ["attractivetoad-python-install_script"]
     error_message = "Expected scripts output to expose only the install script by default."
   }
 
   assert {
-    condition     = strcontains(coder_script.install.script, "sudo apt-get -o DPkg::Lock::Timeout=300 update")
+    condition     = strcontains(local.install_script, "sudo apt-get -o DPkg::Lock::Timeout=300 update")
     error_message = "Expected apt-get update to wait for dpkg locks."
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "pyenv install --skip-existing")
+    error_message = "Expected Python to be installed with pyenv."
   }
 }

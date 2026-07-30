@@ -14,16 +14,48 @@ variable "agent_id" {
   type        = string
 }
 
-variable "python_packages" {
-  description = "APT packages to install for Python support."
-  type        = list(string)
-  default     = ["python3", "python3-pip", "python3-venv"]
+variable "python_version" {
+  description = "Python version to install and select globally with pyenv."
+  type        = string
+  default     = "3.13.5"
+
+  validation {
+    condition     = can(regex("^\\d+\\.\\d+\\.\\d+$", var.python_version))
+    error_message = "python_version must be an exact semantic version such as 3.13.5."
+  }
 }
 
-variable "create_python_alias" {
-  description = "Create a python command that points to python3 when python is missing."
-  type        = bool
-  default     = true
+variable "build_packages" {
+  description = "APT packages required to build Python with pyenv."
+  type        = list(string)
+  default = [
+    "build-essential",
+    "curl",
+    "git",
+    "libbz2-dev",
+    "libffi-dev",
+    "liblzma-dev",
+    "libncursesw5-dev",
+    "libreadline-dev",
+    "libsqlite3-dev",
+    "libssl-dev",
+    "libxml2-dev",
+    "libxmlsec1-dev",
+    "tk-dev",
+    "xz-utils",
+    "zlib1g-dev",
+  ]
+}
+
+variable "pyenv_git_ref" {
+  description = "Git branch or tag of pyenv to install."
+  type        = string
+  default     = "master"
+
+  validation {
+    condition     = can(regex("^[0-9A-Za-z][0-9A-Za-z._/-]*$", var.pyenv_git_ref))
+    error_message = "pyenv_git_ref must be a valid Git branch or tag name."
+  }
 }
 
 variable "icon" {
@@ -38,20 +70,27 @@ variable "update_packages" {
   default     = true
 }
 
-resource "coder_script" "install" {
-  agent_id           = var.agent_id
-  display_name       = "Python: Install Script"
-  icon               = var.icon
-  run_on_start       = true
-  start_blocks_login = true
-  script = templatefile("${path.module}/scripts/install.sh.tftpl", {
-    PYTHON_PACKAGES     = join(" ", var.python_packages)
-    UPDATE_PACKAGES     = tostring(var.update_packages)
-    CREATE_PYTHON_ALIAS = tostring(var.create_python_alias)
+locals {
+  install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
+    ARG_BUILD_PACKAGES_B64 = base64encode(join("\n", var.build_packages))
+    ARG_PYTHON_VERSION     = var.python_version
+    ARG_PYENV_GIT_REF      = var.pyenv_git_ref
+    ARG_UPDATE_PACKAGES    = tostring(var.update_packages)
   })
 }
 
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.1"
+
+  agent_id            = var.agent_id
+  module_directory    = "$HOME/.coder-modules/attractivetoad/python"
+  display_name_prefix = "Python"
+  icon                = var.icon
+  install_script      = local.install_script
+}
+
 output "scripts" {
-  description = "Ordered list of script names produced by this module, in run order."
-  value       = ["attractivetoad-python-install"]
+  description = "Ordered list of coder exp sync names produced by this module, in run order."
+  value       = module.coder_utils.scripts
 }
