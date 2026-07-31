@@ -15,12 +15,6 @@ PRE_CLONE_LOG_PATH="${PRE_CLONE_LOG_PATH}"
 POST_CLONE_LOG_PATH="${POST_CLONE_LOG_PATH}"
 
 # Check if the variable is empty...
-if [ -z "$REPO_URL" ]; then
-  echo "No repository specified!"
-  exit 1
-fi
-
-# Check if the variable is empty...
 if [ -z "$CLONE_PATH" ]; then
   echo "No clone path specified!"
   exit 1
