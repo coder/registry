@@ -12,4 +12,4 @@ Community modules for Coder workspaces.
 
 ## Modules
 
-- **python**: Install Python 3, pip, venv, and a python alias on Debian/Ubuntu workspaces.
+- **python**: Install and manage a configurable Python version with pyenv on Debian/Ubuntu workspaces.
