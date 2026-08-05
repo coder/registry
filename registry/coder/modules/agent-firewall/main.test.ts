@@ -63,7 +63,7 @@ const setup = async (
 
   await execContainer(id, ["bash", "-c", "mkdir -p /home/coder/project"]);
 
-  // Create a mock coder binary with boundary subcommand and exp sync support
+  // Create a mock coder binary with agent-firewall/boundary subcommand and exp sync support
   if (!props?.skipCoderMock) {
     await writeExecutable({
       containerId: id,
@@ -142,8 +142,8 @@ describe("agent-firewall", async () => {
 
     // Verify no env vars are exported
     const coderEnvVars = extractCoderEnvVars(state);
-    expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBeUndefined();
-    expect(coderEnvVars["BOUNDARY_CONFIG"]).toBeUndefined();
+    expect(coderEnvVars["AGENT_FIREWALL_WRAPPER_PATH"]).toBeUndefined();
+    expect(coderEnvVars["AGENT_FIREWALL_CONFIG"]).toBeUndefined();
 
     // Verify agent_firewall_config_path output
     expect(state.outputs["agent_firewall_config_path"]?.value).toBe(
@@ -212,7 +212,7 @@ describe("agent-firewall", async () => {
     const wrapperContent = await readFileContainer(id, WRAPPER_PATH);
     expect(wrapperContent).toContain("#!/usr/bin/env bash");
     expect(wrapperContent).toContain("coder-no-caps");
-    expect(wrapperContent).toContain("boundary");
+    expect(wrapperContent).toContain("agent-firewall");
 
     // Verify the wrapper script is executable
     const statResult = await execContainer(id, [
@@ -231,7 +231,7 @@ describe("agent-firewall", async () => {
     ]);
     expect(coderNoCapsResult.exitCode).toBe(0);
 
-    // Verify default boundary config was written inside module directory
+    // Verify default agent-firewall config was written inside module directory
     const configContent = await readFileContainer(id, CONFIG_PATH);
     expect(configContent).toContain("allowlist:");
     expect(configContent).toContain("domain=api.anthropic.com");
@@ -251,9 +251,9 @@ describe("agent-firewall", async () => {
       id,
       `${MODULE_DIR}/logs/install.log`,
     );
-    expect(installLog).toContain("Using coder boundary subcommand");
-    expect(installLog).toContain("Boundary config written to");
-    expect(installLog).toContain("boundary wrapper configured");
+    expect(installLog).toContain("Using coder agent-firewall subcommand");
+    expect(installLog).toContain("Agent-firewall config written to");
+    expect(installLog).toContain("agent-firewall wrapper configured");
   });
 
   test("inline-config-written", async () => {
@@ -290,13 +290,13 @@ describe("agent-firewall", async () => {
       `${MODULE_DIR}/logs/install.log`,
     );
     expect(installLog).toContain(
-      "Using external boundary config, skipping config write",
+      "Using external agent-firewall config, skipping config write",
     );
   });
 
   // Note: Tests for use_agent_firewall_directly and
   // compile_agent_firewall_from_source are skipped because they require
-  // network access (downloading boundary) or compilation which are too
+  // network access (downloading agent-firewall) or compilation which are too
   // slow for unit tests. These modes are tested manually.
 
   test("custom-hooks", async () => {
@@ -330,15 +330,15 @@ describe("agent-firewall", async () => {
       id,
       `${MODULE_DIR}/logs/install.log`,
     );
-    expect(installLog).toContain("boundary wrapper configured");
+    expect(installLog).toContain("agent-firewall wrapper configured");
   });
 
   test("no-env-vars", async () => {
     const { coderEnvVars } = await setup();
 
     // No env vars should be exported by this module.
-    expect(coderEnvVars["BOUNDARY_WRAPPER_PATH"]).toBeUndefined();
-    expect(coderEnvVars["BOUNDARY_CONFIG"]).toBeUndefined();
+    expect(coderEnvVars["AGENT_FIREWALL_WRAPPER_PATH"]).toBeUndefined();
+    expect(coderEnvVars["AGENT_FIREWALL_CONFIG"]).toBeUndefined();
   });
 
   test("wrapper-script-execution", async () => {
@@ -352,7 +352,7 @@ describe("agent-firewall", async () => {
       `${WRAPPER_PATH} echo boundary-test`,
     ]);
 
-    // The wrapper passes the command directly to the boundary command
+    // The wrapper passes the command directly to the coder subcommand
     expect(wrapperResult.stdout).toContain("boundary-test");
   });
 
@@ -371,6 +371,6 @@ describe("agent-firewall", async () => {
     expect(secondRun.exitCode).toBe(0);
 
     // Both runs should succeed
-    expect(firstInstallLog).toContain("boundary wrapper configured");
+    expect(firstInstallLog).toContain("agent-firewall wrapper configured");
   });
 });

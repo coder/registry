@@ -1,38 +1,51 @@
 #!/bin/bash
-# Sets up boundary for network isolation in Coder workspaces.
+# Sets up agent-firewall for network isolation in Coder workspaces.
 
 set -euo pipefail
 
-BOUNDARY_VERSION='${BOUNDARY_VERSION}'
-COMPILE_BOUNDARY_FROM_SOURCE='${COMPILE_BOUNDARY_FROM_SOURCE}'
-USE_BOUNDARY_DIRECTLY='${USE_BOUNDARY_DIRECTLY}'
+AGENT_FIREWALL_VERSION='${AGENT_FIREWALL_VERSION}'
+COMPILE_AGENT_FIREWALL_FROM_SOURCE='${COMPILE_AGENT_FIREWALL_FROM_SOURCE}'
+USE_AGENT_FIREWALL_DIRECTLY='${USE_AGENT_FIREWALL_DIRECTLY}'
 MODULE_DIR="${MODULE_DIR}"
-BOUNDARY_WRAPPER_PATH="${BOUNDARY_WRAPPER_PATH}"
-WRITE_BOUNDARY_CONFIG='${WRITE_BOUNDARY_CONFIG}'
-BOUNDARY_CONFIG_CONTENT=$(echo -n '${BOUNDARY_CONFIG_CONTENT_B64}' | base64 -d | sed "s|\$HOME|$HOME|g")
-BOUNDARY_CONFIG_DIR="${BOUNDARY_CONFIG_DIR}"
-BOUNDARY_CONFIG_FILE="${BOUNDARY_CONFIG_FILE}"
+AGENT_FIREWALL_WRAPPER_PATH="${AGENT_FIREWALL_WRAPPER_PATH}"
+WRITE_AGENT_FIREWALL_CONFIG='${WRITE_AGENT_FIREWALL_CONFIG}'
+AGENT_FIREWALL_CONFIG_CONTENT=$(echo -n '${AGENT_FIREWALL_CONFIG_CONTENT_B64}' | base64 -d | sed "s|\$HOME|$HOME|g")
+AGENT_FIREWALL_CONFIG_DIR="${AGENT_FIREWALL_CONFIG_DIR}"
+AGENT_FIREWALL_CONFIG_FILE="${AGENT_FIREWALL_CONFIG_FILE}"
 
-printf "BOUNDARY_VERSION: %s\n" "$${BOUNDARY_VERSION}"
-printf "COMPILE_BOUNDARY_FROM_SOURCE: %s\n" "$${COMPILE_BOUNDARY_FROM_SOURCE}"
-printf "USE_BOUNDARY_DIRECTLY: %s\n" "$${USE_BOUNDARY_DIRECTLY}"
+CODER_SUBCOMMAND=""
+
+printf "AGENT_FIREWALL_VERSION: %s\n" "$${AGENT_FIREWALL_VERSION}"
+printf "COMPILE_AGENT_FIREWALL_FROM_SOURCE: %s\n" "$${COMPILE_AGENT_FIREWALL_FROM_SOURCE}"
+printf "USE_AGENT_FIREWALL_DIRECTLY: %s\n" "$${USE_AGENT_FIREWALL_DIRECTLY}"
 printf "MODULE_DIR: %s\n" "$${MODULE_DIR}"
-printf "BOUNDARY_WRAPPER_PATH: %s\n" "$${BOUNDARY_WRAPPER_PATH}"
-printf "WRITE_BOUNDARY_CONFIG: %s\n" "$${WRITE_BOUNDARY_CONFIG}"
-printf "BOUNDARY_CONFIG_DIR: %s\n" "$${BOUNDARY_CONFIG_DIR}"
-printf "BOUNDARY_CONFIG_FILE: %s\n" "$${BOUNDARY_CONFIG_FILE}"
+printf "AGENT_FIREWALL_WRAPPER_PATH: %s\n" "$${AGENT_FIREWALL_WRAPPER_PATH}"
+printf "WRITE_AGENT_FIREWALL_CONFIG: %s\n" "$${WRITE_AGENT_FIREWALL_CONFIG}"
+printf "AGENT_FIREWALL_CONFIG_DIR: %s\n" "$${AGENT_FIREWALL_CONFIG_DIR}"
+printf "AGENT_FIREWALL_CONFIG_FILE: %s\n" "$${AGENT_FIREWALL_CONFIG_FILE}"
 
-validate_boundary_subcommand() {
+validate_agent_firewall_subcommand() {
   if ! command -v coder > /dev/null 2>&1; then
-    echo "Error: 'coder' command not found. boundary cannot be enabled." >&2
+    echo "Error: 'coder' command not found. agent-firewall cannot be enabled." >&2
     exit 1
   fi
 
+  # Prefer coder agent-firewall, fall back to coder boundary
+  if coder agent-firewall --help > /dev/null 2>&1; then
+    CODER_SUBCOMMAND="agent-firewall"
+  elif coder boundary --help > /dev/null 2>&1; then
+    CODER_SUBCOMMAND="boundary"
+  else
+    echo "Error: neither 'coder agent-firewall' nor 'coder boundary' subcommand found." >&2
+    exit 1
+  fi
+  echo "Detected coder subcommand: $${CODER_SUBCOMMAND}"
+
   local output
   echo "Checking for license"
-  if ! output=$(coder boundary 2>&1); then
+  if ! output=$(coder "$${CODER_SUBCOMMAND}" 2>&1); then
     if echo "$${output}" | grep -qi "license is not entitled"; then
-      echo "Error: your Coder deployment is not licensed for the boundary feature." >&2
+      echo "Error: your Coder deployment is not licensed for the agent-firewall feature." >&2
       echo "$${output}" >&2
       echo "" >&2
       exit 1
@@ -40,92 +53,94 @@ validate_boundary_subcommand() {
   fi
 }
 
-# Install boundary binary if needed.
+# Install agent-firewall binary if needed.
 # Uses one of three strategies:
-#   1. Compile from source (compile_boundary_from_source=true)
-#   2. Install from release (use_boundary_directly=true)
-#   3. Use coder boundary subcommand (default, no installation needed)
-install_boundary() {
-  if [[ "$${COMPILE_BOUNDARY_FROM_SOURCE}" = "true" ]]; then
-    echo "Compiling boundary from source (version: $${BOUNDARY_VERSION})"
+#   1. Compile from source (compile_agent_firewall_from_source=true)
+#   2. Install from release (use_agent_firewall_directly=true)
+#   3. Use coder agent-firewall or coder boundary subcommand (default, no installation needed)
+install_agent_firewall() {
+  if [[ "$${COMPILE_AGENT_FIREWALL_FROM_SOURCE}" = "true" ]]; then
+    echo "Compiling agent-firewall from source (version: $${AGENT_FIREWALL_VERSION})"
 
-    # Remove existing boundary directory to allow re-running safely
-    if [[ -d boundary ]]; then
-      rm -rf boundary
+    # Remove existing agent-firewall directory to allow re-running safely
+    if [[ -d agent-firewall ]]; then
+      rm -rf agent-firewall
     fi
 
     echo "Cloning boundary repository"
-    git clone https://github.com/coder/boundary.git
-    cd boundary || exit 1
-    git checkout "$${BOUNDARY_VERSION}"
+    git clone https://github.com/coder/boundary.git agent-firewall
+    cd agent-firewall || exit 1
+    git checkout "$${AGENT_FIREWALL_VERSION}"
 
     make build
 
-    sudo cp boundary /usr/local/bin/
-    sudo chmod +x /usr/local/bin/boundary
+    sudo cp boundary /usr/local/bin/agent-firewall
+    sudo chmod +x /usr/local/bin/agent-firewall
     cd - || exit 1
-  elif [[ "$${USE_BOUNDARY_DIRECTLY}" = "true" ]]; then
-    echo "Installing boundary using official install script (version: $${BOUNDARY_VERSION})"
-    curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "$${BOUNDARY_VERSION}"
+  elif [[ "$${USE_AGENT_FIREWALL_DIRECTLY}" = "true" ]]; then
+    echo "Installing agent-firewall using official install script (version: $${AGENT_FIREWALL_VERSION})"
+    curl -fsSL https://raw.githubusercontent.com/coder/boundary/main/install.sh | bash -s -- --version "$${AGENT_FIREWALL_VERSION}"
   else
-    validate_boundary_subcommand
-    echo "Using coder boundary subcommand (provided by Coder)"
+    validate_agent_firewall_subcommand
+    echo "Using coder $${CODER_SUBCOMMAND} subcommand (provided by Coder)"
   fi
 }
 
-# Write boundary config file if the module is responsible for it.
-write_boundary_config() {
-  if [[ "$${WRITE_BOUNDARY_CONFIG}" != "true" ]]; then
-    echo "Using external boundary config, skipping config write."
+# Write agent-firewall config file if the module is responsible for it.
+write_agent_firewall_config() {
+  if [[ "$${WRITE_AGENT_FIREWALL_CONFIG}" != "true" ]]; then
+    echo "Using external agent-firewall config, skipping config write."
     return 0
   fi
 
-  mkdir -p "$${BOUNDARY_CONFIG_DIR}"
-  echo "$${BOUNDARY_CONFIG_CONTENT}" > "$${BOUNDARY_CONFIG_FILE}"
-  echo "Boundary config written to $${BOUNDARY_CONFIG_FILE}"
+  mkdir -p "$${AGENT_FIREWALL_CONFIG_DIR}"
+  echo "$${AGENT_FIREWALL_CONFIG_CONTENT}" > "$${AGENT_FIREWALL_CONFIG_FILE}"
+  echo "Agent-firewall config written to $${AGENT_FIREWALL_CONFIG_FILE}"
 }
 
-# Set up boundary: install, write config, create wrapper script.
-setup_boundary() {
-  echo "Setting up coder boundary..."
+# Set up agent-firewall: install, write config, create wrapper script.
+setup_agent_firewall() {
+  echo "Setting up agent-firewall..."
 
-  # Install boundary binary if needed
-  install_boundary
+  # Install agent-firewall binary if needed
+  install_agent_firewall
 
-  # Write boundary config
-  write_boundary_config
+  # Write agent-firewall config
+  write_agent_firewall_config
 
   # Ensure the wrapper script directory exists.
-  mkdir -p "$(dirname "$${BOUNDARY_WRAPPER_PATH}")"
+  mkdir -p "$(dirname "$${AGENT_FIREWALL_WRAPPER_PATH}")"
 
-  if [[ "$${COMPILE_BOUNDARY_FROM_SOURCE}" = "true" ]] || [[ "$${USE_BOUNDARY_DIRECTLY}" = "true" ]]; then
+  if [[ "$${COMPILE_AGENT_FIREWALL_FROM_SOURCE}" = "true" ]] || [[ "$${USE_AGENT_FIREWALL_DIRECTLY}" = "true" ]]; then
     # Use boundary binary directly (from compilation or release installation)
-    cat > "$${BOUNDARY_WRAPPER_PATH}" << 'WRAPPER_EOF'
+    cat > "$${AGENT_FIREWALL_WRAPPER_PATH}" << 'WRAPPER_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-exec boundary "$@"
+exec agent-firewall "$@"
 WRAPPER_EOF
   else
-    # Use coder boundary subcommand (default)
+    # Use detected coder subcommand (agent-firewall or boundary)
     # Copy coder binary to strip CAP_NET_ADMIN capabilities.
-    # This is necessary because boundary doesn't work with privileged binaries
+    # This is necessary because agent-firewall doesn't work with privileged binaries
     # (you can't launch privileged binaries inside network namespaces unless
     # you have sys_admin).
     CODER_NO_CAPS="$${MODULE_DIR}/scripts/coder-no-caps"
     if ! cp "$(command -v coder)" "$${CODER_NO_CAPS}"; then
-      echo "Error: Failed to copy coder binary to $${CODER_NO_CAPS}. boundary cannot be enabled." >&2
+      echo "Error: Failed to copy coder binary to $${CODER_NO_CAPS}. agent-firewall cannot be enabled." >&2
       exit 1
     fi
-    cat > "$${BOUNDARY_WRAPPER_PATH}" << 'WRAPPER_EOF'
+    {
+      cat << 'WRAPPER_HEADER'
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$${BASH_SOURCE[0]}")" && pwd)"
-exec "$${SCRIPT_DIR}/coder-no-caps" boundary "$@"
-WRAPPER_EOF
+WRAPPER_HEADER
+      printf 'exec "$${SCRIPT_DIR}/coder-no-caps" %s "$@"\n' "$${CODER_SUBCOMMAND}"
+    } > "$${AGENT_FIREWALL_WRAPPER_PATH}"
   fi
 
-  chmod +x "$${BOUNDARY_WRAPPER_PATH}"
-  echo "boundary wrapper configured: $${BOUNDARY_WRAPPER_PATH}"
+  chmod +x "$${AGENT_FIREWALL_WRAPPER_PATH}"
+  echo "agent-firewall wrapper configured: $${AGENT_FIREWALL_WRAPPER_PATH}"
 }
 
-setup_boundary
+setup_agent_firewall

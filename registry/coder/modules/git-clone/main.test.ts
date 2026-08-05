@@ -426,6 +426,81 @@ describe("git-clone", async () => {
     expect(log.stdout).toContain("Cloning fake-url to /root/fake-url...");
   });
 
+  it("adds SSH host key to known_hosts for SSH URLs", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "git@github.com:coder/coder.git",
+      base_dir: "/tmp",
+    });
+    const setupFakeTools = [
+      installFakeGit,
+      "cat > /usr/local/bin/ssh-keyscan <<'SHIM'",
+      "#!/bin/sh",
+      "echo 'github.com ssh-rsa AAAAB3NzaC1yc2EFAKE'",
+      "SHIM",
+      "chmod +x /usr/local/bin/ssh-keyscan",
+    ].join("\n");
+    const output = await executeScriptInContainer(
+      state,
+      "alpine/git",
+      setupFakeTools,
+    );
+    expect(output.stdout).toContain(
+      "Adding host key for github.com to known_hosts...",
+    );
+    expect(output.stdout).toContain(
+      "Host key for github.com added to known_hosts.",
+    );
+    expect(output.exitCode).toBe(0);
+  });
+
+  it("uses StrictHostKeyChecking=accept-new when ssh-keyscan is unavailable for SSH URLs", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "git@github.com:coder/coder.git",
+      base_dir: "/tmp",
+    });
+    const setupWithoutSshKeyscan = [
+      installFakeGit,
+      "rm -f /usr/bin/ssh-keyscan /usr/local/bin/ssh-keyscan 2>/dev/null || true",
+    ].join("\n");
+    const output = await executeScriptInContainer(
+      state,
+      "alpine/git",
+      setupWithoutSshKeyscan,
+    );
+    expect(output.stdout).toContain(
+      "Adding host key for github.com to known_hosts...",
+    );
+    expect(output.stdout).toContain(
+      "ssh-keyscan not available. Using StrictHostKeyChecking=accept-new.",
+    );
+    expect(output.exitCode).toBe(0);
+  });
+
+  it("skips SSH host key scan when host is already in known_hosts", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "git@github.com:coder/coder.git",
+      base_dir: "/tmp",
+    });
+    const setupWithExistingKey = [
+      installFakeGit,
+      "mkdir -p /root/.ssh && chmod 700 /root/.ssh",
+      "echo 'github.com ssh-rsa AAAAB3NzaC1yc2EEXISTING' >> /root/.ssh/known_hosts",
+      "chmod 600 /root/.ssh/known_hosts",
+    ].join("\n");
+    const output = await executeScriptInContainer(
+      state,
+      "alpine/git",
+      setupWithExistingKey,
+    );
+    expect(output.stdout).not.toContain(
+      "Adding host key for github.com to known_hosts...",
+    );
+    expect(output.exitCode).toBe(0);
+  });
+
   it("fails when post-clone script fails", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",

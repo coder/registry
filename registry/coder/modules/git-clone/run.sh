@@ -56,6 +56,30 @@ if [ -n "$EXTRA_ARGS" ]; then
   done < <(echo "$EXTRA_ARGS" | base64 -d)
 fi
 
+# For SSH URLs, populate known_hosts before cloning to prevent "Host key verification failed"
+# on new workspaces where known_hosts is empty.
+if echo "$REPO_URL" | grep -qE '^git@|^ssh://'; then
+  SSH_HOST=$(echo "$REPO_URL" | sed -E 's|^(ssh://)?([^@/]+@)?([^:/]+).*|\3|')
+  mkdir -p "$HOME/.ssh"
+  chmod 700 "$HOME/.ssh"
+  touch "$HOME/.ssh/known_hosts"
+  chmod 600 "$HOME/.ssh/known_hosts"
+  if ! ssh-keygen -F "$SSH_HOST" > /dev/null 2>&1; then
+    echo "Adding host key for $SSH_HOST to known_hosts..."
+    if command -v ssh-keyscan > /dev/null 2>&1; then
+      if KNOWN_HOST_ENTRY=$(ssh-keyscan -H -t rsa,ecdsa,ed25519 "$SSH_HOST" 2> /dev/null) && [ -n "$KNOWN_HOST_ENTRY" ]; then
+        printf '%s\n' "$KNOWN_HOST_ENTRY" >> "$HOME/.ssh/known_hosts"
+        echo "Host key for $SSH_HOST added to known_hosts."
+      else
+        echo "WARNING: ssh-keyscan failed for $SSH_HOST. Clone may fail if host key is not trusted."
+      fi
+    else
+      echo "ssh-keyscan not available. Using StrictHostKeyChecking=accept-new."
+      export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new"
+    fi
+  fi
+fi
+
 # Check if the directory is empty
 # and if it is, clone the repo, otherwise skip cloning
 if [ -z "$(ls -A "$CLONE_PATH")" ]; then
