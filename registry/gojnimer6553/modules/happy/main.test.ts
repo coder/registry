@@ -195,21 +195,60 @@ describe("happy", async () => {
     }
   });
 
-  it("fails install with a clear error when tmux is missing", async () => {
+  it("auto-installs tmux via the system package manager when missing", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
+      install: false,
     });
     const { install } = collectScripts(state);
 
     const id = await runContainer("alpine/curl");
     try {
       await writeCoder(id, "#!/bin/sh\nexit 0\n");
-      // Deliberately no tmux here.
+      // Deliberately no tmux here -- running as root (this image's default
+      // user), so no sudo is needed for the install script's apk fallback.
       await execContainer(id, ["sh", "-c", "apk add --no-cache bash"]);
 
       const output = await execContainer(id, ["bash", "-c", install]);
+      expect(output.exitCode).toBe(0);
+      expect(output.stdout).toContain("tmux not found on PATH; attempting");
+      expect(output.stdout).toContain("tmux installed automatically");
+
+      const tmuxCheck = await execContainer(id, [
+        "bash",
+        "-c",
+        "command -v tmux",
+      ]);
+      expect(tmuxCheck.exitCode).toBe(0);
+    } finally {
+      await removeContainer(id);
+    }
+  });
+
+  it("fails install with a clear error when tmux is missing and neither root nor sudo is available", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      install: false,
+    });
+    const { install } = collectScripts(state);
+
+    const id = await runContainer("node:22-bookworm-slim");
+    try {
+      await writeCoder(id, "#!/bin/bash\nexit 0\n");
+      // A real (non-root, sudo-less) user with a proper writable $HOME --
+      // "nobody"'s $HOME is the unwritable "/nonexistent", which breaks
+      // coder-utils' own log-directory setup before this module's install
+      // script even runs. The install script should detect it has no way
+      // to gain privileges and fail fast, rather than let apt-get itself
+      // fail with a confusing permissions error.
+      await execContainer(id, ["useradd", "-m", "testuser"]);
+      const output = await execContainer(
+        id,
+        ["bash", "-c", install],
+        ["-u", "testuser"],
+      );
       expect(output.exitCode).not.toBe(0);
-      expect(output.stdout).toContain("tmux is required");
+      expect(output.stdout).toContain("neither root nor passwordless sudo");
     } finally {
       await removeContainer(id);
     }

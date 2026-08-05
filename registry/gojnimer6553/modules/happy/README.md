@@ -22,7 +22,7 @@ module "happy" {
 ```
 
 > [!IMPORTANT]
-> Install and authenticate [Claude Code](https://claude.com/product/claude-code) in the workspace image before using Happy (`claude auth login`) — Happy wraps the `claude` CLI, it doesn't replace it. The workspace image must also have **tmux** installed (see [Notes](#notes)).
+> Install and authenticate [Claude Code](https://claude.com/product/claude-code) in the workspace image before using Happy (`claude auth login`) — Happy wraps the `claude` CLI, it doesn't replace it. Happy also needs **tmux** (see [Notes](#notes) — installed automatically in most workspaces, but not guaranteed).
 
 ## How pairing works
 
@@ -92,6 +92,6 @@ module "happy" {
 
 ## Notes
 
-- **Requires `tmux`** in the workspace image. Happy's pairing prompt and the wrapped `claude` session both need a real terminal (Ink UI, raw-mode stdin) — there's no headless/non-interactive path, so this module drives it through a real pseudo-terminal via `tmux`. Unlike Node, tmux has no portable static-binary fallback this module can bootstrap automatically; add it to your Dockerfile/image (e.g. `apt-get install -y tmux`).
+- **Requires `tmux`.** Happy's pairing prompt and the wrapped `claude` session both need a real terminal (Ink UI, raw-mode stdin) — there's no headless/non-interactive path, so this module drives it through a real pseudo-terminal via `tmux`. If `tmux` isn't already on `PATH`, the install script installs it automatically via the workspace's system package manager (`apt-get`/`dnf`/`yum`/`apk`/`pacman`) when running as root or with passwordless `sudo`; otherwise it fails with a clear message. For reproducible builds (or if the workspace has neither root nor passwordless `sudo`), add it to your Dockerfile/image instead (e.g. `apt-get install -y tmux`).
 - Pairing requires outbound network access to Happy's hosted service (`api.cluster-fluster.com` / `app.happy.engineering` by default) — there's no offline pairing path.
-- Happy has no `engines` requirement pinned in its `package.json`; its docs recommend Node.js >= 20. If `node` is not already on `PATH`, the install script bootstraps a pinned Node.js runtime under `$HOME/.local/share/coder-happy/` automatically; override the version with `node_version` if needed.
+- Happy has no `engines` requirement pinned in its `package.json`; its docs recommend Node.js >= 20. If `node` is not already on `PATH`, the install script bootstraps a pinned Node.js runtime under this module's data directory automatically; override the version with `node_version` if needed.
