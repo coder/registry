@@ -16,7 +16,7 @@ Happy wraps `claude` with `happy claude` so you can check on, and take control o
 module "happy" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/happy/coder"
-  version  = "1.0.0"
+  version  = "0.0.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -47,7 +47,7 @@ Because of that "every click re-pairs" behavior, keep `share` at its default (`"
 module "happy" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/happy/coder"
-  version  = "1.0.0"
+  version  = "0.0.1"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 }
@@ -59,7 +59,7 @@ module "happy" {
 module "happy" {
   count           = data.coder_workspace.me.start_count
   source          = "registry.coder.com/gojnimer6553/happy/coder"
-  version         = "1.0.0"
+  version         = "0.0.1"
   agent_id        = coder_agent.main.id
   install_version = "1.2.0"
 }
@@ -71,7 +71,7 @@ module "happy" {
 module "happy" {
   count           = data.coder_workspace.me.start_count
   source          = "registry.coder.com/gojnimer6553/happy/coder"
-  version         = "1.0.0"
+  version         = "0.0.1"
   agent_id        = coder_agent.main.id
   package_manager = "bun"
 }
@@ -83,7 +83,7 @@ module "happy" {
 module "happy" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/gojnimer6553/happy/coder"
-  version        = "1.0.0"
+  version        = "0.0.1"
   agent_id       = coder_agent.main.id
   install        = false
   install_prefix = "/opt/happy"

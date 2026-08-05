@@ -17,14 +17,7 @@ variable "agent_id" {
 variable "icon" {
   description = "The icon to use for the app."
   type        = string
-  # Not "/icon/happy.svg": that path is served from Coder's own built-in
-  # icon bundle (independent of this repo's .icons/ directory, which is only
-  # used to render the registry website), and happy isn't in it -- pointing
-  # there renders a broken image on the coder_app tile. Pinned to this fork
-  # branch for now so it resolves immediately; switch to
-  # "https://raw.githubusercontent.com/coder/registry/main/.icons/happy.svg"
-  # once this module is merged upstream.
-  default = "https://raw.githubusercontent.com/gojnimer6553/registry/add-happy-module/.icons/happy.svg"
+  default     = "/icon/happy.svg"
 }
 
 variable "slug" {
