@@ -26,10 +26,11 @@ describe("jupyter-notebook", async () => {
     });
     const script = findResourceInstance(state, "coder_script").script;
 
-    expect(script).toContain("--NotebookApp.ip='127.0.0.1'");
+    expect(script).toContain("--ServerApp.ip='127.0.0.1'");
     expect(script).not.toContain("0.0.0.0");
     expect(script).not.toContain("--NotebookApp.ip='*'");
     expect(script).not.toContain("--ServerApp.ip='*'");
+    expect(script).toContain("--ServerApp.allow_remote_access=True");
 
     const id = await runContainer("alpine");
     try {
@@ -54,7 +55,8 @@ describe("jupyter-notebook", async () => {
       );
       expect(result.exitCode).toBe(0);
       const args = await readFileContainer(id, "/tmp/jupyter-args");
-      expect(args).toContain("--NotebookApp.ip=127.0.0.1");
+      expect(args).toContain("--ServerApp.ip=127.0.0.1");
+      expect(args).toContain("--ServerApp.allow_remote_access=True");
     } finally {
       await removeContainer(id);
     }
@@ -66,7 +68,17 @@ describe("jupyter-notebook", async () => {
       host: "0.0.0.0",
     });
     const script = findResourceInstance(state, "coder_script").script;
-    expect(script).toContain("--NotebookApp.ip='0.0.0.0'");
+    expect(script).toContain("--ServerApp.ip='0.0.0.0'");
+    expect(script).toContain("--ServerApp.allow_remote_access=True");
+  });
+
+  it("renders an IPv6 loopback host", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      host: "::1",
+    });
+    const script = findResourceInstance(state, "coder_script").script;
+    expect(script).toContain("--ServerApp.ip='::1'");
   });
 
   for (const unsafeHost of [

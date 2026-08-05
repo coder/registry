@@ -16,6 +16,11 @@ run "secure_defaults" {
   }
 
   assert {
+    condition     = strcontains(coder_script.jupyterlab.script, "--ServerApp.allow_remote_access=True")
+    error_message = "the script must allow requests forwarded by the Coder application proxy"
+  }
+
+  assert {
     condition     = !strcontains(coder_script.jupyterlab.script, "0.0.0.0") && !strcontains(coder_script.jupyterlab.script, "--ServerApp.ip='*'")
     error_message = "the default script must not bind JupyterLab to all interfaces"
   }
@@ -67,6 +72,20 @@ run "path_mode_and_external_host" {
   assert {
     condition     = coder_app.jupyterlab.url == "http://localhost:19999/@example-owner/example-workspace/apps/jupyterlab"
     error_message = "the JupyterLab application URL must remain unchanged in path mode"
+  }
+}
+
+run "ipv6_loopback_host" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-id"
+    host     = "::1"
+  }
+
+  assert {
+    condition     = strcontains(coder_script.jupyterlab.script, "--ServerApp.ip='::1'")
+    error_message = "the script must render an IPv6 loopback host"
   }
 }
 

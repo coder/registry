@@ -47,8 +47,8 @@ variable "host" {
   default     = "127.0.0.1"
 
   validation {
-    condition     = can(regex("^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$", var.host))
-    error_message = "host must contain only letters, numbers, dots, and hyphens, and must start and end with a letter or number."
+    condition     = can(regex("^[A-Za-z0-9:][A-Za-z0-9.:%_-]*$", var.host))
+    error_message = "host must contain only letters, numbers, colons, dots, percent signs, underscores, and hyphens."
   }
 }
 

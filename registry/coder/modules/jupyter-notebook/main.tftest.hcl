@@ -11,8 +11,13 @@ run "secure_defaults" {
   }
 
   assert {
-    condition     = strcontains(coder_script.jupyter-notebook.script, "--NotebookApp.ip='127.0.0.1'")
+    condition     = strcontains(coder_script.jupyter-notebook.script, "--ServerApp.ip='127.0.0.1'")
     error_message = "the default script must bind Jupyter Notebook to 127.0.0.1"
+  }
+
+  assert {
+    condition     = strcontains(coder_script.jupyter-notebook.script, "--ServerApp.allow_remote_access=True")
+    error_message = "the script must allow requests forwarded by the Coder application proxy"
   }
 
   assert {
@@ -35,8 +40,22 @@ run "explicit_external_host" {
   }
 
   assert {
-    condition     = strcontains(coder_script.jupyter-notebook.script, "--NotebookApp.ip='0.0.0.0'")
+    condition     = strcontains(coder_script.jupyter-notebook.script, "--ServerApp.ip='0.0.0.0'")
     error_message = "the script must render an explicitly configured host"
+  }
+}
+
+run "ipv6_loopback_host" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-id"
+    host     = "::1"
+  }
+
+  assert {
+    condition     = strcontains(coder_script.jupyter-notebook.script, "--ServerApp.ip='::1'")
+    error_message = "the script must render an IPv6 loopback host"
   }
 }
 

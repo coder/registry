@@ -41,8 +41,9 @@ fi
 echo "👷 Starting jupyter-notebook in background..."
 echo "check logs at ${LOG_PATH}"
 "$HOME/.local/bin/jupyter-notebook" \
-  --NotebookApp.ip='${HOST}' \
+  --ServerApp.ip='${HOST}' \
   --ServerApp.port='${PORT}' \
+  --ServerApp.allow_remote_access=True \
   --no-browser \
   --ServerApp.token='' \
   --ServerApp.password='' \

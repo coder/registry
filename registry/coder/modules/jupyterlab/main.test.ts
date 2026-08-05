@@ -184,6 +184,7 @@ describe("jupyterlab", async () => {
     expect(script).toContain("--ServerApp.ip='127.0.0.1'");
     expect(script).not.toContain("0.0.0.0");
     expect(script).not.toContain("--ServerApp.ip='*'");
+    expect(script).toContain("--ServerApp.allow_remote_access=True");
     expect(app.url).toBe("http://localhost:19999");
 
     const id = await runContainer("alpine");
@@ -198,6 +199,7 @@ describe("jupyterlab", async () => {
       expect(result.exitCode).toBe(0);
       const args = await readFileContainer(id, "/tmp/jupyter-args");
       expect(args).toContain("--ServerApp.ip=127.0.0.1");
+      expect(args).toContain("--ServerApp.allow_remote_access=True");
     } finally {
       await removeContainer(id);
     }
@@ -216,6 +218,7 @@ describe("jupyterlab", async () => {
     ).script;
 
     expect(script).toContain("--ServerApp.ip='0.0.0.0'");
+    expect(script).toContain("--ServerApp.allow_remote_access=True");
     expect(script).toContain("--ServerApp.base_url=/@");
     expect(script).toContain("/apps/jupyterlab");
   });

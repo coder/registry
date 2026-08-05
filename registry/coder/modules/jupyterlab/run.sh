@@ -53,6 +53,7 @@ printf "check logs at ${LOG_PATH}"
   "$BASE_URL_FLAG" \
   --ServerApp.ip='${HOST}' \
   --ServerApp.port='${PORT}' \
+  --ServerApp.allow_remote_access=True \
   --ServerApp.token='' \
   --ServerApp.password='' \
   > "${LOG_PATH}" 2>&1 &
