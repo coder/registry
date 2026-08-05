@@ -15,8 +15,6 @@ A module that adds JupyterLab in your Coder template.
 JupyterLab listens on `127.0.0.1` by default so that unauthenticated traffic
 must pass through Coder's application proxy.
 
-## Usage
-
 ```tf
 module "jupyterlab" {
   count    = data.coder_workspace.me.start_count
