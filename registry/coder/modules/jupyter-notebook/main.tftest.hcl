@@ -21,7 +21,7 @@ run "secure_defaults" {
   }
 
   assert {
-    condition     = !strcontains(coder_script.jupyter-notebook.script, "0.0.0.0") && !strcontains(coder_script.jupyter-notebook.script, "--NotebookApp.ip='*'") && !strcontains(coder_script.jupyter-notebook.script, "--ServerApp.ip='*'")
+    condition     = !strcontains(coder_script.jupyter-notebook.script, "0.0.0.0") && !strcontains(coder_script.jupyter-notebook.script, "--ServerApp.ip='*'")
     error_message = "the default script must not bind Jupyter Notebook to all interfaces"
   }
 

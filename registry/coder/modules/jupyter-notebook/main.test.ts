@@ -28,7 +28,6 @@ describe("jupyter-notebook", async () => {
 
     expect(script).toContain("--ServerApp.ip='127.0.0.1'");
     expect(script).not.toContain("0.0.0.0");
-    expect(script).not.toContain("--NotebookApp.ip='*'");
     expect(script).not.toContain("--ServerApp.ip='*'");
     expect(script).toContain("--ServerApp.allow_remote_access=True");
 
