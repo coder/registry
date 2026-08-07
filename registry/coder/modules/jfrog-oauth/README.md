@@ -8,7 +8,7 @@ tags: [integration, jfrog, helper]
 
 # JFrog
 
-Install the JF CLI and authenticate package managers with Artifactory using OAuth configured via the Coder [`external-auth`](https://coder.com/docs/v2/latest/admin/external-auth) feature.
+Install the JF CLI and authenticate package managers with Artifactory using OAuth configured via the Coder [`external-auth`](https://coder.com/docs/admin/external-auth) feature.
 
 ![JFrog OAuth](../../.images/jfrog-oauth.png)
 
@@ -38,7 +38,35 @@ module "jfrog" {
 
 ## Prerequisites
 
-This module is usable by JFrog self-hosted (on-premises) Artifactory as it requires configuring a custom integration. This integration benefits from Coder's [external-auth](https://coder.com/docs/v2/latest/admin/external-auth) feature and allows each user to authenticate with Artifactory using an OAuth flow and issues user-scoped tokens to each user. For configuration instructions, see this [guide](https://coder.com/docs/v2/latest/guides/artifactory-integration#jfrog-oauth) on the Coder documentation.
+This module works with both JFrog SaaS (for example, `example.jfrog.io`) and self-hosted (on-premises) Artifactory. It uses Coder's [external-auth](https://coder.com/docs/admin/external-auth) feature so each user authenticates with Artifactory through an OAuth flow, and Coder issues a user-scoped access token to each workspace.
+
+Using the module requires two things: an application integration in Artifactory and a matching external authentication provider in Coder. The full walkthrough, including the Helm values for self-hosted instances, lives in the [JFrog Artifactory integration guide](https://coder.com/docs/admin/integrations/jfrog-artifactory#jfrog-oauth). The steps below summarize the setup.
+
+## Setup
+
+1. Create an application integration in Artifactory:
+   - **JFrog SaaS** (`example.jfrog.io`): Go to `https://JFROG_URL/ui/admin/configuration/integrations/app-integrations/new` and select **Custom Integration** as the application type.
+   - **Self-hosted (on-premises)**: First register an integration template in your Helm `values.yaml` (see the [integration guide](https://coder.com/docs/admin/integrations/jfrog-artifactory#jfrog-oauth)), then create the application integration and select that template as the application type.
+
+   Set the redirect URI to `https://CODER_URL/external-auth/jfrog/callback` and the scope to `applied-permissions/user`. Save the generated **Client ID** and **Client Secret**.
+
+2. Add a JFrog [external authentication](https://coder.com/docs/admin/external-auth) provider to your Coder deployment. Replace `JFROG_URL` and the client ID and secret with the values from step 1:
+
+   ```dotenv
+   # JFrog Artifactory External Auth
+   CODER_EXTERNAL_AUTH_1_ID="jfrog"
+   CODER_EXTERNAL_AUTH_1_TYPE="jfrog"
+   CODER_EXTERNAL_AUTH_1_CLIENT_ID="YYYYYYYYYYYYYYY"
+   CODER_EXTERNAL_AUTH_1_CLIENT_SECRET="XXXXXXXXXXXXXXXXXXX"
+   CODER_EXTERNAL_AUTH_1_DISPLAY_NAME="JFrog Artifactory"
+   CODER_EXTERNAL_AUTH_1_DISPLAY_ICON="/icon/jfrog.svg"
+   CODER_EXTERNAL_AUTH_1_AUTH_URL="https://JFROG_URL/ui/authorization"
+   CODER_EXTERNAL_AUTH_1_SCOPES="applied-permissions/user"
+   ```
+
+   The `external_auth_id` module input defaults to `jfrog` and must match `CODER_EXTERNAL_AUTH_1_ID`.
+
+3. Add this module to your template (see the example above). When a user creates a workspace, Coder prompts them to authenticate with Artifactory and injects a user-scoped token.
 
 ## Username Handling
 
