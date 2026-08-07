@@ -35,6 +35,8 @@ func TestValidateNamespaceName(t *testing.T) {
 		{name: "coder_labs", shouldPass: false},
 		{name: "coder labs", shouldPass: false},
 		{name: "coder.labs", shouldPass: false},
+		{name: "Coder_Labs", shouldPass: false},
+		{name: "-Coder", shouldPass: false},
 	}
 
 	for _, tc := range testCases {

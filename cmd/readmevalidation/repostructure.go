@@ -16,10 +16,10 @@ var supportedUserNameSpaceDirectories = append(supportedResourceTypes, ".images"
 // validNameRe validates that names contain only alphanumeric characters and hyphens
 var validNameRe = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$`)
 
-// validNamespaceRe validates that a namespace directory name is lowercase and contains only alphanumeric characters
-// and hyphens. A namespace becomes part of the case-sensitive module source path
-// (registry.coder.com/<namespace>/<module>/coder), so mixed case produces paths that are inconsistent and easy to
-// mistype.
+// validNamespaceRe validates that a namespace directory name is lowercase, contains only alphanumeric characters and
+// hyphens, and starts and ends with an alphanumeric character. A namespace becomes part of the case-sensitive module
+// source path (registry.coder.com/<namespace>/<module>/coder), so mixed case produces paths that are inconsistent and
+// easy to mistype.
 var validNamespaceRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
 
 // grandfatheredMixedCaseNamespaces lists the namespaces that existed before the lowercase rule and cannot be renamed
@@ -38,10 +38,11 @@ func validateNamespaceName(namespaceName string) error {
 	if validNamespaceRe.MatchString(namespaceName) {
 		return nil
 	}
-	if validNameRe.MatchString(namespaceName) {
-		return xerrors.Errorf("namespace name must be lowercase (use %q)", strings.ToLower(namespaceName))
+	// If the lowercased name is valid, case was the only problem, so point at the name to use.
+	if lowercased := strings.ToLower(namespaceName); validNamespaceRe.MatchString(lowercased) {
+		return xerrors.Errorf("namespace name must be lowercase (use %q)", lowercased)
 	}
-	return xerrors.New("namespace name contains invalid characters (only lowercase alphanumeric characters and hyphens are allowed)")
+	return xerrors.New("namespace name must contain only lowercase alphanumeric characters and hyphens, starting and ending with an alphanumeric character")
 }
 
 // validateCoderResourceSubdirectory validates that the structure of a module or template within a namespace follows all
