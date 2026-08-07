@@ -22,14 +22,12 @@ var validNameRe = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$
 // mistype.
 var validNamespaceRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
 
-// grandfatheredMixedCaseNamespaces lists the namespaces that existed before the lowercase rule. Renaming them requires
-// coordination with the registry server, because published module source paths are case-sensitive and the server has no
-// alias mechanism for the old path. They are exempt until that migration happens. Do not add new entries.
+// grandfatheredMixedCaseNamespaces lists the namespaces that existed before the lowercase rule and cannot be renamed
+// yet. Both have published modules whose source paths are case-sensitive, and the registry server has no alias
+// mechanism for the old path. They are exempt until that migration happens. Do not add new entries.
 var grandfatheredMixedCaseNamespaces = []string{
 	"AJ0070",
 	"BenraouaneSoufiane",
-	"Excellencedev",
-	"IamTaoChen",
 }
 
 // validateNamespaceName validates the directory name of a single namespace under /registry.

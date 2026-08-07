@@ -14,17 +14,19 @@ func TestValidateNamespaceName(t *testing.T) {
 		{name: "coder-labs", shouldPass: true},
 		{name: "aj0070", shouldPass: true},
 		{name: "user123", shouldPass: true},
+		{name: "excellencedev", shouldPass: true},
+		{name: "iamtaochen", shouldPass: true},
 
 		// Mixed-case namespaces that predate the rule stay allowed.
 		{name: "AJ0070", shouldPass: true},
 		{name: "BenraouaneSoufiane", shouldPass: true},
-		{name: "Excellencedev", shouldPass: true},
-		{name: "IamTaoChen", shouldPass: true},
 
 		// New mixed-case namespaces are rejected.
 		{name: "Coder", shouldPass: false},
 		{name: "CoderLabs", shouldPass: false},
 		{name: "coder-Labs", shouldPass: false},
+		{name: "Excellencedev", shouldPass: false},
+		{name: "IamTaoChen", shouldPass: false},
 
 		// Other invalid names are still rejected.
 		{name: "", shouldPass: false},
