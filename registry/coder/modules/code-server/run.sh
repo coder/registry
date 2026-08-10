@@ -19,24 +19,64 @@ function run_code_server() {
   $CODE_SERVER "$EXTENSION_ARG" --auth none --port "${PORT}" --app-name "${APP_NAME}" ${ADDITIONAL_ARGS} > "${LOG_PATH}" 2>&1 &
 }
 
-# Check if the settings file exists...
-if [ ! -f ~/.local/share/code-server/User/settings.json ]; then
-  echo "⚙️ Creating settings file..."
-  mkdir -p ~/.local/share/code-server/User
-  if command -v jq &> /dev/null; then
-    echo "${SETTINGS}" | jq '.' > ~/.local/share/code-server/User/settings.json
+# Merge settings from module with existing settings file
+merge_settings() {
+  local new_settings="$1"
+  local settings_file="$2"
+
+  if [ -z "$new_settings" ] || [ "$new_settings" = "{}" ]; then
+    return 0
+  fi
+
+  if [ ! -f "$settings_file" ]; then
+    mkdir -p "$(dirname "$settings_file")"
+    printf '%s\n' "$new_settings" > "$settings_file"
+    printf "⚙️ Creating settings file...\n"
+    return 0
+  fi
+
+  local tmpfile
+  tmpfile="$(mktemp)"
+
+  if command -v jq > /dev/null 2>&1; then
+    if jq -s '.[0] * .[1]' "$settings_file" <(printf '%s\n' "$new_settings") > "$tmpfile" 2> /dev/null; then
+      mv "$tmpfile" "$settings_file"
+      printf "⚙️ Merging settings...\n"
+      return 0
+    fi
+  fi
+
+  if command -v python3 > /dev/null 2>&1; then
+    if python3 -c "import json,sys;m=lambda a,b:{**a,**{k:m(a[k],v)if k in a and type(a[k])==type(v)==dict else v for k,v in b.items()}};print(json.dumps(m(json.load(open(sys.argv[1])),json.loads(sys.argv[2])),indent=2))" "$settings_file" "$new_settings" > "$tmpfile" 2> /dev/null; then
+      mv "$tmpfile" "$settings_file"
+      printf "⚙️ Merging settings...\n"
+      return 0
+    fi
+  fi
+
+  rm -f "$tmpfile"
+  printf "Warning: Could not merge settings (jq or python3 required). Keeping existing settings.\n"
+  return 0
+}
+
+# Apply user settings (merge with existing if present)
+SETTINGS_B64='${SETTINGS_B64}'
+if [ -n "$SETTINGS_B64" ]; then
+  if SETTINGS_JSON="$(echo -n "$SETTINGS_B64" | base64 -d 2> /dev/null)" && [ -n "$SETTINGS_JSON" ]; then
+    merge_settings "$SETTINGS_JSON" ~/.local/share/code-server/User/settings.json
   else
-    echo "${SETTINGS}" > ~/.local/share/code-server/User/settings.json
+    printf "Warning: Failed to decode settings. Skipping settings configuration.\n"
   fi
 fi
 
-# Apply/overwrite template based settings
-echo "⚙️ Creating machine settings file..."
-mkdir -p ~/.local/share/code-server/Machine
-if command -v jq &> /dev/null; then
-  echo "${MACHINE_SETTINGS}" | jq '.' > ~/.local/share/code-server/Machine/settings.json
-else
-  echo "${MACHINE_SETTINGS}" > ~/.local/share/code-server/Machine/settings.json
+# Apply machine settings (merge with existing if present)
+MACHINE_SETTINGS_B64='${MACHINE_SETTINGS_B64}'
+if [ -n "$MACHINE_SETTINGS_B64" ]; then
+  if MACHINE_SETTINGS_JSON="$(echo -n "$MACHINE_SETTINGS_B64" | base64 -d 2> /dev/null)" && [ -n "$MACHINE_SETTINGS_JSON" ]; then
+    merge_settings "$MACHINE_SETTINGS_JSON" ~/.local/share/code-server/Machine/settings.json
+  else
+    printf "Warning: Failed to decode machine settings. Skipping machine settings configuration.\n"
+  fi
 fi
 
 # Check if code-server is already installed for offline
@@ -116,6 +156,39 @@ for extension in "$${EXTENSIONLIST[@]}"; do
   fi
 done
 
+# Strip JSONC features (block/line comments, trailing commas) so jq can parse
+# .vscode/extensions.json and .code-workspace files. Portable across GNU, BSD,
+# and BusyBox sed (Coder workspaces run on Linux, macOS and Alpine).
+#
+# Three passes, because each concern needs a different scope and order:
+#   1. Block comments  - slurps the whole file so /* ... */ can span lines.
+#      Runs first so a URL such as /* see https://example */ is removed as a
+#      unit and its // is never seen by the line-comment pass.
+#   2. Line comments   - per line, so // ... stops at end of line without the
+#      non-portable [^\n] class (BSD sed reads \n inside a bracket as a literal
+#      backslash and n, silently corrupting IDs containing "n"). A // preceded
+#      by ':' is preserved so URLs in string values (e.g. proxy settings in a
+#      .code-workspace) survive.
+#   3. Trailing commas - slurps the whole file so a comma and its closing
+#      bracket may sit on different lines.
+# The ':a;$!{N;ba}' slurp is single-line safe (it falls through on the last or
+# only line).
+strip_jsonc_for_extensions() {
+  sed -E ':a
+$!{
+N
+ba
+}
+s#/[*]([^*]|[*]+[^*/])*[*]+/##g' "$1" \
+    | sed -E 's#^[[:space:]]*//.*##; s#([^:])//.*#\1#' \
+    | sed -E ':a
+$!{
+N
+ba
+}
+s/,[^]}"]*([]}])/\1/g'
+}
+
 if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
   if ! command -v jq > /dev/null; then
     echo "jq is required to install extensions from a workspace file."
@@ -123,11 +196,11 @@ if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
   fi
 
   RECOMMENDATIONS_FILE=""
-  RECOMMENDATIONS_QUERY=".recommendations[]"
+  RECOMMENDATIONS_QUERY='(.recommendations // [])[]'
   if [ -n "${WORKSPACE}" ]; then
     if [ -f "${WORKSPACE}" ]; then
       RECOMMENDATIONS_FILE="${WORKSPACE}"
-      RECOMMENDATIONS_QUERY=".extensions.recommendations[]?"
+      RECOMMENDATIONS_QUERY='(.extensions.recommendations // [])[]'
     else
       echo "⚠️ Workspace file ${WORKSPACE} not found, skipping extension recommendations."
     fi
@@ -143,8 +216,8 @@ if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
 
   if [ -n "$RECOMMENDATIONS_FILE" ]; then
     printf "🧩 Installing extensions from %s...\n" "$RECOMMENDATIONS_FILE"
-    # Use sed to remove single-line comments before parsing with jq
-    extensions=$(sed 's|//.*||g' "$RECOMMENDATIONS_FILE" | jq -r "$RECOMMENDATIONS_QUERY")
+    # Strip JSONC comments and trailing commas before parsing with jq
+    extensions=$(strip_jsonc_for_extensions "$RECOMMENDATIONS_FILE" | jq -r "$RECOMMENDATIONS_QUERY")
     for extension in $extensions; do
       if extension_installed "$extension"; then
         continue
