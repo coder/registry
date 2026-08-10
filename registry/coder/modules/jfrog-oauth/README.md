@@ -68,7 +68,7 @@ Using the module requires two things: an application integration in Artifactory 
 
 3. Add this module to your template (see the example above). When a user creates a workspace, Coder prompts them to authenticate with Artifactory and injects a user-scoped token.
 
-## JFrog CLI installation and offline use
+## Offline and air-gapped environments
 
 If `jf` is already on the `PATH` (for example, baked into your workspace image), the module detects it and skips the download. Otherwise, the startup script downloads it from `https://install-cli.jfrog.io` and installs it with `sudo`. In restricted or air-gapped environments, pre-install `jf` in your workspace image to avoid both the external download and the `sudo` step.
 
