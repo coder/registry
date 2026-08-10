@@ -45,7 +45,7 @@ Using the module requires two things: an application integration in Artifactory 
 ## Setup
 
 1. Create an application integration in Artifactory. Use `https://CODER_URL/external-auth/jfrog/callback` (your Coder deployment URL) as the callback/redirect URI and `applied-permissions/user` as the scope.
-   - **JFrog SaaS** (`example.jfrog.io`): In the JFrog Platform UI, go to **Administration > General Management > Manage Integrations**, click **New Integration**, and select **Application**. Give it a name, choose the custom integration option, enter the callback URL above, then click **Generate Client ID & Secret**.
+   - **JFrog SaaS** (`example.jfrog.io`): In the JFrog Platform UI, go to **Administration > General Management > Manage Integrations**, click **New Integration**, and select **External Applications** (or open `https://JFROG_URL/ui/admin/configuration/integrations/application` directly). On the **Create New Application Integration** form, set **Application Name** to `Coder`, set **Application Type** to **Custom Integration**, enter the callback URL above, then click **Generate Client ID & Secret**.
    - **Self-hosted (on-premises)**: First register an integration template in your Helm `values.yaml` (see the [integration guide](https://coder.com/docs/admin/integrations/jfrog-artifactory#jfrog-oauth)), then create the application integration in the UI and select that template as the application type.
 
    Save the generated **Client ID** and **Client Secret** for the next step.
