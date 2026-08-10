@@ -8,7 +8,9 @@ tags: [integration, jfrog, helper]
 
 # JFrog
 
-Install the JF CLI and authenticate package managers with Artifactory using OAuth configured via the Coder [`external-auth`](https://coder.com/docs/admin/external-auth) feature.
+Install the JFrog CLI and authenticate package managers with Artifactory using OAuth configured via the Coder [`external-auth`](https://coder.com/docs/admin/external-auth) feature.
+
+On top of Coder's OAuth external-auth, this module installs the JFrog CLI (`jf`) and configures your package managers (npm, Go, pip, Docker, Conda, and Maven) to resolve from Artifactory using each user's own OAuth token. No API keys or passwords are stored in the template or the workspace, and tokens are scoped to the individual user.
 
 ![JFrog OAuth](../../.images/jfrog-oauth.png)
 
@@ -67,6 +69,19 @@ Using the module requires two things: an application integration in Artifactory 
    The `external_auth_id` module input defaults to `jfrog` and must match `CODER_EXTERNAL_AUTH_1_ID`.
 
 3. Add this module to your template (see the example above). When a user creates a workspace, Coder prompts them to authenticate with Artifactory and injects a user-scoped token.
+
+## JFrog CLI installation and offline use
+
+The module installs the JFrog CLI (`jf`) when the workspace starts. If `jf` is already on the `PATH` (for example, baked into your workspace image), the module detects it and skips the download, so no external download is attempted.
+
+When the CLI is not present, the startup script downloads it from `https://install-cli.jfrog.io` and installs it with `sudo`. In restricted or air-gapped environments, pre-install `jf` in your workspace image to avoid both the external download and the `sudo` step.
+
+### External endpoints
+
+The module's startup script contacts:
+
+- `https://install-cli.jfrog.io`: only when the JFrog CLI is not already installed.
+- Your `jfrog_url` (for example, `https://example.jfrog.io`): to configure the package managers and exchange the OAuth token.
 
 ## Username Handling
 
