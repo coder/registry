@@ -70,9 +70,7 @@ Using the module requires two things: an application integration in Artifactory 
 
 ## JFrog CLI installation and offline use
 
-The module installs the JFrog CLI (`jf`) when the workspace starts. If `jf` is already on the `PATH` (for example, baked into your workspace image), the module detects it and skips the download, so no external download is attempted.
-
-When the CLI is not present, the startup script downloads it from `https://install-cli.jfrog.io` and installs it with `sudo`. In restricted or air-gapped environments, pre-install `jf` in your workspace image to avoid both the external download and the `sudo` step.
+If `jf` is already on the `PATH` (for example, baked into your workspace image), the module detects it and skips the download. Otherwise, the startup script downloads it from `https://install-cli.jfrog.io` and installs it with `sudo`. In restricted or air-gapped environments, pre-install `jf` in your workspace image to avoid both the external download and the `sudo` step.
 
 ### External endpoints
 
