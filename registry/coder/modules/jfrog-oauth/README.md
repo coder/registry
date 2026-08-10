@@ -8,9 +8,7 @@ tags: [integration, jfrog, helper]
 
 # JFrog
 
-Install the JFrog CLI and authenticate package managers with Artifactory using OAuth configured via the Coder [`external-auth`](https://coder.com/docs/admin/external-auth) feature.
-
-On top of Coder's OAuth external-auth, this module installs the JFrog CLI (`jf`) and configures your package managers (npm, Go, pip, Docker, Conda, and Maven) to resolve from Artifactory using each user's own OAuth token. No API keys or passwords are stored in the template or the workspace, and tokens are scoped to the individual user.
+Install the JFrog CLI (`jf`) and authenticate package managers (npm, Go, pip, Docker, Conda, and Maven) with Artifactory using OAuth, configured via the Coder [`external-auth`](https://coder.com/docs/admin/external-auth) feature. Each user authenticates through an OAuth flow and receives a user-scoped access token, so no API keys or passwords are stored in the template or the workspace.
 
 ![JFrog OAuth](../../.images/jfrog-oauth.png)
 
@@ -40,7 +38,7 @@ module "jfrog" {
 
 ## Prerequisites
 
-This module works with both JFrog SaaS (for example, `example.jfrog.io`) and self-hosted (on-premises) Artifactory. It uses Coder's [external-auth](https://coder.com/docs/admin/external-auth) feature so each user authenticates with Artifactory through an OAuth flow, and Coder issues a user-scoped access token to each workspace.
+This module works with both JFrog SaaS (for example, `example.jfrog.io`) and self-hosted (on-premises) Artifactory.
 
 Using the module requires two things: an application integration in Artifactory and a matching external authentication provider in Coder. The full walkthrough, including the Helm values for self-hosted instances, lives in the [JFrog Artifactory integration guide](https://coder.com/docs/admin/integrations/jfrog-artifactory#jfrog-oauth). The steps below summarize the setup.
 
