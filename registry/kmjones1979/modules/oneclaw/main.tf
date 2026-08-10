@@ -112,7 +112,7 @@ variable "claude_config_path" {
 variable "icon" {
   type        = string
   description = "Icon to display for the setup script in the Coder UI."
-  default     = "/icon/vault.svg"
+  default     = "../../../../.icons/1claw.svg"
 }
 
 data "coder_workspace" "me" {}

@@ -8,7 +8,9 @@ tags: [secrets, mcp, ai]
 
 # 1Claw
 
-Give every Coder workspace scoped access to [1Claw](https://1claw.xyz) so AI coding agents can read secrets from an encrypted vault instead of hardcoded credentials. The module merges a `streamable-http` MCP server entry into Cursor and Claude Code config files without overwriting other MCP servers.
+Give every Coder workspace scoped access to [1Claw](https://1claw.xyz) so AI coding agents can read secrets from an encrypted vault instead of hardcoded credentials. The module merges a hosted MCP server entry ([`https://mcp.1claw.xyz/mcp`](https://docs.1claw.xyz/docs/mcp/setup), HTTP streaming transport) into Cursor and Claude Code config files without overwriting other MCP servers.
+
+For AI-oriented product documentation, see [llms.txt](https://1claw.xyz/llms.txt) and the [1Claw docs](https://docs.1claw.xyz).
 
 ```tf
 module "oneclaw" {
