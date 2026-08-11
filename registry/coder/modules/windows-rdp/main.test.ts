@@ -152,7 +152,7 @@ describe("Web RDP", async () => {
     // PowerShell single-quoted strings are literal, and a literal single quote
     // is escaped by doubling it.
     expect(rdpScript).toContain(
-      `Set-AdminPassword -adminPassword '${specialPassword.replaceAll("'", "''")}'`,
+      `Set-AdminPassword -adminPassword '${specialPassword.replace(/'/g, "''")}'`,
     );
   });
 });
