@@ -25,8 +25,6 @@ An experimental AI agent integration with Claude CodeAI agent
 
 ## Resources
 
-[Coder docs on AI agents and tasks](https://coder.com/docs/ai-coder/tasks)
-
 [Claude Code Coder Terraform module](https://registry.coder.com/modules/coder/claude-code)
 
 [Docker Terraform provider](https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs)
