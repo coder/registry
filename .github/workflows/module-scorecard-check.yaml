@@ -43,17 +43,15 @@ jobs:
 
       - name: Determine changed modules
         id: changed
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        # The PR files API is the source of truth for what a PR changes.
-        # Diffing against github.event.pull_request.base.sha is wrong: that
-        # SHA is the base tip when the PR was opened, while the checkout is
-        # the PR head merged into current main, so the diff picks up every
+        # The checkout is GitHub's test merge commit (PR head merged into
+        # current main), so HEAD^1 is the exact main tip this PR is applied
+        # to and the diff is precisely what the PR changes. Diffing against
+        # github.event.pull_request.base.sha is wrong: that SHA is the base
+        # tip from when the PR was opened, so on stale PRs it picks up every
         # module merged to main since the PR branched and scores unrelated
-        # modules (coder/registry REG-74).
+        # modules (REG-74).
         run: |
-          MODULES=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename' | { grep -oP '^registry/coder/modules/\K[^/]+' || true; } | sort -u | paste -sd, -)
+          MODULES=$(git diff --name-only HEAD^1 HEAD | { grep -oP '^registry/coder/modules/\K[^/]+' || true; } | sort -u | paste -sd, -)
           echo "modules=${MODULES}" >> "${GITHUB_OUTPUT}"
           echo "Changed modules: ${MODULES:-none}"
 
