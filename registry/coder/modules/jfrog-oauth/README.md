@@ -1,6 +1,6 @@
 ---
 display_name: JFrog (OAuth)
-description: Install the JF CLI and authenticate with Artifactory using OAuth.
+description: Install the JFrog CLI and authenticate with Artifactory using OAuth.
 icon: ../../../../.icons/jfrog.svg
 verified: true
 tags: [integration, jfrog, helper]
@@ -8,7 +8,7 @@ tags: [integration, jfrog, helper]
 
 # JFrog
 
-Install the JF CLI and authenticate package managers with Artifactory using OAuth configured via the Coder [`external-auth`](https://coder.com/docs/v2/latest/admin/external-auth) feature.
+Install the JFrog CLI (`jf`) and authenticate package managers (npm, Go, pip, Docker, Conda, and Maven) with Artifactory using OAuth, configured via the Coder [`external-auth`](https://coder.com/docs/admin/external-auth) feature. Each user authenticates through an OAuth flow and receives a user-scoped access token, so no API keys or passwords are stored in the template or the workspace.
 
 ![JFrog OAuth](../../.images/jfrog-oauth.png)
 
@@ -16,7 +16,7 @@ Install the JF CLI and authenticate package managers with Artifactory using OAut
 module "jfrog" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jfrog-oauth/coder"
-  version        = "1.2.4"
+  version        = "1.2.5"
   agent_id       = coder_agent.main.id
   jfrog_url      = "https://example.jfrog.io"
   username_field = "username" # If you are using GitHub to login to both Coder and Artifactory, use username_field = "username"
@@ -38,7 +38,46 @@ module "jfrog" {
 
 ## Prerequisites
 
-This module is usable by JFrog self-hosted (on-premises) Artifactory as it requires configuring a custom integration. This integration benefits from Coder's [external-auth](https://coder.com/docs/v2/latest/admin/external-auth) feature and allows each user to authenticate with Artifactory using an OAuth flow and issues user-scoped tokens to each user. For configuration instructions, see this [guide](https://coder.com/docs/v2/latest/guides/artifactory-integration#jfrog-oauth) on the Coder documentation.
+This module works with both JFrog SaaS (for example, `example.jfrog.io`) and self-hosted (on-premises) Artifactory.
+
+Using the module requires two things: an application integration in Artifactory and a matching external authentication provider in Coder. The full walkthrough, including the Helm values for self-hosted instances, lives in the [JFrog Artifactory integration guide](https://coder.com/docs/admin/integrations/jfrog-artifactory#jfrog-oauth). The steps below summarize the setup.
+
+## Setup
+
+1. Create an application integration in Artifactory. Use `https://CODER_URL/external-auth/jfrog/callback` (your Coder deployment URL) as the callback/redirect URI and `applied-permissions/user` as the scope.
+   - **JFrog SaaS** (`example.jfrog.io`): In the JFrog Platform UI, go to **Administration > General Management > Manage Integrations**, click **New Integration**, and select **External Applications** (or open `https://JFROG_URL/ui/admin/configuration/integrations/application` directly). On the **Create New Application Integration** form, set **Application Name** to `Coder`, set **Application Type** to **Custom Integration**, enter the callback URL above, then click **Generate Client ID & Secret**.
+   - **Self-hosted (on-premises)**: First register an integration template in your Helm `values.yaml` (see the [integration guide](https://coder.com/docs/admin/integrations/jfrog-artifactory#jfrog-oauth)), then create the application integration in the UI and select that template as the application type.
+
+   Save the generated **Client ID** and **Client Secret** for the next step.
+
+2. Add a JFrog [external authentication](https://coder.com/docs/admin/external-auth) provider to your Coder deployment. Replace `JFROG_URL` and the client ID and secret with the values from step 1:
+
+   ```dotenv
+   # JFrog Artifactory External Auth
+   CODER_EXTERNAL_AUTH_1_ID="jfrog"
+   CODER_EXTERNAL_AUTH_1_TYPE="jfrog"
+   CODER_EXTERNAL_AUTH_1_CLIENT_ID="YYYYYYYYYYYYYYY"
+   CODER_EXTERNAL_AUTH_1_CLIENT_SECRET="XXXXXXXXXXXXXXXXXXX"
+   CODER_EXTERNAL_AUTH_1_DISPLAY_NAME="JFrog Artifactory"
+   CODER_EXTERNAL_AUTH_1_DISPLAY_ICON="/icon/jfrog.svg"
+   CODER_EXTERNAL_AUTH_1_AUTH_URL="https://JFROG_URL/ui/authorization"
+   CODER_EXTERNAL_AUTH_1_SCOPES="applied-permissions/user"
+   ```
+
+   The `external_auth_id` module input defaults to `jfrog` and must match `CODER_EXTERNAL_AUTH_1_ID`.
+
+3. Add this module to your template (see the example above). When a user creates a workspace, Coder prompts them to authenticate with Artifactory and injects a user-scoped token.
+
+## Offline and air-gapped environments
+
+If `jf` is already on the `PATH` (for example, baked into your workspace image), the module detects it and skips the download. Otherwise, the startup script downloads it from `https://install-cli.jfrog.io` and installs it with `sudo`. In restricted or air-gapped environments, pre-install `jf` in your workspace image to avoid both the external download and the `sudo` step.
+
+### External endpoints
+
+The module's startup script contacts:
+
+- `https://install-cli.jfrog.io`: only when the JFrog CLI is not already installed.
+- Your `jfrog_url` (for example, `https://example.jfrog.io`): to configure the package managers and exchange the OAuth token.
 
 ## Username Handling
 
@@ -57,7 +96,7 @@ Configure the Python pip package manager to fetch packages from Artifactory whil
 module "jfrog" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jfrog-oauth/coder"
-  version        = "1.2.4"
+  version        = "1.2.5"
   agent_id       = coder_agent.main.id
   jfrog_url      = "https://example.jfrog.io"
   username_field = "email"
@@ -87,7 +126,7 @@ The [JFrog extension](https://open-vsx.org/extension/JFrog/jfrog-vscode-extensio
 module "jfrog" {
   count                 = data.coder_workspace.me.start_count
   source                = "registry.coder.com/coder/jfrog-oauth/coder"
-  version               = "1.2.3"
+  version               = "1.2.5"
   agent_id              = coder_agent.main.id
   jfrog_url             = "https://example.jfrog.io"
   username_field        = "username" # If you are using GitHub to login to both Coder and Artifactory, use username_field = "username"

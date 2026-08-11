@@ -10,7 +10,7 @@ terraform {
 }
 
 variable "url" {
-  description = "The URL of the Git repository."
+  description = "The URL of the Git repository. When empty, the clone is skipped."
   type        = string
 }
 
@@ -87,10 +87,12 @@ locals {
   clone_url = var.branch_name == "" && local.tree_path != "" ? replace(local.url, "/${local.tree_path}.*/", "") : local.url
   # Extract the branch name from the URL
   branch_name = var.branch_name == "" && local.tree_path != "" ? replace(replace(local.url, local.clone_url, ""), "/.*${local.tree_path}/", "") : var.branch_name
+  # Skip the clone entirely when no repository URL is provided
+  clone_enabled = trimspace(local.clone_url) != ""
   # Extract the folder name from the URL
-  folder_name = var.folder_name == "" ? replace(basename(local.clone_url), ".git", "") : var.folder_name
+  folder_name = var.folder_name != "" ? var.folder_name : (local.clone_enabled ? replace(basename(local.clone_url), ".git", "") : "")
   # Construct the path to clone the repository
-  clone_path = var.base_dir != "" ? join("/", [var.base_dir, local.folder_name]) : join("/", ["~", local.folder_name])
+  clone_path = local.folder_name == "" ? "" : (var.base_dir != "" ? join("/", [var.base_dir, local.folder_name]) : join("/", ["~", local.folder_name]))
   # Construct the web URL
   web_url = startswith(local.clone_url, "git@") ? replace(replace(local.clone_url, ":", "/"), "git@", "https://") : local.clone_url
   # Encode the post_clone_script for passing to the shell script
@@ -125,7 +127,7 @@ locals {
 
 output "repo_dir" {
   value       = local.clone_path
-  description = "Full path of cloned repo directory"
+  description = "Full path of cloned repo directory. Empty when there is no folder to clone into."
 }
 
 output "git_provider" {
@@ -135,7 +137,7 @@ output "git_provider" {
 
 output "folder_name" {
   value       = local.folder_name
-  description = "The name of the folder that will be created"
+  description = "The name of the folder that will be created. Empty when no repository is cloned and no folder name is provided."
 }
 
 output "clone_url" {
@@ -154,6 +156,7 @@ output "branch_name" {
 }
 
 resource "coder_script" "git_clone" {
+  count              = local.clone_enabled ? 1 : 0
   agent_id           = var.agent_id
   script             = <<-EOT
     #!/bin/bash
