@@ -48,6 +48,8 @@ registry/[namespace]/
 
 For example: `/registry/your-username/modules/` and `/registry/your-username/templates/`. If a namespace is taken, choose a different unique namespace, but you can still use any display name on the Registry website.
 
+Namespace directory names must be **lowercase**, may only contain letters, numbers, and hyphens, and must start and end with a letter or number. The namespace becomes part of the case-sensitive module source path (`registry.coder.com/[namespace]/[module]/coder`), so lowercase keeps those paths predictable. A few namespaces created before this rule keep their mixed-case names because renaming them would break existing module references.
+
 ### Images and Icons
 
 - **Namespace avatars**: Must be named `avatar.png` or `avatar.svg` in `/registry/[namespace]/.images/`
