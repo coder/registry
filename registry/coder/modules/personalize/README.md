@@ -10,8 +10,6 @@ tags: [helper, personalize]
 
 Personalize runs a developer-managed script when a Coder workspace starts. It lets each developer install personal tools or configure their environment without changing the shared Coder template.
 
-## Use the default paths
-
 The default configuration runs `~/personalize` on workspace start and writes its output to `~/personalize.log`.
 
 ```tf
@@ -22,6 +20,8 @@ module "personalize" {
   agent_id = coder_agent.main.id
 }
 ```
+
+## Create the personalize script
 
 Create the script inside the workspace and make it executable. Keep startup commands idempotent because Coder runs the script on every workspace start.
 
