@@ -19,10 +19,6 @@ check_available_installer() {
   exit 1
 }
 
-if [ -n "${BASE_URL}" ]; then
-  BASE_URL_FLAG="--ServerApp.base_url=${BASE_URL}"
-fi
-
 BOLD='\033[0;1m'
 
 # check if jupyterlab is installed
@@ -50,7 +46,7 @@ fi
 printf "👷 Starting jupyterlab in background..."
 printf "check logs at ${LOG_PATH}"
 $JUPYTER --no-browser \
-  "$BASE_URL_FLAG" \
+  --ServerApp.base_url=${BASE_URL} \
   --ServerApp.ip='*' \
   --ServerApp.port="${PORT}" \
   --ServerApp.token='' \
