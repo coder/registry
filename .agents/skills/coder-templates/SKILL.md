@@ -237,7 +237,6 @@ module "claude-code" {
 - Boundaries: set `enable_boundary = true` on the agent module to enable network-level filtering for the AI agent. See <https://coder.com/docs/ai-coder/agent-boundaries> for allowlist configuration.
 - A `coder_app` with `slug = "preview"` gets special treatment in the Tasks UI navbar.
 - Task templates heavily use presets to define scenarios (different repos, system prompts, setup scripts, container images).
-- See `registry/coder-labs/templates/tasks-docker` as a reference implementation.
 
 Docs: <https://coder.com/docs/ai-coder/tasks>
 
