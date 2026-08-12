@@ -34,9 +34,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          # The merge commit plus both parents, for the HEAD^1 diff below.
+          fetch-depth: 2
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -45,10 +46,15 @@ jobs:
 
       - name: Determine changed modules
         id: changed
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        # The checkout is GitHub's test merge commit (PR head merged into
+        # current main), so HEAD^1 is the exact main tip this PR is applied
+        # to and the diff is precisely what the PR changes. Diffing against
+        # github.event.pull_request.base.sha is wrong: that SHA is the base
+        # tip from when the PR was opened, so on stale PRs it picks up every
+        # module merged to main since the PR branched and scores unrelated
+        # modules (REG-74).
         run: |
-          MODULES=$(git diff --name-only "${BASE_SHA}"...HEAD | grep -oP '^registry/coder/modules/\K[^/]+' | sort -u | paste -sd, -)
+          MODULES=$(git diff --name-only HEAD^1 HEAD | { grep -oP '^registry/coder/modules/\K[^/]+' || true; } | sort -u | paste -sd, -)
           echo "modules=${MODULES}" >> "${GITHUB_OUTPUT}"
           echo "Changed modules: ${MODULES:-none}"
 
