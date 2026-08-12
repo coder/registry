@@ -1,10 +1,17 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
   findResourceInstance,
 } from "~test";
+
+const installScriptTemplate = readFileSync(
+  join(import.meta.dir, "scripts/install.sh.tftpl"),
+  "utf8",
+);
 
 describe("oneclaw", async () => {
   await runTerraformInit(import.meta.dir);
@@ -13,7 +20,7 @@ describe("oneclaw", async () => {
     agent_id: "test-agent",
   });
 
-  it("manual mode sets env vars and run script", async () => {
+  it("manual mode sets env vars and uses coder-utils", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "test-agent",
       vault_id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
@@ -30,9 +37,19 @@ describe("oneclaw", async () => {
     expect(baseUrlEnv.name).toBe("ONECLAW_BASE_URL");
     expect(baseUrlEnv.value).toBe("https://api.1claw.xyz");
 
-    const runScript = findResourceInstance(state, "coder_script", "run");
-    expect(runScript.display_name).toBe("1Claw");
-    expect(runScript.start_blocks_login).toBe(false);
+    const installScripts = state.resources.filter(
+      (r) =>
+        r.type === "coder_script" &&
+        r.instances[0].attributes.display_name === "1Claw: Install Script",
+    );
+    expect(installScripts.length).toBe(1);
+
+    expect(state.outputs.scripts.value).toEqual([
+      "kmjones1979-oneclaw-install_script",
+    ]);
+    expect(state.outputs.module_directory.value).toBe(
+      "$HOME/.coder-modules/kmjones1979/oneclaw",
+    );
 
     const provisions = state.resources.filter(
       (r) => r.type === "null_resource" && r.name === "provision",
@@ -40,18 +57,12 @@ describe("oneclaw", async () => {
     expect(provisions.length).toBe(0);
   });
 
-  it("bootstrap mode enables blocking run script and injects human key via coder_env", async () => {
+  it("bootstrap mode injects human key via coder_env, not the install template", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "test-agent",
       human_api_key: "1ck_test_human_key",
     });
 
-    const runScript = findResourceInstance(state, "coder_script", "run");
-    expect(runScript.display_name).toBe("1Claw");
-    expect(runScript.start_blocks_login).toBe(true);
-
-    // The human key is delivered via coder_env (sensitive), NOT baked into the
-    // script body, so it never lands in the Coder agent's script log.
     const humanKeyEnv = findResourceInstance(
       state,
       "coder_env",
@@ -59,15 +70,10 @@ describe("oneclaw", async () => {
     );
     expect(humanKeyEnv.name).toBe("_ONECLAW_HUMAN_API_KEY");
 
-    // And the actual key value must not appear anywhere in the rendered script text.
-    expect(runScript.script).not.toContain("1ck_test_human_key");
-    // The script must reference the env var, not a literal value.
-    expect(runScript.script).toContain("_ONECLAW_HUMAN_API_KEY");
+    expect(installScriptTemplate).toContain("_ONECLAW_HUMAN_API_KEY");
+    expect(installScriptTemplate).not.toContain("1ck_test_human_key");
 
-    const provisions = state.resources.filter(
-      (r) => r.type === "null_resource" && r.name === "provision",
-    );
-    expect(provisions.length).toBe(0);
+    expect(state.outputs.provisioning_mode.value).toBe("bootstrap");
   });
 
   it("custom base_url is reflected in env", async () => {

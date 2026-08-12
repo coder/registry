@@ -18,13 +18,23 @@ run "manual_mode" {
   }
 
   assert {
-    condition     = coder_script.run.start_blocks_login == false
-    error_message = "Manual mode should not block login"
+    condition     = output.provisioning_mode == "manual"
+    error_message = "provisioning_mode should be 'manual' when no human_api_key is set"
   }
 
   assert {
-    condition     = output.provisioning_mode == "manual"
-    error_message = "provisioning_mode should be 'manual' when no human_api_key is set"
+    condition     = output.module_directory == "$HOME/.coder-modules/kmjones1979/oneclaw"
+    error_message = "module_directory should follow the standard module data layout"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "_ONECLAW_HUMAN_API_KEY")
+    error_message = "Install script should read the human key from coder_env"
+  }
+
+  assert {
+    condition     = length(module.coder_utils.scripts) == 1
+    error_message = "coder-utils should expose the install script sync name"
   }
 }
 
@@ -34,11 +44,6 @@ run "bootstrap_mode" {
   variables {
     agent_id      = "test-agent-bootstrap"
     human_api_key = "1ck_test_human_key"
-  }
-
-  assert {
-    condition     = coder_script.run.start_blocks_login == true
-    error_message = "Bootstrap mode should block login while provisioning"
   }
 
   assert {
@@ -64,6 +69,11 @@ run "bootstrap_mode" {
   assert {
     condition     = output.provisioning_mode == "bootstrap"
     error_message = "provisioning_mode should be 'bootstrap' when human_api_key is set"
+  }
+
+  assert {
+    condition     = !strcontains(local.install_script, "1ck_test_human_key")
+    error_message = "Human API key must not be templated into the install script body"
   }
 }
 

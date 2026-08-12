@@ -23,11 +23,13 @@ module "oneclaw" {
 
 Upstream source: [github.com/1clawAI/1claw-coder-workspace-module](https://github.com/1clawAI/1claw-coder-workspace-module).
 
+Runtime state, scripts, and logs live under `$HOME/.coder-modules/kmjones1979/oneclaw/`.
+
 ## Usage
 
 ### Bootstrap mode (recommended)
 
-Creates a vault, agent, and access policy on the first workspace boot using a human `1ck_` API key, then caches credentials in `~/.1claw/bootstrap.json` for subsequent starts. This is the configuration shown at the top of this README.
+Creates a vault, agent, and access policy on the first workspace boot using a human `1ck_` API key, then caches credentials in `$HOME/.coder-modules/kmjones1979/oneclaw/bootstrap.json` for subsequent starts. This is the configuration shown at the top of this README.
 
 #### Post-bootstrap cleanup (recommended)
 
@@ -44,7 +46,10 @@ The `1ck_` human key is a privileged credential that can create and destroy vaul
    }
    ```
 
-2. Re-apply the template. On the next workspace start, the script loads credentials from `~/.1claw/bootstrap.json` and no longer references the human key. The workspace continues to work with the scoped `ocv_` agent key only.
+2. Re-apply the template. On the next workspace start, the script loads credentials from `$HOME/.coder-modules/kmjones1979/oneclaw/bootstrap.json` and no longer references the human key. The workspace continues to work with the scoped `ocv_` agent key only.
+
+> [!NOTE]
+> Workspaces that previously bootstrapped to `~/.1claw/bootstrap.json` are migrated automatically on the next start.
 
 ### Manual mode
 
@@ -68,7 +73,7 @@ The module is written so that the `1ck_` human bootstrap key leaves no persisten
 - The `1ck_` human key is injected into the bootstrap script as a sensitive `coder_env` variable (`_ONECLAW_HUMAN_API_KEY`), **never** templated into the script body. Because of this, it does **not** appear in `/tmp/coder-agent.log` (which records the rendered script) or in the Terraform state file's `coder_script` resource. The rendered script only contains the literal reference `HUMAN_KEY="${_ONECLAW_HUMAN_API_KEY:-}"`.
 - During bootstrap, the human key is sent to the 1Claw API via `curl --data-binary @-` from stdin, so it never appears in process argv (`ps aux` / `/proc/<pid>/cmdline`).
 - The key is scrubbed from shell variables (`unset HUMAN_KEY` / `unset _ONECLAW_HUMAN_API_KEY`) immediately after authentication, so downstream processes started by the script do not inherit it.
-- The key is **never** written to `~/.1claw/bootstrap.json`, `~/.cursor/mcp.json`, `~/.config/claude/mcp.json`, or any other on-disk file. Only the scoped `ocv_` agent key and the vault id are persisted.
+- The key is **never** written to `bootstrap.json`, `~/.cursor/mcp.json`, `~/.config/claude/mcp.json`, or any other on-disk file. Only the scoped `ocv_` agent key and the vault id are persisted under `$HOME/.coder-modules/kmjones1979/oneclaw/`.
 - For highest assurance, use manual mode with a pre-provisioned `ocv_` key so the `1ck_` key never reaches the workspace at all.
 
 ## Requirements

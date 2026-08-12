@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+umask 077
 
 LOG_PREFIX="[1claw]"
 log() { echo "$LOG_PREFIX $*"; }
@@ -8,14 +9,9 @@ die() {
   exit 1
 }
 
-# expand_path replaces a leading "~" and any literal "$HOME" occurrences with the
-# workspace user's $HOME without invoking `eval`, which would allow arbitrary
-# command substitution if a templated path ever contained $(...) or backticks.
 expand_path() {
   local p="$1"
   p="$${p//\$HOME/$HOME}"
-  # The case patterns below match a literal "~" and "~/<rest>"; we deliberately
-  # do not want shell tilde expansion here, hence the literal quoting.
   # shellcheck disable=SC2088
   case "$p" in
     "~") p="$HOME" ;;
@@ -32,42 +28,52 @@ AGENT_NAME_IN="${AGENT_NAME}"
 POLICY_PATH_IN="${POLICY_PATH}"
 STATE_DIR=$(expand_path "${STATE_DIR}")
 STATE_FILE="$STATE_DIR/bootstrap.json"
+LEGACY_STATE_FILE="$HOME/.1claw/bootstrap.json"
 
-# Sensitive values come from env vars injected by coder_env (sensitive = true),
-# NOT from templatefile() substitutions, so they do not appear in the Coder
-# agent's rendered-script log (/tmp/coder-agent.log). The bootstrap key is also
-# unset from the env immediately after read so it does not linger in this
-# process's /proc/<pid>/environ for the duration of the run.
 HUMAN_KEY="$${_ONECLAW_HUMAN_API_KEY:-}"
 unset _ONECLAW_HUMAN_API_KEY
 API_TOKEN="$${ONECLAW_AGENT_API_KEY:-}"
 VAULT_ID="$${ONECLAW_VAULT_ID:-}"
+ONECLAW_AGENT_ID_IN="$${ONECLAW_AGENT_ID:-}"
 
 json_get() {
   python3 -c "import json,sys; print(json.load(sys.stdin)$1)"
 }
 
+json_vault_create() {
+  python3 -c 'import json,sys; print(json.dumps({"name": sys.argv[1]}))' "$1"
+}
+
+json_agent_create() {
+  python3 -c 'import json,sys; print(json.dumps({"name": sys.argv[1], "vault_ids": [sys.argv[2]]}))' "$1" "$2"
+}
+
+json_policy_create() {
+  python3 -c 'import json,sys; print(json.dumps({"secret_path_pattern": sys.argv[1], "principal_type": "agent", "principal_id": sys.argv[2], "permissions": ["read", "write"]}))' "$1" "$2"
+}
+
+json_auth_body() {
+  python3 -c 'import json,sys; print(json.dumps({"api_key": sys.argv[1]}))' "$1"
+}
+
 api_call() {
   local method="$1" path="$2" token="$3" body="$${4:-}"
-  local response http_code body_out
-  # Pass bearer token via stdin config to keep it out of process argv.
-  # Body (if any) is piped on stdin as --data-binary.
-  local curl_cfg
+  local response http_code body_out rc curl_cfg
   curl_cfg=$(mktemp)
   printf -- 'header = "Authorization: Bearer %s"\n' "$token" > "$curl_cfg"
+  rc=0
   if [ -n "$body" ]; then
     response=$(printf '%s' "$body" | curl -s -w "\n%%{http_code}" \
       -K "$curl_cfg" \
       -H "Content-Type: application/json" \
       --data-binary @- \
-      -X "$method" "$API_URL$path" 2>&1)
+      -X "$method" "$API_URL$path" 2>&1) || rc=$?
   else
     response=$(curl -s -w "\n%%{http_code}" \
       -K "$curl_cfg" \
       -H "Content-Type: application/json" \
-      -X "$method" "$API_URL$path" 2>&1)
+      -X "$method" "$API_URL$path" 2>&1) || rc=$?
   fi
-  local rc=$?
   rm -f "$curl_cfg"
   if [ $rc -ne 0 ]; then
     log "API call failed: $method $path"
@@ -89,18 +95,24 @@ bootstrap() {
     return 0
   fi
 
+  if [ -f "$LEGACY_STATE_FILE" ]; then
+    log "Migrating bootstrap state from $LEGACY_STATE_FILE"
+    mkdir -p "$STATE_DIR"
+    cp "$LEGACY_STATE_FILE" "$STATE_FILE"
+    chmod 600 "$STATE_FILE"
+    return 0
+  fi
+
   [ -n "$HUMAN_KEY" ] || die "human_api_key is required for bootstrap mode"
 
   log "Authenticating with 1Claw API..."
-  local auth_response auth_http auth_body jwt
-  # Pipe the body via stdin so the 1ck_ key never appears in process argv (ps/proc/cmdline).
-  auth_response=$(printf '{"api_key": "%s"}' "$HUMAN_KEY" | curl -s -w "\n%%{http_code}" \
+  local auth_response auth_http auth_body jwt auth_body_json
+  auth_body_json=$(json_auth_body "$HUMAN_KEY")
+  auth_response=$(printf '%s' "$auth_body_json" | curl -s -w "\n%%{http_code}" \
     -H "Content-Type: application/json" \
     --data-binary @- \
     "$API_URL/v1/auth/api-key-token" 2>&1) || die "Failed to authenticate with human API key"
 
-  # Key is no longer needed; scrub from process memory before any other work.
-  # (_ONECLAW_HUMAN_API_KEY was already unset at the top of the script.)
   HUMAN_KEY=""
   unset HUMAN_KEY
 
@@ -119,15 +131,12 @@ bootstrap() {
     log "Using provided vault: $vault"
   else
     log "Creating vault '$VAULT_NAME_IN'..."
-    local vault_response
-    vault_response=$(api_call POST "/v1/vaults" "$jwt" \
-      "{\"name\": \"$VAULT_NAME_IN\"}") || {
+    local vault_response vault_body
+    vault_body=$(json_vault_create "$VAULT_NAME_IN")
+    vault_response=$(api_call POST "/v1/vaults" "$jwt" "$vault_body") || {
       log "Vault creation failed — looking for existing vault named '$VAULT_NAME_IN'"
       local list_response
       list_response=$(api_call GET "/v1/vaults" "$jwt") || die "Failed to list vaults"
-      # Pass the vault name via argv (NOT interpolated into the Python source)
-      # so quotes/newlines in the name cannot break the program or be used for
-      # code injection. The JSON payload is fed on stdin via a here-string.
       vault=$(python3 -c '
 import json, sys
 target = sys.argv[1]
@@ -145,9 +154,9 @@ sys.exit(1)
   fi
 
   log "Creating agent '$AGENT_NAME_IN'..."
-  local agent_response agent_id agent_key
-  agent_response=$(api_call POST "/v1/agents" "$jwt" \
-    "{\"name\": \"$AGENT_NAME_IN\", \"vault_ids\": [\"$vault\"]}") || die "Failed to create agent"
+  local agent_response agent_id agent_key agent_body
+  agent_body=$(json_agent_create "$AGENT_NAME_IN" "$vault")
+  agent_response=$(api_call POST "/v1/agents" "$jwt" "$agent_body") || die "Failed to create agent"
 
   agent_id=$(echo "$agent_response" | json_get "['agent']['id']")
   agent_key=$(echo "$agent_response" | json_get "['api_key']")
@@ -157,8 +166,9 @@ sys.exit(1)
   log "Created agent: $agent_id"
 
   log "Creating access policy (path: $POLICY_PATH_IN)..."
-  api_call POST "/v1/vaults/$vault/policies" "$jwt" \
-    "{\"secret_path_pattern\": \"$POLICY_PATH_IN\", \"principal_type\": \"agent\", \"principal_id\": \"$agent_id\", \"permissions\": [\"read\", \"write\"]}" \
+  local policy_body
+  policy_body=$(json_policy_create "$POLICY_PATH_IN" "$agent_id")
+  api_call POST "/v1/vaults/$vault/policies" "$jwt" "$policy_body" \
     > /dev/null || die "Failed to create policy"
   log "Policy created"
 
@@ -220,23 +230,26 @@ if [ "$BOOTSTRAP_MODE" = "true" ]; then
   bootstrap
 fi
 
-# Belt-and-suspenders: ensure HUMAN_KEY is gone even if bootstrap() short-
-# circuited because the state file already existed. _ONECLAW_HUMAN_API_KEY was
-# already unset at the top of the script so it is no longer in our environ.
 HUMAN_KEY=""
 unset HUMAN_KEY
 
-# Bootstrap runs first and writes creds to the state file; load them now.
 if [ -z "$API_TOKEN" ] && [ -f "$STATE_FILE" ]; then
   log "Loading credentials from bootstrap state"
   API_TOKEN=$(python3 -c "import json; print(json.load(open('$STATE_FILE'))['agent_api_key'])")
   VAULT_ID=$(python3 -c "import json; print(json.load(open('$STATE_FILE'))['vault_id'])")
+  if [ -z "$ONECLAW_AGENT_ID_IN" ]; then
+    ONECLAW_AGENT_ID_IN=$(python3 -c "import json; print(json.load(open('$STATE_FILE'))['agent_id'])")
+  fi
 fi
 
 if [ -z "$API_TOKEN" ] || [ -z "$VAULT_ID" ]; then
   log "WARNING: No API token or vault ID available — skipping MCP config"
   log "Provide api_token + vault_id (manual mode), or set human_api_key (bootstrap mode)"
   exit 0
+fi
+
+if [ -n "$ONECLAW_AGENT_ID_IN" ]; then
+  export ONECLAW_AGENT_ID="$ONECLAW_AGENT_ID_IN"
 fi
 
 MCP_CONFIG_TMP=$(mktemp)

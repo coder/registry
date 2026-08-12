@@ -36,7 +36,7 @@ variable "human_api_key" {
   type        = string
   sensitive   = true
   default     = ""
-  description = "One-time human 1ck_ API key for auto-provisioning. On first workspace start, creates a vault, agent, and policy automatically. Credentials are cached in ~/.1claw/bootstrap.json for subsequent starts."
+  description = "One-time human 1ck_ API key for auto-provisioning. On first workspace start, creates a vault, agent, and policy automatically. Credentials are cached in $HOME/.coder-modules/kmjones1979/oneclaw/bootstrap.json for subsequent starts."
 }
 
 variable "bootstrap_vault_name" {
@@ -59,7 +59,7 @@ variable "bootstrap_policy_path" {
 
 variable "agent_id_1claw" {
   type        = string
-  description = "Optional 1Claw agent UUID. When omitted, the MCP server resolves the agent from the API key prefix."
+  description = "Optional 1Claw agent UUID for manual mode (sets ONECLAW_AGENT_ID). In bootstrap mode the agent ID is stored in bootstrap.json and exported at runtime."
   default     = ""
 }
 
@@ -118,11 +118,27 @@ variable "icon" {
 data "coder_workspace" "me" {}
 
 locals {
-  bootstrap_mode = var.human_api_key != ""
+  module_directory = "$HOME/.coder-modules/kmjones1979/oneclaw"
+  bootstrap_mode   = var.human_api_key != ""
   bootstrap_agent_name = (
     var.bootstrap_agent_name != "" ? var.bootstrap_agent_name :
     "coder-${data.coder_workspace.me.name}"
   )
+
+  install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
+    BOOTSTRAP_MODE        = local.bootstrap_mode ? "true" : "false"
+    BASE_URL              = var.base_url
+    VAULT_ID_INPUT        = var.vault_id
+    VAULT_NAME            = var.bootstrap_vault_name
+    AGENT_NAME            = local.bootstrap_agent_name
+    POLICY_PATH           = var.bootstrap_policy_path
+    STATE_DIR             = local.module_directory
+    MCP_HOST              = var.mcp_host
+    INSTALL_CURSOR_CONFIG = var.install_cursor_config ? "true" : "false"
+    INSTALL_CLAUDE_CONFIG = var.install_claude_config ? "true" : "false"
+    CURSOR_CONFIG_PATH    = var.cursor_config_path
+    CLAUDE_CONFIG_PATH    = var.claude_config_path
+  })
 }
 
 resource "coder_env" "vault_id" {
@@ -152,10 +168,6 @@ resource "coder_env" "base_url" {
   value    = var.base_url
 }
 
-# Sensitive values are passed via coder_env (not templated into the script body)
-# so they don't appear in the Coder agent's script log. The agent log is 0600 on
-# the coder user, but that's the same user the AI runs as in most images, so we
-# want to avoid any on-disk copy of the 1ck_ key in the workspace.
 resource "coder_env" "human_api_key" {
   count    = local.bootstrap_mode ? 1 : 0
   agent_id = var.agent_id
@@ -163,27 +175,20 @@ resource "coder_env" "human_api_key" {
   value    = var.human_api_key
 }
 
-resource "coder_script" "run" {
-  agent_id           = var.agent_id
-  display_name       = "1Claw"
-  icon               = var.icon
-  run_on_start       = true
-  start_blocks_login = local.bootstrap_mode
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.1"
 
-  script = templatefile("${path.module}/scripts/run.sh", {
-    BOOTSTRAP_MODE        = local.bootstrap_mode ? "true" : "false"
-    BASE_URL              = var.base_url
-    VAULT_ID_INPUT        = var.vault_id
-    VAULT_NAME            = var.bootstrap_vault_name
-    AGENT_NAME            = local.bootstrap_agent_name
-    POLICY_PATH           = var.bootstrap_policy_path
-    STATE_DIR             = "$HOME/.1claw"
-    MCP_HOST              = var.mcp_host
-    INSTALL_CURSOR_CONFIG = var.install_cursor_config ? "true" : "false"
-    INSTALL_CLAUDE_CONFIG = var.install_claude_config ? "true" : "false"
-    CURSOR_CONFIG_PATH    = var.cursor_config_path
-    CLAUDE_CONFIG_PATH    = var.claude_config_path
-  })
+  agent_id            = var.agent_id
+  module_directory    = local.module_directory
+  display_name_prefix = "1Claw"
+  icon                = var.icon
+  install_script      = local.install_script
+}
+
+output "scripts" {
+  description = "Ordered list of coder exp sync names produced by this module, in run order."
+  value       = module.coder_utils.scripts
 }
 
 output "mcp_config_path" {
@@ -203,7 +208,7 @@ output "vault_id" {
 }
 
 output "agent_id_1claw" {
-  description = "The 1Claw agent UUID, if provided via variable."
+  description = "The 1Claw agent UUID, if provided via variable (manual mode)."
   value       = var.agent_id_1claw
   sensitive   = true
 }
@@ -212,4 +217,9 @@ output "provisioning_mode" {
   description = "Which provisioning mode is active: bootstrap or manual."
   value       = local.bootstrap_mode ? "bootstrap" : "manual"
   sensitive   = true
+}
+
+output "module_directory" {
+  description = "Runtime directory for module state, scripts, and logs."
+  value       = local.module_directory
 }
