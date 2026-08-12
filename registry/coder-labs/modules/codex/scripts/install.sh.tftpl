@@ -13,6 +13,7 @@ ARG_CODEX_VERSION='${ARG_CODEX_VERSION}'
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
 ARG_BASE_CONFIG_TOML=$(echo -n '${ARG_BASE_CONFIG_TOML}' | base64 -d)
 ARG_MCP=$(echo -n '${ARG_MCP}' | base64 -d)
+ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n '${ARG_MCP_CONFIG_REMOTE_PATH}' | base64 -d)
 ARG_ENABLE_AI_GATEWAY='${ARG_ENABLE_AI_GATEWAY}'
 ARG_AIBRIDGE_CONFIG=$(echo -n '${ARG_AIBRIDGE_CONFIG}' | base64 -d)
 ARG_MODEL_REASONING_EFFORT='${ARG_MODEL_REASONING_EFFORT}'
@@ -24,6 +25,7 @@ printf "workdir: %s\n" "$${ARG_WORKDIR}"
 printf "enable_ai_gateway: %s\n" "$${ARG_ENABLE_AI_GATEWAY}"
 printf "install_codex: %s\n" "$${ARG_INSTALL}"
 printf "model_reasoning_effort: %s\n" "$${ARG_MODEL_REASONING_EFFORT}"
+printf "mcp_config_remote_path: %s\n" "$${ARG_MCP_CONFIG_REMOTE_PATH}"
 echo "--------------------------------"
 
 function add_path_to_shell_profiles() {
@@ -164,6 +166,26 @@ function populate_config_toml() {
   if [ -n "$${ARG_MCP}" ]; then
     printf "Adding MCP servers\n"
     printf '%s\n' "$${ARG_MCP}" >> "$${managed}"
+  fi
+
+  if [ -n "$${ARG_MCP_CONFIG_REMOTE_PATH}" ] && [ "$${ARG_MCP_CONFIG_REMOTE_PATH}" != "[]" ]; then
+    if ! command -v jq > /dev/null 2>&1; then
+      printf "Error: 'jq' is required to fetch remote MCP configurations but was not found.\n" >&2
+      return 1
+    fi
+    echo "$${ARG_MCP_CONFIG_REMOTE_PATH}" | jq -r '.[]' | while IFS= read -r url; do
+      echo "Fetching MCP configuration from: $${url}"
+      mcp_toml=$(curl -fsSL --connect-timeout 10 --max-time 30 "$${url}") || {
+        echo "Warning: Failed to fetch MCP configuration from '$${url}', continuing..."
+        continue
+      }
+      if printf '%s' "$${mcp_toml}" | grep -qF -e "$${MANAGED_START}" -e "$${MANAGED_END}"; then
+        echo "Warning: Remote MCP configuration from '$${url}' contains managed-block markers, skipping..."
+        continue
+      fi
+      printf "Appending MCP servers from %s\n" "$${url}"
+      printf '\n%s\n' "$${mcp_toml}" >> "$${managed}"
+    done
   fi
 
   if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] && [ -n "$${ARG_AIBRIDGE_CONFIG}" ]; then

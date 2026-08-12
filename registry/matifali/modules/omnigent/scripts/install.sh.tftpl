@@ -1,0 +1,78 @@
+#!/bin/bash
+set -euo pipefail
+
+BOLD='\033[0;1m'
+
+ARG_OMNIGENT_VERSION=$(echo -n '${ARG_OMNIGENT_VERSION_B64}' | base64 -d)
+# Empty = latest; non-empty = pinned version
+ARG_PORT='${ARG_PORT}'
+ARG_WRITE_SERVER_CONFIG='${ARG_WRITE_SERVER_CONFIG}'
+ARG_SERVER_CONFIG=$(echo -n '${ARG_SERVER_CONFIG_B64}' | base64 -d)
+ARG_SERVER_CONFIG_FILE='${ARG_SERVER_CONFIG_FILE}'
+ARG_SERVER_CONFIG_DIR='${ARG_SERVER_CONFIG_DIR}'
+ARG_AGENTS=$(echo -n '${ARG_AGENTS_B64}' | base64 -d)
+ARG_AGENTS_DIR='${ARG_AGENTS_DIR}'
+
+export PATH="$${HOME}/.local/bin:$${PATH}"
+
+echo "--------------------------------"
+printf "omnigent_version: %s\n" "$${ARG_OMNIGENT_VERSION:-latest}"
+printf "port: %s\n" "$${ARG_PORT}"
+printf "write_server_config: %s\n" "$${ARG_WRITE_SERVER_CONFIG}"
+echo "--------------------------------"
+
+if ! command -v curl >/dev/null 2>&1; then
+  echo "ERROR: curl is required to install uv and Omnigent." >&2
+  exit 1
+fi
+
+if ! command -v uv >/dev/null 2>&1; then
+  printf "%s Installing uv\n" "$${BOLD}"
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  export PATH="$${HOME}/.local/bin:$${PATH}"
+fi
+
+if ! command -v uv >/dev/null 2>&1; then
+  echo "ERROR: uv installation failed. Install from https://docs.astral.sh/uv/getting-started/installation/, then rerun." >&2
+  exit 1
+fi
+
+printf "%s Found uv: %s\n" "$${BOLD}" "$(uv --version)"
+
+# Install omnigent via official installer
+INSTALL_ARGS="--non-interactive"
+if [ -n "$${ARG_OMNIGENT_VERSION}" ]; then
+  INSTALL_ARGS="$${INSTALL_ARGS} --version $${ARG_OMNIGENT_VERSION}"
+fi
+printf "%s Installing omnigent%s\n" "$${BOLD}" "$${ARG_OMNIGENT_VERSION:+ $${ARG_OMNIGENT_VERSION}}"
+# shellcheck disable=SC2086
+curl -fsSL https://omnigent.ai/install.sh | sh -s -- $${INSTALL_ARGS}
+
+export PATH="$${HOME}/.local/bin:$${PATH}"
+
+printf "%s Installed omnigent: %s\n" "$${BOLD}" "$(omnigent --version)"
+
+# Configure client to point to the local server
+omnigent config set server=http://localhost:$${ARG_PORT}
+
+# Write server config file if provided
+if [ "$${ARG_WRITE_SERVER_CONFIG}" = "true" ]; then
+  mkdir -p "$${ARG_SERVER_CONFIG_DIR}"
+  printf "%s Writing server config to %s\n" "$${BOLD}" "$${ARG_SERVER_CONFIG_FILE}"
+  printf '%s\n' "$${ARG_SERVER_CONFIG}" > "$${ARG_SERVER_CONFIG_FILE}"
+fi
+
+# Write agent YAML files. Clear stale generated files first so removed agents
+# are not re-registered on the next start.
+mkdir -p "$${ARG_AGENTS_DIR}"
+rm -f "$${ARG_AGENTS_DIR}"/*.yaml
+if [ -n "$${ARG_AGENTS}" ]; then
+  agent_index=0
+  while IFS=$'	' read -r agent_name agent_content_b64; do
+    [ -z "$${agent_name}" ] && continue
+    agent_index=$((agent_index + 1))
+    agent_file="$${ARG_AGENTS_DIR}/agent-$${agent_index}.yaml"
+    printf "%s Writing agent: %s -> %s\n" "$${BOLD}" "$${agent_name}" "$${agent_file}"
+    echo -n "$${agent_content_b64}" | base64 -d > "$${agent_file}"
+  done <<< "$${ARG_AGENTS}"
+fi

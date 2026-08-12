@@ -103,27 +103,16 @@ describe("zed", async () => {
     }
   }, 30000);
 
-  it("exits early with empty settings", async () => {
+  it("does not create coder_script when settings is empty", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       settings: "",
     });
 
-    const instance = findResourceInstance(state, "coder_script");
-    const id = await runContainer("alpine:latest");
-
-    try {
-      const result = await execContainer(id, ["sh", "-c", instance.script]);
-      expect(result.exitCode).toBe(0);
-
-      // Settings file should not be created
-      const catResult = await execContainer(id, [
-        "cat",
-        "/root/.config/zed/settings.json",
-      ]);
-      expect(catResult.exitCode).not.toBe(0);
-    } finally {
-      await removeContainer(id);
-    }
+    // With count = 0, no coder_script resource should exist
+    const scripts = state.resources?.filter(
+      (r: { type: string }) => r.type === "coder_script",
+    );
+    expect(scripts?.length ?? 0).toBe(0);
   }, 30000);
 });
