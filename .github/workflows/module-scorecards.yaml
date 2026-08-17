@@ -10,7 +10,9 @@
 #
 # Required repository secrets:
 #   SCORECARD_ANTHROPIC_API_KEY  Anthropic API key used for scoring
-#   SCORECARD_DISCUSSIONS_TOKEN  GitHub PAT with Discussions read/write
+#
+# Discussions are written with the built-in GITHUB_TOKEN (discussions: write
+# below), so no PAT is needed and there is nothing to expire or rotate.
 
 name: Module Scorecards
 
@@ -28,6 +30,7 @@ on:
 
 permissions:
   contents: read
+  discussions: write
 
 concurrency:
   group: module-scorecards
@@ -86,12 +89,12 @@ jobs:
       - name: Score modules and update module discussions
         env:
           ANTHROPIC_API_KEY: ${{ secrets.SCORECARD_ANTHROPIC_API_KEY }}
-          GITHUB_DISCUSSIONS_TOKEN: ${{ secrets.SCORECARD_DISCUSSIONS_TOKEN }}
+          GITHUB_DISCUSSIONS_TOKEN: ${{ github.token }}
         run: bun run .github/scorecard/score-modules.ts ${{ steps.scope.outputs.args }}
 
       - name: Update index discussion
         env:
-          GITHUB_DISCUSSIONS_TOKEN: ${{ secrets.SCORECARD_DISCUSSIONS_TOKEN }}
+          GITHUB_DISCUSSIONS_TOKEN: ${{ github.token }}
         # The index reads scores back from the module discussions, so a
         # single-module run still produces a complete index. The JSON export
         # is uploaded as a run artifact for machine consumers.
