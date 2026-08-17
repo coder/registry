@@ -72,9 +72,11 @@ log() {
       fi
       ;;
     "WARN")
-      if [[ "$OUTPUT_FORMAT" == "json" ]]; then
-        add_json_warning "" "$message" "warning"
-      elif [[ "$QUIET" != "true" ]]; then
+      # In JSON mode, structured warnings are emitted by callers via
+      # add_json_warning so per-condition `module`/`type` metadata is preserved.
+      # Suppress the human-readable line to avoid double-emitting the same
+      # condition into the JSON `warnings` array.
+      if [[ "$OUTPUT_FORMAT" != "json" && "$QUIET" != "true" ]]; then
         echo "⚠️  $message" >&2
       fi
       ;;
