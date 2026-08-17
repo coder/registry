@@ -16,6 +16,34 @@ var supportedUserNameSpaceDirectories = append(supportedResourceTypes, ".images"
 // validNameRe validates that names contain only alphanumeric characters and hyphens
 var validNameRe = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$`)
 
+// validNamespaceRe validates that a namespace directory name is lowercase, contains only alphanumeric characters and
+// hyphens, and starts and ends with an alphanumeric character. A namespace becomes part of the case-sensitive module
+// source path (registry.coder.com/<namespace>/<module>/coder), so mixed case produces paths that are inconsistent and
+// easy to mistype.
+var validNamespaceRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
+
+// grandfatheredMixedCaseNamespaces lists the namespaces that existed before the lowercase rule and cannot be renamed
+// yet. Both have published modules whose source paths are case-sensitive, and the registry server has no alias
+// mechanism for the old path. They are exempt until that migration happens. Do not add new entries.
+var grandfatheredMixedCaseNamespaces = []string{
+	"AJ0070",
+	"BenraouaneSoufiane",
+}
+
+// validateNamespaceName validates the directory name of a single namespace under /registry.
+func validateNamespaceName(namespaceName string) error {
+	if slices.Contains(grandfatheredMixedCaseNamespaces, namespaceName) {
+		return nil
+	}
+	if validNamespaceRe.MatchString(namespaceName) {
+		return nil
+	}
+	// If the lowercased name is valid, case was the only problem, so point at the name to use.
+	if lowercased := strings.ToLower(namespaceName); validNamespaceRe.MatchString(lowercased) {
+		return xerrors.Errorf("namespace name must be lowercase (use %q)", lowercased)
+	}
+	return xerrors.New("namespace name must contain only lowercase alphanumeric characters and hyphens, starting and ending with an alphanumeric character")
+}
 
 // validateCoderResourceSubdirectory validates that the structure of a module or template within a namespace follows all
 // expected file conventions
@@ -91,8 +119,8 @@ func validateRegistryDirectory() []error {
 		}
 
 		// Validate namespace name
-		if !validNameRe.MatchString(nDir.Name()) {
-			allErrs = append(allErrs, xerrors.Errorf("%q: namespace name contains invalid characters (only alphanumeric characters and hyphens are allowed)", namespacePath))
+		if err := validateNamespaceName(nDir.Name()); err != nil {
+			allErrs = append(allErrs, xerrors.Errorf("%q: %w", namespacePath, err))
 			continue
 		}
 
