@@ -3,7 +3,7 @@ display_name: Devin Desktop
 description: Add a one-click button to launch Devin Desktop (formerly Windsurf Editor)
 icon: ../../../../.icons/devin.svg
 verified: true
-tags: [ide, devin-desktop, windsurf, ai]
+tags: [ide, devin, windsurf, ai]
 ---
 
 # Devin Desktop
