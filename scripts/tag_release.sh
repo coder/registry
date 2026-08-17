@@ -78,6 +78,11 @@ log() {
         echo "⚠️  $message" >&2
       fi
       ;;
+    "DEPRECATED")
+      if [[ "$QUIET" != "true" && "$OUTPUT_FORMAT" != "json" ]]; then
+        echo "🪦 $message [deprecated]"
+      fi
+      ;;
     "INFO")
       if [[ "$QUIET" != "true" && "$OUTPUT_FORMAT" != "json" ]]; then
         echo "$message"
@@ -110,7 +115,10 @@ add_json_warning() {
   local message="$2"
   local type="$3"
 
-  JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg module "$module" --arg msg "$message" --arg type "$type" '.warnings += [{"module": $module, "message": $msg, "type": $type}]')
+  # NOTE: `module` is a reserved keyword in jq, so we cannot bind it as a jq
+  # variable name (e.g. `--arg module` produces an unusable `$module`).
+  # Bind to `$mod` internally; the emitted JSON key stays "module".
+  JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg mod "$module" --arg msg "$message" --arg type "$type" '.warnings += [{"module": $mod, "message": $msg, "type": $type}]')
 }
 
 add_json_module() {
@@ -320,6 +328,7 @@ detect_modules_needing_tags() {
   local total_checked=0
   local needs_tagging=0
   local already_tagged=0
+  local deprecated=0
   local skipped=0
 
   while IFS= read -r module_path; do
@@ -340,10 +349,15 @@ detect_modules_needing_tags() {
     local readme_path="$module_path/README.md"
     local readme_version
 
+    # Deprecation signal for this repo: a module that no longer exposes a
+    # resolvable `version = "X.Y.Z"` in its README is treated as deprecated
+    # (the canonical deprecation flow removes the module dir entirely; stale
+    # local checkouts or in-flight removal PRs land here). List it distinctly
+    # and continue instead of aborting the scan.
     if ! readme_version=$(extract_version_from_readme "$readme_path" "$namespace" "$module_name"); then
-      log "WARN" "$namespace/$module_name: No version found in README, skipping"
-      add_json_warning "$namespace/$module_name" "No version found in README, skipping" "missing_version"
-      skipped=$((skipped + 1))
+      log "DEPRECATED" "$namespace/$module_name: no resolvable version in README, skipping"
+      add_json_module "$namespace" "$module_name" "$module_path" "" "" "deprecated" false
+      deprecated=$((deprecated + 1))
       continue
     fi
 
@@ -375,12 +389,12 @@ detect_modules_needing_tags() {
   done <<< "$all_modules"
 
   JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --argjson total "$total_checked" --argjson needs "$needs_tagging" \
-    --argjson tagged "$already_tagged" --argjson skip "$skipped" \
-    '.summary.total_scanned = $total | .summary.needs_tagging = $needs | .summary.already_tagged = $tagged | .summary.skipped = $skip')
+    --argjson tagged "$already_tagged" --argjson dep "$deprecated" --argjson skip "$skipped" \
+    '.summary.total_scanned = $total | .summary.needs_tagging = $needs | .summary.already_tagged = $tagged | .summary.deprecated = $dep | .summary.skipped = $skip')
 
   if [[ "$OUTPUT_FORMAT" != "json" ]]; then
     echo ""
-    log "INFO" "📊 Summary: $needs_tagging of $total_checked modules need tagging"
+    log "INFO" "📊 Summary: $needs_tagging of $total_checked modules need tagging (deprecated: $deprecated, skipped: $skipped)"
     echo ""
   fi
 
