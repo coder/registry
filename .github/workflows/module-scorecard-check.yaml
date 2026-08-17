@@ -9,7 +9,9 @@
 #
 # Required repository secrets:
 #   SCORECARD_ANTHROPIC_API_KEY  Anthropic API key used for scoring
-#   SCORECARD_DISCUSSIONS_TOKEN  GitHub PAT with Discussions read (baseline lookup)
+#
+# The baseline lookup reads discussions with the built-in GITHUB_TOKEN
+# (discussions: read below); no PAT is needed.
 
 name: Module Scorecard Check
 
@@ -20,6 +22,7 @@ on:
 
 permissions:
   contents: read
+  discussions: read
   pull-requests: write
 
 concurrency:
@@ -62,7 +65,7 @@ jobs:
         if: steps.changed.outputs.modules != ''
         env:
           ANTHROPIC_API_KEY: ${{ secrets.SCORECARD_ANTHROPIC_API_KEY }}
-          GITHUB_DISCUSSIONS_TOKEN: ${{ secrets.SCORECARD_DISCUSSIONS_TOKEN }}
+          GITHUB_DISCUSSIONS_TOKEN: ${{ github.token }}
           MODULES: ${{ steps.changed.outputs.modules }}
         run: bun run .github/scorecard/score-modules.ts --modules "${MODULES}" --pr-report /tmp/scorecard-report.md
 
