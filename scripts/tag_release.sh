@@ -110,7 +110,10 @@ add_json_warning() {
   local message="$2"
   local type="$3"
 
-  JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg module "$module" --arg msg "$message" --arg type "$type" '.warnings += [{"module": $module, "message": $msg, "type": $type}]')
+  # NOTE: `module` is a reserved keyword in jq, so we cannot name the jq
+  # variable `$module` (it will fail to parse). Use `$mod` internally and
+  # map it to the "module" JSON key.
+  JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg mod "$module" --arg msg "$message" --arg type "$type" '.warnings += [{"module": $mod, "message": $msg, "type": $type}]')
 }
 
 add_json_module() {
