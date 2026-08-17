@@ -1,7 +1,7 @@
 ---
 display_name: Devin Desktop
 description: Add a one-click button to launch Devin Desktop (formerly Windsurf Editor)
-icon: ../../../../.icons/windsurf.svg
+icon: ../../../../.icons/devin-desktop.svg
 verified: true
 tags: [ide, devin-desktop, windsurf, ai]
 ---
@@ -11,8 +11,7 @@ tags: [ide, devin-desktop, windsurf, ai]
 > [!NOTE]
 > Devin Desktop is Cognition's June 2, 2026 rebrand of the Windsurf Editor (itself a rebrand of Codeium's
 > original editor). It shipped as an automatic update to existing Windsurf installs, so it reuses Windsurf's
-> `windsurf://` deep link protocol and `~/.codeium/windsurf/` config paths. This registry does not have a
-> dedicated Devin Desktop icon yet, so this module reuses the Windsurf mark.
+> `windsurf://` deep link protocol and `~/.codeium/windsurf/` config paths.
 
 Add a button to open any workspace with a single click in Devin Desktop.
 

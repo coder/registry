@@ -73,9 +73,7 @@ module "vscode-desktop-core" {
 
   agent_id = var.agent_id
 
-  # No dedicated Devin Desktop icon is published in this registry yet, so
-  # this reuses the Windsurf mark it was rebranded from.
-  coder_app_icon         = "/icon/windsurf.svg"
+  coder_app_icon         = "/icon/devin-desktop.svg"
   coder_app_slug         = var.slug
   coder_app_display_name = var.display_name
   coder_app_order        = var.order
@@ -92,7 +90,7 @@ resource "coder_script" "devin_desktop_mcp" {
   count              = var.mcp != "" ? 1 : 0
   agent_id           = var.agent_id
   display_name       = "Devin Desktop MCP"
-  icon               = "/icon/windsurf.svg"
+  icon               = "/icon/devin-desktop.svg"
   run_on_start       = true
   start_blocks_login = false
   script             = <<-EOT
