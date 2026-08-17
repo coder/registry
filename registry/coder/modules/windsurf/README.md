@@ -8,6 +8,11 @@ tags: [ide, windsurf, ai]
 
 # Windsurf Editor
 
+> [!IMPORTANT]
+> Windsurf Editor was rebranded to Devin Desktop by Cognition on June 2, 2026. New templates should use the
+> [`devin-desktop`](https://registry.coder.com/modules/coder/devin-desktop) module instead. This module is kept
+> published and fully functional for existing templates that reference it; it is not being removed.
+
 Add a button to open any workspace with a single click in Windsurf Editor.
 
 Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder).
