@@ -22,7 +22,7 @@ describe("devin-desktop", async () => {
       agent_id: "foo",
     });
     expect(state.outputs.devin_desktop_url.value).toBe(
-      "windsurf://coder.coder-remote/open?owner=default&workspace=default&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+      "devin://coder.coder-remote/open?owner=default&workspace=default&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
 
     const coder_app = state.resources.find(
@@ -47,7 +47,7 @@ describe("devin-desktop", async () => {
       folder: "/foo/bar",
     });
     expect(state.outputs.devin_desktop_url.value).toBe(
-      "windsurf://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+      "devin://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
   });
 
@@ -58,7 +58,7 @@ describe("devin-desktop", async () => {
       open_recent: true,
     });
     expect(state.outputs.devin_desktop_url.value).toBe(
-      "windsurf://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+      "devin://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
   });
 
@@ -69,7 +69,7 @@ describe("devin-desktop", async () => {
       open_recent: false,
     });
     expect(state.outputs.devin_desktop_url.value).toBe(
-      "windsurf://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+      "devin://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
   });
 
@@ -79,7 +79,17 @@ describe("devin-desktop", async () => {
       open_recent: true,
     });
     expect(state.outputs.devin_desktop_url.value).toBe(
-      "windsurf://coder.coder-remote/open?owner=default&workspace=default&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+      "devin://coder.coder-remote/open?owner=default&workspace=default&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+    );
+  });
+
+  it("allows overriding protocol", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      protocol: "windsurf",
+    });
+    expect(state.outputs.devin_desktop_url.value).toBe(
+      "windsurf://coder.coder-remote/open?owner=default&workspace=default&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
   });
 
