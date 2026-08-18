@@ -81,7 +81,8 @@ describe("local-windows-rdp", async () => {
     expect(app?.url).toContain("/v0/open/ws/");
     expect(app?.url).toContain("/agent/main/rdp");
     expect(app?.url).toContain("username=Administrator");
-    expect(app?.url).toContain("password=coderRDP!");
+    // Credentials are URL-encoded so characters like & and # survive.
+    expect(app?.url).toContain("password=coderRDP%21");
   });
 
   it("should create RDP configuration script", async () => {
@@ -125,7 +126,7 @@ describe("local-windows-rdp", async () => {
     // Verify custom credentials in URI
     expect(app?.url).toContain("/agent/windows-agent/rdp");
     expect(app?.url).toContain("username=CustomUser");
-    expect(app?.url).toContain("password=CustomPass123!");
+    expect(app?.url).toContain("password=CustomPass123%21");
   });
 
   it("should pass custom credentials to PowerShell script", async () => {
@@ -139,8 +140,9 @@ describe("local-windows-rdp", async () => {
     const script = findRdpScript(state);
 
     // Verify custom credentials are in the script
-    expect(script?.script).toContain('$username = "TestAdmin"');
-    expect(script?.script).toContain('$password = "TestPassword123!"');
+    // PowerShell single-quoted strings keep every character literal.
+    expect(script?.script).toContain("$username = 'TestAdmin'");
+    expect(script?.script).toContain("$password = 'TestPassword123!'");
   });
 
   it("should handle sensitive password variable", async () => {
@@ -153,7 +155,7 @@ describe("local-windows-rdp", async () => {
     const app = findRdpApp(state);
 
     // Verify password is included in URI even when sensitive
-    expect(app?.url).toContain("password=SensitivePass123!");
+    expect(app?.url).toContain("password=SensitivePass123%21");
   });
 
   it("should use correct default agent name", async () => {
