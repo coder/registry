@@ -81,21 +81,20 @@ The module's startup script contacts:
 
 ## Access-token-only mode
 
-If another Terraform resource only needs the OAuth `access_token` output, disable all workspace configuration. In this mode, the module still obtains the token through Coder external auth and keeps the existing `coder_script` resource for state compatibility, but does not run it, install or configure `jf`, or configure package managers.
+If another Terraform resource only needs the OAuth `access_token` output, disable JFrog CLI installation and configuration, and omit `package_managers`. In this mode, the module still obtains the token through Coder external auth but does not create a workspace configuration script, install or configure `jf`, or configure package managers.
 
 ```tf
 module "jfrog" {
-  source                     = "registry.coder.com/coder/jfrog-oauth/coder"
-  version                    = "1.3.0"
-  agent_id                   = coder_agent.main.id
-  jfrog_url                  = "https://example.jfrog.io"
-  install_jfrog_cli          = false
-  configure_jfrog_cli        = false
-  configure_package_managers = false
+  source              = "registry.coder.com/coder/jfrog-oauth/coder"
+  version             = "1.3.0"
+  agent_id            = coder_agent.main.id
+  jfrog_url           = "https://example.jfrog.io"
+  install_jfrog_cli   = false
+  configure_jfrog_cli = false
 }
 ```
 
-Package manager configuration can be disabled independently with `configure_package_managers = false`, and `package_managers` can be omitted when no repositories are required.
+The module fails with a clear error if `jf` is required but unavailable. Package manager configuration is disabled by omitting `package_managers` or leaving it empty.
 
 ## Username Handling
 

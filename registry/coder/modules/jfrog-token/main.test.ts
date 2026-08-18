@@ -23,6 +23,8 @@ describe("jfrog-token", async () => {
     username?: string;
     jfrog_server_id?: string;
     configure_code_server?: boolean;
+    install_jfrog_cli?: boolean;
+    configure_jfrog_cli?: boolean;
   };
 
   await runTerraformInit(import.meta.dir);
@@ -86,7 +88,7 @@ EOF`;
       'jf npmc --global --repo-resolve "global"',
     );
     expect(coderScript.script).toContain(
-      'if [ "true" == "true" ] && [ -z "YES" ]; then\n  not_configured npm',
+      'if [ -z "YES" ]; then\n  not_configured npm',
     );
   });
 
@@ -113,7 +115,7 @@ EOF`;
       'jf pipc --global --repo-resolve "global"',
     );
     expect(coderScript.script).toContain(
-      'if [ "true" == "true" ] && [ -z "YES" ]; then\n  not_configured pypi',
+      'if [ -z "YES" ]; then\n  not_configured pypi',
     );
   });
 
@@ -122,6 +124,8 @@ EOF`;
       agent_id: "some-agent-id",
       jfrog_url: fakeFrogUrl,
       artifactory_access_token: "XXXX",
+      install_jfrog_cli: false,
+      configure_jfrog_cli: false,
       package_managers: JSON.stringify({
         docker: ["foo.jfrog.io", "bar.jfrog.io", "baz.jfrog.io"],
       }),
@@ -132,7 +136,10 @@ EOF`;
       .join("\n");
     expect(coderScript.script).toContain(dockerStanza);
     expect(coderScript.script).toContain(
-      'if [ "true" == "true" ] && [ -z "YES" ]; then\n  not_configured docker',
+      'if [ -z "YES" ]; then\n  not_configured docker',
+    );
+    expect(coderScript.script).toContain(
+      'if [ "false" == "true" ] && ! command -v jf',
     );
   });
 
@@ -156,7 +163,7 @@ EOF`;
       'jf goc --global --repo-resolve "foo"',
     );
     expect(coderScript.script).toContain(
-      'if [ "true" == "true" ] && [ -z "YES" ]; then\n  not_configured go',
+      'if [ -z "YES" ]; then\n  not_configured go',
     );
   });
 
@@ -181,7 +188,7 @@ ssl_verify: true
 EOF`;
     expect(coderScript.script).toContain(condaStanza);
     expect(coderScript.script).toContain(
-      'if [ "true" == "true" ] && [ -z "YES" ]; then\n  not_configured conda',
+      'if [ -z "YES" ]; then\n  not_configured conda',
     );
   });
   it("generates a maven settings.xml with multiple repos", async () => {
@@ -220,7 +227,31 @@ EOF`;
     );
 
     expect(coderScript.script).toContain(
-      'if [ "true" == "true" ] && [ -z "YES" ]; then\n  not_configured maven',
+      'if [ -z "YES" ]; then\n  not_configured maven',
+    );
+  });
+
+  it("renders a clear error when a required preinstalled CLI is missing", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "some-agent-id",
+      jfrog_url: fakeFrogUrl,
+      artifactory_access_token: "XXXX",
+      install_jfrog_cli: false,
+      configure_jfrog_cli: true,
+    });
+    const coderScript = findResourceInstance(state, "coder_script");
+
+    expect(coderScript.script).toContain(
+      'if [ "true" == "true" ] && ! command -v jf',
+    );
+    expect(coderScript.script).toContain(
+      "JFrog CLI is required but was not found on PATH",
+    );
+    expect(coderScript.script).toContain(
+      "counter=0\n  while ! [ -x /tmp/code-server/bin/code-server ]; do",
+    );
+    expect(coderScript.script).not.toContain(
+      "while ! [ -x /tmp/code-server/bin/code-server ]; do\n    counter=0",
     );
   });
 });

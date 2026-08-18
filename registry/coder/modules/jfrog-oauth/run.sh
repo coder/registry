@@ -29,6 +29,11 @@ else
   echo "🤔 Skipping JFrog CLI installation."
 fi
 
+if [ "${REQUIRE_CLI}" == "true" ] && ! command -v jf > /dev/null 2>&1; then
+  echo "❌ JFrog CLI is required but was not found on PATH. Install it or enable install_jfrog_cli." >&2
+  exit 1
+fi
+
 if [ "${CONFIGURE_CLI}" == "true" ]; then
   # The jf CLI checks $CI when determining whether to use interactive
   # flows.
@@ -41,14 +46,10 @@ else
   echo "🤔 Skipping JFrog CLI configuration."
 fi
 
-if [ "${CONFIGURE_PACKAGES}" != "true" ]; then
-  echo "🤔 Skipping package manager configuration."
-fi
-
 # Configure npm to use the Artifactory "npm" repository.
-if [ "${CONFIGURE_PACKAGES}" == "true" ] && [ -z "${HAS_NPM}" ]; then
+if [ -z "${HAS_NPM}" ]; then
   not_configured npm
-elif [ "${CONFIGURE_PACKAGES}" == "true" ]; then
+else
   echo "📦 Configuring npm..."
   jf npmc --global --repo-resolve "${REPOSITORY_NPM}"
   cat << EOF > ~/.npmrc
@@ -58,9 +59,9 @@ EOF
 fi
 
 # Configure the `pip` to use the Artifactory "python" repository.
-if [ "${CONFIGURE_PACKAGES}" == "true" ] && [ -z "${HAS_PYPI}" ]; then
+if [ -z "${HAS_PYPI}" ]; then
   not_configured pypi
-elif [ "${CONFIGURE_PACKAGES}" == "true" ]; then
+else
   echo "🐍 Configuring pip..."
   jf pipc --global --repo-resolve "${REPOSITORY_PYPI}"
   mkdir -p ~/.pip
@@ -71,18 +72,18 @@ EOF
 fi
 
 # Configure Artifactory "go" repository.
-if [ "${CONFIGURE_PACKAGES}" == "true" ] && [ -z "${HAS_GO}" ]; then
+if [ -z "${HAS_GO}" ]; then
   not_configured go
-elif [ "${CONFIGURE_PACKAGES}" == "true" ]; then
+else
   echo "🐹 Configuring go..."
   jf goc --global --repo-resolve "${REPOSITORY_GO}"
   config_complete
 fi
 
 # Configure the JFrog CLI to use the Artifactory "docker" repository.
-if [ "${CONFIGURE_PACKAGES}" == "true" ] && [ -z "${HAS_DOCKER}" ]; then
+if [ -z "${HAS_DOCKER}" ]; then
   not_configured docker
-elif [ "${CONFIGURE_PACKAGES}" == "true" ]; then
+else
   if command -v docker > /dev/null 2>&1; then
     echo "🔑 Configuring 🐳 docker credentials..."
     mkdir -p ~/.docker
@@ -93,9 +94,9 @@ elif [ "${CONFIGURE_PACKAGES}" == "true" ]; then
 fi
 
 # Configure conda to use the Artifactory "conda" repository.
-if [ "${CONFIGURE_PACKAGES}" == "true" ] && [ -z "${HAS_CONDA}" ]; then
+if [ -z "${HAS_CONDA}" ]; then
   not_configured conda
-elif [ "${CONFIGURE_PACKAGES}" == "true" ]; then
+else
   echo "🐍 Configuring conda..."
   # Create conda config directory if it doesn't exist
   mkdir -p ~/.conda
@@ -106,9 +107,9 @@ EOF
 fi
 
 # Configure Maven to use the Artifactory "maven" repository.
-if [ "${CONFIGURE_PACKAGES}" == "true" ] && [ -z "${HAS_MAVEN}" ]; then
+if [ -z "${HAS_MAVEN}" ]; then
   not_configured maven
-elif [ "${CONFIGURE_PACKAGES}" == "true" ]; then
+else
   echo "☕ Configuring maven..."
   jf mvnc --global \
     --server-id-resolve="${JFROG_SERVER_ID}" \
@@ -127,8 +128,8 @@ fi
 
 # Install the JFrog vscode extension for code-server.
 if [ "${CONFIGURE_CODE_SERVER}" == "true" ]; then
+  counter=0
   while ! [ -x /tmp/code-server/bin/code-server ]; do
-    counter=0
     if [ $counter -eq 60 ]; then
       echo "Timed out waiting for /tmp/code-server/bin/code-server to be installed."
       exit 1
