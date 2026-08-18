@@ -78,3 +78,27 @@ module "rdp_desktop" {
   order        = 1
 }
 ```
+
+### Generated credentials
+
+Rather than relying on the shared default password, generate one per workspace
+so the credential never lives in the template:
+
+```tf
+resource "random_password" "rdp" {
+  length  = 24
+  special = true
+}
+
+module "rdp_desktop" {
+  count      = data.coder_workspace.me.start_count
+  source     = "registry.coder.com/coder/local-windows-rdp/coder"
+  version    = "1.0.5"
+  agent_id   = coder_agent.main.id
+  agent_name = "main"
+  password   = random_password.rdp.result
+}
+```
+
+Generated passwords are passed through verbatim, including characters such as
+`\`, `"`, `'`, `` ` ``, `$`, `&`, and `#`.
