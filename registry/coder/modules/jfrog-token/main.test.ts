@@ -13,7 +13,7 @@ describe("jfrog-token", async () => {
     agent_id: string;
     jfrog_url: string;
     artifactory_access_token: string;
-    package_managers: string;
+    package_managers?: string;
 
     token_description?: string;
     check_license?: boolean;
@@ -59,7 +59,6 @@ describe("jfrog-token", async () => {
     agent_id: "some-agent-id",
     jfrog_url: fakeFrogUrl,
     artifactory_access_token: "XXXX",
-    package_managers: "{}",
   });
 
   it("generates an npmrc with scoped repos", async () => {
@@ -87,7 +86,7 @@ EOF`;
       'jf npmc --global --repo-resolve "global"',
     );
     expect(coderScript.script).toContain(
-      'if [ -z "YES" ]; then\n  not_configured npm',
+      'if [ "true" == "true" ] && [ -z "YES" ]; then\n  not_configured npm',
     );
   });
 
@@ -114,7 +113,7 @@ EOF`;
       'jf pipc --global --repo-resolve "global"',
     );
     expect(coderScript.script).toContain(
-      'if [ -z "YES" ]; then\n  not_configured pypi',
+      'if [ "true" == "true" ] && [ -z "YES" ]; then\n  not_configured pypi',
     );
   });
 
@@ -133,7 +132,7 @@ EOF`;
       .join("\n");
     expect(coderScript.script).toContain(dockerStanza);
     expect(coderScript.script).toContain(
-      'if [ -z "YES" ]; then\n  not_configured docker',
+      'if [ "true" == "true" ] && [ -z "YES" ]; then\n  not_configured docker',
     );
   });
 
@@ -157,7 +156,7 @@ EOF`;
       'jf goc --global --repo-resolve "foo"',
     );
     expect(coderScript.script).toContain(
-      'if [ -z "YES" ]; then\n  not_configured go',
+      'if [ "true" == "true" ] && [ -z "YES" ]; then\n  not_configured go',
     );
   });
 
@@ -182,7 +181,7 @@ ssl_verify: true
 EOF`;
     expect(coderScript.script).toContain(condaStanza);
     expect(coderScript.script).toContain(
-      'if [ -z "YES" ]; then\n  not_configured conda',
+      'if [ "true" == "true" ] && [ -z "YES" ]; then\n  not_configured conda',
     );
   });
   it("generates a maven settings.xml with multiple repos", async () => {
@@ -221,7 +220,7 @@ EOF`;
     );
 
     expect(coderScript.script).toContain(
-      'if [ -z "YES" ]; then\n  not_configured maven',
+      'if [ "true" == "true" ] && [ -z "YES" ]; then\n  not_configured maven',
     );
   });
 });

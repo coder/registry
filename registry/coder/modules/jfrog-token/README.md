@@ -13,7 +13,7 @@ Install the JF CLI and authenticate package managers with Artifactory using Arti
 ```tf
 module "jfrog" {
   source                   = "registry.coder.com/coder/jfrog-token/coder"
-  version                  = "1.2.2"
+  version                  = "1.3.0"
   agent_id                 = coder_agent.main.id
   jfrog_url                = "https://XXXX.jfrog.io"
   artifactory_access_token = var.artifactory_access_token
@@ -36,6 +36,25 @@ For detailed instructions, please see this [guide](https://coder.com/docs/v2/lat
 
 ![JFrog](../../.images/jfrog.png)
 
+## Token-only mode
+
+If another Terraform resource only needs the scoped `access_token` output, disable all workspace configuration. In this mode, the module keeps the existing `coder_script` resource for state compatibility but does not run it, install or configure `jf`, or configure package managers.
+
+```tf
+module "jfrog" {
+  source                     = "registry.coder.com/coder/jfrog-token/coder"
+  version                    = "1.3.0"
+  agent_id                   = coder_agent.main.id
+  jfrog_url                  = "https://XXXX.jfrog.io"
+  artifactory_access_token   = var.artifactory_access_token
+  install_jfrog_cli          = false
+  configure_jfrog_cli        = false
+  configure_package_managers = false
+}
+```
+
+To configure a pre-installed `jf` binary, set only `install_jfrog_cli = false` and leave `configure_jfrog_cli` enabled. Package manager configuration can be disabled independently with `configure_package_managers = false`, and `package_managers` can be omitted when no repositories are required.
+
 ## Examples
 
 ### Configure npm, go, and pypi to use Artifactory local repositories
@@ -43,7 +62,7 @@ For detailed instructions, please see this [guide](https://coder.com/docs/v2/lat
 ```tf
 module "jfrog" {
   source                   = "registry.coder.com/coder/jfrog-token/coder"
-  version                  = "1.2.2"
+  version                  = "1.3.0"
   agent_id                 = coder_agent.main.id
   jfrog_url                = "https://YYYY.jfrog.io"
   artifactory_access_token = var.artifactory_access_token # An admin access token
@@ -83,7 +102,7 @@ The [JFrog extension](https://open-vsx.org/extension/JFrog/jfrog-vscode-extensio
 ```tf
 module "jfrog" {
   source                   = "registry.coder.com/coder/jfrog-token/coder"
-  version                  = "1.2.2"
+  version                  = "1.3.0"
   agent_id                 = coder_agent.main.id
   jfrog_url                = "https://XXXX.jfrog.io"
   artifactory_access_token = var.artifactory_access_token
@@ -104,7 +123,7 @@ data "coder_workspace" "me" {}
 
 module "jfrog" {
   source                   = "registry.coder.com/coder/jfrog-token/coder"
-  version                  = "1.2.2"
+  version                  = "1.3.0"
   agent_id                 = coder_agent.main.id
   jfrog_url                = "https://XXXX.jfrog.io"
   artifactory_access_token = var.artifactory_access_token

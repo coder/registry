@@ -52,6 +52,24 @@ variable "configure_code_server" {
   default     = false
 }
 
+variable "install_jfrog_cli" {
+  description = "Whether to install the JFrog CLI when it is not already available on PATH."
+  type        = bool
+  default     = true
+}
+
+variable "configure_jfrog_cli" {
+  description = "Whether to authenticate the JFrog CLI and configure shell completion."
+  type        = bool
+  default     = true
+}
+
+variable "configure_package_managers" {
+  description = "Whether to configure the package managers listed in package_managers."
+  type        = bool
+  default     = true
+}
+
 variable "package_managers" {
   type = object({
     npm    = optional(list(string), [])
@@ -73,6 +91,7 @@ variable "package_managers" {
         maven  = ["YOUR_MAVEN_REPO_KEY", "ANOTHER_MAVEN_REPO_KEY"]
       }
   EOF
+  default     = {}
 }
 
 locals {
@@ -143,6 +162,9 @@ resource "coder_script" "jfrog" {
   script = templatefile("${path.module}/run.sh", merge(
     local.common_values,
     {
+      INSTALL_CLI           = var.install_jfrog_cli
+      CONFIGURE_CLI         = var.configure_jfrog_cli
+      CONFIGURE_PACKAGES    = var.configure_package_managers
       CONFIGURE_CODE_SERVER = var.configure_code_server
       HAS_NPM               = length(var.package_managers.npm) == 0 ? "" : "YES"
       NPMRC                 = local.npmrc
@@ -162,7 +184,7 @@ resource "coder_script" "jfrog" {
       REPOSITORY_MAVEN      = try(element(var.package_managers.maven, 0), "")
     }
   ))
-  run_on_start = true
+  run_on_start = var.install_jfrog_cli || var.configure_jfrog_cli || var.configure_package_managers || var.configure_code_server
 
   lifecycle {
     precondition {
@@ -194,7 +216,7 @@ resource "coder_env" "jfrog_ide_store_connection" {
 }
 
 resource "coder_env" "goproxy" {
-  count    = length(var.package_managers.go) == 0 ? 0 : 1
+  count    = var.configure_package_managers && length(var.package_managers.go) > 0 ? 1 : 0
   agent_id = var.agent_id
   name     = "GOPROXY"
   value = join(",", [

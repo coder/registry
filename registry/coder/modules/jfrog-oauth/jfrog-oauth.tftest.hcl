@@ -4,9 +4,8 @@ run "test_required_vars" {
   command = plan
 
   variables {
-    agent_id         = "test-agent-id"
-    jfrog_url        = "https://example.jfrog.io"
-    package_managers = {}
+    agent_id  = "test-agent-id"
+    jfrog_url = "https://example.jfrog.io"
   }
 
   # Mock external auth with valid access token for basic test
@@ -22,9 +21,11 @@ run "test_empty_access_token_fails" {
   command = plan
 
   variables {
-    agent_id         = "test-agent-id"
-    jfrog_url        = "https://example.jfrog.io"
-    package_managers = {}
+    agent_id                   = "test-agent-id"
+    jfrog_url                  = "https://example.jfrog.io"
+    install_jfrog_cli          = false
+    configure_jfrog_cli        = false
+    configure_package_managers = false
   }
 
   # Mock external auth with empty access token
@@ -396,5 +397,37 @@ run "test_maven_package_manager" {
   assert {
     condition     = strcontains(resource.coder_script.jfrog.script, "<url>https://example.jfrog.io/artifactory/central</url>")
     error_message = "script should contain central repository URL"
+  }
+}
+
+run "test_access_token_only" {
+  command = plan
+
+  variables {
+    agent_id                   = "test-agent-id"
+    jfrog_url                  = "https://example.jfrog.io"
+    install_jfrog_cli          = false
+    configure_jfrog_cli        = false
+    configure_package_managers = false
+    package_managers = {
+      go = ["go"]
+    }
+  }
+
+  override_data {
+    target = data.coder_external_auth.jfrog
+    values = {
+      access_token = "valid-token-value"
+    }
+  }
+
+  assert {
+    condition     = !resource.coder_script.jfrog.run_on_start
+    error_message = "token-only mode should not run the workspace configuration script"
+  }
+
+  assert {
+    condition     = length(resource.coder_env.goproxy) == 0
+    error_message = "token-only mode should not configure package managers"
   }
 }
