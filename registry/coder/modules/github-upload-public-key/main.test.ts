@@ -172,6 +172,32 @@ describe("github-upload-public-key", () => {
     expect(uploadedKeyNames).toEqual([keyName]);
   });
 
+  it("uses a key name with special characters", async () => {
+    const keyName = 'Special $(id) "chars" `test`';
+    const { instance, id, server, uploadedKeyNames } = await setupContainer(
+      undefined,
+      { key_name: keyName },
+    );
+    await writeCoder(id, "echo foo");
+
+    const url = server.url.toString().slice(0, -1);
+    const exec = await execContainer(id, [
+      "env",
+      `CODER_ACCESS_URL=${url}`,
+      `GITHUB_API_URL=${url}`,
+      "CODER_OWNER_SESSION_TOKEN=foo",
+      "CODER_EXTERNAL_AUTH_ID=github",
+      "bash",
+      "-c",
+      instance.script,
+    ]);
+    expect(exec.stdout).toContain(
+      "Your Coder public key has been added to GitHub!",
+    );
+    expect(exec.exitCode).toBe(0);
+    expect(uploadedKeyNames).toEqual([keyName]);
+  });
+
   it("does nothing if one already exists", async () => {
     const { instance, id, server } = await setupContainer();
     // use keyword to make server return a existing key

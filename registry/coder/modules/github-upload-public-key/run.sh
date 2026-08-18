@@ -87,7 +87,7 @@ if [ "$PUBLIC_KEY" = "$GITHUB_MATCH" ]; then
 fi
 
 echo "Your Coder public key is not in GitHub. Adding it now..."
-CODER_PUBLIC_KEY_NAME="${CODER_PUBLIC_KEY_NAME}"
+CODER_PUBLIC_KEY_NAME="$(printf '%s' '${CODER_PUBLIC_KEY_NAME}' | base64 -d)"
 [ -n "$CODER_PUBLIC_KEY_NAME" ] || CODER_PUBLIC_KEY_NAME="$CODER_ACCESS_URL Workspaces"
 UPLOAD_RESPONSE=$(
   curl -L -s \
@@ -97,7 +97,7 @@ UPLOAD_RESPONSE=$(
     -H "Authorization: Bearer $GITHUB_TOKEN" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
     $GITHUB_API_URL/user/keys \
-    -d "{\"title\":\"$CODER_PUBLIC_KEY_NAME\",\"key\":\"$PUBLIC_KEY\"}"
+    -d "$(jq -nc --arg title "$CODER_PUBLIC_KEY_NAME" --arg key "$PUBLIC_KEY" '{title: $title, key: $key}')"
 )
 UPLOAD_RESPONSE_STATUS=$(tail -n1 <<< "$UPLOAD_RESPONSE")
 UPLOAD_RESPONSE_BODY=$(sed \$d <<< "$UPLOAD_RESPONSE")

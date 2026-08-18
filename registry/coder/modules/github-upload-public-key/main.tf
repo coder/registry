@@ -42,7 +42,7 @@ resource "coder_script" "github_upload_public_key" {
     CODER_ACCESS_URL : data.coder_workspace.me.access_url,
     CODER_EXTERNAL_AUTH_ID : var.external_auth_id,
     GITHUB_API_URL : var.github_api_url,
-    CODER_PUBLIC_KEY_NAME : var.key_name == null ? "" : var.key_name,
+    CODER_PUBLIC_KEY_NAME : base64encode(var.key_name == null ? "" : var.key_name),
   })
   display_name = "Github Upload Public Key"
   icon         = "/icon/github.svg"
