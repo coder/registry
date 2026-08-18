@@ -1,0 +1,278 @@
+#!/bin/bash
+
+set -euo pipefail
+
+ARG_PORT='${ARG_PORT}'
+ARG_TMUX_SESSION='${ARG_TMUX_SESSION}'
+# module_directory is not caller-influenced (module_dir_name is a hardcoded
+# constant in main.tf), so double-quoting it to expand its literal "$HOME"
+# at runtime is safe. install_prefix/workdir are caller-supplied though --
+# see the comment on install_prefix_override in main.tf for why those are
+# passed as raw overrides instead and built into a full path below using a
+# real, un-interpolated shell variable rather than embedded "$HOME" text.
+ARG_MODULE_DIRECTORY="${ARG_MODULE_DIRECTORY}"
+ARG_INSTALL_PREFIX_OVERRIDE='${ARG_INSTALL_PREFIX_OVERRIDE}'
+ARG_WORKDIR_OVERRIDE='${ARG_WORKDIR_OVERRIDE}'
+
+if [ -n "$${ARG_INSTALL_PREFIX_OVERRIDE}" ]; then
+  INSTALL_PREFIX="$${ARG_INSTALL_PREFIX_OVERRIDE}"
+else
+  INSTALL_PREFIX="$${ARG_MODULE_DIRECTORY}/npm"
+fi
+
+if [ -n "$${ARG_WORKDIR_OVERRIDE}" ]; then
+  WORKDIR="$${ARG_WORKDIR_OVERRIDE}"
+else
+  WORKDIR="$HOME"
+fi
+
+HAPPY_BIN="$INSTALL_PREFIX/node_modules/.bin/happy"
+SCRIPTS_DIR="$${ARG_MODULE_DIRECTORY}/scripts"
+LOG_PATH="$${ARG_MODULE_DIRECTORY}/logs/start.log"
+PAIRING_LOG_PATH="$${ARG_MODULE_DIRECTORY}/logs/pairing.log"
+SERVER_PATH="$SCRIPTS_DIR/pairing-server.js"
+
+if [ ! -x "$HAPPY_BIN" ]; then
+  echo "❌ happy binary not found at $HAPPY_BIN. Did the install script run and succeed?"
+  exit 1
+fi
+
+if ! command -v tmux > /dev/null 2>&1; then
+  echo "❌ tmux not found on PATH. Did the install script run and succeed?"
+  exit 1
+fi
+
+mkdir -p "$SCRIPTS_DIR" "$(dirname "$LOG_PATH")"
+mkdir -p "$WORKDIR"
+: > "$PAIRING_LOG_PATH"
+
+# Pairing server: on every request to "/" it forces a completely fresh
+# pairing cycle (kill any previous happy session, clear credentials, relaunch,
+# drive the interactive auth-method prompt via tmux, capture the resulting
+# happy://terminal?... link, and render it as a real QR code). "/healthz"
+# never triggers this -- it must stay side-effect-free since Coder polls it
+# on an interval, and forcing a re-pair every few seconds would make the
+# module unusable. Node-only (plus the "qrcode" package installed alongside
+# happy): a Node runtime is already required to run Happy itself.
+cat > "$SERVER_PATH" << 'EOF_SERVER'
+"use strict";
+const http = require("http");
+const fs = require("fs");
+const { spawnSync } = require("child_process");
+const QRCode = require("qrcode");
+
+const PORT = parseInt(process.env.PORT, 10);
+const HAPPY_BIN = process.env.HAPPY_BIN;
+const WORKDIR = process.env.WORKDIR;
+const TMUX_SESSION = process.env.TMUX_SESSION;
+const PAIRING_LOG_PATH = process.env.PAIRING_LOG_PATH;
+
+const PAIRING_URL_RE = /happy:\/\/terminal\?[A-Za-z0-9_-]+/;
+const PROMPT_TEXT = "How would you like to authenticate?";
+const PROMPT_TIMEOUT_MS = 20000;
+const PAIRING_URL_TIMEOUT_MS = 20000;
+const POLL_INTERVAL_MS = 300;
+
+function shellQuote(value) {
+  return "'" + String(value).replace(/'/g, "'\\''") + "'";
+}
+
+// Polls the pane's *current* on-screen content, not the piped log file.
+// "tmux pipe-pane" (attached separately, after the session already starts)
+// only forwards output emitted after it attaches; if the wrapped process
+// prints before that attach call lands, that output is lost from the log
+// forever and a log-based wait hangs until it times out. capture-pane has
+// no such race: it always returns whatever is presently on screen,
+// regardless of when polling started.
+function capturePane() {
+  const result = spawnSync("tmux", ["capture-pane", "-t", TMUX_SESSION, "-p", "-S", "-200"]);
+  return result.status === 0 ? String(result.stdout) : "";
+}
+
+function sessionAlive() {
+  const result = spawnSync("tmux", ["has-session", "-t", TMUX_SESSION]);
+  return result.status === 0;
+}
+
+// Without this, a happy CLI crash/exit right after the prompt (the tmux
+// session dies once its wrapped shell command finishes) would otherwise
+// just look identical to "still starting" and wait out the full timeout
+// before failing -- this fails fast instead, with the pane's last output
+// attached so the real cause is visible immediately.
+function waitFor(extract, timeoutMs, timeoutMessage) {
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolve, reject) => {
+    const tick = () => {
+      const paneText = capturePane();
+      const found = extract(paneText);
+      if (found) {
+        resolve(found);
+        return;
+      }
+      if (!sessionAlive()) {
+        reject(
+          new Error(
+            "Happy's tmux session exited before it finished pairing. Last output:\n" + paneText,
+          ),
+        );
+        return;
+      }
+      if (Date.now() >= deadline) {
+        reject(new Error(timeoutMessage));
+        return;
+      }
+      setTimeout(tick, POLL_INTERVAL_MS);
+    };
+    tick();
+  });
+}
+
+function startFreshPairingCycle() {
+  // Best-effort teardown of whatever was running before.
+  spawnSync("tmux", ["kill-session", "-t", TMUX_SESSION]);
+  fs.writeFileSync(PAIRING_LOG_PATH, "");
+
+  // "auth login --force" clears any existing credentials/machine ID and
+  // stops the daemon, then (since credentials are now gone) drives straight
+  // into the same interactive auth-method prompt as a first-ever pairing.
+  // Only once that finishes does "happy claude" run, at which point
+  // credentials already exist so it launches straight into the wrapped
+  // coding session with no further prompts.
+  const shellCommand =
+    "cd " + shellQuote(WORKDIR) + " && " +
+    shellQuote(HAPPY_BIN) + " auth login --force && " +
+    shellQuote(HAPPY_BIN) + " claude";
+
+  const spawned = spawnSync("tmux", [
+    "new-session", "-d", "-s", TMUX_SESSION, "-x", "220", "-y", "50",
+    "bash", "-lc", shellCommand,
+  ]);
+  if (spawned.status !== 0) {
+    throw new Error(
+      "Failed to start tmux session: " + (spawned.stderr || spawned.error || "unknown error"),
+    );
+  }
+
+  spawnSync("tmux", ["pipe-pane", "-t", TMUX_SESSION, "-o", "cat >> " + shellQuote(PAIRING_LOG_PATH)]);
+}
+
+async function runPairingCycle() {
+  startFreshPairingCycle();
+  await waitFor(
+    (text) => text.includes(PROMPT_TEXT),
+    PROMPT_TIMEOUT_MS,
+    "Timed out waiting for Happy's auth-method prompt to appear",
+  );
+  spawnSync("tmux", ["send-keys", "-t", TMUX_SESSION, "1"]);
+  const pairingUrl = await waitFor(
+    (text) => {
+      const match = PAIRING_URL_RE.exec(text);
+      return match ? match[0] : null;
+    },
+    PAIRING_URL_TIMEOUT_MS,
+    "Timed out waiting for Happy to print a pairing link",
+  );
+  // Detach the pipe once pairing itself is done: from here on "happy claude"
+  // runs the actual coding session, and there's no reason to keep mirroring
+  // that (potentially sensitive) transcript to a plaintext log file on top
+  // of it already living in the tmux scrollback.
+  spawnSync("tmux", ["pipe-pane", "-t", TMUX_SESSION]);
+  return pairingUrl;
+}
+
+let inFlight = null;
+
+function getOrStartPairingCycle() {
+  if (!inFlight) {
+    inFlight = runPairingCycle().finally(() => {
+      inFlight = null;
+    });
+  }
+  return inFlight;
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (c) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+  ));
+}
+
+function htmlPage(bodyHtml, refreshSeconds) {
+  return (
+    "<!doctype html><html><head><meta charset=\"utf-8\">" +
+    (refreshSeconds ? "<meta http-equiv=\"refresh\" content=\"" + refreshSeconds + "\">" : "") +
+    "<title>Happy Pairing</title><style>" +
+    "body{font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:40px auto;padding:0 16px;text-align:center;color:#1a1a1a}" +
+    "img{max-width:280px;width:100%;height:auto;border-radius:8px}" +
+    "code{word-break:break-all;display:block;padding:12px;background:#f4f4f4;border-radius:8px;margin:16px 0;font-size:13px}" +
+    ".hint{color:#888;font-size:13px}" +
+    "</style></head><body>" + bodyHtml + "</body></html>"
+  );
+}
+
+async function renderQrPage(pairingUrl) {
+  const qrDataUrl = await QRCode.toDataURL(pairingUrl, { margin: 2, width: 280 });
+  return htmlPage(
+    "<h1>Scan to pair Happy</h1>" +
+    "<img src=\"" + qrDataUrl + "\" alt=\"Happy pairing QR code\">" +
+    "<p>Or open this link on your phone:</p>" +
+    "<code>" + escapeHtml(pairingUrl) + "</code>" +
+    "<p class=\"hint\">This link is single-use and was just generated for this click. " +
+    "Re-opening this app mints a new one and disconnects any device already paired.</p>",
+    0,
+  );
+}
+
+function renderErrorPage(message) {
+  return htmlPage(
+    "<h1>Something went wrong</h1><p>" + escapeHtml(message) + "</p>" +
+    "<p class=\"hint\">Reload this page to try again.</p>",
+    5,
+  );
+}
+
+const server = http.createServer((req, res) => {
+  if (req.method === "GET" && req.url === "/healthz") {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("ok");
+    return;
+  }
+
+  // Only an actual "GET /" click should trigger a destructive re-pair.
+  // Without this, incidental requests a browser makes on its own (e.g.
+  // "/favicon.ico") would each kill and restart the pairing cycle too.
+  if (req.method !== "GET" || req.url !== "/") {
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.end("not found");
+    return;
+  }
+
+  getOrStartPairingCycle()
+    .then((url) => renderQrPage(url))
+    .then((html) => {
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(html);
+    })
+    .catch((err) => {
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(renderErrorPage(err && err.message ? err.message : String(err)));
+    });
+});
+
+server.listen(PORT, "127.0.0.1");
+EOF_SERVER
+
+echo "🚀 Starting the Happy pairing server on port $${ARG_PORT}..."
+
+nohup env \
+  HAPPY_BIN="$HAPPY_BIN" \
+  PORT="$${ARG_PORT}" \
+  WORKDIR="$WORKDIR" \
+  TMUX_SESSION="$${ARG_TMUX_SESSION}" \
+  PAIRING_LOG_PATH="$PAIRING_LOG_PATH" \
+  NODE_PATH="$INSTALL_PREFIX/node_modules" \
+  node "$SERVER_PATH" >> "$LOG_PATH" 2>&1 &
+disown
+
+echo "Happy pairing server started (pid $!). Logs: $LOG_PATH"
+echo "ℹ️ Open the Happy app to get a QR code / pairing link. Every open mints a fresh one and disconnects any previously paired device."
