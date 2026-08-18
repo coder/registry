@@ -52,14 +52,8 @@ variable "display_name" {
 
 variable "mcp" {
   type        = string
-  description = "JSON-encoded string to configure MCP servers for Devin Desktop. When set, writes ~/.codeium/windsurf/mcp_config.json, the path Devin Desktop inherited from Windsurf."
+  description = "JSON-encoded string to configure MCP servers for Devin Desktop. When set, writes ~/.config/devin/mcp_config.json."
   default     = ""
-}
-
-variable "protocol" {
-  type        = string
-  description = "The URI protocol used to open Devin Desktop. Defaults to the devin:// scheme."
-  default     = "devin"
 }
 
 data "coder_workspace" "me" {}
@@ -89,7 +83,7 @@ module "vscode-desktop-core" {
   open_recent = var.open_recent
   # devin:// is registered as an external app protocol in coder/coder
   # (ALLOWED_EXTERNAL_APP_PROTOCOLS, coder/coder#28214).
-  protocol = var.protocol
+  protocol = "devin"
 }
 
 resource "coder_script" "devin_desktop_mcp" {
@@ -102,9 +96,9 @@ resource "coder_script" "devin_desktop_mcp" {
   script             = <<-EOT
     #!/bin/sh
     set -eu
-    mkdir -p "$HOME/.codeium/windsurf"
-    echo -n "${local.mcp_b64}" | base64 -d > "$HOME/.codeium/windsurf/mcp_config.json"
-    chmod 600 "$HOME/.codeium/windsurf/mcp_config.json"
+    mkdir -p "$HOME/.config/devin"
+    echo -n "${local.mcp_b64}" | base64 -d > "$HOME/.config/devin/mcp_config.json"
+    chmod 600 "$HOME/.config/devin/mcp_config.json"
   EOT
 }
 

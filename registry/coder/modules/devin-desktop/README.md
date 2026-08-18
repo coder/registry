@@ -37,7 +37,7 @@ module "devin-desktop" {
 
 ### Configure MCP servers for Devin Desktop
 
-Provide a JSON-encoded string via the `mcp` input. When set, the module writes the value to `~/.codeium/windsurf/mcp_config.json` using a `coder_script` on workspace start.
+Provide a JSON-encoded string via the `mcp` input. When set, the module writes the value to `~/.config/devin/mcp_config.json` using a `coder_script` on workspace start.
 
 The following example configures Devin Desktop to use the GitHub MCP server with authentication facilitated by the [`coder_external_auth`](https://coder.com/docs/admin/external-auth#configure-a-github-oauth-app) resource.
 

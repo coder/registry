@@ -83,16 +83,6 @@ describe("devin-desktop", async () => {
     );
   });
 
-  it("allows overriding protocol", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "foo",
-      protocol: "windsurf",
-    });
-    expect(state.outputs.devin_desktop_url.value).toBe(
-      "windsurf://coder.coder-remote/open?owner=default&workspace=default&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
-    );
-  });
-
   it("allows overriding slug and display_name", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
@@ -109,7 +99,7 @@ describe("devin-desktop", async () => {
     expect(coder_app?.instances[0].attributes.display_name).toBe("Devin");
   });
 
-  it("writes ~/.codeium/windsurf/mcp_config.json when mcp provided", async () => {
+  it("writes ~/.config/devin/mcp_config.json when mcp provided", async () => {
     const id = await runContainer("alpine");
     try {
       const mcp = JSON.stringify({
@@ -132,7 +122,7 @@ describe("devin-desktop", async () => {
       expect(resp.exitCode).toBe(0);
       const content = await readFileContainer(
         id,
-        "/root/.codeium/windsurf/mcp_config.json",
+        "/root/.config/devin/mcp_config.json",
       );
       expect(content).toBe(mcp);
     } finally {
