@@ -59,8 +59,17 @@ data "coder_parameter" "region" {
   name         = "region"
   display_name = "Region"
   description  = "The region to deploy the workspace in."
-  default      = "eu-marseille-1"
-  mutable      = false
+  # us-ashburn-1 is one of OCI's two original commercial regions (alongside
+  # us-phoenix-1) and the most common home region for new sign-ups, so it's
+  # a safer default than a specialty region like eu-marseille-1. That said,
+  # no single default works for every tenancy: OCI only auto-subscribes you
+  # to your home region, and picking a region your tenancy isn't subscribed
+  # to causes `coder templates push` itself to fail with an auth-looking
+  # 401, since the OCI API rejects requests to unsubscribed regions
+  # outright. Set this to a region your tenancy actually has (Governance &
+  # Administration > Region Management in the OCI Console).
+  default = "us-ashburn-1"
+  mutable = false
   option {
     name  = "France South (Marseille)"
     value = "eu-marseille-1"
@@ -217,6 +226,12 @@ locals {
   vm_name           = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
   root_disk_label   = substr("${local.vm_name}-root", 0, 32)
   home_volume_label = substr("${local.vm_name}-home", 0, 32)
+  # ext4 filesystem labels are capped at 16 bytes and mkfs silently
+  # truncates anything longer. home_volume_label (above) is fine for the
+  # OCI volume's display name (32-char limit) but can't double as the
+  # filesystem label without the two going out of sync, so it gets its
+  # own, guaranteed-short value.
+  home_fs_label = substr("${local.vm_name}-home", 0, 16)
 }
 
 data "oci_core_images" "ubuntu_image" {
@@ -281,9 +296,10 @@ resource "oci_core_instance" "workspace" {
     user_data = base64encode(templatefile("cloud-init/cloud-config.yaml.tftpl", {
       hostname          = local.vm_name
       username          = lower(data.coder_workspace_owner.me.name)
-      home_volume_label = local.home_volume_label
+      home_fs_label     = local.home_fs_label
       init_script       = base64encode(coder_agent.main.init_script)
       coder_agent_token = coder_agent.main.token
+      ssh_public_key    = var.ssh_public_key
     }))
   }
 }

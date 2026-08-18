@@ -29,6 +29,9 @@ Before deploying, ensure your Oracle Cloud tenancy has:
 
 > The available regions and instance shapes listed in this template are examples only, not all shapes are available in every region, and availability depends on your OCI tenancy and subscription tier. Check the [OCI documentation](https://docs.oracle.com/en-us/iaas/Content/Compute/References/computeshapes.htm) to confirm which shapes are available in your target region before deploying.
 
+> [!IMPORTANT]
+> Your tenancy is only auto-subscribed to its **home region** — everything else requires an explicit region subscription (**Governance & Administration > Region Management** in the OCI Console). `us-ashburn-1` (the default here) is one of OCI's two original commercial regions and a common home region, but it isn't universal. If your tenancy's home region is different (for example `us-phoenix-1`), change the `region` parameter's default to match — otherwise both `coder templates push` and workspace builds fail with what looks like a credentials/authentication error, even though the credentials themselves are fine.
+
 ### OCI Authentication
 
 You’ll also need the following credentials:
@@ -52,6 +55,12 @@ You’ll also need the following credentials:
 | **Workspace stopped** | The compute instance is destroyed, but the home volume (`oci_core_volume`) persists     |
 | **Workspace deleted** | All resources are destroyed, including the home volume                                  |
 
+> Only `/home/<username>` (mounted from the persistent block volume) survives a stop. Everything else, including the root disk and anything installed outside `/home`, is recreated from the base Ubuntu image on every start.
+
+### Debugging
+
+If you set the `ssh_public_key` template variable, its matching private key can be used to `ssh <username>@<instance-public-ip>` directly, independent of the Coder agent — useful if the agent itself fails to come up.
+
 ---
 
 ## Example `.tfvars` File
@@ -60,8 +69,7 @@ You’ll also need the following credentials:
 tenancy_ocid     = "ocid1.tenancy.oc1..xxxx"
 user_ocid        = "ocid1.user.oc1..xxxx"
 fingerprint      = "aa:bb:cc:dd:ee:ff"
-subnet_id        = "ocid1.subnet.oc1.eu-marseille-1.aaaaaaaaxxx"
-region           = "eu-marseille-1"
+subnet_id        = "ocid1.subnet.oc1.iad.aaaaaaaaxxx"
 private_key = <<EOT
 -----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASC...
