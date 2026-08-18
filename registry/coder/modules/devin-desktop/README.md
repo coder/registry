@@ -16,7 +16,7 @@ Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder)
 module "devin-desktop" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/devin-desktop/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -29,7 +29,7 @@ module "devin-desktop" {
 module "devin-desktop" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/devin-desktop/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
@@ -45,7 +45,7 @@ The following example configures Devin Desktop to use the GitHub MCP server with
 module "devin-desktop" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/devin-desktop/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   mcp = jsonencode({
