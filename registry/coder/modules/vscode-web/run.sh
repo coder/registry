@@ -79,62 +79,64 @@ if [ -n "$SETTINGS_B64" ]; then
   fi
 fi
 
-# Check if vscode-server is already installed for offline or cached mode
+SKIP_INSTALL=false
 if [ -f "$VSCODE_WEB" ]; then
-  if [ "${OFFLINE}" = true ] || [ "${USE_CACHED}" = true ]; then
-    echo "🥳 Found a copy of VS Code Web"
+  echo "🥳 Found a copy of VS Code Web"
+  if [ "${OFFLINE}" = true ]; then
     run_vscode_web
     exit 0
+  elif [ "${USE_CACHED}" = true ]; then
+    SKIP_INSTALL=true
   fi
-fi
-# Offline mode always expects a copy of vscode-server to be present
-if [ "${OFFLINE}" = true ]; then
+elif [ "${OFFLINE}" = true ]; then
   echo "Failed to find a copy of VS Code Web"
   exit 1
 fi
 
-# Create install prefix
-mkdir -p ${INSTALL_PREFIX}
+if [ "$SKIP_INSTALL" != true ]; then
+  # Create install prefix
+  mkdir -p ${INSTALL_PREFIX}
 
-printf "$${BOLD}Installing Microsoft Visual Studio Code Server!\n"
+  printf "$${BOLD}Installing Microsoft Visual Studio Code Server!\n"
 
-# Download and extract vscode-server
-ARCH=$(uname -m)
-case "$ARCH" in
-  x86_64) ARCH="x64" ;;
-  aarch64) ARCH="arm64" ;;
-  *)
-    echo "Unsupported architecture"
+  # Download and extract vscode-server
+  ARCH=$(uname -m)
+  case "$ARCH" in
+    x86_64) ARCH="x64" ;;
+    aarch64) ARCH="arm64" ;;
+    *)
+      echo "Unsupported architecture"
+      exit 1
+      ;;
+  esac
+
+  # Detect the platform
+  if [ -n "${PLATFORM}" ]; then
+    DETECTED_PLATFORM="${PLATFORM}"
+  elif [ -f /etc/alpine-release ] || grep -qi 'ID=alpine' /etc/os-release 2> /dev/null || command -v apk > /dev/null 2>&1; then
+    DETECTED_PLATFORM="alpine"
+  elif [ "$(uname -s)" = "Darwin" ]; then
+    DETECTED_PLATFORM="darwin"
+  else
+    DETECTED_PLATFORM="linux"
+  fi
+
+  # Check if a specific VS Code Web commit ID was provided
+  if [ -n "${COMMIT_ID}" ]; then
+    HASH="${COMMIT_ID}"
+  else
+    HASH=$(curl -fsSL https://update.code.visualstudio.com/api/commits/stable/server-$DETECTED_PLATFORM-$ARCH-web | cut -d '"' -f 2)
+  fi
+  printf "$${BOLD}VS Code Web commit id version $HASH.\n"
+
+  output=$(curl -fsSL "https://vscode.download.prss.microsoft.com/dbazure/download/stable/$HASH/vscode-server-$DETECTED_PLATFORM-$ARCH-web.tar.gz" | tar -xz -C "${INSTALL_PREFIX}" --strip-components 1)
+
+  if [ $? -ne 0 ]; then
+    echo "Failed to install Microsoft Visual Studio Code Server: $output"
     exit 1
-    ;;
-esac
-
-# Detect the platform
-if [ -n "${PLATFORM}" ]; then
-  DETECTED_PLATFORM="${PLATFORM}"
-elif [ -f /etc/alpine-release ] || grep -qi 'ID=alpine' /etc/os-release 2> /dev/null || command -v apk > /dev/null 2>&1; then
-  DETECTED_PLATFORM="alpine"
-elif [ "$(uname -s)" = "Darwin" ]; then
-  DETECTED_PLATFORM="darwin"
-else
-  DETECTED_PLATFORM="linux"
+  fi
+  printf "$${BOLD}VS Code Web has been installed.\n"
 fi
-
-# Check if a specific VS Code Web commit ID was provided
-if [ -n "${COMMIT_ID}" ]; then
-  HASH="${COMMIT_ID}"
-else
-  HASH=$(curl -fsSL https://update.code.visualstudio.com/api/commits/stable/server-$DETECTED_PLATFORM-$ARCH-web | cut -d '"' -f 2)
-fi
-printf "$${BOLD}VS Code Web commit id version $HASH.\n"
-
-output=$(curl -fsSL "https://vscode.download.prss.microsoft.com/dbazure/download/stable/$HASH/vscode-server-$DETECTED_PLATFORM-$ARCH-web.tar.gz" | tar -xz -C "${INSTALL_PREFIX}" --strip-components 1)
-
-if [ $? -ne 0 ]; then
-  echo "Failed to install Microsoft Visual Studio Code Server: $output"
-  exit 1
-fi
-printf "$${BOLD}VS Code Web has been installed.\n"
 
 # Install each extension...
 IFS=',' read -r -a EXTENSIONLIST <<< "$${EXTENSIONS}"
