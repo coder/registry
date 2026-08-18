@@ -29,7 +29,7 @@ variable "log_path" {
 resource "coder_script" "personalize" {
   agent_id = var.agent_id
   script = templatefile("${path.module}/run.sh", {
-    PERSONALIZE_PATH : var.path,
+    PERSONALIZE_PATH : base64encode(var.path),
   })
   display_name       = "Personalize"
   icon               = "/icon/personalize.svg"

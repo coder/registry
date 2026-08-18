@@ -166,7 +166,7 @@ If a script sources external files (`$HOME/.bashrc`, `/etc/bashrc`, `/etc/os-rel
 
 ### `scripts/` directory + `file()` (complex modules)
 
-Separate `scripts/install.sh` and `scripts/start.sh` loaded via `file()` into `locals`, then passed to a child module or encoded inline. Used by `coder/claude-code`, `coder-labs/copilot`, `coder-labs/codex`, `coder-labs/cursor-cli`, `coder/amazon-q` for example.
+Separate `scripts/install.sh` and `scripts/start.sh` loaded via `file()` into `locals`, then passed to a child module or encoded inline. Used by `coder/claude-code`, `coder-labs/copilot`, `coder-labs/codex`, `coder-labs/cursor-cli` for example.
 
 ```tf
 locals {
@@ -175,7 +175,7 @@ locals {
 }
 ```
 
-Use `file()` when scripts don't need Terraform variable interpolation. For config templates, use a `templates/` directory with `templatefile()` (e.g. `coder/amazon-q/templates/agent-config.json.tpl`).
+Use `file()` when scripts don't need Terraform variable interpolation. For config templates, use a `templates/` directory with `templatefile()` (e.g. `templates/agent-config.json.tpl`).
 
 ### Inline heredoc (minimal modules)
 

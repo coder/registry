@@ -384,6 +384,7 @@ async function main() {
   if (args.limit) modules = modules.slice(0, args.limit);
 
   const prSections: string[] = [];
+  const failed: string[] = [];
   for (const mod of modules) {
     if (!existsSync(path.join(MODULES_DIR, mod, "README.md"))) {
       console.error(`skip ${mod}: no README.md`);
@@ -434,8 +435,16 @@ async function main() {
       );
       process.stderr.write(`${created ? "created" : "updated"} ${url}\n`);
     } catch (err) {
+      failed.push(mod);
       process.stderr.write(`FAILED: ${err}\n`);
     }
+  }
+
+  if (failed.length > 0) {
+    process.stderr.write(
+      `\n${failed.length} module(s) failed to score: ${failed.join(", ")}\n`,
+    );
+    process.exitCode = 1;
   }
 
   if (args.prReport) {

@@ -44,7 +44,7 @@ PUBLIC_KEY_RESPONSE=$(
   curl -L -s \
     -w "\n%%{http_code}" \
     -H 'accept: application/json' \
-    -H "cookie: coder_session_token=$CODER_OWNER_SESSION_TOKEN" \
+    -H "Coder-Session-Token: $CODER_OWNER_SESSION_TOKEN" \
     "$CODER_ACCESS_URL/api/v2/users/me/gitsshkey"
 )
 PUBLIC_KEY_RESPONSE_STATUS=$(tail -n1 <<< "$PUBLIC_KEY_RESPONSE")

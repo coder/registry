@@ -18,7 +18,7 @@ Enable DCV Server and Web Client on Windows workspaces.
 module "dcv" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/amazon-dcv-windows/coder"
-  version  = "1.1.1"
+  version  = "1.1.2"
   agent_id = coder_agent.main.id
 }
 
