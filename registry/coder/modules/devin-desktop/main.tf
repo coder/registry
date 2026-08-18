@@ -58,7 +58,7 @@ variable "mcp" {
 
 variable "protocol" {
   type        = string
-  description = "The URI protocol used to open Devin Desktop. Defaults to the devin:// scheme; override this if Cognition ships Devin Desktop under a different scheme before this default is updated."
+  description = "The URI protocol used to open Devin Desktop. Defaults to the devin:// scheme."
   default     = "devin"
 }
 
@@ -87,11 +87,8 @@ module "vscode-desktop-core" {
 
   folder      = var.folder
   open_recent = var.open_recent
-  # Placeholder: devin:// is not independently verified against a live
-  # Devin Desktop install. Requires registering "devin:" in coder/coder's
-  # ALLOWED_EXTERNAL_APP_PROTOCOLS (site/src/modules/apps/apps.ts) and a
-  # released Coder version with that change before this module is usable
-  # end to end; do not release/tag this module until that ships.
+  # devin:// is registered as an external app protocol in coder/coder
+  # (ALLOWED_EXTERNAL_APP_PROTOCOLS, coder/coder#28214).
   protocol = var.protocol
 }
 

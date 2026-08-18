@@ -3,22 +3,10 @@ display_name: Devin Desktop
 description: Add a one-click button to launch Devin Desktop (formerly Windsurf Editor)
 icon: ../../../../.icons/devin.svg
 verified: true
-tags: [ide, devin, windsurf, ai]
+tags: [ide, devin, ai]
 ---
 
 # Devin Desktop
-
-> [!NOTE]
-> Devin Desktop is Cognition's June 2, 2026 rebrand of the Windsurf Editor (itself a rebrand of Codeium's
-> original editor). It reuses Windsurf's `~/.codeium/windsurf/` MCP config path.
-
-> [!IMPORTANT]
-> This module defaults to opening Devin Desktop via a `devin://` deep link, a placeholder that has not
-> been independently verified against a live Devin Desktop install. Opening `devin://` links also requires
-> `"devin:"` to be registered in Coder's `ALLOWED_EXTERNAL_APP_PROTOCOLS`
-> ([coder/coder#28214](https://github.com/coder/coder/pull/28214)), so this module should not be tagged/released
-> until that ships in a released Coder version. Override the `protocol` input (e.g. back to `"windsurf"`) if
-> needed in the meantime.
 
 Add a button to open any workspace with a single click in Devin Desktop.
 
