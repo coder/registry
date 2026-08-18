@@ -88,7 +88,12 @@ variable "kiro_cli_auth_tarball" {
 
 ### Coder Tasks Integration
 
-To enable integration with [Coder Tasks](https://coder.com/docs/ai-coder/tasks), you need to define the `coder_task` data source, create the `coder_ai_task` resource, and configure the module with the task prompt.
+> [!WARNING]
+> Coder Tasks is deprecated as of Coder v2.36 and is not available on a default
+> v2.36 deployment, so this wiring only applies to earlier Coder versions.
+> [Coder Agents](https://coder.com/docs/ai-coder/agents) is the replacement.
+
+To enable integration with Coder Tasks, you need to define the `coder_task` data source, create the `coder_ai_task` resource, and configure the module with the task prompt.
 
 ```tf
 data "coder_task" "me" {}
