@@ -35,7 +35,6 @@ Features marked as "Premium" in this skill require a Coder Premium license. When
 - Dynamic parameters: <https://coder.com/docs/admin/templates/extending-templates/dynamic-parameters>
 - Workspace presets: <https://coder.com/docs/admin/templates/extending-templates/parameters#workspace-presets>
 - Prebuilt workspaces: <https://coder.com/docs/admin/templates/extending-templates/prebuilt-workspaces>
-- Tasks: <https://coder.com/docs/ai-coder/tasks>
 - Agent Boundaries: <https://coder.com/docs/ai-coder/agent-boundaries>
 - Coder Registry: <https://registry.coder.com>
 
@@ -53,7 +52,6 @@ Resources:
 | `coder_script`   | <https://registry.terraform.io/providers/coder/coder/latest/docs/resources/script>   |
 | `coder_env`      | <https://registry.terraform.io/providers/coder/coder/latest/docs/resources/env>      |
 | `coder_metadata` | <https://registry.terraform.io/providers/coder/coder/latest/docs/resources/metadata> |
-| `coder_ai_task`  | <https://registry.terraform.io/providers/coder/coder/latest/docs/resources/ai_task>  |
 
 Data sources:
 
@@ -64,7 +62,6 @@ Data sources:
 | `coder_workspace_owner`  | <https://registry.terraform.io/providers/coder/coder/latest/docs/data-sources/workspace_owner>  |
 | `coder_provisioner`      | <https://registry.terraform.io/providers/coder/coder/latest/docs/data-sources/provisioner>      |
 | `coder_workspace_preset` | <https://registry.terraform.io/providers/coder/coder/latest/docs/data-sources/workspace_preset> |
-| `coder_task`             | <https://registry.terraform.io/providers/coder/coder/latest/docs/data-sources/task>             |
 
 ### Terraform providers commonly used in templates
 
@@ -204,41 +201,6 @@ data "coder_workspace_preset" "goland" {
 - `scheduling`: scale the pool up or down on a time-based cron schedule. The `cron` minute field must always be `*`.
 - The preset must define all required parameters needed to build the workspace.
 - When a prebuild is claimed, ownership transfers to the real user. Use `lifecycle { ignore_changes = [...] }` on resources that reference owner-specific values to prevent unnecessary recreation.
-
-### Task-Oriented Templates
-
-A template becomes task-capable by adding a `coder_ai_task` resource, which enables the Coder Tasks UI for AI agent workflows. Task templates require three additions on top of a regular template:
-
-```tf
-resource "coder_ai_task" "task" {
-  count  = data.coder_workspace.me.start_count
-  app_id = module.claude-code[count.index].task_app_id
-}
-
-data "coder_task" "me" {}
-
-module "claude-code" {
-  count           = data.coder_workspace.me.start_count
-  source          = "registry.coder.com/coder/claude-code/coder"
-  version         = "~> 4.0"
-  agent_id        = coder_agent.main.id
-  workdir         = "/home/coder/projects"
-  ai_prompt       = data.coder_task.me.prompt
-  system_prompt   = data.coder_parameter.system_prompt.value
-  model           = "sonnet"
-  permission_mode = "plan"
-  enable_boundary = true
-}
-```
-
-- `coder_ai_task`: declares the template as task-capable. Its `app_id` must point to the agent module's `task_app_id` output.
-- `data "coder_task"`: reads the user's task prompt. Pass it to the agent module via `ai_prompt`.
-- Agent module: consume an AI agent module (`claude-code`, `codex`, etc.) with task-specific variables. Key variables include `ai_prompt`, `system_prompt`, `permission_mode`, and `enable_boundary`.
-- Boundaries: set `enable_boundary = true` on the agent module to enable network-level filtering for the AI agent. See <https://coder.com/docs/ai-coder/agent-boundaries> for allowlist configuration.
-- A `coder_app` with `slug = "preview"` gets special treatment in the Tasks UI navbar.
-- Task templates heavily use presets to define scenarios (different repos, system prompts, setup scripts, container images).
-
-Docs: <https://coder.com/docs/ai-coder/tasks>
 
 ## README.md
 
