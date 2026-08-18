@@ -1,0 +1,97 @@
+#cloud-config
+hostname: ${hostname}
+users:
+  - name: ${username}
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    groups: sudo
+    shell: /bin/bash
+packages:
+  - git
+  - curl
+  - wget
+  - unzip
+write_files:
+  - path: /opt/coder/init
+    permissions: "0755"
+    encoding: b64
+    content: ${init_script}
+  - path: /opt/coder/mount-home-volume.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+
+      label="${home_fs_label}"
+      mount_point="/home/${username}"
+      device="/dev/sdb"
+
+      mkdir -p "$mount_point"
+
+      # The block volume attaches to the instance asynchronously (a separate
+      # OCI API call after the instance itself is running), so it usually
+      # isn't present yet when cloud-init boots. Poll for it instead of
+      # assuming it's already there.
+      for i in $(seq 1 60); do
+        udevadm settle --timeout=2 || true
+        [ -b "$device" ] && break
+        sleep 2
+      done
+
+      if [ ! -b "$device" ]; then
+        echo "mount-home-volume: $device never showed up, giving up" >&2
+        exit 0
+      fi
+
+      # Only format on first boot. On every later stop/start cycle the
+      # volume already has our filesystem + label, and re-running mkfs
+      # would destroy whatever the user saved in their home directory.
+      if ! blkid "$device" >/dev/null 2>&1; then
+        mkfs.ext4 -L "$label" "$device"
+      fi
+
+      if ! grep -q "LABEL=$label" /etc/fstab; then
+        echo "LABEL=$label $mount_point ext4 defaults,nofail 0 2" >> /etc/fstab
+      fi
+
+      mount "$mount_point"
+      chown "${username}:${username}" "$mount_point"
+
+      # cloud-init's own ssh_authorized_keys handling runs before this
+      # script and writes to the root disk, but mounting the home volume
+      # here immediately shadows that. Provision the debug key directly on
+      # the mounted volume instead, so it actually survives.
+      ssh_public_key="${ssh_public_key}"
+      if [ -n "$ssh_public_key" ]; then
+        mkdir -p "$mount_point/.ssh"
+        chmod 700 "$mount_point/.ssh"
+        touch "$mount_point/.ssh/authorized_keys"
+        grep -qxF "$ssh_public_key" "$mount_point/.ssh/authorized_keys" || echo "$ssh_public_key" >> "$mount_point/.ssh/authorized_keys"
+        chmod 600 "$mount_point/.ssh/authorized_keys"
+        chown -R "${username}:${username}" "$mount_point/.ssh"
+      fi
+  - path: /etc/systemd/system/coder-agent.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Coder Agent
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      User=${username}
+      ExecStart=/opt/coder/init
+      Environment=CODER_AGENT_TOKEN=${coder_agent_token}
+      Restart=always
+      RestartSec=10
+      TimeoutStopSec=90
+      KillMode=process
+
+      OOMScoreAdjust=-1000
+      SyslogIdentifier=coder-agent
+
+      [Install]
+      WantedBy=multi-user.target
+runcmd:
+  - /opt/coder/mount-home-volume.sh
+  - systemctl enable coder-agent
+  - systemctl start coder-agent
