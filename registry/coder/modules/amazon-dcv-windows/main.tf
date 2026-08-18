@@ -54,7 +54,7 @@ resource "coder_app" "web-dcv" {
   agent_id     = var.agent_id
   slug         = var.slug
   display_name = "Web DCV"
-  url          = "https://localhost:${var.port}${local.web_url_path}?username=${local.admin_username}&password=${var.admin_password}"
+  url          = "https://localhost:${var.port}${local.web_url_path}?username=${urlencode(local.admin_username)}&password=${urlencode(var.admin_password)}"
   icon         = "/icon/dcv.svg"
   subdomain    = var.subdomain
   order        = var.order
@@ -67,7 +67,7 @@ resource "coder_script" "install-dcv" {
   icon         = "/icon/dcv.svg"
   run_on_start = true
   script = templatefile("${path.module}/install-dcv.ps1", {
-    admin_password : var.admin_password,
+    admin_password : local.ps_admin_password,
     port : var.port,
     web_url_path : local.web_url_path
   })
@@ -77,8 +77,9 @@ data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
 locals {
-  web_url_path   = var.subdomain ? "/" : format("/@%s/%s/apps/%s", data.coder_workspace_owner.me.name, data.coder_workspace.me.name, var.slug)
-  admin_username = "Administrator"
+  web_url_path      = var.subdomain ? "/" : format("/@%s/%s/apps/%s", data.coder_workspace_owner.me.name, data.coder_workspace.me.name, var.slug)
+  admin_username    = "Administrator"
+  ps_admin_password = replace(var.admin_password, "'", "''")
 }
 
 output "web_url_path" {
