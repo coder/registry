@@ -1,0 +1,264 @@
+#!/bin/bash
+set -euo pipefail
+
+# === Module directory setup (per AGENTS.md data layout) ===
+MODULE_DIR="$${HOME}/.coder-modules/coder/supabase"
+LOG_DIR="$${MODULE_DIR}/logs"
+BIN_DIR="$${MODULE_DIR}/bin"
+mkdir -p "$${LOG_DIR}" "$${BIN_DIR}"
+
+exec > >(tee -a "$${LOG_DIR}/install.log") 2>&1
+
+INSTALL_METHOD='${ARG_INSTALL_METHOD}'
+VERSION='${ARG_VERSION}'
+
+echo "Installing Supabase CLI (method: $${INSTALL_METHOD}, version: $${VERSION})..."
+
+# === Platform Detection (pattern from vault-cli/agentapi) ===
+detect_platform() {
+  ARCH=$(uname -m)
+  case "$${ARCH}" in
+    x86_64 | amd64) ARCH="amd64" ;;
+    aarch64 | arm64) ARCH="arm64" ;;
+    *)
+      echo "Error: Unsupported architecture: $${ARCH}"
+      exit 1
+      ;;
+  esac
+
+  OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+  case "$${OS}" in
+    linux | darwin) ;;
+    mingw* | msys* | cygwin*)
+      OS="windows"
+      ;;
+    *)
+      echo "Error: Unsupported OS: $${OS}. Only linux, darwin, and windows are supported."
+      exit 1
+      ;;
+  esac
+
+  echo "Detected platform: $${OS}/$${ARCH}"
+}
+
+# === Download with fallbacks (pattern from vault-cli) ===
+fetch_to_file() {
+  local dest="$1" url="$2"
+  if command -v curl > /dev/null 2>&1; then
+    curl -fsSL --retry 5 --retry-delay 5 -o "$${dest}" "$${url}"
+  elif command -v wget > /dev/null 2>&1; then
+    wget -q -O "$${dest}" "$${url}"
+  elif command -v busybox > /dev/null 2>&1; then
+    busybox wget -q -O "$${dest}" "$${url}"
+  else
+    echo "Error: curl, wget, or busybox is required"
+    return 1
+  fi
+}
+
+# === Version resolution (pattern from agentapi) ===
+resolve_version() {
+  local version="$${VERSION}"
+  if [ "$${version}" = "latest" ]; then
+    # GitHub API to get latest release tag
+    local api_response
+    if command -v curl > /dev/null 2>&1; then
+      api_response=$(curl -fsSL "https://api.github.com/repos/supabase/cli/releases/latest")
+    elif command -v wget > /dev/null 2>&1; then
+      api_response=$(wget -qO- "https://api.github.com/repos/supabase/cli/releases/latest")
+    else
+      echo "Error: curl or wget required for version resolution"
+      exit 1
+    fi
+    version=$(echo "$${api_response}" | grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/')
+    echo "Resolved latest version: $${version}" >&2
+  fi
+  echo "$${version}"
+}
+
+# === PATH setup via CODER_SCRIPT_BIN_DIR (pattern from mux/code-server) ===
+setup_path() {
+  local bin_path="$1"
+
+  # Primary: Use Coder's native bin directory (preferred)
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ]; then
+    ln -sf "$${bin_path}" "$${CODER_SCRIPT_BIN_DIR}/supabase"
+    echo "Linked supabase to CODER_SCRIPT_BIN_DIR"
+  fi
+
+  # Fallback: Add to shell profiles (pattern from claude-code)
+  local bin_dir
+  bin_dir=$(dirname "$${bin_path}")
+  for profile in "$${HOME}/.profile" "$${HOME}/.bash_profile" "$${HOME}/.bashrc" "$${HOME}/.zprofile" "$${HOME}/.zshrc"; do
+    if [ -f "$${profile}" ]; then
+      if ! grep -q "$${bin_dir}" "$${profile}" 2>/dev/null; then
+        echo "export PATH=\"\$PATH:$${bin_dir}\"" >> "$${profile}"
+        echo "Added $${bin_dir} to $${profile}"
+      fi
+    fi
+  done
+
+  # Fish shell support
+  local fish_config="$${HOME}/.config/fish/config.fish"
+  if [ -f "$${fish_config}" ]; then
+    if ! grep -q "$${bin_dir}" "$${fish_config}" 2>/dev/null; then
+      echo "fish_add_path $${bin_dir}" >> "$${fish_config}"
+      echo "Added $${bin_dir} to $${fish_config}"
+    fi
+  fi
+}
+
+# === Installation Methods ===
+
+install_binary() {
+  detect_platform
+  local version
+  version=$(resolve_version)
+
+  # Supabase CLI release naming: supabase_linux_amd64.tar.gz
+  local download_url="https://github.com/supabase/cli/releases/download/v$${version}/supabase_$${OS}_$${ARCH}.tar.gz"
+
+  local tmp_dir
+  tmp_dir=$(mktemp -d)
+  trap "rm -rf $${tmp_dir}" EXIT
+
+  echo "Downloading Supabase CLI v$${version} from $${download_url}..."
+  fetch_to_file "$${tmp_dir}/supabase.tar.gz" "$${download_url}"
+
+  tar -xzf "$${tmp_dir}/supabase.tar.gz" -C "$${tmp_dir}"
+  mv "$${tmp_dir}/supabase" "$${BIN_DIR}/supabase"
+  chmod +x "$${BIN_DIR}/supabase"
+
+  setup_path "$${BIN_DIR}/supabase"
+}
+
+install_native_package() {
+  detect_platform
+  local version
+  version=$(resolve_version)
+
+  local tmp_dir
+  tmp_dir=$(mktemp -d)
+  trap "rm -rf $${tmp_dir}" EXIT
+
+  # Detect package manager and install appropriate package
+  if command -v dpkg > /dev/null 2>&1; then
+    # Debian/Ubuntu
+    local pkg_url="https://github.com/supabase/cli/releases/download/v$${version}/supabase_$${version}_$${OS}_$${ARCH}.deb"
+    echo "Installing via dpkg..."
+    fetch_to_file "$${tmp_dir}/supabase.deb" "$${pkg_url}"
+    if command -v sudo > /dev/null 2>&1; then
+      sudo dpkg -i "$${tmp_dir}/supabase.deb" || {
+        echo "Warning: dpkg install failed, trying binary fallback"
+        install_binary
+        return
+      }
+    else
+      dpkg -i "$${tmp_dir}/supabase.deb" 2>/dev/null || {
+        echo "Warning: dpkg install failed (no sudo), trying binary fallback"
+        install_binary
+        return
+      }
+    fi
+  elif command -v rpm > /dev/null 2>&1; then
+    # Fedora/RHEL
+    local pkg_url="https://github.com/supabase/cli/releases/download/v$${version}/supabase_$${version}_$${OS}_$${ARCH}.rpm"
+    echo "Installing via rpm..."
+    fetch_to_file "$${tmp_dir}/supabase.rpm" "$${pkg_url}"
+    if command -v sudo > /dev/null 2>&1; then
+      sudo rpm -i "$${tmp_dir}/supabase.rpm" || {
+        echo "Warning: rpm install failed, trying binary fallback"
+        install_binary
+        return
+      }
+    else
+      rpm -i "$${tmp_dir}/supabase.rpm" 2>/dev/null || {
+        echo "Warning: rpm install failed (no sudo), trying binary fallback"
+        install_binary
+        return
+      }
+    fi
+  elif command -v apk > /dev/null 2>&1; then
+    # Alpine
+    local pkg_url="https://github.com/supabase/cli/releases/download/v$${version}/supabase_$${version}_$${OS}_$${ARCH}.apk"
+    echo "Installing via apk..."
+    fetch_to_file "$${tmp_dir}/supabase.apk" "$${pkg_url}"
+    if command -v sudo > /dev/null 2>&1; then
+      sudo apk add --allow-untrusted "$${tmp_dir}/supabase.apk" || {
+        echo "Warning: apk install failed, trying binary fallback"
+        install_binary
+        return
+      }
+    else
+      apk add --allow-untrusted "$${tmp_dir}/supabase.apk" 2>/dev/null || {
+        echo "Warning: apk install failed (no sudo), trying binary fallback"
+        install_binary
+        return
+      }
+    fi
+  else
+    echo "No supported package manager found, falling back to binary install"
+    install_binary
+  fi
+}
+
+install_brew() {
+  if ! command -v brew > /dev/null 2>&1; then
+    echo "Error: Homebrew is required for install_method=brew"
+    exit 1
+  fi
+  echo "Installing via Homebrew..."
+  brew install supabase/tap/supabase || brew upgrade supabase/tap/supabase || true
+}
+
+install_scoop() {
+  # Windows via Scoop
+  if ! command -v scoop > /dev/null 2>&1; then
+    echo "Error: Scoop is required for install_method=scoop"
+    exit 1
+  fi
+  echo "Installing via Scoop..."
+  scoop bucket add supabase https://github.com/supabase/scoop-bucket.git 2>/dev/null || true
+  scoop install supabase || scoop update supabase || true
+}
+
+# === Auto-detection (priority: brew → scoop → native pkg → binary) ===
+if [ "$${INSTALL_METHOD}" = "auto" ]; then
+  if command -v brew > /dev/null 2>&1; then
+    INSTALL_METHOD="brew"
+  elif command -v scoop > /dev/null 2>&1; then
+    INSTALL_METHOD="scoop"
+  elif command -v dpkg > /dev/null 2>&1 || command -v rpm > /dev/null 2>&1 || command -v apk > /dev/null 2>&1; then
+    INSTALL_METHOD="native"
+  else
+    INSTALL_METHOD="binary"
+  fi
+  echo "Auto-detected install method: $${INSTALL_METHOD}"
+fi
+
+# === Execute Installation ===
+case "$${INSTALL_METHOD}" in
+  brew)   install_brew ;;
+  scoop)  install_scoop ;;
+  native) install_native_package ;;
+  binary) install_binary ;;
+  *)
+    echo "Error: Unknown install method: $${INSTALL_METHOD}" >&2
+    exit 1
+    ;;
+esac
+
+# === Verify Installation ===
+SUPABASE_BIN=""
+if command -v supabase > /dev/null 2>&1; then
+  SUPABASE_BIN="supabase"
+elif [ -x "$${BIN_DIR}/supabase" ]; then
+  SUPABASE_BIN="$${BIN_DIR}/supabase"
+fi
+
+if [ -n "$${SUPABASE_BIN}" ]; then
+  echo "✓ Supabase CLI installed: $($${SUPABASE_BIN} --version)"
+else
+  echo "✗ Supabase CLI installation failed" >&2
+  exit 1
+fi
