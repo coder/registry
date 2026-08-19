@@ -24,13 +24,13 @@ afterEach(async () => {
     try {
       await removeContainer(id);
     } catch {
-      // Ignore cleanup errors
+      // ignore cleanup errors
     }
   }
   cleanupContainers = [];
 });
 
-describe("supabase", async () => {
+describe("supabase", () => {
   beforeAll(async () => {
     await runTerraformInit(import.meta.dir);
   });
@@ -39,14 +39,26 @@ describe("supabase", async () => {
     agent_id: "test-agent",
   });
 
+  it("missing variable: agent_id", async () => {
+    await expect(runTerraformApply(import.meta.dir, {})).rejects.toThrow(
+      /agent_id/,
+    );
+  });
+
   it("defaults to detect install method", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "test-agent",
     });
-
-    // Verify the install script contains the expected ARG_INSTALL_METHOD
-    const installScript = state.outputs.scripts.value;
-    expect(installScript).toBeDefined();
+    const script = state.resources.find(
+      (r) => r.type === "coder_script" && r.name === "install_script",
+    );
+    expect(script).toBeDefined();
+    // coder-utils wraps our script in base64, decode to check
+    const wrapperScript = script!.instances[0].attributes.script as string;
+    const b64Match = wrapperScript.match(/echo -n '([A-Za-z0-9+/=]+)'/);
+    expect(b64Match).toBeTruthy();
+    const decodedScript = Buffer.from(b64Match![1], "base64").toString("utf-8");
+    expect(decodedScript).toContain("INSTALL_METHOD='detect'");
   });
 
   it("accepts binary install method", async () => {
@@ -54,8 +66,13 @@ describe("supabase", async () => {
       agent_id: "test-agent",
       install_method: "binary",
     });
-
-    expect(state.outputs.scripts.value).toBeDefined();
+    const script = state.resources.find(
+      (r) => r.type === "coder_script" && r.name === "install_script",
+    );
+    const wrapperScript = script!.instances[0].attributes.script as string;
+    const b64Match = wrapperScript.match(/echo -n '([A-Za-z0-9+/=]+)'/);
+    const decodedScript = Buffer.from(b64Match![1], "base64").toString("utf-8");
+    expect(decodedScript).toContain("INSTALL_METHOD='binary'");
   });
 
   it("accepts brew install method", async () => {
@@ -63,8 +80,13 @@ describe("supabase", async () => {
       agent_id: "test-agent",
       install_method: "brew",
     });
-
-    expect(state.outputs.scripts.value).toBeDefined();
+    const script = state.resources.find(
+      (r) => r.type === "coder_script" && r.name === "install_script",
+    );
+    const wrapperScript = script!.instances[0].attributes.script as string;
+    const b64Match = wrapperScript.match(/echo -n '([A-Za-z0-9+/=]+)'/);
+    const decodedScript = Buffer.from(b64Match![1], "base64").toString("utf-8");
+    expect(decodedScript).toContain("INSTALL_METHOD='brew'");
   });
 
   it("accepts scoop install method", async () => {
@@ -72,8 +94,13 @@ describe("supabase", async () => {
       agent_id: "test-agent",
       install_method: "scoop",
     });
-
-    expect(state.outputs.scripts.value).toBeDefined();
+    const script = state.resources.find(
+      (r) => r.type === "coder_script" && r.name === "install_script",
+    );
+    const wrapperScript = script!.instances[0].attributes.script as string;
+    const b64Match = wrapperScript.match(/echo -n '([A-Za-z0-9+/=]+)'/);
+    const decodedScript = Buffer.from(b64Match![1], "base64").toString("utf-8");
+    expect(decodedScript).toContain("INSTALL_METHOD='scoop'");
   });
 
   it("rejects invalid install method", async () => {
@@ -91,157 +118,142 @@ describe("supabase", async () => {
       use_external_auth: "false",
       access_token: "sbp_test_token_abc123",
     });
-
     expect(state.outputs.access_token.value).toBe("sbp_test_token_abc123");
   });
 
   it("installs via binary on ubuntu", async () => {
-    const { id } = await runContainer("ubuntu:22.04");
+    const id = await runContainer("ubuntu:22.04");
     cleanupContainers.push(id);
 
-    // Install curl (required for binary download)
     await execContainer(id, ["apt-get", "update"]);
     await execContainer(id, ["apt-get", "install", "-y", "curl", "tar"]);
 
-    // Run the install script with binary method
-    const installScript = `
-      set -e
-      export HOME=/root
-      export CODER_SCRIPT_BIN_DIR=/tmp/coder-bin
-      mkdir -p $CODER_SCRIPT_BIN_DIR
-      
-      MODULE_DIR="$HOME/.coder-modules/coder/supabase"
-      LOG_DIR="$MODULE_DIR/logs"
-      BIN_DIR="$MODULE_DIR/bin"
-      mkdir -p "$LOG_DIR" "$BIN_DIR"
-      
-      INSTALL_METHOD="binary"
-      VERSION="latest"
-      
-      # Platform detection
-      ARCH=$(uname -m)
-      case "$ARCH" in
-        x86_64 | amd64) ARCH="amd64" ;;
-        aarch64 | arm64) ARCH="arm64" ;;
-      esac
-      OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-      
-      # Resolve version
-      API_RESPONSE=$(curl -fsSL "https://api.github.com/repos/supabase/cli/releases/latest")
-      VERSION=$(echo "$API_RESPONSE" | grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\\1/')
-      
-      # Download and install
-      DOWNLOAD_URL="https://github.com/supabase/cli/releases/download/v$VERSION/supabase_\${OS}_\${ARCH}.tar.gz"
-      curl -fsSL -o /tmp/supabase.tar.gz "$DOWNLOAD_URL"
-      tar -xzf /tmp/supabase.tar.gz -C /tmp
-      mv /tmp/supabase "$BIN_DIR/supabase"
-      chmod +x "$BIN_DIR/supabase"
-      
-      # Verify
-      "$BIN_DIR/supabase" --version
-    `;
+    // Build script as array to avoid template literal escaping issues
+    const script = [
+      "#!/bin/bash",
+      "set -ex",
+      "export HOME=/root",
+      "BIN_DIR=$HOME/.coder-modules/coder/supabase/bin",
+      "mkdir -p $BIN_DIR",
+      "ARCH=$(uname -m)",
+      "case $ARCH in x86_64|amd64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;; esac",
+      "OS=$(uname -s | tr A-Z a-z)",
+      "API_RESPONSE=$(curl -fsSL https://api.github.com/repos/supabase/cli/releases/latest)",
+      'VERSION=$(echo "$API_RESPONSE" | grep -o \'"tag_name": *"[^"]*\' | head -1 | sed \'s/.*"v//\' | sed \'s/".*//\')',
+      "DOWNLOAD_URL=https://github.com/supabase/cli/releases/download/v$VERSION/supabase_${OS}_${ARCH}.tar.gz",
+      "curl -fsSL -o /tmp/supabase.tar.gz $DOWNLOAD_URL",
+      "tar -xzf /tmp/supabase.tar.gz -C /tmp",
+      "mv /tmp/supabase $BIN_DIR/supabase",
+      "chmod +x $BIN_DIR/supabase",
+      "$BIN_DIR/supabase --version",
+    ].join("\n");
 
-    const result = await execContainer(id, ["bash", "-c", installScript]);
+    await execContainer(id, [
+      "sh",
+      "-c",
+      "cat > /tmp/install.sh << 'SCRIPT'\n" + script + "\nSCRIPT",
+    ]);
+    await execContainer(id, ["chmod", "+x", "/tmp/install.sh"]);
+    const result = await execContainer(id, ["/tmp/install.sh"]);
+
+    if (result.exitCode !== 0) {
+      console.error("STDOUT:", result.stdout);
+      console.error("STDERR:", result.stderr);
+    }
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("Supabase CLI");
+    expect(result.stdout).toMatch(/\d+\.\d+\.\d+/); // version number like 2.115.0
   });
 
-  it("installs via binary on alpine", async () => {
-    const { id } = await runContainer("alpine:latest");
+  // Note: Binary install on Alpine (musl libc) doesn't work because Supabase CLI
+  // is compiled for glibc. In production, the module would fall back to apk package.
+  // This test verifies binary install on a glibc-based distro (Debian).
+  it("installs via binary on debian", async () => {
+    const id = await runContainer("debian:bookworm-slim");
     cleanupContainers.push(id);
 
-    // Install required tools
+    await execContainer(id, ["apt-get", "update"]);
     await execContainer(id, [
-      "apk",
-      "add",
-      "--no-cache",
+      "apt-get",
+      "install",
+      "-y",
       "curl",
-      "tar",
-      "bash",
+      "ca-certificates",
     ]);
 
-    // Run the install script with binary method
-    const installScript = `
-      set -e
-      export HOME=/root
-      export CODER_SCRIPT_BIN_DIR=/tmp/coder-bin
-      mkdir -p $CODER_SCRIPT_BIN_DIR
-      
-      MODULE_DIR="$HOME/.coder-modules/coder/supabase"
-      BIN_DIR="$MODULE_DIR/bin"
-      mkdir -p "$BIN_DIR"
-      
-      # Platform detection
-      ARCH=$(uname -m)
-      case "$ARCH" in
-        x86_64 | amd64) ARCH="amd64" ;;
-        aarch64 | arm64) ARCH="arm64" ;;
-      esac
-      OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-      
-      # Resolve version
-      API_RESPONSE=$(curl -fsSL "https://api.github.com/repos/supabase/cli/releases/latest")
-      VERSION=$(echo "$API_RESPONSE" | grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\\1/')
-      
-      # Download and install
-      DOWNLOAD_URL="https://github.com/supabase/cli/releases/download/v$VERSION/supabase_\${OS}_\${ARCH}.tar.gz"
-      curl -fsSL -o /tmp/supabase.tar.gz "$DOWNLOAD_URL"
-      tar -xzf /tmp/supabase.tar.gz -C /tmp
-      mv /tmp/supabase "$BIN_DIR/supabase"
-      chmod +x "$BIN_DIR/supabase"
-      
-      # Verify
-      "$BIN_DIR/supabase" --version
-    `;
+    const script = [
+      "#!/bin/bash",
+      "set -ex",
+      "export HOME=/root",
+      "BIN_DIR=$HOME/.coder-modules/coder/supabase/bin",
+      "mkdir -p $BIN_DIR",
+      "ARCH=$(uname -m)",
+      "case $ARCH in x86_64|amd64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;; esac",
+      "OS=$(uname -s | tr A-Z a-z)",
+      "API_RESPONSE=$(curl -fsSL https://api.github.com/repos/supabase/cli/releases/latest)",
+      'VERSION=$(echo "$API_RESPONSE" | grep -o \'"tag_name": *"[^"]*\' | head -1 | sed \'s/.*"v//\' | sed \'s/".*//\')',
+      "DOWNLOAD_URL=https://github.com/supabase/cli/releases/download/v$VERSION/supabase_${OS}_${ARCH}.tar.gz",
+      "curl -fsSL -o /tmp/supabase.tar.gz $DOWNLOAD_URL",
+      "tar -xzf /tmp/supabase.tar.gz -C /tmp",
+      "mv /tmp/supabase $BIN_DIR/supabase",
+      "chmod +x $BIN_DIR/supabase",
+      "$BIN_DIR/supabase --version",
+    ].join("\n");
 
-    const result = await execContainer(id, ["bash", "-c", installScript]);
+    await execContainer(id, [
+      "sh",
+      "-c",
+      "cat > /tmp/install.sh << 'SCRIPT'\n" + script + "\nSCRIPT",
+    ]);
+    await execContainer(id, ["chmod", "+x", "/tmp/install.sh"]);
+    const result = await execContainer(id, ["/tmp/install.sh"]);
+
+    if (result.exitCode !== 0) {
+      console.error("Debian STDOUT:", result.stdout);
+      console.error("Debian STDERR:", result.stderr);
+    }
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("Supabase CLI");
+    expect(result.stdout).toMatch(/\d+\.\d+\.\d+/); // version number like 2.115.0
   });
 
   it("creates CODER_SCRIPT_BIN_DIR symlink", async () => {
-    const { id } = await runContainer("ubuntu:22.04");
+    const id = await runContainer("ubuntu:22.04");
     cleanupContainers.push(id);
 
     await execContainer(id, ["apt-get", "update"]);
     await execContainer(id, ["apt-get", "install", "-y", "curl", "tar"]);
 
-    const installScript = `
-      set -e
-      export HOME=/root
-      export CODER_SCRIPT_BIN_DIR=/tmp/coder-bin
-      mkdir -p $CODER_SCRIPT_BIN_DIR
-      
-      MODULE_DIR="$HOME/.coder-modules/coder/supabase"
-      BIN_DIR="$MODULE_DIR/bin"
-      mkdir -p "$BIN_DIR"
-      
-      ARCH=$(uname -m)
-      case "$ARCH" in
-        x86_64 | amd64) ARCH="amd64" ;;
-        aarch64 | arm64) ARCH="arm64" ;;
-      esac
-      OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-      
-      API_RESPONSE=$(curl -fsSL "https://api.github.com/repos/supabase/cli/releases/latest")
-      VERSION=$(echo "$API_RESPONSE" | grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\\1/')
-      
-      DOWNLOAD_URL="https://github.com/supabase/cli/releases/download/v$VERSION/supabase_\${OS}_\${ARCH}.tar.gz"
-      curl -fsSL -o /tmp/supabase.tar.gz "$DOWNLOAD_URL"
-      tar -xzf /tmp/supabase.tar.gz -C /tmp
-      mv /tmp/supabase "$BIN_DIR/supabase"
-      chmod +x "$BIN_DIR/supabase"
-      
-      # Create symlink in CODER_SCRIPT_BIN_DIR
-      ln -sf "$BIN_DIR/supabase" "$CODER_SCRIPT_BIN_DIR/supabase"
-      
-      # Verify symlink works
-      ls -la "$CODER_SCRIPT_BIN_DIR/supabase"
-      "$CODER_SCRIPT_BIN_DIR/supabase" --version
-    `;
+    const script = [
+      "#!/bin/bash",
+      "set -ex",
+      "export HOME=/root",
+      "export CODER_SCRIPT_BIN_DIR=/tmp/coder-bin",
+      "mkdir -p $CODER_SCRIPT_BIN_DIR",
+      "BIN_DIR=$HOME/.coder-modules/coder/supabase/bin",
+      "mkdir -p $BIN_DIR",
+      "ARCH=$(uname -m)",
+      "case $ARCH in x86_64|amd64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;; esac",
+      "OS=$(uname -s | tr A-Z a-z)",
+      "API_RESPONSE=$(curl -fsSL https://api.github.com/repos/supabase/cli/releases/latest)",
+      'VERSION=$(echo "$API_RESPONSE" | grep -o \'"tag_name": *"[^"]*\' | head -1 | sed \'s/.*"v//\' | sed \'s/".*//\')',
+      "DOWNLOAD_URL=https://github.com/supabase/cli/releases/download/v$VERSION/supabase_${OS}_${ARCH}.tar.gz",
+      "curl -fsSL -o /tmp/supabase.tar.gz $DOWNLOAD_URL",
+      "tar -xzf /tmp/supabase.tar.gz -C /tmp",
+      "mv /tmp/supabase $BIN_DIR/supabase",
+      "chmod +x $BIN_DIR/supabase",
+      "ln -sf $BIN_DIR/supabase $CODER_SCRIPT_BIN_DIR/supabase",
+      "ls -la $CODER_SCRIPT_BIN_DIR/supabase",
+      "$CODER_SCRIPT_BIN_DIR/supabase --version",
+    ].join("\n");
 
-    const result = await execContainer(id, ["bash", "-c", installScript]);
+    await execContainer(id, [
+      "sh",
+      "-c",
+      "cat > /tmp/install.sh << 'SCRIPT'\n" + script + "\nSCRIPT",
+    ]);
+    await execContainer(id, ["chmod", "+x", "/tmp/install.sh"]);
+    const result = await execContainer(id, ["/tmp/install.sh"]);
+
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("Supabase CLI");
+    expect(result.stdout).toMatch(/\d+\.\d+\.\d+/); // version number like 2.115.0
   });
 });

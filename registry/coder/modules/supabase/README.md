@@ -10,6 +10,14 @@ tags: [supabase, database, cli, helper]
 
 Installs the [Supabase CLI](https://supabase.com/docs/guides/cli) and configures authentication. The CLI is available immediately in your workspace without manual login flows.
 
+```tf
+module "supabase" {
+  source   = "registry.coder.com/coder/supabase/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
+}
+```
+
 ## Authentication
 
 Choose **one** of the following authentication methods:
