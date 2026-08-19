@@ -12,6 +12,37 @@ This module adds the [Supabase CLI](https://supabase.com/docs/guides/cli) to you
 
 It integrates with Coder's external auth for OAuth-based login, or accepts a personal access token for simpler setups. When a `project_ref` is provided, the module also links the workspace to your Supabase project and adds a dashboard shortcut to the Coder workspace UI.
 
+### Where Coder Fits
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Developer Workflow                           │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   Local Machine              Coder Workspace         Supabase       │
+│   ─────────────              ───────────────         ────────       │
+│                                                                     │
+│   ┌───────────┐             ┌──────────────┐      ┌─────────────┐  │
+│   │  Browser  │────SSH/────▶│  This Module │─────▶│  Projects   │  │
+│   │  or IDE   │    Web      │  ┌─────────┐ │ API  │  Database   │  │
+│   └───────────┘             │  │Supabase │ │      │  Edge Funcs │  │
+│                             │  │  CLI    │ │      │  Storage    │  │
+│                             │  └─────────┘ │      └─────────────┘  │
+│                             │              │                       │
+│                             │  Pre-authed  │      ┌─────────────┐  │
+│                             │  via OAuth   │◀─────│  Dashboard  │  │
+│                             │  or Token    │ Link └─────────────┘  │
+│                             └──────────────┘                       │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+The module bridges Coder workspaces and Supabase by:
+
+1. **Installing the CLI** — Detects the best method for your workspace OS
+2. **Injecting credentials** — Sets `SUPABASE_ACCESS_TOKEN` so the CLI authenticates automatically
+3. **Adding dashboard access** — Creates a workspace button linking to your Supabase project
+
 ```tf
 module "supabase" {
   source   = "registry.coder.com/coder/supabase/coder"
@@ -53,14 +84,21 @@ Create your OAuth app in the [Supabase Dashboard](https://supabase.com/dashboard
 ### With Personal Access Token
 
 ```tf
+variable "supabase_token" {
+  type      = string
+  sensitive = true
+}
+
 module "supabase" {
   source            = "registry.coder.com/coder/supabase/coder"
   version           = "1.0.0"
   agent_id          = coder_agent.example.id
   use_external_auth = false
-  access_token      = var.supabase_token # From Terraform variable or secret
+  access_token      = var.supabase_token
 }
 ```
+
+> **Note:** Never hardcode tokens in your template. Use a Terraform variable (as shown above) or inject via environment variable (`TF_VAR_supabase_token`).
 
 ### With External Auth (OAuth)
 
