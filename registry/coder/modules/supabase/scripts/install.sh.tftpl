@@ -1,7 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# === Module directory setup (per AGENTS.md data layout) ===
 MODULE_DIR="$${HOME}/.coder-modules/coder/supabase"
 LOG_DIR="$${MODULE_DIR}/logs"
 BIN_DIR="$${MODULE_DIR}/bin"
@@ -15,7 +14,6 @@ PROJECT_REF='${ARG_PROJECT_REF}'
 
 echo "Installing Supabase CLI (method: $${INSTALL_METHOD}, version: $${VERSION})..."
 
-# === Platform Detection (pattern from vault-cli/agentapi) ===
 detect_platform() {
   ARCH=$(uname -m)
   case "$${ARCH}" in
@@ -42,7 +40,6 @@ detect_platform() {
   echo "Detected platform: $${OS}/$${ARCH}"
 }
 
-# === Download with fallbacks (pattern from vault-cli) ===
 fetch_to_file() {
   local dest="$1" url="$2"
   if command -v curl > /dev/null 2>&1; then
@@ -57,11 +54,9 @@ fetch_to_file() {
   fi
 }
 
-# === Version resolution (pattern from agentapi) ===
 resolve_version() {
   local version="$${VERSION}"
   if [ "$${version}" = "latest" ]; then
-    # GitHub API to get latest release tag
     local api_response
     if command -v curl > /dev/null 2>&1; then
       api_response=$(curl -fsSL "https://api.github.com/repos/supabase/cli/releases/latest")
@@ -71,24 +66,20 @@ resolve_version() {
       echo "Error: curl or wget required for version resolution"
       exit 1
     fi
-    # Extract tag_name using head -1 to ensure we only get the first match, and a more precise regex
     version=$(echo "$${api_response}" | grep -o '"tag_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -E 's/.*"v?([0-9][^"]*).*/\1/')
     echo "Resolved latest version: $${version}" >&2
   fi
   echo "$${version}"
 }
 
-# === PATH setup via CODER_SCRIPT_BIN_DIR (pattern from mux/code-server) ===
 setup_path() {
   local bin_path="$1"
 
-  # Primary: Use Coder's native bin directory (preferred)
   if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ]; then
     ln -sf "$${bin_path}" "$${CODER_SCRIPT_BIN_DIR}/supabase"
     echo "Linked supabase to CODER_SCRIPT_BIN_DIR"
   fi
 
-  # Fallback: Add to shell profiles (pattern from claude-code)
   local bin_dir
   bin_dir=$(dirname "$${bin_path}")
   for profile in "$${HOME}/.profile" "$${HOME}/.bash_profile" "$${HOME}/.bashrc" "$${HOME}/.zprofile" "$${HOME}/.zshrc"; do
@@ -100,7 +91,6 @@ setup_path() {
     fi
   done
 
-  # Fish shell support
   local fish_config="$${HOME}/.config/fish/config.fish"
   if [ -f "$${fish_config}" ]; then
     if ! grep -q "$${bin_dir}" "$${fish_config}" 2>/dev/null; then
@@ -110,14 +100,11 @@ setup_path() {
   fi
 }
 
-# === Installation Methods ===
-
 install_binary() {
   detect_platform
   local version
   version=$(resolve_version)
 
-  # Supabase CLI release naming: supabase_linux_amd64.tar.gz
   local download_url="https://github.com/supabase/cli/releases/download/v$${version}/supabase_$${OS}_$${ARCH}.tar.gz"
 
   local tmp_dir
@@ -143,9 +130,7 @@ install_native_package() {
   tmp_dir=$(mktemp -d)
   trap "rm -rf $${tmp_dir}" EXIT
 
-  # Detect package manager and install appropriate package
   if command -v dpkg > /dev/null 2>&1; then
-    # Debian/Ubuntu
     local pkg_url="https://github.com/supabase/cli/releases/download/v$${version}/supabase_$${version}_$${OS}_$${ARCH}.deb"
     echo "Installing via dpkg..."
     fetch_to_file "$${tmp_dir}/supabase.deb" "$${pkg_url}"
@@ -163,7 +148,6 @@ install_native_package() {
       }
     fi
   elif command -v rpm > /dev/null 2>&1; then
-    # Fedora/RHEL
     local pkg_url="https://github.com/supabase/cli/releases/download/v$${version}/supabase_$${version}_$${OS}_$${ARCH}.rpm"
     echo "Installing via rpm..."
     fetch_to_file "$${tmp_dir}/supabase.rpm" "$${pkg_url}"
@@ -181,7 +165,6 @@ install_native_package() {
       }
     fi
   elif command -v apk > /dev/null 2>&1; then
-    # Alpine
     local pkg_url="https://github.com/supabase/cli/releases/download/v$${version}/supabase_$${version}_$${OS}_$${ARCH}.apk"
     echo "Installing via apk..."
     fetch_to_file "$${tmp_dir}/supabase.apk" "$${pkg_url}"
@@ -214,7 +197,6 @@ install_brew() {
 }
 
 install_scoop() {
-  # Windows via Scoop
   if ! command -v scoop > /dev/null 2>&1; then
     echo "Error: Scoop is required for install_method=scoop"
     exit 1
@@ -224,7 +206,6 @@ install_scoop() {
   scoop install supabase || scoop update supabase || true
 }
 
-# === Detection logic (priority: brew → scoop → native pkg → binary) ===
 if [ "$${INSTALL_METHOD}" = "detect" ]; then
   if command -v brew > /dev/null 2>&1; then
     INSTALL_METHOD="brew"
@@ -238,7 +219,6 @@ if [ "$${INSTALL_METHOD}" = "detect" ]; then
   echo "Detected install method: $${INSTALL_METHOD}"
 fi
 
-# === Execute Installation ===
 case "$${INSTALL_METHOD}" in
   brew)   install_brew ;;
   scoop)  install_scoop ;;
@@ -250,7 +230,6 @@ case "$${INSTALL_METHOD}" in
     ;;
 esac
 
-# === Verify Installation ===
 SUPABASE_BIN=""
 if command -v supabase > /dev/null 2>&1; then
   SUPABASE_BIN="supabase"
@@ -265,10 +244,8 @@ else
   exit 1
 fi
 
-# === Link to project if project_ref is provided ===
 if [ -n "$${PROJECT_REF}" ]; then
   echo "Linking to Supabase project: $${PROJECT_REF}..."
-  # supabase link requires being in a directory - use module dir
   cd "$${MODULE_DIR}"
   if $${SUPABASE_BIN} link --project-ref "$${PROJECT_REF}" 2>&1; then
     echo "✓ Linked to project $${PROJECT_REF}"
