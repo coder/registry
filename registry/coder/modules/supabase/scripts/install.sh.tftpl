@@ -70,7 +70,8 @@ resolve_version() {
       echo "Error: curl or wget required for version resolution"
       exit 1
     fi
-    version=$(echo "$${api_response}" | grep '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/')
+    # Extract tag_name using head -1 to ensure we only get the first match, and a more precise regex
+    version=$(echo "$${api_response}" | grep -o '"tag_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -E 's/.*"v?([0-9][^"]*).*/\1/')
     echo "Resolved latest version: $${version}" >&2
   fi
   echo "$${version}"
