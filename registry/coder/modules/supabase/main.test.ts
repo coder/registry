@@ -158,7 +158,7 @@ describe("supabase", () => {
     await execContainer(id, ["apt-get", "update"]);
     await execContainer(id, ["apt-get", "install", "-y", "curl", "tar"]);
 
-    // Build script as array to avoid template literal escaping issues
+    // Use pinned version to avoid GitHub API rate limits in CI (403 on /releases/latest)
     const script = [
       "#!/bin/bash",
       "set -ex",
@@ -168,8 +168,7 @@ describe("supabase", () => {
       "ARCH=$(uname -m)",
       "case $ARCH in x86_64|amd64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;; esac",
       "OS=$(uname -s | tr A-Z a-z)",
-      "API_RESPONSE=$(curl -fsSL https://api.github.com/repos/supabase/cli/releases/latest)",
-      'VERSION=$(echo "$API_RESPONSE" | grep -o \'"tag_name": *"[^"]*\' | head -1 | sed \'s/.*"v//\' | sed \'s/".*//\')',
+      "VERSION=2.22.12",
       "DOWNLOAD_URL=https://github.com/supabase/cli/releases/download/v$VERSION/supabase_${OS}_${ARCH}.tar.gz",
       "curl -fsSL -o /tmp/supabase.tar.gz $DOWNLOAD_URL",
       "tar -xzf /tmp/supabase.tar.gz -C /tmp",
@@ -219,8 +218,7 @@ describe("supabase", () => {
       "ARCH=$(uname -m)",
       "case $ARCH in x86_64|amd64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;; esac",
       "OS=$(uname -s | tr A-Z a-z)",
-      "API_RESPONSE=$(curl -fsSL https://api.github.com/repos/supabase/cli/releases/latest)",
-      'VERSION=$(echo "$API_RESPONSE" | grep -o \'"tag_name": *"[^"]*\' | head -1 | sed \'s/.*"v//\' | sed \'s/".*//\')',
+      "VERSION=2.22.12",
       "DOWNLOAD_URL=https://github.com/supabase/cli/releases/download/v$VERSION/supabase_${OS}_${ARCH}.tar.gz",
       "curl -fsSL -o /tmp/supabase.tar.gz $DOWNLOAD_URL",
       "tar -xzf /tmp/supabase.tar.gz -C /tmp",
@@ -263,8 +261,7 @@ describe("supabase", () => {
       "ARCH=$(uname -m)",
       "case $ARCH in x86_64|amd64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;; esac",
       "OS=$(uname -s | tr A-Z a-z)",
-      "API_RESPONSE=$(curl -fsSL https://api.github.com/repos/supabase/cli/releases/latest)",
-      'VERSION=$(echo "$API_RESPONSE" | grep -o \'"tag_name": *"[^"]*\' | head -1 | sed \'s/.*"v//\' | sed \'s/".*//\')',
+      "VERSION=2.22.12",
       "DOWNLOAD_URL=https://github.com/supabase/cli/releases/download/v$VERSION/supabase_${OS}_${ARCH}.tar.gz",
       "curl -fsSL -o /tmp/supabase.tar.gz $DOWNLOAD_URL",
       "tar -xzf /tmp/supabase.tar.gz -C /tmp",
