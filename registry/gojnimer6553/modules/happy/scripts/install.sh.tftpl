@@ -1,0 +1,187 @@
+#!/bin/bash
+
+set -euo pipefail
+
+BOLD='\033[0;1m'
+
+command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+ARG_INSTALL='${ARG_INSTALL}'
+ARG_USE_CACHED='${ARG_USE_CACHED}'
+ARG_VERSION='${ARG_VERSION}'
+ARG_PACKAGE_MANAGER='${ARG_PACKAGE_MANAGER}'
+ARG_REGISTRY_URL='${ARG_REGISTRY_URL}'
+ARG_NODE_VERSION='${ARG_NODE_VERSION}'
+ARG_MODULE_DIR_NAME='${ARG_MODULE_DIR_NAME}'
+# Raw override only ("" means "no override"); the "$HOME"-based default is
+# built below from a real shell variable, not embedded as literal "$HOME"
+# text inside a double-quoted assignment of caller-supplied content -- see
+# the comment on install_prefix_override in main.tf for why that matters.
+ARG_INSTALL_PREFIX_OVERRIDE='${ARG_INSTALL_PREFIX_OVERRIDE}'
+
+if [ -n "$${ARG_INSTALL_PREFIX_OVERRIDE}" ]; then
+  INSTALL_PREFIX="$${ARG_INSTALL_PREFIX_OVERRIDE}"
+else
+  INSTALL_PREFIX="$HOME/$${ARG_MODULE_DIR_NAME}/npm"
+fi
+
+echo "--------------------------------"
+printf "ARG_INSTALL: %s\n" "$${ARG_INSTALL}"
+printf "ARG_USE_CACHED: %s\n" "$${ARG_USE_CACHED}"
+printf "ARG_VERSION: %s\n" "$${ARG_VERSION}"
+printf "ARG_PACKAGE_MANAGER: %s\n" "$${ARG_PACKAGE_MANAGER}"
+printf "ARG_REGISTRY_URL: %s\n" "$${ARG_REGISTRY_URL}"
+printf "ARG_NODE_VERSION: %s\n" "$${ARG_NODE_VERSION}"
+printf "INSTALL_PREFIX: %s\n" "$INSTALL_PREFIX"
+echo "--------------------------------"
+
+# The pairing page (started by start.sh) drives happy's interactive
+# auth-method selector through a real pseudo-terminal, since happy has no
+# non-interactive pairing path (it renders an Ink UI and calls into raw
+# terminal mode). tmux is how that automation observes and drives it
+# (send-keys/capture output). Unlike Node, tmux has no official portable
+# static binary this script can drop into $HOME without privileges -- it
+# links against system libraries (libevent, ncurses) via the platform's
+# package manager. Best-effort install it that way when root or passwordless
+# sudo is available; otherwise fail with a clear message instead of a
+# confusing mid-script permissions error.
+ensure_tmux() {
+  if command_exists tmux; then
+    return 0
+  fi
+
+  echo "⚠️  tmux not found on PATH; attempting to install it..."
+
+  local as_root=""
+  if [ "$(id -u)" != "0" ]; then
+    if command_exists sudo && sudo -n true > /dev/null 2>&1; then
+      as_root="sudo -n"
+    else
+      echo "❌ tmux is required to run Happy (it drives happy's interactive pairing prompt through a real pseudo-terminal) but was not found on PATH, and this workspace has neither root nor passwordless sudo to install it automatically. Add tmux to the workspace image."
+      exit 1
+    fi
+  fi
+
+  if command_exists apt-get; then
+    $as_root apt-get update -qq || true
+    $as_root apt-get install -y -qq tmux || true
+  elif command_exists dnf; then
+    $as_root dnf install -y -q tmux || true
+  elif command_exists yum; then
+    $as_root yum install -y -q tmux || true
+  elif command_exists apk; then
+    $as_root apk add --no-cache tmux || true
+  elif command_exists pacman; then
+    $as_root pacman -Sy --noconfirm tmux || true
+  fi
+
+  if ! command_exists tmux; then
+    echo "❌ tmux is required to run Happy (it drives happy's interactive pairing prompt through a real pseudo-terminal) but was not found on PATH, and automatic installation failed (no supported package manager found, or the install itself failed). Add tmux to the workspace image manually."
+    exit 1
+  fi
+
+  echo "✅ tmux installed automatically."
+}
+
+ensure_tmux
+
+if [ "$${ARG_INSTALL}" != "true" ]; then
+  echo "⏭️  install=false; skipping Happy installation."
+  exit 0
+fi
+
+# Happy (the "happy" npm package) is a Node.js application and needs a
+# Node.js runtime. When the workspace image does not provide one, bootstrap
+# a pinned runtime into $HOME so it persists across restarts.
+ensure_node() {
+  if command_exists node; then
+    return 0
+  fi
+
+  local node_arch node_dir
+  case "$(uname -m)" in
+    x86_64 | amd64) node_arch="x64" ;;
+    aarch64 | arm64) node_arch="arm64" ;;
+    *)
+      echo "❌ node is required to run Happy but was not found on PATH, and automatic bootstrap does not support architecture '$(uname -m)'."
+      exit 1
+      ;;
+  esac
+
+  node_dir="$HOME/$${ARG_MODULE_DIR_NAME}/node/node-v$${ARG_NODE_VERSION}-linux-$${node_arch}"
+  if [ ! -x "$node_dir/bin/node" ]; then
+    echo "⚠️ node not found on PATH; bootstrapping Node.js v$${ARG_NODE_VERSION} into $node_dir..."
+    mkdir -p "$(dirname "$node_dir")"
+    if ! curl -fsSL "https://nodejs.org/dist/v$${ARG_NODE_VERSION}/node-v$${ARG_NODE_VERSION}-linux-$${node_arch}.tar.gz" | tar -xz -C "$(dirname "$node_dir")"; then
+      echo "❌ Failed to download Node.js v$${ARG_NODE_VERSION}. Happy cannot run without node."
+      exit 1
+    fi
+  fi
+
+  export PATH="$node_dir/bin:$PATH"
+
+  # Expose node/npm to other workspace scripts and interactive shells.
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ]; then
+    [ -e "$${CODER_SCRIPT_BIN_DIR}/node" ] || ln -s "$node_dir/bin/node" "$${CODER_SCRIPT_BIN_DIR}/node"
+    [ -e "$${CODER_SCRIPT_BIN_DIR}/npm" ] || ln -s "$node_dir/bin/npm" "$${CODER_SCRIPT_BIN_DIR}/npm"
+  fi
+}
+
+ensure_node
+
+HAPPY_BIN="$INSTALL_PREFIX/node_modules/.bin/happy"
+
+if [ -x "$HAPPY_BIN" ] && [ "$${ARG_USE_CACHED}" = "true" ]; then
+  printf "%s\n" "🥳 Found a cached copy of Happy, skipping install (use_cached=true)"
+  "$HAPPY_BIN" --version || true
+  exit 0
+fi
+
+case "$${ARG_PACKAGE_MANAGER}" in
+  npm | pnpm | bun) ;;
+  *)
+    echo "❌ Unsupported package_manager '$${ARG_PACKAGE_MANAGER}'. Use 'npm', 'pnpm', or 'bun'."
+    exit 1
+    ;;
+esac
+
+if ! command_exists "$${ARG_PACKAGE_MANAGER}"; then
+  echo "❌ package_manager '$${ARG_PACKAGE_MANAGER}' was not found on PATH."
+  exit 1
+fi
+
+mkdir -p "$INSTALL_PREFIX"
+cd "$INSTALL_PREFIX"
+[ -f package.json ] || echo '{"private":true}' > package.json
+
+# "qrcode" renders the pairing link captured from happy's terminal output as
+# a real scannable image for the pairing page (start.sh.tftpl / pairing
+# server), instead of trying to re-parse happy's own ANSI QR art.
+HAPPY_SPEC="happy@$${ARG_VERSION}"
+QRCODE_SPEC="qrcode@1.5.4"
+
+# %s arguments, not a %-interpreted format string: HAPPY_SPEC embeds
+# ARG_VERSION, a caller-supplied string that could contain a literal "%".
+printf "%sInstalling Happy (%s) and qrcode via %s...\n" "$${BOLD}" "$${HAPPY_SPEC}" "$${ARG_PACKAGE_MANAGER}"
+
+case "$${ARG_PACKAGE_MANAGER}" in
+  npm)
+    npm install --no-audit --no-fund --registry "$${ARG_REGISTRY_URL}" "$${HAPPY_SPEC}" "$${QRCODE_SPEC}"
+    ;;
+  pnpm)
+    pnpm add --registry "$${ARG_REGISTRY_URL}" "$${HAPPY_SPEC}" "$${QRCODE_SPEC}"
+    ;;
+  bun)
+    bun add --registry "$${ARG_REGISTRY_URL}" "$${HAPPY_SPEC}" "$${QRCODE_SPEC}"
+    ;;
+esac
+
+if [ ! -x "$HAPPY_BIN" ]; then
+  echo "❌ Could not locate the happy binary after install at $HAPPY_BIN"
+  exit 1
+fi
+
+printf "%s\n\n" "🥳 Happy has been installed to $INSTALL_PREFIX"
+"$HAPPY_BIN" --version || true
