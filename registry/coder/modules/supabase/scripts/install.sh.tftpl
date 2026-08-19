@@ -246,7 +246,7 @@ fi
 
 if [ -n "$${PROJECT_REF}" ]; then
   echo "Linking to Supabase project: $${PROJECT_REF}..."
-  cd "$${MODULE_DIR}"
+  cd "$${HOME}"
   if $${SUPABASE_BIN} link --project-ref "$${PROJECT_REF}" 2>&1; then
     echo "✓ Linked to project $${PROJECT_REF}"
   else
