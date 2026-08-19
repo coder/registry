@@ -20,7 +20,7 @@ module "codex" {
 ```
 
 > [!WARNING]
-> If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for Coder Tasks and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). Coder Tasks was deprecated in Coder v2.34 and is not available by default from Coder v2.36. Keep using v4.x.x if you depend on them. See the [PR description](https://github.com/coder/registry/pull/879) for a full migration guide.
+> If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for Coder Tasks and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). Keep using v4.x.x if you depend on them. See the [PR description](https://github.com/coder/registry/pull/879) for a full migration guide.
 
 ## Examples
 
