@@ -36,20 +36,18 @@ module "herdr" {
 
 ## How it works
 
-Herdr has no documented headless/daemon startup mode (like most terminal multiplexers, it expects a
-real tty). This module gives it one by starting `herdr` detached inside its own `tmux` session, so the
-server keeps running in the background independent of the `coder_script` that launched it. By default
-this runs Herdr's default,
-unnamed session — the same one you get by typing `herdr` in any workspace terminal — so plugins
-installed by this module and panes you open by hand end up in the same place.
+Herdr has no documented headless/daemon startup mode. This module starts `herdr` detached inside its
+own `tmux` session, so the server keeps running independent of the `coder_script` that launched it. By
+default this is Herdr's default, unnamed session — the same one you get by typing `herdr` in any
+workspace terminal — so plugins installed by this module and panes you open by hand end up in the same
+place.
 
 On every workspace start, after Herdr comes up, the module runs `herdr plugin install <spec> --yes`
 for each entry in `plugins`.
 
 ## How plugin setup works
 
-Installing a plugin (via this module's `plugins` variable, or by hand) only registers it with Herdr.
-Plugins that need their own setup — like
+Installing a plugin only registers it with Herdr. Plugins that need their own setup — like
 [0cv/herdr-mobile-relay](https://github.com/0cv/herdr-mobile-relay), which needs you to choose a
 tunnel/pairing mode — still need that run once from a workspace terminal:
 
@@ -58,23 +56,19 @@ herdr plugin action invoke setup --plugin herdr-mobile-relay.events
 ```
 
 (Substitute the plugin's own id — check its `herdr-plugin.toml` — for other plugins.) This module
-deliberately does not attempt to drive that wizard automatically: it's interactive by design (it asks
-you to choose between a temporary tunnel and a permanent one, and confirms installing tools like
-`cloudflared`), and scripting around it reliably wasn't something this module could verify without a
-live Herdr install to test against.
+doesn't drive that wizard automatically: it's interactive by design, asking you to choose between a
+temporary and a permanent tunnel.
 
 Once a plugin like `0cv/herdr-mobile-relay` has completed its own setup and is serving a local web UI
 (mobile-relay's default is port 8375), set `app_port` to expose it as a Coder app tile — see the
 example below.
 
-### Alternative: skip the wizard entirely with `post_start_script`
+### Alternative: skip the wizard with `post_start_script`
 
-`0cv/herdr-mobile-relay`'s guided setup (`herdr plugin action invoke setup ...`) only offers two
-paths, and both hard-require `cloudflared` — there's no option to expose the relay through Coder's
-own app proxy instead. If you don't want a Cloudflare account/tunnel in the workspace at all, you can
-bypass the wizard and start the plugin's own relay binary directly from `post_start_script`, since it
-installs to `$HOME/.local/bin/herdr-mobile-relay` (on `PATH` by the time `post_start_script` runs) and
-accepts a `serve` subcommand with no tunnel involved — see
+`0cv/herdr-mobile-relay`'s guided setup only offers two paths, both requiring `cloudflared` — there's
+no built-in option to expose the relay through Coder's own app proxy. `post_start_script` can start
+the plugin's relay binary directly instead (`$HOME/.local/bin/herdr-mobile-relay serve`, no tunnel
+involved) — see
 [Expose a plugin's web UI through Coder instead of its own tunnel](#expose-a-plugins-web-ui-through-coder-instead-of-its-own-tunnel)
 below.
 
@@ -98,10 +92,9 @@ run once from a workspace terminal before the app tile serves anything.
 
 ### Expose a plugin's web UI through Coder instead of its own tunnel
 
-`0cv/herdr-mobile-relay` binds to `127.0.0.1:8375` by default regardless of which setup path you use —
-the same address `app_port` already proxies through Coder. `post_start_script` can start the relay
-binary directly (`herdr-mobile-relay serve`), skipping the wizard and its `cloudflared` requirement
-entirely:
+`0cv/herdr-mobile-relay` binds to `127.0.0.1:8375` regardless of setup path — the same address
+`app_port` already proxies through Coder. `post_start_script` can start the relay binary directly,
+skipping the wizard and its `cloudflared` requirement:
 
 ```tf
 module "herdr" {
@@ -120,13 +113,8 @@ module "herdr" {
     PID_FILE="$MODULE_DIR/mobile-relay.pid"
     [ -f "$TOKEN_FILE" ] || openssl rand -hex 16 > "$TOKEN_FILE"
     TOKEN="$(cat "$TOKEN_FILE")"
-    # A PID file, not pgrep: "herdr-mobile-relay" is 19 characters, past
-    # Linux's 15-character comm-name limit, so "pgrep -x" can never match it
-    # (silently -- procps only warns on stderr). "pgrep -f" has the opposite
-    # problem: the whole post_start_script text is itself the argv of the
-    # "bash -c" process running it, and that text literally contains
-    # "herdr-mobile-relay serve", so an -f/substring match would match this
-    # very script's own process and skip starting the relay on every run.
+    # A PID file, not pgrep: pgrep -x can't match a 19-char comm name, and
+    # pgrep -f matches this script's own argv (it contains the search text).
     if ! { [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2> /dev/null; }; then
       HERDR_RELAY_TOKEN="$TOKEN" nohup herdr-mobile-relay serve \
         >> "$MODULE_DIR/logs/mobile-relay.log" 2>&1 &
@@ -142,12 +130,10 @@ module "herdr" {
 }
 ```
 
-This is a workaround, not something the plugin documents or the coder-utils/coder-registry-guaranteed
-contract of this module covers: it relies on the plugin's binary continuing to install to
-`$HOME/.local/bin/herdr-mobile-relay` and accepting an undocumented (but source-confirmed) `serve`
-subcommand. `share = "public"` makes the port reachable by anyone with the link, same as a Cloudflare
-Tunnel would — Herdr's own relay token and end-to-end encryption remain the real access control, not
-Coder's `owner`/`authenticated` gating (which a phone with no Coder session can't satisfy anyway).
+This is a workaround: it relies on undocumented plugin internals (the install path and the `serve`
+subcommand), not a documented interface. `share = "public"` makes the port reachable by anyone with
+the link — the relay's own token and end-to-end encryption are the real access control, not Coder's
+session gating.
 
 ### Run Herdr's session in a specific project directory
 
@@ -190,17 +176,10 @@ module "herdr" {
 
 ## Notes
 
-- **Requires `tmux`.** Herdr expects a real pseudo-terminal and has no non-interactive/daemon startup
-  path, so this module drives it through one via `tmux`. If `tmux` isn't already on `PATH`, the
-  install script installs it automatically via
-  the workspace's system package manager (`apt-get`/`dnf`/`yum`/`apk`/`pacman`) when running as root
-  or with passwordless `sudo`; otherwise it fails with a clear message. For reproducible builds (or if
-  the workspace has neither root nor passwordless `sudo`), add it to your Dockerfile/image instead.
-- No version pinning: Herdr's installer (`herdr.dev/install.sh`) has no documented flag for
-  installing a specific version as of this writing, so `install = true` always installs whatever it
-  currently serves as latest. Set `install = false` and bake a pinned copy into the workspace image if
-  you need reproducible versions.
-- Multi-workspace fan-in: a plugin like `0cv/herdr-mobile-relay` is designed so its own phone/web app
-  can hold connections to many independent relays at once (one per workspace) rather than one app
-  instance per workspace — see that plugin's own docs for how to add a workspace's relay to an
-  existing installed app instead of minting a new one.
+- **Requires `tmux`.** Herdr expects a real pseudo-terminal. The install script installs `tmux`
+  automatically (`apt-get`/`dnf`/`yum`/`apk`/`pacman`) when running as root or with passwordless
+  `sudo`; otherwise add it to your Dockerfile/image.
+- No version pinning: Herdr's installer has no flag for a specific version, so `install = true` always
+  installs latest. Set `install = false` and bake a pinned copy into the image for reproducible builds.
+- A plugin like `0cv/herdr-mobile-relay` can hold connections to many workspaces' relays in one phone
+  app instead of one app per workspace — see that plugin's own docs.
