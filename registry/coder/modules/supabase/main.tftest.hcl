@@ -21,8 +21,8 @@ run "test_supabase_basic" {
   }
 
   assert {
-    condition     = var.use_external_auth == true
-    error_message = "use_external_auth should default to true"
+    condition     = var.use_external_auth == false
+    error_message = "use_external_auth should default to false (PAT method)"
   }
 }
 
@@ -173,3 +173,46 @@ run "test_supabase_with_post_install_script" {
     error_message = "Post-install script should be set"
   }
 }
+
+run "test_supabase_app_default_url" {
+  command = apply
+
+  variables {
+    agent_id = "test-agent-app"
+  }
+
+  assert {
+    condition     = resource.coder_app.supabase.url == "https://supabase.com/dashboard"
+    error_message = "coder_app URL should default to dashboard when project_ref is empty"
+  }
+
+  assert {
+    condition     = resource.coder_app.supabase.external == true
+    error_message = "coder_app should be external"
+  }
+
+  assert {
+    condition     = resource.coder_app.supabase.slug == "supabase"
+    error_message = "coder_app slug should be 'supabase'"
+  }
+}
+
+run "test_supabase_app_with_project_ref" {
+  command = apply
+
+  variables {
+    agent_id    = "test-agent-project"
+    project_ref = "abcdefghijklmnop"
+  }
+
+  assert {
+    condition     = var.project_ref == "abcdefghijklmnop"
+    error_message = "project_ref should be set correctly"
+  }
+
+  assert {
+    condition     = resource.coder_app.supabase.url == "https://supabase.com/dashboard/project/abcdefghijklmnop"
+    error_message = "coder_app URL should include project reference"
+  }
+}
+

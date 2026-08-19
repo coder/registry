@@ -32,8 +32,8 @@ variable "external_auth_id" {
 
 variable "use_external_auth" {
   type        = bool
-  description = "Use Coder external auth for Supabase authentication. When false, use the access_token variable instead."
-  default     = true
+  description = "Use Coder external auth for Supabase authentication. Note: The Supabase CLI may reject OAuth tokens due to format validation; if so, set to false and use a Personal Access Token via the access_token variable."
+  default     = false
 }
 
 variable "access_token" {
@@ -61,9 +61,15 @@ variable "supabase_version" {
 
 variable "db_password" {
   type        = string
-  description = "Database password for non-interactive db commands (optional). Sets SUPABASE_DB_PASSWORD environment variable."
+  description = "Remote Postgres database password for non-interactive CLI commands like 'supabase link' (optional). Sets SUPABASE_DB_PASSWORD environment variable."
   default     = ""
   sensitive   = true
+}
+
+variable "project_ref" {
+  type        = string
+  description = "Supabase project reference (e.g., 'abcdefghijklmnop'). When set, adds a dashboard link directly to this project."
+  default     = ""
 }
 
 variable "pre_install_script" {
@@ -123,6 +129,16 @@ resource "coder_env" "supabase_db_password" {
   name     = "SUPABASE_DB_PASSWORD"
   value    = var.db_password
 }
+
+resource "coder_app" "supabase" {
+  agent_id     = var.agent_id
+  slug         = "supabase"
+  display_name = "Supabase"
+  icon         = var.icon
+  url          = var.project_ref != "" ? "https://supabase.com/dashboard/project/${var.project_ref}" : "https://supabase.com/dashboard"
+  external     = true
+}
+
 
 # Pass-through of coder-utils script outputs so upstream modules can serialize
 # their coder_script resources behind this module's install pipeline using
