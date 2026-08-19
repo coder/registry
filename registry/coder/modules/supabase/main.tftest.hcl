@@ -297,12 +297,6 @@ run "test_supabase_skip_install_with_token" {
     condition     = var.skip_install == true
     error_message = "skip_install should be true"
   }
-
-  # Env vars should still be set even when skipping install
-  assert {
-    condition     = length(resource.coder_env.supabase_access_token) == 1
-    error_message = "Access token env should be created even with skip_install"
-  }
 }
 
 

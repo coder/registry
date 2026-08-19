@@ -122,12 +122,14 @@ locals {
   access_token = var.use_external_auth ? try(data.coder_external_auth.supabase[0].access_token, "") : var.access_token
 
   # Render the install script
-  install_script = var.skip_install ? "echo 'Skipping Supabase CLI installation (skip_install=true)'" : templatefile("${path.module}/scripts/install.sh.tftpl", {
+  install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
+    ARG_SKIP_INSTALL      = tostring(var.skip_install)
     ARG_INSTALL_METHOD    = var.install_method
     ARG_VERSION           = var.supabase_version
     ARG_PROJECT_REF       = var.project_ref
     ARG_PROJECT_DIR       = var.project_dir
     ARG_DOWNLOAD_BASE_URL = var.download_base_url
+    ARG_ACCESS_TOKEN      = base64encode(local.access_token)
   })
 }
 
@@ -142,13 +144,6 @@ module "coder_utils" {
   pre_install_script  = var.pre_install_script
   install_script      = local.install_script
   post_install_script = var.post_install_script
-}
-
-resource "coder_env" "supabase_access_token" {
-  count    = local.access_token != "" ? 1 : 0
-  agent_id = var.agent_id
-  name     = "SUPABASE_ACCESS_TOKEN"
-  value    = local.access_token
 }
 
 resource "coder_env" "supabase_db_password" {

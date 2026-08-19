@@ -6,13 +6,13 @@ LOG_DIR="$${MODULE_DIR}/logs"
 BIN_DIR="$${MODULE_DIR}/bin"
 mkdir -p "$${LOG_DIR}" "$${BIN_DIR}"
 
+SKIP_INSTALL='${ARG_SKIP_INSTALL}'
 INSTALL_METHOD='${ARG_INSTALL_METHOD}'
 VERSION='${ARG_VERSION}'
 PROJECT_REF='${ARG_PROJECT_REF}'
 PROJECT_DIR='${ARG_PROJECT_DIR}'
 DOWNLOAD_BASE_URL='${ARG_DOWNLOAD_BASE_URL}'
-
-echo "Installing Supabase CLI (method: $${INSTALL_METHOD}, version: $${VERSION})..."
+ACCESS_TOKEN=$(echo -n '${ARG_ACCESS_TOKEN}' | base64 -d)
 
 detect_platform() {
   ARCH=$(uname -m)
@@ -206,29 +206,39 @@ install_scoop() {
   scoop install supabase || scoop update supabase || true
 }
 
-if [ "$${INSTALL_METHOD}" = "detect" ]; then
-  if command -v brew > /dev/null 2>&1; then
-    INSTALL_METHOD="brew"
-  elif command -v scoop > /dev/null 2>&1; then
-    INSTALL_METHOD="scoop"
-  elif command -v dpkg > /dev/null 2>&1 || command -v rpm > /dev/null 2>&1 || command -v apk > /dev/null 2>&1; then
-    INSTALL_METHOD="native"
-  else
-    INSTALL_METHOD="binary"
-  fi
-  echo "Detected install method: $${INSTALL_METHOD}"
-fi
+install_supabase_cli() {
+  echo "Installing Supabase CLI (method: $${INSTALL_METHOD}, version: $${VERSION})..."
 
-case "$${INSTALL_METHOD}" in
-  brew)   install_brew ;;
-  scoop)  install_scoop ;;
-  native) install_native_package ;;
-  binary) install_binary ;;
-  *)
-    echo "Error: Unknown install method: $${INSTALL_METHOD}" >&2
-    exit 1
-    ;;
-esac
+  if [ "$${INSTALL_METHOD}" = "detect" ]; then
+    if command -v brew > /dev/null 2>&1; then
+      INSTALL_METHOD="brew"
+    elif command -v scoop > /dev/null 2>&1; then
+      INSTALL_METHOD="scoop"
+    elif command -v dpkg > /dev/null 2>&1 || command -v rpm > /dev/null 2>&1 || command -v apk > /dev/null 2>&1; then
+      INSTALL_METHOD="native"
+    else
+      INSTALL_METHOD="binary"
+    fi
+    echo "Detected install method: $${INSTALL_METHOD}"
+  fi
+
+  case "$${INSTALL_METHOD}" in
+    brew)   install_brew ;;
+    scoop)  install_scoop ;;
+    native) install_native_package ;;
+    binary) install_binary ;;
+    *)
+      echo "Error: Unknown install method: $${INSTALL_METHOD}" >&2
+      exit 1
+      ;;
+  esac
+}
+
+if [ "$${SKIP_INSTALL}" != "true" ]; then
+  install_supabase_cli
+else
+  echo "Skipping Supabase CLI installation (skip_install=true)"
+fi
 
 SUPABASE_BIN=""
 if command -v supabase > /dev/null 2>&1; then
@@ -237,11 +247,17 @@ elif [ -x "$${BIN_DIR}/supabase" ]; then
   SUPABASE_BIN="$${BIN_DIR}/supabase"
 fi
 
-if [ -n "$${SUPABASE_BIN}" ]; then
-  echo "✓ Supabase CLI installed: $($${SUPABASE_BIN} --version)"
-else
-  echo "✗ Supabase CLI installation failed" >&2
+if [ -z "$${SUPABASE_BIN}" ]; then
+  echo "Error: Supabase CLI not found. Ensure it is installed or skip_install is false." >&2
   exit 1
+fi
+
+echo "✓ Supabase CLI available: $($${SUPABASE_BIN} --version)"
+
+if [ -n "$${ACCESS_TOKEN}" ]; then
+  echo "Logging in with access token..."
+  $${SUPABASE_BIN} login --token "$${ACCESS_TOKEN}"
+  echo "✓ Logged in to Supabase"
 fi
 
 if [ -n "$${PROJECT_REF}" ]; then

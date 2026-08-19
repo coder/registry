@@ -69,7 +69,7 @@ module "supabase" {
 }
 ```
 
-> **Note:** Never hardcode tokens in your template. Use a Terraform variable (as shown above) or inject via environment variable (`TF_VAR_supabase_token`).
+> **Note:** Never hardcode tokens in your template. Use a Terraform variable as shown above.
 
 ### With External Auth (OAuth)
 
@@ -151,15 +151,6 @@ The module adds a **Supabase** button to your workspace that links to the Supaba
 - **With `project_ref`**: Links directly to your project's dashboard
 
 Find your project reference in the Supabase dashboard URL: `https://supabase.com/dashboard/project/<project_ref>`
-
-## Environment Variables
-
-The module sets the following environment variables in your workspace:
-
-| Variable                | Description                                        |
-| ----------------------- | -------------------------------------------------- |
-| `SUPABASE_ACCESS_TOKEN` | Personal access token for CLI authentication       |
-| `SUPABASE_DB_PASSWORD`  | Remote Postgres password for `supabase link` in CI |
 
 ## Common CLI Commands
 
