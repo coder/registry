@@ -107,6 +107,7 @@ locals {
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_INSTALL_METHOD = var.install_method
     ARG_VERSION        = var.supabase_version
+    ARG_PROJECT_REF    = var.project_ref
   })
 }
 
