@@ -12,36 +12,7 @@ This module adds the [Supabase CLI](https://supabase.com/docs/guides/cli) to you
 
 It integrates with Coder's external auth for OAuth-based login, or accepts a personal access token for simpler setups. When a `project_ref` is provided, the module also links the workspace to your Supabase project and adds a dashboard shortcut to the Coder workspace UI.
 
-### Where Coder Fits
-
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Developer Workflow                           │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│   Local Machine              Coder Workspace         Supabase       │
-│   ─────────────              ───────────────         ────────       │
-│                                                                     │
-│   ┌───────────┐             ┌──────────────┐      ┌─────────────┐  │
-│   │  Browser  │────SSH/────▶│  This Module │─────▶│  Projects   │  │
-│   │  or IDE   │    Web      │  ┌─────────┐ │ API  │  Database   │  │
-│   └───────────┘             │  │Supabase │ │      │  Edge Funcs │  │
-│                             │  │  CLI    │ │      │  Storage    │  │
-│                             │  └─────────┘ │      └─────────────┘  │
-│                             │              │                       │
-│                             │  Pre-authed  │      ┌─────────────┐  │
-│                             │  via OAuth   │◀─────│  Dashboard  │  │
-│                             │  or Token    │ Link └─────────────┘  │
-│                             └──────────────┘                       │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-The module bridges Coder workspaces and Supabase by:
-
-1. **Installing the CLI** — Detects the best method for your workspace OS
-2. **Injecting credentials** — Sets `SUPABASE_ACCESS_TOKEN` so the CLI authenticates automatically
-3. **Adding dashboard access** — Creates a workspace button linking to your Supabase project
+**What this module does:** Installs the Supabase CLI in your workspace and wires up authentication through Coder's [external auth](https://coder.com/docs/admin/external-auth) (OAuth) or a personal access token. Once configured, users get a ready-to-use `supabase` command—no manual login required—plus a dashboard button in the workspace UI.
 
 ```tf
 module "supabase" {
