@@ -1,0 +1,129 @@
+#!/bin/bash
+
+set -euo pipefail
+
+command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+# module_directory is not caller-influenced (module_dir_name is a hardcoded
+# constant in main.tf), so double-quoting it to expand its literal "$HOME"
+# at runtime is safe. workdir is caller-supplied though -- see the comment on
+# workdir_override in main.tf for why that's passed as a raw override
+# instead and built into a full path below using a real, un-interpolated
+# shell variable rather than embedded "$HOME" text.
+ARG_MODULE_DIRECTORY="${ARG_MODULE_DIRECTORY}"
+ARG_WORKDIR_OVERRIDE='${ARG_WORKDIR_OVERRIDE}'
+ARG_SESSION_NAME='${ARG_SESSION_NAME}'
+ARG_TMUX_SESSION='${ARG_TMUX_SESSION}'
+
+if [ -n "$${ARG_WORKDIR_OVERRIDE}" ]; then
+  WORKDIR="$${ARG_WORKDIR_OVERRIDE}"
+else
+  WORKDIR="$HOME"
+fi
+
+LOG_DIR="$${ARG_MODULE_DIRECTORY}/logs"
+LOG_PATH="$LOG_DIR/herdr.log"
+mkdir -p "$LOG_DIR" "$WORKDIR"
+
+export PATH="$HOME/.local/bin:$PATH"
+
+if ! command_exists herdr; then
+  echo "❌ herdr binary not found on PATH (looked in \$HOME/.local/bin and the rest of PATH). Did the install script run and succeed?"
+  exit 1
+fi
+
+if ! command_exists tmux; then
+  echo "❌ tmux not found on PATH. Did the install script run and succeed?"
+  exit 1
+fi
+
+session_alive() {
+  tmux has-session -t "$${ARG_TMUX_SESSION}" 2> /dev/null
+}
+
+if session_alive; then
+  echo "ℹ️  tmux session '$${ARG_TMUX_SESSION}' is already running; leaving the existing Herdr process alone."
+else
+  echo "🚀 Starting Herdr in the background (tmux session '$${ARG_TMUX_SESSION}')..."
+  : > "$LOG_PATH"
+
+  if [ -n "$${ARG_SESSION_NAME}" ]; then
+    tmux new-session -d -s "$${ARG_TMUX_SESSION}" -c "$WORKDIR" env HERDR_SESSION="$${ARG_SESSION_NAME}" herdr
+  else
+    tmux new-session -d -s "$${ARG_TMUX_SESSION}" -c "$WORKDIR" herdr
+  fi
+
+  # tmux's own shell interprets the -o command; LOG_PATH is derived from
+  # module_directory (a hardcoded constant under $HOME), never from
+  # caller-supplied text, so a plain single-quoted path is safe here.
+  tmux pipe-pane -t "$${ARG_TMUX_SESSION}" -o "cat >> '$LOG_PATH'"
+fi
+
+# Best-effort readiness check: give the server a moment to create its socket
+# before installing plugins. `herdr status` is not fully documented upstream
+# (https://herdr.dev/docs/socket-api/ only shows it as a status-check
+# example), so a failure here is logged but never treated as fatal --
+# plugin installs below are attempted regardless.
+wait_for_herdr() {
+  local attempts=0
+  while [ "$attempts" -lt 20 ]; do
+    if herdr status > /dev/null 2>&1; then
+      return 0
+    fi
+    attempts=$((attempts + 1))
+    sleep 0.5
+  done
+  return 1
+}
+
+if wait_for_herdr; then
+  echo "✅ Herdr is up."
+else
+  echo "⚠️  'herdr status' did not succeed within 10s; continuing anyway (see $LOG_PATH)."
+fi
+
+# Newline-delimited plugin list (see the ARG_PLUGINS comment in main.tf for
+# why this isn't JSON). Installing a plugin only registers it with Herdr --
+# most plugins, including 0cv/herdr-mobile-relay, still need their own
+# one-time interactive setup step run from a workspace terminal; this module
+# does not attempt to drive that automatically. See the README.
+PLUGINS_LIST=$(cat << 'EOF_PLUGINS'
+${ARG_PLUGINS}
+EOF_PLUGINS
+)
+
+failed_plugins=""
+while IFS= read -r plugin_spec; do
+  [ -z "$plugin_spec" ] && continue
+  echo "🔌 Installing Herdr plugin '$plugin_spec'..."
+  if herdr plugin install "$plugin_spec" --yes; then
+    echo "✅ Installed plugin '$plugin_spec'."
+  else
+    echo "❌ Failed to install plugin '$plugin_spec' (continuing with the rest)."
+    failed_plugins="$failed_plugins $plugin_spec"
+  fi
+done <<< "$PLUGINS_LIST"
+
+if [ -n "$failed_plugins" ]; then
+  echo "⚠️  One or more Herdr plugins failed to install:$failed_plugins"
+fi
+
+echo "ℹ️  Herdr is running in tmux session '$${ARG_TMUX_SESSION}'. Attach from a workspace terminal with: tmux attach -t $${ARG_TMUX_SESSION}"
+echo "ℹ️  Plugins with their own setup wizard (e.g. 0cv/herdr-mobile-relay) still need it run once, e.g.: herdr plugin action invoke setup --plugin <plugin-id>"
+
+# post_start_script: see the variable's description in main.tf. Read via a
+# heredoc (like PLUGINS_LIST above) rather than embedded directly as a
+# double-quoted shell string, since it's caller-supplied and may itself
+# contain quotes, "$" expansions, etc. that must not be interpreted here --
+# only when the resulting script body is actually executed below.
+POST_START_SCRIPT=$(cat << 'EOF_POST_START_SCRIPT'
+${ARG_POST_START_SCRIPT}
+EOF_POST_START_SCRIPT
+)
+
+if [ -n "$POST_START_SCRIPT" ]; then
+  echo "▶️  Running post_start_script..."
+  bash -c "$POST_START_SCRIPT"
+fi
