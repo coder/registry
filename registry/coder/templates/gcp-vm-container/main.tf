@@ -52,15 +52,14 @@ module "code-server" {
   # This ensures that the latest non-breaking version of the module gets downloaded, you can also pin the module version to prevent breaking changes in production.
   version = "~> 1.0"
 
-  agent_id   = coder_agent.main.id
-  agent_name = "main"
-  order      = 1
+  agent_id = coder_agent.main.id
+  order    = 1
 }
 
 # See https://registry.coder.com/modules/coder/jetbrains
 module "jetbrains" {
   count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/modules/coder/jetbrains/coder"
+  source     = "registry.coder.com/coder/jetbrains/coder"
   version    = "~> 1.0"
   agent_id   = coder_agent.main.id
   agent_name = "main"
@@ -113,7 +112,6 @@ resource "google_compute_instance" "dev" {
 resource "coder_agent_instance" "dev" {
   count       = data.coder_workspace.me.start_count
   agent_id    = coder_agent.main.id
-  agent_name  = "main"
   instance_id = google_compute_instance.dev[0].instance_id
 }
 

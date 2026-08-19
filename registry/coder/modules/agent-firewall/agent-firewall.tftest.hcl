@@ -132,12 +132,12 @@ run "plan_with_config_path" {
 
   variables {
     agent_id                   = "test-agent-id"
-    agent_firewall_config_path = "/workspace/my-boundary-config.yaml"
+    agent_firewall_config_path = "/workspace/my-agent-firewall-config.yaml"
   }
 
   # agent_firewall_config_path output should point to the user-provided path.
   assert {
-    condition     = output.agent_firewall_config_path == "/workspace/my-boundary-config.yaml"
+    condition     = output.agent_firewall_config_path == "/workspace/my-agent-firewall-config.yaml"
     error_message = "agent_firewall_config_path output should point to user-provided path"
   }
 }

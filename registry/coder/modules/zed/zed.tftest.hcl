@@ -94,12 +94,12 @@ run "settings_base64_encoding" {
 
   # Verify settings are base64 encoded (eyJ = base64 prefix for JSON starting with {")
   assert {
-    condition     = can(regex("SETTINGS_B64='eyJ", coder_script.zed_settings.script))
+    condition     = can(regex("SETTINGS_B64='eyJ", coder_script.zed_settings[0].script))
     error_message = "settings should be base64 encoded in the script"
   }
 }
 
-run "empty_settings" {
+run "empty_settings_no_script" {
   command = apply
 
   variables {
@@ -108,7 +108,7 @@ run "empty_settings" {
   }
 
   assert {
-    condition     = can(regex("SETTINGS_B64=''", coder_script.zed_settings.script))
-    error_message = "empty settings should result in empty SETTINGS_B64"
+    condition     = length(coder_script.zed_settings) == 0
+    error_message = "coder_script should not be created when settings is empty"
   }
 }
