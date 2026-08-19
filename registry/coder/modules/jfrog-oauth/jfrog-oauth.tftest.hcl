@@ -17,7 +17,7 @@ run "test_required_vars" {
   }
 }
 
-run "test_empty_access_token_fails" {
+run "test_empty_access_token_is_allowed_during_template_import" {
   command = plan
 
   variables {
@@ -27,7 +27,7 @@ run "test_empty_access_token_fails" {
     configure_jfrog_cli = false
   }
 
-  # Mock external auth with empty access token
+  # Coder returns an empty token while importing a template, before a user can authenticate.
   override_data {
     target = data.coder_external_auth.jfrog
     values = {
@@ -35,9 +35,10 @@ run "test_empty_access_token_fails" {
     }
   }
 
-  expect_failures = [
-    data.coder_external_auth.jfrog
-  ]
+  assert {
+    condition     = output.access_token == ""
+    error_message = "template import should allow an empty external auth token"
+  }
 }
 
 run "test_valid_access_token_succeeds" {

@@ -162,13 +162,6 @@ data "coder_workspace_owner" "me" {}
 
 data "coder_external_auth" "jfrog" {
   id = var.external_auth_id
-
-  lifecycle {
-    postcondition {
-      condition     = self.access_token != ""
-      error_message = "JFrog access token is empty. Please authenticate with JFrog using external auth."
-    }
-  }
 }
 
 resource "coder_script" "jfrog" {
