@@ -69,8 +69,6 @@ module "supabase" {
 }
 ```
 
-> **Note:** Never hardcode tokens in your template. Use a Terraform variable as shown above.
-
 ### With External Auth (OAuth)
 
 ```tf
