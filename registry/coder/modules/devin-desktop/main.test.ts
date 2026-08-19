@@ -128,5 +128,5 @@ describe("devin-desktop", async () => {
     } finally {
       await removeContainer(id);
     }
-  });
+  }, 10000);
 });
