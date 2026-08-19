@@ -48,7 +48,7 @@ module "supabase" {
   version           = "1.0.0"
   agent_id          = coder_agent.example.id
   use_external_auth = false
-  access_token      = var.supabase_token  # From Terraform variable or secret
+  access_token      = var.supabase_token # From Terraform variable or secret
 }
 ```
 
@@ -73,7 +73,7 @@ module "supabase" {
   agent_id          = coder_agent.example.id
   use_external_auth = false
   access_token      = var.supabase_token
-  project_ref       = "abcdefghijklmnop"  # Links dashboard button directly to this project
+  project_ref       = "abcdefghijklmnop" # Links dashboard button directly to this project
 }
 ```
 
@@ -84,7 +84,7 @@ module "supabase" {
   source         = "registry.coder.com/coder/supabase/coder"
   version        = "1.0.0"
   agent_id       = coder_agent.example.id
-  install_method = "binary"  # Force binary install instead of detect
+  install_method = "binary" # Force binary install instead of detect
 }
 ```
 
