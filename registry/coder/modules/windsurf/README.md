@@ -8,6 +8,11 @@ tags: [ide, windsurf, ai]
 
 # Windsurf Editor
 
+> [!IMPORTANT]
+> Windsurf Editor was rebranded to Devin Desktop by Cognition on June 2, 2026. New templates should use the
+> [`devin-desktop`](https://registry.coder.com/modules/coder/devin-desktop) module instead. This module is kept
+> published and fully functional for existing templates that reference it; it is not being removed.
+
 Add a button to open any workspace with a single click in Windsurf Editor.
 
 Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder).
@@ -16,7 +21,7 @@ Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder)
 module "windsurf" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windsurf/coder"
-  version  = "1.3.1"
+  version  = "1.3.2"
   agent_id = coder_agent.main.id
 }
 ```
@@ -29,7 +34,7 @@ module "windsurf" {
 module "windsurf" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windsurf/coder"
-  version  = "1.3.1"
+  version  = "1.3.2"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
@@ -45,7 +50,7 @@ The following example configures Windsurf to use the GitHub MCP server with auth
 module "windsurf" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/windsurf/coder"
-  version  = "1.3.1"
+  version  = "1.3.2"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   mcp = jsonencode({
