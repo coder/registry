@@ -72,6 +72,13 @@ variable "project_ref" {
   default     = ""
 }
 
+variable "dashboard_app" {
+  type        = bool
+  description = "Whether to create the Supabase dashboard workspace app."
+  default     = true
+}
+
+
 variable "pre_install_script" {
   type        = string
   description = "Custom script to run before installing Supabase CLI. Can be used for dependency ordering between modules."
@@ -131,6 +138,7 @@ resource "coder_env" "supabase_db_password" {
 }
 
 resource "coder_app" "supabase" {
+  count        = var.dashboard_app ? 1 : 0
   agent_id     = var.agent_id
   slug         = "supabase"
   display_name = "Supabase"

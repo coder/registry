@@ -182,17 +182,17 @@ run "test_supabase_app_default_url" {
   }
 
   assert {
-    condition     = resource.coder_app.supabase.url == "https://supabase.com/dashboard"
+    condition     = resource.coder_app.supabase[0].url == "https://supabase.com/dashboard"
     error_message = "coder_app URL should default to dashboard when project_ref is empty"
   }
 
   assert {
-    condition     = resource.coder_app.supabase.external == true
+    condition     = resource.coder_app.supabase[0].external == true
     error_message = "coder_app should be external"
   }
 
   assert {
-    condition     = resource.coder_app.supabase.slug == "supabase"
+    condition     = resource.coder_app.supabase[0].slug == "supabase"
     error_message = "coder_app slug should be 'supabase'"
   }
 }
@@ -211,8 +211,27 @@ run "test_supabase_app_with_project_ref" {
   }
 
   assert {
-    condition     = resource.coder_app.supabase.url == "https://supabase.com/dashboard/project/abcdefghijklmnop"
+    condition     = resource.coder_app.supabase[0].url == "https://supabase.com/dashboard/project/abcdefghijklmnop"
     error_message = "coder_app URL should include project reference"
+  }
+}
+
+run "test_supabase_app_disabled" {
+  command = apply
+
+  variables {
+    agent_id      = "test-agent-no-app"
+    dashboard_app = false
+  }
+
+  assert {
+    condition     = var.dashboard_app == false
+    error_message = "dashboard_app should be false"
+  }
+
+  assert {
+    condition     = length(resource.coder_app.supabase) == 0
+    error_message = "coder_app should not be created when dashboard_app is false"
   }
 }
 
