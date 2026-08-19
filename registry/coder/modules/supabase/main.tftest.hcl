@@ -11,8 +11,8 @@ run "test_supabase_basic" {
   }
 
   assert {
-    condition     = var.install_method == "auto"
-    error_message = "Install method should default to 'auto'"
+    condition     = var.install_method == "detect"
+    error_message = "Install method should default to 'detect'"
   }
 
   assert {

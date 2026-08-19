@@ -39,7 +39,7 @@ describe("supabase", async () => {
     agent_id: "test-agent",
   });
 
-  it("defaults to auto install method", async () => {
+  it("defaults to detect install method", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "test-agent",
     });

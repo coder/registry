@@ -10,73 +10,73 @@ terraform {
 }
 
 variable "agent_id" {
+  type        = string
   description = "The ID of a Coder agent."
-  type        = string
-}
-
-variable "icon" {
-  description = "The icon to use for the module."
-  type        = string
-  default     = "/icon/supabase.svg"
-}
-
-variable "external_auth_id" {
-  description = "Supabase external auth provider ID configured in Coder."
-  type        = string
-  default     = "supabase"
-}
-
-variable "use_external_auth" {
-  description = "Use Coder external auth for Supabase authentication."
-  type        = bool
-  default     = true
-}
-
-variable "access_token" {
-  description = "Supabase personal access token. Ignored if use_external_auth is true."
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "install_method" {
-  description = "Installation method: 'auto' (detect best), 'brew', 'scoop' (Windows), or 'binary'."
-  type        = string
-  default     = "auto"
-  validation {
-    condition     = contains(["auto", "brew", "scoop", "binary"], var.install_method)
-    error_message = "install_method must be 'auto', 'brew', 'scoop', or 'binary'."
-  }
-}
-
-variable "supabase_version" {
-  description = "Supabase CLI version to install. Use 'latest' for most recent."
-  type        = string
-  default     = "latest"
-}
-
-variable "db_password" {
-  description = "Database password for non-interactive db commands (optional)."
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "pre_install_script" {
-  description = "Custom script to run before installing Supabase CLI."
-  type        = string
-  default     = null
-}
-
-variable "post_install_script" {
-  description = "Custom script to run after installing Supabase CLI."
-  type        = string
-  default     = null
 }
 
 data "coder_workspace" "me" {}
 
 data "coder_workspace_owner" "me" {}
+
+variable "icon" {
+  type        = string
+  description = "The icon to use for the Supabase app."
+  default     = "/icon/supabase.svg"
+}
+
+variable "external_auth_id" {
+  type        = string
+  description = "Supabase external auth provider ID configured in Coder."
+  default     = "supabase"
+}
+
+variable "use_external_auth" {
+  type        = bool
+  description = "Use Coder external auth for Supabase authentication. When false, use the access_token variable instead."
+  default     = true
+}
+
+variable "access_token" {
+  type        = string
+  description = "Supabase personal access token. Only used when use_external_auth is false."
+  default     = ""
+  sensitive   = true
+}
+
+variable "install_method" {
+  type        = string
+  description = "How to install the Supabase CLI. 'detect' automatically selects the best available method (brew → scoop → native package → binary). Use 'brew', 'scoop', or 'binary' to force a specific method."
+  default     = "detect"
+  validation {
+    condition     = contains(["detect", "brew", "scoop", "binary"], var.install_method)
+    error_message = "The 'install_method' variable must be one of: 'detect', 'brew', 'scoop', 'binary'."
+  }
+}
+
+variable "supabase_version" {
+  type        = string
+  description = "The version of Supabase CLI to install. Use 'latest' for the most recent release."
+  default     = "latest"
+}
+
+variable "db_password" {
+  type        = string
+  description = "Database password for non-interactive db commands (optional). Sets SUPABASE_DB_PASSWORD environment variable."
+  default     = ""
+  sensitive   = true
+}
+
+variable "pre_install_script" {
+  type        = string
+  description = "Custom script to run before installing Supabase CLI. Can be used for dependency ordering between modules."
+  default     = null
+}
+
+variable "post_install_script" {
+  type        = string
+  description = "Custom script to run after installing Supabase CLI."
+  default     = null
+}
 
 # External auth data source - only used when use_external_auth is true
 data "coder_external_auth" "supabase" {
@@ -85,7 +85,7 @@ data "coder_external_auth" "supabase" {
 }
 
 locals {
-  module_dir = "$HOME/.coder-modules/coder/supabase"
+  module_dir_name = ".coder-modules/coder/supabase"
 
   # Determine the access token to use
   access_token = var.use_external_auth ? try(data.coder_external_auth.supabase[0].access_token, "") : var.access_token
@@ -102,7 +102,7 @@ module "coder_utils" {
   version = "0.0.1"
 
   agent_id            = var.agent_id
-  module_directory    = local.module_dir
+  module_directory    = "$HOME/${local.module_dir_name}"
   display_name_prefix = "Supabase"
   icon                = var.icon
   pre_install_script  = var.pre_install_script
@@ -110,7 +110,6 @@ module "coder_utils" {
   post_install_script = var.post_install_script
 }
 
-# Set SUPABASE_ACCESS_TOKEN environment variable
 resource "coder_env" "supabase_access_token" {
   count    = local.access_token != "" ? 1 : 0
   agent_id = var.agent_id
@@ -118,7 +117,6 @@ resource "coder_env" "supabase_access_token" {
   value    = local.access_token
 }
 
-# Set SUPABASE_DB_PASSWORD environment variable (optional)
 resource "coder_env" "supabase_db_password" {
   count    = var.db_password != "" ? 1 : 0
   agent_id = var.agent_id
@@ -126,8 +124,11 @@ resource "coder_env" "supabase_db_password" {
   value    = var.db_password
 }
 
+# Pass-through of coder-utils script outputs so upstream modules can serialize
+# their coder_script resources behind this module's install pipeline using
+# `coder exp sync want <self> <each name>`.
 output "scripts" {
-  description = "Ordered list of coder exp sync names produced by this module."
+  description = "Ordered list of coder exp sync names for the coder_script resources this module creates, in run order (pre_install, install, post_install). Scripts that were not configured are absent from the list."
   value       = module.coder_utils.scripts
 }
 
@@ -138,6 +139,6 @@ output "access_token" {
 }
 
 output "module_directory" {
-  description = "The directory where Supabase CLI and logs are stored."
-  value       = local.module_dir
+  description = "The directory where Supabase CLI logs and scripts are stored."
+  value       = "$HOME/${local.module_dir_name}"
 }

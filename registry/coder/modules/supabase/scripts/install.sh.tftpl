@@ -223,8 +223,8 @@ install_scoop() {
   scoop install supabase || scoop update supabase || true
 }
 
-# === Auto-detection (priority: brew → scoop → native pkg → binary) ===
-if [ "$${INSTALL_METHOD}" = "auto" ]; then
+# === Detection logic (priority: brew → scoop → native pkg → binary) ===
+if [ "$${INSTALL_METHOD}" = "detect" ]; then
   if command -v brew > /dev/null 2>&1; then
     INSTALL_METHOD="brew"
   elif command -v scoop > /dev/null 2>&1; then
@@ -234,7 +234,7 @@ if [ "$${INSTALL_METHOD}" = "auto" ]; then
   else
     INSTALL_METHOD="binary"
   fi
-  echo "Auto-detected install method: $${INSTALL_METHOD}"
+  echo "Detected install method: $${INSTALL_METHOD}"
 fi
 
 # === Execute Installation ===

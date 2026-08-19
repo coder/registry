@@ -1,6 +1,6 @@
 ---
 display_name: Supabase CLI
-description: Install Supabase CLI and configure authentication via Coder external auth
+description: Install Supabase CLI and configure authentication via Coder external auth or access token
 icon: ../../../../.icons/supabase.svg
 verified: false
 tags: [supabase, database, cli, helper]
@@ -8,40 +8,34 @@ tags: [supabase, database, cli, helper]
 
 # Supabase CLI
 
-Installs the [Supabase CLI](https://supabase.com/docs/guides/cli) and configures authentication using Coder's external auth mechanism or a personal access token. The CLI is available immediately in your workspace without manual login flows.
+Installs the [Supabase CLI](https://supabase.com/docs/guides/cli) and configures authentication. The CLI is available immediately in your workspace without manual login flows.
 
-## Prerequisites
+## Authentication
 
-### For External Auth (Recommended)
+Choose **one** of the following authentication methods:
 
-Configure Supabase as an external auth provider in your Coder deployment. Generate a Personal Access Token at [Supabase Dashboard](https://supabase.com/dashboard/account/tokens).
+### Option 1: Coder External Auth (Recommended)
 
-Example Coder server configuration:
+Configure Supabase as an [external auth provider](https://coder.com/docs/admin/external-auth) in your Coder deployment. Users authenticate via OAuth when launching a workspace.
 
-```bash
-CODER_EXTERNAL_AUTH_0_ID="supabase"
-CODER_EXTERNAL_AUTH_0_TYPE="custom"
-CODER_EXTERNAL_AUTH_0_DISPLAY_NAME="Supabase"
-# Add OAuth configuration as needed
-```
+### Option 2: Personal Access Token
 
-### For Direct Token
-
-Generate a Personal Access Token at https://supabase.com/dashboard/account/tokens and pass it directly to the module.
+Generate a token at [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens) and pass it to the module via the `access_token` variable.
 
 ## Usage
 
-### With External Auth (Recommended)
+### With External Auth
 
 ```tf
 module "supabase" {
   source   = "registry.coder.com/coder/supabase/coder"
   version  = "1.0.0"
   agent_id = coder_agent.example.id
+  # external_auth_id = "supabase"  # Default; change if your provider has a different ID
 }
 ```
 
-### With Direct Token
+### With Personal Access Token
 
 ```tf
 module "supabase" {
@@ -60,7 +54,7 @@ module "supabase" {
   source         = "registry.coder.com/coder/supabase/coder"
   version        = "1.0.0"
   agent_id       = coder_agent.example.id
-  install_method = "binary"  # Force binary install instead of auto-detect
+  install_method = "binary"  # Force binary install instead of detect
 }
 ```
 
@@ -68,14 +62,14 @@ module "supabase" {
 
 The module supports multiple installation methods to work across different workspace environments:
 
-| Method           | Description             | Platforms      |
-| ---------------- | ----------------------- | -------------- |
-| `auto` (default) | Auto-detect best method | All            |
-| `brew`           | Homebrew                | macOS, Linux   |
-| `scoop`          | Scoop package manager   | Windows        |
-| `binary`         | Direct binary download  | All (fallback) |
+| Method             | Description                  | Platforms      |
+| ------------------ | ---------------------------- | -------------- |
+| `detect` (default) | Detect best available method | All            |
+| `brew`             | Homebrew                     | macOS, Linux   |
+| `scoop`            | Scoop package manager        | Windows        |
+| `binary`           | Direct binary download       | All (fallback) |
 
-Auto-detection priority: Homebrew → Scoop → Native packages (deb/rpm/apk) → Binary
+Detection priority: Homebrew → Scoop → Native packages (deb/rpm/apk) → Binary
 
 ## Environment Variables
 
