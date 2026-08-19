@@ -10,6 +10,7 @@ INSTALL_METHOD='${ARG_INSTALL_METHOD}'
 VERSION='${ARG_VERSION}'
 PROJECT_REF='${ARG_PROJECT_REF}'
 PROJECT_DIR='${ARG_PROJECT_DIR}'
+DOWNLOAD_BASE_URL='${ARG_DOWNLOAD_BASE_URL}'
 
 echo "Installing Supabase CLI (method: $${INSTALL_METHOD}, version: $${VERSION})..."
 
@@ -104,7 +105,7 @@ install_binary() {
   local version
   version=$(resolve_version)
 
-  local download_url="https://github.com/supabase/cli/releases/download/v$${version}/supabase_$${OS}_$${ARCH}.tar.gz"
+  local download_url="$${DOWNLOAD_BASE_URL}/v$${version}/supabase_$${OS}_$${ARCH}.tar.gz"
 
   local tmp_dir
   tmp_dir=$(mktemp -d)
@@ -130,7 +131,7 @@ install_native_package() {
   trap "rm -rf $${tmp_dir}" EXIT
 
   if command -v dpkg > /dev/null 2>&1; then
-    local pkg_url="https://github.com/supabase/cli/releases/download/v$${version}/supabase_$${version}_$${OS}_$${ARCH}.deb"
+    local pkg_url="$${DOWNLOAD_BASE_URL}/v$${version}/supabase_$${version}_$${OS}_$${ARCH}.deb"
     echo "Installing via dpkg..."
     fetch_to_file "$${tmp_dir}/supabase.deb" "$${pkg_url}"
     if command -v sudo > /dev/null 2>&1; then
@@ -147,7 +148,7 @@ install_native_package() {
       }
     fi
   elif command -v rpm > /dev/null 2>&1; then
-    local pkg_url="https://github.com/supabase/cli/releases/download/v$${version}/supabase_$${version}_$${OS}_$${ARCH}.rpm"
+    local pkg_url="$${DOWNLOAD_BASE_URL}/v$${version}/supabase_$${version}_$${OS}_$${ARCH}.rpm"
     echo "Installing via rpm..."
     fetch_to_file "$${tmp_dir}/supabase.rpm" "$${pkg_url}"
     if command -v sudo > /dev/null 2>&1; then
@@ -164,7 +165,7 @@ install_native_package() {
       }
     fi
   elif command -v apk > /dev/null 2>&1; then
-    local pkg_url="https://github.com/supabase/cli/releases/download/v$${version}/supabase_$${version}_$${OS}_$${ARCH}.apk"
+    local pkg_url="$${DOWNLOAD_BASE_URL}/v$${version}/supabase_$${version}_$${OS}_$${ARCH}.apk"
     echo "Installing via apk..."
     fetch_to_file "$${tmp_dir}/supabase.apk" "$${pkg_url}"
     if command -v sudo > /dev/null 2>&1; then

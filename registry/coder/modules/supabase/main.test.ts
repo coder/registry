@@ -112,6 +112,36 @@ describe("supabase", () => {
     ).rejects.toThrow(/install_method.*must be/);
   });
 
+  it("supports skip_install option", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "test-agent",
+      skip_install: "true",
+    });
+    const script = state.resources.find(
+      (r) => r.type === "coder_script" && r.name === "install_script",
+    );
+    expect(script).toBeDefined();
+    const wrapperScript = script!.instances[0].attributes.script as string;
+    const b64Match = wrapperScript.match(/echo -n '([A-Za-z0-9+/=]+)'/);
+    expect(b64Match).toBeTruthy();
+    const decodedScript = Buffer.from(b64Match![1], "base64").toString("utf-8");
+    expect(decodedScript).toContain("Skipping Supabase CLI installation");
+  });
+
+  it("supports custom download_base_url", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "test-agent",
+      download_base_url: "https://mirror.internal/supabase",
+    });
+    const script = state.resources.find(
+      (r) => r.type === "coder_script" && r.name === "install_script",
+    );
+    const wrapperScript = script!.instances[0].attributes.script as string;
+    const b64Match = wrapperScript.match(/echo -n '([A-Za-z0-9+/=]+)'/);
+    const decodedScript = Buffer.from(b64Match![1], "base64").toString("utf-8");
+    expect(decodedScript).toContain("https://mirror.internal/supabase");
+  });
+
   it("sets access_token when use_external_auth is false", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "test-agent",

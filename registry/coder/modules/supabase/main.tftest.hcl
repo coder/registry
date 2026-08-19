@@ -255,3 +255,54 @@ run "test_supabase_app_disabled" {
   }
 }
 
+run "test_supabase_skip_install" {
+  command = plan
+
+  variables {
+    agent_id     = "test-agent-skip"
+    skip_install = true
+  }
+
+  assert {
+    condition     = var.skip_install == true
+    error_message = "skip_install should be true"
+  }
+}
+
+run "test_supabase_custom_download_url" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent-mirror"
+    download_base_url = "https://internal-mirror.corp/supabase/releases"
+  }
+
+  assert {
+    condition     = var.download_base_url == "https://internal-mirror.corp/supabase/releases"
+    error_message = "download_base_url should be set to custom mirror"
+  }
+}
+
+run "test_supabase_skip_install_with_token" {
+  command = apply
+
+  variables {
+    agent_id          = "test-agent-skip-token"
+    skip_install      = true
+    use_external_auth = false
+    access_token      = "sbp_test_token_for_skip"
+  }
+
+  assert {
+    condition     = var.skip_install == true
+    error_message = "skip_install should be true"
+  }
+
+  # Env vars should still be set even when skipping install
+  assert {
+    condition     = length(resource.coder_env.supabase_access_token) == 1
+    error_message = "Access token env should be created even with skip_install"
+  }
+}
+
+

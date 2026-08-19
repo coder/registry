@@ -59,6 +59,18 @@ variable "supabase_version" {
   default     = "latest"
 }
 
+variable "download_base_url" {
+  type        = string
+  description = "Base URL for downloading Supabase CLI releases. Override to use an internal mirror in restricted environments. The URL should serve the same directory structure as GitHub releases."
+  default     = "https://github.com/supabase/cli/releases/download"
+}
+
+variable "skip_install" {
+  type        = bool
+  description = "Skip CLI installation (use when supabase is already in the image). Auth environment variables are still configured."
+  default     = false
+}
+
 variable "db_password" {
   type        = string
   description = "Remote Postgres database password for non-interactive CLI commands like 'supabase link' (optional). Sets SUPABASE_DB_PASSWORD environment variable."
@@ -110,11 +122,12 @@ locals {
   access_token = var.use_external_auth ? try(data.coder_external_auth.supabase[0].access_token, "") : var.access_token
 
   # Render the install script
-  install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
-    ARG_INSTALL_METHOD = var.install_method
-    ARG_VERSION        = var.supabase_version
-    ARG_PROJECT_REF    = var.project_ref
-    ARG_PROJECT_DIR    = var.project_dir
+  install_script = var.skip_install ? "echo 'Skipping Supabase CLI installation (skip_install=true)'" : templatefile("${path.module}/scripts/install.sh.tftpl", {
+    ARG_INSTALL_METHOD    = var.install_method
+    ARG_VERSION           = var.supabase_version
+    ARG_PROJECT_REF       = var.project_ref
+    ARG_PROJECT_DIR       = var.project_dir
+    ARG_DOWNLOAD_BASE_URL = var.download_base_url
   })
 }
 
