@@ -6,8 +6,6 @@ LOG_DIR="$${MODULE_DIR}/logs"
 BIN_DIR="$${MODULE_DIR}/bin"
 mkdir -p "$${LOG_DIR}" "$${BIN_DIR}"
 
-exec > >(tee -a "$${LOG_DIR}/install.log") 2>&1
-
 INSTALL_METHOD='${ARG_INSTALL_METHOD}'
 VERSION='${ARG_VERSION}'
 PROJECT_REF='${ARG_PROJECT_REF}'

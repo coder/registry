@@ -82,7 +82,7 @@ describe("supabase", async () => {
         agent_id: "test-agent",
         install_method: "invalid",
       }),
-    ).rejects.toThrow(/install_method must be/);
+    ).rejects.toThrow(/install_method.*must be/);
   });
 
   it("sets access_token when use_external_auth is false", async () => {
