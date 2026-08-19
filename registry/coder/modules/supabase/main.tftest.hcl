@@ -216,6 +216,26 @@ run "test_supabase_app_with_project_ref" {
   }
 }
 
+run "test_supabase_with_project_dir" {
+  command = plan
+
+  variables {
+    agent_id    = "test-agent-project-dir"
+    project_ref = "abcdefghijklmnop"
+    project_dir = "/home/coder/my-app"
+  }
+
+  assert {
+    condition     = var.project_dir == "/home/coder/my-app"
+    error_message = "project_dir should be set correctly"
+  }
+
+  assert {
+    condition     = var.project_ref == "abcdefghijklmnop"
+    error_message = "project_ref should be set correctly"
+  }
+}
+
 run "test_supabase_app_disabled" {
   command = apply
 

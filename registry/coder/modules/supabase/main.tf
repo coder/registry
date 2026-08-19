@@ -68,7 +68,13 @@ variable "db_password" {
 
 variable "project_ref" {
   type        = string
-  description = "Supabase project reference (e.g., 'abcdefghijklmnop'). When set, adds a dashboard link directly to this project."
+  description = "Supabase project reference (e.g., 'abcdefghijklmnop'). When set, links the CLI to this project and adds a dashboard link."
+  default     = ""
+}
+
+variable "project_dir" {
+  type        = string
+  description = "Directory to link the Supabase project in. Created if it doesn't exist. Defaults to $HOME if empty."
   default     = ""
 }
 
@@ -108,6 +114,7 @@ locals {
     ARG_INSTALL_METHOD = var.install_method
     ARG_VERSION        = var.supabase_version
     ARG_PROJECT_REF    = var.project_ref
+    ARG_PROJECT_DIR    = var.project_dir
   })
 }
 

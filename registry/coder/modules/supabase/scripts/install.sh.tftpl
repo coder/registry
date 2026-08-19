@@ -11,6 +11,7 @@ exec > >(tee -a "$${LOG_DIR}/install.log") 2>&1
 INSTALL_METHOD='${ARG_INSTALL_METHOD}'
 VERSION='${ARG_VERSION}'
 PROJECT_REF='${ARG_PROJECT_REF}'
+PROJECT_DIR='${ARG_PROJECT_DIR}'
 
 echo "Installing Supabase CLI (method: $${INSTALL_METHOD}, version: $${VERSION})..."
 
@@ -245,8 +246,10 @@ else
 fi
 
 if [ -n "$${PROJECT_REF}" ]; then
-  echo "Linking to Supabase project: $${PROJECT_REF}..."
-  cd "$${HOME}"
+  LINK_DIR="$${PROJECT_DIR:-$${HOME}}"
+  mkdir -p "$${LINK_DIR}"
+  echo "Linking to Supabase project: $${PROJECT_REF} in $${LINK_DIR}..."
+  cd "$${LINK_DIR}"
   if $${SUPABASE_BIN} link --project-ref "$${PROJECT_REF}" 2>&1; then
     echo "✓ Linked to project $${PROJECT_REF}"
   else
