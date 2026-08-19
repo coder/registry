@@ -69,6 +69,9 @@ module "supabase" {
 }
 ```
 
+> [!NOTE]
+> Never hardcode tokens in your template.
+
 ### With External Auth (OAuth)
 
 ```tf
