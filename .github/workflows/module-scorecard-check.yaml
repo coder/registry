@@ -6,17 +6,18 @@
 # Never creates or updates discussions; the comparison is read-only against
 # GitHub and only writes the PR comment.
 #
-# Runs on community (fork) PRs too. Because scoring needs secrets, the
-# trigger is pull_request_target, which runs in the base-repo context with
-# secrets available. To keep that safe against "pwn request" attacks:
-#   - The checkout below is the trusted base ref (pull_request_target's
-#     default), so the workflow and the .github/scorecard scripts always
-#     run from main, never from the PR.
-#   - PR content is fetched separately and materialized ONLY under
-#     registry/coder/modules/, where it is read as inert text for the
-#     scoring prompt. Nothing from the PR head is ever executed.
-# Combined with the repository's Actions approval settings for outside
-# contributors, this bounds fork-PR risk to the comment body itself.
+# Two triggers:
+#   - pull_request: runs automatically for same-repo PRs. Fork PRs are
+#     skipped because secrets are unavailable to them.
+#   - issue_comment: a maintainer comments "/scorecard" on any PR
+#     (including fork PRs) to run the check on demand. Restricted to
+#     OWNER/MEMBER/COLLABORATOR, so every fork-PR scoring is an explicit
+#     maintainer decision.
+#
+# Both paths execute only trusted code: the checkout is the base
+# repository, and PR content is fetched separately and materialized ONLY
+# under registry/coder/modules/, where the scoring script reads it as
+# inert text for the LLM prompt. Nothing from the PR head is executed.
 #
 # Required repository secrets:
 #   SCORECARD_ANTHROPIC_API_KEY  Anthropic API key used for scoring
@@ -27,9 +28,11 @@
 name: Module Scorecard Check
 
 on:
-  pull_request_target:
+  pull_request:
     paths:
       - "registry/coder/modules/**"
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
@@ -37,19 +40,30 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: module-scorecard-check-${{ github.event.pull_request.number }}
+  group: module-scorecard-check-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: true
 
 jobs:
   check:
     name: Compare module scores against main
+    if: >-
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       startsWith(github.event.comment.body, '/scorecard') &&
+       contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout trusted base ref
-        # Deliberately NOT the PR head: the scorecard scripts must come
-        # from main so a PR cannot alter the code that runs with secrets.
+      - name: Checkout trusted base
+        # For issue_comment this is the default branch; for pull_request it
+        # is the test merge commit of a same-repo PR. Either way the
+        # .github/scorecard scripts executed below come from the base
+        # repository, never from a fork.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -59,7 +73,7 @@ jobs:
       - name: Determine changed modules
         id: changed
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         # Fetch GitHub's test merge commit (PR head merged into current
         # main) so FETCH_HEAD^1 is the exact main tip this PR is applied
         # to and the diff is precisely what the PR changes. Diffing against
@@ -71,6 +85,7 @@ jobs:
           git fetch --depth=2 origin "refs/pull/${PR_NUMBER}/merge"
           MODULES=$(git diff --name-only FETCH_HEAD^1 FETCH_HEAD | { grep -oP '^registry/coder/modules/\K[^/]+' || true; } | sort -u | paste -sd, -)
           echo "modules=${MODULES}" >> "${GITHUB_OUTPUT}"
+          echo "pr=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
           echo "Changed modules: ${MODULES:-none}"
 
       - name: Materialize PR module content (data only)
@@ -78,7 +93,7 @@ jobs:
         # Overlay ONLY the module directories from the PR merge commit onto
         # the trusted checkout. The scoring script reads these files as
         # plain text for the LLM prompt; it never executes them. Everything
-        # under .github/ stays at the base ref.
+        # under .github/ stays at the trusted base.
         run: |
           git rm -rq --ignore-unmatch registry/coder/modules
           git checkout FETCH_HEAD -- registry/coder/modules
@@ -95,7 +110,7 @@ jobs:
         if: steps.changed.outputs.modules != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ steps.changed.outputs.pr }}
         run: |
           # No report means every changed module was skipped (for example,
           # internal building blocks); leave no comment in that case.
