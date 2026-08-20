@@ -112,7 +112,7 @@ async function verifyReadmeImages(
   const imageRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
   const results: ImageVerification[] = [];
 
-  let match;
+  let match: RegExpExecArray | null;
   while ((match = imageRegex.exec(readme)) !== null) {
     const reference = match[1];
 
@@ -125,7 +125,15 @@ async function verifyReadmeImages(
       continue;
     }
 
+    if (path.isAbsolute(reference)) {
+      continue;
+    }
+
     const resolvedPath = path.resolve(moduleDir, reference);
+    if (!resolvedPath.startsWith(REGISTRY_ROOT)) {
+      continue;
+    }
+
     const verification: ImageVerification = {
       reference,
       resolvedPath,
