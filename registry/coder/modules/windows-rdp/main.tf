@@ -70,22 +70,37 @@ variable "devolutions_gateway_version" {
   description = "Version of Devolutions Gateway to install. Use 'latest' for the most recent version, or specify a version like '2025.3.2'."
 }
 
+locals {
+  # The Devolutions patch script embeds these values inside double-quoted JS
+  # string literals. jsonencode escapes backslashes, quotes, control characters,
+  # and HTML-significant characters; the outer quotes are trimmed because the JS
+  # file supplies its own.
+  js_admin_username = trimsuffix(trimprefix(jsonencode(var.admin_username), "\""), "\"")
+  js_admin_password = trimsuffix(trimprefix(jsonencode(var.admin_password), "\""), "\"")
+
+  # The installation script passes these values as PowerShell single-quoted
+  # strings, which are literal apart from the single quote itself. Doubling the
+  # single quotes keeps values containing $, backticks, or double quotes intact.
+  ps_admin_username = replace(var.admin_username, "'", "''")
+  ps_admin_password = replace(var.admin_password, "'", "''")
+}
+
 resource "coder_script" "windows-rdp" {
   agent_id     = var.agent_id
   display_name = "windows-rdp"
   icon         = "/icon/rdp.svg"
 
   script = templatefile("${path.module}/powershell-installation-script.tftpl", {
-    admin_username              = var.admin_username
-    admin_password              = var.admin_password
+    admin_username              = local.ps_admin_username
+    admin_password              = local.ps_admin_password
     devolutions_gateway_version = var.devolutions_gateway_version
 
     # Wanted to have this be in the powershell template file, but Terraform
     # doesn't allow recursive calls to the templatefile function. Have to feed
     # results of the JS template replace into the powershell template
     patch_file_contents = templatefile("${path.module}/devolutions-patch.js", {
-      CODER_USERNAME = var.admin_username
-      CODER_PASSWORD = var.admin_password
+      CODER_USERNAME = local.js_admin_username
+      CODER_PASSWORD = local.js_admin_password
     })
   })
 

@@ -382,10 +382,13 @@ describe("claude-code", async () => {
     const parsed = JSON.parse(claudeConfig);
     expect(parsed.autoUpdaterStatus).toBe("disabled");
     expect(parsed.hasCompletedOnboarding).toBe(true);
-    expect(parsed.bypassPermissionsModeAccepted).toBe(true);
     expect(parsed.hasAcknowledgedCostThreshold).toBe(true);
     expect(parsed.projects[workdir].hasCompletedProjectOnboarding).toBe(true);
     expect(parsed.projects[workdir].hasTrustDialogAccepted).toBe(true);
+    // Permission posture is delivered via /etc/claude-code/managed-settings.d/,
+    // not user-writable ~/.claude.json acceptance flags.
+    expect(parsed.bypassPermissionsModeAccepted).toBeUndefined();
+    expect(parsed.autoModeAccepted).toBeUndefined();
   });
 
   test("standalone-mode-with-oauth-token", async () => {
@@ -413,7 +416,7 @@ describe("claude-code", async () => {
     );
     const parsed = JSON.parse(claudeConfig);
     expect(parsed.hasCompletedOnboarding).toBe(true);
-    expect(parsed.bypassPermissionsModeAccepted).toBe(true);
+    expect(parsed.bypassPermissionsModeAccepted).toBeUndefined();
   });
 
   test("standalone-mode-no-auth", async () => {
@@ -432,6 +435,49 @@ describe("claude-code", async () => {
       "bash",
       "-c",
       "test -e /home/coder/.claude.json && echo EXISTS || echo ABSENT",
+    ]);
+    expect(resp.stdout.trim()).toBe("ABSENT");
+  });
+
+  test("claude-managed-settings-written", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        managed_settings: JSON.stringify({
+          permissions: {
+            defaultMode: "acceptEdits",
+            disableBypassPermissionsMode: "disable",
+            deny: ["Bash(rm -rf*)"],
+          },
+        }),
+      },
+    });
+    await runScripts(id, scripts);
+
+    const policy = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /etc/claude-code/managed-settings.d/10-coder.json",
+    ]);
+    expect(policy.exitCode).toBe(0);
+    expect(policy.stdout).toContain('"defaultMode":"acceptEdits"');
+    expect(policy.stdout).toContain('"disableBypassPermissionsMode":"disable"');
+    expect(policy.stdout).toContain('"deny":["Bash(rm -rf*)"]');
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+    );
+    expect(installLog).toContain("Wrote Claude Code managed settings");
+  });
+
+  test("claude-managed-settings-not-set", async () => {
+    const { id, scripts } = await setup();
+    await runScripts(id, scripts);
+
+    const resp = await execContainer(id, [
+      "bash",
+      "-c",
+      "test -e /etc/claude-code/managed-settings.d/10-coder.json && echo EXISTS || echo ABSENT",
     ]);
     expect(resp.stdout.trim()).toBe("ABSENT");
   });
@@ -471,5 +517,118 @@ describe("claude-code", async () => {
     expect(coderEnvVars["OTEL_EXPORTER_OTLP_PROTOCOL"]).toBeUndefined();
     expect(coderEnvVars["OTEL_EXPORTER_OTLP_HEADERS"]).toBeUndefined();
     expect(coderEnvVars["OTEL_RESOURCE_ATTRIBUTES"]).toBeUndefined();
+  });
+
+  test("use-bedrock-no-api-key", async () => {
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        use_bedrock: "true",
+      },
+    });
+    expect(coderEnvVars["CLAUDE_CODE_USE_BEDROCK"]).toBe("1");
+    expect(coderEnvVars["ANTHROPIC_API_KEY"]).toBeUndefined();
+
+    await runScripts(id, scripts, coderEnvVars);
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+    );
+    expect(installLog).toContain(
+      "Using Amazon Bedrock (CLAUDE_CODE_USE_BEDROCK=1)",
+    );
+    expect(installLog).not.toContain("No authentication configured");
+    expect(installLog).toContain("Standalone mode configured successfully");
+
+    // Onboarding bypass should still be written so the CLI starts headlessly.
+    const claudeConfig = await readFileContainer(
+      id,
+      "/home/coder/.claude.json",
+    );
+    expect(JSON.parse(claudeConfig).hasCompletedOnboarding).toBe(true);
+  });
+
+  test("use-vertex-no-api-key", async () => {
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        use_vertex: "true",
+      },
+    });
+    expect(coderEnvVars["CLAUDE_CODE_USE_VERTEX"]).toBe("1");
+
+    await runScripts(id, scripts, coderEnvVars);
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+    );
+    expect(installLog).toContain(
+      "Using Google Vertex AI (CLAUDE_CODE_USE_VERTEX=1)",
+    );
+    expect(installLog).not.toContain("No authentication configured");
+  });
+
+  test("anthropic-base-url-custom", async () => {
+    const baseUrl = "https://llm-gateway.example.com/anthropic";
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        anthropic_base_url: baseUrl,
+      },
+    });
+    expect(coderEnvVars["ANTHROPIC_BASE_URL"]).toBe(baseUrl);
+
+    await runScripts(id, scripts, coderEnvVars);
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+    );
+    expect(installLog).toContain("Using custom ANTHROPIC_BASE_URL");
+    expect(installLog).toContain(baseUrl);
+    expect(installLog).not.toContain("No authentication configured");
+  });
+
+  test("api-key-helper", async () => {
+    const helperBody = "#!/bin/sh\nvault kv get -field=key secret/anthropic\n";
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        api_key_helper: JSON.stringify({ script: helperBody, ttl_ms: 60000 }),
+      },
+    });
+    expect(coderEnvVars["CLAUDE_CODE_API_KEY_HELPER_TTL_MS"]).toBe("60000");
+
+    await runScripts(id, scripts, coderEnvVars);
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+    );
+    expect(installLog).toContain("Configuring api_key_helper");
+    expect(installLog).toContain(
+      "Wrote api_key_helper script to /home/coder/.claude/coder-api-key-helper.sh",
+    );
+    // api_key_helper counts as authentication, so onboarding bypass runs.
+    expect(installLog).not.toContain("skipping onboarding bypass");
+    expect(installLog).toContain("Standalone mode configured successfully");
+
+    const helper = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /home/coder/.claude/coder-api-key-helper.sh && stat -c '%a' /home/coder/.claude/coder-api-key-helper.sh",
+    ]);
+    expect(helper.exitCode).toBe(0);
+    expect(helper.stdout).toContain("vault kv get -field=key secret/anthropic");
+    expect(helper.stdout).toContain("700");
+
+    const managed = await readFileContainer(
+      id,
+      "/etc/claude-code/managed-settings.d/20-coder-apikeyhelper.json",
+    );
+    expect(managed).toContain('"apiKeyHelper"');
+    expect(managed).toContain("/home/coder/.claude/coder-api-key-helper.sh");
+
+    const claudeConfig = await readFileContainer(
+      id,
+      "/home/coder/.claude.json",
+    );
+    const parsed = JSON.parse(claudeConfig);
+    expect(parsed.hasCompletedOnboarding).toBe(true);
   });
 });

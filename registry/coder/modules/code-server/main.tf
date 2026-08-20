@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.9"
 
   required_providers {
     coder = {
@@ -40,13 +40,13 @@ variable "slug" {
 
 variable "settings" {
   type        = any
-  description = "A map of settings to apply to code-server."
+  description = "A map of settings to apply to code-server's User settings. These settings are merged with any existing user settings on startup."
   default     = {}
 }
 
 variable "machine_settings" {
   type        = any
-  description = "A map of template level machine settings to apply to code-server. This will be overwritten at each container start."
+  description = "A map of template level machine settings to apply to code-server. These settings are merged with any existing machine settings on startup."
   default     = {}
 }
 
@@ -56,6 +56,19 @@ variable "folder" {
   default     = ""
 }
 
+variable "workspace" {
+  type        = string
+  description = "The path to a `.code-workspace` file to open in code-server. Mutually exclusive with `folder`."
+  default     = ""
+  validation {
+    condition     = var.workspace == "" || endswith(var.workspace, ".code-workspace")
+    error_message = "workspace must be a path to a .code-workspace file"
+  }
+  validation {
+    condition     = var.folder == "" || var.workspace == ""
+    error_message = "folder and workspace are mutually exclusive; set at most one"
+  }
+}
 variable "install_prefix" {
   type        = string
   description = "The prefix to install code-server to."
@@ -154,6 +167,11 @@ variable "additional_args" {
   default     = ""
 }
 
+locals {
+  settings_b64         = var.settings != {} ? base64encode(jsonencode(var.settings)) : ""
+  machine_settings_b64 = var.machine_settings != {} ? base64encode(jsonencode(var.machine_settings)) : ""
+}
+
 resource "coder_script" "code-server" {
   agent_id     = var.agent_id
   display_name = "code-server"
@@ -165,14 +183,14 @@ resource "coder_script" "code-server" {
     PORT : var.port,
     LOG_PATH : var.log_path,
     INSTALL_PREFIX : var.install_prefix,
-    // This is necessary otherwise the quotes are stripped!
-    SETTINGS : replace(jsonencode(var.settings), "\"", "\\\""),
-    MACHINE_SETTINGS : replace(jsonencode(var.machine_settings), "\"", "\\\""),
+    SETTINGS_B64 : local.settings_b64,
+    MACHINE_SETTINGS_B64 : local.machine_settings_b64,
     OFFLINE : var.offline,
     USE_CACHED : var.use_cached,
     USE_CACHED_EXTENSIONS : var.use_cached_extensions,
     EXTENSIONS_DIR : var.extensions_dir,
     FOLDER : var.folder,
+    WORKSPACE : var.workspace,
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
     ADDITIONAL_ARGS : var.additional_args,
   })
@@ -195,7 +213,7 @@ resource "coder_app" "code-server" {
   agent_id     = var.agent_id
   slug         = var.slug
   display_name = var.display_name
-  url          = "http://localhost:${var.port}/${var.folder != "" ? "?folder=${urlencode(var.folder)}" : ""}"
+  url          = "http://localhost:${var.port}/${var.folder != "" ? "?folder=${urlencode(var.folder)}" : var.workspace != "" ? "?workspace=${urlencode(var.workspace)}" : ""}"
   icon         = "/icon/code.svg"
   subdomain    = var.subdomain
   share        = var.share

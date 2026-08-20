@@ -12,9 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Detect changed files
-        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
           list-files: shell
@@ -32,12 +32,16 @@ jobs:
               - 'scripts/shellcheck_validate.sh'
             modules:
               - 'registry/**/modules/**'
+            templates:
+              - 'registry/**/templates/**'
             shell:
               - '**/*.sh'
             all:
               - '**'
       - name: Set up Terraform
-        uses: coder/coder/.github/actions/setup-tf@34584e909bbe6f501fb2cbdc994325b4d3f9e2ef # v2.32.0
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
@@ -66,6 +70,7 @@ jobs:
           ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
           SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
           MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
+          TEMPLATE_CHANGED_FILES: ${{ steps.filter.outputs.templates_files }}
         run: bun terraform-validate
       - name: Run ShellCheck
         env:
@@ -80,20 +85,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: latest
       # Need Terraform for its formatter
-      - name: Install Terraform
-        uses: coder/coder/.github/actions/setup-tf@34584e909bbe6f501fb2cbdc994325b4d3f9e2ef # v2.32.0
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
       - name: Install dependencies
         run: bun install
       - name: Validate formatting
         run: bun fmt:ci
       - name: Check for typos
-        uses: crate-ci/typos@cf5f1c29a8ac336af8568821ec41919923b05a83 # v1.45.1
+        uses: crate-ci/typos@8a48f81b6c64dcfea44b3633223084c4be58ac5f # v1.49.0
         with:
           config: .github/typos.toml
   validate-readme-files:
@@ -104,11 +111,11 @@ jobs:
     needs: validate-style
     steps:
       - name: Check out code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.24.0"
+          go-version-file: go.mod
       - name: Validate contributors
         run: go build ./cmd/readmevalidation && ./readmevalidation
       - name: Remove build file artifact

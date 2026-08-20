@@ -88,6 +88,12 @@ variable "mcp" {
   default     = ""
 }
 
+variable "mcp_config_remote_path" {
+  type        = list(string)
+  description = "List of URLs that return MCP server configurations in TOML format (matching Codex's native config format). Fetched at install time and appended to config.toml."
+  default     = []
+}
+
 variable "model_reasoning_effort" {
   type        = string
   description = "The reasoning effort for the model. One of: none, minimal, low, medium, high, xhigh. See https://platform.openai.com/docs/guides/latest-model#lower-reasoning-effort"
@@ -121,7 +127,7 @@ resource "coder_env" "openai_api_key" {
 resource "coder_env" "ai_gateway_session_token" {
   count    = var.enable_ai_gateway ? 1 : 0
   agent_id = var.agent_id
-  name     = "CODER_AIBRIDGE_SESSION_TOKEN"
+  name     = "OPENAI_CODER_AIGATEWAY_SESSION_TOKEN"
   value    = data.coder_workspace_owner.me.session_token
 }
 
@@ -131,16 +137,17 @@ locals {
   [model_providers.aigateway]
   name = "AI Gateway"
   base_url = "${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1"
-  env_key = "CODER_AIBRIDGE_SESSION_TOKEN"
+  env_key = "OPENAI_CODER_AIGATEWAY_SESSION_TOKEN"
   wire_api = "responses"
 
   EOF
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_INSTALL                = tostring(var.install_codex)
-    ARG_CODEX_VERSION          = var.codex_version != "" ? base64encode(var.codex_version) : ""
+    ARG_CODEX_VERSION          = var.codex_version
     ARG_WORKDIR                = local.workdir != "" ? base64encode(local.workdir) : ""
     ARG_BASE_CONFIG_TOML       = var.base_config_toml != "" ? base64encode(var.base_config_toml) : ""
     ARG_MCP                    = var.mcp != "" ? base64encode(var.mcp) : ""
+    ARG_MCP_CONFIG_REMOTE_PATH = base64encode(jsonencode(var.mcp_config_remote_path))
     ARG_ENABLE_AI_GATEWAY      = tostring(var.enable_ai_gateway)
     ARG_AIBRIDGE_CONFIG        = var.enable_ai_gateway ? base64encode(local.aibridge_config) : ""
     ARG_MODEL_REASONING_EFFORT = var.model_reasoning_effort

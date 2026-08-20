@@ -9,7 +9,7 @@ DOTFILES_BRANCH="${DOTFILES_BRANCH}"
 # Validate DOTFILES_URI to prevent command injection (defense in depth)
 if [ -n "$DOTFILES_URI" ]; then
   # shellcheck disable=SC2250
-  if [[ "$DOTFILES_URI" =~ [^a-zA-Z0-9._/:@-] ]]; then
+  if [[ "$DOTFILES_URI" =~ [^a-zA-Z0-9._/:@~-] ]]; then
     echo "ERROR: DOTFILES_URI contains invalid characters" >&2
     exit 1
   fi

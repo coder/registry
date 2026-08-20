@@ -19,6 +19,16 @@ variable "docker_socket" {
   type        = string
 }
 
+variable "image" {
+  description = <<-EOF
+  Container image for workspaces. The image determines which tools and
+  languages are available in the workspace by default. See the template
+  README for guidance on choosing an image.
+  EOF
+  type        = string
+  default     = "codercom/example-base:ubuntu"
+}
+
 provider "docker" {
   # Defaulting to null if the variable is an empty string lets us have an optional variable without having to set our own default
   host = var.docker_socket != "" ? var.docker_socket : null
@@ -129,15 +139,14 @@ module "code-server" {
   # This ensures that the latest non-breaking version of the module gets downloaded, you can also pin the module version to prevent breaking changes in production.
   version = "~> 1.0"
 
-  agent_id   = coder_agent.main.id
-  agent_name = "main"
-  order      = 1
+  agent_id = coder_agent.main.id
+  order    = 1
 }
 
 # See https://registry.coder.com/modules/coder/jetbrains
 module "jetbrains" {
   count      = data.coder_workspace.me.start_count
-  source     = "registry.coder.com/modules/coder/jetbrains/coder"
+  source     = "registry.coder.com/coder/jetbrains/coder"
   version    = "~> 1.0"
   agent_id   = coder_agent.main.id
   agent_name = "main"
@@ -173,7 +182,7 @@ resource "docker_volume" "home_volume" {
 
 resource "docker_container" "workspace" {
   count = data.coder_workspace.me.start_count
-  image = "codercom/enterprise-base:ubuntu"
+  image = var.image
   # Uses lower() to avoid Docker restriction on container names.
   name = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}"
   # Hostname makes the shell more user friendly: coder@my-workspace:~$

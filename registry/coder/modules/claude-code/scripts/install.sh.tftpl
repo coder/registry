@@ -17,6 +17,11 @@ ARG_CLAUDE_BINARY_PATH="$${ARG_CLAUDE_BINARY_PATH//\$HOME/$HOME}"
 ARG_MCP=$(echo -n '${ARG_MCP}' | base64 -d)
 ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n '${ARG_MCP_CONFIG_REMOTE_PATH}' | base64 -d)
 ARG_ENABLE_AI_GATEWAY='${ARG_ENABLE_AI_GATEWAY}'
+ARG_MANAGED_SETTINGS_JSON=$(echo -n '${ARG_MANAGED_SETTINGS_JSON}' | base64 -d)
+ARG_USE_BEDROCK='${ARG_USE_BEDROCK}'
+ARG_USE_VERTEX='${ARG_USE_VERTEX}'
+ARG_ANTHROPIC_BASE_URL='${ARG_ANTHROPIC_BASE_URL}'
+ARG_API_KEY_HELPER_SCRIPT=$(echo -n '${ARG_API_KEY_HELPER_SCRIPT}' | base64 -d)
 
 export PATH="$${ARG_CLAUDE_BINARY_PATH}:$PATH"
 
@@ -29,6 +34,11 @@ printf "ARG_CLAUDE_BINARY_PATH: %s\n" "$${ARG_CLAUDE_BINARY_PATH}"
 printf "ARG_MCP: %s\n" "$${ARG_MCP}"
 printf "ARG_MCP_CONFIG_REMOTE_PATH: %s\n" "$${ARG_MCP_CONFIG_REMOTE_PATH}"
 printf "ARG_ENABLE_AI_GATEWAY: %s\n" "$${ARG_ENABLE_AI_GATEWAY}"
+printf "ARG_MANAGED_SETTINGS_JSON: %s\n" "$${ARG_MANAGED_SETTINGS_JSON}"
+printf "ARG_USE_BEDROCK: %s\n" "$${ARG_USE_BEDROCK}"
+printf "ARG_USE_VERTEX: %s\n" "$${ARG_USE_VERTEX}"
+printf "ARG_ANTHROPIC_BASE_URL: %s\n" "$${ARG_ANTHROPIC_BASE_URL}"
+printf "ARG_API_KEY_HELPER_SCRIPT: %s\n" "$${ARG_API_KEY_HELPER_SCRIPT:+(set)}"
 
 echo "--------------------------------"
 
@@ -144,11 +154,83 @@ function setup_claude_configurations() {
 
 }
 
+function write_managed_settings() {
+  if [ -z "$${ARG_MANAGED_SETTINGS_JSON}" ]; then
+    return
+  fi
+
+  local dropin_dir="/etc/claude-code/managed-settings.d"
+  local target="$${dropin_dir}/10-coder.json"
+
+  if ! echo "$${ARG_MANAGED_SETTINGS_JSON}" | jq empty 2> /dev/null; then
+    echo "Warning: managed_settings is not valid JSON, skipping policy write"
+    return
+  fi
+
+  if command_exists sudo; then
+    sudo mkdir -p "$${dropin_dir}"
+    echo "$${ARG_MANAGED_SETTINGS_JSON}" | sudo tee "$${target}" > /dev/null
+    sudo chmod 0644 "$${target}"
+  else
+    mkdir -p "$${dropin_dir}"
+    echo "$${ARG_MANAGED_SETTINGS_JSON}" > "$${target}"
+    chmod 0644 "$${target}"
+  fi
+
+  echo "Wrote Claude Code managed settings to $${target}"
+}
+
+function setup_api_key_helper() {
+  if [ -z "$${ARG_API_KEY_HELPER_SCRIPT}" ]; then
+    return
+  fi
+
+  echo "Configuring api_key_helper for short-lived credentials..."
+
+  mkdir -p "$HOME/.claude"
+  local helper_path="$HOME/.claude/coder-api-key-helper.sh"
+  printf '%s' "$${ARG_API_KEY_HELPER_SCRIPT}" > "$${helper_path}"
+  chmod 0700 "$${helper_path}"
+
+  local dropin_dir="/etc/claude-code/managed-settings.d"
+  local target="$${dropin_dir}/20-coder-apikeyhelper.json"
+  if command_exists sudo; then
+    sudo mkdir -p "$${dropin_dir}"
+    printf '{"apiKeyHelper":"%s"}\n' "$${helper_path}" | sudo tee "$${target}" > /dev/null
+    sudo chmod 0644 "$${target}"
+  elif mkdir -p "$${dropin_dir}" 2> /dev/null; then
+    printf '{"apiKeyHelper":"%s"}\n' "$${helper_path}" > "$${target}"
+    chmod 0644 "$${target}"
+  else
+    echo "Warning: cannot write to $${dropin_dir} (no sudo and not writable); api_key_helper will not be registered"
+    return
+  fi
+
+  echo "Wrote api_key_helper script to $${helper_path} and registered via $${target}"
+}
+
 function configure_standalone_mode() {
   echo "Configuring Claude Code for standalone mode..."
 
-  if [ -z "$${ANTHROPIC_API_KEY:-}" ] && [ -z "$${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ "$${ARG_ENABLE_AI_GATEWAY}" = "false" ]; then
-    echo "Note: No authentication configured (anthropic_api_key, claude_code_oauth_token, enable_ai_gateway), skipping onboarding bypass"
+  local have_auth="false"
+  if [ -n "$${ANTHROPIC_API_KEY:-}" ] || [ -n "$${CLAUDE_CODE_OAUTH_TOKEN:-}" ] || [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ]; then
+    have_auth="true"
+  elif [ "$${ARG_USE_BEDROCK}" = "true" ]; then
+    echo "Using Amazon Bedrock (CLAUDE_CODE_USE_BEDROCK=1); Anthropic API key not required."
+    have_auth="true"
+  elif [ "$${ARG_USE_VERTEX}" = "true" ]; then
+    echo "Using Google Vertex AI (CLAUDE_CODE_USE_VERTEX=1); Anthropic API key not required."
+    have_auth="true"
+  elif [ -n "$${ARG_ANTHROPIC_BASE_URL}" ]; then
+    echo "Using custom ANTHROPIC_BASE_URL ($${ARG_ANTHROPIC_BASE_URL}); Anthropic API key not required."
+    have_auth="true"
+  elif [ -n "$${ARG_API_KEY_HELPER_SCRIPT}" ]; then
+    echo "Using api_key_helper for short-lived credentials; Anthropic API key not required."
+    have_auth="true"
+  fi
+
+  if [ "$${have_auth}" = "false" ]; then
+    echo "Note: No authentication configured (anthropic_api_key, claude_code_oauth_token, enable_ai_gateway, use_bedrock, use_vertex, anthropic_base_url, api_key_helper), skipping onboarding bypass"
     return
   fi
 
@@ -158,8 +240,6 @@ function configure_standalone_mode() {
     echo "Updating existing Claude configuration at $${claude_config}"
 
     jq '.autoUpdaterStatus = "disabled" |
-        .autoModeAccepted = true |
-        .bypassPermissionsModeAccepted = true |
         .hasAcknowledgedCostThreshold = true |
         .hasCompletedOnboarding = true' \
       "$${claude_config}" > "$${claude_config}.tmp" && mv "$${claude_config}.tmp" "$${claude_config}"
@@ -168,8 +248,6 @@ function configure_standalone_mode() {
     cat > "$${claude_config}" << EOF
 {
   "autoUpdaterStatus": "disabled",
-  "autoModeAccepted": true,
-  "bypassPermissionsModeAccepted": true,
   "hasAcknowledgedCostThreshold": true,
   "hasCompletedOnboarding": true
 }
@@ -189,4 +267,6 @@ EOF
 
 install_claude_code_cli
 setup_claude_configurations
+write_managed_settings
+setup_api_key_helper
 configure_standalone_mode
