@@ -12,7 +12,21 @@ Installs [`mise`](https://mise.jdx.dev/getting-started.html) on the workspace an
 
 Designed to compose with the [`coder/git-clone`](https://registry.coder.com/modules/coder/git-clone) module: pass `module.git_clone.repo_dir` as `repo_dir`.
 
-## Usage
+```tf
+module "mise_install" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/droopy4096/mise-install/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+  repo_dir = module.git_clone[count.index].repo_dir
+}
+```
+
+The install script downloads `mise` from `https://mise.run` into `install_dir` (defaults to `$HOME/.local/bin`) and appends `mise activate` to `~/.bashrc` and `~/.zshrc`. The post-install script then runs `mise trust` (optional) and `mise install` inside `repo_dir`.
+
+## Examples
+
+### Compose with `coder/git-clone`
 
 ```tf
 module "git_clone" {
@@ -31,10 +45,6 @@ module "mise_install" {
   repo_dir = module.git_clone[count.index].repo_dir
 }
 ```
-
-The install script downloads `mise` from `https://mise.run` into `install_dir` (defaults to `$HOME/.local/bin`) and appends `mise activate` to `~/.bashrc` and `~/.zshrc`. The post-install script then runs `mise trust` (optional) and `mise install` inside `repo_dir`.
-
-## Examples
 
 ### Disable shell activation and `mise trust`
 
