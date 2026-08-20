@@ -14,9 +14,13 @@
 #     OWNER/MEMBER/COLLABORATOR, so every fork-PR scoring is an explicit
 #     maintainer decision.
 #
+# Modules in every namespace (registry/<namespace>/modules/<name>) are
+# scored. Only registry/coder modules have discussion baselines; community
+# modules always report a fresh advisory score.
+#
 # Both paths execute only trusted code: the checkout is the base
 # repository, and PR content is fetched separately and materialized ONLY
-# under registry/coder/modules/, where the scoring script reads it as
+# under registry/*/modules/, where the scoring script reads it as
 # inert text for the LLM prompt. Nothing from the PR head is executed.
 #
 # Required repository secrets:
@@ -30,7 +34,7 @@ name: Module Scorecard Check
 on:
   pull_request:
     paths:
-      - "registry/coder/modules/**"
+      - "registry/*/modules/**"
   issue_comment:
     types: [created]
 
@@ -83,7 +87,10 @@ jobs:
         # modules (REG-74).
         run: |
           git fetch --depth=2 origin "refs/pull/${PR_NUMBER}/merge"
-          MODULES=$(git diff --name-only FETCH_HEAD^1 FETCH_HEAD | { grep -oP '^registry/coder/modules/\K[^/]+' || true; } | sort -u | paste -sd, -)
+          # Module specs are namespace/name (for example coder/git-clone or
+          # droopy4096/mise-install) so community-namespace modules are
+          # scored too, not just registry/coder.
+          MODULES=$(git diff --name-only FETCH_HEAD^1 FETCH_HEAD | { grep -oP '^registry/\K[^/]+/modules/[^/]+' || true; } | sed 's#/modules/#/#' | sort -u | paste -sd, -)
           echo "modules=${MODULES}" >> "${GITHUB_OUTPUT}"
           echo "pr=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
           echo "Changed modules: ${MODULES:-none}"
@@ -95,8 +102,8 @@ jobs:
         # plain text for the LLM prompt; it never executes them. Everything
         # under .github/ stays at the trusted base.
         run: |
-          git rm -rq --ignore-unmatch registry/coder/modules
-          git checkout FETCH_HEAD -- registry/coder/modules
+          git rm -rq --ignore-unmatch 'registry/*/modules'
+          git checkout FETCH_HEAD -- 'registry/*/modules'
 
       - name: Score changed modules
         if: steps.changed.outputs.modules != ''
