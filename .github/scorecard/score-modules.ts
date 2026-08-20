@@ -422,7 +422,7 @@ function prReportSection(
     const followup =
       spec.ns === "coder"
         ? `No existing scorecard discussion found for ${name}; this is the initial score. A dedicated discussion is created after merge.`
-        : "Community modules do not get scorecard discussions; this score is advisory.";
+        : "No specific score is required to contribute, but modules with higher scores are more likely to be approved by the Coder team and widely used.";
     return `### \`${spec.label}\`: first scorecard, **${summary.overall}**\n\n${followup}\n\n${details}`;
   }
   const delta = summary.overallNum - baseline.overallNum;
