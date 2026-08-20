@@ -27,11 +27,6 @@
  */
 (function () {
   /**
-   * The communication protocol to set Devolutions to.
-   */
-  const PROTOCOL = "RDP";
-
-  /**
    * The hostname to use with Devolutions.
    */
   const HOSTNAME = "localhost";
@@ -42,13 +37,44 @@
   const POLL_INTERVAL_MS = 500;
 
   /**
+   * How many times each poll retries before giving up and surfacing the
+   * failure to the user. The Angular app can take upwards of 20 seconds to
+   * render the form on a cold start, so these ceilings are deliberately
+   * generous.
+   */
+  const MAX_FORM_POLLS = 240;
+  const MAX_TOOLBAR_POLLS = 120;
+
+  /**
+   * Selectors for the Devolutions markup this script drives.
+   *
+   * Devolutions builds its UI on PrimeNG, whose component names and class
+   * lists change between releases. Prefer structural hooks (element type,
+   * input type, aria-label) over class names, which have already broken once:
+   * `p-dropdown` became `p-select`, `session-toolbar` became
+   * `floating-session-toolbar`, and the submit button lost the `p-element`
+   * class. Where a selector list is used, the newest form comes first and
+   * older forms are kept as fallbacks.
+   */
+  const selectors = {
+    form: "web-client-form form",
+    hostname: "p-autocomplete#hostname input",
+    submitButton: 'button[type="submit"], p-button button',
+    displayControl: "input#enableDisplayControl",
+    sessionToolbar: "floating-session-toolbar, session-toolbar",
+    closeSession: 'button[aria-label="Close session" i]',
+  };
+
+  /**
    * The fields in the Devolutions sign-in form that should be populated with
    * values from the Coder workspace.
    *
    * All properties should be defined as placeholder templates in the form
    * VALUE_NAME. The Coder module, when spun up, should then run some logic to
-   * replace the template slots with actual values. These values should never
-   * change from within JavaScript itself.
+   * replace the template slots with actual values. The module JSON-escapes each
+   * value before injecting it, so characters like backslashes and quotes stay
+   * intact inside these string literals. These values should never change from
+   * within JavaScript itself.
    *
    * @satisfies {FormFieldEntries}
    */
@@ -72,6 +98,66 @@
   };
 
   /**
+   * CSS variable that controls whether the sign-in form is visible. Declared
+   * at this scope so that failure paths can reveal the form again.
+   */
+  const cssOpacityVariableName = "--coder-opacity-multiplier";
+
+  /**
+   * Makes the Devolutions sign-in form visible again.
+   *
+   * @returns {void}
+   */
+  function revealForm() {
+    const rootNode = document.querySelector(":root");
+    if (rootNode instanceof HTMLHtmlElement) {
+      rootNode.style.setProperty(cssOpacityVariableName, "1");
+    }
+  }
+
+  /**
+   * Reveals the form and displays a banner explaining that auto-connect did
+   * not work.
+   *
+   * Without this, a selector that stops matching leaves the user staring at a
+   * form that silently does nothing, with the explanation buried in a console
+   * they are unlikely to open.
+   *
+   * @param {string} reason
+   * @returns {void}
+   */
+  function reportAutoConnectFailure(reason) {
+    log(`Auto-connect failed: $${reason}`);
+    revealForm();
+
+    const bannerId = "coder-patch--auto-connect-failure";
+    // biome-ignore lint/style/useTemplate: Have to skip interpolation for the main.tf interpolation
+    if (document.querySelector("#" + bannerId)) {
+      return;
+    }
+
+    const banner = document.createElement("div");
+    banner.id = bannerId;
+    banner.textContent =
+      "Coder could not sign in to this session automatically. " +
+      "The form below has been filled in, so you can connect manually.";
+    banner.style.cssText = [
+      "position: fixed",
+      "top: 0",
+      "left: 0",
+      "right: 0",
+      "z-index: 9999",
+      "padding: 12px 16px",
+      "background: #fde68a",
+      "color: #1f2937",
+      "font-family: sans-serif",
+      "text-align: center",
+    ].join(";");
+
+    document.body.appendChild(banner);
+  }
+
+  /**
    * This ensures that the Devolutions login form (which by default, always shows
    * up on screen when the app first launches) stays visually hidden from the user
    * when they open Devolutions via the Coder module.
@@ -85,7 +171,6 @@
    */
   function hideFormForInitialSubmission() {
     const styleId = "coder-patch--styles-initial-submission";
-    const cssOpacityVariableName = "--coder-opacity-multiplier";
 
     /** @type {HTMLStyleElement | null} */
     // biome-ignore lint/style/useTemplate: Have to skip interpolation for the main.tf interpolation
@@ -145,7 +230,7 @@
     // of the rest of the app. Even if the form isn't hidden at the style level,
     // it will still be covered up.
     const restoreOpacity = () => {
-      rootNode.style.setProperty(cssOpacityVariableName, "1");
+      revealForm();
     };
 
     // If this file gets more complicated, it might make sense to set up the
@@ -270,25 +355,11 @@
     try {
       log("Form detected. Starting auto-fill...");
 
-      // By default, RDP is selected. Leaving this here if needed
-      // in the future.
-      const protocolTrigger = form.querySelector('p-dropdown[id="protocol"]');
-      if (protocolTrigger) {
-        protocolTrigger.click();
-        const protocolOption = document.querySelector(
-          `li[aria-label="$${PROTOCOL}"]`,
-        );
-        if (protocolOption) {
-          protocolOption.click();
-          log(`Protocol set to $${PROTOCOL}`);
-        } else {
-          log("Protocol option not found.");
-        }
-      } else {
-        log("Protocol dropdown trigger not found.");
-      }
+      // The protocol control defaults to RDP, so this script does not touch
+      // it. Selecting it explicitly meant driving a PrimeNG overlay, which is
+      // exactly the kind of markup that changes between Gateway releases.
 
-      const hostnameInput = form.querySelector("p-autocomplete#hostname input");
+      const hostnameInput = form.querySelector(selectors.hostname);
       if (hostnameInput) {
         await setInputValue(hostnameInput, HOSTNAME);
         log(`Hostname set to $${HOSTNAME}`);
@@ -302,23 +373,31 @@
         const input = document.querySelector(querySelector);
         if (input) {
           await setInputValue(input, value);
-          log(`Set $${key} to $${value}`);
+          log(`Set $${key}`);
         } else {
           log(`Input for $${key} not found with selector: $${querySelector}`);
         }
       }
 
-      const submitButton = form.querySelector(
-        'p-button[class="p-element"] button',
-      );
+      // Resizes the remote display to match the browser window. Enabled by
+      // default on current Gateway versions, so this only has to correct it
+      // when it is not.
+      const displayControl = document.querySelector(selectors.displayControl);
+      if (displayControl && !displayControl.checked) {
+        displayControl.click();
+        log("Enabled display control.");
+      }
+
+      const submitButton = form.querySelector(selectors.submitButton);
       if (submitButton && !submitButton.disabled) {
         submitButton.click();
         log("Form submitted.");
       } else {
-        log("Submit button not found or disabled.");
+        reportAutoConnectFailure("submit button not found or disabled");
       }
     } catch (err) {
       console.error("[Devolutions Patch] Error during form fill:", err);
+      reportAutoConnectFailure("unexpected error while filling the form");
     }
   }
 
@@ -331,15 +410,10 @@
    * @returns {void}
    */
   function attachCloseListener(topBar) {
-    const buttons = topBar.querySelectorAll("button");
-
-    const closeButton = Array.from(buttons).find((button) => {
-      const labelSpan = button.querySelector(".p-button-label");
-      return labelSpan && labelSpan.textContent.trim() === "Close Session";
-    });
+    const closeButton = topBar.querySelector(selectors.closeSession);
 
     if (closeButton) {
-      closeButton.parentElement.addEventListener("click", () => {
+      closeButton.addEventListener("click", () => {
         window.close();
       });
       log("Close listener attached.");
@@ -349,79 +423,59 @@
   }
 
   /**
-   * Sets the checked state of a checkbox based on its label text.
-   * Searches all <p-checkbox> components in the document and identifies the one
-   * whose label matches the provided `filterText`. Once found, it sets the checkbox
-   * to the specified `checked` state (true or false) and dispatches a change event
-   * to ensure any bound listeners (e.g., Angular change detection) are triggered.
-   * Logs the outcome of the operation for debugging or audit purposes.
-   *
-   * @param {string} filterText - The exact label text of the checkbox to target.
-   * @param {boolean} checked - The desired checked state (true to check, false to uncheck).
-   * @returns {void}
-   */
-  function setCheckbox(filterText, checked) {
-    const checkboxes = document.querySelectorAll("p-checkbox");
-
-    const targetCheckbox = Array.from(checkboxes).find((checkbox) => {
-      const label = checkbox.querySelector(".p-checkbox-label");
-      return label && label.textContent.trim() === filterText;
-    });
-
-    if (targetCheckbox) {
-      const input = targetCheckbox.querySelector('input[type="checkbox"]');
-      if (input) {
-        input.checked = checked;
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-      log(`$${filterText} set to $${checked}.`);
-    } else {
-      log(`$${filterText} checkbox not found in top bar.`);
-    }
-  }
-
-  /**
-   * Continuously polls the DOM for a specific form element.
+   * Continuously polls the DOM for the sign-in form, up to MAX_FORM_POLLS
+   * attempts.
    * - Searches for a <form> inside a <web-client-form> element.
    * - If found, calls `fillForm(form)` to process it.
-   * - If not found, logs a retry message and schedules another check after a delay.
+   * - If the ceiling is reached, surfaces the failure to the user.
    *
+   * @param {number} [attempt]
    * @returns {void}
    */
-  function pollForForm() {
-    const form = document.querySelector("web-client-form form");
+  function pollForForm(attempt = 0) {
+    const form = document.querySelector(selectors.form);
     if (form) {
       fillForm(form);
 
       // Start polling for top bar after form is filled
       pollForSessionToolBar();
-    } else {
-      log("Form not yet available. Retrying...");
-      setTimeout(pollForForm, POLL_INTERVAL_MS);
+      return;
     }
+
+    if (attempt >= MAX_FORM_POLLS) {
+      reportAutoConnectFailure("sign-in form never appeared");
+      return;
+    }
+
+    log("Form not yet available. Retrying...");
+    setTimeout(() => pollForForm(attempt + 1), POLL_INTERVAL_MS);
   }
 
   /**
-   * Continuously polls the DOM for a specific form element.
-   * - Searches for a <session-toolbar> element.
-   * - If found, adds another listener to session toolbar
-   * - If not found, logs a retry message and schedules another check after a delay.
+   * Continuously polls the DOM for the in-session toolbar, up to
+   * MAX_TOOLBAR_POLLS attempts.
+   * - Searches for the floating session toolbar element.
+   * - If found, attaches the close listener.
+   * - If the ceiling is reached, stops polling and logs.
    *
+   * @param {number} [attempt]
    * @returns {void}
    */
-  function pollForSessionToolBar() {
-    const sessionToolBar = document.querySelector("session-toolbar");
+  function pollForSessionToolBar(attempt = 0) {
+    const sessionToolBar = document.querySelector(selectors.sessionToolbar);
     if (sessionToolBar) {
       log("Top bar detected. Proceeding with next steps...");
       attachCloseListener(sessionToolBar);
-
-      // Automatically set checkboxes to improve user experience
-      setCheckbox("Unicode Keyboard Mode", true);
-      setCheckbox("Dynamic Resize", true);
-    } else {
-      log("Top bar not yet available. Retrying...");
-      setTimeout(pollForSessionToolBar, POLL_INTERVAL_MS);
+      return;
     }
+
+    if (attempt >= MAX_TOOLBAR_POLLS) {
+      log("Top bar never appeared. Stopped polling.");
+      return;
+    }
+
+    log("Top bar not yet available. Retrying...");
+    setTimeout(() => pollForSessionToolBar(attempt + 1), POLL_INTERVAL_MS);
   }
 
   /**
