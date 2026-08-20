@@ -20,7 +20,7 @@
 #
 # Both paths execute only trusted code: the checkout is the base
 # repository, and PR content is fetched separately and materialized ONLY
-# under registry/*/modules/, where the scoring script reads it as
+# under registry/, where the scoring script reads it as
 # inert text for the LLM prompt. Nothing from the PR head is executed.
 #
 # Required repository secrets:
@@ -97,13 +97,15 @@ jobs:
 
       - name: Materialize PR module content (data only)
         if: steps.changed.outputs.modules != ''
-        # Overlay ONLY the module directories from the PR merge commit onto
-        # the trusted checkout. The scoring script reads these files as
-        # plain text for the LLM prompt; it never executes them. Everything
-        # under .github/ stays at the trusted base.
+        # Overlay the registry/ tree from the PR merge commit onto the
+        # trusted checkout. The scoring script reads these files as plain
+        # text for the LLM prompt; it never executes them. Everything under
+        # .github/ stays at the trusted base. A literal pathspec is used
+        # because wildcard pathspecs (registry/*/modules) do not
+        # directory-prefix match and fail to match any files.
         run: |
-          git rm -rq --ignore-unmatch 'registry/*/modules'
-          git checkout FETCH_HEAD -- 'registry/*/modules'
+          git rm -rq --ignore-unmatch registry
+          git checkout FETCH_HEAD -- registry
 
       - name: Score changed modules
         if: steps.changed.outputs.modules != ''
