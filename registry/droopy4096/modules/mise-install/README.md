@@ -1,7 +1,7 @@
 ---
 display_name: mise install
 description: Install mise and run `mise install` inside a cloned repository.
-icon: ../../../../.icons/code.svg
+icon: .icons/logo.svg
 verified: false
 tags: [helper, mise, devtools]
 ---
