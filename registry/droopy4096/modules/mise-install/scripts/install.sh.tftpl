@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ARG_INSTALL_DIR='${ARG_INSTALL_DIR}'
+ARG_ACTIVATE_SHELLS='${ARG_ACTIVATE_SHELLS}'
+
+# Expand leading ~ and $HOME in the install directory path (safer than `eval`).
+ARG_INSTALL_DIR="$${ARG_INSTALL_DIR/#\~/$${HOME}}"
+ARG_INSTALL_DIR="$${ARG_INSTALL_DIR/#\$HOME/$${HOME}}"
+
+mkdir -p "$${ARG_INSTALL_DIR}"
+
+if ! command -v mise >/dev/null 2>&1 && [ ! -x "$${ARG_INSTALL_DIR}/mise" ]; then
+  echo "Installing mise into $${ARG_INSTALL_DIR}..."
+  MISE_INSTALL_PATH="$${ARG_INSTALL_DIR}/mise" curl -fsSL https://mise.run | sh
+else
+  echo "mise already present, skipping download."
+fi
+
+export PATH="$${ARG_INSTALL_DIR}:$${PATH}"
+mise --version
+
+if [ -n "$${ARG_ACTIVATE_SHELLS}" ]; then
+  for shell in $${ARG_ACTIVATE_SHELLS}; do
+    rc="$${HOME}/.$${shell}rc"
+    touch "$${rc}"
+    if ! grep -qF "mise activate $${shell}" "$${rc}"; then
+      echo "Appending mise activation to $${rc}"
+      printf '\n# Added by droopy4096/mise-install\neval "$(%s/mise activate %s)"\n' "$${ARG_INSTALL_DIR}" "$${shell}" >> "$${rc}"
+    else
+      echo "mise activation already present in $${rc}"
+    fi
+  done
+fi

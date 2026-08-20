@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ARG_REPO_DIR='${ARG_REPO_DIR}'
+ARG_MISE_TRUST='${ARG_MISE_TRUST}'
+ARG_INSTALL_DIR='${ARG_INSTALL_DIR}'
+ARG_WAIT_SECONDS='${ARG_WAIT_SECONDS}'
+
+# Expand leading ~ and $HOME in caller-supplied paths (safer than `eval`).
+ARG_REPO_DIR="$${ARG_REPO_DIR/#\~/$${HOME}}"
+ARG_REPO_DIR="$${ARG_REPO_DIR/#\$HOME/$${HOME}}"
+ARG_INSTALL_DIR="$${ARG_INSTALL_DIR/#\~/$${HOME}}"
+ARG_INSTALL_DIR="$${ARG_INSTALL_DIR/#\$HOME/$${HOME}}"
+
+export PATH="$${ARG_INSTALL_DIR}:$${PATH}"
+
+if ! command -v mise >/dev/null 2>&1; then
+  echo "mise is not on PATH; the install script must run first."
+  exit 1
+fi
+
+# Wait for the clone to finish. Checking for ".git" (not just the directory)
+# guards against racing a bare mkdir -p performed before cloning begins.
+deadline=$(( $(date +%s) + ARG_WAIT_SECONDS ))
+while [ ! -d "$${ARG_REPO_DIR}/.git" ]; do
+  if [ "$(date +%s)" -ge "$${deadline}" ]; then
+    echo "Timed out after $${ARG_WAIT_SECONDS}s waiting for $${ARG_REPO_DIR}/.git; skipping 'mise install'."
+    exit 0
+  fi
+  echo "Waiting for $${ARG_REPO_DIR}/.git to appear..."
+  sleep 2
+done
+
+cd "$${ARG_REPO_DIR}"
+
+if [ "$${ARG_MISE_TRUST}" = "true" ]; then
+  echo "Running 'mise trust' in $${ARG_REPO_DIR}..."
+  mise trust || echo "Warning: 'mise trust' failed; continuing."
+fi
+
+echo "Running 'mise install' in $${ARG_REPO_DIR}..."
+mise install
