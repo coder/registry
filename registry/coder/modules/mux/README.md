@@ -8,18 +8,32 @@ tags: [ai, agents, development, multiplexer]
 
 # Mux
 
+> [!WARNING]
+> **Deprecated: Mux has been renamed to Shux.** New releases of the product ship as the `@coder/shux` npm package, while this module keeps installing the legacy `mux` package. Use the [shux](https://registry.coder.com/modules/coder/shux) module instead:
+>
+> ```tf
+> module "shux" {
+>   count    = data.coder_workspace.me.start_count
+>   source   = "registry.coder.com/coder/shux/coder"
+>   version  = "1.0.0"
+>   agent_id = coder_agent.main.id
+> }
+> ```
+>
+> Note that the shux module's default install prefix and log path moved from `/tmp` to `$HOME/.coder-modules/coder/shux/`, and its default app slug is `shux`. See its README for the full migration notes.
+
 Automatically install and run [Mux](https://github.com/coder/mux) in a Coder workspace. By default, the module auto-detects an available package manager (`npm`, `pnpm`, or `bun`) to install `mux@next` (with a fallback to downloading the npm tarball if none is found). You can also force a specific package manager via `package_manager` and point to a custom registry with `registry_url`. The launcher keeps watching the mux process after startup, appends signal/exit-code diagnostics to the mux log when the server is killed outside the Node runtime, and can optionally wait a few seconds, remove the stale server lock, and restart Mux after any exit until an optional restart-attempt cap is reached. Mux is a desktop application for parallel agentic development that enables developers to run multiple AI agents simultaneously across isolated workspaces.
 
 ```tf
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "1.5.0"
+  version  = "1.5.1"
   agent_id = coder_agent.main.id
 }
 ```
 
-![Mux](../../.images/mux-product-hero.webp)
+![Mux](../../.images/shux-product-hero.webp)
 
 ## Features
 
@@ -37,7 +51,7 @@ module "mux" {
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "1.5.0"
+  version  = "1.5.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -48,7 +62,7 @@ module "mux" {
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "1.5.0"
+  version  = "1.5.1"
   agent_id = coder_agent.main.id
   # Default is "latest"; set to a specific version to pin
   install_version = "0.4.0"
@@ -63,7 +77,7 @@ Start Mux with `mux server --add-project /path/to/project`:
 module "mux" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/mux/coder"
-  version     = "1.5.0"
+  version     = "1.5.1"
   agent_id    = coder_agent.main.id
   add_project = "/path/to/project"
 }
@@ -78,7 +92,7 @@ The module parses quoted values, so grouped arguments remain intact.
 module "mux" {
   count                = data.coder_workspace.me.start_count
   source               = "registry.coder.com/coder/mux/coder"
-  version              = "1.5.0"
+  version              = "1.5.1"
   agent_id             = coder_agent.main.id
   additional_arguments = "--open-mode pinned --add-project '/workspaces/my repo'"
 }
@@ -92,7 +106,7 @@ Enable automatic restarts after Mux exits, including clean exits and intentional
 module "mux" {
   count                 = data.coder_workspace.me.start_count
   source                = "registry.coder.com/coder/mux/coder"
-  version               = "1.5.0"
+  version               = "1.5.1"
   agent_id              = coder_agent.main.id
   restart_on_kill       = true
   restart_delay_seconds = 3
@@ -106,7 +120,7 @@ module "mux" {
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "1.5.0"
+  version  = "1.5.1"
   agent_id = coder_agent.main.id
   port     = 8080
 }
@@ -120,7 +134,7 @@ Force a specific package manager instead of auto-detection:
 module "mux" {
   count           = data.coder_workspace.me.start_count
   source          = "registry.coder.com/coder/mux/coder"
-  version         = "1.5.0"
+  version         = "1.5.1"
   agent_id        = coder_agent.main.id
   package_manager = "pnpm" # or "npm", "bun"
 }
@@ -134,7 +148,7 @@ Use a private or mirrored npm registry:
 module "mux" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/coder/mux/coder"
-  version      = "1.5.0"
+  version      = "1.5.1"
   agent_id     = coder_agent.main.id
   registry_url = "https://npm.pkg.github.com"
 }
@@ -148,7 +162,7 @@ Run an existing copy of Mux if found, otherwise install from npm:
 module "mux" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/mux/coder"
-  version    = "1.5.0"
+  version    = "1.5.1"
   agent_id   = coder_agent.main.id
   use_cached = true
 }
@@ -162,7 +176,7 @@ Run without installing from the network (requires Mux to be pre-installed):
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "1.5.0"
+  version  = "1.5.1"
   agent_id = coder_agent.main.id
   install  = false
 }

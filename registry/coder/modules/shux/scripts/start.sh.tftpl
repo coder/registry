@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+
+SHUX_BINARY="${INSTALL_PREFIX}/shux"
+
+${ENSURE_NODE}
+
+function run_shux() {
+  local port_value
+  local auth_token_value
+  local restart_on_kill_value
+  local restart_delay_seconds_value
+  local max_restart_attempts_value
+
+  port_value="${PORT}"
+  auth_token_value="${AUTH_TOKEN}"
+  restart_on_kill_value="${RESTART_ON_KILL}"
+  restart_delay_seconds_value="${RESTART_DELAY_SECONDS}"
+  max_restart_attempts_value="${MAX_RESTART_ATTEMPTS}"
+
+  if [ -z "$port_value" ]; then
+    port_value="4000"
+  fi
+
+  if [ -z "$restart_delay_seconds_value" ]; then
+    restart_delay_seconds_value="5"
+  fi
+
+  if [ -z "$max_restart_attempts_value" ]; then
+    max_restart_attempts_value="0"
+  fi
+
+  mkdir -p "$(dirname "${LOG_PATH}")"
+
+  # Build args for shux (POSIX-compatible, avoid bash arrays)
+  set -- server --port "$port_value"
+  if [ -n "${ADD_PROJECT}" ]; then
+    set -- "$@" --add-project "${ADD_PROJECT}"
+  fi
+
+  # Parse additional user-supplied server arguments while preserving quoted groups.
+  if [ -n "${ADDITIONAL_ARGUMENTS}" ]; then
+    local parsed_additional_arguments
+    if ! parsed_additional_arguments="$(printf "%s\n" "${ADDITIONAL_ARGUMENTS}" | xargs -n1 printf "%s\n" 2> /dev/null)"; then
+      echo "❌ Failed to parse additional_arguments. Ensure quotes are balanced."
+      exit 1
+    fi
+    while IFS= read -r parsed_arg; do
+      [ -n "$parsed_arg" ] || continue
+      set -- "$@" "$parsed_arg"
+    done << EOF_ARGS
+$${parsed_additional_arguments}
+EOF_ARGS
+  fi
+
+  echo "🚀 Starting shux server on port $port_value..."
+  echo "Check logs at ${LOG_PATH}!"
+  echo "ℹ️ Shux exit details will be appended to ${LOG_PATH} by the launcher."
+  if [ "$restart_on_kill_value" = true ]; then
+    echo "ℹ️ Auto-restart after shux exits is enabled with a $${restart_delay_seconds_value}-second delay."
+    if [ "$max_restart_attempts_value" = "0" ]; then
+      echo "ℹ️ Automatic restarts are unlimited for every shux exit."
+    else
+      echo "ℹ️ Shux will stop restarting after $${max_restart_attempts_value} restart attempts."
+    fi
+  fi
+
+  nohup env \
+    LOG_PATH="${LOG_PATH}" \
+    SHUX_BINARY="$SHUX_BINARY" \
+    AUTH_TOKEN="$auth_token_value" \
+    PORT_VALUE="$port_value" \
+    RESTART_ON_KILL_VALUE="$restart_on_kill_value" \
+    RESTART_DELAY_SECONDS_VALUE="$restart_delay_seconds_value" \
+    MAX_RESTART_ATTEMPTS_VALUE="$max_restart_attempts_value" \
+    bash -s -- "$@" > /dev/null 2>&1 << 'EOF_LAUNCHER' &
+signal_name() {
+  local signal_number="$1"
+  local resolved_signal
+
+  resolved_signal="$(kill -l "$signal_number" 2> /dev/null || true)"
+  if [ -n "$resolved_signal" ]; then
+    printf '%s' "$resolved_signal"
+    return 0
+  fi
+
+  printf 'SIG%s' "$signal_number"
+}
+
+append_kernel_kill_context() {
+  local shux_pid="$1"
+  local kernel_context=""
+
+  if command -v dmesg > /dev/null 2>&1; then
+    kernel_context="$(dmesg -T 2> /dev/null | grep -Ei "Killed process $shux_pid|out of memory|oom-killer|oom reaper" | tail -n 10 || true)"
+  fi
+
+  if [ -z "$kernel_context" ] && command -v journalctl > /dev/null 2>&1; then
+    kernel_context="$(journalctl -k -n 200 --no-pager 2> /dev/null | grep -Ei "Killed process $shux_pid|out of memory|oom-killer|oom reaper" | tail -n 10 || true)"
+  fi
+
+  if [ -n "$kernel_context" ]; then
+    echo "Recent kernel kill context:"
+    echo "$kernel_context"
+  else
+    echo "No kernel OOM/kill context was available (dmesg/journalctl unavailable or permission denied)."
+  fi
+}
+
+# shux resolves its home to ~/.shux but falls back to a legacy ~/.mux
+# directory when one is present, so clear the server lock in both.
+cleanup_shux_lock() {
+  rm -f "$HOME/.shux/server.lock" "$HOME/.mux/server.lock"
+}
+
+should_restart_shux() {
+  [ "$RESTART_ON_KILL_VALUE" = "true" ]
+}
+
+log_shux_exit() {
+  local shux_pid="$1"
+  local exit_code="$2"
+  local timestamp
+
+  timestamp="$(date -Iseconds 2> /dev/null || date)"
+
+  if [ "$exit_code" -eq 0 ]; then
+    echo "[$timestamp] shux server exited cleanly."
+    return 0
+  fi
+
+  if [ "$exit_code" -gt 128 ]; then
+    local signal_number=$((exit_code - 128))
+    local signal_label
+
+    signal_label="$(signal_name "$signal_number")"
+    echo "[$timestamp] shux server exited due to signal $signal_label ($signal_number); shell exit code $exit_code."
+
+    if [ "$signal_number" -eq 9 ]; then
+      echo "[$timestamp] SIGKILL usually means the process was killed externally or by the OOM killer."
+      append_kernel_kill_context "$shux_pid"
+    fi
+
+    echo "[$timestamp] Check the earlier shux log lines for any in-process crash breadcrumbs from shux itself."
+    return 0
+  fi
+
+  echo "[$timestamp] shux server exited with code $exit_code."
+  echo "[$timestamp] Check the earlier shux log lines for any in-process crash breadcrumbs from shux itself."
+}
+
+log_shux_restart_wait() {
+  local timestamp
+
+  timestamp="$(date -Iseconds 2> /dev/null || date)"
+  echo "[$timestamp] Waiting $${RESTART_DELAY_SECONDS_VALUE} seconds before restarting shux after it exited."
+}
+
+log_shux_restart_cleanup() {
+  local timestamp
+
+  timestamp="$(date -Iseconds 2> /dev/null || date)"
+  echo "[$timestamp] Removing $HOME/.shux/server.lock and $HOME/.mux/server.lock before restarting shux."
+}
+
+log_shux_restart_cap_reached() {
+  local timestamp
+
+  timestamp="$(date -Iseconds 2> /dev/null || date)"
+  echo "[$timestamp] Reached the max restart attempts limit ($MAX_RESTART_ATTEMPTS_VALUE); not restarting shux again."
+}
+
+restart_attempt_count=0
+while true; do
+  cleanup_shux_lock
+  # SHUX_SERVER_AUTH_TOKEN is canonical; the legacy MUX_SERVER_AUTH_TOKEN alias
+  # keeps pinned transitional builds working.
+  SHUX_SERVER_AUTH_TOKEN="$AUTH_TOKEN" MUX_SERVER_AUTH_TOKEN="$AUTH_TOKEN" PORT="$PORT_VALUE" "$SHUX_BINARY" "$@" >> "$LOG_PATH" 2>&1 &
+  shux_pid=$!
+  wait "$shux_pid"
+  exit_code=$?
+  log_shux_exit "$shux_pid" "$exit_code" >> "$LOG_PATH" 2>&1
+
+  if should_restart_shux; then
+    if [ "$MAX_RESTART_ATTEMPTS_VALUE" -gt 0 ] && [ "$restart_attempt_count" -ge "$MAX_RESTART_ATTEMPTS_VALUE" ]; then
+      log_shux_restart_cap_reached >> "$LOG_PATH" 2>&1
+      break
+    fi
+
+    restart_attempt_count=$((restart_attempt_count + 1))
+    log_shux_restart_wait >> "$LOG_PATH" 2>&1
+    sleep "$RESTART_DELAY_SECONDS_VALUE"
+    cleanup_shux_lock
+    log_shux_restart_cleanup >> "$LOG_PATH" 2>&1
+    continue
+  fi
+
+  break
+done
+EOF_LAUNCHER
+}
+
+ensure_node
+
+if [ ! -f "$SHUX_BINARY" ]; then
+  echo "❌ shux binary not found at $SHUX_BINARY. Did the install script succeed?"
+  exit 1
+fi
+
+# Start shux
+run_shux

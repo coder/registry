@@ -1,0 +1,218 @@
+#!/usr/bin/env bash
+
+BOLD='\033[0;1m'
+SHUX_BINARY="${INSTALL_PREFIX}/shux"
+
+${ENSURE_NODE}
+
+ensure_node
+
+# Offline mode requires a pre-installed copy of shux.
+if [ "${OFFLINE}" = true ]; then
+  if [ -f "$SHUX_BINARY" ]; then
+    echo "🥳 Found a copy of shux"
+    exit 0
+  fi
+  echo "❌ Failed to find a copy of shux"
+  exit 1
+fi
+
+# If there is no cached install OR we don't want to use a cached install
+if [ ! -f "$SHUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
+  printf "$${BOLD}Installing shux...\n"
+
+  # Clean up from other install (in case install prefix changed).
+  if [ -n "$CODER_SCRIPT_BIN_DIR" ] && [ -e "$CODER_SCRIPT_BIN_DIR/shux" ]; then
+    rm "$CODER_SCRIPT_BIN_DIR/shux"
+  fi
+
+  mkdir -p "$(dirname "$SHUX_BINARY")"
+
+  # Determine which package manager to use
+  PM_CMD=""
+  if [ "${PACKAGE_MANAGER}" = "auto" ]; then
+    for pm in npm pnpm bun; do
+      if command -v "$pm" > /dev/null 2>&1; then
+        PM_CMD="$pm"
+        break
+      fi
+    done
+  else
+    PM_CMD="${PACKAGE_MANAGER}"
+    if ! command -v "$PM_CMD" > /dev/null 2>&1; then
+      echo "❌ Configured package manager '${PACKAGE_MANAGER}' not found on PATH"
+      exit 1
+    fi
+  fi
+
+  if [ -n "$PM_CMD" ]; then
+    echo "📦 Installing shux via $PM_CMD into ${INSTALL_PREFIX}..."
+    NPM_WORKDIR="${INSTALL_PREFIX}/npm"
+    mkdir -p "$NPM_WORKDIR"
+    cd "$NPM_WORKDIR" || exit 1
+    if [ ! -f package.json ]; then
+      echo '{}' > package.json
+    fi
+    echo "⏭️  Skipping lifecycle scripts with --ignore-scripts"
+    PKG="@coder/shux"
+    if [ -z "${VERSION}" ] || [ "${VERSION}" = "latest" ]; then
+      PKG_SPEC="$PKG@latest"
+    else
+      PKG_SPEC="$PKG@${VERSION}"
+    fi
+    INSTALL_OK=true
+    case "$PM_CMD" in
+      npm)
+        if ! npm install --no-audit --no-fund --omit=dev --ignore-scripts --registry "${REGISTRY_URL}" "$PKG_SPEC"; then
+          INSTALL_OK=false
+        fi
+        ;;
+      pnpm)
+        if ! pnpm add --ignore-scripts --registry "${REGISTRY_URL}" "$PKG_SPEC"; then
+          INSTALL_OK=false
+        fi
+        ;;
+      bun)
+        if ! bun add --ignore-scripts --registry "${REGISTRY_URL}" "$PKG_SPEC"; then
+          INSTALL_OK=false
+        fi
+        ;;
+    esac
+    if [ "$INSTALL_OK" != true ]; then
+      echo "❌ Failed to install shux via $PM_CMD"
+      exit 1
+    fi
+    # Determine the installed binary path
+    BIN_DIR="$NPM_WORKDIR/node_modules/.bin"
+    CANDIDATE="$BIN_DIR/shux"
+    if [ ! -f "$CANDIDATE" ]; then
+      echo "❌ Could not locate shux binary after $PM_CMD install"
+      exit 1
+    fi
+    chmod +x "$CANDIDATE" || true
+    ln -sf "$CANDIDATE" "$SHUX_BINARY"
+  else
+    echo "📥 No package manager found; downloading tarball from registry..."
+    VERSION_TO_USE="${VERSION}"
+    if [ -z "$VERSION_TO_USE" ]; then
+      VERSION_TO_USE="next"
+    fi
+    # Use the URL-encoded scope separator for the packument lookup; some
+    # private registries only accept the encoded form for scoped packages.
+    META_URL="${REGISTRY_URL}/@coder%2fshux/$VERSION_TO_USE"
+    META_JSON="$(curl -fsSL "$META_URL" || true)"
+    if [ -z "$META_JSON" ]; then
+      echo "❌ Failed to fetch npm metadata: $META_URL"
+      exit 1
+    fi
+    # Normalize JSON to a single line for robust pattern matching across environments
+    META_ONE_LINE="$(printf "%s" "$META_JSON" | tr -d '\n' || true)"
+    if [ -z "$META_ONE_LINE" ]; then
+      META_ONE_LINE="$META_JSON"
+    fi
+    # Try to extract tarball URL directly from metadata (prefer Node if available for robust JSON parsing)
+    TARBALL_URL=""
+    if command -v node > /dev/null 2>&1; then
+      TARBALL_URL="$(printf "%s" "$META_JSON" | node -e 'try{const fs=require("fs");const data=JSON.parse(fs.readFileSync(0,"utf8"));if(data&&data.dist&&data.dist.tarball){console.log(data.dist.tarball);}}catch(e){}')"
+    fi
+    # sed-based fallback
+    if [ -z "$TARBALL_URL" ]; then
+      TARBALL_URL="$(printf "%s" "$META_ONE_LINE" | sed -n 's/.*"tarball":"\([^"]*\)".*/\1/p' | head -n1)"
+    fi
+    # Fallback: resolve version then construct tarball URL
+    if [ -z "$TARBALL_URL" ]; then
+      RESOLVED_VERSION=""
+      if command -v node > /dev/null 2>&1; then
+        RESOLVED_VERSION="$(printf "%s" "$META_JSON" | node -e 'try{const fs=require("fs");const data=JSON.parse(fs.readFileSync(0,"utf8"));if(data&&data.version){console.log(data.version);}}catch(e){}')"
+      fi
+      if [ -z "$RESOLVED_VERSION" ]; then
+        RESOLVED_VERSION="$(printf "%s" "$META_ONE_LINE" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' | head -n1)"
+      fi
+      if [ -z "$RESOLVED_VERSION" ]; then
+        RESOLVED_VERSION="$(printf "%s" "$META_ONE_LINE" | grep -o '"version":"[^"]*"' | head -n1 | cut -d '"' -f4)"
+      fi
+      if [ -n "$RESOLVED_VERSION" ]; then
+        VERSION_TO_USE="$RESOLVED_VERSION"
+      fi
+      if [ -z "$VERSION_TO_USE" ]; then
+        echo "❌ Could not determine version for shux"
+        exit 1
+      fi
+      # Scoped tarball paths keep the scope in the package path but drop it
+      # from the tarball filename.
+      TARBALL_URL="${REGISTRY_URL}/@coder/shux/-/shux-$VERSION_TO_USE.tgz"
+    fi
+    TMP_DIR="$(mktemp -d)"
+    TAR_PATH="$TMP_DIR/shux.tgz"
+    if ! curl -fsSL "$TARBALL_URL" -o "$TAR_PATH"; then
+      echo "❌ Failed to download tarball: $TARBALL_URL"
+      rm -rf "$TMP_DIR"
+      exit 1
+    fi
+    if ! tar -xzf "$TAR_PATH" -C "$TMP_DIR"; then
+      echo "❌ Failed to extract tarball"
+      rm -rf "$TMP_DIR"
+      exit 1
+    fi
+    CANDIDATE=""
+    BIN_PATH=""
+    # Prefer reading bin path from package.json
+    if [ -f "$TMP_DIR/package/package.json" ]; then
+      if command -v node > /dev/null 2>&1; then
+        BIN_PATH="$(node -e 'try{const fs=require("fs");const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));let bp=typeof p.bin==="string"?p.bin:(p.bin&&p.bin.shux);if(bp){console.log(bp)}}catch(e){}' "$TMP_DIR/package/package.json")"
+      fi
+      if [ -z "$BIN_PATH" ]; then
+        # sed fallbacks (handle both string and object forms)
+        BIN_PATH=$(sed -n 's/.*"bin"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP_DIR/package/package.json" | head -n1)
+        if [ -z "$BIN_PATH" ]; then
+          BIN_PATH=$(sed -n '/"bin"[[:space:]]*:[[:space:]]*{/,/}/p' "$TMP_DIR/package/package.json" | sed -n 's/.*"shux"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+        fi
+      fi
+      if [ -n "$BIN_PATH" ] && [ -f "$TMP_DIR/package/$BIN_PATH" ]; then
+        CANDIDATE="$TMP_DIR/package/$BIN_PATH"
+      fi
+    fi
+    # Fallback: check common locations
+    if [ -z "$CANDIDATE" ]; then
+      if [ -f "$TMP_DIR/package/bin/shux" ]; then
+        CANDIDATE="$TMP_DIR/package/bin/shux"
+      elif [ -f "$TMP_DIR/package/bin/shux.js" ]; then
+        CANDIDATE="$TMP_DIR/package/bin/shux.js"
+      elif [ -f "$TMP_DIR/package/bin/shux.mjs" ]; then
+        CANDIDATE="$TMP_DIR/package/bin/shux.mjs"
+      fi
+    fi
+    # Fallback: search for plausible filenames
+    if [ -z "$CANDIDATE" ] || [ ! -f "$CANDIDATE" ]; then
+      CANDIDATE=$(find "$TMP_DIR/package" -maxdepth 4 -type f \( -name "shux" -o -name "shux.js" -o -name "shux.mjs" -o -name "shux.cjs" -o -name "main.js" \) | head -n1)
+    fi
+    if [ -z "$CANDIDATE" ] || [ ! -f "$CANDIDATE" ]; then
+      echo "❌ Could not locate shux binary in tarball"
+      rm -rf "$TMP_DIR"
+      exit 1
+    fi
+    # Copy entire package to installation directory to preserve relative imports
+    DEST_DIR="${INSTALL_PREFIX}/.shux-package"
+    rm -rf "$DEST_DIR"
+    mkdir -p "$DEST_DIR"
+    cp -R "$TMP_DIR/package/." "$DEST_DIR/"
+    # Create/refresh launcher symlink
+    if [ -n "$BIN_PATH" ] && [ -f "$DEST_DIR/$BIN_PATH" ]; then
+      ln -sf "$DEST_DIR/$BIN_PATH" "$SHUX_BINARY"
+      chmod +x "$DEST_DIR/$BIN_PATH" || true
+    else
+      ln -sf "$DEST_DIR/$(basename "$CANDIDATE")" "$SHUX_BINARY"
+      chmod +x "$DEST_DIR/$(basename "$CANDIDATE")" || true
+    fi
+    rm -rf "$TMP_DIR"
+  fi
+
+  printf "🥳 shux has been installed in ${INSTALL_PREFIX}\n\n"
+fi
+
+# Make shux available in PATH if CODER_SCRIPT_BIN_DIR is set
+if [ -n "$CODER_SCRIPT_BIN_DIR" ]; then
+  if [ ! -e "$CODER_SCRIPT_BIN_DIR/shux" ]; then
+    ln -s "$SHUX_BINARY" "$CODER_SCRIPT_BIN_DIR/shux"
+  fi
+fi
