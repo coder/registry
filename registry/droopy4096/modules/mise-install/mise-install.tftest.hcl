@@ -53,6 +53,47 @@ run "custom_wait_seconds_allowed" {
   }
 }
 
+run "custom_install_url_allowed" {
+  command = plan
+
+  variables {
+    agent_id    = "example-agent-id"
+    repo_dir    = "/home/coder/repo"
+    install_url = "https://artifacts.internal.example.com/mise/install.sh"
+  }
+}
+
+run "pinned_mise_version_allowed" {
+  command = plan
+
+  variables {
+    agent_id     = "example-agent-id"
+    repo_dir     = "/home/coder/repo"
+    mise_version = "v2024.9.0"
+  }
+}
+
+run "install_mise_false_plans" {
+  command = plan
+
+  variables {
+    agent_id     = "example-agent-id"
+    repo_dir     = "/home/coder/repo"
+    install_mise = false
+  }
+}
+
+run "bring_your_own_mise_bin_plans" {
+  command = plan
+
+  variables {
+    agent_id     = "example-agent-id"
+    repo_dir     = "/home/coder/repo"
+    install_mise = false
+    mise_bin     = "/opt/mise/bin/mise"
+  }
+}
+
 run "apply_emits_scripts_output" {
   command = apply
 

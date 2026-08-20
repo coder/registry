@@ -1,7 +1,7 @@
 ---
 display_name: mise install
 description: Install mise and run `mise install` inside a cloned repository.
-icon: .icons/logo.svg
+icon: ../../../../.icons/mise.svg
 verified: false
 tags: [helper, mise, devtools]
 ---
@@ -75,6 +75,48 @@ module "mise_install" {
 }
 ```
 
+### Air-gapped / mirrored installer
+
+Point the installer at an internal mirror, pin the release, and skip the download entirely by using the `mise` already baked into the workspace image:
+
+```tf
+# Fully mirrored: download the installer from an internal HTTPS mirror
+# and pin the mise release for reproducibility.
+module "mise_install" {
+  count        = data.coder_workspace.me.start_count
+  source       = "registry.coder.com/droopy4096/mise-install/coder"
+  version      = "1.0.0"
+  agent_id     = coder_agent.main.id
+  repo_dir     = module.git_clone[count.index].repo_dir
+  install_url  = "https://artifacts.internal.example.com/mise/install.sh"
+  mise_version = "v2024.9.0"
+}
+
+# Bring-your-own binary: the image already ships mise; skip the download.
+module "mise_install_byo" {
+  count        = data.coder_workspace.me.start_count
+  source       = "registry.coder.com/droopy4096/mise-install/coder"
+  version      = "1.0.0"
+  agent_id     = coder_agent.main.id
+  repo_dir     = module.git_clone[count.index].repo_dir
+  install_mise = false
+  mise_bin     = "/opt/mise/bin/mise" # optional; omit if 'mise' is on PATH
+}
+```
+
+## Network egress
+
+This module reaches the following external endpoints. Mirror or allow-list them (or use `install_mise = false`) in restricted environments:
+
+| When                                            | Endpoint                                                                                                                      | Overridable via                                                                 |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Install phase (only when `install_mise = true`) | `https://mise.run` — installer shell script                                                                                   | `install_url`                                                                   |
+| Install phase (transitive from installer)       | `https://github.com/jdx/mise/releases/*` — mise binary release assets                                                         | Mirror inside `install_url`'s script or use `install_mise = false` + `mise_bin` |
+| Post-install phase (`mise install`)             | `https://mise.jdx.dev/*` — plugin registry and metadata                                                                       | `MISE_*` env vars (see mise docs); not exposed by this module                   |
+| Post-install phase (transitive)                 | Language-runtime hosts (`python.org`, `nodejs.org`, `go.dev`, etc.) — driven by `.mise.toml` / `.tool-versions` in `repo_dir` | Configure `mise` plugins/mirrors in the image                                   |
+
+If your environment blocks all outbound traffic, set `install_mise = false`, ship `mise` in the image, and mirror the plugin/runtime hosts `mise install` needs at runtime.
+
 ## Execution order
 
 This module uses [`coder/coder-utils`](https://registry.coder.com/modules/coder/coder-utils) to run two ordered scripts via `coder exp sync`:
@@ -108,4 +150,4 @@ If `mise install` fails, inspect `post_install.log` for the exact `mise` output.
 
 - Missing `.mise.toml` / `.tool-versions` in `repo_dir`.
 - Untrusted config (rerun with `mise_trust = true`).
-- Network egress restrictions on downloading plugins from `mise.jdx.dev`.
+- Network egress blocked to endpoints listed under [Network egress](#network-egress).

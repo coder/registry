@@ -42,6 +42,30 @@ variable "install_dir" {
   default     = "$HOME/.local/bin"
 }
 
+variable "install_mise" {
+  description = "Whether to download and install `mise`. Set to false in restricted or air-gapped environments where the workspace image already ships `mise`; the module will then only configure shell activation and run `mise install`."
+  type        = bool
+  default     = true
+}
+
+variable "install_url" {
+  description = "URL of the mise installer script. Override to point at an internal mirror in restricted environments. Ignored when `install_mise = false`."
+  type        = string
+  default     = "https://mise.run"
+}
+
+variable "mise_version" {
+  description = "Pin the mise release to install by setting `MISE_VERSION` before invoking the installer (e.g. `\"v2024.9.0\"`). Empty means install the latest release advertised by `install_url`. Ignored when `install_mise = false`."
+  type        = string
+  default     = ""
+}
+
+variable "mise_bin" {
+  description = "Absolute path to a pre-installed `mise` binary (e.g. `/opt/mise/bin/mise` baked into a workspace image). When non-empty, its directory is prepended to PATH so this module and downstream scripts pick it up. Combine with `install_mise = false` to fully opt out of downloading."
+  type        = string
+  default     = ""
+}
+
 variable "wait_seconds" {
   description = "Maximum seconds to wait for `repo_dir/.git` to appear (i.e. for the git-clone module to finish) before skipping `mise install`."
   type        = number
@@ -65,12 +89,17 @@ locals {
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_INSTALL_DIR     = var.install_dir
     ARG_ACTIVATE_SHELLS = join(" ", var.activate_shells)
+    ARG_INSTALL_MISE    = tostring(var.install_mise)
+    ARG_INSTALL_URL     = var.install_url
+    ARG_MISE_VERSION    = var.mise_version
+    ARG_MISE_BIN        = var.mise_bin
   })
 
   post_install_script = templatefile("${path.module}/scripts/post_install.sh.tftpl", {
     ARG_REPO_DIR     = var.repo_dir
     ARG_MISE_TRUST   = tostring(var.mise_trust)
     ARG_INSTALL_DIR  = var.install_dir
+    ARG_MISE_BIN     = var.mise_bin
     ARG_WAIT_SECONDS = tostring(var.wait_seconds)
   })
 }
