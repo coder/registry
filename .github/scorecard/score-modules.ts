@@ -65,6 +65,13 @@ interface Args {
   prReport?: string;
 }
 
+interface ImageVerification {
+  reference: string;
+  resolvedPath: string;
+  exists: boolean;
+  sizeBytes?: number;
+}
+
 function parseArgs(): Args {
   const args: Args = { dryRun: false };
   const argv = process.argv.slice(2);
@@ -96,6 +103,49 @@ async function readTruncated(filePath: string): Promise<string> {
   return content.slice(0, MAX_FILE_BYTES) + "\n... [truncated]";
 }
 
+async function verifyReadmeImages(
+  moduleName: string,
+): Promise<ImageVerification[]> {
+  const readmePath = path.join(MODULES_DIR, moduleName, "README.md");
+  const readme = await readFile(readmePath, "utf8");
+  const moduleDir = path.join(MODULES_DIR, moduleName);
+  const imageRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
+  const results: ImageVerification[] = [];
+
+  let match;
+  while ((match = imageRegex.exec(readme)) !== null) {
+    const reference = match[1];
+
+    if (reference.startsWith("http://") || reference.startsWith("https://")) {
+      results.push({
+        reference,
+        resolvedPath: "(external)",
+        exists: true,
+      });
+      continue;
+    }
+
+    const resolvedPath = path.resolve(moduleDir, reference);
+    const verification: ImageVerification = {
+      reference,
+      resolvedPath,
+      exists: existsSync(resolvedPath),
+    };
+
+    if (verification.exists) {
+      try {
+        const { stat } = await import("node:fs/promises");
+        const stats = await stat(resolvedPath);
+        verification.sizeBytes = stats.size;
+      } catch {}
+    }
+
+    results.push(verification);
+  }
+
+  return results;
+}
+
 async function gatherModuleContext(moduleName: string): Promise<string> {
   const dir = path.join(MODULES_DIR, moduleName);
   const parts: string[] = [];
@@ -114,6 +164,26 @@ async function gatherModuleContext(moduleName: string): Promise<string> {
     const full = path.join(dir, f);
     parts.push(`=== FILE: ${f} ===\n${await readTruncated(full)}`);
   }
+
+  const imageVerifications = await verifyReadmeImages(moduleName);
+  if (imageVerifications.length > 0) {
+    const verificationLines = imageVerifications.map((v) => {
+      if (v.resolvedPath === "(external)") {
+        return `  → ${v.reference} — external URL`;
+      } else if (v.exists) {
+        const size = v.sizeBytes
+          ? ` (${(v.sizeBytes / 1024).toFixed(1)} KB)`
+          : "";
+        return `  ✓ ${v.reference} — exists${size}`;
+      } else {
+        return `  ✗ ${v.reference} — NOT FOUND`;
+      }
+    });
+    parts.push(
+      `=== README IMAGE VERIFICATION ===\n${verificationLines.join("\n")}`,
+    );
+  }
+
   return parts.join("\n\n");
 }
 
