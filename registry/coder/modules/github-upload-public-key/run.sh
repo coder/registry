@@ -68,7 +68,7 @@ GITHUB_KEYS_RESPONSE=$(
     -H "Accept: application/vnd.github+json" \
     -H "Authorization: Bearer $GITHUB_TOKEN" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
-    $GITHUB_API_URL/user/keys
+    $GITHUB_API_URL/user/ssh_signing_keys
 )
 GITHUB_KEYS_RESPONSE_STATUS=$(tail -n1 <<< "$GITHUB_KEYS_RESPONSE")
 GITHUB_KEYS_RESPONSE_BODY=$(sed \$d <<< "$GITHUB_KEYS_RESPONSE")
@@ -96,7 +96,7 @@ UPLOAD_RESPONSE=$(
     -H "Accept: application/vnd.github+json" \
     -H "Authorization: Bearer $GITHUB_TOKEN" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
-    $GITHUB_API_URL/user/keys \
+    $GITHUB_API_URL/user/ssh_signing_keys \
     -d "$(jq -nc --arg title "$CODER_PUBLIC_KEY_NAME" --arg key "$PUBLIC_KEY" '{title: $title, key: $key}')"
 )
 UPLOAD_RESPONSE_STATUS=$(tail -n1 <<< "$UPLOAD_RESPONSE")
