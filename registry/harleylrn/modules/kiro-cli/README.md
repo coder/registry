@@ -13,7 +13,7 @@ Run [Kiro CLI](https://kiro.dev/) in your workspace to access AI coding assistan
 ```tf
 module "kiro-cli" {
   source   = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version  = "1.0.1"
+  version  = "1.0.2"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder"
 
@@ -85,52 +85,6 @@ variable "kiro_cli_auth_tarball" {
 > - Regenerate the tarball if you logout or re-authenticate
 > - Each user needs their own authentication tarball
 > - Keep the tarball secure as it contains authentication credentials
-
-### Coder Tasks Integration
-
-To enable integration with [Coder Tasks](https://coder.com/docs/ai-coder/tasks), you need to define the `coder_task` data source, create the `coder_ai_task` resource, and configure the module with the task prompt.
-
-```tf
-data "coder_task" "me" {}
-
-module "kiro-cli" {
-  count           = data.coder_task.me.enabled ? data.coder_workspace.me.start_count : 0
-  source          = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version         = "1.0.1"
-  agent_id        = coder_agent.example.id
-  workdir         = "/home/coder"
-  auth_tarball    = var.kiro_cli_auth_tarball
-  ai_prompt       = data.coder_task.me.prompt
-  trust_all_tools = true
-
-  # Task reporting configuration
-  report_tasks = true
-
-  # Enable CLI app alongside web app
-  cli_app              = true
-  web_app_display_name = "Kiro CLI"
-  cli_app_display_name = "Kiro CLI"
-}
-
-resource "coder_ai_task" "task" {
-  count  = data.coder_task.me.enabled ? data.coder_workspace.me.start_count : 0
-  app_id = module.kiro-cli[count.index].task_app_id
-}
-```
-
-> [!IMPORTANT]
->
-> - The `data "coder_task" "me" {}` data source provides the task prompt and enabled state
-> - The module count is controlled by `data.coder_task.me.enabled` to only create when a task is active
-> - The `coder_ai_task` resource links the module's task reporting to Coder's task system
-> - The `ai_prompt` is passed from `data.coder_task.me.prompt`
-> - Without this configuration, `coder_ai_task` resources will not function properly
->
-> **_Security Notice_**
-> In order to allow the tasks flow non-interactively all the tools are trusted
-> This flag bypasses standard permission checks and allows Kiro CLI broader access to your system than normally permitted.
-> While this enables more functionality, it also means Kiro CLI can potentially execute commands with the same privileges as the user running it.
-> Use this module only in trusted environments and be aware of the security implications.
 
 ### Default System Prompt
 
@@ -221,7 +175,7 @@ If no custom `agent_config` is provided, the default agent name "agent" is used.
 ```tf
 module "kiro-cli" {
   source       = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version      = "1.0.1"
+  version      = "1.0.2"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.kiro_cli_auth_tarball
@@ -251,7 +205,7 @@ This example will:
 ```tf
 module "kiro-cli" {
   source          = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version         = "1.0.1"
+  version         = "1.0.2"
   agent_id        = coder_agent.example.id
   workdir         = "/home/coder"
   auth_tarball    = var.kiro_cli_auth_tarball
@@ -272,7 +226,7 @@ module "kiro-cli" {
 ```tf
 module "kiro-cli" {
   source       = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version      = "1.0.1"
+  version      = "1.0.2"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.kiro_cli_auth_tarball
@@ -298,7 +252,7 @@ module "kiro-cli" {
 ```tf
 module "kiro-cli" {
   source           = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version          = "1.0.1"
+  version          = "1.0.2"
   agent_id         = coder_agent.example.id
   workdir          = "/home/coder"
   auth_tarball     = var.kiro_cli_auth_tarball
@@ -312,7 +266,7 @@ module "kiro-cli" {
 ```tf
 module "kiro-cli" {
   source       = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version      = "1.0.1"
+  version      = "1.0.2"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.kiro_cli_auth_tarball
@@ -333,7 +287,7 @@ module "kiro-cli" {
 ```tf
 module "kiro-cli" {
   source       = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version      = "1.0.1"
+  version      = "1.0.2"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.kiro_cli_auth_tarball
@@ -351,7 +305,7 @@ For environments without direct internet access, you can host Kiro CLI installat
 ```tf
 module "kiro-cli" {
   source       = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version      = "1.0.1"
+  version      = "1.0.2"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   auth_tarball = var.kiro_cli_auth_tarball
