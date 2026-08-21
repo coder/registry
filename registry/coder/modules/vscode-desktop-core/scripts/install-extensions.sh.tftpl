@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+expand_home() {
+  case "$1" in
+    '$HOME')
+      printf '%s\n' "$HOME"
+      ;;
+    '$HOME/'*)
+      printf '%s/%s\n' "$HOME" "$${1#\$HOME/}"
+      ;;
+    *)
+      printf '%s\n' "$1"
+      ;;
+  esac
+}
+
+decode_path() {
+  local encoded_path="$1"
+  local decoded_path
+
+  decoded_path="$(printf '%s' "$encoded_path" | base64 -d)"
+  expand_home "$decoded_path"
+}
+
+IDE_CLI_PATH="$(decode_path '${IDE_CLI_PATH_B64}')"
+EXTENSIONS_DIR="$(decode_path '${EXTENSIONS_DIR_B64}')"
+IDE_CLI_INSTALL_SCRIPT_B64='${IDE_CLI_INSTALL_SCRIPT_B64}'
+
+if [ -z "$IDE_CLI_PATH" ]; then
+  printf 'ide_cli_path is required when extensions are configured.\n' >&2
+  exit 1
+fi
+if [ -z "$EXTENSIONS_DIR" ]; then
+  printf 'extensions_dir is required when extensions are configured.\n' >&2
+  exit 1
+fi
+
+if [ -n "$IDE_CLI_INSTALL_SCRIPT_B64" ]; then
+  bootstrap_script="$(mktemp)"
+  trap 'rm -f "$bootstrap_script"' EXIT
+  printf '%s' "$IDE_CLI_INSTALL_SCRIPT_B64" | base64 -d > "$bootstrap_script"
+  chmod 700 "$bootstrap_script"
+  "$bootstrap_script"
+fi
+
+if [ ! -x "$IDE_CLI_PATH" ]; then
+  printf 'IDE CLI is not executable: %s\n' "$IDE_CLI_PATH" >&2
+  exit 1
+fi
+
+mkdir -p "$EXTENSIONS_DIR"
+
+while IFS= read -r encoded_extension; do
+  [ -n "$encoded_extension" ] || continue
+  extension="$(printf '%s' "$encoded_extension" | base64 -d)"
+  printf 'Installing extension %s...\n' "$extension"
+  "$IDE_CLI_PATH" \
+    --install-extension "$extension" \
+    --extensions-dir "$EXTENSIONS_DIR"
+done <<'EXTENSIONS'
+${EXTENSIONS_B64_LINES}
+EXTENSIONS
