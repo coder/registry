@@ -81,11 +81,12 @@ fi
 
 SKIP_INSTALL=false
 if [ -f "$VSCODE_WEB" ]; then
-  echo "🥳 Found a copy of VS Code Web"
   if [ "${OFFLINE}" = true ]; then
+    echo "🥳 Found a copy of VS Code Web"
     run_vscode_web
     exit 0
   elif [ "${USE_CACHED}" = true ]; then
+    echo "🥳 Found a copy of VS Code Web"
     SKIP_INSTALL=true
   fi
 elif [ "${OFFLINE}" = true ]; then

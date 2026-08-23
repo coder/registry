@@ -576,4 +576,40 @@ JSONCEOF`,
     expect(result.stdout).toContain("INSTALLED:dbaeumer.vscode-eslint");
     expect(result.stdout).toContain("INSTALLED:esbenp.prettier-vscode");
   });
+
+  it("does not claim a cache hit on the default download path", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      accept_license: true,
+      // neither use_cached nor offline
+    });
+
+    const containerId = await runContainer("ubuntu:22.04");
+    cleanupContainers.push(containerId);
+
+    // A stray copy exists at the default install_prefix, but without use_cached
+    // the module must re-download and must not claim it found a cached copy.
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /tmp/vscode-web/bin && cat > /tmp/vscode-web/bin/code-server << 'MOCKEOF'
+${MOCK_VSCODE_WEB}
+MOCKEOF
+chmod +x /tmp/vscode-web/bin/code-server
+${STUB_DOWNLOAD}`,
+    ]);
+
+    const script = findResourceInstance(state, "coder_script");
+    const result = await execContainer(containerId, [
+      "bash",
+      "-c",
+      script.script,
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).not.toContain("Found a copy of VS Code Web");
+    expect(result.stdout).toContain(
+      "Installing Microsoft Visual Studio Code Server",
+    );
+  });
 });
