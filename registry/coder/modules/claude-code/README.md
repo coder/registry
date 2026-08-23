@@ -13,14 +13,14 @@ Install and configure the [Claude Code](https://docs.anthropic.com/en/docs/agent
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.0"
+  version           = "5.4.1"
   agent_id          = coder_agent.main.id
   anthropic_api_key = "xxxx-xxxxx-xxxx"
 }
 ```
 
 > [!WARNING]
-> If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for [Coder Tasks](https://coder.com/docs/ai-coder/tasks) and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). We plan to add those back in a follow-up. Keep using v4.x.x if you depend on them. See [#861](https://github.com/coder/registry/pull/861) for the full migration guide.
+> If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for Coder Tasks and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). We plan to add Boundary support back in a follow-up. Keep using v4.x.x if you depend on them. See [#861](https://github.com/coder/registry/pull/861) for the full migration guide.
 
 ## Prerequisites
 
@@ -51,7 +51,7 @@ locals {
 
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.0"
+  version           = "5.4.1"
   agent_id          = coder_agent.main.id
   workdir           = local.claude_workdir
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -82,7 +82,7 @@ resource "coder_app" "claude" {
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.0"
+  version           = "5.4.1"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -106,7 +106,7 @@ The `managed_settings` input writes a policy file to `/etc/claude-code/managed-s
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.0"
+  version           = "5.4.1"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -133,7 +133,7 @@ For production deployments we recommend `api_key_helper` over a static `anthropi
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.4.0"
+  version  = "5.4.1"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -152,7 +152,7 @@ Or, sourcing from AWS Secrets Manager:
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.4.0"
+  version  = "5.4.1"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -177,7 +177,7 @@ This example shows version pinning, a pre-installed binary path, a custom model,
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.4.0"
+  version  = "5.4.1"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -241,7 +241,7 @@ Downstream `coder_script` resources can wait for this module's install pipeline 
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.0"
+  version           = "5.4.1"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -271,7 +271,7 @@ Set `use_bedrock = true` to route Claude Code through Amazon Bedrock. The module
 ```tf
 module "claude-code" {
   source      = "registry.coder.com/coder/claude-code/coder"
-  version     = "5.4.0"
+  version     = "5.4.1"
   agent_id    = coder_agent.main.id
   workdir     = "/home/coder/project"
   use_bedrock = true
@@ -324,7 +324,7 @@ Set `use_vertex = true` to route Claude Code through Google Vertex AI. The modul
 ```tf
 module "claude-code" {
   source     = "registry.coder.com/coder/claude-code/coder"
-  version    = "5.4.0"
+  version    = "5.4.1"
   agent_id   = coder_agent.main.id
   workdir    = "/home/coder/project"
   use_vertex = true
@@ -357,7 +357,7 @@ Set `anthropic_base_url` to point Claude Code at a self-hosted gateway or proxy 
 ```tf
 module "claude-code" {
   source             = "registry.coder.com/coder/claude-code/coder"
-  version            = "5.4.0"
+  version            = "5.4.1"
   agent_id           = coder_agent.main.id
   workdir            = "/home/coder/project"
   anthropic_base_url = "https://llm-gateway.example.com/anthropic"
@@ -376,7 +376,7 @@ The module automatically tags every span and metric with `coder.workspace_id`, `
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.0"
+  version           = "5.4.1"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
