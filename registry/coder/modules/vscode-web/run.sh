@@ -79,62 +79,65 @@ if [ -n "$SETTINGS_B64" ]; then
   fi
 fi
 
-# Check if vscode-server is already installed for offline or cached mode
+SKIP_INSTALL=false
 if [ -f "$VSCODE_WEB" ]; then
-  if [ "${OFFLINE}" = true ] || [ "${USE_CACHED}" = true ]; then
+  if [ "${OFFLINE}" = true ]; then
     echo "🥳 Found a copy of VS Code Web"
     run_vscode_web
     exit 0
+  elif [ "${USE_CACHED}" = true ]; then
+    echo "🥳 Found a copy of VS Code Web"
+    SKIP_INSTALL=true
   fi
-fi
-# Offline mode always expects a copy of vscode-server to be present
-if [ "${OFFLINE}" = true ]; then
+elif [ "${OFFLINE}" = true ]; then
   echo "Failed to find a copy of VS Code Web"
   exit 1
 fi
 
-# Create install prefix
-mkdir -p ${INSTALL_PREFIX}
+if [ "$SKIP_INSTALL" != true ]; then
+  # Create install prefix
+  mkdir -p ${INSTALL_PREFIX}
 
-printf "$${BOLD}Installing Microsoft Visual Studio Code Server!\n"
+  printf "$${BOLD}Installing Microsoft Visual Studio Code Server!\n"
 
-# Download and extract vscode-server
-ARCH=$(uname -m)
-case "$ARCH" in
-  x86_64) ARCH="x64" ;;
-  aarch64) ARCH="arm64" ;;
-  *)
-    echo "Unsupported architecture"
+  # Download and extract vscode-server
+  ARCH=$(uname -m)
+  case "$ARCH" in
+    x86_64) ARCH="x64" ;;
+    aarch64) ARCH="arm64" ;;
+    *)
+      echo "Unsupported architecture"
+      exit 1
+      ;;
+  esac
+
+  # Detect the platform
+  if [ -n "${PLATFORM}" ]; then
+    DETECTED_PLATFORM="${PLATFORM}"
+  elif [ -f /etc/alpine-release ] || grep -qi 'ID=alpine' /etc/os-release 2> /dev/null || command -v apk > /dev/null 2>&1; then
+    DETECTED_PLATFORM="alpine"
+  elif [ "$(uname -s)" = "Darwin" ]; then
+    DETECTED_PLATFORM="darwin"
+  else
+    DETECTED_PLATFORM="linux"
+  fi
+
+  # Check if a specific VS Code Web commit ID was provided
+  if [ -n "${COMMIT_ID}" ]; then
+    HASH="${COMMIT_ID}"
+  else
+    HASH=$(curl -fsSL https://update.code.visualstudio.com/api/commits/stable/server-$DETECTED_PLATFORM-$ARCH-web | cut -d '"' -f 2)
+  fi
+  printf "$${BOLD}VS Code Web commit id version $HASH.\n"
+
+  output=$(curl -fsSL "https://vscode.download.prss.microsoft.com/dbazure/download/stable/$HASH/vscode-server-$DETECTED_PLATFORM-$ARCH-web.tar.gz" | tar -xz -C "${INSTALL_PREFIX}" --strip-components 1)
+
+  if [ $? -ne 0 ]; then
+    echo "Failed to install Microsoft Visual Studio Code Server: $output"
     exit 1
-    ;;
-esac
-
-# Detect the platform
-if [ -n "${PLATFORM}" ]; then
-  DETECTED_PLATFORM="${PLATFORM}"
-elif [ -f /etc/alpine-release ] || grep -qi 'ID=alpine' /etc/os-release 2> /dev/null || command -v apk > /dev/null 2>&1; then
-  DETECTED_PLATFORM="alpine"
-elif [ "$(uname -s)" = "Darwin" ]; then
-  DETECTED_PLATFORM="darwin"
-else
-  DETECTED_PLATFORM="linux"
+  fi
+  printf "$${BOLD}VS Code Web has been installed.\n"
 fi
-
-# Check if a specific VS Code Web commit ID was provided
-if [ -n "${COMMIT_ID}" ]; then
-  HASH="${COMMIT_ID}"
-else
-  HASH=$(curl -fsSL https://update.code.visualstudio.com/api/commits/stable/server-$DETECTED_PLATFORM-$ARCH-web | cut -d '"' -f 2)
-fi
-printf "$${BOLD}VS Code Web commit id version $HASH.\n"
-
-output=$(curl -fsSL "https://vscode.download.prss.microsoft.com/dbazure/download/stable/$HASH/vscode-server-$DETECTED_PLATFORM-$ARCH-web.tar.gz" | tar -xz -C "${INSTALL_PREFIX}" --strip-components 1)
-
-if [ $? -ne 0 ]; then
-  echo "Failed to install Microsoft Visual Studio Code Server: $output"
-  exit 1
-fi
-printf "$${BOLD}VS Code Web has been installed.\n"
 
 # Install each extension...
 IFS=',' read -r -a EXTENSIONLIST <<< "$${EXTENSIONS}"
@@ -150,6 +153,39 @@ for extension in "$${EXTENSIONLIST[@]}"; do
   fi
 done
 
+# Strip JSONC features (block/line comments, trailing commas) so jq can parse
+# .vscode/extensions.json and .code-workspace files. Portable across GNU, BSD,
+# and BusyBox sed (Coder workspaces run on Linux, macOS and Alpine).
+#
+# Three passes, because each concern needs a different scope and order:
+#   1. Block comments  - slurps the whole file so /* ... */ can span lines.
+#      Runs first so a URL such as /* see https://example */ is removed as a
+#      unit and its // is never seen by the line-comment pass.
+#   2. Line comments   - per line, so // ... stops at end of line without the
+#      non-portable [^\n] class (BSD sed reads \n inside a bracket as a literal
+#      backslash and n, silently corrupting IDs containing "n"). A // preceded
+#      by ':' is preserved so URLs in string values (e.g. proxy settings in a
+#      .code-workspace) survive.
+#   3. Trailing commas - slurps the whole file so a comma and its closing
+#      bracket may sit on different lines.
+# The ':a;$!{N;ba}' slurp is single-line safe (it falls through on the last or
+# only line).
+strip_jsonc_for_extensions() {
+  sed -E ':a
+$!{
+N
+ba
+}
+s#/[*]([^*]|[*]+[^*/])*[*]+/##g' "$1" \
+    | sed -E 's#^[[:space:]]*//.*##; s#([^:])//.*#\1#' \
+    | sed -E ':a
+$!{
+N
+ba
+}
+s/,[^]}"]*([]}])/\1/g'
+}
+
 if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
   if ! command -v jq > /dev/null; then
     echo "jq is required to install extensions from a workspace file."
@@ -157,8 +193,8 @@ if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
     # Prefer WORKSPACE if set and points to a file
     if [ -n "${WORKSPACE}" ] && [ -f "${WORKSPACE}" ]; then
       printf "🧩 Installing extensions from %s...\n" "${WORKSPACE}"
-      # Strip single-line comments then parse .extensions.recommendations[]
-      extensions=$(sed 's|//.*||g' "${WORKSPACE}" | jq -r '(.extensions.recommendations // [])[]')
+      extensions=$(strip_jsonc_for_extensions "${WORKSPACE}" \
+        | jq -r '(.extensions.recommendations // [])[]')
       for extension in $extensions; do
         $VSCODE_WEB "$EXTENSION_ARG" --install-extension "$extension" --force
       done
@@ -170,7 +206,8 @@ if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
       fi
       if [ -f "$WORKSPACE_DIR/.vscode/extensions.json" ]; then
         printf "🧩 Installing extensions from %s/.vscode/extensions.json...\n" "$WORKSPACE_DIR"
-        extensions=$(sed 's|//.*||g' "$WORKSPACE_DIR/.vscode/extensions.json" | jq -r '.recommendations[]')
+        extensions=$(strip_jsonc_for_extensions "$WORKSPACE_DIR/.vscode/extensions.json" \
+          | jq -r '(.recommendations // [])[]')
         for extension in $extensions; do
           $VSCODE_WEB "$EXTENSION_ARG" --install-extension "$extension" --force
         done

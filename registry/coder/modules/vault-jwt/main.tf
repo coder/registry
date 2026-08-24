@@ -54,9 +54,15 @@ variable "vault_cli_version" {
   }
 }
 
+variable "display_name" {
+  description = "The display name of the coder_script resource shown in the workspace logs."
+  type        = string
+  default     = "Vault (JWT)"
+}
+
 resource "coder_script" "vault" {
   agent_id     = var.agent_id
-  display_name = "Vault (GitHub)"
+  display_name = var.display_name
   icon         = "/icon/vault.svg"
   script = templatefile("${path.module}/run.sh", {
     CODER_OIDC_ACCESS_TOKEN : var.vault_jwt_token != null ? var.vault_jwt_token : data.coder_workspace_owner.me.oidc_access_token,

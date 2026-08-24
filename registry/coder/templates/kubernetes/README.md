@@ -18,7 +18,18 @@ Provision Kubernetes Pods as [Coder workspaces](https://coder.com/docs/workspace
 
 **Cluster**: This template requires an existing Kubernetes cluster
 
-**Container Image**: This template uses the [codercom/enterprise-base:ubuntu image](https://github.com/coder/enterprise-images/tree/main/images/base) with some dev tools preinstalled. To add additional tools, extend this image or build it yourself.
+### Workspace image
+
+This template exposes an `image` variable that controls which container image workspaces run. The image determines what tools, languages, and runtimes are available in the workspace out of the box, so it has a major impact on the developer experience.
+
+Some options to consider:
+
+| Image                                                                                             | Tradeoffs                                                                              |
+| ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| [`codercom/example-base:ubuntu`](https://github.com/coder/images/tree/main/images/base) (default) | Minimal and lightweight, but may not include many tools developers expect by default   |
+| [`codercom/example-universal:ubuntu`](https://github.com/coder/images/tree/main/images/universal) | Catch-all image with many languages and tools available, but larger and slower to pull |
+
+More language-specific images (Go, Java, Node.js, and more) are available in [coder/images](https://github.com/coder/images), and the [devcontainers/images](https://github.com/devcontainers/images) collection is another good source of ready-made development images. You can also build your own image to pre-bake the exact tools your team needs. See [Coder's image management docs](https://coder.com/docs/admin/templates/managing-templates/image-management) for additional guidance.
 
 ### Authentication
 

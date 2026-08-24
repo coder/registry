@@ -1,5 +1,5 @@
 # Terraform variables
-$adminPassword = "${admin_password}"
+$adminPassword = '${admin_password}'
 $port = "${port}"
 $webURLPath = "${web_url_path}"
 

@@ -10,13 +10,8 @@ tags: [railway, cloud, container, docker]
 
 Each Coder workspace is a fully isolated [Railway](https://railway.com) project running a container built from a public image on GHCR. Every workspace becomes a first-class Railway project (its own environment, its own volumes, its own service token), which sets up a natural extension point: the workspace user can manage further Railway resources inside their own project via the [Railway CLI](https://docs.railway.com/reference/cli-api).
 
-<p align="center">
-  <a href="https://www.loom.com/share/92a59e1f379c4b6bb8869f14df5e837d">
-    <img src="https://cdn.loom.com/sessions/thumbnails/92a59e1f379c4b6bb8869f14df5e837d-49d50ac4ed07b42c.gif" alt="Demo: Railway + Coder workspaces" width="720" />
-  </a>
-  <br>
-  <em>Demo (Loom, ~5 min)</em>
-</p>
+[![Demo: Railway + Coder workspaces](https://cdn.loom.com/sessions/thumbnails/92a59e1f379c4b6bb8869f14df5e837d-49d50ac4ed07b42c.gif)](https://www.loom.com/share/92a59e1f379c4b6bb8869f14df5e837d)
+_Demo (Loom, ~5 min)_
 
 > [!NOTE]
 > The Loom above was recorded before startup was optimized. The demo shows a per-start Docker build (~62s median). This template now uses `serviceInstanceUpdate(source: { image })` against a pre-built image (`ghcr.io/bpmct/railway-coder-workspace:latest`), so median start time is ~6s. The rest of the flow in the demo (workspace creation, project isolation, Railway CLI) still applies.
