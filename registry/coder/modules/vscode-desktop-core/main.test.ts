@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, setDefaultTimeout } from "bun:test";
 import {
   runTerraformApply,
   runTerraformInit,
@@ -8,7 +8,10 @@ import {
   removeContainer,
   findResourceInstance,
   readFileContainer,
+  writeFileContainer,
 } from "~test";
+
+setDefaultTimeout(60 * 1000);
 
 // hardcoded coder_app name in main.tf
 const appName = "vscode-desktop";
@@ -22,6 +25,17 @@ const defaultVariables = {
 
   protocol: "vscode",
   config_dir: "$HOME/.vscode",
+};
+
+const setupVariables = {
+  ...defaultVariables,
+  extensions: JSON.stringify([
+    "ms-python.python",
+    "esbenp.prettier-vscode@12.4.0",
+  ]),
+  extensions_dir: "$HOME/.ide-server/extensions",
+  ide_cli_path: "/tmp/fake-ide-cli",
+  ide_cli_install_script: "#!/usr/bin/env bash\nprintf 'bootstrap complete\\n'",
 };
 
 describe("vscode-desktop-core", async () => {
@@ -76,7 +90,7 @@ describe("vscode-desktop-core", async () => {
       it("adds folder but not open_recent", async () => {
         const state = await runTerraformApply(import.meta.dir, {
           folder: "/foo/bar",
-          openRecent: "false",
+          open_recent: "false",
 
           ...defaultVariables,
         });
@@ -176,5 +190,166 @@ describe("vscode-desktop-core", async () => {
     } finally {
       await removeContainer(id);
     }
-  }, 10000);
+  });
+
+  describe("extension installation", () => {
+    it("creates no extension script with default inputs", async () => {
+      const state = await runTerraformApply(import.meta.dir, defaultVariables);
+
+      const extensionScripts = state.resources.filter(
+        (resource) =>
+          resource.type === "coder_script" &&
+          resource.name === "install_extensions",
+      );
+
+      expect(extensionScripts).toHaveLength(0);
+    });
+
+    it("creates one finite login-blocking script with wrapper-controlled inputs", async () => {
+      const state = await runTerraformApply(import.meta.dir, setupVariables);
+      const extensionInstaller = findResourceInstance(
+        state,
+        "coder_script",
+        "install_extensions",
+      );
+
+      expect(extensionInstaller.run_on_start).toBe(true);
+      expect(extensionInstaller.start_blocks_login).toBe(true);
+      expect(extensionInstaller.timeout).toBe(1800);
+      expect(extensionInstaller.script).toContain(
+        Buffer.from(setupVariables.ide_cli_path).toString("base64"),
+      );
+      expect(extensionInstaller.script).toContain(
+        Buffer.from(setupVariables.extensions_dir).toString("base64"),
+      );
+      expect(extensionInstaller.script).toContain(
+        Buffer.from(setupVariables.ide_cli_install_script).toString("base64"),
+      );
+      expect(extensionInstaller.script).not.toContain(".vscode-server");
+      expect(extensionInstaller.script).not.toContain(".cursor-server");
+      expect(extensionInstaller.script).not.toContain(".windsurf-server");
+    });
+
+    it("installs each extension separately and remains idempotent", async () => {
+      const state = await runTerraformApply(import.meta.dir, setupVariables);
+      const setupScript = findResourceInstance(
+        state,
+        "coder_script",
+        "install_extensions",
+      ).script;
+      const id = await runContainer("node:22-bookworm-slim");
+
+      try {
+        await writeFileContainer(
+          id,
+          setupVariables.ide_cli_path,
+          `#!/bin/sh
+printf '%s\\n' "$@" >> /tmp/ide-cli-args
+`,
+          { user: "root" },
+        );
+        await execContainer(
+          id,
+          ["chmod", "755", setupVariables.ide_cli_path],
+          ["--user", "root"],
+        );
+
+        const firstRun = await execContainer(id, ["bash", "-c", setupScript]);
+        expect(firstRun.exitCode).toBe(0);
+        expect(firstRun.stdout).toContain("bootstrap complete");
+
+        const secondRun = await execContainer(id, ["bash", "-c", setupScript]);
+        expect(secondRun.exitCode).toBe(0);
+
+        const argumentsLog = await readFileContainer(id, "/tmp/ide-cli-args");
+        const expectedRun = [
+          "--install-extension",
+          "ms-python.python",
+          "--extensions-dir",
+          "/root/.ide-server/extensions",
+          "--install-extension",
+          "esbenp.prettier-vscode@12.4.0",
+          "--extensions-dir",
+          "/root/.ide-server/extensions",
+        ];
+        expect(argumentsLog.trim().split("\n")).toEqual([
+          ...expectedRun,
+          ...expectedRun,
+        ]);
+      } finally {
+        await removeContainer(id);
+      }
+    }, 20000);
+
+    it("fails clearly when the IDE CLI rejects an extension", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        ...setupVariables,
+        extensions: JSON.stringify(["invalid.extension"]),
+      });
+      const setupScript = findResourceInstance(
+        state,
+        "coder_script",
+        "install_extensions",
+      ).script;
+      const id = await runContainer("node:22-bookworm-slim");
+
+      try {
+        await writeFileContainer(
+          id,
+          setupVariables.ide_cli_path,
+          `#!/bin/sh
+printf 'extension installation failed\\n' >&2
+exit 23
+`,
+          { user: "root" },
+        );
+        await execContainer(
+          id,
+          ["chmod", "755", setupVariables.ide_cli_path],
+          ["--user", "root"],
+        );
+
+        const result = await execContainer(id, ["bash", "-c", setupScript]);
+        expect(result.exitCode).toBe(23);
+        expect(result.stdout).toContain(
+          "Installing extension invalid.extension...",
+        );
+        expect(result.stderr).toContain("extension installation failed");
+      } finally {
+        await removeContainer(id);
+      }
+    }, 20000);
+
+    it("fails before bootstrap when a required wrapper path is empty", async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        ...setupVariables,
+        extensions_dir: "",
+        ide_cli_install_script: "touch /tmp/bootstrap-ran",
+      });
+      const setupScript = findResourceInstance(
+        state,
+        "coder_script",
+        "install_extensions",
+      ).script;
+      const id = await runContainer("node:22-bookworm-slim");
+
+      try {
+        const result = await execContainer(id, ["bash", "-c", setupScript]);
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toContain(
+          "extensions_dir is required when extensions are configured.",
+        );
+
+        const bootstrapMarker = await execContainer(id, [
+          "test",
+          "!",
+          "-e",
+          "/tmp/bootstrap-ran",
+        ]);
+        expect(bootstrapMarker.exitCode).toBe(0);
+      } finally {
+        await removeContainer(id);
+      }
+    }, 20000);
+  });
 });
