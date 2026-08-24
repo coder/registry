@@ -32,6 +32,35 @@ variable "mcp_config" {
   default     = null
 }
 
+variable "extensions" {
+  description = "Extension IDs to pre-install on the remote workspace host."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for extension in var.extensions : trimspace(extension) != ""])
+    error_message = "extensions must not contain empty extension IDs."
+  }
+}
+
+variable "extensions_dir" {
+  description = "Remote extension directory supplied by the IDE wrapper."
+  type        = string
+  default     = ""
+}
+
+variable "ide_cli_path" {
+  description = "Remote IDE server CLI supplied by the IDE wrapper."
+  type        = string
+  default     = ""
+}
+
+variable "ide_cli_install_script" {
+  description = "Internal wrapper-provided finite script that makes ide_cli_path available."
+  type        = string
+  default     = null
+}
+
 variable "protocol" {
   type        = string
   description = "The URI protocol the IDE."
@@ -71,6 +100,29 @@ variable "coder_app_group" {
 
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
+
+locals {
+  install_extensions_script = length(var.extensions) > 0 ? templatefile(
+    "${path.module}/scripts/install-extensions.sh.tftpl",
+    {
+      IDE_CLI_INSTALL_SCRIPT_B64 = var.ide_cli_install_script != null ? base64encode(var.ide_cli_install_script) : ""
+      EXTENSIONS_B64_LINES       = join("\n", [for extension in var.extensions : base64encode(extension)])
+      EXTENSIONS_DIR_B64         = base64encode(var.extensions_dir)
+      IDE_CLI_PATH_B64           = base64encode(var.ide_cli_path)
+    },
+  ) : ""
+}
+
+resource "coder_script" "install_extensions" {
+  count              = length(var.extensions) > 0 ? 1 : 0
+  agent_id           = var.agent_id
+  display_name       = "${var.coder_app_display_name} Extensions"
+  icon               = var.coder_app_icon
+  run_on_start       = true
+  start_blocks_login = true
+  timeout            = 1800
+  script             = local.install_extensions_script
+}
 
 resource "coder_app" "vscode-desktop" {
   agent_id = var.agent_id
