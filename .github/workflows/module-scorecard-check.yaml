@@ -4,40 +4,70 @@
 # regressions, celebrates improvements, and confirms unchanged scores.
 #
 # Never creates or updates discussions; the comparison is read-only against
-# GitHub and only writes the PR comment. Skipped for fork PRs because it
-# requires secrets.
+# GitHub and only writes the PR comment.
+#
+# Two triggers:
+#   - pull_request: runs automatically for same-repo PRs. Fork PRs are
+#     skipped because secrets are unavailable to them.
+#   - issue_comment: a maintainer comments "/scorecard" on any PR
+#     (including fork PRs) to run the check on demand. Restricted to
+#     OWNER/MEMBER/COLLABORATOR, so every fork-PR scoring is an explicit
+#     maintainer decision.
+#
+# Modules in every namespace (registry/<namespace>/modules/<name>) are
+# scored. Only registry/coder modules have discussion baselines; community
+# modules always report a fresh advisory score.
+#
+# Both paths execute only trusted code: the checkout is the base
+# repository, and PR content is fetched separately and materialized ONLY
+# under registry/, where the scoring script reads it as
+# inert text for the LLM prompt. Nothing from the PR head is executed.
 #
 # Required repository secrets:
 #   SCORECARD_ANTHROPIC_API_KEY  Anthropic API key used for scoring
-#   SCORECARD_DISCUSSIONS_TOKEN  GitHub PAT with Discussions read (baseline lookup)
+#
+# The baseline lookup reads discussions with the built-in GITHUB_TOKEN
+# (discussions: read below); no PAT is needed.
 
 name: Module Scorecard Check
 
 on:
   pull_request:
     paths:
-      - "registry/coder/modules/**"
+      - "registry/*/modules/**"
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
+  discussions: read
   pull-requests: write
 
 concurrency:
-  group: module-scorecard-check-${{ github.event.pull_request.number }}
+  group: module-scorecard-check-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: true
 
 jobs:
   check:
     name: Compare module scores against main
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: >-
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       startsWith(github.event.comment.body, '/scorecard') &&
+       contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout
+      - name: Checkout trusted base
+        # For issue_comment this is the default branch; for pull_request it
+        # is the test merge commit of a same-repo PR. Either way the
+        # .github/scorecard scripts executed below come from the base
+        # repository, never from a fork.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The merge commit plus both parents, for the HEAD^1 diff below.
-          fetch-depth: 2
+          persist-credentials: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -46,23 +76,42 @@ jobs:
 
       - name: Determine changed modules
         id: changed
-        # The checkout is GitHub's test merge commit (PR head merged into
-        # current main), so HEAD^1 is the exact main tip this PR is applied
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        # Fetch GitHub's test merge commit (PR head merged into current
+        # main) so FETCH_HEAD^1 is the exact main tip this PR is applied
         # to and the diff is precisely what the PR changes. Diffing against
         # github.event.pull_request.base.sha is wrong: that SHA is the base
         # tip from when the PR was opened, so on stale PRs it picks up every
         # module merged to main since the PR branched and scores unrelated
         # modules (REG-74).
         run: |
-          MODULES=$(git diff --name-only HEAD^1 HEAD | { grep -oP '^registry/coder/modules/\K[^/]+' || true; } | sort -u | paste -sd, -)
+          git fetch --depth=2 origin "refs/pull/${PR_NUMBER}/merge"
+          # Module specs are namespace/name (for example coder/git-clone or
+          # droopy4096/mise-install) so community-namespace modules are
+          # scored too, not just registry/coder.
+          MODULES=$(git diff --name-only FETCH_HEAD^1 FETCH_HEAD | { grep -oP '^registry/\K[^/]+/modules/[^/]+' || true; } | sed 's#/modules/#/#' | sort -u | paste -sd, -)
           echo "modules=${MODULES}" >> "${GITHUB_OUTPUT}"
+          echo "pr=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
           echo "Changed modules: ${MODULES:-none}"
+
+      - name: Materialize PR module content (data only)
+        if: steps.changed.outputs.modules != ''
+        # Overlay the registry/ tree from the PR merge commit onto the
+        # trusted checkout. The scoring script reads these files as plain
+        # text for the LLM prompt; it never executes them. Everything under
+        # .github/ stays at the trusted base. A literal pathspec is used
+        # because wildcard pathspecs (registry/*/modules) do not
+        # directory-prefix match and fail to match any files.
+        run: |
+          git rm -rq --ignore-unmatch registry
+          git checkout FETCH_HEAD -- registry
 
       - name: Score changed modules
         if: steps.changed.outputs.modules != ''
         env:
           ANTHROPIC_API_KEY: ${{ secrets.SCORECARD_ANTHROPIC_API_KEY }}
-          GITHUB_DISCUSSIONS_TOKEN: ${{ secrets.SCORECARD_DISCUSSIONS_TOKEN }}
+          GITHUB_DISCUSSIONS_TOKEN: ${{ github.token }}
           MODULES: ${{ steps.changed.outputs.modules }}
         run: bun run .github/scorecard/score-modules.ts --modules "${MODULES}" --pr-report /tmp/scorecard-report.md
 
@@ -70,7 +119,7 @@ jobs:
         if: steps.changed.outputs.modules != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ steps.changed.outputs.pr }}
         run: |
           # No report means every changed module was skipped (for example,
           # internal building blocks); leave no comment in that case.
