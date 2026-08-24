@@ -51,6 +51,44 @@ describe("git-clone", async () => {
     url: "foo",
   });
 
+  it("does not create a script when url is empty", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "",
+    });
+    expect(
+      state.resources.filter((resource) => resource.type === "coder_script"),
+    ).toHaveLength(0);
+    expect(state.outputs.folder_name.value).toEqual("");
+    expect(state.outputs.repo_dir.value).toEqual("");
+  });
+
+  it("does not create a script when url is only whitespace", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "   ",
+    });
+    expect(
+      state.resources.filter((resource) => resource.type === "coder_script"),
+    ).toHaveLength(0);
+    expect(state.outputs.folder_name.value).toEqual("");
+    expect(state.outputs.repo_dir.value).toEqual("");
+  });
+
+  it("reports an explicit folder_name when url is empty", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "",
+      base_dir: "/tmp",
+      folder_name: "project",
+    });
+    expect(
+      state.resources.filter((resource) => resource.type === "coder_script"),
+    ).toHaveLength(0);
+    expect(state.outputs.folder_name.value).toEqual("project");
+    expect(state.outputs.repo_dir.value).toEqual("/tmp/project");
+  });
+
   it("fails without git", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",

@@ -53,6 +53,12 @@ variable "group" {
 locals {
   # Extract server name from workspace access URL
   server_name = regex("https?:\\/\\/([^\\/]+)", data.coder_workspace.me.access_url)[0]
+
+  # The setup script passes these values as PowerShell single-quoted strings,
+  # which are literal apart from the single quote itself. Doubling the single
+  # quotes keeps values containing $, backticks, or double quotes intact.
+  ps_username = replace(var.username, "'", "''")
+  ps_password = replace(var.password, "'", "''")
 }
 
 data "coder_workspace" "me" {}
@@ -62,8 +68,8 @@ resource "coder_script" "rdp_setup" {
   display_name = "Configure RDP"
   icon         = "/icon/rdp.svg"
   script = templatefile("${path.module}/configure-rdp.ps1", {
-    username = var.username
-    password = var.password
+    username = local.ps_username
+    password = local.ps_password
   })
   run_on_start = true
 }
@@ -72,7 +78,7 @@ resource "coder_app" "rdp_desktop" {
   agent_id     = var.agent_id
   slug         = "rdp-desktop"
   display_name = var.display_name
-  url          = "coder://${local.server_name}/v0/open/ws/${data.coder_workspace.me.name}/agent/${var.agent_name}/rdp?username=${var.username}&password=${var.password}"
+  url          = "coder://${local.server_name}/v0/open/ws/${data.coder_workspace.me.name}/agent/${var.agent_name}/rdp?username=${urlencode(var.username)}&password=${urlencode(var.password)}"
   icon         = "/icon/rdp.svg"
   external     = true
   order        = var.order
