@@ -3,7 +3,7 @@ display_name: Goose
 description: Run Goose in your workspace
 icon: ../../../../.icons/goose.svg
 verified: true
-tags: [agent, goose, ai, tasks]
+tags: [agent, goose, ai]
 ---
 
 # Goose
