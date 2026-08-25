@@ -60,7 +60,55 @@ resource "coder_app" "pool" {
 ```
 
 > [!NOTE]
-> The `coder_app` command re-executes on every reconnect. This suits interactive `pool` (which stays alive). For a session that survives reconnects, launch `pool` once from a `coder_script` inside a persistent multiplexer (tmux or screen) and have the `coder_app` attach to it.
+> The `coder_app` command re-executes on every reconnect. This suits interactive `pool` (which stays alive). To keep a single long-lived session across reconnects and relaunches, use the persistent-session pattern in [Session continuity](#session-continuity).
+
+## Session continuity
+
+Run Pool once inside a persistent `tmux` session so the conversation survives dashboard reconnects and app relaunches. A `coder_script` starts the session on workspace start, and the `coder_app` attaches to that same session instead of launching a new `pool` process each time.
+
+```tf
+locals {
+  pool_workdir = "/home/coder/project"
+}
+
+module "pool" {
+  source   = "registry.coder.com/coder-labs/pool/coder"
+  version  = "0.1.0"
+  agent_id = coder_agent.main.id
+
+  poolside_api_key = var.poolside_api_key
+}
+
+resource "coder_script" "pool_session" {
+  agent_id     = coder_agent.main.id
+  display_name = "Start Pool session"
+  run_on_start = true
+  script       = <<-EOT
+    #!/bin/bash
+    set -euo pipefail
+    trap 'coder exp sync complete pool-session' EXIT
+    coder exp sync want pool-session ${join(" ", module.pool.scripts)}
+    coder exp sync start pool-session
+
+    cd "${local.pool_workdir}"
+    tmux new-session -d -s pool 'pool'
+  EOT
+}
+
+resource "coder_app" "pool" {
+  agent_id     = coder_agent.main.id
+  slug         = "pool"
+  display_name = "Pool"
+  icon         = "/icon/poolside.svg"
+  command      = <<-EOT
+    #!/bin/bash
+    set -e
+    exec tmux new-session -A -s pool 'pool'
+  EOT
+}
+```
+
+`tmux new-session -A -s pool` attaches to the `pool` session created by the `coder_script` if it exists, or starts it otherwise, so developers always land back in the same running agent session.
 
 ## AI governance
 
