@@ -327,7 +327,7 @@ describe("claude-code", async () => {
     expect(installLog).toContain("Claude Code binary was not found.");
   });
 
-  test("resolved-pre-installed-binary-is-available-to-later-steps", async () => {
+  test("configured-pre-installed-binary-is-available-to-later-steps", async () => {
     const { id, coderEnvVars, scripts } = await setup({
       skipClaudeMock: true,
       moduleVariables: {
@@ -337,10 +337,10 @@ describe("claude-code", async () => {
         }),
       },
     });
-    await execContainer(id, ["mkdir", "-p", "/home/coder/.local/bin"]);
+    await execContainer(id, ["mkdir", "-p", "/opt/claude/bin"]);
     await writeExecutable({
       containerId: id,
-      filePath: "/home/coder/.local/bin/claude",
+      filePath: "/opt/claude/bin/claude",
       content: await Bun.file(
         path.join(import.meta.dir, "testdata", "claude-mock.sh"),
       ).text(),
