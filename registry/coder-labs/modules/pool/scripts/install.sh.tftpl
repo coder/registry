@@ -49,10 +49,10 @@ install_pool() {
 
   echo "Installing Pool CLI"
   mkdir -p "$${ARG_POOL_BINARY_PATH}"
-  POOL_INSTALL_ACCEPT_EULA=1 \
-    POOL_INSTALL_DIR="$${ARG_POOL_BINARY_PATH}" \
-    POOL_INSTALL_UPDATE_PATH=1 \
-    curl -fsSL "$${ARG_INSTALL_URL}" | sh
+  export POOL_INSTALL_ACCEPT_EULA=1
+  export POOL_INSTALL_DIR="$${ARG_POOL_BINARY_PATH}"
+  export POOL_INSTALL_UPDATE_PATH=1
+  curl -fsSL "$${ARG_INSTALL_URL}" | sh
 
   export PATH="$${ARG_POOL_BINARY_PATH}:$PATH"
   echo "Installed Pool CLI: $(pool --version)"
