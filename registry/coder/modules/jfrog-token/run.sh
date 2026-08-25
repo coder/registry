@@ -45,6 +45,18 @@ EOF
   config_complete
 fi
 
+# Configure pnpm to use the Artifactory npm repository.
+if [ -z "${HAS_PNPM}" ]; then
+  not_configured pnpm
+else
+  echo "📦 Configuring pnpm..."
+  jf pnpmc --global --repo-resolve "${REPOSITORY_PNPM}"
+  cat << EOF > ~/.npmrc
+${NPMRC}
+EOF
+  config_complete
+fi
+
 # Configure the `pip` to use the Artifactory "python" repository.
 if [ -z "${HAS_PYPI}" ]; then
   not_configured pypi
