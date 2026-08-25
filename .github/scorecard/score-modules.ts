@@ -307,17 +307,16 @@ Output ONLY the scorecard markdown in EXACTLY this structure (this example shows
 
 | Presentation & Onboarding | Agent Integration | Credential Hygiene | Restricted-Environment Readiness | Engineering Quality | Overall |
 |---:|---:|---:|---:|---:|---:|
-| **X / 25** | **X / 25** | **X / 20** | **X / 20 or N/A** | **X / 10** | **X / 100** |
+| **X / 17** | **X / 25** | **X / 20** | **X / 20 or N/A** | **X / 10** | **X / 100** |
 
 <details>
 <summary><strong>Drilldown</strong></summary>
 
-#### Presentation & Onboarding — X / 25
+#### Presentation & Onboarding — X / 17
 
 | Criterion | Max | Score | Notes |
 |---|---:|---:|---|
 | Configuration-mode examples | 12 | X | ... |
-| Coder-context framing | 8 | X | ... |
 | Visual preview | 5 | X | ... |
 
 (...remaining theme tables in rubric order, highest weight first, each with per-criterion rows...)

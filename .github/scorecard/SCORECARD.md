@@ -1,6 +1,6 @@
 # Coder Registry Module Scorecard
 
-**100 pts** = **Universal criteria (75)** + **one track (25)**
+**92 pts** = **Universal criteria (67)** + **one track (25)**
 
 Score each criterion as **0 / half / full**.
 
@@ -10,9 +10,8 @@ Score each criterion as **0 / half / full**.
 
 | Criterion                                              |    Pts | Pass =                                                                                                                                                                                                                                                                                          |
 | ------------------------------------------------------ | -----: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Presentation & Onboarding**                          | **25** |                                                                                                                                                                                                                                                                                                 |
+| **Presentation & Onboarding**                          | **17** |                                                                                                                                                                                                                                                                                                 |
 | Configuration-mode examples                            |     12 | If the module has many options, each major mode has a documented example with sensible defaults, for example provider choice, app vs headless                                                                                                                                                   |
-| Coder-context framing                                  |      8 | Explains what the module adds on top of Coder, names both Coder and the target tool, and shows where Coder fits in the flow                                                                                                                                                                     |
 | Visual preview                                         |      5 | README includes an image, GIF, or video of the module in action                                                                                                                                                                                                                                 |
 | **Credential Hygiene**                                 | **20** |                                                                                                                                                                                                                                                                                                 |
 | Secrets marked sensitive                               |     16 | Sensitive inputs are marked `sensitive = true`, and README examples avoid inline secrets                                                                                                                                                                                                        |
