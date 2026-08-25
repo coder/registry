@@ -1,17 +1,14 @@
 #!/usr/bin/env sh
 # shellcheck shell=sh
 
-# shellcheck disable=SC2016 # Terraform replaces this literal placeholder.
-DEVCONTAINERS_CLI_VERSION=$(printf '%s' '${DEVCONTAINERS_CLI_VERSION_B64}' | base64 -d) || {
+DEVCONTAINERS_CLI_VERSION=$(printf '%s' "${DEVCONTAINERS_CLI_VERSION_B64}" | base64 -d) || {
   echo "ERROR: Failed to decode devcontainers_cli_version." >&2
   exit 1
 }
 
 REGISTRY_URL=""
-# shellcheck disable=SC2016 # Terraform replaces this literal placeholder.
-if [ -n '${REGISTRY_URL_B64}' ]; then
-  # shellcheck disable=SC2016 # Terraform replaces this literal placeholder.
-  REGISTRY_URL=$(printf '%s' '${REGISTRY_URL_B64}' | base64 -d) || {
+if [ -n "${REGISTRY_URL_B64}" ]; then
+  REGISTRY_URL=$(printf '%s' "${REGISTRY_URL_B64}" | base64 -d) || {
     echo "ERROR: Failed to decode registry_url." >&2
     exit 1
   }
