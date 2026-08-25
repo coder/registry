@@ -14,6 +14,47 @@ run "test_pool_defaults" {
     condition     = var.pool_binary_path == "$HOME/.local/bin"
     error_message = "pool_binary_path should default to $HOME/.local/bin"
   }
+
+  assert {
+    condition     = var.install_url == "https://downloads.poolside.ai/pool/install.sh"
+    error_message = "install_url should default to the official Poolside installer"
+  }
+}
+
+run "test_install_url_override" {
+  command = plan
+
+  variables {
+    agent_id    = "test-agent"
+    install_url = "https://mirror.example.com/pool/install.sh"
+  }
+
+  assert {
+    condition     = var.install_url == "https://mirror.example.com/pool/install.sh"
+    error_message = "install_url should use the supplied mirror URL"
+  }
+}
+
+run "test_install_url_rejects_invalid" {
+  command = plan
+
+  variables {
+    agent_id    = "test-agent"
+    install_url = "downloads.poolside.ai/pool/install.sh"
+  }
+
+  expect_failures = [var.install_url]
+}
+
+run "test_standalone_base_url_rejects_invalid" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent"
+    standalone_base_url = "gateway.example.com/v1"
+  }
+
+  expect_failures = [var.standalone_base_url]
 }
 
 run "test_pool_with_api_key" {

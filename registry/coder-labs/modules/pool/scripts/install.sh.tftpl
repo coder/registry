@@ -4,6 +4,7 @@ set -euo pipefail
 
 ARG_INSTALL_POOL='${ARG_INSTALL_POOL}'
 ARG_POOL_BINARY_PATH='${ARG_POOL_BINARY_PATH}'
+ARG_INSTALL_URL='${ARG_INSTALL_URL}'
 ARG_POOL_BINARY_PATH="$${ARG_POOL_BINARY_PATH/#\~/$HOME}"
 ARG_POOL_BINARY_PATH="$${ARG_POOL_BINARY_PATH//\$HOME/$HOME}"
 
@@ -51,7 +52,7 @@ install_pool() {
   POOL_INSTALL_ACCEPT_EULA=1 \
     POOL_INSTALL_DIR="$${ARG_POOL_BINARY_PATH}" \
     POOL_INSTALL_UPDATE_PATH=1 \
-    curl -fsSL https://downloads.poolside.ai/pool/install.sh | sh
+    curl -fsSL "$${ARG_INSTALL_URL}" | sh
 
   export PATH="$${ARG_POOL_BINARY_PATH}:$PATH"
   echo "Installed Pool CLI: $(pool --version)"

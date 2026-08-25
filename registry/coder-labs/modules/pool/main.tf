@@ -48,6 +48,17 @@ variable "pool_binary_path" {
   default     = "$HOME/.local/bin"
 }
 
+variable "install_url" {
+  description = "URL of the Pool CLI install script. Override to install from an internal mirror or artifact store in restricted or air-gapped environments."
+  type        = string
+  default     = "https://downloads.poolside.ai/pool/install.sh"
+
+  validation {
+    condition     = can(regex("^https?://", var.install_url))
+    error_message = "install_url must be an http(s) URL."
+  }
+}
+
 variable "poolside_api_key" {
   description = "Poolside API key passed to Pool CLI via POOLSIDE_API_KEY."
   type        = string
@@ -59,6 +70,11 @@ variable "poolside_api_url" {
   description = "Optional Poolside deployment API URL passed to Pool CLI via POOLSIDE_API_URL."
   type        = string
   default     = ""
+
+  validation {
+    condition     = var.poolside_api_url == "" || can(regex("^https?://", var.poolside_api_url))
+    error_message = "poolside_api_url must be an http(s) URL when set."
+  }
 }
 
 variable "standalone_base_url" {
@@ -69,6 +85,11 @@ variable "standalone_base_url" {
   validation {
     condition     = !(var.enable_ai_gateway && var.standalone_base_url != "")
     error_message = "standalone_base_url cannot be provided when enable_ai_gateway is true."
+  }
+
+  validation {
+    condition     = var.standalone_base_url == "" || can(regex("^https?://", var.standalone_base_url))
+    error_message = "standalone_base_url must be an http(s) URL when set."
   }
 }
 
@@ -137,6 +158,7 @@ locals {
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_INSTALL_POOL     = tostring(var.install_pool)
     ARG_POOL_BINARY_PATH = var.pool_binary_path
+    ARG_INSTALL_URL      = var.install_url
   })
 }
 
