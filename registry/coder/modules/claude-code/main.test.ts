@@ -337,7 +337,12 @@ describe("claude-code", async () => {
         }),
       },
     });
-    await execContainer(id, ["mkdir", "-p", "/opt/claude/bin"]);
+    const mkdirResult = await execContainer(
+      id,
+      ["mkdir", "-p", "/opt/claude/bin"],
+      ["--user", "root"],
+    );
+    expect(mkdirResult.exitCode).toBe(0);
     await writeExecutable({
       containerId: id,
       filePath: "/opt/claude/bin/claude",
