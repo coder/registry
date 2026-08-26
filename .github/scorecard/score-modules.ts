@@ -570,9 +570,10 @@ async function main() {
   }
 
   if (args.prReport) {
+    const localTip = `> [!TIP]\n> You can run this locally by telling your agent to review this against [\`.github/scorecard/SCORECARD.md\`](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md).`;
     const report =
       prSections.length > 0
-        ? `## Module Scorecard Check\n\n${prSections.join("\n\n")}\n\n---\nScored against [SCORECARD.md](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md) with \`${ANTHROPIC_MODEL}\`. Language-model scores are advisory.\n<!-- module-scorecard-pr -->`
+        ? `## Module Scorecard Check\n\n${prSections.join("\n\n")}\n\n${localTip}\n\n---\nScored against [SCORECARD.md](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md) with \`${ANTHROPIC_MODEL}\`. Language-model scores are advisory.\n<!-- module-scorecard-pr -->`
         : "";
     await Bun.write(args.prReport, report);
     process.stderr.write(`wrote PR report to ${args.prReport}\n`);
