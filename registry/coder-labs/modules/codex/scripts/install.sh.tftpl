@@ -89,7 +89,7 @@ function download_codex() (
 
   if ! curl --fail --silent --show-error --location \
     --retry 2 --retry-delay 1 --retry-all-errors \
-    --connect-timeout 10 --max-time 60 \
+    --connect-timeout 10 --max-time 300 \
     --output "$${archive}" "$${url}"; then
     echo "Codex could not be downloaded after up to 3 attempts." >&2
     return 1
