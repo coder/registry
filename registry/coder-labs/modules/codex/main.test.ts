@@ -286,7 +286,7 @@ describe("codex", async () => {
     expect(curlArgs).toContain(`rust-v${version}/codex-${CODEX_TARGET}.tar.gz`);
     expect(curlArgs).toContain("--retry 2");
     expect(curlArgs).toContain("--connect-timeout 10");
-    expect(curlArgs).toContain("--max-time 60");
+    expect(curlArgs).toContain("--max-time 300");
   });
 
   test("openai-api-key", async () => {
