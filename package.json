@@ -3,10 +3,11 @@
   "scripts": {
     "fmt": "bun x prettier --write . && terraform fmt -recursive -diff",
     "fmt:ci": "bun x prettier --check . && terraform fmt -check -recursive -diff",
-    "terraform-validate": "./scripts/terraform_validate.sh",
-    "tftest": "./scripts/terraform_test_all.sh",
-    "tstest": "./scripts/ts_test_auto.sh",
-    "shellcheck": "./scripts/shellcheck_validate.sh",
+    "check:terraform": "./scripts/terraform_test_all.sh",
+    "check:typescript": "./scripts/ts_test_auto.sh",
+    "check:validate": "./scripts/terraform_validate.sh",
+    "check:shellcheck": "./scripts/shellcheck_validate.sh",
+    "check": "bun run check:validate && bun run check:shellcheck && bun run check:terraform && bun run check:typescript",
     "update-version": "./update-version.sh"
   },
   "devDependencies": {
