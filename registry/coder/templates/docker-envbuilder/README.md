@@ -38,7 +38,7 @@ If you installed Coder as a system package, the VM you run Coder on must have a 
 
 ```sh
 # Add coder user to Docker group
-sudo adduser coder docker
+sudo usermod -aG docker coder
 
 # Restart Coder server
 sudo systemctl restart coder
@@ -49,7 +49,7 @@ sudo -u coder docker ps
 
 ## Architecture
 
-Coder supports Devcontainers via [envbuilder](https://github.com/coder/envbuilder), an open source project. Read more about this in [Coder's documentation](https://coder.com/docs/templates/dev-containers).
+Coder supports Envbuilder containers based on `devcontainer.json` via [envbuilder](https://github.com/coder/envbuilder), an open source project. Read more about this in [Coder's documentation](https://coder.com/docs/templates/dev-containers).
 
 This template provisions the following resources:
 

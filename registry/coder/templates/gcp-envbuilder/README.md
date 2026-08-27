@@ -1,6 +1,6 @@
 ---
 display_name: Google Compute Engine (Envbuilder)
-description: Provision Google Compute Engine instances with a Devcontainer (via Envbuilder) as Coder workspaces
+description: Provision Google Compute Engine instances from a Devcontainer (via Envbuilder) as Coder workspaces
 icon: ../../../../.icons/gcp.svg
 verified: true
 tags: [vm, linux, gcp, envbuilder, devcontainer]

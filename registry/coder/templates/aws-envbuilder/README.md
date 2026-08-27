@@ -1,6 +1,6 @@
 ---
 display_name: AWS EC2 (Envbuilder)
-description: Provision AWS EC2 VMs with a devcontainer (via Envbuilder) as Coder workspaces
+description: Provision AWS EC2 VMs from a Devcontainer (via Envbuilder) as Coder workspaces
 icon: ../../../../.icons/aws.svg
 verified: true
 tags: [vm, linux, aws, persistent, envbuilder, devcontainer]

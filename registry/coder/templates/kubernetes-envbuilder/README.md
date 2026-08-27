@@ -1,6 +1,6 @@
 ---
 display_name: Kubernetes (Envbuilder)
-description: Provision Kubernetes pods with a Devcontainer (via Envbuilder) as Coder workspaces
+description: Provision Kubernetes pods from a Devcontainer (via Envbuilder) as Coder workspaces
 icon: ../../../../.icons/kubernetes.svg
 verified: true
 tags: [container, kubernetes, envbuilder, devcontainer]
