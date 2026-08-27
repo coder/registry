@@ -8,7 +8,7 @@ tags: [vm, linux, gcp, envbuilder, devcontainer]
 
 # Remote Development on Google Compute Engine using a Devcontainer (via Envbuilder)
 
-> [!WARNING]  
+> [!WARNING]
 > This template builds the Devcontainer images using [Envbuilder](https://github.com/coder/envbuilder) which is in **maintenance mode** with no new features planned.
 > The updated way of using DevContainers within Coder is now the built-in DevContainers CLI integration, it is heavily suggested to go with this approach.
 > Feel free to join the [Coder Discord server](https://cdr.co/discord-zZHdds43ye) and ask for help with finding out the best way to use DevContainers in your Coder deployment.
