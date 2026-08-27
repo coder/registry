@@ -1,12 +1,17 @@
 ---
-display_name: AWS EC2 (Devcontainer)
-description: Provision AWS EC2 VMs with a devcontainer as Coder workspaces
+display_name: AWS EC2 (Envbuilder)
+description: Provision AWS EC2 VMs with a devcontainer (via Envbuilder) as Coder workspaces
 icon: ../../../../.icons/aws.svg
 verified: true
-tags: [vm, linux, aws, persistent, devcontainer]
+tags: [vm, linux, aws, persistent, envbuilder, devcontainer]
 ---
 
-# Remote Development on AWS EC2 VMs using a Devcontainer
+# Remote Development on AWS EC2 VMs using a Devcontainer (via Envbuilder)
+
+> [!WARNING]  
+> This template builds the Devcontainer images using [Envbuilder](https://github.com/coder/envbuilder) which is is **maintenance mode** with no new features planned.
+> The updated way of using DevContainers within Coder is now the built-in DevContainers CLI integration, it is heavily suggested to go with this approach.
+> Feel free to join the [Coder Discord server](https://cdr.co/discord-zZHdds43ye) and ask for help with finding out the best way to use DevContainers in your Coder deployment.
 
 Provision AWS EC2 VMs as [Coder workspaces](https://coder.com/docs) with this example template.
 ![Architecture Diagram](../../.images/aws-devcontainer-architecture.svg)

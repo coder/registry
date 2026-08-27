@@ -1,12 +1,12 @@
 ---
 display_name: Google Compute Engine (Devcontainer)
-description: Provision a Devcontainer on Google Compute Engine instances as Coder workspaces
+description: Provision Google Compute Engine instances with a Devcontainer (via Envbuilder) on as Coder workspaces
 icon: ../../../../.icons/gcp.svg
 verified: true
 tags: [vm, linux, gcp, devcontainer]
 ---
 
-# Remote Development in a Devcontainer on Google Compute Engine
+# Remote Development on Google Compute Engine using a Devcontainer (via Envbuilder)
 
 Provision a Devcontainer on Google Compute Engine instances as Coder workspaces
 
