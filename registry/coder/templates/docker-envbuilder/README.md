@@ -3,22 +3,42 @@ display_name: Docker (Envbuilder)
 description: Provision envbuilder containers as Coder workspaces
 icon: ../../../../.icons/docker.svg
 verified: true
-tags: [container, docker, devcontainer, envbuilder]
+tags: [container, docker, envbuilder, devcontainer]
 ---
 
 # Remote Development on Docker Containers (with Envbuilder)
 
-Provision Envbuilder containers based on `devcontainer.json` as [Coder workspaces](https://coder.com/docs/workspaces) in Docker with this example template.
+> [!WARNING]  
+> This template builds the Devcontainer images using [Envbuilder](https://github.com/coder/envbuilder) which is in **maintenance mode** with no new features planned.
+> The updated way of using DevContainers within Coder is now the built-in DevContainers CLI integration, it is heavily suggested to go with this approach.
+> Feel free to join the [Coder Discord server](https://cdr.co/discord-zZHdds43ye) and ask for help with finding out the best way to use DevContainers in your Coder deployment.
+
+Provision Devcontainers as [Coder workspaces](https://coder.com/docs/workspaces) in Docker with this example template.
 
 ## Prerequisites
 
 ### Infrastructure
 
-Coder must have access to a running Docker socket, and the `coder` user must be a member of the `docker` group:
+#### Running Coder inside Docker
 
-```shell
+If you installed Coder as a container within Docker, you will have to do the following things:
+
+- Make the the Docker socket available to the container
+  - **(recommended) Mount `/var/run/docker.sock` via `--mount`/`volume`**
+  - _(advanced) Restrict the Docker socket via https://github.com/Tecnativa/docker-socket-proxy_
+- Set `--group-add`/`group_add` to the GID of the Docker group on the **host** machine
+  - You can get the GID by running `getent group docker` on the **host** machine
+
+If you are using `docker-compose`, here is an example on how to do those things (don't forget to edit `group_add`!):
+https://github.com/coder/coder/blob/0bfe0d63aec83ae438bdcb77e306effd100dba3d/docker-compose.yaml#L16-L23
+
+#### Running Coder outside of Docker
+
+If you installed Coder as a system package, the VM you run Coder on must have a running Docker socket and the `coder` user must be added to the Docker group:
+
+```sh
 # Add coder user to Docker group
-sudo usermod -aG docker coder
+sudo adduser coder docker
 
 # Restart Coder server
 sudo systemctl restart coder
@@ -29,7 +49,7 @@ sudo -u coder docker ps
 
 ## Architecture
 
-Coder supports Envbuilder containers based on `devcontainer.json` via [envbuilder](https://github.com/coder/envbuilder), an open source project. Read more about this in [Coder's documentation](https://coder.com/docs/templates/dev-containers).
+Coder supports Devcontainers via [envbuilder](https://github.com/coder/envbuilder), an open source project. Read more about this in [Coder's documentation](https://coder.com/docs/templates/dev-containers).
 
 This template provisions the following resources:
 
@@ -48,7 +68,7 @@ Edit the `devcontainer.json` instead!
 
 ## Docker-in-Docker
 
-See the [Envbuilder documentation](https://github.com/coder/envbuilder/blob/main/docs/docker.md) for information on running Docker containers inside an Envbuilder container.
+See the [Envbuilder documentation](https://github.com/coder/envbuilder/blob/main/docs/docker.md) for information on running Docker containers inside a devcontainer built by Envbuilder.
 
 ## Caching
 
