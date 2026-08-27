@@ -22,9 +22,17 @@ module "mcp_servers" {
 }
 ```
 
-The initial catalog includes the official [GitHub MCP Server](https://github.com/github/github-mcp-server) and [Playwright MCP](https://github.com/microsoft/playwright-mcp). GitHub authentication is completed by the selected client after provisioning; clients without GitHub OAuth support require the authentication method documented by GitHub.
+The initial catalog includes the official [GitHub MCP Server](https://github.com/github/github-mcp-server) and [Playwright MCP](https://github.com/microsoft/playwright-mcp).
+
+## GitHub authentication
+
+The module configures the GitHub MCP endpoint but does not store credentials. VS Code can authenticate with GitHub OAuth. Claude Code and other clients without GitHub OAuth support require a GitHub Personal Access Token in the `Authorization` header. Follow the [official client-specific authentication guide](https://github.com/github/github-mcp-server/blob/main/docs/installation-guides/README.md) for the selected client.
+
+For example, if Claude Code reports that dynamic client registration is unsupported, the server configuration is valid but its OAuth method is not compatible. Configure the GitHub MCP server with a PAT instead of retrying OAuth.
 
 The selection is immutable for the lifetime of a workspace because removing a server from the field cannot safely remove configuration that the user may have customized. Rebuild the workspace to change the selection.
+
+When a non-empty Codex configuration already exists, the module validates it with the installed Codex CLI before making changes. Ensure the Codex module runs first; malformed TOML is left unchanged with an actionable error.
 
 ## Preselect servers
 

@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 
+set -eo pipefail
+
 if [ -f "$HOME/.bashrc" ]; then
   source "$HOME/.bashrc"
 fi
 
-set -euo pipefail
+set -u
 
 ARG_CLIENTS=$(printf '%s' '${ARG_CLIENTS}' | base64 -d)
 ARG_MCP_ADD_VERSION='${ARG_MCP_ADD_VERSION}'
@@ -83,6 +85,28 @@ ensure_node() {
   export PATH="$node_dir/bin:$PATH"
 }
 
+validate_existing_codex_config() {
+  local codex_config="$HOME/.codex/config.toml"
+
+  if [[ ",$ARG_CLIENTS," != *,codex,* ]] || [ ! -s "$codex_config" ]; then
+    return
+  fi
+
+  # mcp-add 0.2.4 can replace malformed TOML instead of reporting the parse
+  # failure, so validate through Codex itself before allowing any write.
+  if ! command -v codex > /dev/null 2>&1; then
+    echo "Codex CLI is required to validate the existing $codex_config before MCP configuration." >&2
+    echo "The existing file was left unchanged." >&2
+    exit 1
+  fi
+
+  if ! codex mcp list > /dev/null 2>&1; then
+    echo "The existing Codex configuration at $codex_config is invalid." >&2
+    echo "Fix the file and restart the workspace; it was left unchanged." >&2
+    exit 1
+  fi
+}
+
 configure_server() {
   local server="$1"
   local mcp_add=(npx --yes "mcp-add@$ARG_MCP_ADD_VERSION")
@@ -95,6 +119,9 @@ configure_server() {
         --url "https://api.githubcopilot.com/mcp/" \
         --scope global \
         --clients "$ARG_CLIENTS"
+      echo "GitHub MCP configured."
+      echo "VS Code supports GitHub OAuth. Claude Code and other clients without GitHub OAuth support require a Personal Access Token in the Authorization header."
+      echo "See https://github.com/github/github-mcp-server/blob/main/docs/installation-guides/README.md for client-specific authentication instructions."
       ;;
     playwright)
       "$${mcp_add[@]}" \
@@ -112,6 +139,7 @@ configure_server() {
 }
 
 ensure_node
+validate_existing_codex_config
 
 IFS=',' read -r -a selected_servers <<< "$ARG_SELECTED_SERVERS"
 for server in "$${selected_servers[@]}"; do
