@@ -14,7 +14,7 @@ The multi-select workspace parameter requires Coder 2.24 or newer.
 
 ```tf
 module "mcp_servers" {
-  source  = "registry.coder.com/coder/mcp-servers/coder"
+  source  = "registry.coder.com/coder-labs/mcp-servers/coder"
   version = "0.0.1"
 
   agent_id = coder_agent.main.id
@@ -32,7 +32,7 @@ For Claude Code, Codex, and Cursor, `token-env` references a workspace environme
 
 ```tf
 module "mcp_servers" {
-  source  = "registry.coder.com/coder/mcp-servers/coder"
+  source  = "registry.coder.com/coder-labs/mcp-servers/coder"
   version = "0.0.1"
 
   agent_id = coder_agent.main.id
@@ -58,7 +58,7 @@ Coder applies a new, modified, disabled, or re-enabled secret on the next worksp
 
 ### Coder External Auth
 
-Claude Code can resolve a short-lived token at connection time with `coder external-auth access-token`. The module creates a `headersHelper` under `$HOME/.coder-modules/coder/mcp-servers/scripts/`; it never stores the returned token.
+Claude Code can resolve a short-lived token at connection time with `coder external-auth access-token`. The module creates a `headersHelper` under `$HOME/.coder-modules/coder-labs/mcp-servers/scripts/`; it never stores the returned token.
 
 ```tf
 github_auth = {
@@ -96,7 +96,7 @@ Template authors can preselect one or both servers while still allowing users to
 
 ```tf
 module "mcp_servers" {
-  source  = "registry.coder.com/coder/mcp-servers/coder"
+  source  = "registry.coder.com/coder-labs/mcp-servers/coder"
   version = "0.0.1"
 
   agent_id = coder_agent.main.id
@@ -105,4 +105,4 @@ module "mcp_servers" {
 }
 ```
 
-The module reuses Node.js 18 or newer when available. Otherwise it downloads a pinned Node.js runtime into `$HOME/.coder-modules/coder/mcp-servers/dependencies`, verifies the official SHA-256 checksum, and keeps the runtime isolated to this module.
+The module reuses Node.js 18 or newer when available. Otherwise it downloads a pinned Node.js runtime into `$HOME/.coder-modules/coder-labs/mcp-servers/dependencies`, verifies the official SHA-256 checksum, and keeps the runtime isolated to this module.

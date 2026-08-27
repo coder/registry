@@ -85,7 +85,7 @@ run "explicit_none_preserves_install_pipeline" {
   }
 
   assert {
-    condition     = module.coder_utils.scripts == ["coder-mcp-servers-install_script"]
+    condition     = module.coder_utils.scripts == ["coder-labs-mcp-servers-install_script"]
     error_message = "Explicit mode none must preserve the original single install script pipeline."
   }
 }
@@ -112,8 +112,8 @@ run "adds_token_env_auth_after_install" {
 
   assert {
     condition = module.coder_utils.scripts == [
-      "coder-mcp-servers-install_script",
-      "coder-mcp-servers-post_install_script",
+      "coder-labs-mcp-servers-install_script",
+      "coder-labs-mcp-servers-post_install_script",
     ]
     error_message = "Authenticated GitHub configuration must run after the baseline install script."
   }

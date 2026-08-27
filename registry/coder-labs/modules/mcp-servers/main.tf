@@ -198,7 +198,7 @@ module "coder_utils" {
   version = "0.0.1"
 
   agent_id            = var.agent_id
-  module_directory    = "$HOME/.coder-modules/coder/mcp-servers"
+  module_directory    = "$HOME/.coder-modules/coder-labs/mcp-servers"
   display_name_prefix = "MCP Servers"
   icon                = "/icon/mcp.svg"
   install_script      = local.install_script

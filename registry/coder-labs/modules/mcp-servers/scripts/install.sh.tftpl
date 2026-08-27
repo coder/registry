@@ -53,7 +53,7 @@ ensure_node() {
 
   archive_name="node-v$ARG_NODE_VERSION-linux-$node_arch.tar.gz"
   base_url="https://nodejs.org/dist/v$ARG_NODE_VERSION"
-  dependencies_dir="$HOME/.coder-modules/coder/mcp-servers/dependencies"
+  dependencies_dir="$HOME/.coder-modules/coder-labs/mcp-servers/dependencies"
   node_dir="$dependencies_dir/node-v$ARG_NODE_VERSION-linux-$node_arch"
 
   if [ ! -x "$node_dir/bin/node" ]; then
