@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+if [ -f "$HOME/.bashrc" ]; then
+  source "$HOME/.bashrc"
+fi
+
+set -u
+
+ARG_CLIENTS=$(printf '%s' '${ARG_CLIENTS}' | base64 -d)
+ARG_MCP_ADD_VERSION='${ARG_MCP_ADD_VERSION}'
+ARG_NODE_VERSION='${ARG_NODE_VERSION}'
+ARG_PLAYWRIGHT_MCP_VERSION='${ARG_PLAYWRIGHT_MCP_VERSION}'
+ARG_SELECTED_SERVERS=$(printf '%s' '${ARG_SELECTED_SERVERS}' | base64 -d)
+
+if [ -z "$ARG_SELECTED_SERVERS" ]; then
+  echo "No MCP servers selected."
+  exit 0
+fi
+
+require_command() {
+  if ! command -v "$1" > /dev/null 2>&1; then
+    echo "$1 is required to bootstrap Node.js." >&2
+    exit 1
+  fi
+}
+
+ensure_node() {
+  local node_major=""
+  if command -v node > /dev/null 2>&1 && command -v npx > /dev/null 2>&1; then
+    node_major=$(node --version | sed -E 's/^v([0-9]+).*/\1/')
+    if [[ "$node_major" =~ ^[0-9]+$ ]] && [ "$node_major" -ge 18 ]; then
+      return
+    fi
+  fi
+
+  # Some agent modules ship as native binaries, so a module-local Node.js
+  # runtime is required to make mcp-add and stdio servers work consistently.
+  require_command curl
+  require_command sha256sum
+  require_command tar
+
+  local node_arch archive_name base_url dependencies_dir node_dir
+  case "$(uname -m)" in
+    x86_64 | amd64) node_arch="x64" ;;
+    aarch64 | arm64) node_arch="arm64" ;;
+    *)
+      echo "Node.js bootstrap does not support architecture '$(uname -m)'." >&2
+      exit 1
+      ;;
+  esac
+
+  archive_name="node-v$ARG_NODE_VERSION-linux-$node_arch.tar.gz"
+  base_url="https://nodejs.org/dist/v$ARG_NODE_VERSION"
+  dependencies_dir="$HOME/.coder-modules/coder/mcp-servers/dependencies"
+  node_dir="$dependencies_dir/node-v$ARG_NODE_VERSION-linux-$node_arch"
+
+  if [ ! -x "$node_dir/bin/node" ]; then
+    local expected_checksum temporary_dir
+    temporary_dir=$(mktemp -d)
+    trap 'rm -rf -- "$temporary_dir"' EXIT
+
+    curl --fail --silent --show-error --location \
+      --connect-timeout 10 --max-time 300 \
+      --output "$temporary_dir/$archive_name" "$base_url/$archive_name"
+    curl --fail --silent --show-error --location \
+      --connect-timeout 10 --max-time 30 \
+      --output "$temporary_dir/SHASUMS256.txt" "$base_url/SHASUMS256.txt"
+
+    expected_checksum=$(awk -v archive="$archive_name" '$2 == archive { print $1 }' "$temporary_dir/SHASUMS256.txt")
+    if [ -z "$expected_checksum" ]; then
+      echo "Node.js checksum was not published for $archive_name." >&2
+      exit 1
+    fi
+
+    printf '%s  %s\n' "$expected_checksum" "$temporary_dir/$archive_name" | sha256sum --check --status
+    tar -xzf "$temporary_dir/$archive_name" -C "$temporary_dir"
+    mkdir -p "$dependencies_dir"
+    mv "$temporary_dir/node-v$ARG_NODE_VERSION-linux-$node_arch" "$node_dir"
+    rm -rf "$temporary_dir"
+    trap - EXIT
+  fi
+
+  export PATH="$node_dir/bin:$PATH"
+}
+
+validate_existing_codex_config() {
+  local codex_config="$HOME/.codex/config.toml"
+
+  if [[ ",$ARG_CLIENTS," != *,codex,* ]] || [ ! -s "$codex_config" ]; then
+    return
+  fi
+
+  # mcp-add 0.2.4 can replace malformed TOML instead of reporting the parse
+  # failure, so validate through Codex itself before allowing any write.
+  if ! command -v codex > /dev/null 2>&1; then
+    echo "Codex CLI is required to validate the existing $codex_config before MCP configuration." >&2
+    echo "The existing file was left unchanged." >&2
+    exit 1
+  fi
+
+  if ! codex mcp list > /dev/null 2>&1; then
+    echo "The existing Codex configuration at $codex_config is invalid." >&2
+    echo "Fix the file and restart the workspace; it was left unchanged." >&2
+    exit 1
+  fi
+}
+
+configure_server() {
+  local server="$1"
+  local mcp_add=(npx --yes "mcp-add@$ARG_MCP_ADD_VERSION")
+
+  case "$server" in
+    github)
+      "$${mcp_add[@]}" \
+        --name github \
+        --type http \
+        --url "https://api.githubcopilot.com/mcp/" \
+        --scope global \
+        --clients "$ARG_CLIENTS"
+      echo "GitHub MCP configured."
+      echo "VS Code supports GitHub OAuth. Claude Code and other clients without GitHub OAuth support require a Personal Access Token in the Authorization header."
+      echo "See https://github.com/github/github-mcp-server/blob/main/docs/installation-guides/README.md for client-specific authentication instructions."
+      ;;
+    playwright)
+      "$${mcp_add[@]}" \
+        --name playwright \
+        --type stdio \
+        --command "npx --yes @playwright/mcp@$ARG_PLAYWRIGHT_MCP_VERSION --headless" \
+        --scope global \
+        --clients "$ARG_CLIENTS"
+      ;;
+    *)
+      echo "Unsupported MCP server selection: $server" >&2
+      exit 1
+      ;;
+  esac
+}
+
+ensure_node
+validate_existing_codex_config
+
+IFS=',' read -r -a selected_servers <<< "$ARG_SELECTED_SERVERS"
+for server in "$${selected_servers[@]}"; do
+  configure_server "$server"
+done
