@@ -1,16 +1,21 @@
 ---
-display_name: Google Compute Engine (Devcontainer)
-description: Provision Google Compute Engine instances with a Devcontainer (via Envbuilder) on as Coder workspaces
+display_name: Google Compute Engine (Envbuilder)
+description: Provision Google Compute Engine instances with a Devcontainer (via Envbuilder) as Coder workspaces
 icon: ../../../../.icons/gcp.svg
 verified: true
-tags: [vm, linux, gcp, devcontainer]
+tags: [vm, linux, gcp, envbuilder, devcontainer]
 ---
 
 # Remote Development on Google Compute Engine using a Devcontainer (via Envbuilder)
 
+> [!WARNING]  
+> This template builds the Devcontainer images using [Envbuilder](https://github.com/coder/envbuilder) which is in **maintenance mode** with no new features planned.
+> The updated way of using DevContainers within Coder is now the built-in DevContainers CLI integration, it is heavily suggested to go with this approach.
+> Feel free to join the [Coder Discord server](https://cdr.co/discord-zZHdds43ye) and ask for help with finding out the best way to use DevContainers in your Coder deployment.
+
 Provision a Devcontainer on Google Compute Engine instances as Coder workspaces
 
-![Architecture Diagram](../../.images/gcp-devcontainer-architecture.svg)
+![Architecture Diagram](../../.images/gcp-envbuilder-architecture.svg)
 
 ## Prerequisites
 
