@@ -76,23 +76,34 @@ function add_path_to_shell_profiles() {
   fi
 }
 
-function ensure_claude_in_path() {
-  local CLAUDE_BIN=""
-  if command -v claude > /dev/null 2>&1; then
-    CLAUDE_BIN=$(command -v claude)
-  elif [ -x "$${ARG_CLAUDE_BINARY_PATH}/claude" ]; then
-    CLAUDE_BIN="$${ARG_CLAUDE_BINARY_PATH}/claude"
+function resolve_claude_binary() {
+  if [ -x "$${ARG_CLAUDE_BINARY_PATH}/claude" ]; then
+    printf '%s\n' "$${ARG_CLAUDE_BINARY_PATH}/claude"
+  elif command -v claude > /dev/null 2>&1; then
+    command -v claude
   elif [ -x "$HOME/.local/bin/claude" ]; then
-    CLAUDE_BIN="$HOME/.local/bin/claude"
+    printf '%s\n' "$HOME/.local/bin/claude"
+  else
+    echo "Claude Code binary was not found." >&2
+    return 1
   fi
+}
 
-  if [ -z "$${CLAUDE_BIN}" ] || [ ! -x "$${CLAUDE_BIN}" ]; then
-    echo "Warning: Could not find claude binary"
-    return
+function configure_claude_binary() {
+  local action="$1"
+  local CLAUDE_BIN
+  local CLAUDE_VERSION
+
+  CLAUDE_BIN=$(resolve_claude_binary)
+
+  if ! CLAUDE_VERSION=$("$${CLAUDE_BIN}" --version); then
+    echo "Claude Code binary could not be executed." >&2
+    return 1
   fi
 
   local CLAUDE_DIR
   CLAUDE_DIR=$(dirname "$${CLAUDE_BIN}")
+  export PATH="$${CLAUDE_DIR}:$PATH"
 
   if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/claude" ]; then
     ln -s "$${CLAUDE_BIN}" "$${CODER_SCRIPT_BIN_DIR}/claude"
@@ -100,26 +111,42 @@ function ensure_claude_in_path() {
   fi
 
   add_path_to_shell_profiles "$${CLAUDE_DIR}"
+  printf "Claude Code %s successfully: %s\n" "$${action}" "$${CLAUDE_VERSION}"
 }
+
+function install_with_official_installer() (
+  local installer_file
+  installer_file=$(mktemp)
+  trap 'rm -f "$${installer_file}"' EXIT
+
+  if ! curl --fail --silent --show-error --location \
+    --retry 2 --retry-connrefused --connect-timeout 10 --max-time 60 \
+    --output "$${installer_file}" https://claude.ai/install.sh; then
+    echo "Claude Code could not be downloaded after up to 3 attempts." >&2
+    return 1
+  fi
+
+  if ! bash -n "$${installer_file}"; then
+    echo "Claude Code installer download was invalid." >&2
+    return 1
+  fi
+
+  if ! bash "$${installer_file}" "$${ARG_CLAUDE_CODE_VERSION}"; then
+    echo "Claude Code installation failed." >&2
+    return 1
+  fi
+)
 
 function install_claude_code_cli() {
   if [ "$${ARG_INSTALL_CLAUDE_CODE}" != "true" ]; then
     echo "Skipping Claude Code installation as per configuration."
-    ensure_claude_in_path
+    configure_claude_binary "validated"
     return
   fi
 
   echo "Installing Claude Code via official installer"
-  set +e
-  curl -fsSL claude.ai/install.sh | bash -s -- "$${ARG_CLAUDE_CODE_VERSION}" 2>&1
-  CURL_EXIT=$${PIPESTATUS[0]}
-  set -e
-  if [ $${CURL_EXIT} -ne 0 ]; then
-    echo "Claude Code installer failed with exit code $${CURL_EXIT}"
-  fi
-  echo "Installed Claude Code successfully. Version: $(claude --version || echo 'unknown')"
-
-  ensure_claude_in_path
+  install_with_official_installer
+  configure_claude_binary "installed"
 }
 
 function setup_claude_configurations() {

@@ -1,0 +1,62 @@
+#!/bin/bash
+
+set -euo pipefail
+
+ARG_INSTALL_POOL='${ARG_INSTALL_POOL}'
+ARG_POOL_BINARY_PATH='${ARG_POOL_BINARY_PATH}'
+ARG_INSTALL_URL='${ARG_INSTALL_URL}'
+ARG_POOL_BINARY_PATH="$${ARG_POOL_BINARY_PATH/#\~/$HOME}"
+ARG_POOL_BINARY_PATH="$${ARG_POOL_BINARY_PATH//\$HOME/$HOME}"
+
+add_path_to_shell_profiles() {
+  local path_dir="$1"
+
+  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    if [ -f "$${profile}" ] && ! grep -qF "$${path_dir}" "$${profile}" 2> /dev/null; then
+      echo "export PATH=\"$${path_dir}:\$PATH\"" >> "$${profile}"
+    fi
+  done
+}
+
+ensure_pool_in_path() {
+  local pool_bin=""
+  if command -v pool > /dev/null 2>&1; then
+    pool_bin=$(command -v pool)
+  elif [ -x "$${ARG_POOL_BINARY_PATH}/pool" ]; then
+    pool_bin="$${ARG_POOL_BINARY_PATH}/pool"
+  fi
+
+  if [ -z "$${pool_bin}" ]; then
+    echo "Warning: Could not find the pool binary"
+    return
+  fi
+
+  local pool_dir
+  pool_dir=$(dirname "$${pool_bin}")
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/pool" ]; then
+    ln -s "$${pool_bin}" "$${CODER_SCRIPT_BIN_DIR}/pool"
+  fi
+
+  add_path_to_shell_profiles "$${pool_dir}"
+}
+
+install_pool() {
+  if [ "$${ARG_INSTALL_POOL}" != "true" ]; then
+    echo "Skipping Pool CLI installation as configured."
+    ensure_pool_in_path
+    return
+  fi
+
+  echo "Installing Pool CLI"
+  mkdir -p "$${ARG_POOL_BINARY_PATH}"
+  export POOL_INSTALL_ACCEPT_EULA=1
+  export POOL_INSTALL_DIR="$${ARG_POOL_BINARY_PATH}"
+  export POOL_INSTALL_UPDATE_PATH=1
+  curl -fsSL "$${ARG_INSTALL_URL}" | sh
+
+  export PATH="$${ARG_POOL_BINARY_PATH}:$PATH"
+  echo "Installed Pool CLI: $(pool --version)"
+  ensure_pool_in_path
+}
+
+install_pool
