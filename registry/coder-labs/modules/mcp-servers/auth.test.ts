@@ -175,7 +175,7 @@ grep -q -- '--bearer-token-env-var WORKSPACE_GITHUB_TOKEN' /tmp/codex-calls
     const result = await executePipeline(state, {
       after: `
 set -e
-helper="$HOME/.coder-modules/coder/mcp-servers/scripts/github-headers.sh"
+helper="$HOME/.coder-modules/coder-labs/mcp-servers/scripts/github-headers.sh"
 "$helper" > /tmp/github-headers.json
 node -e 'const h=require("/tmp/github-headers.json");if(h.Authorization!=="Bearer dynamic-test-token")process.exit(1)'
 rm /tmp/github-headers.json
@@ -206,7 +206,7 @@ fi
 exit 0
 EOF
 chmod +x /usr/local/bin/coder`,
-      after: `"$HOME/.coder-modules/coder/mcp-servers/scripts/github-headers.sh"`,
+      after: `"$HOME/.coder-modules/coder-labs/mcp-servers/scripts/github-headers.sh"`,
     });
     expect(result.exitCode).not.toBe(0);
     expect(result.output).toContain("Authenticate at: https://coder.example");
