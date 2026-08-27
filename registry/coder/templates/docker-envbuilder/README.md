@@ -19,24 +19,9 @@ Provision Devcontainers as [Coder workspaces](https://coder.com/docs/workspaces)
 
 ### Infrastructure
 
-#### Running Coder inside Docker
+Coder must have access to a running Docker socket, and the `coder` user must be a member of the `docker` group:
 
-If you installed Coder as a container within Docker, you will have to do the following things:
-
-- Make the the Docker socket available to the container
-  - **(recommended) Mount `/var/run/docker.sock` via `--mount`/`volume`**
-  - _(advanced) Restrict the Docker socket via https://github.com/Tecnativa/docker-socket-proxy_
-- Set `--group-add`/`group_add` to the GID of the Docker group on the **host** machine
-  - You can get the GID by running `getent group docker` on the **host** machine
-
-If you are using `docker-compose`, here is an example on how to do those things (don't forget to edit `group_add`!):
-https://github.com/coder/coder/blob/0bfe0d63aec83ae438bdcb77e306effd100dba3d/docker-compose.yaml#L16-L23
-
-#### Running Coder outside of Docker
-
-If you installed Coder as a system package, the VM you run Coder on must have a running Docker socket and the `coder` user must be added to the Docker group:
-
-```sh
+```shell
 # Add coder user to Docker group
 sudo usermod -aG docker coder
 
@@ -65,6 +50,10 @@ Edit the `devcontainer.json` instead!
 
 > **Note**
 > This template is designed to be a starting point! Edit the Terraform to extend the template to support your use case.
+
+## Docker-in-Docker
+
+See the [Envbuilder documentation](https://github.com/coder/envbuilder/blob/main/docs/docker.md) for information on running Docker containers inside an Envbuilder container.
 
 ## Caching
 
