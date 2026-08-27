@@ -307,17 +307,16 @@ Output ONLY the scorecard markdown in EXACTLY this structure (this example shows
 
 | Presentation & Onboarding | Agent Integration | Credential Hygiene | Restricted-Environment Readiness | Engineering Quality | Overall |
 |---:|---:|---:|---:|---:|---:|
-| **X / 25** | **X / 25** | **X / 20** | **X / 20 or N/A** | **X / 10** | **X / 100** |
+| **X / 17** | **X / 25** | **X / 20** | **X / 20 or N/A** | **X / 10** | **X / 100** |
 
 <details>
 <summary><strong>Drilldown</strong></summary>
 
-#### Presentation & Onboarding — X / 25
+#### Presentation & Onboarding — X / 17
 
 | Criterion | Max | Score | Notes |
 |---|---:|---:|---|
 | Configuration-mode examples | 12 | X | ... |
-| Coder-context framing | 8 | X | ... |
 | Visual preview | 5 | X | ... |
 
 (...remaining theme tables in rubric order, highest weight first, each with per-criterion rows...)
@@ -571,9 +570,10 @@ async function main() {
   }
 
   if (args.prReport) {
+    const localTip = `> [!TIP]\n> You can run this locally by telling your agent: "review this module against [\`.github/scorecard/SCORECARD.md\`](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md)".`;
     const report =
       prSections.length > 0
-        ? `## Module Scorecard Check\n\n${prSections.join("\n\n")}\n\n---\nScored against [SCORECARD.md](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md) with \`${ANTHROPIC_MODEL}\`. Language-model scores are advisory.\n<!-- module-scorecard-pr -->`
+        ? `## Module Scorecard Check\n\n${prSections.join("\n\n")}\n\n${localTip}\n\n---\nScored against [SCORECARD.md](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md) with \`${ANTHROPIC_MODEL}\`. Language-model scores are advisory.\n<!-- module-scorecard-pr -->`
         : "";
     await Bun.write(args.prReport, report);
     process.stderr.write(`wrote PR report to ${args.prReport}\n`);
