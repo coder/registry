@@ -329,12 +329,12 @@ Cleanup of `*.tfstate` files and `modules-test` Docker containers is handled aut
 | Task             | Command                                               | Scope      |
 | ---------------- | ----------------------------------------------------- | ---------- |
 | Format all       | `bun run fmt`                                         | Repo       |
-| Terraform tests  | `bun run tftest`                                      | Repo       |
-| TypeScript tests | `bun run tstest`                                      | Repo       |
+| Terraform tests  | `bun run test:terraform`                              | Repo       |
+| TypeScript tests | `bun run test:typescript`                             | Repo       |
 | Single TF test   | `terraform init -upgrade && terraform test -verbose`  | Module dir |
 | Single TS test   | `bun test main.test.ts`                               | Module dir |
 | Validate         | `./scripts/terraform_validate.sh`                     | Repo       |
-| ShellCheck       | `bun run shellcheck`                                  | Repo       |
+| ShellCheck       | `bun run test:shellcheck`                             | Repo       |
 | Version bump     | `.github/scripts/version-bump.sh patch\|minor\|major` | Repo       |
 
 ## Version Management
@@ -351,9 +351,9 @@ The script automatically updates `version` references in README usage examples.
 
 Before considering the work complete, verify:
 
-- Tests pass: `bun run tftest` and `bun run tstest`
+- Tests pass: `bun run test:terraform` and `bun run test:typescript` (or `bun check` to run everything)
 - `bun run fmt` has been run
-- `bun run shellcheck` passes if the module includes shell scripts
+- `bun run test:shellcheck` passes if the module includes shell scripts
 - New variables have sensible defaults for backward compatibility
 - Breaking changes are documented if any inputs were removed, defaults changed, or new required variables added
 - Shell scripts handle errors gracefully (`|| echo "Warning..."` for non-fatal failures)

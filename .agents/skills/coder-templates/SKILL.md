@@ -250,7 +250,7 @@ Templates do NOT require `.tftest.hcl` or `main.test.ts`. Testing is done by pus
 | ---------- | --------------------------------- | ----- |
 | Format all | `bun run fmt`                     | Repo  |
 | Validate   | `./scripts/terraform_validate.sh` | Repo  |
-| ShellCheck | `bun run shellcheck`              | Repo  |
+| ShellCheck | `bun run test:shellcheck`         | Repo  |
 
 ## Final Checks
 
@@ -258,7 +258,7 @@ Before considering the work complete, verify:
 
 - `terraform init && terraform validate` passes in the template directory
 - `bun run fmt` has been run
-- `bun run shellcheck` passes if the template includes shell scripts
+- `bun run test:shellcheck` passes if the template includes shell scripts
 - README documents prerequisites and architecture
 - Shell scripts handle errors gracefully (`|| echo "Warning..."` for non-fatal failures). If a script sources external files (`$HOME/.bashrc`, `/etc/bashrc`, `/etc/os-release`), the `source` must come before `set -u`; CI enforces this ordering.
 - No hardcoded values that should be configurable via variables or parameters

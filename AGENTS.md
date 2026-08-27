@@ -6,8 +6,9 @@ Coder Registry: Terraform modules/templates for Coder workspaces under `registry
 
 ```bash
 bun run fmt                                           # Format code (Prettier + Terraform) - run before commits
-bun run tftest                                        # Run all Terraform tests
-bun run tstest                                        # Run all TypeScript tests
+bun run test:terraform                                # Run all Terraform tests
+bun run test:typescript                               # Run all TypeScript tests
+bun check                                             # Run all tests + validation (validate, shellcheck, terraform, typescript)
 terraform init -upgrade && terraform test -verbose    # Test single module (run from module dir)
 bun test main.test.ts                                 # Run single TS test (from module dir)
 ./scripts/terraform_validate.sh                       # Validate Terraform syntax
@@ -136,7 +137,7 @@ variable "api_key" {
 - Version bumped via `.github/scripts/version-bump.sh` if module changed (patch=bugfix, minor=feature, major=breaking)
 - Breaking changes documented: removed inputs, changed defaults, new required variables
 - New variables have sensible defaults to maintain backward compatibility
-- Tests pass (`bun run tftest`, `bun run tstest`); add diagnostic logging for test failures
+- Tests pass (`bun run test:terraform`, `bun run test:typescript`, or `bun check` for everything); add diagnostic logging for test failures
 - README examples updated with new version number; tooltip/behavior changes noted
 - Shell scripts handle errors gracefully (use `|| echo "Warning..."` for non-fatal failures)
 - No hardcoded values that should be configurable; no absolute URLs (use relative paths)
