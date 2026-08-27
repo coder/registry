@@ -58,26 +58,26 @@ jobs:
           ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
           SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
           MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
-        run: bun tstest
+        run: bun run check:typescript
       - name: Run Terraform tests
         env:
           ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
           SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
           MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
-        run: bun tftest
+        run: bun run check:terraform
       - name: Run Terraform Validate
         env:
           ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
           SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
           MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
           TEMPLATE_CHANGED_FILES: ${{ steps.filter.outputs.templates_files }}
-        run: bun terraform-validate
+        run: bun run check:validate
       - name: Run ShellCheck
         env:
           ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
           SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
           SHELL_CHANGED_FILES: ${{ steps.filter.outputs.shell_files }}
-        run: bun shellcheck
+        run: bun run check:shellcheck
       - name: Validate set -u ordering
         run: ./scripts/validate_set_u_order.sh
   validate-style:
