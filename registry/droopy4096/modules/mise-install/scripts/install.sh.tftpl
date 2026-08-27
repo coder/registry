@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ARG_INSTALL_DIR='${ARG_INSTALL_DIR}'
+ARG_ACTIVATE_SHELLS='${ARG_ACTIVATE_SHELLS}'
+ARG_INSTALL_MISE='${ARG_INSTALL_MISE}'
+ARG_INSTALL_URL='${ARG_INSTALL_URL}'
+ARG_MISE_VERSION='${ARG_MISE_VERSION}'
+ARG_MISE_BIN='${ARG_MISE_BIN}'
+
+# Expand leading ~ and $HOME in caller-supplied paths (safer than `eval`).
+ARG_INSTALL_DIR="$${ARG_INSTALL_DIR/#\~/$${HOME}}"
+ARG_INSTALL_DIR="$${ARG_INSTALL_DIR/#\$HOME/$${HOME}}"
+if [ -n "$${ARG_MISE_BIN}" ]; then
+  ARG_MISE_BIN="$${ARG_MISE_BIN/#\~/$${HOME}}"
+  ARG_MISE_BIN="$${ARG_MISE_BIN/#\$HOME/$${HOME}}"
+fi
+
+# If a pre-installed mise binary was pointed at, prepend its directory
+# to PATH so both this script and downstream ones pick it up.
+if [ -n "$${ARG_MISE_BIN}" ]; then
+  if [ ! -x "$${ARG_MISE_BIN}" ]; then
+    echo "ERROR: mise_bin='$${ARG_MISE_BIN}' is not an executable file."
+    exit 1
+  fi
+  export PATH="$(dirname "$${ARG_MISE_BIN}"):$${PATH}"
+fi
+
+if [ "$${ARG_INSTALL_MISE}" = "true" ]; then
+  mkdir -p "$${ARG_INSTALL_DIR}"
+  if command -v mise >/dev/null 2>&1 || [ -x "$${ARG_INSTALL_DIR}/mise" ]; then
+    echo "mise already present, skipping download."
+  else
+    echo "Installing mise from $${ARG_INSTALL_URL} into $${ARG_INSTALL_DIR}..."
+    if [ -n "$${ARG_MISE_VERSION}" ]; then
+      MISE_VERSION="$${ARG_MISE_VERSION}" \
+        MISE_INSTALL_PATH="$${ARG_INSTALL_DIR}/mise" \
+        curl -fsSL "$${ARG_INSTALL_URL}" | sh
+    else
+      MISE_INSTALL_PATH="$${ARG_INSTALL_DIR}/mise" \
+        curl -fsSL "$${ARG_INSTALL_URL}" | sh
+    fi
+  fi
+  export PATH="$${ARG_INSTALL_DIR}:$${PATH}"
+else
+  echo "install_mise=false; skipping download. Expecting 'mise' from the workspace image or 'mise_bin'."
+fi
+
+if ! command -v mise >/dev/null 2>&1; then
+  echo "ERROR: 'mise' is not on PATH after the install phase."
+  echo "Either set install_mise=true, ensure the workspace image ships mise, or set mise_bin."
+  exit 1
+fi
+
+resolved_mise="$(command -v mise)"
+echo "Using mise at $${resolved_mise}"
+mise --version
+
+if [ -n "$${ARG_ACTIVATE_SHELLS}" ]; then
+  for shell in $${ARG_ACTIVATE_SHELLS}; do
+    rc="$${HOME}/.$${shell}rc"
+    touch "$${rc}"
+    if ! grep -qF "mise activate $${shell}" "$${rc}"; then
+      echo "Appending mise activation to $${rc}"
+      printf '\n# Added by droopy4096/mise-install\neval "$(%s activate %s)"\n' "$${resolved_mise}" "$${shell}" >> "$${rc}"
+    else
+      echo "mise activation already present in $${rc}"
+    fi
+  done
+fi

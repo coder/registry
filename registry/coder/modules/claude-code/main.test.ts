@@ -142,6 +142,50 @@ const setup = async (
   return { id, coderEnvVars, scripts };
 };
 
+const writeCurlMock = async (
+  containerId: string,
+  installer: string,
+  exitCode = 0,
+) => {
+  const installerBase64 = Buffer.from(installer).toString("base64");
+  await writeExecutable({
+    containerId,
+    filePath: "/usr/local/bin/curl",
+    content: `#!/bin/bash
+printf '%s\n' "$*" > /tmp/claude-installer-curl-args
+output=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "--output" ]; then
+    output="$2"
+    shift 2
+    continue
+  fi
+  shift
+done
+if [ ${exitCode} -ne 0 ]; then
+  exit ${exitCode}
+fi
+printf '%s' '${installerBase64}' | base64 -d > "$output"
+`,
+  });
+};
+
+const successfulInstaller = `#!/bin/bash
+set -euo pipefail
+if [ "$#" -ne 1 ]; then
+  exit 2
+fi
+version="$1"
+mkdir -p "$HOME/.local/bin"
+cat > "$HOME/.local/bin/claude" <<CLAUDE
+#!/bin/bash
+if [ "\\$1" = "--version" ]; then
+  echo "claude version $version"
+fi
+CLAUDE
+chmod +x "$HOME/.local/bin/claude"
+`;
+
 // Runs the coder-utils script pipeline (pre_install, install, post_install) in
 // order inside the container. Each script is written to /tmp and executed
 // under bash with the test's env vars exported first.
@@ -208,12 +252,113 @@ describe("claude-code", async () => {
         claude_code_version: version,
       },
     });
+    await writeCurlMock(id, successfulInstaller);
     await runScripts(id, scripts, coderEnvVars);
     const installLog = await readFileContainer(
       id,
       "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
     );
-    expect(installLog).toContain(version);
+    expect(installLog).toContain(
+      "Claude Code installed successfully: claude version 1.0.40",
+    );
+    const curlArgs = await readFileContainer(
+      id,
+      "/tmp/claude-installer-curl-args",
+    );
+    expect(curlArgs).toContain("--retry 2");
+    expect(curlArgs).toContain("--connect-timeout 10");
+    expect(curlArgs).toContain("--max-time 60");
+  });
+
+  test.each([
+    [
+      "download failure",
+      "",
+      28,
+      "Claude Code could not be downloaded after up to 3 attempts.",
+    ],
+    [
+      "invalid installer",
+      "<html>service unavailable</html>",
+      0,
+      "Claude Code installer download was invalid.",
+    ],
+    [
+      "installer failure",
+      "#!/bin/bash\nexit 7\n",
+      0,
+      "Claude Code installation failed.",
+    ],
+    [
+      "missing installed binary",
+      "#!/bin/bash\nexit 0\n",
+      0,
+      "Claude Code binary was not found.",
+    ],
+  ])(
+    "%s is propagated without reporting success",
+    async (_scenario, installer, exitCode, expectedError) => {
+      const { id, coderEnvVars, scripts } = await setup({
+        skipClaudeMock: true,
+        moduleVariables: { install_claude_code: "true" },
+      });
+      await writeCurlMock(id, installer, exitCode);
+
+      await expect(runScripts(id, scripts, coderEnvVars)).rejects.toThrow();
+
+      const installLog = await readFileContainer(
+        id,
+        "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+      );
+      expect(installLog).toContain(expectedError);
+      expect(installLog).not.toContain("Claude Code installed successfully");
+    },
+  );
+
+  test("pre-installed-binary-is-required-when-install-is-disabled", async () => {
+    const { id, coderEnvVars, scripts } = await setup({ skipClaudeMock: true });
+
+    await expect(runScripts(id, scripts, coderEnvVars)).rejects.toThrow();
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+    );
+    expect(installLog).toContain("Claude Code binary was not found.");
+  });
+
+  test("configured-pre-installed-binary-is-available-to-later-steps", async () => {
+    const { id, coderEnvVars, scripts } = await setup({
+      skipClaudeMock: true,
+      moduleVariables: {
+        claude_binary_path: "/opt/claude/bin",
+        mcp: JSON.stringify({
+          mcpServers: { test: { command: "test-cmd", type: "stdio" } },
+        }),
+      },
+    });
+    const mkdirResult = await execContainer(
+      id,
+      ["mkdir", "-p", "/opt/claude/bin"],
+      ["--user", "root"],
+    );
+    expect(mkdirResult.exitCode).toBe(0);
+    await writeExecutable({
+      containerId: id,
+      filePath: "/opt/claude/bin/claude",
+      content: await Bun.file(
+        path.join(import.meta.dir, "testdata", "claude-mock.sh"),
+      ).text(),
+    });
+
+    await runScripts(id, scripts, coderEnvVars);
+
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+    );
+    expect(installLog).toContain("Claude Code validated successfully");
+    expect(installLog).toContain("claude invoked with: mcp add-json");
   });
 
   test("anthropic-api-key", async () => {
@@ -246,18 +391,19 @@ describe("claude-code", async () => {
       },
     });
     const { id, coderEnvVars, scripts } = await setup({
-      skipClaudeMock: true,
       moduleVariables: {
-        install_claude_code: "true",
         mcp: mcpConfig,
       },
     });
     await runScripts(id, scripts, coderEnvVars);
-    const claudeConfig = await readFileContainer(
+    const installLog = await readFileContainer(
       id,
-      "/home/coder/.claude.json",
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
     );
-    expect(claudeConfig).toContain("test-cmd");
+    expect(installLog).toContain(
+      "claude invoked with: mcp add-json --scope user test",
+    );
+    expect(installLog).toContain("test-cmd");
   });
 
   test("claude-model", async () => {
@@ -314,9 +460,7 @@ describe("claude-code", async () => {
       "https://raw.githubusercontent.com/coder/coder/main/.mcp.json";
 
     const { id, coderEnvVars, scripts } = await setup({
-      skipClaudeMock: true,
       moduleVariables: {
-        install_claude_code: "true",
         mcp_config_remote_path: JSON.stringify([failingUrl, successUrl]),
       },
     });
@@ -341,21 +485,14 @@ describe("claude-code", async () => {
       `Warning: Failed to fetch MCP configuration from '${successUrl}'`,
     );
 
-    // Should contain the MCP server add command from the successful fetch.
+    // The mock mirrors invocations so the test verifies the module-to-CLI
+    // boundary without depending on Claude Code's on-disk config format.
     expect(installLog).toContain(
-      "Added stdio MCP server go-language-server to user config",
+      "claude invoked with: mcp add-json --scope user go-language-server",
     );
     expect(installLog).toContain(
-      "Added stdio MCP server typescript-language-server to user config",
+      "claude invoked with: mcp add-json --scope user typescript-language-server",
     );
-
-    // Verify the MCP config was added to .claude.json.
-    const claudeConfig = await readFileContainer(
-      id,
-      "/home/coder/.claude.json",
-    );
-    expect(claudeConfig).toContain("typescript-language-server");
-    expect(claudeConfig).toContain("go-language-server");
   });
 
   test("standalone-mode-with-api-key", async () => {
