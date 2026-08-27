@@ -11,7 +11,7 @@ tags: [container, kubernetes, envbuilder, devcontainer]
 > [!WARNING]
 > This template builds the Devcontainer images using [Envbuilder](https://github.com/coder/envbuilder) which is in **maintenance mode** with no new features planned.
 > The updated way of using DevContainers within Coder is now the built-in DevContainers CLI integration, it is heavily suggested to go with this approach.
-> Feel free to join the [Coder Discord server](https://cdr.co/discord-zZHdds43ye) and ask for help with finding out the best way to use DevContainers in your Coder deployment.
+> Feel free to join the [Coder Discord server](https://cdr.co/discord-jmxU983NQN) and ask for help with finding out the best way to use DevContainers in your Coder deployment.
 
 Provision Devcontainers as [Coder workspaces](https://coder.com/docs/workspaces) on Kubernetes with this example template.
 
