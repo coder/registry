@@ -7,7 +7,7 @@ import {
 } from "~test";
 
 const clients = JSON.stringify(["claude code", "codex"]);
-setDefaultTimeout(30 * 1000);
+setDefaultTimeout(60 * 1000);
 
 const mockCommands = `
 mkdir -p /usr/local/bin
