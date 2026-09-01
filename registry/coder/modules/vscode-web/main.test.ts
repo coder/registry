@@ -492,4 +492,124 @@ JSONCEOF`,
     expect(result.stdout).toContain("INSTALLED:ms-python.python");
     expect(result.stdout).toContain("INSTALLED:dbaeumer.vscode-eslint");
   });
+
+  it("installs the extensions list when reusing a cached copy", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      accept_license: true,
+      use_cached: true,
+      extensions: '["ms-python.python", "golang.go"]',
+    });
+
+    const containerId = await runContainer("ubuntu:22.04");
+    cleanupContainers.push(containerId);
+
+    // Pre-bake the cached server. With use_cached set, the script skips the
+    // download but must still install the configured extensions.
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /tmp/vscode-web/bin && cat > /tmp/vscode-web/bin/code-server << 'MOCKEOF'
+${MOCK_VSCODE_WEB}
+MOCKEOF
+chmod +x /tmp/vscode-web/bin/code-server`,
+    ]);
+
+    const script = findResourceInstance(state, "coder_script");
+    const result = await execContainer(containerId, [
+      "bash",
+      "-c",
+      script.script,
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Found a copy of VS Code Web");
+    // The explicit extensions loop captures the CLI output, so assert on the
+    // per-extension log line the script prints before each install.
+    expect(result.stdout).toContain("Installing extension ms-python.python");
+    expect(result.stdout).toContain("Installing extension golang.go");
+  });
+
+  it("auto-installs recommended extensions when reusing a cached copy", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      accept_license: true,
+      use_cached: true,
+      auto_install_extensions: true,
+    });
+
+    const containerId = await runContainer("ubuntu:22.04");
+    cleanupContainers.push(containerId);
+
+    await execContainer(containerId, ["apt-get", "update", "-qq"]);
+    await execContainer(containerId, ["apt-get", "install", "-y", "-qq", "jq"]);
+
+    // Pre-bake the cached server; the download is skipped, so no curl/tar stub
+    // is needed. The recommendations path must still run.
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /tmp/vscode-web/bin && cat > /tmp/vscode-web/bin/code-server << 'MOCKEOF'
+${MOCK_VSCODE_WEB}
+MOCKEOF
+chmod +x /tmp/vscode-web/bin/code-server`,
+    ]);
+
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /root/.vscode && cat > /root/.vscode/extensions.json << 'JSONCEOF'
+${JSONC_EXTENSIONS_JSON}
+JSONCEOF`,
+    ]);
+
+    const script = findResourceInstance(state, "coder_script");
+    const result = await execContainer(containerId, [
+      "bash",
+      "-c",
+      script.script,
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Found a copy of VS Code Web");
+    expect(result.stdout).toContain("INSTALLED:ms-python.python");
+    expect(result.stdout).toContain("INSTALLED:dbaeumer.vscode-eslint");
+    expect(result.stdout).toContain("INSTALLED:esbenp.prettier-vscode");
+  });
+
+  it("does not claim a cache hit on the default download path", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      accept_license: true,
+      // neither use_cached nor offline
+    });
+
+    const containerId = await runContainer("ubuntu:22.04");
+    cleanupContainers.push(containerId);
+
+    // A stray copy exists at the default install_prefix, but without use_cached
+    // the module must re-download and must not claim it found a cached copy.
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `mkdir -p /tmp/vscode-web/bin && cat > /tmp/vscode-web/bin/code-server << 'MOCKEOF'
+${MOCK_VSCODE_WEB}
+MOCKEOF
+chmod +x /tmp/vscode-web/bin/code-server
+${STUB_DOWNLOAD}`,
+    ]);
+
+    const script = findResourceInstance(state, "coder_script");
+    const result = await execContainer(containerId, [
+      "bash",
+      "-c",
+      script.script,
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).not.toContain("Found a copy of VS Code Web");
+    expect(result.stdout).toContain(
+      "Installing Microsoft Visual Studio Code Server",
+    );
+  });
 });

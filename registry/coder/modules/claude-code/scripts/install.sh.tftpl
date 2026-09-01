@@ -18,6 +18,10 @@ ARG_MCP=$(echo -n '${ARG_MCP}' | base64 -d)
 ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n '${ARG_MCP_CONFIG_REMOTE_PATH}' | base64 -d)
 ARG_ENABLE_AI_GATEWAY='${ARG_ENABLE_AI_GATEWAY}'
 ARG_MANAGED_SETTINGS_JSON=$(echo -n '${ARG_MANAGED_SETTINGS_JSON}' | base64 -d)
+ARG_USE_BEDROCK='${ARG_USE_BEDROCK}'
+ARG_USE_VERTEX='${ARG_USE_VERTEX}'
+ARG_ANTHROPIC_BASE_URL='${ARG_ANTHROPIC_BASE_URL}'
+ARG_API_KEY_HELPER_SCRIPT=$(echo -n '${ARG_API_KEY_HELPER_SCRIPT}' | base64 -d)
 
 export PATH="$${ARG_CLAUDE_BINARY_PATH}:$PATH"
 
@@ -31,6 +35,10 @@ printf "ARG_MCP: %s\n" "$${ARG_MCP}"
 printf "ARG_MCP_CONFIG_REMOTE_PATH: %s\n" "$${ARG_MCP_CONFIG_REMOTE_PATH}"
 printf "ARG_ENABLE_AI_GATEWAY: %s\n" "$${ARG_ENABLE_AI_GATEWAY}"
 printf "ARG_MANAGED_SETTINGS_JSON: %s\n" "$${ARG_MANAGED_SETTINGS_JSON}"
+printf "ARG_USE_BEDROCK: %s\n" "$${ARG_USE_BEDROCK}"
+printf "ARG_USE_VERTEX: %s\n" "$${ARG_USE_VERTEX}"
+printf "ARG_ANTHROPIC_BASE_URL: %s\n" "$${ARG_ANTHROPIC_BASE_URL}"
+printf "ARG_API_KEY_HELPER_SCRIPT: %s\n" "$${ARG_API_KEY_HELPER_SCRIPT:+(set)}"
 
 echo "--------------------------------"
 
@@ -68,23 +76,34 @@ function add_path_to_shell_profiles() {
   fi
 }
 
-function ensure_claude_in_path() {
-  local CLAUDE_BIN=""
-  if command -v claude > /dev/null 2>&1; then
-    CLAUDE_BIN=$(command -v claude)
-  elif [ -x "$${ARG_CLAUDE_BINARY_PATH}/claude" ]; then
-    CLAUDE_BIN="$${ARG_CLAUDE_BINARY_PATH}/claude"
+function resolve_claude_binary() {
+  if [ -x "$${ARG_CLAUDE_BINARY_PATH}/claude" ]; then
+    printf '%s\n' "$${ARG_CLAUDE_BINARY_PATH}/claude"
+  elif command -v claude > /dev/null 2>&1; then
+    command -v claude
   elif [ -x "$HOME/.local/bin/claude" ]; then
-    CLAUDE_BIN="$HOME/.local/bin/claude"
+    printf '%s\n' "$HOME/.local/bin/claude"
+  else
+    echo "Claude Code binary was not found." >&2
+    return 1
   fi
+}
 
-  if [ -z "$${CLAUDE_BIN}" ] || [ ! -x "$${CLAUDE_BIN}" ]; then
-    echo "Warning: Could not find claude binary"
-    return
+function configure_claude_binary() {
+  local action="$1"
+  local CLAUDE_BIN
+  local CLAUDE_VERSION
+
+  CLAUDE_BIN=$(resolve_claude_binary)
+
+  if ! CLAUDE_VERSION=$("$${CLAUDE_BIN}" --version); then
+    echo "Claude Code binary could not be executed." >&2
+    return 1
   fi
 
   local CLAUDE_DIR
   CLAUDE_DIR=$(dirname "$${CLAUDE_BIN}")
+  export PATH="$${CLAUDE_DIR}:$PATH"
 
   if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/claude" ]; then
     ln -s "$${CLAUDE_BIN}" "$${CODER_SCRIPT_BIN_DIR}/claude"
@@ -92,26 +111,42 @@ function ensure_claude_in_path() {
   fi
 
   add_path_to_shell_profiles "$${CLAUDE_DIR}"
+  printf "Claude Code %s successfully: %s\n" "$${action}" "$${CLAUDE_VERSION}"
 }
+
+function install_with_official_installer() (
+  local installer_file
+  installer_file=$(mktemp)
+  trap 'rm -f "$${installer_file}"' EXIT
+
+  if ! curl --fail --silent --show-error --location \
+    --retry 2 --retry-connrefused --connect-timeout 10 --max-time 60 \
+    --output "$${installer_file}" https://claude.ai/install.sh; then
+    echo "Claude Code could not be downloaded after up to 3 attempts." >&2
+    return 1
+  fi
+
+  if ! bash -n "$${installer_file}"; then
+    echo "Claude Code installer download was invalid." >&2
+    return 1
+  fi
+
+  if ! bash "$${installer_file}" "$${ARG_CLAUDE_CODE_VERSION}"; then
+    echo "Claude Code installation failed." >&2
+    return 1
+  fi
+)
 
 function install_claude_code_cli() {
   if [ "$${ARG_INSTALL_CLAUDE_CODE}" != "true" ]; then
     echo "Skipping Claude Code installation as per configuration."
-    ensure_claude_in_path
+    configure_claude_binary "validated"
     return
   fi
 
   echo "Installing Claude Code via official installer"
-  set +e
-  curl -fsSL claude.ai/install.sh | bash -s -- "$${ARG_CLAUDE_CODE_VERSION}" 2>&1
-  CURL_EXIT=$${PIPESTATUS[0]}
-  set -e
-  if [ $${CURL_EXIT} -ne 0 ]; then
-    echo "Claude Code installer failed with exit code $${CURL_EXIT}"
-  fi
-  echo "Installed Claude Code successfully. Version: $(claude --version || echo 'unknown')"
-
-  ensure_claude_in_path
+  install_with_official_installer
+  configure_claude_binary "installed"
 }
 
 function setup_claude_configurations() {
@@ -172,11 +207,57 @@ function write_managed_settings() {
   echo "Wrote Claude Code managed settings to $${target}"
 }
 
+function setup_api_key_helper() {
+  if [ -z "$${ARG_API_KEY_HELPER_SCRIPT}" ]; then
+    return
+  fi
+
+  echo "Configuring api_key_helper for short-lived credentials..."
+
+  mkdir -p "$HOME/.claude"
+  local helper_path="$HOME/.claude/coder-api-key-helper.sh"
+  printf '%s' "$${ARG_API_KEY_HELPER_SCRIPT}" > "$${helper_path}"
+  chmod 0700 "$${helper_path}"
+
+  local dropin_dir="/etc/claude-code/managed-settings.d"
+  local target="$${dropin_dir}/20-coder-apikeyhelper.json"
+  if command_exists sudo; then
+    sudo mkdir -p "$${dropin_dir}"
+    printf '{"apiKeyHelper":"%s"}\n' "$${helper_path}" | sudo tee "$${target}" > /dev/null
+    sudo chmod 0644 "$${target}"
+  elif mkdir -p "$${dropin_dir}" 2> /dev/null; then
+    printf '{"apiKeyHelper":"%s"}\n' "$${helper_path}" > "$${target}"
+    chmod 0644 "$${target}"
+  else
+    echo "Warning: cannot write to $${dropin_dir} (no sudo and not writable); api_key_helper will not be registered"
+    return
+  fi
+
+  echo "Wrote api_key_helper script to $${helper_path} and registered via $${target}"
+}
+
 function configure_standalone_mode() {
   echo "Configuring Claude Code for standalone mode..."
 
-  if [ -z "$${ANTHROPIC_API_KEY:-}" ] && [ -z "$${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ "$${ARG_ENABLE_AI_GATEWAY}" = "false" ]; then
-    echo "Note: No authentication configured (anthropic_api_key, claude_code_oauth_token, enable_ai_gateway), skipping onboarding bypass"
+  local have_auth="false"
+  if [ -n "$${ANTHROPIC_API_KEY:-}" ] || [ -n "$${CLAUDE_CODE_OAUTH_TOKEN:-}" ] || [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ]; then
+    have_auth="true"
+  elif [ "$${ARG_USE_BEDROCK}" = "true" ]; then
+    echo "Using Amazon Bedrock (CLAUDE_CODE_USE_BEDROCK=1); Anthropic API key not required."
+    have_auth="true"
+  elif [ "$${ARG_USE_VERTEX}" = "true" ]; then
+    echo "Using Google Vertex AI (CLAUDE_CODE_USE_VERTEX=1); Anthropic API key not required."
+    have_auth="true"
+  elif [ -n "$${ARG_ANTHROPIC_BASE_URL}" ]; then
+    echo "Using custom ANTHROPIC_BASE_URL ($${ARG_ANTHROPIC_BASE_URL}); Anthropic API key not required."
+    have_auth="true"
+  elif [ -n "$${ARG_API_KEY_HELPER_SCRIPT}" ]; then
+    echo "Using api_key_helper for short-lived credentials; Anthropic API key not required."
+    have_auth="true"
+  fi
+
+  if [ "$${have_auth}" = "false" ]; then
+    echo "Note: No authentication configured (anthropic_api_key, claude_code_oauth_token, enable_ai_gateway, use_bedrock, use_vertex, anthropic_base_url, api_key_helper), skipping onboarding bypass"
     return
   fi
 
@@ -214,4 +295,5 @@ EOF
 install_claude_code_cli
 setup_claude_configurations
 write_managed_settings
+setup_api_key_helper
 configure_standalone_mode

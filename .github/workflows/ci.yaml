@@ -14,7 +14,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Detect changed files
-        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
           list-files: shell
@@ -58,26 +58,26 @@ jobs:
           ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
           SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
           MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
-        run: bun tstest
+        run: bun run check:typescript
       - name: Run Terraform tests
         env:
           ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
           SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
           MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
-        run: bun tftest
+        run: bun run check:terraform
       - name: Run Terraform Validate
         env:
           ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
           SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
           MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
           TEMPLATE_CHANGED_FILES: ${{ steps.filter.outputs.templates_files }}
-        run: bun terraform-validate
+        run: bun run check:validate
       - name: Run ShellCheck
         env:
           ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
           SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
           SHELL_CHANGED_FILES: ${{ steps.filter.outputs.shell_files }}
-        run: bun shellcheck
+        run: bun run check:shellcheck
       - name: Validate set -u ordering
         run: ./scripts/validate_set_u_order.sh
   validate-style:
@@ -100,7 +100,7 @@ jobs:
       - name: Validate formatting
         run: bun fmt:ci
       - name: Check for typos
-        uses: crate-ci/typos@bee27e3a4fd1ea2111cf90ab89cd076c870fce14 # v1.48.0
+        uses: crate-ci/typos@4d9c206a77c041268485162b8e2579ad7a5cb9a3 # v1.50.0
         with:
           config: .github/typos.toml
   validate-readme-files:

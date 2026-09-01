@@ -25,6 +25,11 @@ run "test_codex_with_api_key" {
     condition     = coder_env.openai_api_key[0].value == "test-key"
     error_message = "OpenAI API key should be set correctly"
   }
+
+  assert {
+    condition     = !strcontains(local.install_script, nonsensitive(var.openai_api_key)) && !strcontains(local.install_script, base64encode(nonsensitive(var.openai_api_key)))
+    error_message = "OpenAI API key should not be rendered into the install script"
+  }
 }
 
 run "test_codex_custom_options" {
