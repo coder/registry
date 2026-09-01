@@ -8,7 +8,7 @@ tags: [integration, jfrog, helper]
 
 # JFrog
 
-Install the JFrog CLI (`jf`) and authenticate package managers (npm, Go, pip, Docker, Conda, and Maven) with Artifactory using OAuth, configured via the Coder [`external-auth`](https://coder.com/docs/admin/external-auth) feature. Each user authenticates through an OAuth flow and receives a user-scoped access token, so no API keys or passwords are stored in the template or the workspace.
+Install the JFrog CLI (`jf`) and authenticate package managers (npm, pnpm, Go, pip, Docker, Conda, and Maven) with Artifactory using OAuth, configured via the Coder [`external-auth`](https://coder.com/docs/admin/external-auth) feature. Each user authenticates through an OAuth flow and receives a user-scoped access token, so no API keys or passwords are stored in the template or the workspace.
 
 ![JFrog OAuth](../../.images/jfrog-oauth.png)
 
@@ -16,13 +16,14 @@ Install the JFrog CLI (`jf`) and authenticate package managers (npm, Go, pip, Do
 module "jfrog" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jfrog-oauth/coder"
-  version        = "1.2.5"
+  version        = "1.3.0"
   agent_id       = coder_agent.main.id
   jfrog_url      = "https://example.jfrog.io"
   username_field = "username" # If you are using GitHub to login to both Coder and Artifactory, use username_field = "username"
 
   package_managers = {
     npm    = ["npm", "@scoped:npm-scoped"]
+    pnpm   = ["npm", "@scoped:npm-scoped"]
     go     = ["go", "another-go-repo"]
     pypi   = ["pypi", "extra-index-pypi"]
     docker = ["example-docker-staging.jfrog.io", "example-docker-production.jfrog.io"]
@@ -34,7 +35,9 @@ module "jfrog" {
 ```
 
 > Note
-> This module does not install `npm`, `go`, `pip`, etc but only configure them. You need to handle the installation of these tools yourself.
+> This module does not install `npm`, `pnpm`, `go`, `pip`, etc but only configures them. You need to handle the installation of these tools yourself.
+>
+> `jf pnpm` requires Node.js 20 or newer and pnpm 10.x or 11.x. Use JFrog CLI 2.98.0 or newer for pnpm 10.x and 2.116.0 or newer for pnpm 11.x.
 
 ## Prerequisites
 
@@ -90,13 +93,36 @@ The module automatically extracts your JFrog username directly from the OAuth to
 
 ## Examples
 
+### Configure pnpm to use an Artifactory npm repository
+
+```tf
+module "jfrog" {
+  count          = data.coder_workspace.me.start_count
+  source         = "registry.coder.com/coder/jfrog-oauth/coder"
+  version        = "1.3.0"
+  agent_id       = coder_agent.main.id
+  jfrog_url      = "https://example.jfrog.io"
+  username_field = "username"
+
+  package_managers = {
+    pnpm = ["npm-local"]
+  }
+}
+```
+
+pnpm and npm share `~/.npmrc`, so their repository lists must match when both are configured. After pnpm is installed in the workspace, run:
+
+```shell
+jf pnpm install
+```
+
 Configure the Python pip package manager to fetch packages from Artifactory while mapping the Coder email to the Artifactory username.
 
 ```tf
 module "jfrog" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jfrog-oauth/coder"
-  version        = "1.2.5"
+  version        = "1.3.0"
   agent_id       = coder_agent.main.id
   jfrog_url      = "https://example.jfrog.io"
   username_field = "email"
@@ -126,7 +152,7 @@ The [JFrog extension](https://open-vsx.org/extension/JFrog/jfrog-vscode-extensio
 module "jfrog" {
   count                 = data.coder_workspace.me.start_count
   source                = "registry.coder.com/coder/jfrog-oauth/coder"
-  version               = "1.2.5"
+  version               = "1.3.0"
   agent_id              = coder_agent.main.id
   jfrog_url             = "https://example.jfrog.io"
   username_field        = "username" # If you are using GitHub to login to both Coder and Artifactory, use username_field = "username"

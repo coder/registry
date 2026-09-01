@@ -152,6 +152,94 @@ run "test_with_npm_package_manager" {
   }
 }
 
+run "test_with_pnpm_package_manager" {
+  command = plan
+
+  variables {
+    agent_id  = "test-agent-id"
+    jfrog_url = "https://example.jfrog.io"
+    package_managers = {
+      pnpm = ["global", "@foo:foo"]
+    }
+  }
+
+  override_data {
+    target = data.coder_external_auth.jfrog
+    values = {
+      access_token = "valid-token-value"
+    }
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.jfrog.script, "jf pnpmc --global --repo-resolve \"global\"")
+    error_message = "script should contain jf pnpmc command for pnpm"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.jfrog.script, "@foo:registry=https://example.jfrog.io/artifactory/api/npm/foo")
+    error_message = "script should contain scoped pnpm registry for @foo"
+  }
+}
+
+run "test_with_npm_and_pnpm_package_managers" {
+  command = plan
+
+  variables {
+    agent_id  = "test-agent-id"
+    jfrog_url = "https://example.jfrog.io"
+    package_managers = {
+      npm  = ["global", "@foo:foo"]
+      pnpm = ["global", "@foo:foo"]
+    }
+  }
+
+  override_data {
+    target = data.coder_external_auth.jfrog
+    values = {
+      access_token = "valid-token-value"
+    }
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.jfrog.script, "jf npmc --global --repo-resolve \"global\"")
+    error_message = "script should contain jf npmc command for npm"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.jfrog.script, "jf pnpmc --global --repo-resolve \"global\"")
+    error_message = "script should contain jf pnpmc command for pnpm"
+  }
+
+  assert {
+    condition     = length(regexall("cat << EOF > ~/.npmrc", resource.coder_script.jfrog.script)) == 1
+    error_message = "script should write the shared npmrc exactly once"
+  }
+}
+
+run "test_mismatched_npm_pnpm_repositories" {
+  command = plan
+
+  variables {
+    agent_id  = "test-agent-id"
+    jfrog_url = "https://example.jfrog.io"
+    package_managers = {
+      npm  = ["npm-virtual"]
+      pnpm = ["pnpm-virtual"]
+    }
+  }
+
+  override_data {
+    target = data.coder_external_auth.jfrog
+    values = {
+      access_token = "valid-token-value"
+    }
+  }
+
+  expect_failures = [
+    var.package_managers,
+  ]
+}
+
 run "test_configure_code_server" {
   command = plan
 

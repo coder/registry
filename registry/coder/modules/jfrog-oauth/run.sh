@@ -40,10 +40,22 @@ if [ -z "${HAS_NPM}" ]; then
 else
   echo "📦 Configuring npm..."
   jf npmc --global --repo-resolve "${REPOSITORY_NPM}"
+  config_complete
+fi
+
+# Configure pnpm to use the Artifactory npm repository.
+if [ -z "${HAS_PNPM}" ]; then
+  not_configured pnpm
+else
+  echo "📦 Configuring pnpm..."
+  jf pnpmc --global --repo-resolve "${REPOSITORY_PNPM}"
+  config_complete
+fi
+
+if [ -n "${HAS_NPM}" ] || [ -n "${HAS_PNPM}" ]; then
   cat << EOF > ~/.npmrc
 ${NPMRC}
 EOF
-  config_complete
 fi
 
 # Configure the `pip` to use the Artifactory "python" repository.
