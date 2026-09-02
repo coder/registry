@@ -53,6 +53,18 @@ variable "agent_id" {
   description = "The ID of a Coder agent."
 }
 
+variable "agent_name" {
+  description = "The name of the Coder agent used for native RDP connections."
+  type        = string
+  default     = "main"
+}
+
+variable "enable_native_rdp" {
+  description = "Add an app button that opens the workspace in a native RDP client through Coder Desktop."
+  type        = bool
+  default     = false
+}
+
 variable "admin_username" {
   type    = string
   default = "Administrator"
@@ -83,6 +95,10 @@ locals {
   # single quotes keeps values containing $, backticks, or double quotes intact.
   ps_admin_username = replace(var.admin_username, "'", "''")
   ps_admin_password = replace(var.admin_password, "'", "''")
+}
+
+data "coder_workspace" "me" {
+  count = var.enable_native_rdp ? 1 : 0
 }
 
 resource "coder_script" "windows-rdp" {
@@ -123,6 +139,19 @@ resource "coder_app" "windows-rdp" {
     interval  = 5
     threshold = 15
   }
+}
+
+resource "coder_app" "native-rdp" {
+  count = var.enable_native_rdp ? 1 : 0
+
+  agent_id     = var.agent_id
+  display_name = "RDP Desktop"
+  slug         = "rdp-desktop"
+  icon         = "/icon/desktop.svg"
+  external     = true
+  order        = var.order
+  group        = var.group
+  url          = "coder://${regex("https?:\\/\\/([^\\/]+)", data.coder_workspace.me[0].access_url)[0]}/v0/open/ws/${data.coder_workspace.me[0].name}/agent/${var.agent_name}/rdp?username=${urlencode(var.admin_username)}&password=${urlencode(var.admin_password)}"
 }
 
 resource "coder_app" "rdp-docs" {
