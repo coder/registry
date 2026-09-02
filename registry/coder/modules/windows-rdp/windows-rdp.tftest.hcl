@@ -1,15 +1,16 @@
 mock_provider "coder" {}
 
-run "native_rdp_disabled_by_default" {
+run "native_rdp_disabled" {
   command = plan
 
   variables {
-    agent_id = "test-agent"
+    agent_id          = "test-agent"
+    enable_native_rdp = false
   }
 
   assert {
     condition     = length(coder_app.native-rdp) == 0
-    error_message = "The native RDP app must remain disabled by default."
+    error_message = "Disabling native RDP must omit the native app."
   }
 
   assert {
@@ -18,15 +19,32 @@ run "native_rdp_disabled_by_default" {
   }
 }
 
-run "native_rdp_enabled" {
+run "native_rdp_requires_agent_name" {
   command = plan
 
   variables {
-    agent_id          = "test-agent"
-    agent_name        = "windows-agent"
-    enable_native_rdp = true
-    admin_username    = "RDP User"
-    admin_password    = "N;JVO*U\\mL^a*P\"'`$&<>|#%+"
+    agent_id = "test-agent"
+  }
+
+  override_data {
+    target = data.coder_workspace.me
+    values = {
+      access_url = "https://coder.example.com"
+      name       = "windows-workspace"
+    }
+  }
+
+  expect_failures = [coder_app.native-rdp]
+}
+
+run "native_rdp_enabled_by_default" {
+  command = plan
+
+  variables {
+    agent_id       = "test-agent"
+    agent_name     = "windows-agent"
+    admin_username = "RDP User"
+    admin_password = "N;JVO*U\\mL^a*P\"'`$&<>|#%+"
   }
 
   override_data {
@@ -39,12 +57,22 @@ run "native_rdp_enabled" {
 
   assert {
     condition     = length(coder_app.native-rdp) == 1
-    error_message = "Enabling native RDP must create exactly one app."
+    error_message = "Native RDP must create exactly one app by default."
   }
 
   assert {
     condition     = coder_app.native-rdp[0].external
     error_message = "The native RDP app must open through an external URI handler."
+  }
+
+  assert {
+    condition     = coder_app.native-rdp[0].icon == "/icon/rdp.svg"
+    error_message = "The native RDP app must use an icon distinct from Web RDP."
+  }
+
+  assert {
+    condition     = coder_app.native-rdp[0].tooltip == var.tooltip
+    error_message = "The native RDP app must explain its Coder Desktop dependency."
   }
 
   assert {

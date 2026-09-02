@@ -54,15 +54,21 @@ variable "agent_id" {
 }
 
 variable "agent_name" {
-  description = "The name of the Coder agent used for native RDP connections."
+  description = "The name of the Coder agent used for native RDP connections. Required when enable_native_rdp is true."
   type        = string
-  default     = "main"
+  default     = null
 }
 
 variable "enable_native_rdp" {
   description = "Add an app button that opens the workspace in a native RDP client through Coder Desktop."
   type        = bool
-  default     = false
+  default     = true
+}
+
+variable "tooltip" {
+  description = "Markdown text displayed when hovering over the native RDP app."
+  type        = string
+  default     = "You need to install [Coder Desktop](https://coder.com/docs/user-guides/desktop) to use this button."
 }
 
 variable "admin_username" {
@@ -95,6 +101,10 @@ locals {
   # single quotes keeps values containing $, backticks, or double quotes intact.
   ps_admin_username = replace(var.admin_username, "'", "''")
   ps_admin_password = replace(var.admin_password, "'", "''")
+
+  # Terraform still evaluates the disabled resource configuration. The
+  # precondition below rejects this placeholder whenever native RDP is enabled.
+  native_rdp_agent_name = var.agent_name != null ? var.agent_name : ""
 }
 
 data "coder_workspace" "me" {
@@ -147,11 +157,19 @@ resource "coder_app" "native-rdp" {
   agent_id     = var.agent_id
   display_name = "RDP Desktop"
   slug         = "rdp-desktop"
-  icon         = "/icon/desktop.svg"
+  icon         = "/icon/rdp.svg"
   external     = true
   order        = var.order
   group        = var.group
-  url          = "coder://${regex("https?:\\/\\/([^\\/]+)", data.coder_workspace.me[0].access_url)[0]}/v0/open/ws/${data.coder_workspace.me[0].name}/agent/${var.agent_name}/rdp?username=${urlencode(var.admin_username)}&password=${urlencode(var.admin_password)}"
+  tooltip      = var.tooltip
+  url          = "coder://${regex("https?:\\/\\/([^\\/]+)", data.coder_workspace.me[0].access_url)[0]}/v0/open/ws/${data.coder_workspace.me[0].name}/agent/${local.native_rdp_agent_name}/rdp?username=${urlencode(var.admin_username)}&password=${urlencode(var.admin_password)}"
+
+  lifecycle {
+    precondition {
+      condition     = var.agent_name != null
+      error_message = "agent_name must be set when enable_native_rdp is true."
+    }
+  }
 }
 
 resource "coder_app" "rdp-docs" {
