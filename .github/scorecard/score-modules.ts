@@ -10,6 +10,10 @@
  * Usage:
  *   bun run score-modules.ts [--modules a,b,c] [--dry-run] [--limit N]
  *
+ * Module specs are either a bare name (a module in registry/coder/modules)
+ * or namespace/name for any registry namespace. Non-coder namespaces are
+ * PR-report or dry-run only; discussions exist solely for coder modules.
+ *
  * --dry-run prints scorecards to stdout and skips GitHub entirely.
  */
 
@@ -36,23 +40,39 @@ const SCORECARD_PATH = path.join(import.meta.dir, "SCORECARD.md");
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-5";
 const MAX_FILE_BYTES = 30_000;
 
-async function displayName(moduleName: string): Promise<string> {
-  const readme = await readFile(
-    path.join(MODULES_DIR, moduleName, "README.md"),
-    "utf8",
-  );
+// A module reference: bare names mean the coder namespace, and
+// namespace/name addresses any registry namespace.
+interface ModuleSpec {
+  ns: string;
+  name: string;
+  // namespace/name, used in report headings and log lines.
+  label: string;
+  dir: string;
+}
+
+function toSpec(raw: string): ModuleSpec {
+  const slash = raw.indexOf("/");
+  const [ns, name] =
+    slash === -1 ? ["coder", raw] : [raw.slice(0, slash), raw.slice(slash + 1)];
+  return {
+    ns,
+    name,
+    label: `${ns}/${name}`,
+    dir: path.join(REGISTRY_ROOT, "registry", ns, "modules", name),
+  };
+}
+
+async function displayName(spec: ModuleSpec): Promise<string> {
+  const readme = await readFile(path.join(spec.dir, "README.md"), "utf8");
   const match = readme.match(/^display_name:\s*["']?([^"'\n]+)["']?\s*$/m);
-  return match ? match[1].trim() : moduleName;
+  return match ? match[1].trim() : spec.name;
 }
 
 // Internal building-block modules caution against direct use and are not
 // meant to be consumed by template authors, so they are excluded from
 // scoring entirely.
-async function isInternalBuildingBlock(moduleName: string): Promise<boolean> {
-  const readme = await readFile(
-    path.join(MODULES_DIR, moduleName, "README.md"),
-    "utf8",
-  );
+async function isInternalBuildingBlock(spec: ModuleSpec): Promise<boolean> {
+  const readme = await readFile(path.join(spec.dir, "README.md"), "utf8");
   return /do not recommend using this module directly|not intended to be used directly|internal building block/i.test(
     readme,
   );
@@ -63,6 +83,13 @@ interface Args {
   dryRun: boolean;
   limit?: number;
   prReport?: string;
+}
+
+interface ImageVerification {
+  reference: string;
+  resolvedPath: string;
+  exists: boolean;
+  sizeBytes?: number;
 }
 
 function parseArgs(): Args {
@@ -96,8 +123,59 @@ async function readTruncated(filePath: string): Promise<string> {
   return content.slice(0, MAX_FILE_BYTES) + "\n... [truncated]";
 }
 
-async function gatherModuleContext(moduleName: string): Promise<string> {
-  const dir = path.join(MODULES_DIR, moduleName);
+async function verifyReadmeImages(
+  spec: ModuleSpec,
+): Promise<ImageVerification[]> {
+  const readmePath = path.join(spec.dir, "README.md");
+  const readme = await readFile(readmePath, "utf8");
+  const moduleDir = spec.dir;
+  const imageRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
+  const results: ImageVerification[] = [];
+
+  let match: RegExpExecArray | null;
+  while ((match = imageRegex.exec(readme)) !== null) {
+    const reference = match[1];
+
+    if (reference.startsWith("http://") || reference.startsWith("https://")) {
+      results.push({
+        reference,
+        resolvedPath: "(external)",
+        exists: true,
+      });
+      continue;
+    }
+
+    if (path.isAbsolute(reference)) {
+      continue;
+    }
+
+    const resolvedPath = path.resolve(moduleDir, reference);
+    if (!resolvedPath.startsWith(REGISTRY_ROOT)) {
+      continue;
+    }
+
+    const verification: ImageVerification = {
+      reference,
+      resolvedPath,
+      exists: existsSync(resolvedPath),
+    };
+
+    if (verification.exists) {
+      try {
+        const { stat } = await import("node:fs/promises");
+        const stats = await stat(resolvedPath);
+        verification.sizeBytes = stats.size;
+      } catch {}
+    }
+
+    results.push(verification);
+  }
+
+  return results;
+}
+
+async function gatherModuleContext(spec: ModuleSpec): Promise<string> {
+  const dir = spec.dir;
   const parts: string[] = [];
   const files = await readdir(dir, { recursive: true });
   const wanted = files.filter(
@@ -114,6 +192,26 @@ async function gatherModuleContext(moduleName: string): Promise<string> {
     const full = path.join(dir, f);
     parts.push(`=== FILE: ${f} ===\n${await readTruncated(full)}`);
   }
+
+  const imageVerifications = await verifyReadmeImages(spec);
+  if (imageVerifications.length > 0) {
+    const verificationLines = imageVerifications.map((v) => {
+      if (v.resolvedPath === "(external)") {
+        return `  → ${v.reference} — external URL`;
+      } else if (v.exists) {
+        const size = v.sizeBytes
+          ? ` (${(v.sizeBytes / 1024).toFixed(1)} KB)`
+          : "";
+        return `  ✓ ${v.reference} — exists${size}`;
+      } else {
+        return `  ✗ ${v.reference} — NOT FOUND`;
+      }
+    });
+    parts.push(
+      `=== README IMAGE VERIFICATION ===\n${verificationLines.join("\n")}`,
+    );
+  }
+
   return parts.join("\n\n");
 }
 
@@ -169,18 +267,15 @@ function fixOverall(scorecard: string): string {
   return out;
 }
 
-async function scoreModule(
-  moduleName: string,
-  rubric: string,
-): Promise<string> {
-  const context = await gatherModuleContext(moduleName);
+async function scoreModule(spec: ModuleSpec, rubric: string): Promise<string> {
+  const context = await gatherModuleContext(spec);
   const prompt = `You are scoring a Coder Registry module against a scorecard rubric.
 
 <rubric>
 ${rubric}
 </rubric>
 
-<module name="coder/${moduleName}">
+<module name="${spec.label}">
 ${context}
 </module>
 
@@ -212,17 +307,16 @@ Output ONLY the scorecard markdown in EXACTLY this structure (this example shows
 
 | Presentation & Onboarding | Agent Integration | Credential Hygiene | Restricted-Environment Readiness | Engineering Quality | Overall |
 |---:|---:|---:|---:|---:|---:|
-| **X / 25** | **X / 25** | **X / 20** | **X / 20 or N/A** | **X / 10** | **X / 100** |
+| **X / 17** | **X / 25** | **X / 20** | **X / 20 or N/A** | **X / 10** | **X / 100** |
 
 <details>
 <summary><strong>Drilldown</strong></summary>
 
-#### Presentation & Onboarding — X / 25
+#### Presentation & Onboarding — X / 17
 
 | Criterion | Max | Score | Notes |
 |---|---:|---:|---|
 | Configuration-mode examples | 12 | X | ... |
-| Coder-context framing | 8 | X | ... |
 | Visual preview | 5 | X | ... |
 
 (...remaining theme tables in rubric order, highest weight first, each with per-criterion rows...)
@@ -311,7 +405,7 @@ async function upsertDiscussion(
 // module's current discussion (the last scoring from main), so PRs can see
 // whether they improve, regress, or hold the score.
 function prReportSection(
-  mod: string,
+  spec: ModuleSpec,
   name: string,
   scorecard: string,
   summary: SummaryScores | null,
@@ -319,10 +413,16 @@ function prReportSection(
 ): string {
   const details = `<details>\n<summary><strong>Full scorecard for this PR</strong></summary>\n\n${scorecard}\n\n</details>`;
   if (!summary) {
-    return `### \`coder/${mod}\`\n\nCould not parse the generated scorecard; see full output below.\n\n${details}`;
+    return `### \`${spec.label}\`\n\nCould not parse the generated scorecard; see full output below.\n\n${details}`;
   }
   if (!baseline) {
-    return `### \`coder/${mod}\`: first scorecard, **${summary.overall}**\n\nNo existing scorecard discussion found for ${name}; this is the initial score. A dedicated discussion is created after merge.\n\n${details}`;
+    // Discussions exist only for coder-namespace modules; community
+    // modules always get a standalone advisory score.
+    const followup =
+      spec.ns === "coder"
+        ? `No existing scorecard discussion found for ${name}; this is the initial score. A dedicated discussion is created after merge.`
+        : "No specific score is required to contribute, but modules with higher scores are more likely to be approved by the Coder team and widely used.";
+    return `### \`${spec.label}\`: first scorecard, **${summary.overall}**\n\n${followup}\n\n${details}`;
   }
   const delta = summary.overallNum - baseline.overallNum;
   const themes: [string, string, string][] = [
@@ -346,7 +446,7 @@ function prReportSection(
   } else {
     verdict = `\u2705 **Score unchanged** at ${summary.overall}. This PR does not affect the module's scorecard; the results are still good.`;
   }
-  return `### [\`coder/${mod}\`](${baseline.url}): ${baseline.overallNum} \u2192 ${summary.overallNum}\n\n${verdict}\n\n${table}\n\n${details}`;
+  return `### [\`${spec.label}\`](${baseline.url}): ${baseline.overallNum} \u2192 ${summary.overallNum}\n\n${verdict}\n\n${table}\n\n${details}`;
 }
 
 function discussionBody(
@@ -375,46 +475,68 @@ async function main() {
   }
 
   const rubric = await readFile(SCORECARD_PATH, "utf8");
-  let modules =
+  // Without --modules, enumerate only registry/coder/modules: the
+  // discussion-writing runs (post-merge, weekly) are for official modules
+  // only. Community modules are scored solely via explicit --modules specs
+  // in PR-report mode.
+  let specs = (
     args.modules ??
     (await readdir(MODULES_DIR, { withFileTypes: true }))
       .filter((d) => d.isDirectory())
       .map((d) => d.name)
-      .sort();
-  if (args.limit) modules = modules.slice(0, args.limit);
+      .sort()
+  ).map(toSpec);
+  if (args.limit) specs = specs.slice(0, args.limit);
+
+  // Discussions are reserved for coder-namespace modules. Refuse to run
+  // non-coder specs in discussion-writing mode rather than silently
+  // creating community discussions.
+  if (!args.prReport && !args.dryRun) {
+    const community = specs.filter((s) => s.ns !== "coder");
+    if (community.length > 0) {
+      throw new Error(
+        `non-coder modules require --pr-report or --dry-run: ${community.map((s) => s.label).join(", ")}`,
+      );
+    }
+  }
 
   const prSections: string[] = [];
   const failed: string[] = [];
-  for (const mod of modules) {
-    if (!existsSync(path.join(MODULES_DIR, mod, "README.md"))) {
-      console.error(`skip ${mod}: no README.md`);
+  for (const spec of specs) {
+    if (!existsSync(path.join(spec.dir, "README.md"))) {
+      console.error(`skip ${spec.label}: no README.md`);
       continue;
     }
-    if (await isInternalBuildingBlock(mod)) {
-      process.stderr.write(`skip ${mod}: internal building block\n`);
+    if (await isInternalBuildingBlock(spec)) {
+      process.stderr.write(`skip ${spec.label}: internal building block\n`);
       continue;
     }
-    process.stderr.write(`scoring ${mod}... `);
+    process.stderr.write(`scoring ${spec.label}... `);
     try {
-      const scorecard = await scoreModule(mod, rubric);
+      const scorecard = await scoreModule(spec, rubric);
       if (args.dryRun) {
-        console.log(`\n===== coder/${mod} =====\n${scorecard}\n`);
+        console.log(`\n===== ${spec.label} =====\n${scorecard}\n`);
         process.stderr.write("done (dry-run)\n");
         continue;
       }
-      const name = await displayName(mod);
+      const name = await displayName(spec);
       if (args.prReport) {
         // PR mode: compare against the module's current discussion and
-        // build a report instead of touching any discussion.
+        // build a report instead of touching any discussion. Community
+        // modules have no discussions, so they skip the baseline lookup
+        // and always report a standalone score.
         const summary = parseSummary(scorecard);
-        let existing = await findDiscussionByTitle(`${name} module`);
+        let existing =
+          spec.ns === "coder"
+            ? await findDiscussionByTitle(`${name} module`)
+            : null;
         let renameWarning = "";
-        if (!existing) {
+        if (spec.ns === "coder" && !existing) {
           // A display_name rename breaks the title lookup while the old
           // discussion still exists. Fall back to the registry URL and
           // flag it so a reviewer retitles or deletes the old one; the
           // post-merge run creates a fresh discussion under the new name.
-          existing = await findDiscussionByModuleUrl(mod);
+          existing = await findDiscussionByModuleUrl(spec.name);
           if (existing) {
             renameWarning = `\n\n> [!WARNING]\n> This module's display name appears to have changed. Its existing scorecard discussion is titled "${existing.title}" (${existing.url}). After merge, a new discussion named "${name} module" will be created; a maintainer should retitle or delete the old one to avoid duplicates.`;
           }
@@ -423,7 +545,7 @@ async function main() {
         const baseline =
           existing && parsed ? { ...parsed, url: existing.url } : null;
         prSections.push(
-          prReportSection(mod, name, scorecard, summary, baseline) +
+          prReportSection(spec, name, scorecard, summary, baseline) +
             renameWarning,
         );
         process.stderr.write("compared\n");
@@ -431,11 +553,11 @@ async function main() {
       }
       const { url, created } = await upsertDiscussion(
         `${name} module`,
-        discussionBody(mod, name, scorecard),
+        discussionBody(spec.name, name, scorecard),
       );
       process.stderr.write(`${created ? "created" : "updated"} ${url}\n`);
     } catch (err) {
-      failed.push(mod);
+      failed.push(spec.label);
       process.stderr.write(`FAILED: ${err}\n`);
     }
   }
@@ -448,9 +570,10 @@ async function main() {
   }
 
   if (args.prReport) {
+    const localTip = `> [!TIP]\n> You can run this locally by telling your agent: "review this module against [\`.github/scorecard/SCORECARD.md\`](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md)".`;
     const report =
       prSections.length > 0
-        ? `## Module Scorecard Check\n\n${prSections.join("\n\n")}\n\n---\nScored against [SCORECARD.md](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md) with \`${ANTHROPIC_MODEL}\`. Language-model scores are advisory.\n<!-- module-scorecard-pr -->`
+        ? `## Module Scorecard Check\n\n${prSections.join("\n\n")}\n\n${localTip}\n\n---\nScored against [SCORECARD.md](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md) with \`${ANTHROPIC_MODEL}\`. Language-model scores are advisory.\n<!-- module-scorecard-pr -->`
         : "";
     await Bun.write(args.prReport, report);
     process.stderr.write(`wrote PR report to ${args.prReport}\n`);
