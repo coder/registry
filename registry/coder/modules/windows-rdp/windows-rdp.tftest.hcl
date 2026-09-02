@@ -34,7 +34,7 @@ run "native_rdp_requires_agent_name" {
     }
   }
 
-  expect_failures = [coder_app.native-rdp]
+  expect_failures = [var.agent_name]
 }
 
 run "native_rdp_enabled_by_default" {

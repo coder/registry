@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.9"
 
   required_providers {
     coder = {
@@ -57,6 +57,11 @@ variable "agent_name" {
   description = "The name of the Coder agent used for native RDP connections. Required when enable_native_rdp is true."
   type        = string
   default     = null
+
+  validation {
+    condition     = !var.enable_native_rdp || var.agent_name != null
+    error_message = "agent_name must be set when enable_native_rdp is true."
+  }
 }
 
 variable "enable_native_rdp" {
@@ -102,8 +107,8 @@ locals {
   ps_admin_username = replace(var.admin_username, "'", "''")
   ps_admin_password = replace(var.admin_password, "'", "''")
 
-  # Terraform still evaluates the disabled resource configuration. The
-  # precondition below rejects this placeholder whenever native RDP is enabled.
+  # Terraform still evaluates the disabled resource configuration. This
+  # placeholder keeps URL interpolation valid when native RDP is disabled.
   native_rdp_agent_name = var.agent_name != null ? var.agent_name : ""
 }
 
@@ -163,13 +168,6 @@ resource "coder_app" "native-rdp" {
   group        = var.group
   tooltip      = var.tooltip
   url          = "coder://${regex("https?:\\/\\/([^\\/]+)", data.coder_workspace.me[0].access_url)[0]}/v0/open/ws/${data.coder_workspace.me[0].name}/agent/${local.native_rdp_agent_name}/rdp?username=${urlencode(var.admin_username)}&password=${urlencode(var.admin_password)}"
-
-  lifecycle {
-    precondition {
-      condition     = var.agent_name != null
-      error_message = "agent_name must be set when enable_native_rdp is true."
-    }
-  }
 }
 
 resource "coder_app" "rdp-docs" {
