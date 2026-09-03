@@ -8,7 +8,7 @@ tags: [ai, agents, development, multiplexer]
 
 # Mux
 
-Automatically install and run [Mux](https://github.com/coder/mux) in a Coder workspace. By default, the module auto-detects an available package manager (`npm`, `pnpm`, or `bun`) to install `mux@next` (with a fallback to downloading the npm tarball if none is found). You can also force a specific package manager via `package_manager` and point to a custom registry with `registry_url`. The install lives under `~/.coder-modules/coder/mux` so it survives workspace restarts; each start compares the installed version with `install_version` and only reinstalls when it differs or is missing. The launcher keeps watching the mux process after startup, appends signal/exit-code diagnostics to the mux log when the server is killed outside the Node runtime, and can optionally wait a few seconds, remove the stale server lock, and restart Mux after any exit until an optional restart-attempt cap is reached. Mux is a desktop application for parallel agentic development that enables developers to run multiple AI agents simultaneously across isolated workspaces.
+Automatically install and run [Mux](https://github.com/coder/mux) in a Coder workspace. By default, the module auto-detects an available package manager (`npm`, `pnpm`, or `bun`) to install `mux@next` (with a fallback to downloading the npm tarball if none is found). You can also force a specific package manager via `package_manager` and point to a custom registry with `registry_url`. The install lives under `~/.coder-modules/coder/mux` so it survives workspace restarts; each start resolves `install_version` through the package manager (so private registry credentials apply) and only reinstalls when the installed version differs or is missing. Scripts and logs are orchestrated by [`coder-utils`](../coder-utils), which runs the install script before the start script and keeps both under the same module directory. The launcher keeps watching the mux process after startup, appends signal/exit-code diagnostics to the mux log when the server is killed outside the Node runtime, and can optionally wait a few seconds, remove the stale server lock, and restart Mux after any exit until an optional restart-attempt cap is reached. Mux is a desktop application for parallel agentic development that enables developers to run multiple AI agents simultaneously across isolated workspaces.
 
 ```tf
 module "mux" {
@@ -156,7 +156,7 @@ module "mux" {
 
 ### Skip Install
 
-Run without installing from the network (requires Mux to be pre-installed):
+Run without installing from the network (requires Mux to be pre-installed at `install_prefix`; a copy left at the pre-1.6.0 default `/tmp/mux` is still picked up when `install_prefix` is not set):
 
 ```tf
 module "mux" {
@@ -180,6 +180,8 @@ module "mux" {
 - Requires a Node.js runtime; if `node` is not on the workspace `PATH`, the module bootstraps a pinned Node.js runtime into `~/.local/share/coder-mux` (override the version with the `MUX_NODE_VERSION` environment variable)
 - Installs `mux@next` from the npm registry by default; set `registry_url` to use a private or mirrored registry
 - Installs into `install_prefix` (default `$HOME/.coder-modules/coder/mux`), which persists across restarts; the installed version is compared with `install_version` on every start and only refetched when it differs or is missing
+- Writes the Mux server log to `log_path` (default `$HOME/.coder-modules/coder/mux/logs/mux.log`); the install and start script output lands next to it in `logs/install.log` and `logs/start.log`
+- Exposes a `scripts` output so other modules can serialize their own scripts behind the Mux install with `coder exp sync`
 - Falls back to a direct tarball download when no package manager is found
 - Appends best-effort signal and external-kill diagnostics to `log_path` if the mux process dies after startup
 - Set `restart_on_kill = true` to wait `restart_delay_seconds`, remove `~/.mux/server.lock`, and restart Mux after it exits
