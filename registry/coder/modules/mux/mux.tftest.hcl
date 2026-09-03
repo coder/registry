@@ -337,3 +337,42 @@ run "registry_url_trailing_slash" {
   }
 }
 
+# Default install prefix persists under the home directory and the script
+# resolves the wanted version before deciding whether to reinstall.
+run "default_install_prefix_is_persistent" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "MUX_BINARY=\"$HOME/.coder-modules/coder/mux/mux\"")
+    error_message = "mux must install under $HOME/.coder-modules/coder/mux by default"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "https://registry.npmjs.org/mux/next")
+    error_message = "mux script must resolve install_version against the registry to detect a stale install"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "is already installed in $HOME/.coder-modules/coder/mux; skipping install")
+    error_message = "mux script must skip the install when the installed version matches"
+  }
+}
+
+run "custom_install_prefix" {
+  command = plan
+
+  variables {
+    agent_id       = "foo"
+    install_prefix = "/opt/mux"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "MUX_BINARY=\"/opt/mux/mux\"")
+    error_message = "mux script must honor a custom install_prefix"
+  }
+}
+

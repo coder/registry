@@ -244,8 +244,48 @@ if [ "${OFFLINE}" = true ]; then
   exit 1
 fi
 
-# If there is no cached install OR we don't want to use a cached install
-if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
+# Version of the mux package installed under the install prefix (package
+# manager or extracted tarball layout); empty when nothing is installed.
+installed_mux_version() {
+  local pkg_json
+  for pkg_json in "${INSTALL_PREFIX}/npm/node_modules/mux/package.json" "${INSTALL_PREFIX}/.mux-package/package.json"; do
+    if [ -f "$pkg_json" ]; then
+      node -e 'try{const fs=require("fs");const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(p&&p.version){console.log(p.version);}}catch(e){}' "$pkg_json"
+      return 0
+    fi
+  done
+}
+
+# Concrete version the registry currently maps the requested version or
+# dist-tag to; empty when it cannot be resolved, which falls back to a reinstall.
+# curl is preferred because it honors proxy environment variables; node's fetch
+# covers images that ship a package manager without curl.
+wanted_mux_version() {
+  local meta_url="${REGISTRY_URL}/mux/${VERSION}"
+  if command -v curl > /dev/null 2>&1; then
+    curl -fsSL --max-time 15 "$meta_url" 2> /dev/null | node -e 'try{const fs=require("fs");const data=JSON.parse(fs.readFileSync(0,"utf8"));if(data&&data.version){console.log(data.version);}}catch(e){}'
+  else
+    node -e 'fetch(process.argv[1],{signal:AbortSignal.timeout(15000)}).then((r)=>(r.ok?r.json():null)).then((data)=>{if(data&&data.version){console.log(data.version);}}).catch(()=>{})' "$meta_url" 2> /dev/null
+  fi
+}
+
+NEEDS_INSTALL=true
+if [ -f "$MUX_BINARY" ]; then
+  if [ "${USE_CACHED}" = true ]; then
+    NEEDS_INSTALL=false
+  else
+    INSTALLED_VERSION="$(installed_mux_version)"
+    WANTED_VERSION="$(wanted_mux_version)"
+    if [ -n "$INSTALLED_VERSION" ] && [ "$INSTALLED_VERSION" = "$WANTED_VERSION" ]; then
+      echo "🥳 mux@$INSTALLED_VERSION is already installed in ${INSTALL_PREFIX}; skipping install"
+      NEEDS_INSTALL=false
+    else
+      echo "♻️  Installed mux@$${INSTALLED_VERSION:-unknown} does not match mux@${VERSION} ($${WANTED_VERSION:-unresolved}); reinstalling"
+    fi
+  fi
+fi
+
+if [ "$NEEDS_INSTALL" = true ]; then
   printf "$${BOLD}Installing mux...\n"
 
   # Clean up from other install (in case install prefix changed).

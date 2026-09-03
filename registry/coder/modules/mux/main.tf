@@ -39,8 +39,8 @@ variable "slug" {
 
 variable "install_prefix" {
   type        = string
-  description = "The prefix to install Mux to."
-  default     = "/tmp/mux"
+  description = "The directory to install Mux into. Defaults to a persistent path under the home directory so restarts reuse the installed copy."
+  default     = "$HOME/.coder-modules/coder/mux"
 }
 
 variable "log_path" {
@@ -141,7 +141,7 @@ variable "install" {
 
 variable "use_cached" {
   type        = bool
-  description = "Use cached copy of Mux if present; otherwise install from npm"
+  description = "Reuse any installed copy of Mux without checking its version. By default the installed copy is reused only when its version matches install_version and reinstalled otherwise."
   default     = false
 }
 

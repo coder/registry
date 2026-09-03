@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import {
-  executeScriptInContainer,
   execContainer,
   findResourceInstance,
   readFileContainer,
@@ -18,37 +17,58 @@ describe("mux", async () => {
     agent_id: "foo",
   });
 
-  it("runs with default", async () => {
+  it("runs with default and reuses the tarball install on the next start", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
     });
 
-    const output = await executeScriptInContainer(
-      state,
-      "alpine/curl",
-      "sh",
-      "apk add --no-cache bash tar gzip ca-certificates findutils nodejs && update-ca-certificates",
-    );
-    if (output.exitCode !== 0) {
-      console.log("STDOUT:\n" + output.stdout.join("\n"));
-      console.log("STDERR:\n" + output.stderr.join("\n"));
+    const instance = findResourceInstance(state, "coder_script");
+    const id = await runContainer("alpine/curl");
+
+    try {
+      const setup = await execContainer(id, [
+        "sh",
+        "-c",
+        "apk add --no-cache bash tar gzip ca-certificates findutils nodejs && update-ca-certificates",
+      ]);
+      expect(setup.exitCode).toBe(0);
+
+      const first = await execContainer(id, ["sh", "-c", instance.script]);
+      if (first.exitCode !== 0) {
+        console.log("STDOUT:\n" + first.stdout);
+        console.log("STDERR:\n" + first.stderr);
+      }
+      expect(first.exitCode).toBe(0);
+      const expectedLines = [
+        "📥 No package manager found; downloading tarball from registry...",
+        "🥳 mux has been installed in /root/.coder-modules/coder/mux",
+        "🚀 Starting mux server on port 4000...",
+        "Check logs at /tmp/mux.log!",
+      ];
+      for (const line of expectedLines) {
+        expect(first.stdout).toContain(line);
+      }
+
+      const second = await execContainer(id, ["sh", "-c", instance.script]);
+      if (second.exitCode !== 0) {
+        console.log("STDOUT:\n" + second.stdout);
+        console.log("STDERR:\n" + second.stderr);
+      }
+      expect(second.exitCode).toBe(0);
+      expect(second.stdout).toMatch(
+        /🥳 mux@\S+ is already installed in \/root\/.coder-modules\/coder\/mux; skipping install/,
+      );
+      expect(second.stdout).not.toContain("📥 No package manager found");
+    } finally {
+      await removeContainer(id);
     }
-    expect(output.exitCode).toBe(0);
-    const expectedLines = [
-      "📥 No package manager found; downloading tarball from registry...",
-      "🥳 mux has been installed in /tmp/mux",
-      "🚀 Starting mux server on port 4000...",
-      "Check logs at /tmp/mux.log!",
-    ];
-    for (const line of expectedLines) {
-      expect(output.stdout).toContain(line);
-    }
-  }, 60000);
+  }, 120000);
 
   it("parses custom additional_arguments", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       install: false,
+      install_prefix: "/tmp/mux",
       log_path: "/tmp/mux.log",
       additional_arguments:
         "--open-mode pinned --add-project '/workspaces/my repo'",
@@ -100,6 +120,7 @@ chmod +x /tmp/mux/mux`,
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       install: false,
+      install_prefix: "/tmp/mux",
       log_path: "/tmp/mux.log",
     });
 
@@ -149,6 +170,7 @@ chmod +x /tmp/mux/mux`,
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       install: false,
+      install_prefix: "/tmp/mux",
       log_path: "/tmp/mux.log",
       restart_on_kill: true,
       restart_delay_seconds: 1,
@@ -223,6 +245,7 @@ chmod +x /tmp/mux/mux`,
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       install: false,
+      install_prefix: "/tmp/mux",
       log_path: "/tmp/mux.log",
       restart_on_kill: true,
       restart_delay_seconds: 1,
@@ -282,28 +305,48 @@ chmod +x /tmp/mux/mux`,
     }
   }, 60000);
 
-  it("runs with npm present", async () => {
+  it("runs with npm present and reuses the install on the next start", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
     });
 
-    const output = await executeScriptInContainer(
-      state,
-      "node:20-alpine",
-      "sh",
-      "apk add bash",
-    );
+    const instance = findResourceInstance(state, "coder_script");
+    const id = await runContainer("node:20-alpine");
 
-    expect(output.exitCode).toBe(0);
-    const expectedLines = [
-      "📦 Installing mux via npm into /tmp/mux...",
-      "⏭️  Skipping lifecycle scripts with --ignore-scripts",
-      "🥳 mux has been installed in /tmp/mux",
-      "🚀 Starting mux server on port 4000...",
-      "Check logs at /tmp/mux.log!",
-    ];
-    for (const line of expectedLines) {
-      expect(output.stdout).toContain(line);
+    try {
+      const setup = await execContainer(id, ["sh", "-c", "apk add bash"]);
+      expect(setup.exitCode).toBe(0);
+
+      const first = await execContainer(id, ["sh", "-c", instance.script]);
+      if (first.exitCode !== 0) {
+        console.log("STDOUT:\n" + first.stdout);
+        console.log("STDERR:\n" + first.stderr);
+      }
+      expect(first.exitCode).toBe(0);
+      const expectedLines = [
+        "📦 Installing mux via npm into /root/.coder-modules/coder/mux...",
+        "⏭️  Skipping lifecycle scripts with --ignore-scripts",
+        "🥳 mux has been installed in /root/.coder-modules/coder/mux",
+        "🚀 Starting mux server on port 4000...",
+        "Check logs at /tmp/mux.log!",
+      ];
+      for (const line of expectedLines) {
+        expect(first.stdout).toContain(line);
+      }
+
+      const second = await execContainer(id, ["sh", "-c", instance.script]);
+      if (second.exitCode !== 0) {
+        console.log("STDOUT:\n" + second.stdout);
+        console.log("STDERR:\n" + second.stderr);
+      }
+      expect(second.exitCode).toBe(0);
+      expect(second.stdout).toMatch(
+        /🥳 mux@\S+ is already installed in \/root\/.coder-modules\/coder\/mux; skipping install/,
+      );
+      expect(second.stdout).not.toContain("📦 Installing mux via npm");
+      expect(second.stdout).toContain("🚀 Starting mux server on port 4000...");
+    } finally {
+      await removeContainer(id);
     }
-  }, 180000);
+  }, 240000);
 });
