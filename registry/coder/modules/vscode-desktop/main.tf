@@ -38,9 +38,25 @@ variable "group" {
   default     = null
 }
 
+variable "extensions" {
+  description = "VS Code extension IDs to pre-install on the workspace host."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for extension in var.extensions : trimspace(extension) != ""])
+    error_message = "extensions must not contain empty extension IDs."
+  }
+}
+
+locals {
+  module_directory = "$HOME/.coder-modules/coder/vscode-desktop"
+  server_directory = "${local.module_directory}/server"
+}
+
 module "vscode-desktop-core" {
   source  = "registry.coder.com/coder/vscode-desktop-core/coder"
-  version = "1.0.2"
+  version = "1.2.0"
 
   agent_id = var.agent_id
 
@@ -53,6 +69,17 @@ module "vscode-desktop-core" {
   folder      = var.folder
   open_recent = var.open_recent
   protocol    = "vscode"
+  config_dir  = "$HOME/.vscode"
+
+  extensions     = var.extensions
+  extensions_dir = "$HOME/.vscode-server/extensions"
+  ide_cli_path   = "${local.server_directory}/bin/code-server"
+  ide_cli_install_script = length(var.extensions) > 0 ? templatefile(
+    "${path.module}/scripts/install-remote-server.sh.tftpl",
+    {
+      SERVER_DIRECTORY_B64 = base64encode(local.server_directory)
+    },
+  ) : null
 }
 
 output "vscode_url" {
