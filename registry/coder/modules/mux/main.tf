@@ -5,7 +5,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.5"
+      version = ">= 2.13"
     }
     random = {
       source  = "hashicorp/random"
@@ -39,14 +39,14 @@ variable "slug" {
 
 variable "install_prefix" {
   type        = string
-  description = "The prefix to install Mux to."
-  default     = "/tmp/mux"
+  description = "The directory to install Mux into. Defaults to a persistent path under the home directory so restarts reuse the installed copy."
+  default     = "$HOME/.coder-modules/coder/mux"
 }
 
 variable "log_path" {
   type        = string
-  description = "The path for Mux logs."
-  default     = "/tmp/mux.log"
+  description = "The path for the Mux server log."
+  default     = "$HOME/.coder-modules/coder/mux/logs/mux.log"
 }
 
 variable "restart_on_kill" {
@@ -141,8 +141,13 @@ variable "install" {
 
 variable "use_cached" {
   type        = bool
-  description = "Use cached copy of Mux if present; otherwise install from npm"
+  description = "Reuse any installed copy of Mux without checking its version. By default the installed copy is reused only when its version matches install_version and reinstalled otherwise."
   default     = false
+
+  validation {
+    condition     = var.install || !var.use_cached
+    error_message = "Cannot use 'use_cached' when 'install' is false"
+  }
 }
 
 variable "subdomain" {
@@ -183,36 +188,56 @@ resource "random_password" "mux_auth_token" {
 locals {
   mux_auth_token = random_password.mux_auth_token.result
   registry_url   = trimsuffix(var.registry_url, "/")
-}
+  # An empty install_version means the registry's latest release.
+  install_version = var.install_version == "" ? "latest" : var.install_version
 
-resource "coder_script" "mux" {
-  agent_id     = var.agent_id
-  display_name = var.display_name
-  icon         = "/icon/mux.svg"
-  script = templatefile("${path.module}/run.sh", {
-    VERSION : var.install_version,
+  default_install_prefix = "$HOME/.coder-modules/coder/mux"
+  # Releases before 1.6.0 installed into /tmp/mux. With the default prefix, a
+  # copy pre-installed there keeps working (install = false, use_cached = true).
+  legacy_install_prefix = var.install_prefix == local.default_install_prefix ? "/tmp/mux" : ""
+
+  # Keyed by slug so several instances on one agent do not share scripts or logs.
+  module_directory = "$HOME/.coder-modules/coder/${var.slug}"
+
+  install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
+    VERSION : local.install_version,
+    INSTALL_PREFIX : var.install_prefix,
+    LEGACY_INSTALL_PREFIX : local.legacy_install_prefix,
+    OFFLINE : !var.install,
+    USE_CACHED : var.use_cached,
+    PACKAGE_MANAGER : var.package_manager,
+    REGISTRY_URL : local.registry_url,
+  })
+
+  start_script = templatefile("${path.module}/scripts/start.sh.tftpl", {
     PORT : var.port,
     LOG_PATH : var.log_path,
     ADD_PROJECT : var.add_project == null ? "" : var.add_project,
     ADDITIONAL_ARGUMENTS : var.additional_arguments,
     INSTALL_PREFIX : var.install_prefix,
-    OFFLINE : !var.install,
-    USE_CACHED : var.use_cached,
     AUTH_TOKEN : local.mux_auth_token,
     RESTART_ON_KILL : var.restart_on_kill,
     RESTART_DELAY_SECONDS : var.restart_delay_seconds,
     MAX_RESTART_ATTEMPTS : var.max_restart_attempts,
-    PACKAGE_MANAGER : var.package_manager,
-    REGISTRY_URL : local.registry_url,
   })
-  run_on_start = true
+}
 
-  lifecycle {
-    precondition {
-      condition     = var.install || !var.use_cached
-      error_message = "Cannot use 'use_cached' when 'install' is false"
-    }
-  }
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.1"
+
+  agent_id            = var.agent_id
+  module_directory    = local.module_directory
+  display_name_prefix = var.display_name
+  icon                = "/icon/mux.svg"
+  install_script      = local.install_script
+  start_script        = local.start_script
+}
+
+output "scripts" {
+  description = "Ordered list of coder exp sync names for the coder_script resources this module creates, in run order (install, start)."
+  # The start script embeds the sensitive auth token, which taints the derived names.
+  value = nonsensitive(module.coder_utils.scripts)
 }
 
 resource "coder_app" "mux" {

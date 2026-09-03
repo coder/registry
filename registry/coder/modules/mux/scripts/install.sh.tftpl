@@ -1,199 +1,10 @@
 #!/usr/bin/env bash
 
 BOLD='\033[0;1m'
-RESET='\033[0m'
 MUX_BINARY="${INSTALL_PREFIX}/mux"
+NPM_WORKDIR="${INSTALL_PREFIX}/npm"
+PKG_SPEC="mux@${VERSION}"
 
-function run_mux() {
-  local port_value
-  local auth_token_value
-  local restart_on_kill_value
-  local restart_delay_seconds_value
-  local max_restart_attempts_value
-
-  port_value="${PORT}"
-  auth_token_value="${AUTH_TOKEN}"
-  restart_on_kill_value="${RESTART_ON_KILL}"
-  restart_delay_seconds_value="${RESTART_DELAY_SECONDS}"
-  max_restart_attempts_value="${MAX_RESTART_ATTEMPTS}"
-
-  if [ -z "$port_value" ]; then
-    port_value="4000"
-  fi
-
-  if [ -z "$restart_delay_seconds_value" ]; then
-    restart_delay_seconds_value="5"
-  fi
-
-  if [ -z "$max_restart_attempts_value" ]; then
-    max_restart_attempts_value="0"
-  fi
-
-  mkdir -p "$(dirname "${LOG_PATH}")"
-
-  # Build args for mux (POSIX-compatible, avoid bash arrays)
-  set -- server --port "$port_value"
-  if [ -n "${ADD_PROJECT}" ]; then
-    set -- "$@" --add-project "${ADD_PROJECT}"
-  fi
-
-  # Parse additional user-supplied server arguments while preserving quoted groups.
-  if [ -n "${ADDITIONAL_ARGUMENTS}" ]; then
-    local parsed_additional_arguments
-    if ! parsed_additional_arguments="$(printf "%s\n" "${ADDITIONAL_ARGUMENTS}" | xargs -n1 printf "%s\n" 2> /dev/null)"; then
-      echo "❌ Failed to parse additional_arguments. Ensure quotes are balanced."
-      exit 1
-    fi
-    while IFS= read -r parsed_arg; do
-      [ -n "$parsed_arg" ] || continue
-      set -- "$@" "$parsed_arg"
-    done << EOF_ARGS
-$${parsed_additional_arguments}
-EOF_ARGS
-  fi
-
-  echo "🚀 Starting mux server on port $port_value..."
-  echo "Check logs at ${LOG_PATH}!"
-  echo "ℹ️ Mux exit details will be appended to ${LOG_PATH} by the launcher."
-  if [ "$restart_on_kill_value" = true ]; then
-    echo "ℹ️ Auto-restart after mux exits is enabled with a $${restart_delay_seconds_value}-second delay."
-    if [ "$max_restart_attempts_value" = "0" ]; then
-      echo "ℹ️ Automatic restarts are unlimited for every mux exit."
-    else
-      echo "ℹ️ Mux will stop restarting after $${max_restart_attempts_value} restart attempts."
-    fi
-  fi
-
-  nohup env \
-    LOG_PATH="${LOG_PATH}" \
-    MUX_BINARY="$MUX_BINARY" \
-    AUTH_TOKEN="$auth_token_value" \
-    PORT_VALUE="$port_value" \
-    RESTART_ON_KILL_VALUE="$restart_on_kill_value" \
-    RESTART_DELAY_SECONDS_VALUE="$restart_delay_seconds_value" \
-    MAX_RESTART_ATTEMPTS_VALUE="$max_restart_attempts_value" \
-    bash -s -- "$@" > /dev/null 2>&1 << 'EOF_LAUNCHER' &
-signal_name() {
-  local signal_number="$1"
-  local resolved_signal
-
-  resolved_signal="$(kill -l "$signal_number" 2> /dev/null || true)"
-  if [ -n "$resolved_signal" ]; then
-    printf '%s' "$resolved_signal"
-    return 0
-  fi
-
-  printf 'SIG%s' "$signal_number"
-}
-
-append_kernel_kill_context() {
-  local mux_pid="$1"
-  local kernel_context=""
-
-  if command -v dmesg > /dev/null 2>&1; then
-    kernel_context="$(dmesg -T 2> /dev/null | grep -Ei "Killed process $mux_pid|out of memory|oom-killer|oom reaper" | tail -n 10 || true)"
-  fi
-
-  if [ -z "$kernel_context" ] && command -v journalctl > /dev/null 2>&1; then
-    kernel_context="$(journalctl -k -n 200 --no-pager 2> /dev/null | grep -Ei "Killed process $mux_pid|out of memory|oom-killer|oom reaper" | tail -n 10 || true)"
-  fi
-
-  if [ -n "$kernel_context" ]; then
-    echo "Recent kernel kill context:"
-    echo "$kernel_context"
-  else
-    echo "No kernel OOM/kill context was available (dmesg/journalctl unavailable or permission denied)."
-  fi
-}
-
-cleanup_mux_lock() {
-  rm -f "$HOME/.mux/server.lock"
-}
-
-should_restart_mux() {
-  [ "$RESTART_ON_KILL_VALUE" = "true" ]
-}
-
-log_mux_exit() {
-  local mux_pid="$1"
-  local exit_code="$2"
-  local timestamp
-
-  timestamp="$(date -Iseconds 2> /dev/null || date)"
-
-  if [ "$exit_code" -eq 0 ]; then
-    echo "[$timestamp] mux server exited cleanly."
-    return 0
-  fi
-
-  if [ "$exit_code" -gt 128 ]; then
-    local signal_number=$((exit_code - 128))
-    local signal_label
-
-    signal_label="$(signal_name "$signal_number")"
-    echo "[$timestamp] mux server exited due to signal $signal_label ($signal_number); shell exit code $exit_code."
-
-    if [ "$signal_number" -eq 9 ]; then
-      echo "[$timestamp] SIGKILL usually means the process was killed externally or by the OOM killer."
-      append_kernel_kill_context "$mux_pid"
-    fi
-
-    echo "[$timestamp] Check the earlier mux log lines for any in-process crash breadcrumbs from mux itself."
-    return 0
-  fi
-
-  echo "[$timestamp] mux server exited with code $exit_code."
-  echo "[$timestamp] Check the earlier mux log lines for any in-process crash breadcrumbs from mux itself."
-}
-
-log_mux_restart_wait() {
-  local timestamp
-
-  timestamp="$(date -Iseconds 2> /dev/null || date)"
-  echo "[$timestamp] Waiting $${RESTART_DELAY_SECONDS_VALUE} seconds before restarting mux after it exited."
-}
-
-log_mux_restart_cleanup() {
-  local timestamp
-
-  timestamp="$(date -Iseconds 2> /dev/null || date)"
-  echo "[$timestamp] Removing $HOME/.mux/server.lock before restarting mux."
-}
-
-log_mux_restart_cap_reached() {
-  local timestamp
-
-  timestamp="$(date -Iseconds 2> /dev/null || date)"
-  echo "[$timestamp] Reached the max restart attempts limit ($MAX_RESTART_ATTEMPTS_VALUE); not restarting mux again."
-}
-
-restart_attempt_count=0
-while true; do
-  cleanup_mux_lock
-  MUX_SERVER_AUTH_TOKEN="$AUTH_TOKEN" PORT="$PORT_VALUE" "$MUX_BINARY" "$@" >> "$LOG_PATH" 2>&1 &
-  mux_pid=$!
-  wait "$mux_pid"
-  exit_code=$?
-  log_mux_exit "$mux_pid" "$exit_code" >> "$LOG_PATH" 2>&1
-
-  if should_restart_mux; then
-    if [ "$MAX_RESTART_ATTEMPTS_VALUE" -gt 0 ] && [ "$restart_attempt_count" -ge "$MAX_RESTART_ATTEMPTS_VALUE" ]; then
-      log_mux_restart_cap_reached >> "$LOG_PATH" 2>&1
-      break
-    fi
-
-    restart_attempt_count=$((restart_attempt_count + 1))
-    log_mux_restart_wait >> "$LOG_PATH" 2>&1
-    sleep "$RESTART_DELAY_SECONDS_VALUE"
-    cleanup_mux_lock
-    log_mux_restart_cleanup >> "$LOG_PATH" 2>&1
-    continue
-  fi
-
-  break
-done
-EOF_LAUNCHER
-}
 # Ensure a Node.js runtime is available (mux is a Node application launched
 # via "#!/usr/bin/env node"). When the workspace image does not provide node,
 # bootstrap a pinned runtime into $HOME so it persists across restarts.
@@ -233,19 +44,112 @@ ensure_node() {
 
 ensure_node
 
+# Releases before 1.6.0 installed into /tmp/mux. Link a copy pre-installed there
+# so install=false and use_cached keep working while the default prefix is cold.
+if [ ! -f "$MUX_BINARY" ] && [ -n "${LEGACY_INSTALL_PREFIX}" ] && [ -f "${LEGACY_INSTALL_PREFIX}/mux" ]; then
+  if [ "${OFFLINE}" = true ] || [ "${USE_CACHED}" = true ]; then
+    echo "ℹ️ Using mux pre-installed at ${LEGACY_INSTALL_PREFIX}"
+    mkdir -p "$(dirname "$MUX_BINARY")"
+    ln -sf "${LEGACY_INSTALL_PREFIX}/mux" "$MUX_BINARY"
+  fi
+fi
+
 # Check if mux is already installed for offline mode
 if [ "${OFFLINE}" = true ]; then
   if [ -f "$MUX_BINARY" ]; then
     echo "🥳 Found a copy of mux"
-    run_mux
     exit 0
   fi
   echo "❌ Failed to find a copy of mux"
   exit 1
 fi
 
-# If there is no cached install OR we don't want to use a cached install
-if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
+# Determine which package manager to use
+PM_CMD=""
+if [ "${PACKAGE_MANAGER}" = "auto" ]; then
+  for pm in npm pnpm bun; do
+    if command -v "$pm" > /dev/null 2>&1; then
+      PM_CMD="$pm"
+      break
+    fi
+  done
+else
+  PM_CMD="${PACKAGE_MANAGER}"
+  if ! command -v "$PM_CMD" > /dev/null 2>&1; then
+    echo "❌ Configured package manager '${PACKAGE_MANAGER}' not found on PATH"
+    exit 1
+  fi
+fi
+
+# Version of the mux package installed under the install prefix (package
+# manager or extracted tarball layout); empty when nothing is installed.
+installed_mux_version() {
+  local pkg_json
+  for pkg_json in "${INSTALL_PREFIX}/npm/node_modules/mux/package.json" "${INSTALL_PREFIX}/.mux-package/package.json"; do
+    if [ -f "$pkg_json" ]; then
+      node -e 'try{const fs=require("fs");const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(p&&p.version){console.log(p.version);}}catch(e){}' "$pkg_json"
+      return 0
+    fi
+  done
+}
+
+# Concrete version the registry currently maps the requested version or
+# dist-tag to; empty when it cannot be resolved, which falls back to a reinstall.
+# Resolved through the selected package manager so its registry auth applies;
+# the tarball path has only curl, matching how it downloads the tarball.
+pm_view_mux_version() {
+  "$1" view "$PKG_SPEC" version --registry "${REGISTRY_URL}" 2> /dev/null | tail -n 1 | sed "s/^.* '\(.*\)'$/\1/"
+}
+
+registry_mux_version() {
+  curl -fsSL --max-time 15 "${REGISTRY_URL}/mux/${VERSION}" 2> /dev/null | node -e 'try{const fs=require("fs");const data=JSON.parse(fs.readFileSync(0,"utf8"));if(data&&data.version){console.log(data.version);}}catch(e){}'
+}
+
+wanted_mux_version() {
+  local resolved
+  case "$PM_CMD" in
+    npm | pnpm)
+      pm_view_mux_version "$PM_CMD"
+      ;;
+    bun)
+      # `bun pm view` exists since Bun 1.2.15; older releases print their usage
+      # to stdout and exit 1. Fall back to npm, which shares .npmrc credentials,
+      # and then to the plain registry lookup.
+      if ! resolved="$(cd "$NPM_WORKDIR" 2> /dev/null && bun pm view "$PKG_SPEC" version --registry "${REGISTRY_URL}" 2> /dev/null)"; then
+        resolved=""
+      fi
+      resolved="$(printf '%s' "$resolved" | tail -n 1)"
+      if [ -z "$resolved" ] && command -v npm > /dev/null 2>&1; then
+        resolved="$(pm_view_mux_version npm)"
+      fi
+      if [ -z "$resolved" ]; then
+        resolved="$(registry_mux_version)"
+      fi
+      printf '%s\n' "$resolved"
+      ;;
+    *)
+      registry_mux_version
+      ;;
+  esac
+}
+
+NEEDS_INSTALL=true
+if [ -f "$MUX_BINARY" ]; then
+  if [ "${USE_CACHED}" = true ]; then
+    NEEDS_INSTALL=false
+  else
+    INSTALLED_VERSION="$(installed_mux_version)"
+    WANTED_VERSION="$(wanted_mux_version)"
+    if [ -n "$INSTALLED_VERSION" ] && [ "$INSTALLED_VERSION" = "$WANTED_VERSION" ]; then
+      echo "🥳 mux@$INSTALLED_VERSION is already installed in ${INSTALL_PREFIX}; skipping install"
+      NEEDS_INSTALL=false
+    else
+      echo "♻️  Installed mux@$${INSTALLED_VERSION:-unknown} does not match mux@${VERSION} ($${WANTED_VERSION:-unresolved}); reinstalling"
+    fi
+  fi
+fi
+
+if [ "$NEEDS_INSTALL" = true ]; then
   printf "$${BOLD}Installing mux...\n"
 
   # Clean up from other install (in case install prefix changed).
@@ -255,38 +159,16 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
 
   mkdir -p "$(dirname "$MUX_BINARY")"
 
-  # Determine which package manager to use
-  PM_CMD=""
-  if [ "${PACKAGE_MANAGER}" = "auto" ]; then
-    for pm in npm pnpm bun; do
-      if command -v "$pm" > /dev/null 2>&1; then
-        PM_CMD="$pm"
-        break
-      fi
-    done
-  else
-    PM_CMD="${PACKAGE_MANAGER}"
-    if ! command -v "$PM_CMD" > /dev/null 2>&1; then
-      echo "❌ Configured package manager '${PACKAGE_MANAGER}' not found on PATH"
-      exit 1
-    fi
-  fi
-
   if [ -n "$PM_CMD" ]; then
     echo "📦 Installing mux via $PM_CMD into ${INSTALL_PREFIX}..."
-    NPM_WORKDIR="${INSTALL_PREFIX}/npm"
+    # Only one layout is kept so the installed version is read from the active one.
+    rm -rf "${INSTALL_PREFIX}/.mux-package"
     mkdir -p "$NPM_WORKDIR"
     cd "$NPM_WORKDIR" || exit 1
     if [ ! -f package.json ]; then
       echo '{}' > package.json
     fi
     echo "⏭️  Skipping lifecycle scripts with --ignore-scripts"
-    PKG="mux"
-    if [ -z "${VERSION}" ] || [ "${VERSION}" = "latest" ]; then
-      PKG_SPEC="$PKG@latest"
-    else
-      PKG_SPEC="$PKG@${VERSION}"
-    fi
     INSTALL_OK=true
     case "$PM_CMD" in
       npm)
@@ -320,10 +202,8 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
     ln -sf "$CANDIDATE" "$MUX_BINARY"
   else
     echo "📥 No package manager found; downloading tarball from registry..."
+    rm -rf "$NPM_WORKDIR"
     VERSION_TO_USE="${VERSION}"
-    if [ -z "$VERSION_TO_USE" ]; then
-      VERSION_TO_USE="next"
-    fi
     META_URL="${REGISTRY_URL}/mux/$VERSION_TO_USE"
     META_JSON="$(curl -fsSL "$META_URL" || true)"
     if [ -z "$META_JSON" ]; then
@@ -439,6 +319,3 @@ if [ -n "$CODER_SCRIPT_BIN_DIR" ]; then
     ln -s "$MUX_BINARY" "$CODER_SCRIPT_BIN_DIR/mux"
   fi
 fi
-
-# Start mux
-run_mux

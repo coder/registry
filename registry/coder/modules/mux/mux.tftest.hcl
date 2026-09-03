@@ -16,7 +16,7 @@ run "install_false_and_use_cached_conflict" {
   }
 
   expect_failures = [
-    resource.coder_script.mux
+    var.use_cached
   ]
 }
 
@@ -50,12 +50,12 @@ run "auth_token_in_server_script" {
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "MUX_SERVER_AUTH_TOKEN=")
+    condition     = strcontains(local.start_script, "MUX_SERVER_AUTH_TOKEN=")
     error_message = "mux launch script must set MUX_SERVER_AUTH_TOKEN"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, random_password.mux_auth_token.result)
+    condition     = strcontains(local.start_script, random_password.mux_auth_token.result)
     error_message = "mux launch script must use the generated auth token"
   }
 }
@@ -79,8 +79,9 @@ run "auth_token_in_url" {
   }
 }
 
+# The start script embeds random_password.result, so it is unknown during plan.
 run "custom_additional_arguments" {
-  command = plan
+  command = apply
 
   variables {
     agent_id             = "foo"
@@ -88,31 +89,33 @@ run "custom_additional_arguments" {
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "--open-mode pinned --add-project '/workspaces/my repo'")
+    condition     = strcontains(local.start_script, "--open-mode pinned --add-project '/workspaces/my repo'")
     error_message = "mux launch script must include the configured additional arguments"
   }
 }
 
+# The start script embeds random_password.result, so it is unknown during plan.
 run "launcher_logs_external_kills" {
-  command = plan
+  command = apply
 
   variables {
     agent_id = "foo"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "shell exit code $exit_code")
+    condition     = strcontains(local.start_script, "shell exit code $exit_code")
     error_message = "mux launcher must log the shell exit code when the server dies unexpectedly"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "SIGKILL usually means the process was killed externally or by the OOM killer.")
+    condition     = strcontains(local.start_script, "SIGKILL usually means the process was killed externally or by the OOM killer.")
     error_message = "mux launcher must explain SIGKILL exits in the log"
   }
 }
 
+# The start script embeds random_password.result, so it is unknown during plan.
 run "restart_on_kill_enabled" {
-  command = plan
+  command = apply
 
   variables {
     agent_id              = "foo"
@@ -121,38 +124,39 @@ run "restart_on_kill_enabled" {
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "restart_on_kill_value=\"true\"")
+    condition     = strcontains(local.start_script, "restart_on_kill_value=\"true\"")
     error_message = "mux launcher must receive the restart_on_kill setting"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "restart_delay_seconds_value=\"7\"")
+    condition     = strcontains(local.start_script, "restart_delay_seconds_value=\"7\"")
     error_message = "mux launcher must receive the configured restart delay"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "Waiting $${RESTART_DELAY_SECONDS_VALUE} seconds before restarting mux after it exited.")
+    condition     = strcontains(local.start_script, "Waiting $${RESTART_DELAY_SECONDS_VALUE} seconds before restarting mux after it exited.")
     error_message = "mux launcher must log the restart delay before relaunching"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "Removing $HOME/.mux/server.lock before restarting mux.")
+    condition     = strcontains(local.start_script, "Removing $HOME/.mux/server.lock before restarting mux.")
     error_message = "mux launcher must clean up the server lock before relaunching"
   }
 
   assert {
-    condition     = !strcontains(resource.coder_script.mux.script, "\"$exit_code\" -le 128")
+    condition     = !strcontains(local.start_script, "\"$exit_code\" -le 128")
     error_message = "mux launcher must no longer exclude non-signal exits from restart handling"
   }
 
   assert {
-    condition     = !strcontains(resource.coder_script.mux.script, "1|2|15)")
+    condition     = !strcontains(local.start_script, "1|2|15)")
     error_message = "mux launcher must no longer exclude intentional signals from restart handling"
   }
 }
 
+# The start script embeds random_password.result, so it is unknown during plan.
 run "restart_on_kill_with_restart_cap" {
-  command = plan
+  command = apply
 
   variables {
     agent_id              = "foo"
@@ -162,17 +166,17 @@ run "restart_on_kill_with_restart_cap" {
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "max_restart_attempts_value=\"2\"")
+    condition     = strcontains(local.start_script, "max_restart_attempts_value=\"2\"")
     error_message = "mux launcher must receive the configured restart cap"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "Mux will stop restarting after $${max_restart_attempts_value} restart attempts.")
+    condition     = strcontains(local.start_script, "Mux will stop restarting after $${max_restart_attempts_value} restart attempts.")
     error_message = "mux launcher must describe the configured restart cap"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "Reached the max restart attempts limit ($MAX_RESTART_ATTEMPTS_VALUE); not restarting mux again.")
+    condition     = strcontains(local.start_script, "Reached the max restart attempts limit ($MAX_RESTART_ATTEMPTS_VALUE); not restarting mux again.")
     error_message = "mux launcher must log when it hits the restart cap"
   }
 }
@@ -255,7 +259,7 @@ run "custom_package_manager_npm" {
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "PM_CMD=\"npm\"")
+    condition     = strcontains(local.install_script, "PM_CMD=\"npm\"")
     error_message = "mux script must set PM_CMD to the configured package manager"
   }
 }
@@ -269,7 +273,7 @@ run "custom_package_manager_pnpm" {
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "PM_CMD=\"pnpm\"")
+    condition     = strcontains(local.install_script, "PM_CMD=\"pnpm\"")
     error_message = "mux script must set PM_CMD to the configured package manager"
   }
 }
@@ -283,7 +287,7 @@ run "custom_package_manager_bun" {
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "PM_CMD=\"bun\"")
+    condition     = strcontains(local.install_script, "PM_CMD=\"bun\"")
     error_message = "mux script must set PM_CMD to the configured package manager"
   }
 }
@@ -312,12 +316,12 @@ run "custom_registry_url" {
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "https://npm.example.com")
+    condition     = strcontains(local.install_script, "https://npm.example.com")
     error_message = "mux script must use the configured registry URL"
   }
 
   assert {
-    condition     = !strcontains(resource.coder_script.mux.script, "registry.npmjs.org")
+    condition     = !strcontains(local.install_script, "registry.npmjs.org")
     error_message = "mux script must not contain hardcoded registry.npmjs.org when custom registry is set"
   }
 }
@@ -332,8 +336,102 @@ run "registry_url_trailing_slash" {
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "https://npm.example.com/mux/")
+    condition     = strcontains(local.install_script, "https://npm.example.com/mux/")
     error_message = "registry URL trailing slash must be stripped to avoid double slashes"
+  }
+}
+
+# Default install prefix persists under the module root and the install script
+# resolves the wanted version before deciding whether to reinstall.
+run "default_install_prefix_is_persistent" {
+  command = apply
+
+  variables {
+    agent_id = "foo"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "MUX_BINARY=\"$HOME/.coder-modules/coder/mux/mux\"")
+    error_message = "mux must install under $HOME/.coder-modules/coder/mux by default"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "MUX_BINARY=\"$HOME/.coder-modules/coder/mux/mux\"")
+    error_message = "start script must launch the binary from the same prefix"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "PKG_SPEC=\"mux@next\"")
+    error_message = "install script must resolve and install the requested dist-tag"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "is already installed in $HOME/.coder-modules/coder/mux; skipping install")
+    error_message = "install script must skip the install when the installed version matches"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "ln -sf \"/tmp/mux/mux\" \"$MUX_BINARY\"")
+    error_message = "default prefix must keep a pre-1.6.0 copy in /tmp/mux working"
+  }
+}
+
+run "custom_install_prefix" {
+  command = apply
+
+  variables {
+    agent_id       = "foo"
+    install_prefix = "/opt/mux"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "MUX_BINARY=\"/opt/mux/mux\"") && strcontains(local.start_script, "MUX_BINARY=\"/opt/mux/mux\"")
+    error_message = "both scripts must honor a custom install_prefix"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "[ -n \"\" ]")
+    error_message = "a custom install_prefix must not fall back to the legacy /tmp/mux path"
+  }
+}
+
+run "empty_install_version_means_latest" {
+  command = apply
+
+  variables {
+    agent_id        = "foo"
+    install_version = ""
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "PKG_SPEC=\"mux@latest\"") && strcontains(local.install_script, "https://registry.npmjs.org/mux/latest")
+    error_message = "an empty install_version must resolve and install latest"
+  }
+}
+
+run "default_log_path_in_module_root" {
+  command = apply
+
+  variables {
+    agent_id = "foo"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "LOG_PATH=\"$HOME/.coder-modules/coder/mux/logs/mux.log\"")
+    error_message = "the Mux server log must default to the module root's logs directory"
+  }
+}
+
+run "coder_utils_orders_install_before_start" {
+  command = apply
+
+  variables {
+    agent_id = "foo"
+  }
+
+  assert {
+    condition     = length(output.scripts) == 2 && output.scripts[0] == "coder-mux-install_script" && output.scripts[1] == "coder-mux-start_script"
+    error_message = "coder-utils must expose the install and start scripts in run order"
   }
 }
 
