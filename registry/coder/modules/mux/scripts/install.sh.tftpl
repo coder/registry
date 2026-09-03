@@ -97,16 +97,38 @@ installed_mux_version() {
 # dist-tag to; empty when it cannot be resolved, which falls back to a reinstall.
 # Resolved through the selected package manager so its registry auth applies;
 # the tarball path has only curl, matching how it downloads the tarball.
+pm_view_mux_version() {
+  "$1" view "$PKG_SPEC" version --registry "${REGISTRY_URL}" 2> /dev/null | tail -n 1 | sed "s/^.* '\(.*\)'$/\1/"
+}
+
+registry_mux_version() {
+  curl -fsSL --max-time 15 "${REGISTRY_URL}/mux/${VERSION}" 2> /dev/null | node -e 'try{const fs=require("fs");const data=JSON.parse(fs.readFileSync(0,"utf8"));if(data&&data.version){console.log(data.version);}}catch(e){}'
+}
+
 wanted_mux_version() {
+  local resolved
   case "$PM_CMD" in
     npm | pnpm)
-      "$PM_CMD" view "$PKG_SPEC" version --registry "${REGISTRY_URL}" 2> /dev/null | tail -n 1 | sed "s/^.* '\(.*\)'$/\1/"
+      pm_view_mux_version "$PM_CMD"
       ;;
     bun)
-      (cd "$NPM_WORKDIR" 2> /dev/null && bun pm view "$PKG_SPEC" version --registry "${REGISTRY_URL}" 2> /dev/null | tail -n 1)
+      # `bun pm view` exists since Bun 1.2.15; older releases print their usage
+      # to stdout and exit 1. Fall back to npm, which shares .npmrc credentials,
+      # and then to the plain registry lookup.
+      if ! resolved="$(cd "$NPM_WORKDIR" 2> /dev/null && bun pm view "$PKG_SPEC" version --registry "${REGISTRY_URL}" 2> /dev/null)"; then
+        resolved=""
+      fi
+      resolved="$(printf '%s' "$resolved" | tail -n 1)"
+      if [ -z "$resolved" ] && command -v npm > /dev/null 2>&1; then
+        resolved="$(pm_view_mux_version npm)"
+      fi
+      if [ -z "$resolved" ]; then
+        resolved="$(registry_mux_version)"
+      fi
+      printf '%s\n' "$resolved"
       ;;
     *)
-      curl -fsSL --max-time 15 "${REGISTRY_URL}/mux/${VERSION}" 2> /dev/null | node -e 'try{const fs=require("fs");const data=JSON.parse(fs.readFileSync(0,"utf8"));if(data&&data.version){console.log(data.version);}}catch(e){}'
+      registry_mux_version
       ;;
   esac
 }

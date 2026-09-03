@@ -390,4 +390,53 @@ exit 0`,
       await removeContainer(id);
     }
   }, 240000);
+
+  // Bun before 1.2.15 has no `bun pm view`; the version lookup must still
+  // resolve so the cached install is reused, with and without npm present.
+  it("reuses the install with a bun that lacks pm view", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      package_manager: "bun",
+    });
+
+    const scripts = collectScripts(state);
+    const id = await runContainer("oven/bun:1.2.14-alpine");
+
+    try {
+      await setupContainer(
+        id,
+        "apk add --no-cache bash curl nodejs >/dev/null",
+      );
+
+      const install = await runScript(id, scripts.install);
+      expect(install.exitCode).toBe(0);
+      expect(install.stdout).toContain(
+        `📦 Installing mux via bun into ${MODULE_ROOT}...`,
+      );
+      expect(install.stdout).toContain(
+        `🥳 mux has been installed in ${MODULE_ROOT}`,
+      );
+
+      const skipped = new RegExp(
+        `🥳 mux@\\S+ is already installed in ${MODULE_ROOT}; skipping install`,
+      );
+      const withoutNpm = await runScript(id, scripts.install);
+      expect(withoutNpm.exitCode).toBe(0);
+      expect(withoutNpm.stdout).toMatch(skipped);
+      expect(withoutNpm.stdout).not.toContain("📦 Installing mux via bun");
+
+      const addNpm = await execContainer(id, [
+        "sh",
+        "-c",
+        "apk add --no-cache npm >/dev/null",
+      ]);
+      expect(addNpm.exitCode).toBe(0);
+      const withNpm = await runScript(id, scripts.install);
+      expect(withNpm.exitCode).toBe(0);
+      expect(withNpm.stdout).toMatch(skipped);
+      expect(withNpm.stdout).not.toContain("📦 Installing mux via bun");
+    } finally {
+      await removeContainer(id);
+    }
+  }, 240000);
 });
