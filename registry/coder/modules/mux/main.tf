@@ -91,7 +91,7 @@ variable "additional_arguments" {
 
 variable "install_version" {
   type        = string
-  description = "The version or dist-tag of the @coder/xum npm package to install. Only versions published as @coder/xum (0.28.3 or newer) are available."
+  description = "The version or dist-tag of the @coder/xum npm package to install. Only versions published as @coder/xum are available: 0.28.3 or newer, or prereleases from 0.28.2-next.24."
   default     = "next"
 }
 

@@ -196,7 +196,7 @@ EOF_LAUNCHER
 }
 # Ensure a Node.js runtime is available (mux is a Node application launched
 # via "#!/usr/bin/env node"). When the workspace image does not provide node,
-# bootstrap a pinned runtime into $HOME so it persists across restarts.
+# bootstrap a pinned runtime into the module root so it persists across restarts.
 ensure_node() {
   if command -v node > /dev/null 2>&1; then
     return 0
@@ -213,7 +213,7 @@ ensure_node() {
       ;;
   esac
 
-  node_dir="$HOME/.local/share/coder-mux/node-v$node_version-linux-$node_arch"
+  node_dir="$HOME/.coder-modules/coder/mux/node-v$node_version-linux-$node_arch"
   if [ ! -x "$node_dir/bin/node" ]; then
     echo "⚠️ node not found on PATH; bootstrapping Node.js v$node_version into $node_dir..."
     mkdir -p "$(dirname "$node_dir")"

@@ -265,6 +265,11 @@ run "default_paths_under_module_root" {
   }
 
   assert {
+    condition     = strcontains(resource.coder_script.mux.script, "node_dir=\"$HOME/.coder-modules/coder/mux/node-v")
+    error_message = "the Node.js bootstrap must live under the module root"
+  }
+
+  assert {
     condition     = !strcontains(resource.coder_script.mux.script, "/tmp/mux")
     error_message = "mux script must not default any module path to /tmp"
   }

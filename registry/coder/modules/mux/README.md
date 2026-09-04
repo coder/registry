@@ -51,7 +51,8 @@ module "mux" {
   version  = "2.0.0"
   agent_id = coder_agent.main.id
   # Default is "next"; set to a specific version to pin.
-  # Only versions published as @coder/xum (0.28.3 or newer) are available.
+  # Only versions published as @coder/xum are available: 0.28.3 or newer,
+  # or prereleases from 0.28.2-next.24.
   install_version = "0.28.4"
 }
 ```
@@ -178,9 +179,9 @@ module "mux" {
 - Mux is currently in preview and you may encounter bugs
 - Requires internet connectivity for agent operations (unless `install` is set to false)
 - Auto-detects `npm`, `pnpm`, or `bun` by default; set `package_manager` to force a specific one
-- Requires a Node.js runtime; if `node` is not on the workspace `PATH`, the module bootstraps a pinned Node.js runtime into `~/.local/share/coder-mux` (override the version with the `MUX_NODE_VERSION` environment variable)
+- Requires a Node.js runtime; if `node` is not on the workspace `PATH`, the module bootstraps a pinned Node.js runtime into `~/.coder-modules/coder/mux` (override the version with the `MUX_NODE_VERSION` environment variable)
 - Installs `@coder/xum@next` from the npm registry by default (this package ships the `mux` binary); set `registry_url` to use a private or mirrored registry
-- `install_version` must be a version or dist-tag published as `@coder/xum` (0.28.3 or newer); older releases were only published under the legacy `mux` package name
+- `install_version` must be a version or dist-tag published as `@coder/xum` (0.28.3 or newer, or a prerelease from 0.28.2-next.24); older releases were only published under the legacy `mux` package name
 - Installs into `~/.coder-modules/coder/mux` and logs to `~/.coder-modules/coder/mux/logs/mux.log` by default, so the install survives restarts that clear `/tmp`; override with `install_prefix` and `log_path`
 - Falls back to a direct tarball download when no package manager is found
 - Appends best-effort signal and external-kill diagnostics to `log_path` if the mux process dies after startup
