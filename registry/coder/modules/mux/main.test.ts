@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import {
-  executeScriptInContainer,
   execContainer,
   findResourceInstance,
   readFileContainer,
@@ -8,8 +7,33 @@ import {
   runContainer,
   runTerraformApply,
   runTerraformInit,
+  type scriptOutput,
+  type TerraformState,
   testRequiredVariables,
 } from "~test";
+
+// Like executeScriptInContainer, but removes the container inside the test:
+// deleting a container that holds a full @coder/xum install takes longer than
+// the few seconds the global afterAll cleanup hook allows.
+const executeInstallScriptInContainer = async (
+  state: TerraformState,
+  image: string,
+  before: string,
+): Promise<scriptOutput> => {
+  const instance = findResourceInstance(state, "coder_script");
+  const id = await runContainer(image);
+  try {
+    await execContainer(id, ["sh", "-c", before]);
+    const resp = await execContainer(id, ["sh", "-c", instance.script]);
+    return {
+      exitCode: resp.exitCode,
+      stdout: resp.stdout.trim().split("\n"),
+      stderr: resp.stderr.trim().split("\n"),
+    };
+  } finally {
+    await removeContainer(id);
+  }
+};
 
 describe("mux", async () => {
   await runTerraformInit(import.meta.dir);
@@ -23,10 +47,9 @@ describe("mux", async () => {
       agent_id: "foo",
     });
 
-    const output = await executeScriptInContainer(
+    const output = await executeInstallScriptInContainer(
       state,
       "alpine/curl",
-      "sh",
       "apk add --no-cache bash tar gzip ca-certificates findutils nodejs && update-ca-certificates",
     );
     if (output.exitCode !== 0) {
@@ -287,10 +310,9 @@ chmod +x /tmp/mux/mux`,
       agent_id: "foo",
     });
 
-    const output = await executeScriptInContainer(
+    const output = await executeInstallScriptInContainer(
       state,
       "node:20-alpine",
-      "sh",
       "apk add bash",
     );
 
