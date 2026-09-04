@@ -12,6 +12,10 @@ import {
   testRequiredVariables,
 } from "~test";
 
+// Default install_prefix and log_path with HOME=/root inside the test containers.
+const MODULE_ROOT = "/root/.coder-modules/coder/mux";
+const LOG_PATH = `${MODULE_ROOT}/logs/mux.log`;
+
 // Like executeScriptInContainer, but removes the container inside the test:
 // deleting a container that holds a full @coder/xum install takes longer than
 // the few seconds the global afterAll cleanup hook allows.
@@ -59,9 +63,9 @@ describe("mux", async () => {
     expect(output.exitCode).toBe(0);
     const expectedLines = [
       "📥 No package manager found; downloading tarball from registry...",
-      "🥳 mux has been installed in /tmp/mux",
+      `🥳 mux has been installed in ${MODULE_ROOT}`,
       "🚀 Starting mux server on port 4000...",
-      "Check logs at /tmp/mux.log!",
+      `Check logs at ${LOG_PATH}!`,
     ];
     for (const line of expectedLines) {
       expect(output.stdout).toContain(line);
@@ -72,7 +76,6 @@ describe("mux", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       install: false,
-      log_path: "/tmp/mux.log",
       additional_arguments:
         "--open-mode pinned --add-project '/workspaces/my repo'",
     });
@@ -85,8 +88,8 @@ describe("mux", async () => {
         "sh",
         "-c",
         `apk add --no-cache bash >/dev/null
-mkdir -p /tmp/mux
-cat <<'EOF' > /tmp/mux/mux
+mkdir -p ${MODULE_ROOT}
+cat <<'EOF' > ${MODULE_ROOT}/mux
 #!/usr/bin/env sh
 i=1
 for arg in "$@"; do
@@ -94,7 +97,7 @@ for arg in "$@"; do
   i=$((i + 1))
 done
 EOF
-chmod +x /tmp/mux/mux`,
+chmod +x ${MODULE_ROOT}/mux`,
       ]);
       expect(setup.exitCode).toBe(0);
 
@@ -106,7 +109,7 @@ chmod +x /tmp/mux/mux`,
       expect(output.exitCode).toBe(0);
 
       await execContainer(id, ["sh", "-c", "sleep 1"]);
-      const log = await readFileContainer(id, "/tmp/mux.log");
+      const log = await readFileContainer(id, LOG_PATH);
       expect(log).toContain("arg1=server");
       expect(log).toContain("arg2=--port");
       expect(log).toContain("arg3=4000");
@@ -123,7 +126,6 @@ chmod +x /tmp/mux/mux`,
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       install: false,
-      log_path: "/tmp/mux.log",
     });
 
     const instance = findResourceInstance(state, "coder_script");
@@ -134,8 +136,8 @@ chmod +x /tmp/mux/mux`,
         "sh",
         "-c",
         `apk add --no-cache bash >/dev/null
-mkdir -p /tmp/mux
-cat <<'EOF' > /tmp/mux/mux
+mkdir -p ${MODULE_ROOT}
+cat <<'EOF' > ${MODULE_ROOT}/mux
 #!/usr/bin/env sh
 target_pid="$$"
 (
@@ -146,7 +148,7 @@ while true; do
   sleep 1
 done
 EOF
-chmod +x /tmp/mux/mux`,
+chmod +x ${MODULE_ROOT}/mux`,
       ]);
       expect(setup.exitCode).toBe(0);
 
@@ -158,7 +160,7 @@ chmod +x /tmp/mux/mux`,
       expect(output.exitCode).toBe(0);
 
       await execContainer(id, ["sh", "-c", "sleep 2"]);
-      const log = await readFileContainer(id, "/tmp/mux.log");
+      const log = await readFileContainer(id, LOG_PATH);
       expect(log).toContain("shell exit code 137");
       expect(log).toContain(
         "SIGKILL usually means the process was killed externally or by the OOM killer.",
@@ -172,7 +174,6 @@ chmod +x /tmp/mux/mux`,
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       install: false,
-      log_path: "/tmp/mux.log",
       restart_on_kill: true,
       restart_delay_seconds: 1,
       max_restart_attempts: 1,
@@ -186,10 +187,10 @@ chmod +x /tmp/mux/mux`,
         "sh",
         "-c",
         `apk add --no-cache bash >/dev/null
-mkdir -p /tmp/mux
-cat <<'EOF' > /tmp/mux/mux
+mkdir -p ${MODULE_ROOT}
+cat <<'EOF' > ${MODULE_ROOT}/mux
 #!/usr/bin/env sh
-run_count_file="/tmp/mux-run-count"
+run_count_file="${MODULE_ROOT}/run-count"
 run_count=0
 if [ -f "$run_count_file" ]; then
   run_count=$(cat "$run_count_file")
@@ -209,7 +210,7 @@ else
 fi
 exit 0
 EOF
-chmod +x /tmp/mux/mux`,
+chmod +x ${MODULE_ROOT}/mux`,
       ]);
       expect(setup.exitCode).toBe(0);
 
@@ -221,8 +222,8 @@ chmod +x /tmp/mux/mux`,
       expect(output.exitCode).toBe(0);
 
       await execContainer(id, ["sh", "-c", "sleep 4"]);
-      const log = await readFileContainer(id, "/tmp/mux.log");
-      const runCount = await readFileContainer(id, "/tmp/mux-run-count");
+      const log = await readFileContainer(id, LOG_PATH);
+      const runCount = await readFileContainer(id, `${MODULE_ROOT}/run-count`);
       expect(log).toContain("run=1");
       expect(log).toContain("mux server exited cleanly.");
       expect(log).toContain(
@@ -246,7 +247,6 @@ chmod +x /tmp/mux/mux`,
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       install: false,
-      log_path: "/tmp/mux.log",
       restart_on_kill: true,
       restart_delay_seconds: 1,
       max_restart_attempts: 1,
@@ -260,10 +260,10 @@ chmod +x /tmp/mux/mux`,
         "sh",
         "-c",
         `apk add --no-cache bash >/dev/null
-mkdir -p /tmp/mux
-cat <<'EOF' > /tmp/mux/mux
+mkdir -p ${MODULE_ROOT}
+cat <<'EOF' > ${MODULE_ROOT}/mux
 #!/usr/bin/env sh
-run_count_file="/tmp/mux-run-count"
+run_count_file="${MODULE_ROOT}/run-count"
 run_count=0
 if [ -f "$run_count_file" ]; then
   run_count=$(cat "$run_count_file")
@@ -276,7 +276,7 @@ if [ "$run_count" -eq 1 ]; then
 fi
 exit 0
 EOF
-chmod +x /tmp/mux/mux`,
+chmod +x ${MODULE_ROOT}/mux`,
       ]);
       expect(setup.exitCode).toBe(0);
 
@@ -288,8 +288,8 @@ chmod +x /tmp/mux/mux`,
       expect(output.exitCode).toBe(0);
 
       await execContainer(id, ["sh", "-c", "sleep 4"]);
-      const log = await readFileContainer(id, "/tmp/mux.log");
-      const runCount = await readFileContainer(id, "/tmp/mux-run-count");
+      const log = await readFileContainer(id, LOG_PATH);
+      const runCount = await readFileContainer(id, `${MODULE_ROOT}/run-count`);
       expect(log).toContain("run=1");
       expect(log).toContain("signal TERM (15); shell exit code 143.");
       expect(log).toContain(
@@ -318,11 +318,11 @@ chmod +x /tmp/mux/mux`,
 
     expect(output.exitCode).toBe(0);
     const expectedLines = [
-      "📦 Installing @coder/xum via npm into /tmp/mux...",
+      `📦 Installing @coder/xum via npm into ${MODULE_ROOT}...`,
       "⏭️  Skipping lifecycle scripts with --ignore-scripts",
-      "🥳 mux has been installed in /tmp/mux",
+      `🥳 mux has been installed in ${MODULE_ROOT}`,
       "🚀 Starting mux server on port 4000...",
-      "Check logs at /tmp/mux.log!",
+      `Check logs at ${LOG_PATH}!`,
     ];
     for (const line of expectedLines) {
       expect(output.stdout).toContain(line);

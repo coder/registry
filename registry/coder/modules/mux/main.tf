@@ -39,14 +39,14 @@ variable "slug" {
 
 variable "install_prefix" {
   type        = string
-  description = "The prefix to install Mux to."
-  default     = "/tmp/mux"
+  description = "The directory to install Mux into."
+  default     = "$HOME/.coder-modules/coder/mux"
 }
 
 variable "log_path" {
   type        = string
   description = "The path for Mux logs."
-  default     = "/tmp/mux.log"
+  default     = "$HOME/.coder-modules/coder/mux/logs/mux.log"
 }
 
 variable "restart_on_kill" {

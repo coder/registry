@@ -8,7 +8,7 @@ tags: [ai, agents, development, multiplexer]
 
 # Mux
 
-Automatically install and run [Mux](https://github.com/coder/mux) in a Coder workspace. By default, the module auto-detects an available package manager (`npm`, `pnpm`, or `bun`) to install `@coder/xum@next`, the npm package that ships the `mux` CLI (with a fallback to downloading the npm tarball if none is found). You can also force a specific package manager via `package_manager` and point to a custom registry with `registry_url`. The launcher keeps watching the mux process after startup, appends signal/exit-code diagnostics to the mux log when the server is killed outside the Node runtime, and can optionally wait a few seconds, remove the stale server lock, and restart Mux after any exit until an optional restart-attempt cap is reached. Mux is a desktop application for parallel agentic development that enables developers to run multiple AI agents simultaneously across isolated workspaces.
+Automatically install and run [Mux](https://github.com/coder/xum) in a Coder workspace. By default, the module auto-detects an available package manager (`npm`, `pnpm`, or `bun`) to install `@coder/xum@next`, the npm package that ships the `mux` CLI (with a fallback to downloading the npm tarball if none is found). You can also force a specific package manager via `package_manager` and point to a custom registry with `registry_url`. The launcher keeps watching the mux process after startup, appends signal/exit-code diagnostics to the mux log when the server is killed outside the Node runtime, and can optionally wait a few seconds, remove the stale server lock, and restart Mux after any exit until an optional restart-attempt cap is reached. Mux is a desktop application for parallel agentic development that enables developers to run multiple AI agents simultaneously across isolated workspaces.
 
 ```tf
 module "mux" {
@@ -157,7 +157,7 @@ module "mux" {
 
 ### Skip Install
 
-Run without installing from the network (requires Mux to be pre-installed):
+Run without installing from the network (requires a `mux` binary at `<install_prefix>/mux`, by default `~/.coder-modules/coder/mux/mux`):
 
 ```tf
 module "mux" {
@@ -181,6 +181,7 @@ module "mux" {
 - Requires a Node.js runtime; if `node` is not on the workspace `PATH`, the module bootstraps a pinned Node.js runtime into `~/.local/share/coder-mux` (override the version with the `MUX_NODE_VERSION` environment variable)
 - Installs `@coder/xum@next` from the npm registry by default (this package ships the `mux` binary); set `registry_url` to use a private or mirrored registry
 - `install_version` must be a version or dist-tag published as `@coder/xum` (0.28.3 or newer); older releases were only published under the legacy `mux` package name
+- Installs into `~/.coder-modules/coder/mux` and logs to `~/.coder-modules/coder/mux/logs/mux.log` by default, so the install survives restarts that clear `/tmp`; override with `install_prefix` and `log_path`
 - Falls back to a direct tarball download when no package manager is found
 - Appends best-effort signal and external-kill diagnostics to `log_path` if the mux process dies after startup
 - Set `restart_on_kill = true` to wait `restart_delay_seconds`, remove `~/.mux/server.lock`, and restart Mux after it exits

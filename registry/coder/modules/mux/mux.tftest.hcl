@@ -245,6 +245,51 @@ run "use_cached_only_success" {
   }
 }
 
+# Module-controlled paths default to the per-module root (AGENTS.md Module
+# Data Layout) so the install and logs survive restarts that clear /tmp.
+run "default_paths_under_module_root" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "MUX_BINARY=\"$HOME/.coder-modules/coder/mux/mux\"")
+    error_message = "mux must install under $HOME/.coder-modules/coder/mux by default"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "LOG_PATH=\"$HOME/.coder-modules/coder/mux/logs/mux.log\"")
+    error_message = "mux must log to $HOME/.coder-modules/coder/mux/logs/mux.log by default"
+  }
+
+  assert {
+    condition     = !strcontains(resource.coder_script.mux.script, "/tmp/mux")
+    error_message = "mux script must not default any module path to /tmp"
+  }
+}
+
+run "custom_install_prefix_and_log_path" {
+  command = plan
+
+  variables {
+    agent_id       = "foo"
+    install_prefix = "/opt/mux"
+    log_path       = "/var/log/mux.log"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "MUX_BINARY=\"/opt/mux/mux\"")
+    error_message = "mux must honor a custom install_prefix"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "LOG_PATH=\"/var/log/mux.log\"")
+    error_message = "mux must honor a custom log_path"
+  }
+}
+
 # The installed npm package must be @coder/xum (it ships the mux bin);
 # the legacy mux package is only a compat shim with an exact-pinned
 # @coder/xum dependency that is published separately.
