@@ -221,7 +221,7 @@ run "custom_version" {
 
   variables {
     agent_id        = "foo"
-    install_version = "0.3.0"
+    install_version = "0.28.4"
   }
 }
 
@@ -242,6 +242,37 @@ run "use_cached_only_success" {
   variables {
     agent_id   = "foo"
     use_cached = true
+  }
+}
+
+# The installed npm package must be @coder/xum (it ships the mux bin);
+# the legacy mux package is only a compat shim with an exact-pinned
+# @coder/xum dependency that is published separately.
+run "installs_coder_xum_package" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "PKG=\"@coder/xum\"")
+    error_message = "mux script must install the @coder/xum npm package"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "https://registry.npmjs.org/@coder%2Fxum/")
+    error_message = "tarball fallback must fetch @coder/xum metadata with the URL-encoded scoped name"
+  }
+
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, "https://registry.npmjs.org/@coder/xum/-/xum-")
+    error_message = "tarball fallback must construct the scoped @coder/xum tarball URL"
+  }
+
+  assert {
+    condition     = !strcontains(resource.coder_script.mux.script, "PKG=\"mux\"")
+    error_message = "mux script must not install the legacy mux compat package"
   }
 }
 
@@ -332,7 +363,7 @@ run "registry_url_trailing_slash" {
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.mux.script, "https://npm.example.com/mux/")
+    condition     = strcontains(resource.coder_script.mux.script, "https://npm.example.com/@coder%2Fxum/")
     error_message = "registry URL trailing slash must be stripped to avoid double slashes"
   }
 }

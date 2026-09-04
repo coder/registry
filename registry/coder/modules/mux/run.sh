@@ -272,8 +272,11 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
     fi
   fi
 
+  # @coder/xum is the package that ships the mux CLI (bins: mux, xum).
+  PKG="@coder/xum"
+
   if [ -n "$PM_CMD" ]; then
-    echo "📦 Installing mux via $PM_CMD into ${INSTALL_PREFIX}..."
+    echo "📦 Installing $PKG via $PM_CMD into ${INSTALL_PREFIX}..."
     NPM_WORKDIR="${INSTALL_PREFIX}/npm"
     mkdir -p "$NPM_WORKDIR"
     cd "$NPM_WORKDIR" || exit 1
@@ -281,7 +284,6 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
       echo '{}' > package.json
     fi
     echo "⏭️  Skipping lifecycle scripts with --ignore-scripts"
-    PKG="mux"
     if [ -z "${VERSION}" ] || [ "${VERSION}" = "latest" ]; then
       PKG_SPEC="$PKG@latest"
     else
@@ -306,7 +308,7 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
         ;;
     esac
     if [ "$INSTALL_OK" != true ]; then
-      echo "❌ Failed to install mux via $PM_CMD"
+      echo "❌ Failed to install $PKG via $PM_CMD"
       exit 1
     fi
     # Determine the installed binary path
@@ -324,7 +326,8 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
     if [ -z "$VERSION_TO_USE" ]; then
       VERSION_TO_USE="next"
     fi
-    META_URL="${REGISTRY_URL}/mux/$VERSION_TO_USE"
+    # Scoped package names are URL-encoded in npm registry metadata paths.
+    META_URL="${REGISTRY_URL}/@coder%2Fxum/$VERSION_TO_USE"
     META_JSON="$(curl -fsSL "$META_URL" || true)"
     if [ -z "$META_JSON" ]; then
       echo "❌ Failed to fetch npm metadata: $META_URL"
@@ -360,10 +363,11 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
         VERSION_TO_USE="$RESOLVED_VERSION"
       fi
       if [ -z "$VERSION_TO_USE" ]; then
-        echo "❌ Could not determine version for mux"
+        echo "❌ Could not determine version for $PKG"
         exit 1
       fi
-      TARBALL_URL="${REGISTRY_URL}/mux/-/mux-$VERSION_TO_USE.tgz"
+      # Registry tarball layout for scoped packages: /@scope/name/-/name-<version>.tgz
+      TARBALL_URL="${REGISTRY_URL}/@coder/xum/-/xum-$VERSION_TO_USE.tgz"
     fi
     TMP_DIR="$(mktemp -d)"
     TAR_PATH="$TMP_DIR/mux.tgz"

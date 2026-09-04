@@ -296,7 +296,7 @@ chmod +x /tmp/mux/mux`,
 
     expect(output.exitCode).toBe(0);
     const expectedLines = [
-      "📦 Installing mux via npm into /tmp/mux...",
+      "📦 Installing @coder/xum via npm into /tmp/mux...",
       "⏭️  Skipping lifecycle scripts with --ignore-scripts",
       "🥳 mux has been installed in /tmp/mux",
       "🚀 Starting mux server on port 4000...",

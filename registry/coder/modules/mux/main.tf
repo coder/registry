@@ -91,7 +91,7 @@ variable "additional_arguments" {
 
 variable "install_version" {
   type        = string
-  description = "The version or dist-tag of Mux to install."
+  description = "The version or dist-tag of the @coder/xum npm package to install. Only versions published as @coder/xum (0.28.3 or newer) are available."
   default     = "next"
 }
 
@@ -107,7 +107,7 @@ variable "package_manager" {
 
 variable "registry_url" {
   type        = string
-  description = "The npm-compatible registry URL to install Mux from. Override this for private registries or mirrors."
+  description = "The npm-compatible registry URL to install @coder/xum from. Override this for private registries or mirrors."
   default     = "https://registry.npmjs.org"
 }
 
