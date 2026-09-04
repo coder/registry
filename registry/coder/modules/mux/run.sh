@@ -196,7 +196,7 @@ EOF_LAUNCHER
 }
 # Ensure a Node.js runtime is available (mux is a Node application launched
 # via "#!/usr/bin/env node"). When the workspace image does not provide node,
-# bootstrap a pinned runtime into $HOME so it persists across restarts.
+# bootstrap a pinned runtime into the module root so it persists across restarts.
 ensure_node() {
   if command -v node > /dev/null 2>&1; then
     return 0
@@ -213,7 +213,7 @@ ensure_node() {
       ;;
   esac
 
-  node_dir="$HOME/.local/share/coder-mux/node-v$node_version-linux-$node_arch"
+  node_dir="$HOME/.coder-modules/coder/mux/node-v$node_version-linux-$node_arch"
   if [ ! -x "$node_dir/bin/node" ]; then
     echo "⚠️ node not found on PATH; bootstrapping Node.js v$node_version into $node_dir..."
     mkdir -p "$(dirname "$node_dir")"
@@ -272,8 +272,11 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
     fi
   fi
 
+  # @coder/xum is the package that ships the mux CLI (bins: mux, xum).
+  PKG="@coder/xum"
+
   if [ -n "$PM_CMD" ]; then
-    echo "📦 Installing mux via $PM_CMD into ${INSTALL_PREFIX}..."
+    echo "📦 Installing $PKG via $PM_CMD into ${INSTALL_PREFIX}..."
     NPM_WORKDIR="${INSTALL_PREFIX}/npm"
     mkdir -p "$NPM_WORKDIR"
     cd "$NPM_WORKDIR" || exit 1
@@ -281,7 +284,6 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
       echo '{}' > package.json
     fi
     echo "⏭️  Skipping lifecycle scripts with --ignore-scripts"
-    PKG="mux"
     if [ -z "${VERSION}" ] || [ "${VERSION}" = "latest" ]; then
       PKG_SPEC="$PKG@latest"
     else
@@ -306,7 +308,7 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
         ;;
     esac
     if [ "$INSTALL_OK" != true ]; then
-      echo "❌ Failed to install mux via $PM_CMD"
+      echo "❌ Failed to install $PKG via $PM_CMD"
       exit 1
     fi
     # Determine the installed binary path
@@ -324,7 +326,8 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
     if [ -z "$VERSION_TO_USE" ]; then
       VERSION_TO_USE="next"
     fi
-    META_URL="${REGISTRY_URL}/mux/$VERSION_TO_USE"
+    # Scoped package names are URL-encoded in npm registry metadata paths.
+    META_URL="${REGISTRY_URL}/@coder%2Fxum/$VERSION_TO_USE"
     META_JSON="$(curl -fsSL "$META_URL" || true)"
     if [ -z "$META_JSON" ]; then
       echo "❌ Failed to fetch npm metadata: $META_URL"
@@ -360,10 +363,11 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
         VERSION_TO_USE="$RESOLVED_VERSION"
       fi
       if [ -z "$VERSION_TO_USE" ]; then
-        echo "❌ Could not determine version for mux"
+        echo "❌ Could not determine version for $PKG"
         exit 1
       fi
-      TARBALL_URL="${REGISTRY_URL}/mux/-/mux-$VERSION_TO_USE.tgz"
+      # Registry tarball layout for scoped packages: /@scope/name/-/name-<version>.tgz
+      TARBALL_URL="${REGISTRY_URL}/@coder/xum/-/xum-$VERSION_TO_USE.tgz"
     fi
     TMP_DIR="$(mktemp -d)"
     TAR_PATH="$TMP_DIR/mux.tgz"

@@ -39,14 +39,14 @@ variable "slug" {
 
 variable "install_prefix" {
   type        = string
-  description = "The prefix to install Mux to."
-  default     = "/tmp/mux"
+  description = "The directory to install Mux into."
+  default     = "$HOME/.coder-modules/coder/mux"
 }
 
 variable "log_path" {
   type        = string
   description = "The path for Mux logs."
-  default     = "/tmp/mux.log"
+  default     = "$HOME/.coder-modules/coder/mux/logs/mux.log"
 }
 
 variable "restart_on_kill" {
@@ -91,7 +91,7 @@ variable "additional_arguments" {
 
 variable "install_version" {
   type        = string
-  description = "The version or dist-tag of Mux to install."
+  description = "The version or dist-tag of the @coder/xum npm package to install. Only versions published as @coder/xum are available: 0.28.3 or newer, or prereleases from 0.28.2-next.24."
   default     = "next"
 }
 
@@ -107,7 +107,7 @@ variable "package_manager" {
 
 variable "registry_url" {
   type        = string
-  description = "The npm-compatible registry URL to install Mux from. Override this for private registries or mirrors."
+  description = "The npm-compatible registry URL to install @coder/xum from. Override this for private registries or mirrors."
   default     = "https://registry.npmjs.org"
 }
 
