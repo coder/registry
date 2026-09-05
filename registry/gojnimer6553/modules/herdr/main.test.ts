@@ -46,22 +46,32 @@ const collectScripts = (state: TerraformState): ModuleScripts => {
 
 const HERDR_BIN_PATH = "/root/.local/bin/herdr";
 const PLUGIN_LOG_PATH = "/root/.herdr-plugin-log";
+const STATUS_FILE_PATH = "/root/.herdr-status";
 
 // Fake herdr binary: enough of the real CLI's surface for this module's
 // scripts to drive (--version, status, plugin install <spec> --yes) without
 // a real network install or a real Herdr server. Any spec containing
 // "explode" simulates a plugin that fails to install, to exercise the
 // continue-on-failure path. The default (no matched subcommand) branch
-// stands in for `herdr` launching its server/session -- it just sleeps, like
-// the real long-running process would, and records the HERDR_SESSION env var
-// it was started with so tests can confirm session_name was forwarded.
+// stands in for `herdr` launching its server/session -- it just marks itself
+// running (mirroring the real CLI's `herdr status` always exiting 0
+// regardless of state -- see start.sh.tftpl's wait_for_herdr) and records
+// the HERDR_SESSION env var it was started with so tests can confirm
+// session_name was forwarded, then sleeps like the real long-running process
+// would.
 const FAKE_HERDR_BINARY = [
   "#!/bin/bash",
   `LOG_FILE="${PLUGIN_LOG_PATH}"`,
+  `STATUS_FILE="${STATUS_FILE_PATH}"`,
   'if [ "$1" = "--version" ]; then',
   '  echo "herdr fake-version 0.0.0-test"',
   "  exit 0",
   'elif [ "$1" = "status" ]; then',
+  '  if [ -f "$STATUS_FILE" ]; then',
+  '    echo "status: running"',
+  "  else",
+  '    echo "status: stopped"',
+  "  fi",
   "  exit 0",
   'elif [ "$1" = "plugin" ] && [ "$2" = "install" ]; then',
   '  spec="$3"',
@@ -77,6 +87,7 @@ const FAKE_HERDR_BINARY = [
   "  esac",
   "else",
   '  echo "herdr-server-started session=${HERDR_SESSION:-default}"',
+  '  touch "$STATUS_FILE"',
   "  sleep 3600",
   "fi",
 ].join("\n");
@@ -84,6 +95,26 @@ const FAKE_HERDR_BINARY = [
 const installFakeHerdrBinary = async (id: string) => {
   await execContainer(id, ["mkdir", "-p", "/root/.local/bin"]);
   await writeFileContainer(id, HERDR_BIN_PATH, FAKE_HERDR_BINARY);
+  await execContainer(id, ["chmod", "755", HERDR_BIN_PATH]);
+};
+
+// Regression fixture for the readiness-check bug: a real `herdr status`
+// exits 0 whether or not the server is actually running, so a fake binary
+// that always reports "status: stopped" (while still exiting 0) proves
+// wait_for_herdr keys off the reported state, not the exit code.
+const FAKE_HERDR_BINARY_NEVER_READY = [
+  "#!/bin/bash",
+  'if [ "$1" = "status" ]; then',
+  '  echo "status: stopped"',
+  "  exit 0",
+  "else",
+  "  sleep 3600",
+  "fi",
+].join("\n");
+
+const installFakeHerdrBinaryNeverReady = async (id: string) => {
+  await execContainer(id, ["mkdir", "-p", "/root/.local/bin"]);
+  await writeFileContainer(id, HERDR_BIN_PATH, FAKE_HERDR_BINARY_NEVER_READY);
   await execContainer(id, ["chmod", "755", HERDR_BIN_PATH]);
 };
 
@@ -269,6 +300,53 @@ describe("herdr", async () => {
     }
   });
 
+  it("reports Herdr as up once herdr status reports it running", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      install: false,
+      tmux_session: "herdr-test-ready",
+    });
+    const { install, start } = collectScripts(state);
+
+    const id = await runContainer("node:22-bookworm-slim");
+    try {
+      await writeCoder(id, "#!/bin/bash\nexit 0\n");
+      await execContainer(id, ["bash", "-c", install]);
+      await installFakeHerdrBinary(id);
+
+      const output = await execContainer(id, ["bash", "-c", start]);
+      expect(output.exitCode).toBe(0);
+      expect(output.stdout).toContain("✅ Herdr is up.");
+    } finally {
+      await removeContainer(id);
+    }
+  });
+
+  it("does not treat Herdr as up when herdr status reports it stopped, even though the command exits 0", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      install: false,
+      tmux_session: "herdr-test-not-ready",
+    });
+    const { install, start } = collectScripts(state);
+
+    const id = await runContainer("node:22-bookworm-slim");
+    try {
+      await writeCoder(id, "#!/bin/bash\nexit 0\n");
+      await execContainer(id, ["bash", "-c", install]);
+      await installFakeHerdrBinaryNeverReady(id);
+
+      const output = await execContainer(id, ["bash", "-c", start]);
+      expect(output.exitCode).toBe(0);
+      expect(output.stdout).not.toContain("✅ Herdr is up.");
+      expect(output.stdout).toContain(
+        "'herdr status' did not succeed within 10s; continuing anyway",
+      );
+    } finally {
+      await removeContainer(id);
+    }
+  });
+
   it("continues installing remaining plugins when one fails", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
@@ -331,6 +409,31 @@ describe("herdr", async () => {
       );
       expect(pluginIdx).toBeGreaterThan(-1);
       expect(postStartIdx).toBeGreaterThan(pluginIdx);
+    } finally {
+      await removeContainer(id);
+    }
+  });
+
+  it("exports HERDR_SESSION so later commands (e.g. post_start_script) see the same session as the launched process", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      install: false,
+      tmux_session: "herdr-test-session-export",
+      session_name: "isolated",
+      post_start_script:
+        '#!/bin/bash\necho "post-start saw HERDR_SESSION=$HERDR_SESSION"',
+    });
+    const { install, start } = collectScripts(state);
+
+    const id = await runContainer("node:22-bookworm-slim");
+    try {
+      await writeCoder(id, "#!/bin/bash\nexit 0\n");
+      await execContainer(id, ["bash", "-c", install]);
+      await installFakeHerdrBinary(id);
+
+      const output = await execContainer(id, ["bash", "-c", start]);
+      expect(output.exitCode).toBe(0);
+      expect(output.stdout).toContain("post-start saw HERDR_SESSION=isolated");
     } finally {
       await removeContainer(id);
     }

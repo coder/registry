@@ -43,17 +43,22 @@ session_alive() {
   tmux has-session -t "$${ARG_TMUX_SESSION}" 2> /dev/null
 }
 
+# Exported (not just passed inline to the launched process) so that every
+# later invocation of `herdr` in this script -- notably the `herdr status`
+# readiness check below, and any user-supplied post_start_script -- targets
+# the same named session/socket as the one actually started in tmux, rather
+# than silently falling back to Herdr's default session.
+if [ -n "$${ARG_SESSION_NAME}" ]; then
+  export HERDR_SESSION="$${ARG_SESSION_NAME}"
+fi
+
 if session_alive; then
   echo "ℹ️  tmux session '$${ARG_TMUX_SESSION}' is already running; leaving the existing Herdr process alone."
 else
   echo "🚀 Starting Herdr in the background (tmux session '$${ARG_TMUX_SESSION}')..."
   : > "$LOG_PATH"
 
-  if [ -n "$${ARG_SESSION_NAME}" ]; then
-    tmux new-session -d -s "$${ARG_TMUX_SESSION}" -c "$WORKDIR" env HERDR_SESSION="$${ARG_SESSION_NAME}" herdr
-  else
-    tmux new-session -d -s "$${ARG_TMUX_SESSION}" -c "$WORKDIR" herdr
-  fi
+  tmux new-session -d -s "$${ARG_TMUX_SESSION}" -c "$WORKDIR" herdr
 
   # tmux's own shell interprets the -o command; LOG_PATH is derived from
   # module_directory (a hardcoded constant under $HOME), never from
@@ -64,12 +69,14 @@ fi
 # Best-effort readiness check: give the server a moment to create its socket
 # before installing plugins. `herdr status` is not fully documented upstream
 # (https://herdr.dev/docs/socket-api/ only shows it as a status-check
-# example), so a failure here is logged but never treated as fatal --
-# plugin installs below are attempted regardless.
+# example) and always exits 0 even when the server is stopped, so readiness
+# is determined from the reported state in its output, not its exit code. A
+# failure here is logged but never treated as fatal -- plugin installs below
+# are attempted regardless.
 wait_for_herdr() {
   local attempts=0
   while [ "$attempts" -lt 20 ]; do
-    if herdr status > /dev/null 2>&1; then
+    if herdr status 2> /dev/null | grep -qi 'status:[[:space:]]*running'; then
       return 0
     fi
     attempts=$((attempts + 1))

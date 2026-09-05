@@ -17,14 +17,7 @@ variable "agent_id" {
 variable "icon" {
   description = "The icon to use for the install/start scripts and (when app_port is set) the app tile."
   type        = string
-  # Not "/icon/herdr.svg": that path is served from Coder's own built-in icon
-  # bundle (independent of this repo's .icons/ directory, which is only used
-  # to render the registry website), and herdr isn't in it -- pointing there
-  # renders a broken image. Pinned to this fork branch for now so it resolves
-  # immediately; switch to
-  # "https://raw.githubusercontent.com/coder/registry/main/.icons/herdr.svg"
-  # once this module is merged upstream.
-  default = "https://raw.githubusercontent.com/gojnimer6553/registry/add-herdr-module/.icons/herdr.svg"
+  default     = "/icon/herdr.svg"
 }
 
 variable "display_name" {
