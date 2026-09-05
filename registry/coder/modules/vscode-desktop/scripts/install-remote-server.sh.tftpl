@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+expand_home() {
+  case "$1" in
+    '$HOME')
+      printf '%s\n' "$HOME"
+      ;;
+    '$HOME/'*)
+      printf '%s/%s\n' "$HOME" "$${1#\$HOME/}"
+      ;;
+    *)
+      printf '%s\n' "$1"
+      ;;
+  esac
+}
+
+download() {
+  local url="$1"
+  local destination="$2"
+
+  if command -v curl > /dev/null 2>&1; then
+    curl --fail --location --silent --show-error "$url" --output "$destination"
+  elif command -v wget > /dev/null 2>&1; then
+    wget --output-document="$destination" "$url"
+  else
+    printf 'VS Code Server installation requires curl or wget.\n' >&2
+    exit 1
+  fi
+}
+
+extract_json_string() {
+  local key="$1"
+  local source_file="$2"
+  local value
+
+  value="$(
+    sed -n "s/.*\"$${key}\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" "$source_file" \
+      | head -n 1
+  )"
+  if [ -z "$value" ]; then
+    printf 'VS Code update response does not contain %s.\n' "$key" >&2
+    exit 1
+  fi
+  printf '%s\n' "$value"
+}
+
+SERVER_DIRECTORY="$(printf '%s' '${SERVER_DIRECTORY_B64}' | base64 -d)"
+SERVER_DIRECTORY="$(expand_home "$SERVER_DIRECTORY")"
+IDE_CLI_PATH="$SERVER_DIRECTORY/bin/code-server"
+
+if [ -x "$IDE_CLI_PATH" ]; then
+  exit 0
+fi
+
+case "$(uname -m)" in
+  x86_64)
+    remote_arch="x64"
+    ;;
+  aarch64 | arm64)
+    remote_arch="arm64"
+    ;;
+  *)
+    printf 'Unsupported architecture for VS Code Server: %s\n' "$(uname -m)" >&2
+    exit 1
+    ;;
+esac
+
+temporary_directory="$(mktemp -d)"
+trap 'rm -rf "$temporary_directory"' EXIT
+
+update_response="$temporary_directory/update.json"
+archive="$temporary_directory/vscode-server.tar.gz"
+extracted_server="$temporary_directory/server"
+update_url="https://update.code.visualstudio.com/api/latest/server-linux-$remote_arch/stable"
+
+download "$update_url" "$update_response"
+release_commit="$(extract_json_string version "$update_response")"
+
+case "$release_commit" in
+  *[!0-9a-f]*)
+    printf 'VS Code update response returned an invalid commit.\n' >&2
+    exit 1
+    ;;
+esac
+if [ "$${#release_commit}" -ne 40 ]; then
+  printf 'VS Code update response returned an invalid commit.\n' >&2
+  exit 1
+fi
+
+download \
+  "https://update.code.visualstudio.com/commit:$release_commit/server-linux-$remote_arch/stable" \
+  "$archive"
+
+mkdir -p "$extracted_server"
+tar -xzf "$archive" -C "$extracted_server" --strip-components=1
+
+if [ ! -x "$extracted_server/bin/code-server" ]; then
+  printf 'VS Code Server archive does not contain the expected CLI executable.\n' >&2
+  exit 1
+fi
+
+archive_commit="$(extract_json_string commit "$extracted_server/product.json")"
+if [ "$archive_commit" != "$release_commit" ]; then
+  printf 'VS Code Server archive commit does not match the update response.\n' >&2
+  exit 1
+fi
+
+mkdir -p "$(dirname "$SERVER_DIRECTORY")"
+rm -rf "$SERVER_DIRECTORY"
+mv "$extracted_server" "$SERVER_DIRECTORY"

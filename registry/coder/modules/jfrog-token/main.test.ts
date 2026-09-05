@@ -13,7 +13,7 @@ describe("jfrog-token", async () => {
     agent_id: string;
     jfrog_url: string;
     artifactory_access_token: string;
-    package_managers: string;
+    package_managers?: string;
 
     token_description?: string;
     check_license?: boolean;
@@ -23,6 +23,8 @@ describe("jfrog-token", async () => {
     username?: string;
     jfrog_server_id?: string;
     configure_code_server?: boolean;
+    install_jfrog_cli?: boolean;
+    configure_jfrog_cli?: boolean;
   };
 
   await runTerraformInit(import.meta.dir);
@@ -59,7 +61,6 @@ describe("jfrog-token", async () => {
     agent_id: "some-agent-id",
     jfrog_url: fakeFrogUrl,
     artifactory_access_token: "XXXX",
-    package_managers: "{}",
   });
 
   it("generates an npmrc with scoped repos", async () => {
@@ -123,6 +124,8 @@ EOF`;
       agent_id: "some-agent-id",
       jfrog_url: fakeFrogUrl,
       artifactory_access_token: "XXXX",
+      install_jfrog_cli: false,
+      configure_jfrog_cli: false,
       package_managers: JSON.stringify({
         docker: ["foo.jfrog.io", "bar.jfrog.io", "baz.jfrog.io"],
       }),
@@ -134,6 +137,9 @@ EOF`;
     expect(coderScript.script).toContain(dockerStanza);
     expect(coderScript.script).toContain(
       'if [ -z "YES" ]; then\n  not_configured docker',
+    );
+    expect(coderScript.script).toContain(
+      'if [ "false" == "true" ] && ! command -v jf',
     );
   });
 
@@ -222,6 +228,30 @@ EOF`;
 
     expect(coderScript.script).toContain(
       'if [ -z "YES" ]; then\n  not_configured maven',
+    );
+  });
+
+  it("renders a clear error when a required preinstalled CLI is missing", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "some-agent-id",
+      jfrog_url: fakeFrogUrl,
+      artifactory_access_token: "XXXX",
+      install_jfrog_cli: false,
+      configure_jfrog_cli: true,
+    });
+    const coderScript = findResourceInstance(state, "coder_script");
+
+    expect(coderScript.script).toContain(
+      'if [ "true" == "true" ] && ! command -v jf',
+    );
+    expect(coderScript.script).toContain(
+      "JFrog CLI is required but was not found on PATH",
+    );
+    expect(coderScript.script).toContain(
+      "counter=0\n  while ! [ -x /tmp/code-server/bin/code-server ]; do",
+    );
+    expect(coderScript.script).not.toContain(
+      "while ! [ -x /tmp/code-server/bin/code-server ]; do\n    counter=0",
     );
   });
 });
