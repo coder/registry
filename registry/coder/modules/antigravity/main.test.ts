@@ -22,7 +22,7 @@ describe("antigravity", async () => {
       agent_id: "foo",
     });
     expect(state.outputs.antigravity_url.value).toBe(
-      "antigravity://coder.coder-remote/open?owner=default&workspace=default&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+      "antigravity-ide://coder.coder-remote/open?owner=default&workspace=default&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
 
     const coder_app = state.resources.find(
@@ -43,7 +43,7 @@ describe("antigravity", async () => {
       folder: "/foo/bar",
     });
     expect(state.outputs.antigravity_url.value).toBe(
-      "antigravity://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+      "antigravity-ide://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
   });
 
@@ -54,7 +54,7 @@ describe("antigravity", async () => {
       open_recent: "true",
     });
     expect(state.outputs.antigravity_url.value).toBe(
-      "antigravity://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+      "antigravity-ide://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
   });
 
@@ -65,7 +65,7 @@ describe("antigravity", async () => {
       open_recent: "false",
     });
     expect(state.outputs.antigravity_url.value).toBe(
-      "antigravity://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+      "antigravity-ide://coder.coder-remote/open?owner=default&workspace=default&folder=/foo/bar&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
   });
 
@@ -75,7 +75,7 @@ describe("antigravity", async () => {
       open_recent: "true",
     });
     expect(state.outputs.antigravity_url.value).toBe(
-      "antigravity://coder.coder-remote/open?owner=default&workspace=default&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
+      "antigravity-ide://coder.coder-remote/open?owner=default&workspace=default&openRecent&url=https://mydeployment.coder.com&token=$SESSION_TOKEN",
     );
   });
 

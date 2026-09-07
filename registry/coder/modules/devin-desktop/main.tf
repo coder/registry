@@ -56,11 +56,19 @@ variable "mcp" {
   default     = ""
 }
 
+variable "extensions" {
+  description = "Devin-compatible VS Code extension IDs to pre-install on the workspace host."
+  type        = list(string)
+  default     = []
+}
+
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
 locals {
-  mcp_b64 = var.mcp != "" ? base64encode(var.mcp) : ""
+  module_directory = "$HOME/.coder-modules/coder/devin-desktop"
+  server_directory = "${local.module_directory}/server"
+  mcp_b64          = var.mcp != "" ? base64encode(var.mcp) : ""
 }
 
 # Devin Desktop is Cognition's rebrand of the Windsurf Editor (June 2, 2026),
@@ -69,7 +77,7 @@ locals {
 # same shared vscode-desktop-core module with Devin Desktop's branding.
 module "vscode-desktop-core" {
   source  = "registry.coder.com/coder/vscode-desktop-core/coder"
-  version = "1.0.2"
+  version = "1.2.0"
 
   agent_id = var.agent_id
 
@@ -83,7 +91,18 @@ module "vscode-desktop-core" {
   open_recent = var.open_recent
   # devin:// is registered as an external app protocol in coder/coder
   # (ALLOWED_EXTERNAL_APP_PROTOCOLS, coder/coder#28214).
-  protocol = "devin"
+  protocol   = "devin"
+  config_dir = "$HOME/.config/devin"
+
+  extensions     = var.extensions
+  extensions_dir = "$HOME/.devin-server/extensions"
+  ide_cli_path   = "${local.server_directory}/bin/devin-server"
+  ide_cli_install_script = length(var.extensions) > 0 ? templatefile(
+    "${path.module}/scripts/install-remote-server.sh.tftpl",
+    {
+      SERVER_DIRECTORY_B64 = base64encode(local.server_directory)
+    },
+  ) : null
 }
 
 resource "coder_script" "devin_desktop_mcp" {

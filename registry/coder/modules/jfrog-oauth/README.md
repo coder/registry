@@ -16,7 +16,7 @@ Install the JFrog CLI (`jf`) and authenticate package managers (npm, Go, pip, Do
 module "jfrog" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jfrog-oauth/coder"
-  version        = "1.2.5"
+  version        = "1.3.0"
   agent_id       = coder_agent.main.id
   jfrog_url      = "https://example.jfrog.io"
   username_field = "username" # If you are using GitHub to login to both Coder and Artifactory, use username_field = "username"
@@ -70,7 +70,7 @@ Using the module requires two things: an application integration in Artifactory 
 
 ## Offline and air-gapped environments
 
-If `jf` is already on the `PATH` (for example, baked into your workspace image), the module detects it and skips the download. Otherwise, the startup script downloads it from `https://install-cli.jfrog.io` and installs it with `sudo`. In restricted or air-gapped environments, pre-install `jf` in your workspace image to avoid both the external download and the `sudo` step.
+If `jf` is already on the `PATH` (for example, baked into your workspace image), set `install_jfrog_cli = false` to disable the download explicitly. Otherwise, the startup script downloads it from `https://install-cli.jfrog.io` and installs it with `sudo` when installation is enabled. In restricted or air-gapped environments, pre-install `jf` in your workspace image to avoid both the external download and the `sudo` step.
 
 ### External endpoints
 
@@ -78,6 +78,23 @@ The module's startup script contacts:
 
 - `https://install-cli.jfrog.io`: only when the JFrog CLI is not already installed.
 - Your `jfrog_url` (for example, `https://example.jfrog.io`): to configure the package managers and exchange the OAuth token.
+
+## Access-token-only mode
+
+If another Terraform resource only needs the OAuth `access_token` output, disable JFrog CLI installation and configuration, and omit `package_managers`. In this mode, the module still obtains the token through Coder external auth but does not create a workspace configuration script, install or configure `jf`, or configure package managers.
+
+```tf
+module "jfrog" {
+  source              = "registry.coder.com/coder/jfrog-oauth/coder"
+  version             = "1.3.0"
+  agent_id            = coder_agent.main.id
+  jfrog_url           = "https://example.jfrog.io"
+  install_jfrog_cli   = false
+  configure_jfrog_cli = false
+}
+```
+
+The module fails with a clear error if `jf` is required but unavailable. Package manager configuration is disabled by omitting `package_managers` or leaving it empty.
 
 ## Username Handling
 
@@ -96,7 +113,7 @@ Configure the Python pip package manager to fetch packages from Artifactory whil
 module "jfrog" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jfrog-oauth/coder"
-  version        = "1.2.5"
+  version        = "1.3.0"
   agent_id       = coder_agent.main.id
   jfrog_url      = "https://example.jfrog.io"
   username_field = "email"
@@ -126,7 +143,7 @@ The [JFrog extension](https://open-vsx.org/extension/JFrog/jfrog-vscode-extensio
 module "jfrog" {
   count                 = data.coder_workspace.me.start_count
   source                = "registry.coder.com/coder/jfrog-oauth/coder"
-  version               = "1.2.5"
+  version               = "1.3.0"
   agent_id              = coder_agent.main.id
   jfrog_url             = "https://example.jfrog.io"
   username_field        = "username" # If you are using GitHub to login to both Coder and Artifactory, use username_field = "username"

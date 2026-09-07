@@ -78,7 +78,7 @@ module "vscode-desktop-core" {
 
   folder      = var.folder
   open_recent = var.open_recent
-  protocol    = "antigravity"
+  protocol    = "antigravity-ide"
 }
 
 resource "coder_script" "antigravity_mcp" {

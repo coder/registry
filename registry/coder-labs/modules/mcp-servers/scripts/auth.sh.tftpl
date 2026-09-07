@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ARG_AUTH_MODE='${ARG_AUTH_MODE}'
+ARG_CLIENTS=$(printf '%s' '${ARG_CLIENTS}' | base64 -d)
+ARG_EXTERNAL_AUTH_ID=$(printf '%s' '${ARG_EXTERNAL_AUTH_ID}' | base64 -d)
+ARG_IS_PREBUILD='${ARG_IS_PREBUILD}'
+ARG_LOCAL_SERVER_IMAGE=$(printf '%s' '${ARG_LOCAL_SERVER_IMAGE}' | base64 -d)
+ARG_MCP_ADD_VERSION='${ARG_MCP_ADD_VERSION}'
+ARG_OAUTH_CALLBACK_PORT='${ARG_OAUTH_CALLBACK_PORT}'
+ARG_TOKEN_ENV_VAR=$(printf '%s' '${ARG_TOKEN_ENV_VAR}' | base64 -d)
+
+if [[ "$${ARG_IS_PREBUILD}" == "true" ]]; then
+  echo "Skipping GitHub MCP user authentication for the prebuild owner. Authentication will be configured after claim."
+  exit 0
+fi
+
+patch_json_github() {
+  local config_path="$1"
+  local client="$2"
+  local auth_kind="$3"
+  local auth_value="$4"
+
+  node - "$${config_path}" "$${client}" "$${auth_kind}" "$${auth_value}" << 'NODE'
+const fs = require("node:fs");
+
+const [configPath, client, authKind, authValue] = process.argv.slice(2);
+const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+const github = config.mcpServers?.github;
+
+if (!github || typeof github !== "object" || Array.isArray(github)) {
+  console.error(`GitHub MCP configuration is missing from $${configPath}.`);
+  process.exit(1);
+}
+
+if (authKind === "token-env") {
+  github.headers = github.headers ?? {};
+  github.headers.Authorization =
+    client === "cursor"
+      ? `Bearer \$${env:$${authValue}}`
+      : `Bearer \$${$${authValue}}`;
+  delete github.headersHelper;
+} else {
+  if (github.headers) {
+    delete github.headers.Authorization;
+    if (Object.keys(github.headers).length === 0) delete github.headers;
+  }
+  github.headersHelper = authValue;
+}
+
+const temporaryPath = `$${configPath}.coder-mcp-servers.tmp`;
+const mode = fs.statSync(configPath).mode;
+fs.writeFileSync(temporaryPath, `$${JSON.stringify(config, null, 2)}\n`, {
+  mode,
+});
+fs.renameSync(temporaryPath, configPath);
+NODE
+}
+
+configure_token_env() {
+  if [[ ! -v $${ARG_TOKEN_ENV_VAR} || -z "$${!ARG_TOKEN_ENV_VAR}" ]]; then
+    echo "GitHub MCP authentication requires the $${ARG_TOKEN_ENV_VAR} environment variable." >&2
+    echo "Inject it with a template environment value or an enabled Coder User Secret, then restart the workspace." >&2
+    exit 1
+  fi
+
+  if [[ ",$${ARG_CLIENTS}," == *",claude code,"* ]]; then
+    patch_json_github "$${HOME}/.claude.json" "claude code" "token-env" "$${ARG_TOKEN_ENV_VAR}"
+  fi
+
+  if [[ ",$${ARG_CLIENTS}," == *",cursor,"* ]]; then
+    patch_json_github "$${HOME}/.cursor/mcp.json" "cursor" "token-env" "$${ARG_TOKEN_ENV_VAR}"
+  fi
+
+  if [[ ",$${ARG_CLIENTS}," == *",codex,"* ]]; then
+    if ! command -v codex > /dev/null 2>&1; then
+      echo "Codex CLI is required to configure bearer_token_env_var for GitHub MCP." >&2
+      exit 1
+    fi
+    codex mcp remove github > /dev/null
+    codex mcp add github \
+      --url "https://api.githubcopilot.com/mcp/" \
+      --bearer-token-env-var "$${ARG_TOKEN_ENV_VAR}" > /dev/null
+  fi
+
+  echo "GitHub MCP authentication configured from $${ARG_TOKEN_ENV_VAR}; no token value was written to client configuration."
+}
+
+configure_external_auth() {
+  local helper_path="$${HOME}/.coder-modules/coder-labs/mcp-servers/scripts/github-headers.sh"
+
+  {
+    printf '%s\n' '#!/usr/bin/env bash' 'set -euo pipefail'
+    # The provider ID is constrained by Terraform validation, and %q preserves
+    # it as data when materializing the runtime helper.
+    printf 'provider=%q\n' "$${ARG_EXTERNAL_AUTH_ID}"
+    cat << 'HELPER'
+if ! command -v coder > /dev/null 2>&1; then
+  echo "Coder CLI is required to resolve GitHub External Auth." >&2
+  exit 1
+fi
+
+token_or_url=""
+if ! token_or_url=$(coder external-auth access-token "$${provider}"); then
+  echo "GitHub External Auth is not connected. Authenticate at: $${token_or_url}" >&2
+  exit 1
+fi
+
+printf '%s' "$${token_or_url}" | node -e '
+const fs = require("node:fs");
+const token = fs.readFileSync(0, "utf8");
+process.stdout.write(`$${JSON.stringify({ Authorization: `Bearer $${token}` })}\n`);
+'
+HELPER
+  } > "$${helper_path}"
+  chmod 700 "$${helper_path}"
+
+  patch_json_github "$${HOME}/.claude.json" "claude code" "headers-helper" "$${helper_path}"
+  echo "GitHub MCP authentication configured through Coder External Auth provider $${ARG_EXTERNAL_AUTH_ID}."
+}
+
+configure_native_oauth() {
+  if ! command -v docker > /dev/null 2>&1; then
+    echo "Docker is required for GitHub MCP native OAuth mode." >&2
+    exit 1
+  fi
+
+  local command="docker run -i --rm -p 127.0.0.1:$${ARG_OAUTH_CALLBACK_PORT}:$${ARG_OAUTH_CALLBACK_PORT} -e GITHUB_OAUTH_CALLBACK_PORT $${ARG_LOCAL_SERVER_IMAGE}"
+  npx --yes "mcp-add@$${ARG_MCP_ADD_VERSION}" \
+    --name github \
+    --type stdio \
+    --command "$${command}" \
+    --env "GITHUB_OAUTH_CALLBACK_PORT=$${ARG_OAUTH_CALLBACK_PORT}" \
+    --scope global \
+    --clients "$${ARG_CLIENTS}"
+
+  echo "GitHub MCP native OAuth configured with the pinned official local server image."
+}
+
+case "$${ARG_AUTH_MODE}" in
+  token-env) configure_token_env ;;
+  external-auth) configure_external_auth ;;
+  native-oauth) configure_native_oauth ;;
+  *)
+    echo "Unsupported GitHub MCP authentication mode: $${ARG_AUTH_MODE}" >&2
+    exit 1
+    ;;
+esac
