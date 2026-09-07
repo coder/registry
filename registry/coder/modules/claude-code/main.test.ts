@@ -703,6 +703,38 @@ describe("claude-code", async () => {
     expect(installLog).not.toContain("No authentication configured");
   });
 
+  test("use-foundry-with-resource-no-api-key", async () => {
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        use_foundry: "true",
+        foundry_resource: "coder-foundry",
+      },
+    });
+    expect(coderEnvVars["CLAUDE_CODE_USE_FOUNDRY"]).toBe("1");
+    expect(coderEnvVars["ANTHROPIC_FOUNDRY_RESOURCE"]).toBe("coder-foundry");
+    expect(coderEnvVars["ANTHROPIC_FOUNDRY_BASE_URL"]).toBeUndefined();
+    expect(coderEnvVars["ANTHROPIC_FOUNDRY_API_KEY"]).toBeUndefined();
+    expect(coderEnvVars["ANTHROPIC_FOUNDRY_AUTH_TOKEN"]).toBeUndefined();
+    expect(coderEnvVars["ANTHROPIC_API_KEY"]).toBeUndefined();
+
+    await runScripts(id, scripts, coderEnvVars);
+    const installLog = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+    );
+    expect(installLog).toContain(
+      "Using Microsoft Foundry (CLAUDE_CODE_USE_FOUNDRY=1)",
+    );
+    expect(installLog).not.toContain("No authentication configured");
+    expect(installLog).toContain("Standalone mode configured successfully");
+
+    const claudeConfig = await readFileContainer(
+      id,
+      "/home/coder/.claude.json",
+    );
+    expect(JSON.parse(claudeConfig).hasCompletedOnboarding).toBe(true);
+  });
+
   test("anthropic-base-url-custom", async () => {
     const baseUrl = "https://llm-gateway.example.com/anthropic";
     const { id, coderEnvVars, scripts } = await setup({

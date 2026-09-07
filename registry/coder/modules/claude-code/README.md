@@ -13,7 +13,7 @@ Install and configure the [Claude Code](https://docs.anthropic.com/en/docs/agent
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.1"
+  version           = "5.5.0"
   agent_id          = coder_agent.main.id
   anthropic_api_key = "xxxx-xxxxx-xxxx"
 }
@@ -32,6 +32,7 @@ Provide exactly one authentication method:
 - **Coder AI Gateway** (Coder Premium, Coder >= 2.30.0): set `enable_ai_gateway = true`. The module authenticates against the gateway using the workspace owner's session token. Do not combine with `anthropic_api_key` or `claude_code_oauth_token`.
 - **Amazon Bedrock**: set `use_bedrock = true`. Authentication uses the workspace's AWS credential chain. See [Usage with AWS Bedrock](#usage-with-aws-bedrock).
 - **Google Vertex AI**: set `use_vertex = true`. Authentication uses Google Application Default Credentials inside the workspace. See [Usage with Google Vertex AI](#usage-with-google-vertex-ai).
+- **Microsoft Foundry**: set `use_foundry = true` and provide either `foundry_resource` or `foundry_base_url`. Authentication uses the Azure default credential chain unless a Foundry API key or bearer token is provided separately. See [Usage with Microsoft Foundry](#usage-with-microsoft-foundry).
 - **Custom API gateway**: set `anthropic_base_url` to a self-hosted gateway that speaks the Anthropic Messages API. See [Usage with a custom API gateway](#usage-with-a-custom-api-gateway).
 
 ## workdir
@@ -51,7 +52,7 @@ locals {
 
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.1"
+  version           = "5.5.0"
   agent_id          = coder_agent.main.id
   workdir           = local.claude_workdir
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -82,7 +83,7 @@ resource "coder_app" "claude" {
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.1"
+  version           = "5.5.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -106,7 +107,7 @@ The `managed_settings` input writes a policy file to `/etc/claude-code/managed-s
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.1"
+  version           = "5.5.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -133,7 +134,7 @@ For production deployments we recommend `api_key_helper` over a static `anthropi
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.4.1"
+  version  = "5.5.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -152,7 +153,7 @@ Or, sourcing from AWS Secrets Manager:
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.4.1"
+  version  = "5.5.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -177,7 +178,7 @@ This example shows version pinning, a pre-installed binary path, a custom model,
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.4.1"
+  version  = "5.5.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -241,7 +242,7 @@ Downstream `coder_script` resources can wait for this module's install pipeline 
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.1"
+  version           = "5.5.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -271,7 +272,7 @@ Set `use_bedrock = true` to route Claude Code through Amazon Bedrock. The module
 ```tf
 module "claude-code" {
   source      = "registry.coder.com/coder/claude-code/coder"
-  version     = "5.4.1"
+  version     = "5.5.0"
   agent_id    = coder_agent.main.id
   workdir     = "/home/coder/project"
   use_bedrock = true
@@ -324,7 +325,7 @@ Set `use_vertex = true` to route Claude Code through Google Vertex AI. The modul
 ```tf
 module "claude-code" {
   source     = "registry.coder.com/coder/claude-code/coder"
-  version    = "5.4.1"
+  version    = "5.5.0"
   agent_id   = coder_agent.main.id
   workdir    = "/home/coder/project"
   use_vertex = true
@@ -350,6 +351,52 @@ resource "coder_env" "cloud_ml_region" {
 > [!NOTE]
 > Prerequisites: GCP project with Vertex AI API enabled, Claude models enabled through Model Garden, and the `Vertex AI User` role on the workspace identity. For additional configuration, see the [Claude Code Vertex AI documentation](https://docs.claude.com/en/docs/claude-code/google-vertex-ai).
 
+### Usage with Microsoft Foundry
+
+Set `use_foundry = true` and provide exactly one endpoint: the Azure resource name through `foundry_resource`, or the full endpoint through `foundry_base_url`. The module sets `CLAUDE_CODE_USE_FOUNDRY=1` and the corresponding endpoint environment variable.
+
+This example uses the Azure default credential chain. Attach a managed identity or workload identity with the `Azure AI User` or `Cognitive Services User` role to the workspace so Claude Code can authenticate without a static secret.
+
+```tf
+module "claude-code" {
+  source           = "registry.coder.com/coder/claude-code/coder"
+  version          = "5.5.0"
+  agent_id         = coder_agent.main.id
+  workdir          = "/home/coder/project"
+  use_foundry      = true
+  foundry_resource = "coder-foundry"
+  model            = "claude-sonnet-5"
+}
+```
+
+For multi-user deployments, pin each Claude alias to a deployment that exists in the Foundry resource. Foundry does not check model availability at startup, so an unavailable default fails on the first request.
+
+```tf
+resource "coder_env" "foundry_default_opus_model" {
+  agent_id = coder_agent.main.id
+  name     = "ANTHROPIC_DEFAULT_OPUS_MODEL"
+  value    = "claude-opus-4-8"
+}
+
+resource "coder_env" "foundry_default_sonnet_model" {
+  agent_id = coder_agent.main.id
+  name     = "ANTHROPIC_DEFAULT_SONNET_MODEL"
+  value    = "claude-sonnet-5"
+}
+
+resource "coder_env" "foundry_default_haiku_model" {
+  agent_id = coder_agent.main.id
+  name     = "ANTHROPIC_DEFAULT_HAIKU_MODEL"
+  value    = "claude-haiku-4-5"
+}
+```
+
+> [!TIP]
+> Microsoft Entra ID is the recommended authentication path for managed workspaces. If the workspace cannot use the Azure default credential chain, set the sensitive `foundry_api_key` input. Alternatively, set `foundry_auth_token` to a short-lived Entra bearer token; bearer-token authentication requires Claude Code 2.1.203 or later. The module rejects setting both credentials to avoid relying on precedence rules.
+
+> [!NOTE]
+> Microsoft Foundry has no interactive setup wizard. Verify the configured provider and endpoint with `/status` after starting Claude Code. See the [official Microsoft Foundry documentation](https://code.claude.com/docs/en/microsoft-foundry).
+
 ### Usage with a custom API gateway
 
 Set `anthropic_base_url` to point Claude Code at a self-hosted gateway or proxy that speaks the Anthropic Messages API. The module sets `ANTHROPIC_BASE_URL` and skips its built-in Anthropic authentication setup; provide whatever credentials your gateway requires via separate `coder_env` resources.
@@ -357,7 +404,7 @@ Set `anthropic_base_url` to point Claude Code at a self-hosted gateway or proxy 
 ```tf
 module "claude-code" {
   source             = "registry.coder.com/coder/claude-code/coder"
-  version            = "5.4.1"
+  version            = "5.5.0"
   agent_id           = coder_agent.main.id
   workdir            = "/home/coder/project"
   anthropic_base_url = "https://llm-gateway.example.com/anthropic"
@@ -365,7 +412,7 @@ module "claude-code" {
 ```
 
 > [!CAUTION]
-> `anthropic_base_url` is mutually exclusive with `enable_ai_gateway`, which sets `ANTHROPIC_BASE_URL` to the Coder AI Gateway endpoint. `use_bedrock` and `use_vertex` are likewise mutually exclusive with `enable_ai_gateway` and with each other.
+> `anthropic_base_url` is mutually exclusive with `enable_ai_gateway`, which sets `ANTHROPIC_BASE_URL` to the Coder AI Gateway endpoint. `use_bedrock`, `use_vertex`, and `use_foundry` are mutually exclusive provider backends.
 
 ### Telemetry export (OpenTelemetry)
 
@@ -376,7 +423,7 @@ The module automatically tags every span and metric with `coder.workspace_id`, `
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.1"
+  version           = "5.5.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"

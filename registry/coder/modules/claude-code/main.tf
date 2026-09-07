@@ -105,7 +105,7 @@ variable "claude_binary_path" {
 
 variable "managed_settings" {
   type        = any
-  description = "Policy settings written to /etc/claude-code/managed-settings.d/10-coder.json. Highest-precedence client config; works with any inference backend (Anthropic API, Bedrock, Vertex, AI Gateway). See https://docs.anthropic.com/en/docs/claude-code/settings for the schema."
+  description = "Policy settings written to /etc/claude-code/managed-settings.d/10-coder.json. Highest-precedence client config; works with any inference backend (Anthropic API, Bedrock, Vertex, Foundry, AI Gateway). See https://docs.anthropic.com/en/docs/claude-code/settings for the schema."
   default     = null
 }
 
@@ -139,7 +139,7 @@ variable "telemetry" {
 
 variable "anthropic_base_url" {
   type        = string
-  description = "Override the Anthropic API base URL (sets ANTHROPIC_BASE_URL). Use for self-hosted gateways or proxies that speak the Anthropic Messages API. Mutually exclusive with enable_ai_gateway, which sets ANTHROPIC_BASE_URL to the Coder AI Gateway endpoint."
+  description = "Override the Anthropic API base URL (sets ANTHROPIC_BASE_URL). Use for self-hosted gateways or proxies that speak the Anthropic Messages API. Mutually exclusive with enable_ai_gateway and use_foundry."
   default     = ""
 
   validation {
@@ -150,7 +150,7 @@ variable "anthropic_base_url" {
 
 variable "use_bedrock" {
   type        = bool
-  description = "Run Claude Code against Amazon Bedrock (sets CLAUDE_CODE_USE_BEDROCK=1). Authentication uses the workspace's AWS credential chain (IRSA, instance profile, or AWS_* env vars). Mutually exclusive with enable_ai_gateway and use_vertex."
+  description = "Run Claude Code against Amazon Bedrock (sets CLAUDE_CODE_USE_BEDROCK=1). Authentication uses the workspace's AWS credential chain (IRSA, instance profile, or AWS_* env vars). Mutually exclusive with enable_ai_gateway, use_vertex, and use_foundry."
   default     = false
 
   validation {
@@ -166,13 +166,75 @@ variable "use_bedrock" {
 
 variable "use_vertex" {
   type        = bool
-  description = "Run Claude Code against Google Vertex AI (sets CLAUDE_CODE_USE_VERTEX=1). Authentication uses Google Application Default Credentials inside the workspace. Mutually exclusive with enable_ai_gateway and use_bedrock."
+  description = "Run Claude Code against Google Vertex AI (sets CLAUDE_CODE_USE_VERTEX=1). Authentication uses Google Application Default Credentials inside the workspace. Mutually exclusive with enable_ai_gateway, use_bedrock, and use_foundry."
   default     = false
 
   validation {
     condition     = !(var.use_vertex && var.enable_ai_gateway)
     error_message = "use_vertex cannot be combined with enable_ai_gateway."
   }
+}
+
+variable "use_foundry" {
+  description = "Run Claude Code against Microsoft Foundry (sets CLAUDE_CODE_USE_FOUNDRY=1). Authentication uses the Azure credential chain unless ANTHROPIC_FOUNDRY_API_KEY or ANTHROPIC_FOUNDRY_AUTH_TOKEN is provided separately."
+  type        = bool
+  default     = false
+
+  validation {
+    condition = !var.use_foundry || (
+      !var.enable_ai_gateway &&
+      !var.use_bedrock &&
+      !var.use_vertex &&
+      var.anthropic_base_url == "" &&
+      var.anthropic_api_key == "" &&
+      var.claude_code_oauth_token == "" &&
+      var.api_key_helper == null
+    )
+    error_message = "use_foundry cannot be combined with enable_ai_gateway, use_bedrock, use_vertex, anthropic_base_url, anthropic_api_key, claude_code_oauth_token, or api_key_helper."
+  }
+
+  validation {
+    condition = var.use_foundry ? (
+      (var.foundry_resource != "") != (var.foundry_base_url != "")
+      ) : (
+      var.foundry_resource == "" &&
+      var.foundry_base_url == "" &&
+      var.foundry_api_key == "" &&
+      var.foundry_auth_token == ""
+    )
+    error_message = "Set exactly one of foundry_resource or foundry_base_url when use_foundry is true, and leave all Foundry inputs empty otherwise."
+  }
+
+  validation {
+    condition     = !var.use_foundry || var.foundry_api_key == "" || var.foundry_auth_token == ""
+    error_message = "Set at most one of foundry_api_key or foundry_auth_token. Leave both empty to use the Azure default credential chain."
+  }
+}
+
+variable "foundry_resource" {
+  description = "Microsoft Foundry resource name passed through ANTHROPIC_FOUNDRY_RESOURCE. Mutually exclusive with foundry_base_url."
+  type        = string
+  default     = ""
+}
+
+variable "foundry_base_url" {
+  description = "Full Microsoft Foundry endpoint passed through ANTHROPIC_FOUNDRY_BASE_URL. Mutually exclusive with foundry_resource."
+  type        = string
+  default     = ""
+}
+
+variable "foundry_api_key" {
+  description = "Optional Microsoft Foundry API key passed through ANTHROPIC_FOUNDRY_API_KEY. Prefer the Azure default credential chain for managed workspaces."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "foundry_auth_token" {
+  description = "Optional short-lived Microsoft Entra bearer token passed through ANTHROPIC_FOUNDRY_AUTH_TOKEN. Requires Claude Code 2.1.203 or later."
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 variable "api_key_helper" {
@@ -253,6 +315,41 @@ resource "coder_env" "use_vertex" {
   value    = "1"
 }
 
+resource "coder_env" "use_foundry" {
+  count    = var.use_foundry ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CLAUDE_CODE_USE_FOUNDRY"
+  value    = "1"
+}
+
+resource "coder_env" "foundry_resource" {
+  count    = var.use_foundry && var.foundry_resource != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_FOUNDRY_RESOURCE"
+  value    = var.foundry_resource
+}
+
+resource "coder_env" "foundry_base_url" {
+  count    = var.use_foundry && var.foundry_base_url != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_FOUNDRY_BASE_URL"
+  value    = var.foundry_base_url
+}
+
+resource "coder_env" "foundry_api_key" {
+  count    = var.use_foundry && var.foundry_api_key != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_FOUNDRY_API_KEY"
+  value    = var.foundry_api_key
+}
+
+resource "coder_env" "foundry_auth_token" {
+  count    = var.use_foundry && var.foundry_auth_token != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "ANTHROPIC_FOUNDRY_AUTH_TOKEN"
+  value    = var.foundry_auth_token
+}
+
 resource "coder_env" "api_key_helper_ttl" {
   count    = var.api_key_helper != null ? 1 : 0
   agent_id = var.agent_id
@@ -325,6 +422,7 @@ locals {
     ARG_MANAGED_SETTINGS_JSON  = var.managed_settings != null ? base64encode(jsonencode(var.managed_settings)) : ""
     ARG_USE_BEDROCK            = tostring(var.use_bedrock)
     ARG_USE_VERTEX             = tostring(var.use_vertex)
+    ARG_USE_FOUNDRY            = tostring(var.use_foundry)
     ARG_ANTHROPIC_BASE_URL     = var.anthropic_base_url
     ARG_API_KEY_HELPER_SCRIPT  = var.api_key_helper != null ? base64encode(var.api_key_helper.script) : ""
   })
