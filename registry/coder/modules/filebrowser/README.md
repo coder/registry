@@ -19,7 +19,7 @@ A file browser for your workspace.
 module "filebrowser" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/filebrowser/coder"
-  version  = "1.1.5"
+  version  = "1.1.6"
   agent_id = coder_agent.main.id
 }
 ```
@@ -34,7 +34,7 @@ module "filebrowser" {
 module "filebrowser" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/filebrowser/coder"
-  version  = "1.1.5"
+  version  = "1.1.6"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
@@ -46,7 +46,7 @@ module "filebrowser" {
 module "filebrowser" {
   count         = data.coder_workspace.me.start_count
   source        = "registry.coder.com/coder/filebrowser/coder"
-  version       = "1.1.5"
+  version       = "1.1.6"
   agent_id      = coder_agent.main.id
   database_path = ".config/filebrowser.db"
 }
@@ -60,7 +60,7 @@ When `subdomain = false`, you must also set `agent_name` to the name of your `co
 module "filebrowser" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/filebrowser/coder"
-  version    = "1.1.5"
+  version    = "1.1.6"
   agent_id   = coder_agent.main.id
   agent_name = "main"
   subdomain  = false
