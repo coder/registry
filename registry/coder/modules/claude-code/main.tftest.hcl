@@ -511,3 +511,151 @@ run "test_api_key_helper_validation_with_ai_gateway" {
     var.api_key_helper,
   ]
 }
+
+run "test_authentication_config_default_environment" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent-authentication-config-default"
+    workdir           = "/home/coder/test"
+    enable_ai_gateway = true
+  }
+
+  override_data {
+    target = data.coder_workspace_owner.me
+    values = {
+      session_token = "mock-session-token"
+    }
+  }
+
+  assert {
+    condition     = var.authentication_config == "environment"
+    error_message = "authentication_config should default to environment"
+  }
+
+  assert {
+    condition     = length(coder_env.anthropic_auth_token) == 1
+    error_message = "ANTHROPIC_AUTH_TOKEN coder_env should still be created by default"
+  }
+
+  assert {
+    condition     = length(coder_env.anthropic_base_url) == 1
+    error_message = "ANTHROPIC_BASE_URL coder_env should still be created by default"
+  }
+
+  assert {
+    condition     = length(regexall("/api/v2/aibridge/anthropic", coder_env.anthropic_base_url[0].value)) > 0
+    error_message = "ANTHROPIC_BASE_URL should point to the AI Gateway endpoint"
+  }
+}
+
+run "test_authentication_config_managed_settings" {
+  command = plan
+
+  variables {
+    agent_id              = "test-agent-authentication-config-managed"
+    workdir               = "/home/coder/test"
+    enable_ai_gateway     = true
+    authentication_config = "managed_settings"
+    model                 = "sonnet"
+  }
+
+  override_data {
+    target = data.coder_workspace_owner.me
+    values = {
+      session_token = "mock-session-token"
+    }
+  }
+
+  assert {
+    condition     = length(coder_env.anthropic_auth_token) == 0
+    error_message = "ANTHROPIC_AUTH_TOKEN coder_env should not be created when authentication_config is managed_settings"
+  }
+
+  assert {
+    condition     = length(coder_env.anthropic_model) == 1
+    error_message = "ANTHROPIC_MODEL coder_env should still be created regardless of authentication_config, since model is not authentication"
+  }
+
+  assert {
+    condition     = length(coder_env.anthropic_base_url) == 0
+    error_message = "ANTHROPIC_BASE_URL coder_env should not be created when authentication_config is managed_settings"
+  }
+
+  assert {
+    condition     = length(keys(local.gateway_env)) == 2
+    error_message = "gateway_env should contain exactly ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN"
+  }
+
+  assert {
+    condition     = !contains(keys(local.gateway_env), "ANTHROPIC_MODEL")
+    error_message = "gateway_env should never contain ANTHROPIC_MODEL"
+  }
+
+  assert {
+    condition     = local.gateway_env["ANTHROPIC_AUTH_TOKEN"] == data.coder_workspace_owner.me.session_token
+    error_message = "gateway_env ANTHROPIC_AUTH_TOKEN should use the workspace owner's session token"
+  }
+
+  assert {
+    condition     = length(regexall("/api/v2/aibridge/anthropic", local.gateway_env["ANTHROPIC_BASE_URL"])) > 0
+    error_message = "gateway_env ANTHROPIC_BASE_URL should point to the AI Gateway endpoint"
+  }
+
+  assert {
+    condition     = local.managed_settings_effective.env["ANTHROPIC_AUTH_TOKEN"] == data.coder_workspace_owner.me.session_token
+    error_message = "managed_settings_effective.env should carry the gateway_env keys"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "/etc/claude-code/managed-settings.d")
+    error_message = "install script should reference the managed-settings.d drop-in directory"
+  }
+}
+
+run "test_authentication_config_managed_settings_preserves_user_env" {
+  command = plan
+
+  variables {
+    agent_id              = "test-agent-authentication-config-preserve"
+    workdir               = "/home/coder/test"
+    enable_ai_gateway     = true
+    authentication_config = "managed_settings"
+    managed_settings = {
+      env = {
+        DISABLE_TELEMETRY = "1"
+      }
+    }
+  }
+
+  override_data {
+    target = data.coder_workspace_owner.me
+    values = {
+      session_token = "mock-session-token"
+    }
+  }
+
+  assert {
+    condition     = local.managed_settings_effective.env["DISABLE_TELEMETRY"] == "1"
+    error_message = "user-supplied managed_settings.env keys should be preserved"
+  }
+
+  assert {
+    condition     = local.managed_settings_effective.env["ANTHROPIC_AUTH_TOKEN"] == data.coder_workspace_owner.me.session_token
+    error_message = "gateway_env keys should be merged alongside user-supplied managed_settings.env keys"
+  }
+}
+
+run "test_authentication_config_invalid_value" {
+  command = plan
+
+  variables {
+    agent_id              = "test-agent-authentication-config-invalid"
+    workdir               = "/home/coder/test"
+    authentication_config = "bogus"
+  }
+
+  expect_failures = [
+    var.authentication_config,
+  ]
+}

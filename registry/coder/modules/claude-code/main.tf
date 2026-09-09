@@ -125,6 +125,17 @@ variable "enable_ai_gateway" {
   }
 }
 
+variable "authentication_config" {
+  description = "Controls where Claude Code reads its AI Gateway authentication (ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN). \"environment\" (default) sets them as workspace environment variables. \"managed_settings\" writes them to the env block of /etc/claude-code/managed-settings.d/10-coder.json so they do not appear in the workspace shell environment."
+  type        = string
+  default     = "environment"
+
+  validation {
+    condition     = contains(["environment", "managed_settings"], var.authentication_config)
+    error_message = "authentication_config must be either \"environment\" or \"managed_settings\"."
+  }
+}
+
 variable "telemetry" {
   type = object({
     enabled             = optional(bool, false)
@@ -211,7 +222,7 @@ resource "coder_env" "anthropic_api_key" {
 # ANTHROPIC_AUTH_TOKEN authenticates the client against Coder's AI Gateway
 # using the workspace owner's session token, per the AI Gateway docs.
 resource "coder_env" "anthropic_auth_token" {
-  count    = var.enable_ai_gateway ? 1 : 0
+  count    = var.authentication_config == "environment" && var.enable_ai_gateway ? 1 : 0
   agent_id = var.agent_id
   name     = "ANTHROPIC_AUTH_TOKEN"
   value    = data.coder_workspace_owner.me.session_token
@@ -233,10 +244,51 @@ resource "coder_env" "anthropic_model" {
 }
 
 resource "coder_env" "anthropic_base_url" {
-  count    = var.enable_ai_gateway || var.anthropic_base_url != "" ? 1 : 0
+  count    = var.authentication_config == "environment" && (var.enable_ai_gateway || var.anthropic_base_url != "") ? 1 : 0
   agent_id = var.agent_id
   name     = "ANTHROPIC_BASE_URL"
   value    = var.enable_ai_gateway ? "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic" : var.anthropic_base_url
+}
+
+locals {
+  # Values that would otherwise be delivered via the coder_env resources above.
+  # When authentication_config == "managed_settings" these are written into
+  # the env block of the managed settings file instead, so they never appear
+  # in the workspace shell environment. ANTHROPIC_MODEL is not authentication
+  # and is never moved; its coder_env resource above is unconditional.
+  gateway_env = merge(
+    var.enable_ai_gateway || var.anthropic_base_url != "" ? {
+      ANTHROPIC_BASE_URL = var.enable_ai_gateway ? "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic" : var.anthropic_base_url
+    } : {},
+    var.enable_ai_gateway ? {
+      ANTHROPIC_AUTH_TOKEN = data.coder_workspace_owner.me.session_token
+    } : {},
+  )
+
+  # var.managed_settings is typed `any`, so this coerces null to {} for the
+  # merge() below without fighting Terraform's static type inference.
+  user_managed_settings = var.managed_settings == null ? {} : var.managed_settings
+
+  # Merge gateway_env into managed_settings.env, preserving any user-supplied
+  # managed_settings.env keys (gateway keys take precedence). Falls back to
+  # var.managed_settings unchanged when authentication_config == "environment",
+  # or when there is nothing to add, so ARG_MANAGED_SETTINGS_JSON matches
+  # today's behavior exactly (null stays null) in that case.
+  #
+  # A plain `condition ? merge(...) : var.managed_settings` ternary fails with
+  # "Error: Inconsistent conditional result types ... The 'true' value
+  # includes object attribute \"env\", which is absent in the 'false' value"
+  # as soon as a concrete var.managed_settings value (type any) lacks an
+  # "env" key, because Terraform requires both branches of an object-valued
+  # conditional to share a structural type. jsonencode both branches to
+  # strings (always the same type) so the ternary type-checks, then
+  # jsondecode the chosen branch.
+  managed_settings_effective = jsondecode(
+    (var.authentication_config == "managed_settings" && length(local.gateway_env) > 0) ? jsonencode(merge(
+      local.user_managed_settings,
+      { env = merge(try(local.user_managed_settings.env, {}), local.gateway_env) }
+    )) : jsonencode(var.managed_settings)
+  )
 }
 
 resource "coder_env" "use_bedrock" {
@@ -322,7 +374,7 @@ locals {
     ARG_MCP                    = var.mcp != "" ? base64encode(var.mcp) : ""
     ARG_MCP_CONFIG_REMOTE_PATH = base64encode(jsonencode(var.mcp_config_remote_path))
     ARG_ENABLE_AI_GATEWAY      = tostring(var.enable_ai_gateway)
-    ARG_MANAGED_SETTINGS_JSON  = var.managed_settings != null ? base64encode(jsonencode(var.managed_settings)) : ""
+    ARG_MANAGED_SETTINGS_JSON  = local.managed_settings_effective != null ? base64encode(jsonencode(local.managed_settings_effective)) : ""
     ARG_USE_BEDROCK            = tostring(var.use_bedrock)
     ARG_USE_VERTEX             = tostring(var.use_vertex)
     ARG_ANTHROPIC_BASE_URL     = var.anthropic_base_url
