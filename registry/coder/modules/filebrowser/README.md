@@ -3,10 +3,15 @@ display_name: File Browser
 description: A file browser for your workspace
 icon: ../../../../.icons/filebrowser.svg
 verified: true
-tags: [filebrowser, web]
+tags: [filebrowser, files, web]
 ---
 
 # File Browser
+
+> [!WARNING]
+> **This module is deprecated.** The upstream [File Browser](https://github.com/filebrowser/filebrowser) project has been wound down and its repository archived, so it no longer receives releases, bug fixes, or security patches.
+>
+> Existing workspaces will keep working, but we recommend against adopting this module for new templates. For a maintained alternative, see the community [`copyparty`](https://registry.coder.com/modules/djarbz/copyparty) module, or browse other file-serving modules: [https://registry.coder.com/modules?search=tag%3Afiles](https://registry.coder.com/modules?search=tag%3Afiles).
 
 A file browser for your workspace.
 
