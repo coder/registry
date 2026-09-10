@@ -3,10 +3,15 @@ display_name: File Browser
 description: A file browser for your workspace
 icon: ../../../../.icons/filebrowser.svg
 verified: true
-tags: [filebrowser, web]
+tags: [filebrowser, files, web]
 ---
 
 # File Browser
+
+> [!WARNING]
+> **This module is deprecated.** The upstream [File Browser](https://github.com/filebrowser/filebrowser) project has been wound down and its repository archived, so it no longer receives releases, bug fixes, or security patches.
+>
+> Existing workspaces will keep working, but we recommend against adopting this module for new templates. For alternatives, look at the [`copyparty`](https://registry.coder.com/modules/djarbz/copyparty) module or [https://registry.coder.com/modules?search=tag%3Afiles](https://registry.coder.com/modules?search=tag%3Afiles).
 
 A file browser for your workspace.
 
@@ -14,7 +19,7 @@ A file browser for your workspace.
 module "filebrowser" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/filebrowser/coder"
-  version  = "1.1.5"
+  version  = "1.1.6"
   agent_id = coder_agent.main.id
 }
 ```
@@ -29,7 +34,7 @@ module "filebrowser" {
 module "filebrowser" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/filebrowser/coder"
-  version  = "1.1.5"
+  version  = "1.1.6"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
@@ -41,7 +46,7 @@ module "filebrowser" {
 module "filebrowser" {
   count         = data.coder_workspace.me.start_count
   source        = "registry.coder.com/coder/filebrowser/coder"
-  version       = "1.1.5"
+  version       = "1.1.6"
   agent_id      = coder_agent.main.id
   database_path = ".config/filebrowser.db"
 }
@@ -55,7 +60,7 @@ When `subdomain = false`, you must also set `agent_name` to the name of your `co
 module "filebrowser" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/filebrowser/coder"
-  version    = "1.1.5"
+  version    = "1.1.6"
   agent_id   = coder_agent.main.id
   agent_name = "main"
   subdomain  = false
