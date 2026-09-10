@@ -170,7 +170,7 @@ resource "coder_agent" "main" {
   metadata {
     display_name = "Registry skills"
     key          = "registry_skills"
-    script       = "ls /home/coder/.claude/skills 2>/dev/null | tr '\\n' ' ' | sed 's/ $//' || echo 'none'"
+    script       = "ls $HOME/.claude/skills 2>/dev/null | tr '\\n' ' ' | sed 's/ $//' || echo 'none'"
     interval     = 60
     timeout      = 2
   }
@@ -213,6 +213,22 @@ resource "docker_volume" "home" {
   lifecycle {
     ignore_changes = all
   }
+  labels {
+    label = "coder.owner"
+    value = data.coder_workspace_owner.me.name
+  }
+  labels {
+    label = "coder.owner_id"
+    value = data.coder_workspace_owner.me.id
+  }
+  labels {
+    label = "coder.workspace_id"
+    value = data.coder_workspace.me.id
+  }
+  labels {
+    label = "coder.workspace_name_at_creation"
+    value = data.coder_workspace.me.name
+  }
 }
 
 data "docker_registry_image" "workspace" {
@@ -231,7 +247,7 @@ resource "docker_container" "workspace" {
   name     = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}"
   hostname = lower(data.coder_workspace.me.name)
 
-  entrypoint = ["sh", "-c", coder_agent.main.init_script]
+  entrypoint = ["sh", "-c", replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")]
   env = [
     "CODER_AGENT_TOKEN=${coder_agent.main.token}",
   ]
