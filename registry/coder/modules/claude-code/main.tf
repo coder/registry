@@ -251,11 +251,7 @@ resource "coder_env" "anthropic_base_url" {
 }
 
 locals {
-  # Values that would otherwise be delivered via the coder_env resources above.
-  # When authentication_config == "managed_settings" these are written into
-  # the env block of the managed settings file instead, so they never appear
-  # in the workspace shell environment. ANTHROPIC_MODEL is not authentication
-  # and is never moved; its coder_env resource above is unconditional.
+  # Gateway authentication can live in managed settings instead of the shell environment.
   gateway_env = merge(
     var.enable_ai_gateway || var.anthropic_base_url != "" ? {
       ANTHROPIC_BASE_URL = var.enable_ai_gateway ? "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic" : var.anthropic_base_url
@@ -265,29 +261,16 @@ locals {
     } : {},
   )
 
-  # var.managed_settings is typed `any`, so this coerces null to {} for the
-  # merge() below without fighting Terraform's static type inference.
-  user_managed_settings = var.managed_settings == null ? {} : var.managed_settings
+  use_managed_auth = var.authentication_config == "managed_settings" && length(local.gateway_env) > 0
 
-  # Merge gateway_env into managed_settings.env, preserving any user-supplied
-  # managed_settings.env keys (gateway keys take precedence). Falls back to
-  # var.managed_settings unchanged when authentication_config == "environment",
-  # or when there is nothing to add, so ARG_MANAGED_SETTINGS_JSON matches
-  # today's behavior exactly (null stays null) in that case.
-  #
-  # A plain `condition ? merge(...) : var.managed_settings` ternary fails with
-  # "Error: Inconsistent conditional result types ... The 'true' value
-  # includes object attribute \"env\", which is absent in the 'false' value"
-  # as soon as a concrete var.managed_settings value (type any) lacks an
-  # "env" key, because Terraform requires both branches of an object-valued
-  # conditional to share a structural type. jsonencode both branches to
-  # strings (always the same type) so the ternary type-checks, then
-  # jsondecode the chosen branch.
+  # Preserve user settings, with gateway keys taking precedence.
+  managed_settings_with_auth = merge(var.managed_settings, {
+    env = merge(try(var.managed_settings.env, {}), local.gateway_env)
+  })
+
+  # Encode the branches so Terraform accepts objects with different keys.
   managed_settings_effective = jsondecode(
-    (var.authentication_config == "managed_settings" && length(local.gateway_env) > 0) ? jsonencode(merge(
-      local.user_managed_settings,
-      { env = merge(try(local.user_managed_settings.env, {}), local.gateway_env) }
-    )) : jsonencode(var.managed_settings)
+    local.use_managed_auth ? jsonencode(local.managed_settings_with_auth) : jsonencode(var.managed_settings)
   )
 }
 

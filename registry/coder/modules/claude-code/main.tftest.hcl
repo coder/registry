@@ -622,8 +622,10 @@ run "test_authentication_config_managed_settings_preserves_user_env" {
     enable_ai_gateway     = true
     authentication_config = "managed_settings"
     managed_settings = {
+      permissions = { deny = ["Bash(rm *)"] }
       env = {
-        DISABLE_TELEMETRY = "1"
+        DISABLE_TELEMETRY    = "1"
+        ANTHROPIC_AUTH_TOKEN = "overridden-token"
       }
     }
   }
@@ -636,6 +638,11 @@ run "test_authentication_config_managed_settings_preserves_user_env" {
   }
 
   assert {
+    condition     = local.managed_settings_effective.permissions.deny == var.managed_settings.permissions.deny
+    error_message = "Non-env settings should be preserved"
+  }
+
+  assert {
     condition     = local.managed_settings_effective.env["DISABLE_TELEMETRY"] == "1"
     error_message = "user-supplied managed_settings.env keys should be preserved"
   }
@@ -643,6 +650,27 @@ run "test_authentication_config_managed_settings_preserves_user_env" {
   assert {
     condition     = local.managed_settings_effective.env["ANTHROPIC_AUTH_TOKEN"] == data.coder_workspace_owner.me.session_token
     error_message = "gateway_env keys should be merged alongside user-supplied managed_settings.env keys"
+  }
+}
+
+run "test_managed_auth_preserves_policy_without_env" {
+  command = plan
+
+  variables {
+    agent_id              = "test-agent-policy-without-env"
+    authentication_config = "managed_settings"
+    anthropic_base_url    = "https://gateway.example.com/anthropic"
+    managed_settings      = { permissions = { deny = ["Bash(rm *)"] } }
+  }
+
+  assert {
+    condition     = local.managed_settings_effective.permissions.deny == var.managed_settings.permissions.deny
+    error_message = "Policy settings should survive adding an env block"
+  }
+
+  assert {
+    condition     = local.managed_settings_effective.env.ANTHROPIC_BASE_URL == var.anthropic_base_url
+    error_message = "Managed settings should contain the custom gateway URL"
   }
 }
 
