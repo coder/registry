@@ -12,6 +12,16 @@ terraform {
 provider "coder" {}
 provider "docker" {}
 
+variable "image" {
+  description = <<-EOF
+  Container image for the workspace. Must include the Coder CLI; the
+  dogfood image ships coder, terraform, git, gh, the docker CLI, Node,
+  Go, and Python out of the box.
+  EOF
+  type        = string
+  default     = "codercom/oss-dogfood:latest"
+}
+
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 data "coder_provisioner" "me" {}
@@ -19,30 +29,6 @@ data "coder_provisioner" "me" {}
 # ---------------------------------------------------------------------------
 # Parameters
 # ---------------------------------------------------------------------------
-
-data "coder_parameter" "image" {
-  name         = "image"
-  display_name = "Workspace image"
-  description  = "The base image for the workspace. Any image that ships the Coder CLI (or can have it installed) works; the dogfood image includes coder, terraform, git, gh, the docker CLI, Node, Go, and Python out of the box."
-  type         = "string"
-  default      = "codercom/oss-dogfood:latest"
-  mutable      = false
-  option {
-    name  = "Ubuntu 22.04 (oss-dogfood:latest)"
-    value = "codercom/oss-dogfood:latest"
-    icon  = "/icon/coder.svg"
-  }
-  option {
-    name  = "Ubuntu 26.04 (oss-dogfood:26.04)"
-    value = "codercom/oss-dogfood:26.04"
-    icon  = "/icon/coder.svg"
-  }
-  option {
-    name  = "Nix dogfood (experimental)"
-    value = "codercom/oss-dogfood-nix:latest"
-    icon  = "/icon/nix.svg"
-  }
-}
 
 data "coder_parameter" "cpu" {
   name         = "cpu"
@@ -232,11 +218,11 @@ resource "docker_volume" "home" {
 }
 
 data "docker_registry_image" "workspace" {
-  name = data.coder_parameter.image.value
+  name = var.image
 }
 
 resource "docker_image" "workspace" {
-  name          = data.coder_parameter.image.value
+  name          = var.image
   pull_triggers = [data.docker_registry_image.workspace.sha256_digest]
   keep_locally  = true
 }
