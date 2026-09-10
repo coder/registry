@@ -42,7 +42,6 @@ Modules pulled in on every start:
 - `code-server` — browser-based editor rooted at `~/projects`.
 - `git-clone` — optional; clones `git_repo_url` into `~/projects` on
   first start.
-- `claude-code` — optional; installs the Claude Code CLI (see below).
 
 ## Using it from an agent
 
@@ -62,11 +61,3 @@ The `install_registry_skills` parameter (on by default) clones
 `coder-modules` agent skills into `~/.claude/skills/`, so an agent
 authoring templates or modules from this workspace picks up the registry
 contribution conventions automatically.
-
-## Claude Code
-
-Setting `enable_claude_code = true` installs the Claude Code CLI via the
-official module. The module requires exactly one authentication method —
-edit the `claude-code` module block in `main.tf` to pass
-`anthropic_api_key`, `claude_code_oauth_token`, `enable_ai_gateway = true`
-(Coder AI Gateway, Premium), or an override base URL.

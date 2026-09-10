@@ -77,15 +77,6 @@ data "coder_parameter" "git_repo_url" {
   mutable      = true
 }
 
-data "coder_parameter" "enable_claude_code" {
-  name         = "enable_claude_code"
-  display_name = "Install Claude Code"
-  description  = "Install the Claude Code CLI via the official module. The module requires exactly one authentication method; edit the module block in main.tf to pass anthropic_api_key, claude_code_oauth_token, enable_ai_gateway = true (Coder AI Gateway, Premium), or an override base URL."
-  type         = "bool"
-  default      = "false"
-  mutable      = true
-}
-
 data "coder_parameter" "install_registry_skills" {
   name         = "install_registry_skills"
   display_name = "Install coder/registry agent skills"
@@ -211,14 +202,6 @@ module "code-server" {
   version  = "1.5.2"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/projects"
-}
-
-module "claude-code" {
-  count    = data.coder_workspace.me.start_count != 0 && data.coder_parameter.enable_claude_code.value ? 1 : 0
-  source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.4.1"
-  agent_id = coder_agent.main.id
-  workdir  = "/home/coder/projects"
 }
 
 # ---------------------------------------------------------------------------
