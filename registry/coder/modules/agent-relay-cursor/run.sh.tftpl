@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# Rendered into a coder_script by the Cursor worker module. Runs at
+# agent start with CURSOR_API_KEY (the service-account key) and
+# CURSOR_AGENT_WORKER_ID (the claimed worker id) in scope.
+#
+# Starts the worker detached and exits, so the agent reaches the ready
+# lifecycle state instead of sitting in starting for the life of the
+# session. The detached supervisor records the worker's lifecycle to
+# ${state_file}, which the agent_relay_status agent metadata item publishes
+# for Agent Relay. See README.
+set -euo pipefail
+
+state_file="${state_file}"
+log_file="${log_file}"
+state_dir="$(dirname "$state_file")"
+mkdir -p "$state_dir" "$(dirname "$log_file")"
+
+write_state() {
+	# Write via a temp file so a reader never sees a partial line.
+	printf '%s\n' "$1" >"$state_file.tmp"
+	mv "$state_file.tmp" "$state_file"
+}
+
+if [ -z "$${CURSOR_API_KEY:-}" ]; then
+	write_state "idle"
+	echo "No worker token set. This workspace was created manually, not by Agent Relay."
+	echo "Idling. Delete this workspace manually or set the agent_relay_credential parameter."
+	exit 0
+fi
+
+%{ if install_cli ~}
+# install_cli is set, but a CLI already in the image is the fast path:
+# check first and only download when it is missing, so a prepared image
+# spends none of the claim-to-ready window on a download. The installer
+# places the binary under ~/.local/bin, so that directory joins PATH for
+# this script and the supervisor.
+export PATH="$HOME/.local/bin:$PATH"
+if command -v ${cli_binary} >/dev/null 2>&1; then
+	echo "Cursor CLI already present; skipping the install."
+else
+	echo "Cursor CLI not found; installing the latest release..."
+	# -L costs nothing today (cursor.com/install answers 200 directly) and
+	# keeps the pipe from silently installing an empty body if it ever
+	# starts redirecting, which is how the Claude installer broke.
+	if ! curl https://cursor.com/install -fsSL | bash >>"$log_file" 2>&1; then
+		echo "Cursor CLI install failed. See $log_file" >&2
+	fi
+fi
+%{ endif ~}
+
+# A missing binary is a template problem, so it is reported as a
+# terminal state for Agent Relay to observe rather than started
+# blind, which would loop as "done 127". Bake the CLI into the image,
+# or set install_cli to download it on start.
+if ! command -v ${cli_binary} >/dev/null 2>&1; then
+	write_state "failed runner-agent-missing"
+	echo "The worker binary '${cli_binary}' is not available." >&2
+	echo "Bake the Cursor CLI into the image, set install_cli = true, or set cli_binary. See the module README." >&2
+	exit 1
+fi
+
+# The supervisor outlives this script: it owns the worker process and
+# is the only writer of terminal state. Written to disk rather than
+# inlined so setsid gets a clean argv. The worker exits 0 when its
+# idle-release timer fires after a session ends; that clean exit is
+# what tells Agent Relay to reap the workspace.
+supervisor="$state_dir/supervise.sh"
+cat >"$supervisor" <<SUPERVISOR
+#!/usr/bin/env bash
+set -uo pipefail
+
+write_state() {
+	printf '%s\n' "\$1" >"$state_file.tmp"
+	mv "$state_file.tmp" "$state_file"
+}
+
+%{ if install_cli ~}
+export PATH="\$HOME/.local/bin:\$PATH"
+%{ endif ~}
+${cli_binary} worker \\
+	--pool "${pool_name}" \\
+	--idle-release-timeout "${idle_release_timeout}" \\
+%{ if computer_use ~}
+	--computer-use \\
+%{ endif ~}
+	start >"$log_file" 2>&1 &
+worker_pid=\$!
+write_state "working \$worker_pid"
+
+wait "\$worker_pid"
+code=\$?
+write_state "done \$code"
+SUPERVISOR
+chmod +x "$supervisor"
+
+echo "Starting Cursor worker (detached)..."
+setsid nohup "$supervisor" >/dev/null 2>&1 </dev/null &
+
+# Give the supervisor a moment to record state, so a workspace that
+# fails immediately is visible as such rather than as pending. Not a
+# readiness gate: the worker connecting to Cursor and picking up a
+# session both happen later, and blocking on them would keep the agent
+# out of the ready state.
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+	[ -f "$state_file" ] && break
+	sleep 1
+done
+
+if [ -f "$state_file" ]; then
+	echo "Worker state: $(cat "$state_file")"
+else
+	echo "Worker did not report state within 10s; check $log_file" >&2
+fi
+echo "Worker log: $log_file"
