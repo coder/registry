@@ -13,7 +13,7 @@ Install and configure the [Claude Code](https://docs.anthropic.com/en/docs/agent
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.1"
+  version           = "5.5.0"
   agent_id          = coder_agent.main.id
   anthropic_api_key = "xxxx-xxxxx-xxxx"
 }
@@ -51,7 +51,7 @@ locals {
 
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.1"
+  version           = "5.5.0"
   agent_id          = coder_agent.main.id
   workdir           = local.claude_workdir
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -82,7 +82,7 @@ resource "coder_app" "claude" {
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.1"
+  version           = "5.5.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -99,6 +99,24 @@ Claude Code then routes API requests through Coder's AI Gateway instead of direc
 > [!CAUTION]
 > `enable_ai_gateway = true` is mutually exclusive with `anthropic_api_key` and `claude_code_oauth_token`. Setting any of them together fails at plan time.
 
+#### Keep gateway configuration out of the shell environment
+
+By default the module wires `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` via `coder_env` resources, which means they show up in `env` output inside the workspace shell. Set `authentication_config = "managed_settings"` to instead write those two values into the `env` block of `/etc/claude-code/managed-settings.d/10-coder.json`, where Claude Code still reads them but they never appear in the shell environment.
+
+```tf
+module "claude-code" {
+  source                = "registry.coder.com/coder/claude-code/coder"
+  version               = "5.5.0"
+  agent_id              = coder_agent.main.id
+  workdir               = "/home/coder/project"
+  enable_ai_gateway     = true
+  authentication_config = "managed_settings"
+}
+```
+
+> [!NOTE]
+> The token is still written to a root-owned, world-readable (`0644`) file in the workspace filesystem; `authentication_config = "managed_settings"` only removes it from the shell environment, it is not a secrecy boundary against local file access.
+
 ### Enterprise policy via managed settings
 
 The `managed_settings` input writes a policy file to `/etc/claude-code/managed-settings.d/10-coder.json` inside the workspace. Claude Code reads this directory at startup with the highest configuration precedence, so users cannot override these values in their own `~/.claude/settings.json`. This is a local file mechanism and works with any inference backend (Anthropic API, AWS Bedrock, Google Vertex AI, or AI Gateway).
@@ -106,7 +124,7 @@ The `managed_settings` input writes a policy file to `/etc/claude-code/managed-s
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.1"
+  version           = "5.5.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -133,7 +151,7 @@ For production deployments we recommend `api_key_helper` over a static `anthropi
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.4.1"
+  version  = "5.5.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -152,7 +170,7 @@ Or, sourcing from AWS Secrets Manager:
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.4.1"
+  version  = "5.5.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -177,7 +195,7 @@ This example shows version pinning, a pre-installed binary path, a custom model,
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.4.1"
+  version  = "5.5.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -241,7 +259,7 @@ Downstream `coder_script` resources can wait for this module's install pipeline 
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.1"
+  version           = "5.5.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -271,7 +289,7 @@ Set `use_bedrock = true` to route Claude Code through Amazon Bedrock. The module
 ```tf
 module "claude-code" {
   source      = "registry.coder.com/coder/claude-code/coder"
-  version     = "5.4.1"
+  version     = "5.5.0"
   agent_id    = coder_agent.main.id
   workdir     = "/home/coder/project"
   use_bedrock = true
@@ -324,7 +342,7 @@ Set `use_vertex = true` to route Claude Code through Google Vertex AI. The modul
 ```tf
 module "claude-code" {
   source     = "registry.coder.com/coder/claude-code/coder"
-  version    = "5.4.1"
+  version    = "5.5.0"
   agent_id   = coder_agent.main.id
   workdir    = "/home/coder/project"
   use_vertex = true
@@ -357,7 +375,7 @@ Set `anthropic_base_url` to point Claude Code at a self-hosted gateway or proxy 
 ```tf
 module "claude-code" {
   source             = "registry.coder.com/coder/claude-code/coder"
-  version            = "5.4.1"
+  version            = "5.5.0"
   agent_id           = coder_agent.main.id
   workdir            = "/home/coder/project"
   anthropic_base_url = "https://llm-gateway.example.com/anthropic"
@@ -376,7 +394,7 @@ The module automatically tags every span and metric with `coder.workspace_id`, `
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.4.1"
+  version           = "5.5.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"

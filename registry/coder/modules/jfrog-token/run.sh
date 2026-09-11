@@ -17,21 +17,33 @@ register_docker() {
   echo -n "${ARTIFACTORY_ACCESS_TOKEN}" | docker login "$repo" --username ${ARTIFACTORY_USERNAME} --password-stdin
 }
 
-# check if JFrog CLI is already installed
-if command -v jf > /dev/null 2>&1; then
-  echo "✅ JFrog CLI is already installed, skipping installation."
+if [ "${INSTALL_CLI}" == "true" ]; then
+  if command -v jf > /dev/null 2>&1; then
+    echo "✅ JFrog CLI is already installed, skipping installation."
+  else
+    echo "📦 Installing JFrog CLI..."
+    curl -fL https://install-cli.jfrog.io | sudo sh
+    sudo chmod 755 /usr/local/bin/jf
+  fi
 else
-  echo "📦 Installing JFrog CLI..."
-  curl -fL https://install-cli.jfrog.io | sudo sh
-  sudo chmod 755 /usr/local/bin/jf
+  echo "🤔 Skipping JFrog CLI installation."
 fi
 
-# The jf CLI checks $CI when determining whether to use interactive flows.
-export CI=true
-# Authenticate JFrog CLI with Artifactory.
-echo "${ARTIFACTORY_ACCESS_TOKEN}" | jf c add --access-token-stdin --url "${JFROG_URL}" --overwrite "${JFROG_SERVER_ID}"
-# Set the configured server as the default.
-jf c use "${JFROG_SERVER_ID}"
+if [ "${REQUIRE_CLI}" == "true" ] && ! command -v jf > /dev/null 2>&1; then
+  echo "❌ JFrog CLI is required but was not found on PATH. Install it or enable install_jfrog_cli." >&2
+  exit 1
+fi
+
+if [ "${CONFIGURE_CLI}" == "true" ]; then
+  # The jf CLI checks $CI when determining whether to use interactive flows.
+  export CI=true
+  # Authenticate JFrog CLI with Artifactory.
+  echo "${ARTIFACTORY_ACCESS_TOKEN}" | jf c add --access-token-stdin --url "${JFROG_URL}" --overwrite "${JFROG_SERVER_ID}"
+  # Set the configured server as the default.
+  jf c use "${JFROG_SERVER_ID}"
+else
+  echo "🤔 Skipping JFrog CLI configuration."
+fi
 
 # Configure npm to use the Artifactory "npm" repository.
 if [ -z "${HAS_NPM}" ]; then
@@ -115,8 +127,8 @@ fi
 
 # Install the JFrog vscode extension for code-server.
 if [ "${CONFIGURE_CODE_SERVER}" == "true" ]; then
+  counter=0
   while ! [ -x /tmp/code-server/bin/code-server ]; do
-    counter=0
     if [ $counter -eq 60 ]; then
       echo "Timed out waiting for /tmp/code-server/bin/code-server to be installed."
       exit 1
@@ -130,6 +142,10 @@ if [ "${CONFIGURE_CODE_SERVER}" == "true" ]; then
   echo "🥳 JFrog extension installed!"
 else
   echo "🤔 Skipping JFrog extension installation. Set configure_code_server to true to install the JFrog extension."
+fi
+
+if [ "${CONFIGURE_CLI}" != "true" ]; then
+  exit 0
 fi
 
 # Configure the JFrog CLI completion

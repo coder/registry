@@ -125,6 +125,17 @@ variable "enable_ai_gateway" {
   }
 }
 
+variable "authentication_config" {
+  description = "Controls where Claude Code reads its AI Gateway authentication (ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN). \"environment\" (default) sets them as workspace environment variables. \"managed_settings\" writes them to the env block of /etc/claude-code/managed-settings.d/10-coder.json so they do not appear in the workspace shell environment."
+  type        = string
+  default     = "environment"
+
+  validation {
+    condition     = contains(["environment", "managed_settings"], var.authentication_config)
+    error_message = "authentication_config must be either \"environment\" or \"managed_settings\"."
+  }
+}
+
 variable "telemetry" {
   type = object({
     enabled             = optional(bool, false)
@@ -211,7 +222,7 @@ resource "coder_env" "anthropic_api_key" {
 # ANTHROPIC_AUTH_TOKEN authenticates the client against Coder's AI Gateway
 # using the workspace owner's session token, per the AI Gateway docs.
 resource "coder_env" "anthropic_auth_token" {
-  count    = var.enable_ai_gateway ? 1 : 0
+  count    = var.authentication_config == "environment" && var.enable_ai_gateway ? 1 : 0
   agent_id = var.agent_id
   name     = "ANTHROPIC_AUTH_TOKEN"
   value    = data.coder_workspace_owner.me.session_token
@@ -233,10 +244,34 @@ resource "coder_env" "anthropic_model" {
 }
 
 resource "coder_env" "anthropic_base_url" {
-  count    = var.enable_ai_gateway || var.anthropic_base_url != "" ? 1 : 0
+  count    = var.authentication_config == "environment" && (var.enable_ai_gateway || var.anthropic_base_url != "") ? 1 : 0
   agent_id = var.agent_id
   name     = "ANTHROPIC_BASE_URL"
   value    = var.enable_ai_gateway ? "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic" : var.anthropic_base_url
+}
+
+locals {
+  # Gateway authentication can live in managed settings instead of the shell environment.
+  gateway_env = merge(
+    var.enable_ai_gateway || var.anthropic_base_url != "" ? {
+      ANTHROPIC_BASE_URL = var.enable_ai_gateway ? "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic" : var.anthropic_base_url
+    } : {},
+    var.enable_ai_gateway ? {
+      ANTHROPIC_AUTH_TOKEN = data.coder_workspace_owner.me.session_token
+    } : {},
+  )
+
+  use_managed_auth = var.authentication_config == "managed_settings" && length(local.gateway_env) > 0
+
+  # Preserve user settings, with gateway keys taking precedence.
+  managed_settings_with_auth = merge(var.managed_settings, {
+    env = merge(try(var.managed_settings.env, {}), local.gateway_env)
+  })
+
+  # Encode the branches so Terraform accepts objects with different keys.
+  managed_settings_effective = jsondecode(
+    local.use_managed_auth ? jsonencode(local.managed_settings_with_auth) : jsonencode(var.managed_settings)
+  )
 }
 
 resource "coder_env" "use_bedrock" {
@@ -322,7 +357,7 @@ locals {
     ARG_MCP                    = var.mcp != "" ? base64encode(var.mcp) : ""
     ARG_MCP_CONFIG_REMOTE_PATH = base64encode(jsonencode(var.mcp_config_remote_path))
     ARG_ENABLE_AI_GATEWAY      = tostring(var.enable_ai_gateway)
-    ARG_MANAGED_SETTINGS_JSON  = var.managed_settings != null ? base64encode(jsonencode(var.managed_settings)) : ""
+    ARG_MANAGED_SETTINGS_JSON  = local.managed_settings_effective != null ? base64encode(jsonencode(local.managed_settings_effective)) : ""
     ARG_USE_BEDROCK            = tostring(var.use_bedrock)
     ARG_USE_VERTEX             = tostring(var.use_vertex)
     ARG_ANTHROPIC_BASE_URL     = var.anthropic_base_url
