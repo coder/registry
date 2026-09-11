@@ -18,6 +18,10 @@ module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
+
+  # Downloads the Cursor CLI at start when it is not in the image. Bake
+  # the CLI into the image and set this to false for faster workspaces.
+  install_cli = true
 }
 
 resource "coder_agent" "main" {
