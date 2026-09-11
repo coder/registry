@@ -3,12 +3,12 @@ import {
   type TerraformState,
   runTerraformApply,
   runTerraformInit,
-  testRequiredVariables,
 } from "~test";
 
 type TestVariables = Readonly<{
   agent_id: string;
   share?: string;
+  enable_native_rdp?: boolean;
   admin_username?: string;
   admin_password?: string;
 }>;
@@ -67,13 +67,19 @@ function extractFormFieldValues(rdpScript: string): {
  */
 describe("Web RDP", async () => {
   await runTerraformInit(import.meta.dir);
-  testRequiredVariables<TestVariables>(import.meta.dir, {
-    agent_id: "foo",
+
+  it("requires agent_id", async () => {
+    await expect(
+      runTerraformApply(import.meta.dir, {
+        enable_native_rdp: false,
+      }),
+    ).rejects.toThrow('input variable "agent_id" is not set');
   });
 
   it("Has the PowerShell script install Devolutions Gateway", async () => {
     const state = await runTerraformApply<TestVariables>(import.meta.dir, {
       agent_id: "foo",
+      enable_native_rdp: false,
     });
 
     const lines = findWindowsRdpScript(state)
@@ -99,6 +105,7 @@ describe("Web RDP", async () => {
       import.meta.dir,
       {
         agent_id: "foo",
+        enable_native_rdp: false,
       },
     );
 
@@ -117,6 +124,7 @@ describe("Web RDP", async () => {
       import.meta.dir,
       {
         agent_id: "foo",
+        enable_native_rdp: false,
         admin_username: customAdminUsername,
         admin_password: customAdminPassword,
       },
@@ -138,6 +146,7 @@ describe("Web RDP", async () => {
 
     const state = await runTerraformApply<TestVariables>(import.meta.dir, {
       agent_id: "foo",
+      enable_native_rdp: false,
       admin_password: specialPassword,
     });
 
