@@ -492,6 +492,75 @@ describe("git-clone", async () => {
     expect(output.exitCode).toBe(0);
   });
 
+  it("does not treat an scp-style repository path as an SSH port", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "git@forgejo.example.com:2222/example/repo.git",
+      base_dir: "/tmp",
+    });
+    const setupFakeTools = [
+      installFakeGit,
+      "cat > /usr/local/bin/ssh-keyscan <<'SHIM'",
+      "#!/bin/sh",
+      'for arg in "$@"; do',
+      "  [ \"$arg\" = '-p' ] && exit 1",
+      "done",
+      "echo 'forgejo.example.com ssh-rsa AAAAB3NzaC1yc2EFAKE'",
+      "SHIM",
+      "chmod +x /usr/local/bin/ssh-keyscan",
+    ].join("\n");
+    const output = await executeScriptInContainer(
+      state,
+      "alpine/git",
+      setupFakeTools,
+    );
+    expect(output.stdout).toContain(
+      "Adding host key for forgejo.example.com to known_hosts...",
+    );
+    expect(output.stdout.join("\n")).not.toContain("ssh-keyscan failed");
+    expect(output.exitCode).toBe(0);
+  });
+
+  it("adds SSH host key from a non-default port to known_hosts", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "ssh://git@forgejo.example.com:2222/example/repo.git",
+      base_dir: "/tmp",
+    });
+    const setupFakeTools = [
+      installFakeGit,
+      "cat > /usr/local/bin/ssh-keyscan <<'SHIM'",
+      "#!/bin/sh",
+      "port=''",
+      "host=''",
+      'while [ "$#" -gt 0 ]; do',
+      '  case "$1" in',
+      '    -p) port="$2"; shift 2 ;;',
+      "    -t) shift 2 ;;",
+      "    -H) shift ;;",
+      '    *) host="$1"; shift ;;',
+      "  esac",
+      "done",
+      '[ "$port" = "2222" ] && [ "$host" = "forgejo.example.com" ] || exit 1',
+      "echo '[forgejo.example.com]:2222 ssh-rsa AAAAB3NzaC1yc2EFAKE'",
+      "SHIM",
+      "chmod +x /usr/local/bin/ssh-keyscan",
+    ].join("\n");
+    const output = await executeScriptInContainer(
+      state,
+      "alpine/git",
+      setupFakeTools,
+    );
+    expect(output.stdout).toContain(
+      "Adding host key for [forgejo.example.com]:2222 to known_hosts...",
+    );
+    expect(output.stdout).toContain(
+      "Host key for [forgejo.example.com]:2222 added to known_hosts.",
+    );
+    expect(output.stdout.join("\n")).not.toContain("ssh-keyscan failed");
+    expect(output.exitCode).toBe(0);
+  });
+
   it("uses StrictHostKeyChecking=accept-new when ssh-keyscan is unavailable for SSH URLs", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
@@ -535,6 +604,57 @@ describe("git-clone", async () => {
     );
     expect(output.stdout).not.toContain(
       "Adding host key for github.com to known_hosts...",
+    );
+    expect(output.exitCode).toBe(0);
+  });
+
+  it("skips non-default SSH port scan when host is already in known_hosts", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "ssh://git@forgejo.example.com:2222/example/repo.git",
+      base_dir: "/tmp",
+    });
+    const setupWithExistingKey = [
+      installFakeGit,
+      "mkdir -p /root/.ssh && chmod 700 /root/.ssh",
+      "echo '[forgejo.example.com]:2222 ssh-rsa AAAAB3NzaC1yc2EEXISTING' >> /root/.ssh/known_hosts",
+      "chmod 600 /root/.ssh/known_hosts",
+    ].join("\n");
+    const output = await executeScriptInContainer(
+      state,
+      "alpine/git",
+      setupWithExistingKey,
+    );
+    expect(output.stdout).not.toContain(
+      "Adding host key for [forgejo.example.com]:2222 to known_hosts...",
+    );
+    expect(output.exitCode).toBe(0);
+  });
+
+  it("does not reuse a default-port key for a non-default SSH port", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "ssh://git@forgejo.example.com:2222/example/repo.git",
+      base_dir: "/tmp",
+    });
+    const setupWithDefaultPortKey = [
+      installFakeGit,
+      "mkdir -p /root/.ssh && chmod 700 /root/.ssh",
+      "echo 'forgejo.example.com ssh-rsa AAAAB3NzaC1yc2EEXISTING' >> /root/.ssh/known_hosts",
+      "chmod 600 /root/.ssh/known_hosts",
+      "cat > /usr/local/bin/ssh-keyscan <<'SHIM'",
+      "#!/bin/sh",
+      "echo '[forgejo.example.com]:2222 ssh-rsa AAAAB3NzaC1yc2EFAKE'",
+      "SHIM",
+      "chmod +x /usr/local/bin/ssh-keyscan",
+    ].join("\n");
+    const output = await executeScriptInContainer(
+      state,
+      "alpine/git",
+      setupWithDefaultPortKey,
+    );
+    expect(output.stdout).toContain(
+      "Adding host key for [forgejo.example.com]:2222 to known_hosts...",
     );
     expect(output.exitCode).toBe(0);
   });

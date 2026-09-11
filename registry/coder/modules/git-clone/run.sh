@@ -53,19 +53,55 @@ fi
 # For SSH URLs, populate known_hosts before cloning to prevent "Host key verification failed"
 # on new workspaces where known_hosts is empty.
 if echo "$REPO_URL" | grep -qE '^git@|^ssh://'; then
-  SSH_HOST=$(echo "$REPO_URL" | sed -E 's|^(ssh://)?([^@/]+@)?([^:/]+).*|\3|')
+  SSH_PORT=""
+  if [[ "$REPO_URL" == ssh://* ]]; then
+    SSH_AUTHORITY="$${REPO_URL#ssh://}"
+    SSH_AUTHORITY="$${SSH_AUTHORITY%%/*}"
+    SSH_AUTHORITY="$${SSH_AUTHORITY##*@}"
+    if [[ "$SSH_AUTHORITY" == \[*\]* ]]; then
+      SSH_HOST="$${SSH_AUTHORITY%%]*}"
+      SSH_HOST="$${SSH_HOST#[}"
+      SSH_PORT="$${SSH_AUTHORITY#*]}"
+      SSH_PORT="$${SSH_PORT#:}"
+    else
+      SSH_HOST="$${SSH_AUTHORITY%%:*}"
+      if [[ "$SSH_AUTHORITY" == *:* ]]; then
+        SSH_PORT="$${SSH_AUTHORITY##*:}"
+      fi
+    fi
+    if [[ "$SSH_PORT" == *[!0-9]* ]]; then
+      SSH_PORT=""
+    fi
+    while [[ "$SSH_PORT" == 0* && "$SSH_PORT" != "0" ]]; do
+      SSH_PORT="$${SSH_PORT#0}"
+    done
+  else
+    SSH_HOST="$${REPO_URL#*@}"
+    SSH_HOST="$${SSH_HOST%%:*}"
+    SSH_HOST="$${SSH_HOST%%/*}"
+  fi
+
+  SSH_KNOWN_HOST="$SSH_HOST"
+  if [ -n "$SSH_PORT" ] && [ "$SSH_PORT" != "22" ]; then
+    SSH_KNOWN_HOST="[$SSH_HOST]:$SSH_PORT"
+  fi
+
   mkdir -p "$HOME/.ssh"
   chmod 700 "$HOME/.ssh"
   touch "$HOME/.ssh/known_hosts"
   chmod 600 "$HOME/.ssh/known_hosts"
-  if ! ssh-keygen -F "$SSH_HOST" > /dev/null 2>&1; then
-    echo "Adding host key for $SSH_HOST to known_hosts..."
+  if ! ssh-keygen -F "$SSH_KNOWN_HOST" > /dev/null 2>&1; then
+    echo "Adding host key for $SSH_KNOWN_HOST to known_hosts..."
     if command -v ssh-keyscan > /dev/null 2>&1; then
-      if KNOWN_HOST_ENTRY=$(ssh-keyscan -H -t rsa,ecdsa,ed25519 "$SSH_HOST" 2> /dev/null) && [ -n "$KNOWN_HOST_ENTRY" ]; then
+      ssh_keyscan_args=(-H -t "rsa,ecdsa,ed25519")
+      if [ -n "$SSH_PORT" ]; then
+        ssh_keyscan_args+=(-p "$SSH_PORT")
+      fi
+      if KNOWN_HOST_ENTRY=$(ssh-keyscan "$${ssh_keyscan_args[@]}" "$SSH_HOST" 2> /dev/null) && [ -n "$KNOWN_HOST_ENTRY" ]; then
         printf '%s\n' "$KNOWN_HOST_ENTRY" >> "$HOME/.ssh/known_hosts"
-        echo "Host key for $SSH_HOST added to known_hosts."
+        echo "Host key for $SSH_KNOWN_HOST added to known_hosts."
       else
-        echo "WARNING: ssh-keyscan failed for $SSH_HOST. Clone may fail if host key is not trusted."
+        echo "WARNING: ssh-keyscan failed for $SSH_KNOWN_HOST. Clone may fail if host key is not trusted."
       fi
     else
       echo "ssh-keyscan not available. Using StrictHostKeyChecking=accept-new."
