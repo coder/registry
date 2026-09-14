@@ -42,7 +42,7 @@ afterEach(async () => {
 
 const STATE_FILE = "/tmp/agent-relay/worker-state";
 const DISPATCH_ENV = [
-  "CURSOR_API_KEY=test-service-account-key",
+  "AGENT_RELAY_CURSOR_TOKEN=test-user-token",
   "CURSOR_AGENT_WORKER_ID=worker-123",
 ];
 
@@ -111,7 +111,7 @@ describe("agent-relay-cursor", () => {
 
   it("idles when no credential is set", async () => {
     const { id, script } = await setup();
-    // No CURSOR_API_KEY: this is a workspace a human created by hand.
+    // No AGENT_RELAY_CURSOR_TOKEN: a workspace a human created by hand.
     const exec = await execContainer(id, ["bash", "-c", script]);
     expect(exec.exitCode).toBe(0);
     expect(exec.stdout).toContain("created manually, not by Agent Relay");
@@ -152,17 +152,28 @@ describe("agent-relay-cursor", () => {
     expect(args).toContain("--idle-release-timeout");
     // The parameter default when Agent Relay has not stamped a value.
     expect(args[args.indexOf("--idle-release-timeout") + 1]).toBe("600");
+    // The token reaches the worker as --auth-token, not as an API key.
+    expect(args[args.indexOf("--auth-token") + 1]).toBe("test-user-token");
     expect(args).toContain("start");
     expect(args).not.toContain("--computer-use");
 
-    // The worker inherits the CLI's own env var names, not the relay's.
+    // The supervisor file on disk must reference the variable, never
+    // carry the token itself.
+    const supervisor = await readFileContainer(
+      id,
+      "/tmp/agent-relay/supervise.sh",
+    );
+    expect(supervisor).toContain('--auth-token "$AGENT_RELAY_CURSOR_TOKEN"');
+    expect(supervisor).not.toContain("test-user-token");
+
+    // The worker id keeps the Cursor CLI's own env var name.
     const env = await execContainer(id, [
       "sh",
       "-c",
       "cat /proc/$(pgrep -f 'agent worker' | head -1)/environ | tr '\\0' '\\n'",
     ]);
-    expect(env.stdout).toContain("CURSOR_API_KEY=test-service-account-key");
     expect(env.stdout).toContain("CURSOR_AGENT_WORKER_ID=worker-123");
+    expect(env.stdout).not.toContain("CURSOR_API_KEY=");
   });
 
   it("passes --computer-use when enabled", async () => {
