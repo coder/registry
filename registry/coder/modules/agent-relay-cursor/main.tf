@@ -161,7 +161,7 @@ data "coder_parameter" "agent_relay_cursor_repo_url" {
 data "coder_parameter" "agent_relay_credential" {
   name         = "agent_relay_credential"
   display_name = "Agent Relay credential"
-  description  = "Cursor service account API key the worker authenticates with. Agent Relay sets this when it dispatches the workspace; a human never fills it in. Ephemeral: it is supplied per build and is not reused on a later one."
+  description  = "Short-lived Cursor worker token, scoped to the user who requested the agent, that the worker authenticates with. Agent Relay mints it from the pool's service account key when it dispatches the workspace; a human never fills it in. Ephemeral: it expires an hour after minting and is not reused on a later build."
   type         = "string"
   ephemeral    = true
   mutable      = true
@@ -174,11 +174,14 @@ data "coder_parameter" "agent_relay_credential" {
   })
 }
 
-# Environment variable names are the Cursor CLI's contract, not
-# Agent Relay's; do not rename them here.
-resource "coder_env" "cursor_api_key" {
+# CURSOR_AGENT_WORKER_ID is the Cursor CLI's contract; do not rename it.
+# The worker token has no CLI env var (only the --auth-token flag), so it
+# travels under an Agent Relay name and the script passes it on the
+# command line. It is never CURSOR_API_KEY: the CLI would treat the
+# token as a service account key and reject it.
+resource "coder_env" "agent_relay_cursor_token" {
   agent_id = var.agent_id
-  name     = "CURSOR_API_KEY"
+  name     = "AGENT_RELAY_CURSOR_TOKEN"
   value    = data.coder_parameter.agent_relay_credential.value
 }
 

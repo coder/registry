@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Rendered into a coder_script by the Cursor worker module. Runs at
-# agent start with CURSOR_API_KEY (the service-account key) and
-# CURSOR_AGENT_WORKER_ID (the claimed worker id) in scope.
+# agent start with AGENT_RELAY_CURSOR_TOKEN (a short-lived worker token
+# minted for the requesting user) and CURSOR_AGENT_WORKER_ID (the
+# claimed worker id) in scope.
 #
 # Starts the worker detached and exits, so the agent reaches the ready
 # lifecycle state instead of sitting in starting for the life of the
@@ -21,7 +22,7 @@ write_state() {
 	mv "$state_file.tmp" "$state_file"
 }
 
-if [ -z "$${CURSOR_API_KEY:-}" ]; then
+if [ -z "$${AGENT_RELAY_CURSOR_TOKEN:-}" ]; then
 	write_state "idle"
 	echo "No worker token set. This workspace was created manually, not by Agent Relay."
 	echo "Idling. Delete this workspace manually or set the agent_relay_credential parameter."
@@ -61,7 +62,9 @@ fi
 
 # The supervisor outlives this script: it owns the worker process and
 # is the only writer of terminal state. Written to disk rather than
-# inlined so setsid gets a clean argv. The worker exits 0 when its
+# inlined so setsid gets a clean argv. The token is read from the
+# supervisor's environment at run time, escaped here so it is never
+# rendered into the file. The worker exits 0 when its
 # idle-release timer fires after a session ends; that clean exit is
 # what tells Agent Relay to reap the workspace.
 supervisor="$state_dir/supervise.sh"
@@ -80,6 +83,7 @@ export PATH="\$HOME/.local/bin:\$PATH"
 ${cli_binary} worker \\
 	--pool "${pool_name}" \\
 	--idle-release-timeout "${idle_release_timeout}" \\
+	--auth-token "\$AGENT_RELAY_CURSOR_TOKEN" \\
 %{ if computer_use ~}
 	--computer-use \\
 %{ endif ~}

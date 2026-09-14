@@ -51,12 +51,16 @@ when to reap the workspace.
 - Builds must finish inside the pool's `dispatch_deadline` (default 10m, max
   15m): pre-pulled images, no persistent volumes.
 
-## Credential exposure
+## Worker credential
 
-The pool's service-account API key is stamped on every dispatched workspace as
-the ephemeral `agent_relay_credential` parameter and exported as
-`CURSOR_API_KEY`, readable by the workspace owner. Use a dedicated key per
-pool, scoped to the repository it serves. Rotating it affects new builds only.
+The pool's service-account API key never leaves Agent Relay. At dispatch the
+relay exchanges it for a Cursor sub-token scoped to the requesting user and
+stamps that as the ephemeral `agent_relay_credential` parameter. The module
+exports it as `AGENT_RELAY_CURSOR_TOKEN` and starts the worker with
+`--auth-token`; it is never written to disk. The token acts only as that user,
+cannot mint further tokens, and expires after an hour. It is not refreshed: a
+worker that has to reconnect after expiry fails and Cursor re-queues the
+request for a fresh workspace.
 
 ## Parameters
 
@@ -73,11 +77,11 @@ credential is masked.
 | `agent_relay_cursor_pool_name`            | persistent | Cursor-side pool the worker registers under                       |
 | `agent_relay_cursor_idle_release_timeout` | persistent | seconds the worker idles after a turn before exiting (min 300)    |
 | `agent_relay_cursor_repo_url`             | persistent | repository the request targets; empty for repo-less pools         |
-| `agent_relay_credential`                  | ephemeral  | service-account API key (`CURSOR_API_KEY`)                        |
+| `agent_relay_credential`                  | ephemeral  | user-scoped worker token (`AGENT_RELAY_CURSOR_TOKEN`)             |
 
 ## Worker lifecycle
 
-The script starts `agent worker --pool ... --idle-release-timeout ... start`
+The script starts `agent worker --pool ... --idle-release-timeout ... --auth-token ... start`
 detached and exits, so the agent reaches `ready` immediately. The worker exits
 `0` when its idle-release timer fires after a session; that clean exit is what
 tells Agent Relay to delete the workspace. The timer starts when the agent

@@ -84,10 +84,11 @@ run "parameter_contract" {
 run "worker_wiring" {
   command = plan
 
-  # The Cursor CLI owns these names; the module only supplies values.
+  # The Cursor CLI owns the worker id name; the token has no CLI env var
+  # and must not masquerade as CURSOR_API_KEY.
   assert {
-    condition     = coder_env.cursor_api_key.name == "CURSOR_API_KEY"
-    error_message = "the API key env var name is the Cursor CLI's contract"
+    condition     = coder_env.agent_relay_cursor_token.name == "AGENT_RELAY_CURSOR_TOKEN"
+    error_message = "the worker token env var is Agent Relay's, not a Cursor API key"
   }
 
   assert {
@@ -103,6 +104,14 @@ run "worker_wiring" {
   assert {
     condition     = can(regex("--pool", coder_script.worker.script)) && can(regex("--idle-release-timeout", coder_script.worker.script))
     error_message = "the worker script must start the pool worker"
+  }
+
+  # The token reaches the worker as --auth-token from the supervisor's
+  # environment; it must not be expanded into the supervisor file the
+  # script writes to disk.
+  assert {
+    condition     = strcontains(coder_script.worker.script, "--auth-token \"\\$AGENT_RELAY_CURSOR_TOKEN\"")
+    error_message = "the worker must authenticate with --auth-token read from the environment at run time"
   }
 
   # Reaping reads this file through the agent_relay_status metadata item,
