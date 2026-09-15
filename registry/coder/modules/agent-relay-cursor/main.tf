@@ -191,19 +191,32 @@ resource "coder_env" "cursor_agent_worker_id" {
   value    = data.coder_parameter.agent_relay_delivery_id.value
 }
 
+# Parameter values reach the worker through the environment, never through
+# the script text, so a value with shell metacharacters is an argument and
+# not code.
+resource "coder_env" "agent_relay_cursor_pool_name" {
+  agent_id = var.agent_id
+  name     = "AGENT_RELAY_CURSOR_POOL_NAME"
+  value    = data.coder_parameter.agent_relay_cursor_pool_name.value
+}
+
+resource "coder_env" "agent_relay_cursor_idle_release_timeout" {
+  agent_id = var.agent_id
+  name     = "AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT"
+  value    = data.coder_parameter.agent_relay_cursor_idle_release_timeout.value
+}
+
 resource "coder_script" "worker" {
   agent_id     = var.agent_id
   display_name = "Cursor worker"
   icon         = "/icon/cursor.svg"
   run_on_start = true
   script = templatefile("${path.module}/run.sh.tftpl", {
-    cli_binary           = var.cli_binary
-    install_cli          = var.install_cli
-    computer_use         = var.computer_use
-    state_file           = var.state_file
-    log_file             = var.log_file
-    pool_name            = data.coder_parameter.agent_relay_cursor_pool_name.value
-    idle_release_timeout = data.coder_parameter.agent_relay_cursor_idle_release_timeout.value
+    cli_binary   = var.cli_binary
+    install_cli  = var.install_cli
+    computer_use = var.computer_use
+    state_file   = var.state_file
+    log_file     = var.log_file
   })
 }
 

@@ -106,6 +106,19 @@ run "worker_wiring" {
     error_message = "the worker script must start the pool worker"
   }
 
+  # Pool name and idle timeout are parameter values, so they travel through
+  # coder_env and are read from the environment, never interpolated into
+  # the script where shell metacharacters would run as code.
+  assert {
+    condition     = coder_env.agent_relay_cursor_pool_name.name == "AGENT_RELAY_CURSOR_POOL_NAME" && coder_env.agent_relay_cursor_idle_release_timeout.name == "AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT"
+    error_message = "pool name and idle timeout must reach the worker through coder_env"
+  }
+
+  assert {
+    condition     = strcontains(coder_script.worker.script, "--pool \"\\$AGENT_RELAY_CURSOR_POOL_NAME\"") && strcontains(coder_script.worker.script, "--idle-release-timeout \"\\$AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT\"")
+    error_message = "the worker must read pool name and idle timeout from the environment at run time"
+  }
+
   # The token reaches the worker as --auth-token from the supervisor's
   # environment; it must not be expanded into the supervisor file the
   # script writes to disk.

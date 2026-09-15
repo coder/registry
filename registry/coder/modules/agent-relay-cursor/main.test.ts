@@ -41,9 +41,14 @@ afterEach(async () => {
 });
 
 const STATE_FILE = "/tmp/agent-relay/worker-state";
+// The pool name carries shell metacharacters to prove the value reaches
+// the worker as a single argument rather than being parsed as code.
+const POOL_NAME = 'safe"; touch /tmp/injected; #';
 const DISPATCH_ENV = [
   "AGENT_RELAY_CURSOR_TOKEN=test-user-token",
   "CURSOR_AGENT_WORKER_ID=worker-123",
+  `AGENT_RELAY_CURSOR_POOL_NAME=${POOL_NAME}`,
+  "AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT=600",
 ];
 
 const setup = async (vars: Record<string, string> = {}) => {
@@ -149,9 +154,12 @@ describe("agent-relay-cursor", () => {
     const args = (await readFileContainer(id, "/tmp/agent-args")).split("\n");
     expect(args[0]).toBe("worker");
     expect(args).toContain("--pool");
+    expect(args[args.indexOf("--pool") + 1]).toBe(POOL_NAME);
     expect(args).toContain("--idle-release-timeout");
-    // The parameter default when Agent Relay has not stamped a value.
     expect(args[args.indexOf("--idle-release-timeout") + 1]).toBe("600");
+    // The metacharacters in the pool name must not have executed.
+    const injected = await execContainer(id, ["test", "-e", "/tmp/injected"]);
+    expect(injected.exitCode).not.toBe(0);
     // The token reaches the worker as --auth-token, not as an API key.
     expect(args[args.indexOf("--auth-token") + 1]).toBe("test-user-token");
     expect(args).toContain("start");
@@ -165,6 +173,10 @@ describe("agent-relay-cursor", () => {
     );
     expect(supervisor).toContain('--auth-token "$AGENT_RELAY_CURSOR_TOKEN"');
     expect(supervisor).not.toContain("test-user-token");
+    // Parameter values are likewise read from the environment, never
+    // written into the file where they would be parsed as shell.
+    expect(supervisor).toContain('--pool "$AGENT_RELAY_CURSOR_POOL_NAME"');
+    expect(supervisor).not.toContain(POOL_NAME);
 
     // The worker id keeps the Cursor CLI's own env var name.
     const env = await execContainer(id, [

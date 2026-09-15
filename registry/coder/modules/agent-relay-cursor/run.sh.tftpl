@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Rendered into a coder_script by the Cursor worker module. Runs at
 # agent start with AGENT_RELAY_CURSOR_TOKEN (a short-lived worker token
-# minted for the requesting user) and CURSOR_AGENT_WORKER_ID (the
-# claimed worker id) in scope.
+# minted for the requesting user), CURSOR_AGENT_WORKER_ID (the claimed
+# worker id), AGENT_RELAY_CURSOR_POOL_NAME, and
+# AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT in scope.
 #
 # Starts the worker detached and exits, so the agent reaches the ready
 # lifecycle state instead of sitting in starting for the life of the
@@ -62,9 +63,11 @@ fi
 
 # The supervisor outlives this script: it owns the worker process and
 # is the only writer of terminal state. Written to disk rather than
-# inlined so setsid gets a clean argv. The token is read from the
-# supervisor's environment at run time, escaped here so it is never
-# rendered into the file. The worker exits 0 when its
+# inlined so setsid gets a clean argv. The token, pool name, and idle
+# timeout are read from the supervisor's environment at run time,
+# escaped here so they are never rendered into the file. Parameter
+# values are user input; interpolating them into the file would let
+# shell metacharacters run as code. The worker exits 0 when its
 # idle-release timer fires after a session ends; that clean exit is
 # what tells Agent Relay to reap the workspace.
 supervisor="$state_dir/supervise.sh"
@@ -81,8 +84,8 @@ write_state() {
 export PATH="\$HOME/.local/bin:\$PATH"
 %{ endif ~}
 ${cli_binary} worker \\
-	--pool "${pool_name}" \\
-	--idle-release-timeout "${idle_release_timeout}" \\
+	--pool "\$AGENT_RELAY_CURSOR_POOL_NAME" \\
+	--idle-release-timeout "\$AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT" \\
 	--auth-token "\$AGENT_RELAY_CURSOR_TOKEN" \\
 %{ if computer_use ~}
 	--computer-use \\
