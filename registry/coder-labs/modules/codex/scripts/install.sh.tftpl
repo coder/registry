@@ -76,50 +76,6 @@ function ensure_codex_in_path() {
   add_path_to_shell_profiles "$${CODEX_DIR}"
 }
 
-function download_codex() (
-  local target="$1"
-  local url="$2"
-  local tmp_dir archive archive_contents candidate
-
-  tmp_dir=$(mktemp -d)
-  trap 'rm -rf "$${tmp_dir}"' EXIT
-  archive="$${tmp_dir}/codex.tar.gz"
-  archive_contents="$${tmp_dir}/archive-contents"
-  candidate="$${tmp_dir}/codex-$${target}"
-
-  if ! curl --fail --silent --show-error --location \
-    --retry 2 --retry-delay 1 --retry-all-errors \
-    --connect-timeout 10 --max-time 300 \
-    --output "$${archive}" "$${url}"; then
-    echo "Codex could not be downloaded after up to 3 attempts." >&2
-    return 1
-  fi
-
-  if ! tar -tzf "$${archive}" > "$${archive_contents}" 2> /dev/null; then
-    echo "Codex download was not a valid archive." >&2
-    return 1
-  fi
-
-  if ! grep -qx "codex-$${target}" "$${archive_contents}"; then
-    echo "Codex archive did not contain the expected binary." >&2
-    return 1
-  fi
-
-  if ! tar -xzf "$${archive}" -C "$${tmp_dir}" "codex-$${target}"; then
-    echo "Codex archive could not be extracted." >&2
-    return 1
-  fi
-
-  chmod +x "$${candidate}"
-  if ! "$${candidate}" --version > /dev/null; then
-    echo "Downloaded Codex binary could not be executed." >&2
-    return 1
-  fi
-
-  mkdir -p "$HOME/.local/bin"
-  mv "$${candidate}" "$HOME/.local/bin/codex"
-)
-
 function install_codex() {
   if [ "$${ARG_INSTALL}" != "true" ]; then
     echo "Skipping Codex installation as per configuration."
@@ -130,19 +86,16 @@ function install_codex() {
 
   printf "%s Installing Codex CLI\n" "$${BOLD}"
 
-  local arch
-  arch=$(uname -m)
-  local target="$${arch}-unknown-linux-musl"
-  local version="$${ARG_CODEX_VERSION}"
-
-  local url="https://github.com/openai/codex/releases/download/rust-v$${version}/codex-$${target}.tar.gz"
-
-  if [ "$${version}" = "latest" ]; then
-    url="https://github.com/openai/codex/releases/latest/download/codex-$${target}.tar.gz"
+  if ! curl --fail --silent --show-error --location \
+    --retry 2 --retry-delay 1 --retry-all-errors \
+    --connect-timeout 10 --max-time 300 \
+    https://chatgpt.com/codex/install.sh \
+    | CODEX_INSTALL_DIR="$HOME/.local/bin" \
+      CODEX_RELEASE="$${ARG_CODEX_VERSION}" \
+      CODEX_NON_INTERACTIVE=1 sh; then
+    echo "Codex installation failed." >&2
+    return 1
   fi
-
-  printf "Downloading %s\n" "$${url}"
-  download_codex "$${target}" "$${url}"
 
   export PATH="$HOME/.local/bin:$PATH"
   ensure_codex_in_path
