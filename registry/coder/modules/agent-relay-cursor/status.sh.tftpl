@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Rendered into the agent_relay_status agent metadata item (see README).
+# Prints one line that Agent Relay reads to decide whether the
+# workspace still has work:
+#
+#   pending          the worker script has not written state yet
+#   idle             no worker token; created manually, never claimed
+#   working          worker alive, no session attached yet
+#   serving          worker alive and a session has attached
+#   orphaned         state says working but the process is gone
+#   done <code>      worker exited with that status
+#   failed <reason>  the worker could not be started at all
+#
+# working versus serving comes from matching ${serving_log_pattern}
+# against the worker log, which is a cosmetic distinction: Agent Relay's
+# reaping decisions rest on the process lifecycle, so a pattern that
+# stops matching a future Cursor CLI release degrades to "working" and
+# changes nothing else.
+#
+# Keep the vocabulary in sync with Agent Relay's reaper.
+set -euo pipefail
+
+state_file="${state_file}"
+log_file="${log_file}"
+
+if [ ! -f "$state_file" ]; then
+	echo "pending"
+	exit 0
+fi
+
+read -r state detail <"$state_file" || true
+
+case "$state" in
+working)
+	if [ -z "$${detail:-}" ] || ! kill -0 "$detail" 2>/dev/null; then
+		# The worker vanished without the supervisor recording an
+		# exit, e.g. an OOM kill. Distinct from done so Agent Relay can
+		# grade the failure.
+		echo "orphaned"
+		exit 0
+	fi
+	if [ -f "$log_file" ] && grep -q "${serving_log_pattern}" "$log_file"; then
+		echo "serving"
+	else
+		echo "working"
+	fi
+	;;
+done)
+	echo "done $${detail:-0}"
+	;;
+failed)
+	echo "failed $${detail:-unknown}"
+	;;
+*)
+	echo "$state"
+	;;
+esac
