@@ -3,7 +3,7 @@ display_name: Copilot CLI
 description: GitHub Copilot CLI agent for AI-powered terminal assistance
 icon: ../../../../.icons/github.svg
 verified: false
-tags: [agent, copilot, ai, github, tasks, aibridge, ai-gateway]
+tags: [agent, copilot, ai, github, tasks, ai-gateway]
 ---
 
 # Copilot

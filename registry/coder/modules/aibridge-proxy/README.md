@@ -3,7 +3,7 @@ display_name: AI Gateway Proxy
 description: Configure a workspace to route AI tool traffic through AI Gateway via AI Gateway Proxy.
 icon: ../../../../.icons/coder.svg
 verified: true
-tags: [helper, aibridge, ai-gateway]
+tags: [helper, ai-gateway]
 ---
 
 # AI Gateway Proxy
