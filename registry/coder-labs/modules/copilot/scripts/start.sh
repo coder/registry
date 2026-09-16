@@ -126,7 +126,7 @@ setup_aibridge_proxy() {
     return 0
   fi
 
-  echo "Setting up AI Bridge Proxy..."
+  echo "Setting up AI Gateway Proxy..."
 
   # Wait for the aibridge-proxy module to finish.
   # Uses startup coordination to block until aibridge-proxy-setup signals completion.
@@ -137,17 +137,17 @@ setup_aibridge_proxy() {
   fi
 
   if [ -z "$ARG_AIBRIDGE_PROXY_AUTH_URL" ]; then
-    echo "ERROR: AI Bridge Proxy is enabled but no proxy auth URL provided."
+    echo "ERROR: AI Gateway Proxy is enabled but no proxy auth URL provided."
     exit 1
   fi
 
   if [ -z "$ARG_AIBRIDGE_PROXY_CERT_PATH" ]; then
-    echo "ERROR: AI Bridge Proxy is enabled but no certificate path provided."
+    echo "ERROR: AI Gateway Proxy is enabled but no certificate path provided."
     exit 1
   fi
 
   if [ ! -f "$ARG_AIBRIDGE_PROXY_CERT_PATH" ]; then
-    echo "ERROR: AI Bridge Proxy certificate not found at $ARG_AIBRIDGE_PROXY_CERT_PATH."
+    echo "ERROR: AI Gateway Proxy certificate not found at $ARG_AIBRIDGE_PROXY_CERT_PATH."
     echo "  Ensure the aibridge-proxy module has successfully completed setup."
     exit 1
   fi
@@ -159,7 +159,7 @@ setup_aibridge_proxy() {
   export HTTPS_PROXY="$ARG_AIBRIDGE_PROXY_AUTH_URL"
   export NODE_EXTRA_CA_CERTS="$ARG_AIBRIDGE_PROXY_CERT_PATH"
 
-  echo "✓ AI Bridge Proxy configured"
+  echo "✓ AI Gateway Proxy configured"
   echo "  CA certificate: $ARG_AIBRIDGE_PROXY_CERT_PATH"
 }
 
