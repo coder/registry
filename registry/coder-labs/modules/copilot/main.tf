@@ -40,7 +40,7 @@ variable "copilot_model" {
 
 variable "copilot_config" {
   type        = string
-  description = "Custom Copilot configuration as JSON string. Leave empty to use default configuration with banner disabled, theme set to auto, and workdir as trusted folder."
+  description = "Custom Copilot configuration as JSON string, written to Copilot's config.json (banner, theme, trusted_folders, etc.). Any mcpServers key is routed to mcp-config.json. Module-set keys are authoritative; other on-disk keys are preserved."
   default     = ""
 }
 
@@ -52,7 +52,7 @@ variable "trusted_directories" {
 
 variable "mcp_config" {
   type        = string
-  description = "Custom MCP server configuration as JSON string (in the `{\"mcpServers\": {...}}` shape). Merged into Copilot's `~/.copilot/mcp-config.json`; existing entries win on duplicate server names."
+  description = "Custom MCP server configuration as JSON string (in the `{\"mcpServers\": {...}}` shape). Merged into Copilot's `~/.copilot/mcp-config.json`; these servers win over existing entries on duplicate names."
   default     = ""
 }
 
@@ -110,18 +110,29 @@ locals {
 
   existing_trusted_folders = try(local.parsed_custom_config.trusted_folders, [])
 
+  # config.json is owned by copilot_config. mcpServers never belong here (Copilot
+  # reads MCP only from mcp-config.json), so strip it and route it below.
+  copilot_config_base = { for k, v in local.parsed_custom_config : k => v if k != "mcpServers" }
+
   merged_copilot_config = merge(
     {
       banner = "never"
       theme  = "auto"
     },
-    local.parsed_custom_config,
+    local.copilot_config_base,
     {
-      trusted_folders = concat(local.existing_trusted_folders, local.all_trusted_folders)
+      trusted_folders = distinct(concat(local.existing_trusted_folders, local.all_trusted_folders))
     }
   )
 
   final_copilot_config = jsonencode(local.merged_copilot_config)
+
+  # MCP servers may arrive via copilot_config.mcpServers or mcp_config; both are
+  # routed to mcp-config.json. mcp_config wins on duplicate server names.
+  copilot_config_mcp_servers = try(local.parsed_custom_config.mcpServers, {})
+  mcp_config_servers         = var.mcp_config != "" ? try(jsondecode(var.mcp_config).mcpServers, {}) : {}
+  combined_mcp_servers       = merge(local.copilot_config_mcp_servers, local.mcp_config_servers)
+  combined_mcp_json          = length(local.combined_mcp_servers) > 0 ? jsonencode({ mcpServers = local.combined_mcp_servers }) : ""
 
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_INSTALL         = tostring(var.install_copilot)
@@ -129,7 +140,7 @@ locals {
     ARG_COPILOT_MODEL   = var.copilot_model
     ARG_WORKDIR         = local.workdir != "" ? base64encode(local.workdir) : ""
     ARG_COPILOT_CONFIG  = base64encode(local.final_copilot_config)
-    ARG_MCP_CONFIG      = var.mcp_config != "" ? base64encode(var.mcp_config) : ""
+    ARG_MCP_CONFIG      = local.combined_mcp_json != "" ? base64encode(local.combined_mcp_json) : ""
   })
 
   module_dir_name = ".coder-modules/coder-labs/copilot"

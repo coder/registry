@@ -225,6 +225,59 @@ describe("copilot", async () => {
     expect(config.trusted_folders).toContain("/data");
   });
 
+  test("config-module-keys-win-and-trusted-folders-union", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        trusted_directories: JSON.stringify(["/data"]),
+      },
+    });
+    // Seed an existing config.json with conflicting + runtime-only values.
+    const seed = JSON.stringify({
+      theme: "dark",
+      model: "user-picked-model",
+      trusted_folders: ["/interactively-trusted"],
+    });
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `mkdir -p /home/coder/.copilot && cat > /home/coder/.copilot/config.json <<'JSON'\n${seed}\nJSON`,
+    ]);
+    await runScripts(id, scripts);
+    const config = JSON.parse(await readConfig(id));
+    // Module-owned key wins over the existing value.
+    expect(config.theme).toBe("auto");
+    // Module key the existing file lacked is added.
+    expect(config.banner).toBe("never");
+    // Unmanaged on-disk key is preserved.
+    expect(config.model).toBe("user-picked-model");
+    // trusted_folders is the union of existing + module lists.
+    expect(config.trusted_folders).toContain("/interactively-trusted");
+    expect(config.trusted_folders).toContain("/data");
+    expect(config.trusted_folders).toContain(projectDir);
+  });
+
+  test("routes-mcp-servers-from-copilot-config", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        copilot_config: JSON.stringify({
+          theme: "dark",
+          mcpServers: {
+            fromcopilot: { command: "npx", type: "local" },
+          },
+        }),
+      },
+    });
+    await runScripts(id, scripts);
+    const mcp = JSON.parse(await readMcpConfig(id));
+    const config = JSON.parse(await readConfig(id));
+    // mcpServers in copilot_config are routed to mcp-config.json...
+    expect(mcp.mcpServers.fromcopilot).toBeDefined();
+    // ...and never written into config.json.
+    expect(config.mcpServers).toBeUndefined();
+    // Non-mcp keys from copilot_config still apply to config.json.
+    expect(config.theme).toBe("dark");
+  });
+
   test("writes-custom-mcp-servers-without-coder-server", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {
@@ -249,7 +302,7 @@ describe("copilot", async () => {
     expect(mcp.mcpServers.coder).toBeUndefined();
   });
 
-  test("merges-mcp-config-preferring-existing-servers", async () => {
+  test("merges-mcp-config-module-servers-win", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {
         mcp_config: JSON.stringify({
@@ -260,10 +313,11 @@ describe("copilot", async () => {
         }),
       },
     });
-    // Seed an existing config with a conflicting `filesystem` server.
+    // Seed an existing config with a conflicting server and an unrelated one.
     const seed = JSON.stringify({
       mcpServers: {
         filesystem: { command: "existing-command", type: "local" },
+        seeded: { command: "seeded-cmd", type: "local" },
       },
     });
     await execContainer(id, [
@@ -273,9 +327,11 @@ describe("copilot", async () => {
     ]);
     await runScripts(id, scripts);
     const mcp = JSON.parse(await readMcpConfig(id));
-    // Existing server wins on the duplicate key.
-    expect(mcp.mcpServers.filesystem.command).toBe("existing-command");
-    // Non-conflicting module server is still merged in.
+    // Module-provided server wins on the duplicate key.
+    expect(mcp.mcpServers.filesystem.command).toBe("module-command");
+    // Unrelated on-disk server is preserved.
+    expect(mcp.mcpServers.seeded).toBeDefined();
+    // Non-conflicting module server is merged in.
     expect(mcp.mcpServers.extra).toBeDefined();
   });
 

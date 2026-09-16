@@ -131,29 +131,42 @@ setup_workdir() {
   fi
 }
 
+# Merge the module-provided Copilot configuration into ~/.copilot/config.json.
+# The module owns the keys it sets (they win), trusted_folders is a union of the
+# existing and module lists, and any other on-disk keys Copilot manages at
+# runtime (model, reasoning_effort, ...) are preserved.
 setup_copilot_config() {
-  local copilot_config_dir="$HOME/.copilot"
-  local copilot_config_file="$${copilot_config_dir}/config.json"
-
-  mkdir -p "$${copilot_config_dir}"
+  local copilot_config_file="$HOME/.copilot/config.json"
 
   if [ -z "$${ARG_COPILOT_CONFIG}" ]; then
-    echo "ERROR: No Copilot configuration provided" >&2
+    echo "No Copilot configuration provided; leaving $${copilot_config_file} unchanged."
+    return
+  fi
+
+  if ! command_exists jq; then
+    echo "ERROR: 'jq' is required to configure Copilot but was not found." >&2
     exit 1
   fi
 
-  echo "Setting up Copilot configuration..."
-  if command_exists jq; then
-    echo "$${ARG_COPILOT_CONFIG}" | jq 'del(.mcpServers)' > "$${copilot_config_file}"
-  else
-    echo "$${ARG_COPILOT_CONFIG}" > "$${copilot_config_file}"
+  mkdir -p "$(dirname "$${copilot_config_file}")"
+  echo "Merging Copilot configuration into $${copilot_config_file}"
+
+  local existing='{}'
+  if [ -f "$${copilot_config_file}" ]; then
+    existing=$(cat "$${copilot_config_file}")
   fi
-  echo "Wrote $${copilot_config_file}"
+  # `$existing * $module` lets module keys win while preserving on-disk-only keys;
+  # trusted_folders is then set to the union of both lists.
+  echo "$${existing}" | jq --argjson module "$${ARG_COPILOT_CONFIG}" '
+    . as $existing
+    | ($existing * $module)
+    | .trusted_folders = ((($existing.trusted_folders // []) + ($module.trusted_folders // [])) | unique)
+  ' > "$${copilot_config_file}"
+  echo "Copilot configuration completed: $${copilot_config_file}"
 }
 
-# Merge MCP servers into Copilot's user-level mcp-config.json. The mcp_config
-# input uses Copilot's native file schema. Existing entries always take
-# precedence: on duplicate server names, what's already in the file wins.
+# Merge MCP servers into Copilot's user-level mcp-config.json. The module-provided
+# servers win on duplicate names; any other servers already on disk are preserved.
 setup_mcp_config() {
   local mcp_config_file="$HOME/.copilot/mcp-config.json"
 
@@ -176,9 +189,9 @@ setup_mcp_config() {
   fi
   local custom
   custom=$(echo "$${ARG_MCP_CONFIG}" | jq '.mcpServers // {}')
-  # `$custom + existing` merges the two objects with the right operand winning,
-  # so existing servers override the module-provided ones on duplicate keys.
-  echo "$${existing}" | jq --argjson custom "$${custom}" '.mcpServers = ($custom + (.mcpServers // {}))' > "$${mcp_config_file}"
+  # `(existing + $custom)` merges with the right operand winning, so module
+  # servers override on duplicate names while other on-disk servers are kept.
+  echo "$${existing}" | jq --argjson custom "$${custom}" '.mcpServers = ((.mcpServers // {}) + $custom)' > "$${mcp_config_file}"
   echo "MCP configuration completed: $${mcp_config_file}"
 }
 

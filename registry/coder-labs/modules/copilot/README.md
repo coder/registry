@@ -140,7 +140,7 @@ module "copilot" {
 ```
 
 > [!NOTE]
-> Servers from `mcp_config` are merged into `~/.copilot/mcp-config.json`, Copilot's documented user-level MCP config. Existing entries take precedence on duplicate server names. GitHub Copilot CLI does not automatically install MCP servers. Either use `npx -y` in the config (shown above) to auto-install on each run, or pre-install MCP servers in `pre_install_script` for faster startup.
+> Servers from `mcp_config` are merged into `~/.copilot/mcp-config.json`, Copilot's documented user-level MCP config. Module-provided servers win on duplicate names, while other servers already on disk are preserved. An `mcpServers` key placed in `copilot_config` is also routed here (never written to `config.json`). GitHub Copilot CLI does not automatically install MCP servers. Either use `npx -y` in the config (shown above) to auto-install on each run, or pre-install MCP servers in `pre_install_script` for faster startup.
 
 ### Serialize a downstream `coder_script` after the install pipeline
 
