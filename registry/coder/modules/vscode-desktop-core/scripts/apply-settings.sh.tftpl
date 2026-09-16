@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+expand_home() {
+  case "$1" in
+    '$HOME')
+      printf '%s\n' "$HOME"
+      ;;
+    '$HOME/'*)
+      printf '%s/%s\n' "$HOME" "$${1#\$HOME/}"
+      ;;
+    *)
+      printf '%s\n' "$1"
+      ;;
+  esac
+}
+
+decode_path() {
+  local encoded_path="$1"
+  local decoded_path
+
+  decoded_path="$(printf '%s' "$encoded_path" | base64 -d)"
+  expand_home "$decoded_path"
+}
+
+SETTINGS_FILE="$(decode_path '${SETTINGS_FILE_B64}')"
+
+if [ -z "$SETTINGS_FILE" ]; then
+  printf 'settings_file is required when settings are configured.\n' >&2
+  exit 1
+fi
+
+settings_directory="$(dirname "$SETTINGS_FILE")"
+mkdir -p "$settings_directory"
+
+desired_settings="$(mktemp "$settings_directory/.coder-settings.desired.XXXXXX")"
+merged_settings="$(mktemp "$settings_directory/.coder-settings.merged.XXXXXX")"
+trap 'rm -f "$desired_settings" "$merged_settings"' EXIT
+
+printf '%s' '${SETTINGS_B64}' | base64 -d > "$desired_settings"
+chmod 600 "$desired_settings"
+
+if [ ! -e "$SETTINGS_FILE" ]; then
+  mv "$desired_settings" "$SETTINGS_FILE"
+  printf 'Created IDE settings: %s\n' "$SETTINGS_FILE"
+  exit 0
+fi
+
+if [ ! -f "$SETTINGS_FILE" ]; then
+  printf 'IDE settings path is not a regular file: %s\n' "$SETTINGS_FILE" >&2
+  exit 1
+fi
+
+if command -v jq > /dev/null 2>&1; then
+  jq -e 'type == "object"' "$SETTINGS_FILE" > /dev/null
+  jq -s '.[0] * .[1]' "$SETTINGS_FILE" "$desired_settings" > "$merged_settings"
+elif command -v python3 > /dev/null 2>&1; then
+  python3 - "$SETTINGS_FILE" "$desired_settings" "$merged_settings" << 'PY'
+import json
+import sys
+
+
+def merge(existing, configured):
+    result = dict(existing)
+    for key, value in configured.items():
+        if isinstance(result.get(key), dict) and isinstance(value, dict):
+            result[key] = merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+with open(sys.argv[1], encoding="utf-8") as existing_file:
+    existing = json.load(existing_file)
+with open(sys.argv[2], encoding="utf-8") as configured_file:
+    configured = json.load(configured_file)
+
+if not isinstance(existing, dict):
+    raise ValueError("the existing IDE settings file must contain a JSON object")
+
+with open(sys.argv[3], "w", encoding="utf-8") as merged_file:
+    json.dump(merge(existing, configured), merged_file, indent=2)
+    merged_file.write("\n")
+PY
+else
+  printf 'Cannot merge existing IDE settings: jq or python3 is required.\n' >&2
+  exit 1
+fi
+
+chmod 600 "$merged_settings"
+mv "$merged_settings" "$SETTINGS_FILE"
+printf 'Merged IDE settings: %s\n' "$SETTINGS_FILE"

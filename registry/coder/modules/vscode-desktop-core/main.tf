@@ -32,6 +32,23 @@ variable "mcp_config" {
   default     = null
 }
 
+variable "settings" {
+  description = "Settings to merge into the remote IDE settings file on workspace start. Configured values take precedence over existing values."
+  type        = any
+  default     = {}
+
+  validation {
+    condition     = can(keys(var.settings))
+    error_message = "settings must be an object."
+  }
+}
+
+variable "settings_file" {
+  description = "Remote settings file supplied by the IDE wrapper."
+  type        = string
+  default     = ""
+}
+
 variable "extensions" {
   description = "Extension IDs to pre-install on the remote workspace host."
   type        = list(string)
@@ -102,6 +119,15 @@ data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
 locals {
+  settings_enabled = try(length(keys(var.settings)), 0) > 0
+  apply_settings_script = local.settings_enabled ? templatefile(
+    "${path.module}/scripts/apply-settings.sh.tftpl",
+    {
+      SETTINGS_B64      = base64encode(jsonencode(var.settings))
+      SETTINGS_FILE_B64 = base64encode(var.settings_file)
+    },
+  ) : ""
+
   install_extensions_script = length(var.extensions) > 0 ? templatefile(
     "${path.module}/scripts/install-extensions.sh.tftpl",
     {
@@ -111,6 +137,24 @@ locals {
       IDE_CLI_PATH_B64           = base64encode(var.ide_cli_path)
     },
   ) : ""
+}
+
+resource "coder_script" "apply_settings" {
+  count              = local.settings_enabled ? 1 : 0
+  agent_id           = var.agent_id
+  display_name       = "${var.coder_app_display_name} Settings"
+  icon               = var.coder_app_icon
+  run_on_start       = true
+  start_blocks_login = true
+  timeout            = 300
+  script             = local.apply_settings_script
+
+  lifecycle {
+    precondition {
+      condition     = trimspace(var.settings_file) != ""
+      error_message = "settings_file is required when settings are configured."
+    }
+  }
 }
 
 resource "coder_script" "install_extensions" {

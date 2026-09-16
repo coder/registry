@@ -38,6 +38,18 @@ const setupVariables = {
   ide_cli_install_script: "#!/usr/bin/env bash\nprintf 'bootstrap complete\\n'",
 };
 
+const settingsVariables = {
+  ...defaultVariables,
+  settings: JSON.stringify({
+    "editor.fontSize": 14,
+    "editor.formatOnSave": true,
+    "workbench.colorCustomizations": {
+      "editor.background": "#101010",
+    },
+  }),
+  settings_file: "$HOME/.ide-server/data/Machine/settings.json",
+};
+
 describe("vscode-desktop-core", async () => {
   await runTerraformInit(import.meta.dir);
 
@@ -190,6 +202,139 @@ describe("vscode-desktop-core", async () => {
     } finally {
       await removeContainer(id);
     }
+  });
+
+  describe("settings", () => {
+    it("creates no settings script with default inputs", async () => {
+      const state = await runTerraformApply(import.meta.dir, defaultVariables);
+      const settingsScripts = state.resources.filter(
+        (resource) =>
+          resource.type === "coder_script" &&
+          resource.name === "apply_settings",
+      );
+
+      expect(settingsScripts).toHaveLength(0);
+    });
+
+    it("creates a new settings file without a merge tool", async () => {
+      const state = await runTerraformApply(import.meta.dir, settingsVariables);
+      const settingsScript = findResourceInstance(
+        state,
+        "coder_script",
+        "apply_settings",
+      ).script;
+      const id = await runContainer("node:22-bookworm-slim");
+      const settingsPath = "/root/.ide-server/data/Machine/settings.json";
+
+      try {
+        const result = await execContainer(id, ["bash", "-c", settingsScript]);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("Created IDE settings");
+        expect(JSON.parse(await readFileContainer(id, settingsPath))).toEqual({
+          "editor.fontSize": 14,
+          "editor.formatOnSave": true,
+          "workbench.colorCustomizations": {
+            "editor.background": "#101010",
+          },
+        });
+      } finally {
+        await removeContainer(id);
+      }
+    }, 20000);
+
+    it("creates settings before login and merges existing values", async () => {
+      const state = await runTerraformApply(import.meta.dir, settingsVariables);
+      const settingsScript = findResourceInstance(
+        state,
+        "coder_script",
+        "apply_settings",
+      );
+      const id = await runContainer("python:3.12-slim");
+      const settingsPath = "/root/.ide-server/data/Machine/settings.json";
+
+      try {
+        expect(settingsScript.run_on_start).toBe(true);
+        expect(settingsScript.start_blocks_login).toBe(true);
+        expect(settingsScript.timeout).toBe(300);
+
+        await execContainer(id, [
+          "mkdir",
+          "-p",
+          "/root/.ide-server/data/Machine",
+        ]);
+        await writeFileContainer(
+          id,
+          settingsPath,
+          JSON.stringify({
+            "editor.fontSize": 12,
+            "editor.wordWrap": "on",
+            "workbench.colorCustomizations": {
+              "editor.foreground": "#f0f0f0",
+            },
+          }),
+          { user: "root" },
+        );
+
+        const result = await execContainer(id, [
+          "bash",
+          "-c",
+          settingsScript.script,
+        ]);
+        if (result.exitCode !== 0) {
+          console.log(result.stdout);
+          console.log(result.stderr);
+        }
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain("Merged IDE settings");
+
+        const settings = JSON.parse(await readFileContainer(id, settingsPath));
+        expect(settings).toEqual({
+          "editor.fontSize": 14,
+          "editor.wordWrap": "on",
+          "editor.formatOnSave": true,
+          "workbench.colorCustomizations": {
+            "editor.background": "#101010",
+            "editor.foreground": "#f0f0f0",
+          },
+        });
+      } finally {
+        await removeContainer(id);
+      }
+    }, 20000);
+
+    it("fails without a merge tool instead of overwriting existing settings", async () => {
+      const state = await runTerraformApply(import.meta.dir, settingsVariables);
+      const settingsScript = findResourceInstance(
+        state,
+        "coder_script",
+        "apply_settings",
+      ).script;
+      const id = await runContainer("node:22-bookworm-slim");
+      const settingsPath = "/root/.ide-server/data/Machine/settings.json";
+      const existingSettings = JSON.stringify({
+        "editor.wordWrap": "on",
+      });
+
+      try {
+        await execContainer(id, [
+          "mkdir",
+          "-p",
+          "/root/.ide-server/data/Machine",
+        ]);
+        await writeFileContainer(id, settingsPath, existingSettings, {
+          user: "root",
+        });
+
+        const result = await execContainer(id, ["bash", "-c", settingsScript]);
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toContain("jq or python3 is required");
+        expect(await readFileContainer(id, settingsPath)).toBe(
+          existingSettings,
+        );
+      } finally {
+        await removeContainer(id);
+      }
+    }, 20000);
   });
 
   describe("extension installation", () => {
