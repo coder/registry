@@ -259,18 +259,4 @@ describe("copilot", async () => {
     expect(coderEnvVars["GITHUB_TOKEN"]).toBe(token);
     expect(coderEnvVars["GH_TOKEN"]).toBe(token);
   });
-
-  test("ai-gateway-provider-env-vars", async () => {
-    const { coderEnvVars } = await setup({
-      moduleVariables: {
-        enable_ai_gateway: "true",
-      },
-    });
-    expect(coderEnvVars["COPILOT_PROVIDER_TYPE"]).toBe("openai");
-    expect(coderEnvVars["COPILOT_PROVIDER_BASE_URL"]).toContain(
-      "/api/v2/aibridge/openai/v1",
-    );
-    // COPILOT_MODEL is always set when the gateway is enabled.
-    expect(coderEnvVars["COPILOT_MODEL"]).toBeDefined();
-  });
 });

@@ -13,9 +13,6 @@ variable "agent_id" {
   description = "The ID of a Coder agent."
 }
 
-data "coder_workspace" "me" {}
-data "coder_workspace_owner" "me" {}
-
 variable "icon" {
   type        = string
   description = "The icon to use for the app."
@@ -37,7 +34,7 @@ variable "github_token" {
 
 variable "copilot_model" {
   type        = string
-  description = "The model to use for Copilot. Any model supported by GitHub Copilot can be used. When enable_ai_gateway is true, this must be a model id served by your AI Gateway provider."
+  description = "The model to use for Copilot. Any model supported by GitHub Copilot can be used."
   default     = "claude-sonnet-4.5"
 }
 
@@ -83,17 +80,6 @@ variable "post_install_script" {
   default     = null
 }
 
-variable "enable_ai_gateway" {
-  type        = bool
-  description = "Use AI Gateway for Copilot. Routes Copilot's model traffic through Coder's AI Gateway using the workspace owner's session token. https://coder.com/docs/ai-coder/ai-gateway"
-  default     = false
-
-  validation {
-    condition     = !(var.enable_ai_gateway && length(var.github_token) > 0)
-    error_message = "github_token cannot be provided when enable_ai_gateway is true. AI Gateway authenticates the model provider using the workspace owner's Coder session token."
-  }
-}
-
 resource "coder_env" "copilot_model" {
   count    = var.copilot_model != "" ? 1 : 0
   agent_id = var.agent_id
@@ -113,30 +99,6 @@ resource "coder_env" "gh_token" {
   agent_id = var.agent_id
   name     = "GH_TOKEN"
   value    = var.github_token
-}
-
-# BYOK provider settings that point Copilot at Coder's AI Gateway. The provider
-# type is OpenAI-compatible and the API key is the workspace owner's session
-# token, which the gateway uses to authenticate and attribute requests.
-resource "coder_env" "ai_gateway_provider_type" {
-  count    = var.enable_ai_gateway ? 1 : 0
-  agent_id = var.agent_id
-  name     = "COPILOT_PROVIDER_TYPE"
-  value    = "openai"
-}
-
-resource "coder_env" "ai_gateway_base_url" {
-  count    = var.enable_ai_gateway ? 1 : 0
-  agent_id = var.agent_id
-  name     = "COPILOT_PROVIDER_BASE_URL"
-  value    = "${data.coder_workspace.me.access_url}/api/v2/aibridge/openai/v1"
-}
-
-resource "coder_env" "ai_gateway_provider_api_key" {
-  count    = var.enable_ai_gateway ? 1 : 0
-  agent_id = var.agent_id
-  name     = "COPILOT_PROVIDER_API_KEY"
-  value    = data.coder_workspace_owner.me.session_token
 }
 
 locals {

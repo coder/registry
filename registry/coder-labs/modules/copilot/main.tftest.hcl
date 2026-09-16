@@ -17,11 +17,6 @@ run "defaults_are_correct" {
   }
 
   assert {
-    condition     = var.enable_ai_gateway == false
-    error_message = "enable_ai_gateway should default to false"
-  }
-
-  assert {
     condition     = local.module_dir_name == ".coder-modules/coder-labs/copilot"
     error_message = "module_dir_name should be '.coder-modules/coder-labs/copilot'"
   }
@@ -89,73 +84,6 @@ run "copilot_model_env_var_is_always_set" {
   assert {
     condition     = coder_env.copilot_model[0].name == "COPILOT_MODEL" && coder_env.copilot_model[0].value == "claude-sonnet-4.5"
     error_message = "COPILOT_MODEL env var should be set to the model as given, including the default"
-  }
-}
-
-run "ai_gateway_enabled" {
-  command = plan
-
-  variables {
-    agent_id          = "test-agent"
-    workdir           = "/home/coder"
-    enable_ai_gateway = true
-  }
-
-  override_data {
-    target = data.coder_workspace_owner.me
-    values = {
-      session_token = "mock-session-token"
-    }
-  }
-
-  assert {
-    condition     = coder_env.ai_gateway_provider_type[0].value == "openai"
-    error_message = "COPILOT_PROVIDER_TYPE should be 'openai' when ai_gateway is enabled"
-  }
-
-  assert {
-    condition     = coder_env.ai_gateway_provider_api_key[0].value == data.coder_workspace_owner.me.session_token
-    error_message = "COPILOT_PROVIDER_API_KEY should use the workspace owner's session token"
-  }
-
-  assert {
-    condition     = endswith(coder_env.ai_gateway_base_url[0].value, "/api/v2/aibridge/openai/v1")
-    error_message = "COPILOT_PROVIDER_BASE_URL should point at the AI Gateway OpenAI endpoint"
-  }
-
-  assert {
-    condition     = length(coder_env.copilot_model) == 1
-    error_message = "COPILOT_MODEL should always be set when ai_gateway is enabled"
-  }
-}
-
-run "ai_gateway_validation_with_github_token" {
-  command = plan
-
-  variables {
-    agent_id          = "test-agent"
-    workdir           = "/home/coder"
-    enable_ai_gateway = true
-    github_token      = "test-token"
-  }
-
-  expect_failures = [
-    var.enable_ai_gateway,
-  ]
-}
-
-run "ai_gateway_disabled_creates_no_provider_env" {
-  command = plan
-
-  variables {
-    agent_id          = "test-agent"
-    workdir           = "/home/coder"
-    enable_ai_gateway = false
-  }
-
-  assert {
-    condition     = length(coder_env.ai_gateway_provider_type) == 0 && length(coder_env.ai_gateway_base_url) == 0 && length(coder_env.ai_gateway_provider_api_key) == 0
-    error_message = "No AI Gateway provider env vars should be created when disabled"
   }
 }
 

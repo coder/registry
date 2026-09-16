@@ -3,7 +3,7 @@ display_name: Copilot CLI
 description: GitHub Copilot CLI agent for AI-powered terminal assistance
 icon: ../../../../.icons/github.svg
 verified: false
-tags: [agent, copilot, ai, github, ai-gateway]
+tags: [agent, copilot, ai, github]
 ---
 
 # Copilot
@@ -96,34 +96,6 @@ module "copilot" {
 
 > [!NOTE]
 > OAuth tokens work best with Copilot. Personal Access Tokens may have limited functionality.
-
-### Usage with AI Gateway
-
-[AI Gateway](https://coder.com/docs/ai-coder/ai-gateway) is a Premium Coder
-feature that provides centralized LLM proxy management. When `enable_ai_gateway = true`,
-the module points Copilot's [BYOK model provider](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/use-byok-models)
-at Coder's AI Gateway using the workspace owner's session token.
-
-```tf
-module "copilot" {
-  source            = "registry.coder.com/coder-labs/copilot/coder"
-  version           = "1.0.0"
-  agent_id          = coder_agent.example.id
-  workdir           = "/home/coder/project"
-  enable_ai_gateway = true
-  copilot_model     = "gpt-5"
-}
-```
-
-The module sets `COPILOT_PROVIDER_TYPE`, `COPILOT_PROVIDER_BASE_URL`, and
-`COPILOT_PROVIDER_API_KEY` in the workspace environment. Set `copilot_model` to a
-model id served by your AI Gateway provider.
-
-> [!CAUTION]
-> `enable_ai_gateway = true` is mutually exclusive with `github_token`. Setting both fails at plan time. AI Gateway authenticates the model provider with the Coder session token; GitHub authentication is only needed if your workflow calls GitHub tools.
-
-> [!NOTE]
-> Copilot CLI cannot send custom request headers and does not route inline completions through a gateway; only chat/agent/CLI model traffic is proxied.
 
 ### Advanced configuration
 
@@ -222,5 +194,4 @@ cat ~/.coder-modules/coder-labs/copilot/logs/post_install.log
 
 - [GitHub Copilot CLI Documentation](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli)
 - [Installing GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli)
-- [Using your own LLM models (BYOK)](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/use-byok-models)
-- [AI Gateway](https://coder.com/docs/ai-coder/ai-gateway)
+- [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)
