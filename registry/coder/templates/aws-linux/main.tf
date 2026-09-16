@@ -3,108 +3,36 @@ terraform {
     coder = {
       source = "coder/coder"
     }
-    cloudinit = {
-      source = "hashicorp/cloudinit"
-    }
     aws = {
       source = "hashicorp/aws"
     }
   }
 }
 
-# Last updated 2023-03-14
-# aws ec2 describe-regions | jq -r '[.Regions[].RegionName] | sort'
-data "coder_parameter" "region" {
-  name         = "region"
-  display_name = "Region"
-  description  = "The region to deploy the workspace in."
-  default      = "us-east-1"
-  mutable      = false
-  option {
-    name  = "Asia Pacific (Tokyo)"
-    value = "ap-northeast-1"
-    icon  = "/emojis/1f1ef-1f1f5.png"
-  }
-  option {
-    name  = "Asia Pacific (Seoul)"
-    value = "ap-northeast-2"
-    icon  = "/emojis/1f1f0-1f1f7.png"
-  }
-  option {
-    name  = "Asia Pacific (Osaka)"
-    value = "ap-northeast-3"
-    icon  = "/emojis/1f1ef-1f1f5.png"
-  }
-  option {
-    name  = "Asia Pacific (Mumbai)"
-    value = "ap-south-1"
-    icon  = "/emojis/1f1ee-1f1f3.png"
-  }
-  option {
-    name  = "Asia Pacific (Singapore)"
-    value = "ap-southeast-1"
-    icon  = "/emojis/1f1f8-1f1ec.png"
-  }
-  option {
-    name  = "Asia Pacific (Sydney)"
-    value = "ap-southeast-2"
-    icon  = "/emojis/1f1e6-1f1fa.png"
-  }
-  option {
-    name  = "Canada (Central)"
-    value = "ca-central-1"
-    icon  = "/emojis/1f1e8-1f1e6.png"
-  }
-  option {
-    name  = "EU (Frankfurt)"
-    value = "eu-central-1"
-    icon  = "/emojis/1f1ea-1f1fa.png"
-  }
-  option {
-    name  = "EU (Stockholm)"
-    value = "eu-north-1"
-    icon  = "/emojis/1f1ea-1f1fa.png"
-  }
-  option {
-    name  = "EU (Ireland)"
-    value = "eu-west-1"
-    icon  = "/emojis/1f1ea-1f1fa.png"
-  }
-  option {
-    name  = "EU (London)"
-    value = "eu-west-2"
-    icon  = "/emojis/1f1ea-1f1fa.png"
-  }
-  option {
-    name  = "EU (Paris)"
-    value = "eu-west-3"
-    icon  = "/emojis/1f1ea-1f1fa.png"
-  }
-  option {
-    name  = "South America (São Paulo)"
-    value = "sa-east-1"
-    icon  = "/emojis/1f1e7-1f1f7.png"
-  }
-  option {
-    name  = "US East (N. Virginia)"
-    value = "us-east-1"
-    icon  = "/emojis/1f1fa-1f1f8.png"
-  }
-  option {
-    name  = "US East (Ohio)"
-    value = "us-east-2"
-    icon  = "/emojis/1f1fa-1f1f8.png"
-  }
-  option {
-    name  = "US West (N. California)"
-    value = "us-west-1"
-    icon  = "/emojis/1f1fa-1f1f8.png"
-  }
-  option {
-    name  = "US West (Oregon)"
-    value = "us-west-2"
-    icon  = "/emojis/1f1fa-1f1f8.png"
-  }
+locals {
+  hostname   = lower(data.coder_workspace.me.name)
+  linux_user = "coder"
+
+  agent_token    = try(coder_agent.dev[0].token, "")
+  agent_init_b64 = try(base64encode(coder_agent.dev[0].init_script), "")
+
+  user_data = <<-EOT
+    #!/bin/sh
+    set -eu
+    export PATH="/run/current-system/sw/bin:$PATH"
+    export HOME=/root
+    export NIX_CONFIG="experimental-features = nix-command flakes"
+
+    install -d -m 0755 /etc/coder
+    install -m 0600 /dev/null /etc/coder/agent.env
+    echo 'CODER_AGENT_TOKEN=${local.agent_token}' > /etc/coder/agent.env
+
+    printf '%s' '${local.agent_init_b64}' | base64 -d > /etc/coder/init.sh
+    chmod 0755 /etc/coder/init.sh
+
+    nix build --no-link '${var.flake}' || exit 1
+    nixos-rebuild switch --flake '${var.flake}'
+  EOT
 }
 
 data "coder_parameter" "instance_type" {
@@ -139,6 +67,16 @@ data "coder_parameter" "instance_type" {
   }
 }
 
+variable "nixos_release" {
+  type    = string
+  default = "26.05"
+}
+
+variable "flake_url" {
+  type    = string
+  default = "github:your-org/nixos-workspaces#coder"
+}
+
 provider "aws" {
   region = data.coder_parameter.region.value
 }
@@ -146,17 +84,19 @@ provider "aws" {
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
-data "aws_ami" "ubuntu" {
+data "aws_ami" "nixos" {
+  owners      = ["427812963091"] # NixOS
   most_recent = true
+
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
+    values = ["nixos/${var.nixos_release}*"]
   }
+
   filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
+    name   = "architecture"
+    values = ["x86_64"]
   }
-  owners = ["099720109477"] # Canonical
 }
 
 resource "coder_agent" "dev" {
@@ -215,35 +155,12 @@ module "jetbrains" {
   folder     = "/home/coder"
 }
 
-locals {
-  hostname   = lower(data.coder_workspace.me.name)
-  linux_user = "coder"
-}
-
-data "cloudinit_config" "user_data" {
-  gzip          = false
-  base64_encode = false
-
-  boundary = "//"
-
-  part {
-    filename     = "cloud-config.yaml"
-    content_type = "text/cloud-config"
-
-    content = templatefile("${path.module}/cloud-init/cloud-config.yaml.tftpl", {
-      hostname    = local.hostname
-      linux_user  = local.linux_user
-      init_script = base64encode(try(coder_agent.dev[0].init_script, ""))
-    })
-  }
-}
-
 resource "aws_instance" "dev" {
   ami               = data.aws_ami.ubuntu.id
   availability_zone = "${data.coder_parameter.region.value}a"
   instance_type     = data.coder_parameter.instance_type.value
 
-  user_data = data.cloudinit_config.user_data.rendered
+  user_data = local.user_data
   tags = {
     Name = "coder-${data.coder_workspace_owner.me.name}-${data.coder_workspace.me.name}"
     # Required if you are using our example policy, see template README
