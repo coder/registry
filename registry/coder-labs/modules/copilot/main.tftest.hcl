@@ -183,3 +183,69 @@ run "script_outputs_with_pre_and_post" {
     error_message = "scripts output should list pre_install, install, post_install in run order"
   }
 }
+
+run "ai_gateway_disabled_creates_no_proxy_env" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    workdir  = "/home/coder"
+  }
+
+  assert {
+    condition     = length(coder_env.ai_gateway_https_proxy) == 0 && length(coder_env.ai_gateway_node_extra_ca_certs) == 0
+    error_message = "No proxy env vars should be created when enable_ai_gateway is false"
+  }
+}
+
+run "ai_gateway_enabled_sets_proxy_env" {
+  command = plan
+
+  variables {
+    agent_id             = "test-agent"
+    workdir              = "/home/coder"
+    enable_ai_gateway    = true
+    ai_gateway_auth_url  = "https://coder:mock-token@aiproxy.example.com"
+    ai_gateway_cert_path = "/tmp/aibridge-proxy/ca-cert.pem"
+  }
+
+  assert {
+    condition     = coder_env.ai_gateway_https_proxy[0].name == "HTTPS_PROXY" && coder_env.ai_gateway_https_proxy[0].value == "https://coder:mock-token@aiproxy.example.com"
+    error_message = "HTTPS_PROXY should be set to ai_gateway_auth_url"
+  }
+
+  assert {
+    condition     = coder_env.ai_gateway_node_extra_ca_certs[0].name == "NODE_EXTRA_CA_CERTS" && coder_env.ai_gateway_node_extra_ca_certs[0].value == "/tmp/aibridge-proxy/ca-cert.pem"
+    error_message = "NODE_EXTRA_CA_CERTS should be set to ai_gateway_cert_path"
+  }
+}
+
+run "ai_gateway_requires_auth_url" {
+  command = plan
+
+  variables {
+    agent_id             = "test-agent"
+    workdir              = "/home/coder"
+    enable_ai_gateway    = true
+    ai_gateway_cert_path = "/tmp/aibridge-proxy/ca-cert.pem"
+  }
+
+  expect_failures = [
+    var.enable_ai_gateway,
+  ]
+}
+
+run "ai_gateway_requires_cert_path" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent"
+    workdir             = "/home/coder"
+    enable_ai_gateway   = true
+    ai_gateway_auth_url = "https://coder:mock-token@aiproxy.example.com"
+  }
+
+  expect_failures = [
+    var.enable_ai_gateway,
+  ]
+}

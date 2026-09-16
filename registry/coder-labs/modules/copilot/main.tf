@@ -80,6 +80,35 @@ variable "post_install_script" {
   default     = null
 }
 
+variable "enable_ai_gateway" {
+  type        = bool
+  description = "Route Copilot traffic through Coder's AI Gateway (AI Bridge Proxy). https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy"
+  default     = false
+
+  validation {
+    condition     = !var.enable_ai_gateway || (var.ai_gateway_auth_url != null && length(var.ai_gateway_auth_url) > 0)
+    error_message = "ai_gateway_auth_url is required when enable_ai_gateway is true."
+  }
+
+  validation {
+    condition     = !var.enable_ai_gateway || (var.ai_gateway_cert_path != null && length(var.ai_gateway_cert_path) > 0)
+    error_message = "ai_gateway_cert_path is required when enable_ai_gateway is true."
+  }
+}
+
+variable "ai_gateway_auth_url" {
+  type        = string
+  description = "AI Gateway (AI Bridge Proxy) URL with authentication. Use the proxy_auth_url output from the aibridge-proxy module."
+  default     = null
+  sensitive   = true
+}
+
+variable "ai_gateway_cert_path" {
+  type        = string
+  description = "Path to the AI Gateway (AI Bridge Proxy) CA certificate. Use the cert_path output from the aibridge-proxy module."
+  default     = null
+}
+
 resource "coder_env" "copilot_model" {
   count    = var.copilot_model != "" ? 1 : 0
   agent_id = var.agent_id
@@ -99,6 +128,23 @@ resource "coder_env" "gh_token" {
   agent_id = var.agent_id
   name     = "GH_TOKEN"
   value    = var.github_token
+}
+
+# Route Copilot's traffic through the AI Bridge Proxy. The pre-migration module
+# scoped these to the Copilot process via its start script; with no start script
+# they are set at the agent level, so they apply workspace-wide.
+resource "coder_env" "ai_gateway_https_proxy" {
+  count    = var.enable_ai_gateway ? 1 : 0
+  agent_id = var.agent_id
+  name     = "HTTPS_PROXY"
+  value    = var.ai_gateway_auth_url
+}
+
+resource "coder_env" "ai_gateway_node_extra_ca_certs" {
+  count    = var.enable_ai_gateway ? 1 : 0
+  agent_id = var.agent_id
+  name     = "NODE_EXTRA_CA_CERTS"
+  value    = var.ai_gateway_cert_path
 }
 
 locals {
