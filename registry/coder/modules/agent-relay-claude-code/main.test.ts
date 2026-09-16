@@ -8,21 +8,23 @@ import {
 } from "bun:test";
 import {
   execContainer,
-  findResourceInstance,
   readFileContainer,
   removeContainer,
   runContainer,
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
+  type TerraformState,
   writeFileContainer,
 } from "~test";
 
-// The runner script is exercised inside a throwaway container with a stub
-// `claude` binary standing in for the Claude Code CLI, so the supervisor
-// lifecycle the relay's reaper depends on (idle, working, done, failed) is
-// observed rather than grepped for. The real installer and the real runner
-// are out of scope: both need the network and Anthropic's side.
+// The install and start scripts coder-utils wraps are exercised inside a
+// throwaway container with a stub `claude` binary standing in for the
+// Claude Code CLI, so the supervisor lifecycle the relay's reaper depends
+// on (idle, working, done, failed) is observed rather than grepped for.
+// The real installer and the real runner are out of scope: both need the
+// network and Anthropic's side. `coder` is stubbed so the `coder exp sync`
+// ordering calls succeed without a control plane.
 
 let cleanupFunctions: (() => Promise<void>)[] = [];
 const registerCleanup = (cleanup: () => Promise<void>) => {
@@ -40,7 +42,9 @@ afterEach(async () => {
   }
 });
 
-const STATE_FILE = "/tmp/agent-relay/runner-state";
+// coder-utils pins the layout; the container runs as root.
+const MODULE_DIR = "/root/.coder-modules/coder/agent-relay-claude-code";
+const STATE_FILE = `${MODULE_DIR}/runner-state`;
 const DISPATCH_ENV = [
   "SELF_HOSTED_RUNNER_POOL_SECRET=test-work-order-jwt",
   "SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT=acct-123",
@@ -51,32 +55,72 @@ const setup = async (vars: Record<string, string> = {}) => {
     agent_id: "foo",
     ...vars,
   });
-  const script = findResourceInstance(state, "coder_script").script;
+  const scripts = collectScripts(state);
   const id = await runContainer("lorello/alpine-bash");
   registerCleanup(async () => {
     await removeContainer(id);
   });
-  return { id, script };
+  await stubBinary(id, "/usr/local/bin/coder", "exit 0");
+  return { id, scripts };
 };
 
-// Installs a fake Claude Code CLI whose body is the given shell snippet.
-const stubClaude = async (id: string, body: string) => {
-  await writeFileContainer(
-    id,
-    "/usr/local/bin/claude",
-    `#!/usr/bin/env bash\n${body}\n`,
-    { user: "root" },
-  );
-  const chmod = await execContainer(id, [
-    "chmod",
-    "755",
-    "/usr/local/bin/claude",
-  ]);
+type Scripts = { install: string; start: string };
+
+// coder-utils owns the coder_script resources; find ours by display name.
+const collectScripts = (state: TerraformState): Scripts => {
+  const byDisplayName: Record<string, string> = {};
+  for (const resource of state.resources) {
+    if (resource.type !== "coder_script") continue;
+    for (const instance of resource.instances) {
+      const attrs = instance.attributes as Record<string, unknown>;
+      byDisplayName[attrs.display_name as string] = attrs.script as string;
+    }
+  }
+  const install = byDisplayName["Claude Code runner: Install Script"];
+  const start = byDisplayName["Claude Code runner: Start Script"];
+  if (!install || !start) {
+    throw new Error(
+      `expected install and start scripts, found ${Object.keys(byDisplayName)}`,
+    );
+  }
+  return { install, start };
+};
+
+const stubBinary = async (id: string, path: string, body: string) => {
+  await writeFileContainer(id, path, `#!/usr/bin/env bash\n${body}\n`, {
+    user: "root",
+  });
+  const chmod = await execContainer(id, ["chmod", "755", path]);
   expect(chmod.exitCode).toBe(0);
 };
 
-const runDispatched = (id: string, script: string) =>
-  execContainer(id, ["env", ...DISPATCH_ENV, "bash", "-c", script]);
+// Installs a fake Claude Code CLI whose body is the given shell snippet.
+const stubClaude = (id: string, body: string) =>
+  stubBinary(id, "/usr/local/bin/claude", body);
+
+// Runs the install step then the start step, as coder-utils orders them
+// on the agent, and returns both results.
+const runScripts = async (id: string, scripts: Scripts, env: string[]) => {
+  const install = await execContainer(id, [
+    "env",
+    ...env,
+    "bash",
+    "-c",
+    scripts.install,
+  ]);
+  expect(install.exitCode).toBe(0);
+  const start = await execContainer(id, [
+    "env",
+    ...env,
+    "bash",
+    "-c",
+    scripts.start,
+  ]);
+  return { install, start };
+};
+
+const runDispatched = (id: string, scripts: Scripts) =>
+  runScripts(id, scripts, DISPATCH_ENV);
 
 const readState = async (id: string) =>
   (await readFileContainer(id, STATE_FILE)).trim();
@@ -110,19 +154,21 @@ describe("agent-relay-claude-code", () => {
   });
 
   it("idles when no credential is set", async () => {
-    const { id, script } = await setup();
+    const { id, scripts } = await setup({ install_cli: "false" });
     // No SELF_HOSTED_RUNNER_POOL_SECRET: a workspace a human created by hand.
-    const exec = await execContainer(id, ["bash", "-c", script]);
-    expect(exec.exitCode).toBe(0);
-    expect(exec.stdout).toContain("created manually, not by Agent Relay");
+    const { start } = await runScripts(id, scripts, []);
+    expect(start.exitCode).toBe(0);
+    expect(start.stdout).toContain("created manually, not by Agent Relay");
     expect(await readState(id)).toBe("idle");
   });
 
   it("reports runner-agent-missing when the CLI is absent", async () => {
-    const { id, script } = await setup({ install_cli: "false" });
-    const exec = await runDispatched(id, script);
-    expect(exec.exitCode).toBe(1);
-    expect(exec.stderr).toContain(
+    const { id, scripts } = await setup({ install_cli: "false" });
+    const { install, start } = await runDispatched(id, scripts);
+    expect(install.stdout).toContain("expecting 'claude' to be in the image");
+    expect(start.exitCode).toBe(1);
+    // coder-utils merges stderr into the tee'd log.
+    expect(start.stdout).toContain(
       "The runner binary 'claude' is not available",
     );
     expect(await readState(id)).toBe("failed runner-agent-missing");
@@ -130,23 +176,50 @@ describe("agent-relay-claude-code", () => {
 
   it("skips the download when the CLI is already present", async () => {
     // install_cli defaults to true; a binary on PATH must short-circuit it.
-    const { id, script } = await setup();
+    const { id, scripts } = await setup();
     await stubClaude(id, "sleep 30");
-    const exec = await runDispatched(id, script);
-    expect(exec.exitCode).toBe(0);
-    expect(exec.stdout).toContain(
+    const { install, start } = await runDispatched(id, scripts);
+    expect(install.stdout).toContain(
       "Claude Code CLI already present; skipping the install.",
     );
-    expect(exec.stdout).not.toContain("installing the latest release");
+    expect(install.stdout).not.toContain("installing the latest release");
+    expect(start.exitCode).toBe(0);
     expect(await readState(id)).toMatch(/^working \d+$/);
   });
 
+  it("keeps scripts and logs under the module directory", async () => {
+    const { id, scripts } = await setup();
+    await stubClaude(id, "sleep 30");
+    await runDispatched(id, scripts);
+    for (const file of [
+      "scripts/install.sh",
+      "scripts/start.sh",
+      "logs/install.log",
+      "logs/start.log",
+      "logs/runner.log",
+      "supervise.sh",
+      "runner-state",
+    ]) {
+      const exists = await execContainer(id, [
+        "test",
+        "-e",
+        `${MODULE_DIR}/${file}`,
+      ]);
+      expect(exists.exitCode, file).toBe(0);
+    }
+    const startLog = await readFileContainer(
+      id,
+      `${MODULE_DIR}/logs/start.log`,
+    );
+    expect(startLog).toContain("Starting Claude Code self-hosted runner");
+  });
+
   it("starts the runner detached through the permissions wrapper", async () => {
-    const { id, script } = await setup();
+    const { id, scripts } = await setup();
     await stubClaude(id, 'printf "%s\\n" "$@" >/tmp/claude-args; sleep 30');
-    const exec = await runDispatched(id, script);
-    expect(exec.exitCode).toBe(0);
-    expect(exec.stdout).toContain(
+    const { start } = await runDispatched(id, scripts);
+    expect(start.exitCode).toBe(0);
+    expect(start.stdout).toContain(
       "Starting Claude Code self-hosted runner (detached)...",
     );
 
@@ -174,28 +247,22 @@ describe("agent-relay-claude-code", () => {
   });
 
   it("records the exit code when the runner exits", async () => {
-    const { id, script } = await setup();
+    const { id, scripts } = await setup();
     await stubClaude(id, "exit 3");
-    const exec = await runDispatched(id, script);
-    expect(exec.exitCode).toBe(0);
+    const { start } = await runDispatched(id, scripts);
+    expect(start.exitCode).toBe(0);
     expect(await waitForState(id, /^done \d+$/)).toBe("done 3");
   });
 
   it("uses cli_binary and state_file overrides", async () => {
-    const { id, script } = await setup({
+    const { id, scripts } = await setup({
       cli_binary: "/opt/claude/claude",
       state_file: "/var/lib/relay/state",
     });
     await execContainer(id, ["mkdir", "-p", "/opt/claude"]);
-    await writeFileContainer(
-      id,
-      "/opt/claude/claude",
-      "#!/usr/bin/env bash\nsleep 30\n",
-      { user: "root" },
-    );
-    await execContainer(id, ["chmod", "755", "/opt/claude/claude"]);
-    const exec = await runDispatched(id, script);
-    expect(exec.exitCode).toBe(0);
+    await stubBinary(id, "/opt/claude/claude", "sleep 30");
+    const { start } = await runDispatched(id, scripts);
+    expect(start.exitCode).toBe(0);
     const state = (await readFileContainer(id, "/var/lib/relay/state")).trim();
     expect(state).toMatch(/^working \d+$/);
   });

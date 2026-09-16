@@ -22,12 +22,16 @@
 # metadata item, whose script this module renders. The script starts the
 # runner detached and exits so the agent reaches the ready lifecycle
 # state rather than sitting in starting for the whole session.
+#
+# Scripts run through coder-utils, which orders the install step before
+# the start step and keeps a copy of each script and its output under
+# module_directory for debugging.
 
 terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.4.0"
+      version = ">= 2.13"
     }
   }
 }
@@ -51,13 +55,13 @@ variable "install_cli" {
 
 variable "state_file" {
   type        = string
-  default     = "/tmp/agent-relay/runner-state"
+  default     = "$HOME/.coder-modules/coder/agent-relay-claude-code/runner-state"
   description = "Path the runner supervisor writes its lifecycle state to, read by the agent_relay_status agent metadata item."
 }
 
 variable "log_file" {
   type        = string
-  default     = "/tmp/agent-relay/runner.log"
+  default     = "$HOME/.coder-modules/coder/agent-relay-claude-code/logs/runner.log"
   description = "Path the detached runner's output is written to."
 }
 
@@ -169,17 +173,35 @@ resource "coder_env" "agent_relay_claude_code_lock_to_account" {
   value    = data.coder_parameter.agent_relay_claude_code_lock_to_account.value
 }
 
-resource "coder_script" "runner" {
-  agent_id     = var.agent_id
-  display_name = "Claude Code runner"
-  icon         = "/emojis/1f916.png"
-  run_on_start = true
-  script = templatefile("${path.module}/run.sh.tftpl", {
+locals {
+  # coder-utils requires this exact layout. Scripts land in scripts/ and
+  # their output in logs/; the runner state and log default to the same
+  # tree so one directory holds everything a debugger needs.
+  module_directory = "$HOME/.coder-modules/coder/agent-relay-claude-code"
+
+  install_script = templatefile("${path.module}/install.sh.tftpl", {
+    cli_binary  = var.cli_binary
+    install_cli = var.install_cli
+  })
+
+  start_script = templatefile("${path.module}/start.sh.tftpl", {
     cli_binary  = var.cli_binary
     install_cli = var.install_cli
     state_file  = var.state_file
     log_file    = var.log_file
   })
+}
+
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.1"
+
+  agent_id            = var.agent_id
+  module_directory    = local.module_directory
+  display_name_prefix = "Claude Code runner"
+  icon                = "/emojis/1f916.png"
+  install_script      = local.install_script
+  start_script        = local.start_script
 }
 
 # The coder provider has no standalone agent-metadata resource: the

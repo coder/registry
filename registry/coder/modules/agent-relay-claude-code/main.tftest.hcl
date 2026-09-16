@@ -1,5 +1,7 @@
-# Terraform tests for the parameter contract and the rendered runner
-# script. Run with `terraform init && terraform test` in this directory.
+# Terraform tests for the parameter contract and the rendered install and
+# start scripts. Run with `terraform init && terraform test` in this
+# directory. The scripts are handed to coder-utils, whose coder_script
+# resources a test cannot reach, so assertions read the rendered locals.
 
 variables {
   agent_id = "00000000-0000-0000-0000-000000000000"
@@ -89,25 +91,34 @@ run "runner_wiring" {
     error_message = "the account lock env var name is the claude CLI's contract"
   }
 
+  # coder-utils runs the install step before the start step and keeps
+  # both scripts and their logs under this directory.
   assert {
-    condition     = coder_script.runner.run_on_start
-    error_message = "the runner script must run when the agent starts"
+    condition     = module.coder_utils.scripts == ["coder-agent-relay-claude-code-install_script", "coder-agent-relay-claude-code-start_script"]
+    error_message = "coder-utils must run exactly the install and start steps, in that order"
   }
 
   assert {
-    condition     = can(regex("self-hosted-runner", coder_script.runner.script))
-    error_message = "the runner script must start the self-hosted runner"
+    condition     = can(regex("self-hosted-runner", local.start_script))
+    error_message = "the start script must start the self-hosted runner"
   }
 
   # Reaping reads this file through the agent_relay_status metadata item,
-  # so the script and the metadata script must agree on the path.
+  # so the start script and the metadata script must agree on the path.
   assert {
-    condition     = can(regex(var.state_file, coder_script.runner.script)) && can(regex(var.state_file, output.status_metadata_script))
-    error_message = "the runner script and the status script must read the same state file"
+    condition     = strcontains(local.start_script, var.state_file) && strcontains(output.status_metadata_script, var.state_file)
+    error_message = "the start script and the status script must read the same state file"
+  }
+
+  # Everything a debugger needs lives under the coder-utils module
+  # directory by default: scripts, their logs, runner state, runner log.
+  assert {
+    condition     = startswith(var.state_file, local.module_directory) && startswith(var.log_file, local.module_directory)
+    error_message = "runner state and log must default to the coder-utils module directory"
   }
 
   assert {
-    condition     = can(regex("failed runner-agent-missing", coder_script.runner.script))
+    condition     = can(regex("failed runner-agent-missing", local.start_script))
     error_message = "the missing-binary reason is the vocabulary the reaper grades"
   }
 
@@ -123,15 +134,21 @@ run "install_cli_enabled_by_default" {
   # A CLI already in the image must short-circuit the download, so a
   # prepared image spends none of the claim-to-ready window on it.
   assert {
-    condition     = can(regex("if command -v claude >/dev/null 2>&1; then\n\techo \"Claude Code CLI already present", coder_script.runner.script))
+    condition     = can(regex("if command -v claude >/dev/null 2>&1; then\n\techo \"Claude Code CLI already present", local.install_script))
     error_message = "the installer must be guarded by a presence check"
   }
 
   # Without -L the installer redirects, curl writes nothing, and the pipe
   # to bash silently installs nothing.
   assert {
-    condition     = can(regex("curl https://claude.ai/install.sh -fsSL \\| bash", coder_script.runner.script))
+    condition     = can(regex("curl https://claude.ai/install.sh -fsSL \\| bash", local.install_script))
     error_message = "the installer must follow redirects"
+  }
+
+  # The start step must not download; that is the install step's job.
+  assert {
+    condition     = !can(regex("claude.ai/install.sh", local.start_script))
+    error_message = "the start script must not install the CLI"
   }
 }
 
@@ -143,7 +160,7 @@ run "install_cli_disabled" {
   }
 
   assert {
-    condition     = !can(regex("claude.ai/install.sh", coder_script.runner.script))
+    condition     = !can(regex("claude.ai/install.sh", local.install_script))
     error_message = "install_cli = false must not download the CLI"
   }
 }
@@ -159,7 +176,7 @@ run "overridden_paths" {
   }
 
   assert {
-    condition     = can(regex("/opt/claude/claude self-hosted-runner", coder_script.runner.script))
+    condition     = can(regex("/opt/claude/claude self-hosted-runner", local.start_script))
     error_message = "cli_binary must select the binary the runner starts"
   }
 

@@ -64,9 +64,23 @@ credential is masked.
 | `agent_relay_claude_code_lock_to_account` | ephemeral  | Anthropic account the runner locks to (`SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT`) |
 | `agent_relay_attempt`                     | ephemeral  | delivery attempt, echoed back when the relay nacks the session               |
 
+## Scripts and logs
+
+The module runs two steps through [coder-utils](https://registry.coder.com/modules/coder/coder-utils):
+an install step that downloads the CLI when `install_cli` is set and the
+binary is missing (a no-op otherwise), then a start step that launches the
+runner. Everything lands under `$HOME/.coder-modules/coder/agent-relay-claude-code`:
+
+| path           | contents                                       |
+| -------------- | ---------------------------------------------- |
+| `scripts/*.sh` | the install and start scripts as they ran      |
+| `logs/*.log`   | output of each step, plus the runner's own log |
+| `runner-state` | the supervisor's lifecycle line (`state_file`) |
+| `supervise.sh` | the detached supervisor that owns the runner   |
+
 ## Runner lifecycle
 
-The script starts `claude self-hosted-runner --capacity 1` detached and exits,
+The start step launches `claude self-hosted-runner --capacity 1` detached and exits,
 so the agent reaches `ready` immediately. The runner is wrapped so every
 session runs with `--permission-mode bypassPermissions`; there is no terminal
 attached, so an approval prompt would hang it. When the runner exits, Agent

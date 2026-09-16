@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Rendered into a coder_script by the Claude Code runner module. Runs at
-# agent start with SELF_HOSTED_RUNNER_POOL_SECRET (the work-order JWT)
-# and SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT in scope.
+# Start step, run by coder-utils after the install step. Runs at agent
+# start with SELF_HOSTED_RUNNER_POOL_SECRET (the work-order JWT) and
+# SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT in scope.
 #
 # Starts the runner detached and exits, so the agent reaches the ready
 # lifecycle state instead of sitting in starting for the life of the
@@ -29,23 +29,8 @@ if [ -z "$${SELF_HOSTED_RUNNER_POOL_SECRET:-}" ]; then
 fi
 
 %{ if install_cli ~}
-# install_cli is set, but a CLI already in the image is the fast path:
-# check first and only download when it is missing, so a prepared image
-# spends none of the claim-to-ready window on a download. The installer
-# places the binary under ~/.local/bin, so that directory joins PATH for
-# this script and the supervisor.
+# The install step may have placed the CLI under ~/.local/bin.
 export PATH="$HOME/.local/bin:$PATH"
-if command -v ${cli_binary} >/dev/null 2>&1; then
-	echo "Claude Code CLI already present; skipping the install."
-else
-	echo "Claude Code CLI not found; installing the latest release..."
-	# -L is required: claude.ai/install.sh redirects to downloads.claude.ai,
-	# and without it curl exits 0 having written nothing, so the pipe to
-	# bash succeeds and installs nothing.
-	if ! curl https://claude.ai/install.sh -fsSL | bash >>"$log_file" 2>&1; then
-		echo "Claude Code CLI install failed. See $log_file" >&2
-	fi
-fi
 %{ endif ~}
 
 # A missing binary is a template problem, so it is reported as a
