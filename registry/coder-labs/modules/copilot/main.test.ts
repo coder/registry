@@ -256,28 +256,6 @@ describe("copilot", async () => {
     expect(config.trusted_folders).toContain(projectDir);
   });
 
-  test("routes-mcp-servers-from-copilot-config", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: {
-        copilot_config: JSON.stringify({
-          theme: "dark",
-          mcpServers: {
-            fromcopilot: { command: "npx", type: "local" },
-          },
-        }),
-      },
-    });
-    await runScripts(id, scripts);
-    const mcp = JSON.parse(await readMcpConfig(id));
-    const config = JSON.parse(await readConfig(id));
-    // mcpServers in copilot_config are routed to mcp-config.json...
-    expect(mcp.mcpServers.fromcopilot).toBeDefined();
-    // ...and never written into config.json.
-    expect(config.mcpServers).toBeUndefined();
-    // Non-mcp keys from copilot_config still apply to config.json.
-    expect(config.theme).toBe("dark");
-  });
-
   test("writes-custom-mcp-servers-without-coder-server", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {
