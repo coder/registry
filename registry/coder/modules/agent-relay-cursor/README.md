@@ -79,9 +79,23 @@ credential is masked.
 | `agent_relay_cursor_repo_url`             | persistent | repository the request targets; empty for repo-less pools                                                 |
 | `agent_relay_credential`                  | ephemeral  | user-scoped worker token (`AGENT_RELAY_CURSOR_TOKEN`)                                                     |
 
+## Scripts and logs
+
+The module runs two steps through [coder-utils](https://registry.coder.com/modules/coder/coder-utils):
+an install step that downloads the CLI when `install_cli` is set and the
+binary is missing (a no-op otherwise), then a start step that launches the
+worker. Everything lands under `$HOME/.coder-modules/coder/agent-relay-cursor`:
+
+| path           | contents                                       |
+| -------------- | ---------------------------------------------- |
+| `scripts/*.sh` | the install and start scripts as they ran      |
+| `logs/*.log`   | output of each step, plus the worker's own log |
+| `worker-state` | the supervisor's lifecycle line (`state_file`) |
+| `supervise.sh` | the detached supervisor that owns the worker   |
+
 ## Worker lifecycle
 
-The script starts `agent worker --pool ... --idle-release-timeout ... --auth-token ... start`
+The start step launches `agent worker --pool ... --idle-release-timeout ... --auth-token ... start`
 detached and exits, so the agent reaches `ready` immediately. The worker exits
 `0` when its idle-release timer fires after a session; that clean exit is what
 tells Agent Relay to delete the workspace. The timer starts when the agent

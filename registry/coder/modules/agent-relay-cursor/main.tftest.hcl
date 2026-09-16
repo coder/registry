@@ -1,5 +1,7 @@
-# Terraform tests for the parameter contract and the rendered worker
-# script. Run with `terraform init && terraform test` in this directory.
+# Terraform tests for the parameter contract and the rendered install and
+# start scripts. Run with `terraform init && terraform test` in this
+# directory. The scripts are handed to coder-utils, whose coder_script
+# resources a test cannot reach, so assertions read the rendered locals.
 
 variables {
   agent_id = "00000000-0000-0000-0000-000000000000"
@@ -96,13 +98,22 @@ run "worker_wiring" {
     error_message = "the worker id env var name is the Cursor CLI's contract"
   }
 
+  # coder-utils runs the install step before the start step and keeps
+  # both scripts and their logs under this directory.
   assert {
-    condition     = coder_script.worker.run_on_start
-    error_message = "the worker script must run when the agent starts"
+    condition     = module.coder_utils.scripts == ["coder-agent-relay-cursor-install_script", "coder-agent-relay-cursor-start_script"]
+    error_message = "coder-utils must run exactly the install and start steps, in that order"
+  }
+
+  # Everything a debugger needs lives under the coder-utils module
+  # directory by default: scripts, their logs, worker state, worker log.
+  assert {
+    condition     = startswith(var.state_file, local.module_directory) && startswith(var.log_file, local.module_directory)
+    error_message = "worker state and log must default to the coder-utils module directory"
   }
 
   assert {
-    condition     = can(regex("--pool", coder_script.worker.script)) && can(regex("--idle-release-timeout", coder_script.worker.script))
+    condition     = can(regex("--pool", local.start_script)) && can(regex("--idle-release-timeout", local.start_script))
     error_message = "the worker script must start the pool worker"
   }
 
@@ -115,7 +126,7 @@ run "worker_wiring" {
   }
 
   assert {
-    condition     = strcontains(coder_script.worker.script, "--pool \"\\$AGENT_RELAY_CURSOR_POOL_NAME\"") && strcontains(coder_script.worker.script, "--idle-release-timeout \"\\$AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT\"")
+    condition     = strcontains(local.start_script, "--pool \"\\$AGENT_RELAY_CURSOR_POOL_NAME\"") && strcontains(local.start_script, "--idle-release-timeout \"\\$AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT\"")
     error_message = "the worker must read pool name and idle timeout from the environment at run time"
   }
 
@@ -123,19 +134,19 @@ run "worker_wiring" {
   # environment; it must not be expanded into the supervisor file the
   # script writes to disk.
   assert {
-    condition     = strcontains(coder_script.worker.script, "--auth-token \"\\$AGENT_RELAY_CURSOR_TOKEN\"")
+    condition     = strcontains(local.start_script, "--auth-token \"\\$AGENT_RELAY_CURSOR_TOKEN\"")
     error_message = "the worker must authenticate with --auth-token read from the environment at run time"
   }
 
   # Reaping reads this file through the agent_relay_status metadata item,
   # so the script and the metadata script must agree on the path.
   assert {
-    condition     = can(regex(var.state_file, coder_script.worker.script)) && can(regex(var.state_file, output.status_metadata_script))
+    condition     = strcontains(local.start_script, var.state_file) && strcontains(output.status_metadata_script, var.state_file)
     error_message = "the worker script and the status script must read the same state file"
   }
 
   assert {
-    condition     = can(regex("failed runner-agent-missing", coder_script.worker.script))
+    condition     = can(regex("failed runner-agent-missing", local.start_script))
     error_message = "the missing-binary reason is the vocabulary the reaper grades"
   }
 
@@ -149,7 +160,7 @@ run "computer_use_off_by_default" {
   command = plan
 
   assert {
-    condition     = !can(regex("--computer-use", coder_script.worker.script))
+    condition     = !can(regex("--computer-use", local.start_script))
     error_message = "computer use requires packages the image may not carry, so it must be opt in"
   }
 }
@@ -162,7 +173,7 @@ run "computer_use_enabled" {
   }
 
   assert {
-    condition     = can(regex("--computer-use", coder_script.worker.script))
+    condition     = can(regex("--computer-use", local.start_script))
     error_message = "computer_use = true must pass the flag to the worker"
   }
 }
@@ -173,13 +184,19 @@ run "install_cli_enabled_by_default" {
   # A CLI already in the image must short-circuit the download, so a
   # prepared image spends none of the claim-to-ready window on it.
   assert {
-    condition     = can(regex("if command -v agent >/dev/null 2>&1; then\n\techo \"Cursor CLI already present", coder_script.worker.script))
+    condition     = can(regex("if command -v agent >/dev/null 2>&1; then\n\techo \"Cursor CLI already present", local.install_script))
     error_message = "the installer must be guarded by a presence check"
   }
 
   assert {
-    condition     = can(regex("curl https://cursor.com/install -fsSL \\| bash", coder_script.worker.script))
+    condition     = can(regex("curl https://cursor.com/install -fsSL \\| bash", local.install_script))
     error_message = "the installer must follow redirects"
+  }
+
+  # The start step must not download; that is the install step's job.
+  assert {
+    condition     = !can(regex("cursor.com/install", local.start_script))
+    error_message = "the start script must not install the CLI"
   }
 }
 
@@ -191,7 +208,7 @@ run "install_cli_disabled" {
   }
 
   assert {
-    condition     = !can(regex("cursor.com/install", coder_script.worker.script))
+    condition     = !can(regex("cursor.com/install", local.install_script))
     error_message = "install_cli = false must not download the CLI"
   }
 }
@@ -207,7 +224,7 @@ run "overridden_paths" {
   }
 
   assert {
-    condition     = can(regex("/opt/cursor/agent worker", coder_script.worker.script))
+    condition     = can(regex("/opt/cursor/agent worker", local.start_script))
     error_message = "cli_binary must select the binary the worker starts"
   }
 

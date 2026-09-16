@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rendered into a coder_script by the Cursor worker module. Runs at
+# Start step, run by coder-utils after the install step. Runs at
 # agent start with AGENT_RELAY_CURSOR_TOKEN (a short-lived worker token
 # minted for the requesting user), CURSOR_AGENT_WORKER_ID (the claimed
 # worker id), AGENT_RELAY_CURSOR_POOL_NAME, and
@@ -31,23 +31,8 @@ if [ -z "$${AGENT_RELAY_CURSOR_TOKEN:-}" ]; then
 fi
 
 %{ if install_cli ~}
-# install_cli is set, but a CLI already in the image is the fast path:
-# check first and only download when it is missing, so a prepared image
-# spends none of the claim-to-ready window on a download. The installer
-# places the binary under ~/.local/bin, so that directory joins PATH for
-# this script and the supervisor.
+# The install step may have placed the CLI under ~/.local/bin.
 export PATH="$HOME/.local/bin:$PATH"
-if command -v ${cli_binary} >/dev/null 2>&1; then
-	echo "Cursor CLI already present; skipping the install."
-else
-	echo "Cursor CLI not found; installing the latest release..."
-	# -L costs nothing today (cursor.com/install answers 200 directly) and
-	# keeps the pipe from silently installing an empty body if it ever
-	# starts redirecting, which is how the Claude installer broke.
-	if ! curl https://cursor.com/install -fsSL | bash >>"$log_file" 2>&1; then
-		echo "Cursor CLI install failed. See $log_file" >&2
-	fi
-fi
 %{ endif ~}
 
 # A missing binary is a template problem, so it is reported as a

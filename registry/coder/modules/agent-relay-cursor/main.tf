@@ -5,6 +5,10 @@
 # Agent Relay stamps on a build and runs `agent worker ... start`
 # via a coder_script.
 #
+# Scripts run through coder-utils, which orders the install step before
+# the start step and keeps a copy of each script and its output under
+# module_directory for debugging.
+#
 # Parameter contract (enforced by Agent Relay at startup via the dynamic
 # parameters evaluate endpoint):
 #
@@ -28,7 +32,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.4.0"
+      version = ">= 2.13"
     }
   }
 }
@@ -58,13 +62,13 @@ variable "computer_use" {
 
 variable "state_file" {
   type        = string
-  default     = "/tmp/agent-relay/worker-state"
+  default     = "$HOME/.coder-modules/coder/agent-relay-cursor/worker-state"
   description = "Path the worker supervisor writes its lifecycle state to, read by the agent_relay_status agent metadata item."
 }
 
 variable "log_file" {
   type        = string
-  default     = "/tmp/agent-relay/worker.log"
+  default     = "$HOME/.coder-modules/coder/agent-relay-cursor/logs/worker.log"
   description = "Path the detached worker's output is written to."
 }
 
@@ -206,18 +210,36 @@ resource "coder_env" "agent_relay_cursor_idle_release_timeout" {
   value    = data.coder_parameter.agent_relay_cursor_idle_release_timeout.value
 }
 
-resource "coder_script" "worker" {
-  agent_id     = var.agent_id
-  display_name = "Cursor worker"
-  icon         = "/icon/cursor.svg"
-  run_on_start = true
-  script = templatefile("${path.module}/run.sh.tftpl", {
+locals {
+  # coder-utils requires this exact layout. Scripts land in scripts/ and
+  # their output in logs/; the worker state and log default to the same
+  # tree so one directory holds everything a debugger needs.
+  module_directory = "$HOME/.coder-modules/coder/agent-relay-cursor"
+
+  install_script = templatefile("${path.module}/install.sh.tftpl", {
+    cli_binary  = var.cli_binary
+    install_cli = var.install_cli
+  })
+
+  start_script = templatefile("${path.module}/start.sh.tftpl", {
     cli_binary   = var.cli_binary
     install_cli  = var.install_cli
     computer_use = var.computer_use
     state_file   = var.state_file
     log_file     = var.log_file
   })
+}
+
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.1"
+
+  agent_id            = var.agent_id
+  module_directory    = local.module_directory
+  display_name_prefix = "Cursor worker"
+  icon                = "/icon/cursor.svg"
+  install_script      = local.install_script
+  start_script        = local.start_script
 }
 
 # The coder provider has no standalone agent-metadata resource: the
