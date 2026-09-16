@@ -52,7 +52,7 @@ variable "trusted_directories" {
 
 variable "mcp_config" {
   type        = string
-  description = "Custom MCP server configuration as JSON string (in the `{\"mcpServers\": {...}}` shape). Merged into Copilot's `~/.copilot/mcp-config.json`."
+  description = "Custom MCP server configuration as JSON string (in the `{\"mcpServers\": {...}}` shape). Merged into Copilot's `~/.copilot/mcp-config.json`; existing entries win on duplicate server names."
   default     = ""
 }
 

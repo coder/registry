@@ -249,6 +249,36 @@ describe("copilot", async () => {
     expect(mcp.mcpServers.coder).toBeUndefined();
   });
 
+  test("merges-mcp-config-preferring-existing-servers", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        mcp_config: JSON.stringify({
+          mcpServers: {
+            filesystem: { command: "module-command", type: "local" },
+            extra: { command: "npx", type: "local" },
+          },
+        }),
+      },
+    });
+    // Seed an existing config with a conflicting `filesystem` server.
+    const seed = JSON.stringify({
+      mcpServers: {
+        filesystem: { command: "existing-command", type: "local" },
+      },
+    });
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `mkdir -p /home/coder/.copilot && cat > /home/coder/.copilot/mcp-config.json <<'JSON'\n${seed}\nJSON`,
+    ]);
+    await runScripts(id, scripts);
+    const mcp = JSON.parse(await readMcpConfig(id));
+    // Existing server wins on the duplicate key.
+    expect(mcp.mcpServers.filesystem.command).toBe("existing-command");
+    // Non-conflicting module server is still merged in.
+    expect(mcp.mcpServers.extra).toBeDefined();
+  });
+
   test("github-token-env-vars", async () => {
     const token = "ghp_test_token_123";
     const { coderEnvVars } = await setup({

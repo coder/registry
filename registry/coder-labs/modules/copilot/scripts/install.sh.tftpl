@@ -151,9 +151,9 @@ setup_copilot_config() {
   echo "Wrote $${copilot_config_file}"
 }
 
-# Write MCP servers to Copilot's user-level mcp-config.json. The mcp_config
-# input already uses Copilot's native file schema, so this is a pass-through
-# merge into the documented location (~/.copilot/mcp-config.json).
+# Merge MCP servers into Copilot's user-level mcp-config.json. The mcp_config
+# input uses Copilot's native file schema. Existing entries always take
+# precedence: on duplicate server names, what's already in the file wins.
 setup_mcp_config() {
   local mcp_config_file="$HOME/.copilot/mcp-config.json"
 
@@ -162,21 +162,23 @@ setup_mcp_config() {
     return
   fi
 
-  mkdir -p "$(dirname "$${mcp_config_file}")"
-  echo "Writing MCP server configuration to $${mcp_config_file}"
-
-  if command_exists jq; then
-    local existing='{"mcpServers": {}}'
-    if [ -f "$${mcp_config_file}" ]; then
-      existing=$(cat "$${mcp_config_file}")
-    fi
-    local custom
-    custom=$(echo "$${ARG_MCP_CONFIG}" | jq '.mcpServers // {}')
-    echo "$${existing}" | jq --argjson custom "$${custom}" '.mcpServers = ((.mcpServers // {}) + $custom)' > "$${mcp_config_file}"
-  else
-    echo "WARNING: jq not available, writing MCP config verbatim"
-    echo "$${ARG_MCP_CONFIG}" > "$${mcp_config_file}"
+  if ! command_exists jq; then
+    echo "ERROR: 'jq' is required to configure MCP servers but was not found." >&2
+    exit 1
   fi
+
+  mkdir -p "$(dirname "$${mcp_config_file}")"
+  echo "Merging MCP server configuration into $${mcp_config_file}"
+
+  local existing='{"mcpServers": {}}'
+  if [ -f "$${mcp_config_file}" ]; then
+    existing=$(cat "$${mcp_config_file}")
+  fi
+  local custom
+  custom=$(echo "$${ARG_MCP_CONFIG}" | jq '.mcpServers // {}')
+  # `$custom + existing` merges the two objects with the right operand winning,
+  # so existing servers override the module-provided ones on duplicate keys.
+  echo "$${existing}" | jq --argjson custom "$${custom}" '.mcpServers = ($custom + (.mcpServers // {}))' > "$${mcp_config_file}"
   echo "MCP configuration completed: $${mcp_config_file}"
 }
 
