@@ -1,0 +1,212 @@
+#!/bin/bash
+
+set -euo pipefail
+
+BOLD='\033[0;1m'
+
+command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+ARG_INSTALL='${ARG_INSTALL}'
+ARG_COPILOT_VERSION='${ARG_COPILOT_VERSION}'
+ARG_COPILOT_MODEL='${ARG_COPILOT_MODEL}'
+ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
+ARG_COPILOT_CONFIG=$(echo -n '${ARG_COPILOT_CONFIG}' | base64 -d)
+ARG_MCP_CONFIG=$(echo -n '${ARG_MCP_CONFIG}' | base64 -d)
+
+export PATH="$HOME/.local/bin:$PATH"
+
+echo "--------------------------------"
+printf "install_copilot: %s\n" "$${ARG_INSTALL}"
+printf "copilot_version: %s\n" "$${ARG_COPILOT_VERSION}"
+printf "copilot_model: %s\n" "$${ARG_COPILOT_MODEL}"
+printf "workdir: %s\n" "$${ARG_WORKDIR}"
+echo "--------------------------------"
+
+function add_path_to_shell_profiles() {
+  local path_dir="$1"
+
+  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    if [ -f "$${profile}" ]; then
+      if ! grep -q "$${path_dir}" "$${profile}" 2> /dev/null; then
+        echo "export PATH=\"\$PATH:$${path_dir}\"" >> "$${profile}"
+        echo "Added $${path_dir} to $${profile}"
+      fi
+    fi
+  done
+
+  local fish_config="$HOME/.config/fish/config.fish"
+  if [ -f "$${fish_config}" ]; then
+    if ! grep -q "$${path_dir}" "$${fish_config}" 2> /dev/null; then
+      echo "fish_add_path $${path_dir}" >> "$${fish_config}"
+      echo "Added $${path_dir} to $${fish_config}"
+    fi
+  fi
+}
+
+function ensure_copilot_in_path() {
+  local COPILOT_BIN=""
+  if command -v copilot > /dev/null 2>&1; then
+    COPILOT_BIN=$(command -v copilot)
+  fi
+
+  if [ -z "$${COPILOT_BIN}" ] || [ ! -x "$${COPILOT_BIN}" ]; then
+    echo "Copilot binary was not found or is not executable." >&2
+    return 1
+  fi
+
+  local COPILOT_DIR
+  COPILOT_DIR=$(dirname "$${COPILOT_BIN}")
+
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/copilot" ]; then
+    ln -s "$${COPILOT_BIN}" "$${CODER_SCRIPT_BIN_DIR}/copilot"
+    echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/copilot -> $${COPILOT_BIN}"
+  fi
+
+  add_path_to_shell_profiles "$${COPILOT_DIR}"
+}
+
+# Download the official installer to a temp file, validate it, then run it.
+# Mirrors the claude-code module's install flow. Run in a subshell so the trap
+# that removes the temp file is scoped to this function.
+install_with_official_installer() (
+  local installer_file
+  installer_file=$(mktemp)
+  trap 'rm -f "$${installer_file}"' EXIT
+
+  if ! curl --fail --silent --show-error --location \
+    --retry 2 --retry-delay 1 --retry-all-errors \
+    --connect-timeout 10 --max-time 300 \
+    --output "$${installer_file}" https://gh.io/copilot-install; then
+    echo "GitHub Copilot CLI could not be downloaded after up to 3 attempts." >&2
+    return 1
+  fi
+
+  if ! bash -n "$${installer_file}"; then
+    echo "GitHub Copilot CLI installer download was invalid." >&2
+    return 1
+  fi
+
+  # VERSION accepts 'latest', a 'vX.Y.Z' tag, or a bare 'X.Y.Z' (normalized by
+  # the installer). PREFIX installs the binary under $HOME/.local/bin.
+  if ! VERSION="$${ARG_COPILOT_VERSION}" PREFIX="$HOME/.local" bash "$${installer_file}"; then
+    echo "GitHub Copilot CLI installation failed." >&2
+    return 1
+  fi
+)
+
+install_copilot() {
+  if [ "$${ARG_INSTALL}" != "true" ]; then
+    echo "Skipping Copilot installation as per configuration."
+    if ! ensure_copilot_in_path; then
+      echo "ERROR: install_copilot is false but a working 'copilot' was not found on PATH." >&2
+      exit 1
+    fi
+    printf "%s Validated existing GitHub Copilot CLI\n" "$${BOLD}"
+    return
+  fi
+
+  if command_exists copilot; then
+    echo "GitHub Copilot CLI already installed"
+    ensure_copilot_in_path
+    return
+  fi
+
+  printf "%s Installing GitHub Copilot CLI (version: %s)\n" "$${BOLD}" "$${ARG_COPILOT_VERSION}"
+  install_with_official_installer
+
+  export PATH="$HOME/.local/bin:$PATH"
+  if ! ensure_copilot_in_path; then
+    echo "ERROR: Failed to install Copilot" >&2
+    exit 1
+  fi
+  printf "%s Installed GitHub Copilot CLI\n" "$${BOLD}"
+}
+
+setup_workdir() {
+  if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
+    echo "Creating workdir: $${ARG_WORKDIR}"
+    mkdir -p "$${ARG_WORKDIR}"
+  fi
+}
+
+# Merge the module-provided Copilot configuration into ~/.copilot/config.json.
+# The module owns the keys it sets (they win), trusted_folders is a union of the
+# existing and module lists, and any other on-disk keys Copilot manages at
+# runtime (model, reasoning_effort, ...) are preserved.
+setup_copilot_config() {
+  local copilot_config_file="$HOME/.copilot/config.json"
+
+  if [ -z "$${ARG_COPILOT_CONFIG}" ]; then
+    echo "No Copilot configuration provided; leaving $${copilot_config_file} unchanged."
+    return
+  fi
+
+  if ! command_exists jq; then
+    echo "ERROR: 'jq' is required to configure Copilot but was not found." >&2
+    exit 1
+  fi
+
+  mkdir -p "$(dirname "$${copilot_config_file}")"
+  echo "Merging Copilot configuration into $${copilot_config_file}"
+
+  local existing='{}'
+  if [ -f "$${copilot_config_file}" ]; then
+    existing=$(cat "$${copilot_config_file}")
+  fi
+  # `$existing * $module` lets module keys win while preserving on-disk-only keys;
+  # trusted_folders is then set to the union of both lists.
+  echo "$${existing}" | jq --argjson module "$${ARG_COPILOT_CONFIG}" '
+    . as $existing
+    | ($existing * $module)
+    | .trusted_folders = ((($existing.trusted_folders // []) + ($module.trusted_folders // [])) | unique)
+  ' > "$${copilot_config_file}"
+  echo "Copilot configuration completed: $${copilot_config_file}"
+}
+
+# Merge MCP servers into Copilot's user-level mcp-config.json. The module-provided
+# servers win on duplicate names; any other servers already on disk are preserved.
+setup_mcp_config() {
+  local mcp_config_file="$HOME/.copilot/mcp-config.json"
+
+  if [ -z "$${ARG_MCP_CONFIG}" ]; then
+    echo "No custom MCP servers configured; leaving $${mcp_config_file} unchanged."
+    return
+  fi
+
+  if ! command_exists jq; then
+    echo "ERROR: 'jq' is required to configure MCP servers but was not found." >&2
+    exit 1
+  fi
+
+  mkdir -p "$(dirname "$${mcp_config_file}")"
+  echo "Merging MCP server configuration into $${mcp_config_file}"
+
+  local existing='{"mcpServers": {}}'
+  if [ -f "$${mcp_config_file}" ]; then
+    existing=$(cat "$${mcp_config_file}")
+  fi
+  local custom
+  custom=$(echo "$${ARG_MCP_CONFIG}" | jq '.mcpServers // {}')
+  # `(existing + $custom)` merges with the right operand winning, so module
+  # servers override on duplicate names while other on-disk servers are kept.
+  echo "$${existing}" | jq --argjson custom "$${custom}" '.mcpServers = ((.mcpServers // {}) + $custom)' > "$${mcp_config_file}"
+  echo "MCP configuration completed: $${mcp_config_file}"
+}
+
+configure_copilot_model() {
+  if [ -n "$${ARG_COPILOT_MODEL}" ]; then
+    echo "Setting Copilot model to: $${ARG_COPILOT_MODEL}"
+    copilot config model "$${ARG_COPILOT_MODEL}" 2> /dev/null \
+      || echo "Note: could not persist model via 'copilot config'; the COPILOT_MODEL env var is used as a fallback."
+  fi
+}
+
+install_copilot
+setup_workdir
+setup_copilot_config
+setup_mcp_config
+configure_copilot_model
+
+echo "Copilot module setup completed."

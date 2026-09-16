@@ -3,135 +3,80 @@ display_name: Copilot CLI
 description: GitHub Copilot CLI agent for AI-powered terminal assistance
 icon: ../../../../.icons/github.svg
 verified: false
-tags: [agent, copilot, ai, github, tasks, aibridge]
+tags: [agent, copilot, ai, github, ai-gateway]
 ---
 
 # Copilot
 
-Run [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/about-copilot-cli) in your workspace for AI-powered coding assistance directly from the terminal. This module integrates with [AgentAPI](https://github.com/coder/agentapi) for task reporting in the Coder UI.
+Install and configure the [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/about-copilot-cli) in your workspace for AI-powered coding assistance directly from the terminal.
 
 ```tf
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "0.4.1"
+  version  = "1.0.0"
   agent_id = coder_agent.example.id
-  workdir  = "/home/coder/projects"
+  workdir  = "/home/coder/project"
 }
 ```
 
-> [!IMPORTANT]
-> This example assumes you have [Coder external authentication](https://coder.com/docs/admin/external-auth) configured with `id = "github"`. If not, you can provide a direct token using the `github_token` variable or provide the correct external authentication id for GitHub by setting `external_auth_id = "my-github"`.
-
-> [!NOTE]
-> By default, this module is configured to run the embedded chat interface as a path-based application. In production, we recommend that you configure a [wildcard access URL](https://coder.com/docs/admin/setup#wildcard-access-url) and set `subdomain = true`. See [here](https://coder.com/docs/tutorials/best-practices/security-best-practices#disable-path-based-apps) for more details.
+> [!WARNING]
+> If upgrading from v0.x of this module: v1 is a major refactor that drops support for Coder Tasks and AgentAPI. The module now only installs and configures Copilot; you launch it yourself with a `coder_app` (see below). Keep using v0.x if you depend on the embedded web app or task reporting.
 
 ## Prerequisites
 
-- **Node.js v22+** and **npm v10+**
 - **[Active Copilot subscription](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot)** (GitHub Copilot Pro, Pro+, Business, or Enterprise)
+- **`curl`** (or `wget`) available in the workspace for the official install script
 - **GitHub authentication** via one of:
-  - [Coder external authentication](https://coder.com/docs/admin/external-auth) (recommended)
-  - Direct token via `github_token` variable
-  - Interactive login in Copilot
+  - [Coder external authentication](https://coder.com/docs/admin/external-auth) (recommended), fetched at launch in your `coder_app`
+  - Direct token via the `github_token` variable
+  - Interactive login in Copilot (`/login`)
 
 ## Examples
 
-### Usage with Tasks
+### Launcher app with GitHub external auth
 
-For development environments where you want Copilot to have full access to tools and automatically resume sessions:
+The module installs and configures Copilot. To run it, add a `coder_app` that
+fetches a fresh GitHub token at launch and starts Copilot. This assumes you have
+[Coder external authentication](https://coder.com/docs/admin/external-auth)
+configured with `id = "github"`.
 
 ```tf
-data "coder_parameter" "ai_prompt" {
-  type        = "string"
-  name        = "AI Prompt"
-  default     = ""
-  description = "Initial task prompt for Copilot."
-  mutable     = true
+locals {
+  copilot_workdir = "/home/coder/project"
 }
 
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "0.4.1"
+  version  = "1.0.0"
   agent_id = coder_agent.example.id
-  workdir  = "/home/coder/projects"
-
-  ai_prompt       = data.coder_parameter.ai_prompt.value
-  copilot_model   = "claude-sonnet-4.5"
-  allow_all_tools = true
-  resume_session  = true
-
-  trusted_directories = ["/home/coder/projects", "/tmp"]
+  workdir  = local.copilot_workdir
 }
-```
 
-### Advanced Configuration
-
-Customize tool permissions, MCP servers, and Copilot settings:
-
-```tf
-module "copilot" {
-  source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "0.4.1"
-  agent_id = coder_agent.example.id
-  workdir  = "/home/coder/projects"
-
-  # Version pinning (defaults to "latest", use specific version if desired)
-  copilot_version = "0.2.3"
-
-  # Tool permissions
-  allow_tools         = ["shell(git)", "shell(npm)", "write"]
-  trusted_directories = ["/home/coder/projects", "/tmp"]
-
-  # Custom Copilot configuration
-  copilot_config = jsonencode({
-    banner = "never"
-    theme  = "dark"
-  })
-
-  # MCP server configuration
-  mcp_config = jsonencode({
-    mcpServers = {
-      filesystem = {
-        command     = "npx"
-        args        = ["-y", "@modelcontextprotocol/server-filesystem", "/home/coder/projects"]
-        description = "Provides file system access to the workspace"
-        name        = "Filesystem"
-        timeout     = 3000
-        type        = "local"
-        tools       = ["*"]
-        trust       = true
-      }
-      playwright = {
-        command     = "npx"
-        args        = ["-y", "@playwright/mcp@latest", "--headless", "--isolated"]
-        description = "Browser automation for testing and previewing changes"
-        name        = "Playwright"
-        timeout     = 5000
-        type        = "local"
-        tools       = ["*"]
-        trust       = false
-      }
-    }
-  })
-
-  # Pre-install Node.js if needed
-  pre_install_script = <<-EOT
+resource "coder_app" "copilot" {
+  agent_id     = coder_agent.example.id
+  slug         = "copilot"
+  display_name = "Copilot"
+  icon         = "/icon/github.svg"
+  open_in      = "slim-window"
+  command      = <<-EOT
     #!/bin/bash
-    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-    sudo apt-get install -y nodejs
+    set -e
+    token="$(coder external-auth access-token github)" && export GITHUB_TOKEN="$token" GH_TOKEN="$token"
+    cd "${local.copilot_workdir}"
+    exec copilot --allow-all-tools
   EOT
 }
 ```
 
 > [!NOTE]
-> GitHub Copilot CLI does not automatically install MCP servers. You have two options:
->
-> - Use `npx -y` in the MCP config (shown above) to auto-install on each run
-> - Pre-install MCP servers in `pre_install_script` for faster startup (e.g., `npm install -g @modelcontextprotocol/server-filesystem`)
+> Tool permissions (`--allow-all-tools`, `--allow-tool`, `--deny-tool`) and
+> session resumption (`--continue`) are session-only Copilot CLI flags, so pass
+> them to `copilot` in your `coder_app` command rather than to the module.
 
-### Direct Token Authentication
+### Direct token authentication
 
-Use this example when you want to provide a GitHub Personal Access Token instead of using Coder external auth:
+Provide a GitHub token instead of using Coder external auth. When set, the module
+exports it to the workspace as `GITHUB_TOKEN` and `GH_TOKEN`.
 
 ```tf
 variable "github_token" {
@@ -142,32 +87,19 @@ variable "github_token" {
 
 module "copilot" {
   source       = "registry.coder.com/coder-labs/copilot/coder"
-  version      = "0.4.1"
+  version      = "1.0.0"
   agent_id     = coder_agent.example.id
-  workdir      = "/home/coder/projects"
+  workdir      = "/home/coder/project"
   github_token = var.github_token
 }
 ```
 
-### Standalone Mode
+> [!NOTE]
+> OAuth tokens work best with Copilot. Personal Access Tokens may have limited functionality.
 
-Run Copilot as a command-line tool without task reporting or web interface. This installs and configures Copilot, making it available as a CLI app in the Coder agent bar that you can launch to interact with Copilot directly from your terminal. Set `report_tasks = false` to disable integration with Coder Tasks.
-
-```tf
-module "copilot" {
-  source       = "registry.coder.com/coder-labs/copilot/coder"
-  version      = "0.4.1"
-  agent_id     = coder_agent.example.id
-  workdir      = "/home/coder"
-  report_tasks = false
-  cli_app      = true
-}
-```
-
-### Usage with AI Bridge Proxy
+### Usage with AI Gateway (AI Bridge Proxy)
 
 [AI Bridge Proxy](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy) routes Copilot traffic through [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) for centralized LLM management and governance.
-The proxy environment variables are scoped to the Copilot process only and do not affect other workspace traffic.
 
 ```tf
 module "aibridge-proxy" {
@@ -178,66 +110,119 @@ module "aibridge-proxy" {
 }
 
 module "copilot" {
-  source                   = "registry.coder.com/coder-labs/copilot/coder"
-  version                  = "0.4.1"
-  agent_id                 = coder_agent.main.id
-  workdir                  = "/home/coder/projects"
-  enable_aibridge_proxy    = true
-  aibridge_proxy_auth_url  = module.aibridge-proxy.proxy_auth_url
-  aibridge_proxy_cert_path = module.aibridge-proxy.cert_path
+  source               = "registry.coder.com/coder-labs/copilot/coder"
+  version              = "1.0.0"
+  agent_id             = coder_agent.main.id
+  workdir              = "/home/coder/project"
+  enable_ai_gateway    = true
+  ai_gateway_auth_url  = module.aibridge-proxy.proxy_auth_url
+  ai_gateway_cert_path = module.aibridge-proxy.cert_path
+}
+```
+
+When `enable_ai_gateway = true`, the module sets `HTTPS_PROXY` and `NODE_EXTRA_CA_CERTS` as workspace environment variables so Copilot routes through the proxy.
+
+> [!NOTE]
+> AI Bridge Proxy is a Premium Coder feature that requires the [AI Governance Add-On](https://coder.com/docs/ai-coder/ai-governance). See the [setup guide](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy/setup) for configuring the proxy on your deployment. GitHub authentication is still required; the proxy does not replace it.
+
+> [!IMPORTANT]
+> Unlike the pre-`v1` module (which scoped the proxy to the Copilot process via its start script), these variables are set at the agent level and therefore apply workspace-wide. Ensure the `aibridge-proxy` module completes before Copilot is launched so the CA certificate exists. For strict process-scoping, set `HTTPS_PROXY`/`NODE_EXTRA_CA_CERTS` in your own launcher `coder_app` instead.
+
+### Advanced configuration
+
+Customize MCP servers, trusted directories, and Copilot settings:
+
+```tf
+module "copilot" {
+  source   = "registry.coder.com/coder-labs/copilot/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
+  workdir  = "/home/coder/project"
+
+  # Version pinning (defaults to "latest")
+  copilot_version = "0.0.334"
+
+  trusted_directories = ["/home/coder/project", "/tmp"]
+
+  # Custom Copilot configuration (written to config.json)
+  copilot_config = jsonencode({
+    banner = "never"
+    theme  = "dark"
+  })
+
+  # MCP server configuration (merged into ~/.copilot/mcp-config.json)
+  mcp_config = jsonencode({
+    mcpServers = {
+      filesystem = {
+        command = "npx"
+        args    = ["-y", "@modelcontextprotocol/server-filesystem", "/home/coder/project"]
+        type    = "local"
+        tools   = ["*"]
+      }
+    }
+  })
+
+  # Pre-install an MCP server for faster startup
+  pre_install_script = <<-EOT
+    #!/bin/bash
+    npm install -g @modelcontextprotocol/server-filesystem
+  EOT
 }
 ```
 
 > [!NOTE]
-> AI Bridge Proxy is a Premium Coder feature that requires [AI Governance Add-On](https://coder.com/docs/ai-coder/ai-governance).
-> See the [AI Bridge Proxy setup guide](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy/setup) for details on configuring the proxy on your Coder deployment.
-> GitHub authentication is still required for Copilot as the proxy authenticates with AI Bridge using the Coder session token, but does not replace GitHub authentication.
+> Servers from `mcp_config` are merged into `~/.copilot/mcp-config.json`, Copilot's documented user-level MCP config. Module-provided servers win on duplicate names, while other servers already on disk are preserved. GitHub Copilot CLI does not automatically install MCP servers. Either use `npx -y` in the config (shown above) to auto-install on each run, or pre-install MCP servers in `pre_install_script` for faster startup.
 
-> [!IMPORTANT]
-> When using AI Bridge Proxy, enable [startup coordination](https://coder.com/docs/admin/templates/startup-coordination) by setting `CODER_AGENT_SOCKET_SERVER_ENABLED=true` in the workspace container environment.
-> This ensures the Copilot module waits for the `aibridge-proxy` module to complete before starting. Without it, the Copilot start script may fail if the AI Bridge Proxy setup has not completed in time.
+### Serialize a downstream `coder_script` after the install pipeline
+
+The module exposes the `scripts` output: an ordered list of `coder exp sync`
+names for the scripts this module creates (pre_install, install, post_install).
+Scripts that were not configured are absent.
+
+```tf
+module "copilot" {
+  source   = "registry.coder.com/coder-labs/copilot/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.example.id
+  workdir  = "/home/coder/project"
+}
+
+resource "coder_script" "post_copilot" {
+  agent_id     = coder_agent.example.id
+  display_name = "Run after Copilot install"
+  run_on_start = true
+  script       = <<-EOT
+    #!/bin/bash
+    set -euo pipefail
+    trap 'coder exp sync complete post-copilot' EXIT
+    coder exp sync want post-copilot ${join(" ", module.copilot.scripts)}
+    coder exp sync start post-copilot
+
+    copilot --version
+  EOT
+}
+```
 
 ## Authentication
 
-The module supports multiple authentication methods (in priority order):
+The module supports multiple GitHub authentication methods:
 
-1. **[Coder External Auth](https://coder.com/docs/admin/external-auth) (Recommended)** - Automatic if GitHub external auth is configured in Coder
-2. **Direct Token** - Pass `github_token` variable (OAuth or Personal Access Token)
-3. **Interactive** - Copilot prompts for login via `/login` command if no auth found
-
-> [!NOTE]
-> OAuth tokens work best with Copilot. Personal Access Tokens may have limited functionality.
-
-## Session Resumption
-
-By default, the module resumes the latest Copilot session when the workspace restarts. Set `resume_session = false` to always start fresh sessions.
-
-> [!NOTE]
-> Session resumption requires persistent storage for the home directory or workspace volume. Without persistent storage, sessions will not resume across workspace restarts.
+1. **[Coder External Auth](https://coder.com/docs/admin/external-auth) (Recommended)** - Fetch a fresh token at launch in your `coder_app` command with `coder external-auth access-token <id>`.
+2. **Direct Token** - Pass the `github_token` variable (OAuth or Personal Access Token). Exported as `GITHUB_TOKEN` and `GH_TOKEN`.
+3. **Interactive** - Copilot prompts for login via the `/login` command if no auth is found.
 
 ## Troubleshooting
 
-If you encounter any issues, check the log files in the `~/.copilot-module` directory within your workspace for detailed information.
+Check the log files in `~/.coder-modules/coder-labs/copilot/logs/` for detailed information.
 
 ```bash
-# Installation logs
-cat ~/.copilot-module/install.log
-
-# Startup logs
-cat ~/.copilot-module/agentapi-start.log
-
-# Pre/post install script logs
-cat ~/.copilot-module/pre_install.log
-cat ~/.copilot-module/post_install.log
+cat ~/.coder-modules/coder-labs/copilot/logs/install.log
+cat ~/.coder-modules/coder-labs/copilot/logs/pre_install.log
+cat ~/.coder-modules/coder-labs/copilot/logs/post_install.log
 ```
-
-> [!NOTE]
-> To use tasks with Copilot, you must have an active GitHub Copilot subscription.
-> The `workdir` variable is required and specifies the directory where Copilot will run.
 
 ## References
 
 - [GitHub Copilot CLI Documentation](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli)
 - [Installing GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli)
-- [AgentAPI Documentation](https://github.com/coder/agentapi)
 - [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)
