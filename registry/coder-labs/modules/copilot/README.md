@@ -3,7 +3,7 @@ display_name: Copilot CLI
 description: GitHub Copilot CLI agent for AI-powered terminal assistance
 icon: ../../../../.icons/github.svg
 verified: false
-tags: [agent, copilot, ai, github, tasks, aibridge]
+tags: [agent, copilot, ai, github, tasks, aibridge, ai-gateway]
 ---
 
 # Copilot
@@ -13,7 +13,7 @@ Run [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/about-c
 ```tf
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "0.4.1"
+  version  = "0.4.2"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/projects"
 }
@@ -51,7 +51,7 @@ data "coder_parameter" "ai_prompt" {
 
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "0.4.1"
+  version  = "0.4.2"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/projects"
 
@@ -71,7 +71,7 @@ Customize tool permissions, MCP servers, and Copilot settings:
 ```tf
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "0.4.1"
+  version  = "0.4.2"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/projects"
 
@@ -142,7 +142,7 @@ variable "github_token" {
 
 module "copilot" {
   source       = "registry.coder.com/coder-labs/copilot/coder"
-  version      = "0.4.1"
+  version      = "0.4.2"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder/projects"
   github_token = var.github_token
@@ -156,7 +156,7 @@ Run Copilot as a command-line tool without task reporting or web interface. This
 ```tf
 module "copilot" {
   source       = "registry.coder.com/coder-labs/copilot/coder"
-  version      = "0.4.1"
+  version      = "0.4.2"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder"
   report_tasks = false
@@ -164,22 +164,22 @@ module "copilot" {
 }
 ```
 
-### Usage with AI Bridge Proxy
+### Usage with AI Gateway Proxy
 
-[AI Bridge Proxy](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy) routes Copilot traffic through [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) for centralized LLM management and governance.
+[AI Gateway Proxy](https://coder.com/docs/ai-coder/ai-gateway/ai-gateway-proxy) routes Copilot traffic through [AI Gateway](https://coder.com/docs/ai-coder/ai-gateway) for centralized LLM management and governance.
 The proxy environment variables are scoped to the Copilot process only and do not affect other workspace traffic.
 
 ```tf
 module "aibridge-proxy" {
   source    = "registry.coder.com/coder/aibridge-proxy/coder"
-  version   = "1.0.0"
+  version   = "1.0.1"
   agent_id  = coder_agent.main.id
   proxy_url = "https://aiproxy.example.com"
 }
 
 module "copilot" {
   source                   = "registry.coder.com/coder-labs/copilot/coder"
-  version                  = "0.4.1"
+  version                  = "0.4.2"
   agent_id                 = coder_agent.main.id
   workdir                  = "/home/coder/projects"
   enable_aibridge_proxy    = true
@@ -189,13 +189,13 @@ module "copilot" {
 ```
 
 > [!NOTE]
-> AI Bridge Proxy is a Premium Coder feature that requires [AI Governance Add-On](https://coder.com/docs/ai-coder/ai-governance).
-> See the [AI Bridge Proxy setup guide](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy/setup) for details on configuring the proxy on your Coder deployment.
-> GitHub authentication is still required for Copilot as the proxy authenticates with AI Bridge using the Coder session token, but does not replace GitHub authentication.
+> AI Gateway Proxy is a Premium Coder feature that requires [AI Governance Add-On](https://coder.com/docs/ai-coder/ai-governance).
+> See the [AI Gateway Proxy setup guide](https://coder.com/docs/ai-coder/ai-gateway/ai-gateway-proxy/setup) for details on configuring the proxy on your Coder deployment.
+> GitHub authentication is still required for Copilot as the proxy authenticates with AI Gateway using the Coder session token, but does not replace GitHub authentication.
 
 > [!IMPORTANT]
-> When using AI Bridge Proxy, enable [startup coordination](https://coder.com/docs/admin/templates/startup-coordination) by setting `CODER_AGENT_SOCKET_SERVER_ENABLED=true` in the workspace container environment.
-> This ensures the Copilot module waits for the `aibridge-proxy` module to complete before starting. Without it, the Copilot start script may fail if the AI Bridge Proxy setup has not completed in time.
+> When using AI Gateway Proxy, enable [startup coordination](https://coder.com/docs/admin/templates/startup-coordination) by setting `CODER_AGENT_SOCKET_SERVER_ENABLED=true` in the workspace container environment.
+> This ensures the Copilot module waits for the `aibridge-proxy` module to complete before starting. Without it, the Copilot start script may fail if the AI Gateway Proxy setup has not completed in time.
 
 ## Authentication
 
