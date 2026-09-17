@@ -80,11 +80,14 @@ runner. Everything lands under `$HOME/.coder-modules/coder/agent-relay-claude-co
 
 ## Runner lifecycle
 
-The start step launches `claude self-hosted-runner --capacity 1` detached and exits,
+The start step launches `claude self-hosted-runner --capacity 1 --exit-if-unused-min 10` detached and exits,
 so the agent reaches `ready` immediately. The runner is wrapped so every
 session runs with `--permission-mode bypassPermissions`; there is no terminal
 attached, so an approval prompt would hang it. When the runner exits, Agent
 Relay deletes the workspace; when it fails, the relay nacks the work order.
+A runner that is never assigned its session exits after `exit_if_unused_min`
+minutes (default 10, 0 to disable), so a dispatch that never arrives is reaped
+rather than reporting `working` forever.
 
 `agent_relay_status` reports one of:
 

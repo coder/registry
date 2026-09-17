@@ -84,6 +84,9 @@ write_state() {
 export PATH="\$HOME/.local/bin:\$PATH"
 ${cli_binary} self-hosted-runner \\
 	--capacity 1 \\
+%{ if exit_if_unused_min > 0 ~}
+	--exit-if-unused-min ${exit_if_unused_min} \\
+%{ endif ~}
 	--exec-path "\$HOME/.claude/wrapper.sh" >"$log_file" 2>&1 &
 runner_pid=\$!
 write_state "working \$runner_pid"

@@ -103,6 +103,13 @@ run "runner_wiring" {
     error_message = "the start script must start the self-hosted runner"
   }
 
+  # A dispatched workspace that never receives its session must not sit
+  # in working forever; the runner exits on its own and the relay reaps.
+  assert {
+    condition     = strcontains(local.start_script, "--exit-if-unused-min 10")
+    error_message = "the runner must exit when never assigned work, 10 minutes by default"
+  }
+
   # Reaping reads this file through the agent_relay_status metadata item,
   # so the start script and the metadata script must agree on the path.
   assert {
@@ -169,6 +176,19 @@ run "install_cli_disabled" {
   assert {
     condition     = length(regexall("export PATH=\"\\\\?\\$HOME/.local/bin", local.start_script)) == 2
     error_message = "the start script and supervisor must add ~/.local/bin to PATH even when install_cli is false"
+  }
+}
+
+run "idle_bound_disabled" {
+  command = plan
+
+  variables {
+    exit_if_unused_min = 0
+  }
+
+  assert {
+    condition     = !strcontains(local.start_script, "--exit-if-unused-min")
+    error_message = "exit_if_unused_min = 0 must leave the CLI default of never"
   }
 }
 

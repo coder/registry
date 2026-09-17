@@ -250,6 +250,7 @@ describe("agent-relay-claude-code", () => {
     const args = (await readFileContainer(id, "/tmp/claude-args")).split("\n");
     expect(args[0]).toBe("self-hosted-runner");
     expect(args[args.indexOf("--capacity") + 1]).toBe("1");
+    expect(args[args.indexOf("--exit-if-unused-min") + 1]).toBe("10");
     expect(args[args.indexOf("--exec-path") + 1]).toBe(
       "/root/.claude/wrapper.sh",
     );

@@ -65,6 +65,17 @@ variable "log_file" {
   description = "Path the detached runner's output is written to."
 }
 
+variable "exit_if_unused_min" {
+  type        = number
+  default     = 10
+  description = "Minutes the runner waits for a session before exiting on its own (the CLI's --exit-if-unused-min). A dispatched workspace that never receives its session would otherwise report working forever and never be reaped. 0 disables the bound. Keep it above Agent Relay's dispatch deadline so a slow claim is not cut short."
+
+  validation {
+    condition     = var.exit_if_unused_min >= 0 && floor(var.exit_if_unused_min) == var.exit_if_unused_min
+    error_message = "exit_if_unused_min must be a whole number of minutes, 0 to disable."
+  }
+}
+
 variable "serving_log_pattern" {
   type        = string
   default     = "Picked up session"
@@ -185,10 +196,11 @@ locals {
   })
 
   start_script = templatefile("${path.module}/start.sh.tftpl", {
-    cli_binary  = var.cli_binary
-    install_cli = var.install_cli
-    state_file  = var.state_file
-    log_file    = var.log_file
+    cli_binary         = var.cli_binary
+    install_cli        = var.install_cli
+    state_file         = var.state_file
+    log_file           = var.log_file
+    exit_if_unused_min = var.exit_if_unused_min
   })
 }
 
