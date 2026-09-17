@@ -45,4 +45,4 @@ module "vscode-desktop-core" {
 }
 ```
 
-Wrappers can also apply remote IDE settings before the first ordinary connection. The wrapper supplies the IDE-specific settings file, while the Core merges the configured object with any existing JSON object. Configured values take precedence. Creating a new settings file requires only `base64`; merging an existing file requires `jq` or `python3` and fails without overwriting when neither tool is available.
+Wrappers can also apply remote IDE settings before the first ordinary connection. The wrapper supplies the IDE-specific settings file, while the Core merges the configured object with any existing JSON or JSONC object. Configured values take precedence. Creating a new settings file requires only `base64`; merging an existing file requires `python3`. Existing symlinks are preserved and their targets are updated atomically. A merge or symlink-resolution failure leaves the original file unchanged.

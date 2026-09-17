@@ -240,7 +240,7 @@ describe("vscode-desktop-core", async () => {
       } finally {
         await removeContainer(id);
       }
-    }, 20000);
+    });
 
     it("creates settings before login and merges existing values", async () => {
       const state = await runTerraformApply(import.meta.dir, settingsVariables);
@@ -300,7 +300,111 @@ describe("vscode-desktop-core", async () => {
       } finally {
         await removeContainer(id);
       }
-    }, 20000);
+    });
+
+    it("merges VS Code JSONC without treating comment markers in strings as comments", async () => {
+      const state = await runTerraformApply(import.meta.dir, settingsVariables);
+      const settingsScript = findResourceInstance(
+        state,
+        "coder_script",
+        "apply_settings",
+      ).script;
+      const id = await runContainer("python:3.12-slim");
+      const settingsPath = "/root/.ide-server/data/Machine/settings.json";
+
+      try {
+        await execContainer(id, [
+          "mkdir",
+          "-p",
+          "/root/.ide-server/data/Machine",
+        ]);
+        await writeFileContainer(
+          id,
+          settingsPath,
+          `{
+  // Keep this user setting.
+  "editor.wordWrap": "on",
+  "example.url": "https://example.com/path//segment",
+  /* Preserve nested values while applying configured values. */
+  "workbench.colorCustomizations": {
+    "editor.foreground": "#f0f0f0",
+  },
+}`,
+          { user: "root" },
+        );
+
+        const result = await execContainer(id, ["bash", "-c", settingsScript]);
+        if (result.exitCode !== 0) {
+          console.log(result.stdout);
+          console.log(result.stderr);
+        }
+        expect(result.exitCode).toBe(0);
+        expect(JSON.parse(await readFileContainer(id, settingsPath))).toEqual({
+          "editor.fontSize": 14,
+          "editor.wordWrap": "on",
+          "editor.formatOnSave": true,
+          "example.url": "https://example.com/path//segment",
+          "workbench.colorCustomizations": {
+            "editor.background": "#101010",
+            "editor.foreground": "#f0f0f0",
+          },
+        });
+      } finally {
+        await removeContainer(id);
+      }
+    });
+
+    it("updates a symlink target without replacing the symlink", async () => {
+      const state = await runTerraformApply(import.meta.dir, settingsVariables);
+      const settingsScript = findResourceInstance(
+        state,
+        "coder_script",
+        "apply_settings",
+      ).script;
+      const id = await runContainer("python:3.12-slim");
+      const settingsPath = "/root/.ide-server/data/Machine/settings.json";
+      const targetPath = "/root/dotfiles/vscode-settings.json";
+
+      try {
+        await execContainer(id, [
+          "mkdir",
+          "-p",
+          "/root/.ide-server/data/Machine",
+          "/root/dotfiles",
+        ]);
+        await writeFileContainer(
+          id,
+          targetPath,
+          JSON.stringify({ "editor.wordWrap": "on" }),
+          { user: "root" },
+        );
+        await execContainer(id, ["ln", "-s", targetPath, settingsPath]);
+
+        const result = await execContainer(id, ["bash", "-c", settingsScript]);
+        if (result.exitCode !== 0) {
+          console.log(result.stdout);
+          console.log(result.stderr);
+        }
+        expect(result.exitCode).toBe(0);
+
+        const symlinkCheck = await execContainer(id, [
+          "test",
+          "-L",
+          settingsPath,
+        ]);
+        expect(symlinkCheck.exitCode).toBe(0);
+        expect(JSON.parse(await readFileContainer(id, targetPath))).toEqual({
+          "editor.fontSize": 14,
+          "editor.wordWrap": "on",
+          "editor.formatOnSave": true,
+          "workbench.colorCustomizations": {
+            "editor.background": "#101010",
+          },
+        });
+      } finally {
+        await removeContainer(id);
+      }
+    });
 
     it("fails without a merge tool instead of overwriting existing settings", async () => {
       const state = await runTerraformApply(import.meta.dir, settingsVariables);
@@ -327,14 +431,16 @@ describe("vscode-desktop-core", async () => {
 
         const result = await execContainer(id, ["bash", "-c", settingsScript]);
         expect(result.exitCode).toBe(1);
-        expect(result.stderr).toContain("jq or python3 is required");
+        expect(result.stderr).toContain(
+          "Merging an existing IDE settings file requires python3",
+        );
         expect(await readFileContainer(id, settingsPath)).toBe(
           existingSettings,
         );
       } finally {
         await removeContainer(id);
       }
-    }, 20000);
+    });
   });
 
   describe("extension installation", () => {
