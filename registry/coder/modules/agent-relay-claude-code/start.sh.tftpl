@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Start step, run by coder-utils after the install step. Runs at agent
-# start with SELF_HOSTED_RUNNER_POOL_SECRET (the work-order JWT) and
+# start with SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET (the work-order JWT) and
 # SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT in scope.
 #
 # Starts the runner detached and exits, so the agent reaches the ready
@@ -12,8 +12,9 @@ set -euo pipefail
 
 state_file="${state_file}"
 log_file="${log_file}"
+base_dir="${base_dir}"
 state_dir="$(dirname "$state_file")"
-mkdir -p "$state_dir" "$(dirname "$log_file")"
+mkdir -p "$state_dir" "$(dirname "$log_file")" "$base_dir"
 
 write_state() {
 	# Write via a temp file so a reader never sees a partial line.
@@ -21,7 +22,7 @@ write_state() {
 	mv "$state_file.tmp" "$state_file"
 }
 
-if [ -z "$${SELF_HOSTED_RUNNER_POOL_SECRET:-}" ]; then
+if [ -z "$${SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET:-}" ]; then
 	# Only claim idle when nothing has been recorded. A credential is
 	# ephemeral, so a restart of a finished workspace arrives here too,
 	# and overwriting "done 3" with "idle" would hide a real failure.
@@ -88,6 +89,7 @@ write_state() {
 export PATH="\$HOME/.local/bin:\$PATH"
 ${cli_binary} self-hosted-runner \\
 	--capacity 1 \\
+	--base-dir "$base_dir" \\
 %{ if exit_if_unused_min > 0 ~}
 	--exit-if-unused-min ${exit_if_unused_min} \\
 %{ endif ~}

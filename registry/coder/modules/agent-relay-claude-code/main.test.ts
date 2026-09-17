@@ -46,7 +46,7 @@ afterEach(async () => {
 const MODULE_DIR = "/root/.coder-modules/coder/agent-relay-claude-code";
 const STATE_FILE = `${MODULE_DIR}/runner-state`;
 const DISPATCH_ENV = [
-  "SELF_HOSTED_RUNNER_POOL_SECRET=test-work-order-jwt",
+  "SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET=test-work-order-jwt",
   "SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT=acct-123",
 ];
 
@@ -156,7 +156,7 @@ describe("agent-relay-claude-code", () => {
 
   it("idles when no credential is set", async () => {
     const { id, scripts } = await setup({ install_cli: "false" });
-    // No SELF_HOSTED_RUNNER_POOL_SECRET: a workspace a human created by hand.
+    // No SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET: a workspace a human created by hand.
     const { start } = await runScripts(id, scripts, []);
     expect(start.exitCode).toBe(0);
     expect(start.stdout).toContain("created manually, not by Agent Relay");
@@ -255,6 +255,11 @@ describe("agent-relay-claude-code", () => {
     expect(args[args.indexOf("--exec-path") + 1]).toBe(
       `${MODULE_DIR}/wrapper.sh`,
     );
+    // The CLI's own default is /workspace, which the agent user cannot
+    // create; the module points it at a directory it made.
+    expect(args[args.indexOf("--base-dir") + 1]).toBe("/root/workspace");
+    const baseDir = await execContainer(id, ["test", "-d", "/root/workspace"]);
+    expect(baseDir.exitCode).toBe(0);
 
     // The wrapper is what forces bypassPermissions on every session.
     const wrapper = await readFileContainer(id, `${MODULE_DIR}/wrapper.sh`);
@@ -297,7 +302,7 @@ describe("agent-relay-claude-code", () => {
       "cat /proc/$(pgrep -f 'claude self-hosted-runner' | head -1)/environ | tr '\\0' '\\n'",
     ]);
     expect(env.stdout).toContain(
-      "SELF_HOSTED_RUNNER_POOL_SECRET=test-work-order-jwt",
+      "SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET=test-work-order-jwt",
     );
     expect(env.stdout).toContain("SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT=acct-123");
   });
