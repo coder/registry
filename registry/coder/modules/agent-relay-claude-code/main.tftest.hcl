@@ -105,6 +105,13 @@ run "runner_wiring" {
 
   # A dispatched workspace that never receives its session must not sit
   # in working forever; the runner exits on its own and the relay reaps.
+  # ~/.claude is snapshotted into every session's config dir, so the
+  # wrapper must live beside the supervisor instead.
+  assert {
+    condition     = !strcontains(local.start_script, ".claude/wrapper.sh") && strcontains(local.start_script, "--exec-path \"$wrapper\"")
+    error_message = "the wrapper must not be written under ~/.claude"
+  }
+
   assert {
     condition     = strcontains(local.start_script, "--exit-if-unused-min 10")
     error_message = "the runner must exit when never assigned work, 10 minutes by default"

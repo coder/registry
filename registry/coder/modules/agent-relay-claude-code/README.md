@@ -71,12 +71,13 @@ an install step that downloads the CLI when `install_cli` is set and the
 binary is missing (a no-op otherwise), then a start step that launches the
 runner. Everything lands under `$HOME/.coder-modules/coder/agent-relay-claude-code`:
 
-| path           | contents                                       |
-| -------------- | ---------------------------------------------- |
-| `scripts/*.sh` | the install and start scripts as they ran      |
-| `logs/*.log`   | output of each step, plus the runner's own log |
-| `runner-state` | the supervisor's lifecycle line (`state_file`) |
-| `supervise.sh` | the detached supervisor that owns the runner   |
+| path           | contents                                        |
+| -------------- | ----------------------------------------------- |
+| `scripts/*.sh` | the install and start scripts as they ran       |
+| `logs/*.log`   | output of each step, plus the runner's own log  |
+| `runner-state` | the supervisor's lifecycle line (`state_file`)  |
+| `supervise.sh` | the detached supervisor that owns the runner    |
+| `wrapper.sh`   | session wrapper that forces `bypassPermissions` |
 
 ## Runner lifecycle
 

@@ -222,6 +222,7 @@ describe("agent-relay-claude-code", () => {
       "logs/start.log",
       "logs/runner.log",
       "supervise.sh",
+      "wrapper.sh",
       "runner-state",
     ]) {
       const exists = await execContainer(id, [
@@ -252,11 +253,11 @@ describe("agent-relay-claude-code", () => {
     expect(args[args.indexOf("--capacity") + 1]).toBe("1");
     expect(args[args.indexOf("--exit-if-unused-min") + 1]).toBe("10");
     expect(args[args.indexOf("--exec-path") + 1]).toBe(
-      "/root/.claude/wrapper.sh",
+      `${MODULE_DIR}/wrapper.sh`,
     );
 
     // The wrapper is what forces bypassPermissions on every session.
-    const wrapper = await readFileContainer(id, "/root/.claude/wrapper.sh");
+    const wrapper = await readFileContainer(id, `${MODULE_DIR}/wrapper.sh`);
     expect(wrapper).toContain("--permission-mode bypassPermissions");
 
     // Run the wrapper as root against a stub that enforces the CLI's
@@ -276,7 +277,7 @@ describe("agent-relay-claude-code", () => {
     const session = await execContainer(id, [
       "env",
       "CLAUDE_RUNNER_CLAUDE_BIN=/usr/local/bin/claude-session",
-      "/root/.claude/wrapper.sh",
+      `${MODULE_DIR}/wrapper.sh`,
       "--print",
       "hi",
     ]);

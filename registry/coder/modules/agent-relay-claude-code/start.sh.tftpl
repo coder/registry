@@ -60,13 +60,17 @@ fi
 # keep feeding the workspace. The runner workspace is an ephemeral
 # container with nothing else in it, which is the sandbox the flag asks
 # about. Set on the wrapper alone so only the session child sees it.
-mkdir -p "$${HOME}/.claude"
-cat >"$${HOME}/.claude/wrapper.sh" <<'WRAPPER'
+#
+# Kept beside the supervisor, not under ~/.claude: that is the runner's
+# host config dir, which it snapshots into every session's
+# CLAUDE_CONFIG_DIR, so a wrapper there would be copied into each session.
+wrapper="$state_dir/wrapper.sh"
+cat >"$wrapper" <<'WRAPPER'
 #!/usr/bin/env bash
 export IS_SANDBOX=1
 exec "$CLAUDE_RUNNER_CLAUDE_BIN" "$@" --permission-mode bypassPermissions
 WRAPPER
-chmod +x "$${HOME}/.claude/wrapper.sh"
+chmod +x "$wrapper"
 
 # The supervisor outlives this script: it owns the runner process and is
 # the only writer of terminal state. Written to disk rather than inlined
@@ -87,7 +91,7 @@ ${cli_binary} self-hosted-runner \\
 %{ if exit_if_unused_min > 0 ~}
 	--exit-if-unused-min ${exit_if_unused_min} \\
 %{ endif ~}
-	--exec-path "\$HOME/.claude/wrapper.sh" >"$log_file" 2>&1 &
+	--exec-path "$wrapper" >"$log_file" 2>&1 &
 runner_pid=\$!
 write_state "working \$runner_pid"
 
