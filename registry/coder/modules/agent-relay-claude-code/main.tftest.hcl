@@ -163,6 +163,13 @@ run "install_cli_disabled" {
     condition     = !can(regex("claude.ai/install.sh", local.install_script))
     error_message = "install_cli = false must not download the CLI"
   }
+
+  # A bring-your-own CLI at ~/.local/bin, the official installer's
+  # location, must still be found by the start step and the supervisor.
+  assert {
+    condition     = length(regexall("export PATH=\"\\\\?\\$HOME/.local/bin", local.start_script)) == 2
+    error_message = "the start script and supervisor must add ~/.local/bin to PATH even when install_cli is false"
+  }
 }
 
 run "overridden_paths" {

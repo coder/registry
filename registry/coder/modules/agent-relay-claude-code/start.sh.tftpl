@@ -28,10 +28,11 @@ if [ -z "$${SELF_HOSTED_RUNNER_POOL_SECRET:-}" ]; then
 	exit 0
 fi
 
-%{ if install_cli ~}
-# The install step may have placed the CLI under ~/.local/bin.
+# ~/.local/bin is where the official installer puts the CLI, whether the
+# install step ran it or the image author did. Unconditional so a
+# bring-your-own CLI there is found when install_cli is false; harmless
+# when the directory does not exist.
 export PATH="$HOME/.local/bin:$PATH"
-%{ endif ~}
 
 # A missing binary is a template problem, so it is reported as a
 # terminal state for Agent Relay to nack rather than started blind,
@@ -75,9 +76,7 @@ write_state() {
 	mv "$state_file.tmp" "$state_file"
 }
 
-%{ if install_cli ~}
 export PATH="\$HOME/.local/bin:\$PATH"
-%{ endif ~}
 ${cli_binary} self-hosted-runner \\
 	--capacity 1 \\
 	--exec-path "\$HOME/.claude/wrapper.sh" >"$log_file" 2>&1 &
