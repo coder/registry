@@ -47,9 +47,17 @@ fi
 # Write a wrapper that forces bypassPermissions so sessions never stall
 # on a tool-approval prompt. There is no terminal attached to the child
 # claude process, so an approval prompt would hang the runner.
+#
+# The CLI refuses bypassPermissions as root unless IS_SANDBOX=1, and a
+# workspace agent often runs as root. Without it every session would die
+# on start while the state file still said working, so the relay would
+# keep feeding the workspace. The runner workspace is an ephemeral
+# container with nothing else in it, which is the sandbox the flag asks
+# about. Set on the wrapper alone so only the session child sees it.
 mkdir -p "$${HOME}/.claude"
 cat >"$${HOME}/.claude/wrapper.sh" <<'WRAPPER'
 #!/usr/bin/env bash
+export IS_SANDBOX=1
 exec "$CLAUDE_RUNNER_CLAUDE_BIN" "$@" --permission-mode bypassPermissions
 WRAPPER
 chmod +x "$${HOME}/.claude/wrapper.sh"

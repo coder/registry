@@ -234,6 +234,36 @@ describe("agent-relay-claude-code", () => {
     const wrapper = await readFileContainer(id, "/root/.claude/wrapper.sh");
     expect(wrapper).toContain("--permission-mode bypassPermissions");
 
+    // Run the wrapper as root against a stub that enforces the CLI's
+    // guard: bypassPermissions is refused for uid 0 unless IS_SANDBOX=1.
+    // The text assertion above cannot catch a missing IS_SANDBOX.
+    await stubBinary(
+      id,
+      "/usr/local/bin/claude-session",
+      [
+        'if [ "$(id -u)" = 0 ] && [ "${IS_SANDBOX:-}" != 1 ]; then',
+        '  echo "--dangerously-skip-permissions cannot be used with root/sudo privileges" >&2',
+        "  exit 1",
+        "fi",
+        'printf "%s\\n" "$@"',
+      ].join("\n"),
+    );
+    const session = await execContainer(id, [
+      "env",
+      "CLAUDE_RUNNER_CLAUDE_BIN=/usr/local/bin/claude-session",
+      "/root/.claude/wrapper.sh",
+      "--print",
+      "hi",
+    ]);
+    expect(session.exitCode, session.stderr).toBe(0);
+    expect(session.stdout.split("\n")).toEqual([
+      "--print",
+      "hi",
+      "--permission-mode",
+      "bypassPermissions",
+      "",
+    ]);
+
     // The runner inherits the CLI's own env var names, not the relay's.
     const env = await execContainer(id, [
       "sh",
