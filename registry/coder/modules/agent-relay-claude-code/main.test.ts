@@ -163,6 +163,18 @@ describe("agent-relay-claude-code", () => {
     expect(await readState(id)).toBe("idle");
   });
 
+  it("keeps terminal state across a restart without a credential", async () => {
+    // The credential is ephemeral, so an agent restart after the runner
+    // finished runs the start step with no credential. That must not
+    // rewrite "done 3" as "idle", which the relay reads as never dispatched.
+    const { id, scripts } = await setup({ install_cli: "false" });
+    await execContainer(id, ["mkdir", "-p", MODULE_DIR]);
+    await writeFileContainer(id, STATE_FILE, "done 3\n", { user: "root" });
+    const { start } = await runScripts(id, scripts, []);
+    expect(start.exitCode).toBe(0);
+    expect(await readState(id)).toBe("done 3");
+  });
+
   it("reports runner-agent-missing when the CLI is absent", async () => {
     const { id, scripts } = await setup({ install_cli: "false" });
     const { install, start } = await runDispatched(id, scripts);

@@ -22,7 +22,12 @@ write_state() {
 }
 
 if [ -z "$${SELF_HOSTED_RUNNER_POOL_SECRET:-}" ]; then
-	write_state "idle"
+	# Only claim idle when nothing has been recorded. A credential is
+	# ephemeral, so a restart of a finished workspace arrives here too,
+	# and overwriting "done 3" with "idle" would hide a real failure.
+	if [ ! -f "$state_file" ]; then
+		write_state "idle"
+	fi
 	echo "No work order set. This workspace was created manually, not by Agent Relay."
 	echo "Idling. Delete this workspace manually or set the agent_relay_credential parameter."
 	exit 0
