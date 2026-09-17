@@ -192,6 +192,18 @@ run "idle_bound_disabled" {
   }
 }
 
+run "cli_binary_rejects_shell" {
+  command = plan
+
+  variables {
+    cli_binary = "claude\"; touch /tmp/PWNED; \""
+  }
+
+  # cli_binary is rendered as a command word in two scripts, so anything
+  # beyond a name or path is refused at plan time.
+  expect_failures = [var.cli_binary]
+}
+
 run "overridden_paths" {
   command = plan
 
