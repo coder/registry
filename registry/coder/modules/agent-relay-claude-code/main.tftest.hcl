@@ -82,7 +82,7 @@ run "runner_wiring" {
 
   # The claude CLI owns these names; the module only supplies values.
   assert {
-    condition     = coder_env.runner_pool_secret.name == "SELF_HOSTED_RUNNER_POOL_SECRET"
+    condition     = coder_env.runner_environment_secret.name == "SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET"
     error_message = "the pool secret env var name is the claude CLI's contract"
   }
 
@@ -224,12 +224,21 @@ run "overridden_paths" {
     cli_binary          = "/opt/claude/claude"
     state_file          = "/var/run/relay/state"
     log_file            = "/var/log/relay.log"
+    base_dir            = "/srv/sessions"
     serving_log_pattern = "custom pattern"
   }
 
   assert {
     condition     = can(regex("/opt/claude/claude self-hosted-runner", local.start_script))
     error_message = "cli_binary must select the binary the runner starts"
+  }
+
+  # The CLI defaults to /workspace, which a plain image lacks and the
+  # agent user cannot create, so the module always passes and creates
+  # its own.
+  assert {
+    condition     = strcontains(local.start_script, "base_dir=\"/srv/sessions\"") && strcontains(local.start_script, "--base-dir \"$base_dir\"")
+    error_message = "the runner must be started with the configured base_dir"
   }
 
   assert {

@@ -73,6 +73,12 @@ variable "log_file" {
   description = "Path the detached runner's output is written to."
 }
 
+variable "base_dir" {
+  type        = string
+  default     = "$HOME/workspace"
+  description = "Directory the runner checks sessions out under (the CLI's --base-dir). Created at start. The CLI's own default is /workspace, which a plain image does not have and the agent user cannot create."
+}
+
 variable "exit_if_unused_min" {
   type        = number
   default     = 10
@@ -180,9 +186,9 @@ data "coder_parameter" "agent_relay_attempt" {
 
 # Environment variable names are the claude CLI's contract, not
 # Agent Relay's; do not rename them here.
-resource "coder_env" "runner_pool_secret" {
+resource "coder_env" "runner_environment_secret" {
   agent_id = var.agent_id
-  name     = "SELF_HOSTED_RUNNER_POOL_SECRET"
+  name     = "SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET"
   value    = data.coder_parameter.agent_relay_credential.value
 }
 
@@ -208,6 +214,7 @@ locals {
     install_cli        = var.install_cli
     state_file         = var.state_file
     log_file           = var.log_file
+    base_dir           = var.base_dir
     exit_if_unused_min = var.exit_if_unused_min
   })
 }
