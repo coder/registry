@@ -74,6 +74,12 @@ const SCORECARD_MAX_TOKENS = Number(process.env.SCORECARD_MAX_TOKENS ?? 16384);
 // that is understood, score one at a time. Only the model calls run in
 // parallel when this is raised; the discussion writes stay in order.
 const SCORECARD_CONCURRENCY = Number(process.env.SCORECARD_CONCURRENCY ?? 1);
+// A single model call can be cut off by something outside Solstice (a Coder
+// AI Gateway connection reset, or this script's own HTTP client giving up on
+// a very long wait) even though Bifrost and the model finish the request
+// correctly seconds later. A short retry recovers those without masking a
+// real, repeated failure. Default 3 attempts total (1 try + 2 retries).
+const SCORECARD_RETRY_ATTEMPTS = Number(process.env.SCORECARD_RETRY_ATTEMPTS ?? 3);
 const MAX_FILE_BYTES = 30_000;
 
 // A module reference: bare names mean the coder namespace, and
@@ -365,51 +371,66 @@ Output ONLY the scorecard markdown in EXACTLY this structure (this example shows
 
 Do not add any prose before or after the scorecard.`;
 
-  const res = await fetch(`${SCORECARD_BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      // The gateway checks the Coder token. Bearer carries it in the shape
-      // the OpenAI-style route expects.
-      authorization: `Bearer ${SCORECARD_TOKEN}`,
-      "Coder-Session-Token": SCORECARD_TOKEN!,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: SCORECARD_MODEL,
-      max_tokens: SCORECARD_MAX_TOKENS,
-      temperature: 0,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`AI Gateway error ${res.status}: ${await res.text()}`);
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= SCORECARD_RETRY_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(`${SCORECARD_BASE_URL}/chat/completions`, {
+        method: "POST",
+        headers: {
+          // The gateway checks the Coder token. Bearer carries it in the shape
+          // the OpenAI-style route expects.
+          authorization: `Bearer ${SCORECARD_TOKEN}`,
+          "Coder-Session-Token": SCORECARD_TOKEN!,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: SCORECARD_MODEL,
+          max_tokens: SCORECARD_MAX_TOKENS,
+          temperature: 0,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(`AI Gateway error ${res.status}: ${await res.text()}`);
+      }
+      const data = (await res.json()) as {
+        choices: { finish_reason?: string; message?: { content?: string } }[];
+        usage?: {
+          completion_tokens?: number;
+          completion_tokens_details?: { reasoning_tokens?: number };
+        };
+      };
+      const choice = (data.choices ?? [])[0];
+      const text = (data.choices ?? [])
+        .map((c) => c.message?.content ?? "")
+        .join("\n")
+        .trim();
+      if (!text) {
+        // Fail here rather than post an empty scorecard. The usual cause is a
+        // reasoning model that spent the whole budget before it answered.
+        const reasoning =
+          data.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
+        throw new Error(
+          `${SCORECARD_MODEL} returned no scorecard text ` +
+            `(finish_reason ${choice?.finish_reason ?? "unknown"}, ` +
+            `${data.usage?.completion_tokens ?? 0} completion tokens, ` +
+            `${reasoning} of them reasoning). ` +
+            `Raise SCORECARD_MAX_TOKENS above ${SCORECARD_MAX_TOKENS}.`,
+        );
+      }
+      return fixOverall(text);
+    } catch (err) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(
+        `\n  [${spec.label}] attempt ${attempt}/${SCORECARD_RETRY_ATTEMPTS} failed: ${msg}\n`,
+      );
+      if (attempt < SCORECARD_RETRY_ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, 2000 * attempt));
+      }
+    }
   }
-  const data = (await res.json()) as {
-    choices: { finish_reason?: string; message?: { content?: string } }[];
-    usage?: {
-      completion_tokens?: number;
-      completion_tokens_details?: { reasoning_tokens?: number };
-    };
-  };
-  const choice = (data.choices ?? [])[0];
-  const text = (data.choices ?? [])
-    .map((c) => c.message?.content ?? "")
-    .join("\n")
-    .trim();
-  if (!text) {
-    // Fail here rather than post an empty scorecard. The usual cause is a
-    // reasoning model that spent the whole budget before it answered.
-    const reasoning =
-      data.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
-    throw new Error(
-      `${SCORECARD_MODEL} returned no scorecard text ` +
-        `(finish_reason ${choice?.finish_reason ?? "unknown"}, ` +
-        `${data.usage?.completion_tokens ?? 0} completion tokens, ` +
-        `${reasoning} of them reasoning). ` +
-        `Raise SCORECARD_MAX_TOKENS above ${SCORECARD_MAX_TOKENS}.`,
-    );
-  }
-  return fixOverall(text);
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
 
 async function upsertDiscussion(
