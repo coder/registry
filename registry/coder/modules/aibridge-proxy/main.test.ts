@@ -111,7 +111,7 @@ describe("aibridge-proxy", () => {
     ]);
     expect(exec.exitCode).toBe(0);
     expect(exec.stdout).toContain(
-      "AI Bridge Proxy CA certificate saved to /tmp/aibridge-proxy/ca-cert.pem",
+      "AI Gateway Proxy CA certificate saved to /tmp/aibridge-proxy/ca-cert.pem",
     );
 
     // Verify the cert was written to the default path.
@@ -139,7 +139,7 @@ describe("aibridge-proxy", () => {
     ]);
     expect(exec.exitCode).not.toBe(0);
     expect(exec.stdout).toContain(
-      "AI Bridge Proxy setup failed: could not connect to",
+      "AI Gateway Proxy setup failed: could not connect to",
     );
   });
 
@@ -160,7 +160,7 @@ describe("aibridge-proxy", () => {
     ]);
     expect(exec.exitCode).not.toBe(0);
     expect(exec.stdout).toContain(
-      "AI Bridge Proxy setup failed: unexpected response",
+      "AI Gateway Proxy setup failed: unexpected response",
     );
   });
 
@@ -185,7 +185,7 @@ describe("aibridge-proxy", () => {
     ]);
     expect(exec.exitCode).not.toBe(0);
     expect(exec.stdout).toContain(
-      "AI Bridge Proxy setup failed: downloaded certificate is empty.",
+      "AI Gateway Proxy setup failed: downloaded certificate is empty.",
     );
   });
 
@@ -216,7 +216,7 @@ describe("aibridge-proxy", () => {
     ]);
     expect(exec.exitCode).toBe(0);
     expect(exec.stdout).toContain(
-      "AI Bridge Proxy CA certificate saved to /tmp/custom/certs/proxy-ca.pem",
+      "AI Gateway Proxy CA certificate saved to /tmp/custom/certs/proxy-ca.pem",
     );
 
     const certContent = await execContainer(id, [
