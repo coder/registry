@@ -11,7 +11,7 @@
 #   done <code>      runner exited with that status
 #   failed <reason>  the runner could not be started at all
 #
-# working versus serving comes from matching ${serving_log_pattern}
+# working versus serving comes from matching serving_log_pattern
 # against the runner log, which is a cosmetic distinction: Agent Relay's
 # reaping decisions rest on the process lifecycle, so a pattern that
 # stops matching a future runner release degrades to "working" and
@@ -22,6 +22,9 @@ set -euo pipefail
 
 state_file="${state_file}"
 log_file="${log_file}"
+# Free-form text, so it arrives base64-encoded and is matched as a fixed
+# string: neither the shell nor grep interprets anything in it.
+serving_log_pattern="$(echo -n '${serving_log_pattern}' | base64 -d)"
 
 if [ ! -f "$state_file" ]; then
 	echo "pending"
@@ -38,7 +41,7 @@ working)
 		echo "orphaned"
 		exit 0
 	fi
-	if [ -f "$log_file" ] && grep -q "${serving_log_pattern}" "$log_file"; then
+	if [ -f "$log_file" ] && grep -qF -- "$serving_log_pattern" "$log_file"; then
 		echo "serving"
 	else
 		echo "working"

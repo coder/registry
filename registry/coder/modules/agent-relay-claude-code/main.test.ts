@@ -56,12 +56,13 @@ const setup = async (vars: Record<string, string> = {}) => {
     ...vars,
   });
   const scripts = collectScripts(state);
+  const statusScript = state.outputs.status_metadata_script.value as string;
   const id = await runContainer("lorello/alpine-bash");
   registerCleanup(async () => {
     await removeContainer(id);
   });
   await stubBinary(id, "/usr/local/bin/coder", "exit 0");
-  return { id, scripts };
+  return { id, scripts, statusScript };
 };
 
 type Scripts = { install: string; start: string };
@@ -295,5 +296,39 @@ describe("agent-relay-claude-code", () => {
     expect(start.exitCode).toBe(0);
     const state = (await readFileContainer(id, "/var/lib/relay/state")).trim();
     expect(state).toMatch(/^working \d+$/);
+  });
+
+  it("treats serving_log_pattern as data, not shell or regex", async () => {
+    // A pattern carrying shell metacharacters must neither execute nor be
+    // read as a regex; it is matched as a fixed string against the log.
+    const pattern = 'x"; touch /tmp/PWNED; "';
+    const { id, scripts, statusScript } = await setup({
+      serving_log_pattern: pattern,
+    });
+    await stubClaude(id, "sleep 30");
+    await runDispatched(id, scripts);
+    expect(await readState(id)).toMatch(/^working \d+$/);
+
+    const status = (log: string) =>
+      execContainer(id, [
+        "sh",
+        "-c",
+        `printf '%s\\n' "$1" >${MODULE_DIR}/logs/runner.log && bash -c "$2"`,
+        "sh",
+        log,
+        statusScript,
+      ]);
+
+    const noMatch = await status("Waiting for work");
+    expect(noMatch.exitCode, noMatch.stderr).toBe(0);
+    expect(noMatch.stdout.trim()).toBe("working");
+
+    // Only the literal pattern flips the state to serving.
+    const match = await status(`log line ${pattern} tail`);
+    expect(match.exitCode, match.stderr).toBe(0);
+    expect(match.stdout.trim()).toBe("serving");
+
+    const pwned = await execContainer(id, ["test", "-e", "/tmp/PWNED"]);
+    expect(pwned.exitCode).not.toBe(0);
   });
 });

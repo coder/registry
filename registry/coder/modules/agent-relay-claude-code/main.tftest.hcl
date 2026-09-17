@@ -181,7 +181,22 @@ run "overridden_paths" {
   }
 
   assert {
-    condition     = can(regex("custom pattern", output.status_metadata_script)) && can(regex("/var/log/relay.log", output.status_metadata_script))
-    error_message = "the status script must use the configured pattern and log file"
+    condition     = strcontains(output.status_metadata_script, base64encode("custom pattern")) && !strcontains(output.status_metadata_script, "custom pattern") && can(regex("/var/log/relay.log", output.status_metadata_script))
+    error_message = "the status script must use the configured log file and carry the pattern base64-encoded only"
+  }
+}
+
+run "serving_log_pattern_is_data" {
+  command = plan
+
+  variables {
+    serving_log_pattern = "x\"; touch /tmp/PWNED; \""
+  }
+
+  # Free-form text never lands in the script as shell; it is decoded into
+  # a variable and matched as a fixed string.
+  assert {
+    condition     = !strcontains(output.status_metadata_script, "PWNED") && strcontains(output.status_metadata_script, "grep -qF -- \"$serving_log_pattern\"")
+    error_message = "serving_log_pattern must be base64-encoded and matched with grep -F"
   }
 }

@@ -213,7 +213,7 @@ output "status_metadata_script" {
   value = templatefile("${path.module}/status.sh.tftpl", {
     state_file          = var.state_file
     log_file            = var.log_file
-    serving_log_pattern = var.serving_log_pattern
+    serving_log_pattern = base64encode(var.serving_log_pattern)
   })
 }
 
