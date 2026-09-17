@@ -79,7 +79,9 @@ const SCORECARD_CONCURRENCY = Number(process.env.SCORECARD_CONCURRENCY ?? 1);
 // a very long wait) even though Bifrost and the model finish the request
 // correctly seconds later. A short retry recovers those without masking a
 // real, repeated failure. Default 3 attempts total (1 try + 2 retries).
-const SCORECARD_RETRY_ATTEMPTS = Number(process.env.SCORECARD_RETRY_ATTEMPTS ?? 3);
+const SCORECARD_RETRY_ATTEMPTS = Number(
+  process.env.SCORECARD_RETRY_ATTEMPTS ?? 3,
+);
 const MAX_FILE_BYTES = 30_000;
 
 // A module reference: bare names mean the coder namespace, and
@@ -570,8 +572,7 @@ async function scoreAll(
 
 async function main() {
   const args = parseArgs();
-  if (!SCORECARD_TOKEN)
-    throw new Error("SCORECARD_CODER_TOKEN not set");
+  if (!SCORECARD_TOKEN) throw new Error("SCORECARD_CODER_TOKEN not set");
   if (!args.dryRun && !process.env.GITHUB_DISCUSSIONS_TOKEN) {
     throw new Error("GITHUB_DISCUSSIONS_TOKEN not set");
   }
