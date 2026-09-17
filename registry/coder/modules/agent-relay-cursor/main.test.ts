@@ -180,6 +180,17 @@ describe("agent-relay-cursor", () => {
     expect(await readState(id)).toBe("failed runner-agent-missing");
   });
 
+  it("finds a bring-your-own CLI in ~/.local/bin when install_cli is false", async () => {
+    // The official installer's location; the module must look there even
+    // when it did not run the installer itself.
+    const { id, scripts } = await setup({ install_cli: "false" });
+    await execContainer(id, ["mkdir", "-p", "/root/.local/bin"]);
+    await stubBinary(id, "/root/.local/bin/agent", "sleep 30");
+    const { start } = await runDispatched(id, scripts);
+    expect(start.exitCode, start.stdout).toBe(0);
+    expect(await readState(id)).toMatch(/^working \d+$/);
+  });
+
   it("skips the download when the CLI is already present", async () => {
     // install_cli defaults to true; a binary on PATH must short-circuit it.
     const { id, scripts } = await setup();

@@ -30,10 +30,11 @@ if [ -z "$${AGENT_RELAY_CURSOR_TOKEN:-}" ]; then
 	exit 0
 fi
 
-%{ if install_cli ~}
-# The install step may have placed the CLI under ~/.local/bin.
+# ~/.local/bin is where the official installer puts the CLI, whether the
+# install step ran it or the image author did. Unconditional so a
+# bring-your-own CLI there is found when install_cli is false; harmless
+# when the directory does not exist.
 export PATH="$HOME/.local/bin:$PATH"
-%{ endif ~}
 
 # A missing binary is a template problem, so it is reported as a
 # terminal state for Agent Relay to observe rather than started
@@ -65,9 +66,7 @@ write_state() {
 	mv "$state_file.tmp" "$state_file"
 }
 
-%{ if install_cli ~}
 export PATH="\$HOME/.local/bin:\$PATH"
-%{ endif ~}
 ${cli_binary} worker \\
 	--pool "\$AGENT_RELAY_CURSOR_POOL_NAME" \\
 	--idle-release-timeout "\$AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT" \\
