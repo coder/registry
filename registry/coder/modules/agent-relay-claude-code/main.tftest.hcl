@@ -98,6 +98,12 @@ run "runner_wiring" {
     error_message = "coder-utils must run exactly the install and start steps, in that order"
   }
 
+  # Pass-through so a template can serialize its own scripts behind ours.
+  assert {
+    condition     = output.scripts == module.coder_utils.scripts
+    error_message = "the scripts output must re-export coder-utils' sync names"
+  }
+
   assert {
     condition     = can(regex("self-hosted-runner", local.start_script))
     error_message = "the start script must start the self-hosted runner"

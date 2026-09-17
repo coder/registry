@@ -237,6 +237,11 @@ output "status_metadata_script" {
   })
 }
 
+output "scripts" {
+  description = "Ordered list of coder exp sync names produced by this module, in run order. A template can `coder exp sync want <self> <these>` to run its own scripts after the runner is up."
+  value       = module.coder_utils.scripts
+}
+
 output "dispatched" {
   description = "Whether this workspace was spawned by Agent Relay (credential set) or manually (empty)."
   value       = data.coder_parameter.agent_relay_credential.value != ""
