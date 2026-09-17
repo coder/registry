@@ -46,6 +46,14 @@ variable "cli_binary" {
   type        = string
   default     = "agent"
   description = "Path to the Cursor CLI binary in the workspace image. Override to test a beta build."
+
+  # Rendered into the start script and the supervisor as a command word,
+  # so it is restricted to a command name or path: no whitespace, quotes,
+  # or other shell metacharacters.
+  validation {
+    condition     = can(regex("^[A-Za-z0-9._/@+-]+$", var.cli_binary))
+    error_message = "cli_binary must be a command name or path made of letters, digits, and . _ / @ + - only."
+  }
 }
 
 variable "install_cli" {
