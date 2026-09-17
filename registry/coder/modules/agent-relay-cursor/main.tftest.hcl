@@ -105,6 +105,12 @@ run "worker_wiring" {
     error_message = "coder-utils must run exactly the install and start steps, in that order"
   }
 
+  # Pass-through so a template can serialize its own scripts behind ours.
+  assert {
+    condition     = output.scripts == module.coder_utils.scripts
+    error_message = "the scripts output must re-export coder-utils' sync names"
+  }
+
   # Everything a debugger needs lives under the coder-utils module
   # directory by default: scripts, their logs, worker state, worker log.
   assert {
