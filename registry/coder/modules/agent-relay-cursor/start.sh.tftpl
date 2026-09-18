@@ -14,8 +14,11 @@ set -euo pipefail
 
 state_file="${state_file}"
 log_file="${log_file}"
-state_dir="$(dirname "$state_file")"
-mkdir -p "$state_dir" "$(dirname "$log_file")"
+# Runtime-materialized scripts live under the module directory's
+# scripts/ regardless of where state_file points, so an override of
+# state_file moves only the state.
+scripts_dir="${module_directory}/scripts"
+mkdir -p "$scripts_dir" "$(dirname "$state_file")" "$(dirname "$log_file")"
 
 write_state() {
 	# Write via a temp file so a reader never sees a partial line.
@@ -94,7 +97,7 @@ fi
 # shell metacharacters run as code. The worker exits 0 when its
 # idle-release timer fires after a session ends; that clean exit is
 # what tells Agent Relay to reap the workspace.
-supervisor="$state_dir/supervise.sh"
+supervisor="$scripts_dir/supervise.sh"
 cat >"$supervisor" <<SUPERVISOR
 #!/usr/bin/env bash
 set -uo pipefail

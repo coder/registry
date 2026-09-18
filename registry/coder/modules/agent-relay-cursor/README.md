@@ -86,12 +86,12 @@ an install step that downloads the CLI when `install_cli` is set and the
 binary is missing (a no-op otherwise), then a start step that launches the
 worker. Everything lands under `$HOME/.coder-modules/coder/agent-relay-cursor`:
 
-| path           | contents                                       |
-| -------------- | ---------------------------------------------- |
-| `scripts/*.sh` | the install and start scripts as they ran      |
-| `logs/*.log`   | output of each step, plus the worker's own log |
-| `worker-state` | the supervisor's lifecycle line (`state_file`) |
-| `supervise.sh` | the detached supervisor that owns the worker   |
+| path                                     | contents                                       |
+| ---------------------------------------- | ---------------------------------------------- |
+| `scripts/install.sh`, `scripts/start.sh` | the install and start steps as they ran        |
+| `scripts/supervise.sh`                   | the detached supervisor that owns the worker   |
+| `logs/*.log`                             | output of each step, plus the worker's own log |
+| `worker-state`                           | the supervisor's lifecycle line (`state_file`) |
 
 ## Worker lifecycle
 

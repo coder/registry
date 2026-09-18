@@ -114,6 +114,11 @@ run "worker_wiring" {
   # Everything a debugger needs lives under the coder-utils module
   # directory by default: scripts, their logs, worker state, worker log.
   assert {
+    condition     = strcontains(local.start_script, "supervisor=\"$scripts_dir/supervise.sh\"") && strcontains(local.start_script, "scripts_dir=\"${local.module_directory}/scripts\"")
+    error_message = "the supervisor must be written under module_directory/scripts, independent of state_file"
+  }
+
+  assert {
     condition     = startswith(var.state_file, local.module_directory) && startswith(var.log_file, local.module_directory)
     error_message = "worker state and log must default to the coder-utils module directory"
   }

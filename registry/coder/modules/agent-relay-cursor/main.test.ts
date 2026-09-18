@@ -304,7 +304,7 @@ describe("agent-relay-cursor", () => {
       "logs/install.log",
       "logs/start.log",
       "logs/worker.log",
-      "supervise.sh",
+      "scripts/supervise.sh",
       "worker-state",
     ]) {
       const exists = await execContainer(id, [
@@ -346,7 +346,7 @@ describe("agent-relay-cursor", () => {
     // carry the token itself.
     const supervisor = await readFileContainer(
       id,
-      `${MODULE_DIR}/supervise.sh`,
+      `${MODULE_DIR}/scripts/supervise.sh`,
     );
     expect(supervisor).toContain('--auth-token "$AGENT_RELAY_CURSOR_TOKEN"');
     expect(supervisor).not.toContain("test-user-token");
@@ -393,6 +393,20 @@ describe("agent-relay-cursor", () => {
     expect(start.exitCode).toBe(0);
     const state = (await readFileContainer(id, "/var/lib/relay/state")).trim();
     expect(state).toMatch(/^working \d+$/);
+    // Overriding state_file moves only the state; the supervisor stays
+    // under the module directory as the README documents.
+    const supervisor = await execContainer(id, [
+      "test",
+      "-e",
+      `${MODULE_DIR}/scripts/supervise.sh`,
+    ]);
+    expect(supervisor.exitCode).toBe(0);
+    const escaped = await execContainer(id, [
+      "test",
+      "-e",
+      "/var/lib/relay/supervise.sh",
+    ]);
+    expect(escaped.exitCode).not.toBe(0);
   });
 
   it("treats serving_log_pattern as data, not shell or regex", async () => {

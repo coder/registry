@@ -230,11 +230,12 @@ locals {
   })
 
   start_script = templatefile("${path.module}/start.sh.tftpl", {
-    cli_binary   = var.cli_binary
-    install_cli  = var.install_cli
-    computer_use = var.computer_use
-    state_file   = var.state_file
-    log_file     = var.log_file
+    module_directory = local.module_directory
+    cli_binary       = var.cli_binary
+    install_cli      = var.install_cli
+    computer_use     = var.computer_use
+    state_file       = var.state_file
+    log_file         = var.log_file
   })
 }
 
