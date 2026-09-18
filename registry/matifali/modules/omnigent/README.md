@@ -15,7 +15,7 @@ The module installs Omnigent via the [official install script](https://omnigent.
 ```tf
 module "omnigent" {
   source   = "registry.coder.com/matifali/omnigent/coder"
-  version  = "0.0.1"
+  version  = "0.0.2"
   agent_id = coder_agent.main.id
 }
 ```
@@ -33,7 +33,7 @@ Use this when your template already has an agent and you only want the Omnigent 
 ```tf
 module "omnigent" {
   source  = "registry.coder.com/matifali/omnigent/coder"
-  version = "0.0.1"
+  version = "0.0.2"
 
   agent_id = coder_agent.main.id
 }
@@ -151,7 +151,7 @@ module "claude_code" {
 
 module "omnigent" {
   source  = "registry.coder.com/matifali/omnigent/coder"
-  version = "0.0.1"
+  version = "0.0.2"
 
   agent_id = coder_agent.main.id
 
@@ -173,7 +173,7 @@ module "omnigent" {
 ```tf
 module "omnigent" {
   source   = "registry.coder.com/matifali/omnigent/coder"
-  version  = "0.0.1"
+  version  = "0.0.2"
   agent_id = coder_agent.main.id
   port     = 7878
 }
@@ -186,7 +186,7 @@ The module automatically trusts Coder app origins derived from `CODER_AGENT_URL`
 ```tf
 module "omnigent" {
   source   = "registry.coder.com/matifali/omnigent/coder"
-  version  = "0.0.1"
+  version  = "0.0.2"
   agent_id = coder_agent.main.id
 
   allowed_origins = ["https://omnigent.example.com"]
@@ -198,7 +198,7 @@ module "omnigent" {
 ```tf
 module "omnigent" {
   source   = "registry.coder.com/matifali/omnigent/coder"
-  version  = "0.0.1"
+  version  = "0.0.2"
   agent_id = coder_agent.main.id
 
   server_config = <<-YAML
@@ -220,7 +220,7 @@ module "omnigent" {
 ```tf
 module "omnigent" {
   source   = "registry.coder.com/matifali/omnigent/coder"
-  version  = "0.0.1"
+  version  = "0.0.2"
   agent_id = coder_agent.main.id
 
   agents = [
@@ -243,7 +243,7 @@ module "omnigent" {
 ```tf
 module "omnigent" {
   source             = "registry.coder.com/matifali/omnigent/coder"
-  version            = "0.0.1"
+  version            = "0.0.2"
   agent_id           = coder_agent.main.id
   server_config_path = "/home/coder/.omnigent/server_config.yaml"
 }

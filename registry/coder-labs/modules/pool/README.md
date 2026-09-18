@@ -13,7 +13,7 @@ Install and configure [Pool](https://docs.poolside.ai/cli/pool), Poolside's codi
 ```tf
 module "pool" {
   source   = "registry.coder.com/coder-labs/pool/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   poolside_api_key = var.poolside_api_key
@@ -38,7 +38,7 @@ locals {
 
 module "pool" {
   source   = "registry.coder.com/coder-labs/pool/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   poolside_api_key = var.poolside_api_key
@@ -73,7 +73,7 @@ locals {
 
 module "pool" {
   source   = "registry.coder.com/coder-labs/pool/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   poolside_api_key = var.poolside_api_key
@@ -123,7 +123,7 @@ Pool speaks to OpenAI-compatible endpoints through `POOLSIDE_STANDALONE_BASE_URL
 ```tf
 module "pool" {
   source   = "registry.coder.com/coder-labs/pool/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   enable_ai_gateway = true
@@ -141,7 +141,7 @@ module "pool" {
 ```tf
 module "pool" {
   source   = "registry.coder.com/coder-labs/pool/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   poolside_api_key = var.poolside_api_key
@@ -176,7 +176,7 @@ Use `standalone_base_url` to configure another OpenAI-compatible proxy or local 
 ```tf
 module "pool" {
   source   = "registry.coder.com/coder-labs/pool/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   poolside_api_key    = var.gateway_api_key
@@ -211,7 +211,7 @@ For restricted or air-gapped workspaces:
 ```tf
 module "pool" {
   source   = "registry.coder.com/coder-labs/pool/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   install_url         = "https://artifacts.internal.example.com/pool/install.sh"
