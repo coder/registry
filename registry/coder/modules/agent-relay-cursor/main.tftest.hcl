@@ -250,6 +250,18 @@ run "cli_binary_rejects_shell" {
   expect_failures = [var.cli_binary]
 }
 
+run "serving_log_pattern_rejects_empty" {
+  command = plan
+
+  variables {
+    serving_log_pattern = ""
+  }
+
+  # An empty fixed-string pattern would match any log line and report
+  # serving instead of degrading to working.
+  expect_failures = [var.serving_log_pattern]
+}
+
 run "overridden_paths" {
   command = plan
 

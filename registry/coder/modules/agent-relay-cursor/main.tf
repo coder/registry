@@ -84,6 +84,13 @@ variable "serving_log_pattern" {
   type        = string
   default     = "in use"
   description = "Worker log substring that means a chat session attached. At default verbosity the Cursor CLI log carries no session line, so this only works with verbose worker logs and typically never matches; Agent Relay's status page overlays Cursor's authoritative in-use worker state regardless, so the working versus serving distinction here is best-effort and purely cosmetic. A pattern that never matches degrades to working and affects nothing else."
+
+  # grep -F with an empty pattern matches every line, which would report
+  # serving on any output and invert the documented fallback to working.
+  validation {
+    condition     = length(var.serving_log_pattern) > 0
+    error_message = "serving_log_pattern must not be empty; an empty pattern matches every log line."
+  }
 }
 
 data "coder_parameter" "agent_relay_session_id" {
