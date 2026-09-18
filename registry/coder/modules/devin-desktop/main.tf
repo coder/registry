@@ -113,7 +113,7 @@ resource "coder_script" "devin_desktop_mcp" {
   run_on_start       = true
   start_blocks_login = false
   script             = <<-EOT
-    #!/bin/sh
+    #!/usr/bin/env sh
     set -eu
     mkdir -p "$HOME/.config/devin"
     echo -n "${local.mcp_b64}" | base64 -d > "$HOME/.config/devin/mcp_config.json"

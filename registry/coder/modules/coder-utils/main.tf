@@ -110,7 +110,7 @@ resource "coder_script" "pre_install_script" {
   icon         = var.icon
   run_on_start = true
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -o errexit
     set -o pipefail
 
@@ -134,7 +134,7 @@ resource "coder_script" "install_script" {
   icon         = var.icon
   run_on_start = true
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -o errexit
     set -o pipefail
 
@@ -161,7 +161,7 @@ resource "coder_script" "post_install_script" {
   icon         = var.icon
   run_on_start = true
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -o errexit
     set -o pipefail
 
@@ -183,7 +183,7 @@ resource "coder_script" "start_script" {
   icon         = var.icon
   run_on_start = true
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -o errexit
     set -o pipefail
 

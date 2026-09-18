@@ -98,7 +98,7 @@ resource "coder_script" "jupyterlab_config" {
   run_on_start       = true
   start_blocks_login = false
   script             = <<-EOT
-    #!/bin/sh
+    #!/usr/bin/env sh
     set -eu
     mkdir -p "$HOME/.jupyter"
     echo -n "${local.config_b64}" | base64 -d > "$HOME/.jupyter/jupyter_server_config.json"

@@ -69,7 +69,7 @@ EOT
   })
 
   pre_install_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
     sudo apt-get install -y nodejs
   EOT

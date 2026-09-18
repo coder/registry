@@ -88,7 +88,7 @@ resource "coder_script" "windsurf_mcp" {
   run_on_start       = true
   start_blocks_login = false
   script             = <<-EOT
-    #!/bin/sh
+    #!/usr/bin/env sh
     set -eu
     mkdir -p "$HOME/.codeium/windsurf"
     echo -n "${local.mcp_b64}" | base64 -d > "$HOME/.codeium/windsurf/mcp_config.json"

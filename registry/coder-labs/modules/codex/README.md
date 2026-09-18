@@ -13,7 +13,7 @@ Install and configure the [Codex CLI](https://github.com/openai/codex) in your w
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.4.0"
+  version        = "5.4.1"
   agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
 }
@@ -33,7 +33,7 @@ locals {
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.4.0"
+  version        = "5.4.1"
   agent_id       = coder_agent.main.id
   workdir        = local.codex_workdir
   openai_api_key = var.openai_api_key
@@ -46,7 +46,7 @@ resource "coder_app" "codex" {
   icon         = "/icon/openai.svg"
   open_in      = "slim-window"
   command      = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -e
     cd "${local.codex_workdir}"
     codex
@@ -64,7 +64,7 @@ resource "coder_app" "codex" {
 ```tf
 module "codex" {
   source            = "registry.coder.com/coder-labs/codex/coder"
-  version           = "5.4.0"
+  version           = "5.4.1"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -88,7 +88,7 @@ When `enable_ai_gateway = true`, the module configures Codex to use the `aigatew
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.4.0"
+  version        = "5.4.1"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   openai_api_key = var.openai_api_key
@@ -134,7 +134,7 @@ The module exposes the `scripts` output: an ordered list of `coder exp sync` nam
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.4.0"
+  version        = "5.4.1"
   agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
 }
@@ -144,7 +144,7 @@ resource "coder_script" "post_codex" {
   display_name = "Run after Codex install"
   run_on_start = true
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     trap 'coder exp sync complete post-codex' EXIT
     coder exp sync want post-codex ${join(" ", module.codex.scripts)}
