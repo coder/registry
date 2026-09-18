@@ -57,7 +57,10 @@ The pool's service-account API key never leaves Agent Relay. At dispatch the
 relay exchanges it for a Cursor sub-token scoped to the requesting user and
 stamps that as the ephemeral `agent_relay_credential` parameter. The module
 exports it as `AGENT_RELAY_CURSOR_TOKEN` and starts the worker with
-`--auth-token`; it is never written to disk. The token acts only as that user,
+`--auth-token`. It is never written to disk, though as a command-line argument
+it is visible in the worker's `/proc/<pid>/cmdline` to any process running as
+the same user inside the workspace; the CLI offers no environment variable for
+it. The token acts only as that user,
 cannot mint further tokens, and expires after an hour. It is not refreshed: a
 worker that has to reconnect after expiry fails and Cursor re-queues the
 request for a fresh workspace.
