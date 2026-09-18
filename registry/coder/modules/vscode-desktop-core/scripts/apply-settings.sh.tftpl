@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+expand_home() {
+  case "$1" in
+    '$HOME')
+      printf '%s\n' "$HOME"
+      ;;
+    '$HOME/'*)
+      printf '%s/%s\n' "$HOME" "$${1#\$HOME/}"
+      ;;
+    *)
+      printf '%s\n' "$1"
+      ;;
+  esac
+}
+
+decode_path() {
+  local encoded_path="$1"
+  local decoded_path
+
+  decoded_path="$(printf '%s' "$encoded_path" | base64 -d)"
+  expand_home "$decoded_path"
+}
+
+SETTINGS_FILE="$(decode_path '${SETTINGS_FILE_B64}')"
+
+if [ -z "$SETTINGS_FILE" ]; then
+  printf 'settings_file is required when settings are configured.\n' >&2
+  exit 1
+fi
+
+if [ -L "$SETTINGS_FILE" ]; then
+  if ! command -v python3 > /dev/null 2>&1; then
+    printf 'Resolving a symlinked IDE settings file requires python3.\n' >&2
+    exit 1
+  fi
+
+  SETTINGS_FILE="$(python3 - "$SETTINGS_FILE" << 'PY'
+from pathlib import Path
+import sys
+
+
+try:
+    print(Path(sys.argv[1]).resolve(strict=True))
+except (OSError, RuntimeError) as error:
+    print(f"Cannot resolve IDE settings symlink: {error}", file=sys.stderr)
+    raise SystemExit(1)
+PY
+)"
+fi
+
+settings_directory="$(dirname "$SETTINGS_FILE")"
+mkdir -p "$settings_directory"
+
+desired_settings="$(mktemp "$settings_directory/.coder-settings.desired.XXXXXX")"
+merged_settings="$(mktemp "$settings_directory/.coder-settings.merged.XXXXXX")"
+trap 'rm -f "$desired_settings" "$merged_settings"' EXIT
+
+printf '%s' '${SETTINGS_B64}' | base64 -d > "$desired_settings"
+chmod 600 "$desired_settings"
+
+if [ ! -e "$SETTINGS_FILE" ]; then
+  mv "$desired_settings" "$SETTINGS_FILE"
+  printf 'Created IDE settings: %s\n' "$SETTINGS_FILE"
+  exit 0
+fi
+
+if [ ! -f "$SETTINGS_FILE" ]; then
+  printf 'IDE settings path is not a regular file: %s\n' "$SETTINGS_FILE" >&2
+  exit 1
+fi
+
+if ! command -v python3 > /dev/null 2>&1; then
+  printf 'Merging an existing IDE settings file requires python3.\n' >&2
+  exit 1
+fi
+
+python3 - "$SETTINGS_FILE" "$desired_settings" "$merged_settings" << 'PY'
+import json
+import sys
+
+
+def strip_jsonc_comments(source):
+    result = []
+    index = 0
+    in_string = False
+    escaped = False
+
+    while index < len(source):
+        character = source[index]
+
+        if in_string:
+            result.append(character)
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                in_string = False
+            index += 1
+            continue
+
+        if character == '"':
+            in_string = True
+            result.append(character)
+            index += 1
+            continue
+
+        if character == "/" and index + 1 < len(source):
+            next_character = source[index + 1]
+            if next_character == "/":
+                index += 2
+                while index < len(source) and source[index] not in "\r\n":
+                    index += 1
+                continue
+            if next_character == "*":
+                result.append(" ")
+                index += 2
+                while index + 1 < len(source):
+                    if source[index : index + 2] == "*/":
+                        index += 2
+                        break
+                    if source[index] in "\r\n":
+                        result.append(source[index])
+                    index += 1
+                else:
+                    raise ValueError("unterminated block comment in IDE settings")
+                continue
+
+        result.append(character)
+        index += 1
+
+    return "".join(result)
+
+
+def strip_trailing_commas(source):
+    result = []
+    index = 0
+    in_string = False
+    escaped = False
+
+    while index < len(source):
+        character = source[index]
+
+        if in_string:
+            result.append(character)
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                in_string = False
+            index += 1
+            continue
+
+        if character == '"':
+            in_string = True
+        elif character == ",":
+            lookahead = index + 1
+            while lookahead < len(source) and source[lookahead].isspace():
+                lookahead += 1
+            if lookahead < len(source) and source[lookahead] in "}]":
+                index += 1
+                continue
+
+        result.append(character)
+        index += 1
+
+    return "".join(result)
+
+
+def load_jsonc(path):
+    with open(path, encoding="utf-8-sig") as source_file:
+        source = source_file.read()
+    return json.loads(strip_trailing_commas(strip_jsonc_comments(source)))
+
+
+def merge(existing, configured):
+    result = dict(existing)
+    for key, value in configured.items():
+        if isinstance(result.get(key), dict) and isinstance(value, dict):
+            result[key] = merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+existing = load_jsonc(sys.argv[1])
+with open(sys.argv[2], encoding="utf-8") as configured_file:
+    configured = json.load(configured_file)
+
+if not isinstance(existing, dict):
+    raise ValueError("the existing IDE settings file must contain a JSON object")
+
+with open(sys.argv[3], "w", encoding="utf-8") as merged_file:
+    json.dump(merge(existing, configured), merged_file, indent=2)
+    merged_file.write("\n")
+PY
+
+chmod 600 "$merged_settings"
+mv "$merged_settings" "$SETTINGS_FILE"
+printf 'Merged IDE settings: %s\n' "$SETTINGS_FILE"

@@ -20,7 +20,7 @@ The dedicated extension script blocks ordinary workspace login by default and ha
 ```tf
 module "vscode-desktop-core" {
   source  = "registry.coder.com/coder/vscode-desktop-core/coder"
-  version = "1.2.0"
+  version = "1.3.0"
 
   agent_id = var.agent_id
 
@@ -35,9 +35,14 @@ module "vscode-desktop-core" {
   protocol    = "vscode"
   config_dir  = var.config_dir
 
+  settings      = var.settings
+  settings_file = local.remote_settings_file
+
   extensions             = var.extensions
   extensions_dir         = local.remote_extensions_dir
   ide_cli_path           = local.remote_ide_cli_path
   ide_cli_install_script = local.install_remote_ide_cli
 }
 ```
+
+Wrappers can also apply remote IDE settings before the first ordinary connection. The wrapper supplies the IDE-specific settings file, while the Core merges the configured object with any existing JSON or JSONC object. Configured values take precedence. Creating a new settings file requires only `base64`; merging an existing file requires `python3`. Existing symlinks are preserved and their targets are updated atomically. A merge or symlink-resolution failure leaves the original file unchanged.
