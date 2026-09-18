@@ -257,6 +257,7 @@ module "coder_utils" {
 output "status_metadata_script" {
   description = "Script body for the agent_relay_status agent metadata item the template must declare on its coder_agent."
   value = templatefile("${path.module}/status.sh.tftpl", {
+    cli_binary          = var.cli_binary
     state_file          = var.state_file
     log_file            = var.log_file
     serving_log_pattern = base64encode(var.serving_log_pattern)

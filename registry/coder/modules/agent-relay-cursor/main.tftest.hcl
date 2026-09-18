@@ -151,6 +151,13 @@ run "worker_wiring" {
     error_message = "the worker script and the status script must read the same state file"
   }
 
+  # A restart inside the same build must not report the previous run's
+  # state as this run's, nor launch a second worker beside a live one.
+  assert {
+    condition     = strcontains(local.start_script, "write_state \"pending\"") && strcontains(local.start_script, "worker_alive") && strcontains(output.status_metadata_script, "worker_alive")
+    error_message = "the start script must reset to pending and both scripts must check worker liveness by cmdline"
+  }
+
   assert {
     condition     = can(regex("failed runner-agent-missing", local.start_script))
     error_message = "the missing-binary reason is the vocabulary the reaper grades"

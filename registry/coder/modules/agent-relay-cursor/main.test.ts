@@ -180,6 +180,84 @@ describe("agent-relay-cursor", () => {
     expect(await readState(id)).toBe("done 3");
   });
 
+  // An agent restart inside the same build re-runs the start step with the
+  // credential still set and the previous run's state on disk.
+  describe("agent restart with a credential", () => {
+    const seedState = async (id: string, state: string) => {
+      await execContainer(id, ["mkdir", "-p", MODULE_DIR]);
+      await writeFileContainer(id, STATE_FILE, `${state}\n`, { user: "root" });
+    };
+    const workerCount = async (id: string) => {
+      // pgrep -f would match the counting shell itself; read /proc and
+      // count processes whose argv starts with the stub CLI.
+      const out = await execContainer(id, [
+        "sh",
+        "-c",
+        'n=0; for p in /proc/[0-9]*; do a=$(tr "\\0" " " <"$p/cmdline" 2>/dev/null); case "$a" in "bash /usr/local/bin/agent worker "*) n=$((n+1));; esac; done; echo $n',
+      ]);
+      return Number(out.stdout.trim());
+    };
+    const statusOf = async (id: string, statusScript: string) =>
+      (await execContainer(id, ["bash", "-c", statusScript])).stdout.trim();
+
+    it("does not restart after a terminal state", async () => {
+      const { id, scripts } = await setup();
+      await stubAgent(id, "sleep 30");
+      await seedState(id, "done 3");
+      const { start } = await runDispatched(id, scripts);
+      expect(start.exitCode).toBe(0);
+      expect(start.stdout).toContain("not restarting");
+      expect(await readState(id)).toBe("done 3");
+      expect(await workerCount(id)).toBe(0);
+    });
+
+    it("leaves a live worker alone instead of launching a second one", async () => {
+      const { id, scripts, statusScript } = await setup();
+      await stubAgent(id, "sleep 30");
+      const first = await runDispatched(id, scripts);
+      expect(first.start.exitCode).toBe(0);
+      const state = await readState(id);
+      expect(state).toMatch(/^working \d+$/);
+
+      const second = await runDispatched(id, scripts);
+      expect(second.start.exitCode).toBe(0);
+      expect(second.start.stdout).toContain("already running");
+      expect(await readState(id)).toBe(state);
+      expect(await workerCount(id)).toBe(1);
+      expect(await statusOf(id, statusScript)).toBe("working");
+    });
+
+    it("reports a reused pid as orphaned rather than working", async () => {
+      // kill -0 alone would trust any live pid; the cmdline check must
+      // reject one that is not our worker.
+      const { id, scripts, statusScript } = await setup();
+      await stubAgent(id, "sleep 30");
+      const sleeper = await execContainer(id, [
+        "sh",
+        "-c",
+        "sleep 60 >/dev/null 2>&1 & echo $!",
+      ]);
+      await seedState(id, `working ${sleeper.stdout.trim()}`);
+      expect(await statusOf(id, statusScript)).toBe("orphaned");
+
+      const { start } = await runDispatched(id, scripts);
+      expect(start.exitCode).toBe(0);
+      expect(start.stdout).toContain("gone without recording an exit");
+      expect(await workerCount(id)).toBe(0);
+    });
+
+    it("starts fresh from a stale pending state", async () => {
+      // A previous start that died before its supervisor wrote anything.
+      const { id, scripts } = await setup();
+      await stubAgent(id, "sleep 30");
+      await seedState(id, "pending");
+      const { start } = await runDispatched(id, scripts);
+      expect(start.exitCode).toBe(0);
+      expect(await readState(id)).toMatch(/^working \d+$/);
+      expect(await workerCount(id)).toBe(1);
+    });
+  });
+
   it("reports runner-agent-missing when the CLI is absent", async () => {
     const { id, scripts } = await setup({ install_cli: "false" });
     const { install, start } = await runDispatched(id, scripts);

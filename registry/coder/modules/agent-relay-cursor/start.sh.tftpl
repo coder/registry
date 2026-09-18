@@ -23,6 +23,13 @@ write_state() {
 	mv "$state_file.tmp" "$state_file"
 }
 
+# True when the pid is alive and is our worker. kill -0 alone would
+# trust a reused pid; the cmdline check ties it to the CLI we launched.
+worker_alive() {
+	[ -n "$${1:-}" ] && kill -0 "$1" 2>/dev/null &&
+		tr '\0' ' ' <"/proc/$1/cmdline" 2>/dev/null | grep -qF -- "$(basename "${cli_binary}")"
+}
+
 if [ -z "$${AGENT_RELAY_CURSOR_TOKEN:-}" ]; then
 	# Only claim idle when nothing has been recorded. A credential is
 	# ephemeral, so a restart of a finished workspace arrives here too,
@@ -34,6 +41,32 @@ if [ -z "$${AGENT_RELAY_CURSOR_TOKEN:-}" ]; then
 	echo "Idling. Delete this workspace manually or set the agent_relay_credential parameter."
 	exit 0
 fi
+
+# An agent restart inside the same build re-runs this script with the
+# credential still set and the previous run's state on disk. The
+# detached supervisor outlives the agent, so never launch a second
+# worker beside a live one, and never restart after a terminal state:
+# the relay is already acting on it and the credential is single-use.
+# Otherwise reset to pending so the previous run's state is not reported
+# as this run's while the supervisor starts.
+if [ -f "$state_file" ]; then
+	read -r previous_state previous_detail <"$state_file" || true
+	case "$previous_state" in
+	working)
+		if worker_alive "$${previous_detail:-}"; then
+			echo "Worker already running (pid $previous_detail) from a previous agent start; leaving it."
+		else
+			echo "Previous worker (pid $${previous_detail:-?}) is gone without recording an exit; leaving the state for Agent Relay."
+		fi
+		exit 0
+		;;
+	done | failed)
+		echo "Previous run ended with '$previous_state $${previous_detail:-}'; not restarting. Agent Relay reaps this workspace."
+		exit 0
+		;;
+	esac
+fi
+write_state "pending"
 
 # ~/.local/bin is where the official installer puts the CLI, whether the
 # install step ran it or the image author did. Unconditional so a

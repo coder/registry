@@ -106,7 +106,7 @@ finishes a turn, not when the chat closes, so keep the timeout at or above
 
 | value             | meaning                                                                    |
 | ----------------- | -------------------------------------------------------------------------- |
-| `pending`         | no state recorded yet                                                      |
+| `pending`         | start step running, supervisor has not written yet                         |
 | `idle`            | no credential: workspace was created manually                              |
 | `working`         | worker alive, no session attached                                          |
 | `serving`         | worker alive, session attached (best effort, see `serving_log_pattern`)    |
@@ -115,3 +115,10 @@ finishes a turn, not when the chat closes, so keep the timeout at or above
 | `failed <reason>` | worker could not start, e.g. `runner-agent-missing` when the CLI is absent |
 
 Renaming the `agent_relay_status` key breaks reaping.
+
+The start step is safe to re-run. An agent restart inside the same build
+re-runs it with the credential still set and the previous run's state on
+disk: a live worker is left alone, a terminal state is left for the relay
+to act on, and anything else is reset to `pending` before a new worker
+starts. Liveness is judged by pid and cmdline, so a reused pid reads as
+`orphaned` rather than `working`.
