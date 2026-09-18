@@ -22,25 +22,25 @@ module "coder_utils" {
   module_directory = "$HOME/.coder-modules/coder/claude-code"
 
   pre_install_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     echo "Running pre-install tasks..."
     # Your pre-install logic here
   EOT
 
   install_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     echo "Installing dependencies..."
     # Your install logic here
   EOT
 
   post_install_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     echo "Running post-install configuration..."
     # Your post-install logic here
   EOT
 
   start_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     echo "Starting the application..."
     # Your start logic here
   EOT

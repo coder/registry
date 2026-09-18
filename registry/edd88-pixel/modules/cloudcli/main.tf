@@ -98,7 +98,7 @@ resource "coder_script" "start_script" {
   start_blocks_login = false
 
   script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -o errexit
     set -o pipefail
 

@@ -49,7 +49,7 @@ resource "coder_script" "claude_with_agent_firewall" {
   display_name = "Claude (Agent Firewall)"
   run_on_start = true
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -e
     coder exp sync want claude-agent-firewall \
       ${join(" ", module.agent-firewall.scripts)} \
@@ -74,7 +74,7 @@ resource "coder_app" "claude_with_agent_firewall" {
   display_name = "Claude Code"
   slug         = "claude-code"
   command      = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -e
     exec tmux new-session -A -s claude-code \
       '"${module.agent-firewall.agent_firewall_wrapper_path}" --config="${module.agent-firewall.agent_firewall_config_path}" -- claude'

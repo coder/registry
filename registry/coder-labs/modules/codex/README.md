@@ -46,7 +46,7 @@ resource "coder_app" "codex" {
   icon         = "/icon/openai.svg"
   open_in      = "slim-window"
   command      = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -e
     cd "${local.codex_workdir}"
     codex
@@ -144,7 +144,7 @@ resource "coder_script" "post_codex" {
   display_name = "Run after Codex install"
   run_on_start = true
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     trap 'coder exp sync complete post-codex' EXIT
     coder exp sync want post-codex ${join(" ", module.codex.scripts)}

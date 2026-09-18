@@ -91,7 +91,7 @@ locals {
   EOT
 
   codex_pre_install_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     coder exp sync want matifali-codex-repo-ready ${local.repo_ready_sync_name}
     coder exp sync start matifali-codex-repo-ready
@@ -101,7 +101,7 @@ locals {
   EOT
 
   claude_code_pre_install_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     coder exp sync want matifali-claude-code-repo-ready ${local.repo_ready_sync_name}
     coder exp sync start matifali-claude-code-repo-ready
@@ -122,7 +122,7 @@ module "git_clone" {
   extra_args  = ["--depth=1"]
 
   post_clone_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     coder exp sync start ${local.repo_ready_sync_name}
     coder exp sync complete ${local.repo_ready_sync_name}
@@ -157,7 +157,7 @@ module "omnigent" {
 
   # Wait for Claude Code and Codex setup before Omnigent snapshots host tools.
   pre_install_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     coder exp sync want matifali-omnigent-ai-tools ${join(" ", concat(module.claude_code.scripts, module.codex.scripts))}
     coder exp sync start matifali-omnigent-ai-tools

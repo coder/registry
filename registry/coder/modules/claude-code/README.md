@@ -65,7 +65,7 @@ resource "coder_app" "claude" {
   icon         = "/icon/claude.svg"
   open_in      = "slim-window"
   command      = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -e
     cd ${local.claude_workdir}
     claude
@@ -158,7 +158,7 @@ module "claude-code" {
 
   api_key_helper = {
     script = <<-EOT
-      #!/bin/sh
+      #!/usr/bin/env sh
       exec vault kv get -field=key secret/anthropic
     EOT
     ttl_ms = 300000
@@ -177,7 +177,7 @@ module "claude-code" {
 
   api_key_helper = {
     script = <<-EOT
-      #!/bin/sh
+      #!/usr/bin/env sh
       exec aws secretsmanager get-secret-value \
         --secret-id anthropic/api-key \
         --query SecretString --output text
@@ -271,7 +271,7 @@ resource "coder_script" "post_claude" {
   display_name = "Run after Claude Code install"
   run_on_start = true
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     trap 'coder exp sync complete post-claude' EXIT
     coder exp sync want post-claude ${join(" ", module.claude-code.scripts)}

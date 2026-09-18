@@ -32,7 +32,7 @@ module "agentapi" {
   post_install_script  = var.post_install_script
   start_script         = local.start_script
   install_script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -o errexit
     set -o pipefail
 

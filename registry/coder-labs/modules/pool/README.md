@@ -51,7 +51,7 @@ resource "coder_app" "pool" {
   icon         = "/icon/poolside.svg"
   open_in      = "slim-window"
   command      = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -e
     cd "${local.pool_workdir}"
     pool
@@ -84,7 +84,7 @@ resource "coder_script" "pool_session" {
   display_name = "Start Pool session"
   run_on_start = true
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     trap 'coder exp sync complete pool-session' EXIT
     coder exp sync want pool-session ${join(" ", module.pool.scripts)}
@@ -101,7 +101,7 @@ resource "coder_app" "pool" {
   display_name = "Pool"
   icon         = "/icon/poolside.svg"
   command      = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -e
     exec tmux new-session -A -s pool 'pool'
   EOT
@@ -159,7 +159,7 @@ resource "coder_app" "pool" {
   display_name = "Pool (Agent Firewall)"
   icon         = "/icon/poolside.svg"
   command      = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -e
     exec tmux new-session -A -s pool \
       '"${module.agent-firewall.agent_firewall_wrapper_path}" --config="${module.agent-firewall.agent_firewall_config_path}" -- pool'
@@ -230,7 +230,7 @@ resource "coder_script" "verify_pool" {
   display_name = "Verify Pool CLI"
   run_on_start = true
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     trap 'coder exp sync complete verify-pool' EXIT
     coder exp sync want verify-pool ${join(" ", module.pool.scripts)}
