@@ -55,15 +55,6 @@ startup and refuses to serve a pool that does not satisfy it. Every parameter
 renders disabled with a "Set by Agent Relay on dispatch" placeholder; the
 credential is masked.
 
-| parameter                                 | kind       | value                                                                        |
-| ----------------------------------------- | ---------- | ---------------------------------------------------------------------------- |
-| `agent_relay_session_id`                  | persistent | Anthropic session this workspace serves                                      |
-| `agent_relay_delivery_id`                 | persistent | work order that dispatched the build; rotates per attempt                    |
-| `agent_relay_pool`                        | persistent | Agent Relay pool that dispatched the build                                   |
-| `agent_relay_credential`                  | ephemeral  | single-use work order JWT (`SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET`)          |
-| `agent_relay_claude_code_lock_to_account` | ephemeral  | Anthropic account the runner locks to (`SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT`) |
-| `agent_relay_attempt`                     | ephemeral  | delivery attempt, echoed back when the relay nacks the session               |
-
 ## Scripts and logs
 
 The module runs two steps through [coder-utils](https://registry.coder.com/modules/coder/coder-utils):
