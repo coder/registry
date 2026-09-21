@@ -95,6 +95,6 @@ output "value" {
 }
 
 output "instances" {
-  description = "All AWS EC2 instance types keyed by instance type ID, including architecture metadata (coder_arch, ami, attr)."
+  description = "All AWS EC2 instance types keyed by instance type ID, including architecture metadata (coder_arch, ami)."
   value       = { for instance in local.instance_types : instance.value => instance }
 }

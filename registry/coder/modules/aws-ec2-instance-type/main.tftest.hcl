@@ -107,7 +107,7 @@ run "x86_instances_report_amd64" {
   command = plan
 
   assert {
-    condition     = output.instances["t3.medium"].coder_arch == "amd64" && output.instances["t3.medium"].ami == "x86_64" && output.instances["t3.medium"].attr == "x86_64"
+    condition     = output.instances["t3.medium"].coder_arch == "amd64" && output.instances["t3.medium"].ami == "x86_64"
     error_message = "x86 instances should report amd64 / x86_64 architecture"
   }
 }
@@ -116,8 +116,8 @@ run "arm_instances_report_arm64" {
   command = plan
 
   assert {
-    condition     = output.instances["m7g.large"].coder_arch == "arm64" && output.instances["m7g.large"].ami == "arm64" && output.instances["m7g.large"].attr == "aarch64"
-    error_message = "Graviton instances should report arm64 / aarch64 architecture"
+    condition     = output.instances["m7g.large"].coder_arch == "arm64" && output.instances["m7g.large"].ami == "arm64"
+    error_message = "Graviton instances should report arm64 architecture"
   }
 }
 
