@@ -318,4 +318,7 @@ it is reproducible and avoids the dynamic-linking problem entirely.
 
 The Nix-specific parts of the boot and rebuild paths live in
 [`modules/nix/`](./modules/nix/README.md), kept separate so they can become a standalone Coder
-module that manages a flake lifecycle on any Linux host, not just NixOS.
+module that manages a flake lifecycle on any Linux host, not just NixOS. The EC2 side — the boot
+script and the user-data wrapper that `amazon-init` execs — is
+[`modules/amazon-init/`](./modules/amazon-init/README.md), so the two halves can move
+independently: another cloud replaces the second without touching the first.
