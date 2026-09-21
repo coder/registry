@@ -11,4 +11,4 @@ exportfs = "exportfs" # nfs related binary
 ba = "ba" # sed branch command in :a;$!{N;ba} pattern
 
 [files]
-extend-exclude = ["registry/coder/templates/aws-devcontainer/architecture.svg"] #False positive
+extend-exclude = ["registry/coder/.images/aws-envbuilder-architecture.svg"] #False positive

@@ -1,8 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 
 BOLD='\033[0;1m'
+CODEX_VERSION=""
 
 command_exists() {
   command -v "$1" > /dev/null 2>&1
@@ -17,7 +18,6 @@ ARG_MCP_CONFIG_REMOTE_PATH=$(echo -n '${ARG_MCP_CONFIG_REMOTE_PATH}' | base64 -d
 ARG_ENABLE_AI_GATEWAY='${ARG_ENABLE_AI_GATEWAY}'
 ARG_AIBRIDGE_CONFIG=$(echo -n '${ARG_AIBRIDGE_CONFIG}' | base64 -d)
 ARG_MODEL_REASONING_EFFORT='${ARG_MODEL_REASONING_EFFORT}'
-ARG_OPENAI_API_KEY=$(echo -n '${ARG_OPENAI_API_KEY}' | base64 -d)
 
 echo "--------------------------------"
 printf "codex_version: %s\n" "$${ARG_CODEX_VERSION}"
@@ -56,8 +56,13 @@ function ensure_codex_in_path() {
   fi
 
   if [ -z "$${CODEX_BIN}" ] || [ ! -x "$${CODEX_BIN}" ]; then
-    echo "Warning: Could not find codex binary after install"
-    return
+    echo "Codex binary was not found or is not executable." >&2
+    return 1
+  fi
+
+  if ! CODEX_VERSION=$("$${CODEX_BIN}" --version); then
+    echo "Codex binary could not be executed." >&2
+    return 1
   fi
 
   local CODEX_DIR
@@ -75,36 +80,26 @@ function install_codex() {
   if [ "$${ARG_INSTALL}" != "true" ]; then
     echo "Skipping Codex installation as per configuration."
     ensure_codex_in_path
+    printf "%s Validated existing Codex CLI: %s\n" "$${BOLD}" "$${CODEX_VERSION}"
     return
   fi
 
   printf "%s Installing Codex CLI\n" "$${BOLD}"
 
-  local arch
-  arch=$(uname -m)
-  local target="$${arch}-unknown-linux-musl"
-  local version="$${ARG_CODEX_VERSION}"
-
-  local url="https://github.com/openai/codex/releases/download/rust-v$${version}/codex-$${target}.tar.gz"
-
-  if [ "$${version}" = "latest" ]; then
-    url="https://github.com/openai/codex/releases/latest/download/codex-$${target}.tar.gz"
+  if ! curl --fail --silent --show-error --location \
+    --retry 2 --retry-delay 1 --retry-all-errors \
+    --connect-timeout 10 --max-time 300 \
+    https://chatgpt.com/codex/install.sh \
+    | CODEX_INSTALL_DIR="$HOME/.local/bin" \
+      CODEX_RELEASE="$${ARG_CODEX_VERSION}" \
+      CODEX_NON_INTERACTIVE=1 sh; then
+    echo "Codex installation failed." >&2
+    return 1
   fi
 
-  printf "Downloading %s\n" "$${url}"
-  local tmp_dir
-  tmp_dir=$(mktemp -d)
-  curl -fsSL -o "$${tmp_dir}/codex.tar.gz" "$${url}"
-
-  tar -xzf "$${tmp_dir}/codex.tar.gz" -C "$${tmp_dir}"
-  mkdir -p "$HOME/.local/bin"
-  mv "$${tmp_dir}/codex-$${target}" "$HOME/.local/bin/codex"
-  chmod +x "$HOME/.local/bin/codex"
-  rm -rf "$${tmp_dir}"
-
   export PATH="$HOME/.local/bin:$PATH"
-  printf "%s Installed Codex CLI: %s\n" "$${BOLD}" "$(codex --version)"
   ensure_codex_in_path
+  printf "%s Installed Codex CLI: %s\n" "$${BOLD}" "$${CODEX_VERSION}"
 }
 
 function write_minimal_default_config() {
@@ -189,7 +184,7 @@ function populate_config_toml() {
   fi
 
   if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] && [ -n "$${ARG_AIBRIDGE_CONFIG}" ]; then
-    if ! grep -q '\[model_providers\.aigateway\]' "$${managed}" 2>/dev/null; then
+    if ! grep -q '\[model_providers\.aigateway\]' "$${managed}" 2> /dev/null; then
       printf "Adding AI Gateway configuration\n"
       printf '\n%s\n' "$${ARG_AIBRIDGE_CONFIG}" >> "$${managed}"
     else
@@ -247,24 +242,19 @@ function setup_workdir() {
   fi
 }
 
-function add_auth_json() {
-  if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] || [ -z "$${ARG_OPENAI_API_KEY}" ]; then
+function authenticate_codex() {
+  if [ "$${ARG_ENABLE_AI_GATEWAY}" = "true" ] || [ -z "$${OPENAI_API_KEY:-}" ]; then
     return
   fi
 
-  local auth_path="$HOME/.codex/auth.json"
-  mkdir -p "$(dirname "$${auth_path}")"
-
-  cat << EOF > "$${auth_path}"
-{
-  "auth_mode": "apikey",
-  "OPENAI_API_KEY": "$${ARG_OPENAI_API_KEY}"
-}
-EOF
-  echo "Seeded auth.json with API key"
+  if ! printf '%s' "$${OPENAI_API_KEY}" | codex login --with-api-key; then
+    echo "Codex authentication failed." >&2
+    return 1
+  fi
+  echo "Codex authenticated successfully."
 }
 
 install_codex
 populate_config_toml
 setup_workdir
-add_auth_json
+authenticate_codex

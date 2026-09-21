@@ -292,6 +292,61 @@ JSONCEOF`,
     expect(result.stdout).toContain("INSTALLED:esbenp.prettier-vscode");
   });
 
+  it("runs a preparation script before auto-installing extensions", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      use_cached: true,
+      auto_install_extensions: true,
+      folder: "/workspace/project",
+      pre_auto_install_extensions_script: `
+for attempt in 1 2 3 4 5; do
+  if [ -f /workspace/project/.vscode/extensions.json ]; then
+    exit 0
+  fi
+  sleep 1
+done
+exit 1`,
+    });
+
+    const containerId = await runContainer("ubuntu:22.04");
+    cleanupContainers.push(containerId);
+
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `cat > /usr/local/bin/jq << 'JQEOF'
+#!/bin/sh
+cat > /dev/null
+printf 'ms-python.python\n'
+JQEOF
+chmod +x /usr/local/bin/jq
+mkdir -p /tmp/code-server/bin && cat > /tmp/code-server/bin/code-server << 'MOCKEOF'
+${MOCK_CODE_SERVER}
+MOCKEOF
+chmod +x /tmp/code-server/bin/code-server`,
+    ]);
+    await execContainer(containerId, [
+      "bash",
+      "-c",
+      `nohup bash -c 'sleep 2
+mkdir -p /workspace/project/.vscode
+cat > /workspace/project/.vscode/extensions.json << 'JSONEOF'
+{"recommendations":["ms-python.python"]}
+JSONEOF
+' > /tmp/delayed-workspace.log 2>&1 &`,
+    ]);
+
+    const script = findResourceInstance(state, "coder_script");
+    const result = await execContainer(containerId, [
+      "bash",
+      "-c",
+      script.script,
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("INSTALLED:ms-python.python");
+  });
+
   it("does not error on an extensions.json without a recommendations key", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",

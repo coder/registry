@@ -6,8 +6,9 @@ Coder Registry: Terraform modules/templates for Coder workspaces under `registry
 
 ```bash
 bun run fmt                                           # Format code (Prettier + Terraform) - run before commits
-bun run tftest                                        # Run all Terraform tests
-bun run tstest                                        # Run all TypeScript tests
+bun run check:terraform                               # Run all Terraform tests
+bun run check:typescript                              # Run all TypeScript tests
+bun check                                             # Run all tests + validation (validate, shellcheck, terraform, typescript)
 terraform init -upgrade && terraform test -verbose    # Test single module (run from module dir)
 bun test main.test.ts                                 # Run single TS test (from module dir)
 ./scripts/terraform_validate.sh                       # Validate Terraform syntax
@@ -106,8 +107,8 @@ output "scripts" {
 - Use semantic versioning; bump version via script when modifying modules
 - Docker tests require Linux or Colima/OrbStack (not Docker Desktop)
 - Use `tf` (not `hcl`) for code blocks in README; use relative icon paths (e.g., `../../../../.icons/`)
-- **Do NOT include input/output variable tables in module or template READMEs.** The registry automatically generates these from the Terraform source (e.g., variable and output blocks in `main.tf`). Adding them to the README is redundant and creates maintenance drift.
-- Usage examples (e.g., a `module "..." { }` block) are encouraged, but not tables enumerating inputs/outputs.
+- **Never include parameter listings or input/output variable tables in module or template READMEs.** This includes workspace parameters declared with `coder_parameter`. The registry automatically parses the Terraform source and displays parameters in a dedicated tab on `registry.coder.com`; input/output documentation is also generated from the source. Duplicating these listings in the README is redundant and creates maintenance drift.
+- Usage examples (e.g., a `module "..." { }` block) and explanations of parameter behavior are encouraged, but not tables or lists enumerating parameters, inputs, or outputs.
 
 ### Variable and output conventions
 
@@ -136,7 +137,7 @@ variable "api_key" {
 - Version bumped via `.github/scripts/version-bump.sh` if module changed (patch=bugfix, minor=feature, major=breaking)
 - Breaking changes documented: removed inputs, changed defaults, new required variables
 - New variables have sensible defaults to maintain backward compatibility
-- Tests pass (`bun run tftest`, `bun run tstest`); add diagnostic logging for test failures
+- Tests pass (`bun run check:terraform`, `bun run check:typescript`, or `bun check` for everything); add diagnostic logging for test failures
 - README examples updated with new version number; tooltip/behavior changes noted
 - Shell scripts handle errors gracefully (use `|| echo "Warning..."` for non-fatal failures)
 - No hardcoded values that should be configurable; no absolute URLs (use relative paths)

@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+expand_home() {
+  case "$1" in
+    '$HOME')
+      printf '%s\n' "$HOME"
+      ;;
+    '$HOME/'*)
+      printf '%s/%s\n' "$HOME" "$${1#\$HOME/}"
+      ;;
+    *)
+      printf '%s\n' "$1"
+      ;;
+  esac
+}
+
+download() {
+  local url="$1"
+  local destination="$2"
+
+  if command -v curl >/dev/null 2>&1; then
+    curl --fail --location --silent --show-error "$url" --output "$destination"
+  elif command -v wget >/dev/null 2>&1; then
+    wget --quiet --output-document="$destination" "$url"
+  else
+    printf 'Devin Remote Host installation requires curl or wget.\n' >&2
+    exit 1
+  fi
+}
+
+extract_json_string() {
+  local key="$1"
+  local source_file="$2"
+  local value
+
+  value="$(
+    sed -n "s/.*\"$${key}\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" "$source_file" |
+      head -n 1
+  )"
+  if [ -z "$value" ]; then
+    printf 'Devin update response does not contain %s.\n' "$key" >&2
+    exit 1
+  fi
+  printf '%s\n' "$value"
+}
+
+verify_sha256() {
+  local expected="$1"
+  local archive="$2"
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    printf '%s  %s\n' "$expected" "$archive" | sha256sum --check --status
+  elif command -v shasum >/dev/null 2>&1; then
+    printf '%s  %s\n' "$expected" "$archive" | shasum --algorithm 256 --check --status
+  else
+    printf 'Devin Remote Host installation requires sha256sum or shasum.\n' >&2
+    exit 1
+  fi
+}
+
+SERVER_DIRECTORY="$(printf '%s' '${SERVER_DIRECTORY_B64}' | base64 -d)"
+SERVER_DIRECTORY="$(expand_home "$SERVER_DIRECTORY")"
+IDE_CLI_PATH="$SERVER_DIRECTORY/bin/devin-server"
+
+if [ -x "$IDE_CLI_PATH" ]; then
+  exit 0
+fi
+
+case "$(uname -m)" in
+  x86_64)
+    remote_arch="x64"
+    ;;
+  aarch64 | arm64)
+    remote_arch="arm64"
+    ;;
+  *)
+    printf 'Unsupported architecture for Devin Remote Host: %s\n' "$(uname -m)" >&2
+    exit 1
+    ;;
+esac
+
+update_url="https://windsurf-stable.codeium.com/api/update/linux-reh-$remote_arch/stable/latest"
+temporary_directory="$(mktemp -d)"
+trap 'rm -rf "$temporary_directory"' EXIT
+
+update_response="$temporary_directory/update.json"
+archive="$temporary_directory/devin-remote-host.tar.gz"
+extracted_server="$temporary_directory/server"
+
+download "$update_url" "$update_response"
+
+archive_url="$(extract_json_string url "$update_response")"
+archive_sha256="$(extract_json_string sha256hash "$update_response")"
+
+case "$archive_url" in
+  "https://windsurf-stable.codeiumdata.com/linux-reh-$remote_arch/stable/"*.tar.gz) ;;
+  *)
+    printf 'Devin update response returned an unexpected archive URL.\n' >&2
+    exit 1
+    ;;
+esac
+
+case "$archive_sha256" in
+  *[!0-9a-fA-F]*)
+    printf 'Devin update response returned an invalid SHA-256 hash.\n' >&2
+    exit 1
+    ;;
+esac
+if [ "$${#archive_sha256}" -ne 64 ]; then
+  printf 'Devin update response returned an invalid SHA-256 hash.\n' >&2
+  exit 1
+fi
+
+download "$archive_url" "$archive"
+verify_sha256 "$archive_sha256" "$archive"
+
+mkdir -p "$extracted_server"
+tar -xzf "$archive" -C "$extracted_server"
+
+if [ ! -x "$extracted_server/bin/devin-server" ]; then
+  printf 'Devin Remote Host archive does not contain the expected CLI executable.\n' >&2
+  exit 1
+fi
+
+mkdir -p "$(dirname "$SERVER_DIRECTORY")"
+rm -rf "$SERVER_DIRECTORY"
+mv "$extracted_server" "$SERVER_DIRECTORY"

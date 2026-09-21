@@ -24,7 +24,10 @@
 # inert text for the LLM prompt. Nothing from the PR head is executed.
 #
 # Required repository secrets:
-#   SCORECARD_ANTHROPIC_API_KEY  Anthropic API key used for scoring
+#   SCORECARD_CDRSTABLE_TOKEN  cdrstable.dev token for the dedicated
+#                              "registry-scorecard" service account, used for
+#                              scoring via cdrstable.dev's AI Gateway (Anthropic
+#                              passthrough) instead of a raw Anthropic key.
 #
 # The baseline lookup reads discussions with the built-in GITHUB_TOKEN
 # (discussions: read below); no PAT is needed.
@@ -110,7 +113,7 @@ jobs:
       - name: Score changed modules
         if: steps.changed.outputs.modules != ''
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.SCORECARD_ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.SCORECARD_CDRSTABLE_TOKEN }}
           GITHUB_DISCUSSIONS_TOKEN: ${{ github.token }}
           MODULES: ${{ steps.changed.outputs.modules }}
         run: bun run .github/scorecard/score-modules.ts --modules "${MODULES}" --pr-report /tmp/scorecard-report.md

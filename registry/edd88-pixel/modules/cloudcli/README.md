@@ -14,7 +14,7 @@ Install and run the open source [CloudCLI](https://cloudcli.ai/) web interface f
 module "cloudcli" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/edd88-pixel/cloudcli/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -38,7 +38,7 @@ module "claude-code" {
 module "cloudcli" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/edd88-pixel/cloudcli/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -70,7 +70,7 @@ CloudCLI discovers projects under the workspace user's home directory by default
 module "cloudcli" {
   count           = data.coder_workspace.me.start_count
   source          = "registry.coder.com/edd88-pixel/cloudcli/coder"
-  version         = "1.0.0"
+  version         = "1.0.1"
   agent_id        = coder_agent.main.id
   workspaces_root = "/home/coder/project"
 }
