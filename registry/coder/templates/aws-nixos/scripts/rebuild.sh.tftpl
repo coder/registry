@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# Periodic nixos-rebuild, run by a coder_script on a cron schedule.
+#
+# coder_script bodies run as the workspace user through its login shell and
+# there is no run_as argument, so everything privileged goes through sudo.
+
+set -euo pipefail
+
+FLAKE_REF='${ARG_FLAKE_REF}'
+FLAKE_BRANCH='${ARG_FLAKE_BRANCH}'
+FLAKE_ATTR='${ARG_FLAKE_ATTR}'
+OPERATION='${ARG_UPDATE_PROCESS}'
+ACCESS_URL='${ARG_ACCESS_URL}'
+LOG_SOURCE_ID='${ARG_LOG_SOURCE_ID}'
+
+STATE_DIR=/var/lib/coder-nixos
+LOG_DIR=/var/log/coder-nixos
+FLAKE_DIR=/etc/nixos
+
+CODER_ACCESS_URL="$ACCESS_URL"
+CODER_LOG_SOURCE_ID="$LOG_SOURCE_ID"
+CODER_LOG_STATE_DIR="$STATE_DIR"
+# Always present: the agent sets it for the scripts it runs. Logging simply
+# stays disabled if it is not.
+CODER_AGENT_TOKEN="$${CODER_AGENT_TOKEN:-}"
+CODER_LOG_BUDGET=524288
+
+${LOG_SH}
+
+NIX_FLAKE_DIR="$FLAKE_DIR"
+NIX_FLAKE_ATTR="$FLAKE_ATTR"
+NIX_STATE_DIR="$STATE_DIR"
+NIX_LOG_DIR="$LOG_DIR"
+
+${LIFECYCLE_SH}
+
+# Don't queue: if the boot script or a previous tick still holds the lock,
+# doing nothing is correct. coder_script does not prevent overlapping cron
+# runs, so this is the only thing that does.
+if ! nix_lock nowait; then
+  echo "Another nixos-rebuild is in progress; skipping this run."
+  exit 0
+fi
+
+TRANSCRIPT="$LOG_DIR/rebuild-$(date -u +%Y%m%dT%H%M%SZ).log"
+
+nix_sync_checkout "$FLAKE_REF" "$FLAKE_BRANCH"
+
+REV=$(nix_needs_rebuild) && NEEDS_REBUILD=1 || NEEDS_REBUILD=0
+if [ "$NEEDS_REBUILD" -eq 0 ]; then
+  echo "Already up to date ($${REV:0:12})."
+  exit 0
+fi
+
+echo "Running nixos-rebuild $OPERATION for $FLAKE_DIR#$FLAKE_ATTR ($${REV:0:12})"
+echo "Transcript: $TRANSCRIPT"
+
+if ! nix_apply "$OPERATION" "$TRANSCRIPT"; then
+  echo "nixos-rebuild $OPERATION failed; the running system is untouched." >&2
+  echo "See $TRANSCRIPT." >&2
+  exit 1
+fi
+nix_record_rev "$REV"
+
+case "$OPERATION" in
+  boot)
+    if nix_pending_generation; then
+      echo "A new system generation is staged and applies on the next restart."
+    fi
+    ;;
+  switch)
+    # The agent survives because coder-agent.service is declared with
+    # restartIfChanged = false.
+    echo "New system generation is active."
+    ;;
+esac

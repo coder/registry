@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+# EC2 user-data. The NixOS AMI does not run cloud-init; it runs
+# amazon-init.service, which execs this as a shell script when it starts with
+# `#!` -- after multi-user.target, on every boot. So it must be idempotent.
+
+set -euo pipefail
+export PATH="/run/current-system/sw/bin:$PATH"
+export HOME=/root
+
+FLAKE_REF='${ARG_FLAKE_REF}'
+FLAKE_BRANCH='${ARG_FLAKE_BRANCH}'
+FLAKE_ATTR='${ARG_FLAKE_ATTR}'
+ACCESS_URL='${ARG_ACCESS_URL}'
+AGENT_TOKEN='${ARG_AGENT_TOKEN}'
+INIT_SCRIPT_B64='${ARG_INIT_SCRIPT_B64}'
+LOG_SOURCE_ID='${ARG_LOG_SOURCE_ID}'
+HOSTNAME_='${ARG_HOSTNAME}'
+WORKSPACE_NAME='${ARG_WORKSPACE_NAME}'
+OWNER='${ARG_OWNER}'
+OWNER_NAME_B64='${ARG_OWNER_NAME_B64}'
+OWNER_EMAIL='${ARG_OWNER_EMAIL}'
+
+RUNTIME_DIR=/run/coder
+STATE_DIR=/var/lib/coder-nixos
+LOG_DIR=/var/log/coder-nixos
+FLAKE_DIR=/etc/nixos
+
+# --- 1. Hand the agent its token -------------------------------------------
+#
+# Done first, before anything that can fail, so that the agent can be started
+# from any later exit path -- including a failed rebuild, where a reachable
+# workspace is the only way to debug the flake that broke it.
+#
+# The token stays out of Nix on purpose. As a flake input it would be baked
+# into a derivation, land world-readable in /nix/store and persist across
+# generations and past rotation. RUNTIME_DIR is a tmpfs, so nothing here
+# survives a reboot -- which is the point, since the token rotates on every
+# workspace start.
+
+install -d -m 0700 "$RUNTIME_DIR"
+install -d -m 0755 "$STATE_DIR" "$LOG_DIR"
+rm -f "$RUNTIME_DIR/ready"
+
+umask 077
+printf 'CODER_AGENT_TOKEN=%s\nCODER_AGENT_URL=%s\n' "$AGENT_TOKEN" "$ACCESS_URL" \
+  >"$RUNTIME_DIR/agent.env"
+umask 022
+printf '%s' "$INIT_SCRIPT_B64" | base64 -d >"$RUNTIME_DIR/init.sh"
+chmod 0755 "$RUNTIME_DIR/init.sh"
+
+# The unit runs as the workspace user, so it has to be able to traverse the
+# directory and read the token. Mode stays 0600/0700; only the owner changes.
+#
+# The owner is whoever the flake says the agent runs as -- asked of the unit
+# rather than guessed by the template, so a configuration we do not control
+# cannot disagree with us.
+#
+# On the very first boot the unit does not exist yet, so this is a no-op and
+# is retried after the switch, before the agent is started.
+chown_handoff() {
+  local target
+  target=$(systemctl show coder-agent -p User --value 2>/dev/null || true)
+  [ -n "$target" ] || return 0
+  chown -R "$target" "$RUNTIME_DIR" 2>/dev/null || true
+}
+chown_handoff
+touch "$RUNTIME_DIR/ready"
+chown_handoff
+
+[ -z "$HOSTNAME_" ] || hostnamectl set-hostname "$HOSTNAME_" || true
+
+# --- 2. Logging -------------------------------------------------------------
+
+CODER_ACCESS_URL="$ACCESS_URL"
+CODER_AGENT_TOKEN="$AGENT_TOKEN"
+CODER_LOG_SOURCE_ID="$LOG_SOURCE_ID"
+CODER_LOG_STATE_DIR="$RUNTIME_DIR"
+# Half of Coder's 1 MiB per-agent cap, leaving room for coder_script output.
+# Overflowing the cap is permanent and silently drops all later logs.
+CODER_LOG_BUDGET=524288
+
+${LOG_SH}
+
+TRANSCRIPT="$LOG_DIR/rebuild-$(date -u +%Y%m%dT%H%M%SZ).log"
+coder_log_init "NixOS" "/icon/nix.svg" || true
+
+nix_log() { coder_log "$@" || true; }
+
+# The agent is not `wantedBy = multi-user.target` in the flake; nothing starts
+# it but this. That is what keeps the workspace from being handed to the user
+# on the generation we are about to replace -- startup scripts would install
+# into a system that is seconds from being swapped out.
+#
+# So every exit path from here on has to go through this, including the
+# failure ones: a workspace whose flake does not build is exactly the
+# workspace someone needs a terminal on.
+start_agent() {
+  if systemctl is-active --quiet coder-agent; then
+    return 0
+  fi
+  if ! systemctl cat coder-agent >/dev/null 2>&1; then
+    coder_log error "coder-agent.service does not exist: the flake has never been applied." || true
+    return 1
+  fi
+
+  chown_handoff
+  systemctl start coder-agent || true
+
+  # Type=simple, so systemd reports the unit active as soon as it has forked.
+  # Give a start that is going to fail immediately the chance to do so.
+  sleep 3
+  if systemctl is-active --quiet coder-agent; then
+    coder_log info "coder-agent is active." || true
+    return 0
+  fi
+
+  coder_log error "coder-agent failed to start." || true
+  journalctl -u coder-agent --no-pager --lines=30 2>/dev/null | coder_log_pipe error || true
+  return 1
+}
+
+on_error() {
+  local rc=$?
+  coder_log error "Boot script failed (exit $rc). Transcript: $TRANSCRIPT" || true
+  coder_log_tail "$TRANSCRIPT" 200 || true
+  start_agent || true
+  exit "$rc"
+}
+trap on_error ERR
+
+# --- 3. Facts about this workspace -----------------------------------------
+#
+# A runtime interface, not an evaluation input: a flake cannot read an
+# absolute path outside itself in pure evaluation mode, so consuming this at
+# eval time would need --impure and would stop `nixos-rebuild switch` from
+# reproducing what we apply. Configurations read it from a service instead.
+#
+# Identity only. The token lives in agent.env at 0600 and never appears here.
+
+cat >"$RUNTIME_DIR/workspace.json" <<JSONEOF
+{
+  "workspace": "$WORKSPACE_NAME",
+  "owner": "$OWNER",
+  "owner_name": "$(printf '%s' "$OWNER_NAME_B64" | base64 -d)",
+  "owner_email": "$OWNER_EMAIL",
+  "access_url": "$ACCESS_URL",
+  "hostname": "$HOSTNAME_"
+}
+JSONEOF
+chmod 0644 "$RUNTIME_DIR/workspace.json"
+
+# --- 4. Apply --------------------------------------------------------------
+
+NIX_FLAKE_DIR="$FLAKE_DIR"
+NIX_FLAKE_ATTR="$FLAKE_ATTR"
+NIX_STATE_DIR="$STATE_DIR"
+NIX_LOG_DIR="$LOG_DIR"
+
+${LIFECYCLE_SH}
+
+nix_lock
+nix_sync_checkout "$FLAKE_REF" "$FLAKE_BRANCH"
+
+REV=$(nix_needs_rebuild) && NEEDS_REBUILD=1 || NEEDS_REBUILD=0
+if [ "$NEEDS_REBUILD" -eq 0 ]; then
+  coder_log info "Configuration unchanged ($${REV:0:12}); skipping rebuild." || true
+  start_agent
+  exit 0
+fi
+
+coder_log info "Applying $FLAKE_DIR#$FLAKE_ATTR ($${REV:0:12})" || true
+coder_log info "Transcript: $TRANSCRIPT" || true
+
+if ! nix_apply switch "$TRANSCRIPT"; then
+  coder_log error "nixos-rebuild switch failed; the previous generation is still active." || true
+  coder_log_tail "$TRANSCRIPT" 200 || true
+  # Only reachable on a boot that already has a generation of its own, since
+  # the first boot has no agent unit to fall back to.
+  start_agent || true
+  exit 1
+fi
+
+nix_record_rev "$REV"
+# The workspace user exists now, so systemd-tmpfiles has set the flake
+# directory's owner; make the tree match it.
+nix_own_checkout
+
+# Activation has finished, so the agent's startup scripts see a settled
+# system: the final generation's /etc, its PATH, its interpreters.
+coder_log info "Switch complete; starting the agent." || true
+start_agent
