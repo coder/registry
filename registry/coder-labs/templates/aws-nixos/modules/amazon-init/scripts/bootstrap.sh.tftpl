@@ -19,10 +19,6 @@ LOG_DISPLAY_NAME_B64='${ARG_LOG_DISPLAY_NAME_B64}'
 LOG_ICON='${ARG_LOG_ICON}'
 LOG_BUDGET='${ARG_LOG_BUDGET}'
 HOSTNAME_='${ARG_HOSTNAME}'
-WORKSPACE_NAME='${ARG_WORKSPACE_NAME}'
-OWNER='${ARG_OWNER}'
-OWNER_NAME_B64='${ARG_OWNER_NAME_B64}'
-OWNER_EMAIL='${ARG_OWNER_EMAIL}'
 
 RUNTIME_DIR='${ARG_RUNTIME_DIR}'
 
@@ -125,7 +121,7 @@ start_agent() {
 
 on_error() {
   local rc=$?
-  coder_log error "Boot failed before the boot script ran (exit $rc)." || true
+  coder_log error "Bootstrap failed (exit $rc)." || true
   start_agent || true
   exit "$rc"
 }
@@ -133,19 +129,18 @@ trap on_error ERR
 
 # --- 3. Facts about this workspace -----------------------------------------
 #
-# A runtime interface: identity only, mode 0644, no secrets. The token lives
-# in agent.env at 0600 and never appears here.
+# The runtime interface: who owns this workspace, where the deployment is, and
+# anything the caller added through `values`. Mode 0644, because unprivileged
+# services read it -- so no secrets. The token lives in agent.env at 0600 and
+# never appears here.
+#
+# Rendered as JSON by Terraform rather than assembled in shell: a full name
+# with a quote in it is somebody's Tuesday, and this way it cannot break the
+# document.
 
-cat >"$RUNTIME_DIR/workspace.json" <<JSONEOF
-{
-  "workspace": "$WORKSPACE_NAME",
-  "owner": "$OWNER",
-  "owner_name": "$(printf '%s' "$OWNER_NAME_B64" | base64 -d)",
-  "owner_email": "$OWNER_EMAIL",
-  "access_url": "$ACCESS_URL",
-  "hostname": "$HOSTNAME_"
-}
-JSONEOF
+cat >"$RUNTIME_DIR/workspace.json" <<'CODER_AMAZON_INIT_FACTS'
+${FACTS_JSON}
+CODER_AMAZON_INIT_FACTS
 chmod 0644 "$RUNTIME_DIR/workspace.json"
 export CODER_WORKSPACE_FACTS="$RUNTIME_DIR/workspace.json"
 export CODER_RUNTIME_DIR="$RUNTIME_DIR"
@@ -170,5 +165,9 @@ if [ "$boot_rc" -ne 0 ]; then
   coder_log error "Boot script exited $boot_rc; starting the agent anyway." || true
 fi
 
-start_agent
+# `|| true` so that failing to start the agent does not re-enter the ERR trap,
+# which would report the bootstrap as having failed somewhere earlier. On a
+# first boot whose configuration does not build there is no agent unit to
+# start at all, and that is the honest outcome: nothing to report it with.
+start_agent || true
 exit "$boot_rc"

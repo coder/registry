@@ -153,29 +153,36 @@ A flake built from a git checkout ignores untracked files — `git add` a new
 
 ## Keeping workspaces up to date
 
-The `update_process` parameter decides how a periodic rebuild is applied:
+The schedule belongs to the machine, not to this template. The reference flake enables NixOS's own
+[`system.autoUpgrade`](https://search.nixos.org/options?query=system.autoUpgrade), wrapped as
+`coder.autoUpgrade` so the defaults make sense for a workspace:
+
+```nix
+coder.autoUpgrade = {
+  dates     = "04:40";   # systemd OnCalendar, not cron
+  operation = "boot";    # or "switch"
+};
+```
 
 - **`boot` (default)** — builds the new configuration and makes it the boot default without
   activating it. Nothing restarts while you are working; the change lands on your next workspace
-  restart. The "NixOS" metric in the workspace header shows `(restart to apply update)` when a
-  generation is staged.
+  restart, and the "NixOS version" metric shows `(restart to apply update)` until then.
 - **`switch`** — activates immediately, restarting any service whose definition changed.
 
-The schedule comes from the `update_schedule` variable, default `0 0 4 * * *` (04:00 daily).
+Set `coder.autoUpgrade.enable = false` to turn it off, and edit `/etc/nixos` on the workspace to
+change any of it — this is a normal NixOS timer, so `systemctl list-timers nixos-upgrade` and
+`systemd-analyze calendar '<expr>'` tell you what will happen and when.
 
-> [!NOTE]
-> `update_schedule` is a **six** field cron expression with seconds first, evaluated in the
-> workspace's own timezone. A five field expression is silently misinterpreted rather than
-> rejected, and descriptors like `@daily` pass validation but then fail on the agent. Set
-> `time.timeZone` in your configuration so the schedule means what you intend.
+The timer is **not** `Persistent`: a schedule missed while the workspace was stopped is not made up
+on the next boot, because booting already rebuilds from the checkout. Before each run the
+configuration fast-forwards the checkout under the same lock the boot path uses, with the same
+policy — a dirty tree or local commits are built as they are, never discarded.
 
-Set `update_schedule = ""` to disable periodic rebuilds entirely.
-
-To rebuild immediately:
+To rebuild immediately, on the workspace:
 
 ```console
-sudo nixos-rebuild switch --flake 'git+https://github.com/coder/nixos-example-flake?ref=main#coder-workspace-x86_64' \
-  --override-input coder-vars path:/etc/coder/vars --no-write-lock-file --refresh
+sudo systemctl start nixos-upgrade     # sync, then rebuild, streamed to the UI
+sudo nixos-rebuild switch --flake /etc/nixos#coder-workspace-x86_64
 ```
 
 ## Where the logs are
@@ -186,9 +193,12 @@ under `these N derivations will be built:`, per-derivation compiler output, and 
 `not writing modified lock file` notice. The complete transcript is on the instance:
 
 ```console
-/var/log/coder-nixos/rebuild-latest.log      # symlink to the most recent run
-/var/log/coder-nixos/coder-script.log        # the periodic rebuild script
+/var/log/coder-nixos/rebuild-latest.log      # symlink to the most recent boot rebuild
 ```
+
+Scheduled upgrades run as `nixos-upgrade.service` and write to the journal, which
+`coder-stream-nixos-upgrade-logs.service` follows into the same **NixOS** log source while the
+upgrade runs. `journalctl -u nixos-upgrade` has the unabridged copy.
 
 Keeping compiler output out of the UI is not cosmetic. Coder caps agent logs at **1 MiB per
 agent**, shared across every log source, and exceeding it does not truncate — the log is marked

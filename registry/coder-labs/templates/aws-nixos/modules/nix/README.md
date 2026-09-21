@@ -5,9 +5,12 @@ the running system is out of date, and rebuild it.
 
 Nothing here knows about EC2, user-data, or how the instance came to exist.
 The boot path is a **string** the caller hands to whatever runs scripts on the
-machine, and the periodic rebuild is an ordinary `coder_script`. On AWS the
-caller is [`../amazon-init`](../amazon-init/README.md), but nothing depends on
-that.
+machine. On AWS the caller is [`../amazon-init`](../amazon-init/README.md), but
+nothing depends on that.
+
+Keeping the machine current _after_ boot is not this module's job either. That
+belongs to the configuration, as `system.autoUpgrade` on a systemd timer the
+machine's owner can read and change.
 
 ```tf
 module "nix" {
@@ -45,10 +48,9 @@ the checkout, and rebuilds only if the configuration changed:
 - a checkout on a different branch than requested says so rather than silently
   building the wrong thing
 
-The `coder_script` does the same later, on `update_schedule`, with
-`update_process = boot` (stage for the next restart) or `switch` (apply now).
-A `flock` in `state_dir` keeps the two from overlapping; the scheduled run
-skips rather than queues.
+A `flock` in `state_dir` is the lock everything rebuilding this machine should
+take, including the configuration's own upgrade timer, so that two rebuilds
+never race for the system profile.
 
 ## Logging
 
@@ -76,6 +78,11 @@ Outputs exist for the things a caller genuinely cannot do itself:
 `flake_dir` for pointing people at, and `version_command` for a `coder_agent`
 metadata block — which has to be declared inline on the agent, though what it
 means for a NixOS machine to be up to date does not belong in a template.
+
+`values` passes straight through to `values` on the bootstrapper, so a caller
+has one wire for runtime facts and a Nix-specific fact would have an obvious
+home. There are none today: the configuration already knows its checkout,
+attribute and directories, because it is what sets them.
 
 ## Moving this to the registry
 

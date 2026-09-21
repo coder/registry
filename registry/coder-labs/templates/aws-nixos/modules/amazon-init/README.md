@@ -49,7 +49,11 @@ things follow:
 2. **Hostname**, from `hostname` or the workspace name.
 3. **Logging** — the shell library is written to `$${runtime_dir}/log.sh` and
    sourced, and the log source is registered.
-4. **Identity** — `$${runtime_dir}/workspace.json`, mode 0644, no secrets.
+4. **Facts** — `$${runtime_dir}/workspace.json`, mode 0644, no secrets: the
+   workspace's identity, the deployment URL, the `log_source_id` a service on
+   the instance needs in order to log anywhere the user will see, and anything
+   the caller added through `values`. Rendered by Terraform, so a full name
+   with a quote in it cannot break the document.
 5. **Files** — anything in `files`, a map of absolute path to text, written
    mode 0644 with parent directories created.
 6. **Your boot script**, as a child process.

@@ -86,6 +86,23 @@ variable "files" {
   }
 }
 
+variable "values" {
+  description = <<-EOT
+    Extra facts to publish in `workspace.json`, merged with the ones this
+    module writes itself.
+
+    This is the injection point for anything the machine needs to know at
+    runtime: one map entry rather than a new file and a new variable each
+    time. Keys this module writes (`workspace`, `owner`, `owner_name`,
+    `owner_email`, `access_url`, `hostname`, `log_source_id`) win on conflict.
+
+    Not for secrets. The file is world-readable, by design -- an unprivileged
+    service reads it.
+  EOT
+  type        = map(string)
+  default     = {}
+}
+
 variable "runtime_dir" {
   description = "Directory for the agent handoff and this module's own state. Must be on a tmpfs: it holds the token."
   type        = string
@@ -143,7 +160,25 @@ locals {
     SH
   ])
 
+  # Everything the machine is told about itself. Merged so that what this
+  # module knows wins: a caller cannot accidentally rewrite the workspace's
+  # own identity through `values`.
+  facts = merge(var.values, {
+    workspace   = data.coder_workspace.me.name
+    owner       = data.coder_workspace_owner.me.name
+    owner_name  = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
+    owner_email = data.coder_workspace_owner.me.email
+    access_url  = data.coder_workspace.me.access_url
+    hostname    = local.hostname
+
+    # The one thing a configuration on the instance cannot work out for
+    # itself, and needs in order to log anywhere the user will see.
+    log_source_id = random_uuid.log_source.result
+  })
+
   bootstrap = templatefile("${path.module}/scripts/bootstrap.sh.tftpl", {
+    FACTS_JSON = jsonencode(local.facts)
+
     LOG_SH      = file("${path.module}/scripts/log.sh")
     FILES_SH    = local.files_sh
     BOOT_SCRIPT = var.boot_script
@@ -159,13 +194,7 @@ locals {
     ARG_LOG_ICON             = var.log_icon
     ARG_LOG_BUDGET           = var.log_budget_bytes
 
-    ARG_HOSTNAME       = local.hostname
-    ARG_WORKSPACE_NAME = data.coder_workspace.me.name
-    ARG_OWNER          = data.coder_workspace_owner.me.name
-    # base64 because a full name may contain quotes and is interpolated into
-    # both a shell string and a JSON document.
-    ARG_OWNER_NAME_B64 = base64encode(coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name))
-    ARG_OWNER_EMAIL    = data.coder_workspace_owner.me.email
+    ARG_HOSTNAME = local.hostname
   })
 
   # EC2 caps user-data at 16 KiB and the script above plus its payloads is

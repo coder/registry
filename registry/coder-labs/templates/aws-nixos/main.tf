@@ -49,23 +49,6 @@ variable "nixos_release" {
   default     = "26.05"
 }
 
-variable "update_schedule" {
-  description = <<-EOT
-    Cron schedule for the periodic `nixos-rebuild`, or empty to disable.
-
-    SIX fields with seconds first, in the workspace's timezone. A five field
-    expression is silently misinterpreted rather than rejected, and
-    descriptors like `@daily` pass validation then fail on the agent.
-  EOT
-  type        = string
-  default     = "0 0 4 * * *"
-
-  validation {
-    condition     = var.update_schedule == "" || length(split(" ", trimspace(var.update_schedule))) == 6
-    error_message = "update_schedule must be a 6-field cron expression (seconds first), or empty."
-  }
-}
-
 data "coder_parameter" "instance_type" {
   name         = "instance_type"
   display_name = "Instance type"
@@ -121,28 +104,6 @@ data "coder_parameter" "root_volume_size" {
   }
 }
 
-data "coder_parameter" "update_process" {
-  name         = "update_process"
-  display_name = "Configuration updates"
-  description  = <<-EOT
-    How a periodic `nixos-rebuild` is applied while the workspace is running.
-    `boot` stages the new configuration without activating it, so nothing
-    restarts under you; `switch` activates it immediately.
-  EOT
-  type         = "string"
-  default      = "boot"
-  mutable      = true
-
-  option {
-    name  = "Apply on next restart (boot)"
-    value = "boot"
-  }
-  option {
-    name  = "Apply immediately (switch)"
-    value = "switch"
-  }
-}
-
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
@@ -194,10 +155,11 @@ resource "coder_agent" "main" {
     timeout      = 30
     script       = "coder stat disk --path $HOME"
   }
-  # Makes `update_process = boot` visible; a staged generation is otherwise
-  # invisible and looks like updates being ignored. The command comes from the
-  # nix module -- metadata has to be declared on the agent, but what it means
-  # to be up to date is not this file's business.
+  # Makes a staged generation visible. `coder.autoUpgrade.operation = "boot"`
+  # in the flake stages rather than activates, which otherwise looks exactly
+  # like updates being ignored. The command comes from the nix module --
+  # metadata has to be declared on the agent, but what it means to be up to
+  # date is not this file's business.
   metadata {
     key          = "nixos"
     display_name = "NixOS version"
@@ -274,15 +236,9 @@ locals {
 module "nix" {
   source = "./modules/nix"
 
-  # Empty while the workspace is stopped, when there is no agent to attach the
-  # periodic rebuild to. The module skips the script in that case.
-  agent_id = try(coder_agent.main[0].id, "")
-
-  flake_ref       = var.flake_ref
-  flake_attr      = var.flake_attr
-  arch            = local.arch.attr
-  update_schedule = var.update_schedule
-  update_process  = data.coder_parameter.update_process.value
+  flake_ref  = var.flake_ref
+  flake_attr = var.flake_attr
+  arch       = local.arch.attr
 }
 
 # Gets Coder onto the instance and runs one script on every boot. It knows
@@ -294,6 +250,7 @@ module "amazon_init" {
   agent_token       = try(coder_agent.main[0].token, "")
   agent_init_script = try(coder_agent.main[0].init_script, "")
   boot_script       = module.nix.boot_script
+  values            = module.nix.values
 
   log_display_name = "NixOS"
   log_icon         = "/icon/nix.svg"

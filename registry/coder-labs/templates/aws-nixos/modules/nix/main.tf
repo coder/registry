@@ -1,27 +1,16 @@
-# The flake lifecycle: keep a checkout in sync, decide whether the running
-# system is out of date, and rebuild it.
+# The flake lifecycle at boot: clone or fast-forward the checkout, decide
+# whether the running system is out of date, and rebuild it.
 #
-# Nothing here knows about EC2, user-data or how the instance was started. The
-# boot path is exposed as a string for whatever puts scripts on the machine --
-# on AWS that is ../amazon-init -- and the periodic rebuild is an ordinary
-# coder_script.
+# Nothing here knows about EC2, user-data or how the instance was started --
+# the boot path is exposed as a string for whatever puts scripts on the
+# machine, which on AWS is ../amazon-init.
+#
+# Keeping the machine current *afterwards* is not this module's job either.
+# That is `system.autoUpgrade` in the configuration itself, on a systemd timer
+# the machine's owner can read and change.
 
 terraform {
   required_version = ">= 1.3"
-
-  required_providers {
-    coder = {
-      source  = "coder/coder"
-      version = ">= 2.5"
-    }
-  }
-}
-
-data "coder_workspace" "me" {}
-
-variable "agent_id" {
-  description = "Agent that runs the periodic rebuild. May be empty while the workspace is stopped."
-  type        = string
 }
 
 variable "flake_ref" {
@@ -58,32 +47,18 @@ variable "arch" {
   }
 }
 
-variable "update_schedule" {
+variable "values" {
   description = <<-EOT
-    Cron schedule for the periodic rebuild, or empty to disable it.
+    Extra facts for the bootstrapper to publish on the instance, passed
+    straight through to `values` on whatever writes them.
 
-    SIX fields with seconds first, in the workspace's timezone. A five field
-    expression is silently misinterpreted rather than rejected, and
-    descriptors like `@daily` pass validation then fail on the agent.
+    Routed through this module so the caller has one wire, and so a
+    Nix-specific runtime fact has an obvious home. There are none today: the
+    configuration already knows its own checkout, attribute and directories,
+    because it is the thing that sets them.
   EOT
-  type        = string
-  default     = "0 0 4 * * *"
-
-  validation {
-    condition     = var.update_schedule == "" || length(split(" ", trimspace(var.update_schedule))) == 6
-    error_message = "update_schedule must be a 6-field cron expression (seconds first), or empty."
-  }
-}
-
-variable "update_process" {
-  description = "`switch` applies the new generation immediately; `boot` stages it for the next restart."
-  type        = string
-  default     = "boot"
-
-  validation {
-    condition     = contains(["boot", "switch"], var.update_process)
-    error_message = "update_process must be boot or switch."
-  }
+  type        = map(string)
+  default     = {}
 }
 
 variable "flake_dir" {
@@ -128,20 +103,9 @@ locals {
   }
 }
 
-resource "coder_script" "nixos_rebuild" {
-  count        = var.update_schedule == "" ? 0 : data.coder_workspace.me.start_count
-  agent_id     = var.agent_id
-  display_name = "NixOS rebuild"
-  cron         = var.update_schedule
-  # The boot path has already rebuilt by the time the agent exists.
-  run_on_start       = false
-  start_blocks_login = false
-  timeout            = 3600
-  log_path           = "${var.log_dir}/coder-script.log"
-
-  script = templatefile("${path.module}/scripts/rebuild.sh.tftpl", merge(local.script_args, {
-    ARG_UPDATE_PROCESS = var.update_process
-  }))
+output "values" {
+  description = "Facts to publish on the instance, for the bootstrapper's `values`."
+  value       = var.values
 }
 
 output "boot_script" {

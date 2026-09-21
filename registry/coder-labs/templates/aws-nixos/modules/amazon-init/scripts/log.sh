@@ -11,6 +11,7 @@
 CODER_LOG_BUDGET="${CODER_LOG_BUDGET:-524288}"
 CODER_LOG_STATE_DIR="${CODER_LOG_STATE_DIR:-/run/coder}"
 CODER_LOG_MAX_LINE=2048
+CODER_LOG_FLUSH_SECS="${CODER_LOG_FLUSH_SECS:-5}"
 # Inherited, so a child process that sources this library can log without
 # registering the source again -- registration is per workspace build, not per
 # process, and a child has no way to know whether it already happened.
@@ -111,24 +112,52 @@ coder_log() {
 }
 
 # Reads plain lines on stdin and ships them in batches.
+#
+# Batches are flushed by size, and also by time: a slow producer would
+# otherwise sit in the buffer until 50 lines had accumulated, which reads as a
+# hung workspace, and anything still buffered when the process is killed is
+# simply lost.
 coder_log_pipe() {
-  local level="${1:-info}" line batch="" n=0 bytes=0 obj
+  local level="${1:-info}" line batch="" n=0 bytes=0 obj rc now last
   [ "$CODER_LOG_READY" = 1 ] || {
     cat > /dev/null
     return 0
   }
+  last=$(date +%s)
 
-  while IFS= read -r line || [ -n "$line" ]; do
-    obj=$(coder_log_json "$level" "$line")
-    batch="${batch:+$batch
+  while :; do
+    line=""
+    # Not `if ! read`: `!` rewrites $? to 0, which turns every timeout into an
+    # end of input and ends the stream after the first quiet interval.
+    IFS= read -r -t "$CODER_LOG_FLUSH_SECS" line
+    rc=$?
+
+    # read(1) returns >128 on timeout; any other failure is end of input,
+    # possibly with a last line that had no newline.
+    if [ "$rc" -ne 0 ] && [ "$rc" -le 128 ]; then
+      if [ -n "$line" ]; then
+        batch="${batch:+$batch
+}$(coder_log_json "$level" "$line")"
+      fi
+      break
+    fi
+
+    if [ -n "$line" ]; then
+      obj=$(coder_log_json "$level" "$line")
+      batch="${batch:+$batch
 }$obj"
-    n=$((n + 1))
-    bytes=$((bytes + ${#obj}))
-    if [ "$n" -ge 50 ] || [ "$bytes" -ge 32768 ]; then
+      n=$((n + 1))
+      bytes=$((bytes + ${#obj}))
+    fi
+
+    now=$(date +%s)
+    if [ "$n" -ge 50 ] || [ "$bytes" -ge 32768 ] \
+      || { [ "$n" -gt 0 ] && [ "$((now - last))" -ge "$CODER_LOG_FLUSH_SECS" ]; }; then
       printf '%s\n' "$batch" | coder_log_send
       batch=""
       n=0
       bytes=0
+      last=$now
     fi
   done
 
