@@ -16,7 +16,7 @@ parameters the relay stamps on each build and runs the Cursor CLI worker.
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   # Downloads the Cursor CLI at start when it is not in the image. Bake
@@ -71,16 +71,6 @@ Agent Relay verifies this contract against the template's active version at
 startup and refuses to serve a pool that does not satisfy it. Every parameter
 renders disabled with a "Set by Agent Relay on dispatch" placeholder; the
 credential is masked.
-
-| parameter                                 | kind       | value                                                                                                     |
-| ----------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------- |
-| `agent_relay_session_id`                  | persistent | Cursor request this workspace serves                                                                      |
-| `agent_relay_delivery_id`                 | persistent | worker id the request was claimed with (`CURSOR_AGENT_WORKER_ID`)                                         |
-| `agent_relay_pool`                        | persistent | Agent Relay pool that dispatched the build                                                                |
-| `agent_relay_cursor_pool_name`            | persistent | Cursor-side pool the worker registers under (`AGENT_RELAY_CURSOR_POOL_NAME`)                              |
-| `agent_relay_cursor_idle_release_timeout` | persistent | seconds the worker idles after a turn before exiting, min 300 (`AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT`) |
-| `agent_relay_cursor_repo_url`             | persistent | repository the request targets; empty for repo-less pools                                                 |
-| `agent_relay_credential`                  | ephemeral  | user-scoped worker token (`AGENT_RELAY_CURSOR_TOKEN`)                                                     |
 
 ## Scripts and logs
 
