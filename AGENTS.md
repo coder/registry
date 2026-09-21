@@ -107,8 +107,8 @@ output "scripts" {
 - Use semantic versioning; bump version via script when modifying modules
 - Docker tests require Linux or Colima/OrbStack (not Docker Desktop)
 - Use `tf` (not `hcl`) for code blocks in README; use relative icon paths (e.g., `../../../../.icons/`)
-- **Do NOT include input/output variable tables in module or template READMEs.** The registry automatically generates these from the Terraform source (e.g., variable and output blocks in `main.tf`). Adding them to the README is redundant and creates maintenance drift.
-- Usage examples (e.g., a `module "..." { }` block) are encouraged, but not tables enumerating inputs/outputs.
+- **Never include parameter listings or input/output variable tables in module or template READMEs.** This includes workspace parameters declared with `coder_parameter`. The registry automatically parses the Terraform source and displays parameters in a dedicated tab on `registry.coder.com`; input/output documentation is also generated from the source. Duplicating these listings in the README is redundant and creates maintenance drift.
+- Usage examples (e.g., a `module "..." { }` block) and explanations of parameter behavior are encouraged, but not tables or lists enumerating parameters, inputs, or outputs.
 
 ### Variable and output conventions
 
