@@ -324,49 +324,35 @@ locals {
   log_sh       = file("${path.module}/scripts/log.sh")
   lifecycle_sh = file("${path.module}/modules/nix/lifecycle.sh")
 
-  # EC2 caps user-data at 16 KiB, and the boot script plus its two libraries
-  # plus the agent init script come to roughly 19 KiB. So user-data is a
-  # six-line self-extracting wrapper around a compressed copy.
-  #
-  # This is transparent to the NixOS AMI: amazon-init only inspects the first
-  # two bytes for `#!` before exec'ing the blob, and it has no decompression
-  # step of its own. Extracting to a fixed path also means the real script is
-  # on disk when something needs debugging.
-  user_data = <<-SH
-    #!/usr/bin/env bash
-    set -eu
-    install -d -m 0700 /run/coder
-    base64 -d <<'CODER_PAYLOAD' | gzip -dc >/run/coder/bootstrap.sh
-    ${base64gzip(local.bootstrap)}
-    CODER_PAYLOAD
-    exec bash /run/coder/bootstrap.sh
-  SH
+}
 
-  bootstrap = templatefile("${path.module}/scripts/bootstrap.sh.tftpl", {
-    LOG_SH              = local.log_sh
-    LIFECYCLE_SH        = local.lifecycle_sh
-    ARG_FLAKE_REF       = local.flake_url
-    ARG_FLAKE_BRANCH    = var.flake_branch
-    ARG_FLAKE_ATTR      = local.flake_attr
-    ARG_ACCESS_URL      = data.coder_workspace.me.access_url
-    ARG_AGENT_TOKEN     = try(coder_agent.main[0].token, "")
-    ARG_INIT_SCRIPT_B64 = base64encode(try(coder_agent.main[0].init_script, ""))
-    ARG_LOG_SOURCE_ID   = local.log_source_id
-    ARG_HOSTNAME        = lower(data.coder_workspace.me.name)
-    ARG_WORKSPACE_NAME  = data.coder_workspace.me.name
-    ARG_OWNER           = data.coder_workspace_owner.me.name
-    # base64 because a full name may contain quotes and is interpolated into
-    # both a shell string and a Nix string.
-    ARG_OWNER_NAME_B64 = base64encode(coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name))
-    ARG_OWNER_EMAIL    = data.coder_workspace_owner.me.email
-  })
+# Everything about getting Coder onto a NixOS AMI through amazon-init: the
+# agent handoff, the workspace facts and the first rebuild, wrapped for EC2's
+# 16 KiB user-data limit. See ./modules/amazon-init/README.md.
+module "amazon_init" {
+  source = "./modules/amazon-init"
+
+  flake_ref         = local.flake_url
+  flake_branch      = var.flake_branch
+  flake_attr        = local.flake_attr
+  access_url        = data.coder_workspace.me.access_url
+  agent_token       = try(coder_agent.main[0].token, "")
+  agent_init_script = try(coder_agent.main[0].init_script, "")
+  log_source_id     = local.log_source_id
+  workspace_name    = data.coder_workspace.me.name
+  hostname          = lower(data.coder_workspace.me.name)
+  owner             = data.coder_workspace_owner.me.name
+  owner_name        = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
+  owner_email       = data.coder_workspace_owner.me.email
+  log_library       = local.log_sh
+  lifecycle_library = local.lifecycle_sh
 }
 
 resource "aws_instance" "dev" {
   ami               = data.aws_ami.nixos.id
   availability_zone = "${module.aws_region.value}a"
   instance_type     = data.coder_parameter.instance_type.value
-  user_data         = local.user_data
+  user_data         = module.amazon_init.user_data
 
   # The agent token is inside user-data and rotates on every workspace start,
   # so user-data changes on every start. With replacement enabled, every
@@ -391,10 +377,8 @@ resource "aws_instance" "dev" {
     ignore_changes = [ami]
 
     precondition {
-      # nonsensitive because user-data contains the token, so its length is
-      # sensitive by propagation and Terraform would suppress the message.
-      condition     = nonsensitive(length(local.user_data)) < 16384
-      error_message = "Rendered user-data is ${nonsensitive(length(local.user_data))} bytes; EC2 allows at most 16384."
+      condition     = module.amazon_init.user_data_bytes < 16384
+      error_message = "Rendered user-data is ${module.amazon_init.user_data_bytes} bytes; EC2 allows at most 16384."
     }
   }
 }
