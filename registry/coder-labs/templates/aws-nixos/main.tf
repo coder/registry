@@ -22,28 +22,19 @@ provider "aws" {
 
 variable "flake_ref" {
   description = <<-EOT
-    Git remote holding the NixOS configuration. Cloned to /etc/nixos on the
-    workspace, which is what makes a bare `sudo nixos-rebuild switch` work.
+    Git reference to the NixOS configuration, in the form `nix` itself
+    accepts: `https://host/org/repo`, optionally with a `git+` prefix and a
+    `?ref=` branch. Without `?ref=` the remote's default branch is used.
 
-    Anything `git clone` accepts, so private repositories need git
-    credentials on the instance rather than Nix's netrc.
+    The configuration must be committed -- a Git flake reference only ever
+    sees committed files.
   EOT
   type        = string
   default     = "https://github.com/coder/nixos-example-flake"
 }
 
-variable "flake_branch" {
-  description = "Branch to track in flake_ref."
-  type        = string
-  default     = "main"
-}
-
 variable "flake_attr" {
-  description = <<-EOT
-    Which `nixosConfigurations` attribute to apply, i.e. the part after `#`
-    in the flake reference. `$ARCH` is replaced with `x86_64` or `aarch64` to
-    match the chosen instance type.
-  EOT
+  description = "`nixosConfigurations` attribute to build. `$ARCH` is replaced with `x86_64` or `aarch64` to match the instance type."
   type        = string
   default     = "workspace-$ARCH"
 }
@@ -204,23 +195,15 @@ resource "coder_agent" "main" {
     script       = "coder stat disk --path $HOME"
   }
   # Makes `update_process = boot` visible; a staged generation is otherwise
-  # invisible and looks like updates being ignored.
+  # invisible and looks like updates being ignored. The command comes from the
+  # nix module -- metadata has to be declared on the agent, but what it means
+  # to be up to date is not this file's business.
   metadata {
     key          = "nixos"
     display_name = "NixOS version"
     interval     = 60
     timeout      = 10
-    # /run/current-system is the activated system; /run/booted-system is what
-    # the kernel booted and still points at the previous generation after a
-    # switch, which would mark every new workspace as needing a restart.
-    script = <<-EOT
-      version=$(nixos-version 2>/dev/null || echo unknown)
-      if [ "$(readlink -f /run/current-system)" = "$(readlink -f /nix/var/nix/profiles/system)" ]; then
-        echo "$version"
-      else
-        echo "$version (restart to apply update)"
-      fi
-    EOT
+    script       = module.nix.version_command
   }
 }
 
@@ -270,30 +253,6 @@ module "git-config" {
   agent_id = coder_agent.main[0].id
 }
 
-resource "coder_script" "nixos_rebuild" {
-  count        = var.update_schedule == "" ? 0 : data.coder_workspace.me.start_count
-  agent_id     = coder_agent.main[0].id
-  display_name = "NixOS rebuild"
-  cron         = var.update_schedule
-  # The boot script has already switched by the time the agent exists.
-  run_on_start       = false
-  start_blocks_login = false
-  timeout            = 3600
-  log_path           = "${local.log_dir}/coder-script.log"
-
-  script = templatefile("${path.module}/scripts/rebuild.sh.tftpl", {
-    # The same library the boot path uses, taken from the module that owns it.
-    LOG_SH             = module.amazon_init.log_library
-    LIFECYCLE_SH       = local.lifecycle_sh
-    ARG_FLAKE_REF      = local.flake_url
-    ARG_FLAKE_BRANCH   = var.flake_branch
-    ARG_FLAKE_ATTR     = local.flake_attr
-    ARG_UPDATE_PROCESS = data.coder_parameter.update_process.value
-    ARG_ACCESS_URL     = data.coder_workspace.me.access_url
-    ARG_LOG_SOURCE_ID  = module.amazon_init.log_source_id
-  })
-}
-
 locals {
   # One map so the AMI architecture, coder_agent.arch and the flake attribute
   # cannot disagree.
@@ -306,33 +265,24 @@ locals {
     "m7g.large"  = { agent = "arm64", ami = "arm64", attr = "aarch64" }
     "m7g.xlarge" = { agent = "arm64", ami = "arm64", attr = "aarch64" }
   }
-  arch       = local.arch_map[data.coder_parameter.instance_type.value]
-  flake_attr = replace(var.flake_attr, "$ARCH", local.arch.attr)
-  log_dir    = "/var/log/coder-nixos"
+  arch = local.arch_map[data.coder_parameter.instance_type.value]
+}
 
-  # `git clone` is what runs on the instance, so accept a Nix-style flake
-  # reference too and reduce it to a plain remote: strip a `git+` scheme
-  # prefix and any query string. `flake_branch` carries the ref instead.
-  flake_url = replace(replace(var.flake_ref, "/^git\\+/", ""), "/\\?.*$/", "")
+# Everything about the flake: the checkout, the boot-time rebuild and the
+# periodic one. It knows nothing about EC2 -- `boot_script` is a string for
+# whoever runs scripts on the machine. See ./modules/nix/README.md.
+module "nix" {
+  source = "./modules/nix"
 
-  # Sourced verbatim into both entrypoints. Plain shell rather than a template
-  # so it stays readable and gets covered by the repo's shellcheck.
-  lifecycle_sh = file("${path.module}/modules/nix/lifecycle.sh")
+  # Empty while the workspace is stopped, when there is no agent to attach the
+  # periodic rebuild to. The module skips the script in that case.
+  agent_id = try(coder_agent.main[0].id, "")
 
-  state_dir = "/var/lib/coder-nixos"
-  flake_dir = "/etc/nixos"
-
-  # Handed to the amazon-init module, which runs it as root before starting
-  # the agent and otherwise does not look inside it.
-  boot_script = templatefile("${path.module}/scripts/boot.sh.tftpl", {
-    LIFECYCLE_SH     = local.lifecycle_sh
-    ARG_FLAKE_REF    = local.flake_url
-    ARG_FLAKE_BRANCH = var.flake_branch
-    ARG_FLAKE_ATTR   = local.flake_attr
-    ARG_STATE_DIR    = local.state_dir
-    ARG_LOG_DIR      = local.log_dir
-    ARG_FLAKE_DIR    = local.flake_dir
-  })
+  flake_ref       = var.flake_ref
+  flake_attr      = var.flake_attr
+  arch            = local.arch.attr
+  update_schedule = var.update_schedule
+  update_process  = data.coder_parameter.update_process.value
 }
 
 # Gets Coder onto the instance and runs one script on every boot. It knows
@@ -343,7 +293,7 @@ module "amazon_init" {
 
   agent_token       = try(coder_agent.main[0].token, "")
   agent_init_script = try(coder_agent.main[0].init_script, "")
-  boot_script       = local.boot_script
+  boot_script       = module.nix.boot_script
 
   log_display_name = "NixOS"
   log_icon         = "/icon/nix.svg"
@@ -380,11 +330,6 @@ resource "aws_instance" "dev" {
     # NixOS AMIs are republished weekly and garbage-collected after 90 days.
     # Without this, a new AMI id replaces every live workspace.
     ignore_changes = [ami]
-
-    precondition {
-      condition     = module.amazon_init.user_data_bytes < 16384
-      error_message = "Rendered user-data is ${module.amazon_init.user_data_bytes} bytes; EC2 allows at most 16384."
-    }
   }
 }
 
@@ -396,11 +341,11 @@ resource "coder_metadata" "workspace_info" {
   }
   item {
     key   = "Flake URI"
-    value = "${local.flake_url}?ref=${var.flake_branch}#${local.flake_attr}"
+    value = module.nix.flake_uri
   }
   item {
     key   = "Build logs location"
-    value = local.log_dir
+    value = module.nix.log_dir
   }
 }
 

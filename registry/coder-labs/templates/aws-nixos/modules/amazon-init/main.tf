@@ -13,8 +13,20 @@ terraform {
       source  = "coder/coder"
       version = ">= 2.5"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.0"
+    }
   }
 }
+
+# The log source has to keep the same id for the life of the workspace --
+# Coder treats a repeat POST of a known id as a no-op, and a value that
+# changed every plan would churn user-data on every start. Terraform state is
+# exactly the right place for that: stable across stop/start, new only when
+# the workspace is recreated, by which point the agent and its logs are new
+# too.
+resource "random_uuid" "log_source" {}
 
 data "coder_workspace" "me" {}
 
@@ -57,14 +69,16 @@ variable "boot_script" {
 
 variable "files" {
   description = <<-EOT
-    Extra files to write before the boot script runs, keyed by absolute path.
-    Content is carried base64-encoded, so any bytes are safe.
+    Files to write before the boot script runs: absolute path to contents.
+    Written mode 0644, parent directories created.
+
+    Contents are carried gzipped and base64-encoded, so any text is safe --
+    but note that user-data is itself compressed, and compressing twice buys
+    nothing. This is for small files; the size precondition on `user_data` is
+    what stops it being abused.
   EOT
-  type = map(object({
-    content = string
-    mode    = optional(string, "0644")
-  }))
-  default = {}
+  type        = map(string)
+  default     = {}
 
   validation {
     condition     = alltrue([for path in keys(var.files) : startswith(path, "/")])
@@ -92,17 +106,6 @@ variable "curl_resolve_command" {
   EOT
   type        = string
   default     = ""
-}
-
-variable "log_source_id" {
-  description = "UUID of the log source boot output is streamed to. Must be constant across builds; Coder treats a repeat POST of the same id as a no-op."
-  type        = string
-  default     = "6e1f4a2c-9b3d-4c8e-8a71-5f0d2b6c4e93"
-
-  validation {
-    condition     = can(regex("^[0-9a-f-]{36}$", var.log_source_id))
-    error_message = "log_source_id must be a UUID."
-  }
 }
 
 variable "log_display_name" {
@@ -139,13 +142,14 @@ variable "hostname" {
 locals {
   hostname = var.hostname != "" ? var.hostname : lower(data.coder_workspace.me.name)
 
-  # Written by the bootstrap script before the boot script runs. Content is
-  # base64 so that a heredoc in the file cannot terminate the one writing it.
+  # Written by the bootstrap script before the boot script runs. Carried
+  # gzipped and base64-encoded so that no content can terminate the heredoc
+  # that writes it.
   files_sh = join("\n", [
-    for path, file in var.files : <<-SH
-      install -d -m 0755 "$(dirname ${path})"
-      printf '%s' '${base64encode(file.content)}' | base64 -d >'${path}'
-      chmod ${file.mode} '${path}'
+    for path, content in var.files : <<-SH
+      install -d -m 0755 "$(dirname '${path}')"
+      printf '%s' '${base64gzip(content)}' | base64 -d | gzip -dc >'${path}'
+      chmod 0644 '${path}'
     SH
   ])
 
@@ -160,7 +164,7 @@ locals {
     ARG_RUNTIME_DIR     = var.runtime_dir
     ARG_PATH            = var.path
 
-    ARG_LOG_SOURCE_ID        = var.log_source_id
+    ARG_LOG_SOURCE_ID        = random_uuid.log_source.result
     ARG_LOG_DISPLAY_NAME_B64 = base64encode(var.log_display_name)
     ARG_LOG_ICON             = var.log_icon
     ARG_LOG_BUDGET           = var.log_budget_bytes
@@ -198,21 +202,22 @@ output "user_data" {
   description = "Rendered EC2 user-data. Sensitive: it carries the agent token."
   value       = local.user_data
   sensitive   = true
-}
 
-output "user_data_bytes" {
-  description = "Size of the rendered user-data, for the caller's 16 KiB precondition. Unwrapped so the number can be shown in an error message."
-  value       = nonsensitive(length(local.user_data))
-}
-
-output "log_library" {
-  description = "The shell logging library, for callers that want `coder_log` in their own `coder_script`s. On the instance it is also at `$${runtime_dir}/log.sh`."
-  value       = file("${path.module}/scripts/log.sh")
+  # EC2 rejects user-data over 16 KiB, and it does so at apply time with an
+  # error that says nothing about which part grew. Checking here fails the
+  # plan instead, in the module that decides what goes in.
+  #
+  # nonsensitive because the length is sensitive by propagation, and Terraform
+  # suppresses error messages derived from sensitive values.
+  precondition {
+    condition     = nonsensitive(length(local.user_data)) < 16384
+    error_message = "Rendered user-data is ${nonsensitive(length(local.user_data))} bytes; EC2 allows at most 16384."
+  }
 }
 
 output "log_source_id" {
   description = "Log source the boot output is streamed to."
-  value       = var.log_source_id
+  value       = random_uuid.log_source.result
 }
 
 output "runtime_dir" {

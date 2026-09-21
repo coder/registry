@@ -18,13 +18,6 @@ module "amazon_init" {
 
 resource "aws_instance" "dev" {
   user_data = module.amazon_init.user_data
-
-  lifecycle {
-    precondition {
-      condition     = module.amazon_init.user_data_bytes < 16384
-      error_message = "Rendered user-data is ${module.amazon_init.user_data_bytes} bytes; EC2 allows at most 16384."
-    }
-  }
 }
 ```
 
@@ -57,7 +50,8 @@ things follow:
 3. **Logging** — the shell library is written to `$${runtime_dir}/log.sh` and
    sourced, and the log source is registered.
 4. **Identity** — `$${runtime_dir}/workspace.json`, mode 0644, no secrets.
-5. **Files** — anything in `files`.
+5. **Files** — anything in `files`, a map of absolute path to text, written
+   mode 0644 with parent directories created.
 6. **Your boot script**, as a child process.
 7. **The agent**, always, whatever step 6 did.
 
@@ -98,8 +92,14 @@ first boot it does not exist for as long as the boot script runs. So
 `coder_log <level> <message>`, `coder_log_pipe <level>` for a stream, and
 `coder_log_tail <file> <n>` for the end of a transcript.
 
-It is exported as `log_library` for callers that want the same functions in a
-`coder_script` later, and it is on the instance at `$${runtime_dir}/log.sh`.
+The library is internal to this module — it is not an output. On the instance
+it is at `$${runtime_dir}/log.sh`, which is where anything the agent runs later
+should source it from, and `CODER_LOG_READY` is exported so a process that
+sources it does not register the source a second time.
+
+The source id is a `random_uuid` held in Terraform state: stable across
+stop/start, new only when the workspace is recreated, by which point the agent
+and its logs are new anyway.
 
 Two things it handles that are easy to get wrong:
 
@@ -123,6 +123,9 @@ That is transparent to `amazon-init`: it only checks the first two bytes for
 `$${runtime_dir}/bootstrap.sh`, so the real script is on disk when a boot needs
 debugging.
 
-`user_data_bytes` is exported unwrapped so a caller can assert the limit — the
-`user_data` output itself is sensitive, because the token is inside it, and
-Terraform suppresses messages derived from sensitive values.
+The 16 KiB limit is asserted here, as a `precondition` on the `user_data`
+output, so the plan fails in the module that decides what goes into user-data
+rather than at apply time with an EC2 error that names no cause. Anything
+passed through `files` counts against it — and note that those contents are
+gzipped before user-data is gzipped again, which buys nothing, so `files` is
+for small text.

@@ -50,19 +50,35 @@ nix_own_checkout() {
   $NIX_SUDO chown -R "$owner" "$NIX_FLAKE_DIR" 2> /dev/null || true
 }
 
+# The branch the checkout is actually on. With no `?ref=` in the flake
+# reference there is nothing to ask but the checkout itself, and after a clone
+# that is the remote's default branch.
+nix_checkout_branch() {
+  $NIX_SUDO git -C "$NIX_FLAKE_DIR" rev-parse --abbrev-ref HEAD 2> /dev/null || true
+}
+
 nix_sync_checkout() {
-  local ref="$1" branch="$2" upstream_rev local_rev
+  local url="$1" branch="${2:-}" upstream_rev local_rev current_branch rc
 
   if [ ! -e "$NIX_FLAKE_DIR/flake.nix" ]; then
-    nix_log info "Cloning $ref into $NIX_FLAKE_DIR"
+    nix_log info "Cloning $url into $NIX_FLAKE_DIR"
     $NIX_SUDO install -d -m 0755 "$NIX_FLAKE_DIR"
     # Clone into a temporary directory and move the contents, because the
     # directory already exists (systemd-tmpfiles creates it) and git refuses
     # to clone into a non-empty one.
     local tmp
     tmp="$($NIX_SUDO mktemp -d)"
-    if ! $NIX_SUDO git clone --branch "$branch" "$ref" "$tmp/repo" 2>&1 | nix_filter_log; then
-      nix_log error "Could not clone $ref"
+    # PIPESTATUS, not the pipeline's status: that is the filter's, and the
+    # filter always succeeds. Without this a failed clone reads as a success
+    # and the next step fails somewhere much less obvious.
+    if [ -n "$branch" ]; then
+      $NIX_SUDO git clone --branch "$branch" "$url" "$tmp/repo" 2>&1 | nix_filter_log
+    else
+      $NIX_SUDO git clone "$url" "$tmp/repo" 2>&1 | nix_filter_log
+    fi
+    rc=${PIPESTATUS[0]}
+    if [ "$rc" -ne 0 ]; then
+      nix_log error "Could not clone $url${branch:+ (branch $branch)}"
       $NIX_SUDO rm -rf "$tmp"
       return 1
     fi
@@ -72,16 +88,31 @@ nix_sync_checkout() {
     return 0
   fi
 
+  current_branch="$(nix_checkout_branch)"
+  # An empty branch means "whatever this checkout tracks", which after the
+  # clone above is the remote's default.
+  [ -n "$branch" ] || branch="$current_branch"
+
   if nix_checkout_dirty; then
     nix_log info "$NIX_FLAKE_DIR has local changes; building those instead of $branch"
     return 0
   fi
 
+  # Asking for a different branch than the checkout is on is not something to
+  # resolve silently: the fast-forward below would fail its ancestry test and
+  # report local commits, which is not what happened.
+  if [ -n "$current_branch" ] && [ "$current_branch" != "$branch" ]; then
+    nix_log warn "$NIX_FLAKE_DIR is on $current_branch, not $branch; building $current_branch"
+    nix_log warn "Check out $branch there, or delete $NIX_FLAKE_DIR to start from the remote"
+    return 0
+  fi
+
   # Fetching as root writes into .git, so re-assert ownership afterwards.
-  $NIX_SUDO git -C "$NIX_FLAKE_DIR" fetch --quiet origin "$branch" 2>&1 | nix_filter_log || {
+  $NIX_SUDO git -C "$NIX_FLAKE_DIR" fetch --quiet origin "$branch" 2>&1 | nix_filter_log
+  if [ "${PIPESTATUS[0]}" -ne 0 ]; then
     nix_log warn "Could not reach the remote; building the existing checkout"
     return 0
-  }
+  fi
 
   local_rev="$(nix_checkout_rev)"
   upstream_rev="$($NIX_SUDO git -C "$NIX_FLAKE_DIR" rev-parse FETCH_HEAD 2> /dev/null || true)"

@@ -3,29 +3,19 @@
 #
 # coder_script bodies run as the workspace user through its login shell and
 # there is no run_as argument, so everything privileged goes through sudo.
+# Output is captured by the agent and shown under this script's own name, so
+# it goes to stdout rather than the boot log source.
 
 set -euo pipefail
 
-FLAKE_REF='${ARG_FLAKE_REF}'
+FLAKE_URL='${ARG_FLAKE_URL}'
 FLAKE_BRANCH='${ARG_FLAKE_BRANCH}'
 FLAKE_ATTR='${ARG_FLAKE_ATTR}'
 OPERATION='${ARG_UPDATE_PROCESS}'
-ACCESS_URL='${ARG_ACCESS_URL}'
-LOG_SOURCE_ID='${ARG_LOG_SOURCE_ID}'
 
-STATE_DIR=/var/lib/coder-nixos
-LOG_DIR=/var/log/coder-nixos
-FLAKE_DIR=/etc/nixos
-
-CODER_ACCESS_URL="$ACCESS_URL"
-CODER_LOG_SOURCE_ID="$LOG_SOURCE_ID"
-CODER_LOG_STATE_DIR="$STATE_DIR"
-# Always present: the agent sets it for the scripts it runs. Logging simply
-# stays disabled if it is not.
-CODER_AGENT_TOKEN="$${CODER_AGENT_TOKEN:-}"
-CODER_LOG_BUDGET=524288
-
-${LOG_SH}
+FLAKE_DIR='${ARG_FLAKE_DIR}'
+STATE_DIR='${ARG_STATE_DIR}'
+LOG_DIR='${ARG_LOG_DIR}'
 
 NIX_FLAKE_DIR="$FLAKE_DIR"
 NIX_FLAKE_ATTR="$FLAKE_ATTR"
@@ -44,7 +34,7 @@ fi
 
 TRANSCRIPT="$LOG_DIR/rebuild-$(date -u +%Y%m%dT%H%M%SZ).log"
 
-nix_sync_checkout "$FLAKE_REF" "$FLAKE_BRANCH"
+nix_sync_checkout "$FLAKE_URL" "$FLAKE_BRANCH"
 
 REV=$(nix_needs_rebuild) && NEEDS_REBUILD=1 || NEEDS_REBUILD=0
 if [ "$NEEDS_REBUILD" -eq 0 ]; then

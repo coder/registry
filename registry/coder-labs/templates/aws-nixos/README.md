@@ -63,15 +63,17 @@ build is exactly the one you need a terminal on.
 
 ## Choosing which configuration is applied
 
-Two variables control this:
+Two Terraform variables control this: `flake_ref`, the Git reference to the configuration, and
+`flake_attr`, the `nixosConfigurations` attribute to apply.
 
-| Variable     | Default                                                     | Meaning                                        |
-| ------------ | ----------------------------------------------------------- | ---------------------------------------------- |
-| `flake_ref`  | `git+https://github.com/coder/nixos-example-flake?ref=main` | where the flake lives                          |
-| `flake_attr` | `workspace-$ARCH`                                           | which `nixosConfigurations` attribute to apply |
+`flake_ref` takes the reference in the form `nix` itself accepts — a `git+` prefix is optional and
+`?ref=` selects a branch, so `https://host/org/repo`,
+`git+https://host/org/repo?ref=dev` and `git+ssh://git@host/org/repo?ref=dev` all work. Without
+`?ref=` the remote's default branch is used, resolved on the instance. The configuration must be
+committed: a Git flake reference only ever sees committed files.
 
-`flake_attr` is the part after `#` in a flake reference, so this is exactly the selection you would
-make by hand:
+`flake_attr` is the part after `#` in a flake reference, so between them this is exactly the
+selection you would make by hand:
 
 ```console
 nixos-rebuild switch --flake 'github:your-org/config#workspace-x86_64'
@@ -325,6 +327,7 @@ The template is two halves that do not know about each other:
 - [`modules/nix/`](./modules/nix/README.md) is the flake lifecycle: sync a checkout, decide whether
   a rebuild is needed, apply it, filter the output. Nothing in it mentions EC2 or user-data.
 
-`scripts/boot.sh.tftpl` is the seam: it is handed to the first as `boot_script` and uses the
-second. Either half can be lifted into a standalone registry module without untangling it from the
-other.
+The seam is one string: the nix module renders a boot script and exports it, and the amazon-init
+module runs it without looking inside. Either half can be lifted into a standalone registry module
+without untangling it from the other, and `main.tf` is left with the things that are genuinely
+about this template — the AMI, the instance, the agent and the IDE modules.
