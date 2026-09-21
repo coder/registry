@@ -22,9 +22,15 @@ variable "description" {
 }
 
 variable "default" {
-  description = "The default instance type to preselect. Must be part of the selected type_category, e.g. \"t3.micro\"."
+  description = "The default instance type to preselect (must be part of type_category), or the fixed value returned when create_parameter is false."
   type        = string
   default     = ""
+}
+
+variable "create_parameter" {
+  description = "Whether to create the built-in coder_parameter. Set to false to skip the picker and return default while still exposing the instances catalog."
+  type        = bool
+  default     = true
 }
 
 variable "mutable" {
@@ -89,6 +95,7 @@ locals {
 }
 
 data "coder_parameter" "instance_type" {
+  count        = var.create_parameter ? 1 : 0
   name         = "aws_ec2_instance_type"
   display_name = var.display_name
   description  = var.description
@@ -118,7 +125,7 @@ data "coder_parameter" "instance_type" {
 
 output "value" {
   description = "The selected AWS EC2 instance type. Use it as the key into the instances output."
-  value       = data.coder_parameter.instance_type.value
+  value       = var.create_parameter ? one(data.coder_parameter.instance_type[*].value) : var.default
 }
 
 output "instances" {

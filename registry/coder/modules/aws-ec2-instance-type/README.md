@@ -107,6 +107,19 @@ data "aws_ami" "workspace" {
 }
 ```
 
+### Use the catalog without a parameter
+
+Set `create_parameter = false` to skip the picker (for example when the template pins the size) while still using the `instances` catalog:
+
+```tf
+module "aws_ec2_instance_type" {
+  source           = "registry.coder.com/coder/aws-ec2-instance-type/coder"
+  version          = "1.0.0"
+  create_parameter = false
+  default          = "t4g.large"
+}
+```
+
 ## Related templates
 
 For a complete AWS EC2 template, see the following examples in the [Coder Registry](https://registry.coder.com/).
