@@ -225,16 +225,47 @@ describe("pi", async () => {
       skipPiMock: true,
       moduleVariables: { install_pi: "true" },
     });
-    // codercom/enterprise-node:latest ships npm; simulate it being absent.
-    await execContainer(id, [
-      "bash",
-      "-c",
-      "mv $(command -v npm) /tmp/npm.bak",
-    ]);
+    // npm and its supporting files are root-owned on
+    // codercom/enterprise-node:latest, so removing it as the workspace user
+    // (as a plain `mv` would attempt) fails silently and leaves npm in
+    // place. Remove it as root to actually simulate npm being absent.
+    await execContainer(
+      id,
+      ["bash", "-c", "rm -f $(command -v npm) $(command -v npx)"],
+      ["-u", "root"],
+    );
     const result = await runInstallScript(id, scripts.install);
     expect(result.exitCode).not.toBe(0);
     const log = await installLog(id);
     expect(log).toContain("npm was not found");
+  });
+
+  test("install-does-not-require-writable-global-npm-prefix", async () => {
+    // codercom/enterprise-node:latest sets npm's default global prefix to
+    // /usr, which is root-owned. A plain `npm install -g` fails with EACCES
+    // for the unprivileged "coder" user; the module must install into a
+    // prefix it owns instead.
+    const { id, scripts } = await setup({
+      skipPiMock: true,
+      moduleVariables: { install_pi: "true" },
+    });
+    const result = await runInstallScript(id, scripts.install);
+    expect(result.exitCode).toBe(0);
+    const log = await installLog(id);
+    expect(log).not.toContain("EACCES");
+    expect(log).toContain("Installed Pi CLI");
+
+    const npmGlobalBin =
+      "/home/coder/.coder-modules/coder-labs/pi/npm-global/bin";
+    const binExists = await execContainer(id, [
+      "test",
+      "-x",
+      `${npmGlobalBin}/pi`,
+    ]);
+    expect(binExists.exitCode).toBe(0);
+
+    const profile = await readFileContainer(id, "/home/coder/.bashrc");
+    expect(profile).toContain(npmGlobalBin);
   });
 
   test("anthropic-api-key", async () => {
