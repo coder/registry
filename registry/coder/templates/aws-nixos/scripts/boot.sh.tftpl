@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Applies the flake on every boot. Handed to the amazon-init module as an
+# opaque string and run by it as root, after the agent handoff exists and
+# before the agent is started -- so everything here happens while the
+# workspace is still building, and the agent never sees a half-applied system.
+#
+# Runs on every boot, so it must be idempotent.
+
+set -euo pipefail
+
+FLAKE_REF='${ARG_FLAKE_REF}'
+FLAKE_BRANCH='${ARG_FLAKE_BRANCH}'
+FLAKE_ATTR='${ARG_FLAKE_ATTR}'
+
+STATE_DIR='${ARG_STATE_DIR}'
+LOG_DIR='${ARG_LOG_DIR}'
+FLAKE_DIR='${ARG_FLAKE_DIR}'
+
+install -d -m 0755 "$STATE_DIR" "$LOG_DIR"
+
+# Provided by the amazon-init module, along with the CODER_* variables it
+# needs. Logging must never be fatal, hence the fallbacks.
+# shellcheck source=/dev/null
+. "$${CODER_LOG_LIBRARY:?the amazon-init module sets this}"
+
+nix_log() { coder_log "$@" || true; }
+
+NIX_FLAKE_DIR="$FLAKE_DIR"
+NIX_FLAKE_ATTR="$FLAKE_ATTR"
+NIX_STATE_DIR="$STATE_DIR"
+NIX_LOG_DIR="$LOG_DIR"
+
+${LIFECYCLE_SH}
+
+TRANSCRIPT="$LOG_DIR/rebuild-$(date -u +%Y%m%dT%H%M%SZ).log"
+
+on_error() {
+  local rc=$?
+  coder_log error "Boot script failed (exit $rc). Transcript: $TRANSCRIPT" || true
+  coder_log_tail "$TRANSCRIPT" 200 || true
+  exit "$rc"
+}
+trap on_error ERR
+
+nix_lock
+nix_sync_checkout "$FLAKE_REF" "$FLAKE_BRANCH"
+
+REV=$(nix_needs_rebuild) && NEEDS_REBUILD=1 || NEEDS_REBUILD=0
+if [ "$NEEDS_REBUILD" -eq 0 ]; then
+  coder_log info "Configuration unchanged ($${REV:0:12}); skipping rebuild." || true
+  exit 0
+fi
+
+coder_log info "Applying $FLAKE_DIR#$FLAKE_ATTR ($${REV:0:12})" || true
+coder_log info "Transcript: $TRANSCRIPT" || true
+
+if ! nix_apply switch "$TRANSCRIPT"; then
+  coder_log error "nixos-rebuild switch failed; the previous generation is still active." || true
+  coder_log_tail "$TRANSCRIPT" 200 || true
+  exit 1
+fi
+
+nix_record_rev "$REV"
+# The workspace user exists now, so systemd-tmpfiles has set the flake
+# directory's owner; make the tree match it.
+nix_own_checkout
+
+coder_log info "Switch complete." || true

@@ -282,14 +282,15 @@ resource "coder_script" "nixos_rebuild" {
   log_path           = "${local.log_dir}/coder-script.log"
 
   script = templatefile("${path.module}/scripts/rebuild.sh.tftpl", {
-    LOG_SH             = local.log_sh
+    # The same library the boot path uses, taken from the module that owns it.
+    LOG_SH             = module.amazon_init.log_library
     LIFECYCLE_SH       = local.lifecycle_sh
     ARG_FLAKE_REF      = local.flake_url
     ARG_FLAKE_BRANCH   = var.flake_branch
     ARG_FLAKE_ATTR     = local.flake_attr
     ARG_UPDATE_PROCESS = data.coder_parameter.update_process.value
     ARG_ACCESS_URL     = data.coder_workspace.me.access_url
-    ARG_LOG_SOURCE_ID  = local.log_source_id
+    ARG_LOG_SOURCE_ID  = module.amazon_init.log_source_id
   })
 }
 
@@ -314,38 +315,42 @@ locals {
   # prefix and any query string. `flake_branch` carries the ref instead.
   flake_url = replace(replace(var.flake_ref, "/^git\\+/", ""), "/\\?.*$/", "")
 
-  # Constant, not uuid(): log sources are scoped to an agent, Coder treats a
-  # repeat POST with the same id as a no-op, and a generated value would churn
-  # the plan every run.
-  log_source_id = "6e1f4a2c-9b3d-4c8e-8a71-5f0d2b6c4e93"
-
-  # Sourced verbatim into the two entrypoints below. Plain shell rather than
-  # templates so they stay readable and get covered by the repo's shellcheck.
-  log_sh       = file("${path.module}/scripts/log.sh")
+  # Sourced verbatim into both entrypoints. Plain shell rather than a template
+  # so it stays readable and gets covered by the repo's shellcheck.
   lifecycle_sh = file("${path.module}/modules/nix/lifecycle.sh")
 
+  state_dir = "/var/lib/coder-nixos"
+  flake_dir = "/etc/nixos"
+
+  # Handed to the amazon-init module, which runs it as root before starting
+  # the agent and otherwise does not look inside it.
+  boot_script = templatefile("${path.module}/scripts/boot.sh.tftpl", {
+    LIFECYCLE_SH     = local.lifecycle_sh
+    ARG_FLAKE_REF    = local.flake_url
+    ARG_FLAKE_BRANCH = var.flake_branch
+    ARG_FLAKE_ATTR   = local.flake_attr
+    ARG_STATE_DIR    = local.state_dir
+    ARG_LOG_DIR      = local.log_dir
+    ARG_FLAKE_DIR    = local.flake_dir
+  })
 }
 
-# Everything about getting Coder onto a NixOS AMI through amazon-init: the
-# agent handoff, the workspace facts and the first rebuild, wrapped for EC2's
-# 16 KiB user-data limit. See ./modules/amazon-init/README.md.
+# Gets Coder onto the instance and runs one script on every boot. It knows
+# nothing about Nix: `boot_script` is an opaque string to it, and the flake is
+# applied entirely inside that string. See ./modules/amazon-init/README.md.
 module "amazon_init" {
   source = "./modules/amazon-init"
 
-  flake_ref         = local.flake_url
-  flake_branch      = var.flake_branch
-  flake_attr        = local.flake_attr
-  access_url        = data.coder_workspace.me.access_url
   agent_token       = try(coder_agent.main[0].token, "")
   agent_init_script = try(coder_agent.main[0].init_script, "")
-  log_source_id     = local.log_source_id
-  workspace_name    = data.coder_workspace.me.name
-  hostname          = lower(data.coder_workspace.me.name)
-  owner             = data.coder_workspace_owner.me.name
-  owner_name        = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-  owner_email       = data.coder_workspace_owner.me.email
-  log_library       = local.log_sh
-  lifecycle_library = local.lifecycle_sh
+  boot_script       = local.boot_script
+
+  log_display_name = "NixOS"
+  log_icon         = "/icon/nix.svg"
+
+  # The AMI may not have curl before the first switch, and on NixOS the way to
+  # get one is to build it.
+  curl_resolve_command = "printf '%s' \"$(nix build --no-link --print-out-paths nixpkgs#curl)/bin/curl\""
 }
 
 resource "aws_instance" "dev" {

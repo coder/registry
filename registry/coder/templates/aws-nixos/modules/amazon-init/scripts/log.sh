@@ -1,8 +1,8 @@
 # shellcheck shell=bash
 #
 # Pushes lines to the Coder agent log API -- the only way to show anything in
-# the workspace UI before the agent exists, which on first boot is the whole
-# duration of the NixOS switch.
+# the workspace UI before the agent exists, which on a first boot lasts for as
+# long as the boot script runs.
 #
 # Callers set CODER_ACCESS_URL, CODER_AGENT_TOKEN, CODER_LOG_SOURCE_ID and
 # optionally CODER_LOG_BUDGET. Sets no shell options: failing to log must
@@ -11,18 +11,23 @@
 CODER_LOG_BUDGET="${CODER_LOG_BUDGET:-524288}"
 CODER_LOG_STATE_DIR="${CODER_LOG_STATE_DIR:-/run/coder}"
 CODER_LOG_MAX_LINE=2048
-CODER_LOG_READY=0
+# Inherited, so a child process that sources this library can log without
+# registering the source again -- registration is per workspace build, not per
+# process, and a child has no way to know whether it already happened.
+CODER_LOG_READY="${CODER_LOG_READY:-0}"
 
-# amazon-init's PATH has no curl. Resolve once; `nix shell` per call would add
-# an evaluation to every batch.
+# A minimal AMI may not ship curl at all, and amazon-init's PATH is short.
+# When it is missing, CODER_CURL_RESOLVE -- a command supplied by whoever
+# instantiated this module, because only they know how to obtain a binary on
+# their image -- is run once and expected to print a path to one.
 coder_curl() {
   if [ -z "${CODER_CURL:-}" ]; then
     if command -v curl > /dev/null 2>&1; then
       CODER_CURL=$(command -v curl)
-    else
-      CODER_CURL="$(nix build --no-link --print-out-paths nixpkgs#curl 2> /dev/null)/bin/curl"
+    elif [ -n "${CODER_CURL_RESOLVE:-}" ]; then
+      CODER_CURL=$(eval "$CODER_CURL_RESOLVE" 2> /dev/null || true)
     fi
-    [ -x "$CODER_CURL" ] || return 1
+    [ -n "${CODER_CURL:-}" ] && [ -x "$CODER_CURL" ] || return 1
     export CODER_CURL
   fi
   "$CODER_CURL" "$@"
@@ -64,7 +69,7 @@ JSON
     case "$code" in
       # The handler returns 201 on both create and already-exists.
       200 | 201)
-        CODER_LOG_READY=1
+        export CODER_LOG_READY=1
         return 0
         ;;
       401 | 403 | 000 | 5??)

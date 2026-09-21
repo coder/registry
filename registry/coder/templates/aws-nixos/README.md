@@ -316,9 +316,15 @@ For anything heavier, prefer declaring the tool in your flake and exposing it wi
 [`coder_app`](https://registry.terraform.io/providers/coder/coder/latest/docs/resources/app):
 it is reproducible and avoids the dynamic-linking problem entirely.
 
-The Nix-specific parts of the boot and rebuild paths live in
-[`modules/nix/`](./modules/nix/README.md), kept separate so they can become a standalone Coder
-module that manages a flake lifecycle on any Linux host, not just NixOS. The EC2 side — the boot
-script and the user-data wrapper that `amazon-init` execs — is
-[`modules/amazon-init/`](./modules/amazon-init/README.md), so the two halves can move
-independently: another cloud replaces the second without touching the first.
+The template is two halves that do not know about each other:
+
+- [`modules/amazon-init/`](./modules/amazon-init/README.md) gets Coder onto an EC2 instance whose
+  AMI runs `amazon-init` instead of cloud-init. It publishes the agent handoff and the workspace
+  identity, streams logs before an agent exists, runs one script, and starts the agent last.
+  Nothing in it mentions Nix — the script it runs is an opaque string.
+- [`modules/nix/`](./modules/nix/README.md) is the flake lifecycle: sync a checkout, decide whether
+  a rebuild is needed, apply it, filter the output. Nothing in it mentions EC2 or user-data.
+
+`scripts/boot.sh.tftpl` is the seam: it is handed to the first as `boot_script` and uses the
+second. Either half can be lifted into a standalone registry module without untangling it from the
+other.
