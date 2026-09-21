@@ -36,7 +36,7 @@ variable "flake_ref" {
 variable "flake_attr" {
   description = "`nixosConfigurations` attribute to build. `$ARCH` is replaced with `x86_64` or `aarch64` to match the instance type."
   type        = string
-  default     = "workspace-$ARCH"
+  default     = "coder-workspace-$ARCH"
 }
 
 variable "nixos_release" {
@@ -297,10 +297,6 @@ module "amazon_init" {
 
   log_display_name = "NixOS"
   log_icon         = "/icon/nix.svg"
-
-  # The AMI may not have curl before the first switch, and on NixOS the way to
-  # get one is to build it.
-  curl_resolve_command = "printf '%s' \"$(nix build --no-link --print-out-paths nixpkgs#curl)/bin/curl\""
 }
 
 resource "aws_instance" "dev" {

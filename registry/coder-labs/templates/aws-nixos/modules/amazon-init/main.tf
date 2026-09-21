@@ -98,16 +98,6 @@ variable "path" {
   default     = "/run/current-system/sw/bin"
 }
 
-variable "curl_resolve_command" {
-  description = <<-EOT
-    Shell command that prints a path to a `curl` binary, used only when the
-    image has none. Logging is the only thing that needs it, and it is the one
-    thing this module cannot work out for an image it does not know.
-  EOT
-  type        = string
-  default     = ""
-}
-
 variable "log_display_name" {
   description = "Name of that log source in the workspace UI."
   type        = string
@@ -168,7 +158,6 @@ locals {
     ARG_LOG_DISPLAY_NAME_B64 = base64encode(var.log_display_name)
     ARG_LOG_ICON             = var.log_icon
     ARG_LOG_BUDGET           = var.log_budget_bytes
-    ARG_CURL_RESOLVE_B64     = base64encode(var.curl_resolve_command)
 
     ARG_HOSTNAME       = local.hostname
     ARG_WORKSPACE_NAME = data.coder_workspace.me.name

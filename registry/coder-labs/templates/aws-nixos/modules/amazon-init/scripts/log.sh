@@ -16,18 +16,13 @@ CODER_LOG_MAX_LINE=2048
 # process, and a child has no way to know whether it already happened.
 CODER_LOG_READY="${CODER_LOG_READY:-0}"
 
-# A minimal AMI may not ship curl at all, and amazon-init's PATH is short.
-# When it is missing, CODER_CURL_RESOLVE -- a command supplied by whoever
-# instantiated this module, because only they know how to obtain a binary on
-# their image -- is run once and expected to print a path to one.
+# Resolved once. An image without curl gets no logs: every function here then
+# fails closed, which is the right trade -- logging must never be the reason a
+# boot fails.
 coder_curl() {
   if [ -z "${CODER_CURL:-}" ]; then
-    if command -v curl > /dev/null 2>&1; then
-      CODER_CURL=$(command -v curl)
-    elif [ -n "${CODER_CURL_RESOLVE:-}" ]; then
-      CODER_CURL=$(eval "$CODER_CURL_RESOLVE" 2> /dev/null || true)
-    fi
-    [ -n "${CODER_CURL:-}" ] && [ -x "$CODER_CURL" ] || return 1
+    command -v curl > /dev/null 2>&1 || return 1
+    CODER_CURL=$(command -v curl)
     export CODER_CURL
   fi
   "$CODER_CURL" "$@"

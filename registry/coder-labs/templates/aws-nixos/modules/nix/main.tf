@@ -44,7 +44,7 @@ variable "flake_ref" {
 variable "flake_attr" {
   description = "`nixosConfigurations` attribute to build. `$ARCH` is replaced with `arch`."
   type        = string
-  default     = "workspace-$ARCH"
+  default     = "coder-workspace-$ARCH"
 }
 
 variable "arch" {

@@ -23,7 +23,6 @@ WORKSPACE_NAME='${ARG_WORKSPACE_NAME}'
 OWNER='${ARG_OWNER}'
 OWNER_NAME_B64='${ARG_OWNER_NAME_B64}'
 OWNER_EMAIL='${ARG_OWNER_EMAIL}'
-CURL_RESOLVE_B64='${ARG_CURL_RESOLVE_B64}'
 
 RUNTIME_DIR='${ARG_RUNTIME_DIR}'
 
@@ -76,8 +75,6 @@ export CODER_AGENT_TOKEN="$AGENT_TOKEN"
 export CODER_LOG_SOURCE_ID="$LOG_SOURCE_ID"
 export CODER_LOG_STATE_DIR="$RUNTIME_DIR"
 export CODER_LOG_BUDGET="$LOG_BUDGET"
-export CODER_CURL_RESOLVE
-CODER_CURL_RESOLVE=$(printf '%s' "$CURL_RESOLVE_B64" | base64 -d)
 
 # Written to disk as well as sourced, so the boot script and anything the
 # agent runs later can use the same functions without a second copy.

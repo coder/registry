@@ -108,9 +108,10 @@ Two things it handles that are easy to get wrong:
   every later log from every source is dropped permanently. The library tracks
   its own usage and goes quiet at `log_budget_bytes`, which defaults to half
   the cap.
-- **No curl.** A minimal AMI may not have one. `curl_resolve_command` is a
-  command that prints a path to a binary, run once, only if `curl` is not
-  already on `PATH`.
+- **No curl.** The image must have one on `PATH` — the NixOS AMI does, in its
+  own first generation, before anything has been rebuilt. An image without one
+  simply gets no logs: every function here fails closed, because logging must
+  never be the reason a boot fails.
 
 ## The user-data wrapper
 

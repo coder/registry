@@ -76,7 +76,7 @@ committed: a Git flake reference only ever sees committed files.
 selection you would make by hand:
 
 ```console
-nixos-rebuild switch --flake 'github:your-org/config#workspace-x86_64'
+nixos-rebuild switch --flake 'github:your-org/config#coder-workspace-x86_64'
 ```
 
 `$ARCH` in `flake_attr` is replaced with `x86_64` or `aarch64` to match the chosen instance type.
@@ -129,7 +129,7 @@ The configuration is a git checkout at `/etc/nixos`, owned by the workspace
 user, and that is what the template builds. So the command is the ordinary one:
 
 ```console
-sudo nixos-rebuild switch --flake /etc/nixos#workspace-x86_64
+sudo nixos-rebuild switch --flake /etc/nixos#coder-workspace-x86_64
 ```
 
 No overrides, no `--impure`, no injected inputs — what you get by hand is
@@ -174,7 +174,7 @@ Set `update_schedule = ""` to disable periodic rebuilds entirely.
 To rebuild immediately:
 
 ```console
-sudo nixos-rebuild switch --flake 'git+https://github.com/coder/nixos-example-flake?ref=main#workspace-x86_64' \
+sudo nixos-rebuild switch --flake 'git+https://github.com/coder/nixos-example-flake?ref=main#coder-workspace-x86_64' \
   --override-input coder-vars path:/etc/coder/vars --no-write-lock-file --refresh
 ```
 
@@ -219,7 +219,7 @@ volume is picked up on the next restart.
 Both `x86_64` and `arm64` (Graviton) instance types are offered. The AMI filter,
 `coder_agent.arch` and the flake attribute are all derived from the instance type, so they cannot
 disagree — but your flake must expose a configuration for the architecture you select. The
-reference flake ships `workspace-x86_64` and `workspace-aarch64`.
+reference flake ships `coder-workspace-x86_64` and `coder-workspace-aarch64`.
 
 The smallest instance type offered is `t3.medium` on purpose: the NixOS AMI configures no swap and
 the Nix store shares the root volume, so a rebuild that has to compile anything will exhaust a
