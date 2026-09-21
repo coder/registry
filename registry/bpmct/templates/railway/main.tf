@@ -161,13 +161,6 @@ resource "coder_agent" "main" {
     fi
   EOT
 
-  env = {
-    GIT_AUTHOR_NAME     = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_AUTHOR_EMAIL    = data.coder_workspace_owner.me.email
-    GIT_COMMITTER_NAME  = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_COMMITTER_EMAIL = data.coder_workspace_owner.me.email
-  }
-
   metadata {
     display_name = "CPU Usage"
     key          = "0_cpu_usage"
@@ -466,6 +459,13 @@ resource "coder_metadata" "workspace" {
     key   = "service_id"
     value = try(file("${local.state_dir}/service_id"), "pending")
   }
+}
+
+module "git-config" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/git-config/coder"
+  version  = "~> 1.0"
+  agent_id = coder_agent.main.id
 }
 
 module "code-server" {
