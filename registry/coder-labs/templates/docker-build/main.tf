@@ -39,13 +39,6 @@ resource "coder_agent" "main" {
       cp -rT /etc/skel ~
       touch ~/.init_done
     fi
-
-    # Install the latest code-server.
-    # Append "--version x.x.x" to install a specific version of code-server.
-    curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/tmp/code-server
-
-    # Start code-server in the background.
-    /tmp/code-server/bin/code-server --auth none --port 13337 >/tmp/code-server.log 2>&1 &
   EOT
 
   # These environment variables allow you to make Git commits right away after creating a
@@ -126,20 +119,14 @@ resource "coder_agent" "main" {
   }
 }
 
-resource "coder_app" "code-server" {
-  agent_id     = coder_agent.main.id
-  slug         = "code-server"
-  display_name = "code-server"
-  url          = "http://localhost:13337/?folder=/home/${local.username}"
-  icon         = "/icon/code.svg"
-  subdomain    = false
-  share        = "owner"
-
-  healthcheck {
-    url       = "http://localhost:13337/healthz"
-    interval  = 5
-    threshold = 6
-  }
+# See https://registry.coder.com/modules/coder/code-server
+module "code-server" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/code-server/coder"
+  version  = "~> 1.0"
+  agent_id = coder_agent.main.id
+  order    = 1
+  folder   = "/home/${local.username}"
 }
 
 resource "docker_volume" "home_volume" {
