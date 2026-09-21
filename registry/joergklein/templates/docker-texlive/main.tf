@@ -66,9 +66,6 @@ resource "coder_agent" "main" {
     USER   = "texlive"
     LANG   = "C.UTF-8"
     LC_ALL = "C.UTF-8"
-
-    GIT_AUTHOR_NAME  = coalesce(try(data.coder_workspace_owner.me.full_name, ""), local.username)
-    GIT_AUTHOR_EMAIL = try(data.coder_workspace_owner.me.email, "unknown@example.com")
   }
 
   metadata {
@@ -94,6 +91,14 @@ resource "coder_agent" "main" {
     interval     = 60
     timeout      = 1
   }
+}
+
+module "git-config" {
+  count   = local.start_count
+  source  = "registry.coder.com/coder/git-config/coder"
+  version = "~> 1.0"
+
+  agent_id = coder_agent.main.id
 }
 
 # -------------------------
