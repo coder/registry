@@ -83,11 +83,19 @@ function install_pi_cli() {
     package="$${package}@$${ARG_PI_VERSION}"
   fi
 
-  if ! npm install -g --ignore-scripts "$${package}"; then
+  # npm's default global prefix is often root-owned (e.g. /usr on
+  # codercom/enterprise-node), which the workspace user cannot write to.
+  # Install into a prefix under the module's own data directory instead, so
+  # the install never depends on npm's default prefix being writable.
+  local npm_prefix="$HOME/.coder-modules/coder-labs/pi/npm-global"
+  mkdir -p "$${npm_prefix}"
+
+  if ! npm install -g --ignore-scripts --prefix "$${npm_prefix}" "$${package}"; then
     echo "Pi installation failed." >&2
     return 1
   fi
 
+  export PATH="$${npm_prefix}/bin:$PATH"
   ensure_pi_in_path
   printf "%s Installed Pi CLI: %s\n" "$${BOLD}" "$(pi --version)"
 }
