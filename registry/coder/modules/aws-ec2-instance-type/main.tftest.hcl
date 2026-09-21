@@ -133,3 +133,26 @@ run "value_is_key_in_instances" {
     error_message = "The selected value must be a key in the instances output"
   }
 }
+
+run "instances_expose_raw_specs" {
+  command = plan
+
+  assert {
+    condition     = output.instances["t3.medium"].vcpus == 2 && output.instances["t3.medium"].memory_mib == 4096 && output.instances["t3.medium"].gpus == 0
+    error_message = "Specs should be exposed as raw numeric fields"
+  }
+
+  assert {
+    condition     = output.instances["g4dn.12xlarge"].gpus == 4
+    error_message = "GPU count should reflect the source data"
+  }
+}
+
+run "option_description_is_computed" {
+  command = apply
+
+  assert {
+    condition     = length([for o in data.coder_parameter.instance_type.option : o if o.value == "t3.medium" && o.description == "2 vCPU, 4 GiB RAM"]) == 1
+    error_message = "Option description should be computed from vcpus/memory_mib/gpus"
+  }
+}

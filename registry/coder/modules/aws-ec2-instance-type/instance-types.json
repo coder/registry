@@ -2,406 +2,522 @@
   {
     "category": "general",
     "value": "t3.nano",
-    "description": "2 vCPU, 0.5 GiB RAM",
+    "vcpus": 2,
+    "memory_mib": 512,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "general",
     "value": "t3.micro",
-    "description": "2 vCPU, 1 GiB RAM",
+    "vcpus": 2,
+    "memory_mib": 1024,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "general",
     "value": "t3.small",
-    "description": "2 vCPU, 2 GiB RAM",
+    "vcpus": 2,
+    "memory_mib": 2048,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "general",
     "value": "t3.medium",
-    "description": "2 vCPU, 4 GiB RAM",
+    "vcpus": 2,
+    "memory_mib": 4096,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "general",
     "value": "t3.large",
-    "description": "2 vCPU, 8 GiB RAM",
+    "vcpus": 2,
+    "memory_mib": 8192,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "general",
     "value": "t3.xlarge",
-    "description": "4 vCPU, 16 GiB RAM",
+    "vcpus": 4,
+    "memory_mib": 16384,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "general",
     "value": "t3.2xlarge",
-    "description": "8 vCPU, 32 GiB RAM",
+    "vcpus": 8,
+    "memory_mib": 32768,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "general",
     "value": "m5.large",
-    "description": "2 vCPU, 8 GiB RAM",
+    "vcpus": 2,
+    "memory_mib": 8192,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "general",
     "value": "m5.xlarge",
-    "description": "4 vCPU, 16 GiB RAM",
+    "vcpus": 4,
+    "memory_mib": 16384,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "general",
     "value": "m5.2xlarge",
-    "description": "8 vCPU, 32 GiB RAM",
+    "vcpus": 8,
+    "memory_mib": 32768,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "general",
     "value": "m5.4xlarge",
-    "description": "16 vCPU, 64 GiB RAM",
+    "vcpus": 16,
+    "memory_mib": 65536,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "general",
     "value": "m5.8xlarge",
-    "description": "32 vCPU, 128 GiB RAM",
+    "vcpus": 32,
+    "memory_mib": 131072,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "general",
     "value": "m5.12xlarge",
-    "description": "48 vCPU, 192 GiB RAM",
+    "vcpus": 48,
+    "memory_mib": 196608,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "general",
     "value": "m5.16xlarge",
-    "description": "64 vCPU, 256 GiB RAM",
+    "vcpus": 64,
+    "memory_mib": 262144,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "general",
     "value": "m5.24xlarge",
-    "description": "96 vCPU, 384 GiB RAM",
+    "vcpus": 96,
+    "memory_mib": 393216,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "general",
     "value": "t4g.nano",
-    "description": "2 vCPU, 0.5 GiB RAM",
+    "vcpus": 2,
+    "memory_mib": 512,
+    "gpus": 0,
     "coder_arch": "arm64",
     "ami": "arm64"
   },
   {
     "category": "general",
     "value": "t4g.micro",
-    "description": "2 vCPU, 1 GiB RAM",
+    "vcpus": 2,
+    "memory_mib": 1024,
+    "gpus": 0,
     "coder_arch": "arm64",
     "ami": "arm64"
   },
   {
     "category": "general",
     "value": "t4g.small",
-    "description": "2 vCPU, 2 GiB RAM",
+    "vcpus": 2,
+    "memory_mib": 2048,
+    "gpus": 0,
     "coder_arch": "arm64",
     "ami": "arm64"
   },
   {
     "category": "general",
     "value": "t4g.medium",
-    "description": "2 vCPU, 4 GiB RAM",
+    "vcpus": 2,
+    "memory_mib": 4096,
+    "gpus": 0,
     "coder_arch": "arm64",
     "ami": "arm64"
   },
   {
     "category": "general",
     "value": "t4g.large",
-    "description": "2 vCPU, 8 GiB RAM",
+    "vcpus": 2,
+    "memory_mib": 8192,
+    "gpus": 0,
     "coder_arch": "arm64",
     "ami": "arm64"
   },
   {
     "category": "general",
     "value": "t4g.xlarge",
-    "description": "4 vCPU, 16 GiB RAM",
+    "vcpus": 4,
+    "memory_mib": 16384,
+    "gpus": 0,
     "coder_arch": "arm64",
     "ami": "arm64"
   },
   {
     "category": "general",
     "value": "t4g.2xlarge",
-    "description": "8 vCPU, 32 GiB RAM",
+    "vcpus": 8,
+    "memory_mib": 32768,
+    "gpus": 0,
     "coder_arch": "arm64",
     "ami": "arm64"
   },
   {
     "category": "general",
     "value": "m7g.medium",
-    "description": "1 vCPU, 4 GiB RAM",
+    "vcpus": 1,
+    "memory_mib": 4096,
+    "gpus": 0,
     "coder_arch": "arm64",
     "ami": "arm64"
   },
   {
     "category": "general",
     "value": "m7g.large",
-    "description": "2 vCPU, 8 GiB RAM",
+    "vcpus": 2,
+    "memory_mib": 8192,
+    "gpus": 0,
     "coder_arch": "arm64",
     "ami": "arm64"
   },
   {
     "category": "general",
     "value": "m7g.xlarge",
-    "description": "4 vCPU, 16 GiB RAM",
+    "vcpus": 4,
+    "memory_mib": 16384,
+    "gpus": 0,
     "coder_arch": "arm64",
     "ami": "arm64"
   },
   {
     "category": "general",
     "value": "m7g.2xlarge",
-    "description": "8 vCPU, 32 GiB RAM",
+    "vcpus": 8,
+    "memory_mib": 32768,
+    "gpus": 0,
     "coder_arch": "arm64",
     "ami": "arm64"
   },
   {
     "category": "general",
     "value": "m7g.4xlarge",
-    "description": "16 vCPU, 64 GiB RAM",
+    "vcpus": 16,
+    "memory_mib": 65536,
+    "gpus": 0,
     "coder_arch": "arm64",
     "ami": "arm64"
   },
   {
     "category": "general",
     "value": "m7g.8xlarge",
-    "description": "32 vCPU, 128 GiB RAM",
+    "vcpus": 32,
+    "memory_mib": 131072,
+    "gpus": 0,
     "coder_arch": "arm64",
     "ami": "arm64"
   },
   {
     "category": "general",
     "value": "m7g.12xlarge",
-    "description": "48 vCPU, 192 GiB RAM",
+    "vcpus": 48,
+    "memory_mib": 196608,
+    "gpus": 0,
     "coder_arch": "arm64",
     "ami": "arm64"
   },
   {
     "category": "general",
     "value": "m7g.16xlarge",
-    "description": "64 vCPU, 256 GiB RAM",
+    "vcpus": 64,
+    "memory_mib": 262144,
+    "gpus": 0,
     "coder_arch": "arm64",
     "ami": "arm64"
   },
   {
     "category": "compute",
     "value": "c5.large",
-    "description": "2 vCPU, 4 GiB RAM",
+    "vcpus": 2,
+    "memory_mib": 4096,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "compute",
     "value": "c5.xlarge",
-    "description": "4 vCPU, 8 GiB RAM",
+    "vcpus": 4,
+    "memory_mib": 8192,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "compute",
     "value": "c5.2xlarge",
-    "description": "8 vCPU, 16 GiB RAM",
+    "vcpus": 8,
+    "memory_mib": 16384,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "compute",
     "value": "c5.4xlarge",
-    "description": "16 vCPU, 32 GiB RAM",
+    "vcpus": 16,
+    "memory_mib": 32768,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "compute",
     "value": "c5.9xlarge",
-    "description": "36 vCPU, 72 GiB RAM",
+    "vcpus": 36,
+    "memory_mib": 73728,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "compute",
     "value": "c5.12xlarge",
-    "description": "48 vCPU, 96 GiB RAM",
+    "vcpus": 48,
+    "memory_mib": 98304,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "compute",
     "value": "c5.18xlarge",
-    "description": "72 vCPU, 144 GiB RAM",
+    "vcpus": 72,
+    "memory_mib": 147456,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "compute",
     "value": "c5.24xlarge",
-    "description": "96 vCPU, 192 GiB RAM",
+    "vcpus": 96,
+    "memory_mib": 196608,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "memory",
     "value": "r5.large",
-    "description": "2 vCPU, 16 GiB RAM",
+    "vcpus": 2,
+    "memory_mib": 16384,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "memory",
     "value": "r5.xlarge",
-    "description": "4 vCPU, 32 GiB RAM",
+    "vcpus": 4,
+    "memory_mib": 32768,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "memory",
     "value": "r5.2xlarge",
-    "description": "8 vCPU, 64 GiB RAM",
+    "vcpus": 8,
+    "memory_mib": 65536,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "memory",
     "value": "r5.4xlarge",
-    "description": "16 vCPU, 128 GiB RAM",
+    "vcpus": 16,
+    "memory_mib": 131072,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "memory",
     "value": "r5.8xlarge",
-    "description": "32 vCPU, 256 GiB RAM",
+    "vcpus": 32,
+    "memory_mib": 262144,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "memory",
     "value": "r5.12xlarge",
-    "description": "48 vCPU, 384 GiB RAM",
+    "vcpus": 48,
+    "memory_mib": 393216,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "memory",
     "value": "r5.16xlarge",
-    "description": "64 vCPU, 512 GiB RAM",
+    "vcpus": 64,
+    "memory_mib": 524288,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "memory",
     "value": "r5.24xlarge",
-    "description": "96 vCPU, 768 GiB RAM",
+    "vcpus": 96,
+    "memory_mib": 786432,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "storage",
     "value": "i3.large",
-    "description": "2 vCPU, 15.25 GiB RAM",
+    "vcpus": 2,
+    "memory_mib": 15616,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "storage",
     "value": "i3.xlarge",
-    "description": "4 vCPU, 30.5 GiB RAM",
+    "vcpus": 4,
+    "memory_mib": 31232,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "storage",
     "value": "i3.2xlarge",
-    "description": "8 vCPU, 61 GiB RAM",
+    "vcpus": 8,
+    "memory_mib": 62464,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "storage",
     "value": "i3.4xlarge",
-    "description": "16 vCPU, 122 GiB RAM",
+    "vcpus": 16,
+    "memory_mib": 124928,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "storage",
     "value": "i3.8xlarge",
-    "description": "32 vCPU, 244 GiB RAM",
+    "vcpus": 32,
+    "memory_mib": 249856,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "storage",
     "value": "i3.16xlarge",
-    "description": "64 vCPU, 488 GiB RAM",
+    "vcpus": 64,
+    "memory_mib": 499712,
+    "gpus": 0,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "gpu",
     "value": "g4dn.xlarge",
-    "description": "4 vCPU, 16 GiB RAM, 1 GPU",
+    "vcpus": 4,
+    "memory_mib": 16384,
+    "gpus": 1,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "gpu",
     "value": "g4dn.2xlarge",
-    "description": "8 vCPU, 32 GiB RAM, 1 GPU",
+    "vcpus": 8,
+    "memory_mib": 32768,
+    "gpus": 1,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "gpu",
     "value": "g4dn.4xlarge",
-    "description": "16 vCPU, 64 GiB RAM, 1 GPU",
+    "vcpus": 16,
+    "memory_mib": 65536,
+    "gpus": 1,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "gpu",
     "value": "g4dn.8xlarge",
-    "description": "32 vCPU, 128 GiB RAM, 1 GPU",
+    "vcpus": 32,
+    "memory_mib": 131072,
+    "gpus": 1,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "gpu",
     "value": "g4dn.12xlarge",
-    "description": "48 vCPU, 192 GiB RAM, 4 GPU",
+    "vcpus": 48,
+    "memory_mib": 196608,
+    "gpus": 4,
     "coder_arch": "amd64",
     "ami": "x86_64"
   },
   {
     "category": "gpu",
     "value": "g4dn.16xlarge",
-    "description": "64 vCPU, 256 GiB RAM, 1 GPU",
+    "vcpus": 64,
+    "memory_mib": 262144,
+    "gpus": 1,
     "coder_arch": "amd64",
     "ami": "x86_64"
   }

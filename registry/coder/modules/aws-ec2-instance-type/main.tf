@@ -82,9 +82,17 @@ data "coder_parameter" "instance_type" {
       if contains(var.type_category, instance.category) && !contains(var.exclude, instance.value)
     ]
     content {
-      name        = try(var.custom_names[option.value.value], option.value.value)
-      description = try(var.custom_descriptions[option.value.value], option.value.description)
-      value       = option.value.value
+      name = try(var.custom_names[option.value.value], option.value.value)
+      description = try(
+        var.custom_descriptions[option.value.value],
+        format(
+          "%d vCPU, %g GiB RAM%s",
+          option.value.vcpus,
+          option.value.memory_mib / 1024,
+          option.value.gpus > 0 ? format(", %d GPU", option.value.gpus) : ""
+        )
+      )
+      value = option.value.value
     }
   }
 }
@@ -95,6 +103,6 @@ output "value" {
 }
 
 output "instances" {
-  description = "All AWS EC2 instance types keyed by instance type ID, including architecture metadata (coder_arch, ami)."
+  description = "All AWS EC2 instance types keyed by instance type ID, with raw specs (vcpus, memory_mib, gpus) and architecture (coder_arch, ami)."
   value       = { for instance in local.instance_types : instance.value => instance }
 }
