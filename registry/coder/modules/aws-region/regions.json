@@ -1,0 +1,170 @@
+[
+  {
+    "value": "af-south-1",
+    "name": "Africa (Cape Town)",
+    "icon": "/emojis/1f1ff-1f1e6.png",
+    "availability_zone": "af-south-1a"
+  },
+  {
+    "value": "ap-east-1",
+    "name": "Asia Pacific (Hong Kong)",
+    "icon": "/emojis/1f1ed-1f1f0.png",
+    "availability_zone": "ap-east-1a"
+  },
+  {
+    "value": "ap-northeast-1",
+    "name": "Asia Pacific (Tokyo)",
+    "icon": "/emojis/1f1ef-1f1f5.png",
+    "availability_zone": "ap-northeast-1a"
+  },
+  {
+    "value": "ap-northeast-2",
+    "name": "Asia Pacific (Seoul)",
+    "icon": "/emojis/1f1f0-1f1f7.png",
+    "availability_zone": "ap-northeast-2a"
+  },
+  {
+    "value": "ap-northeast-3",
+    "name": "Asia Pacific (Osaka)",
+    "icon": "/emojis/1f1ef-1f1f5.png",
+    "availability_zone": "ap-northeast-3a"
+  },
+  {
+    "value": "ap-south-1",
+    "name": "Asia Pacific (Mumbai)",
+    "icon": "/emojis/1f1ee-1f1f3.png",
+    "availability_zone": "ap-south-1a"
+  },
+  {
+    "value": "ap-south-2",
+    "name": "Asia Pacific (Hyderabad)",
+    "icon": "/emojis/1f1ee-1f1f3.png",
+    "availability_zone": "ap-south-2a"
+  },
+  {
+    "value": "ap-southeast-1",
+    "name": "Asia Pacific (Singapore)",
+    "icon": "/emojis/1f1f8-1f1ec.png",
+    "availability_zone": "ap-southeast-1a"
+  },
+  {
+    "value": "ap-southeast-2",
+    "name": "Asia Pacific (Sydney)",
+    "icon": "/emojis/1f1e6-1f1fa.png",
+    "availability_zone": "ap-southeast-2a"
+  },
+  {
+    "value": "ap-southeast-3",
+    "name": "Asia Pacific (Jakarta)",
+    "icon": "/emojis/1f1ee-1f1e9.png",
+    "availability_zone": "ap-southeast-3a"
+  },
+  {
+    "value": "ap-southeast-4",
+    "name": "Asia Pacific (Melbourne)",
+    "icon": "/emojis/1f1e6-1f1fa.png",
+    "availability_zone": "ap-southeast-4a"
+  },
+  {
+    "value": "ca-central-1",
+    "name": "Canada (Central)",
+    "icon": "/emojis/1f1e8-1f1e6.png",
+    "availability_zone": "ca-central-1a"
+  },
+  {
+    "value": "ca-west-1",
+    "name": "Canada West (Calgary)",
+    "icon": "/emojis/1f1e8-1f1e6.png",
+    "availability_zone": "ca-west-1a"
+  },
+  {
+    "value": "eu-central-1",
+    "name": "EU (Frankfurt)",
+    "icon": "/emojis/1f1ea-1f1fa.png",
+    "availability_zone": "eu-central-1a"
+  },
+  {
+    "value": "eu-central-2",
+    "name": "Europe (Zurich)",
+    "icon": "/emojis/1f1ea-1f1fa.png",
+    "availability_zone": "eu-central-2a"
+  },
+  {
+    "value": "eu-north-1",
+    "name": "EU (Stockholm)",
+    "icon": "/emojis/1f1ea-1f1fa.png",
+    "availability_zone": "eu-north-1a"
+  },
+  {
+    "value": "eu-south-1",
+    "name": "Europe (Milan)",
+    "icon": "/emojis/1f1ea-1f1fa.png",
+    "availability_zone": "eu-south-1a"
+  },
+  {
+    "value": "eu-south-2",
+    "name": "Europe (Spain)",
+    "icon": "/emojis/1f1ea-1f1fa.png",
+    "availability_zone": "eu-south-2a"
+  },
+  {
+    "value": "eu-west-1",
+    "name": "EU (Ireland)",
+    "icon": "/emojis/1f1ea-1f1fa.png",
+    "availability_zone": "eu-west-1a"
+  },
+  {
+    "value": "eu-west-2",
+    "name": "EU (London)",
+    "icon": "/emojis/1f1ea-1f1fa.png",
+    "availability_zone": "eu-west-2a"
+  },
+  {
+    "value": "eu-west-3",
+    "name": "EU (Paris)",
+    "icon": "/emojis/1f1ea-1f1fa.png",
+    "availability_zone": "eu-west-3a"
+  },
+  {
+    "value": "il-central-1",
+    "name": "Israel (Tel Aviv)",
+    "icon": "/emojis/1f1ee-1f1f1.png",
+    "availability_zone": "il-central-1a"
+  },
+  {
+    "value": "me-south-1",
+    "name": "Middle East (Bahrain)",
+    "icon": "/emojis/1f1e7-1f1ed.png",
+    "availability_zone": "me-south-1a"
+  },
+  {
+    "value": "sa-east-1",
+    "name": "South America (São Paulo)",
+    "icon": "/emojis/1f1e7-1f1f7.png",
+    "availability_zone": "sa-east-1a"
+  },
+  {
+    "value": "us-east-1",
+    "name": "US East (N. Virginia)",
+    "icon": "/emojis/1f1fa-1f1f8.png",
+    "availability_zone": "us-east-1a"
+  },
+  {
+    "value": "us-east-2",
+    "name": "US East (Ohio)",
+    "icon": "/emojis/1f1fa-1f1f8.png",
+    "availability_zone": "us-east-2a"
+  },
+  {
+    "value": "us-west-1",
+    "name": "US West (N. California)",
+    "icon": "/emojis/1f1fa-1f1f8.png",
+    "availability_zone": "us-west-1a"
+  },
+  {
+    "value": "us-west-2",
+    "name": "US West (Oregon)",
+    "icon": "/emojis/1f1fa-1f1f8.png",
+    "availability_zone": "us-west-2a"
+  }
+]
