@@ -77,6 +77,36 @@ module "aws_ec2_instance_type" {
 }
 ```
 
+### Architecture-aware provisioning
+
+The `instances` output maps every instance type ID to its metadata, including architecture fields. Look up the selected value to configure the agent and pick a matching AMI:
+
+```tf
+module "aws_ec2_instance_type" {
+  source  = "registry.coder.com/coder/aws-ec2-instance-type/coder"
+  version = "1.0.0"
+}
+
+locals {
+  selected = module.aws_ec2_instance_type.instances[module.aws_ec2_instance_type.value]
+}
+
+resource "coder_agent" "dev" {
+  arch = local.selected.coder_arch # amd64 or arm64
+  os   = "linux"
+}
+
+data "aws_ami" "workspace" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "architecture"
+    values = [local.selected.ami] # x86_64 or arm64
+  }
+}
+```
+
 ## Related templates
 
 For a complete AWS EC2 template, see the following examples in the [Coder Registry](https://registry.coder.com/).

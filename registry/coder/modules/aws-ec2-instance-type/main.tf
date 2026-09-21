@@ -90,6 +90,11 @@ data "coder_parameter" "instance_type" {
 }
 
 output "value" {
-  description = "The selected AWS EC2 instance type."
+  description = "The selected AWS EC2 instance type. Use it as the key into the instances output."
   value       = data.coder_parameter.instance_type.value
+}
+
+output "instances" {
+  description = "All AWS EC2 instance types keyed by instance type ID, including architecture metadata (coder_arch, ami, attr)."
+  value       = { for instance in local.instance_types : instance.value => instance }
 }

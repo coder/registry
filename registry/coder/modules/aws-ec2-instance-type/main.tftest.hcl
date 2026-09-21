@@ -93,3 +93,43 @@ run "exclude_removes_option" {
     error_message = "Excluded instance types should not appear as options"
   }
 }
+
+run "instances_output_exposes_full_catalog" {
+  command = plan
+
+  assert {
+    condition     = length(output.instances) == length(local.instance_types)
+    error_message = "The instances output should expose every catalog entry keyed by value"
+  }
+}
+
+run "x86_instances_report_amd64" {
+  command = plan
+
+  assert {
+    condition     = output.instances["t3.medium"].coder_arch == "amd64" && output.instances["t3.medium"].ami == "x86_64" && output.instances["t3.medium"].attr == "x86_64"
+    error_message = "x86 instances should report amd64 / x86_64 architecture"
+  }
+}
+
+run "arm_instances_report_arm64" {
+  command = plan
+
+  assert {
+    condition     = output.instances["m7g.large"].coder_arch == "arm64" && output.instances["m7g.large"].ami == "arm64" && output.instances["m7g.large"].attr == "aarch64"
+    error_message = "Graviton instances should report arm64 / aarch64 architecture"
+  }
+}
+
+run "value_is_key_in_instances" {
+  command = apply
+
+  variables {
+    default = "t4g.medium"
+  }
+
+  assert {
+    condition     = contains(keys(output.instances), output.value) && output.instances[output.value].coder_arch == "arm64"
+    error_message = "The selected value must be a key in the instances output"
+  }
+}
