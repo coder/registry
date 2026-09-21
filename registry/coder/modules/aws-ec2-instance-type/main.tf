@@ -64,9 +64,28 @@ variable "coder_parameter_order" {
 }
 
 locals {
-  # Static catalog (see instance-types.json) so the module needs no AWS provider
-  # or credentials at plan time, matching the aws-region module's approach.
-  instance_types = jsondecode(file("${path.module}/instance-types.json"))
+  # Specs come straight from `aws ec2 describe-instance-types` (see the PR/README
+  # for the regeneration command). category and coder_arch are derived here
+  # because AWS neither groups instances nor uses Coder's arch spelling.
+  raw_instances = jsondecode(file("${path.module}/instance-types.json"))
+
+  family_category = {
+    t3   = "general"
+    m5   = "general"
+    t4g  = "general"
+    m7g  = "general"
+    c5   = "compute"
+    r5   = "memory"
+    i3   = "storage"
+    g4dn = "gpu"
+  }
+
+  instance_types = [
+    for instance in local.raw_instances : merge(instance, {
+      category   = local.family_category[split(".", instance.value)[0]]
+      coder_arch = instance.ami == "arm64" ? "arm64" : "amd64"
+    })
+  ]
 }
 
 data "coder_parameter" "instance_type" {

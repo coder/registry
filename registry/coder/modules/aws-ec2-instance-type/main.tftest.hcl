@@ -156,3 +156,12 @@ run "option_description_is_computed" {
     error_message = "Option description should be computed from vcpus/memory_mib/gpus"
   }
 }
+
+run "category_is_derived_from_family" {
+  command = plan
+
+  assert {
+    condition     = output.instances["c5.large"].category == "compute" && output.instances["m7g.large"].category == "general" && output.instances["i3.large"].category == "storage" && output.instances["g4dn.xlarge"].category == "gpu"
+    error_message = "category should be derived from the instance family"
+  }
+}
