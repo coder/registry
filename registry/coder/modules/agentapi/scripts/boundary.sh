@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # boundary.sh - Boundary installation and setup for agentapi module.
 # Sourced by main.sh when ENABLE_BOUNDARY=true.
 # Exports AGENTAPI_BOUNDARY_PREFIX for use by module start scripts.

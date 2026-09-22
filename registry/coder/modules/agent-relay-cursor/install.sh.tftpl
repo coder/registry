@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Install step, run by coder-utils before the start step. Makes sure the
+# Cursor CLI is on PATH; a CLI already in the image makes this a no-op,
+# so a prepared image spends none of the claim-to-ready window here.
+# Never fails the build: the start step owns the terminal state a
+# missing binary produces, so Agent Relay sees one vocabulary.
+set -euo pipefail
+
+%{ if install_cli ~}
+# The installer places the binary under ~/.local/bin, so that directory
+# joins PATH for the presence check.
+export PATH="$HOME/.local/bin:$PATH"
+if command -v ${cli_binary} >/dev/null 2>&1; then
+	echo "Cursor CLI already present; skipping the install."
+else
+	echo "Cursor CLI not found; installing the latest release..."
+	# -L costs nothing today (cursor.com/install answers 200 directly) and
+	# keeps the pipe from silently installing an empty body if it ever
+	# starts redirecting, which is how the Claude installer broke.
+	if ! curl https://cursor.com/install -fsSL | bash; then
+		echo "Cursor CLI install failed." >&2
+	fi
+fi
+%{ else ~}
+echo "install_cli is false; expecting '${cli_binary}' to be in the image."
+%{ endif ~}

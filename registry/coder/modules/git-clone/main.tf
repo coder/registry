@@ -159,7 +159,7 @@ resource "coder_script" "git_clone" {
   count              = local.clone_enabled ? 1 : 0
   agent_id           = var.agent_id
   script             = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -o errexit
     set -o pipefail
 

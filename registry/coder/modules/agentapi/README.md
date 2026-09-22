@@ -16,7 +16,7 @@ The AgentAPI module is a building block for modules that need to run an AgentAPI
 ```tf
 module "agentapi" {
   source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.4.0"
+  version = "2.4.1"
 
   agent_id             = var.agent_id
   web_app_slug         = local.app_slug
@@ -32,7 +32,7 @@ module "agentapi" {
   post_install_script  = var.post_install_script
   start_script         = local.start_script
   install_script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -o errexit
     set -o pipefail
 
