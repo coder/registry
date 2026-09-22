@@ -66,18 +66,19 @@ fails and Cursor re-queues the request for a fresh workspace.
 
 Some Cursor CLI releases refuse a delegated sub-token for pool workers
 (`Delegated service-account tokens cannot start pool workers`). Agent Relay's
-per-pool `insecure_shared_token` then stamps the service-account key itself.
-The CLI accepts that key only as an API key, never as `--auth-token`
-(`Failed to validate worker account settings`), so the template must set
-`credential_kind = "api_key"` to match: the supervisor exports the credential
-as `CURSOR_API_KEY` and drops `--auth-token`. Every workspace owner in the pool
-can then read a team-wide key from the worker's environment; pair the two
-settings deliberately.
+per-pool `insecure_shared_token` then stamps the service-account key itself,
+together with `agent_relay_cursor_credential_kind = api_key`. The CLI accepts
+that key only as an API key, never as `--auth-token`
+(`Failed to validate worker account settings`), so the supervisor exports the
+credential as `CURSOR_API_KEY` and drops `--auth-token` when the stamped kind
+says so. Every workspace owner in such a pool can read a team-wide key from
+the worker's environment. No template change is needed; the relay stamps the
+kind and the module follows it.
 
-| pool `insecure_shared_token` | module `credential_kind` | credential handed to the CLI as |
-| ---------------------------- | ------------------------ | ------------------------------- |
-| `false` (default)            | `worker_token` (default) | `--auth-token`                  |
-| `true`                       | `api_key`                | `CURSOR_API_KEY`                |
+| pool `insecure_shared_token` | stamped `agent_relay_cursor_credential_kind` | credential handed to the CLI as |
+| ---------------------------- | -------------------------------------------- | ------------------------------- |
+| `false` (default)            | `worker_token`                               | `--auth-token`                  |
+| `true`                       | `api_key`                                    | `CURSOR_API_KEY`                |
 
 ## Parameters
 

@@ -55,6 +55,7 @@ run "parameter_contract" {
       data.coder_parameter.agent_relay_cursor_pool_name.ephemeral == false,
       data.coder_parameter.agent_relay_cursor_repo_url.ephemeral == false,
       data.coder_parameter.agent_relay_cursor_idle_release_timeout.ephemeral == false,
+      data.coder_parameter.agent_relay_cursor_credential_kind.ephemeral == false,
       data.coder_parameter.agent_relay_credential.ephemeral == true,
     ])
     error_message = "parameter persistence does not match the Agent Relay contract"
@@ -145,8 +146,14 @@ run "worker_wiring" {
   # environment; it must not be expanded into the supervisor file the
   # script writes to disk.
   assert {
-    condition     = strcontains(local.start_script, "--auth-token \"\\$AGENT_RELAY_CURSOR_TOKEN\"") && !strcontains(local.start_script, "CURSOR_API_KEY")
-    error_message = "the worker must authenticate with --auth-token read from the environment at run time"
+    condition     = strcontains(local.start_script, "auth_args=(--auth-token \"\\$AGENT_RELAY_CURSOR_TOKEN\")") && strcontains(local.start_script, "export CURSOR_API_KEY=\"\\$AGENT_RELAY_CURSOR_TOKEN\"")
+    error_message = "the supervisor must offer both credential paths, each reading the token from the environment at run time"
+  }
+
+  # The relay stamps which path applies; the supervisor branches on it.
+  assert {
+    condition     = data.coder_parameter.agent_relay_cursor_credential_kind.name == "agent_relay_cursor_credential_kind" && data.coder_parameter.agent_relay_cursor_credential_kind.default == "worker_token" && coder_env.agent_relay_cursor_credential_kind.name == "AGENT_RELAY_CURSOR_CREDENTIAL_KIND"
+    error_message = "the credential kind is a stamped parameter defaulting to worker_token, exported for the supervisor"
   }
 
   # Reaping reads this file through the agent_relay_status metadata item,
@@ -172,32 +179,6 @@ run "worker_wiring" {
     condition     = output.dispatched == false
     error_message = "a build with no credential was not dispatched by Agent Relay"
   }
-}
-
-# A pool that stamps its service-account key (insecure_shared_token)
-# needs the credential handed over as CURSOR_API_KEY; the CLI rejects
-# that key as --auth-token.
-run "api_key_credential" {
-  command = plan
-
-  variables {
-    credential_kind = "api_key"
-  }
-
-  assert {
-    condition     = strcontains(local.start_script, "export CURSOR_API_KEY=\"\\$AGENT_RELAY_CURSOR_TOKEN\"") && !strcontains(local.start_script, "--auth-token \"")
-    error_message = "api_key must export CURSOR_API_KEY from the stamped credential and drop --auth-token"
-  }
-}
-
-run "credential_kind_rejects_unknown" {
-  command = plan
-
-  variables {
-    credential_kind = "cookie"
-  }
-
-  expect_failures = [var.credential_kind]
 }
 
 run "computer_use_off_by_default" {

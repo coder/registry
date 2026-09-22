@@ -53,6 +53,7 @@ const DISPATCH_ENV = [
   "CURSOR_AGENT_WORKER_ID=worker-123",
   `AGENT_RELAY_CURSOR_POOL_NAME=${POOL_NAME}`,
   "AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT=600",
+  "AGENT_RELAY_CURSOR_CREDENTIAL_KIND=worker_token",
 ];
 
 const setup = async (vars: Record<string, string> = {}) => {
@@ -366,15 +367,19 @@ describe("agent-relay-cursor", () => {
   });
 
   it("hands a shared service-account key over as CURSOR_API_KEY", async () => {
-    // insecure_shared_token pools stamp the team key; the CLI only
-    // accepts it as an API key, so --auth-token must be absent and the
-    // key must reach the worker's environment.
-    const { id, scripts } = await setup({ credential_kind: "api_key" });
+    // insecure_shared_token pools stamp the team key and
+    // agent_relay_cursor_credential_kind=api_key; the CLI only accepts
+    // that key as an API key, so --auth-token must be absent and the key
+    // must reach the worker's environment.
+    const { id, scripts } = await setup();
     await stubAgent(
       id,
       'printf "%s\\n" "$@" >/tmp/agent-args; printf "%s" "$CURSOR_API_KEY" >/tmp/agent-api-key; sleep 30',
     );
-    const { start } = await runDispatched(id, scripts);
+    const { start } = await runScripts(id, scripts, [
+      ...DISPATCH_ENV,
+      "AGENT_RELAY_CURSOR_CREDENTIAL_KIND=api_key",
+    ]);
     expect(start.exitCode).toBe(0);
     const args = (await readFileContainer(id, "/tmp/agent-args")).split("\n");
     expect(args).not.toContain("--auth-token");

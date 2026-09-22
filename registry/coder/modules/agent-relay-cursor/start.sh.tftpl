@@ -108,17 +108,21 @@ write_state() {
 }
 
 export PATH="\$HOME/.local/bin:\$PATH"
-%{ if credential_kind == "api_key" ~}
-# The pool stamps its team service-account key; the CLI accepts that
-# only as an API key, never as --auth-token.
-export CURSOR_API_KEY="\$AGENT_RELAY_CURSOR_TOKEN"
-%{ endif ~}
+# The relay stamps how the credential must reach the CLI. A pool with
+# insecure_shared_token sends its team service-account key, which the
+# CLI accepts only as CURSOR_API_KEY; a per-user worker token is only
+# accepted as --auth-token. Both are read from the environment at run
+# time so neither value lands in this file.
+auth_args=()
+if [ "\$${AGENT_RELAY_CURSOR_CREDENTIAL_KIND:-worker_token}" = api_key ]; then
+	export CURSOR_API_KEY="\$AGENT_RELAY_CURSOR_TOKEN"
+else
+	auth_args=(--auth-token "\$AGENT_RELAY_CURSOR_TOKEN")
+fi
 ${cli_binary} worker \\
 	--pool "\$AGENT_RELAY_CURSOR_POOL_NAME" \\
 	--idle-release-timeout "\$AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT" \\
-%{ if credential_kind == "worker_token" ~}
-	--auth-token "\$AGENT_RELAY_CURSOR_TOKEN" \\
-%{ endif ~}
+	\$${auth_args[@]+"\$${auth_args[@]}"} \\
 %{ if computer_use ~}
 	--computer-use \\
 %{ endif ~}
