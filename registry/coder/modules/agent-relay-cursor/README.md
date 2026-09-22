@@ -55,8 +55,8 @@ when to reap the workspace.
 
 By default the pool's service-account API key never leaves Agent Relay. At
 dispatch the relay exchanges it for a Cursor sub-token scoped to the requesting
-user and stamps that as the ephemeral `agent_relay_credential` parameter. The
-module exports it as `AGENT_RELAY_CURSOR_TOKEN` and starts the worker with
+user and stamps that as the ephemeral `agent_relay_credential` parameter. It
+is exported as `AGENT_RELAY_CURSOR_TOKEN` and the worker starts with
 `--auth-token`. It is never written to disk, though as a command-line argument
 it is visible in the worker's `/proc/<pid>/cmdline` to any process running as
 the same user inside the workspace; the CLI offers no environment variable for
