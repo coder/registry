@@ -62,6 +62,17 @@ variable "install_cli" {
   description = "Install the Cursor CLI (curl https://cursor.com/install -fsSL | bash) when the workspace starts and the CLI is not already on PATH. Defaults to true so a template works against an image that has no CLI. A CLI already in the image is used as is and never upgraded, which is the recommended and fastest path: the download only runs when the binary is missing, and it then needs outbound access to cursor.com and spends part of the claim-to-ready window."
 }
 
+variable "credential_kind" {
+  type        = string
+  default     = "worker_token"
+  description = "How the worker authenticates with the stamped agent_relay_credential. worker_token (default) passes it as --auth-token, for the per-user sub-token Agent Relay mints. api_key exports it as CURSOR_API_KEY, for pools that opt into Agent Relay's insecure_shared_token and stamp the team service-account key itself; the CLI rejects that key as --auth-token and only accepts it as an API key."
+
+  validation {
+    condition     = contains(["worker_token", "api_key"], var.credential_kind)
+    error_message = "credential_kind must be worker_token or api_key."
+  }
+}
+
 variable "computer_use" {
   type        = bool
   default     = false
@@ -194,10 +205,12 @@ data "coder_parameter" "agent_relay_credential" {
 }
 
 # CURSOR_AGENT_WORKER_ID is the Cursor CLI's contract; do not rename it.
-# The worker token has no CLI env var (only the --auth-token flag), so it
-# travels under an Agent Relay name and the script passes it on the
-# command line. It is never CURSOR_API_KEY: the CLI would treat the
-# token as a service account key and reject it.
+# The credential travels under an Agent Relay name and the supervisor
+# decides how to hand it to the CLI (credential_kind): a per-user worker
+# token has no CLI env var and goes on the command line as --auth-token;
+# a team service-account key is only accepted as CURSOR_API_KEY. Each is
+# rejected through the other door, so the kind must match what the pool
+# stamps.
 resource "coder_env" "agent_relay_cursor_token" {
   agent_id = var.agent_id
   name     = "AGENT_RELAY_CURSOR_TOKEN"
@@ -241,6 +254,7 @@ locals {
     cli_binary       = var.cli_binary
     install_cli      = var.install_cli
     computer_use     = var.computer_use
+    credential_kind  = var.credential_kind
     state_file       = var.state_file
     log_file         = var.log_file
   })

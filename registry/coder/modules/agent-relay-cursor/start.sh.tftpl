@@ -108,10 +108,17 @@ write_state() {
 }
 
 export PATH="\$HOME/.local/bin:\$PATH"
+%{ if credential_kind == "api_key" ~}
+# The pool stamps its team service-account key; the CLI accepts that
+# only as an API key, never as --auth-token.
+export CURSOR_API_KEY="\$AGENT_RELAY_CURSOR_TOKEN"
+%{ endif ~}
 ${cli_binary} worker \\
 	--pool "\$AGENT_RELAY_CURSOR_POOL_NAME" \\
 	--idle-release-timeout "\$AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT" \\
+%{ if credential_kind == "worker_token" ~}
 	--auth-token "\$AGENT_RELAY_CURSOR_TOKEN" \\
+%{ endif ~}
 %{ if computer_use ~}
 	--computer-use \\
 %{ endif ~}

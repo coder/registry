@@ -145,7 +145,7 @@ run "worker_wiring" {
   # environment; it must not be expanded into the supervisor file the
   # script writes to disk.
   assert {
-    condition     = strcontains(local.start_script, "--auth-token \"\\$AGENT_RELAY_CURSOR_TOKEN\"")
+    condition     = strcontains(local.start_script, "--auth-token \"\\$AGENT_RELAY_CURSOR_TOKEN\"") && !strcontains(local.start_script, "CURSOR_API_KEY")
     error_message = "the worker must authenticate with --auth-token read from the environment at run time"
   }
 
@@ -172,6 +172,32 @@ run "worker_wiring" {
     condition     = output.dispatched == false
     error_message = "a build with no credential was not dispatched by Agent Relay"
   }
+}
+
+# A pool that stamps its service-account key (insecure_shared_token)
+# needs the credential handed over as CURSOR_API_KEY; the CLI rejects
+# that key as --auth-token.
+run "api_key_credential" {
+  command = plan
+
+  variables {
+    credential_kind = "api_key"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "export CURSOR_API_KEY=\"\\$AGENT_RELAY_CURSOR_TOKEN\"") && !strcontains(local.start_script, "--auth-token \"")
+    error_message = "api_key must export CURSOR_API_KEY from the stamped credential and drop --auth-token"
+  }
+}
+
+run "credential_kind_rejects_unknown" {
+  command = plan
+
+  variables {
+    credential_kind = "cookie"
+  }
+
+  expect_failures = [var.credential_kind]
 }
 
 run "computer_use_off_by_default" {

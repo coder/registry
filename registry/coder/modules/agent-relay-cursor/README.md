@@ -53,17 +53,31 @@ when to reap the workspace.
 
 ## Worker credential
 
-The pool's service-account API key never leaves Agent Relay. At dispatch the
-relay exchanges it for a Cursor sub-token scoped to the requesting user and
-stamps that as the ephemeral `agent_relay_credential` parameter. The module
-exports it as `AGENT_RELAY_CURSOR_TOKEN` and starts the worker with
+By default the pool's service-account API key never leaves Agent Relay. At
+dispatch the relay exchanges it for a Cursor sub-token scoped to the requesting
+user and stamps that as the ephemeral `agent_relay_credential` parameter. The
+module exports it as `AGENT_RELAY_CURSOR_TOKEN` and starts the worker with
 `--auth-token`. It is never written to disk, though as a command-line argument
 it is visible in the worker's `/proc/<pid>/cmdline` to any process running as
 the same user inside the workspace; the CLI offers no environment variable for
-it. The token acts only as that user,
-cannot mint further tokens, and expires after an hour. It is not refreshed: a
-worker that has to reconnect after expiry fails and Cursor re-queues the
-request for a fresh workspace.
+it. The token acts only as that user, cannot mint further tokens, and expires
+after an hour. It is not refreshed: a worker that has to reconnect after expiry
+fails and Cursor re-queues the request for a fresh workspace.
+
+Some Cursor CLI releases refuse a delegated sub-token for pool workers
+(`Delegated service-account tokens cannot start pool workers`). Agent Relay's
+per-pool `insecure_shared_token` then stamps the service-account key itself.
+The CLI accepts that key only as an API key, never as `--auth-token`
+(`Failed to validate worker account settings`), so the template must set
+`credential_kind = "api_key"` to match: the supervisor exports the credential
+as `CURSOR_API_KEY` and drops `--auth-token`. Every workspace owner in the pool
+can then read a team-wide key from the worker's environment; pair the two
+settings deliberately.
+
+| pool `insecure_shared_token` | module `credential_kind` | credential handed to the CLI as |
+| ---------------------------- | ------------------------ | ------------------------------- |
+| `false` (default)            | `worker_token` (default) | `--auth-token`                  |
+| `true`                       | `api_key`                | `CURSOR_API_KEY`                |
 
 ## Parameters
 
