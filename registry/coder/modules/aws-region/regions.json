@@ -1,142 +1,114 @@
 [
   {
     "value": "af-south-1",
-    "name": "Africa (Cape Town)",
-    "flag": "za"
+    "name": "Africa (Cape Town)"
   },
   {
     "value": "ap-east-1",
-    "name": "Asia Pacific (Hong Kong)",
-    "flag": "hk"
+    "name": "Asia Pacific (Hong Kong)"
   },
   {
     "value": "ap-northeast-1",
-    "name": "Asia Pacific (Tokyo)",
-    "flag": "jp"
+    "name": "Asia Pacific (Tokyo)"
   },
   {
     "value": "ap-northeast-2",
-    "name": "Asia Pacific (Seoul)",
-    "flag": "kr"
+    "name": "Asia Pacific (Seoul)"
   },
   {
     "value": "ap-northeast-3",
-    "name": "Asia Pacific (Osaka)",
-    "flag": "jp"
+    "name": "Asia Pacific (Osaka)"
   },
   {
     "value": "ap-south-1",
-    "name": "Asia Pacific (Mumbai)",
-    "flag": "in"
+    "name": "Asia Pacific (Mumbai)"
   },
   {
     "value": "ap-south-2",
-    "name": "Asia Pacific (Hyderabad)",
-    "flag": "in"
+    "name": "Asia Pacific (Hyderabad)"
   },
   {
     "value": "ap-southeast-1",
-    "name": "Asia Pacific (Singapore)",
-    "flag": "sg"
+    "name": "Asia Pacific (Singapore)"
   },
   {
     "value": "ap-southeast-2",
-    "name": "Asia Pacific (Sydney)",
-    "flag": "au"
+    "name": "Asia Pacific (Sydney)"
   },
   {
     "value": "ap-southeast-3",
-    "name": "Asia Pacific (Jakarta)",
-    "flag": "id"
+    "name": "Asia Pacific (Jakarta)"
   },
   {
     "value": "ap-southeast-4",
-    "name": "Asia Pacific (Melbourne)",
-    "flag": "au"
+    "name": "Asia Pacific (Melbourne)"
   },
   {
     "value": "ca-central-1",
-    "name": "Canada (Central)",
-    "flag": "ca"
+    "name": "Canada (Central)"
   },
   {
     "value": "ca-west-1",
-    "name": "Canada West (Calgary)",
-    "flag": "ca"
+    "name": "Canada West (Calgary)"
   },
   {
     "value": "eu-central-1",
-    "name": "Europe (Frankfurt)",
-    "flag": "eu"
+    "name": "Europe (Frankfurt)"
   },
   {
     "value": "eu-central-2",
-    "name": "Europe (Zurich)",
-    "flag": "eu"
+    "name": "Europe (Zurich)"
   },
   {
     "value": "eu-north-1",
-    "name": "Europe (Stockholm)",
-    "flag": "eu"
+    "name": "Europe (Stockholm)"
   },
   {
     "value": "eu-south-1",
-    "name": "Europe (Milan)",
-    "flag": "eu"
+    "name": "Europe (Milan)"
   },
   {
     "value": "eu-south-2",
-    "name": "Europe (Spain)",
-    "flag": "eu"
+    "name": "Europe (Spain)"
   },
   {
     "value": "eu-west-1",
-    "name": "Europe (Ireland)",
-    "flag": "eu"
+    "name": "Europe (Ireland)"
   },
   {
     "value": "eu-west-2",
-    "name": "Europe (London)",
-    "flag": "eu"
+    "name": "Europe (London)"
   },
   {
     "value": "eu-west-3",
-    "name": "Europe (Paris)",
-    "flag": "eu"
+    "name": "Europe (Paris)"
   },
   {
     "value": "il-central-1",
-    "name": "Israel (Tel Aviv)",
-    "flag": "il"
+    "name": "Israel (Tel Aviv)"
   },
   {
     "value": "me-south-1",
-    "name": "Middle East (Bahrain)",
-    "flag": "bh"
+    "name": "Middle East (Bahrain)"
   },
   {
     "value": "sa-east-1",
-    "name": "South America (São Paulo)",
-    "flag": "br"
+    "name": "South America (São Paulo)"
   },
   {
     "value": "us-east-1",
-    "name": "US East (N. Virginia)",
-    "flag": "us"
+    "name": "US East (N. Virginia)"
   },
   {
     "value": "us-east-2",
-    "name": "US East (Ohio)",
-    "flag": "us"
+    "name": "US East (Ohio)"
   },
   {
     "value": "us-west-1",
-    "name": "US West (N. California)",
-    "flag": "us"
+    "name": "US West (N. California)"
   },
   {
     "value": "us-west-2",
-    "name": "US West (Oregon)",
-    "flag": "us"
+    "name": "US West (Oregon)"
   }
 ]

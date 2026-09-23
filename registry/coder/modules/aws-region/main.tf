@@ -74,11 +74,9 @@ variable "create_parameter" {
 }
 
 locals {
-  # Flag emoji per flag code. Region rows in regions.json reference these by
-  # their "flag" field, so the icon paths live in one place here instead of
-  # being repeated for every region in the JSON. Codes are the two-letter emoji
-  # code (for example "us"), or "eu" for the shared European flag.
-  flags = {
+  # Flag emoji per two-letter flag code. Defined here so the icon paths live in
+  # one place; "eu" is the shared European flag.
+  flag_emojis = {
     au = "/emojis/1f1e6-1f1fa.png"
     bh = "/emojis/1f1e7-1f1ed.png"
     br = "/emojis/1f1e7-1f1f7.png"
@@ -95,9 +93,35 @@ locals {
     za = "/emojis/1f1ff-1f1e6.png"
   }
 
+  # Flag per region, derived from the region ID so regions.json only needs the
+  # region ID and display name. A region defaults to its geographic prefix's
+  # flag (every us-* region uses "us", every eu-* region shares "eu", and so on);
+  # the Asia Pacific and Middle East prefixes span several countries, so those
+  # regions are mapped individually.
+  prefix_flags = {
+    af = "za"
+    ca = "ca"
+    eu = "eu"
+    il = "il"
+    sa = "br"
+    us = "us"
+  }
+  region_flags = {
+    "ap-east-1"      = "hk"
+    "ap-northeast-1" = "jp"
+    "ap-northeast-2" = "kr"
+    "ap-northeast-3" = "jp"
+    "ap-south-1"     = "in"
+    "ap-south-2"     = "in"
+    "ap-southeast-1" = "sg"
+    "ap-southeast-2" = "au"
+    "ap-southeast-3" = "id"
+    "ap-southeast-4" = "au"
+    "me-south-1"     = "bh"
+  }
+
   # Region catalog (see regions.json). Kept as static data so the module needs
-  # no AWS provider or credentials at plan time. Each region resolves its flag
-  # from local.flags and a default availability zone of "<region>a".
+  # no AWS provider or credentials at plan time.
   #
   # The try() reads regions.json under both Terraform and Coder's dynamic
   # parameters preview: Terraform resolves file() relative to the root module
@@ -106,12 +130,20 @@ locals {
   # deep). Without the fallback the parameter renders with no options under
   # dynamic parameters.
   regions = jsondecode(try(file("${path.module}/regions.json"), file("regions.json")))
+
+  # Resolve each region's flag code once: an explicit entry wins, otherwise the
+  # geographic prefix supplies it.
+  region_flag = {
+    for region in local.regions : region.value =>
+    try(local.region_flags[region.value], local.prefix_flags[split("-", region.value)[0]])
+  }
+
   regions_by_id = {
     for region in local.regions : region.value => {
       value                     = region.value
       name                      = region.name
-      flag                      = region.flag
-      icon                      = local.flags[region.flag]
+      flag                      = local.region_flag[region.value]
+      icon                      = local.flag_emojis[local.region_flag[region.value]]
       default_availability_zone = "${region.value}a"
     }
   }
@@ -131,7 +163,7 @@ data "coder_parameter" "region" {
     for_each = [for region in local.regions : region if !contains(var.exclude, region.value)]
     content {
       name  = try(var.custom_names[option.value.value], option.value.name)
-      icon  = try(var.custom_icons[option.value.value], local.flags[option.value.flag])
+      icon  = try(var.custom_icons[option.value.value], local.flag_emojis[local.region_flag[option.value.value]])
       value = option.value.value
     }
   }

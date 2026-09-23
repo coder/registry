@@ -134,41 +134,30 @@ provider "aws" {
 ## Updating regions.json
 
 `regions.json` is a static catalog of region IDs and display names, so the
-module needs no AWS provider or credentials at plan time. Flag icons are not
-stored in the JSON: each entry carries a `flag` code that maps to an emoji in
-the `flags` map in `main.tf`.
+module needs no AWS provider or credentials at plan time. Flags are not stored
+here: `main.tf` derives each region's flag emoji from its ID (see the
+`prefix_flags` and `region_flags` maps).
 
 Regenerate the whole file from AWS with the AWS CLI (any credentials) and `jq`,
-run from this module's directory. Region names come from the public
-`global-infrastructure` SSM parameters in `us-east-1`, and each `flag` is the
-region's lowercased `geolocationCountry`, except European (`eu-*`) regions, which
-share the `eu` flag:
+run from this module's directory. Names come from the public
+`global-infrastructure` SSM parameters in `us-east-1`:
 
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Read a global-infrastructure attribute for a region, e.g. longName.
-get() {
-  aws ssm get-parameter --region us-east-1 \
-    --name "/aws/service/global-infrastructure/regions/$1/$2" \
-    --query Parameter.Value --output text
-}
-
 for region in $(aws ec2 describe-regions --all-regions \
   --query 'Regions[].RegionName' --output text | tr '\t' '\n' | sort); do
-  name=$(get "$region" longName)
-  if [ "${region%%-*}" = "eu" ]; then
-    flag=eu
-  else
-    flag=$(get "$region" geolocationCountry | tr '[:upper:]' '[:lower:]')
-  fi
-  jq -n --arg value "$region" --arg name "$name" --arg flag "$flag" '{$value, $name, $flag}'
+  name=$(aws ssm get-parameter --region us-east-1 \
+    --name "/aws/service/global-infrastructure/regions/$region/longName" \
+    --query Parameter.Value --output text)
+  jq -n --arg value "$region" --arg name "$name" '{$value, $name}'
 done | jq -s '.' > regions.json
 ```
 
-If a new region uses a `flag` code that isn't in the `flags` map in `main.tf`,
-add a matching `<code> = "/emojis/<points>.png"` entry there too.
+A region in a multi-country area (`ap-*` or `me-*`) or one that introduces a new
+country needs an entry in `region_flags`/`prefix_flags` and `flag_emojis` in
+`main.tf`.
 
 ## Related templates
 
