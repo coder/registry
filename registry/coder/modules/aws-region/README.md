@@ -125,18 +125,17 @@ provider "aws" {
 
 ## Outputs
 
-| Output                      | Description                                                                                  |
-| --------------------------- | -------------------------------------------------------------------------------------------- |
-| `value`                     | The ID of the selected region, e.g. `us-east-1`.                                             |
-| `default_availability_zone` | The default availability zone for the selected region, e.g. `us-east-1a`.                    |
-| `regions`                   | Every region keyed by ID, each with `name`, `flag`, `icon`, and `default_availability_zone`. |
+| Output                      | Description                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------ |
+| `value`                     | The ID of the selected region, e.g. `us-east-1`.                                     |
+| `default_availability_zone` | The default availability zone for the selected region, e.g. `us-east-1a`.            |
+| `regions`                   | Every region keyed by ID, each with `name`, `icon`, and `default_availability_zone`. |
 
 ## Updating regions.json
 
 `regions.json` is a static catalog of region IDs and display names, so the
 module needs no AWS provider or credentials at plan time. Flags are not stored
-here: `main.tf` derives each region's flag emoji from its ID (see the
-`prefix_flags` and `region_flags` maps).
+here: each region's flag emoji comes from the `region_icons` map in `main.tf`.
 
 Regenerate the whole file from AWS with the AWS CLI (any credentials) and `jq`,
 run from this module's directory. Names come from the public
@@ -155,9 +154,7 @@ for region in $(aws ec2 describe-regions --all-regions \
 done | jq -s '.' > regions.json
 ```
 
-A region in a multi-country area (`ap-*` or `me-*`) or one that introduces a new
-country needs an entry in `region_flags`/`prefix_flags` and `flag_emojis` in
-`main.tf`.
+A new region also needs an entry in the `region_icons` map in `main.tf`.
 
 ## Related templates
 

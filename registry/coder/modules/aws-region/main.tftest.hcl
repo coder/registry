@@ -62,11 +62,10 @@ run "regions_output_exposes_catalog" {
   assert {
     condition = (
       output.regions["ap-northeast-1"].name == "Asia Pacific (Tokyo)" &&
-      output.regions["ap-northeast-1"].flag == "jp" &&
       output.regions["ap-northeast-1"].icon == "/emojis/1f1ef-1f1f5.png" &&
       output.regions["ap-northeast-1"].default_availability_zone == "ap-northeast-1a"
     )
-    error_message = "regions entries should expose name, flag, icon, and default_availability_zone"
+    error_message = "regions entries should expose name, icon, and default_availability_zone"
   }
 }
 
