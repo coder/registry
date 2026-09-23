@@ -71,6 +71,32 @@ The mirror image of that rule is that a boot script failure must not leave an
 unreachable workspace, so the agent is started even when the boot script
 exits non-zero. Its status is reported and propagated, never suppressed.
 
+## Saying that the boot failed
+
+A failed boot script has nothing to report itself with. A deployment renders
+an agent's state only once that agent has connected, and no API a script can
+reach marks a build failed — so an instance that never starts an agent is
+indistinguishable from a slow one until `connection_timeout` expires, and the
+reason sits in a log source nobody has a reason to open.
+
+Two things follow from that, and both are why a failure here is visible at
+all:
+
+- **`boot-failed`.** When the boot script exits non-zero the module writes
+  `$${runtime_dir}/boot-failed` (mode 0644) with a sentence about what
+  happened, and removes it at the start of every boot. Read it from the
+  agent's `startup_script` and exit non-zero — the startup script's exit
+  status is the only failure state a workspace will show you. The path is the
+  `boot_failed_path` output.
+- **The fallback agent.** When the boot script has not produced a
+  `coder-agent.service` at all — a first boot whose configuration did not
+  build — the module runs `coder_agent.init_script` itself, as root, under a
+  transient `coder-agent-fallback.service`. It is the image's own
+  environment and not the system that was asked for, which is the point: the
+  workspace connects, the error is on screen, and there is a terminal to fix
+  it from. `systemctl stop coder-agent-fallback` happens as soon as a real
+  unit exists. Set `fallback_agent = false` to turn it off.
+
 ## What the boot script gets
 
 Root, a child process, and these:

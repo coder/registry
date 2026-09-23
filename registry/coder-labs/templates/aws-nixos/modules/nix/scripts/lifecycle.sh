@@ -19,6 +19,26 @@ nix_strip_ansi() {
   sed -e 's/\x1b\[[0-9;]*[a-zA-Z]//g' -e 's/\r$//'
 }
 
+# Runs a command with its output filtered into the log, and returns the
+# command's own status rather than the filter's.
+#
+# Not written as a pipeline: under `set -e` a failing pipeline ends the script
+# there and then, before the caller can look at PIPESTATUS. That is how a
+# clone of a flake reference that does not exist used to end a boot with
+# nothing in the workspace log but "Cloning ..." -- the error message two
+# lines further down was unreachable.
+nix_run_logged() {
+  local rc=0 out line
+  out="$(mktemp)"
+  "$@" > "$out" 2>&1 || rc=$?
+  # Through nix_log rather than stdout: what git has to say about a clone it
+  # could not do is the whole explanation, and stdout here is the instance's
+  # journal, which is exactly the place the user cannot reach.
+  nix_filter_log < "$out" | while IFS= read -r line; do nix_log info "$line"; done
+  rm -f "$out"
+  return "$rc"
+}
+
 # ---------------------------------------------------------------------------
 # the checkout
 # ---------------------------------------------------------------------------
@@ -68,17 +88,15 @@ nix_sync_checkout() {
     # to clone into a non-empty one.
     local tmp
     tmp="$($NIX_SUDO mktemp -d)"
-    # PIPESTATUS, not the pipeline's status: that is the filter's, and the
-    # filter always succeeds. Without this a failed clone reads as a success
-    # and the next step fails somewhere much less obvious.
+    rc=0
     if [ -n "$branch" ]; then
-      $NIX_SUDO git clone --branch "$branch" "$url" "$tmp/repo" 2>&1 | nix_filter_log
+      nix_run_logged $NIX_SUDO git clone --branch "$branch" "$url" "$tmp/repo" || rc=$?
     else
-      $NIX_SUDO git clone "$url" "$tmp/repo" 2>&1 | nix_filter_log
+      nix_run_logged $NIX_SUDO git clone "$url" "$tmp/repo" || rc=$?
     fi
-    rc=${PIPESTATUS[0]}
     if [ "$rc" -ne 0 ]; then
-      nix_log error "Could not clone $url${branch:+ (branch $branch)}"
+      nix_log error "Could not clone $url${branch:+ (branch $branch)} (git exited $rc)"
+      nix_log error "Check the flake reference the template was pushed with: the repository has to exist and be readable from this instance."
       $NIX_SUDO rm -rf "$tmp"
       return 1
     fi
@@ -108,8 +126,7 @@ nix_sync_checkout() {
   fi
 
   # Fetching as root writes into .git, so re-assert ownership afterwards.
-  $NIX_SUDO git -C "$NIX_FLAKE_DIR" fetch --quiet origin "$branch" 2>&1 | nix_filter_log
-  if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+  if ! nix_run_logged $NIX_SUDO git -C "$NIX_FLAKE_DIR" fetch --quiet origin "$branch"; then
     nix_log warn "Could not reach the remote; building the existing checkout"
     return 0
   fi

@@ -8,7 +8,11 @@
 #
 # Runs on every boot, so it must be idempotent.
 
-set -euo pipefail
+# -E, because most of what runs here runs inside a function: without errtrace
+# the ERR trap below is not inherited, and a failure in the lifecycle library
+# ends the script silently -- the exit status reaches the caller, but nothing
+# is ever said about it in the workspace log.
+set -Eeuo pipefail
 
 FLAKE_URL='${ARG_FLAKE_URL}'
 FLAKE_BRANCH='${ARG_FLAKE_BRANCH}'

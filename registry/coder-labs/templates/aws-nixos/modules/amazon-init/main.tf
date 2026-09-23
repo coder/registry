@@ -140,6 +140,26 @@ variable "log_budget_bytes" {
   default     = 524288
 }
 
+variable "fallback_agent" {
+  description = <<-EOT
+    Start the agent from `coder_agent.init_script` when the boot script has
+    not produced a `coder-agent.service`.
+
+    A deployment shows an agent's state only once it has connected, and there
+    is no API a script can call to fail a build, so an instance that never
+    starts an agent is indistinguishable from a slow one until the connection
+    timeout expires. The fallback runs as root under a transient unit, in the
+    image's own environment rather than the one the boot script was meant to
+    build: it exists so that a workspace whose configuration is broken can
+    still be opened, read and repaired.
+
+    Turn it off for images where an agent running as root is not acceptable.
+    The failure is still logged, and `boot-failed` is still written.
+  EOT
+  type        = bool
+  default     = true
+}
+
 variable "hostname" {
   description = "Hostname to set on the instance. Defaults to the workspace name."
   type        = string
@@ -182,19 +202,20 @@ locals {
     LOG_SH      = file("${path.module}/scripts/log.sh")
     FILES_SH    = local.files_sh
     BOOT_SCRIPT = var.boot_script
+    INIT_SCRIPT = var.agent_init_script
 
-    ARG_ACCESS_URL      = data.coder_workspace.me.access_url
-    ARG_AGENT_TOKEN     = var.agent_token
-    ARG_INIT_SCRIPT_B64 = base64encode(var.agent_init_script)
-    ARG_RUNTIME_DIR     = var.runtime_dir
-    ARG_PATH            = var.path
+    ARG_ACCESS_URL  = data.coder_workspace.me.access_url
+    ARG_AGENT_TOKEN = var.agent_token
+    ARG_RUNTIME_DIR = var.runtime_dir
+    ARG_PATH        = var.path
 
     ARG_LOG_SOURCE_ID        = random_uuid.log_source.result
     ARG_LOG_DISPLAY_NAME_B64 = base64encode(var.log_display_name)
     ARG_LOG_ICON             = var.log_icon
     ARG_LOG_BUDGET           = var.log_budget_bytes
 
-    ARG_HOSTNAME = local.hostname
+    ARG_HOSTNAME       = local.hostname
+    ARG_FALLBACK_AGENT = tostring(var.fallback_agent)
   })
 
   # EC2 caps user-data at 16 KiB and the script above plus its payloads is
@@ -246,6 +267,18 @@ output "runtime_dir" {
 output "workspace_facts_path" {
   description = "Path to the workspace identity file written on every boot."
   value       = "${var.runtime_dir}/workspace.json"
+}
+
+output "boot_failed_path" {
+  description = <<-EOT
+    File written when the boot script fails, holding a sentence about what
+    happened. Absent on a healthy boot.
+
+    Read it from the agent's startup script and exit non-zero: that is the
+    only way to get an error out of a workspace whose machine came up fine
+    but whose configuration did not.
+  EOT
+  value       = "${var.runtime_dir}/boot-failed"
 }
 
 output "bootstrap_path" {

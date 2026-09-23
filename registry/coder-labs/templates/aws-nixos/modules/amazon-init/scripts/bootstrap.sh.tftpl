@@ -7,18 +7,21 @@
 # handoff, publishes the workspace's identity, runs one caller-supplied boot
 # script, and then starts the agent -- in that order, always.
 
-set -euo pipefail
+# -E so that the ERR trap installed below is inherited by the functions here;
+# without errtrace a failure inside one of them ends this script with nothing
+# said about it.
+set -Eeuo pipefail
 export PATH="${ARG_PATH}:$PATH"
 export HOME=/root
 
 ACCESS_URL='${ARG_ACCESS_URL}'
 AGENT_TOKEN='${ARG_AGENT_TOKEN}'
-INIT_SCRIPT_B64='${ARG_INIT_SCRIPT_B64}'
 LOG_SOURCE_ID='${ARG_LOG_SOURCE_ID}'
 LOG_DISPLAY_NAME_B64='${ARG_LOG_DISPLAY_NAME_B64}'
 LOG_ICON='${ARG_LOG_ICON}'
 LOG_BUDGET='${ARG_LOG_BUDGET}'
 HOSTNAME_='${ARG_HOSTNAME}'
+FALLBACK_AGENT='${ARG_FALLBACK_AGENT}'
 
 RUNTIME_DIR='${ARG_RUNTIME_DIR}'
 
@@ -32,13 +35,18 @@ RUNTIME_DIR='${ARG_RUNTIME_DIR}'
 # the point: the token rotates on every workspace start.
 
 install -d -m 0700 "$RUNTIME_DIR"
-rm -f "$RUNTIME_DIR/ready"
+rm -f "$RUNTIME_DIR/ready" "$RUNTIME_DIR/boot-failed"
 
 umask 077
 printf 'CODER_AGENT_TOKEN=%s\nCODER_AGENT_URL=%s\n' "$AGENT_TOKEN" "$ACCESS_URL" \
   >"$RUNTIME_DIR/agent.env"
 umask 022
-printf '%s' "$INIT_SCRIPT_B64" | base64 -d >"$RUNTIME_DIR/init.sh"
+# Verbatim rather than base64: user-data has 16 KiB to fit in, the init
+# script is the largest thing in it, and base64 both inflates by a third and
+# destroys the redundancy the gzip wrapper lives on.
+cat >"$RUNTIME_DIR/init.sh" <<'CODER_AMAZON_INIT_AGENT_SCRIPT'
+${INIT_SCRIPT}
+CODER_AMAZON_INIT_AGENT_SCRIPT
 chmod 0755 "$RUNTIME_DIR/init.sh"
 
 # coder-agent.service may run as an unprivileged user, so it has to be able to
@@ -88,6 +96,53 @@ export CODER_LOG_LIBRARY="$RUNTIME_DIR/log.sh"
 
 coder_log_init "$(printf '%s' "$LOG_DISPLAY_NAME_B64" | base64 -d)" "$LOG_ICON" || true
 
+# Nothing on the instance can report a failure except a connected agent. A
+# deployment renders an agent's lifecycle only while it is connected, and
+# there is no API a script can call to fail a build -- so an instance that
+# never starts an agent shows "connecting" until the connection timeout
+# expires and then "timeout", with the reason buried in a log source nobody
+# has a reason to open.
+#
+# So when the boot script never produced a coder-agent.service -- a first boot
+# whose configuration did not build -- start the agent from the init script
+# instead, as root, under a transient unit. It runs in the image's own
+# environment rather than the configuration that was asked for, which is
+# exactly the point: the workspace comes up, the error is on screen, and there
+# is a terminal to fix it from.
+start_fallback_agent() {
+  [ "$FALLBACK_AGENT" = "true" ] || return 1
+  command -v systemd-run >/dev/null 2>&1 || return 1
+
+  coder_log error "Starting an agent from the image instead, so that this workspace can still be opened." || true
+  coder_log error "It is NOT running the configuration you asked for. Fix the configuration and restart the workspace." || true
+
+  # A fallback left running from an earlier attempt would fight the real agent
+  # over the same token, and a failed one keeps the unit name.
+  systemctl reset-failed coder-agent-fallback.service 2>/dev/null || true
+  install -d -m 0755 "$RUNTIME_DIR/bin"
+
+  # The token is read from agent.env inside the unit rather than passed as a
+  # property, so that it does not end up in `systemctl show` output.
+  if ! systemd-run --quiet --collect --unit=coder-agent-fallback \
+    --service-type=exec \
+    --setenv=HOME=/root \
+    --setenv=PATH="$PATH" \
+    --setenv=BINARY_DIR="$RUNTIME_DIR/bin" \
+    /usr/bin/env bash -c \
+    "set -a; . '$RUNTIME_DIR/agent.env'; set +a; exec bash '$RUNTIME_DIR/init.sh'"; then
+    coder_log error "Could not start the fallback agent." || true
+    return 1
+  fi
+
+  sleep 3
+  if systemctl is-active --quiet coder-agent-fallback; then
+    return 0
+  fi
+  coder_log error "The fallback agent exited immediately." || true
+  journalctl -u coder-agent-fallback --no-pager --lines=30 2>/dev/null | coder_log_pipe error || true
+  return 1
+}
+
 # Nothing starts coder-agent.service but this, and only once the boot script
 # has finished. If systemd started it at multi-user.target instead, the agent
 # would report the workspace ready and run its startup scripts while the boot
@@ -100,9 +155,12 @@ start_agent() {
   fi
   if ! systemctl cat coder-agent >/dev/null 2>&1; then
     coder_log error "coder-agent.service does not exist; the boot script has never created it." || true
-    return 1
+    start_fallback_agent || return 1
+    return 0
   fi
 
+  # The real unit wins whenever it exists.
+  systemctl stop coder-agent-fallback.service 2>/dev/null || true
   chown_handoff
   systemctl start coder-agent || true
 
@@ -119,9 +177,20 @@ start_agent() {
   return 1
 }
 
+# Left for the agent to find. A connected agent is the only thing a
+# deployment shows a state for, and the only state a script can choose is the
+# one its startup script exits with -- so the failure is recorded here and the
+# agent's startup script reads it back. Without that the workspace comes up
+# looking perfectly healthy while running the wrong system.
+record_failure() {
+  printf '%s\n' "$*" >"$RUNTIME_DIR/boot-failed" 2>/dev/null || true
+  chmod 0644 "$RUNTIME_DIR/boot-failed" 2>/dev/null || true
+}
+
 on_error() {
   local rc=$?
   coder_log error "Bootstrap failed (exit $rc)." || true
+  record_failure "The instance's boot script failed (exit $rc) before it could apply this workspace's configuration. See the boot logs for what went wrong."
   start_agent || true
   exit "$rc"
 }
@@ -156,18 +225,23 @@ chmod 0700 "$RUNTIME_DIR/boot.sh"
 
 # Run as a child rather than sourced: the boot script is someone else's code,
 # and it must not be able to exit this one before the agent is started.
-set +e
-bash "$RUNTIME_DIR/boot.sh"
-boot_rc=$?
-set -e
+#
+# `|| boot_rc=$?` rather than turning errexit off around it: `set +e` stops
+# the shell exiting but does nothing to the ERR trap, which is not subject to
+# errexit at all. The trap would fire here and report this as a bootstrap
+# failure, skipping everything below. In a `||` list neither happens.
+boot_rc=0
+bash "$RUNTIME_DIR/boot.sh" || boot_rc=$?
 
 if [ "$boot_rc" -ne 0 ]; then
   coder_log error "Boot script exited $boot_rc; starting the agent anyway." || true
+  record_failure "This workspace's configuration could not be applied: the boot script exited $boot_rc. The machine is NOT running the configuration it was built from. See the boot logs for what went wrong."
 fi
 
 # `|| true` so that failing to start the agent does not re-enter the ERR trap,
 # which would report the bootstrap as having failed somewhere earlier. On a
 # first boot whose configuration does not build there is no agent unit to
-# start at all, and that is the honest outcome: nothing to report it with.
+# start at all; start_agent falls back to the init script so that the
+# workspace is still reachable.
 start_agent || true
 exit "$boot_rc"
