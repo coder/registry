@@ -155,7 +155,7 @@ done
 For each region, add or update an entry in `regions.json` with:
 
 - `value`: the region code, e.g. `us-east-1`.
-- `name`: the display name (the `longName` above, or a custom label).
+- `name`: the display name. Use the `longName` verbatim so names stay consistent; AWS returns `Europe (...)` for every European region, `US East (...)`, and so on.
 - `country`: the key of the flag to show, from the `flags` map in `main.tf`. Add
   a new `country = "/emojis/....png"` entry there if the region needs a flag that
   is not already listed.

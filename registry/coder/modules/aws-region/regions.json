@@ -66,7 +66,7 @@
   },
   {
     "value": "eu-central-1",
-    "name": "EU (Frankfurt)",
+    "name": "Europe (Frankfurt)",
     "country": "eu"
   },
   {
@@ -76,7 +76,7 @@
   },
   {
     "value": "eu-north-1",
-    "name": "EU (Stockholm)",
+    "name": "Europe (Stockholm)",
     "country": "eu"
   },
   {
@@ -91,17 +91,17 @@
   },
   {
     "value": "eu-west-1",
-    "name": "EU (Ireland)",
+    "name": "Europe (Ireland)",
     "country": "eu"
   },
   {
     "value": "eu-west-2",
-    "name": "EU (London)",
+    "name": "Europe (London)",
     "country": "eu"
   },
   {
     "value": "eu-west-3",
-    "name": "EU (Paris)",
+    "name": "Europe (Paris)",
     "country": "eu"
   },
   {
