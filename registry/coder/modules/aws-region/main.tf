@@ -87,7 +87,14 @@ locals {
   # Region catalog (see regions.json). Kept as static data so the module needs
   # no AWS provider or credentials at plan time. Each region resolves its flag
   # from local.flags and a default availability zone of "<region>a".
-  regions = jsondecode(file("${path.module}/regions.json"))
+  #
+  # The try() reads regions.json under both Terraform and Coder's dynamic
+  # parameters preview: Terraform resolves file() relative to the root module
+  # (so path.module is required), while the preview evaluator resolves it
+  # relative to this module's own directory (so path.module points one level too
+  # deep). Without the fallback the parameter renders with no options under
+  # dynamic parameters.
+  regions = jsondecode(try(file("${path.module}/regions.json"), file("regions.json")))
   regions_by_id = {
     for region in local.regions : region.value => {
       value                     = region.value
