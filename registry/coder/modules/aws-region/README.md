@@ -138,26 +138,37 @@ module needs no AWS provider or credentials at plan time. Flag icons are not
 stored in the JSON: each entry carries a `flag` code that maps to an emoji in
 the `flags` map in `main.tf`.
 
-To refresh the list from AWS, use the AWS CLI. Region codes come from
-`ec2:DescribeRegions`, and the human-readable names come from the public
-`global-infrastructure` SSM parameters (hosted in `us-east-1`):
+Regenerate the whole file from AWS with the AWS CLI (any credentials) and `jq`,
+run from this module's directory. Region names come from the public
+`global-infrastructure` SSM parameters in `us-east-1`, and each `flag` is the
+region's lowercased `geolocationCountry`, except European (`eu-*`) regions, which
+share the `eu` flag:
 
 ```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Read a global-infrastructure attribute for a region, e.g. longName.
+get() {
+  aws ssm get-parameter --region us-east-1 \
+    --name "/aws/service/global-infrastructure/regions/$1/$2" \
+    --query Parameter.Value --output text
+}
+
 for region in $(aws ec2 describe-regions --all-regions \
-  --query 'Regions[].RegionName' --output text); do
-  name=$(aws ssm get-parameter --region us-east-1 \
-    --name "/aws/service/global-infrastructure/regions/$region/longName" \
-    --query 'Parameter.Value' --output text)
-  printf '%s\t%s\n' "$region" "$name"
-done
+  --query 'Regions[].RegionName' --output text | tr '\t' '\n' | sort); do
+  name=$(get "$region" longName)
+  if [ "${region%%-*}" = "eu" ]; then
+    flag=eu
+  else
+    flag=$(get "$region" geolocationCountry | tr '[:upper:]' '[:lower:]')
+  fi
+  jq -n --arg value "$region" --arg name "$name" --arg flag "$flag" '{$value, $name, $flag}'
+done | jq -s '.' > regions.json
 ```
 
-For each region, add or update an entry in `regions.json` with:
-
-- `value`: the region code, e.g. `us-east-1`.
-- `name`: the display name. Use the `longName` verbatim so names stay consistent; AWS returns `Europe (...)` for every European region, `US East (...)`, and so on.
-- `flag`: the key of the flag to show, from the `flags` map in `main.tf`. Add a
-  new entry to that map if the region needs a flag that is not already listed.
+If a new region uses a `flag` code that isn't in the `flags` map in `main.tf`,
+add a matching `<code> = "/emojis/<points>.png"` entry there too.
 
 ## Related templates
 
