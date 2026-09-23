@@ -25,6 +25,11 @@ variable "default" {
   default     = ""
   description = "The default region to preselect. Also used as the selected region when create_parameter is false."
   type        = string
+
+  validation {
+    condition     = var.default == "" || can(regex("^[a-z]{2}-[a-z]+-[0-9]+$", var.default))
+    error_message = "default must be empty or a valid AWS region ID, e.g. \"us-east-1\"."
+  }
 }
 
 variable "mutable" {
@@ -49,6 +54,11 @@ variable "exclude" {
   default     = []
   description = "A list of region IDs to exclude."
   type        = list(string)
+
+  validation {
+    condition     = alltrue([for region in var.exclude : can(regex("^[a-z]{2}-[a-z]+-[0-9]+$", region))])
+    error_message = "exclude must contain valid AWS region IDs, e.g. \"ap-northeast-2\"."
+  }
 }
 
 variable "coder_parameter_order" {
