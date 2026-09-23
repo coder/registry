@@ -16,7 +16,7 @@ parameters the relay stamps on each build and runs the Cursor CLI worker.
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "0.1.1"
+  version  = "0.2.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Cursor CLI at start when it is not in the image. Bake
@@ -53,17 +53,32 @@ when to reap the workspace.
 
 ## Worker credential
 
-The pool's service-account API key never leaves Agent Relay. At dispatch the
-relay exchanges it for a Cursor sub-token scoped to the requesting user and
-stamps that as the ephemeral `agent_relay_credential` parameter. The module
-exports it as `AGENT_RELAY_CURSOR_TOKEN` and starts the worker with
+By default the pool's service-account API key never leaves Agent Relay. At
+dispatch the relay exchanges it for a Cursor sub-token scoped to the requesting
+user and stamps that as the ephemeral `agent_relay_credential` parameter. It
+is exported as `AGENT_RELAY_CURSOR_TOKEN` and the worker starts with
 `--auth-token`. It is never written to disk, though as a command-line argument
 it is visible in the worker's `/proc/<pid>/cmdline` to any process running as
 the same user inside the workspace; the CLI offers no environment variable for
-it. The token acts only as that user,
-cannot mint further tokens, and expires after an hour. It is not refreshed: a
-worker that has to reconnect after expiry fails and Cursor re-queues the
-request for a fresh workspace.
+it. The token acts only as that user, cannot mint further tokens, and expires
+after an hour. It is not refreshed: a worker that has to reconnect after expiry
+fails and Cursor re-queues the request for a fresh workspace.
+
+Some Cursor CLI releases refuse a delegated sub-token for pool workers
+(`Delegated service-account tokens cannot start pool workers`). Agent Relay's
+per-pool `insecure_shared_token` then stamps the service-account key itself,
+together with `agent_relay_cursor_credential_kind = api_key`. The CLI accepts
+that key only as an API key, never as `--auth-token`
+(`Failed to validate worker account settings`), so the supervisor exports the
+credential as `CURSOR_API_KEY` and drops `--auth-token` when the stamped kind
+says so. Every workspace owner in such a pool can read a team-wide key from
+the worker's environment. No template change is needed; the relay stamps the
+kind and the module follows it.
+
+| pool `insecure_shared_token` | stamped `agent_relay_cursor_credential_kind` | credential handed to the CLI as |
+| ---------------------------- | -------------------------------------------- | ------------------------------- |
+| `false` (default)            | `worker_token`                               | `--auth-token`                  |
+| `true`                       | `api_key`                                    | `CURSOR_API_KEY`                |
 
 ## Parameters
 
