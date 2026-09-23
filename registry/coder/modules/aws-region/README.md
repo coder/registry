@@ -125,17 +125,17 @@ provider "aws" {
 
 ## Outputs
 
-| Output                      | Description                                                                                     |
-| --------------------------- | ----------------------------------------------------------------------------------------------- |
-| `value`                     | The ID of the selected region, e.g. `us-east-1`.                                                |
-| `default_availability_zone` | The default availability zone for the selected region, e.g. `us-east-1a`.                       |
-| `regions`                   | Every region keyed by ID, each with `name`, `country`, `icon`, and `default_availability_zone`. |
+| Output                      | Description                                                                                  |
+| --------------------------- | -------------------------------------------------------------------------------------------- |
+| `value`                     | The ID of the selected region, e.g. `us-east-1`.                                             |
+| `default_availability_zone` | The default availability zone for the selected region, e.g. `us-east-1a`.                    |
+| `regions`                   | Every region keyed by ID, each with `name`, `flag`, `icon`, and `default_availability_zone`. |
 
 ## Updating regions.json
 
 `regions.json` is a static catalog of region IDs and display names, so the
 module needs no AWS provider or credentials at plan time. Flag icons are not
-stored in the JSON: each entry carries a `country` code that maps to a flag in
+stored in the JSON: each entry carries a `flag` code that maps to an emoji in
 the `flags` map in `main.tf`.
 
 To refresh the list from AWS, use the AWS CLI. Region codes come from
@@ -156,9 +156,8 @@ For each region, add or update an entry in `regions.json` with:
 
 - `value`: the region code, e.g. `us-east-1`.
 - `name`: the display name. Use the `longName` verbatim so names stay consistent; AWS returns `Europe (...)` for every European region, `US East (...)`, and so on.
-- `country`: the key of the flag to show, from the `flags` map in `main.tf`. Add
-  a new `country = "/emojis/....png"` entry there if the region needs a flag that
-  is not already listed.
+- `flag`: the key of the flag to show, from the `flags` map in `main.tf`. Add a
+  new entry to that map if the region needs a flag that is not already listed.
 
 ## Related templates
 

@@ -2,141 +2,141 @@
   {
     "value": "af-south-1",
     "name": "Africa (Cape Town)",
-    "country": "za"
+    "flag": "za"
   },
   {
     "value": "ap-east-1",
     "name": "Asia Pacific (Hong Kong)",
-    "country": "hk"
+    "flag": "hk"
   },
   {
     "value": "ap-northeast-1",
     "name": "Asia Pacific (Tokyo)",
-    "country": "jp"
+    "flag": "jp"
   },
   {
     "value": "ap-northeast-2",
     "name": "Asia Pacific (Seoul)",
-    "country": "kr"
+    "flag": "kr"
   },
   {
     "value": "ap-northeast-3",
     "name": "Asia Pacific (Osaka)",
-    "country": "jp"
+    "flag": "jp"
   },
   {
     "value": "ap-south-1",
     "name": "Asia Pacific (Mumbai)",
-    "country": "in"
+    "flag": "in"
   },
   {
     "value": "ap-south-2",
     "name": "Asia Pacific (Hyderabad)",
-    "country": "in"
+    "flag": "in"
   },
   {
     "value": "ap-southeast-1",
     "name": "Asia Pacific (Singapore)",
-    "country": "sg"
+    "flag": "sg"
   },
   {
     "value": "ap-southeast-2",
     "name": "Asia Pacific (Sydney)",
-    "country": "au"
+    "flag": "au"
   },
   {
     "value": "ap-southeast-3",
     "name": "Asia Pacific (Jakarta)",
-    "country": "id"
+    "flag": "id"
   },
   {
     "value": "ap-southeast-4",
     "name": "Asia Pacific (Melbourne)",
-    "country": "au"
+    "flag": "au"
   },
   {
     "value": "ca-central-1",
     "name": "Canada (Central)",
-    "country": "ca"
+    "flag": "ca"
   },
   {
     "value": "ca-west-1",
     "name": "Canada West (Calgary)",
-    "country": "ca"
+    "flag": "ca"
   },
   {
     "value": "eu-central-1",
     "name": "Europe (Frankfurt)",
-    "country": "eu"
+    "flag": "eu"
   },
   {
     "value": "eu-central-2",
     "name": "Europe (Zurich)",
-    "country": "eu"
+    "flag": "eu"
   },
   {
     "value": "eu-north-1",
     "name": "Europe (Stockholm)",
-    "country": "eu"
+    "flag": "eu"
   },
   {
     "value": "eu-south-1",
     "name": "Europe (Milan)",
-    "country": "eu"
+    "flag": "eu"
   },
   {
     "value": "eu-south-2",
     "name": "Europe (Spain)",
-    "country": "eu"
+    "flag": "eu"
   },
   {
     "value": "eu-west-1",
     "name": "Europe (Ireland)",
-    "country": "eu"
+    "flag": "eu"
   },
   {
     "value": "eu-west-2",
     "name": "Europe (London)",
-    "country": "eu"
+    "flag": "eu"
   },
   {
     "value": "eu-west-3",
     "name": "Europe (Paris)",
-    "country": "eu"
+    "flag": "eu"
   },
   {
     "value": "il-central-1",
     "name": "Israel (Tel Aviv)",
-    "country": "il"
+    "flag": "il"
   },
   {
     "value": "me-south-1",
     "name": "Middle East (Bahrain)",
-    "country": "bh"
+    "flag": "bh"
   },
   {
     "value": "sa-east-1",
     "name": "South America (São Paulo)",
-    "country": "br"
+    "flag": "br"
   },
   {
     "value": "us-east-1",
     "name": "US East (N. Virginia)",
-    "country": "us"
+    "flag": "us"
   },
   {
     "value": "us-east-2",
     "name": "US East (Ohio)",
-    "country": "us"
+    "flag": "us"
   },
   {
     "value": "us-west-1",
     "name": "US West (N. California)",
-    "country": "us"
+    "flag": "us"
   },
   {
     "value": "us-west-2",
     "name": "US West (Oregon)",
-    "country": "us"
+    "flag": "us"
   }
 ]

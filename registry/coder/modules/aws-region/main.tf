@@ -74,9 +74,10 @@ variable "create_parameter" {
 }
 
 locals {
-  # Flag emoji per country/area code. Region rows in regions.json reference
-  # these by their "country" field, so the icon paths live here in one place
-  # instead of being repeated for every region in the JSON.
+  # Flag emoji per flag code. Region rows in regions.json reference these by
+  # their "flag" field, so the icon paths live in one place here instead of
+  # being repeated for every region in the JSON. Codes are the two-letter emoji
+  # code (for example "us"), or "eu" for the shared European flag.
   flags = {
     au = "/emojis/1f1e6-1f1fa.png"
     bh = "/emojis/1f1e7-1f1ed.png"
@@ -109,8 +110,8 @@ locals {
     for region in local.regions : region.value => {
       value                     = region.value
       name                      = region.name
-      country                   = region.country
-      icon                      = local.flags[region.country]
+      flag                      = region.flag
+      icon                      = local.flags[region.flag]
       default_availability_zone = "${region.value}a"
     }
   }
@@ -130,7 +131,7 @@ data "coder_parameter" "region" {
     for_each = [for region in local.regions : region if !contains(var.exclude, region.value)]
     content {
       name  = try(var.custom_names[option.value.value], option.value.name)
-      icon  = try(var.custom_icons[option.value.value], local.flags[option.value.country])
+      icon  = try(var.custom_icons[option.value.value], local.flags[option.value.flag])
       value = option.value.value
     }
   }
@@ -147,6 +148,6 @@ output "default_availability_zone" {
 }
 
 output "regions" {
-  description = "All AWS regions keyed by region ID, each with name, country, icon, and default_availability_zone."
+  description = "All AWS regions keyed by region ID, each with name, flag, icon, and default_availability_zone."
   value       = local.regions_by_id
 }
