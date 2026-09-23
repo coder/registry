@@ -133,28 +133,43 @@ provider "aws" {
 
 ## Updating regions.json
 
-`regions.json` is a static catalog of region IDs and display names, so the
-module needs no AWS provider or credentials at plan time. Flags are not stored
-here: each region's flag emoji comes from the `region_icons` map in `main.tf`.
+`regions.json` is a generated catalog of region IDs, display names, and flag
+icons, so the module needs no AWS provider or credentials at plan time.
+Terraform only reads the file; all the flag logic lives in the script below.
 
 Regenerate the whole file from AWS with the AWS CLI (any credentials) and `jq`,
-run from this module's directory. Names come from the public
+run from this module's directory. Names and country codes come from the public
 `global-infrastructure` SSM parameters in `us-east-1`:
 
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Two-letter country code -> Coder flag emoji asset (regional indicator pair).
+icon() {
+  local a b
+  a=$(printf '%x' $((0x1f1e6 + $(printf '%d' "'${1:0:1}") - 0x61)))
+  b=$(printf '%x' $((0x1f1e6 + $(printf '%d' "'${1:1:1}") - 0x61)))
+  printf '/emojis/%s-%s.png' "$a" "$b"
+}
+
 for region in $(aws ec2 describe-regions --all-regions \
   --query 'Regions[].RegionName' --output text | tr '\t' '\n' | sort); do
   name=$(aws ssm get-parameter --region us-east-1 \
     --name "/aws/service/global-infrastructure/regions/$region/longName" \
     --query Parameter.Value --output text)
-  jq -n --arg value "$region" --arg name "$name" '{$value, $name}'
+  # European regions share the EU flag; every other region uses its country flag.
+  if [[ $region == eu-* ]]; then
+    country=eu
+  else
+    country=$(aws ssm get-parameter --region us-east-1 \
+      --name "/aws/service/global-infrastructure/regions/$region/geolocationCountry" \
+      --query Parameter.Value --output text | tr '[:upper:]' '[:lower:]')
+  fi
+  jq -n --arg value "$region" --arg name "$name" --arg icon "$(icon "$country")" \
+    '{$value, $name, $icon}'
 done | jq -s '.' > regions.json
 ```
-
-A new region also needs an entry in the `region_icons` map in `main.tf`.
 
 ## Related templates
 

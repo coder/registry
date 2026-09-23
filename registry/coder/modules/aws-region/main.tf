@@ -79,43 +79,11 @@ locals {
   # directory, so neither path works on its own.
   regions = jsondecode(try(file("${path.module}/regions.json"), file("regions.json")))
 
-  # Flag emoji shown for each region. European regions share the EU flag.
-  region_icons = {
-    "af-south-1"     = "/emojis/1f1ff-1f1e6.png"
-    "ap-east-1"      = "/emojis/1f1ed-1f1f0.png"
-    "ap-northeast-1" = "/emojis/1f1ef-1f1f5.png"
-    "ap-northeast-2" = "/emojis/1f1f0-1f1f7.png"
-    "ap-northeast-3" = "/emojis/1f1ef-1f1f5.png"
-    "ap-south-1"     = "/emojis/1f1ee-1f1f3.png"
-    "ap-south-2"     = "/emojis/1f1ee-1f1f3.png"
-    "ap-southeast-1" = "/emojis/1f1f8-1f1ec.png"
-    "ap-southeast-2" = "/emojis/1f1e6-1f1fa.png"
-    "ap-southeast-3" = "/emojis/1f1ee-1f1e9.png"
-    "ap-southeast-4" = "/emojis/1f1e6-1f1fa.png"
-    "ca-central-1"   = "/emojis/1f1e8-1f1e6.png"
-    "ca-west-1"      = "/emojis/1f1e8-1f1e6.png"
-    "eu-central-1"   = "/emojis/1f1ea-1f1fa.png"
-    "eu-central-2"   = "/emojis/1f1ea-1f1fa.png"
-    "eu-north-1"     = "/emojis/1f1ea-1f1fa.png"
-    "eu-south-1"     = "/emojis/1f1ea-1f1fa.png"
-    "eu-south-2"     = "/emojis/1f1ea-1f1fa.png"
-    "eu-west-1"      = "/emojis/1f1ea-1f1fa.png"
-    "eu-west-2"      = "/emojis/1f1ea-1f1fa.png"
-    "eu-west-3"      = "/emojis/1f1ea-1f1fa.png"
-    "il-central-1"   = "/emojis/1f1ee-1f1f1.png"
-    "me-south-1"     = "/emojis/1f1e7-1f1ed.png"
-    "sa-east-1"      = "/emojis/1f1e7-1f1f7.png"
-    "us-east-1"      = "/emojis/1f1fa-1f1f8.png"
-    "us-east-2"      = "/emojis/1f1fa-1f1f8.png"
-    "us-west-1"      = "/emojis/1f1fa-1f1f8.png"
-    "us-west-2"      = "/emojis/1f1fa-1f1f8.png"
-  }
-
   regions_by_id = {
     for region in local.regions : region.value => {
       value                     = region.value
       name                      = region.name
-      icon                      = local.region_icons[region.value]
+      icon                      = region.icon
       default_availability_zone = "${region.value}a"
     }
   }
@@ -135,7 +103,7 @@ data "coder_parameter" "region" {
     for_each = [for region in local.regions : region if !contains(var.exclude, region.value)]
     content {
       name  = try(var.custom_names[option.value.value], option.value.name)
-      icon  = try(var.custom_icons[option.value.value], local.region_icons[option.value.value])
+      icon  = try(var.custom_icons[option.value.value], option.value.icon)
       value = option.value.value
     }
   }
