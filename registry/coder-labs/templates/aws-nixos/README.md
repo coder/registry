@@ -255,17 +255,17 @@ on it, which is the only way a workspace will show an error for something that w
 the agent existed. Read the "NixOS" log source for what actually happened, fix the flake, and
 restart the workspace.
 
-On a first boot there is no agent in the AMI to start at all, so the bootstrap runs one itself as
-root under `coder-agent-fallback.service`. That is why the workspace opens even though nothing was
-built — the terminal is there so the flake can be fixed from inside. It has none of the packages,
-users or services the configuration asks for.
+On a first boot there is no agent in the AMI to run that script at all, so the bootstrap starts one
+itself for a minute, lets it report, and kills it. The workspace is therefore failed rather than
+"starting", but it has no agent: there is no terminal, no SSH and no IDE until the flake is fixed
+and the workspace restarted. Use the serial console or SSM below to get inside it in the meantime.
 
 ### The agent never connects
 
 The boot script writes its handoff to `/run/coder` before doing anything else, so the usual cause is
 an instance with no route to the internet (a NixOS workspace fetches its own configuration on boot,
-so it needs egress before it can report anything) — a failed rebuild connects anyway and reports
-the failure. The workspace metadata shows the instance id; the AMI logs to the serial console, which
+so it needs egress before it can report anything) — a failed rebuild reports itself failed instead
+of hanging. The workspace metadata shows the instance id; the AMI logs to the serial console, which
 needs no SSH:
 
 ```console

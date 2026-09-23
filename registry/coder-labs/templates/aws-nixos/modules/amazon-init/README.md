@@ -88,14 +88,19 @@ all:
   agent's `startup_script` and exit non-zero — the startup script's exit
   status is the only failure state a workspace will show you. The path is the
   `boot_failed_path` output.
-- **The fallback agent.** When the boot script has not produced a
+- **A reporting run of the agent.** When the boot script has not produced a
   `coder-agent.service` at all — a first boot whose configuration did not
-  build — the module runs `coder_agent.init_script` itself, as root, under a
-  transient `coder-agent-fallback.service`. It is the image's own
-  environment and not the system that was asked for, which is the point: the
-  workspace connects, the error is on screen, and there is a terminal to fix
-  it from. `systemctl stop coder-agent-fallback` happens as soon as a real
-  unit exists. Set `fallback_agent = false` to turn it off.
+  build — nothing is left to run that startup script, so the module runs
+  `coder_agent.init_script` itself for `report_failure_timeout` seconds under
+  a transient `coder-agent-report.service`, and then kills it. The agent
+  connects, its startup scripts fail on `boot-failed`, and the workspace is
+  failed within the minute instead of after the connection timeout.
+
+  It is killed, not stopped: on SIGTERM the agent reports `shutting_down` and
+  then `off`, over the top of the `start_error` it was started to report. And
+  it is not left running, because it would be serving the image's environment
+  rather than the configuration that was asked for — a workspace that looks
+  like it works. Set `report_failure = false` to turn it off.
 
 ## What the boot script gets
 

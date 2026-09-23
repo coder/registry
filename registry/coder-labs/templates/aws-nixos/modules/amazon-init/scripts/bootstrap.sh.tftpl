@@ -21,7 +21,8 @@ LOG_DISPLAY_NAME_B64='${ARG_LOG_DISPLAY_NAME_B64}'
 LOG_ICON='${ARG_LOG_ICON}'
 LOG_BUDGET='${ARG_LOG_BUDGET}'
 HOSTNAME_='${ARG_HOSTNAME}'
-FALLBACK_AGENT='${ARG_FALLBACK_AGENT}'
+REPORT_FAILURE='${ARG_REPORT_FAILURE}'
+REPORT_TIMEOUT='${ARG_REPORT_TIMEOUT}'
 
 RUNTIME_DIR='${ARG_RUNTIME_DIR}'
 
@@ -96,51 +97,61 @@ export CODER_LOG_LIBRARY="$RUNTIME_DIR/log.sh"
 
 coder_log_init "$(printf '%s' "$LOG_DISPLAY_NAME_B64" | base64 -d)" "$LOG_ICON" || true
 
-# Nothing on the instance can report a failure except a connected agent. A
-# deployment renders an agent's lifecycle only while it is connected, and
-# there is no API a script can call to fail a build -- so an instance that
-# never starts an agent shows "connecting" until the connection timeout
-# expires and then "timeout", with the reason buried in a log source nobody
-# has a reason to open.
+# Nothing on the instance can report a failure except the agent. A deployment
+# renders an agent's state only once it has connected, and there is no API a
+# script can call to fail a build -- so an instance that never starts an agent
+# shows "connecting" until the connection timeout expires twenty minutes
+# later, with the reason buried in a log source nobody has a reason to open.
 #
-# So when the boot script never produced a coder-agent.service -- a first boot
-# whose configuration did not build -- start the agent from the init script
-# instead, as root, under a transient unit. It runs in the image's own
-# environment rather than the configuration that was asked for, which is
-# exactly the point: the workspace comes up, the error is on screen, and there
-# is a terminal to fix it from.
-start_fallback_agent() {
-  [ "$FALLBACK_AGENT" = "true" ] || return 1
+# `coder agent` can say it, though, and that is all this does: run the agent
+# from the init script, let it connect and run its startup scripts -- which
+# fail on the boot-failed file written above -- and then kill it. The
+# workspace is failed within a minute instead of twenty, and the agent is
+# gone: left running it would be serving the image's environment rather than
+# the configuration that was asked for, which is a workspace that looks like
+# it works.
+#
+# Killed rather than stopped: on SIGTERM the agent reports shutting_down and
+# then off, which would overwrite the start_error it was started to report.
+report_boot_failure() {
+  [ "$REPORT_FAILURE" = "true" ] || return 1
   command -v systemd-run >/dev/null 2>&1 || return 1
 
-  coder_log error "Starting an agent from the image instead, so that this workspace can still be opened." || true
-  coder_log error "It is NOT running the configuration you asked for. Fix the configuration and restart the workspace." || true
+  coder_log error "Starting the agent briefly to report the failure, then stopping it." || true
 
-  # A fallback left running from an earlier attempt would fight the real agent
-  # over the same token, and a failed one keeps the unit name.
-  systemctl reset-failed coder-agent-fallback.service 2>/dev/null || true
+  # A run left over from an earlier attempt would fight this one over the same
+  # token, and a failed one keeps the unit name.
+  systemctl reset-failed coder-agent-report.service 2>/dev/null || true
   install -d -m 0755 "$RUNTIME_DIR/bin"
 
   # The token is read from agent.env inside the unit rather than passed as a
   # property, so that it does not end up in `systemctl show` output.
-  if ! systemd-run --quiet --collect --unit=coder-agent-fallback \
+  #
+  # RuntimeMaxSec and KillSignal so that the agent still goes away -- without
+  # reporting itself off on the way out -- if this script is killed before it
+  # gets to do it itself.
+  if ! systemd-run --quiet --collect --unit=coder-agent-report \
     --service-type=exec \
+    --property=RuntimeMaxSec="$((REPORT_TIMEOUT + 60))" \
+    --property=KillSignal=SIGKILL \
+    --property=FinalKillSignal=SIGKILL \
     --setenv=HOME=/root \
     --setenv=PATH="$PATH" \
     --setenv=BINARY_DIR="$RUNTIME_DIR/bin" \
     /usr/bin/env bash -c \
     "set -a; . '$RUNTIME_DIR/agent.env'; set +a; exec bash '$RUNTIME_DIR/init.sh'"; then
-    coder_log error "Could not start the fallback agent." || true
+    coder_log error "Could not start the agent to report the failure." || true
     return 1
   fi
 
-  sleep 3
-  if systemctl is-active --quiet coder-agent-fallback; then
-    return 0
-  fi
-  coder_log error "The fallback agent exited immediately." || true
-  journalctl -u coder-agent-fallback --no-pager --lines=30 2>/dev/null | coder_log_pipe error || true
-  return 1
+  # Long enough for it to connect, run the startup scripts and report what
+  # they did. There is nothing to wait on: the state it is reporting lives on
+  # the deployment, and no endpoint an agent token can reach reads it back.
+  sleep "$REPORT_TIMEOUT"
+  systemctl stop coder-agent-report.service 2>/dev/null || true
+
+  coder_log error "Reported. This workspace is failed and has no agent; fix the configuration and restart it." || true
+  return 0
 }
 
 # Nothing starts coder-agent.service but this, and only once the boot script
@@ -155,12 +166,12 @@ start_agent() {
   fi
   if ! systemctl cat coder-agent >/dev/null 2>&1; then
     coder_log error "coder-agent.service does not exist; the boot script has never created it." || true
-    start_fallback_agent || return 1
+    report_boot_failure || return 1
     return 0
   fi
 
-  # The real unit wins whenever it exists.
-  systemctl stop coder-agent-fallback.service 2>/dev/null || true
+  # A reporting run from an earlier attempt must not fight the real agent.
+  systemctl stop coder-agent-report.service 2>/dev/null || true
   chown_handoff
   systemctl start coder-agent || true
 
