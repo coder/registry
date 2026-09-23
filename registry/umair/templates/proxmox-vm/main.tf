@@ -130,11 +130,6 @@ resource "coder_agent" "dev" {
   arch = "amd64"
   os   = "linux"
 
-  env = {
-    GIT_AUTHOR_NAME  = data.coder_workspace_owner.me.name
-    GIT_AUTHOR_EMAIL = data.coder_workspace_owner.me.email
-  }
-
   startup_script_behavior = "non-blocking"
   startup_script          = <<-EOT
     set -e
@@ -266,6 +261,13 @@ resource "proxmox_virtual_environment_vm" "workspace" {
   tags = ["coder", "workspace", local.vm_name]
 
   depends_on = [proxmox_virtual_environment_file.cloud_init_user_data]
+}
+
+module "git-config" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/git-config/coder"
+  version  = "~> 1.0"
+  agent_id = coder_agent.dev.id
 }
 
 module "code-server" {
