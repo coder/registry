@@ -122,3 +122,16 @@ run "outputs_without_parameter" {
     error_message = "With create_parameter = false, outputs should fall back to var.default"
   }
 }
+
+run "no_parameter_and_no_default" {
+  command = apply
+
+  variables {
+    create_parameter = false
+  }
+
+  assert {
+    condition     = output.value == null && output.default_availability_zone == ""
+    error_message = "With no parameter and no default, value is null and default_availability_zone is empty"
+  }
+}

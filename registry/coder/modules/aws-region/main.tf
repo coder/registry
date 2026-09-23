@@ -22,13 +22,13 @@ variable "description" {
 }
 
 variable "default" {
-  default     = ""
-  description = "The default region to preselect. Also used as the selected region when create_parameter is false."
+  default     = null
+  description = "The default region to preselect, e.g. \"us-east-1\". Leave unset for no preselection; also used as the selected region when create_parameter is false."
   type        = string
 
   validation {
-    condition     = var.default == "" || can(regex("^[a-z]{2}-[a-z]+-[0-9]+$", var.default))
-    error_message = "default must be empty or a valid AWS region ID, e.g. \"us-east-1\"."
+    condition     = var.default == null || can(regex("^[a-z]{2}-[a-z]+-[0-9]+$", var.default))
+    error_message = "default must be null or a valid AWS region ID, e.g. \"us-east-1\"."
   }
 }
 
@@ -123,7 +123,7 @@ data "coder_parameter" "region" {
   name         = "aws_region"
   display_name = var.display_name
   description  = var.description
-  default      = var.default == "" ? null : var.default
+  default      = var.default
   order        = var.coder_parameter_order
   mutable      = var.mutable
   dynamic "option" {
