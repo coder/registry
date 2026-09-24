@@ -12,6 +12,9 @@
 #     persistent state: coderd only stores parameter values the
 #     template declares, and Agent Relay's dedupe and reconciliation query
 #     workspaces with `param:` search filters on them.
+#   - agent_relay_client_platform is persistent attribution: the surface
+#     that created the session. Stamped on every build; relays that
+#     predate it simply never set it.
 #   - agent_relay_credential, agent_relay_claude_code_lock_to_account,
 #     and agent_relay_attempt are ephemeral runner inputs, reset
 #     between builds. An ephemeral value is still recorded on the build
@@ -138,6 +141,20 @@ data "coder_parameter" "agent_relay_pool" {
   })
 }
 
+data "coder_parameter" "agent_relay_client_platform" {
+  name         = "agent_relay_client_platform"
+  display_name = "Claude Code client platform"
+  description  = "Surface the session was created from: web_claude_ai, desktop_app, ios, android, claude_code_cli, or claude_in_slack. Agent Relay sets this when it dispatches the workspace; a human never fills it in. Exposed to the workspace as AGENT_RELAY_CLIENT_PLATFORM so a template can vary its setup by origin."
+  type         = "string"
+  mutable      = true
+  default      = ""
+  order        = 1006
+  styling = jsonencode({
+    disabled    = true
+    placeholder = "Set by Agent Relay on dispatch"
+  })
+}
+
 data "coder_parameter" "agent_relay_credential" {
   name         = "agent_relay_credential"
   display_name = "Agent Relay credential"
@@ -198,6 +215,14 @@ resource "coder_env" "agent_relay_claude_code_lock_to_account" {
   value    = data.coder_parameter.agent_relay_claude_code_lock_to_account.value
 }
 
+# Agent Relay's own variable, not the CLI's: attribution for scripts and
+# tooling inside the workspace.
+resource "coder_env" "agent_relay_client_platform" {
+  agent_id = var.agent_id
+  name     = "AGENT_RELAY_CLIENT_PLATFORM"
+  value    = data.coder_parameter.agent_relay_client_platform.value
+}
+
 locals {
   # coder-utils requires this exact layout. Scripts land in scripts/ and
   # their output in logs/; the runner state and log default to the same
@@ -252,4 +277,9 @@ output "scripts" {
 output "dispatched" {
   description = "Whether this workspace was spawned by Agent Relay (credential set) or manually (empty)."
   value       = data.coder_parameter.agent_relay_credential.value != ""
+}
+
+output "client_platform" {
+  description = "Surface the session was created from (web_claude_ai, claude_in_slack, ...), or empty when the relay predates the parameter or the workspace was created manually."
+  value       = data.coder_parameter.agent_relay_client_platform.value
 }
