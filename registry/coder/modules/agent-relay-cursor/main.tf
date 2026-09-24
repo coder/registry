@@ -313,3 +313,8 @@ output "dispatched" {
   description = "Whether this workspace was spawned by Agent Relay (credential set) or manually (empty)."
   value       = data.coder_parameter.agent_relay_credential.value != ""
 }
+
+output "session_id" {
+  description = "Cursor cloud agent id stamped in agent_relay_session_id. Empty when a person created the workspace. A template uses this for an external coder_app at https://cursor.com/agents/<session_id>."
+  value       = data.coder_parameter.agent_relay_session_id.value
+}
