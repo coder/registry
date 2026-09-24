@@ -321,6 +321,13 @@ run "graceful_shutdown_defaults" {
     condition     = !strcontains(local.start_script, "--push-outcome-on-release") && !strcontains(local.start_script, "--drain-wait-sec")
     error_message = "both optional runner behaviours are off by default"
   }
+
+  # It rewrites the account's HOME git config before every session, so it
+  # is never on unless the template asked for it.
+  assert {
+    condition     = !strcontains(local.start_script, "--use-anthropic-git-proxy") && !strcontains(local.start_script, "--configure-git")
+    error_message = "Anthropic-managed git and the Claude git identity must both be opt-in"
+  }
 }
 
 run "drain_wait_enabled" {
@@ -421,5 +428,61 @@ run "stop_script_waits_for_the_recorded_exit" {
   assert {
     condition     = strcontains(local.stop_script, "recorded") && strcontains(local.stop_script, "while ! recorded")
     error_message = "the stop script must wait for the supervisor to record the exit, not just for the runner to go"
+  }
+}
+
+run "anthropic_git_proxy_enabled" {
+  command = plan
+
+  variables {
+    use_anthropic_git_proxy = true
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "--use-anthropic-git-proxy")
+    error_message = "use_anthropic_git_proxy must reach the runner as a flag"
+  }
+
+  # The proxy leaves no identity behind, so the two travel together
+  # unless a template says otherwise.
+  assert {
+    condition     = strcontains(local.start_script, "--configure-git")
+    error_message = "the Claude git identity must follow the proxy by default"
+  }
+
+  # It authenticates clones server-side; it does not change what the
+  # runner has to do on the way out.
+  assert {
+    condition     = output.shutdown_grace_seconds == 105
+    error_message = "Anthropic-managed git must not change the shutdown budget"
+  }
+}
+
+run "git_identity_overrides_the_proxy_default" {
+  command = plan
+
+  variables {
+    use_anthropic_git_proxy = true
+    configure_git           = false
+  }
+
+  # For an image that supplies its identity in /etc/gitconfig, which the
+  # proxy does not delete.
+  assert {
+    condition     = strcontains(local.start_script, "--use-anthropic-git-proxy") && !strcontains(local.start_script, "--configure-git")
+    error_message = "configure_git = false must win over the proxy default"
+  }
+}
+
+run "git_identity_without_the_proxy" {
+  command = plan
+
+  variables {
+    configure_git = true
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "--configure-git") && !strcontains(local.start_script, "--use-anthropic-git-proxy")
+    error_message = "signing commits must not require Anthropic-managed git"
   }
 }

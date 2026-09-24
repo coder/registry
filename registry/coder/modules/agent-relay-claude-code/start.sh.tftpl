@@ -105,6 +105,12 @@ ${cli_binary} self-hosted-runner \\
 %{ if push_outcome_on_release ~}
 	--push-outcome-on-release \\
 %{ endif ~}
+%{ if use_anthropic_git_proxy ~}
+	--use-anthropic-git-proxy \\
+%{ endif ~}
+%{ if configure_git ~}
+	--configure-git \\
+%{ endif ~}
 	--client-label "\$client_label" \\
 	--exec-path "$wrapper" >"$log_file" 2>&1 &
 runner_pid=\$!
