@@ -140,33 +140,6 @@ variable "log_budget_bytes" {
   default     = 524288
 }
 
-variable "report_failure" {
-  description = <<-EOT
-    When the boot script has not produced a `coder-agent.service`, run
-    `coder_agent.init_script` for `report_failure_timeout` seconds and then
-    kill it.
-
-    A deployment shows an agent's state only once it has connected, and there
-    is no API a script can call to fail a build, so an instance that never
-    starts an agent is indistinguishable from a slow one until the connection
-    timeout expires. Running the agent briefly is the only way to say
-    otherwise: it connects, its startup scripts fail on `boot-failed`, and the
-    workspace is failed within the minute. The agent is then killed rather
-    than stopped, because a clean shutdown reports `off` over the top of it.
-
-    Turn it off for images where an agent running as root is not acceptable.
-    The failure is still logged, and `boot-failed` is still written.
-  EOT
-  type        = bool
-  default     = true
-}
-
-variable "report_failure_timeout" {
-  description = "Seconds to leave that agent running. Long enough for it to connect and run every startup script; nothing on the instance can read the state back to know."
-  type        = number
-  default     = 60
-}
-
 variable "hostname" {
   description = "Hostname to set on the instance. Defaults to the workspace name."
   type        = string
@@ -221,9 +194,7 @@ locals {
     ARG_LOG_ICON             = var.log_icon
     ARG_LOG_BUDGET           = var.log_budget_bytes
 
-    ARG_HOSTNAME       = local.hostname
-    ARG_REPORT_FAILURE = tostring(var.report_failure)
-    ARG_REPORT_TIMEOUT = var.report_failure_timeout
+    ARG_HOSTNAME = local.hostname
   })
 
   # EC2 caps user-data at 16 KiB and the script above plus its payloads is
@@ -275,18 +246,6 @@ output "runtime_dir" {
 output "workspace_facts_path" {
   description = "Path to the workspace identity file written on every boot."
   value       = "${var.runtime_dir}/workspace.json"
-}
-
-output "boot_failed_path" {
-  description = <<-EOT
-    File written when the boot script fails, holding a sentence about what
-    happened. Absent on a healthy boot.
-
-    Read it from the agent's startup script and exit non-zero: that is the
-    only way to get an error out of a workspace whose machine came up fine
-    but whose configuration did not.
-  EOT
-  value       = "${var.runtime_dir}/boot-failed"
 }
 
 output "bootstrap_path" {

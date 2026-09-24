@@ -71,37 +71,6 @@ The mirror image of that rule is that a boot script failure must not leave an
 unreachable workspace, so the agent is started even when the boot script
 exits non-zero. Its status is reported and propagated, never suppressed.
 
-## Saying that the boot failed
-
-A failed boot script has nothing to report itself with. A deployment renders
-an agent's state only once that agent has connected, and no API a script can
-reach marks a build failed — so an instance that never starts an agent is
-indistinguishable from a slow one until `connection_timeout` expires, and the
-reason sits in a log source nobody has a reason to open.
-
-Two things follow from that, and both are why a failure here is visible at
-all:
-
-- **`boot-failed`.** When the boot script exits non-zero the module writes
-  `$${runtime_dir}/boot-failed` (mode 0644) with a sentence about what
-  happened, and removes it at the start of every boot. Read it from the
-  agent's `startup_script` and exit non-zero — the startup script's exit
-  status is the only failure state a workspace will show you. The path is the
-  `boot_failed_path` output.
-- **A reporting run of the agent.** When the boot script has not produced a
-  `coder-agent.service` at all — a first boot whose configuration did not
-  build — nothing is left to run that startup script, so the module runs
-  `coder_agent.init_script` itself for `report_failure_timeout` seconds under
-  a transient `coder-agent-report.service`, and then kills it. The agent
-  connects, its startup scripts fail on `boot-failed`, and the workspace is
-  failed within the minute instead of after the connection timeout.
-
-  It is killed, not stopped: on SIGTERM the agent reports `shutting_down` and
-  then `off`, over the top of the `start_error` it was started to report. And
-  it is not left running, because it would be serving the image's environment
-  rather than the configuration that was asked for — a workspace that looks
-  like it works. Set `report_failure = false` to turn it off.
-
 ## What the boot script gets
 
 Root, a child process, and these:

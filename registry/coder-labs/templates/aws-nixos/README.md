@@ -244,28 +244,12 @@ until `nixos-rebuild switch` finishes. Watch the "NixOS" log source. A cold clos
 instance can take ten minutes or more. A restart with nothing to rebuild skips straight to starting
 the agent.
 
-### The workspace says its startup script failed
-
-The configuration did not apply. The machine is up and reachable, but it is **not** running the
-system it was built from — `nixos-rebuild switch` builds before it activates, so what is running is
-whatever ran before: the previous generation, or on a first boot the bare AMI.
-
-The bootstrap records the reason in `/run/coder/boot-failed`, and the agent's startup script fails
-on it, which is the only way a workspace will show an error for something that went wrong before
-the agent existed. Read the "NixOS" log source for what actually happened, fix the flake, and
-restart the workspace.
-
-On a first boot there is no agent in the AMI to run that script at all, so the bootstrap starts one
-itself for a minute, lets it report, and kills it. The workspace is therefore failed rather than
-"starting", but it has no agent: there is no terminal, no SSH and no IDE until the flake is fixed
-and the workspace restarted. Use the serial console or SSM below to get inside it in the meantime.
-
 ### The agent never connects
 
 The boot script writes its handoff to `/run/coder` before doing anything else, so the usual cause is
-an instance with no route to the internet (a NixOS workspace fetches its own configuration on boot,
-so it needs egress before it can report anything) — a failed rebuild reports itself failed instead
-of hanging. The workspace metadata shows the instance id; the AMI logs to the serial console, which
+a failed rebuild — or, if there are no logs at all, an instance with no route to the internet (a
+NixOS workspace fetches its own configuration on boot, so it needs egress before it can report
+anything). The workspace metadata shows the instance id; the AMI logs to the serial console, which
 needs no SSH:
 
 ```console

@@ -49,16 +49,6 @@ variable "nixos_release" {
   default     = "26.05"
 }
 
-variable "troubleshooting_url" {
-  description = <<-EOT
-    Page the agent's "Troubleshoot" link points at. Shown when the agent has
-    not connected within `connection_timeout`, which on this template means
-    the instance never finished applying the flake.
-  EOT
-  type        = string
-  default     = "https://registry.coder.com/templates/coder-labs/aws-nixos"
-}
-
 data "coder_parameter" "instance_type" {
   name         = "instance_type"
   display_name = "Instance type"
@@ -143,26 +133,6 @@ resource "coder_agent" "main" {
   # The first boot completes a nixos-rebuild switch before the agent exists,
   # so the default 120s looks like a failed workspace.
   connection_timeout = 1200
-  # Shown on the agent as a "Troubleshoot" link once it times out, which is
-  # the one moment the user has nothing else to go on.
-  troubleshooting_url = var.troubleshooting_url
-
-  # The instance can come up perfectly while the configuration it was meant
-  # to run does not build, and a workspace has no way to say so: a deployment
-  # shows an agent's state only once it has connected, and nothing a script
-  # can call fails a build. What it does report is the startup script's exit
-  # status -- so the bootstrap leaves a file behind and this fails on it.
-  # See modules/amazon-init/README.md.
-  startup_script = <<-EOT
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    failure='${local.runtime_dir}/boot-failed'
-    if [ -f "$failure" ]; then
-      cat "$failure" >&2
-      exit 1
-    fi
-  EOT
 
   metadata {
     key          = "cpu"
@@ -258,11 +228,6 @@ locals {
     "m7g.xlarge" = { agent = "arm64", ami = "arm64", attr = "aarch64" }
   }
   arch = local.arch_map[data.coder_parameter.instance_type.value]
-
-  # Named here rather than read back from the amazon-init module: that module
-  # is given the agent's token, so an output of it cannot be used to configure
-  # the agent without making a cycle.
-  runtime_dir = "/run/coder"
 }
 
 # Everything about the flake: the checkout, the boot-time rebuild and the
@@ -286,7 +251,6 @@ module "amazon_init" {
   agent_init_script = try(coder_agent.main[0].init_script, "")
   boot_script       = module.nix.boot_script
   values            = module.nix.values
-  runtime_dir       = local.runtime_dir
 
   log_display_name = "NixOS"
   log_icon         = "/icon/nix.svg"
