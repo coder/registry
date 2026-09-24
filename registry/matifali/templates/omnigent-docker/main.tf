@@ -97,13 +97,6 @@ resource "coder_agent" "main" {
     fi
   EOT
 
-  env = {
-    GIT_AUTHOR_NAME     = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_AUTHOR_EMAIL    = data.coder_workspace_owner.me.email
-    GIT_COMMITTER_NAME  = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_COMMITTER_EMAIL = data.coder_workspace_owner.me.email
-  }
-
   metadata {
     display_name = "CPU Usage"
     key          = "0_cpu_usage"
@@ -127,6 +120,13 @@ resource "coder_agent" "main" {
     interval     = 60
     timeout      = 1
   }
+}
+
+module "git-config" {
+  source  = "registry.coder.com/coder/git-config/coder"
+  version = "~> 1.0"
+
+  agent_id = coder_agent.main.id
 }
 
 module "git_clone" {

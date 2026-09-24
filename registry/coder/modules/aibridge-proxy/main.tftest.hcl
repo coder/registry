@@ -152,8 +152,8 @@ run "test_aibridge_proxy_script" {
   }
 
   assert {
-    condition     = coder_script.aibridge_proxy_setup.display_name == "AI Bridge Proxy Setup"
-    error_message = "Script display name should be 'AI Bridge Proxy Setup'"
+    condition     = coder_script.aibridge_proxy_setup.display_name == "AI Gateway Proxy Setup"
+    error_message = "Script display name should be 'AI Gateway Proxy Setup'"
   }
 }
 

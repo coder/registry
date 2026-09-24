@@ -13,7 +13,7 @@ Install and configure [Pool](https://docs.poolside.ai/cli/pool), Poolside's codi
 ```tf
 module "pool" {
   source   = "registry.coder.com/coder-labs/pool/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   poolside_api_key = var.poolside_api_key
@@ -38,7 +38,7 @@ locals {
 
 module "pool" {
   source   = "registry.coder.com/coder-labs/pool/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   poolside_api_key = var.poolside_api_key
@@ -51,7 +51,7 @@ resource "coder_app" "pool" {
   icon         = "/icon/poolside.svg"
   open_in      = "slim-window"
   command      = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -e
     cd "${local.pool_workdir}"
     pool
@@ -73,7 +73,7 @@ locals {
 
 module "pool" {
   source   = "registry.coder.com/coder-labs/pool/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   poolside_api_key = var.poolside_api_key
@@ -84,7 +84,7 @@ resource "coder_script" "pool_session" {
   display_name = "Start Pool session"
   run_on_start = true
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     trap 'coder exp sync complete pool-session' EXIT
     coder exp sync want pool-session ${join(" ", module.pool.scripts)}
@@ -101,7 +101,7 @@ resource "coder_app" "pool" {
   display_name = "Pool"
   icon         = "/icon/poolside.svg"
   command      = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -e
     exec tmux new-session -A -s pool 'pool'
   EOT
@@ -123,7 +123,7 @@ Pool speaks to OpenAI-compatible endpoints through `POOLSIDE_STANDALONE_BASE_URL
 ```tf
 module "pool" {
   source   = "registry.coder.com/coder-labs/pool/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   enable_ai_gateway = true
@@ -141,7 +141,7 @@ module "pool" {
 ```tf
 module "pool" {
   source   = "registry.coder.com/coder-labs/pool/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   poolside_api_key = var.poolside_api_key
@@ -159,7 +159,7 @@ resource "coder_app" "pool" {
   display_name = "Pool (Agent Firewall)"
   icon         = "/icon/poolside.svg"
   command      = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -e
     exec tmux new-session -A -s pool \
       '"${module.agent-firewall.agent_firewall_wrapper_path}" --config="${module.agent-firewall.agent_firewall_config_path}" -- pool'
@@ -176,7 +176,7 @@ Use `standalone_base_url` to configure another OpenAI-compatible proxy or local 
 ```tf
 module "pool" {
   source   = "registry.coder.com/coder-labs/pool/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   poolside_api_key    = var.gateway_api_key
@@ -211,7 +211,7 @@ For restricted or air-gapped workspaces:
 ```tf
 module "pool" {
   source   = "registry.coder.com/coder-labs/pool/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   install_url         = "https://artifacts.internal.example.com/pool/install.sh"
@@ -230,7 +230,7 @@ resource "coder_script" "verify_pool" {
   display_name = "Verify Pool CLI"
   run_on_start = true
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     trap 'coder exp sync complete verify-pool' EXIT
     coder exp sync want verify-pool ${join(" ", module.pool.scripts)}

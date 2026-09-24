@@ -161,7 +161,7 @@ resource "coder_script" "vscode-desktop-mcp" {
   start_blocks_login = false
 
   script = <<-EOT
-    #!/bin/sh
+    #!/usr/bin/env sh
     set -euo pipefail
 
     IDE_CONFIG_FOLDER="${var.config_dir}"

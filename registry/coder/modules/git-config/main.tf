@@ -102,7 +102,7 @@ resource "coder_script" "git_user_config" {
   run_on_start = true
   display_name = "Configure git user globally"
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -o errexit
     set -o pipefail
 

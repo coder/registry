@@ -82,7 +82,7 @@ variable "post_install_script" {
 
 variable "enable_ai_gateway" {
   type        = bool
-  description = "Route Copilot traffic through Coder's AI Gateway (AI Bridge Proxy). https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy"
+  description = "Route Copilot traffic through AI Gateway Proxy. See https://coder.com/docs/ai-coder/ai-gateway/ai-gateway-proxy"
   default     = false
 
   validation {
@@ -98,14 +98,14 @@ variable "enable_ai_gateway" {
 
 variable "ai_gateway_auth_url" {
   type        = string
-  description = "AI Gateway (AI Bridge Proxy) URL with authentication. Use the proxy_auth_url output from the aibridge-proxy module."
+  description = "AI Gateway Proxy URL with authentication. Use the proxy_auth_url output from the aibridge-proxy module."
   default     = null
   sensitive   = true
 }
 
 variable "ai_gateway_cert_path" {
   type        = string
-  description = "Path to the AI Gateway (AI Bridge Proxy) CA certificate. Use the cert_path output from the aibridge-proxy module."
+  description = "Path to the AI Gateway Proxy CA certificate. Use the cert_path output from the aibridge-proxy module."
   default     = null
 }
 
@@ -130,7 +130,7 @@ resource "coder_env" "gh_token" {
   value    = var.github_token
 }
 
-# Route Copilot's traffic through the AI Bridge Proxy. The pre-migration module
+# Route Copilot's traffic through the AI Gateway Proxy. The pre-migration module
 # scoped these to the Copilot process via its start script; with no start script
 # they are set at the agent level, so they apply workspace-wide.
 resource "coder_env" "ai_gateway_https_proxy" {

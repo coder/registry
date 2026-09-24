@@ -59,7 +59,7 @@ resource "coder_app" "copilot" {
   icon         = "/icon/github.svg"
   open_in      = "slim-window"
   command      = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -e
     token="$(coder external-auth access-token github)" && export GITHUB_TOKEN="$token" GH_TOKEN="$token"
     cd "${local.copilot_workdir}"
@@ -97,14 +97,14 @@ module "copilot" {
 > [!NOTE]
 > OAuth tokens work best with Copilot. Personal Access Tokens may have limited functionality.
 
-### Usage with AI Gateway (AI Bridge Proxy)
+### Usage with AI Gateway Proxy
 
-[AI Bridge Proxy](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy) routes Copilot traffic through [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge) for centralized LLM management and governance.
+[AI Gateway Proxy](https://coder.com/docs/ai-coder/ai-gateway/ai-gateway-proxy) routes Copilot traffic through [AI Gateway](https://coder.com/docs/ai-coder/ai-gateway) for centralized LLM management and governance.
 
 ```tf
 module "aibridge-proxy" {
   source    = "registry.coder.com/coder/aibridge-proxy/coder"
-  version   = "1.0.0"
+  version   = "1.0.1"
   agent_id  = coder_agent.main.id
   proxy_url = "https://aiproxy.example.com"
 }
@@ -123,7 +123,7 @@ module "copilot" {
 When `enable_ai_gateway = true`, the module sets `HTTPS_PROXY` and `NODE_EXTRA_CA_CERTS` as workspace environment variables so Copilot routes through the proxy.
 
 > [!NOTE]
-> AI Bridge Proxy is a Premium Coder feature that requires the [AI Governance Add-On](https://coder.com/docs/ai-coder/ai-governance). See the [setup guide](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy/setup) for configuring the proxy on your deployment. GitHub authentication is still required; the proxy does not replace it.
+> AI Gateway Proxy is a Premium Coder feature that requires the [AI Governance Add-On](https://coder.com/docs/ai-coder/ai-governance). See the [setup guide](https://coder.com/docs/ai-coder/ai-gateway/ai-gateway-proxy/setup) for configuring the proxy on your deployment. GitHub authentication is still required; the proxy does not replace it.
 
 > [!IMPORTANT]
 > Unlike the pre-`v1` module (which scoped the proxy to the Copilot process via its start script), these variables are set at the agent level and therefore apply workspace-wide. Ensure the `aibridge-proxy` module completes before Copilot is launched so the CA certificate exists. For strict process-scoping, set `HTTPS_PROXY`/`NODE_EXTRA_CA_CERTS` in your own launcher `coder_app` instead.
@@ -168,7 +168,7 @@ module "copilot" {
 
   # Pre-install an MCP server for faster startup
   pre_install_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     npm install -g @modelcontextprotocol/server-filesystem
   EOT
 }
@@ -199,7 +199,7 @@ resource "coder_script" "post_copilot" {
   display_name = "Run after Copilot install"
   run_on_start = true
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     trap 'coder exp sync complete post-copilot' EXIT
     coder exp sync want post-copilot ${join(" ", module.copilot.scripts)}

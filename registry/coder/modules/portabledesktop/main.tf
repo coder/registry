@@ -51,7 +51,7 @@ resource "coder_script" "portabledesktop" {
   display_name = "Portable Desktop"
   icon         = "/icon/desktop.svg"
   script       = <<-EOT
-    #!/bin/sh
+    #!/usr/bin/env sh
     set -eu
     echo -n '${base64encode(file("${path.module}/run.sh"))}' | base64 -d > /tmp/portabledesktop-install.sh
     chmod +x /tmp/portabledesktop-install.sh

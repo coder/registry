@@ -1,0 +1,315 @@
+# Cursor self-hosted worker module for Coder templates.
+#
+# A Cursor-compatible template includes this module and passes it the
+# workspace's coder_agent id. It declares every rich parameter
+# Agent Relay stamps on a build and runs `agent worker ... start`
+# via a coder_script.
+#
+# Scripts run through coder-utils, which orders the install step before
+# the start step and keeps a copy of each script and its output under
+# module_directory for debugging.
+#
+# Parameter contract (enforced by Agent Relay at startup via the dynamic
+# parameters evaluate endpoint):
+#
+#   - agent_relay_session_id, agent_relay_delivery_id, agent_relay_pool,
+#     agent_relay_cursor_pool_name, agent_relay_cursor_idle_release_timeout,
+#     agent_relay_cursor_repo_url, and agent_relay_cursor_credential_kind
+#     are persistent state: coderd only
+#     stores parameter values the template declares, and Agent Relay's
+#     dedupe and reconciliation query workspaces with `param:` search
+#     filters on them. agent_relay_cursor_repo_url is stamped on every
+#     build (empty for repo-less pools) so the contract stays static.
+#   - agent_relay_credential is an ephemeral worker input, reset between
+#     builds.
+#
+# The worker's lifecycle is published through the agent_relay_status agent
+# metadata item, whose script this module renders. The script starts
+# the worker detached and exits so the agent reaches the ready
+# lifecycle state rather than sitting in starting for the whole
+# session.
+
+terraform {
+  required_providers {
+    coder = {
+      source  = "coder/coder"
+      version = ">= 2.13"
+    }
+  }
+}
+
+variable "agent_id" {
+  type        = string
+  description = "ID of the coder_agent that should receive the worker env vars and run the worker script."
+}
+
+variable "cli_binary" {
+  type        = string
+  default     = "agent"
+  description = "Path to the Cursor CLI binary in the workspace image. Override to test a beta build."
+
+  # Rendered into the start script and the supervisor as a command word,
+  # so it is restricted to a command name or path: no whitespace, quotes,
+  # or other shell metacharacters.
+  validation {
+    condition     = can(regex("^[A-Za-z0-9._/@+-]+$", var.cli_binary))
+    error_message = "cli_binary must be a command name or path made of letters, digits, and . _ / @ + - only."
+  }
+}
+
+variable "install_cli" {
+  type        = bool
+  default     = true
+  description = "Install the Cursor CLI (curl https://cursor.com/install -fsSL | bash) when the workspace starts and the CLI is not already on PATH. Defaults to true so a template works against an image that has no CLI. A CLI already in the image is used as is and never upgraded, which is the recommended and fastest path: the download only runs when the binary is missing, and it then needs outbound access to cursor.com and spends part of the claim-to-ready window."
+}
+
+variable "computer_use" {
+  type        = bool
+  default     = false
+  description = "Start the worker with --computer-use. Requires the computer-use packages in the workspace image."
+}
+
+variable "state_file" {
+  type        = string
+  default     = "$HOME/.coder-modules/coder/agent-relay-cursor/worker-state"
+  description = "Path the worker supervisor writes its lifecycle state to, read by the agent_relay_status agent metadata item."
+}
+
+variable "log_file" {
+  type        = string
+  default     = "$HOME/.coder-modules/coder/agent-relay-cursor/logs/worker.log"
+  description = "Path the detached worker's output is written to."
+}
+
+variable "serving_log_pattern" {
+  type        = string
+  default     = "in use"
+  description = "Worker log substring that means a chat session attached. At default verbosity the Cursor CLI log carries no session line, so this only works with verbose worker logs and typically never matches; Agent Relay's status page overlays Cursor's authoritative in-use worker state regardless, so the working versus serving distinction here is best-effort and purely cosmetic. A pattern that never matches degrades to working and affects nothing else."
+
+  # grep -F with an empty pattern matches every line, which would report
+  # serving on any output and invert the documented fallback to working.
+  validation {
+    condition     = length(var.serving_log_pattern) > 0
+    error_message = "serving_log_pattern must not be empty; an empty pattern matches every log line."
+  }
+}
+
+data "coder_parameter" "agent_relay_session_id" {
+  name         = "agent_relay_session_id"
+  display_name = "Agent Relay session"
+  description  = "Cursor cloud agent request this workspace serves. Agent Relay sets this when it dispatches the workspace; a human never fills it in. The relay uses it to recognize its own workspaces, dedupe redeliveries, and reconcile state after a restart."
+  type         = "string"
+  mutable      = true
+  default      = ""
+  order        = 1000
+  styling = jsonencode({
+    disabled    = true
+    placeholder = "Set by Agent Relay on dispatch"
+  })
+}
+
+data "coder_parameter" "agent_relay_delivery_id" {
+  name         = "agent_relay_delivery_id"
+  display_name = "Agent Relay delivery"
+  description  = "Worker identity Agent Relay claimed the request with. Agent Relay sets this when it dispatches the workspace; a human never fills it in. The worker CLI presents it back to Cursor through CURSOR_AGENT_WORKER_ID, which is how Cursor matches the worker to the request."
+  type         = "string"
+  mutable      = true
+  default      = ""
+  order        = 1001
+  styling = jsonencode({
+    disabled    = true
+    placeholder = "Set by Agent Relay on dispatch"
+  })
+}
+
+data "coder_parameter" "agent_relay_pool" {
+  name         = "agent_relay_pool"
+  display_name = "Agent Relay pool"
+  description  = "Agent Relay worker pool that dispatched this build. Agent Relay sets this when it dispatches the workspace; a human never fills it in. One relay can serve several pools, each with its own Cursor credential, organization, and template."
+  type         = "string"
+  mutable      = true
+  default      = ""
+  order        = 1002
+  styling = jsonencode({
+    disabled    = true
+    placeholder = "Set by Agent Relay on dispatch"
+  })
+}
+
+data "coder_parameter" "agent_relay_cursor_pool_name" {
+  name         = "agent_relay_cursor_pool_name"
+  display_name = "Cursor pool"
+  description  = "Pool name on Cursor's side that the worker registers under, which is what a developer selects when starting a session. Agent Relay sets this from the pool configuration; a human never fills it in. It is distinct from the relay's own label for the pool."
+  type         = "string"
+  mutable      = true
+  default      = ""
+  order        = 1003
+  styling = jsonencode({
+    disabled    = true
+    placeholder = "Set by Agent Relay on dispatch"
+  })
+}
+
+data "coder_parameter" "agent_relay_cursor_idle_release_timeout" {
+  name         = "agent_relay_cursor_idle_release_timeout"
+  display_name = "Cursor idle release timeout"
+  description  = "Seconds the worker stays connected after a session ends, waiting for a follow-up, before releasing itself and exiting. Agent Relay sets this from the pool configuration; a human never fills it in. The clean exit is what tells the relay to delete the workspace."
+  type         = "string"
+  mutable      = true
+  default      = "600"
+  order        = 1004
+  styling = jsonencode({
+    disabled    = true
+    placeholder = "Set by Agent Relay on dispatch"
+  })
+}
+
+data "coder_parameter" "agent_relay_cursor_repo_url" {
+  name         = "agent_relay_cursor_repo_url"
+  display_name = "Cursor repository"
+  description  = "Repository the request targets, empty for pools that are not repo-scoped. Agent Relay sets this from the pool configuration; a human never fills it in. Cloning it and providing SCM credentials is the template's job; refer to the module README."
+  type         = "string"
+  mutable      = true
+  default      = ""
+  order        = 1005
+  styling = jsonencode({
+    disabled    = true
+    placeholder = "Set by Agent Relay on dispatch"
+  })
+}
+
+data "coder_parameter" "agent_relay_cursor_credential_kind" {
+  name         = "agent_relay_cursor_credential_kind"
+  display_name = "Cursor credential kind"
+  description  = "How the worker hands agent_relay_credential to the Cursor CLI. worker_token passes the per-user sub-token as --auth-token. api_key exports the pool's service-account key as CURSOR_API_KEY, which is the only form the CLI accepts it in; Agent Relay sets this to api_key for pools with insecure_shared_token. A human never fills it in."
+  type         = "string"
+  mutable      = true
+  default      = "worker_token"
+  order        = 1006
+  styling = jsonencode({
+    disabled    = true
+    placeholder = "Set by Agent Relay on dispatch"
+  })
+
+  option {
+    name  = "Worker token (--auth-token)"
+    value = "worker_token"
+  }
+  option {
+    name  = "Service-account API key (CURSOR_API_KEY)"
+    value = "api_key"
+  }
+}
+
+data "coder_parameter" "agent_relay_credential" {
+  name         = "agent_relay_credential"
+  display_name = "Agent Relay credential"
+  description  = "Short-lived Cursor worker token, scoped to the user who requested the agent, that the worker authenticates with. Agent Relay mints it from the pool's service account key when it dispatches the workspace; a human never fills it in. Ephemeral: it expires an hour after minting and is not reused on a later build."
+  type         = "string"
+  ephemeral    = true
+  mutable      = true
+  default      = ""
+  order        = 1007
+  styling = jsonencode({
+    disabled    = true
+    mask_input  = true
+    placeholder = "Set by Agent Relay on dispatch"
+  })
+}
+
+# CURSOR_AGENT_WORKER_ID is the Cursor CLI's contract; do not rename it.
+# The credential travels under an Agent Relay name and the supervisor
+# decides how to hand it to the CLI from the stamped credential kind: a
+# per-user worker token has no CLI env var and goes on the command line
+# as --auth-token; a team service-account key is only accepted as
+# CURSOR_API_KEY. Each is rejected through the other door, which is why
+# the relay stamps the kind alongside the credential.
+resource "coder_env" "agent_relay_cursor_token" {
+  agent_id = var.agent_id
+  name     = "AGENT_RELAY_CURSOR_TOKEN"
+  value    = data.coder_parameter.agent_relay_credential.value
+}
+
+resource "coder_env" "cursor_agent_worker_id" {
+  agent_id = var.agent_id
+  name     = "CURSOR_AGENT_WORKER_ID"
+  value    = data.coder_parameter.agent_relay_delivery_id.value
+}
+
+# Parameter values reach the worker through the environment, never through
+# the script text, so a value with shell metacharacters is an argument and
+# not code.
+resource "coder_env" "agent_relay_cursor_pool_name" {
+  agent_id = var.agent_id
+  name     = "AGENT_RELAY_CURSOR_POOL_NAME"
+  value    = data.coder_parameter.agent_relay_cursor_pool_name.value
+}
+
+resource "coder_env" "agent_relay_cursor_idle_release_timeout" {
+  agent_id = var.agent_id
+  name     = "AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT"
+  value    = data.coder_parameter.agent_relay_cursor_idle_release_timeout.value
+}
+
+resource "coder_env" "agent_relay_cursor_credential_kind" {
+  agent_id = var.agent_id
+  name     = "AGENT_RELAY_CURSOR_CREDENTIAL_KIND"
+  value    = data.coder_parameter.agent_relay_cursor_credential_kind.value
+}
+
+locals {
+  # coder-utils requires this exact layout. Scripts land in scripts/ and
+  # their output in logs/; the worker state and log default to the same
+  # tree so one directory holds everything a debugger needs.
+  module_directory = "$HOME/.coder-modules/coder/agent-relay-cursor"
+
+  install_script = templatefile("${path.module}/install.sh.tftpl", {
+    cli_binary  = var.cli_binary
+    install_cli = var.install_cli
+  })
+
+  start_script = templatefile("${path.module}/start.sh.tftpl", {
+    module_directory = local.module_directory
+    cli_binary       = var.cli_binary
+    install_cli      = var.install_cli
+    computer_use     = var.computer_use
+    state_file       = var.state_file
+    log_file         = var.log_file
+  })
+}
+
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.1"
+
+  agent_id            = var.agent_id
+  module_directory    = local.module_directory
+  display_name_prefix = "Cursor worker"
+  icon                = "/icon/cursor.svg"
+  install_script      = local.install_script
+  start_script        = local.start_script
+}
+
+# The coder provider has no standalone agent-metadata resource: the
+# metadata block belongs to coder_agent, which the template owns. The
+# template must add the block below; this output renders its script so
+# the state file path stays in one place. See README.
+output "status_metadata_script" {
+  description = "Script body for the agent_relay_status agent metadata item the template must declare on its coder_agent."
+  value = templatefile("${path.module}/status.sh.tftpl", {
+    cli_binary          = var.cli_binary
+    state_file          = var.state_file
+    log_file            = var.log_file
+    serving_log_pattern = base64encode(var.serving_log_pattern)
+  })
+}
+
+output "scripts" {
+  description = "Ordered list of coder exp sync names produced by this module, in run order. A template can `coder exp sync want <self> <these>` to run its own scripts after the runner is up."
+  value       = module.coder_utils.scripts
+}
+
+output "dispatched" {
+  description = "Whether this workspace was spawned by Agent Relay (credential set) or manually (empty)."
+  value       = data.coder_parameter.agent_relay_credential.value != ""
+}
