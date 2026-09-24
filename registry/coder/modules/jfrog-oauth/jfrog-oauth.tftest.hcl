@@ -4,9 +4,8 @@ run "test_required_vars" {
   command = plan
 
   variables {
-    agent_id         = "test-agent-id"
-    jfrog_url        = "https://example.jfrog.io"
-    package_managers = {}
+    agent_id  = "test-agent-id"
+    jfrog_url = "https://example.jfrog.io"
   }
 
   # Mock external auth with valid access token for basic test
@@ -18,16 +17,17 @@ run "test_required_vars" {
   }
 }
 
-run "test_empty_access_token_fails" {
+run "test_empty_access_token_is_allowed_during_template_import" {
   command = plan
 
   variables {
-    agent_id         = "test-agent-id"
-    jfrog_url        = "https://example.jfrog.io"
-    package_managers = {}
+    agent_id            = "test-agent-id"
+    jfrog_url           = "https://example.jfrog.io"
+    install_jfrog_cli   = false
+    configure_jfrog_cli = false
   }
 
-  # Mock external auth with empty access token
+  # Coder returns an empty token while importing a template, before a user can authenticate.
   override_data {
     target = data.coder_external_auth.jfrog
     values = {
@@ -35,9 +35,10 @@ run "test_empty_access_token_fails" {
     }
   }
 
-  expect_failures = [
-    resource.coder_script.jfrog
-  ]
+  assert {
+    condition     = output.access_token == ""
+    error_message = "template import should allow an empty external auth token"
+  }
 }
 
 run "test_valid_access_token_succeeds" {
@@ -59,12 +60,17 @@ run "test_valid_access_token_succeeds" {
 
   # Verify the script resource is created
   assert {
-    condition     = resource.coder_script.jfrog.agent_id == "test-agent-id"
+    condition     = length(resource.coder_script.jfrog) == 1
+    error_message = "default settings should create one coder_script"
+  }
+
+  assert {
+    condition     = resource.coder_script.jfrog[0].agent_id == "test-agent-id"
     error_message = "coder_script agent_id should match the input variable"
   }
 
   assert {
-    condition     = resource.coder_script.jfrog.display_name == "jfrog"
+    condition     = resource.coder_script.jfrog[0].display_name == "jfrog"
     error_message = "coder_script display_name should be 'jfrog'"
   }
 }
@@ -131,23 +137,23 @@ run "test_with_npm_package_manager" {
   }
 
   assert {
-    condition     = resource.coder_script.jfrog.run_on_start == true
+    condition     = resource.coder_script.jfrog[0].run_on_start == true
     error_message = "coder_script should run on start"
   }
 
   # Verify npm configuration is in script
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "jf npmc --global --repo-resolve \"global\"")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "jf npmc --global --repo-resolve \"global\"")
     error_message = "script should contain jf npmc command for npm"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "@foo:registry=https://example.jfrog.io/artifactory/api/npm/foo")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "@foo:registry=https://example.jfrog.io/artifactory/api/npm/foo")
     error_message = "script should contain scoped npm registry for @foo"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "@bar:registry=https://example.jfrog.io/artifactory/api/npm/bar")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "@bar:registry=https://example.jfrog.io/artifactory/api/npm/bar")
     error_message = "script should contain scoped npm registry for @bar"
   }
 }
@@ -223,7 +229,7 @@ run "test_go_proxy_env" {
 
   # Verify script contains go configuration
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "jf goc --global --repo-resolve \"foo\"")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "jf goc --global --repo-resolve \"foo\"")
     error_message = "script should contain jf goc command"
   }
 }
@@ -248,17 +254,17 @@ run "test_pypi_package_manager" {
 
   # Verify pip configuration in script
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "jf pipc --global --repo-resolve \"global\"")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "jf pipc --global --repo-resolve \"global\"")
     error_message = "script should contain jf pipc command"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "index-url = https://default:valid-token-value@example.jfrog.io/artifactory/api/pypi/global/simple")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "index-url = https://default:valid-token-value@example.jfrog.io/artifactory/api/pypi/global/simple")
     error_message = "script should contain pip index-url configuration"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "extra-index-url")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "extra-index-url")
     error_message = "script should contain extra-index-url for additional repos"
   }
 }
@@ -283,17 +289,17 @@ run "test_docker_package_manager" {
 
   # Verify docker registration commands in script
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "register_docker \"foo.jfrog.io\"")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "register_docker \"foo.jfrog.io\"")
     error_message = "script should contain register_docker for foo.jfrog.io"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "register_docker \"bar.jfrog.io\"")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "register_docker \"bar.jfrog.io\"")
     error_message = "script should contain register_docker for bar.jfrog.io"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "register_docker \"baz.jfrog.io\"")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "register_docker \"baz.jfrog.io\"")
     error_message = "script should contain register_docker for baz.jfrog.io"
   }
 }
@@ -318,22 +324,22 @@ run "test_conda_package_manager" {
 
   # Verify conda configuration in script
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "channels:")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "channels:")
     error_message = "script should contain conda channels configuration"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "example.jfrog.io/artifactory/api/conda/conda-main")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "example.jfrog.io/artifactory/api/conda/conda-main")
     error_message = "script should contain conda-main channel"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "example.jfrog.io/artifactory/api/conda/conda-secondary")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "example.jfrog.io/artifactory/api/conda/conda-secondary")
     error_message = "script should contain conda-secondary channel"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "example.jfrog.io/artifactory/api/conda/conda-local")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "example.jfrog.io/artifactory/api/conda/conda-local")
     error_message = "script should contain conda-local channel"
   }
 }
@@ -358,43 +364,71 @@ run "test_maven_package_manager" {
 
   # Verify maven jf mvnc command
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "jf mvnc --global")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "jf mvnc --global")
     error_message = "script should contain jf mvnc command"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "--repo-resolve-releases \"central\"")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "--repo-resolve-releases \"central\"")
     error_message = "script should contain repo-resolve-releases for central"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "--repo-resolve-snapshots \"central\"")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "--repo-resolve-snapshots \"central\"")
     error_message = "script should contain repo-resolve-snapshots for central"
   }
 
   # Verify settings.xml content
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "<servers>")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "<servers>")
     error_message = "script should contain maven servers configuration"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "<id>central</id>")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "<id>central</id>")
     error_message = "script should contain central server id"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "<id>snapshots</id>")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "<id>snapshots</id>")
     error_message = "script should contain snapshots server id"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "<id>local</id>")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "<id>local</id>")
     error_message = "script should contain local server id"
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.jfrog.script, "<url>https://example.jfrog.io/artifactory/central</url>")
+    condition     = strcontains(resource.coder_script.jfrog[0].script, "<url>https://example.jfrog.io/artifactory/central</url>")
     error_message = "script should contain central repository URL"
+  }
+}
+
+run "test_access_token_only" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent-id"
+    jfrog_url           = "https://example.jfrog.io"
+    install_jfrog_cli   = false
+    configure_jfrog_cli = false
+  }
+
+  override_data {
+    target = data.coder_external_auth.jfrog
+    values = {
+      access_token = "valid-token-value"
+    }
+  }
+
+  assert {
+    condition     = length(resource.coder_script.jfrog) == 0
+    error_message = "token-only mode should not create the workspace configuration script"
+  }
+
+  assert {
+    condition     = length(resource.coder_env.goproxy) == 0
+    error_message = "token-only mode should not configure package managers"
   }
 }

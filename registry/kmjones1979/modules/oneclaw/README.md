@@ -15,7 +15,7 @@ For AI-oriented product documentation, see [llms.txt](https://1claw.xyz/llms.txt
 ```tf
 module "oneclaw" {
   source        = "registry.coder.com/kmjones1979/oneclaw/coder"
-  version       = "1.0.0"
+  version       = "1.0.1"
   agent_id      = coder_agent.main.id
   human_api_key = var.oneclaw_human_key
 }
@@ -40,7 +40,7 @@ The `1ck_` human key is a privileged credential that can create and destroy vaul
    ```tf
    module "oneclaw" {
      source        = "registry.coder.com/kmjones1979/oneclaw/coder"
-     version       = "1.0.0"
+     version       = "1.0.1"
      agent_id      = coder_agent.main.id
      human_api_key = "" # scrubbed after first bootstrap
    }
@@ -58,7 +58,7 @@ Pre-provision the vault and agent out-of-band and pass only the scoped `ocv_` ag
 ```tf
 module "oneclaw" {
   source    = "registry.coder.com/kmjones1979/oneclaw/coder"
-  version   = "1.0.0"
+  version   = "1.0.1"
   agent_id  = coder_agent.main.id
   vault_id  = var.oneclaw_vault_id
   api_token = var.oneclaw_agent_key

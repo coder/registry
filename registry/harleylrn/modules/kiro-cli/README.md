@@ -232,14 +232,14 @@ module "kiro-cli" {
   auth_tarball = var.kiro_cli_auth_tarball
 
   pre_install_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     echo "Setting up custom environment..."
     # Install additional dependencies
     sudo apt-get update && sudo apt-get install -y zstd
   EOT
 
   post_install_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     echo "Configuring Kiro CLI settings..."
     # Custom configuration commands
     kiro-cli settings chat.model claude-3-sonnet

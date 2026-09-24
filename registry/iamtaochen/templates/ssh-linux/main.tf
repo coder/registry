@@ -165,13 +165,6 @@ resource "coder_agent" "main" {
     set -euo pipefail
   EOT
 
-  env = {
-    GIT_AUTHOR_NAME     = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_AUTHOR_EMAIL    = "${data.coder_workspace_owner.me.email}"
-    GIT_COMMITTER_NAME  = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_COMMITTER_EMAIL = "${data.coder_workspace_owner.me.email}"
-  }
-
   display_apps {
     port_forwarding_helper = true
     vscode                 = contains(local.apps_selected, "VS Code Desktop")
@@ -293,6 +286,13 @@ resource "null_resource" "coder_stop" {
   }
 }
 
+
+module "git-config" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/git-config/coder"
+  version  = "~> 1.0"
+  agent_id = coder_agent.main.id
+}
 
 module "coder-login" {
   count    = data.coder_workspace.me.start_count

@@ -159,7 +159,7 @@ module "agentapi" {
   start_script         = local.start_script
   folder               = local.folder
   install_script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -o errexit
     set -o pipefail
 

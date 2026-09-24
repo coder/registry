@@ -171,7 +171,7 @@ variable "post_install_script" {
 
 variable "enable_aibridge_proxy" {
   type        = bool
-  description = "Route Copilot traffic through AI Bridge Proxy. See https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy"
+  description = "Route Copilot traffic through AI Gateway Proxy. See https://coder.com/docs/ai-coder/ai-gateway/ai-gateway-proxy"
   default     = false
 
   validation {
@@ -187,14 +187,14 @@ variable "enable_aibridge_proxy" {
 
 variable "aibridge_proxy_auth_url" {
   type        = string
-  description = "AI Bridge Proxy URL with authentication. Use the proxy_auth_url output from the aibridge-proxy module."
+  description = "AI Gateway Proxy URL with authentication. Use the proxy_auth_url output from the aibridge-proxy module."
   default     = null
   sensitive   = true
 }
 
 variable "aibridge_proxy_cert_path" {
   type        = string
-  description = "Path to the AI Bridge Proxy CA certificate. Use the cert_path output from the aibridge-proxy module."
+  description = "Path to the AI Gateway Proxy CA certificate. Use the cert_path output from the aibridge-proxy module."
   default     = null
 }
 
@@ -288,7 +288,7 @@ module "agentapi" {
   post_install_script  = var.post_install_script
 
   start_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -o errexit
     set -o pipefail
     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
@@ -311,7 +311,7 @@ module "agentapi" {
   EOT
 
   install_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -o errexit
     set -o pipefail
     echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh

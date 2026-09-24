@@ -227,7 +227,7 @@ module "git-clone" {
   agent_id         = coder_agent.example.id
   url              = "https://github.com/coder/coder"
   pre_clone_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     echo "Preparing to clone repository..."
     # Check prerequisites
     command -v npm >/dev/null 2>&1 || { echo "npm is required but not installed."; exit 1; }
@@ -250,7 +250,7 @@ module "git-clone" {
   agent_id          = coder_agent.example.id
   url               = "https://github.com/coder/coder"
   post_clone_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     echo "Repository cloned successfully!"
     # Install dependencies
     npm install
