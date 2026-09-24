@@ -8,6 +8,7 @@ import {
 } from "bun:test";
 import {
   execContainer,
+  findResourceInstance,
   readFileContainer,
   removeContainer,
   runContainer,
@@ -65,7 +66,7 @@ const setup = async (vars: Record<string, string> = {}) => {
   return { id, scripts, statusScript };
 };
 
-type Scripts = { install: string; start: string };
+type Scripts = { install: string; start: string; stop: string };
 
 // coder-utils owns the coder_script resources; find ours by display name.
 const collectScripts = (state: TerraformState): Scripts => {
@@ -84,7 +85,9 @@ const collectScripts = (state: TerraformState): Scripts => {
       `expected install and start scripts, found ${Object.keys(byDisplayName)}`,
     );
   }
-  return { install, start };
+  // Ours, not coder-utils', so it is addressable by resource name.
+  const stop = findResourceInstance(state, "coder_script", "stop").script;
+  return { install, start, stop };
 };
 
 const stubBinary = async (id: string, path: string, body: string) => {
@@ -122,6 +125,11 @@ const runScripts = async (id: string, scripts: Scripts, env: string[]) => {
 
 const runDispatched = (id: string, scripts: Scripts) =>
   runScripts(id, scripts, DISPATCH_ENV);
+
+// The agent runs the stop step on workspace shutdown, with no dispatch
+// env in scope: the supervisor already holds the credential.
+const runStop = (id: string, scripts: Scripts) =>
+  execContainer(id, ["bash", "-c", scripts.stop]);
 
 const readState = async (id: string) =>
   (await readFileContainer(id, STATE_FILE)).trim();
@@ -258,6 +266,11 @@ describe("agent-relay-claude-code", () => {
     // The CLI's own default is /workspace, which the agent user cannot
     // create; the module points it at a directory it made.
     expect(args[args.indexOf("--base-dir") + 1]).toBe("/root/workspace");
+    // On by default, so it lands in this argv too.
+    expect(args).toContain("--push-outcome-on-release");
+    // A base64 decode that silently produced nothing would otherwise look
+    // like a runner that simply registered with an empty label.
+    expect(args[args.indexOf("--client-label") + 1]).toBe("default/default");
     const baseDir = await execContainer(id, ["test", "-d", "/root/workspace"]);
     expect(baseDir.exitCode).toBe(0);
 
@@ -360,5 +373,79 @@ describe("agent-relay-claude-code", () => {
 
     const pwned = await execContainer(id, ["test", "-e", "/tmp/PWNED"]);
     expect(pwned.exitCode).not.toBe(0);
+  });
+  // The supervisor is setsid'd into its own session, so the SIGTERM the
+  // container's init receives never reaches the runner. Without the stop
+  // step the runner is killed outright and the session is never released.
+  it("relays SIGTERM to the detached runner and lets the supervisor record the exit", async () => {
+    const { id, scripts } = await setup();
+    // `& wait` is load-bearing: bash defers a trap until a foreground
+    // command returns, so a foreground sleep would hang this for 300s.
+    await stubClaude(id, "trap 'sleep 2; exit 7' TERM\nsleep 300 & wait");
+    await runDispatched(id, scripts);
+    await waitForState(id, /^working \d+$/);
+
+    const startedAt = Date.now();
+    const stop = await runStop(id, scripts);
+    const elapsedMs = Date.now() - startedAt;
+
+    expect(stop.exitCode).toBe(0);
+    expect(stop.stdout).toContain("Draining Claude Code runner");
+    // The runner's own exit code, recorded by the supervisor's wait.
+    expect(await waitForState(id, /^done 7$/)).toBe("done 7");
+    // Proves we waited for the drain rather than firing and forgetting.
+    expect(elapsedMs).toBeGreaterThanOrEqual(2000);
+  });
+
+  it("no-ops when the workspace was never dispatched", async () => {
+    const { id, scripts } = await setup();
+    await stubClaude(id, "sleep 300");
+    // No credential: the start step records idle and exits.
+    await runScripts(id, scripts, []);
+    expect(await readState(id)).toBe("idle");
+
+    const stop = await runStop(id, scripts);
+    expect(stop.exitCode).toBe(0);
+    expect(stop.stdout).toContain("Nothing to drain");
+    expect(await readState(id)).toBe("idle");
+  });
+
+  // Three states with no live runner behind them. They share a container:
+  // each only writes the state file and runs the stop step, and a stale
+  // pid is safe to signal only because the container has its own PID
+  // namespace.
+  it("no-ops when there is no runner to drain", async () => {
+    const { id, scripts } = await setup();
+
+    let stop = await runStop(id, scripts);
+    expect(stop.exitCode).toBe(0);
+    expect(stop.stdout).toContain("No runner state");
+
+    await execContainer(id, ["mkdir", "-p", MODULE_DIR]);
+    await writeFileContainer(id, STATE_FILE, "done 3\n", { user: "root" });
+    stop = await runStop(id, scripts);
+    expect(stop.exitCode).toBe(0);
+    expect(stop.stdout).toContain("Nothing to drain");
+    // A terminal state the reaper already grades must survive untouched.
+    expect(await readState(id)).toBe("done 3");
+
+    await writeFileContainer(id, STATE_FILE, "working 999999\n", {
+      user: "root",
+    });
+    stop = await runStop(id, scripts);
+    expect(stop.exitCode).toBe(0);
+    expect(stop.stdout).toContain("already gone");
+  });
+
+  it("passes the drain wait to the runner when set", async () => {
+    const { id, scripts } = await setup({ drain_wait_sec: "30" });
+    await stubClaude(id, 'printf "%s\\n" "$@" >/tmp/claude-args\nsleep 300');
+    await runDispatched(id, scripts);
+    await waitForState(id, /^working \d+$/);
+
+    const args = (await readFileContainer(id, "/tmp/claude-args"))
+      .trim()
+      .split("\n");
+    expect(args[args.indexOf("--drain-wait-sec") + 1]).toBe("30");
   });
 });

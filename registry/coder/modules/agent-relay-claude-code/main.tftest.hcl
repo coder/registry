@@ -245,19 +245,163 @@ run "overridden_paths" {
     condition     = strcontains(output.status_metadata_script, base64encode("custom pattern")) && !strcontains(output.status_metadata_script, "custom pattern") && can(regex("/var/log/relay.log", output.status_metadata_script))
     error_message = "the status script must use the configured log file and carry the pattern base64-encoded only"
   }
+
+  # The stop script reads the pid out of the same file the supervisor
+  # writes it to, so an override must reach both.
+  assert {
+    condition     = strcontains(local.stop_script, "/var/run/relay/state")
+    error_message = "the stop script must read the configured state file"
+  }
 }
 
-run "serving_log_pattern_is_data" {
+run "untrusted_text_is_data" {
   command = plan
 
   variables {
     serving_log_pattern = "x\"; touch /tmp/PWNED; \""
+    client_label        = "y\"; touch /tmp/PWNED; \""
   }
 
-  # Free-form text never lands in the script as shell; it is decoded into
+  # Free-form text never lands in a script as shell; it is decoded into
   # a variable and matched as a fixed string.
   assert {
     condition     = !strcontains(output.status_metadata_script, "PWNED") && strcontains(output.status_metadata_script, "grep -qF -- \"$serving_log_pattern\"")
     error_message = "serving_log_pattern must be base64-encoded and matched with grep -F"
+  }
+
+  assert {
+    condition     = !strcontains(local.start_script, "PWNED") && strcontains(local.start_script, base64encode("y\"; touch /tmp/PWNED; \""))
+    error_message = "client_label must cross into the supervisor base64-encoded"
+  }
+}
+
+run "graceful_shutdown_defaults" {
+  command = plan
+
+  # The supervisor runs under setsid, so the agent's own SIGTERM never
+  # reaches the runner. The stop script is the only thing that relays it.
+  assert {
+    condition     = coder_script.stop.run_on_stop == true && coder_script.stop.run_on_start == false
+    error_message = "the stop script must run on stop and never on start"
+  }
+
+  assert {
+    condition     = coder_script.stop.start_blocks_login == false
+    error_message = "the stop script must never block login"
+  }
+
+  # SIGTERM starts the runner's own drain. Escalating would defeat it,
+  # and the platform SIGKILLs soon enough on its own.
+  assert {
+    condition     = strcontains(local.stop_script, "kill -TERM") && !strcontains(local.stop_script, "kill -9") && !strcontains(local.stop_script, "-KILL")
+    error_message = "the stop script must send SIGTERM only and never escalate"
+  }
+
+  # supervise.sh is the sole writer of terminal state; a second writer
+  # would race the "done <code>" line the reaper grades.
+  assert {
+    condition     = !strcontains(local.stop_script, "state_file.tmp")
+    error_message = "the stop script must not write the state file"
+  }
+
+  # 105 baseline + 30 for the outcome push, which is on by default.
+  assert {
+    condition     = output.shutdown_grace_seconds == 135
+    error_message = "the default shutdown budget is 105s plus 30s for the outcome push"
+  }
+
+  # One number: the script's own wait must never outlive the grace the
+  # template was asked to grant.
+  assert {
+    condition     = strcontains(local.stop_script, "budget=130")
+    error_message = "the stop script must wait the runner budget, which is shutdown_grace_seconds minus the agent's own shutdown"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "--push-outcome-on-release") && !strcontains(local.start_script, "--drain-wait-sec")
+    error_message = "the outcome push is on by default and the drain wait is off"
+  }
+}
+
+run "drain_wait_enabled" {
+  command = plan
+
+  variables {
+    drain_wait_sec = 60
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "--drain-wait-sec 60")
+    error_message = "drain_wait_sec must reach the runner as a flag"
+  }
+
+  # Every second the runner may spend draining is a second the platform
+  # must grant on top of the baseline.
+  assert {
+    condition     = output.shutdown_grace_seconds == 195 && strcontains(local.stop_script, "budget=190")
+    error_message = "the drain wait must extend both the advertised budget and the script's own"
+  }
+}
+
+run "push_outcome_disabled" {
+  command = plan
+
+  variables {
+    push_outcome_on_release = false
+  }
+
+  # Leaving the flag off is what keeps SELF_HOSTED_RUNNER_PUSH_OUTCOME_ON_RELEASE
+  # usable: a flag the module emits always beats the paired env var.
+  assert {
+    condition     = !strcontains(local.start_script, "--push-outcome-on-release")
+    error_message = "push_outcome_on_release false must leave the flag off for the env escape hatch"
+  }
+
+  assert {
+    condition     = output.shutdown_grace_seconds == 105
+    error_message = "dropping the outcome push drops its 30s from the budget"
+  }
+}
+
+run "drain_wait_rejects_fraction" {
+  command = plan
+
+  variables {
+    drain_wait_sec = 2.5
+  }
+
+  expect_failures = [var.drain_wait_sec]
+}
+
+run "client_label_defaults_to_owner_and_workspace" {
+  command = plan
+
+  # Display only: the console shows it beside the runner, and it never
+  # steers which sessions this runner is assigned.
+  assert {
+    condition     = strcontains(local.start_script, "--client-label \"\\$client_label\"")
+    error_message = "the runner must register with a client label"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, base64encode("${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}"))
+    error_message = "the default label identifies the workspace without the template setting a hostname"
+  }
+}
+
+run "stop_script_guards_against_a_recycled_pid" {
+  command = plan
+
+  # This is the one caller that sends a signal, so a pid the supervisor
+  # recorded and the OS has since handed to something else must not be
+  # SIGTERMed.
+  assert {
+    condition     = strcontains(local.stop_script, "runner_alive") && strcontains(local.stop_script, "cmdline")
+    error_message = "the stop script must confirm the pid is still our runner before signalling it"
+  }
+
+  assert {
+    condition     = !strcontains(local.stop_script, "kill -0 \"$pid\"")
+    error_message = "a bare kill -0 would trust a recycled pid"
   }
 }

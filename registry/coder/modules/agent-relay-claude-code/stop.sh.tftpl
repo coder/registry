@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Stop step, run by the agent when the workspace shuts down.
+#
+# The start step launches the supervisor with setsid, so it lives in its
+# own session and never receives the SIGTERM the container's init gets.
+# Without this script the runner is killed outright: the session is never
+# released server-side, the post-session hook never runs, and in-flight
+# commits are lost. So relay the signal to the runner explicitly and wait
+# for the supervisor to record the exit.
+#
+# This script is only half the fix. The agent runs it with whatever time
+# the platform grants, which on Docker is nothing at all unless the
+# template sets destroy_grace_seconds. See the module README.
+set -euo pipefail
+
+state_file="${state_file}"
+# The runner's own shutdown budget. The platform is asked for this plus
+# the time the agent spends before running stop scripts, so this wait
+# always ends before the platform's grace period does.
+budget=${drain_timeout_s}
+
+# True when the pid is alive and is still our runner. kill -0 alone would
+# trust a recycled pid, and this is the caller that sends the signal.
+runner_alive() {
+	[ -n "$${1:-}" ] && kill -0 "$1" 2>/dev/null &&
+		tr '\0' ' ' <"/proc/$1/cmdline" 2>/dev/null | grep -qF -- "$(basename "${cli_binary}")"
+}
+
+if [ ! -f "$state_file" ]; then
+	echo "No runner state at $state_file; nothing to drain."
+	exit 0
+fi
+
+# "working <pid>" is the only state with a live runner behind it. Every
+# other value is terminal, or a workspace the relay never dispatched.
+read -r state pid <"$state_file" || true
+if [ "$${state:-}" != "working" ]; then
+	echo "Runner is not running (state: $${state:-empty}). Nothing to drain."
+	exit 0
+fi
+
+if ! runner_alive "$${pid:-}"; then
+	echo "Runner $${pid:-unknown} is already gone."
+	exit 0
+fi
+
+echo "Draining Claude Code runner $pid (up to $${budget}s)..."
+# SIGTERM only. The runner's own drain starts here; escalating would
+# defeat the point, and the platform SIGKILLs us soon enough anyway.
+kill -TERM "$pid" 2>/dev/null || true
+
+SECONDS=0
+while runner_alive "$pid" && [ "$SECONDS" -lt "$budget" ]; do
+	sleep 0.2
+done
+
+if runner_alive "$pid"; then
+	echo "Runner did not exit within $${budget}s; leaving it to the platform." >&2
+else
+	echo "Runner exited after $${SECONDS}s. State: $(cat "$state_file" 2>/dev/null)"
+fi
+
+# Always succeed. The supervisor is the only writer of terminal state, and
+# a nonzero stop script only buys a shutdown_error lifecycle on a workspace
+# that is about to disappear.
+exit 0
