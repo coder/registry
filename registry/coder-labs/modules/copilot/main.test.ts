@@ -178,6 +178,8 @@ const runScripts = async (
 const configDir = "/home/coder/.copilot";
 const readConfig = (id: string) =>
   readFileContainer(id, `${configDir}/config.json`);
+const readSettings = (id: string) =>
+  readFileContainer(id, `${configDir}/settings.json`);
 const readMcpConfig = (id: string) =>
   readFileContainer(id, `${configDir}/mcp-config.json`);
 const installLog = (id: string) =>
@@ -201,59 +203,80 @@ describe("copilot", async () => {
     expect(log).toContain("Copilot module setup completed.");
   });
 
-  test("writes-config-without-mcp-servers", async () => {
-    const { id, scripts } = await setup();
+  test("writes-settings-and-trusted-folders", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        copilot_settings: JSON.stringify({ banner: "never", theme: "dim" }),
+      },
+    });
     await runScripts(id, scripts);
+    // User-provided base settings land in settings.json.
+    const settings = JSON.parse(await readSettings(id));
+    expect(settings.banner).toBe("never");
+    expect(settings.theme).toBe("dim");
+    // workdir is auto-trusted in config.json under trustedFolders.
     const config = JSON.parse(await readConfig(id));
-    expect(config.banner).toBe("never");
-    expect(config.theme).toBe("auto");
-    expect(config.trusted_folders).toContain(projectDir);
+    expect(config.trustedFolders).toContain(projectDir);
     // mcpServers must never be written into config.json.
     expect(config.mcpServers).toBeUndefined();
   });
 
-  test("merges-trusted-directories", async () => {
+  test("base-config-trusted-folders-union-workdir", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {
-        trusted_directories: JSON.stringify(["/workspace", "/data"]),
+        copilot_config: JSON.stringify({
+          trustedFolders: ["/workspace", "/data"],
+        }),
       },
     });
     await runScripts(id, scripts);
     const config = JSON.parse(await readConfig(id));
-    expect(config.trusted_folders).toContain(projectDir);
-    expect(config.trusted_folders).toContain("/workspace");
-    expect(config.trusted_folders).toContain("/data");
+    expect(config.trustedFolders).toContain(projectDir);
+    expect(config.trustedFolders).toContain("/workspace");
+    expect(config.trustedFolders).toContain("/data");
   });
 
-  test("config-module-keys-win-and-trusted-folders-union", async () => {
+  test("settings-and-config-preserve-existing-state", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {
-        trusted_directories: JSON.stringify(["/data"]),
+        copilot_settings: JSON.stringify({ banner: "never" }),
+        copilot_config: JSON.stringify({ trustedFolders: ["/from-var"] }),
       },
     });
-    // Seed an existing config.json with conflicting + runtime-only values.
-    const seed = JSON.stringify({
-      theme: "dark",
+    // Seed settings.json with unmanaged user settings.
+    const settingsSeed = JSON.stringify({
+      theme: "dim",
       model: "user-picked-model",
-      trusted_folders: ["/interactively-trusted"],
+    });
+    // Seed config.json with an interactively trusted folder and auth-like state.
+    const configSeed = JSON.stringify({
+      trustedFolders: ["/interactively-trusted"],
+      loggedInUsers: ["octocat"],
     });
     await execContainer(id, [
       "bash",
       "-c",
-      `mkdir -p /home/coder/.copilot && cat > /home/coder/.copilot/config.json <<'JSON'\n${seed}\nJSON`,
+      `mkdir -p /home/coder/.copilot && cat > /home/coder/.copilot/settings.json <<'JSON'\n${settingsSeed}\nJSON`,
+    ]);
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > /home/coder/.copilot/config.json <<'JSON'\n${configSeed}\nJSON`,
     ]);
     await runScripts(id, scripts);
+    const settings = JSON.parse(await readSettings(id));
     const config = JSON.parse(await readConfig(id));
-    // Module-owned key wins over the existing value.
-    expect(config.theme).toBe("auto");
-    // Module key the existing file lacked is added.
-    expect(config.banner).toBe("never");
-    // Unmanaged on-disk key is preserved.
-    expect(config.model).toBe("user-picked-model");
-    // trusted_folders is the union of existing + module lists.
-    expect(config.trusted_folders).toContain("/interactively-trusted");
-    expect(config.trusted_folders).toContain("/data");
-    expect(config.trusted_folders).toContain(projectDir);
+    // User-provided key wins in settings.json.
+    expect(settings.banner).toBe("never");
+    // Unmanaged settings are preserved.
+    expect(settings.theme).toBe("dim");
+    expect(settings.model).toBe("user-picked-model");
+    // trustedFolders is the union of existing + base config + workdir.
+    expect(config.trustedFolders).toContain("/interactively-trusted");
+    expect(config.trustedFolders).toContain("/from-var");
+    expect(config.trustedFolders).toContain(projectDir);
+    // Unrelated config.json application state is preserved.
+    expect(config.loggedInUsers).toContain("octocat");
   });
 
   test("writes-custom-mcp-servers-without-coder-server", async () => {

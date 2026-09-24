@@ -12,7 +12,9 @@ ARG_INSTALL='${ARG_INSTALL}'
 ARG_COPILOT_VERSION='${ARG_COPILOT_VERSION}'
 ARG_COPILOT_MODEL='${ARG_COPILOT_MODEL}'
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
-ARG_COPILOT_CONFIG=$(echo -n '${ARG_COPILOT_CONFIG}' | base64 -d)
+ARG_SETTINGS_CONFIG=$(echo -n '${ARG_SETTINGS_CONFIG}' | base64 -d)
+ARG_CONFIG_CONFIG=$(echo -n '${ARG_CONFIG_CONFIG}' | base64 -d)
+ARG_TRUSTED_FOLDERS=$(echo -n '${ARG_TRUSTED_FOLDERS}' | base64 -d)
 ARG_MCP_CONFIG=$(echo -n '${ARG_MCP_CONFIG}' | base64 -d)
 
 export PATH="$HOME/.local/bin:$PATH"
@@ -131,15 +133,15 @@ setup_workdir() {
   fi
 }
 
-# Merge the module-provided Copilot configuration into ~/.copilot/config.json.
-# The module owns the keys it sets (they win), trusted_folders is a union of the
-# existing and module lists, and any other on-disk keys Copilot manages at
-# runtime (model, reasoning_effort, ...) are preserved.
-setup_copilot_config() {
-  local copilot_config_file="$HOME/.copilot/config.json"
+# Merge the module-provided user settings into ~/.copilot/settings.json. Copilot
+# moved user-editable settings out of config.json into settings.json, so that is
+# where banner/theme/model belong. The module owns the keys it sets (they win),
+# and any other on-disk keys Copilot manages at runtime are preserved.
+setup_copilot_settings() {
+  local settings_file="$HOME/.copilot/settings.json"
 
-  if [ -z "$${ARG_COPILOT_CONFIG}" ]; then
-    echo "No Copilot configuration provided; leaving $${copilot_config_file} unchanged."
+  if [ -z "$${ARG_SETTINGS_CONFIG}" ]; then
+    echo "No Copilot settings provided; leaving $${settings_file} unchanged."
     return
   fi
 
@@ -148,21 +150,56 @@ setup_copilot_config() {
     exit 1
   fi
 
-  mkdir -p "$(dirname "$${copilot_config_file}")"
-  echo "Merging Copilot configuration into $${copilot_config_file}"
+  mkdir -p "$(dirname "$${settings_file}")"
+  echo "Merging Copilot settings into $${settings_file}"
+
+  # Only reuse the existing file when it is valid JSON; settings.json may contain
+  # comments (JSONC), which jq cannot parse, so fall back to a fresh object.
+  local existing='{}'
+  if [ -f "$${settings_file}" ] && jq empty "$${settings_file}" > /dev/null 2>&1; then
+    existing=$(cat "$${settings_file}")
+  fi
+  # `$existing * $module` lets module keys win while preserving on-disk-only keys.
+  echo "$${existing}" | jq --argjson module "$${ARG_SETTINGS_CONFIG}" '. * $module' > "$${settings_file}"
+  echo "Copilot settings completed: $${settings_file}"
+}
+
+# Merge trusted folders into ~/.copilot/config.json. The user-provided base
+# config wins per key, workdir is unioned into trustedFolders, and all other
+# config.json state (authentication, installed plugins, ...) is preserved.
+setup_copilot_config() {
+  local config_file="$HOME/.copilot/config.json"
+
+  if [ -z "$${ARG_CONFIG_CONFIG}" ] && [ -z "$${ARG_TRUSTED_FOLDERS}" ]; then
+    echo "No Copilot config provided; leaving $${config_file} unchanged."
+    return
+  fi
+
+  if ! command_exists jq; then
+    echo "ERROR: 'jq' is required to configure Copilot but was not found." >&2
+    exit 1
+  fi
+
+  mkdir -p "$(dirname "$${config_file}")"
+  echo "Merging Copilot config into $${config_file}"
 
   local existing='{}'
-  if [ -f "$${copilot_config_file}" ]; then
-    existing=$(cat "$${copilot_config_file}")
+  if [ -f "$${config_file}" ] && jq empty "$${config_file}" > /dev/null 2>&1; then
+    existing=$(cat "$${config_file}")
   fi
-  # `$existing * $module` lets module keys win while preserving on-disk-only keys;
-  # trusted_folders is then set to the union of both lists.
-  echo "$${existing}" | jq --argjson module "$${ARG_COPILOT_CONFIG}" '
+  local module="$${ARG_CONFIG_CONFIG}"
+  [ -z "$${module}" ] && module='{}'
+  local folders="$${ARG_TRUSTED_FOLDERS}"
+  [ -z "$${folders}" ] && folders='[]'
+
+  # Base config wins per key; trustedFolders is the union of existing, base, and
+  # the module-managed workdir list.
+  echo "$${existing}" | jq --argjson module "$${module}" --argjson folders "$${folders}" '
     . as $existing
     | ($existing * $module)
-    | .trusted_folders = ((($existing.trusted_folders // []) + ($module.trusted_folders // [])) | unique)
-  ' > "$${copilot_config_file}"
-  echo "Copilot configuration completed: $${copilot_config_file}"
+    | .trustedFolders = ((($existing.trustedFolders // []) + ($module.trustedFolders // []) + $folders) | unique)
+  ' > "$${config_file}"
+  echo "Copilot config completed: $${config_file}"
 }
 
 # Merge MCP servers into Copilot's user-level mcp-config.json. The module-provided
@@ -205,6 +242,7 @@ configure_copilot_model() {
 
 install_copilot
 setup_workdir
+setup_copilot_settings
 setup_copilot_config
 setup_mcp_config
 configure_copilot_model

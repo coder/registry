@@ -21,7 +21,7 @@ variable "icon" {
 
 variable "workdir" {
   type        = string
-  description = "Optional project directory. When set, the module pre-creates it if missing and adds it as a trusted folder in Copilot's config.json."
+  description = "Optional project directory. When set, the module pre-creates it if missing and adds it to Copilot's config.json trustedFolders."
   default     = null
 }
 
@@ -38,16 +38,16 @@ variable "copilot_model" {
   default     = "claude-sonnet-4.5"
 }
 
-variable "copilot_config" {
+variable "copilot_settings" {
   type        = string
-  description = "Custom Copilot configuration as JSON string, written to Copilot's config.json (banner, theme, trusted_folders, etc.). Module-set keys are authoritative; other on-disk keys are preserved. Use mcp_config for MCP servers."
+  description = "Base Copilot user settings as a JSON string, merged into `~/.copilot/settings.json` (banner, theme, model, etc.). Your keys win over existing on-disk keys; unrelated on-disk keys are preserved. Valid theme values: default, github, dim, high-contrast, colorblind."
   default     = ""
 }
 
-variable "trusted_directories" {
-  type        = list(string)
-  description = "Additional directories to trust for Copilot operations. Written to Copilot's config.json trusted_folders."
-  default     = []
+variable "copilot_config" {
+  type        = string
+  description = "Base Copilot application config as a JSON string, merged into `~/.copilot/config.json` (for example trustedFolders). workdir is unioned into trustedFolders automatically. Your keys win over existing on-disk keys; unrelated on-disk state such as authentication is preserved."
+  default     = ""
 }
 
 variable "mcp_config" {
@@ -150,31 +150,18 @@ resource "coder_env" "ai_gateway_node_extra_ca_certs" {
 locals {
   workdir = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
 
-  all_trusted_folders = concat(local.workdir != "" ? [local.workdir] : [], var.trusted_directories)
-
-  parsed_custom_config = try(jsondecode(var.copilot_config), {})
-
-  existing_trusted_folders = try(local.parsed_custom_config.trusted_folders, [])
-
-  merged_copilot_config = merge(
-    {
-      banner = "never"
-      theme  = "auto"
-    },
-    local.parsed_custom_config,
-    {
-      trusted_folders = distinct(concat(local.existing_trusted_folders, local.all_trusted_folders))
-    }
-  )
-
-  final_copilot_config = jsonencode(local.merged_copilot_config)
+  # workdir is trusted automatically; the install script unions it into the
+  # trustedFolders array in config.json.
+  workdir_trusted_folders = local.workdir != "" ? [local.workdir] : []
 
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_INSTALL         = tostring(var.install_copilot)
     ARG_COPILOT_VERSION = var.copilot_version
     ARG_COPILOT_MODEL   = var.copilot_model
     ARG_WORKDIR         = local.workdir != "" ? base64encode(local.workdir) : ""
-    ARG_COPILOT_CONFIG  = base64encode(local.final_copilot_config)
+    ARG_SETTINGS_CONFIG = var.copilot_settings != "" ? base64encode(var.copilot_settings) : ""
+    ARG_CONFIG_CONFIG   = var.copilot_config != "" ? base64encode(var.copilot_config) : ""
+    ARG_TRUSTED_FOLDERS = length(local.workdir_trusted_folders) > 0 ? base64encode(jsonencode(local.workdir_trusted_folders)) : ""
     ARG_MCP_CONFIG      = var.mcp_config != "" ? base64encode(var.mcp_config) : ""
   })
 

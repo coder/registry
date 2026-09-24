@@ -142,12 +142,16 @@ module "copilot" {
   # Version pinning (defaults to "latest")
   copilot_version = "0.0.334"
 
-  trusted_directories = ["/home/coder/project", "/tmp"]
-
-  # Custom Copilot configuration (written to config.json)
-  copilot_config = jsonencode({
+  # Base user settings, merged into ~/.copilot/settings.json
+  copilot_settings = jsonencode({
     banner = "never"
-    theme  = "dark"
+    theme  = "dim"
+  })
+
+  # Base application config, merged into ~/.copilot/config.json.
+  # workdir is unioned into trustedFolders automatically.
+  copilot_config = jsonencode({
+    trustedFolders = ["/home/coder/project", "/tmp"]
   })
 
   # MCP server configuration (merged into ~/.copilot/mcp-config.json)
@@ -172,6 +176,9 @@ module "copilot" {
 
 > [!NOTE]
 > Servers from `mcp_config` are merged into `~/.copilot/mcp-config.json`, Copilot's documented user-level MCP config. Module-provided servers win on duplicate names, while other servers already on disk are preserved. GitHub Copilot CLI does not automatically install MCP servers. Either use `npx -y` in the config (shown above) to auto-install on each run, or pre-install MCP servers in `pre_install_script` for faster startup.
+
+> [!NOTE]
+> Configuration is written to the files Copilot CLI documents for each purpose: `copilot_settings` is merged into user-editable settings at `~/.copilot/settings.json` (`banner`, `theme`, `model`, and similar keys), and `copilot_config` is merged into `~/.copilot/config.json` (for example `trustedFolders`), with `workdir` unioned into `trustedFolders` automatically. Your keys win over existing on-disk keys in each file; unrelated on-disk state such as authentication is preserved. Valid `theme` values are `default`, `github`, `dim`, `high-contrast`, and `colorblind`.
 
 ### Serialize a downstream `coder_script` after the install pipeline
 
