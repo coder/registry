@@ -314,3 +314,82 @@ run "serving_log_pattern_is_data" {
     error_message = "serving_log_pattern must be base64-encoded and matched with grep -F"
   }
 }
+
+run "graceful_shutdown" {
+  command = plan
+
+  # The supervisor runs under setsid, so the agent's own SIGTERM never
+  # reaches the worker. The stop script is the only thing that relays it.
+  assert {
+    condition     = coder_script.stop.run_on_stop == true && coder_script.stop.run_on_start == false
+    error_message = "the stop script must run on stop and never on start"
+  }
+
+  # SIGTERM only: the Cursor CLI exposes no drain flag, so escalating
+  # would just kill work the worker might still be finishing.
+  assert {
+    condition     = strcontains(local.stop_script, "kill -TERM") && !strcontains(local.stop_script, "kill -9") && !strcontains(local.stop_script, "-KILL")
+    error_message = "the stop script must send SIGTERM only and never escalate"
+  }
+
+  # A recycled pid would otherwise be signalled; this is the one caller
+  # that sends one.
+  assert {
+    condition     = strcontains(local.stop_script, "worker_alive") && strcontains(local.stop_script, "cmdline")
+    error_message = "the stop script must confirm the pid is still our worker before signalling it"
+  }
+
+  # The bare basename "agent" also matches the workspace agent's own
+  # command line, which is the recycled-pid case the guard exists for.
+  assert {
+    condition     = strcontains(local.stop_script, ") worker\"")
+    error_message = "the pid guard must match the worker's argv, not just the binary name"
+  }
+
+  # supervise.sh is the sole writer of terminal state.
+  assert {
+    condition     = !strcontains(local.stop_script, "state_file.tmp")
+    error_message = "the stop script must not write the state file"
+  }
+
+  # The supervisor is a separate process, so the pid can vanish before
+  # "done <code>" is written; returning in that gap reads as orphaned.
+  assert {
+    condition     = strcontains(local.stop_script, "while ! recorded")
+    error_message = "the stop script must wait for the supervisor to record the exit"
+  }
+
+  assert {
+    condition     = output.shutdown_grace_seconds == 60 && strcontains(local.stop_script, "budget=60")
+    error_message = "the advertised budget and the script's own wait must be the same number"
+  }
+
+  # The stop step is not part of the coder exp sync chain.
+  assert {
+    condition     = output.scripts == module.coder_utils.scripts
+    error_message = "the stop script must stay out of the sync ordering"
+  }
+}
+
+run "shutdown_grace_seconds_overridden" {
+  command = plan
+
+  variables {
+    shutdown_grace_seconds = 180
+  }
+
+  assert {
+    condition     = output.shutdown_grace_seconds == 180 && strcontains(local.stop_script, "budget=180")
+    error_message = "an override must reach both the output and the script"
+  }
+}
+
+run "shutdown_grace_seconds_rejects_zero" {
+  command = plan
+
+  variables {
+    shutdown_grace_seconds = 0
+  }
+
+  expect_failures = [var.shutdown_grace_seconds]
+}

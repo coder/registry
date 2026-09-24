@@ -26,11 +26,14 @@ log_file="${log_file}"
 # string: neither the shell nor grep interprets anything in it.
 serving_log_pattern="$(echo -n '${serving_log_pattern}' | base64 -d)"
 
-# True when the pid is alive and is our worker. kill -0 alone would
-# trust a reused pid; the cmdline check ties it to the CLI we launched.
+# True when the pid is alive and is our worker. kill -0 alone would trust
+# a reused pid, and the bare basename is not enough either: "agent" also
+# appears in the workspace agent's own command line. Match the argv the
+# supervisor launches.
 worker_alive() {
 	[ -n "$${1:-}" ] && kill -0 "$1" 2>/dev/null &&
-		tr '\0' ' ' <"/proc/$1/cmdline" 2>/dev/null | grep -qF -- "$(basename "${cli_binary}")"
+		tr '\0' ' ' <"/proc/$1/cmdline" 2>/dev/null |
+		grep -qF -- "$(basename "${cli_binary}") worker"
 }
 
 if [ ! -f "$state_file" ]; then
