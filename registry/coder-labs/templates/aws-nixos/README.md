@@ -181,7 +181,7 @@ policy — a dirty tree or local commits are built as they are, never discarded.
 To rebuild immediately, on the workspace:
 
 ```console
-sudo systemctl start nixos-upgrade     # sync, then rebuild, streamed to the UI
+sudo systemctl start nixos-upgrade     # sync, then rebuild
 sudo nixos-rebuild switch --flake /etc/nixos#coder-workspace-x86_64
 ```
 
@@ -196,9 +196,9 @@ under `these N derivations will be built:`, per-derivation compiler output, and 
 /var/log/coder-nixos/rebuild-latest.log      # symlink to the most recent boot rebuild
 ```
 
-Scheduled upgrades run as `nixos-upgrade.service` and write to the journal, which
-`coder-stream-nixos-upgrade-logs.service` follows into the same **NixOS** log source while the
-upgrade runs. `journalctl -u nixos-upgrade` has the unabridged copy.
+Scheduled upgrades are the exception: `nixos-upgrade.service` writes to the journal and nowhere
+else, so nothing of theirs reaches the workspace UI. `journalctl -u nixos-upgrade` has the whole
+story, and the "NixOS version" metadata on the workspace shows when one has staged a generation.
 
 Keeping compiler output out of the UI is not cosmetic. Coder caps agent logs at **1 MiB per
 agent**, shared across every log source, and exceeding it does not truncate — the log is marked
