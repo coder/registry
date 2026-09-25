@@ -13,12 +13,13 @@ Install the JF CLI and authenticate package managers with Artifactory using Arti
 ```tf
 module "jfrog" {
   source                   = "registry.coder.com/coder/jfrog-token/coder"
-  version                  = "1.3.0"
+  version                  = "1.4.0"
   agent_id                 = coder_agent.main.id
   jfrog_url                = "https://XXXX.jfrog.io"
   artifactory_access_token = var.artifactory_access_token
   package_managers = {
     npm    = ["npm", "@scoped:npm-scoped"]
+    pnpm   = ["npm", "@scoped:npm-scoped"]
     go     = ["go", "another-go-repo"]
     pypi   = ["pypi", "extra-index-pypi"]
     docker = ["example-docker-staging.jfrog.io", "example-docker-production.jfrog.io"]
@@ -32,7 +33,9 @@ module "jfrog" {
 For detailed instructions, please see this [guide](https://coder.com/docs/v2/latest/guides/artifactory-integration#jfrog-token) on the Coder documentation.
 
 > Note
-> This module does not install `npm`, `go`, `pip`, etc but only configure them. You need to handle the installation of these tools yourself.
+> This module does not install `npm`, `pnpm`, `go`, `pip`, etc but only configures them. You need to handle the installation of these tools yourself.
+>
+> `jf pnpm` requires Node.js 20 or newer and pnpm 10.x or 11.x. Use JFrog CLI 2.98.0 or newer for pnpm 10.x and 2.116.0 or newer for pnpm 11.x.
 
 ![JFrog](../../.images/jfrog.png)
 
@@ -43,7 +46,7 @@ If another Terraform resource only needs the scoped `access_token` output, disab
 ```tf
 module "jfrog" {
   source                   = "registry.coder.com/coder/jfrog-token/coder"
-  version                  = "1.3.0"
+  version                  = "1.4.0"
   agent_id                 = coder_agent.main.id
   jfrog_url                = "https://XXXX.jfrog.io"
   artifactory_access_token = var.artifactory_access_token
@@ -56,17 +59,18 @@ To configure a pre-installed `jf` binary, set only `install_jfrog_cli = false` a
 
 ## Examples
 
-### Configure npm, go, and pypi to use Artifactory local repositories
+### Configure npm, pnpm, go, and pypi to use Artifactory local repositories
 
 ```tf
 module "jfrog" {
   source                   = "registry.coder.com/coder/jfrog-token/coder"
-  version                  = "1.3.0"
+  version                  = "1.4.0"
   agent_id                 = coder_agent.main.id
   jfrog_url                = "https://YYYY.jfrog.io"
   artifactory_access_token = var.artifactory_access_token # An admin access token
   package_managers = {
     npm   = ["npm-local"]
+    pnpm  = ["npm-local"]
     go    = ["go-local"]
     pypi  = ["pypi-local"]
     conda = ["conda-local"]
@@ -76,10 +80,11 @@ module "jfrog" {
 }
 ```
 
-You should now be able to install packages from Artifactory using both the `jf npm`, `jf go`, `jf pip` and `npm`, `go`, `pip`, `conda`, `maven` commands.
+Because npm and pnpm share `~/.npmrc`, their repository lists must match when both are configured. You should now be able to install packages from Artifactory using `jf npm`, `jf pnpm`, `jf go`, `jf pip`, and the native package-manager commands.
 
 ```shell
 jf npm install prettier
+jf pnpm install
 jf go get github.com/golang/example/hello
 jf pip install requests
 conda install numpy
@@ -88,6 +93,7 @@ mvn clean install
 
 ```shell
 npm install prettier
+pnpm install
 go get github.com/golang/example/hello
 pip install requests
 conda install numpy
@@ -101,7 +107,7 @@ The [JFrog extension](https://open-vsx.org/extension/JFrog/jfrog-vscode-extensio
 ```tf
 module "jfrog" {
   source                   = "registry.coder.com/coder/jfrog-token/coder"
-  version                  = "1.3.0"
+  version                  = "1.4.0"
   agent_id                 = coder_agent.main.id
   jfrog_url                = "https://XXXX.jfrog.io"
   artifactory_access_token = var.artifactory_access_token
