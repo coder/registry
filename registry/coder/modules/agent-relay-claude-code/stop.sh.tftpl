@@ -20,10 +20,13 @@ state_file="${state_file}"
 budget=${drain_timeout_s}
 
 # True when the pid is alive and is still our runner. kill -0 alone would
-# trust a recycled pid, and this is the caller that sends the signal.
+# trust a recycled pid, and this is the caller that sends the signal, so
+# match the argv the supervisor launches rather than the bare basename:
+# that would accept any command line merely containing it.
 runner_alive() {
 	[ -n "$${1:-}" ] && kill -0 "$1" 2>/dev/null &&
-		tr '\0' ' ' <"/proc/$1/cmdline" 2>/dev/null | grep -qF -- "$(basename "${cli_binary}")"
+		tr '\0' ' ' <"/proc/$1/cmdline" 2>/dev/null |
+		grep -qF -- "$(basename "${cli_binary}") self-hosted-runner"
 }
 
 if [ ! -f "$state_file" ]; then
@@ -49,15 +52,28 @@ echo "Draining Claude Code runner $pid (up to $${budget}s)..."
 # defeat the point, and the platform SIGKILLs us soon enough anyway.
 kill -TERM "$pid" 2>/dev/null || true
 
+# Wait for the supervisor to record the exit, not just for the runner to
+# go. The supervisor is a separate process: /proc/<pid> can disappear
+# before it resumes from `wait` and writes "done <code>". Returning in
+# that gap leaves the state file saying "working" with a dead pid, which
+# the status script reports as orphaned -- a clean drain graded as a
+# failure.
+recorded() {
+	read -r s _ <"$state_file" 2>/dev/null || return 1
+	[ "$${s:-working}" != working ]
+}
+
 SECONDS=0
-while runner_alive "$pid" && [ "$SECONDS" -lt "$budget" ]; do
+while ! recorded && [ "$SECONDS" -lt "$budget" ]; do
 	sleep 0.2
 done
 
-if runner_alive "$pid"; then
+if recorded; then
+	echo "Runner exited after $${SECONDS}s. State: $(cat "$state_file" 2>/dev/null)"
+elif runner_alive "$pid"; then
 	echo "Runner did not exit within $${budget}s; leaving it to the platform." >&2
 else
-	echo "Runner exited after $${SECONDS}s. State: $(cat "$state_file" 2>/dev/null)"
+	echo "Runner is gone but the supervisor never recorded it within $${budget}s." >&2
 fi
 
 # Always succeed. The supervisor is the only writer of terminal state, and

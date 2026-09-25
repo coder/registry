@@ -91,9 +91,9 @@ variable "exit_if_unused_min" {
 }
 
 variable "drain_wait_sec" {
+  description = "Seconds the runner waits for the session's in-flight turn and background tasks to finish before stopping the session process, once it is asked to shut down (the CLI's --drain-wait-sec). 0 leaves the flag off, so a template can set SELF_HOSTED_RUNNER_DRAIN_WAIT_MS itself; note that one is milliseconds. Every second here is added to shutdown_grace_seconds, which the template must honor."
   type        = number
   default     = 0
-  description = "Seconds the runner waits for the session's in-flight turn and background tasks to finish before stopping the session process, once it is asked to shut down (the CLI's --drain-wait-sec). 0 leaves the flag off, so a template can set SELF_HOSTED_RUNNER_DRAIN_WAIT_MS itself; note that one is milliseconds. Every second here is added to shutdown_grace_seconds, which the template must honor."
 
   validation {
     condition     = var.drain_wait_sec >= 0 && floor(var.drain_wait_sec) == var.drain_wait_sec
@@ -102,15 +102,15 @@ variable "drain_wait_sec" {
 }
 
 variable "push_outcome_on_release" {
+  description = "Push the session's outcome branch to origin before deleting it when the runner ends a session it could not complete (the CLI's --push-outcome-on-release), so commits survive an ephemeral workspace being torn down and a resumed session continues from them. Fires on every runner-initiated incomplete end, which includes idle-release and failed sessions, so it needs git auth in the workspace and it creates branches for those too. Adds 30s to shutdown_grace_seconds. false leaves the flag off, so a template can set SELF_HOSTED_RUNNER_PUSH_OUTCOME_ON_RELEASE itself."
   type        = bool
   default     = true
-  description = "Push the session's outcome branch to origin before deleting it when the runner ends a session it could not complete (the CLI's --push-outcome-on-release), so commits survive an ephemeral workspace being torn down and a resumed session continues from them. Fires on every runner-initiated incomplete end, which includes idle-release and failed sessions, so it needs git auth in the workspace and it creates branches for those too. Adds 30s to shutdown_grace_seconds. false leaves the flag off, so a template can set SELF_HOSTED_RUNNER_PUSH_OUTCOME_ON_RELEASE itself."
 }
 
 variable "client_label" {
+  description = "Label the runner registers with, shown beside it in the Anthropic console (the CLI's --client-label). Empty uses <owner>/<workspace>, so a runner is identifiable without the template having to set a hostname. The label is display only: it is never used for authorization or routing, and it cannot steer which sessions this runner is assigned."
   type        = string
   default     = ""
-  description = "Label the runner registers with, shown beside it in the Anthropic console (the CLI's --client-label). Empty uses <owner>/<workspace>, so a runner is identifiable without the template having to set a hostname. The label is display only: it is never used for authorization or routing, and it cannot steer which sessions this runner is assigned."
 }
 
 variable "serving_log_pattern" {

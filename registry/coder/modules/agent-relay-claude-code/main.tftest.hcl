@@ -404,4 +404,23 @@ run "stop_script_guards_against_a_recycled_pid" {
     condition     = !strcontains(local.stop_script, "kill -0 \"$pid\"")
     error_message = "a bare kill -0 would trust a recycled pid"
   }
+
+  # A bare basename matches any command line containing it, which is the
+  # case the guard exists for.
+  assert {
+    condition     = strcontains(local.stop_script, "self-hosted-runner\"")
+    error_message = "the pid guard must match the runner's argv, not just the binary name"
+  }
+}
+
+run "stop_script_waits_for_the_recorded_exit" {
+  command = plan
+
+  # The supervisor is a separate process, so the runner's pid can vanish
+  # before "done <code>" is written. Returning in that gap leaves the
+  # state saying working with a dead pid, which reads as orphaned.
+  assert {
+    condition     = strcontains(local.stop_script, "recorded") && strcontains(local.stop_script, "while ! recorded")
+    error_message = "the stop script must wait for the supervisor to record the exit, not just for the runner to go"
+  }
 }

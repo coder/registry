@@ -180,11 +180,9 @@ The budget is the runner's advertised 80s to stop the Claude process and run
 the post-session hook, plus 20s for a session release already in flight, plus
 the 5s the agent spends shutting down SSH first:
 
-| `drain_wait_sec` | `push_outcome_on_release` | `shutdown_grace_seconds` |
-| ---------------- | ------------------------- | ------------------------ |
-| `0` (default)    | `true` (default)          | 135                      |
-| `0`              | `false`                   | 105                      |
-| `60`             | `true`                    | 195                      |
+It comes to 135 seconds by default. Turning the outcome push off drops
+its 30 seconds, and every second of `drain_wait_sec` is added on top --
+so `drain_wait_sec = 60` makes it 195.
 
 `push_outcome_on_release` is on by default: it pushes the session's outcome
 branch to `origin` before the branch is deleted, so commits survive an
@@ -196,3 +194,10 @@ leave branches behind. Set it to `false` if that is not acceptable.
 `drain_wait_sec` is off by default. It buys "the current turn may finish", at
 a second of grace period per second of wait, which is the most expensive part
 of the budget.
+
+The budget only counts what the module passes. If you reach for the
+environment escape hatch instead -- `SELF_HOSTED_RUNNER_DRAIN_WAIT_MS`, or
+`SELF_HOSTED_RUNNER_PUSH_OUTCOME_ON_RELEASE` with the input left off -- the
+runner will spend time this number does not know about, and the platform can
+kill it mid-drain. Use the inputs, or add the difference to the grace period
+yourself.
