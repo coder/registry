@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+BOLD='\033[0;1m'
+
+command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+ARG_INSTALL_PI='${ARG_INSTALL_PI}'
+ARG_PI_VERSION='${ARG_PI_VERSION}'
+ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
+ARG_DEFAULT_PROJECT_TRUST='${ARG_DEFAULT_PROJECT_TRUST}'
+
+echo "--------------------------------"
+printf "ARG_INSTALL_PI: %s\n" "$${ARG_INSTALL_PI}"
+printf "ARG_PI_VERSION: %s\n" "$${ARG_PI_VERSION}"
+printf "ARG_WORKDIR: %s\n" "$${ARG_WORKDIR}"
+printf "ARG_DEFAULT_PROJECT_TRUST: %s\n" "$${ARG_DEFAULT_PROJECT_TRUST}"
+echo "--------------------------------"
+
+function add_path_to_shell_profiles() {
+  local path_dir="$1"
+
+  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    if [ -f "$${profile}" ]; then
+      if ! grep -q "$${path_dir}" "$${profile}" 2> /dev/null; then
+        echo "export PATH=\"\$PATH:$${path_dir}\"" >> "$${profile}"
+        echo "Added $${path_dir} to $${profile}"
+      fi
+    fi
+  done
+
+  local fish_config="$HOME/.config/fish/config.fish"
+  if [ -f "$${fish_config}" ]; then
+    if ! grep -q "$${path_dir}" "$${fish_config}" 2> /dev/null; then
+      echo "fish_add_path $${path_dir}" >> "$${fish_config}"
+      echo "Added $${path_dir} to $${fish_config}"
+    fi
+  fi
+}
+
+function ensure_pi_in_path() {
+  local PI_BIN=""
+  if command_exists pi; then
+    PI_BIN=$(command -v pi)
+  fi
+
+  if [ -z "$${PI_BIN}" ] || [ ! -x "$${PI_BIN}" ]; then
+    echo "Pi binary was not found or is not executable." >&2
+    return 1
+  fi
+
+  local PI_DIR
+  PI_DIR=$(dirname "$${PI_BIN}")
+
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/pi" ]; then
+    ln -s "$${PI_BIN}" "$${CODER_SCRIPT_BIN_DIR}/pi"
+    echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/pi -> $${PI_BIN}"
+  fi
+
+  add_path_to_shell_profiles "$${PI_DIR}"
+}
+
+function install_pi_cli() {
+  if [ "$${ARG_INSTALL_PI}" != "true" ]; then
+    echo "Skipping Pi installation as per configuration."
+    ensure_pi_in_path
+    printf "%s Validated existing Pi CLI: %s\n" "$${BOLD}" "$(pi --version)"
+    return
+  fi
+
+  if ! command_exists npm; then
+    echo "Error: npm was not found. Pi is installed via npm and requires Node.js >= 22.19.0 and npm to already be present in the workspace." >&2
+    return 1
+  fi
+
+  printf "%s Installing Pi coding agent CLI\n" "$${BOLD}"
+
+  local package="@earendil-works/pi-coding-agent"
+  if [ "$${ARG_PI_VERSION}" != "latest" ]; then
+    package="$${package}@$${ARG_PI_VERSION}"
+  fi
+
+  # npm's default global prefix is often root-owned (e.g. /usr on
+  # codercom/enterprise-node), which the workspace user cannot write to.
+  # Install into a prefix under the module's own data directory instead, so
+  # the install never depends on npm's default prefix being writable.
+  local npm_prefix="$HOME/.coder-modules/coder-labs/pi/npm-global"
+  mkdir -p "$${npm_prefix}"
+
+  if ! npm install -g --ignore-scripts --prefix "$${npm_prefix}" "$${package}"; then
+    echo "Pi installation failed." >&2
+    return 1
+  fi
+
+  export PATH="$${npm_prefix}/bin:$PATH"
+  ensure_pi_in_path
+  printf "%s Installed Pi CLI: %s\n" "$${BOLD}" "$(pi --version)"
+}
+
+function configure_pi_settings() {
+  local settings_dir="$HOME/.pi/agent"
+  local settings_path="$${settings_dir}/settings.json"
+  mkdir -p "$${settings_dir}"
+
+  if [ -f "$${settings_path}" ]; then
+    jq --arg trust "$${ARG_DEFAULT_PROJECT_TRUST}" \
+      '.defaultProjectTrust = $trust' \
+      "$${settings_path}" > "$${settings_path}.tmp" && mv "$${settings_path}.tmp" "$${settings_path}"
+  else
+    jq -n --arg trust "$${ARG_DEFAULT_PROJECT_TRUST}" '{defaultProjectTrust: $trust}' > "$${settings_path}"
+  fi
+
+  echo "Wrote Pi settings to $${settings_path}"
+}
+
+function setup_workdir() {
+  if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
+    echo "Creating workdir: $${ARG_WORKDIR}"
+    mkdir -p "$${ARG_WORKDIR}"
+  fi
+}
+
+install_pi_cli
+configure_pi_settings
+setup_workdir
