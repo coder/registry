@@ -179,6 +179,16 @@ run "worker_wiring" {
     condition     = output.dispatched == false
     error_message = "a build with no credential was not dispatched by Agent Relay"
   }
+
+  assert {
+    condition     = output.session_id == ""
+    error_message = "a manual build has no Cursor cloud session id"
+  }
+
+  assert {
+    condition     = length(coder_app.cursor_web) == 0 && length(coder_app.cursor_desktop) == 0
+    error_message = "a manual build has no cloud agent, so neither Cursor client button is created"
+  }
 }
 
 run "computer_use_off_by_default" {

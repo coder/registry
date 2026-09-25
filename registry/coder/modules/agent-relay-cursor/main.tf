@@ -313,3 +313,31 @@ output "dispatched" {
   description = "Whether this workspace was spawned by Agent Relay (credential set) or manually (empty)."
   value       = data.coder_parameter.agent_relay_credential.value != ""
 }
+
+output "session_id" {
+  description = "Cursor cloud agent id stamped in agent_relay_session_id. Empty when a person created the workspace."
+  value       = data.coder_parameter.agent_relay_session_id.value
+}
+
+# Cursor's own names for the two clients that open a cloud agent:
+# Cursor Web (cursor.com/agents) and Cursor Desktop. A hand-created
+# workspace has no session id, so neither button exists.
+resource "coder_app" "cursor_web" {
+  count        = data.coder_parameter.agent_relay_session_id.value != "" ? 1 : 0
+  agent_id     = var.agent_id
+  slug         = "cursor-web"
+  display_name = "Open in Cursor Web"
+  icon         = "/icon/cursor.svg"
+  url          = "https://cursor.com/agents/${data.coder_parameter.agent_relay_session_id.value}"
+  external     = true
+}
+
+resource "coder_app" "cursor_desktop" {
+  count        = data.coder_parameter.agent_relay_session_id.value != "" ? 1 : 0
+  agent_id     = var.agent_id
+  slug         = "cursor-desktop"
+  display_name = "Open in Cursor Desktop"
+  icon         = "/icon/cursor.svg"
+  url          = "cursor://anysphere.cursor-deeplink/background-agent?bcId=${data.coder_parameter.agent_relay_session_id.value}"
+  external     = true
+}
