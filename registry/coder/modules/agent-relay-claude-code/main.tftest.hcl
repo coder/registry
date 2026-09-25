@@ -40,6 +40,11 @@ run "parameter_contract" {
     error_message = "attempt parameter name is part of the Agent Relay contract"
   }
 
+  assert {
+    condition     = data.coder_parameter.agent_relay_client_platform.name == "agent_relay_client_platform"
+    error_message = "client platform parameter name is what Agent Relay stamps"
+  }
+
   # The relay reads these back off a build long after dispatch, so they
   # must not be ephemeral; the rest must be, so a manual build never
   # inherits a stale credential, account lock, or attempt.
@@ -48,6 +53,7 @@ run "parameter_contract" {
       data.coder_parameter.agent_relay_session_id.ephemeral == false,
       data.coder_parameter.agent_relay_delivery_id.ephemeral == false,
       data.coder_parameter.agent_relay_pool.ephemeral == false,
+      data.coder_parameter.agent_relay_client_platform.ephemeral == false,
       data.coder_parameter.agent_relay_credential.ephemeral == true,
       data.coder_parameter.agent_relay_claude_code_lock_to_account.ephemeral == true,
       data.coder_parameter.agent_relay_attempt.ephemeral == true,
@@ -63,6 +69,7 @@ run "parameter_contract" {
         data.coder_parameter.agent_relay_session_id.styling,
         data.coder_parameter.agent_relay_delivery_id.styling,
         data.coder_parameter.agent_relay_pool.styling,
+        data.coder_parameter.agent_relay_client_platform.styling,
         data.coder_parameter.agent_relay_credential.styling,
         data.coder_parameter.agent_relay_claude_code_lock_to_account.styling,
         data.coder_parameter.agent_relay_attempt.styling,
