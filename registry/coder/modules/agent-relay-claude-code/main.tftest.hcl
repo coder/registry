@@ -306,20 +306,20 @@ run "graceful_shutdown_defaults" {
 
   # 105 baseline + 30 for the outcome push, which is on by default.
   assert {
-    condition     = output.shutdown_grace_seconds == 135
-    error_message = "the default shutdown budget is 105s plus 30s for the outcome push"
+    condition     = output.shutdown_grace_seconds == 105
+    error_message = "the default shutdown budget is the runner's 100s plus the agent's own shutdown"
   }
 
   # One number: the script's own wait must never outlive the grace the
   # template was asked to grant.
   assert {
-    condition     = strcontains(local.stop_script, "budget=130")
+    condition     = strcontains(local.stop_script, "budget=100")
     error_message = "the stop script must wait the runner budget, which is shutdown_grace_seconds minus the agent's own shutdown"
   }
 
   assert {
-    condition     = strcontains(local.start_script, "--push-outcome-on-release") && !strcontains(local.start_script, "--drain-wait-sec")
-    error_message = "the outcome push is on by default and the drain wait is off"
+    condition     = !strcontains(local.start_script, "--push-outcome-on-release") && !strcontains(local.start_script, "--drain-wait-sec")
+    error_message = "both optional runner behaviours are off by default"
   }
 }
 
@@ -338,28 +338,27 @@ run "drain_wait_enabled" {
   # Every second the runner may spend draining is a second the platform
   # must grant on top of the baseline.
   assert {
-    condition     = output.shutdown_grace_seconds == 195 && strcontains(local.stop_script, "budget=190")
+    condition     = output.shutdown_grace_seconds == 165 && strcontains(local.stop_script, "budget=160")
     error_message = "the drain wait must extend both the advertised budget and the script's own"
   }
 }
 
-run "push_outcome_disabled" {
+run "push_outcome_enabled" {
   command = plan
 
   variables {
-    push_outcome_on_release = false
-  }
-
-  # Leaving the flag off is what keeps SELF_HOSTED_RUNNER_PUSH_OUTCOME_ON_RELEASE
-  # usable: a flag the module emits always beats the paired env var.
-  assert {
-    condition     = !strcontains(local.start_script, "--push-outcome-on-release")
-    error_message = "push_outcome_on_release false must leave the flag off for the env escape hatch"
+    push_outcome_on_release = true
   }
 
   assert {
-    condition     = output.shutdown_grace_seconds == 105
-    error_message = "dropping the outcome push drops its 30s from the budget"
+    condition     = strcontains(local.start_script, "--push-outcome-on-release")
+    error_message = "push_outcome_on_release must reach the runner as a flag"
+  }
+
+  # Pushing the outcome branch is 30s of extra shutdown work.
+  assert {
+    condition     = output.shutdown_grace_seconds == 135 && strcontains(local.stop_script, "budget=130")
+    error_message = "the outcome push adds its 30s to both the budget and the script's wait"
   }
 }
 

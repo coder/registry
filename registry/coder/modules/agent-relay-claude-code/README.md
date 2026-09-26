@@ -180,16 +180,19 @@ The budget is the runner's advertised 80s to stop the Claude process and run
 the post-session hook, plus 20s for a session release already in flight, plus
 the 5s the agent spends shutting down SSH first:
 
-It comes to 135 seconds by default. Turning the outcome push off drops
-its 30 seconds, and every second of `drain_wait_sec` is added on top --
-so `drain_wait_sec = 60` makes it 195.
+It comes to 105 seconds by default. Turning on the outcome push adds its 30
+seconds, and every second of `drain_wait_sec` is added on top — so both
+together at `drain_wait_sec = 60` make it 195.
 
-`push_outcome_on_release` is on by default: it pushes the session's outcome
-branch to `origin` before the branch is deleted, so commits survive an
-ephemeral workspace and a resumed session continues from them. It fires on
-every runner-initiated incomplete end, not only a drain — idle-release and
-failed sessions push too — so the workspace needs git auth, and those sessions
-leave branches behind. Set it to `false` if that is not acceptable.
+`push_outcome_on_release` pushes the session's outcome branch to `origin`
+before the branch is deleted, so commits survive an ephemeral workspace and a
+resumed session continues from them. Without it, work an incomplete session had
+already committed dies with the container.
+
+It is off by default, so upgrading changes nothing until you ask for it. Turn
+it on deliberately: it fires on every runner-initiated incomplete end, not only
+a drain — idle-release and failed sessions push too — so the workspace needs
+git auth and those sessions leave branches behind.
 
 `drain_wait_sec` is off by default. It buys "the current turn may finish", at
 a second of grace period per second of wait, which is the most expensive part

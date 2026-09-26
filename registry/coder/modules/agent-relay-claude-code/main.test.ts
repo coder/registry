@@ -266,8 +266,8 @@ describe("agent-relay-claude-code", () => {
     // The CLI's own default is /workspace, which the agent user cannot
     // create; the module points it at a directory it made.
     expect(args[args.indexOf("--base-dir") + 1]).toBe("/root/workspace");
-    // On by default, so it lands in this argv too.
-    expect(args).toContain("--push-outcome-on-release");
+    // Both optional runner behaviours are off unless asked for.
+    expect(args).not.toContain("--push-outcome-on-release");
     // A base64 decode that silently produced nothing would otherwise look
     // like a runner that simply registered with an empty label.
     expect(args[args.indexOf("--client-label") + 1]).toBe("default/default");
@@ -437,8 +437,11 @@ describe("agent-relay-claude-code", () => {
     expect(stop.stdout).toContain("already gone");
   });
 
-  it("passes the drain wait to the runner when set", async () => {
-    const { id, scripts } = await setup({ drain_wait_sec: "30" });
+  it("passes the optional runner flags when set", async () => {
+    const { id, scripts } = await setup({
+      drain_wait_sec: "30",
+      push_outcome_on_release: "true",
+    });
     await stubClaude(id, 'printf "%s\\n" "$@" >/tmp/claude-args\nsleep 300');
     await runDispatched(id, scripts);
     await waitForState(id, /^working \d+$/);
@@ -447,5 +450,6 @@ describe("agent-relay-claude-code", () => {
       .trim()
       .split("\n");
     expect(args[args.indexOf("--drain-wait-sec") + 1]).toBe("30");
+    expect(args).toContain("--push-outcome-on-release");
   });
 });
