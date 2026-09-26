@@ -1,136 +1,348 @@
-import { describe, expect, it } from "bun:test";
 import {
-  findResourceInstance,
+  test,
+  afterEach,
+  describe,
+  setDefaultTimeout,
+  beforeAll,
+  expect,
+} from "bun:test";
+import {
+  execContainer,
+  readFileContainer,
+  removeContainer,
+  runContainer,
   runTerraformApply,
   runTerraformInit,
-  testRequiredVariables,
+  TerraformState,
 } from "~test";
+import {
+  extractCoderEnvVars,
+  writeExecutable,
+} from "../../../coder/modules/agentapi/test-util";
+import path from "path";
+
+interface ModuleScripts {
+  pre_install?: string;
+  install: string;
+  post_install?: string;
+}
+
+const SCRIPT_SUFFIXES = [
+  "Pre-Install Script",
+  "Install Script",
+  "Post-Install Script",
+] as const;
+
+const collectScripts = (state: TerraformState): ModuleScripts => {
+  const byDisplayName: Record<string, string> = {};
+  for (const resource of state.resources) {
+    if (resource.type !== "coder_script") continue;
+    for (const instance of resource.instances) {
+      const attrs = instance.attributes as Record<string, unknown>;
+      const displayName = attrs.display_name as string | undefined;
+      const script = attrs.script as string | undefined;
+      if (displayName && script) {
+        byDisplayName[displayName] = script;
+      }
+    }
+  }
+  const scripts: Partial<ModuleScripts> = {};
+  for (const suffix of SCRIPT_SUFFIXES) {
+    const key = `Copilot: ${suffix}`;
+    if (!(key in byDisplayName)) continue;
+    switch (suffix) {
+      case "Pre-Install Script":
+        scripts.pre_install = byDisplayName[key];
+        break;
+      case "Install Script":
+        scripts.install = byDisplayName[key];
+        break;
+      case "Post-Install Script":
+        scripts.post_install = byDisplayName[key];
+        break;
+    }
+  }
+  if (!scripts.install) {
+    throw new Error("install script not found in terraform state");
+  }
+  return scripts as ModuleScripts;
+};
+
+let cleanupFunctions: (() => Promise<void>)[] = [];
+const registerCleanup = (cleanup: () => Promise<void>) => {
+  cleanupFunctions.push(cleanup);
+};
+afterEach(async () => {
+  const cleanupFnsCopy = cleanupFunctions.slice().reverse();
+  cleanupFunctions = [];
+  for (const cleanup of cleanupFnsCopy) {
+    try {
+      await cleanup();
+    } catch (error) {
+      console.error("Error during cleanup:", error);
+    }
+  }
+});
+
+interface SetupProps {
+  skipCopilotMock?: boolean;
+  moduleVariables?: Record<string, string>;
+}
+
+const projectDir = "/home/coder/project";
+
+const setup = async (
+  props?: SetupProps,
+): Promise<{
+  id: string;
+  coderEnvVars: Record<string, string>;
+  scripts: ModuleScripts;
+}> => {
+  const moduleDir = path.resolve(import.meta.dir);
+  const state = await runTerraformApply(moduleDir, {
+    agent_id: "foo",
+    workdir: projectDir,
+    install_copilot: "false",
+    ...props?.moduleVariables,
+  });
+  const scripts = collectScripts(state);
+  const coderEnvVars = extractCoderEnvVars(state);
+
+  const id = await runContainer("codercom/enterprise-node:latest");
+  registerCleanup(async () => {
+    if (process.env["DEBUG"] === "true" || process.env["DEBUG"] === "1") {
+      console.log(`Not removing container ${id} in debug mode`);
+      return;
+    }
+    await removeContainer(id);
+  });
+
+  await execContainer(id, ["bash", "-c", `mkdir -p '${projectDir}'`]);
+  await writeExecutable({
+    containerId: id,
+    filePath: "/usr/bin/coder",
+    content: "#!/bin/bash\nexit 0\n",
+  });
+  if (!props?.skipCopilotMock) {
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/bin/copilot",
+      content: await Bun.file(
+        path.join(moduleDir, "testdata", "copilot-mock.sh"),
+      ).text(),
+    });
+  }
+  return { id, coderEnvVars, scripts };
+};
+
+const runScripts = async (
+  id: string,
+  scripts: ModuleScripts,
+  env?: Record<string, string>,
+) => {
+  const entries = env ? Object.entries(env) : [];
+  const envArgs =
+    entries.length > 0
+      ? entries
+          .map(
+            ([key, value]) => `export ${key}="${value.replace(/"/g, '\\"')}"`,
+          )
+          .join(" && ") + " && "
+      : "";
+  const runRenderedScript = async (name: string, script: string) => {
+    const target = `/tmp/coder-utils-${name}.sh`;
+    await writeExecutable({
+      containerId: id,
+      filePath: target,
+      content: script,
+    });
+    return execContainer(id, ["bash", "-c", `${envArgs}${target}`]);
+  };
+  const ordered: [string, string | undefined][] = [
+    ["pre_install", scripts.pre_install],
+    ["install", scripts.install],
+    ["post_install", scripts.post_install],
+  ];
+  for (const [name, script] of ordered) {
+    if (!script) continue;
+    const resp = await runRenderedScript(name, script);
+    if (resp.exitCode !== 0) {
+      console.log(`script ${name} failed:`);
+      console.log(resp.stdout);
+      console.log(resp.stderr);
+      throw new Error(`coder-utils ${name} script exited ${resp.exitCode}`);
+    }
+  }
+};
+
+const configDir = "/home/coder/.copilot";
+const readConfig = (id: string) =>
+  readFileContainer(id, `${configDir}/config.json`);
+const readSettings = (id: string) =>
+  readFileContainer(id, `${configDir}/settings.json`);
+const readMcpConfig = (id: string) =>
+  readFileContainer(id, `${configDir}/mcp-config.json`);
+const installLog = (id: string) =>
+  readFileContainer(
+    id,
+    "/home/coder/.coder-modules/coder-labs/copilot/logs/install.log",
+  );
+
+setDefaultTimeout(60 * 1000);
 
 describe("copilot", async () => {
-  await runTerraformInit(import.meta.dir);
-
-  testRequiredVariables(import.meta.dir, {
-    agent_id: "test-agent",
-    workdir: "/home/coder",
+  beforeAll(async () => {
+    await runTerraformInit(import.meta.dir);
   });
 
-  it("creates mcp_app_status_slug env var", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "test-agent",
-      workdir: "/home/coder",
+  test("happy-path-skips-install-when-present", async () => {
+    const { id, scripts } = await setup();
+    await runScripts(id, scripts);
+    const log = await installLog(id);
+    expect(log).toContain("Validated existing GitHub Copilot CLI");
+    expect(log).toContain("Copilot module setup completed.");
+  });
+
+  test("writes-settings-and-trusted-folders", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        copilot_settings: JSON.stringify({ banner: "never", theme: "dim" }),
+      },
     });
-
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "mcp_app_status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-    expect(statusSlugEnv.name).toBe("CODER_MCP_APP_STATUS_SLUG");
-    expect(statusSlugEnv.value).toBe("copilot");
+    await runScripts(id, scripts);
+    // User-provided base settings land in settings.json.
+    const settings = JSON.parse(await readSettings(id));
+    expect(settings.banner).toBe("never");
+    expect(settings.theme).toBe("dim");
+    // workdir is auto-trusted in config.json under trustedFolders.
+    const config = JSON.parse(await readConfig(id));
+    expect(config.trustedFolders).toContain(projectDir);
+    // mcpServers must never be written into config.json.
+    expect(config.mcpServers).toBeUndefined();
   });
 
-  it("creates github_token env var with correct value", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "test-agent",
-      workdir: "/home/coder",
-      github_token: "test_token_12345",
+  test("base-config-trusted-folders-union-workdir", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        copilot_config: JSON.stringify({
+          trustedFolders: ["/workspace", "/data"],
+        }),
+      },
     });
-
-    const githubTokenEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "github_token",
-    );
-    expect(githubTokenEnv).toBeDefined();
-    expect(githubTokenEnv.name).toBe("GITHUB_TOKEN");
-    expect(githubTokenEnv.value).toBe("test_token_12345");
+    await runScripts(id, scripts);
+    const config = JSON.parse(await readConfig(id));
+    expect(config.trustedFolders).toContain(projectDir);
+    expect(config.trustedFolders).toContain("/workspace");
+    expect(config.trustedFolders).toContain("/data");
   });
 
-  it("does not create github_token env var when empty", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "test-agent",
-      workdir: "/home/coder",
-      github_token: "",
+  test("settings-and-config-preserve-existing-state", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        copilot_settings: JSON.stringify({ banner: "never" }),
+        copilot_config: JSON.stringify({ trustedFolders: ["/from-var"] }),
+      },
     });
-
-    const githubTokenEnvs = state.resources.filter(
-      (r) => r.type === "coder_env" && r.name === "github_token",
-    );
-    expect(githubTokenEnvs.length).toBe(0);
-  });
-
-  it("creates copilot_model env var for non-default models", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "test-agent",
-      workdir: "/home/coder",
-      copilot_model: "claude-sonnet-4",
+    // Seed settings.json with unmanaged user settings.
+    const settingsSeed = JSON.stringify({
+      theme: "dim",
+      model: "user-picked-model",
     });
-
-    const modelEnv = findResourceInstance(state, "coder_env", "copilot_model");
-    expect(modelEnv).toBeDefined();
-    expect(modelEnv.name).toBe("COPILOT_MODEL");
-    expect(modelEnv.value).toBe("claude-sonnet-4");
-  });
-
-  it("does not create copilot_model env var for default model", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "test-agent",
-      workdir: "/home/coder",
-      copilot_model: "claude-sonnet-4.5",
+    // Seed config.json with an interactively trusted folder and auth-like state.
+    const configSeed = JSON.stringify({
+      trustedFolders: ["/interactively-trusted"],
+      loggedInUsers: ["octocat"],
     });
-
-    const modelEnvs = state.resources.filter(
-      (r) => r.type === "coder_env" && r.name === "copilot_model",
-    );
-    expect(modelEnvs.length).toBe(0);
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `mkdir -p /home/coder/.copilot && cat > /home/coder/.copilot/settings.json <<'JSON'\n${settingsSeed}\nJSON`,
+    ]);
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `cat > /home/coder/.copilot/config.json <<'JSON'\n${configSeed}\nJSON`,
+    ]);
+    await runScripts(id, scripts);
+    const settings = JSON.parse(await readSettings(id));
+    const config = JSON.parse(await readConfig(id));
+    // User-provided key wins in settings.json.
+    expect(settings.banner).toBe("never");
+    // Unmanaged settings are preserved.
+    expect(settings.theme).toBe("dim");
+    expect(settings.model).toBe("user-picked-model");
+    // trustedFolders is the union of existing + base config + workdir.
+    expect(config.trustedFolders).toContain("/interactively-trusted");
+    expect(config.trustedFolders).toContain("/from-var");
+    expect(config.trustedFolders).toContain(projectDir);
+    // Unrelated config.json application state is preserved.
+    expect(config.loggedInUsers).toContain("octocat");
   });
 
-  it("creates coder_script resources via agentapi module", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "test-agent",
-      workdir: "/home/coder",
+  test("writes-custom-mcp-servers-without-coder-server", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        mcp_config: JSON.stringify({
+          mcpServers: {
+            filesystem: {
+              command: "npx",
+              args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+              type: "local",
+              tools: ["*"],
+            },
+          },
+        }),
+      },
     });
-
-    // The agentapi module should create coder_script resources for install and start
-    const scripts = state.resources.filter((r) => r.type === "coder_script");
-    expect(scripts.length).toBeGreaterThan(0);
+    await runScripts(id, scripts);
+    const mcp = JSON.parse(await readMcpConfig(id));
+    // The server is written straight into ~/.copilot/mcp-config.json.
+    expect(mcp.mcpServers.filesystem).toBeDefined();
+    expect(mcp.mcpServers.filesystem.command).toBe("npx");
+    // The task-reporting "coder" MCP server must not be injected anymore.
+    expect(mcp.mcpServers.coder).toBeUndefined();
   });
 
-  it("validates copilot_model accepts valid values", async () => {
-    // Test valid models don't throw errors
-    await expect(
-      runTerraformApply(import.meta.dir, {
-        agent_id: "test-agent",
-        workdir: "/home/coder",
-        copilot_model: "gpt-5",
-      }),
-    ).resolves.toBeDefined();
-
-    await expect(
-      runTerraformApply(import.meta.dir, {
-        agent_id: "test-agent",
-        workdir: "/home/coder",
-        copilot_model: "claude-sonnet-4.5",
-      }),
-    ).resolves.toBeDefined();
-  });
-
-  it("merges trusted_directories with custom copilot_config", async () => {
-    const state = await runTerraformApply(import.meta.dir, {
-      agent_id: "test-agent",
-      workdir: "/home/coder/project",
-      trusted_directories: JSON.stringify(["/workspace", "/data"]),
-      copilot_config: JSON.stringify({
-        banner: "always",
-        theme: "dark",
-        trusted_folders: ["/custom"],
-      }),
+  test("merges-mcp-config-module-servers-win", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        mcp_config: JSON.stringify({
+          mcpServers: {
+            filesystem: { command: "module-command", type: "local" },
+            extra: { command: "npx", type: "local" },
+          },
+        }),
+      },
     });
+    // Seed an existing config with a conflicting server and an unrelated one.
+    const seed = JSON.stringify({
+      mcpServers: {
+        filesystem: { command: "existing-command", type: "local" },
+        seeded: { command: "seeded-cmd", type: "local" },
+      },
+    });
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `mkdir -p /home/coder/.copilot && cat > /home/coder/.copilot/mcp-config.json <<'JSON'\n${seed}\nJSON`,
+    ]);
+    await runScripts(id, scripts);
+    const mcp = JSON.parse(await readMcpConfig(id));
+    // Module-provided server wins on the duplicate key.
+    expect(mcp.mcpServers.filesystem.command).toBe("module-command");
+    // Unrelated on-disk server is preserved.
+    expect(mcp.mcpServers.seeded).toBeDefined();
+    // Non-conflicting module server is merged in.
+    expect(mcp.mcpServers.extra).toBeDefined();
+  });
 
-    // Verify that the state was created successfully with the merged config
-    // The actual merging logic is tested in the .tftest.hcl file
-    expect(state).toBeDefined();
-    expect(state.resources).toBeDefined();
+  test("github-token-env-var", async () => {
+    const token = "ghp_test_token_123";
+    const { coderEnvVars } = await setup({
+      moduleVariables: {
+        github_token: token,
+      },
+    });
+    expect(coderEnvVars["COPILOT_GITHUB_TOKEN"]).toBe(token);
   });
 });
