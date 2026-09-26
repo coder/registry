@@ -27,7 +27,7 @@ variable "workdir" {
 
 variable "github_token" {
   type        = string
-  description = "GitHub OAuth token or Personal Access Token. When set, exported to the workspace as GITHUB_TOKEN and GH_TOKEN."
+  description = "GitHub OAuth token or fine-grained Personal Access Token. When set, exported to the workspace as COPILOT_GITHUB_TOKEN for Copilot authentication."
   default     = ""
   sensitive   = true
 }
@@ -119,14 +119,7 @@ resource "coder_env" "copilot_model" {
 resource "coder_env" "github_token" {
   count    = var.github_token != "" ? 1 : 0
   agent_id = var.agent_id
-  name     = "GITHUB_TOKEN"
-  value    = var.github_token
-}
-
-resource "coder_env" "gh_token" {
-  count    = var.github_token != "" ? 1 : 0
-  agent_id = var.agent_id
-  name     = "GH_TOKEN"
+  name     = "COPILOT_GITHUB_TOKEN"
   value    = var.github_token
 }
 

@@ -336,14 +336,13 @@ describe("copilot", async () => {
     expect(mcp.mcpServers.extra).toBeDefined();
   });
 
-  test("github-token-env-vars", async () => {
+  test("github-token-env-var", async () => {
     const token = "ghp_test_token_123";
     const { coderEnvVars } = await setup({
       moduleVariables: {
         github_token: token,
       },
     });
-    expect(coderEnvVars["GITHUB_TOKEN"]).toBe(token);
-    expect(coderEnvVars["GH_TOKEN"]).toBe(token);
+    expect(coderEnvVars["COPILOT_GITHUB_TOKEN"]).toBe(token);
   });
 });

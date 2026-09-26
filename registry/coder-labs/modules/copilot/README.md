@@ -61,7 +61,7 @@ resource "coder_app" "copilot" {
   command      = <<-EOT
     #!/usr/bin/env bash
     set -e
-    token="$(coder external-auth access-token github)" && export GITHUB_TOKEN="$token" GH_TOKEN="$token"
+    token="$(coder external-auth access-token github)" && export COPILOT_GITHUB_TOKEN="$token"
     cd "${local.copilot_workdir}"
     exec copilot --allow-all-tools
   EOT
@@ -76,7 +76,7 @@ resource "coder_app" "copilot" {
 ### Direct token authentication
 
 Provide a GitHub token instead of using Coder external auth. When set, the module
-exports it to the workspace as `GITHUB_TOKEN` and `GH_TOKEN`.
+exports it to the workspace as `COPILOT_GITHUB_TOKEN`.
 
 ```tf
 variable "github_token" {
@@ -215,7 +215,7 @@ resource "coder_script" "post_copilot" {
 The module supports multiple GitHub authentication methods:
 
 1. **[Coder External Auth](https://coder.com/docs/admin/external-auth) (Recommended)** - Fetch a fresh token at launch in your `coder_app` command with `coder external-auth access-token <id>`.
-2. **Direct Token** - Pass the `github_token` variable (OAuth or Personal Access Token). Exported as `GITHUB_TOKEN` and `GH_TOKEN`.
+2. **Direct Token** - Pass the `github_token` variable (OAuth or Personal Access Token). Exported as `COPILOT_GITHUB_TOKEN`.
 3. **Interactive** - Copilot prompts for login via the `/login` command if no auth is found.
 
 ## Troubleshooting

@@ -32,13 +32,8 @@ run "github_token_creates_env_vars" {
   }
 
   assert {
-    condition     = coder_env.github_token[0].name == "GITHUB_TOKEN" && coder_env.github_token[0].value == "test_github_token_abc123"
-    error_message = "GITHUB_TOKEN env var should be created with the provided token"
-  }
-
-  assert {
-    condition     = coder_env.gh_token[0].name == "GH_TOKEN" && coder_env.gh_token[0].value == "test_github_token_abc123"
-    error_message = "GH_TOKEN env var should be created with the provided token"
+    condition     = coder_env.github_token[0].name == "COPILOT_GITHUB_TOKEN" && coder_env.github_token[0].value == "test_github_token_abc123"
+    error_message = "COPILOT_GITHUB_TOKEN env var should be created with the provided token"
   }
 }
 
@@ -52,8 +47,8 @@ run "github_token_not_created_when_empty" {
   }
 
   assert {
-    condition     = length(coder_env.github_token) == 0 && length(coder_env.gh_token) == 0
-    error_message = "GitHub token env vars should not be created when empty"
+    condition     = length(coder_env.github_token) == 0
+    error_message = "GitHub token env var should not be created when empty"
   }
 }
 
