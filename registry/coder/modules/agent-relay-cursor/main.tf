@@ -81,6 +81,21 @@ variable "log_file" {
   description = "Path the detached worker's output is written to."
 }
 
+variable "shutdown_grace_seconds" {
+  description = <<-EOT
+    Seconds the stop script waits for the worker to exit after signalling it, and the value a template should grant the workspace so that wait can finish.
+
+    Unlike the Claude Code runner, the Cursor CLI advertises no shutdown budget and exposes no drain flag, so this is not derived from the CLI -- it is a ceiling you tune. A workspace whose worker has already exited stops immediately either way.
+  EOT
+  type        = number
+  default     = 60
+
+  validation {
+    condition     = var.shutdown_grace_seconds > 0 && floor(var.shutdown_grace_seconds) == var.shutdown_grace_seconds
+    error_message = "shutdown_grace_seconds must be a whole number of seconds greater than zero."
+  }
+}
+
 variable "serving_log_pattern" {
   type        = string
   default     = "in use"
@@ -268,6 +283,12 @@ locals {
     install_cli = var.install_cli
   })
 
+  stop_script = templatefile("${path.module}/stop.sh.tftpl", {
+    cli_binary      = var.cli_binary
+    state_file      = var.state_file
+    drain_timeout_s = var.shutdown_grace_seconds
+  })
+
   start_script = templatefile("${path.module}/start.sh.tftpl", {
     module_directory = local.module_directory
     cli_binary       = var.cli_binary
@@ -276,6 +297,20 @@ locals {
     state_file       = var.state_file
     log_file         = var.log_file
   })
+}
+
+# coder-utils runs install and start steps only, so the stop step is a
+# plain coder_script beside it. It is deliberately outside the
+# `coder exp sync` ordering the module's other scripts take part in:
+# nothing runs after it.
+resource "coder_script" "stop" {
+  agent_id           = var.agent_id
+  display_name       = "Cursor worker: Stop Script"
+  icon               = "/icon/cursor.svg"
+  run_on_start       = false
+  run_on_stop        = true
+  start_blocks_login = false
+  script             = local.stop_script
 }
 
 module "coder_utils" {
@@ -340,4 +375,9 @@ resource "coder_app" "cursor_desktop" {
   icon         = "/icon/cursor.svg"
   url          = "cursor://anysphere.cursor-deeplink/background-agent?bcId=${data.coder_parameter.agent_relay_session_id.value}"
   external     = true
+}
+
+output "shutdown_grace_seconds" {
+  description = "Seconds the platform must give the workspace to shut down for the worker to drain instead of being killed. Wire it into the compute resource the template owns: docker_container.destroy_grace_seconds, or a pod spec's termination_grace_period_seconds. A module owns no compute resource and cannot set this itself. The value is a ceiling, not a fixed wait."
+  value       = var.shutdown_grace_seconds
 }

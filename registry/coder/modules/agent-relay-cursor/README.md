@@ -140,3 +140,37 @@ disk: a live worker is left alone, a terminal state is left for the relay
 to act on, and anything else is reset to `pending` before a new worker
 starts. Liveness is judged by pid and cmdline, so a reused pid reads as
 `orphaned` rather than `working`.
+
+## Graceful shutdown
+
+The start step detaches the supervisor with `setsid`, so it lives in its
+own session and never receives the SIGTERM the container's init gets on
+shutdown. The module therefore registers a stop script that relays the
+signal to the worker and waits for it to exit. It confirms the pid is
+still the worker before signalling, sends SIGTERM only, and never writes
+the state file.
+
+That half only works if the platform gives the workspace time to use it,
+which the module cannot arrange: it owns no compute resource. Wire the
+exported budget into the one the template owns.
+
+```tf
+resource "docker_container" "workspace" {
+  # ...
+  destroy_grace_seconds = module.cursor_worker.shutdown_grace_seconds
+}
+```
+
+On Kubernetes the equivalent is the pod spec's
+`termination_grace_period_seconds`.
+
+**Skip it and the drain never happens.** The Docker provider destroys the
+container with a zero stop timeout unless `destroy_grace_seconds` is set,
+so the container is killed before the stop script can finish: the worker
+never deregisters from its pool and work in flight is lost.
+
+Unlike the Claude Code runner, the Cursor CLI advertises no shutdown
+budget and exposes no drain flag, so `shutdown_grace_seconds` is not
+derived from the CLI — it defaults to 60 and is yours to tune. It is a
+ceiling rather than a fixed wait, so a workspace whose worker has already
+exited still stops immediately.
