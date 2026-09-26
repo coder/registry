@@ -76,10 +76,16 @@ chmod +x "$wrapper"
 # The supervisor outlives this script: it owns the runner process and is
 # the only writer of terminal state. Written to disk rather than inlined
 # so setsid gets a clean argv.
+#
+# The client label is free-form text a human wrote, so it crosses into the
+# supervisor base64-encoded and is decoded into a variable there rather
+# than rendered as a command word.
 supervisor="$state_dir/supervise.sh"
 cat >"$supervisor" <<SUPERVISOR
 #!/usr/bin/env bash
 set -uo pipefail
+
+client_label=\$(echo -n '${client_label}' | base64 -d)
 
 write_state() {
 	printf '%s\n' "\$1" >"$state_file.tmp"
@@ -93,6 +99,13 @@ ${cli_binary} self-hosted-runner \\
 %{ if exit_if_unused_min > 0 ~}
 	--exit-if-unused-min ${exit_if_unused_min} \\
 %{ endif ~}
+%{ if drain_wait_sec > 0 ~}
+	--drain-wait-sec ${drain_wait_sec} \\
+%{ endif ~}
+%{ if push_outcome_on_release ~}
+	--push-outcome-on-release \\
+%{ endif ~}
+	--client-label "\$client_label" \\
 	--exec-path "$wrapper" >"$log_file" 2>&1 &
 runner_pid=\$!
 write_state "working \$runner_pid"
