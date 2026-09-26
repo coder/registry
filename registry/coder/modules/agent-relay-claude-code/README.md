@@ -49,6 +49,8 @@ when to reap the workspace.
 
 ## Requirements
 
+- A Coder deployment running 2.37 or newer, which Agent Relay refuses to
+  start against otherwise.
 - The `claude` CLI must be in the workspace. `install_cli` (default `true`)
   downloads it at start only when it is not already on PATH; bake it into the
   image for the fastest start. `cli_binary` overrides the path.
@@ -145,6 +147,48 @@ rather than reporting `working` forever.
 | `failed <reason>` | runner could not start, e.g. `runner-agent-missing` when the CLI is absent |
 
 Renaming the `agent_relay_status` key breaks reaping.
+
+## Git authentication
+
+`use_anthropic_git_proxy` authenticates clones server-side, so the
+workspace holds no git credentials. A session a person created uses their
+GitHub OAuth token; one a bot or agent created uses the organization's
+GitHub App installation token.
+
+```tf
+module "claude_code_runner" {
+  # ...
+  use_anthropic_git_proxy = true
+}
+```
+
+That second path is the only git auth that works when the workspace owner
+is a **service account**, which you detect with `login_type = "none"`.
+Such an owner can never sign in, so it can never complete the OAuth flow
+a `coder_external_auth` block depends on. Gate on it if you want the
+proxy only there; the flag serves human sessions equally well, so
+enabling it everywhere is also fine:
+
+```tf
+# login_type "none" means a service account: it cannot sign in, so it
+# cannot link GitHub.
+use_anthropic_git_proxy = data.coder_workspace_owner.me.login_type == "none"
+```
+
+`configure_git` follows it by default, setting the identity to
+`Claude <noreply@anthropic.com>` with signed commits. The proxy replaces
+the HOME git config with credentials only, so without this there is no
+identity and commits fail. Override either way:
+
+```tf
+configure_git = false # image keeps its identity in /etc/gitconfig
+configure_git = true  # sign as Claude without the proxy
+```
+
+**The proxy rewrites the runner account's git config**, deleting
+`~/.gitconfig`, the `GIT_CONFIG_GLOBAL` target and all of
+`$XDG_CONFIG_HOME/git` at startup and before every session, with no
+backup. Do not enable it on a workspace a person also works in.
 
 ## Graceful shutdown
 
