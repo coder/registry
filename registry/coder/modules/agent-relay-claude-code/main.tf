@@ -113,6 +113,28 @@ variable "client_label" {
   default     = ""
 }
 
+variable "configure_git" {
+  description = <<-EOT
+    Set the global git identity to Claude <noreply@anthropic.com> and sign commits through Anthropic's signing service (the CLI's --configure-git).
+
+    Defaults to following use_anthropic_git_proxy: that flag replaces the HOME git config with credentials only, so the proxy alone leaves no identity and commits fail. Set false if your image keeps an identity in /etc/gitconfig, which the proxy does not touch; set true to sign commits without the proxy.
+  EOT
+  type        = bool
+  default     = null
+}
+
+variable "use_anthropic_git_proxy" {
+  description = <<-EOT
+    Authenticate clones server-side instead of holding git credentials in the workspace (the CLI's --use-anthropic-git-proxy). A session a person created uses their GitHub OAuth token; one a bot or agent created uses the organization's GitHub App installation token.
+
+    That second path is the only one that works when the workspace owner is a service account, which login_type "none" indicates: it can never sign in, so it can never complete a coder_external_auth flow.
+
+    DESTRUCTIVE: at startup and before every session the runner deletes ~/.gitconfig, the GIT_CONFIG_GLOBAL target and all of $XDG_CONFIG_HOME/git, with no backup. That isolation is the point for an ephemeral single-session workspace. Do not enable it on a workspace a person also works in, and expect it to override any identity a git-config module wrote.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "serving_log_pattern" {
   type        = string
   default     = "Picked up session"
@@ -231,6 +253,10 @@ locals {
   # tree so one directory holds everything a debugger needs.
   module_directory = "$HOME/.coder-modules/coder/agent-relay-claude-code"
 
+  # The proxy restores credentials but no identity, so the two travel
+  # together unless a template says otherwise.
+  configure_git = var.configure_git != null ? var.configure_git : var.use_anthropic_git_proxy
+
   # coder-utils prefixes its own steps with this; the stop step is a
   # plain coder_script, so it joins the same naming by hand.
   display_name_prefix = "Claude Code runner"
@@ -251,6 +277,8 @@ locals {
     exit_if_unused_min      = var.exit_if_unused_min
     drain_wait_sec          = var.drain_wait_sec
     push_outcome_on_release = var.push_outcome_on_release
+    use_anthropic_git_proxy = var.use_anthropic_git_proxy
+    configure_git           = local.configure_git
     # Free-form text: base64 so a label with quotes or spaces can never
     # become shell in the supervisor script.
     client_label = base64encode(local.client_label)
