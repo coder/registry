@@ -12,8 +12,7 @@ ARG_INSTALL='${ARG_INSTALL}'
 ARG_COPILOT_VERSION='${ARG_COPILOT_VERSION}'
 ARG_COPILOT_MODEL='${ARG_COPILOT_MODEL}'
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
-ARG_SETTINGS_CONFIG=$(echo -n '${ARG_SETTINGS_CONFIG}' | base64 -d)
-ARG_CONFIG_CONFIG=$(echo -n '${ARG_CONFIG_CONFIG}' | base64 -d)
+ARG_MANAGED_SETTINGS_JSON=$(echo -n '${ARG_MANAGED_SETTINGS_JSON}' | base64 -d)
 ARG_TRUSTED_FOLDERS=$(echo -n '${ARG_TRUSTED_FOLDERS}' | base64 -d)
 ARG_MCP_CONFIG=$(echo -n '${ARG_MCP_CONFIG}' | base64 -d)
 
@@ -133,77 +132,74 @@ setup_workdir() {
   fi
 }
 
-# Merge the module-provided user settings into ~/.copilot/settings.json. Copilot
-# moved user-editable settings out of config.json into settings.json, so that is
-# where banner/theme/model belong. The module owns the keys it sets (they win),
-# and any other on-disk keys Copilot manages at runtime are preserved.
-setup_copilot_settings() {
-  local settings_file="$HOME/.copilot/settings.json"
-
-  if [ -z "$${ARG_SETTINGS_CONFIG}" ]; then
-    echo "No Copilot settings provided; leaving $${settings_file} unchanged."
+# Write module-provided policy to Copilot's file-based managed settings. This is
+# the highest-precedence Copilot config and only supports policy keys (model,
+# permissions, allowedMcpServers, telemetry, sandbox, ...). Copilot rejects this
+# file if it is a symlink, not owned by root, or world-writable, so write it as
+# root with 0644. Mirrors the claude-code module's managed_settings handling.
+write_managed_settings() {
+  if [ -z "$${ARG_MANAGED_SETTINGS_JSON}" ]; then
     return
   fi
 
   if ! command_exists jq; then
-    echo "ERROR: 'jq' is required to configure Copilot but was not found." >&2
+    echo "ERROR: 'jq' is required to configure managed settings but was not found." >&2
     exit 1
   fi
 
-  mkdir -p "$(dirname "$${settings_file}")"
-  echo "Merging Copilot settings into $${settings_file}"
-
-  # Only reuse the existing file when it is valid JSON; settings.json may contain
-  # comments (JSONC), which jq cannot parse, so fall back to a fresh object.
-  local existing='{}'
-  if [ -f "$${settings_file}" ] && jq empty "$${settings_file}" > /dev/null 2>&1; then
-    existing=$(cat "$${settings_file}")
+  if ! echo "$${ARG_MANAGED_SETTINGS_JSON}" | jq empty 2> /dev/null; then
+    echo "Warning: managed_settings is not valid JSON, skipping policy write"
+    return
   fi
-  # `$existing * $module` lets module keys win while preserving on-disk-only keys.
-  echo "$${existing}" | jq --argjson module "$${ARG_SETTINGS_CONFIG}" '. * $module' > "$${settings_file}"
-  echo "Copilot settings completed: $${settings_file}"
+
+  local target="/etc/github-copilot/managed-settings.json"
+
+  if command_exists sudo; then
+    sudo mkdir -p "$(dirname "$${target}")"
+    echo "$${ARG_MANAGED_SETTINGS_JSON}" | sudo tee "$${target}" > /dev/null
+    sudo chmod 0644 "$${target}"
+  else
+    mkdir -p "$(dirname "$${target}")"
+    echo "$${ARG_MANAGED_SETTINGS_JSON}" > "$${target}"
+    chmod 0644 "$${target}"
+  fi
+
+  echo "Wrote Copilot managed settings to $${target}"
 }
 
-# Merge trusted folders into ~/.copilot/config.json. The user-provided base
-# config wins per key, workdir is unioned into trustedFolders, and all other
-# config.json state (authentication, installed plugins, ...) is preserved.
-setup_copilot_config() {
+# Trust the workdir by unioning it into config.json trustedFolders, so Copilot
+# does not prompt on launch. Only the trustedFolders key is touched; all other
+# config.json state (authentication, installed plugins, ...) is preserved. This
+# is the Copilot equivalent of claude-code auto-accepting the workdir trust.
+setup_trusted_folders() {
   local config_file="$HOME/.copilot/config.json"
 
-  if [ -z "$${ARG_CONFIG_CONFIG}" ] && [ -z "$${ARG_TRUSTED_FOLDERS}" ]; then
-    echo "No Copilot config provided; leaving $${config_file} unchanged."
+  if [ -z "$${ARG_TRUSTED_FOLDERS}" ]; then
+    echo "No workdir to trust; leaving $${config_file} unchanged."
     return
   fi
 
   if ! command_exists jq; then
-    echo "ERROR: 'jq' is required to configure Copilot but was not found." >&2
+    echo "ERROR: 'jq' is required to configure trusted folders but was not found." >&2
     exit 1
   fi
 
   mkdir -p "$(dirname "$${config_file}")"
-  echo "Merging Copilot config into $${config_file}"
+  echo "Trusting workdir in $${config_file}"
 
   local existing='{}'
   if [ -f "$${config_file}" ] && jq empty "$${config_file}" > /dev/null 2>&1; then
     existing=$(cat "$${config_file}")
   fi
-  local module="$${ARG_CONFIG_CONFIG}"
-  [ -z "$${module}" ] && module='{}'
-  local folders="$${ARG_TRUSTED_FOLDERS}"
-  [ -z "$${folders}" ] && folders='[]'
-
-  # Base config wins per key; trustedFolders is the union of existing, base, and
-  # the module-managed workdir list.
-  echo "$${existing}" | jq --argjson module "$${module}" --argjson folders "$${folders}" '
-    . as $existing
-    | ($existing * $module)
-    | .trustedFolders = ((($existing.trustedFolders // []) + ($module.trustedFolders // []) + $folders) | unique)
-  ' > "$${config_file}"
-  echo "Copilot config completed: $${config_file}"
+  echo "$${existing}" | jq --argjson folders "$${ARG_TRUSTED_FOLDERS}" \
+    '.trustedFolders = (((.trustedFolders // []) + $folders) | unique)' > "$${config_file}"
+  echo "Trusted folders completed: $${config_file}"
 }
 
-# Merge MCP servers into Copilot's user-level mcp-config.json. The module-provided
-# servers win on duplicate names; any other servers already on disk are preserved.
+# Merge MCP servers into Copilot's user-level mcp-config.json. Existing servers
+# win on duplicate names and module servers only fill in names not already on
+# disk. This matches claude-code, whose `claude mcp add-json` errors on an
+# existing name at the same scope and keeps the existing registration.
 setup_mcp_config() {
   local mcp_config_file="$HOME/.copilot/mcp-config.json"
 
@@ -226,9 +222,9 @@ setup_mcp_config() {
   fi
   local custom
   custom=$(echo "$${ARG_MCP_CONFIG}" | jq '.mcpServers // {}')
-  # `(existing + $custom)` merges with the right operand winning, so module
-  # servers override on duplicate names while other on-disk servers are kept.
-  echo "$${existing}" | jq --argjson custom "$${custom}" '.mcpServers = ((.mcpServers // {}) + $custom)' > "$${mcp_config_file}"
+  # `($custom + existing)` merges with the right operand winning, so existing
+  # on-disk servers win on duplicate names and module servers add new ones only.
+  echo "$${existing}" | jq --argjson custom "$${custom}" '.mcpServers = ($custom + (.mcpServers // {}))' > "$${mcp_config_file}"
   echo "MCP configuration completed: $${mcp_config_file}"
 }
 
@@ -242,8 +238,8 @@ configure_copilot_model() {
 
 install_copilot
 setup_workdir
-setup_copilot_settings
-setup_copilot_config
+write_managed_settings
+setup_trusted_folders
 setup_mcp_config
 configure_copilot_model
 

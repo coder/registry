@@ -38,21 +38,15 @@ variable "copilot_model" {
   default     = "claude-sonnet-4.5"
 }
 
-variable "copilot_settings" {
-  type        = string
-  description = "Base Copilot user settings as a JSON string, merged into `~/.copilot/settings.json` (banner, theme, model, etc.). Your keys win over existing on-disk keys; unrelated on-disk keys are preserved. Valid theme values: default, github, dim, high-contrast, colorblind."
-  default     = ""
+variable "managed_settings" {
+  type        = any
+  description = "Policy settings written to /etc/github-copilot/managed-settings.json. Highest-precedence Copilot config; only supported keys apply (model, permissions, allowedMcpServers, deniedMcpServers, telemetry, sandbox, etc.). See https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference#mdm-managed-settings"
+  default     = null
 }
 
-variable "copilot_config" {
+variable "mcp" {
   type        = string
-  description = "Base Copilot application config as a JSON string, merged into `~/.copilot/config.json` (for example trustedFolders). workdir is unioned into trustedFolders automatically. Your keys win over existing on-disk keys; unrelated on-disk state such as authentication is preserved."
-  default     = ""
-}
-
-variable "mcp_config" {
-  type        = string
-  description = "Custom MCP server configuration as JSON string (in the `{\"mcpServers\": {...}}` shape). Merged into Copilot's `~/.copilot/mcp-config.json`; these servers win over existing entries on duplicate names."
+  description = "Custom MCP server configuration as a JSON string (in the `{\"mcpServers\": {...}}` shape). Merged into Copilot's `~/.copilot/mcp-config.json`; existing servers on disk win on duplicate names."
   default     = ""
 }
 
@@ -148,14 +142,13 @@ locals {
   workdir_trusted_folders = local.workdir != "" ? [local.workdir] : []
 
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
-    ARG_INSTALL         = tostring(var.install_copilot)
-    ARG_COPILOT_VERSION = var.copilot_version
-    ARG_COPILOT_MODEL   = var.copilot_model
-    ARG_WORKDIR         = local.workdir != "" ? base64encode(local.workdir) : ""
-    ARG_SETTINGS_CONFIG = var.copilot_settings != "" ? base64encode(var.copilot_settings) : ""
-    ARG_CONFIG_CONFIG   = var.copilot_config != "" ? base64encode(var.copilot_config) : ""
-    ARG_TRUSTED_FOLDERS = length(local.workdir_trusted_folders) > 0 ? base64encode(jsonencode(local.workdir_trusted_folders)) : ""
-    ARG_MCP_CONFIG      = var.mcp_config != "" ? base64encode(var.mcp_config) : ""
+    ARG_INSTALL               = tostring(var.install_copilot)
+    ARG_COPILOT_VERSION       = var.copilot_version
+    ARG_COPILOT_MODEL         = var.copilot_model
+    ARG_WORKDIR               = local.workdir != "" ? base64encode(local.workdir) : ""
+    ARG_MANAGED_SETTINGS_JSON = var.managed_settings != null ? base64encode(jsonencode(var.managed_settings)) : ""
+    ARG_TRUSTED_FOLDERS       = length(local.workdir_trusted_folders) > 0 ? base64encode(jsonencode(local.workdir_trusted_folders)) : ""
+    ARG_MCP_CONFIG            = var.mcp != "" ? base64encode(var.mcp) : ""
   })
 
   module_dir_name = ".coder-modules/coder-labs/copilot"

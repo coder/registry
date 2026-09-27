@@ -178,8 +178,6 @@ const runScripts = async (
 const configDir = "/home/coder/.copilot";
 const readConfig = (id: string) =>
   readFileContainer(id, `${configDir}/config.json`);
-const readSettings = (id: string) =>
-  readFileContainer(id, `${configDir}/settings.json`);
 const readMcpConfig = (id: string) =>
   readFileContainer(id, `${configDir}/mcp-config.json`);
 const installLog = (id: string) =>
@@ -203,17 +201,9 @@ describe("copilot", async () => {
     expect(log).toContain("Copilot module setup completed.");
   });
 
-  test("writes-settings-and-trusted-folders", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: {
-        copilot_settings: JSON.stringify({ banner: "never", theme: "dim" }),
-      },
-    });
+  test("trusts-workdir-in-config", async () => {
+    const { id, scripts } = await setup();
     await runScripts(id, scripts);
-    // User-provided base settings land in settings.json.
-    const settings = JSON.parse(await readSettings(id));
-    expect(settings.banner).toBe("never");
-    expect(settings.theme).toBe("dim");
     // workdir is auto-trusted in config.json under trustedFolders.
     const config = JSON.parse(await readConfig(id));
     expect(config.trustedFolders).toContain(projectDir);
@@ -221,33 +211,8 @@ describe("copilot", async () => {
     expect(config.mcpServers).toBeUndefined();
   });
 
-  test("base-config-trusted-folders-union-workdir", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: {
-        copilot_config: JSON.stringify({
-          trustedFolders: ["/workspace", "/data"],
-        }),
-      },
-    });
-    await runScripts(id, scripts);
-    const config = JSON.parse(await readConfig(id));
-    expect(config.trustedFolders).toContain(projectDir);
-    expect(config.trustedFolders).toContain("/workspace");
-    expect(config.trustedFolders).toContain("/data");
-  });
-
-  test("settings-and-config-preserve-existing-state", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: {
-        copilot_settings: JSON.stringify({ banner: "never" }),
-        copilot_config: JSON.stringify({ trustedFolders: ["/from-var"] }),
-      },
-    });
-    // Seed settings.json with unmanaged user settings.
-    const settingsSeed = JSON.stringify({
-      theme: "dim",
-      model: "user-picked-model",
-    });
+  test("trusted-folders-union-preserves-existing-state", async () => {
+    const { id, scripts } = await setup();
     // Seed config.json with an interactively trusted folder and auth-like state.
     const configSeed = JSON.stringify({
       trustedFolders: ["/interactively-trusted"],
@@ -256,33 +221,54 @@ describe("copilot", async () => {
     await execContainer(id, [
       "bash",
       "-c",
-      `mkdir -p /home/coder/.copilot && cat > /home/coder/.copilot/settings.json <<'JSON'\n${settingsSeed}\nJSON`,
-    ]);
-    await execContainer(id, [
-      "bash",
-      "-c",
-      `cat > /home/coder/.copilot/config.json <<'JSON'\n${configSeed}\nJSON`,
+      `mkdir -p /home/coder/.copilot && cat > /home/coder/.copilot/config.json <<'JSON'\n${configSeed}\nJSON`,
     ]);
     await runScripts(id, scripts);
-    const settings = JSON.parse(await readSettings(id));
     const config = JSON.parse(await readConfig(id));
-    // User-provided key wins in settings.json.
-    expect(settings.banner).toBe("never");
-    // Unmanaged settings are preserved.
-    expect(settings.theme).toBe("dim");
-    expect(settings.model).toBe("user-picked-model");
-    // trustedFolders is the union of existing + base config + workdir.
+    // trustedFolders is the union of existing + workdir.
     expect(config.trustedFolders).toContain("/interactively-trusted");
-    expect(config.trustedFolders).toContain("/from-var");
     expect(config.trustedFolders).toContain(projectDir);
     // Unrelated config.json application state is preserved.
     expect(config.loggedInUsers).toContain("octocat");
   });
 
+  test("managed-settings-written", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        managed_settings: JSON.stringify({
+          model: "claude-sonnet-4.5",
+          permissions: { deny: ["Shell(rm -rf *)"] },
+        }),
+      },
+    });
+    await runScripts(id, scripts);
+    const policy = await execContainer(id, [
+      "bash",
+      "-c",
+      "cat /etc/github-copilot/managed-settings.json",
+    ]);
+    expect(policy.exitCode).toBe(0);
+    expect(policy.stdout).toContain('"model":"claude-sonnet-4.5"');
+    expect(policy.stdout).toContain('"deny":["Shell(rm -rf *)"]');
+    const log = await installLog(id);
+    expect(log).toContain("Wrote Copilot managed settings");
+  });
+
+  test("managed-settings-not-set", async () => {
+    const { id, scripts } = await setup();
+    await runScripts(id, scripts);
+    const resp = await execContainer(id, [
+      "bash",
+      "-c",
+      "test -e /etc/github-copilot/managed-settings.json && echo EXISTS || echo ABSENT",
+    ]);
+    expect(resp.stdout.trim()).toBe("ABSENT");
+  });
+
   test("writes-custom-mcp-servers-without-coder-server", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {
-        mcp_config: JSON.stringify({
+        mcp: JSON.stringify({
           mcpServers: {
             filesystem: {
               command: "npx",
@@ -303,10 +289,10 @@ describe("copilot", async () => {
     expect(mcp.mcpServers.coder).toBeUndefined();
   });
 
-  test("merges-mcp-config-module-servers-win", async () => {
+  test("merges-mcp-config-existing-servers-win", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {
-        mcp_config: JSON.stringify({
+        mcp: JSON.stringify({
           mcpServers: {
             filesystem: { command: "module-command", type: "local" },
             extra: { command: "npx", type: "local" },
@@ -328,8 +314,8 @@ describe("copilot", async () => {
     ]);
     await runScripts(id, scripts);
     const mcp = JSON.parse(await readMcpConfig(id));
-    // Module-provided server wins on the duplicate key.
-    expect(mcp.mcpServers.filesystem.command).toBe("module-command");
+    // Existing on-disk server wins on the duplicate key (matches claude-code).
+    expect(mcp.mcpServers.filesystem.command).toBe("existing-command");
     // Unrelated on-disk server is preserved.
     expect(mcp.mcpServers.seeded).toBeDefined();
     // Non-conflicting module server is merged in.

@@ -130,7 +130,7 @@ When `enable_ai_gateway = true`, the module sets `HTTPS_PROXY` and `NODE_EXTRA_C
 
 ### Advanced configuration
 
-Customize MCP servers, trusted directories, and Copilot settings:
+Customize MCP servers, policy, and Copilot settings:
 
 ```tf
 module "copilot" {
@@ -142,20 +142,17 @@ module "copilot" {
   # Version pinning (defaults to "latest")
   copilot_version = "0.0.334"
 
-  # Base user settings, merged into ~/.copilot/settings.json
-  copilot_settings = jsonencode({
-    banner = "never"
-    theme  = "dim"
-  })
-
-  # Base application config, merged into ~/.copilot/config.json.
-  # workdir is unioned into trustedFolders automatically.
-  copilot_config = jsonencode({
-    trustedFolders = ["/home/coder/project", "/tmp"]
-  })
+  # Policy written to /etc/github-copilot/managed-settings.json (highest precedence).
+  # Only supported keys apply (model, permissions, allowedMcpServers, telemetry, sandbox, ...).
+  managed_settings = {
+    model = "claude-sonnet-4.5"
+    permissions = {
+      deny = ["Shell(rm -rf *)"]
+    }
+  }
 
   # MCP server configuration (merged into ~/.copilot/mcp-config.json)
-  mcp_config = jsonencode({
+  mcp = jsonencode({
     mcpServers = {
       filesystem = {
         command = "npx"
@@ -175,10 +172,10 @@ module "copilot" {
 ```
 
 > [!NOTE]
-> Servers from `mcp_config` are merged into `~/.copilot/mcp-config.json`, Copilot's documented user-level MCP config. Module-provided servers win on duplicate names, while other servers already on disk are preserved. GitHub Copilot CLI does not automatically install MCP servers. Either use `npx -y` in the config (shown above) to auto-install on each run, or pre-install MCP servers in `pre_install_script` for faster startup.
+> Servers from `mcp` are merged into `~/.copilot/mcp-config.json`, Copilot's documented user-level MCP config. Existing servers already on disk win on duplicate names (matching claude-code's behavior, where `claude mcp add` errors on an existing name and keeps the current one), and module servers only add names not already present. GitHub Copilot CLI does not automatically install MCP servers. Either use `npx -y` in the config (shown above) to auto-install on each run, or pre-install MCP servers in `pre_install_script` for faster startup.
 
 > [!NOTE]
-> Configuration is written to the files Copilot CLI documents for each purpose: `copilot_settings` is merged into user-editable settings at `~/.copilot/settings.json` (`banner`, `theme`, `model`, and similar keys), and `copilot_config` is merged into `~/.copilot/config.json` (for example `trustedFolders`), with `workdir` unioned into `trustedFolders` automatically. Your keys win over existing on-disk keys in each file; unrelated on-disk state such as authentication is preserved. Valid `theme` values are `default`, `github`, `dim`, `high-contrast`, and `colorblind`.
+> Configuration is written to the files Copilot CLI documents for each purpose. `managed_settings` is written verbatim to `/etc/github-copilot/managed-settings.json` — Copilot's highest-precedence policy layer, which supports only a fixed set of keys (`model`, `permissions`, `allowedMcpServers`, `deniedMcpServers`, `telemetry`, `sandbox`, and similar); see the [managed settings reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference#mdm-managed-settings). `mcp` is merged into `~/.copilot/mcp-config.json`, and `workdir` is trusted automatically by unioning it into `trustedFolders` in `~/.copilot/config.json`. The module only touches the keys it owns in each file; unrelated on-disk state such as authentication is preserved.
 
 ### Serialize a downstream `coder_script` after the install pipeline
 
