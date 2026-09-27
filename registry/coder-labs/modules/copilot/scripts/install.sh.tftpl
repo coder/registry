@@ -69,8 +69,7 @@ function ensure_copilot_in_path() {
 }
 
 # Download the official installer to a temp file, validate it, then run it.
-# Mirrors the claude-code module's install flow. Run in a subshell so the trap
-# that removes the temp file is scoped to this function.
+# Subshell scopes the temp-file cleanup trap to this function.
 install_with_official_installer() (
   local installer_file
   installer_file=$(mktemp)
@@ -89,8 +88,7 @@ install_with_official_installer() (
     return 1
   fi
 
-  # VERSION accepts 'latest', a 'vX.Y.Z' tag, or a bare 'X.Y.Z' (normalized by
-  # the installer). PREFIX installs the binary under $HOME/.local/bin.
+  # VERSION accepts 'latest' or a version tag; PREFIX installs under $HOME/.local/bin.
   if ! VERSION="$${ARG_COPILOT_VERSION}" PREFIX="$HOME/.local" bash "$${installer_file}"; then
     echo "GitHub Copilot CLI installation failed." >&2
     return 1
@@ -132,11 +130,9 @@ setup_workdir() {
   fi
 }
 
-# Write module-provided policy to Copilot's file-based managed settings. This is
-# the highest-precedence Copilot config and only supports policy keys (model,
-# permissions, allowedMcpServers, telemetry, sandbox, ...). Copilot rejects this
-# file if it is a symlink, not owned by root, or world-writable, so write it as
-# root with 0644. Mirrors the claude-code module's managed_settings handling.
+# Write policy to Copilot's file-based managed settings (highest precedence).
+# Copilot rejects it unless owned by root and not world-writable, so write as
+# root with 0644.
 write_managed_settings() {
   if [ -z "$${ARG_MANAGED_SETTINGS_JSON}" ]; then
     return
@@ -167,10 +163,8 @@ write_managed_settings() {
   echo "Wrote Copilot managed settings to $${target}"
 }
 
-# Trust the workdir by unioning it into config.json trustedFolders, so Copilot
-# does not prompt on launch. Only the trustedFolders key is touched; all other
-# config.json state (authentication, installed plugins, ...) is preserved. This
-# is the Copilot equivalent of claude-code auto-accepting the workdir trust.
+# Trust the workdir by unioning it into config.json trustedFolders. Only that
+# key is touched; other config.json state (authentication, plugins) is preserved.
 setup_trusted_folders() {
   local config_file="$HOME/.copilot/config.json"
 
@@ -196,10 +190,8 @@ setup_trusted_folders() {
   echo "Trusted folders completed: $${config_file}"
 }
 
-# Merge MCP servers into Copilot's user-level mcp-config.json. Existing servers
-# win on duplicate names and module servers only fill in names not already on
-# disk. This matches claude-code, whose `claude mcp add-json` errors on an
-# existing name at the same scope and keeps the existing registration.
+# Merge MCP servers into Copilot's user-level mcp-config.json; existing servers
+# on disk win on duplicate names.
 setup_mcp_config() {
   local mcp_config_file="$HOME/.copilot/mcp-config.json"
 
@@ -222,8 +214,7 @@ setup_mcp_config() {
   fi
   local custom
   custom=$(echo "$${ARG_MCP_CONFIG}" | jq '.mcpServers // {}')
-  # `($custom + existing)` merges with the right operand winning, so existing
-  # on-disk servers win on duplicate names and module servers add new ones only.
+  # Right operand wins, so existing on-disk servers win on duplicate names.
   echo "$${existing}" | jq --argjson custom "$${custom}" '.mcpServers = ($custom + (.mcpServers // {}))' > "$${mcp_config_file}"
   echo "MCP configuration completed: $${mcp_config_file}"
 }

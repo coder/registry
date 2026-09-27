@@ -117,9 +117,8 @@ resource "coder_env" "github_token" {
   value    = var.github_token
 }
 
-# Route Copilot's traffic through the AI Gateway Proxy. The pre-migration module
-# scoped these to the Copilot process via its start script; with no start script
-# they are set at the agent level, so they apply workspace-wide.
+# Set at the agent level, so proxy env applies workspace-wide (the pre-migration
+# module scoped it to the Copilot process via its start script).
 resource "coder_env" "ai_gateway_https_proxy" {
   count    = var.enable_ai_gateway ? 1 : 0
   agent_id = var.agent_id
@@ -137,8 +136,7 @@ resource "coder_env" "ai_gateway_node_extra_ca_certs" {
 locals {
   workdir = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
 
-  # workdir is trusted automatically; the install script unions it into the
-  # trustedFolders array in config.json.
+  # workdir is trusted automatically via config.json trustedFolders.
   workdir_trusted_folders = local.workdir != "" ? [local.workdir] : []
 
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
