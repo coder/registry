@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Start Selkies with the workspace's desktop behind the app's port, unless it
+# already answers. Coder authenticates the app and terminates TLS, so Selkies
+# listens on the loopback addresses without a login or TLS of its own.
+set -euo pipefail
+
+ARG_PORT='${ARG_PORT}'
+ARG_WAYLAND='${ARG_WAYLAND}'
+ARG_DESKTOP=$(echo -n '${ARG_DESKTOP_B64}' | base64 -d)
+LOG_PATH="$HOME/.coder-modules/selkies-project/selkies/logs/selkies-session.log"
+
+# A GET of /api/health over bash's own TCP, so the check needs no curl
+healthy() {
+  (
+    exec 3<> "/dev/tcp/127.0.0.1/$ARG_PORT"
+    printf 'GET /api/health HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3
+    read -r -t 5 _ status _ <&3
+    [ "$status" = 200 ]
+  ) 2> /dev/null
+}
+
+if healthy; then
+  echo "Selkies already answers on port $ARG_PORT"
+  exit 0
+fi
+
+mkdir -p "$(dirname "$LOG_PATH")"
+args=(--port="$ARG_PORT" --enable-basic-auth=false --enable-https=false)
+[ -z "$ARG_DESKTOP" ] || args+=(--session="$ARG_DESKTOP")
+SELKIES_WAYLAND="$ARG_WAYLAND" nohup selkies-session "$${args[@]}" >> "$LOG_PATH" 2>&1 &
+pid=$!
+echo "Starting Selkies on port $ARG_PORT; its log is $LOG_PATH"
+for _ in $(seq 1 60); do
+  if healthy; then
+    echo "Selkies is ready on port $ARG_PORT"
+    exit 0
+  fi
+  if ! kill -0 "$pid" 2> /dev/null; then
+    echo "Selkies exited before it answered; the end of its log:" >&2
+    tail -n 20 "$LOG_PATH" >&2
+    exit 1
+  fi
+  sleep 1
+done
+echo "Selkies did not answer on port $ARG_PORT within 60 seconds; see $LOG_PATH" >&2
+exit 1
