@@ -20,16 +20,7 @@ module "copilot" {
 ```
 
 > [!WARNING]
-> If upgrading from v0.x of this module: v1 is a major refactor that drops support for Coder Tasks and AgentAPI. The module now only installs and configures Copilot; you launch it yourself with a `coder_app` (see below). Keep using v0.x if you depend on the embedded web app or task reporting.
-
-## Prerequisites
-
-- **[Active Copilot subscription](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot)** (GitHub Copilot Pro, Pro+, Business, or Enterprise)
-- **`curl`** (or `wget`) available in the workspace for the official install script
-- **GitHub authentication** via one of:
-  - [Coder external authentication](https://coder.com/docs/admin/external-auth) (recommended), fetched at launch in your `coder_app`
-  - Direct token via the `github_token` variable
-  - Interactive login in Copilot (`/login`)
+> If upgrading from v0.x of this module: v1 is a major refactor that drops support for Coder Tasks and AgentAPI. The module now only installs and configures Copilot; you launch it yourself with a `coder_app` (see below).
 
 ## Examples
 
@@ -68,11 +59,6 @@ resource "coder_app" "copilot" {
 }
 ```
 
-> [!NOTE]
-> Tool permissions (`--allow-all-tools`, `--allow-tool`, `--deny-tool`) and
-> session resumption (`--continue`) are session-only Copilot CLI flags, so pass
-> them to `copilot` in your `coder_app` command rather than to the module.
-
 ### Direct token authentication
 
 Provide a GitHub token instead of using Coder external auth. When set, the module
@@ -93,9 +79,6 @@ module "copilot" {
   github_token = var.github_token
 }
 ```
-
-> [!NOTE]
-> OAuth tokens work best with Copilot. Personal Access Tokens may have limited functionality.
 
 ### Usage with AI Gateway Proxy
 
@@ -170,12 +153,6 @@ module "copilot" {
   EOT
 }
 ```
-
-> [!NOTE]
-> Servers from `mcp` are merged into `~/.copilot/mcp-config.json`, Copilot's documented user-level MCP config. Existing servers already on disk win on duplicate names (matching claude-code's behavior, where `claude mcp add` errors on an existing name and keeps the current one), and module servers only add names not already present. GitHub Copilot CLI does not automatically install MCP servers. Either use `npx -y` in the config (shown above) to auto-install on each run, or pre-install MCP servers in `pre_install_script` for faster startup.
-
-> [!NOTE]
-> Configuration is written to the files Copilot CLI documents for each purpose. `managed_settings` is written verbatim to `/etc/github-copilot/managed-settings.json` — Copilot's highest-precedence policy layer, which supports only a fixed set of keys (`model`, `permissions`, `allowedMcpServers`, `deniedMcpServers`, `telemetry`, `sandbox`, and similar); see the [managed settings reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference#mdm-managed-settings). `mcp` is merged into `~/.copilot/mcp-config.json`, and `workdir` is trusted automatically by unioning it into `trustedFolders` in `~/.copilot/config.json`. The module only touches the keys it owns in each file; unrelated on-disk state such as authentication is preserved.
 
 ### Serialize a downstream `coder_script` after the install pipeline
 
