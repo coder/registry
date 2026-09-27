@@ -142,7 +142,6 @@ locals {
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_INSTALL               = tostring(var.install_copilot)
     ARG_COPILOT_VERSION       = var.copilot_version
-    ARG_COPILOT_MODEL         = var.copilot_model
     ARG_WORKDIR               = local.workdir != "" ? base64encode(local.workdir) : ""
     ARG_MANAGED_SETTINGS_JSON = var.managed_settings != null ? base64encode(jsonencode(var.managed_settings)) : ""
     ARG_TRUSTED_FOLDERS       = length(local.workdir_trusted_folders) > 0 ? base64encode(jsonencode(local.workdir_trusted_folders)) : ""

@@ -10,7 +10,6 @@ command_exists() {
 
 ARG_INSTALL='${ARG_INSTALL}'
 ARG_COPILOT_VERSION='${ARG_COPILOT_VERSION}'
-ARG_COPILOT_MODEL='${ARG_COPILOT_MODEL}'
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
 ARG_MANAGED_SETTINGS_JSON=$(echo -n '${ARG_MANAGED_SETTINGS_JSON}' | base64 -d)
 ARG_TRUSTED_FOLDERS=$(echo -n '${ARG_TRUSTED_FOLDERS}' | base64 -d)
@@ -21,7 +20,6 @@ export PATH="$HOME/.local/bin:$PATH"
 echo "--------------------------------"
 printf "install_copilot: %s\n" "$${ARG_INSTALL}"
 printf "copilot_version: %s\n" "$${ARG_COPILOT_VERSION}"
-printf "copilot_model: %s\n" "$${ARG_COPILOT_MODEL}"
 printf "workdir: %s\n" "$${ARG_WORKDIR}"
 echo "--------------------------------"
 
@@ -219,19 +217,10 @@ setup_mcp_config() {
   echo "MCP configuration completed: $${mcp_config_file}"
 }
 
-configure_copilot_model() {
-  if [ -n "$${ARG_COPILOT_MODEL}" ]; then
-    echo "Setting Copilot model to: $${ARG_COPILOT_MODEL}"
-    copilot config model "$${ARG_COPILOT_MODEL}" 2> /dev/null \
-      || echo "Note: could not persist model via 'copilot config'; the COPILOT_MODEL env var is used as a fallback."
-  fi
-}
-
 install_copilot
 setup_workdir
 write_managed_settings
 setup_trusted_folders
 setup_mcp_config
-configure_copilot_model
 
 echo "Copilot module setup completed."
