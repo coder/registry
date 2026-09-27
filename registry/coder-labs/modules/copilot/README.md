@@ -154,9 +154,9 @@ module "copilot" {
   # MCP server configuration (merged into ~/.copilot/mcp-config.json)
   mcp = jsonencode({
     mcpServers = {
-      filesystem = {
+      playwright = {
         command = "npx"
-        args    = ["-y", "@modelcontextprotocol/server-filesystem", "/home/coder/project"]
+        args    = ["-y", "@playwright/mcp@latest"]
         type    = "local"
         tools   = ["*"]
       }
@@ -166,7 +166,7 @@ module "copilot" {
   # Pre-install an MCP server for faster startup
   pre_install_script = <<-EOT
     #!/usr/bin/env bash
-    npm install -g @modelcontextprotocol/server-filesystem
+    npm install -g @playwright/mcp
   EOT
 }
 ```
