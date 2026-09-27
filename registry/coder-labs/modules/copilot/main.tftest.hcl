@@ -7,8 +7,8 @@ run "defaults_are_correct" {
   }
 
   assert {
-    condition     = var.copilot_model == "claude-sonnet-4.5"
-    error_message = "Default model should be 'claude-sonnet-4.5'"
+    condition     = var.copilot_model == ""
+    error_message = "copilot_model should default to an empty string"
   }
 
   assert {
@@ -67,18 +67,17 @@ run "copilot_model_env_var_uses_given_model" {
   }
 }
 
-run "copilot_model_env_var_is_always_set" {
+run "copilot_model_env_var_not_created_when_empty" {
   command = plan
 
   variables {
-    agent_id      = "test-agent"
-    workdir       = "/home/coder"
-    copilot_model = "claude-sonnet-4.5"
+    agent_id = "test-agent"
+    workdir  = "/home/coder"
   }
 
   assert {
-    condition     = coder_env.copilot_model[0].name == "COPILOT_MODEL" && coder_env.copilot_model[0].value == "claude-sonnet-4.5"
-    error_message = "COPILOT_MODEL env var should be set to the model as given, including the default"
+    condition     = length(coder_env.copilot_model) == 0
+    error_message = "COPILOT_MODEL env var should not be created when copilot_model is empty"
   }
 }
 

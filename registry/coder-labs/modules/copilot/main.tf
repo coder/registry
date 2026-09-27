@@ -34,8 +34,8 @@ variable "github_token" {
 
 variable "copilot_model" {
   type        = string
-  description = "The model to use for Copilot. Any model supported by GitHub Copilot can be used."
-  default     = "claude-sonnet-4.5"
+  description = "Sets the model for Copilot via the COPILOT_MODEL env var. If empty, Copilot uses its default. Any model supported by GitHub Copilot can be used."
+  default     = ""
 }
 
 variable "managed_settings" {
