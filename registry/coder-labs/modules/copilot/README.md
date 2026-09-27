@@ -114,9 +114,6 @@ When `enable_ai_gateway = true`, the module sets `HTTPS_PROXY` and `NODE_EXTRA_C
 > [!NOTE]
 > AI Gateway Proxy is a Premium Coder feature that requires the [AI Governance Add-On](https://coder.com/docs/ai-coder/ai-governance). See the [setup guide](https://coder.com/docs/ai-coder/ai-gateway/ai-gateway-proxy/setup) for configuring the proxy on your deployment. GitHub authentication is still required; the proxy does not replace it.
 
-> [!IMPORTANT]
-> Unlike the pre-`v1` module (which scoped the proxy to the Copilot process via its start script), these variables are set at the agent level and therefore apply workspace-wide. Ensure the `aibridge-proxy` module completes before Copilot is launched so the CA certificate exists. For strict process-scoping, set `HTTPS_PROXY`/`NODE_EXTRA_CA_CERTS` in your own launcher `coder_app` instead.
-
 ### Advanced configuration
 
 Customize MCP servers, policy, and Copilot settings:
@@ -129,7 +126,7 @@ module "copilot" {
   workdir  = "/home/coder/project"
 
   # Version pinning (defaults to "latest")
-  copilot_version = "0.0.334"
+  copilot_version = "1.0.88"
 
   # Policy written to /etc/github-copilot/managed-settings.json (highest precedence).
   # Only supported keys apply (model, permissions, allowedMcpServers, telemetry, sandbox, ...).
