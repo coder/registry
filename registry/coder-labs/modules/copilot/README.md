@@ -26,8 +26,10 @@ module "copilot" {
 
 ### Launcher app with GitHub external auth
 
-The module installs and configures Copilot. To run it, add a `coder_app` that
-fetches a fresh GitHub token at launch and starts Copilot. This assumes you have
+The module installs and configures Copilot. Use the
+[`coder_external_auth`](https://registry.terraform.io/providers/coder/coder/latest/docs/data-sources/external_auth)
+data source to fetch a GitHub token and pass it to the module, then add a
+`coder_app` to launch Copilot. This assumes you have
 [Coder external authentication](https://coder.com/docs/admin/external-auth)
 configured with `id = "github"`.
 
@@ -36,11 +38,16 @@ locals {
   copilot_workdir = "/home/coder/project"
 }
 
+data "coder_external_auth" "github" {
+  id = "github"
+}
+
 module "copilot" {
-  source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "1.0.0"
-  agent_id = coder_agent.example.id
-  workdir  = local.copilot_workdir
+  source       = "registry.coder.com/coder-labs/copilot/coder"
+  version      = "1.0.0"
+  agent_id     = coder_agent.example.id
+  workdir      = local.copilot_workdir
+  github_token = data.coder_external_auth.github.access_token
 }
 
 resource "coder_app" "copilot" {
@@ -52,7 +59,6 @@ resource "coder_app" "copilot" {
   command      = <<-EOT
     #!/usr/bin/env bash
     set -e
-    token="$(coder external-auth access-token github)" && export COPILOT_GITHUB_TOKEN="$token"
     cd "${local.copilot_workdir}"
     exec copilot --allow-all-tools
   EOT
@@ -183,14 +189,6 @@ resource "coder_script" "post_copilot" {
   EOT
 }
 ```
-
-## Authentication
-
-The module supports multiple GitHub authentication methods:
-
-1. **[Coder External Auth](https://coder.com/docs/admin/external-auth) (Recommended)** - Fetch a fresh token at launch in your `coder_app` command with `coder external-auth access-token <id>`.
-2. **Direct Token** - Pass the `github_token` variable (OAuth or Personal Access Token). Exported as `COPILOT_GITHUB_TOKEN`.
-3. **Interactive** - Copilot prompts for login via the `/login` command if no auth is found.
 
 ## Troubleshooting
 
