@@ -26,6 +26,8 @@ resource "aws_instance" "dev" {
 }
 ```
 
+![AWS EC2 Instance Type parameter](../../.images/aws-ec2-instance-type.png)
+
 ## Examples
 
 ### Choose instance families
