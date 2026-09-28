@@ -3,14 +3,9 @@
 The flake lifecycle: keep a checkout in sync with a Git remote, decide whether
 the running system is out of date, and rebuild it.
 
-Nothing here knows about EC2, user-data, or how the instance came to exist.
 The boot path is a **string** the caller hands to whatever runs scripts on the
 machine. On AWS the caller is [`../amazon-init`](../amazon-init/README.md), but
 nothing depends on that.
-
-Keeping the machine current _after_ boot is not this module's job either. That
-belongs to the configuration, as `system.autoUpgrade` on a systemd timer the
-machine's owner can read and change.
 
 ```tf
 module "nix" {
@@ -24,15 +19,11 @@ module "nix" {
 
 ## The flake reference
 
-One string, in the form `nix` itself accepts. `?ref=` carries the branch, and
-without it the remote's default branch is used — resolved on the instance,
-since Terraform cannot know it without talking to the remote.
-
-| `flake_ref`                           | builds          |
-| ------------------------------------- | --------------- |
-| `https://host/org/repo`               | default branch  |
-| `git+https://host/org/repo?ref=dev`   | `dev`           |
-| `git+ssh://git@host/org/repo?ref=dev` | `dev`, over SSH |
+`flake_ref` is what you would pass to `nixos-rebuild --flake`: a
+[flake reference](https://nix.dev/manual/nix/latest/command-ref/new-cli/nix3-flake#flake-references),
+with the branch in `?ref=` and the remote's default branch when it is absent —
+resolved on the instance, since Terraform cannot know it without talking to the
+remote.
 
 `$ARCH` in `flake_attr` is replaced with `arch`, so one template can offer both
 architectures without the attribute and the machine disagreeing.

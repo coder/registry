@@ -8,7 +8,7 @@ agent. It does not know or care what that script does — `boot_script` is an
 opaque string, and nothing in this module reads it.
 
 ```tf
-module "amazon_init" {
+module "amazon-init" {
   source = "./modules/amazon-init"
 
   agent_token       = coder_agent.main.token
@@ -17,7 +17,7 @@ module "amazon_init" {
 }
 
 resource "aws_instance" "dev" {
-  user_data = module.amazon_init.user_data
+  user_data = module.amazon-init.user_data
 }
 ```
 
@@ -26,10 +26,9 @@ Workspace and owner identity are read from `coder_workspace` and
 
 ## Why this is not cloud-init
 
-Some AMIs — the official NixOS images among them — do not ship cloud-init.
-They run `amazon-init.service`, which reads `/etc/ec2-metadata/user-data` and
-execs it as a shell script when it begins with `#!` — after
-`multi-user.target`, **on every boot**. There is no `runcmd`, no
+Some AMIs do not ship cloud-init, they run `amazon-init.service`, which reads
+`/etc/ec2-metadata/user-data` and execs it as a shell script when it begins
+with `#!` — after `multi-user.target`, **on every boot**. There is no `runcmd`, no
 `write_files`, no per-boot/once distinction and no ordering hooks. Three
 things follow:
 
@@ -116,21 +115,3 @@ Two things it handles that are easy to get wrong:
   own first generation, before anything has been rebuilt. An image without one
   simply gets no logs: every function here fails closed, because logging must
   never be the reason a boot fails.
-
-## The user-data wrapper
-
-EC2 caps user-data at 16 KiB, and the bootstrap script plus its payloads is
-past that. So the output is a six-line self-extracting wrapper around a
-gzipped copy.
-
-That is transparent to `amazon-init`: it only checks the first two bytes for
-`#!` before exec'ing the blob. The wrapper extracts to
-`$${runtime_dir}/bootstrap.sh`, so the real script is on disk when a boot needs
-debugging.
-
-The 16 KiB limit is asserted here, as a `precondition` on the `user_data`
-output, so the plan fails in the module that decides what goes into user-data
-rather than at apply time with an EC2 error that names no cause. Anything
-passed through `files` counts against it — and note that those contents are
-gzipped before user-data is gzipped again, which buys nothing, so `files` is
-for small text.

@@ -1,10 +1,3 @@
-# Coder on an AMI that runs amazon-init instead of cloud-init.
-#
-# Renders EC2 user-data that publishes the agent handoff, publishes the
-# workspace's identity, runs one boot script supplied by the caller, and then
-# starts the agent. What that boot script does is none of this module's
-# business: it is a string, and the module never looks inside it.
-
 terraform {
   required_version = ">= 1.0"
 
@@ -221,10 +214,6 @@ output "user_data" {
   value       = local.user_data
   sensitive   = true
 
-  # EC2 rejects user-data over 16 KiB, and it does so at apply time with an
-  # error that says nothing about which part grew. Checking here fails the
-  # plan instead, in the module that decides what goes in.
-  #
   # nonsensitive because the length is sensitive by propagation, and Terraform
   # suppresses error messages derived from sensitive values.
   precondition {

@@ -20,7 +20,7 @@ CODER_LOG_READY="${CODER_LOG_READY:-0}"
 # Resolved once. An image without curl gets no logs: every function here then
 # fails closed, which is the right trade -- logging must never be the reason a
 # boot fails.
-coder_curl() {
+_curl() {
   if [ -z "${CODER_CURL:-}" ]; then
     command -v curl > /dev/null 2>&1 || return 1
     CODER_CURL=$(command -v curl)
@@ -54,7 +54,7 @@ coder_log_init() {
 
   while [ "$attempt" -lt 40 ]; do
     code=$(
-      coder_curl -sS -o /dev/null -w '%{http_code}' -X POST \
+      _curl -sS -o /dev/null -w '%{http_code}' -X POST \
         "$CODER_ACCESS_URL/api/v2/workspaceagents/me/log-source" \
         -H "Coder-Session-Token: $CODER_AGENT_TOKEN" \
         -H 'Content-Type: application/json' \
@@ -95,7 +95,7 @@ coder_log_send() {
   [ "$(coder_log_budget_left)" -gt "$size" ] || return 0
   coder_log_budget_add "$size"
 
-  coder_curl -sS -o /dev/null -X PATCH \
+  _curl -sS -o /dev/null -X PATCH \
     "$CODER_ACCESS_URL/api/v2/workspaceagents/me/logs" \
     -H "Coder-Session-Token: $CODER_AGENT_TOKEN" \
     -H 'Content-Type: application/json' \

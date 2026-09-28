@@ -10,14 +10,14 @@ terraform {
   }
 }
 
-module "aws_region" {
+module "aws-region" {
   source  = "registry.coder.com/coder/aws-region/coder"
   version = "~> 1.0"
   default = "eu-west-3"
 }
 
 provider "aws" {
-  region = module.aws_region.value
+  region = module.aws-region.value
 }
 
 variable "flake_ref" {
@@ -183,7 +183,7 @@ module "code-server" {
 # The IDE backend is a dynamically linked download that Gateway unpacks into
 # the workspace and execs, which on NixOS needs `programs.nix-ld`. The
 # reference flake enables it.
-module "jetbrains_gateway" {
+module "jetbrains-gateway" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/jetbrains-gateway/coder"
   version    = "~> 1.2"
@@ -204,10 +204,6 @@ module "jetbrains_gateway" {
   order  = 2
 }
 
-# Git authorship, which the NixOS configuration deliberately does not set: it
-# is per-workspace state a flake has no pure way to learn.
-#
-# See https://registry.coder.com/modules/coder/git-config
 module "git-config" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/git-config/coder"
@@ -244,7 +240,7 @@ module "nix" {
 # Gets Coder onto the instance and runs one script on every boot. It knows
 # nothing about Nix: `boot_script` is an opaque string to it, and the flake is
 # applied entirely inside that string. See ./modules/amazon-init/README.md.
-module "amazon_init" {
+module "amazon-init" {
   source = "./modules/amazon-init"
 
   agent_token       = try(coder_agent.main[0].token, "")
@@ -258,9 +254,9 @@ module "amazon_init" {
 
 resource "aws_instance" "dev" {
   ami               = data.aws_ami.nixos.id
-  availability_zone = "${module.aws_region.value}a"
+  availability_zone = "${module.aws-region.value}a"
   instance_type     = data.coder_parameter.instance_type.value
-  user_data         = module.amazon_init.user_data
+  user_data         = module.amazon-init.user_data
 
   # The agent token is inside user-data and rotates on every workspace start,
   # so user-data changes on every start. With replacement enabled, every

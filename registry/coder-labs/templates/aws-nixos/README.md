@@ -2,7 +2,7 @@
 display_name: AWS EC2 (NixOS)
 description: Provision NixOS EC2 VMs as Coder workspaces from a flake
 icon: ../../../../.icons/nixos.svg
-verified: false
+verified: true
 tags: [vm, linux, aws, nixos, persistent-vm]
 ---
 
@@ -22,9 +22,76 @@ point the template at your own fork to control the environment.
 
 This template authenticates to AWS using the provider's default [authentication methods](https://registry.terraform.io/providers/hashicorp/aws/latest/docs#authentication-and-configuration).
 
-The simplest way is to set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in the environment of the
-Coder provisioner. See [PREREQUISITES.md](./PREREQUISITES.md) for the IAM policy, the default VPC
-requirement, and the reasons credentials must not be passed as template variables.
+The simplest way, without editing the template, is environment variables (e.g. `AWS_ACCESS_KEY_ID`)
+or a [credentials file](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-format),
+set for the provisioner process rather than as template variables. If you are running Coder on a VM,
+that file must be at `/home/coder/aws/credentials`.
+
+### The region needs a default VPC
+
+Like `aws-linux`, this template takes no subnet or security group and launches into the default VPC
+of the selected region. Regions without one fail at apply with `VPCIdNotSpecified`.
+
+### Egress from the workspace
+
+A NixOS instance fetches and builds its own configuration on boot, so workspaces need outbound
+HTTPS to your Coder access URL, `cache.nixos.org`, and wherever the flake is hosted. No inbound
+rules are required.
+
+## Required permissions / policy
+
+The following sample policy allows Coder to create EC2 instances and modify instances provisioned by
+Coder:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "VisualEditor0",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:GetDefaultCreditSpecification",
+        "ec2:DescribeIamInstanceProfileAssociations",
+        "ec2:DescribeTags",
+        "ec2:DescribeInstances",
+        "ec2:DescribeInstanceTypes",
+        "ec2:DescribeInstanceStatus",
+        "ec2:CreateTags",
+        "ec2:RunInstances",
+        "ec2:DescribeInstanceCreditSpecifications",
+        "ec2:DescribeImages",
+        "ec2:ModifyDefaultCreditSpecification",
+        "ec2:DescribeVolumes"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CoderResources",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstanceAttribute",
+        "ec2:UnmonitorInstances",
+        "ec2:TerminateInstances",
+        "ec2:StartInstances",
+        "ec2:StopInstances",
+        "ec2:DeleteTags",
+        "ec2:MonitorInstances",
+        "ec2:CreateTags",
+        "ec2:RunInstances",
+        "ec2:ModifyInstanceAttribute",
+        "ec2:ModifyInstanceCreditSpecification"
+      ],
+      "Resource": "arn:aws:ec2:*:*:instance/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Coder_Provisioned": "true"
+        }
+      }
+    }
+  ]
+}
+```
 
 ## How it works
 

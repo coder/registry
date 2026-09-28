@@ -1,14 +1,3 @@
-# The flake lifecycle at boot: clone or fast-forward the checkout, decide
-# whether the running system is out of date, and rebuild it.
-#
-# Nothing here knows about EC2, user-data or how the instance was started --
-# the boot path is exposed as a string for whatever puts scripts on the
-# machine, which on AWS is ../amazon-init.
-#
-# Keeping the machine current *afterwards* is not this module's job either.
-# That is `system.autoUpgrade` in the configuration itself, on a systemd timer
-# the machine's owner can read and change.
-
 terraform {
   required_version = ">= 1.3"
 }
