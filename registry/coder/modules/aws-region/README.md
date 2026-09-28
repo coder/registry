@@ -14,7 +14,7 @@ the region closest to them.
 Customize the preselected parameter value:
 
 ```tf
-module "aws_region" {
+module "aws-region" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/coder/aws-region/coder"
   version = "1.1.0"
@@ -22,7 +22,7 @@ module "aws_region" {
 }
 
 provider "aws" {
-  region = module.aws_region[0].value
+  region = module.aws-region[0].value
 }
 ```
 
@@ -37,20 +37,20 @@ concrete zone (for example `us-east-1a`), so templates no longer have to guess
 it by appending a letter to the region ID:
 
 ```tf
-module "aws_region" {
+module "aws-region" {
   source  = "registry.coder.com/coder/aws-region/coder"
   version = "1.1.0"
   default = "us-east-1"
 }
 
 provider "aws" {
-  region = module.aws_region.value
+  region = module.aws-region.value
 }
 
 resource "aws_instance" "dev" {
   ami               = data.aws_ami.ubuntu.id
   instance_type     = "t3.micro"
-  availability_zone = module.aws_region.default_availability_zone
+  availability_zone = module.aws-region.default_availability_zone
   # ...
 }
 ```
@@ -62,7 +62,7 @@ yourself, while still using the module's outputs (for example
 `default_availability_zone` or the full `regions` catalog):
 
 ```tf
-module "aws_region" {
+module "aws-region" {
   source           = "registry.coder.com/coder/aws-region/coder"
   version          = "1.1.0"
   create_parameter = false
@@ -70,11 +70,11 @@ module "aws_region" {
 }
 
 provider "aws" {
-  region = module.aws_region.value # "us-east-1"
+  region = module.aws-region.value # "us-east-1"
 }
 
-# module.aws_region.default_availability_zone => "us-east-1a"
-# module.aws_region.regions                   => full catalog keyed by region ID
+# module.aws-region.default_availability_zone => "us-east-1a"
+# module.aws-region.regions                   => full catalog keyed by region ID
 ```
 
 ### Customize regions
@@ -82,7 +82,7 @@ provider "aws" {
 Change the display name and icon for a region using the corresponding maps:
 
 ```tf
-module "aws_region" {
+module "aws-region" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/coder/aws-region/coder"
   version = "1.1.0"
@@ -98,7 +98,7 @@ module "aws_region" {
 }
 
 provider "aws" {
-  region = module.aws_region[0].value
+  region = module.aws-region[0].value
 }
 ```
 
@@ -109,7 +109,7 @@ provider "aws" {
 Hide the Asia Pacific regions Seoul and Osaka:
 
 ```tf
-module "aws_region" {
+module "aws-region" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/coder/aws-region/coder"
   version = "1.1.0"
@@ -117,7 +117,7 @@ module "aws_region" {
 }
 
 provider "aws" {
-  region = module.aws_region[0].value
+  region = module.aws-region[0].value
 }
 ```
 
