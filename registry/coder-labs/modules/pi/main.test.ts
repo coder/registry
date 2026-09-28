@@ -72,17 +72,22 @@ let cleanupFunctions: (() => Promise<void>)[] = [];
 const registerCleanup = (cleanup: () => Promise<void>) => {
   cleanupFunctions.push(cleanup);
 };
-afterEach(async () => {
-  const cleanupFnsCopy = cleanupFunctions.slice().reverse();
-  cleanupFunctions = [];
-  for (const cleanup of cleanupFnsCopy) {
-    try {
-      await cleanup();
-    } catch (error) {
-      console.error("Error during cleanup:", error);
+afterEach(
+  async () => {
+    const cleanupFnsCopy = cleanupFunctions.slice().reverse();
+    cleanupFunctions = [];
+    for (const cleanup of cleanupFnsCopy) {
+      try {
+        await cleanup();
+      } catch (error) {
+        console.error("Error during cleanup:", error);
+      }
     }
-  }
-});
+  },
+  // Removing a container after a real npm install can exceed the default
+  // 5s hook timeout on CI runners.
+  { timeout: 30 * 1000 },
+);
 
 interface SetupProps {
   skipPiMock?: boolean;
