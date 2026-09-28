@@ -123,6 +123,14 @@ provider "aws" {
 
 ![AWS Exclude](../../.images/aws-exclude.png)
 
+## AWS credentials
+
+This module only selects a region; it does not handle AWS authentication. Give
+the `aws` provider credentials from the environment instead of hardcoding keys
+in the template, for example an IAM instance profile or role on the Coder
+provisioner, or credentials injected into the provisioner's environment. See the
+[AWS provider authentication docs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs#authentication-and-configuration).
+
 ## Outputs
 
 | Output                      | Description                                                                          |
