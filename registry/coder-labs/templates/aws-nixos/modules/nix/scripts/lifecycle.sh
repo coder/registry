@@ -270,12 +270,16 @@ nix_apply() {
   _sudo install -m 0644 /dev/null "$transcript"
   _sudo ln -sfn "$transcript" "$NIX_LOG_DIR/rebuild-latest.log"
 
-  # stdbuf so output streams instead of arriving in one burst at the end.
+  # stdbuf so output streams instead of arriving in one burst at the end, and
+  # under _sudo rather than around it: _sudo is a shell function, and stdbuf
+  # execs what it is given. `stdbuf -oL _sudo tee` dies with "failed to run
+  # command '_sudo'", which empties the pipeline's middle, breaks the pipe
+  # under nixos-rebuild and fails the rebuild with an empty transcript.
   set +e
   _sudo nixos-rebuild "$operation" \
     --flake "$NIX_FLAKE_DIR#$NIX_FLAKE_ATTR" \
     --print-build-logs \
-    2>&1 | stdbuf -oL _sudo tee -a "$transcript" | nix_filter_log \
+    2>&1 | _sudo stdbuf -oL tee -a "$transcript" | nix_filter_log \
     | while IFS= read -r line; do nix_log info "$line"; done
   rc=${PIPESTATUS[0]}
   set -e
