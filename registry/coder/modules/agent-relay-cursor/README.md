@@ -16,7 +16,7 @@ parameters the relay stamps on each build and runs the Cursor CLI worker.
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "0.2.0"
+  version  = "0.3.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Cursor CLI at start when it is not in the image. Bake
@@ -39,6 +39,16 @@ resource "coder_agent" "main" {
 The `agent_relay_status` metadata block is required. It has to live on the
 `coder_agent`, which the module cannot declare; the relay reads it to decide
 when to reap the workspace.
+
+When Agent Relay stamps `agent_relay_session_id`, the module adds two external
+apps. Cursor's docs call the clients Cursor Web and Cursor Desktop:
+
+- **Open in Cursor Web** opens the cloud agent at `https://cursor.com/agents/<id>`.
+- **Open in Cursor Desktop** opens it with
+  `cursor://anysphere.cursor-deeplink/background-agent?bcId=<id>`.
+
+A workspace a person creates by hand has no session id, so neither button is
+created.
 
 ## Requirements
 
