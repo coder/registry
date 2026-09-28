@@ -1,14 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [[ "$1" == "--version" ]]; then
-  echo "HELLO: $(bash -c env)"
-  echo "cursor-agent version v2.5.0"
+  echo "2026.01.01-mock"
   exit 0
 fi
 
-set -e
-
-while true; do
-  echo "$(date) - cursor-agent-mock"
-  sleep 15
-done
+echo "cursor-agent invoked with: $*"
+exit 0
