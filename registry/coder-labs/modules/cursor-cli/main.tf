@@ -7,7 +7,7 @@ terraform {
       version = ">= 2.12"
     }
   }
-}m
+}
 
 variable "agent_id" {
   type        = string
