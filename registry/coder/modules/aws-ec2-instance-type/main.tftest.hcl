@@ -109,6 +109,16 @@ run "include_allows_multiple_families" {
   }
 }
 
+run "empty_include_is_rejected" {
+  command = plan
+
+  variables {
+    include = []
+  }
+
+  expect_failures = [var.include]
+}
+
 run "option_name_is_specs_and_tooltip_is_instance_type" {
   command = apply
 

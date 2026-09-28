@@ -21,7 +21,7 @@ module "aws_ec2_instance_type" {
 }
 
 resource "aws_instance" "dev" {
-  instance_type = module.aws_ec2_instance_type.value
+  instance_type = module.aws_ec2_instance_type[0].value
   # ...
 }
 ```

@@ -52,6 +52,11 @@ variable "include" {
   description = "Instance families to offer in the picker, e.g. [\"t3\", \"m5\", \"c5\"]. Defaults to t3."
   type        = list(string)
   default     = ["t3"]
+
+  validation {
+    condition     = length(var.include) > 0
+    error_message = "include must list at least one instance family, e.g. [\"t3\"]."
+  }
 }
 
 variable "coder_parameter_order" {
