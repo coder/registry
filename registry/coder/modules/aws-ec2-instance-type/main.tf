@@ -70,10 +70,14 @@ variable "coder_parameter_order" {
 }
 
 locals {
-  # Specs come straight from `aws ec2 describe-instance-types` (see the PR/README
-  # for the regeneration command). category and coder_arch are derived here
-  # because AWS neither groups instances nor uses Coder's arch spelling.
-  raw_instances = jsondecode(file("${path.module}/instance-types.json"))
+  # Specs come straight from `aws ec2 describe-instance-types` (regenerate with
+  # .scripts/update.sh). category and coder_arch are derived here because AWS
+  # neither groups instances nor uses Coder's arch spelling.
+  #
+  # Read instance-types.json with a fallback: Terraform resolves file() from the
+  # root module, but Coder's dynamic parameters preview resolves it from this
+  # module's directory, so neither path works on its own.
+  raw_instances = jsondecode(try(file("${path.module}/instance-types.json"), file("instance-types.json")))
 
   family_category = {
     t3   = "general"
