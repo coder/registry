@@ -32,14 +32,23 @@ nix_sync_checkout "file://$root/remote" main
 rev=$(nix_needs_rebuild)
 [ "$rev" = "$(git -C "$NIX_FLAKE_DIR" rev-parse HEAD)#host-one" ]
 nix_record_rev "$rev"
-if nix_needs_rebuild > /dev/null; then echo 'unexpected rebuild' >&2; exit 1; fi
+if nix_needs_rebuild > /dev/null; then
+  echo 'unexpected rebuild' >&2
+  exit 1
+fi
 NIX_FLAKE_ATTR=host-two
 nix_needs_rebuild > /dev/null
 nix_record_rev "$(nix_needs_rebuild)"
-if nix_needs_rebuild > /dev/null; then echo 'unexpected attribute rebuild' >&2; exit 1; fi
+if nix_needs_rebuild > /dev/null; then
+  echo 'unexpected attribute rebuild' >&2
+  exit 1
+fi
 
 printf 'ignored by Git flake\n' > "$NIX_FLAKE_DIR/untracked"
-if nix_needs_rebuild > /dev/null; then echo 'untracked file caused rebuild' >&2; exit 1; fi
+if nix_needs_rebuild > /dev/null; then
+  echo 'untracked file caused rebuild' >&2
+  exit 1
+fi
 printf 'modified\n' > "$NIX_FLAKE_DIR/flake.nix"
 nix_checkout_dirty
 nix_needs_rebuild > /dev/null

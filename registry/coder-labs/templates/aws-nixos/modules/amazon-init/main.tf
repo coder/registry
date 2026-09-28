@@ -13,12 +13,7 @@ terraform {
   }
 }
 
-# The log source has to keep the same id for the life of the workspace --
-# Coder treats a repeat POST of a known id as a no-op, and a value that
-# changed every plan would churn user-data on every start. Terraform state is
-# exactly the right place for that: stable across stop/start, new only when
-# the workspace is recreated, by which point the agent and its logs are new
-# too.
+# Keep the log source stable across workspace restarts.
 resource "random_uuid" "log_source" {}
 
 data "coder_workspace" "me" {}
@@ -74,8 +69,15 @@ variable "files" {
   default     = {}
 
   validation {
-    condition     = alltrue([for path in keys(var.files) : startswith(path, "/")])
-    error_message = "File paths must be absolute."
+    condition = alltrue([
+      for path in keys(var.files) :
+      startswith(path, "/") && abspath(path) == path &&
+      !can(regex("[\\x00-\\x1f\\x7f]", path)) &&
+      path != var.runtime_dir && !startswith(path, "${var.runtime_dir}/") &&
+      !(startswith(var.runtime_dir, "/run/") && startswith(path, "/var${var.runtime_dir}/")) &&
+      !(startswith(var.runtime_dir, "/var/run/") && startswith(path, "${trimprefix(var.runtime_dir, "/var")}/"))
+    ])
+    error_message = "File paths must be absolute, canonical files outside runtime_dir (including /var/run aliases)."
   }
 }
 
@@ -100,6 +102,11 @@ variable "runtime_dir" {
   description = "Directory for the agent handoff and this module's own state. Must be on a tmpfs: it holds the token."
   type        = string
   default     = "/run/coder"
+
+  validation {
+    condition     = startswith(var.runtime_dir, "/") && var.runtime_dir != "/" && abspath(var.runtime_dir) == var.runtime_dir && !can(regex("[\\x00-\\x1f\\x7f]", var.runtime_dir))
+    error_message = "runtime_dir must be a canonical absolute directory path without control characters."
+  }
 }
 
 variable "path" {
@@ -142,20 +149,12 @@ variable "hostname" {
 locals {
   hostname = var.hostname != "" ? var.hostname : lower(data.coder_workspace.me.name)
 
-  # Written by the bootstrap script before the boot script runs. Carried
-  # gzipped and base64-encoded so that no content can terminate the heredoc
-  # that writes it.
-  files_sh = join("\n", [
-    for path, content in var.files : <<-SH
-      install -d -m 0755 "$(dirname '${path}')"
-      printf '%s' '${base64gzip(content)}' | base64 -d | gzip -dc >'${path}'
-      chmod 0644 '${path}'
-    SH
-  ])
+  files = [for path, content in var.files : {
+    path    = base64encode(path)
+    content = base64gzip(content)
+  }]
 
-  # Everything the machine is told about itself. Merged so that what this
-  # module knows wins: a caller cannot accidentally rewrite the workspace's
-  # own identity through `values`.
+  # Module-owned identity wins over caller-provided facts.
   facts = merge(var.values, {
     workspace   = data.coder_workspace.me.name
     owner       = data.coder_workspace_owner.me.name
@@ -164,8 +163,6 @@ locals {
     access_url  = data.coder_workspace.me.access_url
     hostname    = local.hostname
 
-    # The one thing a configuration on the instance cannot work out for
-    # itself, and needs in order to log anywhere the user will see.
     log_source_id = random_uuid.log_source.result
   })
 
@@ -173,39 +170,39 @@ locals {
     FACTS_JSON = jsonencode(local.facts)
 
     LOG_SH      = file("${path.module}/scripts/log.sh")
-    FILES_SH    = local.files_sh
+    FILES       = local.files
     BOOT_SCRIPT = var.boot_script
     INIT_SCRIPT = var.agent_init_script
 
-    ARG_ACCESS_URL  = data.coder_workspace.me.access_url
-    ARG_AGENT_TOKEN = var.agent_token
-    ARG_RUNTIME_DIR = var.runtime_dir
-    ARG_PATH        = var.path
+    ARG_ACCESS_URL  = base64encode(data.coder_workspace.me.access_url)
+    ARG_AGENT_TOKEN = base64encode(var.agent_token)
+    ARG_RUNTIME_DIR = base64encode(var.runtime_dir)
+    ARG_PATH        = base64encode(var.path)
 
-    ARG_LOG_SOURCE_ID        = random_uuid.log_source.result
-    ARG_LOG_DISPLAY_NAME_B64 = base64encode(var.log_display_name)
-    ARG_LOG_ICON             = var.log_icon
-    ARG_LOG_BUDGET           = var.log_budget_bytes
+    ARG_LOG_SOURCE_ID = random_uuid.log_source.result
+    ARG_LOG_BUDGET    = var.log_budget_bytes
+    ARG_LOG_REGISTRATION_B64 = base64encode(jsonencode({
+      id           = random_uuid.log_source.result
+      display_name = var.log_display_name
+      icon         = var.log_icon
+    }))
 
-    ARG_HOSTNAME = local.hostname
+    ARG_HOSTNAME = base64encode(local.hostname)
   })
 
-  # EC2 caps user-data at 16 KiB and the script above plus its payloads is
-  # comfortably past that, so user-data is a six-line self-extracting wrapper
-  # around a compressed copy.
-  #
-  # This is transparent to amazon-init: it only inspects the first two bytes
-  # for `#!` before exec'ing the blob, and it has no decompression step of its
-  # own. Extracting to a fixed path also means the real script is on disk when
-  # something needs debugging.
+  # EC2 caps user-data at 16 KiB; compress the bootstrap before sending it.
   user_data = <<-SH
     #!/usr/bin/env bash
     set -eu
-    install -d -m 0700 ${var.runtime_dir}
-    base64 -d <<'CODER_PAYLOAD' | gzip -dc >${var.runtime_dir}/bootstrap.sh
+    runtime_dir=$(printf %s '${base64encode(var.runtime_dir)}' | base64 -d)
+    install -d -m 0700 -- "$runtime_dir"
+    chown root:root -- "$runtime_dir"
+    chmod 0700 -- "$runtime_dir"
+    base64 -d <<'CODER_PAYLOAD' | gzip -dc >"$runtime_dir/bootstrap.sh"
     ${base64gzip(local.bootstrap)}
     CODER_PAYLOAD
-    exec bash ${var.runtime_dir}/bootstrap.sh
+    chmod 0700 -- "$runtime_dir/bootstrap.sh"
+    exec bash "$runtime_dir/bootstrap.sh"
   SH
 }
 
@@ -214,8 +211,7 @@ output "user_data" {
   value       = local.user_data
   sensitive   = true
 
-  # nonsensitive because the length is sensitive by propagation, and Terraform
-  # suppresses error messages derived from sensitive values.
+  # Terraform suppresses error messages derived from sensitive values.
   precondition {
     condition     = nonsensitive(length(local.user_data)) < 16384
     error_message = "Rendered user-data is ${nonsensitive(length(local.user_data))} bytes; EC2 allows at most 16384."

@@ -3,19 +3,12 @@ terraform {
 }
 
 variable "flake_ref" {
-  description = <<-EOT
-    Git reference to the flake, in the form `nix` itself accepts:
-    `https://host/org/repo`, optionally with a `git+` prefix and a `?ref=`
-    branch. Without `?ref=` the remote's default branch is used.
-
-    The configuration must be committed -- a Git flake reference only ever
-    sees committed files.
-  EOT
+  description = "HTTP(S) or SSH Git URL of a committed flake; optional git+ prefix and ?ref= branch. URL credentials are not supported."
   type        = string
 
   validation {
-    condition     = can(regex("^(git\\+)?(https?|ssh)://", var.flake_ref)) && !can(regex("^(git\\+)?https?://[^/?#]*@", var.flake_ref)) && !can(regex("[[:cntrl:]]", var.flake_ref))
-    error_message = "flake_ref must be an http(s) or ssh Git URL without HTTP credentials or control characters. Use root-managed Git authentication instead of URL userinfo."
+    condition     = can(regex("^(git\\+)?(https?|ssh)://", var.flake_ref)) && !can(regex("^(git\\+)?https?://[^/?#]*@", var.flake_ref)) && !can(regex("[[:cntrl:]]", var.flake_ref)) && !strcontains(var.flake_ref, "#") && (!strcontains(var.flake_ref, "?") || can(regex("\\?ref=[^&#?]+$", var.flake_ref)))
+    error_message = "flake_ref must be an http(s) or ssh Git URL with optional ?ref=, without HTTP credentials, control characters, fragments, or other query parameters."
   }
 }
 

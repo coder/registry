@@ -1,65 +1,37 @@
 #!/usr/bin/env bash
-# EC2 user-data for an AMI that runs amazon-init.service rather than
-# cloud-init. amazon-init execs this as a shell script when it starts with
-# `#!` -- after multi-user.target, on every boot. So it must be idempotent.
-#
-# It knows nothing about what the instance is for. It publishes the agent
-# handoff, publishes the workspace's identity, runs one caller-supplied boot
-# script, and then starts the agent -- in that order, always.
-
-# -E so that the ERR trap installed below is inherited by the functions here;
-# without errtrace a failure inside one of them ends this script with nothing
-# said about it.
+# amazon-init runs this on every boot; the agent must start after the boot script.
 set -Eeuo pipefail
-export PATH="${ARG_PATH}:$PATH"
+decode() { printf '%s' "$1" | base64 -d; }
+export PATH="$(decode '${ARG_PATH}'):$PATH"
 export HOME=/root
 
-ACCESS_URL='${ARG_ACCESS_URL}'
-AGENT_TOKEN='${ARG_AGENT_TOKEN}'
+ACCESS_URL=$(decode '${ARG_ACCESS_URL}')
+AGENT_TOKEN=$(decode '${ARG_AGENT_TOKEN}')
 LOG_SOURCE_ID='${ARG_LOG_SOURCE_ID}'
-LOG_DISPLAY_NAME_B64='${ARG_LOG_DISPLAY_NAME_B64}'
-LOG_ICON='${ARG_LOG_ICON}'
 LOG_BUDGET='${ARG_LOG_BUDGET}'
-HOSTNAME_='${ARG_HOSTNAME}'
+HOSTNAME_=$(decode '${ARG_HOSTNAME}')
+RUNTIME_DIR=$(decode '${ARG_RUNTIME_DIR}')
 
-RUNTIME_DIR='${ARG_RUNTIME_DIR}'
-
-# --- 1. Hand the agent its token -------------------------------------------
-#
-# Done first, before anything that can fail, so that the agent can still be
-# started from a later failure path -- an instance whose boot script broke is
-# exactly the instance someone needs a terminal on.
-#
-# RUNTIME_DIR is a tmpfs, so nothing written here survives a reboot. That is
-# the point: the token rotates on every workspace start.
-
-install -d -m 0700 "$RUNTIME_DIR"
+# The token stays on tmpfs; only handoff files are owned by the agent.
+install -d -m 0700 -- "$RUNTIME_DIR"
+chown root:root -- "$RUNTIME_DIR"
+chmod 0711 -- "$RUNTIME_DIR"
 rm -f "$RUNTIME_DIR/ready"
 
 umask 077
 printf 'CODER_AGENT_TOKEN=%s\nCODER_AGENT_URL=%s\n' "$AGENT_TOKEN" "$ACCESS_URL" \
   >"$RUNTIME_DIR/agent.env"
 umask 022
-# Verbatim rather than base64: user-data has 16 KiB to fit in, the init
-# script is the largest thing in it, and base64 both inflates by a third and
-# destroys the redundancy the gzip wrapper lives on.
 cat >"$RUNTIME_DIR/init.sh" <<'CODER_AMAZON_INIT_AGENT_SCRIPT'
 ${INIT_SCRIPT}
 CODER_AMAZON_INIT_AGENT_SCRIPT
-chmod 0755 "$RUNTIME_DIR/init.sh"
+chmod 0700 "$RUNTIME_DIR/init.sh"
 
-# coder-agent.service may run as an unprivileged user, so it has to be able to
-# traverse the directory and read the token. Modes stay 0600/0700; only the
-# owner changes.
-#
-# The owner is asked of the unit rather than guessed, so an image we do not
-# control cannot disagree with us. On the very first boot the unit does not
-# exist yet, so this is a no-op and is retried before the agent is started.
 chown_handoff() {
   local target
   target=$(systemctl show coder-agent -p User --value 2>/dev/null || true)
   [ -n "$target" ] || return 0
-  chown -R "$target" "$RUNTIME_DIR" 2>/dev/null || true
+  chown "$target" "$RUNTIME_DIR/agent.env" "$RUNTIME_DIR/init.sh" 2>/dev/null || true
 }
 chown_handoff
 touch "$RUNTIME_DIR/ready"
@@ -67,24 +39,12 @@ chown_handoff
 
 [ -z "$HOSTNAME_" ] || hostnamectl set-hostname "$HOSTNAME_" || true
 
-# --- 2. Logging -------------------------------------------------------------
-#
-# The agent is the usual way to get output into the workspace UI, and it does
-# not exist yet -- on a first boot it will not exist for as long as the boot
-# script runs. So the log API is called directly, with the agent's own token.
-
 export CODER_ACCESS_URL="$ACCESS_URL"
 export CODER_AGENT_TOKEN="$AGENT_TOKEN"
 export CODER_LOG_SOURCE_ID="$LOG_SOURCE_ID"
 export CODER_LOG_STATE_DIR="$RUNTIME_DIR"
 export CODER_LOG_BUDGET="$LOG_BUDGET"
 
-# Written to disk as well as sourced, so the boot script and anything the
-# agent runs later can use the same functions without a second copy.
-#
-# Interpolated as text rather than base64: user-data is gzipped and has 16 KiB
-# to fit in, and base64 both inflates by a third and destroys the redundancy
-# gzip lives on. The delimiters are long enough not to occur in the payload.
 cat >"$RUNTIME_DIR/log.sh" <<'CODER_AMAZON_INIT_LOG_LIBRARY'
 ${LOG_SH}
 CODER_AMAZON_INIT_LOG_LIBRARY
@@ -93,14 +53,11 @@ export CODER_LOG_LIBRARY="$RUNTIME_DIR/log.sh"
 # shellcheck source=/dev/null
 . "$CODER_LOG_LIBRARY"
 
-coder_log_init "$(printf '%s' "$LOG_DISPLAY_NAME_B64" | base64 -d)" "$LOG_ICON" || true
+CODER_LOG_REGISTRATION=$(decode '${ARG_LOG_REGISTRATION_B64}')
+export CODER_LOG_REGISTRATION
+coder_log_init || true
 
-# Nothing starts coder-agent.service but this, and only once the boot script
-# has finished. If systemd started it at multi-user.target instead, the agent
-# would report the workspace ready and run its startup scripts while the boot
-# script was still changing the machine underneath them.
-#
-# So every exit path from here on has to go through this.
+# Agent startup follows every boot-script outcome, including failures.
 start_agent() {
   if systemctl is-active --quiet coder-agent; then
     return 0
@@ -113,8 +70,6 @@ start_agent() {
   chown_handoff
   systemctl start coder-agent || true
 
-  # Type=simple, so systemd reports the unit active as soon as it has forked.
-  # Give a start that is going to fail immediately the chance to do so.
   sleep 3
   if systemctl is-active --quiet coder-agent; then
     coder_log info "coder-agent is active." || true
@@ -134,17 +89,7 @@ on_error() {
 }
 trap on_error ERR
 
-# --- 3. Facts about this workspace -----------------------------------------
-#
-# The runtime interface: who owns this workspace, where the deployment is, and
-# anything the caller added through `values`. Mode 0644, because unprivileged
-# services read it -- so no secrets. The token lives in agent.env at 0600 and
-# never appears here.
-#
-# Rendered as JSON by Terraform rather than assembled in shell: a full name
-# with a quote in it is somebody's Tuesday, and this way it cannot break the
-# document.
-
+# Public facts must never contain secrets.
 cat >"$RUNTIME_DIR/workspace.json" <<'CODER_AMAZON_INIT_FACTS'
 ${FACTS_JSON}
 CODER_AMAZON_INIT_FACTS
@@ -152,22 +97,19 @@ chmod 0644 "$RUNTIME_DIR/workspace.json"
 export CODER_WORKSPACE_FACTS="$RUNTIME_DIR/workspace.json"
 export CODER_RUNTIME_DIR="$RUNTIME_DIR"
 
-# --- 4. Files and the boot script -------------------------------------------
-
-${FILES_SH}
+%{ for file in FILES ~}
+file_path=$(decode '${file.path}')
+install -d -m 0755 -- "$(dirname -- "$file_path")"
+printf '%s' '${file.content}' | base64 -d | gzip -dc >"$file_path"
+chmod 0644 -- "$file_path"
+%{ endfor ~}
 
 cat >"$RUNTIME_DIR/boot.sh" <<'CODER_AMAZON_INIT_BOOT_SCRIPT'
 ${BOOT_SCRIPT}
 CODER_AMAZON_INIT_BOOT_SCRIPT
 chmod 0700 "$RUNTIME_DIR/boot.sh"
 
-# Run as a child rather than sourced: the boot script is someone else's code,
-# and it must not be able to exit this one before the agent is started.
-#
-# `|| boot_rc=$?` rather than turning errexit off around it: `set +e` stops
-# the shell exiting but does nothing to the ERR trap, which is not subject to
-# errexit at all. The trap would fire here and report this as a bootstrap
-# failure, skipping everything below. In a `||` list neither happens.
+# A child cannot exit the bootstrap before the agent-start attempt.
 boot_rc=0
 bash "$RUNTIME_DIR/boot.sh" || boot_rc=$?
 
@@ -175,9 +117,5 @@ if [ "$boot_rc" -ne 0 ]; then
   coder_log error "Boot script exited $boot_rc; starting the agent anyway." || true
 fi
 
-# `|| true` so that failing to start the agent does not re-enter the ERR trap,
-# which would report the bootstrap as having failed somewhere earlier. On a
-# first boot whose configuration does not build there is no agent unit to
-# start at all, and that is the honest outcome: nothing to report it with.
 start_agent || true
 exit "$boot_rc"

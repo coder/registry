@@ -1,38 +1,20 @@
 # shellcheck shell=bash
-#
-# Pushes lines to the Coder agent log API -- the only way to show anything in
-# the workspace UI before the agent exists, which on a first boot lasts for as
-# long as the boot script runs.
-#
-# Callers set CODER_ACCESS_URL, CODER_AGENT_TOKEN, CODER_LOG_SOURCE_ID and
-# optionally CODER_LOG_BUDGET. Sets no shell options: failing to log must
-# never be fatal.
-
+# Pre-agent log API client; failures never prevent boot.
 CODER_LOG_BUDGET="${CODER_LOG_BUDGET:-524288}"
 CODER_LOG_STATE_DIR="${CODER_LOG_STATE_DIR:-/run/coder}"
 CODER_LOG_MAX_LINE=2048
 CODER_LOG_FLUSH_SECS="${CODER_LOG_FLUSH_SECS:-5}"
-# Inherited, so a child process that sources this library can log without
-# registering the source again -- registration is per workspace build, not per
-# process, and a child has no way to know whether it already happened.
 CODER_LOG_READY="${CODER_LOG_READY:-0}"
 
-# Resolved once. An image without curl gets no logs: every function here then
-# fails closed, which is the right trade -- logging must never be the reason a
-# boot fails.
 _curl() {
   if [ -z "${CODER_CURL:-}" ]; then
-    command -v curl > /dev/null 2>&1 || return 1
-    CODER_CURL=$(command -v curl)
+    CODER_CURL=$(command -v curl) || return 1
     export CODER_CURL
   fi
   "$CODER_CURL" "$@"
 }
 
-# Coder caps agent logs at 1 MiB per AGENT, shared across every log source.
-# Overflowing does not truncate: the batch is rejected and the agent is
-# flagged overflowed permanently, silently dropping all later logs from every
-# source. So track our own usage and go quiet before the server says no.
+# A rejected overflow permanently silences every log source on this agent.
 coder_log_budget_left() {
   local used
   used=$(cat "$CODER_LOG_STATE_DIR/log-budget" 2> /dev/null || echo 0)
@@ -42,28 +24,22 @@ coder_log_budget_left() {
 coder_log_budget_add() {
   local used
   used=$(cat "$CODER_LOG_STATE_DIR/log-budget" 2> /dev/null || echo 0)
-  echo $((used + $1)) > "$CODER_LOG_STATE_DIR/log-budget" 2> /dev/null || true
+  echo $((used + $1)) > "$CODER_LOG_STATE_DIR/log-budget"
 }
 
-# Idempotent: Coder swallows a duplicate id, so this can run on every boot
-# with a fixed UUID. Retries on 401 because the agent record is only created
-# when the provisioner job completes -- an instance can boot before then.
 coder_log_init() {
-  local display_name="$1" icon="$2" attempt=0 code
-  mkdir -p "$CODER_LOG_STATE_DIR" 2> /dev/null || true
-
+  local attempt=0 code
+  command -v curl > /dev/null 2>&1 || return 1
+  mkdir -p "$CODER_LOG_STATE_DIR" || return 1
   while [ "$attempt" -lt 40 ]; do
     code=$(
       _curl -sS -o /dev/null -w '%{http_code}' -X POST \
         "$CODER_ACCESS_URL/api/v2/workspaceagents/me/log-source" \
         -H "Coder-Session-Token: $CODER_AGENT_TOKEN" \
         -H 'Content-Type: application/json' \
-        --data-binary @- << JSON || echo 000
-{"id":"$CODER_LOG_SOURCE_ID","display_name":"$display_name","icon":"$icon"}
-JSON
+        --data-binary "$CODER_LOG_REGISTRATION" || echo 000
     )
     case "$code" in
-      # The handler returns 201 on both create and already-exists.
       200 | 201)
         export CODER_LOG_READY=1
         return 0
@@ -78,30 +54,82 @@ JSON
   return 1
 }
 
+# Validate UTF-8 while escaping JSON; invalid sequences become U+FFFD.
+_coder_json_string() {
+  LC_ALL=C od -An -tu1 -v | LC_ALL=C awk '
+    function replacement() { printf "%c%c%c", 239, 191, 189 }
+    BEGIN { printf "\"" }
+    {
+      for (i = 1; i <= NF; i++) {
+        n = $i + 0
+        if (pending) {
+          if (n >= low && n <= high) {
+            sequence = sequence sprintf("%c", n)
+            pending--
+            low = 128; high = 191
+            if (!pending) { printf "%s", sequence; sequence = "" }
+            continue
+          }
+          replacement()
+          pending = 0; sequence = ""
+        }
+        if (n == 34 || n == 92) printf "\\%c", n
+        else if (n < 32 || n == 127) printf "\\u%04x", n
+        else if (n < 128) printf "%c", n
+        else {
+          pending = 0; low = 128; high = 191
+          if (n >= 194 && n <= 223) pending = 1
+          else if (n >= 224 && n <= 239) {
+            pending = 2
+            if (n == 224) low = 160
+            if (n == 237) high = 159
+          } else if (n >= 240 && n <= 244) {
+            pending = 3
+            if (n == 240) low = 144
+            if (n == 244) high = 143
+          }
+          if (pending) sequence = sprintf("%c", n)
+          else replacement()
+        }
+      }
+    }
+    END { if (pending) replacement(); printf "\"" }
+  '
+}
+
 coder_log_json() {
-  local level="$1" line="$2"
-  [ "${#line}" -le "$CODER_LOG_MAX_LINE" ] || line="${line:0:$CODER_LOG_MAX_LINE}..."
-  line=$(printf '%s' "$line" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\r//g' -e 's/\t/  /g')
-  printf '{"created_at":"%s","level":"%s","output":"%s"}' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$level" "$line"
+  local level="$1" line="$2" encoded
+  # Drop oversized lines rather than splitting a UTF-8 character mid-sequence.
+  if [ "$(printf '%s' "$line" | LC_ALL=C wc -c)" -gt "$CODER_LOG_MAX_LINE" ]; then
+    line='[log line exceeded 2048 bytes]'
+  fi
+  encoded=$(printf '%s' "$line" | _coder_json_string) || return 1
+  printf '{"created_at":"%s","level":%s,"output":%s}' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(printf '%s' "$level" | _coder_json_string)" "$encoded"
 }
 
 coder_log_send() {
-  local payload size
-  payload=$(paste -sd, -)
+  local payload request size lock="$CODER_LOG_STATE_DIR/log-budget.lock" tries=0
+  payload=$(paste -sd, -) || return 0
   [ -n "$payload" ] || return 0
-
-  size=${#payload}
-  [ "$(coder_log_budget_left)" -gt "$size" ] || return 0
-  coder_log_budget_add "$size"
-
+  request="{\"log_source_id\":\"$CODER_LOG_SOURCE_ID\",\"logs\":[$payload]}"
+  size=$(printf '%s' "$request" | LC_ALL=C wc -c)
+  # mkdir is an atomic cross-process lock; fail closed if a writer is stuck.
+  while ! mkdir "$lock" 2> /dev/null; do
+    tries=$((tries + 1))
+    [ "$tries" -lt 40 ] || return 0
+    sleep 0.05
+  done
+  if [ "$(coder_log_budget_left)" -lt "$size" ] || ! coder_log_budget_add "$size"; then
+    rmdir "$lock"
+    return 0
+  fi
+  rmdir "$lock"
   _curl -sS -o /dev/null -X PATCH \
     "$CODER_ACCESS_URL/api/v2/workspaceagents/me/logs" \
     -H "Coder-Session-Token: $CODER_AGENT_TOKEN" \
     -H 'Content-Type: application/json' \
-    --data-binary @- << JSON || true
-{"log_source_id":"$CODER_LOG_SOURCE_ID","logs":[$payload]}
-JSON
+    --data-binary "$request" || true
 }
 
 coder_log() {
@@ -111,12 +139,7 @@ coder_log() {
   coder_log_json "$level" "$*" | coder_log_send
 }
 
-# Reads plain lines on stdin and ships them in batches.
-#
-# Batches are flushed by size, and also by time: a slow producer would
-# otherwise sit in the buffer until 50 lines had accumulated, which reads as a
-# hung workspace, and anything still buffered when the process is killed is
-# simply lost.
+# Flush slow producers as well as full batches.
 coder_log_pipe() {
   local level="${1:-info}" line batch="" n=0 bytes=0 obj rc now last
   [ "$CODER_LOG_READY" = 1 ] || {
@@ -124,32 +147,24 @@ coder_log_pipe() {
     return 0
   }
   last=$(date +%s)
-
   while :; do
     line=""
-    # Not `if ! read`: `!` rewrites $? to 0, which turns every timeout into an
-    # end of input and ends the stream after the first quiet interval.
-    IFS= read -r -t "$CODER_LOG_FLUSH_SECS" line
-    rc=$?
-
-    # read(1) returns >128 on timeout; any other failure is end of input,
-    # possibly with a last line that had no newline.
+    if IFS= read -r -t "$CODER_LOG_FLUSH_SECS" line; then rc=0; else rc=$?; fi
     if [ "$rc" -ne 0 ] && [ "$rc" -le 128 ]; then
       if [ -n "$line" ]; then
+        obj=$(coder_log_json "$level" "$line")
         batch="${batch:+$batch
-}$(coder_log_json "$level" "$line")"
+}$obj"
       fi
       break
     fi
-
     if [ -n "$line" ]; then
       obj=$(coder_log_json "$level" "$line")
       batch="${batch:+$batch
 }$obj"
       n=$((n + 1))
-      bytes=$((bytes + ${#obj}))
+      bytes=$((bytes + $(printf '%s' "$obj" | LC_ALL=C wc -c)))
     fi
-
     now=$(date +%s)
     if [ "$n" -ge 50 ] || [ "$bytes" -ge 32768 ] \
       || { [ "$n" -gt 0 ] && [ "$((now - last))" -ge "$CODER_LOG_FLUSH_SECS" ]; }; then
@@ -160,12 +175,10 @@ coder_log_pipe() {
       last=$now
     fi
   done
-
   [ -z "$batch" ] || printf '%s\n' "$batch" | coder_log_send
   return 0
 }
 
-# Tail of a failed transcript, so the UI shows the actual error.
 coder_log_tail() {
   local file="$1" lines="${2:-200}"
   [ -f "$file" ] || return 0

@@ -44,3 +44,11 @@ run "reject_control_characters" {
   }
   expect_failures = [var.flake_ref]
 }
+
+run "reject_unsupported_query" {
+  command = plan
+  variables {
+    flake_ref = "https://example.org/flake?dir=subdir"
+  }
+  expect_failures = [var.flake_ref]
+}
