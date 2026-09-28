@@ -54,7 +54,7 @@ resource "coder_app" "copilot" {
   agent_id     = coder_agent.example.id
   slug         = "copilot"
   display_name = "Copilot"
-  icon         = "/icon/github.svg"
+  icon         = "/icon/github-copilot.svg"
   open_in      = "slim-window"
   command      = <<-EOT
     #!/usr/bin/env bash
@@ -99,13 +99,13 @@ module "aibridge-proxy" {
 }
 
 module "copilot" {
-  source               = "registry.coder.com/coder-labs/copilot/coder"
-  version              = "1.0.0"
-  agent_id             = coder_agent.main.id
-  workdir              = "/home/coder/project"
-  enable_ai_gateway    = true
-  ai_gateway_auth_url  = module.aibridge-proxy.proxy_auth_url
-  ai_gateway_cert_path = module.aibridge-proxy.cert_path
+  source                     = "registry.coder.com/coder-labs/copilot/coder"
+  version                    = "1.0.0"
+  agent_id                   = coder_agent.main.id
+  workdir                    = "/home/coder/project"
+  enable_ai_gateway          = true
+  ai_gateway_proxy_auth_url  = module.aibridge-proxy.proxy_auth_url
+  ai_gateway_proxy_cert_path = module.aibridge-proxy.cert_path
 }
 ```
 

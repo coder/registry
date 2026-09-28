@@ -166,21 +166,21 @@ run "ai_gateway_enabled_sets_proxy_env" {
   command = plan
 
   variables {
-    agent_id             = "test-agent"
-    workdir              = "/home/coder"
-    enable_ai_gateway    = true
-    ai_gateway_auth_url  = "https://coder:mock-token@aiproxy.example.com"
-    ai_gateway_cert_path = "/tmp/aibridge-proxy/ca-cert.pem"
+    agent_id                   = "test-agent"
+    workdir                    = "/home/coder"
+    enable_ai_gateway          = true
+    ai_gateway_proxy_auth_url  = "https://coder:mock-token@aiproxy.example.com"
+    ai_gateway_proxy_cert_path = "/tmp/aibridge-proxy/ca-cert.pem"
   }
 
   assert {
     condition     = coder_env.ai_gateway_https_proxy[0].name == "HTTPS_PROXY" && coder_env.ai_gateway_https_proxy[0].value == "https://coder:mock-token@aiproxy.example.com"
-    error_message = "HTTPS_PROXY should be set to ai_gateway_auth_url"
+    error_message = "HTTPS_PROXY should be set to ai_gateway_proxy_auth_url"
   }
 
   assert {
     condition     = coder_env.ai_gateway_node_extra_ca_certs[0].name == "NODE_EXTRA_CA_CERTS" && coder_env.ai_gateway_node_extra_ca_certs[0].value == "/tmp/aibridge-proxy/ca-cert.pem"
-    error_message = "NODE_EXTRA_CA_CERTS should be set to ai_gateway_cert_path"
+    error_message = "NODE_EXTRA_CA_CERTS should be set to ai_gateway_proxy_cert_path"
   }
 }
 
@@ -188,10 +188,10 @@ run "ai_gateway_requires_auth_url" {
   command = plan
 
   variables {
-    agent_id             = "test-agent"
-    workdir              = "/home/coder"
-    enable_ai_gateway    = true
-    ai_gateway_cert_path = "/tmp/aibridge-proxy/ca-cert.pem"
+    agent_id                   = "test-agent"
+    workdir                    = "/home/coder"
+    enable_ai_gateway          = true
+    ai_gateway_proxy_cert_path = "/tmp/aibridge-proxy/ca-cert.pem"
   }
 
   expect_failures = [
@@ -203,10 +203,10 @@ run "ai_gateway_requires_cert_path" {
   command = plan
 
   variables {
-    agent_id            = "test-agent"
-    workdir             = "/home/coder"
-    enable_ai_gateway   = true
-    ai_gateway_auth_url = "https://coder:mock-token@aiproxy.example.com"
+    agent_id                  = "test-agent"
+    workdir                   = "/home/coder"
+    enable_ai_gateway         = true
+    ai_gateway_proxy_auth_url = "https://coder:mock-token@aiproxy.example.com"
   }
 
   expect_failures = [

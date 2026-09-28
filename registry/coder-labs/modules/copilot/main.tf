@@ -16,7 +16,7 @@ variable "agent_id" {
 variable "icon" {
   type        = string
   description = "The icon to use for the app."
-  default     = "/icon/github.svg"
+  default     = "/icon/github-copilot.svg"
 }
 
 variable "workdir" {
@@ -80,24 +80,24 @@ variable "enable_ai_gateway" {
   default     = false
 
   validation {
-    condition     = !var.enable_ai_gateway || (var.ai_gateway_auth_url != null && length(var.ai_gateway_auth_url) > 0)
-    error_message = "ai_gateway_auth_url is required when enable_ai_gateway is true."
+    condition     = !var.enable_ai_gateway || (var.ai_gateway_proxy_auth_url != null && length(var.ai_gateway_proxy_auth_url) > 0)
+    error_message = "ai_gateway_proxy_auth_url is required when enable_ai_gateway is true."
   }
 
   validation {
-    condition     = !var.enable_ai_gateway || (var.ai_gateway_cert_path != null && length(var.ai_gateway_cert_path) > 0)
-    error_message = "ai_gateway_cert_path is required when enable_ai_gateway is true."
+    condition     = !var.enable_ai_gateway || (var.ai_gateway_proxy_cert_path != null && length(var.ai_gateway_proxy_cert_path) > 0)
+    error_message = "ai_gateway_proxy_cert_path is required when enable_ai_gateway is true."
   }
 }
 
-variable "ai_gateway_auth_url" {
+variable "ai_gateway_proxy_auth_url" {
   type        = string
   description = "AI Gateway Proxy URL with authentication. Use the proxy_auth_url output from the aibridge-proxy module."
   default     = null
   sensitive   = true
 }
 
-variable "ai_gateway_cert_path" {
+variable "ai_gateway_proxy_cert_path" {
   type        = string
   description = "Path to the AI Gateway Proxy CA certificate. Use the cert_path output from the aibridge-proxy module."
   default     = null
@@ -123,14 +123,14 @@ resource "coder_env" "ai_gateway_https_proxy" {
   count    = var.enable_ai_gateway ? 1 : 0
   agent_id = var.agent_id
   name     = "HTTPS_PROXY"
-  value    = var.ai_gateway_auth_url
+  value    = var.ai_gateway_proxy_auth_url
 }
 
 resource "coder_env" "ai_gateway_node_extra_ca_certs" {
   count    = var.enable_ai_gateway ? 1 : 0
   agent_id = var.agent_id
   name     = "NODE_EXTRA_CA_CERTS"
-  value    = var.ai_gateway_cert_path
+  value    = var.ai_gateway_proxy_cert_path
 }
 
 locals {
