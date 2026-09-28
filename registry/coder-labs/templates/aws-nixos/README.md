@@ -11,8 +11,10 @@ tags: [vm, linux, aws, nixos, persistent-vm]
 Provision NixOS EC2 instances as [Coder workspaces](https://coder.com/docs/workspaces), configured
 declaratively from a flake in a Git repository. The Coder agent is declared as a NixOS systemd unit,
 so it survives `nixos-rebuild` and the workspace stays reachable across configuration changes. The
-reference configuration lives at [coder/nixos-example-flake](https://github.com/coder/nixos-example-flake);
-point the template at your own fork to control the environment.
+reference configuration lives at [coder/nixos-example-flake](https://github.com/coder/nixos-example-flake),
+which imports the agent, the workspace user and the shutdown hook from
+[coder/nixos-modules](https://github.com/coder/nixos-modules). Point the template at your own fork
+to control the environment.
 
 <!-- TODO: Add screenshot -->
 
@@ -220,37 +222,21 @@ A flake built from a git checkout ignores untracked files — `git add` a new
 
 ## Keeping workspaces up to date
 
-The schedule belongs to the machine, not to this template. The reference flake enables NixOS's own
-[`system.autoUpgrade`](https://search.nixos.org/options?query=system.autoUpgrade), wrapped as
-`coder.autoUpgrade` so the defaults make sense for a workspace:
-
-```nix
-coder.autoUpgrade = {
-  dates     = "04:40";   # systemd OnCalendar, not cron
-  operation = "boot";    # or "switch"
-};
-```
-
-- **`boot` (default)** — builds the new configuration and makes it the boot default without
-  activating it. Nothing restarts while you are working; the change lands on your next workspace
-  restart, and the "NixOS version" metric shows `(restart to apply update)` until then.
-- **`switch`** — activates immediately, restarting any service whose definition changed.
-
-Set `coder.autoUpgrade.enable = false` to turn it off, and edit `/etc/nixos` on the workspace to
-change any of it — this is a normal NixOS timer, so `systemctl list-timers nixos-upgrade` and
-`systemd-analyze calendar '<expr>'` tell you what will happen and when.
-
-The timer is **not** `Persistent`: a schedule missed while the workspace was stopped is not made up
-on the next boot, because booting already rebuilds from the checkout. Before each run the
-configuration fast-forwards the checkout under the same lock the boot path uses, with the same
-policy — a dirty tree or local commits are built as they are, never discarded.
-
-To rebuild immediately, on the workspace:
+A workspace rebuilds from the flake when it **boots**, and that is the only schedule there is: to
+pick up a change, restart the workspace, or run the rebuild yourself:
 
 ```console
-sudo systemctl start nixos-upgrade     # sync, then rebuild
-sudo nixos-rebuild switch --flake /etc/nixos#coder-workspace-x86_64
+sudo nixos-rebuild switch     # /etc/nixos/flake.nix is found on its own
 ```
+
+Adding a timer is the configuration's business, not this template's — `system.autoUpgrade` is
+upstream's and goes in the flake, where whoever owns the machine can see it. Two things it will not
+do for you: order itself behind the boot-time rebuild (`amazon-init.service`), and sync the
+checkout first, since `--refresh` does nothing for a local path flake.
+
+The "NixOS version" metadata shows `(restart to apply update)` whenever a generation has been built
+and made the boot default without being activated — which is what the shutdown staging hook does,
+and what `nixos-rebuild boot` does by hand.
 
 ## Where the logs are
 
@@ -263,9 +249,8 @@ under `these N derivations will be built:`, per-derivation compiler output, and 
 /var/log/coder-nixos/rebuild-latest.log      # symlink to the most recent boot rebuild
 ```
 
-Scheduled upgrades are the exception: `nixos-upgrade.service` writes to the journal and nowhere
-else, so nothing of theirs reaches the workspace UI. `journalctl -u nixos-upgrade` has the whole
-story, and the "NixOS version" metadata on the workspace shows when one has staged a generation.
+A rebuild you start yourself is the exception: it goes wherever you ran it, and to the journal, not
+to the workspace UI. Only the boot path streams.
 
 Keeping compiler output out of the UI is not cosmetic. Coder caps agent logs at **1 MiB per
 agent**, shared across every log source, and exceeding it does not truncate — the log is marked

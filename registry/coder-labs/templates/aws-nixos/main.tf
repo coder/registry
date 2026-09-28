@@ -155,11 +155,11 @@ resource "coder_agent" "main" {
     timeout      = 30
     script       = "coder stat disk --path $HOME"
   }
-  # Makes a staged generation visible. `coder.autoUpgrade.operation = "boot"`
-  # in the flake stages rather than activates, which otherwise looks exactly
-  # like updates being ignored. The command comes from the nix module --
-  # metadata has to be declared on the agent, but what it means to be up to
-  # date is not this file's business.
+  # Makes a staged generation visible: a configuration that was built and made
+  # the boot default without being activated otherwise looks exactly like
+  # updates being ignored. The command comes from the nix module -- metadata
+  # has to be declared on the agent, but what it means to be up to date is not
+  # this file's business.
   metadata {
     key          = "nixos"
     display_name = "NixOS version"
