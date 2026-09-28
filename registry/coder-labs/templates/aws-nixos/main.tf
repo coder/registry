@@ -11,13 +11,9 @@ terraform {
 }
 
 module "aws-region" {
-  # TODO: back to `registry.coder.com/coder/aws-region/coder` once 1.1.0 is
-  # published. `default_availability_zone` landed in coder/registry#1138 and
-  # is tagged, but the newest version the registry serves is 1.0.31, which
-  # has only `value`. The tag is at least immutable, unlike a branch.
-  # depth=1 because the source is the whole registry repo: 48 MiB rather
-  # than 92, on every `terraform init` the provisioner runs.
-  source  = "git::https://github.com/coder/registry.git//registry/coder/modules/aws-region?ref=release/coder/aws-region/v1.1.0&depth=1"
+  # 1.1.0 for `default_availability_zone`.
+  source  = "registry.coder.com/coder/aws-region/coder"
+  version = "~> 1.1"
   default = "eu-west-3"
 }
 
