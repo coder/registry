@@ -38,7 +38,7 @@ aws ec2 describe-instance-types \
   --region "$region" \
   --filters "Name=instance-type,Values=${family_filter}" "Name=bare-metal,Values=false" \
   --output json \
-  --query 'sort_by(InstanceTypes, &MemoryInfo.SizeInMiB)[].{value: InstanceType, vcpus: VCpuInfo.DefaultVCpus, memory_mib: MemoryInfo.SizeInMiB, gpus: (GpuInfo.Gpus[0].Count || `0`), ami: ProcessorInfo.SupportedArchitectures[-1]}' \
+  --query 'sort_by(InstanceTypes, &MemoryInfo.SizeInMiB)[].{type: InstanceType, vcpus: VCpuInfo.DefaultVCpus, memory_mib: MemoryInfo.SizeInMiB, gpus: (GpuInfo.Gpus[0].Count || `0`), arch: ProcessorInfo.SupportedArchitectures[-1]}' \
   > "$tmp"
 
 mv "$tmp" "$output_file"

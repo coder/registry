@@ -59,12 +59,11 @@ module "aws_ec2_instance_type" {
   version = "1.0.0"
   default = "t3.medium"
 
-  custom_names = {
-    "t3.medium" : "Standard workspace"
-  }
-
-  custom_descriptions = {
-    "t3.medium" : "Recommended default"
+  custom_metadata = {
+    "t3.medium" = {
+      name        = "Standard workspace"
+      description = "Recommended default"
+    }
   }
 }
 ```
@@ -94,7 +93,7 @@ data "aws_ami" "workspace" {
 
   filter {
     name   = "architecture"
-    values = [local.selected.ami] # x86_64 or arm64
+    values = [local.selected.arch] # x86_64 or arm64
   }
 }
 ```

@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.3"
 
   required_providers {
     coder = {
@@ -39,16 +39,13 @@ variable "mutable" {
   default     = false
 }
 
-variable "custom_names" {
-  description = "A map of custom labels for instance type IDs, overriding the generated \"vCPU / RAM / arch\" label."
-  type        = map(string)
-  default     = {}
-}
-
-variable "custom_descriptions" {
-  description = "A map of custom tooltips for instance type IDs, overriding the default instance type tooltip."
-  type        = map(string)
-  default     = {}
+variable "custom_metadata" {
+  description = "Per instance type overrides keyed by instance type ID. name replaces the generated \"vCPU / RAM / arch\" label; description replaces the instance-type tooltip."
+  type = map(object({
+    name        = optional(string)
+    description = optional(string)
+  }))
+  default = {}
 }
 
 variable "include" {
@@ -65,8 +62,8 @@ variable "coder_parameter_order" {
 
 locals {
   # Specs come straight from `aws ec2 describe-instance-types` (regenerate with
-  # .scripts/update.sh). coder_arch is derived here because AWS spells the
-  # architecture (x86_64/arm64) differently than Coder (amd64/arm64).
+  # .scripts/update.sh). coder_arch is derived from arch here because AWS spells
+  # it x86_64/arm64 while Coder uses amd64/arm64.
   #
   # Read instance-types.json with a fallback: Terraform resolves file() from the
   # root module, but Coder's dynamic parameters preview resolves it from this
@@ -75,17 +72,17 @@ locals {
 
   instance_types = [
     for instance in local.raw_instances : merge(instance, {
-      coder_arch = instance.ami == "arm64" ? "arm64" : "amd64"
+      coder_arch = instance.arch == "arm64" ? "arm64" : "amd64"
     })
   ]
 
   included_instances = [
     for instance in local.instance_types : instance
-    if contains(var.include, split(".", instance.value)[0])
+    if contains(var.include, split(".", instance.type)[0])
   ]
 
   spec_labels = {
-    for instance in local.included_instances : instance.value => format(
+    for instance in local.included_instances : instance.type => format(
       "%d vCPU, %g GiB RAM%s (%s)",
       instance.vcpus,
       instance.memory_mib / 1024,
@@ -99,13 +96,23 @@ locals {
     length([for l in values(local.spec_labels) : l if l == label])
   }
 
-  # Coder requires unique option names, but instance families share specs, so a
-  # label used by more than one included instance gets the instance type added
-  # inside the parentheses, e.g. "2 vCPU, 4 GiB RAM (amd64, c5.large)".
-  option_names = {
-    for value, label in local.spec_labels : value =>
-    local.label_counts[label] > 1 ? "${trimsuffix(label, ")")}, ${value})" : label
+  # spec label, with the instance type appended when families share a label so
+  # option names stay unique (Coder requires that).
+  display_labels = {
+    for instance_type, spec_label in local.spec_labels : instance_type =>
+    local.label_counts[spec_label] > 1 ? "${trimsuffix(spec_label, ")")}, ${instance_type})" : spec_label
   }
+
+  # Final picker entries in the catalog's memory-sorted order. name is the spec
+  # label unless custom_metadata overrides it; description is the instance type,
+  # shown as the option's tooltip.
+  options = [
+    for instance in local.included_instances : {
+      instance_type = instance.type
+      name          = coalesce(try(var.custom_metadata[instance.type].name, null), local.display_labels[instance.type])
+      description   = coalesce(try(var.custom_metadata[instance.type].description, null), instance.type)
+    }
+  ]
 }
 
 data "coder_parameter" "instance_type" {
@@ -117,12 +124,13 @@ data "coder_parameter" "instance_type" {
   order        = var.coder_parameter_order
   mutable      = var.mutable
   dynamic "option" {
-    for_each = local.included_instances
+    # local.options maps each instance type to its picker name and description.
+    for_each = local.options
+    iterator = opt
     content {
-      # Label with specs and architecture; the instance type is the tooltip.
-      name        = try(var.custom_names[option.value.value], local.option_names[option.value.value])
-      description = try(var.custom_descriptions[option.value.value], option.value.value)
-      value       = option.value.value
+      value       = opt.value.instance_type
+      name        = opt.value.name
+      description = opt.value.description
     }
   }
 }
@@ -133,6 +141,6 @@ output "value" {
 }
 
 output "instances" {
-  description = "All AWS EC2 instance types keyed by instance type ID, with raw specs (vcpus, memory_mib, gpus) and architecture (coder_arch, ami)."
-  value       = { for instance in local.instance_types : instance.value => instance }
+  description = "All AWS EC2 instance types keyed by instance type ID, with raw specs (vcpus, memory_mib, gpus) and architecture (coder_arch, arch)."
+  value       = { for instance in local.instance_types : instance.type => instance }
 }

@@ -118,17 +118,21 @@ run "option_name_is_specs_and_tooltip_is_instance_type" {
   }
 }
 
-run "custom_names_and_descriptions_override" {
+run "custom_metadata_overrides" {
   command = apply
 
   variables {
-    custom_names        = { "t3.medium" = "Standard" }
-    custom_descriptions = { "t3.medium" = "custom" }
+    custom_metadata = {
+      "t3.medium" = {
+        name        = "Standard"
+        description = "custom"
+      }
+    }
   }
 
   assert {
     condition     = length([for o in data.coder_parameter.instance_type[0].option : o if o.value == "t3.medium" && o.name == "Standard" && o.description == "custom"]) == 1
-    error_message = "custom_names and custom_descriptions should override the option name and description"
+    error_message = "custom_metadata should override the option name and description"
   }
 }
 
@@ -146,12 +150,12 @@ run "instances_output_exposes_specs_and_derived_fields" {
   }
 
   assert {
-    condition     = output.instances["t3.medium"].coder_arch == "amd64" && output.instances["t3.medium"].ami == "x86_64"
-    error_message = "x86 instances should derive amd64 from the x86_64 AMI arch"
+    condition     = output.instances["t3.medium"].coder_arch == "amd64" && output.instances["t3.medium"].arch == "x86_64"
+    error_message = "x86 instances should derive amd64 from the x86_64 arch"
   }
 
   assert {
-    condition     = output.instances["m7g.large"].coder_arch == "arm64" && output.instances["m7g.large"].ami == "arm64"
+    condition     = output.instances["m7g.large"].coder_arch == "arm64" && output.instances["m7g.large"].arch == "arm64"
     error_message = "Graviton instances should derive arm64"
   }
 
