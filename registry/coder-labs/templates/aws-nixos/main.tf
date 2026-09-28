@@ -40,7 +40,7 @@ variable "flake_ref" {
 variable "flake_attr" {
   description = "`nixosConfigurations` attribute to build. `$ARCH` is replaced with `x86_64` or `aarch64` to match the instance type."
   type        = string
-  default     = "coder-workspace-$ARCH"
+  default     = "coder-workspace-ec2-$ARCH"
 }
 
 variable "nixos_release" {

@@ -145,7 +145,7 @@ committed: a Git flake reference only ever sees committed files.
 selection you would make by hand:
 
 ```console
-nixos-rebuild switch --flake 'github:your-org/config#coder-workspace-x86_64'
+nixos-rebuild switch --flake 'github:your-org/config#coder-workspace-ec2-x86_64'
 ```
 
 `$ARCH` in `flake_attr` is replaced with `x86_64` or `aarch64` to match the chosen instance type.
@@ -153,6 +153,14 @@ That keeps the AMI architecture, `coder_agent.arch` and the flake attribute in a
 three are read off the selected instance type, so a Graviton instance type cannot accidentally boot
 an x86 configuration. If you keep a single configuration instead, set `flake_attr` to a fixed name and
 only offer instance types of the matching architecture.
+
+> [!NOTE]
+> The reference flake's configurations were renamed from `coder-workspace-<arch>` to
+> `coder-workspace-ec2-<arch>`, and the `flake_attr` default here follows. A default is only read
+> when a template is created or a variable is left unset, so a template already pushed with the old
+> value keeps it — update the stored `flake_attr` (push again with an explicit value, or edit it in
+> the template settings) before workspaces rebuild against the renamed flake, otherwise the next
+> rebuild fails on a missing attribute.
 
 Any reference `nixos-rebuild --flake` understands works, including `github:owner/repo`,
 `git+ssh://` for private repositories, and `?dir=subdir` for a flake in a subdirectory. The
@@ -198,7 +206,7 @@ The configuration is a git checkout at `/etc/nixos`, owned by the workspace
 user, and that is what the template builds. So the command is the ordinary one:
 
 ```console
-sudo nixos-rebuild switch --flake /etc/nixos#coder-workspace-x86_64
+sudo nixos-rebuild switch --flake /etc/nixos#coder-workspace-ec2-x86_64
 ```
 
 No overrides, no `--impure`, no injected inputs — what you get by hand is
@@ -226,7 +234,7 @@ A workspace rebuilds from the flake when it **boots**, and that is the only sche
 pick up a change, restart the workspace, or run the rebuild yourself:
 
 ```console
-sudo nixos-rebuild switch --flake /etc/nixos#coder-workspace-x86_64
+sudo nixos-rebuild switch --flake /etc/nixos#coder-workspace-ec2-x86_64
 ```
 
 Adding a timer is the configuration's business, not this template's — `system.autoUpgrade` is
@@ -282,8 +290,8 @@ Both `x86_64` and `arm64` (Graviton) instance types are offered. The instance ty
 [aws-ec2-instance-type](https://registry.coder.com/modules/coder/aws-ec2-instance-type) parameter,
 and the AMI filter, `coder_agent.arch` and the flake attribute are all looked up from the same
 catalog entry — so they cannot disagree. Your flake still has to expose a configuration for the
-architecture you select; the reference flake ships `coder-workspace-x86_64` and
-`coder-workspace-aarch64`.
+architecture you select; the reference flake ships `coder-workspace-ec2-x86_64` and
+`coder-workspace-ec2-aarch64`.
 
 Every size of `t3`, `t4g` and `m7g` is offered — nothing is filtered out, so the list runs from
 `t3.nano` upwards. The default is `t3.medium` because that is the smallest one that works: the
