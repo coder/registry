@@ -61,21 +61,20 @@ module "aws-ec2-instance-type" {
 
   default = "t3.medium"
   description = trimspace(<<-EOT
-    The smallest option is t3.medium on purpose: the NixOS AMI configures no
-    swap and the Nix store shares the root volume, so a rebuild that has to
-    compile anything will exhaust a 1-2 GiB instance.
+    t3.medium is the smallest that works: the NixOS AMI configures no swap and
+    the Nix store shares the root volume, so a rebuild that has to compile
+    anything will exhaust a 1-2 GiB instance.
   EOT
   )
 
-  # Everything under 4 GiB, for the reason above. The rest of the general
-  # category is left alone -- the floor is the rule, not a curated list.
-  exclude = [
-    "t3.nano",
-    "t3.micro",
-    "t3.small",
-    "t4g.nano",
-    "t4g.micro",
-    "t4g.small",
+  # Nothing is excluded, but the families are named: the module offers `t3`
+  # alone by default, and this template supports both architectures -- the
+  # AMI, the agent and the flake attribute all follow the instance type, so
+  # dropping the Graviton families would quietly make it x86-only.
+  include = [
+    "t3",
+    "t4g",
+    "m7g",
   ]
 }
 

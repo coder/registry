@@ -285,9 +285,14 @@ catalog entry — so they cannot disagree. Your flake still has to expose a conf
 architecture you select; the reference flake ships `coder-workspace-x86_64` and
 `coder-workspace-aarch64`.
 
-Anything under 4 GiB is excluded on purpose: the NixOS AMI configures no swap and the Nix store
-shares the root volume, so a rebuild that has to compile anything will exhaust a 1–2 GiB instance.
-The smallest option is therefore `t3.medium`.
+Every size of `t3`, `t4g` and `m7g` is offered — nothing is filtered out, so the list runs from
+`t3.nano` upwards. The default is `t3.medium` because that is the smallest one that works: the
+NixOS AMI configures no swap and the Nix store shares the root volume, so a rebuild that has to
+compile anything will exhaust a 1–2 GiB instance. The smaller options are selectable and will fail
+the first time they have to build something that is not in the binary cache.
+
+Add families with the module's `include` — it defaults to `t3` alone, so the Graviton families are
+named explicitly here to keep both architectures on offer.
 
 ## Troubleshooting
 
@@ -369,9 +374,9 @@ Five registry modules are included:
 > untagged, and `aws-ec2-instance-type` is still an open pull request. Both `source` lines carry a
 > TODO and must be re-pointed at `registry.coder.com` before this template is released.
 
-The first two push a dynamically linked binary into the workspace and exec it, so they work only
-because the reference flake sets `programs.nix-ld.enable = true` — remove that and both fail with a
-misleading "No such file or directory". Gateway is also told which architecture to fetch, from the
+code-server and JetBrains Gateway push a dynamically linked binary into the workspace and exec it,
+so they work only because the reference flake sets `programs.nix-ld.enable = true` — remove that
+and both fail with a misleading "No such file or directory". Gateway is also told which architecture to fetch, from the
 same catalog entry that picks the AMI, and is restricted to the IDEs JetBrains publishes an
 `aarch64` backend for.
 
