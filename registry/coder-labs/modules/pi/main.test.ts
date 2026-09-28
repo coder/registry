@@ -87,6 +87,7 @@ afterEach(async () => {
 interface SetupProps {
   skipPiMock?: boolean;
   moduleVariables?: Record<string, string>;
+  terraformEnv?: Record<string, string>;
 }
 
 const setup = async (
@@ -98,12 +99,16 @@ const setup = async (
 }> => {
   const projectDir = "/home/coder/project";
   const moduleDir = path.resolve(import.meta.dir);
-  const state = await runTerraformApply(moduleDir, {
-    agent_id: "foo",
-    workdir: projectDir,
-    install_pi: "false",
-    ...props?.moduleVariables,
-  });
+  const state = await runTerraformApply(
+    moduleDir,
+    {
+      agent_id: "foo",
+      workdir: projectDir,
+      install_pi: "false",
+      ...props?.moduleVariables,
+    },
+    props?.terraformEnv,
+  );
   const scripts = collectScripts(state);
   const coderEnvVars = extractCoderEnvVars(state);
 
@@ -286,6 +291,115 @@ describe("pi", async () => {
       },
     });
     expect(coderEnvVars["MISTRAL_API_KEY"]).toBe("test-mistral-key");
+  });
+
+  test("ai-gateway-configures-models-json", async () => {
+    const sessionToken = "test-session-token-123";
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: { enable_ai_gateway: "true" },
+      terraformEnv: { CODER_WORKSPACE_OWNER_SESSION_TOKEN: sessionToken },
+    });
+    expect(coderEnvVars["ANTHROPIC_API_KEY"]).toBe(sessionToken);
+    expect(coderEnvVars["OPENAI_API_KEY"]).toBe(sessionToken);
+    expect(scripts.install).not.toContain(sessionToken);
+
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `mkdir -p /home/coder/.pi/agent && printf '%s' '{"providers":{"ollama":{"baseUrl":"http://localhost:11434/v1"}}}' > /home/coder/.pi/agent/models.json`,
+    ]);
+    await runScripts(id, scripts);
+
+    const models = JSON.parse(
+      await readFileContainer(id, "/home/coder/.pi/agent/models.json"),
+    );
+    expect(models.providers.anthropic.baseUrl).toMatch(
+      /\/api\/v2\/ai-gateway\/anthropic$/,
+    );
+    expect(models.providers.openai.baseUrl).toMatch(
+      /\/api\/v2\/ai-gateway\/openai\/v1$/,
+    );
+    expect(models.providers.anthropic.baseUrl).not.toContain("//api");
+    expect(models.providers.ollama.baseUrl).toBe("http://localhost:11434/v1");
+  });
+
+  test("models-json-untouched-without-ai-gateway", async () => {
+    const { id, scripts } = await setup();
+    await runScripts(id, scripts);
+    const result = await execContainer(id, [
+      "test",
+      "-e",
+      "/home/coder/.pi/agent/models.json",
+    ]);
+    expect(result.exitCode).not.toBe(0);
+  });
+
+  test("pi-binary-path-outside-path", async () => {
+    const binaryPath = "/opt/pi/bin/pi";
+    const { id, scripts } = await setup({
+      skipPiMock: true,
+      moduleVariables: { pi_binary_path: binaryPath },
+    });
+    await execContainer(
+      id,
+      ["bash", "-c", "mkdir -p /opt/pi/bin && chown coder:coder /opt/pi/bin"],
+      ["-u", "root"],
+    );
+    await writeExecutable({
+      containerId: id,
+      filePath: binaryPath,
+      content: await Bun.file(
+        path.join(import.meta.dir, "testdata", "pi-mock.sh"),
+      ).text(),
+    });
+    const result = await runInstallScript(id, scripts.install);
+    expect(result.exitCode).toBe(0);
+    const log = await installLog(id);
+    expect(log).toContain("Validated existing Pi CLI: pi version v1.0.0");
+    const profile = await readFileContainer(id, "/home/coder/.bashrc");
+    expect(profile).toContain("/opt/pi/bin");
+  });
+
+  test("pi-binary-path-missing", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: { pi_binary_path: "/opt/pi/bin/pi" },
+    });
+    const result = await runInstallScript(id, scripts.install);
+    expect(result.exitCode).not.toBe(0);
+    const log = await installLog(id);
+    expect(log).toContain(
+      "pi_binary_path /opt/pi/bin/pi does not exist or is not executable.",
+    );
+  });
+
+  test("install-from-npm-registry-url", async () => {
+    const registry = "https://registry.npmjs.org/";
+    const { id, scripts } = await setup({
+      skipPiMock: true,
+      moduleVariables: { install_pi: "true", npm_registry_url: registry },
+    });
+    const result = await runInstallScript(id, scripts.install);
+    expect(result.exitCode).toBe(0);
+    const log = await installLog(id);
+    expect(log).toContain(`Using npm registry: ${registry}`);
+    expect(log).toContain("Installed Pi CLI");
+  });
+
+  test("unreachable-npm-registry-url-fails-install", async () => {
+    const { id, scripts } = await setup({
+      skipPiMock: true,
+      moduleVariables: {
+        install_pi: "true",
+        npm_registry_url: "http://127.0.0.1:9/",
+      },
+    });
+    const result = await runInstallScript(id, scripts.install, {
+      npm_config_fetch_retries: "0",
+    });
+    expect(result.exitCode).not.toBe(0);
+    const log = await installLog(id);
+    expect(log).toContain("Using npm registry: http://127.0.0.1:9/");
+    expect(log).toContain("Pi installation failed.");
   });
 
   test("default-project-trust-written-to-settings", async () => {

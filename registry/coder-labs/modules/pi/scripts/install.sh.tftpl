@@ -10,14 +10,20 @@ command_exists() {
 
 ARG_INSTALL_PI='${ARG_INSTALL_PI}'
 ARG_PI_VERSION='${ARG_PI_VERSION}'
+ARG_PI_BINARY_PATH=$(echo -n '${ARG_PI_BINARY_PATH}' | base64 -d)
+ARG_NPM_REGISTRY_URL='${ARG_NPM_REGISTRY_URL}'
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
 ARG_DEFAULT_PROJECT_TRUST='${ARG_DEFAULT_PROJECT_TRUST}'
+ARG_AI_GATEWAY_BASE_URL='${ARG_AI_GATEWAY_BASE_URL}'
 
 echo "--------------------------------"
 printf "ARG_INSTALL_PI: %s\n" "$${ARG_INSTALL_PI}"
 printf "ARG_PI_VERSION: %s\n" "$${ARG_PI_VERSION}"
+printf "ARG_PI_BINARY_PATH: %s\n" "$${ARG_PI_BINARY_PATH}"
+printf "ARG_NPM_REGISTRY_URL: %s\n" "$${ARG_NPM_REGISTRY_URL}"
 printf "ARG_WORKDIR: %s\n" "$${ARG_WORKDIR}"
 printf "ARG_DEFAULT_PROJECT_TRUST: %s\n" "$${ARG_DEFAULT_PROJECT_TRUST}"
+printf "ARG_AI_GATEWAY_BASE_URL: %s\n" "$${ARG_AI_GATEWAY_BASE_URL}"
 echo "--------------------------------"
 
 function add_path_to_shell_profiles() {
@@ -66,6 +72,15 @@ function ensure_pi_in_path() {
 function install_pi_cli() {
   if [ "$${ARG_INSTALL_PI}" != "true" ]; then
     echo "Skipping Pi installation as per configuration."
+    if [ -n "$${ARG_PI_BINARY_PATH}" ]; then
+      if [ ! -x "$${ARG_PI_BINARY_PATH}" ]; then
+        echo "pi_binary_path $${ARG_PI_BINARY_PATH} does not exist or is not executable." >&2
+        return 1
+      fi
+      local pi_binary_dir
+      pi_binary_dir=$(dirname "$${ARG_PI_BINARY_PATH}")
+      export PATH="$${pi_binary_dir}:$PATH"
+    fi
     ensure_pi_in_path
     printf "%s Validated existing Pi CLI: %s\n" "$${BOLD}" "$(pi --version)"
     return
@@ -90,7 +105,13 @@ function install_pi_cli() {
   local npm_prefix="$HOME/.coder-modules/coder-labs/pi/npm-global"
   mkdir -p "$${npm_prefix}"
 
-  if ! npm install -g --ignore-scripts --prefix "$${npm_prefix}" "$${package}"; then
+  local npm_args=(install -g --ignore-scripts --prefix "$${npm_prefix}")
+  if [ -n "$${ARG_NPM_REGISTRY_URL}" ]; then
+    echo "Using npm registry: $${ARG_NPM_REGISTRY_URL}"
+    npm_args+=(--registry "$${ARG_NPM_REGISTRY_URL}")
+  fi
+
+  if ! npm "$${npm_args[@]}" "$${package}"; then
     echo "Pi installation failed." >&2
     return 1
   fi
@@ -116,6 +137,30 @@ function configure_pi_settings() {
   echo "Wrote Pi settings to $${settings_path}"
 }
 
+# Pi ignores ANTHROPIC_BASE_URL and OPENAI_BASE_URL, so the gateway endpoints
+# are set as provider baseUrl overrides in models.json. Overriding only
+# baseUrl keeps Pi's built-in model lists for each provider.
+function configure_ai_gateway() {
+  if [ -z "$${ARG_AI_GATEWAY_BASE_URL}" ]; then
+    return
+  fi
+
+  local models_path="$HOME/.pi/agent/models.json"
+  local anthropic_url="$${ARG_AI_GATEWAY_BASE_URL}/anthropic"
+  local openai_url="$${ARG_AI_GATEWAY_BASE_URL}/openai/v1"
+  # shellcheck disable=SC2016 # $anthropic and $openai are jq variables.
+  local filter='.providers.anthropic.baseUrl = $anthropic | .providers.openai.baseUrl = $openai'
+
+  if [ -f "$${models_path}" ]; then
+    jq --arg anthropic "$${anthropic_url}" --arg openai "$${openai_url}" "$${filter}" \
+      "$${models_path}" > "$${models_path}.tmp" && mv "$${models_path}.tmp" "$${models_path}"
+  else
+    jq -n --arg anthropic "$${anthropic_url}" --arg openai "$${openai_url}" "$${filter}" > "$${models_path}"
+  fi
+
+  echo "Configured Pi to use Coder AI Gateway in $${models_path}"
+}
+
 function setup_workdir() {
   if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
     echo "Creating workdir: $${ARG_WORKDIR}"
@@ -125,4 +170,5 @@ function setup_workdir() {
 
 install_pi_cli
 configure_pi_settings
+configure_ai_gateway
 setup_workdir
