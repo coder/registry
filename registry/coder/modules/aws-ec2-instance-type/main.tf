@@ -22,7 +22,7 @@ variable "description" {
 }
 
 variable "default" {
-  description = "The default instance type to preselect (must be part of type_category), or the fixed value returned when create_parameter is false."
+  description = "The default instance type to preselect (must belong to an included family), or the fixed value returned when create_parameter is false."
   type        = string
   default     = ""
 }
@@ -40,27 +40,21 @@ variable "mutable" {
 }
 
 variable "custom_names" {
-  description = "A map of custom display names for instance type IDs."
+  description = "A map of custom labels for instance type IDs, overriding the generated \"vCPU / RAM / arch\" label."
   type        = map(string)
   default     = {}
 }
 
 variable "custom_descriptions" {
-  description = "A map of custom descriptions for instance type IDs."
+  description = "A map of custom tooltips for instance type IDs, overriding the default instance type tooltip."
   type        = map(string)
   default     = {}
 }
 
-variable "type_category" {
-  description = "A list of instance type categories the user is allowed to choose. One of [\"general\", \"compute\", \"memory\", \"storage\", \"gpu\"]."
+variable "include" {
+  description = "Instance families to offer in the picker, e.g. [\"t3\", \"m5\", \"c5\"]. Defaults to t3."
   type        = list(string)
-  default     = ["general"]
-}
-
-variable "exclude" {
-  description = "A list of instance type IDs to exclude, e.g. [\"t3.nano\", \"m5.24xlarge\"]."
-  type        = list(string)
-  default     = []
+  default     = ["t3"]
 }
 
 variable "coder_parameter_order" {
@@ -96,6 +90,34 @@ locals {
       coder_arch = instance.ami == "arm64" ? "arm64" : "amd64"
     })
   ]
+
+  included_instances = [
+    for instance in local.instance_types : instance
+    if contains(var.include, split(".", instance.value)[0])
+  ]
+
+  spec_labels = {
+    for instance in local.included_instances : instance.value => format(
+      "%d vCPU, %g GiB RAM%s (%s)",
+      instance.vcpus,
+      instance.memory_mib / 1024,
+      instance.gpus > 0 ? format(", %d GPU", instance.gpus) : "",
+      instance.coder_arch
+    )
+  }
+
+  label_counts = {
+    for label in distinct(values(local.spec_labels)) : label =>
+    length([for l in values(local.spec_labels) : l if l == label])
+  }
+
+  # Coder requires unique option names, but instance families share specs, so a
+  # label used by more than one included instance gets the instance type added
+  # inside the parentheses, e.g. "2 vCPU, 4 GiB RAM (amd64, c5.large)".
+  option_names = {
+    for value, label in local.spec_labels : value =>
+    local.label_counts[label] > 1 ? "${trimsuffix(label, ")")}, ${value})" : label
+  }
 }
 
 data "coder_parameter" "instance_type" {
@@ -107,22 +129,12 @@ data "coder_parameter" "instance_type" {
   order        = var.coder_parameter_order
   mutable      = var.mutable
   dynamic "option" {
-    for_each = [
-      for instance in local.instance_types : instance
-      if contains(var.type_category, instance.category) && !contains(var.exclude, instance.value)
-    ]
+    for_each = local.included_instances
     content {
-      name = try(var.custom_names[option.value.value], option.value.value)
-      description = try(
-        var.custom_descriptions[option.value.value],
-        format(
-          "%d vCPU, %g GiB RAM%s",
-          option.value.vcpus,
-          option.value.memory_mib / 1024,
-          option.value.gpus > 0 ? format(", %d GPU", option.value.gpus) : ""
-        )
-      )
-      value = option.value.value
+      # Label with specs and architecture; the instance type is the tooltip.
+      name        = try(var.custom_names[option.value.value], local.option_names[option.value.value])
+      description = try(var.custom_descriptions[option.value.value], option.value.value)
+      value       = option.value.value
     }
   }
 }

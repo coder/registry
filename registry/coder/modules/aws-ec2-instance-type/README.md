@@ -8,8 +8,9 @@ tags: [helper, parameter, instances, aws]
 
 # AWS EC2 Instance Type
 
-A parameter with common AWS EC2 instance types, grouped by category. This allows
-developers to select the machine that best fits their workspace.
+A parameter with common AWS EC2 instance types, filtered by instance family.
+Each option is labeled with its vCPU, RAM, and architecture so developers can
+select the machine that best fits their workspace.
 
 ```tf
 module "aws_ec2_instance_type" {
@@ -27,25 +28,29 @@ resource "aws_instance" "dev" {
 
 ## Examples
 
-### Restrict to a category
+### Choose instance families
 
-Only expose compute optimized instances and preselect one:
+By default only the `t3` family is offered. Pass `include` to expose more
+families and preselect one:
 
 ```tf
 module "aws_ec2_instance_type" {
-  count         = data.coder_workspace.me.start_count
-  source        = "registry.coder.com/coder/aws-ec2-instance-type/coder"
-  version       = "1.0.0"
-  default       = "c5.2xlarge"
-  type_category = ["compute"]
+  count   = data.coder_workspace.me.start_count
+  source  = "registry.coder.com/coder/aws-ec2-instance-type/coder"
+  version = "1.0.0"
+  include = ["t3", "m5", "c5"]
+  default = "m5.large"
 }
 ```
 
-The available categories are `general`, `compute`, `memory`, `storage`, and `gpu`.
+The bundled catalog covers the `t3`, `t4g`, `m5`, `m7g`, `c5`, `r5`, `i3`, and
+`g4dn` families.
 
-### Customize names and descriptions
+### Customize labels and tooltips
 
-Override the display name and description for specific instance types:
+Each option is labeled with its specs and architecture (for example
+`2 vCPU, 4 GiB RAM (amd64)`) and shows the instance type as a tooltip. Override
+either per instance type:
 
 ```tf
 module "aws_ec2_instance_type" {
@@ -59,21 +64,8 @@ module "aws_ec2_instance_type" {
   }
 
   custom_descriptions = {
-    "t3.medium" : "2 vCPU, 4 GiB RAM (recommended)"
+    "t3.medium" : "Recommended default"
   }
-}
-```
-
-### Exclude instance types
-
-Hide the smallest burstable types:
-
-```tf
-module "aws_ec2_instance_type" {
-  count   = data.coder_workspace.me.start_count
-  source  = "registry.coder.com/coder/aws-ec2-instance-type/coder"
-  version = "1.0.0"
-  exclude = ["t3.nano", "t3.micro"]
 }
 ```
 

@@ -61,7 +61,7 @@ run "disabling_parameter_skips_creation" {
   }
 }
 
-run "general_category_includes_template_types" {
+run "default_include_covers_template_types" {
   command = apply
 
   assert {
@@ -69,42 +69,52 @@ run "general_category_includes_template_types" {
       for v in ["t3.micro", "t3.small", "t3.medium", "t3.large", "t3.xlarge", "t3.2xlarge"] :
       contains([for o in data.coder_parameter.instance_type[0].option : o.value], v)
     ])
-    error_message = "The general category must include every instance type used by the AWS templates"
+    error_message = "The default t3 family must include every instance type used by the AWS templates"
   }
 }
 
-run "type_category_filters_options" {
+run "include_filters_by_family" {
   command = apply
 
   variables {
-    type_category = ["compute"]
+    include = ["c5"]
   }
 
   assert {
     condition     = contains([for o in data.coder_parameter.instance_type[0].option : o.value], "c5.large") && !contains([for o in data.coder_parameter.instance_type[0].option : o.value], "t3.micro")
-    error_message = "type_category should include compute types and exclude others"
+    error_message = "include should show the requested family and hide others"
   }
 }
 
-run "exclude_removes_option" {
+run "include_allows_multiple_families" {
   command = apply
 
   variables {
-    exclude = ["t3.nano"]
+    include = ["t3", "c5"]
   }
 
   assert {
-    condition     = !contains([for o in data.coder_parameter.instance_type[0].option : o.value], "t3.nano")
-    error_message = "Excluded instance types should not appear as options"
+    condition     = contains([for o in data.coder_parameter.instance_type[0].option : o.value], "t3.micro") && contains([for o in data.coder_parameter.instance_type[0].option : o.value], "c5.large") && !contains([for o in data.coder_parameter.instance_type[0].option : o.value], "m5.large")
+    error_message = "include should accept multiple families and exclude the rest"
+  }
+
+  assert {
+    condition     = length([for o in data.coder_parameter.instance_type[0].option : o if o.value == "c5.large" && o.name == "2 vCPU, 4 GiB RAM (amd64, c5.large)"]) == 1
+    error_message = "a spec label shared across families should be disambiguated with the instance type"
+  }
+
+  assert {
+    condition     = length([for o in data.coder_parameter.instance_type[0].option : o if o.value == "t3.large" && o.name == "2 vCPU, 8 GiB RAM (amd64)"]) == 1
+    error_message = "a unique spec label should stay specs-only"
   }
 }
 
-run "option_description_is_computed" {
+run "option_name_is_specs_and_tooltip_is_instance_type" {
   command = apply
 
   assert {
-    condition     = length([for o in data.coder_parameter.instance_type[0].option : o if o.value == "t3.medium" && o.description == "2 vCPU, 4 GiB RAM"]) == 1
-    error_message = "Option description should be computed from vcpus/memory_mib/gpus"
+    condition     = length([for o in data.coder_parameter.instance_type[0].option : o if o.value == "t3.medium" && o.name == "2 vCPU, 4 GiB RAM (amd64)" && o.description == "t3.medium"]) == 1
+    error_message = "Option name should be the computed specs with arch and the description should be the instance type"
   }
 }
 
@@ -155,6 +165,7 @@ run "value_is_key_in_instances" {
   command = apply
 
   variables {
+    include = ["t4g"]
     default = "t4g.medium"
   }
 
