@@ -149,9 +149,9 @@ nixos-rebuild switch --flake 'github:your-org/config#coder-workspace-x86_64'
 ```
 
 `$ARCH` in `flake_attr` is replaced with `x86_64` or `aarch64` to match the chosen instance type.
-That keeps the AMI architecture, `coder_agent.arch` and the flake attribute in agreement — they are
-all derived from one map in `main.tf`, so a Graviton instance type cannot accidentally boot an
-x86 configuration. If you keep a single configuration instead, set `flake_attr` to a fixed name and
+That keeps the AMI architecture, `coder_agent.arch` and the flake attribute in agreement — all
+three are read off the selected instance type, so a Graviton instance type cannot accidentally boot
+an x86 configuration. If you keep a single configuration instead, set `flake_attr` to a fixed name and
 only offer instance types of the matching architecture.
 
 Any reference `nixos-rebuild --flake` understands works, including `github:owner/repo`,
@@ -278,14 +278,16 @@ volume is picked up on the next restart.
 
 ## Architecture support
 
-Both `x86_64` and `arm64` (Graviton) instance types are offered. The AMI filter,
-`coder_agent.arch` and the flake attribute are all derived from the instance type, so they cannot
-disagree — but your flake must expose a configuration for the architecture you select. The
-reference flake ships `coder-workspace-x86_64` and `coder-workspace-aarch64`.
+Both `x86_64` and `arm64` (Graviton) instance types are offered. The instance type is a
+[aws-ec2-instance-type](https://registry.coder.com/modules/coder/aws-ec2-instance-type) parameter,
+and the AMI filter, `coder_agent.arch` and the flake attribute are all looked up from the same
+catalog entry — so they cannot disagree. Your flake still has to expose a configuration for the
+architecture you select; the reference flake ships `coder-workspace-x86_64` and
+`coder-workspace-aarch64`.
 
-The smallest instance type offered is `t3.medium` on purpose: the NixOS AMI configures no swap and
-the Nix store shares the root volume, so a rebuild that has to compile anything will exhaust a
-1–2 GiB instance.
+Anything under 4 GiB is excluded on purpose: the NixOS AMI configures no swap and the Nix store
+shares the root volume, so a rebuild that has to compile anything will exhaust a 1–2 GiB instance.
+The smallest option is therefore `t3.medium`.
 
 ## Troubleshooting
 
@@ -354,15 +356,23 @@ store, where every process on the workspace can read it.
 
 ## Extending the template
 
-Three registry modules are included:
+Five registry modules are included:
+[aws-region](https://registry.coder.com/modules/coder/aws-region),
+[aws-ec2-instance-type](https://registry.coder.com/modules/coder/aws-ec2-instance-type),
 [code-server](https://registry.coder.com/modules/coder/code-server),
 [jetbrains-gateway](https://registry.coder.com/modules/coder/jetbrains-gateway) and
 [git-config](https://registry.coder.com/modules/coder/git-config).
 
+> [!NOTE]
+> The first two are currently sourced from Git rather than the registry, because the versions this
+> template needs are not published yet: `aws-region`'s `default_availability_zone` is merged but
+> untagged, and `aws-ec2-instance-type` is still an open pull request. Both `source` lines carry a
+> TODO and must be re-pointed at `registry.coder.com` before this template is released.
+
 The first two push a dynamically linked binary into the workspace and exec it, so they work only
 because the reference flake sets `programs.nix-ld.enable = true` — remove that and both fail with a
 misleading "No such file or directory". Gateway is also told which architecture to fetch, from the
-same instance-type map that picks the AMI, and is restricted to the IDEs JetBrains publishes an
+same catalog entry that picks the AMI, and is restricted to the IDEs JetBrains publishes an
 `aarch64` backend for.
 
 > [!NOTE]

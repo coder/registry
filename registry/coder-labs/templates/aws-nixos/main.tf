@@ -11,8 +11,12 @@ terraform {
 }
 
 module "aws-region" {
-  source  = "registry.coder.com/coder/aws-region/coder"
-  version = "~> 1.0"
+  # TODO: back to `registry.coder.com/coder/aws-region/coder` once 1.1.0 is
+  # published. `default_availability_zone` landed in coder/registry#1138 and
+  # the newest published version is still 1.0.31, which has only `value`.
+  # depth=1 because the source is the whole registry repo: 48 MiB rather
+  # than 92, on every `terraform init` the provisioner runs.
+  source  = "git::https://github.com/coder/registry.git//registry/coder/modules/aws-region?ref=main&depth=1"
   default = "eu-west-3"
 }
 
@@ -49,45 +53,30 @@ variable "nixos_release" {
   default     = "26.05"
 }
 
-data "coder_parameter" "instance_type" {
-  name         = "instance_type"
-  display_name = "Instance type"
-  description  = <<-EOT
+module "aws-ec2-instance-type" {
+  # TODO: back to `registry.coder.com/coder/aws-ec2-instance-type/coder` once
+  # coder/registry#1136 merges and publishes. Until then this template cannot
+  # be released: it points at a branch, which is mutable.
+  source = "git::https://github.com/coder/registry.git//registry/coder/modules/aws-ec2-instance-type?ref=phorcys/aws-ec2-instance-type&depth=1"
+
+  default = "t3.medium"
+  description = trimspace(<<-EOT
     The smallest option is t3.medium on purpose: the NixOS AMI configures no
     swap and the Nix store shares the root volume, so a rebuild that has to
     compile anything will exhaust a 1-2 GiB instance.
   EOT
-  default      = "t3.medium"
-  mutable      = false
+  )
 
-  option {
-    name  = "2 vCPU, 4 GiB RAM"
-    value = "t3.medium"
-  }
-  option {
-    name  = "2 vCPU, 8 GiB RAM"
-    value = "t3.large"
-  }
-  option {
-    name  = "4 vCPU, 16 GiB RAM"
-    value = "t3.xlarge"
-  }
-  option {
-    name  = "8 vCPU, 32 GiB RAM"
-    value = "t3.2xlarge"
-  }
-  option {
-    name  = "2 vCPU, 4 GiB RAM (Graviton)"
-    value = "t4g.medium"
-  }
-  option {
-    name  = "2 vCPU, 8 GiB RAM (Graviton)"
-    value = "m7g.large"
-  }
-  option {
-    name  = "4 vCPU, 16 GiB RAM (Graviton)"
-    value = "m7g.xlarge"
-  }
+  # Everything under 4 GiB, for the reason above. The rest of the general
+  # category is left alone -- the floor is the rule, not a curated list.
+  exclude = [
+    "t3.nano",
+    "t3.micro",
+    "t3.small",
+    "t4g.nano",
+    "t4g.micro",
+    "t4g.small",
+  ]
 }
 
 data "coder_parameter" "root_volume_size" {
@@ -212,18 +201,16 @@ module "git-config" {
 }
 
 locals {
-  # One map so the AMI architecture, coder_agent.arch and the flake attribute
-  # cannot disagree.
-  arch_map = {
-    "t3.medium"  = { agent = "amd64", ami = "x86_64", attr = "x86_64" }
-    "t3.large"   = { agent = "amd64", ami = "x86_64", attr = "x86_64" }
-    "t3.xlarge"  = { agent = "amd64", ami = "x86_64", attr = "x86_64" }
-    "t3.2xlarge" = { agent = "amd64", ami = "x86_64", attr = "x86_64" }
-    "t4g.medium" = { agent = "arm64", ami = "arm64", attr = "aarch64" }
-    "m7g.large"  = { agent = "arm64", ami = "arm64", attr = "aarch64" }
-    "m7g.xlarge" = { agent = "arm64", ami = "arm64", attr = "aarch64" }
+  instance = module.aws-ec2-instance-type.instances[module.aws-ec2-instance-type.value]
+
+  # The AMI architecture, coder_agent.arch and the flake attribute all come
+  # from the instance type, so they cannot disagree. The module publishes the
+  # first two spellings; the third is Nix's, and is the same distinction.
+  arch = {
+    agent = local.instance.coder_arch
+    ami   = local.instance.ami
+    attr  = local.instance.ami == "arm64" ? "aarch64" : "x86_64"
   }
-  arch = local.arch_map[data.coder_parameter.instance_type.value]
 }
 
 # Everything about the flake: the checkout, the boot-time rebuild and the
@@ -254,8 +241,8 @@ module "amazon-init" {
 
 resource "aws_instance" "dev" {
   ami               = data.aws_ami.nixos.id
-  availability_zone = "${module.aws-region.value}a"
-  instance_type     = data.coder_parameter.instance_type.value
+  availability_zone = module.aws-region.default_availability_zone
+  instance_type     = module.aws-ec2-instance-type.value
   user_data         = module.amazon-init.user_data
 
   # The agent token is inside user-data and rotates on every workspace start,
