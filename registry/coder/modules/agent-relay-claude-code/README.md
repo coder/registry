@@ -16,7 +16,7 @@ on each build and runs the Claude Code self-hosted runner.
 ```tf
 module "claude_code_runner" {
   source   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version  = "0.1.1"
+  version  = "0.2.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Claude Code CLI at start when it is not in the image. Bake
@@ -54,6 +54,13 @@ Agent Relay verifies this contract against the template's active version at
 startup and refuses to serve a pool that does not satisfy it. Every parameter
 renders disabled with a "Set by Agent Relay on dispatch" placeholder; the
 credential is masked.
+
+`agent_relay_client_platform` is attribution rather than contract: the relay
+stamps the surface the session was created from (`web_claude_ai`,
+`claude_in_slack`, `desktop_app`, ...) and the module exposes it to the
+workspace as `AGENT_RELAY_CLIENT_PLATFORM` and as the `client_platform`
+output, so a template can vary its setup by origin. A relay that predates the
+parameter leaves it empty.
 
 ## Scripts and logs
 
