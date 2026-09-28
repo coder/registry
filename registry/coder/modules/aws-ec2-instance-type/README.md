@@ -13,7 +13,7 @@ Each option is labeled with its vCPU, RAM, and architecture so developers can
 select the machine that best fits their workspace.
 
 ```tf
-module "aws_ec2_instance_type" {
+module "aws-ec2-instance-type" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/coder/aws-ec2-instance-type/coder"
   version = "1.0.0"
@@ -21,7 +21,7 @@ module "aws_ec2_instance_type" {
 }
 
 resource "aws_instance" "dev" {
-  instance_type = module.aws_ec2_instance_type[0].value
+  instance_type = module.aws-ec2-instance-type[0].value
   # ...
 }
 ```
@@ -36,7 +36,7 @@ By default only the `t3` family is offered. Pass `include` to expose more
 families and preselect one:
 
 ```tf
-module "aws_ec2_instance_type" {
+module "aws-ec2-instance-type" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/coder/aws-ec2-instance-type/coder"
   version = "1.0.0"
@@ -55,7 +55,7 @@ Each option is labeled with its specs and architecture (for example
 either per instance type:
 
 ```tf
-module "aws_ec2_instance_type" {
+module "aws-ec2-instance-type" {
   count   = data.coder_workspace.me.start_count
   source  = "registry.coder.com/coder/aws-ec2-instance-type/coder"
   version = "1.0.0"
@@ -75,13 +75,13 @@ module "aws_ec2_instance_type" {
 The `instances` output maps every instance type ID to its metadata, including architecture fields. Look up the selected value to configure the agent and pick a matching AMI:
 
 ```tf
-module "aws_ec2_instance_type" {
+module "aws-ec2-instance-type" {
   source  = "registry.coder.com/coder/aws-ec2-instance-type/coder"
   version = "1.0.0"
 }
 
 locals {
-  selected = module.aws_ec2_instance_type.instances[module.aws_ec2_instance_type.value]
+  selected = module.aws-ec2-instance-type.instances[module.aws-ec2-instance-type.value]
 }
 
 resource "coder_agent" "dev" {
@@ -105,7 +105,7 @@ data "aws_ami" "workspace" {
 Set `create_parameter = false` to skip the picker (for example when the template pins the size) while still using the `instances` catalog:
 
 ```tf
-module "aws_ec2_instance_type" {
+module "aws-ec2-instance-type" {
   source           = "registry.coder.com/coder/aws-ec2-instance-type/coder"
   version          = "1.0.0"
   create_parameter = false
