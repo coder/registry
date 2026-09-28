@@ -207,8 +207,8 @@ locals {
   # first two spellings; the third is Nix's, and is the same distinction.
   arch = {
     agent = local.instance.coder_arch
-    ami   = local.instance.ami
-    attr  = local.instance.ami == "arm64" ? "aarch64" : "x86_64"
+    ami   = local.instance.arch
+    attr  = local.instance.arch == "arm64" ? "aarch64" : "x86_64"
   }
 }
 
