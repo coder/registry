@@ -226,7 +226,7 @@ A workspace rebuilds from the flake when it **boots**, and that is the only sche
 pick up a change, restart the workspace, or run the rebuild yourself:
 
 ```console
-sudo nixos-rebuild switch     # /etc/nixos/flake.nix is found on its own
+sudo nixos-rebuild switch --flake /etc/nixos#coder-workspace-x86_64
 ```
 
 Adding a timer is the configuration's business, not this template's — `system.autoUpgrade` is
