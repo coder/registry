@@ -13,10 +13,11 @@ terraform {
 module "aws-region" {
   # TODO: back to `registry.coder.com/coder/aws-region/coder` once 1.1.0 is
   # published. `default_availability_zone` landed in coder/registry#1138 and
-  # the newest published version is still 1.0.31, which has only `value`.
+  # is tagged, but the newest version the registry serves is 1.0.31, which
+  # has only `value`. The tag is at least immutable, unlike a branch.
   # depth=1 because the source is the whole registry repo: 48 MiB rather
   # than 92, on every `terraform init` the provisioner runs.
-  source  = "git::https://github.com/coder/registry.git//registry/coder/modules/aws-region?ref=main&depth=1"
+  source  = "git::https://github.com/coder/registry.git//registry/coder/modules/aws-region?ref=release/coder/aws-region/v1.1.0&depth=1"
   default = "eu-west-3"
 }
 
@@ -54,10 +55,8 @@ variable "nixos_release" {
 }
 
 module "aws-ec2-instance-type" {
-  # TODO: back to `registry.coder.com/coder/aws-ec2-instance-type/coder` once
-  # coder/registry#1136 merges and publishes. Until then this template cannot
-  # be released: it points at a branch, which is mutable.
-  source = "git::https://github.com/coder/registry.git//registry/coder/modules/aws-ec2-instance-type?ref=phorcys/aws-ec2-instance-type&depth=1"
+  source  = "registry.coder.com/coder/aws-ec2-instance-type/coder"
+  version = "~> 1.0"
 
   default = "t3.medium"
   description = trimspace(<<-EOT

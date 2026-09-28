@@ -377,10 +377,10 @@ Five registry modules are included:
 [git-config](https://registry.coder.com/modules/coder/git-config).
 
 > [!NOTE]
-> The first two are currently sourced from Git rather than the registry, because the versions this
-> template needs are not published yet: `aws-region`'s `default_availability_zone` is merged but
-> untagged, and `aws-ec2-instance-type` is still an open pull request. Both `source` lines carry a
-> TODO and must be re-pointed at `registry.coder.com` before this template is released.
+> `aws-region` is still sourced from Git, because the version this template needs is not served by
+> the registry yet: `default_availability_zone` landed in 1.1.0 and the newest published version is
+> 1.0.31. The pin is the release tag, so it is immutable, but the `source` line carries a TODO and
+> must be re-pointed at `registry.coder.com` before this template is released.
 
 code-server and JetBrains Gateway push a dynamically linked binary into the workspace and exec it,
 so they work only because the reference flake sets `programs.nix-ld.enable = true` — remove that
