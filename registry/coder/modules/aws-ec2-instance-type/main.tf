@@ -65,28 +65,16 @@ variable "coder_parameter_order" {
 
 locals {
   # Specs come straight from `aws ec2 describe-instance-types` (regenerate with
-  # .scripts/update.sh). category and coder_arch are derived here because AWS
-  # neither groups instances nor uses Coder's arch spelling.
+  # .scripts/update.sh). coder_arch is derived here because AWS spells the
+  # architecture (x86_64/arm64) differently than Coder (amd64/arm64).
   #
   # Read instance-types.json with a fallback: Terraform resolves file() from the
   # root module, but Coder's dynamic parameters preview resolves it from this
   # module's directory, so neither path works on its own.
   raw_instances = jsondecode(try(file("${path.module}/instance-types.json"), file("instance-types.json")))
 
-  family_category = {
-    t3   = "general"
-    m5   = "general"
-    t4g  = "general"
-    m7g  = "general"
-    c5   = "compute"
-    r5   = "memory"
-    i3   = "storage"
-    g4dn = "gpu"
-  }
-
   instance_types = [
     for instance in local.raw_instances : merge(instance, {
-      category   = local.family_category[split(".", instance.value)[0]]
       coder_arch = instance.ami == "arm64" ? "arm64" : "amd64"
     })
   ]

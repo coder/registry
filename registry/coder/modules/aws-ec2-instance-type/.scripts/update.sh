@@ -13,7 +13,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 output_file="$script_dir/../instance-types.json"
 region="${AWS_REGION:-us-east-1}"
 
-# Curated types, grouped by the category main.tf derives from the family.
+# Curated instance types, grouped by family purpose for readability.
 instance_types=(
   # general
   t3.nano t3.micro t3.small t3.medium t3.large t3.xlarge t3.2xlarge

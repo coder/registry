@@ -146,18 +146,18 @@ run "instances_output_exposes_specs_and_derived_fields" {
   }
 
   assert {
-    condition     = output.instances["t3.medium"].category == "general" && output.instances["t3.medium"].coder_arch == "amd64" && output.instances["t3.medium"].ami == "x86_64"
-    error_message = "x86 general instances should derive general / amd64 / x86_64"
+    condition     = output.instances["t3.medium"].coder_arch == "amd64" && output.instances["t3.medium"].ami == "x86_64"
+    error_message = "x86 instances should derive amd64 from the x86_64 AMI arch"
   }
 
   assert {
-    condition     = output.instances["m7g.large"].category == "general" && output.instances["m7g.large"].coder_arch == "arm64" && output.instances["m7g.large"].ami == "arm64"
+    condition     = output.instances["m7g.large"].coder_arch == "arm64" && output.instances["m7g.large"].ami == "arm64"
     error_message = "Graviton instances should derive arm64"
   }
 
   assert {
-    condition     = output.instances["c5.large"].category == "compute" && output.instances["i3.large"].category == "storage" && output.instances["g4dn.12xlarge"].category == "gpu" && output.instances["g4dn.12xlarge"].gpus == 4
-    error_message = "category should be derived from the instance family and gpus reflect the source data"
+    condition     = output.instances["g4dn.12xlarge"].gpus == 4
+    error_message = "gpus should reflect the source data"
   }
 }
 
