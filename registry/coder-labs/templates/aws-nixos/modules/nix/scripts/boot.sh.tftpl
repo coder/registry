@@ -1,32 +1,18 @@
 #!/usr/bin/env bash
-# Applies the flake on every boot, as root.
-#
-# Handed to whatever bootstraps the instance as an opaque string. On AWS that
-# is the amazon-init module, which runs this after the agent handoff exists
-# and before the agent is started -- so everything here happens while the
-# workspace is still building, and the agent never sees a half-applied system.
-#
-# Runs on every boot, so it must be idempotent.
 
-# -E, because most of what runs here runs inside a function: without errtrace
-# the ERR trap below is not inherited, and a failure in the lifecycle library
-# ends the script silently -- the exit status reaches the caller, but nothing
-# is ever said about it in the workspace log.
 set -Eeuo pipefail
 
-FLAKE_URL='${ARG_FLAKE_URL}'
-FLAKE_BRANCH='${ARG_FLAKE_BRANCH}'
-FLAKE_ATTR='${ARG_FLAKE_ATTR}'
-
-FLAKE_DIR='${ARG_FLAKE_DIR}'
-STATE_DIR='${ARG_STATE_DIR}'
-LOG_DIR='${ARG_LOG_DIR}'
+# The dot sentinel preserves trailing newlines through Bash command substitution.
+decode_arg() { local value; value="$(printf '%s' "$1" | base64 -d; printf '.')"; printf '%s' "$${value%.}"; }
+FLAKE_URL=$(decode_arg '${flake_url}')
+FLAKE_BRANCH=$(decode_arg '${flake_branch}')
+FLAKE_ATTR=$(decode_arg '${flake_attr}')
+FLAKE_DIR=$(decode_arg '${flake_dir}')
+STATE_DIR=$(decode_arg '${state_dir}')
+LOG_DIR=$(decode_arg '${log_dir}')
 
 install -d -m 0755 "$STATE_DIR" "$LOG_DIR"
 
-# Optional. A bootstrapper that can stream to the workspace UI before the
-# agent exists points CODER_LOG_LIBRARY at a library providing these; without
-# one, output still reaches whatever captured this script's stdout.
 if [ -r "$${CODER_LOG_LIBRARY:-}" ]; then
   # shellcheck source=/dev/null
   . "$CODER_LOG_LIBRARY"
@@ -50,7 +36,7 @@ NIX_FLAKE_ATTR="$FLAKE_ATTR"
 NIX_STATE_DIR="$STATE_DIR"
 NIX_LOG_DIR="$LOG_DIR"
 
-${LIFECYCLE_SH}
+${lifecycle_sh}
 
 TRANSCRIPT="$LOG_DIR/rebuild-$(date -u +%Y%m%dT%H%M%SZ).log"
 
@@ -81,8 +67,6 @@ if ! nix_apply switch "$TRANSCRIPT"; then
 fi
 
 nix_record_rev "$REV"
-# The workspace user exists now, so systemd-tmpfiles has set the flake
-# directory's owner; make the tree match it.
 nix_own_checkout
 
 coder_log info "Switch complete." || true

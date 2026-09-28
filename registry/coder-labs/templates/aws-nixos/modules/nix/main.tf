@@ -14,8 +14,8 @@ variable "flake_ref" {
   type        = string
 
   validation {
-    condition     = can(regex("^(git\\+)?(https?|ssh)://", var.flake_ref))
-    error_message = "flake_ref must be an http(s) or ssh Git URL, optionally prefixed with git+."
+    condition     = can(regex("^(git\\+)?(https?|ssh)://", var.flake_ref)) && !can(regex("^(git\\+)?https?://[^/?#]*@", var.flake_ref)) && !can(regex("[[:cntrl:]]", var.flake_ref))
+    error_message = "flake_ref must be an http(s) or ssh Git URL without HTTP credentials or control characters. Use root-managed Git authentication instead of URL userinfo."
   }
 }
 
@@ -23,6 +23,11 @@ variable "flake_attr" {
   description = "`nixosConfigurations` attribute to build. `$ARCH` is replaced with `arch`."
   type        = string
   default     = "coder-workspace-ec2-$ARCH"
+
+  validation {
+    condition     = !can(regex("[[:cntrl:]]", var.flake_attr))
+    error_message = "flake_attr must not contain control characters."
+  }
 }
 
 variable "arch" {
@@ -54,42 +59,43 @@ variable "flake_dir" {
   description = "Checkout to build. Owned by the workspace user so the configuration can be edited in place."
   type        = string
   default     = "/etc/nixos"
+
+  validation {
+    condition     = !can(regex("[[:cntrl:]]", var.flake_dir))
+    error_message = "flake_dir must not contain control characters."
+  }
 }
 
 variable "state_dir" {
   description = "Revision marker and rebuild lock."
   type        = string
   default     = "/var/lib/coder-nixos"
+
+  validation {
+    condition     = !can(regex("[[:cntrl:]]", var.state_dir))
+    error_message = "state_dir must not contain control characters."
+  }
 }
 
 variable "log_dir" {
   description = "Rebuild transcripts."
   type        = string
   default     = "/var/log/coder-nixos"
+
+  validation {
+    condition     = !can(regex("[[:cntrl:]]", var.log_dir))
+    error_message = "log_dir must not contain control characters."
+  }
 }
 
 locals {
-  # `git clone` is what runs on the instance, so reduce the reference to a
-  # plain remote: strip a `git+` scheme prefix and any query string.
   flake_url = replace(replace(var.flake_ref, "/^git\\+/", ""), "/\\?.*$/", "")
 
-  # An absent `?ref=` means the remote's default branch, resolved on the
-  # instance -- Terraform cannot know it without talking to the remote.
   flake_branch = try(regex("[?&]ref=([^&#]+)", var.flake_ref)[0], "")
 
   flake_attr = replace(var.flake_attr, "$ARCH", var.arch)
 
   lifecycle_sh = file("${path.module}/scripts/lifecycle.sh")
-
-  script_args = {
-    LIFECYCLE_SH     = local.lifecycle_sh
-    ARG_FLAKE_URL    = local.flake_url
-    ARG_FLAKE_BRANCH = local.flake_branch
-    ARG_FLAKE_ATTR   = local.flake_attr
-    ARG_FLAKE_DIR    = var.flake_dir
-    ARG_STATE_DIR    = var.state_dir
-    ARG_LOG_DIR      = var.log_dir
-  }
 }
 
 output "values" {
@@ -99,7 +105,15 @@ output "values" {
 
 output "boot_script" {
   description = "Applies the flake. Hand this to whatever runs a script on every boot; it expects to run as root."
-  value       = templatefile("${path.module}/scripts/boot.sh.tftpl", local.script_args)
+  value = templatefile("${path.module}/scripts/boot.sh.tftpl", {
+    lifecycle_sh = local.lifecycle_sh
+    flake_url    = base64encode(local.flake_url)
+    flake_branch = base64encode(local.flake_branch)
+    flake_attr   = base64encode(local.flake_attr)
+    flake_dir    = base64encode(var.flake_dir)
+    state_dir    = base64encode(var.state_dir)
+    log_dir      = base64encode(var.log_dir)
+  })
 }
 
 output "flake_uri" {
@@ -128,10 +142,7 @@ output "version_command" {
     staged but not yet booted. For a `coder_agent` metadata block, which has
     to be declared inline on the agent.
   EOT
-  # /run/current-system is the activated system; /run/booted-system is what
-  # the kernel booted and still points at the previous generation after a
-  # switch, which would mark every new workspace as needing a restart.
-  value = <<-EOT
+  value       = <<-EOT
     version=$(nixos-version 2>/dev/null || echo unknown)
     if [ "$(readlink -f /run/current-system)" = "$(readlink -f /nix/var/nix/profiles/system)" ]; then
       echo "$version"

@@ -1,83 +1,18 @@
 # nix
 
-The flake lifecycle: keep a checkout in sync with a Git remote, decide whether
-the running system is out of date, and rebuild it.
-
-The boot path is a **string** the caller hands to whatever runs scripts on the
-machine. On AWS the caller is [`../amazon-init`](../amazon-init/README.md), but
-nothing depends on that.
+This local module renders a root-run `boot_script` before the Coder agent starts. It clones a Git flake and runs `nixos-rebuild switch` when the checkout, attribute, or active generation changes.
 
 ```tf
 module "nix" {
-  source = "./modules/nix"
-
-  agent_id  = try(coder_agent.main[0].id, "")
-  flake_ref = "git+https://github.com/coder/nixos-example-flake?ref=main"
-  arch      = "x86_64"
+  source     = "./modules/nix"
+  flake_ref  = "git+https://github.com/coder/nixos-example-flake?ref=main"
+  flake_attr = "coder-workspace-ec2-$ARCH"
+  arch       = "x86_64"
 }
 ```
 
-## The flake reference
+References accept HTTP(S) or SSH Git URLs, optional `git+` and `?ref=`. Without `ref`, Git follows the default branch. `$ARCH` expands to `arch`. HTTP URL userinfo is rejected: migrate embedded passwords or tokens to root-managed authentication. The instance requires outbound Git and Nix input/substituter access, root privileges, systemd, and NixOS.
 
-`flake_ref` is what you would pass to `nixos-rebuild --flake`: a
-[flake reference](https://nix.dev/manual/nix/latest/command-ref/new-cli/nix3-flake#flake-references),
-with the branch in `?ref=` and the remote's default branch when it is absent —
-resolved on the instance, since Terraform cannot know it without talking to the
-remote.
+A clean checkout fast-forwards; tracked edits and local commits remain untouched. Untracked files do not trigger builds: Git flakes ignore them. The `state_dir` lock prevents races only with callers that take it. Rebuild transcripts live in `log_dir`. First-boot failures may require AWS logs before the agent exists.
 
-`$ARCH` in `flake_attr` is replaced with `arch`, so one template can offer both
-architectures without the attribute and the machine disagreeing.
-
-## What runs where
-
-`boot_script` runs as root on every boot, before the agent is started. It syncs
-the checkout, and rebuilds only if the configuration changed:
-
-- a **clean** checkout is fast-forwarded to the remote
-- a **dirty** one, or one carrying local commits, is left alone and built as it
-  is — someone is working on it
-- a checkout on a different branch than requested says so rather than silently
-  building the wrong thing
-
-A `flock` in `state_dir` is the lock everything rebuilding this machine should
-take, including the configuration's own upgrade timer, so that two rebuilds
-never race for the system profile.
-
-## Logging
-
-`scripts/lifecycle.sh` sends output through a single `nix_log <level> <message>`
-hook. Define it and progress goes wherever you want; leave it undefined and it
-prints to stdout.
-
-`boot_script` sets that hook up from `CODER_LOG_LIBRARY` when the bootstrapper
-provides one — that is how output reaches the workspace UI before an agent
-exists — and falls back to plain `echo` when it does not.
-
-Raw `nix` output is filtered before it is logged: store-path lists,
-per-derivation build output and lock-file noise are dropped, and list headers
-that promised a list are rewritten as sentences. Transcripts in `log_dir` keep
-everything, unfiltered.
-
-## Inputs and outputs
-
-`flake_dir`, `state_dir` and `log_dir` default to `/etc/nixos`,
-`/var/lib/coder-nixos` and `/var/log/coder-nixos`, and both scripts take them
-from here — the paths are defined once.
-
-Outputs exist for the things a caller genuinely cannot do itself:
-`boot_script`, `flake_uri` and `flake_attr` for display, `log_dir` and
-`flake_dir` for pointing people at, and `version_command` for a `coder_agent`
-metadata block — which has to be declared inline on the agent, though what it
-means for a NixOS machine to be up to date does not belong in a template.
-
-`values` passes straight through to `values` on the bootstrapper, so a caller
-has one wire for runtime facts and a Nix-specific fact would have an obvious
-home. There are none today: the configuration already knows its checkout,
-attribute and directories, because it is what sets them.
-
-## Moving this to the registry
-
-It is a self-contained Terraform module already. Publishing it as
-`registry.coder.com/coder/nix` needs `.tftest.hcl` coverage and a decision
-about `nixos-rebuild` on non-NixOS hosts (`nix profile` would be the
-equivalent), not untangling.
+The caller runs `boot_script` as root before agent startup. Display outputs include `flake_uri`, `flake_attr`, `flake_dir`, `log_dir` and `version_command`; `values` passes through unchanged.
