@@ -69,15 +69,8 @@ variable "files" {
   default     = {}
 
   validation {
-    condition = alltrue([
-      for path in keys(var.files) :
-      startswith(path, "/") && abspath(path) == path &&
-      !can(regex("[\\x00-\\x1f\\x7f]", path)) &&
-      path != var.runtime_dir && !startswith(path, "${var.runtime_dir}/") &&
-      !(startswith(var.runtime_dir, "/run/") && startswith(path, "/var${var.runtime_dir}/")) &&
-      !(startswith(var.runtime_dir, "/var/run/") && startswith(path, "${trimprefix(var.runtime_dir, "/var")}/"))
-    ])
-    error_message = "File paths must be absolute, canonical files outside runtime_dir (including /var/run aliases)."
+    condition     = alltrue([for path in keys(var.files) : startswith(path, "/")])
+    error_message = "File paths must be absolute."
   }
 }
 
@@ -193,15 +186,12 @@ locals {
   # EC2 caps user-data at 16 KiB; compress the bootstrap before sending it.
   user_data = <<-SH
     #!/usr/bin/env bash
-    set -eu
+    set -euo pipefail
     runtime_dir=$(printf %s '${base64encode(var.runtime_dir)}' | base64 -d)
-    install -d -m 0700 -- "$runtime_dir"
-    chown root:root -- "$runtime_dir"
-    chmod 0700 -- "$runtime_dir"
-    base64 -d <<'CODER_PAYLOAD' | gzip -dc >"$runtime_dir/bootstrap.sh"
+    install -d -m 0700 -o root -g root -- "$runtime_dir"
+    base64 -d <<'CODER_PAYLOAD' | gzip -dc | install -m 0700 -o root -g root /dev/stdin "$runtime_dir/bootstrap.sh"
     ${base64gzip(local.bootstrap)}
     CODER_PAYLOAD
-    chmod 0700 -- "$runtime_dir/bootstrap.sh"
     exec bash "$runtime_dir/bootstrap.sh"
   SH
 }

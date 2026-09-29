@@ -117,3 +117,14 @@ run "reject_unsupported_query" {
   }
   expect_failures = [var.flake_ref]
 }
+
+run "allow_http_userinfo" {
+  command = plan
+  variables {
+    flake_ref = "https://user:token@example.org/flake?ref=main"
+  }
+  assert {
+    condition     = module.nix.flake_uri == "https://user:token@example.org/flake?ref=main#coder-workspace-ec2-x86_64"
+    error_message = "Template must allow userinfo for private Git clones."
+  }
+}

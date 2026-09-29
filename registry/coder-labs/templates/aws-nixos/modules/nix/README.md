@@ -11,7 +11,7 @@ module "nix" {
 }
 ```
 
-References accept HTTP(S) or SSH Git URLs, optional `git+` and `?ref=`. Without `ref`, Git follows the default branch. `$ARCH` expands to `arch`. HTTP URL userinfo is rejected: migrate embedded passwords or tokens to root-managed authentication. The instance requires outbound Git and Nix input/substituter access, root privileges, systemd, and NixOS.
+References accept HTTP(S) or SSH Git URLs, optional `git+` and `?ref=`. Without `ref`, Git follows the default branch. `$ARCH` expands to `arch`. HTTP URL userinfo is allowed but leaks into the checkout and `flake_uri` output; prefer root-managed authentication. The instance requires outbound Git and Nix input/substituter access, root privileges, systemd, and NixOS.
 
 A clean checkout fast-forwards; tracked edits and local commits remain untouched. Untracked files do not trigger builds: Git flakes ignore them. The `state_dir` lock prevents races only with callers that take it. Rebuild transcripts live in `log_dir`. First-boot failures may require AWS logs before the agent exists.
 

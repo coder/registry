@@ -3,12 +3,12 @@ terraform {
 }
 
 variable "flake_ref" {
-  description = "HTTP(S) or SSH Git URL of a committed flake; optional git+ prefix and ?ref= branch. URL credentials are not supported."
+  description = "HTTP(S) or SSH Git URL of a committed flake; optional git+ prefix and ?ref= branch. Embedded credentials appear in the output and checkout."
   type        = string
 
   validation {
-    condition     = can(regex("^(git\\+)?(https?|ssh)://", var.flake_ref)) && !can(regex("^(git\\+)?https?://[^/?#]*@", var.flake_ref)) && !can(regex("[[:cntrl:]]", var.flake_ref)) && !strcontains(var.flake_ref, "#") && (!strcontains(var.flake_ref, "?") || can(regex("\\?ref=[^&#?]+$", var.flake_ref)))
-    error_message = "flake_ref must be an http(s) or ssh Git URL with optional ?ref=, without HTTP credentials, control characters, fragments, or other query parameters."
+    condition     = can(regex("^(git\\+)?(https?|ssh)://", var.flake_ref)) && !can(regex("[[:cntrl:]]", var.flake_ref)) && !strcontains(var.flake_ref, "#") && (!strcontains(var.flake_ref, "?") || can(regex("\\?ref=[^&#?]+$", var.flake_ref)))
+    error_message = "flake_ref must be an http(s) or ssh Git URL with optional ?ref=, without control characters, fragments, or other query parameters."
   }
 }
 

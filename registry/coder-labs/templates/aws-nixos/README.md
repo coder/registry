@@ -56,6 +56,6 @@ aws ec2 get-console-output --instance-id <instance-id> --output text
 
 Do not put secrets in Nix expressions: the Nix store is readable on the VM. Workspace facts and optional bootstrap files are not secret storage. The agent token is kept out of Nix, but EC2 user-data and Terraform state contain it; restrict access to both. Processes with instance-metadata access can read user-data.
 
-Private repos need root Git credentials before first boot and root Nix input credentials; this template supplies neither. HTTP URL credentials in `flake_ref` are rejected. NixOS scripts need `#!/usr/bin/env bash`; downloaded IDE binaries need `programs.nix-ld`.
+Private repos need Git authentication before first boot and separate credentials for private Nix inputs; this template supplies neither. HTTP credentials in `flake_ref` are allowed but exposed in Terraform state, EC2 user-data, Coder metadata, and `/etc/nixos/.git/config`. Prefer root-managed credentials. NixOS scripts need `#!/usr/bin/env bash`; downloaded IDE binaries need `programs.nix-ld`.
 
 Existing templates may retain a stored legacy `flake_attr`; update that variable explicitly before rebuilding against renamed example-flake hosts.

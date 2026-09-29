@@ -21,5 +21,5 @@ public `values` or `files` (0644).
 The root boot script receives `CODER_RUNTIME_DIR`, `CODER_WORKSPACE_FACTS`,
 `CODER_ACCESS_URL`, `CODER_AGENT_TOKEN`, `CODER_LOG_SOURCE_ID`, and `CODER_LOG_LIBRARY`.
 Early logs require outbound Coder access and `curl`. The shared 1 MiB
-agent log cap is budgeted. Use trusted file directories: symlinked ancestors
-can redirect writes despite lexical path checks.
+agent log cap is budgeted. `files` paths are trusted admin input: do not
+write into `runtime_dir` or through symlinked directories.

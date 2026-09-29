@@ -21,13 +21,20 @@ provider "aws" {
 }
 
 variable "flake_ref" {
-  description = "Git URL of the NixOS flake; optional ?ref= selects a branch. No credentials in the URL."
+  description = <<-EOT
+    Git reference to the NixOS configuration, in the form `nix` itself
+    accepts: `https://host/org/repo`, optionally with a `git+` prefix and a
+    `?ref=` branch. Without `?ref=` the remote's default branch is used.
+
+    The configuration must be committed -- a Git flake reference only ever
+    sees committed files.
+  EOT
   type        = string
   default     = "https://github.com/coder/nixos-example-flake"
 
   validation {
-    condition     = can(regex("^(git\\+)?(https?|ssh)://", var.flake_ref)) && !can(regex("^(git\\+)?https?://[^/?#]*@", var.flake_ref)) && !can(regex("[[:cntrl:]]", var.flake_ref)) && !strcontains(var.flake_ref, "#") && (!strcontains(var.flake_ref, "?") || can(regex("\\?ref=[^&#?]+$", var.flake_ref)))
-    error_message = "Use an http(s) or ssh Git URL without HTTP credentials, control characters, fragments, or query parameters other than ?ref=."
+    condition     = can(regex("^(git\\+)?(https?|ssh)://", var.flake_ref)) && !can(regex("[[:cntrl:]]", var.flake_ref)) && !strcontains(var.flake_ref, "#") && (!strcontains(var.flake_ref, "?") || can(regex("\\?ref=[^&#?]+$", var.flake_ref)))
+    error_message = "Use an http(s) or ssh Git URL without control characters, fragments, or query parameters other than ?ref=."
   }
 }
 
@@ -51,8 +58,13 @@ module "aws-ec2-instance-type" {
   source  = "registry.coder.com/coder/aws-ec2-instance-type/coder"
   version = "~> 1.0"
 
-  default     = "t3.medium"
-  description = "Choose enough memory for NixOS builds. The smallest sizes may run out of memory."
+  default = "t3.medium"
+  description = trimspace(<<-EOT
+    t3.medium is the smallest that works: the NixOS AMI configures no swap and
+    the Nix store shares the root volume, so a rebuild that has to compile
+    anything will exhaust a 1-2 GiB instance.
+  EOT
+  )
   include = [
     "t3",
     "t4g",
@@ -164,7 +176,7 @@ module "git-config" {
 
 locals {
   instance = module.aws-ec2-instance-type.instances[module.aws-ec2-instance-type.value]
-  nix_arch = local.instance.arch == "arm64" ? "aarch64" : "x86_64"
+  nix_arch = local.instance.arch == "arm64" ? "aarch64" : local.instance.arch
 }
 
 module "nix" {

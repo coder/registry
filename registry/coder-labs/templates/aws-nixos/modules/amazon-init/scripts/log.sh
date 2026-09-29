@@ -54,58 +54,12 @@ coder_log_init() {
   return 1
 }
 
-# Validate UTF-8 while escaping JSON; invalid sequences become U+FFFD.
-_coder_json_string() {
-  LC_ALL=C od -An -tu1 -v | LC_ALL=C awk '
-    function replacement() { printf "%c%c%c", 239, 191, 189 }
-    BEGIN { printf "\"" }
-    {
-      for (i = 1; i <= NF; i++) {
-        n = $i + 0
-        if (pending) {
-          if (n >= low && n <= high) {
-            sequence = sequence sprintf("%c", n)
-            pending--
-            low = 128; high = 191
-            if (!pending) { printf "%s", sequence; sequence = "" }
-            continue
-          }
-          replacement()
-          pending = 0; sequence = ""
-        }
-        if (n == 34 || n == 92) printf "\\%c", n
-        else if (n < 32 || n == 127) printf "\\u%04x", n
-        else if (n < 128) printf "%c", n
-        else {
-          pending = 0; low = 128; high = 191
-          if (n >= 194 && n <= 223) pending = 1
-          else if (n >= 224 && n <= 239) {
-            pending = 2
-            if (n == 224) low = 160
-            if (n == 237) high = 159
-          } else if (n >= 240 && n <= 244) {
-            pending = 3
-            if (n == 240) low = 144
-            if (n == 244) high = 143
-          }
-          if (pending) sequence = sprintf("%c", n)
-          else replacement()
-        }
-      }
-    }
-    END { if (pending) replacement(); printf "\"" }
-  '
-}
-
 coder_log_json() {
-  local level="$1" line="$2" encoded
-  # Drop oversized lines rather than splitting a UTF-8 character mid-sequence.
-  if [ "$(printf '%s' "$line" | LC_ALL=C wc -c)" -gt "$CODER_LOG_MAX_LINE" ]; then
-    line='[log line exceeded 2048 bytes]'
-  fi
-  encoded=$(printf '%s' "$line" | _coder_json_string) || return 1
-  printf '{"created_at":"%s","level":%s,"output":%s}' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(printf '%s' "$level" | _coder_json_string)" "$encoded"
+  local level="$1" line="$2"
+  [ "${#line}" -le "$CODER_LOG_MAX_LINE" ] || line="${line:0:$CODER_LOG_MAX_LINE}..."
+  line=$(printf '%s' "$line" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\r//g' -e 's/\t/  /g')
+  printf '{"created_at":"%s","level":"%s","output":"%s"}' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$level" "$line"
 }
 
 coder_log_send() {

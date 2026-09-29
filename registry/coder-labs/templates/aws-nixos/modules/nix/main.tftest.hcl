@@ -29,12 +29,15 @@ run "default_branch" {
   }
 }
 
-run "reject_http_userinfo" {
+run "allow_http_userinfo" {
   command = plan
   variables {
     flake_ref = "git+https://user:token@example.org/flake?ref=main"
   }
-  expect_failures = [var.flake_ref]
+  assert {
+    condition     = output.flake_uri == "https://user:token@example.org/flake?ref=main#coder-workspace-ec2-x86_64"
+    error_message = "Git URL userinfo should remain available for private clones."
+  }
 }
 
 run "reject_control_characters" {
