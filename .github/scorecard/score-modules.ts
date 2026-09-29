@@ -1,11 +1,28 @@
 #!/usr/bin/env bun
 /**
- * Scores Coder Registry modules against SCORECARD.md using Claude, then
- * posts (or updates) one GitHub Discussion per module in coder/registry.
+ * Scores Coder Registry modules against SCORECARD.md with a language model,
+ * then posts (or updates) one GitHub Discussion per module in coder/registry.
  *
  * Env (required):
- *   ANTHROPIC_API_KEY         Anthropic API key
+ *   SCORECARD_CODER_TOKEN     Coder token for the dedicated "registry-scorecard"
+ *                             service account on cdrstable.dev. The AI Gateway
+ *                             routes the call to the provider named in
+ *                             SCORECARD_PROVIDER. Reads ANTHROPIC_API_KEY as a
+ *                             fallback, so an older workflow still works.
  *   GITHUB_DISCUSSIONS_TOKEN  GitHub PAT with Discussions read/write
+ *
+ * Env (optional):
+ *   SCORECARD_MODEL           Model to score with. Default solstice-1, which
+ *                             Solstice serves on a local GPU at no cost.
+ *   SCORECARD_PROVIDER        AI Gateway provider name. Default solstice.
+ *   SCORECARD_MAX_TOKENS      Completion budget. Default 16384. A reasoning
+ *                             model spends this budget on reasoning first, so
+ *                             a small budget returns an empty scorecard.
+ *   SCORECARD_CONCURRENCY     Modules scored at the same time. Default 1.
+ *                             Three large prompts at once come back as
+ *                             "AI Gateway error 500: context canceled" after
+ *                             about 190 s, while three small ones succeed in
+ *                             2.5 s, so raise this only with a measurement.
  *
  * Usage:
  *   bun run score-modules.ts [--modules a,b,c] [--dry-run] [--limit N]
@@ -37,7 +54,34 @@ const REGISTRY_ROOT = path.resolve(import.meta.dir, "..", "..");
 const MODULES_DIR = path.join(REGISTRY_ROOT, "registry", "coder", "modules");
 const SCORECARD_PATH = path.join(import.meta.dir, "SCORECARD.md");
 
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-5";
+const SCORECARD_MODEL = process.env.SCORECARD_MODEL ?? "solstice-1";
+// AI Gateway provider name. Each provider is reachable at
+// /api/v2/ai-gateway/<name>/v1, and the gateway records the call against the
+// caller's Coder account either way. `solstice` points at Solstice, which
+// serves a local GPU first and falls back to Claude Sonnet on load.
+const SCORECARD_PROVIDER = process.env.SCORECARD_PROVIDER ?? "solstice";
+const SCORECARD_TOKEN =
+  process.env.SCORECARD_CODER_TOKEN ?? process.env.ANTHROPIC_API_KEY;
+const SCORECARD_BASE_URL = `https://cdrstable.dev/api/v2/ai-gateway/${SCORECARD_PROVIDER}/v1`;
+// solstice-1 reasons before it answers, and the reasoning counts against this
+// budget. One real module at 4096 spent the whole budget on reasoning and
+// returned an empty scorecard.
+const SCORECARD_MAX_TOKENS = Number(process.env.SCORECARD_MAX_TOKENS ?? 16384);
+// A local model answers slower than a hosted one: one module took 255 s on
+// solstice-1 against 27 s on claude-sonnet-4-5. Scoring several at once would
+// fix that, and the code below can, but three large prompts at once are
+// cancelled upstream after about 190 s while three small ones succeed. Until
+// that is understood, score one at a time. Only the model calls run in
+// parallel when this is raised; the discussion writes stay in order.
+const SCORECARD_CONCURRENCY = Number(process.env.SCORECARD_CONCURRENCY ?? 1);
+// A single model call can be cut off by something outside Solstice (a Coder
+// AI Gateway connection reset, or this script's own HTTP client giving up on
+// a very long wait) even though Bifrost and the model finish the request
+// correctly seconds later. A short retry recovers those without masking a
+// real, repeated failure. Default 3 attempts total (1 try + 2 retries).
+const SCORECARD_RETRY_ATTEMPTS = Number(
+  process.env.SCORECARD_RETRY_ATTEMPTS ?? 3,
+);
 const MAX_FILE_BYTES = 30_000;
 
 // A module reference: bare names mean the coder namespace, and
@@ -329,31 +373,66 @@ Output ONLY the scorecard markdown in EXACTLY this structure (this example shows
 
 Do not add any prose before or after the scorecard.`;
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": process.env.ANTHROPIC_API_KEY!,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 4096,
-      temperature: 0,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`Anthropic API error ${res.status}: ${await res.text()}`);
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= SCORECARD_RETRY_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(`${SCORECARD_BASE_URL}/chat/completions`, {
+        method: "POST",
+        headers: {
+          // The gateway checks the Coder token. Bearer carries it in the shape
+          // the OpenAI-style route expects.
+          authorization: `Bearer ${SCORECARD_TOKEN}`,
+          "Coder-Session-Token": SCORECARD_TOKEN!,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: SCORECARD_MODEL,
+          max_tokens: SCORECARD_MAX_TOKENS,
+          temperature: 0,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(`AI Gateway error ${res.status}: ${await res.text()}`);
+      }
+      const data = (await res.json()) as {
+        choices: { finish_reason?: string; message?: { content?: string } }[];
+        usage?: {
+          completion_tokens?: number;
+          completion_tokens_details?: { reasoning_tokens?: number };
+        };
+      };
+      const choice = (data.choices ?? [])[0];
+      const text = (data.choices ?? [])
+        .map((c) => c.message?.content ?? "")
+        .join("\n")
+        .trim();
+      if (!text) {
+        // Fail here rather than post an empty scorecard. The usual cause is a
+        // reasoning model that spent the whole budget before it answered.
+        const reasoning =
+          data.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
+        throw new Error(
+          `${SCORECARD_MODEL} returned no scorecard text ` +
+            `(finish_reason ${choice?.finish_reason ?? "unknown"}, ` +
+            `${data.usage?.completion_tokens ?? 0} completion tokens, ` +
+            `${reasoning} of them reasoning). ` +
+            `Raise SCORECARD_MAX_TOKENS above ${SCORECARD_MAX_TOKENS}.`,
+        );
+      }
+      return fixOverall(text);
+    } catch (err) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(
+        `\n  [${spec.label}] attempt ${attempt}/${SCORECARD_RETRY_ATTEMPTS} failed: ${msg}\n`,
+      );
+      if (attempt < SCORECARD_RETRY_ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, 2000 * attempt));
+      }
+    }
   }
-  const data = (await res.json()) as {
-    content: { type: string; text?: string }[];
-  };
-  const text = data.content
-    .filter((c) => c.type === "text")
-    .map((c) => c.text)
-    .join("\n");
-  return fixOverall(text.trim());
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
 
 async function upsertDiscussion(
@@ -462,14 +541,38 @@ function discussionBody(
 ${scorecard}
 
 ---
-Scored against [SCORECARD.md](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md) on ${now} with \`${ANTHROPIC_MODEL}\`.
+Scored against [SCORECARD.md](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md) on ${now} with \`${SCORECARD_MODEL}\`.
 ${MARKER}`;
+}
+
+async function scoreAll(
+  specs: ModuleSpec[],
+  rubric: string,
+): Promise<Map<string, string | Error>> {
+  const out = new Map<string, string | Error>();
+  let next = 0;
+  const workers = Array.from(
+    { length: Math.max(1, Math.min(SCORECARD_CONCURRENCY, specs.length)) },
+    async () => {
+      while (true) {
+        const index = next++;
+        if (index >= specs.length) return;
+        const spec = specs[index];
+        try {
+          out.set(spec.label, await scoreModule(spec, rubric));
+        } catch (err) {
+          out.set(spec.label, err instanceof Error ? err : new Error(`${err}`));
+        }
+      }
+    },
+  );
+  await Promise.all(workers);
+  return out;
 }
 
 async function main() {
   const args = parseArgs();
-  if (!process.env.ANTHROPIC_API_KEY)
-    throw new Error("ANTHROPIC_API_KEY not set");
+  if (!SCORECARD_TOKEN) throw new Error("SCORECARD_CODER_TOKEN not set");
   if (!args.dryRun && !process.env.GITHUB_DISCUSSIONS_TOKEN) {
     throw new Error("GITHUB_DISCUSSIONS_TOKEN not set");
   }
@@ -502,6 +605,11 @@ async function main() {
 
   const prSections: string[] = [];
   const failed: string[] = [];
+
+  // Decide what to score, then score it in parallel. The loop below keeps
+  // every GitHub write in order, so a scorecard is looked up here rather
+  // than requested inside the loop.
+  const eligible: ModuleSpec[] = [];
   for (const spec of specs) {
     if (!existsSync(path.join(spec.dir, "README.md"))) {
       console.error(`skip ${spec.label}: no README.md`);
@@ -511,9 +619,18 @@ async function main() {
       process.stderr.write(`skip ${spec.label}: internal building block\n`);
       continue;
     }
+    eligible.push(spec);
+  }
+  const scored = await scoreAll(eligible, rubric);
+
+  for (const spec of eligible) {
     process.stderr.write(`scoring ${spec.label}... `);
     try {
-      const scorecard = await scoreModule(spec, rubric);
+      const result = scored.get(spec.label);
+      if (result instanceof Error) {
+        throw result;
+      }
+      const scorecard = result!;
       if (args.dryRun) {
         console.log(`\n===== ${spec.label} =====\n${scorecard}\n`);
         process.stderr.write("done (dry-run)\n");
@@ -573,7 +690,7 @@ async function main() {
     const localTip = `> [!TIP]\n> You can run this locally by telling your agent: "review this module against [\`.github/scorecard/SCORECARD.md\`](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md)".`;
     const report =
       prSections.length > 0
-        ? `## Module Scorecard Check\n\n${prSections.join("\n\n")}\n\n${localTip}\n\n---\nScored against [SCORECARD.md](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md) with \`${ANTHROPIC_MODEL}\`. Language-model scores are advisory.\n<!-- module-scorecard-pr -->`
+        ? `## Module Scorecard Check\n\n${prSections.join("\n\n")}\n\n${localTip}\n\n---\nScored against [SCORECARD.md](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md) with \`${SCORECARD_MODEL}\`. Language-model scores are advisory.\n<!-- module-scorecard-pr -->`
         : "";
     await Bun.write(args.prReport, report);
     process.stderr.write(`wrote PR report to ${args.prReport}\n`);

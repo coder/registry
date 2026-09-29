@@ -363,6 +363,245 @@ run "test_use_vertex" {
   }
 }
 
+run "test_use_foundry_with_resource" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent-foundry-resource"
+    workdir          = "/home/coder/test"
+    use_foundry      = true
+    foundry_resource = "coder-foundry"
+  }
+
+  assert {
+    condition     = coder_env.use_foundry[0].name == "CLAUDE_CODE_USE_FOUNDRY" && coder_env.use_foundry[0].value == "1"
+    error_message = "CLAUDE_CODE_USE_FOUNDRY should be set to 1 when use_foundry is true"
+  }
+
+  assert {
+    condition     = coder_env.foundry_resource[0].name == "ANTHROPIC_FOUNDRY_RESOURCE" && coder_env.foundry_resource[0].value == "coder-foundry"
+    error_message = "ANTHROPIC_FOUNDRY_RESOURCE should use foundry_resource"
+  }
+
+  assert {
+    condition     = length(coder_env.foundry_base_url) == 0
+    error_message = "ANTHROPIC_FOUNDRY_BASE_URL should not be set when foundry_resource is used"
+  }
+
+  assert {
+    condition     = length(coder_env.foundry_api_key) == 0 && length(coder_env.foundry_auth_token) == 0
+    error_message = "Foundry credentials should be omitted when the Azure default credential chain is used"
+  }
+}
+
+run "test_use_foundry_with_base_url" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent-foundry-base-url"
+    workdir          = "/home/coder/test"
+    use_foundry      = true
+    foundry_base_url = "https://coder-foundry.services.ai.azure.com/anthropic"
+  }
+
+  assert {
+    condition     = coder_env.foundry_base_url[0].name == "ANTHROPIC_FOUNDRY_BASE_URL" && coder_env.foundry_base_url[0].value == "https://coder-foundry.services.ai.azure.com/anthropic"
+    error_message = "ANTHROPIC_FOUNDRY_BASE_URL should use foundry_base_url"
+  }
+
+  assert {
+    condition     = length(coder_env.foundry_resource) == 0
+    error_message = "ANTHROPIC_FOUNDRY_RESOURCE should not be set when foundry_base_url is used"
+  }
+}
+
+run "test_use_foundry_with_api_key" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent-foundry-api-key"
+    use_foundry      = true
+    foundry_resource = "coder-foundry"
+    foundry_api_key  = "foundry-test-key"
+  }
+
+  assert {
+    condition     = coder_env.foundry_api_key[0].name == "ANTHROPIC_FOUNDRY_API_KEY" && coder_env.foundry_api_key[0].value == "foundry-test-key"
+    error_message = "ANTHROPIC_FOUNDRY_API_KEY should use foundry_api_key"
+  }
+
+  assert {
+    condition     = length(coder_env.foundry_auth_token) == 0
+    error_message = "ANTHROPIC_FOUNDRY_AUTH_TOKEN should not be set when foundry_api_key is used"
+  }
+}
+
+run "test_use_foundry_with_auth_token" {
+  command = plan
+
+  variables {
+    agent_id           = "test-agent-foundry-auth-token"
+    use_foundry        = true
+    foundry_base_url   = "https://coder-foundry.services.ai.azure.com/anthropic"
+    foundry_auth_token = "foundry-test-token"
+  }
+
+  assert {
+    condition     = coder_env.foundry_auth_token[0].name == "ANTHROPIC_FOUNDRY_AUTH_TOKEN" && coder_env.foundry_auth_token[0].value == "foundry-test-token"
+    error_message = "ANTHROPIC_FOUNDRY_AUTH_TOKEN should use foundry_auth_token"
+  }
+
+  assert {
+    condition     = length(coder_env.foundry_api_key) == 0
+    error_message = "ANTHROPIC_FOUNDRY_API_KEY should not be set when foundry_auth_token is used"
+  }
+}
+
+run "test_use_foundry_requires_endpoint" {
+  command = plan
+
+  variables {
+    agent_id    = "test-agent-foundry-missing-endpoint"
+    use_foundry = true
+  }
+
+  expect_failures = [
+    var.use_foundry,
+  ]
+}
+
+run "test_use_foundry_rejects_ambiguous_endpoint" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent-foundry-ambiguous-endpoint"
+    use_foundry      = true
+    foundry_resource = "coder-foundry"
+    foundry_base_url = "https://coder-foundry.services.ai.azure.com/anthropic"
+  }
+
+  expect_failures = [
+    var.use_foundry,
+  ]
+}
+
+run "test_foundry_endpoint_requires_foundry" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent-foundry-disabled"
+    foundry_resource = "coder-foundry"
+  }
+
+  expect_failures = [
+    var.use_foundry,
+  ]
+}
+
+run "test_foundry_credentials_require_foundry" {
+  command = plan
+
+  variables {
+    agent_id        = "test-agent-foundry-credentials-disabled"
+    foundry_api_key = "foundry-test-key"
+  }
+
+  expect_failures = [
+    var.use_foundry,
+  ]
+}
+
+run "test_use_foundry_rejects_multiple_credentials" {
+  command = plan
+
+  variables {
+    agent_id           = "test-agent-foundry-multiple-credentials"
+    use_foundry        = true
+    foundry_resource   = "coder-foundry"
+    foundry_api_key    = "foundry-test-key"
+    foundry_auth_token = "foundry-test-token"
+  }
+
+  expect_failures = [
+    var.use_foundry,
+  ]
+}
+
+run "test_use_foundry_rejects_ai_gateway" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent-foundry-ai-gateway"
+    use_foundry       = true
+    foundry_resource  = "coder-foundry"
+    enable_ai_gateway = true
+  }
+
+  expect_failures = [
+    var.use_foundry,
+  ]
+}
+
+run "test_use_foundry_rejects_bedrock" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent-foundry-bedrock"
+    use_foundry      = true
+    foundry_resource = "coder-foundry"
+    use_bedrock      = true
+  }
+
+  expect_failures = [
+    var.use_foundry,
+  ]
+}
+
+run "test_use_foundry_rejects_vertex" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent-foundry-vertex"
+    use_foundry      = true
+    foundry_resource = "coder-foundry"
+    use_vertex       = true
+  }
+
+  expect_failures = [
+    var.use_foundry,
+  ]
+}
+
+run "test_use_foundry_rejects_anthropic_auth" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent-foundry-anthropic-auth"
+    use_foundry       = true
+    foundry_resource  = "coder-foundry"
+    anthropic_api_key = "sk-test"
+  }
+
+  expect_failures = [
+    var.use_foundry,
+  ]
+}
+
+run "test_use_foundry_rejects_anthropic_base_url" {
+  command = plan
+
+  variables {
+    agent_id           = "test-agent-foundry-anthropic-base-url"
+    use_foundry        = true
+    foundry_resource   = "coder-foundry"
+    anthropic_base_url = "https://gateway.example.com/anthropic"
+  }
+
+  expect_failures = [
+    var.use_foundry,
+  ]
+}
+
 run "test_anthropic_base_url_custom" {
   command = plan
 
@@ -509,5 +748,181 @@ run "test_api_key_helper_validation_with_ai_gateway" {
 
   expect_failures = [
     var.api_key_helper,
+  ]
+}
+
+run "test_authentication_config_default_environment" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent-authentication-config-default"
+    workdir           = "/home/coder/test"
+    enable_ai_gateway = true
+  }
+
+  override_data {
+    target = data.coder_workspace_owner.me
+    values = {
+      session_token = "mock-session-token"
+    }
+  }
+
+  assert {
+    condition     = var.authentication_config == "environment"
+    error_message = "authentication_config should default to environment"
+  }
+
+  assert {
+    condition     = length(coder_env.anthropic_auth_token) == 1
+    error_message = "ANTHROPIC_AUTH_TOKEN coder_env should still be created by default"
+  }
+
+  assert {
+    condition     = length(coder_env.anthropic_base_url) == 1
+    error_message = "ANTHROPIC_BASE_URL coder_env should still be created by default"
+  }
+
+  assert {
+    condition     = length(regexall("/api/v2/aibridge/anthropic", coder_env.anthropic_base_url[0].value)) > 0
+    error_message = "ANTHROPIC_BASE_URL should point to the AI Gateway endpoint"
+  }
+}
+
+run "test_authentication_config_managed_settings" {
+  command = plan
+
+  variables {
+    agent_id              = "test-agent-authentication-config-managed"
+    workdir               = "/home/coder/test"
+    enable_ai_gateway     = true
+    authentication_config = "managed_settings"
+    model                 = "sonnet"
+  }
+
+  override_data {
+    target = data.coder_workspace_owner.me
+    values = {
+      session_token = "mock-session-token"
+    }
+  }
+
+  assert {
+    condition     = length(coder_env.anthropic_auth_token) == 0
+    error_message = "ANTHROPIC_AUTH_TOKEN coder_env should not be created when authentication_config is managed_settings"
+  }
+
+  assert {
+    condition     = length(coder_env.anthropic_model) == 1
+    error_message = "ANTHROPIC_MODEL coder_env should still be created regardless of authentication_config, since model is not authentication"
+  }
+
+  assert {
+    condition     = length(coder_env.anthropic_base_url) == 0
+    error_message = "ANTHROPIC_BASE_URL coder_env should not be created when authentication_config is managed_settings"
+  }
+
+  assert {
+    condition     = length(keys(local.gateway_env)) == 2
+    error_message = "gateway_env should contain exactly ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN"
+  }
+
+  assert {
+    condition     = !contains(keys(local.gateway_env), "ANTHROPIC_MODEL")
+    error_message = "gateway_env should never contain ANTHROPIC_MODEL"
+  }
+
+  assert {
+    condition     = local.gateway_env["ANTHROPIC_AUTH_TOKEN"] == data.coder_workspace_owner.me.session_token
+    error_message = "gateway_env ANTHROPIC_AUTH_TOKEN should use the workspace owner's session token"
+  }
+
+  assert {
+    condition     = length(regexall("/api/v2/aibridge/anthropic", local.gateway_env["ANTHROPIC_BASE_URL"])) > 0
+    error_message = "gateway_env ANTHROPIC_BASE_URL should point to the AI Gateway endpoint"
+  }
+
+  assert {
+    condition     = local.managed_settings_effective.env["ANTHROPIC_AUTH_TOKEN"] == data.coder_workspace_owner.me.session_token
+    error_message = "managed_settings_effective.env should carry the gateway_env keys"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "/etc/claude-code/managed-settings.d")
+    error_message = "install script should reference the managed-settings.d drop-in directory"
+  }
+}
+
+run "test_authentication_config_managed_settings_preserves_user_env" {
+  command = plan
+
+  variables {
+    agent_id              = "test-agent-authentication-config-preserve"
+    workdir               = "/home/coder/test"
+    enable_ai_gateway     = true
+    authentication_config = "managed_settings"
+    managed_settings = {
+      permissions = { deny = ["Bash(rm *)"] }
+      env = {
+        DISABLE_TELEMETRY    = "1"
+        ANTHROPIC_AUTH_TOKEN = "overridden-token"
+      }
+    }
+  }
+
+  override_data {
+    target = data.coder_workspace_owner.me
+    values = {
+      session_token = "mock-session-token"
+    }
+  }
+
+  assert {
+    condition     = local.managed_settings_effective.permissions.deny == var.managed_settings.permissions.deny
+    error_message = "Non-env settings should be preserved"
+  }
+
+  assert {
+    condition     = local.managed_settings_effective.env["DISABLE_TELEMETRY"] == "1"
+    error_message = "user-supplied managed_settings.env keys should be preserved"
+  }
+
+  assert {
+    condition     = local.managed_settings_effective.env["ANTHROPIC_AUTH_TOKEN"] == data.coder_workspace_owner.me.session_token
+    error_message = "gateway_env keys should be merged alongside user-supplied managed_settings.env keys"
+  }
+}
+
+run "test_managed_auth_preserves_policy_without_env" {
+  command = plan
+
+  variables {
+    agent_id              = "test-agent-policy-without-env"
+    authentication_config = "managed_settings"
+    anthropic_base_url    = "https://gateway.example.com/anthropic"
+    managed_settings      = { permissions = { deny = ["Bash(rm *)"] } }
+  }
+
+  assert {
+    condition     = local.managed_settings_effective.permissions.deny == var.managed_settings.permissions.deny
+    error_message = "Policy settings should survive adding an env block"
+  }
+
+  assert {
+    condition     = local.managed_settings_effective.env.ANTHROPIC_BASE_URL == var.anthropic_base_url
+    error_message = "Managed settings should contain the custom gateway URL"
+  }
+}
+
+run "test_authentication_config_invalid_value" {
+  command = plan
+
+  variables {
+    agent_id              = "test-agent-authentication-config-invalid"
+    workdir               = "/home/coder/test"
+    authentication_config = "bogus"
+  }
+
+  expect_failures = [
+    var.authentication_config,
   ]
 }

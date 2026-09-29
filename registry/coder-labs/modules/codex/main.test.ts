@@ -192,36 +192,6 @@ const runInstallScript = async (
   ]);
 };
 
-const CODEX_TARGET = "x86_64-unknown-linux-musl";
-
-const writeCodexArchive = async (
-  id: string,
-  options?: { binaryName?: string; binaryContent?: string },
-) => {
-  const binaryName = options?.binaryName ?? `codex-${CODEX_TARGET}`;
-  await execContainer(id, [
-    "bash",
-    "-c",
-    "rm -rf /tmp/codex-fixture && mkdir -p /tmp/codex-fixture",
-  ]);
-  await writeExecutable({
-    containerId: id,
-    filePath: `/tmp/codex-fixture/${binaryName}`,
-    content:
-      options?.binaryContent ??
-      '#!/bin/bash\nif [[ "$1" == "--version" ]]; then echo "codex test version"; exit 0; fi\nexit 0\n',
-  });
-  const archive = await execContainer(id, [
-    "tar",
-    "-czf",
-    "/tmp/codex-test-archive.tar.gz",
-    "-C",
-    "/tmp/codex-fixture",
-    binaryName,
-  ]);
-  expect(archive.exitCode).toBe(0);
-};
-
 const writeCurlMock = async (id: string, exitCode = 0) => {
   await writeExecutable({
     containerId: id,
@@ -229,15 +199,34 @@ const writeCurlMock = async (id: string, exitCode = 0) => {
     content: [
       "#!/bin/bash",
       "printf '%s\\n' \"$*\" > /tmp/codex-curl-args",
-      "output=''",
-      "while (($#)); do",
-      '  case "$1" in',
-      '    --output|-o) output="$2"; shift 2 ;;',
-      "    *) shift ;;",
-      "  esac",
-      "done",
       `if [[ ${exitCode} -ne 0 ]]; then exit ${exitCode}; fi`,
-      'cp /tmp/codex-test-archive.tar.gz "$output"',
+      "cat /tmp/codex-installer-fixture.sh",
+    ].join("\n"),
+  });
+};
+
+const writeCodexInstaller = async (
+  id: string,
+  options?: { exitCode?: number; installCodex?: boolean },
+) => {
+  const exitCode = options?.exitCode ?? 0;
+  await writeExecutable({
+    containerId: id,
+    filePath: "/tmp/codex-installer-fixture.sh",
+    content: [
+      "#!/bin/sh",
+      'printf "CODEX_INSTALL_DIR=%s\\nCODEX_RELEASE=%s\\nCODEX_NON_INTERACTIVE=%s\\n" "$CODEX_INSTALL_DIR" "$CODEX_RELEASE" "$CODEX_NON_INTERACTIVE" > /tmp/codex-installer-env',
+      "if [ " + exitCode + " -ne 0 ]; then exit " + exitCode + "; fi",
+      ...(options?.installCodex === false
+        ? []
+        : [
+            'mkdir -p "$CODEX_INSTALL_DIR"',
+            "cat > \"$CODEX_INSTALL_DIR/codex\" <<'EOF'",
+            "#!/bin/sh",
+            'if [ "$1" = "--version" ]; then echo "codex test version"; fi',
+            "EOF",
+            'chmod +x "$CODEX_INSTALL_DIR/codex"',
+          ]),
     ].join("\n"),
   });
 };
@@ -277,16 +266,23 @@ describe("codex", async () => {
         codex_version: version,
       },
     });
-    await writeCodexArchive(id);
+    await writeCodexInstaller(id);
     await writeCurlMock(id);
     await runScripts(id, scripts, coderEnvVars);
     const log = await installLog(id);
     const curlArgs = await readFileContainer(id, "/tmp/codex-curl-args");
     expect(log).toContain("Installed Codex CLI: codex test version");
-    expect(curlArgs).toContain(`rust-v${version}/codex-${CODEX_TARGET}.tar.gz`);
+    const installerEnv = await readFileContainer(
+      id,
+      "/tmp/codex-installer-env",
+    );
+    expect(curlArgs).toContain("https://chatgpt.com/codex/install.sh");
     expect(curlArgs).toContain("--retry 2");
     expect(curlArgs).toContain("--connect-timeout 10");
     expect(curlArgs).toContain("--max-time 300");
+    expect(installerEnv).toContain("CODEX_INSTALL_DIR=/home/coder/.local/bin");
+    expect(installerEnv).toContain(`CODEX_RELEASE=${version}`);
+    expect(installerEnv).toContain("CODEX_NON_INTERACTIVE=1");
   });
 
   test("openai-api-key", async () => {
@@ -549,15 +545,18 @@ describe("codex", async () => {
         install_codex: "true",
       },
     });
-    await writeCodexArchive(id);
+    await writeCodexInstaller(id);
     await writeCurlMock(id);
     await runScripts(id, scripts, coderEnvVars);
     const log = await installLog(id);
     const curlArgs = await readFileContainer(id, "/tmp/codex-curl-args");
     expect(log).toContain("Installed Codex CLI: codex test version");
-    expect(curlArgs).toContain(
-      `releases/latest/download/codex-${CODEX_TARGET}.tar.gz`,
+    const installerEnv = await readFileContainer(
+      id,
+      "/tmp/codex-installer-env",
     );
+    expect(curlArgs).toContain("https://chatgpt.com/codex/install.sh");
+    expect(installerEnv).toContain("CODEX_RELEASE=latest");
   });
 
   test("codex-download-failure-is-terminal", async () => {
@@ -565,61 +564,40 @@ describe("codex", async () => {
       skipCodexMock: true,
       moduleVariables: { install_codex: "true" },
     });
+    await writeCodexInstaller(id);
     await writeCurlMock(id, 28);
     const result = await runInstallScript(id, scripts.install);
     expect(result.exitCode).not.toBe(0);
     const log = await installLog(id);
-    expect(log).toContain(
-      "Codex could not be downloaded after up to 3 attempts.",
-    );
+    expect(log).toContain("Codex installation failed.");
     expect(log).not.toContain("Installed Codex CLI");
   });
 
-  test("invalid-codex-archive-is-rejected", async () => {
+  test("codex-installer-failure-is-terminal", async () => {
     const { id, scripts } = await setup({
       skipCodexMock: true,
       moduleVariables: { install_codex: "true" },
     });
-    await writeExecutable({
-      containerId: id,
-      filePath: "/tmp/codex-test-archive.tar.gz",
-      content: "not a tar archive",
-    });
+    await writeCodexInstaller(id, { exitCode: 7 });
     await writeCurlMock(id);
     const result = await runInstallScript(id, scripts.install);
     expect(result.exitCode).not.toBe(0);
     const log = await installLog(id);
-    expect(log).toContain("Codex download was not a valid archive.");
+    expect(log).toContain("Codex installation failed.");
     expect(log).not.toContain("Installed Codex CLI");
   });
 
-  test("codex-archive-must-contain-expected-binary", async () => {
+  test("codex-installer-must-install-an-executable", async () => {
     const { id, scripts } = await setup({
       skipCodexMock: true,
       moduleVariables: { install_codex: "true" },
     });
-    await writeCodexArchive(id, { binaryName: "unexpected-codex" });
+    await writeCodexInstaller(id, { installCodex: false });
     await writeCurlMock(id);
     const result = await runInstallScript(id, scripts.install);
     expect(result.exitCode).not.toBe(0);
     const log = await installLog(id);
-    expect(log).toContain("Codex archive did not contain the expected binary.");
-    expect(log).not.toContain("Installed Codex CLI");
-  });
-
-  test("downloaded-codex-binary-must-run", async () => {
-    const { id, scripts } = await setup({
-      skipCodexMock: true,
-      moduleVariables: { install_codex: "true" },
-    });
-    await writeCodexArchive(id, {
-      binaryContent: "#!/bin/bash\nexit 7\n",
-    });
-    await writeCurlMock(id);
-    const result = await runInstallScript(id, scripts.install);
-    expect(result.exitCode).not.toBe(0);
-    const log = await installLog(id);
-    expect(log).toContain("Downloaded Codex binary could not be executed.");
+    expect(log).toContain("Codex binary was not found or is not executable.");
     expect(log).not.toContain("Installed Codex CLI");
   });
 

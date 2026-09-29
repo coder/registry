@@ -16,7 +16,7 @@ variable "agent_id" {
 
 variable "proxy_url" {
   type        = string
-  description = "The full URL of the AI Bridge Proxy. Include the port if not using standard ports (e.g. https://aiproxy.example.com or http://internal-proxy:8888)."
+  description = "The full URL of the AI Gateway Proxy. Include the port if not using standard ports (e.g. https://aiproxy.example.com or http://internal-proxy:8888)."
 
   validation {
     condition     = can(regex("^https?://", var.proxy_url))
@@ -26,7 +26,7 @@ variable "proxy_url" {
 
 variable "cert_path" {
   type        = string
-  description = "Absolute path where the AI Bridge Proxy CA certificate will be saved."
+  description = "Absolute path where the AI Gateway Proxy CA certificate will be saved."
   default     = "/tmp/aibridge-proxy/ca-cert.pem"
 
   validation {
@@ -41,7 +41,7 @@ data "coder_workspace_owner" "me" {}
 
 locals {
   # Build the proxy URL with Coder authentication embedded.
-  # AI Bridge Proxy expects the Coder session token as the password
+  # AI Gateway Proxy expects the Coder session token as the password
   # in basic auth: http://coder:<token>@host:port
   proxy_auth_url = replace(
     var.proxy_url,
@@ -53,13 +53,13 @@ locals {
 # These outputs are intended to be consumed by tool-specific modules,
 # to set proxy environment variables scoped to their process, rather than globally.
 output "proxy_auth_url" {
-  description = "The AI Bridge Proxy URL with Coder authentication embedded (http://coder:<token>@host:port)."
+  description = "The AI Gateway Proxy URL with Coder authentication embedded (http://coder:<token>@host:port)."
   value       = local.proxy_auth_url
   sensitive   = true
 }
 
 output "cert_path" {
-  description = "Path to the downloaded AI Bridge Proxy CA certificate."
+  description = "Path to the downloaded AI Gateway Proxy CA certificate."
   value       = var.cert_path
 }
 
@@ -69,7 +69,7 @@ output "cert_path" {
 # Tools that depend on the proxy will fail until the certificate is available.
 resource "coder_script" "aibridge_proxy_setup" {
   agent_id           = var.agent_id
-  display_name       = "AI Bridge Proxy Setup"
+  display_name       = "AI Gateway Proxy Setup"
   icon               = "/icon/coder.svg"
   run_on_start       = true
   start_blocks_login = false

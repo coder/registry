@@ -22,9 +22,14 @@ variable "description" {
 }
 
 variable "default" {
-  default     = ""
-  description = "The default region to use if no region is specified."
+  default     = null
+  description = "The default region to preselect, e.g. \"us-east-1\". Leave unset for no preselection; also used as the selected region when create_parameter is false."
   type        = string
+
+  validation {
+    condition     = var.default == null || can(regex("^[a-z]{2}-[a-z]+-[0-9]+$", var.default))
+    error_message = "default must be null or a valid AWS region ID, e.g. \"us-east-1\"."
+  }
 }
 
 variable "mutable" {
@@ -49,6 +54,11 @@ variable "exclude" {
   default     = []
   description = "A list of region IDs to exclude."
   type        = list(string)
+
+  validation {
+    condition     = alltrue([for region in var.exclude : can(regex("^[a-z]{2}-[a-z]+-[0-9]+$", region))])
+    error_message = "exclude must contain valid AWS region IDs, e.g. \"ap-northeast-2\"."
+  }
 }
 
 variable "coder_parameter_order" {
@@ -57,143 +67,59 @@ variable "coder_parameter_order" {
   default     = null
 }
 
+variable "create_parameter" {
+  type        = bool
+  description = "Whether to create the coder_parameter. Set to false to skip the region picker and use the module only for its outputs, e.g. the regions catalog or a default_availability_zone for a fixed default region."
+  default     = true
+}
+
 locals {
-  # This is a static list because the regions don't change _that_
-  # frequently and including the `aws_regions` data source requires
-  # the provider, which requires a region.
-  regions = {
-    "af-south-1" = {
-      name = "Africa (Cape Town)"
-      icon = "/emojis/1f1ff-1f1e6.png"
-    }
-    "ap-east-1" = {
-      name = "Asia Pacific (Hong Kong)"
-      icon = "/emojis/1f1ed-1f1f0.png"
-    }
-    "ap-northeast-1" = {
-      name = "Asia Pacific (Tokyo)"
-      icon = "/emojis/1f1ef-1f1f5.png"
-    }
-    "ap-northeast-2" = {
-      name = "Asia Pacific (Seoul)"
-      icon = "/emojis/1f1f0-1f1f7.png"
-    }
-    "ap-northeast-3" = {
-      name = "Asia Pacific (Osaka)"
-      icon = "/emojis/1f1ef-1f1f5.png"
-    }
-    "ap-south-1" = {
-      name = "Asia Pacific (Mumbai)"
-      icon = "/emojis/1f1ee-1f1f3.png"
-    }
-    "ap-south-2" = {
-      name = "Asia Pacific (Hyderabad)"
-      icon = "/emojis/1f1ee-1f1f3.png"
-    }
-    "ap-southeast-1" = {
-      name = "Asia Pacific (Singapore)"
-      icon = "/emojis/1f1f8-1f1ec.png"
-    }
-    "ap-southeast-2" = {
-      name = "Asia Pacific (Sydney)"
-      icon = "/emojis/1f1e6-1f1fa.png"
-    }
-    "ap-southeast-3" = {
-      name = "Asia Pacific (Jakarta)"
-      icon = "/emojis/1f1ee-1f1e9.png"
-    }
-    "ap-southeast-4" = {
-      name = "Asia Pacific (Melbourne)"
-      icon = "/emojis/1f1e6-1f1fa.png"
-    }
-    "ca-central-1" = {
-      name = "Canada (Central)"
-      icon = "/emojis/1f1e8-1f1e6.png"
-    }
-    "ca-west-1" = {
-      name = "Canada West (Calgary)"
-      icon = "/emojis/1f1e8-1f1e6.png"
-    }
-    "eu-central-1" = {
-      name = "EU (Frankfurt)"
-      icon = "/emojis/1f1ea-1f1fa.png"
-    }
-    "eu-central-2" = {
-      name = "Europe (Zurich)"
-      icon = "/emojis/1f1ea-1f1fa.png"
-    }
-    "eu-north-1" = {
-      name = "EU (Stockholm)"
-      icon = "/emojis/1f1ea-1f1fa.png"
-    }
-    "eu-south-1" = {
-      name = "Europe (Milan)"
-      icon = "/emojis/1f1ea-1f1fa.png"
-    }
-    "eu-south-2" = {
-      name = "Europe (Spain)"
-      icon = "/emojis/1f1ea-1f1fa.png"
-    }
-    "eu-west-1" = {
-      name = "EU (Ireland)"
-      icon = "/emojis/1f1ea-1f1fa.png"
-    }
-    "eu-west-2" = {
-      name = "EU (London)"
-      icon = "/emojis/1f1ea-1f1fa.png"
-    }
-    "eu-west-3" = {
-      name = "EU (Paris)"
-      icon = "/emojis/1f1ea-1f1fa.png"
-    }
-    "il-central-1" = {
-      name = "Israel (Tel Aviv)"
-      icon = "/emojis/1f1ee-1f1f1.png"
-    }
-    "me-south-1" = {
-      name = "Middle East (Bahrain)"
-      icon = "/emojis/1f1e7-1f1ed.png"
-    }
-    "sa-east-1" = {
-      name = "South America (São Paulo)"
-      icon = "/emojis/1f1e7-1f1f7.png"
-    }
-    "us-east-1" = {
-      name = "US East (N. Virginia)"
-      icon = "/emojis/1f1fa-1f1f8.png"
-    }
-    "us-east-2" = {
-      name = "US East (Ohio)"
-      icon = "/emojis/1f1fa-1f1f8.png"
-    }
-    "us-west-1" = {
-      name = "US West (N. California)"
-      icon = "/emojis/1f1fa-1f1f8.png"
-    }
-    "us-west-2" = {
-      name = "US West (Oregon)"
-      icon = "/emojis/1f1fa-1f1f8.png"
+  # Read regions.json with a fallback: Terraform resolves file() from the root
+  # module, but Coder's dynamic parameters preview resolves it from this module's
+  # directory, so neither path works on its own.
+  regions = jsondecode(try(file("${path.module}/regions.json"), file("regions.json")))
+
+  regions_by_id = {
+    for region in local.regions : region.value => {
+      value                     = region.value
+      name                      = region.name
+      icon                      = region.icon
+      default_availability_zone = "${region.value}a"
     }
   }
+
+  selected_region = var.create_parameter ? one(data.coder_parameter.region[*].value) : var.default
 }
 
 data "coder_parameter" "region" {
+  count        = var.create_parameter ? 1 : 0
   name         = "aws_region"
   display_name = var.display_name
   description  = var.description
-  default      = var.default == "" ? null : var.default
+  default      = var.default
   order        = var.coder_parameter_order
   mutable      = var.mutable
   dynamic "option" {
-    for_each = { for k, v in local.regions : k => v if !(contains(var.exclude, k)) }
+    for_each = [for region in local.regions : region if !contains(var.exclude, region.value)]
     content {
-      name  = try(var.custom_names[option.key], option.value.name)
-      icon  = try(var.custom_icons[option.key], option.value.icon)
-      value = option.key
+      name  = try(var.custom_names[option.value.value], option.value.name)
+      icon  = try(var.custom_icons[option.value.value], option.value.icon)
+      value = option.value.value
     }
   }
 }
 
 output "value" {
-  value = data.coder_parameter.region.value
+  description = "The ID of the selected AWS region, e.g. \"us-east-1\". Falls back to var.default when create_parameter is false."
+  value       = local.selected_region
+}
+
+output "default_availability_zone" {
+  description = "The default availability zone for the selected region, e.g. \"us-east-1a\". Empty when no region is selected."
+  value       = try(local.regions_by_id[local.selected_region].default_availability_zone, "")
+}
+
+output "regions" {
+  description = "All AWS regions keyed by region ID, each with name, icon, and default_availability_zone."
+  value       = local.regions_by_id
 }

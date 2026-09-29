@@ -277,17 +277,17 @@ run "aibridge_proxy_enabled" {
 
   assert {
     condition     = var.enable_aibridge_proxy == true
-    error_message = "AI Bridge Proxy should be enabled"
+    error_message = "AI Gateway Proxy should be enabled"
   }
 
   assert {
     condition     = var.aibridge_proxy_auth_url == "https://coder:mock-token@aiproxy.example.com"
-    error_message = "AI Bridge Proxy auth URL should match the input variable"
+    error_message = "AI Gateway Proxy auth URL should match the input variable"
   }
 
   assert {
     condition     = var.aibridge_proxy_cert_path == "/tmp/aibridge-proxy/ca-cert.pem"
-    error_message = "AI Bridge Proxy cert path should match the input variable"
+    error_message = "AI Gateway Proxy cert path should match the input variable"
   }
 }
 
@@ -339,7 +339,7 @@ run "aibridge_proxy_with_copilot_config" {
 
   assert {
     condition     = var.enable_aibridge_proxy == true
-    error_message = "AI Bridge Proxy should be enabled"
+    error_message = "AI Gateway Proxy should be enabled"
   }
 
   assert {

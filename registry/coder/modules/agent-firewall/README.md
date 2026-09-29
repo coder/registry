@@ -21,7 +21,7 @@ This module:
 ```tf
 module "agent-firewall" {
   source   = "registry.coder.com/coder/agent-firewall/coder"
-  version  = "0.0.3"
+  version  = "0.0.4"
   agent_id = coder_agent.main.id
 }
 ```
@@ -40,7 +40,7 @@ network-isolated environment.
 ```tf
 module "agent-firewall" {
   source   = "registry.coder.com/coder/agent-firewall/coder"
-  version  = "0.0.3"
+  version  = "0.0.4"
   agent_id = coder_agent.main.id
 }
 
@@ -49,7 +49,7 @@ resource "coder_script" "claude_with_agent_firewall" {
   display_name = "Claude (Agent Firewall)"
   run_on_start = true
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -e
     coder exp sync want claude-agent-firewall \
       ${join(" ", module.agent-firewall.scripts)} \
@@ -65,7 +65,7 @@ resource "coder_script" "claude_with_agent_firewall" {
 ```tf
 module "agent-firewall" {
   source   = "registry.coder.com/coder/agent-firewall/coder"
-  version  = "0.0.3"
+  version  = "0.0.4"
   agent_id = coder_agent.main.id
 }
 
@@ -74,7 +74,7 @@ resource "coder_app" "claude_with_agent_firewall" {
   display_name = "Claude Code"
   slug         = "claude-code"
   command      = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -e
     exec tmux new-session -A -s claude-code \
       '"${module.agent-firewall.agent_firewall_wrapper_path}" --config="${module.agent-firewall.agent_firewall_config_path}" -- claude'
@@ -144,7 +144,7 @@ Pass the full YAML content directly:
 ```tf
 module "agent-firewall" {
   source   = "registry.coder.com/coder/agent-firewall/coder"
-  version  = "0.0.3"
+  version  = "0.0.4"
   agent_id = coder_agent.main.id
 
   agent_firewall_config = <<-YAML
@@ -168,7 +168,7 @@ your path. The file must exist on disk before agent-firewall starts.
 ```tf
 module "agent-firewall" {
   source   = "registry.coder.com/coder/agent-firewall/coder"
-  version  = "0.0.3"
+  version  = "0.0.4"
   agent_id = coder_agent.main.id
 
   agent_firewall_config_path = "/workspace/my-agent-firewall-config.yaml"

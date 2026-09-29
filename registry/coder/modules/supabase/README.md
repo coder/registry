@@ -17,7 +17,7 @@ It integrates with Coder's external auth for OAuth-based login, or accepts a per
 ```tf
 module "supabase" {
   source   = "registry.coder.com/coder/supabase/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.example.id
 }
 ```
@@ -62,7 +62,7 @@ variable "supabase_token" {
 
 module "supabase" {
   source            = "registry.coder.com/coder/supabase/coder"
-  version           = "1.0.0"
+  version           = "1.0.1"
   agent_id          = coder_agent.example.id
   use_external_auth = false
   access_token      = var.supabase_token
@@ -77,7 +77,7 @@ module "supabase" {
 ```tf
 module "supabase" {
   source            = "registry.coder.com/coder/supabase/coder"
-  version           = "1.0.0"
+  version           = "1.0.1"
   agent_id          = coder_agent.example.id
   use_external_auth = true
   # external_auth_id = "supabase"  # Default; change if your provider has a different ID
@@ -89,7 +89,7 @@ module "supabase" {
 ```tf
 module "supabase" {
   source            = "registry.coder.com/coder/supabase/coder"
-  version           = "1.0.0"
+  version           = "1.0.1"
   agent_id          = coder_agent.example.id
   use_external_auth = false
   access_token      = var.supabase_token
@@ -102,7 +102,7 @@ module "supabase" {
 ```tf
 module "supabase" {
   source         = "registry.coder.com/coder/supabase/coder"
-  version        = "1.0.0"
+  version        = "1.0.1"
   agent_id       = coder_agent.example.id
   install_method = "binary" # Force binary install instead of detect
 }
@@ -113,7 +113,7 @@ module "supabase" {
 ```tf
 module "supabase" {
   source       = "registry.coder.com/coder/supabase/coder"
-  version      = "1.0.0"
+  version      = "1.0.1"
   agent_id     = coder_agent.example.id
   skip_install = true # CLI is already in the image
   access_token = var.supabase_token
@@ -125,7 +125,7 @@ module "supabase" {
 ```tf
 module "supabase" {
   source            = "registry.coder.com/coder/supabase/coder"
-  version           = "1.0.0"
+  version           = "1.0.1"
   agent_id          = coder_agent.example.id
   download_base_url = "https://artifacts.internal.corp/supabase-cli/releases/download"
 }

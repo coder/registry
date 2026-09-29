@@ -238,7 +238,7 @@ module "agentapi" {
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
   start_script         = <<-EOT
-     #!/bin/bash
+     #!/usr/bin/env bash
      set -o errexit
      set -o pipefail
 
@@ -253,7 +253,7 @@ module "agentapi" {
    EOT
 
   install_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -o errexit
     set -o pipefail
 

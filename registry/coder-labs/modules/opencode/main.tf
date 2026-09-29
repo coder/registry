@@ -166,7 +166,7 @@ module "agentapi" {
   pre_install_script   = var.pre_install_script
   post_install_script  = var.post_install_script
   start_script         = <<-EOT
-     #!/bin/bash
+     #!/usr/bin/env bash
      set -o errexit
      set -o pipefail
      echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
@@ -181,7 +181,7 @@ module "agentapi" {
   EOT
 
   install_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -o errexit
     set -o pipefail
 

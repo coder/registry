@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Rendered into the agent_relay_status agent metadata item (see README).
+# Prints one line that Agent Relay reads to decide whether the
+# workspace still has work:
+#
+#   pending          the worker script has not written state yet
+#   idle             no worker token; created manually, never claimed
+#   working          worker alive, no session attached yet
+#   serving          worker alive and a session has attached
+#   orphaned         state says working but the process is gone
+#   done <code>      worker exited with that status
+#   failed <reason>  the worker could not be started at all
+#
+# working versus serving comes from matching serving_log_pattern
+# against the worker log, which is a cosmetic distinction: Agent Relay's
+# reaping decisions rest on the process lifecycle, so a pattern that
+# stops matching a future Cursor CLI release degrades to "working" and
+# changes nothing else.
+#
+# Keep the vocabulary in sync with Agent Relay's reaper.
+set -euo pipefail
+
+state_file="${state_file}"
+log_file="${log_file}"
+# Free-form text, so it arrives base64-encoded and is matched as a fixed
+# string: neither the shell nor grep interprets anything in it.
+serving_log_pattern="$(echo -n '${serving_log_pattern}' | base64 -d)"
+
+# True when the pid is alive and is our worker. kill -0 alone would
+# trust a reused pid; the cmdline check ties it to the CLI we launched.
+worker_alive() {
+	[ -n "$${1:-}" ] && kill -0 "$1" 2>/dev/null &&
+		tr '\0' ' ' <"/proc/$1/cmdline" 2>/dev/null | grep -qF -- "$(basename "${cli_binary}")"
+}
+
+if [ ! -f "$state_file" ]; then
+	echo "pending"
+	exit 0
+fi
+
+read -r state detail <"$state_file" || true
+
+case "$state" in
+working)
+	if ! worker_alive "$${detail:-}"; then
+		# The worker vanished without the supervisor recording an
+		# exit, e.g. an OOM kill, or the pid now belongs to something
+		# else. Distinct from done so Agent Relay can grade the failure.
+		echo "orphaned"
+		exit 0
+	fi
+	if [ -f "$log_file" ] && grep -qF -- "$serving_log_pattern" "$log_file"; then
+		echo "serving"
+	else
+		echo "working"
+	fi
+	;;
+done)
+	echo "done $${detail:-0}"
+	;;
+failed)
+	echo "failed $${detail:-unknown}"
+	;;
+*)
+	echo "$state"
+	;;
+esac

@@ -13,7 +13,7 @@ Install [portabledesktop](https://github.com/coder/portabledesktop) for lightwei
 ```tf
 module "portabledesktop" {
   source   = "registry.coder.com/coder/portabledesktop/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.example.id
 }
 ```
@@ -25,7 +25,7 @@ module "portabledesktop" {
 ```tf
 module "portabledesktop" {
   source   = "registry.coder.com/coder/portabledesktop/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.example.id
   url      = "https://example.com/portabledesktop-linux-x64"
   sha256   = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -39,7 +39,7 @@ Use `install_dir` to copy the binary to a system-wide directory in addition to t
 ```tf
 module "portabledesktop" {
   source      = "registry.coder.com/coder/portabledesktop/coder"
-  version     = "0.1.0"
+  version     = "0.1.1"
   agent_id    = coder_agent.example.id
   install_dir = "/usr/local/bin"
 }
