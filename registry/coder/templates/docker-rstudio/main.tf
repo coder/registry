@@ -65,17 +65,6 @@ resource "coder_agent" "main" {
     fi
   EOT
 
-  # These environment variables allow you to make Git commits
-  # right away after creating a workspace. They take precedence
-  # over configuration in ~/.gitconfig. Remove this block if
-  # you prefer to configure Git manually or via dotfiles.
-  env = {
-    GIT_AUTHOR_NAME     = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_AUTHOR_EMAIL    = "${data.coder_workspace_owner.me.email}"
-    GIT_COMMITTER_NAME  = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_COMMITTER_EMAIL = "${data.coder_workspace_owner.me.email}"
-  }
-
   metadata {
     display_name = "CPU Usage"
     key          = "0_cpu_usage"
@@ -149,6 +138,14 @@ resource "coder_app" "rstudio" {
   subdomain    = true
   share        = "owner"
   order        = 1
+}
+
+# See https://registry.coder.com/modules/coder/git-config
+module "git-config" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/git-config/coder"
+  version  = "~> 1.0"
+  agent_id = coder_agent.main.id
 }
 
 # See https://registry.coder.com/modules/coder/code-server

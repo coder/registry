@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+# Start step, run by coder-utils after the install step. Runs at
+# agent start with AGENT_RELAY_CURSOR_TOKEN (a short-lived worker token
+# minted for the requesting user), CURSOR_AGENT_WORKER_ID (the claimed
+# worker id), AGENT_RELAY_CURSOR_POOL_NAME, and
+# AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT in scope.
+#
+# Starts the worker detached and exits, so the agent reaches the ready
+# lifecycle state instead of sitting in starting for the life of the
+# session. The detached supervisor records the worker's lifecycle to
+# ${state_file}, which the agent_relay_status agent metadata item publishes
+# for Agent Relay. See README.
+set -euo pipefail
+
+state_file="${state_file}"
+log_file="${log_file}"
+# Runtime-materialized scripts live under the module directory's
+# scripts/ regardless of where state_file points, so an override of
+# state_file moves only the state.
+scripts_dir="${module_directory}/scripts"
+mkdir -p "$scripts_dir" "$(dirname "$state_file")" "$(dirname "$log_file")"
+
+write_state() {
+	# Write via a temp file so a reader never sees a partial line.
+	printf '%s\n' "$1" >"$state_file.tmp"
+	mv "$state_file.tmp" "$state_file"
+}
+
+# True when the pid is alive and is our worker. kill -0 alone would
+# trust a reused pid; the cmdline check ties it to the CLI we launched.
+worker_alive() {
+	[ -n "$${1:-}" ] && kill -0 "$1" 2>/dev/null &&
+		tr '\0' ' ' <"/proc/$1/cmdline" 2>/dev/null | grep -qF -- "$(basename "${cli_binary}")"
+}
+
+if [ -z "$${AGENT_RELAY_CURSOR_TOKEN:-}" ]; then
+	# Only claim idle when nothing has been recorded. A credential is
+	# ephemeral, so a restart of a finished workspace arrives here too,
+	# and overwriting "done 3" with "idle" would hide a real failure.
+	if [ ! -f "$state_file" ]; then
+		write_state "idle"
+	fi
+	echo "No worker token set. This workspace was created manually, not by Agent Relay."
+	echo "Idling. Delete this workspace manually or set the agent_relay_credential parameter."
+	exit 0
+fi
+
+# An agent restart inside the same build re-runs this script with the
+# credential still set and the previous run's state on disk. The
+# detached supervisor outlives the agent, so never launch a second
+# worker beside a live one, and never restart after a terminal state:
+# the relay is already acting on it and the credential is single-use.
+# Otherwise reset to pending so the previous run's state is not reported
+# as this run's while the supervisor starts.
+if [ -f "$state_file" ]; then
+	read -r previous_state previous_detail <"$state_file" || true
+	case "$previous_state" in
+	working)
+		if worker_alive "$${previous_detail:-}"; then
+			echo "Worker already running (pid $previous_detail) from a previous agent start; leaving it."
+		else
+			echo "Previous worker (pid $${previous_detail:-?}) is gone without recording an exit; leaving the state for Agent Relay."
+		fi
+		exit 0
+		;;
+	done | failed)
+		echo "Previous run ended with '$previous_state $${previous_detail:-}'; not restarting. Agent Relay reaps this workspace."
+		exit 0
+		;;
+	esac
+fi
+write_state "pending"
+
+# ~/.local/bin is where the official installer puts the CLI, whether the
+# install step ran it or the image author did. Unconditional so a
+# bring-your-own CLI there is found when install_cli is false; harmless
+# when the directory does not exist.
+export PATH="$HOME/.local/bin:$PATH"
+
+# A missing binary is a template problem, so it is reported as a
+# terminal state for Agent Relay to observe rather than started
+# blind, which would loop as "done 127". Bake the CLI into the image,
+# or set install_cli to download it on start.
+if ! command -v ${cli_binary} >/dev/null 2>&1; then
+	write_state "failed runner-agent-missing"
+	echo "The worker binary '${cli_binary}' is not available." >&2
+	echo "Bake the Cursor CLI into the image, set install_cli = true, or set cli_binary. See the module README." >&2
+	exit 1
+fi
+
+# The supervisor outlives this script: it owns the worker process and
+# is the only writer of terminal state. Written to disk rather than
+# inlined so setsid gets a clean argv. The token, pool name, and idle
+# timeout are read from the supervisor's environment at run time,
+# escaped here so they are never rendered into the file. Parameter
+# values are user input; interpolating them into the file would let
+# shell metacharacters run as code. The worker exits 0 when its
+# idle-release timer fires after a session ends; that clean exit is
+# what tells Agent Relay to reap the workspace.
+supervisor="$scripts_dir/supervise.sh"
+cat >"$supervisor" <<SUPERVISOR
+#!/usr/bin/env bash
+set -uo pipefail
+
+write_state() {
+	printf '%s\n' "\$1" >"$state_file.tmp"
+	mv "$state_file.tmp" "$state_file"
+}
+
+export PATH="\$HOME/.local/bin:\$PATH"
+# The relay stamps how the credential must reach the CLI. A pool with
+# insecure_shared_token sends its team service-account key, which the
+# CLI accepts only as CURSOR_API_KEY; a per-user worker token is only
+# accepted as --auth-token. Both are read from the environment at run
+# time so neither value lands in this file.
+auth_args=()
+if [ "\$${AGENT_RELAY_CURSOR_CREDENTIAL_KIND:-worker_token}" = api_key ]; then
+	export CURSOR_API_KEY="\$AGENT_RELAY_CURSOR_TOKEN"
+else
+	auth_args=(--auth-token "\$AGENT_RELAY_CURSOR_TOKEN")
+fi
+${cli_binary} worker \\
+	--pool "\$AGENT_RELAY_CURSOR_POOL_NAME" \\
+	--idle-release-timeout "\$AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT" \\
+	\$${auth_args[@]+"\$${auth_args[@]}"} \\
+%{ if computer_use ~}
+	--computer-use \\
+%{ endif ~}
+	start >"$log_file" 2>&1 &
+worker_pid=\$!
+write_state "working \$worker_pid"
+
+wait "\$worker_pid"
+code=\$?
+write_state "done \$code"
+SUPERVISOR
+chmod +x "$supervisor"
+
+echo "Starting Cursor worker (detached)..."
+setsid nohup "$supervisor" >/dev/null 2>&1 </dev/null &
+
+# Give the supervisor a moment to record state, so a workspace that
+# fails immediately is visible as such rather than as pending. Not a
+# readiness gate: the worker connecting to Cursor and picking up a
+# session both happen later, and blocking on them would keep the agent
+# out of the ready state.
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+	[ -f "$state_file" ] && break
+	sleep 1
+done
+
+if [ -f "$state_file" ]; then
+	echo "Worker state: $(cat "$state_file")"
+else
+	echo "Worker did not report state within 10s; check $log_file" >&2
+fi
+echo "Worker log: $log_file"

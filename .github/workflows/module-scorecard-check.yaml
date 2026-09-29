@@ -113,7 +113,7 @@ jobs:
       - name: Score changed modules
         if: steps.changed.outputs.modules != ''
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.SCORECARD_CDRSTABLE_TOKEN }}
+          SCORECARD_CODER_TOKEN: ${{ secrets.SCORECARD_CDRSTABLE_TOKEN }}
           GITHUB_DISCUSSIONS_TOKEN: ${{ github.token }}
           MODULES: ${{ steps.changed.outputs.modules }}
         run: bun run .github/scorecard/score-modules.ts --modules "${MODULES}" --pr-report /tmp/scorecard-report.md

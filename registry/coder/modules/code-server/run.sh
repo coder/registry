@@ -190,6 +190,18 @@ s/,[^]}"]*([]}])/\1/g'
 }
 
 if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
+  PRE_AUTO_INSTALL_EXTENSIONS_SCRIPT_B64='${PRE_AUTO_INSTALL_EXTENSIONS_SCRIPT_B64}'
+  if [ -n "$PRE_AUTO_INSTALL_EXTENSIONS_SCRIPT_B64" ]; then
+    if ! PRE_AUTO_INSTALL_EXTENSIONS_SCRIPT=$(printf '%s' "$PRE_AUTO_INSTALL_EXTENSIONS_SCRIPT_B64" | base64 -d 2> /dev/null); then
+      echo "Failed to decode pre-auto-install extensions script."
+      exit 1
+    fi
+    if ! bash -c "$PRE_AUTO_INSTALL_EXTENSIONS_SCRIPT"; then
+      echo "Pre-auto-install extensions script failed."
+      exit 1
+    fi
+  fi
+
   if ! command -v jq > /dev/null; then
     echo "jq is required to install extensions from a workspace file."
     exit 0

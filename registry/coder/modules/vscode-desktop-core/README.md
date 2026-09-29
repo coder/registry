@@ -20,7 +20,7 @@ The dedicated extension script blocks ordinary workspace login by default and ha
 ```tf
 module "vscode-desktop-core" {
   source  = "registry.coder.com/coder/vscode-desktop-core/coder"
-  version = "1.2.0"
+  version = "1.2.1"
 
   agent_id = var.agent_id
 

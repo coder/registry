@@ -10,9 +10,10 @@
 #
 # Required repository secrets:
 #   SCORECARD_CDRSTABLE_TOKEN  cdrstable.dev token for the dedicated
-#                              "registry-scorecard" service account, used for
-#                              scoring via cdrstable.dev's AI Gateway (Anthropic
-#                              passthrough) instead of a raw Anthropic key.
+#                              "registry-scorecard" service account. The AI
+#                              Gateway routes the call to the `solstice`
+#                              provider, which serves a local GPU first and
+#                              falls back to Claude Sonnet under load.
 #
 # Discussions are written with the built-in GITHUB_TOKEN (discussions: write
 # below), so no PAT is needed and there is nothing to expire or rotate.
@@ -43,7 +44,7 @@ jobs:
   score:
     name: Score modules and update discussions
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 240
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -91,7 +92,7 @@ jobs:
 
       - name: Score modules and update module discussions
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.SCORECARD_CDRSTABLE_TOKEN }}
+          SCORECARD_CODER_TOKEN: ${{ secrets.SCORECARD_CDRSTABLE_TOKEN }}
           GITHUB_DISCUSSIONS_TOKEN: ${{ github.token }}
         run: bun run .github/scorecard/score-modules.ts ${{ steps.scope.outputs.args }}
 
