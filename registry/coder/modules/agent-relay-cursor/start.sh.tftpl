@@ -126,6 +126,9 @@ ${cli_binary} worker \\
 %{ if computer_use ~}
 	--computer-use \\
 %{ endif ~}
+%{ if share_desktop ~}
+	--share-desktop=view_and_control \\
+%{ endif ~}
 	start >"$log_file" 2>&1 &
 worker_pid=\$!
 write_state "working \$worker_pid"

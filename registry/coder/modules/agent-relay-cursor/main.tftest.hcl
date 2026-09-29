@@ -211,6 +211,35 @@ run "computer_use_enabled" {
     condition     = can(regex("--computer-use", local.start_script))
     error_message = "computer_use = true must pass the flag to the worker"
   }
+
+  assert {
+    condition     = !can(regex("--share-desktop", local.start_script))
+    error_message = "desktop sharing must stay opt in"
+  }
+}
+
+run "share_desktop_enabled" {
+  command = plan
+
+  variables {
+    computer_use  = true
+    share_desktop = true
+  }
+
+  assert {
+    condition     = can(regex("--share-desktop=view_and_control", local.start_script))
+    error_message = "share_desktop must pass an explicit mode, or the optional argument swallows start"
+  }
+}
+
+run "share_desktop_requires_computer_use" {
+  command = plan
+
+  variables {
+    share_desktop = true
+  }
+
+  expect_failures = [var.share_desktop]
 }
 
 run "install_cli_enabled_by_default" {

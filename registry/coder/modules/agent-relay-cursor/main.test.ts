@@ -408,6 +408,21 @@ describe("agent-relay-cursor", () => {
     expect(args).toContain("--computer-use");
   });
 
+  it("passes an explicit desktop share mode so it cannot swallow start", async () => {
+    // --share-desktop takes an optional mode; bare, it consumes the
+    // next argument and the CLI rejects "start" as a mode.
+    const { id, scripts } = await setup({
+      computer_use: "true",
+      share_desktop: "true",
+    });
+    await stubAgent(id, 'printf "%s\\n" "$@" >/tmp/agent-args; sleep 30');
+    const { start } = await runDispatched(id, scripts);
+    expect(start.exitCode).toBe(0);
+    const args = (await readFileContainer(id, "/tmp/agent-args")).split("\n");
+    expect(args).toContain("--share-desktop=view_and_control");
+    expect(args).toContain("start");
+  });
+
   it("records the exit code when the worker exits", async () => {
     const { id, scripts } = await setup();
     await stubAgent(id, "exit 3");
