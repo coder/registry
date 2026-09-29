@@ -17,6 +17,12 @@ TARGET_NAMESPACE=""
 TARGET_MODULE=""
 SKIP_PUSH=false
 
+# GitHub does not emit push events (so tag-triggered workflows never run) when
+# more than 3 refs are pushed in a single call. Pushing in batches of this
+# size keeps every push event-generating. See:
+# https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#push
+readonly TAG_PUSH_BATCH_SIZE=3
+
 JSON_OUTPUT='{
   "metadata": {},
   "summary": {},
@@ -446,6 +452,28 @@ pre_flight_checks() {
   return $EXIT_SUCCESS
 }
 
+# Pushes the given tags to origin in batches of TAG_PUSH_BATCH_SIZE, so
+# GitHub actually emits a push event for each one (see TAG_PUSH_BATCH_SIZE).
+# Prints one line per batch. Returns non-zero if any batch fails to push,
+# but still attempts every batch.
+push_tags_batched() {
+  local -a tags=("$@")
+  local failed=0
+  local total=${#tags[@]}
+
+  local i
+  for ((i = 0; i < total; i += TAG_PUSH_BATCH_SIZE)); do
+    local batch=("${tags[@]:i:TAG_PUSH_BATCH_SIZE}")
+    log "INFO" "Pushing batch: ${batch[*]}"
+    if ! git push --atomic origin "${batch[@]}" 2> /dev/null; then
+      log "ERROR" "Failed to push batch: ${batch[*]}"
+      failed=$((failed + ${#batch[@]}))
+    fi
+  done
+
+  return $((failed > 0 ? 1 : 0))
+}
+
 create_and_push_tags() {
   [ ${#MODULES_TO_TAG[@]} -eq 0 ] && {
     log "ERROR" "No modules to tag found"
@@ -538,8 +566,8 @@ create_and_push_tags() {
     log "ERROR" "No valid tags found to push"
     JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq '.summary.operation_status = "failed" | .summary.tags_pushed = 0')
   else
-    if git push --atomic origin "${tags_to_push[@]}" 2> /dev/null; then
-      log "SUCCESS" "Successfully pushed all ${#tags_to_push[@]} tags"
+    if push_tags_batched "${tags_to_push[@]}"; then
+      log "SUCCESS" "Successfully pushed all ${#tags_to_push[@]} tags (batched at $TAG_PUSH_BATCH_SIZE per push)"
       pushed_tags=${#tags_to_push[@]}
 
       for tag_name in "${tags_to_push[@]}"; do
@@ -547,8 +575,8 @@ create_and_push_tags() {
           '(.modules[] | select(.tag_name == $tag) | .status) = "tagged_and_pushed"')
       done
     else
-      log "ERROR" "Failed to push tags"
-      add_json_error "push_failed" "Failed to push tags to remote" "git push --atomic origin ${tags_to_push[*]}"
+      log "ERROR" "Failed to push one or more tag batches"
+      add_json_error "push_failed" "Failed to push one or more tag batches to remote" "push_tags_batched ${tags_to_push[*]}"
       failed_pushes=${#tags_to_push[@]}
 
       for tag_name in "${tags_to_push[@]}"; do
