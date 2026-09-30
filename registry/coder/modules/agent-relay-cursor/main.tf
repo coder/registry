@@ -69,6 +69,17 @@ variable "computer_use" {
   description = "Start the worker with --computer-use. Requires the computer-use packages in the workspace image."
 }
 
+variable "share_desktop" {
+  type        = bool
+  default     = false
+  description = "Start the worker with --share-desktop so viewers in Cursor can watch or control the agent's managed desktop. Linux only; requires computer_use and the TigerVNC and Xfce packages in the workspace image."
+
+  validation {
+    condition     = !var.share_desktop || var.computer_use
+    error_message = "share_desktop requires computer_use = true."
+  }
+}
+
 variable "state_file" {
   type        = string
   default     = "$HOME/.coder-modules/coder/agent-relay-cursor/worker-state"
@@ -273,6 +284,7 @@ locals {
     cli_binary       = var.cli_binary
     install_cli      = var.install_cli
     computer_use     = var.computer_use
+    share_desktop    = var.share_desktop
     state_file       = var.state_file
     log_file         = var.log_file
   })
