@@ -1,95 +1,169 @@
 ---
 display_name: Amp
 icon: ../../../../.icons/sourcegraph-amp.svg
-description: Sourcegraph's AI coding agent with deep codebase understanding and intelligent code search capabilities
+description: Install and configure the Amp CLI in your workspace.
 verified: true
-tags: [agent, sourcegraph, amp, ai, tasks]
+tags: [agent, sourcegraph, amp, ai]
 ---
 
-# Sourcegraph Amp CLI
+# Amp
 
-Run [Amp CLI](https://ampcode.com/) in your workspace to access Sourcegraph's AI-powered code search and analysis tools, with AgentAPI integration for seamless Coder Tasks support.
+Install and configure the [Amp CLI](https://ampcode.com/docs/cli) in your workspace.
 
 ```tf
-module "amp-cli" {
-  source           = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
-  version          = "3.0.1"
-  agent_id         = coder_agent.example.id
-  amp_api_key      = var.amp_api_key
-  install_amp      = true
-  agentapi_version = "latest"
+module "amp" {
+  source      = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
+  version     = "4.0.0"
+  agent_id    = coder_agent.main.id
+  amp_api_key = var.amp_api_key
 }
 ```
 
-## Prerequisites
+> [!WARNING]
+> If upgrading from v3.x.x of this module: v4 is a major refactor that drops support for Coder Tasks and AgentAPI. The module now only installs and configures Amp; launch it with your own `coder_app`. `workdir` is now optional. `ai_prompt`, `mode`, `report_tasks`, `install_via_npm`, and the web/CLI app inputs are removed; pass `--mode` in your launcher instead. `base_amp_config` is replaced by `amp_settings`, which merges keys into `~/.config/amp/settings.json` instead of overwriting the file and no longer writes default keys. `mcp` servers are merged without overriding servers already on disk, and the Coder task-reporting MCP server is no longer added. `instruction_prompt` is now written to `~/.config/amp/AGENTS.md`. Keep using v3.x.x if you depend on Coder Tasks.
 
-- **Default (official installer)**: No prerequisites - the official installer includes its own runtime (Bun)
-- **npm installation (`install_via_npm = true`)**: Requires Node.js and npm to be installed before Amp installation
-  - Required for Alpine Linux or other musl-based systems
-  - Ensure Node.js and npm are available in your workspace image or via earlier provisioning steps
+## Examples
 
-## Usage Example
+### Standalone mode with a launcher app
 
 ```tf
-data "coder_parameter" "ai_prompt" {
-  name        = "AI Prompt"
-  description = "Write an initial prompt for Amp to work on."
-  type        = "string"
-  default     = ""
-  mutable     = true
+locals {
+  amp_workdir = "/home/coder/project"
 }
 
-variable "amp_api_key" {
-  type        = string
-  description = "Sourcegraph Amp API key. Get one at https://ampcode.com/settings"
-  sensitive   = true
+module "amp" {
+  source      = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
+  version     = "4.0.0"
+  agent_id    = coder_agent.main.id
+  workdir     = local.amp_workdir
+  amp_api_key = var.amp_api_key
 }
 
-module "amp-cli" {
-  count              = data.coder_workspace.me.start_count
-  source             = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
-  amp_version        = "3.0.0"
-  agent_id           = coder_agent.example.id
-  amp_api_key        = var.amp_api_key # recommended for tasks usage
-  workdir            = "/home/coder/project"
-  instruction_prompt = <<-EOT
-      # Instructions
-      - Start every response with `amp > `
-EOT
-  ai_prompt          = data.coder_parameter.ai_prompt.value
-  base_amp_config = jsonencode({
-    "amp.anthropic.thinking.enabled"              = true
-    "amp.todos.enabled"                           = true
-    "amp.tools.stopTimeout"                       = 600
-    "amp.git.commit.ampThread.enabled"            = true
-    "amp.git.commit.coauthor.enabled"             = true
-    "amp.terminal.commands.nodeSpawn.loadProfile" = "daily"
+resource "coder_app" "amp" {
+  agent_id     = coder_agent.main.id
+  slug         = "amp"
+  display_name = "Amp"
+  icon         = "/icon/sourcegraph-amp.svg"
+  open_in      = "slim-window"
+  command      = <<-EOT
+    #!/usr/bin/env bash
+    set -e
+    cd "${local.amp_workdir}"
+    exec amp --mode medium
+  EOT
+}
+```
+
+When `workdir` is set, the module creates it if missing. Pass `--mode` (`low`, `medium`, `high`, `ultra`) or any other flag from `amp --help` in the launcher command. See [The Dial](https://ampcode.com/docs/the-dial) for how modes work.
+
+> [!NOTE]
+> The `coder_app` command re-executes on every pane reconnect. This works for interactive `amp`, but one-shot commands like `amp -x` will re-run each time. For one-shot prompts, use a `coder_script` (runs once at startup) and a `coder_app` that attaches to the existing session (for example, with tmux).
+
+### Settings, MCP servers, and guidance
+
+```tf
+module "amp" {
+  source      = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
+  version     = "4.0.0"
+  agent_id    = coder_agent.main.id
+  workdir     = "/home/coder/project"
+  amp_api_key = var.amp_api_key
+
+  amp_settings = jsonencode({
+    "amp.git.commit.coauthor.enabled" = true
     "amp.permissions" = [
-      { "tool" : "mcp__coder__*", "action" : "allow" },
-      { "tool" : "Bash", "action" : "allow", "context" : "thread" },
-      { "tool" : "Bash", "matches" : { "cmd" : ["rm -rf /*", "rm -rf ~/*"] }, "action" : "reject", "context" : "subagent" },
-      { "tool" : "edit_file", "action" : "allow" },
-      { "tool" : "write_file", "action" : "allow" },
-      { "tool" : "read_file", "action" : "allow" },
-      { "tool" : "Grep", "action" : "allow" }
+      { tool = "Bash", action = "ask", matches = { cmd = ["git push*"] } }
     ]
   })
+
+  mcp = jsonencode({
+    playwright = {
+      command = "npx"
+      args    = ["-y", "@playwright/mcp@latest", "--headless", "--isolated", "--no-sandbox"]
+    }
+  })
+
+  instruction_prompt = <<-EOT
+    # Instructions
+    - Run the test suite before committing.
+  EOT
 }
 ```
+
+`amp_settings` and `mcp` are merged into the user-level `~/.config/amp/settings.json` (or `$AMP_SETTINGS_FILE` when set). Keys in `amp_settings` are rewritten on every start; all other keys in the file are preserved. Servers already under `amp.mcpServers` win on duplicate names, matching `amp mcp add`, so edits made inside the workspace are never overwritten. If the file contains comments or trailing commas, the module leaves it unchanged and logs a warning. See [Amp configuration](https://ampcode.com/docs/cli/settings) and [MCP](https://ampcode.com/docs/customize/mcp).
+
+`instruction_prompt` is written to `~/.config/amp/AGENTS.md`, which Amp includes in every session. See [AGENTS.md](https://ampcode.com/docs/customize/agents-md).
+
+> [!NOTE]
+> The official installer ships a self-contained binary and does not install Node.js. MCP servers whose `command` is `npx` or `uvx` need that runtime available in the workspace image, or installed with `pre_install_script`.
+
+### Managed settings
+
+```tf
+module "amp" {
+  source      = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
+  version     = "4.0.0"
+  agent_id    = coder_agent.main.id
+  amp_version = "0.0.1790769659-g954f35"
+
+  managed_settings = {
+    "amp.updates.mode" = "disabled"
+    "amp.mcpPermissions" = [
+      { matches = { url = "*" }, action = "reject" }
+    ]
+  }
+}
+```
+
+`managed_settings` is written as root to `/etc/ampcode/managed-settings.json`. Amp merges it over user and workspace settings: scalar values from this file win, lists are combined, and objects are merged key by key. See [Enterprise managed settings](https://ampcode.com/docs/cli/settings#enterprise-managed-settings).
+
+Amp updates itself in the background by default, so pin `amp_version` together with `"amp.updates.mode" = "disabled"` (or the `AMP_SKIP_UPDATE_CHECK=1` environment variable) to stay on that version.
+
+### Serialize a downstream `coder_script` after the install pipeline
+
+The module exposes the `scripts` output: an ordered list of `coder exp sync` names for the scripts this module creates (pre_install, install, post_install). Scripts that were not configured are absent.
+
+```tf
+module "amp" {
+  source   = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
+  version  = "4.0.0"
+  agent_id = coder_agent.main.id
+}
+
+resource "coder_script" "post_amp" {
+  agent_id     = coder_agent.main.id
+  display_name = "Run after Amp install"
+  run_on_start = true
+  script       = <<-EOT
+    #!/usr/bin/env bash
+    set -euo pipefail
+    trap 'coder exp sync complete post-amp' EXIT
+    coder exp sync want post-amp ${join(" ", module.amp.scripts)}
+    coder exp sync start post-amp
+
+    amp --version
+  EOT
+}
+```
+
+## Configuration
+
+When `amp_api_key` is set, it is exported as `AMP_API_KEY` and is not rendered into the install script. Create an access token (it starts with `sgamp_`) in [Amp settings](https://ampcode.com/settings/security#access-token). Without a key, run `amp login` in the workspace.
+
+The module installs Amp with the [official installer](https://ampcode.com/install.sh) into `~/.amp/bin` and links it into `~/.local/bin`. The install is skipped when `amp` is already on `PATH` and matches `amp_version` (or `amp_version` is empty). If `install_amp = false`, a working `amp` must already be available on `PATH`, or workspace startup fails.
 
 ## Troubleshooting
 
-- If `amp` is not found, ensure `install_amp = true` and your API key is valid
-- Logs are written under `/home/coder/.amp-module/` (`install.log`, `agentapi-start.log`) for debugging
-- If AgentAPI fails to start, verify that your container has network access and executable permissions for the scripts
+Check the log files in `~/.coder-modules/coder-labs/sourcegraph-amp/logs/` for detailed information.
 
-> [!IMPORTANT]
-> To use tasks with Amp CLI, create a `coder_parameter` named `"AI Prompt"` and pass its value to the amp-cli module's `ai_prompt` variable. The `folder` variable is required for the module to function correctly.
-> For using **Coder Tasks** with Amp CLI, make sure to set `amp_api_key`.
-> This ensures task reporting and status updates work seamlessly.
+```bash
+cat ~/.coder-modules/coder-labs/sourcegraph-amp/logs/install.log
+cat ~/.coder-modules/coder-labs/sourcegraph-amp/logs/pre_install.log
+cat ~/.coder-modules/coder-labs/sourcegraph-amp/logs/post_install.log
+```
 
 ## References
 
-- [Amp CLI Documentation](https://ampcode.com/manual)
-- [AgentAPI Documentation](https://github.com/coder/agentapi)
-- [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)
+- [Amp CLI documentation](https://ampcode.com/docs/cli)
+- [Amp configuration](https://ampcode.com/docs/cli/settings)
+- [Amp MCP](https://ampcode.com/docs/customize/mcp)
