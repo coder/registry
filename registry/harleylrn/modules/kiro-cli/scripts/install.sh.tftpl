@@ -1,0 +1,313 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+BOLD='\033[0;1m'
+
+command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+ARG_INSTALL='${ARG_INSTALL}'
+ARG_VERSION='${ARG_VERSION}'
+ARG_INSTALL_URL=$(echo -n '${ARG_INSTALL_URL}' | base64 -d)
+ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
+ARG_AGENT_CONFIG=$(echo -n '${ARG_AGENT_CONFIG}' | base64 -d)
+ARG_MCP_CONFIG=$(echo -n '${ARG_MCP_CONFIG}' | base64 -d)
+
+# KIRO_HOME overrides ~/.kiro for global agents and settings:
+# https://kiro.dev/docs/reference/settings/
+KIRO_DIR="$${KIRO_HOME:-$HOME/.kiro}"
+KIRO_DATA_DIR="$HOME/.local/share/kiro-cli"
+DEFAULT_ARCHIVE_URL="https://prod.download.cli.kiro.dev/stable"
+
+export PATH="$HOME/.local/bin:$PATH"
+
+echo "--------------------------------"
+printf "install_kiro_cli: %s\n" "$${ARG_INSTALL}"
+printf "kiro_cli_version: %s\n" "$${ARG_VERSION}"
+printf "kiro_install_url: %s\n" "$${ARG_INSTALL_URL:-<official>}"
+printf "workdir: %s\n" "$${ARG_WORKDIR}"
+echo "--------------------------------"
+
+require_jq() {
+  if ! command_exists jq; then
+    echo "ERROR: 'jq' is required to $1 but was not found." >&2
+    exit 1
+  fi
+}
+
+function add_path_to_shell_profiles() {
+  local path_dir="$1"
+
+  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    if [ -f "$${profile}" ]; then
+      if ! grep -q "$${path_dir}" "$${profile}" 2> /dev/null; then
+        echo "export PATH=\"\$PATH:$${path_dir}\"" >> "$${profile}"
+        echo "Added $${path_dir} to $${profile}"
+      fi
+    fi
+  done
+
+  local fish_config="$HOME/.config/fish/config.fish"
+  if [ -f "$${fish_config}" ]; then
+    if ! grep -q "$${path_dir}" "$${fish_config}" 2> /dev/null; then
+      echo "fish_add_path $${path_dir}" >> "$${fish_config}"
+      echo "Added $${path_dir} to $${fish_config}"
+    fi
+  fi
+}
+
+installed_kiro_version() {
+  kiro-cli --version 2> /dev/null | awk '{print $NF}'
+}
+
+function ensure_kiro_in_path() {
+  local KIRO_BIN=""
+  if command_exists kiro-cli; then
+    KIRO_BIN=$(command -v kiro-cli)
+  fi
+
+  if [ -z "$${KIRO_BIN}" ] || [ ! -x "$${KIRO_BIN}" ]; then
+    echo "Kiro CLI binary (kiro-cli) was not found or is not executable." >&2
+    return 1
+  fi
+
+  local KIRO_VERSION
+  if ! KIRO_VERSION=$("$${KIRO_BIN}" --version); then
+    echo "Kiro CLI binary could not be executed." >&2
+    return 1
+  fi
+  printf "Kiro CLI version: %s\n" "$${KIRO_VERSION}"
+
+  # kiro-cli resolves its kiro-cli-chat sibling through the symlink target.
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/kiro-cli" ]; then
+    ln -s "$${KIRO_BIN}" "$${CODER_SCRIPT_BIN_DIR}/kiro-cli"
+    echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/kiro-cli -> $${KIRO_BIN}"
+  fi
+
+  add_path_to_shell_profiles "$(dirname "$${KIRO_BIN}")"
+}
+
+# Subshell scopes the temp-file cleanup trap to this function.
+install_with_official_installer() (
+  local installer_file
+  installer_file=$(mktemp)
+  trap 'rm -f "$${installer_file}"' EXIT
+
+  if ! curl --fail --silent --show-error --location \
+    --retry 2 --retry-delay 1 --retry-all-errors \
+    --connect-timeout 10 --max-time 300 \
+    --output "$${installer_file}" https://cli.kiro.dev/install; then
+    echo "Kiro CLI installer could not be downloaded after up to 3 attempts." >&2
+    return 1
+  fi
+
+  if ! bash -n "$${installer_file}"; then
+    echo "Kiro CLI installer download was invalid." >&2
+    return 1
+  fi
+
+  # Installs the latest stable build into ~/.local/bin after verifying its
+  # checksum; it prompts on /dev/tty if kiro-cli already exists there, so it
+  # only runs when kiro-cli is absent.
+  if ! bash "$${installer_file}" < /dev/null; then
+    echo "Kiro CLI installation failed." >&2
+    return 1
+  fi
+)
+
+# Pinned versions and mirrors use the release archive directly, since the
+# official installer only installs <channel>/latest.
+install_from_archive() (
+  local arch
+  case "$(uname -m)" in
+    x86_64 | amd64) arch="x86_64" ;;
+    aarch64 | arm64) arch="aarch64" ;;
+    *)
+      echo "Unsupported architecture: $(uname -m). Kiro CLI supports x86_64 and aarch64." >&2
+      return 1
+      ;;
+  esac
+
+  if ! command_exists unzip; then
+    echo "ERROR: 'unzip' is required to install Kiro CLI from a release archive." >&2
+    return 1
+  fi
+
+  local base_url="$${ARG_INSTALL_URL:-$${DEFAULT_ARCHIVE_URL}}"
+  local archive_url="$${base_url}/$${ARG_VERSION}/kirocli-$${arch}-linux.zip"
+  local tmp_dir
+  tmp_dir=$(mktemp -d)
+  trap 'rm -rf "$${tmp_dir}"' EXIT
+
+  echo "Downloading Kiro CLI from $${archive_url}"
+  # The archive is ~150 MB, so allow longer than the installer download.
+  if ! curl --fail --silent --show-error --location \
+    --retry 2 --retry-delay 1 --retry-all-errors \
+    --connect-timeout 10 --max-time 900 \
+    --output "$${tmp_dir}/kirocli.zip" "$${archive_url}"; then
+    echo "Kiro CLI archive could not be downloaded after up to 3 attempts." >&2
+    return 1
+  fi
+
+  if ! unzip -q "$${tmp_dir}/kirocli.zip" -d "$${tmp_dir}"; then
+    echo "Kiro CLI archive download was invalid." >&2
+    return 1
+  fi
+
+  # KIRO_CLI_SKIP_SETUP skips the interactive shell-integration setup, matching
+  # the official installer.
+  if ! KIRO_CLI_SKIP_SETUP=1 sh "$${tmp_dir}/kirocli/install.sh"; then
+    echo "Kiro CLI installation failed." >&2
+    return 1
+  fi
+)
+
+install_kiro_cli() {
+  if [ "$${ARG_INSTALL}" != "true" ]; then
+    echo "Skipping Kiro CLI installation as per configuration."
+    if ! ensure_kiro_in_path; then
+      echo "ERROR: install_kiro_cli is false but a working 'kiro-cli' was not found on PATH." >&2
+      exit 1
+    fi
+    printf "%s Validated existing Kiro CLI\n" "$${BOLD}"
+    return
+  fi
+
+  if command_exists kiro-cli; then
+    local current
+    current=$(installed_kiro_version)
+    if [ "$${ARG_VERSION}" = "latest" ] || [ "$${current}" = "$${ARG_VERSION}" ]; then
+      echo "Kiro CLI already installed ($${current})"
+      ensure_kiro_in_path
+      return
+    fi
+    echo "Kiro CLI $${current} is installed; installing $${ARG_VERSION}"
+  fi
+
+  printf "%s Installing Kiro CLI\n" "$${BOLD}"
+  if [ "$${ARG_VERSION}" = "latest" ] && [ -z "$${ARG_INSTALL_URL}" ]; then
+    install_with_official_installer
+  else
+    install_from_archive
+  fi
+
+  if ! ensure_kiro_in_path; then
+    echo "ERROR: Failed to install Kiro CLI" >&2
+    exit 1
+  fi
+  printf "%s Installed Kiro CLI\n" "$${BOLD}"
+}
+
+setup_workdir() {
+  if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
+    echo "Creating workdir: $${ARG_WORKDIR}"
+    mkdir -p "$${ARG_WORKDIR}"
+  fi
+}
+
+# The tarball is read from the KIRO_CLI_AUTH_TARBALL agent env var so the
+# credential is never rendered into this script.
+extract_auth_tarball() {
+  local tarball="$${KIRO_CLI_AUTH_TARBALL:-}"
+  if [ -z "$${tarball}" ]; then
+    echo "No auth tarball provided; run 'kiro-cli login' or set KIRO_API_KEY to authenticate."
+    return
+  fi
+
+  if ! command_exists zstd; then
+    echo "ERROR: zstd is required to extract the authentication tarball but is not installed." >&2
+    echo "Install zstd in the image or with pre_install_script." >&2
+    exit 1
+  fi
+
+  local archive
+  archive=$(mktemp)
+  if ! echo "$${tarball}" | base64 -d > "$${archive}"; then
+    rm -f "$${archive}"
+    echo "ERROR: auth_tarball is not valid base64." >&2
+    exit 1
+  fi
+
+  rm -rf "$${KIRO_DATA_DIR}"
+  mkdir -p "$${KIRO_DATA_DIR}"
+  if ! tar -I zstd -xf "$${archive}" -C "$${KIRO_DATA_DIR}"; then
+    rm -f "$${archive}"
+    echo "ERROR: Failed to extract the authentication tarball." >&2
+    exit 1
+  fi
+  rm -f "$${archive}"
+  echo "Extracted auth tarball to $${KIRO_DATA_DIR}"
+}
+
+# Reads a JSON file into stdout, or '{}' when missing. An invalid file is
+# backed up to <file>.bak so the module never crashes on hand-edited JSONC.
+read_json_or_empty() {
+  local file="$1"
+  if [ ! -f "$${file}" ]; then
+    echo '{}'
+  elif jq empty "$${file}" > /dev/null 2>&1; then
+    cat "$${file}"
+  else
+    cp "$${file}" "$${file}.bak"
+    echo "Warning: $${file} is not valid JSON; backed it up to $${file}.bak" >&2
+    echo '{}'
+  fi
+}
+
+# The module owns only <name>.json and the chat.defaultAgent key; other
+# agents and settings are left untouched.
+configure_agent() {
+  if [ -z "$${ARG_AGENT_CONFIG}" ]; then
+    echo "No custom agent configured; using Kiro's built-in default agent."
+    return
+  fi
+
+  require_jq "configure the custom agent"
+
+  local agent_name agents_dir settings_file existing
+  agent_name=$(echo "$${ARG_AGENT_CONFIG}" | jq -r '.name')
+  agents_dir="$${KIRO_DIR}/agents"
+  settings_file="$${KIRO_DIR}/settings/cli.json"
+
+  mkdir -p "$${agents_dir}" "$(dirname "$${settings_file}")"
+  echo "$${ARG_AGENT_CONFIG}" | jq '.' > "$${agents_dir}/$${agent_name}.json"
+  echo "Wrote agent: $${agents_dir}/$${agent_name}.json"
+
+  existing=$(read_json_or_empty "$${settings_file}")
+  echo "$${existing}" | jq --arg name "$${agent_name}" '.["chat.defaultAgent"] = $name' > "$${settings_file}"
+  echo "Set chat.defaultAgent to $${agent_name} in $${settings_file}"
+}
+
+# Servers already on disk win on duplicate names, matching 'kiro-cli mcp add'
+# without --force, so interactive edits are never overwritten.
+setup_mcp_config() {
+  local mcp_config_file="$${KIRO_DIR}/settings/mcp.json"
+
+  if [ -z "$${ARG_MCP_CONFIG}" ]; then
+    echo "No custom MCP servers configured; leaving $${mcp_config_file} unchanged."
+    return
+  fi
+
+  require_jq "configure MCP servers"
+
+  mkdir -p "$(dirname "$${mcp_config_file}")"
+  echo "Merging MCP server configuration into $${mcp_config_file}"
+
+  local existing custom
+  existing=$(read_json_or_empty "$${mcp_config_file}")
+  custom=$(echo "$${ARG_MCP_CONFIG}" | jq '.mcpServers // {}')
+  # Right operand wins in jq '+', so existing on-disk servers win on duplicates.
+  echo "$${existing}" | jq --argjson custom "$${custom}" \
+    '.mcpServers = ($custom + (.mcpServers // {}))' > "$${mcp_config_file}"
+  echo "MCP configuration completed: $${mcp_config_file}"
+}
+
+install_kiro_cli
+setup_workdir
+extract_auth_tarball
+configure_agent
+setup_mcp_config
+
+echo "Kiro CLI module setup completed."
