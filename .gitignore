@@ -149,3 +149,6 @@ gha-creds-*.json
 
 # IDEs
 .idea
+
+# Local git worktrees
+.worktrees/
