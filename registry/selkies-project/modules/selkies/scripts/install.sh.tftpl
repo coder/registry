@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Install what the workspace lacks of Selkies and its display server: the
+# release's native package and the distribution's Xvfb, with PulseAudio where
+# no sound server is installed, as root or with passwordless sudo. A workspace
+# that has Selkies and its display server installs nothing.
+if [ -r /etc/os-release ]; then
+  # shellcheck source=/dev/null
+  . /etc/os-release
+fi
+
+set -euo pipefail
+
+ARG_INSTALL='${ARG_INSTALL}'
+ARG_WAYLAND='${ARG_WAYLAND}'
+ARG_VERSION='${ARG_VERSION}'
+ARG_RELEASE_URL='${ARG_RELEASE_URL}'
+
+missing=()
+command -v selkies-session > /dev/null || missing+=(selkies-session)
+[ "$ARG_WAYLAND" = true ] || command -v Xvfb > /dev/null || missing+=(Xvfb)
+if [ $${#missing[@]} -eq 0 ]; then
+  echo "Selkies and its display server are installed"
+  exit 0
+fi
+if [ "$ARG_INSTALL" != true ]; then
+  echo "The workspace lacks $${missing[*]} and install_selkies is false: install them in the image" >&2
+  exit 1
+fi
+
+sudo=()
+if [ "$(id -u)" -ne 0 ]; then
+  if ! sudo -n true 2> /dev/null; then
+    echo "Installing $${missing[*]} needs root or sudo without a password: install them in the image instead" >&2
+    exit 1
+  fi
+  sudo=(sudo)
+fi
+
+if command -v apt-get > /dev/null; then
+  platform="$${ID:-}$([ "$${ID:-}" = ubuntu ] && echo "$${VERSION_ID:-}" || echo "$${VERSION_CODENAME:-}")-$(dpkg --print-architecture).deb"
+  apt=("$${sudo[@]}" env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300)
+  "$${apt[@]}" update -qq
+  install_file=("$${apt[@]}" install -y)
+  install_repo=("$${apt[@]}" install -y --no-install-recommends)
+  xvfb=xvfb
+elif command -v dnf > /dev/null; then
+  platform="$([ "$${ID:-}" = fedora ] && echo fc || echo "el$${VERSION_ID%%.*}")-$(uname -m).rpm"
+  install_file=("$${sudo[@]}" dnf install -y)
+  install_repo=("$${sudo[@]}" dnf install -y)
+  xvfb=xorg-x11-server-Xvfb
+elif command -v apk > /dev/null; then
+  platform="$(uname -m).apk"
+  install_file=("$${sudo[@]}" apk add --allow-untrusted)
+  install_repo=("$${sudo[@]}" apk add)
+  xvfb=xvfb
+elif command -v pacman > /dev/null; then
+  platform="$(uname -m).pkg.tar.zst"
+  install_file=("$${sudo[@]}" pacman -U --noconfirm)
+  install_repo=("$${sudo[@]}" pacman -S --noconfirm --needed)
+  xvfb=xorg-server-xvfb
+else
+  echo "No package manager Selkies publishes packages for (apt, dnf, apk, pacman): install Selkies in the image instead" >&2
+  exit 1
+fi
+
+if ! command -v selkies-session > /dev/null; then
+  command -v curl > /dev/null || "$${install_repo[@]}" curl
+  version=$ARG_VERSION
+  if [ -z "$version" ]; then
+    # The latest release's tag, from the redirect GitHub answers without its rate-limited API
+    latest=$(curl -fsSLI -o /dev/null -w '%%{url_effective}' "$ARG_RELEASE_URL/latest") || latest=
+    version=$${latest##*/}
+    if [ -z "$version" ] || [ "$version" = latest ]; then
+      echo "Could not resolve the latest release at $ARG_RELEASE_URL: set selkies_version" >&2
+      exit 1
+    fi
+  fi
+  file="selkies-$version-$platform"
+  work=$(mktemp -d)
+  trap 'rm -rf "$work"' EXIT
+  # The package manager reads the file as an unprivileged user of its own
+  chmod 755 "$work"
+  echo "Installing Selkies $version ($file)"
+  if ! curl -fsSL -o "$work/$file" "$ARG_RELEASE_URL/download/$version/$file"; then
+    echo "Selkies $version publishes no $file for $${PRETTY_NAME:-this workspace}: install Selkies in the image instead" >&2
+    exit 1
+  fi
+  "$${install_file[@]}" "$work/$file"
+fi
+
+if [ "$ARG_WAYLAND" != true ] && ! command -v Xvfb > /dev/null; then
+  echo "Installing Xvfb"
+  "$${install_repo[@]}" "$xvfb"
+fi
+if ! command -v pulseaudio > /dev/null && ! command -v pipewire-pulse > /dev/null; then
+  echo "Installing PulseAudio"
+  "$${install_repo[@]}" pulseaudio
+fi
+echo "Selkies and its display server are installed"
