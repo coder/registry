@@ -68,6 +68,32 @@ function ensure_codex_in_path() {
   local CODEX_DIR
   CODEX_DIR=$(dirname "$${CODEX_BIN}")
 
+  # The standalone installer may only link codex, leaving its code-mode helper
+  # in the package directory (https://github.com/openai/codex/issues/31831).
+  # Follow file symlinks without resolving the standalone/current directory so
+  # the helper continues to track the active release after an upgrade.
+  local CODEX_TARGET="$${CODEX_BIN}"
+  local LINK_TARGET
+  while [ -L "$${CODEX_TARGET}" ]; do
+    LINK_TARGET=$(readlink "$${CODEX_TARGET}")
+    case "$${LINK_TARGET}" in
+      /*) CODEX_TARGET="$${LINK_TARGET}" ;;
+      *) CODEX_TARGET="$(dirname "$${CODEX_TARGET}")/$${LINK_TARGET}" ;;
+    esac
+  done
+
+  local CODEX_HOST
+  CODEX_HOST="$(dirname "$${CODEX_TARGET}")/codex-code-mode-host"
+  local BIN_DIR
+  if [ -x "$${CODEX_HOST}" ]; then
+    for BIN_DIR in "$${CODEX_DIR}" "$${CODER_SCRIPT_BIN_DIR:-}"; do
+      if [ -n "$${BIN_DIR}" ] && [ ! -e "$${BIN_DIR}/codex-code-mode-host" ] && [ ! -L "$${BIN_DIR}/codex-code-mode-host" ]; then
+        ln -s "$${CODEX_HOST}" "$${BIN_DIR}/codex-code-mode-host"
+        echo "Created symlink: $${BIN_DIR}/codex-code-mode-host -> $${CODEX_HOST}"
+      fi
+    done
+  fi
+
   if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/codex" ]; then
     ln -s "$${CODEX_BIN}" "$${CODER_SCRIPT_BIN_DIR}/codex"
     echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/codex -> $${CODEX_BIN}"
