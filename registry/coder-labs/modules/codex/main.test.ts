@@ -285,6 +285,64 @@ describe("codex", async () => {
     expect(installerEnv).toContain("CODEX_NON_INTERACTIVE=1");
   });
 
+  test("standalone-code-mode-host-is-linked-and-tracks-upgrades", async () => {
+    const { id, scripts } = await setup({ skipCodexMock: true });
+    const root = "/home/coder/.codex/packages/standalone";
+    const binDir = "/home/coder/.local/bin";
+    const scriptBinDir = "/home/coder/script-bin";
+    for (const version of ["v1", "v2"]) {
+      const created = await execContainer(id, [
+        "mkdir",
+        "-p",
+        `${root}/${version}/bin`,
+      ]);
+      expect(created.exitCode, created.stderr).toBe(0);
+      await writeExecutable({
+        containerId: id,
+        filePath: `${root}/${version}/bin/codex`,
+        content: '#!/bin/sh\necho "codex test version"\n',
+      });
+      await writeExecutable({
+        containerId: id,
+        filePath: `${root}/${version}/bin/codex-code-mode-host`,
+        content: `#!/bin/sh\necho "${version}"\n`,
+      });
+    }
+    const prepared = await execContainer(id, [
+      "bash",
+      "-c",
+      `mkdir -p ${binDir} ${scriptBinDir} &&
+       ln -s v1 ${root}/current &&
+       ln -s ../../.codex/packages/standalone/current/bin/codex ${binDir}/codex`,
+    ]);
+    expect(prepared.exitCode).toBe(0);
+    const env = {
+      PATH: `${binDir}:/usr/local/bin:/usr/bin:/bin`,
+      CODER_SCRIPT_BIN_DIR: scriptBinDir,
+    };
+    await runScripts(id, scripts, env);
+    await runScripts(id, scripts, env);
+    for (const version of ["v1", "v2"]) {
+      if (version === "v2") {
+        const upgraded = await execContainer(id, [
+          "bash",
+          "-c",
+          `ln -sfn v2 ${root}/current`,
+        ]);
+        expect(upgraded.exitCode).toBe(0);
+      }
+      for (const dir of [binDir, scriptBinDir]) {
+        const result = await execContainer(id, [
+          "bash",
+          "-c",
+          `${dir}/codex-code-mode-host`,
+        ]);
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout.trim()).toBe(version);
+      }
+    }
+  });
+
   test("openai-api-key", async () => {
     const apiKey = "test-api-key-123";
     const encodedApiKey = Buffer.from(apiKey).toString("base64");
