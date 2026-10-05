@@ -13,7 +13,7 @@ Install and configure the [Codex CLI](https://github.com/openai/codex) in your w
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.4.1"
+  version        = "5.4.2"
   agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
 }
@@ -33,7 +33,7 @@ locals {
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.4.1"
+  version        = "5.4.2"
   agent_id       = coder_agent.main.id
   workdir        = local.codex_workdir
   openai_api_key = var.openai_api_key
@@ -64,7 +64,7 @@ resource "coder_app" "codex" {
 ```tf
 module "codex" {
   source            = "registry.coder.com/coder-labs/codex/coder"
-  version           = "5.4.1"
+  version           = "5.4.2"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -88,7 +88,7 @@ When `enable_ai_gateway = true`, the module configures Codex to use the `aigatew
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.4.1"
+  version        = "5.4.2"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   openai_api_key = var.openai_api_key
@@ -116,7 +116,7 @@ module "codex" {
 ```
 
 > [!NOTE]
-> Servers configured through `mcp` or `mcp_config_remote_path` are appended to `~/.codex/config.toml`, so they apply to every Codex session in the workspace. Each remote URL should return a body in Codex's native TOML format, e.g.:
+> Servers configured through `mcp` or `mcp_config_remote_path` are appended to `$CODEX_HOME/config.toml` (default: `~/.codex/config.toml`), so they apply to every Codex session in the workspace. Each remote URL should return a body in Codex's native TOML format, e.g.:
 >
 > ```toml
 > [mcp_servers.my-tool]
@@ -134,7 +134,7 @@ The module exposes the `scripts` output: an ordered list of `coder exp sync` nam
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.4.1"
+  version        = "5.4.2"
   agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
 }
@@ -156,6 +156,8 @@ resource "coder_script" "post_codex" {
 ```
 
 ## Configuration
+
+The module writes configuration to `$CODEX_HOME/config.toml` when `CODEX_HOME` is non-empty, and to `$HOME/.codex/config.toml` otherwise. Set `CODEX_HOME` in the environment used by both the install script and the Codex CLI.
 
 When no custom `base_config_toml` is provided, the module uses a minimal default with `preferred_auth_method = "apikey"`. For advanced options, see [Codex config docs](https://developers.openai.com/codex/config-advanced).
 
