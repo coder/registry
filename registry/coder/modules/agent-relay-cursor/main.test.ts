@@ -53,6 +53,7 @@ const DISPATCH_ENV = [
   "CURSOR_AGENT_WORKER_ID=worker-123",
   `AGENT_RELAY_CURSOR_POOL_NAME=${POOL_NAME}`,
   "AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT=600",
+  "AGENT_RELAY_CURSOR_CREDENTIAL_KIND=worker_token",
 ];
 
 const setup = async (vars: Record<string, string> = {}) => {
@@ -365,6 +366,39 @@ describe("agent-relay-cursor", () => {
     expect(env.stdout).not.toContain("CURSOR_API_KEY=");
   });
 
+  it("hands a shared service-account key over as CURSOR_API_KEY", async () => {
+    // insecure_shared_token pools stamp the team key and
+    // agent_relay_cursor_credential_kind=api_key; the CLI only accepts
+    // that key as an API key, so --auth-token must be absent and the key
+    // must reach the worker's environment.
+    const { id, scripts } = await setup();
+    await stubAgent(
+      id,
+      'printf "%s\\n" "$@" >/tmp/agent-args; printf "%s" "$CURSOR_API_KEY" >/tmp/agent-api-key; sleep 30',
+    );
+    const { start } = await runScripts(id, scripts, [
+      ...DISPATCH_ENV,
+      "AGENT_RELAY_CURSOR_CREDENTIAL_KIND=api_key",
+    ]);
+    expect(start.exitCode).toBe(0);
+    const args = (await readFileContainer(id, "/tmp/agent-args")).split("\n");
+    expect(args).not.toContain("--auth-token");
+    expect(args).toContain("--pool");
+    expect(await readFileContainer(id, "/tmp/agent-api-key")).toBe(
+      "test-user-token",
+    );
+    // The key is still read from the environment at run time, never
+    // written into the supervisor.
+    const supervisor = await readFileContainer(
+      id,
+      `${MODULE_DIR}/scripts/supervise.sh`,
+    );
+    expect(supervisor).toContain(
+      'export CURSOR_API_KEY="$AGENT_RELAY_CURSOR_TOKEN"',
+    );
+    expect(supervisor).not.toContain("test-user-token");
+  });
+
   it("passes --computer-use when enabled", async () => {
     const { id, scripts } = await setup({ computer_use: "true" });
     await stubAgent(id, 'printf "%s\\n" "$@" >/tmp/agent-args; sleep 30');
@@ -372,6 +406,21 @@ describe("agent-relay-cursor", () => {
     expect(start.exitCode).toBe(0);
     const args = (await readFileContainer(id, "/tmp/agent-args")).split("\n");
     expect(args).toContain("--computer-use");
+  });
+
+  it("passes an explicit desktop share mode so it cannot swallow start", async () => {
+    // --share-desktop takes an optional mode; bare, it consumes the
+    // next argument and the CLI rejects "start" as a mode.
+    const { id, scripts } = await setup({
+      computer_use: "true",
+      share_desktop: "true",
+    });
+    await stubAgent(id, 'printf "%s\\n" "$@" >/tmp/agent-args; sleep 30');
+    const { start } = await runDispatched(id, scripts);
+    expect(start.exitCode).toBe(0);
+    const args = (await readFileContainer(id, "/tmp/agent-args")).split("\n");
+    expect(args).toContain("--share-desktop=view_and_control");
+    expect(args).toContain("start");
   });
 
   it("records the exit code when the worker exits", async () => {
