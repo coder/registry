@@ -16,7 +16,7 @@ parameters the relay stamps on each build and runs the Cursor CLI worker.
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "0.3.0"
+  version  = "0.4.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Cursor CLI at start when it is not in the image. Bake
@@ -58,6 +58,12 @@ created.
 - Repo-scoped pools: the template must clone `agent_relay_cursor_repo_url` and
   provide SCM credentials before this module's script runs.
 - `computer_use = true` needs the computer-use packages in the image.
+  `share_desktop = true` (requires `computer_use`) lets people watch or take
+  control of the agent's desktop from the Desktop tab in Cursor. It needs
+  TigerVNC and Xfce in the image, as in
+  `ghcr.io/coder/agent-relay-workspace:desktop`, and `DISPLAY` must be unset
+  so the worker starts its own managed desktop. Run `agent worker debug` in
+  the image to check.
 - Builds must finish inside the pool's `dispatch_deadline` (default 10m, max
   15m): pre-pulled images, no persistent volumes.
 
