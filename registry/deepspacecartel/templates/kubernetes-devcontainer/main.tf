@@ -25,18 +25,26 @@
 # customizations.vscode extensions/settings are installed into
 # ~/.vscode-server, where VS Code Desktop picks them up.
 terraform {
+  # check blocks (1.5).
+  required_version = ">= 1.5.0"
   required_providers {
     coder = {
       source = "coder/coder"
+      # coder_parameter's form_type (2.4.0, fixed in 2.5.0); the vscode-web
+      # and vscode-desktop modules need >= 2.5 too.
+      version = ">= 2.5.0"
     }
     kubernetes = {
       source = "hashicorp/kubernetes"
+      # The pod security context's fs_group_change_policy (2.16.0).
+      version = ">= 2.16.0"
     }
     devcontainerbuilder = {
       source = "deepspacecartel/devcontainer-builder"
       # >= 0.3.0 for the data source's runtime/env_scripts/variables (and a
-      # devcontainer-builder service >= 0.3.0 behind it).
-      version = ">= 0.3.0"
+      # devcontainer-builder service >= 0.3.0 behind it); < 2.0.0 because a
+      # major version may change the schema this template uses.
+      version = ">= 0.3.0, < 2.0.0"
     }
   }
 }
@@ -91,6 +99,12 @@ variable "allow_privileged" {
   default     = false
 }
 
+variable "subdomain_apps" {
+  type        = bool
+  description = "Serve VS Code in the browser and the forwarded-port apps on their own subdomains (Coder's recommendation). They need a wildcard access URL on the Coder deployment (CODER_WILDCARD_ACCESS_URL, https://coder.com/docs/admin/networking/wildcard-access-url); set false without one, and they're served on paths of the main Coder URL instead."
+  default     = true
+}
+
 variable "max_forwarded_ports" {
   type        = number
   description = "How many of devcontainer.json's forwardPorts get a dashboard app. Coder needs a fixed number of app slots; unused ones are hidden."
@@ -143,7 +157,8 @@ variable "git_credentials_token" {
 data "coder_parameter" "repository" {
   name         = "repository"
   display_name = "Git repository"
-  description  = "A git repository containing a .devcontainer.json (or .devcontainer/devcontainer.json) at its root. https://, ssh://, or SCP-style (git@host:path) all work."
+  order        = 1
+  description  = "The git repository to work on: https://, ssh://, or SCP-style (git@host:path). Its .devcontainer/devcontainer.json (or .devcontainer.json) defines the workspace; without one, it gets devcontainer-builder's fallback image."
   icon         = "/icon/git.svg"
   mutable      = false
 }
@@ -151,6 +166,7 @@ data "coder_parameter" "repository" {
 data "coder_parameter" "branch" {
   name         = "branch"
   display_name = "Branch"
+  order        = 2
   description  = "Branch to build."
   default      = "main"
   icon         = "/icon/git.svg"
@@ -160,6 +176,7 @@ data "coder_parameter" "branch" {
 data "coder_parameter" "cpu" {
   name         = "cpu"
   display_name = "CPU"
+  order        = 3
   description  = "The number of CPU cores"
   default      = "2"
   icon         = "/icon/memory.svg"
@@ -185,24 +202,25 @@ data "coder_parameter" "cpu" {
 data "coder_parameter" "memory" {
   name         = "memory"
   display_name = "Memory"
-  description  = "The amount of memory in GB"
+  order        = 4
+  description  = "The amount of memory in GiB"
   default      = "2"
   icon         = "/icon/memory.svg"
   mutable      = true
   option {
-    name  = "2 GB"
+    name  = "2 GiB"
     value = "2"
   }
   option {
-    name  = "4 GB"
+    name  = "4 GiB"
     value = "4"
   }
   option {
-    name  = "6 GB"
+    name  = "6 GiB"
     value = "6"
   }
   option {
-    name  = "8 GB"
+    name  = "8 GiB"
     value = "8"
   }
 }
@@ -210,7 +228,8 @@ data "coder_parameter" "memory" {
 data "coder_parameter" "disk_size" {
   name         = "disk_size"
   display_name = "Disk size"
-  description  = "The size of the persistent disk (home + /workspaces) in GB"
+  order        = 5
+  description  = "The size of the persistent disk (home + /workspaces) in GiB, set when the workspace is created"
   default      = "10"
   type         = "number"
   icon         = "/emojis/1f4be.png"
@@ -229,6 +248,7 @@ data "coder_parameter" "disk_size" {
 data "coder_parameter" "devcontainer_variables" {
   name         = "devcontainer_variables"
   display_name = "Dev Container variables"
+  order        = 6
   description  = "Values for $${localEnv:NAME} in the repository's devcontainer.json: one NAME=value per line. Changes apply on the next restart. Visible to anyone who can see this workspace's settings."
   type         = "string"
   form_type    = "textarea"
@@ -242,6 +262,7 @@ data "coder_parameter" "devcontainer_variables" {
 data "coder_parameter" "rebuild" {
   name         = "rebuild"
   display_name = "Rebuild"
+  order        = 7
   description  = "Increase to rebuild the image from the branch's latest commit on the next start (e.g. after devcontainer.json changes). Your working copy is not touched."
   type         = "number"
   default      = 0
@@ -304,8 +325,13 @@ locals {
     "$${containerWorkspaceFolderBasename}", local.repo_name),
   "$${devcontainerId}", data.coder_workspace.me.id)
 
+  # The workspace folder gets its own directory on the PVC unless it's
+  # already persisted by the /workspaces mount (at or below it) - or is the
+  # home itself, which a second mount at the same path would collide with.
+  workspace_folder_mounted = !(local.workspace_folder == "/workspaces" || startswith(local.workspace_folder, "/workspaces/") || local.workspace_folder == local.home_dir)
+
   # Mount targets may use the workspace placeholders too.
-  mounts = [for i, m in try(local.dc.mounts, []) : merge(m, {
+  requested_mounts = [for i, m in try(local.dc.mounts, []) : merge(m, {
     index = i
     target = replace(replace(replace(replace(m.target,
       "$${containerWorkspaceFolder}", local.workspace_folder),
@@ -313,6 +339,20 @@ locals {
       "$${containerWorkspaceFolderBasename}", basename(local.workspace_folder)),
     "$${localWorkspaceFolderBasename}", basename(local.workspace_folder))
   })]
+  # A pod with two volume mounts at the same path is rejected, so a mount
+  # whose target is one of the template's own mount points (or an earlier
+  # mount's target) is dropped, with a warning. Compared without a
+  # trailing slash.
+  reserved_mount_paths = compact(["/workspaces", local.home_dir, "/dev/shm", local.workspace_folder_mounted ? local.workspace_folder : ""])
+  mount_keys           = [for m in local.requested_mounts : trimsuffix(m.target, "/")]
+  mount_collides = [for i, key in local.mount_keys :
+    contains(local.reserved_mount_paths, key) || contains(slice(local.mount_keys, 0, i), key)
+  ]
+  mounts           = [for i, m in local.requested_mounts : m if !local.mount_collides[i]]
+  colliding_mounts = [for i, m in local.requested_mounts : m if local.mount_collides[i]]
+  mount_warnings = [for m in local.colliding_mounts :
+    "mounts: the ${m.kind} mount at ${m.target} is not mounted - that path is already a mount point (the home, /workspaces, the workspace folder, /dev/shm or another mount)"
+  ]
   volume_mounts = [for m in local.mounts : m if m.kind == "volume"]
   tmpfs_mounts  = [for m in local.mounts : m if m.kind == "tmpfs"]
   # PVC directory per named volume (volumes/<source>); anonymous volumes
@@ -363,7 +403,7 @@ locals {
   requested_capabilities = try(local.runtime.cap_add, [])
   capabilities           = var.allow_privileged ? local.requested_capabilities : [for c in local.requested_capabilities : c if contains(local.baseline_capabilities, c)]
   skipped_capabilities   = var.allow_privileged ? [] : [for c in local.requested_capabilities : c if !contains(local.baseline_capabilities, c)]
-  all_warnings = concat(local.warnings, local.resource_warnings, length(local.skipped_capabilities) > 0 ? [
+  all_warnings = concat(local.warnings, local.resource_warnings, local.mount_warnings, length(local.skipped_capabilities) > 0 ? [
     "capAdd ${join(", ", local.skipped_capabilities)} not added - Pod Security baseline forbids it (template variable allow_privileged enables it)"
     ] : [], local.dc != null && local.recorded_uid == null ? [
     "the image doesn't record its remote user's uid/gid (built by devcontainer-builder older than 0.3.0) - running as uid/gid 1000; bump the Rebuild parameter to rebuild it"
@@ -377,13 +417,15 @@ locals {
   mount_point_dirs = compact([for t in concat([local.workspace_folder], [for m in local.mounts : m.target]) :
     startswith(t, "/workspaces/") ? "workspaces/${trimprefix(t, "/workspaces/")}" :
     startswith(t, "${local.home_dir}/") ? "home/${trimprefix(t, "${local.home_dir}/")}" :
-    !startswith(local.workspace_folder, "/workspaces/") && startswith(t, "${local.workspace_folder}/") ? "workspace-folder/${trimprefix(t, "${local.workspace_folder}/")}" : ""
+    local.workspace_folder_mounted && startswith(t, "${local.workspace_folder}/") ? "workspace-folder/${trimprefix(t, "${local.workspace_folder}/")}" : ""
   ])
 
   # localEnv variables without a default that the user must provide -
   # ignoring ones only used by mounts, which only matter for bind mounts
   # (dropped anyway: there's no host).
-  required_variables = [for v in local.variables : v.name if v.kind == "localEnv" && v.default == null && length([for u in v.used_in : u if !startswith(u, "mounts")]) > 0]
+  # Only shell-safe names (the service only reports those, but they end up
+  # in a shell script and a regex below, so it's checked here too).
+  required_variables = [for v in local.variables : v.name if v.kind == "localEnv" && v.default == null && can(regex("^[A-Za-z_][A-Za-z0-9_]*$", v.name)) && length([for u in v.used_in : u if !startswith(u, "mounts")]) > 0]
   # Names only - the checks below must never reference the parameter itself:
   # Terraform prints referenced values in a failed check's diagnostics, and
   # the parameter holds the user's tokens.
@@ -391,6 +433,31 @@ locals {
   # Not secrets, but derived from the data source (whose registry
   # credentials input is sensitive) - unmarked so the build log shows them.
   warning_lines = nonsensitive([for w in local.all_warnings : nonsensitive(w)])
+
+  # Values written into the scripts below as single-quoted shell words
+  # ('...' with each ' as '\''): they come from the user's parameters and
+  # the repository's devcontainer.json, so they may contain anything.
+  sh_workspace_folder = "'${replace(local.workspace_folder, "'", "'\\''")}'"
+  sh_repository       = "'${replace(data.coder_parameter.repository.value, "'", "'\\''")}'"
+  sh_branch           = "'${replace(data.coder_parameter.branch.value, "'", "'\\''")}'"
+  sh_own_extension    = "'${replace(var.vscode_extension, "'", "'\\''")}'"
+  # One extension ID per line.
+  sh_extensions = "'${replace(join("\n", local.vscode_extensions), "'", "'\\''")}'"
+
+  # Where the lifecycle script records its exit status: on the pod's root
+  # filesystem, which is fresh on every start (unlike the home).
+  lifecycle_status_file = "/tmp/devcontainer-lifecycle.status"
+
+  # The architecture the agent binary, the image and the node agree on.
+  arch = "amd64"
+
+  # This workspace's own image tag. Without one, the tag is sha-<commit>,
+  # shared by every workspace built from the same repository and commit -
+  # and deleting the image (a Rebuild, or deleting the workspace) would
+  # delete it from under the others. The Rebuild value is part of it so a
+  # rebuilt image never reuses a tag a node may have cached (the pod pulls
+  # IfNotPresent). Lowercase, OCI tag characters only, at most 128.
+  image_tag = substr(replace(lower("ws-${data.coder_workspace.me.id}-${data.coder_parameter.rebuild.value}"), "/[^a-z0-9_.-]/", "-"), 0, 128)
 }
 
 # --- The actual build ----------------------------------------------------
@@ -418,9 +485,15 @@ resource "devcontainerbuilder_build" "workspace" {
   repository = data.coder_parameter.repository.value
   branch     = data.coder_parameter.branch.value
 
-  # A Rebuild bump replaces the build: the old image tag is deleted first
-  # and the branch's latest commit built (destroy-then-create is right -
-  # an unchanged branch rebuilds to the same tag).
+  # The image goes to this workspace's own tag (see local.image_tag); its
+  # registry and name are still resolved by devcontainer-builder.
+  image_spec = {
+    tag = local.image_tag
+  }
+
+  # A Rebuild bump replaces the build: the old image tag (this workspace's
+  # only) is deleted first and the branch's latest commit built under the
+  # new one.
   # Credentials are only needed for the build itself: a linked account's
   # token is refreshed over time, and must not replace (rebuild) the image
   # each time it changes. A Rebuild bump builds with the current one.
@@ -450,11 +523,12 @@ data "devcontainerbuilder_devcontainer" "workspace" {
   registry = devcontainerbuilder_build.workspace.resolved_registry
   name     = devcontainerbuilder_build.workspace.resolved_name
   tag      = devcontainerbuilder_build.workspace.resolved_tag
+  platform = "linux/${local.arch}"
 }
 
 resource "coder_agent" "main" {
   os   = "linux"
-  arch = "amd64"
+  arch = local.arch
   # No `dir`: it's deprecated, and anything but $HOME breaks Coder Desktop
   # file sync - so terminals/SSH start in $HOME. code-server and
   # vscode_desktop open the repo.
@@ -561,6 +635,7 @@ module "vscode_web" {
   folder         = local.workspace_folder
   accept_license = true
   install_prefix = "$HOME/.cache/vscode-web"
+  subdomain      = var.subdomain_apps
 }
 
 # VS Code Desktop, opened on the cloned repo (in place of the agent's
@@ -581,7 +656,9 @@ module "vscode_desktop" {
 # from the repo folder, before login. In Dev Containers the first three run once per
 # container; here every start is a fresh root filesystem, so all four run
 # on every start and must be idempotent. Output is in the agent's startup
-# logs.
+# logs. Its exit status goes to local.lifecycle_status_file (on the pod's
+# own filesystem, so never left over from an earlier start), which
+# postAttachCommand waits for.
 resource "coder_script" "devcontainer_lifecycle" {
   count              = data.coder_workspace.me.start_count
   agent_id           = coder_agent.main.id
@@ -592,7 +669,10 @@ resource "coder_script" "devcontainer_lifecycle" {
   script             = <<-EOT
     #!/bin/sh
     set -u
-    workspace_folder='${local.workspace_folder}'
+    status_file='${local.lifecycle_status_file}'
+    rm -f "$status_file"
+    trap 'rc=$?; echo "$rc" > "$status_file.tmp" && mv -f "$status_file.tmp" "$status_file"; exit "$rc"' EXIT
+    workspace_folder=${local.sh_workspace_folder}
     dir="$HOME/.cache/devcontainer-lifecycle"
     mkdir -p "$dir"
 
@@ -600,36 +680,72 @@ resource "coder_script" "devcontainer_lifecycle" {
     # the commit the image was built from (on its branch), so the hooks
     # below run the scripts that image was built for. git init + fetch
     # rather than `git clone`: the folder may already hold mount points
-    # (e.g. a node_modules volume). An existing working copy is never
-    # touched. Private repos authenticate like the agent: GIT_ASKPASS
-    # (Coder external auth) for HTTPS, `coder gitssh` for SSH.
-    repository='${data.coder_parameter.repository.value}'
-    branch='${data.coder_parameter.branch.value}'
+    # (e.g. a node_modules volume). Private repos authenticate like the
+    # agent: GIT_ASKPASS (Coder external auth) for HTTPS, `coder gitssh`
+    # for SSH.
+    #
+    # A finished clone is marked with .git/devcontainer-cloned, and is never
+    # touched again. A .git without the marker is either a working copy
+    # (HEAD has a commit - e.g. cloned by an older template version: kept,
+    # and marked) or a clone that was cut short before its checkout
+    # finished (HEAD unborn: removed and retried).
+    repository=${local.sh_repository}
+    branch=${local.sh_branch}
     commit='${devcontainerbuilder_build.workspace.commit != null ? devcontainerbuilder_build.workspace.commit : ""}'
-    if [ ! -e "$workspace_folder/.git" ]; then
+    git_dir="$workspace_folder/.git"
+    cloned_marker="$git_dir/devcontainer-cloned"
+    retry=false
+    if [ -d "$git_dir" ] && [ ! -e "$cloned_marker" ]; then
+      if git -C "$workspace_folder" rev-parse --verify -q HEAD >/dev/null 2>&1; then
+        touch "$cloned_marker"
+      else
+        echo "devcontainer: $workspace_folder has an unfinished clone, starting over"
+        rm -rf "$git_dir"
+        retry=true
+      fi
+    fi
+    if [ ! -e "$git_dir" ]; then
+      if ! command -v git >/dev/null 2>&1; then
+        echo "devcontainer: the image has no git, so $repository can't be cloned - add the git Feature (\"ghcr.io/devcontainers/features/git:1\": {}) to devcontainer.json's features, and rebuild" >&2
+        exit 1
+      fi
       case "$repository" in
         ssh://* | *@*:*)
           host=$(printf '%s' "$repository" | sed -E 's#^ssh://##; s#^[^@]*@##; s#[:/].*$##')
           mkdir -p "$HOME/.ssh" && touch "$HOME/.ssh/known_hosts"
-          ssh-keygen -F "$host" -f "$HOME/.ssh/known_hosts" >/dev/null 2>&1 || ssh-keyscan -H "$host" >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
+          ssh-keygen -F "$host" -f "$HOME/.ssh/known_hosts" >/dev/null 2>&1 || ssh-keyscan -H -- "$host" >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
           ;;
       esac
       echo "devcontainer: cloning $repository ($branch) into $workspace_folder"
       mkdir -p "$workspace_folder"
-      git -C "$workspace_folder" init -q -b "$branch" &&
+      # `init` + symbolic-ref rather than `init -b`, which needs git 2.28.
+      git -C "$workspace_folder" init -q &&
+        git -C "$workspace_folder" symbolic-ref HEAD "refs/heads/$branch" &&
         git -C "$workspace_folder" remote add origin "$repository" &&
         git -C "$workspace_folder" fetch -q origin "+refs/heads/$branch:refs/remotes/origin/$branch" || {
           echo "devcontainer: cloning $repository failed" >&2
-          rm -rf "$workspace_folder/.git"
+          rm -rf "$git_dir"
           exit 1
         }
       target="origin/$branch"
       if [ -n "$commit" ] && { git -C "$workspace_folder" cat-file -e "$commit^{commit}" 2>/dev/null || git -C "$workspace_folder" fetch -q origin "$commit"; }; then
         target="$commit"
       fi
-      git -C "$workspace_folder" checkout -q -B "$branch" "$target" &&
-        git -C "$workspace_folder" branch -q --set-upstream-to="origin/$branch" "$branch" &&
-        echo "devcontainer: checked out $(git -C "$workspace_folder" rev-parse --short HEAD), the commit the image was built from" || exit 1
+      # A retry overwrites the files the interrupted checkout already
+      # wrote. A first checkout doesn't: files that were already in the
+      # folder and are in the way fail it (git lists them), and its .git is
+      # removed, so the next start tries the same way again.
+      force=""
+      if [ "$retry" = true ]; then force="-f"; fi
+      if ! git -C "$workspace_folder" checkout -q $force -B "$branch" "$target"; then
+        echo "devcontainer: checking out $target in $workspace_folder failed" >&2
+        [ "$retry" = true ] || rm -rf "$git_dir"
+        exit 1
+      fi
+      git -C "$workspace_folder" branch -q --set-upstream-to="origin/$branch" "$branch" ||
+        echo "devcontainer: couldn't set origin/$branch as $branch's upstream" >&2
+      touch "$cloned_marker"
+      echo "devcontainer: checked out $(git -C "$workspace_folder" rev-parse --short HEAD), the commit the image was built from"
     fi
 
     run_hook() {
@@ -650,7 +766,8 @@ resource "coder_script" "devcontainer_lifecycle" {
 
 # postAttachCommand runs each time a tool attaches in Dev Containers. There
 # is no attach event here, so it runs once per start - without blocking
-# login, after the clone.
+# login, after the lifecycle script above has succeeded (as in Dev
+# Containers, where it follows postStartCommand). Gives up after 30 minutes.
 resource "coder_script" "devcontainer_post_attach" {
   # Always present (count can't depend on the image's metadata, which is
   # unknown until the first build) - exits at once if no hook is set.
@@ -665,8 +782,23 @@ resource "coder_script" "devcontainer_post_attach" {
     set -u
     hook='${base64encode(lookup(local.lifecycle_scripts, "postAttachCommand", ""))}'
     [ -n "$hook" ] || exit 0
-    workspace_folder='${local.workspace_folder}'
-    until [ -f "$workspace_folder/.git/index" ] && [ ! -e "$workspace_folder/.git/index.lock" ]; do sleep 2; done
+    workspace_folder=${local.sh_workspace_folder}
+    status_file='${local.lifecycle_status_file}'
+    echo "devcontainer: waiting for the Dev Container lifecycle script before postAttachCommand"
+    waited=0
+    until [ -s "$status_file" ]; do
+      if [ "$waited" -ge 1800 ]; then
+        echo "devcontainer: the Dev Container lifecycle script hasn't finished after 30 minutes, not running postAttachCommand" >&2
+        exit 1
+      fi
+      sleep 2
+      waited=$((waited + 2))
+    done
+    status=$(cat "$status_file")
+    if [ "$status" != 0 ]; then
+      echo "devcontainer: the Dev Container lifecycle script failed (exit status $status), not running postAttachCommand" >&2
+      exit 1
+    fi
     script="$HOME/.cache/devcontainer-lifecycle/postAttachCommand.sh"
     mkdir -p "$(dirname "$script")"
     echo "$hook" | base64 -d > "$script"
@@ -695,9 +827,9 @@ resource "coder_script" "devcontainer_vscode" {
   script             = <<-EOT
     #!/bin/sh
     set -u
-    extensions='${join(" ", local.vscode_extensions)}'
+    extensions=${local.sh_extensions}
     settings_b64='${base64encode(local.vscode_settings)}'
-    own_extension='${var.vscode_extension}'
+    own_extension=${local.sh_own_extension}
     data_dir="$HOME/.vscode-server"
     if [ -z "$extensions" ] && [ "$settings_b64" = "${base64encode("{}")}" ] && [ -z "$own_extension" ]; then
       exit 0
@@ -750,7 +882,8 @@ resource "coder_script" "devcontainer_vscode" {
       esac
     fi
 
-    for extension in $extensions; do
+    printf '%s\n' "$extensions" | while IFS= read -r extension; do
+      [ -n "$extension" ] || continue
       out=$("$server/bin/code-server" --extensions-dir "$data_dir/extensions" --install-extension "$extension" 2>&1)
       case "$out" in
         *"Failed Installing"* | *"not found"*) echo "devcontainer: could not install $extension: $out" >&2 ;;
@@ -758,20 +891,37 @@ resource "coder_script" "devcontainer_vscode" {
       esac
     done
 
+    # The repository's settings are defaults: a setting is written only if
+    # the Machine settings don't have it yet, or still have the value this
+    # script wrote last time (recorded in devcontainer-vscode-settings.applied.json)
+    # - so a repository's change reaches settings the user hasn't changed,
+    # and the user's own values are never overwritten.
     if [ "$settings_b64" != "${base64encode("{}")}" ]; then
       mkdir -p "$data_dir/data/Machine"
       echo "$settings_b64" | base64 -d > "$HOME/.cache/devcontainer-vscode-settings.json"
       "$server/node" -e '
         const fs = require("fs");
-        const [target, incoming] = process.argv.slice(1);
-        let current = {};
-        if (fs.existsSync(target)) {
-          try { current = JSON.parse(fs.readFileSync(target, "utf8")); }
-          catch (e) { console.error("devcontainer: " + target + " is not plain JSON, leaving it unchanged"); process.exit(0); }
+        const [target, incoming, appliedFile] = process.argv.slice(1);
+        const read = (file) => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : {};
+        const has = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+        const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+        let current;
+        try { current = read(target); }
+        catch (e) { console.error("devcontainer: " + target + " is not plain JSON, leaving it unchanged"); process.exit(0); }
+        let applied = {};
+        try { applied = read(appliedFile); } catch (e) {}
+        const repository = read(incoming);
+        const written = [];
+        for (const [key, value] of Object.entries(repository)) {
+          const isDefault = !has(current, key) || (has(applied, key) && same(current[key], applied[key]));
+          if (isDefault && !same(current[key], value)) { current[key] = value; written.push(key); }
         }
-        fs.writeFileSync(target, JSON.stringify(Object.assign(current, JSON.parse(fs.readFileSync(incoming, "utf8"))), null, 2) + require("os").EOL);
-        console.log("devcontainer: merged VS Code settings into " + target);
-      ' "$data_dir/data/Machine/settings.json" "$HOME/.cache/devcontainer-vscode-settings.json"
+        if (written.length > 0) fs.writeFileSync(target, JSON.stringify(current, null, 2) + require("os").EOL);
+        const nowApplied = {};
+        for (const [key, value] of Object.entries(repository)) if (same(current[key], value)) nowApplied[key] = value;
+        fs.writeFileSync(appliedFile, JSON.stringify(nowApplied, null, 2) + require("os").EOL);
+        console.log("devcontainer: VS Code settings in " + target + ": " + (written.length > 0 ? "set " + written.join(", ") : "nothing to change"));
+      ' "$data_dir/data/Machine/settings.json" "$HOME/.cache/devcontainer-vscode-settings.json" "$HOME/.cache/devcontainer-vscode-settings.applied.json"
     fi
   EOT
 }
@@ -803,7 +953,7 @@ resource "coder_app" "forwarded_port" {
   display_name = count.index < length(local.ports) ? coalesce(try(local.ports[count.index].label, null), "Port ${try(local.ports[count.index].port, 0)}") : null
   url          = "${try(local.ports[count.index].protocol, "") == "https" ? "https" : "http"}://localhost:${try(local.ports[count.index].port, 0)}"
   icon         = count.index < length(local.ports) ? "/icon/widgets.svg" : null
-  subdomain    = true
+  subdomain    = var.subdomain_apps
   share        = "owner"
   hidden       = count.index >= length(local.ports)
 }
@@ -882,9 +1032,11 @@ resource "kubernetes_persistent_volume_claim_v1" "data" {
     }
   }
 
-  # The size comes from the image's hostRequirements while the workspace
-  # runs, and from the parameter while it's stopped - never shrink (or
-  # churn) the claim over that.
+  # The size is decided when the workspace is created. Later it would come
+  # from the image's hostRequirements while the workspace runs and from the
+  # parameter while it's stopped, so changes are ignored: never shrink (or
+  # churn) the claim over that. A larger hostRequirements.storage after a
+  # rebuild doesn't grow it (not every storage class can expand volumes).
   lifecycle {
     ignore_changes = [spec[0].resources[0].requests]
   }
@@ -962,6 +1114,11 @@ resource "kubernetes_deployment_v1" "main" {
         share_process_namespace = try(local.runtime.init, false)
         hostname                = try(local.runtime.hostname, null)
 
+        # Only nodes of the agent's (and the image's) architecture.
+        node_selector = {
+          "kubernetes.io/arch" = local.arch
+        }
+
         dynamic "host_aliases" {
           for_each = try(local.runtime.host_aliases, [])
           content {
@@ -992,10 +1149,19 @@ resource "kubernetes_deployment_v1" "main" {
             set -eu
             mkdir -p /mnt/data/home /mnt/data/workspaces /mnt/data/workspace-folder
             for dir in $VOLUME_DIRS $MOUNT_POINT_DIRS; do mkdir -p "/mnt/data/$dir"; done
+            # A file that can't be copied (unreadable, a socket, ...) is
+            # only a warning: it mustn't keep the workspace from starting.
+            # -n (don't overwrite) is in GNU, BusyBox and BSD cp, though
+            # some report skipped files as a failure.
             if [ ! -e /mnt/data/home/.devcontainer-home-seeded ]; then
-              cp -R --preserve=mode,timestamps,links --no-clobber "$HOME_DIR"/. /mnt/data/home/
+              if [ ! -d "$HOME_DIR" ]; then
+                echo "seed-home: $HOME_DIR isn't in the image, starting with an empty home"
+              elif cp -R -p -n "$HOME_DIR"/. /mnt/data/home/; then
+                echo "seed-home: seeded /mnt/data/home from $HOME_DIR"
+              else
+                echo "seed-home: warning: some of $HOME_DIR couldn't be copied (see above); seeded the rest"
+              fi
               touch /mnt/data/home/.devcontainer-home-seeded
-              echo "seed-home: seeded /mnt/data/home from $HOME_DIR"
             fi
           EOT
           ]
@@ -1140,10 +1306,11 @@ resource "kubernetes_deployment_v1" "main" {
             sub_path   = "workspaces"
             read_only  = false
           }
-          # A workspaceFolder outside /workspaces gets its own directory on
-          # the PVC; otherwise this mount points at an unused path.
+          # A workspaceFolder outside /workspaces (and not the home itself)
+          # gets its own directory on the PVC; otherwise this mount points at
+          # an unused path.
           volume_mount {
-            mount_path = startswith(local.workspace_folder, "/workspaces/") ? "/mnt/.devcontainer-unused-workspace-folder" : local.workspace_folder
+            mount_path = local.workspace_folder_mounted ? local.workspace_folder : "/mnt/.devcontainer-unused-workspace-folder"
             name       = "data"
             sub_path   = "workspace-folder"
             read_only  = false

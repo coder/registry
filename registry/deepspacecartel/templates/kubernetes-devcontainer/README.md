@@ -15,7 +15,7 @@ configuration (base image, Features, Dockerfile) by
 workspace runs it with the configuration's lifecycle commands, environment, mounts,
 forwarded ports, VS Code extensions and settings - like GitHub Codespaces, self-hosted.
 
-<!-- Screenshots: added with devcontainer-builder 1.0's docs. -->
+![A workspace offering to rebuild after its Dev Container configuration changed on the branch](../../.images/kubernetes-devcontainer-rebuild.png)
 
 ## What you get
 
@@ -29,6 +29,7 @@ forwarded ports, VS Code extensions and settings - like GitHub Codespaces, self-
   configuration changes, and clones repositories into new workspaces from a local VS Code.
 - **Private repositories** with each user's own account (`external_auth_id`).
 - **`hostRequirements`** are reserved on the node, as minimums.
+- **Each workspace builds its own image tag**, so one workspace's rebuild never affects another.
 
 ## Prerequisites
 
@@ -64,4 +65,5 @@ coder templates push kubernetes-devcontainer -d . \
 
 Optional variables: `image_pull_secret_name`, `external_auth_id` (e.g. `github`, for private
 repositories), `max_cpu`/`max_memory`, `allow_privileged`, `accept_vscode_license`,
-`max_forwarded_ports`, `vscode_extension` - see `main.tf`.
+`max_forwarded_ports`, `subdomain_apps` (set `false` without a wildcard access URL),
+`vscode_extension` - see `main.tf`.
