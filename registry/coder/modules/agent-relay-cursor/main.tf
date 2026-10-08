@@ -14,8 +14,7 @@
 #
 #   - agent_relay_session_id, agent_relay_delivery_id, agent_relay_pool,
 #     agent_relay_cursor_pool_name, agent_relay_cursor_idle_release_timeout,
-#     agent_relay_cursor_repo_url, and agent_relay_cursor_credential_kind
-#     are persistent state: coderd only
+#     and agent_relay_cursor_repo_url are persistent state: coderd only
 #     stores parameter values the template declares, and Agent Relay's
 #     dedupe and reconciliation query workspaces with `param:` search
 #     filters on them. agent_relay_cursor_repo_url is stamped on every
@@ -189,29 +188,6 @@ data "coder_parameter" "agent_relay_cursor_repo_url" {
   })
 }
 
-data "coder_parameter" "agent_relay_cursor_credential_kind" {
-  name         = "agent_relay_cursor_credential_kind"
-  display_name = "Cursor credential kind"
-  description  = "How the worker hands agent_relay_credential to the Cursor CLI. worker_token passes the per-user sub-token as --auth-token. api_key exports the pool's service-account key as CURSOR_API_KEY, which is the only form the CLI accepts it in; Agent Relay sets this to api_key for pools with insecure_shared_token. A human never fills it in."
-  type         = "string"
-  mutable      = true
-  default      = "worker_token"
-  order        = 1006
-  styling = jsonencode({
-    disabled    = true
-    placeholder = "Set by Agent Relay on dispatch"
-  })
-
-  option {
-    name  = "Worker token (--auth-token)"
-    value = "worker_token"
-  }
-  option {
-    name  = "Service-account API key (CURSOR_API_KEY)"
-    value = "api_key"
-  }
-}
-
 data "coder_parameter" "agent_relay_credential" {
   name         = "agent_relay_credential"
   display_name = "Agent Relay credential"
@@ -220,7 +196,7 @@ data "coder_parameter" "agent_relay_credential" {
   ephemeral    = true
   mutable      = true
   default      = ""
-  order        = 1007
+  order        = 1006
   styling = jsonencode({
     disabled    = true
     mask_input  = true
@@ -229,12 +205,10 @@ data "coder_parameter" "agent_relay_credential" {
 }
 
 # CURSOR_AGENT_WORKER_ID is the Cursor CLI's contract; do not rename it.
-# The credential travels under an Agent Relay name and the supervisor
-# decides how to hand it to the CLI from the stamped credential kind: a
-# per-user worker token has no CLI env var and goes on the command line
-# as --auth-token; a team service-account key is only accepted as
-# CURSOR_API_KEY. Each is rejected through the other door, which is why
-# the relay stamps the kind alongside the credential.
+# The worker token has no CLI env var (only the --auth-token flag), so it
+# travels under an Agent Relay name and the script passes it on the
+# command line. It is never CURSOR_API_KEY: the CLI would treat the
+# token as a service account key and reject it.
 resource "coder_env" "agent_relay_cursor_token" {
   agent_id = var.agent_id
   name     = "AGENT_RELAY_CURSOR_TOKEN"
@@ -260,12 +234,6 @@ resource "coder_env" "agent_relay_cursor_idle_release_timeout" {
   agent_id = var.agent_id
   name     = "AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT"
   value    = data.coder_parameter.agent_relay_cursor_idle_release_timeout.value
-}
-
-resource "coder_env" "agent_relay_cursor_credential_kind" {
-  agent_id = var.agent_id
-  name     = "AGENT_RELAY_CURSOR_CREDENTIAL_KIND"
-  value    = data.coder_parameter.agent_relay_cursor_credential_kind.value
 }
 
 locals {
