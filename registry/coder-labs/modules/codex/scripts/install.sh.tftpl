@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 
@@ -130,7 +130,7 @@ EOF
 }
 
 function populate_config_toml() {
-  local config_path="$HOME/.codex/config.toml"
+  local config_path="$${CODEX_HOME:-$HOME/.codex}/config.toml"
   mkdir -p "$(dirname "$${config_path}")"
 
   local MANAGED_START="# >>> coder-managed: codex module >>>"

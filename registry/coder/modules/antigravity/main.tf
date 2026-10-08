@@ -89,7 +89,7 @@ resource "coder_script" "antigravity_mcp" {
   run_on_start       = true
   start_blocks_login = false
   script             = <<-EOT
-    #!/bin/sh
+    #!/usr/bin/env sh
     set -eu
     mkdir -p "$HOME/.gemini/antigravity"
     echo -n "${local.mcp_b64}" | base64 -d > "$HOME/.gemini/antigravity/mcp_config.json"

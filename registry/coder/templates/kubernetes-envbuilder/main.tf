@@ -150,8 +150,6 @@ data "kubernetes_secret_v1" "cache_repo_dockerconfig_secret" {
 locals {
   deployment_name            = "coder-${lower(data.coder_workspace.me.id)}"
   devcontainer_builder_image = data.coder_parameter.devcontainer_builder.value
-  git_author_name            = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-  git_author_email           = data.coder_workspace_owner.me.email
   repo_url                   = data.coder_parameter.repo.value
   # The envbuilder provider requires a key-value map of environment variables.
   envbuilder_env = {
@@ -339,17 +337,6 @@ resource "coder_agent" "main" {
   EOT
   dir            = "/workspaces"
 
-  # These environment variables allow you to make Git commits right away after creating a
-  # workspace. Note that they take precedence over configuration defined in ~/.gitconfig!
-  # You can remove this block if you'd prefer to configure Git manually or using
-  # dotfiles. (see docs/dotfiles.md)
-  env = {
-    GIT_AUTHOR_NAME     = local.git_author_name
-    GIT_AUTHOR_EMAIL    = local.git_author_email
-    GIT_COMMITTER_NAME  = local.git_author_name
-    GIT_COMMITTER_EMAIL = local.git_author_email
-  }
-
   # The following metadata blocks are optional. They are used to display
   # information about your workspace in the dashboard. You can remove them
   # if you don't want to display any information.
@@ -416,6 +403,14 @@ resource "coder_agent" "main" {
     interval     = 10
     timeout      = 1
   }
+}
+
+# See https://registry.coder.com/modules/coder/git-config
+module "git-config" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/git-config/coder"
+  version  = "~> 1.0"
+  agent_id = coder_agent.main.id
 }
 
 # See https://registry.coder.com/modules/coder/code-server
