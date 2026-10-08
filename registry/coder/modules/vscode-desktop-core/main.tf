@@ -123,8 +123,9 @@ locals {
   apply_settings_script = local.settings_enabled ? templatefile(
     "${path.module}/scripts/apply-settings.sh.tftpl",
     {
-      SETTINGS_B64      = base64encode(jsonencode(var.settings))
-      SETTINGS_FILE_B64 = base64encode(var.settings_file)
+      SETTINGS      = var.settings
+      SETTINGS_FILE = var.settings_file
+      SCRIPTS_DIR   = "${path.module}/scripts"
     },
   ) : ""
 

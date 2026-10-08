@@ -1,4 +1,5 @@
 import { describe, expect, it, setDefaultTimeout } from "bun:test";
+import { dirname } from "node:path";
 import {
   runTerraformApply,
   runTerraformInit,
@@ -205,6 +206,11 @@ describe("vscode-desktop-core", async () => {
   });
 
   describe("settings", () => {
+    const settingsPath = settingsVariables.settings_file.replace(
+      "$HOME",
+      "/root",
+    );
+
     it("creates no settings script with default inputs", async () => {
       const state = await runTerraformApply(import.meta.dir, defaultVariables);
       const settingsScripts = state.resources.filter(
@@ -224,7 +230,6 @@ describe("vscode-desktop-core", async () => {
         "apply_settings",
       ).script;
       const id = await runContainer("node:22-bookworm-slim");
-      const settingsPath = "/root/.ide-server/data/Machine/settings.json";
 
       try {
         const result = await execContainer(id, ["bash", "-c", settingsScript]);
@@ -250,18 +255,13 @@ describe("vscode-desktop-core", async () => {
         "apply_settings",
       );
       const id = await runContainer("python:3.12-slim");
-      const settingsPath = "/root/.ide-server/data/Machine/settings.json";
 
       try {
         expect(settingsScript.run_on_start).toBe(true);
         expect(settingsScript.start_blocks_login).toBe(true);
         expect(settingsScript.timeout).toBe(300);
 
-        await execContainer(id, [
-          "mkdir",
-          "-p",
-          "/root/.ide-server/data/Machine",
-        ]);
+        await execContainer(id, ["mkdir", "-p", dirname(settingsPath)]);
         await writeFileContainer(
           id,
           settingsPath,
@@ -310,14 +310,9 @@ describe("vscode-desktop-core", async () => {
         "apply_settings",
       ).script;
       const id = await runContainer("python:3.12-slim");
-      const settingsPath = "/root/.ide-server/data/Machine/settings.json";
 
       try {
-        await execContainer(id, [
-          "mkdir",
-          "-p",
-          "/root/.ide-server/data/Machine",
-        ]);
+        await execContainer(id, ["mkdir", "-p", dirname(settingsPath)]);
         await writeFileContainer(
           id,
           settingsPath,
@@ -362,14 +357,13 @@ describe("vscode-desktop-core", async () => {
         "apply_settings",
       ).script;
       const id = await runContainer("python:3.12-slim");
-      const settingsPath = "/root/.ide-server/data/Machine/settings.json";
       const targetPath = "/root/dotfiles/vscode-settings.json";
 
       try {
         await execContainer(id, [
           "mkdir",
           "-p",
-          "/root/.ide-server/data/Machine",
+          dirname(settingsPath),
           "/root/dotfiles",
         ]);
         await writeFileContainer(
@@ -414,17 +408,12 @@ describe("vscode-desktop-core", async () => {
         "apply_settings",
       ).script;
       const id = await runContainer("node:22-bookworm-slim");
-      const settingsPath = "/root/.ide-server/data/Machine/settings.json";
       const existingSettings = JSON.stringify({
         "editor.wordWrap": "on",
       });
 
       try {
-        await execContainer(id, [
-          "mkdir",
-          "-p",
-          "/root/.ide-server/data/Machine",
-        ]);
+        await execContainer(id, ["mkdir", "-p", dirname(settingsPath)]);
         await writeFileContainer(id, settingsPath, existingSettings, {
           user: "root",
         });
