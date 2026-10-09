@@ -1,17 +1,12 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.9"
 
   required_providers {
     coder = {
       source  = "coder/coder"
       version = ">= 2.12"
     }
-    external = {
-      source  = "hashicorp/external"
-      version = "2.3.5"
-    }
   }
-
 }
 
 variable "agent_id" {
@@ -19,255 +14,128 @@ variable "agent_id" {
   description = "The ID of a Coder agent."
 }
 
-data "coder_workspace" "me" {}
-
-data "coder_workspace_owner" "me" {}
-
-variable "order" {
-  type        = number
-  description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
-  default     = null
-}
-
-variable "group" {
-  type        = string
-  description = "The name of a group that this app belongs to."
-  default     = null
-}
-
 variable "icon" {
   type        = string
-  description = "The icon to use for the app."
+  description = "The icon to use for the install scripts."
   default     = "/icon/sourcegraph-amp.svg"
 }
 
 variable "workdir" {
   type        = string
-  description = "The folder to run AMP CLI in."
-}
-
-variable "install_agentapi" {
-  type        = bool
-  description = "Whether to install AgentAPI."
-  default     = true
-}
-
-variable "agentapi_version" {
-  type        = string
-  description = "The version of AgentAPI to install."
-  default     = "v0.11.1"
-}
-
-variable "cli_app" {
-  type        = bool
-  description = "Whether to create a CLI app for Claude Code"
-  default     = false
-}
-
-variable "web_app_display_name" {
-  type        = string
-  description = "Display name for the web app"
-  default     = "Amp"
-}
-
-variable "cli_app_display_name" {
-  type        = string
-  description = "Display name for the CLI app"
-  default     = "Amp CLI"
+  description = "Optional project directory. When set, the module pre-creates it if missing. Amp has no folder trust prompt, so nothing else is written for it."
+  default     = null
 }
 
 variable "pre_install_script" {
   type        = string
-  description = "Custom script to run before installing amp cli"
+  description = "Custom script to run before installing Amp."
   default     = null
 }
 
 variable "post_install_script" {
   type        = string
-  description = "Custom script to run after installing amp cli."
+  description = "Custom script to run after installing Amp."
   default     = null
-}
-
-variable "report_tasks" {
-  type        = bool
-  description = "Whether to enable task reporting to Coder UI"
-  default     = true
 }
 
 variable "install_amp" {
   type        = bool
-  description = "Whether to install amp cli."
+  description = "Whether to install Amp with the official installer. When false, a working amp binary must already be on PATH."
   default     = true
-}
-
-variable "install_via_npm" {
-  type        = bool
-  description = "Install Amp via npm instead of the official installer."
-  default     = false
-}
-
-variable "amp_api_key" {
-  type        = string
-  description = "amp cli API Key"
-  default     = ""
 }
 
 variable "amp_version" {
   type        = string
-  description = "The version of amp cli to install."
+  description = "Amp CLI version to install (for example 0.0.1790769659-g954f35), passed to the official installer as AMP_VERSION. Empty installs the latest release. Amp auto-updates in the background unless amp.updates.mode is \"disabled\". See https://ampcode.com/docs/cli/settings"
   default     = ""
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9._-]*$", var.amp_version))
+    error_message = "amp_version must be empty or a release version such as 0.0.1790769659-g954f35."
+  }
 }
 
-variable "ai_prompt" {
+variable "amp_api_key" {
   type        = string
-  description = "Task prompt for the Amp CLI"
+  description = "Amp access token, exported as AMP_API_KEY. See https://ampcode.com/docs/cli/execute-mode#non-interactive-environments"
+  sensitive   = true
   default     = ""
 }
 
 variable "instruction_prompt" {
   type        = string
-  description = "Instruction prompt for the Amp CLI. https://ampcode.com/manual#AGENTS.md"
+  description = "Personal guidance written to ~/.config/amp/AGENTS.md, which Amp includes in every session. See https://ampcode.com/docs/customize/agents-md"
   default     = ""
 }
 
+variable "amp_settings" {
+  type        = string
+  description = "Amp user settings as a JSON object of amp.* keys. Merged into ~/.config/amp/settings.json: these keys are overwritten on every start and all other keys are preserved. Use mcp for amp.mcpServers. See https://ampcode.com/docs/cli/settings"
+  default     = ""
+
+  validation {
+    condition     = var.amp_settings == "" || can(keys(jsondecode(var.amp_settings)))
+    error_message = "amp_settings must be a JSON object."
+  }
+
+  validation {
+    condition     = var.amp_settings == "" || !can(jsondecode(var.amp_settings)["amp.mcpServers"])
+    error_message = "amp_settings must not contain amp.mcpServers; use the mcp variable instead."
+  }
+}
+
+variable "mcp" {
+  type        = string
+  description = "MCP servers as a JSON object keyed by server name, in the amp.mcpServers format. Merged into ~/.config/amp/settings.json; servers already on disk win on duplicate names, matching amp mcp add. See https://ampcode.com/docs/customize/mcp"
+  default     = ""
+
+  validation {
+    condition     = var.mcp == "" || can(keys(jsondecode(var.mcp)))
+    error_message = "mcp must be a JSON object keyed by server name."
+  }
+}
+
+variable "managed_settings" {
+  type        = any
+  description = "Enterprise managed settings written to /etc/ampcode/managed-settings.json. Takes precedence over user and workspace settings. See https://ampcode.com/docs/cli/settings#enterprise-managed-settings"
+  default     = null
+}
+
 resource "coder_env" "amp_api_key" {
+  count    = var.amp_api_key != "" ? 1 : 0
   agent_id = var.agent_id
   name     = "AMP_API_KEY"
   value    = var.amp_api_key
 }
 
-variable "base_amp_config" {
-  type        = string
-  description = <<-EOT
-    Base AMP configuration in JSON format. Can be overridden to customize AMP settings.
-
-    If empty, defaults enable thinking and todos for autonomous operation. Additional options include:
-    - "amp.permissions": [] (tool permissions)
-    - "amp.tools.stopTimeout": 600 (extend timeout for long operations)
-    - "amp.terminal.commands.nodeSpawn.loadProfile": "daily" (environment loading)
-    - "amp.tools.disable": ["builtin:open"] (disable tools for containers)
-    - "amp.git.commit.ampThread.enabled": true (link commits to threads)
-    - "amp.git.commit.coauthor.enabled": true (add Amp as co-author)
-
-    Reference: https://ampcode.com/manual
-  EOT
-  default     = ""
-}
-
-variable "mcp" {
-  type        = string
-  description = "Additional MCP servers configuration in JSON format to append to amp.mcpServers."
-  default     = null
-}
-
-variable "mode" {
-  type        = string
-  description = "Set the agent mode (free, rush, smart) — controls the model, system prompt, and tool selection. Default: smart"
-  default     = "smart"
-  validation {
-    condition     = contains(["", "free", "rush", "smart"], var.mode)
-    error_message = "Invalid mode. Select one from (free, rush, smart)"
-  }
-}
-
-data "external" "env" {
-  program = ["sh", "-c", "echo '{\"CODER_AGENT_TOKEN\":\"'$CODER_AGENT_TOKEN'\",\"CODER_AGENT_URL\":\"'$CODER_AGENT_URL'\"}'"]
-}
-
 locals {
-  app_slug = "amp"
-
-  default_base_config = jsonencode({
-    "amp.anthropic.thinking.enabled" = true
-    "amp.todos.enabled"              = true
-    "amp.terminal.animation"         = false
+  workdir = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
+  install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
+    ARG_INSTALL               = tostring(var.install_amp)
+    ARG_AMP_VERSION           = var.amp_version
+    ARG_WORKDIR               = local.workdir != "" ? base64encode(local.workdir) : ""
+    ARG_INSTRUCTION_PROMPT    = var.instruction_prompt != "" ? base64encode(var.instruction_prompt) : ""
+    ARG_AMP_SETTINGS          = var.amp_settings != "" ? base64encode(var.amp_settings) : ""
+    ARG_MCP_CONFIG            = var.mcp != "" ? base64encode(var.mcp) : ""
+    ARG_MANAGED_SETTINGS_JSON = var.managed_settings != null ? base64encode(jsonencode(var.managed_settings)) : ""
   })
-
-  user_config       = jsondecode(var.base_amp_config != "" ? var.base_amp_config : local.default_base_config)
-  base_amp_settings = { for k, v in local.user_config : k => v if k != "amp.mcpServers" }
-
-  coder_mcp = {
-    "coder" = {
-      "command" = "coder"
-      "args"    = ["exp", "mcp", "server"]
-      "env" = {
-        "CODER_MCP_APP_STATUS_SLUG" = var.report_tasks == true ? local.app_slug : ""
-        "CODER_MCP_AI_AGENTAPI_URL" = var.report_tasks == true ? "http://localhost:3284" : ""
-        "CODER_AGENT_TOKEN"         = data.external.env.result.CODER_AGENT_TOKEN
-        "CODER_AGENT_URL"           = data.external.env.result.CODER_AGENT_URL
-      }
-      "type" = "stdio"
-    }
-  }
-
-  additional_mcp = var.mcp != null ? jsondecode(var.mcp) : {}
-
-  merged_mcp_servers = merge(
-    lookup(local.user_config, "amp.mcpServers", {}),
-    local.coder_mcp,
-    local.additional_mcp
-  )
-
-  final_config = merge(local.base_amp_settings, {
-    "amp.mcpServers" = local.merged_mcp_servers
-  })
-
-  install_script  = file("${path.module}/scripts/install.sh")
-  start_script    = file("${path.module}/scripts/start.sh")
-  module_dir_name = ".amp-module"
-  workdir         = trimsuffix(var.workdir, "/")
+  module_dir_name = ".coder-modules/coder-labs/sourcegraph-amp"
 }
 
-module "agentapi" {
-  source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.0.0"
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.1"
 
-  agent_id             = var.agent_id
-  folder               = local.workdir
-  web_app_slug         = local.app_slug
-  web_app_order        = var.order
-  web_app_group        = var.group
-  web_app_icon         = var.icon
-  web_app_display_name = var.web_app_display_name
-  cli_app              = var.cli_app
-  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
-  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
-  module_dir_name      = local.module_dir_name
-  install_agentapi     = var.install_agentapi
-  agentapi_version     = var.agentapi_version
-  pre_install_script   = var.pre_install_script
-  post_install_script  = var.post_install_script
-  start_script         = <<-EOT
-     #!/usr/bin/env bash
-     set -o errexit
-     set -o pipefail
-
-     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-     chmod +x /tmp/start.sh
-     ARG_AMP_API_KEY='${var.amp_api_key}' \
-     ARG_AMP_START_DIRECTORY='${var.workdir}' \
-     ARG_AMP_TASK_PROMPT='${base64encode(var.ai_prompt)}' \
-     ARG_REPORT_TASKS='${var.report_tasks}' \
-     ARG_MODE='${var.mode}' \
-     /tmp/start.sh
-   EOT
-
-  install_script = <<-EOT
-    #!/usr/bin/env bash
-    set -o errexit
-    set -o pipefail
-
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
-    ARG_INSTALL_AMP='${var.install_amp}' \
-    ARG_INSTALL_VIA_NPM='${var.install_via_npm}' \
-    ARG_AMP_CONFIG="${base64encode(jsonencode(local.final_config))}" \
-    ARG_AMP_VERSION='${var.amp_version}' \
-    ARG_AMP_INSTRUCTION_PROMPT='${base64encode(var.instruction_prompt)}' \
-    /tmp/install.sh
-  EOT
+  agent_id            = var.agent_id
+  module_directory    = "$HOME/${local.module_dir_name}"
+  display_name_prefix = "Amp"
+  icon                = var.icon
+  pre_install_script  = var.pre_install_script
+  post_install_script = var.post_install_script
+  install_script      = local.install_script
 }
 
-output "task_app_id" {
-  value = module.agentapi.task_app_id
+output "scripts" {
+  description = "Ordered list of coder exp sync names for the coder_script resources this module creates, in run order (pre_install, install, post_install). Scripts that were not configured are absent from the list."
+  value       = module.coder_utils.scripts
 }
