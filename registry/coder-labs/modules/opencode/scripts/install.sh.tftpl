@@ -1,0 +1,273 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+BOLD='\033[0;1m'
+
+command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+ARG_INSTALL='${ARG_INSTALL}'
+ARG_OPENCODE_VERSION='${ARG_OPENCODE_VERSION}'
+ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
+ARG_CONFIG_JSON=$(echo -n '${ARG_CONFIG_JSON}' | base64 -d)
+ARG_MCP_CONFIG=$(echo -n '${ARG_MCP_CONFIG}' | base64 -d)
+ARG_MANAGED_SETTINGS_JSON=$(echo -n '${ARG_MANAGED_SETTINGS_JSON}' | base64 -d)
+
+# Delivered through coder_env so credentials never appear in this script.
+AUTH_JSON="$${CODER_OPENCODE_AUTH_JSON:-}"
+
+OPENCODE_BIN_DIR="$HOME/.opencode/bin"
+export PATH="$${OPENCODE_BIN_DIR}:$PATH"
+
+echo "--------------------------------"
+printf "install_opencode: %s\n" "$${ARG_INSTALL}"
+printf "opencode_version: %s\n" "$${ARG_OPENCODE_VERSION}"
+printf "workdir: %s\n" "$${ARG_WORKDIR}"
+printf "auth_json: %s\n" "$([ -n "$${AUTH_JSON}" ] && echo provided || echo "not provided")"
+echo "--------------------------------"
+
+require_jq() {
+  if ! command_exists jq; then
+    echo "ERROR: 'jq' is required to $1 but was not found." >&2
+    exit 1
+  fi
+}
+
+# Prints the JSON object stored in $1, or {} when the file is missing. Invalid
+# files (for example JSONC with comments) are backed up to $1.bak.
+read_json_object() {
+  local file="$1"
+  if [ ! -f "$${file}" ]; then
+    echo '{}'
+    return
+  fi
+  if jq -e 'type == "object"' "$${file}" > /dev/null 2>&1; then
+    cat "$${file}"
+    return
+  fi
+  cp "$${file}" "$${file}.bak"
+  echo "Warning: $${file} is not a valid JSON object; backed it up to $${file}.bak" >&2
+  echo '{}'
+}
+
+function add_path_to_shell_profiles() {
+  local path_dir="$1"
+
+  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    if [ -f "$${profile}" ]; then
+      if ! grep -q "$${path_dir}" "$${profile}" 2> /dev/null; then
+        echo "export PATH=\"\$PATH:$${path_dir}\"" >> "$${profile}"
+        echo "Added $${path_dir} to $${profile}"
+      fi
+    fi
+  done
+
+  local fish_config="$HOME/.config/fish/config.fish"
+  if [ -f "$${fish_config}" ]; then
+    if ! grep -q "$${path_dir}" "$${fish_config}" 2> /dev/null; then
+      echo "fish_add_path $${path_dir}" >> "$${fish_config}"
+      echo "Added $${path_dir} to $${fish_config}"
+    fi
+  fi
+}
+
+function ensure_opencode_in_path() {
+  local OPENCODE_BIN=""
+  if command_exists opencode; then
+    OPENCODE_BIN=$(command -v opencode)
+  fi
+
+  if [ -z "$${OPENCODE_BIN}" ] || [ ! -x "$${OPENCODE_BIN}" ]; then
+    echo "OpenCode binary (opencode) was not found or is not executable." >&2
+    return 1
+  fi
+
+  local OPENCODE_VERSION
+  if ! OPENCODE_VERSION=$("$${OPENCODE_BIN}" --version); then
+    echo "OpenCode binary could not be executed." >&2
+    return 1
+  fi
+  printf "OpenCode version: %s\n" "$${OPENCODE_VERSION}"
+
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/opencode" ]; then
+    ln -s "$${OPENCODE_BIN}" "$${CODER_SCRIPT_BIN_DIR}/opencode"
+    echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/opencode -> $${OPENCODE_BIN}"
+  fi
+
+  add_path_to_shell_profiles "$(dirname "$${OPENCODE_BIN}")"
+}
+
+# Subshell scopes the temp-file cleanup trap to this function.
+install_with_official_installer() (
+  local installer_file
+  installer_file=$(mktemp)
+  trap 'rm -f "$${installer_file}"' EXIT
+
+  if ! curl --fail --silent --show-error --location \
+    --retry 2 --retry-delay 1 --retry-all-errors \
+    --connect-timeout 10 --max-time 300 \
+    --output "$${installer_file}" https://opencode.ai/install; then
+    echo "OpenCode installer could not be downloaded after up to 3 attempts." >&2
+    return 1
+  fi
+
+  if ! bash -n "$${installer_file}"; then
+    echo "OpenCode installer download was invalid." >&2
+    return 1
+  fi
+
+  # The installer treats any non-empty VERSION as a release tag (a leading 'v'
+  # is stripped), so 'latest' must be passed as empty. It installs to
+  # ~/.opencode/bin; PATH is handled by this script.
+  local version="$${ARG_OPENCODE_VERSION}"
+  if [ "$${version}" = "latest" ]; then
+    version=""
+  fi
+  if ! VERSION="$${version}" bash "$${installer_file}" --no-modify-path; then
+    echo "OpenCode installation failed." >&2
+    return 1
+  fi
+)
+
+install_opencode() {
+  if [ "$${ARG_INSTALL}" != "true" ]; then
+    echo "Skipping OpenCode installation as per configuration."
+    if ! ensure_opencode_in_path; then
+      echo "ERROR: install_opencode is false but a working 'opencode' was not found on PATH." >&2
+      exit 1
+    fi
+    printf "%s Validated existing OpenCode\n" "$${BOLD}"
+    return
+  fi
+
+  if command_exists opencode; then
+    local installed wanted
+    installed=$(opencode --version 2> /dev/null || true)
+    wanted="$${ARG_OPENCODE_VERSION#v}"
+    if [ "$${ARG_OPENCODE_VERSION}" = "latest" ] || [ "$${installed}" = "$${wanted}" ]; then
+      echo "OpenCode already installed ($${installed})"
+      ensure_opencode_in_path
+      return
+    fi
+    echo "OpenCode $${installed} is installed; installing $${wanted}"
+  fi
+
+  printf "%s Installing OpenCode\n" "$${BOLD}"
+  install_with_official_installer
+
+  if ! ensure_opencode_in_path; then
+    echo "ERROR: Failed to install OpenCode" >&2
+    exit 1
+  fi
+  printf "%s Installed OpenCode\n" "$${BOLD}"
+}
+
+setup_workdir() {
+  if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
+    echo "Creating workdir: $${ARG_WORKDIR}"
+    mkdir -p "$${ARG_WORKDIR}"
+  fi
+}
+
+# Managed config is loaded last and cannot be overridden by user or project config.
+write_managed_settings() {
+  if [ -z "$${ARG_MANAGED_SETTINGS_JSON}" ]; then
+    return
+  fi
+
+  require_jq "write managed settings"
+
+  if ! echo "$${ARG_MANAGED_SETTINGS_JSON}" | jq -e 'type == "object"' > /dev/null 2>&1; then
+    echo "Warning: managed_settings is not a JSON object, skipping managed settings write" >&2
+    return
+  fi
+
+  local target="/etc/opencode/opencode.json"
+  if [ "$(id -u)" -eq 0 ]; then
+    mkdir -p "$(dirname "$${target}")"
+    echo "$${ARG_MANAGED_SETTINGS_JSON}" > "$${target}"
+    chmod 0644 "$${target}"
+  elif command_exists sudo && sudo -n true 2> /dev/null; then
+    sudo mkdir -p "$(dirname "$${target}")"
+    echo "$${ARG_MANAGED_SETTINGS_JSON}" | sudo tee "$${target}" > /dev/null
+    sudo chmod 0644 "$${target}"
+  else
+    echo "Warning: root access is required to write $${target}; skipping managed settings" >&2
+    return
+  fi
+  echo "Wrote OpenCode managed settings to $${target}"
+}
+
+# The module owns only the keys it sets; everything else in opencode.json is
+# preserved. config_json keys win, while MCP servers already on disk win on
+# duplicate names so in-workspace edits are not overwritten.
+setup_config() {
+  local config_file="$HOME/.config/opencode/opencode.json"
+
+  if [ -z "$${ARG_CONFIG_JSON}" ] && [ -z "$${ARG_MCP_CONFIG}" ]; then
+    echo "No config_json or mcp configured; leaving $${config_file} unchanged."
+    return
+  fi
+
+  require_jq "configure OpenCode"
+
+  mkdir -p "$(dirname "$${config_file}")"
+
+  local existing config='{}' mcp='{}'
+  existing=$(read_json_object "$${config_file}")
+  if [ -n "$${ARG_CONFIG_JSON}" ]; then
+    config="$${ARG_CONFIG_JSON}"
+  fi
+  if [ -n "$${ARG_MCP_CONFIG}" ]; then
+    mcp="$${ARG_MCP_CONFIG}"
+  fi
+
+  echo "$${existing}" | jq --argjson config "$${config}" --argjson mcp "$${mcp}" '
+    (. * $config)
+    | if ($mcp | length) > 0 then .mcp = ($mcp + (.mcp // {})) else . end
+    | .["$schema"] //= "https://opencode.ai/config.json"
+  ' > "$${config_file}.tmp"
+  mv "$${config_file}.tmp" "$${config_file}"
+  echo "OpenCode configuration written: $${config_file}"
+}
+
+# Provider entries from auth_json replace the same provider IDs on disk; other
+# credentials (for example from `opencode providers login`) are preserved.
+setup_auth() {
+  local auth_file="$HOME/.local/share/opencode/auth.json"
+
+  if [ -z "$${AUTH_JSON}" ]; then
+    echo "No auth_json provided; leaving $${auth_file} unchanged."
+    return
+  fi
+
+  require_jq "write OpenCode credentials"
+
+  if ! echo "$${AUTH_JSON}" | jq -e 'type == "object"' > /dev/null 2>&1; then
+    echo "ERROR: CODER_OPENCODE_AUTH_JSON is not a JSON object." >&2
+    exit 1
+  fi
+
+  mkdir -p "$(dirname "$${auth_file}")"
+
+  local existing
+  existing=$(read_json_object "$${auth_file}")
+  (
+    umask 077
+    # Read from the environment so credentials never appear in process arguments.
+    echo "$${existing}" | jq '. + (env.CODER_OPENCODE_AUTH_JSON | fromjson)' > "$${auth_file}.tmp"
+  )
+  mv "$${auth_file}.tmp" "$${auth_file}"
+  chmod 0600 "$${auth_file}"
+  echo "OpenCode credentials written: $${auth_file}"
+}
+
+install_opencode
+setup_workdir
+write_managed_settings
+setup_config
+setup_auth
+
+echo "OpenCode module setup completed."

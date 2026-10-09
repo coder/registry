@@ -3,76 +3,40 @@ run "defaults_are_correct" {
 
   variables {
     agent_id = "test-agent"
-    workdir  = "/home/coder/project"
   }
 
   assert {
     condition     = var.install_opencode == true
-    error_message = "OpenCode installation should be enabled by default"
-  }
-
-  assert {
-    condition     = var.install_agentapi == true
-    error_message = "AgentAPI installation should be enabled by default"
-  }
-
-  assert {
-    condition     = var.agentapi_version == "v0.11.2"
-    error_message = "Default AgentAPI version should be 'v0.11.2'"
+    error_message = "install_opencode should default to true"
   }
 
   assert {
     condition     = var.opencode_version == "latest"
-    error_message = "Default OpenCode version should be 'latest'"
+    error_message = "opencode_version should default to 'latest'"
   }
 
   assert {
-    condition     = var.report_tasks == true
-    error_message = "Task reporting should be enabled by default"
+    condition     = local.workdir == ""
+    error_message = "workdir should be empty by default"
   }
 
   assert {
-    condition     = var.cli_app == false
-    error_message = "CLI app should be disabled by default"
+    condition     = local.module_dir_name == ".coder-modules/coder-labs/opencode"
+    error_message = "module_dir_name should be '.coder-modules/coder-labs/opencode'"
   }
 
   assert {
-    condition     = var.subdomain == false
-    error_message = "Subdomain should be disabled by default"
+    condition     = length(coder_env.opencode_auth_json) == 0
+    error_message = "CODER_OPENCODE_AUTH_JSON should not be created when auth_json is empty"
   }
 
   assert {
-    condition     = var.web_app_display_name == "OpenCode"
-    error_message = "Default web app display name should be 'OpenCode'"
-  }
-
-  assert {
-    condition     = var.cli_app_display_name == "OpenCode CLI"
-    error_message = "Default CLI app display name should be 'OpenCode CLI'"
-  }
-
-  assert {
-    condition     = local.app_slug == "opencode"
-    error_message = "App slug should be 'opencode'"
-  }
-
-  assert {
-    condition     = local.module_dir_name == ".opencode-module"
-    error_message = "Module dir name should be '.opencode-module'"
-  }
-
-  assert {
-    condition     = local.workdir == "/home/coder/project"
-    error_message = "Workdir should be trimmed of trailing slash"
-  }
-
-  assert {
-    condition     = var.continue == false
-    error_message = "Continue flag should be disabled by default"
+    condition     = strcontains(local.install_script, "ARG_OPENCODE_VERSION='latest'")
+    error_message = "install script should receive the opencode version"
   }
 }
 
-run "workdir_trailing_slash_trimmed" {
+run "workdir_trailing_slash_is_trimmed" {
   command = plan
 
   variables {
@@ -82,293 +46,186 @@ run "workdir_trailing_slash_trimmed" {
 
   assert {
     condition     = local.workdir == "/home/coder/project"
-    error_message = "Workdir should be trimmed of trailing slash"
+    error_message = "workdir should have its trailing slash trimmed"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, base64encode("/home/coder/project"))
+    error_message = "install script should receive the base64-encoded workdir"
   }
 }
 
-run "opencode_version_configuration" {
-  command = plan
-
-  variables {
-    agent_id         = "test-agent"
-    workdir          = "/home/coder/project"
-    opencode_version = "v1.0.0"
-  }
-
-  assert {
-    condition     = var.opencode_version == "v1.0.0"
-    error_message = "OpenCode version should be set correctly"
-  }
-}
-
-run "agentapi_version_configuration" {
-  command = plan
-
-  variables {
-    agent_id         = "test-agent"
-    workdir          = "/home/coder/project"
-    agentapi_version = "v0.9.0"
-  }
-
-  assert {
-    condition     = var.agentapi_version == "v0.9.0"
-    error_message = "AgentAPI version should be set correctly"
-  }
-}
-
-run "cli_app_configuration" {
-  command = plan
-
-  variables {
-    agent_id             = "test-agent"
-    workdir              = "/home/coder/project"
-    cli_app              = true
-    cli_app_display_name = "Custom OpenCode CLI"
-  }
-
-  assert {
-    condition     = var.cli_app == true
-    error_message = "CLI app should be enabled when specified"
-  }
-
-  assert {
-    condition     = var.cli_app_display_name == "Custom OpenCode CLI"
-    error_message = "Custom CLI app display name should be set"
-  }
-}
-
-run "web_app_configuration" {
-  command = plan
-
-  variables {
-    agent_id             = "test-agent"
-    workdir              = "/home/coder/project"
-    web_app_display_name = "Custom OpenCode Web"
-    order                = 5
-    group                = "AI Tools"
-    icon                 = "/custom/icon.svg"
-  }
-
-  assert {
-    condition     = var.web_app_display_name == "Custom OpenCode Web"
-    error_message = "Custom web app display name should be set"
-  }
-
-  assert {
-    condition     = var.order == 5
-    error_message = "Custom order should be set"
-  }
-
-  assert {
-    condition     = var.group == "AI Tools"
-    error_message = "Custom group should be set"
-  }
-
-  assert {
-    condition     = var.icon == "/custom/icon.svg"
-    error_message = "Custom icon should be set"
-  }
-}
-
-run "ai_configuration_variables" {
-  command = plan
-
-  variables {
-    agent_id   = "test-agent"
-    workdir    = "/home/coder/project"
-    ai_prompt  = "This is a test prompt"
-    session_id = "session-123"
-    continue   = true
-  }
-
-  assert {
-    condition     = var.ai_prompt == "This is a test prompt"
-    error_message = "AI prompt should be set correctly"
-  }
-
-  assert {
-    condition     = var.session_id == "session-123"
-    error_message = "Session ID should be set correctly"
-  }
-
-  assert {
-    condition     = var.continue == true
-    error_message = "Continue flag should be set correctly"
-  }
-}
-
-run "auth_json_configuration" {
+run "auth_json_creates_env_var" {
   command = plan
 
   variables {
     agent_id  = "test-agent"
-    workdir   = "/home/coder/project"
-    auth_json = "{\"token\": \"test-token\", \"user\": \"test-user\"}"
+    auth_json = "{\"anthropic\": {\"type\": \"api\", \"key\": \"sk-ant-test-secret\"}}"
   }
 
   assert {
-    condition     = var.auth_json != ""
-    error_message = "Auth JSON should be set"
+    condition     = coder_env.opencode_auth_json[0].name == "CODER_OPENCODE_AUTH_JSON" && coder_env.opencode_auth_json[0].value == var.auth_json
+    error_message = "CODER_OPENCODE_AUTH_JSON env var should be created with the provided auth_json"
   }
 
   assert {
-    condition     = can(jsondecode(var.auth_json))
-    error_message = "Auth JSON should be valid JSON"
+    condition     = !strcontains(local.install_script, "sk-ant-test-secret") && !strcontains(local.install_script, base64encode(nonsensitive(var.auth_json)))
+    error_message = "auth_json should not be rendered into the install script"
   }
 }
 
-run "config_json_configuration" {
+run "config_and_mcp_are_encoded" {
   command = plan
 
   variables {
     agent_id    = "test-agent"
-    workdir     = "/home/coder/project"
-    config_json = "{\"$schema\": \"https://opencode.ai/config.json\", \"mcp\": {\"test\": {\"command\": [\"test-cmd\"], \"type\": \"local\"}}, \"model\": \"anthropic/claude-sonnet-4-20250514\"}"
+    config_json = "{\"model\": \"anthropic/claude-sonnet-4-5\"}"
+    mcp         = "{\"playwright\": {\"type\": \"local\", \"command\": [\"npx\", \"-y\", \"@playwright/mcp\"]}}"
   }
 
   assert {
-    condition     = var.config_json != ""
-    error_message = "OpenCode JSON configuration should be set"
+    condition     = strcontains(local.install_script, base64encode(var.config_json))
+    error_message = "install script should receive the base64-encoded config_json"
   }
 
   assert {
-    condition     = can(jsondecode(var.config_json))
-    error_message = "OpenCode JSON configuration should be valid JSON"
+    condition     = strcontains(local.install_script, base64encode(var.mcp))
+    error_message = "install script should receive the base64-encoded mcp"
   }
 }
 
-run "task_reporting_configuration" {
-  command = plan
-
-  variables {
-    agent_id     = "test-agent"
-    workdir      = "/home/coder/project"
-    report_tasks = false
-  }
-
-  assert {
-    condition     = var.report_tasks == false
-    error_message = "Task reporting should be disabled when specified"
-  }
-}
-
-run "subdomain_configuration" {
-  command = plan
-
-  variables {
-    agent_id  = "test-agent"
-    workdir   = "/home/coder/project"
-    subdomain = true
-  }
-
-  assert {
-    condition     = var.subdomain == true
-    error_message = "Subdomain should be enabled when specified"
-  }
-}
-
-run "install_flags_configuration" {
-  command = plan
-
-  variables {
-    agent_id         = "test-agent"
-    workdir          = "/home/coder/project"
-    install_opencode = false
-    install_agentapi = false
-  }
-
-  assert {
-    condition     = var.install_opencode == false
-    error_message = "OpenCode installation should be disabled when specified"
-  }
-
-  assert {
-    condition     = var.install_agentapi == false
-    error_message = "AgentAPI installation should be disabled when specified"
-  }
-}
-
-run "custom_scripts_configuration" {
-  command = plan
-
-  variables {
-    agent_id            = "test-agent"
-    workdir             = "/home/coder/project"
-    pre_install_script  = "#!/bin/bash\necho 'pre-install'"
-    post_install_script = "#!/bin/bash\necho 'post-install'"
-  }
-
-  assert {
-    condition     = var.pre_install_script != null
-    error_message = "Pre-install script should be set"
-  }
-
-  assert {
-    condition     = var.post_install_script != null
-    error_message = "Post-install script should be set"
-  }
-
-  assert {
-    condition     = can(regex("pre-install", var.pre_install_script))
-    error_message = "Pre-install script should contain expected content"
-  }
-
-  assert {
-    condition     = can(regex("post-install", var.post_install_script))
-    error_message = "Post-install script should contain expected content"
-  }
-}
-
-run "empty_variables_handled_correctly" {
-  command = plan
-
-  variables {
-    agent_id    = "test-agent"
-    workdir     = "/home/coder/project"
-    ai_prompt   = ""
-    session_id  = ""
-    auth_json   = ""
-    config_json = ""
-    continue    = false
-  }
-
-  assert {
-    condition     = var.ai_prompt == ""
-    error_message = "Empty AI prompt should be handled correctly"
-  }
-
-  assert {
-    condition     = var.session_id == ""
-    error_message = "Empty session ID should be handled correctly"
-  }
-
-  assert {
-    condition     = var.auth_json == ""
-    error_message = "Empty auth JSON should be handled correctly"
-  }
-
-  assert {
-    condition     = var.config_json == ""
-    error_message = "Empty config JSON should be handled correctly"
-  }
-
-  assert {
-    condition     = var.continue == false
-    error_message = "Continue flag default should be handled correctly"
-  }
-}
-
-run "continue_flag_configuration" {
+run "managed_settings_are_encoded" {
   command = plan
 
   variables {
     agent_id = "test-agent"
-    workdir  = "/home/coder/project"
-    continue = true
+    managed_settings = {
+      share = "disabled"
+    }
   }
 
   assert {
-    condition     = var.continue == true
-    error_message = "Continue flag should be enabled when specified"
+    condition     = strcontains(local.install_script, base64encode(jsonencode({ share = "disabled" })))
+    error_message = "install script should receive the base64-encoded managed_settings"
+  }
+}
+
+run "invalid_auth_json_fails" {
+  command = plan
+
+  variables {
+    agent_id  = "test-agent"
+    auth_json = "not-json"
+  }
+
+  expect_failures = [
+    var.auth_json,
+  ]
+}
+
+run "invalid_opencode_version_fails" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent"
+    opencode_version = "1.0'; rm -rf ~; '"
+  }
+
+  expect_failures = [
+    var.opencode_version,
+  ]
+}
+
+run "pinned_opencode_version_is_accepted" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent"
+    opencode_version = "v1.18.33"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "ARG_OPENCODE_VERSION='v1.18.33'")
+    error_message = "install script should receive the pinned opencode version"
+  }
+}
+
+run "invalid_config_json_fails" {
+  command = plan
+
+  variables {
+    agent_id    = "test-agent"
+    config_json = "[1, 2]"
+  }
+
+  expect_failures = [
+    var.config_json,
+  ]
+}
+
+run "config_json_with_mcp_fails" {
+  command = plan
+
+  variables {
+    agent_id    = "test-agent"
+    config_json = "{\"mcp\": {\"x\": {\"type\": \"remote\", \"url\": \"https://example.com\"}}}"
+  }
+
+  expect_failures = [
+    var.config_json,
+  ]
+}
+
+run "invalid_mcp_fails" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    mcp      = "[\"x\"]"
+  }
+
+  expect_failures = [
+    var.mcp,
+  ]
+}
+
+run "invalid_managed_settings_fails" {
+  command = plan
+
+  variables {
+    agent_id         = "test-agent"
+    managed_settings = "share=disabled"
+  }
+
+  expect_failures = [
+    var.managed_settings,
+  ]
+}
+
+run "scripts_output_is_ordered" {
+  command = plan
+
+  variables {
+    agent_id            = "test-agent"
+    pre_install_script  = "echo pre"
+    post_install_script = "echo post"
+  }
+
+  assert {
+    condition     = output.scripts == ["coder-labs-opencode-pre_install_script", "coder-labs-opencode-install_script", "coder-labs-opencode-post_install_script"]
+    error_message = "scripts output should be ordered pre_install, install, post_install"
+  }
+}
+
+run "scripts_output_install_only" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+  }
+
+  assert {
+    condition     = output.scripts == ["coder-labs-opencode-install_script"]
+    error_message = "scripts output should only contain install when no pre/post scripts are set"
   }
 }

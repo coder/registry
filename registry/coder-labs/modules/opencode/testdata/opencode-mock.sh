@@ -1,25 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Mock OpenCode CLI for testing purposes
-# This script simulates the OpenCode command-line interface
+if [[ "$1" == "--version" || "$1" == "-v" ]]; then
+  echo "0.0.0-mock"
+  exit 0
+fi
 
-echo "OpenCode Mock CLI - Test Version"
-echo "Args received: $*"
-
-# Simulate opencode behavior based on arguments
-case "$1" in
-  --version | -v)
-    echo "opencode mock version 0.1.0-test"
-    ;;
-  --help | -h)
-    echo "OpenCode Mock Help"
-    echo "Usage: opencode [options] [command]"
-    echo "This is a mock version for testing"
-    ;;
-  *)
-    echo "Running OpenCode mock with arguments: $*"
-    echo "Mock execution completed successfully"
-    ;;
-esac
-
+echo "opencode invoked with: $*"
 exit 0
