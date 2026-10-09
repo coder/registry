@@ -35,6 +35,29 @@ module "git-clone" {
 }
 ```
 
+### Clone multiple repositories
+
+The `url` variable accepts a single repository. To clone several, use `for_each` on the module. Terraform doesn't allow `count` and `for_each` on the same block, so move the `start_count` check into the `for_each` expression:
+
+```tf
+locals {
+  repos = {
+    coder    = "https://github.com/coder/coder"
+    registry = "https://github.com/coder/registry"
+  }
+}
+
+module "git-clone" {
+  for_each = data.coder_workspace.me.start_count > 0 ? local.repos : {}
+  source   = "registry.coder.com/coder/git-clone/coder"
+  version  = "2.0.5"
+  agent_id = coder_agent.example.id
+  url      = each.value
+}
+```
+
+Each instance clones into its own folder, named after the repository by default, with separate scripts and logs. If two repositories share a name (for example `org-a/api` and `org-b/api`), set `folder_name = each.key` so they don't collide. Outputs are available per repository, for example `module.git-clone["coder"].folder_name`.
+
 ### Git Authentication
 
 To use with [Git Authentication](https://coder.com/docs/v2/latest/admin/git-providers), add the provider by ID to your template:
