@@ -1,531 +1,532 @@
-import { describe, it, expect } from "bun:test";
 import {
+  test,
+  afterEach,
+  describe,
+  setDefaultTimeout,
+  beforeAll,
+  expect,
+} from "bun:test";
+import {
+  execContainer,
+  readFileContainer,
+  removeContainer,
+  runContainer,
   runTerraformApply,
   runTerraformInit,
-  findResourceInstance,
+  TerraformState,
 } from "~test";
+import {
+  extractCoderEnvVars,
+  writeExecutable,
+} from "../../../coder/modules/agentapi/test-util";
 import path from "path";
 
-const moduleDir = path.resolve(__dirname);
+interface ModuleScripts {
+  pre_install?: string;
+  install: string;
+  post_install?: string;
+}
 
-// Always provide agent_config to bypass template parsing issues
-const baseAgentConfig = JSON.stringify({
-  name: "test-agent",
-  description: "Test agent configuration",
-  prompt: "You are a helpful AI assistant.",
-  mcpServers: {},
-  tools: ["fs_read", "fs_write", "execute_bash", "use_aws", "knowledge"],
-  toolAliases: {},
-  allowedTools: ["fs_read"],
-  resources: ["file://README.md", "file://.kiro/steering/**/*.md"],
-  hooks: {},
-  toolsSettings: {},
-  useLegacyMcpJson: true,
+const SCRIPT_SUFFIXES = [
+  "Pre-Install Script",
+  "Install Script",
+  "Post-Install Script",
+] as const;
+
+const collectScripts = (state: TerraformState): ModuleScripts => {
+  const byDisplayName: Record<string, string> = {};
+  for (const resource of state.resources) {
+    if (resource.type !== "coder_script") continue;
+    for (const instance of resource.instances) {
+      const attrs = instance.attributes as Record<string, unknown>;
+      const displayName = attrs.display_name as string | undefined;
+      const script = attrs.script as string | undefined;
+      if (displayName && script) {
+        byDisplayName[displayName] = script;
+      }
+    }
+  }
+  const scripts: Partial<ModuleScripts> = {};
+  for (const suffix of SCRIPT_SUFFIXES) {
+    const key = `Kiro CLI: ${suffix}`;
+    if (!(key in byDisplayName)) continue;
+    switch (suffix) {
+      case "Pre-Install Script":
+        scripts.pre_install = byDisplayName[key];
+        break;
+      case "Install Script":
+        scripts.install = byDisplayName[key];
+        break;
+      case "Post-Install Script":
+        scripts.post_install = byDisplayName[key];
+        break;
+    }
+  }
+  if (!scripts.install) {
+    throw new Error("install script not found in terraform state");
+  }
+  return scripts as ModuleScripts;
+};
+
+let cleanupFunctions: (() => Promise<void>)[] = [];
+const registerCleanup = (cleanup: () => Promise<void>) => {
+  cleanupFunctions.push(cleanup);
+};
+afterEach(async () => {
+  const cleanupFnsCopy = cleanupFunctions.slice().reverse();
+  cleanupFunctions = [];
+  for (const cleanup of cleanupFnsCopy) {
+    try {
+      await cleanup();
+    } catch (error) {
+      console.error("Error during cleanup:", error);
+    }
+  }
 });
 
-const requiredVars = {
-  agent_id: "dummy-agent-id",
-  agent_config: baseAgentConfig,
-  workdir: "/tmp/test-workdir",
+interface SetupProps {
+  skipKiroMock?: boolean;
+  moduleVariables?: Record<string, string>;
+}
+
+const projectDir = "/home/coder/project";
+
+const setup = async (
+  props?: SetupProps,
+): Promise<{
+  id: string;
+  coderEnvVars: Record<string, string>;
+  scripts: ModuleScripts;
+}> => {
+  const moduleDir = path.resolve(import.meta.dir);
+  const state = await runTerraformApply(moduleDir, {
+    agent_id: "foo",
+    workdir: projectDir,
+    install_kiro_cli: "false",
+    ...props?.moduleVariables,
+  });
+  const scripts = collectScripts(state);
+  const coderEnvVars = extractCoderEnvVars(state);
+
+  const id = await runContainer("codercom/enterprise-node:latest");
+  registerCleanup(async () => {
+    if (process.env["DEBUG"] === "true" || process.env["DEBUG"] === "1") {
+      console.log(`Not removing container ${id} in debug mode`);
+      return;
+    }
+    await removeContainer(id);
+  });
+
+  await writeExecutable({
+    containerId: id,
+    filePath: "/usr/bin/coder",
+    content: "#!/bin/bash\nexit 0\n",
+  });
+  if (!props?.skipKiroMock) {
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/bin/kiro-cli",
+      content: await Bun.file(
+        path.join(moduleDir, "testdata", "kiro-cli-mock.sh"),
+      ).text(),
+    });
+  }
+  return { id, coderEnvVars, scripts };
 };
 
-const fullConfigVars = {
-  agent_id: "dummy-agent-id",
-  workdir: "/tmp/test-workdir",
-  install_kiro_cli: true,
-  install_agentapi: true,
-  agentapi_version: "v0.6.0",
-  kiro_cli_version: "1.14.1",
-  kiro_install_url: "https://desktop-release.q.us-east-1.amazonaws.com",
-  trust_all_tools: false,
-  ai_prompt: "Build a comprehensive test suite",
-  auth_tarball: "dGVzdEF1dGhUYXJiYWxs", // base64 "testAuthTarball"
-  order: 1,
-  group: "AI Tools",
-  icon: "/icon/custom-kiro-cli.svg",
-  pre_install_script: "echo 'Starting pre-install'",
-  post_install_script: "echo 'Completed post-install'",
-  agent_config: baseAgentConfig,
+const envPrefix = (env?: Record<string, string>) =>
+  Object.entries(env ?? {})
+    .map(([key, value]) => `export ${key}="${value.replace(/"/g, '\\"')}" && `)
+    .join("");
+
+const runScript = async (
+  id: string,
+  name: string,
+  script: string,
+  env?: Record<string, string>,
+) => {
+  const target = `/tmp/coder-utils-${name}.sh`;
+  await writeExecutable({ containerId: id, filePath: target, content: script });
+  return execContainer(id, ["bash", "-c", `${envPrefix(env)}${target}`]);
 };
 
-describe("kiro-cli module v1.0.0", async () => {
-  await runTerraformInit(moduleDir);
+const runScripts = async (
+  id: string,
+  scripts: ModuleScripts,
+  env?: Record<string, string>,
+) => {
+  const ordered: [string, string | undefined][] = [
+    ["pre_install", scripts.pre_install],
+    ["install", scripts.install],
+    ["post_install", scripts.post_install],
+  ];
+  for (const [name, script] of ordered) {
+    if (!script) continue;
+    const resp = await runScript(id, name, script, env);
+    if (resp.exitCode !== 0) {
+      console.log(`script ${name} failed:`);
+      console.log(resp.stdout);
+      console.log(resp.stderr);
+      throw new Error(`coder-utils ${name} script exited ${resp.exitCode}`);
+    }
+  }
+};
 
-  // Test Case 1: Basic Usage – No Autonomous Use of Q
-  // Matches CDES-203 Test Case #1: Basic Usage
-  it("Test Case 1: Basic Usage - No Autonomous Use of Q", async () => {
-    const basicUsageVars = {
-      agent_id: "dummy-agent-id",
-      workdir: "/tmp/test-workdir",
-      auth_tarball: "dGVzdEF1dGhUYXJiYWxs", // base64 "testAuthTarball"
-    };
+// Records curl arguments and copies the given fixture to --output.
+const writeCurlMock = async (id: string, fixture: string) => {
+  await writeExecutable({
+    containerId: id,
+    filePath: "/usr/local/bin/curl",
+    content: [
+      "#!/bin/bash",
+      "printf '%s\\n' \"$*\" >> /tmp/kiro-curl-args",
+      'while [ $# -gt 0 ]; do if [ "$1" = "--output" ]; then out="$2"; fi; shift; done',
+      `cp ${fixture} "$out"`,
+    ].join("\n"),
+  });
+};
 
-    const state = await runTerraformApply(moduleDir, basicUsageVars);
+const fakeKiroInstall = (version: string) =>
+  [
+    'mkdir -p "$HOME/.local/bin"',
+    `printf '#!/bin/sh\\necho "kiro-cli ${version}"\\n' > "$HOME/.local/bin/kiro-cli"`,
+    'chmod +x "$HOME/.local/bin/kiro-cli"',
+  ].join("\n");
 
-    // Q is installed and authenticated
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-    expect(statusSlugEnv.name).toBe("CODER_MCP_APP_STATUS_SLUG");
-    expect(statusSlugEnv.value).toBe("kiro-cli");
+// Builds a release-archive fixture with the same layout as
+// kirocli-<arch>-linux.zip (kirocli/install.sh).
+const writeArchiveFixture = async (id: string, version: string) => {
+  await execContainer(id, ["mkdir", "-p", "/tmp/kiro-fixture/kirocli"]);
+  await writeExecutable({
+    containerId: id,
+    filePath: "/tmp/kiro-fixture/kirocli/install.sh",
+    content: [
+      "#!/bin/sh",
+      'echo "KIRO_CLI_SKIP_SETUP=$KIRO_CLI_SKIP_SETUP" > /tmp/kiro-archive-install-env',
+      fakeKiroInstall(version),
+    ].join("\n"),
+  });
+  const resp = await execContainer(id, [
+    "bash",
+    "-c",
+    "cd /tmp/kiro-fixture && python3 -m zipfile -c /tmp/kiro-archive.zip kirocli",
+  ]);
+  expect(resp.exitCode).toBe(0);
+};
 
-    // AgentAPI is installed and configured (default behavior)
-    const authTarballEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "auth_tarball",
-    );
-    expect(authTarballEnv).toBeDefined();
-    expect(authTarballEnv.name).toBe("KIRO_CLI_AUTH_TARBALL");
-    expect(authTarballEnv.value).toBe("dGVzdEF1dGhUYXJiYWxs");
+const moduleLogDir = "/home/coder/.coder-modules/harleylrn/kiro-cli/logs";
+const installLog = (id: string) =>
+  readFileContainer(id, `${moduleLogDir}/install.log`);
+const mcpConfigPath = "/home/coder/.kiro/settings/mcp.json";
+const cliSettingsPath = "/home/coder/.kiro/settings/cli.json";
 
-    // Foundational configuration for all components is applied
-    // No additional parameters are required for the module to work
-    // Using the terminal application and Q chat returns a functional interface
+setDefaultTimeout(60 * 1000);
+
+describe("kiro-cli", async () => {
+  beforeAll(async () => {
+    await runTerraformInit(import.meta.dir);
   });
 
-  // Test Case 2: Autonomous Usage – Autonomous Use of Q
-  // Matches CDES-203 Test Case 2: Autonomous Usage
-  it("Test Case 2: Autonomous Usage - Autonomous Use of Q", async () => {
-    const autonomousUsageVars = {
-      agent_id: "dummy-agent-id",
-      workdir: "/tmp/test-workdir",
-      auth_tarball: "dGVzdEF1dGhUYXJiYWxs", // base64 "testAuthTarball"
-      ai_prompt:
-        "Help me set up a Python FastAPI project with proper testing structure",
-    };
-
-    const state = await runTerraformApply(moduleDir, autonomousUsageVars);
-
-    // Q is installed and authenticated
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-    expect(statusSlugEnv.name).toBe("CODER_MCP_APP_STATUS_SLUG");
-    expect(statusSlugEnv.value).toBe("kiro-cli");
-
-    // AgentAPI is installed and configured
-    const authTarballEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "auth_tarball",
-    );
-    expect(authTarballEnv).toBeDefined();
-    expect(authTarballEnv.name).toBe("KIRO_CLI_AUTH_TARBALL");
-
-    // AI prompt is passed through from external source
-    // The Chat interface functions as required
-    // The Tasks interface functions as required
-    // The template can be invoked from GitHub integration as expected
+  test("happy-path-validates-existing-binary", async () => {
+    const { id, scripts } = await setup();
+    await runScripts(id, scripts);
+    const log = await installLog(id);
+    expect(log).toContain("Skipping Kiro CLI installation");
+    expect(log).toContain("Validated existing Kiro CLI");
+    expect(log).toContain("Kiro CLI module setup completed.");
+    expect(log).not.toContain("agentapi");
   });
 
-  // Test Case 3: Extended Configuration – Parameter Validation and File Rendering
-  // Matches CDES-203 Test Case 3: Extended Configuration
-  it("Test Case 3: Extended Configuration - Parameter Validation and File Rendering", async () => {
-    const extendedConfigVars = {
-      agent_id: "dummy-agent-id",
-      workdir: "/tmp/test-workdir",
-      auth_tarball: "dGVzdEF1dGhUYXJiYWxs", // base64 "testAuthTarball"
-      kiro_cli_version: "1.14.1",
-      kiro_install_url: "https://desktop-release.q.us-east-1.amazonaws.com",
-      install_kiro_cli: true,
-      install_agentapi: true,
-      agentapi_version: "v0.6.0",
-      trust_all_tools: true,
-      ai_prompt:
-        "Help me create a production-grade TypeScript monorepo with testing and deployment",
-      system_prompt:
-        "You are a helpful software assistant working in a secure enterprise environment",
-      pre_install_script: "echo 'Pre-install setup'",
-      post_install_script: "echo 'Post-install cleanup'",
-      agent_config: JSON.stringify({
-        name: "production-agent",
-        description: "Production Kiro CLI agent for enterprise environment",
-        prompt:
-          "You are a helpful software assistant working in a secure enterprise environment",
-        mcpServers: {},
-        tools: ["fs_read", "fs_write", "execute_bash", "use_aws", "knowledge"],
-        toolAliases: {},
-        allowedTools: ["fs_read"],
-        resources: [
-          "file://KiroQ.md",
-          "file://README.md",
-          "file://.kiro/steering/**/*.md",
-        ],
-        hooks: {},
-        toolsSettings: {},
-        useLegacyMcpJson: true,
-      }),
-    };
-
-    const state = await runTerraformApply(moduleDir, extendedConfigVars);
-
-    // All installation steps execute in the correct order
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-    expect(statusSlugEnv.name).toBe("CODER_MCP_APP_STATUS_SLUG");
-    expect(statusSlugEnv.value).toBe("kiro-cli");
-
-    // auth_tarball is unpacked and used as expected
-    const authTarballEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "auth_tarball",
-    );
-    expect(authTarballEnv).toBeDefined();
-    expect(authTarballEnv.value).toBe("dGVzdEF1dGhUYXJiYWxs");
-
-    // agent_config is rendered correctly, and the name field is used as the agent's name
-    // The specified ai_prompt and system_prompt are respected by the Q agent
-    // Tools are trusted globally if trust_all_tools = true
-    // Files and scripts execute in proper sequence
+  test("preinstalled-binary-required-when-install-disabled", async () => {
+    const { id, scripts } = await setup({ skipKiroMock: true });
+    const resp = await runScript(id, "install", scripts.install);
+    expect(resp.exitCode).not.toBe(0);
+    const log = await installLog(id);
+    expect(log).toContain("was not found or is not executable");
   });
 
-  // 1. Basic functionality test (replaces testRequiredVariables)
-  it("works with required variables", async () => {
-    const state = await runTerraformApply(moduleDir, requiredVars);
-
-    // Should create the basic resources
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-    expect(statusSlugEnv.name).toBe("CODER_MCP_APP_STATUS_SLUG");
-    expect(statusSlugEnv.value).toBe("kiro-cli");
-  });
-
-  // 2. Environment variables are created correctly
-  it("creates required environment variables", async () => {
-    const state = await runTerraformApply(moduleDir, fullConfigVars);
-
-    // Check status slug environment variable
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-    expect(statusSlugEnv.name).toBe("CODER_MCP_APP_STATUS_SLUG");
-    expect(statusSlugEnv.value).toBe("kiro-cli");
-
-    // Check auth tarball environment variable
-    const authTarballEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "auth_tarball",
-    );
-    expect(authTarballEnv).toBeDefined();
-    expect(authTarballEnv.name).toBe("KIRO_CLI_AUTH_TARBALL");
-    expect(authTarballEnv.value).toBe("dGVzdEF1dGhUYXJiYWxs");
-  });
-
-  // 3. Empty auth tarball handling
-  it("handles empty auth tarball correctly", async () => {
-    const noAuthVars = {
-      ...requiredVars,
-      auth_tarball: "",
-    };
-
-    const state = await runTerraformApply(moduleDir, noAuthVars);
-
-    // Auth tarball environment variable should not be created when empty
-    const authTarballEnv = state.resources?.find(
-      (r) => r.type === "coder_env" && r.name === "auth_tarball",
-    );
-    expect(authTarballEnv).toBeUndefined();
-  });
-
-  // 4. Status slug is always created
-  it("creates status slug environment variable", async () => {
-    const state = await runTerraformApply(moduleDir, requiredVars);
-
-    // Status slug should always be configured
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-    expect(statusSlugEnv.name).toBe("CODER_MCP_APP_STATUS_SLUG");
-    expect(statusSlugEnv.value).toBe("kiro-cli");
-  });
-
-  // 5. Install options configuration
-  it("respects install option flags", async () => {
-    const noInstallVars = {
-      ...requiredVars,
-      install_kiro_cli: false,
-      install_agentapi: false,
-    };
-
-    const state = await runTerraformApply(moduleDir, noInstallVars);
-
-    // Status slug should still be configured even when install options are disabled
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-    expect(statusSlugEnv.value).toBe("kiro-cli");
-  });
-
-  // 6. Configurable installation URL
-  it("uses configurable kiro_install_url parameter", async () => {
-    const customUrlVars = {
-      ...requiredVars,
-      kiro_install_url: "https://internal-mirror.company.com/kiro-cli",
-    };
-
-    const state = await runTerraformApply(moduleDir, customUrlVars);
-
-    // Should create the basic resources
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  // 7. Version configuration
-  it("uses specified versions", async () => {
-    const versionVars = {
-      ...requiredVars,
-      kiro_cli_version: "1.14.1",
-      agentapi_version: "v0.6.0",
-    };
-
-    const state = await runTerraformApply(moduleDir, versionVars);
-
-    // Should create the basic resources
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  // 8. UI configuration options
-  it("supports UI customization options", async () => {
-    const uiCustomVars = {
-      ...requiredVars,
-      order: 5,
-      group: "Custom AI Tools",
-      icon: "/icon/custom-kiro-cli-icon.svg",
-    };
-
-    const state = await runTerraformApply(moduleDir, uiCustomVars);
-
-    // Should create the basic resources
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  // 9. Pre and post install scripts
-  it("supports pre and post install scripts", async () => {
-    const scriptVars = {
-      ...requiredVars,
-      pre_install_script: "echo 'Pre-install setup'",
-      post_install_script: "echo 'Post-install cleanup'",
-    };
-
-    const state = await runTerraformApply(moduleDir, scriptVars);
-
-    // Should create the basic resources
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  // 10. Valid agent_config JSON with different agent name
-  it("handles valid agent_config JSON with custom agent name", async () => {
-    const customAgentConfig = JSON.stringify({
-      name: "production-agent",
-      description: "Production Kiro CLI agent",
-      prompt: "You are a production AI assistant.",
-      mcpServers: {},
-      tools: ["fs_read", "fs_write"],
-      toolAliases: {},
-      allowedTools: ["fs_read"],
-      resources: ["file://README.md"],
-      hooks: {},
-      toolsSettings: {},
-      useLegacyMcpJson: true,
+  test("official-installer-is-used-for-latest", async () => {
+    const { id, scripts } = await setup({
+      skipKiroMock: true,
+      moduleVariables: { install_kiro_cli: "true" },
     });
-
-    const validAgentConfigVars = {
-      ...requiredVars,
-      agent_config: customAgentConfig,
-    };
-
-    const state = await runTerraformApply(moduleDir, validAgentConfigVars);
-
-    // Should create the basic resources
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  // 11. Air-gapped installation support
-  it("supports air-gapped installation with custom URL", async () => {
-    const airGappedVars = {
-      ...requiredVars,
-      kiro_install_url: "https://artifacts.internal.corp/kiro-cli-releases",
-      kiro_cli_version: "1.14.1",
-    };
-
-    const state = await runTerraformApply(moduleDir, airGappedVars);
-
-    // Should create the basic resources
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  // 12. Trust all tools configuration
-  it("handles trust_all_tools configuration", async () => {
-    const trustVars = {
-      ...requiredVars,
-      trust_all_tools: true,
-    };
-
-    const state = await runTerraformApply(moduleDir, trustVars);
-
-    // Should create the basic resources
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  // 13. AI prompt configuration
-  it("handles AI prompt configuration", async () => {
-    const promptVars = {
-      ...requiredVars,
-      ai_prompt: "Create a comprehensive test suite for the application",
-    };
-
-    const state = await runTerraformApply(moduleDir, promptVars);
-
-    // Should create the basic resources
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-  });
-
-  // 14. Agent config with minimal structure
-  it("handles minimal agent config structure", async () => {
-    const minimalAgentConfig = JSON.stringify({
-      name: "minimal-agent",
-      description: "Minimal agent config",
-      prompt: "You are a minimal AI assistant.",
-      mcpServers: {},
-      tools: ["fs_read", "fs_write", "execute_bash", "use_aws", "knowledge"],
-      toolAliases: {},
-      allowedTools: ["fs_read"],
-      resources: ["file://README.md"],
-      hooks: {},
-      toolsSettings: {},
-      useLegacyMcpJson: true,
+    await writeExecutable({
+      containerId: id,
+      filePath: "/tmp/kiro-installer-fixture.sh",
+      content: ["#!/usr/bin/env bash", fakeKiroInstall("2.26.0-fixture")].join(
+        "\n",
+      ),
     });
-
-    const minimalVars = {
-      ...requiredVars,
-      agent_config: minimalAgentConfig,
-    };
-
-    const state = await runTerraformApply(moduleDir, minimalVars);
-
-    // Should create the basic resources
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
+    await writeCurlMock(id, "/tmp/kiro-installer-fixture.sh");
+    await runScripts(id, scripts);
+    const log = await installLog(id);
+    expect(log).toContain("Installed Kiro CLI");
+    expect(log).toContain("2.26.0-fixture");
+    const curlArgs = await readFileContainer(id, "/tmp/kiro-curl-args");
+    expect(curlArgs).toContain("https://cli.kiro.dev/install");
+    expect(curlArgs).toContain("--retry 2");
+    expect(curlArgs).toContain("--connect-timeout 10");
+    expect(curlArgs).toContain("--max-time 300");
   });
 
-  // 15. JSON encoding validation for system prompts with newlines
-  it("handles system prompts with newlines correctly", async () => {
-    const multilinePromptVars = {
-      ...requiredVars,
-      system_prompt: "Multi-line\nsystem prompt\nwith newlines",
-    };
-
-    const state = await runTerraformApply(moduleDir, multilinePromptVars);
-
-    // Should create the basic resources without JSON parsing errors
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
-    );
-    expect(statusSlugEnv).toBeDefined();
-    expect(statusSlugEnv.value).toBe("kiro-cli");
-  });
-
-  // 16. Agent name extraction from custom config
-  it("extracts agent name from custom configuration correctly", async () => {
-    const customNameConfig = JSON.stringify({
-      name: "enterprise-production-agent",
-      description: "Enterprise production agent configuration",
-      prompt: "You are an enterprise production AI assistant.",
-      mcpServers: {},
-      tools: ["fs_read", "fs_write", "execute_bash", "use_aws", "knowledge"],
-      toolAliases: {},
-      allowedTools: ["fs_read", "fs_write", "execute_bash"],
-      resources: ["file://README.md", "file://.kiro/steering/**/*.md"],
-      hooks: {},
-      toolsSettings: {},
-      useLegacyMcpJson: true,
+  test("pinned-version-uses-release-archive", async () => {
+    const { id, scripts } = await setup({
+      skipKiroMock: true,
+      moduleVariables: { install_kiro_cli: "true", kiro_cli_version: "2.25.0" },
     });
-
-    const customNameVars = {
-      ...requiredVars,
-      agent_config: customNameConfig,
-    };
-
-    const state = await runTerraformApply(moduleDir, customNameVars);
-
-    // Should create the basic resources
-    const statusSlugEnv = findResourceInstance(
-      state,
-      "coder_env",
-      "status_slug",
+    await writeArchiveFixture(id, "2.25.0");
+    await writeCurlMock(id, "/tmp/kiro-archive.zip");
+    await runScripts(id, scripts);
+    const log = await installLog(id);
+    expect(log).toContain("Installed Kiro CLI");
+    expect(log).toContain("kiro-cli 2.25.0");
+    const curlArgs = await readFileContainer(id, "/tmp/kiro-curl-args");
+    expect(curlArgs).toMatch(
+      /https:\/\/prod\.download\.cli\.kiro\.dev\/stable\/2\.25\.0\/kirocli-(x86_64|aarch64)-linux\.zip/,
     );
-    expect(statusSlugEnv).toBeDefined();
-    expect(statusSlugEnv.value).toBe("kiro-cli");
+    expect(curlArgs).not.toContain("cli.kiro.dev/install");
+    const env = await readFileContainer(id, "/tmp/kiro-archive-install-env");
+    expect(env.trim()).toBe("KIRO_CLI_SKIP_SETUP=1");
+  });
+
+  test("custom-install-url-is-used-for-latest", async () => {
+    const { id, scripts } = await setup({
+      skipKiroMock: true,
+      moduleVariables: {
+        install_kiro_cli: "true",
+        kiro_install_url: "https://mirror.example.com/kiro/",
+      },
+    });
+    await writeArchiveFixture(id, "2.26.0");
+    await writeCurlMock(id, "/tmp/kiro-archive.zip");
+    await runScripts(id, scripts);
+    const curlArgs = await readFileContainer(id, "/tmp/kiro-curl-args");
+    expect(curlArgs).toMatch(
+      /https:\/\/mirror\.example\.com\/kiro\/latest\/kirocli-(x86_64|aarch64)-linux\.zip/,
+    );
+  });
+
+  test("matching-installed-version-is-not-reinstalled", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: { install_kiro_cli: "true", kiro_cli_version: "2.26.0" },
+    });
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/local/bin/curl",
+      content: "#!/bin/bash\necho called > /tmp/kiro-curl-called\nexit 22\n",
+    });
+    await runScripts(id, scripts);
+    const log = await installLog(id);
+    expect(log).toContain("Kiro CLI already installed (2.26.0)");
+    const called = await execContainer(id, [
+      "test",
+      "-e",
+      "/tmp/kiro-curl-called",
+    ]);
+    expect(called.exitCode).not.toBe(0);
+  });
+
+  test("installer-download-failure-is-terminal", async () => {
+    const { id, scripts } = await setup({
+      skipKiroMock: true,
+      moduleVariables: { install_kiro_cli: "true" },
+    });
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/local/bin/curl",
+      content: "#!/bin/bash\nexit 22\n",
+    });
+    const resp = await runScript(id, "install", scripts.install);
+    expect(resp.exitCode).not.toBe(0);
+    const log = await installLog(id);
+    expect(log).toContain("could not be downloaded");
+  });
+
+  test("workdir-is-created", async () => {
+    const { id, scripts } = await setup();
+    await runScripts(id, scripts);
+    const dir = await execContainer(id, ["test", "-d", projectDir]);
+    expect(dir.exitCode).toBe(0);
+  });
+
+  test("writes-mcp-servers-without-coder-server", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        mcp: JSON.stringify({
+          mcpServers: {
+            playwright: { command: "npx", args: ["-y", "@playwright/mcp"] },
+          },
+        }),
+      },
+    });
+    await runScripts(id, scripts);
+    const mcp = JSON.parse(await readFileContainer(id, mcpConfigPath));
+    expect(mcp.mcpServers.playwright.command).toBe("npx");
+    expect(mcp.mcpServers.coder).toBeUndefined();
+  });
+
+  test("merges-mcp-config-existing-servers-win", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        mcp: JSON.stringify({
+          mcpServers: {
+            shared: { command: "module-command" },
+            extra: { command: "extra-command" },
+          },
+        }),
+      },
+    });
+    const seed = JSON.stringify({
+      mcpServers: {
+        shared: { command: "existing-command" },
+        seeded: { command: "seeded-command" },
+      },
+    });
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `mkdir -p /home/coder/.kiro/settings && echo '${seed}' > ${mcpConfigPath}`,
+    ]);
+    await runScripts(id, scripts);
+    const mcp = JSON.parse(await readFileContainer(id, mcpConfigPath));
+    expect(mcp.mcpServers.shared.command).toBe("existing-command");
+    expect(mcp.mcpServers.seeded.command).toBe("seeded-command");
+    expect(mcp.mcpServers.extra.command).toBe("extra-command");
+  });
+
+  test("invalid-existing-mcp-config-is-backed-up", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        mcp: JSON.stringify({ mcpServers: { extra: { command: "x" } } }),
+      },
+    });
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `mkdir -p /home/coder/.kiro/settings && echo '{ // jsonc' > ${mcpConfigPath}`,
+    ]);
+    await runScripts(id, scripts);
+    const mcp = JSON.parse(await readFileContainer(id, mcpConfigPath));
+    expect(mcp.mcpServers.extra.command).toBe("x");
+    const backup = await readFileContainer(id, `${mcpConfigPath}.bak`);
+    expect(backup).toContain("// jsonc");
+  });
+
+  test("agent-config-written-and-set-as-default", async () => {
+    const agentConfig = {
+      name: "coder-agent",
+      description: "Custom agent",
+      prompt: "You are helpful.",
+      tools: ["read", "write"],
+      includeMcpJson: true,
+    };
+    const { id, scripts } = await setup({
+      moduleVariables: { agent_config: JSON.stringify(agentConfig) },
+    });
+    const seed = JSON.stringify({
+      "chat.defaultModel": "user-picked-model",
+      "chat.defaultAgent": "old-agent",
+    });
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `mkdir -p /home/coder/.kiro/settings && echo '${seed}' > ${cliSettingsPath}`,
+    ]);
+    await runScripts(id, scripts);
+    const agent = JSON.parse(
+      await readFileContainer(id, "/home/coder/.kiro/agents/coder-agent.json"),
+    );
+    expect(agent).toEqual(agentConfig);
+    const settings = JSON.parse(await readFileContainer(id, cliSettingsPath));
+    expect(settings["chat.defaultAgent"]).toBe("coder-agent");
+    expect(settings["chat.defaultModel"]).toBe("user-picked-model");
+  });
+
+  test("no-agent-config-leaves-settings-untouched", async () => {
+    const { id, scripts } = await setup();
+    await runScripts(id, scripts);
+    const resp = await execContainer(id, [
+      "bash",
+      "-c",
+      "test -e /home/coder/.kiro && echo EXISTS || echo ABSENT",
+    ]);
+    expect(resp.stdout.trim()).toBe("ABSENT");
+  });
+
+  test("auth-tarball-is-extracted-from-env", async () => {
+    const { id, scripts } = await setup();
+    // tar -I zstd pipes through `zstd -d`; a passthrough keeps the fixture
+    // independent of zstd being installed in the image.
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/local/bin/zstd",
+      content: "#!/bin/sh\nexec cat\n",
+    });
+    const tarball = await execContainer(id, [
+      "bash",
+      "-c",
+      "mkdir -p /tmp/auth && echo fake-auth > /tmp/auth/data.sqlite3 && tar -C /tmp/auth -cf - . | base64 -w0",
+    ]);
+    expect(tarball.exitCode).toBe(0);
+    await execContainer(id, [
+      "bash",
+      "-c",
+      "mkdir -p /home/coder/.local/share/kiro-cli && echo stale > /home/coder/.local/share/kiro-cli/stale",
+    ]);
+    await runScripts(id, scripts, {
+      KIRO_CLI_AUTH_TARBALL: tarball.stdout.trim(),
+    });
+    const db = await readFileContainer(
+      id,
+      "/home/coder/.local/share/kiro-cli/data.sqlite3",
+    );
+    expect(db.trim()).toBe("fake-auth");
+    const stale = await execContainer(id, [
+      "test",
+      "-e",
+      "/home/coder/.local/share/kiro-cli/stale",
+    ]);
+    expect(stale.exitCode).not.toBe(0);
+  });
+
+  test("auth-tarball-requires-zstd", async () => {
+    const { id, scripts } = await setup();
+    const resp = await runScript(id, "install", scripts.install, {
+      KIRO_CLI_AUTH_TARBALL: "dGVzdA==",
+    });
+    expect(resp.exitCode).not.toBe(0);
+    const log = await installLog(id);
+    expect(log).toContain("zstd is required");
+  });
+
+  test("secrets-are-env-vars-not-in-script", async () => {
+    const apiKey = "ksk_test-kiro-api-key-123";
+    const authTarball = "dGVzdEF1dGhUYXJiYWxs";
+    const { coderEnvVars, scripts } = await setup({
+      moduleVariables: { api_key: apiKey, auth_tarball: authTarball },
+    });
+    expect(coderEnvVars["KIRO_API_KEY"]).toBe(apiKey);
+    expect(coderEnvVars["KIRO_CLI_AUTH_TARBALL"]).toBe(authTarball);
+    expect(scripts.install).not.toContain(apiKey);
+    expect(scripts.install).not.toContain(
+      Buffer.from(apiKey).toString("base64"),
+    );
+    expect(scripts.install).not.toContain(authTarball);
+  });
+
+  test("pre-post-install-scripts", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        pre_install_script: "#!/bin/bash\necho 'kiro-pre-install-script'",
+        post_install_script: "#!/bin/bash\necho 'kiro-post-install-script'",
+      },
+    });
+    await runScripts(id, scripts);
+    expect(
+      await readFileContainer(id, `${moduleLogDir}/pre_install.log`),
+    ).toContain("kiro-pre-install-script");
+    expect(
+      await readFileContainer(id, `${moduleLogDir}/post_install.log`),
+    ).toContain("kiro-post-install-script");
   });
 });

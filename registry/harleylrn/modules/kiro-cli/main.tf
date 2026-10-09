@@ -1,7 +1,5 @@
-# Improved kiro-cli module main.tf
-
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.9"
 
   required_providers {
     coder = {
@@ -16,170 +14,89 @@ variable "agent_id" {
   description = "The ID of a Coder agent."
 }
 
-data "coder_workspace" "me" {}
-data "coder_workspace_owner" "me" {}
-
-variable "order" {
-  type        = number
-  description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
-  default     = null
-}
-
-variable "group" {
-  type        = string
-  description = "The name of a group that this app belongs to."
-  default     = null
-}
-
 variable "icon" {
   type        = string
-  description = "The icon to use for the app."
+  description = "The icon to use for the install scripts."
   default     = "/icon/kiro.svg"
 }
 
-variable "report_tasks" {
-  type        = bool
-  description = "Whether to enable task reporting to Coder UI via AgentAPI"
-  default     = true
-}
-
-variable "cli_app" {
-  type        = bool
-  description = "Whether to create a CLI app for Kiro CLI"
-  default     = false
-}
-
-variable "web_app_display_name" {
+variable "workdir" {
   type        = string
-  description = "Display name for the web app"
-  default     = "Kiro CLI"
-}
-
-variable "cli_app_display_name" {
-  type        = string
-  description = "Display name for the CLI app"
-  default     = "Kiro CLI"
-}
-
-variable "install_agentapi" {
-  type        = bool
-  description = "Whether to install AgentAPI."
-  default     = true
-}
-
-variable "ai_prompt" {
-  type        = string
-  description = "The initial task prompt to send to Kiro CLI."
-  default     = ""
+  description = "Optional project directory. When set, the module creates it if missing."
+  default     = null
 }
 
 variable "pre_install_script" {
   type        = string
-  description = "Optional script to run before installing Kiro CLI."
+  description = "Custom script to run before installing Kiro CLI."
   default     = null
 }
 
 variable "post_install_script" {
   type        = string
-  description = "Optional script to run after installing Kiro CLI."
+  description = "Custom script to run after installing Kiro CLI."
   default     = null
-}
-
-variable "agentapi_version" {
-  type        = string
-  description = "The version of AgentAPI to install."
-  default     = "v0.10.0"
-}
-
-variable "workdir" {
-  type        = string
-  description = "The folder to run Kiro CLI in."
 }
 
 variable "install_kiro_cli" {
   type        = bool
-  description = "Whether to install Kiro CLI."
+  description = "Whether to install Kiro CLI. When false, a working kiro-cli must already be on PATH."
   default     = true
 }
 
 variable "kiro_cli_version" {
   type        = string
-  description = "The version of Kiro CLI to install."
+  description = "Kiro CLI version to install, for example '2.26.0'. 'latest' with the default kiro_install_url uses the official installer (https://cli.kiro.dev/install); anything else downloads <kiro_install_url>/<version>/kirocli-<arch>-linux.zip. See https://kiro.dev/docs/getting-started/installation/"
   default     = "latest"
+
+  validation {
+    condition     = can(regex("^(latest|[0-9]+\\.[0-9]+\\.[0-9]+)$", var.kiro_cli_version))
+    error_message = "kiro_cli_version must be 'latest' or a semantic version such as '2.26.0'."
+  }
 }
 
 variable "kiro_install_url" {
   type        = string
-  description = "Base URL for Kiro CLI installation downloads."
-  default     = "https://desktop-release.q.us-east-1.amazonaws.com"
-}
-
-variable "trust_all_tools" {
-  type        = bool
-  description = "Whether to trust all tools in Kiro CLI."
-  default     = false
-}
-
-variable "system_prompt" {
-  type        = string
-  description = "The system prompt to use for Kiro CLI. This should instruct the agent how to do task reporting."
-  default     = <<-EOT
-    You are a helpful Coding assistant. Aim to autonomously investigate
-    and solve issues the user gives you and test your work, whenever possible.
-    Avoid shortcuts like mocking tests. When you get stuck, you can ask the user
-    but opt for autonomy.
-  EOT
-}
-
-variable "coder_mcp_instructions" {
-  type        = string
-  description = "Instructions for the Coder MCP server integration. This defines how the agent should report tasks to Coder."
-  default     = <<-EOT
-    YOU MUST REPORT ALL TASKS TO CODER.
-    When reporting tasks you MUST follow these EXACT instructions:
-    - IMMEDIATELY report status after receiving ANY user message
-    - Be granular If you are investigating with multiple steps report each step to coder.
-
-    Task state MUST be one of the following:
-    - Use "state": "working" when actively processing WITHOUT needing additional user input
-    - Use "state": "complete" only when finished with a task
-    - Use "state": "failure" when you need ANY user input lack sufficient details or encounter blockers.
-
-    Task summaries MUST:
-    - Include specifics about what you're doing
-    - Include clear and actionable steps for the user
-    - Be less than 160 characters in length
-  EOT
+  description = "Base URL hosting Kiro CLI release archives as <url>/<version>/kirocli-<arch>-linux.zip, for mirrors or air-gapped installs. Defaults to the official stable channel."
+  default     = null
 }
 
 variable "auth_tarball" {
   type        = string
-  description = "Base64 encoded, zstd compressed tarball of a pre-authenticated ~/.local/share/kiro-cli directory."
+  description = "Base64 encoded, zstd compressed tarball of a pre-authenticated ~/.local/share/kiro-cli directory. Exported as KIRO_CLI_AUTH_TARBALL and extracted at install time; requires zstd in the workspace."
+  default     = ""
+  sensitive   = true
+}
+
+variable "api_key" {
+  type        = string
+  description = "Kiro API key, exported as KIRO_API_KEY. Used when no browser login is active; the Kiro docs scope API keys to non-interactive (headless) use. See https://kiro.dev/docs/getting-started/authentication/"
   default     = ""
   sensitive   = true
 }
 
 variable "agent_config" {
   type        = string
-  description = "Optional Agent configuration JSON for Kiro CLI."
+  description = "Optional custom agent configuration JSON. Written to ~/.kiro/agents/<name>.json and set as chat.defaultAgent. See https://kiro.dev/docs/custom-agents/configuration-reference/"
   default     = null
+
+  validation {
+    condition     = var.agent_config == null || can(regex("^[A-Za-z0-9][A-Za-z0-9._-]*$", jsondecode(var.agent_config).name))
+    error_message = "agent_config must be a JSON object whose name is a plain file name (letters, digits, '.', '_', '-')."
+  }
 }
 
-variable "agentapi_chat_based_path" {
-  type        = bool
-  description = "Whether to use chat-based path for AgentAPI.Required if CODER_WILDCARD_ACCESS_URL is not defined in coder deployment"
-  default     = false
+variable "mcp" {
+  type        = string
+  description = "MCP servers as JSON in Kiro's mcp.json format ({\"mcpServers\": {...}}). Merged into the user-level ~/.kiro/settings/mcp.json; servers already on disk win on duplicate names. See https://kiro.dev/docs/mcp/configuration/"
+  default     = ""
+
+  validation {
+    condition     = var.mcp == "" || can(jsondecode(var.mcp).mcpServers)
+    error_message = "mcp must be a JSON object with an mcpServers key."
+  }
 }
 
-# Expose status slug to the agent environment
-resource "coder_env" "status_slug" {
-  agent_id = var.agent_id
-  name     = "CODER_MCP_APP_STATUS_SLUG"
-  value    = local.app_slug
-  count    = var.report_tasks ? 1 : 0
-}
-
-# Expose auth tarball as environment variable for install script
 resource "coder_env" "auth_tarball" {
   count    = var.auth_tarball != "" ? 1 : 0
   agent_id = var.agent_id
@@ -187,89 +104,40 @@ resource "coder_env" "auth_tarball" {
   value    = var.auth_tarball
 }
 
+resource "coder_env" "kiro_api_key" {
+  count    = var.api_key != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "KIRO_API_KEY"
+  value    = var.api_key
+}
+
 locals {
-  app_slug               = "kiro-cli"
-  workdir                = trimsuffix(var.workdir, "/")
-  install_script         = file("${path.module}/scripts/install.sh")
-  start_script           = file("${path.module}/scripts/start.sh")
-  module_dir_name        = ".kiro"
-  system_prompt          = jsonencode(replace(var.system_prompt, "/[\r\n]/", ""))
-  coder_mcp_instructions = jsonencode(replace(var.coder_mcp_instructions, "/[\r\n]/", ""))
-
-  # Create default agent config structure
-  default_agent_config = templatefile("${path.module}/templates/agent-config.json.tpl", {
-    system_prompt = local.system_prompt
+  workdir = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
+  install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
+    ARG_INSTALL      = tostring(var.install_kiro_cli)
+    ARG_VERSION      = var.kiro_cli_version
+    ARG_INSTALL_URL  = var.kiro_install_url != null ? base64encode(trimsuffix(var.kiro_install_url, "/")) : ""
+    ARG_WORKDIR      = local.workdir != "" ? base64encode(local.workdir) : ""
+    ARG_AGENT_CONFIG = var.agent_config != null ? base64encode(var.agent_config) : ""
+    ARG_MCP_CONFIG   = var.mcp != "" ? base64encode(var.mcp) : ""
   })
-
-  # Choose the JSON string: use var.agent_config if provided, otherwise encode default
-  agent_config = var.agent_config != null ? var.agent_config : local.default_agent_config
-
-  # Extract agent name from the selected config
-  agent_name = try(jsondecode(local.agent_config).name, "agent")
-
-  full_prompt = var.ai_prompt != null ? var.ai_prompt : ""
-
-  server_chat_parameters = var.agentapi_chat_based_path ? "--chat-base-path /@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.${var.agent_id}/apps/${local.app_slug}/chat" : ""
+  module_dir_name = ".coder-modules/harleylrn/kiro-cli"
 }
 
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.1"
 
-module "agentapi" {
-  source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.0.0"
-
-  agent_id             = var.agent_id
-  folder               = local.workdir
-  web_app_slug         = local.app_slug
-  web_app_order        = var.order
-  web_app_group        = var.group
-  web_app_icon         = var.icon
-  web_app_display_name = var.web_app_display_name
-  cli_app              = var.cli_app
-  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
-  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
-  module_dir_name      = local.module_dir_name
-  install_agentapi     = var.install_agentapi
-  agentapi_version     = var.agentapi_version
-  pre_install_script   = var.pre_install_script
-  post_install_script  = var.post_install_script
-
-  start_script = <<-EOT
-    #!/usr/bin/env bash
-    set -o errexit
-    set -o pipefail
-
-    echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-    chmod +x /tmp/start.sh
-    ARG_TRUST_ALL_TOOLS='${var.trust_all_tools}' \
-    ARG_AI_PROMPT='${base64encode(local.full_prompt)}' \
-    ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
-    ARG_WORKDIR='${var.workdir}' \
-    ARG_SERVER_PARAMETERS="${local.server_chat_parameters}" \
-    ARG_REPORT_TASKS='${var.report_tasks}' \
-    /tmp/start.sh
-  EOT
-
-  install_script = <<-EOT
-    #!/usr/bin/env bash
-    set -o errexit
-    set -o pipefail
-
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
-    ARG_INSTALL='${var.install_kiro_cli}' \
-    ARG_VERSION='${var.kiro_cli_version}' \
-    ARG_KIRO_INSTALL_URL='${var.kiro_install_url}' \
-    ARG_AUTH_TARBALL='${var.auth_tarball}' \
-    ARG_AGENT_CONFIG='${local.agent_config != null ? base64encode(local.agent_config) : ""}' \
-    ARG_AGENT_NAME='${local.agent_name}' \
-    ARG_MODULE_DIR_NAME='${local.module_dir_name}' \
-    ARG_CODER_MCP_APP_STATUS_SLUG='${local.app_slug}' \
-    ARG_CODER_MCP_INSTRUCTIONS='${base64encode(local.coder_mcp_instructions)}' \
-    ARG_REPORT_TASKS='${var.report_tasks}' \
-    /tmp/install.sh
-  EOT
+  agent_id            = var.agent_id
+  module_directory    = "$HOME/${local.module_dir_name}"
+  display_name_prefix = "Kiro CLI"
+  icon                = var.icon
+  pre_install_script  = var.pre_install_script
+  post_install_script = var.post_install_script
+  install_script      = local.install_script
 }
 
-output "task_app_id" {
-  value = module.agentapi.task_app_id
+output "scripts" {
+  description = "Ordered list of coder exp sync names for the coder_script resources this module creates, in run order (pre_install, install, post_install). Scripts that were not configured are absent from the list."
+  value       = module.coder_utils.scripts
 }
