@@ -185,6 +185,75 @@ module "git-clone" {
 }
 ```
 
+## Clone multiple repositories
+
+`url` takes a single repository, so use `for_each` on the module block to clone several repositories with one definition.
+Because Terraform does not allow `count` and `for_each` on the same block, move the `start_count` check into the `for_each` expression.
+
+```tf
+locals {
+  repos = {
+    coder    = "https://github.com/coder/coder"
+    registry = "https://github.com/coder/registry"
+  }
+}
+
+module "git_clone" {
+  for_each = data.coder_workspace.me.start_count > 0 ? local.repos : {}
+  source   = "registry.coder.com/coder/git-clone/coder"
+  version  = "2.0.5"
+  agent_id = coder_agent.example.id
+  url      = each.value
+}
+```
+
+Each instance keeps its own scripts and logs under `~/.coder-modules/coder/git-clone/<folder_name>`, so instances do not
+overwrite each other. Outputs are addressed by map key, which is useful for wiring up an IDE folder or a `coder_app` per
+repository:
+
+```tf
+module "code-server" {
+  for_each = module.git_clone
+  source   = "registry.coder.com/coder/code-server/coder"
+  version  = "1.6.0"
+  agent_id = coder_agent.example.id
+  folder   = each.value.repo_dir
+}
+```
+
+> [!IMPORTANT]
+> The default `folder_name` is the repository basename, so two repositories with the same basename (for example
+> `org-a/api` and `org-b/api`) would collide in both the clone path and the module directory. Set an explicit
+> `folder_name` when that can happen.
+
+To set per-repository options such as `branch_name`, `folder_name`, or `extra_args`, use a map of objects:
+
+```tf
+locals {
+  repos = {
+    coder = {
+      url         = "https://github.com/coder/coder"
+      branch_name = "main"
+    }
+    registry = {
+      url         = "https://github.com/coder/registry"
+      branch_name = ""
+    }
+  }
+}
+
+module "git_clone" {
+  for_each    = data.coder_workspace.me.start_count > 0 ? local.repos : {}
+  source      = "registry.coder.com/coder/git-clone/coder"
+  version     = "2.0.5"
+  agent_id    = coder_agent.example.id
+  url         = each.value.url
+  branch_name = each.value.branch_name
+  folder_name = each.key
+  base_dir    = "~/projects"
+}
+```
+
 ## Extra `git clone` arguments
 
 > [!NOTE]
