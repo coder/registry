@@ -17,7 +17,7 @@ terraform {
 
 module "aws_region" {
   source  = "registry.coder.com/coder/aws-region/coder"
-  version = "~> 1.0"
+  version = "~> 1.1"
   default = "us-east-1"
 }
 
@@ -60,36 +60,11 @@ data "aws_ami" "ubuntu" {
   owners = ["099720109477"] # Canonical
 }
 
-data "coder_parameter" "instance_type" {
-  name         = "instance_type"
-  display_name = "Instance type"
-  description  = "What instance type should your workspace use?"
-  default      = "t3.micro"
-  mutable      = false
-  option {
-    name  = "2 vCPU, 1 GiB RAM"
-    value = "t3.micro"
-  }
-  option {
-    name  = "2 vCPU, 2 GiB RAM"
-    value = "t3.small"
-  }
-  option {
-    name  = "2 vCPU, 4 GiB RAM"
-    value = "t3.medium"
-  }
-  option {
-    name  = "2 vCPU, 8 GiB RAM"
-    value = "t3.large"
-  }
-  option {
-    name  = "4 vCPU, 16 GiB RAM"
-    value = "t3.xlarge"
-  }
-  option {
-    name  = "8 vCPU, 32 GiB RAM"
-    value = "t3.2xlarge"
-  }
+# See https://registry.coder.com/modules/coder/aws-ec2-instance-type
+module "aws_ec2_instance_type" {
+  source  = "registry.coder.com/coder/aws-ec2-instance-type/coder"
+  version = "~> 1.0"
+  default = "t3.micro"
 }
 
 data "coder_parameter" "root_volume_size_gb" {
@@ -156,7 +131,7 @@ data "aws_iam_instance_profile" "vm_instance_profile" {
 # Be careful when modifying the below locals!
 locals {
   # TODO: provide a way to pick the availability zone.
-  aws_availability_zone = "${module.aws_region.value}a"
+  aws_availability_zone = module.aws_region.default_availability_zone
 
   hostname   = lower(data.coder_workspace.me.name)
   linux_user = "coder"
@@ -247,7 +222,7 @@ data "cloudinit_config" "user_data" {
 resource "aws_instance" "vm" {
   ami                  = data.aws_ami.ubuntu.id
   availability_zone    = local.aws_availability_zone
-  instance_type        = data.coder_parameter.instance_type.value
+  instance_type        = module.aws_ec2_instance_type.value
   iam_instance_profile = try(data.aws_iam_instance_profile.vm_instance_profile[0].name, null)
   root_block_device {
     volume_size = data.coder_parameter.root_volume_size_gb.value
@@ -306,7 +281,7 @@ resource "coder_metadata" "info" {
   }
   item {
     key   = "instance_type"
-    value = data.coder_parameter.instance_type.value
+    value = module.aws_ec2_instance_type.value
   }
   item {
     key   = "ssh_pubkey"
