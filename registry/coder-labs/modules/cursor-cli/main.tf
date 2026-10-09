@@ -51,6 +51,12 @@ variable "api_key" {
   default     = ""
 }
 
+variable "cursor_config_dir" {
+  type        = string
+  description = "Directory for Cursor CLI's cli-config.json, exported as CURSOR_CONFIG_DIR. Empty (default) leaves CURSOR_CONFIG_DIR unset so an existing value or the default ~/.cursor is used. Does not move mcp.json, which Cursor CLI always reads from ~/.cursor. See https://cursor.com/docs/cli/reference/configuration"
+  default     = ""
+}
+
 variable "mcp" {
   type        = string
   description = "MCP servers as JSON in Cursor's mcp.json format ({\"mcpServers\": {...}}). Merged into the user-level ~/.cursor/mcp.json; servers already on disk win on duplicate names. See https://cursor.com/docs/cli/mcp"
@@ -83,6 +89,13 @@ resource "coder_env" "cursor_api_key" {
   agent_id = var.agent_id
   name     = "CURSOR_API_KEY"
   value    = var.api_key
+}
+
+resource "coder_env" "cursor_config_dir" {
+  count    = var.cursor_config_dir != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CURSOR_CONFIG_DIR"
+  value    = var.cursor_config_dir
 }
 
 locals {

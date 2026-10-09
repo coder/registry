@@ -59,6 +59,33 @@ run "api_key_creates_env_var" {
   }
 }
 
+run "cursor_config_dir_not_set_by_default" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+  }
+
+  assert {
+    condition     = length(coder_env.cursor_config_dir) == 0
+    error_message = "CURSOR_CONFIG_DIR should not be created when cursor_config_dir is empty"
+  }
+}
+
+run "cursor_config_dir_creates_env_var" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent"
+    cursor_config_dir = "/home/coder/.config/cursor-cli"
+  }
+
+  assert {
+    condition     = coder_env.cursor_config_dir[0].name == "CURSOR_CONFIG_DIR" && coder_env.cursor_config_dir[0].value == "/home/coder/.config/cursor-cli"
+    error_message = "CURSOR_CONFIG_DIR env var should be created with the provided directory"
+  }
+}
+
 run "invalid_mcp_fails" {
   command = plan
 

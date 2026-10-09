@@ -134,13 +134,23 @@ const setup = async (
   return { id, coderEnvVars, scripts };
 };
 
-const runScript = async (id: string, name: string, script: string) => {
+const runScript = async (
+  id: string,
+  name: string,
+  script: string,
+  env?: Record<string, string>,
+) => {
   const target = `/tmp/coder-utils-${name}.sh`;
   await writeExecutable({ containerId: id, filePath: target, content: script });
-  return execContainer(id, ["bash", "-c", target]);
+  const envArgs = Object.entries(env ?? {}).map(([k, v]) => `${k}=${v}`);
+  return execContainer(id, ["env", ...envArgs, "bash", "-c", target]);
 };
 
-const runScripts = async (id: string, scripts: ModuleScripts) => {
+const runScripts = async (
+  id: string,
+  scripts: ModuleScripts,
+  env?: Record<string, string>,
+) => {
   const ordered: [string, string | undefined][] = [
     ["pre_install", scripts.pre_install],
     ["install", scripts.install],
@@ -148,7 +158,7 @@ const runScripts = async (id: string, scripts: ModuleScripts) => {
   ];
   for (const [name, script] of ordered) {
     if (!script) continue;
-    const resp = await runScript(id, name, script);
+    const resp = await runScript(id, name, script, env);
     if (resp.exitCode !== 0) {
       console.log(`script ${name} failed:`);
       console.log(resp.stdout);
@@ -367,6 +377,26 @@ describe("cursor-cli", async () => {
       `${projectDir}/.cursor/rules/typescript.mdc`,
     );
     expect(rule).toBe(content);
+  });
+
+  test("cursor-config-dir-does-not-move-mcp-config", async () => {
+    const configDir = "/home/coder/.config/cursor-cli";
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        cursor_config_dir: configDir,
+        mcp: JSON.stringify({ mcpServers: { extra: { command: "x" } } }),
+      },
+    });
+    expect(coderEnvVars["CURSOR_CONFIG_DIR"]).toBe(configDir);
+    await runScripts(id, scripts, coderEnvVars);
+    const mcp = JSON.parse(await readFileContainer(id, mcpConfigPath));
+    expect(mcp.mcpServers.extra.command).toBe("x");
+    const moved = await execContainer(id, [
+      "test",
+      "-e",
+      `${configDir}/mcp.json`,
+    ]);
+    expect(moved.exitCode).not.toBe(0);
   });
 
   test("api-key-env-var-not-in-script", async () => {

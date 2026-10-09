@@ -127,6 +127,8 @@ resource "coder_script" "post_cursor_cli" {
 
 When `api_key` is set, it is exported as `CURSOR_API_KEY` and is not rendered into the install script. To create a key, see [Cursor CLI authentication](https://cursor.com/docs/cli/reference/authentication). Without a key, run `cursor-agent login` in the workspace.
 
+When `cursor_config_dir` is set, it is exported as `CURSOR_CONFIG_DIR`, which moves Cursor CLI's [`cli-config.json`](https://cursor.com/docs/cli/reference/configuration). When empty (the default), the module leaves `CURSOR_CONFIG_DIR` untouched. Cursor CLI still reads the user-level `mcp.json` from `~/.cursor`, so the module always merges `mcp` there.
+
 The module always installs the latest Cursor CLI with the [official installer](https://cursor.com/install) and skips the install when `cursor-agent` is already on `PATH`. If `install_cursor_cli = false`, a working `cursor-agent` must already be available on `PATH`, or workspace startup fails.
 
 ## Troubleshooting
