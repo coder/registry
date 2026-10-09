@@ -18,6 +18,63 @@ run "defaults_create_no_extension_script" {
     condition     = length(coder_script.install_extensions) == 0
     error_message = "Default inputs must not create an extension installation script."
   }
+
+  assert {
+    condition     = length(coder_script.apply_settings) == 0
+    error_message = "Default inputs must not create a settings script."
+  }
+}
+
+run "settings_create_one_blocking_script" {
+  command = plan
+
+  variables {
+    settings = {
+      "editor.fontSize" = 14
+    }
+    settings_file = "$HOME/.test-ide-server/data/Machine/settings.json"
+  }
+
+  assert {
+    condition     = length(coder_script.apply_settings) == 1
+    error_message = "Configured settings must create one settings script."
+  }
+
+  assert {
+    condition     = coder_script.apply_settings[0].start_blocks_login
+    error_message = "Settings must be applied before ordinary workspace login."
+  }
+
+  assert {
+    condition     = coder_script.apply_settings[0].timeout == 300
+    error_message = "The settings script must have a finite timeout."
+  }
+}
+
+run "settings_require_wrapper_path" {
+  command = plan
+
+  variables {
+    settings = {
+      "editor.fontSize" = 14
+    }
+  }
+
+  expect_failures = [
+    coder_script.apply_settings,
+  ]
+}
+
+run "settings_reject_non_object_input" {
+  command = plan
+
+  variables {
+    settings = ["editor.fontSize"]
+  }
+
+  expect_failures = [
+    var.settings,
+  ]
 }
 
 run "extensions_create_one_blocking_script" {
