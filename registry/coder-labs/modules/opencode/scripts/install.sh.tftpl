@@ -13,13 +13,15 @@ ARG_OPENCODE_VERSION='${ARG_OPENCODE_VERSION}'
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
 ARG_CONFIG_JSON=$(echo -n '${ARG_CONFIG_JSON}' | base64 -d)
 ARG_MCP_CONFIG=$(echo -n '${ARG_MCP_CONFIG}' | base64 -d)
-ARG_MANAGED_SETTINGS_JSON=$(echo -n '${ARG_MANAGED_SETTINGS_JSON}' | base64 -d)
 
 # Delivered through coder_env so credentials never appear in this script.
 AUTH_JSON="$${CODER_OPENCODE_AUTH_JSON:-}"
 
 OPENCODE_BIN_DIR="$HOME/.opencode/bin"
 export PATH="$${OPENCODE_BIN_DIR}:$PATH"
+
+# Same resolution order as `opencode debug paths config`.
+OPENCODE_CONFIG_PATH="$${OPENCODE_CONFIG_DIR:-$${XDG_CONFIG_HOME:-$HOME/.config}/opencode}"
 
 echo "--------------------------------"
 printf "install_opencode: %s\n" "$${ARG_INSTALL}"
@@ -73,6 +75,19 @@ function add_path_to_shell_profiles() {
   fi
 }
 
+# Prints the bare version reported by `opencode --version` ("opencode v2.0.27" -> "2.0.27").
+installed_opencode_version() {
+  local out
+  out=$(opencode --version 2> /dev/null) || return 1
+  out="$${out##* }"
+  echo "$${out#v}"
+}
+
+# V2 credentials and config shapes are not understood by OpenCode 1.
+is_opencode_v1() {
+  [[ "$1" =~ ^1\. ]]
+}
+
 function ensure_opencode_in_path() {
   local OPENCODE_BIN=""
   if command_exists opencode; then
@@ -91,6 +106,11 @@ function ensure_opencode_in_path() {
   fi
   printf "OpenCode version: %s\n" "$${OPENCODE_VERSION}"
 
+  if is_opencode_v1 "$(installed_opencode_version)"; then
+    echo "OpenCode 1 ($${OPENCODE_VERSION}) is not supported; this module requires OpenCode 2." >&2
+    return 1
+  fi
+
   if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/opencode" ]; then
     ln -s "$${OPENCODE_BIN}" "$${CODER_SCRIPT_BIN_DIR}/opencode"
     echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/opencode -> $${OPENCODE_BIN}"
@@ -108,7 +128,7 @@ install_with_official_installer() (
   if ! curl --fail --silent --show-error --location \
     --retry 2 --retry-delay 1 --retry-all-errors \
     --connect-timeout 10 --max-time 300 \
-    --output "$${installer_file}" https://opencode.ai/install; then
+    --output "$${installer_file}" https://opencode.ai/v2/install; then
     echo "OpenCode installer could not be downloaded after up to 3 attempts." >&2
     return 1
   fi
@@ -125,10 +145,18 @@ install_with_official_installer() (
   if [ "$${version}" = "latest" ]; then
     version=""
   fi
-  if ! VERSION="$${version}" bash "$${installer_file}" --no-modify-path; then
-    echo "OpenCode installation failed." >&2
-    return 1
-  fi
+  # The installer resolves 'latest' through an update API that intermittently
+  # fails, so retry the whole installer before giving up.
+  local attempt
+  for attempt in 1 2 3; do
+    if VERSION="$${version}" bash "$${installer_file}" --no-modify-path; then
+      return 0
+    fi
+    echo "OpenCode installer attempt $${attempt} failed." >&2
+    sleep $((attempt * 2))
+  done
+  echo "OpenCode installation failed." >&2
+  return 1
 )
 
 install_opencode() {
@@ -144,9 +172,11 @@ install_opencode() {
 
   if command_exists opencode; then
     local installed wanted
-    installed=$(opencode --version 2> /dev/null || true)
+    installed=$(installed_opencode_version || true)
     wanted="$${ARG_OPENCODE_VERSION#v}"
-    if [ "$${ARG_OPENCODE_VERSION}" = "latest" ] || [ "$${installed}" = "$${wanted}" ]; then
+    if is_opencode_v1 "$${installed}"; then
+      echo "OpenCode $${installed} is installed; installing OpenCode 2"
+    elif [ "$${ARG_OPENCODE_VERSION}" = "latest" ] || [ "$${installed}" = "$${wanted}" ]; then
       echo "OpenCode already installed ($${installed})"
       ensure_opencode_in_path
       return
@@ -171,40 +201,12 @@ setup_workdir() {
   fi
 }
 
-# Managed config is loaded last and cannot be overridden by user or project config.
-write_managed_settings() {
-  if [ -z "$${ARG_MANAGED_SETTINGS_JSON}" ]; then
-    return
-  fi
-
-  require_jq "write managed settings"
-
-  if ! echo "$${ARG_MANAGED_SETTINGS_JSON}" | jq -e 'type == "object"' > /dev/null 2>&1; then
-    echo "Warning: managed_settings is not a JSON object, skipping managed settings write" >&2
-    return
-  fi
-
-  local target="/etc/opencode/opencode.json"
-  if [ "$(id -u)" -eq 0 ]; then
-    mkdir -p "$(dirname "$${target}")"
-    echo "$${ARG_MANAGED_SETTINGS_JSON}" > "$${target}"
-    chmod 0644 "$${target}"
-  elif command_exists sudo && sudo -n true 2> /dev/null; then
-    sudo mkdir -p "$(dirname "$${target}")"
-    echo "$${ARG_MANAGED_SETTINGS_JSON}" | sudo tee "$${target}" > /dev/null
-    sudo chmod 0644 "$${target}"
-  else
-    echo "Warning: root access is required to write $${target}; skipping managed settings" >&2
-    return
-  fi
-  echo "Wrote OpenCode managed settings to $${target}"
-}
-
 # The module owns only the keys it sets; everything else in opencode.json is
 # preserved. config_json keys win, while MCP servers already on disk win on
-# duplicate names so in-workspace edits are not overwritten.
+# duplicate names so in-workspace edits are not overwritten. V1 configs may
+# still list servers directly under mcp, so those names count as existing too.
 setup_config() {
-  local config_file="$HOME/.config/opencode/opencode.json"
+  local config_file="$${OPENCODE_CONFIG_PATH}/opencode.json"
 
   if [ -z "$${ARG_CONFIG_JSON}" ] && [ -z "$${ARG_MCP_CONFIG}" ]; then
     echo "No config_json or mcp configured; leaving $${config_file} unchanged."
@@ -226,48 +228,70 @@ setup_config() {
 
   echo "$${existing}" | jq --argjson config "$${config}" --argjson mcp "$${mcp}" '
     (. * $config)
-    | if ($mcp | length) > 0 then .mcp = ($mcp + (.mcp // {})) else . end
+    | if ($mcp | length) > 0 then
+        ((.mcp // {}) | if type == "object" then . else {} end) as $current
+        | ($current.servers // {}) as $servers
+        | ($mcp | with_entries(select(
+            .key as $name | (($servers | has($name)) or ($current | has($name))) | not
+          ))) as $new
+        | .mcp = ($current + {servers: ($servers + $new)})
+      else . end
     | .["$schema"] //= "https://opencode.ai/config.json"
   ' > "$${config_file}.tmp"
   mv "$${config_file}.tmp" "$${config_file}"
   echo "OpenCode configuration written: $${config_file}"
 }
 
-# Provider entries from auth_json replace the same provider IDs on disk; other
-# credentials (for example from `opencode providers login`) are preserved.
+# OpenCode 2 stores credentials in its SQLite database and ignores auth.json on
+# fresh installs, so credentials go through `opencode auth import`. Import skips
+# ids that already exist, so the module's own ids are logged out first to apply
+# rotated secrets. --standalone avoids starting the shared background service.
 setup_auth() {
-  local auth_file="$HOME/.local/share/opencode/auth.json"
-
   if [ -z "$${AUTH_JSON}" ]; then
-    echo "No auth_json provided; leaving $${auth_file} unchanged."
+    echo "No auth_json provided; leaving OpenCode credentials unchanged."
     return
   fi
 
-  require_jq "write OpenCode credentials"
+  require_jq "import OpenCode credentials"
 
-  if ! echo "$${AUTH_JSON}" | jq -e 'type == "object"' > /dev/null 2>&1; then
-    echo "ERROR: CODER_OPENCODE_AUTH_JSON is not a JSON object." >&2
+  if ! jq -e 'env.CODER_OPENCODE_AUTH_JSON | fromjson | type == "array"' -n > /dev/null 2>&1; then
+    echo "ERROR: CODER_OPENCODE_AUTH_JSON is not a JSON array of credentials." >&2
     exit 1
   fi
 
-  mkdir -p "$(dirname "$${auth_file}")"
+  local existing_ids integration credential_id
+  existing_ids=$(opencode auth export --standalone 2> /dev/null | jq -r '.[].id' 2> /dev/null || true)
+  while IFS=$'\t' read -r integration credential_id; do
+    if [ -n "$${credential_id}" ] && grep -qxF "$${credential_id}" <<< "$${existing_ids}"; then
+      opencode auth logout --standalone "$${integration}" "$${credential_id}" < /dev/null > /dev/null 2>&1 || true
+    fi
+  done < <(jq -rn 'env.CODER_OPENCODE_AUTH_JSON | fromjson | .[] | [.integrationID, .id] | @tsv')
 
-  local existing
-  existing=$(read_json_object "$${auth_file}")
-  (
-    umask 077
-    # Read from the environment so credentials never appear in process arguments.
-    echo "$${existing}" | jq '. + (env.CODER_OPENCODE_AUTH_JSON | fromjson)' > "$${auth_file}.tmp"
-  )
-  mv "$${auth_file}.tmp" "$${auth_file}"
-  chmod 0600 "$${auth_file}"
-  echo "OpenCode credentials written: $${auth_file}"
+  # Read from the environment so credentials never appear in process arguments.
+  if ! jq -n 'env.CODER_OPENCODE_AUTH_JSON | fromjson' | opencode auth import --standalone; then
+    echo "ERROR: OpenCode credential import failed." >&2
+    exit 1
+  fi
+  echo "OpenCode credentials imported."
+}
+
+# A running shared service caches configuration until it is reloaded.
+reload_running_service() {
+  local status
+  status=$(opencode service status 2> /dev/null || true)
+  if [[ "$${status}" == http* ]]; then
+    if opencode reload > /dev/null 2>&1; then
+      echo "Reloaded the running OpenCode service."
+    else
+      echo "Warning: could not reload the running OpenCode service; run 'opencode reload'." >&2
+    fi
+  fi
 }
 
 install_opencode
 setup_workdir
-write_managed_settings
 setup_config
 setup_auth
+reload_running_service
 
 echo "OpenCode module setup completed."

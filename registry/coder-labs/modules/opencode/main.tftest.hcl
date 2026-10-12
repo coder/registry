@@ -60,7 +60,7 @@ run "auth_json_creates_env_var" {
 
   variables {
     agent_id  = "test-agent"
-    auth_json = "{\"anthropic\": {\"type\": \"api\", \"key\": \"sk-ant-test-secret\"}}"
+    auth_json = "[{\"id\": \"coder-anthropic\", \"integrationID\": \"anthropic\", \"label\": \"coder\", \"active\": true, \"value\": {\"type\": \"key\", \"key\": \"sk-ant-test-secret\"}}]"
   }
 
   assert {
@@ -94,22 +94,6 @@ run "config_and_mcp_are_encoded" {
   }
 }
 
-run "managed_settings_are_encoded" {
-  command = plan
-
-  variables {
-    agent_id = "test-agent"
-    managed_settings = {
-      share = "disabled"
-    }
-  }
-
-  assert {
-    condition     = strcontains(local.install_script, base64encode(jsonencode({ share = "disabled" })))
-    error_message = "install script should receive the base64-encoded managed_settings"
-  }
-}
-
 run "invalid_auth_json_fails" {
   command = plan
 
@@ -120,6 +104,45 @@ run "invalid_auth_json_fails" {
 
   expect_failures = [
     var.auth_json,
+  ]
+}
+
+run "v1_auth_json_object_fails" {
+  command = plan
+
+  variables {
+    agent_id  = "test-agent"
+    auth_json = "{\"anthropic\": {\"type\": \"api\", \"key\": \"sk-ant-test-secret\"}}"
+  }
+
+  expect_failures = [
+    var.auth_json,
+  ]
+}
+
+run "mcp_with_v1_enabled_field_fails" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    mcp      = "{\"playwright\": {\"type\": \"local\", \"command\": [\"npx\"], \"enabled\": true}}"
+  }
+
+  expect_failures = [
+    var.mcp,
+  ]
+}
+
+run "mcp_with_whole_block_fails" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent"
+    mcp      = "{\"servers\": {\"playwright\": {\"type\": \"local\", \"command\": [\"npx\"]}}}"
+  }
+
+  expect_failures = [
+    var.mcp,
   ]
 }
 
@@ -141,11 +164,11 @@ run "pinned_opencode_version_is_accepted" {
 
   variables {
     agent_id         = "test-agent"
-    opencode_version = "v1.18.33"
+    opencode_version = "v2.0.27"
   }
 
   assert {
-    condition     = strcontains(local.install_script, "ARG_OPENCODE_VERSION='v1.18.33'")
+    condition     = strcontains(local.install_script, "ARG_OPENCODE_VERSION='v2.0.27'")
     error_message = "install script should receive the pinned opencode version"
   }
 }
@@ -186,19 +209,6 @@ run "invalid_mcp_fails" {
 
   expect_failures = [
     var.mcp,
-  ]
-}
-
-run "invalid_managed_settings_fails" {
-  command = plan
-
-  variables {
-    agent_id         = "test-agent"
-    managed_settings = "share=disabled"
-  }
-
-  expect_failures = [
-    var.managed_settings,
   ]
 }
 

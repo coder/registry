@@ -175,8 +175,8 @@ const moduleLogDir = "/home/coder/.coder-modules/coder-labs/opencode/logs";
 const installLog = (id: string) =>
   readFileContainer(id, `${moduleLogDir}/install.log`);
 const configPath = "/home/coder/.config/opencode/opencode.json";
-const authPath = "/home/coder/.local/share/opencode/auth.json";
-const managedPath = "/etc/opencode/opencode.json";
+const credentialStore = "/home/coder/.opencode-mock-credentials.json";
+const mockCalls = "/tmp/opencode-mock-calls";
 
 const seedFile = async (id: string, filePath: string, content: string) => {
   const encoded = Buffer.from(content).toString("base64");
@@ -186,6 +186,39 @@ const seedFile = async (id: string, filePath: string, content: string) => {
     `mkdir -p "$(dirname '${filePath}')" && echo '${encoded}' | base64 -d > '${filePath}'`,
   ]);
 };
+
+const credential = (id: string, integrationID: string, key: string) => ({
+  id,
+  integrationID,
+  label: id,
+  active: true,
+  value: { type: "key", key },
+});
+
+// Replaces curl with a stub that serves `installer` as the downloaded script.
+const mockInstallerDownload = async (id: string, installer: string[]) => {
+  await writeExecutable({
+    containerId: id,
+    filePath: "/tmp/opencode-installer-fixture.sh",
+    content: ["#!/usr/bin/env bash", ...installer].join("\n"),
+  });
+  await writeExecutable({
+    containerId: id,
+    filePath: "/usr/local/bin/curl",
+    content: [
+      "#!/bin/bash",
+      "printf '%s\\n' \"$*\" > /tmp/opencode-curl-args",
+      'while [ $# -gt 0 ]; do if [ "$1" = "--output" ]; then out="$2"; fi; shift; done',
+      'cp /tmp/opencode-installer-fixture.sh "$out"',
+    ].join("\n"),
+  });
+};
+
+const installFixtureBinary = (version: string) => [
+  'mkdir -p "$HOME/.opencode/bin"',
+  `printf '#!/bin/sh\\necho "opencode ${version}"\\n' > "$HOME/.opencode/bin/opencode"`,
+  'chmod +x "$HOME/.opencode/bin/opencode"',
+];
 
 setDefaultTimeout(60 * 1000);
 
@@ -200,7 +233,7 @@ describe("opencode", async () => {
     const log = await installLog(id);
     expect(log).toContain("Skipping OpenCode installation");
     expect(log).toContain("Validated existing OpenCode");
-    expect(log).toContain("0.0.0-mock");
+    expect(log).toContain("opencode v2.0.0-mock");
     expect(log).toContain("OpenCode module setup completed.");
     expect(log).not.toContain("agentapi");
     // Nothing is written when no config is provided.
@@ -216,41 +249,31 @@ describe("opencode", async () => {
     expect(log).toContain("was not found or is not executable");
   });
 
-  test("official-installer-is-used", async () => {
+  test("opencode-v1-is-rejected-when-install-disabled", async () => {
+    const { id, scripts } = await setup();
+    const resp = await runScript(id, "install", scripts.install, {
+      OPENCODE_MOCK_VERSION: "1.18.33",
+    });
+    expect(resp.exitCode).not.toBe(0);
+    const log = await installLog(id);
+    expect(log).toContain("this module requires OpenCode 2");
+  });
+
+  test("official-v2-installer-is-used", async () => {
     const { id, scripts } = await setup({
       skipOpencodeMock: true,
-      moduleVariables: { install_opencode: "true", opencode_version: "v1.2.3" },
+      moduleVariables: { install_opencode: "true", opencode_version: "v2.1.3" },
     });
-    await writeExecutable({
-      containerId: id,
-      filePath: "/tmp/opencode-installer-fixture.sh",
-      content: [
-        "#!/usr/bin/env bash",
-        'printf "VERSION=%s ARGS=%s\\n" "$VERSION" "$*" > /tmp/opencode-installer-env',
-        'mkdir -p "$HOME/.opencode/bin"',
-        `cat > "$HOME/.opencode/bin/opencode" <<'EOF'`,
-        "#!/bin/sh",
-        'if [ "$1" = "--version" ]; then echo "1.2.3"; fi',
-        "EOF",
-        'chmod +x "$HOME/.opencode/bin/opencode"',
-      ].join("\n"),
-    });
-    await writeExecutable({
-      containerId: id,
-      filePath: "/usr/local/bin/curl",
-      content: [
-        "#!/bin/bash",
-        "printf '%s\\n' \"$*\" > /tmp/opencode-curl-args",
-        'while [ $# -gt 0 ]; do if [ "$1" = "--output" ]; then out="$2"; fi; shift; done',
-        'cp /tmp/opencode-installer-fixture.sh "$out"',
-      ].join("\n"),
-    });
+    await mockInstallerDownload(id, [
+      'printf "VERSION=%s ARGS=%s\\n" "$VERSION" "$*" > /tmp/opencode-installer-env',
+      ...installFixtureBinary("v2.1.3"),
+    ]);
     await runScripts(id, scripts);
     const log = await installLog(id);
     expect(log).toContain("Installed OpenCode");
-    expect(log).toContain("OpenCode version: 1.2.3");
+    expect(log).toContain("OpenCode version: opencode v2.1.3");
     const curlArgs = await readFileContainer(id, "/tmp/opencode-curl-args");
-    expect(curlArgs).toContain("https://opencode.ai/install");
+    expect(curlArgs).toContain("https://opencode.ai/v2/install");
     expect(curlArgs).toContain("--retry 2");
     expect(curlArgs).toContain("--connect-timeout 10");
     expect(curlArgs).toContain("--max-time 300");
@@ -258,7 +281,7 @@ describe("opencode", async () => {
       id,
       "/tmp/opencode-installer-env",
     );
-    expect(installerEnv.trim()).toBe("VERSION=v1.2.3 ARGS=--no-modify-path");
+    expect(installerEnv.trim()).toBe("VERSION=v2.1.3 ARGS=--no-modify-path");
     const bashrc = await readFileContainer(id, "/home/coder/.bashrc");
     expect(bashrc).toContain("/home/coder/.opencode/bin");
   });
@@ -268,32 +291,53 @@ describe("opencode", async () => {
       skipOpencodeMock: true,
       moduleVariables: { install_opencode: "true" },
     });
-    await writeExecutable({
-      containerId: id,
-      filePath: "/tmp/opencode-installer-fixture.sh",
-      content: [
-        "#!/usr/bin/env bash",
-        'printf "VERSION=[%s]\\n" "$VERSION" > /tmp/opencode-installer-env',
-        'mkdir -p "$HOME/.opencode/bin"',
-        'printf "#!/bin/sh\\necho 9.9.9\\n" > "$HOME/.opencode/bin/opencode"',
-        'chmod +x "$HOME/.opencode/bin/opencode"',
-      ].join("\n"),
-    });
-    await writeExecutable({
-      containerId: id,
-      filePath: "/usr/local/bin/curl",
-      content: [
-        "#!/bin/bash",
-        'while [ $# -gt 0 ]; do if [ "$1" = "--output" ]; then out="$2"; fi; shift; done',
-        'cp /tmp/opencode-installer-fixture.sh "$out"',
-      ].join("\n"),
-    });
+    await mockInstallerDownload(id, [
+      'printf "VERSION=[%s]\\n" "$VERSION" > /tmp/opencode-installer-env',
+      ...installFixtureBinary("v9.9.9"),
+    ]);
     await runScripts(id, scripts);
     const installerEnv = await readFileContainer(
       id,
       "/tmp/opencode-installer-env",
     );
     expect(installerEnv.trim()).toBe("VERSION=[]");
+  });
+
+  test("installer-is-retried-on-transient-failure", async () => {
+    const { id, scripts } = await setup({
+      skipOpencodeMock: true,
+      moduleVariables: { install_opencode: "true" },
+    });
+    await mockInstallerDownload(id, [
+      "n=$(cat /tmp/opencode-installer-runs 2>/dev/null || echo 0)",
+      "echo $((n + 1)) > /tmp/opencode-installer-runs",
+      'if [ "$n" -lt 2 ]; then echo "Failed to fetch version information"; exit 1; fi',
+      ...installFixtureBinary("v2.0.1"),
+    ]);
+    await runScripts(id, scripts);
+    expect(
+      (await readFileContainer(id, "/tmp/opencode-installer-runs")).trim(),
+    ).toBe("3");
+    expect(await installLog(id)).toContain("Installed OpenCode");
+  });
+
+  test("installed-opencode-v1-is-upgraded-to-v2", async () => {
+    const { id, scripts } = await setup({
+      skipOpencodeMock: true,
+      moduleVariables: { install_opencode: "true" },
+    });
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/local/bin/opencode",
+      content: '#!/bin/sh\necho "1.18.33"\n',
+    });
+    await mockInstallerDownload(id, installFixtureBinary("v2.0.27"));
+    await runScripts(id, scripts);
+    const log = await installLog(id);
+    expect(log).toContain(
+      "OpenCode 1.18.33 is installed; installing OpenCode 2",
+    );
+    expect(log).toContain("OpenCode version: opencode v2.0.27");
   });
 
   test("installer-download-failure-is-terminal", async () => {
@@ -324,7 +368,7 @@ describe("opencode", async () => {
       moduleVariables: {
         config_json: JSON.stringify({
           model: "anthropic/claude-sonnet-4-5",
-          provider: { anthropic: { options: { timeout: 600000 } } },
+          providers: { anthropic: { settings: { timeout: 600000 } } },
         }),
       },
     });
@@ -334,19 +378,33 @@ describe("opencode", async () => {
       JSON.stringify({
         model: "openai/gpt-5",
         share: "manual",
-        provider: { anthropic: { options: { setCacheKey: true } } },
+        providers: { anthropic: { settings: { setCacheKey: true } } },
       }),
     );
     await runScripts(id, scripts);
     const cfg = JSON.parse(await readFileContainer(id, configPath));
     expect(cfg.model).toBe("anthropic/claude-sonnet-4-5");
     expect(cfg.share).toBe("manual");
-    expect(cfg.provider.anthropic.options.timeout).toBe(600000);
-    expect(cfg.provider.anthropic.options.setCacheKey).toBe(true);
+    expect(cfg.providers.anthropic.settings.timeout).toBe(600000);
+    expect(cfg.providers.anthropic.settings.setCacheKey).toBe(true);
     expect(cfg.$schema).toBe("https://opencode.ai/config.json");
   });
 
-  test("writes-mcp-servers-without-coder-server", async () => {
+  test("config-dir-env-is-respected", async () => {
+    const configDir = "/home/coder/custom-opencode";
+    const { id, scripts } = await setup({
+      moduleVariables: { config_json: JSON.stringify({ share: "disabled" }) },
+    });
+    await runScripts(id, scripts, { OPENCODE_CONFIG_DIR: configDir });
+    const cfg = JSON.parse(
+      await readFileContainer(id, `${configDir}/opencode.json`),
+    );
+    expect(cfg.share).toBe("disabled");
+    const fallback = await execContainer(id, ["test", "-e", configPath]);
+    expect(fallback.exitCode).not.toBe(0);
+  });
+
+  test("writes-mcp-servers-under-servers-key", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {
         mcp: JSON.stringify({
@@ -359,12 +417,13 @@ describe("opencode", async () => {
     });
     await runScripts(id, scripts);
     const cfg = JSON.parse(await readFileContainer(id, configPath));
-    expect(cfg.mcp.playwright.command).toEqual([
+    expect(cfg.mcp.servers.playwright.command).toEqual([
       "npx",
       "-y",
       "@playwright/mcp",
     ]);
-    expect(cfg.mcp.coder).toBeUndefined();
+    expect(cfg.mcp.playwright).toBeUndefined();
+    expect(cfg.mcp.servers.coder).toBeUndefined();
   });
 
   test("merges-mcp-config-existing-servers-win", async () => {
@@ -372,6 +431,7 @@ describe("opencode", async () => {
       moduleVariables: {
         mcp: JSON.stringify({
           shared: { type: "local", command: ["module-command"] },
+          legacy: { type: "local", command: ["module-command"] },
           extra: { type: "local", command: ["extra-command"] },
         }),
       },
@@ -382,17 +442,25 @@ describe("opencode", async () => {
       JSON.stringify({
         theme: "keep-me",
         mcp: {
-          shared: { type: "local", command: ["existing-command"] },
-          seeded: { type: "remote", url: "https://seeded.example.com" },
+          timeout: { startup: 45000 },
+          legacy: { type: "local", command: ["v1-command"], enabled: true },
+          servers: {
+            shared: { type: "local", command: ["existing-command"] },
+            seeded: { type: "remote", url: "https://seeded.example.com" },
+          },
         },
       }),
     );
     await runScripts(id, scripts);
     const cfg = JSON.parse(await readFileContainer(id, configPath));
     expect(cfg.theme).toBe("keep-me");
-    expect(cfg.mcp.shared.command).toEqual(["existing-command"]);
-    expect(cfg.mcp.seeded.url).toBe("https://seeded.example.com");
-    expect(cfg.mcp.extra.command).toEqual(["extra-command"]);
+    expect(cfg.mcp.timeout.startup).toBe(45000);
+    expect(cfg.mcp.servers.shared.command).toEqual(["existing-command"]);
+    expect(cfg.mcp.servers.seeded.url).toBe("https://seeded.example.com");
+    expect(cfg.mcp.servers.extra.command).toEqual(["extra-command"]);
+    // A V1-shaped server already on disk also wins and is left in place.
+    expect(cfg.mcp.legacy.command).toEqual(["v1-command"]);
+    expect(cfg.mcp.servers.legacy).toBeUndefined();
   });
 
   test("invalid-existing-config-is-backed-up", async () => {
@@ -409,13 +477,13 @@ describe("opencode", async () => {
     expect(backup).toContain("// jsonc");
   });
 
-  test("auth-json-from-env-merges-and-is-private", async () => {
+  test("auth-json-is-imported-and-rotated-without-leaking", async () => {
     const secret = "sk-ant-test-secret-123";
     const { id, coderEnvVars, scripts } = await setup({
       moduleVariables: {
-        auth_json: JSON.stringify({
-          anthropic: { type: "api", key: secret },
-        }),
+        auth_json: JSON.stringify([
+          credential("coder-anthropic", "anthropic", secret),
+        ]),
       },
     });
     expect(coderEnvVars["CODER_OPENCODE_AUTH_JSON"]).toContain(secret);
@@ -425,51 +493,58 @@ describe("opencode", async () => {
     );
     await seedFile(
       id,
-      authPath,
-      JSON.stringify({
-        anthropic: { type: "api", key: "old-key" },
-        openai: { type: "api", key: "keep-me" },
-      }),
+      credentialStore,
+      JSON.stringify([
+        credential("coder-anthropic", "anthropic", "old-key"),
+        credential("user-openai", "openai", "keep-me"),
+      ]),
     );
     await runScripts(id, scripts, coderEnvVars);
-    const auth = JSON.parse(await readFileContainer(id, authPath));
-    expect(auth.anthropic.key).toBe(secret);
-    expect(auth.openai.key).toBe("keep-me");
-    const mode = await execContainer(id, ["stat", "-c", "%a", authPath]);
-    expect(mode.stdout.trim()).toBe("600");
+    const store = JSON.parse(await readFileContainer(id, credentialStore));
+    const byId = Object.fromEntries(
+      store.map((c: { id: string; value: { key: string } }) => [
+        c.id,
+        c.value.key,
+      ]),
+    );
+    expect(byId["coder-anthropic"]).toBe(secret);
+    expect(byId["user-openai"]).toBe("keep-me");
+    const calls = await readFileContainer(id, mockCalls);
+    expect(calls).toContain("auth logout anthropic coder-anthropic");
+    expect(calls).not.toContain("user-openai");
     const log = await installLog(id);
+    expect(log).toContain("OpenCode credentials imported.");
     expect(log).not.toContain(secret);
   });
 
-  test("no-auth-json-leaves-auth-file-absent", async () => {
+  test("no-auth-json-skips-import", async () => {
     const { id, scripts } = await setup();
     await runScripts(id, scripts);
-    const resp = await execContainer(id, ["test", "-e", authPath]);
-    expect(resp.exitCode).not.toBe(0);
+    const calls = await execContainer(id, ["test", "-e", mockCalls]);
+    expect(calls.exitCode).not.toBe(0);
+    expect(await installLog(id)).toContain("No auth_json provided");
   });
 
-  test("managed-settings-written-as-root", async () => {
+  test("running-service-is-reloaded", async () => {
     const { id, scripts } = await setup({
-      moduleVariables: {
-        managed_settings: JSON.stringify({ share: "disabled" }),
-      },
+      moduleVariables: { config_json: JSON.stringify({ share: "disabled" }) },
+    });
+    await runScripts(id, scripts, {
+      OPENCODE_MOCK_SERVICE_URL: "http://127.0.0.1:49374",
+    });
+    expect(await readFileContainer(id, mockCalls)).toContain("reload");
+    expect(await installLog(id)).toContain(
+      "Reloaded the running OpenCode service.",
+    );
+  });
+
+  test("stopped-service-is-not-started", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: { config_json: JSON.stringify({ share: "disabled" }) },
     });
     await runScripts(id, scripts);
-    const managed = JSON.parse(await readFileContainer(id, managedPath));
-    expect(managed.share).toBe("disabled");
-    const owner = await execContainer(id, ["stat", "-c", "%U %a", managedPath]);
-    expect(owner.stdout.trim()).toBe("root 644");
-    const log = await installLog(id);
-    expect(log).toContain(`Wrote OpenCode managed settings to ${managedPath}`);
-  });
-
-  test("managed-settings-absent-when-unset", async () => {
-    const { id, scripts } = await setup();
-    await runScripts(id, scripts);
-    const resp = await execContainer(id, ["test", "-e", managedPath]);
-    expect(resp.exitCode).not.toBe(0);
-    const log = await installLog(id);
-    expect(log).not.toContain("managed settings");
+    const calls = await execContainer(id, ["test", "-e", mockCalls]);
+    expect(calls.exitCode).not.toBe(0);
   });
 
   test("pre-post-install-scripts", async () => {
