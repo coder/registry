@@ -15,11 +15,16 @@
 #   - agent_relay_client_platform is persistent attribution: the surface
 #     that created the session. Stamped on every build; relays that
 #     predate it simply never set it.
-#   - agent_relay_credential, agent_relay_claude_code_lock_to_account,
-#     and agent_relay_attempt are ephemeral runner inputs, reset
-#     between builds. An ephemeral value is still recorded on the build
-#     that set it, which is how Agent Relay reads the attempt back when
-#     it reaps a dead workspace.
+#   - agent_relay_claude_code_lock_to_account and agent_relay_attempt
+#     are ephemeral runner inputs, reset between builds. An ephemeral
+#     value is still recorded on the build that set it, which is how
+#     Agent Relay reads the attempt back when it reaps a dead workspace.
+#
+# The work-order JWT is not a parameter. Agent Relay sends it as an
+# ephemeral workspace secret, which the agent injects as
+# SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET. It never reaches the
+# provisioner, Terraform state, or the build's parameters, so nothing
+# in this module can read it.
 #
 # The runner's lifecycle is published through the agent_relay_status agent
 # metadata item, whose script this module renders. The script starts the
@@ -155,22 +160,6 @@ data "coder_parameter" "agent_relay_client_platform" {
   })
 }
 
-data "coder_parameter" "agent_relay_credential" {
-  name         = "agent_relay_credential"
-  display_name = "Agent Relay credential"
-  description  = "Single-use work order JWT the runner authenticates to Anthropic with. Agent Relay sets this when it dispatches the workspace; a human never fills it in. Ephemeral: it is valid for one session and is not reused on a later build."
-  type         = "string"
-  ephemeral    = true
-  mutable      = true
-  default      = ""
-  order        = 1003
-  styling = jsonencode({
-    disabled    = true
-    mask_input  = true
-    placeholder = "Set by Agent Relay on dispatch"
-  })
-}
-
 data "coder_parameter" "agent_relay_claude_code_lock_to_account" {
   name         = "agent_relay_claude_code_lock_to_account"
   display_name = "Claude Code account lock"
@@ -202,13 +191,10 @@ data "coder_parameter" "agent_relay_attempt" {
 }
 
 # Environment variable names are the claude CLI's contract, not
-# Agent Relay's; do not rename them here.
-resource "coder_env" "runner_environment_secret" {
-  agent_id = var.agent_id
-  name     = "SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET"
-  value    = data.coder_parameter.agent_relay_credential.value
-}
-
+# Agent Relay's; do not rename them here. The CLI also reads
+# SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET, which the agent injects from
+# the workspace secret Agent Relay sends; a coder_env of the same name
+# would be overridden by it.
 resource "coder_env" "agent_relay_claude_code_lock_to_account" {
   agent_id = var.agent_id
   name     = "SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT"
@@ -275,8 +261,8 @@ output "scripts" {
 }
 
 output "dispatched" {
-  description = "Whether this workspace was spawned by Agent Relay (credential set) or manually (empty)."
-  value       = data.coder_parameter.agent_relay_credential.value != ""
+  description = "Whether this workspace was spawned by Agent Relay (delivery set) or manually (empty)."
+  value       = data.coder_parameter.agent_relay_delivery_id.value != ""
 }
 
 output "client_platform" {

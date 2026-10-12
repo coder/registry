@@ -16,7 +16,7 @@ parameters the relay stamps on each build and runs the Cursor CLI worker.
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "0.5.0"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Cursor CLI at start when it is not in the image. Bake
@@ -52,6 +52,10 @@ created.
 
 ## Requirements
 
+- A Coder deployment that supports workspace build secrets, and an Agent
+  Relay release that sends the worker token as one. A relay that still sends
+  it as the `agent_relay_credential` parameter refuses to serve a template on
+  this version; pin `0.5.0` until the relay and Coder are upgraded.
 - The Cursor CLI (`agent`) must be in the workspace. `install_cli` (default
   `true`) downloads it at start only when it is not already on PATH; bake it
   into the image for the fastest start. `cli_binary` overrides the path.
@@ -71,9 +75,10 @@ created.
 
 The pool's service-account API key never leaves Agent Relay. At dispatch the
 relay exchanges it for a Cursor sub-token scoped to the requesting user and
-stamps that as the ephemeral `agent_relay_credential` parameter. The module
-exports it as `AGENT_RELAY_CURSOR_TOKEN` and starts the worker with
-`--auth-token`. It is never written to disk, though as a command-line argument
+sends that as an ephemeral workspace secret, which the agent injects as
+`AGENT_RELAY_CURSOR_TOKEN`. It never appears in the build's parameters or
+Terraform state. The module starts the worker with `--auth-token`. It is never
+written to disk, though as a command-line argument
 it is visible in the worker's `/proc/<pid>/cmdline` to any process running as
 the same user inside the workspace; the CLI offers no environment variable for
 it. The token acts only as that user, cannot mint further tokens, and expires
@@ -84,8 +89,7 @@ fails and Cursor re-queues the request for a fresh workspace.
 
 Agent Relay verifies this contract against the template's active version at
 startup and refuses to serve a pool that does not satisfy it. Every parameter
-renders disabled with a "Set by Agent Relay on dispatch" placeholder; the
-credential is masked.
+renders disabled with a "Set by Agent Relay on dispatch" placeholder.
 
 ## Scripts and logs
 
@@ -115,7 +119,7 @@ finishes a turn, not when the chat closes, so keep the timeout at or above
 | value             | meaning                                                                    |
 | ----------------- | -------------------------------------------------------------------------- |
 | `pending`         | start step running, supervisor has not written yet                         |
-| `idle`            | no credential: workspace was created manually                              |
+| `idle`            | no worker token: workspace was created manually                            |
 | `working`         | worker alive, no session attached                                          |
 | `serving`         | worker alive, session attached (best effort, see `serving_log_pattern`)    |
 | `orphaned`        | worker process gone without recording an exit                              |
