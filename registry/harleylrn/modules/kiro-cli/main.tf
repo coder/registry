@@ -46,55 +46,34 @@ variable "install_kiro_cli" {
 
 variable "kiro_cli_version" {
   type        = string
-  description = "Kiro CLI version to install, for example '2.26.0'. 'latest' with the default kiro_install_url uses the official installer (https://cli.kiro.dev/install); anything else downloads <kiro_install_url>/<version>/kirocli-<arch>-linux.zip. See https://kiro.dev/docs/getting-started/installation/"
+  description = "The version of Kiro CLI to install."
   default     = "latest"
-
-  validation {
-    condition     = can(regex("^(latest|[0-9]+\\.[0-9]+\\.[0-9]+)$", var.kiro_cli_version))
-    error_message = "kiro_cli_version must be 'latest' or a semantic version such as '2.26.0'."
-  }
 }
 
 variable "kiro_install_url" {
   type        = string
-  description = "Base URL hosting Kiro CLI release archives as <url>/<version>/kirocli-<arch>-linux.zip, for mirrors or air-gapped installs. Defaults to the official stable channel."
+  description = "Base URL for Kiro CLI installation downloads. Defaults to https://desktop-release.q.us-east-1.amazonaws.com."
   default     = null
 }
 
 variable "auth_tarball" {
   type        = string
-  description = "Base64 encoded, zstd compressed tarball of a pre-authenticated ~/.local/share/kiro-cli directory. Exported as KIRO_CLI_AUTH_TARBALL and extracted at install time; requires zstd in the workspace."
+  description = "Base64 encoded, zstd compressed tarball of a pre-authenticated ~/.local/share/kiro-cli directory."
   default     = ""
   sensitive   = true
 }
 
 variable "api_key" {
   type        = string
-  description = "Kiro API key, exported as KIRO_API_KEY. Used when no browser login is active; the Kiro docs scope API keys to non-interactive (headless) use. See https://kiro.dev/docs/getting-started/authentication/"
+  description = "Kiro API key, exported as KIRO_API_KEY. See https://kiro.dev/docs/getting-started/authentication/"
   default     = ""
   sensitive   = true
 }
 
 variable "agent_config" {
   type        = string
-  description = "Optional custom agent configuration JSON. Written to ~/.kiro/agents/<name>.json and set as chat.defaultAgent. See https://kiro.dev/docs/custom-agents/configuration-reference/"
+  description = "Optional Agent configuration JSON for Kiro CLI."
   default     = null
-
-  validation {
-    condition     = var.agent_config == null || can(regex("^[A-Za-z0-9][A-Za-z0-9._-]*$", jsondecode(var.agent_config).name))
-    error_message = "agent_config must be a JSON object whose name is a plain file name (letters, digits, '.', '_', '-')."
-  }
-}
-
-variable "mcp" {
-  type        = string
-  description = "MCP servers as JSON in Kiro's mcp.json format ({\"mcpServers\": {...}}). Merged into the user-level ~/.kiro/settings/mcp.json; servers already on disk win on duplicate names. See https://kiro.dev/docs/mcp/configuration/"
-  default     = ""
-
-  validation {
-    condition     = var.mcp == "" || can(jsondecode(var.mcp).mcpServers)
-    error_message = "mcp must be a JSON object with an mcpServers key."
-  }
 }
 
 resource "coder_env" "auth_tarball" {
@@ -115,11 +94,11 @@ locals {
   workdir = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_INSTALL      = tostring(var.install_kiro_cli)
-    ARG_VERSION      = var.kiro_cli_version
+    ARG_VERSION      = base64encode(var.kiro_cli_version)
     ARG_INSTALL_URL  = var.kiro_install_url != null ? base64encode(trimsuffix(var.kiro_install_url, "/")) : ""
     ARG_WORKDIR      = local.workdir != "" ? base64encode(local.workdir) : ""
     ARG_AGENT_CONFIG = var.agent_config != null ? base64encode(var.agent_config) : ""
-    ARG_MCP_CONFIG   = var.mcp != "" ? base64encode(var.mcp) : ""
+    ARG_AGENT_NAME   = base64encode(try(jsondecode(var.agent_config).name, "agent"))
   })
   module_dir_name = ".coder-modules/harleylrn/kiro-cli"
 }

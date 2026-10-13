@@ -83,58 +83,6 @@ run "auth_tarball_creates_env_var" {
   }
 }
 
-run "invalid_version_fails" {
-  command = plan
-
-  variables {
-    agent_id         = "test-agent"
-    kiro_cli_version = "2.26.0'; rm -rf /"
-  }
-
-  expect_failures = [
-    var.kiro_cli_version,
-  ]
-}
-
-run "invalid_mcp_fails" {
-  command = plan
-
-  variables {
-    agent_id = "test-agent"
-    mcp      = "{\"servers\": {}}"
-  }
-
-  expect_failures = [
-    var.mcp,
-  ]
-}
-
-run "agent_config_requires_plain_name" {
-  command = plan
-
-  variables {
-    agent_id     = "test-agent"
-    agent_config = "{\"name\": \"../escape\"}"
-  }
-
-  expect_failures = [
-    var.agent_config,
-  ]
-}
-
-run "agent_config_requires_name" {
-  command = plan
-
-  variables {
-    agent_id     = "test-agent"
-    agent_config = "{\"description\": \"no name\"}"
-  }
-
-  expect_failures = [
-    var.agent_config,
-  ]
-}
-
 run "scripts_output_is_ordered" {
   command = plan
 

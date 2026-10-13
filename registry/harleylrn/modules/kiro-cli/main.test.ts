@@ -217,8 +217,6 @@ const writeArchiveFixture = async (id: string, version: string) => {
 const moduleLogDir = "/home/coder/.coder-modules/harleylrn/kiro-cli/logs";
 const installLog = (id: string) =>
   readFileContainer(id, `${moduleLogDir}/install.log`);
-const mcpConfigPath = "/home/coder/.kiro/settings/mcp.json";
-const cliSettingsPath = "/home/coder/.kiro/settings/cli.json";
 
 setDefaultTimeout(60 * 1000);
 
@@ -282,7 +280,7 @@ describe("kiro-cli", async () => {
     expect(log).toContain("kiro-cli 2.25.0");
     const curlArgs = await readFileContainer(id, "/tmp/kiro-curl-args");
     expect(curlArgs).toMatch(
-      /https:\/\/prod\.download\.cli\.kiro\.dev\/stable\/2\.25\.0\/kirocli-(x86_64|aarch64)-linux\.zip/,
+      /https:\/\/desktop-release\.q\.us-east-1\.amazonaws\.com\/2\.25\.0\/kirocli-(x86_64|aarch64)-linux\.zip/,
     );
     expect(curlArgs).not.toContain("cli.kiro.dev/install");
     const env = await readFileContainer(id, "/tmp/kiro-archive-install-env");
@@ -349,69 +347,6 @@ describe("kiro-cli", async () => {
     expect(dir.exitCode).toBe(0);
   });
 
-  test("writes-mcp-servers-without-coder-server", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: {
-        mcp: JSON.stringify({
-          mcpServers: {
-            playwright: { command: "npx", args: ["-y", "@playwright/mcp"] },
-          },
-        }),
-      },
-    });
-    await runScripts(id, scripts);
-    const mcp = JSON.parse(await readFileContainer(id, mcpConfigPath));
-    expect(mcp.mcpServers.playwright.command).toBe("npx");
-    expect(mcp.mcpServers.coder).toBeUndefined();
-  });
-
-  test("merges-mcp-config-existing-servers-win", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: {
-        mcp: JSON.stringify({
-          mcpServers: {
-            shared: { command: "module-command" },
-            extra: { command: "extra-command" },
-          },
-        }),
-      },
-    });
-    const seed = JSON.stringify({
-      mcpServers: {
-        shared: { command: "existing-command" },
-        seeded: { command: "seeded-command" },
-      },
-    });
-    await execContainer(id, [
-      "bash",
-      "-c",
-      `mkdir -p /home/coder/.kiro/settings && echo '${seed}' > ${mcpConfigPath}`,
-    ]);
-    await runScripts(id, scripts);
-    const mcp = JSON.parse(await readFileContainer(id, mcpConfigPath));
-    expect(mcp.mcpServers.shared.command).toBe("existing-command");
-    expect(mcp.mcpServers.seeded.command).toBe("seeded-command");
-    expect(mcp.mcpServers.extra.command).toBe("extra-command");
-  });
-
-  test("invalid-existing-mcp-config-is-backed-up", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: {
-        mcp: JSON.stringify({ mcpServers: { extra: { command: "x" } } }),
-      },
-    });
-    await execContainer(id, [
-      "bash",
-      "-c",
-      `mkdir -p /home/coder/.kiro/settings && echo '{ // jsonc' > ${mcpConfigPath}`,
-    ]);
-    await runScripts(id, scripts);
-    const mcp = JSON.parse(await readFileContainer(id, mcpConfigPath));
-    expect(mcp.mcpServers.extra.command).toBe("x");
-    const backup = await readFileContainer(id, `${mcpConfigPath}.bak`);
-    expect(backup).toContain("// jsonc");
-  });
-
   test("agent-config-written-and-set-as-default", async () => {
     const agentConfig = {
       name: "coder-agent",
@@ -423,23 +358,14 @@ describe("kiro-cli", async () => {
     const { id, scripts } = await setup({
       moduleVariables: { agent_config: JSON.stringify(agentConfig) },
     });
-    const seed = JSON.stringify({
-      "chat.defaultModel": "user-picked-model",
-      "chat.defaultAgent": "old-agent",
-    });
-    await execContainer(id, [
-      "bash",
-      "-c",
-      `mkdir -p /home/coder/.kiro/settings && echo '${seed}' > ${cliSettingsPath}`,
-    ]);
     await runScripts(id, scripts);
     const agent = JSON.parse(
       await readFileContainer(id, "/home/coder/.kiro/agents/coder-agent.json"),
     );
     expect(agent).toEqual(agentConfig);
-    const settings = JSON.parse(await readFileContainer(id, cliSettingsPath));
-    expect(settings["chat.defaultAgent"]).toBe("coder-agent");
-    expect(settings["chat.defaultModel"]).toBe("user-picked-model");
+    expect(await installLog(id)).toContain(
+      "kiro-cli invoked with: settings chat.defaultAgent coder-agent",
+    );
   });
 
   test("no-agent-config-leaves-settings-untouched", async () => {
