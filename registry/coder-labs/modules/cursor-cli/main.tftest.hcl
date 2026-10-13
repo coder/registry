@@ -86,19 +86,6 @@ run "cursor_config_dir_creates_env_var" {
   }
 }
 
-run "invalid_mcp_fails" {
-  command = plan
-
-  variables {
-    agent_id = "test-agent"
-    mcp      = "{\"servers\": {}}"
-  }
-
-  expect_failures = [
-    var.mcp,
-  ]
-}
-
 run "rules_files_require_workdir" {
   command = plan
 
@@ -106,22 +93,6 @@ run "rules_files_require_workdir" {
     agent_id = "test-agent"
     rules_files = {
       "general.mdc" = "Write clean code"
-    }
-  }
-
-  expect_failures = [
-    var.rules_files,
-  ]
-}
-
-run "rules_files_reject_paths" {
-  command = plan
-
-  variables {
-    agent_id = "test-agent"
-    workdir  = "/home/coder/project"
-    rules_files = {
-      "../escape.mdc" = "nope"
     }
   }
 

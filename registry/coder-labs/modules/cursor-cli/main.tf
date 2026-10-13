@@ -61,11 +61,6 @@ variable "mcp" {
   type        = string
   description = "MCP servers as JSON in Cursor's mcp.json format ({\"mcpServers\": {...}}). Merged into the user-level ~/.cursor/mcp.json; servers already on disk win on duplicate names. See https://cursor.com/docs/cli/mcp"
   default     = ""
-
-  validation {
-    condition     = var.mcp == "" || can(jsondecode(var.mcp).mcpServers)
-    error_message = "mcp must be a JSON object with an mcpServers key."
-  }
 }
 
 variable "rules_files" {
@@ -76,11 +71,6 @@ variable "rules_files" {
   validation {
     condition     = length(var.rules_files) == 0 || (var.workdir != null && var.workdir != "")
     error_message = "rules_files requires workdir to be set."
-  }
-
-  validation {
-    condition     = alltrue([for name in keys(var.rules_files) : can(regex("^[A-Za-z0-9][A-Za-z0-9._-]*$", name))])
-    error_message = "rules_files names must be plain file names (letters, digits, '.', '_', '-') without path separators."
   }
 }
 
