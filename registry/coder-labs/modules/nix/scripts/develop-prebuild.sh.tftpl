@@ -2,45 +2,21 @@
 # Prebuild the project's `nix develop` shell so opening the Nix Develop app is
 # instant. The environment is recorded in a profile, which is a GC root: the
 # dependencies survive `nix-collect-garbage`.
-
 set -euo pipefail
 
-decode() { printf %s "$1" | base64 -d; }
-PROJECT_PATH=$(decode '${ARG_PATH}')
-INSTALLABLE=$(decode '${ARG_INSTALLABLE}')
-NIX_CONF=$(decode '${ARG_NIX_CONF}')
-PROFILE_DIR="${ARG_PROFILE_DIR}"
+NIX_CONF=$(printf %s '${ARG_NIX_CONF}' | base64 -d)
+INSTALLABLE=$(printf %s '${ARG_INSTALLABLE}' | base64 -d)
 WAIT_SECONDS=$${CODER_NIX_DEVELOP_WAIT_SECONDS:-600}
-
+${NIX_ENV_SH}
 warn() { printf 'Warning: %s\n' "$*" >&2; }
 
-# Match a literal leading `~` (Terraform passes the path unexpanded).
-# shellcheck disable=SC2088
-case "$PROJECT_PATH" in
-  /*) ;;
-  "~") PROJECT_PATH="$HOME" ;;
-  "~/"*) PROJECT_PATH="$HOME/$${PROJECT_PATH#"~/"}" ;;
-  *) PROJECT_PATH="$HOME/$${PROJECT_PATH#./}" ;;
-esac
-
-# Non-NixOS installs only put nix on PATH for login shells.
-if ! command -v nix > /dev/null 2>&1; then
-  for profile in /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh "$HOME/.nix-profile/etc/profile.d/nix.sh"; do
-    if [ -r "$profile" ]; then
-      # shellcheck source=/dev/null
-      . "$profile"
-      break
-    fi
-  done
-fi
 if ! command -v nix > /dev/null 2>&1; then
   warn "nix is not installed or not on PATH; skipping the nix develop prebuild."
   exit 0
 fi
 
-if [ -n "$NIX_CONF" ]; then
-  export NIX_CONFIG="$${NIX_CONFIG:-}"$'\n'"$NIX_CONF"
-fi
+# develop.path is inserted as written, so `~` and `$HOME` expand.
+PROJECT_PATH=${ARG_PATH}
 
 # The project may still be cloning (e.g. by the git-clone module).
 waited=0
@@ -56,11 +32,11 @@ until [ -f "$PROJECT_PATH/flake.nix" ]; do
   waited=$((waited + 2))
 done
 
-mkdir -p "$PROFILE_DIR"
+mkdir -p "${ARG_PROFILE_DIR}"
 cd "$PROJECT_PATH"
-echo "Prebuilding $INSTALLABLE in $PROJECT_PATH (profile: $PROFILE_DIR/profile)"
+echo "Prebuilding $INSTALLABLE in $PROJECT_PATH (profile: ${ARG_PROFILE_DIR}/profile)"
 if nix --extra-experimental-features 'nix-command flakes' develop \
-  --profile "$PROFILE_DIR/profile" "$INSTALLABLE" --command true; then
+  --profile "${ARG_PROFILE_DIR}/profile" "$INSTALLABLE" --command true; then
   echo "nix develop environment is ready."
 else
   warn "nix develop prebuild failed; the Nix Develop app will build on first use."

@@ -31,8 +31,8 @@ run "nixos_defaults" {
     }
   }
   assert {
-    condition     = var.nixos.enabled && var.nixos.type == "flake" && !var.develop.enabled
-    error_message = "nixos should be enabled with type flake, and develop disabled, by default."
+    condition     = var.nixos.enabled && !var.develop.enabled
+    error_message = "nixos should be enabled, and develop disabled, by default."
   }
   assert {
     condition     = output.flake_uri == "https://example.org/flake#coder-workspace-ec2-aarch64"
@@ -84,13 +84,36 @@ run "reject_unsupported_query" {
   expect_failures = [var.nixos]
 }
 
-run "reject_nixos_type_channel" {
+run "reject_relative_or_root_dirs" {
   command = plan
   variables {
     nixos = {
-      type       = "channel"
       flake_ref  = "https://example.org/flake"
       flake_attr = "host"
+      flake_dir  = "/"
+    }
+  }
+  expect_failures = [var.nixos]
+}
+
+run "reject_noncanonical_dir" {
+  command = plan
+  variables {
+    nixos = {
+      flake_ref  = "https://example.org/flake"
+      flake_attr = "host"
+      log_dir    = "/var/log/../log/x/"
+    }
+  }
+  expect_failures = [var.nixos]
+}
+
+run "reject_empty_flake_attr" {
+  command = plan
+  variables {
+    nixos = {
+      flake_ref  = "https://example.org/flake"
+      flake_attr = ""
     }
   }
   expect_failures = [var.nixos]
@@ -132,24 +155,33 @@ run "develop_requires_agent_id" {
   expect_failures = [var.develop]
 }
 
-run "develop_app_absolute_path" {
+run "develop_app_script" {
   command = plan
   variables {
     agent_id = "agent"
     nixos    = { enabled = false }
     develop = {
       enabled = true
-      path    = "/home/coder/it's a project"
+      path    = "\"$HOME/it's a project\""
       shell   = "ci"
+      slug    = "dev-shell"
       order   = 3
     }
   }
   assert {
-    condition     = coder_app.develop[0].command == "mkdir -p \"$HOME/.coder-modules/coder-labs/nix/develop\" && cd '/home/coder/it'\\''s a project' && exec nix --extra-experimental-features 'nix-command flakes' develop --profile \"$HOME/.coder-modules/coder-labs/nix/develop/profile\" '.#ci'"
-    error_message = "Unexpected app command: ${coder_app.develop[0].command}"
+    condition     = startswith(coder_app.develop[0].command, "#!/usr/bin/env bash\n")
+    error_message = "The app must run under bash, whatever the user's shell is."
   }
   assert {
-    condition     = coder_app.develop[0].slug == "nix-develop" && coder_app.develop[0].display_name == "Nix Develop" && coder_app.develop[0].order == 3 && coder_app.develop[0].icon == "/icon/nix.svg"
+    condition     = strcontains(coder_app.develop[0].command, "\nPROJECT_PATH=\"$HOME/it's a project\"\n")
+    error_message = "develop.path must be inserted as written."
+  }
+  assert {
+    condition     = strcontains(coder_app.develop[0].command, base64encode(".#ci")) && strcontains(coder_app.develop[0].command, "/.nix-profile/etc/profile.d/nix.sh")
+    error_message = "The app should select the shell and find nix like the prebuild does."
+  }
+  assert {
+    condition     = coder_app.develop[0].slug == "dev-shell" && coder_app.develop[0].display_name == "Nix Develop" && coder_app.develop[0].order == 3 && coder_app.develop[0].icon == "/icon/nix.svg"
     error_message = "Unexpected app presentation."
   }
   assert {
@@ -166,7 +198,7 @@ run "develop_app_absolute_path" {
   }
 }
 
-run "develop_app_home_relative_path" {
+run "develop_with_nixos_no_prebuild" {
   command = plan
   variables {
     agent_id = "agent"
@@ -181,8 +213,8 @@ run "develop_app_home_relative_path" {
     }
   }
   assert {
-    condition     = coder_app.develop[0].command == "mkdir -p \"$HOME/.coder-modules/coder-labs/nix/develop\" && cd \"$HOME\"/'project' && exec nix --extra-experimental-features 'nix-command flakes' develop --profile \"$HOME/.coder-modules/coder-labs/nix/develop/profile\" '.'"
-    error_message = "Unexpected app command: ${coder_app.develop[0].command}"
+    condition     = coder_app.develop[0].slug == "nix-develop" && strcontains(coder_app.develop[0].command, "\nPROJECT_PATH=~/project\n")
+    error_message = "Unexpected default slug or path handling."
   }
   assert {
     condition     = output.boot_script != null && output.scripts == []
@@ -229,7 +261,7 @@ run "config_merge_and_render" {
     error_message = "NIX_CONFIG should be exported with the develop settings."
   }
   assert {
-    condition     = !strcontains(coder_app.develop[0].command, "NIX_CONFIG")
+    condition     = strcontains(coder_app.develop[0].command, "NIX_CONF=$(printf %s '' | base64 -d)")
     error_message = "The app must not re-append settings that coder_env already exports."
   }
 }
@@ -285,7 +317,7 @@ run "export_config_false_inlines_settings" {
     error_message = "export_config = false must not export NIX_CONFIG."
   }
   assert {
-    condition     = strcontains(coder_app.develop[0].command, "&& NIX_CONFIG=\"$(printf '%s\\n' \"$${NIX_CONFIG:-}\"; printf %s '${base64encode("keep-outputs = true")}' | base64 -d)\" exec nix ")
+    condition     = strcontains(coder_app.develop[0].command, "NIX_CONF=$(printf %s '${base64encode("keep-outputs = true")}' | base64 -d)")
     error_message = "Unexpected app command: ${coder_app.develop[0].command}"
   }
 }

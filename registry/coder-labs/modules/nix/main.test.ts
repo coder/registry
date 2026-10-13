@@ -76,9 +76,9 @@ describe("nix", async () => {
     expect(stdout).toContain("lifecycle tests passed");
   });
 
-  it("nix develop app enters the project, appends NIX_CONFIG and records a profile", async () => {
+  it("nix develop app runs under bash, enters the project, appends NIX_CONFIG and records a profile", async () => {
     await withHome(async (home, bin) => {
-      // A project path with a space and a quote exercises shell quoting.
+      // develop.path is shell as written: quoting it is the caller's job.
       const project = "my 'project";
       await mkdir(path.join(home, project));
 
@@ -88,7 +88,7 @@ describe("nix", async () => {
         config: JSON.stringify({ "keep-outputs": true }),
         develop: JSON.stringify({
           enabled: true,
-          path: `~/${project}`,
+          path: `"$HOME/${project}"`,
           shell: "ci",
           prebuild: false,
           export_config: false,
@@ -97,7 +97,12 @@ describe("nix", async () => {
       const app = findResourceInstance(state, "coder_app", "develop");
       expect(app.slug).toBe("nix-develop");
 
-      const { exitCode, stdout } = await run(["bash", "-c", app.command], {
+      // Coder runs a command that starts with a shebang through that
+      // interpreter, regardless of the user's login shell.
+      const script = path.join(home, "app.sh");
+      await writeFile(script, app.command);
+      await chmod(script, 0o755);
+      const { exitCode, stdout } = await run([script], {
         HOME: home,
         PATH: `${bin}:${process.env.PATH}`,
         NIX_CONFIG: "foo = bar",
@@ -116,6 +121,39 @@ describe("nix", async () => {
         path.join(home, ".coder-modules/coder-labs/nix/develop/profile"),
         ".#ci",
       ]);
+    });
+  });
+
+  it("nix develop app finds nix through the Nix profile script when it is not on PATH", async () => {
+    await withHome(async (home, bin) => {
+      await mkdir(path.join(home, "proj"));
+      // Single-user installs only expose nix after sourcing this script.
+      const profileDir = path.join(home, ".nix-profile/etc/profile.d");
+      await mkdir(profileDir, { recursive: true });
+      await writeFile(
+        path.join(profileDir, "nix.sh"),
+        `export PATH="${bin}:$PATH"\n`,
+      );
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        nixos: JSON.stringify({ enabled: false }),
+        develop: JSON.stringify({
+          enabled: true,
+          path: "~/proj",
+          prebuild: false,
+        }),
+      });
+      const app = findResourceInstance(state, "coder_app", "develop");
+      const script = path.join(home, "app.sh");
+      await writeFile(script, app.command);
+      await chmod(script, 0o755);
+      const { exitCode, stdout } = await run([script], {
+        HOME: home,
+        PATH: "/usr/bin:/bin",
+      });
+      expect(exitCode).toBe(0);
+      expect(stdout.split("\n")[0]).toBe(path.join(home, "proj"));
+      expect(section(stdout, "ARGS")).toContain("develop");
     });
   });
 

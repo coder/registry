@@ -70,6 +70,20 @@ nix_apply_settings() {
   if [ "$conf_state" = changed ] || [ "$include_state" = added ]; then
     systemctl try-restart nix-daemon.service > /dev/null 2>&1 || true
   fi
+
+  # These move or replace the config files Nix reads, so root's nix.conf (and
+  # the include above) may be bypassed.
+  if [ -n "$NIX_CONF_TEXT" ]; then
+    local overrides daemon_env
+    overrides=$(env | grep -oE '^(NIX_USER_CONF_FILES|XDG_CONFIG_HOME|NIX_CONFIG_HOME)=' | tr -d = | tr '\n' ' ') || true
+    [ -z "$overrides" ] || coder_log warn "Set in the boot environment: $overrides; root Nix may not read $root_conf." || true
+    daemon_env=$(systemctl show nix-daemon.service -p Environment --value 2> /dev/null) || true
+    case " $daemon_env" in
+      *" NIX_USER_CONF_FILES="* | *" XDG_CONFIG_HOME="* | *" NIX_CONFIG_HOME="*)
+        coder_log warn "nix-daemon.service sets NIX_USER_CONF_FILES, XDG_CONFIG_HOME or NIX_CONFIG_HOME; the daemon may not read $root_conf." || true
+        ;;
+    esac
+  fi
 }
 
 TRANSCRIPT="$LOG_DIR/rebuild-$(date -u +%Y%m%dT%H%M%SZ).log"

@@ -6,8 +6,6 @@ variable "nixos" {
     Apply a NixOS configuration on every boot.
 
     - `enabled`: render the boot script. Defaults to `true`.
-    - `type`: how the configuration is sourced. Only `flake` is supported;
-      the field exists so channel-based configurations can be added later.
     - `flake_ref`: HTTP(S) or SSH Git URL of a committed flake; optional `git+`
       prefix and `?ref=` branch. Required when `enabled`. Embedded credentials
       appear in the outputs and the checkout.
@@ -19,13 +17,13 @@ variable "nixos" {
       configuration can be edited in place.
     - `state_dir`: revision marker and rebuild lock.
     - `log_dir`: rebuild transcripts.
+    The three directories must be canonical absolute paths other than `/`.
     - `config_override`: nix.conf settings merged over `config` (per key)
       for root's Nix: the boot rebuild, a manual `sudo nixos-rebuild`, and
       the nix-daemon that builds for every user.
   EOT
   type = object({
     enabled    = optional(bool, true)
-    type       = optional(string, "flake")
     flake_ref  = optional(string)
     flake_attr = optional(string)
     arch       = optional(string, "x86_64")
@@ -36,12 +34,6 @@ variable "nixos" {
     config_override = optional(any, {})
   })
   default = {}
-
-  # Add "channel" here once channel-based configurations are implemented.
-  validation {
-    condition     = contains(["flake"], var.nixos.type)
-    error_message = "nixos.type must be \"flake\"; channels are not supported yet."
-  }
 
   validation {
     condition     = !var.nixos.enabled || (var.nixos.flake_ref != null && var.nixos.flake_attr != null)
@@ -65,8 +57,18 @@ variable "nixos" {
   }
 
   validation {
-    condition     = alltrue([for v in [var.nixos.flake_attr, var.nixos.flake_dir, var.nixos.state_dir, var.nixos.log_dir] : v == null ? true : !can(regex("[[:cntrl:]]", v))])
-    error_message = "nixos.flake_attr, flake_dir, state_dir and log_dir must not contain control characters."
+    condition     = var.nixos.flake_attr == null ? true : (var.nixos.flake_attr != "" && !can(regex("[[:cntrl:]]", var.nixos.flake_attr)))
+    error_message = "nixos.flake_attr must be non-empty and must not contain control characters."
+  }
+
+  # These are created, chowned and rewritten as root, so `/`, relative and
+  # non-canonical paths are refused.
+  validation {
+    condition = alltrue([
+      for v in [var.nixos.flake_dir, var.nixos.state_dir, var.nixos.log_dir] :
+      startswith(v, "/") && v != "/" && abspath(v) == v && !can(regex("[[:cntrl:]]", v))
+    ])
+    error_message = "nixos.flake_dir, state_dir and log_dir must be canonical absolute directory paths other than /, without control characters."
   }
 }
 

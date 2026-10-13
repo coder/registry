@@ -7,8 +7,9 @@ variable "develop" {
 
     - `enabled`: add the Nix Develop app (and prebuild). Defaults to `false`.
       Requires `path` and `agent_id`.
-    - `path`: directory containing the project's `flake.nix`. Absolute, or
-      relative to the workspace user's home directory (`~/` is accepted).
+    - `path`: directory containing the project's `flake.nix`. Inserted into
+      the scripts as written (shell syntax), so `~/project` and
+      `$HOME/project` work; quote it yourself if it contains spaces.
     - `shell`: `devShells` attribute to enter; defaults to the flake's default
       shell.
     - `prebuild`: on workspace start, fetch/build everything the dev shell
@@ -19,7 +20,7 @@ variable "develop" {
     - `export_config`: also export those settings workspace-wide as
       `NIX_CONFIG`, so a `nix develop` run by hand gets them. Defaults to
       `true`.
-    - `display_name`, `order`, `group`: presentation of the app.
+    - `slug`, `display_name`, `order`, `group`: presentation of the app.
   EOT
   type = object({
     enabled         = optional(bool, false)
@@ -28,6 +29,7 @@ variable "develop" {
     prebuild        = optional(bool, true)
     config_override = optional(any, {})
     export_config   = optional(bool, true)
+    slug            = optional(string, "nix-develop")
     display_name    = optional(string, "Nix Develop")
     order           = optional(number)
     group           = optional(string)
@@ -50,8 +52,8 @@ variable "develop" {
   }
 
   validation {
-    condition     = alltrue([for v in [var.develop.path, var.develop.shell] : v == null ? true : (v != "" && !can(regex("[[:cntrl:]]", v)))])
-    error_message = "develop.path and develop.shell must be non-empty and must not contain control characters."
+    condition     = var.develop.shell == null ? true : (var.develop.shell != "" && !can(regex("[[:cntrl:]]", var.develop.shell)))
+    error_message = "develop.shell must be non-empty and must not contain control characters."
   }
 
   # Same rule as var.config.
@@ -63,7 +65,6 @@ variable "develop" {
 
 locals {
   develop_module_dir = "$HOME/.coder-modules/coder-labs/nix"
-  develop_profile    = "${local.develop_module_dir}/develop/profile"
 
   # When `nixos` is enabled, the daemon already has the daemon-only settings
   # (see nixos.tf); don't resend them from an untrusted client.
@@ -80,35 +81,24 @@ locals {
   # exported; otherwise they are appended to NIX_CONFIG inline.
   develop_inline_conf = var.develop.export_config ? "" : local.develop_nix_conf
 
-  # Values are POSIX single-quoted ('\'' escapes a quote).
   develop_installable = var.develop.shell == null ? "." : ".#${var.develop.shell}"
-  develop_nix_args    = "--extra-experimental-features 'nix-command flakes' develop --profile \"${local.develop_profile}\" '${replace(local.develop_installable, "'", "'\\''")}'"
 
-  # `~/x` and `x` resolve from $HOME; absolute paths are used as-is.
-  develop_path_relative = var.develop.path == null ? "" : trimprefix(trimprefix(var.develop.path, "~/"), "./")
-  develop_path_shell = (
-    var.develop.path == null ? "" :
-    startswith(var.develop.path, "/") ? "'${replace(var.develop.path, "'", "'\\''")}'" :
-    var.develop.path == "~" ? "\"$HOME\"" :
-    "\"$HOME\"/'${replace(local.develop_path_relative, "'", "'\\''")}'"
-  )
-
-  develop_env_prefix = local.develop_inline_conf == "" ? "" : "NIX_CONFIG=\"$(printf '%s\\n' \"$${NIX_CONFIG:-}\"; printf %s '${base64encode(local.develop_inline_conf)}' | base64 -d)\" "
-
-  develop_command = "mkdir -p \"${local.develop_module_dir}/develop\" && cd ${local.develop_path_shell} && ${local.develop_env_prefix}exec nix ${local.develop_nix_args}"
-
-  develop_prebuild_script = templatefile("${path.module}/scripts/develop-prebuild.sh.tftpl", {
-    ARG_PATH        = base64encode(var.develop.path == null ? "" : var.develop.path)
+  develop_script_args = {
+    ARG_PATH        = var.develop.path == null ? "" : var.develop.path
     ARG_INSTALLABLE = base64encode(local.develop_installable)
     ARG_NIX_CONF    = base64encode(local.develop_inline_conf)
     ARG_PROFILE_DIR = "${local.develop_module_dir}/develop"
-  })
+    NIX_ENV_SH      = file("${path.module}/scripts/nix-env.sh")
+  }
+
+  develop_command         = templatefile("${path.module}/scripts/develop.sh.tftpl", local.develop_script_args)
+  develop_prebuild_script = templatefile("${path.module}/scripts/develop-prebuild.sh.tftpl", local.develop_script_args)
 }
 
 resource "coder_app" "develop" {
   count        = var.develop.enabled ? 1 : 0
   agent_id     = var.agent_id
-  slug         = "nix-develop"
+  slug         = var.develop.slug
   display_name = var.develop.display_name
   icon         = var.icon
   command      = local.develop_command
@@ -136,7 +126,7 @@ module "coder_utils" {
 }
 
 output "develop_command" {
-  description = "Shell command the Nix Develop app runs: enters `develop.path` and execs `nix develop`. `null` when `develop.enabled` is false."
+  description = "Bash script the Nix Develop app runs: enters `develop.path` and execs `nix develop`. `null` when `develop.enabled` is false."
   value       = var.develop.enabled ? local.develop_command : null
 }
 

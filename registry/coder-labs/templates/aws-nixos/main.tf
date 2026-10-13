@@ -184,7 +184,6 @@ module "nix" {
   version = "~> 1.0"
 
   nixos = {
-    type       = "flake"
     flake_ref  = var.flake_ref
     flake_attr = var.flake_attr
     arch       = local.nix_arch

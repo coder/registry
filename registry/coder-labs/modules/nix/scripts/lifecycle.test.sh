@@ -66,13 +66,43 @@ nix_sync_checkout "file://$root/remote" main
 before=$ownership_calls
 # A failed fetch must still restore ownership.
 git -C "$NIX_FLAKE_DIR" remote set-url origin file:///does-not-exist
-nix_sync_checkout "file://$root/remote" main
+nix_sync_checkout file:///does-not-exist main
 [ "$ownership_calls" -eq "$((before + 1))" ]
 
 redacted=$(printf 'fatal: https://user:token@example.org/repo\n' | nix_filter_log)
 [[ "$redacted" == *'https://[redacted]@example.org/repo'* ]]
 [[ "$redacted" != *token* ]]
 [[ "$(nix_redact_url 'https://user:token@example.org/repo')" != *token* ]]
+# Changing flake_ref to another repository replaces a clean checkout...
+git -C "$NIX_FLAKE_DIR" remote set-url origin "file://$root/remote"
+rm -f "$NIX_FLAKE_DIR/untracked"
+[ -z "$(git -C "$NIX_FLAKE_DIR" status --porcelain)" ]
+git init -q -b main "$root/other"
+git -C "$root/other" config user.email test@example.org
+git -C "$root/other" config user.name Test
+printf 'other\n' > "$root/other/flake.nix"
+git -C "$root/other" add flake.nix
+git -C "$root/other" commit -qm other
+nix_sync_checkout "file://$root/other" main
+[ "$(cat "$NIX_FLAKE_DIR/flake.nix")" = other ]
+[ "$(git -C "$NIX_FLAKE_DIR" remote get-url origin)" = "file://$root/other" ]
+# ...but keeps one with local work.
+printf 'mine\n' > "$NIX_FLAKE_DIR/untracked-note"
+nix_sync_checkout "file://$root/remote" main
+[ "$(cat "$NIX_FLAKE_DIR/flake.nix")" = other ]
+[ -f "$NIX_FLAKE_DIR/untracked-note" ]
+rm "$NIX_FLAKE_DIR/untracked-note"
+git -C "$NIX_FLAKE_DIR" -c user.email=t@e -c user.name=T commit -qm local --allow-empty
+nix_sync_checkout "file://$root/remote" main
+[ "$(cat "$NIX_FLAKE_DIR/flake.nix")" = other ]
+# A failed clone of the new repository leaves the checkout alone.
+git -C "$NIX_FLAKE_DIR" reset -q --hard HEAD~1
+if nix_sync_checkout file:///does-not-exist-either main; then
+  echo 'clone of a missing repository should fail' >&2
+  exit 1
+fi
+[ "$(cat "$NIX_FLAKE_DIR/flake.nix")" = other ]
+
 # nix.conf helpers
 conf="$root/run/coder-nixos/nix.conf"
 [ "$(nix_write_conf "extra-substituters = https://a" "$conf")" = changed ]
@@ -83,6 +113,20 @@ conf="$root/run/coder-nixos/nix.conf"
 [ "$(nix_write_conf "" "$conf")" = changed ]
 [ ! -e "$conf" ]
 [ "$(nix_write_conf "" "$conf")" = unchanged ]
+
+# Failures are reported through the exact call pattern boot.sh uses, which
+# disables errexit inside the helper.
+blocked="$root/blocked"
+printf 'not a directory\n' > "$blocked"
+state=$(nix_write_conf "x = y" "$blocked/nix.conf") || state=failed
+[ "$state" = failed ]
+chmod 0555 "$root/run/coder-nixos"
+if [ ! -w "$root/run/coder-nixos" ]; then # root can still write; skip there
+  state=$(nix_write_conf "x = y" "$conf") || state=failed
+  [ "$state" = failed ]
+  [ -z "$(find "$root/run/coder-nixos" -name 'nix.conf.*')" ]
+fi
+chmod 0755 "$root/run/coder-nixos"
 
 root_conf="$root/root/.config/nix/nix.conf"
 [ "$(nix_ensure_include "$root_conf" "$conf")" = added ]
