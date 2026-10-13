@@ -281,10 +281,7 @@ describe("sourcegraph-amp", async () => {
       moduleVariables: { instruction_prompt: prompt },
     });
     await runScripts(id, scripts);
-    const agents = await readFileContainer(
-      id,
-      "/home/coder/.config/AGENTS.md",
-    );
+    const agents = await readFileContainer(id, "/home/coder/.config/AGENTS.md");
     expect(agents.trim()).toBe(prompt);
   });
 
