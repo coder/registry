@@ -7,12 +7,11 @@ command_exists() {
 }
 
 ARG_INSTALL='${ARG_INSTALL}'
-ARG_AMP_VERSION='${ARG_AMP_VERSION}'
+ARG_AMP_VERSION=$(echo -n '${ARG_AMP_VERSION}' | base64 -d)
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
 ARG_INSTRUCTION_PROMPT=$(echo -n '${ARG_INSTRUCTION_PROMPT}' | base64 -d)
-ARG_AMP_SETTINGS=$(echo -n '${ARG_AMP_SETTINGS}' | base64 -d)
+ARG_BASE_CONFIG=$(echo -n '${ARG_BASE_CONFIG}' | base64 -d)
 ARG_MCP_CONFIG=$(echo -n '${ARG_MCP_CONFIG}' | base64 -d)
-ARG_MANAGED_SETTINGS_JSON=$(echo -n '${ARG_MANAGED_SETTINGS_JSON}' | base64 -d)
 
 export PATH="$HOME/.local/bin:$HOME/.amp/bin:$PATH"
 
@@ -119,17 +118,6 @@ install_amp() {
     return
   fi
 
-  if command_exists amp; then
-    local current
-    current=$(installed_amp_version || true)
-    if [ -z "$${ARG_AMP_VERSION}" ] || [ "$${current}" = "$${ARG_AMP_VERSION}" ]; then
-      echo "Amp CLI already installed"
-      ensure_amp_in_path
-      return
-    fi
-    echo "Amp CLI $${current} is installed; installing requested $${ARG_AMP_VERSION}"
-  fi
-
   echo "Installing Amp CLI"
   install_with_official_installer
 
@@ -152,7 +140,7 @@ write_instruction_prompt() {
     return
   fi
 
-  local agents_file="$HOME/.config/amp/AGENTS.md"
+  local agents_file="$HOME/.config/AGENTS.md"
   mkdir -p "$(dirname "$${agents_file}")"
   printf '%s\n' "$${ARG_INSTRUCTION_PROMPT}" > "$${agents_file}"
   echo "Wrote instruction prompt to $${agents_file}"
@@ -181,10 +169,10 @@ write_user_settings() {
   )
 }
 
-# Module-provided amp.* keys overwrite on-disk values; MCP servers already on
-# disk win on duplicate names, matching `amp mcp add`. Every other key is kept.
+# base_amp_config keys overwrite on-disk values. MCP servers already on disk
+# win on duplicate names, matching `amp mcp add`. Every other key is kept.
 configure_user_settings() {
-  if [ -z "$${ARG_AMP_SETTINGS}" ] && [ -z "$${ARG_MCP_CONFIG}" ]; then
+  if [ -z "$${ARG_BASE_CONFIG}" ] && [ -z "$${ARG_MCP_CONFIG}" ]; then
     echo "No Amp settings or MCP servers configured; leaving $${SETTINGS_FILE} unchanged."
     return
   fi
@@ -193,21 +181,26 @@ configure_user_settings() {
 
   local existing
   if ! existing=$(read_user_settings); then
-    echo "Warning: $${SETTINGS_FILE} is not a strict JSON object (comments or trailing commas); leaving it unchanged. Remove them to let the module manage amp_settings and mcp." >&2
+    echo "Warning: $${SETTINGS_FILE} is not a strict JSON object (comments or trailing commas); leaving it unchanged." >&2
     return
   fi
 
-  local settings='{}' custom='{}'
-  if [ -n "$${ARG_AMP_SETTINGS}" ]; then
-    settings="$${ARG_AMP_SETTINGS}"
+  local base='{}' extra='{}' custom name
+  if [ -n "$${ARG_BASE_CONFIG}" ]; then
+    base="$${ARG_BASE_CONFIG}"
   fi
   if [ -n "$${ARG_MCP_CONFIG}" ]; then
-    custom="$${ARG_MCP_CONFIG}"
+    extra="$${ARG_MCP_CONFIG}"
   fi
+  custom=$(jq -n --argjson base "$${base}" --argjson extra "$${extra}" '($base["amp.mcpServers"] // {}) + $extra')
+
+  while IFS= read -r name; do
+    [ -n "$${name}" ] && echo "Warning: MCP server '$${name}' already exists in $${SETTINGS_FILE}, keeping the existing one." >&2
+  done < <(echo "$${existing}" | jq -r --argjson custom "$${custom}" '(.["amp.mcpServers"] // {}) | keys[] | select(. as $k | $custom | has($k))')
 
   local updated
-  updated=$(echo "$${existing}" | jq --argjson settings "$${settings}" --argjson custom "$${custom}" '
-    (. + $settings)
+  updated=$(echo "$${existing}" | jq --argjson base "$${base}" --argjson custom "$${custom}" '
+    (. + ($base | del(.["amp.mcpServers"])))
     | if ($custom | length) > 0
       then .["amp.mcpServers"] = ($custom + (.["amp.mcpServers"] // {}))
       else .
@@ -217,36 +210,9 @@ configure_user_settings() {
   echo "Updated Amp settings: $${SETTINGS_FILE}"
 }
 
-# Amp merges this file over user and workspace settings.
-write_managed_settings() {
-  if [ -z "$${ARG_MANAGED_SETTINGS_JSON}" ]; then
-    return
-  fi
-
-  require_jq "validate managed settings"
-
-  if ! echo "$${ARG_MANAGED_SETTINGS_JSON}" | jq -e 'type == "object"' > /dev/null 2>&1; then
-    echo "Warning: managed_settings is not a JSON object, skipping managed settings write" >&2
-    return
-  fi
-
-  local target="/etc/ampcode/managed-settings.json"
-  if command_exists sudo; then
-    sudo mkdir -p "$(dirname "$${target}")"
-    echo "$${ARG_MANAGED_SETTINGS_JSON}" | sudo tee "$${target}" > /dev/null
-    sudo chmod 0644 "$${target}"
-  else
-    mkdir -p "$(dirname "$${target}")"
-    echo "$${ARG_MANAGED_SETTINGS_JSON}" > "$${target}"
-    chmod 0644 "$${target}"
-  fi
-  echo "Wrote Amp managed settings to $${target}"
-}
-
 install_amp
 setup_workdir
 write_instruction_prompt
 configure_user_settings
-write_managed_settings
 
 echo "Amp module setup completed."

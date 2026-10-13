@@ -29,11 +29,6 @@ run "defaults_are_correct" {
     condition     = length(coder_env.amp_api_key) == 0
     error_message = "AMP_API_KEY should not be created when amp_api_key is empty"
   }
-
-  assert {
-    condition     = strcontains(local.install_script, "ARG_MANAGED_SETTINGS_JSON=$(echo -n '' | base64 -d)")
-    error_message = "managed settings should be empty by default"
-  }
 }
 
 run "workdir_trailing_slash_is_trimmed" {
@@ -78,76 +73,8 @@ run "amp_version_is_passed_through" {
   }
 
   assert {
-    condition     = strcontains(local.install_script, "ARG_AMP_VERSION='0.0.1790769659-g954f35'")
+    condition     = strcontains(local.install_script, base64encode("0.0.1790769659-g954f35"))
     error_message = "amp_version should be rendered into the install script"
-  }
-}
-
-run "invalid_amp_version_fails" {
-  command = plan
-
-  variables {
-    agent_id    = "test-agent"
-    amp_version = "1.0'; rm -rf /"
-  }
-
-  expect_failures = [
-    var.amp_version,
-  ]
-}
-
-run "invalid_mcp_fails" {
-  command = plan
-
-  variables {
-    agent_id = "test-agent"
-    mcp      = "[\"not-an-object\"]"
-  }
-
-  expect_failures = [
-    var.mcp,
-  ]
-}
-
-run "invalid_amp_settings_fails" {
-  command = plan
-
-  variables {
-    agent_id     = "test-agent"
-    amp_settings = "not json"
-  }
-
-  expect_failures = [
-    var.amp_settings,
-  ]
-}
-
-run "amp_settings_rejects_mcp_servers" {
-  command = plan
-
-  variables {
-    agent_id     = "test-agent"
-    amp_settings = "{\"amp.mcpServers\": {}}"
-  }
-
-  expect_failures = [
-    var.amp_settings,
-  ]
-}
-
-run "managed_settings_are_encoded" {
-  command = plan
-
-  variables {
-    agent_id = "test-agent"
-    managed_settings = {
-      "amp.updates.mode" = "disabled"
-    }
-  }
-
-  assert {
-    condition     = strcontains(local.install_script, base64encode(jsonencode({ "amp.updates.mode" = "disabled" })))
-    error_message = "managed_settings should be rendered base64-encoded into the install script"
   }
 }
 

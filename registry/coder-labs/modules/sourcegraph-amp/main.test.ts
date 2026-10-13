@@ -163,7 +163,6 @@ const moduleLogDir =
 const installLog = (id: string) =>
   readFileContainer(id, `${moduleLogDir}/install.log`);
 const settingsPath = "/home/coder/.config/amp/settings.json";
-const managedSettingsPath = "/etc/ampcode/managed-settings.json";
 
 const seedSettings = (id: string, content: string) =>
   execContainer(id, [
@@ -257,33 +256,6 @@ describe("sourcegraph-amp", async () => {
     expect(version).toBe("0.0.1790769659-g954f35");
   });
 
-  test("existing-binary-skips-installer", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: { install_amp: "true" },
-    });
-    await mockCurl(id, 22);
-    await runScripts(id, scripts);
-    const log = await installLog(id);
-    expect(log).toContain("Amp CLI already installed");
-  });
-
-  test("pinned-version-mismatch-reinstalls", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: {
-        install_amp: "true",
-        amp_version: "0.0.1790769659-g954f35",
-      },
-    });
-    await mockCurl(id);
-    // The fixture links ~/.local/bin/amp, which the script puts ahead of /usr/bin.
-    await runScripts(id, scripts);
-    const log = await installLog(id);
-    expect(log).toContain(
-      "Amp CLI 0.0.1700000000-gmock00 is installed; installing requested 0.0.1790769659-g954f35",
-    );
-    expect(log).toContain("Installed Amp CLI");
-  });
-
   test("installer-download-failure-is-terminal", async () => {
     const { id, scripts } = await setup({
       skipAmpMock: true,
@@ -311,7 +283,7 @@ describe("sourcegraph-amp", async () => {
     await runScripts(id, scripts);
     const agents = await readFileContainer(
       id,
-      "/home/coder/.config/amp/AGENTS.md",
+      "/home/coder/.config/AGENTS.md",
     );
     expect(agents.trim()).toBe(prompt);
   });
@@ -319,7 +291,7 @@ describe("sourcegraph-amp", async () => {
   test("amp-settings-merge-preserves-unrelated-keys", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {
-        amp_settings: JSON.stringify({
+        base_amp_config: JSON.stringify({
           "amp.dangerouslyAllowAll": true,
           "amp.showCosts": false,
         }),
@@ -383,6 +355,9 @@ describe("sourcegraph-amp", async () => {
     expect(servers.seeded.command).toBe("seeded-command");
     expect(servers.extra.command).toBe("extra-command");
     expect(settings["amp.showCosts"]).toBe(false);
+    expect(await installLog(id)).toContain(
+      "Warning: MCP server 'shared' already exists",
+    );
   });
 
   test("jsonc-settings-are-left-untouched", async () => {
@@ -398,43 +373,6 @@ describe("sourcegraph-amp", async () => {
     expect(settings.trim()).toBe(jsonc);
     const log = await installLog(id);
     expect(log).toContain("is not a strict JSON object");
-  });
-
-  test("managed-settings-written-as-root", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: {
-        managed_settings: JSON.stringify({
-          "amp.updates.mode": "disabled",
-          "amp.mcpPermissions": [
-            { matches: { command: "*" }, action: "reject" },
-          ],
-        }),
-      },
-    });
-    await runScripts(id, scripts);
-    const managed = JSON.parse(
-      await readFileContainer(id, managedSettingsPath),
-    );
-    expect(managed["amp.updates.mode"]).toBe("disabled");
-    expect(managed["amp.mcpPermissions"][0].action).toBe("reject");
-    const stat = await execContainer(id, [
-      "stat",
-      "-c",
-      "%U %a",
-      managedSettingsPath,
-    ]);
-    expect(stat.stdout.trim()).toBe("root 644");
-    const log = await installLog(id);
-    expect(log).toContain(
-      `Wrote Amp managed settings to ${managedSettingsPath}`,
-    );
-  });
-
-  test("managed-settings-absent-when-unset", async () => {
-    const { id, scripts } = await setup();
-    await runScripts(id, scripts);
-    const resp = await execContainer(id, ["test", "-e", managedSettingsPath]);
-    expect(resp.exitCode).not.toBe(0);
   });
 
   test("api-key-env-var-not-in-script", async () => {
