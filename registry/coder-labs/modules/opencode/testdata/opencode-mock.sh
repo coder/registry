@@ -30,17 +30,6 @@ case "$1 ${2:-}" in
     jq --arg id "$4" 'map(select(.id != $id))' "${store}" > "${store}.tmp"
     mv "${store}.tmp" "${store}"
     ;;
-  "service status")
-    if [[ -n "${OPENCODE_MOCK_SERVICE_URL:-}" ]]; then
-      echo "${OPENCODE_MOCK_SERVICE_URL}"
-    else
-      echo "stopped"
-    fi
-    ;;
-  "reload "*)
-    echo "reload" >> /tmp/opencode-mock-calls
-    echo "Configuration reloaded"
-    ;;
   *)
     echo "opencode invoked with: $*"
     ;;

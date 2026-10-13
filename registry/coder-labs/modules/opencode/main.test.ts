@@ -525,28 +525,6 @@ describe("opencode", async () => {
     expect(await installLog(id)).toContain("No auth_json provided");
   });
 
-  test("running-service-is-reloaded", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: { config_json: JSON.stringify({ share: "disabled" }) },
-    });
-    await runScripts(id, scripts, {
-      OPENCODE_MOCK_SERVICE_URL: "http://127.0.0.1:49374",
-    });
-    expect(await readFileContainer(id, mockCalls)).toContain("reload");
-    expect(await installLog(id)).toContain(
-      "Reloaded the running OpenCode service.",
-    );
-  });
-
-  test("stopped-service-is-not-started", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: { config_json: JSON.stringify({ share: "disabled" }) },
-    });
-    await runScripts(id, scripts);
-    const calls = await execContainer(id, ["test", "-e", mockCalls]);
-    expect(calls.exitCode).not.toBe(0);
-  });
-
   test("pre-post-install-scripts", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {

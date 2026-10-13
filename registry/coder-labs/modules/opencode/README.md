@@ -146,7 +146,7 @@ resource "coder_script" "post_opencode" {
 
 ## Configuration
 
-`config_json` is deep-merged into the global `opencode.json` in `$OPENCODE_CONFIG_DIR`, else `$XDG_CONFIG_HOME/opencode`, else `~/.config/opencode`. Keys you set win, and everything else in the file is preserved. If the existing file is not valid JSON (for example, JSONC with comments), it is backed up to `opencode.json.bak` and replaced. When OpenCode's shared background service is already running, the module runs `opencode reload` so the change takes effect. See the [OpenCode config reference](https://opencode.ai/v2/docs/config/) for available keys.
+`config_json` is deep-merged into the global `opencode.json` in `$OPENCODE_CONFIG_DIR`, else `$XDG_CONFIG_HOME/opencode`, else `~/.config/opencode`. Keys you set win, and everything else in the file is preserved. If the existing file is not valid JSON (for example, JSONC with comments), it is backed up to `opencode.json.bak` and replaced. If OpenCode's shared background service is already running, it keeps the previous config until you run `opencode reload`. See the [OpenCode config reference](https://opencode.ai/v2/docs/config/) for available keys.
 
 OpenCode 2 stores credentials in its SQLite database, not in `auth.json`. `auth_json` takes the JSON array printed by `opencode auth export` and is applied with `opencode auth import`. Credentials with the same `id` are replaced on every start so rotated secrets apply, and other saved accounts are preserved. The value is exported to the workspace as `CODER_OPENCODE_AUTH_JSON` so it is never rendered into the install script.
 

@@ -254,11 +254,6 @@ setup_auth() {
 
   require_jq "import OpenCode credentials"
 
-  if ! jq -e 'env.CODER_OPENCODE_AUTH_JSON | fromjson | type == "array"' -n > /dev/null 2>&1; then
-    echo "ERROR: CODER_OPENCODE_AUTH_JSON is not a JSON array of credentials." >&2
-    exit 1
-  fi
-
   local existing_ids integration credential_id
   existing_ids=$(opencode auth export --standalone 2> /dev/null | jq -r '.[].id' 2> /dev/null || true)
   while IFS=$'\t' read -r integration credential_id; do
@@ -267,31 +262,17 @@ setup_auth() {
     fi
   done < <(jq -rn 'env.CODER_OPENCODE_AUTH_JSON | fromjson | .[] | [.integrationID, .id] | @tsv')
 
-  # Read from the environment so credentials never appear in process arguments.
-  if ! jq -n 'env.CODER_OPENCODE_AUTH_JSON | fromjson' | opencode auth import --standalone; then
+  # printf is a builtin, so the credentials never appear in process arguments.
+  if ! printf '%s' "$${AUTH_JSON}" | opencode auth import --standalone; then
     echo "ERROR: OpenCode credential import failed." >&2
     exit 1
   fi
   echo "OpenCode credentials imported."
 }
 
-# A running shared service caches configuration until it is reloaded.
-reload_running_service() {
-  local status
-  status=$(opencode service status 2> /dev/null || true)
-  if [[ "$${status}" == http* ]]; then
-    if opencode reload > /dev/null 2>&1; then
-      echo "Reloaded the running OpenCode service."
-    else
-      echo "Warning: could not reload the running OpenCode service; run 'opencode reload'." >&2
-    fi
-  fi
-}
-
 install_opencode
 setup_workdir
 setup_config
 setup_auth
-reload_running_service
 
 echo "OpenCode module setup completed."
