@@ -9,7 +9,7 @@ command_exists() {
 }
 
 ARG_INSTALL='${ARG_INSTALL}'
-ARG_OPENCODE_VERSION='${ARG_OPENCODE_VERSION}'
+ARG_OPENCODE_VERSION=$(echo -n '${ARG_OPENCODE_VERSION}' | base64 -d)
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
 ARG_CONFIG_JSON=$(echo -n '${ARG_CONFIG_JSON}' | base64 -d)
 ARG_MCP_CONFIG=$(echo -n '${ARG_MCP_CONFIG}' | base64 -d)

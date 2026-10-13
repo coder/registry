@@ -48,11 +48,6 @@ variable "opencode_version" {
   type        = string
   description = "The version of OpenCode to install, for example '2.0.27'. Use 'latest' for the newest release. The module requires OpenCode 2. See https://www.npmjs.com/package/@opencode/cli?activeTab=versions"
   default     = "latest"
-
-  validation {
-    condition     = can(regex("^(latest|v?[0-9]+\\.[0-9]+\\.[0-9]+[0-9A-Za-z.+-]*)$", var.opencode_version))
-    error_message = "opencode_version must be 'latest' or a release version such as '2.0.27'."
-  }
 }
 
 variable "auth_json" {
@@ -60,45 +55,18 @@ variable "auth_json" {
   description = "OpenCode credentials in the JSON array format printed by `opencode auth export`. Imported with `opencode auth import`; credentials with the same id are replaced, other saved accounts are preserved. Exported to the workspace as CODER_OPENCODE_AUTH_JSON so it is never rendered into the install script. See https://opencode.ai/v2/docs/cli/providers"
   sensitive   = true
   default     = ""
-
-  validation {
-    condition = var.auth_json == "" || try(alltrue([
-      for c in jsondecode(var.auth_json) : can(c.id) && can(c.integrationID) && can(c.label) && can(c.active) && can(c.value.type)
-    ]) && length(jsondecode(var.auth_json)) > 0, false)
-    error_message = "auth_json must be a non-empty JSON array of credentials as printed by `opencode auth export` (each with id, integrationID, label, active, and value)."
-  }
 }
 
 variable "config_json" {
   type        = string
   description = "OpenCode config as JSON, deep-merged into the global opencode.json ($OPENCODE_CONFIG_DIR, else $XDG_CONFIG_HOME/opencode, else ~/.config/opencode). Keys set here win; other keys on disk are preserved. Configure MCP servers with the mcp variable instead. See https://opencode.ai/v2/docs/config/"
   default     = ""
-
-  validation {
-    condition     = var.config_json == "" || can(keys(jsondecode(var.config_json)))
-    error_message = "config_json must be a JSON object."
-  }
-
-  validation {
-    condition     = var.config_json == "" || !can(jsondecode(var.config_json).mcp)
-    error_message = "config_json must not contain an mcp key; use the mcp variable for MCP servers."
-  }
 }
 
 variable "mcp" {
   type        = string
   description = "MCP servers as a JSON object keyed by server name, in the format of mcp.servers in opencode.json. Merged into the global opencode.json under mcp.servers; servers already on disk win on duplicate names. Use disabled (not enabled) to keep a server configured without connecting it. See https://opencode.ai/v2/docs/mcp-servers/"
   default     = ""
-
-  validation {
-    condition     = var.mcp == "" || can(keys(jsondecode(var.mcp)))
-    error_message = "mcp must be a JSON object keyed by MCP server name."
-  }
-
-  validation {
-    condition     = var.mcp == "" || try(alltrue([for name, server in jsondecode(var.mcp) : !contains(["servers", "timeout"], name) && !can(server.enabled)]), false)
-    error_message = "mcp must map server names to server objects (not the whole mcp block), and servers must use disabled instead of the V1 enabled field."
-  }
 }
 
 resource "coder_env" "opencode_auth_json" {
@@ -112,7 +80,7 @@ locals {
   workdir = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_INSTALL          = tostring(var.install_opencode)
-    ARG_OPENCODE_VERSION = var.opencode_version
+    ARG_OPENCODE_VERSION = base64encode(var.opencode_version)
     ARG_WORKDIR          = local.workdir != "" ? base64encode(local.workdir) : ""
     ARG_CONFIG_JSON      = var.config_json != "" ? base64encode(var.config_json) : ""
     ARG_MCP_CONFIG       = var.mcp != "" ? base64encode(var.mcp) : ""

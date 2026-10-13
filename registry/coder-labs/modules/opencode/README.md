@@ -87,7 +87,7 @@ module "opencode" {
 }
 ```
 
-`mcp` maps server names to server objects in the format of [`mcp.servers`](https://opencode.ai/v2/docs/mcp-servers/) and is merged into the global `opencode.json` under `mcp.servers`. Servers connect automatically; set `disabled = true` to keep one configured without connecting it. The V1 `enabled` field is rejected at plan time because OpenCode 2 ignores it inside `mcp.servers`. Servers already in the file win on duplicate names, including V1-style entries listed directly under `mcp`, so changes made inside the workspace (for example with `opencode mcp add --global`) are not overwritten.
+`mcp` maps server names to server objects in the format of [`mcp.servers`](https://opencode.ai/v2/docs/mcp-servers/) and is merged into the global `opencode.json` under `mcp.servers`. Servers connect automatically; set `disabled = true` to keep one configured without connecting it. Do not use the V1 `enabled` field: OpenCode 2 ignores it inside `mcp.servers`, so the server still connects. Servers already in the file win on duplicate names, including V1-style entries listed directly under `mcp`, so changes made inside the workspace (for example with `opencode mcp add --global`) are not overwritten.
 
 > [!NOTE]
 > The official installer ships a self-contained binary and does not install Node.js. MCP servers whose `command` is `npx` or `uvx` need that runtime available in the workspace image, or installed with `pre_install_script`.

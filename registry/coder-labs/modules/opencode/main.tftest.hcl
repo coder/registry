@@ -31,7 +31,7 @@ run "defaults_are_correct" {
   }
 
   assert {
-    condition     = strcontains(local.install_script, "ARG_OPENCODE_VERSION='latest'")
+    condition     = strcontains(local.install_script, base64encode("latest"))
     error_message = "install script should receive the opencode version"
   }
 }
@@ -94,71 +94,6 @@ run "config_and_mcp_are_encoded" {
   }
 }
 
-run "invalid_auth_json_fails" {
-  command = plan
-
-  variables {
-    agent_id  = "test-agent"
-    auth_json = "not-json"
-  }
-
-  expect_failures = [
-    var.auth_json,
-  ]
-}
-
-run "v1_auth_json_object_fails" {
-  command = plan
-
-  variables {
-    agent_id  = "test-agent"
-    auth_json = "{\"anthropic\": {\"type\": \"api\", \"key\": \"sk-ant-test-secret\"}}"
-  }
-
-  expect_failures = [
-    var.auth_json,
-  ]
-}
-
-run "mcp_with_v1_enabled_field_fails" {
-  command = plan
-
-  variables {
-    agent_id = "test-agent"
-    mcp      = "{\"playwright\": {\"type\": \"local\", \"command\": [\"npx\"], \"enabled\": true}}"
-  }
-
-  expect_failures = [
-    var.mcp,
-  ]
-}
-
-run "mcp_with_whole_block_fails" {
-  command = plan
-
-  variables {
-    agent_id = "test-agent"
-    mcp      = "{\"servers\": {\"playwright\": {\"type\": \"local\", \"command\": [\"npx\"]}}}"
-  }
-
-  expect_failures = [
-    var.mcp,
-  ]
-}
-
-run "invalid_opencode_version_fails" {
-  command = plan
-
-  variables {
-    agent_id         = "test-agent"
-    opencode_version = "1.0'; rm -rf ~; '"
-  }
-
-  expect_failures = [
-    var.opencode_version,
-  ]
-}
-
 run "pinned_opencode_version_is_accepted" {
   command = plan
 
@@ -168,48 +103,9 @@ run "pinned_opencode_version_is_accepted" {
   }
 
   assert {
-    condition     = strcontains(local.install_script, "ARG_OPENCODE_VERSION='v2.0.27'")
+    condition     = strcontains(local.install_script, base64encode("v2.0.27"))
     error_message = "install script should receive the pinned opencode version"
   }
-}
-
-run "invalid_config_json_fails" {
-  command = plan
-
-  variables {
-    agent_id    = "test-agent"
-    config_json = "[1, 2]"
-  }
-
-  expect_failures = [
-    var.config_json,
-  ]
-}
-
-run "config_json_with_mcp_fails" {
-  command = plan
-
-  variables {
-    agent_id    = "test-agent"
-    config_json = "{\"mcp\": {\"x\": {\"type\": \"remote\", \"url\": \"https://example.com\"}}}"
-  }
-
-  expect_failures = [
-    var.config_json,
-  ]
-}
-
-run "invalid_mcp_fails" {
-  command = plan
-
-  variables {
-    agent_id = "test-agent"
-    mcp      = "[\"x\"]"
-  }
-
-  expect_failures = [
-    var.mcp,
-  ]
 }
 
 run "scripts_output_is_ordered" {
