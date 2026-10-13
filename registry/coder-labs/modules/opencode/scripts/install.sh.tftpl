@@ -72,19 +72,6 @@ function add_path_to_shell_profiles() {
   fi
 }
 
-# Prints the bare version reported by `opencode --version` ("opencode v2.0.27" -> "2.0.27").
-installed_opencode_version() {
-  local out
-  out=$(opencode --version 2> /dev/null) || return 1
-  out="$${out##* }"
-  echo "$${out#v}"
-}
-
-# V2 credentials and config shapes are not understood by OpenCode 1.
-is_opencode_v1() {
-  [[ "$1" =~ ^1\. ]]
-}
-
 function ensure_opencode_in_path() {
   local OPENCODE_BIN=""
   if command_exists opencode; then
@@ -102,11 +89,6 @@ function ensure_opencode_in_path() {
     return 1
   fi
   printf "OpenCode version: %s\n" "$${OPENCODE_VERSION}"
-
-  if is_opencode_v1 "$(installed_opencode_version)"; then
-    echo "OpenCode 1 ($${OPENCODE_VERSION}) is not supported; this module requires OpenCode 2." >&2
-    return 1
-  fi
 
   if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/opencode" ]; then
     ln -s "$${OPENCODE_BIN}" "$${CODER_SCRIPT_BIN_DIR}/opencode"
@@ -165,20 +147,6 @@ install_opencode() {
     fi
     echo "Validated existing OpenCode"
     return
-  fi
-
-  if command_exists opencode; then
-    local installed wanted
-    installed=$(installed_opencode_version || true)
-    wanted="$${ARG_OPENCODE_VERSION#v}"
-    if is_opencode_v1 "$${installed}"; then
-      echo "OpenCode $${installed} is installed; installing OpenCode 2"
-    elif [ "$${ARG_OPENCODE_VERSION}" = "latest" ] || [ "$${installed}" = "$${wanted}" ]; then
-      echo "OpenCode already installed ($${installed})"
-      ensure_opencode_in_path
-      return
-    fi
-    echo "OpenCode $${installed} is installed; installing $${wanted}"
   fi
 
   echo "Installing OpenCode"

@@ -13,7 +13,7 @@ set -- "${args[@]}"
 
 case "$1 ${2:-}" in
   "--version "* | "-v "*)
-    echo "opencode ${OPENCODE_MOCK_VERSION:-v2.0.0-mock}"
+    echo "opencode v2.0.0-mock"
     ;;
   "auth export")
     cat "${store}"

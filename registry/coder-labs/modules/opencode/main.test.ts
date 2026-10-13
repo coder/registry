@@ -249,16 +249,6 @@ describe("opencode", async () => {
     expect(log).toContain("was not found or is not executable");
   });
 
-  test("opencode-v1-is-rejected-when-install-disabled", async () => {
-    const { id, scripts } = await setup();
-    const resp = await runScript(id, "install", scripts.install, {
-      OPENCODE_MOCK_VERSION: "1.18.33",
-    });
-    expect(resp.exitCode).not.toBe(0);
-    const log = await installLog(id);
-    expect(log).toContain("this module requires OpenCode 2");
-  });
-
   test("official-v2-installer-is-used", async () => {
     const { id, scripts } = await setup({
       skipOpencodeMock: true,
@@ -319,25 +309,6 @@ describe("opencode", async () => {
       (await readFileContainer(id, "/tmp/opencode-installer-runs")).trim(),
     ).toBe("3");
     expect(await installLog(id)).toContain("Installed OpenCode");
-  });
-
-  test("installed-opencode-v1-is-upgraded-to-v2", async () => {
-    const { id, scripts } = await setup({
-      skipOpencodeMock: true,
-      moduleVariables: { install_opencode: "true" },
-    });
-    await writeExecutable({
-      containerId: id,
-      filePath: "/usr/local/bin/opencode",
-      content: '#!/bin/sh\necho "1.18.33"\n',
-    });
-    await mockInstallerDownload(id, installFixtureBinary("v2.0.27"));
-    await runScripts(id, scripts);
-    const log = await installLog(id);
-    expect(log).toContain(
-      "OpenCode 1.18.33 is installed; installing OpenCode 2",
-    );
-    expect(log).toContain("OpenCode version: opencode v2.0.27");
   });
 
   test("installer-download-failure-is-terminal", async () => {
