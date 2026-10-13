@@ -1,5 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -25,6 +32,38 @@ const run = async (cmd: string[], env?: Record<string, string>) => {
   return { exitCode, stdout, stderr };
 };
 
+// A temporary $HOME with stub `nix` and `coder` binaries. The `nix` stub
+// records its working directory, NIX_CONFIG and arguments to $HOME/nix.log.
+const withHome = async (fn: (home: string, bin: string) => Promise<void>) => {
+  const home = await mkdtemp(path.join(tmpdir(), "nix-module-"));
+  try {
+    const bin = path.join(home, "bin");
+    await mkdir(bin);
+    await writeFile(
+      path.join(bin, "nix"),
+      [
+        "#!/usr/bin/env bash",
+        'log="$HOME/nix.log"',
+        'printf "%s\\n" "$PWD" "--- NIX_CONFIG" "${NIX_CONFIG:-}" "--- ARGS" "$@" | tee "$log"',
+        "",
+      ].join("\n"),
+    );
+    await writeFile(path.join(bin, "coder"), "#!/usr/bin/env bash\nexit 0\n");
+    await chmod(path.join(bin, "nix"), 0o755);
+    await chmod(path.join(bin, "coder"), 0o755);
+    await fn(home, bin);
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+};
+
+const section = (log: string, name: string) => {
+  const lines = log.trimEnd().split("\n");
+  const start = lines.indexOf(`--- ${name}`) + 1;
+  const end = lines.findIndex((l, i) => i >= start && l.startsWith("--- "));
+  return lines.slice(start, end === -1 ? undefined : end);
+};
+
 describe("nix", async () => {
   await runTerraformInit(import.meta.dir);
 
@@ -37,28 +76,22 @@ describe("nix", async () => {
     expect(stdout).toContain("lifecycle tests passed");
   });
 
-  it("nix develop app enters the project and runs nix develop", async () => {
-    const home = await mkdtemp(path.join(tmpdir(), "nix-develop-"));
-    try {
+  it("nix develop app enters the project, appends NIX_CONFIG and records a profile", async () => {
+    await withHome(async (home, bin) => {
       // A project path with a space and a quote exercises shell quoting.
       const project = "my 'project";
       await mkdir(path.join(home, project));
-      const bin = path.join(home, "bin");
-      await mkdir(bin);
-      // Stub nix: record the working directory and arguments.
-      await writeFile(
-        path.join(bin, "nix"),
-        '#!/usr/bin/env bash\nprintf "%s\\n" "$PWD" "$@"\n',
-      );
-      await chmod(path.join(bin, "nix"), 0o755);
 
       const state = await runTerraformApply(import.meta.dir, {
         agent_id: "foo",
         nixos: JSON.stringify({ enabled: false }),
+        config: JSON.stringify({ "keep-outputs": true }),
         develop: JSON.stringify({
           enabled: true,
           path: `~/${project}`,
           shell: "ci",
+          prebuild: false,
+          export_config: false,
         }),
       });
       const app = findResourceInstance(state, "coder_app", "develop");
@@ -67,17 +100,80 @@ describe("nix", async () => {
       const { exitCode, stdout } = await run(["bash", "-c", app.command], {
         HOME: home,
         PATH: `${bin}:${process.env.PATH}`,
+        NIX_CONFIG: "foo = bar",
       });
       expect(exitCode).toBe(0);
-      expect(stdout.trimEnd().split("\n")).toEqual([
-        path.join(home, project),
+      expect(stdout.split("\n")[0]).toBe(path.join(home, project));
+      expect(section(stdout, "NIX_CONFIG")).toEqual([
+        "foo = bar",
+        "keep-outputs = true",
+      ]);
+      expect(section(stdout, "ARGS")).toEqual([
         "--extra-experimental-features",
         "nix-command flakes",
         "develop",
+        "--profile",
+        path.join(home, ".coder-modules/coder-labs/nix/develop/profile"),
         ".#ci",
       ]);
-    } finally {
-      await rm(home, { recursive: true, force: true });
-    }
+    });
   });
+
+  it("prebuild waits for flake.nix, then builds the dev shell into a profile", async () => {
+    await withHome(async (home, bin) => {
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+        nixos: JSON.stringify({ enabled: false }),
+        develop: JSON.stringify({
+          enabled: true,
+          path: "~/proj",
+          config_override: { "extra-substituters": ["https://c.example"] },
+          export_config: false,
+        }),
+      });
+      const script = findResourceInstance(
+        state,
+        "coder_script",
+        "install_script",
+      );
+
+      // The project only appears after the script has started waiting.
+      const appear = (async () => {
+        await Bun.sleep(1500);
+        await mkdir(path.join(home, "proj"));
+        await writeFile(path.join(home, "proj", "flake.nix"), "{}\n");
+      })();
+      const { exitCode, stdout } = await run(["bash", "-c", script.script], {
+        HOME: home,
+        PATH: `${bin}:${process.env.PATH}`,
+      });
+      await appear;
+
+      expect(exitCode).toBe(0);
+      expect(stdout).toContain("Waiting for");
+      expect(stdout).toContain("nix develop environment is ready.");
+      const log = await readFile(path.join(home, "nix.log"), "utf8");
+      expect(log.split("\n")[0]).toBe(path.join(home, "proj"));
+      expect(section(log, "NIX_CONFIG")).toEqual([
+        "",
+        "extra-substituters = https://c.example",
+      ]);
+      expect(section(log, "ARGS")).toEqual([
+        "--extra-experimental-features",
+        "nix-command flakes",
+        "develop",
+        "--profile",
+        path.join(home, ".coder-modules/coder-labs/nix/develop/profile"),
+        ".",
+        "--command",
+        "true",
+      ]);
+      // coder-utils writes the log under the module directory.
+      const installLog = await readFile(
+        path.join(home, ".coder-modules/coder-labs/nix/logs/install.log"),
+        "utf8",
+      );
+      expect(installLog).toContain("nix develop environment is ready.");
+    });
+  }, 30_000);
 });

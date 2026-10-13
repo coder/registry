@@ -214,3 +214,57 @@ nix_lock() {
     flock 9
   fi
 }
+
+# Write nix.conf text to a file atomically (0644), or remove the file when the
+# text is empty. Prints "changed" or "unchanged".
+nix_write_conf() {
+  local text="$1" file="$2" tmp
+  if [ -z "$text" ]; then
+    if [ -e "$file" ]; then
+      rm -f "$file"
+      echo changed
+    else
+      echo unchanged
+    fi
+    return 0
+  fi
+  if [ -f "$file" ] && [ "$(cat "$file")" = "$text" ]; then
+    echo unchanged
+    return 0
+  fi
+  install -d -m 0755 "$(dirname "$file")"
+  tmp=$(mktemp "$file.XXXXXX")
+  printf '%s\n' "$text" > "$tmp"
+  chmod 0644 "$tmp"
+  mv -f "$tmp" "$file"
+  echo changed
+}
+
+# Append `!include <target>` to a nix.conf unless the line is already there.
+# Existing content is never modified. Prints "added", "present", or "skipped"
+# when the file is a symlink (e.g. managed by home-manager) or not writable.
+nix_ensure_include() {
+  local file="$1" target="$2" line
+  line="!include $target"
+  if [ -L "$file" ] || { [ -e "$file" ] && [ ! -w "$file" ]; }; then
+    echo skipped
+    return 0
+  fi
+  if [ -f "$file" ] && grep -qxF -- "$line" "$file"; then
+    echo present
+    return 0
+  fi
+  if ! install -d -m 0755 "$(dirname "$file")" 2> /dev/null; then
+    echo skipped
+    return 0
+  fi
+  # Start on a fresh line if the file does not end with a newline.
+  if [ -s "$file" ] && [ -n "$(tail -c1 "$file")" ]; then
+    printf '\n' >> "$file"
+  fi
+  if ! printf '# Added by the coder-labs/nix Coder module.\n%s\n' "$line" >> "$file" 2> /dev/null; then
+    echo skipped
+    return 0
+  fi
+  echo added
+}

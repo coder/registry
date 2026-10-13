@@ -19,6 +19,9 @@ variable "nixos" {
       configuration can be edited in place.
     - `state_dir`: revision marker and rebuild lock.
     - `log_dir`: rebuild transcripts.
+    - `config_override`: nix.conf settings merged over `config` (per key)
+      for root's Nix: the boot rebuild, a manual `sudo nixos-rebuild`, and
+      the nix-daemon that builds for every user.
   EOT
   type = object({
     enabled    = optional(bool, true)
@@ -29,6 +32,8 @@ variable "nixos" {
     flake_dir  = optional(string, "/etc/nixos")
     state_dir  = optional(string, "/var/lib/coder-nixos")
     log_dir    = optional(string, "/var/log/coder-nixos")
+
+    config_override = optional(any, {})
   })
   default = {}
 
@@ -51,6 +56,12 @@ variable "nixos" {
   validation {
     condition     = contains(["x86_64", "aarch64"], var.nixos.arch)
     error_message = "nixos.arch must be x86_64 or aarch64."
+  }
+
+  # Same rule as var.config.
+  validation {
+    condition     = try(alltrue([for k, v in var.nixos.config_override : can(regex("^[a-z][a-z0-9-]*$", k)) && (can(regex("^[^[:cntrl:]]*$", v)) || (can(tolist(v)) && can([for x in tolist(v) : regex("^[^[:cntrl:]]*$", x)])))]), false)
+    error_message = "nixos.config_override must be a map of nix.conf setting names (lowercase letters, digits, dashes) to strings, numbers, booleans or lists of strings, without control characters."
   }
 
   validation {
@@ -80,6 +91,12 @@ locals {
 
   flake_branch = try(regex("[?&]ref=([^&#]+)", local.nixos_flake_ref)[0], "")
 
+  nixos_settings = merge(var.config, var.nixos.config_override)
+  nixos_settings_text = {
+    for k, v in local.nixos_settings : k => can(tolist(v)) ? join(" ", [for x in tolist(v) : tostring(x)]) : tostring(v)
+  }
+  nixos_nix_conf = join("\n", [for k in sort(keys(local.nixos_settings)) : "${k} = ${local.nixos_settings_text[k]}"])
+
   flake_attr = replace(var.nixos.flake_attr == null ? "" : var.nixos.flake_attr, "$ARCH", var.nixos.arch)
 }
 
@@ -98,7 +115,13 @@ output "boot_script" {
     flake_dir    = base64encode(var.nixos.flake_dir)
     state_dir    = base64encode(var.nixos.state_dir)
     log_dir      = base64encode(var.nixos.log_dir)
+    nix_conf     = base64encode(local.nixos_nix_conf)
   })
+}
+
+output "nixos_nix_conf" {
+  description = "nix.conf text applied to root's Nix on the instance (`config` merged with `nixos.config_override`). `null` when `nixos.enabled` is false."
+  value       = !var.nixos.enabled ? null : local.nixos_nix_conf
 }
 
 output "flake_uri" {

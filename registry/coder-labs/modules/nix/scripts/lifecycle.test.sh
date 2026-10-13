@@ -73,4 +73,31 @@ redacted=$(printf 'fatal: https://user:token@example.org/repo\n' | nix_filter_lo
 [[ "$redacted" == *'https://[redacted]@example.org/repo'* ]]
 [[ "$redacted" != *token* ]]
 [[ "$(nix_redact_url 'https://user:token@example.org/repo')" != *token* ]]
+# nix.conf helpers
+conf="$root/run/coder-nixos/nix.conf"
+[ "$(nix_write_conf "extra-substituters = https://a" "$conf")" = changed ]
+[ "$(cat "$conf")" = "extra-substituters = https://a" ]
+[ "$(stat -c %a "$conf")" = 644 ]
+[ "$(nix_write_conf "extra-substituters = https://a" "$conf")" = unchanged ]
+[ "$(nix_write_conf "extra-substituters = https://b" "$conf")" = changed ]
+[ "$(nix_write_conf "" "$conf")" = changed ]
+[ ! -e "$conf" ]
+[ "$(nix_write_conf "" "$conf")" = unchanged ]
+
+root_conf="$root/root/.config/nix/nix.conf"
+[ "$(nix_ensure_include "$root_conf" "$conf")" = added ]
+grep -qxF "!include $conf" "$root_conf"
+[ "$(nix_ensure_include "$root_conf" "$conf")" = present ]
+[ "$(grep -cxF "!include $conf" "$root_conf")" -eq 1 ]
+# Existing content is kept, and a missing trailing newline is handled.
+printf 'max-jobs = 2' > "$root_conf"
+[ "$(nix_ensure_include "$root_conf" "$conf")" = added ]
+[ "$(head -1 "$root_conf")" = "max-jobs = 2" ]
+[ "$(tail -1 "$root_conf")" = "!include $conf" ]
+# A symlinked (e.g. home-manager-managed) config is never touched.
+printf 'managed\n' > "$root/managed.conf"
+ln -sf "$root/managed.conf" "$root/link.conf"
+[ "$(nix_ensure_include "$root/link.conf" "$conf")" = skipped ]
+[ "$(cat "$root/managed.conf")" = managed ]
+
 printf 'lifecycle tests passed\n'
