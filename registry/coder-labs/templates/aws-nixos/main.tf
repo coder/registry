@@ -180,8 +180,10 @@ locals {
 }
 
 module "nix" {
-  source = "./modules/nix"
+  source  = "registry.coder.com/coder-labs/nix/coder"
+  version = "~> 1.0"
 
+  type       = "nixos"
   flake_ref  = var.flake_ref
   flake_attr = var.flake_attr
   arch       = local.nix_arch

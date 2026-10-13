@@ -8,7 +8,7 @@ tags: [vm, linux, aws, nixos, persistent-vm]
 
 # NixOS workspaces on AWS EC2
 
-Boot an EC2 workspace from a Git flake. NixOS rebuilds before the agent starts.
+Boot an EC2 workspace from a Git flake. NixOS rebuilds before the agent starts, using the [Nix(OS) module](../../modules/nix).
 
 ## Before you start
 
