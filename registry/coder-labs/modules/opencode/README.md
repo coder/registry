@@ -19,7 +19,7 @@ module "opencode" {
 ```
 
 > [!WARNING]
-> If upgrading from v0.x.x of this module: v1 is a major refactor that drops support for Coder Tasks and AgentAPI. The module now only installs and configures OpenCode; launch it with your own `coder_app`. `workdir` is now optional. `ai_prompt`, `continue`, and `session_id` are removed in favor of the `--prompt`, `--continue`, and `--session` CLI flags in your launcher. The module now installs OpenCode 2 and requires it. `config_json` is removed; MCP servers move to the new `mcp` variable (written under `mcp.servers` in the global `opencode.json`), and `auth_json` now takes the output of `opencode auth export` instead of `auth.json` contents. Keep using v0.x.x if you depend on Coder Tasks.
+> If upgrading from v0.x.x of this module: v1 is a major refactor that drops support for Coder Tasks and AgentAPI and requires OpenCode 2. The module now only installs and configures OpenCode; launch it with your own `coder_app`. `ai_prompt`, `continue`, `session_id`, and `config_json` are removed, MCP servers move to `mcp`, and `auth_json` now takes the output of `opencode auth export`. See [Migrate from V1](https://opencode.ai/v2/docs/migrate-v1/). Keep using v0.x.x if you depend on Coder Tasks.
 
 ## Examples
 
@@ -53,7 +53,7 @@ resource "coder_app" "opencode" {
 }
 ```
 
-When `workdir` is set, the module creates it if missing. Pass `--continue`, `--session`, `--prompt`, `--auto`, or any other flag from `opencode --help` in the launcher command, or launch the minimal interface with `opencode mini`. See the [OpenCode CLI](https://opencode.ai/v2/docs/cli/).
+See the [OpenCode CLI](https://opencode.ai/v2/docs/cli/) for launcher flags such as `--continue`, `--session`, and `--prompt`.
 
 > [!CAUTION]
 > `--auto` approves every permission request that is not explicitly denied, including shell commands. Use it only in trusted environments.
@@ -83,10 +83,7 @@ module "opencode" {
 }
 ```
 
-`mcp` maps server names to server objects in the format of [`mcp.servers`](https://opencode.ai/v2/docs/mcp-servers/) and is merged into the global `opencode.json` (`$OPENCODE_CONFIG_DIR`, else `$XDG_CONFIG_HOME/opencode`, else `~/.config/opencode`) under `mcp.servers`. Nothing else in the file is changed. Servers connect automatically; set `disabled = true` to keep one configured without connecting it. Do not use the V1 `enabled` field: OpenCode 2 ignores it inside `mcp.servers`, so the server still connects. Like `claude mcp add` in the claude-code module, a server name that already exists in the file is skipped with a warning and the existing server is kept, including V1-style entries listed directly under `mcp`. Changes made inside the workspace (for example with `opencode mcp add --global`) are therefore not overwritten. If the existing file is not valid JSON (for example, JSONC with comments), it is backed up to `opencode.json.bak` and replaced. If OpenCode's shared background service is already running, it keeps the previous config until you run `opencode reload`.
-
-> [!NOTE]
-> The official installer ships a self-contained binary and does not install Node.js. MCP servers whose `command` is `npx` or `uvx` need that runtime available in the workspace image, or installed with `pre_install_script`.
+`mcp` uses the [`mcp.servers`](https://opencode.ai/v2/docs/mcp-servers/) format. Servers that already exist in `opencode.json` are kept.
 
 ### Serialize a downstream `coder_script` after the install pipeline
 
@@ -117,7 +114,7 @@ resource "coder_script" "post_opencode" {
 
 ## Configuration
 
-OpenCode 2 stores credentials in its SQLite database, not in `auth.json`. `auth_json` takes the JSON array printed by `opencode auth export` and is applied with `opencode auth import`. Credentials with the same `id` are replaced on every start so rotated secrets apply, and other saved accounts are preserved. The value is exported to the workspace as `CODER_OPENCODE_AUTH_JSON` so it is never rendered into the install script.
+`auth_json` takes the output of `opencode auth export`. See [OpenCode providers](https://opencode.ai/v2/docs/cli/providers/).
 
 ```tf
 module "opencode" {
@@ -134,10 +131,6 @@ module "opencode" {
 }
 ```
 
-Alternatively, skip `auth_json` and set the provider's API key environment variable (for example `ANTHROPIC_API_KEY`) with a `coder_env`. OpenCode lists it as an environment connection. See [OpenCode providers](https://opencode.ai/v2/docs/cli/providers/).
-
-The module installs OpenCode 2 with the [official installer](https://opencode.ai/v2/install) into `~/.opencode/bin`, retrying when the installer cannot resolve the latest release. Set `opencode_version` to pin a release; when a different version or OpenCode 1 is already installed, the installer runs again. With `latest`, the install is skipped when OpenCode 2 is already on `PATH`. OpenCode checks for updates by default; set `"update": "disable"` in `opencode.json` to keep a pinned version. If `install_opencode = false`, a working OpenCode 2 `opencode` must already be available on `PATH`, or workspace startup fails.
-
 ## Troubleshooting
 
 Check the log files in `~/.coder-modules/coder-labs/opencode/logs/` for detailed information.
@@ -148,7 +141,7 @@ cat ~/.coder-modules/coder-labs/opencode/logs/pre_install.log
 cat ~/.coder-modules/coder-labs/opencode/logs/post_install.log
 ```
 
-Run `opencode debug config` in the workspace to see the resolved configuration, and `opencode service status` to check the background service. OpenCode's own logs are in `~/.local/share/opencode/log/opencode.log`. See [OpenCode troubleshooting](https://opencode.ai/v2/docs/troubleshooting/).
+See [OpenCode troubleshooting](https://opencode.ai/v2/docs/troubleshooting/).
 
 ## References
 
