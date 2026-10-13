@@ -53,7 +53,6 @@ const DISPATCH_ENV = [
   "CURSOR_AGENT_WORKER_ID=worker-123",
   `AGENT_RELAY_CURSOR_POOL_NAME=${POOL_NAME}`,
   "AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT=600",
-  "AGENT_RELAY_CURSOR_CREDENTIAL_KIND=worker_token",
 ];
 
 const setup = async (vars: Record<string, string> = {}) => {
@@ -366,15 +365,14 @@ describe("agent-relay-cursor", () => {
     expect(env.stdout).not.toContain("CURSOR_API_KEY=");
   });
 
-  it("hands a shared service-account key over as CURSOR_API_KEY", async () => {
-    // insecure_shared_token pools stamp the team key and
-    // agent_relay_cursor_credential_kind=api_key; the CLI only accepts
-    // that key as an API key, so --auth-token must be absent and the key
-    // must reach the worker's environment.
+  it("passes the credential as --auth-token even with a stale credential kind", async () => {
+    // Module 0.2.0 to 0.4.0 exported AGENT_RELAY_CURSOR_CREDENTIAL_KIND
+    // and switched to CURSOR_API_KEY on api_key. A leftover value in the
+    // environment must not change how the credential reaches the CLI.
     const { id, scripts } = await setup();
     await stubAgent(
       id,
-      'printf "%s\\n" "$@" >/tmp/agent-args; printf "%s" "$CURSOR_API_KEY" >/tmp/agent-api-key; sleep 30',
+      'printf "%s\\n" "$@" >/tmp/agent-args; printf "%s" "${CURSOR_API_KEY-unset}" >/tmp/agent-api-key; sleep 30',
     );
     const { start } = await runScripts(id, scripts, [
       ...DISPATCH_ENV,
@@ -382,21 +380,8 @@ describe("agent-relay-cursor", () => {
     ]);
     expect(start.exitCode).toBe(0);
     const args = (await readFileContainer(id, "/tmp/agent-args")).split("\n");
-    expect(args).not.toContain("--auth-token");
-    expect(args).toContain("--pool");
-    expect(await readFileContainer(id, "/tmp/agent-api-key")).toBe(
-      "test-user-token",
-    );
-    // The key is still read from the environment at run time, never
-    // written into the supervisor.
-    const supervisor = await readFileContainer(
-      id,
-      `${MODULE_DIR}/scripts/supervise.sh`,
-    );
-    expect(supervisor).toContain(
-      'export CURSOR_API_KEY="$AGENT_RELAY_CURSOR_TOKEN"',
-    );
-    expect(supervisor).not.toContain("test-user-token");
+    expect(args[args.indexOf("--auth-token") + 1]).toBe("test-user-token");
+    expect(await readFileContainer(id, "/tmp/agent-api-key")).toBe("unset");
   });
 
   it("passes --computer-use when enabled", async () => {
