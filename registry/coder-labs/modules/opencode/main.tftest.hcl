@@ -74,18 +74,12 @@ run "auth_json_creates_env_var" {
   }
 }
 
-run "config_and_mcp_are_encoded" {
+run "mcp_is_encoded" {
   command = plan
 
   variables {
-    agent_id    = "test-agent"
-    config_json = "{\"model\": \"anthropic/claude-sonnet-4-5\"}"
-    mcp         = "{\"playwright\": {\"type\": \"local\", \"command\": [\"npx\", \"-y\", \"@playwright/mcp\"]}}"
-  }
-
-  assert {
-    condition     = strcontains(local.install_script, base64encode(var.config_json))
-    error_message = "install script should receive the base64-encoded config_json"
+    agent_id = "test-agent"
+    mcp      = "{\"playwright\": {\"type\": \"local\", \"command\": [\"npx\", \"-y\", \"@playwright/mcp\"]}}"
   }
 
   assert {

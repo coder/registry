@@ -11,7 +11,6 @@ command_exists() {
 ARG_INSTALL='${ARG_INSTALL}'
 ARG_OPENCODE_VERSION=$(echo -n '${ARG_OPENCODE_VERSION}' | base64 -d)
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
-ARG_CONFIG_JSON=$(echo -n '${ARG_CONFIG_JSON}' | base64 -d)
 ARG_MCP_CONFIG=$(echo -n '${ARG_MCP_CONFIG}' | base64 -d)
 
 # Delivered through coder_env so credentials never appear in this script.
@@ -201,45 +200,43 @@ setup_workdir() {
   fi
 }
 
-# The module owns only the keys it sets; everything else in opencode.json is
-# preserved. config_json keys win, while MCP servers already on disk win on
-# duplicate names so in-workspace edits are not overwritten. V1 configs may
-# still list servers directly under mcp, so those names count as existing too.
-setup_config() {
+# Add MCP servers under mcp.servers without touching anything else in
+# opencode.json. Like `claude mcp add`, a server name that already exists is
+# skipped and the on-disk server is kept. V1 configs may still list servers
+# directly under mcp, so those names count as existing too.
+setup_mcp() {
   local config_file="$${OPENCODE_CONFIG_PATH}/opencode.json"
 
-  if [ -z "$${ARG_CONFIG_JSON}" ] && [ -z "$${ARG_MCP_CONFIG}" ]; then
-    echo "No config_json or mcp configured; leaving $${config_file} unchanged."
+  if [ -z "$${ARG_MCP_CONFIG}" ]; then
+    echo "No mcp configured; leaving $${config_file} unchanged."
     return
   fi
 
-  require_jq "configure OpenCode"
+  require_jq "configure OpenCode MCP servers"
 
   mkdir -p "$(dirname "$${config_file}")"
 
-  local existing config='{}' mcp='{}'
+  local existing name
   existing=$(read_json_object "$${config_file}")
-  if [ -n "$${ARG_CONFIG_JSON}" ]; then
-    config="$${ARG_CONFIG_JSON}"
-  fi
-  if [ -n "$${ARG_MCP_CONFIG}" ]; then
-    mcp="$${ARG_MCP_CONFIG}"
-  fi
 
-  echo "$${existing}" | jq --argjson config "$${config}" --argjson mcp "$${mcp}" '
-    (. * $config)
-    | if ($mcp | length) > 0 then
-        ((.mcp // {}) | if type == "object" then . else {} end) as $current
-        | ($current.servers // {}) as $servers
-        | ($mcp | with_entries(select(
-            .key as $name | (($servers | has($name)) or ($current | has($name))) | not
-          ))) as $new
-        | .mcp = ($current + {servers: ($servers + $new)})
-      else . end
+  while IFS= read -r name; do
+    echo "Warning: MCP server '$${name}' already exists in $${config_file}, keeping the existing one."
+  done < <(echo "$${existing}" | jq -r --argjson mcp "$${ARG_MCP_CONFIG}" '
+    ((.mcp // {}) | if type == "object" then . else {} end) as $current
+    | $mcp | keys[] | select(. as $name | ($current.servers // {}) | has($name) or ($current | has($name)))
+  ')
+
+  echo "$${existing}" | jq --argjson mcp "$${ARG_MCP_CONFIG}" '
+    ((.mcp // {}) | if type == "object" then . else {} end) as $current
+    | ($current.servers // {}) as $servers
+    | ($mcp | with_entries(select(
+        .key as $name | (($servers | has($name)) or ($current | has($name))) | not
+      ))) as $new
+    | .mcp = ($current + {servers: ($servers + $new)})
     | .["$schema"] //= "https://opencode.ai/config.json"
   ' > "$${config_file}.tmp"
   mv "$${config_file}.tmp" "$${config_file}"
-  echo "OpenCode configuration written: $${config_file}"
+  echo "OpenCode MCP configuration written: $${config_file}"
 }
 
 # OpenCode 2 stores credentials in its SQLite database and ignores auth.json on
@@ -272,7 +269,7 @@ setup_auth() {
 
 install_opencode
 setup_workdir
-setup_config
+setup_mcp
 setup_auth
 
 echo "OpenCode module setup completed."

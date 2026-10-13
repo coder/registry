@@ -57,15 +57,9 @@ variable "auth_json" {
   default     = ""
 }
 
-variable "config_json" {
-  type        = string
-  description = "OpenCode config as JSON, deep-merged into the global opencode.json ($OPENCODE_CONFIG_DIR, else $XDG_CONFIG_HOME/opencode, else ~/.config/opencode). Keys set here win; other keys on disk are preserved. Configure MCP servers with the mcp variable instead. See https://opencode.ai/v2/docs/config/"
-  default     = ""
-}
-
 variable "mcp" {
   type        = string
-  description = "MCP servers as a JSON object keyed by server name, in the format of mcp.servers in opencode.json. Merged into the global opencode.json under mcp.servers; servers already on disk win on duplicate names. Use disabled (not enabled) to keep a server configured without connecting it. See https://opencode.ai/v2/docs/mcp-servers/"
+  description = "MCP servers as a JSON object keyed by server name, in the format of mcp.servers in opencode.json. Merged into the global opencode.json ($OPENCODE_CONFIG_DIR, else $XDG_CONFIG_HOME/opencode, else ~/.config/opencode) under mcp.servers. Servers already on disk win on duplicate names, matching `claude mcp add` in the claude-code module. Use disabled (not enabled) to keep a server configured without connecting it. See https://opencode.ai/v2/docs/mcp-servers/"
   default     = ""
 }
 
@@ -82,7 +76,6 @@ locals {
     ARG_INSTALL          = tostring(var.install_opencode)
     ARG_OPENCODE_VERSION = base64encode(var.opencode_version)
     ARG_WORKDIR          = local.workdir != "" ? base64encode(local.workdir) : ""
-    ARG_CONFIG_JSON      = var.config_json != "" ? base64encode(var.config_json) : ""
     ARG_MCP_CONFIG       = var.mcp != "" ? base64encode(var.mcp) : ""
   })
   module_dir_name = ".coder-modules/coder-labs/opencode"

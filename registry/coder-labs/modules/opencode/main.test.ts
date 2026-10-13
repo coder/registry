@@ -236,7 +236,7 @@ describe("opencode", async () => {
     expect(log).toContain("opencode v2.0.0-mock");
     expect(log).toContain("OpenCode module setup completed.");
     expect(log).not.toContain("agentapi");
-    // Nothing is written when no config is provided.
+    // Nothing is written when no mcp is provided.
     const cfg = await execContainer(id, ["test", "-e", configPath]);
     expect(cfg.exitCode).not.toBe(0);
   });
@@ -363,43 +363,18 @@ describe("opencode", async () => {
     expect(dir.exitCode).toBe(0);
   });
 
-  test("config-json-merges-and-preserves-existing-keys", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: {
-        config_json: JSON.stringify({
-          model: "anthropic/claude-sonnet-4-5",
-          providers: { anthropic: { settings: { timeout: 600000 } } },
-        }),
-      },
-    });
-    await seedFile(
-      id,
-      configPath,
-      JSON.stringify({
-        model: "openai/gpt-5",
-        share: "manual",
-        providers: { anthropic: { settings: { setCacheKey: true } } },
-      }),
-    );
-    await runScripts(id, scripts);
-    const cfg = JSON.parse(await readFileContainer(id, configPath));
-    expect(cfg.model).toBe("anthropic/claude-sonnet-4-5");
-    expect(cfg.share).toBe("manual");
-    expect(cfg.providers.anthropic.settings.timeout).toBe(600000);
-    expect(cfg.providers.anthropic.settings.setCacheKey).toBe(true);
-    expect(cfg.$schema).toBe("https://opencode.ai/config.json");
-  });
-
   test("config-dir-env-is-respected", async () => {
     const configDir = "/home/coder/custom-opencode";
     const { id, scripts } = await setup({
-      moduleVariables: { config_json: JSON.stringify({ share: "disabled" }) },
+      moduleVariables: {
+        mcp: JSON.stringify({ extra: { type: "local", command: ["x"] } }),
+      },
     });
     await runScripts(id, scripts, { OPENCODE_CONFIG_DIR: configDir });
     const cfg = JSON.parse(
       await readFileContainer(id, `${configDir}/opencode.json`),
     );
-    expect(cfg.share).toBe("disabled");
+    expect(cfg.mcp.servers.extra.command).toEqual(["x"]);
     const fallback = await execContainer(id, ["test", "-e", configPath]);
     expect(fallback.exitCode).not.toBe(0);
   });
@@ -461,18 +436,24 @@ describe("opencode", async () => {
     // A V1-shaped server already on disk also wins and is left in place.
     expect(cfg.mcp.legacy.command).toEqual(["v1-command"]);
     expect(cfg.mcp.servers.legacy).toBeUndefined();
+    const log = await installLog(id);
+    expect(log).toContain(
+      "MCP server 'shared' already exists in /home/coder/.config/opencode/opencode.json, keeping the existing one.",
+    );
+    expect(log).toContain("MCP server 'legacy' already exists");
+    expect(log).not.toContain("MCP server 'extra' already exists");
   });
 
   test("invalid-existing-config-is-backed-up", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {
-        config_json: JSON.stringify({ share: "disabled" }),
+        mcp: JSON.stringify({ extra: { type: "local", command: ["x"] } }),
       },
     });
     await seedFile(id, configPath, '{ // jsonc\n  "share": "auto" }');
     await runScripts(id, scripts);
     const cfg = JSON.parse(await readFileContainer(id, configPath));
-    expect(cfg.share).toBe("disabled");
+    expect(cfg.mcp.servers.extra.command).toEqual(["x"]);
     const backup = await readFileContainer(id, `${configPath}.bak`);
     expect(backup).toContain("// jsonc");
   });
