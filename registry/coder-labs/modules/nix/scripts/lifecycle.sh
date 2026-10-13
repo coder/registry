@@ -1,7 +1,5 @@
 # shellcheck shell=bash
 
-export NIX_CONFIG="experimental-features = nix-command flakes"
-
 _sudo() {
   if [ "$(id -u)" -eq 0 ]; then
     "$@"

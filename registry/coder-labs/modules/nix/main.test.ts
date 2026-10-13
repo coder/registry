@@ -111,6 +111,7 @@ describe("nix", async () => {
       expect(stdout.split("\n")[0]).toBe(path.join(home, project));
       expect(section(stdout, "NIX_CONFIG")).toEqual([
         "foo = bar",
+        "extra-experimental-features = nix-command flakes",
         "keep-outputs = true",
       ]);
       expect(section(stdout, "ARGS")).toEqual([
@@ -194,6 +195,7 @@ describe("nix", async () => {
       expect(log.split("\n")[0]).toBe(path.join(home, "proj"));
       expect(section(log, "NIX_CONFIG")).toEqual([
         "",
+        "extra-experimental-features = nix-command flakes",
         "extra-substituters = https://c.example",
       ]);
       expect(section(log, "ARGS")).toEqual([

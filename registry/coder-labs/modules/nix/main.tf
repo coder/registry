@@ -41,12 +41,16 @@ variable "config" {
 
   # Same rule as the `config_override` validations in nixos.tf and develop.tf.
   validation {
-    condition     = try(alltrue([for k, v in var.config : can(regex("^[a-z][a-z0-9-]*$", k)) && (can(regex("^[^[:cntrl:]]*$", v)) || (can(tolist(v)) && can([for x in tolist(v) : regex("^[^[:cntrl:]]*$", x)])))]), false)
+    condition     = try(length(keys(var.config)) >= 0 && alltrue([for k, v in var.config : can(regex("^[a-z][a-z0-9-]*$", k)) && (can(regex("^[^[:cntrl:]]*$", v)) || (can(tolist(v)) && can([for x in tolist(v) : regex("^[^[:cntrl:]]*$", x)])))]), false)
     error_message = "config must be a map of nix.conf setting names (lowercase letters, digits, dashes) to strings, numbers, booleans or lists of strings, without control characters."
   }
 }
 
 locals {
+  # Every rendered nix.conf gets these appended to its
+  # `extra-experimental-features`: the boot rebuild and `nix develop` need them.
+  required_experimental_features = ["nix-command", "flakes"]
+
   # Settings that only the nix-daemon honours from trusted callers. When
   # `nixos` manages the daemon they are already applied there, and an
   # untrusted `nix` client sending them again only triggers "ignoring the

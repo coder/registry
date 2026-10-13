@@ -58,7 +58,7 @@ variable "develop" {
 
   # Same rule as var.config.
   validation {
-    condition     = try(alltrue([for k, v in var.develop.config_override : can(regex("^[a-z][a-z0-9-]*$", k)) && (can(regex("^[^[:cntrl:]]*$", v)) || (can(tolist(v)) && can([for x in tolist(v) : regex("^[^[:cntrl:]]*$", x)])))]), false)
+    condition     = try(length(keys(var.develop.config_override)) >= 0 && alltrue([for k, v in var.develop.config_override : can(regex("^[a-z][a-z0-9-]*$", k)) && (can(regex("^[^[:cntrl:]]*$", v)) || (can(tolist(v)) && can([for x in tolist(v) : regex("^[^[:cntrl:]]*$", x)])))]), false)
     error_message = "develop.config_override must be a map of nix.conf setting names (lowercase letters, digits, dashes) to strings, numbers, booleans or lists of strings, without control characters."
   }
 }
@@ -68,10 +68,16 @@ locals {
 
   # When `nixos` is enabled, the daemon already has the daemon-only settings
   # (see nixos.tf); don't resend them from an untrusted client.
-  develop_settings = {
+  develop_settings_merged = {
     for k, v in merge(var.config, var.develop.config_override) : k => v
     if !(var.nixos.enabled && contains(local.daemon_only_settings, k))
   }
+  develop_settings = merge(local.develop_settings_merged, {
+    extra-experimental-features = distinct(concat(
+      try(tolist(local.develop_settings_merged["extra-experimental-features"]), compact(split(" ", tostring(lookup(local.develop_settings_merged, "extra-experimental-features", ""))))),
+      local.required_experimental_features,
+    ))
+  })
   develop_settings_text = {
     for k, v in local.develop_settings : k => can(tolist(v)) ? join(" ", [for x in tolist(v) : tostring(x)]) : tostring(v)
   }
@@ -107,7 +113,7 @@ resource "coder_app" "develop" {
 }
 
 resource "coder_env" "nix_config" {
-  count    = var.develop.enabled && var.develop.export_config && local.develop_nix_conf != "" ? 1 : 0
+  count    = var.develop.enabled && var.develop.export_config ? 1 : 0
   agent_id = var.agent_id
   name     = "NIX_CONFIG"
   value    = local.develop_nix_conf
@@ -131,7 +137,7 @@ output "develop_command" {
 }
 
 output "develop_nix_conf" {
-  description = "nix.conf text for the workspace user's `nix` client (`config` merged with `develop.config_override`, minus daemon-only settings when `nixos` is enabled). `null` when `develop.enabled` is false."
+  description = "nix.conf text for the workspace user's `nix` client: `config` merged with `develop.config_override` (minus daemon-only settings when `nixos` is enabled), plus the `nix-command` and `flakes` experimental features. `null` when `develop.enabled` is false."
   value       = var.develop.enabled ? local.develop_nix_conf : null
 }
 

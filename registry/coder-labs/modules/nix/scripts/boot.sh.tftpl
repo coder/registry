@@ -45,27 +45,12 @@ ${lifecycle_sh}
 # user config gets one `!include` line pointing at a file under /run, which is
 # re-created on every boot.
 nix_apply_settings() {
-  local conf_file=/run/coder-nixos/nix.conf root_home root_conf conf_state include_state=present
+  local conf_file=/run/coder-nixos/nix.conf root_home root_conf conf_state include_state overrides daemon_env
   root_home=$(getent passwd 0 2> /dev/null | cut -d: -f6) || true
   root_conf="$${root_home:-/root}/.config/nix/nix.conf"
 
   conf_state=$(nix_write_conf "$NIX_CONF_TEXT" "$conf_file") || conf_state=failed
-  if [ -n "$NIX_CONF_TEXT" ]; then
-    include_state=$(nix_ensure_include "$root_conf" "$conf_file") || include_state=skipped
-  fi
-
-  case "$conf_state/$include_state" in
-    failed/*)
-      coder_log warn "Could not write $conf_file; Nix settings from Terraform are not applied." || true
-      ;;
-    */skipped)
-      coder_log warn "$root_conf is not writable (managed elsewhere?); Nix settings only apply to this rebuild." || true
-      export NIX_CONFIG="$NIX_CONFIG"$'\n'"$NIX_CONF_TEXT"
-      ;;
-    *)
-      [ -z "$NIX_CONF_TEXT" ] || coder_log info "Nix settings applied via $root_conf -> $conf_file" || true
-      ;;
-  esac
+  include_state=$(nix_ensure_include "$root_conf" "$conf_file") || include_state=skipped
 
   if [ "$conf_state" = changed ] || [ "$include_state" = added ]; then
     systemctl try-restart nix-daemon.service > /dev/null 2>&1 || true
@@ -73,17 +58,26 @@ nix_apply_settings() {
 
   # These move or replace the config files Nix reads, so root's nix.conf (and
   # the include above) may be bypassed.
-  if [ -n "$NIX_CONF_TEXT" ]; then
-    local overrides daemon_env
-    overrides=$(env | grep -oE '^(NIX_USER_CONF_FILES|XDG_CONFIG_HOME|NIX_CONFIG_HOME)=' | tr -d = | tr '\n' ' ') || true
-    [ -z "$overrides" ] || coder_log warn "Set in the boot environment: $overrides; root Nix may not read $root_conf." || true
-    daemon_env=$(systemctl show nix-daemon.service -p Environment --value 2> /dev/null) || true
-    case " $daemon_env" in
-      *" NIX_USER_CONF_FILES="* | *" XDG_CONFIG_HOME="* | *" NIX_CONFIG_HOME="*)
-        coder_log warn "nix-daemon.service sets NIX_USER_CONF_FILES, XDG_CONFIG_HOME or NIX_CONFIG_HOME; the daemon may not read $root_conf." || true
-        ;;
-    esac
+  overrides=$(env | grep -oE '^(NIX_USER_CONF_FILES|XDG_CONFIG_HOME|NIX_CONFIG_HOME)=' | tr -d = | tr '\n' ' ') || true
+  daemon_env=$(systemctl show nix-daemon.service -p Environment --value 2> /dev/null) || true
+  case " $daemon_env" in
+    *" NIX_USER_CONF_FILES="* | *" XDG_CONFIG_HOME="* | *" NIX_CONFIG_HOME="*)
+      coder_log warn "nix-daemon.service sets NIX_USER_CONF_FILES, XDG_CONFIG_HOME or NIX_CONFIG_HOME; the daemon may not read $root_conf." || true
+      ;;
+  esac
+
+  if [ "$conf_state" = failed ]; then
+    coder_log warn "Could not write $conf_file; Nix settings only apply to this rebuild." || true
+  elif [ "$include_state" = skipped ]; then
+    coder_log warn "$root_conf is not writable (managed elsewhere?); Nix settings only apply to this rebuild." || true
+  elif [ -n "$overrides" ]; then
+    coder_log warn "Set in the boot environment: $overrides; root Nix may not read $root_conf." || true
+  else
+    coder_log info "Nix settings applied via $root_conf -> $conf_file" || true
+    return 0
   fi
+  # This rebuild still needs the settings (at least nix-command and flakes).
+  export NIX_CONFIG="$${NIX_CONFIG:-}"$'\n'"$NIX_CONF_TEXT"
 }
 
 TRANSCRIPT="$LOG_DIR/rebuild-$(date -u +%Y%m%dT%H%M%SZ).log"

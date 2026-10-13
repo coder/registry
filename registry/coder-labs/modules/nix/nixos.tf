@@ -52,7 +52,7 @@ variable "nixos" {
 
   # Same rule as var.config.
   validation {
-    condition     = try(alltrue([for k, v in var.nixos.config_override : can(regex("^[a-z][a-z0-9-]*$", k)) && (can(regex("^[^[:cntrl:]]*$", v)) || (can(tolist(v)) && can([for x in tolist(v) : regex("^[^[:cntrl:]]*$", x)])))]), false)
+    condition     = try(length(keys(var.nixos.config_override)) >= 0 && alltrue([for k, v in var.nixos.config_override : can(regex("^[a-z][a-z0-9-]*$", k)) && (can(regex("^[^[:cntrl:]]*$", v)) || (can(tolist(v)) && can([for x in tolist(v) : regex("^[^[:cntrl:]]*$", x)])))]), false)
     error_message = "nixos.config_override must be a map of nix.conf setting names (lowercase letters, digits, dashes) to strings, numbers, booleans or lists of strings, without control characters."
   }
 
@@ -93,7 +93,13 @@ locals {
 
   flake_branch = try(regex("[?&]ref=([^&#]+)", local.nixos_flake_ref)[0], "")
 
-  nixos_settings = merge(var.config, var.nixos.config_override)
+  nixos_settings_merged = merge(var.config, var.nixos.config_override)
+  nixos_settings = merge(local.nixos_settings_merged, {
+    extra-experimental-features = distinct(concat(
+      try(tolist(local.nixos_settings_merged["extra-experimental-features"]), compact(split(" ", tostring(lookup(local.nixos_settings_merged, "extra-experimental-features", ""))))),
+      local.required_experimental_features,
+    ))
+  })
   nixos_settings_text = {
     for k, v in local.nixos_settings : k => can(tolist(v)) ? join(" ", [for x in tolist(v) : tostring(x)]) : tostring(v)
   }
@@ -122,7 +128,7 @@ output "boot_script" {
 }
 
 output "nixos_nix_conf" {
-  description = "nix.conf text applied to root's Nix on the instance (`config` merged with `nixos.config_override`). `null` when `nixos.enabled` is false."
+  description = "nix.conf text applied to root's Nix on the instance: `config` merged with `nixos.config_override`, plus the `nix-command` and `flakes` experimental features. `null` when `nixos.enabled` is false."
   value       = !var.nixos.enabled ? null : local.nixos_nix_conf
 }
 

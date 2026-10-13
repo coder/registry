@@ -193,8 +193,8 @@ run "develop_app_script" {
     error_message = "nixos outputs must be null when nixos is disabled."
   }
   assert {
-    condition     = length(output.scripts) == 1 && length(coder_env.nix_config) == 0
-    error_message = "prebuild should be on by default, and no NIX_CONFIG is exported without settings."
+    condition     = length(output.scripts) == 1 && coder_env.nix_config[0].value == "extra-experimental-features = nix-command flakes"
+    error_message = "prebuild should be on by default, and NIX_CONFIG always enables nix-command and flakes."
   }
 }
 
@@ -245,11 +245,11 @@ run "config_merge_and_render" {
     }
   }
   assert {
-    condition     = output.nixos_nix_conf == "extra-substituters = https://cache.example.org https://cache2.example.org\nextra-trusted-public-keys = cache.example.org-1:AbC=\nmax-jobs = auto\nsandbox = true"
+    condition     = output.nixos_nix_conf == "extra-experimental-features = nix-command flakes\nextra-substituters = https://cache.example.org https://cache2.example.org\nextra-trusted-public-keys = cache.example.org-1:AbC=\nmax-jobs = auto\nsandbox = true"
     error_message = "Unexpected nixos_nix_conf: ${output.nixos_nix_conf}"
   }
   assert {
-    condition     = output.develop_nix_conf == "extra-substituters = https://cache.example.org https://cache2.example.org\nkeep-outputs = true\nmax-jobs = 4"
+    condition     = output.develop_nix_conf == "extra-experimental-features = nix-command flakes\nextra-substituters = https://cache.example.org https://cache2.example.org\nkeep-outputs = true\nmax-jobs = 4"
     error_message = "develop should get shared settings and its override, but not daemon-only keys while nixos is enabled: ${output.develop_nix_conf}"
   }
   assert {
@@ -285,7 +285,7 @@ run "config_example_exact_value" {
     }
   }
   assert {
-    condition     = coder_env.nix_config[0].value == "extra-substituters = https://cache.example.org\nkeep-outputs = true"
+    condition     = coder_env.nix_config[0].value == "extra-experimental-features = nix-command flakes\nextra-substituters = https://cache.example.org\nkeep-outputs = true"
     error_message = "Unexpected NIX_CONFIG: ${coder_env.nix_config[0].value}"
   }
 }
@@ -299,7 +299,7 @@ run "develop_keeps_trusted_keys_without_nixos" {
     develop  = { enabled = true, path = "project" }
   }
   assert {
-    condition     = output.develop_nix_conf == "extra-trusted-public-keys = k1"
+    condition     = output.develop_nix_conf == "extra-experimental-features = nix-command flakes\nextra-trusted-public-keys = k1"
     error_message = "Without nixos, the client must get every setting."
   }
 }
@@ -317,7 +317,7 @@ run "export_config_false_inlines_settings" {
     error_message = "export_config = false must not export NIX_CONFIG."
   }
   assert {
-    condition     = strcontains(coder_app.develop[0].command, "NIX_CONF=$(printf %s '${base64encode("keep-outputs = true")}' | base64 -d)")
+    condition     = strcontains(coder_app.develop[0].command, "NIX_CONF=$(printf %s '${base64encode("extra-experimental-features = nix-command flakes\nkeep-outputs = true")}' | base64 -d)")
     error_message = "Unexpected app command: ${coder_app.develop[0].command}"
   }
 }
@@ -359,4 +359,35 @@ run "reject_bad_override_key" {
     }
   }
   expect_failures = [var.nixos]
+}
+
+run "append_required_experimental_features" {
+  command = plan
+  variables {
+    config = { extra-experimental-features = "ca-derivations flakes" }
+    nixos  = { flake_ref = "https://example.org/flake", flake_attr = "host" }
+  }
+  assert {
+    condition     = output.nixos_nix_conf == "extra-experimental-features = ca-derivations flakes nix-command"
+    error_message = "Required features must be appended once, after the caller's: ${output.nixos_nix_conf}"
+  }
+}
+
+run "reject_config_list" {
+  command = plan
+  variables {
+    config = []
+    nixos  = { flake_ref = "https://example.org/flake", flake_attr = "host" }
+  }
+  expect_failures = [var.config]
+}
+
+run "reject_develop_override_list" {
+  command = plan
+  variables {
+    agent_id = "agent"
+    nixos    = { enabled = false }
+    develop  = { enabled = true, path = "p", config_override = [] }
+  }
+  expect_failures = [var.develop]
 }
