@@ -1,6 +1,6 @@
 # shellcheck shell=bash
-# Shared by the Nix Develop app and prebuild: make `nix` available and apply
-# the module's nix.conf settings. Expects NIX_CONF (may be empty).
+# Shared by the Nix Develop app and prebuild: make `nix` available. The
+# module's nix.conf settings arrive through NIX_CONFIG (a coder_env).
 
 # Non-NixOS installs only put nix on PATH for login shells.
 if ! command -v nix > /dev/null 2>&1; then
@@ -15,9 +15,4 @@ if ! command -v nix > /dev/null 2>&1; then
     fi
   done
   unset nix_profile
-fi
-
-# Appended, so an existing NIX_CONFIG is kept and ours applies last.
-if [ -n "${NIX_CONF:-}" ]; then
-  export NIX_CONFIG="${NIX_CONFIG:-}"$'\n'"$NIX_CONF"
 fi

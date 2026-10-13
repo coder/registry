@@ -16,10 +16,8 @@ variable "develop" {
       needs and keep it as a GC root, so opening the app is instant.
       Defaults to `true`.
     - `config_override`: nix.conf settings merged over `config` (per key) for
-      the workspace user's `nix` client.
-    - `export_config`: also export those settings workspace-wide as
-      `NIX_CONFIG`, so a `nix develop` run by hand gets them. Defaults to
-      `true`.
+      the workspace user's `nix` client. They are exported workspace-wide as
+      `NIX_CONFIG`, so the user's own `nix` commands behave like the module's.
     - `slug`, `display_name`, `order`, `group`: presentation of the app.
   EOT
   type = object({
@@ -28,7 +26,6 @@ variable "develop" {
     shell           = optional(string)
     prebuild        = optional(bool, true)
     config_override = optional(any, {})
-    export_config   = optional(bool, true)
     slug            = optional(string, "nix-develop")
     display_name    = optional(string, "Nix Develop")
     order           = optional(number)
@@ -83,16 +80,11 @@ locals {
   }
   develop_nix_conf = join("\n", [for k in sort(keys(local.develop_settings)) : "${k} = ${local.develop_settings_text[k]}"])
 
-  # Settings reach the module's own `nix` processes through `coder_env` when
-  # exported; otherwise they are appended to NIX_CONFIG inline.
-  develop_inline_conf = var.develop.export_config ? "" : local.develop_nix_conf
-
   develop_installable = var.develop.shell == null ? "." : ".#${var.develop.shell}"
 
   develop_script_args = {
     ARG_PATH        = var.develop.path == null ? "" : var.develop.path
     ARG_INSTALLABLE = base64encode(local.develop_installable)
-    ARG_NIX_CONF    = base64encode(local.develop_inline_conf)
     ARG_PROFILE_DIR = "${local.develop_module_dir}/develop"
     NIX_ENV_SH      = file("${path.module}/scripts/nix-env.sh")
   }
@@ -113,7 +105,7 @@ resource "coder_app" "develop" {
 }
 
 resource "coder_env" "nix_config" {
-  count    = var.develop.enabled && var.develop.export_config ? 1 : 0
+  count    = var.develop.enabled ? 1 : 0
   agent_id = var.agent_id
   name     = "NIX_CONFIG"
   value    = local.develop_nix_conf

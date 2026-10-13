@@ -261,8 +261,8 @@ run "config_merge_and_render" {
     error_message = "NIX_CONFIG should be exported with the develop settings."
   }
   assert {
-    condition     = strcontains(coder_app.develop[0].command, "NIX_CONF=$(printf %s '' | base64 -d)")
-    error_message = "The app must not re-append settings that coder_env already exports."
+    condition     = !strcontains(coder_app.develop[0].command, base64encode(output.develop_nix_conf))
+    error_message = "The app must get the settings from the exported NIX_CONFIG, not a copy of its own."
   }
 }
 
@@ -301,24 +301,6 @@ run "develop_keeps_trusted_keys_without_nixos" {
   assert {
     condition     = output.develop_nix_conf == "extra-experimental-features = nix-command flakes\nextra-trusted-public-keys = k1"
     error_message = "Without nixos, the client must get every setting."
-  }
-}
-
-run "export_config_false_inlines_settings" {
-  command = plan
-  variables {
-    agent_id = "agent"
-    config   = { keep-outputs = true }
-    nixos    = { enabled = false }
-    develop  = { enabled = true, path = "/p", export_config = false }
-  }
-  assert {
-    condition     = length(coder_env.nix_config) == 0
-    error_message = "export_config = false must not export NIX_CONFIG."
-  }
-  assert {
-    condition     = strcontains(coder_app.develop[0].command, "NIX_CONF=$(printf %s '${base64encode("extra-experimental-features = nix-command flakes\nkeep-outputs = true")}' | base64 -d)")
-    error_message = "Unexpected app command: ${coder_app.develop[0].command}"
   }
 }
 

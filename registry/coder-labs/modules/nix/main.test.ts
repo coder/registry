@@ -76,7 +76,7 @@ describe("nix", async () => {
     expect(stdout).toContain("lifecycle tests passed");
   });
 
-  it("nix develop app runs under bash, enters the project, appends NIX_CONFIG and records a profile", async () => {
+  it("nix develop app runs under bash, enters the project with the exported NIX_CONFIG and records a profile", async () => {
     await withHome(async (home, bin) => {
       // develop.path is shell as written: quoting it is the caller's job.
       const project = "my 'project";
@@ -91,11 +91,13 @@ describe("nix", async () => {
           path: `"$HOME/${project}"`,
           shell: "ci",
           prebuild: false,
-          export_config: false,
         }),
       });
       const app = findResourceInstance(state, "coder_app", "develop");
       expect(app.slug).toBe("nix-develop");
+      // The agent exports this to every process it starts, apps included.
+      const env = findResourceInstance(state, "coder_env", "nix_config");
+      expect(env.name).toBe("NIX_CONFIG");
 
       // Coder runs a command that starts with a shebang through that
       // interpreter, regardless of the user's login shell.
@@ -105,12 +107,11 @@ describe("nix", async () => {
       const { exitCode, stdout } = await run([script], {
         HOME: home,
         PATH: `${bin}:${process.env.PATH}`,
-        NIX_CONFIG: "foo = bar",
+        NIX_CONFIG: env.value,
       });
       expect(exitCode).toBe(0);
       expect(stdout.split("\n")[0]).toBe(path.join(home, project));
       expect(section(stdout, "NIX_CONFIG")).toEqual([
-        "foo = bar",
         "extra-experimental-features = nix-command flakes",
         "keep-outputs = true",
       ]);
@@ -167,7 +168,6 @@ describe("nix", async () => {
           enabled: true,
           path: "~/proj",
           config_override: { "extra-substituters": ["https://c.example"] },
-          export_config: false,
         }),
       });
       const script = findResourceInstance(
@@ -175,6 +175,7 @@ describe("nix", async () => {
         "coder_script",
         "install_script",
       );
+      const env = findResourceInstance(state, "coder_env", "nix_config");
 
       // The project only appears after the script has started waiting.
       const appear = (async () => {
@@ -185,6 +186,7 @@ describe("nix", async () => {
       const { exitCode, stdout } = await run(["bash", "-c", script.script], {
         HOME: home,
         PATH: `${bin}:${process.env.PATH}`,
+        NIX_CONFIG: env.value,
       });
       await appear;
 
@@ -194,7 +196,6 @@ describe("nix", async () => {
       const log = await readFile(path.join(home, "nix.log"), "utf8");
       expect(log.split("\n")[0]).toBe(path.join(home, "proj"));
       expect(section(log, "NIX_CONFIG")).toEqual([
-        "",
         "extra-experimental-features = nix-command flakes",
         "extra-substituters = https://c.example",
       ]);

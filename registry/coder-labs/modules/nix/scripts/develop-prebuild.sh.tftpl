@@ -4,7 +4,6 @@
 # dependencies survive `nix-collect-garbage`.
 set -euo pipefail
 
-NIX_CONF=$(printf %s '${ARG_NIX_CONF}' | base64 -d)
 INSTALLABLE=$(printf %s '${ARG_INSTALLABLE}' | base64 -d)
 WAIT_SECONDS=$${CODER_NIX_DEVELOP_WAIT_SECONDS:-600}
 ${NIX_ENV_SH}
