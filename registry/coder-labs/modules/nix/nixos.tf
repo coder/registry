@@ -72,20 +72,6 @@ variable "nixos" {
   }
 }
 
-variable "values" {
-  description = <<-EOT
-    Extra facts for the bootstrapper to publish on the instance, passed
-    straight through to `values` on whatever writes them.
-
-    Routed through this module so the caller has one wire, and so a
-    Nix-specific runtime fact has an obvious home. There are none today: the
-    configuration already knows its own checkout, attribute and directories,
-    because it is the thing that sets them.
-  EOT
-  type        = map(string)
-  default     = {}
-}
-
 locals {
   nixos_flake_ref = var.nixos.flake_ref == null ? "" : var.nixos.flake_ref
 
@@ -106,11 +92,6 @@ locals {
   nixos_nix_conf = join("\n", [for k in sort(keys(local.nixos_settings)) : "${k} = ${local.nixos_settings_text[k]}"])
 
   flake_attr = replace(var.nixos.flake_attr == null ? "" : var.nixos.flake_attr, "$ARCH", var.nixos.arch)
-}
-
-output "values" {
-  description = "Facts to publish on the instance, for the bootstrapper's `values`."
-  value       = var.values
 }
 
 output "boot_script" {

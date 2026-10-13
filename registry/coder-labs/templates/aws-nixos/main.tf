@@ -196,7 +196,6 @@ module "amazon-init" {
   agent_token       = try(coder_agent.main[0].token, "")
   agent_init_script = try(coder_agent.main[0].init_script, "")
   boot_script       = module.nix.boot_script
-  values            = module.nix.values
 
   log_display_name = "NixOS"
   log_icon         = "/icon/nix.svg"
