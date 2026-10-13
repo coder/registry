@@ -2,8 +2,6 @@
 
 set -euo pipefail
 
-BOLD='\033[0;1m'
-
 command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
@@ -165,7 +163,7 @@ install_opencode() {
       echo "ERROR: install_opencode is false but a working 'opencode' was not found on PATH." >&2
       exit 1
     fi
-    printf "%s Validated existing OpenCode\n" "$${BOLD}"
+    echo "Validated existing OpenCode"
     return
   fi
 
@@ -183,14 +181,14 @@ install_opencode() {
     echo "OpenCode $${installed} is installed; installing $${wanted}"
   fi
 
-  printf "%s Installing OpenCode\n" "$${BOLD}"
+  echo "Installing OpenCode"
   install_with_official_installer
 
   if ! ensure_opencode_in_path; then
     echo "ERROR: Failed to install OpenCode" >&2
     exit 1
   fi
-  printf "%s Installed OpenCode\n" "$${BOLD}"
+  echo "Installed OpenCode"
 }
 
 setup_workdir() {
