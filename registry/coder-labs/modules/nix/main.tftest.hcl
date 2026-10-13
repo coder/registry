@@ -20,8 +20,9 @@ run "safe_render" {
 run "default_branch" {
   command = plan
   variables {
-    flake_ref = "https://example.org/flake"
-    arch      = "aarch64"
+    flake_ref  = "https://example.org/flake"
+    flake_attr = "coder-workspace-ec2-$ARCH"
+    arch       = "aarch64"
   }
   assert {
     condition     = output.flake_uri == "https://example.org/flake#coder-workspace-ec2-aarch64"
@@ -32,7 +33,8 @@ run "default_branch" {
 run "allow_http_userinfo" {
   command = plan
   variables {
-    flake_ref = "git+https://user:token@example.org/flake?ref=main"
+    flake_ref  = "git+https://user:token@example.org/flake?ref=main"
+    flake_attr = "coder-workspace-ec2-$ARCH"
   }
   assert {
     condition     = output.flake_uri == "https://user:token@example.org/flake?ref=main#coder-workspace-ec2-x86_64"
@@ -43,7 +45,8 @@ run "allow_http_userinfo" {
 run "reject_control_characters" {
   command = plan
   variables {
-    flake_ref = "https://example.org/flake?ref=main\nmalicious"
+    flake_ref  = "https://example.org/flake?ref=main\nmalicious"
+    flake_attr = "host"
   }
   expect_failures = [var.flake_ref]
 }
@@ -51,7 +54,40 @@ run "reject_control_characters" {
 run "reject_unsupported_query" {
   command = plan
   variables {
-    flake_ref = "https://example.org/flake?dir=subdir"
+    flake_ref  = "https://example.org/flake?dir=subdir"
+    flake_attr = "host"
   }
   expect_failures = [var.flake_ref]
+}
+
+run "type_defaults_to_nixos" {
+  command = plan
+  variables {
+    flake_ref  = "https://example.org/flake"
+    flake_attr = "host"
+  }
+  assert {
+    condition     = var.type == "nixos" && strcontains(output.boot_script, "nixos-rebuild")
+    error_message = "type should default to nixos and render a nixos-rebuild boot script."
+  }
+}
+
+run "reject_type_develop" {
+  command = plan
+  variables {
+    type       = "develop"
+    flake_ref  = "https://example.org/flake"
+    flake_attr = "host"
+  }
+  expect_failures = [var.type]
+}
+
+run "reject_type_unknown" {
+  command = plan
+  variables {
+    type       = "foo"
+    flake_ref  = "https://example.org/flake"
+    flake_attr = "host"
+  }
+  expect_failures = [var.type]
 }

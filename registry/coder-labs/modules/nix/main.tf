@@ -2,6 +2,18 @@ terraform {
   required_version = ">= 1.3"
 }
 
+variable "type" {
+  description = "How Nix is applied to the workspace. `nixos` rebuilds the whole system from a flake on boot; `develop` (a `nix develop` shell) is planned but not supported yet."
+  type        = string
+  default     = "nixos"
+
+  # Add "develop" here once it is implemented.
+  validation {
+    condition     = contains(["nixos"], var.type)
+    error_message = "type must be \"nixos\"; \"develop\" is not supported yet."
+  }
+}
+
 variable "flake_ref" {
   description = "HTTP(S) or SSH Git URL of a committed flake; optional git+ prefix and ?ref= branch. Embedded credentials appear in the output and checkout."
   type        = string
@@ -13,9 +25,8 @@ variable "flake_ref" {
 }
 
 variable "flake_attr" {
-  description = "`nixosConfigurations` attribute to build. `$ARCH` is replaced with `arch`."
+  description = "`nixosConfigurations` attribute to build, e.g. `coder-workspace-ec2-$ARCH`. `$ARCH` is replaced with `arch`."
   type        = string
-  default     = "coder-workspace-ec2-$ARCH"
 
   validation {
     condition     = !can(regex("[[:cntrl:]]", var.flake_attr))
@@ -96,6 +107,8 @@ output "values" {
   value       = var.values
 }
 
+# Everything below implements type = "nixos". A future "develop" type will
+# select different outputs here.
 output "boot_script" {
   description = "Applies the flake. Hand this to whatever runs a script on every boot; it expects to run as root."
   value = templatefile("${path.module}/scripts/boot.sh.tftpl", {
