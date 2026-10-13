@@ -1,6 +1,6 @@
 ---
 display_name: Aider
-description: Run Aider AI pair programming in your workspace
+description: Install and configure Aider AI pair programming in your workspace
 icon: ../../../../.icons/aider.svg
 verified: true
 tags: [agent, ai, aider]
@@ -8,108 +8,138 @@ tags: [agent, ai, aider]
 
 # Aider
 
-Run [Aider](https://aider.chat) AI pair programming in your workspace. This module installs Aider with AgentAPI for seamless Coder Tasks Support.
+Install and configure [Aider](https://aider.chat) AI pair programming in your workspace.
 
 ```tf
-variable "api_key" {
-  type        = string
-  description = "API key"
-  sensitive   = true
-}
-
 module "aider" {
   source      = "registry.coder.com/coder/aider/coder"
-  version     = "2.0.2"
+  version     = "3.0.0"
   agent_id    = coder_agent.main.id
-  api_key     = var.api_key
+  api_key     = var.gemini_api_key
   ai_provider = "google"
   model       = "gemini"
 }
 ```
 
-## Prerequisites
+> [!WARNING]
+> If upgrading from v2.x.x of this module: v3 is a major refactor that drops support for Coder Tasks and AgentAPI. The module now only installs and configures Aider; launch it with your own `coder_app`. `order`, `group`, `report_tasks`, `subdomain`, `cli_app`, `web_app_display_name`, `cli_app_display_name`, `install_agentapi`, `agentapi_version`, `ai_prompt`, `system_prompt`, and `experiment_additional_extensions` are removed. `workdir` is now optional, `base_aider_config` is written to `~/.aider.conf.yml`, and `ai_provider = "ollama"` exports `api_key` as `OLLAMA_API_KEY`. Keep using v2.x.x if you depend on Coder Tasks.
 
-- pipx is automatically installed if not already available
+## Examples
 
-## Usage Example
+### Standalone mode with a launcher app
 
 ```tf
-data "coder_parameter" "ai_prompt" {
-  name        = "AI Prompt"
-  description = "Write an initial prompt for Aider to work on."
-  type        = "string"
-  default     = ""
-  mutable     = true
-}
-
-variable "gemini_api_key" {
-  type        = string
-  description = "Gemini API key"
-  sensitive   = true
+locals {
+  aider_workdir = "/home/coder/project"
 }
 
 module "aider" {
-  source           = "registry.coder.com/coder/aider/coder"
-  version          = "2.0.2"
-  agent_id         = coder_agent.main.id
-  api_key          = var.gemini_api_key
-  install_aider    = true
-  workdir          = "/home/coder"
-  ai_provider      = "google"
-  model            = "gemini"
-  install_agentapi = true
-  ai_prompt        = data.coder_parameter.ai_prompt.value
-  system_prompt    = "..."
+  source      = "registry.coder.com/coder/aider/coder"
+  version     = "3.0.0"
+  agent_id    = coder_agent.main.id
+  workdir     = local.aider_workdir
+  ai_provider = "anthropic"
+  model       = "sonnet"
+  api_key     = var.anthropic_api_key
+}
+
+resource "coder_app" "aider" {
+  agent_id     = coder_agent.main.id
+  slug         = "aider"
+  display_name = "Aider"
+  icon         = "/icon/aider.svg"
+  open_in      = "slim-window"
+  command      = <<-EOT
+    #!/usr/bin/env bash
+    set -e
+    cd "${local.aider_workdir}"
+    exec aider
+  EOT
 }
 ```
 
-### Using a custom provider
+See [Aider options](https://aider.chat/docs/config/options.html) for launcher flags such as `--yes-always` and `--watch-files`.
+
+> [!NOTE]
+> The `coder_app` command re-executes on every pane reconnect. This works for the interactive `aider` chat, but one-shot commands like `aider --message` will re-run each time. For one-shot prompts, use a `coder_script` (runs once at startup) and a `coder_app` that attaches to the existing session (for example, with tmux).
+
+### Custom provider
 
 ```tf
-variable "custom_api_key" {
-  type        = string
-  description = "Custom provider API key"
-  sensitive   = true
-}
-
 module "aider" {
-  count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/aider/coder"
-  version             = "2.0.2"
+  version             = "3.0.0"
   agent_id            = coder_agent.main.id
-  workdir             = "/home/coder"
   ai_provider         = "custom"
-  custom_env_var_name = "MY_CUSTOM_API_KEY"
-  model               = "custom-model"
-  api_key             = var.custom_api_key
+  custom_env_var_name = "DEEPSEEK_API_KEY"
+  model               = "deepseek"
+  api_key             = var.deepseek_api_key
 }
 ```
 
-### Available AI Providers and Models
+`api_key` is exported as the provider's environment variable (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `AZURE_OPENAI_API_KEY`, `GEMINI_API_KEY`, `COHERE_API_KEY`, `MISTRAL_API_KEY`, `OLLAMA_API_KEY`, or `custom_env_var_name`) and `model` as `AIDER_MODEL`. See [Aider API keys](https://aider.chat/docs/config/api-keys.html) and [connecting to LLMs](https://aider.chat/docs/llms.html).
 
-Aider supports various providers and models, and this module integrates directly with Aider's built-in model aliases:
+### Configuration file
 
-| Provider      | Example Models/Aliases                        | Default Model          |
-| ------------- | --------------------------------------------- | ---------------------- |
-| **anthropic** | "sonnet" (Claude 3.7 Sonnet), "opus", "haiku" | "sonnet"               |
-| **openai**    | "4o" (GPT-4o), "4" (GPT-4), "3.5-turbo"       | "4o"                   |
-| **azure**     | Azure OpenAI models                           | "gpt-4"                |
-| **google**    | "gemini" (Gemini Pro), "gemini-2.5-pro"       | "gemini-2.5-pro"       |
-| **cohere**    | "command-r-plus", etc.                        | "command-r-plus"       |
-| **mistral**   | "mistral-large-latest"                        | "mistral-large-latest" |
-| **ollama**    | "llama3", etc.                                | "llama3"               |
-| **custom**    | Any model name with custom ENV variable       | -                      |
+```tf
+module "aider" {
+  source   = "registry.coder.com/coder/aider/coder"
+  version  = "3.0.0"
+  agent_id = coder_agent.main.id
+  model    = "gemini"
+  api_key  = var.gemini_api_key
 
-For a complete and up-to-date list of supported aliases and models, please refer to the [Aider LLM documentation](https://aider.chat/docs/llms.html) and the [Aider LLM Leaderboards](https://aider.chat/docs/leaderboards.html) which show performance comparisons across different models.
+  base_aider_config = <<-EOT
+    read:
+      - CONVENTIONS.md
+    auto-commits: false
+  EOT
+}
+```
+
+`base_aider_config` is written to `~/.aider.conf.yml`. See the [YAML config file](https://aider.chat/docs/config/aider_conf.html) reference.
+
+### Serialize a downstream `coder_script` after the install pipeline
+
+The module exposes the `scripts` output: an ordered list of `coder exp sync` names for the scripts this module creates (pre_install, install, post_install). Scripts that were not configured are absent.
+
+```tf
+module "aider" {
+  source   = "registry.coder.com/coder/aider/coder"
+  version  = "3.0.0"
+  agent_id = coder_agent.main.id
+  model    = "gemini"
+}
+
+resource "coder_script" "post_aider" {
+  agent_id     = coder_agent.main.id
+  display_name = "Run after Aider install"
+  run_on_start = true
+  script       = <<-EOT
+    #!/usr/bin/env bash
+    set -euo pipefail
+    trap 'coder exp sync complete post-aider' EXIT
+    coder exp sync want post-aider ${join(" ", module.aider.scripts)}
+    coder exp sync start post-aider
+
+    aider --version
+  EOT
+}
+```
 
 ## Troubleshooting
 
-- If `aider` is not found, ensure `install_aider = true` and your API key is valid
-- Logs are written under `/home/coder/.aider-module/` (`install.log`, `agentapi-start.log`) for debugging
-- If AgentAPI fails to start, verify that your container has network access and executable permissions for the scripts
+Check the log files in `~/.coder-modules/coder/aider/logs/` for detailed information.
+
+```bash
+cat ~/.coder-modules/coder/aider/logs/install.log
+cat ~/.coder-modules/coder/aider/logs/pre_install.log
+cat ~/.coder-modules/coder/aider/logs/post_install.log
+```
 
 ## References
 
-- [Aider Documentation](https://aider.chat/docs)
-- [AgentAPI Documentation](https://github.com/coder/agentapi)
-- [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)
+- [Aider documentation](https://aider.chat/docs/)
+- [Aider installation](https://aider.chat/docs/install.html)
+- [Aider configuration](https://aider.chat/docs/config.html)
+- [Aider API keys](https://aider.chat/docs/config/api-keys.html)
