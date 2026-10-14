@@ -20,7 +20,7 @@ module "copilot" {
 ```
 
 > [!WARNING]
-> If upgrading from v0.x of this module: v1 is a major refactor that drops support for Coder Tasks and AgentAPI. The module now only installs and configures Copilot; you launch it yourself with a `coder_app` (see below).
+> If upgrading from v0.x of this module: v1 is a major refactor that drops support for Coder Tasks and AgentAPI. The module now only installs and configures Copilot; you launch it yourself with a `coder_app` (see below). `copilot_config` is renamed to `base_copilot_config` and now overwrites [`~/.copilot/settings.json`](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference).
 
 ## Examples
 
@@ -136,6 +136,11 @@ module "copilot" {
       deny = ["Shell(rm -rf *)"]
     }
   }
+
+  # Overwrites ~/.copilot/settings.json on every start.
+  base_copilot_config = jsonencode({
+    banner = "never"
+  })
 
   # MCP server configuration (merged into ~/.copilot/mcp-config.json)
   mcp = jsonencode({

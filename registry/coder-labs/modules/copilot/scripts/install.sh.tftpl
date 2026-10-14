@@ -13,6 +13,7 @@ ARG_COPILOT_VERSION='${ARG_COPILOT_VERSION}'
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
 ARG_MANAGED_SETTINGS_JSON=$(echo -n '${ARG_MANAGED_SETTINGS_JSON}' | base64 -d)
 ARG_TRUSTED_FOLDERS=$(echo -n '${ARG_TRUSTED_FOLDERS}' | base64 -d)
+ARG_BASE_CONFIG=$(echo -n '${ARG_BASE_CONFIG}' | base64 -d)
 ARG_MCP_CONFIG=$(echo -n '${ARG_MCP_CONFIG}' | base64 -d)
 
 export PATH="$HOME/.local/bin:$PATH"
@@ -161,6 +162,18 @@ write_managed_settings() {
   echo "Wrote Copilot managed settings to $${target}"
 }
 
+write_base_config() {
+  local settings_file="$HOME/.copilot/settings.json"
+
+  if [ -z "$${ARG_BASE_CONFIG}" ]; then
+    return
+  fi
+
+  mkdir -p "$(dirname "$${settings_file}")"
+  printf '%s\n' "$${ARG_BASE_CONFIG}" > "$${settings_file}"
+  echo "Copilot settings written: $${settings_file}"
+}
+
 # Trust the workdir by unioning it into config.json trustedFolders. Only that
 # key is touched; other config.json state (authentication, plugins) is preserved.
 setup_trusted_folders() {
@@ -220,6 +233,7 @@ setup_mcp_config() {
 install_copilot
 setup_workdir
 write_managed_settings
+write_base_config
 setup_trusted_folders
 setup_mcp_config
 

@@ -38,6 +38,12 @@ variable "copilot_model" {
   default     = ""
 }
 
+variable "base_copilot_config" {
+  type        = string
+  description = "Copilot user settings as JSON. When set, it overwrites ~/.copilot/settings.json on every start. See https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference"
+  default     = ""
+}
+
 variable "managed_settings" {
   type        = any
   description = "Policy settings written to /etc/github-copilot/managed-settings.json. Highest-precedence Copilot config; only supported keys apply (model, permissions, allowedMcpServers, deniedMcpServers, telemetry, sandbox, etc.). See https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference#mdm-managed-settings"
@@ -145,6 +151,7 @@ locals {
     ARG_WORKDIR               = local.workdir != "" ? base64encode(local.workdir) : ""
     ARG_MANAGED_SETTINGS_JSON = var.managed_settings != null ? base64encode(jsonencode(var.managed_settings)) : ""
     ARG_TRUSTED_FOLDERS       = length(local.workdir_trusted_folders) > 0 ? base64encode(jsonencode(local.workdir_trusted_folders)) : ""
+    ARG_BASE_CONFIG           = var.base_copilot_config != "" ? base64encode(var.base_copilot_config) : ""
     ARG_MCP_CONFIG            = var.mcp != "" ? base64encode(var.mcp) : ""
   })
 

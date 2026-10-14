@@ -232,6 +232,24 @@ describe("copilot", async () => {
     expect(config.loggedInUsers).toContain("octocat");
   });
 
+  test("base-config-overwrites-settings", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        base_copilot_config: JSON.stringify({ banner: "never" }),
+      },
+    });
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `mkdir -p /home/coder/.copilot && echo '{"theme":"dim"}' > /home/coder/.copilot/settings.json`,
+    ]);
+    await runScripts(id, scripts);
+    const settings = JSON.parse(
+      await readFileContainer(id, "/home/coder/.copilot/settings.json"),
+    );
+    expect(settings).toEqual({ banner: "never" });
+  });
+
   test("managed-settings-written", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {
