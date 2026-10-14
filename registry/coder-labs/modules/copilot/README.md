@@ -8,7 +8,7 @@ tags: [agent, copilot, ai, github, ai-gateway]
 
 # Copilot
 
-Install and configure the [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/about-copilot-cli) in your workspace for AI-powered coding assistance directly from the terminal.
+Install and configure the [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/about-copilot-cli) in your workspace.
 
 ```tf
 module "copilot" {
@@ -26,12 +26,7 @@ module "copilot" {
 
 ### Launcher app with GitHub external auth
 
-The module installs and configures Copilot. Use the
-[`coder_external_auth`](https://registry.terraform.io/providers/coder/coder/latest/docs/data-sources/external_auth)
-data source to fetch a GitHub token and pass it to the module, then add a
-`coder_app` to launch Copilot. This assumes you have
-[Coder external authentication](https://coder.com/docs/admin/external-auth)
-configured with `id = "github"`.
+This assumes [Coder external authentication](https://coder.com/docs/admin/external-auth) is configured with `id = "github"`.
 
 ```tf
 locals {
@@ -67,8 +62,7 @@ resource "coder_app" "copilot" {
 
 ### Direct token authentication
 
-Provide a GitHub token instead of using Coder external auth. When set, the module
-exports it to the workspace as `COPILOT_GITHUB_TOKEN`.
+`github_token` is exported as `COPILOT_GITHUB_TOKEN`.
 
 ```tf
 variable "github_token" {
@@ -109,11 +103,6 @@ module "copilot" {
 }
 ```
 
-When `enable_ai_gateway = true`, the module sets `HTTPS_PROXY` and `NODE_EXTRA_CA_CERTS` as workspace environment variables so Copilot routes through the proxy.
-
-> [!NOTE]
-> AI Gateway Proxy is a Premium Coder feature that requires the [AI Governance Add-On](https://coder.com/docs/ai-coder/ai-governance). See the [setup guide](https://coder.com/docs/ai-coder/ai-gateway/ai-gateway-proxy/setup) for configuring the proxy on your deployment. GitHub authentication is still required; the proxy does not replace it.
-
 ### Advanced configuration
 
 Customize MCP servers, policy, and Copilot settings:
@@ -125,11 +114,8 @@ module "copilot" {
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
-  # Version pinning (defaults to "latest")
   copilot_version = "1.0.88"
 
-  # Policy written to /etc/github-copilot/managed-settings.json (highest precedence).
-  # Only supported keys apply (model, permissions, allowedMcpServers, telemetry, sandbox, ...).
   managed_settings = {
     model = "claude-sonnet-4.5"
     permissions = {
@@ -137,12 +123,10 @@ module "copilot" {
     }
   }
 
-  # Overwrites ~/.copilot/settings.json on every start.
   base_copilot_config = jsonencode({
     banner = "never"
   })
 
-  # MCP server configuration (merged into ~/.copilot/mcp-config.json)
   mcp = jsonencode({
     mcpServers = {
       playwright = {
@@ -154,7 +138,6 @@ module "copilot" {
     }
   })
 
-  # Pre-install an MCP server for faster startup
   pre_install_script = <<-EOT
     #!/usr/bin/env bash
     npm install -g @playwright/mcp
@@ -164,9 +147,7 @@ module "copilot" {
 
 ### Serialize a downstream `coder_script` after the install pipeline
 
-The module exposes the `scripts` output: an ordered list of `coder exp sync`
-names for the scripts this module creates (pre_install, install, post_install).
-Scripts that were not configured are absent.
+The module exposes the `scripts` output: an ordered list of `coder exp sync` names for the scripts this module creates (pre_install, install, post_install). Scripts that were not configured are absent.
 
 ```tf
 module "copilot" {
