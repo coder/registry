@@ -1,6 +1,7 @@
 import { readableStreamToText, spawn } from "bun";
 import { expect, it } from "bun:test";
 import { readFile, unlink } from "node:fs/promises";
+import { join } from "node:path";
 
 export const runContainer = async (
   image: string,
@@ -335,4 +336,125 @@ export const readFileContainer = async (id: string, path: string) => {
   }
   expect(proc.exitCode).toBe(0);
   return proc.stdout;
+};
+
+/**
+ * Extracts all coder_env resources from Terraform state and returns them as
+ * a Record of environment variable names to values.
+ */
+export const extractCoderEnvVars = (
+  state: TerraformState,
+): Record<string, string> => {
+  const envVars: Record<string, string> = {};
+
+  for (const resource of state.resources) {
+    if (resource.type === "coder_env" && resource.instances.length > 0) {
+      const instance = resource.instances[0].attributes;
+      const name = instance.name as string;
+      const value = instance.value as string;
+      if (name && value) {
+        envVars[name] = value;
+      }
+    }
+  }
+
+  return envVars;
+};
+
+/**
+ * Applies the module in moduleDir, starts a container, and returns the
+ * module's single coder_script, its coder_env values, and a cleanup function.
+ * Containers are kept when DEBUG is set to true, 1, or yes.
+ */
+export const setupContainer = async ({
+  moduleDir,
+  image,
+  vars,
+}: {
+  moduleDir: string;
+  image?: string;
+  vars?: Record<string, string>;
+}) => {
+  const state = await runTerraformApply(moduleDir, {
+    agent_id: "foo",
+    ...vars,
+  });
+  const coderScript = findResourceInstance(state, "coder_script");
+  const coderEnvVars = extractCoderEnvVars(state);
+  const id = await runContainer(image ?? "codercom/enterprise-node:latest");
+  return {
+    id,
+    coderScript,
+    coderEnvVars,
+    cleanup: async () => {
+      if (
+        process.env["DEBUG"] === "true" ||
+        process.env["DEBUG"] === "1" ||
+        process.env["DEBUG"] === "yes"
+      ) {
+        console.log(`Not removing container ${id} in debug mode`);
+        console.log(`Run "docker rm -f ${id}" to remove it manually.`);
+      } else {
+        await removeContainer(id);
+      }
+    },
+  };
+};
+
+/**
+ * Reads a file from the testdata directory of moduleDir.
+ */
+export const loadTestFile = async (
+  moduleDir: string,
+  ...relativePath: [string, ...string[]]
+) => {
+  return await Bun.file(join(moduleDir, "testdata", ...relativePath)).text();
+};
+
+/**
+ * Writes content to filePath in the container as root and makes it
+ * executable.
+ */
+export const writeExecutable = async ({
+  containerId,
+  filePath,
+  content,
+}: {
+  containerId: string;
+  filePath: string;
+  content: string;
+}) => {
+  await writeFileContainer(containerId, filePath, content, {
+    user: "root",
+  });
+  await execContainer(
+    containerId,
+    ["bash", "-c", `chmod 755 ${filePath}`],
+    ["--user", "root"],
+  );
+};
+
+/**
+ * Runs /home/coder/script.sh in the container with the given environment and
+ * tees its output to /home/coder/script.log.
+ */
+export const execModuleScript = async (
+  id: string,
+  env?: Record<string, string>,
+) => {
+  const envArgs = env
+    ? Object.entries(env)
+        .map(([key, value]) => `export ${key}="${value.replace(/"/g, '\\"')}"`)
+        .join(" && ") + " && "
+    : "";
+  const resp = await execContainer(id, [
+    "bash",
+    "-c",
+    `${envArgs}set -o errexit; set -o pipefail; cd /home/coder && ./script.sh 2>&1 | tee /home/coder/script.log`,
+  ]);
+  if (resp.exitCode !== 0) {
+    console.log(resp.stdout);
+    console.log(resp.stderr);
+  }
+  return resp;
 };
