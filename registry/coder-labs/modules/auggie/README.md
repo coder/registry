@@ -61,14 +61,16 @@ module "auggie" {
   version  = "1.0.0"
   agent_id = coder_agent.main.id
 
-  mcp = jsonencode({
-    mcpServers = {
-      filesystem = {
-        command = "npx"
-        args    = ["-y", "@modelcontextprotocol/server-filesystem", "/home/coder/project"]
+  mcp       = <<-EOF
+  {
+    "mcpServers": {
+      "filesystem": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/coder/project"]
       }
     }
-  })
+  }
+  EOF
   mcp_files = ["/home/coder/.config/mcp/servers.json"]
 
   rules = <<-EOT
