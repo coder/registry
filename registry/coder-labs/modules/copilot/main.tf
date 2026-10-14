@@ -70,13 +70,13 @@ variable "install_copilot" {
 
 variable "pre_install_script" {
   type        = string
-  description = "Custom script to run before installing Copilot."
+  description = "Custom script to run before configuring Copilot."
   default     = null
 }
 
 variable "post_install_script" {
   type        = string
-  description = "Custom script to run after installing Copilot."
+  description = "Custom script to run after configuring Copilot."
   default     = null
 }
 
