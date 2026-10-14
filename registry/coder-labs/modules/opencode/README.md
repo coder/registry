@@ -53,11 +53,6 @@ resource "coder_app" "opencode" {
 }
 ```
 
-See the [OpenCode CLI](https://opencode.ai/v2/docs/cli/) for launcher flags such as `--continue`, `--session`, and `--prompt`.
-
-> [!CAUTION]
-> `--auto` approves every permission request that is not explicitly denied, including shell commands. Use it only in trusted environments.
-
 ### Configuration and MCP servers
 
 ```tf
@@ -141,8 +136,6 @@ cat ~/.coder-modules/coder-labs/opencode/logs/install.log
 cat ~/.coder-modules/coder-labs/opencode/logs/pre_install.log
 cat ~/.coder-modules/coder-labs/opencode/logs/post_install.log
 ```
-
-See [OpenCode troubleshooting](https://opencode.ai/v2/docs/troubleshooting/).
 
 ## References
 
