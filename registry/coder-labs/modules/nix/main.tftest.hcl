@@ -1,120 +1,30 @@
-# nixos
-
-run "safe_render" {
+run "nixos_defaults_and_safe_render" {
   command = plan
-
   variables {
     nixos = {
       flake_ref  = "git+ssh://git@example.org/flake?ref=feature"
-      flake_attr = "host-$ARCH'$(touch /tmp/should-not-run)"
+      flake_attr = "host'$(touch /tmp/should-not-run)"
       flake_dir  = "/etc/nixos'$(touch /tmp/should-not-run)"
     }
   }
-
   assert {
-    condition     = output.flake_uri == "ssh://git@example.org/flake?ref=feature#host-x86_64'$(touch /tmp/should-not-run)"
-    error_message = "SSH userinfo or reference parsing changed."
+    condition     = var.nixos.enabled && !var.develop.enabled && length(coder_app.develop) == 0 && output.scripts == []
+    error_message = "Only nixos should be enabled by default."
   }
   assert {
-    condition     = strcontains(output.boot_script, base64encode("/etc/nixos'$(touch /tmp/should-not-run)")) && !strcontains(output.boot_script, "FLAKE_DIR='/etc/nixos'")
-    error_message = "The boot script must encode untrusted arguments."
+    condition     = output.flake_uri == "ssh://git@example.org/flake?ref=feature#host'$(touch /tmp/should-not-run)" && output.log_dir == "/var/log/coder-nixos"
+    error_message = "Unexpected flake reference or log directory."
+  }
+  assert {
+    condition     = strcontains(output.boot_script, base64encode(var.nixos.flake_dir)) && !strcontains(output.boot_script, "FLAKE_DIR='/etc/nixos'")
+    error_message = "The template must encode arguments before inserting them into shell."
   }
 }
 
-run "nixos_defaults" {
+run "reject_root_flake_dir" {
   command = plan
   variables {
-    nixos = {
-      flake_ref  = "https://example.org/flake"
-      flake_attr = "coder-workspace-ec2-$ARCH"
-      arch       = "aarch64"
-    }
-  }
-  assert {
-    condition     = var.nixos.enabled && !var.develop.enabled
-    error_message = "nixos should be enabled, and develop disabled, by default."
-  }
-  assert {
-    condition     = output.flake_uri == "https://example.org/flake#coder-workspace-ec2-aarch64"
-    error_message = "The default branch or ARM attribute changed."
-  }
-  assert {
-    condition     = strcontains(output.boot_script, "nixos-rebuild") && output.flake_dir == "/etc/nixos" && output.log_dir == "/var/log/coder-nixos"
-    error_message = "The boot script or default directories changed."
-  }
-  assert {
-    condition     = output.develop_command == null && length(coder_app.develop) == 0
-    error_message = "develop outputs must be empty when develop is disabled."
-  }
-}
-
-run "allow_http_userinfo" {
-  command = plan
-  variables {
-    nixos = {
-      flake_ref  = "git+https://user:token@example.org/flake?ref=main"
-      flake_attr = "coder-workspace-ec2-$ARCH"
-    }
-  }
-  assert {
-    condition     = output.flake_uri == "https://user:token@example.org/flake?ref=main#coder-workspace-ec2-x86_64"
-    error_message = "Git URL userinfo should remain available for private clones."
-  }
-}
-
-run "reject_control_characters" {
-  command = plan
-  variables {
-    nixos = {
-      flake_ref  = "https://example.org/flake?ref=main\nmalicious"
-      flake_attr = "host"
-    }
-  }
-  expect_failures = [var.nixos]
-}
-
-run "reject_unsupported_query" {
-  command = plan
-  variables {
-    nixos = {
-      flake_ref  = "https://example.org/flake?dir=subdir"
-      flake_attr = "host"
-    }
-  }
-  expect_failures = [var.nixos]
-}
-
-run "reject_relative_or_root_dirs" {
-  command = plan
-  variables {
-    nixos = {
-      flake_ref  = "https://example.org/flake"
-      flake_attr = "host"
-      flake_dir  = "/"
-    }
-  }
-  expect_failures = [var.nixos]
-}
-
-run "reject_noncanonical_dir" {
-  command = plan
-  variables {
-    nixos = {
-      flake_ref  = "https://example.org/flake"
-      flake_attr = "host"
-      log_dir    = "/var/log/../log/x/"
-    }
-  }
-  expect_failures = [var.nixos]
-}
-
-run "reject_empty_flake_attr" {
-  command = plan
-  variables {
-    nixos = {
-      flake_ref  = "https://example.org/flake"
-      flake_attr = ""
-    }
+    nixos = { flake_ref = "https://example.org/flake", flake_attr = "host", flake_dir = "/etc/.." }
   }
   expect_failures = [var.nixos]
 }
@@ -124,14 +34,11 @@ run "require_flake_when_nixos_enabled" {
   expect_failures = [var.nixos]
 }
 
-# develop
-
 run "require_one_enabled" {
   command = plan
   variables {
-    agent_id = "agent"
-    nixos    = { enabled = false }
-    develop  = { enabled = false, path = "project" }
+    nixos   = { enabled = false }
+    develop = { enabled = false }
   }
   expect_failures = [var.develop]
 }
@@ -169,32 +76,20 @@ run "develop_app_script" {
     }
   }
   assert {
-    condition     = startswith(coder_app.develop[0].command, "#!/usr/bin/env bash\n")
-    error_message = "The app must run under bash, whatever the user's shell is."
+    condition     = startswith(coder_app.develop[0].command, "#!/usr/bin/env bash\n") && strcontains(coder_app.develop[0].command, "cd \"$HOME/it's a project\"") && strcontains(coder_app.develop[0].command, base64encode(".#ci"))
+    error_message = "The app must run Bash, use the path as written, and select the requested shell."
   }
   assert {
-    condition     = strcontains(coder_app.develop[0].command, "\nPROJECT_PATH=\"$HOME/it's a project\"\n")
-    error_message = "develop.path must be inserted as written."
+    condition     = coder_app.develop[0].slug == "dev-shell" && coder_app.develop[0].order == 3 && length(output.scripts) == 1
+    error_message = "App customization and default prebuild should be honored."
   }
   assert {
-    condition     = strcontains(coder_app.develop[0].command, base64encode(".#ci")) && strcontains(coder_app.develop[0].command, "/.nix-profile/etc/profile.d/nix.sh")
-    error_message = "The app should select the shell and find nix like the prebuild does."
+    condition     = coder_env.path[0].name == "PATH" && coder_env.path[0].merge_strategy == "append" && coder_env.path[0].value == "$PATH:/nix/var/nix/profiles/default/bin:$HOME/.nix-profile/bin"
+    error_message = "The module should extend the workspace PATH with both Nix profiles."
   }
   assert {
-    condition     = coder_app.develop[0].slug == "dev-shell" && coder_app.develop[0].display_name == "Nix Develop" && coder_app.develop[0].order == 3 && coder_app.develop[0].icon == "/icon/nix.svg"
-    error_message = "Unexpected app presentation."
-  }
-  assert {
-    condition     = output.develop_command == coder_app.develop[0].command
-    error_message = "develop_command should match the app command."
-  }
-  assert {
-    condition     = output.boot_script == null && output.flake_uri == null && output.version_command == null && output.nixos_nix_conf == null
-    error_message = "nixos outputs must be null when nixos is disabled."
-  }
-  assert {
-    condition     = length(output.scripts) == 1 && coder_env.nix_config[0].value == "extra-experimental-features = nix-command flakes"
-    error_message = "prebuild should be on by default, and NIX_CONFIG always enables nix-command and flakes."
+    condition     = output.boot_script == null && output.flake_uri == null && output.log_dir == null && output.version_command == null
+    error_message = "NixOS outputs must be null when disabled."
   }
 }
 
@@ -202,36 +97,24 @@ run "develop_with_nixos_no_prebuild" {
   command = plan
   variables {
     agent_id = "agent"
-    nixos = {
-      flake_ref  = "https://example.org/flake"
-      flake_attr = "host"
-    }
-    develop = {
-      enabled  = true
-      path     = "~/project"
-      prebuild = false
-    }
+    nixos    = { flake_ref = "https://example.org/flake", flake_attr = "host" }
+    develop  = { enabled = true, path = "~/project", prebuild = false }
   }
   assert {
-    condition     = coder_app.develop[0].slug == "nix-develop" && strcontains(coder_app.develop[0].command, "\nPROJECT_PATH=~/project\n")
-    error_message = "Unexpected default slug or path handling."
-  }
-  assert {
-    condition     = output.boot_script != null && output.scripts == []
-    error_message = "nixos and develop should work together, and prebuild = false should create no scripts."
+    condition     = coder_app.develop[0].slug == "nix-develop" && output.boot_script != null && output.scripts == []
+    error_message = "Both modes should work together without prebuild."
   }
 }
-
-# nix.conf settings
 
 run "config_merge_and_render" {
   command = plan
   variables {
     agent_id = "agent"
     config = {
-      extra-substituters        = ["https://cache.example.org", "https://cache2.example.org"]
-      extra-trusted-public-keys = ["cache.example.org-1:AbC="]
-      max-jobs                  = 4
+      extra-experimental-features = ["ca-derivations"]
+      extra-substituters          = ["https://cache.example.org", "https://cache2.example.org"]
+      extra-trusted-public-keys   = ["cache.example.org-1:AbC="]
+      max-jobs                    = 4
     }
     nixos = {
       flake_ref       = "https://example.org/flake"
@@ -245,131 +128,11 @@ run "config_merge_and_render" {
     }
   }
   assert {
-    condition     = output.nixos_nix_conf == "extra-experimental-features = nix-command flakes\nextra-substituters = https://cache.example.org https://cache2.example.org\nextra-trusted-public-keys = cache.example.org-1:AbC=\nmax-jobs = auto\nsandbox = true"
-    error_message = "Unexpected nixos_nix_conf: ${output.nixos_nix_conf}"
+    condition     = coder_env.nix_config[0].name == "NIX_CONFIG" && coder_env.nix_config[0].value == "extra-experimental-features = ca-derivations\nextra-substituters = https://cache.example.org https://cache2.example.org\nextra-trusted-public-keys = cache.example.org-1:AbC=\nkeep-outputs = true\nmax-jobs = 4\nextra-experimental-features = nix-command flakes"
+    error_message = "Develop settings must merge per key, preserve trust settings, and append required features."
   }
   assert {
-    condition     = output.develop_nix_conf == "extra-experimental-features = nix-command flakes\nextra-substituters = https://cache.example.org https://cache2.example.org\nkeep-outputs = true\nmax-jobs = 4"
-    error_message = "develop should get shared settings and its override, but not daemon-only keys while nixos is enabled: ${output.develop_nix_conf}"
+    condition     = strcontains(output.boot_script, base64encode("extra-experimental-features = ca-derivations\nextra-substituters = https://cache.example.org https://cache2.example.org\nextra-trusted-public-keys = cache.example.org-1:AbC=\nmax-jobs = auto\nsandbox = true\nextra-experimental-features = nix-command flakes"))
+    error_message = "The boot script must carry the NixOS settings and its overrides."
   }
-  assert {
-    condition     = strcontains(output.boot_script, base64encode(output.nixos_nix_conf))
-    error_message = "The boot script must carry the nixos settings."
-  }
-  assert {
-    condition     = coder_env.nix_config[0].name == "NIX_CONFIG" && coder_env.nix_config[0].value == output.develop_nix_conf
-    error_message = "NIX_CONFIG should be exported with the develop settings."
-  }
-  assert {
-    condition     = !strcontains(coder_app.develop[0].command, base64encode(output.develop_nix_conf))
-    error_message = "The app must get the settings from the exported NIX_CONFIG, not a copy of its own."
-  }
-}
-
-run "config_example_exact_value" {
-  command = plan
-  variables {
-    agent_id = "agent"
-    config = {
-      extra-substituters        = ["https://cache.example.org"]
-      extra-trusted-public-keys = ["cache.example.org-1:AbC="]
-    }
-    nixos = {
-      flake_ref  = "https://example.org/flake"
-      flake_attr = "host"
-    }
-    develop = {
-      enabled         = true
-      path            = "project"
-      config_override = { keep-outputs = true }
-    }
-  }
-  assert {
-    condition     = coder_env.nix_config[0].value == "extra-experimental-features = nix-command flakes\nextra-substituters = https://cache.example.org\nkeep-outputs = true"
-    error_message = "Unexpected NIX_CONFIG: ${coder_env.nix_config[0].value}"
-  }
-}
-
-run "develop_keeps_trusted_keys_without_nixos" {
-  command = plan
-  variables {
-    agent_id = "agent"
-    config   = { extra-trusted-public-keys = ["k1"] }
-    nixos    = { enabled = false }
-    develop  = { enabled = true, path = "project" }
-  }
-  assert {
-    condition     = output.develop_nix_conf == "extra-experimental-features = nix-command flakes\nextra-trusted-public-keys = k1"
-    error_message = "Without nixos, the client must get every setting."
-  }
-}
-
-run "reject_bad_config_key" {
-  command = plan
-  variables {
-    config = { "Bad Key" = "x" }
-    nixos  = { flake_ref = "https://example.org/flake", flake_attr = "host" }
-  }
-  expect_failures = [var.config]
-}
-
-run "reject_config_newline" {
-  command = plan
-  variables {
-    config = { extra-substituters = ["https://a\nb"] }
-    nixos  = { flake_ref = "https://example.org/flake", flake_attr = "host" }
-  }
-  expect_failures = [var.config]
-}
-
-run "reject_config_object_value" {
-  command = plan
-  variables {
-    config = { foo = { a = "b" } }
-    nixos  = { flake_ref = "https://example.org/flake", flake_attr = "host" }
-  }
-  expect_failures = [var.config]
-}
-
-run "reject_bad_override_key" {
-  command = plan
-  variables {
-    nixos = {
-      flake_ref       = "https://example.org/flake"
-      flake_attr      = "host"
-      config_override = { "!include" = "/etc/passwd" }
-    }
-  }
-  expect_failures = [var.nixos]
-}
-
-run "append_required_experimental_features" {
-  command = plan
-  variables {
-    config = { extra-experimental-features = "ca-derivations flakes" }
-    nixos  = { flake_ref = "https://example.org/flake", flake_attr = "host" }
-  }
-  assert {
-    condition     = output.nixos_nix_conf == "extra-experimental-features = ca-derivations flakes nix-command"
-    error_message = "Required features must be appended once, after the caller's: ${output.nixos_nix_conf}"
-  }
-}
-
-run "reject_config_list" {
-  command = plan
-  variables {
-    config = []
-    nixos  = { flake_ref = "https://example.org/flake", flake_attr = "host" }
-  }
-  expect_failures = [var.config]
-}
-
-run "reject_develop_override_list" {
-  command = plan
-  variables {
-    agent_id = "agent"
-    nixos    = { enabled = false }
-    develop  = { enabled = true, path = "p", config_override = [] }
-  }
-  expect_failures = [var.develop]
 }

@@ -1,61 +1,38 @@
 terraform {
   required_version = ">= 1.9"
-
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.5"
+      version = ">= 2.15"
     }
   }
 }
 
-# Shared inputs. Each mode lives in its own file:
-# - nixos.tf:   rebuild the whole system from a flake on boot (`nixos`)
-# - develop.tf: enter a `nix develop` shell from a project flake (`develop`)
-
 variable "agent_id" {
-  description = "The ID of a Coder agent. Required when `develop` is enabled; `nixos` runs before the agent exists and does not need it."
+  description = "Coder agent ID, required when develop is enabled."
   type        = string
   default     = null
 }
 
 variable "icon" {
-  description = "Icon for the apps and scripts this module creates."
+  description = "Icon for the module's apps and scripts."
   type        = string
   default     = "/icon/nix.svg"
 }
 
 variable "config" {
-  description = <<-EOT
-    nix.conf settings shared by `nixos` and `develop`. Each mode can replace
-    individual keys with its own `config_override`. Lists are joined with
-    spaces; booleans become `true`/`false`. Prefer `extra-*` keys (e.g.
-    `extra-substituters`) so values are appended to what NixOS or the Nix
-    installer already configured instead of replacing it.
-
-    On NixOS, if you control the flake, prefer its `nix.settings`; this is for
-    when you don't.
-  EOT
+  description = "Shared nix.conf settings. Each mode's config_override replaces individual keys. Lists are space-joined; prefer extra-* keys to append to existing settings. On NixOS, prefer the flake's nix.settings for persistent settings."
   type        = any
   default     = {}
-
-  # Same rule as the `config_override` validations in nixos.tf and develop.tf.
-  validation {
-    condition     = try(length(keys(var.config)) >= 0 && alltrue([for k, v in var.config : can(regex("^[a-z][a-z0-9-]*$", k)) && (can(regex("^[^[:cntrl:]]*$", v)) || (can(tolist(v)) && can([for x in tolist(v) : regex("^[^[:cntrl:]]*$", x)])))]), false)
-    error_message = "config must be a map of nix.conf setting names (lowercase letters, digits, dashes) to strings, numbers, booleans or lists of strings, without control characters."
-  }
 }
 
 locals {
-  # Every rendered nix.conf gets these appended to its
-  # `extra-experimental-features`: the boot rebuild and `nix develop` need them.
-  required_experimental_features = ["nix-command", "flakes"]
-
-  # Settings that only the nix-daemon honours from trusted callers. When
-  # `nixos` manages the daemon they are already applied there, and an
-  # untrusted `nix` client sending them again only triggers "ignoring the
-  # client-specified setting ..." warnings.
-  daemon_only_settings = toset(flatten([
-    for k in ["trusted-public-keys", "trusted-substituters", "trusted-users"] : [k, "extra-${k}"]
-  ]))
+  # Nix accumulates repeated extra-* lines, so required features are appended.
+  nix_conf = {
+    for mode, override in { nixos = var.nixos.config_override, develop = var.develop.config_override } :
+    mode => join("\n", concat(
+      [for k, v in merge(var.config, override) : "${k} = ${join(" ", flatten([v]))}"],
+      ["extra-experimental-features = nix-command flakes"],
+    ))
+  }
 }

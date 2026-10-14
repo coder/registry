@@ -1,36 +1,11 @@
-# `nixos`: render a root-run boot script that applies a NixOS configuration
-# before the Coder agent starts.
-
 variable "nixos" {
-  description = <<-EOT
-    Apply a NixOS configuration on every boot.
-
-    - `enabled`: render the boot script. Defaults to `true`.
-    - `flake_ref`: HTTP(S) or SSH Git URL of a committed flake; optional `git+`
-      prefix and `?ref=` branch. Required when `enabled`. Embedded credentials
-      appear in the outputs and the checkout.
-    - `flake_attr`: `nixosConfigurations` attribute to build, e.g.
-      `coder-workspace-ec2-$ARCH`. `$ARCH` is replaced with `arch`. Required
-      when `enabled`.
-    - `arch`: `x86_64` or `aarch64`, substituted into `flake_attr`.
-    - `flake_dir`: checkout to build, owned by the workspace user so the
-      configuration can be edited in place.
-    - `state_dir`: revision marker and rebuild lock.
-    - `log_dir`: rebuild transcripts.
-    The three directories must be canonical absolute paths other than `/`.
-    - `config_override`: nix.conf settings merged over `config` (per key)
-      for root's Nix: the boot rebuild, a manual `sudo nixos-rebuild`, and
-      the nix-daemon that builds for every user.
-  EOT
+  description = "Apply flake_ref (Git URL, optional git+ prefix and ?ref= branch) and flake_attr (nixosConfigurations attribute) on boot. enabled defaults to true; both flake fields are required when enabled. flake_dir holds the checkout, log_dir holds rebuild transcripts, and config_override supplies nix.conf settings for the boot rebuild."
   type = object({
-    enabled    = optional(bool, true)
-    flake_ref  = optional(string)
-    flake_attr = optional(string)
-    arch       = optional(string, "x86_64")
-    flake_dir  = optional(string, "/etc/nixos")
-    state_dir  = optional(string, "/var/lib/coder-nixos")
-    log_dir    = optional(string, "/var/log/coder-nixos")
-
+    enabled         = optional(bool, true)
+    flake_ref       = optional(string)
+    flake_attr      = optional(string)
+    flake_dir       = optional(string, "/etc/nixos")
+    log_dir         = optional(string, "/var/log/coder-nixos")
     config_override = optional(any, {})
   })
   default = {}
@@ -39,106 +14,42 @@ variable "nixos" {
     condition     = !var.nixos.enabled || (var.nixos.flake_ref != null && var.nixos.flake_attr != null)
     error_message = "nixos.flake_ref and nixos.flake_attr are required when nixos.enabled is true."
   }
-
   validation {
-    condition     = var.nixos.flake_ref == null ? true : (can(regex("^(git\\+)?(https?|ssh)://", var.nixos.flake_ref)) && !can(regex("[[:cntrl:]]", var.nixos.flake_ref)) && !strcontains(var.nixos.flake_ref, "#") && (!strcontains(var.nixos.flake_ref, "?") || can(regex("\\?ref=[^&#?]+$", var.nixos.flake_ref))))
-    error_message = "nixos.flake_ref must be an http(s) or ssh Git URL with optional ?ref=, without control characters, fragments, or other query parameters."
-  }
-
-  validation {
-    condition     = contains(["x86_64", "aarch64"], var.nixos.arch)
-    error_message = "nixos.arch must be x86_64 or aarch64."
-  }
-
-  # Same rule as var.config.
-  validation {
-    condition     = try(length(keys(var.nixos.config_override)) >= 0 && alltrue([for k, v in var.nixos.config_override : can(regex("^[a-z][a-z0-9-]*$", k)) && (can(regex("^[^[:cntrl:]]*$", v)) || (can(tolist(v)) && can([for x in tolist(v) : regex("^[^[:cntrl:]]*$", x)])))]), false)
-    error_message = "nixos.config_override must be a map of nix.conf setting names (lowercase letters, digits, dashes) to strings, numbers, booleans or lists of strings, without control characters."
-  }
-
-  validation {
-    condition     = var.nixos.flake_attr == null ? true : (var.nixos.flake_attr != "" && !can(regex("[[:cntrl:]]", var.nixos.flake_attr)))
-    error_message = "nixos.flake_attr must be non-empty and must not contain control characters."
-  }
-
-  # These are created, chowned and rewritten as root, so `/`, relative and
-  # non-canonical paths are refused.
-  validation {
-    condition = alltrue([
-      for v in [var.nixos.flake_dir, var.nixos.state_dir, var.nixos.log_dir] :
-      startswith(v, "/") && v != "/" && abspath(v) == v && !can(regex("[[:cntrl:]]", v))
-    ])
-    error_message = "nixos.flake_dir, state_dir and log_dir must be canonical absolute directory paths other than /, without control characters."
+    condition     = startswith(var.nixos.flake_dir, "/") && abspath(var.nixos.flake_dir) != "/"
+    error_message = "nixos.flake_dir must be an absolute path other than /."
   }
 }
 
 locals {
-  nixos_flake_ref = var.nixos.flake_ref == null ? "" : var.nixos.flake_ref
-
-  flake_url = replace(replace(local.nixos_flake_ref, "/^git\\+/", ""), "/\\?.*$/", "")
-
-  flake_branch = try(regex("[?&]ref=([^&#]+)", local.nixos_flake_ref)[0], "")
-
-  nixos_settings_merged = merge(var.config, var.nixos.config_override)
-  nixos_settings = merge(local.nixos_settings_merged, {
-    extra-experimental-features = distinct(concat(
-      try(tolist(local.nixos_settings_merged["extra-experimental-features"]), compact(split(" ", tostring(lookup(local.nixos_settings_merged, "extra-experimental-features", ""))))),
-      local.required_experimental_features,
-    ))
-  })
-  nixos_settings_text = {
-    for k, v in local.nixos_settings : k => can(tolist(v)) ? join(" ", [for x in tolist(v) : tostring(x)]) : tostring(v)
-  }
-  nixos_nix_conf = join("\n", [for k in sort(keys(local.nixos_settings)) : "${k} = ${local.nixos_settings_text[k]}"])
-
-  flake_attr = replace(var.nixos.flake_attr == null ? "" : var.nixos.flake_attr, "$ARCH", var.nixos.arch)
+  flake_url    = try(replace(replace(var.nixos.flake_ref, "/^git\\+/", ""), "/\\?.*$/", ""), "")
+  flake_branch = try(regex("[?&]ref=([^&#]+)", var.nixos.flake_ref)[0], "")
 }
 
 output "boot_script" {
-  description = "Applies the flake. Hand this to whatever runs a script on every boot; it expects to run as root. `null` when `nixos.enabled` is false."
+  description = "Root-run boot script applying the flake; null when nixos is disabled."
   value = !var.nixos.enabled ? null : templatefile("${path.module}/scripts/nixos/boot.sh.tftpl", {
-    lifecycle_sh = file("${path.module}/scripts/nixos/lifecycle.sh")
-    flake_url    = base64encode(local.flake_url)
-    flake_branch = base64encode(local.flake_branch)
-    flake_attr   = base64encode(local.flake_attr)
-    flake_dir    = base64encode(var.nixos.flake_dir)
-    state_dir    = base64encode(var.nixos.state_dir)
-    log_dir      = base64encode(var.nixos.log_dir)
-    nix_conf     = base64encode(local.nixos_nix_conf)
+    ARG_FLAKE_URL    = local.flake_url
+    ARG_FLAKE_BRANCH = local.flake_branch
+    ARG_FLAKE_ATTR   = var.nixos.flake_attr
+    ARG_FLAKE_DIR    = var.nixos.flake_dir
+    ARG_LOG_DIR      = var.nixos.log_dir
+    ARG_NIX_CONF     = local.nix_conf.nixos
+    REBUILD_SH       = file("${path.module}/scripts/nixos/rebuild.sh")
   })
 }
 
-output "nixos_nix_conf" {
-  description = "nix.conf text applied to root's Nix on the instance: `config` merged with `nixos.config_override`, plus the `nix-command` and `flakes` experimental features. `null` when `nixos.enabled` is false."
-  value       = !var.nixos.enabled ? null : local.nixos_nix_conf
-}
-
 output "flake_uri" {
-  description = "The reference actually built, normalised for display. `null` when `nixos.enabled` is false."
-  value       = !var.nixos.enabled ? null : "${local.flake_url}${local.flake_branch == "" ? "" : "?ref=${local.flake_branch}"}#${local.flake_attr}"
-}
-
-output "flake_attr" {
-  description = "`nixosConfigurations` attribute after `$ARCH` substitution. `null` when `nixos.enabled` is false."
-  value       = !var.nixos.enabled ? null : local.flake_attr
-}
-
-output "flake_dir" {
-  description = "Checkout on the instance. `null` when `nixos.enabled` is false."
-  value       = !var.nixos.enabled ? null : var.nixos.flake_dir
+  description = "Flake reference built, normalized for display; null when nixos is disabled."
+  value       = !var.nixos.enabled ? null : "${local.flake_url}${local.flake_branch == "" ? "" : "?ref=${local.flake_branch}"}#${var.nixos.flake_attr}"
 }
 
 output "log_dir" {
-  description = "Where rebuild transcripts are written. `null` when `nixos.enabled` is false."
-  value       = !var.nixos.enabled ? null : var.nixos.log_dir
+  description = "Rebuild transcript directory; null when nixos is disabled."
+  value       = var.nixos.enabled ? var.nixos.log_dir : null
 }
 
 output "version_command" {
-  description = <<-EOT
-    Shell that reports the running NixOS version, and whether a generation is
-    staged but not yet booted. For a `coder_agent` metadata block, which has
-    to be declared inline on the agent. `null` when `nixos.enabled` is false.
-  EOT
+  description = "Shell snippet for agent metadata: running NixOS version, flagging a staged generation; null when nixos is disabled."
   value       = !var.nixos.enabled ? null : <<-EOT
     version=$(nixos-version 2>/dev/null || echo unknown)
     if [ "$(readlink -f /run/current-system)" = "$(readlink -f /nix/var/nix/profiles/system)" ]; then

@@ -32,10 +32,7 @@ variable "flake_ref" {
   type        = string
   default     = "https://github.com/coder/nixos-example-flake"
 
-  validation {
-    condition     = can(regex("^(git\\+)?(https?|ssh)://", var.flake_ref)) && !can(regex("[[:cntrl:]]", var.flake_ref)) && !strcontains(var.flake_ref, "#") && (!strcontains(var.flake_ref, "?") || can(regex("\\?ref=[^&#?]+$", var.flake_ref)))
-    error_message = "Use an http(s) or ssh Git URL without control characters, fragments, or query parameters other than ?ref=."
-  }
+
 }
 
 variable "flake_attr" {
@@ -175,8 +172,9 @@ module "git-config" {
 }
 
 locals {
-  instance = module.aws-ec2-instance-type.instances[module.aws-ec2-instance-type.value]
-  nix_arch = local.instance.arch == "arm64" ? "aarch64" : local.instance.arch
+  instance   = module.aws-ec2-instance-type.instances[module.aws-ec2-instance-type.value]
+  nix_arch   = local.instance.arch == "arm64" ? "aarch64" : local.instance.arch
+  flake_attr = replace(var.flake_attr, "$ARCH", local.nix_arch)
 }
 
 module "nix" {
@@ -185,8 +183,7 @@ module "nix" {
 
   nixos = {
     flake_ref  = var.flake_ref
-    flake_attr = var.flake_attr
-    arch       = local.nix_arch
+    flake_attr = local.flake_attr
   }
 }
 

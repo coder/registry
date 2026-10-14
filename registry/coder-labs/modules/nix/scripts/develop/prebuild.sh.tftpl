@@ -1,42 +1,27 @@
 #!/usr/bin/env bash
-# Prebuild the project's `nix develop` shell so opening the Nix Develop app is
-# instant. The environment is recorded in a profile, which is a GC root: the
-# dependencies survive `nix-collect-garbage`.
 set -euo pipefail
 
-INSTALLABLE=$(printf %s '${ARG_INSTALLABLE}' | base64 -d)
-WAIT_SECONDS=$${CODER_NIX_DEVELOP_WAIT_SECONDS:-600}
-${NIX_ENV_SH}
-warn() { printf 'Warning: %s\n' "$*" >&2; }
-
 if ! command -v nix > /dev/null 2>&1; then
-  warn "nix is not installed or not on PATH; skipping the nix develop prebuild."
+  echo "Warning: nix is not installed or not on PATH; skipping prebuild." >&2
   exit 0
 fi
 
-# develop.path is inserted as written, so `~` and `$HOME` expand.
 PROJECT_PATH=${ARG_PATH}
-
-# The project may still be cloning (e.g. by the git-clone module).
 waited=0
 until [ -f "$PROJECT_PATH/flake.nix" ]; do
-  if [ "$waited" -ge "$WAIT_SECONDS" ]; then
-    warn "$PROJECT_PATH/flake.nix did not appear within $${WAIT_SECONDS}s; skipping the nix develop prebuild."
+  if [ "$waited" -ge 600 ]; then
+    echo "Warning: $PROJECT_PATH/flake.nix did not appear within 600s; skipping prebuild." >&2
     exit 0
   fi
-  if [ "$waited" -eq 0 ]; then
-    echo "Waiting for $PROJECT_PATH/flake.nix..."
-  fi
+  [ "$waited" -ne 0 ] || echo "Waiting for $PROJECT_PATH/flake.nix..."
   sleep 2
   waited=$((waited + 2))
 done
 
 mkdir -p "${ARG_PROFILE_DIR}"
 cd "$PROJECT_PATH"
-echo "Prebuilding $INSTALLABLE in $PROJECT_PATH (profile: ${ARG_PROFILE_DIR}/profile)"
-if nix --extra-experimental-features 'nix-command flakes' develop \
-  --profile "${ARG_PROFILE_DIR}/profile" "$INSTALLABLE" --command true; then
+if nix develop --profile "${ARG_PROFILE_DIR}/profile" "$(echo -n '${base64encode(ARG_INSTALLABLE)}' | base64 -d)" --command true; then
   echo "nix develop environment is ready."
 else
-  warn "nix develop prebuild failed; the Nix Develop app will build on first use."
+  echo "Warning: prebuild failed; the app will build on first use." >&2
 fi

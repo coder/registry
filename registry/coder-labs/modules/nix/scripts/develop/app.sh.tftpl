@@ -1,17 +1,6 @@
 #!/usr/bin/env bash
-# Nix Develop app: enter the project's `nix develop` shell, keeping the
-# environment in a profile (a GC root) shared with the prebuild.
 set -euo pipefail
 
-INSTALLABLE=$(printf %s '${ARG_INSTALLABLE}' | base64 -d)
-${NIX_ENV_SH}
-if ! command -v nix > /dev/null 2>&1; then
-  echo "nix is not installed or not on PATH." >&2
-  exit 1
-fi
-
-# develop.path is inserted as written, so `~` and `$HOME` expand.
-PROJECT_PATH=${ARG_PATH}
 mkdir -p "${ARG_PROFILE_DIR}"
-cd "$PROJECT_PATH"
-exec nix --extra-experimental-features 'nix-command flakes' develop --profile "${ARG_PROFILE_DIR}/profile" "$INSTALLABLE"
+cd ${ARG_PATH}
+exec nix develop --profile "${ARG_PROFILE_DIR}/profile" "$(echo -n '${base64encode(ARG_INSTALLABLE)}' | base64 -d)"

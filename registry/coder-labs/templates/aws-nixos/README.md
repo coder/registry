@@ -16,7 +16,7 @@ Boot an EC2 workspace from a Git flake. NixOS rebuilds before the agent starts, 
   See the [EC2 policy example](../../../coder/templates/aws-linux/PREREQUISITES.md); its `RunInstances` and `CreateTags` permissions cover more than tagged resources.
 - Keep a default VPC/subnet. Allow provisioner egress to AWS/JetBrains and VM egress to Coder/Git/Nix caches.
 - Use a supported Git URL: `https://host/org/repo` or `git+ssh://git@host/org/repo`, with optional `?ref=branch`.
-  `github:` and `?dir=` are not supported. Commit your flake before starting a workspace.
+  Commit your flake before starting a workspace.
 
 ## Choose a flake
 
