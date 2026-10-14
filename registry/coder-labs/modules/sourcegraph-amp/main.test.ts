@@ -285,29 +285,34 @@ describe("sourcegraph-amp", async () => {
     expect(agents.trim()).toBe(prompt);
   });
 
-  test("amp-settings-merge-preserves-unrelated-keys", async () => {
+  test("base-config-overwrites-then-mcp-is-applied", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {
         base_amp_config: JSON.stringify({
-          "amp.dangerouslyAllowAll": true,
           "amp.showCosts": false,
+          "amp.mcpServers": { base: { command: "base-command" } },
+        }),
+        mcp: JSON.stringify({
+          base: { command: "module-command" },
+          extra: { command: "extra-command" },
         }),
       },
     });
     await seedSettings(
       id,
       JSON.stringify({
-        "amp.showCosts": true,
         "amp.notifications.enabled": false,
         "amp.mcpServers": { seeded: { command: "seeded-command" } },
       }),
     );
     await runScripts(id, scripts);
     const settings = JSON.parse(await readFileContainer(id, settingsPath));
-    expect(settings["amp.dangerouslyAllowAll"]).toBe(true);
     expect(settings["amp.showCosts"]).toBe(false);
-    expect(settings["amp.notifications.enabled"]).toBe(false);
-    expect(settings["amp.mcpServers"].seeded.command).toBe("seeded-command");
+    expect(settings["amp.notifications.enabled"]).toBeUndefined();
+    const servers = settings["amp.mcpServers"];
+    expect(servers.seeded).toBeUndefined();
+    expect(servers.base.command).toBe("base-command");
+    expect(servers.extra.command).toBe("extra-command");
   });
 
   test("writes-mcp-servers-without-coder-server", async () => {

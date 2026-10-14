@@ -20,7 +20,7 @@ module "amp" {
 ```
 
 > [!WARNING]
-> If upgrading from v3.x.x of this module: v4 is a major refactor that drops support for Coder Tasks and AgentAPI. The module now only installs and configures Amp; launch it with your own `coder_app`. `ai_prompt`, `mode`, `report_tasks`, `install_via_npm`, and the web/CLI app inputs are removed; pass `--mode` in your launcher instead. `base_amp_config` is now merged into `settings.json` without default keys, and the Coder task-reporting MCP server is no longer added. Keep using v3.x.x if you depend on Coder Tasks.
+> If upgrading from v3.x.x of this module: v4 is a major refactor that drops support for Coder Tasks and AgentAPI. The module now only installs and configures Amp; launch it with your own `coder_app`. `ai_prompt`, `mode`, `report_tasks`, `install_via_npm`, and the web/CLI app inputs are removed; pass `--mode` in your launcher instead. `base_amp_config` no longer writes default keys, and the Coder task-reporting MCP server is no longer added. Keep using v3.x.x if you depend on Coder Tasks.
 
 ## Examples
 
@@ -90,7 +90,7 @@ module "amp" {
 }
 ```
 
-`base_amp_config` and `mcp` use the [Amp settings](https://ampcode.com/docs/cli/settings) and [`amp.mcpServers`](https://ampcode.com/docs/customize/mcp) formats. MCP servers that already exist in `settings.json` are kept. `instruction_prompt` is written to `~/.config/AGENTS.md` ([AGENTS.md](https://ampcode.com/docs/customize/agents-md)).
+`base_amp_config` uses the [Amp settings](https://ampcode.com/docs/cli/settings) format and overwrites `~/.config/amp/settings.json` on every start. `mcp` uses the [`amp.mcpServers`](https://ampcode.com/docs/customize/mcp) format and is applied after it. MCP servers that already exist in `settings.json` are kept. `instruction_prompt` is written to `~/.config/AGENTS.md` ([AGENTS.md](https://ampcode.com/docs/customize/agents-md)).
 
 ### Serialize a downstream `coder_script` after the install pipeline
 

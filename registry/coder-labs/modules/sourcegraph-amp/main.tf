@@ -65,7 +65,7 @@ variable "instruction_prompt" {
 
 variable "base_amp_config" {
   type        = string
-  description = "Amp settings as a JSON object of amp.* keys, merged into ~/.config/amp/settings.json. See https://ampcode.com/docs/cli/settings"
+  description = "Amp settings as JSON. When set, it overwrites ~/.config/amp/settings.json on every start, before mcp is applied. See https://ampcode.com/docs/cli/settings"
   default     = ""
 }
 

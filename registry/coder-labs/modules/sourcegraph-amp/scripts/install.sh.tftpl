@@ -169,50 +169,40 @@ write_user_settings() {
   )
 }
 
-# base_amp_config keys overwrite on-disk values. MCP servers already on disk
-# win on duplicate names, matching `amp mcp add`. Every other key is kept.
-configure_user_settings() {
-  if [ -z "$${ARG_BASE_CONFIG}" ] && [ -z "$${ARG_MCP_CONFIG}" ]; then
-    echo "No Amp settings or MCP servers configured; leaving $${SETTINGS_FILE} unchanged."
+write_base_config() {
+  if [ -z "$${ARG_BASE_CONFIG}" ]; then
+    return
+  fi
+  write_user_settings "$${ARG_BASE_CONFIG}"
+  echo "Amp settings written: $${SETTINGS_FILE}"
+}
+
+# MCP servers already in the file win on duplicate names, matching `amp mcp add`.
+setup_mcp() {
+  if [ -z "$${ARG_MCP_CONFIG}" ]; then
     return
   fi
 
-  require_jq "configure Amp settings"
+  require_jq "configure Amp MCP servers"
 
-  local existing
+  local existing name
   if ! existing=$(read_user_settings); then
     echo "Warning: $${SETTINGS_FILE} is not a strict JSON object (comments or trailing commas); leaving it unchanged." >&2
     return
   fi
 
-  local base='{}' extra='{}' custom name
-  if [ -n "$${ARG_BASE_CONFIG}" ]; then
-    base="$${ARG_BASE_CONFIG}"
-  fi
-  if [ -n "$${ARG_MCP_CONFIG}" ]; then
-    extra="$${ARG_MCP_CONFIG}"
-  fi
-  custom=$(jq -n --argjson base "$${base}" --argjson extra "$${extra}" '($base["amp.mcpServers"] // {}) + $extra')
-
   while IFS= read -r name; do
-    [ -n "$${name}" ] && echo "Warning: MCP server '$${name}' already exists in $${SETTINGS_FILE}, keeping the existing one." >&2
-  done < <(echo "$${existing}" | jq -r --argjson custom "$${custom}" '(.["amp.mcpServers"] // {}) | keys[] | select(. as $k | $custom | has($k))')
+    echo "Warning: MCP server '$${name}' already exists in $${SETTINGS_FILE}, keeping the existing one." >&2
+  done < <(echo "$${existing}" | jq -r --argjson mcp "$${ARG_MCP_CONFIG}" '(.["amp.mcpServers"] // {}) as $current | $mcp | keys[] | select(. as $k | $current | has($k))')
 
-  local updated
-  updated=$(echo "$${existing}" | jq --argjson base "$${base}" --argjson custom "$${custom}" '
-    (. + ($base | del(.["amp.mcpServers"])))
-    | if ($custom | length) > 0
-      then .["amp.mcpServers"] = ($custom + (.["amp.mcpServers"] // {}))
-      else .
-      end
-  ')
-  write_user_settings "$${updated}"
-  echo "Updated Amp settings: $${SETTINGS_FILE}"
+  write_user_settings "$(echo "$${existing}" | jq --argjson mcp "$${ARG_MCP_CONFIG}" '.["amp.mcpServers"] = ($mcp + (.["amp.mcpServers"] // {}))')"
+  echo "Amp MCP configuration written: $${SETTINGS_FILE}"
 }
 
 install_amp
 setup_workdir
 write_instruction_prompt
-configure_user_settings
+write_base_config
+setup_mcp
 
 echo "Amp module setup completed."
