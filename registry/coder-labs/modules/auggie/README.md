@@ -55,9 +55,6 @@ resource "coder_app" "auggie" {
 
 See [CLI flags](https://docs.augmentcode.com/cli/reference) for launcher options such as `--continue`, `--model`, `--print`, and `--quiet`.
 
-> [!NOTE]
-> The `coder_app` command re-executes on every pane reconnect. This works for interactive `auggie`, but one-shot commands like `auggie --print` will re-run each time. For one-shot prompts, use a `coder_script` (runs once at startup) and a `coder_app` that attaches to the existing session (for example, with tmux).
-
 ### MCP servers and rules
 
 ```tf
