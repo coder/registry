@@ -56,9 +56,6 @@ resource "coder_app" "amp" {
 
 See the [Amp CLI](https://ampcode.com/docs/cli) for launcher flags such as `--mode`.
 
-> [!NOTE]
-> The `coder_app` command re-executes on every pane reconnect. This works for interactive `amp`, but one-shot commands like `amp -x` will re-run each time. For one-shot prompts, use a `coder_script` (runs once at startup) and a `coder_app` that attaches to the existing session (for example, with tmux).
-
 ### Settings, MCP servers, and guidance
 
 ```tf
@@ -90,7 +87,7 @@ module "amp" {
 }
 ```
 
-`base_amp_config` uses the [Amp settings](https://ampcode.com/docs/cli/settings) format and overwrites `~/.config/amp/settings.json` on every start. `mcp` uses the [`amp.mcpServers`](https://ampcode.com/docs/customize/mcp) format and is applied after it. MCP servers that already exist in `settings.json` are kept. `instruction_prompt` is written to `~/.config/AGENTS.md` ([AGENTS.md](https://ampcode.com/docs/customize/agents-md)).
+`base_amp_config` uses the [Amp settings](https://ampcode.com/docs/cli/settings) format and overwrites `~/.config/amp/settings.json` on every start. `mcp` uses the [`amp.mcpServers`](https://ampcode.com/docs/customize/mcp) format and is added after it. `instruction_prompt` is written to `~/.config/AGENTS.md` ([AGENTS.md](https://ampcode.com/docs/customize/agents-md)).
 
 ### Serialize a downstream `coder_script` after the install pipeline
 
