@@ -63,19 +63,21 @@ module "kiro_cli" {
   workdir      = "/home/coder/project"
   auth_tarball = var.kiro_cli_auth_tarball
 
-  agent_config = jsonencode({
-    name         = "coder-agent"
-    description  = "Coding agent for this workspace"
-    prompt       = "You are a helpful coding assistant."
-    tools        = ["read", "write", "shell"]
-    allowedTools = ["read"]
-    mcpServers = {
-      playwright = {
-        command = "npx"
-        args    = ["-y", "@playwright/mcp@latest", "--headless", "--isolated", "--no-sandbox"]
+  agent_config = <<-EOF
+  {
+    "name": "coder-agent",
+    "description": "Coding agent for this workspace",
+    "prompt": "You are a helpful coding assistant.",
+    "tools": ["read", "write", "shell"],
+    "allowedTools": ["read"],
+    "mcpServers": {
+      "playwright": {
+        "command": "npx",
+        "args": ["-y", "@playwright/mcp@latest", "--headless", "--isolated", "--no-sandbox"]
       }
     }
-  })
+  }
+  EOF
 }
 ```
 
