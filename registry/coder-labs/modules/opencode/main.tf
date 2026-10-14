@@ -57,6 +57,12 @@ variable "auth_json" {
   default     = ""
 }
 
+variable "base_opencode_config" {
+  type        = string
+  description = "OpenCode configuration as JSON. When set, it overwrites the global opencode.json on every start, before mcp is applied. See https://opencode.ai/v2/docs/config/"
+  default     = ""
+}
+
 variable "mcp" {
   type        = string
   description = "MCP servers as a JSON object keyed by server name, in the format of mcp.servers in opencode.json. Merged into the global opencode.json ($OPENCODE_CONFIG_DIR, else $XDG_CONFIG_HOME/opencode, else ~/.config/opencode) under mcp.servers. Servers already on disk win on duplicate names, matching `claude mcp add` in the claude-code module. Use disabled (not enabled) to keep a server configured without connecting it. See https://opencode.ai/v2/docs/mcp-servers/"
@@ -76,6 +82,7 @@ locals {
     ARG_INSTALL          = tostring(var.install_opencode)
     ARG_OPENCODE_VERSION = base64encode(var.opencode_version)
     ARG_WORKDIR          = local.workdir != "" ? base64encode(local.workdir) : ""
+    ARG_BASE_CONFIG      = var.base_opencode_config != "" ? base64encode(var.base_opencode_config) : ""
     ARG_MCP_CONFIG       = var.mcp != "" ? base64encode(var.mcp) : ""
   })
   module_dir_name = ".coder-modules/coder-labs/opencode"

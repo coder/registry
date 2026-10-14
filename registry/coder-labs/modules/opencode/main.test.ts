@@ -372,6 +372,28 @@ describe("opencode", async () => {
     expect(cfg.mcp.servers.coder).toBeUndefined();
   });
 
+  test("base-config-overwrites-then-mcp-is-applied", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        base_opencode_config: JSON.stringify({
+          model: "anthropic/claude-haiku-4-5",
+          mcp: { servers: { base: { type: "local", command: ["base"] } } },
+        }),
+        mcp: JSON.stringify({
+          base: { type: "local", command: ["module"] },
+          extra: { type: "local", command: ["extra"] },
+        }),
+      },
+    });
+    await seedFile(id, configPath, JSON.stringify({ theme: "old" }));
+    await runScripts(id, scripts);
+    const cfg = JSON.parse(await readFileContainer(id, configPath));
+    expect(cfg.theme).toBeUndefined();
+    expect(cfg.model).toBe("anthropic/claude-haiku-4-5");
+    expect(cfg.mcp.servers.base.command).toEqual(["base"]);
+    expect(cfg.mcp.servers.extra.command).toEqual(["extra"]);
+  });
+
   test("merges-mcp-config-existing-servers-win", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {

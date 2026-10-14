@@ -9,6 +9,7 @@ command_exists() {
 ARG_INSTALL='${ARG_INSTALL}'
 ARG_OPENCODE_VERSION=$(echo -n '${ARG_OPENCODE_VERSION}' | base64 -d)
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
+ARG_BASE_CONFIG=$(echo -n '${ARG_BASE_CONFIG}' | base64 -d)
 ARG_MCP_CONFIG=$(echo -n '${ARG_MCP_CONFIG}' | base64 -d)
 
 # Delivered through coder_env so credentials never appear in this script.
@@ -170,6 +171,18 @@ setup_workdir() {
 # opencode.json. Like `claude mcp add`, a server name that already exists is
 # skipped and the on-disk server is kept. V1 configs may still list servers
 # directly under mcp, so those names count as existing too.
+write_base_config() {
+  local config_file="$${OPENCODE_CONFIG_PATH}/opencode.json"
+
+  if [ -z "$${ARG_BASE_CONFIG}" ]; then
+    return
+  fi
+
+  mkdir -p "$(dirname "$${config_file}")"
+  printf '%s\n' "$${ARG_BASE_CONFIG}" > "$${config_file}"
+  echo "OpenCode configuration written: $${config_file}"
+}
+
 setup_mcp() {
   local config_file="$${OPENCODE_CONFIG_PATH}/opencode.json"
 
@@ -235,6 +248,7 @@ setup_auth() {
 
 install_opencode
 setup_workdir
+write_base_config
 setup_mcp
 setup_auth
 

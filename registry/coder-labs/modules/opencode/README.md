@@ -19,7 +19,7 @@ module "opencode" {
 ```
 
 > [!WARNING]
-> If upgrading from v0.x.x of this module: v1 is a major refactor that drops support for Coder Tasks and AgentAPI and requires OpenCode 2. The module now only installs and configures OpenCode; launch it with your own `coder_app`. `ai_prompt`, `continue`, `session_id`, and `config_json` are removed, MCP servers move to `mcp`, and `auth_json` now takes the output of `opencode auth export`. See [Migrate from V1](https://opencode.ai/v2/docs/migrate-v1/). Keep using v0.x.x if you depend on Coder Tasks.
+> If upgrading from v0.x.x of this module: v1 is a major refactor that drops support for Coder Tasks and AgentAPI and requires OpenCode 2. The module now only installs and configures OpenCode; launch it with your own `coder_app`. `ai_prompt`, `continue`, and `session_id` are removed, `config_json` is renamed to `base_opencode_config`, MCP servers move to `mcp`, and `auth_json` now takes the output of `opencode auth export`. See [Migrate from V1](https://opencode.ai/v2/docs/migrate-v1/). Keep using v0.x.x if you depend on Coder Tasks.
 
 ## Examples
 
@@ -61,13 +61,17 @@ See the [OpenCode CLI](https://opencode.ai/v2/docs/cli/) for launcher flags such
 > [!NOTE]
 > The `coder_app` command re-executes on every pane reconnect. This works for the interactive `opencode` TUI, but one-shot commands like `opencode run` will re-run each time. For one-shot prompts, use a `coder_script` (runs once at startup) and a `coder_app` that attaches to the existing session (for example, with tmux).
 
-### MCP servers
+### Configuration and MCP servers
 
 ```tf
 module "opencode" {
   source   = "registry.coder.com/coder-labs/opencode/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
+
+  base_opencode_config = jsonencode({
+    model = "anthropic/claude-sonnet-4-5"
+  })
 
   mcp = jsonencode({
     playwright = {
@@ -83,7 +87,7 @@ module "opencode" {
 }
 ```
 
-`mcp` uses the [`mcp.servers`](https://opencode.ai/v2/docs/mcp-servers/) format. Servers that already exist in `opencode.json` are kept.
+`base_opencode_config` uses the [`opencode.json`](https://opencode.ai/v2/docs/config/) format and overwrites the global file on every start. `mcp` uses the [`mcp.servers`](https://opencode.ai/v2/docs/mcp-servers/) format and is applied after it. Servers that already exist in `opencode.json` are kept.
 
 ### Serialize a downstream `coder_script` after the install pipeline
 
