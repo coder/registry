@@ -41,7 +41,7 @@ if [ -z "$${AGENT_RELAY_CURSOR_TOKEN:-}" ]; then
 		write_state "idle"
 	fi
 	echo "No worker token set. This workspace was created manually, not by Agent Relay."
-	echo "Idling. Delete this workspace manually or set the agent_relay_credential parameter."
+	echo "Idling. Delete this workspace manually; only Agent Relay can deliver a worker token."
 	exit 0
 fi
 

@@ -16,7 +16,7 @@ on each build and runs the Claude Code self-hosted runner.
 ```tf
 module "claude_code_runner" {
   source   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version  = "0.2.0"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Claude Code CLI at start when it is not in the image. Bake
@@ -42,6 +42,12 @@ when to reap the workspace.
 
 ## Requirements
 
+- A Coder deployment that supports workspace build secrets, and an Agent
+  Relay release that sends the work order as one. The work order reaches the
+  runner as the `SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET` workspace secret,
+  never as a build parameter. A relay that still sends it as the
+  `agent_relay_credential` parameter refuses to serve a template on this
+  version; pin `0.2.0` until the relay and Coder are upgraded.
 - The `claude` CLI must be in the workspace. `install_cli` (default `true`)
   downloads it at start only when it is not already on PATH; bake it into the
   image for the fastest start. `cli_binary` overrides the path.
@@ -52,8 +58,9 @@ when to reap the workspace.
 
 Agent Relay verifies this contract against the template's active version at
 startup and refuses to serve a pool that does not satisfy it. Every parameter
-renders disabled with a "Set by Agent Relay on dispatch" placeholder; the
-credential is masked.
+renders disabled with a "Set by Agent Relay on dispatch" placeholder. The
+work order is not among them: it is a workspace secret, so it never appears
+in the build's parameters or Terraform state.
 
 `agent_relay_client_platform` is attribution rather than contract: the relay
 stamps the surface the session was created from (`web_claude_ai`,
@@ -93,7 +100,7 @@ rather than reporting `working` forever.
 | value             | meaning                                                                    |
 | ----------------- | -------------------------------------------------------------------------- |
 | `pending`         | no state recorded yet                                                      |
-| `idle`            | no credential: workspace was created manually                              |
+| `idle`            | no work order: workspace was created manually                              |
 | `working`         | runner alive, no session picked up                                         |
 | `serving`         | runner alive, session picked up (best effort, see `serving_log_pattern`)   |
 | `orphaned`        | runner process gone without recording an exit                              |
