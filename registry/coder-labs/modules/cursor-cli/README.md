@@ -54,7 +54,7 @@ resource "coder_app" "cursor_cli" {
 }
 ```
 
-When `workdir` is set, the module creates it if missing and marks it as a trusted workspace, so Cursor CLI does not show the trust prompt there. Pass `--model`, `--force`, `--approve-mcps`, or any other [CLI flag](https://cursor.com/docs/cli/reference/parameters) in the launcher command.
+When `workdir` is set, the module creates it if missing and marks it as a trusted workspace.
 
 ### MCP servers and rules
 
@@ -119,11 +119,9 @@ resource "coder_script" "post_cursor_cli" {
 
 ## Configuration
 
-When `api_key` is set, it is exported as `CURSOR_API_KEY` and is not rendered into the install script. To create a key, see [Cursor CLI authentication](https://cursor.com/docs/cli/reference/authentication). Without a key, run `cursor-agent login` in the workspace.
+Set `api_key` (exported as `CURSOR_API_KEY`) or run `cursor-agent login` in the workspace. See [Cursor CLI authentication](https://cursor.com/docs/cli/reference/authentication).
 
-When `cursor_config_dir` is set, it is exported as `CURSOR_CONFIG_DIR`, which moves Cursor CLI's [`cli-config.json`](https://cursor.com/docs/cli/reference/configuration). When empty (the default), the module leaves `CURSOR_CONFIG_DIR` untouched. Cursor CLI still reads the user-level `mcp.json` from `~/.cursor`, so the module always merges `mcp` there.
-
-The module always installs the latest Cursor CLI with the [official installer](https://cursor.com/install) and skips the install when `cursor-agent` is already on `PATH`. If `install_cursor_cli = false`, a working `cursor-agent` must already be available on `PATH`, or workspace startup fails.
+`cursor_config_dir` is exported as `CURSOR_CONFIG_DIR`. See [Cursor CLI configuration](https://cursor.com/docs/cli/reference/configuration).
 
 ## Troubleshooting
 
