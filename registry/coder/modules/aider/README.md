@@ -58,8 +58,6 @@ resource "coder_app" "aider" {
 }
 ```
 
-See [Aider options](https://aider.chat/docs/config/options.html) for launcher flags such as `--yes-always` and `--watch-files`.
-
 ### Custom provider
 
 ```tf
