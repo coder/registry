@@ -58,9 +58,6 @@ See the [OpenCode CLI](https://opencode.ai/v2/docs/cli/) for launcher flags such
 > [!CAUTION]
 > `--auto` approves every permission request that is not explicitly denied, including shell commands. Use it only in trusted environments.
 
-> [!NOTE]
-> The `coder_app` command re-executes on every pane reconnect. This works for the interactive `opencode` TUI, but one-shot commands like `opencode run` will re-run each time. For one-shot prompts, use a `coder_script` (runs once at startup) and a `coder_app` that attaches to the existing session (for example, with tmux).
-
 ### Configuration and MCP servers
 
 ```tf
@@ -87,7 +84,7 @@ module "opencode" {
 }
 ```
 
-`base_opencode_config` uses the [`opencode.json`](https://opencode.ai/v2/docs/config/) format and overwrites the global file on every start. `mcp` uses the [`mcp.servers`](https://opencode.ai/v2/docs/mcp-servers/) format and is applied after it. Servers that already exist in `opencode.json` are kept.
+`base_opencode_config` uses the [`opencode.json`](https://opencode.ai/v2/docs/config/) format and overwrites the global file on every start. `mcp` uses the [`mcp.servers`](https://opencode.ai/v2/docs/mcp-servers/) format and is added after it.
 
 ### Serialize a downstream `coder_script` after the install pipeline
 
