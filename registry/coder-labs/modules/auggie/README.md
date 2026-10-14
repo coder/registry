@@ -53,8 +53,6 @@ resource "coder_app" "auggie" {
 }
 ```
 
-See [CLI flags](https://docs.augmentcode.com/cli/reference) for launcher options such as `--continue`, `--model`, `--print`, and `--quiet`.
-
 ### MCP servers and rules
 
 ```tf
@@ -82,7 +80,7 @@ module "auggie" {
 }
 ```
 
-`mcp` and `mcp_files` use the [`mcpServers`](https://docs.augmentcode.com/cli/integrations#mcp-integrations) format and are added with `auggie mcp add-json`; servers that already exist are kept. `rules` are loaded as [user rules](https://docs.augmentcode.com/cli/rules). To pick a default model, set `auggie_model` to a name from `auggie models list`.
+`mcp` and `mcp_files` use the [`mcpServers`](https://docs.augmentcode.com/cli/integrations#mcp-integrations) format. `rules` are loaded as [user rules](https://docs.augmentcode.com/cli/rules). To pick a default model, set `auggie_model` to a name from `auggie models list`.
 
 ### Pinned version
 
@@ -94,8 +92,6 @@ module "auggie" {
   auggie_version = "0.36.0"
 }
 ```
-
-Auggie updates itself in interactive mode unless [automatic updates](https://docs.augmentcode.com/cli/autoupgrade) are disabled.
 
 ### Serialize a downstream `coder_script` after the install pipeline
 
