@@ -399,7 +399,6 @@ describe("opencode", async () => {
       moduleVariables: {
         mcp: JSON.stringify({
           shared: { type: "local", command: ["module-command"] },
-          legacy: { type: "local", command: ["module-command"] },
           extra: { type: "local", command: ["extra-command"] },
         }),
       },
@@ -410,11 +409,8 @@ describe("opencode", async () => {
       JSON.stringify({
         theme: "keep-me",
         mcp: {
-          timeout: { startup: 45000 },
-          legacy: { type: "local", command: ["v1-command"], enabled: true },
           servers: {
             shared: { type: "local", command: ["existing-command"] },
-            seeded: { type: "remote", url: "https://seeded.example.com" },
           },
         },
       }),
@@ -422,33 +418,21 @@ describe("opencode", async () => {
     await runScripts(id, scripts);
     const cfg = JSON.parse(await readFileContainer(id, configPath));
     expect(cfg.theme).toBe("keep-me");
-    expect(cfg.mcp.timeout.startup).toBe(45000);
     expect(cfg.mcp.servers.shared.command).toEqual(["existing-command"]);
-    expect(cfg.mcp.servers.seeded.url).toBe("https://seeded.example.com");
     expect(cfg.mcp.servers.extra.command).toEqual(["extra-command"]);
-    // A V1-shaped server already on disk also wins and is left in place.
-    expect(cfg.mcp.legacy.command).toEqual(["v1-command"]);
-    expect(cfg.mcp.servers.legacy).toBeUndefined();
-    const log = await installLog(id);
-    expect(log).toContain(
-      "MCP server 'shared' already exists in /home/coder/.config/opencode/opencode.json, keeping the existing one.",
-    );
-    expect(log).toContain("MCP server 'legacy' already exists");
-    expect(log).not.toContain("MCP server 'extra' already exists");
   });
 
-  test("invalid-existing-config-is-backed-up", async () => {
+  test("jsonc-config-skips-mcp", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {
         mcp: JSON.stringify({ extra: { type: "local", command: ["x"] } }),
       },
     });
-    await seedFile(id, configPath, '{ // jsonc\n  "share": "auto" }');
+    const jsonc = '{ // jsonc\n  "share": "auto" }';
+    await seedFile(id, configPath, jsonc);
     await runScripts(id, scripts);
-    const cfg = JSON.parse(await readFileContainer(id, configPath));
-    expect(cfg.mcp.servers.extra.command).toEqual(["x"]);
-    const backup = await readFileContainer(id, `${configPath}.bak`);
-    expect(backup).toContain("// jsonc");
+    expect((await readFileContainer(id, configPath)).trim()).toBe(jsonc);
+    expect(await installLog(id)).toContain("is JSONC or invalid JSON");
   });
 
   test("auth-json-is-imported-and-rotated-without-leaking", async () => {

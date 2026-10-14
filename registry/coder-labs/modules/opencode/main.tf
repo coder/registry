@@ -65,7 +65,7 @@ variable "base_opencode_config" {
 
 variable "mcp" {
   type        = string
-  description = "MCP servers as a JSON object keyed by server name, in the format of mcp.servers in opencode.json. Merged into the global opencode.json ($OPENCODE_CONFIG_DIR, else $XDG_CONFIG_HOME/opencode, else ~/.config/opencode) under mcp.servers. Servers already on disk win on duplicate names, matching `claude mcp add` in the claude-code module. Use disabled (not enabled) to keep a server configured without connecting it. See https://opencode.ai/v2/docs/mcp-servers/"
+  description = "MCP servers as a JSON object keyed by server name, added under mcp.servers in the global opencode.json. Servers already in the file win on duplicate names. See https://opencode.ai/v2/docs/mcp-servers/"
   default     = ""
 }
 

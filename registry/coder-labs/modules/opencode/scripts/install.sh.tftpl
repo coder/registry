@@ -35,23 +35,6 @@ require_jq() {
   fi
 }
 
-# Prints the JSON object stored in $1, or {} when the file is missing. Invalid
-# files (for example JSONC with comments) are backed up to $1.bak.
-read_json_object() {
-  local file="$1"
-  if [ ! -f "$${file}" ]; then
-    echo '{}'
-    return
-  fi
-  if jq -e 'type == "object"' "$${file}" > /dev/null 2>&1; then
-    cat "$${file}"
-    return
-  fi
-  cp "$${file}" "$${file}.bak"
-  echo "Warning: $${file} is not a valid JSON object; backed it up to $${file}.bak" >&2
-  echo '{}'
-}
-
 function add_path_to_shell_profiles() {
   local path_dir="$1"
 
@@ -167,55 +150,33 @@ setup_workdir() {
   fi
 }
 
-# Add MCP servers under mcp.servers without touching anything else in
-# opencode.json. Like `claude mcp add`, a server name that already exists is
-# skipped and the on-disk server is kept. V1 configs may still list servers
-# directly under mcp, so those names count as existing too.
-write_base_config() {
-  local config_file="$${OPENCODE_CONFIG_PATH}/opencode.json"
+CONFIG_FILE="$${OPENCODE_CONFIG_PATH}/opencode.json"
 
+write_base_config() {
   if [ -z "$${ARG_BASE_CONFIG}" ]; then
     return
   fi
-
-  mkdir -p "$(dirname "$${config_file}")"
-  printf '%s\n' "$${ARG_BASE_CONFIG}" > "$${config_file}"
-  echo "OpenCode configuration written: $${config_file}"
+  mkdir -p "$(dirname "$${CONFIG_FILE}")"
+  printf '%s\n' "$${ARG_BASE_CONFIG}" > "$${CONFIG_FILE}"
+  echo "Wrote OpenCode configuration to $${CONFIG_FILE}"
 }
 
+# Servers already in the file win on duplicate names, like `claude mcp add`.
 setup_mcp() {
-  local config_file="$${OPENCODE_CONFIG_PATH}/opencode.json"
-
   if [ -z "$${ARG_MCP_CONFIG}" ]; then
-    echo "No mcp configured; leaving $${config_file} unchanged."
     return
   fi
-
   require_jq "configure OpenCode MCP servers"
-
-  mkdir -p "$(dirname "$${config_file}")"
-
-  local existing name
-  existing=$(read_json_object "$${config_file}")
-
-  while IFS= read -r name; do
-    echo "Warning: MCP server '$${name}' already exists in $${config_file}, keeping the existing one."
-  done < <(echo "$${existing}" | jq -r --argjson mcp "$${ARG_MCP_CONFIG}" '
-    ((.mcp // {}) | if type == "object" then . else {} end) as $current
-    | $mcp | keys[] | select(. as $name | ($current.servers // {}) | has($name) or ($current | has($name)))
-  ')
-
-  echo "$${existing}" | jq --argjson mcp "$${ARG_MCP_CONFIG}" '
-    ((.mcp // {}) | if type == "object" then . else {} end) as $current
-    | ($current.servers // {}) as $servers
-    | ($mcp | with_entries(select(
-        .key as $name | (($servers | has($name)) or ($current | has($name))) | not
-      ))) as $new
-    | .mcp = ($current + {servers: ($servers + $new)})
-    | .["$schema"] //= "https://opencode.ai/config.json"
-  ' > "$${config_file}.tmp"
-  mv "$${config_file}.tmp" "$${config_file}"
-  echo "OpenCode MCP configuration written: $${config_file}"
+  mkdir -p "$(dirname "$${CONFIG_FILE}")"
+  [ -f "$${CONFIG_FILE}" ] || echo '{}' > "$${CONFIG_FILE}"
+  if ! jq empty "$${CONFIG_FILE}" > /dev/null 2>&1; then
+    echo "Warning: $${CONFIG_FILE} is JSONC or invalid JSON; skipping MCP servers." >&2
+    return
+  fi
+  jq --argjson mcp "$${ARG_MCP_CONFIG}" '.mcp.servers = $mcp + (.mcp.servers // {})' \
+    "$${CONFIG_FILE}" > "$${CONFIG_FILE}.tmp"
+  mv "$${CONFIG_FILE}.tmp" "$${CONFIG_FILE}"
+  echo "Wrote MCP servers to $${CONFIG_FILE}"
 }
 
 # OpenCode 2 stores credentials in its SQLite database and ignores auth.json on
