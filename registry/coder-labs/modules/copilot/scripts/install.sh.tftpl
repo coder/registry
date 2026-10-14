@@ -188,14 +188,29 @@ setup_trusted_folders() {
   fi
 
   mkdir -p "$(dirname "$${config_file}")"
-  echo "Trusting workdir in $${config_file}"
 
+  # Copilot writes config.json with a // comment header, which jq rejects.
   local existing='{}'
-  if [ -f "$${config_file}" ] && jq empty "$${config_file}" > /dev/null 2>&1; then
-    existing=$(cat "$${config_file}")
+  if [ -f "$${config_file}" ]; then
+    if ! existing=$(sed -E '/^[[:space:]]*\/\//d' "$${config_file}" | jq -cs 'add // {}'); then
+      echo "Warning: could not parse $${config_file}; skipping workdir trust." >&2
+      return
+    fi
   fi
+
+  if echo "$${existing}" | jq -e --argjson folders "$${ARG_TRUSTED_FOLDERS}" \
+    '($folders - (.trustedFolders // [])) | length == 0' > /dev/null; then
+    echo "Workdir already trusted in $${config_file}"
+    return
+  fi
+
+  echo "Trusting workdir in $${config_file}"
+  local tmp
+  tmp=$(mktemp "$${config_file}.XXXXXX")
+  chmod 600 "$${tmp}"
   echo "$${existing}" | jq --argjson folders "$${ARG_TRUSTED_FOLDERS}" \
-    '.trustedFolders = (((.trustedFolders // []) + $folders) | unique)' > "$${config_file}"
+    '.trustedFolders = (((.trustedFolders // []) + $folders) | unique)' > "$${tmp}"
+  mv "$${tmp}" "$${config_file}"
   echo "Trusted folders completed: $${config_file}"
 }
 

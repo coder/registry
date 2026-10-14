@@ -213,7 +213,8 @@ describe("copilot", async () => {
 
   test("trusted-folders-union-preserves-existing-state", async () => {
     const { id, scripts } = await setup();
-    // Seed config.json with an interactively trusted folder and auth-like state.
+    // Seed config.json the way Copilot writes it (JSONC header) with an
+    // interactively trusted folder and auth-like state.
     const configSeed = JSON.stringify({
       trustedFolders: ["/interactively-trusted"],
       loggedInUsers: ["octocat"],
@@ -221,7 +222,7 @@ describe("copilot", async () => {
     await execContainer(id, [
       "bash",
       "-c",
-      `mkdir -p /home/coder/.copilot && cat > /home/coder/.copilot/config.json <<'JSON'\n${configSeed}\nJSON`,
+      `mkdir -p /home/coder/.copilot && cat > /home/coder/.copilot/config.json <<'JSON'\n// User settings belong in settings.json.\n// This file is managed automatically.\n${configSeed}\nJSON`,
     ]);
     await runScripts(id, scripts);
     const config = JSON.parse(await readConfig(id));
