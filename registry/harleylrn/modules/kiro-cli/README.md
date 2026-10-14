@@ -48,15 +48,10 @@ resource "coder_app" "kiro_cli" {
     #!/usr/bin/env bash
     set -e
     cd "${local.kiro_workdir}"
-    exec kiro-cli chat --trust-all-tools
+    exec kiro-cli chat
   EOT
 }
 ```
-
-See [`kiro-cli chat` flags](https://kiro.dev/docs/reference/cli-commands/) for launcher options such as `--agent`, `--model`, and `--trust-tools`.
-
-> [!CAUTION]
-> `--trust-all-tools` lets Kiro CLI run any tool, including shell commands, without asking for confirmation. Use it only in trusted environments, or prefer `--trust-tools` with a specific list.
 
 ### Custom agent
 
@@ -140,12 +135,9 @@ cd ~/.local/share/kiro-cli
 tar -c . | zstd | base64 -w 0
 ```
 
-> [!IMPORTANT]
-> The tarball contains authentication credentials. Store it as a sensitive variable, give each user their own, and regenerate it after logging out or re-authenticating.
-
 ## Troubleshooting
 
-Check the log files in `~/.coder-modules/harleylrn/kiro-cli/logs/` for detailed information, and run `kiro-cli doctor` in the workspace.
+Check the log files in `~/.coder-modules/harleylrn/kiro-cli/logs/` for detailed information.
 
 ```bash
 cat ~/.coder-modules/harleylrn/kiro-cli/logs/install.log
