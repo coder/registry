@@ -146,57 +146,31 @@ write_instruction_prompt() {
   echo "Wrote instruction prompt to $${agents_file}"
 }
 
-# Prints the current user settings as JSON, or {} when the file is absent.
-# Returns non-zero when the file exists but is not a strict JSON object (Amp
-# also accepts JSONC), so callers can leave it untouched.
-read_user_settings() {
-  if [ ! -f "$${SETTINGS_FILE}" ]; then
-    echo '{}'
-    return
-  fi
-  if ! jq -e 'type == "object"' "$${SETTINGS_FILE}" > /dev/null 2>&1; then
-    return 1
-  fi
-  cat "$${SETTINGS_FILE}"
-}
-
-write_user_settings() {
-  local content="$1"
-  mkdir -p "$(dirname "$${SETTINGS_FILE}")"
-  (
-    umask 077
-    printf '%s\n' "$${content}" > "$${SETTINGS_FILE}"
-  )
-}
-
 write_base_config() {
   if [ -z "$${ARG_BASE_CONFIG}" ]; then
     return
   fi
-  write_user_settings "$${ARG_BASE_CONFIG}"
-  echo "Amp settings written: $${SETTINGS_FILE}"
+  mkdir -p "$(dirname "$${SETTINGS_FILE}")"
+  printf '%s\n' "$${ARG_BASE_CONFIG}" > "$${SETTINGS_FILE}"
+  echo "Wrote Amp settings to $${SETTINGS_FILE}"
 }
 
-# MCP servers already in the file win on duplicate names, matching `amp mcp add`.
+# Servers already in the file win on duplicate names, like `amp mcp add`.
 setup_mcp() {
   if [ -z "$${ARG_MCP_CONFIG}" ]; then
     return
   fi
-
   require_jq "configure Amp MCP servers"
-
-  local existing name
-  if ! existing=$(read_user_settings); then
-    echo "Warning: $${SETTINGS_FILE} is not a strict JSON object (comments or trailing commas); leaving it unchanged." >&2
+  mkdir -p "$(dirname "$${SETTINGS_FILE}")"
+  [ -f "$${SETTINGS_FILE}" ] || echo '{}' > "$${SETTINGS_FILE}"
+  if ! jq empty "$${SETTINGS_FILE}" > /dev/null 2>&1; then
+    echo "Warning: $${SETTINGS_FILE} is JSONC or invalid JSON; skipping MCP servers." >&2
     return
   fi
-
-  while IFS= read -r name; do
-    echo "Warning: MCP server '$${name}' already exists in $${SETTINGS_FILE}, keeping the existing one." >&2
-  done < <(echo "$${existing}" | jq -r --argjson mcp "$${ARG_MCP_CONFIG}" '(.["amp.mcpServers"] // {}) as $current | $mcp | keys[] | select(. as $k | $current | has($k))')
-
-  write_user_settings "$(echo "$${existing}" | jq --argjson mcp "$${ARG_MCP_CONFIG}" '.["amp.mcpServers"] = ($mcp + (.["amp.mcpServers"] // {}))')"
-  echo "Amp MCP configuration written: $${SETTINGS_FILE}"
+  jq --argjson mcp "$${ARG_MCP_CONFIG}" '.["amp.mcpServers"] = $mcp + (.["amp.mcpServers"] // {})' \
+    "$${SETTINGS_FILE}" > "$${SETTINGS_FILE}.tmp"
+  mv "$${SETTINGS_FILE}.tmp" "$${SETTINGS_FILE}"
+  echo "Wrote MCP servers to $${SETTINGS_FILE}"
 }
 
 install_amp

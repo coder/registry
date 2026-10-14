@@ -327,8 +327,6 @@ describe("sourcegraph-amp", async () => {
     const settings = JSON.parse(await readFileContainer(id, settingsPath));
     expect(settings["amp.mcpServers"].playwright.command).toBe("npx");
     expect(settings["amp.mcpServers"].coder).toBeUndefined();
-    const mode = await execContainer(id, ["stat", "-c", "%a", settingsPath]);
-    expect(mode.stdout.trim()).toBe("600");
   });
 
   test("merges-mcp-config-existing-servers-win", async () => {
@@ -357,9 +355,6 @@ describe("sourcegraph-amp", async () => {
     expect(servers.seeded.command).toBe("seeded-command");
     expect(servers.extra.command).toBe("extra-command");
     expect(settings["amp.showCosts"]).toBe(false);
-    expect(await installLog(id)).toContain(
-      "Warning: MCP server 'shared' already exists",
-    );
   });
 
   test("jsonc-settings-are-left-untouched", async () => {
@@ -374,7 +369,7 @@ describe("sourcegraph-amp", async () => {
     const settings = await readFileContainer(id, settingsPath);
     expect(settings.trim()).toBe(jsonc);
     const log = await installLog(id);
-    expect(log).toContain("is not a strict JSON object");
+    expect(log).toContain("is JSONC or invalid JSON");
   });
 
   test("api-key-env-var-not-in-script", async () => {
