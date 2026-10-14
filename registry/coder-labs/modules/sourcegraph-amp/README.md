@@ -54,8 +54,6 @@ resource "coder_app" "amp" {
 }
 ```
 
-See the [Amp CLI](https://ampcode.com/docs/cli) for launcher flags such as `--mode`.
-
 ### Settings, MCP servers, and guidance
 
 ```tf
