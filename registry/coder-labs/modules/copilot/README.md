@@ -123,20 +123,24 @@ module "copilot" {
     }
   }
 
-  base_copilot_config = jsonencode({
-    banner = "never"
-  })
+  base_copilot_config = <<-EOF
+  {
+    "banner": "never"
+  }
+  EOF
 
-  mcp = jsonencode({
-    mcpServers = {
-      playwright = {
-        command = "npx"
-        args    = ["-y", "@playwright/mcp@latest"]
-        type    = "local"
-        tools   = ["*"]
+  mcp = <<-EOF
+  {
+    "mcpServers": {
+      "playwright": {
+        "command": "npx",
+        "args": ["-y", "@playwright/mcp@latest"],
+        "type": "local",
+        "tools": ["*"]
       }
     }
-  })
+  }
+  EOF
 
   pre_install_script = <<-EOT
     #!/usr/bin/env bash
