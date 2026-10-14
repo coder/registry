@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# amazon-init runs this on every boot; the agent must start after the boot script.
+set -Eeuo pipefail
+decode() { printf '%s' "$1" | base64 -d; }
+export PATH="$(decode '${ARG_PATH}'):$PATH"
+export HOME=/root
+
+ACCESS_URL=$(decode '${ARG_ACCESS_URL}')
+AGENT_TOKEN=$(decode '${ARG_AGENT_TOKEN}')
+LOG_SOURCE_ID='${ARG_LOG_SOURCE_ID}'
+LOG_BUDGET='${ARG_LOG_BUDGET}'
+HOSTNAME_=$(decode '${ARG_HOSTNAME}')
+RUNTIME_DIR=$(decode '${ARG_RUNTIME_DIR}')
+
+# The token stays on tmpfs; only handoff files are owned by the agent.
+install -d -m 0700 -- "$RUNTIME_DIR"
+chown root:root -- "$RUNTIME_DIR"
+chmod 0711 -- "$RUNTIME_DIR"
+rm -f "$RUNTIME_DIR/ready"
+
+umask 077
+printf 'CODER_AGENT_TOKEN=%s\nCODER_AGENT_URL=%s\n' "$AGENT_TOKEN" "$ACCESS_URL" \
+  >"$RUNTIME_DIR/agent.env"
+umask 022
+cat >"$RUNTIME_DIR/init.sh" <<'CODER_AMAZON_INIT_AGENT_SCRIPT'
+${INIT_SCRIPT}
+CODER_AMAZON_INIT_AGENT_SCRIPT
+chmod 0700 "$RUNTIME_DIR/init.sh"
+
+chown_handoff() {
+  local target
+  target=$(systemctl show coder-agent -p User --value 2>/dev/null || true)
+  [ -n "$target" ] || return 0
+  chown "$target" "$RUNTIME_DIR/agent.env" "$RUNTIME_DIR/init.sh" 2>/dev/null || true
+}
+chown_handoff
+touch "$RUNTIME_DIR/ready"
+chown_handoff
+
+[ -z "$HOSTNAME_" ] || hostnamectl set-hostname "$HOSTNAME_" || true
+
+export CODER_ACCESS_URL="$ACCESS_URL"
+export CODER_AGENT_TOKEN="$AGENT_TOKEN"
+export CODER_LOG_SOURCE_ID="$LOG_SOURCE_ID"
+export CODER_LOG_STATE_DIR="$RUNTIME_DIR"
+export CODER_LOG_BUDGET="$LOG_BUDGET"
+
+cat >"$RUNTIME_DIR/log.sh" <<'CODER_AMAZON_INIT_LOG_LIBRARY'
+${LOG_SH}
+CODER_AMAZON_INIT_LOG_LIBRARY
+chmod 0644 "$RUNTIME_DIR/log.sh"
+export CODER_LOG_LIBRARY="$RUNTIME_DIR/log.sh"
+# shellcheck source=/dev/null
+. "$CODER_LOG_LIBRARY"
+
+CODER_LOG_REGISTRATION=$(decode '${ARG_LOG_REGISTRATION_B64}')
+export CODER_LOG_REGISTRATION
+coder_log_init || true
+
+# Agent startup follows every boot-script outcome, including failures.
+start_agent() {
+  if systemctl is-active --quiet coder-agent; then
+    return 0
+  fi
+  if ! systemctl cat coder-agent >/dev/null 2>&1; then
+    coder_log error "coder-agent.service does not exist; the boot script has never created it." || true
+    return 1
+  fi
+
+  chown_handoff
+  systemctl start coder-agent || true
+
+  sleep 3
+  if systemctl is-active --quiet coder-agent; then
+    coder_log info "coder-agent is active." || true
+    return 0
+  fi
+
+  coder_log error "coder-agent failed to start." || true
+  journalctl -u coder-agent --no-pager --lines=30 2>/dev/null | coder_log_pipe error || true
+  return 1
+}
+
+on_error() {
+  local rc=$?
+  coder_log error "Bootstrap failed (exit $rc)." || true
+  start_agent || true
+  exit "$rc"
+}
+trap on_error ERR
+
+# Public facts must never contain secrets.
+cat >"$RUNTIME_DIR/workspace.json" <<'CODER_AMAZON_INIT_FACTS'
+${FACTS_JSON}
+CODER_AMAZON_INIT_FACTS
+chmod 0644 "$RUNTIME_DIR/workspace.json"
+export CODER_WORKSPACE_FACTS="$RUNTIME_DIR/workspace.json"
+export CODER_RUNTIME_DIR="$RUNTIME_DIR"
+
+%{ for file in FILES ~}
+file_path=$(decode '${file.path}')
+install -d -m 0755 -- "$(dirname -- "$file_path")"
+printf '%s' '${file.content}' | base64 -d | gzip -dc >"$file_path"
+chmod 0644 -- "$file_path"
+%{ endfor ~}
+
+cat >"$RUNTIME_DIR/boot.sh" <<'CODER_AMAZON_INIT_BOOT_SCRIPT'
+${BOOT_SCRIPT}
+CODER_AMAZON_INIT_BOOT_SCRIPT
+chmod 0700 "$RUNTIME_DIR/boot.sh"
+
+# A child cannot exit the bootstrap before the agent-start attempt.
+boot_rc=0
+bash "$RUNTIME_DIR/boot.sh" || boot_rc=$?
+
+if [ "$boot_rc" -ne 0 ]; then
+  coder_log error "Boot script exited $boot_rc; starting the agent anyway." || true
+fi
+
+start_agent || true
+exit "$boot_rc"
