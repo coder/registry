@@ -62,7 +62,7 @@ resource "coder_app" "goose" {
 }
 ```
 
-Goose reads provider credentials from environment variables such as `ANTHROPIC_API_KEY`. See [Goose providers](https://goose-docs.ai/docs/getting-started/providers) and [CLI commands](https://goose-docs.ai/docs/guides/goose-cli-commands) for launcher options.
+Goose reads provider credentials from environment variables such as `ANTHROPIC_API_KEY`. See [Goose providers](https://goose-docs.ai/docs/getting-started/providers).
 
 ### Extensions (MCP)
 
@@ -101,8 +101,6 @@ module "goose" {
 }
 ```
 
-See [Goose releases](https://github.com/aaif-goose/goose/releases) for available versions.
-
 ### Serialize a downstream `coder_script` after the install pipeline
 
 The module exposes the `scripts` output: an ordered list of `coder exp sync` names for the scripts this module creates (pre_install, install, post_install). Scripts that were not configured are absent.
@@ -134,7 +132,7 @@ resource "coder_script" "post_goose" {
 
 ## Troubleshooting
 
-Check the log files in `~/.coder-modules/coder/goose/logs/` for detailed information, and run `goose info -v` to see the configuration Goose loads.
+Check the log files in `~/.coder-modules/coder/goose/logs/` for detailed information.
 
 ```bash
 cat ~/.coder-modules/coder/goose/logs/install.log
