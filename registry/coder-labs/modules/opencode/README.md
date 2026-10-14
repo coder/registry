@@ -61,21 +61,25 @@ module "opencode" {
   version  = "1.0.0"
   agent_id = coder_agent.main.id
 
-  base_opencode_config = jsonencode({
-    model = "anthropic/claude-sonnet-4-5"
-  })
+  base_opencode_config = <<-EOF
+  {
+    "model": "anthropic/claude-sonnet-4-5"
+  }
+  EOF
 
-  mcp = jsonencode({
-    playwright = {
-      type    = "local"
-      command = ["npx", "-y", "@playwright/mcp@latest", "--headless", "--isolated"]
+  mcp = <<-EOF
+  {
+    "playwright": {
+      "type": "local",
+      "command": ["npx", "-y", "@playwright/mcp@latest", "--headless", "--isolated"]
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "disabled": true
     }
-    context7 = {
-      type     = "remote"
-      url      = "https://mcp.context7.com/mcp"
-      disabled = true
-    }
-  })
+  }
+  EOF
 }
 ```
 
@@ -114,16 +118,23 @@ resource "coder_script" "post_opencode" {
 
 ```tf
 module "opencode" {
-  source   = "registry.coder.com/coder-labs/opencode/coder"
-  version  = "1.0.0"
-  agent_id = coder_agent.main.id
-  auth_json = jsonencode([{
-    id            = "coder-anthropic"
-    integrationID = "anthropic"
-    label         = "coder"
-    active        = true
-    value         = { type = "key", key = var.anthropic_api_key }
-  }])
+  source    = "registry.coder.com/coder-labs/opencode/coder"
+  version   = "1.0.0"
+  agent_id  = coder_agent.main.id
+  auth_json = <<-EOF
+  [
+    {
+      "id": "coder-anthropic",
+      "integrationID": "anthropic",
+      "label": "coder",
+      "active": true,
+      "value": {
+        "type": "key",
+        "key": "${var.anthropic_api_key}"
+      }
+    }
+  ]
+  EOF
 }
 ```
 
