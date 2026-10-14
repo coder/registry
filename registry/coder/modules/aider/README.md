@@ -60,9 +60,6 @@ resource "coder_app" "aider" {
 
 See [Aider options](https://aider.chat/docs/config/options.html) for launcher flags such as `--yes-always` and `--watch-files`.
 
-> [!NOTE]
-> The `coder_app` command re-executes on every pane reconnect. This works for the interactive `aider` chat, but one-shot commands like `aider --message` will re-run each time. For one-shot prompts, use a `coder_script` (runs once at startup) and a `coder_app` that attaches to the existing session (for example, with tmux).
-
 ### Custom provider
 
 ```tf
