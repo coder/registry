@@ -66,14 +66,16 @@ module "cursor_cli" {
   workdir  = "/home/coder/project"
   api_key  = var.cursor_api_key
 
-  mcp = jsonencode({
-    mcpServers = {
-      playwright = {
-        command = "npx"
-        args    = ["-y", "@playwright/mcp@latest", "--headless", "--isolated", "--no-sandbox"]
+  mcp = <<-EOF
+  {
+    "mcpServers": {
+      "playwright": {
+        "command": "npx",
+        "args": ["-y", "@playwright/mcp@latest", "--headless", "--isolated", "--no-sandbox"]
       }
     }
-  })
+  }
+  EOF
 
   rules_files = {
     "python.mdc" = <<-EOT
