@@ -164,14 +164,12 @@ write_managed_settings() {
 
 write_base_config() {
   local settings_file="$HOME/.copilot/settings.json"
-
   if [ -z "$${ARG_BASE_CONFIG}" ]; then
     return
   fi
-
   mkdir -p "$(dirname "$${settings_file}")"
   printf '%s\n' "$${ARG_BASE_CONFIG}" > "$${settings_file}"
-  echo "Copilot settings written: $${settings_file}"
+  echo "Wrote Copilot settings to $${settings_file}"
 }
 
 # Trust the workdir by unioning it into config.json trustedFolders. Only that
@@ -201,33 +199,26 @@ setup_trusted_folders() {
   echo "Trusted folders completed: $${config_file}"
 }
 
-# Merge MCP servers into Copilot's user-level mcp-config.json; existing servers
-# on disk win on duplicate names.
+# Servers already in the file win on duplicate names.
 setup_mcp_config() {
   local mcp_config_file="$HOME/.copilot/mcp-config.json"
-
   if [ -z "$${ARG_MCP_CONFIG}" ]; then
-    echo "No custom MCP servers configured; leaving $${mcp_config_file} unchanged."
     return
   fi
-
   if ! command_exists jq; then
     echo "ERROR: 'jq' is required to configure MCP servers but was not found." >&2
     exit 1
   fi
-
   mkdir -p "$(dirname "$${mcp_config_file}")"
-  echo "Merging MCP server configuration into $${mcp_config_file}"
-
-  local existing='{"mcpServers": {}}'
-  if [ -f "$${mcp_config_file}" ]; then
-    existing=$(cat "$${mcp_config_file}")
+  [ -f "$${mcp_config_file}" ] || echo '{}' > "$${mcp_config_file}"
+  if ! jq empty "$${mcp_config_file}" > /dev/null 2>&1; then
+    echo "Warning: $${mcp_config_file} is JSONC or invalid JSON; skipping MCP servers." >&2
+    return
   fi
-  local custom
-  custom=$(echo "$${ARG_MCP_CONFIG}" | jq '.mcpServers // {}')
-  # Right operand wins, so existing on-disk servers win on duplicate names.
-  echo "$${existing}" | jq --argjson custom "$${custom}" '.mcpServers = ($custom + (.mcpServers // {}))' > "$${mcp_config_file}"
-  echo "MCP configuration completed: $${mcp_config_file}"
+  jq --argjson mcp "$${ARG_MCP_CONFIG}" '.mcpServers = ($mcp.mcpServers // {}) + (.mcpServers // {})' \
+    "$${mcp_config_file}" > "$${mcp_config_file}.tmp"
+  mv "$${mcp_config_file}.tmp" "$${mcp_config_file}"
+  echo "Wrote MCP servers to $${mcp_config_file}"
 }
 
 install_copilot
