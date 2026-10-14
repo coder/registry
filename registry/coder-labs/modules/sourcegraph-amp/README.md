@@ -64,19 +64,29 @@ module "amp" {
   workdir     = "/home/coder/project"
   amp_api_key = var.amp_api_key
 
-  base_amp_config = jsonencode({
-    "amp.git.commit.coauthor.enabled" = true
-    "amp.permissions" = [
-      { tool = "Bash", action = "ask", matches = { cmd = ["git push*"] } }
+  base_amp_config = <<-EOF
+  {
+    "amp.git.commit.coauthor.enabled": true,
+    "amp.permissions": [
+      {
+        "tool": "Bash",
+        "action": "ask",
+        "matches": {
+          "cmd": ["git push*"]
+        }
+      }
     ]
-  })
+  }
+  EOF
 
-  mcp = jsonencode({
-    playwright = {
-      command = "npx"
-      args    = ["-y", "@playwright/mcp@latest", "--headless", "--isolated", "--no-sandbox"]
+  mcp = <<-EOF
+  {
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest", "--headless", "--isolated", "--no-sandbox"]
     }
-  })
+  }
+  EOF
 
   instruction_prompt = <<-EOT
     # Instructions
