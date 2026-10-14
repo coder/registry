@@ -86,11 +86,11 @@ locals {
     ARG_PATH        = var.develop.path == null ? "" : var.develop.path
     ARG_INSTALLABLE = base64encode(local.develop_installable)
     ARG_PROFILE_DIR = "${local.develop_module_dir}/develop"
-    NIX_ENV_SH      = file("${path.module}/scripts/nix-env.sh")
+    NIX_ENV_SH      = file("${path.module}/scripts/develop/nix-env.sh")
   }
 
-  develop_command         = templatefile("${path.module}/scripts/develop.sh.tftpl", local.develop_script_args)
-  develop_prebuild_script = templatefile("${path.module}/scripts/develop-prebuild.sh.tftpl", local.develop_script_args)
+  develop_command         = templatefile("${path.module}/scripts/develop/app.sh.tftpl", local.develop_script_args)
+  develop_prebuild_script = templatefile("${path.module}/scripts/develop/prebuild.sh.tftpl", local.develop_script_args)
 }
 
 resource "coder_app" "develop" {

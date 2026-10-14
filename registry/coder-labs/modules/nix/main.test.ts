@@ -70,7 +70,7 @@ describe("nix", async () => {
   it("lifecycle library passes its shell tests", async () => {
     const { exitCode, stdout } = await run([
       "bash",
-      path.join(import.meta.dir, "scripts", "lifecycle.test.sh"),
+      path.join(import.meta.dir, "scripts", "nixos", "lifecycle.test.sh"),
     ]);
     expect(exitCode).toBe(0);
     expect(stdout).toContain("lifecycle tests passed");

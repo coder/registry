@@ -96,8 +96,8 @@ locals {
 
 output "boot_script" {
   description = "Applies the flake. Hand this to whatever runs a script on every boot; it expects to run as root. `null` when `nixos.enabled` is false."
-  value = !var.nixos.enabled ? null : templatefile("${path.module}/scripts/boot.sh.tftpl", {
-    lifecycle_sh = file("${path.module}/scripts/lifecycle.sh")
+  value = !var.nixos.enabled ? null : templatefile("${path.module}/scripts/nixos/boot.sh.tftpl", {
+    lifecycle_sh = file("${path.module}/scripts/nixos/lifecycle.sh")
     flake_url    = base64encode(local.flake_url)
     flake_branch = base64encode(local.flake_branch)
     flake_attr   = base64encode(local.flake_attr)
