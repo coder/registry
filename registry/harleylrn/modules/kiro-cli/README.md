@@ -58,9 +58,6 @@ See [`kiro-cli chat` flags](https://kiro.dev/docs/reference/cli-commands/) for l
 > [!CAUTION]
 > `--trust-all-tools` lets Kiro CLI run any tool, including shell commands, without asking for confirmation. Use it only in trusted environments, or prefer `--trust-tools` with a specific list.
 
-> [!NOTE]
-> The `coder_app` command re-executes on every pane reconnect. This works for interactive `kiro-cli chat`, but one-shot commands like `kiro-cli chat --no-interactive` will re-run each time. For one-shot prompts, use a `coder_script` (runs once at startup) and a `coder_app` that attaches to the existing session (for example, with tmux).
-
 ### Custom agent
 
 ```tf
