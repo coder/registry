@@ -64,9 +64,6 @@ resource "coder_app" "goose" {
 
 Goose reads provider credentials from environment variables such as `ANTHROPIC_API_KEY`. See [Goose providers](https://goose-docs.ai/docs/getting-started/providers) and [CLI commands](https://goose-docs.ai/docs/guides/goose-cli-commands) for launcher options.
 
-> [!NOTE]
-> The `coder_app` command re-executes on every pane reconnect. This works for an interactive `goose session`, but one-shot commands like `goose run` will re-run each time. For one-shot prompts, use a `coder_script` (runs once at startup) and a `coder_app` that attaches to the existing session (for example, with tmux).
-
 ### Extensions (MCP)
 
 ```tf
