@@ -141,12 +141,12 @@ run "worker_wiring" {
     error_message = "the worker must read pool name and idle timeout from the environment at run time"
   }
 
-  # The token reaches the worker as --auth-token from the supervisor's
-  # environment; it must not be expanded into the supervisor file the
-  # script writes to disk.
+  # The token reaches the worker through a file, never on its command
+  # line, and is not expanded into the supervisor file the script writes
+  # to disk.
   assert {
-    condition     = strcontains(local.start_script, "--auth-token \"\\$AGENT_RELAY_CURSOR_TOKEN\"")
-    error_message = "the worker must authenticate with --auth-token read from the environment at run time"
+    condition     = strcontains(local.start_script, "--auth-token-file \"$token_file\"") && !strcontains(local.start_script, "--auth-token ")
+    error_message = "the worker must authenticate with --auth-token-file, not --auth-token"
   }
 
   # Reaping reads this file through the agent_relay_status metadata item,

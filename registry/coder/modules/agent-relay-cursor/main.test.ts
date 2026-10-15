@@ -45,6 +45,7 @@ afterEach(async () => {
 // coder-utils pins the layout; the container runs as root.
 const MODULE_DIR = "/root/.coder-modules/coder/agent-relay-cursor";
 const STATE_FILE = `${MODULE_DIR}/worker-state`;
+const TOKEN_FILE = `${MODULE_DIR}/worker-token`;
 // The pool name carries shell metacharacters to prove the value reaches
 // the worker as a single argument rather than being parsed as code.
 const POOL_NAME = 'safe"; touch /tmp/injected; #';
@@ -337,8 +338,14 @@ describe("agent-relay-cursor", () => {
     // The metacharacters in the pool name must not have executed.
     const injected = await execContainer(id, ["test", "-e", "/tmp/injected"]);
     expect(injected.exitCode).not.toBe(0);
-    // The token reaches the worker as --auth-token, not as an API key.
-    expect(args[args.indexOf("--auth-token") + 1]).toBe("test-user-token");
+    // The token reaches the worker as a file, never as an argument or an
+    // API key.
+    expect(args[args.indexOf("--auth-token-file") + 1]).toBe(TOKEN_FILE);
+    expect(args).not.toContain("--auth-token");
+    expect(args).not.toContain("test-user-token");
+    expect(await readFileContainer(id, TOKEN_FILE)).toBe("test-user-token");
+    const mode = await execContainer(id, ["stat", "-c", "%a", TOKEN_FILE]);
+    expect(mode.stdout.trim()).toBe("600");
     expect(args).toContain("start");
     expect(args).not.toContain("--computer-use");
 
@@ -348,7 +355,7 @@ describe("agent-relay-cursor", () => {
       id,
       `${MODULE_DIR}/scripts/supervise.sh`,
     );
-    expect(supervisor).toContain('--auth-token "$AGENT_RELAY_CURSOR_TOKEN"');
+    expect(supervisor).toContain(`--auth-token-file "${TOKEN_FILE}"`);
     expect(supervisor).not.toContain("test-user-token");
     // Parameter values are likewise read from the environment, never
     // written into the file where they would be parsed as shell.
@@ -363,9 +370,12 @@ describe("agent-relay-cursor", () => {
     ]);
     expect(env.stdout).toContain("CURSOR_AGENT_WORKER_ID=worker-123");
     expect(env.stdout).not.toContain("CURSOR_API_KEY=");
+    // The agent's commands run as children of the worker, so the token
+    // must not be in its environment either.
+    expect(env.stdout).not.toContain("AGENT_RELAY_CURSOR_TOKEN=");
   });
 
-  it("passes the credential as --auth-token even with a stale credential kind", async () => {
+  it("passes the credential as --auth-token-file even with a stale credential kind", async () => {
     // Module 0.2.0 to 0.4.0 exported AGENT_RELAY_CURSOR_CREDENTIAL_KIND
     // and switched to CURSOR_API_KEY on api_key. A leftover value in the
     // environment must not change how the credential reaches the CLI.
@@ -380,7 +390,8 @@ describe("agent-relay-cursor", () => {
     ]);
     expect(start.exitCode).toBe(0);
     const args = (await readFileContainer(id, "/tmp/agent-args")).split("\n");
-    expect(args[args.indexOf("--auth-token") + 1]).toBe("test-user-token");
+    expect(args[args.indexOf("--auth-token-file") + 1]).toBe(TOKEN_FILE);
+    expect(await readFileContainer(id, TOKEN_FILE)).toBe("test-user-token");
     expect(await readFileContainer(id, "/tmp/agent-api-key")).toBe("unset");
   });
 
@@ -414,6 +425,9 @@ describe("agent-relay-cursor", () => {
     const { start } = await runDispatched(id, scripts);
     expect(start.exitCode).toBe(0);
     expect(await waitForState(id, /^done \d+$/)).toBe("done 3");
+    // The claim is over, so the supervisor removes the token.
+    const token = await execContainer(id, ["test", "-e", TOKEN_FILE]);
+    expect(token.exitCode).not.toBe(0);
   });
 
   it("uses cli_binary and state_file overrides", async () => {
