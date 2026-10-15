@@ -178,8 +178,7 @@ locals {
 }
 
 module "nix" {
-  source  = "registry.coder.com/coder-labs/nix/coder"
-  version = "~> 1.0"
+  source = "git::https://github.com/coder/registry.git//registry/coder-labs/modules/nix?ref=feat/nix-module"
 
   nixos = {
     flake_ref  = var.flake_ref
