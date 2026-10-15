@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start step, run by coder-utils after the install step. Runs at
-# agent start with AGENT_RELAY_CURSOR_TOKEN (a short-lived worker token
-# minted for the requesting user), CURSOR_AGENT_WORKER_ID (the claimed
+# agent start with AGENT_RELAY_CURSOR_TOKEN (the Cursor session token
+# Agent Relay minted with the claim), CURSOR_AGENT_WORKER_ID (the claimed
 # worker id), AGENT_RELAY_CURSOR_POOL_NAME, and
 # AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT in scope.
 #
@@ -14,6 +14,9 @@ set -euo pipefail
 
 state_file="${state_file}"
 log_file="${log_file}"
+# The worker reads its session token from this file. Always under the
+# module directory, so an override of state_file does not move it.
+token_file="${module_directory}/worker-token"
 # Runtime-materialized scripts live under the module directory's
 # scripts/ regardless of where state_file points, so an override of
 # state_file moves only the state.
@@ -88,13 +91,27 @@ if ! command -v ${cli_binary} >/dev/null 2>&1; then
 	exit 1
 fi
 
+# The worker authenticates with --auth-token-file rather than
+# --auth-token: the token stays off the worker's command line, and the
+# CLI re-reads the file when it reconnects, so a replacement written to
+# the same path takes effect without a restart. Written owner-only and
+# renamed into place so the worker never reads a partial token.
+(
+	umask 077
+	printf '%s' "$AGENT_RELAY_CURSOR_TOKEN" >"$token_file.tmp"
+)
+mv "$token_file.tmp" "$token_file"
+
 # The supervisor outlives this script: it owns the worker process and
 # is the only writer of terminal state. Written to disk rather than
-# inlined so setsid gets a clean argv. The token, pool name, and idle
-# timeout are read from the supervisor's environment at run time,
-# escaped here so they are never rendered into the file. Parameter
-# values are user input; interpolating them into the file would let
-# shell metacharacters run as code. The worker exits 0 when its
+# inlined so setsid gets a clean argv. The pool name and idle timeout
+# are read from the supervisor's environment at run time, escaped here
+# so they are never rendered into the file. Parameter values are user
+# input; interpolating them into the file would let shell
+# metacharacters run as code. The token itself never reaches the file
+# or the worker's environment: the worker reads it from token_file, and
+# the supervisor unsets the variable so the agent's commands, which the
+# worker spawns, do not inherit it. The worker exits 0 when its
 # idle-release timer fires after a session ends; that clean exit is
 # what tells Agent Relay to reap the workspace.
 supervisor="$scripts_dir/supervise.sh"
@@ -108,10 +125,11 @@ write_state() {
 }
 
 export PATH="\$HOME/.local/bin:\$PATH"
+unset AGENT_RELAY_CURSOR_TOKEN
 ${cli_binary} worker \\
 	--pool "\$AGENT_RELAY_CURSOR_POOL_NAME" \\
 	--idle-release-timeout "\$AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT" \\
-	--auth-token "\$AGENT_RELAY_CURSOR_TOKEN" \\
+	--auth-token-file "$token_file" \\
 %{ if computer_use ~}
 	--computer-use \\
 %{ endif ~}
@@ -124,6 +142,9 @@ write_state "working \$worker_pid"
 
 wait "\$worker_pid"
 code=\$?
+# The claim is over once the worker exits, so its token is no use to
+# anyone; do not leave it on disk.
+rm -f "$token_file"
 write_state "done \$code"
 SUPERVISOR
 chmod +x "$supervisor"
