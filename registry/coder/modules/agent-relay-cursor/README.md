@@ -84,8 +84,7 @@ A session token connects only the claimed worker id, and Cursor refuses it on
 every endpoint a worker does not call. It stops working when the claim ends,
 for example after the idle-release timeout, or when the service account key
 that minted it is deleted or expires. Its 7-day expiry is a backstop, not a
-session limit. The worker re-reads the file when it reconnects, so a
-replacement token written to the same path takes effect without a restart.
+session limit.
 
 ## Parameters
 
