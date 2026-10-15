@@ -87,10 +87,6 @@ that minted it is deleted or expires. Its 7-day expiry is a backstop, not a
 session limit. The worker re-reads the file when it reconnects, so a
 replacement token written to the same path takes effect without a restart.
 
-Versions before 0.5.1 passed the token with `--auth-token`, which makes the
-CLI log `Auth tokens cannot be refreshed automatically`. That warning is
-printed for any `--auth-token` start and is not a one-hour limit.
-
 ## Parameters
 
 Agent Relay verifies this contract against the template's active version at
