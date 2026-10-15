@@ -43,7 +43,7 @@ fi
 
 transcript="$LOG_DIR/rebuild-$(date -u +%Y%m%dT%H%M%SZ).log"
 ln -sfn "$transcript" "$LOG_DIR/rebuild-latest.log"
-coder_log info "Applying $FLAKE_DIR#$FLAKE_ATTR. Transcript: $transcript"
+coder_log info "Applying $FLAKE_DIR#$FLAKE_ATTR. ($transcript)"
 if ! nixos-rebuild switch --flake "$FLAKE_DIR#$FLAKE_ATTR" -L 2>&1 | tee "$transcript" | coder_log_pipe info; then
   coder_log error "nixos-rebuild switch failed; the previous generation is still active."
   exit 1
