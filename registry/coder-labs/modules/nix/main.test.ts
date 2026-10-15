@@ -99,18 +99,32 @@ describe("nix", async () => {
     });
   });
 
-  it("prebuild waits for the project and logs a noninteractive develop invocation", async () => {
-    await withHome(async (home) => {
+  it("prebuild waits for the clone index before entering the dev shell", async () => {
+    await withHome(async (home, bin) => {
       const state = await developState({ path: "~/project" });
       const script = findResourceInstance(
         state,
         "coder_script",
         "install_script",
       );
+      const nix = path.join(bin, "nix");
+      const originalNix = await readFile(nix, "utf8");
+      await executable(
+        nix,
+        originalNix.replace(
+          "#!/usr/bin/env bash\n",
+          '#!/usr/bin/env bash\nif ! git ls-files --error-unmatch -- flake.nix >/dev/null 2>&1; then echo "flake.nix is not tracked" >&2; exit 1; fi\n',
+        ),
+      );
       const appear = (async () => {
         await Bun.sleep(1500);
-        await mkdir(path.join(home, "project"));
-        await writeFile(path.join(home, "project/flake.nix"), "{}\n");
+        const project = path.join(home, "project");
+        await mkdir(project);
+        await run(["git", "-C", project, "init", "-q"]);
+        await writeFile(path.join(project, "flake.nix"), "{}\n");
+        // Like a clone checkout: the file appears before the index is written.
+        await Bun.sleep(3000);
+        await run(["git", "-C", project, "add", "flake.nix"]);
       })();
       const stdout = await run(
         ["bash", "-c", script.script],
@@ -118,6 +132,7 @@ describe("nix", async () => {
       );
       await appear;
       expect(stdout).toContain("Waiting for");
+      expect(stdout).toContain("nix develop environment is ready.");
       expect(
         (await readFile(path.join(home, "nix.log"), "utf8"))
           .trimEnd()
@@ -140,6 +155,12 @@ describe("nix", async () => {
           "utf8",
         ),
       ).toContain("environment is ready");
+      // A flake outside Git needs no index and must still prebuild.
+      await rm(path.join(home, "project/.git"), { recursive: true });
+      await executable(nix, originalNix);
+      expect(
+        await run(["bash", "-c", script.script], agentEnv(state, home)),
+      ).toContain("nix develop environment is ready.");
     });
   }, 30_000);
 

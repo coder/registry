@@ -55,7 +55,7 @@ module "nix" {
 
 The module appends the default Nix profile `bin` directories to the workspace `PATH` through `coder_env`. Apps, startup scripts and manual commands use the same PATH and `NIX_CONFIG`; a custom PATH set directly on `coder_agent` must include the Nix directories itself. Coder provider 2.15 or later is required.
 
-With `prebuild = true` (the default), startup waits up to 10 minutes for the project's `flake.nix`, then runs `nix develop --profile … --command true` to fetch or build the environment. The profile under `~/.coder-modules/coder-labs/nix/develop/` is a GC root shared with the app, so dependencies survive garbage collection. The prebuild doesn't block login; failure logs a warning and the app builds on first use. See `~/.coder-modules/coder-labs/nix/logs/install.log`. Other scripts can use the `scripts` sync names to wait for the prebuild attempt to finish.
+With `prebuild = true` (the default), startup waits up to 10 minutes for the project's `flake.nix` (and, in a Git checkout, its index entry), then runs `nix develop --profile … --command true` to fetch or build the environment. The profile under `~/.coder-modules/coder-labs/nix/develop/` is a GC root shared with the app, so dependencies survive garbage collection. The prebuild doesn't block login; failure logs a warning and the app builds on first use. See `~/.coder-modules/coder-labs/nix/logs/install.log`. Other scripts can use the `scripts` sync names to wait for the prebuild attempt to finish.
 
 ## Nix settings
 
