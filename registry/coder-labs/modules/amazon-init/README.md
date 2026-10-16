@@ -123,12 +123,12 @@ and `runtime_dir/bin`.
 The module downloads and installs nothing. These are the only endpoints it
 contacts:
 
-| When               | Endpoint                                                   | Purpose                              |
-| ------------------ | ---------------------------------------------------------- | ------------------------------------ |
-| Boot, via EC2      | Instance metadata service (`169.254.169.254`)              | `amazon-init` fetches the user-data  |
-| Boot, before agent | `POST <access_url>/api/v2/workspaceagents/me/log-source`   | Register the boot log source         |
-| Boot, before agent | `PATCH <access_url>/api/v2/workspaceagents/me/logs`        | Stream boot logs, capped by budget   |
-| Agent start        | Whatever `agent_init_script` uses (normally `<access_url>`) | Download and run the Coder agent     |
+| When               | Endpoint                                                    | Purpose                             |
+| ------------------ | ----------------------------------------------------------- | ----------------------------------- |
+| Boot, via EC2      | Instance metadata service (`169.254.169.254`)               | `amazon-init` fetches the user-data |
+| Boot, before agent | `POST <access_url>/api/v2/workspaceagents/me/log-source`    | Register the boot log source        |
+| Boot, before agent | `PATCH <access_url>/api/v2/workspaceagents/me/logs`         | Stream boot logs, capped by budget  |
+| Agent start        | Whatever `agent_init_script` uses (normally `<access_url>`) | Download and run the Coder agent    |
 
 In restricted or air-gapped networks, the instance only needs to reach the
 Coder access URL. Your `boot_script` may reach other endpoints. Logging is
