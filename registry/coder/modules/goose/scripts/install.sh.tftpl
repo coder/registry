@@ -6,242 +6,67 @@ command_exists() {
   command -v "$1" > /dev/null 2>&1
 }
 
+ARG_PROVIDER=$(echo -n '${ARG_PROVIDER}' | base64 -d)
+ARG_MODEL=$(echo -n '${ARG_MODEL}' | base64 -d)
+ARG_GOOSE_CONFIG=$(echo -n '${ARG_GOOSE_CONFIG}' | base64 -d)
 ARG_INSTALL='${ARG_INSTALL}'
 ARG_GOOSE_VERSION=$(echo -n '${ARG_GOOSE_VERSION}' | base64 -d)
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
-ARG_EXTENSIONS=$(echo -n '${ARG_EXTENSIONS}' | base64 -d)
 
-export PATH="$HOME/.local/bin:$PATH"
+echo "--------------------------------"
+echo "provider: $${ARG_PROVIDER}"
+echo "model: $${ARG_MODEL}"
+echo "goose_config: $${ARG_GOOSE_CONFIG}"
+echo "install: $${ARG_INSTALL}"
+echo "goose_version: $${ARG_GOOSE_VERSION}"
+echo "--------------------------------"
 
-# Same resolution order as `goose info`.
-if [[ "$${GOOSE_PATH_ROOT:-}" == /* ]]; then
-  GOOSE_CONFIG_FILE="$${GOOSE_PATH_ROOT}/config/config.yaml"
+if [ "$${ARG_INSTALL}" = "true" ]; then
+  echo "Installing Goose..."
+  parsed_version="$${ARG_GOOSE_VERSION}"
+  if [ "$${ARG_GOOSE_VERSION}" = "stable" ]; then
+    parsed_version=""
+  fi
+  # The installer downloads the release archive into the current directory.
+  (cd "$(mktemp -d)" && curl -fsSL https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh | GOOSE_VERSION="$${parsed_version}" CONFIGURE=false bash)
+  echo "Goose installed"
 else
-  GOOSE_CONFIG_FILE="$${XDG_CONFIG_HOME:-$HOME/.config}/goose/config.yaml"
+  echo "Skipping Goose installation"
 fi
 
-echo "--------------------------------"
-printf "install_goose: %s\n" "$${ARG_INSTALL}"
-printf "goose_version: %s\n" "$${ARG_GOOSE_VERSION}"
-printf "workdir: %s\n" "$${ARG_WORKDIR}"
-echo "--------------------------------"
+if [ -n "$${ARG_GOOSE_CONFIG}" ]; then
+  echo "Configuring Goose..."
+  mkdir -p "$HOME/.config/goose"
+  echo "GOOSE_PROVIDER: $${ARG_PROVIDER}" > "$HOME/.config/goose/config.yaml"
+  echo "GOOSE_MODEL: $${ARG_MODEL}" >> "$HOME/.config/goose/config.yaml"
+  echo "$${ARG_GOOSE_CONFIG}" >> "$HOME/.config/goose/config.yaml"
+else
+  echo "Skipping Goose configuration"
+fi
 
-require_jq() {
-  if ! command_exists jq; then
-    echo "ERROR: 'jq' is required to $1 but was not found." >&2
-    exit 1
-  fi
-}
+if [ -n "$${GOOSE_SYSTEM_PROMPT:-}" ]; then
+  echo "Setting Goose system prompt..."
+  mkdir -p "$HOME/.config/goose"
+  echo "$${GOOSE_SYSTEM_PROMPT}" > "$HOME/.config/goose/.goosehints"
+else
+  echo "Goose system prompt not set. use the GOOSE_SYSTEM_PROMPT environment variable to set it."
+fi
 
-function add_path_to_shell_profiles() {
-  local path_dir="$1"
+if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
+  echo "Creating workdir: $${ARG_WORKDIR}"
+  mkdir -p "$${ARG_WORKDIR}"
+fi
 
-  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
-    if [ -f "$${profile}" ]; then
-      if ! grep -q "$${path_dir}" "$${profile}" 2> /dev/null; then
-        echo "export PATH=\"\$PATH:$${path_dir}\"" >> "$${profile}"
-        echo "Added $${path_dir} to $${profile}"
-      fi
-    fi
-  done
+if command_exists goose; then
+  GOOSE_CMD=$(command -v goose)
+elif [ -f "$HOME/.local/bin/goose" ]; then
+  GOOSE_CMD="$HOME/.local/bin/goose"
+else
+  echo "Error: Goose is not installed. Please enable install_goose or install it manually."
+  exit 1
+fi
 
-  local fish_config="$HOME/.config/fish/config.fish"
-  if [ -f "$${fish_config}" ]; then
-    if ! grep -q "$${path_dir}" "$${fish_config}" 2> /dev/null; then
-      echo "fish_add_path $${path_dir}" >> "$${fish_config}"
-      echo "Added $${path_dir} to $${fish_config}"
-    fi
-  fi
-}
-
-function ensure_goose_in_path() {
-  local GOOSE_BIN=""
-  if command_exists goose; then
-    GOOSE_BIN=$(command -v goose)
-  fi
-
-  if [ -z "$${GOOSE_BIN}" ] || [ ! -x "$${GOOSE_BIN}" ]; then
-    echo "Goose binary (goose) was not found or is not executable." >&2
-    return 1
-  fi
-
-  local GOOSE_VERSION
-  if ! GOOSE_VERSION=$("$${GOOSE_BIN}" --version); then
-    echo "Goose binary could not be executed." >&2
-    return 1
-  fi
-  printf "Goose version: %s\n" "$${GOOSE_VERSION}"
-
-  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/goose" ]; then
-    ln -s "$${GOOSE_BIN}" "$${CODER_SCRIPT_BIN_DIR}/goose"
-    echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/goose -> $${GOOSE_BIN}"
-  fi
-
-  add_path_to_shell_profiles "$(dirname "$${GOOSE_BIN}")"
-}
-
-# Subshell scopes the cleanup trap and cd to this function.
-install_with_official_installer() (
-  local work_dir
-  work_dir=$(mktemp -d)
-  trap 'rm -rf "$${work_dir}"' EXIT
-  local installer_file="$${work_dir}/download_cli.sh"
-
-  if ! curl --fail --silent --show-error --location \
-    --retry 2 --retry-delay 1 --retry-all-errors \
-    --connect-timeout 10 --max-time 300 \
-    --output "$${installer_file}" https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh; then
-    echo "Goose installer could not be downloaded after up to 3 attempts." >&2
-    return 1
-  fi
-
-  if ! bash -n "$${installer_file}"; then
-    echo "Goose installer download was invalid." >&2
-    return 1
-  fi
-
-  # An empty GOOSE_VERSION installs the stable release. The installer downloads
-  # the release archive into the current directory and installs to ~/.local/bin.
-  local version="$${ARG_GOOSE_VERSION}"
-  if [ "$${version}" = "stable" ]; then
-    version=""
-  fi
-  cd "$${work_dir}"
-  if ! GOOSE_VERSION="$${version}" CONFIGURE=false bash "$${installer_file}" < /dev/null; then
-    echo "Goose installation failed." >&2
-    return 1
-  fi
-)
-
-install_goose() {
-  if [ "$${ARG_INSTALL}" != "true" ]; then
-    echo "Skipping Goose installation as per configuration."
-    if ! ensure_goose_in_path; then
-      echo "ERROR: install_goose is false but a working 'goose' was not found on PATH." >&2
-      exit 1
-    fi
-    echo "Validated existing Goose"
-    return
-  fi
-
-  echo "Installing Goose"
-  install_with_official_installer
-
-  if ! ensure_goose_in_path; then
-    echo "ERROR: Failed to install Goose" >&2
-    exit 1
-  fi
-  echo "Installed Goose"
-}
-
-setup_workdir() {
-  if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
-    echo "Creating workdir: $${ARG_WORKDIR}"
-    mkdir -p "$${ARG_WORKDIR}"
-  fi
-}
-
-# Prints the names of the block-style entries under the top-level extensions key.
-existing_extension_names() {
-  awk -v sq="'" '
-    /^extensions:/ { in_ext = 1; next }
-    in_ext && /^[^[:space:]#]/ { exit }
-    in_ext && /^[[:space:]]+[^[:space:]#-]/ {
-      match($0, /^[[:space:]]+/)
-      if (indent == 0) indent = RLENGTH
-      if (RLENGTH != indent) next
-      key = substr($0, RLENGTH + 1)
-      q = substr(key, 1, 1)
-      if (q == "\"" || q == sq) {
-        key = substr(key, 2)
-        key = substr(key, 1, index(key, q) - 1)
-      } else {
-        sub(/[[:space:]]*:.*/, "", key)
-      }
-      print key
-    }
-  ' "$1"
-}
-
-# Adds extensions to config.yaml without touching anything else in it. Like
-# adding an extension with `goose configure`, a name that already exists is
-# skipped and the existing extension is kept. New entries are written in YAML
-# flow style (JSON), which goose reads and rewrites as block style on save.
-setup_extensions() {
-  if [ -z "$${ARG_EXTENSIONS}" ]; then
-    echo "No additional_extensions configured; leaving $${GOOSE_CONFIG_FILE} unchanged."
-    return
-  fi
-
-  require_jq "configure Goose extensions"
-
-  if ! echo "$${ARG_EXTENSIONS}" | jq -e 'type == "object"' > /dev/null; then
-    echo "ERROR: additional_extensions must be a YAML mapping of extension names to their configuration." >&2
-    exit 1
-  fi
-
-  mkdir -p "$(dirname "$${GOOSE_CONFIG_FILE}")"
-  touch "$${GOOSE_CONFIG_FILE}"
-
-  if grep -q '^extensions:' "$${GOOSE_CONFIG_FILE}" \
-    && ! grep -qE '^extensions:[[:space:]]*(\{[[:space:]]*\})?[[:space:]]*(#.*)?$' "$${GOOSE_CONFIG_FILE}"; then
-    echo "Warning: extensions in $${GOOSE_CONFIG_FILE} use an inline format the module cannot extend; skipping additional_extensions." >&2
-    return
-  fi
-
-  local existing new_extensions name
-  existing=$(existing_extension_names "$${GOOSE_CONFIG_FILE}" | jq -R . | jq -s .)
-
-  while IFS= read -r name; do
-    echo "Warning: extension '$${name}' already exists in $${GOOSE_CONFIG_FILE}, keeping the existing one."
-  done < <(echo "$${ARG_EXTENSIONS}" | jq -r --argjson existing "$${existing}" \
-    'keys_unsorted[] | select(. as $name | any($existing[]; . == $name))')
-
-  new_extensions=$(echo "$${ARG_EXTENSIONS}" | jq -c --argjson existing "$${existing}" \
-    'with_entries(select(.key as $name | any($existing[]; . == $name) | not))')
-  if [ "$${new_extensions}" = "{}" ]; then
-    echo "All additional_extensions already exist in $${GOOSE_CONFIG_FILE}."
-    return
-  fi
-
-  local entries_file
-  entries_file=$(mktemp)
-  echo "$${new_extensions}" | jq -r 'to_entries[] | "\(.key | tojson): \(.value | tojson)"' > "$${entries_file}"
-
-  # Entries are inserted at the indentation of the existing ones. Writing
-  # through the file keeps a symlinked config.yaml in place.
-  local merged
-  merged=$(awk -v entries_file="$${entries_file}" '
-    FNR == NR {
-      if ($0 ~ /^extensions:/) { in_ext = 1; next }
-      if (in_ext && $0 ~ /^[^[:space:]#]/) in_ext = 0
-      if (in_ext && indent == "" && $0 ~ /^[[:space:]]+[^[:space:]#]/) {
-        match($0, /^[[:space:]]+/)
-        indent = substr($0, 1, RLENGTH)
-      }
-      next
-    }
-    function print_entries(line) {
-      if (indent == "") indent = "  "
-      print "extensions:"
-      while ((getline line < entries_file) > 0) print indent line
-      done = 1
-    }
-    !done && /^extensions:/ { print_entries(); next }
-    { print }
-    END { if (!done) print_entries() }
-  ' "$${GOOSE_CONFIG_FILE}" "$${GOOSE_CONFIG_FILE}")
-  printf '%s\n' "$${merged}" > "$${GOOSE_CONFIG_FILE}"
-
-  rm -f "$${entries_file}"
-
-  while IFS= read -r name; do
-    echo "Added extension '$${name}' to $${GOOSE_CONFIG_FILE}"
-  done < <(echo "$${new_extensions}" | jq -r 'keys_unsorted[]')
-}
-
-install_goose
-setup_workdir
-setup_extensions
-
-echo "Goose module setup completed."
+# The module no longer launches Goose, so expose it on PATH for apps and scripts.
+if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/goose" ]; then
+  ln -s "$${GOOSE_CMD}" "$${CODER_SCRIPT_BIN_DIR}/goose"
+fi

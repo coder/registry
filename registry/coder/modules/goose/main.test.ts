@@ -185,7 +185,7 @@ const seedFile = async (id: string, filePath: string, content: string) => {
   ]);
 };
 
-// Replaces curl with a stub that serves `installer` as the downloaded script.
+// Replaces curl with a stub that prints `installer` as the downloaded script.
 const mockInstallerDownload = async (id: string, installer: string[]) => {
   await writeExecutable({
     containerId: id,
@@ -198,31 +198,20 @@ const mockInstallerDownload = async (id: string, installer: string[]) => {
     content: [
       "#!/bin/bash",
       "printf '%s\\n' \"$*\" > /tmp/goose-curl-args",
-      'while [ $# -gt 0 ]; do if [ "$1" = "--output" ]; then out="$2"; fi; shift; done',
-      'cp /tmp/goose-installer-fixture.sh "$out"',
+      "cat /tmp/goose-installer-fixture.sh",
     ].join("\n"),
   });
 };
 
-const installFixtureBinary = (version: string) => [
+const installFixtureBinary = [
   'mkdir -p "$HOME/.local/bin"',
-  `printf '#!/bin/sh\\necho " ${version}"\\n' > "$HOME/.local/bin/goose"`,
+  `printf '#!/bin/sh\\necho " 1.54.0"\\n' > "$HOME/.local/bin/goose"`,
   'chmod +x "$HOME/.local/bin/goose"',
 ];
 
 const recordInstallerEnv = [
-  'printf "GOOSE_VERSION=[%s] CONFIGURE=%s PWD=%s\\n" "$GOOSE_VERSION" "$CONFIGURE" "$PWD" > /tmp/goose-installer-env',
+  'printf "GOOSE_VERSION=[%s] CONFIGURE=%s\\n" "$GOOSE_VERSION" "$CONFIGURE" > /tmp/goose-installer-env',
 ];
-
-// Key order matches Terraform's jsonencode, which sorts object keys.
-const everything = {
-  args: ["-y", "@modelcontextprotocol/server-everything"],
-  cmd: "npx",
-  enabled: true,
-  name: "everything",
-  timeout: 300,
-  type: "stdio",
-};
 
 const everythingYaml = dedent`
   everything:
@@ -234,8 +223,15 @@ const everythingYaml = dedent`
     timeout: 300
 `;
 
-const flowEntry = (name: string, value: unknown) =>
-  `${JSON.stringify(name)}: ${JSON.stringify(value)}`;
+const developerYaml = dedent`
+  extensions:
+    developer:
+      display_name: Developer
+      enabled: true
+      name: developer
+      timeout: 300
+      type: builtin
+`;
 
 setDefaultTimeout(120 * 1000);
 
@@ -244,32 +240,22 @@ describe("goose", async () => {
     await runTerraformInit(import.meta.dir);
   });
 
-  test("happy-path-validates-existing-binary", async () => {
+  test("happy-path-writes-config", async () => {
     const { id, scripts } = await setup();
     await runScripts(id, scripts);
     const log = await installLog(id);
     expect(log).toContain("Skipping Goose installation");
-    expect(log).toContain("Validated existing Goose");
-    expect(log).toContain("1.54.0-mock");
-    expect(log).toContain("Goose module setup completed.");
     expect(log).not.toContain("agentapi");
-    const cfg = await execContainer(id, ["test", "-e", configPath]);
-    expect(cfg.exitCode).not.toBe(0);
-  });
-
-  test("provider-and-model-are-exported", async () => {
-    const { coderEnvVars, scripts } = await setup();
-    expect(coderEnvVars["GOOSE_PROVIDER"]).toBe("anthropic");
-    expect(coderEnvVars["GOOSE_MODEL"]).toBe("claude-sonnet-4-6");
-    expect(scripts.install).not.toContain("claude-sonnet-4-6");
+    expect(await readFileContainer(id, configPath)).toBe(
+      `GOOSE_PROVIDER: anthropic\nGOOSE_MODEL: claude-sonnet-4-6\n${developerYaml}\n`,
+    );
   });
 
   test("preinstalled-binary-required-when-install-disabled", async () => {
     const { id, scripts } = await setup({ skipGooseMock: true });
     const resp = await runScript(id, "install", scripts.install);
     expect(resp.exitCode).not.toBe(0);
-    const log = await installLog(id);
-    expect(log).toContain("was not found or is not executable");
+    expect(await installLog(id)).toContain("Error: Goose is not installed.");
   });
 
   test("official-installer-is-used-for-stable", async () => {
@@ -279,28 +265,16 @@ describe("goose", async () => {
     });
     await mockInstallerDownload(id, [
       ...recordInstallerEnv,
-      ...installFixtureBinary("1.54.0"),
+      ...installFixtureBinary,
     ]);
     await runScripts(id, scripts);
-    const log = await installLog(id);
-    expect(log).toContain("Installed Goose");
-    expect(log).toContain("Goose version:  1.54.0");
-    const curlArgs = await readFileContainer(id, "/tmp/goose-curl-args");
-    expect(curlArgs).toContain(
+    expect(await installLog(id)).toContain("Goose installed");
+    expect(await readFileContainer(id, "/tmp/goose-curl-args")).toContain(
       "https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh",
     );
-    expect(curlArgs).toContain("--retry 2");
-    expect(curlArgs).toContain("--connect-timeout 10");
-    expect(curlArgs).toContain("--max-time 300");
-    const installerEnv = await readFileContainer(
-      id,
-      "/tmp/goose-installer-env",
+    expect(await readFileContainer(id, "/tmp/goose-installer-env")).toContain(
+      "GOOSE_VERSION=[] CONFIGURE=false",
     );
-    expect(installerEnv).toContain("GOOSE_VERSION=[] CONFIGURE=false");
-    // The installer downloads into its working directory, so it must run in a temp dir.
-    expect(installerEnv).toMatch(/PWD=\/tmp\/tmp\.\S+/);
-    const bashrc = await readFileContainer(id, "/home/coder/.bashrc");
-    expect(bashrc).toContain("/home/coder/.local/bin");
   });
 
   test("pinned-version-is-passed-to-installer", async () => {
@@ -310,14 +284,12 @@ describe("goose", async () => {
     });
     await mockInstallerDownload(id, [
       ...recordInstallerEnv,
-      ...installFixtureBinary("1.53.0"),
+      ...installFixtureBinary,
     ]);
     await runScripts(id, scripts);
-    const installerEnv = await readFileContainer(
-      id,
-      "/tmp/goose-installer-env",
+    expect(await readFileContainer(id, "/tmp/goose-installer-env")).toContain(
+      "GOOSE_VERSION=[v1.53.0]",
     );
-    expect(installerEnv).toContain("GOOSE_VERSION=[v1.53.0]");
   });
 
   test("installer-download-failure-is-terminal", async () => {
@@ -332,7 +304,15 @@ describe("goose", async () => {
     });
     const resp = await runScript(id, "install", scripts.install);
     expect(resp.exitCode).not.toBe(0);
-    expect(await installLog(id)).toContain("could not be downloaded");
+    expect(await installLog(id)).not.toContain("Goose installed");
+  });
+
+  test("symlinks-into-coder-script-bin-dir", async () => {
+    const { id, scripts } = await setup();
+    await execContainer(id, ["mkdir", "-p", "/tmp/coder-bin"]);
+    await runScripts(id, scripts, { CODER_SCRIPT_BIN_DIR: "/tmp/coder-bin" });
+    const link = await execContainer(id, ["readlink", "/tmp/coder-bin/goose"]);
+    expect(link.stdout.trim()).toBe("/usr/bin/goose");
   });
 
   test("workdir-is-created", async () => {
@@ -342,149 +322,30 @@ describe("goose", async () => {
     expect(dir.exitCode).toBe(0);
   });
 
-  test("extensions-are-written-to-new-config", async () => {
+  test("additional-extensions-overwrite-config", async () => {
     const { id, scripts } = await setup({
       moduleVariables: { additional_extensions: everythingYaml },
     });
+    await seedFile(id, configPath, "GOOSE_MODE: approve\n");
     await runScripts(id, scripts);
     const cfg = await readFileContainer(id, configPath);
-    expect(cfg).toBe(`extensions:\n  ${flowEntry("everything", everything)}\n`);
+    expect(cfg).not.toContain("approve");
+    expect(cfg).toContain(
+      `${developerYaml}\n  everything:\n    name: everything\n`,
+    );
     expect(cfg).not.toContain("coder");
-    expect(cfg).not.toContain("GOOSE_PROVIDER");
-    expect(await installLog(id)).toContain("Added extension 'everything'");
   });
 
-  test("merges-extensions-existing-wins", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: {
-        additional_extensions: dedent`
-          mine:
-            name: mine
-            type: stdio
-            cmd: module-cmd
-          extra:
-            name: extra
-            type: stdio
-            cmd: extra-cmd
-        `,
-      },
-    });
-    const existing = dedent`
-      GOOSE_MODE: approve
-      extensions:
-          # keep this comment
-          mine:
-              name: mine
-              type: stdio
-              cmd: user-cmd
-              args:
-              - a
-          'quoted':
-              name: quoted
-              type: stdio
-              cmd: q
-      GOOSE_CLI_THEME: dark
-    `;
-    await seedFile(id, configPath, existing + "\n");
-    await runScripts(id, scripts);
-    const cfg = await readFileContainer(id, configPath);
-    const extra = flowEntry("extra", {
-      cmd: "extra-cmd",
-      name: "extra",
-      type: "stdio",
-    });
-    expect(cfg).toBe(
-      existing.replace("extensions:\n", `extensions:\n    ${extra}\n`) + "\n",
-    );
-    const log = await installLog(id);
-    expect(log).toContain(
-      `extension 'mine' already exists in ${configPath}, keeping the existing one.`,
-    );
-    expect(log).not.toContain("extension 'extra' already exists");
-    expect(log).toContain("Added extension 'extra'");
-  });
-
-  test("rerun-is-idempotent", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: { additional_extensions: everythingYaml },
-    });
-    await runScripts(id, scripts);
-    const first = await readFileContainer(id, configPath);
-    await runScripts(id, scripts);
-    expect(await readFileContainer(id, configPath)).toBe(first);
-    expect(await installLog(id)).toContain(
-      "All additional_extensions already exist",
-    );
-  });
-
-  test("config-without-extensions-key-is-appended", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: { additional_extensions: everythingYaml },
-    });
-    await seedFile(id, configPath, "GOOSE_MODE: approve");
-    await runScripts(id, scripts);
-    expect(await readFileContainer(id, configPath)).toBe(
-      `GOOSE_MODE: approve\nextensions:\n  ${flowEntry("everything", everything)}\n`,
-    );
-  });
-
-  test("empty-inline-extensions-are-replaced", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: { additional_extensions: everythingYaml },
-    });
-    await seedFile(id, configPath, "extensions: {}\nGOOSE_MODE: approve\n");
-    await runScripts(id, scripts);
-    expect(await readFileContainer(id, configPath)).toBe(
-      `extensions:\n  ${flowEntry("everything", everything)}\nGOOSE_MODE: approve\n`,
-    );
-  });
-
-  test("non-empty-inline-extensions-are-left-unchanged", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: { additional_extensions: everythingYaml },
-    });
-    const existing = "extensions: {mine: {name: mine, type: stdio, cmd: x}}\n";
-    await seedFile(id, configPath, existing);
-    await runScripts(id, scripts);
-    expect(await readFileContainer(id, configPath)).toBe(existing);
-    expect(await installLog(id)).toContain(
-      "inline format the module cannot extend",
-    );
-  });
-
-  test("symlinked-config-is-written-through", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: { additional_extensions: everythingYaml },
-    });
-    await seedFile(id, "/home/coder/dotfiles/goose.yaml", "GOOSE_MODE: auto\n");
-    await execContainer(id, [
-      "bash",
-      "-c",
-      `mkdir -p "$(dirname ${configPath})" && ln -s /home/coder/dotfiles/goose.yaml ${configPath}`,
-    ]);
-    await runScripts(id, scripts);
-    const link = await execContainer(id, ["test", "-L", configPath]);
-    expect(link.exitCode).toBe(0);
+  test("system-prompt-is-written-to-goosehints", async () => {
+    const { id, scripts } = await setup();
+    await runScripts(id, scripts, { GOOSE_SYSTEM_PROMPT: "be brief" });
     expect(
-      await readFileContainer(id, "/home/coder/dotfiles/goose.yaml"),
-    ).toContain(flowEntry("everything", everything));
+      await readFileContainer(id, "/home/coder/.config/goose/.goosehints"),
+    ).toBe("be brief\n");
   });
 
-  test("goose-path-root-is-respected", async () => {
-    const root = "/home/coder/goose-root";
+  test("real-goose-loads-config", async () => {
     const { id, scripts } = await setup({
-      moduleVariables: { additional_extensions: everythingYaml },
-    });
-    await runScripts(id, scripts, { GOOSE_PATH_ROOT: root });
-    expect(await readFileContainer(id, `${root}/config/config.yaml`)).toContain(
-      flowEntry("everything", everything),
-    );
-    const fallback = await execContainer(id, ["test", "-e", configPath]);
-    expect(fallback.exitCode).not.toBe(0);
-  });
-
-  test("real-goose-loads-merged-config", async () => {
-    const { id, coderEnvVars, scripts } = await setup({
       skipGooseMock: true,
       moduleVariables: {
         install_goose: "true",
@@ -492,24 +353,18 @@ describe("goose", async () => {
         additional_extensions: everythingYaml,
       },
     });
-    await seedFile(
-      id,
-      configPath,
-      "extensions:\n  mine:\n    name: mine\n    type: stdio\n    cmd: user-cmd\n    enabled: true\n",
-    );
-    await runScripts(id, scripts, coderEnvVars);
-    const info = await execContainer(
-      id,
-      ["bash", "-c", "$HOME/.local/bin/goose info -v"],
-      envArgs(coderEnvVars),
-    );
+    await runScripts(id, scripts);
+    const info = await execContainer(id, [
+      "bash",
+      "-c",
+      "$HOME/.local/bin/goose info -v",
+    ]);
     expect(info.exitCode).toBe(0);
     expect(info.stdout).toContain("1.54.0");
     expect(info.stdout).toContain("GOOSE_PROVIDER: anthropic");
     expect(info.stdout).toContain("GOOSE_MODEL: claude-sonnet-4-6");
+    expect(info.stdout).toContain("    developer:");
     expect(info.stdout).toContain("    everything:");
-    expect(info.stdout).toContain("'@modelcontextprotocol/server-everything'");
-    expect(info.stdout).toContain("cmd: user-cmd");
   });
 
   test("pre-post-install-scripts", async () => {

@@ -33,22 +33,8 @@ run "defaults_are_correct" {
   }
 
   assert {
-    condition     = strcontains(local.install_script, "ARG_EXTENSIONS=$(echo -n '' | base64 -d)")
-    error_message = "install script should receive no extensions by default"
-  }
-}
-
-run "provider_and_model_env_vars" {
-  command = plan
-
-  assert {
-    condition     = coder_env.goose_provider.name == "GOOSE_PROVIDER" && coder_env.goose_provider.value == "anthropic"
-    error_message = "GOOSE_PROVIDER should be set from goose_provider"
-  }
-
-  assert {
-    condition     = coder_env.goose_model.name == "GOOSE_MODEL" && coder_env.goose_model.value == "claude-sonnet-4-6"
-    error_message = "GOOSE_MODEL should be set from goose_model"
+    condition     = local.combined_extensions == "extensions:\n  developer:\n    display_name: Developer\n    enabled: true\n    name: developer\n    timeout: 300\n    type: builtin\n"
+    error_message = "config should only contain the developer extension by default"
   }
 }
 
@@ -70,7 +56,7 @@ run "workdir_trailing_slash_is_trimmed" {
   }
 }
 
-run "additional_extensions_are_encoded_as_json" {
+run "additional_extensions_are_appended" {
   command = plan
 
   variables {
@@ -78,25 +64,17 @@ run "additional_extensions_are_encoded_as_json" {
       everything:
         name: everything
         type: stdio
-        cmd: npx
-        args: ["-y", "@modelcontextprotocol/server-everything"]
-        enabled: true
-        timeout: 300
     EOT
   }
 
   assert {
-    condition = strcontains(local.install_script, base64encode(jsonencode({
-      everything = {
-        name    = "everything"
-        type    = "stdio"
-        cmd     = "npx"
-        args    = ["-y", "@modelcontextprotocol/server-everything"]
-        enabled = true
-        timeout = 300
-      }
-    })))
-    error_message = "install script should receive additional_extensions as base64-encoded JSON"
+    condition     = strcontains(local.combined_extensions, "    type: builtin\n  everything:\n    name: everything\n    type: stdio\n")
+    error_message = "additional_extensions should be appended after the developer extension"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, base64encode(local.combined_extensions))
+    error_message = "install script should receive the combined extensions"
   }
 }
 

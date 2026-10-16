@@ -21,7 +21,7 @@ module "goose" {
 ```
 
 > [!WARNING]
-> If upgrading from v3.x.x of this module: v4 is a major refactor that drops support for Coder Tasks and AgentAPI. The module now only installs and configures Goose; launch it with your own `coder_app`. `order`, `group`, `subdomain`, `install_agentapi`, `agentapi_version`, the `task_app_id` output, the `GOOSE_TASK_PROMPT` and `GOOSE_SYSTEM_PROMPT` environment variables, and the built-in `coder` extension are removed, and `folder` is renamed to `workdir`. `goose_provider` and `goose_model` are now exported as `GOOSE_PROVIDER` and `GOOSE_MODEL` instead of being written to `config.yaml`, and `config.yaml` is no longer overwritten. Keep using v3.x.x if you depend on Coder Tasks.
+> If upgrading from v3.x.x of this module: v4 is a major refactor that drops support for Coder Tasks and AgentAPI. The module now only installs and configures Goose; launch it with your own `coder_app`. `order`, `group`, `subdomain`, `install_agentapi`, `agentapi_version`, the `task_app_id` output, the `GOOSE_TASK_PROMPT` environment variable, and the built-in `coder` extension are removed, and `folder` is renamed to `workdir`. Keep using v3.x.x if you depend on Coder Tasks.
 
 ## Examples
 
@@ -86,7 +86,7 @@ module "goose" {
 }
 ```
 
-`additional_extensions` uses the [`extensions`](https://goose-docs.ai/docs/guides/config-files#extensions-configuration) format of `config.yaml`. Extensions that already exist in `config.yaml` are kept.
+`additional_extensions` uses the [`extensions`](https://goose-docs.ai/docs/guides/config-files#extensions-configuration) format of `config.yaml`. The module overwrites `config.yaml` with `goose_provider`, `goose_model`, the built-in `developer` extension, and `additional_extensions`.
 
 ### Pinned version
 

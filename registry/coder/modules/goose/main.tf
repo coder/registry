@@ -40,12 +40,12 @@ variable "goose_version" {
 
 variable "goose_provider" {
   type        = string
-  description = "The provider to use for Goose (e.g., anthropic). Exported as GOOSE_PROVIDER. See https://goose-docs.ai/docs/getting-started/providers"
+  description = "The provider to use for Goose (e.g., anthropic)."
 }
 
 variable "goose_model" {
   type        = string
-  description = "The model to use for Goose (e.g., claude-sonnet-4-6). Exported as GOOSE_MODEL."
+  description = "The model to use for Goose (e.g., claude-sonnet-4-6)."
 }
 
 variable "pre_install_script" {
@@ -62,30 +62,35 @@ variable "post_install_script" {
 
 variable "additional_extensions" {
   type        = string
-  description = "Extensions (MCP servers) in YAML format, keyed by name as under `extensions` in config.yaml. Added to the user config.yaml; extensions that already exist there are kept. Values are rendered into the install script, so pass secrets with env_keys and coder_env instead of envs. See https://goose-docs.ai/docs/getting-started/using-extensions"
+  description = "Additional extensions configuration in YAML format to append to the config."
   default     = null
 }
 
-resource "coder_env" "goose_provider" {
-  agent_id = var.agent_id
-  name     = "GOOSE_PROVIDER"
-  value    = var.goose_provider
-}
-
-resource "coder_env" "goose_model" {
-  agent_id = var.agent_id
-  name     = "GOOSE_MODEL"
-  value    = var.goose_model
-}
-
 locals {
-  workdir               = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
-  additional_extensions = var.additional_extensions != null ? trimspace(var.additional_extensions) : ""
+  workdir         = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
+  base_extensions = <<-EOT
+developer:
+  display_name: Developer
+  enabled: true
+  name: developer
+  timeout: 300
+  type: builtin
+EOT
+
+  # Add two spaces to each line of extensions to match YAML structure
+  formatted_base        = "  ${replace(trimspace(local.base_extensions), "\n", "\n  ")}"
+  additional_extensions = var.additional_extensions != null ? "\n  ${replace(trimspace(var.additional_extensions), "\n", "\n  ")}" : ""
+  combined_extensions   = <<-EOT
+extensions:
+${local.formatted_base}${local.additional_extensions}
+EOT
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
+    ARG_PROVIDER      = base64encode(var.goose_provider)
+    ARG_MODEL         = base64encode(var.goose_model)
+    ARG_GOOSE_CONFIG  = base64encode(local.combined_extensions)
     ARG_INSTALL       = tostring(var.install_goose)
     ARG_GOOSE_VERSION = base64encode(var.goose_version)
     ARG_WORKDIR       = local.workdir != "" ? base64encode(local.workdir) : ""
-    ARG_EXTENSIONS    = local.additional_extensions != "" ? base64encode(jsonencode(yamldecode(local.additional_extensions))) : ""
   })
   module_dir_name = ".coder-modules/coder/goose"
 }
