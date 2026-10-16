@@ -1,14 +1,30 @@
 #!/usr/bin/env sh
+# shellcheck shell=sh
+
+DEVCONTAINERS_CLI_VERSION=$(printf '%s' "${DEVCONTAINERS_CLI_VERSION_B64}" | base64 -d) || {
+  echo "ERROR: Failed to decode devcontainers_cli_version." >&2
+  exit 1
+}
+
+REGISTRY_URL=""
+if [ -n "${REGISTRY_URL_B64}" ]; then
+  REGISTRY_URL=$(printf '%s' "${REGISTRY_URL_B64}" | base64 -d) || {
+    echo "ERROR: Failed to decode registry_url." >&2
+    exit 1
+  }
+fi
+
+PACKAGE_SPEC="@devcontainers/cli@$DEVCONTAINERS_CLI_VERSION"
 
 # We want to cd into `$CODER_SCRIPT_DATA_DIR` as the current directory
 # might contain a `package.json` with `packageManager` set to something
 # other than the detected package manager. When this happens, it can
 # cause the installation to fail.
-cd "$CODER_SCRIPT_DATA_DIR" || exit
+cd "$CODER_SCRIPT_DATA_DIR" || exit 1
 
 # If @devcontainers/cli is already installed, we can skip
-if command -v devcontainer > /dev/null 2>&1; then
-  echo "🥳 @devcontainers/cli is already installed into $(which devcontainer)!"
+if DEVCONTAINER_PATH=$(command -v devcontainer 2> /dev/null); then
+  echo "🥳 @devcontainers/cli is already installed into $DEVCONTAINER_PATH!"
   exit 0
 fi
 
@@ -29,34 +45,47 @@ else
   exit 1
 fi
 
+INSTALL_PREFIX=$(dirname "$CODER_SCRIPT_BIN_DIR")
+
 install() {
-  echo "Installing @devcontainers/cli using $PACKAGE_MANAGER..."
-  if [ "$PACKAGE_MANAGER" = "npm" ]; then
-    npm install -g @devcontainers/cli
-  elif [ "$PACKAGE_MANAGER" = "pnpm" ]; then
-    # Check if PNPM_HOME is set, if not, set it to the script's bin directory
-    # pnpm needs this to be set to install binaries
-    # coder agent ensures this part is part of the PATH
-    # so that the devcontainer command is available
-    if [ -z "$PNPM_HOME" ]; then
+  echo "Installing $PACKAGE_SPEC using $PACKAGE_MANAGER..."
+
+  case "$PACKAGE_MANAGER" in
+    npm)
+      set -- install --global "$PACKAGE_SPEC" --prefix "$INSTALL_PREFIX"
+      ;;
+    pnpm)
       PNPM_HOME="$CODER_SCRIPT_BIN_DIR"
       export PNPM_HOME
-    fi
-    pnpm add -g @devcontainers/cli
-  elif [ "$PACKAGE_MANAGER" = "yarn" ]; then
-    yarn global add @devcontainers/cli --prefix "$(dirname "$CODER_SCRIPT_BIN_DIR")"
+      set -- add --global "$PACKAGE_SPEC"
+      ;;
+    yarn)
+      set -- global add "$PACKAGE_SPEC" --prefix "$INSTALL_PREFIX"
+      ;;
+    *)
+      echo "ERROR: Unsupported package manager: $PACKAGE_MANAGER" >&2
+      return 1
+      ;;
+  esac
+
+  if [ -n "$REGISTRY_URL" ]; then
+    set -- "$@" --registry "$REGISTRY_URL"
   fi
+
+  "$PACKAGE_MANAGER" "$@"
 }
 
-if ! install; then
+install
+INSTALL_EXIT=$?
+if [ "$INSTALL_EXIT" -ne 0 ]; then
   echo "Failed to install @devcontainers/cli" >&2
-  exit 1
+  exit "$INSTALL_EXIT"
 fi
 
-if ! command -v devcontainer > /dev/null 2>&1; then
+if ! DEVCONTAINER_PATH=$(command -v devcontainer 2> /dev/null); then
   echo "Installation completed but 'devcontainer' command not found in PATH" >&2
   exit 1
 fi
 
-echo "🥳 @devcontainers/cli has been installed into $(which devcontainer)!"
+echo "🥳 @devcontainers/cli has been installed into $DEVCONTAINER_PATH!"
 exit 0
