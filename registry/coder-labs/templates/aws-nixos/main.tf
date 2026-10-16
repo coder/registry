@@ -191,8 +191,10 @@ module "nix" {
   }
 }
 
+# Loaded from GitHub until coder-labs/amazon-init has a registry release; then
+# switch to registry.coder.com/coder-labs/amazon-init/coder ~> 1.0.
 module "amazon-init" {
-  source = "./modules/amazon-init"
+  source = "git::https://github.com/coder/registry.git//registry/coder-labs/modules/amazon-init?ref=feat/amazon-init-module"
 
   agent_token       = try(coder_agent.main[0].token, "")
   agent_init_script = try(coder_agent.main[0].init_script, "")
