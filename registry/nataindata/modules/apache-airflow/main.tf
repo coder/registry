@@ -4,32 +4,37 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 0.17"
+      version = ">= 2.13"
     }
   }
 }
 
-# Add required variables for your modules and remove any unneeded variables
 variable "agent_id" {
-  type        = string
   description = "The ID of a Coder agent."
+  type        = string
 }
 
 variable "log_path" {
-  type        = string
   description = "The path to log airflow to."
-  default     = "/tmp/airflow.log"
+  type        = string
+  default     = "$HOME/.coder-modules/nataindata/apache-airflow/logs/webserver.log"
 }
 
 variable "port" {
-  type        = number
   description = "The port to run airflow on."
+  type        = number
   default     = 8080
+
+  validation {
+    condition     = var.port >= 1 && var.port <= 65535 && floor(var.port) == var.port
+    error_message = "The Airflow port must be an integer between 1 and 65535."
+  }
 }
 
 variable "share" {
-  type    = string
-  default = "owner"
+  description = "Who can access the Airflow app. The Airflow login is still required."
+  type        = string
+  default     = "owner"
   validation {
     condition     = var.share == "owner" || var.share == "authenticated" || var.share == "public"
     error_message = "Incorrect value. Please set either 'owner', 'authenticated', or 'public'."
@@ -37,20 +42,47 @@ variable "share" {
 }
 
 variable "order" {
-  type        = number
   description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
+  type        = number
   default     = null
 }
 
-resource "coder_script" "airflow" {
-  agent_id     = var.agent_id
-  display_name = "airflow"
-  icon         = "/icon/apache-guacamole.svg"
-  script = templatefile("${path.module}/run.sh", {
-    LOG_PATH : var.log_path,
-    PORT : var.port
+variable "airflow_version" {
+  description = "Airflow 2 release to install. The workspace Python version must be supported by this release."
+  type        = string
+  default     = "2.11.0"
+
+  validation {
+    condition     = can(regex("^2\\.([7-9]|[1-9][0-9]+)\\.[0-9]+$", var.airflow_version))
+    error_message = "Use an exact Airflow 2.7 or later 2.x release (for example, 2.11.0). Airflow 3 uses a different server CLI."
+  }
+}
+
+locals {
+  install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
+    AIRFLOW_VERSION = var.airflow_version
   })
-  run_on_start = true
+  start_script = templatefile("${path.module}/scripts/start.sh.tftpl", {
+    LOG_PATH = base64encode(var.log_path)
+    PORT     = var.port
+  })
+}
+
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.1"
+
+  agent_id            = var.agent_id
+  module_directory    = "$HOME/.coder-modules/nataindata/apache-airflow"
+  display_name_prefix = "airflow"
+  icon                = "/icon/apache-guacamole.svg"
+  install_script      = local.install_script
+  start_script        = local.start_script
+}
+
+output "scripts" {
+  description = "Ordered script synchronization names for the Airflow install and start pipeline."
+  value       = module.coder_utils.scripts
 }
 
 resource "coder_app" "airflow" {
