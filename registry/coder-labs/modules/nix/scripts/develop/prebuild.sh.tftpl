@@ -17,7 +17,7 @@ until [ -f "$PROJECT_PATH/flake.nix" ] && {
     echo "Warning: $PROJECT_PATH/flake.nix was not ready within 600s; skipping prebuild." >&2
     exit 0
   fi
-  [ "$waited" -ne 0 ] || echo "Waiting for $PROJECT_PATH/flake.nix to be ready..."
+  [ "$waited" -ne 0 ] || echo "Waiting for $PROJECT_PATH/flake.nix to be available..."
   sleep 2
   waited=$((waited + 2))
 done
