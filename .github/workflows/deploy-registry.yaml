@@ -22,6 +22,14 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    # Binding the job to the "production" environment makes GitHub mint the OIDC
+    # token with sub = repo:coder/registry:environment:production, which is the
+    # only subject trusted by the registry-v2-github service account in GCP
+    # (coder/gcp projects/production/coder-registry-1). The environment's
+    # deployment branch/tag policy (main + release/*/*/v* tags) controls which
+    # refs can deploy. See coder/security-assessments#350.
+    environment: production
+
     # Set id-token permission for gcloud
     permissions:
       contents: read
