@@ -267,6 +267,27 @@ describe("kiro-cli", async () => {
     expect(curlArgs).toContain("--max-time 300");
   });
 
+  test("official-installer-reinstalls-over-existing-binary", async () => {
+    const { id, scripts } = await setup({
+      skipKiroMock: true,
+      moduleVariables: { install_kiro_cli: "true" },
+    });
+    // The real installer prompts on /dev/tty when kiro-cli already exists.
+    await writeExecutable({
+      containerId: id,
+      filePath: "/tmp/kiro-installer-fixture.sh",
+      content: [
+        "#!/usr/bin/env bash",
+        '[ -e "$HOME/.local/bin/kiro-cli" ] && { echo "would prompt" >&2; exit 1; }',
+        fakeKiroInstall("2.27.0-fixture"),
+      ].join("\n"),
+    });
+    await writeCurlMock(id, "/tmp/kiro-installer-fixture.sh");
+    await runScripts(id, scripts);
+    await runScripts(id, scripts);
+    expect(await installLog(id)).toContain("2.27.0-fixture");
+  });
+
   test("pinned-version-uses-release-archive", async () => {
     const { id, scripts } = await setup({
       skipKiroMock: true,
@@ -302,26 +323,6 @@ describe("kiro-cli", async () => {
     expect(curlArgs).toMatch(
       /https:\/\/mirror\.example\.com\/kiro\/latest\/kirocli-(x86_64|aarch64)-linux\.zip/,
     );
-  });
-
-  test("matching-installed-version-is-not-reinstalled", async () => {
-    const { id, scripts } = await setup({
-      moduleVariables: { install_kiro_cli: "true", kiro_cli_version: "2.26.0" },
-    });
-    await writeExecutable({
-      containerId: id,
-      filePath: "/usr/local/bin/curl",
-      content: "#!/bin/bash\necho called > /tmp/kiro-curl-called\nexit 22\n",
-    });
-    await runScripts(id, scripts);
-    const log = await installLog(id);
-    expect(log).toContain("Kiro CLI already installed (2.26.0)");
-    const called = await execContainer(id, [
-      "test",
-      "-e",
-      "/tmp/kiro-curl-called",
-    ]);
-    expect(called.exitCode).not.toBe(0);
   });
 
   test("installer-download-failure-is-terminal", async () => {

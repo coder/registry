@@ -48,10 +48,6 @@ function add_path_to_shell_profiles() {
   fi
 }
 
-installed_kiro_version() {
-  kiro-cli --version 2> /dev/null | awk '{print $NF}'
-}
-
 function ensure_kiro_in_path() {
   local KIRO_BIN=""
   if command_exists kiro-cli; then
@@ -99,8 +95,9 @@ install_with_official_installer() (
   fi
 
   # Installs the latest stable build into ~/.local/bin after verifying its
-  # checksum; it prompts on /dev/tty if kiro-cli already exists there, so it
-  # only runs when kiro-cli is absent.
+  # checksum. It prompts on /dev/tty if kiro-cli already exists there, so the
+  # existing binaries are removed first, as the installer does on confirm.
+  rm -f "$HOME/.local/bin/kiro-cli" "$HOME/.local/bin/kiro-cli-chat"
   if ! bash "$${installer_file}" < /dev/null; then
     echo "Kiro CLI installation failed." >&2
     return 1
@@ -163,17 +160,6 @@ install_kiro_cli() {
     fi
     echo "Validated existing Kiro CLI"
     return
-  fi
-
-  if command_exists kiro-cli; then
-    local current
-    current=$(installed_kiro_version)
-    if [ "$${ARG_VERSION}" = "latest" ] || [ "$${current}" = "$${ARG_VERSION}" ]; then
-      echo "Kiro CLI already installed ($${current})"
-      ensure_kiro_in_path
-      return
-    fi
-    echo "Kiro CLI $${current} is installed; installing $${ARG_VERSION}"
   fi
 
   echo "Installing Kiro CLI"
