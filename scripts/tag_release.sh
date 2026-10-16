@@ -3,7 +3,7 @@
 # Tag Release Script
 # Automatically detects modules that need tagging and creates release tags
 # Usage: ./tag_release.sh [OPTIONS]
-# Tags each module on the first-parent commit that introduced its README version
+# Tags each module on the latest first-parent commit that changed it
 
 set -euo pipefail
 
@@ -294,22 +294,16 @@ check_module_needs_tagging() {
   fi
 }
 
-# Prints the first-parent commit that introduced the module's current README
-# version: walk the README's history newest-first and stop once the module
-# block's version differs. Prints nothing if it can't be resolved (shallow clone).
+# Prints the newest first-parent commit that changed the module. A module's
+# current version can span several commits (changes merged without a bump), so
+# the tag goes on the latest one. Prints nothing if it can't be resolved
+# (shallow clone).
 find_version_commit() {
-  local readme_path="$1" namespace="$2" module_name="$3" version="$4"
-  local found="" commit v
+  local module_path="$1"
 
   [[ "$(git rev-parse --is-shallow-repository)" == "true" ]] && return 0
 
-  while read -r commit; do
-    v=$(extract_version_from_module_block <(git show "$commit:$readme_path" 2> /dev/null) "$namespace" "$module_name" 2> /dev/null) || v=""
-    [[ "$v" == "$version" ]] || break
-    found="$commit"
-  done < <(git log --first-parent --format=%H -- "$readme_path")
-
-  echo "$found"
+  git log --first-parent -1 --format=%H -- "$module_path"
 }
 
 should_process_module() {
@@ -395,9 +389,9 @@ detect_modules_needing_tags() {
     if check_module_needs_tagging "$namespace" "$module_name" "$readme_version"; then
       log "INFO" "📦 $namespace/$module_name: v$readme_version (needs tag)"
       local target_commit
-      target_commit=$(find_version_commit "$readme_path" "$namespace" "$module_name" "$readme_version")
+      target_commit=$(find_version_commit "$module_path")
       if [[ -z "$target_commit" ]]; then
-        log "WARN" "$namespace/$module_name: could not find the commit that introduced v$readme_version (shallow clone?), tagging HEAD"
+        log "WARN" "$namespace/$module_name: could not find the latest commit for v$readme_version (shallow clone?), tagging HEAD"
         target_commit=$(git rev-parse HEAD)
       fi
       MODULES_TO_TAG+=("$module_path:$namespace:$module_name:$readme_version:$target_commit")
