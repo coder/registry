@@ -212,7 +212,9 @@ describe("nix", async () => {
       const script = path.join(home, "boot.sh");
       await executable(script, state.outputs.boot_script.value as string);
       const boot = () => run([script], env);
-      expect(await boot()).toContain("Switch complete");
+      const firstBoot = await boot();
+      expect(firstBoot).toContain(`Flake URI: file://${remote}?ref=main#host`);
+      expect(firstBoot).toContain("Switch complete");
       expect(
         await readFile(
           path.join(checkout, "hardware-configuration.nix"),
@@ -225,7 +227,11 @@ describe("nix", async () => {
       expect(await readFile(path.join(home, "rebuild.log"), "utf8")).toBe(
         "max-jobs = auto\nextra-experimental-features = nix-command flakes\n",
       );
-      expect(await boot()).toContain("skipping rebuild");
+      const unchangedBoot = await boot();
+      expect(unchangedBoot).toContain(
+        `Flake URI: file://${remote}?ref=main#host`,
+      );
+      expect(unchangedBoot).toContain("skipping rebuild");
       await writeFile(path.join(remote, "flake.nix"), "updated\n");
       await git("commit", "-qam", "update");
       expect(await boot()).toContain("Switch complete");

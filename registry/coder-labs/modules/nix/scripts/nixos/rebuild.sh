@@ -15,6 +15,8 @@ mkdir -p "$FLAKE_DIR" "$STATE_DIR" "$LOG_DIR"
 # Root also needs to work in checkouts owned by the workspace user.
 g() { git -c safe.directory="$FLAKE_DIR" -C "$FLAKE_DIR" "$@"; }
 
+coder_log info "Flake URI: $FLAKE_URL${FLAKE_BRANCH:+?ref=$FLAKE_BRANCH}#$FLAKE_ATTR"
+
 if [ ! -e "$FLAKE_DIR/.git" ]; then
   tmp=$(mktemp -d)
   if ! git clone -q --no-checkout ${FLAKE_BRANCH:+--branch "$FLAKE_BRANCH"} "$FLAKE_URL" "$tmp/repo" 2>&1 | coder_log_pipe info; then
