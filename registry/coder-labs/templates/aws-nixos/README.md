@@ -8,7 +8,7 @@ tags: [vm, linux, aws, nixos, persistent-vm]
 
 # NixOS workspaces on AWS EC2
 
-Boot an EC2 workspace from a Git flake. NixOS rebuilds before the agent starts, using the [Nix(OS) module](../../modules/nix), and the [amazon-init module](../../modules/amazon-init) starts the agent from EC2 user-data. This template currently loads these modules directly from GitHub's `feat/nix-module` and `feat/amazon-init-module` branches while they await their first registry releases.
+Boot an EC2 workspace from a Git flake. NixOS rebuilds before the agent starts, using the [Nix(OS) module](../../modules/nix), and the [amazon-init module](../../modules/amazon-init) starts the agent from EC2 user-data. This template currently loads amazon-init directly from GitHub's `feat/amazon-init-module` branch while it awaits its first registry release.
 
 The boot rebuild also uses the nix-community Cachix cache alongside `cache.nixos.org`, via the module's `config`. This covers the first rebuild from the AMI; persistent cache configuration for the daemon and later manual rebuilds belongs in the flake's `nix.settings`.
 

@@ -178,7 +178,8 @@ locals {
 }
 
 module "nix" {
-  source = "git::https://github.com/coder/registry.git//registry/coder-labs/modules/nix?ref=feat/nix-module"
+  source  = "registry.coder.com/coder-labs/nix/coder"
+  version = "~> 1.0"
 
   config = {
     extra-substituters        = ["https://nix-community.cachix.org"]
