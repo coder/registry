@@ -1,20 +1,20 @@
 ---
-display_name: amazon-init
+display_name: NixOS amazon-init
 description: Start the Coder agent from EC2 user-data run by amazon-init on NixOS
 icon: ../../../../.icons/aws.svg
 verified: false
 tags: [helper, aws, ec2, nixos]
 ---
 
-# amazon-init
+# NixOS amazon-init
 
 Render EC2 user-data that NixOS's `amazon-init.service` runs on every boot. It
 writes the agent handoff and public facts, runs `boot_script` as root, then
 starts the agent even on failure. Do not enable the agent unit at boot.
 
 ```tf
-module "amazon-init" {
-  source            = "registry.coder.com/coder-labs/amazon-init/coder"
+module "nixos-amazon-init" {
+  source            = "registry.coder.com/coder-labs/nixos-amazon-init/coder"
   version           = "1.0.0"
   agent_token       = coder_agent.main.token
   agent_init_script = coder_agent.main.init_script
@@ -22,7 +22,7 @@ module "amazon-init" {
 }
 ```
 
-Pass the result to the instance with `user_data = module.amazon-init.user_data`
+Pass the result to the instance with `user_data = module.nixos-amazon-init.user_data`
 on an `aws_instance`, and set `user_data_replace_on_change = false` so rotating
 the token does not replace the root disk. The
 [aws-nixos template](../../templates/aws-nixos) pairs this module with the
@@ -37,8 +37,8 @@ log before the agent is up. `coder_log` sends one line and `coder_log_pipe`
 forwards a command's output, both tagged with a level.
 
 ```tf
-module "amazon-init" {
-  source            = "registry.coder.com/coder-labs/amazon-init/coder"
+module "nixos-amazon-init" {
+  source            = "registry.coder.com/coder-labs/nixos-amazon-init/coder"
   version           = "1.0.0"
   agent_token       = coder_agent.main.token
   agent_init_script = coder_agent.main.init_script
@@ -59,8 +59,8 @@ module "amazon-init" {
 public keys to `workspace.json`, which services can read at runtime.
 
 ```tf
-module "amazon-init" {
-  source            = "registry.coder.com/coder-labs/amazon-init/coder"
+module "nixos-amazon-init" {
+  source            = "registry.coder.com/coder-labs/nixos-amazon-init/coder"
   version           = "1.0.0"
   agent_token       = coder_agent.main.token
   agent_init_script = coder_agent.main.init_script
@@ -84,8 +84,8 @@ tmpfs. `path` is prepended to the boot script's `PATH` (the default suits NixOS)
 Lower `log_budget_bytes` if other log sources need more of the agent's 1 MiB log cap.
 
 ```tf
-module "amazon-init" {
-  source            = "registry.coder.com/coder-labs/amazon-init/coder"
+module "nixos-amazon-init" {
+  source            = "registry.coder.com/coder-labs/nixos-amazon-init/coder"
   version           = "1.0.0"
   agent_token       = coder_agent.main.token
   agent_init_script = coder_agent.main.init_script
