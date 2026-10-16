@@ -178,7 +178,8 @@ locals {
 }
 
 module "nix" {
-  source = "git::https://github.com/coder/registry.git//registry/coder-labs/modules/nix?ref=feat/nix-module"
+  source  = "registry.coder.com/coder-labs/nix/coder"
+  version = "~> 1.0"
 
   config = {
     extra-substituters        = ["https://nix-community.cachix.org"]
@@ -191,8 +192,10 @@ module "nix" {
   }
 }
 
-module "amazon-init" {
-  source = "./modules/amazon-init"
+# Loaded from GitHub until coder-labs/nixos-amazon-init has a registry release; then
+# switch to registry.coder.com/coder-labs/nixos-amazon-init/coder ~> 1.0.
+module "nixos-amazon-init" {
+  source = "git::https://github.com/coder/registry.git//registry/coder-labs/modules/nixos-amazon-init?ref=feat/amazon-init-module"
 
   agent_token       = try(coder_agent.main[0].token, "")
   agent_init_script = try(coder_agent.main[0].init_script, "")
@@ -206,7 +209,7 @@ resource "aws_instance" "dev" {
   ami               = data.aws_ami.nixos.id
   availability_zone = module.aws-region.default_availability_zone
   instance_type     = module.aws-ec2-instance-type.value
-  user_data         = module.amazon-init.user_data
+  user_data         = module.nixos-amazon-init.user_data
 
   # Rotating the user-data token must not replace the persistent root disk.
   user_data_replace_on_change = false
