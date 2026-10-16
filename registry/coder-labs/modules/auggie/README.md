@@ -1,161 +1,144 @@
 ---
 display_name: Auggie CLI
 icon: ../../../../.icons/auggie.svg
-description: Run Auggie CLI in your workspace for AI-powered coding assistance with AgentAPI integration
+description: Install and configure Augment's Auggie CLI in your workspace.
 verified: true
-tags: [agent, auggie, ai, tasks, augment]
+tags: [agent, auggie, ai, augment]
 ---
 
 # Auggie CLI
 
-Run Auggie CLI in your workspace to access Augment's AI coding assistant with advanced context understanding and codebase integration. This module integrates with [AgentAPI](https://github.com/coder/agentapi).
+Install and configure [Auggie CLI](https://docs.augmentcode.com/cli/overview) in your workspace. Auggie is installed with npm, so Node.js 20+ and npm must be available in the image or installed with `pre_install_script`.
 
 ```tf
 module "auggie" {
   source   = "registry.coder.com/coder-labs/auggie/coder"
-  version  = "0.3.1"
-  agent_id = coder_agent.example.id
-  folder   = "/home/coder/project"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
 }
 ```
 
-## Prerequisites
-
-- **Node.js and npm must be sourced/available before the auggie module installs** - ensure they are installed in your workspace image or via earlier provisioning steps
-- You must add the [Coder Login](https://registry.coder.com/modules/coder/coder-login) module to your template
-- **Augment session token for authentication (required for tasks). [Instructions](https://docs.augmentcode.com/cli/setup-auggie/authentication) to get the session token**
+> [!WARNING]
+> If upgrading from v0.x.x of this module: v1 is a major refactor that drops support for Coder Tasks and AgentAPI. The module now only installs and configures Auggie; launch it with your own `coder_app`. `folder` is renamed to `workdir` and is optional. `ai_prompt`, `continue_previous_conversation`, `interaction_mode`, `report_tasks`, `order`, `group`, `cli_app`, `web_app_display_name`, `cli_app_display_name`, `install_agentapi`, and `agentapi_version` are removed in favor of CLI flags in your launcher. `mcp` and `mcp_files` servers are now added to `~/.augment/settings.json`, `rules` are written to `~/.augment/rules/coder-module.md`, and `auggie_model` sets the `model` key in `~/.augment/settings.json`. Keep using v0.x.x if you depend on Coder Tasks.
 
 ## Examples
 
-### Usage with Tasks and Configuration
+### Standalone mode with a launcher app
 
 ```tf
-data "coder_parameter" "ai_prompt" {
-  type        = "string"
-  name        = "AI Prompt"
-  default     = ""
-  description = "Initial task prompt for Auggie CLI"
-  mutable     = true
-}
-
-module "coder-login" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/coder-login/coder"
-  version  = "0.2.2"
-  agent_id = coder_agent.example.id
+locals {
+  auggie_workdir = "/home/coder/project"
 }
 
 module "auggie" {
-  source   = "registry.coder.com/coder-labs/auggie/coder"
-  version  = "0.3.1"
-  agent_id = coder_agent.example.id
-  folder   = "/home/coder/project"
-
-  # Authentication
-  augment_session_token = <<-EOF
-  {"accessToken":"xxxx-yyyy-zzzz-jjjj","tenantURL":"https://d1.api.augmentcode.com/","scopes":["read","write"]}
-EOF  # Required for tasks
-
-  # Version
-   auggie_version  = "0.2.2"
-
-  # Task configuration
-  ai_prompt                      = data.coder_parameter.ai_prompt.value
-  continue_previous_conversation = true
-  interaction_mode               = "quiet"
-  auggie_model                   = "gpt5"
-  report_tasks                   = true
-
-  # MCP configuration for additional integrations
-  mcp = <<-EOF
-{
-  "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/coder/project"]
-    }
-  }
+  source                = "registry.coder.com/coder-labs/auggie/coder"
+  version               = "1.0.0"
+  agent_id              = coder_agent.main.id
+  workdir               = local.auggie_workdir
+  augment_session_token = var.augment_session_token
 }
-EOF
 
-  # Workspace guidelines
-  rules = <<-EOT
-    # Project Guidelines
-
-    ## Code Style
-    - Use TypeScript for all new JavaScript files
-    - Follow consistent naming conventions
-    - Add comprehensive comments for complex logic
-
-    ## Testing
-    - Write unit tests for all new functions
-    - Ensure test coverage above 80%
-
-    ## Documentation
-    - Update README.md for any new features
-    - Document API changes in CHANGELOG.md
+resource "coder_app" "auggie" {
+  agent_id     = coder_agent.main.id
+  slug         = "auggie"
+  display_name = "Auggie"
+  icon         = "/icon/auggie.svg"
+  open_in      = "slim-window"
+  command      = <<-EOT
+    #!/usr/bin/env bash
+    set -e
+    cd "${local.auggie_workdir}"
+    exec auggie --continue
   EOT
 }
 ```
 
-### Using Multiple MCP Configuration Files
+### MCP servers and rules
 
 ```tf
 module "auggie" {
   source   = "registry.coder.com/coder-labs/auggie/coder"
-  version  = "0.3.1"
-  agent_id = coder_agent.example.id
-  folder   = "/home/coder/project"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
 
-  # Multiple MCP configuration files
-  mcp_files = [
-    "/path/to/filesystem-mcp.json",
-    "/path/to/database-mcp.json",
-    "/path/to/api-mcp.json"
-  ]
-
-  mcp = <<-EOF
+  mcp       = <<-EOF
   {
-  "mcpServers": {
-    "Test MCP": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "/home/coder/test-mcp",
-        "run",
-        "server.py"
-      ],
-      "timeout": 600
+    "mcpServers": {
+      "filesystem": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/coder/project"]
+      }
     }
   }
-}
-EOF
+  EOF
+  mcp_files = ["/home/coder/.config/mcp/servers.json"]
+
+  rules = <<-EOT
+    # Project Guidelines
+
+    - Use TypeScript for all new JavaScript files.
+    - Write unit tests for all new functions.
+  EOT
 }
 ```
 
-### Troubleshooting
+`mcp` and `mcp_files` use the [`mcpServers`](https://docs.augmentcode.com/cli/integrations#mcp-integrations) format. `rules` are loaded as [user rules](https://docs.augmentcode.com/cli/rules). To pick a default model, set `auggie_model` to a name from `auggie models list`.
 
-If you have any issues, please take a look at the log files below.
+### Pinned version
+
+```tf
+module "auggie" {
+  source         = "registry.coder.com/coder-labs/auggie/coder"
+  version        = "1.0.0"
+  agent_id       = coder_agent.main.id
+  auggie_version = "0.36.0"
+}
+```
+
+### Serialize a downstream `coder_script` after the install pipeline
+
+The module exposes the `scripts` output: an ordered list of `coder exp sync` names for the scripts this module creates (pre_install, install, post_install). Scripts that were not configured are absent.
+
+```tf
+module "auggie" {
+  source   = "registry.coder.com/coder-labs/auggie/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+}
+
+resource "coder_script" "post_auggie" {
+  agent_id     = coder_agent.main.id
+  display_name = "Run after Auggie install"
+  run_on_start = true
+  script       = <<-EOT
+    #!/usr/bin/env bash
+    set -euo pipefail
+    trap 'coder exp sync complete post-auggie' EXIT
+    coder exp sync want post-auggie ${join(" ", module.auggie.scripts)}
+    coder exp sync start post-auggie
+
+    auggie --version
+  EOT
+}
+```
+
+## Authentication
+
+`augment_session_token` takes the session JSON printed by `auggie token print` and is exported as `AUGMENT_SESSION_AUTH`. Without it, run `auggie login` in the workspace. See [Auggie authentication](https://docs.augmentcode.com/cli/setup-auggie/authentication).
+
+## Troubleshooting
+
+Check the log files in `~/.coder-modules/coder-labs/auggie/logs/` for detailed information.
 
 ```bash
-# Installation logs
-cat ~/.auggie-module/install.log
-
-# Startup logs
-cat ~/.auggie-module/agentapi-start.log
-
-# Pre/post install script logs
-cat ~/.auggie-module/pre_install.log
-cat ~/.auggie-module/post_install.log
+cat ~/.coder-modules/coder-labs/auggie/logs/install.log
+cat ~/.coder-modules/coder-labs/auggie/logs/pre_install.log
+cat ~/.coder-modules/coder-labs/auggie/logs/post_install.log
 ```
-
-> [!NOTE]
-> To use tasks with Auggie CLI, create a `coder_parameter` named `"AI Prompt"` and pass its value to the auggie module's `ai_prompt` variable. The `folder` variable is required for the module to function correctly.
 
 ## References
 
-- [Auggie CLI Reference](https://docs.augmentcode.com/cli/reference)
-- [Auggie CLI MCP Integration](https://docs.augmentcode.com/cli/integrations#mcp-integrations)
-- [Augment Code Documentation](https://docs.augmentcode.com/)
-- [AgentAPI Documentation](https://github.com/coder/agentapi)
-- [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)
+- [Auggie CLI documentation](https://docs.augmentcode.com/cli/overview)
+- [Auggie CLI flags](https://docs.augmentcode.com/cli/reference)
+- [Auggie MCP integrations](https://docs.augmentcode.com/cli/integrations)
+- [Auggie rules](https://docs.augmentcode.com/cli/rules)
