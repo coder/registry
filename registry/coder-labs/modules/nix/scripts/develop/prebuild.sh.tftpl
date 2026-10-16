@@ -22,9 +22,10 @@ until [ -f "$PROJECT_PATH/flake.nix" ] && {
   waited=$((waited + 2))
 done
 
+INSTALLABLE=$(echo -n '${base64encode(ARG_INSTALLABLE)}' | base64 -d)
 mkdir -p "${ARG_PROFILE_DIR}"
 cd "$PROJECT_PATH"
-if nix develop --profile "${ARG_PROFILE_DIR}/profile" "$(echo -n '${base64encode(ARG_INSTALLABLE)}' | base64 -d)" --command true; then
+if nix develop --profile "${ARG_PROFILE_DIR}/profile" "$INSTALLABLE" --command true; then
   echo "nix develop environment is ready."
 else
   echo "Warning: prebuild failed; the app will build on first use." >&2
