@@ -15,11 +15,9 @@ import {
   runTerraformInit,
   TerraformState,
   writeFileContainer,
-} from "~test";
-import {
   extractCoderEnvVars,
   writeExecutable,
-} from "../../../coder/modules/agentapi/test-util";
+} from "~test";
 import path from "path";
 
 interface ModuleScripts {

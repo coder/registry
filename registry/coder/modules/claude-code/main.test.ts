@@ -14,8 +14,9 @@ import {
   runTerraformApply,
   runTerraformInit,
   TerraformState,
+  extractCoderEnvVars,
+  writeExecutable,
 } from "~test";
-import { extractCoderEnvVars, writeExecutable } from "../agentapi/test-util";
 import path from "path";
 
 // coder-utils orchestrates this module's scripts and can produce multiple
