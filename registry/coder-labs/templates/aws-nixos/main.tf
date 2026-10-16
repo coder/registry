@@ -230,10 +230,6 @@ resource "coder_metadata" "workspace_info" {
     value = aws_instance.dev.ami
   }
   item {
-    key   = "Flake URI"
-    value = module.nix.flake_uri
-  }
-  item {
     key   = "Build logs location"
     value = module.nix.log_dir
   }
