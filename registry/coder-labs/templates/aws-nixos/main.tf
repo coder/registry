@@ -180,6 +180,11 @@ locals {
 module "nix" {
   source = "git::https://github.com/coder/registry.git//registry/coder-labs/modules/nix?ref=feat/nix-module"
 
+  config = {
+    extra-substituters        = ["https://nix-community.cachix.org"]
+    extra-trusted-public-keys = ["nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="]
+  }
+
   nixos = {
     flake_ref  = var.flake_ref
     flake_attr = local.flake_attr
