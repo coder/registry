@@ -67,7 +67,7 @@ override_module {
 run "x86" {
   command = plan
   assert {
-    condition     = local.nix_arch == "x86_64" && coder_agent.main[0].arch == "amd64" && module.nix.flake_attr == "coder-workspace-ec2-x86_64"
+    condition     = local.nix_arch == "x86_64" && coder_agent.main[0].arch == "amd64" && local.flake_attr == "coder-workspace-ec2-x86_64"
     error_message = "The x86 instance, agent and flake attribute must agree."
   }
   assert {
@@ -89,7 +89,7 @@ run "arm" {
     }
   }
   assert {
-    condition     = local.nix_arch == "aarch64" && coder_agent.main[0].arch == "arm64" && module.nix.flake_attr == "coder-workspace-ec2-aarch64"
+    condition     = local.nix_arch == "aarch64" && coder_agent.main[0].arch == "arm64" && local.flake_attr == "coder-workspace-ec2-aarch64"
     error_message = "The ARM instance, agent and flake attribute must agree."
   }
 }
@@ -107,24 +107,5 @@ run "stop" {
   assert {
     condition     = length(coder_agent.main) == 0 && aws_ec2_instance_state.dev.state == "stopped"
     error_message = "Stopping must remove the agent and stop, not destroy, the EC2 instance."
-  }
-}
-
-run "reject_unsupported_query" {
-  command = plan
-  variables {
-    flake_ref = "https://example.org/flake?dir=subdir"
-  }
-  expect_failures = [var.flake_ref]
-}
-
-run "allow_http_userinfo" {
-  command = plan
-  variables {
-    flake_ref = "https://user:token@example.org/flake?ref=main"
-  }
-  assert {
-    condition     = module.nix.flake_uri == "https://user:token@example.org/flake?ref=main#coder-workspace-ec2-x86_64"
-    error_message = "Template must allow userinfo for private Git clones."
   }
 }

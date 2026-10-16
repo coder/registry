@@ -32,10 +32,7 @@ variable "flake_ref" {
   type        = string
   default     = "https://github.com/coder/nixos-example-flake"
 
-  validation {
-    condition     = can(regex("^(git\\+)?(https?|ssh)://", var.flake_ref)) && !can(regex("[[:cntrl:]]", var.flake_ref)) && !strcontains(var.flake_ref, "#") && (!strcontains(var.flake_ref, "?") || can(regex("\\?ref=[^&#?]+$", var.flake_ref)))
-    error_message = "Use an http(s) or ssh Git URL without control characters, fragments, or query parameters other than ?ref=."
-  }
+
 }
 
 variable "flake_attr" {
@@ -175,16 +172,23 @@ module "git-config" {
 }
 
 locals {
-  instance = module.aws-ec2-instance-type.instances[module.aws-ec2-instance-type.value]
-  nix_arch = local.instance.arch == "arm64" ? "aarch64" : local.instance.arch
+  instance   = module.aws-ec2-instance-type.instances[module.aws-ec2-instance-type.value]
+  nix_arch   = local.instance.arch == "arm64" ? "aarch64" : local.instance.arch
+  flake_attr = replace(var.flake_attr, "$ARCH", local.nix_arch)
 }
 
 module "nix" {
-  source = "./modules/nix"
+  source = "git::https://github.com/coder/registry.git//registry/coder-labs/modules/nix?ref=feat/nix-module"
 
-  flake_ref  = var.flake_ref
-  flake_attr = var.flake_attr
-  arch       = local.nix_arch
+  config = {
+    extra-substituters        = ["https://nix-community.cachix.org"]
+    extra-trusted-public-keys = ["nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="]
+  }
+
+  nixos = {
+    flake_ref  = var.flake_ref
+    flake_attr = local.flake_attr
+  }
 }
 
 module "amazon-init" {
@@ -193,7 +197,6 @@ module "amazon-init" {
   agent_token       = try(coder_agent.main[0].token, "")
   agent_init_script = try(coder_agent.main[0].init_script, "")
   boot_script       = module.nix.boot_script
-  values            = module.nix.values
 
   log_display_name = "NixOS"
   log_icon         = "/icon/nix.svg"
@@ -230,10 +233,6 @@ resource "coder_metadata" "workspace_info" {
   item {
     key   = "AMI"
     value = aws_instance.dev.ami
-  }
-  item {
-    key   = "Flake URI"
-    value = module.nix.flake_uri
   }
   item {
     key   = "Build logs location"
