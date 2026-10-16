@@ -11,7 +11,7 @@ tags: [agent, cursor, ai]
 Install and configure the [Cursor Agent CLI](https://cursor.com/docs/cli/overview) in your workspace.
 
 ```tf
-module "cursor_cli" {
+module "cursor-cli" {
   source   = "registry.coder.com/coder-labs/cursor-cli/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
@@ -31,7 +31,7 @@ locals {
   cursor_workdir = "/home/coder/project"
 }
 
-module "cursor_cli" {
+module "cursor-cli" {
   source   = "registry.coder.com/coder-labs/cursor-cli/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
@@ -59,7 +59,7 @@ When `workdir` is set, the module creates it if missing and marks it as a truste
 ### MCP servers and rules
 
 ```tf
-module "cursor_cli" {
+module "cursor-cli" {
   source   = "registry.coder.com/coder-labs/cursor-cli/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
@@ -97,7 +97,7 @@ module "cursor_cli" {
 The module exposes the `scripts` output: an ordered list of `coder exp sync` names for the scripts this module creates (pre_install, install, post_install). Scripts that were not configured are absent.
 
 ```tf
-module "cursor_cli" {
+module "cursor-cli" {
   source   = "registry.coder.com/coder-labs/cursor-cli/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
@@ -111,7 +111,7 @@ resource "coder_script" "post_cursor_cli" {
     #!/usr/bin/env bash
     set -euo pipefail
     trap 'coder exp sync complete post-cursor-cli' EXIT
-    coder exp sync want post-cursor-cli ${join(" ", module.cursor_cli.scripts)}
+    coder exp sync want post-cursor-cli ${join(" ", module.cursor-cli.scripts)}
     coder exp sync start post-cursor-cli
 
     cursor-agent --version
