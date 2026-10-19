@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLABLE=$(echo -n '${base64encode(ARG_INSTALLABLE)}' | base64 -d)
+mkdir -p "${ARG_PROFILE_DIR}"
+cd ${ARG_PATH}
+exec nix develop --profile "${ARG_PROFILE_DIR}/profile" "$INSTALLABLE"

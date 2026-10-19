@@ -55,7 +55,6 @@ run "parameter_contract" {
       data.coder_parameter.agent_relay_cursor_pool_name.ephemeral == false,
       data.coder_parameter.agent_relay_cursor_repo_url.ephemeral == false,
       data.coder_parameter.agent_relay_cursor_idle_release_timeout.ephemeral == false,
-      data.coder_parameter.agent_relay_cursor_credential_kind.ephemeral == false,
       data.coder_parameter.agent_relay_credential.ephemeral == true,
     ])
     error_message = "parameter persistence does not match the Agent Relay contract"
@@ -142,18 +141,12 @@ run "worker_wiring" {
     error_message = "the worker must read pool name and idle timeout from the environment at run time"
   }
 
-  # The token reaches the worker as --auth-token from the supervisor's
-  # environment; it must not be expanded into the supervisor file the
-  # script writes to disk.
+  # The token reaches the worker through a file, never on its command
+  # line, and is not expanded into the supervisor file the script writes
+  # to disk.
   assert {
-    condition     = strcontains(local.start_script, "auth_args=(--auth-token \"\\$AGENT_RELAY_CURSOR_TOKEN\")") && strcontains(local.start_script, "export CURSOR_API_KEY=\"\\$AGENT_RELAY_CURSOR_TOKEN\"")
-    error_message = "the supervisor must offer both credential paths, each reading the token from the environment at run time"
-  }
-
-  # The relay stamps which path applies; the supervisor branches on it.
-  assert {
-    condition     = data.coder_parameter.agent_relay_cursor_credential_kind.name == "agent_relay_cursor_credential_kind" && data.coder_parameter.agent_relay_cursor_credential_kind.default == "worker_token" && coder_env.agent_relay_cursor_credential_kind.name == "AGENT_RELAY_CURSOR_CREDENTIAL_KIND"
-    error_message = "the credential kind is a stamped parameter defaulting to worker_token, exported for the supervisor"
+    condition     = strcontains(local.start_script, "--auth-token-file \"$token_file\"") && !strcontains(local.start_script, "--auth-token ")
+    error_message = "the worker must authenticate with --auth-token-file, not --auth-token"
   }
 
   # Reaping reads this file through the agent_relay_status metadata item,

@@ -3,7 +3,7 @@
 # Tag Release Script
 # Automatically detects modules that need tagging and creates release tags
 # Usage: ./tag_release.sh [OPTIONS]
-# Operates on the current checked-out commit
+# Tags each module on the first-parent commit that introduced its README version
 
 set -euo pipefail
 
@@ -294,6 +294,24 @@ check_module_needs_tagging() {
   fi
 }
 
+# Prints the first-parent commit that introduced the module's current README
+# version: walk the README's history newest-first and stop once the module
+# block's version differs. Prints nothing if it can't be resolved (shallow clone).
+find_version_commit() {
+  local readme_path="$1" namespace="$2" module_name="$3" version="$4"
+  local found="" commit v
+
+  [[ "$(git rev-parse --is-shallow-repository)" == "true" ]] && return 0
+
+  while read -r commit; do
+    v=$(extract_version_from_module_block <(git show "$commit:$readme_path" 2> /dev/null) "$namespace" "$module_name" 2> /dev/null) || v=""
+    [[ "$v" == "$version" ]] || break
+    found="$commit"
+  done < <(git log --first-parent --format=%H -- "$readme_path")
+
+  echo "$found"
+}
+
 should_process_module() {
   local namespace="$1"
   local module_name="$2"
@@ -376,7 +394,13 @@ detect_modules_needing_tags() {
 
     if check_module_needs_tagging "$namespace" "$module_name" "$readme_version"; then
       log "INFO" "📦 $namespace/$module_name: v$readme_version (needs tag)"
-      MODULES_TO_TAG+=("$module_path:$namespace:$module_name:$readme_version")
+      local target_commit
+      target_commit=$(find_version_commit "$readme_path" "$namespace" "$module_name" "$readme_version")
+      if [[ -z "$target_commit" ]]; then
+        log "WARN" "$namespace/$module_name: could not find the commit that introduced v$readme_version (shallow clone?), tagging HEAD"
+        target_commit=$(git rev-parse HEAD)
+      fi
+      MODULES_TO_TAG+=("$module_path:$namespace:$module_name:$readme_version:$target_commit")
       needs_tagging=$((needs_tagging + 1))
 
       local status="needs_tagging"
@@ -413,8 +437,8 @@ detect_modules_needing_tags() {
   if [[ "$OUTPUT_FORMAT" != "json" ]]; then
     echo "## Tags to be created:"
     for module_info in "${MODULES_TO_TAG[@]}"; do
-      IFS=':' read -r module_path namespace module_name version <<< "$module_info"
-      echo "- \`release/$namespace/$module_name/v$version\`"
+      IFS=':' read -r module_path namespace module_name version target_commit <<< "$module_info"
+      echo "- \`release/$namespace/$module_name/v$version\` -> ${target_commit:0:8}"
     done
     echo ""
   fi
@@ -480,16 +504,13 @@ create_and_push_tags() {
     return $EXIT_ERROR
   }
 
-  local current_commit
-  current_commit=$(git rev-parse HEAD)
-
   if [[ "$DRY_RUN" == "true" ]]; then
-    log "INFO" "🏷️  [DRY RUN] Would create release tags for commit: $current_commit"
+    log "INFO" "🏷️  [DRY RUN] Would create the release tags listed above"
     JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq '.summary.operation_status = "dry_run" | .summary.tags_created = 0 | .summary.tags_pushed = 0')
     return $EXIT_SUCCESS
   fi
 
-  log "INFO" "🏷️  Creating release tags for commit: $current_commit"
+  log "INFO" "🏷️  Creating release tags"
   if [[ "$OUTPUT_FORMAT" != "json" ]]; then
     echo ""
   fi
@@ -499,7 +520,7 @@ create_and_push_tags() {
   local created_tag_names=()
 
   for module_info in "${MODULES_TO_TAG[@]}"; do
-    IFS=':' read -r module_path namespace module_name version <<< "$module_info"
+    IFS=':' read -r module_path namespace module_name version target_commit <<< "$module_info"
 
     local tag_name="release/$namespace/$module_name/v$version"
     local tag_message="Release $namespace/$module_name v$version"
@@ -507,7 +528,7 @@ create_and_push_tags() {
     log "DEBUG" "Creating tag: $tag_name"
     log "INFO" "Creating tag: $tag_name"
 
-    if git tag -a "$tag_name" -m "$tag_message" "$current_commit" 2> /dev/null; then
+    if git tag -a "$tag_name" -m "$tag_message" "$target_commit" 2> /dev/null; then
       log "SUCCESS" "Created: $tag_name"
       created_tags=$((created_tags + 1))
       created_tag_names+=("$tag_name")
@@ -516,7 +537,7 @@ create_and_push_tags() {
         '(.modules[] | select(.tag_name == $tag) | .status) = "tag_created"')
     else
       log "ERROR" "Failed to create: $tag_name"
-      add_json_error "tag_creation_failed" "Failed to create tag: $tag_name" "git tag -a $tag_name -m '$tag_message' $current_commit"
+      add_json_error "tag_creation_failed" "Failed to create tag: $tag_name" "git tag -a $tag_name -m '$tag_message' $target_commit"
       failed_tags=$((failed_tags + 1))
 
       JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg tag "$tag_name" \

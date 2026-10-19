@@ -92,6 +92,54 @@ EOF`;
     );
   });
 
+  it("configures pnpm with npm-compatible repositories", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "some-agent-id",
+      jfrog_url: fakeFrogUrl,
+      artifactory_access_token: "XXXX",
+      install_jfrog_cli: false,
+      configure_jfrog_cli: false,
+      package_managers: JSON.stringify({
+        pnpm: ["global", "@foo:foo"],
+      }),
+    });
+    const coderScript = findResourceInstance(state, "coder_script");
+    expect(coderScript.script).toContain(
+      'jf pnpmc --global --repo-resolve "global"',
+    );
+    expect(coderScript.script).toContain(
+      `@foo:registry=http://${fakeFrogApi}/npm/foo`,
+    );
+    expect(coderScript.script).toContain(
+      'if [ -z "YES" ]; then\n  not_configured pnpm',
+    );
+    expect(coderScript.script).toContain(
+      'if [ "true" == "true" ] && ! command -v jf',
+    );
+  });
+
+  it("writes one npmrc when npm and pnpm are configured", async () => {
+    const state = await runTerraformApply<TestVariables>(import.meta.dir, {
+      agent_id: "some-agent-id",
+      jfrog_url: fakeFrogUrl,
+      artifactory_access_token: "XXXX",
+      package_managers: JSON.stringify({
+        npm: ["global", "@foo:foo"],
+        pnpm: ["global", "@foo:foo"],
+      }),
+    });
+    const coderScript = findResourceInstance(state, "coder_script");
+    expect(coderScript.script).toContain(
+      'jf npmc --global --repo-resolve "global"',
+    );
+    expect(coderScript.script).toContain(
+      'jf pnpmc --global --repo-resolve "global"',
+    );
+    expect(
+      coderScript.script.match(/cat << EOF > ~\/\.npmrc/g) ?? [],
+    ).toHaveLength(1);
+  });
+
   it("generates a pip config with extra-indexes", async () => {
     const state = await runTerraformApply<TestVariables>(import.meta.dir, {
       agent_id: "some-agent-id",

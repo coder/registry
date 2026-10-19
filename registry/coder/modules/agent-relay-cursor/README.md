@@ -16,7 +16,7 @@ parameters the relay stamps on each build and runs the Cursor CLI worker.
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "0.4.0"
+  version  = "0.5.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Cursor CLI at start when it is not in the image. Bake
@@ -69,32 +69,22 @@ created.
 
 ## Worker credential
 
-By default the pool's service-account API key never leaves Agent Relay. At
-dispatch the relay exchanges it for a Cursor sub-token scoped to the requesting
-user and stamps that as the ephemeral `agent_relay_credential` parameter. It
-is exported as `AGENT_RELAY_CURSOR_TOKEN` and the worker starts with
-`--auth-token`. It is never written to disk, though as a command-line argument
-it is visible in the worker's `/proc/<pid>/cmdline` to any process running as
-the same user inside the workspace; the CLI offers no environment variable for
-it. The token acts only as that user, cannot mint further tokens, and expires
-after an hour. It is not refreshed: a worker that has to reconnect after expiry
-fails and Cursor re-queues the request for a fresh workspace.
+The pool's service-account API key never leaves Agent Relay. When the relay
+claims a request, Cursor mints a
+[session token](https://cursor.com/docs/cloud-agent/self-hosted/pool#session-tokens)
+for that claim, and the relay stamps it as the ephemeral
+`agent_relay_credential` parameter. The module exports it as
+`AGENT_RELAY_CURSOR_TOKEN`, writes it to `worker-token` (mode `0600`), and
+starts the worker with `--auth-token-file`. The token stays off the worker's
+command line, and the supervisor unsets the variable so the worker and the
+agent's commands do not inherit it. The supervisor deletes the file when the
+worker exits.
 
-Some Cursor CLI releases refuse a delegated sub-token for pool workers
-(`Delegated service-account tokens cannot start pool workers`). Agent Relay's
-per-pool `insecure_shared_token` then stamps the service-account key itself,
-together with `agent_relay_cursor_credential_kind = api_key`. The CLI accepts
-that key only as an API key, never as `--auth-token`
-(`Failed to validate worker account settings`), so the supervisor exports the
-credential as `CURSOR_API_KEY` and drops `--auth-token` when the stamped kind
-says so. Every workspace owner in such a pool can read a team-wide key from
-the worker's environment. No template change is needed; the relay stamps the
-kind and the module follows it.
-
-| pool `insecure_shared_token` | stamped `agent_relay_cursor_credential_kind` | credential handed to the CLI as |
-| ---------------------------- | -------------------------------------------- | ------------------------------- |
-| `false` (default)            | `worker_token`                               | `--auth-token`                  |
-| `true`                       | `api_key`                                    | `CURSOR_API_KEY`                |
+A session token connects only the claimed worker id, and Cursor refuses it on
+every endpoint a worker does not call. It stops working when the claim ends,
+for example after the idle-release timeout, or when the service account key
+that minted it is deleted or expires. Its 7-day expiry is a backstop, not a
+session limit.
 
 ## Parameters
 
@@ -110,16 +100,17 @@ an install step that downloads the CLI when `install_cli` is set and the
 binary is missing (a no-op otherwise), then a start step that launches the
 worker. Everything lands under `$HOME/.coder-modules/coder/agent-relay-cursor`:
 
-| path                                     | contents                                       |
-| ---------------------------------------- | ---------------------------------------------- |
-| `scripts/install.sh`, `scripts/start.sh` | the install and start steps as they ran        |
-| `scripts/supervise.sh`                   | the detached supervisor that owns the worker   |
-| `logs/*.log`                             | output of each step, plus the worker's own log |
-| `worker-state`                           | the supervisor's lifecycle line (`state_file`) |
+| path                                     | contents                                         |
+| ---------------------------------------- | ------------------------------------------------ |
+| `scripts/install.sh`, `scripts/start.sh` | the install and start steps as they ran          |
+| `scripts/supervise.sh`                   | the detached supervisor that owns the worker     |
+| `logs/*.log`                             | output of each step, plus the worker's own log   |
+| `worker-state`                           | the supervisor's lifecycle line (`state_file`)   |
+| `worker-token`                           | the session token, removed when the worker exits |
 
 ## Worker lifecycle
 
-The start step launches `agent worker --pool ... --idle-release-timeout ... --auth-token ... start`
+The start step launches `agent worker --pool ... --idle-release-timeout ... --auth-token-file ... start`
 detached and exits, so the agent reaches `ready` immediately. The worker exits
 `0` when its idle-release timer fires after a session; that clean exit is what
 tells Agent Relay to delete the workspace. The timer starts when the agent
