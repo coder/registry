@@ -7,7 +7,7 @@ set -euo pipefail
 ARG_PORT='${ARG_PORT}'
 ARG_WAYLAND='${ARG_WAYLAND}'
 ARG_DESKTOP=$(echo -n '${ARG_DESKTOP_B64}' | base64 -d)
-LOG_PATH="$HOME/.coder-modules/selkies-project/selkies/logs/selkies-session.log"
+LOG_PATH="$HOME/.coder-modules/selkies-project/selkies/logs/session.log"
 
 # A GET of /api/health over bash's own TCP, so the check needs no curl
 healthy() {
@@ -27,7 +27,7 @@ fi
 mkdir -p "$(dirname "$LOG_PATH")"
 args=(--port="$ARG_PORT" --enable-basic-auth=false --enable-https=false)
 [ -z "$ARG_DESKTOP" ] || args+=(--session="$ARG_DESKTOP")
-SELKIES_WAYLAND="$ARG_WAYLAND" nohup selkies-session "$${args[@]}" >> "$LOG_PATH" 2>&1 &
+SELKIES_WAYLAND="$ARG_WAYLAND" nohup selkies session "$${args[@]}" >> "$LOG_PATH" 2>&1 &
 pid=$!
 echo "Starting Selkies on port $ARG_PORT; its log is $LOG_PATH"
 for _ in $(seq 1 60); do
