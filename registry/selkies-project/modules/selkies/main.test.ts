@@ -66,13 +66,13 @@ afterEach(async () => {
 });
 
 // A workspace with the coder CLI stubbed and, as an image carrying Selkies
-// would have them, a launcher and an Xvfb on PATH
-const workspace = async (launcher?: string): Promise<string> => {
+// would have them, a selkies and an Xvfb on PATH
+const workspace = async (selkies?: string): Promise<string> => {
   const id = await runContainer(IMAGE);
   containers.push(id);
   await writeCoder(id, "#!/bin/sh\nexit 0\n");
-  if (launcher !== undefined) {
-    await writeFileContainer(id, "/usr/local/bin/selkies-session", launcher, {
+  if (selkies !== undefined) {
+    await writeFileContainer(id, "/usr/local/bin/selkies", selkies, {
       user: "root",
     });
     await writeFileContainer(id, "/usr/local/bin/Xvfb", "#!/bin/sh\n", {
@@ -80,17 +80,15 @@ const workspace = async (launcher?: string): Promise<string> => {
     });
     await execContainer(
       id,
-      ["chmod", "755", "/usr/local/bin/selkies-session", "/usr/local/bin/Xvfb"],
+      ["chmod", "755", "/usr/local/bin/selkies", "/usr/local/bin/Xvfb"],
       ["--user", "root"],
     );
   }
   return id;
 };
 
-const mockLauncher = () =>
-  Bun.file(
-    path.join(import.meta.dir, "testdata", "selkies-session-mock.sh"),
-  ).text();
+const mockSelkies = () =>
+  Bun.file(path.join(import.meta.dir, "testdata", "selkies-mock.sh")).text();
 
 const run = (id: string, script: string) =>
   execContainer(id, ["bash", "-c", script]);
@@ -107,7 +105,7 @@ describe("selkies", async () => {
         desktop_environment: "xfce",
       }),
     );
-    const id = await workspace(await mockLauncher());
+    const id = await workspace(await mockSelkies());
 
     const install = await run(id, scripts.install);
     expect(install.exitCode).toBe(0);
@@ -118,7 +116,7 @@ describe("selkies", async () => {
     const start = await run(id, scripts.start);
     expect(start.exitCode).toBe(0);
     expect(start.stdout).toContain("Selkies is ready on port 8080");
-    const args = await readFileContainer(id, "/tmp/selkies-session.args");
+    const args = await readFileContainer(id, "/tmp/selkies.args");
     expect(args.trim().split("\n")).toEqual([
       "--port=8080",
       "--enable-basic-auth=false",
@@ -143,7 +141,26 @@ describe("selkies", async () => {
     const install = await run(id, scripts.install);
     expect(install.exitCode).not.toBe(0);
     expect(install.stdout).toContain(
-      "The workspace lacks selkies-session Xvfb and install_selkies is false",
+      "The workspace lacks selkies session (Selkies 2.1.0 or later), Xvfb and install_selkies is false",
+    );
+  });
+
+  it("takes a Selkies older than 2.1.0, without selkies session, for a missing one", async () => {
+    const scripts = scriptsOf(
+      await runTerraformApply<Variables>(import.meta.dir, {
+        agent_id: "foo",
+        install_selkies: false,
+      }),
+    );
+    // 2.0.0 answers --help with the server's usage, whatever word comes first
+    const id = await workspace(
+      "#!/bin/sh\necho 'usage: selkies [-h] [--port PORT]'\n",
+    );
+
+    const install = await run(id, scripts.install);
+    expect(install.exitCode).not.toBe(0);
+    expect(install.stdout).toContain(
+      "The workspace lacks selkies session (Selkies 2.1.0 or later) and install_selkies is false",
     );
   });
 
@@ -155,7 +172,7 @@ describe("selkies", async () => {
       }),
     );
     const id = await workspace(
-      "#!/bin/sh\necho 'Xvfb did not come up' >&2\nexit 1\n",
+      "#!/bin/sh\n[ \"$2\" = --help ] && echo 'usage: selkies session' && exit 0\necho 'Xvfb did not come up' >&2\nexit 1\n",
     );
 
     // The install script runs first, as Coder orders them, and lays out the module's directory
