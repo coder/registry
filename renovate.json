@@ -1,6 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
+  "extends": ["config:recommended", "group:all", "schedule:weekly"],
+  "enabledManagers": ["terraform"],
+  "timezone": "UTC",
+  "prConcurrentLimit": 1,
+  "packageRules": [
+    {
+      "matchManagers": ["terraform"],
+      "groupName": "terraform dependencies",
+      "groupSlug": "terraform"
+    }
   ]
 }
