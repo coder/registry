@@ -43,7 +43,7 @@ run "defaults" {
   }
 
   assert {
-    condition     = strcontains(local.install_script, "ARG_RELEASE_URL='https://github.com/selkies-project/selkies/releases'") && !strcontains(local.install_script, "api.github.com")
+    condition     = strcontains(local.install_script, "ARG_RELEASE_URL='https://github.com/selkies-project/selkies/releases'") && strcontains(local.install_script, "\"$ARG_RELEASE_URL/latest\")") && !strcontains(local.install_script, "api.github.com/repos/selkies-project/selkies/releases/latest")
     error_message = "The latest release must be resolved from GitHub's releases redirect, not its rate-limited API."
   }
 }
@@ -142,12 +142,12 @@ run "pinned_release_from_a_mirror" {
 
   variables {
     agent_id        = "agent"
-    selkies_version = "2.0.0"
+    selkies_version = "2.1.0"
     release_url     = "https://artifacts.example.com/selkies/releases"
   }
 
   assert {
-    condition     = strcontains(local.install_script, "ARG_VERSION='2.0.0'") && strcontains(local.install_script, "ARG_RELEASE_URL='https://artifacts.example.com/selkies/releases'")
+    condition     = strcontains(local.install_script, "ARG_VERSION='2.1.0'") && strcontains(local.install_script, "ARG_RELEASE_URL='https://artifacts.example.com/selkies/releases'")
     error_message = "The install script must download the pinned release from the mirror."
   }
 }
@@ -168,7 +168,7 @@ run "rejects_a_version_that_is_not_a_tag" {
 
   variables {
     agent_id        = "agent"
-    selkies_version = "2.0.0'; true"
+    selkies_version = "2.1.0'; true"
   }
 
   expect_failures = [var.selkies_version]
