@@ -44,13 +44,13 @@ variable "install_selkies" {
 }
 
 variable "selkies_version" {
-  description = "The Selkies release to install, such as 2.0.0. Empty installs the latest."
+  description = "The Selkies release to install, 2.1.0 or later, such as 2.1.0. Empty installs the latest."
   type        = string
   default     = ""
 
   validation {
     condition     = can(regex("^([0-9A-Za-z][0-9A-Za-z._-]*)?$", var.selkies_version))
-    error_message = "selkies_version must be a release tag such as 2.0.0, or empty for the latest."
+    error_message = "selkies_version must be a release tag such as 2.1.0, or empty for the latest."
   }
 }
 

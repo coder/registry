@@ -15,22 +15,30 @@ ARG_WAYLAND='${ARG_WAYLAND}'
 ARG_VERSION='${ARG_VERSION}'
 ARG_RELEASE_URL='${ARG_RELEASE_URL}'
 
+# The desktop runs as `selkies session`, which Selkies has from 2.1.0: an older
+# selkies takes the word for a stray argument and starts a bare server
+has_session() {
+  command -v selkies > /dev/null && selkies session --help 2> /dev/null | grep -q '^usage: selkies session'
+}
+
 missing=()
-command -v selkies-session > /dev/null || missing+=(selkies-session)
+has_session || missing+=("selkies session (Selkies 2.1.0 or later)")
 [ "$ARG_WAYLAND" = true ] || command -v Xvfb > /dev/null || missing+=(Xvfb)
 if [ $${#missing[@]} -eq 0 ]; then
   echo "Selkies and its display server are installed"
   exit 0
 fi
+lacking=$(printf '%s, ' "$${missing[@]}")
+lacking=$${lacking%, }
 if [ "$ARG_INSTALL" != true ]; then
-  echo "The workspace lacks $${missing[*]} and install_selkies is false: install them in the image" >&2
+  echo "The workspace lacks $lacking and install_selkies is false: install them in the image" >&2
   exit 1
 fi
 
 sudo=()
 if [ "$(id -u)" -ne 0 ]; then
   if ! sudo -n true 2> /dev/null; then
-    echo "Installing $${missing[*]} needs root or sudo without a password: install them in the image instead" >&2
+    echo "Installing $lacking needs root or sudo without a password: install them in the image instead" >&2
     exit 1
   fi
   sudo=(sudo)
@@ -63,7 +71,7 @@ else
   exit 1
 fi
 
-if ! command -v selkies-session > /dev/null; then
+if ! has_session; then
   command -v curl > /dev/null || "$${install_repo[@]}" curl
   version=$ARG_VERSION
   if [ -z "$version" ]; then
@@ -98,6 +106,10 @@ if ! command -v selkies-session > /dev/null; then
     exit 1
   fi
   "$${install_file[@]}" "$work/$file"
+  if ! has_session; then
+    echo "Selkies $version has no \`selkies session\`, which came in 2.1.0: set selkies_version to 2.1.0 or later" >&2
+    exit 1
+  fi
 fi
 
 if [ "$ARG_WAYLAND" != true ] && ! command -v Xvfb > /dev/null; then

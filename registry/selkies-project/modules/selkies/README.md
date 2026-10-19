@@ -29,7 +29,7 @@ module "selkies" {
 
 ## Selkies in the Image
 
-Where the image carries Selkies and Xvfb, the module installs nothing and needs neither `sudo` nor network access, and `install_selkies = false` keeps it that way. Selkies publishes native packages, a Python wheel, and an AppImage; see its [native install guide](https://github.com/selkies-project/selkies/blob/main/docs/native.md).
+Where the image carries Selkies 2.1.0 or later and Xvfb, the module installs nothing and needs neither `sudo` nor network access, and `install_selkies = false` keeps it that way. Selkies publishes native packages, a Python wheel, and an AppImage; see its [native install guide](https://github.com/selkies-project/selkies/blob/main/docs/native.md).
 
 ```tf
 module "selkies" {
@@ -53,7 +53,7 @@ module "selkies" {
   version             = "1.0.0"
   agent_id            = coder_agent.main.id
   desktop_environment = "xfce"
-  selkies_version     = "2.0.0"
+  selkies_version     = "2.1.0"
   release_url         = "https://artifacts.example.com/selkies/releases"
 }
 ```
@@ -85,4 +85,4 @@ Once it runs, the browser reaches Selkies through Coder's proxy on the workspace
 
 ## Troubleshooting
 
-The logs are in `~/.coder-modules/selkies-project/selkies/logs/`: `install.log`, `start.log`, and Selkies' own `selkies-session.log`. `coder port-forward <workspace> --tcp 8080:8080` reaches the same desktop at `http://localhost:8080`, which browsers treat as a secure context for the clipboard, gamepads, and the microphone.
+The logs are in `~/.coder-modules/selkies-project/selkies/logs/`: `install.log`, `start.log`, and Selkies' own `session.log`. `coder port-forward <workspace> --tcp 8080:8080` reaches the same desktop at `http://localhost:8080`, which browsers treat as a secure context for the clipboard, gamepads, and the microphone.
