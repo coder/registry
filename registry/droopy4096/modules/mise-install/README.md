@@ -119,7 +119,7 @@ If your environment blocks all outbound traffic, set `install_mise = false`, shi
 
 ## Execution order
 
-This module uses [`coder/coder-utils`](https://registry.coder.com/modules/coder/coder-utils) to run two ordered scripts via `coder exp sync`:
+This module uses [`coder/coder-utils`](https://registry.coder.com/modules/coder/lib-coder-utils) to run two ordered scripts via `coder exp sync`:
 
 1. **Install Script** — installs `mise` and (optionally) configures shell activation.
 2. **Post-Install Script** — waits for the clone to complete, then runs `mise trust` and `mise install` in `repo_dir`.

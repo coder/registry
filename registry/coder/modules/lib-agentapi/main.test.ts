@@ -81,7 +81,7 @@ setDefaultTimeout(60 * 1000);
 
 // we don't run these tests in CI because they take too long and make network
 // calls. they are dedicated for local development.
-describe("agentapi", async () => {
+describe("lib-agentapi", async () => {
   beforeAll(async () => {
     await runTerraformInit(import.meta.dir);
   });

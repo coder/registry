@@ -12,11 +12,11 @@ import {
   expectAgentAPIStarted,
   loadTestFile,
   setup as setupUtil,
-} from "../../../coder/modules/agentapi/test-util";
+} from "../../../coder/modules/lib-agentapi/test-util";
 import {
   setupContainer,
   writeExecutable,
-} from "../../../coder/modules/agentapi/test-util";
+} from "../../../coder/modules/lib-agentapi/test-util";
 
 let cleanupFns: (() => Promise<void>)[] = [];
 const registerCleanup = (fn: () => Promise<void>) => cleanupFns.push(fn);
