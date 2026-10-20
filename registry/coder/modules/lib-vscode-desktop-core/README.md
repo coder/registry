@@ -1,12 +1,12 @@
 ---
-display_name: Coder VSCode Desktop Core
+display_name: Coder VSCode Desktop Core (library)
 description: Building block for modules that need to link to an external VSCode-based IDE
 icon: ../../../../.icons/coder.svg
 verified: true
 tags: [internal, library]
 ---
 
-# VS Code Desktop Core
+# VS Code Desktop Core (library)
 
 > [!CAUTION]
 > We do not recommend using this module directly. Instead, please consider using one of our [Desktop IDE modules](https://registry.coder.com/modules?search=tag%3Aide).
