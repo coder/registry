@@ -14,7 +14,7 @@ Automatically install [code-server](https://github.com/coder/code-server) in a w
 module "code-server" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/code-server/coder"
-  version  = "1.5.2"
+  version  = "1.6.0"
   agent_id = coder_agent.example.id
 }
 ```
@@ -29,7 +29,7 @@ module "code-server" {
 module "code-server" {
   count           = data.coder_workspace.me.start_count
   source          = "registry.coder.com/coder/code-server/coder"
-  version         = "1.5.2"
+  version         = "1.6.0"
   agent_id        = coder_agent.example.id
   install_version = "4.106.3"
 }
@@ -43,7 +43,7 @@ Install the Dracula theme from [OpenVSX](https://open-vsx.org/):
 module "code-server" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/code-server/coder"
-  version  = "1.5.2"
+  version  = "1.6.0"
   agent_id = coder_agent.example.id
   extensions = [
     "dracula-theme.theme-dracula"
@@ -53,6 +53,40 @@ module "code-server" {
 
 Enter the `<author>.<name>` into the extensions array and code-server will automatically install on start.
 
+### Install Workspace Recommendations After a Repository Clone
+
+When `auto_install_extensions` reads recommendations from a repository cloned during workspace startup, coordinate the scripts so code-server waits for the clone to finish:
+
+```tf
+module "git-clone" {
+  count             = data.coder_workspace.me.start_count
+  source            = "registry.coder.com/coder/git-clone/coder"
+  version           = "2.0.3"
+  agent_id          = coder_agent.main.id
+  url               = "https://github.com/example/project"
+  post_clone_script = <<-EOT
+    coder exp sync start git-clone
+    coder exp sync complete git-clone
+  EOT
+}
+
+module "code-server" {
+  count                              = data.coder_workspace.me.start_count
+  source                             = "registry.coder.com/coder/code-server/coder"
+  version                            = "1.6.0"
+  agent_id                           = coder_agent.main.id
+  folder                             = module.git-clone[count.index].repo_dir
+  auto_install_extensions            = true
+  pre_auto_install_extensions_script = <<-EOT
+    coder exp sync want code-server-auto-install git-clone
+    coder exp sync start code-server-auto-install
+    coder exp sync complete code-server-auto-install
+  EOT
+}
+```
+
+Startup coordination is experimental and requires Coder v2.30 or later.
+
 ### Pre-configure User Settings
 
 Configure VS Code's [User settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-json-file). These settings are merged with any existing user settings on startup:
@@ -61,7 +95,7 @@ Configure VS Code's [User settings.json](https://code.visualstudio.com/docs/gets
 module "code-server" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/code-server/coder"
-  version    = "1.5.2"
+  version    = "1.6.0"
   agent_id   = coder_agent.example.id
   extensions = ["dracula-theme.theme-dracula"]
   settings = {
@@ -81,7 +115,7 @@ Install multiple extensions from [OpenVSX](https://open-vsx.org/) by adding them
 module "code-server" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/code-server/coder"
-  version    = "1.5.2"
+  version    = "1.6.0"
   agent_id   = coder_agent.example.id
   extensions = ["dracula-theme.theme-dracula", "ms-azuretools.vscode-docker"]
 }
@@ -95,7 +129,7 @@ Open a [`.code-workspace`](https://coder.com/docs/code-server/FAQ#how-does-code-
 module "code-server" {
   count     = data.coder_workspace.me.start_count
   source    = "registry.coder.com/coder/code-server/coder"
-  version   = "1.5.2"
+  version   = "1.6.0"
   agent_id  = coder_agent.example.id
   workspace = "/home/coder/project/my.code-workspace"
 }
@@ -109,7 +143,7 @@ You can pass additional command-line arguments to code-server using the `additio
 module "code-server" {
   count           = data.coder_workspace.me.start_count
   source          = "registry.coder.com/coder/code-server/coder"
-  version         = "1.5.2"
+  version         = "1.6.0"
   agent_id        = coder_agent.example.id
   additional_args = "--disable-workspace-trust"
 }
@@ -125,7 +159,7 @@ Run an existing copy of code-server if found, otherwise download from GitHub:
 module "code-server" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/code-server/coder"
-  version    = "1.5.2"
+  version    = "1.6.0"
   agent_id   = coder_agent.example.id
   use_cached = true
   extensions = ["dracula-theme.theme-dracula", "ms-azuretools.vscode-docker"]
@@ -138,7 +172,7 @@ Just run code-server in the background, don't fetch it from GitHub:
 module "code-server" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/code-server/coder"
-  version  = "1.5.2"
+  version  = "1.6.0"
   agent_id = coder_agent.example.id
   offline  = true
 }

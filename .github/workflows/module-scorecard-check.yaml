@@ -9,10 +9,12 @@
 # Two triggers:
 #   - pull_request: runs automatically for same-repo PRs. Fork PRs are
 #     skipped because secrets are unavailable to them.
-#   - issue_comment: a maintainer comments "/scorecard" on any PR
-#     (including fork PRs) to run the check on demand. Restricted to
-#     OWNER/MEMBER/COLLABORATOR, so every fork-PR scoring is an explicit
-#     maintainer decision.
+#   - workflow_dispatch: a maintainer with write access runs the check on
+#     demand for any PR (including fork PRs), passing the PR number and
+#     the reviewed head commit SHA. The run fails if the PR head no longer
+#     matches that SHA, so only reviewed content is scored. For example:
+#       gh workflow run module-scorecard-check.yaml \
+#         -f pr_number=123 -f head_sha="$(gh pr view 123 --json headRefOid -q .headRefOid)"
 #
 # Modules in every namespace (registry/<namespace>/modules/<name>) are
 # scored. Only registry/coder modules have discussion baselines; community
@@ -22,9 +24,14 @@
 # repository, and PR content is fetched separately and materialized ONLY
 # under registry/, where the scoring script reads it as
 # inert text for the LLM prompt. Nothing from the PR head is executed.
+# Symbolic links in the PR's registry/ tree are rejected, and the scoring
+# script reads only regular files inside each module directory.
 #
 # Required repository secrets:
-#   SCORECARD_ANTHROPIC_API_KEY  Anthropic API key used for scoring
+#   SCORECARD_CDRSTABLE_TOKEN  cdrstable.dev token for the dedicated
+#                              "registry-scorecard" service account, used for
+#                              scoring via cdrstable.dev's AI Gateway (Anthropic
+#                              passthrough) instead of a raw Anthropic key.
 #
 # The baseline lookup reads discussions with the built-in GITHUB_TOKEN
 # (discussions: read below); no PAT is needed.
@@ -35,8 +42,16 @@ on:
   pull_request:
     paths:
       - "registry/*/modules/**"
-  issue_comment:
-    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to score
+        required: true
+        type: string
+      head_sha:
+        description: Full head commit SHA of the pull request that was reviewed
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -44,24 +59,20 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: module-scorecard-check-${{ github.event.pull_request.number || github.event.issue.number }}
+  group: module-scorecard-check-${{ github.event.pull_request.number || inputs.pr_number }}
   cancel-in-progress: true
 
 jobs:
   check:
     name: Compare module scores against main
     if: >-
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.head.repo.full_name == github.repository) ||
-      (github.event_name == 'issue_comment' &&
-       github.event.issue.pull_request &&
-       startsWith(github.event.comment.body, '/scorecard') &&
-       contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association))
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout trusted base
-        # For issue_comment this is the default branch; for pull_request it
+        # For workflow_dispatch this is the selected branch; for pull_request it
         # is the test merge commit of a same-repo PR. Either way the
         # .github/scorecard scripts executed below come from the base
         # repository, never from a fork.
@@ -77,7 +88,8 @@ jobs:
       - name: Determine changed modules
         id: changed
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          EXPECTED_HEAD_SHA: ${{ inputs.head_sha }}
         # Fetch GitHub's test merge commit (PR head merged into current
         # main) so FETCH_HEAD^1 is the exact main tip this PR is applied
         # to and the diff is precisely what the PR changes. Diffing against
@@ -86,7 +98,31 @@ jobs:
         # module merged to main since the PR branched and scores unrelated
         # modules (REG-74).
         run: |
+          if [[ ! "${PR_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid pull request number: ${PR_NUMBER}"
+            exit 1
+          fi
           git fetch --depth=2 origin "refs/pull/${PR_NUMBER}/merge"
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            if [[ ! "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::head_sha must be a full 40-character commit SHA."
+              exit 1
+            fi
+            # The second parent of the test merge commit is the PR head.
+            ACTUAL_HEAD_SHA=$(git rev-parse FETCH_HEAD^2)
+            if [[ "${ACTUAL_HEAD_SHA}" != "${EXPECTED_HEAD_SHA}" ]]; then
+              echo "::error::PR #${PR_NUMBER} head is ${ACTUAL_HEAD_SHA}, expected ${EXPECTED_HEAD_SHA}. Review the latest changes and rerun."
+              exit 1
+            fi
+          fi
+          # Module content is read as data only, so links that could point
+          # outside the checkout are not allowed.
+          LINKS=$(git ls-tree -r FETCH_HEAD -- registry | awk '$1 == "120000" { print $4 }')
+          if [[ -n "${LINKS}" ]]; then
+            echo "::error::Symbolic links are not allowed under registry/:"
+            echo "${LINKS}"
+            exit 1
+          fi
           # Module specs are namespace/name (for example coder/git-clone or
           # droopy4096/mise-install) so community-namespace modules are
           # scored too, not just registry/coder.
@@ -110,7 +146,7 @@ jobs:
       - name: Score changed modules
         if: steps.changed.outputs.modules != ''
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.SCORECARD_ANTHROPIC_API_KEY }}
+          SCORECARD_CODER_TOKEN: ${{ secrets.SCORECARD_CDRSTABLE_TOKEN }}
           GITHUB_DISCUSSIONS_TOKEN: ${{ github.token }}
           MODULES: ${{ steps.changed.outputs.modules }}
         run: bun run .github/scorecard/score-modules.ts --modules "${MODULES}" --pr-report /tmp/scorecard-report.md

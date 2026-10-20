@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 LOGFILE="$HOME/.config/JetBrains/install_plugins.log"

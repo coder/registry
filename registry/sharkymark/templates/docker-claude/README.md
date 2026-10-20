@@ -3,7 +3,7 @@ display_name: "Claude Code AI Agent Template"
 description: An experimental AI agent integration with Claude CodeAI agent
 icon: "../../../../.icons/claude.svg"
 verified: false
-tags: ["ai", "docker", "container", "claude", "agent", "tasks"]
+tags: ["ai", "docker", "container", "claude", "agent"]
 ---
 
 # AI agent template for a workspace in a container on a Docker host
@@ -21,7 +21,7 @@ An experimental AI agent integration with Claude CodeAI agent
 1. A web-based terminal
 1. code-server Web IDE
 1. A [sample app](https://github.com/gothinkster/realworld) to test the environment
-1. [Claude Code AI agent](https://www.anthropic.com/claude-code) to assist with development tasks
+1. [Claude Code AI agent](https://www.anthropic.com/claude-code), launched from the Claude Code app, to assist with development
 
 ## Resources
 

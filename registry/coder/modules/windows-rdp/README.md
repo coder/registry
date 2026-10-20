@@ -10,13 +10,19 @@ tags: [windows, rdp, web, desktop]
 
 Enable Remote Desktop + a web based client on Windows workspaces, powered by [devolutions-gateway](https://github.com/Devolutions/devolutions-gateway).
 
+The module adds an **RDP Desktop** app by default that opens the workspace in a
+native RDP client through [Coder Desktop](https://coder.com/docs/user-guides/desktop).
+Set `enable_native_rdp = false` for web-only access. The native app uses the same
+administrator credentials as the web client and requires `agent_name`.
+
 ```tf
 # AWS example. See below for examples of using this module with other providers
 module "windows_rdp" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/windows-rdp/coder"
-  version  = "1.3.1"
-  agent_id = coder_agent.main.id
+  count      = data.coder_workspace.me.start_count
+  source     = "registry.coder.com/coder/windows-rdp/coder"
+  version    = "1.4.0"
+  agent_id   = coder_agent.main.id
+  agent_name = "main"
 }
 ```
 
@@ -30,10 +36,11 @@ module "windows_rdp" {
 
 ```tf
 module "windows_rdp" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/windows-rdp/coder"
-  version  = "1.3.1"
-  agent_id = coder_agent.main.id
+  count      = data.coder_workspace.me.start_count
+  source     = "registry.coder.com/coder/windows-rdp/coder"
+  version    = "1.4.0"
+  agent_id   = coder_agent.main.id
+  agent_name = "main"
 }
 ```
 
@@ -41,10 +48,11 @@ module "windows_rdp" {
 
 ```tf
 module "windows_rdp" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/windows-rdp/coder"
-  version  = "1.3.1"
-  agent_id = coder_agent.main.id
+  count      = data.coder_workspace.me.start_count
+  source     = "registry.coder.com/coder/windows-rdp/coder"
+  version    = "1.4.0"
+  agent_id   = coder_agent.main.id
+  agent_name = "main"
 }
 ```
 
@@ -54,8 +62,24 @@ module "windows_rdp" {
 module "windows_rdp" {
   count                       = data.coder_workspace.me.start_count
   source                      = "registry.coder.com/coder/windows-rdp/coder"
-  version                     = "1.3.1"
+  version                     = "1.4.0"
   agent_id                    = coder_agent.main.id
+  agent_name                  = "main"
   devolutions_gateway_version = "2025.2.2" # Specify a specific version
+}
+```
+
+### With Native RDP
+
+Coder Desktop must be installed and connected on the local device. The agent
+name must match the `coder_agent` resource passed through `agent_id`.
+
+```tf
+module "windows_rdp" {
+  count      = data.coder_workspace.me.start_count
+  source     = "registry.coder.com/coder/windows-rdp/coder"
+  version    = "1.4.0"
+  agent_id   = coder_agent.main.id
+  agent_name = "main"
 }
 ```

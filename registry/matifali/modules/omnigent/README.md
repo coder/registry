@@ -15,7 +15,7 @@ The module installs Omnigent via the [official install script](https://omnigent.
 ```tf
 module "omnigent" {
   source   = "registry.coder.com/matifali/omnigent/coder"
-  version  = "0.0.1"
+  version  = "0.0.2"
   agent_id = coder_agent.main.id
 }
 ```
@@ -33,7 +33,7 @@ Use this when your template already has an agent and you only want the Omnigent 
 ```tf
 module "omnigent" {
   source  = "registry.coder.com/matifali/omnigent/coder"
-  version = "0.0.1"
+  version = "0.0.2"
 
   agent_id = coder_agent.main.id
 }
@@ -91,7 +91,7 @@ locals {
   EOT
 
   codex_pre_install_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     coder exp sync want matifali-codex-repo-ready ${local.repo_ready_sync_name}
     coder exp sync start matifali-codex-repo-ready
@@ -101,7 +101,7 @@ locals {
   EOT
 
   claude_code_pre_install_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     coder exp sync want matifali-claude-code-repo-ready ${local.repo_ready_sync_name}
     coder exp sync start matifali-claude-code-repo-ready
@@ -122,7 +122,7 @@ module "git_clone" {
   extra_args  = ["--depth=1"]
 
   post_clone_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     coder exp sync start ${local.repo_ready_sync_name}
     coder exp sync complete ${local.repo_ready_sync_name}
@@ -151,13 +151,13 @@ module "claude_code" {
 
 module "omnigent" {
   source  = "registry.coder.com/matifali/omnigent/coder"
-  version = "0.0.1"
+  version = "0.0.2"
 
   agent_id = coder_agent.main.id
 
   # Wait for Claude Code and Codex setup before Omnigent snapshots host tools.
   pre_install_script = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     coder exp sync want matifali-omnigent-ai-tools ${join(" ", concat(module.claude_code.scripts, module.codex.scripts))}
     coder exp sync start matifali-omnigent-ai-tools
@@ -173,7 +173,7 @@ module "omnigent" {
 ```tf
 module "omnigent" {
   source   = "registry.coder.com/matifali/omnigent/coder"
-  version  = "0.0.1"
+  version  = "0.0.2"
   agent_id = coder_agent.main.id
   port     = 7878
 }
@@ -186,7 +186,7 @@ The module automatically trusts Coder app origins derived from `CODER_AGENT_URL`
 ```tf
 module "omnigent" {
   source   = "registry.coder.com/matifali/omnigent/coder"
-  version  = "0.0.1"
+  version  = "0.0.2"
   agent_id = coder_agent.main.id
 
   allowed_origins = ["https://omnigent.example.com"]
@@ -198,7 +198,7 @@ module "omnigent" {
 ```tf
 module "omnigent" {
   source   = "registry.coder.com/matifali/omnigent/coder"
-  version  = "0.0.1"
+  version  = "0.0.2"
   agent_id = coder_agent.main.id
 
   server_config = <<-YAML
@@ -220,7 +220,7 @@ module "omnigent" {
 ```tf
 module "omnigent" {
   source   = "registry.coder.com/matifali/omnigent/coder"
-  version  = "0.0.1"
+  version  = "0.0.2"
   agent_id = coder_agent.main.id
 
   agents = [
@@ -243,7 +243,7 @@ module "omnigent" {
 ```tf
 module "omnigent" {
   source             = "registry.coder.com/matifali/omnigent/coder"
-  version            = "0.0.1"
+  version            = "0.0.2"
   agent_id           = coder_agent.main.id
   server_config_path = "/home/coder/.omnigent/server_config.yaml"
 }
