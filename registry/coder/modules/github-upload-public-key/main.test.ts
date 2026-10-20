@@ -113,6 +113,19 @@ const setupServer = () => {
           ]);
         }
 
+        // case: key exists on the second page
+        if (req.headers.get("Authorization") === "Bearer paginated") {
+          const perPage = Number(url.searchParams.get("per_page") ?? 30);
+          const page = Number(url.searchParams.get("page") ?? 1);
+          const keys = [
+            ...Array.from({ length: perPage }, (_, i) => ({ key: `foo-${i}` })),
+            { key: "exists" },
+          ];
+          return createJSONResponse(
+            keys.slice((page - 1) * perPage, page * perPage),
+          );
+        }
+
         // case: key does not exist
         return createJSONResponse([
           {
@@ -236,6 +249,23 @@ describe("github-upload-public-key", () => {
       { path: AUTH_KEYS_PATH, title: `${url} Workspaces` },
       { path: SIGNING_KEYS_PATH, title: `${url} Workspaces` },
     ]);
+  });
+
+  it("finds an existing key on a later page", async () => {
+    const { id, run, uploads } = await setupContainer(undefined, {
+      key_type: "both",
+    });
+    await writeCoder(id, "echo paginated");
+
+    const exec = await run();
+    expect(exec.stdout).toContain(
+      "Your Coder public key is already a GitHub authentication key!",
+    );
+    expect(exec.stdout).toContain(
+      "Your Coder public key is already a GitHub signing key!",
+    );
+    expect(exec.exitCode).toBe(0);
+    expect(uploads).toEqual([]);
   });
 
   it("skips existing keys when key_type is both", async () => {

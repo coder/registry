@@ -69,31 +69,38 @@ upload_key() {
   local label="$2"
 
   echo "Fetching $label keys from GitHub..."
-  local keys_response
-  keys_response=$(
-    curl -L -s \
-      -w "\n%%{http_code}" \
-      -H "Accept: application/vnd.github+json" \
-      -H "Authorization: Bearer $GITHUB_TOKEN" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      "$GITHUB_API_URL/user/$endpoint"
-  )
-  local keys_status keys_body
-  keys_status=$(tail -n1 <<< "$keys_response")
-  keys_body=$(sed \$d <<< "$keys_response")
+  local per_page=100 page=1
+  local keys_response keys_status keys_body match count
+  while true; do
+    keys_response=$(
+      curl -L -s \
+        -w "\n%%{http_code}" \
+        -H "Accept: application/vnd.github+json" \
+        -H "Authorization: Bearer $GITHUB_TOKEN" \
+        -H "X-GitHub-Api-Version: 2022-11-28" \
+        "$GITHUB_API_URL/user/$endpoint?per_page=$per_page&page=$page"
+    )
+    keys_status=$(tail -n1 <<< "$keys_response")
+    keys_body=$(sed \$d <<< "$keys_response")
 
-  if [ "$keys_status" -ne 200 ]; then
-    echo "Failed to fetch GitHub $label keys with status code $keys_status!"
-    echo "$keys_body"
-    return 1
-  fi
+    if [ "$keys_status" -ne 200 ]; then
+      echo "Failed to fetch GitHub $label keys with status code $keys_status!"
+      echo "$keys_body"
+      return 1
+    fi
 
-  local match
-  match=$(jq -r --arg PUBLIC_KEY "$PUBLIC_KEY" '.[] | select(.key == $PUBLIC_KEY) | .key' <<< "$keys_body")
-  if [ "$PUBLIC_KEY" = "$match" ]; then
-    echo "Your Coder public key is already a GitHub $label key!"
-    return 0
-  fi
+    match=$(jq -r --arg PUBLIC_KEY "$PUBLIC_KEY" '.[] | select(.key == $PUBLIC_KEY) | .key' <<< "$keys_body")
+    if [ "$PUBLIC_KEY" = "$match" ]; then
+      echo "Your Coder public key is already a GitHub $label key!"
+      return 0
+    fi
+
+    count=$(jq 'length' <<< "$keys_body")
+    if [ "$count" -lt "$per_page" ]; then
+      break
+    fi
+    page=$((page + 1))
+  done
 
   echo "Your Coder public key is not a GitHub $label key yet. Adding it now..."
   local upload_response
