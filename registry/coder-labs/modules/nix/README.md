@@ -1,8 +1,8 @@
 ---
 display_name: Nix(OS)
-description: Apply a NixOS flake on boot and open nix develop shells in Coder workspaces
+description: Build a workspace from a NixOS flake on boot and/or open nix develop shells
 icon: ../../../../.icons/nixos-rainbow.svg
-verified: false
+verified: true
 tags: [helper, nix, nixos]
 ---
 
