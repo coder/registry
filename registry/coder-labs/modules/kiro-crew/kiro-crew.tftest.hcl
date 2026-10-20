@@ -94,6 +94,36 @@ run "defaults" {
     condition     = strcontains(local.install_script, "ARG_EXTRA_MCP_JSON=$(echo -n '' | base64 -d)")
     error_message = "Install script should receive an empty extra MCP value by default"
   }
+
+  assert {
+    condition     = strcontains(local.install_script, "ARG_KIRO_CLI_INSTALL_URL='https://cli.kiro.dev/install'")
+    error_message = "Install script should default to the public Kiro CLI installer URL"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "ARG_KIROCREW_INSTALL_URL='https://download.crew.kiro.dev/cli.sh'")
+    error_message = "Install script should default to the public Kiro Crew installer URL"
+  }
+}
+
+run "install_urls_are_configurable" {
+  command = plan
+
+  variables {
+    agent_id             = "test-agent"
+    kiro_cli_install_url = "https://artifacts.example.com/kiro/cli-install.sh"
+    kirocrew_install_url = "https://artifacts.example.com/kiro/crew-cli.sh"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "ARG_KIRO_CLI_INSTALL_URL='https://artifacts.example.com/kiro/cli-install.sh'")
+    error_message = "Install script should use the configured Kiro CLI installer URL"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "ARG_KIROCREW_INSTALL_URL='https://artifacts.example.com/kiro/crew-cli.sh'")
+    error_message = "Install script should use the configured Kiro Crew installer URL"
+  }
 }
 
 run "custom_ports_and_slug" {

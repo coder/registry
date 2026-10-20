@@ -110,6 +110,67 @@ The gateway starts with the workspace, but agents cannot call models until Kiro 
 - **Headless:** create a Coder user secret that sets `KIRO_API_KEY` before you start the workspace, for example `coder secret create kiro-api-key --env KIRO_API_KEY`. The gateway inherits it, and Kiro CLI authenticates without a browser. Generating API keys requires a Kiro subscription that supports them.
 - **Interactive:** open a terminal, run `kiro-cli login`, and complete the device-code sign-in with AWS Builder ID or IAM Identity Center. Check the result with `kiro-cli whoami`.
 
+## Session continuity
+
+Kiro Crew is a long-running gateway, not a one-shot CLI. The `kirocrew gateway` process owns your sessions, chat transcripts, task state, and agent memory, so work continues across disconnects and restarts:
+
+- **Reconnecting resumes where you left off.** Closing the dashboard tab or losing your connection does not end a session. Reopening the **Kiro Crew** app reattaches to the same running gateway and its in-progress sessions and transcripts.
+- **Sessions survive workspace restarts.** All gateway state lives under `$HOME` (`~/.kiro`). On a persistent home directory it is preserved across stop/start and rebuilds; the module's start script relaunches the gateway automatically on the next start, and your prior sessions are still there.
+
+Use a persistent home directory to retain sessions, transcripts, and Kiro credentials across restarts. The companion [template](../../templates/kiro-crew/README.md) mounts a persistent volume at `/home/coder` for this reason.
+
+## Restricted and air-gapped environments
+
+### Use an internal mirror for the installers
+
+By default the module downloads the Kiro CLI and Kiro Crew installers from the public Kiro endpoints. Point `kiro_cli_install_url` and `kirocrew_install_url` at an internal mirror or artifact store so the workspace never reaches the public internet for them:
+
+```tf
+module "kiro-crew" {
+  source   = "registry.coder.com/coder-labs/kiro-crew/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+
+  kiro_cli_install_url = "https://artifacts.example.com/kiro/cli-install.sh"
+  kirocrew_install_url = "https://artifacts.example.com/kiro/crew-cli.sh"
+}
+```
+
+### Bring your own binaries (skip all downloads)
+
+`use_cached` defaults to `true`, which skips both installers when `kiro-cli` and `kirocrew` are already present (on `PATH` or in the managed venv at `~/.kiro/crew-venv`). Bake the binaries into your workspace image to run fully offline with no installer downloads at all:
+
+```Dockerfile
+# In your workspace image
+RUN curl -fsSL https://cli.kiro.dev/install | bash \
+  && curl -fsSL https://download.crew.kiro.dev/cli.sh | sh
+```
+
+```tf
+module "kiro-crew" {
+  source     = "registry.coder.com/coder-labs/kiro-crew/coder"
+  version    = "1.0.0"
+  agent_id   = coder_agent.main.id
+  use_cached = true # default; skips the installers when the binaries already exist
+}
+```
+
+With the binaries baked in, neither installer endpoint is contacted.
+
+### Network access
+
+The module and the tools it runs contact these external endpoints. Nothing else is required by the module itself.
+
+| Phase              | Endpoint                                  | Purpose                                             | Avoid by                                            |
+| ------------------ | ----------------------------------------- | --------------------------------------------------- | --------------------------------------------------- |
+| Install            | `cli.kiro.dev`                            | Kiro CLI installer script                           | Set `kiro_cli_install_url`, or bake in the binary   |
+| Install            | `download.crew.kiro.dev`                  | Kiro Crew installer script                          | Set `kirocrew_install_url`, or bake in the binary   |
+| Install            | `pypi.org`, `files.pythonhosted.org`      | `pipx` and the Kiro Crew Python dependencies        | Mirror PyPI, or bake in the `~/.kiro/crew-venv`     |
+| Install (optional) | Ubuntu mirrors, deadsnakes PPA            | Only if your `pre_install_script` installs packages | Pre-install the packages in the image               |
+| Runtime            | Kiro service and model/embeddings backend | Kiro CLI sign-in and agent model/embeddings calls   | Required for agents to call models; not overridable |
+
+For a fully air-gapped deployment: bake in the binaries and the managed venv, mirror PyPI, and confirm the workspace can still reach the Kiro model backend — agents cannot call models without it.
+
 ## Troubleshooting
 
 Logs are written to `$HOME/.coder-modules/coder-labs/kiro-crew/logs/`:

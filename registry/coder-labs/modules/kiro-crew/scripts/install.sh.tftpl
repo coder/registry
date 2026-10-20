@@ -8,6 +8,8 @@ command_exists() {
 
 ARG_USE_CACHED='${ARG_USE_CACHED}'
 ARG_EXTRA_MCP_JSON=$(echo -n '${ARG_EXTRA_MCP_JSON}' | base64 -d)
+ARG_KIRO_CLI_INSTALL_URL='${ARG_KIRO_CLI_INSTALL_URL}'
+ARG_KIROCREW_INSTALL_URL='${ARG_KIROCREW_INSTALL_URL}'
 
 KIRO_CREW_VENV_BIN="$HOME/.kiro/crew-venv/bin/kirocrew"
 
@@ -61,7 +63,7 @@ install_kiro_cli() {
     # The installer prompts on /dev/tty when kiro-cli already exists in
     # ~/.local/bin, so remove the old binaries first as it would on confirm.
     rm -f "$HOME/.local/bin/kiro-cli" "$HOME/.local/bin/kiro-cli-chat"
-    if ! run_installer "https://cli.kiro.dev/install" bash; then
+    if ! run_installer "$${ARG_KIRO_CLI_INSTALL_URL}" bash; then
       echo "ERROR: Kiro CLI installation failed." >&2
       exit 1
     fi
@@ -112,7 +114,7 @@ install_kiro_crew() {
     # dependencies (ImportError on the first gateway start).
     unset PYTHONPATH PYTHONHOME
     prepare_pipx
-    if ! run_installer "https://download.crew.kiro.dev/cli.sh" sh; then
+    if ! run_installer "$${ARG_KIROCREW_INSTALL_URL}" sh; then
       echo "ERROR: Kiro Crew installation failed." >&2
       exit 1
     fi

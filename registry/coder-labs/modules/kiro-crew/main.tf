@@ -88,9 +88,21 @@ variable "open_in" {
 }
 
 variable "use_cached" {
-  description = "Skip running the Kiro CLI and Kiro Crew installers when the binaries are already present."
+  description = "Skip running the Kiro CLI and Kiro Crew installers when the binaries are already present. Combined with binaries baked into the workspace image, this lets the module run without contacting any installer endpoint."
   type        = bool
   default     = true
+}
+
+variable "kiro_cli_install_url" {
+  description = "URL the Kiro CLI installer script is downloaded from. Point this at an internal mirror or artifact store in restricted or air-gapped environments."
+  type        = string
+  default     = "https://cli.kiro.dev/install"
+}
+
+variable "kirocrew_install_url" {
+  description = "URL the Kiro Crew installer script is downloaded from. Point this at an internal mirror or artifact store in restricted or air-gapped environments."
+  type        = string
+  default     = "https://download.crew.kiro.dev/cli.sh"
 }
 
 variable "extra_mcp_json" {
@@ -169,8 +181,10 @@ locals {
   )
 
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
-    ARG_USE_CACHED     = tostring(var.use_cached)
-    ARG_EXTRA_MCP_JSON = var.extra_mcp_json != "" ? base64encode(var.extra_mcp_json) : ""
+    ARG_USE_CACHED           = tostring(var.use_cached)
+    ARG_EXTRA_MCP_JSON       = var.extra_mcp_json != "" ? base64encode(var.extra_mcp_json) : ""
+    ARG_KIRO_CLI_INSTALL_URL = var.kiro_cli_install_url
+    ARG_KIROCREW_INSTALL_URL = var.kirocrew_install_url
   })
 
   start_script = templatefile("${path.module}/scripts/start.sh.tftpl", {
