@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# module_directory is a constant set in main.tf, so double-quoting it to
+# expand its literal "$HOME" at runtime is safe.
+ARG_MODULE_DIRECTORY="${ARG_MODULE_DIRECTORY}"
+ARG_PORT='${ARG_PORT}'
+ARG_REDIRECT_PORT='${ARG_REDIRECT_PORT}'
+ARG_ALLOWED_ORIGINS=$(echo -n '${ARG_ALLOWED_ORIGINS}' | base64 -d)
+ARG_DASHBOARD_URL=$(echo -n '${ARG_DASHBOARD_URL}' | base64 -d)
+
+LOG_DIR="$${ARG_MODULE_DIRECTORY}/logs"
+GATEWAY_LOG="$${LOG_DIR}/gateway.log"
+REDIRECTOR_LOG="$${LOG_DIR}/redirector.log"
+CREW_DIR="$HOME/.kiro/crew"
+LAUNCHER_PATH="$${CREW_DIR}/start-gateway.sh"
+REDIRECTOR_PATH="$${CREW_DIR}/redirect-gateway.py"
+
+mkdir -p "$${LOG_DIR}" "$${CREW_DIR}"
+export PATH="$HOME/.local/bin:$HOME/bin:$PATH"
+
+# Everything below is best effort and must reach the launch step, so disable
+# errexit for the remainder of the script.
+set +e
+
+# Stops whatever listens on a port. Never match by process name: the agent
+# runs scripts with their full text in argv, so a pattern such as "kirocrew"
+# would also match, and terminate, this script.
+free_port() {
+  local port="$1"
+  if command -v fuser > /dev/null 2>&1; then
+    fuser -k "$${port}/tcp" > /dev/null 2>&1 || true
+  else
+    local port_pid
+    port_pid="$(ss -ltnHp "sport = :$${port}" 2> /dev/null | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2)"
+    if [ -n "$${port_pid}" ] && [ "$${port_pid}" != "$$" ] && [ "$${port_pid}" != "$PPID" ]; then
+      kill "$${port_pid}" > /dev/null 2>&1 || true
+    fi
+  fi
+}
+
+KIROCREW_CMD=""
+if command -v kirocrew > /dev/null 2>&1; then
+  KIROCREW_CMD="$(command -v kirocrew)"
+elif [ -x "$HOME/.kiro/crew-venv/bin/kirocrew" ]; then
+  KIROCREW_CMD="$HOME/.kiro/crew-venv/bin/kirocrew"
+else
+  echo "ERROR: kirocrew binary not found. Check the install log in $${LOG_DIR}/install.log." >&2
+  exit 1
+fi
+
+free_port "$${ARG_PORT}"
+free_port "$${ARG_REDIRECT_PORT}"
+
+echo "Using kirocrew binary: $${KIROCREW_CMD}"
+echo "Gateway port: $${ARG_PORT}"
+echo "Gateway log: $${GATEWAY_LOG}"
+
+if [ -n "$${KIRO_API_KEY:-}" ]; then
+  echo "Headless Kiro auth: KIRO_API_KEY detected; kiro-cli authenticates non-interactively."
+else
+  echo "Headless Kiro auth: KIRO_API_KEY not set; sign in with 'kiro-cli login', or create a Coder user secret that sets KIRO_API_KEY."
+fi
+
+# The launcher is written with a quoted heredoc so nothing expands at write
+# time. Values reach it through the environment at launch.
+#
+# Kiro Crew sandboxes agent subprocesses with a Linux user namespace. Many
+# Kubernetes pods set user.max_user_namespaces=0, so when unshare fails the
+# launcher allows unsandboxed exec and the pod is the isolation boundary.
+cat > "$${LAUNCHER_PATH}" << 'LAUNCHER'
+#!/usr/bin/env bash
+# Trust the Coder proxy origins in the gateway's Host/Origin allowlist.
+[ -n "$KC_ORIGINS" ] && export KIROCREW_CORS_ORIGINS="$KC_ORIGINS"
+# Scope token cookies to the dashboard app's public origin.
+[ -n "$KC_DASHBOARD_URL" ] && "$KC_CMD" config set dashboard.url "$KC_DASHBOARD_URL" > /dev/null 2>&1 || true
+if ! unshare --user --map-root-user true > /dev/null 2>&1; then
+  "$KC_CMD" config set agent.sandbox_allow_unsandboxed_exec true > /dev/null 2>&1 || true
+fi
+exec env KIROCREW_PORT="$KC_PORT" "$KC_CMD" gateway
+LAUNCHER
+chmod +x "$${LAUNCHER_PATH}"
+
+# The gateway can take a while to cold start, and the agent terminates start
+# scripts that run too long, so the gateway runs in a detached session and
+# readiness is reported by the dashboard app healthcheck.
+: > "$${GATEWAY_LOG}" 2> /dev/null || true
+setsid nohup env \
+  KC_CMD="$${KIROCREW_CMD}" \
+  KC_PORT="$${ARG_PORT}" \
+  KC_ORIGINS="$${ARG_ALLOWED_ORIGINS}" \
+  KC_DASHBOARD_URL="$${ARG_DASHBOARD_URL}" \
+  bash "$${LAUNCHER_PATH}" >> "$${GATEWAY_LOG}" 2>&1 < /dev/null &
+disown 2> /dev/null || true
+echo "Kiro Crew gateway launch dispatched."
+
+# The visible app tile points at this loopback redirector. Each request mints
+# a short-lived token from the gateway's loopback secret and redirects to the
+# dashboard app with ?token=. /healthz answers without minting a token so the
+# app healthcheck does not create tokens.
+cat > "$${REDIRECTOR_PATH}" << 'PYEOF'
+import http.server
+import json
+import os
+import urllib.request
+
+REDIR_PORT = int(os.environ["REDIR_PORT"])
+GW_BASE = "http://127.0.0.1:" + os.environ["GW_PORT"]
+DASH = os.environ["DASH_ORIGIN"].rstrip("/")
+SECRET = os.path.expanduser("~/.kiro/crew/.local_secret")
+
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def _mint(self):
+        with open(SECRET) as f:
+            secret = f.read().strip()
+        req = urllib.request.Request(
+            GW_BASE + "/api/token/local?ttl=24h",
+            headers={"X-Local-Secret": secret},
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return json.load(resp).get("token", "")
+
+    def do_GET(self):
+        if self.path.startswith("/healthz"):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"ok")
+            return
+        try:
+            token = self._mint()
+        except Exception:
+            token = ""
+        if not token:
+            self.send_response(503)
+            self.end_headers()
+            self.wfile.write(b"Kiro Crew gateway still starting - retry shortly")
+            return
+        self.send_response(302)
+        self.send_header("Location", DASH + "/?token=" + token)
+        self.end_headers()
+
+    def log_message(self, *args):
+        pass
+
+
+http.server.HTTPServer(("127.0.0.1", REDIR_PORT), Handler).serve_forever()
+PYEOF
+
+: > "$${REDIRECTOR_LOG}" 2> /dev/null || true
+setsid nohup env \
+  REDIR_PORT="$${ARG_REDIRECT_PORT}" \
+  GW_PORT="$${ARG_PORT}" \
+  DASH_ORIGIN="$${ARG_DASHBOARD_URL}" \
+  python3 "$${REDIRECTOR_PATH}" >> "$${REDIRECTOR_LOG}" 2>&1 < /dev/null &
+disown 2> /dev/null || true
+echo "Kiro Crew redirector dispatched on port $${ARG_REDIRECT_PORT} -> $${ARG_DASHBOARD_URL}"
+
+exit 0
