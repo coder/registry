@@ -1,12 +1,12 @@
 ---
-display_name: Coder Utils
+display_name: Coder Utils (library)
 description: Building block for modules that need orchestrated script execution
 icon: ../../../../.icons/coder.svg
 verified: false
 tags: [internal, library]
 ---
 
-# Coder Utils
+# Coder Utils (library)
 
 > [!CAUTION]
 > We do not recommend using this module directly. It is intended primarily for internal use by Coder to create modules with orchestrated script execution.

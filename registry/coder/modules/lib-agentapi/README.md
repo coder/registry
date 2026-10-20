@@ -1,12 +1,12 @@
 ---
-display_name: AgentAPI
+display_name: AgentAPI (library)
 description: Building block for modules that need to run an AgentAPI server
 icon: ../../../../.icons/coder.svg
 verified: true
 tags: [internal, library]
 ---
 
-# AgentAPI
+# AgentAPI (library)
 
 > [!CAUTION]
 > We do not recommend using this module directly. Instead, please consider using one of our [Tasks-compatible AI agent modules](https://registry.coder.com/modules?search=tag%3Atasks).
