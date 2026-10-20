@@ -15,7 +15,7 @@ The AgentAPI module is a building block for modules that need to run an AgentAPI
 
 ```tf
 module "agentapi" {
-  source  = "registry.coder.com/coder/agentapi/coder"
+  source  = "registry.coder.com/coder/lib-agentapi/coder"
   version = "2.4.1"
 
   agent_id             = var.agent_id

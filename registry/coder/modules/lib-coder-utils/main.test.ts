@@ -5,7 +5,7 @@ import {
   testRequiredVariables,
 } from "~test";
 
-describe("coder-utils", async () => {
+describe("lib-coder-utils", async () => {
   await runTerraformInit(import.meta.dir);
 
   testRequiredVariables(import.meta.dir, {

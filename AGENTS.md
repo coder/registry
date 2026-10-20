@@ -19,6 +19,7 @@ bun test main.test.ts                                 # Run single TS test (from
 ## Structure
 
 - **Modules**: `registry/[ns]/modules/[name]/` with `main.tf`, `README.md` (YAML frontmatter), `.tftest.hcl` (required)
+- **Library modules**: modules meant only to be consumed by other modules (not used directly in templates) are prefixed `lib-` (e.g. `lib-coder-utils`, `lib-agentapi`, `lib-vscode-desktop-core`) and tagged `[internal, library]`
 - **Templates**: `registry/[ns]/templates/[name]/` with `main.tf`, `README.md`
 - **Validation**: `cmd/readmevalidation/` (Go) validates structure/frontmatter; URLs must be relative, not absolute
 
@@ -48,7 +49,7 @@ Within that root, use these standard subdirectories:
 
 ## Use `coder-utils` for Script Orchestration
 
-For any new module that runs scripts (or when reworking an existing one), use the [`coder-utils`](registry/coder/modules/coder-utils) module to orchestrate `pre_install`, `install`, `post_install`, and `start` scripts instead of hand-rolling `coder_script` resources.
+For any new module that runs scripts (or when reworking an existing one), use the [`coder-utils`](registry/coder/modules/lib-coder-utils) module to orchestrate `pre_install`, `install`, `post_install`, and `start` scripts instead of hand-rolling `coder_script` resources.
 
 - `coder-utils` handles script ordering via `coder exp sync`, materializes scripts under `module_directory/scripts/` (e.g., `install.sh`, `start.sh`), and writes logs to `module_directory/logs/` automatically, which aligns with the Module Data Layout above.
 - Set `module_directory = "$HOME/.coder-modules/<namespace>/<module-name>"` so the standard root, `scripts/`, and `logs/` subdirectories fall out for free.

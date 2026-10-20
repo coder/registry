@@ -38,7 +38,7 @@ const setupVariables = {
   ide_cli_install_script: "#!/usr/bin/env bash\nprintf 'bootstrap complete\\n'",
 };
 
-describe("vscode-desktop-core", async () => {
+describe("lib-vscode-desktop-core", async () => {
   await runTerraformInit(import.meta.dir);
 
   testRequiredVariables(import.meta.dir, defaultVariables);

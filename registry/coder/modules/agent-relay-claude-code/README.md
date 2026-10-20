@@ -103,7 +103,7 @@ parameter leaves it empty.
 
 ## Scripts and logs
 
-The module runs three ordered startup steps through [coder-utils](https://registry.coder.com/modules/coder/coder-utils):
+The module runs three ordered startup steps through [coder-utils](https://registry.coder.com/modules/coder/lib-coder-utils):
 a pre-install step that stops any previous supervisor and runner and clears status,
 an install step that downloads the CLI when `install_cli` is set and the
 binary is missing (a no-op otherwise), then a start step that launches the
