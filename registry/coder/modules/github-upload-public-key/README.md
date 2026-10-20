@@ -54,10 +54,10 @@ CODER_EXTERNAL_AUTH_0_SCOPES="repo,workflow,admin:public_key"
 
 Note that the default scopes if not provided are `repo,workflow`. If the module is failing to complete after updating the external auth configuration, instruct users of the module to "Unlink" and "Link" their Github account in the External Auth user settings page to get the new scopes.
 
-When `key_type` is `signing` or `both`, the Github app must also have read and write permissions to "SSH signing keys", and the external auth configuration must include the `admin:ssh_signing_key` scope. For example:
+When `key_type` is `signing` or `both`, the Github app must also have read and write permissions to "SSH signing keys", and the external auth configuration must include the `write:ssh_signing_key` scope. For example:
 
 ```txt
-CODER_EXTERNAL_AUTH_0_SCOPES="repo,workflow,admin:public_key,admin:ssh_signing_key"
+CODER_EXTERNAL_AUTH_0_SCOPES="repo,workflow,admin:public_key,write:ssh_signing_key"
 ```
 
 ## Example
