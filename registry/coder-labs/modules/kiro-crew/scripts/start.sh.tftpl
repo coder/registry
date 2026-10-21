@@ -57,6 +57,22 @@ echo "Using kirocrew binary: $${KIROCREW_CMD}"
 echo "Gateway port: $${ARG_PORT}"
 echo "Gateway log: $${GATEWAY_LOG}"
 
+# Run the loopback redirector with the Python the Kiro Crew installer
+# provisions (a managed CPython under ~/.kiro/crew-python, or a managed/pipx
+# venv depending on the installer version), falling back to system python3
+# only if none is found, so the module does not depend on a system Python.
+PYTHON_BIN="python3"
+for candidate in \
+  "$HOME/.kiro/crew-venv/bin/python" \
+  "$HOME"/.kiro/crew-python/*/bin/python3 \
+  "$HOME/.local/share/pipx/venvs/kirocrew/bin/python"; do
+  if [ -x "$${candidate}" ]; then
+    PYTHON_BIN="$${candidate}"
+    break
+  fi
+done
+echo "Redirector Python: $${PYTHON_BIN}"
+
 if [ -n "$${KIRO_API_KEY:-}" ]; then
   echo "Headless Kiro auth: KIRO_API_KEY detected; kiro-cli authenticates non-interactively."
 else
@@ -153,7 +169,7 @@ setsid nohup env \
   REDIR_PORT="$${ARG_REDIRECT_PORT}" \
   GW_PORT="$${ARG_PORT}" \
   DASH_ORIGIN="$${ARG_DASHBOARD_URL}" \
-  python3 "$${REDIRECTOR_PATH}" >> "$${REDIRECTOR_LOG}" 2>&1 < /dev/null &
+  "$${PYTHON_BIN}" "$${REDIRECTOR_PATH}" >> "$${REDIRECTOR_LOG}" 2>&1 < /dev/null &
 disown 2> /dev/null || true
 echo "Kiro Crew redirector dispatched on port $${ARG_REDIRECT_PORT} -> $${ARG_DASHBOARD_URL}"
 

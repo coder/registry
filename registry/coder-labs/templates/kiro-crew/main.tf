@@ -41,8 +41,9 @@ variable "image" {
   type        = string
   description = <<-EOF
   Container image for workspaces. The default pins codercom/enterprise-base
-  to Ubuntu 24.04 (Python 3.12). Images whose system Python is 3.13 or newer
-  ship a pipx that breaks the Kiro Crew installer.
+  to a known-good Ubuntu 24.04 build. The Kiro Crew installer provisions its
+  own managed Python via uv, so the image does not need a specific system
+  Python.
   EOF
   default     = "codercom/enterprise-base@sha256:16031b4de2e099884ad6b4057bffeaf03380a76eddf46c193b5d0767e738ba96"
 }

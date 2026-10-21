@@ -28,7 +28,7 @@ The gateway rejects requests whose `Host` is not loopback (`Host header not allo
 ## Prerequisites
 
 - Your Coder deployment must serve [wildcard subdomain apps](https://coder.com/docs/admin/setup#wildcard-access-url). Both apps are subdomain apps.
-- The workspace image needs `bash`, `curl`, `python3` with the `venv` module, `openssl`, and `sha256sum`. The Kiro Crew installer uses Python 3.10 or newer and prefers 3.12 or 3.11. Use `pre_install_script` to install missing packages.
+- The workspace image needs `bash`, `curl`, `openssl`, and `sha256sum`. The Kiro Crew installer provisions its own managed Python via `uv`, so no system Python is required. Use `pre_install_script` to install missing packages.
 - The Coder agent must support `coder exp sync`, which orders the install and start scripts.
 - A Kiro account. See [Authentication](#authentication).
 
@@ -45,7 +45,7 @@ module "kiro-crew" {
   pre_install_script = <<-EOT
     #!/usr/bin/env bash
     sudo apt-get update -qq
-    sudo apt-get install -y curl openssl python3-venv
+    sudo apt-get install -y curl openssl unzip
   EOT
 }
 ```
@@ -161,13 +161,14 @@ With the binaries baked in, neither installer endpoint is contacted.
 
 The module and the tools it runs contact these external endpoints. Nothing else is required by the module itself.
 
-| Phase              | Endpoint                                  | Purpose                                             | Avoid by                                            |
-| ------------------ | ----------------------------------------- | --------------------------------------------------- | --------------------------------------------------- |
-| Install            | `cli.kiro.dev`                            | Kiro CLI installer script                           | Set `kiro_cli_install_url`, or bake in the binary   |
-| Install            | `download.crew.kiro.dev`                  | Kiro Crew installer script                          | Set `kirocrew_install_url`, or bake in the binary   |
-| Install            | `pypi.org`, `files.pythonhosted.org`      | `pipx` and the Kiro Crew Python dependencies        | Mirror PyPI, or bake in the `~/.kiro/crew-venv`     |
-| Install (optional) | Ubuntu mirrors, deadsnakes PPA            | Only if your `pre_install_script` installs packages | Pre-install the packages in the image               |
-| Runtime            | Kiro service and model/embeddings backend | Kiro CLI sign-in and agent model/embeddings calls   | Required for agents to call models; not overridable |
+| Phase              | Endpoint                                  | Purpose                                                           | Avoid by                                                          |
+| ------------------ | ----------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Install            | `cli.kiro.dev`                            | Kiro CLI installer script                                         | Set `kiro_cli_install_url`, or bake in the binary                 |
+| Install            | `download.crew.kiro.dev`                  | Kiro Crew installer script                                        | Set `kirocrew_install_url`, or bake in the binary                 |
+| Install            | Astral (`uv` and managed CPython)         | The Kiro Crew installer uses `uv` to provision its managed Python | Bake `~/.kiro/crew-python` and `~/.kiro/crew-venv` into the image |
+| Install            | `pypi.org`, `files.pythonhosted.org`      | The Kiro Crew Python dependencies                                 | Mirror PyPI, or bake in the `~/.kiro/crew-venv`                   |
+| Install (optional) | Ubuntu package mirrors                    | Only if your `pre_install_script` installs packages               | Pre-install the packages in the image                             |
+| Runtime            | Kiro service and model/embeddings backend | Kiro CLI sign-in and agent model/embeddings calls                 | Required for agents to call models; not overridable               |
 
 For a fully air-gapped deployment: bake in the binaries and the managed venv, mirror PyPI, and confirm the workspace can still reach the Kiro model backend — agents cannot call models without it.
 
@@ -183,6 +184,5 @@ The start script launches the gateway in a detached session and returns immediat
 
 - **`Host header not allowed.`:** the browser's origin is not in the gateway's allowlist. Set `dashboard_origin` or `allowed_origins` to the origin shown in the browser.
 - **`ImportError: No module named 'aiohttp'` on gateway start:** the managed venv at `~/.kiro/crew-venv` was built with a foreign `PYTHONPATH`. The install script unsets `PYTHONPATH` and `PYTHONHOME`; remove `~/.kiro/crew-venv`, set `use_cached = false`, and restart the workspace.
-- **Kiro Crew installer fails in `pipx` with `JSONDecodeError`:** distro `pipx` on Python 3.13 or newer crashes. The install script builds its own `pipx` with `python3.12` or `python3.11` when available, so install one of them, or use an image based on Ubuntu 24.04.
 - **Sandbox warnings:** Kiro Crew sandboxes agent subprocesses with a Linux user namespace. When the workspace cannot create one, which is common in Kubernetes pods, the gateway is configured with `agent.sandbox_allow_unsandboxed_exec` and the workspace is the isolation boundary.
 - **Expected warnings:** `Vendored llama-cpp-python failed to import` (the gateway falls back to API-based embeddings) and `cgroup v2 scope enforcement unavailable` (no systemd user session in containers) do not affect the gateway.

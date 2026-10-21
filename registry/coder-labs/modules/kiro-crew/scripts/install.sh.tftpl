@@ -78,28 +78,29 @@ install_kiro_cli() {
   echo "Kiro CLI ready."
 }
 
-# The Kiro Crew installer shells out to the ambient pipx. On images whose
-# system Python is 3.13 or newer, the distro pipx crashes while parsing an
-# empty `pip list --format=json`. Build a pipx on a supported interpreter
-# (python3.12, then python3.11) and put it first on PATH.
-prepare_pipx() {
-  local pipx_python=python3
-  if command_exists python3.12; then
-    pipx_python=python3.12
-  elif command_exists python3.11; then
-    pipx_python=python3.11
+# The Kiro Crew installer provisions its own managed Python via uv (a managed
+# CPython under ~/.kiro/crew-python, and depending on the installer version a
+# managed venv at ~/.kiro/crew-venv or a pipx venv under ~/.local/share/pipx),
+# so the module needs neither system Python nor a system pipx.
+# resolve_kiro_python returns an interpreter for the module's own helper
+# scripts, preferring the installer-provided Python and falling back to any
+# system python3 only if none is found.
+resolve_kiro_python() {
+  local candidate
+  for candidate in \
+    "$HOME/.kiro/crew-venv/bin/python" \
+    "$HOME"/.kiro/crew-python/*/bin/python3 \
+    "$HOME/.local/share/pipx/venvs/kirocrew/bin/python"; do
+    if [ -x "$${candidate}" ]; then
+      echo "$${candidate}"
+      return 0
+    fi
+  done
+  if command_exists python3; then
+    command -v python3
+    return 0
   fi
-
-  if [ ! -x "$HOME/.kiro/pipx-venv/bin/pipx" ]; then
-    mkdir -p "$HOME/.kiro"
-    "$${pipx_python}" -m venv "$HOME/.kiro/pipx-venv" \
-      && "$HOME/.kiro/pipx-venv/bin/pip" install -q --upgrade pip pipx \
-      || echo "WARN: Dedicated pipx venv build failed; using the system pipx."
-  fi
-  if [ -x "$HOME/.kiro/pipx-venv/bin/pipx" ]; then
-    ln -sf "$HOME/.kiro/pipx-venv/bin/pipx" "$HOME/.local/bin/pipx"
-  fi
-  hash -r
+  return 1
 }
 
 install_kiro_crew() {
@@ -113,7 +114,6 @@ install_kiro_crew() {
     # as already satisfied, which leaves the managed venv without its
     # dependencies (ImportError on the first gateway start).
     unset PYTHONPATH PYTHONHOME
-    prepare_pipx
     if ! run_installer "$${ARG_KIROCREW_INSTALL_URL}" sh; then
       echo "ERROR: Kiro Crew installation failed." >&2
       exit 1
@@ -143,8 +143,11 @@ apply_extra_mcp() {
   echo "Applying extra MCP configuration to $${mcp_file}..."
   mkdir -p "$(dirname "$${mcp_file}")"
 
-  if [ -f "$${mcp_file}" ] && command_exists python3; then
-    python3 - "$${mcp_file}" "$${ARG_EXTRA_MCP_JSON}" << 'PYEOF'
+  local python_bin
+  python_bin="$(resolve_kiro_python || true)"
+
+  if [ -f "$${mcp_file}" ] && [ -n "$${python_bin}" ]; then
+    "$${python_bin}" - "$${mcp_file}" "$${ARG_EXTRA_MCP_JSON}" << 'PYEOF'
 import json
 import sys
 

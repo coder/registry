@@ -28,9 +28,9 @@ Each workspace also includes:
 - A Kubernetes cluster that Coder can provision into. The namespace must exist before you create workspaces. If the Coder host runs outside the cluster, set `use_kubeconfig = true` and provide `~/.kube/config` on the Coder host.
 - A storage class that can provision `ReadWriteOnce` persistent volumes.
 - [Wildcard subdomain apps](https://coder.com/docs/admin/setup#wildcard-access-url). The dashboard is a subdomain app, and the dashboard app tile does not resolve without a wildcard access URL.
-- Outbound access from workspace pods to the Ubuntu package mirrors, the deadsnakes PPA, PyPI, and the Kiro download hosts.
+- Outbound access from workspace pods to the Ubuntu package mirrors, the Kiro download hosts (`cli.kiro.dev`, `download.crew.kiro.dev`), and the hosts the bundled Kiro Crew installer uses to provision its managed Python (`uv`/Astral and PyPI).
 
-The default image pins `codercom/enterprise-base` to Ubuntu 24.04 (Python 3.12). Images based on newer Ubuntu releases ship a `pipx` that breaks the Kiro Crew installer.
+The default image pins `codercom/enterprise-base` to a known-good Ubuntu 24.04 build. The Kiro Crew installer provisions its own managed Python via `uv`, so the image does not need a specific system Python.
 
 ### Kiro account
 
