@@ -3,7 +3,7 @@
 # Tag Release Script
 # Automatically detects modules that need tagging and creates release tags
 # Usage: ./tag_release.sh [OPTIONS]
-# Operates on the current checked-out commit
+# Tags each module on the first-parent commit that introduced its README version
 
 set -euo pipefail
 
@@ -16,6 +16,12 @@ OUTPUT_FORMAT="plain"
 TARGET_NAMESPACE=""
 TARGET_MODULE=""
 SKIP_PUSH=false
+
+# GitHub does not emit push events (so tag-triggered workflows never run) when
+# more than 3 refs are pushed in a single call. Pushing in batches of this
+# size keeps every push event-generating. See:
+# https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#push
+readonly TAG_PUSH_BATCH_SIZE=3
 
 JSON_OUTPUT='{
   "metadata": {},
@@ -72,10 +78,13 @@ log() {
       fi
       ;;
     "WARN")
-      if [[ "$OUTPUT_FORMAT" == "json" ]]; then
-        add_json_warning "" "$message" "warning"
-      elif [[ "$QUIET" != "true" ]]; then
+      if [[ "$OUTPUT_FORMAT" != "json" && "$QUIET" != "true" ]]; then
         echo "⚠️  $message" >&2
+      fi
+      ;;
+    "DEPRECATED")
+      if [[ "$QUIET" != "true" && "$OUTPUT_FORMAT" != "json" ]]; then
+        echo "🪦 $message [deprecated]"
       fi
       ;;
     "INFO")
@@ -110,7 +119,10 @@ add_json_warning() {
   local message="$2"
   local type="$3"
 
-  JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg module "$module" --arg msg "$message" --arg type "$type" '.warnings += [{"module": $module, "message": $msg, "type": $type}]')
+  # NOTE: `module` is a reserved keyword in jq, so we cannot bind it as a jq
+  # variable name (e.g. `--arg module` produces an unusable `$module`).
+  # Bind to `$mod` internally; the emitted JSON key stays "module".
+  JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg mod "$module" --arg msg "$message" --arg type "$type" '.warnings += [{"module": $mod, "message": $msg, "type": $type}]')
 }
 
 add_json_module() {
@@ -282,6 +294,24 @@ check_module_needs_tagging() {
   fi
 }
 
+# Prints the first-parent commit that introduced the module's current README
+# version: walk the README's history newest-first and stop once the module
+# block's version differs. Prints nothing if it can't be resolved (shallow clone).
+find_version_commit() {
+  local readme_path="$1" namespace="$2" module_name="$3" version="$4"
+  local found="" commit v
+
+  [[ "$(git rev-parse --is-shallow-repository)" == "true" ]] && return 0
+
+  while read -r commit; do
+    v=$(extract_version_from_module_block <(git show "$commit:$readme_path" 2> /dev/null) "$namespace" "$module_name" 2> /dev/null) || v=""
+    [[ "$v" == "$version" ]] || break
+    found="$commit"
+  done < <(git log --first-parent --format=%H -- "$readme_path")
+
+  echo "$found"
+}
+
 should_process_module() {
   local namespace="$1"
   local module_name="$2"
@@ -320,6 +350,7 @@ detect_modules_needing_tags() {
   local total_checked=0
   local needs_tagging=0
   local already_tagged=0
+  local deprecated=0
   local skipped=0
 
   while IFS= read -r module_path; do
@@ -340,10 +371,15 @@ detect_modules_needing_tags() {
     local readme_path="$module_path/README.md"
     local readme_version
 
+    # Deprecation signal for this repo: a module that no longer exposes a
+    # resolvable `version = "X.Y.Z"` in its README is treated as deprecated
+    # (the canonical deprecation flow removes the module dir entirely; stale
+    # local checkouts or in-flight removal PRs land here). List it distinctly
+    # and continue instead of aborting the scan.
     if ! readme_version=$(extract_version_from_readme "$readme_path" "$namespace" "$module_name"); then
-      log "WARN" "$namespace/$module_name: No version found in README, skipping"
-      add_json_warning "$namespace/$module_name" "No version found in README, skipping" "missing_version"
-      skipped=$((skipped + 1))
+      log "DEPRECATED" "$namespace/$module_name: no resolvable version in README, skipping"
+      add_json_module "$namespace" "$module_name" "$module_path" "" "" "deprecated" false
+      deprecated=$((deprecated + 1))
       continue
     fi
 
@@ -358,7 +394,13 @@ detect_modules_needing_tags() {
 
     if check_module_needs_tagging "$namespace" "$module_name" "$readme_version"; then
       log "INFO" "📦 $namespace/$module_name: v$readme_version (needs tag)"
-      MODULES_TO_TAG+=("$module_path:$namespace:$module_name:$readme_version")
+      local target_commit
+      target_commit=$(find_version_commit "$readme_path" "$namespace" "$module_name" "$readme_version")
+      if [[ -z "$target_commit" ]]; then
+        log "WARN" "$namespace/$module_name: could not find the commit that introduced v$readme_version (shallow clone?), tagging HEAD"
+        target_commit=$(git rev-parse HEAD)
+      fi
+      MODULES_TO_TAG+=("$module_path:$namespace:$module_name:$readme_version:$target_commit")
       needs_tagging=$((needs_tagging + 1))
 
       local status="needs_tagging"
@@ -375,12 +417,12 @@ detect_modules_needing_tags() {
   done <<< "$all_modules"
 
   JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --argjson total "$total_checked" --argjson needs "$needs_tagging" \
-    --argjson tagged "$already_tagged" --argjson skip "$skipped" \
-    '.summary.total_scanned = $total | .summary.needs_tagging = $needs | .summary.already_tagged = $tagged | .summary.skipped = $skip')
+    --argjson tagged "$already_tagged" --argjson dep "$deprecated" --argjson skip "$skipped" \
+    '.summary.total_scanned = $total | .summary.needs_tagging = $needs | .summary.already_tagged = $tagged | .summary.deprecated = $dep | .summary.skipped = $skip')
 
   if [[ "$OUTPUT_FORMAT" != "json" ]]; then
     echo ""
-    log "INFO" "📊 Summary: $needs_tagging of $total_checked modules need tagging"
+    log "INFO" "📊 Summary: $needs_tagging of $total_checked modules need tagging (deprecated: $deprecated, skipped: $skipped)"
     echo ""
   fi
 
@@ -395,8 +437,8 @@ detect_modules_needing_tags() {
   if [[ "$OUTPUT_FORMAT" != "json" ]]; then
     echo "## Tags to be created:"
     for module_info in "${MODULES_TO_TAG[@]}"; do
-      IFS=':' read -r module_path namespace module_name version <<< "$module_info"
-      echo "- \`release/$namespace/$module_name/v$version\`"
+      IFS=':' read -r module_path namespace module_name version target_commit <<< "$module_info"
+      echo "- \`release/$namespace/$module_name/v$version\` -> ${target_commit:0:8}"
     done
     echo ""
   fi
@@ -434,22 +476,41 @@ pre_flight_checks() {
   return $EXIT_SUCCESS
 }
 
+# Pushes the given tags to origin in batches of TAG_PUSH_BATCH_SIZE, so
+# GitHub actually emits a push event for each one (see TAG_PUSH_BATCH_SIZE).
+# Prints one line per batch. Returns non-zero if any batch fails to push,
+# but still attempts every batch.
+push_tags_batched() {
+  local -a tags=("$@")
+  local failed=0
+  local total=${#tags[@]}
+
+  local i
+  for ((i = 0; i < total; i += TAG_PUSH_BATCH_SIZE)); do
+    local batch=("${tags[@]:i:TAG_PUSH_BATCH_SIZE}")
+    log "INFO" "Pushing batch: ${batch[*]}"
+    if ! git push --atomic origin "${batch[@]}" 2> /dev/null; then
+      log "ERROR" "Failed to push batch: ${batch[*]}"
+      failed=$((failed + ${#batch[@]}))
+    fi
+  done
+
+  return $((failed > 0 ? 1 : 0))
+}
+
 create_and_push_tags() {
   [ ${#MODULES_TO_TAG[@]} -eq 0 ] && {
     log "ERROR" "No modules to tag found"
     return $EXIT_ERROR
   }
 
-  local current_commit
-  current_commit=$(git rev-parse HEAD)
-
   if [[ "$DRY_RUN" == "true" ]]; then
-    log "INFO" "🏷️  [DRY RUN] Would create release tags for commit: $current_commit"
+    log "INFO" "🏷️  [DRY RUN] Would create the release tags listed above"
     JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq '.summary.operation_status = "dry_run" | .summary.tags_created = 0 | .summary.tags_pushed = 0')
     return $EXIT_SUCCESS
   fi
 
-  log "INFO" "🏷️  Creating release tags for commit: $current_commit"
+  log "INFO" "🏷️  Creating release tags"
   if [[ "$OUTPUT_FORMAT" != "json" ]]; then
     echo ""
   fi
@@ -459,7 +520,7 @@ create_and_push_tags() {
   local created_tag_names=()
 
   for module_info in "${MODULES_TO_TAG[@]}"; do
-    IFS=':' read -r module_path namespace module_name version <<< "$module_info"
+    IFS=':' read -r module_path namespace module_name version target_commit <<< "$module_info"
 
     local tag_name="release/$namespace/$module_name/v$version"
     local tag_message="Release $namespace/$module_name v$version"
@@ -467,7 +528,7 @@ create_and_push_tags() {
     log "DEBUG" "Creating tag: $tag_name"
     log "INFO" "Creating tag: $tag_name"
 
-    if git tag -a "$tag_name" -m "$tag_message" "$current_commit" 2> /dev/null; then
+    if git tag -a "$tag_name" -m "$tag_message" "$target_commit" 2> /dev/null; then
       log "SUCCESS" "Created: $tag_name"
       created_tags=$((created_tags + 1))
       created_tag_names+=("$tag_name")
@@ -476,7 +537,7 @@ create_and_push_tags() {
         '(.modules[] | select(.tag_name == $tag) | .status) = "tag_created"')
     else
       log "ERROR" "Failed to create: $tag_name"
-      add_json_error "tag_creation_failed" "Failed to create tag: $tag_name" "git tag -a $tag_name -m '$tag_message' $current_commit"
+      add_json_error "tag_creation_failed" "Failed to create tag: $tag_name" "git tag -a $tag_name -m '$tag_message' $target_commit"
       failed_tags=$((failed_tags + 1))
 
       JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg tag "$tag_name" \
@@ -526,8 +587,8 @@ create_and_push_tags() {
     log "ERROR" "No valid tags found to push"
     JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq '.summary.operation_status = "failed" | .summary.tags_pushed = 0')
   else
-    if git push --atomic origin "${tags_to_push[@]}" 2> /dev/null; then
-      log "SUCCESS" "Successfully pushed all ${#tags_to_push[@]} tags"
+    if push_tags_batched "${tags_to_push[@]}"; then
+      log "SUCCESS" "Successfully pushed all ${#tags_to_push[@]} tags (batched at $TAG_PUSH_BATCH_SIZE per push)"
       pushed_tags=${#tags_to_push[@]}
 
       for tag_name in "${tags_to_push[@]}"; do
@@ -535,8 +596,8 @@ create_and_push_tags() {
           '(.modules[] | select(.tag_name == $tag) | .status) = "tagged_and_pushed"')
       done
     else
-      log "ERROR" "Failed to push tags"
-      add_json_error "push_failed" "Failed to push tags to remote" "git push --atomic origin ${tags_to_push[*]}"
+      log "ERROR" "Failed to push one or more tag batches"
+      add_json_error "push_failed" "Failed to push one or more tag batches to remote" "push_tags_batched ${tags_to_push[*]}"
       failed_pushes=${#tags_to_push[@]}
 
       for tag_name in "${tags_to_push[@]}"; do

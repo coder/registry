@@ -93,8 +93,8 @@ function Start-RDPService {
 # Main execution
 try {
     # Template variables from Terraform
-    $username = "${username}"
-    $password = "${password}"
+    $username = '${username}'
+    $password = '${password}'
     
     # Validate inputs
     if ([string]::IsNullOrWhiteSpace($username) -or [string]::IsNullOrWhiteSpace($password)) {

@@ -1,19 +1,40 @@
 #!/usr/bin/env bun
 /**
- * Scores Coder Registry modules against SCORECARD.md using Claude, then
- * posts (or updates) one GitHub Discussion per module in coder/registry.
+ * Scores Coder Registry modules against SCORECARD.md with a language model,
+ * then posts (or updates) one GitHub Discussion per module in coder/registry.
  *
  * Env (required):
- *   ANTHROPIC_API_KEY         Anthropic API key
+ *   SCORECARD_CODER_TOKEN     Coder token for the dedicated "registry-scorecard"
+ *                             service account on cdrstable.dev. The AI Gateway
+ *                             routes the call to the provider named in
+ *                             SCORECARD_PROVIDER. Reads ANTHROPIC_API_KEY as a
+ *                             fallback, so an older workflow still works.
  *   GITHUB_DISCUSSIONS_TOKEN  GitHub PAT with Discussions read/write
+ *
+ * Env (optional):
+ *   SCORECARD_MODEL           Model to score with. Default solstice-1, which
+ *                             Solstice serves on a local GPU at no cost.
+ *   SCORECARD_PROVIDER        AI Gateway provider name. Default solstice.
+ *   SCORECARD_MAX_TOKENS      Completion budget. Default 16384. A reasoning
+ *                             model spends this budget on reasoning first, so
+ *                             a small budget returns an empty scorecard.
+ *   SCORECARD_CONCURRENCY     Modules scored at the same time. Default 1.
+ *                             Three large prompts at once come back as
+ *                             "AI Gateway error 500: context canceled" after
+ *                             about 190 s, while three small ones succeed in
+ *                             2.5 s, so raise this only with a measurement.
  *
  * Usage:
  *   bun run score-modules.ts [--modules a,b,c] [--dry-run] [--limit N]
  *
+ * Module specs are either a bare name (a module in registry/coder/modules)
+ * or namespace/name for any registry namespace. Non-coder namespaces are
+ * PR-report or dry-run only; discussions exist solely for coder modules.
+ *
  * --dry-run prints scorecards to stdout and skips GitHub entirely.
  */
 
-import { readdir, readFile } from "node:fs/promises";
+import { lstat, readdir, readFile, realpath } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import {
@@ -33,26 +54,94 @@ const REGISTRY_ROOT = path.resolve(import.meta.dir, "..", "..");
 const MODULES_DIR = path.join(REGISTRY_ROOT, "registry", "coder", "modules");
 const SCORECARD_PATH = path.join(import.meta.dir, "SCORECARD.md");
 
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-5";
+const SCORECARD_MODEL = process.env.SCORECARD_MODEL ?? "solstice-1";
+// AI Gateway provider name. Each provider is reachable at
+// /api/v2/ai-gateway/<name>/v1, and the gateway records the call against the
+// caller's Coder account either way. `solstice` points at Solstice, which
+// serves a local GPU first and falls back to Claude Sonnet on load.
+const SCORECARD_PROVIDER = process.env.SCORECARD_PROVIDER ?? "solstice";
+const SCORECARD_TOKEN =
+  process.env.SCORECARD_CODER_TOKEN ?? process.env.ANTHROPIC_API_KEY;
+const SCORECARD_BASE_URL = `https://cdrstable.dev/api/v2/ai-gateway/${SCORECARD_PROVIDER}/v1`;
+// solstice-1 reasons before it answers, and the reasoning counts against this
+// budget. One real module at 4096 spent the whole budget on reasoning and
+// returned an empty scorecard.
+const SCORECARD_MAX_TOKENS = Number(process.env.SCORECARD_MAX_TOKENS ?? 16384);
+// A local model answers slower than a hosted one: one module took 255 s on
+// solstice-1 against 27 s on claude-sonnet-4-5. Scoring several at once would
+// fix that, and the code below can, but three large prompts at once are
+// cancelled upstream after about 190 s while three small ones succeed. Until
+// that is understood, score one at a time. Only the model calls run in
+// parallel when this is raised; the discussion writes stay in order.
+const SCORECARD_CONCURRENCY = Number(process.env.SCORECARD_CONCURRENCY ?? 1);
+// A single model call can be cut off by something outside Solstice (a Coder
+// AI Gateway connection reset, or this script's own HTTP client giving up on
+// a very long wait) even though Bifrost and the model finish the request
+// correctly seconds later. A short retry recovers those without masking a
+// real, repeated failure. Default 3 attempts total (1 try + 2 retries).
+const SCORECARD_RETRY_ATTEMPTS = Number(
+  process.env.SCORECARD_RETRY_ATTEMPTS ?? 3,
+);
 const MAX_FILE_BYTES = 30_000;
 
-async function displayName(moduleName: string): Promise<string> {
-  const readme = await readFile(
-    path.join(MODULES_DIR, moduleName, "README.md"),
-    "utf8",
-  );
+// A module reference: bare names mean the coder namespace, and
+// namespace/name addresses any registry namespace.
+interface ModuleSpec {
+  ns: string;
+  name: string;
+  // namespace/name, used in report headings and log lines.
+  label: string;
+  dir: string;
+}
+
+function toSpec(raw: string): ModuleSpec {
+  const slash = raw.indexOf("/");
+  const [ns, name] =
+    slash === -1 ? ["coder", raw] : [raw.slice(0, slash), raw.slice(slash + 1)];
+  return {
+    ns,
+    name,
+    label: `${ns}/${name}`,
+    dir: path.join(REGISTRY_ROOT, "registry", ns, "modules", name),
+  };
+}
+
+// Reads a file from a module directory. Module content may come from an
+// untrusted pull request, so only regular files whose resolved path stays
+// inside the module directory are read.
+async function readModuleFile(
+  spec: ModuleSpec,
+  filePath: string,
+): Promise<string> {
+  const stats = await lstat(filePath);
+  if (!stats.isFile()) {
+    throw new Error(`refusing to read non-regular file: ${filePath}`);
+  }
+  const [realRoot, realDir, realFile] = await Promise.all([
+    realpath(REGISTRY_ROOT),
+    realpath(spec.dir),
+    realpath(filePath),
+  ]);
+  if (
+    !realDir.startsWith(realRoot + path.sep) ||
+    !realFile.startsWith(realDir + path.sep)
+  ) {
+    throw new Error(`refusing to read file outside the module: ${filePath}`);
+  }
+  return readFile(realFile, "utf8");
+}
+
+async function displayName(spec: ModuleSpec): Promise<string> {
+  const readme = await readModuleFile(spec, path.join(spec.dir, "README.md"));
   const match = readme.match(/^display_name:\s*["']?([^"'\n]+)["']?\s*$/m);
-  return match ? match[1].trim() : moduleName;
+  return match ? match[1].trim() : spec.name;
 }
 
 // Internal building-block modules caution against direct use and are not
 // meant to be consumed by template authors, so they are excluded from
 // scoring entirely.
-async function isInternalBuildingBlock(moduleName: string): Promise<boolean> {
-  const readme = await readFile(
-    path.join(MODULES_DIR, moduleName, "README.md"),
-    "utf8",
-  );
+async function isInternalBuildingBlock(spec: ModuleSpec): Promise<boolean> {
+  const readme = await readModuleFile(spec, path.join(spec.dir, "README.md"));
   return /do not recommend using this module directly|not intended to be used directly|internal building block/i.test(
     readme,
   );
@@ -63,6 +152,13 @@ interface Args {
   dryRun: boolean;
   limit?: number;
   prReport?: string;
+}
+
+interface ImageVerification {
+  reference: string;
+  resolvedPath: string;
+  exists: boolean;
+  sizeBytes?: number;
 }
 
 function parseArgs(): Args {
@@ -90,14 +186,68 @@ function parseArgs(): Args {
   return args;
 }
 
-async function readTruncated(filePath: string): Promise<string> {
-  const content = await readFile(filePath, "utf8");
+async function readTruncated(
+  spec: ModuleSpec,
+  filePath: string,
+): Promise<string> {
+  const content = await readModuleFile(spec, filePath);
   if (content.length <= MAX_FILE_BYTES) return content;
   return content.slice(0, MAX_FILE_BYTES) + "\n... [truncated]";
 }
 
-async function gatherModuleContext(moduleName: string): Promise<string> {
-  const dir = path.join(MODULES_DIR, moduleName);
+async function verifyReadmeImages(
+  spec: ModuleSpec,
+): Promise<ImageVerification[]> {
+  const readmePath = path.join(spec.dir, "README.md");
+  const readme = await readModuleFile(spec, readmePath);
+  const moduleDir = spec.dir;
+  const imageRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
+  const results: ImageVerification[] = [];
+
+  let match: RegExpExecArray | null;
+  while ((match = imageRegex.exec(readme)) !== null) {
+    const reference = match[1];
+
+    if (reference.startsWith("http://") || reference.startsWith("https://")) {
+      results.push({
+        reference,
+        resolvedPath: "(external)",
+        exists: true,
+      });
+      continue;
+    }
+
+    if (path.isAbsolute(reference)) {
+      continue;
+    }
+
+    const resolvedPath = path.resolve(moduleDir, reference);
+    if (!resolvedPath.startsWith(REGISTRY_ROOT)) {
+      continue;
+    }
+
+    const verification: ImageVerification = {
+      reference,
+      resolvedPath,
+      exists: existsSync(resolvedPath),
+    };
+
+    if (verification.exists) {
+      try {
+        const { stat } = await import("node:fs/promises");
+        const stats = await stat(resolvedPath);
+        verification.sizeBytes = stats.size;
+      } catch {}
+    }
+
+    results.push(verification);
+  }
+
+  return results;
+}
+
+async function gatherModuleContext(spec: ModuleSpec): Promise<string> {
+  const dir = spec.dir;
   const parts: string[] = [];
   const files = await readdir(dir, { recursive: true });
   const wanted = files.filter(
@@ -112,8 +262,29 @@ async function gatherModuleContext(moduleName: string): Promise<string> {
   ) as string[];
   for (const f of wanted.sort()) {
     const full = path.join(dir, f);
-    parts.push(`=== FILE: ${f} ===\n${await readTruncated(full)}`);
+    if ((await lstat(full)).isDirectory()) continue;
+    parts.push(`=== FILE: ${f} ===\n${await readTruncated(spec, full)}`);
   }
+
+  const imageVerifications = await verifyReadmeImages(spec);
+  if (imageVerifications.length > 0) {
+    const verificationLines = imageVerifications.map((v) => {
+      if (v.resolvedPath === "(external)") {
+        return `  → ${v.reference} — external URL`;
+      } else if (v.exists) {
+        const size = v.sizeBytes
+          ? ` (${(v.sizeBytes / 1024).toFixed(1)} KB)`
+          : "";
+        return `  ✓ ${v.reference} — exists${size}`;
+      } else {
+        return `  ✗ ${v.reference} — NOT FOUND`;
+      }
+    });
+    parts.push(
+      `=== README IMAGE VERIFICATION ===\n${verificationLines.join("\n")}`,
+    );
+  }
+
   return parts.join("\n\n");
 }
 
@@ -169,18 +340,15 @@ function fixOverall(scorecard: string): string {
   return out;
 }
 
-async function scoreModule(
-  moduleName: string,
-  rubric: string,
-): Promise<string> {
-  const context = await gatherModuleContext(moduleName);
+async function scoreModule(spec: ModuleSpec, rubric: string): Promise<string> {
+  const context = await gatherModuleContext(spec);
   const prompt = `You are scoring a Coder Registry module against a scorecard rubric.
 
 <rubric>
 ${rubric}
 </rubric>
 
-<module name="coder/${moduleName}">
+<module name="${spec.label}">
 ${context}
 </module>
 
@@ -212,17 +380,16 @@ Output ONLY the scorecard markdown in EXACTLY this structure (this example shows
 
 | Presentation & Onboarding | Agent Integration | Credential Hygiene | Restricted-Environment Readiness | Engineering Quality | Overall |
 |---:|---:|---:|---:|---:|---:|
-| **X / 25** | **X / 25** | **X / 20** | **X / 20 or N/A** | **X / 10** | **X / 100** |
+| **X / 17** | **X / 25** | **X / 20** | **X / 20 or N/A** | **X / 10** | **X / 100** |
 
 <details>
 <summary><strong>Drilldown</strong></summary>
 
-#### Presentation & Onboarding — X / 25
+#### Presentation & Onboarding — X / 17
 
 | Criterion | Max | Score | Notes |
 |---|---:|---:|---|
 | Configuration-mode examples | 12 | X | ... |
-| Coder-context framing | 8 | X | ... |
 | Visual preview | 5 | X | ... |
 
 (...remaining theme tables in rubric order, highest weight first, each with per-criterion rows...)
@@ -235,31 +402,66 @@ Output ONLY the scorecard markdown in EXACTLY this structure (this example shows
 
 Do not add any prose before or after the scorecard.`;
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": process.env.ANTHROPIC_API_KEY!,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 4096,
-      temperature: 0,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`Anthropic API error ${res.status}: ${await res.text()}`);
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= SCORECARD_RETRY_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(`${SCORECARD_BASE_URL}/chat/completions`, {
+        method: "POST",
+        headers: {
+          // The gateway checks the Coder token. Bearer carries it in the shape
+          // the OpenAI-style route expects.
+          authorization: `Bearer ${SCORECARD_TOKEN}`,
+          "Coder-Session-Token": SCORECARD_TOKEN!,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: SCORECARD_MODEL,
+          max_tokens: SCORECARD_MAX_TOKENS,
+          temperature: 0,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(`AI Gateway error ${res.status}: ${await res.text()}`);
+      }
+      const data = (await res.json()) as {
+        choices: { finish_reason?: string; message?: { content?: string } }[];
+        usage?: {
+          completion_tokens?: number;
+          completion_tokens_details?: { reasoning_tokens?: number };
+        };
+      };
+      const choice = (data.choices ?? [])[0];
+      const text = (data.choices ?? [])
+        .map((c) => c.message?.content ?? "")
+        .join("\n")
+        .trim();
+      if (!text) {
+        // Fail here rather than post an empty scorecard. The usual cause is a
+        // reasoning model that spent the whole budget before it answered.
+        const reasoning =
+          data.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
+        throw new Error(
+          `${SCORECARD_MODEL} returned no scorecard text ` +
+            `(finish_reason ${choice?.finish_reason ?? "unknown"}, ` +
+            `${data.usage?.completion_tokens ?? 0} completion tokens, ` +
+            `${reasoning} of them reasoning). ` +
+            `Raise SCORECARD_MAX_TOKENS above ${SCORECARD_MAX_TOKENS}.`,
+        );
+      }
+      return fixOverall(text);
+    } catch (err) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(
+        `\n  [${spec.label}] attempt ${attempt}/${SCORECARD_RETRY_ATTEMPTS} failed: ${msg}\n`,
+      );
+      if (attempt < SCORECARD_RETRY_ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, 2000 * attempt));
+      }
+    }
   }
-  const data = (await res.json()) as {
-    content: { type: string; text?: string }[];
-  };
-  const text = data.content
-    .filter((c) => c.type === "text")
-    .map((c) => c.text)
-    .join("\n");
-  return fixOverall(text.trim());
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
 
 async function upsertDiscussion(
@@ -311,7 +513,7 @@ async function upsertDiscussion(
 // module's current discussion (the last scoring from main), so PRs can see
 // whether they improve, regress, or hold the score.
 function prReportSection(
-  mod: string,
+  spec: ModuleSpec,
   name: string,
   scorecard: string,
   summary: SummaryScores | null,
@@ -319,10 +521,16 @@ function prReportSection(
 ): string {
   const details = `<details>\n<summary><strong>Full scorecard for this PR</strong></summary>\n\n${scorecard}\n\n</details>`;
   if (!summary) {
-    return `### \`coder/${mod}\`\n\nCould not parse the generated scorecard; see full output below.\n\n${details}`;
+    return `### \`${spec.label}\`\n\nCould not parse the generated scorecard; see full output below.\n\n${details}`;
   }
   if (!baseline) {
-    return `### \`coder/${mod}\`: first scorecard, **${summary.overall}**\n\nNo existing scorecard discussion found for ${name}; this is the initial score. A dedicated discussion is created after merge.\n\n${details}`;
+    // Discussions exist only for coder-namespace modules; community
+    // modules always get a standalone advisory score.
+    const followup =
+      spec.ns === "coder"
+        ? `No existing scorecard discussion found for ${name}; this is the initial score. A dedicated discussion is created after merge.`
+        : "No specific score is required to contribute, but modules with higher scores are more likely to be approved by the Coder team and widely used.";
+    return `### \`${spec.label}\`: first scorecard, **${summary.overall}**\n\n${followup}\n\n${details}`;
   }
   const delta = summary.overallNum - baseline.overallNum;
   const themes: [string, string, string][] = [
@@ -346,7 +554,7 @@ function prReportSection(
   } else {
     verdict = `\u2705 **Score unchanged** at ${summary.overall}. This PR does not affect the module's scorecard; the results are still good.`;
   }
-  return `### [\`coder/${mod}\`](${baseline.url}): ${baseline.overallNum} \u2192 ${summary.overallNum}\n\n${verdict}\n\n${table}\n\n${details}`;
+  return `### [\`${spec.label}\`](${baseline.url}): ${baseline.overallNum} \u2192 ${summary.overallNum}\n\n${verdict}\n\n${table}\n\n${details}`;
 }
 
 function discussionBody(
@@ -362,58 +570,119 @@ function discussionBody(
 ${scorecard}
 
 ---
-Scored against [SCORECARD.md](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md) on ${now} with \`${ANTHROPIC_MODEL}\`.
+Scored against [SCORECARD.md](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md) on ${now} with \`${SCORECARD_MODEL}\`.
 ${MARKER}`;
+}
+
+async function scoreAll(
+  specs: ModuleSpec[],
+  rubric: string,
+): Promise<Map<string, string | Error>> {
+  const out = new Map<string, string | Error>();
+  let next = 0;
+  const workers = Array.from(
+    { length: Math.max(1, Math.min(SCORECARD_CONCURRENCY, specs.length)) },
+    async () => {
+      while (true) {
+        const index = next++;
+        if (index >= specs.length) return;
+        const spec = specs[index];
+        try {
+          out.set(spec.label, await scoreModule(spec, rubric));
+        } catch (err) {
+          out.set(spec.label, err instanceof Error ? err : new Error(`${err}`));
+        }
+      }
+    },
+  );
+  await Promise.all(workers);
+  return out;
 }
 
 async function main() {
   const args = parseArgs();
-  if (!process.env.ANTHROPIC_API_KEY)
-    throw new Error("ANTHROPIC_API_KEY not set");
+  if (!SCORECARD_TOKEN) throw new Error("SCORECARD_CODER_TOKEN not set");
   if (!args.dryRun && !process.env.GITHUB_DISCUSSIONS_TOKEN) {
     throw new Error("GITHUB_DISCUSSIONS_TOKEN not set");
   }
 
   const rubric = await readFile(SCORECARD_PATH, "utf8");
-  let modules =
+  // Without --modules, enumerate only registry/coder/modules: the
+  // discussion-writing runs (post-merge, weekly) are for official modules
+  // only. Community modules are scored solely via explicit --modules specs
+  // in PR-report mode.
+  let specs = (
     args.modules ??
     (await readdir(MODULES_DIR, { withFileTypes: true }))
       .filter((d) => d.isDirectory())
       .map((d) => d.name)
-      .sort();
-  if (args.limit) modules = modules.slice(0, args.limit);
+      .sort()
+  ).map(toSpec);
+  if (args.limit) specs = specs.slice(0, args.limit);
+
+  // Discussions are reserved for coder-namespace modules. Refuse to run
+  // non-coder specs in discussion-writing mode rather than silently
+  // creating community discussions.
+  if (!args.prReport && !args.dryRun) {
+    const community = specs.filter((s) => s.ns !== "coder");
+    if (community.length > 0) {
+      throw new Error(
+        `non-coder modules require --pr-report or --dry-run: ${community.map((s) => s.label).join(", ")}`,
+      );
+    }
+  }
 
   const prSections: string[] = [];
-  for (const mod of modules) {
-    if (!existsSync(path.join(MODULES_DIR, mod, "README.md"))) {
-      console.error(`skip ${mod}: no README.md`);
+  const failed: string[] = [];
+
+  // Decide what to score, then score it in parallel. The loop below keeps
+  // every GitHub write in order, so a scorecard is looked up here rather
+  // than requested inside the loop.
+  const eligible: ModuleSpec[] = [];
+  for (const spec of specs) {
+    if (!existsSync(path.join(spec.dir, "README.md"))) {
+      console.error(`skip ${spec.label}: no README.md`);
       continue;
     }
-    if (await isInternalBuildingBlock(mod)) {
-      process.stderr.write(`skip ${mod}: internal building block\n`);
+    if (await isInternalBuildingBlock(spec)) {
+      process.stderr.write(`skip ${spec.label}: internal building block\n`);
       continue;
     }
-    process.stderr.write(`scoring ${mod}... `);
+    eligible.push(spec);
+  }
+  const scored = await scoreAll(eligible, rubric);
+
+  for (const spec of eligible) {
+    process.stderr.write(`scoring ${spec.label}... `);
     try {
-      const scorecard = await scoreModule(mod, rubric);
+      const result = scored.get(spec.label);
+      if (result instanceof Error) {
+        throw result;
+      }
+      const scorecard = result!;
       if (args.dryRun) {
-        console.log(`\n===== coder/${mod} =====\n${scorecard}\n`);
+        console.log(`\n===== ${spec.label} =====\n${scorecard}\n`);
         process.stderr.write("done (dry-run)\n");
         continue;
       }
-      const name = await displayName(mod);
+      const name = await displayName(spec);
       if (args.prReport) {
         // PR mode: compare against the module's current discussion and
-        // build a report instead of touching any discussion.
+        // build a report instead of touching any discussion. Community
+        // modules have no discussions, so they skip the baseline lookup
+        // and always report a standalone score.
         const summary = parseSummary(scorecard);
-        let existing = await findDiscussionByTitle(`${name} module`);
+        let existing =
+          spec.ns === "coder"
+            ? await findDiscussionByTitle(`${name} module`)
+            : null;
         let renameWarning = "";
-        if (!existing) {
+        if (spec.ns === "coder" && !existing) {
           // A display_name rename breaks the title lookup while the old
           // discussion still exists. Fall back to the registry URL and
           // flag it so a reviewer retitles or deletes the old one; the
           // post-merge run creates a fresh discussion under the new name.
-          existing = await findDiscussionByModuleUrl(mod);
+          existing = await findDiscussionByModuleUrl(spec.name);
           if (existing) {
             renameWarning = `\n\n> [!WARNING]\n> This module's display name appears to have changed. Its existing scorecard discussion is titled "${existing.title}" (${existing.url}). After merge, a new discussion named "${name} module" will be created; a maintainer should retitle or delete the old one to avoid duplicates.`;
           }
@@ -422,7 +691,7 @@ async function main() {
         const baseline =
           existing && parsed ? { ...parsed, url: existing.url } : null;
         prSections.push(
-          prReportSection(mod, name, scorecard, summary, baseline) +
+          prReportSection(spec, name, scorecard, summary, baseline) +
             renameWarning,
         );
         process.stderr.write("compared\n");
@@ -430,18 +699,27 @@ async function main() {
       }
       const { url, created } = await upsertDiscussion(
         `${name} module`,
-        discussionBody(mod, name, scorecard),
+        discussionBody(spec.name, name, scorecard),
       );
       process.stderr.write(`${created ? "created" : "updated"} ${url}\n`);
     } catch (err) {
+      failed.push(spec.label);
       process.stderr.write(`FAILED: ${err}\n`);
     }
   }
 
+  if (failed.length > 0) {
+    process.stderr.write(
+      `\n${failed.length} module(s) failed to score: ${failed.join(", ")}\n`,
+    );
+    process.exitCode = 1;
+  }
+
   if (args.prReport) {
+    const localTip = `> [!TIP]\n> You can run this locally by telling your agent: "review this module against [\`.github/scorecard/SCORECARD.md\`](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md)".`;
     const report =
       prSections.length > 0
-        ? `## Module Scorecard Check\n\n${prSections.join("\n\n")}\n\n---\nScored against [SCORECARD.md](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md) with \`${ANTHROPIC_MODEL}\`. Language-model scores are advisory.\n<!-- module-scorecard-pr -->`
+        ? `## Module Scorecard Check\n\n${prSections.join("\n\n")}\n\n${localTip}\n\n---\nScored against [SCORECARD.md](https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/main/.github/scorecard/SCORECARD.md) with \`${SCORECARD_MODEL}\`. Language-model scores are advisory.\n<!-- module-scorecard-pr -->`
         : "";
     await Bun.write(args.prReport, report);
     process.stderr.write(`wrote PR report to ${args.prReport}\n`);

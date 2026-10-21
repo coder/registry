@@ -1,32 +1,32 @@
 ---
-display_name: AI Bridge Proxy
-description: Configure a workspace to route AI tool traffic through AI Bridge via AI Bridge Proxy.
+display_name: AI Gateway Proxy
+description: Configure a workspace to route AI tool traffic through AI Gateway via AI Gateway Proxy.
 icon: ../../../../.icons/coder.svg
 verified: true
-tags: [helper, aibridge]
+tags: [helper, ai-gateway]
 ---
 
-# AI Bridge Proxy
+# AI Gateway Proxy
 
-This module configures a Coder workspace to use [AI Bridge Proxy](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy).
+This module configures a Coder workspace to use [AI Gateway Proxy](https://coder.com/docs/ai-coder/ai-gateway/ai-gateway-proxy).
 It downloads the proxy's CA certificate from the Coder deployment and provides Terraform outputs (`proxy_auth_url` and `cert_path`) that tool-specific modules can use to route their traffic through the proxy.
 
 ```tf
 module "aibridge-proxy" {
   source    = "registry.coder.com/coder/aibridge-proxy/coder"
-  version   = "1.0.0"
+  version   = "1.0.1"
   agent_id  = coder_agent.main.id
   proxy_url = "https://aiproxy.example.com"
 }
 ```
 
 > [!NOTE]
-> AI Bridge Proxy is a Premium Coder feature that requires [AI Governance Add-On](https://coder.com/docs/ai-coder/ai-governance).
-> See the [AI Bridge Proxy setup guide](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy/setup) for details on configuring the proxy on your Coder deployment.
+> AI Gateway Proxy is a Premium Coder feature that requires [AI Governance Add-On](https://coder.com/docs/ai-coder/ai-governance).
+> See the [AI Gateway Proxy setup guide](https://coder.com/docs/ai-coder/ai-gateway/ai-gateway-proxy/setup) for details on configuring the proxy on your Coder deployment.
 
 ## How it works
 
-[AI Bridge Proxy](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy) is an HTTP proxy that intercepts traffic to AI providers and forwards it through [AI Bridge](https://coder.com/docs/ai-coder/ai-bridge), enabling centralized LLM management, governance, and cost tracking.
+[AI Gateway Proxy](https://coder.com/docs/ai-coder/ai-gateway/ai-gateway-proxy) is an HTTP proxy that intercepts traffic to AI providers and forwards it through [AI Gateway](https://coder.com/docs/ai-coder/ai-gateway), enabling centralized LLM management, governance, and cost tracking.
 Any process with the proxy environment variables set will route **all** its traffic through the proxy.
 
 This module **does not** set proxy environment variables globally on the workspace.
@@ -67,7 +67,7 @@ env = [
 ```tf
 module "aibridge-proxy" {
   source    = "registry.coder.com/coder/aibridge-proxy/coder"
-  version   = "1.0.0"
+  version   = "1.0.1"
   agent_id  = coder_agent.main.id
   proxy_url = "https://aiproxy.example.com"
   cert_path = "/home/coder/.certs/aibridge-proxy-ca.pem"
@@ -77,12 +77,12 @@ module "aibridge-proxy" {
 ### Proxy with custom port
 
 For deployments where the proxy is accessed directly on a configured port.
-See [security considerations](https://coder.com/docs/ai-coder/ai-bridge/ai-bridge-proxy/setup#security-considerations) for network access guidelines.
+See [security considerations](https://coder.com/docs/ai-coder/ai-gateway/ai-gateway-proxy/setup#security-considerations) for network access guidelines.
 
 ```tf
 module "aibridge-proxy" {
   source    = "registry.coder.com/coder/aibridge-proxy/coder"
-  version   = "1.0.0"
+  version   = "1.0.1"
   agent_id  = coder_agent.main.id
   proxy_url = "http://internal-proxy:8888"
 }

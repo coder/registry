@@ -170,4 +170,4 @@ See the updated AWS templates that use this module:
 
 - [`coder/templates/aws-linux`](https://registry.coder.com/templates/aws-linux)
 - [`coder/templates/aws-windows`](https://registry.coder.com/templates/aws-windows)
-- [`coder/templates/aws-devcontainer`](https://registry.coder.com/templates/aws-devcontainer)
+- [`coder/templates/aws-envbuilder`](https://registry.coder.com/templates/aws-envbuilder)

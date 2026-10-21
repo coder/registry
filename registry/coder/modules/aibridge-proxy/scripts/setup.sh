@@ -38,7 +38,7 @@ if ! command -v curl > /dev/null; then
 fi
 
 echo "--------------------------------"
-echo "AI Bridge Proxy Setup"
+echo "AI Gateway Proxy Setup"
 printf "Certificate path: %s\n" "$CERT_PATH"
 printf "Access URL: %s\n" "$ACCESS_URL"
 echo "--------------------------------"
@@ -47,7 +47,7 @@ CERT_DIR=$(dirname "$CERT_PATH")
 mkdir -p "$CERT_DIR"
 
 CERT_URL="$ACCESS_URL/api/v2/aibridge/proxy/ca-cert.pem"
-echo "Downloading AI Bridge Proxy CA certificate from $CERT_URL..."
+echo "Downloading AI Gateway Proxy CA certificate from $CERT_URL..."
 
 # Download the certificate with a 5s connection timeout and 10s total timeout
 # to avoid the script hanging indefinitely.
@@ -56,24 +56,24 @@ if ! HTTP_STATUS=$(curl -s -o "$CERT_PATH" -w "%%{http_code}" \
   --max-time 10 \
   -H "Coder-Session-Token: $SESSION_TOKEN" \
   "$CERT_URL"); then
-  echo "❌ AI Bridge Proxy setup failed: could not connect to $CERT_URL."
-  echo "Ensure AI Bridge Proxy is enabled and reachable from the workspace."
+  echo "❌ AI Gateway Proxy setup failed: could not connect to $CERT_URL."
+  echo "Ensure AI Gateway Proxy is enabled and reachable from the workspace."
   rm -f "$CERT_PATH"
   exit 1
 fi
 
 if [ "$HTTP_STATUS" -ne 200 ]; then
-  echo "❌ AI Bridge Proxy setup failed: unexpected response (HTTP $HTTP_STATUS)."
-  echo "Ensure AI Bridge Proxy is enabled and reachable from the workspace."
+  echo "❌ AI Gateway Proxy setup failed: unexpected response (HTTP $HTTP_STATUS)."
+  echo "Ensure AI Gateway Proxy is enabled and reachable from the workspace."
   rm -f "$CERT_PATH"
   exit 1
 fi
 
 if [ ! -s "$CERT_PATH" ]; then
-  echo "❌ AI Bridge Proxy setup failed: downloaded certificate is empty."
+  echo "❌ AI Gateway Proxy setup failed: downloaded certificate is empty."
   rm -f "$CERT_PATH"
   exit 1
 fi
 
-echo "AI Bridge Proxy CA certificate saved to $CERT_PATH"
-echo "✅ AI Bridge Proxy setup complete."
+echo "AI Gateway Proxy CA certificate saved to $CERT_PATH"
+echo "✅ AI Gateway Proxy setup complete."

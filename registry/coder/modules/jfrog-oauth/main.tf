@@ -52,9 +52,22 @@ variable "configure_code_server" {
   default     = false
 }
 
+variable "install_jfrog_cli" {
+  description = "Whether to install the JFrog CLI when it is not already available on PATH."
+  type        = bool
+  default     = true
+}
+
+variable "configure_jfrog_cli" {
+  description = "Whether to authenticate the JFrog CLI and configure shell completion."
+  type        = bool
+  default     = true
+}
+
 variable "package_managers" {
   type = object({
     npm    = optional(list(string), [])
+    pnpm   = optional(list(string), [])
     go     = optional(list(string), [])
     pypi   = optional(list(string), [])
     docker = optional(list(string), [])
@@ -66,6 +79,7 @@ variable "package_managers" {
     For example:
       {
         npm    = ["GLOBAL_NPM_REPO_KEY", "@SCOPED:NPM_REPO_KEY"]
+        pnpm   = ["GLOBAL_NPM_REPO_KEY", "@SCOPED:NPM_REPO_KEY"]
         go     = ["YOUR_GO_REPO_KEY", "ANOTHER_GO_REPO_KEY"]
         pypi   = ["YOUR_PYPI_REPO_KEY", "ANOTHER_PYPI_REPO_KEY"]
         docker = ["YOUR_DOCKER_REPO_KEY", "ANOTHER_DOCKER_REPO_KEY"]
@@ -73,6 +87,16 @@ variable "package_managers" {
         maven  = ["YOUR_MAVEN_REPO_KEY", "ANOTHER_MAVEN_REPO_KEY"]
       }
   EOF
+  default     = {}
+
+  validation {
+    condition = (
+      length(var.package_managers.npm) == 0 ||
+      length(var.package_managers.pnpm) == 0 ||
+      var.package_managers.npm == var.package_managers.pnpm
+    )
+    error_message = "package_managers.npm and package_managers.pnpm must use the same repository list when both are configured because npm and pnpm share ~/.npmrc."
+  }
 }
 
 locals {
@@ -98,6 +122,23 @@ locals {
     var.username_field == "email" ? data.coder_workspace_owner.me.email : data.coder_workspace_owner.me.name
   )
   jfrog_host = split("://", var.jfrog_url)[1]
+  has_package_managers = anytrue([
+    length(var.package_managers.npm) > 0,
+    length(var.package_managers.pnpm) > 0,
+    length(var.package_managers.go) > 0,
+    length(var.package_managers.pypi) > 0,
+    length(var.package_managers.docker) > 0,
+    length(var.package_managers.conda) > 0,
+    length(var.package_managers.maven) > 0,
+  ])
+  requires_jfrog_cli = var.configure_jfrog_cli || anytrue([
+    length(var.package_managers.npm) > 0,
+    length(var.package_managers.pnpm) > 0,
+    length(var.package_managers.go) > 0,
+    length(var.package_managers.pypi) > 0,
+    length(var.package_managers.maven) > 0,
+  ])
+  configure_workspace = var.install_jfrog_cli || var.configure_jfrog_cli || local.has_package_managers || var.configure_code_server
   common_values = {
     JFROG_URL                = var.jfrog_url
     JFROG_HOST               = local.jfrog_host
@@ -106,13 +147,14 @@ locals {
     ARTIFACTORY_EMAIL        = data.coder_workspace_owner.me.email
     ARTIFACTORY_ACCESS_TOKEN = data.coder_external_auth.jfrog.access_token
   }
+  npm_repositories = length(var.package_managers.npm) > 0 ? var.package_managers.npm : var.package_managers.pnpm
   npmrc = templatefile(
     "${path.module}/.npmrc.tftpl",
     merge(
       local.common_values,
       {
         REPOS = [
-          for r in var.package_managers.npm :
+          for r in local.npm_repositories :
           strcontains(r, ":") ? zipmap(["SCOPE", "NAME"], ["${split(":", r)[0]}:", split(":", r)[1]]) : { SCOPE = "", NAME = r }
         ]
       }
@@ -137,16 +179,22 @@ data "coder_external_auth" "jfrog" {
 }
 
 resource "coder_script" "jfrog" {
+  count        = local.configure_workspace ? 1 : 0
   agent_id     = var.agent_id
   display_name = "jfrog"
   icon         = "/icon/jfrog.svg"
   script = templatefile("${path.module}/run.sh", merge(
     local.common_values,
     {
+      INSTALL_CLI           = var.install_jfrog_cli
+      CONFIGURE_CLI         = var.configure_jfrog_cli
+      REQUIRE_CLI           = local.requires_jfrog_cli
       CONFIGURE_CODE_SERVER = var.configure_code_server
       HAS_NPM               = length(var.package_managers.npm) == 0 ? "" : "YES"
+      HAS_PNPM              = length(var.package_managers.pnpm) == 0 ? "" : "YES"
       NPMRC                 = local.npmrc
       REPOSITORY_NPM        = try(element(var.package_managers.npm, 0), "")
+      REPOSITORY_PNPM       = try(element(var.package_managers.pnpm, 0), "")
       HAS_GO                = length(var.package_managers.go) == 0 ? "" : "YES"
       REPOSITORY_GO         = try(element(var.package_managers.go, 0), "")
       HAS_PYPI              = length(var.package_managers.pypi) == 0 ? "" : "YES"
@@ -163,13 +211,6 @@ resource "coder_script" "jfrog" {
     }
   ))
   run_on_start = true
-
-  lifecycle {
-    precondition {
-      condition     = data.coder_external_auth.jfrog.access_token != ""
-      error_message = "JFrog access token is empty. Please authenticate with JFrog using external auth."
-    }
-  }
 }
 
 resource "coder_env" "jfrog_ide_url" {
@@ -194,7 +235,7 @@ resource "coder_env" "jfrog_ide_store_connection" {
 }
 
 resource "coder_env" "goproxy" {
-  count    = length(var.package_managers.go) == 0 ? 0 : 1
+  count    = length(var.package_managers.go) > 0 ? 1 : 0
   agent_id = var.agent_id
   name     = "GOPROXY"
   value = join(",", [

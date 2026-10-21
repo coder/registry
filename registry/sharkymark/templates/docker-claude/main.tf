@@ -44,60 +44,42 @@ variable "anthropic_api_key" {
   sensitive   = true
 }
 
-resource "coder_env" "anthropic_api_key" {
-  agent_id = coder_agent.dev.id
-  name     = "CODER_MCP_CLAUDE_API_KEY"
-  value    = var.anthropic_api_key
-}
-
-# The Claude Code module does the automatic task reporting
+# The Claude Code module installs and authenticates the Claude Code CLI.
 # Other agent modules: https://registry.coder.com/modules?search=agent
-# Or use a custom agent:  
 module "claude-code" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "2.0.0"
+  version             = "5.5.1"
   agent_id            = coder_agent.dev.id
-  folder              = "/home/coder/projects"
+  workdir             = "/home/coder/projects"
   install_claude_code = true
   claude_code_version = "latest"
-  order               = 999
+  anthropic_api_key   = var.anthropic_api_key
 
-  experiment_post_install_script = data.coder_parameter.setup_script.value
-
-  # This enables Coder Tasks
-  experiment_report_tasks = true
+  post_install_script = data.coder_parameter.setup_script.value
 }
 
-# We are using presets to set the prompts, image, and set up instructions
+resource "coder_app" "claude" {
+  agent_id     = coder_agent.dev.id
+  slug         = "claude"
+  display_name = "Claude Code"
+  icon         = "/icon/claude.svg"
+  open_in      = "slim-window"
+  order        = 1
+  command      = <<-EOT
+    #!/usr/bin/env bash
+    set -e
+    cd /home/coder/projects
+    claude
+  EOT
+}
+
+# We are using presets to set the image and setup instructions
 # See https://coder.com/docs/admin/templates/extending-templates/parameters#workspace-presets
 data "coder_workspace_preset" "default" {
   name    = "Real World App: Angular + Django"
   default = true
   parameters = {
-    "system_prompt" = <<-EOT
-      -- Framing --
-      You are a helpful assistant that can help with code. You are running inside a Coder Workspace and provide status updates to the user via Coder MCP. Stay on track, feel free to debug, but when the original plan fails, do not choose a different route/architecture without checking the user first.
-
-      -- Tool Selection --
-      - playwright: previewing your changes after you made them
-        to confirm it worked as expected
-	    -	desktop-commander - use only for commands that keep running
-        (servers, dev watchers, GUI apps).
-      -	Built-in tools - use for everything else:
-       (file operations, git commands, builds & installs, one-off shell commands)
-	    
-      Remember this decision rule:
-      - Stays running? → desktop-commander
-      - Finishes immediately? → built-in tools
-      
-      -- Context --
-      There is an existing app and tmux dev server running on port 8000. Be sure to read it's CLAUDE.md (./realworld-django-rest-framework-angular/CLAUDE.md) to learn more about it. 
-
-      Since this app is for demo purposes and the user is previewing the homepage and subsequent pages, aim to make the first visual change/prototype very quickly so the user can preview it, then focus on backend or logic which can be a more involved, long-running architecture plan.
-
-    EOT
-
     "setup_script"    = <<-EOT
     # Set up projects dir
     mkdir -p /home/coder/projects
@@ -142,21 +124,6 @@ data "coder_workspace_preset" "default" {
 }
 
 # Advanced parameters (these are all set via preset)
-data "coder_parameter" "system_prompt" {
-  name         = "system_prompt"
-  display_name = "System Prompt"
-  type         = "string"
-  form_type    = "textarea"
-  description  = "System prompt for the agent with generalized instructions"
-  mutable      = false
-}
-data "coder_parameter" "ai_prompt" {
-  type        = "string"
-  name        = "AI Prompt"
-  default     = ""
-  description = "Write a prompt for Claude Code"
-  mutable     = true
-}
 data "coder_parameter" "setup_script" {
   name         = "setup_script"
   display_name = "Setup Script"
@@ -175,27 +142,10 @@ data "coder_parameter" "container_image" {
 data "coder_parameter" "preview_port" {
   name         = "preview_port"
   display_name = "Preview Port"
-  description  = "The port the web app is running to preview in Tasks"
+  description  = "The port the web app is running on, used by the Preview app"
   type         = "number"
   default      = "3000"
   mutable      = false
-}
-
-# Other variables for Claude Code
-resource "coder_env" "claude_task_prompt" {
-  agent_id = coder_agent.dev.id
-  name     = "CODER_MCP_CLAUDE_TASK_PROMPT"
-  value    = data.coder_parameter.ai_prompt.value
-}
-resource "coder_env" "app_status_slug" {
-  agent_id = coder_agent.dev.id
-  name     = "CODER_MCP_APP_STATUS_SLUG"
-  value    = "claude-code"
-}
-resource "coder_env" "claude_system_prompt" {
-  agent_id = coder_agent.dev.id
-  name     = "CODER_MCP_CLAUDE_SYSTEM_PROMPT"
-  value    = data.coder_parameter.system_prompt.value
 }
 
 module "coder-login" {
@@ -283,14 +233,6 @@ resource "coder_agent" "dev" {
 
   startup_script_behavior = "non-blocking"
   connection_timeout      = 300
-
-  env = {
-
-    GIT_AUTHOR_NAME     = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_AUTHOR_EMAIL    = "${data.coder_workspace_owner.me.email}"
-    GIT_COMMITTER_NAME  = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
-    GIT_COMMITTER_EMAIL = "${data.coder_workspace_owner.me.email}"
-  }
 
   startup_script = <<EOT
 #!/bin/sh

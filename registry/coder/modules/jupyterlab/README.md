@@ -19,7 +19,7 @@ must pass through Coder's application proxy.
 module "jupyterlab" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jupyterlab/coder"
-  version  = "1.3.0"
+  version  = "1.3.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -35,7 +35,7 @@ module "jupyterlab" {
 module "jupyterlab" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jupyterlab/coder"
-  version  = "1.3.0"
+  version  = "1.3.1"
   agent_id = coder_agent.main.id
   host     = "0.0.0.0"
 }
@@ -49,7 +49,7 @@ JupyterLab is automatically configured to work with Coder's iframe embedding. Fo
 module "jupyterlab" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jupyterlab/coder"
-  version  = "1.3.0"
+  version  = "1.3.1"
   agent_id = coder_agent.main.id
   config = {
     ServerApp = {

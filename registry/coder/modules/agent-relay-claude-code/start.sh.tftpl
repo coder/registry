@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# Start step, run by coder-utils after the install step. Runs at agent
+# start with SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET (the work-order JWT) and
+# SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT in scope.
+#
+# Starts the runner detached and exits, so the agent reaches the ready
+# lifecycle state instead of sitting in starting for the life of the
+# session. The detached supervisor records the runner's lifecycle to
+# ${state_file}, which the agent_relay_status agent metadata item publishes for
+# Agent Relay. See README.
+set -euo pipefail
+
+state_file="${state_file}"
+log_file="${log_file}"
+base_dir="${base_dir}"
+state_dir="$(dirname "$state_file")"
+mkdir -p "$state_dir" "$(dirname "$log_file")" "$base_dir"
+
+write_state() {
+	# Write via a temp file so a reader never sees a partial line.
+	printf '%s\n' "$1" >"$state_file.tmp"
+	mv "$state_file.tmp" "$state_file"
+}
+
+if [ -z "$${SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET:-}" ]; then
+	# Only claim idle when nothing has been recorded. A credential is
+	# ephemeral, so a restart of a finished workspace arrives here too,
+	# and overwriting "done 3" with "idle" would hide a real failure.
+	if [ ! -f "$state_file" ]; then
+		write_state "idle"
+	fi
+	echo "No work order set. This workspace was created manually, not by Agent Relay."
+	echo "Idling. Delete this workspace manually or set the agent_relay_credential parameter."
+	exit 0
+fi
+
+# ~/.local/bin is where the official installer puts the CLI, whether the
+# install step ran it or the image author did. Unconditional so a
+# bring-your-own CLI there is found when install_cli is false; harmless
+# when the directory does not exist.
+export PATH="$HOME/.local/bin:$PATH"
+
+# A missing binary is a template problem, so it is reported as a
+# terminal state for Agent Relay to nack rather than started blind,
+# which would loop as "done 127". Bake the CLI into the image, or set
+# install_cli to download it on start.
+if ! command -v ${cli_binary} >/dev/null 2>&1; then
+	write_state "failed runner-agent-missing"
+	echo "The runner binary '${cli_binary}' is not available." >&2
+	echo "Bake the Claude Code CLI into the image, set install_cli = true, or set cli_binary. See the module README." >&2
+	exit 1
+fi
+
+# Write a wrapper that forces bypassPermissions so sessions never stall
+# on a tool-approval prompt. There is no terminal attached to the child
+# claude process, so an approval prompt would hang the runner.
+#
+# The CLI refuses bypassPermissions as root unless IS_SANDBOX=1, and a
+# workspace agent often runs as root. Without it every session would die
+# on start while the state file still said working, so the relay would
+# keep feeding the workspace. The runner workspace is an ephemeral
+# container with nothing else in it, which is the sandbox the flag asks
+# about. Set on the wrapper alone so only the session child sees it.
+#
+# Kept beside the supervisor, not under ~/.claude: that is the runner's
+# host config dir, which it snapshots into every session's
+# CLAUDE_CONFIG_DIR, so a wrapper there would be copied into each session.
+wrapper="$state_dir/wrapper.sh"
+cat >"$wrapper" <<'WRAPPER'
+#!/usr/bin/env bash
+export IS_SANDBOX=1
+exec "$CLAUDE_RUNNER_CLAUDE_BIN" "$@" --permission-mode bypassPermissions
+WRAPPER
+chmod +x "$wrapper"
+
+# The supervisor outlives this script: it owns the runner process and is
+# the only writer of terminal state. Written to disk rather than inlined
+# so setsid gets a clean argv.
+supervisor="$state_dir/supervise.sh"
+cat >"$supervisor" <<SUPERVISOR
+#!/usr/bin/env bash
+set -uo pipefail
+
+write_state() {
+	printf '%s\n' "\$1" >"$state_file.tmp"
+	mv "$state_file.tmp" "$state_file"
+}
+
+export PATH="\$HOME/.local/bin:\$PATH"
+${cli_binary} self-hosted-runner \\
+	--capacity 1 \\
+	--base-dir "$base_dir" \\
+%{ if exit_if_unused_min > 0 ~}
+	--exit-if-unused-min ${exit_if_unused_min} \\
+%{ endif ~}
+	--exec-path "$wrapper" >"$log_file" 2>&1 &
+runner_pid=\$!
+write_state "working \$runner_pid"
+
+wait "\$runner_pid"
+code=\$?
+write_state "done \$code"
+SUPERVISOR
+chmod +x "$supervisor"
+
+echo "Starting Claude Code self-hosted runner (detached)..."
+setsid nohup "$supervisor" >/dev/null 2>&1 </dev/null &
+
+# Give the supervisor a moment to record state, so a workspace that
+# fails immediately is visible as such rather than as pending. Not a
+# readiness gate: the runner registering with Anthropic and picking up
+# the session both happen later, and blocking on them would keep the
+# agent out of the ready state.
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+	[ -f "$state_file" ] && break
+	sleep 1
+done
+
+if [ -f "$state_file" ]; then
+	echo "Runner state: $(cat "$state_file")"
+else
+	echo "Runner did not report state within 10s; check $log_file" >&2
+fi
+echo "Runner log: $log_file"

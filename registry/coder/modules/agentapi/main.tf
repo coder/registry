@@ -256,7 +256,7 @@ resource "coder_script" "agentapi" {
   display_name = "Install and start AgentAPI"
   icon         = var.web_app_icon
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -o errexit
     set -o pipefail
 
@@ -298,7 +298,7 @@ resource "coder_script" "agentapi_shutdown" {
   icon         = var.web_app_icon
   run_on_stop  = true
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -o pipefail
 
     echo -n '${base64encode(local.shutdown_script)}' | base64 -d > /tmp/agentapi-shutdown.sh
@@ -340,7 +340,7 @@ resource "coder_app" "agentapi_cli" {
   display_name = var.cli_app_display_name
   agent_id     = var.agent_id
   command      = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -e
 
     export LANG=en_US.UTF-8

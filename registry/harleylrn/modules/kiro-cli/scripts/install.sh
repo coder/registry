@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Install script for kiro-cli module
 
 set -o errexit

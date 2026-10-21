@@ -19,7 +19,7 @@ integration.
 module "jetbrains_plugins" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/harsh9485/jetbrains-plugins/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   jetbrains_plugins = {
@@ -30,9 +30,9 @@ module "jetbrains_plugins" {
 
 ## Prerequisites
 
-- The [coder/jetbrains](https://registry.coder.com/modules/jetbrains)
-  module (or equivalent JetBrains Toolbox setup) must already be
-  configured in your template.
+- The [coder/jetbrains](https://registry.coder.com/modules/jetbrains) module
+  (or equivalent JetBrains Toolbox setup) must already be configured in your
+  template.
 - `jq` must be available on `PATH`.
 - Linux environment only.
 
@@ -57,7 +57,7 @@ module "jetbrains" {
 module "jetbrains_plugins" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/harsh9485/jetbrains-plugins/coder"
-  version  = "0.1.0"
+  version  = "0.1.1"
   agent_id = coder_agent.main.id
 
   jetbrains_plugins = {

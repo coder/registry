@@ -55,10 +55,10 @@ After merging a PR, use the automated script to create and push release tags:
 
 **Steps:**
 
-1. **Checkout the merge commit:**
+1. **Update main** (needs a full clone, not a shallow one):
 
    ```bash
-   git checkout MERGE_COMMIT_ID
+   git checkout main && git pull
    ```
 
 2. **Run the tag release script:**
@@ -76,7 +76,7 @@ After merging a PR, use the automated script to create and push release tags:
 4. **Automatic tagging:**
    - After confirmation, the script will automatically create all necessary release tags
    - Tags will be pushed to the remote repository
-   - The script operates on the current checked-out commit
+   - Each tag points at the merge commit that introduced that module's README version, not at HEAD
 
 **Example output:**
 
@@ -87,7 +87,7 @@ After merging a PR, use the automated script to create and push release tags:
 ✅ coder/dotfiles: v1.0.5 (already tagged)
 
 ## Tags to be created:
-- `release/coder/code-server/v4.1.2`
+- `release/coder/code-server/v4.1.2` -> 1a2b3c4d
 
 ❓ Do you want to proceed with creating and pushing these release tags?
 Continue? [y/N]: y

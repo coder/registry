@@ -6,9 +6,9 @@ function Set-AdminPassword {
     Import-Module Microsoft.PowerShell.LocalAccounts -ErrorAction SilentlyContinue
     
     # Set admin password
-    Get-LocalUser -Name "${admin_username}" | Set-LocalUser -Password (ConvertTo-SecureString -AsPlainText $adminPassword -Force)
+    Get-LocalUser -Name '${admin_username}' | Set-LocalUser -Password (ConvertTo-SecureString -AsPlainText $adminPassword -Force)
     # Enable admin user
-    Get-LocalUser -Name "${admin_username}" | Enable-LocalUser
+    Get-LocalUser -Name '${admin_username}' | Enable-LocalUser
 }
 
 function Configure-RDP {
@@ -125,7 +125,7 @@ if ($isPatched -eq $null) {
 }
 }
 
-Set-AdminPassword -adminPassword "${admin_password}"
+Set-AdminPassword -adminPassword '${admin_password}'
 Configure-RDP
 Install-DevolutionsGateway
 Patch-Devolutions-HTML

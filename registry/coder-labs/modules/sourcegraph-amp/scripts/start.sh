@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Load user environment
 if [ -f "$HOME/.bashrc" ]; then

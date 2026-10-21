@@ -138,6 +138,12 @@ variable "auto_install_extensions" {
   default     = false
 }
 
+variable "pre_auto_install_extensions_script" {
+  type        = string
+  description = "A Bash script to run before reading workspace extension recommendations. Use this to coordinate with tasks such as repository cloning."
+  default     = ""
+}
+
 variable "subdomain" {
   type        = bool
   description = <<-EOT
@@ -168,8 +174,9 @@ variable "additional_args" {
 }
 
 locals {
-  settings_b64         = var.settings != {} ? base64encode(jsonencode(var.settings)) : ""
-  machine_settings_b64 = var.machine_settings != {} ? base64encode(jsonencode(var.machine_settings)) : ""
+  settings_b64                           = var.settings != {} ? base64encode(jsonencode(var.settings)) : ""
+  machine_settings_b64                   = var.machine_settings != {} ? base64encode(jsonencode(var.machine_settings)) : ""
+  pre_auto_install_extensions_script_b64 = var.pre_auto_install_extensions_script != "" ? base64encode(var.pre_auto_install_extensions_script) : ""
 }
 
 resource "coder_script" "code-server" {
@@ -192,6 +199,7 @@ resource "coder_script" "code-server" {
     FOLDER : var.folder,
     WORKSPACE : var.workspace,
     AUTO_INSTALL_EXTENSIONS : var.auto_install_extensions,
+    PRE_AUTO_INSTALL_EXTENSIONS_SCRIPT_B64 : local.pre_auto_install_extensions_script_b64,
     ADDITIONAL_ARGS : var.additional_args,
   })
   run_on_start = true
