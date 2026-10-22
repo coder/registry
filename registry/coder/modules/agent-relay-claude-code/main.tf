@@ -100,13 +100,21 @@ variable "serving_log_pattern" {
 }
 
 variable "additional_args" {
-  description = "Additional flags to pass to `claude self-hosted-runner`, as a map of flag to value. Each flag is passed as written (e.g. `--name` or `-n`) followed by its value as the next argument; an empty value passes the flag alone (e.g. `{ \"--verbose\" = \"\" }`)."
+  description = "Additional flags to pass to `claude self-hosted-runner`, as a map of flag to value. Each flag is passed as written (e.g. `--name` or `-n`) followed by its value as the next argument; an empty value passes the flag alone (e.g. `{ \"--some-flag\" = \"value\" }`)."
   type        = map(string)
   default     = {}
 
   validation {
     condition     = alltrue([for k, v in var.additional_args : can(regex("^--?[A-Za-z0-9][A-Za-z0-9._-]*$", k)) && !can(regex("\n", v))])
     error_message = "additional_args keys must be flags such as --name or -n (letters, digits, '.', '_', '-'), and values must not contain newlines."
+  }
+
+  # The module already sets these, from base_dir, exit_if_unused_min, and the
+  # permissions wrapper. Keep this list in sync with the `self-hosted-runner`
+  # flags in start.sh.tftpl.
+  validation {
+    condition     = length(setintersection(keys(var.additional_args), ["--capacity", "--base-dir", "--exit-if-unused-min", "--exec-path"])) == 0
+    error_message = "additional_args must not set --capacity, --base-dir, --exit-if-unused-min, or --exec-path; the module sets them (use base_dir and exit_if_unused_min instead)."
   }
 }
 

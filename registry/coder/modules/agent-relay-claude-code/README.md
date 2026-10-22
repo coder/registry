@@ -55,14 +55,19 @@ map of flag to value. They are appended after the flags the module sets. Each
 flag is passed exactly as written, so use `--name` or `-n` as the CLI expects,
 followed by its value as the next argument; an empty value passes the flag
 alone. Values are passed verbatim, so spaces and quotes need no escaping.
+Terraform orders map keys alphabetically. Flags the module already sets
+(`--capacity`, `--base-dir`, `--exit-if-unused-min`, `--exec-path`) are
+rejected.
 
 ```tf
 module "claude_code_runner" {
   source   = "registry.coder.com/coder/agent-relay-claude-code/coder"
   version  = "0.3.0"
   agent_id = coder_agent.main.id
+  # Passed as: --another-flag --some-flag value
   additional_args = {
-    "--verbose" = ""
+    "--another-flag" = ""
+    "--some-flag"    = "value"
   }
 }
 ```

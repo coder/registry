@@ -254,6 +254,16 @@ run "additional_args_rejects_bad_flag" {
   expect_failures = [var.additional_args]
 }
 
+run "additional_args_rejects_module_flags" {
+  command = plan
+
+  variables {
+    additional_args = { "--capacity" = "2" }
+  }
+
+  expect_failures = [var.additional_args]
+}
+
 run "cli_binary_rejects_shell" {
   command = plan
 

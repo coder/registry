@@ -95,6 +95,8 @@ write_state() {
 }
 
 export PATH="\$HOME/.local/bin:\$PATH"
+# Keep these flags in sync with the reserved-flag list in additional_args'
+# validation in main.tf, so additional_args cannot set them a second time.
 ${cli_binary} self-hosted-runner \\
 	--capacity 1 \\
 	--base-dir "$base_dir" \\
