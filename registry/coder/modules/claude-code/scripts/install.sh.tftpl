@@ -230,6 +230,36 @@ function write_managed_settings() {
   echo "Wrote Claude Code managed settings to $${target}"
 }
 
+function setup_gateway_api_key_helper() (
+  local settings_dir="$${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+  local settings="$${settings_dir}/settings.json"
+  # Claude expands the helper command when it requests a credential.
+  # shellcheck disable=SC2016
+  local helper='token=$(coder login token 2>/dev/null) && [ -n "$token" ] && printf "%s" "$token" || printenv ANTHROPIC_AUTH_TOKEN'
+
+  if [ "$${ARG_ENABLE_AI_GATEWAY}" != "true" ]; then
+    if [ ! -f "$${settings}" ] || ! jq -e --arg helper "$${helper}" '.apiKeyHelper == $helper' "$${settings}" > /dev/null 2>&1; then
+      return
+    fi
+  fi
+
+  mkdir -p "$${settings_dir}"
+  local settings_tmp
+  settings_tmp=$(mktemp "$${settings}.XXXXXX")
+  trap 'rm -f "$${settings_tmp}"' EXIT
+
+  if [ -f "$${settings}" ]; then
+    jq --arg helper "$${helper}" --argjson enabled "$${ARG_ENABLE_AI_GATEWAY}" '
+      if $enabled then .apiKeyHelper //= $helper
+      elif .apiKeyHelper == $helper then del(.apiKeyHelper)
+      else . end
+    ' "$${settings}" > "$${settings_tmp}"
+  else
+    jq -n --arg helper "$${helper}" '{apiKeyHelper: $helper}' > "$${settings_tmp}"
+  fi
+  mv "$${settings_tmp}" "$${settings}"
+)
+
 function setup_api_key_helper() {
   local helper_path="$HOME/.claude/coder-api-key-helper.sh"
   local dropin_dir="/etc/claude-code/managed-settings.d"
@@ -328,4 +358,5 @@ install_claude_code_cli
 setup_claude_configurations
 write_managed_settings
 setup_api_key_helper
+setup_gateway_api_key_helper
 configure_standalone_mode
