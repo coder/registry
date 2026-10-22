@@ -104,6 +104,26 @@ variable "serving_log_pattern" {
   }
 }
 
+variable "additional_args" {
+  description = "Additional flags to pass to `agent worker`, as a map of flag to value. Each flag is passed as written (e.g. `--name` or `-n`) followed by its value as the next argument; an empty value passes the flag alone. Appended after the flags the module sets and before `start`."
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition     = alltrue([for k, v in var.additional_args : can(regex("^--?[A-Za-z0-9][A-Za-z0-9._-]*$", k)) && !can(regex("\n", v))])
+    error_message = "additional_args keys must be flags such as --name or -n (letters, digits, '.', '_', '-'), and values must not contain newlines."
+  }
+
+  # The module already sets these: the pool and idle timeout come from Agent
+  # Relay's parameters, the token is passed by file so it stays off the
+  # command line, and desktop flags have their own inputs. Keep this list in
+  # sync with the `worker` flags in start.sh.tftpl.
+  validation {
+    condition     = length(setintersection(keys(var.additional_args), ["--pool", "--idle-release-timeout", "--auth-token-file", "--auth-token", "--computer-use", "--share-desktop"])) == 0
+    error_message = "additional_args must not set --pool, --idle-release-timeout, --auth-token-file, --auth-token, --computer-use, or --share-desktop; the module sets them (use computer_use and share_desktop for the desktop flags)."
+  }
+}
+
 data "coder_parameter" "agent_relay_session_id" {
   name         = "agent_relay_session_id"
   display_name = "Agent Relay session"
@@ -242,6 +262,10 @@ locals {
   # tree so one directory holds everything a debugger needs.
   module_directory = "$HOME/.coder-modules/coder/agent-relay-cursor"
 
+  # Render additional_args as argv: each key as written, followed by its
+  # value as a separate argument unless the value is empty.
+  additional_args = flatten([for k, v in var.additional_args : v == "" ? [k] : [k, v]])
+
   install_script = templatefile("${path.module}/install.sh.tftpl", {
     cli_binary  = var.cli_binary
     install_cli = var.install_cli
@@ -255,6 +279,7 @@ locals {
     share_desktop    = var.share_desktop
     state_file       = var.state_file
     log_file         = var.log_file
+    additional_args  = base64encode(join("\n", local.additional_args))
   })
 }
 

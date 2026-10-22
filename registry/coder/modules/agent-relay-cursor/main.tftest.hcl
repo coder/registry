@@ -235,6 +235,59 @@ run "share_desktop_requires_computer_use" {
   expect_failures = [var.share_desktop]
 }
 
+run "additional_args_default_empty" {
+  command = plan
+
+  assert {
+    condition     = local.additional_args == [] && strcontains(local.start_script, "done < <(echo -n '' | base64 -d)")
+    error_message = "additional_args must default to empty"
+  }
+}
+
+run "additional_args_encoded" {
+  command = plan
+
+  variables {
+    additional_args = {
+      "--verbose" = ""
+      "--name"    = "it's here"
+      "-t"        = "x"
+    }
+  }
+
+  # Map keys sort byte-wise, so --flags come before -f flags.
+  assert {
+    condition     = local.additional_args == ["--name", "it's here", "--verbose", "-t", "x"]
+    error_message = "each flag must be passed as written, followed by its value unless the value is empty"
+  }
+
+  # Base64 keeps quotes in a value from breaking the rendered script.
+  assert {
+    condition     = strcontains(local.start_script, base64encode(join("\n", local.additional_args))) && !strcontains(local.start_script, "it's here")
+    error_message = "additional_args must be base64-encoded into the start script"
+  }
+}
+
+run "additional_args_rejects_bad_flag" {
+  command = plan
+
+  variables {
+    additional_args = { "verbose; rm -rf /" = "" }
+  }
+
+  expect_failures = [var.additional_args]
+}
+
+run "additional_args_rejects_module_flags" {
+  command = plan
+
+  variables {
+    additional_args = { "--auth-token" = "secret" }
+  }
+
+  expect_failures = [var.additional_args]
+}
+
 run "install_cli_enabled_by_default" {
   command = plan
 
