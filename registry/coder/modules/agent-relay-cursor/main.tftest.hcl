@@ -278,6 +278,16 @@ run "additional_args_rejects_bad_flag" {
   expect_failures = [var.additional_args]
 }
 
+run "additional_args_rejects_module_flags" {
+  command = plan
+
+  variables {
+    additional_args = { "--auth-token" = "secret" }
+  }
+
+  expect_failures = [var.additional_args]
+}
+
 run "install_cli_enabled_by_default" {
   command = plan
 

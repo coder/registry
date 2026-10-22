@@ -136,6 +136,8 @@ write_state() {
 
 export PATH="\$HOME/.local/bin:\$PATH"
 unset AGENT_RELAY_CURSOR_TOKEN
+# Keep these flags in sync with the reserved-flag list in additional_args'
+# validation in main.tf, so additional_args cannot set them a second time.
 ${cli_binary} worker \\
 	--pool "\$AGENT_RELAY_CURSOR_POOL_NAME" \\
 	--idle-release-timeout "\$AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT" \\

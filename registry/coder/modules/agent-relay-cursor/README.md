@@ -88,12 +88,14 @@ session limit.
 
 ## Additional worker arguments
 
-Use `additional_args` to pass extra flags to `cursor-agent worker`, as a map of
+Use `additional_args` to pass extra flags to `agent worker`, as a map of
 flag to value. They are appended after the flags the module sets and before
 the `start` subcommand. Each flag is passed exactly as written, so use `--name`
 or `-n` as the CLI expects, followed by its value as the next argument; an
 empty value passes the flag alone. Values are passed verbatim, so spaces and
-quotes need no escaping. Terraform orders map keys alphabetically. Give a flag that takes an optional value an explicit
+quotes need no escaping. Terraform orders map keys alphabetically. Flags the module already sets
+(`--pool`, `--idle-release-timeout`, `--auth-token-file`, `--auth-token`,
+`--computer-use`, `--share-desktop`) are rejected. Give a flag that takes an optional value an explicit
 one, or it consumes `start`.
 
 ```tf
