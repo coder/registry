@@ -16,7 +16,7 @@ parameters the relay stamps on each build and runs the Cursor CLI worker.
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "0.5.0"
+  version  = "0.6.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Cursor CLI at start when it is not in the image. Bake
@@ -85,6 +85,31 @@ every endpoint a worker does not call. It stops working when the claim ends,
 for example after the idle-release timeout, or when the service account key
 that minted it is deleted or expires. Its 7-day expiry is a backstop, not a
 session limit.
+
+## Additional worker arguments
+
+Use `additional_args` to pass extra flags to `agent worker`, as a map of
+flag to value. They are appended after the flags the module sets and before
+the `start` subcommand. Each flag is passed exactly as written, so use `--name`
+or `-n` as the CLI expects, followed by its value as the next argument; an
+empty value passes the flag alone. Values are passed verbatim, so spaces and
+quotes need no escaping. Terraform orders map keys alphabetically. Flags the module already sets
+(`--pool`, `--idle-release-timeout`, `--auth-token-file`, `--auth-token`,
+`--computer-use`, `--share-desktop`) are rejected. Give a flag that takes an optional value an explicit
+one, or it consumes `start`.
+
+```tf
+module "cursor_worker" {
+  source   = "registry.coder.com/coder/agent-relay-cursor/coder"
+  version  = "0.6.0"
+  agent_id = coder_agent.main.id
+  # Passed as: --another-flag --some-flag value
+  additional_args = {
+    "--another-flag" = ""
+    "--some-flag"    = "value"
+  }
+}
+```
 
 ## Parameters
 
