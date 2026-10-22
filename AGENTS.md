@@ -128,6 +128,40 @@ variable "api_key" {
 - Every `output` block must have a `description`.
 - Use `count = condition ? 1 : 0` for optional singleton resources. Reserve `for_each` for maps/sets where resource identity matters.
 
+### Extra CLI flags: `additional_args`
+
+When a module lets users pass extra flags to a CLI it runs, name the input `additional_args` and make it a `map(string)` of flag to value. Do not use `extra_args`, `additional_arguments`, `extra_flags`, or a free-form string.
+
+- Each key is passed exactly as written, so the user picks `--long` or `-s`. A non-empty value follows as a separate argument; an empty value passes the flag alone. `{ "--depth" = "1", "--recurse-submodules" = "" }` becomes `--depth 1 --recurse-submodules`.
+- Terraform orders map keys alphabetically, and a key can appear only once.
+- Validate that every key looks like a flag and no value contains a newline.
+- Add a second validation that rejects every flag the module already passes, with a comment beside both the list and the command in the script to keep them in sync.
+- Pass the rendered list to the script as `base64encode(join("\n", local.additional_args))`, and read it back one argument per line into an array or `set --`. Never word-split or `eval` it. If the arguments are written into another generated script, quote each one with `printf '%q'`.
+- If a module already has an input with another name for this, keep it working and add `additional_args` beside it. Mark the old input `Deprecated: use additional_args instead.` in its description, and append its arguments after `additional_args`. (`code-server` and `ttyd` predate this rule: their `additional_args` is a string, and changing its type would break existing templates.)
+
+```tf
+variable "additional_args" {
+  description = "Additional flags to pass to `tool`, as a map of flag to value. Each flag is passed as written followed by its value as the next argument; an empty value passes the flag alone."
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition     = alltrue([for k, v in var.additional_args : can(regex("^--?[A-Za-z0-9][A-Za-z0-9._-]*$", k)) && !can(regex("\n", v))])
+    error_message = "additional_args keys must be flags such as --name or -n, and values must not contain newlines."
+  }
+
+  # The module already sets these. Keep this list in sync with the flags in run.sh.
+  validation {
+    condition     = length(setintersection(keys(var.additional_args), ["--port"])) == 0
+    error_message = "additional_args must not set --port; use port instead."
+  }
+}
+
+locals {
+  additional_args = flatten([for k, v in var.additional_args : v == "" ? [k] : [k, v]])
+}
+```
+
 ### `.tftest.hcl` test commands
 
 - Use `command = plan` only for assertions on **input-derived values** (variables, locals computed from inputs).
