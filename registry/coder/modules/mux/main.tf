@@ -83,9 +83,27 @@ variable "add_project" {
   default     = null
 }
 
+variable "additional_args" {
+  description = "Additional flags to pass to `mux server`, as a map of flag to value. Each flag is passed as written (e.g. `--open-mode` or `-o`) followed by its value as the next argument; an empty value passes the flag alone (e.g. `{ \"--open-mode\" = \"pinned\" }`)."
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition     = alltrue([for k, v in var.additional_args : can(regex("^--?[A-Za-z0-9][A-Za-z0-9._-]*$", k)) && !can(regex("\n", v))])
+    error_message = "additional_args keys must be flags such as --name or -n (letters, digits, '.', '_', '-'), and values must not contain newlines."
+  }
+
+  # The module already sets these from port and add_project. Keep this list
+  # in sync with the `mux server` flags in run.sh.
+  validation {
+    condition     = length(setintersection(keys(var.additional_args), ["--port", "--add-project"])) == 0
+    error_message = "additional_args must not set --port or --add-project; use port and add_project instead."
+  }
+}
+
 variable "additional_arguments" {
   type        = string
-  description = "Additional command-line arguments to pass to `mux server` (for example: `--add-project /path --open-mode pinned`)."
+  description = "Deprecated: use `additional_args` instead. A shell-style string, still honored and appended after `additional_args`; use it only for arguments a flag map cannot express, such as a repeated flag."
   default     = ""
 }
 
@@ -181,6 +199,10 @@ resource "random_password" "mux_auth_token" {
 }
 
 locals {
+  # Render additional_args as argv: each key as written, followed by its
+  # value as a separate argument unless the value is empty.
+  additional_args = flatten([for k, v in var.additional_args : v == "" ? [k] : [k, v]])
+
   mux_auth_token = random_password.mux_auth_token.result
   registry_url   = trimsuffix(var.registry_url, "/")
 }
@@ -194,6 +216,7 @@ resource "coder_script" "mux" {
     PORT : var.port,
     LOG_PATH : var.log_path,
     ADD_PROJECT : var.add_project == null ? "" : var.add_project,
+    ADDITIONAL_ARGS : base64encode(join("\n", local.additional_args)),
     ADDITIONAL_ARGUMENTS : var.additional_arguments,
     INSTALL_PREFIX : var.install_prefix,
     OFFLINE : !var.install,
