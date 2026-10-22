@@ -137,7 +137,7 @@ When a module lets users pass extra flags to a CLI it runs, name the input `addi
 - Validate that every key looks like a flag and no value contains a newline.
 - Add a second validation that rejects every flag the module already passes, with a comment beside both the list and the command in the script to keep them in sync.
 - Pass the rendered list to the script as `base64encode(join("\n", local.additional_args))`, and read it back one argument per line into an array or `set --`. Never word-split or `eval` it. If the arguments are written into another generated script, quote each one with `printf '%q'`.
-- If a module already has an input with another name for this, keep it working and add `additional_args` beside it. Mark the old input `Deprecated: use additional_args instead.` in its description, and append its arguments after `additional_args`. (`code-server` and `ttyd` predate this rule: their `additional_args` is a string, and changing its type would break existing templates.)
+- If a module already has an input with another name for this, keep it working and add `additional_args` beside it. Deprecate the old input as described in [Deprecating inputs](#deprecating-inputs), and append its arguments after `additional_args`. (`code-server` and `ttyd` predate this rule: their `additional_args` is a string, and changing its type would break existing templates.)
 
 ```tf
 variable "additional_args" {
@@ -162,6 +162,29 @@ locals {
 }
 ```
 
+### Deprecating inputs
+
+Terraform 1.15 added a `deprecated` argument for `variable` blocks: Terraform warns whenever a caller sets the input. Terraform 1.14 and older reject the argument outright (`An argument named "deprecated" is not expected here`), even when the caller never sets the input. Coder bundles Terraform 1.15 from v2.37.0; v2.36 and older bundle 1.14.
+
+- **Major version bump:** set `required_version = ">= 1.15"` in the `terraform` block, and give every deprecated input a `deprecated` argument, including inputs deprecated earlier by description only. Raising the minimum Terraform version is itself a breaking change, so do it only in a major bump, and note it in the PR and README.
+- **Minor or patch bump:** do not add `deprecated` or raise `required_version`. Begin the input's description with `Deprecated: use <new_input> instead.` and say so in the README.
+- In both cases, keep a deprecated input working until a major version removes it.
+
+`deprecated` takes the warning message, not a boolean: name the replacement input in it (`"Use additional_args instead."`). `deprecated = true` prints the bare message `true`, and `""` prints none. Place `deprecated` after `default`:
+
+```tf
+terraform {
+  required_version = ">= 1.15"
+}
+
+variable "extra_args" {
+  description = "Deprecated: use `additional_args` instead."
+  type        = list(string)
+  default     = []
+  deprecated  = "Use additional_args instead."
+}
+```
+
 ### `.tftest.hcl` test commands
 
 - Use `command = plan` only for assertions on **input-derived values** (variables, locals computed from inputs).
@@ -170,7 +193,8 @@ locals {
 ## PR Review Checklist
 
 - Version bumped via `.github/scripts/version-bump.sh` if module changed (patch=bugfix, minor=feature, major=breaking)
-- Breaking changes documented: removed inputs, changed defaults, new required variables
+- Breaking changes documented: removed inputs, changed defaults, new required variables, raised minimum Terraform version
+- Deprecated inputs use the `deprecated` argument and `required_version = ">= 1.15"` on a major bump, or a `Deprecated:` description on a minor or patch bump
 - New variables have sensible defaults to maintain backward compatibility
 - Tests pass (`bun run check:terraform`, `bun run check:typescript`, or `bun check` for everything); add diagnostic logging for test failures
 - README examples updated with new version number; tooltip/behavior changes noted
