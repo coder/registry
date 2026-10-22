@@ -76,7 +76,7 @@ After merging a PR, use the automated script to create and push release tags:
 4. **Automatic tagging:**
    - After confirmation, the script will automatically create all necessary release tags
    - Tags will be pushed to the remote repository
-   - Each tag points at the merge commit that introduced that module's README version, not at HEAD
+   - Each tag points at the latest merge commit that changed that module, not at HEAD
 
 **Example output:**
 
