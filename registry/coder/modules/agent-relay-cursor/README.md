@@ -16,7 +16,7 @@ parameters the relay stamps on each build and runs the Cursor CLI worker.
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "0.5.0"
+  version  = "0.6.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Cursor CLI at start when it is not in the image. Bake
@@ -93,18 +93,18 @@ flag to value. They are appended after the flags the module sets and before
 the `start` subcommand. Each flag is passed exactly as written, so use `--name`
 or `-n` as the CLI expects, followed by its value as the next argument; an
 empty value passes the flag alone. Values are passed verbatim, so spaces and
-quotes need no escaping. Give a flag that takes an optional value an explicit
+quotes need no escaping. Terraform orders map keys alphabetically. Give a flag that takes an optional value an explicit
 one, or it consumes `start`.
 
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "0.5.0"
+  version  = "0.6.0"
   agent_id = coder_agent.main.id
-  # Passed as: --some-flag value --another-flag
+  # Passed as: --another-flag --some-flag value
   additional_args = {
-    "--some-flag"    = "value"
     "--another-flag" = ""
+    "--some-flag"    = "value"
   }
 }
 ```
