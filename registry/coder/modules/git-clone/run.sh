@@ -118,6 +118,8 @@ if [ -z "$(ls -A "$CLONE_PATH")" ]; then
     git clone $${extra_args[@]+"$${extra_args[@]}"} "$REPO_URL" "$CLONE_PATH"
   else
     echo "Cloning $REPO_URL to $CLONE_PATH on branch $BRANCH_NAME..."
+    # Keep -b in sync with the reserved-flag list in additional_args'
+    # validation in main.tf, so additional_args cannot set it a second time.
     git clone $${extra_args[@]+"$${extra_args[@]}"} -b "$BRANCH_NAME" "$REPO_URL" "$CLONE_PATH"
   fi
 else

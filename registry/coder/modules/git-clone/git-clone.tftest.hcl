@@ -77,3 +77,49 @@ run "skips_clone_script_for_whitespace_url" {
     error_message = "folder_name and repo_dir should be empty when there is no repository and no folder name"
   }
 }
+
+run "deprecated_extra_args_still_applied" {
+  command = plan
+
+  variables {
+    agent_id        = "foo"
+    url             = "https://github.com/coder/coder"
+    additional_args = { "--depth" = "1", "--recurse-submodules" = "", "-c" = "core.sshCommand=ssh -i /tmp/key" }
+    extra_args      = ["--jobs=8"]
+  }
+
+  # Map keys sort byte-wise, so --flags come before -f flags.
+  assert {
+    condition     = local.additional_args == ["--depth", "1", "--recurse-submodules", "-c", "core.sshCommand=ssh -i /tmp/key"]
+    error_message = "each flag must be passed as written, followed by its value unless the value is empty"
+  }
+
+  assert {
+    condition     = local.encoded_extra_args == base64encode("--depth\n1\n--recurse-submodules\n-c\ncore.sshCommand=ssh -i /tmp/key\n--jobs=8")
+    error_message = "extra_args must still be passed, after additional_args"
+  }
+}
+
+run "additional_args_rejects_bad_flag" {
+  command = plan
+
+  variables {
+    agent_id        = "foo"
+    url             = "https://github.com/coder/coder"
+    additional_args = { "depth" = "1" }
+  }
+
+  expect_failures = [var.additional_args]
+}
+
+run "additional_args_rejects_branch" {
+  command = plan
+
+  variables {
+    agent_id        = "foo"
+    url             = "https://github.com/coder/coder"
+    additional_args = { "--branch" = "main" }
+  }
+
+  expect_failures = [var.additional_args]
+}
