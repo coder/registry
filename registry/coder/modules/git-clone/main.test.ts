@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, setDefaultTimeout } from "bun:test";
 import {
   execContainer,
   findResourceInstance,
@@ -9,6 +9,9 @@ import {
   type scriptOutput,
   type TerraformState,
 } from "~test";
+
+// The first test to use an image pulls it, which can outlast bun's 5s default.
+setDefaultTimeout(60 * 1000);
 
 const executeScriptInContainer = async (
   state: TerraformState,
