@@ -14,13 +14,29 @@ Templates that utilize Github External Auth can automatically ensure that the Co
 module "github-upload-public-key" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/github-upload-public-key/coder"
-  version  = "1.1.0"
+  version  = "1.2.0"
   agent_id = coder_agent.main.id
   key_name = "ACME Coder Workspaces"
 }
 ```
 
 `key_name` is optional. If omitted, GitHub displays the uploaded key as `<Coder access URL> Workspaces`.
+
+## Commit signing
+
+By default, the module uploads the Coder public key as a GitHub authentication key. Set `key_type` to `signing` to upload it as a GitHub SSH signing key instead, so GitHub can verify commits signed with it, or to `both` to upload it as both:
+
+```tf
+module "github-upload-public-key" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/github-upload-public-key/coder"
+  version  = "1.2.0"
+  agent_id = coder_agent.main.id
+  key_type = "both"
+}
+```
+
+This module only uploads the key. Git inside the workspace must still be configured to sign commits with the Coder SSH key.
 
 ## Requirements
 
@@ -38,6 +54,12 @@ CODER_EXTERNAL_AUTH_0_SCOPES="repo,workflow,admin:public_key"
 
 Note that the default scopes if not provided are `repo,workflow`. If the module is failing to complete after updating the external auth configuration, instruct users of the module to "Unlink" and "Link" their Github account in the External Auth user settings page to get the new scopes.
 
+When `key_type` is `signing` or `both`, the Github app must also have read and write permissions to "SSH signing keys", and the external auth configuration must include the `write:ssh_signing_key` scope. For example:
+
+```txt
+CODER_EXTERNAL_AUTH_0_SCOPES="repo,workflow,admin:public_key,write:ssh_signing_key"
+```
+
 ## Example
 
 Using a coder github external auth with a non-default id: (default is `github`)
@@ -50,7 +72,7 @@ data "coder_external_auth" "github" {
 module "github-upload-public-key" {
   count            = data.coder_workspace.me.start_count
   source           = "registry.coder.com/coder/github-upload-public-key/coder"
-  version          = "1.1.0"
+  version          = "1.2.0"
   agent_id         = coder_agent.main.id
   external_auth_id = data.coder_external_auth.github.id
 }
