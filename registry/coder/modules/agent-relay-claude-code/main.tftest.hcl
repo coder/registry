@@ -212,6 +212,48 @@ run "idle_bound_disabled" {
   }
 }
 
+run "additional_args_default_empty" {
+  command = plan
+
+  assert {
+    condition     = local.additional_args == [] && strcontains(local.start_script, "done < <(echo -n '' | base64 -d)")
+    error_message = "additional_args must default to empty"
+  }
+}
+
+run "additional_args_encoded" {
+  command = plan
+
+  variables {
+    additional_args = {
+      "--verbose" = ""
+      "--name"    = "it's here"
+      "-t"        = "x"
+    }
+  }
+
+  assert {
+    condition     = local.additional_args == ["--name", "it's here", "--verbose", "-t", "x"]
+    error_message = "each flag must be passed as written, followed by its value unless the value is empty"
+  }
+
+  # Base64 keeps quotes in a value from breaking the rendered script.
+  assert {
+    condition     = strcontains(local.start_script, base64encode(join("\n", local.additional_args))) && !strcontains(local.start_script, "it's here")
+    error_message = "additional_args must be base64-encoded into the start script"
+  }
+}
+
+run "additional_args_rejects_bad_flag" {
+  command = plan
+
+  variables {
+    additional_args = { "verbose; rm -rf /" = "" }
+  }
+
+  expect_failures = [var.additional_args]
+}
+
 run "cli_binary_rejects_shell" {
   command = plan
 

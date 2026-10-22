@@ -13,6 +13,14 @@ set -euo pipefail
 state_file="${state_file}"
 log_file="${log_file}"
 base_dir="${base_dir}"
+# One argument per line. Shell-quoted here because the string is expanded
+# into the supervisor below, which must see each argument as one word.
+additional_args=""
+while IFS= read -r arg || [ -n "$arg" ]; do
+	if [ -n "$arg" ]; then
+		additional_args+="$(printf '%q' "$arg") "
+	fi
+done < <(echo -n '${additional_args}' | base64 -d)
 state_dir="$(dirname "$state_file")"
 mkdir -p "$state_dir" "$(dirname "$log_file")" "$base_dir"
 
@@ -93,6 +101,7 @@ ${cli_binary} self-hosted-runner \\
 %{ if exit_if_unused_min > 0 ~}
 	--exit-if-unused-min ${exit_if_unused_min} \\
 %{ endif ~}
+	$additional_args \\
 	--exec-path "$wrapper" >"$log_file" 2>&1 &
 runner_pid=\$!
 write_state "working \$runner_pid"
