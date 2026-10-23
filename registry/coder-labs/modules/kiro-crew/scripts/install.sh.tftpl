@@ -17,8 +17,10 @@ mkdir -p "$HOME/.local/bin"
 export PATH="$HOME/.local/bin:$HOME/bin:$PATH"
 
 echo "--------------------------------"
-printf "use_cached: %s\n" "$${ARG_USE_CACHED}"
-printf "extra_mcp_json: %s\n" "$${ARG_EXTRA_MCP_JSON:+(set)}"
+printf "ARG_USE_CACHED: %s\n" "$${ARG_USE_CACHED}"
+printf "ARG_EXTRA_MCP_JSON: %s\n" "$${ARG_EXTRA_MCP_JSON:+(set)}"
+printf "ARG_KIRO_CLI_INSTALL_URL: %s\n" "$${ARG_KIRO_CLI_INSTALL_URL}"
+printf "ARG_KIROCREW_INSTALL_URL: %s\n" "$${ARG_KIROCREW_INSTALL_URL}"
 echo "--------------------------------"
 
 # Downloads an installer to a temporary file so a failed or partial download

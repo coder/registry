@@ -17,6 +17,24 @@ ARG_FALLBACK_ORIGIN=$(echo -n '${ARG_FALLBACK_ORIGIN}' | base64 -d)
 ARG_PROXY_HOSTNAMES=$(echo -n '${ARG_PROXY_HOSTNAMES}' | base64 -d)
 ARG_EXTRA_ALLOWED_ORIGINS=$(echo -n '${ARG_EXTRA_ALLOWED_ORIGINS}' | base64 -d)
 
+echo "--------------------------------"
+printf "ARG_MODULE_DIRECTORY: %s\n" "$${ARG_MODULE_DIRECTORY}"
+printf "ARG_PORT: %s\n" "$${ARG_PORT}"
+printf "ARG_REDIRECT_PORT: %s\n" "$${ARG_REDIRECT_PORT}"
+printf "ARG_APP_SLUG: %s\n" "$${ARG_APP_SLUG}"
+printf "ARG_DASHBOARD_SLUG: %s\n" "$${ARG_DASHBOARD_SLUG}"
+printf "ARG_WORKSPACE_NAME: %s\n" "$${ARG_WORKSPACE_NAME}"
+printf "ARG_OWNER_NAME: %s\n" "$${ARG_OWNER_NAME}"
+printf "ARG_ACCESS_SCHEME: %s\n" "$${ARG_ACCESS_SCHEME}"
+printf "ARG_DASHBOARD_ORIGIN: %s\n" "$${ARG_DASHBOARD_ORIGIN}"
+printf "ARG_FALLBACK_ORIGIN: %s\n" "$${ARG_FALLBACK_ORIGIN}"
+printf "ARG_PROXY_HOSTNAMES: %s\n" "$${ARG_PROXY_HOSTNAMES//$'\n'/,}"
+printf "ARG_EXTRA_ALLOWED_ORIGINS: %s\n" "$${ARG_EXTRA_ALLOWED_ORIGINS}"
+# Runtime inputs from the agent that the dashboard origins are derived from.
+printf "CODER_WORKSPACE_AGENT_NAME: %s\n" "$${CODER_WORKSPACE_AGENT_NAME:-}"
+printf "VSCODE_PROXY_URI: %s\n" "$${VSCODE_PROXY_URI:-}"
+echo "--------------------------------"
+
 LOG_DIR="$${ARG_MODULE_DIRECTORY}/logs"
 GATEWAY_LOG="$${LOG_DIR}/gateway.log"
 REDIRECTOR_LOG="$${LOG_DIR}/redirector.log"

@@ -325,6 +325,10 @@ describe("kiro-crew", async () => {
     expect(log).toContain("Kiro CLI already installed: kiro-cli 0.0.0-test");
     expect(log).toContain("Kiro Crew already installed: /usr/bin/kirocrew");
     expect(log).toContain("Kiro Crew install completed.");
+    expect(log).toContain("ARG_USE_CACHED: true");
+    expect(log).toContain(
+      "ARG_KIROCREW_INSTALL_URL: https://download.crew.kiro.dev/cli.sh",
+    );
     const curl = await execContainer(id, ["test", "-e", "/tmp/curl-args"]);
     expect(curl.exitCode).not.toBe(0);
   });
@@ -378,6 +382,12 @@ describe("kiro-crew", async () => {
       moduleVariables: { extra_mcp_json: extra },
     });
     await runOrFail(id, "install", scripts.install);
+    const installLog = await readFileContainer(
+      id,
+      `${moduleLogDir}/install.log`,
+    );
+    expect(installLog).toContain("ARG_EXTRA_MCP_JSON: (set)");
+    expect(installLog).not.toContain("mcpServers");
     const mcp = await readFileContainer(
       id,
       "/home/coder/.kiro/settings/mcp.json",
@@ -488,7 +498,19 @@ describe("kiro-crew", async () => {
     const { workspace, owner } = workspaceNames(state);
     const sub = `${workspace}--${owner}`;
     await runOrFail(id, "install", scripts.install);
-    await runOrFail(id, "start", scripts.start, proxyURIEnv(state));
+    const start = await runOrFail(
+      id,
+      "start",
+      scripts.start,
+      proxyURIEnv(state),
+    );
+    expect(start.stdout).toContain(
+      "ARG_PROXY_HOSTNAMES: *--apps.eu.coder.example.com,http://*.apps.lab.example.com:8080",
+    );
+    expect(start.stdout).toContain(`ARG_WORKSPACE_NAME: ${workspace}`);
+    expect(start.stdout).toContain(
+      `VSCODE_PROXY_URI: ${proxyURIEnv(state).VSCODE_PROXY_URI}`,
+    );
 
     // Primary deployment.
     expect(
