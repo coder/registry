@@ -529,6 +529,121 @@ describe("claude-code", async () => {
     expect(parsed.autoModeAccepted).toBeUndefined();
   });
 
+  test("AI Gateway helper uses the CLI token with environment fallback", async () => {
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: { enable_ai_gateway: "true" },
+    });
+    const settingsPath = "/home/coder/.claude/settings.json";
+    await execContainer(id, ["mkdir", "-p", path.posix.dirname(settingsPath)]);
+    await writeFileContainer(
+      id,
+      settingsPath,
+      JSON.stringify({ model: "sonnet" }),
+    );
+    coderEnvVars.ANTHROPIC_AUTH_TOKEN = "env-token";
+    await runScripts(id, scripts, coderEnvVars);
+    const settings = JSON.parse(await readFileContainer(id, settingsPath));
+    expect(settings.model).toBe("sonnet");
+    expect(typeof settings.apiKeyHelper).toBe("string");
+    expect(JSON.stringify(settings)).not.toContain(
+      coderEnvVars.ANTHROPIC_AUTH_TOKEN,
+    );
+
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/bin/coder",
+      content:
+        '#!/bin/sh\nprintf "%s" "$TEST_CODER_TOKEN"\nexit "$TEST_CODER_EXIT"\n',
+    });
+    for (const [token, status, expected] of [
+      ["cli-token", "0", "cli-token"],
+      ["", "0", "env-token"],
+      ["", "1", "env-token"],
+      ["failed-token", "1", "env-token"],
+    ]) {
+      const result = await execContainer(
+        id,
+        ["sh", "-c", settings.apiKeyHelper],
+        [
+          "-e",
+          `TEST_CODER_TOKEN=${token}`,
+          "-e",
+          `TEST_CODER_EXIT=${status}`,
+          "-e",
+          "ANTHROPIC_AUTH_TOKEN=env-token",
+        ],
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout.trimEnd()).toBe(expected);
+      expect(result.stderr).toBe("");
+    }
+    await execContainer(id, ["rm", "/usr/bin/coder"]);
+    const missingCli = await execContainer(
+      id,
+      ["sh", "-c", settings.apiKeyHelper],
+      ["-e", "ANTHROPIC_AUTH_TOKEN=env-token"],
+    );
+    expect(missingCli.exitCode).toBe(0);
+    expect(missingCli.stdout).toBe("env-token\n");
+    const noCredentials = await execContainer(id, [
+      "env",
+      "-u",
+      "ANTHROPIC_AUTH_TOKEN",
+      "sh",
+      "-c",
+      settings.apiKeyHelper,
+    ]);
+    expect(noCredentials.exitCode).not.toBe(0);
+    expect(noCredentials.stdout).toBe("");
+
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/bin/coder",
+      content: "#!/bin/sh\nexit 0\n",
+    });
+    await runScripts(id, scripts, coderEnvVars);
+    expect(JSON.parse(await readFileContainer(id, settingsPath))).toEqual(
+      settings,
+    );
+    const disabled = await setup();
+    await runScripts(id, disabled.scripts);
+    expect(JSON.parse(await readFileContainer(id, settingsPath))).toEqual({
+      model: "sonnet",
+    });
+  });
+
+  test("AI Gateway preserves custom user helpers", async () => {
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: { enable_ai_gateway: "true" },
+    });
+    const settingsPath = "/home/coder/.claude/settings.json";
+    const settings = { model: "sonnet", apiKeyHelper: "custom-helper" };
+    await execContainer(id, ["mkdir", "-p", path.posix.dirname(settingsPath)]);
+    await writeFileContainer(id, settingsPath, JSON.stringify(settings));
+    await runScripts(id, scripts, coderEnvVars);
+    expect(JSON.parse(await readFileContainer(id, settingsPath))).toEqual(
+      settings,
+    );
+    const disabled = await setup();
+    await runScripts(id, disabled.scripts);
+    expect(JSON.parse(await readFileContainer(id, settingsPath))).toEqual(
+      settings,
+    );
+  });
+
+  test("AI Gateway leaves malformed user settings intact", async () => {
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: { enable_ai_gateway: "true" },
+    });
+    const settingsPath = "/home/coder/.claude/settings.json";
+    await execContainer(id, ["mkdir", "-p", path.posix.dirname(settingsPath)]);
+    await writeFileContainer(id, settingsPath, "invalid-json");
+    await expect(runScripts(id, scripts, coderEnvVars)).rejects.toThrow(
+      "script exited",
+    );
+    expect(await readFileContainer(id, settingsPath)).toBe("invalid-json");
+  });
+
   test("standalone-mode-with-oauth-token", async () => {
     const token = "test-oauth-token-standalone";
     const { id, coderEnvVars, scripts } = await setup({
@@ -559,7 +674,11 @@ describe("claude-code", async () => {
 
   test("standalone-mode-no-auth", async () => {
     const { id, coderEnvVars, scripts } = await setup();
+    const settingsPath = "/home/coder/.claude/settings.json";
+    await execContainer(id, ["mkdir", "-p", path.posix.dirname(settingsPath)]);
+    await writeFileContainer(id, settingsPath, "invalid-json");
     await runScripts(id, scripts, coderEnvVars);
+    expect(await readFileContainer(id, settingsPath)).toBe("invalid-json");
 
     const installLog = await readFileContainer(
       id,
