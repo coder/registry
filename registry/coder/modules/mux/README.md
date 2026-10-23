@@ -73,29 +73,23 @@ module "mux" {
 
 ### Pass Arbitrary `mux server` Arguments
 
-Use `additional_args` to append flags to `mux server`, as a map of flag to
-value. Each flag is passed exactly as written, so use `--name` or `-n` as
-`mux server` expects, followed by its value as the next argument; an empty
-value passes the flag alone. Values are passed verbatim, so spaces need no
-quoting. Terraform orders map keys alphabetically. `--port` and
+Use `additional_args` to append arguments to `mux server`, as a list with one
+element per argument. Each element is passed exactly as written and in order,
+so a flag can repeat and a value can contain spaces without quoting. `--port` and
 `--add-project` are rejected; use `port` and `add_project` instead.
 
 ```tf
 module "mux" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/mux/coder"
-  version  = "2.1.0"
-  agent_id = coder_agent.main.id
-  additional_args = {
-    "--open-mode" = "pinned"
-  }
+  count           = data.coder_workspace.me.start_count
+  source          = "registry.coder.com/coder/mux/coder"
+  version         = "2.1.0"
+  agent_id        = coder_agent.main.id
+  additional_args = ["--open-mode", "pinned"]
 }
 ```
 
 `additional_arguments` (a shell-style string) is deprecated in favor of
-`additional_args` but still works, and is appended after `additional_args`.
-Use it only for what a map cannot express, such as a flag repeated more than
-once.
+`additional_args`. It still works, and is appended after `additional_args`.
 
 ### Restart After Mux Exits
 

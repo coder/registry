@@ -126,10 +126,7 @@ chmod +x ${MODULE_ROOT}/mux`,
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       install: false,
-      additional_args: JSON.stringify({
-        "--open-mode": "pinned tab",
-        "-v": "",
-      }),
+      additional_args: JSON.stringify(["--open-mode", "pinned tab", "-v"]),
       additional_arguments: "--add-project '/workspaces/my repo'",
     });
 

@@ -83,22 +83,26 @@ run "custom_additional_args" {
   command = plan
 
   variables {
-    agent_id = "foo"
-    additional_args = {
-      "--open-mode" = "pinned"
-      "-v"          = ""
-    }
+    agent_id        = "foo"
+    additional_args = ["--open-mode", "pinned", "-v", "-v"]
   }
 
+  # One argument per line, in order, with the repeated flag kept.
   assert {
-    condition     = local.additional_args == ["--open-mode", "pinned", "-v"]
-    error_message = "each flag must be passed as written, followed by its value unless the value is empty"
-  }
-
-  assert {
-    condition     = strcontains(resource.coder_script.mux.script, base64encode("--open-mode\npinned\n-v"))
+    condition     = strcontains(resource.coder_script.mux.script, base64encode("--open-mode\npinned\n-v\n-v"))
     error_message = "mux launch script must include the encoded additional_args"
   }
+}
+
+run "additional_args_rejects_newline" {
+  command = plan
+
+  variables {
+    agent_id        = "foo"
+    additional_args = ["--open-mode\npinned"]
+  }
+
+  expect_failures = [var.additional_args]
 }
 
 run "additional_args_rejects_module_flags" {
@@ -106,7 +110,7 @@ run "additional_args_rejects_module_flags" {
 
   variables {
     agent_id        = "foo"
-    additional_args = { "--port" = "8080" }
+    additional_args = ["--port=8080"]
   }
 
   expect_failures = [var.additional_args]
