@@ -104,6 +104,26 @@ variable "serving_log_pattern" {
   }
 }
 
+variable "additional_args" {
+  description = "Additional arguments to pass to `agent worker`, one list element per argument, in order (e.g. `[\"--header\", \"a: 1\", \"--header\", \"b: 2\", \"--verbose\"]`). Each element is passed as written, so a flag can repeat and a value may contain spaces."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for a in var.additional_args : a != "" && !can(regex("\n", a))])
+    error_message = "additional_args elements must be non-empty and must not contain newlines."
+  }
+
+  # The module already sets these: the pool and idle timeout come from Agent
+  # Relay's parameters, the token is passed by file so it stays off the
+  # command line, and desktop flags have their own inputs. Keep this list in
+  # sync with the `worker` flags in start.sh.tftpl.
+  validation {
+    condition     = !anytrue([for a in var.additional_args : contains(["--pool", "--idle-release-timeout", "--auth-token-file", "--auth-token", "--computer-use", "--share-desktop"], split("=", a)[0])])
+    error_message = "additional_args must not set --pool, --idle-release-timeout, --auth-token-file, --auth-token, --computer-use, or --share-desktop; the module sets them (use computer_use and share_desktop for the desktop flags)."
+  }
+}
+
 data "coder_parameter" "agent_relay_session_id" {
   name         = "agent_relay_session_id"
   display_name = "Agent Relay session"
@@ -255,6 +275,7 @@ locals {
     share_desktop    = var.share_desktop
     state_file       = var.state_file
     log_file         = var.log_file
+    additional_args  = base64encode(join("\n", var.additional_args))
   })
 }
 
