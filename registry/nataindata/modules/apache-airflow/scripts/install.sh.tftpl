@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="$${UV_TOOL_BIN_DIR:-$${HOME}/.local/bin}:$${PIPX_BIN_DIR:-$${HOME}/.local/bin}:$${PATH}"
+AIRFLOW_VERSION='${AIRFLOW_VERSION}'
+PYTHON=$(command -v python3)
+PYTHON_VERSION=$("$${PYTHON}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-$${AIRFLOW_VERSION}/constraints-$${PYTHON_VERSION}.txt"
+
+if command -v uv >/dev/null 2>&1; then
+  uv tool install --upgrade --python "$${PYTHON}" --constraint "$${CONSTRAINT_URL}" "apache-airflow==$${AIRFLOW_VERSION}"
+elif command -v pipx >/dev/null 2>&1; then
+  pipx install --force --python "$${PYTHON}" --pip-args="--constraint $${CONSTRAINT_URL}" "apache-airflow==$${AIRFLOW_VERSION}"
+else
+  echo "Airflow requires uv or pipx. Install one in the workspace image and restart the workspace." >&2
+  exit 1
+fi
