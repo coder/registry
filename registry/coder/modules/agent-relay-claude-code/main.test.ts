@@ -307,6 +307,39 @@ describe("agent-relay-claude-code", () => {
     expect(env.stdout).toContain("SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT=acct-123");
   });
 
+  it("appends additional_args in order, one argument per element", async () => {
+    const { id, scripts } = await setup({
+      additional_args: JSON.stringify([
+        "--name",
+        "two words $HOME",
+        "--name",
+        `it"s`,
+        "--verbose",
+      ]),
+    });
+    await stubClaude(id, 'printf "%s\\n" "$@" >/tmp/claude-args; sleep 30');
+    const { start } = await runDispatched(id, scripts);
+    expect(start.exitCode).toBe(0);
+
+    const args = (await readFileContainer(id, "/tmp/claude-args")).split("\n");
+    expect(args[0]).toBe("self-hosted-runner");
+    // A flag can repeat, and arguments reach the CLI verbatim and in order:
+    // no word splitting or expansion.
+    const at = args.indexOf("--name");
+    expect(args.slice(at, at + 5)).toEqual([
+      "--name",
+      "two words $HOME",
+      "--name",
+      'it"s',
+      "--verbose",
+    ]);
+    // Module-set flags still come through, and the wrapper stays last.
+    expect(args[args.indexOf("--capacity") + 1]).toBe("1");
+    expect(args[args.indexOf("--exec-path") + 1]).toBe(
+      `${MODULE_DIR}/wrapper.sh`,
+    );
+  });
+
   it("records the exit code when the runner exits", async () => {
     const { id, scripts } = await setup();
     await stubClaude(id, "exit 3");

@@ -235,6 +235,49 @@ run "share_desktop_requires_computer_use" {
   expect_failures = [var.share_desktop]
 }
 
+run "additional_args_default_empty" {
+  command = plan
+
+  assert {
+    condition     = strcontains(local.start_script, "done < <(echo -n '' | base64 -d)")
+    error_message = "additional_args must default to empty"
+  }
+}
+
+run "additional_args_encoded" {
+  command = plan
+
+  variables {
+    additional_args = ["--header", "it's here", "--header", "b", "--verbose"]
+  }
+
+  # Base64 keeps quotes in an argument from breaking the rendered script.
+  assert {
+    condition     = strcontains(local.start_script, base64encode("--header\nit's here\n--header\nb\n--verbose")) && !strcontains(local.start_script, "it's here")
+    error_message = "additional_args must be base64-encoded into the start script, one argument per line, in order"
+  }
+}
+
+run "additional_args_rejects_newline" {
+  command = plan
+
+  variables {
+    additional_args = ["--verbose\n--pool"]
+  }
+
+  expect_failures = [var.additional_args]
+}
+
+run "additional_args_rejects_module_flags" {
+  command = plan
+
+  variables {
+    additional_args = ["--pool=2"]
+  }
+
+  expect_failures = [var.additional_args]
+}
+
 run "install_cli_enabled_by_default" {
   command = plan
 
