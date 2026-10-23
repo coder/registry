@@ -13,7 +13,7 @@ Install [Kiro CLI](https://kiro.dev/cli/) and [Kiro Crew](https://github.com/kir
 ```tf
 module "kiro-crew" {
   source   = "registry.coder.com/coder-labs/kiro-crew/coder"
-  version  = "1.0.0"
+  version  = "0.0.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -39,7 +39,7 @@ The gateway rejects requests whose `Host` is not in its allowlist (`Host header 
 ```tf
 module "kiro-crew" {
   source   = "registry.coder.com/coder-labs/kiro-crew/coder"
-  version  = "1.0.0"
+  version  = "0.0.1"
   agent_id = coder_agent.main.id
 
   pre_install_script = <<-EOT
@@ -57,7 +57,7 @@ module "kiro-crew" {
 ```tf
 module "kiro-crew" {
   source   = "registry.coder.com/coder-labs/kiro-crew/coder"
-  version  = "1.0.0"
+  version  = "0.0.1"
   agent_id = coder_agent.main.id
 
   extra_mcp_json = jsonencode({
@@ -78,7 +78,7 @@ Without configuration, a browser that opens Kiro Crew through a [workspace proxy
 ```tf
 module "kiro-crew" {
   source   = "registry.coder.com/coder-labs/kiro-crew/coder"
-  version  = "1.0.0"
+  version  = "0.0.1"
   agent_id = coder_agent.main.id
 
   workspace_proxy_hostnames = [
@@ -97,7 +97,7 @@ The module derives the dashboard origin from the agent's `VSCODE_PROXY_URI`. If 
 ```tf
 module "kiro-crew" {
   source           = "registry.coder.com/coder-labs/kiro-crew/coder"
-  version          = "1.0.0"
+  version          = "0.0.1"
   agent_id         = coder_agent.main.id
   dashboard_origin = "https://kirocrew-dashboard--${data.coder_workspace.me.name}--${data.coder_workspace_owner.me.name}.apps.example.com"
 }
@@ -114,7 +114,7 @@ data "coder_external_auth" "aws_builder_id" {
 
 module "kiro-crew" {
   source               = "registry.coder.com/coder-labs/kiro-crew/coder"
-  version              = "1.0.0"
+  version              = "0.0.1"
   agent_id             = coder_agent.main.id
   aws_builder_id_token = data.coder_external_auth.aws_builder_id.access_token
 }
@@ -147,7 +147,7 @@ By default the module downloads the Kiro CLI and Kiro Crew installers from the p
 ```tf
 module "kiro-crew" {
   source   = "registry.coder.com/coder-labs/kiro-crew/coder"
-  version  = "1.0.0"
+  version  = "0.0.1"
   agent_id = coder_agent.main.id
 
   kiro_cli_install_url = "https://artifacts.example.com/kiro/cli-install.sh"
@@ -168,7 +168,7 @@ RUN curl -fsSL https://cli.kiro.dev/install | bash \
 ```tf
 module "kiro-crew" {
   source     = "registry.coder.com/coder-labs/kiro-crew/coder"
-  version    = "1.0.0"
+  version    = "0.0.1"
   agent_id   = coder_agent.main.id
   use_cached = true # default; skips the installers when the binaries already exist
 }
