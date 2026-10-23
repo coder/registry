@@ -7,8 +7,15 @@ set -euo pipefail
 ARG_MODULE_DIRECTORY="${ARG_MODULE_DIRECTORY}"
 ARG_PORT='${ARG_PORT}'
 ARG_REDIRECT_PORT='${ARG_REDIRECT_PORT}'
-ARG_ALLOWED_ORIGINS=$(echo -n '${ARG_ALLOWED_ORIGINS}' | base64 -d)
-ARG_DASHBOARD_URL=$(echo -n '${ARG_DASHBOARD_URL}' | base64 -d)
+ARG_APP_SLUG='${ARG_APP_SLUG}'
+ARG_DASHBOARD_SLUG='${ARG_DASHBOARD_SLUG}'
+ARG_WORKSPACE_NAME='${ARG_WORKSPACE_NAME}'
+ARG_OWNER_NAME='${ARG_OWNER_NAME}'
+ARG_ACCESS_SCHEME='${ARG_ACCESS_SCHEME}'
+ARG_DASHBOARD_ORIGIN=$(echo -n '${ARG_DASHBOARD_ORIGIN}' | base64 -d)
+ARG_FALLBACK_ORIGIN=$(echo -n '${ARG_FALLBACK_ORIGIN}' | base64 -d)
+ARG_PROXY_HOSTNAMES=$(echo -n '${ARG_PROXY_HOSTNAMES}' | base64 -d)
+ARG_EXTRA_ALLOWED_ORIGINS=$(echo -n '${ARG_EXTRA_ALLOWED_ORIGINS}' | base64 -d)
 
 LOG_DIR="$${ARG_MODULE_DIRECTORY}/logs"
 GATEWAY_LOG="$${LOG_DIR}/gateway.log"
@@ -16,6 +23,8 @@ REDIRECTOR_LOG="$${LOG_DIR}/redirector.log"
 CREW_DIR="$HOME/.kiro/crew"
 LAUNCHER_PATH="$${CREW_DIR}/start-gateway.sh"
 REDIRECTOR_PATH="$${CREW_DIR}/redirect-gateway.py"
+ORIGINS_HELPER_PATH="$${CREW_DIR}/coder-origins.py"
+ORIGINS_PATH="$${CREW_DIR}/coder-origins.json"
 
 mkdir -p "$${LOG_DIR}" "$${CREW_DIR}"
 export PATH="$HOME/.local/bin:$HOME/bin:$PATH"
@@ -73,6 +82,151 @@ for candidate in \
 done
 echo "Redirector Python: $${PYTHON_BIN}"
 
+# Coder serves subdomain apps at <wildcard> with "*" replaced by
+# <slug>--<workspace>--<owner>, on the primary deployment and on every
+# workspace proxy, each with its own wildcard hostname. The gateway only
+# accepts Host/Origin values from an exact allowlist that is fixed at launch,
+# so this helper expands every known wildcard into exact origins once and
+# writes one snapshot. The gateway allowlist and the redirector routes both
+# come from that snapshot, so the redirector never sends a token to an origin
+# the gateway rejects or to a host taken from the request.
+cat > "$${ORIGINS_HELPER_PATH}" << 'PYEOF'
+import json
+import os
+import sys
+from urllib.parse import urlsplit
+
+env = os.environ
+app_slug = env["KC_APP_SLUG"]
+dash_slug = env["KC_DASHBOARD_SLUG"]
+workspace = env["KC_WORKSPACE_NAME"]
+owner = env["KC_OWNER_NAME"]
+agent = env.get("CODER_WORKSPACE_AGENT_NAME", "")
+access_scheme = env.get("KC_ACCESS_SCHEME", "https")
+override = env.get("KC_DASHBOARD_ORIGIN", "").strip().rstrip("/")
+fallback = env.get("KC_FALLBACK_ORIGIN", "").strip().rstrip("/")
+proxy_uri = env.get("VSCODE_PROXY_URI", "").strip()
+
+
+def log(msg):
+    print(msg, file=sys.stderr)
+
+
+def split_wildcard(value, default_scheme):
+    """Returns (scheme, host-pattern) for a wildcard such as '*.apps.example.com'."""
+    value = value.strip().rstrip("/")
+    scheme = default_scheme
+    for prefix in ("https://", "http://"):
+        if value.lower().startswith(prefix):
+            scheme = prefix[:-3]
+            value = value[len(prefix):]
+    first_label = value.split(".", 1)[0]
+    if not value or "/" in value or value.count("*") != 1 or "*" not in first_label:
+        return None
+    return scheme, value.lower()
+
+
+def primary_wildcard():
+    """Recovers the primary wildcard hostname from VSCODE_PROXY_URI.
+
+    Coder sets it to <scheme>://<wildcard> with "*" replaced by
+    "{{port}}--<agent>--<workspace>--<owner>".
+    """
+    if not proxy_uri:
+        return None
+    marker = "{{port}}--%s--%s--%s" % (agent, workspace, owner)
+    parts = urlsplit(proxy_uri)
+    host = parts.netloc
+    idx = host.lower().find(marker.lower()) if agent else -1
+    if parts.scheme not in ("http", "https") or idx < 0:
+        log("WARNING: VSCODE_PROXY_URI has an unexpected format: %s" % proxy_uri)
+        return None
+    return split_wildcard(
+        "%s://%s*%s" % (parts.scheme, host[:idx], host[idx + len(marker):]),
+        parts.scheme,
+    )
+
+
+def expand(wildcard, subdomain):
+    scheme, pattern = wildcard
+    return scheme, pattern.replace("*", subdomain.lower(), 1)
+
+
+wildcards = []
+primary_from_proxy_uri = None
+if not override:
+    primary_from_proxy_uri = primary_wildcard()
+    if primary_from_proxy_uri:
+        wildcards.append(primary_from_proxy_uri)
+for line in env.get("KC_PROXY_HOSTNAMES", "").splitlines():
+    if not line.strip():
+        continue
+    parsed = split_wildcard(line, access_scheme)
+    if parsed is None:
+        log("WARNING: ignoring invalid workspace proxy hostname: %s" % line)
+    elif parsed not in wildcards:
+        wildcards.append(parsed)
+
+# Coder omits the agent from slug app subdomains, but also routes the form
+# that names the agent, so both are trusted.
+suffixes = ["--%s--%s" % (workspace, owner)]
+if agent:
+    suffixes.append("--%s--%s--%s" % (agent, workspace, owner))
+
+routes = {}
+for wildcard in wildcards:
+    for suffix in suffixes:
+        _, app_host = expand(wildcard, app_slug + suffix)
+        scheme, dash_host = expand(wildcard, dash_slug + suffix)
+        routes[app_host] = "%s://%s" % (scheme, dash_host)
+
+if override:
+    primary = override
+elif wildcards:
+    scheme, dash_host = expand(wildcards[0], dash_slug + suffixes[0])
+    primary = "%s://%s" % (scheme, dash_host)
+    if primary_from_proxy_uri is None:
+        log("WARNING: VSCODE_PROXY_URI is not set; using the first workspace proxy as the primary dashboard origin.")
+else:
+    primary = fallback
+    log("WARNING: could not determine the wildcard app hostname; assuming %s. Set dashboard_origin if the dashboard is unreachable." % fallback)
+
+allowed = [primary]
+for origin in list(routes.values()) + env.get("KC_EXTRA_ALLOWED_ORIGINS", "").split(","):
+    origin = origin.strip().rstrip("/")
+    if origin and origin not in allowed:
+        allowed.append(origin)
+
+with open(sys.argv[1], "w") as f:
+    json.dump({"primary": primary, "routes": routes, "allowed_origins": allowed}, f, indent=2)
+print(primary)
+print(",".join(allowed))
+PYEOF
+
+DASHBOARD_URL=""
+ALLOWED_ORIGINS=""
+{
+  read -r DASHBOARD_URL
+  read -r ALLOWED_ORIGINS
+} < <(
+  KC_APP_SLUG="$${ARG_APP_SLUG}" \
+    KC_DASHBOARD_SLUG="$${ARG_DASHBOARD_SLUG}" \
+    KC_WORKSPACE_NAME="$${ARG_WORKSPACE_NAME}" \
+    KC_OWNER_NAME="$${ARG_OWNER_NAME}" \
+    KC_ACCESS_SCHEME="$${ARG_ACCESS_SCHEME}" \
+    KC_DASHBOARD_ORIGIN="$${ARG_DASHBOARD_ORIGIN}" \
+    KC_FALLBACK_ORIGIN="$${ARG_FALLBACK_ORIGIN}" \
+    KC_PROXY_HOSTNAMES="$${ARG_PROXY_HOSTNAMES}" \
+    KC_EXTRA_ALLOWED_ORIGINS="$${ARG_EXTRA_ALLOWED_ORIGINS}" \
+    "$${PYTHON_BIN}" "$${ORIGINS_HELPER_PATH}" "$${ORIGINS_PATH}"
+)
+if [ -z "$${DASHBOARD_URL}" ]; then
+  echo "ERROR: could not compute the Kiro Crew dashboard origins." >&2
+  exit 1
+fi
+echo "Primary dashboard origin: $${DASHBOARD_URL}"
+echo "Gateway allowed origins: $${ALLOWED_ORIGINS}"
+
 if [ -n "$${KIRO_API_KEY:-}" ]; then
   echo "Headless Kiro auth: KIRO_API_KEY detected; kiro-cli authenticates non-interactively."
 else
@@ -105,16 +259,18 @@ chmod +x "$${LAUNCHER_PATH}"
 setsid nohup env \
   KC_CMD="$${KIROCREW_CMD}" \
   KC_PORT="$${ARG_PORT}" \
-  KC_ORIGINS="$${ARG_ALLOWED_ORIGINS}" \
-  KC_DASHBOARD_URL="$${ARG_DASHBOARD_URL}" \
+  KC_ORIGINS="$${ALLOWED_ORIGINS}" \
+  KC_DASHBOARD_URL="$${DASHBOARD_URL}" \
   bash "$${LAUNCHER_PATH}" >> "$${GATEWAY_LOG}" 2>&1 < /dev/null &
 disown 2> /dev/null || true
 echo "Kiro Crew gateway launch dispatched."
 
 # The visible app tile points at this loopback redirector. Each request mints
 # a short-lived token from the gateway's loopback secret and redirects to the
-# dashboard app with ?token=. /healthz answers without minting a token so the
-# app healthcheck does not create tokens.
+# dashboard app with ?token=. Coder forwards the browser's Host, which selects
+# the dashboard origin on the same primary or proxy hostname. Unknown hosts go
+# to the primary origin. /healthz answers without minting a token so the app
+# healthcheck does not create tokens.
 cat > "$${REDIRECTOR_PATH}" << 'PYEOF'
 import http.server
 import json
@@ -123,7 +279,10 @@ import urllib.request
 
 REDIR_PORT = int(os.environ["REDIR_PORT"])
 GW_BASE = "http://127.0.0.1:" + os.environ["GW_PORT"]
-DASH = os.environ["DASH_ORIGIN"].rstrip("/")
+with open(os.environ["ORIGINS_PATH"]) as f:
+    ORIGINS = json.load(f)
+PRIMARY = ORIGINS["primary"].rstrip("/")
+ROUTES = ORIGINS["routes"]
 SECRET = os.path.expanduser("~/.kiro/crew/.local_secret")
 
 
@@ -137,6 +296,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
             return json.load(resp).get("token", "")
+
+    def _dashboard_origin(self):
+        host = (self.headers.get("Host") or "").strip().lower().rstrip(".")
+        return ROUTES.get(host, PRIMARY).rstrip("/")
 
     def do_GET(self):
         if self.path.startswith("/healthz"):
@@ -154,7 +317,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(b"Kiro Crew gateway still starting - retry shortly")
             return
         self.send_response(302)
-        self.send_header("Location", DASH + "/?token=" + token)
+        self.send_header("Location", self._dashboard_origin() + "/?token=" + token)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Referrer-Policy", "no-referrer")
         self.end_headers()
 
     def log_message(self, *args):
@@ -168,9 +333,9 @@ PYEOF
 setsid nohup env \
   REDIR_PORT="$${ARG_REDIRECT_PORT}" \
   GW_PORT="$${ARG_PORT}" \
-  DASH_ORIGIN="$${ARG_DASHBOARD_URL}" \
+  ORIGINS_PATH="$${ORIGINS_PATH}" \
   "$${PYTHON_BIN}" "$${REDIRECTOR_PATH}" >> "$${REDIRECTOR_LOG}" 2>&1 < /dev/null &
 disown 2> /dev/null || true
-echo "Kiro Crew redirector dispatched on port $${ARG_REDIRECT_PORT} -> $${ARG_DASHBOARD_URL}"
+echo "Kiro Crew redirector dispatched on port $${ARG_REDIRECT_PORT} -> $${DASHBOARD_URL}"
 
 exit 0

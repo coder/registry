@@ -130,13 +130,27 @@ variable "allowed_origins" {
 }
 
 variable "dashboard_origin" {
-  description = "Override for the external origin of the hidden dashboard app, for example when the deployment's wildcard access URL differs from its access URL. When empty, the module derives \"<scheme>://<slug>-dashboard--<workspace>--<owner>.<access-host>\" from the access URL."
+  description = "Override for the external origin of the hidden dashboard app. When empty, the module derives it at startup from the agent's VSCODE_PROXY_URI, which follows the deployment's wildcard access URL."
   type        = string
   default     = ""
 
   validation {
     condition     = var.dashboard_origin == "" || can(regex("^https?://[^/]+$", var.dashboard_origin))
     error_message = "dashboard_origin must be empty or an origin such as 'https://app.example.com' with no path."
+  }
+}
+
+variable "workspace_proxy_hostnames" {
+  description = "Wildcard app hostnames of the deployment's workspace proxies, for example [\"*.apps.eu.example.com\"]. Use the wildcard_hostname that /api/v2/regions reports for each proxy. A scheme prefix is optional and defaults to the access URL scheme. A browser that opens Kiro Crew through a listed proxy stays on that proxy. A browser that opens it through an unlisted proxy is sent to the primary dashboard origin."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for h in var.workspace_proxy_hostnames :
+      can(regex("^(https?://)?[A-Za-z0-9-]*\\*[A-Za-z0-9-]*(\\.[A-Za-z0-9-]+)+(:[0-9]+)?$", h))
+    ])
+    error_message = "Each workspace_proxy_hostnames entry must be a wildcard hostname such as '*.apps.example.com' or '*--apps.example.com', with exactly one '*' in the first label and no path."
   }
 }
 
@@ -164,21 +178,13 @@ locals {
   access_scheme  = startswith(data.coder_workspace.me.access_url, "http://") ? "http" : "https"
   access_host    = trimsuffix(replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", ""), "/")
 
-  # Coder serves subdomain apps at <slug>--<workspace>--<owner>.<wildcard-host>.
-  # The redirector sends the browser here with a freshly minted token, and the
-  # gateway must trust this origin or it rejects proxied requests with
-  # "Host header not allowed.".
-  dashboard_origin = (
-    var.dashboard_origin != ""
-    ? var.dashboard_origin
-    : "${local.access_scheme}://${local.dashboard_slug}--${data.coder_workspace.me.name}--${data.coder_workspace_owner.me.name}.${local.access_host}"
-  )
+  # The start script derives the real dashboard origins from the agent's
+  # VSCODE_PROXY_URI and var.workspace_proxy_hostnames, because the wildcard
+  # app hostname is not available to Terraform. This origin, which assumes
+  # "*.<access-host>", is only the last resort when neither is available.
+  fallback_dashboard_origin = "${local.access_scheme}://${local.dashboard_slug}--${data.coder_workspace.me.name}--${data.coder_workspace_owner.me.name}.${local.access_host}"
 
-  gateway_allowed_origins = (
-    trimspace(var.allowed_origins) != ""
-    ? "${local.dashboard_origin},${trimspace(var.allowed_origins)}"
-    : local.dashboard_origin
-  )
+  dashboard_origin = var.dashboard_origin != "" ? var.dashboard_origin : local.fallback_dashboard_origin
 
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_USE_CACHED           = tostring(var.use_cached)
@@ -188,11 +194,18 @@ locals {
   })
 
   start_script = templatefile("${path.module}/scripts/start.sh.tftpl", {
-    ARG_MODULE_DIRECTORY = local.module_directory
-    ARG_PORT             = tostring(var.port)
-    ARG_REDIRECT_PORT    = tostring(var.redirect_port)
-    ARG_ALLOWED_ORIGINS  = base64encode(local.gateway_allowed_origins)
-    ARG_DASHBOARD_URL    = base64encode(local.dashboard_origin)
+    ARG_MODULE_DIRECTORY      = local.module_directory
+    ARG_PORT                  = tostring(var.port)
+    ARG_REDIRECT_PORT         = tostring(var.redirect_port)
+    ARG_APP_SLUG              = var.slug
+    ARG_DASHBOARD_SLUG        = local.dashboard_slug
+    ARG_WORKSPACE_NAME        = data.coder_workspace.me.name
+    ARG_OWNER_NAME            = data.coder_workspace_owner.me.name
+    ARG_ACCESS_SCHEME         = local.access_scheme
+    ARG_DASHBOARD_ORIGIN      = base64encode(var.dashboard_origin)
+    ARG_FALLBACK_ORIGIN       = base64encode(local.fallback_dashboard_origin)
+    ARG_PROXY_HOSTNAMES       = base64encode(join("\n", var.workspace_proxy_hostnames))
+    ARG_EXTRA_ALLOWED_ORIGINS = base64encode(trimspace(var.allowed_origins))
   })
 }
 
@@ -265,7 +278,7 @@ output "kirocrew_url" {
 }
 
 output "dashboard_origin" {
-  description = "External origin of the hidden Kiro Crew dashboard app that the redirector sends the browser to."
+  description = "The dashboard_origin override, or the origin assumed when the wildcard app hostname cannot be determined at startup. The start script logs the origins it actually uses."
   value       = local.dashboard_origin
 }
 

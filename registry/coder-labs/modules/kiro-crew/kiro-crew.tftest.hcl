@@ -62,12 +62,17 @@ run "defaults" {
 
   assert {
     condition     = local.dashboard_origin == "https://kirocrew-dashboard--dev--alice.coder.example.com"
-    error_message = "Dashboard origin should be derived from the access URL, workspace, and owner"
+    error_message = "Fallback dashboard origin should be derived from the access URL, workspace, and owner"
   }
 
   assert {
-    condition     = local.gateway_allowed_origins == local.dashboard_origin
-    error_message = "Gateway allowlist should contain only the dashboard origin by default"
+    condition     = strcontains(local.start_script, "ARG_DASHBOARD_ORIGIN=$(echo -n '' | base64 -d)")
+    error_message = "Start script should receive an empty dashboard_origin override by default"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "ARG_PROXY_HOSTNAMES=$(echo -n '' | base64 -d)")
+    error_message = "Start script should receive no workspace proxy hostnames by default"
   }
 
   assert {
@@ -81,8 +86,8 @@ run "defaults" {
   }
 
   assert {
-    condition     = strcontains(local.start_script, "ARG_ALLOWED_ORIGINS=$(echo -n '${base64encode(local.dashboard_origin)}' | base64 -d)")
-    error_message = "Start script should receive the allowlist base64 encoded"
+    condition     = strcontains(local.start_script, "ARG_FALLBACK_ORIGIN=$(echo -n '${base64encode(local.dashboard_origin)}' | base64 -d)")
+    error_message = "Start script should receive the fallback dashboard origin base64 encoded"
   }
 
   assert {
@@ -186,9 +191,45 @@ run "allowed_origins_are_appended" {
   }
 
   assert {
-    condition     = local.gateway_allowed_origins == "https://kirocrew-dashboard--dev--alice.coder.example.com,https://coder.example.com,https://proxy.example.com"
-    error_message = "Extra allowed origins should follow the dashboard origin"
+    condition     = strcontains(local.start_script, "ARG_EXTRA_ALLOWED_ORIGINS=$(echo -n '${base64encode("https://coder.example.com,https://proxy.example.com")}' | base64 -d)")
+    error_message = "Extra allowed origins should be trimmed and passed to the start script"
   }
+}
+
+run "workspace_proxy_hostnames_are_passed" {
+  command = plan
+
+  variables {
+    agent_id                  = "test-agent"
+    workspace_proxy_hostnames = ["*--apps.eu.example.com", "https://*.apps.us.example.com:8443"]
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "ARG_PROXY_HOSTNAMES=$(echo -n '${base64encode("*--apps.eu.example.com\nhttps://*.apps.us.example.com:8443")}' | base64 -d)")
+    error_message = "Workspace proxy hostnames should be passed to the start script newline separated"
+  }
+}
+
+run "invalid_workspace_proxy_hostname_is_rejected" {
+  command = plan
+
+  variables {
+    agent_id                  = "test-agent"
+    workspace_proxy_hostnames = ["apps.example.com"]
+  }
+
+  expect_failures = [var.workspace_proxy_hostnames]
+}
+
+run "workspace_proxy_hostname_with_path_is_rejected" {
+  command = plan
+
+  variables {
+    agent_id                  = "test-agent"
+    workspace_proxy_hostnames = ["*.apps.example.com/path"]
+  }
+
+  expect_failures = [var.workspace_proxy_hostnames]
 }
 
 run "dashboard_origin_override" {

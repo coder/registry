@@ -23,7 +23,7 @@ The module adds two subdomain apps:
 - A visible **Kiro Crew** app that points at a loopback redirector. Each time you open it, the redirector mints a short-lived gateway token and redirects your browser to the dashboard with that token, so you land on an authenticated dashboard without running `kirocrew token`.
 - A hidden `<slug>-dashboard` app that serves the dashboard and its websocket through Coder's subdomain proxy.
 
-The gateway rejects requests whose `Host` is not loopback (`Host header not allowed.`). The module derives the dashboard app's origin from the Coder access URL, passes it to the gateway in `KIROCREW_CORS_ORIGINS`, and sets `dashboard.url` so token cookies are scoped to it.
+The gateway rejects requests whose `Host` is not in its allowlist (`Host header not allowed.`). At startup, the module derives the dashboard app's origin from the agent's `VSCODE_PROXY_URI`, which follows the deployment's wildcard access URL. It also derives an origin for each hostname in `workspace_proxy_hostnames`. The module passes these origins to the gateway in `KIROCREW_CORS_ORIGINS` and sets `dashboard.url` to the primary origin. The redirector sends your browser to the dashboard on the same hostname you opened the app from, primary or proxy, if that origin is in the allowlist. Otherwise, it sends your browser to the primary origin.
 
 ## Prerequisites
 
@@ -71,9 +71,28 @@ module "kiro-crew" {
 }
 ```
 
-### Custom wildcard domain
+### Workspace proxies
 
-If your deployment's wildcard access URL uses a different host than its access URL, set the dashboard origin explicitly. The hidden app's slug is `<slug>-dashboard`.
+Without configuration, a browser that opens Kiro Crew through a [workspace proxy](https://coder.com/docs/admin/networking/workspace-proxies) is redirected to the dashboard on the primary deployment's wildcard hostname. To keep dashboard traffic on the proxy, list each proxy's wildcard hostname, as shown in the `wildcard_hostname` field of `/api/v2/regions`:
+
+```tf
+module "kiro-crew" {
+  source   = "registry.coder.com/coder-labs/kiro-crew/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+
+  workspace_proxy_hostnames = [
+    "*.apps.eu.example.com",
+    "*.apps.us.example.com",
+  ]
+}
+```
+
+The gateway's allowlist is fixed when the workspace starts, so restart the workspace after you add a proxy.
+
+### Custom dashboard origin
+
+The module derives the dashboard origin from the agent's `VSCODE_PROXY_URI`. If that variable is not set, or you serve the dashboard from another origin, set the dashboard origin explicitly. The redirector uses it in place of the primary origin. The hidden app's slug is `<slug>-dashboard`.
 
 ```tf
 module "kiro-crew" {
@@ -182,7 +201,7 @@ Logs are written to `$HOME/.coder-modules/coder-labs/kiro-crew/logs/`:
 
 The start script launches the gateway in a detached session and returns immediately, because a slow cold start could otherwise exceed the agent's script timeout. Readiness is reported by the app healthchecks, so the app can show as unhealthy for a short time after the workspace starts. While the gateway is starting, the Kiro Crew app responds with `503`; retry after a few seconds.
 
-- **`Host header not allowed.`:** the browser's origin is not in the gateway's allowlist. Set `dashboard_origin` or `allowed_origins` to the origin shown in the browser.
+- **`Host header not allowed.`:** the browser's origin is not in the gateway's allowlist. `start.log` lists the allowed origins. If you opened the dashboard through a workspace proxy, add its wildcard hostname to `workspace_proxy_hostnames`. Otherwise, set `dashboard_origin` or `allowed_origins` to the origin shown in the browser.
 - **`ImportError: No module named 'aiohttp'` on gateway start:** the managed venv at `~/.kiro/crew-venv` was built with a foreign `PYTHONPATH`. The install script unsets `PYTHONPATH` and `PYTHONHOME`; remove `~/.kiro/crew-venv`, set `use_cached = false`, and restart the workspace.
 - **Sandbox warnings:** Kiro Crew sandboxes agent subprocesses with a Linux user namespace. When the workspace cannot create one, which is common in Kubernetes pods, the gateway is configured with `agent.sandbox_allow_unsandboxed_exec` and the workspace is the isolation boundary.
 - **Expected warnings:** `Vendored llama-cpp-python failed to import` (the gateway falls back to API-based embeddings) and `cgroup v2 scope enforcement unavailable` (no systemd user session in containers) do not affect the gateway.

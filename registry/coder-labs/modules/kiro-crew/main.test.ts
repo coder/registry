@@ -233,13 +233,20 @@ chmod +x "$HOME/.kiro/crew-venv/bin/kirocrew"
 };
 
 // Polls a URL from inside the container until curl reports the expected
-// status code, then prints "<status> <redirect_url>".
-const waitForStatus = async (id: string, url: string, status: string) => {
+// status code, then prints "<status> <redirect_url>". A host sets the Host
+// header, as Coder's app proxy forwards the browser's Host.
+const waitForStatus = async (
+  id: string,
+  url: string,
+  status: string,
+  host?: string,
+) => {
+  const hostHeader = host ? `-H 'Host: ${host}'` : "";
   const resp = await execContainer(id, [
     "bash",
     "-c",
     `for i in $(seq 1 100); do
-       out=$(/usr/bin/curl -s -o /dev/null -w '%{http_code} %{redirect_url}' '${url}')
+       out=$(/usr/bin/curl -s -o /dev/null ${hostHeader} -w '%{http_code} %{redirect_url}' '${url}')
        case "$out" in ${status}*) echo "$out"; exit 0 ;; esac
        sleep 0.2
      done
@@ -256,6 +263,58 @@ const waitForStatus = async (id: string, url: string, status: string) => {
 };
 
 setDefaultTimeout(90 * 1000);
+
+// Names the coder provider resolved for the workspace and owner, which shape
+// every app hostname.
+const workspaceNames = (state: TerraformState) => {
+  const nameOf = (type: string) => {
+    const resource = state.resources.find((r) => r.type === type);
+    const name = resource?.instances[0]?.attributes.name;
+    if (typeof name !== "string" || name === "") {
+      throw new Error(`${type} name not found in terraform state`);
+    }
+    return name;
+  };
+  return {
+    workspace: nameOf("coder_workspace"),
+    owner: nameOf("coder_workspace_owner"),
+  };
+};
+
+const agentName = "main";
+
+// What the agent sets for a deployment whose wildcard is *--apps.coder.example.com.
+const proxyURIEnv = (state: TerraformState) => {
+  const { workspace, owner } = workspaceNames(state);
+  return {
+    CODER_WORKSPACE_AGENT_NAME: agentName,
+    VSCODE_PROXY_URI: `https://{{port}}--${agentName}--${workspace}--${owner}--apps.coder.example.com`,
+  };
+};
+
+const gatewayOrigins = async (id: string) => {
+  const env = await readFileContainer(id, "/tmp/kirocrew-gateway-env");
+  const line = env
+    .split("\n")
+    .find((l) => l.startsWith("KIROCREW_CORS_ORIGINS="));
+  return (line ?? "").replace("KIROCREW_CORS_ORIGINS=", "").split(",");
+};
+
+// Requests the redirector with the given Host and returns the redirect
+// origin, asserting the gateway trusts it.
+const redirectOrigin = async (id: string, host: string) => {
+  const out = await waitForStatus(
+    id,
+    `http://127.0.0.1:${redirectPort}/`,
+    "302",
+    host,
+  );
+  const location = out.replace(/^302 /, "");
+  expect(location).toEndWith("/?token=test-token");
+  const origin = location.replace("/?token=test-token", "");
+  expect(await gatewayOrigins(id)).toContain(origin);
+  return origin;
+};
 
 describe("kiro-crew", async () => {
   beforeAll(async () => {
@@ -360,12 +419,17 @@ describe("kiro-crew", async () => {
       withMocks: true,
       moduleVariables: { allowed_origins: "https://extra.example.com" },
     });
-    const dashboardOrigin = state.outputs.dashboard_origin.value as string;
+    const { workspace, owner } = workspaceNames(state);
+    const dashboardOrigin = `https://kirocrew-dashboard--${workspace}--${owner}--apps.coder.example.com`;
     await runOrFail(id, "install", scripts.install);
     const start = await runOrFail(id, "start", scripts.start, {
       KIRO_AWS_BUILDER_ID_TOKEN: "builder-token",
+      ...proxyURIEnv(state),
     });
     expect(start.stdout).toContain("Kiro Crew gateway launch dispatched.");
+    expect(start.stdout).toContain(
+      `Primary dashboard origin: ${dashboardOrigin}`,
+    );
 
     await waitForStatus(id, `http://127.0.0.1:${redirectPort}/healthz`, "200");
     const health = await execContainer(id, [
@@ -385,7 +449,7 @@ describe("kiro-crew", async () => {
     const gatewayEnv = await readFileContainer(id, "/tmp/kirocrew-gateway-env");
     expect(gatewayEnv).toContain(`KIROCREW_PORT=${gatewayPort}`);
     expect(gatewayEnv).toContain(
-      `KIROCREW_CORS_ORIGINS=${dashboardOrigin},https://extra.example.com`,
+      `KIROCREW_CORS_ORIGINS=${dashboardOrigin},https://kirocrew-dashboard--${agentName}--${workspace}--${owner}--apps.coder.example.com,https://extra.example.com`,
     );
     expect(gatewayEnv).toContain("KIRO_AWS_BUILDER_ID_TOKEN=builder-token");
 
@@ -400,6 +464,83 @@ describe("kiro-crew", async () => {
       ]);
       expect(exists.exitCode).toBe(0);
     }
+  });
+
+  test("redirector-keeps-browser-on-its-workspace-proxy", async () => {
+    const { id, scripts, state } = await setup({
+      withMocks: true,
+      moduleVariables: {
+        workspace_proxy_hostnames: JSON.stringify([
+          "*--apps.eu.coder.example.com",
+          "http://*.apps.lab.example.com:8080",
+        ]),
+      },
+    });
+    const { workspace, owner } = workspaceNames(state);
+    const sub = `${workspace}--${owner}`;
+    await runOrFail(id, "install", scripts.install);
+    await runOrFail(id, "start", scripts.start, proxyURIEnv(state));
+
+    // Primary deployment.
+    expect(
+      await redirectOrigin(id, `kirocrew--${sub}--apps.coder.example.com`),
+    ).toBe(`https://kirocrew-dashboard--${sub}--apps.coder.example.com`);
+    // Listed proxy, in the form Coder links to and in the form naming the agent.
+    expect(
+      await redirectOrigin(id, `kirocrew--${sub}--apps.eu.coder.example.com`),
+    ).toBe(`https://kirocrew-dashboard--${sub}--apps.eu.coder.example.com`);
+    expect(
+      await redirectOrigin(
+        id,
+        `KIROCREW--${agentName}--${sub}--apps.eu.coder.example.com`,
+      ),
+    ).toBe(
+      `https://kirocrew-dashboard--${agentName}--${sub}--apps.eu.coder.example.com`,
+    );
+    // Explicit scheme and port.
+    expect(
+      await redirectOrigin(id, `kirocrew--${sub}.apps.lab.example.com:8080`),
+    ).toBe(`http://kirocrew-dashboard--${sub}.apps.lab.example.com:8080`);
+    // Unlisted proxies and unrelated hosts fall back to the primary origin.
+    for (const host of [
+      `kirocrew--${sub}--apps.ap.coder.example.com`,
+      `kirocrew--${sub}--apps.attacker.example`,
+    ]) {
+      expect(await redirectOrigin(id, host)).toBe(
+        `https://kirocrew-dashboard--${sub}--apps.coder.example.com`,
+      );
+    }
+  });
+
+  test("dashboard-origin-override-is-the-primary-origin", async () => {
+    const override = "https://crew.apps.example.com";
+    const { id, scripts, state } = await setup({
+      withMocks: true,
+      moduleVariables: { dashboard_origin: override },
+    });
+    const { workspace, owner } = workspaceNames(state);
+    await runOrFail(id, "install", scripts.install);
+    await runOrFail(id, "start", scripts.start, proxyURIEnv(state));
+    expect(
+      await redirectOrigin(
+        id,
+        `kirocrew--${workspace}--${owner}--apps.coder.example.com`,
+      ),
+    ).toBe(override);
+    expect(await gatewayOrigins(id)).toEqual([override]);
+    const calls = await readFileContainer(id, "/tmp/kirocrew-calls");
+    expect(calls).toContain(`config set dashboard.url ${override}`);
+  });
+
+  test("start-falls-back-without-vscode-proxy-uri", async () => {
+    const { id, scripts, state } = await setup({ withMocks: true });
+    const fallback = state.outputs.dashboard_origin.value as string;
+    await runOrFail(id, "install", scripts.install);
+    const start = await runOrFail(id, "start", scripts.start);
+    expect(start.stdout + start.stderr).toContain(
+      "WARNING: could not determine the wildcard app hostname",
+    );
+    expect(await redirectOrigin(id, "127.0.0.1")).toBe(fallback);
   });
 
   test("redirector-returns-503-until-gateway-ready", async () => {
