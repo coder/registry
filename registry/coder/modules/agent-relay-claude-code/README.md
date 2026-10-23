@@ -81,7 +81,7 @@ parameter leaves it empty.
 
 ## Scripts and logs
 
-The module runs two steps through [coder-utils](https://registry.coder.com/modules/coder/coder-utils):
+The module runs two steps through [coder-utils](https://registry.coder.com/modules/coder/lib-coder-utils):
 an install step that downloads the CLI when `install_cli` is set and the
 binary is missing (a no-op otherwise), then a start step that launches the
 runner. Everything lands under `$HOME/.coder-modules/coder/agent-relay-claude-code`:

@@ -19,7 +19,7 @@ import {
 import {
   extractCoderEnvVars,
   writeExecutable,
-} from "../../../coder/modules/agentapi/test-util";
+} from "../../../coder/modules/lib-agentapi/test-util";
 import path from "path";
 
 interface ModuleScripts {
