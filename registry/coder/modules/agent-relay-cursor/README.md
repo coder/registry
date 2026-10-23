@@ -16,7 +16,7 @@ parameters the relay stamps on each build and runs the Cursor CLI worker.
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "0.6.0"
+  version  = "0.7.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Cursor CLI at start when it is not in the image. Bake
@@ -98,7 +98,7 @@ optional value an explicit one (`--flag=value`), or it consumes `start`.
 ```tf
 module "cursor_worker" {
   source          = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version         = "0.6.0"
+  version         = "0.7.0"
   agent_id        = coder_agent.main.id
   additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
 }
