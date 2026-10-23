@@ -84,29 +84,24 @@ run "deprecated_extra_args_still_applied" {
   variables {
     agent_id        = "foo"
     url             = "https://github.com/coder/coder"
-    additional_args = { "--depth" = "1", "--recurse-submodules" = "", "-c" = "core.sshCommand=ssh -i /tmp/key" }
+    additional_args = ["--depth", "1", "-c", "http.extraHeader=X-A: 1", "-c", "http.extraHeader=X-B: 2"]
     extra_args      = ["--jobs=8"]
   }
 
-  # Map keys sort byte-wise, so --flags come before -f flags.
+  # additional_args keeps its order and repeated flags, then extra_args follows.
   assert {
-    condition     = local.additional_args == ["--depth", "1", "--recurse-submodules", "-c", "core.sshCommand=ssh -i /tmp/key"]
-    error_message = "each flag must be passed as written, followed by its value unless the value is empty"
-  }
-
-  assert {
-    condition     = local.encoded_extra_args == base64encode("--depth\n1\n--recurse-submodules\n-c\ncore.sshCommand=ssh -i /tmp/key\n--jobs=8")
+    condition     = local.encoded_extra_args == base64encode("--depth\n1\n-c\nhttp.extraHeader=X-A: 1\n-c\nhttp.extraHeader=X-B: 2\n--jobs=8")
     error_message = "extra_args must still be passed, after additional_args"
   }
 }
 
-run "additional_args_rejects_bad_flag" {
+run "additional_args_rejects_newline" {
   command = plan
 
   variables {
     agent_id        = "foo"
     url             = "https://github.com/coder/coder"
-    additional_args = { "depth" = "1" }
+    additional_args = ["--depth\n1"]
   }
 
   expect_failures = [var.additional_args]
@@ -118,7 +113,7 @@ run "additional_args_rejects_branch" {
   variables {
     agent_id        = "foo"
     url             = "https://github.com/coder/coder"
-    additional_args = { "--branch" = "main" }
+    additional_args = ["--branch=main"]
   }
 
   expect_failures = [var.additional_args]

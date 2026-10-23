@@ -57,25 +57,25 @@ variable "folder_name" {
 }
 
 variable "additional_args" {
-  description = "Additional flags to pass to `git clone`, as a map of flag to value. Each flag is passed as written (e.g. `--depth` or `-c`) followed by its value as the next argument; an empty value passes the flag alone (e.g. `{ \"--depth\" = \"1\", \"--recurse-submodules\" = \"\" }`)."
-  type        = map(string)
-  default     = {}
+  description = "Additional arguments to pass to `git clone`, one list element per argument, in order (e.g. `[\"--depth\", \"1\", \"--recurse-submodules\", \"-c\", \"http.extraHeader=X-A: 1\", \"-c\", \"http.extraHeader=X-B: 2\"]`). Each element is passed as written, so a flag can repeat and a value may contain spaces."
+  type        = list(string)
+  default     = []
 
   validation {
-    condition     = alltrue([for k, v in var.additional_args : can(regex("^--?[A-Za-z0-9][A-Za-z0-9._-]*$", k)) && !can(regex("\n", v))])
-    error_message = "additional_args keys must be flags such as --name or -n (letters, digits, '.', '_', '-'), and values must not contain newlines."
+    condition     = alltrue([for a in var.additional_args : a != "" && !can(regex("\n", a))])
+    error_message = "additional_args elements must be non-empty and must not contain newlines."
   }
 
   # The module already sets the branch from branch_name or the URL. Keep this
   # list in sync with the `git clone` flags in run.sh.
   validation {
-    condition     = length(setintersection(keys(var.additional_args), ["-b", "--branch"])) == 0
+    condition     = !anytrue([for a in var.additional_args : contains(["-b", "--branch"], split("=", a)[0])])
     error_message = "additional_args must not set -b or --branch; use branch_name instead."
   }
 }
 
 variable "extra_args" {
-  description = "Deprecated: use `additional_args` instead. Still honored and appended after `additional_args`; use it only for arguments a flag map cannot express, such as a repeated flag."
+  description = "Deprecated: use `additional_args` instead, which takes the same list. Still honored and appended after `additional_args`."
   type        = list(string)
   default     = []
 }
@@ -93,10 +93,6 @@ variable "pre_clone_script" {
 }
 
 locals {
-  # Render additional_args as argv: each key as written, followed by its
-  # value as a separate argument unless the value is empty.
-  additional_args = flatten([for k, v in var.additional_args : v == "" ? [k] : [k, v]])
-
   # Remove query parameters and fragments from the URL
   url = replace(replace(var.url, "/\\?.*/", ""), "/#.*/", "")
 
@@ -121,7 +117,7 @@ locals {
   encoded_post_clone_script = var.post_clone_script != null ? base64encode(var.post_clone_script) : ""
   # Encode the pre_clone_script for passing to the shell script
   encoded_pre_clone_script = var.pre_clone_script != null ? base64encode(var.pre_clone_script) : ""
-  encoded_extra_args       = base64encode(join("\n", concat(local.additional_args, var.extra_args)))
+  encoded_extra_args       = base64encode(join("\n", concat(var.additional_args, var.extra_args)))
 
   # Module directory paths (matches coder-utils convention)
   # Use folder_name so two git-clone instances in the same template get

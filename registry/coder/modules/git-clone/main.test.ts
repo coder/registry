@@ -424,11 +424,13 @@ describe("git-clone", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
       url: "fake-url",
-      additional_args: JSON.stringify({
-        "--recurse-submodules": "",
-        "--config": "user.name=Coder User",
-        "-c": "core.sshCommand=ssh -i /tmp/key",
-      }),
+      additional_args: JSON.stringify([
+        "--recurse-submodules",
+        "-c",
+        "user.name=Coder User",
+        "-c",
+        "core.sshCommand=ssh -i /tmp/key",
+      ]),
       extra_args: JSON.stringify(["--jobs=8"]),
     });
     const output = await executeScriptInContainer(
@@ -440,9 +442,9 @@ describe("git-clone", async () => {
     expect(output.stdout.join("\n")).toContain(
       [
         "argv:clone",
-        "argv:--config",
-        "argv:user.name=Coder User",
         "argv:--recurse-submodules",
+        "argv:-c",
+        "argv:user.name=Coder User",
         "argv:-c",
         "argv:core.sshCommand=ssh -i /tmp/key",
         "argv:--jobs=8",

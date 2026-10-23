@@ -188,19 +188,18 @@ module "git-clone" {
 ## Extra `git clone` arguments
 
 > [!NOTE]
-> **Upgrading from v1.x?** The `depth` variable was removed in v2.0.0. Use `additional_args = { "--depth" = "1" }` instead.
+> **Upgrading from v1.x?** The `depth` variable was removed in v2.0.0. Use `additional_args = ["--depth", "1"]` instead.
 > `additional_args` rejects `-b` and `--branch`; set `branch_name` instead.
 > Do not pass `-b` or `--branch` in `extra_args` when `branch_name` is
 > already set (or extracted from the URL). Git silently accepts the last
 > `-b` flag, so the two values would conflict.
 
-Pass any additional flags through `additional_args`, a map of flag to value.
-This lets you enable anything `git clone` supports without the module having
-to expose it explicitly, for example a shallow clone, submodules, parallel
-fetches, or partial clones. Each flag is passed exactly as written, so use
-`--name` or `-n` as `git clone` expects, followed by its value as the next
-argument; an empty value passes the flag alone. Terraform orders map keys
-alphabetically.
+Pass any additional arguments through `additional_args`, a list with one
+element per argument. This lets you enable anything `git clone` supports
+without the module having to expose it explicitly, for example a shallow
+clone, submodules, parallel fetches, or partial clones. Each element is passed
+exactly as written and in order, so a flag can repeat and a value can contain
+spaces.
 
 ```tf
 module "git-clone" {
@@ -209,19 +208,17 @@ module "git-clone" {
   version  = "2.1.0"
   agent_id = coder_agent.example.id
   url      = "https://github.com/coder/coder"
-  additional_args = {
-    "--depth"              = "1"
-    "--recurse-submodules" = ""
-    "--jobs"               = "8"
-    "--filter"             = "blob:none"
-  }
+  additional_args = [
+    "--depth", "1",
+    "--recurse-submodules",
+    "--jobs", "8",
+    "--filter", "blob:none",
+  ]
 }
 ```
 
-`extra_args` (a list, one element per argument) is deprecated in favor of
-`additional_args` but still works, and is appended after `additional_args`.
-Use it only for what a map cannot express, such as a flag repeated more than
-once.
+`extra_args` is deprecated in favor of `additional_args`, which takes the same
+list. It still works and is appended after `additional_args`.
 
 ## Pre-clone script
 
