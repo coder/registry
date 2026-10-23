@@ -307,13 +307,15 @@ describe("agent-relay-claude-code", () => {
     expect(env.stdout).toContain("SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT=acct-123");
   });
 
-  it("appends additional_args as one argument per flag", async () => {
+  it("appends additional_args in order, one argument per element", async () => {
     const { id, scripts } = await setup({
-      additional_args: JSON.stringify({
-        "--verbose": "",
-        "--name": "two words $HOME",
-        "-t": `it"s`,
-      }),
+      additional_args: JSON.stringify([
+        "--name",
+        "two words $HOME",
+        "--name",
+        `it"s`,
+        "--verbose",
+      ]),
     });
     await stubClaude(id, 'printf "%s\\n" "$@" >/tmp/claude-args; sleep 30');
     const { start } = await runDispatched(id, scripts);
@@ -321,10 +323,16 @@ describe("agent-relay-claude-code", () => {
 
     const args = (await readFileContainer(id, "/tmp/claude-args")).split("\n");
     expect(args[0]).toBe("self-hosted-runner");
-    expect(args).toContain("--verbose");
-    // Values reach the CLI verbatim: no word splitting or expansion.
-    expect(args[args.indexOf("--name") + 1]).toBe("two words $HOME");
-    expect(args[args.indexOf("-t") + 1]).toBe('it"s');
+    // A flag can repeat, and arguments reach the CLI verbatim and in order:
+    // no word splitting or expansion.
+    const at = args.indexOf("--name");
+    expect(args.slice(at, at + 5)).toEqual([
+      "--name",
+      "two words $HOME",
+      "--name",
+      'it"s',
+      "--verbose",
+    ]);
     // Module-set flags still come through, and the wrapper stays last.
     expect(args[args.indexOf("--capacity") + 1]).toBe("1");
     expect(args[args.indexOf("--exec-path") + 1]).toBe(
