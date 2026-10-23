@@ -136,7 +136,7 @@ Kiro Crew is a long-running gateway, not a one-shot CLI. The `kirocrew gateway` 
 - **Reconnecting resumes where you left off.** Closing the dashboard tab or losing your connection does not end a session. Reopening the **Kiro Crew** app reattaches to the same running gateway and its in-progress sessions and transcripts.
 - **Sessions survive workspace restarts.** All gateway state lives under `$HOME` (`~/.kiro`). On a persistent home directory it is preserved across stop/start and rebuilds; the module's start script relaunches the gateway automatically on the next start, and your prior sessions are still there.
 
-Use a persistent home directory to retain sessions, transcripts, and Kiro credentials across restarts. The companion [template](../../templates/kiro-crew/README.md) mounts a persistent volume at `/home/coder` for this reason.
+Use a persistent home directory to retain sessions, transcripts, and Kiro credentials across restarts. For example, mount a persistent volume at `/home/coder`.
 
 ## Restricted and air-gapped environments
 
