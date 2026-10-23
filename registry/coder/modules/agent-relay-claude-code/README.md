@@ -16,7 +16,7 @@ on each build and runs the Claude Code self-hosted runner.
 ```tf
 module "claude_code_runner" {
   source   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version  = "0.2.0"
+  version  = "0.4.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Claude Code CLI at start when it is not in the image. Bake
@@ -47,6 +47,23 @@ when to reap the workspace.
   image for the fastest start. `cli_binary` overrides the path.
 - Builds must finish inside Agent Relay's 300s spawn budget: pre-pulled
   images, no persistent volumes.
+
+## Additional runner arguments
+
+Use `additional_args` to pass extra arguments to `claude self-hosted-runner`, as a
+list with one element per argument. They are appended after the flags the module sets and before `--exec-path`, in the order written.
+Each element is passed exactly as written, so a flag can repeat and a value
+can contain spaces or quotes without escaping. Flags the module already sets
+(`--capacity`, `--base-dir`, `--exit-if-unused-min`, `--exec-path`) are rejected, with or without `=value`.
+
+```tf
+module "claude_code_runner" {
+  source          = "registry.coder.com/coder/agent-relay-claude-code/coder"
+  version         = "0.4.0"
+  agent_id        = coder_agent.main.id
+  additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
+}
+```
 
 ## Parameters
 
