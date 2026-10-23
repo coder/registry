@@ -191,7 +191,7 @@ module "kiro" {
 
 module "kiro-crew" {
   source   = "registry.coder.com/coder-labs/kiro-crew/coder"
-  version  = "1.0.0"
+  version  = "0.0.1"
   agent_id = coder_agent.main.id
   order    = 3
 
