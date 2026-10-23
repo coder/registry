@@ -419,25 +419,33 @@ describe("agent-relay-cursor", () => {
     expect(args).toContain("start");
   });
 
-  it("appends additional_args before start, one argument per flag", async () => {
+  it("appends additional_args before start, in order, one argument per element", async () => {
     const { id, scripts } = await setup({
-      additional_args: JSON.stringify({
-        "--verbose": "",
-        "--name": "two words $HOME",
-        "-t": `it"s`,
-      }),
+      additional_args: JSON.stringify([
+        "--name",
+        "two words $HOME",
+        "--name",
+        `it"s`,
+        "--verbose",
+      ]),
     });
     await stubAgent(id, 'printf "%s\\n" "$@" >/tmp/agent-args; sleep 30');
     const { start } = await runDispatched(id, scripts);
     expect(start.exitCode).toBe(0);
     const args = (await readFileContainer(id, "/tmp/agent-args")).split("\n");
     expect(args[0]).toBe("worker");
-    expect(args).toContain("--verbose");
-    // Values reach the CLI verbatim: no word splitting or expansion.
-    expect(args[args.indexOf("--name") + 1]).toBe("two words $HOME");
-    expect(args[args.indexOf("-t") + 1]).toBe('it"s');
+    // A flag can repeat, and arguments reach the CLI verbatim and in order:
+    // no word splitting or expansion.
+    const at = args.indexOf("--name");
+    expect(args.slice(at, at + 5)).toEqual([
+      "--name",
+      "two words $HOME",
+      "--name",
+      'it"s',
+      "--verbose",
+    ]);
     // The subcommand stays last, after every flag.
-    expect(args.indexOf("start")).toBeGreaterThan(args.indexOf("-t") + 1);
+    expect(args.indexOf("start")).toBe(at + 5);
     expect(args[args.indexOf("--pool") + 1]).toBe(POOL_NAME);
   });
 
