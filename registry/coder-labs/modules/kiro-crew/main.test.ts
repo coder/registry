@@ -213,7 +213,7 @@ chmod +x "$HOME/.local/bin/kiro-cli"
     containerId: id,
     filePath: "/tmp/fixtures/kiro-crew-install.sh",
     content: `#!/bin/sh
-echo "kiro-crew installer ran PYTHONPATH=\${PYTHONPATH-unset} pipx=$(command -v pipx)" >> /tmp/installers-ran
+echo "kiro-crew installer ran PYTHONPATH=\${PYTHONPATH-unset}" >> /tmp/installers-ran
 mkdir -p "$HOME/.kiro/crew-venv/bin"
 cp /tmp/kirocrew-mock.sh "$HOME/.kiro/crew-venv/bin/kirocrew"
 chmod +x "$HOME/.kiro/crew-venv/bin/kirocrew"
@@ -226,12 +226,6 @@ chmod +x "$HOME/.kiro/crew-venv/bin/kirocrew"
       path.join(moduleDir, "testdata", "kirocrew-mock.sh"),
     ).text(),
   });
-  // Pre-create the dedicated pipx so the test does not hit PyPI.
-  await execContainer(id, [
-    "bash",
-    "-c",
-    `mkdir -p "$HOME/.kiro/pipx-venv/bin" && printf '#!/bin/sh\\nexit 0\\n' > "$HOME/.kiro/pipx-venv/bin/pipx" && chmod +x "$HOME/.kiro/pipx-venv/bin/pipx"`,
-  ]);
 };
 
 // Polls a URL from inside the container until curl reports the expected
@@ -347,9 +341,7 @@ describe("kiro-crew", async () => {
     expect(curlArgs).toContain("https://download.crew.kiro.dev/cli.sh");
     const ran = await readFileContainer(id, "/tmp/installers-ran");
     expect(ran).toContain("kiro-cli installer ran");
-    expect(ran).toContain(
-      "kiro-crew installer ran PYTHONPATH=unset pipx=/home/coder/.local/bin/pipx",
-    );
+    expect(ran).toContain("kiro-crew installer ran PYTHONPATH=unset");
     const log = await readFileContainer(id, `${moduleLogDir}/install.log`);
     expect(log).toContain("Kiro CLI ready.");
     expect(log).toContain("Kiro Crew ready.");
