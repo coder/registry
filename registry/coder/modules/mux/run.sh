@@ -31,13 +31,25 @@ function run_mux() {
 
   mkdir -p "$(dirname "${LOG_PATH}")"
 
-  # Build args for mux (POSIX-compatible, avoid bash arrays)
+  # Build args for mux (POSIX-compatible, avoid bash arrays). Keep these
+  # flags in sync with the reserved-flag list in additional_args' validation
+  # in main.tf, so additional_args cannot set them a second time.
   set -- server --port "$port_value"
   if [ -n "${ADD_PROJECT}" ]; then
     set -- "$@" --add-project "${ADD_PROJECT}"
   fi
 
-  # Parse additional user-supplied server arguments while preserving quoted groups.
+  # additional_args: one argument per line, base64-encoded.
+  if [ -n "${ADDITIONAL_ARGS}" ]; then
+    while IFS= read -r parsed_arg || [ -n "$parsed_arg" ]; do
+      [ -n "$parsed_arg" ] || continue
+      set -- "$@" "$parsed_arg"
+    done << EOF_ADDITIONAL_ARGS
+$(printf '%s' "${ADDITIONAL_ARGS}" | base64 -d)
+EOF_ADDITIONAL_ARGS
+  fi
+
+  # Parse the deprecated additional_arguments string while preserving quoted groups.
   if [ -n "${ADDITIONAL_ARGUMENTS}" ]; then
     local parsed_additional_arguments
     if ! parsed_additional_arguments="$(printf "%s\n" "${ADDITIONAL_ARGUMENTS}" | xargs -n1 printf "%s\n" 2> /dev/null)"; then
