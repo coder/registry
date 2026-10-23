@@ -1,14 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [[ "$1" == "--version" ]]; then
-  echo "HELLO: $(bash -c env)"
-  echo "aider version v0.86.0"
+  echo "aider 0.86.0-mock"
   exit 0
 fi
 
-set -e
-
-while true; do
-  echo "$(date) - aider-agent-mock"
-  sleep 15
-done
+echo "aider invoked with: $*"
