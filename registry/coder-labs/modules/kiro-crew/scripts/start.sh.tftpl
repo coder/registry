@@ -20,13 +20,15 @@ ARG_EXTRA_ALLOWED_ORIGINS=$(echo -n '${ARG_EXTRA_ALLOWED_ORIGINS}' | base64 -d)
 LOG_DIR="$${ARG_MODULE_DIRECTORY}/logs"
 GATEWAY_LOG="$${LOG_DIR}/gateway.log"
 REDIRECTOR_LOG="$${LOG_DIR}/redirector.log"
-CREW_DIR="$HOME/.kiro/crew"
-LAUNCHER_PATH="$${CREW_DIR}/start-gateway.sh"
-REDIRECTOR_PATH="$${CREW_DIR}/redirect-gateway.py"
-ORIGINS_HELPER_PATH="$${CREW_DIR}/coder-origins.py"
-ORIGINS_PATH="$${CREW_DIR}/coder-origins.json"
+SCRIPTS_DIR="$${ARG_MODULE_DIRECTORY}/scripts"
+LAUNCHER_PATH="$${SCRIPTS_DIR}/start-gateway.sh"
+REDIRECTOR_PATH="$${SCRIPTS_DIR}/redirect-gateway.py"
+ORIGINS_HELPER_PATH="$${SCRIPTS_DIR}/coder-origins.py"
+ORIGINS_PATH="$${ARG_MODULE_DIRECTORY}/coder-origins.json"
 
-mkdir -p "$${LOG_DIR}" "$${CREW_DIR}"
+mkdir -p "$${LOG_DIR}" "$${SCRIPTS_DIR}"
+# Earlier versions wrote these into Kiro Crew's own data directory.
+rm -f "$HOME/.kiro/crew/start-gateway.sh" "$HOME/.kiro/crew/redirect-gateway.py"
 export PATH="$HOME/.local/bin:$HOME/bin:$PATH"
 
 # Everything below is best effort and must reach the launch step, so disable

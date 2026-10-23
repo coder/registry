@@ -68,7 +68,9 @@ afterEach(async () => {
 });
 
 const moduleDir = path.resolve(import.meta.dir);
-const moduleLogDir = "/home/coder/.coder-modules/coder-labs/kiro-crew/logs";
+const moduleDataDir = "/home/coder/.coder-modules/coder-labs/kiro-crew";
+const moduleLogDir = `${moduleDataDir}/logs`;
+const moduleScriptsDir = `${moduleDataDir}/scripts`;
 
 // Containers share the host network, so use ports unlikely to be in use.
 const gatewayPort = "19899";
@@ -422,6 +424,11 @@ describe("kiro-crew", async () => {
     const { workspace, owner } = workspaceNames(state);
     const dashboardOrigin = `https://kirocrew-dashboard--${workspace}--${owner}--apps.coder.example.com`;
     await runOrFail(id, "install", scripts.install);
+    await execContainer(id, [
+      "bash",
+      "-c",
+      "mkdir -p ~/.kiro/crew && touch ~/.kiro/crew/start-gateway.sh ~/.kiro/crew/redirect-gateway.py",
+    ]);
     const start = await runOrFail(id, "start", scripts.start, {
       KIRO_AWS_BUILDER_ID_TOKEN: "builder-token",
       ...proxyURIEnv(state),
@@ -456,14 +463,24 @@ describe("kiro-crew", async () => {
     const calls = await readFileContainer(id, "/tmp/kirocrew-calls");
     expect(calls).toContain(`config set dashboard.url ${dashboardOrigin}`);
 
-    for (const file of ["start.log", "gateway.log", "redirector.log"]) {
-      const exists = await execContainer(id, [
-        "test",
-        "-f",
-        `${moduleLogDir}/${file}`,
-      ]);
+    for (const file of [
+      `${moduleLogDir}/start.log`,
+      `${moduleLogDir}/gateway.log`,
+      `${moduleLogDir}/redirector.log`,
+      `${moduleScriptsDir}/start-gateway.sh`,
+      `${moduleScriptsDir}/redirect-gateway.py`,
+      `${moduleScriptsDir}/coder-origins.py`,
+      `${moduleDataDir}/coder-origins.json`,
+    ]) {
+      const exists = await execContainer(id, ["test", "-f", file]);
       expect(exists.exitCode).toBe(0);
     }
+    const legacy = await execContainer(id, [
+      "bash",
+      "-c",
+      "ls ~/.kiro/crew/start-gateway.sh ~/.kiro/crew/redirect-gateway.py",
+    ]);
+    expect(legacy.exitCode).not.toBe(0);
   });
 
   test("redirector-keeps-browser-on-its-workspace-proxy", async () => {
