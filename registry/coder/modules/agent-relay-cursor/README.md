@@ -16,7 +16,7 @@ parameters the relay stamps on each build and runs the Cursor CLI worker.
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "0.5.0"
+  version  = "0.7.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Cursor CLI at start when it is not in the image. Bake
@@ -85,6 +85,24 @@ every endpoint a worker does not call. It stops working when the claim ends,
 for example after the idle-release timeout, or when the service account key
 that minted it is deleted or expires. Its 7-day expiry is a backstop, not a
 session limit.
+
+## Additional worker arguments
+
+Use `additional_args` to pass extra arguments to `agent worker`, as a
+list with one element per argument. They are appended after the flags the module sets and before the `start` subcommand, in the order written.
+Each element is passed exactly as written, so a flag can repeat and a value
+can contain spaces or quotes without escaping. Flags the module already sets
+(`--pool`, `--idle-release-timeout`, `--auth-token-file`, `--auth-token`, `--computer-use`, `--share-desktop`) are rejected, with or without `=value`. Give a flag that takes an
+optional value an explicit one (`--flag=value`), or it consumes `start`.
+
+```tf
+module "cursor_worker" {
+  source          = "registry.coder.com/coder/agent-relay-cursor/coder"
+  version         = "0.7.0"
+  agent_id        = coder_agent.main.id
+  additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
+}
+```
 
 ## Parameters
 

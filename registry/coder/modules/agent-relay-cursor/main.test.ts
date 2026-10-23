@@ -419,6 +419,36 @@ describe("agent-relay-cursor", () => {
     expect(args).toContain("start");
   });
 
+  it("appends additional_args before start, in order, one argument per element", async () => {
+    const { id, scripts } = await setup({
+      additional_args: JSON.stringify([
+        "--name",
+        "two words $HOME",
+        "--name",
+        `it"s`,
+        "--verbose",
+      ]),
+    });
+    await stubAgent(id, 'printf "%s\\n" "$@" >/tmp/agent-args; sleep 30');
+    const { start } = await runDispatched(id, scripts);
+    expect(start.exitCode).toBe(0);
+    const args = (await readFileContainer(id, "/tmp/agent-args")).split("\n");
+    expect(args[0]).toBe("worker");
+    // A flag can repeat, and arguments reach the CLI verbatim and in order:
+    // no word splitting or expansion.
+    const at = args.indexOf("--name");
+    expect(args.slice(at, at + 5)).toEqual([
+      "--name",
+      "two words $HOME",
+      "--name",
+      'it"s',
+      "--verbose",
+    ]);
+    // The subcommand stays last, after every flag.
+    expect(args.indexOf("start")).toBe(at + 5);
+    expect(args[args.indexOf("--pool") + 1]).toBe(POOL_NAME);
+  });
+
   it("records the exit code when the worker exits", async () => {
     const { id, scripts } = await setup();
     await stubAgent(id, "exit 3");
