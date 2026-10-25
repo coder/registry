@@ -22,6 +22,28 @@ module "codex" {
 > [!WARNING]
 > If upgrading from v4.x.x of this module: v5 is a major refactor that drops support for Coder Tasks and [Boundary](https://coder.com/docs/ai-coder/agent-firewall). Keep using v4.x.x if you depend on them. See the [PR description](https://github.com/coder/registry/pull/879) for a full migration guide.
 
+## Existing user-managed configuration
+
+For persistent workspaces where users own their Codex configuration, set
+`manage_config = false`. The module will not create, replace, or edit `config.toml`,
+including on the first run. Installation and binary validation still run, as does
+API-key authentication when explicitly configured. With no API key supplied, the
+module leaves existing authentication in place.
+
+```tf
+module "codex" {
+  source        = "registry.coder.com/coder-labs/codex/coder"
+  version       = "5.4.2"
+  agent_id      = coder_agent.main.id
+  manage_config = false
+}
+```
+
+Configuration inputs such as MCP servers, model reasoning effort, custom base TOML,
+and AI Gateway require configuration management to remain enabled. A `workdir` still
+creates the directory when management is disabled, but does not mark it trusted in
+Codex. The default (`manage_config = true`) preserves the existing module behavior.
+
 ## Examples
 
 ### Standalone mode with a launcher app
