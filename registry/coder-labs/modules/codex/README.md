@@ -13,7 +13,7 @@ Install and configure the [Codex CLI](https://github.com/openai/codex) in your w
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.4.2"
+  version        = "5.5.0"
   agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
 }
@@ -27,13 +27,12 @@ module "codex" {
 For persistent workspaces where users own their Codex configuration, set
 `manage_config = false`. The module will not create, replace, or edit `config.toml`,
 including on the first run. Installation and binary validation still run, as does
-API-key authentication when explicitly configured. With no API key supplied, the
-module leaves existing authentication in place.
+API-key authentication when explicitly configured. Existing authentication is left in place when no API key is supplied.
 
 ```tf
 module "codex" {
   source        = "registry.coder.com/coder-labs/codex/coder"
-  version       = "5.4.2"
+  version       = "5.5.0"
   agent_id      = coder_agent.main.id
   manage_config = false
 }
@@ -55,7 +54,7 @@ locals {
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.4.2"
+  version        = "5.5.0"
   agent_id       = coder_agent.main.id
   workdir        = local.codex_workdir
   openai_api_key = var.openai_api_key
@@ -86,7 +85,7 @@ resource "coder_app" "codex" {
 ```tf
 module "codex" {
   source            = "registry.coder.com/coder-labs/codex/coder"
-  version           = "5.4.2"
+  version           = "5.5.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -110,7 +109,7 @@ When `enable_ai_gateway = true`, the module configures Codex to use the `aigatew
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.4.2"
+  version        = "5.5.0"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   openai_api_key = var.openai_api_key
@@ -156,7 +155,7 @@ The module exposes the `scripts` output: an ordered list of `coder exp sync` nam
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.4.2"
+  version        = "5.5.0"
   agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
 }
