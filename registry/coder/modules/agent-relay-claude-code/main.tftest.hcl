@@ -98,11 +98,16 @@ run "runner_wiring" {
     error_message = "the account lock env var name is the claude CLI's contract"
   }
 
-  # coder-utils runs the install step before the start step and keeps
-  # both scripts and their logs under this directory.
+  # coder-utils runs cleanup before install, then start, and keeps
+  # scripts and their logs under the module directory.
   assert {
-    condition     = module.coder_utils.scripts == ["coder-agent-relay-claude-code-install_script", "coder-agent-relay-claude-code-start_script"]
-    error_message = "coder-utils must run exactly the install and start steps, in that order"
+    condition     = module.coder_utils.scripts == ["coder-agent-relay-claude-code-pre_install_script", "coder-agent-relay-claude-code-install_script", "coder-agent-relay-claude-code-start_script"]
+    error_message = "coder-utils must clean up before install and start"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, var.state_file)
+    error_message = "startup cleanup and status must use the configured state file"
   }
 
   # Pass-through so a template can serialize its own scripts behind ours.

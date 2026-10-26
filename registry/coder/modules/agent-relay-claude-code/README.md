@@ -16,7 +16,7 @@ on each build and runs the Claude Code self-hosted runner.
 ```tf
 module "claude_code_runner" {
   source   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version  = "0.5.0"
+  version  = "0.5.1"
   agent_id = coder_agent.main.id
 
   # Downloads the Claude Code CLI at start when it is not in the image. Bake
@@ -68,7 +68,7 @@ can contain spaces or quotes without escaping. Flags the module already sets
 ```tf
 module "claude_code_runner" {
   source          = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version         = "0.5.0"
+  version         = "0.5.1"
   agent_id        = coder_agent.main.id
   additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
 }
@@ -90,18 +90,23 @@ parameter leaves it empty.
 
 ## Scripts and logs
 
-The module runs two steps through [coder-utils](https://registry.coder.com/modules/coder/coder-utils):
+The module runs three ordered steps through [coder-utils](https://registry.coder.com/modules/coder/coder-utils):
+a pre-install step that stops any previous supervisor and runner and clears status,
 an install step that downloads the CLI when `install_cli` is set and the
 binary is missing (a no-op otherwise), then a start step that launches the
 runner. Everything lands under `$HOME/.coder-modules/coder/agent-relay-claude-code`:
 
-| path           | contents                                        |
-| -------------- | ----------------------------------------------- |
-| `scripts/*.sh` | the install and start scripts as they ran       |
-| `logs/*.log`   | output of each step, plus the runner's own log  |
-| `runner-state` | the supervisor's lifecycle line (`state_file`)  |
-| `supervise.sh` | the detached supervisor that owns the runner    |
-| `wrapper.sh`   | session wrapper that forces `bypassPermissions` |
+| path            | contents                                               |
+| --------------- | ------------------------------------------------------ |
+| `scripts/*.sh`  | the pre-install, install and start scripts as they ran |
+| `logs/*.log`    | output of each step, plus the runner's own log         |
+| `runner-state`  | the supervisor's lifecycle line (`state_file`)         |
+| `supervisors/`  | identity records for live supervisors                  |
+| `workers/`      | identity records for runners, even without supervisors |
+| `started/`      | one start claim per cleanup generation                 |
+| `run-runner.sh` | runner identity wrapper before CLI startup             |
+| `supervise.sh`  | the detached supervisor that owns the runner           |
+| `wrapper.sh`    | session wrapper that forces `bypassPermissions`        |
 
 ## Runner lifecycle
 
@@ -114,12 +119,21 @@ A runner that is never assigned its session exits after `exit_if_unused_min`
 minutes (default 10, 0 to disable), so a dispatch that never arrives is reaped
 rather than reporting `working` forever.
 
+A restart stops any surviving supervisor and runner before launching another.
+The start step can launch only once per cleanup generation. If there is no new work order, the agent reports `idle`; a prior runner's exit
+status is not reused for the new start.
+
+This startup cleanup does not drain a runner when the workspace stops. Graceful
+stop, with enough container or pod shutdown time, is a separate follow-up.
+The reaper also needs a short grace after a new build to avoid acting on old
+metadata before this cleanup has run and new status has been collected.
+
 `agent_relay_status` reports one of:
 
 | value             | meaning                                                                    |
 | ----------------- | -------------------------------------------------------------------------- |
 | `pending`         | no state recorded yet                                                      |
-| `idle`            | no credential: workspace was created manually                              |
+| `idle`            | no credential: no runner starts on this agent start                        |
 | `working`         | runner alive, no session picked up                                         |
 | `serving`         | runner alive, session picked up (best effort, see `serving_log_pattern`)   |
 | `orphaned`        | runner process gone without recording an exit                              |
@@ -161,7 +175,7 @@ from reaching it.
 ```tf
 module "claude_code_runner" {
   source      = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version     = "0.5.0"
+  version     = "0.5.1"
   agent_id    = coder_agent.main.id
   health_port = 3290
 }

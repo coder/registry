@@ -16,7 +16,7 @@ parameters the relay stamps on each build and runs the Cursor CLI worker.
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "0.8.0"
+  version  = "0.8.1"
   agent_id = coder_agent.main.id
 
   # Downloads the Cursor CLI at start when it is not in the image. Bake
@@ -107,7 +107,7 @@ optional value an explicit one (`--flag=value`), or it consumes `start`.
 ```tf
 module "cursor_worker" {
   source          = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version         = "0.8.0"
+  version         = "0.8.1"
   agent_id        = coder_agent.main.id
   additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
 }
@@ -122,18 +122,23 @@ credential is masked.
 
 ## Scripts and logs
 
-The module runs two steps through [coder-utils](https://registry.coder.com/modules/coder/coder-utils):
-an install step that downloads the CLI when `install_cli` is set and the
-binary is missing (a no-op otherwise), then a start step that launches the
+The module runs three steps through [coder-utils](https://registry.coder.com/modules/coder/coder-utils):
+a pre-install cleanup that stops any worker a previous agent start left
+running, an install step that downloads the CLI when `install_cli` is set and
+the binary is missing (a no-op otherwise), then a start step that launches the
 worker. Everything lands under `$HOME/.coder-modules/coder/agent-relay-cursor`:
 
-| path                                     | contents                                         |
-| ---------------------------------------- | ------------------------------------------------ |
-| `scripts/install.sh`, `scripts/start.sh` | the install and start steps as they ran          |
-| `scripts/supervise.sh`                   | the detached supervisor that owns the worker     |
-| `logs/*.log`                             | output of each step, plus the worker's own log   |
-| `worker-state`                           | the supervisor's lifecycle line (`state_file`)   |
-| `worker-token`                           | the session token, removed when the worker exits |
+| path                                     | contents                                              |
+| ---------------------------------------- | ----------------------------------------------------- |
+| `scripts/pre_install.sh`                 | the cleanup as it ran on start                        |
+| `scripts/install.sh`, `scripts/start.sh` | the install and start steps as they ran               |
+| `scripts/supervise.sh`                   | the detached supervisor that owns the worker          |
+| `supervisors/`, `workers/`               | one identity record per running supervisor and worker |
+| `started/`                               | one start claim per cleanup generation                |
+| `cleanup-complete`                       | written once the cleanup stopped every worker         |
+| `logs/*.log`                             | output of each step, plus the worker's own log        |
+| `worker-state`                           | the supervisor's lifecycle line (`state_file`)        |
+| `worker-token`                           | the session token, removed when the worker exits      |
 
 ## Worker lifecycle
 
@@ -149,7 +154,7 @@ finishes a turn, not when the chat closes, so keep the timeout at or above
 | value             | meaning                                                                    |
 | ----------------- | -------------------------------------------------------------------------- |
 | `pending`         | start step running, supervisor has not written yet                         |
-| `idle`            | no credential: workspace was created manually                              |
+| `idle`            | no credential: no worker starts on this agent start                        |
 | `working`         | worker alive, no session attached                                          |
 | `serving`         | worker alive, session attached (best effort, see `serving_log_pattern`)    |
 | `orphaned`        | worker process gone without recording an exit                              |
@@ -158,12 +163,25 @@ finishes a turn, not when the chat closes, so keep the timeout at or above
 
 Renaming the `agent_relay_status` key breaks reaping.
 
-The start step is safe to re-run. An agent restart inside the same build
-re-runs it with the credential still set and the previous run's state on
-disk: a live worker is left alone, a terminal state is left for the relay
-to act on, and anything else is reset to `pending` before a new worker
-starts. Liveness is judged by pid and cmdline, so a reused pid reads as
+The start step is safe to re-run after the pre-install cleanup. The supervisor and worker outlive the agent,
+so every agent start first stops the previous supervisor and worker, then
+clears the previous run's state and token. A worker stopped this way records
+no terminal state. An agent start with a credential therefore starts a fresh
+worker, even after a terminal state; one without a credential reports `idle`.
+The supervisor and the worker each record their pid, boot id, and process
+start time before the CLI runs, and are only signalled while all three still
+match, which protects against a reused pid. The worker records itself, so it is
+stopped even when its supervisor was killed. Processes that ignore `SIGTERM`
+for 10 seconds get `SIGKILL`. The start step only launches a worker after the
+cleanup has written `cleanup-complete`. If cleanup cannot confirm the old
+processes stopped, the start step fails rather than launch a second worker. Liveness in
+`agent_relay_status` is judged by pid and cmdline, so a reused pid reads as
 `orphaned` rather than `working`.
+
+This cleanup runs only when the agent starts. The module adds no stop script:
+draining the worker gracefully when the workspace stops is a separate
+follow-up. The reaper also needs a short grace after a new build so it does not
+act on old metadata before startup cleanup and a fresh status report.
 
 ## Session attachment
 
@@ -199,7 +217,7 @@ scrape the worker, and never publish it through a `coder_app`.
 ```tf
 module "cursor_worker" {
   source          = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version         = "0.8.0"
+  version         = "0.8.1"
   agent_id        = coder_agent.main.id
   management_addr = "127.0.0.1:3290"
 }

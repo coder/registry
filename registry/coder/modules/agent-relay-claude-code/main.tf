@@ -263,6 +263,11 @@ locals {
   # scripts reach it.
   health_url = var.health_port > 0 ? "http://127.0.0.1:${var.health_port}" : ""
 
+  cleanup_script = templatefile("${path.module}/cleanup.sh.tftpl", {
+    module_directory = local.module_directory
+    state_file       = var.state_file
+  })
+
   install_script = templatefile("${path.module}/install.sh.tftpl", {
     cli_binary  = var.cli_binary
     install_cli = var.install_cli
@@ -271,6 +276,7 @@ locals {
   start_script = templatefile("${path.module}/start.sh.tftpl", {
     cli_binary         = var.cli_binary
     install_cli        = var.install_cli
+    module_directory   = local.module_directory
     state_file         = var.state_file
     log_file           = var.log_file
     base_dir           = var.base_dir
@@ -288,6 +294,7 @@ module "coder_utils" {
   module_directory    = local.module_directory
   display_name_prefix = "Claude Code runner"
   icon                = "/emojis/1f916.png"
+  pre_install_script  = local.cleanup_script
   install_script      = local.install_script
   start_script        = local.start_script
 }

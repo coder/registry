@@ -22,9 +22,11 @@ import {
 // throwaway container with a stub `agent` binary standing in for the
 // Cursor CLI, so the supervisor lifecycle the relay's reaper depends on
 // (idle, working, done, failed) is observed rather than grepped for. The
-// real installer and the real worker are out of scope: both need the
-// network and Cursor's side. `coder` is stubbed so the `coder exp sync`
-// ordering calls succeed without a control plane.
+// pre-install script runs the cleanup, which must stop any supervisor and
+// worker a previous start left behind. The real installer and the real
+// worker are out of scope: both need the network and Cursor's side.
+// `coder` is stubbed so the `coder exp sync` ordering calls succeed
+// without a control plane.
 
 let cleanupFunctions: (() => Promise<void>)[] = [];
 const registerCleanup = (cleanup: () => Promise<void>) => {
@@ -46,6 +48,9 @@ afterEach(async () => {
 const MODULE_DIR = "/root/.coder-modules/coder/agent-relay-cursor";
 const STATE_FILE = `${MODULE_DIR}/worker-state`;
 const TOKEN_FILE = `${MODULE_DIR}/worker-token`;
+const SUPERVISORS_DIR = `${MODULE_DIR}/supervisors`;
+const WORKERS_DIR = `${MODULE_DIR}/workers`;
+const CLEANUP_MARKER = `${MODULE_DIR}/cleanup-complete`;
 // The pool name carries shell metacharacters to prove the value reaches
 // the worker as a single argument rather than being parsed as code.
 const POOL_NAME = 'safe"; touch /tmp/injected; #';
@@ -73,7 +78,11 @@ const setup = async (vars: Record<string, string> = {}) => {
   return { id, scripts, statusScript, attachedScript };
 };
 
-type Scripts = { install: string; start: string };
+type Scripts = {
+  preInstall: string;
+  install: string;
+  start: string;
+};
 
 // coder-utils owns the coder_script resources; find ours by display name.
 const collectScripts = (state: TerraformState): Scripts => {
@@ -83,16 +92,22 @@ const collectScripts = (state: TerraformState): Scripts => {
     for (const instance of resource.instances) {
       const attrs = instance.attributes as Record<string, unknown>;
       byDisplayName[attrs.display_name as string] = attrs.script as string;
+      // Startup only: draining the worker on workspace stop is separate
+      // work, so nothing may run on stop.
+      expect(attrs.run_on_stop, attrs.display_name as string).toBe(false);
     }
   }
-  const install = byDisplayName["Cursor worker: Install Script"];
-  const start = byDisplayName["Cursor worker: Start Script"];
-  if (!install || !start) {
+  const scripts = {
+    preInstall: byDisplayName["Cursor worker: Pre-Install Script"],
+    install: byDisplayName["Cursor worker: Install Script"],
+    start: byDisplayName["Cursor worker: Start Script"],
+  };
+  if (Object.values(scripts).some((s) => !s)) {
     throw new Error(
-      `expected install and start scripts, found ${Object.keys(byDisplayName)}`,
+      `expected pre-install, install, and start scripts, found ${Object.keys(byDisplayName)}`,
     );
   }
-  return { install, start };
+  return scripts;
 };
 
 const stubBinary = async (id: string, path: string, body: string) => {
@@ -107,25 +122,17 @@ const stubBinary = async (id: string, path: string, body: string) => {
 const stubAgent = (id: string, body: string) =>
   stubBinary(id, "/usr/local/bin/agent", body);
 
-// Runs the install step then the start step, as coder-utils orders them
-// on the agent, and returns both results.
+// Runs the pre-install, install, and start steps, as coder-utils orders
+// them on the agent, and returns their results.
 const runScripts = async (id: string, scripts: Scripts, env: string[]) => {
-  const install = await execContainer(id, [
-    "env",
-    ...env,
-    "bash",
-    "-c",
-    scripts.install,
-  ]);
+  const run = (script: string) =>
+    execContainer(id, ["env", ...env, "bash", "-c", script]);
+  const preInstall = await run(scripts.preInstall);
+  expect(preInstall.exitCode, preInstall.stdout).toBe(0);
+  const install = await run(scripts.install);
   expect(install.exitCode).toBe(0);
-  const start = await execContainer(id, [
-    "env",
-    ...env,
-    "bash",
-    "-c",
-    scripts.start,
-  ]);
-  return { install, start };
+  const start = await run(scripts.start);
+  return { preInstall, install, start };
 };
 
 const runDispatched = (id: string, scripts: Scripts) =>
@@ -133,6 +140,80 @@ const runDispatched = (id: string, scripts: Scripts) =>
 
 const readState = async (id: string) =>
   (await readFileContainer(id, STATE_FILE)).trim();
+
+const exists = async (id: string, path: string) =>
+  (await execContainer(id, ["test", "-e", path])).exitCode === 0;
+
+// Identity records in dir, as "<pid> <boot id> <starttime>" lines, plus
+// any temp file a process left mid-write.
+const recordsIn = async (id: string, dir: string) => {
+  const out = await execContainer(id, [
+    "sh",
+    "-c",
+    `for f in ${dir}/* ${dir}/.*.tmp; do [ -f "$f" ] && cat "$f"; done; true`,
+  ]);
+  return out.stdout.split("\n").filter((l) => l !== "");
+};
+const supervisorRecords = (id: string) => recordsIn(id, SUPERVISORS_DIR);
+const workerRecords = (id: string) => recordsIn(id, WORKERS_DIR);
+const allRecords = async (id: string) => [
+  ...(await supervisorRecords(id)),
+  ...(await workerRecords(id)),
+];
+
+// The pids of the one live supervisor and worker.
+const liveIdentity = async (id: string) => {
+  const [supervisor] = await supervisorRecords(id);
+  const [worker] = await workerRecords(id);
+  return {
+    supervisorPid: supervisor.split(" ")[0],
+    workerPid: worker.split(" ")[0],
+  };
+};
+
+const starttimeOf = async (id: string, pid: string) =>
+  (
+    await execContainer(id, [
+      "bash",
+      "-c",
+      `s=$(cat /proc/${pid}/stat); s=\${s##*) }; set -- $s; echo \${20}`,
+    ])
+  ).stdout.trim();
+
+// True while pid is a live, non-zombie process. The container's init does
+// not reap, so an exited orphan lingers as a zombie.
+const processAlive = async (id: string, pid: string) => {
+  const out = await execContainer(id, [
+    "sh",
+    "-c",
+    `s=$(cat /proc/${pid}/stat 2>/dev/null) || exit 1; s=\${s##*) }; [ "\${s%% *}" != Z ]`,
+  ]);
+  return out.exitCode === 0;
+};
+
+const workerCount = async (id: string) => {
+  // pgrep -f would match the counting shell itself; read /proc and
+  // count processes whose argv starts with the stub CLI.
+  const out = await execContainer(id, [
+    "sh",
+    "-c",
+    'n=0; for p in /proc/[0-9]*; do a=$(tr "\\0" " " <"$p/cmdline" 2>/dev/null); case "$a" in "bash /usr/local/bin/agent worker "*) n=$((n+1));; esac; done; echo $n',
+  ]);
+  return Number(out.stdout.trim());
+};
+
+const waitFor = async (
+  check: () => Promise<boolean>,
+  what: string,
+  timeoutMs = 5000,
+) => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await check()) return;
+    await Bun.sleep(200);
+  }
+  throw new Error(`timed out waiting for ${what}`);
+};
 
 // The supervisor writes terminal state after the worker exits; poll rather
 // than sleep a fixed amount.
@@ -167,86 +248,195 @@ describe("agent-relay-cursor", () => {
     // No AGENT_RELAY_CURSOR_TOKEN: a workspace a human created by hand.
     const { start } = await runScripts(id, scripts, []);
     expect(start.exitCode).toBe(0);
-    expect(start.stdout).toContain("created manually, not by Agent Relay");
+    expect(start.stdout).toContain("No worker token set");
     expect(await readState(id)).toBe("idle");
   });
 
-  it("keeps terminal state across a restart without a credential", async () => {
-    // The credential is ephemeral, so an agent restart after the worker
-    // finished runs the start step with no credential. That must not
-    // rewrite "done 3" as "idle", which the relay reads as never dispatched.
+  it("reports idle after a restart without a credential, whatever ran before", async () => {
+    // The credential is ephemeral, so an agent restart runs the start step
+    // with no credential. No worker can run without a fresh one, and the
+    // cleanup clears the previous run's state, so a stale "done 3" is
+    // never reported as this run's.
     const { id, scripts } = await setup({ install_cli: "false" });
     await execContainer(id, ["mkdir", "-p", MODULE_DIR]);
     await writeFileContainer(id, STATE_FILE, "done 3\n", { user: "root" });
     const { start } = await runScripts(id, scripts, []);
     expect(start.exitCode).toBe(0);
-    expect(await readState(id)).toBe("done 3");
+    expect(await readState(id)).toBe("idle");
   });
 
-  // An agent restart inside the same build re-runs the start step with the
-  // credential still set and the previous run's state on disk.
+  // An agent restart inside the same build re-runs every step with the
+  // credential still set, and the previous run's state, records, and
+  // possibly its detached supervisor still around.
   describe("agent restart with a credential", () => {
     const seedState = async (id: string, state: string) => {
       await execContainer(id, ["mkdir", "-p", MODULE_DIR]);
       await writeFileContainer(id, STATE_FILE, `${state}\n`, { user: "root" });
     };
-    const workerCount = async (id: string) => {
-      // pgrep -f would match the counting shell itself; read /proc and
-      // count processes whose argv starts with the stub CLI.
-      const out = await execContainer(id, [
-        "sh",
-        "-c",
-        'n=0; for p in /proc/[0-9]*; do a=$(tr "\\0" " " <"$p/cmdline" 2>/dev/null); case "$a" in "bash /usr/local/bin/agent worker "*) n=$((n+1));; esac; done; echo $n',
-      ]);
-      return Number(out.stdout.trim());
-    };
     const statusOf = async (id: string, statusScript: string) =>
       (await execContainer(id, ["bash", "-c", statusScript])).stdout.trim();
+    // An unrelated live process, and its real /proc starttime.
+    const startSleeper = async (id: string) => {
+      const out = await execContainer(id, [
+        "bash",
+        "-c",
+        'sleep 60 >/dev/null 2>&1 & s=$(cat /proc/$!/stat); s=${s##*) }; set -- $s; echo "$! ${20}"',
+      ]);
+      const [pid, starttime] = out.stdout.trim().split(" ");
+      return { pid, starttime };
+    };
+    const bootId = async (id: string) =>
+      (await readFileContainer(id, "/proc/sys/kernel/random/boot_id")).trim();
 
-    it("does not restart after a terminal state", async () => {
+    it("starts a fresh worker after a terminal state", async () => {
       const { id, scripts } = await setup();
       await stubAgent(id, "sleep 30");
       await seedState(id, "done 3");
       const { start } = await runDispatched(id, scripts);
       expect(start.exitCode).toBe(0);
-      expect(start.stdout).toContain("not restarting");
-      expect(await readState(id)).toBe("done 3");
-      expect(await workerCount(id)).toBe(0);
+      expect(await readState(id)).toMatch(/^working \d+$/);
+      expect(await workerCount(id)).toBe(1);
     });
 
-    it("leaves a live worker alone instead of launching a second one", async () => {
+    it("replaces a live worker instead of running a second one", async () => {
       const { id, scripts, statusScript } = await setup();
       await stubAgent(id, "sleep 30");
       const first = await runDispatched(id, scripts);
       expect(first.start.exitCode).toBe(0);
-      const state = await readState(id);
-      expect(state).toMatch(/^working \d+$/);
+      const firstState = await readState(id);
+      expect(firstState).toMatch(/^working \d+$/);
+
+      // Both processes published their identity before the CLI ran.
+      expect(await supervisorRecords(id)).toHaveLength(1);
+      expect(await workerRecords(id)).toHaveLength(1);
+      const { supervisorPid, workerPid } = await liveIdentity(id);
+      expect(firstState).toBe(`working ${workerPid}`);
+      for (const record of await allRecords(id)) {
+        const [pid, recordedBoot, recordedStart] = record.split(" ");
+        expect(recordedBoot).toBe(await bootId(id));
+        // The worker's starttime survives the exec into the CLI.
+        expect(recordedStart).toBe(await starttimeOf(id, pid));
+      }
 
       const second = await runDispatched(id, scripts);
-      expect(second.start.exitCode).toBe(0);
-      expect(second.start.stdout).toContain("already running");
-      expect(await readState(id)).toBe(state);
+      expect(second.preInstall.stdout).toContain(
+        `Stopping previous Cursor supervisor (pid ${supervisorPid})`,
+      );
+      expect(second.preInstall.stdout).toContain(
+        `Stopping previous Cursor worker (pid ${workerPid})`,
+      );
+      expect(second.start.exitCode, second.start.stdout).toBe(0);
+      expect(await processAlive(id, supervisorPid)).toBe(false);
+      expect(await processAlive(id, workerPid)).toBe(false);
+      const secondState = await readState(id);
+      expect(secondState).toMatch(/^working \d+$/);
+      expect(secondState).not.toBe(firstState);
       expect(await workerCount(id)).toBe(1);
+      const after = await liveIdentity(id);
+      expect(after.supervisorPid).not.toBe(supervisorPid);
+      expect(await allRecords(id)).toHaveLength(2);
       expect(await statusOf(id, statusScript)).toBe("working");
     });
 
-    it("reports a reused pid as orphaned rather than working", async () => {
+    it("stops a worker whose supervisor was SIGKILLed, so the next start runs only one", async () => {
+      const { id, scripts } = await setup();
+      await stubAgent(id, "sleep 30");
+      const first = await runDispatched(id, scripts);
+      expect(first.start.exitCode).toBe(0);
+      const { supervisorPid, workerPid } = await liveIdentity(id);
+
+      // No trap runs on SIGKILL: the worker outlives its supervisor, and
+      // only its own record still tracks it.
+      await execContainer(id, ["kill", "-KILL", supervisorPid]);
+      await waitFor(
+        async () => !(await processAlive(id, supervisorPid)),
+        "supervisor exit",
+      );
+      expect(await processAlive(id, workerPid)).toBe(true);
+      expect(await workerCount(id)).toBe(1);
+
+      const second = await runDispatched(id, scripts);
+      expect(second.preInstall.stdout).toContain(
+        `Stopping previous Cursor worker (pid ${workerPid})`,
+      );
+      expect(second.start.exitCode, second.start.stdout).toBe(0);
+      expect(await processAlive(id, workerPid)).toBe(false);
+      expect(await workerCount(id)).toBe(1);
+      expect(await readState(id)).not.toBe(`working ${workerPid}`);
+      // Only the new supervisor and worker are recorded.
+      expect(await supervisorRecords(id)).toHaveLength(1);
+      expect(await workerRecords(id)).toHaveLength(1);
+      expect((await liveIdentity(id)).workerPid).not.toBe(workerPid);
+    });
+
+    it("never signals a pid whose identity does not match its record", async () => {
+      // A recorded pid can be reused by an unrelated process, after the
+      // supervisor exits or across a reboot. Only the boot id and the
+      // /proc starttime together prove it is still the supervisor.
+      const { id, scripts } = await setup();
+      await stubAgent(id, "sleep 30");
+      const reused = await startSleeper(id);
+      const rebooted = await startSleeper(id);
+      await execContainer(id, ["mkdir", "-p", SUPERVISORS_DIR]);
+      await writeFileContainer(
+        id,
+        `${SUPERVISORS_DIR}/${reused.pid}.1`,
+        `${reused.pid} ${await bootId(id)} 1\n`,
+        { user: "root" },
+      );
+      await writeFileContainer(
+        id,
+        `${SUPERVISORS_DIR}/${rebooted.pid}.${rebooted.starttime}`,
+        `${rebooted.pid} 00000000-0000-0000-0000-000000000000 ${rebooted.starttime}\n`,
+        { user: "root" },
+      );
+      await writeFileContainer(
+        id,
+        `${SUPERVISORS_DIR}/garbage`,
+        "not a pid\n",
+        {
+          user: "root",
+        },
+      );
+      // The same rules hold for worker records.
+      await execContainer(id, ["mkdir", "-p", WORKERS_DIR]);
+      await writeFileContainer(
+        id,
+        `${WORKERS_DIR}/${reused.pid}.1`,
+        `${reused.pid} ${await bootId(id)} 1\n`,
+        { user: "root" },
+      );
+
+      const { preInstall, start } = await runDispatched(id, scripts);
+      expect(preInstall.stdout).not.toContain("Stopping previous");
+      expect(start.exitCode).toBe(0);
+      expect(await processAlive(id, reused.pid)).toBe(true);
+      expect(await processAlive(id, rebooted.pid)).toBe(true);
+      // Stale records are removed; only the new processes' remain.
+      expect(await supervisorRecords(id)).toHaveLength(1);
+      expect(await workerRecords(id)).toHaveLength(1);
+      for (const record of await allRecords(id)) {
+        expect(record).not.toContain(reused.pid + " ");
+        expect(record).not.toContain(rebooted.pid + " ");
+      }
+      expect(await workerCount(id)).toBe(1);
+    });
+
+    it("reports a reused pid as orphaned, then starts fresh", async () => {
       // kill -0 alone would trust any live pid; the cmdline check must
       // reject one that is not our worker.
       const { id, scripts, statusScript } = await setup();
       await stubAgent(id, "sleep 30");
-      const sleeper = await execContainer(id, [
-        "sh",
-        "-c",
-        "sleep 60 >/dev/null 2>&1 & echo $!",
-      ]);
-      await seedState(id, `working ${sleeper.stdout.trim()}`);
+      const sleeper = await startSleeper(id);
+      await seedState(id, `working ${sleeper.pid}`);
       expect(await statusOf(id, statusScript)).toBe("orphaned");
 
       const { start } = await runDispatched(id, scripts);
       expect(start.exitCode).toBe(0);
-      expect(start.stdout).toContain("gone without recording an exit");
-      expect(await workerCount(id)).toBe(0);
+      expect(await readState(id)).toMatch(/^working \d+$/);
+      expect(await readState(id)).not.toBe(`working ${sleeper.pid}`);
+      expect(await workerCount(id)).toBe(1);
+      expect(await processAlive(id, sleeper.pid)).toBe(true);
     });
 
     it("starts fresh from a stale pending state", async () => {
@@ -259,6 +449,230 @@ describe("agent-relay-cursor", () => {
       expect(await readState(id)).toMatch(/^working \d+$/);
       expect(await workerCount(id)).toBe(1);
     });
+
+    it(
+      "SIGKILLs verified processes that ignore TERM, then starts one worker",
+      async () => {
+        const { id, scripts } = await setup();
+        await stubAgent(id, "trap '' TERM; sleep 60");
+        const first = await runDispatched(id, scripts);
+        expect(first.start.exitCode).toBe(0);
+        const { supervisorPid, workerPid } = await liveIdentity(id);
+
+        const second = await runDispatched(id, scripts);
+        expect(second.preInstall.stdout).toContain(
+          `Previous Cursor worker (pid ${workerPid}) did not stop within 10s; sending SIGKILL.`,
+        );
+        expect(second.start.exitCode, second.start.stdout).toBe(0);
+        expect(await processAlive(id, workerPid)).toBe(false);
+        expect(await processAlive(id, supervisorPid)).toBe(false);
+        expect(await workerCount(id)).toBe(1);
+        expect((await liveIdentity(id)).workerPid).not.toBe(workerPid);
+        expect(await allRecords(id)).toHaveLength(2);
+      },
+      90 * 1000,
+    );
+
+    it("does not launch twice for one cleanup generation", async () => {
+      const { id, scripts } = await setup();
+      await stubAgent(id, "sleep 120");
+      const first = await runDispatched(id, scripts);
+      expect(first.start.exitCode).toBe(0);
+      const originalState = await readState(id);
+      const repeated = await execContainer(id, [
+        "env",
+        ...DISPATCH_ENV,
+        "bash",
+        "-c",
+        scripts.start,
+      ]);
+      expect(repeated.exitCode).toBe(1);
+      expect(repeated.stdout).toContain(
+        "already started for this cleanup generation",
+      );
+      expect(await readState(id)).toBe(originalState);
+    });
+
+    it("runs nothing from a supervisor launched before a newer cleanup", async () => {
+      // A supervisor or worker that publishes its record after a newer
+      // cleanup has already scanned would run untracked. Each one checks
+      // that the marker still holds the id of the cleanup its start step
+      // followed, and exits otherwise.
+      const { id, scripts } = await setup();
+      await stubAgent(id, "sleep 30");
+      const first = await runDispatched(id, scripts);
+      expect(first.start.exitCode).toBe(0);
+      const firstCleanupId = (
+        await readFileContainer(id, CLEANUP_MARKER)
+      ).trim();
+      // A newer agent start's cleanup stops the first run and replaces
+      // the marker.
+      const cleanup = await execContainer(id, [
+        "bash",
+        "-c",
+        scripts.preInstall,
+      ]);
+      expect(cleanup.exitCode).toBe(0);
+      expect(await workerCount(id)).toBe(0);
+      const currentCleanupId = (
+        await readFileContainer(id, CLEANUP_MARKER)
+      ).trim();
+      expect(currentCleanupId).not.toBe(firstCleanupId);
+
+      // The id travels as an argument, never in the script file, so a late
+      // start that runs a newer start's script still carries its own id.
+      const supervisor = await readFileContainer(
+        id,
+        `${MODULE_DIR}/scripts/supervise.sh`,
+      );
+      expect(supervisor).not.toContain(firstCleanupId);
+      expect(supervisor).not.toContain(currentCleanupId);
+      for (const args of [[firstCleanupId], []]) {
+        const stale = await execContainer(id, [
+          "env",
+          ...DISPATCH_ENV,
+          "bash",
+          `${MODULE_DIR}/scripts/supervise.sh`,
+          ...args,
+        ]);
+        expect(stale.exitCode, args.join(" ")).not.toBe(0);
+        expect(await workerCount(id)).toBe(0);
+        expect(await allRecords(id)).toEqual([]);
+        expect(await exists(id, STATE_FILE)).toBe(false);
+      }
+    });
+
+    it("does not touch state or token once a newer cleanup has started", async () => {
+      // A supervisor outlives the start that launched it. Once a newer
+      // cleanup has replaced the marker, the state file and token belong
+      // to the newer run, so the old supervisor must leave them alone even
+      // when its worker finishes.
+      const { id, scripts } = await setup();
+      await stubAgent(id, "sleep 2");
+      const first = await runDispatched(id, scripts);
+      expect(first.start.exitCode).toBe(0);
+      expect(await readState(id)).toMatch(/^working \d+$/);
+
+      // Stand in for a newer cleanup and start: a new id in the marker, the
+      // new run's state and token.
+      await writeFileContainer(id, CLEANUP_MARKER, "newer-cleanup-id\n", {
+        user: "root",
+      });
+      await writeFileContainer(id, STATE_FILE, "pending\n", { user: "root" });
+      await writeFileContainer(id, TOKEN_FILE, "newer-token", {
+        user: "root",
+      });
+
+      await waitFor(
+        async () => (await allRecords(id)).length === 0,
+        "the old supervisor to exit",
+      );
+      expect(await readState(id)).toBe("pending");
+      expect(await readFileContainer(id, TOKEN_FILE)).toBe("newer-token");
+    });
+
+    it("does not start a worker after any failed cleanup", async () => {
+      // A previous start left a completed marker. A cleanup that fails for
+      // any reason, here an unusable supervisors directory, must remove it
+      // first so the start step refuses.
+      const { id, scripts } = await setup();
+      await stubAgent(id, "sleep 30");
+      const first = await runDispatched(id, scripts);
+      expect(first.start.exitCode).toBe(0);
+      expect(await exists(id, CLEANUP_MARKER)).toBe(true);
+      // Stop the first worker with a successful cleanup, then break the
+      // next one.
+      const cleanup = await execContainer(id, [
+        "bash",
+        "-c",
+        scripts.preInstall,
+      ]);
+      expect(cleanup.exitCode).toBe(0);
+      await execContainer(id, ["rm", "-rf", SUPERVISORS_DIR]);
+      await writeFileContainer(id, SUPERVISORS_DIR, "not a directory\n", {
+        user: "root",
+      });
+
+      const run = (script: string) =>
+        execContainer(id, ["env", ...DISPATCH_ENV, "bash", "-c", script]);
+      expect((await run(scripts.preInstall)).exitCode).not.toBe(0);
+      expect(await exists(id, CLEANUP_MARKER)).toBe(false);
+      expect((await run(scripts.install)).exitCode).toBe(0);
+      const start = await run(scripts.start);
+      expect(start.exitCode).toBe(1);
+      expect(start.stdout).toContain("not starting another");
+      expect(await workerCount(id)).toBe(0);
+      expect(await exists(id, TOKEN_FILE)).toBe(false);
+    });
+
+    it("does not start a worker when the cleanup never ran", async () => {
+      const { id, scripts } = await setup();
+      await stubAgent(id, "sleep 30");
+      // coder-utils' start wrapper expects the directories the earlier
+      // steps create.
+      await execContainer(id, [
+        "mkdir",
+        "-p",
+        `${MODULE_DIR}/scripts`,
+        `${MODULE_DIR}/logs`,
+      ]);
+      const start = await execContainer(id, [
+        "env",
+        ...DISPATCH_ENV,
+        "bash",
+        "-c",
+        scripts.start,
+      ]);
+      expect(start.exitCode).toBe(1);
+      expect(start.stdout).toContain("not starting another");
+      expect(await workerCount(id)).toBe(0);
+    });
+  });
+
+  it("clears the previous run's worker, state, token, and records before a start", async () => {
+    const { id, scripts } = await setup();
+    await stubAgent(id, "sleep 30");
+    const { start } = await runDispatched(id, scripts);
+    expect(start.exitCode).toBe(0);
+    const { supervisorPid, workerPid } = await liveIdentity(id);
+
+    const cleanup = await execContainer(id, [
+      "env",
+      ...DISPATCH_ENV,
+      "bash",
+      "-c",
+      scripts.preInstall,
+    ]);
+    expect(cleanup.exitCode, cleanup.stderr).toBe(0);
+    expect(cleanup.stdout).not.toContain("test-user-token");
+    expect(await processAlive(id, supervisorPid)).toBe(false);
+    expect(await processAlive(id, workerPid)).toBe(false);
+    await waitFor(async () => (await workerCount(id)) === 0, "worker exit");
+    // A stopped worker did not finish, so no terminal state is left.
+    expect(await exists(id, STATE_FILE)).toBe(false);
+    expect(await exists(id, TOKEN_FILE)).toBe(false);
+    expect(await allRecords(id)).toEqual([]);
+  });
+
+  it("stops the worker on TERM without recording a terminal state", async () => {
+    const { id, scripts } = await setup();
+    await stubAgent(id, "sleep 30");
+    await runDispatched(id, scripts);
+    const state = await readState(id);
+    expect(state).toMatch(/^working \d+$/);
+    const { supervisorPid } = await liveIdentity(id);
+
+    await execContainer(id, ["kill", "-TERM", supervisorPid]);
+    await waitFor(
+      async () => !(await processAlive(id, supervisorPid)),
+      "supervisor exit",
+    );
+    expect(await workerCount(id)).toBe(0);
+    // The supervisor removed its own and the worker's records and the
+    // token, and did not report the stop as the worker finishing.
+    expect(await allRecords(id)).toEqual([]);
+    expect(await exists(id, TOKEN_FILE)).toBe(false);
+    expect(await readState(id)).toBe(state);
   });
 
   it("reports runner-agent-missing when the CLI is absent", async () => {
@@ -302,13 +716,16 @@ describe("agent-relay-cursor", () => {
     await stubAgent(id, "sleep 30");
     await runDispatched(id, scripts);
     for (const file of [
+      "scripts/pre_install.sh",
       "scripts/install.sh",
       "scripts/start.sh",
+      "logs/pre_install.log",
       "logs/install.log",
       "logs/start.log",
       "logs/worker.log",
       "scripts/supervise.sh",
       "worker-state",
+      "cleanup-complete",
     ]) {
       const exists = await execContainer(id, [
         "test",
@@ -460,6 +877,11 @@ describe("agent-relay-cursor", () => {
     // The claim is over, so the supervisor removes the token.
     const token = await execContainer(id, ["test", "-e", TOKEN_FILE]);
     expect(token.exitCode).not.toBe(0);
+    // A supervisor whose worker exits on its own removes both records.
+    await waitFor(
+      async () => (await allRecords(id)).length === 0,
+      "identity record removal",
+    );
   });
 
   it("uses cli_binary and state_file overrides", async () => {

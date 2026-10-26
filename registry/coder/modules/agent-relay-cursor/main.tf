@@ -7,7 +7,9 @@
 #
 # Scripts run through coder-utils, which orders the install step before
 # the start step and keeps a copy of each script and its output under
-# module_directory for debugging.
+# module_directory for debugging. The pre-install step runs cleanup.sh,
+# which stops any worker a previous agent start left running, so a
+# restart never runs two workers.
 #
 # Parameter contract (enforced by Agent Relay at startup via the dynamic
 # parameters evaluate endpoint):
@@ -289,6 +291,11 @@ locals {
     local.management_port,
   )
 
+  cleanup_script = templatefile("${path.module}/cleanup.sh.tftpl", {
+    module_directory = local.module_directory
+    state_file       = var.state_file
+  })
+
   install_script = templatefile("${path.module}/install.sh.tftpl", {
     cli_binary  = var.cli_binary
     install_cli = var.install_cli
@@ -315,6 +322,7 @@ module "coder_utils" {
   module_directory    = local.module_directory
   display_name_prefix = "Cursor worker"
   icon                = "/icon/cursor.svg"
+  pre_install_script  = local.cleanup_script
   install_script      = local.install_script
   start_script        = local.start_script
 }

@@ -98,11 +98,62 @@ run "worker_wiring" {
     error_message = "the worker id env var name is the Cursor CLI's contract"
   }
 
-  # coder-utils runs the install step before the start step and keeps
-  # both scripts and their logs under this directory.
+  # coder-utils runs the cleanup before the install step, and the install
+  # step before the start step, keeping scripts and logs under this
+  # directory.
   assert {
-    condition     = module.coder_utils.scripts == ["coder-agent-relay-cursor-install_script", "coder-agent-relay-cursor-start_script"]
-    error_message = "coder-utils must run exactly the install and start steps, in that order"
+    condition     = module.coder_utils.scripts == ["coder-agent-relay-cursor-pre_install_script", "coder-agent-relay-cursor-install_script", "coder-agent-relay-cursor-start_script"]
+    error_message = "coder-utils must run exactly the pre-install, install, and start steps, in that order"
+  }
+
+  # The cleanup stops any previous supervisor and worker before a new
+  # start. coder-utils starts the start step even when the pre-install
+  # step failed, so the start step checks the marker only a finished
+  # cleanup writes.
+  assert {
+    condition     = module.coder_utils.scripts[0] == "coder-agent-relay-cursor-pre_install_script" && strcontains(local.cleanup_script, "signal_pending TERM")
+    error_message = "the cleanup must run as the coder-utils pre-install step"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, "cleanup_marker=\"${local.module_directory}/cleanup-complete\"\nrm -f \"$cleanup_marker\"") && strcontains(local.start_script, "cleanup_marker=\"${local.module_directory}/cleanup-complete\"") && strcontains(local.start_script, "not starting another")
+    error_message = "the cleanup must remove its marker first, and the start step must refuse without it"
+  }
+
+  # The cleanup id travels as an argument, so a late start that runs a
+  # newer start's supervisor script still checks its own id.
+  assert {
+    condition     = strcontains(local.start_script, "setsid nohup \"$supervisor\" \"$cleanup_id\"") && strcontains(local.start_script, "cleanup_id=\"\\$${1:-}\"") && strcontains(local.start_script, "= \"\\$cleanup_id\" ]") && strcontains(local.start_script, "mv \"$supervisor.$$.tmp\" \"$supervisor\"")
+    error_message = "the supervisor must take the cleanup id as an argument and be replaced by rename"
+  }
+
+  # A supervisor from an older run must not overwrite a newer run's state
+  # or delete its token.
+  assert {
+    condition     = strcontains(local.start_script, "write_state() {\n\tcurrent || return 0") && length(regexall("! current \\|\\| rm -f \"\\$token_file\"", local.start_script)) == 2
+    error_message = "every supervisor state write and token removal must check the run is still current"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, "${local.module_directory}/supervisors") && strcontains(local.cleanup_script, "${local.module_directory}/workers") && strcontains(local.start_script, "supervisors=\"${local.module_directory}/supervisors\"") && strcontains(local.start_script, "workers=\"${local.module_directory}/workers\"")
+    error_message = "the supervisor, worker, and cleanup must agree on the identity record directories"
+  }
+
+  # The worker records itself before it execs the CLI, so it stays tracked
+  # if its supervisor is SIGKILLed.
+  assert {
+    condition     = strcontains(local.start_script, "publish \"\\$BASHPID\" \"$workers\" || exit 1\n\texec agent worker")
+    error_message = "the worker must publish its own identity before exec'ing the CLI"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, "signal_pending TERM") && strcontains(local.cleanup_script, "signal_pending KILL")
+    error_message = "the cleanup must escalate to SIGKILL for verified processes that ignore TERM"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, "/proc/sys/kernel/random/boot_id") && strcontains(local.start_script, "/proc/sys/kernel/random/boot_id")
+    error_message = "supervisor identity must include the boot id so a pid from another boot is never signalled"
   }
 
   # Pass-through so a template can serialize its own scripts behind ours.
@@ -150,17 +201,17 @@ run "worker_wiring" {
   }
 
   # Reaping reads this file through the agent_relay_status metadata item,
-  # so the script and the metadata script must agree on the path.
+  # so the scripts must agree on the path.
   assert {
-    condition     = strcontains(local.start_script, var.state_file) && strcontains(output.status_metadata_script, var.state_file)
-    error_message = "the worker script and the status script must read the same state file"
+    condition     = strcontains(local.start_script, var.state_file) && strcontains(local.cleanup_script, var.state_file) && strcontains(output.status_metadata_script, var.state_file)
+    error_message = "the worker, cleanup, and status scripts must use the same state file"
   }
 
   # A restart inside the same build must not report the previous run's
-  # state as this run's, nor launch a second worker beside a live one.
+  # state as this run's.
   assert {
-    condition     = strcontains(local.start_script, "write_state \"pending\"") && strcontains(local.start_script, "worker_alive") && strcontains(output.status_metadata_script, "worker_alive")
-    error_message = "the start script must reset to pending and both scripts must check worker liveness by cmdline"
+    condition     = strcontains(local.start_script, "write_state \"pending\"") && strcontains(output.status_metadata_script, "worker_alive")
+    error_message = "the start script must reset to pending and the status script must check worker liveness by cmdline"
   }
 
   assert {
@@ -352,6 +403,11 @@ run "overridden_paths" {
     state_file          = "/var/run/relay/state"
     log_file            = "/var/log/relay.log"
     serving_log_pattern = "custom pattern"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, "state_file=\"/var/run/relay/state\"")
+    error_message = "the cleanup must clear the configured state file"
   }
 
   assert {
