@@ -426,13 +426,13 @@ describe("agent-relay-claude-code", () => {
 
     it("reads active_sessions from the live runner's listener", async () => {
       const { id, scripts, attachedScript } = await setup({
-        health_port: "3284",
+        health_port: "3290",
       });
       await stubClaude(id, 'printf "%s\\n" "$@" >/tmp/claude-args; sleep 30');
-      await stubHealthz(id, "http://127.0.0.1:3284");
+      await stubHealthz(id, "http://127.0.0.1:3290");
       await runDispatched(id, scripts);
       const args = await runnerArgs(id);
-      expect(args[args.indexOf("--health-port") + 1]).toBe("3284");
+      expect(args[args.indexOf("--health-port") + 1]).toBe("3290");
 
       // The body shape a real 2.1.310 runner returns.
       const held = await sample(
@@ -464,7 +464,7 @@ describe("agent-relay-claude-code", () => {
 
     it("reports false without a live runner", async () => {
       const { id, attachedScript } = await setup({ install_cli: "false" });
-      await stubHealthz(id, "http://127.0.0.1:8080");
+      await stubHealthz(id, "http://127.0.0.1:3286");
       await execContainer(id, ["mkdir", "-p", MODULE_DIR]);
       // The listener would claim a session; with no live runner it is
       // never consulted.

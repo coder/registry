@@ -96,7 +96,7 @@ variable "exit_if_unused_min" {
 variable "health_port" {
   description = "Port for the runner's /healthz and /metrics HTTP listener (the CLI's --health-port). session_attached_metadata_script reads it. The CLI binds every interface and has no bind-host option, so never publish this port. 0 disables the listener, and session_attached_metadata_script then reports disabled."
   type        = number
-  default     = 8080
+  default     = 3286
 
   validation {
     condition     = var.health_port >= 0 && var.health_port <= 65535 && floor(var.health_port) == var.health_port

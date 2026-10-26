@@ -131,7 +131,7 @@ Renaming the `agent_relay_status` key breaks reaping.
 ## Session attachment
 
 The runner serves `GET /healthz` and `GET /metrics` on `health_port`
-(default `8080`). The `/healthz` body carries `active_sessions`, the number
+(default `3286`, chosen over the CLI's `8080` to avoid common clashes). The `/healthz` body carries `active_sessions`, the number
 of sessions the runner holds, including between turns.
 `session_attached_metadata_script` reads it over loopback and prints one of:
 
@@ -157,6 +157,6 @@ module "claude_code_runner" {
   source      = "registry.coder.com/coder/agent-relay-claude-code/coder"
   version     = "0.5.0"
   agent_id    = coder_agent.main.id
-  health_port = 3284
+  health_port = 3290
 }
 ```

@@ -315,15 +315,16 @@ run "serving_log_pattern_is_data" {
 run "health_port_default" {
   command = plan
 
-  # The CLI's own default, passed explicitly so the URL the attachment
-  # script reads always matches the port the runner binds.
+  # Not the CLI's 8080, which a template image is likely to use already.
+  # Passed explicitly so the URL the attachment script reads always matches
+  # the port the runner binds.
   assert {
-    condition     = strcontains(local.start_script, "--health-port 8080") && output.health_url == "http://127.0.0.1:8080"
-    error_message = "the runner must serve /healthz on 8080 by default"
+    condition     = strcontains(local.start_script, "--health-port 3286") && output.health_url == "http://127.0.0.1:3286"
+    error_message = "the runner must serve /healthz on 3286 by default, not the CLI's 8080"
   }
 
   assert {
-    condition     = strcontains(output.session_attached_metadata_script, "health_url=\"http://127.0.0.1:8080\"") && strcontains(output.session_attached_metadata_script, var.state_file)
+    condition     = strcontains(output.session_attached_metadata_script, "health_url=\"http://127.0.0.1:3286\"") && strcontains(output.session_attached_metadata_script, var.state_file)
     error_message = "the attachment script must read the runner's listener and state file"
   }
 }
@@ -332,11 +333,11 @@ run "health_port_overridden" {
   command = plan
 
   variables {
-    health_port = 3284
+    health_port = 3290
   }
 
   assert {
-    condition     = strcontains(local.start_script, "--health-port 3284") && output.health_url == "http://127.0.0.1:3284" && strcontains(output.session_attached_metadata_script, "http://127.0.0.1:3284")
+    condition     = strcontains(local.start_script, "--health-port 3290") && output.health_url == "http://127.0.0.1:3290" && strcontains(output.session_attached_metadata_script, "http://127.0.0.1:3290")
     error_message = "health_port must select the port the runner binds and the attachment script reads"
   }
 }
