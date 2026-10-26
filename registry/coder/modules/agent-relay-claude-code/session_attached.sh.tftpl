@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Rendered into the agent_relay_session_attached agent metadata item (see
+# README). Prints one line that Agent Relay reads to decide whether to keep
+# the workspace's autostop deadline moving:
+#
+#   true      the runner holds a session, including between turns
+#   false     the runner holds no session, or no runner is running
+#   disabled  health_port is 0, so attachment cannot be observed
+#
+# When the runner is alive but its listener cannot be read, the script
+# exits non-zero instead. The sample is then an error, which the relay
+# treats as unknown rather than false.
+set -euo pipefail
+
+state_file="${state_file}"
+health_url="${health_url}"
+
+if [ -z "$health_url" ]; then
+	echo "disabled"
+	exit 0
+fi
+
+state=""
+detail=""
+if [ -f "$state_file" ]; then
+	read -r state detail <"$state_file" || true
+fi
+# Only a live runner can hold a session. Every other lifecycle state is a
+# definite no, not an unknown.
+if [ "$state" != "working" ] || [ -z "$detail" ] || ! kill -0 "$detail" 2>/dev/null; then
+	echo "false"
+	exit 0
+fi
+
+if ! command -v curl >/dev/null 2>&1; then
+	echo "curl is required to read $health_url/healthz" >&2
+	exit 1
+fi
+
+# The listener starts once the runner registers, so a fresh runner fails
+# here briefly. That reads as unknown, which is correct.
+if ! body="$(curl -fsS --max-time 3 "$health_url/healthz")"; then
+	echo "cannot read $health_url/healthz" >&2
+	exit 1
+fi
+
+active="$(printf '%s' "$body" | grep -oE '"active_sessions"[[:space:]]*:[[:space:]]*[0-9]+' | grep -oE '[0-9]+$' || true)"
+if [ -z "$active" ]; then
+	echo "$health_url/healthz has no numeric active_sessions" >&2
+	exit 1
+fi
+
+if [ "$active" -gt 0 ]; then
+	echo "true"
+else
+	echo "false"
+fi

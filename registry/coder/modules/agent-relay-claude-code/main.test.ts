@@ -57,12 +57,14 @@ const setup = async (vars: Record<string, string> = {}) => {
   });
   const scripts = collectScripts(state);
   const statusScript = state.outputs.status_metadata_script.value as string;
+  const attachedScript = state.outputs.session_attached_metadata_script
+    .value as string;
   const id = await runContainer("lorello/alpine-bash");
   registerCleanup(async () => {
     await removeContainer(id);
   });
   await stubBinary(id, "/usr/local/bin/coder", "exit 0");
-  return { id, scripts, statusScript };
+  return { id, scripts, statusScript, attachedScript };
 };
 
 type Scripts = { install: string; start: string };
@@ -393,5 +395,105 @@ describe("agent-relay-claude-code", () => {
 
     const pwned = await execContainer(id, ["test", "-e", "/tmp/PWNED"]);
     expect(pwned.exitCode).not.toBe(0);
+  });
+
+  describe("session_attached_metadata_script", () => {
+    // Stands in for the runner's listener. The body comes from a file the
+    // test writes; a missing file is a failed scrape, and any other URL is
+    // a wiring bug.
+    const stubHealthz = (id: string, url: string) =>
+      stubBinary(
+        id,
+        "/usr/local/bin/curl",
+        [
+          `case "$*" in *"${url}/healthz"*) ;; *) echo "unexpected curl $*" >&2; exit 7 ;; esac`,
+          "[ -f /tmp/healthz ] || exit 22",
+          "cat /tmp/healthz",
+        ].join("\n"),
+      );
+
+    const sample = async (id: string, script: string, body?: string) => {
+      if (body === undefined) {
+        await execContainer(id, ["rm", "-f", "/tmp/healthz"]);
+      } else {
+        await writeFileContainer(id, "/tmp/healthz", body, { user: "root" });
+      }
+      return execContainer(id, ["bash", "-c", script]);
+    };
+
+    const runnerArgs = async (id: string) =>
+      (await readFileContainer(id, "/tmp/claude-args")).split("\n");
+
+    it("reads active_sessions from the live runner's listener", async () => {
+      const { id, scripts, attachedScript } = await setup({
+        health_port: "3284",
+      });
+      await stubClaude(id, 'printf "%s\\n" "$@" >/tmp/claude-args; sleep 30');
+      await stubHealthz(id, "http://127.0.0.1:3284");
+      await runDispatched(id, scripts);
+      const args = await runnerArgs(id);
+      expect(args[args.indexOf("--health-port") + 1]).toBe("3284");
+
+      // The body shape a real 2.1.310 runner returns.
+      const held = await sample(
+        id,
+        attachedScript,
+        '{"status":"ok","runner_id":"ccrunner_x","active_sessions":1,"last_poll_at":"2026-10-26T20:22:54.950Z","last_poll_age_ms":24021}',
+      );
+      expect(held.exitCode, held.stderr).toBe(0);
+      expect(held.stdout.trim()).toBe("true");
+
+      const free = await sample(
+        id,
+        attachedScript,
+        '{"status":"ok","active_sessions":0}',
+      );
+      expect(free.exitCode, free.stderr).toBe(0);
+      expect(free.stdout.trim()).toBe("false");
+
+      // Unknown is an error sample, never false, so the relay can tell a
+      // broken probe from an ended session.
+      const unreachable = await sample(id, attachedScript);
+      expect(unreachable.exitCode).not.toBe(0);
+      expect(unreachable.stdout.trim()).toBe("");
+
+      const malformed = await sample(id, attachedScript, '{"status":"ok"}');
+      expect(malformed.exitCode).not.toBe(0);
+      expect(malformed.stdout.trim()).toBe("");
+    });
+
+    it("reports false without a live runner", async () => {
+      const { id, attachedScript } = await setup({ install_cli: "false" });
+      await stubHealthz(id, "http://127.0.0.1:8080");
+      await execContainer(id, ["mkdir", "-p", MODULE_DIR]);
+      // The listener would claim a session; with no live runner it is
+      // never consulted.
+      const body = '{"status":"ok","active_sessions":1}';
+      for (const state of [undefined, "idle", "done 0", "working 999999"]) {
+        if (state === undefined) {
+          await execContainer(id, ["rm", "-f", STATE_FILE]);
+        } else {
+          await writeFileContainer(id, STATE_FILE, `${state}\n`, {
+            user: "root",
+          });
+        }
+        const result = await sample(id, attachedScript, body);
+        expect(result.exitCode, `${state}: ${result.stderr}`).toBe(0);
+        expect(result.stdout.trim(), String(state)).toBe("false");
+      }
+    });
+
+    it("reports disabled when health_port is 0", async () => {
+      const { id, scripts, attachedScript } = await setup({ health_port: "0" });
+      await stubClaude(id, 'printf "%s\\n" "$@" >/tmp/claude-args; sleep 30');
+      await stubBinary(id, "/usr/local/bin/curl", "exit 99");
+      await runDispatched(id, scripts);
+      // The CLI listens on 8080 unless told 0.
+      const args = await runnerArgs(id);
+      expect(args[args.indexOf("--health-port") + 1]).toBe("0");
+      const result = await execContainer(id, ["bash", "-c", attachedScript]);
+      expect(result.exitCode, result.stderr).toBe(0);
+      expect(result.stdout.trim()).toBe("disabled");
+    });
   });
 });

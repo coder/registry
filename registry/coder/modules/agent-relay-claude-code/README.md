@@ -16,7 +16,7 @@ on each build and runs the Claude Code self-hosted runner.
 ```tf
 module "claude_code_runner" {
   source   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version  = "0.4.0"
+  version  = "0.5.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Claude Code CLI at start when it is not in the image. Bake
@@ -33,12 +33,21 @@ resource "coder_agent" "main" {
     interval     = 10
     timeout      = 5
   }
+
+  metadata {
+    key          = "agent_relay_session_attached"
+    display_name = "Session attached"
+    script       = module.claude_code_runner.session_attached_metadata_script
+    interval     = 30
+    timeout      = 5
+  }
 }
 ```
 
 The `agent_relay_status` metadata block is required. It has to live on the
 `coder_agent`, which the module cannot declare; the relay reads it to decide
-when to reap the workspace.
+when to reap the workspace. The `agent_relay_session_attached` block is
+optional; see [Session attachment](#session-attachment).
 
 ## Requirements
 
@@ -54,12 +63,12 @@ Use `additional_args` to pass extra arguments to `claude self-hosted-runner`, as
 list with one element per argument. They are appended after the flags the module sets and before `--exec-path`, in the order written.
 Each element is passed exactly as written, so a flag can repeat and a value
 can contain spaces or quotes without escaping. Flags the module already sets
-(`--capacity`, `--base-dir`, `--exit-if-unused-min`, `--exec-path`) are rejected, with or without `=value`.
+(`--capacity`, `--base-dir`, `--exit-if-unused-min`, `--health-port`, `--exec-path`) are rejected, with or without `=value`.
 
 ```tf
 module "claude_code_runner" {
   source          = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version         = "0.4.0"
+  version         = "0.5.0"
   agent_id        = coder_agent.main.id
   additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
 }
@@ -118,3 +127,36 @@ rather than reporting `working` forever.
 | `failed <reason>` | runner could not start, e.g. `runner-agent-missing` when the CLI is absent |
 
 Renaming the `agent_relay_status` key breaks reaping.
+
+## Session attachment
+
+The runner serves `GET /healthz` and `GET /metrics` on `health_port`
+(default `8080`). The `/healthz` body carries `active_sessions`, the number
+of sessions the runner holds, including between turns.
+`session_attached_metadata_script` reads it over loopback and prints one of:
+
+| value      | meaning                                                          |
+| ---------- | ---------------------------------------------------------------- |
+| `true`     | the runner holds a session                                       |
+| `false`    | the runner holds no session, or no runner is alive               |
+| `disabled` | `health_port` is `0`, so the listener is off and nothing is read |
+
+When the runner is alive but `/healthz` cannot be read or has no numeric
+`active_sessions`, the script exits non-zero. The metadata sample is then
+an error, so a consumer can tell an unknown sample from an ended session.
+The listener starts only after the runner registers, so a fresh runner
+reports an error briefly. The image needs `curl`.
+
+The CLI binds the listener on every interface and has no bind-host option.
+Do not publish `health_port` through a `coder_app`, a container port, or a
+Kubernetes Service, and make sure the workspace network keeps other hosts
+from reaching it.
+
+```tf
+module "claude_code_runner" {
+  source      = "registry.coder.com/coder/agent-relay-claude-code/coder"
+  version     = "0.5.0"
+  agent_id    = coder_agent.main.id
+  health_port = 3284
+}
+```
