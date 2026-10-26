@@ -306,8 +306,9 @@ output "status_metadata_script" {
 }
 
 output "session_attached_metadata_script" {
-  description = "Script body for the agent_relay_session_attached agent metadata item. Prints true while the runner holds a session, false when it holds none, and disabled when health_port is 0. Fails when the listener cannot be read, so an unknown sample is an error rather than false."
+  description = "Script body for the agent_relay_session_attached agent metadata item. Prints attached, unattached, stopped, or disabled; see README. Fails when a running runner's listener cannot be read, so an unknown sample is an error."
   value = templatefile("${path.module}/session_attached.sh.tftpl", {
+    cli_binary = var.cli_binary
     state_file = var.state_file
     health_url = local.health_url
   })

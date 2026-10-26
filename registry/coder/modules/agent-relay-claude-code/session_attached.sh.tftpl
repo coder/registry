@@ -3,13 +3,20 @@
 # README). Prints one line that Agent Relay reads to decide whether to keep
 # the workspace's autostop deadline moving:
 #
-#   true      the runner holds a session, including between turns
-#   false     the runner holds no session, or no runner is running
-#   disabled  health_port is 0, so attachment cannot be observed
+#   attached    the runner is running and holds a session, including
+#               between turns
+#   unattached  the runner is running and holds no session
+#   stopped     the runner is not running: it exited, died, never started,
+#               or the workspace was created manually
+#   disabled    health_port is 0, so attachment cannot be observed
 #
-# When the runner is alive but its listener cannot be read, the script
+# When the runner is running but its listener cannot be read, the script
 # exits non-zero instead. The sample is then an error, which the relay
-# treats as unknown rather than false.
+# treats as unknown rather than as any of the values above.
+#
+# Running means the pid the supervisor recorded is alive and is still the
+# CLI it launched. The supervisor writes "working <pid>" after it starts
+# the runner and replaces it with "done <code>" when the runner exits.
 set -euo pipefail
 
 state_file="${state_file}"
@@ -20,15 +27,20 @@ if [ -z "$health_url" ]; then
 	exit 0
 fi
 
+# kill -0 alone would trust a reused pid; the cmdline check ties it to the
+# CLI the supervisor launched.
+runner_alive() {
+	[ -n "$${1:-}" ] && kill -0 "$1" 2>/dev/null &&
+		tr '\0' ' ' <"/proc/$1/cmdline" 2>/dev/null | grep -qF -- "$(basename "${cli_binary}")"
+}
+
 state=""
 detail=""
 if [ -f "$state_file" ]; then
 	read -r state detail <"$state_file" || true
 fi
-# Only a live runner can hold a session. Every other lifecycle state is a
-# definite no, not an unknown.
-if [ "$state" != "working" ] || [ -z "$detail" ] || ! kill -0 "$detail" 2>/dev/null; then
-	echo "false"
+if [ "$state" != "working" ] || ! runner_alive "$detail"; then
+	echo "stopped"
 	exit 0
 fi
 
@@ -51,7 +63,7 @@ if [ -z "$active" ]; then
 fi
 
 if [ "$active" -gt 0 ]; then
-	echo "true"
+	echo "attached"
 else
-	echo "false"
+	echo "unattached"
 fi

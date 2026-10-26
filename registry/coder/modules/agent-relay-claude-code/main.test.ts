@@ -441,7 +441,7 @@ describe("agent-relay-claude-code", () => {
         '{"status":"ok","runner_id":"ccrunner_x","active_sessions":1,"last_poll_at":"2026-10-26T20:22:54.950Z","last_poll_age_ms":24021}',
       );
       expect(held.exitCode, held.stderr).toBe(0);
-      expect(held.stdout.trim()).toBe("true");
+      expect(held.stdout.trim()).toBe("attached");
 
       const free = await sample(
         id,
@@ -449,7 +449,7 @@ describe("agent-relay-claude-code", () => {
         '{"status":"ok","active_sessions":0}',
       );
       expect(free.exitCode, free.stderr).toBe(0);
-      expect(free.stdout.trim()).toBe("false");
+      expect(free.stdout.trim()).toBe("unattached");
 
       // Unknown is an error sample, never false, so the relay can tell a
       // broken probe from an ended session.
@@ -462,14 +462,37 @@ describe("agent-relay-claude-code", () => {
       expect(malformed.stdout.trim()).toBe("");
     });
 
-    it("reports false without a live runner", async () => {
+    it("reports stopped once the runner exits", async () => {
+      const { id, scripts, attachedScript } = await setup();
+      await stubClaude(id, "exit 0");
+      await stubHealthz(id, "http://127.0.0.1:3286");
+      await runDispatched(id, scripts);
+      await waitForState(id, /^done \d+$/);
+      const result = await sample(
+        id,
+        attachedScript,
+        '{"status":"ok","active_sessions":1}',
+      );
+      expect(result.exitCode, result.stderr).toBe(0);
+      expect(result.stdout.trim()).toBe("stopped");
+    });
+
+    it("reports stopped without a live runner", async () => {
       const { id, attachedScript } = await setup({ install_cli: "false" });
       await stubHealthz(id, "http://127.0.0.1:3286");
       await execContainer(id, ["mkdir", "-p", MODULE_DIR]);
       // The listener would claim a session; with no live runner it is
-      // never consulted.
+      // never consulted. "working 1" is a live pid that is not the CLI,
+      // as after pid reuse.
       const body = '{"status":"ok","active_sessions":1}';
-      for (const state of [undefined, "idle", "done 0", "working 999999"]) {
+      for (const state of [
+        undefined,
+        "idle",
+        "done 0",
+        "failed runner-agent-missing",
+        "working 999999",
+        "working 1",
+      ]) {
         if (state === undefined) {
           await execContainer(id, ["rm", "-f", STATE_FILE]);
         } else {
@@ -479,7 +502,7 @@ describe("agent-relay-claude-code", () => {
         }
         const result = await sample(id, attachedScript, body);
         expect(result.exitCode, `${state}: ${result.stderr}`).toBe(0);
-        expect(result.stdout.trim(), String(state)).toBe("false");
+        expect(result.stdout.trim(), String(state)).toBe("stopped");
       }
     });
 

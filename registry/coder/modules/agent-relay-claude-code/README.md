@@ -135,15 +135,21 @@ The runner serves `GET /healthz` and `GET /metrics` on `health_port`
 of sessions the runner holds, including between turns.
 `session_attached_metadata_script` reads it over loopback and prints one of:
 
-| value      | meaning                                                          |
-| ---------- | ---------------------------------------------------------------- |
-| `true`     | the runner holds a session                                       |
-| `false`    | the runner holds no session, or no runner is alive               |
-| `disabled` | `health_port` is `0`, so the listener is off and nothing is read |
+| value        | runner running | session held | meaning                                                            |
+| ------------ | -------------- | ------------ | ------------------------------------------------------------------ |
+| `attached`   | yes            | yes          | holds a session, including between turns                           |
+| `unattached` | yes            | no           | waiting for its first session, or released one and is still alive  |
+| `stopped`    | no             | no           | exited, died, never started, or the workspace was created manually |
+| `disabled`   | not checked    | not checked  | `health_port` is `0`, so the listener is off and nothing is read   |
+| error        | yes            | unknown      | `/healthz` cannot be read or has no numeric `active_sessions`      |
 
-When the runner is alive but `/healthz` cannot be read or has no numeric
-`active_sessions`, the script exits non-zero. The metadata sample is then
-an error, so a consumer can tell an unknown sample from an ended session.
+Running means the pid the supervisor recorded in `runner-state` is alive
+(`kill -0`) and its command line is still the CLI. The supervisor writes
+`working <pid>` when it starts the runner and `done <code>` when it exits,
+so a clean exit, a crash, and a reused pid all read as `stopped`.
+
+An error is a non-zero exit, so the metadata sample carries an error
+rather than a value and a consumer can tell unknown from any state above.
 The listener starts only after the runner registers, so a fresh runner
 reports an error briefly. The image needs `curl`.
 
