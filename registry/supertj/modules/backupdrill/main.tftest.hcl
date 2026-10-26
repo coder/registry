@@ -21,7 +21,7 @@ run "defaults_install_latest_2x" {
   }
 
   assert {
-    condition     = local.module_directory == "$HOME/.coder-modules/backupdrill/backupdrill"
+    condition     = local.module_directory == "$HOME/.coder-modules/supertj/backupdrill"
     error_message = "module data should live under the standard per-module directory"
   }
 }
@@ -120,7 +120,7 @@ run "scripts_output" {
   }
 
   assert {
-    condition     = output.scripts == ["backupdrill-backupdrill-install_script"]
+    condition     = output.scripts == ["supertj-backupdrill-install_script"]
     error_message = "scripts output should list only the install script"
   }
 }

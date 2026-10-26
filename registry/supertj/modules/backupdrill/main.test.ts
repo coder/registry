@@ -23,7 +23,7 @@ setDefaultTimeout(4 * 60 * 1000);
 
 const SCRIPT_BIN_DIR = "/tmp/coder-script-bin";
 const ROOT_MODULE_BIN =
-  "/root/.coder-modules/backupdrill/backupdrill/npm-global/bin/backupdrill";
+  "/root/.coder-modules/supertj/backupdrill/npm-global/bin/backupdrill";
 
 let containers: string[] = [];
 afterEach(
@@ -133,10 +133,7 @@ describe("backupdrill", () => {
 
     const log = await execContainer(
       id,
-      [
-        "cat",
-        "/home/node/.coder-modules/backupdrill/backupdrill/logs/install.log",
-      ],
+      ["cat", "/home/node/.coder-modules/supertj/backupdrill/logs/install.log"],
       ["--user", "node"],
     );
     expect(log.stdout).toContain("Installed backupdrill 2.");

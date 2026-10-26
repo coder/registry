@@ -13,13 +13,13 @@ Installs [the backupdrill CLI](https://backupdrill.com/docs/cli) in your workspa
 ```tf
 module "backupdrill" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/backupdrill/backupdrill/coder"
+  source   = "registry.coder.com/supertj/backupdrill/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
 }
 ```
 
-By default the module installs the newest 2.x release from npm, so new workspaces pick up 2.x releases without a module update. It installs into `$HOME/.coder-modules/backupdrill/backupdrill` and doesn't need root. It doesn't install `pg_dump` and takes no credentials.
+By default the module installs the newest 2.x release from npm, so new workspaces pick up 2.x releases without a module update. It installs into `$HOME/.coder-modules/supertj/backupdrill` and doesn't need root. It doesn't install `pg_dump` and takes no credentials.
 
 ## Requirements
 
@@ -63,7 +63,7 @@ backupdrill drill               # restore the latest backup into a throwaway Pos
 ```tf
 module "backupdrill" {
   count               = data.coder_workspace.me.start_count
-  source              = "registry.coder.com/backupdrill/backupdrill/coder"
+  source              = "registry.coder.com/supertj/backupdrill/coder"
   version             = "1.0.0"
   agent_id            = coder_agent.main.id
   backupdrill_version = "2.7.1"
@@ -74,14 +74,14 @@ module "backupdrill" {
 
 If `backupdrill` is already on `PATH` when the workspace starts (baked into the image, say) and its version matches `backupdrill_version`, the module skips the install and downloads nothing. A copy that the module installed on an earlier start is reused the same way.
 
-With the default `"2"`, any 2.x counts as a match, so a workspace that keeps its home directory stays on the 2.x it installed first. To move it to the newest 2.x, delete `$HOME/.coder-modules/backupdrill/backupdrill/npm-global` and restart the workspace.
+With the default `"2"`, any 2.x counts as a match, so a workspace that keeps its home directory stays on the 2.x it installed first. To move it to the newest 2.x, delete `$HOME/.coder-modules/supertj/backupdrill/npm-global` and restart the workspace.
 
 ## Install from a mirror
 
 ```tf
 module "backupdrill" {
   count            = data.coder_workspace.me.start_count
-  source           = "registry.coder.com/backupdrill/backupdrill/coder"
+  source           = "registry.coder.com/supertj/backupdrill/coder"
   version          = "1.0.0"
   agent_id         = coder_agent.main.id
   npm_registry_url = "https://npm.example.com/repository/npm/"
@@ -102,4 +102,4 @@ backupdrill doesn't send anything to BackupDrill's own servers.
 
 ## Logs
 
-The install script writes to `$HOME/.coder-modules/backupdrill/backupdrill/logs/install.log`.
+The install script writes to `$HOME/.coder-modules/supertj/backupdrill/logs/install.log`.

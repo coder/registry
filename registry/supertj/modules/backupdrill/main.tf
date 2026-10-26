@@ -43,7 +43,7 @@ variable "icon" {
 }
 
 locals {
-  module_directory = "$HOME/.coder-modules/backupdrill/backupdrill"
+  module_directory = "$HOME/.coder-modules/supertj/backupdrill"
 
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_BACKUPDRILL_VERSION = var.backupdrill_version
