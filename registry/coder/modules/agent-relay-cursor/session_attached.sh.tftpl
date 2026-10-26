@@ -3,13 +3,19 @@
 # README). Prints one line that Agent Relay reads to decide whether to keep
 # the workspace's autostop deadline moving:
 #
-#   true      the worker reports an active session
-#   false     the worker reports no session, or no worker is running
-#   disabled  management_addr is empty, so attachment cannot be observed
+#   attached    the worker is running and reports an active session
+#   unattached  the worker is running and reports no session
+#   stopped     the worker is not running: it exited, died, never started,
+#               or the workspace was created manually
+#   disabled    management_addr is empty, so attachment cannot be observed
 #
-# When the worker is alive but its management server cannot be read, the
+# When the worker is running but its management server cannot be read, the
 # script exits non-zero instead. The sample is then an error, which the
-# relay treats as unknown rather than false.
+# relay treats as unknown rather than as any of the values above.
+#
+# Running means the pid the supervisor recorded is alive and is still the
+# CLI it launched. The supervisor writes "working <pid>" after it starts
+# the worker and replaces it with "done <code>" when the worker exits.
 set -euo pipefail
 
 state_file="${state_file}"
@@ -32,10 +38,8 @@ detail=""
 if [ -f "$state_file" ]; then
 	read -r state detail <"$state_file" || true
 fi
-# Only a live worker can hold a session. Every other lifecycle state is a
-# definite no, not an unknown.
 if [ "$state" != "working" ] || ! worker_alive "$detail"; then
-	echo "false"
+	echo "stopped"
 	exit 0
 fi
 
@@ -58,7 +62,7 @@ if ! printf '%s' "$active" | grep -qE '^[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?$'; t
 fi
 
 if awk -v v="$active" 'BEGIN { exit !(v + 0 > 0) }'; then
-	echo "true"
+	echo "attached"
 else
-	echo "false"
+	echo "unattached"
 fi

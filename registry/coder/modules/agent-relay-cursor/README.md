@@ -173,15 +173,21 @@ The worker serves `GET /healthz`, `GET /readyz`, and `GET /metrics` on
 session runs on the worker. `session_attached_metadata_script` reads it and
 prints one of:
 
-| value      | meaning                                                              |
-| ---------- | -------------------------------------------------------------------- |
-| `true`     | a session is active on the worker                                    |
-| `false`    | no session is active, or no worker is alive                          |
-| `disabled` | `management_addr` is empty, so the server is off and nothing is read |
+| value        | worker running | session held | meaning                                                              |
+| ------------ | -------------- | ------------ | -------------------------------------------------------------------- |
+| `attached`   | yes            | yes          | a cloud agent session is active on the worker                        |
+| `unattached` | yes            | no           | waiting for its claimed session, or released one and is still alive  |
+| `stopped`    | no             | no           | exited, died, never started, or the workspace was created manually   |
+| `disabled`   | not checked    | not checked  | `management_addr` is empty, so the server is off and nothing is read |
+| error        | yes            | unknown      | `/metrics` cannot be read or has no session gauge                    |
 
-When the worker is alive but `/metrics` cannot be read or has no session
-gauge, the script exits non-zero. The metadata sample is then an error, so
-a consumer can tell an unknown sample from an ended session. The server
+Running means the pid the supervisor recorded in `worker-state` is alive
+(`kill -0`) and its command line is still the CLI. The supervisor writes
+`working <pid>` when it starts the worker and `done <code>` when it exits,
+so a clean idle release, a crash, and a reused pid all read as `stopped`.
+
+An error is a non-zero exit, so the metadata sample carries an error
+rather than a value and a consumer can tell unknown from any state above. The server
 starts only after the worker connects to Cursor, so a fresh worker reports
 an error briefly. The image needs `curl` and `awk`.
 

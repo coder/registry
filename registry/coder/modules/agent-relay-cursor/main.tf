@@ -334,7 +334,7 @@ output "status_metadata_script" {
 }
 
 output "session_attached_metadata_script" {
-  description = "Script body for the agent_relay_session_attached agent metadata item. Prints true while a session is active on the worker, false when none is, and disabled when management_addr is empty. Fails when the management server cannot be read, so an unknown sample is an error rather than false."
+  description = "Script body for the agent_relay_session_attached agent metadata item. Prints attached, unattached, stopped, or disabled; see README. Fails when a running worker's management server cannot be read, so an unknown sample is an error."
   value = templatefile("${path.module}/session_attached.sh.tftpl", {
     cli_binary     = var.cli_binary
     state_file     = var.state_file

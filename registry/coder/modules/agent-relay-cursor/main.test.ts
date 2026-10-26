@@ -577,11 +577,11 @@ describe("agent-relay-cursor", () => {
 
       const held = await sample(id, attachedScript, metrics("1"));
       expect(held.exitCode, held.stderr).toBe(0);
-      expect(held.stdout.trim()).toBe("true");
+      expect(held.stdout.trim()).toBe("attached");
 
       const free = await sample(id, attachedScript, metrics("0"));
       expect(free.exitCode, free.stderr).toBe(0);
-      expect(free.stdout.trim()).toBe("false");
+      expect(free.stdout.trim()).toBe("unattached");
 
       // Unknown is an error sample, never false, so the relay can tell a
       // broken probe from an ended session.
@@ -609,16 +609,35 @@ describe("agent-relay-cursor", () => {
       );
       const held = await sample(id, attachedScript, metrics("1"));
       expect(held.exitCode, held.stderr).toBe(0);
-      expect(held.stdout.trim()).toBe("true");
+      expect(held.stdout.trim()).toBe("attached");
     });
 
-    it("reports false without a live worker", async () => {
+    it("reports stopped once the worker exits", async () => {
+      const { id, scripts, attachedScript } = await setup();
+      await stubAgent(id, "exit 0");
+      await stubMetrics(id, "http://127.0.0.1:3287");
+      await runDispatched(id, scripts);
+      await waitForState(id, /^done \d+$/);
+      const result = await sample(id, attachedScript, metrics("1"));
+      expect(result.exitCode, result.stderr).toBe(0);
+      expect(result.stdout.trim()).toBe("stopped");
+    });
+
+    it("reports stopped without a live worker", async () => {
       const { id, attachedScript } = await setup({ install_cli: "false" });
       await stubMetrics(id, "http://127.0.0.1:3287");
       await execContainer(id, ["mkdir", "-p", MODULE_DIR]);
       // The server would claim a session; with no live worker it is never
-      // consulted.
-      for (const state of [undefined, "idle", "done 0", "working 999999"]) {
+      // consulted. "working 1" is a live pid that is not the CLI, as after
+      // pid reuse.
+      for (const state of [
+        undefined,
+        "idle",
+        "done 0",
+        "failed runner-agent-missing",
+        "working 999999",
+        "working 1",
+      ]) {
         if (state === undefined) {
           await execContainer(id, ["rm", "-f", STATE_FILE]);
         } else {
@@ -628,7 +647,7 @@ describe("agent-relay-cursor", () => {
         }
         const result = await sample(id, attachedScript, metrics("1"));
         expect(result.exitCode, `${state}: ${result.stderr}`).toBe(0);
-        expect(result.stdout.trim(), String(state)).toBe("false");
+        expect(result.stdout.trim(), String(state)).toBe("stopped");
       }
     });
 
