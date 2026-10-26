@@ -23,7 +23,7 @@ By default the module installs the newest 2.x release from npm, so new workspace
 
 ## Requirements
 
-- Node.js with npm on the workspace `PATH`. A Node.js installed with nvm is found as well. If npm is missing, the install script prints a message and exits without an error, so the workspace starts as usual.
+- Node.js 20 or newer with npm on the workspace `PATH`. On an older Node.js, npm refuses the install. A Node.js installed with nvm is found as well. If npm is missing, the install script prints a message and exits without an error, so the workspace starts as usual.
 - `pg_dump` for `backup`, with a major version at least as new as your Supabase Postgres. Install it in the image (for example `postgresql-client-<major>` from the PostgreSQL apt repository), or point `BACKUPDRILL_PG_DUMP` at the binary.
 - For `drill`: `pg_restore` (same version rule) and a Docker daemon the workspace can reach, which runs the throwaway Postgres.
 

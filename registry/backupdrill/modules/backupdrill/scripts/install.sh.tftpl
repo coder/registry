@@ -23,12 +23,25 @@ version_matches() {
   [ "$1" = "$ARG_BACKUPDRILL_VERSION" ] || [[ "$1" == "$ARG_BACKUPDRILL_VERSION".* ]]
 }
 
-link_module_bin() {
-  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ]; then
-    ln -sf "$MODULE_BIN" "$CODER_SCRIPT_BIN_DIR/backupdrill"
-  else
+# The CLI starts with "#!/usr/bin/env node", and a Node.js from nvm is only on
+# PATH in shells that load nvm. The launcher loads nvm itself when node is
+# missing, so backupdrill also works from non-interactive commands.
+install_launcher() {
+  if [ -z "$${CODER_SCRIPT_BIN_DIR:-}" ]; then
     echo "CODER_SCRIPT_BIN_DIR is not set; add $NPM_PREFIX/bin to PATH to use backupdrill."
+    return
   fi
+  local launcher="$CODER_SCRIPT_BIN_DIR/backupdrill"
+  # Writing through a symlink left by an earlier run would overwrite its target.
+  rm -f "$launcher"
+  cat > "$launcher" << EOF
+#!/usr/bin/env bash
+if ! command -v node > /dev/null 2>&1 && [ -s "\$HOME/.nvm/nvm.sh" ]; then
+  . "\$HOME/.nvm/nvm.sh"
+fi
+exec "$MODULE_BIN" "\$@"
+EOF
+  chmod +x "$launcher"
 }
 
 existing_bin=$(command -v backupdrill || true)
@@ -45,7 +58,7 @@ if [ -x "$MODULE_BIN" ]; then
   module_version=$("$MODULE_BIN" --version 2> /dev/null || true)
   if version_matches "$module_version"; then
     echo "backupdrill $module_version is already installed in $NPM_PREFIX, skipping the install."
-    link_module_bin
+    install_launcher
     exit 0
   fi
 fi
@@ -58,7 +71,9 @@ if ! command -v npm > /dev/null 2>&1; then
 fi
 
 mkdir -p "$NPM_PREFIX"
-npm_args=(install --global --prefix "$NPM_PREFIX" --ignore-scripts --no-audit --no-fund --no-update-notifier)
+# --engine-strict makes npm refuse a Node.js older than backupdrill's engines
+# field, instead of installing a CLI that fails later.
+npm_args=(install --global --prefix "$NPM_PREFIX" --engine-strict --ignore-scripts --no-audit --no-fund --no-update-notifier)
 if [ -n "$ARG_NPM_REGISTRY_URL" ]; then
   npm_args+=(--registry "$ARG_NPM_REGISTRY_URL")
 fi
@@ -69,6 +84,10 @@ if ! npm "$${npm_args[@]}" "backupdrill@$ARG_BACKUPDRILL_VERSION"; then
   exit 1
 fi
 
-link_module_bin
-echo "Installed backupdrill $("$MODULE_BIN" --version)."
+if ! installed_version=$("$MODULE_BIN" --version); then
+  echo "npm installed backupdrill, but '$MODULE_BIN --version' failed. Its output above has the reason." >&2
+  exit 1
+fi
+install_launcher
+echo "Installed backupdrill $installed_version."
 echo "It reads its settings from BACKUPDRILL_* environment variables: https://backupdrill.com/docs/cli"

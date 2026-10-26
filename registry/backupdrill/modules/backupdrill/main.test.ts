@@ -22,6 +22,8 @@ import {
 setDefaultTimeout(4 * 60 * 1000);
 
 const SCRIPT_BIN_DIR = "/tmp/coder-script-bin";
+const ROOT_MODULE_BIN =
+  "/root/.coder-modules/backupdrill/backupdrill/npm-global/bin/backupdrill";
 
 let containers: string[] = [];
 afterEach(
@@ -79,6 +81,24 @@ const writeExecutable = async (id: string, path: string, content: string) => {
   );
   expect(chmod.exitCode).toBe(0);
 };
+
+// Stand-in npm: records its arguments in /tmp/npm-args and writes `cli` as
+// the backupdrill executable under the --prefix it was given, so these tests
+// need no network access.
+const writeFakeNpm = (id: string, path: string, cli: string) =>
+  writeExecutable(
+    id,
+    path,
+    [
+      "#!/usr/bin/env bash",
+      'echo "$@" > /tmp/npm-args',
+      'prefix=""',
+      'while [ $# -gt 0 ]; do [ "$1" = "--prefix" ] && prefix="$2"; shift; done',
+      'mkdir -p "$prefix/bin"',
+      `echo '${Buffer.from(cli).toString("base64")}' | base64 -d > "$prefix/bin/backupdrill"`,
+      'chmod +x "$prefix/bin/backupdrill"',
+    ].join("\n"),
+  );
 
 describe("backupdrill", () => {
   beforeAll(async () => {
@@ -169,21 +189,7 @@ describe("backupdrill", () => {
       "/usr/local/bin/backupdrill",
       "#!/bin/sh\necho 2.6.0\n",
     );
-    // Stand-in npm: records its arguments and drops a fake CLI into the
-    // prefix it was given, so this test needs no network access.
-    await writeExecutable(
-      id,
-      "/usr/local/bin/npm",
-      [
-        "#!/usr/bin/env bash",
-        'echo "$@" > /tmp/npm-args',
-        'prefix=""',
-        'while [ $# -gt 0 ]; do [ "$1" = "--prefix" ] && prefix="$2"; shift; done',
-        'mkdir -p "$prefix/bin"',
-        'printf "#!/bin/sh\\necho 2.7.1\\n" > "$prefix/bin/backupdrill"',
-        'chmod +x "$prefix/bin/backupdrill"',
-      ].join("\n"),
-    );
+    await writeFakeNpm(id, "/usr/local/bin/npm", "#!/bin/sh\necho 2.7.1\n");
 
     const result = await runInstall(id, installScript(state), "root");
     expect(result.exitCode).toBe(0);
@@ -196,15 +202,75 @@ describe("backupdrill", () => {
     expect(args.stdout).toContain(
       "--registry https://npm.internal.example.com/",
     );
+    expect(args.stdout).toContain("--engine-strict");
     expect(args.stdout).toContain("--ignore-scripts");
     expect(args.stdout).toContain("backupdrill@2.7.1");
 
-    const linked = await execContainer(id, [
-      "readlink",
+    const launcher = await execContainer(id, [
+      "cat",
       `${SCRIPT_BIN_DIR}/backupdrill`,
     ]);
-    expect(linked.stdout.trim()).toBe(
-      "/root/.coder-modules/backupdrill/backupdrill/npm-global/bin/backupdrill",
+    expect(launcher.stdout).toContain(`exec "${ROOT_MODULE_BIN}" "$@"`);
+  });
+
+  it("finds an nvm Node.js at install time and when the CLI runs later", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "test-agent",
+    });
+    const id = await startWorkspace("debian:bookworm-slim", "root");
+    // A stand-in nvm: node and npm are only on PATH after nvm.sh is sourced.
+    const mkdir = await execContainer(id, [
+      "mkdir",
+      "-p",
+      "/opt/nvm-node/bin",
+      "/root/.nvm",
+    ]);
+    expect(mkdir.exitCode).toBe(0);
+    await writeExecutable(
+      id,
+      "/opt/nvm-node/bin/node",
+      "#!/bin/sh\necho 2.8.0\n",
     );
+    await writeFakeNpm(id, "/opt/nvm-node/bin/npm", "#!/usr/bin/env node\n");
+    await writeFileContainer(
+      id,
+      "/root/.nvm/nvm.sh",
+      'export PATH="/opt/nvm-node/bin:$PATH"\n',
+      { user: "root" },
+    );
+
+    const result = await runInstall(id, installScript(state), "root");
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Installed backupdrill 2.8.0.");
+
+    // Without nvm loaded the npm-generated executable cannot find node...
+    const direct = await execContainer(id, [
+      "bash",
+      "-c",
+      `${ROOT_MODULE_BIN} --version`,
+    ]);
+    expect(direct.exitCode).not.toBe(0);
+
+    // ...while the launcher on the agent's PATH loads nvm first.
+    const viaLauncher = await execContainer(id, [
+      "bash",
+      "-c",
+      `${SCRIPT_BIN_DIR}/backupdrill --version`,
+    ]);
+    expect(viaLauncher.exitCode).toBe(0);
+    expect(viaLauncher.stdout.trim()).toBe("2.8.0");
+  });
+
+  it("fails when the installed CLI does not run", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "test-agent",
+    });
+    const id = await startWorkspace("debian:bookworm-slim", "root");
+    await writeFakeNpm(id, "/usr/local/bin/npm", "#!/bin/sh\nexit 42\n");
+
+    const result = await runInstall(id, installScript(state), "root");
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stdout).toContain("--version' failed");
+    expect(result.stdout).not.toContain("Installed backupdrill");
   });
 });
