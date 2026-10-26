@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+
+# coder_script does not load shell profiles, so a Node.js installed with nvm
+# is only on PATH after nvm.sh has been sourced.
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+  # shellcheck disable=SC1091
+  source "$HOME/.nvm/nvm.sh"
+fi
+
+set -euo pipefail
+
+ARG_BACKUPDRILL_VERSION='${ARG_BACKUPDRILL_VERSION}'
+ARG_NPM_REGISTRY_URL='${ARG_NPM_REGISTRY_URL}'
+
+# Installing under the module directory instead of npm's default global
+# prefix means the install works without root, even when /usr is read-only.
+NPM_PREFIX="$HOME/.coder-modules/backupdrill/backupdrill/npm-global"
+MODULE_BIN="$NPM_PREFIX/bin/backupdrill"
+
+# "2" matches any 2.x, "2.7" any 2.7.x and "2.7.1" only itself. "latest"
+# never matches, so npm is always asked for the newest release.
+version_matches() {
+  [ "$1" = "$ARG_BACKUPDRILL_VERSION" ] || [[ "$1" == "$ARG_BACKUPDRILL_VERSION".* ]]
+}
+
+link_module_bin() {
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ]; then
+    ln -sf "$MODULE_BIN" "$CODER_SCRIPT_BIN_DIR/backupdrill"
+  else
+    echo "CODER_SCRIPT_BIN_DIR is not set; add $NPM_PREFIX/bin to PATH to use backupdrill."
+  fi
+}
+
+existing_bin=$(command -v backupdrill || true)
+if [ -n "$existing_bin" ]; then
+  existing_version=$(backupdrill --version 2> /dev/null || true)
+  if version_matches "$existing_version"; then
+    echo "backupdrill $existing_version is already on PATH at $existing_bin, skipping the install."
+    exit 0
+  fi
+  echo "Found backupdrill $existing_version at $existing_bin, but backupdrill_version is $ARG_BACKUPDRILL_VERSION."
+fi
+
+if [ -x "$MODULE_BIN" ]; then
+  module_version=$("$MODULE_BIN" --version 2> /dev/null || true)
+  if version_matches "$module_version"; then
+    echo "backupdrill $module_version is already installed in $NPM_PREFIX, skipping the install."
+    link_module_bin
+    exit 0
+  fi
+fi
+
+if ! command -v npm > /dev/null 2>&1; then
+  echo "npm was not found on PATH, and backupdrill is installed with npm."
+  echo "Add Node.js with npm to the workspace image, then restart the workspace."
+  echo "Skipping the backupdrill install. The rest of the workspace is not affected."
+  exit 0
+fi
+
+mkdir -p "$NPM_PREFIX"
+npm_args=(install --global --prefix "$NPM_PREFIX" --ignore-scripts --no-audit --no-fund --no-update-notifier)
+if [ -n "$ARG_NPM_REGISTRY_URL" ]; then
+  npm_args+=(--registry "$ARG_NPM_REGISTRY_URL")
+fi
+
+echo "Installing backupdrill@$ARG_BACKUPDRILL_VERSION into $NPM_PREFIX"
+if ! npm "$${npm_args[@]}" "backupdrill@$ARG_BACKUPDRILL_VERSION"; then
+  echo "npm could not install backupdrill@$ARG_BACKUPDRILL_VERSION. The npm output above has the reason." >&2
+  exit 1
+fi
+
+link_module_bin
+echo "Installed backupdrill $("$MODULE_BIN" --version)."
+echo "It reads its settings from BACKUPDRILL_* environment variables: https://backupdrill.com/docs/cli"
