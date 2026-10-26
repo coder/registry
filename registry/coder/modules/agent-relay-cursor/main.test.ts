@@ -562,14 +562,14 @@ describe("agent-relay-cursor", () => {
 
     it("reads the session gauge from the live worker's management server", async () => {
       const { id, scripts, attachedScript } = await setup({
-        management_addr: ":3285",
+        management_addr: ":3290",
       });
       await stubAgent(id, 'printf "%s\\n" "$@" >/tmp/agent-args; sleep 30');
       // A wildcard bind is read over loopback.
-      await stubMetrics(id, "http://127.0.0.1:3285");
+      await stubMetrics(id, "http://127.0.0.1:3290");
       await runDispatched(id, scripts);
       const args = await workerArgs(id);
-      expect(args[args.indexOf("--management-addr") + 1]).toBe(":3285");
+      expect(args[args.indexOf("--management-addr") + 1]).toBe(":3290");
       // The flag must come before the start subcommand.
       expect(args.indexOf("--management-addr")).toBeLessThan(
         args.indexOf("start"),
@@ -601,11 +601,11 @@ describe("agent-relay-cursor", () => {
     it("binds loopback by default", async () => {
       const { id, scripts, attachedScript } = await setup();
       await stubAgent(id, 'printf "%s\\n" "$@" >/tmp/agent-args; sleep 30');
-      await stubMetrics(id, "http://127.0.0.1:8080");
+      await stubMetrics(id, "http://127.0.0.1:3287");
       await runDispatched(id, scripts);
       const args = await workerArgs(id);
       expect(args[args.indexOf("--management-addr") + 1]).toBe(
-        "127.0.0.1:8080",
+        "127.0.0.1:3287",
       );
       const held = await sample(id, attachedScript, metrics("1"));
       expect(held.exitCode, held.stderr).toBe(0);
@@ -614,7 +614,7 @@ describe("agent-relay-cursor", () => {
 
     it("reports false without a live worker", async () => {
       const { id, attachedScript } = await setup({ install_cli: "false" });
-      await stubMetrics(id, "http://127.0.0.1:8080");
+      await stubMetrics(id, "http://127.0.0.1:3287");
       await execContainer(id, ["mkdir", "-p", MODULE_DIR]);
       // The server would claim a session; with no live worker it is never
       // consulted.

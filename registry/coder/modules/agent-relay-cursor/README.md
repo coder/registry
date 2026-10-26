@@ -168,7 +168,7 @@ starts. Liveness is judged by pid and cmdline, so a reused pid reads as
 ## Session attachment
 
 The worker serves `GET /healthz`, `GET /readyz`, and `GET /metrics` on
-`management_addr` (default `127.0.0.1:8080`). The
+`management_addr` (default `127.0.0.1:3287`; Cursor's docs use `8080`, which templates often take). The
 `cursor_self_hosted_worker_session_active` gauge is `1` while a cloud agent
 session runs on the worker. `session_attached_metadata_script` reads it and
 prints one of:
@@ -185,7 +185,7 @@ a consumer can tell an unknown sample from an ended session. The server
 starts only after the worker connects to Cursor, so a fresh worker reports
 an error briefly. The image needs `curl` and `awk`.
 
-`management_addr` is `host:port`. An empty host (`:8080`), `0.0.0.0`, or
+`management_addr` is `host:port`. An empty host (`:3287`), `0.0.0.0`, or
 `[::]` binds every interface; the script still reads it over loopback. Keep
 the default loopback bind unless something outside the workspace must
 scrape the worker, and never publish it through a `coder_app`.
@@ -195,6 +195,6 @@ module "cursor_worker" {
   source          = "registry.coder.com/coder/agent-relay-cursor/coder"
   version         = "0.8.0"
   agent_id        = coder_agent.main.id
-  management_addr = "127.0.0.1:3285"
+  management_addr = "127.0.0.1:3290"
 }
 ```

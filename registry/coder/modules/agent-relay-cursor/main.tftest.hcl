@@ -385,12 +385,12 @@ run "management_addr_default" {
 
   # Loopback by default: only the workspace's own scripts read it.
   assert {
-    condition     = strcontains(local.start_script, "--management-addr \"127.0.0.1:8080\"") && output.management_url == "http://127.0.0.1:8080"
-    error_message = "the worker must serve its management endpoints on 127.0.0.1:8080 by default"
+    condition     = strcontains(local.start_script, "--management-addr \"127.0.0.1:3287\"") && output.management_url == "http://127.0.0.1:3287"
+    error_message = "the worker must serve its management endpoints on 127.0.0.1:3287 by default"
   }
 
   assert {
-    condition     = strcontains(output.session_attached_metadata_script, "management_url=\"http://127.0.0.1:8080\"") && strcontains(output.session_attached_metadata_script, var.state_file)
+    condition     = strcontains(output.session_attached_metadata_script, "management_url=\"http://127.0.0.1:3287\"") && strcontains(output.session_attached_metadata_script, var.state_file)
     error_message = "the attachment script must read the worker's management server and state file"
   }
 }
@@ -399,12 +399,12 @@ run "management_addr_wildcard" {
   command = plan
 
   variables {
-    management_addr = ":3285"
+    management_addr = ":3290"
   }
 
   # A wildcard bind is still reached over loopback from inside.
   assert {
-    condition     = strcontains(local.start_script, "--management-addr \":3285\"") && output.management_url == "http://127.0.0.1:3285"
+    condition     = strcontains(local.start_script, "--management-addr \":3290\"") && output.management_url == "http://127.0.0.1:3290"
     error_message = "an empty host must bind every interface and be read over loopback"
   }
 }
@@ -413,11 +413,11 @@ run "management_addr_ipv6_wildcard" {
   command = plan
 
   variables {
-    management_addr = "[::]:3285"
+    management_addr = "[::]:3290"
   }
 
   assert {
-    condition     = output.management_url == "http://[::1]:3285"
+    condition     = output.management_url == "http://[::1]:3290"
     error_message = "an IPv6 wildcard bind must be read over IPv6 loopback"
   }
 }
@@ -452,7 +452,7 @@ run "management_addr_rejects_shell" {
   command = plan
 
   variables {
-    management_addr = "127.0.0.1:8080\"; touch /tmp/PWNED; \""
+    management_addr = "127.0.0.1:3287\"; touch /tmp/PWNED; \""
   }
 
   expect_failures = [var.management_addr]

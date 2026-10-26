@@ -94,14 +94,14 @@ variable "log_file" {
 variable "management_addr" {
   description = "Listen address for the worker's /healthz, /readyz, and /metrics HTTP server (the CLI's --management-addr), as host:port. session_attached_metadata_script reads it. Keep it on loopback unless something outside the workspace must scrape it. Empty disables the server, and session_attached_metadata_script then reports disabled."
   type        = string
-  default     = "127.0.0.1:8080"
+  default     = "127.0.0.1:3287"
 
   # Rendered into the supervisor as an argument, so it is restricted to a
   # hostname, IPv4, or bracketed IPv6 host and a port. The host may be empty
-  # (":8080") to bind every interface.
+  # (":3287") to bind every interface.
   validation {
     condition     = var.management_addr == "" || can(regex("^(\\[[0-9A-Fa-f:.]+\\]|[A-Za-z0-9.-]*):[0-9]{1,5}$", var.management_addr))
-    error_message = "management_addr must be empty or host:port, e.g. 127.0.0.1:8080, :8080, or [::1]:8080."
+    error_message = "management_addr must be empty or host:port, e.g. 127.0.0.1:3287, :3287, or [::1]:3287."
   }
 
   validation {
