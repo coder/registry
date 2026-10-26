@@ -91,6 +91,25 @@ variable "log_file" {
   description = "Path the detached worker's output is written to."
 }
 
+variable "management_addr" {
+  description = "Listen address for the worker's /healthz, /readyz, and /metrics HTTP server (the CLI's --management-addr), as host:port. session_attached_metadata_script reads it. Keep it on loopback unless something outside the workspace must scrape it. Empty disables the server, and session_attached_metadata_script then reports disabled."
+  type        = string
+  default     = "127.0.0.1:8080"
+
+  # Rendered into the supervisor as an argument, so it is restricted to a
+  # hostname, IPv4, or bracketed IPv6 host and a port. The host may be empty
+  # (":8080") to bind every interface.
+  validation {
+    condition     = var.management_addr == "" || can(regex("^(\\[[0-9A-Fa-f:.]+\\]|[A-Za-z0-9.-]*):[0-9]{1,5}$", var.management_addr))
+    error_message = "management_addr must be empty or host:port, e.g. 127.0.0.1:8080, :8080, or [::1]:8080."
+  }
+
+  validation {
+    condition     = var.management_addr == "" || try(tonumber(regex(":([0-9]+)$", var.management_addr)[0]) <= 65535 && tonumber(regex(":([0-9]+)$", var.management_addr)[0]) > 0, false)
+    error_message = "management_addr port must be from 1 to 65535."
+  }
+}
+
 variable "serving_log_pattern" {
   type        = string
   default     = "in use"
@@ -116,11 +135,11 @@ variable "additional_args" {
 
   # The module already sets these: the pool and idle timeout come from Agent
   # Relay's parameters, the token is passed by file so it stays off the
-  # command line, and desktop flags have their own inputs. Keep this list in
-  # sync with the `worker` flags in start.sh.tftpl.
+  # command line, and the management server and desktop flags have their own
+  # inputs. Keep this list in sync with the `worker` flags in start.sh.tftpl.
   validation {
-    condition     = !anytrue([for a in var.additional_args : contains(["--pool", "--idle-release-timeout", "--auth-token-file", "--auth-token", "--computer-use", "--share-desktop"], split("=", a)[0])])
-    error_message = "additional_args must not set --pool, --idle-release-timeout, --auth-token-file, --auth-token, --computer-use, or --share-desktop; the module sets them (use computer_use and share_desktop for the desktop flags)."
+    condition     = !anytrue([for a in var.additional_args : contains(["--pool", "--idle-release-timeout", "--auth-token-file", "--auth-token", "--management-addr", "--computer-use", "--share-desktop"], split("=", a)[0])])
+    error_message = "additional_args must not set --pool, --idle-release-timeout, --auth-token-file, --auth-token, --management-addr, --computer-use, or --share-desktop; the module sets them (use management_addr, computer_use, and share_desktop instead)."
   }
 }
 
@@ -262,6 +281,14 @@ locals {
   # tree so one directory holds everything a debugger needs.
   module_directory = "$HOME/.coder-modules/coder/agent-relay-cursor"
 
+  # A wildcard bind is reached over loopback from inside the workspace.
+  management_host = var.management_addr == "" ? "" : regex("^(.*):[0-9]+$", var.management_addr)[0]
+  management_port = var.management_addr == "" ? "" : regex(":([0-9]+)$", var.management_addr)[0]
+  management_url = var.management_addr == "" ? "" : format("http://%s:%s",
+    contains(["", "0.0.0.0"], local.management_host) ? "127.0.0.1" : (local.management_host == "[::]" ? "[::1]" : local.management_host),
+    local.management_port,
+  )
+
   install_script = templatefile("${path.module}/install.sh.tftpl", {
     cli_binary  = var.cli_binary
     install_cli = var.install_cli
@@ -273,6 +300,7 @@ locals {
     install_cli      = var.install_cli
     computer_use     = var.computer_use
     share_desktop    = var.share_desktop
+    management_addr  = var.management_addr
     state_file       = var.state_file
     log_file         = var.log_file
     additional_args  = base64encode(join("\n", var.additional_args))
@@ -303,6 +331,20 @@ output "status_metadata_script" {
     log_file            = var.log_file
     serving_log_pattern = base64encode(var.serving_log_pattern)
   })
+}
+
+output "session_attached_metadata_script" {
+  description = "Script body for the agent_relay_session_attached agent metadata item. Prints true while a session is active on the worker, false when none is, and disabled when management_addr is empty. Fails when the management server cannot be read, so an unknown sample is an error rather than false."
+  value = templatefile("${path.module}/session_attached.sh.tftpl", {
+    cli_binary     = var.cli_binary
+    state_file     = var.state_file
+    management_url = local.management_url
+  })
+}
+
+output "management_url" {
+  description = "URL that reaches the worker's /healthz, /readyz, and /metrics server from inside the workspace, or empty when management_addr is empty."
+  value       = local.management_url
 }
 
 output "scripts" {

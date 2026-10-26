@@ -16,7 +16,7 @@ parameters the relay stamps on each build and runs the Cursor CLI worker.
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "0.7.0"
+  version  = "0.8.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Cursor CLI at start when it is not in the image. Bake
@@ -33,12 +33,21 @@ resource "coder_agent" "main" {
     interval     = 10
     timeout      = 5
   }
+
+  metadata {
+    key          = "agent_relay_session_attached"
+    display_name = "Session attached"
+    script       = module.cursor_worker.session_attached_metadata_script
+    interval     = 30
+    timeout      = 5
+  }
 }
 ```
 
 The `agent_relay_status` metadata block is required. It has to live on the
 `coder_agent`, which the module cannot declare; the relay reads it to decide
-when to reap the workspace.
+when to reap the workspace. The `agent_relay_session_attached` block is
+optional; see [Session attachment](#session-attachment).
 
 When Agent Relay stamps `agent_relay_session_id`, the module adds two external
 apps. Cursor's docs call the clients Cursor Web and Cursor Desktop:
@@ -92,13 +101,13 @@ Use `additional_args` to pass extra arguments to `agent worker`, as a
 list with one element per argument. They are appended after the flags the module sets and before the `start` subcommand, in the order written.
 Each element is passed exactly as written, so a flag can repeat and a value
 can contain spaces or quotes without escaping. Flags the module already sets
-(`--pool`, `--idle-release-timeout`, `--auth-token-file`, `--auth-token`, `--computer-use`, `--share-desktop`) are rejected, with or without `=value`. Give a flag that takes an
+(`--pool`, `--idle-release-timeout`, `--auth-token-file`, `--auth-token`, `--management-addr`, `--computer-use`, `--share-desktop`) are rejected, with or without `=value`. Give a flag that takes an
 optional value an explicit one (`--flag=value`), or it consumes `start`.
 
 ```tf
 module "cursor_worker" {
   source          = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version         = "0.7.0"
+  version         = "0.8.0"
   agent_id        = coder_agent.main.id
   additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
 }
@@ -155,3 +164,37 @@ disk: a live worker is left alone, a terminal state is left for the relay
 to act on, and anything else is reset to `pending` before a new worker
 starts. Liveness is judged by pid and cmdline, so a reused pid reads as
 `orphaned` rather than `working`.
+
+## Session attachment
+
+The worker serves `GET /healthz`, `GET /readyz`, and `GET /metrics` on
+`management_addr` (default `127.0.0.1:8080`). The
+`cursor_self_hosted_worker_session_active` gauge is `1` while a cloud agent
+session runs on the worker. `session_attached_metadata_script` reads it and
+prints one of:
+
+| value      | meaning                                                              |
+| ---------- | -------------------------------------------------------------------- |
+| `true`     | a session is active on the worker                                    |
+| `false`    | no session is active, or no worker is alive                          |
+| `disabled` | `management_addr` is empty, so the server is off and nothing is read |
+
+When the worker is alive but `/metrics` cannot be read or has no session
+gauge, the script exits non-zero. The metadata sample is then an error, so
+a consumer can tell an unknown sample from an ended session. The server
+starts only after the worker connects to Cursor, so a fresh worker reports
+an error briefly. The image needs `curl` and `awk`.
+
+`management_addr` is `host:port`. An empty host (`:8080`), `0.0.0.0`, or
+`[::]` binds every interface; the script still reads it over loopback. Keep
+the default loopback bind unless something outside the workspace must
+scrape the worker, and never publish it through a `coder_app`.
+
+```tf
+module "cursor_worker" {
+  source          = "registry.coder.com/coder/agent-relay-cursor/coder"
+  version         = "0.8.0"
+  agent_id        = coder_agent.main.id
+  management_addr = "127.0.0.1:3285"
+}
+```
