@@ -23,23 +23,23 @@ version_matches() {
   [ "$1" = "$ARG_BACKUPDRILL_VERSION" ] || [[ "$1" == "$ARG_BACKUPDRILL_VERSION".* ]]
 }
 
-# The CLI starts with "#!/usr/bin/env node", and a Node.js from nvm is only on
-# PATH in shells that load nvm. The launcher loads nvm itself when node is
-# missing, so backupdrill also works from non-interactive commands.
+# The CLI starts with "#!/usr/bin/env node", which runs whichever node is first
+# on PATH at that moment. A Node.js from nvm is only on PATH in shells that load
+# nvm, and a system Node.js may be too old, so the launcher pins the node that
+# this script found and checked the install with.
 install_launcher() {
   if [ -z "$${CODER_SCRIPT_BIN_DIR:-}" ]; then
     echo "CODER_SCRIPT_BIN_DIR is not set; add $NPM_PREFIX/bin to PATH to use backupdrill."
     return
   fi
   local launcher="$CODER_SCRIPT_BIN_DIR/backupdrill"
+  local node_bin
+  node_bin=$(command -v node)
   # Writing through a symlink left by an earlier run would overwrite its target.
   rm -f "$launcher"
   cat > "$launcher" << EOF
 #!/usr/bin/env bash
-if ! command -v node > /dev/null 2>&1 && [ -s "\$HOME/.nvm/nvm.sh" ]; then
-  . "\$HOME/.nvm/nvm.sh"
-fi
-exec "$MODULE_BIN" "\$@"
+exec "$node_bin" "$MODULE_BIN" "\$@"
 EOF
   chmod +x "$launcher"
 }

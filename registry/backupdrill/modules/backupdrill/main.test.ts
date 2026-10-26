@@ -190,6 +190,8 @@ describe("backupdrill", () => {
       "#!/bin/sh\necho 2.6.0\n",
     );
     await writeFakeNpm(id, "/usr/local/bin/npm", "#!/bin/sh\necho 2.7.1\n");
+    // Stand-in node that just runs the script it is given.
+    await writeExecutable(id, "/usr/local/bin/node", '#!/bin/sh\nexec "$@"\n');
 
     const result = await runInstall(id, installScript(state), "root");
     expect(result.exitCode).toBe(0);
@@ -210,15 +212,18 @@ describe("backupdrill", () => {
       "cat",
       `${SCRIPT_BIN_DIR}/backupdrill`,
     ]);
-    expect(launcher.stdout).toContain(`exec "${ROOT_MODULE_BIN}" "$@"`);
+    expect(launcher.stdout).toContain(
+      `exec "/usr/local/bin/node" "${ROOT_MODULE_BIN}" "$@"`,
+    );
   });
 
-  it("finds an nvm Node.js at install time and when the CLI runs later", async () => {
+  it("keeps using the nvm Node.js it installed with, even with an older system Node.js", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "test-agent",
     });
     const id = await startWorkspace("debian:bookworm-slim", "root");
-    // A stand-in nvm: node and npm are only on PATH after nvm.sh is sourced.
+    // A stand-in nvm: its node and npm are only on PATH after nvm.sh is
+    // sourced. Each stand-in node prints which one ran.
     const mkdir = await execContainer(id, [
       "mkdir",
       "-p",
@@ -230,6 +235,11 @@ describe("backupdrill", () => {
       id,
       "/opt/nvm-node/bin/node",
       "#!/bin/sh\necho 2.8.0\n",
+    );
+    await writeExecutable(
+      id,
+      "/usr/local/bin/node",
+      "#!/bin/sh\necho system-node\n",
     );
     await writeFakeNpm(id, "/opt/nvm-node/bin/npm", "#!/usr/bin/env node\n");
     await writeFileContainer(
@@ -243,15 +253,16 @@ describe("backupdrill", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("Installed backupdrill 2.8.0.");
 
-    // Without nvm loaded the npm-generated executable cannot find node...
+    // Without nvm loaded, the npm-generated executable picks up the system
+    // Node.js...
     const direct = await execContainer(id, [
       "bash",
       "-c",
       `${ROOT_MODULE_BIN} --version`,
     ]);
-    expect(direct.exitCode).not.toBe(0);
+    expect(direct.stdout.trim()).toBe("system-node");
 
-    // ...while the launcher on the agent's PATH loads nvm first.
+    // ...while the launcher on the agent's PATH runs the nvm one.
     const viaLauncher = await execContainer(id, [
       "bash",
       "-c",
