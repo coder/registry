@@ -136,6 +136,90 @@ spec:
 
 If the agent connects and code-server reports healthy, the workspace is running without internet access. If your access URL resolves to a load balancer outside the cluster, add an `ipBlock` rule for it.
 
+## Add modules
+
+This template uses no [modules](https://coder.com/docs/admin/templates/extending-templates/modules), so it never contacts `registry.coder.com`. To add modules from the [Coder Registry](https://registry.coder.com), make them available inside your network using one or more of these methods:
+
+| Method                                                                    | Good fit for                                                   | Getting new module versions                         |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------- |
+| [Vendor modules into the template](#vendor-modules-into-the-template)     | A few modules, no extra infrastructure                         | Copy the new version in and push the template again |
+| [Mirror the registry](#mirror-the-registry-through-a-terraform-registry)  | Teams that already run JFrog Artifactory or a similar registry | Cached on first use; pre-warm before disconnecting  |
+| [Host the Coder Registry internally](#host-the-coder-registry-internally) | Fully disconnected networks with an internal Git server        | Sync the repository from a connected machine        |
+
+Whichever method you use, the module's scripts must not download anything when the workspace starts. Many modules install tools at runtime by default. Check each module's README for offline options, such as `offline = true` on [code-server](https://registry.coder.com/modules/coder/code-server), and bake the tools into the workspace image.
+
+### Vendor modules into the template
+
+Copy the module's source into the template directory and reference it with a local path. `coder templates push` uploads the whole directory, so the provisioner never fetches the module.
+
+On a machine with internet access, check out the module's release tag and copy it into the template:
+
+```shell
+git clone --depth 1 --branch release/coder/code-server/v1.6.0 \
+  https://github.com/coder/registry /tmp/coder-registry
+mkdir -p registry/coder/templates/kubernetes-airgapped/modules
+cp -r /tmp/coder-registry/registry/coder/modules/code-server \
+  registry/coder/templates/kubernetes-airgapped/modules/code-server
+```
+
+Then reference the local copy. Local modules don't take a `version` argument:
+
+```tf
+module "code-server" {
+  count          = data.coder_workspace.me.start_count
+  source         = "./modules/code-server"
+  agent_id       = coder_agent.main.id
+  offline        = true
+  install_prefix = "/usr/local" # where the Dockerfile above installs code-server
+}
+```
+
+If you replace the built-in code-server app with the module, set `code_server_enabled = false` so the workspace doesn't run two copies. To update a module, copy in the new release and push the template again.
+
+### Mirror the registry through a Terraform registry
+
+Terraform's `provider_installation` mirrors only cover providers, not modules. To mirror modules, proxy `registry.coder.com` through a Terraform registry inside your network, such as a JFrog Artifactory remote Terraform repository, and point module sources at it:
+
+```tf
+module "code-server" {
+  count    = data.coder_workspace.me.start_count
+  source   = "artifactory.example.internal/coder/code-server/coder"
+  version  = "1.6.0"
+  agent_id = coder_agent.main.id
+  offline  = true
+}
+```
+
+The provisioner's Terraform CLI configuration needs a `host` block and credentials for the mirror. Artifactory caches modules on first request, so if the mirror itself can't reach `registry.coder.com`, run `terraform init` against every module you need before disconnecting. Set `CODER_TEMPLATE_BUILDER_REGISTRY_URL` so the template builder generates sources that use the mirror. See [Mirror the Coder Registry with JFrog Artifactory](https://coder.com/docs/install/prepare/registry-mirror) for the full setup.
+
+### Host the Coder Registry internally
+
+The [coder/registry](https://github.com/coder/registry) repository contains the source of every module, and each module version is tagged `release/<namespace>/<module>/v<version>`. Copy the repository into your network and serve modules from it.
+
+From a machine with internet access, mirror the repository to your internal Git server:
+
+```shell
+git clone --mirror https://github.com/coder/registry /tmp/coder-registry.git
+cd /tmp/coder-registry.git
+git push --mirror https://git.example.internal/coder/registry.git
+```
+
+Then use Git sources pinned to a release tag. Git sources take the version from `ref` rather than a `version` argument:
+
+```tf
+module "code-server" {
+  count          = data.coder_workspace.me.start_count
+  source         = "git::https://git.example.internal/coder/registry.git//registry/coder/modules/code-server?ref=release/coder/code-server/v1.6.0"
+  agent_id       = coder_agent.main.id
+  offline        = true
+  install_prefix = "/usr/local"
+}
+```
+
+The Coder server or external provisioner needs `git` and credentials for your Git server. See [Private git repository](https://coder.com/docs/admin/templates/extending-templates/modules#private-git-repository). To pick up new module versions, run `git fetch --prune` in the mirror clone on a connected machine and push again.
+
+If you'd rather serve modules from a Terraform registry than from Git, publish them from your clone to an Artifactory local Terraform repository. See [Artifactory Local Repository](https://coder.com/docs/admin/templates/extending-templates/modules#artifactory-local-repository).
+
 ## Client-side IDEs
 
 The workspace needs no internet access, but some desktop IDEs download server components through the user's machine:
@@ -153,4 +237,4 @@ This template provisions the following resources:
 When the workspace restarts, any tools or files outside of the home directory are not persisted. To pre-bake tools into the workspace, modify the container image.
 
 > [!NOTE]
-> This template is designed to be a starting point. Edit the Terraform to extend the template to support your use case. If you add [modules](https://coder.com/docs/admin/templates/extending-templates/modules), serve them from an [internal registry mirror](https://coder.com/docs/install/prepare/registry-mirror) so the template stays air-gapped.
+> This template is designed to be a starting point. Edit the Terraform to extend the template to support your use case. If you add modules, follow [Add modules](#add-modules) so the template stays air-gapped.
