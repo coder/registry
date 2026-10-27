@@ -311,3 +311,68 @@ run "serving_log_pattern_is_data" {
     error_message = "serving_log_pattern must be base64-encoded and matched with grep -F"
   }
 }
+
+run "health_port_default" {
+  command = plan
+
+  # Not the CLI's 8080, which a template image is likely to use already.
+  # Passed explicitly so the URL the attachment script reads always matches
+  # the port the runner binds.
+  assert {
+    condition     = strcontains(local.start_script, "--health-port 3286") && output.health_url == "http://127.0.0.1:3286"
+    error_message = "the runner must serve /healthz on 3286 by default, not the CLI's 8080"
+  }
+
+  assert {
+    condition     = strcontains(output.session_attached_metadata_script, "health_url=\"http://127.0.0.1:3286\"") && strcontains(output.session_attached_metadata_script, var.state_file)
+    error_message = "the attachment script must read the runner's listener and state file"
+  }
+}
+
+run "health_port_overridden" {
+  command = plan
+
+  variables {
+    health_port = 3290
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "--health-port 3290") && output.health_url == "http://127.0.0.1:3290" && strcontains(output.session_attached_metadata_script, "http://127.0.0.1:3290")
+    error_message = "health_port must select the port the runner binds and the attachment script reads"
+  }
+}
+
+run "health_port_disabled" {
+  command = plan
+
+  variables {
+    health_port = 0
+  }
+
+  # The CLI listens on 8080 unless told 0, so disabling must pass 0, and
+  # the attachment script must say why it cannot observe a session.
+  assert {
+    condition     = strcontains(local.start_script, "--health-port 0") && output.health_url == "" && strcontains(output.session_attached_metadata_script, "health_url=\"\"")
+    error_message = "health_port = 0 must disable the listener and the attachment probe"
+  }
+}
+
+run "health_port_rejects_out_of_range" {
+  command = plan
+
+  variables {
+    health_port = 70000
+  }
+
+  expect_failures = [var.health_port]
+}
+
+run "additional_args_rejects_health_port" {
+  command = plan
+
+  variables {
+    additional_args = ["--health-port=9000"]
+  }
+
+  expect_failures = [var.additional_args]
+}
