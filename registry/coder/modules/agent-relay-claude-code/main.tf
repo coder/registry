@@ -99,6 +99,25 @@ variable "serving_log_pattern" {
   description = "Runner log substring that means a session was claimed. Only distinguishes the agent_relay_status values working and serving; a stale pattern degrades to working and affects nothing else."
 }
 
+variable "additional_args" {
+  description = "Additional arguments to pass to `claude self-hosted-runner`, one list element per argument, in order (e.g. `[\"--header\", \"a: 1\", \"--header\", \"b: 2\", \"--verbose\"]`). Each element is passed as written, so a flag can repeat and a value may contain spaces."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for a in var.additional_args : a != "" && !can(regex("\n", a))])
+    error_message = "additional_args elements must be non-empty and must not contain newlines."
+  }
+
+  # The module already sets these, from base_dir, exit_if_unused_min, and the
+  # permissions wrapper. Keep this list in sync with the `self-hosted-runner`
+  # flags in start.sh.tftpl.
+  validation {
+    condition     = !anytrue([for a in var.additional_args : contains(["--capacity", "--base-dir", "--exit-if-unused-min", "--exec-path"], split("=", a)[0])])
+    error_message = "additional_args must not set --capacity, --base-dir, --exit-if-unused-min, or --exec-path; the module sets them (use base_dir and exit_if_unused_min instead)."
+  }
+}
+
 data "coder_parameter" "agent_relay_session_id" {
   name         = "agent_relay_session_id"
   display_name = "Agent Relay session"
@@ -241,6 +260,7 @@ locals {
     log_file           = var.log_file
     base_dir           = var.base_dir
     exit_if_unused_min = var.exit_if_unused_min
+    additional_args    = base64encode(join("\n", var.additional_args))
   })
 }
 

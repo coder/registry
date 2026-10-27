@@ -14,8 +14,7 @@
 #
 #   - agent_relay_session_id, agent_relay_delivery_id, agent_relay_pool,
 #     agent_relay_cursor_pool_name, agent_relay_cursor_idle_release_timeout,
-#     agent_relay_cursor_repo_url, and agent_relay_cursor_credential_kind
-#     are persistent state: coderd only
+#     and agent_relay_cursor_repo_url are persistent state: coderd only
 #     stores parameter values the template declares, and Agent Relay's
 #     dedupe and reconciliation query workspaces with `param:` search
 #     filters on them. agent_relay_cursor_repo_url is stamped on every
@@ -69,6 +68,17 @@ variable "computer_use" {
   description = "Start the worker with --computer-use. Requires the computer-use packages in the workspace image."
 }
 
+variable "share_desktop" {
+  type        = bool
+  default     = false
+  description = "Start the worker with --share-desktop so viewers in Cursor can watch or control the agent's managed desktop. Linux only; requires computer_use and the TigerVNC and Xfce packages in the workspace image."
+
+  validation {
+    condition     = !var.share_desktop || var.computer_use
+    error_message = "share_desktop requires computer_use = true."
+  }
+}
+
 variable "state_file" {
   type        = string
   default     = "$HOME/.coder-modules/coder/agent-relay-cursor/worker-state"
@@ -91,6 +101,26 @@ variable "serving_log_pattern" {
   validation {
     condition     = length(var.serving_log_pattern) > 0
     error_message = "serving_log_pattern must not be empty; an empty pattern matches every log line."
+  }
+}
+
+variable "additional_args" {
+  description = "Additional arguments to pass to `agent worker`, one list element per argument, in order (e.g. `[\"--header\", \"a: 1\", \"--header\", \"b: 2\", \"--verbose\"]`). Each element is passed as written, so a flag can repeat and a value may contain spaces."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for a in var.additional_args : a != "" && !can(regex("\n", a))])
+    error_message = "additional_args elements must be non-empty and must not contain newlines."
+  }
+
+  # The module already sets these: the pool and idle timeout come from Agent
+  # Relay's parameters, the token is passed by file so it stays off the
+  # command line, and desktop flags have their own inputs. Keep this list in
+  # sync with the `worker` flags in start.sh.tftpl.
+  validation {
+    condition     = !anytrue([for a in var.additional_args : contains(["--pool", "--idle-release-timeout", "--auth-token-file", "--auth-token", "--computer-use", "--share-desktop"], split("=", a)[0])])
+    error_message = "additional_args must not set --pool, --idle-release-timeout, --auth-token-file, --auth-token, --computer-use, or --share-desktop; the module sets them (use computer_use and share_desktop for the desktop flags)."
   }
 }
 
@@ -178,38 +208,15 @@ data "coder_parameter" "agent_relay_cursor_repo_url" {
   })
 }
 
-data "coder_parameter" "agent_relay_cursor_credential_kind" {
-  name         = "agent_relay_cursor_credential_kind"
-  display_name = "Cursor credential kind"
-  description  = "How the worker hands agent_relay_credential to the Cursor CLI. worker_token passes the per-user sub-token as --auth-token. api_key exports the pool's service-account key as CURSOR_API_KEY, which is the only form the CLI accepts it in; Agent Relay sets this to api_key for pools with insecure_shared_token. A human never fills it in."
-  type         = "string"
-  mutable      = true
-  default      = "worker_token"
-  order        = 1006
-  styling = jsonencode({
-    disabled    = true
-    placeholder = "Set by Agent Relay on dispatch"
-  })
-
-  option {
-    name  = "Worker token (--auth-token)"
-    value = "worker_token"
-  }
-  option {
-    name  = "Service-account API key (CURSOR_API_KEY)"
-    value = "api_key"
-  }
-}
-
 data "coder_parameter" "agent_relay_credential" {
   name         = "agent_relay_credential"
   display_name = "Agent Relay credential"
-  description  = "Short-lived Cursor worker token, scoped to the user who requested the agent, that the worker authenticates with. Agent Relay mints it from the pool's service account key when it dispatches the workspace; a human never fills it in. Ephemeral: it expires an hour after minting and is not reused on a later build."
+  description  = "Cursor session token the worker authenticates with. Agent Relay mints it with the claim from the pool's service account key; a human never fills it in. It serves only this request's claim and stops working when the claim ends. Ephemeral: not reused on a later build."
   type         = "string"
   ephemeral    = true
   mutable      = true
   default      = ""
-  order        = 1007
+  order        = 1006
   styling = jsonencode({
     disabled    = true
     mask_input  = true
@@ -218,12 +225,10 @@ data "coder_parameter" "agent_relay_credential" {
 }
 
 # CURSOR_AGENT_WORKER_ID is the Cursor CLI's contract; do not rename it.
-# The credential travels under an Agent Relay name and the supervisor
-# decides how to hand it to the CLI from the stamped credential kind: a
-# per-user worker token has no CLI env var and goes on the command line
-# as --auth-token; a team service-account key is only accepted as
-# CURSOR_API_KEY. Each is rejected through the other door, which is why
-# the relay stamps the kind alongside the credential.
+# The session token has no CLI env var, so it travels under an Agent
+# Relay name and the start script writes it to a file for
+# --auth-token-file. It is never CURSOR_API_KEY: the CLI would treat the
+# token as a service account key and reject it.
 resource "coder_env" "agent_relay_cursor_token" {
   agent_id = var.agent_id
   name     = "AGENT_RELAY_CURSOR_TOKEN"
@@ -251,12 +256,6 @@ resource "coder_env" "agent_relay_cursor_idle_release_timeout" {
   value    = data.coder_parameter.agent_relay_cursor_idle_release_timeout.value
 }
 
-resource "coder_env" "agent_relay_cursor_credential_kind" {
-  agent_id = var.agent_id
-  name     = "AGENT_RELAY_CURSOR_CREDENTIAL_KIND"
-  value    = data.coder_parameter.agent_relay_cursor_credential_kind.value
-}
-
 locals {
   # coder-utils requires this exact layout. Scripts land in scripts/ and
   # their output in logs/; the worker state and log default to the same
@@ -273,8 +272,10 @@ locals {
     cli_binary       = var.cli_binary
     install_cli      = var.install_cli
     computer_use     = var.computer_use
+    share_desktop    = var.share_desktop
     state_file       = var.state_file
     log_file         = var.log_file
+    additional_args  = base64encode(join("\n", var.additional_args))
   })
 }
 

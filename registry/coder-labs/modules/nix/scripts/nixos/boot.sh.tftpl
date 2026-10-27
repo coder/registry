@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+FLAKE_URL=$(echo -n '${base64encode(ARG_FLAKE_URL)}' | base64 -d)
+FLAKE_BRANCH=$(echo -n '${base64encode(ARG_FLAKE_BRANCH)}' | base64 -d)
+FLAKE_ATTR=$(echo -n '${base64encode(ARG_FLAKE_ATTR)}' | base64 -d)
+FLAKE_DIR=$(echo -n '${base64encode(ARG_FLAKE_DIR)}' | base64 -d)
+LOG_DIR=$(echo -n '${base64encode(ARG_LOG_DIR)}' | base64 -d)
+NIX_CONFIG=$(echo -n '${base64encode(ARG_NIX_CONF)}' | base64 -d)
+export NIX_CONFIG
+
+${REBUILD_SH}

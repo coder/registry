@@ -55,7 +55,6 @@ run "parameter_contract" {
       data.coder_parameter.agent_relay_cursor_pool_name.ephemeral == false,
       data.coder_parameter.agent_relay_cursor_repo_url.ephemeral == false,
       data.coder_parameter.agent_relay_cursor_idle_release_timeout.ephemeral == false,
-      data.coder_parameter.agent_relay_cursor_credential_kind.ephemeral == false,
       data.coder_parameter.agent_relay_credential.ephemeral == true,
     ])
     error_message = "parameter persistence does not match the Agent Relay contract"
@@ -142,18 +141,12 @@ run "worker_wiring" {
     error_message = "the worker must read pool name and idle timeout from the environment at run time"
   }
 
-  # The token reaches the worker as --auth-token from the supervisor's
-  # environment; it must not be expanded into the supervisor file the
-  # script writes to disk.
+  # The token reaches the worker through a file, never on its command
+  # line, and is not expanded into the supervisor file the script writes
+  # to disk.
   assert {
-    condition     = strcontains(local.start_script, "auth_args=(--auth-token \"\\$AGENT_RELAY_CURSOR_TOKEN\")") && strcontains(local.start_script, "export CURSOR_API_KEY=\"\\$AGENT_RELAY_CURSOR_TOKEN\"")
-    error_message = "the supervisor must offer both credential paths, each reading the token from the environment at run time"
-  }
-
-  # The relay stamps which path applies; the supervisor branches on it.
-  assert {
-    condition     = data.coder_parameter.agent_relay_cursor_credential_kind.name == "agent_relay_cursor_credential_kind" && data.coder_parameter.agent_relay_cursor_credential_kind.default == "worker_token" && coder_env.agent_relay_cursor_credential_kind.name == "AGENT_RELAY_CURSOR_CREDENTIAL_KIND"
-    error_message = "the credential kind is a stamped parameter defaulting to worker_token, exported for the supervisor"
+    condition     = strcontains(local.start_script, "--auth-token-file \"$token_file\"") && !strcontains(local.start_script, "--auth-token ")
+    error_message = "the worker must authenticate with --auth-token-file, not --auth-token"
   }
 
   # Reaping reads this file through the agent_relay_status metadata item,
@@ -211,6 +204,78 @@ run "computer_use_enabled" {
     condition     = can(regex("--computer-use", local.start_script))
     error_message = "computer_use = true must pass the flag to the worker"
   }
+
+  assert {
+    condition     = !can(regex("--share-desktop", local.start_script))
+    error_message = "desktop sharing must stay opt in"
+  }
+}
+
+run "share_desktop_enabled" {
+  command = plan
+
+  variables {
+    computer_use  = true
+    share_desktop = true
+  }
+
+  assert {
+    condition     = can(regex("--share-desktop=view_and_control", local.start_script))
+    error_message = "share_desktop must pass an explicit mode, or the optional argument swallows start"
+  }
+}
+
+run "share_desktop_requires_computer_use" {
+  command = plan
+
+  variables {
+    share_desktop = true
+  }
+
+  expect_failures = [var.share_desktop]
+}
+
+run "additional_args_default_empty" {
+  command = plan
+
+  assert {
+    condition     = strcontains(local.start_script, "done < <(echo -n '' | base64 -d)")
+    error_message = "additional_args must default to empty"
+  }
+}
+
+run "additional_args_encoded" {
+  command = plan
+
+  variables {
+    additional_args = ["--header", "it's here", "--header", "b", "--verbose"]
+  }
+
+  # Base64 keeps quotes in an argument from breaking the rendered script.
+  assert {
+    condition     = strcontains(local.start_script, base64encode("--header\nit's here\n--header\nb\n--verbose")) && !strcontains(local.start_script, "it's here")
+    error_message = "additional_args must be base64-encoded into the start script, one argument per line, in order"
+  }
+}
+
+run "additional_args_rejects_newline" {
+  command = plan
+
+  variables {
+    additional_args = ["--verbose\n--pool"]
+  }
+
+  expect_failures = [var.additional_args]
+}
+
+run "additional_args_rejects_module_flags" {
+  command = plan
+
+  variables {
+    additional_args = ["--pool=2"]
+  }
+
+  expect_failures = [var.additional_args]
 }
 
 run "install_cli_enabled_by_default" {
