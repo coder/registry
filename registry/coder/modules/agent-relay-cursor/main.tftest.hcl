@@ -379,3 +379,101 @@ run "serving_log_pattern_is_data" {
     error_message = "serving_log_pattern must be base64-encoded and matched with grep -F"
   }
 }
+
+run "management_addr_default" {
+  command = plan
+
+  # Loopback by default: only the workspace's own scripts read it.
+  assert {
+    condition     = strcontains(local.start_script, "--management-addr \"127.0.0.1:3287\"") && output.management_url == "http://127.0.0.1:3287"
+    error_message = "the worker must serve its management endpoints on 127.0.0.1:3287 by default"
+  }
+
+  assert {
+    condition     = strcontains(output.session_attached_metadata_script, "management_url=\"http://127.0.0.1:3287\"") && strcontains(output.session_attached_metadata_script, var.state_file)
+    error_message = "the attachment script must read the worker's management server and state file"
+  }
+}
+
+run "management_addr_wildcard" {
+  command = plan
+
+  variables {
+    management_addr = ":3290"
+  }
+
+  # A wildcard bind is still reached over loopback from inside.
+  assert {
+    condition     = strcontains(local.start_script, "--management-addr \":3290\"") && output.management_url == "http://127.0.0.1:3290"
+    error_message = "an empty host must bind every interface and be read over loopback"
+  }
+}
+
+run "management_addr_ipv6_wildcard" {
+  command = plan
+
+  variables {
+    management_addr = "[::]:3290"
+  }
+
+  assert {
+    condition     = output.management_url == "http://[::1]:3290"
+    error_message = "an IPv6 wildcard bind must be read over IPv6 loopback"
+  }
+}
+
+run "management_addr_named_host" {
+  command = plan
+
+  variables {
+    management_addr = "10.0.0.5:9000"
+  }
+
+  assert {
+    condition     = output.management_url == "http://10.0.0.5:9000"
+    error_message = "a specific host must be read where it binds"
+  }
+}
+
+run "management_addr_disabled" {
+  command = plan
+
+  variables {
+    management_addr = ""
+  }
+
+  assert {
+    condition     = !strcontains(local.start_script, "--management-addr") && output.management_url == "" && strcontains(output.session_attached_metadata_script, "management_url=\"\"")
+    error_message = "an empty management_addr must disable the server and the attachment probe"
+  }
+}
+
+run "management_addr_rejects_shell" {
+  command = plan
+
+  variables {
+    management_addr = "127.0.0.1:3287\"; touch /tmp/PWNED; \""
+  }
+
+  expect_failures = [var.management_addr]
+}
+
+run "management_addr_rejects_bad_port" {
+  command = plan
+
+  variables {
+    management_addr = "127.0.0.1:99999"
+  }
+
+  expect_failures = [var.management_addr]
+}
+
+run "additional_args_rejects_management_addr" {
+  command = plan
+
+  variables {
+    additional_args = ["--management-addr", ":9000"]
+  }
+
+  expect_failures = [var.additional_args]
+}
