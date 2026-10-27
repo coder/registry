@@ -45,6 +45,11 @@ run "parameter_contract" {
     error_message = "client platform parameter name is what Agent Relay stamps"
   }
 
+  assert {
+    condition     = data.coder_parameter.agent_relay_claude_code_release_idle_session_min.name == "agent_relay_claude_code_release_idle_session_min"
+    error_message = "idle session release parameter name is what Agent Relay stamps"
+  }
+
   # The relay reads these back off a build long after dispatch, so they
   # must not be ephemeral; the rest must be, so a manual build never
   # inherits a stale credential, account lock, or attempt.
@@ -54,6 +59,7 @@ run "parameter_contract" {
       data.coder_parameter.agent_relay_delivery_id.ephemeral == false,
       data.coder_parameter.agent_relay_pool.ephemeral == false,
       data.coder_parameter.agent_relay_client_platform.ephemeral == false,
+      data.coder_parameter.agent_relay_claude_code_release_idle_session_min.ephemeral == false,
       data.coder_parameter.agent_relay_credential.ephemeral == true,
       data.coder_parameter.agent_relay_claude_code_lock_to_account.ephemeral == true,
       data.coder_parameter.agent_relay_attempt.ephemeral == true,
@@ -70,6 +76,7 @@ run "parameter_contract" {
         data.coder_parameter.agent_relay_delivery_id.styling,
         data.coder_parameter.agent_relay_pool.styling,
         data.coder_parameter.agent_relay_client_platform.styling,
+        data.coder_parameter.agent_relay_claude_code_release_idle_session_min.styling,
         data.coder_parameter.agent_relay_credential.styling,
         data.coder_parameter.agent_relay_claude_code_lock_to_account.styling,
         data.coder_parameter.agent_relay_attempt.styling,
@@ -372,6 +379,113 @@ run "additional_args_rejects_health_port" {
 
   variables {
     additional_args = ["--health-port=9000"]
+  }
+
+  expect_failures = [var.additional_args]
+}
+
+run "release_idle_session_min_default" {
+  command = plan
+
+  # A relay that predates the parameter never stamps it, so its default is
+  # what such a workspace runs with.
+  assert {
+    condition     = data.coder_parameter.agent_relay_claude_code_release_idle_session_min.default == "60" && data.coder_parameter.agent_relay_claude_code_release_idle_session_min.value == "60"
+    error_message = "the idle session release parameter must default to 60 minutes"
+  }
+
+  assert {
+    condition     = data.coder_parameter.agent_relay_claude_code_release_idle_session_min.type == "number" && data.coder_parameter.agent_relay_claude_code_release_idle_session_min.validation[0].min == 0 && data.coder_parameter.agent_relay_claude_code_release_idle_session_min.validation[0].max == 10080
+    error_message = "the idle session release parameter must accept 0 to 10080, the CLI's bound"
+  }
+
+  assert {
+    condition     = coder_env.agent_relay_claude_code_release_idle_session_min.name == "AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN" && coder_env.agent_relay_claude_code_release_idle_session_min.value == "60"
+    error_message = "the idle session release value must reach the start script through the environment"
+  }
+
+  # The supervisor reads the value at run time; it is never rendered as a
+  # flag value into the script.
+  assert {
+    condition     = strcontains(local.start_script, "set -- --release-idle-session-min \"\\$AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN\"") && !strcontains(local.start_script, "--release-idle-session-min 60")
+    error_message = "the supervisor must pass --release-idle-session-min from the environment"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN:-60}") && strcontains(local.start_script, "failed invalid-release-idle-session-min")
+    error_message = "the start script must fall back to the module default and refuse an invalid value"
+  }
+}
+
+run "release_idle_session_min_overridden" {
+  command = plan
+
+  variables {
+    release_idle_session_min = 15
+  }
+
+  assert {
+    condition     = data.coder_parameter.agent_relay_claude_code_release_idle_session_min.default == "15" && coder_env.agent_relay_claude_code_release_idle_session_min.value == "15"
+    error_message = "release_idle_session_min must set the parameter's default"
+  }
+}
+
+run "release_idle_session_min_disabled" {
+  command = plan
+
+  variables {
+    release_idle_session_min = 0
+  }
+
+  assert {
+    condition     = data.coder_parameter.agent_relay_claude_code_release_idle_session_min.default == "0" && coder_env.agent_relay_claude_code_release_idle_session_min.value == "0"
+    error_message = "release_idle_session_min = 0 must be a valid default"
+  }
+}
+
+run "release_idle_session_min_stamped" {
+  command = plan
+
+  # What a relay stamp looks like: the parameter's value differs from the
+  # module default, and the value is what the runner gets.
+  override_data {
+    target = data.coder_parameter.agent_relay_claude_code_release_idle_session_min
+    values = {
+      value = "30"
+    }
+  }
+
+  assert {
+    condition     = coder_env.agent_relay_claude_code_release_idle_session_min.value == "30"
+    error_message = "a stamped parameter value must override the module default"
+  }
+}
+
+run "release_idle_session_min_rejects_out_of_range" {
+  command = plan
+
+  variables {
+    release_idle_session_min = 10081
+  }
+
+  expect_failures = [var.release_idle_session_min]
+}
+
+run "release_idle_session_min_rejects_fraction" {
+  command = plan
+
+  variables {
+    release_idle_session_min = 1.5
+  }
+
+  expect_failures = [var.release_idle_session_min]
+}
+
+run "additional_args_rejects_release_idle_session_min" {
+  command = plan
+
+  variables {
+    additional_args = ["--release-idle-session-min=5"]
   }
 
   expect_failures = [var.additional_args]

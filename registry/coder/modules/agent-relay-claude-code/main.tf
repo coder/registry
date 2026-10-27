@@ -15,6 +15,10 @@
 #   - agent_relay_client_platform is persistent attribution: the surface
 #     that created the session. Stamped on every build; relays that
 #     predate it simply never set it.
+#   - agent_relay_claude_code_release_idle_session_min is a persistent
+#     runner input: minutes an attached session may sit without user input
+#     before the runner releases it. Its default is release_idle_session_min,
+#     so a relay that never stamps it gets the template's value.
 #   - agent_relay_credential, agent_relay_claude_code_lock_to_account,
 #     and agent_relay_attempt are ephemeral runner inputs, reset
 #     between builds. An ephemeral value is still recorded on the build
@@ -93,6 +97,17 @@ variable "exit_if_unused_min" {
   }
 }
 
+variable "release_idle_session_min" {
+  description = "Default minutes an attached session may go without user input before the runner releases it (the CLI's --release-idle-session-min). The runner then exits and Agent Relay reaps the workspace; the session parks and resumes on a fresh runner on the user's next message. Agent Relay can override this per build through the agent_relay_claude_code_release_idle_session_min parameter. 0 never releases an idle session."
+  type        = number
+  default     = 60
+
+  validation {
+    condition     = var.release_idle_session_min >= 0 && var.release_idle_session_min <= 10080 && floor(var.release_idle_session_min) == var.release_idle_session_min
+    error_message = "release_idle_session_min must be a whole number of minutes from 0 to 10080, 0 to disable."
+  }
+}
+
 variable "health_port" {
   description = "Port for the runner's /healthz and /metrics HTTP listener (the CLI's --health-port). session_attached_metadata_script reads it. The CLI binds every interface and has no bind-host option, so never publish this port. 0 disables the listener, and session_attached_metadata_script then reports disabled."
   type        = number
@@ -121,11 +136,11 @@ variable "additional_args" {
   }
 
   # The module already sets these, from base_dir, exit_if_unused_min,
-  # health_port, and the permissions wrapper. Keep this list in sync with the
-  # `self-hosted-runner` flags in start.sh.tftpl.
+  # release_idle_session_min, health_port, and the permissions wrapper. Keep
+  # this list in sync with the `self-hosted-runner` flags in start.sh.tftpl.
   validation {
-    condition     = !anytrue([for a in var.additional_args : contains(["--capacity", "--base-dir", "--exit-if-unused-min", "--health-port", "--exec-path"], split("=", a)[0])])
-    error_message = "additional_args must not set --capacity, --base-dir, --exit-if-unused-min, --health-port, or --exec-path; the module sets them (use base_dir, exit_if_unused_min, and health_port instead)."
+    condition     = !anytrue([for a in var.additional_args : contains(["--capacity", "--base-dir", "--exit-if-unused-min", "--release-idle-session-min", "--health-port", "--exec-path"], split("=", a)[0])])
+    error_message = "additional_args must not set --capacity, --base-dir, --exit-if-unused-min, --release-idle-session-min, --health-port, or --exec-path; the module sets them (use base_dir, exit_if_unused_min, release_idle_session_min, and health_port instead)."
   }
 }
 
@@ -183,6 +198,27 @@ data "coder_parameter" "agent_relay_client_platform" {
     disabled    = true
     placeholder = "Set by Agent Relay on dispatch"
   })
+}
+
+data "coder_parameter" "agent_relay_claude_code_release_idle_session_min" {
+  name         = "agent_relay_claude_code_release_idle_session_min"
+  display_name = "Claude Code idle session release"
+  description  = "Minutes an attached session may go without user input before the runner releases it and exits, which tells the relay to delete the workspace. The session parks and resumes on a fresh runner on the user's next message. Agent Relay sets this from the pool configuration; a human never fills it in. 0 never releases an idle session."
+  type         = "number"
+  mutable      = true
+  default      = tostring(var.release_idle_session_min)
+  order        = 1007
+  styling = jsonencode({
+    disabled    = true
+    placeholder = "Set by Agent Relay on dispatch"
+  })
+
+  # The CLI's own bound.
+  validation {
+    min   = 0
+    max   = 10080
+    error = "Idle session release must be a whole number of minutes from 0 to 10080, 0 to disable."
+  }
 }
 
 data "coder_parameter" "agent_relay_credential" {
@@ -253,6 +289,14 @@ resource "coder_env" "agent_relay_client_platform" {
   value    = data.coder_parameter.agent_relay_client_platform.value
 }
 
+# Parameter values reach the runner through the environment, never through
+# the script text, so a stamped value is data and not code.
+resource "coder_env" "agent_relay_claude_code_release_idle_session_min" {
+  agent_id = var.agent_id
+  name     = "AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN"
+  value    = data.coder_parameter.agent_relay_claude_code_release_idle_session_min.value
+}
+
 locals {
   # coder-utils requires this exact layout. Scripts land in scripts/ and
   # their output in logs/; the runner state and log default to the same
@@ -277,6 +321,8 @@ locals {
     exit_if_unused_min = var.exit_if_unused_min
     health_port        = var.health_port
     additional_args    = base64encode(join("\n", var.additional_args))
+    # Fallback only; the parameter's value arrives through coder_env.
+    release_idle_session_min = var.release_idle_session_min
   })
 }
 
