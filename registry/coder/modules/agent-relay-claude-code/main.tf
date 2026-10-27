@@ -93,10 +93,40 @@ variable "exit_if_unused_min" {
   }
 }
 
+variable "health_port" {
+  description = "Port for the runner's /healthz and /metrics HTTP listener (the CLI's --health-port). session_attached_metadata_script reads it. The CLI binds every interface and has no bind-host option, so never publish this port. 0 disables the listener, and session_attached_metadata_script then reports disabled."
+  type        = number
+  default     = 3286
+
+  validation {
+    condition     = var.health_port >= 0 && var.health_port <= 65535 && floor(var.health_port) == var.health_port
+    error_message = "health_port must be a whole number from 0 to 65535, 0 to disable."
+  }
+}
+
 variable "serving_log_pattern" {
   type        = string
   default     = "Picked up session"
   description = "Runner log substring that means a session was claimed. Only distinguishes the agent_relay_status values working and serving; a stale pattern degrades to working and affects nothing else."
+}
+
+variable "additional_args" {
+  description = "Additional arguments to pass to `claude self-hosted-runner`, one list element per argument, in order (e.g. `[\"--header\", \"a: 1\", \"--header\", \"b: 2\", \"--verbose\"]`). Each element is passed as written, so a flag can repeat and a value may contain spaces."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for a in var.additional_args : a != "" && !can(regex("\n", a))])
+    error_message = "additional_args elements must be non-empty and must not contain newlines."
+  }
+
+  # The module already sets these, from base_dir, exit_if_unused_min,
+  # health_port, and the permissions wrapper. Keep this list in sync with the
+  # `self-hosted-runner` flags in start.sh.tftpl.
+  validation {
+    condition     = !anytrue([for a in var.additional_args : contains(["--capacity", "--base-dir", "--exit-if-unused-min", "--health-port", "--exec-path"], split("=", a)[0])])
+    error_message = "additional_args must not set --capacity, --base-dir, --exit-if-unused-min, --health-port, or --exec-path; the module sets them (use base_dir, exit_if_unused_min, and health_port instead)."
+  }
 }
 
 data "coder_parameter" "agent_relay_session_id" {
@@ -229,6 +259,10 @@ locals {
   # tree so one directory holds everything a debugger needs.
   module_directory = "$HOME/.coder-modules/coder/agent-relay-claude-code"
 
+  # The listener binds every interface; loopback is how the workspace's own
+  # scripts reach it.
+  health_url = var.health_port > 0 ? "http://127.0.0.1:${var.health_port}" : ""
+
   install_script = templatefile("${path.module}/install.sh.tftpl", {
     cli_binary  = var.cli_binary
     install_cli = var.install_cli
@@ -241,6 +275,8 @@ locals {
     log_file           = var.log_file
     base_dir           = var.base_dir
     exit_if_unused_min = var.exit_if_unused_min
+    health_port        = var.health_port
+    additional_args    = base64encode(join("\n", var.additional_args))
   })
 }
 
@@ -267,6 +303,20 @@ output "status_metadata_script" {
     log_file            = var.log_file
     serving_log_pattern = base64encode(var.serving_log_pattern)
   })
+}
+
+output "session_attached_metadata_script" {
+  description = "Script body for the agent_relay_session_attached agent metadata item. Prints attached, unattached, stopped, or disabled; see README. Fails when a running runner's listener cannot be read, so an unknown sample is an error."
+  value = templatefile("${path.module}/session_attached.sh.tftpl", {
+    cli_binary = var.cli_binary
+    state_file = var.state_file
+    health_url = local.health_url
+  })
+}
+
+output "health_url" {
+  description = "Loopback URL of the runner's /healthz and /metrics listener, or empty when health_port is 0."
+  value       = local.health_url
 }
 
 output "scripts" {
