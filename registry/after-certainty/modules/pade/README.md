@@ -20,6 +20,8 @@ module "pade" {
 }
 ```
 
+## Direct Git installation
+
 Before publication to the Registry, the module can be consumed directly from Git:
 
 ```tf
