@@ -16,7 +16,7 @@ on each build and runs the Claude Code self-hosted runner.
 ```tf
 module "claude_code_runner" {
   source   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version  = "0.2.0"
+  version  = "0.5.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Claude Code CLI at start when it is not in the image. Bake
@@ -33,12 +33,21 @@ resource "coder_agent" "main" {
     interval     = 10
     timeout      = 5
   }
+
+  metadata {
+    key          = "agent_relay_session_attached"
+    display_name = "Session attached"
+    script       = module.claude_code_runner.session_attached_metadata_script
+    interval     = 30
+    timeout      = 5
+  }
 }
 ```
 
 The `agent_relay_status` metadata block is required. It has to live on the
 `coder_agent`, which the module cannot declare; the relay reads it to decide
-when to reap the workspace.
+when to reap the workspace. The `agent_relay_session_attached` block is
+optional; see [Session attachment](#session-attachment).
 
 ## Requirements
 
@@ -47,6 +56,23 @@ when to reap the workspace.
   image for the fastest start. `cli_binary` overrides the path.
 - Builds must finish inside Agent Relay's 300s spawn budget: pre-pulled
   images, no persistent volumes.
+
+## Additional runner arguments
+
+Use `additional_args` to pass extra arguments to `claude self-hosted-runner`, as a
+list with one element per argument. They are appended after the flags the module sets and before `--exec-path`, in the order written.
+Each element is passed exactly as written, so a flag can repeat and a value
+can contain spaces or quotes without escaping. Flags the module already sets
+(`--capacity`, `--base-dir`, `--exit-if-unused-min`, `--release-idle-session-min`, `--health-port`, `--exec-path`) are rejected, with or without `=value`.
+
+```tf
+module "claude_code_runner" {
+  source          = "registry.coder.com/coder/agent-relay-claude-code/coder"
+  version         = "0.5.0"
+  agent_id        = coder_agent.main.id
+  additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
+}
+```
 
 ## Parameters
 
@@ -79,7 +105,7 @@ runner. Everything lands under `$HOME/.coder-modules/coder/agent-relay-claude-co
 
 ## Runner lifecycle
 
-The start step launches `claude self-hosted-runner --capacity 1 --exit-if-unused-min 10` detached and exits,
+The start step launches `claude self-hosted-runner --capacity 1 --exit-if-unused-min 10 --release-idle-session-min 60` detached and exits,
 so the agent reaches `ready` immediately. The runner is wrapped so every
 session runs with `--permission-mode bypassPermissions`; there is no terminal
 attached, so an approval prompt would hang it. When the runner exits, Agent
@@ -101,3 +127,66 @@ rather than reporting `working` forever.
 | `failed <reason>` | runner could not start, e.g. `runner-agent-missing` when the CLI is absent |
 
 Renaming the `agent_relay_status` key breaks reaping.
+
+## Idle session release
+
+An attached session whose user sends nothing for 60 minutes is released: the
+runner parks the session server-side and exits, and Agent Relay deletes the
+workspace. The user's next message resumes the session on a fresh runner.
+This is the CLI's `--release-idle-session-min`.
+
+`release_idle_session_min` sets the template's default, from `0` to `10080`
+minutes. Agent Relay can override it per build by stamping the
+`agent_relay_claude_code_release_idle_session_min` parameter, whose default is
+the variable, so a relay that does not stamp it gets the template's value. `0`
+omits the flag and keeps the CLI's default of never releasing. The value
+reaches the runner through the environment, and a value outside the range
+fails the start step with `failed invalid-release-idle-session-min`.
+
+```tf
+module "claude_code_runner" {
+  source                   = "registry.coder.com/coder/agent-relay-claude-code/coder"
+  version                  = "0.5.0"
+  agent_id                 = coder_agent.main.id
+  release_idle_session_min = 30
+}
+```
+
+## Session attachment
+
+The runner serves `GET /healthz` and `GET /metrics` on `health_port`
+(default `3286`, chosen over the CLI's `8080` to avoid common clashes). The `/healthz` body carries `active_sessions`, the number
+of sessions the runner holds, including between turns.
+`session_attached_metadata_script` reads it over loopback and prints one of:
+
+| value        | runner running | session held | meaning                                                            |
+| ------------ | -------------- | ------------ | ------------------------------------------------------------------ |
+| `attached`   | yes            | yes          | holds a session, including between turns                           |
+| `unattached` | yes            | no           | waiting for its first session, or released one and is still alive  |
+| `stopped`    | no             | no           | exited, died, never started, or the workspace was created manually |
+| `disabled`   | not checked    | not checked  | `health_port` is `0`, so the listener is off and nothing is read   |
+| error        | yes            | unknown      | `/healthz` cannot be read or has no numeric `active_sessions`      |
+
+Running means the pid the supervisor recorded in `runner-state` is alive
+(`kill -0`) and its command line is still the CLI. The supervisor writes
+`working <pid>` when it starts the runner and `done <code>` when it exits,
+so a clean exit, a crash, and a reused pid all read as `stopped`.
+
+An error is a non-zero exit, so the metadata sample carries an error
+rather than a value and a consumer can tell unknown from any state above.
+The listener starts only after the runner registers, so a fresh runner
+reports an error briefly. The image needs `curl`.
+
+The CLI binds the listener on every interface and has no bind-host option.
+Do not publish `health_port` through a `coder_app`, a container port, or a
+Kubernetes Service, and make sure the workspace network keeps other hosts
+from reaching it.
+
+```tf
+module "claude_code_runner" {
+  source      = "registry.coder.com/coder/agent-relay-claude-code/coder"
+  version     = "0.5.0"
+  agent_id    = coder_agent.main.id
+  health_port = 3290
+}
+```

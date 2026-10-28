@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Start step, run by coder-utils after the install step. Runs at agent
-# start with SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET (the work-order JWT) and
-# SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT in scope.
+# start with SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET (the work-order JWT),
+# SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT, and
+# AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN in scope.
 #
 # Starts the runner detached and exits, so the agent reaches the ready
 # lifecycle state instead of sitting in starting for the life of the
@@ -13,6 +14,14 @@ set -euo pipefail
 state_file="${state_file}"
 log_file="${log_file}"
 base_dir="${base_dir}"
+# One argument per line. Shell-quoted here because the string is expanded
+# into the supervisor below, which must see each argument as one word.
+additional_args=""
+while IFS= read -r arg || [ -n "$arg" ]; do
+	if [ -n "$arg" ]; then
+		additional_args+="$(printf '%q' "$arg") "
+	fi
+done < <(echo -n '${additional_args}' | base64 -d)
 state_dir="$(dirname "$state_file")"
 mkdir -p "$state_dir" "$(dirname "$log_file")" "$base_dir"
 
@@ -51,6 +60,19 @@ if ! command -v ${cli_binary} >/dev/null 2>&1; then
 	exit 1
 fi
 
+# The parameter is validated when the workspace builds; checked again here
+# because the value is read from the environment and used in arithmetic.
+# Normalized to plain decimal so a leading zero or + is not misread later.
+# Unset falls back to the module's release_idle_session_min.
+release_idle_session_min="$${AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN:-${release_idle_session_min}}"
+if [[ ! "$release_idle_session_min" =~ ^[+]?0*[0-9]{1,5}$ ]] ||
+	[ "$((10#$${release_idle_session_min#+}))" -gt 10080 ]; then
+	write_state "failed invalid-release-idle-session-min"
+	echo "Idle session release must be a whole number of minutes from 0 to 10080, got '$release_idle_session_min'." >&2
+	exit 1
+fi
+export AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN="$((10#$${release_idle_session_min#+}))"
+
 # Write a wrapper that forces bypassPermissions so sessions never stall
 # on a tool-approval prompt. There is no terminal attached to the child
 # claude process, so an approval prompt would hang the runner.
@@ -87,12 +109,22 @@ write_state() {
 }
 
 export PATH="\$HOME/.local/bin:\$PATH"
+# Read from the environment at run time, never rendered into this file.
+# 0 omits the flag, which leaves the CLI's default of never releasing.
+if [ "\$AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN" -gt 0 ]; then
+	set -- --release-idle-session-min "\$AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN"
+fi
+# Keep these flags in sync with the reserved-flag list in additional_args'
+# validation in main.tf, so additional_args cannot set them a second time.
 ${cli_binary} self-hosted-runner \\
 	--capacity 1 \\
 	--base-dir "$base_dir" \\
 %{ if exit_if_unused_min > 0 ~}
 	--exit-if-unused-min ${exit_if_unused_min} \\
 %{ endif ~}
+	"\$@" \\
+	--health-port ${health_port} \\
+	$additional_args \\
 	--exec-path "$wrapper" >"$log_file" 2>&1 &
 runner_pid=\$!
 write_state "working \$runner_pid"

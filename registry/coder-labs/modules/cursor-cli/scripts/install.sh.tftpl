@@ -1,0 +1,223 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+BOLD='\033[0;1m'
+
+command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+ARG_INSTALL='${ARG_INSTALL}'
+ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
+ARG_MCP_CONFIG=$(echo -n '${ARG_MCP_CONFIG}' | base64 -d)
+ARG_RULES_FILES=$(echo -n '${ARG_RULES_FILES}' | base64 -d)
+
+export PATH="$HOME/.local/bin:$PATH"
+
+echo "--------------------------------"
+printf "install_cursor_cli: %s\n" "$${ARG_INSTALL}"
+printf "workdir: %s\n" "$${ARG_WORKDIR}"
+echo "--------------------------------"
+
+require_jq() {
+  if ! command_exists jq; then
+    echo "ERROR: 'jq' is required to $1 but was not found." >&2
+    exit 1
+  fi
+}
+
+function add_path_to_shell_profiles() {
+  local path_dir="$1"
+
+  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    if [ -f "$${profile}" ]; then
+      if ! grep -q "$${path_dir}" "$${profile}" 2> /dev/null; then
+        echo "export PATH=\"\$PATH:$${path_dir}\"" >> "$${profile}"
+        echo "Added $${path_dir} to $${profile}"
+      fi
+    fi
+  done
+
+  local fish_config="$HOME/.config/fish/config.fish"
+  if [ -f "$${fish_config}" ]; then
+    if ! grep -q "$${path_dir}" "$${fish_config}" 2> /dev/null; then
+      echo "fish_add_path $${path_dir}" >> "$${fish_config}"
+      echo "Added $${path_dir} to $${fish_config}"
+    fi
+  fi
+}
+
+# The official installer links both `agent` and the legacy `cursor-agent`;
+# `cursor-agent` is used here because `agent` is too generic to probe reliably.
+function ensure_cursor_in_path() {
+  local CURSOR_BIN=""
+  if command_exists cursor-agent; then
+    CURSOR_BIN=$(command -v cursor-agent)
+  fi
+
+  if [ -z "$${CURSOR_BIN}" ] || [ ! -x "$${CURSOR_BIN}" ]; then
+    echo "Cursor CLI binary (cursor-agent) was not found or is not executable." >&2
+    return 1
+  fi
+
+  local CURSOR_VERSION
+  if ! CURSOR_VERSION=$("$${CURSOR_BIN}" --version); then
+    echo "Cursor CLI binary could not be executed." >&2
+    return 1
+  fi
+  printf "Cursor CLI version: %s\n" "$${CURSOR_VERSION}"
+
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/cursor-agent" ]; then
+    ln -s "$${CURSOR_BIN}" "$${CODER_SCRIPT_BIN_DIR}/cursor-agent"
+    echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/cursor-agent -> $${CURSOR_BIN}"
+  fi
+
+  add_path_to_shell_profiles "$(dirname "$${CURSOR_BIN}")"
+}
+
+# Subshell scopes the temp-file cleanup trap to this function.
+install_with_official_installer() (
+  local installer_file
+  installer_file=$(mktemp)
+  trap 'rm -f "$${installer_file}"' EXIT
+
+  if ! curl --fail --silent --show-error --location \
+    --retry 2 --retry-delay 1 --retry-all-errors \
+    --connect-timeout 10 --max-time 300 \
+    --output "$${installer_file}" https://cursor.com/install; then
+    echo "Cursor CLI installer could not be downloaded after up to 3 attempts." >&2
+    return 1
+  fi
+
+  if ! bash -n "$${installer_file}"; then
+    echo "Cursor CLI installer download was invalid." >&2
+    return 1
+  fi
+
+  # The installer always installs its pinned latest build under ~/.local.
+  if ! bash "$${installer_file}"; then
+    echo "Cursor CLI installation failed." >&2
+    return 1
+  fi
+)
+
+install_cursor_cli() {
+  if [ "$${ARG_INSTALL}" != "true" ]; then
+    echo "Skipping Cursor CLI installation as per configuration."
+    if ! ensure_cursor_in_path; then
+      echo "ERROR: install_cursor_cli is false but a working 'cursor-agent' was not found on PATH." >&2
+      exit 1
+    fi
+    printf "%s Validated existing Cursor CLI\n" "$${BOLD}"
+    return
+  fi
+
+  if command_exists cursor-agent; then
+    echo "Cursor CLI already installed"
+    ensure_cursor_in_path
+    return
+  fi
+
+  printf "%s Installing Cursor CLI\n" "$${BOLD}"
+  install_with_official_installer
+
+  if ! ensure_cursor_in_path; then
+    echo "ERROR: Failed to install Cursor CLI" >&2
+    exit 1
+  fi
+  printf "%s Installed Cursor CLI\n" "$${BOLD}"
+}
+
+setup_workdir() {
+  if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
+    echo "Creating workdir: $${ARG_WORKDIR}"
+    mkdir -p "$${ARG_WORKDIR}"
+  fi
+}
+
+# Cursor CLI treats a workspace as trusted when
+# $${CURSOR_DATA_DIR:-~/.cursor}/projects/<slug>/.workspace-trusted exists, where
+# <slug> is the path with non-alphanumerics collapsed to single dashes. This is
+# the same marker `--trust` or accepting the trust prompt writes.
+setup_workspace_trust() {
+  if [ -z "$${ARG_WORKDIR}" ]; then
+    echo "No workdir to trust."
+    return
+  fi
+
+  require_jq "mark the workdir as trusted"
+
+  local slug data_dir marker
+  slug=$(printf '%s' "$${ARG_WORKDIR}" | sed -E 's/[^a-zA-Z0-9]/-/g; s/-+/-/g; s/^-+//; s/-+$//')
+  data_dir="$${CURSOR_DATA_DIR:-$HOME/.cursor}"
+  marker="$${data_dir}/projects/$${slug}/.workspace-trusted"
+
+  if [ -f "$${marker}" ]; then
+    echo "Workdir already trusted: $${marker}"
+    return
+  fi
+
+  mkdir -p "$(dirname "$${marker}")"
+  jq -n --arg path "$${ARG_WORKDIR}" --arg at "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" \
+    '{trustedAt: $at, workspacePath: $path, trustMethod: "cli-flag"}' > "$${marker}"
+  echo "Trusted workdir: $${marker}"
+}
+
+# Merge MCP servers into the user-level mcp.json; servers already on disk win
+# on duplicate names so interactive edits are never overwritten.
+setup_mcp_config() {
+  local mcp_config_file="$HOME/.cursor/mcp.json"
+
+  if [ -z "$${ARG_MCP_CONFIG}" ]; then
+    echo "No custom MCP servers configured; leaving $${mcp_config_file} unchanged."
+    return
+  fi
+
+  require_jq "configure MCP servers"
+
+  mkdir -p "$(dirname "$${mcp_config_file}")"
+  echo "Merging MCP server configuration into $${mcp_config_file}"
+
+  local existing='{}'
+  if [ -f "$${mcp_config_file}" ]; then
+    if jq empty "$${mcp_config_file}" > /dev/null 2>&1; then
+      existing=$(cat "$${mcp_config_file}")
+    else
+      cp "$${mcp_config_file}" "$${mcp_config_file}.bak"
+      echo "Warning: $${mcp_config_file} is not valid JSON; backed it up to $${mcp_config_file}.bak"
+    fi
+  fi
+
+  local custom
+  custom=$(echo "$${ARG_MCP_CONFIG}" | jq '.mcpServers // {}')
+  # Right operand wins in jq '+', so existing on-disk servers win on duplicates.
+  echo "$${existing}" | jq --argjson custom "$${custom}" \
+    '.mcpServers = ($custom + (.mcpServers // {}))' > "$${mcp_config_file}"
+  echo "MCP configuration completed: $${mcp_config_file}"
+}
+
+write_rules_files() {
+  if [ -z "$${ARG_RULES_FILES}" ]; then
+    return
+  fi
+
+  require_jq "write rules files"
+
+  local rules_dir="$${ARG_WORKDIR}/.cursor/rules"
+  mkdir -p "$${rules_dir}"
+
+  local name
+  while IFS= read -r name; do
+    echo "$${ARG_RULES_FILES}" | jq -j --arg name "$${name}" '.[$name]' > "$${rules_dir}/$${name}"
+    echo "Wrote rule: $${rules_dir}/$${name}"
+  done < <(echo "$${ARG_RULES_FILES}" | jq -r 'keys[]')
+}
+
+install_cursor_cli
+setup_workdir
+setup_workspace_trust
+setup_mcp_config
+write_rules_files
+
+echo "Cursor CLI module setup completed."

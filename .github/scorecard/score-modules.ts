@@ -34,7 +34,7 @@
  * --dry-run prints scorecards to stdout and skips GitHub entirely.
  */
 
-import { readdir, readFile } from "node:fs/promises";
+import { lstat, readdir, readFile, realpath } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import {
@@ -106,8 +106,33 @@ function toSpec(raw: string): ModuleSpec {
   };
 }
 
+// Reads a file from a module directory. Module content may come from an
+// untrusted pull request, so only regular files whose resolved path stays
+// inside the module directory are read.
+async function readModuleFile(
+  spec: ModuleSpec,
+  filePath: string,
+): Promise<string> {
+  const stats = await lstat(filePath);
+  if (!stats.isFile()) {
+    throw new Error(`refusing to read non-regular file: ${filePath}`);
+  }
+  const [realRoot, realDir, realFile] = await Promise.all([
+    realpath(REGISTRY_ROOT),
+    realpath(spec.dir),
+    realpath(filePath),
+  ]);
+  if (
+    !realDir.startsWith(realRoot + path.sep) ||
+    !realFile.startsWith(realDir + path.sep)
+  ) {
+    throw new Error(`refusing to read file outside the module: ${filePath}`);
+  }
+  return readFile(realFile, "utf8");
+}
+
 async function displayName(spec: ModuleSpec): Promise<string> {
-  const readme = await readFile(path.join(spec.dir, "README.md"), "utf8");
+  const readme = await readModuleFile(spec, path.join(spec.dir, "README.md"));
   const match = readme.match(/^display_name:\s*["']?([^"'\n]+)["']?\s*$/m);
   return match ? match[1].trim() : spec.name;
 }
@@ -116,7 +141,7 @@ async function displayName(spec: ModuleSpec): Promise<string> {
 // meant to be consumed by template authors, so they are excluded from
 // scoring entirely.
 async function isInternalBuildingBlock(spec: ModuleSpec): Promise<boolean> {
-  const readme = await readFile(path.join(spec.dir, "README.md"), "utf8");
+  const readme = await readModuleFile(spec, path.join(spec.dir, "README.md"));
   return /do not recommend using this module directly|not intended to be used directly|internal building block/i.test(
     readme,
   );
@@ -161,8 +186,11 @@ function parseArgs(): Args {
   return args;
 }
 
-async function readTruncated(filePath: string): Promise<string> {
-  const content = await readFile(filePath, "utf8");
+async function readTruncated(
+  spec: ModuleSpec,
+  filePath: string,
+): Promise<string> {
+  const content = await readModuleFile(spec, filePath);
   if (content.length <= MAX_FILE_BYTES) return content;
   return content.slice(0, MAX_FILE_BYTES) + "\n... [truncated]";
 }
@@ -171,7 +199,7 @@ async function verifyReadmeImages(
   spec: ModuleSpec,
 ): Promise<ImageVerification[]> {
   const readmePath = path.join(spec.dir, "README.md");
-  const readme = await readFile(readmePath, "utf8");
+  const readme = await readModuleFile(spec, readmePath);
   const moduleDir = spec.dir;
   const imageRegex = /!\[[^\]]*\]\(([^)]+)\)/g;
   const results: ImageVerification[] = [];
@@ -234,7 +262,8 @@ async function gatherModuleContext(spec: ModuleSpec): Promise<string> {
   ) as string[];
   for (const f of wanted.sort()) {
     const full = path.join(dir, f);
-    parts.push(`=== FILE: ${f} ===\n${await readTruncated(full)}`);
+    if ((await lstat(full)).isDirectory()) continue;
+    parts.push(`=== FILE: ${f} ===\n${await readTruncated(spec, full)}`);
   }
 
   const imageVerifications = await verifyReadmeImages(spec);
