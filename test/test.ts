@@ -2,6 +2,26 @@ import { readableStreamToText, spawn } from "bun";
 import { expect, it } from "bun:test";
 import { readFile, unlink } from "node:fs/promises";
 
+/**
+ * The Terraform-compatible CLI that the tests shell out to. Defaults to
+ * `terraform`, and can be pointed at OpenTofu (or any other drop-in
+ * implementation) either way:
+ *
+ *   TERRAFORM_BINARY_NAME=tofu bun test registry/coder/modules/kasmvnc
+ *   TF_ACC_TERRAFORM_PATH=/usr/local/bin/tofu bun test registry/coder/modules/kasmvnc
+ *
+ * TERRAFORM_BINARY_NAME is the name CDK Terrain and Atlantis use for this, and
+ * takes a command name or a path. TF_ACC_TERRAFORM_PATH is the path-valued
+ * variable that terraform-plugin-testing uses, so it is honoured as a fallback
+ * for people who already have it set. Read per call rather than at import time,
+ * so a test that sets the variable for its own subprocesses is not affected by
+ * the value the suite started with.
+ */
+export const terraformBinary = (): string =>
+  process.env.TERRAFORM_BINARY_NAME?.trim() ||
+  process.env.TF_ACC_TERRAFORM_PATH?.trim() ||
+  "terraform";
+
 export const runContainer = async (
   image: string,
   init = "sleep infinity",
@@ -213,9 +233,9 @@ export const testRequiredVariables = <TVars extends TerraformVariables>(
 };
 
 /**
- * Runs terraform apply in the given directory with the given variables. It is
- * fine to run in parallel with other instances of this function, as it uses a
- * random state file.
+ * Runs `terraform apply` (or the CLI named by TERRAFORM_BINARY_NAME) in the
+ * given directory with the given variables. It is fine to run in parallel with
+ * other instances of this function, as it uses a random state file.
  */
 export const runTerraformApply = async <TVars extends TerraformVariables>(
   dir: string,
@@ -244,7 +264,7 @@ export const runTerraformApply = async <TVars extends TerraformVariables>(
 
   const proc = spawn(
     [
-      "terraform",
+      terraformBinary(),
       "apply",
       "-compact-warnings",
       "-input=false",
@@ -273,10 +293,11 @@ export const runTerraformApply = async <TVars extends TerraformVariables>(
 };
 
 /**
- * Runs terraform init in the given directory.
+ * Runs `terraform init` (or the CLI named by TERRAFORM_BINARY_NAME) in the
+ * given directory.
  */
 export const runTerraformInit = async (dir: string) => {
-  const proc = spawn(["terraform", "init"], {
+  const proc = spawn([terraformBinary(), "init"], {
     cwd: dir,
   });
   const text = await readableStreamToText(proc.stdout);
