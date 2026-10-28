@@ -93,6 +93,18 @@ EOT
     ARG_WORKDIR       = local.workdir != "" ? base64encode(local.workdir) : ""
   })
   module_dir_name = ".coder-modules/coder/goose"
+
+  # Create the workdir before the user's pre-install hook, as the agentapi
+  # module did, so hooks that cd into it keep working on a fresh workspace.
+  pre_install_script = var.pre_install_script == null || local.workdir == "" ? var.pre_install_script : <<-EOT
+    #!/usr/bin/env bash
+    set -o errexit
+    mkdir -p '${local.workdir}'
+    hook="$HOME/${local.module_dir_name}/scripts/pre_install_hook.sh"
+    echo -n '${base64encode(var.pre_install_script)}' | base64 -d > "$hook"
+    chmod +x "$hook"
+    exec "$hook"
+  EOT
 }
 
 module "coder_utils" {
@@ -103,7 +115,7 @@ module "coder_utils" {
   module_directory    = "$HOME/${local.module_dir_name}"
   display_name_prefix = "Goose"
   icon                = var.icon
-  pre_install_script  = var.pre_install_script
+  pre_install_script  = local.pre_install_script
   post_install_script = var.post_install_script
   install_script      = local.install_script
 }

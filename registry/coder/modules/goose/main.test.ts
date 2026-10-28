@@ -367,6 +367,18 @@ describe("goose", async () => {
     expect(info.stdout).toContain("    everything:");
   });
 
+  test("workdir-exists-before-pre-install-script", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        pre_install_script: `#!/bin/sh\ncd ${projectDir} && echo "pre-install in $PWD"`,
+      },
+    });
+    await runScripts(id, scripts);
+    expect(
+      await readFileContainer(id, `${moduleLogDir}/pre_install.log`),
+    ).toContain(`pre-install in ${projectDir}`);
+  });
+
   test("pre-post-install-scripts", async () => {
     const { id, scripts } = await setup({
       moduleVariables: {
