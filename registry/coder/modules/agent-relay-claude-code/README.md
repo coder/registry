@@ -63,7 +63,7 @@ Use `additional_args` to pass extra arguments to `claude self-hosted-runner`, as
 list with one element per argument. They are appended after the flags the module sets and before `--exec-path`, in the order written.
 Each element is passed exactly as written, so a flag can repeat and a value
 can contain spaces or quotes without escaping. Flags the module already sets
-(`--capacity`, `--base-dir`, `--exit-if-unused-min`, `--health-port`, `--exec-path`) are rejected, with or without `=value`.
+(`--capacity`, `--base-dir`, `--exit-if-unused-min`, `--release-idle-session-min`, `--health-port`, `--exec-path`) are rejected, with or without `=value`.
 
 ```tf
 module "claude_code_runner" {
@@ -110,7 +110,7 @@ runner. Everything lands under `$HOME/.coder-modules/coder/agent-relay-claude-co
 
 ## Runner lifecycle
 
-The start step launches `claude self-hosted-runner --capacity 1 --exit-if-unused-min 10` detached and exits,
+The start step launches `claude self-hosted-runner --capacity 1 --exit-if-unused-min 10 --release-idle-session-min 60` detached and exits,
 so the agent reaches `ready` immediately. The runner is wrapped so every
 session runs with `--permission-mode bypassPermissions`; there is no terminal
 attached, so an approval prompt would hang it. When the runner exits, Agent
@@ -141,6 +141,30 @@ metadata before this cleanup has run and new status has been collected.
 | `failed <reason>` | runner could not start, e.g. `runner-agent-missing` when the CLI is absent |
 
 Renaming the `agent_relay_status` key breaks reaping.
+
+## Idle session release
+
+An attached session whose user sends nothing for 60 minutes is released: the
+runner parks the session server-side and exits, and Agent Relay deletes the
+workspace. The user's next message resumes the session on a fresh runner.
+This is the CLI's `--release-idle-session-min`.
+
+`release_idle_session_min` sets the template's default, from `0` to `10080`
+minutes. Agent Relay can override it per build by stamping the
+`agent_relay_claude_code_release_idle_session_min` parameter, whose default is
+the variable, so a relay that does not stamp it gets the template's value. `0`
+omits the flag and keeps the CLI's default of never releasing. The value
+reaches the runner through the environment, and a value outside the range
+fails the start step with `failed invalid-release-idle-session-min`.
+
+```tf
+module "claude_code_runner" {
+  source                   = "registry.coder.com/coder/agent-relay-claude-code/coder"
+  version                  = "0.5.1"
+  agent_id                 = coder_agent.main.id
+  release_idle_session_min = 30
+}
+```
 
 ## Session attachment
 

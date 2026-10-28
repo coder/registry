@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   afterEach,
   beforeAll,
@@ -8,6 +9,7 @@ import {
 } from "bun:test";
 import {
   execContainer,
+  findResourceInstance,
   readFileContainer,
   removeContainer,
   runContainer,
@@ -50,22 +52,43 @@ const DISPATCH_ENV = [
   "SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT=acct-123",
 ];
 
-const setup = async (vars: Record<string, string> = {}) => {
-  const state = await runTerraformApply(import.meta.dir, {
-    agent_id: "foo",
-    ...vars,
-  });
+const setup = async (
+  vars: Record<string, string> = {},
+  customEnv?: Record<string, string>,
+) => {
+  const state = await runTerraformApply(
+    import.meta.dir,
+    {
+      agent_id: "foo",
+      ...vars,
+    },
+    customEnv,
+  );
   const scripts = collectScripts(state);
   const statusScript = state.outputs.status_metadata_script.value as string;
   const attachedScript = state.outputs.session_attached_metadata_script
     .value as string;
+  // The value the agent would export from the coder_env resource.
+  const releaseIdleEnv = `AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN=${
+    findResourceInstance(
+      state,
+      "coder_env",
+      "agent_relay_claude_code_release_idle_session_min",
+    ).value
+  }`;
   const id = await runContainer("lorello/alpine-bash");
   registerCleanup(async () => {
     await removeContainer(id);
   });
   await stubBinary(id, "/usr/local/bin/coder", "exit 0");
-  return { id, scripts, statusScript, attachedScript };
+  return { id, scripts, statusScript, attachedScript, releaseIdleEnv };
 };
+
+// How coderd hands a build's parameter values to the coder provider, so a
+// test can stamp a parameter the way Agent Relay does.
+const stampParameter = (name: string, value: string) => ({
+  [`CODER_PARAMETER_${createHash("sha256").update(name).digest("hex")}`]: value,
+});
 
 type Scripts = {
   cleanup: string;
@@ -106,8 +129,8 @@ const stubBinary = async (id: string, path: string, body: string) => {
 const stubClaude = (id: string, body: string) =>
   stubBinary(id, "/usr/local/bin/claude", body);
 
-// Runs the install step then the start step, as coder-utils orders them
-// on the agent, and returns both results.
+// Runs cleanup before install and start, as coder-utils orders them
+// on the agent, and returns the install and start results.
 const runScripts = async (id: string, scripts: Scripts, env: string[]) => {
   const cleanup = await execContainer(id, ["bash", "-c", scripts.cleanup]);
   expect(cleanup.exitCode, cleanup.stdout).toBe(0);
@@ -272,6 +295,8 @@ describe("agent-relay-claude-code", () => {
     expect(args[0]).toBe("self-hosted-runner");
     expect(args[args.indexOf("--capacity") + 1]).toBe("1");
     expect(args[args.indexOf("--exit-if-unused-min") + 1]).toBe("10");
+    // Without the agent's coder_env value, the module default applies.
+    expect(args[args.indexOf("--release-idle-session-min") + 1]).toBe("60");
     expect(args[args.indexOf("--exec-path") + 1]).toBe(
       `${MODULE_DIR}/wrapper.sh`,
     );
@@ -608,6 +633,107 @@ describe("agent-relay-claude-code", () => {
 
     const pwned = await execContainer(id, ["test", "-e", "/tmp/PWNED"]);
     expect(pwned.exitCode).not.toBe(0);
+  });
+
+  describe("release_idle_session_min", () => {
+    const PARAMETER = "agent_relay_claude_code_release_idle_session_min";
+
+    // Starts a dispatched runner with the environment the agent would
+    // export and returns the argv the CLI received.
+    const runnerArgv = async (
+      vars: Record<string, string> = {},
+      customEnv?: Record<string, string>,
+    ) => {
+      const { id, scripts, releaseIdleEnv } = await setup(vars, customEnv);
+      await stubClaude(id, 'printf "%s\\n" "$@" >/tmp/claude-args; sleep 30');
+      const { start } = await runScripts(id, scripts, [
+        ...DISPATCH_ENV,
+        releaseIdleEnv,
+      ]);
+      expect(start.exitCode, start.stdout).toBe(0);
+      return (await readFileContainer(id, "/tmp/claude-args")).split("\n");
+    };
+
+    const releaseValues = (args: string[]) =>
+      args.flatMap((arg, i) =>
+        arg === "--release-idle-session-min" ? [args[i + 1]] : [],
+      );
+
+    it("releases an idle session after 60 minutes by default", async () => {
+      const args = await runnerArgv();
+      expect(releaseValues(args)).toEqual(["60"]);
+    });
+
+    it("uses the module variable", async () => {
+      const args = await runnerArgv({ release_idle_session_min: "15" });
+      expect(releaseValues(args)).toEqual(["15"]);
+    });
+
+    it("omits the flag when 0", async () => {
+      const args = await runnerArgv({ release_idle_session_min: "0" });
+      expect(args[0]).toBe("self-hosted-runner");
+      expect(releaseValues(args)).toEqual([]);
+    });
+
+    it("prefers the value Agent Relay stamps on the build", async () => {
+      const stamped = await runnerArgv({}, stampParameter(PARAMETER, "30"));
+      expect(releaseValues(stamped)).toEqual(["30"]);
+
+      const disabled = await runnerArgv(
+        { release_idle_session_min: "15" },
+        stampParameter(PARAMETER, "0"),
+      );
+      expect(releaseValues(disabled)).toEqual([]);
+    });
+
+    it("rejects a stamp outside the CLI's bound at build time", async () => {
+      for (const value of ["10081", "-1", "1.5"]) {
+        await expect(
+          runTerraformApply(
+            import.meta.dir,
+            { agent_id: "foo" },
+            stampParameter(PARAMETER, value),
+          ),
+          value,
+        ).rejects.toThrow(/from 0 to 10080/);
+      }
+    });
+
+    it("normalizes the value from the environment", async () => {
+      const { id, scripts } = await setup();
+      await stubClaude(id, 'printf "%s\\n" "$@" >/tmp/claude-args; sleep 30');
+      const { start } = await runScripts(id, scripts, [
+        ...DISPATCH_ENV,
+        "AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN=+009",
+      ]);
+      expect(start.exitCode, start.stdout).toBe(0);
+      const args = (await readFileContainer(id, "/tmp/claude-args")).split(
+        "\n",
+      );
+      expect(releaseValues(args)).toEqual(["9"]);
+    });
+
+    it("refuses an invalid value from the environment", async () => {
+      // The build validates the parameter; this guards the script against a
+      // value that reached the environment some other way.
+      for (const value of ["5; touch /tmp/PWNED", "10081", "-1", "abc"]) {
+        const { id, scripts } = await setup();
+        await stubClaude(id, "touch /tmp/runner-started; sleep 30");
+        const { start } = await runScripts(id, scripts, [
+          ...DISPATCH_ENV,
+          `AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN=${value}`,
+        ]);
+        expect(start.exitCode, value).toBe(1);
+        expect(start.stdout).toContain("from 0 to 10080");
+        expect(await readState(id)).toBe(
+          "failed invalid-release-idle-session-min",
+        );
+        for (const marker of ["/tmp/PWNED", "/tmp/runner-started"]) {
+          const exists = await execContainer(id, ["test", "-e", marker]);
+          expect(exists.exitCode, `${value}: ${marker}`).not.toBe(0);
+        }
+      }
+    });
   });
 
   describe("session_attached_metadata_script", () => {
