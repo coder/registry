@@ -61,51 +61,78 @@ if [ -z "$PUBLIC_KEY" ]; then
   exit 1
 fi
 
-echo "Fetching public keys from GitHub..."
-GITHUB_KEYS_RESPONSE=$(
-  curl -L -s \
-    -w "\n%%{http_code}" \
-    -H "Accept: application/vnd.github+json" \
-    -H "Authorization: Bearer $GITHUB_TOKEN" \
-    -H "X-GitHub-Api-Version: 2022-11-28" \
-    $GITHUB_API_URL/user/keys
-)
-GITHUB_KEYS_RESPONSE_STATUS=$(tail -n1 <<< "$GITHUB_KEYS_RESPONSE")
-GITHUB_KEYS_RESPONSE_BODY=$(sed \$d <<< "$GITHUB_KEYS_RESPONSE")
-
-if [ "$GITHUB_KEYS_RESPONSE_STATUS" -ne 200 ]; then
-  echo "Failed to fetch Coder public SSH key with status code $GITHUB_KEYS_RESPONSE_STATUS!"
-  echo "$GITHUB_KEYS_RESPONSE_BODY"
-  exit 1
-fi
-
-GITHUB_MATCH=$(jq -r --arg PUBLIC_KEY "$PUBLIC_KEY" '.[] | select(.key == $PUBLIC_KEY) | .key' <<< "$GITHUB_KEYS_RESPONSE_BODY")
-
-if [ "$PUBLIC_KEY" = "$GITHUB_MATCH" ]; then
-  echo "Your Coder public key is already on GitHub!"
-  exit 0
-fi
-
-echo "Your Coder public key is not in GitHub. Adding it now..."
 CODER_PUBLIC_KEY_NAME="$(printf '%s' '${CODER_PUBLIC_KEY_NAME}' | base64 -d)"
 [ -n "$CODER_PUBLIC_KEY_NAME" ] || CODER_PUBLIC_KEY_NAME="$CODER_ACCESS_URL Workspaces"
-UPLOAD_RESPONSE=$(
-  curl -L -s \
-    -X POST \
-    -w "\n%%{http_code}" \
-    -H "Accept: application/vnd.github+json" \
-    -H "Authorization: Bearer $GITHUB_TOKEN" \
-    -H "X-GitHub-Api-Version: 2022-11-28" \
-    $GITHUB_API_URL/user/keys \
-    -d "$(jq -nc --arg title "$CODER_PUBLIC_KEY_NAME" --arg key "$PUBLIC_KEY" '{title: $title, key: $key}')"
-)
-UPLOAD_RESPONSE_STATUS=$(tail -n1 <<< "$UPLOAD_RESPONSE")
-UPLOAD_RESPONSE_BODY=$(sed \$d <<< "$UPLOAD_RESPONSE")
 
-if [ "$UPLOAD_RESPONSE_STATUS" -ne 201 ]; then
-  echo "Failed to upload Coder public SSH key with status code $UPLOAD_RESPONSE_STATUS!"
-  echo "$UPLOAD_RESPONSE_BODY"
-  exit 1
+upload_key() {
+  local endpoint="$1"
+  local label="$2"
+
+  echo "Fetching $label keys from GitHub..."
+  local per_page=100 page=1
+  local keys_response keys_status keys_body match count
+  while true; do
+    keys_response=$(
+      curl -L -s \
+        -w "\n%%{http_code}" \
+        -H "Accept: application/vnd.github+json" \
+        -H "Authorization: Bearer $GITHUB_TOKEN" \
+        -H "X-GitHub-Api-Version: 2022-11-28" \
+        "$GITHUB_API_URL/user/$endpoint?per_page=$per_page&page=$page"
+    )
+    keys_status=$(tail -n1 <<< "$keys_response")
+    keys_body=$(sed \$d <<< "$keys_response")
+
+    if [ "$keys_status" -ne 200 ]; then
+      echo "Failed to fetch GitHub $label keys with status code $keys_status!"
+      echo "$keys_body"
+      return 1
+    fi
+
+    match=$(jq -r --arg PUBLIC_KEY "$PUBLIC_KEY" '.[] | select(.key == $PUBLIC_KEY) | .key' <<< "$keys_body")
+    if [ "$PUBLIC_KEY" = "$match" ]; then
+      echo "Your Coder public key is already a GitHub $label key!"
+      return 0
+    fi
+
+    count=$(jq 'length' <<< "$keys_body")
+    if [ "$count" -lt "$per_page" ]; then
+      break
+    fi
+    page=$((page + 1))
+  done
+
+  echo "Your Coder public key is not a GitHub $label key yet. Adding it now..."
+  local upload_response
+  upload_response=$(
+    curl -L -s \
+      -X POST \
+      -w "\n%%{http_code}" \
+      -H "Accept: application/vnd.github+json" \
+      -H "Authorization: Bearer $GITHUB_TOKEN" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      "$GITHUB_API_URL/user/$endpoint" \
+      -d "$(jq -nc --arg title "$CODER_PUBLIC_KEY_NAME" --arg key "$PUBLIC_KEY" '{title: $title, key: $key}')"
+  )
+  local upload_status upload_body
+  upload_status=$(tail -n1 <<< "$upload_response")
+  upload_body=$(sed \$d <<< "$upload_response")
+
+  if [ "$upload_status" -ne 201 ]; then
+    echo "Failed to upload Coder public SSH key as a GitHub $label key with status code $upload_status!"
+    echo "$upload_body"
+    return 1
+  fi
+
+  echo "Your Coder public key has been added as a GitHub $label key!"
+}
+
+KEY_TYPE='${KEY_TYPE}'
+
+if [ "$KEY_TYPE" = "auth" ] || [ "$KEY_TYPE" = "both" ]; then
+  upload_key "keys" "authentication" || exit 1
 fi
 
-echo "Your Coder public key has been added to GitHub!"
+if [ "$KEY_TYPE" = "signing" ] || [ "$KEY_TYPE" = "both" ]; then
+  upload_key "ssh_signing_keys" "signing" || exit 1
+fi

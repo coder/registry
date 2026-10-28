@@ -45,6 +45,7 @@ afterEach(async () => {
 // coder-utils pins the layout; the container runs as root.
 const MODULE_DIR = "/root/.coder-modules/coder/agent-relay-cursor";
 const STATE_FILE = `${MODULE_DIR}/worker-state`;
+const TOKEN_FILE = `${MODULE_DIR}/worker-token`;
 // The pool name carries shell metacharacters to prove the value reaches
 // the worker as a single argument rather than being parsed as code.
 const POOL_NAME = 'safe"; touch /tmp/injected; #';
@@ -53,7 +54,6 @@ const DISPATCH_ENV = [
   "CURSOR_AGENT_WORKER_ID=worker-123",
   `AGENT_RELAY_CURSOR_POOL_NAME=${POOL_NAME}`,
   "AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT=600",
-  "AGENT_RELAY_CURSOR_CREDENTIAL_KIND=worker_token",
 ];
 
 const setup = async (vars: Record<string, string> = {}) => {
@@ -63,12 +63,14 @@ const setup = async (vars: Record<string, string> = {}) => {
   });
   const scripts = collectScripts(state);
   const statusScript = state.outputs.status_metadata_script.value as string;
+  const attachedScript = state.outputs.session_attached_metadata_script
+    .value as string;
   const id = await runContainer("lorello/alpine-bash");
   registerCleanup(async () => {
     await removeContainer(id);
   });
   await stubBinary(id, "/usr/local/bin/coder", "exit 0");
-  return { id, scripts, statusScript };
+  return { id, scripts, statusScript, attachedScript };
 };
 
 type Scripts = { install: string; start: string };
@@ -338,8 +340,14 @@ describe("agent-relay-cursor", () => {
     // The metacharacters in the pool name must not have executed.
     const injected = await execContainer(id, ["test", "-e", "/tmp/injected"]);
     expect(injected.exitCode).not.toBe(0);
-    // The token reaches the worker as --auth-token, not as an API key.
-    expect(args[args.indexOf("--auth-token") + 1]).toBe("test-user-token");
+    // The token reaches the worker as a file, never as an argument or an
+    // API key.
+    expect(args[args.indexOf("--auth-token-file") + 1]).toBe(TOKEN_FILE);
+    expect(args).not.toContain("--auth-token");
+    expect(args).not.toContain("test-user-token");
+    expect(await readFileContainer(id, TOKEN_FILE)).toBe("test-user-token");
+    const mode = await execContainer(id, ["stat", "-c", "%a", TOKEN_FILE]);
+    expect(mode.stdout.trim()).toBe("600");
     expect(args).toContain("start");
     expect(args).not.toContain("--computer-use");
 
@@ -349,7 +357,7 @@ describe("agent-relay-cursor", () => {
       id,
       `${MODULE_DIR}/scripts/supervise.sh`,
     );
-    expect(supervisor).toContain('--auth-token "$AGENT_RELAY_CURSOR_TOKEN"');
+    expect(supervisor).toContain(`--auth-token-file "${TOKEN_FILE}"`);
     expect(supervisor).not.toContain("test-user-token");
     // Parameter values are likewise read from the environment, never
     // written into the file where they would be parsed as shell.
@@ -364,17 +372,19 @@ describe("agent-relay-cursor", () => {
     ]);
     expect(env.stdout).toContain("CURSOR_AGENT_WORKER_ID=worker-123");
     expect(env.stdout).not.toContain("CURSOR_API_KEY=");
+    // The agent's commands run as children of the worker, so the token
+    // must not be in its environment either.
+    expect(env.stdout).not.toContain("AGENT_RELAY_CURSOR_TOKEN=");
   });
 
-  it("hands a shared service-account key over as CURSOR_API_KEY", async () => {
-    // insecure_shared_token pools stamp the team key and
-    // agent_relay_cursor_credential_kind=api_key; the CLI only accepts
-    // that key as an API key, so --auth-token must be absent and the key
-    // must reach the worker's environment.
+  it("passes the credential as --auth-token-file even with a stale credential kind", async () => {
+    // Module 0.2.0 to 0.4.0 exported AGENT_RELAY_CURSOR_CREDENTIAL_KIND
+    // and switched to CURSOR_API_KEY on api_key. A leftover value in the
+    // environment must not change how the credential reaches the CLI.
     const { id, scripts } = await setup();
     await stubAgent(
       id,
-      'printf "%s\\n" "$@" >/tmp/agent-args; printf "%s" "$CURSOR_API_KEY" >/tmp/agent-api-key; sleep 30',
+      'printf "%s\\n" "$@" >/tmp/agent-args; printf "%s" "${CURSOR_API_KEY-unset}" >/tmp/agent-api-key; sleep 30',
     );
     const { start } = await runScripts(id, scripts, [
       ...DISPATCH_ENV,
@@ -382,21 +392,9 @@ describe("agent-relay-cursor", () => {
     ]);
     expect(start.exitCode).toBe(0);
     const args = (await readFileContainer(id, "/tmp/agent-args")).split("\n");
-    expect(args).not.toContain("--auth-token");
-    expect(args).toContain("--pool");
-    expect(await readFileContainer(id, "/tmp/agent-api-key")).toBe(
-      "test-user-token",
-    );
-    // The key is still read from the environment at run time, never
-    // written into the supervisor.
-    const supervisor = await readFileContainer(
-      id,
-      `${MODULE_DIR}/scripts/supervise.sh`,
-    );
-    expect(supervisor).toContain(
-      'export CURSOR_API_KEY="$AGENT_RELAY_CURSOR_TOKEN"',
-    );
-    expect(supervisor).not.toContain("test-user-token");
+    expect(args[args.indexOf("--auth-token-file") + 1]).toBe(TOKEN_FILE);
+    expect(await readFileContainer(id, TOKEN_FILE)).toBe("test-user-token");
+    expect(await readFileContainer(id, "/tmp/agent-api-key")).toBe("unset");
   });
 
   it("passes --computer-use when enabled", async () => {
@@ -423,12 +421,45 @@ describe("agent-relay-cursor", () => {
     expect(args).toContain("start");
   });
 
+  it("appends additional_args before start, in order, one argument per element", async () => {
+    const { id, scripts } = await setup({
+      additional_args: JSON.stringify([
+        "--name",
+        "two words $HOME",
+        "--name",
+        `it"s`,
+        "--verbose",
+      ]),
+    });
+    await stubAgent(id, 'printf "%s\\n" "$@" >/tmp/agent-args; sleep 30');
+    const { start } = await runDispatched(id, scripts);
+    expect(start.exitCode).toBe(0);
+    const args = (await readFileContainer(id, "/tmp/agent-args")).split("\n");
+    expect(args[0]).toBe("worker");
+    // A flag can repeat, and arguments reach the CLI verbatim and in order:
+    // no word splitting or expansion.
+    const at = args.indexOf("--name");
+    expect(args.slice(at, at + 5)).toEqual([
+      "--name",
+      "two words $HOME",
+      "--name",
+      'it"s',
+      "--verbose",
+    ]);
+    // The subcommand stays last, after every flag.
+    expect(args.indexOf("start")).toBe(at + 5);
+    expect(args[args.indexOf("--pool") + 1]).toBe(POOL_NAME);
+  });
+
   it("records the exit code when the worker exits", async () => {
     const { id, scripts } = await setup();
     await stubAgent(id, "exit 3");
     const { start } = await runDispatched(id, scripts);
     expect(start.exitCode).toBe(0);
     expect(await waitForState(id, /^done \d+$/)).toBe("done 3");
+    // The claim is over, so the supervisor removes the token.
+    const token = await execContainer(id, ["test", "-e", TOKEN_FILE]);
+    expect(token.exitCode).not.toBe(0);
   });
 
   it("uses cli_binary and state_file overrides", async () => {
@@ -490,5 +521,147 @@ describe("agent-relay-cursor", () => {
 
     const pwned = await execContainer(id, ["test", "-e", "/tmp/PWNED"]);
     expect(pwned.exitCode).not.toBe(0);
+  });
+
+  describe("session_attached_metadata_script", () => {
+    // Stands in for the worker's management server. The body comes from a
+    // file the test writes; a missing file is a failed scrape, and any
+    // other URL is a wiring bug.
+    const stubMetrics = (id: string, url: string) =>
+      stubBinary(
+        id,
+        "/usr/local/bin/curl",
+        [
+          `case "$*" in *"${url}/metrics"*) ;; *) echo "unexpected curl $*" >&2; exit 7 ;; esac`,
+          "[ -f /tmp/metrics ] || exit 22",
+          "cat /tmp/metrics",
+        ].join("\n"),
+      );
+
+    const metrics = (active: string) =>
+      [
+        "# HELP cursor_self_hosted_worker_session_active 1 when a session is running.",
+        "# TYPE cursor_self_hosted_worker_session_active gauge",
+        `cursor_self_hosted_worker_session_active ${active}`,
+        'cursor_self_hosted_worker_session_ends_total{reason="idle_release"} 3',
+        "cursor_self_hosted_worker_connected 1",
+        "",
+      ].join("\n");
+
+    const sample = async (id: string, script: string, body?: string) => {
+      if (body === undefined) {
+        await execContainer(id, ["rm", "-f", "/tmp/metrics"]);
+      } else {
+        await writeFileContainer(id, "/tmp/metrics", body, { user: "root" });
+      }
+      return execContainer(id, ["bash", "-c", script]);
+    };
+
+    const workerArgs = async (id: string) =>
+      (await readFileContainer(id, "/tmp/agent-args")).split("\n");
+
+    it("reads the session gauge from the live worker's management server", async () => {
+      const { id, scripts, attachedScript } = await setup({
+        management_addr: ":3290",
+      });
+      await stubAgent(id, 'printf "%s\\n" "$@" >/tmp/agent-args; sleep 30');
+      // A wildcard bind is read over loopback.
+      await stubMetrics(id, "http://127.0.0.1:3290");
+      await runDispatched(id, scripts);
+      const args = await workerArgs(id);
+      expect(args[args.indexOf("--management-addr") + 1]).toBe(":3290");
+      // The flag must come before the start subcommand.
+      expect(args.indexOf("--management-addr")).toBeLessThan(
+        args.indexOf("start"),
+      );
+
+      const held = await sample(id, attachedScript, metrics("1"));
+      expect(held.exitCode, held.stderr).toBe(0);
+      expect(held.stdout.trim()).toBe("attached");
+
+      const free = await sample(id, attachedScript, metrics("0"));
+      expect(free.exitCode, free.stderr).toBe(0);
+      expect(free.stdout.trim()).toBe("unattached");
+
+      // Unknown is an error sample, never false, so the relay can tell a
+      // broken probe from an ended session.
+      const unreachable = await sample(id, attachedScript);
+      expect(unreachable.exitCode).not.toBe(0);
+      expect(unreachable.stdout.trim()).toBe("");
+
+      const missing = await sample(
+        id,
+        attachedScript,
+        "cursor_self_hosted_worker_connected 1\n",
+      );
+      expect(missing.exitCode).not.toBe(0);
+      expect(missing.stdout.trim()).toBe("");
+    });
+
+    it("binds loopback by default", async () => {
+      const { id, scripts, attachedScript } = await setup();
+      await stubAgent(id, 'printf "%s\\n" "$@" >/tmp/agent-args; sleep 30');
+      await stubMetrics(id, "http://127.0.0.1:3287");
+      await runDispatched(id, scripts);
+      const args = await workerArgs(id);
+      expect(args[args.indexOf("--management-addr") + 1]).toBe(
+        "127.0.0.1:3287",
+      );
+      const held = await sample(id, attachedScript, metrics("1"));
+      expect(held.exitCode, held.stderr).toBe(0);
+      expect(held.stdout.trim()).toBe("attached");
+    });
+
+    it("reports stopped once the worker exits", async () => {
+      const { id, scripts, attachedScript } = await setup();
+      await stubAgent(id, "exit 0");
+      await stubMetrics(id, "http://127.0.0.1:3287");
+      await runDispatched(id, scripts);
+      await waitForState(id, /^done \d+$/);
+      const result = await sample(id, attachedScript, metrics("1"));
+      expect(result.exitCode, result.stderr).toBe(0);
+      expect(result.stdout.trim()).toBe("stopped");
+    });
+
+    it("reports stopped without a live worker", async () => {
+      const { id, attachedScript } = await setup({ install_cli: "false" });
+      await stubMetrics(id, "http://127.0.0.1:3287");
+      await execContainer(id, ["mkdir", "-p", MODULE_DIR]);
+      // The server would claim a session; with no live worker it is never
+      // consulted. "working 1" is a live pid that is not the CLI, as after
+      // pid reuse.
+      for (const state of [
+        undefined,
+        "idle",
+        "done 0",
+        "failed runner-agent-missing",
+        "working 999999",
+        "working 1",
+      ]) {
+        if (state === undefined) {
+          await execContainer(id, ["rm", "-f", STATE_FILE]);
+        } else {
+          await writeFileContainer(id, STATE_FILE, `${state}\n`, {
+            user: "root",
+          });
+        }
+        const result = await sample(id, attachedScript, metrics("1"));
+        expect(result.exitCode, `${state}: ${result.stderr}`).toBe(0);
+        expect(result.stdout.trim(), String(state)).toBe("stopped");
+      }
+    });
+
+    it("reports disabled when management_addr is empty", async () => {
+      const { id, scripts, attachedScript } = await setup({
+        management_addr: "",
+      });
+      await stubAgent(id, 'printf "%s\\n" "$@" >/tmp/agent-args; sleep 30');
+      await stubBinary(id, "/usr/local/bin/curl", "exit 99");
+      await runDispatched(id, scripts);
+      expect(await workerArgs(id)).not.toContain("--management-addr");
+      const result = await execContainer(id, ["bash", "-c", attachedScript]);
+      expect(result.exitCode, result.stderr).toBe(0);
+      expect(result.stdout.trim()).toBe("disabled");
+    });
   });
 });

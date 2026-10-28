@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v nix > /dev/null 2>&1; then
+  echo "Warning: nix is not installed or not on PATH; skipping prebuild." >&2
+  exit 0
+fi
+
+PROJECT_PATH=${ARG_PATH}
+waited=0
+# A clone can write flake.nix before publishing its Git index. Nix needs both.
+until [ -f "$PROJECT_PATH/flake.nix" ] && {
+  ! git -C "$PROJECT_PATH" rev-parse --git-dir > /dev/null 2>&1 \
+    || git -C "$PROJECT_PATH" ls-files --error-unmatch -- flake.nix > /dev/null 2>&1
+}; do
+  if [ "$waited" -ge 600 ]; then
+    echo "Warning: $PROJECT_PATH/flake.nix was not ready within 600s; skipping prebuild." >&2
+    exit 0
+  fi
+  [ "$waited" -ne 0 ] || echo "Waiting for $PROJECT_PATH/flake.nix to be available..."
+  sleep 2
+  waited=$((waited + 2))
+done
+
+INSTALLABLE=$(echo -n '${base64encode(ARG_INSTALLABLE)}' | base64 -d)
+mkdir -p "${ARG_PROFILE_DIR}"
+cd "$PROJECT_PATH"
+if nix develop --profile "${ARG_PROFILE_DIR}/profile" "$INSTALLABLE" --command true; then
+  echo "nix develop environment is ready."
+else
+  echo "Warning: prebuild failed; the app will build on first use." >&2
+fi

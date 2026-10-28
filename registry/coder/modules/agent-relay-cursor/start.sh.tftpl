@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start step, run by coder-utils after the install step. Runs at
-# agent start with AGENT_RELAY_CURSOR_TOKEN (a short-lived worker token
-# minted for the requesting user), CURSOR_AGENT_WORKER_ID (the claimed
+# agent start with AGENT_RELAY_CURSOR_TOKEN (the Cursor session token
+# Agent Relay minted with the claim), CURSOR_AGENT_WORKER_ID (the claimed
 # worker id), AGENT_RELAY_CURSOR_POOL_NAME, and
 # AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT in scope.
 #
@@ -14,11 +14,24 @@ set -euo pipefail
 
 state_file="${state_file}"
 log_file="${log_file}"
+# The worker reads its session token from this file. Always under the
+# module directory, so an override of state_file does not move it.
+token_file="${module_directory}/worker-token"
 # Runtime-materialized scripts live under the module directory's
 # scripts/ regardless of where state_file points, so an override of
 # state_file moves only the state.
 scripts_dir="${module_directory}/scripts"
 mkdir -p "$scripts_dir" "$(dirname "$state_file")" "$(dirname "$log_file")"
+
+# additional_args, one argument per line. Shell-quoted here because the
+# string is expanded into the supervisor below, which must see each
+# argument as one word and never evaluate it.
+additional_args=""
+while IFS= read -r arg || [ -n "$arg" ]; do
+	if [ -n "$arg" ]; then
+		additional_args+="$(printf '%q' "$arg") "
+	fi
+done < <(echo -n '${additional_args}' | base64 -d)
 
 write_state() {
 	# Write via a temp file so a reader never sees a partial line.
@@ -88,13 +101,27 @@ if ! command -v ${cli_binary} >/dev/null 2>&1; then
 	exit 1
 fi
 
+# The worker authenticates with --auth-token-file rather than
+# --auth-token: the token stays off the worker's command line, and the
+# CLI re-reads the file when it reconnects, so a replacement written to
+# the same path takes effect without a restart. Written owner-only and
+# renamed into place so the worker never reads a partial token.
+(
+	umask 077
+	printf '%s' "$AGENT_RELAY_CURSOR_TOKEN" >"$token_file.tmp"
+)
+mv "$token_file.tmp" "$token_file"
+
 # The supervisor outlives this script: it owns the worker process and
 # is the only writer of terminal state. Written to disk rather than
-# inlined so setsid gets a clean argv. The token, pool name, and idle
-# timeout are read from the supervisor's environment at run time,
-# escaped here so they are never rendered into the file. Parameter
-# values are user input; interpolating them into the file would let
-# shell metacharacters run as code. The worker exits 0 when its
+# inlined so setsid gets a clean argv. The pool name and idle timeout
+# are read from the supervisor's environment at run time, escaped here
+# so they are never rendered into the file. Parameter values are user
+# input; interpolating them into the file would let shell
+# metacharacters run as code. The token itself never reaches the file
+# or the worker's environment: the worker reads it from token_file, and
+# the supervisor unsets the variable so the agent's commands, which the
+# worker spawns, do not inherit it. The worker exits 0 when its
 # idle-release timer fires after a session ends; that clean exit is
 # what tells Agent Relay to reap the workspace.
 supervisor="$scripts_dir/supervise.sh"
@@ -108,33 +135,32 @@ write_state() {
 }
 
 export PATH="\$HOME/.local/bin:\$PATH"
-# The relay stamps how the credential must reach the CLI. A pool with
-# insecure_shared_token sends its team service-account key, which the
-# CLI accepts only as CURSOR_API_KEY; a per-user worker token is only
-# accepted as --auth-token. Both are read from the environment at run
-# time so neither value lands in this file.
-auth_args=()
-if [ "\$${AGENT_RELAY_CURSOR_CREDENTIAL_KIND:-worker_token}" = api_key ]; then
-	export CURSOR_API_KEY="\$AGENT_RELAY_CURSOR_TOKEN"
-else
-	auth_args=(--auth-token "\$AGENT_RELAY_CURSOR_TOKEN")
-fi
+unset AGENT_RELAY_CURSOR_TOKEN
+# Keep these flags in sync with the reserved-flag list in additional_args'
+# validation in main.tf, so additional_args cannot set them a second time.
 ${cli_binary} worker \\
 	--pool "\$AGENT_RELAY_CURSOR_POOL_NAME" \\
 	--idle-release-timeout "\$AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT" \\
-	\$${auth_args[@]+"\$${auth_args[@]}"} \\
+	--auth-token-file "$token_file" \\
+%{ if management_addr != "" ~}
+	--management-addr "${management_addr}" \\
+%{ endif ~}
 %{ if computer_use ~}
 	--computer-use \\
 %{ endif ~}
 %{ if share_desktop ~}
 	--share-desktop=view_and_control \\
 %{ endif ~}
+	$additional_args \\
 	start >"$log_file" 2>&1 &
 worker_pid=\$!
 write_state "working \$worker_pid"
 
 wait "\$worker_pid"
 code=\$?
+# The claim is over once the worker exits, so its token is no use to
+# anyone; do not leave it on disk.
+rm -f "$token_file"
 write_state "done \$code"
 SUPERVISOR
 chmod +x "$supervisor"

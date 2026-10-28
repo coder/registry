@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+ARG_USE_CACHED='${ARG_USE_CACHED}'
+ARG_EXTRA_MCP_JSON=$(echo -n '${ARG_EXTRA_MCP_JSON}' | base64 -d)
+ARG_KIRO_CLI_INSTALL_URL='${ARG_KIRO_CLI_INSTALL_URL}'
+ARG_KIROCREW_INSTALL_URL='${ARG_KIROCREW_INSTALL_URL}'
+
+KIRO_CREW_VENV_BIN="$HOME/.kiro/crew-venv/bin/kirocrew"
+
+mkdir -p "$HOME/.local/bin"
+export PATH="$HOME/.local/bin:$HOME/bin:$PATH"
+
+echo "--------------------------------"
+printf "ARG_USE_CACHED: %s\n" "$${ARG_USE_CACHED}"
+printf "ARG_EXTRA_MCP_JSON: %s\n" "$${ARG_EXTRA_MCP_JSON:+(set)}"
+printf "ARG_KIRO_CLI_INSTALL_URL: %s\n" "$${ARG_KIRO_CLI_INSTALL_URL}"
+printf "ARG_KIROCREW_INSTALL_URL: %s\n" "$${ARG_KIROCREW_INSTALL_URL}"
+echo "--------------------------------"
+
+# Downloads an installer to a temporary file so a failed or partial download
+# is never executed. Runs in a subshell to scope the cleanup trap.
+run_installer() (
+  local url="$1"
+  local interpreter="$2"
+  local installer_file
+  installer_file=$(mktemp)
+  trap 'rm -f "$${installer_file}"' EXIT
+
+  if ! curl --fail --silent --show-error --location \
+    --retry 2 --retry-delay 1 --retry-all-errors \
+    --connect-timeout 10 --max-time 300 \
+    --output "$${installer_file}" "$${url}"; then
+    echo "ERROR: Installer could not be downloaded from $${url}." >&2
+    return 1
+  fi
+
+  if ! "$${interpreter}" -n "$${installer_file}"; then
+    echo "ERROR: Installer downloaded from $${url} is not a valid script." >&2
+    return 1
+  fi
+
+  "$${interpreter}" "$${installer_file}" < /dev/null
+)
+
+link_into_script_bin_dir() {
+  local name="$1"
+  local target="$2"
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/$${name}" ]; then
+    ln -s "$${target}" "$${CODER_SCRIPT_BIN_DIR}/$${name}"
+    echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/$${name} -> $${target}"
+  fi
+}
+
+install_kiro_cli() {
+  if [ "$${ARG_USE_CACHED}" = "true" ] && command_exists kiro-cli; then
+    echo "Kiro CLI already installed: $(kiro-cli --version 2> /dev/null || echo 'unknown version')"
+  else
+    echo "Installing Kiro CLI..."
+    # The installer prompts on /dev/tty when kiro-cli already exists in
+    # ~/.local/bin, so remove the old binaries first as it would on confirm.
+    rm -f "$HOME/.local/bin/kiro-cli" "$HOME/.local/bin/kiro-cli-chat"
+    if ! run_installer "$${ARG_KIRO_CLI_INSTALL_URL}" bash; then
+      echo "ERROR: Kiro CLI installation failed." >&2
+      exit 1
+    fi
+    hash -r
+  fi
+
+  if ! command_exists kiro-cli; then
+    echo "ERROR: kiro-cli was not found on PATH after installation." >&2
+    exit 1
+  fi
+  link_into_script_bin_dir kiro-cli "$(command -v kiro-cli)"
+  echo "Kiro CLI ready."
+}
+
+# The Kiro Crew installer provisions its own managed Python via uv (a managed
+# CPython under ~/.kiro/crew-python, and depending on the installer version a
+# managed venv at ~/.kiro/crew-venv or a pipx venv under ~/.local/share/pipx),
+# so the module needs neither system Python nor a system pipx.
+# resolve_kiro_python returns an interpreter for the module's own helper
+# scripts, preferring the installer-provided Python and falling back to any
+# system python3 only if none is found.
+resolve_kiro_python() {
+  local candidate
+  for candidate in \
+    "$HOME/.kiro/crew-venv/bin/python" \
+    "$HOME"/.kiro/crew-python/*/bin/python3 \
+    "$HOME/.local/share/pipx/venvs/kirocrew/bin/python"; do
+    if [ -x "$${candidate}" ]; then
+      echo "$${candidate}"
+      return 0
+    fi
+  done
+  if command_exists python3; then
+    command -v python3
+    return 0
+  fi
+  return 1
+}
+
+install_kiro_crew() {
+  if [ "$${ARG_USE_CACHED}" = "true" ] && command_exists kirocrew; then
+    echo "Kiro Crew already installed: $(command -v kirocrew)"
+  elif [ "$${ARG_USE_CACHED}" = "true" ] && [ -x "$${KIRO_CREW_VENV_BIN}" ]; then
+    echo "Kiro Crew already installed: $${KIRO_CREW_VENV_BIN}"
+  else
+    echo "Installing Kiro Crew..."
+    # An inherited PYTHONPATH or PYTHONHOME makes pip treat foreign packages
+    # as already satisfied, which leaves the managed venv without its
+    # dependencies (ImportError on the first gateway start).
+    unset PYTHONPATH PYTHONHOME
+    if ! run_installer "$${ARG_KIROCREW_INSTALL_URL}" sh; then
+      echo "ERROR: Kiro Crew installation failed." >&2
+      exit 1
+    fi
+    hash -r
+  fi
+
+  local kirocrew_bin=""
+  if command_exists kirocrew; then
+    kirocrew_bin="$(command -v kirocrew)"
+  elif [ -x "$${KIRO_CREW_VENV_BIN}" ]; then
+    kirocrew_bin="$${KIRO_CREW_VENV_BIN}"
+  else
+    echo "ERROR: kirocrew was not found after installation." >&2
+    exit 1
+  fi
+  link_into_script_bin_dir kirocrew "$${kirocrew_bin}"
+  echo "Kiro Crew ready."
+}
+
+apply_extra_mcp() {
+  if [ -z "$${ARG_EXTRA_MCP_JSON}" ]; then
+    return
+  fi
+
+  local mcp_file="$HOME/.kiro/settings/mcp.json"
+  echo "Applying extra MCP configuration to $${mcp_file}..."
+  mkdir -p "$(dirname "$${mcp_file}")"
+
+  local python_bin
+  python_bin="$(resolve_kiro_python || true)"
+
+  if [ -f "$${mcp_file}" ] && [ -n "$${python_bin}" ]; then
+    "$${python_bin}" - "$${mcp_file}" "$${ARG_EXTRA_MCP_JSON}" << 'PYEOF'
+import json
+import sys
+
+with open(sys.argv[1]) as f:
+    existing = json.load(f)
+new = json.loads(sys.argv[2])
+
+
+def merge(a, b):
+    for k, v in b.items():
+        if k in a and isinstance(a[k], dict) and isinstance(v, dict):
+            merge(a[k], v)
+        else:
+            a[k] = v
+
+
+merge(existing, new)
+with open(sys.argv[1], "w") as f:
+    f.write(json.dumps(existing, indent=2))
+PYEOF
+    echo "MCP configuration merged."
+  else
+    printf '%s' "$${ARG_EXTRA_MCP_JSON}" > "$${mcp_file}"
+    echo "MCP configuration written."
+  fi
+}
+
+install_kiro_cli
+install_kiro_crew
+apply_extra_mcp
+
+echo "Kiro Crew install completed."

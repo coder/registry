@@ -183,13 +183,34 @@ function setup_claude_configurations() {
 
 }
 
-function write_managed_settings() {
-  if [ -z "$${ARG_MANAGED_SETTINGS_JSON}" ]; then
+function remove_managed_file() {
+  local target="$1"
+
+  if [ ! -e "$${target}" ] && [ ! -L "$${target}" ]; then
     return
   fi
 
+  if command_exists sudo; then
+    sudo -n rm -f -- "$${target}" || {
+      echo "Error: could not remove stale Claude Code configuration at $${target}" >&2
+      return 1
+    }
+  else
+    rm -f -- "$${target}" || {
+      echo "Error: could not remove stale Claude Code configuration at $${target}" >&2
+      return 1
+    }
+  fi
+}
+
+function write_managed_settings() {
   local dropin_dir="/etc/claude-code/managed-settings.d"
   local target="$${dropin_dir}/10-coder.json"
+
+  if [ -z "$${ARG_MANAGED_SETTINGS_JSON}" ]; then
+    remove_managed_file "$${target}"
+    return
+  fi
 
   if ! echo "$${ARG_MANAGED_SETTINGS_JSON}" | jq empty 2> /dev/null; then
     echo "Warning: managed_settings is not valid JSON, skipping policy write"
@@ -210,19 +231,25 @@ function write_managed_settings() {
 }
 
 function setup_api_key_helper() {
+  local helper_path="$HOME/.claude/coder-api-key-helper.sh"
+  local dropin_dir="/etc/claude-code/managed-settings.d"
+  local target="$${dropin_dir}/20-coder-apikeyhelper.json"
+
   if [ -z "$${ARG_API_KEY_HELPER_SCRIPT}" ]; then
+    remove_managed_file "$${target}"
+    if ! rm -f -- "$${helper_path}"; then
+      echo "Error: could not remove stale Claude Code API key helper at $${helper_path}" >&2
+      return 1
+    fi
     return
   fi
 
   echo "Configuring api_key_helper for short-lived credentials..."
 
   mkdir -p "$HOME/.claude"
-  local helper_path="$HOME/.claude/coder-api-key-helper.sh"
   printf '%s' "$${ARG_API_KEY_HELPER_SCRIPT}" > "$${helper_path}"
   chmod 0700 "$${helper_path}"
 
-  local dropin_dir="/etc/claude-code/managed-settings.d"
-  local target="$${dropin_dir}/20-coder-apikeyhelper.json"
   if command_exists sudo; then
     sudo mkdir -p "$${dropin_dir}"
     printf '{"apiKeyHelper":"%s"}\n' "$${helper_path}" | sudo tee "$${target}" > /dev/null
