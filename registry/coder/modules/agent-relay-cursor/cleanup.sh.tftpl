@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Stops every worker process a previous agent start left behind. Runs as
-# the coder-utils pre-install step. The home directory, and with it the
-# detached processes' records, can outlive the agent, so a new start must
-# never run beside an old worker.
+# Best-effort cleanup on agent start and workspace stop. The home directory
+# and detached process records can outlive the agent. Startup always gets a
+# new generation even when an old process cannot be verified or stopped.
 #
 # The supervisor and the worker each publish "<pid> <boot id> <starttime>"
 # in their own file, under supervisors/ and workers/, before the worker CLI
@@ -10,30 +9,26 @@
 # supervisor is SIGKILLed. A pid alone can be reused after a reboot or once
 # the process exits, so a process is only signalled while the boot id and
 # the /proc starttime still match. A record is removed only once the process
-# it identifies is verified gone.
+# it identifies is verified gone. Unverifiable records are kept for a later
+# attempt, but never used to signal a process.
 #
-# coder-utils marks the pre-install step complete even when it fails, so
-# the install and start steps run regardless. The cleanup-complete marker
-# is the barrier instead: removed before anything else, and written, with a
-# fresh id, only once every old process is gone. The start step refuses to
-# launch without it, and the supervisor and worker exit before running
-# anything if the marker no longer holds the id they were launched with,
-# which closes the window between launch and publishing a record.
-set -euo pipefail
+# The marker is removed before signalling and startup publishes a fresh id
+# after cleanup attempts; stop never publishes one. The generation check
+# blocks later old writes, but an old writer already past it can still race.
+set -uo pipefail
 
 cleanup_marker="${module_directory}/cleanup-complete"
-rm -f "$cleanup_marker" "$cleanup_marker.tmp"
+rm -f "$cleanup_marker" "$cleanup_marker.tmp" || echo "Cannot remove cleanup marker" >&2
 
 state_file="${state_file}"
 token_file="${module_directory}/worker-token"
 record_dirs=("${module_directory}/supervisors" "${module_directory}/workers")
-mkdir -p "$${record_dirs[@]}" "$(dirname "$state_file")"
+rm -f "$state_file" "$state_file.tmp" "$token_file" "$token_file.tmp" || echo "Cannot remove previous Cursor state or token" >&2
+mkdir -p "$${record_dirs[@]}" "$(dirname "$state_file")" || echo "Cannot create Cursor record directories" >&2
 
-# Without the boot id no record can be verified, and dropping records it
-# cannot verify would leave a live worker untracked.
-if ! boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)" || [ -z "$boot_id" ]; then
-	echo "Cannot read /proc/sys/kernel/random/boot_id; cannot verify previous Cursor worker processes." >&2
-	exit 1
+boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || true)"
+if [ -z "$boot_id" ]; then
+	echo "Cannot read /proc/sys/kernel/random/boot_id; previous Cursor processes cannot be verified." >&2
 fi
 
 # Prints the starttime of a live, non-zombie pid. comm, field 2 of
@@ -54,9 +49,6 @@ identity_alive() {
 	[ "$(process_starttime "$1" || true)" = "$2" ]
 }
 
-# The previous run's state must never be reported as this run's.
-rm -f "$state_file" "$state_file.tmp"
-
 # Entries are "<pid> <starttime> <kind> <record>".
 pending=()
 for dir in "$${record_dirs[@]}"; do
@@ -66,18 +58,24 @@ for dir in "$${record_dirs[@]}"; do
 		[ -f "$record" ] || continue
 		pid="" recorded_boot="" recorded_start=""
 		read -r pid recorded_boot recorded_start <"$record" || true
-		if [[ "$pid" =~ ^[0-9]+$ && "$recorded_start" =~ ^[0-9]+$ ]] &&
-			[ "$recorded_boot" = "$boot_id" ] &&
-			identity_alive "$pid" "$recorded_start"; then
+		if [[ ! "$pid" =~ ^[0-9]+$ || ! "$recorded_start" =~ ^[0-9]+$ ]]; then
+			echo "Unverifiable Cursor $kind record: $record" >&2
+		elif [ -z "$boot_id" ]; then
+			echo "Unverifiable Cursor $kind identity (pid $pid): boot id unavailable" >&2
+		elif [ "$recorded_boot" != "$boot_id" ]; then
+			rm -f "$record" || true
+		elif identity_alive "$pid" "$recorded_start"; then
 			pending+=("$pid $recorded_start $kind $record")
+		elif [ -d "/proc/$pid" ] && [ ! -r "/proc/$pid/stat" ]; then
+			echo "Unverifiable Cursor $kind identity (pid $pid): /proc stat unreadable" >&2
 		else
-			rm -f "$record"
+			rm -f "$record" || true
 		fi
 	done
 	# A temp file left by a process that died mid-write identifies nothing.
 	# Removing one that is mid-write makes that process exit without
 	# running the worker.
-	rm -f "$dir"/.*.tmp
+	rm -f "$dir"/.*.tmp || true
 done
 
 # Signals every pending process that is still the one its record names.
@@ -102,8 +100,11 @@ wait_pending() {
 			read -r pid start kind record <<<"$entry"
 			if identity_alive "$pid" "$start"; then
 				remaining+=("$entry")
+			elif [ -d "/proc/$pid" ] && [ ! -r "/proc/$pid/stat" ]; then
+				[ "$i" -ne 0 ] || echo "Unverifiable Cursor $kind identity (pid $pid): /proc stat unreadable" >&2
+				remaining+=("$entry")
 			else
-				rm -f "$record"
+				rm -f "$record" || true
 			fi
 		done
 		pending=("$${remaining[@]+"$${remaining[@]}"}")
@@ -130,19 +131,27 @@ if [ "$${#pending[@]}" -gt 0 ]; then
 			# The records stay, so the next cleanup retries these processes.
 			for entry in "$${pending[@]}"; do
 				read -r pid _ kind _ <<<"$entry"
-				echo "Previous Cursor $kind (pid $pid) survived SIGKILL." >&2
-			done
-			exit 1
+				if [ -d "/proc/$pid" ] && [ ! -r "/proc/$pid/stat" ]; then
+					echo "Previous Cursor $kind (pid $pid) is unverifiable after SIGKILL." >&2
+				else
+					echo "Previous Cursor $kind (pid $pid) survived SIGKILL." >&2
+				fi
+				done
 		fi
 	fi
 fi
 
-# A supervisor may have written state while TERM was in flight. With every
-# old process gone, nothing can use the token or rewrite the state.
-rm -f "$state_file" "$state_file.tmp" "$token_file" "$token_file.tmp"
-# Old start claims are safe to remove only after their processes have gone.
+# A supervisor may have written state or a token while TERM was in flight.
+rm -f "$state_file" "$state_file.tmp" "$token_file" "$token_file.tmp" || echo "Cannot remove previous Cursor state or token" >&2
+# A later start gets a new generation even when an old process survived.
 for claim in "${module_directory}/started"/*; do
-	if [ -d "$claim" ]; then rmdir "$claim"; fi
+	if [ -d "$claim" ]; then rmdir "$claim" || true; fi
 done
-cat /proc/sys/kernel/random/uuid >"$cleanup_marker.tmp"
-mv "$cleanup_marker.tmp" "$cleanup_marker"
+%{ if !stop_mode ~}
+if cat /proc/sys/kernel/random/uuid >"$cleanup_marker.tmp"; then
+	mv "$cleanup_marker.tmp" "$cleanup_marker" || echo "Cannot publish cleanup marker" >&2
+else
+	echo "Cannot generate cleanup marker" >&2
+fi
+%{ endif ~}
+exit 0

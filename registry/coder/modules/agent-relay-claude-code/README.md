@@ -90,11 +90,12 @@ parameter leaves it empty.
 
 ## Scripts and logs
 
-The module runs three ordered steps through [coder-utils](https://registry.coder.com/modules/coder/coder-utils):
+The module runs three ordered startup steps through [coder-utils](https://registry.coder.com/modules/coder/coder-utils):
 a pre-install step that stops any previous supervisor and runner and clears status,
 an install step that downloads the CLI when `install_cli` is set and the
 binary is missing (a no-op otherwise), then a start step that launches the
-runner. Everything lands under `$HOME/.coder-modules/coder/agent-relay-claude-code`:
+runner. A separate `run_on_stop` script uses the same cleanup source on graceful
+workspace stop. Everything lands under `$HOME/.coder-modules/coder/agent-relay-claude-code`:
 
 | path            | contents                                               |
 | --------------- | ------------------------------------------------------ |
@@ -119,14 +120,22 @@ A runner that is never assigned its session exits after `exit_if_unused_min`
 minutes (default 10, 0 to disable), so a dispatch that never arrives is reaped
 rather than reporting `working` forever.
 
-A restart stops any surviving supervisor and runner before launching another.
-The start step can launch only once per cleanup generation. If there is no new work order, the agent reports `idle`; a prior runner's exit
-status is not reused for the new start.
+A graceful workspace stop uses a separate script to stop the supervisor and
+runner and clear their state. It waits up to 10 seconds after `TERM`, then up
+to 5 seconds after `KILL`. Allow at least 30 seconds for the container or pod
+to terminate so this script and the agent can finish shutting down. A forced
+stop may skip the hook; startup cleanup still runs on the next agent start.
 
-This startup cleanup does not drain a runner when the workspace stops. Graceful
-stop, with enough container or pod shutdown time, is a separate follow-up.
-The reaper also needs a short grace after a new build to avoid acting on old
-metadata before this cleanup has run and new status has been collected.
+Startup cleanup is availability-first: if it cannot verify that a previous
+process stopped, it logs a warning and starts a fresh runner anyway. Two
+runners may then run concurrently, and a surviving old supervisor can race
+to write stale status. It never signals a process whose recorded
+PID, boot ID, and process start time do not match. The start step can launch
+only once per cleanup generation; without a new work order it reports `idle`
+instead of the previous run's status.
+
+The reaper still needs a short grace after a new build to avoid acting on old
+metadata before cleanup runs and fresh status has been collected.
 
 `agent_relay_status` reports one of:
 

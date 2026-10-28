@@ -22,9 +22,9 @@ import {
 // throwaway container with a stub `agent` binary standing in for the
 // Cursor CLI, so the supervisor lifecycle the relay's reaper depends on
 // (idle, working, done, failed) is observed rather than grepped for. The
-// pre-install script runs the cleanup, which must stop any supervisor and
-// worker a previous start left behind. The real installer and the real
-// worker are out of scope: both need the network and Cursor's side.
+// pre-install and stop render the same cleanup template. Stop must not
+// publish a new launch marker. The real installer and worker are out of
+// scope: both need the network and Cursor's side.
 // `coder` is stubbed so the `coder exp sync` ordering calls succeed
 // without a control plane.
 
@@ -82,6 +82,7 @@ type Scripts = {
   preInstall: string;
   install: string;
   start: string;
+  stop: string;
 };
 
 // coder-utils owns the coder_script resources; find ours by display name.
@@ -92,19 +93,20 @@ const collectScripts = (state: TerraformState): Scripts => {
     for (const instance of resource.instances) {
       const attrs = instance.attributes as Record<string, unknown>;
       byDisplayName[attrs.display_name as string] = attrs.script as string;
-      // Startup only: draining the worker on workspace stop is separate
-      // work, so nothing may run on stop.
-      expect(attrs.run_on_stop, attrs.display_name as string).toBe(false);
+      expect(attrs.run_on_stop, attrs.display_name as string).toBe(
+        attrs.display_name === "Cursor worker: Stop Script",
+      );
     }
   }
   const scripts = {
     preInstall: byDisplayName["Cursor worker: Pre-Install Script"],
     install: byDisplayName["Cursor worker: Install Script"],
     start: byDisplayName["Cursor worker: Start Script"],
+    stop: byDisplayName["Cursor worker: Stop Script"],
   };
   if (Object.values(scripts).some((s) => !s)) {
     throw new Error(
-      `expected pre-install, install, and start scripts, found ${Object.keys(byDisplayName)}`,
+      `expected pre-install, install, start, and stop scripts, found ${Object.keys(byDisplayName)}`,
     );
   }
   return scripts;
@@ -265,6 +267,38 @@ describe("agent-relay-cursor", () => {
     expect(await readState(id)).toBe("idle");
   });
 
+  it("removes a stale token before idling without cleanup or a credential", async () => {
+    const { id, scripts } = await setup();
+    await stubAgent(id, "sleep 120");
+    const first = await runDispatched(id, scripts);
+    expect(first.start.exitCode).toBe(0);
+    const { supervisorPid, workerPid } = await liveIdentity(id);
+    const previousId = (await readFileContainer(id, CLEANUP_MARKER)).trim();
+    expect(await readFileContainer(id, TOKEN_FILE)).toBe("test-user-token");
+
+    // The ephemeral credential was cleared, but pre-install did not run.
+    const idle = await execContainer(id, ["bash", "-c", scripts.start]);
+    expect(idle.exitCode).toBe(0);
+    expect(await exists(id, TOKEN_FILE)).toBe(false);
+    expect(await readState(id)).toBe("idle");
+    expect((await readFileContainer(id, CLEANUP_MARKER)).trim()).not.toBe(
+      previousId,
+    );
+    expect(await processAlive(id, workerPid)).toBe(true);
+
+    // The previous supervisor is fenced from writing terminal state.
+    await execContainer(id, ["kill", "-TERM", workerPid]);
+    await waitFor(
+      async () =>
+        !(await supervisorRecords(id)).some((record) =>
+          record.startsWith(`${supervisorPid} `),
+        ),
+      "previous supervisor exit",
+    );
+    expect(await readState(id)).toBe("idle");
+    expect(await exists(id, TOKEN_FILE)).toBe(false);
+  });
+
   // An agent restart inside the same build re-runs every step with the
   // credential still set, and the previous run's state, records, and
   // possibly its detached supervisor still around.
@@ -412,9 +446,11 @@ describe("agent-relay-cursor", () => {
       expect(start.exitCode).toBe(0);
       expect(await processAlive(id, reused.pid)).toBe(true);
       expect(await processAlive(id, rebooted.pid)).toBe(true);
-      // Stale records are removed; only the new processes' remain.
-      expect(await supervisorRecords(id)).toHaveLength(1);
+      // Mismatched identities are discarded; only the malformed record
+      // remains alongside the new supervisor and worker records.
+      expect(await supervisorRecords(id)).toHaveLength(2);
       expect(await workerRecords(id)).toHaveLength(1);
+      expect(await exists(id, `${SUPERVISORS_DIR}/garbage`)).toBe(true);
       for (const record of await allRecords(id)) {
         expect(record).not.toContain(reused.pid + " ");
         expect(record).not.toContain(rebooted.pid + " ");
@@ -473,12 +509,101 @@ describe("agent-relay-cursor", () => {
       90 * 1000,
     );
 
-    it("does not launch twice for one cleanup generation", async () => {
+    it("does not signal a pid from a different boot and publishes a new marker", async () => {
       const { id, scripts } = await setup();
       await stubAgent(id, "sleep 120");
       const first = await runDispatched(id, scripts);
       expect(first.start.exitCode).toBe(0);
-      const originalState = await readState(id);
+      const oldId = (await readFileContainer(id, CLEANUP_MARKER)).trim();
+      const sleeper = await startSleeper(id);
+      await writeFileContainer(
+        id,
+        `${WORKERS_DIR}/${sleeper.pid}.${sleeper.starttime}`,
+        `${sleeper.pid} invalid-boot ${sleeper.starttime}\n`,
+        { user: "root" },
+      );
+
+      const second = await runDispatched(id, scripts);
+      expect(second.start.exitCode, second.start.stdout).toBe(0);
+      expect((await readFileContainer(id, CLEANUP_MARKER)).trim()).not.toBe(
+        oldId,
+      );
+      expect(await processAlive(id, sleeper.pid)).toBe(true);
+      expect(
+        await exists(id, `${WORKERS_DIR}/${sleeper.pid}.${sleeper.starttime}`),
+      ).toBe(false);
+      expect(await workerCount(id)).toBe(1);
+    });
+
+    it("logs and keeps malformed records while starting a new generation", async () => {
+      const { id, scripts } = await setup();
+      await stubAgent(id, "sleep 120");
+      await execContainer(id, ["mkdir", "-p", WORKERS_DIR]);
+      const badRecord = `${WORKERS_DIR}/invalid`;
+      await writeFileContainer(id, badRecord, "not a pid\n", { user: "root" });
+      const result = await runDispatched(id, scripts);
+      expect(result.preInstall.stdout).toContain(
+        "Unverifiable Cursor worker record",
+      );
+      expect(result.start.exitCode).toBe(0);
+      expect(await exists(id, badRecord)).toBe(true);
+    });
+
+    it(
+      "publishes a fresh marker and starts even when a verified worker survives",
+      async () => {
+        const { id, scripts } = await setup();
+        await stubAgent(id, "sleep 120");
+        const first = await runDispatched(id, scripts);
+        expect(first.start.exitCode).toBe(0);
+        const { workerPid } = await liveIdentity(id);
+        const oldId = (await readFileContainer(id, CLEANUP_MARKER)).trim();
+
+        // Simulate a process for which both signals fail. The cleanup must
+        // retain its record, log the survivor, and allow a new generation.
+        const cleanup = await execContainer(id, [
+          "bash",
+          "-c",
+          `kill() { return 1; }; source ${MODULE_DIR}/scripts/pre_install.sh`,
+        ]);
+        expect(cleanup.exitCode).toBe(0);
+        expect(cleanup.stderr).toContain(
+          `Previous Cursor worker (pid ${workerPid}) survived SIGKILL.`,
+        );
+        expect((await readFileContainer(id, CLEANUP_MARKER)).trim()).not.toBe(
+          oldId,
+        );
+        expect(await processAlive(id, workerPid)).toBe(true);
+        expect(await workerRecords(id)).toHaveLength(1);
+        expect(await exists(id, STATE_FILE)).toBe(false);
+        expect(await exists(id, TOKEN_FILE)).toBe(false);
+
+        const start = await execContainer(id, [
+          "env",
+          ...DISPATCH_ENV,
+          "bash",
+          "-c",
+          scripts.start,
+        ]);
+        expect(start.exitCode, start.stdout).toBe(0);
+        expect(await workerCount(id)).toBe(2);
+        expect(await readState(id)).toMatch(/^working \d+$/);
+      },
+      90 * 1000,
+    );
+
+    it("rotates a claimed generation and may run two workers without cleanup", async () => {
+      const { id, scripts } = await setup();
+      await stubAgent(id, "sleep 120");
+      const first = await runDispatched(id, scripts);
+      expect(first.start.exitCode).toBe(0);
+      const { workerPid: previousPid } = await liveIdentity(id);
+      const previousId = (await readFileContainer(id, CLEANUP_MARKER)).trim();
+      expect(await exists(id, `${MODULE_DIR}/started/${previousId}`)).toBe(
+        true,
+      );
+
+      // A valid marker and claim are left behind when cleanup is skipped.
       const repeated = await execContainer(id, [
         "env",
         ...DISPATCH_ENV,
@@ -486,11 +611,15 @@ describe("agent-relay-cursor", () => {
         "-c",
         scripts.start,
       ]);
-      expect(repeated.exitCode).toBe(1);
-      expect(repeated.stdout).toContain(
-        "already started for this cleanup generation",
-      );
-      expect(await readState(id)).toBe(originalState);
+      expect(repeated.exitCode, repeated.stdout).toBe(0);
+      expect(repeated.stdout).toContain("starting a new generation anyway");
+      const nextId = (await readFileContainer(id, CLEANUP_MARKER)).trim();
+      expect(nextId).not.toBe(previousId);
+      expect(await exists(id, `${MODULE_DIR}/started/${nextId}`)).toBe(true);
+      expect(await processAlive(id, previousPid)).toBe(true);
+      expect(await workerCount(id)).toBe(2);
+      expect(await readState(id)).toMatch(/^working \d+$/);
+      expect(await readState(id)).not.toBe(`working ${previousPid}`);
     });
 
     it("runs nothing from a supervisor launched before a newer cleanup", async () => {
@@ -571,10 +700,9 @@ describe("agent-relay-cursor", () => {
       expect(await readFileContainer(id, TOKEN_FILE)).toBe("newer-token");
     });
 
-    it("does not start a worker after any failed cleanup", async () => {
-      // A previous start left a completed marker. A cleanup that fails for
-      // any reason, here an unusable supervisors directory, must remove it
-      // first so the start step refuses.
+    it("does not start when record directories are unusable", async () => {
+      // A broken record directory prevents the start step from publishing
+      // a worker record, although cleanup still publishes a marker.
       const { id, scripts } = await setup();
       await stubAgent(id, "sleep 30");
       const first = await runDispatched(id, scripts);
@@ -595,37 +723,81 @@ describe("agent-relay-cursor", () => {
 
       const run = (script: string) =>
         execContainer(id, ["env", ...DISPATCH_ENV, "bash", "-c", script]);
-      expect((await run(scripts.preInstall)).exitCode).not.toBe(0);
-      expect(await exists(id, CLEANUP_MARKER)).toBe(false);
+      expect((await run(scripts.preInstall)).exitCode).toBe(0);
+      expect(await exists(id, CLEANUP_MARKER)).toBe(true);
       expect((await run(scripts.install)).exitCode).toBe(0);
       const start = await run(scripts.start);
       expect(start.exitCode).toBe(1);
-      expect(start.stdout).toContain("not starting another");
       expect(await workerCount(id)).toBe(0);
       expect(await exists(id, TOKEN_FILE)).toBe(false);
     });
 
-    it("does not start a worker when the cleanup never ran", async () => {
-      const { id, scripts } = await setup();
-      await stubAgent(id, "sleep 30");
-      // coder-utils' start wrapper expects the directories the earlier
-      // steps create.
-      await execContainer(id, [
-        "mkdir",
-        "-p",
-        `${MODULE_DIR}/scripts`,
-        `${MODULE_DIR}/logs`,
-      ]);
-      const start = await execContainer(id, [
-        "env",
-        ...DISPATCH_ENV,
-        "bash",
-        "-c",
-        scripts.start,
-      ]);
-      expect(start.exitCode).toBe(1);
-      expect(start.stdout).toContain("not starting another");
-      expect(await workerCount(id)).toBe(0);
+    it("starts a new generation when cleanup leaves no usable marker", async () => {
+      for (const marker of [null, "incomplete"]) {
+        const { id, scripts } = await setup();
+        await stubAgent(id, "sleep 120");
+        const first = await runDispatched(id, scripts);
+        expect(first.start.exitCode).toBe(0);
+        const { supervisorPid: previousSupervisor, workerPid: previousPid } =
+          await liveIdentity(id);
+        const previousId = (await readFileContainer(id, CLEANUP_MARKER)).trim();
+
+        // Cleanup did not run or stopped before publishing. The old worker
+        // still lives; fallback must not signal it or trust any stale pid.
+        if (marker === null) {
+          await execContainer(id, ["rm", CLEANUP_MARKER]);
+        } else {
+          await writeFileContainer(id, CLEANUP_MARKER, `${marker}\n`, {
+            user: "root",
+          });
+        }
+        const unrelated = await startSleeper(id);
+        await writeFileContainer(
+          id,
+          `${WORKERS_DIR}/${unrelated.pid}.1`,
+          `${unrelated.pid} fake-boot 1\n`,
+          { user: "root" },
+        );
+        await writeFileContainer(id, STATE_FILE, "done 3\n", { user: "root" });
+
+        const runStart = () =>
+          execContainer(id, [
+            "env",
+            ...DISPATCH_ENV,
+            "bash",
+            "-c",
+            scripts.start,
+          ]);
+        const second = await runStart();
+        expect(second.exitCode, second.stdout).toBe(0);
+        expect(second.stdout).toContain("starting a worker anyway");
+        const newId = (await readFileContainer(id, CLEANUP_MARKER)).trim();
+        expect(newId).toMatch(/^[0-9a-f-]+$/);
+        expect(newId).not.toBe(previousId);
+        expect(await processAlive(id, previousPid)).toBe(true);
+        expect(await processAlive(id, unrelated.pid)).toBe(true);
+        expect(await workerCount(id)).toBe(2);
+        expect(await readState(id)).toMatch(/^working \d+$/);
+        expect(await readState(id)).not.toBe(`working ${previousPid}`);
+
+        // The old supervisor cannot overwrite new state or remove the new
+        // token after the marker has rotated.
+        await execContainer(id, ["kill", "-TERM", previousPid]);
+        await waitFor(
+          async () => !(await processAlive(id, previousPid)),
+          "previous worker exit",
+        );
+        await waitFor(
+          async () =>
+            !(await supervisorRecords(id)).some((record) =>
+              record.startsWith(`${previousSupervisor} `),
+            ),
+          "previous supervisor exit",
+        );
+        const newState = await readState(id);
+        expect(newState).toMatch(/^working \d+$/);
+        expect(await exists(id, TOKEN_FILE)).toBe(true);
+      }
     });
   });
 
@@ -652,6 +824,53 @@ describe("agent-relay-cursor", () => {
     expect(await exists(id, STATE_FILE)).toBe(false);
     expect(await exists(id, TOKEN_FILE)).toBe(false);
     expect(await allRecords(id)).toEqual([]);
+  });
+
+  it("stops a live worker on workspace stop without publishing a marker", async () => {
+    const { id, scripts } = await setup();
+    await stubAgent(id, "sleep 120");
+    const first = await runDispatched(id, scripts);
+    expect(first.start.exitCode).toBe(0);
+    const { supervisorPid, workerPid } = await liveIdentity(id);
+
+    const stopped = await execContainer(id, ["bash", "-c", scripts.stop]);
+    expect(stopped.exitCode, stopped.stdout).toBe(0);
+    expect(await processAlive(id, supervisorPid)).toBe(false);
+    expect(await processAlive(id, workerPid)).toBe(false);
+    expect(await exists(id, STATE_FILE)).toBe(false);
+    expect(await exists(id, TOKEN_FILE)).toBe(false);
+    expect(await exists(id, CLEANUP_MARKER)).toBe(false);
+    expect(await allRecords(id)).toEqual([]);
+
+    // A later start must not inherit the stop's marker or state.
+    const next = await runDispatched(id, scripts);
+    expect(next.start.exitCode).toBe(0);
+    expect(await readState(id)).toMatch(/^working \d+$/);
+    expect(await workerCount(id)).toBe(1);
+  });
+
+  it("keeps stop best-effort when records cannot be verified", async () => {
+    const { id, scripts } = await setup();
+    await execContainer(id, ["mkdir", "-p", WORKERS_DIR]);
+    await writeFileContainer(id, CLEANUP_MARKER, "old-generation\n", {
+      user: "root",
+    });
+    await writeFileContainer(id, STATE_FILE, "working 1\n", { user: "root" });
+    await writeFileContainer(id, TOKEN_FILE, "old-token", { user: "root" });
+    const badRecord = `${WORKERS_DIR}/unknown`;
+    await writeFileContainer(id, badRecord, "unverifiable\n", { user: "root" });
+    const stopped = await execContainer(id, ["bash", "-c", scripts.stop]);
+    expect(stopped.exitCode).toBe(0);
+    expect(stopped.stderr).toContain("Unverifiable Cursor worker record");
+    expect(await exists(id, badRecord)).toBe(true);
+    expect(await exists(id, STATE_FILE)).toBe(false);
+    expect(await exists(id, TOKEN_FILE)).toBe(false);
+    expect(await exists(id, CLEANUP_MARKER)).toBe(false);
+    // A failed stop must not block a later start.
+    await stubAgent(id, "sleep 120");
+    const next = await runDispatched(id, scripts);
+    expect(next.start.exitCode).toBe(0);
+    expect(await workerCount(id)).toBe(1);
   });
 
   it("stops the worker on TERM without recording a terminal state", async () => {

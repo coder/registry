@@ -12,18 +12,24 @@
 # for Agent Relay. See README.
 set -euo pipefail
 
-# coder-utils starts this step even when the pre-install cleanup failed,
-# so the cleanup's marker is the barrier: without it, a process from a
-# previous agent start may still be alive, and a second worker must not
-# start beside it. The cleanup has also cleared the previous run's state
-# and token. The marker holds an id unique to that cleanup, which the
-# supervisor and worker check after publishing their records; see
-# cleanup.sh.
+# Pre-install cleanup normally publishes a fresh generation after attempting
+# to stop old workers. If cleanup did not run, the marker may be absent or
+# still have a claim from the prior start. Rotate it so the old supervisor
+# cannot change this start's state; an old worker may remain alive.
 cleanup_marker="${module_directory}/cleanup-complete"
+mkdir -p "${module_directory}"
+new_generation() {
+	cleanup_id="$(cat /proc/sys/kernel/random/uuid 2>/dev/null || printf '%s-%s' "$$" "$RANDOM")"
+	printf '%s\n' "$cleanup_id" >"$cleanup_marker.tmp"
+	mv "$cleanup_marker.tmp" "$cleanup_marker"
+}
 cleanup_id="$(cat "$cleanup_marker" 2>/dev/null || true)"
 if [[ ! "$cleanup_id" =~ ^[0-9a-f-]+$ ]]; then
-	echo "The pre-install cleanup did not finish, so a previous Cursor worker may still be running; not starting another." >&2
-	exit 1
+	echo "Pre-install cleanup did not publish a marker; starting a worker anyway." >&2
+	new_generation
+elif [ -d "${module_directory}/started/$cleanup_id" ]; then
+	echo "Previous Cursor start still claims this generation; starting a new generation anyway." >&2
+	new_generation
 fi
 
 state_file="${state_file}"
@@ -61,14 +67,16 @@ if [ -z "$${AGENT_RELAY_CURSOR_TOKEN:-}" ]; then
 	# No credential for this agent start: a manual workspace, or a restart
 	# after the ephemeral credential was cleared. No worker can run either
 	# way; whatever a previous run recorded no longer applies.
+	# A skipped cleanup may have left the previous session's token.
+	rm -f "$token_file" "$token_file.tmp" || echo "Cannot remove previous Cursor worker token" >&2
 	write_state "idle"
 	echo "No worker token set. No worker will start on this agent start."
 	echo "Idling. A new credential is required to start another worker."
 	exit 0
 fi
 
-# A repeated start step without cleanup cannot launch a second worker with
-# the same credential. mkdir atomically claims this cleanup generation.
+# A claim prevents concurrent starts for this generation. A later start
+# rotates a still-claimed generation rather than blocking on stale state.
 mkdir -p "${module_directory}/started"
 if ! mkdir "${module_directory}/started/$cleanup_id" 2>/dev/null; then
 	echo "Worker already started for this cleanup generation" >&2

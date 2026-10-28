@@ -308,6 +308,13 @@ locals {
   health_url = var.health_port > 0 ? "http://127.0.0.1:${var.health_port}" : ""
 
   cleanup_script = templatefile("${path.module}/cleanup.sh.tftpl", {
+    cleanup_mode     = "start"
+    module_directory = local.module_directory
+    state_file       = var.state_file
+  })
+
+  shutdown_script = templatefile("${path.module}/cleanup.sh.tftpl", {
+    cleanup_mode     = "stop"
     module_directory = local.module_directory
     state_file       = var.state_file
   })
@@ -343,6 +350,15 @@ module "coder_utils" {
   pre_install_script  = local.cleanup_script
   install_script      = local.install_script
   start_script        = local.start_script
+}
+
+resource "coder_script" "shutdown" {
+  agent_id     = var.agent_id
+  display_name = "Claude Code runner: Stop Script"
+  icon         = "/emojis/1f916.png"
+  run_on_stop  = true
+  timeout      = 20
+  script       = local.shutdown_script
 }
 
 # The coder provider has no standalone agent-metadata resource: the

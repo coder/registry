@@ -94,6 +94,7 @@ type Scripts = {
   cleanup: string;
   install: string;
   start: string;
+  stop: string;
 };
 
 // coder-utils owns the coder_script resources; find ours by display name.
@@ -109,12 +110,13 @@ const collectScripts = (state: TerraformState): Scripts => {
   const cleanup = byDisplayName["Claude Code runner: Pre-Install Script"];
   const install = byDisplayName["Claude Code runner: Install Script"];
   const start = byDisplayName["Claude Code runner: Start Script"];
-  if (!cleanup || !install || !start) {
+  const stop = byDisplayName["Claude Code runner: Stop Script"];
+  if (!cleanup || !install || !start || !stop) {
     throw new Error(
-      `expected cleanup, install, and start scripts, found ${Object.keys(byDisplayName)}`,
+      `expected cleanup, install, start, and stop scripts, found ${Object.keys(byDisplayName)}`,
     );
   }
-  return { cleanup, install, start };
+  return { cleanup, install, start, stop };
 };
 
 const stubBinary = async (id: string, path: string, body: string) => {
@@ -149,7 +151,7 @@ const runScripts = async (id: string, scripts: Scripts, env: string[]) => {
     "-c",
     scripts.start,
   ]);
-  return { install, start };
+  return { cleanup, install, start };
 };
 
 const runDispatched = (id: string, scripts: Scripts) =>
@@ -393,7 +395,7 @@ describe("agent-relay-claude-code", () => {
     expect(await waitForState(id, /^done \d+$/)).toBe("done 3");
   });
 
-  it("refuses to start a runner when cleanup did not complete", async () => {
+  it("starts even when startup cleanup did not run", async () => {
     const { id, scripts } = await setup({ install_cli: "false" });
     await stubClaude(id, "sleep 30");
     const install = await execContainer(id, ["bash", "-c", scripts.install]);
@@ -405,19 +407,119 @@ describe("agent-relay-claude-code", () => {
       "-c",
       scripts.start,
     ]);
-    expect(start.exitCode).toBe(1);
-    expect(start.stdout).toContain("refusing to start another");
-    expect(
-      (await execContainer(id, ["test", "-e", STATE_FILE])).exitCode,
-    ).not.toBe(0);
+    expect(start.exitCode, start.stdout).toBe(0);
+    expect(start.stdout).toContain("cleanup did not finish");
+    expect(await readState(id)).toMatch(/^working \d+$/);
   });
 
-  it("does not launch twice for one cleanup generation", async () => {
+  it("starts a new runner when a verified old runner cannot be stopped", async () => {
     const { id, scripts } = await setup({ install_cli: "false" });
     await stubClaude(id, "sleep 120");
     const first = await runDispatched(id, scripts);
     expect(first.start.exitCode).toBe(0);
-    const originalState = await waitForState(id, /^working \d+$/);
+    const oldPid = Number(
+      (await waitForState(id, /^working \d+$/)).split(" ")[1],
+    );
+
+    // Run the materialized common cleanup with signals suppressed. The old
+    // runner stays alive, but startup must still publish a fresh generation.
+    const cleanup = await execContainer(id, [
+      "bash",
+      "-c",
+      `kill() { return 1; }; sleep() { :; }; source ${MODULE_DIR}/scripts/pre_install.sh`,
+    ]);
+    expect(cleanup.exitCode, cleanup.stdout).toBe(0);
+    expect(cleanup.stderr).toContain("may still be running");
+    expect(
+      (await execContainer(id, ["kill", "-0", String(oldPid)])).exitCode,
+    ).toBe(0);
+
+    const second = await execContainer(id, [
+      "env",
+      ...DISPATCH_ENV,
+      "bash",
+      "-c",
+      scripts.start,
+    ]);
+    expect(second.exitCode, second.stdout).toBe(0);
+    const newPid = Number(
+      (await waitForState(id, /^working \d+$/)).split(" ")[1],
+    );
+    expect(newPid).not.toBe(oldPid);
+    expect(
+      (await execContainer(id, ["kill", "-0", String(oldPid)])).exitCode,
+    ).toBe(0);
+  });
+
+  it("retains unverifiable records without blocking a new runner", async () => {
+    const { id, scripts } = await setup({ install_cli: "false" });
+    await stubClaude(id, "sleep 30");
+    const record = `${MODULE_DIR}/workers/unverifiable`;
+    await execContainer(id, ["mkdir", "-p", `${MODULE_DIR}/workers`]);
+    await writeFileContainer(id, record, "not a pid\n", { user: "root" });
+
+    const first = await runDispatched(id, scripts);
+    expect(first.start.exitCode, first.start.stdout).toBe(0);
+    expect(first.cleanup.stdout).toContain("unverifiable");
+    expect(await readFileContainer(id, record)).toBe("not a pid\n");
+    expect(await waitForState(id, /^working \d+$/)).toMatch(/^working \d+$/);
+  });
+
+  it("stops the runner and clears state without permitting another start", async () => {
+    const { id, scripts } = await setup({ install_cli: "false" });
+    await stubClaude(id, "sleep 120");
+    const first = await runDispatched(id, scripts);
+    expect(first.start.exitCode).toBe(0);
+    const oldPid = Number(
+      (await waitForState(id, /^working \d+$/)).split(" ")[1],
+    );
+
+    const stop = await execContainer(id, ["bash", "-c", scripts.stop]);
+    expect(stop.exitCode, stop.stdout).toBe(0);
+    expect(
+      (await execContainer(id, ["test", "-e", STATE_FILE])).exitCode,
+    ).not.toBe(0);
+    expect(
+      (
+        await execContainer(id, [
+          "test",
+          "-e",
+          `${MODULE_DIR}/cleanup-complete`,
+        ])
+      ).exitCode,
+    ).not.toBe(0);
+    const oldStat = await execContainer(id, [
+      "bash",
+      "-c",
+      `test ! -e /proc/${oldPid}/stat || grep -q ') Z ' /proc/${oldPid}/stat`,
+    ]);
+    expect(oldStat.exitCode).toBe(0);
+
+    const start = await execContainer(id, [
+      "env",
+      ...DISPATCH_ENV,
+      "bash",
+      "-c",
+      scripts.start,
+    ]);
+    expect(start.exitCode, start.stdout).toBe(0);
+    expect(await waitForState(id, /^working \d+$/)).not.toBe(
+      `working ${oldPid}`,
+    );
+  });
+
+  it("starts a new generation when cleanup is skipped after a previous start", async () => {
+    const { id, scripts } = await setup({ install_cli: "false" });
+    await stubClaude(id, "sleep 120");
+    const first = await runDispatched(id, scripts);
+    expect(first.start.exitCode).toBe(0);
+    const oldPid = Number(
+      (await waitForState(id, /^working \d+$/)).split(" ")[1],
+    );
+    const oldGeneration = (
+      await readFileContainer(id, `${MODULE_DIR}/cleanup-complete`)
+    ).trim();
+
     const repeated = await execContainer(id, [
       "env",
       ...DISPATCH_ENV,
@@ -425,11 +527,19 @@ describe("agent-relay-claude-code", () => {
       "-c",
       scripts.start,
     ]);
-    expect(repeated.exitCode).toBe(1);
-    expect(repeated.stdout).toContain(
-      "already started for this cleanup generation",
+    expect(repeated.exitCode, repeated.stdout).toBe(0);
+    expect(repeated.stdout).toContain("already started");
+    const newGeneration = (
+      await readFileContainer(id, `${MODULE_DIR}/cleanup-complete`)
+    ).trim();
+    expect(newGeneration).not.toBe(oldGeneration);
+    const newPid = Number(
+      (await waitForState(id, /^working \d+$/)).split(" ")[1],
     );
-    expect(await readState(id)).toBe(originalState);
+    expect(newPid).not.toBe(oldPid);
+    expect(
+      (await execContainer(id, ["kill", "-0", String(oldPid)])).exitCode,
+    ).toBe(0);
   });
 
   it("rejects a late launch from the previous cleanup generation", async () => {

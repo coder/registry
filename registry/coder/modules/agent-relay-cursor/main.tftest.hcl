@@ -1,7 +1,8 @@
-# Terraform tests for the parameter contract and the rendered install and
-# start scripts. Run with `terraform init && terraform test` in this
-# directory. The scripts are handed to coder-utils, whose coder_script
-# resources a test cannot reach, so assertions read the rendered locals.
+# Terraform tests for the parameter contract and rendered lifecycle scripts.
+# Run with `terraform init && terraform test` in this directory. The scripts
+# are handed to coder-utils, whose coder_script resources a test cannot
+# reach, so assertions read the rendered locals. The standalone stop script
+# is asserted directly.
 
 variables {
   agent_id = "00000000-0000-0000-0000-000000000000"
@@ -106,18 +107,31 @@ run "worker_wiring" {
     error_message = "coder-utils must run exactly the pre-install, install, and start steps, in that order"
   }
 
-  # The cleanup stops any previous supervisor and worker before a new
-  # start. coder-utils starts the start step even when the pre-install
-  # step failed, so the start step checks the marker only a finished
-  # cleanup writes.
+  # The cleanup stops verified previous supervisors and workers before a
+  # new start. Stop renders the same template but cannot publish a marker.
   assert {
     condition     = module.coder_utils.scripts[0] == "coder-agent-relay-cursor-pre_install_script" && strcontains(local.cleanup_script, "signal_pending TERM")
     error_message = "the cleanup must run as the coder-utils pre-install step"
   }
 
   assert {
-    condition     = strcontains(local.cleanup_script, "cleanup_marker=\"${local.module_directory}/cleanup-complete\"\nrm -f \"$cleanup_marker\"") && strcontains(local.start_script, "cleanup_marker=\"${local.module_directory}/cleanup-complete\"") && strcontains(local.start_script, "not starting another")
-    error_message = "the cleanup must remove its marker first, and the start step must refuse without it"
+    condition     = strcontains(local.cleanup_script, "cleanup_marker=\"${local.module_directory}/cleanup-complete\"\nrm -f \"$cleanup_marker\"") && strcontains(local.start_script, "cleanup_marker=\"${local.module_directory}/cleanup-complete\"") && strcontains(local.start_script, "starting a worker anyway") && strcontains(local.start_script, "mv \"$cleanup_marker.tmp\" \"$cleanup_marker\"")
+    error_message = "cleanup must invalidate the old generation first, and start must publish a fallback generation if needed"
+  }
+
+  assert {
+    condition     = coder_script.stop_worker.run_on_stop == true && coder_script.stop_worker.timeout == 20 && coder_script.stop_worker.script == local.stop_script && strcontains(local.cleanup_script, "signal_pending TERM") && strcontains(local.stop_script, "signal_pending TERM") && !strcontains(local.stop_script, "cat /proc/sys/kernel/random/uuid >") && strcontains(local.cleanup_script, "cat /proc/sys/kernel/random/uuid >")
+    error_message = "stop must have a 20-second timeout and use the shared cleanup template without publishing a launch marker"
+  }
+
+  assert {
+    condition     = strcontains(local.stop_script, "rm -f \"$cleanup_marker\"") && strcontains(local.stop_script, "rm -f \"$state_file\"") && strcontains(local.cleanup_script, "rm -f \"$state_file\"")
+    error_message = "stop and startup must remove the marker and previous state"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "elif [ -d \"${local.module_directory}/started/$cleanup_id\" ]") && strcontains(local.start_script, "new_generation") && strcontains(local.start_script, "rm -f \"$token_file\" \"$token_file.tmp\"")
+    error_message = "start must rotate a claimed generation and remove a stale token when idling"
   }
 
   # The cleanup id travels as an argument, so a late start that runs a

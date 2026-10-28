@@ -113,8 +113,13 @@ run "runner_wiring" {
   }
 
   assert {
-    condition     = strcontains(local.cleanup_script, var.state_file)
-    error_message = "startup cleanup and status must use the configured state file"
+    condition     = strcontains(local.cleanup_script, var.state_file) && strcontains(local.shutdown_script, var.state_file)
+    error_message = "startup, shutdown, and status must use the configured state file"
+  }
+
+  assert {
+    condition     = coder_script.shutdown.run_on_stop && !coder_script.shutdown.run_on_start && coder_script.shutdown.script == local.shutdown_script
+    error_message = "shutdown must run only on stop and use the shared cleanup source"
   }
 
   # Pass-through so a template can serialize its own scripts behind ours.

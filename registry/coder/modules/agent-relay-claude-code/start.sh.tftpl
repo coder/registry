@@ -17,11 +17,21 @@ base_dir="${base_dir}"
 supervisors="${module_directory}/supervisors"
 workers="${module_directory}/workers"
 cleanup_marker="${module_directory}/cleanup-complete"
+mkdir -p "${module_directory}"
+publish_generation() {
+	generation=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || true)
+	if [ -z "$generation" ]; then
+		generation="$$-$RANDOM-$(date +%s%N)"
+	fi
+	printf '%s\n' "$generation" >"$cleanup_marker.tmp"
+	mv "$cleanup_marker.tmp" "$cleanup_marker"
+}
 if [ ! -s "$cleanup_marker" ]; then
-	echo "Previous Claude Code runner was not stopped; refusing to start another" >&2
-	exit 1
+	echo "Startup cleanup did not finish; starting a runner anyway" >&2
+	publish_generation
+else
+	generation=$(< "$cleanup_marker")
 fi
-generation=$(< "$cleanup_marker")
 # One argument per line. Shell-quoted here because the string is expanded
 # into the supervisor below, which must see each argument as one word.
 additional_args=""
@@ -46,12 +56,14 @@ if [ -z "$${SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET:-}" ]; then
 	exit 0
 fi
 
-# A rerun of the start step without its pre-install cleanup must not reuse
-# the same work order to launch a second runner. mkdir is atomic.
+# A completed pre-install normally gives each start a fresh generation.
+# If that step was skipped, a previous start may already have claimed this
+# marker. Rotate it and launch anyway rather than strand the new work order.
 mkdir -p "${module_directory}/started"
 if ! mkdir "${module_directory}/started/$generation" 2>/dev/null; then
-	echo "Runner already started for this cleanup generation" >&2
-	exit 1
+	echo "Runner already started for this cleanup generation; starting a new generation anyway" >&2
+	publish_generation
+	mkdir -p "${module_directory}/started/$generation"
 fi
 write_state "pending"
 
