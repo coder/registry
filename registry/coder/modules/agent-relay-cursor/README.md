@@ -162,7 +162,7 @@ finishes a turn, not when the chat closes, so keep the timeout at or above
 | value             | meaning                                                                    |
 | ----------------- | -------------------------------------------------------------------------- |
 | `pending`         | start step running, supervisor has not written yet                         |
-| `idle`            | no worker token: workspace was created manually                            |
+| `idle`            | no worker token in this build: created by a person, or restarted by one    |
 | `working`         | worker alive, no session attached                                          |
 | `serving`         | worker alive, session attached (best effort, see `serving_log_pattern`)    |
 | `orphaned`        | worker process gone without recording an exit                              |

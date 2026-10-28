@@ -167,7 +167,7 @@ describe("agent-relay-cursor", () => {
     // No AGENT_RELAY_CURSOR_TOKEN: a workspace a human created by hand.
     const { start } = await runScripts(id, scripts, []);
     expect(start.exitCode).toBe(0);
-    expect(start.stdout).toContain("created manually, not by Agent Relay");
+    expect(start.stdout).toContain("No worker token in this build");
     expect(await readState(id)).toBe("idle");
   });
 

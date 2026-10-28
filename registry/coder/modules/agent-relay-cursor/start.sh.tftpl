@@ -54,8 +54,8 @@ if [ -z "$${AGENT_RELAY_CURSOR_TOKEN:-}" ]; then
 	if [ ! -f "$state_file" ]; then
 		write_state "idle"
 	fi
-	echo "No worker token set. This workspace was created manually, not by Agent Relay."
-	echo "Idling. Delete this workspace manually; only Agent Relay can deliver a worker token."
+	echo "No worker token in this build. Agent Relay delivers one only on the build it dispatches."
+	echo "Idling. If Agent Relay did not create this workspace, delete it."
 	exit 0
 fi
 

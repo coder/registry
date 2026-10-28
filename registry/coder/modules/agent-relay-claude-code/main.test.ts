@@ -184,7 +184,7 @@ describe("agent-relay-claude-code", () => {
     // No SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET: a workspace a human created by hand.
     const { start } = await runScripts(id, scripts, []);
     expect(start.exitCode).toBe(0);
-    expect(start.stdout).toContain("created manually, not by Agent Relay");
+    expect(start.stdout).toContain("No work order in this build");
     expect(await readState(id)).toBe("idle");
   });
 

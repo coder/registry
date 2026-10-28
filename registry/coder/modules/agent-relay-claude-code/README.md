@@ -132,7 +132,7 @@ rather than reporting `working` forever.
 | value             | meaning                                                                    |
 | ----------------- | -------------------------------------------------------------------------- |
 | `pending`         | no state recorded yet                                                      |
-| `idle`            | no work order: workspace was created manually                              |
+| `idle`            | no work order in this build: created by a person, or restarted by one      |
 | `working`         | runner alive, no session picked up                                         |
 | `serving`         | runner alive, session picked up (best effort, see `serving_log_pattern`)   |
 | `orphaned`        | runner process gone without recording an exit                              |
