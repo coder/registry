@@ -167,6 +167,26 @@ run "worker_wiring" {
   }
 }
 
+run "dispatched_true_when_delivery_stamped" {
+  command = plan
+
+  # The delivery id is not ephemeral, so a person's restart carries it into
+  # the next build and this output stays true for the life of a relay-created
+  # workspace. The start script, not this output, says whether the current
+  # build has a worker token.
+  override_data {
+    target = data.coder_parameter.agent_relay_delivery_id
+    values = {
+      value = "0d6c3b1e-delivery"
+    }
+  }
+
+  assert {
+    condition     = output.dispatched == true
+    error_message = "a build carrying a delivery id belongs to a workspace Agent Relay created"
+  }
+}
+
 run "computer_use_off_by_default" {
   command = plan
 

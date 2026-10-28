@@ -337,7 +337,7 @@ output "scripts" {
 }
 
 output "dispatched" {
-  description = "Whether this workspace was spawned by Agent Relay (delivery set) or manually (empty)."
+  description = "Whether Agent Relay created this workspace. Stays true on every later build of it, including one a person restarts; whether the current build has a worker token is decided by the start script, not here."
   value       = data.coder_parameter.agent_relay_delivery_id.value != ""
 }
 
