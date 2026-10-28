@@ -26,11 +26,6 @@ run "parameter_contract" {
   }
 
   assert {
-    condition     = data.coder_parameter.agent_relay_credential.name == "agent_relay_credential"
-    error_message = "credential parameter name is part of the Agent Relay contract"
-  }
-
-  assert {
     condition     = data.coder_parameter.agent_relay_claude_code_lock_to_account.name == "agent_relay_claude_code_lock_to_account"
     error_message = "account lock parameter name is part of the Agent Relay contract"
   }
@@ -52,7 +47,7 @@ run "parameter_contract" {
 
   # The relay reads these back off a build long after dispatch, so they
   # must not be ephemeral; the rest must be, so a manual build never
-  # inherits a stale credential, account lock, or attempt.
+  # inherits a stale account lock or attempt.
   assert {
     condition = alltrue([
       data.coder_parameter.agent_relay_session_id.ephemeral == false,
@@ -60,7 +55,6 @@ run "parameter_contract" {
       data.coder_parameter.agent_relay_pool.ephemeral == false,
       data.coder_parameter.agent_relay_client_platform.ephemeral == false,
       data.coder_parameter.agent_relay_claude_code_release_idle_session_min.ephemeral == false,
-      data.coder_parameter.agent_relay_credential.ephemeral == true,
       data.coder_parameter.agent_relay_claude_code_lock_to_account.ephemeral == true,
       data.coder_parameter.agent_relay_attempt.ephemeral == true,
     ])
@@ -77,17 +71,11 @@ run "parameter_contract" {
         data.coder_parameter.agent_relay_pool.styling,
         data.coder_parameter.agent_relay_client_platform.styling,
         data.coder_parameter.agent_relay_claude_code_release_idle_session_min.styling,
-        data.coder_parameter.agent_relay_credential.styling,
         data.coder_parameter.agent_relay_claude_code_lock_to_account.styling,
         data.coder_parameter.agent_relay_attempt.styling,
       ] : can(regex("\"disabled\":true", p))
     ])
     error_message = "every relay parameter must render disabled"
-  }
-
-  assert {
-    condition     = can(regex("\"mask_input\":true", data.coder_parameter.agent_relay_credential.styling))
-    error_message = "the credential must be masked"
   }
 }
 
@@ -95,11 +83,6 @@ run "runner_wiring" {
   command = plan
 
   # The claude CLI owns these names; the module only supplies values.
-  assert {
-    condition     = coder_env.runner_environment_secret.name == "SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET"
-    error_message = "the pool secret env var name is the claude CLI's contract"
-  }
-
   assert {
     condition     = coder_env.agent_relay_claude_code_lock_to_account.name == "SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT"
     error_message = "the account lock env var name is the claude CLI's contract"
@@ -158,7 +141,7 @@ run "runner_wiring" {
 
   assert {
     condition     = output.dispatched == false
-    error_message = "a build with no credential was not dispatched by Agent Relay"
+    error_message = "a build with no delivery was not dispatched by Agent Relay"
   }
 }
 

@@ -189,7 +189,7 @@ describe("agent-relay-claude-code", () => {
   });
 
   it("keeps terminal state across a restart without a credential", async () => {
-    // The credential is ephemeral, so an agent restart after the runner
+    // The secret is ephemeral, so an agent restart after the runner
     // finished runs the start step with no credential. That must not
     // rewrite "done 3" as "idle", which the relay reads as never dispatched.
     const { id, scripts } = await setup({ install_cli: "false" });
@@ -198,6 +198,19 @@ describe("agent-relay-claude-code", () => {
     const { start } = await runScripts(id, scripts, []);
     expect(start.exitCode).toBe(0);
     expect(await readState(id)).toBe("done 3");
+  });
+
+  it("sets no coder_env for the work order's variable", async () => {
+    // The agent injects SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET from the
+    // workspace secret. A coder_env of that name, as 0.x had, would put
+    // the credential back in Terraform state.
+    const state = await runTerraformApply(import.meta.dir, { agent_id: "foo" });
+    const envNames = state.resources
+      .filter((resource) => resource.type === "coder_env")
+      .flatMap((resource) =>
+        resource.instances.map((instance) => instance.attributes.name),
+      );
+    expect(envNames).not.toContain("SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET");
   });
 
   it("reports runner-agent-missing when the CLI is absent", async () => {

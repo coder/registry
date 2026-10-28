@@ -16,7 +16,7 @@ parameters the relay stamps on each build and runs the Cursor CLI worker.
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "0.8.0"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Cursor CLI at start when it is not in the image. Bake
@@ -61,6 +61,17 @@ created.
 
 ## Requirements
 
+- Coder 2.39.0 or newer and Agent Relay v0.14.0 or newer. On those versions
+  the relay delivers the worker token as an ephemeral workspace secret, which
+  the agent injects as `AGENT_RELAY_CURSOR_TOKEN`; it is never a build
+  parameter. A relay that still sends it as the `agent_relay_credential`
+  parameter refuses to serve a template on this version with
+  `missing parameter "agent_relay_credential"`, so on older versions pin
+  `0.8.0`, the last release that declares the parameter. Upgrade Coder, then
+  Agent Relay, then move templates to `1.0.0` one at a time; a `0.8.0`
+  template keeps working on the new versions, except that its `dispatched`
+  output reads `false` on relay builds. To roll a relay or Coder back, pin
+  templates back to `0.8.0` first.
 - The Cursor CLI (`agent`) must be in the workspace. `install_cli` (default
   `true`) downloads it at start only when it is not already on PATH; bake it
   into the image for the fastest start. `cli_binary` overrides the path.
@@ -81,13 +92,13 @@ created.
 The pool's service-account API key never leaves Agent Relay. When the relay
 claims a request, Cursor mints a
 [session token](https://cursor.com/docs/cloud-agent/self-hosted/pool#session-tokens)
-for that claim, and the relay stamps it as the ephemeral
-`agent_relay_credential` parameter. The module exports it as
-`AGENT_RELAY_CURSOR_TOKEN`, writes it to `worker-token` (mode `0600`), and
-starts the worker with `--auth-token-file`. The token stays off the worker's
-command line, and the supervisor unsets the variable so the worker and the
-agent's commands do not inherit it. The supervisor deletes the file when the
-worker exits.
+for that claim, and the relay sends it as an ephemeral workspace secret,
+which the agent injects as `AGENT_RELAY_CURSOR_TOKEN`. It never appears in
+the build's parameters or Terraform state. The module writes it to
+`worker-token` (mode `0600`) and starts the worker with `--auth-token-file`.
+The token stays off the worker's command line, and the supervisor unsets the
+variable so the worker and the agent's commands do not inherit it. The
+supervisor deletes the file when the worker exits.
 
 A session token connects only the claimed worker id, and Cursor refuses it on
 every endpoint a worker does not call. It stops working when the claim ends,
@@ -107,7 +118,7 @@ optional value an explicit one (`--flag=value`), or it consumes `start`.
 ```tf
 module "cursor_worker" {
   source          = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version         = "0.8.0"
+  version         = "1.0.0"
   agent_id        = coder_agent.main.id
   additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
 }
@@ -117,8 +128,10 @@ module "cursor_worker" {
 
 Agent Relay verifies this contract against the template's active version at
 startup and refuses to serve a pool that does not satisfy it. Every parameter
-renders disabled with a "Set by Agent Relay on dispatch" placeholder; the
-credential is masked.
+renders disabled with a "Set by Agent Relay on dispatch" placeholder. The
+worker token is not among them: it is a workspace secret, so it never appears
+in the build's parameters or Terraform state, and the template should not
+set `AGENT_RELAY_CURSOR_TOKEN` itself.
 
 ## Scripts and logs
 
@@ -149,7 +162,7 @@ finishes a turn, not when the chat closes, so keep the timeout at or above
 | value             | meaning                                                                    |
 | ----------------- | -------------------------------------------------------------------------- |
 | `pending`         | start step running, supervisor has not written yet                         |
-| `idle`            | no credential: workspace was created manually                              |
+| `idle`            | no worker token: workspace was created manually                            |
 | `working`         | worker alive, no session attached                                          |
 | `serving`         | worker alive, session attached (best effort, see `serving_log_pattern`)    |
 | `orphaned`        | worker process gone without recording an exit                              |
@@ -199,7 +212,7 @@ scrape the worker, and never publish it through a `coder_app`.
 ```tf
 module "cursor_worker" {
   source          = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version         = "0.8.0"
+  version         = "1.0.0"
   agent_id        = coder_agent.main.id
   management_addr = "127.0.0.1:3290"
 }
