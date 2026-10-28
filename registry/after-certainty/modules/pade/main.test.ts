@@ -24,7 +24,7 @@ const IMAGE = "debian:bookworm-slim";
 const STUB_PATH =
   "/stubs:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
 const RELEASE_URL =
-  "https://github.com/After-Certainty/pade/releases/download/v0.3.0";
+  "https://github.com/After-Certainty/pade/releases/download/v0.4.1";
 const MODULE_DIR = "/root/.coder-modules/after-certainty/pade";
 const SYNC_NAME = "after-certainty-pade-install_script";
 const BINDINGS_PATH = "/root/.config/pade/coder-bindings.yaml";
@@ -32,6 +32,10 @@ const BINDINGS_PATH = "/root/.config/pade/coder-bindings.yaml";
 const requiredVars = {
   agent_id: "foo",
   broker_endpoint: "https://broker.example.com",
+};
+
+const staticVars = {
+  ...requiredVars,
   broker_capabilities: '["github.repo.read"]',
 };
 
@@ -77,16 +81,19 @@ esac
 `;
 
 const FIXTURES = `mkdir -p /fixtures
-for arch in amd64 arm64; do
-  dir="/build/$arch/pade-v0.3.0-linux-$arch"
-  mkdir -p "$dir"
-  cat > "$dir/pade" <<'EOF'
+for version in v0.4.1 v0.4.0; do
+  for arch in amd64 arm64; do
+    dir="/build/$version/$arch/pade-$version-linux-$arch"
+    mkdir -p "$dir"
+    cat > "$dir/pade" <<'EOF'
 #!/bin/sh
 echo "$@" >> /tmp/pade.log
-echo "pade v0.3.0"
+echo "pade __TEST_PADE_VERSION__"
 EOF
-  chmod 0755 "$dir/pade"
-  tar -czf "/fixtures/pade-v0.3.0-linux-$arch.tar.gz" -C "/build/$arch" .
+    sed -i "s/__TEST_PADE_VERSION__/$version/g" "$dir/pade"
+    chmod 0755 "$dir/pade"
+    tar -czf "/fixtures/pade-$version-linux-$arch.tar.gz" -C "/build/$version/$arch" .
+  done
 done
 cd /fixtures && sha256sum pade-*.tar.gz > SHA256SUMS
 `;
@@ -107,7 +114,7 @@ const setup = async (
   const state = await runTerraformApply(
     import.meta.dir,
     {
-      ...requiredVars,
+      ...staticVars,
       ...vars,
     },
     customEnv,
@@ -186,8 +193,9 @@ describe("pade", () => {
     ).toString();
     expect(renderedInstaller(instance.script)).toBe(
       template
-        .replace("${PADE_VERSION}", "v0.3.0")
-        .replace("${BINDINGS_B64}", Buffer.from(bindings).toString("base64")),
+        .replace("${PADE_VERSION}", "v0.4.1")
+        .replace("${BINDINGS_B64}", Buffer.from(bindings).toString("base64"))
+        .replace("${DYNAMIC_BINDINGS}", "0"),
     );
     const result = await run();
     expect(result.exitCode).toBe(0);
@@ -207,12 +215,12 @@ describe("pade", () => {
     const { run, sh } = await setup();
     const result = await run();
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("installing PADE v0.3.0 (linux/amd64)");
-    expect(result.stdout).toContain("pade v0.3.0");
+    expect(result.stdout).toContain("installing PADE v0.4.1 (linux/amd64)");
+    expect(result.stdout).toContain("pade v0.4.1");
 
     const requested = await sh("cat /tmp/curl.log");
     expect(requested.stdout.trim().split("\n")).toEqual([
-      `${RELEASE_URL}/pade-v0.3.0-linux-amd64.tar.gz`,
+      `${RELEASE_URL}/pade-v0.4.1-linux-amd64.tar.gz`,
       `${RELEASE_URL}/SHA256SUMS`,
     ]);
 
@@ -231,19 +239,15 @@ describe("pade", () => {
 
     const requested = await sh("head -n 1 /tmp/curl.log");
     expect(requested.stdout.trim()).toBe(
-      `${RELEASE_URL}/pade-v0.3.0-linux-arm64.tar.gz`,
+      `${RELEASE_URL}/pade-v0.4.1-linux-arm64.tar.gz`,
     );
   });
 
-  it("installs the requested pade_version", async () => {
+  it("continues to support an explicitly pinned older PADE release", async () => {
     const { run, sh } = await setup({ pade_version: "0.4.0" });
-    const fixtures = await sh(`cd /fixtures
-cp pade-v0.3.0-linux-amd64.tar.gz pade-v0.4.0-linux-amd64.tar.gz
-sha256sum pade-v0.4.0-linux-amd64.tar.gz >> SHA256SUMS`);
-    expect(fixtures.exitCode).toBe(0);
     const result = await run();
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("installing PADE v0.4.0 (linux/amd64)");
+    expect(result.stdout).toContain("pade v0.4.0");
 
     const requested = await sh("cat /tmp/curl.log");
     expect(requested.stdout.trim().split("\n")).toEqual([
@@ -275,7 +279,7 @@ sha256sum pade-v0.4.0-linux-amd64.tar.gz >> SHA256SUMS`);
   it("fails on a checksum mismatch without installing", async () => {
     const { run, sh } = await setup();
     await sh(
-      "sed -i 's/^[0-9a-f]*\\(  pade-v0.3.0-linux-amd64\\)/0000000000000000000000000000000000000000000000000000000000000000\\1/' /fixtures/SHA256SUMS",
+      "sed -i 's/^[0-9a-f]*\\(  pade-v0.4.1-linux-amd64\\)/0000000000000000000000000000000000000000000000000000000000000000\\1/' /fixtures/SHA256SUMS",
     );
     const result = await run();
     expect(result.exitCode).not.toBe(0);
@@ -290,7 +294,7 @@ sha256sum pade-v0.4.0-linux-amd64.tar.gz >> SHA256SUMS`);
     const result = await run();
     expect(result.exitCode).not.toBe(0);
     expect(result.stdout + result.stderr).toContain(
-      "release checksum does not contain pade-v0.3.0-linux-amd64.tar.gz",
+      "release checksum does not contain pade-v0.4.1-linux-amd64.tar.gz",
     );
     expect((await sh("test -e /root/.local/bin/pade")).exitCode).not.toBe(0);
   });
@@ -323,6 +327,79 @@ sha256sum pade-v0.4.0-linux-amd64.tar.gz >> SHA256SUMS`);
         "github.repo.read": { provider: "broker", broker },
         "example.capability": { provider: "broker", broker },
       },
+    });
+  });
+
+  it("supports trusted downstream bindings without a Terraform-time capability list", async () => {
+    // A caller can omit broker_capabilities entirely rather than supplying [].
+    const noStaticState = await runTerraformApply(
+      import.meta.dir,
+      requiredVars,
+    );
+    expect(noStaticState.outputs.broker_binding.value).toEqual({
+      provider: "broker",
+      broker: {
+        endpoint: "https://broker.example.com",
+        audience: "https://broker.example.com",
+        identity: "gce",
+      },
+    });
+
+    const { id, run, sh } = await setup({ broker_capabilities: "[]" });
+    expect((await run()).exitCode).toBe(0);
+    const initiallyEmpty = Bun.YAML.parse(
+      await readFileContainer(id, BINDINGS_PATH),
+    );
+    expect(initiallyEmpty).toEqual({ version: "0.1", capabilities: {} });
+    expect((await sh(`stat -c %a ${BINDINGS_PATH}`)).stdout.trim()).toBe("600");
+
+    // A trusted downstream script runs only after module.pade.scripts.
+    // It owns the entire replacement file; portable intent is not trusted.
+    const writer = await sh(`cat > ${BINDINGS_PATH} <<'EOF'
+version: "0.1"
+capabilities:
+  github.repo.read:
+    provider: broker
+    broker:
+      endpoint: https://broker.example.com
+      audience: https://broker.example.com
+      identity: gce
+EOF
+chmod 600 ${BINDINGS_PATH}`);
+    expect(writer.exitCode).toBe(0);
+    expect(Bun.YAML.parse(await readFileContainer(id, BINDINGS_PATH))).toEqual({
+      version: "0.1",
+      capabilities: {
+        "github.repo.read": noStaticState.outputs.broker_binding.value,
+      },
+    });
+
+    // On restart, the installer must clear stale downstream bindings,
+    // so a failed or missing downstream writer cannot retain old access.
+    expect((await run()).exitCode).toBe(0);
+    expect(Bun.YAML.parse(await readFileContainer(id, BINDINGS_PATH))).toEqual({
+      version: "0.1",
+      capabilities: {},
+    });
+
+    // Also revoke stale bindings when the next download fails before install.
+    expect(writer.exitCode).toBe(0);
+    await sh(`cat > ${BINDINGS_PATH} <<'EOF'
+version: "0.1"
+capabilities:
+  stale.capability:
+    provider: broker
+    broker:
+      endpoint: https://broker.example.com
+      audience: https://broker.example.com
+      identity: gce
+EOF
+chmod 600 ${BINDINGS_PATH}`);
+    await sh("sed -i '/linux-amd64/d' /fixtures/SHA256SUMS");
+    expect((await run()).exitCode).not.toBe(0);
+    expect(Bun.YAML.parse(await readFileContainer(id, BINDINGS_PATH))).toEqual({
+      version: "0.1",
+      capabilities: {},
     });
   });
 

@@ -10,24 +10,24 @@ terraform {
 }
 
 variable "agent_id" {
-  description = "The ID of the Coder agent for the workspace that will consume PADE."
   type        = string
+  description = "The ID of the Coder agent for the workspace that will consume PADE."
 }
 
 variable "pade_version" {
-  description = "PADE release version to install."
   type        = string
-  default     = "v0.3.0"
+  description = "PADE release version to install."
+  default     = "v0.4.1"
 
   validation {
     condition     = can(regex("^v?[0-9]+\\.[0-9]+\\.[0-9]+$", var.pade_version))
-    error_message = "pade_version must be a semantic version such as v0.3.0 or 0.3.0."
+    error_message = "pade_version must be a semantic version such as v0.4.1 or 0.4.0."
   }
 }
 
 variable "broker_endpoint" {
-  description = "The HTTPS endpoint of an existing PADE broker."
   type        = string
+  description = "The HTTPS endpoint of an existing PADE broker."
 
   validation {
     condition     = can(regex("^https://", var.broker_endpoint))
@@ -36,8 +36,8 @@ variable "broker_endpoint" {
 }
 
 variable "broker_audience" {
-  description = "OIDC audience requested for the PADE broker. Defaults to broker_endpoint."
   type        = string
+  description = "OIDC audience requested for the PADE broker. Defaults to broker_endpoint."
   default     = null
   nullable    = true
 
@@ -48,8 +48,8 @@ variable "broker_audience" {
 }
 
 variable "broker_identity" {
-  description = "PADE workload identity adapter. The GCE path is the integration proven by Experiment 001."
   type        = string
+  description = "PADE workload identity adapter. The GCE path is the integration proven by Experiment 001."
   default     = "gce"
 
   validation {
@@ -59,15 +59,14 @@ variable "broker_identity" {
 }
 
 variable "broker_capabilities" {
-  description = "Capability names that this workspace should resolve through the configured PADE broker."
   type        = set(string)
+  description = "Static capability bindings managed by this module. Leave empty when a trusted downstream integration will populate the bindings after installation."
+  default     = []
+  nullable    = false
 
   validation {
-    condition = (
-      length(var.broker_capabilities) > 0 &&
-      alltrue([for capability in var.broker_capabilities : trimspace(capability) != ""])
-    )
-    error_message = "broker_capabilities must contain at least one non-empty capability name."
+    condition     = alltrue([for capability in var.broker_capabilities : trimspace(capability) != ""])
+    error_message = "broker_capabilities must contain only non-empty capability names."
   }
 }
 
@@ -75,25 +74,28 @@ locals {
   pade_version    = startswith(var.pade_version, "v") ? var.pade_version : "v${var.pade_version}"
   broker_audience = var.broker_audience != null ? var.broker_audience : var.broker_endpoint
 
+  broker_binding = {
+    provider = "broker"
+    broker = {
+      endpoint = var.broker_endpoint
+      audience = local.broker_audience
+      identity = var.broker_identity
+    }
+  }
+
   bindings = yamlencode({
     version = "0.1"
     capabilities = {
-      for capability in var.broker_capabilities : capability => {
-        provider = "broker"
-        broker = {
-          endpoint = var.broker_endpoint
-          audience = local.broker_audience
-          identity = var.broker_identity
-        }
-      }
+      for capability in var.broker_capabilities : capability => local.broker_binding
     }
   })
 }
 
 locals {
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
-    PADE_VERSION = local.pade_version
-    BINDINGS_B64 = base64encode(local.bindings)
+    PADE_VERSION     = local.pade_version
+    BINDINGS_B64     = base64encode(local.bindings)
+    DYNAMIC_BINDINGS = length(var.broker_capabilities) == 0 ? "1" : "0"
   })
 }
 
@@ -105,6 +107,11 @@ module "coder_utils" {
   module_directory    = "$HOME/.coder-modules/after-certainty/pade"
   display_name_prefix = "PADE"
   install_script      = local.install_script
+}
+
+output "broker_binding" {
+  description = "Non-secret broker binding template for trusted downstream integrations to use when constructing the bindings file. This is configuration, not an authorization grant."
+  value       = local.broker_binding
 }
 
 output "bindings_path" {

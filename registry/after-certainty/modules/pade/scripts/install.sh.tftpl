@@ -3,6 +3,7 @@ set -euo pipefail
 
 PADE_VERSION='${PADE_VERSION}'
 BINDINGS_B64='${BINDINGS_B64}'
+DYNAMIC_BINDINGS='${DYNAMIC_BINDINGS}'
 INSTALL_DIR="$HOME/.local/bin"
 BINDINGS_PATH="$HOME/.config/pade/coder-bindings.yaml"
 
@@ -14,6 +15,17 @@ die() {
 for command in curl tar sha256sum base64 awk find; do
   command -v "$command" > /dev/null 2>&1 || die "required command not found: $command"
 done
+
+# Before any network operation, revoke stale locally configured capabilities
+# in downstream-managed mode. Missing downloads or installer failures must
+# not leave capabilities from a previous successful workspace start in place.
+if [ "$DYNAMIC_BINDINGS" = "1" ]; then
+  mkdir -p "$(dirname "$BINDINGS_PATH")"
+  bindings_tmp="$(mktemp "$BINDINGS_PATH.XXXXXX")"
+  printf '%s' "$BINDINGS_B64" | base64 -d > "$bindings_tmp"
+  chmod 0600 "$bindings_tmp"
+  mv "$bindings_tmp" "$BINDINGS_PATH"
+fi
 
 case "$(uname -s)" in
   Linux) os="linux" ;;

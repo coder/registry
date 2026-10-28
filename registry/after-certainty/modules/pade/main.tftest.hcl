@@ -10,8 +10,8 @@ run "defaults" {
   command = plan
 
   assert {
-    condition     = output.pade_version == "v0.3.0"
-    error_message = "pade_version should default to v0.3.0"
+    condition     = output.pade_version == "v0.4.1"
+    error_message = "pade_version should default to v0.4.1"
   }
 
   assert {
@@ -47,8 +47,25 @@ run "defaults" {
   }
 
   assert {
-    condition     = strcontains(local.install_script, "PADE_VERSION='v0.3.0'")
+    condition = output.broker_binding == {
+      provider = "broker"
+      broker = {
+        endpoint = "https://broker.example.com"
+        audience = "https://broker.example.com"
+        identity = "gce"
+      }
+    }
+    error_message = "broker_binding should expose non-secret broker settings for a trusted downstream writer"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "PADE_VERSION='v0.4.1'")
     error_message = "installer should be rendered with the normalized PADE version"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "DYNAMIC_BINDINGS='0'")
+    error_message = "static bindings should keep the existing install behavior"
   }
 
   assert {
@@ -179,7 +196,20 @@ run "empty_capabilities" {
     broker_capabilities = []
   }
 
-  expect_failures = [var.broker_capabilities]
+  assert {
+    condition     = yamldecode(local.bindings).capabilities == {}
+    error_message = "an empty capability set must produce a fail-closed empty bindings map"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "DYNAMIC_BINDINGS='1'")
+    error_message = "the installer must clear stale bindings before downloads in downstream-managed mode"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "BINDINGS_B64='${base64encode(local.bindings)}'")
+    error_message = "installer must reset bindings to an empty map until a trusted downstream writer runs"
+  }
 }
 
 run "blank_capability" {
