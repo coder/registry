@@ -100,7 +100,7 @@ variable "exit_if_unused_min" {
 variable "release_idle_session_min" {
   description = "Default minutes an attached session may go without user input before the runner releases it (the CLI's --release-idle-session-min). The runner then exits and Agent Relay reaps the workspace; the session parks and resumes on a fresh runner on the user's next message. Agent Relay can override this per build through the agent_relay_claude_code_release_idle_session_min parameter. 0 never releases an idle session."
   type        = number
-  default     = 60
+  default     = 10
 
   validation {
     condition     = var.release_idle_session_min >= 0 && var.release_idle_session_min <= 10080 && floor(var.release_idle_session_min) == var.release_idle_session_min

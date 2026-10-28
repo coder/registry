@@ -278,7 +278,7 @@ describe("agent-relay-claude-code", () => {
     expect(args[args.indexOf("--capacity") + 1]).toBe("1");
     expect(args[args.indexOf("--exit-if-unused-min") + 1]).toBe("10");
     // Without the agent's coder_env value, the module default applies.
-    expect(args[args.indexOf("--release-idle-session-min") + 1]).toBe("60");
+    expect(args[args.indexOf("--release-idle-session-min") + 1]).toBe("10");
     expect(args[args.indexOf("--exec-path") + 1]).toBe(
       `${MODULE_DIR}/wrapper.sh`,
     );
@@ -446,9 +446,9 @@ describe("agent-relay-claude-code", () => {
         arg === "--release-idle-session-min" ? [args[i + 1]] : [],
       );
 
-    it("releases an idle session after 60 minutes by default", async () => {
+    it("releases an idle session after 10 minutes by default", async () => {
       const args = await runnerArgv();
-      expect(releaseValues(args)).toEqual(["60"]);
+      expect(releaseValues(args)).toEqual(["10"]);
     });
 
     it("uses the module variable", async () => {

@@ -16,7 +16,7 @@ on each build and runs the Claude Code self-hosted runner.
 ```tf
 module "claude_code_runner" {
   source   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version  = "0.5.0"
+  version  = "0.5.1"
   agent_id = coder_agent.main.id
 
   # Downloads the Claude Code CLI at start when it is not in the image. Bake
@@ -68,7 +68,7 @@ can contain spaces or quotes without escaping. Flags the module already sets
 ```tf
 module "claude_code_runner" {
   source          = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version         = "0.5.0"
+  version         = "0.5.1"
   agent_id        = coder_agent.main.id
   additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
 }
@@ -105,7 +105,7 @@ runner. Everything lands under `$HOME/.coder-modules/coder/agent-relay-claude-co
 
 ## Runner lifecycle
 
-The start step launches `claude self-hosted-runner --capacity 1 --exit-if-unused-min 10 --release-idle-session-min 60` detached and exits,
+The start step launches `claude self-hosted-runner --capacity 1 --exit-if-unused-min 10 --release-idle-session-min 10` detached and exits,
 so the agent reaches `ready` immediately. The runner is wrapped so every
 session runs with `--permission-mode bypassPermissions`; there is no terminal
 attached, so an approval prompt would hang it. When the runner exits, Agent
@@ -130,7 +130,7 @@ Renaming the `agent_relay_status` key breaks reaping.
 
 ## Idle session release
 
-An attached session whose user sends nothing for 60 minutes is released: the
+An attached session whose user sends nothing for 10 minutes is released: the
 runner parks the session server-side and exits, and Agent Relay deletes the
 workspace. The user's next message resumes the session on a fresh runner.
 This is the CLI's `--release-idle-session-min`.
@@ -146,7 +146,7 @@ fails the start step with `failed invalid-release-idle-session-min`.
 ```tf
 module "claude_code_runner" {
   source                   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version                  = "0.5.0"
+  version                  = "0.5.1"
   agent_id                 = coder_agent.main.id
   release_idle_session_min = 30
 }
@@ -185,7 +185,7 @@ from reaching it.
 ```tf
 module "claude_code_runner" {
   source      = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version     = "0.5.0"
+  version     = "0.5.1"
   agent_id    = coder_agent.main.id
   health_port = 3290
 }

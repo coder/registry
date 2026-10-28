@@ -390,8 +390,8 @@ run "release_idle_session_min_default" {
   # A relay that predates the parameter never stamps it, so its default is
   # what such a workspace runs with.
   assert {
-    condition     = data.coder_parameter.agent_relay_claude_code_release_idle_session_min.default == "60" && data.coder_parameter.agent_relay_claude_code_release_idle_session_min.value == "60"
-    error_message = "the idle session release parameter must default to 60 minutes"
+    condition     = data.coder_parameter.agent_relay_claude_code_release_idle_session_min.default == "10" && data.coder_parameter.agent_relay_claude_code_release_idle_session_min.value == "10"
+    error_message = "the idle session release parameter must default to 10 minutes"
   }
 
   assert {
@@ -400,19 +400,19 @@ run "release_idle_session_min_default" {
   }
 
   assert {
-    condition     = coder_env.agent_relay_claude_code_release_idle_session_min.name == "AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN" && coder_env.agent_relay_claude_code_release_idle_session_min.value == "60"
+    condition     = coder_env.agent_relay_claude_code_release_idle_session_min.name == "AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN" && coder_env.agent_relay_claude_code_release_idle_session_min.value == "10"
     error_message = "the idle session release value must reach the start script through the environment"
   }
 
   # The supervisor reads the value at run time; it is never rendered as a
   # flag value into the script.
   assert {
-    condition     = strcontains(local.start_script, "set -- --release-idle-session-min \"\\$AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN\"") && !strcontains(local.start_script, "--release-idle-session-min 60")
+    condition     = strcontains(local.start_script, "set -- --release-idle-session-min \"\\$AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN\"") && !strcontains(local.start_script, "--release-idle-session-min 10")
     error_message = "the supervisor must pass --release-idle-session-min from the environment"
   }
 
   assert {
-    condition     = strcontains(local.start_script, "AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN:-60}") && strcontains(local.start_script, "failed invalid-release-idle-session-min")
+    condition     = strcontains(local.start_script, "AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN:-10}") && strcontains(local.start_script, "failed invalid-release-idle-session-min")
     error_message = "the start script must fall back to the module default and refuse an invalid value"
   }
 }
