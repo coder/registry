@@ -4,7 +4,7 @@ import { execContainer, removeContainer, runContainer } from "~test";
 
 it("agent can create its binary directory without owning the root handoff directory", async () => {
   const bootstrap = await readFile(
-    new URL("./scripts/bootstrap.sh.tftpl", import.meta.url),
+    new URL("./scripts/start-agent.sh.tftpl", import.meta.url),
     "utf8",
   );
   const handoff = bootstrap.match(/^chown_handoff\(\) \{[\s\S]*?^\}/m)?.[0];
