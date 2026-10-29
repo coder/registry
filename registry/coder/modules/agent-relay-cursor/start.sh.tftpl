@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Start step, run by coder-utils after the install step. Runs at
 # agent start with AGENT_RELAY_CURSOR_TOKEN (the Cursor session token
-# Agent Relay minted with the claim), CURSOR_AGENT_WORKER_ID (the claimed
-# worker id), AGENT_RELAY_CURSOR_POOL_NAME, and
-# AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT in scope.
+# Agent Relay created with the claim, which the agent injects from the
+# workspace secret), CURSOR_AGENT_WORKER_ID (the claimed worker id),
+# AGENT_RELAY_CURSOR_POOL_NAME, and AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT
+# in scope.
 #
 # Starts the worker detached and exits, so the agent reaches the ready
 # lifecycle state instead of sitting in starting for the life of the
@@ -11,6 +12,26 @@
 # ${state_file}, which the agent_relay_status agent metadata item publishes
 # for Agent Relay. See README.
 set -euo pipefail
+
+# Pre-install cleanup normally publishes a fresh generation after attempting
+# to stop old workers. If cleanup did not run, the marker may be absent or
+# still have a claim from the prior start. Rotate it so the old supervisor
+# cannot change this start's state; an old worker may remain alive.
+cleanup_marker="${module_directory}/cleanup-complete"
+mkdir -p "${module_directory}"
+new_generation() {
+	cleanup_id="$(cat /proc/sys/kernel/random/uuid 2>/dev/null || printf '%s-%s' "$$" "$RANDOM")"
+	printf '%s\n' "$cleanup_id" >"$cleanup_marker.tmp"
+	mv "$cleanup_marker.tmp" "$cleanup_marker"
+}
+cleanup_id="$(cat "$cleanup_marker" 2>/dev/null || true)"
+if [[ ! "$cleanup_id" =~ ^[0-9a-f-]+$ ]]; then
+	echo "Pre-install cleanup did not publish a marker; starting a worker anyway." >&2
+	new_generation
+elif [ -d "${module_directory}/started/$cleanup_id" ]; then
+	echo "Previous Cursor start still claims this generation; starting a new generation anyway." >&2
+	new_generation
+fi
 
 state_file="${state_file}"
 log_file="${log_file}"
@@ -21,7 +42,11 @@ token_file="${module_directory}/worker-token"
 # scripts/ regardless of where state_file points, so an override of
 # state_file moves only the state.
 scripts_dir="${module_directory}/scripts"
-mkdir -p "$scripts_dir" "$(dirname "$state_file")" "$(dirname "$log_file")"
+# One identity record per live supervisor and per live worker, read by
+# cleanup.sh.
+supervisors="${module_directory}/supervisors"
+workers="${module_directory}/workers"
+mkdir -p "$scripts_dir" "$supervisors" "$workers" "$(dirname "$state_file")" "$(dirname "$log_file")"
 
 # additional_args, one argument per line. Shell-quoted here because the
 # string is expanded into the supervisor below, which must see each
@@ -39,48 +64,24 @@ write_state() {
 	mv "$state_file.tmp" "$state_file"
 }
 
-# True when the pid is alive and is our worker. kill -0 alone would
-# trust a reused pid; the cmdline check ties it to the CLI we launched.
-worker_alive() {
-	[ -n "$${1:-}" ] && kill -0 "$1" 2>/dev/null &&
-		tr '\0' ' ' <"/proc/$1/cmdline" 2>/dev/null | grep -qF -- "$(basename "${cli_binary}")"
-}
-
 if [ -z "$${AGENT_RELAY_CURSOR_TOKEN:-}" ]; then
-	# Only claim idle when nothing has been recorded. A credential is
-	# ephemeral, so a restart of a finished workspace arrives here too,
-	# and overwriting "done 3" with "idle" would hide a real failure.
-	if [ ! -f "$state_file" ]; then
-		write_state "idle"
-	fi
-	echo "No worker token set. This workspace was created manually, not by Agent Relay."
-	echo "Idling. Delete this workspace manually or set the agent_relay_credential parameter."
+	# No credential for this agent start: a manual workspace, or a restart
+	# after the ephemeral credential was cleared. No worker can run either
+	# way; whatever a previous run recorded no longer applies.
+	# A skipped cleanup may have left the previous session's token.
+	rm -f "$token_file" "$token_file.tmp" || echo "Cannot remove previous Cursor worker token" >&2
+	write_state "idle"
+	echo "No worker token in this build. Agent Relay delivers one only on the build it dispatches."
+	echo "Idling. If Agent Relay did not create this workspace, delete it."
 	exit 0
 fi
 
-# An agent restart inside the same build re-runs this script with the
-# credential still set and the previous run's state on disk. The
-# detached supervisor outlives the agent, so never launch a second
-# worker beside a live one, and never restart after a terminal state:
-# the relay is already acting on it and the credential is single-use.
-# Otherwise reset to pending so the previous run's state is not reported
-# as this run's while the supervisor starts.
-if [ -f "$state_file" ]; then
-	read -r previous_state previous_detail <"$state_file" || true
-	case "$previous_state" in
-	working)
-		if worker_alive "$${previous_detail:-}"; then
-			echo "Worker already running (pid $previous_detail) from a previous agent start; leaving it."
-		else
-			echo "Previous worker (pid $${previous_detail:-?}) is gone without recording an exit; leaving the state for Agent Relay."
-		fi
-		exit 0
-		;;
-	done | failed)
-		echo "Previous run ended with '$previous_state $${previous_detail:-}'; not restarting. Agent Relay reaps this workspace."
-		exit 0
-		;;
-	esac
+# A claim prevents concurrent starts for this generation. A later start
+# rotates a still-claimed generation rather than blocking on stale state.
+mkdir -p "${module_directory}/started"
+if ! mkdir "${module_directory}/started/$cleanup_id" 2>/dev/null; then
+	echo "Worker already started for this cleanup generation" >&2
+	exit 1
 fi
 write_state "pending"
 
@@ -124,60 +125,158 @@ mv "$token_file.tmp" "$token_file"
 # worker spawns, do not inherit it. The worker exits 0 when its
 # idle-release timer fires after a session ends; that clean exit is
 # what tells Agent Relay to reap the workspace.
+#
+# The supervisor publishes its identity (pid, boot id, /proc starttime)
+# under supervisors/ before it launches anything, and the worker
+# publishes its own under workers/ before it execs the CLI, which keeps
+# the pid and starttime. cleanup.sh can then stop both on the next start
+# without trusting a reused pid, even when the
+# supervisor was SIGKILLed and the worker outlived it. Either process
+# exits without running anything if it cannot publish, or if a newer
+# cleanup has started, so no worker runs untracked. On TERM the
+# supervisor stops the worker and exits without writing a terminal state:
+# the worker was stopped, it did not finish.
+#
+# The cleanup id reaches the supervisor, and from it the worker, only as an
+# argument. The script file holds nothing specific to this start, so a late
+# start from before a newer cleanup that runs a newer start's script still
+# checks its own, stale id. The file is replaced by rename, so a running
+# supervisor keeps reading the copy it started with.
 supervisor="$scripts_dir/supervise.sh"
-cat >"$supervisor" <<SUPERVISOR
+cat >"$supervisor.$$.tmp" <<SUPERVISOR
 #!/usr/bin/env bash
 set -uo pipefail
 
+# The id of the cleanup this run's start step followed.
+cleanup_id="\$${1:-}"
+[ -n "\$cleanup_id" ] || exit 1
+
+boot_id="\$(cat /proc/sys/kernel/random/boot_id)" || exit 1
+
+# Prints the /proc starttime of pid. comm, field 2, may contain spaces and
+# parentheses; after the last ") " starttime, field 22, is field 20.
+starttime_of() {
+	local stat
+	stat="\$(cat "/proc/\$1/stat" 2>/dev/null)" || return 1
+	stat="\$${stat##*) }"
+	# shellcheck disable=SC2086 # Word splitting into fields is the point.
+	set -- \$stat
+	printf '%s' "\$${20:-}"
+}
+
+# True while the marker still holds this run's cleanup id, that is, while
+# no newer cleanup has started. Shared state (the state file, the token)
+# belongs to whichever run that is, so this run only touches it while
+# current.
+current() {
+	[ "\$(cat "$cleanup_marker" 2>/dev/null)" = "\$cleanup_id" ]
+}
+
+# Publishes the calling process's identity as <dir>/<pid>.<starttime>,
+# renamed into place so cleanup.sh never reads a partial record. Then
+# confirms the run is still current: a cleanup removes the marker before
+# it reads any record, so once the check passes, every later cleanup sees
+# the record.
+publish() {
+	local pid="\$1" dir="\$2" start
+	start="\$(starttime_of "\$pid")" && [ -n "\$start" ] || return 1
+	if ! { printf '%s %s %s\n' "\$pid" "\$boot_id" "\$start" >"\$dir/.\$pid.tmp" &&
+		mv "\$dir/.\$pid.tmp" "\$dir/\$pid.\$start"; }; then
+		rm -f "\$dir/.\$pid.tmp"
+		return 1
+	fi
+	if ! current; then
+		rm -f "\$dir/\$pid.\$start"
+		return 1
+	fi
+}
+
+record="$supervisors/\$\$.\$(starttime_of \$\$)"
+on_exit() {
+	rm -f "$supervisors/.\$\$.tmp" "\$record"
+}
+trap on_exit EXIT
+
+# Stops the worker and removes its record once wait confirms it is gone.
+# \$! is the worker once it is launched, even if TERM lands before its pid
+# is saved; the supervisor starts no other background job.
+stop() {
+	local worker="\$${!:-}" start
+	if [ -n "\$worker" ]; then
+		# An unreaped child keeps its /proc entry, so this cannot miss.
+		start="\$(starttime_of "\$worker" || true)"
+		kill -TERM "\$worker" 2>/dev/null
+		wait "\$worker" 2>/dev/null
+		[ -z "\$start" ] || rm -f "$workers/\$worker.\$start"
+	fi
+	! current || rm -f "$token_file"
+	exit 0
+}
+trap stop TERM
+
+publish "\$\$" "$supervisors" || exit 1
+
 write_state() {
+	current || return 0
 	printf '%s\n' "\$1" >"$state_file.tmp"
 	mv "$state_file.tmp" "$state_file"
 }
 
 export PATH="\$HOME/.local/bin:\$PATH"
 unset AGENT_RELAY_CURSOR_TOKEN
+# The worker publishes itself from the subshell, then execs the CLI.
 # Keep these flags in sync with the reserved-flag list in additional_args'
 # validation in main.tf, so additional_args cannot set them a second time.
-${cli_binary} worker \\
-	--pool "\$AGENT_RELAY_CURSOR_POOL_NAME" \\
-	--idle-release-timeout "\$AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT" \\
-	--auth-token-file "$token_file" \\
+(
+	publish "\$BASHPID" "$workers" || exit 1
+	exec ${cli_binary} worker \\
+		--pool "\$AGENT_RELAY_CURSOR_POOL_NAME" \\
+		--idle-release-timeout "\$AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT" \\
+		--auth-token-file "$token_file" \\
+%{ if management_addr != "" ~}
+		--management-addr "${management_addr}" \\
+%{ endif ~}
 %{ if computer_use ~}
-	--computer-use \\
+		--computer-use \\
 %{ endif ~}
 %{ if share_desktop ~}
-	--share-desktop=view_and_control \\
+		--share-desktop=view_and_control \\
 %{ endif ~}
-	$additional_args \\
-	start >"$log_file" 2>&1 &
+		$additional_args \\
+		start
+) >"$log_file" 2>&1 &
 worker_pid=\$!
+worker_start="\$(starttime_of "\$worker_pid" || true)"
 write_state "working \$worker_pid"
 
 wait "\$worker_pid"
 code=\$?
+[ -z "\$worker_start" ] || rm -f "$workers/\$worker_pid.\$worker_start"
 # The claim is over once the worker exits, so its token is no use to
 # anyone; do not leave it on disk.
-rm -f "$token_file"
+! current || rm -f "$token_file"
 write_state "done \$code"
 SUPERVISOR
-chmod +x "$supervisor"
+chmod +x "$supervisor.$$.tmp"
+mv "$supervisor.$$.tmp" "$supervisor"
 
 echo "Starting Cursor worker (detached)..."
-setsid nohup "$supervisor" >/dev/null 2>&1 </dev/null &
+setsid nohup "$supervisor" "$cleanup_id" >/dev/null 2>&1 </dev/null &
 
 # Give the supervisor a moment to record state, so a workspace that
-# fails immediately is visible as such rather than as pending. Not a
+# fails immediately is visible as such rather than as pending, and so
+# this step returns with the supervisor's identity record in place. Not a
 # readiness gate: the worker connecting to Cursor and picking up a
 # session both happen later, and blocking on them would keep the agent
 # out of the ready state.
-for _ in 1 2 3 4 5 6 7 8 9 10; do
-	[ -f "$state_file" ] && break
-	sleep 1
+state=""
+for ((i = 0; i < 50; i++)); do
+	state="$(cat "$state_file" 2>/dev/null || true)"
+	case "$state" in "" | pending) sleep 0.2 ;; *) break ;; esac
 done
 
-if [ -f "$state_file" ]; then
-	echo "Worker state: $(cat "$state_file")"
-else
-	echo "Worker did not report state within 10s; check $log_file" >&2
-fi
+case "$state" in
+"" | pending) echo "Worker did not report state within 10s; check $log_file" >&2 ;;
+*) echo "Worker state: $state" ;;
+esac
 echo "Worker log: $log_file"
