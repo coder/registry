@@ -167,4 +167,44 @@ describe("vscode-desktop", async () => {
       await removeContainer(id);
     }
   });
+
+  it("does not create settings script with default inputs", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+    });
+    const settingsScripts = state.resources.filter(
+      (resource) =>
+        resource.type === "coder_script" &&
+        resource.name === "apply_settings",
+    );
+    expect(settingsScripts).toHaveLength(0);
+  });
+
+  it("creates login-blocking settings script when settings are configured", async () => {
+    const settings = {
+      "editor.fontSize": 14,
+      "editor.formatOnSave": true,
+    };
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      settings: JSON.stringify(settings),
+    });
+    const settingsScript = findResourceInstance(
+      state,
+      "coder_script",
+      "apply_settings",
+    );
+
+    expect(settingsScript.start_blocks_login).toBe(true);
+    expect(settingsScript.timeout).toBe(300);
+    expect(settingsScript.script).toContain(
+      Buffer.from(JSON.stringify(settings)).toString("base64"),
+    );
+    expect(settingsScript.script).toContain(
+      Buffer.from(
+        "$HOME/.vscode-server/data/Machine/settings.json",
+      ).toString("base64"),
+    );
+  });
 });
+
