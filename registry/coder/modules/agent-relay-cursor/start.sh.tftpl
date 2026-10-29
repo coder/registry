@@ -142,6 +142,9 @@ ${cli_binary} worker \\
 	--pool "\$AGENT_RELAY_CURSOR_POOL_NAME" \\
 	--idle-release-timeout "\$AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT" \\
 	--auth-token-file "$token_file" \\
+%{ if management_addr != "" ~}
+	--management-addr "${management_addr}" \\
+%{ endif ~}
 %{ if computer_use ~}
 	--computer-use \\
 %{ endif ~}
