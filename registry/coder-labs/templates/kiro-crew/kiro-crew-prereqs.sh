@@ -6,13 +6,15 @@ set -euo pipefail
 
 sudo apt-get update -qq
 
-# curl, unzip, openssl, and sha256sum (coreutils) are used by the installers;
-# Kiro Crew verifies its signed manifest with openssl and sha256sum.
+# curl, unzip, openssl, and sha256sum (coreutils) are what the Kiro CLI and
+# Kiro Crew installers need: curl to download, unzip to extract the Kiro CLI
+# archive, and openssl plus sha256sum to verify the Kiro Crew signed manifest.
+# The default codercom/enterprise-base image already ships these, so this is a
+# safety net for leaner images. The Kiro Crew installer provisions its own
+# Python via uv, so no Python packages (and no gnupg/PPA tooling) are needed.
 sudo apt-get install -y -qq \
   curl \
   unzip \
-  gnupg \
-  dirmngr \
   openssl \
   ca-certificates
 
