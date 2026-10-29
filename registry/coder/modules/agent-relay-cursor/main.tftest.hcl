@@ -27,11 +27,6 @@ run "parameter_contract" {
   }
 
   assert {
-    condition     = data.coder_parameter.agent_relay_credential.name == "agent_relay_credential"
-    error_message = "credential parameter name is part of the Agent Relay contract"
-  }
-
-  assert {
     condition     = data.coder_parameter.agent_relay_cursor_pool_name.name == "agent_relay_cursor_pool_name"
     error_message = "Cursor pool parameter name is part of the Agent Relay contract"
   }
@@ -46,8 +41,8 @@ run "parameter_contract" {
     error_message = "Cursor idle release timeout parameter name is part of the Agent Relay contract"
   }
 
-  # Only the credential is ephemeral: the rest are queried back off the
-  # workspace with `param:` filters, which only sees declared values.
+  # None are ephemeral: they are queried back off the workspace with
+  # `param:` filters, which only sees declared values.
   assert {
     condition = alltrue([
       data.coder_parameter.agent_relay_session_id.ephemeral == false,
@@ -56,7 +51,6 @@ run "parameter_contract" {
       data.coder_parameter.agent_relay_cursor_pool_name.ephemeral == false,
       data.coder_parameter.agent_relay_cursor_repo_url.ephemeral == false,
       data.coder_parameter.agent_relay_cursor_idle_release_timeout.ephemeral == false,
-      data.coder_parameter.agent_relay_credential.ephemeral == true,
     ])
     error_message = "parameter persistence does not match the Agent Relay contract"
   }
@@ -72,28 +66,17 @@ run "parameter_contract" {
         data.coder_parameter.agent_relay_cursor_pool_name.styling,
         data.coder_parameter.agent_relay_cursor_repo_url.styling,
         data.coder_parameter.agent_relay_cursor_idle_release_timeout.styling,
-        data.coder_parameter.agent_relay_credential.styling,
       ] : can(regex("\"disabled\":true", p))
     ])
     error_message = "every relay parameter must render disabled"
-  }
-
-  assert {
-    condition     = can(regex("\"mask_input\":true", data.coder_parameter.agent_relay_credential.styling))
-    error_message = "the credential must be masked"
   }
 }
 
 run "worker_wiring" {
   command = plan
 
-  # The Cursor CLI owns the worker id name; the token has no CLI env var
-  # and must not masquerade as CURSOR_API_KEY.
-  assert {
-    condition     = coder_env.agent_relay_cursor_token.name == "AGENT_RELAY_CURSOR_TOKEN"
-    error_message = "the worker token env var is Agent Relay's, not a Cursor API key"
-  }
-
+  # The Cursor CLI owns the worker id name. The token arrives as a
+  # workspace secret, not through this module.
   assert {
     condition     = coder_env.cursor_agent_worker_id.name == "CURSOR_AGENT_WORKER_ID"
     error_message = "the worker id env var name is the Cursor CLI's contract"
@@ -235,7 +218,7 @@ run "worker_wiring" {
 
   assert {
     condition     = output.dispatched == false
-    error_message = "a build with no credential was not dispatched by Agent Relay"
+    error_message = "a build with no delivery was not dispatched by Agent Relay"
   }
 
   assert {
@@ -246,6 +229,26 @@ run "worker_wiring" {
   assert {
     condition     = length(coder_app.cursor_web) == 0 && length(coder_app.cursor_desktop) == 0
     error_message = "a manual build has no cloud agent, so neither Cursor client button is created"
+  }
+}
+
+run "dispatched_true_when_delivery_stamped" {
+  command = plan
+
+  # The delivery id is not ephemeral, so a person's restart carries it into
+  # the next build and this output stays true for the life of a relay-created
+  # workspace. The start script, not this output, says whether the current
+  # build has a worker token.
+  override_data {
+    target = data.coder_parameter.agent_relay_delivery_id
+    values = {
+      value = "0d6c3b1e-delivery"
+    }
+  }
+
+  assert {
+    condition     = output.dispatched == true
+    error_message = "a build carrying a delivery id belongs to a workspace Agent Relay created"
   }
 }
 

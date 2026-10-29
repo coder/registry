@@ -20,8 +20,12 @@
 #     dedupe and reconciliation query workspaces with `param:` search
 #     filters on them. agent_relay_cursor_repo_url is stamped on every
 #     build (empty for repo-less pools) so the contract stays static.
-#   - agent_relay_credential is an ephemeral worker input, reset between
-#     builds.
+#
+# The worker token is not a parameter. Agent Relay sends it as an
+# ephemeral workspace secret, which the agent injects as
+# AGENT_RELAY_CURSOR_TOKEN. It never reaches the provisioner, Terraform
+# state, or the build's parameters, so nothing in this module can read
+# it.
 #
 # The worker's lifecycle is published through the agent_relay_status agent
 # metadata item, whose script this module renders. The script starts
@@ -228,33 +232,13 @@ data "coder_parameter" "agent_relay_cursor_repo_url" {
   })
 }
 
-data "coder_parameter" "agent_relay_credential" {
-  name         = "agent_relay_credential"
-  display_name = "Agent Relay credential"
-  description  = "Cursor session token the worker authenticates with. Agent Relay mints it with the claim from the pool's service account key; a human never fills it in. It serves only this request's claim and stops working when the claim ends. Ephemeral: not reused on a later build."
-  type         = "string"
-  ephemeral    = true
-  mutable      = true
-  default      = ""
-  order        = 1006
-  styling = jsonencode({
-    disabled    = true
-    mask_input  = true
-    placeholder = "Set by Agent Relay on dispatch"
-  })
-}
-
 # CURSOR_AGENT_WORKER_ID is the Cursor CLI's contract; do not rename it.
-# The session token has no CLI env var, so it travels under an Agent
-# Relay name and the start script writes it to a file for
-# --auth-token-file. It is never CURSOR_API_KEY: the CLI would treat the
-# token as a service account key and reject it.
-resource "coder_env" "agent_relay_cursor_token" {
-  agent_id = var.agent_id
-  name     = "AGENT_RELAY_CURSOR_TOKEN"
-  value    = data.coder_parameter.agent_relay_credential.value
-}
-
+# The session token has no CLI env var. Agent Relay delivers it as the
+# AGENT_RELAY_CURSOR_TOKEN workspace secret, which the agent injects,
+# and the start script writes it to a file for --auth-token-file; a
+# coder_env of the same name would be overridden by the secret. It is
+# never CURSOR_API_KEY: the CLI would treat the token as a service
+# account key and reject it.
 resource "coder_env" "cursor_agent_worker_id" {
   agent_id = var.agent_id
   name     = "CURSOR_AGENT_WORKER_ID"
@@ -376,8 +360,8 @@ output "scripts" {
 }
 
 output "dispatched" {
-  description = "Whether this workspace was spawned by Agent Relay (credential set) or manually (empty)."
-  value       = data.coder_parameter.agent_relay_credential.value != ""
+  description = "Whether Agent Relay created this workspace. Stays true on every later build of it, including one a person restarts; whether the current build has a worker token is decided by the start script, not here."
+  value       = data.coder_parameter.agent_relay_delivery_id.value != ""
 }
 
 output "session_id" {

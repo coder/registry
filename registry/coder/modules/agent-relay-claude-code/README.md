@@ -16,7 +16,7 @@ on each build and runs the Claude Code self-hosted runner.
 ```tf
 module "claude_code_runner" {
   source   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version  = "0.5.1"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Claude Code CLI at start when it is not in the image. Bake
@@ -51,6 +51,17 @@ optional; see [Session attachment](#session-attachment).
 
 ## Requirements
 
+- Coder 2.39.0 or newer and Agent Relay v0.14.0 or newer. On those versions
+  the relay delivers the work order as an ephemeral workspace secret, which
+  the agent injects as `SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET`; it is never a
+  build parameter. A relay that still sends it as the `agent_relay_credential`
+  parameter refuses to serve a template on this version with
+  `missing parameter "agent_relay_credential"`, so on older versions pin
+  `0.5.0`, the last release that declares the parameter. Upgrade Coder, then
+  Agent Relay, then move templates to `1.0.0` one at a time; a `0.5.0`
+  template keeps working on the new versions, except that its `dispatched`
+  output reads `false` on relay builds. To roll a relay or Coder back, pin
+  templates back to `0.5.0` first.
 - The `claude` CLI must be in the workspace. `install_cli` (default `true`)
   downloads it at start only when it is not already on PATH; bake it into the
   image for the fastest start. `cli_binary` overrides the path.
@@ -68,7 +79,7 @@ can contain spaces or quotes without escaping. Flags the module already sets
 ```tf
 module "claude_code_runner" {
   source          = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version         = "0.5.1"
+  version         = "1.0.0"
   agent_id        = coder_agent.main.id
   additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
 }
@@ -78,8 +89,10 @@ module "claude_code_runner" {
 
 Agent Relay verifies this contract against the template's active version at
 startup and refuses to serve a pool that does not satisfy it. Every parameter
-renders disabled with a "Set by Agent Relay on dispatch" placeholder; the
-credential is masked.
+renders disabled with a "Set by Agent Relay on dispatch" placeholder. The
+work order is not among them: it is a workspace secret, so it never appears
+in the build's parameters or Terraform state, and the template should not
+set `SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET` itself.
 
 `agent_relay_client_platform` is attribution rather than contract: the relay
 stamps the surface the session was created from (`web_claude_ai`,
@@ -142,7 +155,7 @@ metadata before cleanup runs and fresh status has been collected.
 | value             | meaning                                                                    |
 | ----------------- | -------------------------------------------------------------------------- |
 | `pending`         | no state recorded yet                                                      |
-| `idle`            | no credential: no runner starts on this agent start                        |
+| `idle`            | no work order in this build: created by a person, or restarted by one      |
 | `working`         | runner alive, no session picked up                                         |
 | `serving`         | runner alive, session picked up (best effort, see `serving_log_pattern`)   |
 | `orphaned`        | runner process gone without recording an exit                              |
@@ -169,7 +182,7 @@ fails the start step with `failed invalid-release-idle-session-min`.
 ```tf
 module "claude_code_runner" {
   source                   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version                  = "0.5.1"
+  version                  = "1.0.0"
   agent_id                 = coder_agent.main.id
   release_idle_session_min = 30
 }
@@ -208,7 +221,7 @@ from reaching it.
 ```tf
 module "claude_code_runner" {
   source      = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version     = "0.5.1"
+  version     = "1.0.0"
   agent_id    = coder_agent.main.id
   health_port = 3290
 }
