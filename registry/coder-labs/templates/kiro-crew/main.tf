@@ -109,7 +109,7 @@ data "coder_parameter" "home_disk_size" {
 data "coder_parameter" "git_repo" {
   name         = "git_repo"
   display_name = "Git repository"
-  description  = "Optional repository to clone into the workspace on start. Leave empty to skip."
+  description  = "Optional repository to clone on start, into the Kiro Crew workspace directory (~/.kiro/crew/workspace) so agents can work on it. Leave empty to skip."
   type         = "string"
   icon         = "/icon/git.svg"
   default      = ""
@@ -224,6 +224,9 @@ module "git-clone" {
   version  = "2.0.5"
   agent_id = coder_agent.main.id
   url      = data.coder_parameter.git_repo.value
+  # Clone into the Kiro Crew workspace directory so agents operate on the repo
+  # directly. The module clones to "<base_dir>/<repo-name>" and creates the path.
+  base_dir = "${local.home_dir}/.kiro/crew/workspace"
 }
 
 resource "kubernetes_persistent_volume_claim_v1" "home" {
