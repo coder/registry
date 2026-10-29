@@ -14,62 +14,28 @@ variable "agent_id" {
   description = "The ID of a Coder agent."
 }
 
-data "coder_workspace" "me" {}
-
-data "coder_workspace_owner" "me" {}
-
-variable "order" {
-  type        = number
-  description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
-  default     = null
-}
-
-variable "group" {
-  type        = string
-  description = "The name of a group that this app belongs to."
-  default     = null
-}
-
 variable "icon" {
   type        = string
-  description = "The icon to use for the app."
+  description = "The icon to use for the install scripts."
   default     = "/icon/goose.svg"
 }
 
-variable "folder" {
+variable "workdir" {
   type        = string
-  description = "The folder to run Goose in."
-  default     = "/home/coder"
+  description = "Optional project directory. When set, the module creates it if missing."
+  default     = null
 }
 
 variable "install_goose" {
   type        = bool
-  description = "Whether to install Goose."
+  description = "Whether to install Goose with the official installer (https://goose-docs.ai/docs/getting-started/installation). When false, goose must already be on PATH."
   default     = true
 }
 
 variable "goose_version" {
   type        = string
-  description = "The version of Goose to install."
+  description = "The version of Goose to install, for example 'v1.54.0'. Use 'stable' for the latest stable release."
   default     = "stable"
-}
-
-variable "install_agentapi" {
-  type        = bool
-  description = "Whether to install AgentAPI."
-  default     = true
-}
-
-variable "agentapi_version" {
-  type        = string
-  description = "The version of AgentAPI to install."
-  default     = "v0.10.0"
-}
-
-variable "subdomain" {
-  type        = bool
-  description = "Whether to use a subdomain for AgentAPI."
-  default     = false
 }
 
 variable "goose_provider" {
@@ -79,7 +45,7 @@ variable "goose_provider" {
 
 variable "goose_model" {
   type        = string
-  description = "The model to use for Goose (e.g., claude-3-5-sonnet-latest)."
+  description = "The model to use for Goose (e.g., claude-sonnet-4-6)."
 }
 
 variable "pre_install_script" {
@@ -101,22 +67,8 @@ variable "additional_extensions" {
 }
 
 locals {
-  app_slug        = "goose"
+  workdir         = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
   base_extensions = <<-EOT
-coder:
-  args:
-  - exp
-  - mcp
-  - server
-  cmd: coder
-  description: Report ALL tasks and statuses (in progress, done, failed) you are working on.
-  enabled: true
-  envs:
-    CODER_MCP_APP_STATUS_SLUG: ${local.app_slug}
-    CODER_MCP_AI_AGENTAPI_URL: http://localhost:3284
-  name: Coder
-  timeout: 3000
-  type: stdio
 developer:
   display_name: Developer
   enabled: true
@@ -132,49 +84,43 @@ EOT
 extensions:
 ${local.formatted_base}${local.additional_extensions}
 EOT
-  install_script        = file("${path.module}/scripts/install.sh")
-  start_script          = file("${path.module}/scripts/start.sh")
-  module_dir_name       = ".goose-module"
-  folder                = trimsuffix(var.folder, "/")
-}
+  install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
+    ARG_PROVIDER      = base64encode(var.goose_provider)
+    ARG_MODEL         = base64encode(var.goose_model)
+    ARG_GOOSE_CONFIG  = base64encode(local.combined_extensions)
+    ARG_INSTALL       = tostring(var.install_goose)
+    ARG_GOOSE_VERSION = base64encode(var.goose_version)
+    ARG_WORKDIR       = local.workdir != "" ? base64encode(local.workdir) : ""
+  })
+  module_dir_name = ".coder-modules/coder/goose"
 
-module "agentapi" {
-  source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.0.0"
-
-  agent_id             = var.agent_id
-  web_app_slug         = local.app_slug
-  web_app_order        = var.order
-  web_app_group        = var.group
-  web_app_icon         = var.icon
-  web_app_display_name = "Goose"
-  cli_app_slug         = "${local.app_slug}-cli"
-  cli_app_display_name = "Goose CLI"
-  module_dir_name      = local.module_dir_name
-  install_agentapi     = var.install_agentapi
-  agentapi_version     = var.agentapi_version
-  agentapi_subdomain   = var.subdomain
-  pre_install_script   = var.pre_install_script
-  post_install_script  = var.post_install_script
-  start_script         = local.start_script
-  folder               = local.folder
-  install_script       = <<-EOT
+  # Create the workdir before the user's pre-install hook, as the agentapi
+  # module did, so hooks that cd into it keep working on a fresh workspace.
+  pre_install_script = var.pre_install_script == null || local.workdir == "" ? var.pre_install_script : <<-EOT
     #!/usr/bin/env bash
     set -o errexit
-    set -o pipefail
-
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
-
-    ARG_PROVIDER='${var.goose_provider}' \
-    ARG_MODEL='${var.goose_model}' \
-    ARG_GOOSE_CONFIG="$(echo -n '${base64encode(local.combined_extensions)}' | base64 -d)" \
-    ARG_INSTALL='${var.install_goose}' \
-    ARG_GOOSE_VERSION='${var.goose_version}' \
-    /tmp/install.sh
+    mkdir -p '${local.workdir}'
+    hook="$HOME/${local.module_dir_name}/scripts/pre_install_hook.sh"
+    echo -n '${base64encode(var.pre_install_script)}' | base64 -d > "$hook"
+    chmod +x "$hook"
+    exec "$hook"
   EOT
 }
 
-output "task_app_id" {
-  value = module.agentapi.task_app_id
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.1"
+
+  agent_id            = var.agent_id
+  module_directory    = "$HOME/${local.module_dir_name}"
+  display_name_prefix = "Goose"
+  icon                = var.icon
+  pre_install_script  = local.pre_install_script
+  post_install_script = var.post_install_script
+  install_script      = local.install_script
+}
+
+output "scripts" {
+  description = "Ordered list of coder exp sync names for the coder_script resources this module creates, in run order (pre_install, install, post_install). Scripts that were not configured are absent from the list."
+  value       = module.coder_utils.scripts
 }
