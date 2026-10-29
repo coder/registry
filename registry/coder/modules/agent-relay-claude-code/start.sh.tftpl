@@ -14,6 +14,24 @@ set -euo pipefail
 state_file="${state_file}"
 log_file="${log_file}"
 base_dir="${base_dir}"
+supervisors="${module_directory}/supervisors"
+workers="${module_directory}/workers"
+cleanup_marker="${module_directory}/cleanup-complete"
+mkdir -p "${module_directory}"
+publish_generation() {
+	generation=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || true)
+	if [ -z "$generation" ]; then
+		generation="$$-$RANDOM-$(date +%s%N)"
+	fi
+	printf '%s\n' "$generation" >"$cleanup_marker.tmp"
+	mv "$cleanup_marker.tmp" "$cleanup_marker"
+}
+if [ ! -s "$cleanup_marker" ]; then
+	echo "Startup cleanup did not finish; starting a runner anyway" >&2
+	publish_generation
+else
+	generation=$(< "$cleanup_marker")
+fi
 # One argument per line. Shell-quoted here because the string is expanded
 # into the supervisor below, which must see each argument as one word.
 additional_args=""
@@ -23,7 +41,7 @@ while IFS= read -r arg || [ -n "$arg" ]; do
 	fi
 done < <(echo -n '${additional_args}' | base64 -d)
 state_dir="$(dirname "$state_file")"
-mkdir -p "$state_dir" "$(dirname "$log_file")" "$base_dir"
+mkdir -p "$state_dir" "$(dirname "$log_file")" "$base_dir" "$supervisors" "$workers"
 
 write_state() {
 	# Write via a temp file so a reader never sees a partial line.
@@ -32,16 +50,22 @@ write_state() {
 }
 
 if [ -z "$${SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET:-}" ]; then
-	# Only claim idle when nothing has been recorded. A credential is
-	# ephemeral, so a restart of a finished workspace arrives here too,
-	# and overwriting "done 3" with "idle" would hide a real failure.
-	if [ ! -f "$state_file" ]; then
-		write_state "idle"
-	fi
-	echo "No work order set. This workspace was created manually, not by Agent Relay."
-	echo "Idling. Delete this workspace manually or set the agent_relay_credential parameter."
+	write_state "idle"
+	echo "No work order set. No runner will start on this agent start."
+	echo "Idling. A new work order is required to start another runner."
 	exit 0
 fi
+
+# A completed pre-install normally gives each start a fresh generation.
+# If that step was skipped, a previous start may already have claimed this
+# marker. Rotate it and launch anyway rather than strand the new work order.
+mkdir -p "${module_directory}/started"
+if ! mkdir "${module_directory}/started/$generation" 2>/dev/null; then
+	echo "Runner already started for this cleanup generation; starting a new generation anyway" >&2
+	publish_generation
+	mkdir -p "${module_directory}/started/$generation"
+fi
+write_state "pending"
 
 # ~/.local/bin is where the official installer puts the CLI, whether the
 # install step ran it or the image author did. Unconditional so a
@@ -95,19 +119,28 @@ exec "$CLAUDE_RUNNER_CLAUDE_BIN" "$@" --permission-mode bypassPermissions
 WRAPPER
 chmod +x "$wrapper"
 
-# The supervisor outlives this script: it owns the runner process and is
-# the only writer of terminal state. Written to disk rather than inlined
-# so setsid gets a clean argv.
-supervisor="$state_dir/supervise.sh"
-cat >"$supervisor" <<SUPERVISOR
+# The runner wrapper publishes the child's identity before it can execute
+# the CLI. If cleanup won the race with a late launch, its generation has
+# changed and the wrapper exits without starting a runner.
+runner_wrapper="$state_dir/run-runner.sh"
+cat >"$runner_wrapper.$$.tmp" <<RUNNER
 #!/usr/bin/env bash
-set -uo pipefail
-
-write_state() {
-	printf '%s\n' "\$1" >"$state_file.tmp"
-	mv "$state_file.tmp" "$state_file"
-}
-
+set -euo pipefail
+expected_generation="\$1"
+shift
+boot_id=\$(< /proc/sys/kernel/random/boot_id)
+IFS= read -r stat <"/proc/\$\$/stat"
+stat=\$${stat##*) }
+# shellcheck disable=SC2086 # Split /proc fields.
+set -- \$stat
+[ -n "\$boot_id" ] && [[ "\$${20:-}" =~ ^[0-9]+$ ]] || exit 1
+record="$workers/\$\$-\$boot_id-\$${20}"
+printf '%s %s %s\n' "\$\$" "\$boot_id" "\$${20}" >"\$record.tmp" &&
+	mv "\$record.tmp" "\$record" || exit 1
+if [ "\$(cat "$cleanup_marker" 2>/dev/null || true)" != "\$expected_generation" ]; then
+	rm -f "\$record"
+	exit 0
+fi
 export PATH="\$HOME/.local/bin:\$PATH"
 # Read from the environment at run time, never rendered into this file.
 # 0 omits the flag, which leaves the CLI's default of never releasing.
@@ -116,7 +149,7 @@ if [ "\$AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN" -gt 0 ]; then
 fi
 # Keep these flags in sync with the reserved-flag list in additional_args'
 # validation in main.tf, so additional_args cannot set them a second time.
-${cli_binary} self-hosted-runner \\
+exec ${cli_binary} self-hosted-runner \\
 	--capacity 1 \\
 	--base-dir "$base_dir" \\
 %{ if exit_if_unused_min > 0 ~}
@@ -125,32 +158,84 @@ ${cli_binary} self-hosted-runner \\
 	"\$@" \\
 	--health-port ${health_port} \\
 	$additional_args \\
-	--exec-path "$wrapper" >"$log_file" 2>&1 &
+	--exec-path "$wrapper"
+RUNNER
+chmod +x "$runner_wrapper.$$.tmp"
+mv "$runner_wrapper.$$.tmp" "$runner_wrapper"
+
+# The supervisor outlives this script: it owns the runner process and is
+# the only writer of terminal state. Written to disk rather than inlined
+# so setsid gets a clean argv.
+supervisor="$state_dir/supervise.sh"
+cat >"$supervisor.$$.tmp" <<SUPERVISOR
+#!/usr/bin/env bash
+set -uo pipefail
+
+generation="\$1"
+if [ "\$(cat "$cleanup_marker" 2>/dev/null || true)" != "\$generation" ]; then exit 0; fi
+supervisors="$supervisors"
+boot_id=\$(< /proc/sys/kernel/random/boot_id)
+IFS= read -r stat <"/proc/\$\$/stat"
+stat=\$${stat##*) }
+# shellcheck disable=SC2086 # Split /proc fields.
+set -- \$stat
+[ -n "\$boot_id" ] && [[ "\$${20:-}" =~ ^[0-9]+$ ]] || exit 1
+record="\$supervisors/\$\$-\$boot_id-\$${20}"
+printf '%s %s %s\n' "\$\$" "\$boot_id" "\$${20}" >"\$record.tmp" &&
+	mv "\$record.tmp" "\$record" || exit 1
+stopping=false
+cleanup() {
+	rm -f "\$record.tmp" "\$record"
+}
+stop() {
+	stopping=true
+	local target="\$${!:-}"
+	if [ -n "\$target" ]; then
+		kill -TERM "\$target" 2>/dev/null || true
+		wait "\$target" 2>/dev/null || true
+		rm -f "$workers/\$target-"*
+	fi
+	exit 0
+}
+trap cleanup EXIT
+trap stop TERM
+
+write_state() {
+	[ "\$(cat "$cleanup_marker" 2>/dev/null || true)" = "\$generation" ] || return 0
+	printf '%s\n' "\$1" >"$state_file.tmp"
+	mv "$state_file.tmp" "$state_file"
+}
+
+"$runner_wrapper" "\$generation" >"$log_file" 2>&1 &
 runner_pid=\$!
 write_state "working \$runner_pid"
 
 wait "\$runner_pid"
 code=\$?
-write_state "done \$code"
+rm -f "$workers/\$runner_pid-"*
+if [ "\$stopping" = false ]; then
+	write_state "done \$code"
+fi
 SUPERVISOR
-chmod +x "$supervisor"
+chmod +x "$supervisor.$$.tmp"
+mv "$supervisor.$$.tmp" "$supervisor"
 
 echo "Starting Claude Code self-hosted runner (detached)..."
-setsid nohup "$supervisor" >/dev/null 2>&1 </dev/null &
+setsid nohup "$supervisor" "$generation" >/dev/null 2>&1 </dev/null &
 
 # Give the supervisor a moment to record state, so a workspace that
 # fails immediately is visible as such rather than as pending. Not a
 # readiness gate: the runner registering with Anthropic and picking up
 # the session both happen later, and blocking on them would keep the
 # agent out of the ready state.
-for _ in 1 2 3 4 5 6 7 8 9 10; do
-	[ -f "$state_file" ] && break
-	sleep 1
+state=""
+for ((i = 0; i < 50; i++)); do
+	state="$(cat "$state_file" 2>/dev/null || true)"
+	case "$state" in "" | pending) sleep 0.2 ;; *) break ;; esac
 done
 
-if [ -f "$state_file" ]; then
-	echo "Runner state: $(cat "$state_file")"
-else
-	echo "Runner did not report state within 10s; check $log_file" >&2
-fi
+case "$state" in
+"" | pending) echo "Runner did not report state within 10s; check $log_file" >&2 ;;
+*) echo "Runner state: $state" ;;
+esac
 echo "Runner log: $log_file"
