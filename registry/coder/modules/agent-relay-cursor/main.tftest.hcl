@@ -1,7 +1,8 @@
-# Terraform tests for the parameter contract and the rendered install and
-# start scripts. Run with `terraform init && terraform test` in this
-# directory. The scripts are handed to coder-utils, whose coder_script
-# resources a test cannot reach, so assertions read the rendered locals.
+# Terraform tests for the parameter contract and rendered lifecycle scripts.
+# Run with `terraform init && terraform test` in this directory. The scripts
+# are handed to coder-utils, whose coder_script resources a test cannot
+# reach, so assertions read the rendered locals. The standalone stop script
+# is asserted directly.
 
 variables {
   agent_id = "00000000-0000-0000-0000-000000000000"
@@ -81,11 +82,75 @@ run "worker_wiring" {
     error_message = "the worker id env var name is the Cursor CLI's contract"
   }
 
-  # coder-utils runs the install step before the start step and keeps
-  # both scripts and their logs under this directory.
+  # coder-utils runs the cleanup before the install step, and the install
+  # step before the start step, keeping scripts and logs under this
+  # directory.
   assert {
-    condition     = module.coder_utils.scripts == ["coder-agent-relay-cursor-install_script", "coder-agent-relay-cursor-start_script"]
-    error_message = "coder-utils must run exactly the install and start steps, in that order"
+    condition     = module.coder_utils.scripts == ["coder-agent-relay-cursor-pre_install_script", "coder-agent-relay-cursor-install_script", "coder-agent-relay-cursor-start_script"]
+    error_message = "coder-utils must run exactly the pre-install, install, and start steps, in that order"
+  }
+
+  # The cleanup stops verified previous supervisors and workers before a
+  # new start. Stop renders the same template but cannot publish a marker.
+  assert {
+    condition     = module.coder_utils.scripts[0] == "coder-agent-relay-cursor-pre_install_script" && strcontains(local.cleanup_script, "signal_pending TERM")
+    error_message = "the cleanup must run as the coder-utils pre-install step"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, "cleanup_marker=\"${local.module_directory}/cleanup-complete\"\nrm -f \"$cleanup_marker\"") && strcontains(local.start_script, "cleanup_marker=\"${local.module_directory}/cleanup-complete\"") && strcontains(local.start_script, "starting a worker anyway") && strcontains(local.start_script, "mv \"$cleanup_marker.tmp\" \"$cleanup_marker\"")
+    error_message = "cleanup must invalidate the old generation first, and start must publish a fallback generation if needed"
+  }
+
+  assert {
+    condition     = coder_script.stop_worker.run_on_stop == true && coder_script.stop_worker.timeout == 20 && coder_script.stop_worker.script == local.stop_script && strcontains(local.cleanup_script, "signal_pending TERM") && strcontains(local.stop_script, "signal_pending TERM") && !strcontains(local.stop_script, "cat /proc/sys/kernel/random/uuid >") && strcontains(local.cleanup_script, "cat /proc/sys/kernel/random/uuid >")
+    error_message = "stop must have a 20-second timeout and use the shared cleanup template without publishing a launch marker"
+  }
+
+  assert {
+    condition     = strcontains(local.stop_script, "rm -f \"$cleanup_marker\"") && strcontains(local.stop_script, "rm -f \"$state_file\"") && strcontains(local.cleanup_script, "rm -f \"$state_file\"")
+    error_message = "stop and startup must remove the marker and previous state"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "elif [ -d \"${local.module_directory}/started/$cleanup_id\" ]") && strcontains(local.start_script, "new_generation") && strcontains(local.start_script, "rm -f \"$token_file\" \"$token_file.tmp\"")
+    error_message = "start must rotate a claimed generation and remove a stale token when idling"
+  }
+
+  # The cleanup id travels as an argument, so a late start that runs a
+  # newer start's supervisor script still checks its own id.
+  assert {
+    condition     = strcontains(local.start_script, "setsid nohup \"$supervisor\" \"$cleanup_id\"") && strcontains(local.start_script, "cleanup_id=\"\\$${1:-}\"") && strcontains(local.start_script, "= \"\\$cleanup_id\" ]") && strcontains(local.start_script, "mv \"$supervisor.$$.tmp\" \"$supervisor\"")
+    error_message = "the supervisor must take the cleanup id as an argument and be replaced by rename"
+  }
+
+  # A supervisor from an older run must not overwrite a newer run's state
+  # or delete its token.
+  assert {
+    condition     = strcontains(local.start_script, "write_state() {\n\tcurrent || return 0") && length(regexall("! current \\|\\| rm -f \"\\$token_file\"", local.start_script)) == 2
+    error_message = "every supervisor state write and token removal must check the run is still current"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, "${local.module_directory}/supervisors") && strcontains(local.cleanup_script, "${local.module_directory}/workers") && strcontains(local.start_script, "supervisors=\"${local.module_directory}/supervisors\"") && strcontains(local.start_script, "workers=\"${local.module_directory}/workers\"")
+    error_message = "the supervisor, worker, and cleanup must agree on the identity record directories"
+  }
+
+  # The worker records itself before it execs the CLI, so it stays tracked
+  # if its supervisor is SIGKILLed.
+  assert {
+    condition     = strcontains(local.start_script, "publish \"\\$BASHPID\" \"$workers\" || exit 1\n\texec agent worker")
+    error_message = "the worker must publish its own identity before exec'ing the CLI"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, "signal_pending TERM") && strcontains(local.cleanup_script, "signal_pending KILL")
+    error_message = "the cleanup must escalate to SIGKILL for verified processes that ignore TERM"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, "/proc/sys/kernel/random/boot_id") && strcontains(local.start_script, "/proc/sys/kernel/random/boot_id")
+    error_message = "supervisor identity must include the boot id so a pid from another boot is never signalled"
   }
 
   # Pass-through so a template can serialize its own scripts behind ours.
@@ -133,17 +198,17 @@ run "worker_wiring" {
   }
 
   # Reaping reads this file through the agent_relay_status metadata item,
-  # so the script and the metadata script must agree on the path.
+  # so the scripts must agree on the path.
   assert {
-    condition     = strcontains(local.start_script, var.state_file) && strcontains(output.status_metadata_script, var.state_file)
-    error_message = "the worker script and the status script must read the same state file"
+    condition     = strcontains(local.start_script, var.state_file) && strcontains(local.cleanup_script, var.state_file) && strcontains(output.status_metadata_script, var.state_file)
+    error_message = "the worker, cleanup, and status scripts must use the same state file"
   }
 
   # A restart inside the same build must not report the previous run's
-  # state as this run's, nor launch a second worker beside a live one.
+  # state as this run's.
   assert {
-    condition     = strcontains(local.start_script, "write_state \"pending\"") && strcontains(local.start_script, "worker_alive") && strcontains(output.status_metadata_script, "worker_alive")
-    error_message = "the start script must reset to pending and both scripts must check worker liveness by cmdline"
+    condition     = strcontains(local.start_script, "write_state \"pending\"") && strcontains(output.status_metadata_script, "worker_alive")
+    error_message = "the start script must reset to pending and the status script must check worker liveness by cmdline"
   }
 
   assert {
@@ -355,6 +420,11 @@ run "overridden_paths" {
     state_file          = "/var/run/relay/state"
     log_file            = "/var/log/relay.log"
     serving_log_pattern = "custom pattern"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, "state_file=\"/var/run/relay/state\"")
+    error_message = "the cleanup must clear the configured state file"
   }
 
   assert {

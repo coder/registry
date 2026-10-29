@@ -7,7 +7,8 @@
 #
 # Scripts run through coder-utils, which orders the install step before
 # the start step and keeps a copy of each script and its output under
-# module_directory for debugging.
+# module_directory for debugging. The pre-install and stop steps render
+# the same best-effort process cleanup script.
 #
 # Parameter contract (enforced by Agent Relay at startup via the dynamic
 # parameters evaluate endpoint):
@@ -273,6 +274,18 @@ locals {
     local.management_port,
   )
 
+  cleanup_script = templatefile("${path.module}/cleanup.sh.tftpl", {
+    module_directory = local.module_directory
+    state_file       = var.state_file
+    stop_mode        = false
+  })
+
+  stop_script = templatefile("${path.module}/cleanup.sh.tftpl", {
+    module_directory = local.module_directory
+    state_file       = var.state_file
+    stop_mode        = true
+  })
+
   install_script = templatefile("${path.module}/install.sh.tftpl", {
     cli_binary  = var.cli_binary
     install_cli = var.install_cli
@@ -299,8 +312,18 @@ module "coder_utils" {
   module_directory    = local.module_directory
   display_name_prefix = "Cursor worker"
   icon                = "/icon/cursor.svg"
+  pre_install_script  = local.cleanup_script
   install_script      = local.install_script
   start_script        = local.start_script
+}
+
+resource "coder_script" "stop_worker" {
+  agent_id     = var.agent_id
+  display_name = "Cursor worker: Stop Script"
+  icon         = "/icon/cursor.svg"
+  run_on_stop  = true
+  timeout      = 20
+  script       = local.stop_script
 }
 
 # The coder provider has no standalone agent-metadata resource: the
