@@ -60,11 +60,24 @@ jobs:
           failed=0
 
           wait_for_build() {
-            local target=$1 build_id=$2 status log_url
-            log_url=$(gcloud builds describe "$build_id" --format='value(logUrl)')
+            local target=$1 build_id=$2 status log_url errors=0
+            log_url=$(gcloud builds describe "$build_id" --format='value(logUrl)') ||
+              log_url="https://console.cloud.google.com/cloud-build/builds/$build_id?project=coder-registry-1"
             echo "Waiting for $target build $build_id: $log_url"
             while true; do
-              status=$(gcloud builds describe "$build_id" --format='value(status)')
+              # gcloud retries a few transient errors per call. Tolerate longer
+              # API outages too, so one build's result is still reported.
+              if ! status=$(gcloud builds describe "$build_id" --format='value(status)'); then
+                errors=$((errors + 1))
+                if ((errors >= 8)); then
+                  status=UNKNOWN
+                  break
+                fi
+                echo "Could not read the status of $target build $build_id ($errors/8), retrying"
+                sleep 15
+                continue
+              fi
+              errors=0
               case "$status" in
                 SUCCESS | FAILURE | INTERNAL_ERROR | TIMEOUT | CANCELLED | EXPIRED) break ;;
               esac
@@ -72,12 +85,19 @@ jobs:
             done
 
             echo "| $target | [\`$build_id\`]($log_url) | $status |" >> "$GITHUB_STEP_SUMMARY"
-            if [[ "$status" == "SUCCESS" ]]; then
-              echo "$target build $build_id succeeded"
-            else
-              echo "::error title=$target deploy failed::Cloud Build $build_id finished with status $status: $log_url"
-              failed=1
-            fi
+            case "$status" in
+              SUCCESS)
+                echo "$target build $build_id succeeded"
+                ;;
+              UNKNOWN)
+                echo "::error title=$target deploy status unknown::Could not read the status of Cloud Build $build_id: $log_url"
+                failed=1
+                ;;
+              *)
+                echo "::error title=$target deploy failed::Cloud Build $build_id finished with status $status: $log_url"
+                failed=1
+                ;;
+            esac
           }
 
           {
