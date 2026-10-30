@@ -24,8 +24,9 @@ The module:
 - Switches Podman to kernel overlayfs by writing `~/.config/containers/storage.conf` with an empty `mount_program`, so no `/dev/fuse` device plugin is needed. A `storage.conf` you manage yourself is left alone.
 - Starts the Docker-compatible API (`podman system service`) on `/tmp/podman.sock` and exports `DOCKER_HOST`, so the docker CLI, Compose, and Testcontainers work unchanged.
 - Exports `DOCKER_BUILDKIT=0`, because BuildKit can't start inside the workspace. `podman build` (Buildah) still supports `RUN --mount=type=cache` and secrets; `docker buildx` is not supported.
+- Provides Buildah and Skopeo, installing them if the image lacks them and the script can run as root or with passwordless sudo. See [Buildah and Skopeo](#buildah-and-skopeo).
 
-It does not install Podman or change the pod spec. Those belong to the image and template; see [Prerequisites](#prerequisites).
+It does not install Podman itself or change the pod spec. Those belong to the image and template; see [Prerequisites](#prerequisites).
 
 ## Prerequisites
 
@@ -94,6 +95,23 @@ module "podman" {
   disable_buildkit = false
 }
 ```
+
+## Buildah and Skopeo
+
+`extra_tools` (default `["buildah", "skopeo"]`) makes both tools available next to Podman. They read the same storage and registry configuration as Podman, so an image built with `buildah` shows up in `podman images`, and `skopeo` can inspect or copy it through `containers-storage:`.
+
+If a tool is missing, the install script installs it with apt, dnf, microdnf, yum, apk or zypper, but only when it runs as root or the user has passwordless sudo. Pods that run as non-root (as in the example above) usually have neither, so the script prints a warning and Podman setup continues. Baking the packages into the image avoids that, and avoids reinstalling them on every start. They are called `buildah` and `skopeo` on Debian, Ubuntu, Fedora, Red Hat UBI 9 and Alpine:
+
+```dockerfile
+# Debian or Ubuntu
+RUN apt-get update && apt-get install -y --no-install-recommends buildah skopeo
+# Fedora or UBI 9 (microdnf on ubi-minimal)
+RUN dnf install -y buildah skopeo
+# Alpine
+RUN apk add --no-cache buildah skopeo
+```
+
+Set `extra_tools = []` to skip them.
 
 ## Dev containers
 

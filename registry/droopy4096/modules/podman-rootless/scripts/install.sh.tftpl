@@ -2,11 +2,53 @@
 set -euo pipefail
 
 NATIVE_OVERLAY="${ARG_NATIVE_OVERLAY}"
+TOOLS="${ARG_TOOLS}"
 
 if ! command -v podman >/dev/null 2>&1; then
   echo "ERROR: podman not found. Use an image with rootless Podman (for example codercom/example-podman:ubuntu)." >&2
   exit 1
 fi
+
+# Buildah and Skopeo share Podman's storage and registry configuration, so they
+# only need to be on PATH. Install missing ones with the image's package
+# manager when the script can act as root; otherwise explain what to add.
+install_tools() {
+  local missing=() tool sudo=""
+  for tool in $TOOLS; do
+    command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+  done
+  [ "$${#missing[@]}" -eq 0 ] && return 0
+
+  if [ "$(id -u)" -ne 0 ]; then
+    if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+      sudo="sudo -n"
+    else
+      echo "WARNING: $${missing[*]} not installed, and installing needs root or passwordless sudo. Add the $${missing[*]} packages to the image." >&2
+      return 0
+    fi
+  fi
+
+  echo "Installing $${missing[*]}..."
+  if command -v apt-get >/dev/null 2>&1; then
+    $sudo apt-get update -qq &&
+      $sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends "$${missing[@]}"
+  elif command -v dnf >/dev/null 2>&1; then
+    $sudo dnf install -y -q "$${missing[@]}"
+  elif command -v microdnf >/dev/null 2>&1; then
+    $sudo microdnf install -y "$${missing[@]}"
+  elif command -v yum >/dev/null 2>&1; then
+    $sudo yum install -y -q "$${missing[@]}"
+  elif command -v apk >/dev/null 2>&1; then
+    $sudo apk add --no-cache -q "$${missing[@]}"
+  elif command -v zypper >/dev/null 2>&1; then
+    $sudo zypper --non-interactive --quiet install "$${missing[@]}"
+  else
+    echo "WARNING: no supported package manager found; add the $${missing[*]} packages to the image." >&2
+    return 0
+  fi || echo "WARNING: installing $${missing[*]} failed; add the packages to the image." >&2
+}
+
+install_tools
 
 conf_dir="$${XDG_CONFIG_HOME:-$HOME/.config}/containers"
 conf_file="$conf_dir/storage.conf"
@@ -32,3 +74,8 @@ CONF
 fi
 
 podman info --format 'Podman {{.Version.Version}}: rootless={{.Host.Security.Rootless}} driver={{.Store.GraphDriverName}} graphroot={{.Store.GraphRoot}}'
+for tool in $TOOLS; do
+  if command -v "$tool" >/dev/null 2>&1; then
+    "$tool" --version
+  fi
+done

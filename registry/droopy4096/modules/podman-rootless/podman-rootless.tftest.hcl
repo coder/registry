@@ -85,3 +85,23 @@ run "relative_socket_rejected" {
 
   expect_failures = [var.socket_path]
 }
+
+run "extra_tools_empty_allowed" {
+  command = plan
+
+  variables {
+    agent_id    = "example-agent-id"
+    extra_tools = []
+  }
+}
+
+run "extra_tools_rejects_other_packages" {
+  command = plan
+
+  variables {
+    agent_id    = "example-agent-id"
+    extra_tools = ["buildah", "curl"]
+  }
+
+  expect_failures = [var.extra_tools]
+}
