@@ -211,8 +211,10 @@ setup_model() {
   fi
 
   mkdir -p "$(dirname "$${SETTINGS_FILE}")"
-  echo "$${existing}" | jq --arg model "$${ARG_AUGGIE_MODEL}" '.model = $model' > "$${SETTINGS_FILE}.tmp"
-  mv "$${SETTINGS_FILE}.tmp" "$${SETTINGS_FILE}"
+  local updated
+  updated=$(echo "$${existing}" | jq --arg model "$${ARG_AUGGIE_MODEL}" '.model = $model')
+  # Rewrite in place so the file keeps its permissions.
+  printf '%s\n' "$${updated}" > "$${SETTINGS_FILE}"
   echo "Set model in $${SETTINGS_FILE}"
 }
 

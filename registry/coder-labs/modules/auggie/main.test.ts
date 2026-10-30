@@ -346,6 +346,20 @@ describe("auggie", async () => {
     expect(rules.exitCode).not.toBe(0);
   });
 
+  test("model-keeps-settings-permissions", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: { auggie_model: "sonnet4.5" },
+    });
+    await seedFile(id, settingsPath, JSON.stringify({ autoUpdate: false }));
+    await execContainer(id, ["chmod", "600", settingsPath]);
+    await runScripts(id, scripts);
+    const mode = await execContainer(id, ["stat", "-c", "%a", settingsPath]);
+    expect(mode.stdout.trim()).toBe("600");
+    expect(JSON.parse(await readFileContainer(id, settingsPath)).model).toBe(
+      "sonnet4.5",
+    );
+  });
+
   test("model-is-set-preserving-settings", async () => {
     const { id, scripts } = await setup({
       moduleVariables: { auggie_model: "sonnet4.5" },
