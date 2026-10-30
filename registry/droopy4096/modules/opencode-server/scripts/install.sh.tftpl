@@ -4,20 +4,56 @@ set -euo pipefail
 INSTALL_OPENCODE="${ARG_INSTALL_OPENCODE}"
 OPENCODE_VERSION="${ARG_OPENCODE_VERSION}"
 INSTALL_URL="${ARG_INSTALL_URL}"
+BINARY_URL="${ARG_BINARY_URL}"
 PASSWORD_FILE="${ARG_PASSWORD_FILE}"
 ENABLE_AI_GATEWAY="${ARG_ENABLE_AI_GATEWAY}"
 CONFIG_JSON_B64="${ARG_CONFIG_JSON_B64}"
 
 export PATH="$HOME/.opencode/bin:$PATH"
 
+workdir="$(mktemp -d)"
+trap 'rm -rf "$workdir"' EXIT
+
+# Install from a binary or release archive, e.g. an internal artifact mirror.
+install_from_binary_url() {
+  local arch url download bin
+  case "$(uname -m)" in
+    x86_64 | amd64) arch="x64" ;;
+    aarch64 | arm64) arch="arm64" ;;
+    *) arch="$(uname -m)" ;;
+  esac
+  url="$${BINARY_URL//\{arch\}/$arch}"
+  download="$workdir/download"
+  echo "Downloading OpenCode from $url"
+  curl -fsSL --retry 3 "$url" -o "$download"
+  case "$url" in
+    *.tar.gz | *.tgz)
+      tar -xzf "$download" -C "$workdir"
+      bin="$workdir/opencode"
+      ;;
+    *.zip)
+      unzip -oq "$download" -d "$workdir"
+      bin="$workdir/opencode"
+      ;;
+    *) bin="$download" ;;
+  esac
+  if [ ! -f "$bin" ]; then
+    echo "ERROR: no 'opencode' binary at the top level of $url." >&2
+    exit 1
+  fi
+  mkdir -p "$HOME/.opencode/bin"
+  install -m 0755 "$bin" "$HOME/.opencode/bin/opencode"
+}
+
 if [ "$INSTALL_OPENCODE" = "true" ]; then
   if command -v opencode >/dev/null 2>&1 &&
     { [ -z "$OPENCODE_VERSION" ] || [ "$(opencode --version 2>/dev/null)" = "$OPENCODE_VERSION" ]; }; then
     echo "OpenCode $(opencode --version) already installed."
+  elif [ -n "$BINARY_URL" ]; then
+    install_from_binary_url
   else
     echo "Installing OpenCode $${OPENCODE_VERSION:-latest 1.x} from $INSTALL_URL"
-    installer="$(mktemp)"
-    trap 'rm -f "$installer"' EXIT
+    installer="$workdir/install.sh"
     curl -fsSL --retry 3 "$INSTALL_URL" -o "$installer"
     if [ -n "$OPENCODE_VERSION" ]; then
       bash "$installer" --no-modify-path --version "$OPENCODE_VERSION"

@@ -60,6 +60,36 @@ variable "install_url" {
   default     = "https://opencode.ai/install"
 }
 
+variable "binary_url" {
+  description = "URL of an OpenCode 1.x Linux binary or release archive (`.tar.gz` or `.zip`) to install instead of running the installer, for example an internal artifact mirror. `{arch}` is replaced with `x64` or `arm64`. Ignored when `install_opencode = false`."
+  type        = string
+  default     = ""
+}
+
+variable "disable_autoupdate" {
+  description = "Set `OPENCODE_DISABLE_AUTOUPDATE` so OpenCode never replaces the installed (or pinned) version on its own."
+  type        = bool
+  default     = true
+}
+
+variable "offline" {
+  description = "Turn off OpenCode's optional outbound calls (model catalog refresh, update check, default plugin and LSP downloads) for restricted or air-gapped networks."
+  type        = bool
+  default     = false
+}
+
+variable "agent_firewall_wrapper_path" {
+  description = "Path to an Agent Firewall wrapper (the `agent_firewall_wrapper_path` output of the `coder/agent-firewall` module). When set, `opencode serve` runs inside the firewall so every tool call and model request is subject to its allowlist."
+  type        = string
+  default     = ""
+}
+
+variable "agent_firewall_config_path" {
+  description = "Agent Firewall config passed to the wrapper with `--config` (the `agent_firewall_config_path` output of the `coder/agent-firewall` module). Only used with `agent_firewall_wrapper_path`."
+  type        = string
+  default     = ""
+}
+
 variable "password_file" {
   description = "File holding the server's HTTP basic auth password (username `opencode`). Generated once if missing; persist it by keeping it on the home volume."
   type        = string
@@ -113,14 +143,30 @@ data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
 locals {
-  module_directory = "$HOME/.coder-modules/droopy4096/opencode-server"
+  # Extra instances on other ports get their own script directory, sync names
+  # and app slug so they do not overwrite each other.
+  instance_name    = var.port == 4096 ? "opencode-server" : "opencode-server-${var.port}"
+  module_directory = "$HOME/.coder-modules/droopy4096/${local.instance_name}"
   ai_gateway_url   = "${trimsuffix(data.coder_workspace.me.access_url, "/")}/api/v2/ai-gateway"
   server_url       = "http://127.0.0.1:${var.port}"
+
+  # OpenCode 1.x switches for its optional outbound calls (verified against the
+  # 1.19 binary). Session sharing is a config setting: "share": "disabled".
+  offline_env = {
+    OPENCODE_DISABLE_AUTOUPDATE      = "true"
+    OPENCODE_DISABLE_MODELS_FETCH    = "true"
+    OPENCODE_DISABLE_DEFAULT_PLUGINS = "true"
+    OPENCODE_DISABLE_LSP_DOWNLOAD    = "true"
+  }
+  opencode_env = var.offline ? local.offline_env : (
+    var.disable_autoupdate ? { OPENCODE_DISABLE_AUTOUPDATE = "true" } : {}
+  )
 
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_INSTALL_OPENCODE  = tostring(var.install_opencode)
     ARG_OPENCODE_VERSION  = trimprefix(var.opencode_version, "v")
     ARG_INSTALL_URL       = var.install_url
+    ARG_BINARY_URL        = var.binary_url
     ARG_PASSWORD_FILE     = var.password_file
     ARG_ENABLE_AI_GATEWAY = tostring(var.enable_ai_gateway)
     ARG_CONFIG_JSON_B64   = base64encode(var.config_json)
@@ -132,6 +178,8 @@ locals {
     ARG_HOSTNAME      = var.hostname
     ARG_PASSWORD_FILE = var.password_file
     ARG_LOG_FILE      = "${local.module_directory}/logs/server.log"
+    ARG_FW_WRAPPER    = var.agent_firewall_wrapper_path
+    ARG_FW_CONFIG     = var.agent_firewall_config_path
   })
 }
 
@@ -151,6 +199,13 @@ resource "coder_env" "ai_gateway_token" {
   value    = data.coder_workspace_owner.me.session_token
 }
 
+resource "coder_env" "opencode" {
+  for_each = local.opencode_env
+  agent_id = var.agent_id
+  name     = each.key
+  value    = each.value
+}
+
 module "coder_utils" {
   source  = "registry.coder.com/coder/coder-utils/coder"
   version = "0.0.1"
@@ -166,7 +221,7 @@ module "coder_utils" {
 resource "coder_app" "attach" {
   count        = var.web_app ? 1 : 0
   agent_id     = var.agent_id
-  slug         = "opencode-server"
+  slug         = local.instance_name
   display_name = var.app_display_name
   icon         = var.icon
   order        = var.order

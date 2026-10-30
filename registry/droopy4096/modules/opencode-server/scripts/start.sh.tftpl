@@ -6,6 +6,8 @@ PORT="${ARG_PORT}"
 HOSTNAME_ARG="${ARG_HOSTNAME}"
 PASSWORD_FILE="${ARG_PASSWORD_FILE}"
 LOG_FILE="${ARG_LOG_FILE}"
+FW_WRAPPER="${ARG_FW_WRAPPER}"
+FW_CONFIG="${ARG_FW_CONFIG}"
 
 export PATH="$HOME/.opencode/bin:$PATH"
 mkdir -p "$WORKDIR" "$(dirname "$LOG_FILE")"
@@ -21,10 +23,30 @@ if curl -fsS -o /dev/null -u "opencode:$PASSWORD" "$health_url" 2>/dev/null; the
   exit 0
 fi
 
+cmd=(opencode serve --hostname "$HOSTNAME_ARG" --port "$PORT")
+if [ -n "$FW_WRAPPER" ]; then
+  # The wrapper comes from the agent-firewall module's install script, which
+  # may still be running.
+  for _ in $(seq 1 300); do
+    [ -x "$FW_WRAPPER" ] && { [ -z "$FW_CONFIG" ] || [ -f "$FW_CONFIG" ]; } && break
+    sleep 1
+  done
+  if [ ! -x "$FW_WRAPPER" ]; then
+    echo "ERROR: Agent Firewall wrapper $FW_WRAPPER not found after 300s; refusing to start OpenCode without it." >&2
+    exit 1
+  fi
+  # landjail (Landlock) keeps the host network namespace, so `opencode attach`
+  # can still reach the server. The default nsjail would hide it in its own
+  # namespace.
+  fw=("$FW_WRAPPER" --jail-type=landjail)
+  [ -n "$FW_CONFIG" ] && fw+=("--config=$FW_CONFIG")
+  cmd=("$${fw[@]}" -- "$${cmd[@]}")
+  echo "Running OpenCode inside Agent Firewall ($FW_WRAPPER)."
+fi
+
 echo "Starting OpenCode server on $HOSTNAME_ARG:$PORT in $WORKDIR (log: $LOG_FILE)"
 # Detach fully so the server outlives this script and doesn't hold its output pipe.
-OPENCODE_SERVER_PASSWORD="$PASSWORD" nohup opencode serve --hostname "$HOSTNAME_ARG" --port "$PORT" \
-  < /dev/null >> "$LOG_FILE" 2>&1 &
+OPENCODE_SERVER_PASSWORD="$PASSWORD" nohup "$${cmd[@]}" < /dev/null >> "$LOG_FILE" 2>&1 &
 
 for _ in $(seq 1 60); do
   if curl -fsS -o /dev/null -u "opencode:$PASSWORD" "$health_url" 2>/dev/null; then
