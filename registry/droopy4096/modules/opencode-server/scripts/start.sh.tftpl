@@ -8,6 +8,7 @@ PASSWORD_FILE="${ARG_PASSWORD_FILE}"
 LOG_FILE="${ARG_LOG_FILE}"
 FW_WRAPPER="${ARG_FW_WRAPPER}"
 FW_CONFIG="${ARG_FW_CONFIG}"
+OPENCODE_BIN="${ARG_OPENCODE_BIN}"
 
 export PATH="$HOME/.opencode/bin:$PATH"
 mkdir -p "$WORKDIR" "$(dirname "$LOG_FILE")"
@@ -23,7 +24,7 @@ if curl -fsS -o /dev/null -u "opencode:$PASSWORD" "$health_url" 2>/dev/null; the
   exit 0
 fi
 
-cmd=(opencode serve --hostname "$HOSTNAME_ARG" --port "$PORT")
+cmd=("$${OPENCODE_BIN:-opencode}" serve --hostname "$HOSTNAME_ARG" --port "$PORT")
 if [ -n "$FW_WRAPPER" ]; then
   # The wrapper comes from the agent-firewall module's install script, which
   # may still be running.

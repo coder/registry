@@ -5,6 +5,9 @@ INSTALL_OPENCODE="${ARG_INSTALL_OPENCODE}"
 OPENCODE_VERSION="${ARG_OPENCODE_VERSION}"
 INSTALL_URL="${ARG_INSTALL_URL}"
 BINARY_URL="${ARG_BINARY_URL}"
+OPENCODE_BIN="${ARG_OPENCODE_BIN}"
+WAIT_FOR="${ARG_WAIT_FOR}"
+WAIT_UNIT="${ARG_WAIT_UNIT}"
 PASSWORD_FILE="${ARG_PASSWORD_FILE}"
 ENABLE_AI_GATEWAY="${ARG_ENABLE_AI_GATEWAY}"
 CONFIG_JSON_B64="${ARG_CONFIG_JSON_B64}"
@@ -45,7 +48,19 @@ install_from_binary_url() {
   install -m 0755 "$bin" "$HOME/.opencode/bin/opencode"
 }
 
-if [ "$INSTALL_OPENCODE" = "true" ]; then
+# Wait for other startup scripts (for example mise installing OpenCode) using
+# the agent's own dependency tracking.
+if [ -n "$WAIT_FOR" ]; then
+  echo "Waiting for startup scripts: $WAIT_FOR"
+  read -r -a wait_units <<< "$WAIT_FOR"
+  coder exp sync want "$WAIT_UNIT" "$${wait_units[@]}"
+  coder exp sync start "$WAIT_UNIT" --timeout 10m
+  coder exp sync complete "$WAIT_UNIT"
+fi
+
+if [ -n "$OPENCODE_BIN" ]; then
+  echo "Using OpenCode at $OPENCODE_BIN; skipping installation."
+elif [ "$INSTALL_OPENCODE" = "true" ]; then
   if command -v opencode >/dev/null 2>&1 &&
     { [ -z "$OPENCODE_VERSION" ] || [ "$(opencode --version 2>/dev/null)" = "$OPENCODE_VERSION" ]; }; then
     echo "OpenCode $(opencode --version) already installed."
@@ -63,12 +78,17 @@ if [ "$INSTALL_OPENCODE" = "true" ]; then
   fi
 fi
 
-if ! command -v opencode >/dev/null 2>&1; then
-  echo "ERROR: opencode not found on PATH. Set install_opencode = true or add OpenCode 1.x to the image." >&2
+oc="$${OPENCODE_BIN:-opencode}"
+if ! command -v "$oc" >/dev/null 2>&1; then
+  if [ -n "$OPENCODE_BIN" ]; then
+    echo "ERROR: opencode_bin $OPENCODE_BIN does not exist or is not executable." >&2
+  else
+    echo "ERROR: opencode not found on PATH. Set install_opencode = true, set opencode_bin, or add OpenCode 1.x to the image." >&2
+  fi
   exit 1
 fi
 
-version="$(opencode --version)"
+version="$("$oc" --version)"
 case "$version" in
   1.*) ;;
   *)
@@ -78,8 +98,12 @@ case "$version" in
 esac
 
 # Make opencode available in user shells without editing profiles.
-if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ -x "$HOME/.opencode/bin/opencode" ]; then
-  ln -sf "$HOME/.opencode/bin/opencode" "$CODER_SCRIPT_BIN_DIR/opencode"
+if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ]; then
+  if [ -n "$OPENCODE_BIN" ]; then
+    ln -sf "$OPENCODE_BIN" "$CODER_SCRIPT_BIN_DIR/opencode"
+  elif [ -x "$HOME/.opencode/bin/opencode" ]; then
+    ln -sf "$HOME/.opencode/bin/opencode" "$CODER_SCRIPT_BIN_DIR/opencode"
+  fi
 fi
 
 config_dir="$${XDG_CONFIG_HOME:-$HOME/.config}/opencode"

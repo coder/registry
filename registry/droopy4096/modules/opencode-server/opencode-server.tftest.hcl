@@ -172,3 +172,34 @@ run "offline_disables_outbound_calls" {
     error_message = "Expected offline to set every OpenCode network switch, even with disable_autoupdate = false."
   }
 }
+
+run "opencode_bin_must_be_absolute" {
+  command = plan
+
+  variables {
+    agent_id     = "example-agent-id"
+    opencode_bin = "bin/opencode"
+  }
+
+  expect_failures = [var.opencode_bin]
+}
+
+run "opencode_bin_home_path_allowed" {
+  command = plan
+
+  variables {
+    agent_id     = "example-agent-id"
+    opencode_bin = "$HOME/.local/share/mise/shims/opencode"
+  }
+}
+
+run "wait_for_scripts_rejects_unsafe_names" {
+  command = plan
+
+  variables {
+    agent_id         = "example-agent-id"
+    wait_for_scripts = ["droopy4096-mise-install-install_script; rm -rf ~"]
+  }
+
+  expect_failures = [var.wait_for_scripts]
+}

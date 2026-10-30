@@ -128,7 +128,7 @@ Pin `opencode_version` alongside `binary_url`: the module only replaces an insta
 
 ### Bring your own binary
 
-Bake OpenCode 1.x into the image and skip installation entirely. The install script fails with a clear error if `opencode` is missing from `PATH` or is not 1.x.
+Bake OpenCode 1.x into the image and skip installation entirely. The install script fails with a clear error if `opencode` is missing from `PATH` (or from `opencode_bin`, below) or is not 1.x.
 
 ```tf
 module "opencode_server" {
@@ -140,6 +140,34 @@ module "opencode_server" {
   offline          = true
 }
 ```
+
+### Use OpenCode installed by mise
+
+When a repository pins OpenCode in its `mise.toml` (`opencode = "1.19.5"`) and the template runs [`droopy4096/mise-install`](https://registry.coder.com/modules/droopy4096/mise-install), let mise provide the binary. `opencode_bin` points the module at it and skips installation, and `wait_for_scripts` holds the module back until `mise install` has finished:
+
+```tf
+module "mise_install" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/droopy4096/mise-install/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+  repo_dir = module.git_clone[count.index].repo_dir
+}
+
+module "opencode_server" {
+  count            = data.coder_workspace.me.start_count
+  source           = "registry.coder.com/droopy4096/opencode-server/coder"
+  version          = "1.0.0"
+  agent_id         = coder_agent.main.id
+  workdir          = module.git_clone[count.index].repo_dir
+  opencode_bin     = "$HOME/.local/share/mise/installs/opencode/1.19.5/opencode"
+  wait_for_scripts = module.mise_install[count.index].scripts
+}
+```
+
+- Use mise's install path rather than its shim (`~/.local/share/mise/shims/opencode`). The shim only works in directories where a mise config selects OpenCode, and the module's scripts don't run in the repository.
+- `wait_for_scripts` takes any `coder exp sync` names, such as another module's `scripts` output. The module waits up to 10 minutes, using the agent's own dependency tracking, and fails if they don't finish.
+- `opencode_bin` also works for binaries baked into the image outside `PATH`.
 
 Neither the install nor the start script uses `sudo`. Everything lives in the workspace user's home directory.
 

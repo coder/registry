@@ -277,4 +277,76 @@ describe("opencode-server", () => {
       "--jail-type=landjail --config=/tmp/fw/config.yaml -- opencode serve",
     );
   });
+
+  test("runs a binary provided through opencode_bin", async () => {
+    const bin = "/opt/tools/opencode-1.19.5";
+    const { id, install, start, mock } = await setup(
+      { install_opencode: "true", opencode_bin: bin },
+      { mockOpencode: false },
+    );
+    await execContainer(id, ["mkdir", "-p", "/opt/tools"], ["--user", "root"]);
+    await writeExecutable({ containerId: id, filePath: bin, content: mock });
+
+    const installed = await run(id, "install", install);
+    expect(installed.exitCode).toBe(0);
+    expect(installed.stdout).toContain(`Using OpenCode at ${bin}`);
+    expect(installed.stdout).not.toContain("Installing OpenCode");
+
+    const started = await run(id, "start", start);
+    expect(started.exitCode).toBe(0);
+    const password = (await readFileContainer(id, passwordFile)).trim();
+    expect((await health(id, password)).stdout).toBe("200");
+  });
+
+  test("fails clearly when opencode_bin is missing", async () => {
+    const { id, install } = await setup({
+      opencode_bin: "/opt/tools/missing/opencode",
+    });
+    const result = await run(id, "install", install);
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stdout + result.stderr).toContain(
+      "opencode_bin /opt/tools/missing/opencode does not exist",
+    );
+  });
+
+  test("waits for wait_for_scripts through coder exp sync", async () => {
+    const { id, install } = await setup({
+      wait_for_scripts: JSON.stringify([
+        "droopy4096-mise-install-install_script",
+        "droopy4096-mise-install-post_install_script",
+      ]),
+    });
+    // Record every coder invocation instead of talking to an agent.
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/bin/coder",
+      content: '#!/bin/bash\necho "$*" >> /tmp/coder-calls\n',
+    });
+
+    expect((await run(id, "install", install)).exitCode).toBe(0);
+    const calls = await readFileContainer(id, "/tmp/coder-calls");
+    const unit = "droopy4096-opencode-server-wait";
+    expect(calls).toContain(
+      `exp sync want ${unit} droopy4096-mise-install-install_script droopy4096-mise-install-post_install_script`,
+    );
+    expect(calls).toContain(`exp sync start ${unit} --timeout 10m`);
+    expect(calls).toContain(`exp sync complete ${unit}`);
+    expect(calls.indexOf("want")).toBeLessThan(calls.indexOf(`start ${unit}`));
+  });
+
+  test("stops when waiting for scripts times out", async () => {
+    const { id, install } = await setup({
+      wait_for_scripts: JSON.stringify(["slow-script"]),
+    });
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/bin/coder",
+      content:
+        '#!/bin/bash\nif [[ "$*" == "exp sync start droopy4096-opencode-server-wait"* ]]; then echo timeout >&2; exit 1; fi\nexit 0\n',
+    });
+
+    const result = await run(id, "install", install);
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stdout).not.toContain("Generated server password");
+  });
 });

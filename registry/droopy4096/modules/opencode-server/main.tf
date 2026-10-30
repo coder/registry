@@ -60,6 +60,28 @@ variable "install_url" {
   default     = "https://opencode.ai/install"
 }
 
+variable "opencode_bin" {
+  description = "Path to an OpenCode 1.x binary installed by something else, such as mise or the workspace image (e.g. `$HOME/.local/share/mise/shims/opencode`). When set, the module skips installation and runs this binary."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.opencode_bin == "" || can(regex("^(/|\\$HOME/)", var.opencode_bin))
+    error_message = "opencode_bin must be an absolute path or start with $HOME/."
+  }
+}
+
+variable "wait_for_scripts" {
+  description = "`coder exp sync` names of startup scripts to wait for (up to 10 minutes) before checking for OpenCode, e.g. `module.mise_install[0].scripts` when mise provides the binary."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for name in var.wait_for_scripts : can(regex("^[A-Za-z0-9_.-]+$", name))])
+    error_message = "wait_for_scripts entries must be coder exp sync unit names (letters, digits, '.', '_' and '-')."
+  }
+}
+
 variable "binary_url" {
   description = "URL of an OpenCode 1.x Linux binary or release archive (`.tar.gz` or `.zip`) to install instead of running the installer, for example an internal artifact mirror. `{arch}` is replaced with `x64` or `arm64`. Ignored when `install_opencode = false`."
   type        = string
@@ -149,6 +171,7 @@ locals {
   module_directory = "$HOME/.coder-modules/droopy4096/${local.instance_name}"
   ai_gateway_url   = "${trimsuffix(data.coder_workspace.me.access_url, "/")}/api/v2/ai-gateway"
   server_url       = "http://127.0.0.1:${var.port}"
+  opencode_cmd     = var.opencode_bin != "" ? var.opencode_bin : "opencode"
 
   # OpenCode 1.x switches for its optional outbound calls (verified against the
   # 1.19 binary). Session sharing is a config setting: "share": "disabled".
@@ -167,6 +190,9 @@ locals {
     ARG_OPENCODE_VERSION  = trimprefix(var.opencode_version, "v")
     ARG_INSTALL_URL       = var.install_url
     ARG_BINARY_URL        = var.binary_url
+    ARG_OPENCODE_BIN      = var.opencode_bin
+    ARG_WAIT_FOR          = join(" ", var.wait_for_scripts)
+    ARG_WAIT_UNIT         = "droopy4096-${local.instance_name}-wait"
     ARG_PASSWORD_FILE     = var.password_file
     ARG_ENABLE_AI_GATEWAY = tostring(var.enable_ai_gateway)
     ARG_CONFIG_JSON_B64   = base64encode(var.config_json)
@@ -180,6 +206,7 @@ locals {
     ARG_LOG_FILE      = "${local.module_directory}/logs/server.log"
     ARG_FW_WRAPPER    = var.agent_firewall_wrapper_path
     ARG_FW_CONFIG     = var.agent_firewall_config_path
+    ARG_OPENCODE_BIN  = var.opencode_bin
   })
 }
 
@@ -231,7 +258,7 @@ resource "coder_app" "attach" {
     #!/usr/bin/env bash
     export PATH="$HOME/.opencode/bin:$PATH"
     export OPENCODE_SERVER_PASSWORD="$(cat "${var.password_file}")"
-    exec opencode attach ${local.server_url} --dir "${var.workdir}"
+    exec "${local.opencode_cmd}" attach ${local.server_url} --dir "${var.workdir}"
   EOT
 }
 
