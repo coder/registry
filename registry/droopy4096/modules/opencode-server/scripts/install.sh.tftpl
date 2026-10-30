@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALL_OPENCODE="${ARG_INSTALL_OPENCODE}"
+OPENCODE_VERSION="${ARG_OPENCODE_VERSION}"
+INSTALL_URL="${ARG_INSTALL_URL}"
+PASSWORD_FILE="${ARG_PASSWORD_FILE}"
+ENABLE_AI_GATEWAY="${ARG_ENABLE_AI_GATEWAY}"
+CONFIG_JSON_B64="${ARG_CONFIG_JSON_B64}"
+
+export PATH="$HOME/.opencode/bin:$PATH"
+
+if [ "$INSTALL_OPENCODE" = "true" ]; then
+  if command -v opencode >/dev/null 2>&1 &&
+    { [ -z "$OPENCODE_VERSION" ] || [ "$(opencode --version 2>/dev/null)" = "$OPENCODE_VERSION" ]; }; then
+    echo "OpenCode $(opencode --version) already installed."
+  else
+    echo "Installing OpenCode $${OPENCODE_VERSION:-latest 1.x} from $INSTALL_URL"
+    installer="$(mktemp)"
+    trap 'rm -f "$installer"' EXIT
+    curl -fsSL --retry 3 "$INSTALL_URL" -o "$installer"
+    if [ -n "$OPENCODE_VERSION" ]; then
+      bash "$installer" --no-modify-path --version "$OPENCODE_VERSION"
+    else
+      bash "$installer" --no-modify-path
+    fi
+  fi
+fi
+
+if ! command -v opencode >/dev/null 2>&1; then
+  echo "ERROR: opencode not found on PATH. Set install_opencode = true or add OpenCode 1.x to the image." >&2
+  exit 1
+fi
+
+version="$(opencode --version)"
+case "$version" in
+  1.*) ;;
+  *)
+    echo "ERROR: found OpenCode $version; this module supports OpenCode 1.x only." >&2
+    exit 1
+    ;;
+esac
+
+# Make opencode available in user shells without editing profiles.
+if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ -x "$HOME/.opencode/bin/opencode" ]; then
+  ln -sf "$HOME/.opencode/bin/opencode" "$CODER_SCRIPT_BIN_DIR/opencode"
+fi
+
+config_dir="$${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+config_file="$config_dir/opencode.json"
+mkdir -p "$config_dir"
+
+if [ -n "$CONFIG_JSON_B64" ]; then
+  echo "$CONFIG_JSON_B64" | base64 -d > "$config_file"
+  echo "Wrote $config_file from config_json."
+elif [ "$ENABLE_AI_GATEWAY" = "true" ] && [ ! -f "$config_file" ]; then
+  cat > "$config_file" <<'JSON'
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "anthropic": {
+      "options": {
+        "baseURL": "{env:OPENCODE_SERVER_AI_GATEWAY_URL}/anthropic/v1",
+        "apiKey": "{env:OPENCODE_SERVER_AI_GATEWAY_TOKEN}"
+      }
+    },
+    "openai": {
+      "options": {
+        "baseURL": "{env:OPENCODE_SERVER_AI_GATEWAY_URL}/openai/v1",
+        "apiKey": "{env:OPENCODE_SERVER_AI_GATEWAY_TOKEN}"
+      }
+    }
+  }
+}
+JSON
+  echo "Wrote $config_file for Coder AI Gateway."
+else
+  echo "Leaving existing OpenCode config alone."
+fi
+
+if [ ! -s "$PASSWORD_FILE" ]; then
+  mkdir -p "$(dirname "$PASSWORD_FILE")"
+  (
+    umask 077
+    head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$PASSWORD_FILE"
+  )
+  echo "Generated server password in $PASSWORD_FILE."
+fi
+chmod 600 "$PASSWORD_FILE"

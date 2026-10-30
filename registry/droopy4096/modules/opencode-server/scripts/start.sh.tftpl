@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+WORKDIR="${ARG_WORKDIR}"
+PORT="${ARG_PORT}"
+HOSTNAME_ARG="${ARG_HOSTNAME}"
+PASSWORD_FILE="${ARG_PASSWORD_FILE}"
+LOG_FILE="${ARG_LOG_FILE}"
+
+export PATH="$HOME/.opencode/bin:$PATH"
+mkdir -p "$WORKDIR" "$(dirname "$LOG_FILE")"
+cd "$WORKDIR"
+
+PASSWORD="$(cat "$PASSWORD_FILE")"
+health_host="$HOSTNAME_ARG"
+[ "$health_host" = "0.0.0.0" ] && health_host="127.0.0.1"
+health_url="http://$health_host:$PORT/global/health"
+
+if curl -fsS -o /dev/null -u "opencode:$PASSWORD" "$health_url" 2>/dev/null; then
+  echo "OpenCode server already running on port $PORT."
+  exit 0
+fi
+
+echo "Starting OpenCode server on $HOSTNAME_ARG:$PORT in $WORKDIR (log: $LOG_FILE)"
+# Detach fully so the server outlives this script and doesn't hold its output pipe.
+OPENCODE_SERVER_PASSWORD="$PASSWORD" nohup opencode serve --hostname "$HOSTNAME_ARG" --port "$PORT" \
+  < /dev/null >> "$LOG_FILE" 2>&1 &
+
+for _ in $(seq 1 60); do
+  if curl -fsS -o /dev/null -u "opencode:$PASSWORD" "$health_url" 2>/dev/null; then
+    echo "OpenCode server is up."
+    exit 0
+  fi
+  sleep 1
+done
+
+echo "ERROR: OpenCode server did not become healthy within 60s. Last log lines:" >&2
+tail -n 20 "$LOG_FILE" >&2 || true
+exit 1
