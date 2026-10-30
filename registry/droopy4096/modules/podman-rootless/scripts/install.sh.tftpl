@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NATIVE_OVERLAY="${ARG_NATIVE_OVERLAY}"
+
+if ! command -v podman >/dev/null 2>&1; then
+  echo "ERROR: podman not found. Use an image with rootless Podman (for example codercom/example-podman:ubuntu)." >&2
+  exit 1
+fi
+
+conf_dir="$${XDG_CONFIG_HOME:-$HOME/.config}/containers"
+conf_file="$conf_dir/storage.conf"
+marker="# Managed by the droopy4096/podman-rootless Coder module."
+
+if [ "$NATIVE_OVERLAY" = "true" ]; then
+  if [ -f "$conf_file" ] && ! grep -qF "$marker" "$conf_file"; then
+    echo "Leaving user-managed $conf_file alone."
+  else
+    mkdir -p "$conf_dir"
+    # Images often pin fuse-overlayfs in /etc/containers/storage.conf; an empty
+    # mount_program switches to kernel overlayfs (no /dev/fuse needed).
+    cat > "$conf_file" <<CONF
+$marker
+[storage]
+driver = "overlay"
+
+[storage.options.overlay]
+mount_program = ""
+CONF
+    echo "Configured native overlay storage in $conf_file."
+  fi
+fi
+
+podman info --format 'Podman {{.Version.Version}}: rootless={{.Host.Security.Rootless}} driver={{.Store.GraphDriverName}} graphroot={{.Store.GraphRoot}}'
