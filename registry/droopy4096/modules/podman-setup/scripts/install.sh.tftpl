@@ -3,6 +3,7 @@ set -euo pipefail
 
 NATIVE_OVERLAY="${ARG_NATIVE_OVERLAY}"
 REQUIRED_TOOLS="${ARG_REQUIRED_TOOLS}"
+DOCKER_SHIM="${ARG_DOCKER_SHIM}"
 
 # This module configures what the image provides; it installs nothing. Check
 # everything up front so one error lists every missing tool.
@@ -42,6 +43,40 @@ driver = "overlay"
 mount_program = ""
 CONF
     echo "Configured native overlay storage in $conf_file."
+  fi
+fi
+
+# Docker CLI compatibility. Without a docker command in the image, link one to
+# Podman; an existing docker CLI is kept and uses DOCKER_HOST.
+if [ "$DOCKER_SHIM" = "true" ]; then
+  podman_bin="$(command -v podman)"
+  docker_bin="$(command -v docker || true)"
+  if [ -z "$docker_bin" ]; then
+    if [ -w /usr/local/bin ]; then
+      ln -sf "$podman_bin" /usr/local/bin/docker
+      docker_bin=/usr/local/bin/docker
+    elif sudo -n true 2>/dev/null; then
+      sudo ln -sf "$podman_bin" /usr/local/bin/docker
+      docker_bin=/usr/local/bin/docker
+    else
+      mkdir -p "$HOME/.local/bin"
+      ln -sf "$podman_bin" "$HOME/.local/bin/docker"
+      docker_bin="$HOME/.local/bin/docker"
+      case ":$PATH:" in
+        *":$HOME/.local/bin:"*) ;;
+        *) echo "WARNING: $HOME/.local/bin is not on PATH; add it so 'docker' runs Podman." >&2 ;;
+      esac
+    fi
+    echo "Linked $docker_bin -> $podman_bin."
+  elif [ "$(readlink -f "$docker_bin")" = "$(readlink -f "$podman_bin")" ]; then
+    echo "docker already runs Podman ($docker_bin)."
+  else
+    echo "Keeping the existing docker CLI at $docker_bin; it talks to Podman through DOCKER_HOST when socket = true."
+  fi
+  if [ "$(readlink -f "$docker_bin")" = "$(readlink -f "$podman_bin")" ] \
+    && ! command -v docker-compose >/dev/null 2>&1 \
+    && ! command -v podman-compose >/dev/null 2>&1; then
+    echo "Note: 'docker compose' runs 'podman compose', which needs docker-compose or podman-compose in the image."
   fi
 fi
 

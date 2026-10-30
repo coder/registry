@@ -23,6 +23,7 @@ The module:
 
 - Switches Podman to kernel overlayfs by writing `~/.config/containers/storage.conf` with an empty `mount_program`, so no `/dev/fuse` device plugin is needed. A `storage.conf` you manage yourself is left alone.
 - Starts the Docker-compatible API (`podman system service`) on `/tmp/podman.sock` and exports `DOCKER_HOST`, so the docker CLI, Compose, and Testcontainers work unchanged.
+- Makes `docker` run Podman when the image has no docker CLI, by linking `docker` to `podman`. See [Docker CLI](#docker-cli).
 - Exports `DOCKER_BUILDKIT=0`, because BuildKit can't start inside the workspace. `podman build` (Buildah) still supports `RUN --mount=type=cache` and secrets; `docker buildx` is not supported.
 - Checks that `podman`, and anything listed in `required_tools` (for example `buildah` and `skopeo`), is in the image, and fails with one clear error listing what is missing. See [Required tools](#required-tools).
 
@@ -122,6 +123,15 @@ RUN apk add --no-cache buildah skopeo
 ```
 
 When Buildah or Skopeo is present, the install log records its version even if it isn't required.
+
+## Docker CLI
+
+With `docker_shim = true` (the default), the install script makes sure `docker` works:
+
+- **No docker command in the image**: links `docker` to `podman` in `/usr/local/bin`, using passwordless `sudo` when the directory isn't writable. Without either, it links `~/.local/bin/docker` and warns if `~/.local/bin` isn't on `PATH`.
+- **`docker` already links to Podman** (as in `codercom/example-podman:ubuntu`) or **a real docker CLI is installed**: leaves it alone. A real docker CLI, Docker Compose v2 and Testcontainers talk to Podman through `DOCKER_HOST` when `socket = true`.
+
+`docker compose` through the symlink runs `podman compose`, which needs `docker-compose` or `podman-compose` in the image; the install log notes when neither is present. Set `docker_shim = false` to leave `docker` untouched.
 
 ## Network access and air-gapped environments
 

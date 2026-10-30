@@ -154,4 +154,71 @@ describe("podman-setup", () => {
     expect(result.exitCode).toBe(0);
     expect(result.output).not.toContain("missing");
   });
+
+  test("links docker to podman when the image has no docker", async () => {
+    const { id, run } = await setup();
+    await execContainer(
+      id,
+      ["rm", "-f", "/usr/bin/docker"],
+      ["--user", "root"],
+    );
+    const result = await run();
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain("Linked /usr/local/bin/docker");
+    const link = await execContainer(id, ["readlink", "/usr/local/bin/docker"]);
+    expect(link.stdout.trim()).toBe("/usr/local/bin/podman");
+    const docker = await execContainer(id, ["bash", "-c", "docker ps"]);
+    expect(docker.stdout).toContain("podman ps");
+  });
+
+  test("falls back to ~/.local/bin without sudo", async () => {
+    const { id, run } = await setup();
+    await execContainer(
+      id,
+      ["rm", "-f", "/usr/bin/docker"],
+      ["--user", "root"],
+    );
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/local/bin/sudo",
+      content: "#!/bin/bash\nexit 1\n",
+    });
+    const result = await run();
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain("is not on PATH");
+    const link = await execContainer(id, [
+      "readlink",
+      "/home/coder/.local/bin/docker",
+    ]);
+    expect(link.stdout.trim()).toBe("/usr/local/bin/podman");
+  });
+
+  test("keeps an existing docker CLI", async () => {
+    const { id, run } = await setup();
+    const result = await run();
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain(
+      "Keeping the existing docker CLI at /usr/bin/docker",
+    );
+    const link = await execContainer(id, [
+      "test",
+      "-e",
+      "/usr/local/bin/docker",
+    ]);
+    expect(link.exitCode).not.toBe(0);
+  });
+
+  test("leaves docker alone when docker_shim = false", async () => {
+    const { id, run } = await setup({ docker_shim: "false" });
+    await execContainer(
+      id,
+      ["rm", "-f", "/usr/bin/docker"],
+      ["--user", "root"],
+    );
+    const result = await run();
+    expect(result.exitCode).toBe(0);
+    expect(result.output).not.toContain("docker");
+    const link = await execContainer(id, ["bash", "-c", "command -v docker"]);
+    expect(link.exitCode).not.toBe(0);
+  });
 });

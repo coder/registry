@@ -43,6 +43,12 @@ variable "disable_buildkit" {
   default     = true
 }
 
+variable "docker_shim" {
+  description = "When the image has no `docker` command, link `docker` to `podman` in `/usr/local/bin` (directly or with passwordless sudo), falling back to `~/.local/bin`. An existing docker CLI is kept; it reaches Podman through `DOCKER_HOST`."
+  type        = bool
+  default     = true
+}
+
 variable "required_tools" {
   description = "Commands the image must provide besides `podman`, for example `[\"buildah\", \"skopeo\"]`. The install script fails and lists every missing one. This module installs nothing."
   type        = list(string)
@@ -66,6 +72,7 @@ locals {
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_NATIVE_OVERLAY = tostring(var.native_overlay)
     ARG_REQUIRED_TOOLS = join(" ", distinct(var.required_tools))
+    ARG_DOCKER_SHIM    = tostring(var.docker_shim)
   })
 
   start_script = templatefile("${path.module}/scripts/start.sh.tftpl", {
