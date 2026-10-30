@@ -183,6 +183,7 @@ setup_mcp() {
 
 write_rules() {
   if [ -z "$${ARG_RULES}" ]; then
+    rm -f "$${RULES_FILE}"
     return
   fi
 

@@ -338,6 +338,14 @@ describe("auggie", async () => {
     expect((await readFileContainer(id, rulesPath)).trim()).toBe(rules);
   });
 
+  test("stale-rules-are-removed-when-rules-is-empty", async () => {
+    const { id, scripts } = await setup();
+    await seedFile(id, rulesPath, "# Old rules");
+    await runScripts(id, scripts);
+    const rules = await execContainer(id, ["test", "-e", rulesPath]);
+    expect(rules.exitCode).not.toBe(0);
+  });
+
   test("model-is-set-preserving-settings", async () => {
     const { id, scripts } = await setup({
       moduleVariables: { auggie_model: "sonnet4.5" },
