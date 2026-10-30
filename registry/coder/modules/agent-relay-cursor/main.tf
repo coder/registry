@@ -7,7 +7,8 @@
 #
 # Scripts run through coder-utils, which orders the install step before
 # the start step and keeps a copy of each script and its output under
-# module_directory for debugging.
+# module_directory for debugging. The pre-install and stop steps render
+# the same best-effort process cleanup script.
 #
 # Parameter contract (enforced by Agent Relay at startup via the dynamic
 # parameters evaluate endpoint):
@@ -19,8 +20,12 @@
 #     dedupe and reconciliation query workspaces with `param:` search
 #     filters on them. agent_relay_cursor_repo_url is stamped on every
 #     build (empty for repo-less pools) so the contract stays static.
-#   - agent_relay_credential is an ephemeral worker input, reset between
-#     builds.
+#
+# The worker token is not a parameter. Agent Relay sends it as an
+# ephemeral workspace secret, which the agent injects as
+# AGENT_RELAY_CURSOR_TOKEN. It never reaches the provisioner, Terraform
+# state, or the build's parameters, so nothing in this module can read
+# it.
 #
 # The worker's lifecycle is published through the agent_relay_status agent
 # metadata item, whose script this module renders. The script starts
@@ -227,33 +232,13 @@ data "coder_parameter" "agent_relay_cursor_repo_url" {
   })
 }
 
-data "coder_parameter" "agent_relay_credential" {
-  name         = "agent_relay_credential"
-  display_name = "Agent Relay credential"
-  description  = "Cursor session token the worker authenticates with. Agent Relay mints it with the claim from the pool's service account key; a human never fills it in. It serves only this request's claim and stops working when the claim ends. Ephemeral: not reused on a later build."
-  type         = "string"
-  ephemeral    = true
-  mutable      = true
-  default      = ""
-  order        = 1006
-  styling = jsonencode({
-    disabled    = true
-    mask_input  = true
-    placeholder = "Set by Agent Relay on dispatch"
-  })
-}
-
 # CURSOR_AGENT_WORKER_ID is the Cursor CLI's contract; do not rename it.
-# The session token has no CLI env var, so it travels under an Agent
-# Relay name and the start script writes it to a file for
-# --auth-token-file. It is never CURSOR_API_KEY: the CLI would treat the
-# token as a service account key and reject it.
-resource "coder_env" "agent_relay_cursor_token" {
-  agent_id = var.agent_id
-  name     = "AGENT_RELAY_CURSOR_TOKEN"
-  value    = data.coder_parameter.agent_relay_credential.value
-}
-
+# The session token has no CLI env var. Agent Relay delivers it as the
+# AGENT_RELAY_CURSOR_TOKEN workspace secret, which the agent injects,
+# and the start script writes it to a file for --auth-token-file; a
+# coder_env of the same name would be overridden by the secret. It is
+# never CURSOR_API_KEY: the CLI would treat the token as a service
+# account key and reject it.
 resource "coder_env" "cursor_agent_worker_id" {
   agent_id = var.agent_id
   name     = "CURSOR_AGENT_WORKER_ID"
@@ -289,6 +274,18 @@ locals {
     local.management_port,
   )
 
+  cleanup_script = templatefile("${path.module}/cleanup.sh.tftpl", {
+    module_directory = local.module_directory
+    state_file       = var.state_file
+    stop_mode        = false
+  })
+
+  stop_script = templatefile("${path.module}/cleanup.sh.tftpl", {
+    module_directory = local.module_directory
+    state_file       = var.state_file
+    stop_mode        = true
+  })
+
   install_script = templatefile("${path.module}/install.sh.tftpl", {
     cli_binary  = var.cli_binary
     install_cli = var.install_cli
@@ -315,8 +312,18 @@ module "coder_utils" {
   module_directory    = local.module_directory
   display_name_prefix = "Cursor worker"
   icon                = "/icon/cursor.svg"
+  pre_install_script  = local.cleanup_script
   install_script      = local.install_script
   start_script        = local.start_script
+}
+
+resource "coder_script" "stop_worker" {
+  agent_id     = var.agent_id
+  display_name = "Cursor worker: Stop Script"
+  icon         = "/icon/cursor.svg"
+  run_on_stop  = true
+  timeout      = 20
+  script       = local.stop_script
 }
 
 # The coder provider has no standalone agent-metadata resource: the
@@ -353,8 +360,8 @@ output "scripts" {
 }
 
 output "dispatched" {
-  description = "Whether this workspace was spawned by Agent Relay (credential set) or manually (empty)."
-  value       = data.coder_parameter.agent_relay_credential.value != ""
+  description = "Whether Agent Relay created this workspace. Stays true on every later build of it, including one a person restarts; whether the current build has a worker token is decided by the start script, not here."
+  value       = data.coder_parameter.agent_relay_delivery_id.value != ""
 }
 
 output "session_id" {

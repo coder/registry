@@ -16,7 +16,7 @@ parameters the relay stamps on each build and runs the Cursor CLI worker.
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "0.8.0"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Cursor CLI at start when it is not in the image. Bake
@@ -61,6 +61,17 @@ created.
 
 ## Requirements
 
+- Coder 2.39.0 or newer and Agent Relay v0.14.0 or newer. On those versions
+  the relay delivers the worker token as an ephemeral workspace secret, which
+  the agent injects as `AGENT_RELAY_CURSOR_TOKEN`; it is never a build
+  parameter. A relay that still sends it as the `agent_relay_credential`
+  parameter refuses to serve a template on this version with
+  `missing parameter "agent_relay_credential"`, so on older versions pin
+  `0.8.0`, the last release that declares the parameter. Upgrade Coder, then
+  Agent Relay, then move templates to `1.0.0` one at a time; a `0.8.0`
+  template keeps working on the new versions, except that its `dispatched`
+  output reads `false` on relay builds. To roll a relay or Coder back, pin
+  templates back to `0.8.0` first.
 - The Cursor CLI (`agent`) must be in the workspace. `install_cli` (default
   `true`) downloads it at start only when it is not already on PATH; bake it
   into the image for the fastest start. `cli_binary` overrides the path.
@@ -81,13 +92,13 @@ created.
 The pool's service-account API key never leaves Agent Relay. When the relay
 claims a request, Cursor mints a
 [session token](https://cursor.com/docs/cloud-agent/self-hosted/pool#session-tokens)
-for that claim, and the relay stamps it as the ephemeral
-`agent_relay_credential` parameter. The module exports it as
-`AGENT_RELAY_CURSOR_TOKEN`, writes it to `worker-token` (mode `0600`), and
-starts the worker with `--auth-token-file`. The token stays off the worker's
-command line, and the supervisor unsets the variable so the worker and the
-agent's commands do not inherit it. The supervisor deletes the file when the
-worker exits.
+for that claim, and the relay sends it as an ephemeral workspace secret,
+which the agent injects as `AGENT_RELAY_CURSOR_TOKEN`. It never appears in
+the build's parameters or Terraform state. The module writes it to
+`worker-token` (mode `0600`) and starts the worker with `--auth-token-file`.
+The token stays off the worker's command line, and the supervisor unsets the
+variable so the worker and the agent's commands do not inherit it. The
+supervisor deletes the file when the worker exits.
 
 A session token connects only the claimed worker id, and Cursor refuses it on
 every endpoint a worker does not call. It stops working when the claim ends,
@@ -107,7 +118,7 @@ optional value an explicit one (`--flag=value`), or it consumes `start`.
 ```tf
 module "cursor_worker" {
   source          = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version         = "0.8.0"
+  version         = "1.0.0"
   agent_id        = coder_agent.main.id
   additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
 }
@@ -117,23 +128,32 @@ module "cursor_worker" {
 
 Agent Relay verifies this contract against the template's active version at
 startup and refuses to serve a pool that does not satisfy it. Every parameter
-renders disabled with a "Set by Agent Relay on dispatch" placeholder; the
-credential is masked.
+renders disabled with a "Set by Agent Relay on dispatch" placeholder. The
+worker token is not among them: it is a workspace secret, so it never appears
+in the build's parameters or Terraform state, and the template should not
+set `AGENT_RELAY_CURSOR_TOKEN` itself.
 
 ## Scripts and logs
 
-The module runs two steps through [coder-utils](https://registry.coder.com/modules/coder/coder-utils):
-an install step that downloads the CLI when `install_cli` is set and the
-binary is missing (a no-op otherwise), then a start step that launches the
-worker. Everything lands under `$HOME/.coder-modules/coder/agent-relay-cursor`:
+The module runs three steps through [coder-utils](https://registry.coder.com/modules/coder/coder-utils):
+a pre-install cleanup that stops any worker a previous agent start left
+running, an install step that downloads the CLI when `install_cli` is set and
+the binary is missing (a no-op otherwise), then a start step that launches the
+worker. Everything lands under `$HOME/.coder-modules/coder/agent-relay-cursor`;
+the separate stop script uses the same cleanup source and reports failures in
+its Coder script output:
 
-| path                                     | contents                                         |
-| ---------------------------------------- | ------------------------------------------------ |
-| `scripts/install.sh`, `scripts/start.sh` | the install and start steps as they ran          |
-| `scripts/supervise.sh`                   | the detached supervisor that owns the worker     |
-| `logs/*.log`                             | output of each step, plus the worker's own log   |
-| `worker-state`                           | the supervisor's lifecycle line (`state_file`)   |
-| `worker-token`                           | the session token, removed when the worker exits |
+| path                                     | contents                                              |
+| ---------------------------------------- | ----------------------------------------------------- |
+| `scripts/pre_install.sh`                 | the cleanup as it ran on start                        |
+| `scripts/install.sh`, `scripts/start.sh` | the install and start steps as they ran               |
+| `scripts/supervise.sh`                   | the detached supervisor that owns the worker          |
+| `supervisors/`, `workers/`               | one identity record per running supervisor and worker |
+| `started/`                               | one start claim per cleanup generation                |
+| `cleanup-complete`                       | fresh startup generation; removed on workspace stop   |
+| `logs/*.log`                             | output of each step, plus the worker's own log        |
+| `worker-state`                           | the supervisor's lifecycle line (`state_file`)        |
+| `worker-token`                           | the session token, removed when the worker exits      |
 
 ## Worker lifecycle
 
@@ -149,7 +169,7 @@ finishes a turn, not when the chat closes, so keep the timeout at or above
 | value             | meaning                                                                    |
 | ----------------- | -------------------------------------------------------------------------- |
 | `pending`         | start step running, supervisor has not written yet                         |
-| `idle`            | no credential: workspace was created manually                              |
+| `idle`            | no worker token in this build: created by a person, or restarted by one    |
 | `working`         | worker alive, no session attached                                          |
 | `serving`         | worker alive, session attached (best effort, see `serving_log_pattern`)    |
 | `orphaned`        | worker process gone without recording an exit                              |
@@ -158,12 +178,36 @@ finishes a turn, not when the chat closes, so keep the timeout at or above
 
 Renaming the `agent_relay_status` key breaks reaping.
 
-The start step is safe to re-run. An agent restart inside the same build
-re-runs it with the credential still set and the previous run's state on
-disk: a live worker is left alone, a terminal state is left for the relay
-to act on, and anything else is reset to `pending` before a new worker
-starts. Liveness is judged by pid and cmdline, so a reused pid reads as
-`orphaned` rather than `working`.
+The start step is safe to re-run after the pre-install cleanup. The supervisor
+and worker outlive the agent, so a normal agent start attempts to stop the
+previous supervisor and worker, then clears the previous run's state and
+token. A worker stopped this way records no terminal state. An agent start
+with a credential therefore starts a fresh worker, even after a terminal state;
+one without a credential reports `idle`.
+The supervisor and the worker each record their pid, boot id, and process
+start time before the CLI runs, and are only signalled while all three still
+match, which protects against a reused pid. The worker records itself, so it is
+stopped even when its supervisor was killed. Processes that ignore `SIGTERM`
+for 10 seconds get `SIGKILL`, with at most another 5 seconds to confirm exit.
+The separate stop script has a 20-second timeout; allow at least 30 seconds
+for cleanup in the workspace shutdown budget. Stop removes the launch marker
+and never recreates it. A surviving old supervisor that already checked the
+marker can still race with a new start to write stale status or remove its
+shared token. Both cleanup modes remove the old state and token before and
+after signalling.
+
+Startup publishes a fresh `cleanup-complete` marker even when a verified old
+process survives or an identity cannot be verified. If pre-install cleanup did
+not publish a marker at all, the start step creates a fresh generation and
+continues. If an old valid marker and its start claim remain, it rotates the
+generation and starts anyway. Without a credential, start removes any old token
+before reporting `idle`, even if cleanup never ran. An unverifiable pid is never
+signalled; its record remains for a later cleanup attempt, and the error is
+logged. This availability-first policy can leave two workers running if cleanup
+was skipped or could not stop the old one. Liveness in `agent_relay_status` is
+judged by pid and cmdline, so a reused pid reads as `orphaned` rather than
+`working`. The reaper also needs a short grace after a new build so it does not
+act on old metadata before startup cleanup and a fresh status report.
 
 ## Session attachment
 
@@ -199,7 +243,7 @@ scrape the worker, and never publish it through a `coder_app`.
 ```tf
 module "cursor_worker" {
   source          = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version         = "0.8.0"
+  version         = "1.0.0"
   agent_id        = coder_agent.main.id
   management_addr = "127.0.0.1:3290"
 }

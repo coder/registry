@@ -26,11 +26,6 @@ run "parameter_contract" {
   }
 
   assert {
-    condition     = data.coder_parameter.agent_relay_credential.name == "agent_relay_credential"
-    error_message = "credential parameter name is part of the Agent Relay contract"
-  }
-
-  assert {
     condition     = data.coder_parameter.agent_relay_claude_code_lock_to_account.name == "agent_relay_claude_code_lock_to_account"
     error_message = "account lock parameter name is part of the Agent Relay contract"
   }
@@ -52,7 +47,7 @@ run "parameter_contract" {
 
   # The relay reads these back off a build long after dispatch, so they
   # must not be ephemeral; the rest must be, so a manual build never
-  # inherits a stale credential, account lock, or attempt.
+  # inherits a stale account lock or attempt.
   assert {
     condition = alltrue([
       data.coder_parameter.agent_relay_session_id.ephemeral == false,
@@ -60,7 +55,6 @@ run "parameter_contract" {
       data.coder_parameter.agent_relay_pool.ephemeral == false,
       data.coder_parameter.agent_relay_client_platform.ephemeral == false,
       data.coder_parameter.agent_relay_claude_code_release_idle_session_min.ephemeral == false,
-      data.coder_parameter.agent_relay_credential.ephemeral == true,
       data.coder_parameter.agent_relay_claude_code_lock_to_account.ephemeral == true,
       data.coder_parameter.agent_relay_attempt.ephemeral == true,
     ])
@@ -77,17 +71,11 @@ run "parameter_contract" {
         data.coder_parameter.agent_relay_pool.styling,
         data.coder_parameter.agent_relay_client_platform.styling,
         data.coder_parameter.agent_relay_claude_code_release_idle_session_min.styling,
-        data.coder_parameter.agent_relay_credential.styling,
         data.coder_parameter.agent_relay_claude_code_lock_to_account.styling,
         data.coder_parameter.agent_relay_attempt.styling,
       ] : can(regex("\"disabled\":true", p))
     ])
     error_message = "every relay parameter must render disabled"
-  }
-
-  assert {
-    condition     = can(regex("\"mask_input\":true", data.coder_parameter.agent_relay_credential.styling))
-    error_message = "the credential must be masked"
   }
 }
 
@@ -96,20 +84,25 @@ run "runner_wiring" {
 
   # The claude CLI owns these names; the module only supplies values.
   assert {
-    condition     = coder_env.runner_environment_secret.name == "SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET"
-    error_message = "the pool secret env var name is the claude CLI's contract"
-  }
-
-  assert {
     condition     = coder_env.agent_relay_claude_code_lock_to_account.name == "SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT"
     error_message = "the account lock env var name is the claude CLI's contract"
   }
 
-  # coder-utils runs the install step before the start step and keeps
-  # both scripts and their logs under this directory.
+  # coder-utils runs cleanup before install, then start, and keeps
+  # scripts and their logs under the module directory.
   assert {
-    condition     = module.coder_utils.scripts == ["coder-agent-relay-claude-code-install_script", "coder-agent-relay-claude-code-start_script"]
-    error_message = "coder-utils must run exactly the install and start steps, in that order"
+    condition     = module.coder_utils.scripts == ["coder-agent-relay-claude-code-pre_install_script", "coder-agent-relay-claude-code-install_script", "coder-agent-relay-claude-code-start_script"]
+    error_message = "coder-utils must clean up before install and start"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, var.state_file) && strcontains(local.shutdown_script, var.state_file)
+    error_message = "startup, shutdown, and status must use the configured state file"
+  }
+
+  assert {
+    condition     = coder_script.shutdown.run_on_stop && !coder_script.shutdown.run_on_start && coder_script.shutdown.script == local.shutdown_script
+    error_message = "shutdown must run only on stop and use the shared cleanup source"
   }
 
   # Pass-through so a template can serialize its own scripts behind ours.
@@ -158,7 +151,27 @@ run "runner_wiring" {
 
   assert {
     condition     = output.dispatched == false
-    error_message = "a build with no credential was not dispatched by Agent Relay"
+    error_message = "a build with no delivery was not dispatched by Agent Relay"
+  }
+}
+
+run "dispatched_true_when_delivery_stamped" {
+  command = plan
+
+  # The delivery id is not ephemeral, so a person's restart carries it into
+  # the next build and this output stays true for the life of a relay-created
+  # workspace. The start script, not this output, says whether the current
+  # build has a work order.
+  override_data {
+    target = data.coder_parameter.agent_relay_delivery_id
+    values = {
+      value = "0d6c3b1e-delivery"
+    }
+  }
+
+  assert {
+    condition     = output.dispatched == true
+    error_message = "a build carrying a delivery id belongs to a workspace Agent Relay created"
   }
 }
 
