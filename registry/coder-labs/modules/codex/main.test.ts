@@ -258,6 +258,34 @@ describe("codex", async () => {
     expect(installLog).toContain("Skipping Codex installation");
   });
 
+  test("user-managed config remains unchanged across repeated installs", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: { manage_config: "false" },
+    });
+    const configPath = "/home/coder/.codex/config.toml";
+    const original = '# My provider and preferences\nmodel = "custom"\n';
+    await execContainer(id, ["mkdir", "-p", "/home/coder/.codex"]);
+    await writeFileContainer(id, configPath, original);
+    await runScripts(id, scripts);
+    await runScripts(id, scripts);
+    expect(await readFileContainer(id, configPath)).toBe(original);
+    expect(await installLog(id)).toContain("Skipping Codex configuration");
+  });
+
+  test("user-managed config does not create a config directory", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: { manage_config: "false" },
+    });
+    await runScripts(id, scripts);
+    const result = await execContainer(id, [
+      "test",
+      "!",
+      "-e",
+      "/home/coder/.codex",
+    ]);
+    expect(result.exitCode).toBe(0);
+  });
+
   test("install-codex-version", async () => {
     const version = "0.134.0";
     const { id, coderEnvVars, scripts } = await setup({

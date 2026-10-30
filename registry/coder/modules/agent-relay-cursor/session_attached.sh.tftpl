@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Rendered into the agent_relay_session_attached agent metadata item (see
+# README). Prints one line that Agent Relay reads to decide whether to keep
+# the workspace's autostop deadline moving:
+#
+#   attached    the worker is running and reports an active session
+#   unattached  the worker is running and reports no session
+#   stopped     the worker is not running: it exited, died, never started,
+#               or the workspace was created manually
+#   disabled    management_addr is empty, so attachment cannot be observed
+#
+# When the worker is running but its management server cannot be read, the
+# script exits non-zero instead. The sample is then an error, which the
+# relay treats as unknown rather than as any of the values above.
+#
+# Running means the pid the supervisor recorded is alive and is still the
+# CLI it launched. The supervisor writes "working <pid>" after it starts
+# the worker and replaces it with "done <code>" when the worker exits.
+set -euo pipefail
+
+state_file="${state_file}"
+management_url="${management_url}"
+
+if [ -z "$management_url" ]; then
+	echo "disabled"
+	exit 0
+fi
+
+# True when the pid is alive and is our worker. kill -0 alone would
+# trust a reused pid; the cmdline check ties it to the CLI we launched.
+worker_alive() {
+	[ -n "$${1:-}" ] && kill -0 "$1" 2>/dev/null &&
+		tr '\0' ' ' <"/proc/$1/cmdline" 2>/dev/null | grep -qF -- "$(basename "${cli_binary}")"
+}
+
+state=""
+detail=""
+if [ -f "$state_file" ]; then
+	read -r state detail <"$state_file" || true
+fi
+if [ "$state" != "working" ] || ! worker_alive "$detail"; then
+	echo "stopped"
+	exit 0
+fi
+
+if ! command -v curl >/dev/null 2>&1; then
+	echo "curl is required to read $management_url/metrics" >&2
+	exit 1
+fi
+
+# The server starts once the worker connects to Cursor, so a fresh worker
+# fails here briefly. That reads as unknown, which is correct.
+if ! metrics="$(curl -fsS --max-time 3 "$management_url/metrics")"; then
+	echo "cannot read $management_url/metrics" >&2
+	exit 1
+fi
+
+active="$(printf '%s\n' "$metrics" | grep -E '^cursor_self_hosted_worker_session_active(\{[^}]*\})?[[:space:]]' | head -n1 | awk '{ print $2 }' || true)"
+if ! printf '%s' "$active" | grep -qE '^[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?$'; then
+	echo "$management_url/metrics has no numeric cursor_self_hosted_worker_session_active gauge" >&2
+	exit 1
+fi
+
+if awk -v v="$active" 'BEGIN { exit !(v + 0 > 0) }'; then
+	echo "attached"
+else
+	echo "unattached"
+fi

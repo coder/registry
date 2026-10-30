@@ -219,3 +219,74 @@ run "test_mcp_config_remote_path_default" {
     error_message = "mcp_config_remote_path should default to an empty list"
   }
 }
+
+run "test_user_managed_config" {
+  command = plan
+  variables {
+    agent_id      = "test-agent"
+    manage_config = false
+  }
+  assert {
+    condition     = strcontains(local.install_script, "ARG_MANAGE_CONFIG='false'")
+    error_message = "The install script must skip configuration when management is disabled"
+  }
+}
+
+run "test_managed_config_default" {
+  command = plan
+  variables { agent_id = "test-agent" }
+  assert {
+    condition     = var.manage_config
+    error_message = "Configuration management must remain enabled by default"
+  }
+}
+
+run "test_unmanaged_rejects_base_config_toml" {
+  command = plan
+  variables {
+    agent_id         = "test-agent"
+    manage_config    = false
+    base_config_toml = "model = \"custom\""
+  }
+  expect_failures = [var.manage_config]
+}
+
+run "test_unmanaged_rejects_mcp" {
+  command = plan
+  variables {
+    agent_id      = "test-agent"
+    manage_config = false
+    mcp           = "[mcp_servers.example]"
+  }
+  expect_failures = [var.manage_config]
+}
+
+run "test_unmanaged_rejects_mcp_config_remote_path" {
+  command = plan
+  variables {
+    agent_id               = "test-agent"
+    manage_config          = false
+    mcp_config_remote_path = ["https://example.com/mcp.toml"]
+  }
+  expect_failures = [var.manage_config]
+}
+
+run "test_unmanaged_rejects_model_reasoning_effort" {
+  command = plan
+  variables {
+    agent_id               = "test-agent"
+    manage_config          = false
+    model_reasoning_effort = "high"
+  }
+  expect_failures = [var.manage_config]
+}
+
+run "test_unmanaged_rejects_enable_ai_gateway" {
+  command = plan
+  variables {
+    agent_id          = "test-agent"
+    manage_config     = false
+    enable_ai_gateway = true
+  }
+  expect_failures = [var.manage_config]
+}

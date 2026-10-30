@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# Run before install on each agent start and on graceful workspace stop.
+# Identity records survive a stop, including when the supervisor died but
+# its runner did not. Startup is availability-first if cleanup cannot verify
+# an old process stopped; rotating the generation fences later old writes,
+# but an old writer already past its marker check can still write state.
+set -euo pipefail
+
+mode="${cleanup_mode}"
+state_file="${state_file}"
+supervisors="${module_directory}/supervisors"
+workers="${module_directory}/workers"
+cleanup_complete="${module_directory}/cleanup-complete"
+rm -f "$cleanup_complete" "$cleanup_complete.tmp"
+mkdir -p "$supervisors" "$workers" "$(dirname "$state_file")"
+boot_id=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || true)
+if [ -z "$boot_id" ]; then
+	echo "Cannot verify previous Claude Code runner processes without a boot ID; continuing cleanup without signalling them" >&2
+fi
+
+# /proc stat starts with pid and (comm); starttime is field 20 after them.
+process_identity() {
+	local stat
+	IFS= read -r stat <"/proc/$1/stat" 2>/dev/null || return 1
+	stat=$${stat##*) }
+	# shellcheck disable=SC2086 # Split /proc fields.
+	set -- $stat
+	[ "$1" != Z ] || return 1
+	printf '%s' "$${20:-}"
+}
+
+# Records contain a pid, boot ID, and kernel process start time. A bare pid
+# can name an unrelated process after a restart or PID reuse.
+record_alive() {
+	local recorded_boot recorded_start
+	record_pid="" recorded_boot="" recorded_start=""
+	read -r record_pid recorded_boot recorded_start <"$1" || true
+	if ! [[ "$record_pid" =~ ^[0-9]+$ && "$recorded_start" =~ ^[0-9]+$ ]]; then
+		return 2
+	fi
+	[ "$recorded_boot" = "$boot_id" ] || return 1
+	if [ "$(process_identity "$record_pid" || true)" = "$recorded_start" ]; then
+		return 0
+	fi
+	if [ -d "/proc/$record_pid" ] && [ ! -r "/proc/$record_pid/stat" ]; then
+		return 2
+	fi
+	return 1
+}
+
+# Delete before signalling and after everyone exits: a supervisor may still
+# publish a terminal state while TERM is in flight.
+rm -f "$state_file" "$state_file.tmp"
+
+signal_records() {
+	for record in "$supervisors"/* "$workers"/*; do
+		[ -f "$record" ] || continue
+		if record_alive "$record"; then kill "-$1" "$record_pid" 2>/dev/null || true; fi
+	done
+}
+
+prune_records() {
+	remaining=false
+	unverifiable=false
+	for record in "$supervisors"/* "$workers"/*; do
+		[ -f "$record" ] || continue
+		if record_alive "$record"; then
+			remaining=true
+		else
+			case $? in
+			2) unverifiable=true ;;
+			*) rm -f "$record" ;;
+			esac
+		fi
+	done
+}
+
+if [ -n "$boot_id" ]; then
+	signal_records TERM
+	# Let supervisors stop their children gracefully, then force-stop only
+	# the processes whose identities still match. A survivor never blocks start.
+	for ((i = 0; i < 100; i++)); do
+		prune_records
+		[ "$remaining" = true ] || break
+		sleep 0.1
+	done
+	signal_records KILL
+	for ((i = 0; i < 50; i++)); do
+		prune_records
+		[ "$remaining" = true ] || break
+		sleep 0.1
+	done
+else
+	# Without a boot ID we cannot classify or safely discard any record.
+	remaining=false
+	unverifiable=false
+	for record in "$supervisors"/* "$workers"/*; do
+		if [ -f "$record" ]; then unverifiable=true; fi
+	done
+fi
+if [ "$remaining" = true ] || [ "$unverifiable" = true ]; then
+	echo "Previous Claude Code runner may still be running or is unverifiable; proceeding in $mode mode" >&2
+fi
+rm -f "$state_file" "$state_file.tmp"
+if [ "$mode" = start ]; then
+	# A new generation fences off any survivor's writes. Do not publish a
+	# launch marker on stop, even if cleanup completed successfully.
+	for claim in "${module_directory}/started"/*; do
+		if [ -d "$claim" ]; then rmdir "$claim" || true; fi
+	done
+	cat /proc/sys/kernel/random/uuid >"$cleanup_complete.tmp"
+	mv "$cleanup_complete.tmp" "$cleanup_complete"
+fi
