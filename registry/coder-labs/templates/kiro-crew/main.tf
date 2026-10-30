@@ -180,6 +180,13 @@ module "code-server" {
   folder    = local.home_dir
   subdomain = false
   order     = 0
+  # Open without a workspace-trust prompt. The module merges these into
+  # ~/.local/share/code-server/User/settings.json, preserving user settings.
+  settings = {
+    "security.workspace.trust.startupPrompt"  = "never"
+    "security.workspace.trust.emptyWindow"    = false
+    "security.workspace.trust.untrustedFiles" = "open"
+  }
 }
 
 module "kiro" {
@@ -198,6 +205,21 @@ module "kiro-crew" {
   # Installs the system packages the Kiro CLI and Kiro Crew installers need
   # before the module's install script runs.
   pre_install_script = file("${path.module}/kiro-crew-prereqs.sh")
+
+  # Register the Coder MCP server so agents can act on Coder itself. This stdio
+  # entry is deep-merged into ~/.kiro/settings/mcp.json before the gateway
+  # starts. `coder exp mcp server` reads CODER_URL and CODER_SESSION_TOKEN from
+  # the agent environment (set by the coder-login module) at runtime, so no
+  # token is written to disk and it keeps working after the token rotates on
+  # rebuilds.
+  extra_mcp_json = jsonencode({
+    mcpServers = {
+      coder = {
+        command = "coder"
+        args    = ["exp", "mcp", "server"]
+      }
+    }
+  })
 }
 
 # Terminal app for interactive Kiro CLI sign-in (`kiro-cli login`).

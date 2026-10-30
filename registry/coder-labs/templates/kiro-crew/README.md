@@ -1,6 +1,6 @@
 ---
 display_name: Kiro Crew on Kubernetes
-description: Kubernetes workspaces that run the Kiro Crew gateway and web dashboard, with Kiro CLI, code-server, and a persistent home volume.
+description: Kubernetes workspaces running the Kiro Crew gateway and dashboard, with Kiro CLI, code-server, and a persistent home volume.
 icon: ../../../../.icons/kiro.svg
 verified: false
 tags: [kubernetes, container, kiro, ai, agent, mcp]
@@ -16,7 +16,7 @@ Each workspace also includes:
 
 - A **Kiro CLI** terminal app for interactive sign-in.
 - code-server and the Kiro IDE app.
-- The Coder MCP server in `~/.kiro/settings/mcp.json`, so agents can work with Coder workspaces and templates.
+- The Coder MCP server, registered as a `coder exp mcp server` stdio entry in `~/.kiro/settings/mcp.json`, so agents can work with Coder workspaces and templates.
 - An optional repository clone on start.
 - A persistent volume at `/home/coder` that keeps installs, Kiro credentials, and Kiro Crew state across restarts.
 - CPU, memory, and disk usage on the workspace page.
@@ -59,4 +59,4 @@ Gateway, redirector, and script logs are in `~/.coder-modules/coder-labs/kiro-cr
 ## Notes
 
 - Kiro Crew sandboxes agent subprocesses with Linux user namespaces. Many Kubernetes nodes disable them (`user.max_user_namespaces=0`); in that case the module allows unsandboxed execution and the pod is the isolation boundary.
-- The Coder MCP configuration stores your Coder session token in `~/.kiro/settings/mcp.json` on the workspace volume. Remove the `coder` entry from that file if you do not want agents to act on your behalf in Coder.
+- The Coder MCP server runs as `coder exp mcp server`, which reads `CODER_URL` and `CODER_SESSION_TOKEN` from the agent environment at runtime, so no session token is written to disk and it keeps working after the token rotates on rebuilds. It acts on your behalf in Coder; remove the `coder` entry from the template's `extra_mcp_json` if you do not want that.
