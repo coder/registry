@@ -93,6 +93,20 @@ module "opencode_server" {
 - The firewall's proxy listens on port `8080` by default. Set `proxy_port` in the firewall config if something else in the workspace uses that port or another agent runs inside its own firewall.
 - Add the hosts from [Network access](#network-access-and-air-gapped-environments) that you want OpenCode to reach to the allowlist. With AI Gateway, the deployment domain (added by the `agent-firewall` module) covers model traffic.
 
+## Image requirements
+
+The scripts need `bash`, `curl`, `tar` and `gzip` (and `unzip` for a `.zip` `binary_url`), and neither uses sudo. Debian, Ubuntu and Red Hat UBI 9 (`ubi9/ubi`) images work as they are. `ubi9/ubi-minimal` lacks `tar` and `gzip`; add them with `microdnf install -y tar gzip`.
+
+### Alpine and other musl images
+
+OpenCode publishes separate builds for musl libc, and they link against the C++ runtime, which bare Alpine doesn't include. Add these packages to the image:
+
+```dockerfile
+RUN apk add --no-cache bash curl libgcc libstdc++
+```
+
+The module detects musl on its own: the official installer and a `binary_url` that uses `{target}` both pick the `-musl` build. If `opencode --version` fails on a musl system, the install script names the missing packages. A binary from `opencode_bin` or the image must also be a musl build.
+
 ## Network access and air-gapped environments
 
 | When    | Endpoint                                                         | Purpose                                       | How to avoid it                                        |
@@ -110,7 +124,7 @@ module "opencode_server" {
 
 ### Install from an internal mirror
 
-`binary_url` downloads a binary, or a release archive with `opencode` at its top level (`.tar.gz` or `.zip`), and skips the installer. `{arch}` becomes `x64` or `arm64`.
+`binary_url` downloads a binary, or a release archive with `opencode` at its top level (`.tar.gz` or `.zip`), and skips the installer. `{target}` becomes the OpenCode release target for the workspace (`x64`, `x64-baseline`, `x64-musl`, `x64-baseline-musl`, `arm64` or `arm64-musl`), so it matches the names of OpenCode's release archives. The module picks `-musl` on musl libc and `-baseline` on x64 CPUs without AVX2. `{arch}` becomes just `x64` or `arm64`. Mirror the archives your workspaces need.
 
 ```tf
 module "opencode_server" {
@@ -119,7 +133,7 @@ module "opencode_server" {
   version          = "1.0.0"
   agent_id         = coder_agent.main.id
   opencode_version = "1.19.5"
-  binary_url       = "https://artifacts.example.com/opencode/v1.19.5/opencode-linux-{arch}.tar.gz"
+  binary_url       = "https://artifacts.example.com/opencode/v1.19.5/opencode-linux-{target}.tar.gz"
   offline          = true
 }
 ```

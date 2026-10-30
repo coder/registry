@@ -19,7 +19,7 @@ health_host="$HOSTNAME_ARG"
 [ "$health_host" = "0.0.0.0" ] && health_host="127.0.0.1"
 health_url="http://$health_host:$PORT/global/health"
 
-if curl -fsS -o /dev/null -u "opencode:$PASSWORD" "$health_url" 2>/dev/null; then
+if curl -fsS --max-time 5 -o /dev/null -u "opencode:$PASSWORD" "$health_url" 2>/dev/null; then
   echo "OpenCode server already running on port $PORT."
   exit 0
 fi
@@ -49,8 +49,11 @@ echo "Starting OpenCode server on $HOSTNAME_ARG:$PORT in $WORKDIR (log: $LOG_FIL
 # Detach fully so the server outlives this script and doesn't hold its output pipe.
 OPENCODE_SERVER_PASSWORD="$PASSWORD" nohup "$${cmd[@]}" < /dev/null >> "$LOG_FILE" 2>&1 &
 
-for _ in $(seq 1 60); do
-  if curl -fsS -o /dev/null -u "opencode:$PASSWORD" "$health_url" 2>/dev/null; then
+# Bound each probe too: a server that accepts connections but never answers
+# must not hang the start script.
+deadline=$((SECONDS + 60))
+while [ "$SECONDS" -lt "$deadline" ]; do
+  if curl -fsS --max-time 5 -o /dev/null -u "opencode:$PASSWORD" "$health_url" 2>/dev/null; then
     echo "OpenCode server is up."
     exit 0
   fi

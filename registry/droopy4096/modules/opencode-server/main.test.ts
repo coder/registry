@@ -237,6 +237,69 @@ describe("opencode-server", () => {
     ).toBe("1.19.5");
   });
 
+  test("binary_url {target} picks the musl build on musl systems", async () => {
+    const { id, install, mock } = await setup(
+      {
+        install_opencode: "true",
+        binary_url: "file:///tmp/mirror/opencode-linux-{target}.tar.gz",
+      },
+      { mockOpencode: false },
+    );
+    await execContainer(id, ["mkdir", "-p", "/tmp/staging", "/tmp/mirror"]);
+    await writeExecutable({
+      containerId: id,
+      filePath: "/tmp/staging/opencode",
+      content: mock,
+    });
+    await execContainer(id, [
+      "bash",
+      "-c",
+      'for t in x64 x64-baseline x64-musl x64-baseline-musl arm64 arm64-musl; do tar -czf "/tmp/mirror/opencode-linux-$t.tar.gz" -C /tmp/staging opencode; done',
+    ]);
+
+    const glibc = await run(id, "install", install);
+    expect(glibc.exitCode).toBe(0);
+    expect(glibc.stdout).toMatch(
+      /opencode-linux-(x64|x64-baseline|arm64)\.tar\.gz/,
+    );
+
+    await execContainer(
+      id,
+      [
+        "bash",
+        "-c",
+        `touch /etc/alpine-release && rm ${home}/.opencode/bin/opencode`,
+      ],
+      ["--user", "root"],
+    );
+    const musl = await run(id, "install", install);
+    expect(musl.exitCode).toBe(0);
+    expect(musl.stdout).toMatch(
+      /opencode-linux-(x64|x64-baseline|arm64)-musl\.tar\.gz/,
+    );
+  });
+
+  test("explains musl requirements when OpenCode can't run", async () => {
+    const { id, install } = await setup({
+      opencode_bin: "/opt/tools/opencode",
+    });
+    await execContainer(
+      id,
+      ["bash", "-c", "mkdir -p /opt/tools && touch /etc/alpine-release"],
+      ["--user", "root"],
+    );
+    await writeExecutable({
+      containerId: id,
+      filePath: "/opt/tools/opencode",
+      content:
+        "#!/bin/bash\necho 'Error loading shared library libstdc++.so.6' >&2\nexit 127\n",
+    });
+    const result = await run(id, "install", install);
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stdout + result.stderr).toContain("libstdc++.so.6");
+    expect(result.stdout + result.stderr).toContain("apk add libstdc++ libgcc");
+  });
+
   test("offline sets the OpenCode network switches", async () => {
     const { env: defaults } = await setup();
     expect(defaults.OPENCODE_DISABLE_AUTOUPDATE).toBe("true");

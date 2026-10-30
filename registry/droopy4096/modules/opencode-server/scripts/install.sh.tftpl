@@ -17,24 +17,65 @@ export PATH="$HOME/.opencode/bin:$PATH"
 workdir="$(mktemp -d)"
 trap 'rm -rf "$workdir"' EXIT
 
-# Install from a binary or release archive, e.g. an internal artifact mirror.
-install_from_binary_url() {
-  local arch url download bin
+# musl (Alpine) needs OpenCode's -musl builds plus libstdc++ and libgcc.
+is_musl() {
+  [ -f /etc/alpine-release ] && return 0
+  compgen -G "/lib/ld-musl-*.so.1" >/dev/null && return 0
+  ldd --version 2>&1 | grep -qi musl
+}
+
+# Release target, named like OpenCode's archives: x64, x64-baseline,
+# x64-musl, x64-baseline-musl, arm64 or arm64-musl.
+opencode_target() {
+  local arch target
   case "$(uname -m)" in
     x86_64 | amd64) arch="x64" ;;
     aarch64 | arm64) arch="arm64" ;;
     *) arch="$(uname -m)" ;;
   esac
-  url="$${BINARY_URL//\{arch\}/$arch}"
+  target="$arch"
+  # x64 builds without the baseline suffix need AVX2.
+  if [ "$arch" = "x64" ] && [ -r /proc/cpuinfo ] && ! grep -qwi avx2 /proc/cpuinfo; then
+    target="$target-baseline"
+  fi
+  if is_musl; then
+    target="$target-musl"
+  fi
+  echo "$target"
+}
+
+# Fail early with a clear message instead of a half-finished install.
+require_tools() {
+  local tool
+  for tool in "$@"; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      echo "ERROR: '$tool' is required to unpack OpenCode; add it to the image (for example 'microdnf install -y tar gzip' on ubi-minimal)." >&2
+      exit 1
+    fi
+  done
+}
+
+# Install from a binary or release archive, e.g. an internal artifact mirror.
+install_from_binary_url() {
+  local arch target url download bin
+  target="$(opencode_target)"
+  arch="$${target%%-*}"
+  url="$${BINARY_URL//\{target\}/$target}"
+  url="$${url//\{arch\}/$arch}"
+  if is_musl && [[ "$BINARY_URL" != *"{target}"* ]]; then
+    echo "WARNING: this system uses musl libc; make sure $url is a -musl build, or use {target} in binary_url." >&2
+  fi
   download="$workdir/download"
   echo "Downloading OpenCode from $url"
   curl -fsSL --retry 3 "$url" -o "$download"
   case "$url" in
     *.tar.gz | *.tgz)
+      require_tools tar gzip
       tar -xzf "$download" -C "$workdir"
       bin="$workdir/opencode"
       ;;
     *.zip)
+      require_tools unzip
       unzip -oq "$download" -d "$workdir"
       bin="$workdir/opencode"
       ;;
@@ -68,6 +109,7 @@ elif [ "$INSTALL_OPENCODE" = "true" ]; then
     install_from_binary_url
   else
     echo "Installing OpenCode $${OPENCODE_VERSION:-latest 1.x} from $INSTALL_URL"
+    require_tools tar gzip
     installer="$workdir/install.sh"
     curl -fsSL --retry 3 "$INSTALL_URL" -o "$installer"
     if [ -n "$OPENCODE_VERSION" ]; then
@@ -88,7 +130,13 @@ if ! command -v "$oc" >/dev/null 2>&1; then
   exit 1
 fi
 
-version="$("$oc" --version)"
+if ! version="$("$oc" --version 2> "$workdir/version.err")"; then
+  echo "ERROR: $oc --version failed: $(head -n 3 "$workdir/version.err")" >&2
+  if is_musl; then
+    echo "This system uses musl libc (for example Alpine). OpenCode needs a -musl build and the C++ runtime: apk add libstdc++ libgcc" >&2
+  fi
+  exit 1
+fi
 case "$version" in
   1.*) ;;
   *)

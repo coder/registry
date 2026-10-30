@@ -83,7 +83,7 @@ variable "wait_for_scripts" {
 }
 
 variable "binary_url" {
-  description = "URL of an OpenCode 1.x Linux binary or release archive (`.tar.gz` or `.zip`) to install instead of running the installer, for example an internal artifact mirror. `{arch}` is replaced with `x64` or `arm64`. Ignored when `install_opencode = false`."
+  description = "URL of an OpenCode 1.x Linux binary or release archive (`.tar.gz` or `.zip`) to install instead of running the installer, for example an internal artifact mirror. `{target}` is replaced with the OpenCode release target (for example `x64`, `x64-musl` or `arm64-musl`), detecting musl libc and x64 CPUs without AVX2; `{arch}` is replaced with `x64` or `arm64`. Ignored when `install_opencode = false`."
   type        = string
   default     = ""
 }
