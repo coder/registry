@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ARG_MODULE_DIR="${ARG_MODULE_DIR}"
+ARG_PORT='${ARG_PORT}'
+ARG_COMMAND=$(echo -n '${ARG_COMMAND}' | base64 -d)
+ARG_ENV=$(echo -n '${ARG_ENV}' | base64 -d)
+ARG_EXTRA_ARGS=$(echo -n '${ARG_EXTRA_ARGS}' | base64 -d)
+
+port_open() {
+  (exec 3<> "/dev/tcp/127.0.0.1/$${ARG_PORT}") 2> /dev/null
+}
+
+if port_open; then
+  echo "xpra already serves on port $${ARG_PORT}."
+  exit 0
+fi
+
+mkdir -p "$${ARG_MODULE_DIR}/logs" "$${ARG_MODULE_DIR}/openbox"
+
+# Maximize normal windows without decorations. Dialogs keep their size.
+cat > "$${ARG_MODULE_DIR}/openbox/rc.xml" << 'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<openbox_config xmlns="http://openbox.org/3.4/rc">
+  <applications>
+    <application class="*" type="normal">
+      <decor>no</decor>
+      <maximized>yes</maximized>
+    </application>
+  </applications>
+</openbox_config>
+XML
+
+# Java apps draw blank windows under non-reparenting window managers without this.
+export _JAVA_AWT_WM_NONREPARENTING=1
+while IFS= read -r line; do
+  [ -n "$${line}" ] || continue
+  export "$${line%%=*}=$(echo -n "$${line#*=}" | base64 -d)"
+done <<< "$${ARG_ENV}"
+
+extra_args=()
+while IFS= read -r arg; do
+  [ -n "$${arg}" ] || continue
+  extra_args+=("$(echo -n "$${arg}" | base64 -d)")
+done <<< "$${ARG_EXTRA_ARGS}"
+
+xpra desktop \
+  --daemon=yes \
+  --bind-tcp="127.0.0.1:$${ARG_PORT}" \
+  --html=on \
+  --start="openbox --config-file $${ARG_MODULE_DIR}/openbox/rc.xml" \
+  --start-child="$${ARG_COMMAND}" \
+  --exit-with-children=yes \
+  --resize-display=yes \
+  --mdns=no \
+  --pulseaudio=no \
+  --speaker=no \
+  --microphone=no \
+  --webcam=no \
+  --printing=no \
+  --notifications=no \
+  --systemd-run=no \
+  --log-dir="$${ARG_MODULE_DIR}/logs" \
+  --log-file=xpra.log \
+  "$${extra_args[@]}"
+
+for _ in $(seq 1 60); do
+  if port_open; then
+    echo "xpra serves on port $${ARG_PORT}."
+    exit 0
+  fi
+  sleep 1
+done
+
+echo "ERROR: xpra did not start on port $${ARG_PORT}. See $${ARG_MODULE_DIR}/logs/xpra.log."
+exit 1
