@@ -15,7 +15,11 @@ exits, Agent Relay deletes the workspace.
 
 ## Prerequisites
 
-- Coder 2.39.0 or newer, and Agent Relay v0.14.0 or newer.
+- Coder 2.39.0 or newer, and Agent Relay v0.14.0 or newer, which the 1.0.0
+  runner modules require. On an older deployment, pin
+  `agent-relay-claude-code` to `0.4.0` and `agent-relay-cursor` to `0.7.0`;
+  those releases receive the relay's credential as a build parameter instead
+  of a workspace secret.
 - A Docker host the provisioner can reach. The
   [Docker Containers](../docker/README.md) template covers giving Coder access
   to the Docker socket.
