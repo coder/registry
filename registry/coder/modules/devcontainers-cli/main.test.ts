@@ -7,6 +7,7 @@ import {
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
+  writeFileContainer,
 } from "~test";
 import {
   SCRIPT_BIN_DIR,
@@ -78,11 +79,10 @@ describe("devcontainers-cli", async () => {
     );
   });
 
-  it("passes the configured version and registry to every package manager", async () => {
+  it("passes the pinned version without overriding package-manager registries", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "some-agent-id",
       devcontainers_cli_version: "0.80.0",
-      registry_url: "https://registry.example.com/npm",
     });
     const cases = [
       [
@@ -114,11 +114,7 @@ describe("devcontainers-cli", async () => {
       });
 
       expect(output.exitCode).toBe(0);
-      expect(output.packageManagerArgs).toEqual([
-        ...expectedArgs,
-        "--registry",
-        "https://registry.example.com/npm",
-      ]);
+      expect(output.packageManagerArgs).toEqual([...expectedArgs]);
     }
   });
 
@@ -150,7 +146,7 @@ describe("devcontainers-cli", async () => {
     ]);
   });
 
-  it("installs and runs a pinned devcontainers CLI with npm", async () => {
+  it("uses npm registry configuration to install and run a pinned CLI", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "some-agent-id",
       devcontainers_cli_version: "0.80.0",
@@ -169,6 +165,23 @@ describe("devcontainers-cli", async () => {
 
     try {
       await execContainer(containerID, ["mkdir", "-p", SCRIPT_BIN_DIR]);
+      const npmrc = "registry=http://127.0.0.1:9/\nfetch-retries=0\n";
+      await writeFileContainer(containerID, "/root/.npmrc", npmrc);
+      const unavailableRegistry = await execContainer(
+        containerID,
+        ["sh", "-c", instance.script],
+        env,
+      );
+      expect(unavailableRegistry.exitCode).not.toBe(0);
+      expect(unavailableRegistry.stderr).toContain("127.0.0.1:9");
+      const config = await execContainer(containerID, ["cat", "/root/.npmrc"]);
+      expect(config.stdout).toBe(npmrc);
+
+      await writeFileContainer(
+        containerID,
+        "/root/.npmrc",
+        "registry=https://registry.npmjs.org/\n",
+      );
       const install = await execContainer(
         containerID,
         ["sh", "-c", instance.script],

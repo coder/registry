@@ -6,14 +6,6 @@ DEVCONTAINERS_CLI_VERSION=$(printf '%s' "${DEVCONTAINERS_CLI_VERSION_B64}" | bas
   exit 1
 }
 
-REGISTRY_URL=""
-if [ -n "${REGISTRY_URL_B64}" ]; then
-  REGISTRY_URL=$(printf '%s' "${REGISTRY_URL_B64}" | base64 -d) || {
-    echo "ERROR: Failed to decode registry_url." >&2
-    exit 1
-  }
-fi
-
 PACKAGE_SPEC="@devcontainers/cli@$DEVCONTAINERS_CLI_VERSION"
 
 # We want to cd into `$CODER_SCRIPT_DATA_DIR` as the current directory
@@ -67,10 +59,6 @@ install() {
       return 1
       ;;
   esac
-
-  if [ -n "$REGISTRY_URL" ]; then
-    set -- "$@" --registry "$REGISTRY_URL"
-  fi
 
   "$PACKAGE_MANAGER" "$@"
 }

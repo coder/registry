@@ -40,21 +40,18 @@ module "devcontainers-cli" {
 
 ## Use an internal registry
 
-Restricted environments can route installation through an npm-compatible registry mirror:
+Configure the selected package manager's registry and authentication before this module's installation script runs, under the same workspace user. The module uses that existing configuration without overriding the registry or storing credentials.
 
-```tf
-module "devcontainers-cli" {
-  source       = "registry.coder.com/coder/devcontainers-cli/coder"
-  version      = "1.2.0"
-  agent_id     = coder_agent.example.id
-  registry_url = "https://registry.example.com/npm"
-}
+For example, preconfigure npm's user-level `.npmrc` with your internal mirror:
+
+```ini
+registry=https://registry.example.com/npm/
 ```
 
-When `registry_url` is unset, the selected package manager uses its existing registry configuration. Authentication remains in that package manager's configuration; the module does not accept or store registry credentials.
+For Artifactory, the [JFrog OAuth module](../jfrog-oauth) can configure npm and pnpm authentication. Ensure that configuration has completed before the devcontainers CLI installation starts. If Yarn is installed, configure Yarn's registry and authentication as well, since this module selects Yarn first.
 
 ## Network and air-gapped environments
 
-During installation, the selected package manager contacts `registry_url`, or its configured registry when the variable is unset, to resolve and download `@devcontainers/cli` and its dependencies. An internal mirror must serve both package metadata and referenced package artifacts.
+During installation, the selected package manager contacts its configured registry to resolve and download `@devcontainers/cli` and its dependencies. An internal mirror must serve both package metadata and referenced package artifacts.
 
 The module makes no network requests after installation. Commands run through `devcontainer` can still contact the Docker daemon, image registries, and sources referenced by the workspace's Dev Container configuration. For a fully air-gapped workspace, bake the CLI and required container artifacts into the image; when `devcontainer` is already on `PATH`, this module skips installation.
