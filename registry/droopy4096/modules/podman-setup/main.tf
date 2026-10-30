@@ -43,14 +43,14 @@ variable "disable_buildkit" {
   default     = true
 }
 
-variable "extra_tools" {
-  description = "Container tools to provide next to Podman: `buildah` and/or `skopeo`. Missing tools are installed with the image package manager (apt, dnf, microdnf, yum, apk or zypper) when the install script runs as root or has passwordless sudo; otherwise the script prints a warning. Set to `[]` to skip."
+variable "required_tools" {
+  description = "Commands the image must provide besides `podman`, for example `[\"buildah\", \"skopeo\"]`. The install script fails and lists every missing one. This module installs nothing."
   type        = list(string)
-  default     = ["buildah", "skopeo"]
+  default     = []
 
   validation {
-    condition     = alltrue([for t in var.extra_tools : contains(["buildah", "skopeo"], t)])
-    error_message = "extra_tools may only contain \"buildah\" and \"skopeo\"."
+    condition     = alltrue([for t in var.required_tools : can(regex("^[A-Za-z0-9._+-]+$", t))])
+    error_message = "required_tools entries must be plain command names."
   }
 }
 
@@ -61,11 +61,11 @@ variable "icon" {
 }
 
 locals {
-  module_directory = "$HOME/.coder-modules/droopy4096/podman-rootless"
+  module_directory = "$HOME/.coder-modules/droopy4096/podman-setup"
 
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_NATIVE_OVERLAY = tostring(var.native_overlay)
-    ARG_TOOLS          = join(" ", distinct(var.extra_tools))
+    ARG_REQUIRED_TOOLS = join(" ", distinct(var.required_tools))
   })
 
   start_script = templatefile("${path.module}/scripts/start.sh.tftpl", {

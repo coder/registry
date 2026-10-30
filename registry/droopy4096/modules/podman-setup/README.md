@@ -1,19 +1,19 @@
 ---
-display_name: Rootless Podman
-description: Configure rootless Podman with native overlay storage and a Docker-compatible socket in Kubernetes workspaces.
+display_name: Podman Setup
+description: Configure the rootless Podman an image provides, with native overlay storage, a Docker-compatible socket, and checks for required tools.
 icon: ../../../../.icons/docker.svg
 verified: false
 tags: [helper, podman, docker, containers, kubernetes]
 ---
 
-# Rootless Podman
+# Podman Setup
 
-Sets up [rootless Podman](https://github.com/containers/podman/blob/main/docs/tutorials/rootless_tutorial.md) inside a workspace so you can run and build containers without a privileged pod, Sysbox, or a VM runtime.
+Configures the [rootless Podman](https://github.com/containers/podman/blob/main/docs/tutorials/rootless_tutorial.md) that the workspace image provides, so you can run and build containers without a privileged pod, Sysbox, or a VM runtime.
 
 ```tf
 module "podman" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/droopy4096/podman-rootless/coder"
+  source   = "registry.coder.com/droopy4096/podman-setup/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
 }
@@ -24,9 +24,9 @@ The module:
 - Switches Podman to kernel overlayfs by writing `~/.config/containers/storage.conf` with an empty `mount_program`, so no `/dev/fuse` device plugin is needed. A `storage.conf` you manage yourself is left alone.
 - Starts the Docker-compatible API (`podman system service`) on `/tmp/podman.sock` and exports `DOCKER_HOST`, so the docker CLI, Compose, and Testcontainers work unchanged.
 - Exports `DOCKER_BUILDKIT=0`, because BuildKit can't start inside the workspace. `podman build` (Buildah) still supports `RUN --mount=type=cache` and secrets; `docker buildx` is not supported.
-- Provides Buildah and Skopeo, installing them if the image lacks them and the script can run as root or with passwordless sudo. See [Buildah and Skopeo](#buildah-and-skopeo).
+- Checks that `podman`, and anything listed in `required_tools` (for example `buildah` and `skopeo`), is in the image, and fails with one clear error listing what is missing. See [Required tools](#required-tools).
 
-It does not install Podman itself or change the pod spec. Those belong to the image and template; see [Prerequisites](#prerequisites).
+It installs nothing and doesn't change the pod spec. Podman, any other tools, and the rootless prerequisites come from the image and template; see [Prerequisites](#prerequisites).
 
 ## Prerequisites
 
@@ -46,7 +46,7 @@ With a persistent home volume, set `fs_group_change_policy = "OnRootMismatch"` i
 ```tf
 module "podman" {
   count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/droopy4096/podman-rootless/coder"
+  source   = "registry.coder.com/droopy4096/podman-setup/coder"
   version  = "1.0.0"
   agent_id = coder_agent.main.id
 }
@@ -88,7 +88,7 @@ Skip the socket and keep BuildKit settings untouched:
 ```tf
 module "podman" {
   count            = data.coder_workspace.me.start_count
-  source           = "registry.coder.com/droopy4096/podman-rootless/coder"
+  source           = "registry.coder.com/droopy4096/podman-setup/coder"
   version          = "1.0.0"
   agent_id         = coder_agent.main.id
   socket           = false
@@ -96,11 +96,21 @@ module "podman" {
 }
 ```
 
-## Buildah and Skopeo
+## Required tools
 
-`extra_tools` (default `["buildah", "skopeo"]`) makes both tools available next to Podman. They read the same storage and registry configuration as Podman, so an image built with `buildah` shows up in `podman images`, and `skopeo` can inspect or copy it through `containers-storage:`.
+The module checks for `podman` on every start. Add anything else your workspaces depend on to `required_tools`, and the install script fails with one error that lists every missing command and the package to add:
 
-If a tool is missing, the install script installs it with apt, dnf, microdnf, yum, apk or zypper, but only when it runs as root or the user has passwordless sudo. Pods that run as non-root (as in the example above) usually have neither, so the script prints a warning and Podman setup continues. Baking the packages into the image avoids that, and avoids reinstalling them on every start. They are called `buildah` and `skopeo` on Debian, Ubuntu, Fedora, Red Hat UBI 9 and Alpine:
+```tf
+module "podman" {
+  count          = data.coder_workspace.me.start_count
+  source         = "registry.coder.com/droopy4096/podman-setup/coder"
+  version        = "1.0.0"
+  agent_id       = coder_agent.main.id
+  required_tools = ["buildah", "skopeo"]
+}
+```
+
+Buildah and Skopeo read the same storage and registry configuration as Podman, so an image built with `buildah` shows up in `podman images`, and `skopeo` can inspect or copy it through `containers-storage:`. The packages have the same names on Debian, Ubuntu, Fedora, Red Hat UBI 9 and Alpine:
 
 ```dockerfile
 # Debian or Ubuntu
@@ -111,19 +121,11 @@ RUN dnf install -y buildah skopeo
 RUN apk add --no-cache buildah skopeo
 ```
 
-Set `extra_tools = []` to skip them.
+When Buildah or Skopeo is present, the install log records its version even if it isn't required.
 
 ## Network access and air-gapped environments
 
-The module itself downloads nothing. The only network access it can cause is installing a missing `extra_tools` package, which goes to whatever repositories the image's package manager is configured for:
-
-| Image family  | Default repositories                   | Avoid it by                                                                                          |
-| ------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Debian/Ubuntu | `deb.debian.org`, `archive.ubuntu.com` | Baking `buildah`/`skopeo` into the image, `extra_tools = []`, or an internal apt mirror in the image |
-| Fedora/UBI 9  | Fedora mirrors, `cdn-ubi.redhat.com`   | Same, or an internal dnf repository in `/etc/yum.repos.d`                                            |
-| Alpine        | `dl-cdn.alpinelinux.org`               | Same, or an internal mirror in `/etc/apk/repositories`                                               |
-
-Because installs use the image's own repository configuration, pointing that configuration at an internal mirror is enough for air-gapped clusters. Image pulls by Podman, Buildah and Skopeo follow `registries.conf` (`/etc/containers/registries.conf` or `~/.config/containers/registries.conf`), where you can set mirrors for public registries.
+The module downloads nothing, so it works unchanged in air-gapped clusters. Image pulls by Podman, Buildah and Skopeo follow `registries.conf` (`/etc/containers/registries.conf` or `~/.config/containers/registries.conf`), where you can point public registries at an internal mirror.
 
 ## Dev containers
 
@@ -131,4 +133,4 @@ Rootless Podman supports one level of nesting. The dev container `docker-in-dock
 
 ## Troubleshooting
 
-Logs live in `~/.coder-modules/droopy4096/podman-rootless/logs/` (`install.log`, `start.log`, `podman-service.log`). `podman info` shows whether Podman runs rootless and which storage driver it uses.
+Logs live in `~/.coder-modules/droopy4096/podman-setup/logs/` (`install.log`, `start.log`, `podman-service.log`). `podman info` shows whether Podman runs rootless and which storage driver it uses.

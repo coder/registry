@@ -86,22 +86,22 @@ run "relative_socket_rejected" {
   expect_failures = [var.socket_path]
 }
 
-run "extra_tools_empty_allowed" {
+run "required_tools_accepts_commands" {
   command = plan
 
   variables {
-    agent_id    = "example-agent-id"
-    extra_tools = []
+    agent_id       = "example-agent-id"
+    required_tools = ["buildah", "skopeo"]
   }
 }
 
-run "extra_tools_rejects_other_packages" {
+run "required_tools_rejects_shell_syntax" {
   command = plan
 
   variables {
-    agent_id    = "example-agent-id"
-    extra_tools = ["buildah", "curl"]
+    agent_id       = "example-agent-id"
+    required_tools = ["buildah; rm -rf /"]
   }
 
-  expect_failures = [var.extra_tools]
+  expect_failures = [var.required_tools]
 }

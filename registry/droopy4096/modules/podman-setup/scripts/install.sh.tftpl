@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NATIVE_OVERLAY="${ARG_NATIVE_OVERLAY}"
+REQUIRED_TOOLS="${ARG_REQUIRED_TOOLS}"
+
+# This module configures what the image provides; it installs nothing. Check
+# everything up front so one error lists every missing tool.
+missing=()
+for tool in podman $REQUIRED_TOOLS; do
+  command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+done
+if [ "$${#missing[@]}" -gt 0 ]; then
+  echo "ERROR: required tools missing from the image: $${missing[*]}." >&2
+  echo "Add them to the image, for example:" >&2
+  echo "  Debian/Ubuntu: apt-get install -y $${missing[*]}" >&2
+  echo "  Fedora/UBI:    dnf install -y $${missing[*]}" >&2
+  echo "  Alpine:        apk add $${missing[*]}" >&2
+  if ! command -v podman >/dev/null 2>&1; then
+    echo "For rootless Podman, start from an image such as codercom/example-podman:ubuntu." >&2
+  fi
+  exit 1
+fi
+
+conf_dir="$${XDG_CONFIG_HOME:-$HOME/.config}/containers"
+conf_file="$conf_dir/storage.conf"
+marker="# Managed by the droopy4096/podman-setup Coder module."
+
+if [ "$NATIVE_OVERLAY" = "true" ]; then
+  if [ -f "$conf_file" ] && ! grep -qF "$marker" "$conf_file"; then
+    echo "Leaving user-managed $conf_file alone."
+  else
+    mkdir -p "$conf_dir"
+    # Images often pin fuse-overlayfs in /etc/containers/storage.conf; an empty
+    # mount_program switches to kernel overlayfs (no /dev/fuse needed).
+    cat > "$conf_file" <<CONF
+$marker
+[storage]
+driver = "overlay"
+
+[storage.options.overlay]
+mount_program = ""
+CONF
+    echo "Configured native overlay storage in $conf_file."
+  fi
+fi
+
+podman info --format 'Podman {{.Version.Version}}: rootless={{.Host.Security.Rootless}} driver={{.Store.GraphDriverName}} graphroot={{.Store.GraphRoot}}'
+# Report Buildah and Skopeo when the image has them, required or not.
+for tool in buildah skopeo; do
+  if command -v "$tool" >/dev/null 2>&1; then
+    "$tool" --version
+  fi
+done
