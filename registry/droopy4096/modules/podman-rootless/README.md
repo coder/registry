@@ -113,6 +113,18 @@ RUN apk add --no-cache buildah skopeo
 
 Set `extra_tools = []` to skip them.
 
+## Network access and air-gapped environments
+
+The module itself downloads nothing. The only network access it can cause is installing a missing `extra_tools` package, which goes to whatever repositories the image's package manager is configured for:
+
+| Image family  | Default repositories                   | Avoid it by                                                                                          |
+| ------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Debian/Ubuntu | `deb.debian.org`, `archive.ubuntu.com` | Baking `buildah`/`skopeo` into the image, `extra_tools = []`, or an internal apt mirror in the image |
+| Fedora/UBI 9  | Fedora mirrors, `cdn-ubi.redhat.com`   | Same, or an internal dnf repository in `/etc/yum.repos.d`                                            |
+| Alpine        | `dl-cdn.alpinelinux.org`               | Same, or an internal mirror in `/etc/apk/repositories`                                               |
+
+Because installs use the image's own repository configuration, pointing that configuration at an internal mirror is enough for air-gapped clusters. Image pulls by Podman, Buildah and Skopeo follow `registries.conf` (`/etc/containers/registries.conf` or `~/.config/containers/registries.conf`), where you can set mirrors for public registries.
+
 ## Dev containers
 
 Rootless Podman supports one level of nesting. The dev container `docker-in-docker` feature won't work; use `docker-outside-of-docker`, mount `/tmp/podman.sock` to `/var/run/docker-host.sock`, and run `devcontainer up --buildkit never`.
