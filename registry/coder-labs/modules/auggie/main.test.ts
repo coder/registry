@@ -6,15 +6,50 @@ import {
   beforeAll,
   expect,
 } from "bun:test";
-import { execContainer, readFileContainer, runTerraformInit } from "~test";
 import {
-  loadTestFile,
+  execContainer,
+  readFileContainer,
+  removeContainer,
+  runContainer,
+  runTerraformApply,
+  runTerraformInit,
+  TerraformState,
+} from "~test";
+import {
+  extractCoderEnvVars,
   writeExecutable,
-  setup as setupUtil,
-  execModuleScript,
-  expectAgentAPIStarted,
 } from "../../../coder/modules/agentapi/test-util";
-import dedent from "dedent";
+import path from "path";
+
+interface ModuleScripts {
+  pre_install?: string;
+  install: string;
+  post_install?: string;
+}
+
+const collectScripts = (state: TerraformState): ModuleScripts => {
+  const byDisplayName: Record<string, string> = {};
+  for (const resource of state.resources) {
+    if (resource.type !== "coder_script") continue;
+    for (const instance of resource.instances) {
+      const attrs = instance.attributes as Record<string, unknown>;
+      const displayName = attrs.display_name as string | undefined;
+      const script = attrs.script as string | undefined;
+      if (displayName && script) {
+        byDisplayName[displayName] = script;
+      }
+    }
+  }
+  const scripts: ModuleScripts = {
+    pre_install: byDisplayName["Auggie: Pre-Install Script"],
+    install: byDisplayName["Auggie: Install Script"],
+    post_install: byDisplayName["Auggie: Post-Install Script"],
+  };
+  if (!scripts.install) {
+    throw new Error("install script not found in terraform state");
+  }
+  return scripts;
+};
 
 let cleanupFunctions: (() => Promise<void>)[] = [];
 const registerCleanup = (cleanup: () => Promise<void>) => {
@@ -33,35 +68,130 @@ afterEach(async () => {
 });
 
 interface SetupProps {
-  skipAgentAPIMock?: boolean;
   skipAuggieMock?: boolean;
   moduleVariables?: Record<string, string>;
-  agentapiMockScript?: string;
 }
 
-const setup = async (props?: SetupProps): Promise<{ id: string }> => {
-  const projectDir = "/home/coder/project";
-  const { id } = await setupUtil({
-    moduleDir: import.meta.dir,
-    moduleVariables: {
-      install_auggie: props?.skipAuggieMock ? "true" : "false",
-      install_agentapi: props?.skipAgentAPIMock ? "true" : "false",
-      folder: projectDir,
-      ...props?.moduleVariables,
-    },
-    registerCleanup,
-    projectDir,
-    skipAgentAPIMock: props?.skipAgentAPIMock,
-    agentapiMockScript: props?.agentapiMockScript,
+const projectDir = "/home/coder/project";
+const moduleDir = path.resolve(import.meta.dir);
+
+const setup = async (
+  props?: SetupProps,
+): Promise<{
+  id: string;
+  coderEnvVars: Record<string, string>;
+  scripts: ModuleScripts;
+}> => {
+  const state = await runTerraformApply(moduleDir, {
+    agent_id: "foo",
+    workdir: projectDir,
+    install_auggie: "false",
+    ...props?.moduleVariables,
+  });
+  const scripts = collectScripts(state);
+  const coderEnvVars = extractCoderEnvVars(state);
+
+  const id = await runContainer("codercom/enterprise-node:latest");
+  registerCleanup(async () => {
+    if (process.env["DEBUG"] === "true" || process.env["DEBUG"] === "1") {
+      console.log(`Not removing container ${id} in debug mode`);
+      return;
+    }
+    await removeContainer(id);
+  });
+
+  await writeExecutable({
+    containerId: id,
+    filePath: "/usr/bin/coder",
+    content: "#!/bin/bash\nexit 0\n",
   });
   if (!props?.skipAuggieMock) {
     await writeExecutable({
       containerId: id,
       filePath: "/usr/bin/auggie",
-      content: await loadTestFile(import.meta.dir, "auggie-mock.sh"),
+      content: await auggieMock(),
     });
   }
-  return { id };
+  return { id, coderEnvVars, scripts };
+};
+
+const auggieMock = () =>
+  Bun.file(path.join(moduleDir, "testdata", "auggie-mock.sh")).text();
+
+// coder_env values reach coder_script processes through the agent environment.
+const envArgs = (env: Record<string, string>) =>
+  Object.entries(env).flatMap(([key, value]) => ["--env", `${key}=${value}`]);
+
+const runScript = async (
+  id: string,
+  name: string,
+  script: string,
+  env: Record<string, string> = {},
+) => {
+  const target = `/tmp/coder-utils-${name}.sh`;
+  await writeExecutable({ containerId: id, filePath: target, content: script });
+  return execContainer(id, ["bash", "-c", target], envArgs(env));
+};
+
+const runScripts = async (
+  id: string,
+  scripts: ModuleScripts,
+  env: Record<string, string> = {},
+) => {
+  const ordered: [string, string | undefined][] = [
+    ["pre_install", scripts.pre_install],
+    ["install", scripts.install],
+    ["post_install", scripts.post_install],
+  ];
+  for (const [name, script] of ordered) {
+    if (!script) continue;
+    const resp = await runScript(id, name, script, env);
+    if (resp.exitCode !== 0) {
+      console.log(`script ${name} failed:`);
+      console.log(resp.stdout);
+      console.log(resp.stderr);
+      throw new Error(`coder-utils ${name} script exited ${resp.exitCode}`);
+    }
+  }
+};
+
+const moduleLogDir = "/home/coder/.coder-modules/coder-labs/auggie/logs";
+const installLog = (id: string) =>
+  readFileContainer(id, `${moduleLogDir}/install.log`);
+const settingsPath = "/home/coder/.augment/settings.json";
+const rulesPath = "/home/coder/.augment/rules/coder-module.md";
+
+const seedFile = async (id: string, filePath: string, content: string) => {
+  const encoded = Buffer.from(content).toString("base64");
+  await execContainer(id, [
+    "bash",
+    "-c",
+    `mkdir -p "$(dirname '${filePath}')" && echo '${encoded}' | base64 -d > '${filePath}'`,
+  ]);
+};
+
+// Replaces npm with a stub that records its arguments and installs the
+// Auggie mock into the npm-global prefix.
+const mockNpm = async (id: string) => {
+  await writeExecutable({
+    containerId: id,
+    filePath: "/tmp/auggie-mock-fixture.sh",
+    content: await auggieMock(),
+  });
+  await writeExecutable({
+    containerId: id,
+    filePath: "/usr/local/bin/npm",
+    content: [
+      "#!/bin/bash",
+      'echo "$*" >> /tmp/npm-calls',
+      'if [ "$1" = "--version" ]; then echo 11.0.0; fi',
+      'if [ "$1" = "install" ]; then',
+      '  mkdir -p "$HOME/.npm-global/bin"',
+      '  cp /tmp/auggie-mock-fixture.sh "$HOME/.npm-global/bin/auggie"',
+      '  chmod +x "$HOME/.npm-global/bin/auggie"',
+      "fi",
+    ].join("\n"),
+  });
 };
 
 setDefaultTimeout(60 * 1000);
@@ -71,278 +201,226 @@ describe("auggie", async () => {
     await runTerraformInit(import.meta.dir);
   });
 
-  test("happy-path", async () => {
-    const { id } = await setup();
-    await execModuleScript(id);
-    await expectAgentAPIStarted(id);
+  test("happy-path-validates-existing-binary", async () => {
+    const { id, scripts } = await setup();
+    await runScripts(id, scripts);
+    const log = await installLog(id);
+    expect(log).toContain("Skipping Auggie CLI installation");
+    expect(log).toContain("Validated existing Auggie CLI");
+    expect(log).toContain("Auggie CLI version: 0.36.0 (commit mock)");
+    expect(log).toContain("Auggie module setup completed.");
+    expect(log).not.toContain("agentapi");
+    const settings = await execContainer(id, ["test", "-e", settingsPath]);
+    expect(settings.exitCode).not.toBe(0);
+    const rules = await execContainer(id, ["test", "-e", rulesPath]);
+    expect(rules.exitCode).not.toBe(0);
   });
 
-  test("install-auggie-version", async () => {
-    const version_to_install = "0.3.0";
-    const { id } = await setup({
+  test("preinstalled-binary-required-when-install-disabled", async () => {
+    const { id, scripts } = await setup({ skipAuggieMock: true });
+    const resp = await runScript(id, "install", scripts.install);
+    expect(resp.exitCode).not.toBe(0);
+    const log = await installLog(id);
+    expect(log).toContain("was not found or is not executable");
+  });
+
+  test("npm-installs-pinned-version", async () => {
+    const { id, scripts } = await setup({
       skipAuggieMock: true,
-      moduleVariables: {
-        install_auggie: "true",
-        auggie_version: version_to_install,
-        pre_install_script: dedent`
-          #!/usr/bin/env bash
-          set -euo pipefail
-          
-          # Install Node.js and npm via system package manager
-          if ! command -v node >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y nodejs npm
-          fi
-          
-          # Configure npm to use user directory (avoids permission issues)
-          mkdir -p "$HOME/.npm-global"
-          npm config set prefix "$HOME/.npm-global"
-          
-          # Persist npm user directory configuration
-          echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.bashrc
-          echo "prefix=$HOME/.npm-global" > ~/.npmrc
-        `,
-      },
+      moduleVariables: { install_auggie: "true", auggie_version: "0.35.0" },
     });
-    await execModuleScript(id);
-    const resp = await execContainer(id, [
-      "bash",
-      "-c",
-      `cat /home/coder/.auggie-module/install.log`,
-    ]);
-    expect(resp.stdout).toContain(version_to_install);
+    await mockNpm(id);
+    await execContainer(id, ["mkdir", "-p", "/tmp/coder-bin"]);
+    await runScripts(id, scripts, { CODER_SCRIPT_BIN_DIR: "/tmp/coder-bin" });
+    const calls = await readFileContainer(id, "/tmp/npm-calls");
+    expect(calls).toContain("config set prefix /home/coder/.npm-global");
+    expect(calls).toContain("install -g @augmentcode/auggie@0.35.0");
+    const log = await installLog(id);
+    expect(log).toContain("Installed Auggie CLI");
+    const link = await execContainer(id, ["readlink", "/tmp/coder-bin/auggie"]);
+    expect(link.stdout.trim()).toBe("/home/coder/.npm-global/bin/auggie");
+    const bashrc = await readFileContainer(id, "/home/coder/.bashrc");
+    expect(bashrc).toContain("/home/coder/.npm-global/bin");
   });
 
-  test("check-latest-auggie-version-works", async () => {
-    const { id } = await setup({
+  test("npm-installs-latest-by-default", async () => {
+    const { id, scripts } = await setup({
       skipAuggieMock: true,
-      skipAgentAPIMock: true,
-      moduleVariables: {
-        install_auggie: "true",
-        pre_install_script: dedent`
-          #!/usr/bin/env bash
-          set -euo pipefail
-          
-          # Install Node.js and npm via system package manager
-          if ! command -v node >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y nodejs npm
-          fi
-          
-          # Configure npm to use user directory (avoids permission issues)
-          mkdir -p "$HOME/.npm-global"
-          npm config set prefix "$HOME/.npm-global"
-          
-          # Persist npm user directory configuration
-          echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.bashrc
-          echo "prefix=$HOME/.npm-global" > ~/.npmrc
-        `,
-      },
+      moduleVariables: { install_auggie: "true" },
     });
-    await execModuleScript(id);
-    await expectAgentAPIStarted(id);
+    await mockNpm(id);
+    await runScripts(id, scripts);
+    const calls = await readFileContainer(id, "/tmp/npm-calls");
+    expect(calls).toMatch(/install -g @augmentcode\/auggie$/m);
   });
 
-  test("auggie-session-token", async () => {
-    const sessionToken = "test-session-token-123";
-    const { id } = await setup({
-      moduleVariables: {
-        augment_session_token: sessionToken,
-      },
+  test("npm-failure-is-terminal", async () => {
+    const { id, scripts } = await setup({
+      skipAuggieMock: true,
+      moduleVariables: { install_auggie: "true" },
     });
-    await execModuleScript(id);
-
-    const envCheck = await execContainer(id, [
-      "bash",
-      "-c",
-      `env | grep AUGMENT_SESSION_AUTH || echo "AUGMENT_SESSION_AUTH not found"`,
-    ]);
-    expect(envCheck.stdout).toContain("AUGMENT_SESSION_AUTH");
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/local/bin/npm",
+      content:
+        '#!/bin/bash\nif [ "$1" = "install" ]; then exit 1; fi\necho 11.0.0\n',
+    });
+    const resp = await runScript(id, "install", scripts.install);
+    expect(resp.exitCode).not.toBe(0);
+    expect(await installLog(id)).toContain("Auggie CLI installation failed.");
   });
 
-  test("auggie-mcp-config", async () => {
-    const mcpConfig = JSON.stringify({
-      mcpServers: {
-        test: {
-          command: "test-cmd",
-          type: "stdio",
+  test("workdir-is-created", async () => {
+    const { id, scripts } = await setup();
+    await runScripts(id, scripts);
+    const dir = await execContainer(id, ["test", "-d", projectDir]);
+    expect(dir.exitCode).toBe(0);
+  });
+
+  test("mcp-and-mcp-files-existing-servers-win", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        mcp: JSON.stringify({
+          mcpServers: {
+            shared: { command: "module-command" },
+            extra: { command: "extra-command", args: ["--flag"] },
+          },
+        }),
+        mcp_files: JSON.stringify([
+          "/home/coder/mcp-a.json",
+          "/home/coder/missing.json",
+        ]),
+      },
+    });
+    await seedFile(
+      id,
+      "/home/coder/mcp-a.json",
+      JSON.stringify({
+        mcpServers: {
+          fromfile: { type: "http", url: "https://mcp.example.com/mcp" },
+          extra: { command: "file-command" },
         },
-      },
-    });
-    const { id } = await setup({
-      moduleVariables: {
-        mcp: mcpConfig,
-      },
-    });
-    await execModuleScript(id);
-
-    const resp = await readFileContainer(
-      id,
-      "/home/coder/.auggie-module/agentapi-start.log",
+      }),
     );
-    expect(resp).toContain("--mcp-config");
-  });
-
-  test("auggie-rules", async () => {
-    const rules = "Always use TypeScript for new files";
-    const { id } = await setup({
-      moduleVariables: {
-        install_auggie: "false", // Don't need to install auggie to test rules file creation
-        rules: rules,
-      },
-    });
-    await execModuleScript(id);
-
-    const rulesFile = await readFileContainer(
+    await seedFile(
       id,
-      "/home/coder/.augment/rules.md",
+      settingsPath,
+      JSON.stringify({
+        theme: "ansi",
+        mcpServers: { shared: { command: "existing-command" } },
+      }),
     );
-    expect(rulesFile).toContain(rules);
+    await runScripts(id, scripts);
+    const settings = JSON.parse(await readFileContainer(id, settingsPath));
+    expect(settings.theme).toBe("ansi");
+    expect(settings.mcpServers.shared.command).toBe("existing-command");
+    expect(settings.mcpServers.extra.command).toBe("extra-command");
+    expect(settings.mcpServers.fromfile.url).toBe(
+      "https://mcp.example.com/mcp",
+    );
+    expect(settings.mcpServers.coder).toBeUndefined();
+    const log = await installLog(id);
+    expect(log).toContain(
+      "MCP server 'shared' already exists in /home/coder/.augment/settings.json, keeping the existing one.",
+    );
+    expect(log).toContain("MCP server 'extra' already exists");
+    expect(log).toContain("Added MCP server 'fromfile'");
+    expect(log).toContain(
+      "MCP file /home/coder/missing.json is missing or not valid JSON",
+    );
+    expect(log).not.toContain("Saved MCP server");
   });
 
-  test("auggie-ai-task-prompt", async () => {
-    const prompt = "This is a task prompt for Auggie.";
-    const { id } = await setup({
-      moduleVariables: {
-        ai_prompt: prompt,
-      },
-    });
-    await execModuleScript(id);
-
-    const resp = await execContainer(id, [
-      "bash",
-      "-c",
-      `cat /home/coder/.auggie-module/agentapi-start.log`,
-    ]);
-    expect(resp.stdout).toContain(prompt);
+  test("rules-are-written-to-user-rules", async () => {
+    const rules = "# Project Guidelines\n\n- Use TypeScript";
+    const { id, scripts } = await setup({ moduleVariables: { rules } });
+    await runScripts(id, scripts);
+    expect((await readFileContainer(id, rulesPath)).trim()).toBe(rules);
   });
 
-  test("auggie-interaction-mode", async () => {
-    const mode = "compact";
-    const { id } = await setup({
-      moduleVariables: {
-        interaction_mode: mode,
-        ai_prompt: "test prompt",
-      },
-    });
-    await execModuleScript(id);
-
-    const startLog = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/.auggie-module/agentapi-start.log",
-    ]);
-    expect(startLog.stdout).toContain(`--${mode}`);
+  test("stale-rules-are-removed-when-rules-is-empty", async () => {
+    const { id, scripts } = await setup();
+    await seedFile(id, rulesPath, "# Old rules");
+    await runScripts(id, scripts);
+    const rules = await execContainer(id, ["test", "-e", rulesPath]);
+    expect(rules.exitCode).not.toBe(0);
   });
 
-  test("auggie-model", async () => {
-    const model = "gpt-4";
-    const { id } = await setup({
-      moduleVariables: {
-        auggie_model: model,
-        ai_prompt: "test prompt",
-      },
+  test("model-keeps-settings-permissions", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: { auggie_model: "sonnet4.5" },
     });
-    await execModuleScript(id);
-
-    const startLog = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/.auggie-module/agentapi-start.log",
-    ]);
-    expect(startLog.stdout).toContain(`--model ${model}`);
+    await seedFile(id, settingsPath, JSON.stringify({ autoUpdate: false }));
+    await execContainer(id, ["chmod", "600", settingsPath]);
+    await runScripts(id, scripts);
+    const mode = await execContainer(id, ["stat", "-c", "%a", settingsPath]);
+    expect(mode.stdout.trim()).toBe("600");
+    expect(JSON.parse(await readFileContainer(id, settingsPath)).model).toBe(
+      "sonnet4.5",
+    );
   });
 
-  test("auggie-continue-previous-conversation", async () => {
-    const { id } = await setup({
+  test("model-is-set-preserving-settings", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: { auggie_model: "sonnet4.5" },
+    });
+    await seedFile(
+      id,
+      settingsPath,
+      JSON.stringify({ model: "gpt5", autoUpdate: false }),
+    );
+    await runScripts(id, scripts);
+    const settings = JSON.parse(await readFileContainer(id, settingsPath));
+    expect(settings.model).toBe("sonnet4.5");
+    expect(settings.autoUpdate).toBe(false);
+  });
+
+  test("jsonc-settings-are-left-unchanged-for-model", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: { auggie_model: "sonnet4.5" },
+    });
+    const jsonc = '{\n  // user comment\n  "theme": "ansi",\n}\n';
+    await seedFile(id, settingsPath, jsonc);
+    await runScripts(id, scripts);
+    expect(await readFileContainer(id, settingsPath)).toBe(jsonc);
+    expect(await installLog(id)).toContain(
+      "is not a strict JSON object (comments or trailing commas); leaving the model unchanged.",
+    );
+  });
+
+  test("session-token-uses-coder-env-without-leaking", async () => {
+    const secret = "test-access-token-123";
+    const { id, coderEnvVars, scripts } = await setup({
       moduleVariables: {
-        continue_previous_conversation: "true",
-        ai_prompt: "test prompt",
+        augment_session_token: JSON.stringify({
+          accessToken: secret,
+          tenantURL: "https://d1.api.augmentcode.com/",
+          scopes: ["read", "write"],
+        }),
       },
     });
-    await execModuleScript(id);
-
-    const startLog = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/.auggie-module/agentapi-start.log",
-    ]);
-    expect(startLog.stdout).toContain("--continue");
+    expect(coderEnvVars["AUGMENT_SESSION_AUTH"]).toContain(secret);
+    expect(scripts.install).not.toContain(secret);
+    expect(scripts.install).not.toContain(
+      Buffer.from(coderEnvVars["AUGMENT_SESSION_AUTH"]).toString("base64"),
+    );
+    await runScripts(id, scripts, coderEnvVars);
+    expect(await installLog(id)).not.toContain(secret);
   });
 
   test("pre-post-install-scripts", async () => {
-    const { id } = await setup({
+    const { id, scripts } = await setup({
       moduleVariables: {
         pre_install_script: "#!/bin/bash\necho 'auggie-pre-install-script'",
         post_install_script: "#!/bin/bash\necho 'auggie-post-install-script'",
       },
     });
-    await execModuleScript(id);
-
-    const preInstallLog = await readFileContainer(
-      id,
-      "/home/coder/.auggie-module/pre_install.log",
-    );
-    expect(preInstallLog).toContain("auggie-pre-install-script");
-
-    const postInstallLog = await readFileContainer(
-      id,
-      "/home/coder/.auggie-module/post_install.log",
-    );
-    expect(postInstallLog).toContain("auggie-post-install-script");
-  });
-
-  test("folder-variable", async () => {
-    const folder = "/home/coder/auggie-test-folder";
-    const { id } = await setup({
-      skipAuggieMock: false,
-      moduleVariables: {
-        folder,
-      },
-    });
-    await execModuleScript(id);
-
-    const resp = await readFileContainer(
-      id,
-      "/home/coder/.auggie-module/agentapi-start.log",
-    );
-    expect(resp).toContain(folder);
-  });
-
-  test("coder-mcp-config-created", async () => {
-    const { id } = await setup({
-      moduleVariables: {
-        install_auggie: "false", // Don't need to install auggie to test MCP config creation
-      },
-    });
-    await execModuleScript(id);
-
-    const mcpConfig = await readFileContainer(
-      id,
-      "/home/coder/.augment/coder_mcp.json",
-    );
-    expect(mcpConfig).toContain("mcpServers");
-    expect(mcpConfig).toContain("coder");
-    expect(mcpConfig).toContain("CODER_MCP_APP_STATUS_SLUG");
-    expect(mcpConfig).toContain("CODER_MCP_AI_AGENTAPI_URL");
-  });
-
-  test("mcp-files-array", async () => {
-    const mcpFiles = ["/path/to/mcp1.json", "/path/to/mcp2.json"];
-    const { id } = await setup({
-      moduleVariables: {
-        mcp_files: JSON.stringify(mcpFiles),
-        ai_prompt: "test prompt",
-      },
-    });
-    await execModuleScript(id);
-
-    const startLog = await execContainer(id, [
-      "bash",
-      "-c",
-      "cat /home/coder/.auggie-module/agentapi-start.log",
-    ]);
-    expect(startLog.stdout).toContain("mcp1.json");
-    expect(startLog.stdout).toContain("mcp2.json");
+    await runScripts(id, scripts);
+    expect(
+      await readFileContainer(id, `${moduleLogDir}/pre_install.log`),
+    ).toContain("auggie-pre-install-script");
+    expect(
+      await readFileContainer(id, `${moduleLogDir}/post_install.log`),
+    ).toContain("auggie-post-install-script");
   });
 });
