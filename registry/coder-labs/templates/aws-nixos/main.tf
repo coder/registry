@@ -106,7 +106,8 @@ resource "coder_agent" "main" {
   arch  = local.instance.coder_arch
   os    = "linux"
   auth  = "token"
-  # The first boot rebuilds NixOS before starting the agent.
+  order = 0
+  # The provisioner starts this agent after the first-boot rebuild.
   connection_timeout = 1200
 
   metadata {
@@ -130,6 +131,27 @@ resource "coder_agent" "main" {
     timeout      = 30
     script       = "coder stat disk --path $HOME"
   }
+}
+
+# Root agent that rebuilds NixOS and then starts the main agent. It stays
+# connected because a disconnected agent marks the workspace unhealthy.
+resource "coder_agent" "provisioner" {
+  count = data.coder_workspace.me.start_count
+  arch  = local.instance.coder_arch
+  os    = "linux"
+  auth  = "token"
+  order = 1
+  # Only bash and curl stand between amazon-init and this agent.
+  connection_timeout = 300
+
+  display_apps {
+    vscode                 = false
+    vscode_insiders        = false
+    web_terminal           = false
+    ssh_helper             = false
+    port_forwarding_helper = false
+  }
+
   # Include staged-but-not-activated generations in the agent metadata.
   metadata {
     key          = "nixos"
@@ -138,6 +160,42 @@ resource "coder_agent" "main" {
     timeout      = 10
     script       = module.nix.version_command
   }
+  metadata {
+    key          = "rev"
+    display_name = "Applied revision"
+    interval     = 60
+    timeout      = 5
+    script       = "cut -c1-12 /var/lib/coder-nixos/flake.rev 2>/dev/null || echo none"
+  }
+}
+
+resource "coder_script" "nixos_rebuild" {
+  count        = data.coder_workspace.me.start_count
+  agent_id     = coder_agent.provisioner[0].id
+  display_name = "NixOS rebuild"
+  icon         = "/icon/nix.svg"
+  run_on_start = true
+  script       = <<-EOT
+    #!/usr/bin/env bash
+    trap '${module.amazon-init.start_agent_command}' EXIT
+    # Pass the script as an argument: on stdin, git or nix could read it.
+    bash -c "$(base64 -d <<< '${base64encode(module.nix.boot_script)}')"
+  EOT
+}
+
+# Gives the provisioner agent its own resource, so the UI can hide it.
+resource "terraform_data" "provisioner" {
+  count = data.coder_workspace.me.start_count
+  input = {
+    token       = coder_agent.provisioner[0].token
+    init_script = coder_agent.provisioner[0].init_script
+  }
+}
+
+resource "coder_metadata" "provisioner" {
+  count       = data.coder_workspace.me.start_count
+  resource_id = terraform_data.provisioner[0].id
+  hide        = true
 }
 
 module "code-server" {
@@ -197,10 +255,9 @@ module "amazon-init" {
 
   agent_token       = try(coder_agent.main[0].token, "")
   agent_init_script = try(coder_agent.main[0].init_script, "")
-  boot_script       = module.nix.boot_script
 
-  log_display_name = "NixOS"
-  log_icon         = "/icon/nix.svg"
+  provisioner_token       = try(terraform_data.provisioner[0].output.token, "")
+  provisioner_init_script = try(terraform_data.provisioner[0].output.init_script, "")
 }
 
 resource "aws_instance" "dev" {

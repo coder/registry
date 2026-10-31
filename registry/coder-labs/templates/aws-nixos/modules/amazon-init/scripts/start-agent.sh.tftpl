@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Hands the token to coder-agent.service and starts it. Run as root after the
+# machine is prepared, also after a failure: the workspace must stay reachable.
+set -euo pipefail
+export PATH="/run/current-system/sw/bin:$PATH"
+RUNTIME_DIR=$(printf '%s' '${ARG_RUNTIME_DIR}' | base64 -d)
+
+chown_handoff() {
+  local target
+  target=$(systemctl show coder-agent -p User --value 2>/dev/null || true)
+  [ -n "$target" ] || return 0
+  # The agent downloads its executable here but must not own the handoff directory.
+  install -d -m 0755 -o "$target" -- "$RUNTIME_DIR/bin"
+  chown "$target" "$RUNTIME_DIR/agent.env" "$RUNTIME_DIR/init.sh" 2>/dev/null || true
+}
+
+if systemctl is-active --quiet coder-agent; then
+  exit 0
+fi
+if ! systemctl cat coder-agent >/dev/null 2>&1; then
+  echo "coder-agent.service does not exist; the configuration never defined it." >&2
+  exit 1
+fi
+
+chown_handoff
+systemctl start coder-agent || true
+
+sleep 3
+if systemctl is-active --quiet coder-agent; then
+  echo "coder-agent is active."
+  exit 0
+fi
+
+echo "coder-agent failed to start." >&2
+journalctl -u coder-agent --no-pager --lines=30 >&2 2>/dev/null || true
+exit 1
