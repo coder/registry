@@ -59,12 +59,13 @@ Store each script as a `.tftpl` file under `scripts/`. Render it at **plan time*
 
 **Encoding rules for template variables:**
 
-| Value type                            | Terraform side                      | Template (`.tftpl`) side                       |
-| ------------------------------------- | ----------------------------------- | ---------------------------------------------- |
-| String / path                         | pass as-is                          | `ARG_FOO='${ARG_FOO}'`                         |
-| Boolean                               | `tostring(var.foo)`                 | `ARG_FOO='${ARG_FOO}'`                         |
-| Free-form string (may contain quotes) | `base64encode(var.foo)`             | `ARG_FOO=$(echo -n '${ARG_FOO}' \| base64 -d)` |
-| Object / list (JSON)                  | `base64encode(jsonencode(var.foo))` | `ARG_FOO=$(echo -n '${ARG_FOO}' \| base64 -d)` |
+| Value type                            | Terraform side                      | Template (`.tftpl`) side                                                               |
+| ------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------- |
+| String / path                         | pass as-is                          | `ARG_FOO='${ARG_FOO}'`                                                                 |
+| Boolean                               | `tostring(var.foo)`                 | `ARG_FOO='${ARG_FOO}'`                                                                 |
+| Free-form string (may contain quotes) | `base64encode(var.foo)`             | `ARG_FOO=$(echo -n '${ARG_FOO}' \| base64 -d)`                                         |
+| Object / list (JSON)                  | `base64encode(jsonencode(var.foo))` | `ARG_FOO=$(echo -n '${ARG_FOO}' \| base64 -d)`                                         |
+| CLI argument list (`additional_args`) | `base64encode(join("\n", var.foo))` | one argument per line; see [Extra CLI arguments](#extra-cli-arguments-additional_args) |
 
 In `.tftpl` files, write literal bash `$` as `$$` (e.g., `$${HOME}`) so Terraform does not treat them as template interpolations.
 
@@ -113,7 +114,7 @@ output "scripts" {
 
 ### Variable and output conventions
 
-Order variable blocks: `description` → `type` → `default` → `validation` → `sensitive`.
+Order variable blocks: `description` → `type` → `default` → `deprecated` → `validation` → `sensitive`.
 
 ```tf
 variable "api_key" {
@@ -128,6 +129,58 @@ variable "api_key" {
 - Every `output` block must have a `description`.
 - Use `count = condition ? 1 : 0` for optional singleton resources. Reserve `for_each` for maps/sets where resource identity matters.
 
+### Extra CLI arguments: `additional_args`
+
+When a module lets users pass extra arguments to a CLI it runs, name the input `additional_args` and make it a `list(string)` with one element per argument. Do not use `extra_args`, `additional_arguments`, `extra_flags`, a map, or a free-form string.
+
+- Pass each element exactly as written and in order, as one argument. The user writes the command line as they would type it: `["--depth", "1", "--recurse-submodules"]`, or `["--depth=1"]` where the CLI accepts it. A flag can repeat (`["--header", "a", "--header", "b"]`), which a map cannot do: Terraform silently keeps only the last value of a repeated map key.
+- Validate that no element is empty or contains a newline.
+- Add a second validation that rejects every flag the module already passes, checking each element with any `=value` stripped so `--port=1` is caught too. Put a comment beside both the list and the command in the script to keep them in sync. The check is best effort: it misses a short flag with its value attached (`-p8080`) and also rejects a value that happens to equal a reserved flag.
+- Pass the list to the script as `base64encode(join("\n", var.additional_args))`, not as JSON, so the script needs no `jq` and works in plain `sh`. Read it back one argument per line into an array or `set --`. Never word-split or `eval` it. If the arguments are written into another generated script, quote each one with `printf '%q'`.
+- If a module already has an input with another name for this, keep it working and add `additional_args` beside it. Deprecate the old input as described in [Deprecating inputs](#deprecating-inputs), and append its arguments after `additional_args`. (`code-server` and `ttyd` predate this rule: their `additional_args` is a string, and changing its type would break existing templates.)
+
+```tf
+variable "additional_args" {
+  description = "Additional arguments to pass to `tool`, one list element per argument, in order. Each element is passed as written, so a flag can repeat and a value may contain spaces."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for a in var.additional_args : a != "" && !can(regex("\n", a))])
+    error_message = "additional_args elements must be non-empty and must not contain newlines."
+  }
+
+  # The module already sets these. Keep this list in sync with the flags in run.sh.
+  validation {
+    condition     = !anytrue([for a in var.additional_args : contains(["--port"], split("=", a)[0])])
+    error_message = "additional_args must not set --port; use port instead."
+  }
+}
+```
+
+### Deprecating inputs
+
+Terraform 1.15 added a `deprecated` argument for `variable` blocks, which warns whenever a caller sets the input, and for `output` blocks, which warns whenever a caller reads the output. The rules below apply to deprecated outputs too. Terraform 1.14 and older reject the argument outright (`An argument named "deprecated" is not expected here`), even when the caller never sets the input. Coder bundles Terraform 1.15 from v2.37.0; v2.36 and older bundle 1.14.
+
+- **Major version bump of a module that has deprecated inputs:** set `required_version = ">= 1.15"` in the `terraform` block, and give every deprecated input a `deprecated` argument, including inputs deprecated earlier by description only. A major bump with no deprecated inputs leaves `required_version` alone. Raising the minimum Terraform version is itself a breaking change, so do it only in a major bump, and note it in the PR and README.
+- **Minor or patch bump:** do not add `deprecated` or raise `required_version`. Begin the input's description with `Deprecated: use <new_input> instead.` and say so in the README.
+- In both cases, keep a deprecated input working until a major version removes it.
+
+`deprecated` takes the warning message, not a boolean: name the replacement input in it (`"Use additional_args instead."`). `deprecated = true` prints the bare message `true`, and `""` prints none. Place `deprecated` after `default`:
+
+```tf
+terraform {
+  required_version = ">= 1.15"
+}
+
+variable "extra_args" {
+  description = "Deprecated: use `additional_args` instead."
+  type        = list(string)
+  default     = []
+  deprecated  = "Use additional_args instead."
+}
+```
+
 ### `.tftest.hcl` test commands
 
 - Use `command = plan` only for assertions on **input-derived values** (variables, locals computed from inputs).
@@ -136,7 +189,8 @@ variable "api_key" {
 ## PR Review Checklist
 
 - Version bumped via `.github/scripts/version-bump.sh` if module changed (patch=bugfix, minor=feature, major=breaking)
-- Breaking changes documented: removed inputs, changed defaults, new required variables
+- Breaking changes documented: removed inputs, changed defaults, new required variables, raised minimum Terraform version
+- Deprecated inputs keep a `Deprecated:` description; on a major bump they also get the `deprecated` argument and `required_version = ">= 1.15"`
 - New variables have sensible defaults to maintain backward compatibility
 - Tests pass (`bun run check:terraform`, `bun run check:typescript`, or `bun check` for everything); add diagnostic logging for test failures
 - README examples updated with new version number; tooltip/behavior changes noted
