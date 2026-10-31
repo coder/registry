@@ -1,12 +1,12 @@
 ---
-display_name: Coder VSCode Desktop Core
+display_name: Coder VSCode Desktop Core (library)
 description: Building block for modules that need to link to an external VSCode-based IDE
 icon: ../../../../.icons/coder.svg
 verified: true
 tags: [internal, library]
 ---
 
-# VS Code Desktop Core
+# VS Code Desktop Core (library)
 
 > [!CAUTION]
 > We do not recommend using this module directly. Instead, please consider using one of our [Desktop IDE modules](https://registry.coder.com/modules?search=tag%3Aide).
@@ -19,7 +19,7 @@ The dedicated extension script blocks ordinary workspace login by default and ha
 
 ```tf
 module "vscode-desktop-core" {
-  source  = "registry.coder.com/coder/vscode-desktop-core/coder"
+  source  = "registry.coder.com/coder/lib-vscode-desktop-core/coder"
   version = "1.2.1"
 
   agent_id = var.agent_id
