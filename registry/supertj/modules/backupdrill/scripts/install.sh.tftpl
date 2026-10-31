@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+
+# coder_script does not load shell profiles, so a Node.js installed with nvm
+# is only on PATH after nvm.sh has been sourced.
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+  # shellcheck disable=SC1091
+  source "$HOME/.nvm/nvm.sh"
+fi
+
+set -euo pipefail
+
+ARG_BACKUPDRILL_VERSION='${ARG_BACKUPDRILL_VERSION}'
+ARG_NPM_REGISTRY_URL='${ARG_NPM_REGISTRY_URL}'
+
+# Installing under the module directory instead of npm's default global
+# prefix means the install works without root, even when /usr is read-only.
+NPM_PREFIX="$HOME/.coder-modules/supertj/backupdrill/npm-global"
+MODULE_BIN="$NPM_PREFIX/bin/backupdrill"
+
+# "2" matches any 2.x, "2.7" any 2.7.x and "2.7.1" only itself. "latest"
+# never matches, so npm is always asked for the newest release.
+version_matches() {
+  [ "$1" = "$ARG_BACKUPDRILL_VERSION" ] || [[ "$1" == "$ARG_BACKUPDRILL_VERSION".* ]]
+}
+
+# The CLI starts with "#!/usr/bin/env node", which runs whichever node is first
+# on PATH at that moment. A Node.js from nvm is only on PATH in shells that load
+# nvm, and a system Node.js may be too old, so the launcher pins the node that
+# this script found and checked the install with.
+install_launcher() {
+  if [ -z "$${CODER_SCRIPT_BIN_DIR:-}" ]; then
+    echo "CODER_SCRIPT_BIN_DIR is not set; add $NPM_PREFIX/bin to PATH to use backupdrill."
+    return
+  fi
+  local launcher="$CODER_SCRIPT_BIN_DIR/backupdrill"
+  local node_bin
+  node_bin=$(command -v node)
+  # Writing through a symlink left by an earlier run would overwrite its target.
+  rm -f "$launcher"
+  cat > "$launcher" << EOF
+#!/usr/bin/env bash
+exec "$node_bin" "$MODULE_BIN" "\$@"
+EOF
+  chmod +x "$launcher"
+}
+
+existing_bin=$(command -v backupdrill || true)
+if [ -n "$existing_bin" ]; then
+  existing_version=$(backupdrill --version 2> /dev/null || true)
+  if version_matches "$existing_version"; then
+    echo "backupdrill $existing_version is already on PATH at $existing_bin, skipping the install."
+    exit 0
+  fi
+  echo "Found backupdrill $existing_version at $existing_bin, but backupdrill_version is $ARG_BACKUPDRILL_VERSION."
+fi
+
+if [ -x "$MODULE_BIN" ]; then
+  module_version=$("$MODULE_BIN" --version 2> /dev/null || true)
+  if version_matches "$module_version"; then
+    echo "backupdrill $module_version is already installed in $NPM_PREFIX, skipping the install."
+    install_launcher
+    exit 0
+  fi
+fi
+
+if ! command -v npm > /dev/null 2>&1; then
+  echo "npm was not found on PATH, and backupdrill is installed with npm."
+  echo "Add Node.js with npm to the workspace image, then restart the workspace."
+  echo "Skipping the backupdrill install. The rest of the workspace is not affected."
+  exit 0
+fi
+
+mkdir -p "$NPM_PREFIX"
+# --engine-strict makes npm refuse a Node.js older than backupdrill's engines
+# field, instead of installing a CLI that fails later.
+npm_args=(install --global --prefix "$NPM_PREFIX" --engine-strict --ignore-scripts --no-audit --no-fund --no-update-notifier)
+if [ -n "$ARG_NPM_REGISTRY_URL" ]; then
+  npm_args+=(--registry "$ARG_NPM_REGISTRY_URL")
+fi
+
+echo "Installing backupdrill@$ARG_BACKUPDRILL_VERSION into $NPM_PREFIX"
+if ! npm "$${npm_args[@]}" "backupdrill@$ARG_BACKUPDRILL_VERSION"; then
+  echo "npm could not install backupdrill@$ARG_BACKUPDRILL_VERSION. The npm output above has the reason." >&2
+  exit 1
+fi
+
+if ! installed_version=$("$MODULE_BIN" --version); then
+  echo "npm installed backupdrill, but '$MODULE_BIN --version' failed. Its output above has the reason." >&2
+  exit 1
+fi
+install_launcher
+echo "Installed backupdrill $installed_version."
+echo "It reads its settings from BACKUPDRILL_* environment variables: https://backupdrill.com/docs/cli"
