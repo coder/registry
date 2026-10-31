@@ -2,9 +2,9 @@
 
 BOLD='\033[0;1m'
 RESET='\033[0m'
-MUX_BINARY="${INSTALL_PREFIX}/mux"
+XUM_BINARY="${INSTALL_PREFIX}/xum"
 
-function run_mux() {
+function run_xum() {
   local port_value
   local auth_token_value
   local restart_on_kill_value
@@ -31,7 +31,7 @@ function run_mux() {
 
   mkdir -p "$(dirname "${LOG_PATH}")"
 
-  # Build args for mux (POSIX-compatible, avoid bash arrays)
+  # Build args for xum (POSIX-compatible, avoid bash arrays)
   set -- server --port "$port_value"
   if [ -n "${ADD_PROJECT}" ]; then
     set -- "$@" --add-project "${ADD_PROJECT}"
@@ -52,21 +52,21 @@ $${parsed_additional_arguments}
 EOF_ARGS
   fi
 
-  echo "🚀 Starting mux server on port $port_value..."
+  echo "🚀 Starting xum server on port $port_value..."
   echo "Check logs at ${LOG_PATH}!"
-  echo "ℹ️ Mux exit details will be appended to ${LOG_PATH} by the launcher."
+  echo "ℹ️ Xum exit details will be appended to ${LOG_PATH} by the launcher."
   if [ "$restart_on_kill_value" = true ]; then
-    echo "ℹ️ Auto-restart after mux exits is enabled with a $${restart_delay_seconds_value}-second delay."
+    echo "ℹ️ Auto-restart after xum exits is enabled with a $${restart_delay_seconds_value}-second delay."
     if [ "$max_restart_attempts_value" = "0" ]; then
-      echo "ℹ️ Automatic restarts are unlimited for every mux exit."
+      echo "ℹ️ Automatic restarts are unlimited for every xum exit."
     else
-      echo "ℹ️ Mux will stop restarting after $${max_restart_attempts_value} restart attempts."
+      echo "ℹ️ Xum will stop restarting after $${max_restart_attempts_value} restart attempts."
     fi
   fi
 
   nohup env \
     LOG_PATH="${LOG_PATH}" \
-    MUX_BINARY="$MUX_BINARY" \
+    XUM_BINARY="$XUM_BINARY" \
     AUTH_TOKEN="$auth_token_value" \
     PORT_VALUE="$port_value" \
     RESTART_ON_KILL_VALUE="$restart_on_kill_value" \
@@ -87,15 +87,15 @@ signal_name() {
 }
 
 append_kernel_kill_context() {
-  local mux_pid="$1"
+  local xum_pid="$1"
   local kernel_context=""
 
   if command -v dmesg > /dev/null 2>&1; then
-    kernel_context="$(dmesg -T 2> /dev/null | grep -Ei "Killed process $mux_pid|out of memory|oom-killer|oom reaper" | tail -n 10 || true)"
+    kernel_context="$(dmesg -T 2> /dev/null | grep -Ei "Killed process $xum_pid|out of memory|oom-killer|oom reaper" | tail -n 10 || true)"
   fi
 
   if [ -z "$kernel_context" ] && command -v journalctl > /dev/null 2>&1; then
-    kernel_context="$(journalctl -k -n 200 --no-pager 2> /dev/null | grep -Ei "Killed process $mux_pid|out of memory|oom-killer|oom reaper" | tail -n 10 || true)"
+    kernel_context="$(journalctl -k -n 200 --no-pager 2> /dev/null | grep -Ei "Killed process $xum_pid|out of memory|oom-killer|oom reaper" | tail -n 10 || true)"
   fi
 
   if [ -n "$kernel_context" ]; then
@@ -106,23 +106,23 @@ append_kernel_kill_context() {
   fi
 }
 
-cleanup_mux_lock() {
-  rm -f "$HOME/.mux/server.lock"
+cleanup_xum_lock() {
+  rm -f "$HOME/.xum/server.lock" "$HOME/.mux/server.lock"
 }
 
-should_restart_mux() {
+should_restart_xum() {
   [ "$RESTART_ON_KILL_VALUE" = "true" ]
 }
 
-log_mux_exit() {
-  local mux_pid="$1"
+log_xum_exit() {
+  local xum_pid="$1"
   local exit_code="$2"
   local timestamp
 
   timestamp="$(date -Iseconds 2> /dev/null || date)"
 
   if [ "$exit_code" -eq 0 ]; then
-    echo "[$timestamp] mux server exited cleanly."
+    echo "[$timestamp] xum server exited cleanly."
     return 0
   fi
 
@@ -131,62 +131,62 @@ log_mux_exit() {
     local signal_label
 
     signal_label="$(signal_name "$signal_number")"
-    echo "[$timestamp] mux server exited due to signal $signal_label ($signal_number); shell exit code $exit_code."
+    echo "[$timestamp] xum server exited due to signal $signal_label ($signal_number); shell exit code $exit_code."
 
     if [ "$signal_number" -eq 9 ]; then
       echo "[$timestamp] SIGKILL usually means the process was killed externally or by the OOM killer."
-      append_kernel_kill_context "$mux_pid"
+      append_kernel_kill_context "$xum_pid"
     fi
 
-    echo "[$timestamp] Check the earlier mux log lines for any in-process crash breadcrumbs from mux itself."
+    echo "[$timestamp] Check the earlier xum log lines for any in-process crash breadcrumbs from xum itself."
     return 0
   fi
 
-  echo "[$timestamp] mux server exited with code $exit_code."
-  echo "[$timestamp] Check the earlier mux log lines for any in-process crash breadcrumbs from mux itself."
+  echo "[$timestamp] xum server exited with code $exit_code."
+  echo "[$timestamp] Check the earlier xum log lines for any in-process crash breadcrumbs from xum itself."
 }
 
-log_mux_restart_wait() {
+log_xum_restart_wait() {
   local timestamp
 
   timestamp="$(date -Iseconds 2> /dev/null || date)"
-  echo "[$timestamp] Waiting $${RESTART_DELAY_SECONDS_VALUE} seconds before restarting mux after it exited."
+  echo "[$timestamp] Waiting $${RESTART_DELAY_SECONDS_VALUE} seconds before restarting xum after it exited."
 }
 
-log_mux_restart_cleanup() {
+log_xum_restart_cleanup() {
   local timestamp
 
   timestamp="$(date -Iseconds 2> /dev/null || date)"
-  echo "[$timestamp] Removing $HOME/.mux/server.lock before restarting mux."
+  echo "[$timestamp] Removing $HOME/.xum/server.lock before restarting xum."
 }
 
-log_mux_restart_cap_reached() {
+log_xum_restart_cap_reached() {
   local timestamp
 
   timestamp="$(date -Iseconds 2> /dev/null || date)"
-  echo "[$timestamp] Reached the max restart attempts limit ($MAX_RESTART_ATTEMPTS_VALUE); not restarting mux again."
+  echo "[$timestamp] Reached the max restart attempts limit ($MAX_RESTART_ATTEMPTS_VALUE); not restarting xum again."
 }
 
 restart_attempt_count=0
 while true; do
-  cleanup_mux_lock
-  MUX_SERVER_AUTH_TOKEN="$AUTH_TOKEN" PORT="$PORT_VALUE" "$MUX_BINARY" "$@" >> "$LOG_PATH" 2>&1 &
-  mux_pid=$!
-  wait "$mux_pid"
+  cleanup_xum_lock
+  XUM_SERVER_AUTH_TOKEN="$AUTH_TOKEN" PORT="$PORT_VALUE" "$XUM_BINARY" "$@" >> "$LOG_PATH" 2>&1 &
+  xum_pid=$!
+  wait "$xum_pid"
   exit_code=$?
-  log_mux_exit "$mux_pid" "$exit_code" >> "$LOG_PATH" 2>&1
+  log_xum_exit "$xum_pid" "$exit_code" >> "$LOG_PATH" 2>&1
 
-  if should_restart_mux; then
+  if should_restart_xum; then
     if [ "$MAX_RESTART_ATTEMPTS_VALUE" -gt 0 ] && [ "$restart_attempt_count" -ge "$MAX_RESTART_ATTEMPTS_VALUE" ]; then
-      log_mux_restart_cap_reached >> "$LOG_PATH" 2>&1
+      log_xum_restart_cap_reached >> "$LOG_PATH" 2>&1
       break
     fi
 
     restart_attempt_count=$((restart_attempt_count + 1))
-    log_mux_restart_wait >> "$LOG_PATH" 2>&1
+    log_xum_restart_wait >> "$LOG_PATH" 2>&1
     sleep "$RESTART_DELAY_SECONDS_VALUE"
-    cleanup_mux_lock
-    log_mux_restart_cleanup >> "$LOG_PATH" 2>&1
+    cleanup_xum_lock
+    log_xum_restart_cleanup >> "$LOG_PATH" 2>&1
     continue
   fi
 
@@ -194,7 +194,7 @@ while true; do
 done
 EOF_LAUNCHER
 }
-# Ensure a Node.js runtime is available (mux is a Node application launched
+# Ensure a Node.js runtime is available (xum is a Node application launched
 # via "#!/usr/bin/env node"). When the workspace image does not provide node,
 # bootstrap a pinned runtime into the module root so it persists across restarts.
 ensure_node() {
@@ -203,22 +203,22 @@ ensure_node() {
   fi
 
   local node_version node_arch node_dir
-  node_version="$${MUX_NODE_VERSION:-22.14.0}"
+  node_version="$${XUM_NODE_VERSION:-22.14.0}"
   case "$(uname -m)" in
     x86_64 | amd64) node_arch="x64" ;;
     aarch64 | arm64) node_arch="arm64" ;;
     *)
-      echo "❌ node is required to run mux but was not found on PATH, and automatic bootstrap does not support architecture '$(uname -m)'."
+      echo "❌ node is required to run xum but was not found on PATH, and automatic bootstrap does not support architecture '$(uname -m)'."
       exit 1
       ;;
   esac
 
-  node_dir="$HOME/.coder-modules/coder/mux/node-v$node_version-linux-$node_arch"
+  node_dir="$HOME/.coder-modules/coder/xum/node-v$node_version-linux-$node_arch"
   if [ ! -x "$node_dir/bin/node" ]; then
     echo "⚠️ node not found on PATH; bootstrapping Node.js v$node_version into $node_dir..."
     mkdir -p "$(dirname "$node_dir")"
     if ! curl -fsSL "https://nodejs.org/dist/v$node_version/node-v$node_version-linux-$node_arch.tar.gz" | tar -xz -C "$(dirname "$node_dir")"; then
-      echo "❌ Failed to download Node.js v$node_version. mux cannot start without node."
+      echo "❌ Failed to download Node.js v$node_version. xum cannot start without node."
       exit 1
     fi
   fi
@@ -233,27 +233,27 @@ ensure_node() {
 
 ensure_node
 
-# Check if mux is already installed for offline mode
+# Check if xum is already installed for offline mode
 if [ "${OFFLINE}" = true ]; then
-  if [ -f "$MUX_BINARY" ]; then
-    echo "🥳 Found a copy of mux"
-    run_mux
+  if [ -f "$XUM_BINARY" ]; then
+    echo "🥳 Found a copy of xum"
+    run_xum
     exit 0
   fi
-  echo "❌ Failed to find a copy of mux"
+  echo "❌ Failed to find a copy of xum"
   exit 1
 fi
 
 # If there is no cached install OR we don't want to use a cached install
-if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
-  printf "$${BOLD}Installing mux...\n"
+if [ ! -f "$XUM_BINARY" ] || [ "${USE_CACHED}" != true ]; then
+  printf "$${BOLD}Installing xum...\n"
 
   # Clean up from other install (in case install prefix changed).
-  if [ -n "$CODER_SCRIPT_BIN_DIR" ] && [ -e "$CODER_SCRIPT_BIN_DIR/mux" ]; then
-    rm "$CODER_SCRIPT_BIN_DIR/mux"
+  if [ -n "$CODER_SCRIPT_BIN_DIR" ] && [ -e "$CODER_SCRIPT_BIN_DIR/xum" ]; then
+    rm "$CODER_SCRIPT_BIN_DIR/xum"
   fi
 
-  mkdir -p "$(dirname "$MUX_BINARY")"
+  mkdir -p "$(dirname "$XUM_BINARY")"
 
   # Determine which package manager to use
   PM_CMD=""
@@ -272,7 +272,7 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
     fi
   fi
 
-  # @coder/xum is the package that ships the mux CLI (bins: mux, xum).
+  # @coder/xum is the package that ships the xum CLI (bins: xum, mux).
   PKG="@coder/xum"
 
   if [ -n "$PM_CMD" ]; then
@@ -313,13 +313,13 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
     fi
     # Determine the installed binary path
     BIN_DIR="$NPM_WORKDIR/node_modules/.bin"
-    CANDIDATE="$BIN_DIR/mux"
+    CANDIDATE="$BIN_DIR/xum"
     if [ ! -f "$CANDIDATE" ]; then
-      echo "❌ Could not locate mux binary after $PM_CMD install"
+      echo "❌ Could not locate xum binary after $PM_CMD install"
       exit 1
     fi
     chmod +x "$CANDIDATE" || true
-    ln -sf "$CANDIDATE" "$MUX_BINARY"
+    ln -sf "$CANDIDATE" "$XUM_BINARY"
   else
     echo "📥 No package manager found; downloading tarball from registry..."
     VERSION_TO_USE="${VERSION}"
@@ -370,7 +370,7 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
       TARBALL_URL="${REGISTRY_URL}/@coder/xum/-/xum-$VERSION_TO_USE.tgz"
     fi
     TMP_DIR="$(mktemp -d)"
-    TAR_PATH="$TMP_DIR/mux.tgz"
+    TAR_PATH="$TMP_DIR/xum.tgz"
     if ! curl -fsSL "$TARBALL_URL" -o "$TAR_PATH"; then
       echo "❌ Failed to download tarball: $TARBALL_URL"
       rm -rf "$TMP_DIR"
@@ -386,13 +386,13 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
     # Prefer reading bin path from package.json
     if [ -f "$TMP_DIR/package/package.json" ]; then
       if command -v node > /dev/null 2>&1; then
-        BIN_PATH="$(node -e 'try{const fs=require("fs");const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));let bp=typeof p.bin==="string"?p.bin:(p.bin&&p.bin.mux);if(bp){console.log(bp)}}catch(e){}' "$TMP_DIR/package/package.json")"
+        BIN_PATH="$(node -e 'try{const fs=require("fs");const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));let bp=typeof p.bin==="string"?p.bin:(p.bin&&p.bin.xum);if(bp){console.log(bp)}}catch(e){}' "$TMP_DIR/package/package.json")"
       fi
       if [ -z "$BIN_PATH" ]; then
         # sed fallbacks (handle both string and object forms)
         BIN_PATH=$(sed -n 's/.*"bin"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TMP_DIR/package/package.json" | head -n1)
         if [ -z "$BIN_PATH" ]; then
-          BIN_PATH=$(sed -n '/"bin"[[:space:]]*:[[:space:]]*{/,/}/p' "$TMP_DIR/package/package.json" | sed -n 's/.*"mux"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+          BIN_PATH=$(sed -n '/"bin"[[:space:]]*:[[:space:]]*{/,/}/p' "$TMP_DIR/package/package.json" | sed -n 's/.*"xum"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
         fi
       fi
       if [ -n "$BIN_PATH" ] && [ -f "$TMP_DIR/package/$BIN_PATH" ]; then
@@ -401,48 +401,48 @@ if [ ! -f "$MUX_BINARY" ] || [ "${USE_CACHED}" != true ]; then
     fi
     # Fallback: check common locations
     if [ -z "$CANDIDATE" ]; then
-      if [ -f "$TMP_DIR/package/bin/mux" ]; then
-        CANDIDATE="$TMP_DIR/package/bin/mux"
-      elif [ -f "$TMP_DIR/package/bin/mux.js" ]; then
-        CANDIDATE="$TMP_DIR/package/bin/mux.js"
-      elif [ -f "$TMP_DIR/package/bin/mux.mjs" ]; then
-        CANDIDATE="$TMP_DIR/package/bin/mux.mjs"
+      if [ -f "$TMP_DIR/package/bin/xum" ]; then
+        CANDIDATE="$TMP_DIR/package/bin/xum"
+      elif [ -f "$TMP_DIR/package/bin/xum.js" ]; then
+        CANDIDATE="$TMP_DIR/package/bin/xum.js"
+      elif [ -f "$TMP_DIR/package/bin/xum.mjs" ]; then
+        CANDIDATE="$TMP_DIR/package/bin/xum.mjs"
       fi
     fi
     # Fallback: search for plausible filenames
     if [ -z "$CANDIDATE" ] || [ ! -f "$CANDIDATE" ]; then
-      CANDIDATE=$(find "$TMP_DIR/package" -maxdepth 4 -type f \( -name "mux" -o -name "mux.js" -o -name "mux.mjs" -o -name "mux.cjs" -o -name "main.js" \) | head -n1)
+      CANDIDATE=$(find "$TMP_DIR/package" -maxdepth 4 -type f \( -name "xum" -o -name "xum.js" -o -name "xum.mjs" -o -name "xum.cjs" -o -name "main.js" \) | head -n1)
     fi
     if [ -z "$CANDIDATE" ] || [ ! -f "$CANDIDATE" ]; then
-      echo "❌ Could not locate mux binary in tarball"
+      echo "❌ Could not locate xum binary in tarball"
       rm -rf "$TMP_DIR"
       exit 1
     fi
     # Copy entire package to installation directory to preserve relative imports
-    DEST_DIR="${INSTALL_PREFIX}/.mux-package"
+    DEST_DIR="${INSTALL_PREFIX}/.xum-package"
     rm -rf "$DEST_DIR"
     mkdir -p "$DEST_DIR"
     cp -R "$TMP_DIR/package/." "$DEST_DIR/"
     # Create/refresh launcher symlink
     if [ -n "$BIN_PATH" ] && [ -f "$DEST_DIR/$BIN_PATH" ]; then
-      ln -sf "$DEST_DIR/$BIN_PATH" "$MUX_BINARY"
+      ln -sf "$DEST_DIR/$BIN_PATH" "$XUM_BINARY"
       chmod +x "$DEST_DIR/$BIN_PATH" || true
     else
-      ln -sf "$DEST_DIR/$(basename "$CANDIDATE")" "$MUX_BINARY"
+      ln -sf "$DEST_DIR/$(basename "$CANDIDATE")" "$XUM_BINARY"
       chmod +x "$DEST_DIR/$(basename "$CANDIDATE")" || true
     fi
     rm -rf "$TMP_DIR"
   fi
 
-  printf "🥳 mux has been installed in ${INSTALL_PREFIX}\n\n"
+  printf "🥳 xum has been installed in ${INSTALL_PREFIX}\n\n"
 fi
 
-# Make mux available in PATH if CODER_SCRIPT_BIN_DIR is set
+# Make xum available in PATH if CODER_SCRIPT_BIN_DIR is set
 if [ -n "$CODER_SCRIPT_BIN_DIR" ]; then
-  if [ ! -e "$CODER_SCRIPT_BIN_DIR/mux" ]; then
-    ln -s "$MUX_BINARY" "$CODER_SCRIPT_BIN_DIR/mux"
+  if [ ! -e "$CODER_SCRIPT_BIN_DIR/xum" ]; then
+    ln -s "$XUM_BINARY" "$CODER_SCRIPT_BIN_DIR/xum"
   fi
 fi
 
-# Start mux
-run_mux
+# Start xum
+run_xum
