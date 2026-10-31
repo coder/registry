@@ -101,7 +101,7 @@ install_rpm() {
   rm "$kasmrpm"
 }
 
-# Function to install kasmvncserver for Alpine Linux
+# Function to install kasmvncserver for Alpine Linux from a tarball
 install_alpine() {
   local url=$1
   local kasmtgz="/tmp/kasmvncserver.tgz"
@@ -110,6 +110,42 @@ install_alpine() {
 
   tar -xzf "$kasmtgz" -C /usr/local/bin/
   rm "$kasmtgz"
+}
+
+# Function to install kasmvncserver for Alpine Linux from an apk package
+install_apk() {
+  local url=$1
+  local kasmapk="/tmp/kasmvncserver.apk"
+
+  download_file "$url" "$kasmapk"
+
+  # The package is signed with the KasmVNC key, which is not in Alpine's trust
+  # store, so a local install needs --allow-untrusted.
+  sudo apk add --allow-untrusted "$kasmapk"
+  rm "$kasmapk"
+}
+
+# Compare X.Y.Z version strings: version_ge <want> <have> is true when
+# <have> is at least <want>. Every KasmVNC release tag is X.Y.Z (v1.0.0 ..
+# v1.5.2), so plain arithmetic on the fields is sufficient, and unlike
+# `sort -V` or `dpkg --compare-versions` it also works where only busybox
+# is available.
+version_ge() {
+  local want="$1" have="$2"
+  local have_major have_minor have_patch want_major want_minor want_patch
+
+  if [[ ! "$have" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    error "Unsupported kasm_version '$have': expected X.Y.Z, e.g. 1.5.2"
+  fi
+
+  IFS=. read -r have_major have_minor have_patch <<< "$have"
+  IFS=. read -r want_major want_minor want_patch <<< "$want"
+
+  # 10# keeps a field such as 08 from being read as an octal literal.
+  ((10#$have_major > 10#$want_major || (\
+  10#$have_major == 10#$want_major && 10#$have_minor > 10#$want_minor) || (\
+  10#$have_major == 10#$want_major && 10#$have_minor == 10#$want_minor && \
+  10#$have_patch >= 10#$want_patch)))
 }
 
 # Detect system information
@@ -127,11 +163,26 @@ distro="$ID"
 distro_version="$VERSION_ID"
 codename="$VERSION_CODENAME"
 arch="$(uname -m)"
+fedora_codename=""
+
+# openSUSE Leap reports ID=opensuse-leap (Tumbleweed: opensuse-tumbleweed),
+# while KasmVNC publishes assets as opensuse_<version>.
+case "$ID" in
+  opensuse*)
+    distro="opensuse"
+    ;;
+  *)
+    :
+    ;;
+esac
+
 if [[ "$ID" == "ol" ]]; then
   distro="oracle"
   distro_version="$${distro_version%%.*}"
 elif [[ "$ID" == "fedora" ]]; then
-  distro_version="$(grep -oP '\(\K[\w ]+' /etc/fedora-release | tr '[:upper:]' '[:lower:]' | tr -d ' ')"
+  # Only KasmVNC <= 1.4.0 used the Fedora release name (fedora_forty), so read
+  # it from "Fedora release 40 (Forty)" and keep VERSION_ID numeric.
+  fedora_codename="$(grep -oP '\(\K[\w ]+' /etc/fedora-release 2> /dev/null | tr '[:upper:]' '[:lower:]' | tr -d ' ')"
 fi
 
 echo "Detected Distribution: $distro"
@@ -173,16 +224,41 @@ if ! check_installed; then
   echo "Installing KASM version: ${KASM_VERSION}"
   case $distro in
     ubuntu | debian | kali)
-      bin_name="kasmvncserver_$${codename}_${KASM_VERSION}_$${arch}.deb"
+      # KasmVNC 1.5.1 added the distro name to deb asset names, e.g.
+      # kasmvncserver_ubuntu_noble_1.5.1_amd64.deb. Kali's codename already
+      # contains the distro name, giving kali_kali-rolling.
+      distro_prefix=""
+      if version_ge "1.5.1" "$KASM_VERSION"; then
+        distro_prefix="$${distro}_"
+      fi
+      bin_name="kasmvncserver_$${distro_prefix}$${codename}_${KASM_VERSION}_$${arch}.deb"
       install_deb "$base_url/$bin_name"
       ;;
     oracle | fedora | opensuse)
-      bin_name="kasmvncserver_$${distro}_$${distro_version}_${KASM_VERSION}_$${arch}.rpm"
+      # Always <distro>_<major version>, e.g. oracle_8, opensuse_15.
+      package_version="$${distro_version%%.*}"
+      # KasmVNC <= 1.4.0 named Fedora assets after the release name
+      # (fedora_forty) and only switched to the major version (fedora_42)
+      # in 1.5.0.
+      if [[ "$distro" == "fedora" ]] && ! version_ge "1.5.0" "$KASM_VERSION"; then
+        [[ -n "$fedora_codename" ]] \
+          || error "Could not read the Fedora release name from /etc/fedora-release"
+        package_version="$fedora_codename"
+      fi
+      bin_name="kasmvncserver_$${distro}_$${package_version}_${KASM_VERSION}_$${arch}.rpm"
       install_rpm "$base_url/$bin_name"
       ;;
     alpine)
-      bin_name="kasmvnc.alpine_$${distro_version//./}_$${arch}.tgz"
-      install_alpine "$base_url/$bin_name"
+      # 3.21.0 -> 321: KasmVNC names Alpine assets after <major><minor>.
+      alpine_version="$(echo "$distro_version" | cut -d. -f1,2 | tr -d .)"
+      if version_ge "1.4.0" "$KASM_VERSION"; then
+        # 1.4.0 replaced the tarball with an apk package.
+        bin_name="kasmvncserver_alpine_$${alpine_version}_${KASM_VERSION}_$${arch}.apk"
+        install_apk "$base_url/$bin_name"
+      else
+        bin_name="kasmvnc.alpine_$${alpine_version}_$${arch}.tgz"
+        install_alpine "$base_url/$bin_name"
+      fi
       ;;
     *)
       echo "Unsupported distribution: $distro"
