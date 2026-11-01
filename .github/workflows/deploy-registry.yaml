@@ -21,6 +21,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Builds usually take about 6 minutes; the job waits for both to finish.
+    timeout-minutes: 30
 
     # Set id-token permission for gcloud
     permissions:
@@ -38,6 +40,76 @@ jobs:
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       - name: Deploy to dev.registry.coder.com
-        run: gcloud builds triggers run 29818181-126d-4f8a-a937-f228b27d3d34 --branch main
+        id: dev
+        run: |
+          build_id=$(gcloud builds triggers run 29818181-126d-4f8a-a937-f228b27d3d34 --branch main --format='value(metadata.build.id)')
+          test -n "$build_id"
+          echo "build_id=$build_id" >> "$GITHUB_OUTPUT"
       - name: Deploy to registry.coder.com
-        run: gcloud builds triggers run 106610ff-41fb-4bd0-90a2-7643583fb9c0 --tag production
+        id: prod
+        run: |
+          build_id=$(gcloud builds triggers run 106610ff-41fb-4bd0-90a2-7643583fb9c0 --tag production --format='value(metadata.build.id)')
+          test -n "$build_id"
+          echo "build_id=$build_id" >> "$GITHUB_OUTPUT"
+      - name: Wait for Cloud Builds
+        env:
+          DEV_BUILD_ID: ${{ steps.dev.outputs.build_id }}
+          PROD_BUILD_ID: ${{ steps.prod.outputs.build_id }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          failed=0
+
+          wait_for_build() {
+            local target=$1 build_id=$2 status log_url errors=0
+            log_url=$(gcloud builds describe "$build_id" --format='value(logUrl)') ||
+              log_url="https://console.cloud.google.com/cloud-build/builds/$build_id?project=coder-registry-1"
+            echo "Waiting for $target build $build_id: $log_url"
+            while true; do
+              # gcloud retries a few transient errors per call. Tolerate longer
+              # API outages too, so one build's result is still reported.
+              if ! status=$(gcloud builds describe "$build_id" --format='value(status)'); then
+                errors=$((errors + 1))
+                if ((errors >= 8)); then
+                  status=UNKNOWN
+                  break
+                fi
+                echo "Could not read the status of $target build $build_id ($errors/8), retrying"
+                sleep 15
+                continue
+              fi
+              errors=0
+              case "$status" in
+                SUCCESS | FAILURE | INTERNAL_ERROR | TIMEOUT | CANCELLED | EXPIRED) break ;;
+              esac
+              sleep 15
+            done
+
+            echo "| $target | [\`$build_id\`]($log_url) | $status |" >> "$GITHUB_STEP_SUMMARY"
+            case "$status" in
+              SUCCESS)
+                echo "$target build $build_id succeeded"
+                ;;
+              UNKNOWN)
+                echo "::error title=$target deploy status unknown::Could not read the status of Cloud Build $build_id: $log_url"
+                failed=1
+                ;;
+              *)
+                echo "::error title=$target deploy failed::Cloud Build $build_id finished with status $status: $log_url"
+                failed=1
+                ;;
+            esac
+          }
+
+          {
+            echo "### Cloud Builds for \`$REF_NAME\`"
+            echo ""
+            echo "| Deployment | Build | Status |"
+            echo "| --- | --- | --- |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Both builds run concurrently, so waiting on them in turn takes as
+          # long as the slower one.
+          wait_for_build dev.registry.coder.com "$DEV_BUILD_ID"
+          wait_for_build registry.coder.com "$PROD_BUILD_ID"
+
+          exit "$failed"
