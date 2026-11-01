@@ -14,6 +14,7 @@ import {
   runTerraformApply,
   runTerraformInit,
   TerraformState,
+  writeFileContainer,
 } from "~test";
 import { extractCoderEnvVars, writeExecutable } from "../agentapi/test-util";
 import path from "path";
@@ -609,6 +610,11 @@ describe("claude-code", async () => {
 
   test("claude-managed-settings-not-set", async () => {
     const { id, scripts } = await setup();
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/bin/sudo",
+      content: "#!/bin/sh\necho 'unexpected sudo invocation' >&2\nexit 1\n",
+    });
     await runScripts(id, scripts);
 
     const resp = await execContainer(id, [
@@ -617,6 +623,188 @@ describe("claude-code", async () => {
       "test -e /etc/claude-code/managed-settings.d/10-coder.json && echo EXISTS || echo ABSENT",
     ]);
     expect(resp.stdout.trim()).toBe("ABSENT");
+    const helper = await execContainer(id, [
+      "bash",
+      "-c",
+      "test ! -e /etc/claude-code/managed-settings.d/20-coder-apikeyhelper.json && test ! -e /home/coder/.claude/coder-api-key-helper.sh",
+    ]);
+    expect(helper.exitCode).toBe(0);
+  });
+
+  for (const sudo of [true, false]) {
+    test.each(["managed_settings", "api_key_helper", "both"])(
+      `removes disabled %s configuration (sudo=${sudo})`,
+      async (disabled) => {
+        const managedSettings = JSON.stringify({ model: "sonnet" });
+        const helperBody = "#!/bin/sh\necho test-key\n";
+        const apiKeyHelper = JSON.stringify({ script: helperBody });
+        const { id, scripts } = await setup({
+          moduleVariables: {
+            managed_settings: managedSettings,
+            api_key_helper: apiKeyHelper,
+          },
+        });
+        await runScripts(id, scripts);
+        const helperBefore = await readFileContainer(
+          id,
+          "/home/coder/.claude/coder-api-key-helper.sh",
+        );
+        const dropin = "/etc/claude-code/managed-settings.d";
+        const unrelated = [
+          `${dropin}/90-admin.json`,
+          "/etc/claude-code/managed-settings.json",
+          "/home/coder/.claude/settings.json",
+        ];
+        for (const file of unrelated) {
+          await writeFileContainer(id, file, '{"model":"opus"}\n', {
+            user: "root",
+          });
+        }
+        if (!sudo) {
+          const result = await execContainer(
+            id,
+            [
+              "bash",
+              "-c",
+              `chown -R coder:coder /etc/claude-code && mv /usr/bin/sudo /usr/bin/sudo.disabled`,
+            ],
+            ["--user", "root"],
+          );
+          expect(result.exitCode).toBe(0);
+        }
+        const state = await runTerraformApply(import.meta.dir, {
+          agent_id: "foo",
+          install_claude_code: "false",
+          managed_settings:
+            disabled === "api_key_helper" ? managedSettings : "null",
+          api_key_helper:
+            disabled === "managed_settings" ? apiKeyHelper : "null",
+        });
+        const updatedScripts = collectScripts(state);
+        for (let run = 0; run < 2; run++) {
+          await runScripts(id, updatedScripts);
+          for (const [file, keep] of [
+            [`${dropin}/10-coder.json`, disabled === "api_key_helper"],
+            [
+              `${dropin}/20-coder-apikeyhelper.json`,
+              disabled === "managed_settings",
+            ],
+            [
+              "/home/coder/.claude/coder-api-key-helper.sh",
+              disabled === "managed_settings",
+            ],
+          ] as const) {
+            const result = await execContainer(id, ["test", "-e", file]);
+            expect(result.exitCode).toBe(keep ? 0 : 1);
+          }
+          for (const file of unrelated) {
+            expect(await readFileContainer(id, file)).toBe(
+              '{"model":"opus"}\n',
+            );
+          }
+        }
+        if (disabled === "api_key_helper") {
+          expect(
+            JSON.parse(await readFileContainer(id, `${dropin}/10-coder.json`)),
+          ).toEqual({ model: "sonnet" });
+        } else if (disabled === "managed_settings") {
+          expect(
+            await readFileContainer(
+              id,
+              "/home/coder/.claude/coder-api-key-helper.sh",
+            ),
+          ).toBe(helperBefore);
+        }
+      },
+    );
+  }
+
+  test.each([
+    "/etc/claude-code/managed-settings.d/10-coder.json",
+    "/etc/claude-code/managed-settings.d/20-coder-apikeyhelper.json",
+    "/home/coder/.claude/coder-api-key-helper.sh",
+  ])("reports cleanup permission failure for %s", async (file) => {
+    const { id, scripts } = await setup();
+    const parent = path.posix.dirname(file);
+    const prepare = await execContainer(
+      id,
+      [
+        "bash",
+        "-c",
+        `mkdir -p '${parent}' && printf stale > '${file}' && chmod 0555 '${parent}' && mv /usr/bin/sudo /usr/bin/sudo.disabled`,
+      ],
+      ["--user", "root"],
+    );
+    expect(prepare.exitCode).toBe(0);
+    await expect(runScripts(id, scripts)).rejects.toThrow("script exited");
+    const log = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+    );
+    expect(log).toContain("Error: could not remove stale Claude Code");
+    expect(log).toContain(file);
+    expect(await readFileContainer(id, file)).toBe("stale");
+  });
+
+  test("reports denied sudo when removing stale managed settings", async () => {
+    const { id, scripts } = await setup();
+    const file = "/etc/claude-code/managed-settings.d/10-coder.json";
+    const prepare = await execContainer(
+      id,
+      ["mkdir", "-p", path.posix.dirname(file)],
+      ["--user", "root"],
+    );
+    expect(prepare.exitCode).toBe(0);
+    await writeFileContainer(id, file, "stale", { user: "root" });
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/bin/sudo",
+      content: "#!/bin/sh\necho 'sudo: permission denied' >&2\nexit 1\n",
+    });
+    await expect(runScripts(id, scripts)).rejects.toThrow("script exited");
+    const log = await readFileContainer(
+      id,
+      "/home/coder/.coder-modules/coder/claude-code/logs/install.log",
+    );
+    expect(log).toContain("sudo: permission denied");
+    expect(log).toContain(
+      `Error: could not remove stale Claude Code configuration at ${file}`,
+    );
+    expect(await readFileContainer(id, file)).toBe("stale");
+  });
+
+  test("removes stale symlinks without following their targets", async () => {
+    const { id, scripts } = await setup();
+    const prepare = await execContainer(id, [
+      "bash",
+      "-c",
+      "mkdir -p /home/coder/.claude",
+    ]);
+    expect(prepare.exitCode).toBe(0);
+    const dropin = "/etc/claude-code/managed-settings.d";
+    const links = [
+      `${dropin}/10-coder.json`,
+      `${dropin}/20-coder-apikeyhelper.json`,
+      "/home/coder/.claude/coder-api-key-helper.sh",
+    ];
+    const seed = await execContainer(
+      id,
+      [
+        "bash",
+        "-c",
+        `mkdir -p '${dropin}' && printf admin > '${dropin}/90-admin.json' && ln -s '${dropin}/90-admin.json' '${links[0]}' && ln -s '${dropin}/missing.json' '${links[1]}' && ln -s '${dropin}/90-admin.json' '${links[2]}'`,
+      ],
+      ["--user", "root"],
+    );
+    expect(seed.exitCode).toBe(0);
+    await runScripts(id, scripts);
+    for (const file of links) {
+      const result = await execContainer(id, ["test", "-L", file]);
+      expect(result.exitCode).toBe(1);
+    }
+    expect(await readFileContainer(id, `${dropin}/90-admin.json`)).toBe(
+      "admin",
+    );
   });
 
   test("telemetry-otel", async () => {

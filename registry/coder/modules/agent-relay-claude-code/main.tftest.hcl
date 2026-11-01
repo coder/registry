@@ -26,11 +26,6 @@ run "parameter_contract" {
   }
 
   assert {
-    condition     = data.coder_parameter.agent_relay_credential.name == "agent_relay_credential"
-    error_message = "credential parameter name is part of the Agent Relay contract"
-  }
-
-  assert {
     condition     = data.coder_parameter.agent_relay_claude_code_lock_to_account.name == "agent_relay_claude_code_lock_to_account"
     error_message = "account lock parameter name is part of the Agent Relay contract"
   }
@@ -45,16 +40,21 @@ run "parameter_contract" {
     error_message = "client platform parameter name is what Agent Relay stamps"
   }
 
+  assert {
+    condition     = data.coder_parameter.agent_relay_claude_code_release_idle_session_min.name == "agent_relay_claude_code_release_idle_session_min"
+    error_message = "idle session release parameter name is what Agent Relay stamps"
+  }
+
   # The relay reads these back off a build long after dispatch, so they
   # must not be ephemeral; the rest must be, so a manual build never
-  # inherits a stale credential, account lock, or attempt.
+  # inherits a stale account lock or attempt.
   assert {
     condition = alltrue([
       data.coder_parameter.agent_relay_session_id.ephemeral == false,
       data.coder_parameter.agent_relay_delivery_id.ephemeral == false,
       data.coder_parameter.agent_relay_pool.ephemeral == false,
       data.coder_parameter.agent_relay_client_platform.ephemeral == false,
-      data.coder_parameter.agent_relay_credential.ephemeral == true,
+      data.coder_parameter.agent_relay_claude_code_release_idle_session_min.ephemeral == false,
       data.coder_parameter.agent_relay_claude_code_lock_to_account.ephemeral == true,
       data.coder_parameter.agent_relay_attempt.ephemeral == true,
     ])
@@ -70,17 +70,12 @@ run "parameter_contract" {
         data.coder_parameter.agent_relay_delivery_id.styling,
         data.coder_parameter.agent_relay_pool.styling,
         data.coder_parameter.agent_relay_client_platform.styling,
-        data.coder_parameter.agent_relay_credential.styling,
+        data.coder_parameter.agent_relay_claude_code_release_idle_session_min.styling,
         data.coder_parameter.agent_relay_claude_code_lock_to_account.styling,
         data.coder_parameter.agent_relay_attempt.styling,
       ] : can(regex("\"disabled\":true", p))
     ])
     error_message = "every relay parameter must render disabled"
-  }
-
-  assert {
-    condition     = can(regex("\"mask_input\":true", data.coder_parameter.agent_relay_credential.styling))
-    error_message = "the credential must be masked"
   }
 }
 
@@ -89,20 +84,25 @@ run "runner_wiring" {
 
   # The claude CLI owns these names; the module only supplies values.
   assert {
-    condition     = coder_env.runner_environment_secret.name == "SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET"
-    error_message = "the pool secret env var name is the claude CLI's contract"
-  }
-
-  assert {
     condition     = coder_env.agent_relay_claude_code_lock_to_account.name == "SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT"
     error_message = "the account lock env var name is the claude CLI's contract"
   }
 
-  # coder-utils runs the install step before the start step and keeps
-  # both scripts and their logs under this directory.
+  # coder-utils runs cleanup before install, then start, and keeps
+  # scripts and their logs under the module directory.
   assert {
-    condition     = module.coder_utils.scripts == ["coder-agent-relay-claude-code-install_script", "coder-agent-relay-claude-code-start_script"]
-    error_message = "coder-utils must run exactly the install and start steps, in that order"
+    condition     = module.coder_utils.scripts == ["coder-agent-relay-claude-code-pre_install_script", "coder-agent-relay-claude-code-install_script", "coder-agent-relay-claude-code-start_script"]
+    error_message = "coder-utils must clean up before install and start"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, var.state_file) && strcontains(local.shutdown_script, var.state_file)
+    error_message = "startup, shutdown, and status must use the configured state file"
+  }
+
+  assert {
+    condition     = coder_script.shutdown.run_on_stop && !coder_script.shutdown.run_on_start && coder_script.shutdown.script == local.shutdown_script
+    error_message = "shutdown must run only on stop and use the shared cleanup source"
   }
 
   # Pass-through so a template can serialize its own scripts behind ours.
@@ -151,7 +151,27 @@ run "runner_wiring" {
 
   assert {
     condition     = output.dispatched == false
-    error_message = "a build with no credential was not dispatched by Agent Relay"
+    error_message = "a build with no delivery was not dispatched by Agent Relay"
+  }
+}
+
+run "dispatched_true_when_delivery_stamped" {
+  command = plan
+
+  # The delivery id is not ephemeral, so a person's restart carries it into
+  # the next build and this output stays true for the life of a relay-created
+  # workspace. The start script, not this output, says whether the current
+  # build has a work order.
+  override_data {
+    target = data.coder_parameter.agent_relay_delivery_id
+    values = {
+      value = "0d6c3b1e-delivery"
+    }
+  }
+
+  assert {
+    condition     = output.dispatched == true
+    error_message = "a build carrying a delivery id belongs to a workspace Agent Relay created"
   }
 }
 
@@ -212,6 +232,49 @@ run "idle_bound_disabled" {
   }
 }
 
+run "additional_args_default_empty" {
+  command = plan
+
+  assert {
+    condition     = strcontains(local.start_script, "done < <(echo -n '' | base64 -d)")
+    error_message = "additional_args must default to empty"
+  }
+}
+
+run "additional_args_encoded" {
+  command = plan
+
+  variables {
+    additional_args = ["--header", "it's here", "--header", "b", "--verbose"]
+  }
+
+  # Base64 keeps quotes in an argument from breaking the rendered script.
+  assert {
+    condition     = strcontains(local.start_script, base64encode("--header\nit's here\n--header\nb\n--verbose")) && !strcontains(local.start_script, "it's here")
+    error_message = "additional_args must be base64-encoded into the start script, one argument per line, in order"
+  }
+}
+
+run "additional_args_rejects_newline" {
+  command = plan
+
+  variables {
+    additional_args = ["--verbose\n--capacity"]
+  }
+
+  expect_failures = [var.additional_args]
+}
+
+run "additional_args_rejects_module_flags" {
+  command = plan
+
+  variables {
+    additional_args = ["--capacity=2"]
+  }
+
+  expect_failures = [var.additional_args]
+}
+
 run "cli_binary_rejects_shell" {
   command = plan
 
@@ -267,4 +330,176 @@ run "serving_log_pattern_is_data" {
     condition     = !strcontains(output.status_metadata_script, "PWNED") && strcontains(output.status_metadata_script, "grep -qF -- \"$serving_log_pattern\"")
     error_message = "serving_log_pattern must be base64-encoded and matched with grep -F"
   }
+}
+
+run "health_port_default" {
+  command = plan
+
+  # Not the CLI's 8080, which a template image is likely to use already.
+  # Passed explicitly so the URL the attachment script reads always matches
+  # the port the runner binds.
+  assert {
+    condition     = strcontains(local.start_script, "--health-port 3286") && output.health_url == "http://127.0.0.1:3286"
+    error_message = "the runner must serve /healthz on 3286 by default, not the CLI's 8080"
+  }
+
+  assert {
+    condition     = strcontains(output.session_attached_metadata_script, "health_url=\"http://127.0.0.1:3286\"") && strcontains(output.session_attached_metadata_script, var.state_file)
+    error_message = "the attachment script must read the runner's listener and state file"
+  }
+}
+
+run "health_port_overridden" {
+  command = plan
+
+  variables {
+    health_port = 3290
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "--health-port 3290") && output.health_url == "http://127.0.0.1:3290" && strcontains(output.session_attached_metadata_script, "http://127.0.0.1:3290")
+    error_message = "health_port must select the port the runner binds and the attachment script reads"
+  }
+}
+
+run "health_port_disabled" {
+  command = plan
+
+  variables {
+    health_port = 0
+  }
+
+  # The CLI listens on 8080 unless told 0, so disabling must pass 0, and
+  # the attachment script must say why it cannot observe a session.
+  assert {
+    condition     = strcontains(local.start_script, "--health-port 0") && output.health_url == "" && strcontains(output.session_attached_metadata_script, "health_url=\"\"")
+    error_message = "health_port = 0 must disable the listener and the attachment probe"
+  }
+}
+
+run "health_port_rejects_out_of_range" {
+  command = plan
+
+  variables {
+    health_port = 70000
+  }
+
+  expect_failures = [var.health_port]
+}
+
+run "additional_args_rejects_health_port" {
+  command = plan
+
+  variables {
+    additional_args = ["--health-port=9000"]
+  }
+
+  expect_failures = [var.additional_args]
+}
+
+run "release_idle_session_min_default" {
+  command = plan
+
+  # A relay that predates the parameter never stamps it, so its default is
+  # what such a workspace runs with.
+  assert {
+    condition     = data.coder_parameter.agent_relay_claude_code_release_idle_session_min.default == "60" && data.coder_parameter.agent_relay_claude_code_release_idle_session_min.value == "60"
+    error_message = "the idle session release parameter must default to 60 minutes"
+  }
+
+  assert {
+    condition     = data.coder_parameter.agent_relay_claude_code_release_idle_session_min.type == "number" && data.coder_parameter.agent_relay_claude_code_release_idle_session_min.validation[0].min == 0 && data.coder_parameter.agent_relay_claude_code_release_idle_session_min.validation[0].max == 10080
+    error_message = "the idle session release parameter must accept 0 to 10080, the CLI's bound"
+  }
+
+  assert {
+    condition     = coder_env.agent_relay_claude_code_release_idle_session_min.name == "AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN" && coder_env.agent_relay_claude_code_release_idle_session_min.value == "60"
+    error_message = "the idle session release value must reach the start script through the environment"
+  }
+
+  # The supervisor reads the value at run time; it is never rendered as a
+  # flag value into the script.
+  assert {
+    condition     = strcontains(local.start_script, "set -- --release-idle-session-min \"\\$AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN\"") && !strcontains(local.start_script, "--release-idle-session-min 60")
+    error_message = "the supervisor must pass --release-idle-session-min from the environment"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN:-60}") && strcontains(local.start_script, "failed invalid-release-idle-session-min")
+    error_message = "the start script must fall back to the module default and refuse an invalid value"
+  }
+}
+
+run "release_idle_session_min_overridden" {
+  command = plan
+
+  variables {
+    release_idle_session_min = 15
+  }
+
+  assert {
+    condition     = data.coder_parameter.agent_relay_claude_code_release_idle_session_min.default == "15" && coder_env.agent_relay_claude_code_release_idle_session_min.value == "15"
+    error_message = "release_idle_session_min must set the parameter's default"
+  }
+}
+
+run "release_idle_session_min_disabled" {
+  command = plan
+
+  variables {
+    release_idle_session_min = 0
+  }
+
+  assert {
+    condition     = data.coder_parameter.agent_relay_claude_code_release_idle_session_min.default == "0" && coder_env.agent_relay_claude_code_release_idle_session_min.value == "0"
+    error_message = "release_idle_session_min = 0 must be a valid default"
+  }
+}
+
+run "release_idle_session_min_stamped" {
+  command = plan
+
+  # What a relay stamp looks like: the parameter's value differs from the
+  # module default, and the value is what the runner gets.
+  override_data {
+    target = data.coder_parameter.agent_relay_claude_code_release_idle_session_min
+    values = {
+      value = "30"
+    }
+  }
+
+  assert {
+    condition     = coder_env.agent_relay_claude_code_release_idle_session_min.value == "30"
+    error_message = "a stamped parameter value must override the module default"
+  }
+}
+
+run "release_idle_session_min_rejects_out_of_range" {
+  command = plan
+
+  variables {
+    release_idle_session_min = 10081
+  }
+
+  expect_failures = [var.release_idle_session_min]
+}
+
+run "release_idle_session_min_rejects_fraction" {
+  command = plan
+
+  variables {
+    release_idle_session_min = 1.5
+  }
+
+  expect_failures = [var.release_idle_session_min]
+}
+
+run "additional_args_rejects_release_idle_session_min" {
+  command = plan
+
+  variables {
+    additional_args = ["--release-idle-session-min=5"]
+  }
+
+  expect_failures = [var.additional_args]
 }

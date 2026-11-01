@@ -61,6 +61,17 @@ variable "openai_api_key" {
   default     = ""
 }
 
+variable "manage_config" {
+  description = "Whether to write the module-managed Codex config.toml block. Disable to keep an existing user-managed configuration untouched. CLI installation and explicit API-key authentication still run."
+  type        = bool
+  default     = true
+
+  validation {
+    condition     = var.manage_config || (var.base_config_toml == "" && var.mcp == "" && length(var.mcp_config_remote_path) == 0 && var.model_reasoning_effort == "" && !var.enable_ai_gateway)
+    error_message = "manage_config must be true when setting base_config_toml, mcp, mcp_config_remote_path, model_reasoning_effort, or enable_ai_gateway."
+  }
+}
+
 variable "base_config_toml" {
   type        = string
   description = <<-EOT
@@ -143,6 +154,7 @@ locals {
   EOF
   install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     ARG_INSTALL                = tostring(var.install_codex)
+    ARG_MANAGE_CONFIG          = tostring(var.manage_config)
     ARG_CODEX_VERSION          = var.codex_version
     ARG_WORKDIR                = local.workdir != "" ? base64encode(local.workdir) : ""
     ARG_BASE_CONFIG_TOML       = var.base_config_toml != "" ? base64encode(var.base_config_toml) : ""

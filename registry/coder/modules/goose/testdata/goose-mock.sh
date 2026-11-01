@@ -1,8 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -e
-
-while true; do
-  echo "$(date) - goose-mock"
-  sleep 15
-done
+case "$1" in
+  --version | -V)
+    echo " 1.54.0-mock"
+    ;;
+  *)
+    echo "goose invoked with: $*"
+    ;;
+esac
+exit 0

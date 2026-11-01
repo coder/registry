@@ -1,7 +1,8 @@
-# Terraform tests for the parameter contract and the rendered install and
-# start scripts. Run with `terraform init && terraform test` in this
-# directory. The scripts are handed to coder-utils, whose coder_script
-# resources a test cannot reach, so assertions read the rendered locals.
+# Terraform tests for the parameter contract and rendered lifecycle scripts.
+# Run with `terraform init && terraform test` in this directory. The scripts
+# are handed to coder-utils, whose coder_script resources a test cannot
+# reach, so assertions read the rendered locals. The standalone stop script
+# is asserted directly.
 
 variables {
   agent_id = "00000000-0000-0000-0000-000000000000"
@@ -26,11 +27,6 @@ run "parameter_contract" {
   }
 
   assert {
-    condition     = data.coder_parameter.agent_relay_credential.name == "agent_relay_credential"
-    error_message = "credential parameter name is part of the Agent Relay contract"
-  }
-
-  assert {
     condition     = data.coder_parameter.agent_relay_cursor_pool_name.name == "agent_relay_cursor_pool_name"
     error_message = "Cursor pool parameter name is part of the Agent Relay contract"
   }
@@ -45,8 +41,8 @@ run "parameter_contract" {
     error_message = "Cursor idle release timeout parameter name is part of the Agent Relay contract"
   }
 
-  # Only the credential is ephemeral: the rest are queried back off the
-  # workspace with `param:` filters, which only sees declared values.
+  # None are ephemeral: they are queried back off the workspace with
+  # `param:` filters, which only sees declared values.
   assert {
     condition = alltrue([
       data.coder_parameter.agent_relay_session_id.ephemeral == false,
@@ -55,7 +51,6 @@ run "parameter_contract" {
       data.coder_parameter.agent_relay_cursor_pool_name.ephemeral == false,
       data.coder_parameter.agent_relay_cursor_repo_url.ephemeral == false,
       data.coder_parameter.agent_relay_cursor_idle_release_timeout.ephemeral == false,
-      data.coder_parameter.agent_relay_credential.ephemeral == true,
     ])
     error_message = "parameter persistence does not match the Agent Relay contract"
   }
@@ -71,38 +66,91 @@ run "parameter_contract" {
         data.coder_parameter.agent_relay_cursor_pool_name.styling,
         data.coder_parameter.agent_relay_cursor_repo_url.styling,
         data.coder_parameter.agent_relay_cursor_idle_release_timeout.styling,
-        data.coder_parameter.agent_relay_credential.styling,
       ] : can(regex("\"disabled\":true", p))
     ])
     error_message = "every relay parameter must render disabled"
-  }
-
-  assert {
-    condition     = can(regex("\"mask_input\":true", data.coder_parameter.agent_relay_credential.styling))
-    error_message = "the credential must be masked"
   }
 }
 
 run "worker_wiring" {
   command = plan
 
-  # The Cursor CLI owns the worker id name; the token has no CLI env var
-  # and must not masquerade as CURSOR_API_KEY.
-  assert {
-    condition     = coder_env.agent_relay_cursor_token.name == "AGENT_RELAY_CURSOR_TOKEN"
-    error_message = "the worker token env var is Agent Relay's, not a Cursor API key"
-  }
-
+  # The Cursor CLI owns the worker id name. The token arrives as a
+  # workspace secret, not through this module.
   assert {
     condition     = coder_env.cursor_agent_worker_id.name == "CURSOR_AGENT_WORKER_ID"
     error_message = "the worker id env var name is the Cursor CLI's contract"
   }
 
-  # coder-utils runs the install step before the start step and keeps
-  # both scripts and their logs under this directory.
+  # coder-utils runs the cleanup before the install step, and the install
+  # step before the start step, keeping scripts and logs under this
+  # directory.
   assert {
-    condition     = module.coder_utils.scripts == ["coder-agent-relay-cursor-install_script", "coder-agent-relay-cursor-start_script"]
-    error_message = "coder-utils must run exactly the install and start steps, in that order"
+    condition     = module.coder_utils.scripts == ["coder-agent-relay-cursor-pre_install_script", "coder-agent-relay-cursor-install_script", "coder-agent-relay-cursor-start_script"]
+    error_message = "coder-utils must run exactly the pre-install, install, and start steps, in that order"
+  }
+
+  # The cleanup stops verified previous supervisors and workers before a
+  # new start. Stop renders the same template but cannot publish a marker.
+  assert {
+    condition     = module.coder_utils.scripts[0] == "coder-agent-relay-cursor-pre_install_script" && strcontains(local.cleanup_script, "signal_pending TERM")
+    error_message = "the cleanup must run as the coder-utils pre-install step"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, "cleanup_marker=\"${local.module_directory}/cleanup-complete\"\nrm -f \"$cleanup_marker\"") && strcontains(local.start_script, "cleanup_marker=\"${local.module_directory}/cleanup-complete\"") && strcontains(local.start_script, "starting a worker anyway") && strcontains(local.start_script, "mv \"$cleanup_marker.tmp\" \"$cleanup_marker\"")
+    error_message = "cleanup must invalidate the old generation first, and start must publish a fallback generation if needed"
+  }
+
+  assert {
+    condition     = coder_script.stop_worker.run_on_stop == true && coder_script.stop_worker.timeout == 20 && coder_script.stop_worker.script == local.stop_script && strcontains(local.cleanup_script, "signal_pending TERM") && strcontains(local.stop_script, "signal_pending TERM") && !strcontains(local.stop_script, "cat /proc/sys/kernel/random/uuid >") && strcontains(local.cleanup_script, "cat /proc/sys/kernel/random/uuid >")
+    error_message = "stop must have a 20-second timeout and use the shared cleanup template without publishing a launch marker"
+  }
+
+  assert {
+    condition     = strcontains(local.stop_script, "rm -f \"$cleanup_marker\"") && strcontains(local.stop_script, "rm -f \"$state_file\"") && strcontains(local.cleanup_script, "rm -f \"$state_file\"")
+    error_message = "stop and startup must remove the marker and previous state"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "elif [ -d \"${local.module_directory}/started/$cleanup_id\" ]") && strcontains(local.start_script, "new_generation") && strcontains(local.start_script, "rm -f \"$token_file\" \"$token_file.tmp\"")
+    error_message = "start must rotate a claimed generation and remove a stale token when idling"
+  }
+
+  # The cleanup id travels as an argument, so a late start that runs a
+  # newer start's supervisor script still checks its own id.
+  assert {
+    condition     = strcontains(local.start_script, "setsid nohup \"$supervisor\" \"$cleanup_id\"") && strcontains(local.start_script, "cleanup_id=\"\\$${1:-}\"") && strcontains(local.start_script, "= \"\\$cleanup_id\" ]") && strcontains(local.start_script, "mv \"$supervisor.$$.tmp\" \"$supervisor\"")
+    error_message = "the supervisor must take the cleanup id as an argument and be replaced by rename"
+  }
+
+  # A supervisor from an older run must not overwrite a newer run's state
+  # or delete its token.
+  assert {
+    condition     = strcontains(local.start_script, "write_state() {\n\tcurrent || return 0") && length(regexall("! current \\|\\| rm -f \"\\$token_file\"", local.start_script)) == 2
+    error_message = "every supervisor state write and token removal must check the run is still current"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, "${local.module_directory}/supervisors") && strcontains(local.cleanup_script, "${local.module_directory}/workers") && strcontains(local.start_script, "supervisors=\"${local.module_directory}/supervisors\"") && strcontains(local.start_script, "workers=\"${local.module_directory}/workers\"")
+    error_message = "the supervisor, worker, and cleanup must agree on the identity record directories"
+  }
+
+  # The worker records itself before it execs the CLI, so it stays tracked
+  # if its supervisor is SIGKILLed.
+  assert {
+    condition     = strcontains(local.start_script, "publish \"\\$BASHPID\" \"$workers\" || exit 1\n\texec agent worker")
+    error_message = "the worker must publish its own identity before exec'ing the CLI"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, "signal_pending TERM") && strcontains(local.cleanup_script, "signal_pending KILL")
+    error_message = "the cleanup must escalate to SIGKILL for verified processes that ignore TERM"
+  }
+
+  assert {
+    condition     = strcontains(local.cleanup_script, "/proc/sys/kernel/random/boot_id") && strcontains(local.start_script, "/proc/sys/kernel/random/boot_id")
+    error_message = "supervisor identity must include the boot id so a pid from another boot is never signalled"
   }
 
   # Pass-through so a template can serialize its own scripts behind ours.
@@ -141,26 +189,26 @@ run "worker_wiring" {
     error_message = "the worker must read pool name and idle timeout from the environment at run time"
   }
 
-  # The token reaches the worker as --auth-token from the supervisor's
-  # environment; it must not be expanded into the supervisor file the
-  # script writes to disk.
+  # The token reaches the worker through a file, never on its command
+  # line, and is not expanded into the supervisor file the script writes
+  # to disk.
   assert {
-    condition     = strcontains(local.start_script, "--auth-token \"\\$AGENT_RELAY_CURSOR_TOKEN\"")
-    error_message = "the worker must authenticate with --auth-token read from the environment at run time"
+    condition     = strcontains(local.start_script, "--auth-token-file \"$token_file\"") && !strcontains(local.start_script, "--auth-token ")
+    error_message = "the worker must authenticate with --auth-token-file, not --auth-token"
   }
 
   # Reaping reads this file through the agent_relay_status metadata item,
-  # so the script and the metadata script must agree on the path.
+  # so the scripts must agree on the path.
   assert {
-    condition     = strcontains(local.start_script, var.state_file) && strcontains(output.status_metadata_script, var.state_file)
-    error_message = "the worker script and the status script must read the same state file"
+    condition     = strcontains(local.start_script, var.state_file) && strcontains(local.cleanup_script, var.state_file) && strcontains(output.status_metadata_script, var.state_file)
+    error_message = "the worker, cleanup, and status scripts must use the same state file"
   }
 
   # A restart inside the same build must not report the previous run's
-  # state as this run's, nor launch a second worker beside a live one.
+  # state as this run's.
   assert {
-    condition     = strcontains(local.start_script, "write_state \"pending\"") && strcontains(local.start_script, "worker_alive") && strcontains(output.status_metadata_script, "worker_alive")
-    error_message = "the start script must reset to pending and both scripts must check worker liveness by cmdline"
+    condition     = strcontains(local.start_script, "write_state \"pending\"") && strcontains(output.status_metadata_script, "worker_alive")
+    error_message = "the start script must reset to pending and the status script must check worker liveness by cmdline"
   }
 
   assert {
@@ -170,7 +218,7 @@ run "worker_wiring" {
 
   assert {
     condition     = output.dispatched == false
-    error_message = "a build with no credential was not dispatched by Agent Relay"
+    error_message = "a build with no delivery was not dispatched by Agent Relay"
   }
 
   assert {
@@ -181,6 +229,26 @@ run "worker_wiring" {
   assert {
     condition     = length(coder_app.cursor_web) == 0 && length(coder_app.cursor_desktop) == 0
     error_message = "a manual build has no cloud agent, so neither Cursor client button is created"
+  }
+}
+
+run "dispatched_true_when_delivery_stamped" {
+  command = plan
+
+  # The delivery id is not ephemeral, so a person's restart carries it into
+  # the next build and this output stays true for the life of a relay-created
+  # workspace. The start script, not this output, says whether the current
+  # build has a worker token.
+  override_data {
+    target = data.coder_parameter.agent_relay_delivery_id
+    values = {
+      value = "0d6c3b1e-delivery"
+    }
+  }
+
+  assert {
+    condition     = output.dispatched == true
+    error_message = "a build carrying a delivery id belongs to a workspace Agent Relay created"
   }
 }
 
@@ -233,6 +301,49 @@ run "share_desktop_requires_computer_use" {
   }
 
   expect_failures = [var.share_desktop]
+}
+
+run "additional_args_default_empty" {
+  command = plan
+
+  assert {
+    condition     = strcontains(local.start_script, "done < <(echo -n '' | base64 -d)")
+    error_message = "additional_args must default to empty"
+  }
+}
+
+run "additional_args_encoded" {
+  command = plan
+
+  variables {
+    additional_args = ["--header", "it's here", "--header", "b", "--verbose"]
+  }
+
+  # Base64 keeps quotes in an argument from breaking the rendered script.
+  assert {
+    condition     = strcontains(local.start_script, base64encode("--header\nit's here\n--header\nb\n--verbose")) && !strcontains(local.start_script, "it's here")
+    error_message = "additional_args must be base64-encoded into the start script, one argument per line, in order"
+  }
+}
+
+run "additional_args_rejects_newline" {
+  command = plan
+
+  variables {
+    additional_args = ["--verbose\n--pool"]
+  }
+
+  expect_failures = [var.additional_args]
+}
+
+run "additional_args_rejects_module_flags" {
+  command = plan
+
+  variables {
+    additional_args = ["--pool=2"]
+  }
+
+  expect_failures = [var.additional_args]
 }
 
 run "install_cli_enabled_by_default" {
@@ -312,6 +423,11 @@ run "overridden_paths" {
   }
 
   assert {
+    condition     = strcontains(local.cleanup_script, "state_file=\"/var/run/relay/state\"")
+    error_message = "the cleanup must clear the configured state file"
+  }
+
+  assert {
     condition     = can(regex("/opt/cursor/agent worker", local.start_script))
     error_message = "cli_binary must select the binary the worker starts"
   }
@@ -335,4 +451,102 @@ run "serving_log_pattern_is_data" {
     condition     = !strcontains(output.status_metadata_script, "PWNED") && strcontains(output.status_metadata_script, "grep -qF -- \"$serving_log_pattern\"")
     error_message = "serving_log_pattern must be base64-encoded and matched with grep -F"
   }
+}
+
+run "management_addr_default" {
+  command = plan
+
+  # Loopback by default: only the workspace's own scripts read it.
+  assert {
+    condition     = strcontains(local.start_script, "--management-addr \"127.0.0.1:3287\"") && output.management_url == "http://127.0.0.1:3287"
+    error_message = "the worker must serve its management endpoints on 127.0.0.1:3287 by default"
+  }
+
+  assert {
+    condition     = strcontains(output.session_attached_metadata_script, "management_url=\"http://127.0.0.1:3287\"") && strcontains(output.session_attached_metadata_script, var.state_file)
+    error_message = "the attachment script must read the worker's management server and state file"
+  }
+}
+
+run "management_addr_wildcard" {
+  command = plan
+
+  variables {
+    management_addr = ":3290"
+  }
+
+  # A wildcard bind is still reached over loopback from inside.
+  assert {
+    condition     = strcontains(local.start_script, "--management-addr \":3290\"") && output.management_url == "http://127.0.0.1:3290"
+    error_message = "an empty host must bind every interface and be read over loopback"
+  }
+}
+
+run "management_addr_ipv6_wildcard" {
+  command = plan
+
+  variables {
+    management_addr = "[::]:3290"
+  }
+
+  assert {
+    condition     = output.management_url == "http://[::1]:3290"
+    error_message = "an IPv6 wildcard bind must be read over IPv6 loopback"
+  }
+}
+
+run "management_addr_named_host" {
+  command = plan
+
+  variables {
+    management_addr = "10.0.0.5:9000"
+  }
+
+  assert {
+    condition     = output.management_url == "http://10.0.0.5:9000"
+    error_message = "a specific host must be read where it binds"
+  }
+}
+
+run "management_addr_disabled" {
+  command = plan
+
+  variables {
+    management_addr = ""
+  }
+
+  assert {
+    condition     = !strcontains(local.start_script, "--management-addr") && output.management_url == "" && strcontains(output.session_attached_metadata_script, "management_url=\"\"")
+    error_message = "an empty management_addr must disable the server and the attachment probe"
+  }
+}
+
+run "management_addr_rejects_shell" {
+  command = plan
+
+  variables {
+    management_addr = "127.0.0.1:3287\"; touch /tmp/PWNED; \""
+  }
+
+  expect_failures = [var.management_addr]
+}
+
+run "management_addr_rejects_bad_port" {
+  command = plan
+
+  variables {
+    management_addr = "127.0.0.1:99999"
+  }
+
+  expect_failures = [var.management_addr]
+}
+
+run "additional_args_rejects_management_addr" {
+  command = plan
+
+  variables {
+    additional_args = ["--management-addr", ":9000"]
+  }
+
+  expect_failures = [var.additional_args]
 }
