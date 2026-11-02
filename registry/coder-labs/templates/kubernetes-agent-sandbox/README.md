@@ -25,6 +25,10 @@ Plain Kubernetes and Coder already cover some of this. See [agent-sandbox vs Pod
 
 ## Startup speed
 
+With a warm pool or a prebuild, workspaces often start in 3 to 8 seconds, which matters for agents that start a new workspace for each task.
+
+![Creating agent-sandbox workspaces on Amazon EKS, in real time](../../.images/kubernetes-agent-sandbox.gif)
+
 Workspace speed and Pod startup speed are not the same. Pod startup is the time until the sandbox runs, and agent-sandbox makes it very short: a scratch home claims a booted sandbox from a warm pool in 50 to 80 ms. Workspace speed is the time from create until you can connect, and it also includes the Coder build: the provisioner job, Terraform, and the agent connecting to the Coder server. Most of a fast start is the Coder build, so a warm pool and a prebuild are about as fast.
 
 In our Amazon EKS test cluster (`m7i.2xlarge` nodes, VPC CNI), from create to a connected agent:
@@ -36,8 +40,6 @@ In our Amazon EKS test cluster (`m7i.2xlarge` nodes, VPC CNI), from create to a 
 | Persistent home, no prebuild, gVisor                   | about 17 s   |
 | Persistent home, no prebuild, Kata QEMU                | about 19 s   |
 | Persistent home, no prebuild, with a coder/coder clone | about 58 s   |
-
-![Creating agent-sandbox workspaces on Amazon EKS, in real time](../../.images/kubernetes-agent-sandbox.gif)
 
 These all add to the speed:
 
