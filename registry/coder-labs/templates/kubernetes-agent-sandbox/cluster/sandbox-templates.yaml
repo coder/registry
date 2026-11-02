@@ -1,39 +1,6 @@
 # SandboxTemplates for the scratch home of the kubernetes-agent-sandbox
-# template: one per runtime. The warm pools in warm-pools.yaml boot Pods
-# from them before anyone asks for a workspace.
-#
-# Replace these example values before you apply the file:
-#   coder-workspaces                               your namespace
-#   registry.example.com/coder/workspace:v2.30.0   your workspace_image
-#   https://coder.example.com                      your Coder access URL
-#   203.0.113.10/32 and port 443                   coder_egress_cidrs and coder_egress_port
-#   https://github.com/coder/coder                 your git_repo_url (coder-gvisor-github)
-#
-# How a pooled Pod starts:
-#   1. It boots and waits for the file /podinfo/token.
-#   2. A workspace build creates a SandboxClaim. agent-sandbox hands it an
-#      idle Pod and adds the claim's annotations to the Pod.
-#   3. The downward API writes the coder.com/agent-token annotation to
-#      /podinfo/token, usually within a second.
-#   4. The Pod waits until a TCP connection to the Kubernetes API server
-#      fails, which shows that its NetworkPolicy is in force, then starts
-#      the Coder agent. Every 5 s it checks again. If the API server
-#      becomes reachable, it stops the agent and the container exits.
-#
-# The token stays in plain text in the Pod annotation and the SandboxClaim,
-# so only trusted users should read Pods and SandboxClaims here.
-#
-# Claimed Pods get only annotations, not the com.coder.workspace.id label:
-# claim labels need a domain from the controller's allowed-label-domains
-# setting.
-#
-# The NetworkPolicy below replaces the agent-sandbox default (public
-# internet). It allows only the Coder server. The template allows only
-# Fully isolated for a scratch home, because on Amazon VPC CNI the Pods of
-# one pool on one node share their network rules.
-#
-# The Kata RuntimeClasses from kata-deploy have a scheduling.nodeSelector,
-# so Kata Pods land on the Kata nodes without a nodeSelector here.
+# template. See README.md in this directory for the values to replace and
+# for how a pooled sandbox starts.
 apiVersion: extensions.agents.x-k8s.io/v1beta1
 kind: SandboxTemplate
 metadata:
@@ -108,9 +75,8 @@ spec:
                 sleep 0.25
               done
               echo "NetworkPolicy is in force after $i checks" >&2
-              # The agent must be PID 1: under Kata, the web terminal gets no input
-              # when a shell is PID 1 and the agent is its child. So the re-check runs
-              # in the background, and stops the agent (PID 1) and everything else.
+              # The agent must be PID 1, or the web terminal gets no input
+              # under Kata. The re-check runs in the background.
               (
                 while sleep 5; do
                   if api_open; then
@@ -221,9 +187,8 @@ spec:
                 sleep 0.25
               done
               echo "NetworkPolicy is in force after $i checks" >&2
-              # The agent must be PID 1: under Kata, the web terminal gets no input
-              # when a shell is PID 1 and the agent is its child. So the re-check runs
-              # in the background, and stops the agent (PID 1) and everything else.
+              # The agent must be PID 1, or the web terminal gets no input
+              # under Kata. The re-check runs in the background.
               (
                 while sleep 5; do
                   if api_open; then
@@ -334,9 +299,8 @@ spec:
                 sleep 0.25
               done
               echo "NetworkPolicy is in force after $i checks" >&2
-              # The agent must be PID 1: under Kata, the web terminal gets no input
-              # when a shell is PID 1 and the agent is its child. So the re-check runs
-              # in the background, and stops the agent (PID 1) and everything else.
+              # The agent must be PID 1, or the web terminal gets no input
+              # under Kata. The re-check runs in the background.
               (
                 while sleep 5; do
                   if api_open; then
@@ -373,10 +337,8 @@ spec:
                 fieldRef:
                   fieldPath: metadata.annotations['coder.com/agent-token']
 ---
-# GitHub only, gVisor: the same as coder-gvisor, plus the GitHub ranges and
-# public DNS. Each Pod clones the repository while it waits in the pool.
-# Only public repositories work, because the Pod has no user credentials
-# before a claim. Copy this block for Kata.
+# GitHub only, gVisor. Each Pod clones a public repository while it waits
+# in the pool.
 apiVersion: extensions.agents.x-k8s.io/v1beta1
 kind: SandboxTemplate
 metadata:
@@ -470,9 +432,8 @@ spec:
                 sleep 0.25
               done
               echo "NetworkPolicy is in force after $i checks" >&2
-              # The agent must be PID 1: under Kata, the web terminal gets no input
-              # when a shell is PID 1 and the agent is its child. So the re-check runs
-              # in the background, and stops the agent (PID 1) and everything else.
+              # The agent must be PID 1, or the web terminal gets no input
+              # under Kata. The re-check runs in the background.
               (
                 while sleep 5; do
                   if api_open; then

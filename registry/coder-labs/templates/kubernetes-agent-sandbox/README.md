@@ -19,35 +19,15 @@ A plain Kubernetes Pod can also use gVisor or Kata and a NetworkPolicy, and Code
 - **Kernel isolation at the cluster level.** A SandboxTemplate sets the runtime (gVisor, Kata with QEMU, or Kata with Cloud Hypervisor), the image, the security settings, and the network rules. A scratch workspace can only claim a sandbox from these templates, and the Coder provisioner never creates Pods.
 - **Cluster-level warm pools.** A SandboxWarmPool keeps booted sandboxes ready for any client of the cluster, not only Coder, and it does not need Coder Premium. With Premium, Coder prebuilds do the same for persistent homes.
 - **A growing ecosystem.** agent-sandbox is a Kubernetes SIG project with SDKs, a router, and a managed version on GKE. The API already has a suspended mode and expiry, and GKE adds Pod snapshots. This template does not use them yet.
-- **Firewall.** agent-sandbox has no firewall of its own. It uses Kubernetes NetworkPolicy, with one shared policy for each SandboxTemplate. A template with no rules gets the project's secure default: public internet only, with private ranges, cluster DNS, and cloud metadata blocked, and no ingress except from the agent-sandbox router. The project also documents a cluster-wide guardrail with ClusterNetworkPolicy and host name rules with Cilium. This template sets its own rules for each network profile, and has an optional guardrail (see [Guardrail](#guardrail)).
+- **Firewall.** agent-sandbox has no firewall of its own. It uses Kubernetes NetworkPolicy, with one shared policy for each SandboxTemplate. A template with no rules gets the project's secure default: public internet only, with private ranges, cluster DNS, and cloud metadata blocked, and no ingress except from the agent-sandbox router. The project also documents a cluster-wide guardrail with ClusterNetworkPolicy and host name rules with Cilium. This template sets its own rules for each network profile, and has an optional guardrail (see [Guardrail and host names](#guardrail-and-host-names)).
 
 ## Prerequisites
 
 - **Cluster**: a Kubernetes cluster with a network plugin that enforces NetworkPolicy, and a StorageClass for the home disk.
-- **agent-sandbox**: the controller and the extensions, v1.0.4 or later. See item 3 of the [Fast startup checklist](#fast-startup-checklist).
-- **RuntimeClasses**: `gvisor`, and `kata-qemu` and `kata-clh` if you offer Kata. See item 5 of the checklist.
-- **Namespace and permissions**: [`cluster/rbac.yaml`](cluster/rbac.yaml) creates the example namespace `coder-workspaces` and a Role and RoleBinding for the Coder provisioner ServiceAccount `coder/coder`. The Role covers Sandboxes, SandboxClaims, PersistentVolumeClaims, Secrets, and NetworkPolicies in that namespace only. The file also has a ClusterRole for reading CRDs, in a comment. Add it if a build fails with a `customresourcedefinitions ... is forbidden` error.
-- **Scratch homes**: the SandboxTemplates in [`cluster/sandbox-templates.yaml`](cluster/sandbox-templates.yaml) and the warm pools in [`cluster/warm-pools.yaml`](cluster/warm-pools.yaml). Persistent homes do not need them.
-- **Guardrail** (optional, Amazon EKS): [`cluster/cluster-network-policy.yaml`](cluster/cluster-network-policy.yaml). See [Guardrail](#guardrail).
+- **agent-sandbox**, v1.0.4 or later, the RuntimeClasses you offer (`gvisor`, `kata-qemu`, `kata-clh`), and the files in [`cluster/`](cluster). A cluster administrator sets these up once. See [`cluster/README.md`](cluster/README.md).
 - **Authentication**: the template uses the in-cluster ServiceAccount when the Coder provisioner runs in the cluster. Set `use_kubeconfig = true` to use `~/.kube/config` on the Coder host instead. For other methods, see the [provider docs](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs#authentication).
 - **Image**: an image built from [`build/Dockerfile`](build/Dockerfile). See [Build the image](#build-the-image).
 - **Coder Premium**, for prebuilds and the AI Gateway. Without it, set `prebuild_instances = 0` and `enable_ai_gateway = false`, and give Claude Code another way to sign in.
-
-The files in `cluster/` use example values. Replace them before you apply the files:
-
-```sh
-cd cluster
-sed -i \
-  -e 's/coder-workspaces/<namespace>/g' \
-  -e 's#registry.example.com/coder/workspace:v2.30.0#<workspace_image>#g' \
-  -e 's#https://coder.example.com#<access URL>#g' \
-  -e 's#203.0.113.10/32#<Coder server CIDR>#g' \
-  -e 's/port: 443$/port: <Coder port>/' \
-  *.yaml
-kubectl apply -f rbac.yaml -f sandbox-templates.yaml -f warm-pools.yaml
-# Optional, on Amazon EKS:
-kubectl apply -f cluster-network-policy.yaml
-```
 
 ## Build the image
 
@@ -72,54 +52,9 @@ Use a fixed tag or a digest. The template rejects `:latest`, because `imagePullP
 
 1. **Pre-baked image.** The agent, code-server, and Claude Code are in the image, so a start downloads nothing. The Pod uses `imagePullPolicy: IfNotPresent`. The image is large, about 800 MB compressed, so the first Pod on a node can wait a minute for the pull. To pull it ahead of time, run a DaemonSet with the image on every node. An init container that runs `true`, and a pause container, are enough.
 2. **Prebuilds and presets** (Premium). The template has one preset per network profile, each with gVisor and a persistent home. Each keeps `prebuild_instances` prebuilt workspaces (default 1). A claim reuses the running Sandbox and its disk. Coder keeps the agent token, so the Pod does not change. In our test, a claimed prebuild was ready in 5.1 to 5.9 s. A new Kata QEMU workspace without a prebuild took 18.7 s, most of it to create and attach the new disk and boot the VM. A workspace whose parameters match a preset also gets a prebuild, even when the user picks no preset. Each prebuild costs as much as a running workspace. Add presets for the Kata options if your users pick them often.
-3. **The agent-sandbox controller.** Install v1.0.4 with the extensions, which add SandboxTemplate, SandboxClaim, and SandboxWarmPool:
-
-   ```sh
-   kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/v1.0.4/sandbox-with-extensions.yaml
-   ```
-
-   The default settings suit one warm pool. With more pools, add these flags to the controller Deployment, so that the pools refill at the same time:
-
-   ```sh
-   kubectl -n agent-sandbox-system patch deployment agent-sandbox-controller --type json -p '[
-     {"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--sandbox-warm-pool-concurrent-workers=3"},
-     {"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--api-connections=4"},
-     {"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--separate-watch-connection=true"}
-   ]'
-   ```
-
-   Set `--sandbox-warm-pool-concurrent-workers` to the number of pools. These flags make refills faster. Claims were already fast, 50 to 80 ms. The template puts only annotations on a claimed Pod, so you do not need to change the `allowed-label-domains` setting. See the agent-sandbox `docs/performance-tuning.md` for all flags.
-
-4. **A SandboxWarmPool**, for scratch homes. [`cluster/warm-pools.yaml`](cluster/warm-pools.yaml) has one Fully isolated pool per runtime and one GitHub only pool for gVisor, each with 1 idle sandbox. Each Pod of the GitHub only pool clones a public repository, `https://github.com/coder/coder` in the example, while it waits in the pool. Set the same URL in `git_repo_url`. A scratch workspace claims an idle sandbox, and the pool boots a new one. In our test, a scratch workspace was ready in 3.5 to 6.5 s. Each idle sandbox reserves the Pod's requests (500m CPU and 1 GiB) plus the RuntimeClass overhead (Kata: 250m CPU and 130 to 320 MiB). In our test cluster, one idle sandbox filled a 2 CPU, 4 GiB slot on an `m7i.2xlarge` node: about $0.058 an hour, or $42 a month, at us-east-1 on-demand prices. An idle sandbox also uses a little CPU for the runtime and for the loop that waits for the token, which checks 4 times a second. Use `kubectl top pod` to see it on your nodes. Set `replicas` to the number of scratch workspaces that start at about the same time, and to 0 for runtimes that you do not use. The pools use `updateStrategy.type: Recreate`, so they replace idle sandboxes when you change a SandboxTemplate.
-5. **RuntimeClasses.**
-   - gVisor runs on any Linux node. Install `runsc` and its containerd shim on each node, add a `runsc` runtime to the containerd config, and create a RuntimeClass named `gvisor` with `handler: runsc`. See the [gVisor containerd guide](https://gvisor.dev/docs/user_guide/containerd/quick_start/). On GKE, GKE Sandbox provides the `gvisor` RuntimeClass.
-   - Kata needs `/dev/kvm` on the node: a bare metal node, or a VM with nested virtualization. On EC2, C7i, M7i, R7i, C8i, M8i, and R8i instances support nested virtualization when they start with `CpuOptions.NestedVirtualization=enabled`. eksctl cannot set this, so use an EC2 launch template for the node group. Install Kata with the [kata-deploy Helm chart](https://github.com/kata-containers/kata-containers/blob/main/tools/packaging/kata-deploy/helm-chart/README.md):
-
-     ```sh
-     helm install kata-deploy oci://ghcr.io/kata-containers/kata-deploy-charts/kata-deploy \
-       --version 4.2.0 -n kube-system -f kata-values.yaml
-     ```
-
-     With these values, the chart installs only the QEMU and Cloud Hypervisor shims, and only on nodes labeled `coder.com/runtime=kata`:
-
-     ```yaml
-     nodeSelector:
-       coder.com/runtime: kata
-     shims:
-       disableAll: true
-       qemu:
-         enabled: true
-       clh:
-         enabled: true
-     runtimeClasses:
-       enabled: true
-       createDefault: false
-     ```
-
-     The `kata-qemu` and `kata-clh` RuntimeClasses from the chart have a `scheduling.nodeSelector`. Kubernetes then places Kata Pods on the Kata nodes without a nodeSelector in the template.
-
-   - On a cold start, gVisor added about 0.2 s over a normal container, Kata Cloud Hypervisor about 1.5 s, and Kata QEMU about 2.6 s. A warm pool or a prebuild hides this time.
-
+3. **The agent-sandbox controller.** With more than one warm pool, raise the controller's refill workers, so that the pools refill at the same time. Claims take 50 to 80 ms. See [Install agent-sandbox](cluster/README.md#1-install-agent-sandbox).
+4. **Warm pools**, for scratch homes. A scratch workspace claims a booted sandbox and is ready in about 3.5 to 6.5 s. The GitHub only pool clones `git_repo_url` before a claim. See [Size the warm pools](cluster/README.md#size-the-warm-pools).
+5. **Runtimes.** On a cold start, gVisor added about 0.2 s over a normal container, Kata Cloud Hypervisor about 1.5 s, and Kata QEMU about 2.6 s. A warm pool or a prebuild hides this time. See [Install the runtimes](cluster/README.md#2-install-the-runtimes).
 6. **Terraform init.** Coder caches modules by default. Providers are downloaded on every build unless the provisioner has them. Bake a provider cache or a `filesystem_mirror` into the provisioner image, with `TF_PLUGIN_CACHE_DIR` or a Terraform CLI config file. coder/coder PRs [#29825](https://github.com/coder/coder/pull/29825) and [#29827](https://github.com/coder/coder/pull/29827) skip `terraform init` and reuse the lock file. They are still open today. With them, `terraform init` went from about 3.3 s to near zero. Only template versions pushed after an upgrade get the gain, so push your templates again after you upgrade Coder.
 7. **Coder server resources.** The Helm chart's default CPU limit of 2 slowed builds through CPU throttling. With 4 CPUs, each start was about 2.4 s faster. Run enough provisioners for your prebuilds and for users who start at the same time.
 8. **Disk.** Use a StorageClass with `volumeBindingMode: WaitForFirstConsumer`, so the disk is created in the zone of the node. When a workspace starts on another node, moving the EBS volume adds 5 to 10 s. In our test, a start after a stop took 7.5 to 12 s. Scratch homes use no disk.
@@ -236,18 +171,14 @@ For a restricted or air-gapped cluster:
 - Give the provisioner a provider mirror, and make `registry.coder.com` reachable or vendor the module into the template.
 - If the access URL resolves only on an internal DNS server, change `local.dns_servers` in `main.tf` and the `dnsConfig` in the SandboxTemplates, or use `coder_host_ip`.
 
-### Guardrail
+### Guardrail and host names
 
-The NetworkPolicies of the profiles are namespace-scoped. Anyone who can edit a SandboxTemplate or create a NetworkPolicy in the namespace can open the network. [`cluster/cluster-network-policy.yaml`](cluster/cluster-network-policy.yaml) is a cluster-scoped ClusterNetworkPolicy in the Admin tier, which Amazon EKS checks before every NetworkPolicy. For every Pod in the workspace namespace, it allows the Coder server, and it blocks private, shared, and link-local ranges (the VPC, other Pods, the Kubernetes API server, and cloud metadata) and ingress from other Pods. The rest goes on to the NetworkPolicies, so the profiles work as before. It needs VPC CNI v1.21.1 or later. On other clusters, the upstream [Network Policy API](https://network-policy-api.sigs.k8s.io/) `ClusterNetworkPolicy` can do the same, but it has another API group and schema, so the file needs changes.
-
-In our test, a new Pod got the guardrail about 2 s after it started, the same as a NetworkPolicy. So keep `network_policy_gate` on. The ingress rule becomes a list of Pod IP addresses, so a Pod that started a few seconds ago can still connect until the list catches up. The profiles' own NetworkPolicies block all ingress too.
-
-The guardrail and the profiles match IP ranges. To allow host names, such as `registry.npmjs.org`, you need a network plugin with DNS-based rules, such as Cilium `toFQDNs` or EKS Auto Mode `ApplicationNetworkPolicy`, or an egress proxy that checks the host name. A rule based on DNS still allows every host behind an allowed IP address. Only a proxy can tell hosts on a shared IP address apart.
+On Amazon EKS, [`cluster/cluster-network-policy.yaml`](cluster/cluster-network-policy.yaml) adds a cluster-wide guardrail that no NetworkPolicy in the namespace can undo. The profiles match IP ranges. Host name rules need Cilium, EKS Auto Mode, or an egress proxy. See [Guardrail](cluster/README.md#guardrail).
 
 ## Limits
 
 - Under gVisor, typing in the web terminal does nothing with current Coder agents. The agent passes empty resize messages to the terminal, and gVisor blocks on that empty write, so all later input waits behind it. `coder ssh` and Kata are not affected. Until the agent skips empty writes, use Kata or `coder ssh` if you need the web terminal.
-- A NetworkPolicy matches IP ranges, not host names. So there is no profile for package registries such as npm or PyPI, which use shared CDNs without fixed ranges. Use Public internet for them, or see [Guardrail](#guardrail) for host name rules.
+- A NetworkPolicy matches IP ranges, not host names. So there is no profile for package registries such as npm or PyPI, which use shared CDNs without fixed ranges. Use Public internet for them, or see [Guardrail and host names](#guardrail-and-host-names).
 - Public internet allows every public host, so code in the workspace can send data to any public website.
 - GitHub only still lets code in the workspace send data out: it can push to any GitHub repository or gist that a token it has can write to, including one that an attacker owns. A NetworkPolicy cannot limit which repositories it uses.
 - GitHub only and Public internet allow DNS to `8.8.8.8` and `1.1.1.1`. DNS queries can carry small amounts of data to any domain.

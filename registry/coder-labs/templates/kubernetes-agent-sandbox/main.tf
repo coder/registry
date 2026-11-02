@@ -356,9 +356,8 @@ locals {
       sleep 0.25
     done
     echo "NetworkPolicy is in force after $i checks" >&2
-    # The agent must be PID 1: under Kata, the web terminal gets no input
-    # when a shell is PID 1 and the agent is its child. So the re-check runs
-    # in the background, and stops the agent (PID 1) and everything else.
+    # The agent must be PID 1, or the web terminal gets no input
+    # under Kata. The re-check runs in the background.
     (
       while sleep 5; do
         if api_open; then

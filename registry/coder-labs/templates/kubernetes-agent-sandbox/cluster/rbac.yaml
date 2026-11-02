@@ -1,13 +1,5 @@
 # Namespace and permissions for the kubernetes-agent-sandbox template.
-#
-# The example namespace is coder-workspaces. To use another one, replace
-# it in every file of this directory, for example:
-#   sed -i 's/coder-workspaces/my-namespace/g' cluster/*.yaml
-#
-# The Role lets the Coder provisioner ServiceAccount (coder/coder, the
-# default of the Coder Helm chart) manage workspaces in this namespace
-# only. The cluster administrator applies the SandboxTemplates and
-# SandboxWarmPools, so the Role does not need to write them.
+# See README.md in this directory for the values to replace.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -52,30 +44,3 @@ subjects:
   - kind: ServiceAccount
     name: coder
     namespace: coder
-# The kubernetes_manifest resource of the hashicorp/kubernetes provider
-# reads the CustomResourceDefinition of Sandbox and SandboxClaim at plan
-# time. If a build fails with "customresourcedefinitions ... is forbidden",
-# also grant cluster-wide read access to CRDs. CRDs are cluster-scoped, so
-# a Role cannot grant it:
-#
-#   apiVersion: rbac.authorization.k8s.io/v1
-#   kind: ClusterRole
-#   metadata:
-#     name: coder-crd-read
-#   rules:
-#     - apiGroups: ["apiextensions.k8s.io"]
-#       resources: ["customresourcedefinitions"]
-#       verbs: ["get", "list", "watch"]
-#   ---
-#   apiVersion: rbac.authorization.k8s.io/v1
-#   kind: ClusterRoleBinding
-#   metadata:
-#     name: coder-crd-read
-#   roleRef:
-#     apiGroup: rbac.authorization.k8s.io
-#     kind: ClusterRole
-#     name: coder-crd-read
-#   subjects:
-#     - kind: ServiceAccount
-#       name: coder
-#       namespace: coder

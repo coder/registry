@@ -1,21 +1,5 @@
-# Optional guardrail for the kubernetes-agent-sandbox template, for Amazon
-# EKS with VPC CNI v1.21.1 or later (the networking.k8s.aws ClusterNetworkPolicy).
-#
-# The NetworkPolicies of the template and the SandboxTemplates are
-# namespace-scoped, so anyone who can edit them can open the network. This
-# Admin-tier policy is cluster-scoped and is checked before them. For every
-# Pod in the workspace namespace, it:
-#   1. allows the Coder server,
-#   2. blocks private, shared, and link-local ranges: the VPC, the cluster,
-#      other Pods, the Kubernetes API server, and cloud metadata,
-#   3. blocks ingress from every Pod in the cluster.
-# Everything else goes on to the NetworkPolicies, so the network profiles
-# work as before. No NetworkPolicy can undo rules 2 and 3.
-#
-# Replace these example values before you apply the file:
-#   coder-workspaces               your namespace
-#   203.0.113.10/32 and port 443   coder_egress_cidrs and coder_egress_port
-# If the Coder server is in a private range, rule 1 still allows it.
+# Optional guardrail for Amazon EKS with VPC CNI v1.21.1 or later. See
+# "Guardrail" in README.md in this directory.
 apiVersion: networking.k8s.aws/v1alpha1
 kind: ClusterNetworkPolicy
 metadata:
