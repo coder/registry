@@ -21,6 +21,8 @@ agent-sandbox adds Kubernetes primitives for running agentic workloads:
 - **A growing ecosystem.** SDKs, a router, and a managed version on GKE. The API already has a suspended mode and expiry, and GKE adds Pod snapshots. This template does not use them yet.
 - **Firewall.** agent-sandbox uses plain Kubernetes NetworkPolicy, with a secure default for templates that set no rules. This template sets its own rules for each network profile, and adds an optional cluster-wide guardrail.
 
+Plain Kubernetes and Coder already cover some of this. See [agent-sandbox vs Pods](#agent-sandbox-vs-pods) to compare each feature with plain Pods and with Pods in a Coder template, and [Is agent-sandbox a good fit?](#is-agent-sandbox-a-good-fit) to decide which one you need.
+
 ## Startup speed
 
 Workspace speed and Pod startup speed are not the same. Pod startup is the time until the sandbox runs, and agent-sandbox makes it very short: a scratch home claims a booted sandbox from a warm pool in 50 to 80 ms. Workspace speed is the time from create until you can connect, and it also includes the Coder build: the provisioner job, Terraform, and the agent connecting to the Coder server. Most of a fast start is the Coder build, so a warm pool and a prebuild are about as fast.
