@@ -19,6 +19,7 @@ The image has the Coder agent, code-server, and Claude Code built in, so a works
 - **RuntimeClasses**: `gvisor`, and `kata-qemu` and `kata-clh` if you offer Kata. See item 5 of the checklist.
 - **Namespace and permissions**: [`cluster/rbac.yaml`](cluster/rbac.yaml) creates the example namespace `coder-workspaces` and a Role and RoleBinding for the Coder provisioner ServiceAccount `coder/coder`. The Role covers Sandboxes, SandboxClaims, PersistentVolumeClaims, Secrets, and NetworkPolicies in that namespace only. The file also has a ClusterRole for reading CRDs, in a comment. Add it if a build fails with a `customresourcedefinitions ... is forbidden` error.
 - **Scratch homes**: the SandboxTemplates in [`cluster/sandbox-templates.yaml`](cluster/sandbox-templates.yaml) and the warm pools in [`cluster/warm-pools.yaml`](cluster/warm-pools.yaml). Persistent homes do not need them.
+- **Guardrail** (optional, Amazon EKS): [`cluster/cluster-network-policy.yaml`](cluster/cluster-network-policy.yaml). See [Guardrail](#guardrail).
 - **Authentication**: the template uses the in-cluster ServiceAccount when the Coder provisioner runs in the cluster. Set `use_kubeconfig = true` to use `~/.kube/config` on the Coder host instead. For other methods, see the [provider docs](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs#authentication).
 - **Image**: an image built from [`build/Dockerfile`](build/Dockerfile). See [Build the image](#build-the-image).
 - **Coder Premium**, for prebuilds and the AI Gateway. Without it, set `prebuild_instances = 0` and `enable_ai_gateway = false`, and give Claude Code another way to sign in.
@@ -35,6 +36,8 @@ sed -i \
   -e 's/port: 443$/port: <Coder port>/' \
   *.yaml
 kubectl apply -f rbac.yaml -f sandbox-templates.yaml -f warm-pools.yaml
+# Optional, on Amazon EKS:
+kubectl apply -f cluster-network-policy.yaml
 ```
 
 ## Build the image
@@ -224,10 +227,18 @@ For a restricted or air-gapped cluster:
 - Give the provisioner a provider mirror, and make `registry.coder.com` reachable or vendor the module into the template.
 - If the access URL resolves only on an internal DNS server, change `local.dns_servers` in `main.tf` and the `dnsConfig` in the SandboxTemplates, or use `coder_host_ip`.
 
+### Guardrail
+
+The NetworkPolicies of the profiles are namespace-scoped. Anyone who can edit a SandboxTemplate or create a NetworkPolicy in the namespace can open the network. [`cluster/cluster-network-policy.yaml`](cluster/cluster-network-policy.yaml) is a cluster-scoped ClusterNetworkPolicy in the Admin tier, which Amazon EKS checks before every NetworkPolicy. For every Pod in the workspace namespace, it allows the Coder server, and it blocks private, shared, and link-local ranges (the VPC, other Pods, the Kubernetes API server, and cloud metadata) and ingress from other Pods. The rest goes on to the NetworkPolicies, so the profiles work as before. It needs VPC CNI v1.21.1 or later. On other clusters, the upstream [Network Policy API](https://network-policy-api.sigs.k8s.io/) `ClusterNetworkPolicy` can do the same, but it has another API group and schema, so the file needs changes.
+
+In our test, a new Pod got the guardrail about 2 s after it started, the same as a NetworkPolicy. So keep `network_policy_gate` on. The ingress rule becomes a list of Pod IP addresses, so a Pod that started a few seconds ago can still connect until the list catches up. The profiles' own NetworkPolicies block all ingress too.
+
+The guardrail and the profiles match IP ranges. To allow host names, such as `registry.npmjs.org`, you need a network plugin with DNS-based rules, such as Cilium `toFQDNs` or EKS Auto Mode `ApplicationNetworkPolicy`, or an egress proxy that checks the host name. A rule based on DNS still allows every host behind an allowed IP address. Only a proxy can tell hosts on a shared IP address apart.
+
 ## Limits
 
 - Under gVisor, typing in the web terminal does nothing with current Coder agents. The agent passes empty resize messages to the terminal, and gVisor blocks on that empty write, so all later input waits behind it. `coder ssh` and Kata are not affected. Until the agent skips empty writes, use Kata or `coder ssh` if you need the web terminal.
-- A NetworkPolicy matches IP ranges, not host names. So there is no profile for package registries such as npm or PyPI, which use shared CDNs without fixed ranges. Use Public internet for them.
+- A NetworkPolicy matches IP ranges, not host names. So there is no profile for package registries such as npm or PyPI, which use shared CDNs without fixed ranges. Use Public internet for them, or see [Guardrail](#guardrail) for host name rules.
 - Public internet allows every public host, so code in the workspace can send data to any public website.
 - GitHub only still lets code in the workspace send data out: it can push to any GitHub repository or gist that a token it has can write to, including one that an attacker owns. A NetworkPolicy cannot limit which repositories it uses.
 - GitHub only and Public internet allow DNS to `8.8.8.8` and `1.1.1.1`. DNS queries can carry small amounts of data to any domain.
