@@ -1,9 +1,19 @@
 # Copy this file to install.auto.tfvars and set your values. Terraform
 # loads *.auto.tfvars on its own, and `coder templates push` leaves it out.
 
-namespace          = "coder-workspaces"
-workspace_image    = "registry.example.com/coder/workspace:v2.30.0"
-coder_access_url   = "https://coder.example.com"
+# The namespace for workspaces. Terraform creates it.
+namespace = "coder-workspaces"
+
+# The image you built from build/Dockerfile, with a fixed tag or a digest.
+workspace_image = "registry.example.com/coder/workspace:v2.30.0"
+
+# The Coder access URL. The agent in each workspace connects to it.
+coder_access_url = "https://coder.example.com"
+
+# The IP ranges of the Coder server, as workspaces see it. Fully isolated
+# workspaces can reach only these. Use the IP of the load balancer or
+# ingress behind coder_access_url, for example the output of
+# `dig +short coder.example.com`, with /32 for one address.
 coder_egress_cidrs = ["203.0.113.10/32"]
 
 # Fully isolated blocks DNS. If coder_access_url uses a host name, set the

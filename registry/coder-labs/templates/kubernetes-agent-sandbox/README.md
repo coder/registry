@@ -10,24 +10,60 @@ tags: [kubernetes, agent-sandbox, sandbox, gvisor, kata, ai]
 
 Run each workspace in a Sandbox from [agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox), a Kubernetes SIG project. You and your AI agent work in the same sandbox, with one Coder agent named `dev`. The sandbox runs under gVisor or a Kata microVM, so it does not share the node kernel. A Kubernetes NetworkPolicy works as the firewall. By default the workspace can reach only the Coder server. Code in the workspace can still use that connection, for example with the Coder session token that the AI Gateway needs (see [Limits](#limits)).
 
-The image has the Coder agent, code-server, and Claude Code built in, so a workspace downloads nothing at start. Claude Code reaches Anthropic through the Coder AI Gateway, so it works with no internet access.
+Claude Code reaches Anthropic through the Coder AI Gateway, so it works with no internet access.
 
 ## Why agent-sandbox
 
-A plain Kubernetes Pod can also use gVisor or Kata and a NetworkPolicy, and Coder prebuilds make it start fast. agent-sandbox moves these into objects that the cluster administrator owns:
+agent-sandbox adds Kubernetes primitives for running agentic workloads. You can do most of this with plain Pods, but agent-sandbox adds:
 
 - **Kernel isolation at the cluster level.** A SandboxTemplate sets the runtime (gVisor, Kata with QEMU, or Kata with Cloud Hypervisor), the image, the security settings, and the network rules. A scratch workspace can only claim a sandbox from these templates, and the Coder provisioner never creates Pods.
-- **Cluster-level warm pools.** A SandboxWarmPool keeps booted sandboxes ready for any client of the cluster, not only Coder, and it does not need Coder Premium. With Premium, Coder prebuilds do the same for persistent homes.
-- **A growing ecosystem.** agent-sandbox is a Kubernetes SIG project with SDKs, a router, and a managed version on GKE. The API already has a suspended mode and expiry, and GKE adds Pod snapshots. This template does not use them yet.
-- **Firewall.** agent-sandbox has no firewall of its own. It uses Kubernetes NetworkPolicy, with one shared policy for each SandboxTemplate. A template with no rules gets the project's secure default: public internet only, with private ranges, cluster DNS, and cloud metadata blocked, and no ingress except from the agent-sandbox router. The project also documents a cluster-wide guardrail with ClusterNetworkPolicy and host name rules with Cilium. This template sets its own rules for each network profile, and has an optional guardrail (see [Guardrail and host names](#guardrail-and-host-names)).
+- **Cluster-level warm pools.** A SandboxWarmPool keeps booted sandboxes ready for any client of the cluster, not only Coder, and it does not need Coder Premium.
+- **A growing ecosystem.** SDKs, a router, and a managed version on GKE. The API already has a suspended mode and expiry, and GKE adds Pod snapshots. This template does not use them yet.
+- **Firewall.** agent-sandbox uses plain Kubernetes NetworkPolicy, with a secure default for templates that set no rules. This template sets its own rules for each network profile, and adds an optional cluster-wide guardrail.
+
+## Startup speed
+
+In our Amazon EKS test cluster (`m7i.2xlarge` nodes, VPC CNI), from create to a connected agent:
+
+| Workspace                                              | Ready in     |
+| ------------------------------------------------------ | ------------ |
+| Scratch home, from a warm pool                         | 3.5 to 6.5 s |
+| Persistent home, from a prebuild                       | 4 to 7 s     |
+| Persistent home, no prebuild, gVisor                   | about 17 s   |
+| Persistent home, no prebuild, Kata QEMU                | about 19 s   |
+| Persistent home, no prebuild, with a coder/coder clone | about 58 s   |
+
+<!-- TODO: embed the demo video here. -->
+
+These all add to the speed:
+
+1. **The image.** [`build/Dockerfile`](build/Dockerfile) adds the Coder agent, code-server, and Claude Code to `codercom/enterprise-base:ubuntu`. The Pod runs the agent from the image instead of the init script that downloads it, and the code-server module runs with `offline = true`. So a start downloads nothing, and it also works in Fully isolated, which has no internet. The image is about 800 MB compressed, so pull it ahead of time with a DaemonSet, or the first Pod on a node waits for the pull.
+2. **Prebuilds** (Premium). Each persistent preset keeps `prebuild_instances` running workspaces, and the GitHub only and Public internet ones have already cloned `git_repo_url`. A claim reuses the Sandbox and its disk, so the Pod does not restart.
+3. **Warm pools.** Scratch homes claim a booted sandbox from agent-sandbox in 50 to 80 ms. GitHub only pools clone `git_repo_url` before a claim.
+4. **The runtime.** On a cold start, gVisor added about 0.2 s over a normal container, Kata Cloud Hypervisor about 1.5 s, and Kata QEMU about 2.6 s. Prebuilds and warm pools hide this.
+5. **Terraform.** Coder caches modules, but downloads providers on every build unless the provisioner has a provider cache or mirror. coder/coder PRs [#29825](https://github.com/coder/coder/pull/29825) and [#29827](https://github.com/coder/coder/pull/29827), still open, skip `terraform init` and save about 3.3 s.
+6. **The Coder server.** The Helm chart's default CPU limit of 2 throttled builds. With 4 CPUs, each start was about 2.4 s faster.
+7. **The disk.** A StorageClass with `volumeBindingMode: WaitForFirstConsumer` creates the disk in the node's zone. Moving an EBS volume to another node adds 5 to 10 s.
 
 ## Prerequisites
 
-- **Cluster**: a Kubernetes cluster with a network plugin that enforces NetworkPolicy, and a StorageClass for the home disk.
-- **Cluster setup**: agent-sandbox v1.0.4 or later, the RuntimeClasses you offer (`gvisor`, `kata-qemu`, `kata-clh`), and the namespace, RBAC, and warm pools. [`cluster/`](cluster) has a Terraform configuration that a cluster administrator applies once, and that prints the matching template variables. See [`cluster/README.md`](cluster/README.md).
-- **Authentication**: the template uses the in-cluster ServiceAccount when the Coder provisioner runs in the cluster. Set `use_kubeconfig = true` to use `~/.kube/config` on the Coder host instead. For other methods, see the [provider docs](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs#authentication).
-- **Image**: an image built from [`build/Dockerfile`](build/Dockerfile). See [Build the image](#build-the-image).
+Required:
+
+- **A Kubernetes cluster** with a network plugin that enforces NetworkPolicy, and a StorageClass for the home disk.
+- **agent-sandbox** v1.0.4 or later, with the extensions.
+- **gVisor** on the nodes, with a `gvisor` RuntimeClass.
+- **The cluster setup** in [`cluster/`](cluster): a Terraform configuration that creates the namespace, RBAC, and warm pools, and prints the template variables. See [`cluster/README.md`](cluster/README.md).
+- **The image**, built from [`build/Dockerfile`](build/Dockerfile).
+- **Access to the cluster** for the Coder provisioner. The template uses the in-cluster ServiceAccount, or `~/.kube/config` with `use_kubeconfig = true`.
+
+Optional:
+
+- **Kata nodes**, for the Kata runtimes: a node group with `/dev/kvm`, such as EC2 instances with nested virtualization. See [Install the runtimes](cluster/README.md#2-install-the-runtimes).
 - **Coder Premium**, for prebuilds and the AI Gateway. Without it, set `prebuild_instances = 0` and `enable_ai_gateway = false`, and give Claude Code another way to sign in.
+- **Warm pools**, for scratch homes. `cluster/` creates them by default. Set `scratch_profiles` to empty in both to skip them.
+- **A DaemonSet that pulls the image** on every node.
+- **A provider cache or mirror** for the Coder provisioner.
+- **The guardrail**, on Amazon EKS with VPC CNI v1.21.1 or later.
 
 ## Quick start
 
@@ -44,39 +80,15 @@ A plain Kubernetes Pod can also use gVisor or Kata and a NetworkPolicy, and Code
 
 ## Build the image
 
-Build `build/Dockerfile` and push it to a registry that your nodes can pull from:
-
 ```sh
 docker buildx build --platform linux/amd64 \
   --build-arg CODER_VERSION=2.30.0 \
   -t registry.example.com/coder/workspace:v2.30.0 --push build
 ```
 
-- `CODER_VERSION` downloads the Coder binary from the GitHub release.
-- `CODER_BINARY_URL` copies the binary from somewhere else instead, such as your own server: `https://coder.example.com/bin/coder-linux-amd64`. Use this for development builds or when the build cannot reach GitHub.
-- The agent version should match your Coder server. Rebuild the image when you upgrade Coder.
+- Match `CODER_VERSION` to your Coder server, and rebuild when you upgrade Coder. `CODER_BINARY_URL`, such as `https://coder.example.com/bin/coder-linux-amd64`, copies the binary from your server instead of GitHub.
 - `INSTALL_CODE_SERVER=false` and `INSTALL_CLAUDE_CODE=false` leave out the tools.
-
-The workspace runs `/usr/local/bin/coder agent` from the image. It does not run the agent init script, which downloads the binary.
-
-Use a fixed tag or a digest. The template rejects `:latest`, because `imagePullPolicy: IfNotPresent` would keep an old copy on the nodes.
-
-## Fast startup checklist
-
-1. **Pre-baked image.** The agent, code-server, and Claude Code are in the image, so a start downloads nothing. The Pod uses `imagePullPolicy: IfNotPresent`. The image is large, about 800 MB compressed, so the first Pod on a node can wait a minute for the pull. To pull it ahead of time, run a DaemonSet with the image on every node. An init container that runs `true`, and a pause container, are enough.
-2. **Prebuilds and presets** (Premium). The template has one preset per network profile, each with the first runtime in `runtimes` and a persistent home. Each keeps `prebuild_instances` prebuilt workspaces (default 1). A claim reuses the running Sandbox and its disk. Coder keeps the agent token, so the Pod does not change. In our test, a claimed prebuild was ready in 5.1 to 5.9 s. A new Kata QEMU workspace without a prebuild took 18.7 s, most of it to create and attach the new disk and boot the VM. A workspace whose parameters match a preset also gets a prebuild, even when the user picks no preset. Each prebuild costs as much as a running workspace. Add presets for the Kata options if your users pick them often.
-3. **The agent-sandbox controller.** With more than one warm pool, raise the controller's refill workers, so that the pools refill at the same time. Claims take 50 to 80 ms. See [Install agent-sandbox](cluster/README.md#1-install-agent-sandbox).
-4. **Warm pools**, for scratch homes. A scratch workspace claims a booted sandbox and is ready in about 3.5 to 6.5 s. The GitHub only pool clones `git_repo_url` before a claim. See [Size the warm pools](cluster/README.md#size-the-warm-pools).
-5. **Runtimes.** On a cold start, gVisor added about 0.2 s over a normal container, Kata Cloud Hypervisor about 1.5 s, and Kata QEMU about 2.6 s. A warm pool or a prebuild hides this time. See [Install the runtimes](cluster/README.md#2-install-the-runtimes).
-6. **Terraform init.** Coder caches modules by default. Providers are downloaded on every build unless the provisioner has them. Bake a provider cache or a `filesystem_mirror` into the provisioner image, with `TF_PLUGIN_CACHE_DIR` or a Terraform CLI config file. coder/coder PRs [#29825](https://github.com/coder/coder/pull/29825) and [#29827](https://github.com/coder/coder/pull/29827) skip `terraform init` and reuse the lock file. They are still open today. With them, `terraform init` went from about 3.3 s to near zero. Only template versions pushed after an upgrade get the gain, so push your templates again after you upgrade Coder.
-7. **Coder server resources.** The Helm chart's default CPU limit of 2 slowed builds through CPU throttling. With 4 CPUs, each start was about 2.4 s faster. Run enough provisioners for your prebuilds and for users who start at the same time.
-8. **Disk.** Use a StorageClass with `volumeBindingMode: WaitForFirstConsumer`, so the disk is created in the zone of the node. When a workspace starts on another node, moving the EBS volume adds 5 to 10 s. In our test, a start after a stop took 7.5 to 12 s. Scratch homes use no disk.
-9. **A network plugin that enforces NetworkPolicy.** Without one, the policies do nothing, and the policy gate keeps the agent from starting. Notes for Amazon VPC CNI with the network policy agent (tested with v1.4.0 in `standard` mode):
-   - A new Pod can reach everything for up to about 30 s, until its policy is applied. Before the agent starts, the container waits until a TCP connection to the Kubernetes API server fails. If it still connects after about 60 s, the container exits and restarts. In our test the wait took about 3 s.
-   - A Pod can also lose its rules while it runs (see the next item). So after start, the container checks the API server every 5 s. If a connection succeeds, it stops the agent and exits, and Kubernetes restarts it, which runs the start check again.
-   - The policy agent groups Pods by their name without the last `-` part, and Pods in a group share rules. Deleting an old Pod of a group can remove the rules of a new Pod in the same group. So each start gets a new Sandbox name that ends in `-pod`, after a part that is new for each start.
-   - All Pods of one warm pool on one node are in one group. This is why each network profile with a scratch home has its own pool, and why Public internet has no scratch home.
-   - The kubelet port on the Pod's own node is always reachable. It answers 401 without credentials.
+- Use a fixed tag or a digest. The template rejects `:latest`, because `imagePullPolicy: IfNotPresent` would keep an old copy on the nodes.
 
 ## Parameters
 
@@ -104,7 +116,7 @@ The Scratch column shows which variables also apply to a scratch home. For a scr
 | --------------------- | ----------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `namespace`           | none              | Yes     | The namespace for workspaces, with the Role from `cluster/`.                                                                                                                                                                                                                                          |
 | `workspace_image`     | none              | No      | The image built from `build/Dockerfile`, with a tag other than `:latest`, or a digest.                                                                                                                                                                                                                |
-| `coder_egress_cidrs`  | none              | No      | The IPv4 CIDR ranges of the Coder server, for example `["203.0.113.10/32"]`. Every profile allows them.                                                                                                                                                                                               |
+| `coder_egress_cidrs`  | none              | No      | The IPv4 CIDR ranges of the Coder server as workspaces see it, such as the IP of its load balancer, for example `["203.0.113.10/32"]`. Every profile allows them.                                                                                                                                     |
 | `coder_egress_port`   | from the URL      | No      | The TCP port to the Coder server. Empty uses the port of the access URL, or 443 for https and 80 for http.                                                                                                                                                                                            |
 | `coder_host_ip`       | `""`              | No      | The IPv4 address of the access URL host. Fully isolated blocks DNS, so if the access URL uses a host name, the template adds this address to `/etc/hosts`. A persistent build with Fully isolated fails if the access URL uses a host name and this is empty. `cluster/` does the same for the pools. |
 | `runtimes`            | `gvisor`          | Yes     | The runtimes users can pick, comma-separated, in order: `gvisor`, `kata-qemu`, `kata-clh`. The first is the default and is used by the presets. Offer only RuntimeClasses that the cluster has.                                                                                                       |
@@ -114,95 +126,35 @@ The Scratch column shows which variables also apply to a scratch home. For a scr
 | `prebuild_instances`  | `1`               | No      | Prebuilt workspaces per persistent preset (Premium). `0` turns them off.                                                                                                                                                                                                                              |
 | `git_repo_url`        | `""`              | No      | A Git repository to clone into `/home/coder`, for example `https://github.com/coder/coder`. Only GitHub only and Public internet workspaces clone it. A prebuild clones it before a claim, so a claim does not wait.                                                                                  |
 | `enable_ai_gateway`   | `true`            | Yes     | Send Claude Code requests through the Coder AI Gateway (Premium).                                                                                                                                                                                                                                     |
-| `network_policy_gate` | `true`            | No      | Start the agent only after a connection to the Kubernetes API server fails, and stop it if one succeeds later. Turn it off only if a profile can reach the API server (see [Limits](#limits)).                                                                                                        |
+| `network_policy_gate` | `true`            | No      | Start the agent only after a connection to the Kubernetes API server fails, and stop it if one succeeds later. Turn it off only if a profile can reach the API server (see [Network egress](#network-egress)).                                                                                        |
 | `use_kubeconfig`      | `false`           | Yes     | Use `~/.kube/config` on the Coder host instead of the in-cluster ServiceAccount.                                                                                                                                                                                                                      |
 
-## How the sandbox works
+## How it works
 
-With a **persistent home**, Terraform creates:
-
-- A PersistentVolumeClaim for `/home/coder`. Coder owns it, so it stays when the workspace stops.
-- A NetworkPolicy that denies all ingress and allows egress to the Coder server, plus the ranges of the profile.
-- A Secret with the agent token, and a Sandbox. The agent-sandbox controller creates the Pod from the Sandbox. Stop deletes the Sandbox, the Pod, and the Secret, but not the disk.
-
-With a **scratch home**, Terraform creates only a SandboxClaim on the warm pool of the runtime. agent-sandbox hands the claim an idle, booted Pod and adds the claim's `coder.com/agent-token` annotation to it. The Pod reads the token through the downward API and starts the agent. The NetworkPolicy comes from the SandboxTemplate: the Coder server only, or for GitHub only, also the GitHub ranges and public DNS. The claimed Pod gets only annotations, not the `com.coder.workspace.id` label, on purpose: labels on a claim need a domain from the controller's `allowed-label-domains` setting, and annotations do not. The SandboxClaim itself has the label. Stop deletes the claim and the Pod, with everything in `/home/coder`.
-
-Both kinds of Pod:
-
-- Run as user and group 1000, with `fsGroup: 1000` and `fsGroupChangePolicy: OnRootMismatch`, so a start does not change the owner of every file on the disk.
-- Drop all Linux capabilities, set `allowPrivilegeEscalation: false`, use the `RuntimeDefault` seccomp profile, and have no Kubernetes ServiceAccount token.
-- Use `8.8.8.8` and `1.1.1.1` as DNS servers, not the cluster DNS. Fully isolated blocks them, so lookups fail fast.
-- Copy `/etc/skel` into a new, empty home, so the shell gets the image's dotfiles.
-- Run `/usr/local/bin/coder agent` from the image, with `CODER_AGENT_URL` set to the access URL and `CODER_AGENT_AUTH=token`. The agent starts only after the policy check passes, and the check runs again every 5 s (see item 9 of the checklist).
-- Have a termination grace period of 2 s, so a stop frees the home disk quickly.
-- Request 500m CPU and 1 GiB of memory, with a limit of 2 CPUs and 4 GiB. Change them in `shared/defaults.json`, which the template and `cluster/` both read.
-
-The workspace has two apps:
-
-- code-server, from the image (`offline = true`).
-- Claude Code, with the auto-updater turned off. The app runs `claude --continue || claude`: it continues the last conversation in `/home/coder`, or starts a new one if there is none. If the image has `tmux`, the app runs Claude in a tmux session named `claude`, so the session survives a closed browser tab. The image from `build/Dockerfile` does not have tmux. Add it to the image if you want this. With a scratch home, the conversation history is lost on stop.
+- **Persistent home:** Terraform creates a disk, a NetworkPolicy for the profile, a Secret with the agent token, and a Sandbox. Stop deletes everything except the disk.
+- **Scratch home:** Terraform creates only a SandboxClaim. agent-sandbox hands it a booted Pod from the warm pool, and the Pod reads the agent token from an annotation. Stop deletes the Pod and its home.
+- **Policy check:** before the agent starts, the Pod waits until the Kubernetes API server is unreachable, which shows that its NetworkPolicy is in force. It checks again every 5 s and stops the agent if the API server becomes reachable. VPC CNI can apply a new Pod's policy up to 30 s late, and can drop it while the Pod runs.
+- **Pods:** run as user 1000 with no capabilities and no ServiceAccount token, use `8.8.8.8` and `1.1.1.1` for DNS, and request 500m CPU and 1 GiB (`shared/defaults.json`).
+- **Apps:** code-server, and Claude Code, which continues the last conversation in `/home/coder`.
 
 ## Network egress
 
-These are the endpoints that the template, the image build, and the workspace contact.
+| Profile         | Allowed egress                                                                                             |
+| --------------- | ---------------------------------------------------------------------------------------------------------- |
+| Fully isolated  | The Coder server on `coder_egress_port`. No DNS.                                                           |
+| GitHub only     | Coder, the GitHub IPv4 ranges on TCP 443 and 80, and DNS to `8.8.8.8` and `1.1.1.1`.                       |
+| Public internet | Coder, every public IPv4 address on TCP 443 and 80, and the same DNS. No private ranges or cloud metadata. |
 
-**The template (Coder provisioner):**
+Connections to the workspace relay through the Coder server, because no profile allows STUN. The GitHub ranges are in `shared/defaults.json`. If your `kubernetes` Service points to a public IP (`kubectl get endpoints kubernetes -n default`), Public internet can reach it and the policy check never passes, so set `network_policy_gate = false`. For an air-gapped cluster, mirror the images and providers, and build the image with `CODER_BINARY_URL`.
 
-- The Kubernetes API server.
-- `registry.coder.com`, for the code-server module. Coder caches modules for each template version.
-- `registry.terraform.io` and `releases.hashicorp.com`, for the `coder/coder` and `hashicorp/kubernetes` providers, unless the provisioner has a provider mirror.
-
-**The image build:**
-
-- Docker Hub, for `codercom/enterprise-base:ubuntu`.
-- `github.com`, for the Coder release (`CODER_VERSION`), or your `CODER_BINARY_URL`.
-- `code-server.dev`, `api.github.com`, and `github.com`, for code-server.
-- `claude.ai` and `downloads.claude.ai`, for Claude Code.
-
-**The cluster:**
-
-- Your image registry, to pull the workspace image.
-- `registry.k8s.io`, for the agent-sandbox controller image.
-- The gVisor and Kata release hosts, if you install them from the internet (`storage.googleapis.com` for gVisor, `ghcr.io` and `quay.io` for kata-deploy).
-
-**The workspace:**
-
-| Profile         | Allowed egress                                                                                                                                                          |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Fully isolated  | `coder_egress_cidrs` on `coder_egress_port`. No DNS. The agent, the terminal, apps, and the AI Gateway all use this connection.                                         |
-| GitHub only     | Coder, the GitHub IPv4 ranges `140.82.112.0/20`, `143.55.64.0/20`, `185.199.108.0/22`, and `192.30.252.0/22` on TCP 443 and 80, and DNS to `8.8.8.8` and `1.1.1.1`.     |
-| Public internet | Coder, `0.0.0.0/0` on TCP 443 and 80 except `10.0.0.0/8`, `100.64.0.0/10`, `169.254.0.0/16`, `172.16.0.0/12`, and `192.168.0.0/16`, and DNS to `8.8.8.8` and `1.1.1.1`. |
-
-No profile allows UDP other than DNS, so STUN fails, and connections to the workspace relay through the Coder server.
-
-The GitHub ranges come from `https://api.github.com/meta`. They cover `github.com`, `api.github.com`, `codeload.github.com`, and `raw.githubusercontent.com` when DNS resolves from the US. To refresh them, run the command in the comment above `github_cidrs` in `main.tf`.
-
-The policy check needs a destination that every profile blocks, and it uses the Kubernetes API server. On most clusters the `kubernetes` Service points to private addresses, which every profile blocks. On some clusters, for example some GKE and Azure Kubernetes Service setups, it points to a public IP. Public internet then allows it, so the check never passes and the agent never starts. Find the address with `kubectl get endpoints kubernetes -n default`. If it is public, set `network_policy_gate = false`, or add the address to the `except` list of the Public internet profile in `main.tf`.
-
-For a restricted or air-gapped cluster:
-
-- Mirror the images (workspace, agent-sandbox controller, gVisor, kata-deploy) to an internal registry.
-- Build the image with `CODER_BINARY_URL` set to your Coder server.
-- Give the provisioner a provider mirror, and make `registry.coder.com` reachable or vendor the module into the template.
-- If the access URL resolves only on an internal DNS server, change `local.dns_servers` in `main.tf` and the `dnsConfig` in the SandboxTemplates, or use `coder_host_ip`.
-
-### Guardrail and host names
-
-On Amazon EKS, `enable_guardrail = true` in [`cluster/`](cluster) adds a cluster-wide guardrail that no NetworkPolicy in the namespace can undo. The profiles match IP ranges. Host name rules need Cilium, EKS Auto Mode, or an egress proxy. See [Guardrail](cluster/README.md#guardrail).
+On Amazon EKS, `enable_guardrail = true` in `cluster/` adds a cluster-wide policy that no NetworkPolicy in the namespace can undo. Rules by host name need Cilium, EKS Auto Mode, or an egress proxy. See [Guardrail](cluster/README.md#guardrail).
 
 ## Limits
 
-- Under gVisor, typing in the web terminal does nothing with current Coder agents. The agent passes empty resize messages to the terminal, and gVisor blocks on that empty write, so all later input waits behind it. `coder ssh` and Kata are not affected. Until the agent skips empty writes, use Kata or `coder ssh` if you need the web terminal.
-- A NetworkPolicy matches IP ranges, not host names. So there is no profile for package registries such as npm or PyPI, which use shared CDNs without fixed ranges. Use Public internet for them, or see [Guardrail and host names](#guardrail-and-host-names).
-- Public internet allows every public host, so code in the workspace can send data to any public website.
-- GitHub only still lets code in the workspace send data out: it can push to any GitHub repository or gist that a token it has can write to, including one that an attacker owns. A NetworkPolicy cannot limit which repositories it uses.
-- GitHub only and Public internet allow DNS to `8.8.8.8` and `1.1.1.1`. DNS queries can carry small amounts of data to any domain.
-- With the AI Gateway on, the workspace has the owner's Coder session token in `ANTHROPIC_AUTH_TOKEN`. Code in the workspace, including an AI agent, can use that token through the allowed Coder connection to call the Coder API as the owner, in every profile.
-- The GitHub ranges are a snapshot. Refresh them when GitHub adds ranges.
-- A scratch home allows Fully isolated and GitHub only, and needs a warm pool for the runtime and the profile. The example has a GitHub only pool for gVisor only. A GitHub only pool can clone only public repositories, because its Pods have no user credentials before a claim. Without a pool, the claim does not get a Pod and the agent never connects.
-- A scratch home keeps the agent token in plain text in a Pod annotation and in the SandboxClaim. Anyone who can read Pods or SandboxClaims in the namespace can read it. Keep read access to the namespace tight.
-- On Amazon VPC CNI, a Pod can lose its rules while it runs. All Pods of one warm pool on one node share rules, and deleting any of them, such as a scratch workspace that stops, can delete the rules of the others. A claimed scratch Pod is then open until the next check. The check runs every 5 s, so the agent stops within about 5 s, the container exits, and the workspace is offline until Kubernetes restarts the container and the check passes again. If the rules do not come back, the container keeps restarting and the agent stays offline. Processes that do not belong to the agent stop with the container. Code that runs between two checks can reach the network for up to about 5 s.
-- The policy check needs the NetworkPolicy to block the Kubernetes API server. If `coder_egress_cidrs` includes the API server address, or Public internet can reach it, set `network_policy_gate = false`. Without the check, the Pod is open until VPC CNI applies its policy.
-- The workspace has no root access and no Docker.
-- agent-sandbox has no stop hook. The template sets no `shutdownTime`, so the workspace TTL in Coder is the only timer.
-- IPv4 only.
+- Under gVisor, the web terminal takes no input with current Coder agents, because the agent writes empty resize messages and gVisor blocks on them. `coder ssh` and Kata work.
+- NetworkPolicy matches IP ranges, so there is no profile for npm or PyPI. Use Public internet for them.
+- GitHub only and Public internet can still send data out, for example to an attacker's repository or through DNS.
+- With the AI Gateway on, code in the workspace can use the owner's Coder session token in `ANTHROPIC_AUTH_TOKEN`.
+- A scratch home keeps the agent token in a Pod annotation, so keep read access to the namespace tight. GitHub only pools can clone only public repositories.
+- If VPC CNI drops a Pod's rules, the Pod can reach the network for up to 5 s before the check stops it.
+- No root, no Docker, IPv4 only. The workspace TTL in Coder is the only stop timer.
