@@ -1,17 +1,3 @@
-# Sample workspace image with the Coder agent baked in.
-#
-# The template runs /usr/local/bin/coder agent directly, so a workspace
-# downloads nothing at start. That makes starts faster, and it lets a
-# workspace with no internet access still connect to Coder.
-#
-# Build:
-#   docker buildx build --platform linux/amd64 \
-#     --build-arg CODER_VERSION=2.30.0 \
-#     -t <registry>/<repo>/workspace:<tag> --push .
-#
-# The agent version should match your Coder server. To copy the binary from
-# your own server or an internal mirror instead of GitHub, set
-# CODER_BINARY_URL, for example https://coder.example.com/bin/coder-linux-amd64.
 FROM codercom/enterprise-base:ubuntu
 
 ARG TARGETARCH=amd64
