@@ -29,7 +29,7 @@ variable "use_kubeconfig" {
 
 variable "namespace" {
   type        = string
-  description = "The Kubernetes namespace for workspaces. It must exist and have the Role in cluster/rbac.yaml. Scratch homes also need the warm pools in cluster/warm-pools.yaml in this namespace."
+  description = "The Kubernetes namespace for workspaces. cluster/ creates it with the Role and the warm pools."
 
   validation {
     condition     = length(trimspace(var.namespace)) > 0
@@ -63,12 +63,43 @@ variable "coder_egress_cidrs" {
 
 variable "coder_egress_port" {
   type        = number
-  description = "The TCP port of the Coder access URL."
-  default     = 443
+  description = "The TCP port that workspaces use to reach the Coder server. Empty uses the port of the access URL: its explicit port, or 443 for https and 80 for http."
+  default     = null
 
   validation {
-    condition     = var.coder_egress_port >= 1 && var.coder_egress_port <= 65535 && floor(var.coder_egress_port) == var.coder_egress_port
-    error_message = "coder_egress_port must be a whole number from 1 to 65535."
+    condition     = var.coder_egress_port == null ? true : (var.coder_egress_port >= 1 && var.coder_egress_port <= 65535 && floor(var.coder_egress_port) == var.coder_egress_port)
+    error_message = "coder_egress_port must be empty or a whole number from 1 to 65535."
+  }
+}
+
+# runtimes and scratch_profiles are comma-separated strings, not lists,
+# because Coder checks presets with every template variable as a string.
+variable "runtimes" {
+  type        = string
+  description = "The runtimes that users can pick, comma-separated, in order. The first is the default. Offer only RuntimeClasses that the cluster has: gvisor, kata-qemu, kata-clh."
+  default     = "gvisor"
+
+  validation {
+    condition = (
+      length(compact(split(",", replace(var.runtimes, " ", "")))) > 0 &&
+      length(compact(split(",", replace(var.runtimes, " ", "")))) == length(distinct(compact(split(",", replace(var.runtimes, " ", ""))))) &&
+      alltrue([for r in compact(split(",", replace(var.runtimes, " ", ""))) : contains(["gvisor", "kata-qemu", "kata-clh"], r)])
+    )
+    error_message = "runtimes must list one or more of gvisor, kata-qemu, and kata-clh, comma-separated, each once."
+  }
+}
+
+variable "scratch_profiles" {
+  type        = string
+  description = "The network profiles that offer a scratch home, comma-separated: isolated, github, or both. Each needs the warm pools from cluster/ for every runtime. Empty turns off scratch homes."
+  default     = "isolated,github"
+
+  validation {
+    condition = (
+      length(compact(split(",", replace(var.scratch_profiles, " ", "")))) == length(distinct(compact(split(",", replace(var.scratch_profiles, " ", ""))))) &&
+      alltrue([for p in compact(split(",", replace(var.scratch_profiles, " ", ""))) : contains(["isolated", "github"], p)])
+    )
+    error_message = "scratch_profiles can list only isolated and github, comma-separated, each once."
   }
 }
 
@@ -138,29 +169,40 @@ data "coder_workspace_owner" "me" {}
 
 # Network profiles. A NetworkPolicy matches IP ranges, not host names.
 locals {
-  # The large GitHub IPv4 ranges from https://api.github.com/meta (web,
-  # api, git). To refresh:
-  #   curl -s https://api.github.com/meta | jq -r '.web+.api+.git|unique[]|select(test(":")|not)|select(endswith("/32")|not)'
-  github_cidrs = [
-    "140.82.112.0/20",
-    "143.55.64.0/20",
-    "185.199.108.0/22",
-    "192.30.252.0/22",
-  ]
+  runtimes         = compact(split(",", replace(var.runtimes, " ", "")))
+  scratch_profiles = compact(split(",", replace(var.scratch_profiles, " ", "")))
 
-  # Private, shared, and link-local ranges: the VPC, the cluster, other
-  # Pods, and cloud metadata. Public internet excludes them.
-  private_cidrs = [
-    "10.0.0.0/8",
-    "100.64.0.0/10",
-    "169.254.0.0/16",
-    "172.16.0.0/12",
-    "192.168.0.0/16",
-  ]
+  runtime_options = {
+    gvisor = {
+      name        = "gVisor"
+      description = "A kernel that runs in user space. Runs on any node with gVisor installed."
+      icon        = "/icon/container.svg"
+    }
+    kata-qemu = {
+      name        = "Kata microVM (QEMU)"
+      description = "A small VM with its own kernel. Needs a node with /dev/kvm."
+      icon        = "/icon/memory.svg"
+    }
+    kata-clh = {
+      name        = "Kata microVM (Cloud Hypervisor)"
+      description = "A small VM with a lighter hypervisor. Needs a node with /dev/kvm."
+      icon        = "/icon/memory.svg"
+    }
+  }
 
-  # The only DNS servers the workspace uses. Fully isolated cannot reach
-  # them, so lookups fail fast.
-  dns_servers = ["8.8.8.8", "1.1.1.1"]
+  # shared/defaults.json is also read by cluster/main.tf. It has:
+  #   github_cidrs: the large GitHub IPv4 ranges from
+  #     https://api.github.com/meta (web, api, git). To refresh:
+  #     curl -s https://api.github.com/meta | jq -r '.web+.api+.git|unique[]|select(test(":")|not)|select(endswith("/32")|not)'
+  #   private_cidrs: the VPC, the cluster, other Pods, and cloud metadata.
+  #     Public internet excludes them.
+  #   dns_servers: the only DNS servers the workspace uses. Fully isolated
+  #     cannot reach them, so lookups fail fast.
+  #   resources: the Pod requests and limits.
+  defaults      = jsondecode(file("${path.module}/shared/defaults.json"))
+  github_cidrs  = local.defaults.github_cidrs
+  private_cidrs = local.defaults.private_cidrs
+  dns_servers   = local.defaults.dns_servers
 
   profiles = {
     isolated = {
@@ -214,34 +256,26 @@ data "coder_parameter" "runtime" {
   description  = "The RuntimeClass of the sandbox. The network rules are the same for every option."
   type         = "string"
   form_type    = "dropdown"
-  default      = "gvisor"
+  default      = local.runtimes[0]
   mutable      = false
   order        = 2
 
-  option {
-    name        = "gVisor"
-    value       = "gvisor"
-    description = "A kernel that runs in user space. Runs on any node with gVisor installed."
-    icon        = "/icon/container.svg"
-  }
-  option {
-    name        = "Kata microVM (QEMU)"
-    value       = "kata-qemu"
-    description = "A small VM with its own kernel. Needs a node with /dev/kvm."
-    icon        = "/icon/memory.svg"
-  }
-  option {
-    name        = "Kata microVM (Cloud Hypervisor)"
-    value       = "kata-clh"
-    description = "A small VM with a lighter hypervisor. Needs a node with /dev/kvm."
-    icon        = "/icon/memory.svg"
+  dynamic "option" {
+    for_each = local.runtimes
+    content {
+      name        = local.runtime_options[option.value].name
+      value       = option.value
+      description = local.runtime_options[option.value].description
+      icon        = local.runtime_options[option.value].icon
+    }
   }
 }
 
 # A pooled Pod shares network rules with the other Pods of its pool on the
 # same node (Amazon VPC CNI), so each scratch profile has its own pool:
 # coder-<runtime> for Fully isolated and coder-<runtime>-github for GitHub
-# only. Public internet has no scratch home.
+# only. Public internet has no scratch home. cluster/main.tf creates the
+# pools for scratch_profiles.
 data "coder_parameter" "home" {
   name         = "home"
   display_name = "Home directory"
@@ -271,13 +305,13 @@ data "coder_parameter" "home" {
 
 data "coder_workspace_preset" "persistent" {
   for_each    = local.profiles
-  name        = "${each.value.display_name}, gVisor"
+  name        = each.value.display_name
   description = "${each.value.description} Persistent home."
   icon        = each.value.icon
   default     = each.key == "isolated"
   parameters = {
     network_isolation = each.key
-    runtime           = "gvisor"
+    runtime           = local.runtimes[0]
     home              = "persistent"
   }
 
@@ -292,12 +326,12 @@ data "coder_workspace_preset" "persistent" {
 # No prebuilds: the warm pools already keep booted sandboxes.
 data "coder_workspace_preset" "scratch" {
   for_each    = toset(local.scratch_profiles)
-  name        = "${local.profiles[each.key].display_name}, scratch home, gVisor"
+  name        = "${local.profiles[each.key].display_name}, scratch home"
   description = "A booted sandbox from the warm pool. Home is deleted on stop."
   icon        = "/emojis/26a1.png"
   parameters = {
     network_isolation = each.key
-    runtime           = "gvisor"
+    runtime           = local.runtimes[0]
     home              = "scratch"
   }
 }
@@ -305,10 +339,10 @@ data "coder_workspace_preset" "scratch" {
 locals {
   name    = "coder-${data.coder_workspace.me.id}"
   scratch = data.coder_parameter.home.value == "scratch"
-  # Profiles with a warm pool, and the pool name suffix of each.
-  scratch_profiles = ["isolated", "github"]
-  pool_suffix      = { isolated = "", github = "-github" }
-  profile          = local.profiles[data.coder_parameter.network_isolation.value]
+  # The pool name suffix of each scratch profile. Keep in line with
+  # cluster/main.tf.
+  pool_suffix = { isolated = "", github = "-github" }
+  profile     = local.profiles[data.coder_parameter.network_isolation.value]
 
   # Labels stay the same when a prebuilt workspace is claimed, so a claim
   # does not change the Pod.
@@ -326,51 +360,24 @@ locals {
 
   access_host       = try(regex("^[a-zA-Z][a-zA-Z0-9+.-]*://([^/:]+)", data.coder_workspace.me.access_url)[0], "")
   access_host_is_ip = can(regex("^[0-9]{1,3}(\\.[0-9]{1,3}){3}$", local.access_host))
+  access_port = try(
+    tonumber(regex("^[a-zA-Z][a-zA-Z0-9+.-]*://[^/:]+:([0-9]+)", data.coder_workspace.me.access_url)[0]),
+    startswith(lower(data.coder_workspace.me.access_url), "http://") ? 80 : 443,
+  )
+  coder_port = coalesce(var.coder_egress_port, local.access_port)
   host_aliases = var.coder_host_ip != "" && !local.access_host_is_ip ? [{
     ip        = var.coder_host_ip
     hostnames = [local.access_host]
   }] : null
+  # Leave hostAliases out when empty. A null value makes every plan
+  # update the Sandbox.
+  host_alias_field = { for k, v in { hostAliases = local.host_aliases } : k => v if v != null }
 
   # Copy the image's dotfiles into a new, empty home.
   seed_home = "[ -e /home/coder/.bashrc ] || cp -an /etc/skel/. /home/coder/ 2>/dev/null || true"
 
-  # VPC CNI can apply a new Pod's NetworkPolicy up to 30 s late, and can
-  # drop it when another Pod with the same name prefix is deleted. So the
-  # agent starts only once a TCP connection to the Kubernetes API server,
-  # which no profile allows, fails. If it still connects after about 60 s,
-  # the container exits and Kubernetes restarts it. After start, the same
-  # check runs every 5 s, and the container stops the agent and exits if
-  # the API server becomes reachable. A slow TLS reply still counts as
-  # reachable, and so does a check that prints nothing.
-  policy_check = <<-EOT
-    api="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT/"
-    api_open() {
-      r=$(curl -sk -o /dev/null --noproxy '*' --connect-timeout 0.3 -m 1 -w '%%{http_code} %%{time_connect}' "$api" 2>/dev/null)
-      [ -z "$r" ] && return 0
-      awk -v t="$${r#* }" 'BEGIN { exit !(t + 0 > 0) }'
-    }
-    i=0
-    while api_open; do
-      i=$((i + 1))
-      if [ "$i" -ge 240 ]; then echo "NetworkPolicy is not enforced" >&2; exit 1; fi
-      sleep 0.25
-    done
-    echo "NetworkPolicy is in force after $i checks" >&2
-    # The agent must be PID 1, or the web terminal gets no input
-    # under Kata. The re-check runs in the background.
-    (
-      while sleep 5; do
-        if api_open; then
-          echo "NetworkPolicy is no longer enforced" >&2
-          kill -TERM 1
-          sleep 2
-          kill -KILL -1
-          exit 1
-        fi
-      done
-    ) &
-    exec /usr/local/bin/coder agent
-  EOT
+  # The policy check in shared/start-agent.sh, also used by the warm pools.
+  policy_check = file("${path.module}/shared/start-agent.sh")
 
   agent_command = join("\n", [
     local.seed_home,
@@ -378,11 +385,7 @@ locals {
     var.network_policy_gate ? local.policy_check : "exec /usr/local/bin/coder agent",
   ])
 
-  # Keep these in line with cluster/sandbox-templates.yaml.
-  resources = {
-    requests = { cpu = "500m", memory = "1Gi" }
-    limits   = { cpu = "2", memory = "4Gi" }
-  }
+  resources = local.defaults.resources
 }
 
 resource "coder_agent" "dev" {
@@ -504,7 +507,7 @@ resource "kubernetes_network_policy_v1" "workspace" {
       }
       ports {
         protocol = "TCP"
-        port     = tostring(var.coder_egress_port)
+        port     = tostring(local.coder_port)
       }
     }
 
@@ -603,7 +606,7 @@ resource "kubernetes_manifest" "sandbox" {
         metadata = {
           labels = local.labels
         }
-        spec = {
+        spec = merge({
           runtimeClassName              = data.coder_parameter.runtime.value
           automountServiceAccountToken  = false
           enableServiceLinks            = false
@@ -612,7 +615,6 @@ resource "kubernetes_manifest" "sandbox" {
           dnsConfig = {
             nameservers = local.dns_servers
           }
-          hostAliases = local.host_aliases
           securityContext = {
             runAsNonRoot        = true
             runAsUser           = 1000
@@ -664,7 +666,7 @@ resource "kubernetes_manifest" "sandbox" {
             },
             { name = "tmp", emptyDir = {} },
           ]
-        }
+        }, local.host_alias_field)
       }
     }
   }

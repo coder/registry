@@ -24,10 +24,23 @@ A plain Kubernetes Pod can also use gVisor or Kata and a NetworkPolicy, and Code
 ## Prerequisites
 
 - **Cluster**: a Kubernetes cluster with a network plugin that enforces NetworkPolicy, and a StorageClass for the home disk.
-- **agent-sandbox**, v1.0.4 or later, the RuntimeClasses you offer (`gvisor`, `kata-qemu`, `kata-clh`), and the files in [`cluster/`](cluster). A cluster administrator sets these up once. See [`cluster/README.md`](cluster/README.md).
+- **Cluster setup**: agent-sandbox v1.0.4 or later, the RuntimeClasses you offer (`gvisor`, `kata-qemu`, `kata-clh`), and the namespace, RBAC, and warm pools. [`cluster/`](cluster) has a Terraform configuration that a cluster administrator applies once, and that prints the matching template variables. See [`cluster/README.md`](cluster/README.md).
 - **Authentication**: the template uses the in-cluster ServiceAccount when the Coder provisioner runs in the cluster. Set `use_kubeconfig = true` to use `~/.kube/config` on the Coder host instead. For other methods, see the [provider docs](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs#authentication).
 - **Image**: an image built from [`build/Dockerfile`](build/Dockerfile). See [Build the image](#build-the-image).
 - **Coder Premium**, for prebuilds and the AI Gateway. Without it, set `prebuild_instances = 0` and `enable_ai_gateway = false`, and give Claude Code another way to sign in.
+
+## Quick start
+
+1. Build the image and push it to your registry. See [Build the image](#build-the-image).
+2. Set up the cluster with the Terraform configuration in [`cluster/`](cluster). See [`cluster/README.md`](cluster/README.md).
+3. Push the template with the variables that `cluster/` prints:
+
+   ```sh
+   cd cluster
+   terraform output -raw coder_variables > ~/kubernetes-agent-sandbox.yaml
+   cd ..
+   coder templates push kubernetes-agent-sandbox -d . --variables-file ~/kubernetes-agent-sandbox.yaml
+   ```
 
 ## Build the image
 
@@ -51,7 +64,7 @@ Use a fixed tag or a digest. The template rejects `:latest`, because `imagePullP
 ## Fast startup checklist
 
 1. **Pre-baked image.** The agent, code-server, and Claude Code are in the image, so a start downloads nothing. The Pod uses `imagePullPolicy: IfNotPresent`. The image is large, about 800 MB compressed, so the first Pod on a node can wait a minute for the pull. To pull it ahead of time, run a DaemonSet with the image on every node. An init container that runs `true`, and a pause container, are enough.
-2. **Prebuilds and presets** (Premium). The template has one preset per network profile, each with gVisor and a persistent home. Each keeps `prebuild_instances` prebuilt workspaces (default 1). A claim reuses the running Sandbox and its disk. Coder keeps the agent token, so the Pod does not change. In our test, a claimed prebuild was ready in 5.1 to 5.9 s. A new Kata QEMU workspace without a prebuild took 18.7 s, most of it to create and attach the new disk and boot the VM. A workspace whose parameters match a preset also gets a prebuild, even when the user picks no preset. Each prebuild costs as much as a running workspace. Add presets for the Kata options if your users pick them often.
+2. **Prebuilds and presets** (Premium). The template has one preset per network profile, each with the first runtime in `runtimes` and a persistent home. Each keeps `prebuild_instances` prebuilt workspaces (default 1). A claim reuses the running Sandbox and its disk. Coder keeps the agent token, so the Pod does not change. In our test, a claimed prebuild was ready in 5.1 to 5.9 s. A new Kata QEMU workspace without a prebuild took 18.7 s, most of it to create and attach the new disk and boot the VM. A workspace whose parameters match a preset also gets a prebuild, even when the user picks no preset. Each prebuild costs as much as a running workspace. Add presets for the Kata options if your users pick them often.
 3. **The agent-sandbox controller.** With more than one warm pool, raise the controller's refill workers, so that the pools refill at the same time. Claims take 50 to 80 ms. See [Install agent-sandbox](cluster/README.md#1-install-agent-sandbox).
 4. **Warm pools**, for scratch homes. A scratch workspace claims a booted sandbox and is ready in about 3.5 to 6.5 s. The GitHub only pool clones `git_repo_url` before a claim. See [Size the warm pools](cluster/README.md#size-the-warm-pools).
 5. **Runtimes.** On a cold start, gVisor added about 0.2 s over a normal container, Kata Cloud Hypervisor about 1.5 s, and Kata QEMU about 2.6 s. A warm pool or a prebuild hides this time. See [Install the runtimes](cluster/README.md#2-install-the-runtimes).
@@ -67,40 +80,42 @@ Use a fixed tag or a digest. The template rejects `:latest`, because `imagePullP
 
 ## Parameters
 
-| Parameter                               | Options                                                                | Notes                                                                                                                                                                     |
-| --------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Network isolation (`network_isolation`) | Fully isolated (default), GitHub only, Public internet                 | See [Network egress](#network-egress). You cannot change it after create.                                                                                                 |
-| Kernel isolation (`runtime`)            | gVisor (default), Kata microVM (QEMU), Kata microVM (Cloud Hypervisor) | The RuntimeClass of a persistent home, or the warm pool `coder-<runtime>` (Fully isolated) or `coder-<runtime>-github` (GitHub only) of a scratch home.                   |
-| Home directory (`home`)                 | Persistent (default), Scratch                                          | Persistent: a disk at `/home/coder`, kept on stop. Scratch: a booted sandbox from the warm pool, deleted on stop. Scratch is offered with Fully isolated and GitHub only. |
+| Parameter                               | Options                                                                                                             | Notes                                                                                                                                                                        |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Network isolation (`network_isolation`) | Fully isolated (default), GitHub only, Public internet                                                              | See [Network egress](#network-egress). You cannot change it after create.                                                                                                    |
+| Kernel isolation (`runtime`)            | The runtimes in `runtimes`: gVisor, Kata microVM (QEMU), Kata microVM (Cloud Hypervisor). The first is the default. | The RuntimeClass of a persistent home, or the warm pool `coder-<runtime>` (Fully isolated) or `coder-<runtime>-github` (GitHub only) of a scratch home.                      |
+| Home directory (`home`)                 | Persistent (default), Scratch                                                                                       | Persistent: a disk at `/home/coder`, kept on stop. Scratch: a booted sandbox from the warm pool, deleted on stop. Scratch is offered for the profiles in `scratch_profiles`. |
 
 Presets:
 
-| Preset                               | Prebuilds                          |
-| ------------------------------------ | ---------------------------------- |
-| Fully isolated, gVisor (default)     | `prebuild_instances`               |
-| GitHub only, gVisor                  | `prebuild_instances`               |
-| Public internet, gVisor              | `prebuild_instances`               |
-| Fully isolated, scratch home, gVisor | None. The warm pool keeps it fast. |
-| GitHub only, scratch home, gVisor    | None. The warm pool keeps it fast. |
+| Preset                       | Prebuilds                          |
+| ---------------------------- | ---------------------------------- |
+| Fully isolated (default)     | `prebuild_instances`               |
+| GitHub only                  | `prebuild_instances`               |
+| Public internet              | `prebuild_instances`               |
+| Fully isolated, scratch home | None. The warm pool keeps it fast. |
+| GitHub only, scratch home    | None. The warm pool keeps it fast. |
 
 ## Variables
 
-The Scratch column shows which variables also apply to a scratch home. For a scratch home, the image, the Coder address, the NetworkPolicy, and the policy check come from `cluster/sandbox-templates.yaml`. Keep the two in line.
+The Scratch column shows which variables also apply to a scratch home. For a scratch home, the image, the Coder address, and the network rules come from the warm pools that [`cluster/`](cluster) creates. Push the template with the `coder_variables` output of `cluster/`, so the two agree. See [Push the template with the same values](cluster/README.md#5-push-the-template-with-the-same-values).
 
-| Variable              | Default | Scratch | Description                                                                                                                                                                                                                                                                                                                          |
-| --------------------- | ------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `namespace`           | none    | Yes     | The namespace for workspaces. It must exist, with the Role from `cluster/rbac.yaml`.                                                                                                                                                                                                                                                 |
-| `workspace_image`     | none    | No      | The image built from `build/Dockerfile`, with a tag other than `:latest`, or a digest.                                                                                                                                                                                                                                               |
-| `coder_egress_cidrs`  | none    | No      | The IPv4 CIDR ranges of the Coder server, for example `["203.0.113.10/32"]`. Every profile allows them.                                                                                                                                                                                                                              |
-| `coder_egress_port`   | `443`   | No      | The TCP port of the access URL.                                                                                                                                                                                                                                                                                                      |
-| `coder_host_ip`       | `""`    | No      | The IPv4 address of the access URL host. Fully isolated blocks DNS, so if the access URL uses a host name, the template adds this address to `/etc/hosts`. A persistent build with Fully isolated fails if the access URL uses a host name and this is empty. For a scratch home, set `hostAliases` in the SandboxTemplates instead. |
-| `home_disk_size`      | `10`    | No      | The size of the persistent home disk, in GiB.                                                                                                                                                                                                                                                                                        |
-| `storage_class_name`  | `""`    | No      | The StorageClass of the home disk. Empty uses the cluster default.                                                                                                                                                                                                                                                                   |
-| `prebuild_instances`  | `1`     | No      | Prebuilt workspaces per persistent preset (Premium). `0` turns them off.                                                                                                                                                                                                                                                             |
-| `git_repo_url`        | `""`    | No      | A Git repository to clone into `/home/coder`, for example `https://github.com/coder/coder`. Only GitHub only and Public internet workspaces clone it. A prebuild clones it before a claim, so a claim does not wait.                                                                                                                 |
-| `enable_ai_gateway`   | `true`  | Yes     | Send Claude Code requests through the Coder AI Gateway (Premium).                                                                                                                                                                                                                                                                    |
-| `network_policy_gate` | `true`  | No      | Start the agent only after a connection to the Kubernetes API server fails, and stop it if one succeeds later. Turn it off only if a profile can reach the API server (see [Limits](#limits)).                                                                                                                                       |
-| `use_kubeconfig`      | `false` | Yes     | Use `~/.kube/config` on the Coder host instead of the in-cluster ServiceAccount.                                                                                                                                                                                                                                                     |
+| Variable              | Default           | Scratch | Description                                                                                                                                                                                                                                                                                           |
+| --------------------- | ----------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `namespace`           | none              | Yes     | The namespace for workspaces, with the Role from `cluster/`.                                                                                                                                                                                                                                          |
+| `workspace_image`     | none              | No      | The image built from `build/Dockerfile`, with a tag other than `:latest`, or a digest.                                                                                                                                                                                                                |
+| `coder_egress_cidrs`  | none              | No      | The IPv4 CIDR ranges of the Coder server, for example `["203.0.113.10/32"]`. Every profile allows them.                                                                                                                                                                                               |
+| `coder_egress_port`   | from the URL      | No      | The TCP port to the Coder server. Empty uses the port of the access URL, or 443 for https and 80 for http.                                                                                                                                                                                            |
+| `coder_host_ip`       | `""`              | No      | The IPv4 address of the access URL host. Fully isolated blocks DNS, so if the access URL uses a host name, the template adds this address to `/etc/hosts`. A persistent build with Fully isolated fails if the access URL uses a host name and this is empty. `cluster/` does the same for the pools. |
+| `runtimes`            | `gvisor`          | Yes     | The runtimes users can pick, comma-separated, in order: `gvisor`, `kata-qemu`, `kata-clh`. The first is the default and is used by the presets. Offer only RuntimeClasses that the cluster has.                                                                                                       |
+| `scratch_profiles`    | `isolated,github` | Yes     | The network profiles that offer a scratch home, comma-separated. Each needs warm pools from `cluster/` for every runtime. Empty turns off scratch homes.                                                                                                                                              |
+| `home_disk_size`      | `10`              | No      | The size of the persistent home disk, in GiB.                                                                                                                                                                                                                                                         |
+| `storage_class_name`  | `""`              | No      | The StorageClass of the home disk. Empty uses the cluster default.                                                                                                                                                                                                                                    |
+| `prebuild_instances`  | `1`               | No      | Prebuilt workspaces per persistent preset (Premium). `0` turns them off.                                                                                                                                                                                                                              |
+| `git_repo_url`        | `""`              | No      | A Git repository to clone into `/home/coder`, for example `https://github.com/coder/coder`. Only GitHub only and Public internet workspaces clone it. A prebuild clones it before a claim, so a claim does not wait.                                                                                  |
+| `enable_ai_gateway`   | `true`            | Yes     | Send Claude Code requests through the Coder AI Gateway (Premium).                                                                                                                                                                                                                                     |
+| `network_policy_gate` | `true`            | No      | Start the agent only after a connection to the Kubernetes API server fails, and stop it if one succeeds later. Turn it off only if a profile can reach the API server (see [Limits](#limits)).                                                                                                        |
+| `use_kubeconfig`      | `false`           | Yes     | Use `~/.kube/config` on the Coder host instead of the in-cluster ServiceAccount.                                                                                                                                                                                                                      |
 
 ## How the sandbox works
 
@@ -120,7 +135,7 @@ Both kinds of Pod:
 - Copy `/etc/skel` into a new, empty home, so the shell gets the image's dotfiles.
 - Run `/usr/local/bin/coder agent` from the image, with `CODER_AGENT_URL` set to the access URL and `CODER_AGENT_AUTH=token`. The agent starts only after the policy check passes, and the check runs again every 5 s (see item 9 of the checklist).
 - Have a termination grace period of 2 s, so a stop frees the home disk quickly.
-- Request 500m CPU and 1 GiB of memory, with a limit of 2 CPUs and 4 GiB. Change `local.resources` in `main.tf` and the SandboxTemplates together.
+- Request 500m CPU and 1 GiB of memory, with a limit of 2 CPUs and 4 GiB. Change them in `shared/defaults.json`, which the template and `cluster/` both read.
 
 The workspace has two apps:
 
@@ -173,7 +188,7 @@ For a restricted or air-gapped cluster:
 
 ### Guardrail and host names
 
-On Amazon EKS, [`cluster/cluster-network-policy.yaml`](cluster/cluster-network-policy.yaml) adds a cluster-wide guardrail that no NetworkPolicy in the namespace can undo. The profiles match IP ranges. Host name rules need Cilium, EKS Auto Mode, or an egress proxy. See [Guardrail](cluster/README.md#guardrail).
+On Amazon EKS, `enable_guardrail = true` in [`cluster/`](cluster) adds a cluster-wide guardrail that no NetworkPolicy in the namespace can undo. The profiles match IP ranges. Host name rules need Cilium, EKS Auto Mode, or an egress proxy. See [Guardrail](cluster/README.md#guardrail).
 
 ## Limits
 

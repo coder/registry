@@ -103,7 +103,7 @@ run "persistent_isolated" {
     error_message = "Fully isolated must allow only the Coder server."
   }
   assert {
-    condition     = kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.hostAliases == null
+    condition     = !can(kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.hostAliases)
     error_message = "An IP access URL needs no host alias."
   }
 }
@@ -489,5 +489,78 @@ run "ai_gateway_off" {
   assert {
     condition     = length(coder_env.anthropic_base_url) == 0 && length(coder_env.anthropic_auth_token) == 0
     error_message = "No AI Gateway env when enable_ai_gateway is false."
+  }
+}
+
+run "runtimes_variable" {
+  command = plan
+
+  variables {
+    runtimes = "kata-clh, gvisor"
+  }
+
+  assert {
+    condition     = [for o in data.coder_parameter.runtime.option : o.value] == ["kata-clh", "gvisor"] && data.coder_parameter.runtime.default == "kata-clh"
+    error_message = "The runtime options must follow runtimes, with the first as the default."
+  }
+  assert {
+    condition     = data.coder_workspace_preset.persistent["isolated"].parameters.runtime == "kata-clh" && data.coder_workspace_preset.scratch["github"].parameters.runtime == "kata-clh"
+    error_message = "The presets must use the first runtime."
+  }
+}
+
+run "no_scratch_profiles" {
+  command = plan
+
+  variables {
+    scratch_profiles = ""
+  }
+
+  assert {
+    condition     = length(data.coder_workspace_preset.scratch) == 0 && length(data.coder_parameter.home.option) == 1
+    error_message = "Empty scratch_profiles must hide scratch homes."
+  }
+}
+
+run "rejects_unknown_runtime" {
+  command = plan
+
+  variables {
+    runtimes = "gvisor,runc"
+  }
+
+  expect_failures = [var.runtimes]
+}
+
+run "port_from_access_url" {
+  command = plan
+
+  override_data {
+    target = data.coder_workspace.me
+    values = {
+      id          = "0b6b6a5e-0000-4000-8000-000000000001"
+      name        = "test"
+      start_count = 1
+      transition  = "start"
+      access_url  = "http://203.0.113.10:8080"
+    }
+  }
+
+  assert {
+    condition     = kubernetes_network_policy_v1.workspace[0].spec[0].egress[0].ports[0].port == "8080"
+    error_message = "The Coder port must come from the access URL."
+  }
+}
+
+run "port_override" {
+  command = plan
+
+  variables {
+    coder_egress_port = 3000
+  }
+
+  assert {
+    condition     = kubernetes_network_policy_v1.workspace[0].spec[0].egress[0].ports[0].port == "3000"
+    error_message = "coder_egress_port must override the access URL."
   }
 }
