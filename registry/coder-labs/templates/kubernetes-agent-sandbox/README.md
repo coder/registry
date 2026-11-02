@@ -33,7 +33,7 @@ In our Amazon EKS test cluster (`m7i.2xlarge` nodes, VPC CNI), from create to a 
 | Persistent home, no prebuild, Kata QEMU                | about 19 s   |
 | Persistent home, no prebuild, with a coder/coder clone | about 58 s   |
 
-<!-- TODO: embed the demo video here. -->
+![Creating agent-sandbox workspaces on Amazon EKS, in real time](../../.images/kubernetes-agent-sandbox.gif)
 
 These all add to the speed:
 
