@@ -65,32 +65,16 @@ Coder already manages most of the workspace lifecycle. It creates and deletes Po
 | IDE and AI agents | No                                 | Coder agent, apps, AI Gateway        | Coder agent, apps, AI Gateway                                                         |
 | Extra components  | None                               | None                                 | The agent-sandbox controller                                                          |
 
-Use the [Kubernetes template](../../../coder/templates/kubernetes), with a `runtimeClassName` and a NetworkPolicy, if all of these are true:
+Use the [Kubernetes template](../../../coder/templates/kubernetes) with a `runtimeClassName` and a NetworkPolicy if only Coder uses the cluster, you have Premium for prebuilds, and template authors can set the runtime. Prebuilds start about as fast as warm pools.
 
-- Only Coder starts workspaces on the cluster.
-- You have Coder Premium, so prebuilds keep starts fast.
-- Template authors can set the runtime and the network rules.
+Use agent-sandbox if:
 
-It gives the same kernel and network isolation, with one less controller to run. Speed alone is not a reason to pick agent-sandbox. The Coder build takes seconds, so a 50 ms claim and a prebuild are about as fast.
-
-Use agent-sandbox if one of these is true:
-
-- Cluster administrators must own the runtime, the image, and the network rules. A scratch home only claims a sandbox from an admin-owned SandboxTemplate. If you offer only scratch homes, remove the rights to create Sandboxes, NetworkPolicies, Secrets, and disks from the Role in `cluster/`.
-- Other clients use the same cluster, such as the agent-sandbox Python, Go, and TypeScript SDKs, LangChain, Ray, or CI jobs.
+- Cluster administrators must own the runtime, the image, and the network rules.
+- Other clients, such as SDKs or CI jobs, share the sandboxes and warm pools.
 - You want warm pools without Coder Premium.
-- You run on GKE. There, Agent Sandbox is a managed feature, and Pod snapshots can save and restore a gVisor sandbox.
+- You run on GKE, which manages agent-sandbox and adds Pod snapshots.
 
-The two lifecycles do not know about each other. agent-sandbox has its own expiry, and when a claim expires, it deletes the Sandbox and its disk. This template sets no expiry, so Coder alone decides when a workspace stops.
-
-The agent-sandbox [roadmap](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/roadmap.md) plans features that close gaps in this template. As of v1.0.9, none of them is released:
-
-- Storage in the claim ([#225](https://github.com/kubernetes-sigs/agent-sandbox/issues/225)). A persistent home could then come from a warm pool. Today only a scratch home can.
-- Network rules at claim time, by host name and at L7 ([#818](https://github.com/kubernetes-sigs/agent-sandbox/issues/818)). Each workspace could get its own rules, and the [IP-only limit](#firewall) goes away.
-- Configuration after a warm claim ([#1480](https://github.com/kubernetes-sigs/agent-sandbox/issues/1480)). The agent token could come from a Secret instead of a Pod annotation.
-- Automatic suspend and resume, and scale to zero. A Coder stop could then suspend the sandbox instead of deleting it.
-- Rolling updates for warm pools ([#426](https://github.com/kubernetes-sigs/agent-sandbox/issues/426)). Today a new image replaces all pooled sandboxes at once, so the pool is empty until the new ones start.
-
-agent-sandbox ships a release about every week. Pin the version, and test each upgrade before you roll it out.
+The [roadmap](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/roadmap.md) plans storage in the claim ([#225](https://github.com/kubernetes-sigs/agent-sandbox/issues/225)), network rules by host name ([#818](https://github.com/kubernetes-sigs/agent-sandbox/issues/818)), and automatic suspend and resume. These would let persistent homes use warm pools, and remove the IP-only firewall limit. agent-sandbox releases about every week, so pin the version.
 
 ## Prerequisites
 
