@@ -12,6 +12,15 @@ Run each workspace in a Sandbox from [agent-sandbox](https://github.com/kubernet
 
 The image has the Coder agent, code-server, and Claude Code built in, so a workspace downloads nothing at start. Claude Code reaches Anthropic through the Coder AI Gateway, so it works with no internet access.
 
+## Why agent-sandbox
+
+A plain Kubernetes Pod can also use gVisor or Kata and a NetworkPolicy, and Coder prebuilds make it start fast. agent-sandbox moves these into objects that the cluster administrator owns:
+
+- **Kernel isolation at the cluster level.** A SandboxTemplate sets the runtime (gVisor, Kata with QEMU, or Kata with Cloud Hypervisor), the image, the security settings, and the network rules. A scratch workspace can only claim a sandbox from these templates, and the Coder provisioner never creates Pods.
+- **Cluster-level warm pools.** A SandboxWarmPool keeps booted sandboxes ready for any client of the cluster, not only Coder, and it does not need Coder Premium. With Premium, Coder prebuilds do the same for persistent homes.
+- **A growing ecosystem.** agent-sandbox is a Kubernetes SIG project with SDKs, a router, and a managed version on GKE. The API already has a suspended mode and expiry, and GKE adds Pod snapshots. This template does not use them yet.
+- **Firewall.** agent-sandbox has no firewall of its own. It uses Kubernetes NetworkPolicy, with one shared policy for each SandboxTemplate. A template with no rules gets the project's secure default: public internet only, with private ranges, cluster DNS, and cloud metadata blocked, and no ingress except from the agent-sandbox router. The project also documents a cluster-wide guardrail with ClusterNetworkPolicy and host name rules with Cilium. This template sets its own rules for each network profile, and has an optional guardrail (see [Guardrail](#guardrail)).
+
 ## Prerequisites
 
 - **Cluster**: a Kubernetes cluster with a network plugin that enforces NetworkPolicy, and a StorageClass for the home disk.
