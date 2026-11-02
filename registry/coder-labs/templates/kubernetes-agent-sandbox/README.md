@@ -14,12 +14,25 @@ Claude Code reaches Anthropic through the Coder AI Gateway, so it works with no 
 
 ## Why agent-sandbox
 
-agent-sandbox adds Kubernetes primitives for running agentic workloads. You can do most of this with plain Pods, but agent-sandbox adds:
+agent-sandbox adds Kubernetes primitives for running agentic workloads:
 
 - **Kernel isolation at the cluster level.** A SandboxTemplate sets the runtime (gVisor, Kata with QEMU, or Kata with Cloud Hypervisor), the image, the security settings, and the network rules. A scratch workspace can only claim a sandbox from these templates, and the Coder provisioner never creates Pods.
 - **Cluster-level warm pools.** A SandboxWarmPool keeps booted sandboxes ready for any client of the cluster, not only Coder, and it does not need Coder Premium.
 - **A growing ecosystem.** SDKs, a router, and a managed version on GKE. The API already has a suspended mode and expiry, and GKE adds Pod snapshots. This template does not use them yet.
 - **Firewall.** agent-sandbox uses plain Kubernetes NetworkPolicy, with a secure default for templates that set no rules. This template sets its own rules for each network profile, and adds an optional cluster-wide guardrail.
+
+## agent-sandbox vs Pods
+
+|                   | Plain Pods                         | Pods + Coder                         | agent-sandbox + Coder (this template)                                                 |
+| ----------------- | ---------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------- |
+| Kernel isolation  | Set `runtimeClassName` on each Pod | The template sets the runtime        | The cluster administrator sets the runtime once in a SandboxTemplate                  |
+| Firewall          | NetworkPolicies that you write     | The template creates a NetworkPolicy | The template, or a shared policy for each SandboxTemplate, plus an optional guardrail |
+| Fast start        | No, every Pod starts cold          | Prebuilds (Premium)                  | Prebuilds, and warm pools that need no Premium                                        |
+| Warm pools        | No                                 | No, prebuilds serve Coder only       | SandboxWarmPools, for Coder and any other client in the cluster                       |
+| Who creates Pods  | You                                | The Coder provisioner                | For scratch homes, agent-sandbox. The provisioner only claims from admin-owned pools  |
+| Lifecycle         | Kubernetes only                    | Start, stop, and TTL in Coder        | Coder, plus the Sandbox API: expiry, a suspended mode, and Pod snapshots on GKE       |
+| IDE and AI agents | No                                 | Coder agent, apps, AI Gateway        | Coder agent, apps, AI Gateway                                                         |
+| Extra components  | None                               | None                                 | The agent-sandbox controller                                                          |
 
 ## Startup speed
 
