@@ -64,7 +64,7 @@ Required:
 
 - **A Kubernetes cluster** with a network plugin that enforces NetworkPolicy, and a StorageClass for the home disk.
 - **agent-sandbox** v1.0.4 or later, with the extensions.
-- **gVisor** on the nodes, with a `gvisor` RuntimeClass.
+- **gVisor** `release-20261019.0` or later on the nodes, with a `gvisor` RuntimeClass. Older releases block on an empty write to a terminal, so the web terminal takes no input.
 - **The cluster setup** in [`cluster/`](cluster): a Terraform configuration that creates the namespace, RBAC, and warm pools, and prints the template variables. See [`cluster/README.md`](cluster/README.md).
 - **The image**, built from [`build/Dockerfile`](build/Dockerfile).
 - **Access to the cluster** for the Coder provisioner. The template uses the in-cluster ServiceAccount, or `~/.kube/config` with `use_kubeconfig = true`.
@@ -184,7 +184,6 @@ The GitHub ranges are in `shared/defaults.json`. If your `kubernetes` Service po
 
 ## Limits
 
-- Under gVisor, the web terminal takes no input with current Coder agents, because the agent writes empty resize messages and gVisor blocks on them. `coder ssh` and Kata work.
 - NetworkPolicy matches IP ranges, so there is no profile for npm or PyPI. Use Public internet, or see [Firewall](#firewall).
 - GitHub only and Public internet can still send data out, for example to an attacker's repository or through DNS.
 - With the AI Gateway on, code in the workspace can use the owner's Coder session token in `ANTHROPIC_AUTH_TOKEN`.

@@ -37,6 +37,8 @@ The template supports three RuntimeClasses: `gvisor`, `kata-qemu`, and `kata-clh
 
 gVisor runs on any Linux node. Install `runsc` and its containerd shim on each node, add a `runsc` runtime to the containerd config, and create a RuntimeClass named `gvisor` with `handler: runsc`. See the [gVisor containerd guide](https://gvisor.dev/docs/user_guide/containerd/quick_start/). On GKE, GKE Sandbox provides the `gvisor` RuntimeClass.
 
+Use `release-20261019.0` or later. Older releases block when the Coder agent writes nothing to a terminal, which it does on every resize, so the web terminal takes no input. To check the version on a node, run `runsc --version`. Sandboxes that are already running keep their version until they restart.
+
 ### Kata (QEMU and Cloud Hypervisor)
 
 Kata runs each Pod in a small VM, so the node needs `/dev/kvm`: a bare metal node, or a VM with nested virtualization.
