@@ -8,7 +8,7 @@ tags: [kubernetes, agent-sandbox, sandbox, gvisor, kata, ai]
 
 # Kubernetes agent-sandbox
 
-Run each workspace in a Sandbox from [agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox), a Kubernetes SIG project. You and your AI agent work in the same sandbox, with one Coder agent named `dev`. The sandbox runs under gVisor or a Kata microVM, so it does not share the node kernel. A Kubernetes NetworkPolicy works as the firewall. By default the workspace can reach only the Coder server. Code in the workspace can still use that connection, for example with the Coder session token that the AI Gateway needs (see [Limits](#limits)).
+Run each workspace in a Sandbox from [agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox), a Kubernetes SIG project. You and your AI agent work in the same sandbox, with one Coder agent named `dev`. The sandbox runs under gVisor or a Kata microVM, so it does not share the node kernel. A Kubernetes NetworkPolicy works as the firewall, and ClusterNetworkPolicy or Cilium can add more advanced rules (see [Firewall](#firewall)). By default the workspace can reach only the Coder server. Code in the workspace can still use that connection, for example with the Coder session token that the AI Gateway needs (see [Limits](#limits)).
 
 Claude Code reaches Anthropic through the Coder AI Gateway, so it works with no internet access.
 
@@ -150,7 +150,29 @@ The Scratch column shows which variables also apply to a scratch home. For a scr
 - **Pods:** run as user 1000 with no capabilities and no ServiceAccount token, use `8.8.8.8` and `1.1.1.1` for DNS, and request 500m CPU and 1 GiB (`shared/defaults.json`).
 - **Apps:** code-server, and Claude Code, which continues the last conversation in `/home/coder`.
 
-## Network egress
+## Firewall
+
+Each workspace gets a Kubernetes NetworkPolicy, which matches IP ranges and ports. That is enough for restricted workloads that need only a few known hosts, which are often background jobs such as codebase research or reading logs. It falls apart for dynamic, human-driven AI work. There, the agent installs packages, reads docs, and calls APIs that you cannot list ahead of time, and most of them sit behind CDNs with shared IP addresses that change. You end up allowing whole CDN ranges, or Public internet.
+
+For more advanced rules:
+
+- **ClusterNetworkPolicy** sets rules for the whole cluster that no NetworkPolicy in a namespace can undo. `cluster/` uses it for the optional guardrail on Amazon EKS. See [Guardrail](cluster/README.md#guardrail).
+- **Cilium** can match host names (`toFQDNs`) and HTTP requests, so a profile can allow `registry.npmjs.org` or `pypi.org` without their IP ranges.
+- **An egress proxy** gives you host name rules and logs on any network plugin. Set `HTTPS_PROXY` in the image, and allow only the proxy in the NetworkPolicy.
+
+### Network ingress
+
+Every profile blocks all ingress. The Coder agent dials out to the Coder server, so the workspace needs no open port. Your options to reach it:
+
+| Option                                    | How it works                                                                                                                                                       | Ingress to open                                                                                                                   |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| Through the Coder server (default)        | The web terminal, code-server, `coder ssh`, `coder port-forward`, port sharing, and desktop IDEs relay through the Coder server.                                   | None                                                                                                                              |
+| Direct connections                        | Coder connects the client and the workspace peer to peer, which lowers latency. It works only if the client can reach the Pod IP, such as over a VPN into the VPC. | Allow UDP egress to your STUN servers and to the client networks. NetworkPolicy allows the replies.                               |
+| A Kubernetes Service, Ingress, or Gateway | Other Pods or users reach a port in the workspace directly, without Coder.                                                                                         | An ingress rule from those Pods or from the ingress controller. Turn off the guardrail, because it blocks ingress from every Pod. |
+
+Use the Coder server when you can. It checks who the user is and what they can access, and it works with every profile. A Service or Ingress skips those checks, so add your own sign-in in front of it. The template creates no Service or Ingress.
+
+### Network egress
 
 | Profile         | Allowed egress                                                                                             |
 | --------------- | ---------------------------------------------------------------------------------------------------------- |
@@ -158,14 +180,12 @@ The Scratch column shows which variables also apply to a scratch home. For a scr
 | GitHub only     | Coder, the GitHub IPv4 ranges on TCP 443 and 80, and DNS to `8.8.8.8` and `1.1.1.1`.                       |
 | Public internet | Coder, every public IPv4 address on TCP 443 and 80, and the same DNS. No private ranges or cloud metadata. |
 
-Connections to the workspace relay through the Coder server, because no profile allows STUN. The GitHub ranges are in `shared/defaults.json`. If your `kubernetes` Service points to a public IP (`kubectl get endpoints kubernetes -n default`), Public internet can reach it and the policy check never passes, so set `network_policy_gate = false`. For an air-gapped cluster, mirror the images and providers, and build the image with `CODER_BINARY_URL`.
-
-On Amazon EKS, `enable_guardrail = true` in `cluster/` adds a cluster-wide policy that no NetworkPolicy in the namespace can undo. Rules by host name need Cilium, EKS Auto Mode, or an egress proxy. See [Guardrail](cluster/README.md#guardrail).
+The GitHub ranges are in `shared/defaults.json`. If your `kubernetes` Service points to a public IP (`kubectl get endpoints kubernetes -n default`), Public internet can reach it and the policy check never passes, so set `network_policy_gate = false`. For an air-gapped cluster, mirror the images and providers, and build the image with `CODER_BINARY_URL`.
 
 ## Limits
 
 - Under gVisor, the web terminal takes no input with current Coder agents, because the agent writes empty resize messages and gVisor blocks on them. `coder ssh` and Kata work.
-- NetworkPolicy matches IP ranges, so there is no profile for npm or PyPI. Use Public internet for them.
+- NetworkPolicy matches IP ranges, so there is no profile for npm or PyPI. Use Public internet, or see [Firewall](#firewall).
 - GitHub only and Public internet can still send data out, for example to an attacker's repository or through DNS.
 - With the AI Gateway on, code in the workspace can use the owner's Coder session token in `ANTHROPIC_AUTH_TOKEN`.
 - A scratch home keeps the agent token in a Pod annotation, so keep read access to the namespace tight. GitHub only pools can clone only public repositories.
