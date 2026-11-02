@@ -228,7 +228,7 @@ if ! check_installed; then
       # kasmvncserver_ubuntu_noble_1.5.1_amd64.deb. Kali's codename already
       # contains the distro name, giving kali_kali-rolling.
       distro_prefix=""
-      if version_ge "1.5.1" "$KASM_VERSION"; then
+      if version_ge "1.5.1" "${KASM_VERSION}"; then
         distro_prefix="$${distro}_"
       fi
       bin_name="kasmvncserver_$${distro_prefix}$${codename}_${KASM_VERSION}_$${arch}.deb"
@@ -240,7 +240,7 @@ if ! check_installed; then
       # KasmVNC <= 1.4.0 named Fedora assets after the release name
       # (fedora_forty) and only switched to the major version (fedora_42)
       # in 1.5.0.
-      if [[ "$distro" == "fedora" ]] && ! version_ge "1.5.0" "$KASM_VERSION"; then
+      if [[ "$distro" == "fedora" ]] && ! version_ge "1.5.0" "${KASM_VERSION}"; then
         [[ -n "$fedora_codename" ]] \
           || error "Could not read the Fedora release name from /etc/fedora-release"
         package_version="$fedora_codename"
@@ -251,7 +251,7 @@ if ! check_installed; then
     alpine)
       # 3.21.0 -> 321: KasmVNC names Alpine assets after <major><minor>.
       alpine_version="$(echo "$distro_version" | cut -d. -f1,2 | tr -d .)"
-      if version_ge "1.4.0" "$KASM_VERSION"; then
+      if version_ge "1.4.0" "${KASM_VERSION}"; then
         # 1.4.0 replaced the tarball with an apk package.
         bin_name="kasmvncserver_alpine_$${alpine_version}_${KASM_VERSION}_$${arch}.apk"
         install_apk "$base_url/$bin_name"

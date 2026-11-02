@@ -56,6 +56,16 @@ const extractFromRunScript = (
 };
 
 /**
+ * Renders run.sh the way `templatefile` does: `${VAR}` is substituted at plan
+ * time and `$${VAR}` is an escaped shell expansion. Substituting the version
+ * instead of exporting it keeps the harness honest: any runtime `$KASM_VERSION`
+ * reference left behind by mistake then fails under `set -u`, which is exactly
+ * the class of bug these cases are meant to catch.
+ */
+const renderRunScript = (source: string, version: string): string =>
+  source.replace(/(?<!\$)\$\{KASM_VERSION\}/g, version).replaceAll("$${", "${");
+
+/**
  * Runs the release package naming block from run.sh for the given platform and
  * version, and returns the asset name it would download. The install functions
  * are stubbed, so nothing is downloaded and nothing is installed.
@@ -64,9 +74,10 @@ const packageNameFor = async (
   platform: Platform,
   version: string,
 ): Promise<{ name: string; exitCode: number; stderr: string }> => {
-  const source = (
-    await readFile(`${import.meta.dir}/run.sh`, "utf8")
-  ).replaceAll("$${", "${");
+  const source = renderRunScript(
+    await readFile(`${import.meta.dir}/run.sh`, "utf8"),
+    version,
+  );
   const harness = [
     "set -euo pipefail",
     'error() { printf "%s\\n" "$*" >&2; exit 1; }',
@@ -92,7 +103,6 @@ const packageNameFor = async (
       codename: platform.codename ?? "",
       distro_version: platform.distroVersion ?? "",
       arch: platform.arch,
-      KASM_VERSION: version,
       fedora_codename: platform.fedoraCodename ?? "",
     },
     stderr: "pipe",
@@ -191,10 +201,10 @@ const packageNameCases: ReadonlyArray<PackageNameCase> = [
     expected: "kasmvncserver_fedora_42_1.5.0_x86_64.rpm",
   },
   {
-    label: "alpine tarball before 1.4.0",
-    platform: { distro: "alpine", distroVersion: "3.21.0", arch: "x86_64" },
+    label: "alpine 3.20 tarball before 1.4.0",
+    platform: { distro: "alpine", distroVersion: "3.20.0", arch: "x86_64" },
     version: "1.3.2",
-    expected: "kasmvnc.alpine_321_x86_64.tgz",
+    expected: "kasmvnc.alpine_320_x86_64.tgz",
   },
   {
     label: "alpine apk from 1.4.0",
@@ -237,6 +247,15 @@ describe("Kasm VNC", async () => {
           testCase.platform,
           testCase.version,
         );
+
+        // A non-zero exit means the rendered script references something that
+        // only exists as a Terraform placeholder (e.g. an unset KASM_VERSION
+        // under `set -u`), so the assertion below would be meaningless.
+        if (result.exitCode !== 0) {
+          throw new Error(
+            `run.sh exited ${result.exitCode} for ${testCase.label}: ${result.stderr.trim()}`,
+          );
+        }
 
         expect(result.name).toBe(testCase.expected);
       });
