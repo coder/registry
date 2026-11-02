@@ -21,7 +21,7 @@ agent-sandbox adds Kubernetes primitives for running agentic workloads:
 - **A growing ecosystem.** SDKs, a router, and a managed version on GKE. The API already has a suspended mode and expiry, and GKE adds Pod snapshots. This template does not use them yet.
 - **Firewall.** agent-sandbox uses plain Kubernetes NetworkPolicy, with a secure default for templates that set no rules. This template sets its own rules for each network profile, and adds an optional cluster-wide guardrail.
 
-Plain Kubernetes and Coder already cover some of this. See [agent-sandbox vs Pods](#agent-sandbox-vs-pods) to compare each feature with plain Pods and with Pods in a Coder template, and [Is agent-sandbox a good fit?](#is-agent-sandbox-a-good-fit) to decide which one you need.
+Plain Kubernetes and Coder already do some of this. To compare each feature, and to decide if you need agent-sandbox, see [agent-sandbox vs Pods](#agent-sandbox-vs-pods).
 
 ## Startup speed
 
@@ -51,20 +51,9 @@ These all add to the speed:
 6. **The Coder server.** The Helm chart's default CPU limit of 2 throttled builds. With 4 CPUs, each start was about 2.4 s faster.
 7. **The disk.** A StorageClass with `volumeBindingMode: WaitForFirstConsumer` creates the disk in the node's zone. Moving an EBS volume to another node adds 5 to 10 s.
 
-## Is agent-sandbox a good fit?
-
-Coder already handles most of the workspace lifecycle. It creates and deletes the Pods, starts and stops workspaces on a schedule, stops idle ones, keeps prebuilds ready, and runs the agent and the apps. agent-sandbox adds its own lifecycle under that: Sandboxes, claims, warm pools, and expiry. That is one more controller to run and upgrade.
-
-If only Coder uses the cluster, you have Coder Premium, and you trust template authors to set the runtime, the [Kubernetes template](../../../coder/templates/kubernetes) with a `runtimeClassName` and a NetworkPolicy gives the same isolation with fewer parts. Speed alone is not a reason to use agent-sandbox, because prebuilds are about as fast as warm pools.
-
-agent-sandbox is a good fit when:
-
-- Cluster administrators, not template authors, must own the runtime, the image, and the network rules.
-- Other clients, such as SDKs, CI jobs, or agent platforms, use the same sandboxes and warm pools.
-- You want fast starts without Coder Premium.
-- You plan to use the suspended mode, expiry, or Pod snapshots on GKE.
-
 ## agent-sandbox vs Pods
+
+Coder already manages most of the workspace lifecycle. It creates and deletes Pods, starts and stops workspaces on a schedule, and stops idle workspaces. It also keeps prebuilds ready and runs the agent and the apps. agent-sandbox adds a second lifecycle under Coder, with Sandboxes, claims, warm pools, and expiry. You must also run and upgrade its controller.
 
 |                   | Plain Pods                         | Pods + Coder                         | agent-sandbox + Coder (this template)                                                 |
 | ----------------- | ---------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------- |
@@ -76,6 +65,21 @@ agent-sandbox is a good fit when:
 | Lifecycle         | Kubernetes only                    | Start, stop, and TTL in Coder        | Coder, plus the Sandbox API: expiry, a suspended mode, and Pod snapshots on GKE       |
 | IDE and AI agents | No                                 | Coder agent, apps, AI Gateway        | Coder agent, apps, AI Gateway                                                         |
 | Extra components  | None                               | None                                 | The agent-sandbox controller                                                          |
+
+You do not need agent-sandbox if all of these are true:
+
+- Only Coder uses the cluster.
+- You have Coder Premium for prebuilds.
+- You trust template authors to set the runtime.
+
+In that case, use the [Kubernetes template](../../../coder/templates/kubernetes), and add a `runtimeClassName` and a NetworkPolicy. It gives the same isolation with fewer parts. Speed alone is not a reason to use agent-sandbox, because prebuilds are about as fast as warm pools.
+
+Use agent-sandbox if one of these is true:
+
+- Cluster administrators must own the runtime, the image, and the network rules.
+- Other clients, such as SDKs, CI jobs, or agent platforms, use the same sandboxes and warm pools.
+- You want fast starts without Coder Premium.
+- You plan to use the suspended mode, expiry, or Pod snapshots on GKE.
 
 ## Prerequisites
 
