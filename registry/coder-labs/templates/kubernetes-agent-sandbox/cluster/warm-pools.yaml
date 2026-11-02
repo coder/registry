@@ -1,0 +1,47 @@
+# Warm pools for the scratch home of the kubernetes-agent-sandbox template.
+# Each pool keeps booted, idle sandboxes from the SandboxTemplate of the
+# same name in sandbox-templates.yaml. A scratch workspace claims one in
+# about 2.5 s, and the pool boots a replacement.
+#
+# Every idle sandbox reserves the Pod's requests (500m CPU and 1 GiB) plus
+# the RuntimeClass overhead (Kata: 250m CPU and 130 to 320 MiB). Set
+# replicas to the number of scratch workspaces that start at about the same
+# time. Set replicas to 0, or delete the pool, for a runtime you do not use.
+#
+# Recreate replaces idle sandboxes when the SandboxTemplate changes. The
+# default, OnReplenish, keeps old idle sandboxes until someone claims them.
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxWarmPool
+metadata:
+  name: coder-gvisor
+  namespace: coder-workspaces
+spec:
+  replicas: 1
+  updateStrategy:
+    type: Recreate
+  sandboxTemplateRef:
+    name: coder-gvisor
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxWarmPool
+metadata:
+  name: coder-kata-qemu
+  namespace: coder-workspaces
+spec:
+  replicas: 1
+  updateStrategy:
+    type: Recreate
+  sandboxTemplateRef:
+    name: coder-kata-qemu
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxWarmPool
+metadata:
+  name: coder-kata-clh
+  namespace: coder-workspaces
+spec:
+  replicas: 1
+  updateStrategy:
+    type: Recreate
+  sandboxTemplateRef:
+    name: coder-kata-clh
