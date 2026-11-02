@@ -1,7 +1,7 @@
 # Warm pools for the scratch home of the kubernetes-agent-sandbox template.
 # Each pool keeps booted, idle sandboxes from the SandboxTemplate of the
-# same name in sandbox-templates.yaml. A scratch workspace claims one in
-# about 2.5 s, and the pool boots a replacement.
+# same name in sandbox-templates.yaml. A scratch workspace claims one and
+# is ready in about 3.5 to 6.5 s, and the pool boots a replacement.
 #
 # Every idle sandbox reserves the Pod's requests (500m CPU and 1 GiB) plus
 # the RuntimeClass overhead (Kata: 250m CPU and 130 to 320 MiB). Set

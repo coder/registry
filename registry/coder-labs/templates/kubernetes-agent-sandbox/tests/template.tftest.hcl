@@ -15,12 +15,6 @@ mock_provider "coder" {
       email = "owner@example.org"
     }
   }
-  mock_data "coder_provisioner" {
-    defaults = {
-      arch = "amd64"
-      os   = "linux"
-    }
-  }
 }
 
 mock_provider "kubernetes" {}
@@ -94,8 +88,16 @@ run "persistent_isolated" {
     error_message = "CODER_AGENT_URL must be the access URL."
   }
   assert {
-    condition     = strcontains(kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.containers[0].command[2], "exec /usr/local/bin/coder agent") && strcontains(kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.containers[0].command[2], "KUBERNETES_SERVICE_HOST")
+    condition     = strcontains(kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.containers[0].command[2], "/usr/local/bin/coder agent &\n") && strcontains(kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.containers[0].command[2], "KUBERNETES_SERVICE_HOST")
     error_message = "The container must run the policy gate and then the agent from the image."
+  }
+  assert {
+    condition     = strcontains(kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.containers[0].command[2], "%%{time_connect}") && strcontains(kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.containers[0].command[2], "NetworkPolicy is no longer enforced")
+    error_message = "The gate must check the TCP connection, and keep checking after the agent starts."
+  }
+  assert {
+    condition     = startswith(kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.containers[0].command[2], "[ -e /home/coder/.bashrc ] || cp -an /etc/skel/.")
+    error_message = "A new home must get the image's dotfiles."
   }
   assert {
     condition     = kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.metadata.labels["com.coder.workspace.id"] == kubernetes_network_policy_v1.workspace[0].spec[0].pod_selector[0].match_labels["com.coder.workspace.id"]
@@ -312,6 +314,10 @@ run "no_policy_gate" {
     condition     = !strcontains(kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.containers[0].command[2], "KUBERNETES_SERVICE_HOST")
     error_message = "network_policy_gate = false must remove the gate."
   }
+  assert {
+    condition     = endswith(kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.containers[0].command[2], "exec /usr/local/bin/coder agent")
+    error_message = "Without the gate, the container must exec the agent."
+  }
 }
 
 run "rejects_latest_image" {
@@ -362,4 +368,47 @@ run "rejects_negative_prebuilds" {
   }
 
   expect_failures = [var.prebuild_instances]
+}
+
+run "rejects_untagged_image" {
+  command = plan
+
+  variables {
+    workspace_image = "registry.example.com:5000/coder/workspace"
+  }
+
+  expect_failures = [var.workspace_image]
+}
+
+run "accepts_digest_image" {
+  command = plan
+
+  variables {
+    workspace_image = "registry.example.com:5000/coder/workspace@sha256:32e560b86242d4ac65e7a777953ed3ec991d4db8368e24dea7e9ea0817a3410e"
+  }
+
+  assert {
+    condition     = kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.containers[0].image == var.workspace_image
+    error_message = "A digest must be accepted."
+  }
+}
+
+run "rejects_ipv6_cidr" {
+  command = plan
+
+  variables {
+    coder_egress_cidrs = ["2001:db8::1/128"]
+  }
+
+  expect_failures = [var.coder_egress_cidrs]
+}
+
+run "rejects_bad_host_ip" {
+  command = plan
+
+  variables {
+    coder_host_ip = "coder.example.com"
+  }
+
+  expect_failures = [var.coder_host_ip]
 }

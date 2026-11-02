@@ -14,8 +14,17 @@
 #      idle Pod and adds the claim's annotations to the Pod.
 #   3. The downward API writes the coder.com/agent-token annotation to
 #      /podinfo/token, usually within a second.
-#   4. The Pod waits until its NetworkPolicy blocks the Kubernetes API
-#      server, then starts the Coder agent.
+#   4. The Pod waits until a TCP connection to the Kubernetes API server
+#      fails, which shows that its NetworkPolicy is in force, then starts
+#      the Coder agent. Every 5 s it checks again. If the API server
+#      becomes reachable, it stops the agent and the container exits.
+#
+# The token stays in plain text in the Pod annotation and the SandboxClaim,
+# so only trusted users should read Pods and SandboxClaims here.
+#
+# Claimed Pods get only annotations, not the com.coder.workspace.id label:
+# claim labels need a domain from the controller's allowed-label-domains
+# setting.
 #
 # The NetworkPolicy below replaces the agent-sandbox default (public
 # internet). It allows only the Coder server. The template allows only
@@ -49,7 +58,7 @@ spec:
       runtimeClassName: gvisor
       automountServiceAccountToken: false
       enableServiceLinks: false
-      terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: 2
       dnsPolicy: None
       dnsConfig:
         nameservers: ["8.8.8.8", "1.1.1.1"]
@@ -75,20 +84,38 @@ spec:
             - sh
             - -c
             - |
-              while [ ! -s /podinfo/token ]; do sleep 0.05; done
-              api="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT/"
-              i=0
-              while [ "$(curl -sk -o /dev/null --noproxy '*' --connect-timeout 0.3 -m 1 -w '%{http_code}' "$api")" != 000 ]; do
-                i=$((i + 1))
-                [ "$i" -ge 240 ] && { echo "NetworkPolicy is not enforced" >&2; exit 1; }
-                sleep 0.25
-              done
+              while [ ! -s /podinfo/token ]; do sleep 0.25; done
+              [ -e /home/coder/.bashrc ] || cp -an /etc/skel/. /home/coder/ 2>/dev/null || true
               CODER_AGENT_TOKEN="$(cat /podinfo/token)"
               export CODER_AGENT_TOKEN
               export CODER_AGENT_AUTH=token
               export CODER_AGENT_URL=https://coder.example.com
               ulimit -n 65536 2>/dev/null || true
-              exec /usr/local/bin/coder agent
+              # Start the agent only once a TCP connection to the API
+              # server fails, then check again every 5 s. Must match
+              # policy_check in main.tf.
+              api="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT/"
+              api_open() {
+                r=$(curl -sk -o /dev/null --noproxy '*' --connect-timeout 0.3 -m 1 -w '%{http_code} %{time_connect}' "$api" 2>/dev/null)
+                [ -z "$r" ] && return 0
+                awk -v t="${r#* }" 'BEGIN { exit !(t + 0 > 0) }'
+              }
+              i=0
+              while api_open; do
+                i=$((i + 1))
+                if [ "$i" -ge 240 ]; then echo "NetworkPolicy is not enforced" >&2; exit 1; fi
+                sleep 0.25
+              done
+              echo "NetworkPolicy is in force after $i checks" >&2
+              /usr/local/bin/coder agent &
+              pid=$!
+              trap 'kill -TERM "$pid" 2>/dev/null; wait "$pid"; exit 0' TERM INT
+              while kill -0 "$pid" 2>/dev/null; do
+                sleep 5 &
+                wait $!
+                if api_open; then echo "NetworkPolicy is no longer enforced" >&2; kill -KILL "$pid"; exit 1; fi
+              done
+              wait "$pid"
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
@@ -138,7 +165,7 @@ spec:
       runtimeClassName: kata-qemu
       automountServiceAccountToken: false
       enableServiceLinks: false
-      terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: 2
       dnsPolicy: None
       dnsConfig:
         nameservers: ["8.8.8.8", "1.1.1.1"]
@@ -164,20 +191,38 @@ spec:
             - sh
             - -c
             - |
-              while [ ! -s /podinfo/token ]; do sleep 0.05; done
-              api="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT/"
-              i=0
-              while [ "$(curl -sk -o /dev/null --noproxy '*' --connect-timeout 0.3 -m 1 -w '%{http_code}' "$api")" != 000 ]; do
-                i=$((i + 1))
-                [ "$i" -ge 240 ] && { echo "NetworkPolicy is not enforced" >&2; exit 1; }
-                sleep 0.25
-              done
+              while [ ! -s /podinfo/token ]; do sleep 0.25; done
+              [ -e /home/coder/.bashrc ] || cp -an /etc/skel/. /home/coder/ 2>/dev/null || true
               CODER_AGENT_TOKEN="$(cat /podinfo/token)"
               export CODER_AGENT_TOKEN
               export CODER_AGENT_AUTH=token
               export CODER_AGENT_URL=https://coder.example.com
               ulimit -n 65536 2>/dev/null || true
-              exec /usr/local/bin/coder agent
+              # Start the agent only once a TCP connection to the API
+              # server fails, then check again every 5 s. Must match
+              # policy_check in main.tf.
+              api="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT/"
+              api_open() {
+                r=$(curl -sk -o /dev/null --noproxy '*' --connect-timeout 0.3 -m 1 -w '%{http_code} %{time_connect}' "$api" 2>/dev/null)
+                [ -z "$r" ] && return 0
+                awk -v t="${r#* }" 'BEGIN { exit !(t + 0 > 0) }'
+              }
+              i=0
+              while api_open; do
+                i=$((i + 1))
+                if [ "$i" -ge 240 ]; then echo "NetworkPolicy is not enforced" >&2; exit 1; fi
+                sleep 0.25
+              done
+              echo "NetworkPolicy is in force after $i checks" >&2
+              /usr/local/bin/coder agent &
+              pid=$!
+              trap 'kill -TERM "$pid" 2>/dev/null; wait "$pid"; exit 0' TERM INT
+              while kill -0 "$pid" 2>/dev/null; do
+                sleep 5 &
+                wait $!
+                if api_open; then echo "NetworkPolicy is no longer enforced" >&2; kill -KILL "$pid"; exit 1; fi
+              done
+              wait "$pid"
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
@@ -227,7 +272,7 @@ spec:
       runtimeClassName: kata-clh
       automountServiceAccountToken: false
       enableServiceLinks: false
-      terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: 2
       dnsPolicy: None
       dnsConfig:
         nameservers: ["8.8.8.8", "1.1.1.1"]
@@ -253,20 +298,38 @@ spec:
             - sh
             - -c
             - |
-              while [ ! -s /podinfo/token ]; do sleep 0.05; done
-              api="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT/"
-              i=0
-              while [ "$(curl -sk -o /dev/null --noproxy '*' --connect-timeout 0.3 -m 1 -w '%{http_code}' "$api")" != 000 ]; do
-                i=$((i + 1))
-                [ "$i" -ge 240 ] && { echo "NetworkPolicy is not enforced" >&2; exit 1; }
-                sleep 0.25
-              done
+              while [ ! -s /podinfo/token ]; do sleep 0.25; done
+              [ -e /home/coder/.bashrc ] || cp -an /etc/skel/. /home/coder/ 2>/dev/null || true
               CODER_AGENT_TOKEN="$(cat /podinfo/token)"
               export CODER_AGENT_TOKEN
               export CODER_AGENT_AUTH=token
               export CODER_AGENT_URL=https://coder.example.com
               ulimit -n 65536 2>/dev/null || true
-              exec /usr/local/bin/coder agent
+              # Start the agent only once a TCP connection to the API
+              # server fails, then check again every 5 s. Must match
+              # policy_check in main.tf.
+              api="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT/"
+              api_open() {
+                r=$(curl -sk -o /dev/null --noproxy '*' --connect-timeout 0.3 -m 1 -w '%{http_code} %{time_connect}' "$api" 2>/dev/null)
+                [ -z "$r" ] && return 0
+                awk -v t="${r#* }" 'BEGIN { exit !(t + 0 > 0) }'
+              }
+              i=0
+              while api_open; do
+                i=$((i + 1))
+                if [ "$i" -ge 240 ]; then echo "NetworkPolicy is not enforced" >&2; exit 1; fi
+                sleep 0.25
+              done
+              echo "NetworkPolicy is in force after $i checks" >&2
+              /usr/local/bin/coder agent &
+              pid=$!
+              trap 'kill -TERM "$pid" 2>/dev/null; wait "$pid"; exit 0' TERM INT
+              while kill -0 "$pid" 2>/dev/null; do
+                sleep 5 &
+                wait $!
+                if api_open; then echo "NetworkPolicy is no longer enforced" >&2; kill -KILL "$pid"; exit 1; fi
+              done
+              wait "$pid"
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true

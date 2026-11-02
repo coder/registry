@@ -42,8 +42,12 @@ variable "workspace_image" {
   description = "The workspace image. Build it from build/Dockerfile, with a Coder agent that matches your Coder server. Use a fixed tag or a digest, not :latest."
 
   validation {
-    condition     = length(trimspace(var.workspace_image)) > 0 && !endswith(var.workspace_image, ":latest")
-    error_message = "workspace_image must not be empty and must not use the :latest tag."
+    condition = (
+      length(trimspace(var.workspace_image)) > 0 &&
+      !endswith(var.workspace_image, ":latest") &&
+      can(regex("[:@]", element(split("/", var.workspace_image), length(split("/", var.workspace_image)) - 1)))
+    )
+    error_message = "workspace_image must have a tag other than :latest, or a digest, such as registry.example.com/coder/workspace:v2.30.0."
   }
 }
 
@@ -52,8 +56,8 @@ variable "coder_egress_cidrs" {
   description = "The IPv4 CIDR ranges of the Coder server, for example [\"203.0.113.10/32\"]. Every workspace can reach these ranges, and nothing else in Fully isolated."
 
   validation {
-    condition     = length(var.coder_egress_cidrs) > 0 && alltrue([for c in var.coder_egress_cidrs : can(cidrhost(c, 0))])
-    error_message = "coder_egress_cidrs must have at least one valid CIDR range, such as 203.0.113.10/32."
+    condition     = length(var.coder_egress_cidrs) > 0 && alltrue([for c in var.coder_egress_cidrs : can(cidrhost(c, 0)) && !strcontains(c, ":")])
+    error_message = "coder_egress_cidrs must have at least one valid IPv4 CIDR range, such as 203.0.113.10/32."
   }
 }
 
@@ -74,7 +78,7 @@ variable "coder_host_ip" {
   default     = ""
 
   validation {
-    condition     = var.coder_host_ip == "" || can(regex("^[0-9]{1,3}(\\.[0-9]{1,3}){3}$", var.coder_host_ip))
+    condition     = var.coder_host_ip == "" || (can(cidrhost("${var.coder_host_ip}/32", 0)) && !strcontains(var.coder_host_ip, ":"))
     error_message = "coder_host_ip must be empty or an IPv4 address."
   }
 }
@@ -125,7 +129,6 @@ provider "kubernetes" {
 
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
-data "coder_provisioner" "me" {}
 
 # Network profiles. A NetworkPolicy matches IP ranges, not host names.
 locals {
@@ -234,6 +237,7 @@ data "coder_parameter" "runtime" {
 data "coder_parameter" "home" {
   name         = "home"
   display_name = "Home directory"
+  description  = "Where /home/coder lives. You cannot change it after create."
   type         = "string"
   form_type    = "radio"
   default      = "persistent"
@@ -315,26 +319,47 @@ locals {
     hostnames = [local.access_host]
   }] : null
 
+  # Copy the image's dotfiles into a new, empty home.
+  seed_home = "[ -e /home/coder/.bashrc ] || cp -an /etc/skel/. /home/coder/ 2>/dev/null || true"
+
   # VPC CNI can apply a new Pod's NetworkPolicy up to 30 s late, and can
   # drop it when another Pod with the same name prefix is deleted. So the
-  # agent starts only once the Kubernetes API server, which no profile
-  # allows, is blocked. If it stays reachable for about 60 s, the container
-  # exits and Kubernetes restarts it.
-  policy_gate = <<-EOT
+  # agent starts only once a TCP connection to the Kubernetes API server,
+  # which no profile allows, fails. If it still connects after about 60 s,
+  # the container exits and Kubernetes restarts it. After start, the same
+  # check runs every 5 s, and the container stops the agent and exits if
+  # the API server becomes reachable. A slow TLS reply still counts as
+  # reachable, and so does a check that prints nothing.
+  policy_check = <<-EOT
     api="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT/"
+    api_open() {
+      r=$(curl -sk -o /dev/null --noproxy '*' --connect-timeout 0.3 -m 1 -w '%%{http_code} %%{time_connect}' "$api" 2>/dev/null)
+      [ -z "$r" ] && return 0
+      awk -v t="$${r#* }" 'BEGIN { exit !(t + 0 > 0) }'
+    }
     i=0
-    while [ "$(curl -sk -o /dev/null --noproxy '*' --connect-timeout 0.3 -m 1 -w '%%{http_code}' "$api")" != 000 ]; do
+    while api_open; do
       i=$((i + 1))
-      [ "$i" -ge 240 ] && { echo "NetworkPolicy is not enforced" >&2; exit 1; }
+      if [ "$i" -ge 240 ]; then echo "NetworkPolicy is not enforced" >&2; exit 1; fi
       sleep 0.25
     done
+    echo "NetworkPolicy is in force after $i checks" >&2
+    /usr/local/bin/coder agent &
+    pid=$!
+    trap 'kill -TERM "$pid" 2>/dev/null; wait "$pid"; exit 0' TERM INT
+    while kill -0 "$pid" 2>/dev/null; do
+      sleep 5 &
+      wait $!
+      if api_open; then echo "NetworkPolicy is no longer enforced" >&2; kill -KILL "$pid"; exit 1; fi
+    done
+    wait "$pid"
   EOT
 
-  agent_command = join("\n", compact([
-    var.network_policy_gate ? local.policy_gate : "",
+  agent_command = join("\n", [
+    local.seed_home,
     "ulimit -n 65536 2>/dev/null || true",
-    "exec /usr/local/bin/coder agent",
-  ]))
+    var.network_policy_gate ? local.policy_check : "exec /usr/local/bin/coder agent",
+  ])
 
   # Keep these in line with cluster/sandbox-templates.yaml.
   resources = {
@@ -345,7 +370,7 @@ locals {
 
 resource "coder_agent" "dev" {
   os   = "linux"
-  arch = data.coder_provisioner.me.arch
+  arch = "amd64"
 
   metadata {
     display_name = "CPU Usage"
@@ -565,7 +590,7 @@ resource "kubernetes_manifest" "sandbox" {
           runtimeClassName              = data.coder_parameter.runtime.value
           automountServiceAccountToken  = false
           enableServiceLinks            = false
-          terminationGracePeriodSeconds = 10
+          terminationGracePeriodSeconds = 2
           dnsPolicy                     = "None"
           dnsConfig = {
             nameservers = local.dns_servers
@@ -657,12 +682,13 @@ module "claude-code" {
   workdir             = "/home/coder"
   install_claude_code = false
   claude_binary_path  = "/opt/claude/bin"
+  disable_autoupdater = true
   enable_ai_gateway   = var.enable_ai_gateway
 }
 
-# Opens Claude Code in /home/coder. In tmux, if the image has it, the
-# session outlives the browser tab. Otherwise it continues the last
-# conversation in this folder, if there is one.
+# Opens Claude Code in /home/coder. It continues the last conversation in
+# this folder, or starts a new one if there is none. In tmux, if the image
+# has it, the session outlives the browser tab.
 resource "coder_app" "claude" {
   count        = data.coder_workspace.me.start_count
   agent_id     = coder_agent.dev.id
@@ -672,13 +698,10 @@ resource "coder_app" "claude" {
   order        = 2
   command      = <<-EOT
     cd /home/coder
-    claude="/opt/claude/bin/claude"
-    if ls "$HOME"/.claude/projects/-home-coder/*.jsonl >/dev/null 2>&1; then
-      claude="$claude --continue"
-    fi
+    run="/opt/claude/bin/claude --continue || /opt/claude/bin/claude"
     if command -v tmux >/dev/null 2>&1; then
-      exec tmux new-session -A -s claude "$claude"
+      exec tmux new-session -A -s claude "$run"
     fi
-    exec $claude
+    eval "$run"
   EOT
 }
