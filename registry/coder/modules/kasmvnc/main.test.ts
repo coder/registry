@@ -96,15 +96,21 @@ const packageNameFor = async (
     extractFromRunScript(source, /^ {2}case \$distro in\n[\s\S]*?^ {2}esac$/m),
   ].join("\n");
 
+  // The rendered script must not rely on a runtime KASM_VERSION at all (it is a
+  // Terraform plan-time value), so drop any inherited one rather than letting a
+  // developer's shell mask the regression these cases exist to catch.
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    distro: platform.distro,
+    codename: platform.codename ?? "",
+    distro_version: platform.distroVersion ?? "",
+    arch: platform.arch,
+    fedora_codename: platform.fedoraCodename ?? "",
+  };
+  delete env.KASM_VERSION;
+
   const proc = spawn(["bash", "-c", harness], {
-    env: {
-      ...process.env,
-      distro: platform.distro,
-      codename: platform.codename ?? "",
-      distro_version: platform.distroVersion ?? "",
-      arch: platform.arch,
-      fedora_codename: platform.fedoraCodename ?? "",
-    },
+    env,
     stderr: "pipe",
     stdout: "pipe",
   });
