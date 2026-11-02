@@ -224,6 +224,7 @@ For a restricted or air-gapped cluster:
 
 ## Limits
 
+- Under gVisor, typing in the web terminal does nothing with current Coder agents. The agent passes empty resize messages to the terminal, and gVisor blocks on that empty write, so all later input waits behind it. `coder ssh` and Kata are not affected. Until the agent skips empty writes, use Kata or `coder ssh` if you need the web terminal.
 - A NetworkPolicy matches IP ranges, not host names. So there is no profile for package registries such as npm or PyPI, which use shared CDNs without fixed ranges. Use Public internet for them.
 - Public internet allows every public host, so code in the workspace can send data to any public website.
 - GitHub only still lets code in the workspace send data out: it can push to any GitHub repository or gist that a token it has can write to, including one that an attacker owns. A NetworkPolicy cannot limit which repositories it uses.

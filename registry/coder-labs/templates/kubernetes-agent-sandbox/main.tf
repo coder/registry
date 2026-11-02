@@ -344,15 +344,21 @@ locals {
       sleep 0.25
     done
     echo "NetworkPolicy is in force after $i checks" >&2
-    /usr/local/bin/coder agent &
-    pid=$!
-    trap 'kill -TERM "$pid" 2>/dev/null; wait "$pid"; exit 0' TERM INT
-    while kill -0 "$pid" 2>/dev/null; do
-      sleep 5 &
-      wait $!
-      if api_open; then echo "NetworkPolicy is no longer enforced" >&2; kill -KILL "$pid"; exit 1; fi
-    done
-    wait "$pid"
+    # The agent must be PID 1: under Kata, the web terminal gets no input
+    # when a shell is PID 1 and the agent is its child. So the re-check runs
+    # in the background, and stops the agent (PID 1) and everything else.
+    (
+      while sleep 5; do
+        if api_open; then
+          echo "NetworkPolicy is no longer enforced" >&2
+          kill -TERM 1
+          sleep 2
+          kill -KILL -1
+          exit 1
+        fi
+      done
+    ) &
+    exec /usr/local/bin/coder agent
   EOT
 
   agent_command = join("\n", [

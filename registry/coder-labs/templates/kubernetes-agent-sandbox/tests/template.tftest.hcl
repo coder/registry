@@ -83,7 +83,7 @@ run "persistent_isolated" {
     error_message = "CODER_AGENT_URL must be the access URL."
   }
   assert {
-    condition     = strcontains(kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.containers[0].command[2], "/usr/local/bin/coder agent &\n") && strcontains(kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.containers[0].command[2], "KUBERNETES_SERVICE_HOST")
+    condition     = strcontains(kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.containers[0].command[2], "exec /usr/local/bin/coder agent\n") && strcontains(kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.containers[0].command[2], "kill -TERM 1") && strcontains(kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.containers[0].command[2], "KUBERNETES_SERVICE_HOST")
     error_message = "The container must run the policy gate and then the agent from the image."
   }
   assert {
