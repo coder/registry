@@ -223,7 +223,7 @@ run "scratch" {
   }
 }
 
-run "scratch_needs_fully_isolated" {
+run "scratch_github" {
   command = plan
 
   override_data {
@@ -233,6 +233,24 @@ run "scratch_needs_fully_isolated" {
   override_data {
     target = data.coder_parameter.network_isolation
     values = { value = "github" }
+  }
+
+  assert {
+    condition     = kubernetes_manifest.claim[0].manifest.spec.warmPoolRef.name == "coder-gvisor-github"
+    error_message = "GitHub only must claim from the GitHub only warm pool."
+  }
+}
+
+run "scratch_rejects_public_internet" {
+  command = plan
+
+  override_data {
+    target = data.coder_parameter.home
+    values = { value = "scratch" }
+  }
+  override_data {
+    target = data.coder_parameter.network_isolation
+    values = { value = "internet" }
   }
 
   expect_failures = [kubernetes_manifest.claim]
@@ -317,6 +335,10 @@ run "presets" {
   assert {
     condition     = data.coder_workspace_preset.persistent["isolated"].default == true && data.coder_workspace_preset.persistent["github"].default == false
     error_message = "Fully isolated must be the default preset."
+  }
+  assert {
+    condition     = toset(keys(data.coder_workspace_preset.scratch)) == toset(["isolated", "github"]) && alltrue([for p in data.coder_workspace_preset.scratch : p.parameters.home == "scratch" && length(p.prebuilds) == 0])
+    error_message = "Fully isolated and GitHub only must each have a scratch preset without prebuilds."
   }
 }
 

@@ -7,6 +7,7 @@
 #   registry.example.com/coder/workspace:v2.30.0   your workspace_image
 #   https://coder.example.com                      your Coder access URL
 #   203.0.113.10/32 and port 443                   coder_egress_cidrs and coder_egress_port
+#   https://github.com/coder/coder                 your git_repo_url (coder-gvisor-github)
 #
 # How a pooled Pod starts:
 #   1. It boots and waits for the file /podinfo/token.
@@ -353,6 +354,147 @@ spec:
             runAsNonRoot: true
             capabilities:
               drop: ["ALL"]
+          resources:
+            requests: { cpu: 500m, memory: 1Gi }
+            limits: { cpu: "2", memory: 4Gi }
+          volumeMounts:
+            - { name: home, mountPath: /home/coder }
+            - { name: tmp, mountPath: /tmp }
+            - { name: podinfo, mountPath: /podinfo, readOnly: true }
+      volumes:
+        - name: home
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: podinfo
+          downwardAPI:
+            items:
+              - path: token
+                fieldRef:
+                  fieldPath: metadata.annotations['coder.com/agent-token']
+---
+# GitHub only, gVisor: the same as coder-gvisor, plus the GitHub ranges and
+# public DNS. Each Pod clones the repository while it waits in the pool.
+# Only public repositories work, because the Pod has no user credentials
+# before a claim. Copy this block for Kata.
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxTemplate
+metadata:
+  name: coder-gvisor-github
+  namespace: coder-workspaces
+spec:
+  networkPolicyManagement: Managed
+  networkPolicy:
+    ingress: []
+    egress:
+      - to:
+          - ipBlock:
+              cidr: 203.0.113.10/32
+        ports:
+          - protocol: TCP
+            port: 443
+      # GitHub, from local.github_cidrs in main.tf.
+      - to:
+          - ipBlock: { cidr: 140.82.112.0/20 }
+          - ipBlock: { cidr: 143.55.64.0/20 }
+          - ipBlock: { cidr: 185.199.108.0/22 }
+          - ipBlock: { cidr: 192.30.252.0/22 }
+        ports:
+          - { protocol: TCP, port: 443 }
+          - { protocol: TCP, port: 80 }
+      - to:
+          - ipBlock: { cidr: 8.8.8.8/32 }
+          - ipBlock: { cidr: 1.1.1.1/32 }
+        ports:
+          - { protocol: UDP, port: 53 }
+          - { protocol: TCP, port: 53 }
+  podTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coder-workspace
+        app.kubernetes.io/part-of: coder
+    spec:
+      runtimeClassName: gvisor
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 2
+      dnsPolicy: None
+      dnsConfig:
+        nameservers: ["8.8.8.8", "1.1.1.1"]
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: dev
+          image: registry.example.com/coder/workspace:v2.30.0
+          imagePullPolicy: IfNotPresent
+          workingDir: /home/coder
+          command:
+            - sh
+            - -c
+            - |
+              [ -e /home/coder/.bashrc ] || cp -an /etc/skel/. /home/coder/ 2>/dev/null || true
+              # Clone while the sandbox waits in the pool, so a claim does
+              # not wait for it. Use the same URL as git_repo_url.
+              repo=https://github.com/coder/coder
+              dir="/home/coder/$(basename "$repo" .git)"
+              if [ ! -d "$dir/.git" ]; then
+                until git clone --quiet "$repo" "$dir.clone"; do rm -rf "$dir.clone"; sleep 5; done
+                mv "$dir.clone" "$dir"
+              fi
+              touch /tmp/.cloned
+              while [ ! -s /podinfo/token ]; do sleep 0.25; done
+              CODER_AGENT_TOKEN="$(cat /podinfo/token)"
+              export CODER_AGENT_TOKEN
+              export CODER_AGENT_AUTH=token
+              export CODER_AGENT_URL=https://coder.example.com
+              ulimit -n 65536 2>/dev/null || true
+              # Start the agent only once a TCP connection to the API
+              # server fails, then check again every 5 s. Must match
+              # policy_check in main.tf.
+              api="https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT/"
+              api_open() {
+                r=$(curl -sk -o /dev/null --noproxy '*' --connect-timeout 0.3 -m 1 -w '%{http_code} %{time_connect}' "$api" 2>/dev/null)
+                [ -z "$r" ] && return 0
+                awk -v t="${r#* }" 'BEGIN { exit !(t + 0 > 0) }'
+              }
+              i=0
+              while api_open; do
+                i=$((i + 1))
+                if [ "$i" -ge 240 ]; then echo "NetworkPolicy is not enforced" >&2; exit 1; fi
+                sleep 0.25
+              done
+              echo "NetworkPolicy is in force after $i checks" >&2
+              # The agent must be PID 1: under Kata, the web terminal gets no input
+              # when a shell is PID 1 and the agent is its child. So the re-check runs
+              # in the background, and stops the agent (PID 1) and everything else.
+              (
+                while sleep 5; do
+                  if api_open; then
+                    echo "NetworkPolicy is no longer enforced" >&2
+                    kill -TERM 1
+                    sleep 2
+                    kill -KILL -1
+                    exit 1
+                  fi
+                done
+              ) &
+              exec /usr/local/bin/coder agent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+          # Ready once the clone is done.
+          readinessProbe:
+            exec:
+              command: ["test", "-e", "/tmp/.cloned"]
+            periodSeconds: 2
           resources:
             requests: { cpu: 500m, memory: 1Gi }
             limits: { cpu: "2", memory: 4Gi }

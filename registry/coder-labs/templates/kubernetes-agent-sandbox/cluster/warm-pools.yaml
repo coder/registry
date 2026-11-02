@@ -45,3 +45,15 @@ spec:
     type: Recreate
   sandboxTemplateRef:
     name: coder-kata-clh
+---
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxWarmPool
+metadata:
+  name: coder-gvisor-github
+  namespace: coder-workspaces
+spec:
+  replicas: 1
+  updateStrategy:
+    type: Recreate
+  sandboxTemplateRef:
+    name: coder-gvisor-github

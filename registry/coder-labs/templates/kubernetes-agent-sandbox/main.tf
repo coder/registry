@@ -239,7 +239,9 @@ data "coder_parameter" "runtime" {
 }
 
 # A pooled Pod shares network rules with the other Pods of its pool on the
-# same node (Amazon VPC CNI), so a scratch home allows only Fully isolated.
+# same node (Amazon VPC CNI), so each scratch profile has its own pool:
+# coder-<runtime> for Fully isolated and coder-<runtime>-github for GitHub
+# only. Public internet has no scratch home.
 data "coder_parameter" "home" {
   name         = "home"
   display_name = "Home directory"
@@ -257,11 +259,11 @@ data "coder_parameter" "home" {
     icon        = "/emojis/1f4be.png"
   }
   dynamic "option" {
-    for_each = data.coder_parameter.network_isolation.value == "isolated" ? [1] : []
+    for_each = contains(local.scratch_profiles, data.coder_parameter.network_isolation.value) ? [1] : []
     content {
       name        = "Scratch"
       value       = "scratch"
-      description = "A booted sandbox from the warm pool. /home/coder is deleted when the workspace stops. Fully isolated only."
+      description = "A booted sandbox from the warm pool. /home/coder is deleted when the workspace stops. Fully isolated or GitHub only."
       icon        = "/emojis/26a1.png"
     }
   }
@@ -287,13 +289,14 @@ data "coder_workspace_preset" "persistent" {
   }
 }
 
-# No prebuilds: the warm pool already keeps booted sandboxes.
+# No prebuilds: the warm pools already keep booted sandboxes.
 data "coder_workspace_preset" "scratch" {
-  name        = "Fully isolated, scratch home, gVisor"
+  for_each    = toset(local.scratch_profiles)
+  name        = "${local.profiles[each.key].display_name}, scratch home, gVisor"
   description = "A booted sandbox from the warm pool. Home is deleted on stop."
   icon        = "/emojis/26a1.png"
   parameters = {
-    network_isolation = "isolated"
+    network_isolation = each.key
     runtime           = "gvisor"
     home              = "scratch"
   }
@@ -302,7 +305,10 @@ data "coder_workspace_preset" "scratch" {
 locals {
   name    = "coder-${data.coder_workspace.me.id}"
   scratch = data.coder_parameter.home.value == "scratch"
-  profile = local.profiles[data.coder_parameter.network_isolation.value]
+  # Profiles with a warm pool, and the pool name suffix of each.
+  scratch_profiles = ["isolated", "github"]
+  pool_suffix      = { isolated = "", github = "-github" }
+  profile          = local.profiles[data.coder_parameter.network_isolation.value]
 
   # Labels stay the same when a prebuilt workspace is claimed, so a claim
   # does not change the Pod.
@@ -417,14 +423,14 @@ resource "coder_agent" "dev" {
 # Scratch home: claim a booted sandbox from the warm pool. The pooled Pod
 # reads the agent token from this annotation through the downward API and
 # then starts the agent. The warm pool's SandboxTemplate owns its
-# NetworkPolicy (Coder only).
+# NetworkPolicy.
 resource "kubernetes_manifest" "claim" {
   count = local.scratch ? data.coder_workspace.me.start_count : 0
 
   lifecycle {
     precondition {
-      condition     = data.coder_parameter.network_isolation.value == "isolated"
-      error_message = "A scratch home supports only Fully isolated, because Pods of one warm pool share network rules on Amazon VPC CNI. Pick a persistent home for GitHub only or Public internet."
+      condition     = contains(local.scratch_profiles, data.coder_parameter.network_isolation.value)
+      error_message = "A scratch home supports only Fully isolated and GitHub only, because Pods of one warm pool share network rules on Amazon VPC CNI. Pick a persistent home for Public internet."
     }
   }
 
@@ -437,7 +443,7 @@ resource "kubernetes_manifest" "claim" {
       labels    = local.labels
     }
     spec = {
-      warmPoolRef = { name = "coder-${data.coder_parameter.runtime.value}" }
+      warmPoolRef = { name = "coder-${data.coder_parameter.runtime.value}${lookup(local.pool_suffix, data.coder_parameter.network_isolation.value, "")}" }
       lifecycle   = { shutdownPolicy = "Delete" }
       additionalPodMetadata = {
         annotations = {
@@ -686,8 +692,9 @@ module "code-server" {
   order          = 1
 }
 
-# A prebuild clones the repository before anyone claims it, and the module
-# skips the clone when the folder exists, so a claim does not wait for it.
+# A prebuild or a GitHub only warm pool clones the repository before anyone
+# claims it, and the module skips the clone when the folder exists, so a
+# claim does not wait for it.
 module "git-clone" {
   count    = data.coder_workspace.me.start_count != 0 && var.git_repo_url != "" && data.coder_parameter.network_isolation.value != "isolated" ? 1 : 0
   source   = "registry.coder.com/coder/git-clone/coder"
