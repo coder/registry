@@ -21,20 +21,9 @@ agent-sandbox adds Kubernetes primitives for running agentic workloads:
 - **A growing ecosystem.** SDKs, a router, and a managed version on GKE. The API already has a suspended mode and expiry, and GKE adds Pod snapshots. This template does not use them yet.
 - **Firewall.** agent-sandbox uses plain Kubernetes NetworkPolicy, with a secure default for templates that set no rules. This template sets its own rules for each network profile, and adds an optional cluster-wide guardrail.
 
-## agent-sandbox vs Pods
-
-|                   | Plain Pods                         | Pods + Coder                         | agent-sandbox + Coder (this template)                                                 |
-| ----------------- | ---------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------- |
-| Kernel isolation  | Set `runtimeClassName` on each Pod | The template sets the runtime        | The cluster administrator sets the runtime once in a SandboxTemplate                  |
-| Firewall          | NetworkPolicies that you write     | The template creates a NetworkPolicy | The template, or a shared policy for each SandboxTemplate, plus an optional guardrail |
-| Fast start        | No, every Pod starts cold          | Prebuilds (Premium)                  | Prebuilds, and warm pools that need no Premium                                        |
-| Warm pools        | No                                 | No, prebuilds serve Coder only       | SandboxWarmPools, for Coder and any other client in the cluster                       |
-| Who creates Pods  | You                                | The Coder provisioner                | For scratch homes, agent-sandbox. The provisioner only claims from admin-owned pools  |
-| Lifecycle         | Kubernetes only                    | Start, stop, and TTL in Coder        | Coder, plus the Sandbox API: expiry, a suspended mode, and Pod snapshots on GKE       |
-| IDE and AI agents | No                                 | Coder agent, apps, AI Gateway        | Coder agent, apps, AI Gateway                                                         |
-| Extra components  | None                               | None                                 | The agent-sandbox controller                                                          |
-
 ## Startup speed
+
+Workspace speed and Pod startup speed are not the same. Pod startup is the time until the sandbox runs, and agent-sandbox makes it very short: a scratch home claims a booted sandbox from a warm pool in 50 to 80 ms. Workspace speed is the time from create until you can connect, and it also includes the Coder build: the provisioner job, Terraform, and the agent connecting to the Coder server. Most of a fast start is the Coder build, so a warm pool and a prebuild are about as fast.
 
 In our Amazon EKS test cluster (`m7i.2xlarge` nodes, VPC CNI), from create to a connected agent:
 
@@ -57,6 +46,32 @@ These all add to the speed:
 5. **Terraform.** Coder caches modules, but downloads providers on every build unless the provisioner has a provider cache or mirror. coder/coder PRs [#29825](https://github.com/coder/coder/pull/29825) and [#29827](https://github.com/coder/coder/pull/29827), still open, skip `terraform init` and save about 3.3 s.
 6. **The Coder server.** The Helm chart's default CPU limit of 2 throttled builds. With 4 CPUs, each start was about 2.4 s faster.
 7. **The disk.** A StorageClass with `volumeBindingMode: WaitForFirstConsumer` creates the disk in the node's zone. Moving an EBS volume to another node adds 5 to 10 s.
+
+## Is agent-sandbox a good fit?
+
+Coder already handles most of the workspace lifecycle. It creates and deletes the Pods, starts and stops workspaces on a schedule, stops idle ones, keeps prebuilds ready, and runs the agent and the apps. agent-sandbox adds its own lifecycle under that: Sandboxes, claims, warm pools, and expiry. That is one more controller to run and upgrade.
+
+If only Coder uses the cluster, you have Coder Premium, and you trust template authors to set the runtime, the [Kubernetes template](../../../coder/templates/kubernetes) with a `runtimeClassName` and a NetworkPolicy gives the same isolation with fewer parts. Speed alone is not a reason to use agent-sandbox, because prebuilds are about as fast as warm pools.
+
+agent-sandbox is a good fit when:
+
+- Cluster administrators, not template authors, must own the runtime, the image, and the network rules.
+- Other clients, such as SDKs, CI jobs, or agent platforms, use the same sandboxes and warm pools.
+- You want fast starts without Coder Premium.
+- You plan to use the suspended mode, expiry, or Pod snapshots on GKE.
+
+## agent-sandbox vs Pods
+
+|                   | Plain Pods                         | Pods + Coder                         | agent-sandbox + Coder (this template)                                                 |
+| ----------------- | ---------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------- |
+| Kernel isolation  | Set `runtimeClassName` on each Pod | The template sets the runtime        | The cluster administrator sets the runtime once in a SandboxTemplate                  |
+| Firewall          | NetworkPolicies that you write     | The template creates a NetworkPolicy | The template, or a shared policy for each SandboxTemplate, plus an optional guardrail |
+| Fast start        | No, every Pod starts cold          | Prebuilds (Premium)                  | Prebuilds, and warm pools that need no Premium                                        |
+| Warm pools        | No                                 | No, prebuilds serve Coder only       | SandboxWarmPools, for Coder and any other client in the cluster                       |
+| Who creates Pods  | You                                | The Coder provisioner                | For scratch homes, agent-sandbox. The provisioner only claims from admin-owned pools  |
+| Lifecycle         | Kubernetes only                    | Start, stop, and TTL in Coder        | Coder, plus the Sandbox API: expiry, a suspended mode, and Pod snapshots on GKE       |
+| IDE and AI agents | No                                 | Coder agent, apps, AI Gateway        | Coder agent, apps, AI Gateway                                                         |
+| Extra components  | None                               | None                                 | The agent-sandbox controller                                                          |
 
 ## Prerequisites
 
