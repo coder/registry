@@ -111,6 +111,12 @@ variable "prebuild_instances" {
   }
 }
 
+variable "git_repo_url" {
+  type        = string
+  description = "A Git repository to clone into /home/coder, for example https://github.com/coder/coder. Only GitHub only and Public internet workspaces clone it, because Fully isolated cannot reach Git hosts. Empty clones nothing."
+  default     = ""
+}
+
 variable "enable_ai_gateway" {
   type        = bool
   description = "Send Claude Code requests through the Coder AI Gateway (Premium). Claude Code then reaches Anthropic through the Coder server, so it works in Fully isolated."
@@ -678,6 +684,17 @@ module "code-server" {
   offline        = true
   install_prefix = "/opt/code-server"
   order          = 1
+}
+
+# A prebuild clones the repository before anyone claims it, and the module
+# skips the clone when the folder exists, so a claim does not wait for it.
+module "git-clone" {
+  count    = data.coder_workspace.me.start_count != 0 && var.git_repo_url != "" && data.coder_parameter.network_isolation.value != "isolated" ? 1 : 0
+  source   = "registry.coder.com/coder/git-clone/coder"
+  version  = "2.0.5"
+  agent_id = coder_agent.dev.id
+  url      = var.git_repo_url
+  base_dir = "/home/coder"
 }
 
 # Claude Code is in the image, so the template only sets its environment.

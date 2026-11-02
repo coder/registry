@@ -128,6 +128,41 @@ run "persistent_github" {
     condition     = [for t in kubernetes_network_policy_v1.workspace[0].spec[0].egress[2].to : t.ip_block[0].cidr] == ["8.8.8.8/32", "1.1.1.1/32"]
     error_message = "GitHub only must allow DNS to the public resolvers only."
   }
+  assert {
+    condition     = length(module.git-clone) == 0
+    error_message = "An empty git_repo_url must clone nothing."
+  }
+}
+
+run "git_clone" {
+  command = plan
+
+  variables {
+    git_repo_url = "https://github.com/coder/coder"
+  }
+
+  override_data {
+    target = data.coder_parameter.network_isolation
+    values = { value = "github" }
+  }
+
+  assert {
+    condition     = length(module.git-clone) == 1
+    error_message = "GitHub only must clone git_repo_url."
+  }
+}
+
+run "git_clone_skips_fully_isolated" {
+  command = plan
+
+  variables {
+    git_repo_url = "https://github.com/coder/coder"
+  }
+
+  assert {
+    condition     = length(module.git-clone) == 0
+    error_message = "Fully isolated cannot reach Git hosts, so it must not clone."
+  }
 }
 
 run "persistent_internet" {
