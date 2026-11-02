@@ -24,11 +24,6 @@ override_module {
   outputs = {}
 }
 
-override_module {
-  target  = module.claude-code
-  outputs = {}
-}
-
 variables {
   namespace          = "coder-workspaces"
   workspace_image    = "registry.example.com/coder/workspace:v2.30.0"
@@ -411,4 +406,31 @@ run "rejects_bad_host_ip" {
   }
 
   expect_failures = [var.coder_host_ip]
+}
+
+run "ai_gateway_env" {
+  command = plan
+
+  assert {
+    condition     = coder_env.anthropic_base_url[0].value == "https://203.0.113.10/api/v2/aibridge/anthropic"
+    error_message = "ANTHROPIC_BASE_URL must point at the Coder AI Gateway."
+  }
+
+  assert {
+    condition     = length(coder_env.anthropic_auth_token) == 1 && length(coder_env.claude_disable_autoupdater) == 1
+    error_message = "The AI Gateway token and DISABLE_AUTOUPDATER must be set on start."
+  }
+}
+
+run "ai_gateway_off" {
+  command = plan
+
+  variables {
+    enable_ai_gateway = false
+  }
+
+  assert {
+    condition     = length(coder_env.anthropic_base_url) == 0 && length(coder_env.anthropic_auth_token) == 0
+    error_message = "No AI Gateway env when enable_ai_gateway is false."
+  }
 }

@@ -185,7 +185,7 @@ These are the endpoints that the template, the image build, and the workspace co
 **The template (Coder provisioner):**
 
 - The Kubernetes API server.
-- `registry.coder.com`, for the code-server and claude-code modules. Coder caches modules for each template version.
+- `registry.coder.com`, for the code-server module. Coder caches modules for each template version.
 - `registry.terraform.io` and `releases.hashicorp.com`, for the `coder/coder` and `hashicorp/kubernetes` providers, unless the provisioner has a provider mirror.
 
 **The image build:**
@@ -219,7 +219,7 @@ For a restricted or air-gapped cluster:
 
 - Mirror the images (workspace, agent-sandbox controller, gVisor, kata-deploy) to an internal registry.
 - Build the image with `CODER_BINARY_URL` set to your Coder server.
-- Give the provisioner a provider mirror, and make `registry.coder.com` reachable or vendor the two modules into the template.
+- Give the provisioner a provider mirror, and make `registry.coder.com` reachable or vendor the module into the template.
 - If the access URL resolves only on an internal DNS server, change `local.dns_servers` in `main.tf` and the `dnsConfig` in the SandboxTemplates, or use `coder_host_ip`.
 
 ## Limits

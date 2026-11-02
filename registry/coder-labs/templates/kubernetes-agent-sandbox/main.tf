@@ -674,16 +674,30 @@ module "code-server" {
   order          = 1
 }
 
-module "claude-code" {
-  count               = data.coder_workspace.me.start_count
-  source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "5.5.2"
-  agent_id            = coder_agent.dev.id
-  workdir             = "/home/coder"
-  install_claude_code = false
-  claude_binary_path  = "/opt/claude/bin"
-  disable_autoupdater = true
-  enable_ai_gateway   = var.enable_ai_gateway
+# Claude Code is in the image, so the template only sets its environment.
+# The claude-code registry module would do the same, but it reads the
+# deprecated coder_task data source, which adds a warning to every build.
+resource "coder_env" "claude_disable_autoupdater" {
+  count    = data.coder_workspace.me.start_count
+  agent_id = coder_agent.dev.id
+  name     = "DISABLE_AUTOUPDATER"
+  value    = "1"
+}
+
+# With the AI Gateway, Claude Code reaches Anthropic through the Coder
+# server and signs in with the owner's session token.
+resource "coder_env" "anthropic_base_url" {
+  count    = var.enable_ai_gateway ? data.coder_workspace.me.start_count : 0
+  agent_id = coder_agent.dev.id
+  name     = "ANTHROPIC_BASE_URL"
+  value    = "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic"
+}
+
+resource "coder_env" "anthropic_auth_token" {
+  count    = var.enable_ai_gateway ? data.coder_workspace.me.start_count : 0
+  agent_id = coder_agent.dev.id
+  name     = "ANTHROPIC_AUTH_TOKEN"
+  value    = data.coder_workspace_owner.me.session_token
 }
 
 # Opens Claude Code in /home/coder. It continues the last conversation in
