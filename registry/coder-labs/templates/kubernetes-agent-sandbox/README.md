@@ -11,7 +11,9 @@ tags: [kubernetes, container, agent-sandbox, gvisor, kata, ai]
 Run each workspace in a Sandbox from [agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox), a Kubernetes SIG project. You and your AI agent work in the same sandbox, with one Coder agent named `dev`. The sandbox runs under gVisor or a Kata microVM, so it does not share the node kernel. A Kubernetes NetworkPolicy works as the firewall, and ClusterNetworkPolicy or [Cilium](https://cilium.io/) can add more advanced rules (see [Firewall](#firewall)). By default the workspace can reach only the Coder server.
 
 > [!WARNING]
-> Code in the workspace can use what the workspace holds. With the AI Gateway on, that includes the owner's Coder session token in `ANTHROPIC_AUTH_TOKEN`, which works through the allowed Coder connection. A scratch home also keeps its agent token in a Pod annotation, so anyone who can read Pods in the namespace can read it. Set `enable_ai_gateway = false` to keep the session token out, and keep read access to the namespace tight.
+> With the AI Gateway on, `ANTHROPIC_AUTH_TOKEN` holds a Coder session token of the workspace owner. It is not limited to the AI Gateway: it has the owner's full access to the Coder API, and code in the workspace can use it through the allowed Coder connection. Coder makes a new token on each start and deletes it on stop. Set `enable_ai_gateway = false` to keep it out of the workspace.
+>
+> A scratch home keeps its agent token in a Pod annotation, so anyone who can read Pods in the namespace can read it. Keep read access to the namespace tight.
 
 ## Why agent-sandbox
 
@@ -29,27 +31,7 @@ With a warm pool or a prebuild, workspaces often start in 3 to 8 seconds, which 
 
 ![Creating an agent-sandbox workspace on Amazon EKS, in real time](../../.images/kubernetes-agent-sandbox.gif)
 
-Workspace speed and Pod startup speed are not the same. Pod startup is the time until the sandbox runs, and agent-sandbox makes it very short: a scratch home claims a booted sandbox from a warm pool in 50 to 80 ms. Workspace speed is the time from create until you can connect, and it also includes the Coder build: the provisioner job, Terraform, and the agent connecting to the Coder server. Most of a fast start is the Coder build, so a warm pool and a prebuild are about as fast.
-
-In our Amazon EKS test cluster (`m7i.2xlarge` nodes, VPC CNI), from create to a connected agent:
-
-| Workspace                                              | Ready in     |
-| ------------------------------------------------------ | ------------ |
-| Scratch home, from a warm pool                         | 3.5 to 6.5 s |
-| Persistent home, from a prebuild                       | 4 to 7 s     |
-| Persistent home, no prebuild, gVisor                   | about 17 s   |
-| Persistent home, no prebuild, Kata QEMU                | about 19 s   |
-| Persistent home, no prebuild, with a coder/coder clone | about 58 s   |
-
-These all add to the speed:
-
-1. **The image.** [`build/Dockerfile`](https://github.com/coder/registry/blob/main/registry/coder-labs/templates/kubernetes-agent-sandbox/build/Dockerfile) adds the Coder agent, code-server, and Claude Code to `codercom/enterprise-base:ubuntu`. The Pod runs the agent from the image instead of the init script that downloads it, and the code-server module runs with `offline = true`. So a start downloads nothing, and it also works in Fully isolated, which has no internet. The image is about 800 MB compressed, so pull it ahead of time with a DaemonSet, or the first Pod on a node waits for the pull.
-2. **Prebuilds** (Premium). Each persistent preset keeps `prebuild_instances` running workspaces, and the GitHub only and Public internet ones have already cloned `git_repo_url`. A claim reuses the Sandbox and its disk, so the Pod does not restart.
-3. **Warm pools.** Scratch homes claim a booted sandbox from agent-sandbox in 50 to 80 ms. GitHub only pools clone `git_repo_url` before a claim.
-4. **The runtime.** On a cold start, gVisor added about 0.2 s over a normal container, Kata Cloud Hypervisor about 1.5 s, and Kata QEMU about 2.6 s. Prebuilds and warm pools hide this.
-5. **Terraform.** Coder caches modules, but downloads providers on every build unless the provisioner has a provider cache or mirror.
-6. **The Coder server.** Builds use the server's CPU, so a low CPU limit slows every start. Give it enough CPU and enough provisioners.
-7. **The disk.** A StorageClass with `volumeBindingMode: WaitForFirstConsumer` creates the disk in the node's zone. Moving an EBS volume to another node adds 5 to 10 s.
+To see where the time goes and how to tune it, see [Speed tuning](#speed-tuning).
 
 ## agent-sandbox vs Pods
 
@@ -133,6 +115,30 @@ docker buildx build --platform linux/amd64 \
 - **Policy check:** before the agent starts, the Pod waits until the Kubernetes API server is unreachable, which shows that its NetworkPolicy is in force. It checks again every 5 s and stops the agent if the API server becomes reachable. VPC CNI can apply a new Pod's policy up to 30 s late, and can drop it while the Pod runs.
 - **Pods:** run as user 1000 with no capabilities and no ServiceAccount token, and request 500m CPU and 1 GiB (`shared/defaults.json`). They use `8.8.8.8` and `1.1.1.1` for DNS, or the servers in `dns_servers`.
 - **Apps:** code-server, and Claude Code, which continues the last conversation in `/home/coder`.
+
+## Speed tuning
+
+Workspace speed and Pod startup speed are not the same. Pod startup is the time until the sandbox runs, and agent-sandbox makes it very short: a scratch home claims a booted sandbox from a warm pool in 50 to 80 ms. Workspace speed is the time from create until you can connect, and it also includes the Coder build: the provisioner job, Terraform, and the agent connecting to the Coder server. Most of a fast start is the Coder build, so a warm pool and a prebuild are about as fast.
+
+In our Amazon EKS test cluster (`m7i.2xlarge` nodes, VPC CNI), from create to a connected agent:
+
+| Workspace                                              | Ready in     |
+| ------------------------------------------------------ | ------------ |
+| Scratch home, from a warm pool                         | 3.5 to 6.5 s |
+| Persistent home, from a prebuild                       | 4 to 7 s     |
+| Persistent home, no prebuild, gVisor                   | about 17 s   |
+| Persistent home, no prebuild, Kata QEMU                | about 19 s   |
+| Persistent home, no prebuild, with a coder/coder clone | about 58 s   |
+
+These all add to the speed:
+
+1. **The image.** [`build/Dockerfile`](https://github.com/coder/registry/blob/main/registry/coder-labs/templates/kubernetes-agent-sandbox/build/Dockerfile) adds the Coder agent, code-server, and Claude Code to `codercom/enterprise-base:ubuntu`. The Pod runs the agent from the image instead of the init script that downloads it, and the code-server module runs with `offline = true`. So a start downloads nothing, and it also works in Fully isolated, which has no internet. The image is about 800 MB compressed, so pull it ahead of time with a DaemonSet, or the first Pod on a node waits for the pull.
+2. **Prebuilds** (Premium). Each persistent preset keeps `prebuild_instances` running workspaces, and the GitHub only and Public internet ones have already cloned `git_repo_url`. A claim reuses the Sandbox and its disk, so the Pod does not restart.
+3. **Warm pools.** Scratch homes claim a booted sandbox from agent-sandbox in 50 to 80 ms. GitHub only pools clone `git_repo_url` before a claim.
+4. **The runtime.** On a cold start, gVisor added about 0.2 s over a normal container, Kata Cloud Hypervisor about 1.5 s, and Kata QEMU about 2.6 s. Prebuilds and warm pools hide this.
+5. **Terraform.** Coder caches modules, but downloads providers on every build unless the provisioner has a provider cache or mirror.
+6. **The Coder server.** Builds use the server's CPU, so a low CPU limit slows every start. Give it enough CPU and enough provisioners.
+7. **The disk.** A StorageClass with `volumeBindingMode: WaitForFirstConsumer` creates the disk in the node's zone. Moving an EBS volume to another node adds 5 to 10 s.
 
 ## Firewall
 
