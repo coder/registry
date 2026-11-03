@@ -43,7 +43,7 @@ Coder already manages most of the workspace lifecycle. It creates and deletes Po
 | IDE and AI agents | No                                 | Coder agent, apps, AI Gateway        | Coder agent, apps, AI Gateway                                                         |
 | Extra components  | None                               | None                                 | The agent-sandbox controller                                                          |
 
-Use the [Kubernetes template](https://registry.coder.com/templates/coder/kubernetes) with a `runtimeClassName` and a NetworkPolicy if only Coder uses the cluster, you have Premium for prebuilds, and template authors can set the runtime. Prebuilds start about as fast as warm pools.
+Use [Plain Sandbox (Kubernetes)](https://registry.coder.com/templates/coder-labs/kubernetes-sandboxed) if only Coder uses the cluster, you have Premium for prebuilds, and template authors can set the runtime. It runs plain Pods with an optional gVisor or Kata runtime and a firewall by host name. Prebuilds start about as fast as warm pools.
 
 Use agent-sandbox if:
 
