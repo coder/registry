@@ -1,12 +1,12 @@
 ---
-display_name: Kubernetes (agent-sandbox)
+display_name: agent-sandbox (Kubernetes)
 description: Run each workspace in an agent-sandbox Sandbox with gVisor or Kata isolation and a NetworkPolicy firewall
 icon: ../../../../.icons/agent-sandbox.svg
 verified: false
-tags: [kubernetes, container, agent-sandbox, gvisor, kata, ai]
+tags: [kubernetes, sandbox, firewall, agent-sandbox, gvisor, kata, ai]
 ---
 
-# Kubernetes (agent-sandbox)
+# agent-sandbox (Kubernetes)
 
 Run each workspace in a Sandbox from [agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox), a Kubernetes SIG project. You and your AI agent work in the same sandbox, with one Coder agent named `dev`. The sandbox runs under gVisor or a Kata microVM, so it does not share the node kernel. A Kubernetes NetworkPolicy works as the firewall, and ClusterNetworkPolicy or [Cilium](https://cilium.io/) can add more advanced rules (see [Firewall](#firewall)). By default the workspace can reach only the Coder server.
 
@@ -43,7 +43,7 @@ Coder already manages most of the workspace lifecycle. It creates and deletes Po
 | IDE and AI agents | No                                 | Coder agent, apps, AI Gateway        | Coder agent, apps, AI Gateway                                                         |
 | Extra components  | None                               | None                                 | The agent-sandbox controller                                                          |
 
-Use the [Kubernetes template](https://registry.coder.com/templates/coder/kubernetes) with a `runtimeClassName` and a NetworkPolicy if only Coder uses the cluster, you have Premium for prebuilds, and template authors can set the runtime. Prebuilds start about as fast as warm pools.
+Use [Plain Sandbox (Kubernetes)](https://registry.coder.com/templates/coder-labs/kubernetes-sandboxed) if only Coder uses the cluster, you have Premium for prebuilds, and template authors can set the runtime. It runs plain Pods with an optional gVisor or Kata runtime and a firewall by host name. Prebuilds start about as fast as warm pools.
 
 Use agent-sandbox if:
 
