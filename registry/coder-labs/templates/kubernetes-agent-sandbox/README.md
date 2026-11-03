@@ -10,8 +10,6 @@ tags: [kubernetes, agent-sandbox, sandbox, gvisor, kata, ai]
 
 Run each workspace in a Sandbox from [agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox), a Kubernetes SIG project. You and your AI agent work in the same sandbox, with one Coder agent named `dev`. The sandbox runs under gVisor or a Kata microVM, so it does not share the node kernel. A Kubernetes NetworkPolicy works as the firewall, and ClusterNetworkPolicy or [Cilium](https://cilium.io/) can add more advanced rules (see [Firewall](#firewall)). By default the workspace can reach only the Coder server. Code in the workspace can still use that connection, for example with the Coder session token that the AI Gateway needs (see [Limits](#limits)).
 
-Claude Code reaches Anthropic through the Coder AI Gateway, so it works with no internet access.
-
 ## Why agent-sandbox
 
 agent-sandbox adds Kubernetes primitives for running agentic workloads:
