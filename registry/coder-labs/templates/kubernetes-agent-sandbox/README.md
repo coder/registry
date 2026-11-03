@@ -8,7 +8,7 @@ tags: [kubernetes, agent-sandbox, sandbox, gvisor, kata, ai]
 
 # Kubernetes agent-sandbox
 
-Run each workspace in a Sandbox from [agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox), a Kubernetes SIG project. You and your AI agent work in the same sandbox, with one Coder agent named `dev`. The sandbox runs under gVisor or a Kata microVM, so it does not share the node kernel. A Kubernetes NetworkPolicy works as the firewall, and ClusterNetworkPolicy or Cilium can add more advanced rules (see [Firewall](#firewall)). By default the workspace can reach only the Coder server. Code in the workspace can still use that connection, for example with the Coder session token that the AI Gateway needs (see [Limits](#limits)).
+Run each workspace in a Sandbox from [agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox), a Kubernetes SIG project. You and your AI agent work in the same sandbox, with one Coder agent named `dev`. The sandbox runs under gVisor or a Kata microVM, so it does not share the node kernel. A Kubernetes NetworkPolicy works as the firewall, and ClusterNetworkPolicy or [Cilium](https://cilium.io/) can add more advanced rules (see [Firewall](#firewall)). By default the workspace can reach only the Coder server. Code in the workspace can still use that connection, for example with the Coder session token that the AI Gateway needs (see [Limits](#limits)).
 
 Claude Code reaches Anthropic through the Coder AI Gateway, so it works with no internet access.
 
@@ -175,7 +175,7 @@ Each workspace gets a Kubernetes NetworkPolicy, which matches IP ranges and port
 For more advanced rules:
 
 - **ClusterNetworkPolicy** sets rules for the whole cluster that no NetworkPolicy in a namespace can undo. `cluster/` uses it for the optional guardrail on Amazon EKS. See [Guardrail](cluster/README.md#guardrail).
-- **Cilium** can match host names (`toFQDNs`) and HTTP requests, so a profile can allow `registry.npmjs.org` or `pypi.org` without their IP ranges.
+- **[Cilium](https://cilium.io/)** can match host names ([`toFQDNs`](https://docs.cilium.io/en/stable/security/dns/)) and HTTP requests, so a profile can allow `registry.npmjs.org` or `pypi.org` without their IP ranges.
 - **An egress proxy** gives you host name rules and logs on any network plugin. Set `HTTPS_PROXY` in the image, and allow only the proxy in the NetworkPolicy.
 
 ### Network ingress
