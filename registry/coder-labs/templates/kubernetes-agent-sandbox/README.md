@@ -3,7 +3,7 @@ display_name: agent-sandbox (Kubernetes)
 description: Run each workspace in an agent-sandbox Sandbox with gVisor or Kata isolation and a NetworkPolicy firewall
 icon: ../../../../.icons/agent-sandbox.svg
 verified: false
-tags: [kubernetes, container, agent-sandbox, gvisor, kata, ai]
+tags: [kubernetes, sandbox, firewall, agent-sandbox, gvisor, kata, ai]
 ---
 
 # agent-sandbox (Kubernetes)

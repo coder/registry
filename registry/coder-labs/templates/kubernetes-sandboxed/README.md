@@ -3,7 +3,7 @@ display_name: Plain Sandbox (Kubernetes)
 description: Run each workspace in a plain Kubernetes Pod behind a host name firewall, with optional gVisor or Kata isolation
 icon: ../../../../.icons/kubernetes.svg
 verified: false
-tags: [kubernetes, container, sandbox, gvisor, kata, ai]
+tags: [kubernetes, container, sandbox, firewall, gvisor, kata, ai]
 ---
 
 # Plain Sandbox (Kubernetes)
