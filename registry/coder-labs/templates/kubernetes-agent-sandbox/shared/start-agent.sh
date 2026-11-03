@@ -1,6 +1,7 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Starts the Coder agent once the Pod's NetworkPolicy is in force. Used by
-# main.tf (persistent homes) and cluster/main.tf (warm pools).
+# main.tf (persistent homes) and cluster/main.tf (warm pools), which run it
+# inline with bash -c.
 #
 # VPC CNI can apply a new Pod's NetworkPolicy up to 30 s late, and can drop
 # it when another Pod with the same name prefix is deleted. So the agent

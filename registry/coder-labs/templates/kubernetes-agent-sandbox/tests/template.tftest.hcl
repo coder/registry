@@ -492,6 +492,55 @@ run "ai_gateway_off" {
   }
 }
 
+run "claude_code_off" {
+  command = plan
+
+  variables {
+    enable_claude_code = false
+  }
+
+  assert {
+    condition     = length(coder_app.claude) == 0 && length(coder_env.claude_disable_autoupdater) == 0 && length(coder_env.anthropic_base_url) == 0 && length(coder_env.anthropic_auth_token) == 0
+    error_message = "No Claude Code app or env when enable_claude_code is false."
+  }
+}
+
+run "dns_servers" {
+  command = plan
+
+  override_data {
+    target = data.coder_parameter.network_isolation
+    values = { value = "github" }
+  }
+
+  variables {
+    dns_servers = "10.0.0.2, 10.0.0.3"
+  }
+
+  assert {
+    condition     = kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.dnsConfig.nameservers == tolist(["10.0.0.2", "10.0.0.3"])
+    error_message = "The Pod must use dns_servers."
+  }
+  assert {
+    condition     = kubernetes_network_policy_v1.workspace[0].spec[0].egress[2].to[0].ip_block[0].cidr == "10.0.0.2/32"
+    error_message = "The NetworkPolicy must allow DNS to dns_servers."
+  }
+  assert {
+    condition     = kubernetes_manifest.sandbox[0].manifest.spec.podTemplate.spec.containers[0].command[0] == "bash"
+    error_message = "The agent command must run with bash."
+  }
+}
+
+run "rejects_ipv6_dns" {
+  command = plan
+
+  variables {
+    dns_servers = "2001:4860:4860::8888"
+  }
+
+  expect_failures = [var.dns_servers]
+}
+
 run "runtimes_variable" {
   command = plan
 

@@ -184,6 +184,28 @@ run "coder_variables" {
   }
 }
 
+run "dns_servers_and_clone_limit" {
+  command = plan
+
+  variables {
+    dns_servers  = ["10.0.0.2"]
+    git_repo_url = "https://github.com/coder/coder"
+  }
+
+  assert {
+    condition     = kubernetes_manifest.sandbox_template["coder-gvisor"].manifest.spec.podTemplate.spec.dnsConfig.nameservers == tolist(["10.0.0.2"]) && kubernetes_manifest.sandbox_template["coder-gvisor-github"].manifest.spec.networkPolicy.egress[2].to[0].ipBlock.cidr == "10.0.0.2/32"
+    error_message = "The pools must use dns_servers for DNS and its NetworkPolicy rule."
+  }
+  assert {
+    condition     = strcontains(local.pool_command, "failed 5 times") && kubernetes_manifest.sandbox_template["coder-gvisor"].manifest.spec.podTemplate.spec.containers[0].command[0] == "bash"
+    error_message = "The pool script must stop retrying the clone, and run with bash."
+  }
+  assert {
+    condition     = yamldecode(output.coder_variables).dns_servers == "10.0.0.2"
+    error_message = "coder_variables must pass dns_servers to the template."
+  }
+}
+
 run "rejects_latest_image" {
   command = plan
 

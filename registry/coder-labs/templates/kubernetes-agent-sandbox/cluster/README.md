@@ -80,7 +80,7 @@ kubectl run kata-check --rm -it --restart=Never --image=busybox \
 
 ## 3. Set your values
 
-Copy [`example.tfvars`](example.tfvars) to `install.auto.tfvars` in this directory and edit it. Terraform loads `*.auto.tfvars` files on its own, and `coder templates push` leaves them out of the template.
+Copy [`example.tfvars`](https://github.com/coder/registry/blob/main/registry/coder-labs/templates/kubernetes-agent-sandbox/cluster/example.tfvars) to `install.auto.tfvars` in this directory and edit it. Terraform loads `*.auto.tfvars` files on its own, and `coder templates push` leaves them out of the template.
 
 | Variable                      | Default                  | Description                                                                                                    |
 | ----------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------- |
@@ -95,6 +95,7 @@ Copy [`example.tfvars`](example.tfvars) to `install.auto.tfvars` in this directo
 | `warm_pool_replicas`          | `1`                      | Idle sandboxes in each pool. See [Size the warm pools](#size-the-warm-pools).                                  |
 | `git_repo_url`                | `""`                     | A public repository that GitHub only pools clone while they wait.                                              |
 | `network_policy_gate`         | `true`                   | Start the agent only once the NetworkPolicy blocks the Kubernetes API server.                                  |
+| `dns_servers`                 | `[]`                     | The DNS servers of the pools. Empty uses `8.8.8.8` and `1.1.1.1`.                                              |
 | `enable_guardrail`            | `false`                  | Create the cluster-wide guardrail. Amazon EKS only. See [Guardrail](#guardrail).                               |
 | `create_namespace`            | `true`                   | Create the namespace. Set `false` if it exists.                                                                |
 | `provisioner_service_account` | `coder` in `coder`       | The ServiceAccount of the Coder provisioner.                                                                   |
@@ -146,17 +147,17 @@ Add other template variables, such as `prebuild_instances`, to the file. The tem
 
 Each pool keeps `warm_pool_replicas` booted, idle sandboxes. A scratch workspace claims one and is ready in about 3.5 to 6.5 s, and the pool boots a replacement. Set it to the number of scratch workspaces that start at about the same time. With `0`, a scratch workspace waits until the pool boots a sandbox, so remove the profile from `scratch_profiles` instead if you do not want scratch homes.
 
-Each idle sandbox reserves the Pod's requests (500m CPU and 1 GiB) plus the RuntimeClass overhead (Kata: 250m CPU and 130 to 320 MiB). In our test cluster, one idle sandbox filled a 2 CPU, 4 GiB slot on an `m7i.2xlarge` node: about $0.058 an hour, or $42 a month, at us-east-1 on-demand prices. An idle sandbox also uses a little CPU for the runtime and for the loop that waits for the token. Use `kubectl top pod` to see it on your nodes.
+Each idle sandbox reserves the Pod's requests (500m CPU and 1 GiB) plus the RuntimeClass overhead (Kata: 250m CPU and 130 to 320 MiB). An idle sandbox also uses a little CPU for the runtime and for the loop that waits for the token. Use `kubectl top pod` to see it on your nodes.
 
 ## How a pooled sandbox starts
 
-1. The Pod boots and copies the image's dotfiles into `/home/coder`. A GitHub only Pod then clones `git_repo_url`. The Pod turns ready after this.
+1. The Pod boots and copies the image's dotfiles into `/home/coder`. A GitHub only Pod then clones `git_repo_url`. If the clone fails 5 times, the container exits and Kubernetes starts it again. The Pod turns ready after this.
 2. It waits for the file `/podinfo/token`.
 3. A workspace build creates a SandboxClaim. agent-sandbox hands it an idle Pod and adds the claim's annotations to the Pod.
 4. The downward API writes the `coder.com/agent-token` annotation to `/podinfo/token`, usually within a second.
-5. The Pod runs [`../shared/start-agent.sh`](../shared/start-agent.sh). It waits until a TCP connection to the Kubernetes API server fails, which shows that its NetworkPolicy is in force, and then starts the Coder agent as PID 1. Every 5 s it checks again. If the API server becomes reachable, it stops the agent and the container exits.
+5. The Pod runs [`shared/start-agent.sh`](https://github.com/coder/registry/blob/main/registry/coder-labs/templates/kubernetes-agent-sandbox/shared/start-agent.sh). It waits until a TCP connection to the Kubernetes API server fails, which shows that its NetworkPolicy is in force, and then starts the Coder agent as PID 1. Every 5 s it checks again. If the API server becomes reachable, it stops the agent and the container exits.
 
-Persistent homes run the same script, so the two cannot drift apart. The GitHub ranges, DNS servers, private ranges, and Pod resources come from [`../shared/defaults.json`](../shared/defaults.json), which both use too.
+Persistent homes run the same script, so the two cannot drift apart. The GitHub ranges, DNS servers, private ranges, and Pod resources come from [`shared/defaults.json`](https://github.com/coder/registry/blob/main/registry/coder-labs/templates/kubernetes-agent-sandbox/shared/defaults.json), which both use too.
 
 The agent token stays in plain text in the Pod annotation and the SandboxClaim, so only trusted users should read Pods and SandboxClaims in the namespace.
 

@@ -14,7 +14,6 @@ terraform {
 provider "coder" {}
 
 variable "use_kubeconfig" {
-  type        = bool
   description = <<-EOF
   Use host kubeconfig? (true/false)
 
@@ -24,12 +23,13 @@ variable "use_kubeconfig" {
   Set this to true if the Coder host is running outside the Kubernetes cluster
   for workspaces. A valid "~/.kube/config" must be present on the Coder host.
   EOF
+  type        = bool
   default     = false
 }
 
 variable "namespace" {
-  type        = string
   description = "The Kubernetes namespace for workspaces. cluster/ creates it with the Role and the warm pools."
+  type        = string
 
   validation {
     condition     = length(trimspace(var.namespace)) > 0
@@ -38,8 +38,8 @@ variable "namespace" {
 }
 
 variable "workspace_image" {
-  type        = string
   description = "The workspace image. Build it from build/Dockerfile, with a Coder agent that matches your Coder server. Use a fixed tag or a digest, not :latest."
+  type        = string
 
   validation {
     condition = (
@@ -52,8 +52,8 @@ variable "workspace_image" {
 }
 
 variable "coder_egress_cidrs" {
-  type        = list(string)
   description = "The IPv4 CIDR ranges of the Coder server, for example [\"203.0.113.10/32\"]. Every workspace can reach these ranges, and nothing else in Fully isolated."
+  type        = list(string)
 
   validation {
     condition     = length(var.coder_egress_cidrs) > 0 && alltrue([for c in var.coder_egress_cidrs : can(cidrhost(c, 0)) && !strcontains(c, ":")])
@@ -62,8 +62,8 @@ variable "coder_egress_cidrs" {
 }
 
 variable "coder_egress_port" {
-  type        = number
   description = "The TCP port that workspaces use to reach the Coder server. Empty uses the port of the access URL: its explicit port, or 443 for https and 80 for http."
+  type        = number
   default     = null
 
   validation {
@@ -75,8 +75,8 @@ variable "coder_egress_port" {
 # runtimes and scratch_profiles are comma-separated strings, not lists,
 # because Coder checks presets with every template variable as a string.
 variable "runtimes" {
-  type        = string
   description = "The runtimes that users can pick, comma-separated, in order. The first is the default. Offer only RuntimeClasses that the cluster has: gvisor, kata-qemu, kata-clh."
+  type        = string
   default     = "gvisor"
 
   validation {
@@ -90,8 +90,8 @@ variable "runtimes" {
 }
 
 variable "scratch_profiles" {
-  type        = string
   description = "The network profiles that offer a scratch home, comma-separated: isolated, github, or both. Each needs the warm pools from cluster/ for every runtime. Empty turns off scratch homes."
+  type        = string
   default     = "isolated,github"
 
   validation {
@@ -104,8 +104,8 @@ variable "scratch_profiles" {
 }
 
 variable "coder_host_ip" {
-  type        = string
   description = "The IPv4 address of the Coder access URL host. Fully isolated blocks DNS, so if the access URL uses a host name, the template adds this address to /etc/hosts. Leave empty if the access URL uses an IP address."
+  type        = string
   default     = ""
 
   validation {
@@ -115,8 +115,8 @@ variable "coder_host_ip" {
 }
 
 variable "home_disk_size" {
-  type        = number
   description = "The size of the persistent home disk in GiB."
+  type        = number
   default     = 10
 
   validation {
@@ -126,14 +126,14 @@ variable "home_disk_size" {
 }
 
 variable "storage_class_name" {
-  type        = string
   description = "The StorageClass for the persistent home disk. Leave empty to use the cluster default. Use a class with volumeBindingMode WaitForFirstConsumer."
+  type        = string
   default     = ""
 }
 
 variable "prebuild_instances" {
-  type        = number
   description = "The number of prebuilt workspaces to keep for each persistent preset. Prebuilds need a Coder Premium license. Set 0 to turn them off."
+  type        = number
   default     = 1
 
   validation {
@@ -143,20 +143,37 @@ variable "prebuild_instances" {
 }
 
 variable "git_repo_url" {
-  type        = string
   description = "A Git repository to clone into /home/coder, for example https://github.com/coder/coder. Only GitHub only and Public internet workspaces clone it, because Fully isolated cannot reach Git hosts. Empty clones nothing."
+  type        = string
   default     = ""
 }
 
 variable "enable_ai_gateway" {
-  type        = bool
   description = "Send Claude Code requests through the Coder AI Gateway (Premium). Claude Code then reaches Anthropic through the Coder server, so it works in Fully isolated."
+  type        = bool
   default     = true
 }
 
 variable "network_policy_gate" {
-  type        = bool
   description = "Start the Coder agent only after the NetworkPolicy blocks the Kubernetes API server. Turn this off only if coder_egress_cidrs includes the API server address."
+  type        = bool
+  default     = true
+}
+
+variable "dns_servers" {
+  description = "The DNS servers that workspaces use, comma-separated IPv4 addresses. Empty uses 8.8.8.8 and 1.1.1.1 from shared/defaults.json. Use servers that the GitHub only and Public internet profiles can reach."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = alltrue([for d in compact(split(",", replace(var.dns_servers, " ", ""))) : can(cidrhost("${d}/32", 0)) && !strcontains(d, ":")])
+    error_message = "dns_servers must be empty or IPv4 addresses, comma-separated."
+  }
+}
+
+variable "enable_claude_code" {
+  description = "Add the Claude Code app and its settings. Turn this off if you build the image with INSTALL_CLAUDE_CODE=false."
+  type        = bool
   default     = true
 }
 
@@ -196,13 +213,13 @@ locals {
   #     curl -s https://api.github.com/meta | jq -r '.web+.api+.git|unique[]|select(test(":")|not)|select(endswith("/32")|not)'
   #   private_cidrs: the VPC, the cluster, other Pods, and cloud metadata.
   #     Public internet excludes them.
-  #   dns_servers: the only DNS servers the workspace uses. Fully isolated
-  #     cannot reach them, so lookups fail fast.
+  #   dns_servers: the default DNS servers, unless var.dns_servers is set.
+  #     Fully isolated cannot reach them, so lookups fail fast.
   #   resources: the Pod requests and limits.
   defaults      = jsondecode(file("${path.module}/shared/defaults.json"))
   github_cidrs  = local.defaults.github_cidrs
   private_cidrs = local.defaults.private_cidrs
-  dns_servers   = local.defaults.dns_servers
+  dns_servers   = var.dns_servers != "" ? compact(split(",", replace(var.dns_servers, " ", ""))) : local.defaults.dns_servers
 
   profiles = {
     isolated = {
@@ -629,7 +646,7 @@ resource "kubernetes_manifest" "sandbox" {
             name            = "dev"
             image           = var.workspace_image
             imagePullPolicy = "IfNotPresent"
-            command         = ["sh", "-c", local.agent_command]
+            command         = ["bash", "-c", local.agent_command]
             workingDir      = "/home/coder"
             env = [
               {
@@ -709,7 +726,7 @@ module "git-clone" {
 # The claude-code registry module would do the same, but it reads the
 # deprecated coder_task data source, which adds a warning to every build.
 resource "coder_env" "claude_disable_autoupdater" {
-  count    = data.coder_workspace.me.start_count
+  count    = var.enable_claude_code ? data.coder_workspace.me.start_count : 0
   agent_id = coder_agent.dev.id
   name     = "DISABLE_AUTOUPDATER"
   value    = "1"
@@ -718,14 +735,14 @@ resource "coder_env" "claude_disable_autoupdater" {
 # With the AI Gateway, Claude Code reaches Anthropic through the Coder
 # server and signs in with the owner's session token.
 resource "coder_env" "anthropic_base_url" {
-  count    = var.enable_ai_gateway ? data.coder_workspace.me.start_count : 0
+  count    = var.enable_ai_gateway && var.enable_claude_code ? data.coder_workspace.me.start_count : 0
   agent_id = coder_agent.dev.id
   name     = "ANTHROPIC_BASE_URL"
   value    = "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic"
 }
 
 resource "coder_env" "anthropic_auth_token" {
-  count    = var.enable_ai_gateway ? data.coder_workspace.me.start_count : 0
+  count    = var.enable_ai_gateway && var.enable_claude_code ? data.coder_workspace.me.start_count : 0
   agent_id = coder_agent.dev.id
   name     = "ANTHROPIC_AUTH_TOKEN"
   value    = data.coder_workspace_owner.me.session_token
@@ -735,7 +752,7 @@ resource "coder_env" "anthropic_auth_token" {
 # this folder, or starts a new one if there is none. In tmux, if the image
 # has it, the session outlives the browser tab.
 resource "coder_app" "claude" {
-  count        = data.coder_workspace.me.start_count
+  count        = var.enable_claude_code ? data.coder_workspace.me.start_count : 0
   agent_id     = coder_agent.dev.id
   slug         = "claude-code"
   display_name = "Claude Code"
