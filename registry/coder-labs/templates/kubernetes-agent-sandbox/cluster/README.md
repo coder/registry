@@ -82,26 +82,26 @@ kubectl run kata-check --rm -it --restart=Never --image=busybox \
 
 Copy [`example.tfvars`](https://github.com/coder/registry/blob/main/registry/coder-labs/templates/kubernetes-agent-sandbox/cluster/example.tfvars) to `install.auto.tfvars` in this directory and edit it. Terraform loads `*.auto.tfvars` files on its own, and `coder templates push` leaves them out of the template.
 
-| Variable                      | Default                  | Description                                                                                                    |
-| ----------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `namespace`                   | none                     | The namespace for workspaces.                                                                                  |
-| `workspace_image`             | none                     | The image built from `build/Dockerfile`, with a fixed tag or a digest.                                         |
-| `coder_access_url`            | none                     | The Coder access URL, for example `https://coder.example.com`.                                                 |
-| `coder_egress_cidrs`          | none                     | The IPv4 CIDR ranges of the Coder server, for example `["203.0.113.10/32"]`.                                   |
-| `coder_egress_port`           | from the URL             | The TCP port to the Coder server. Empty uses the port of `coder_access_url`, or 443 for https and 80 for http. |
-| `coder_host_ip`               | `""`                     | The Coder server IP. Set it if `coder_access_url` uses a host name, because Fully isolated blocks DNS.         |
-| `runtimes`                    | `["gvisor"]`             | The runtimes to create pools for: `gvisor`, `kata-qemu`, `kata-clh`.                                           |
-| `scratch_profiles`            | `["isolated", "github"]` | The network profiles to create pools for. `[]` creates no pools.                                               |
-| `warm_pool_replicas`          | `1`                      | Idle sandboxes in each pool. See [Size the warm pools](#size-the-warm-pools).                                  |
-| `git_repo_url`                | `""`                     | A public repository that GitHub only pools clone while they wait.                                              |
-| `network_policy_gate`         | `true`                   | Start the agent only once the NetworkPolicy blocks the Kubernetes API server.                                  |
-| `dns_servers`                 | `[]`                     | The DNS servers of the pools. Empty uses `8.8.8.8` and `1.1.1.1`.                                              |
-| `enable_guardrail`            | `false`                  | Create the cluster-wide guardrail. Amazon EKS only. See [Guardrail](#guardrail).                               |
-| `create_namespace`            | `true`                   | Create the namespace. Set `false` if it exists.                                                                |
-| `provisioner_service_account` | `coder` in `coder`       | The ServiceAccount of the Coder provisioner.                                                                   |
-| `grant_crd_read`              | `true`                   | Let the provisioner read CRDs.                                                                                 |
-| `kubeconfig_path`             | `~/.kube/config`         | The kubeconfig file.                                                                                           |
-| `kubeconfig_context`          | `""`                     | The kubeconfig context. Empty uses the current context.                                                        |
+| Variable                      | Default                  | Description                                                                                                                |
+| ----------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `namespace`                   | none                     | The namespace for workspaces.                                                                                              |
+| `workspace_image`             | none                     | The image built from `build/Dockerfile`, with a fixed tag or a digest.                                                     |
+| `coder_access_url`            | `""`                     | Optional. The pools take the agent URL from each workspace. Set it to derive `coder_egress_port`, or with `coder_host_ip`. |
+| `coder_egress_cidrs`          | none                     | The IPv4 CIDR ranges of the Coder server, for example `["203.0.113.10/32"]`.                                               |
+| `coder_egress_port`           | from the URL             | The TCP port to the Coder server. Empty uses the port of `coder_access_url`, or 443.                                       |
+| `coder_host_ip`               | `""`                     | The Coder server IP. Set it if `coder_access_url` uses a host name, because Fully isolated blocks DNS.                     |
+| `runtimes`                    | `["gvisor"]`             | The runtimes to create pools for: `gvisor`, `kata-qemu`, `kata-clh`.                                                       |
+| `scratch_profiles`            | `["isolated", "github"]` | The network profiles to create pools for. `[]` creates no pools.                                                           |
+| `warm_pool_replicas`          | `1`                      | Idle sandboxes in each pool. See [Size the warm pools](#size-the-warm-pools).                                              |
+| `git_repo_url`                | `""`                     | A public repository that GitHub only pools clone while they wait.                                                          |
+| `network_policy_gate`         | `true`                   | Start the agent only once the NetworkPolicy blocks the Kubernetes API server.                                              |
+| `dns_servers`                 | `[]`                     | The DNS servers of the pools. Empty uses `8.8.8.8` and `1.1.1.1`.                                                          |
+| `enable_guardrail`            | `false`                  | Create the cluster-wide guardrail. Amazon EKS only. See [Guardrail](#guardrail).                                           |
+| `create_namespace`            | `true`                   | Create the namespace. Set `false` if it exists.                                                                            |
+| `provisioner_service_account` | `coder` in `coder`       | The ServiceAccount of the Coder provisioner.                                                                               |
+| `grant_crd_read`              | `true`                   | Let the provisioner read CRDs.                                                                                             |
+| `kubeconfig_path`             | `~/.kube/config`         | The kubeconfig file.                                                                                                       |
+| `kubeconfig_context`          | `""`                     | The kubeconfig context. Empty uses the current context.                                                                    |
 
 ## 4. Apply
 
@@ -139,6 +139,7 @@ Add other template variables, such as `prebuild_instances`, to the file. The tem
 ## Changes and removal
 
 - A change to the image, the Coder address, the network rules, or `git_repo_url` changes the SandboxTemplates. The pools use `updateStrategy.type: Recreate`, so they replace their idle sandboxes. Claimed sandboxes keep running until their workspace stops.
+- When you upgrade the template and this configuration together, push the template first. New pools can wait for claim annotations that only the new template sets.
 - Removing a runtime or a profile from the lists deletes its SandboxTemplate and pool. Remove it from the template first, so that no new workspace claims from it.
 - Changing `create_namespace` from `true` to `false` deletes the namespace and every workspace in it. To stop managing an existing namespace, run `terraform state rm 'kubernetes_namespace_v1.workspaces[0]'` first.
 - `terraform destroy` removes everything this configuration created, including the namespace if it created it.
@@ -154,7 +155,7 @@ Each idle sandbox reserves the Pod's requests (500m CPU and 1 GiB) plus the Runt
 1. The Pod boots and copies the image's dotfiles into `/home/coder`. A GitHub only Pod then clones `git_repo_url`. If the clone fails 5 times, the container exits and Kubernetes starts it again. The Pod turns ready after this.
 2. It waits for the file `/podinfo/token`.
 3. A workspace build creates a SandboxClaim. agent-sandbox hands it an idle Pod and adds the claim's annotations to the Pod.
-4. The downward API writes the `coder.com/agent-token` annotation to `/podinfo/token`, usually within a second.
+4. The downward API writes the `coder.com/agent-token` and `coder.com/agent-url` annotations to `/podinfo/token` and `/podinfo/url`, usually within a second. The URL is the workspace's access URL, so the pools always use the same Coder address as the template.
 5. The Pod runs [`shared/start-agent.sh`](https://github.com/coder/registry/blob/main/registry/coder-labs/templates/kubernetes-agent-sandbox/shared/start-agent.sh). It waits until a TCP connection to the Kubernetes API server fails, which shows that its NetworkPolicy is in force, and then starts the Coder agent as PID 1. Every 5 s it checks again. If the API server becomes reachable, it stops the agent and the container exits.
 
 Persistent homes run the same script, so the two cannot drift apart. The GitHub ranges, DNS servers, private ranges, and Pod resources come from [`shared/defaults.json`](https://github.com/coder/registry/blob/main/registry/coder-labs/templates/kubernetes-agent-sandbox/shared/defaults.json), which both use too.

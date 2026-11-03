@@ -440,9 +440,9 @@ resource "coder_agent" "dev" {
 }
 
 # Scratch home: claim a booted sandbox from the warm pool. The pooled Pod
-# reads the agent token from this annotation through the downward API and
-# then starts the agent. The warm pool's SandboxTemplate owns its
-# NetworkPolicy.
+# reads the agent token and the access URL from these annotations through
+# the downward API and then starts the agent. The warm pool's
+# SandboxTemplate owns its NetworkPolicy.
 resource "kubernetes_manifest" "claim" {
   count = local.scratch ? data.coder_workspace.me.start_count : 0
 
@@ -467,6 +467,7 @@ resource "kubernetes_manifest" "claim" {
       additionalPodMetadata = {
         annotations = {
           "coder.com/agent-token"  = coder_agent.dev.token
+          "coder.com/agent-url"    = data.coder_workspace.me.access_url
           "coder.com/workspace-id" = data.coder_workspace.me.id
         }
       }

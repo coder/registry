@@ -221,6 +221,10 @@ run "scratch" {
     condition     = length(kubernetes_persistent_volume_claim_v1.home) == 0 && length(kubernetes_network_policy_v1.workspace) == 0 && length(kubernetes_secret_v1.agent_token) == 0
     error_message = "A scratch home needs no PVC, Secret, or Terraform NetworkPolicy."
   }
+  assert {
+    condition     = kubernetes_manifest.claim[0].manifest.spec.additionalPodMetadata.annotations["coder.com/agent-url"] == "https://203.0.113.10"
+    error_message = "The claim must pass the access URL to the pooled Pod."
+  }
 }
 
 run "scratch_github" {

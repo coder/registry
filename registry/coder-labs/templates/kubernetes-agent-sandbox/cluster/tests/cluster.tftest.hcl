@@ -131,6 +131,34 @@ run "host_alias" {
   }
 }
 
+run "no_access_url" {
+  command = plan
+
+  variables {
+    coder_access_url = ""
+  }
+
+  assert {
+    condition     = local.coder_port == 443 && !contains([for e in kubernetes_manifest.sandbox_template["coder-gvisor"].manifest.spec.podTemplate.spec.containers[0].env : e.name], "CODER_AGENT_URL")
+    error_message = "Without coder_access_url, the pools must use port 443 and take the agent URL from the claim."
+  }
+  assert {
+    condition     = strcontains(local.pool_command, "CODER_AGENT_URL=\"$(cat /podinfo/url)\"") && contains([for i in kubernetes_manifest.sandbox_template["coder-gvisor"].manifest.spec.podTemplate.spec.volumes[2].downwardAPI.items : i.path], "url")
+    error_message = "The pool must read the agent URL from the claim annotation."
+  }
+}
+
+run "host_ip_needs_access_url" {
+  command = plan
+
+  variables {
+    coder_access_url = ""
+    coder_host_ip    = "203.0.113.10"
+  }
+
+  expect_failures = [kubernetes_manifest.sandbox_template]
+}
+
 run "existing_namespace" {
   command = plan
 

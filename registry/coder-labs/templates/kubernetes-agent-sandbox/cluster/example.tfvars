@@ -7,8 +7,9 @@ namespace = "coder-workspaces"
 # The image you built from build/Dockerfile, with a fixed tag or a digest.
 workspace_image = "registry.example.com/coder/workspace:v2.30.0"
 
-# The Coder access URL. The agent in each workspace connects to it.
-coder_access_url = "https://coder.example.com"
+# The Coder access URL. Optional: each workspace passes its own access URL
+# to the pool. Set it if Coder is not on port 443, or with coder_host_ip.
+# coder_access_url = "https://coder.example.com"
 
 # The IP ranges of the Coder server, as workspaces see it. Fully isolated
 # workspaces can reach only these. Use the IP of the load balancer or

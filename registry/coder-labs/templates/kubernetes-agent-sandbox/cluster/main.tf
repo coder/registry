@@ -67,11 +67,12 @@ variable "workspace_image" {
 }
 
 variable "coder_access_url" {
-  description = "The Coder access URL, for example https://coder.example.com."
+  description = "The Coder access URL, for example https://coder.example.com. Optional: the agent URL comes from each workspace. Set it to derive coder_egress_port, or with coder_host_ip for an access URL that uses a host name."
   type        = string
+  default     = ""
 
   validation {
-    condition     = can(regex("^https?://[^/:]+(:[0-9]+)?/?$", var.coder_access_url))
+    condition     = var.coder_access_url == "" || can(regex("^https?://[^/:]+(:[0-9]+)?/?$", var.coder_access_url))
     error_message = "coder_access_url must be an http or https URL with no path, for example https://coder.example.com."
   }
 }
@@ -87,7 +88,7 @@ variable "coder_egress_cidrs" {
 }
 
 variable "coder_egress_port" {
-  description = "The TCP port that workspaces use to reach the Coder server. Empty uses the port of coder_access_url."
+  description = "The TCP port that workspaces use to reach the Coder server. Empty uses the port of coder_access_url, or 443 if that is empty too."
   type        = number
   default     = null
 
@@ -184,14 +185,14 @@ locals {
   defaults    = jsondecode(file("${path.module}/../shared/defaults.json"))
   dns_servers = length(var.dns_servers) > 0 ? var.dns_servers : local.defaults.dns_servers
 
-  access_host       = regex("^https?://([^/:]+)", var.coder_access_url)[0]
+  access_host       = try(regex("^https?://([^/:]+)", var.coder_access_url)[0], "")
   access_host_is_ip = can(regex("^[0-9]{1,3}(\\.[0-9]{1,3}){3}$", local.access_host))
-  access_port = try(
+  access_port = var.coder_access_url == "" ? 443 : try(
     tonumber(regex("^https?://[^/:]+:([0-9]+)", var.coder_access_url)[0]),
     startswith(var.coder_access_url, "http://") ? 80 : 443,
   )
   coder_port   = coalesce(var.coder_egress_port, local.access_port)
-  host_aliases = var.coder_host_ip != "" && !local.access_host_is_ip ? [{ ip = var.coder_host_ip, hostnames = [local.access_host] }] : null
+  host_aliases = var.coder_host_ip != "" && local.access_host != "" && !local.access_host_is_ip ? [{ ip = var.coder_host_ip, hostnames = [local.access_host] }] : null
   # Leave hostAliases out when empty. A null value makes every plan
   # update the SandboxTemplate.
   host_alias_field = { for k, v in { hostAliases = local.host_aliases } : k => v if v != null }
@@ -225,8 +226,8 @@ locals {
   ]
 
   # A pooled Pod seeds its home, clones the repository if it has one, and
-  # then waits for the claim's token. The values come from env, not from
-  # the script text.
+  # then waits for the claim's token and the workspace's access URL. The
+  # values come from env and files, not from the script text.
   pool_command = join("\n", [
     "[ -e /home/coder/.bashrc ] || cp -an /etc/skel/. /home/coder/ 2>/dev/null || true",
     "if [ -n \"$GIT_REPO_URL\" ]; then",
@@ -243,9 +244,10 @@ locals {
     "  fi",
     "fi",
     "touch /tmp/.pool-ready",
-    "while [ ! -s /podinfo/token ]; do sleep 0.25; done",
+    "while [ ! -s /podinfo/token ] || [ ! -s /podinfo/url ]; do sleep 0.25; done",
     "CODER_AGENT_TOKEN=\"$(cat /podinfo/token)\"",
-    "export CODER_AGENT_TOKEN",
+    "CODER_AGENT_URL=\"$(cat /podinfo/url)\"",
+    "export CODER_AGENT_TOKEN CODER_AGENT_URL",
     "ulimit -n 65536 2>/dev/null || true",
     var.network_policy_gate ? file("${path.module}/../shared/start-agent.sh") : "exec /usr/local/bin/coder agent",
   ])
@@ -347,6 +349,13 @@ resource "kubernetes_cluster_role_binding_v1" "crd_read" {
 resource "kubernetes_manifest" "sandbox_template" {
   for_each = local.pools
 
+  lifecycle {
+    precondition {
+      condition     = var.coder_host_ip == "" || local.access_host != ""
+      error_message = "coder_host_ip needs coder_access_url, so the pools know which host name to map to it."
+    }
+  }
+
   # This configuration owns these objects, so it takes over fields that an
   # earlier kubectl apply set.
   field_manager {
@@ -396,7 +405,6 @@ resource "kubernetes_manifest" "sandbox_template" {
             command         = ["bash", "-c", local.pool_command]
             env = concat(
               [
-                { name = "CODER_AGENT_URL", value = trimsuffix(var.coder_access_url, "/") },
                 { name = "CODER_AGENT_AUTH", value = "token" },
               ],
               each.value.profile == "github" && var.git_repo_url != "" ? [{ name = "GIT_REPO_URL", value = var.git_repo_url }] : [],
@@ -424,10 +432,16 @@ resource "kubernetes_manifest" "sandbox_template" {
             {
               name = "podinfo"
               downwardAPI = {
-                items = [{
-                  path     = "token"
-                  fieldRef = { fieldPath = "metadata.annotations['coder.com/agent-token']" }
-                }]
+                items = [
+                  {
+                    path     = "token"
+                    fieldRef = { fieldPath = "metadata.annotations['coder.com/agent-token']" }
+                  },
+                  {
+                    path     = "url"
+                    fieldRef = { fieldPath = "metadata.annotations['coder.com/agent-url']" }
+                  },
+                ]
               }
             },
           ]
