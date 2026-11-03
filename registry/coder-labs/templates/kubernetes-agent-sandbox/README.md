@@ -1,12 +1,12 @@
 ---
-display_name: Kubernetes (agent-sandbox)
+display_name: agent-sandbox (Kubernetes)
 description: Run each workspace in an agent-sandbox Sandbox with gVisor or Kata isolation and a NetworkPolicy firewall
 icon: ../../../../.icons/agent-sandbox.svg
 verified: false
 tags: [kubernetes, container, agent-sandbox, gvisor, kata, ai]
 ---
 
-# Kubernetes (agent-sandbox)
+# agent-sandbox (Kubernetes)
 
 Run each workspace in a Sandbox from [agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox), a Kubernetes SIG project. You and your AI agent work in the same sandbox, with one Coder agent named `dev`. The sandbox runs under gVisor or a Kata microVM, so it does not share the node kernel. A Kubernetes NetworkPolicy works as the firewall, and ClusterNetworkPolicy or [Cilium](https://cilium.io/) can add more advanced rules (see [Firewall](#firewall)). By default the workspace can reach only the Coder server.
 

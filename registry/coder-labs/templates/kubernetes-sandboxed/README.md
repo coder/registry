@@ -1,12 +1,12 @@
 ---
-display_name: Kubernetes (sandboxed)
+display_name: Plain Sandbox (Kubernetes)
 description: Run each workspace in a plain Kubernetes Pod behind a host name firewall, with optional gVisor or Kata isolation
 icon: ../../../../.icons/kubernetes.svg
 verified: false
 tags: [kubernetes, container, sandbox, gvisor, kata, ai]
 ---
 
-# Kubernetes (sandboxed)
+# Plain Sandbox (Kubernetes)
 
 Run each workspace in a plain Kubernetes Pod with a persistent home disk. You and your AI agent work in the same Pod, with one Coder agent named `dev`. A NetworkPolicy and a small Squid proxy work as the firewall, so rules can name hosts such as `github.com` or `registry.npmjs.org`. By default the workspace can reach only the Coder server. The template needs no controller and no CRDs, so it works on any cluster with a network plugin that enforces NetworkPolicy.
 
@@ -16,7 +16,7 @@ Run each workspace in a plain Kubernetes Pod with a persistent home disk. You an
 - **Rules by host name:** the proxy allows a list of host names, so a profile can include package registries. A NetworkPolicy alone can match only IP ranges.
 - **Any node:** by default the workspace uses the node's normal container runtime. If your nodes have gVisor or Kata, list them in `runtimes` to add kernel isolation.
 
-For a cluster-level warm pool, or if cluster administrators must own the runtime and the network rules, use [Kubernetes (agent-sandbox)](https://registry.coder.com/templates/coder-labs/kubernetes-agent-sandbox) instead.
+For a cluster-level warm pool, or if cluster administrators must own the runtime and the network rules, use [agent-sandbox (Kubernetes)](https://registry.coder.com/templates/coder-labs/kubernetes-agent-sandbox) instead.
 
 ## Startup speed
 
