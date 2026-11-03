@@ -122,6 +122,57 @@ chmod +x ${MODULE_ROOT}/mux`,
     }
   }, 60000);
 
+  it("passes additional_args before additional_arguments", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      install: false,
+      additional_args: JSON.stringify(["--open-mode", "pinned tab", "-v"]),
+      additional_arguments: "--add-project '/workspaces/my repo'",
+    });
+
+    const instance = findResourceInstance(state, "coder_script");
+    const id = await runContainer("alpine/curl");
+
+    try {
+      const setup = await execContainer(id, [
+        "sh",
+        "-c",
+        `apk add --no-cache bash >/dev/null
+mkdir -p ${MODULE_ROOT}
+cat <<'EOF' > ${MODULE_ROOT}/mux
+#!/usr/bin/env sh
+i=1
+for arg in "$@"; do
+  echo "arg$i=$arg"
+  i=$((i + 1))
+done
+EOF
+chmod +x ${MODULE_ROOT}/mux`,
+      ]);
+      expect(setup.exitCode).toBe(0);
+
+      const output = await execContainer(id, ["sh", "-c", instance.script]);
+      if (output.exitCode !== 0) {
+        console.log("STDOUT:\n" + output.stdout);
+        console.log("STDERR:\n" + output.stderr);
+      }
+      expect(output.exitCode).toBe(0);
+
+      await execContainer(id, ["sh", "-c", "sleep 1"]);
+      const log = await readFileContainer(id, LOG_PATH);
+      expect(log).toContain("arg1=server");
+      expect(log).toContain("arg2=--port");
+      expect(log).toContain("arg3=4000");
+      expect(log).toContain("arg4=--open-mode");
+      expect(log).toContain("arg5=pinned tab");
+      expect(log).toContain("arg6=-v");
+      expect(log).toContain("arg7=--add-project");
+      expect(log).toContain("arg8=/workspaces/my repo");
+    } finally {
+      await removeContainer(id);
+    }
+  }, 60000);
+
   it("logs signal-based exits after startup", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",

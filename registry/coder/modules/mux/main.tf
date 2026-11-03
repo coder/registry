@@ -83,9 +83,27 @@ variable "add_project" {
   default     = null
 }
 
+variable "additional_args" {
+  description = "Additional arguments to pass to `mux server`, one list element per argument, in order (e.g. `[\"--open-mode\", \"pinned\"]`). Each element is passed as written, so a flag can repeat and a value may contain spaces."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for a in var.additional_args : a != "" && !can(regex("\n", a))])
+    error_message = "additional_args elements must be non-empty and must not contain newlines."
+  }
+
+  # The module already sets these from port and add_project. Keep this list
+  # in sync with the `mux server` flags in run.sh.
+  validation {
+    condition     = !anytrue([for a in var.additional_args : contains(["--port", "--add-project"], split("=", a)[0])])
+    error_message = "additional_args must not set --port or --add-project; use port and add_project instead."
+  }
+}
+
 variable "additional_arguments" {
   type        = string
-  description = "Additional command-line arguments to pass to `mux server` (for example: `--add-project /path --open-mode pinned`)."
+  description = "Deprecated: use `additional_args` instead. A shell-style string, still honored and appended after `additional_args`."
   default     = ""
 }
 
@@ -194,6 +212,7 @@ resource "coder_script" "mux" {
     PORT : var.port,
     LOG_PATH : var.log_path,
     ADD_PROJECT : var.add_project == null ? "" : var.add_project,
+    ADDITIONAL_ARGS : base64encode(join("\n", var.additional_args)),
     ADDITIONAL_ARGUMENTS : var.additional_arguments,
     INSTALL_PREFIX : var.install_prefix,
     OFFLINE : !var.install,

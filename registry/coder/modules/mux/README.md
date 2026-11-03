@@ -14,7 +14,7 @@ Automatically install and run [Mux](https://github.com/coder/xum) in a Coder wor
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "2.0.0"
+  version  = "2.1.0"
   agent_id = coder_agent.main.id
 }
 ```
@@ -37,7 +37,7 @@ module "mux" {
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "2.0.0"
+  version  = "2.1.0"
   agent_id = coder_agent.main.id
 }
 ```
@@ -48,7 +48,7 @@ module "mux" {
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "2.0.0"
+  version  = "2.1.0"
   agent_id = coder_agent.main.id
   # Default is "next"; set to a specific version to pin.
   # Only versions published as @coder/xum are available: 0.28.3 or newer,
@@ -65,7 +65,7 @@ Start Mux with `mux server --add-project /path/to/project`:
 module "mux" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/coder/mux/coder"
-  version     = "2.0.0"
+  version     = "2.1.0"
   agent_id    = coder_agent.main.id
   add_project = "/path/to/project"
 }
@@ -73,18 +73,23 @@ module "mux" {
 
 ### Pass Arbitrary `mux server` Arguments
 
-Use `additional_arguments` to append additional arguments to `mux server`.
-The module parses quoted values, so grouped arguments remain intact.
+Use `additional_args` to append arguments to `mux server`, as a list with one
+element per argument. Each element is passed exactly as written and in order,
+so a flag can repeat and a value can contain spaces without quoting. `--port` and
+`--add-project` are rejected; use `port` and `add_project` instead.
 
 ```tf
 module "mux" {
-  count                = data.coder_workspace.me.start_count
-  source               = "registry.coder.com/coder/mux/coder"
-  version              = "2.0.0"
-  agent_id             = coder_agent.main.id
-  additional_arguments = "--open-mode pinned --add-project '/workspaces/my repo'"
+  count           = data.coder_workspace.me.start_count
+  source          = "registry.coder.com/coder/mux/coder"
+  version         = "2.1.0"
+  agent_id        = coder_agent.main.id
+  additional_args = ["--open-mode", "pinned"]
 }
 ```
+
+`additional_arguments` (a shell-style string) is deprecated in favor of
+`additional_args`. It still works, and is appended after `additional_args`.
 
 ### Restart After Mux Exits
 
@@ -94,7 +99,7 @@ Enable automatic restarts after Mux exits, including clean exits and intentional
 module "mux" {
   count                 = data.coder_workspace.me.start_count
   source                = "registry.coder.com/coder/mux/coder"
-  version               = "2.0.0"
+  version               = "2.1.0"
   agent_id              = coder_agent.main.id
   restart_on_kill       = true
   restart_delay_seconds = 3
@@ -108,7 +113,7 @@ module "mux" {
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "2.0.0"
+  version  = "2.1.0"
   agent_id = coder_agent.main.id
   port     = 8080
 }
@@ -122,7 +127,7 @@ Force a specific package manager instead of auto-detection:
 module "mux" {
   count           = data.coder_workspace.me.start_count
   source          = "registry.coder.com/coder/mux/coder"
-  version         = "2.0.0"
+  version         = "2.1.0"
   agent_id        = coder_agent.main.id
   package_manager = "pnpm" # or "npm", "bun"
 }
@@ -136,7 +141,7 @@ Use a private or mirrored npm registry. The registry must serve the scoped `@cod
 module "mux" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/coder/mux/coder"
-  version      = "2.0.0"
+  version      = "2.1.0"
   agent_id     = coder_agent.main.id
   registry_url = "https://npm.pkg.github.com"
 }
@@ -150,7 +155,7 @@ Run an existing copy of Mux if found, otherwise install from npm:
 module "mux" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/mux/coder"
-  version    = "2.0.0"
+  version    = "2.1.0"
   agent_id   = coder_agent.main.id
   use_cached = true
 }
@@ -164,7 +169,7 @@ Run without installing from the network (requires a `mux` binary at `<install_pr
 module "mux" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/mux/coder"
-  version  = "2.0.0"
+  version  = "2.1.0"
   agent_id = coder_agent.main.id
   install  = false
 }

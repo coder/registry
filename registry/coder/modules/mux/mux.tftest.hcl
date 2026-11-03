@@ -79,7 +79,44 @@ run "auth_token_in_url" {
   }
 }
 
-run "custom_additional_arguments" {
+run "custom_additional_args" {
+  command = plan
+
+  variables {
+    agent_id        = "foo"
+    additional_args = ["--open-mode", "pinned", "-v", "-v"]
+  }
+
+  # One argument per line, in order, with the repeated flag kept.
+  assert {
+    condition     = strcontains(resource.coder_script.mux.script, base64encode("--open-mode\npinned\n-v\n-v"))
+    error_message = "mux launch script must include the encoded additional_args"
+  }
+}
+
+run "additional_args_rejects_newline" {
+  command = plan
+
+  variables {
+    agent_id        = "foo"
+    additional_args = ["--open-mode\npinned"]
+  }
+
+  expect_failures = [var.additional_args]
+}
+
+run "additional_args_rejects_module_flags" {
+  command = plan
+
+  variables {
+    agent_id        = "foo"
+    additional_args = ["--port=8080"]
+  }
+
+  expect_failures = [var.additional_args]
+}
+
+run "deprecated_additional_arguments_still_applied" {
   command = plan
 
   variables {
@@ -89,7 +126,7 @@ run "custom_additional_arguments" {
 
   assert {
     condition     = strcontains(resource.coder_script.mux.script, "--open-mode pinned --add-project '/workspaces/my repo'")
-    error_message = "mux launch script must include the configured additional arguments"
+    error_message = "additional_arguments must still be passed to mux server"
   }
 }
 
