@@ -8,6 +8,10 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = ">= 2.23"
     }
+    http = {
+      source  = "hashicorp/http"
+      version = ">= 3.4"
+    }
   }
 }
 
@@ -734,7 +738,45 @@ resource "coder_env" "claude_disable_autoupdater" {
 }
 
 # With the AI Gateway, Claude Code reaches Anthropic through the Coder
-# server and signs in with the owner's session token.
+# server. It does not get the owner's session token, which has full access
+# to the Coder API. The build uses that token once to create a token with
+# only the user:read_personal scope, which the AI Gateway accepts, and gives
+# the workspace that one. timestamp() defers the request to apply, so a plan
+# creates nothing, and a prebuild gets its token when it is claimed.
+#
+# Coder deletes the session token before a stop build, so Terraform cannot
+# revoke the scoped token on stop. It expires after the deployment's
+# default token lifetime, and each start creates a new one.
+locals {
+  mint_ai_gateway_token = (
+    var.enable_ai_gateway && var.enable_claude_code &&
+    data.coder_workspace.me.start_count > 0 &&
+    !data.coder_workspace.me.is_prebuild &&
+    data.coder_workspace_owner.me.session_token != ""
+  )
+}
+
+data "http" "ai_gateway_token" {
+  count  = local.mint_ai_gateway_token ? 1 : 0
+  url    = "${data.coder_workspace.me.access_url}/api/v2/users/me/keys/tokens"
+  method = "POST"
+  request_headers = {
+    "Coder-Session-Token" = data.coder_workspace_owner.me.session_token
+    "Content-Type"        = "application/json"
+  }
+  request_body = jsonencode({
+    token_name = "ai-gateway-${substr(data.coder_workspace.me.id, 0, 8)}-${formatdate("YYYYMMDDhhmmss", timestamp())}"
+    scopes     = ["user:read_personal"]
+  })
+
+  lifecycle {
+    postcondition {
+      condition     = self.status_code == 201
+      error_message = "Could not create the AI Gateway token: HTTP ${self.status_code}."
+    }
+  }
+}
+
 resource "coder_env" "anthropic_base_url" {
   count    = var.enable_ai_gateway && var.enable_claude_code ? data.coder_workspace.me.start_count : 0
   agent_id = coder_agent.dev.id
@@ -743,10 +785,10 @@ resource "coder_env" "anthropic_base_url" {
 }
 
 resource "coder_env" "anthropic_auth_token" {
-  count    = var.enable_ai_gateway && var.enable_claude_code ? data.coder_workspace.me.start_count : 0
+  count    = local.mint_ai_gateway_token ? 1 : 0
   agent_id = coder_agent.dev.id
   name     = "ANTHROPIC_AUTH_TOKEN"
-  value    = data.coder_workspace_owner.me.session_token
+  value    = sensitive(jsondecode(data.http.ai_gateway_token[0].response_body).key)
 }
 
 # Opens Claude Code in /home/coder. It continues the last conversation in

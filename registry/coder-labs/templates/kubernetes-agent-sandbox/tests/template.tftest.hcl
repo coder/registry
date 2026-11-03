@@ -10,14 +10,24 @@ mock_provider "coder" {
   }
   mock_data "coder_workspace_owner" {
     defaults = {
-      id    = "0b6b6a5e-0000-4000-8000-000000000002"
-      name  = "owner"
-      email = "owner@example.org"
+      id            = "0b6b6a5e-0000-4000-8000-000000000002"
+      name          = "owner"
+      email         = "owner@example.org"
+      session_token = "owner-full-session-token"
     }
   }
 }
 
 mock_provider "kubernetes" {}
+
+mock_provider "http" {
+  mock_data "http" {
+    defaults = {
+      status_code   = 201
+      response_body = "{\"key\":\"scoped-id-scoped-secret\"}"
+    }
+  }
+}
 
 override_module {
   target  = module.code-server
@@ -483,6 +493,41 @@ run "ai_gateway_env" {
   }
 }
 
+run "ai_gateway_scoped_token" {
+  command = apply
+
+  assert {
+    condition     = nonsensitive(coder_env.anthropic_auth_token[0].value) == "scoped-id-scoped-secret"
+    error_message = "ANTHROPIC_AUTH_TOKEN must be the scoped token, not the owner's session token."
+  }
+
+  assert {
+    condition     = jsonencode(jsondecode(data.http.ai_gateway_token[0].request_body).scopes) == jsonencode(["user:read_personal"]) && nonsensitive(data.http.ai_gateway_token[0].request_headers["Coder-Session-Token"]) == "owner-full-session-token"
+    error_message = "The build must create a token with only the user:read_personal scope, using the owner's session token."
+  }
+}
+
+run "ai_gateway_prebuild" {
+  command = plan
+
+  override_data {
+    target = data.coder_workspace.me
+    values = {
+      id          = "0b6b6a5e-0000-4000-8000-000000000001"
+      name        = "test"
+      start_count = 1
+      transition  = "start"
+      access_url  = "https://203.0.113.10"
+      is_prebuild = true
+    }
+  }
+
+  assert {
+    condition     = length(data.http.ai_gateway_token) == 0 && length(coder_env.anthropic_auth_token) == 0
+    error_message = "A prebuild must not create a token. The claim build does."
+  }
+}
+
 run "ai_gateway_off" {
   command = plan
 
@@ -491,8 +536,8 @@ run "ai_gateway_off" {
   }
 
   assert {
-    condition     = length(coder_env.anthropic_base_url) == 0 && length(coder_env.anthropic_auth_token) == 0
-    error_message = "No AI Gateway env when enable_ai_gateway is false."
+    condition     = length(coder_env.anthropic_base_url) == 0 && length(coder_env.anthropic_auth_token) == 0 && length(data.http.ai_gateway_token) == 0
+    error_message = "No AI Gateway env or token when enable_ai_gateway is false."
   }
 }
 
