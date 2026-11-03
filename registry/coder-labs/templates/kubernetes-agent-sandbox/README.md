@@ -10,11 +10,6 @@ tags: [kubernetes, container, agent-sandbox, gvisor, kata, ai]
 
 Run each workspace in a Sandbox from [agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox), a Kubernetes SIG project. You and your AI agent work in the same sandbox, with one Coder agent named `dev`. The sandbox runs under gVisor or a Kata microVM, so it does not share the node kernel. A Kubernetes NetworkPolicy works as the firewall, and ClusterNetworkPolicy or [Cilium](https://cilium.io/) can add more advanced rules (see [Firewall](#firewall)). By default the workspace can reach only the Coder server.
 
-> [!WARNING]
-> With the AI Gateway on, `ANTHROPIC_AUTH_TOKEN` holds a Coder token of the workspace owner, and code in the workspace can use it. Each start creates a new one with only the `user:read_personal` scope, so it works with the AI Gateway but cannot list workspaces, start builds, or create tokens. Coder cannot revoke it on stop, so it stays valid until the deployment's default token lifetime ends. Set `enable_ai_gateway = false` to keep it out of the workspace.
->
-> A scratch home keeps its agent token in a Pod annotation, so anyone who can read Pods in the namespace can read it. Keep read access to the namespace tight.
-
 ## Why agent-sandbox
 
 agent-sandbox adds Kubernetes primitives for running agentic workloads:
@@ -177,6 +172,7 @@ The GitHub ranges are in `shared/defaults.json`. If your `kubernetes` Service po
 - NetworkPolicy matches IP ranges, so there is no profile for npm or PyPI. Use Public internet, or see [Firewall](#firewall).
 - GitHub only and Public internet can still send data out, for example to an attacker's repository or through DNS.
 - GitHub only pools can clone only public repositories.
-- The AI Gateway token works because the AI Gateway accepts any valid token of an active user. If a later Coder release checks scopes there, the token needs a matching scope. Each start adds an `ai-gateway-<workspace>-<time>` token to the owner's token list until it expires.
+- With the AI Gateway on, each start gives the workspace a new Coder token with only the `user:read_personal` scope, which the AI Gateway accepts. Code in the workspace can use it for AI requests. Coder cannot revoke it on stop, so it stays valid until the default token lifetime ends, and it shows in the owner's token list as `ai-gateway-<workspace>-<time>`. If a later Coder release checks scopes on the AI Gateway, it needs a matching scope.
+- A scratch home keeps its agent token in a Pod annotation, so keep read access to Pods in the namespace tight.
 - If VPC CNI drops a Pod's rules, the Pod can reach the network for up to 5 s before the check stops it.
 - No root, no Docker, IPv4 only. The workspace TTL in Coder is the only stop timer.
