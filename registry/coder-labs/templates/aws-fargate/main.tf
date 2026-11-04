@@ -369,10 +369,10 @@ resource "kubernetes_deployment_v1" "main" {
           command           = ["sh", "-c", coder_agent.main.init_script]
           security_context {
             allow_privilege_escalation = false
-            run_as_user               = 1000
-            run_as_non_root           = true
-            read_only_root_filesystem = false
-            privileged                = false
+            run_as_user                = 1000
+            run_as_non_root            = true
+            read_only_root_filesystem  = false
+            privileged                 = false
           }
           env {
             name  = "CODER_AGENT_TOKEN"
