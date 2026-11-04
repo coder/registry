@@ -3,7 +3,7 @@
 # Tag Release Script
 # Automatically detects modules that need tagging and creates release tags
 # Usage: ./tag_release.sh [OPTIONS]
-# Operates on the current checked-out commit
+# Tags each module on the latest first-parent commit that changed it
 
 set -euo pipefail
 
@@ -16,6 +16,12 @@ OUTPUT_FORMAT="plain"
 TARGET_NAMESPACE=""
 TARGET_MODULE=""
 SKIP_PUSH=false
+
+# GitHub does not emit push events (so tag-triggered workflows never run) when
+# more than 3 refs are pushed in a single call. Pushing in batches of this
+# size keeps every push event-generating. See:
+# https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#push
+readonly TAG_PUSH_BATCH_SIZE=3
 
 JSON_OUTPUT='{
   "metadata": {},
@@ -288,6 +294,18 @@ check_module_needs_tagging() {
   fi
 }
 
+# Prints the newest first-parent commit that changed the module. A module's
+# current version can span several commits (changes merged without a bump), so
+# the tag goes on the latest one. Prints nothing if it can't be resolved
+# (shallow clone).
+find_version_commit() {
+  local module_path="$1"
+
+  [[ "$(git rev-parse --is-shallow-repository)" == "true" ]] && return 0
+
+  git log --first-parent -1 --format=%H -- "$module_path"
+}
+
 should_process_module() {
   local namespace="$1"
   local module_name="$2"
@@ -370,7 +388,13 @@ detect_modules_needing_tags() {
 
     if check_module_needs_tagging "$namespace" "$module_name" "$readme_version"; then
       log "INFO" "📦 $namespace/$module_name: v$readme_version (needs tag)"
-      MODULES_TO_TAG+=("$module_path:$namespace:$module_name:$readme_version")
+      local target_commit
+      target_commit=$(find_version_commit "$module_path")
+      if [[ -z "$target_commit" ]]; then
+        log "WARN" "$namespace/$module_name: could not find the latest commit for v$readme_version (shallow clone?), tagging HEAD"
+        target_commit=$(git rev-parse HEAD)
+      fi
+      MODULES_TO_TAG+=("$module_path:$namespace:$module_name:$readme_version:$target_commit")
       needs_tagging=$((needs_tagging + 1))
 
       local status="needs_tagging"
@@ -407,8 +431,8 @@ detect_modules_needing_tags() {
   if [[ "$OUTPUT_FORMAT" != "json" ]]; then
     echo "## Tags to be created:"
     for module_info in "${MODULES_TO_TAG[@]}"; do
-      IFS=':' read -r module_path namespace module_name version <<< "$module_info"
-      echo "- \`release/$namespace/$module_name/v$version\`"
+      IFS=':' read -r module_path namespace module_name version target_commit <<< "$module_info"
+      echo "- \`release/$namespace/$module_name/v$version\` -> ${target_commit:0:8}"
     done
     echo ""
   fi
@@ -446,22 +470,41 @@ pre_flight_checks() {
   return $EXIT_SUCCESS
 }
 
+# Pushes the given tags to origin in batches of TAG_PUSH_BATCH_SIZE, so
+# GitHub actually emits a push event for each one (see TAG_PUSH_BATCH_SIZE).
+# Prints one line per batch. Returns non-zero if any batch fails to push,
+# but still attempts every batch.
+push_tags_batched() {
+  local -a tags=("$@")
+  local failed=0
+  local total=${#tags[@]}
+
+  local i
+  for ((i = 0; i < total; i += TAG_PUSH_BATCH_SIZE)); do
+    local batch=("${tags[@]:i:TAG_PUSH_BATCH_SIZE}")
+    log "INFO" "Pushing batch: ${batch[*]}"
+    if ! git push --atomic origin "${batch[@]}" 2> /dev/null; then
+      log "ERROR" "Failed to push batch: ${batch[*]}"
+      failed=$((failed + ${#batch[@]}))
+    fi
+  done
+
+  return $((failed > 0 ? 1 : 0))
+}
+
 create_and_push_tags() {
   [ ${#MODULES_TO_TAG[@]} -eq 0 ] && {
     log "ERROR" "No modules to tag found"
     return $EXIT_ERROR
   }
 
-  local current_commit
-  current_commit=$(git rev-parse HEAD)
-
   if [[ "$DRY_RUN" == "true" ]]; then
-    log "INFO" "🏷️  [DRY RUN] Would create release tags for commit: $current_commit"
+    log "INFO" "🏷️  [DRY RUN] Would create the release tags listed above"
     JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq '.summary.operation_status = "dry_run" | .summary.tags_created = 0 | .summary.tags_pushed = 0')
     return $EXIT_SUCCESS
   fi
 
-  log "INFO" "🏷️  Creating release tags for commit: $current_commit"
+  log "INFO" "🏷️  Creating release tags"
   if [[ "$OUTPUT_FORMAT" != "json" ]]; then
     echo ""
   fi
@@ -471,7 +514,7 @@ create_and_push_tags() {
   local created_tag_names=()
 
   for module_info in "${MODULES_TO_TAG[@]}"; do
-    IFS=':' read -r module_path namespace module_name version <<< "$module_info"
+    IFS=':' read -r module_path namespace module_name version target_commit <<< "$module_info"
 
     local tag_name="release/$namespace/$module_name/v$version"
     local tag_message="Release $namespace/$module_name v$version"
@@ -479,7 +522,7 @@ create_and_push_tags() {
     log "DEBUG" "Creating tag: $tag_name"
     log "INFO" "Creating tag: $tag_name"
 
-    if git tag -a "$tag_name" -m "$tag_message" "$current_commit" 2> /dev/null; then
+    if git tag -a "$tag_name" -m "$tag_message" "$target_commit" 2> /dev/null; then
       log "SUCCESS" "Created: $tag_name"
       created_tags=$((created_tags + 1))
       created_tag_names+=("$tag_name")
@@ -488,7 +531,7 @@ create_and_push_tags() {
         '(.modules[] | select(.tag_name == $tag) | .status) = "tag_created"')
     else
       log "ERROR" "Failed to create: $tag_name"
-      add_json_error "tag_creation_failed" "Failed to create tag: $tag_name" "git tag -a $tag_name -m '$tag_message' $current_commit"
+      add_json_error "tag_creation_failed" "Failed to create tag: $tag_name" "git tag -a $tag_name -m '$tag_message' $target_commit"
       failed_tags=$((failed_tags + 1))
 
       JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq --arg tag "$tag_name" \
@@ -538,8 +581,8 @@ create_and_push_tags() {
     log "ERROR" "No valid tags found to push"
     JSON_OUTPUT=$(echo "$JSON_OUTPUT" | jq '.summary.operation_status = "failed" | .summary.tags_pushed = 0')
   else
-    if git push --atomic origin "${tags_to_push[@]}" 2> /dev/null; then
-      log "SUCCESS" "Successfully pushed all ${#tags_to_push[@]} tags"
+    if push_tags_batched "${tags_to_push[@]}"; then
+      log "SUCCESS" "Successfully pushed all ${#tags_to_push[@]} tags (batched at $TAG_PUSH_BATCH_SIZE per push)"
       pushed_tags=${#tags_to_push[@]}
 
       for tag_name in "${tags_to_push[@]}"; do
@@ -547,8 +590,8 @@ create_and_push_tags() {
           '(.modules[] | select(.tag_name == $tag) | .status) = "tagged_and_pushed"')
       done
     else
-      log "ERROR" "Failed to push tags"
-      add_json_error "push_failed" "Failed to push tags to remote" "git push --atomic origin ${tags_to_push[*]}"
+      log "ERROR" "Failed to push one or more tag batches"
+      add_json_error "push_failed" "Failed to push one or more tag batches to remote" "push_tags_batched ${tags_to_push[*]}"
       failed_pushes=${#tags_to_push[@]}
 
       for tag_name in "${tags_to_push[@]}"; do

@@ -35,11 +35,16 @@ afterEach(async () => {
   }
 });
 
+type Upload = { path: string; title: string };
+
+const AUTH_KEYS_PATH = "/user/keys";
+const SIGNING_KEYS_PATH = "/user/ssh_signing_keys";
+
 const setupContainer = async (
   image = "lorello/alpine-bash",
   vars: Record<string, string> = {},
 ) => {
-  const { server, uploadedKeyNames } = setupServer();
+  const { server, uploads } = setupServer();
   const state = await runTerraformApply(import.meta.dir, {
     agent_id: "foo",
     ...vars,
@@ -54,11 +59,24 @@ const setupContainer = async (
     await removeContainer(id);
   });
 
-  return { id, instance, server, uploadedKeyNames };
+  const url = server.url.toString().slice(0, -1);
+  const run = () =>
+    execContainer(id, [
+      "env",
+      `CODER_ACCESS_URL=${url}`,
+      `GITHUB_API_URL=${url}`,
+      "CODER_OWNER_SESSION_TOKEN=foo",
+      "CODER_EXTERNAL_AUTH_ID=github",
+      "bash",
+      "-c",
+      instance.script,
+    ]);
+
+  return { id, url, run, uploads };
 };
 
 const setupServer = () => {
-  const uploadedKeyNames: string[] = [];
+  const uploads: Upload[] = [];
   const server = serve({
     fetch: async (req) => {
       const url = new URL(req.url);
@@ -68,10 +86,13 @@ const setupServer = () => {
         });
       }
 
-      if (url.pathname === "/user/keys") {
+      if (
+        url.pathname === AUTH_KEYS_PATH ||
+        url.pathname === SIGNING_KEYS_PATH
+      ) {
         if (req.method === "POST") {
           const body = (await req.json()) as { title: string };
-          uploadedKeyNames.push(body.title);
+          uploads.push({ path: url.pathname, title: body.title });
           return createJSONResponse(
             {
               key: "created",
@@ -92,6 +113,19 @@ const setupServer = () => {
           ]);
         }
 
+        // case: key exists on the second page
+        if (req.headers.get("Authorization") === "Bearer paginated") {
+          const perPage = Number(url.searchParams.get("per_page") ?? 30);
+          const page = Number(url.searchParams.get("page") ?? 1);
+          const keys = [
+            ...Array.from({ length: perPage }, (_, i) => ({ key: `foo-${i}` })),
+            { key: "exists" },
+          ];
+          return createJSONResponse(
+            keys.slice((page - 1) * perPage, page * perPage),
+          );
+        }
+
         // case: key does not exist
         return createJSONResponse([
           {
@@ -110,7 +144,7 @@ const setupServer = () => {
     port: 0,
   });
 
-  return { server, uploadedKeyNames };
+  return { server, uploads };
 };
 
 setDefaultTimeout(30 * 1000);
@@ -125,98 +159,129 @@ describe("github-upload-public-key", () => {
   });
 
   it("creates new key if one does not exist", async () => {
-    const { instance, id, server, uploadedKeyNames } = await setupContainer();
+    const { id, url, run, uploads } = await setupContainer();
     await writeCoder(id, "echo foo");
 
-    const url = server.url.toString().slice(0, -1);
-    const exec = await execContainer(id, [
-      "env",
-      `CODER_ACCESS_URL=${url}`,
-      `GITHUB_API_URL=${url}`,
-      "CODER_OWNER_SESSION_TOKEN=foo",
-      "CODER_EXTERNAL_AUTH_ID=github",
-      "bash",
-      "-c",
-      instance.script,
-    ]);
+    const exec = await run();
     expect(exec.stdout).toContain(
-      "Your Coder public key has been added to GitHub!",
+      "Your Coder public key has been added as a GitHub authentication key!",
     );
     expect(exec.exitCode).toBe(0);
-    expect(uploadedKeyNames).toEqual([`${url} Workspaces`]);
+    expect(uploads).toEqual([
+      { path: AUTH_KEYS_PATH, title: `${url} Workspaces` },
+    ]);
   });
 
   it("uses a custom key name", async () => {
     const keyName = "ACME Coder Workspaces";
-    const { instance, id, server, uploadedKeyNames } = await setupContainer(
-      undefined,
-      { key_name: keyName },
-    );
+    const { id, run, uploads } = await setupContainer(undefined, {
+      key_name: keyName,
+    });
     await writeCoder(id, "echo foo");
 
-    const url = server.url.toString().slice(0, -1);
-    const exec = await execContainer(id, [
-      "env",
-      `CODER_ACCESS_URL=${url}`,
-      `GITHUB_API_URL=${url}`,
-      "CODER_OWNER_SESSION_TOKEN=foo",
-      "CODER_EXTERNAL_AUTH_ID=github",
-      "bash",
-      "-c",
-      instance.script,
-    ]);
+    const exec = await run();
     expect(exec.stdout).toContain(
-      "Your Coder public key has been added to GitHub!",
+      "Your Coder public key has been added as a GitHub authentication key!",
     );
     expect(exec.exitCode).toBe(0);
-    expect(uploadedKeyNames).toEqual([keyName]);
+    expect(uploads).toEqual([{ path: AUTH_KEYS_PATH, title: keyName }]);
   });
 
   it("uses a key name with special characters", async () => {
     const keyName = 'Special $(id) "chars" `test`';
-    const { instance, id, server, uploadedKeyNames } = await setupContainer(
-      undefined,
-      { key_name: keyName },
-    );
+    const { id, run, uploads } = await setupContainer(undefined, {
+      key_name: keyName,
+    });
     await writeCoder(id, "echo foo");
 
-    const url = server.url.toString().slice(0, -1);
-    const exec = await execContainer(id, [
-      "env",
-      `CODER_ACCESS_URL=${url}`,
-      `GITHUB_API_URL=${url}`,
-      "CODER_OWNER_SESSION_TOKEN=foo",
-      "CODER_EXTERNAL_AUTH_ID=github",
-      "bash",
-      "-c",
-      instance.script,
-    ]);
+    const exec = await run();
     expect(exec.stdout).toContain(
-      "Your Coder public key has been added to GitHub!",
+      "Your Coder public key has been added as a GitHub authentication key!",
     );
     expect(exec.exitCode).toBe(0);
-    expect(uploadedKeyNames).toEqual([keyName]);
+    expect(uploads).toEqual([{ path: AUTH_KEYS_PATH, title: keyName }]);
   });
 
   it("does nothing if one already exists", async () => {
-    const { instance, id, server } = await setupContainer();
+    const { id, run, uploads } = await setupContainer();
     // use keyword to make server return a existing key
     await writeCoder(id, "echo findkey");
 
-    const url = server.url.toString().slice(0, -1);
-    const exec = await execContainer(id, [
-      "env",
-      `CODER_ACCESS_URL=${url}`,
-      `GITHUB_API_URL=${url}`,
-      "CODER_OWNER_SESSION_TOKEN=foo",
-      "CODER_EXTERNAL_AUTH_ID=github",
-      "bash",
-      "-c",
-      instance.script,
-    ]);
+    const exec = await run();
     expect(exec.stdout).toContain(
-      "Your Coder public key is already on GitHub!",
+      "Your Coder public key is already a GitHub authentication key!",
     );
     expect(exec.exitCode).toBe(0);
+    expect(uploads).toEqual([]);
+  });
+
+  it("uploads only a signing key when key_type is signing", async () => {
+    const { id, url, run, uploads } = await setupContainer(undefined, {
+      key_type: "signing",
+    });
+    await writeCoder(id, "echo foo");
+
+    const exec = await run();
+    expect(exec.stdout).toContain(
+      "Your Coder public key has been added as a GitHub signing key!",
+    );
+    expect(exec.exitCode).toBe(0);
+    expect(uploads).toEqual([
+      { path: SIGNING_KEYS_PATH, title: `${url} Workspaces` },
+    ]);
+  });
+
+  it("uploads authentication and signing keys when key_type is both", async () => {
+    const { id, url, run, uploads } = await setupContainer(undefined, {
+      key_type: "both",
+    });
+    await writeCoder(id, "echo foo");
+
+    const exec = await run();
+    expect(exec.stdout).toContain(
+      "Your Coder public key has been added as a GitHub authentication key!",
+    );
+    expect(exec.stdout).toContain(
+      "Your Coder public key has been added as a GitHub signing key!",
+    );
+    expect(exec.exitCode).toBe(0);
+    expect(uploads).toEqual([
+      { path: AUTH_KEYS_PATH, title: `${url} Workspaces` },
+      { path: SIGNING_KEYS_PATH, title: `${url} Workspaces` },
+    ]);
+  });
+
+  it("finds an existing key on a later page", async () => {
+    const { id, run, uploads } = await setupContainer(undefined, {
+      key_type: "both",
+    });
+    await writeCoder(id, "echo paginated");
+
+    const exec = await run();
+    expect(exec.stdout).toContain(
+      "Your Coder public key is already a GitHub authentication key!",
+    );
+    expect(exec.stdout).toContain(
+      "Your Coder public key is already a GitHub signing key!",
+    );
+    expect(exec.exitCode).toBe(0);
+    expect(uploads).toEqual([]);
+  });
+
+  it("skips existing keys when key_type is both", async () => {
+    const { id, run, uploads } = await setupContainer(undefined, {
+      key_type: "both",
+    });
+    await writeCoder(id, "echo findkey");
+
+    const exec = await run();
+    expect(exec.stdout).toContain(
+      "Your Coder public key is already a GitHub authentication key!",
+    );
+    expect(exec.stdout).toContain(
+      "Your Coder public key is already a GitHub signing key!",
+    );
+    expect(exec.exitCode).toBe(0);
+    expect(uploads).toEqual([]);
   });
 });
