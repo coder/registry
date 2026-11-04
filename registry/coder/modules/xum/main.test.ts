@@ -13,8 +13,8 @@ import {
 } from "~test";
 
 // Default install_prefix and log_path with HOME=/root inside the test containers.
-const MODULE_ROOT = "/root/.coder-modules/coder/mux";
-const LOG_PATH = `${MODULE_ROOT}/logs/mux.log`;
+const MODULE_ROOT = "/root/.coder-modules/coder/xum";
+const LOG_PATH = `${MODULE_ROOT}/logs/xum.log`;
 
 // Like executeScriptInContainer, but removes the container inside the test:
 // deleting a container that holds a full @coder/xum install takes longer than
@@ -39,7 +39,7 @@ const executeInstallScriptInContainer = async (
   }
 };
 
-describe("mux", async () => {
+describe("xum", async () => {
   await runTerraformInit(import.meta.dir);
 
   testRequiredVariables(import.meta.dir, {
@@ -63,8 +63,8 @@ describe("mux", async () => {
     expect(output.exitCode).toBe(0);
     const expectedLines = [
       "📥 No package manager found; downloading tarball from registry...",
-      `🥳 mux has been installed in ${MODULE_ROOT}`,
-      "🚀 Starting mux server on port 4000...",
+      `🥳 xum has been installed in ${MODULE_ROOT}`,
+      "🚀 Starting xum server on port 4000...",
       `Check logs at ${LOG_PATH}!`,
     ];
     for (const line of expectedLines) {
@@ -89,7 +89,7 @@ describe("mux", async () => {
         "-c",
         `apk add --no-cache bash >/dev/null
 mkdir -p ${MODULE_ROOT}
-cat <<'EOF' > ${MODULE_ROOT}/mux
+cat <<'EOF' > ${MODULE_ROOT}/xum
 #!/usr/bin/env sh
 i=1
 for arg in "$@"; do
@@ -97,7 +97,7 @@ for arg in "$@"; do
   i=$((i + 1))
 done
 EOF
-chmod +x ${MODULE_ROOT}/mux`,
+chmod +x ${MODULE_ROOT}/xum`,
       ]);
       expect(setup.exitCode).toBe(0);
 
@@ -137,7 +137,7 @@ chmod +x ${MODULE_ROOT}/mux`,
         "-c",
         `apk add --no-cache bash >/dev/null
 mkdir -p ${MODULE_ROOT}
-cat <<'EOF' > ${MODULE_ROOT}/mux
+cat <<'EOF' > ${MODULE_ROOT}/xum
 #!/usr/bin/env sh
 target_pid="$$"
 (
@@ -148,7 +148,7 @@ while true; do
   sleep 1
 done
 EOF
-chmod +x ${MODULE_ROOT}/mux`,
+chmod +x ${MODULE_ROOT}/xum`,
       ]);
       expect(setup.exitCode).toBe(0);
 
@@ -188,7 +188,7 @@ chmod +x ${MODULE_ROOT}/mux`,
         "-c",
         `apk add --no-cache bash >/dev/null
 mkdir -p ${MODULE_ROOT}
-cat <<'EOF' > ${MODULE_ROOT}/mux
+cat <<'EOF' > ${MODULE_ROOT}/xum
 #!/usr/bin/env sh
 run_count_file="${MODULE_ROOT}/run-count"
 run_count=0
@@ -199,18 +199,18 @@ run_count=$((run_count + 1))
 printf '%s' "$run_count" > "$run_count_file"
 echo "run=$run_count"
 if [ "$run_count" -eq 1 ]; then
-  mkdir -p "$HOME/.mux"
-  touch "$HOME/.mux/server.lock"
+  mkdir -p "$HOME/.xum"
+  touch "$HOME/.xum/server.lock"
   exit 0
 fi
-if [ -f "$HOME/.mux/server.lock" ]; then
+if [ -f "$HOME/.xum/server.lock" ]; then
   echo "lock=present"
 else
   echo "lock=cleaned"
 fi
 exit 0
 EOF
-chmod +x ${MODULE_ROOT}/mux`,
+chmod +x ${MODULE_ROOT}/xum`,
       ]);
       expect(setup.exitCode).toBe(0);
 
@@ -225,17 +225,17 @@ chmod +x ${MODULE_ROOT}/mux`,
       const log = await readFileContainer(id, LOG_PATH);
       const runCount = await readFileContainer(id, `${MODULE_ROOT}/run-count`);
       expect(log).toContain("run=1");
-      expect(log).toContain("mux server exited cleanly.");
+      expect(log).toContain("xum server exited cleanly.");
       expect(log).toContain(
-        "Waiting 1 seconds before restarting mux after it exited.",
+        "Waiting 1 seconds before restarting xum after it exited.",
       );
       expect(log).toContain(
-        "Removing /root/.mux/server.lock before restarting mux.",
+        "Removing /root/.xum/server.lock before restarting xum.",
       );
       expect(log).toContain("run=2");
       expect(log).toContain("lock=cleaned");
       expect(log).toContain(
-        "Reached the max restart attempts limit (1); not restarting mux again.",
+        "Reached the max restart attempts limit (1); not restarting xum again.",
       );
       expect(runCount.trim()).toBe("2");
     } finally {
@@ -261,7 +261,7 @@ chmod +x ${MODULE_ROOT}/mux`,
         "-c",
         `apk add --no-cache bash >/dev/null
 mkdir -p ${MODULE_ROOT}
-cat <<'EOF' > ${MODULE_ROOT}/mux
+cat <<'EOF' > ${MODULE_ROOT}/xum
 #!/usr/bin/env sh
 run_count_file="${MODULE_ROOT}/run-count"
 run_count=0
@@ -276,7 +276,7 @@ if [ "$run_count" -eq 1 ]; then
 fi
 exit 0
 EOF
-chmod +x ${MODULE_ROOT}/mux`,
+chmod +x ${MODULE_ROOT}/xum`,
       ]);
       expect(setup.exitCode).toBe(0);
 
@@ -293,11 +293,11 @@ chmod +x ${MODULE_ROOT}/mux`,
       expect(log).toContain("run=1");
       expect(log).toContain("signal TERM (15); shell exit code 143.");
       expect(log).toContain(
-        "Waiting 1 seconds before restarting mux after it exited.",
+        "Waiting 1 seconds before restarting xum after it exited.",
       );
       expect(log).toContain("run=2");
       expect(log).toContain(
-        "Reached the max restart attempts limit (1); not restarting mux again.",
+        "Reached the max restart attempts limit (1); not restarting xum again.",
       );
       expect(runCount.trim()).toBe("2");
     } finally {
@@ -320,8 +320,8 @@ chmod +x ${MODULE_ROOT}/mux`,
     const expectedLines = [
       `📦 Installing @coder/xum via npm into ${MODULE_ROOT}...`,
       "⏭️  Skipping lifecycle scripts with --ignore-scripts",
-      `🥳 mux has been installed in ${MODULE_ROOT}`,
-      "🚀 Starting mux server on port 4000...",
+      `🥳 xum has been installed in ${MODULE_ROOT}`,
+      "🚀 Starting xum server on port 4000...",
       `Check logs at ${LOG_PATH}!`,
     ];
     for (const line of expectedLines) {

@@ -21,43 +21,43 @@ variable "agent_id" {
 
 variable "port" {
   type        = number
-  description = "The port to run Mux on."
+  description = "The port to run Xum on."
   default     = 4000
 }
 
 variable "display_name" {
   type        = string
-  description = "The display name for the Mux application."
-  default     = "Mux"
+  description = "The display name for the Xum application."
+  default     = "Xum"
 }
 
 variable "slug" {
   type        = string
-  description = "The slug for the Mux application."
-  default     = "mux"
+  description = "The slug for the Xum application."
+  default     = "xum"
 }
 
 variable "install_prefix" {
   type        = string
-  description = "The directory to install Mux into."
-  default     = "$HOME/.coder-modules/coder/mux"
+  description = "The directory to install Xum into."
+  default     = "$HOME/.coder-modules/coder/xum"
 }
 
 variable "log_path" {
   type        = string
-  description = "The path for Mux logs."
-  default     = "$HOME/.coder-modules/coder/mux/logs/mux.log"
+  description = "The path for Xum logs."
+  default     = "$HOME/.coder-modules/coder/xum/logs/xum.log"
 }
 
 variable "restart_on_kill" {
   type        = bool
-  description = "Restart Mux after it exits by waiting briefly, removing the server lock, and launching it again."
+  description = "Restart Xum after it exits by waiting briefly, removing the server lock, and launching it again."
   default     = false
 }
 
 variable "restart_delay_seconds" {
   type        = number
-  description = "How long to wait before restarting Mux after it exits when restart_on_kill is enabled."
+  description = "How long to wait before restarting Xum after it exits when restart_on_kill is enabled."
   default     = 5
 
   validation {
@@ -79,13 +79,13 @@ variable "max_restart_attempts" {
 
 variable "add_project" {
   type        = string
-  description = "Optional path to add/open as a project in Mux on startup."
+  description = "Optional path to add/open as a project in Xum on startup."
   default     = null
 }
 
 variable "additional_arguments" {
   type        = string
-  description = "Additional command-line arguments to pass to `mux server` (for example: `--add-project /path --open-mode pinned`)."
+  description = "Additional command-line arguments to pass to `xum server` (for example: `--add-project /path --open-mode pinned`)."
   default     = ""
 }
 
@@ -97,7 +97,7 @@ variable "install_version" {
 
 variable "package_manager" {
   type        = string
-  description = "Package manager to install Mux. 'auto' detects npm, pnpm, or bun (falling back to tarball download). Set to 'npm', 'pnpm', or 'bun' to force a specific one."
+  description = "Package manager to install Xum. 'auto' detects npm, pnpm, or bun (falling back to tarball download). Set to 'npm', 'pnpm', or 'bun' to force a specific one."
   default     = "auto"
   validation {
     condition     = contains(["auto", "npm", "pnpm", "bun"], var.package_manager)
@@ -135,13 +135,13 @@ variable "group" {
 
 variable "install" {
   type        = bool
-  description = "Install Mux from the network (npm or tarball). If false, run without installing (requires a pre-installed Mux)."
+  description = "Install Xum from the network (npm or tarball). If false, run without installing (requires a pre-installed Xum)."
   default     = true
 }
 
 variable "use_cached" {
   type        = bool
-  description = "Use cached copy of Mux if present; otherwise install from npm"
+  description = "Use cached copy of Xum if present; otherwise install from npm"
   default     = false
 }
 
@@ -169,26 +169,26 @@ variable "open_in" {
 }
 
 # Per-module auth token for cross-site request protection.
-# We pass this token into each mux process at launch time (process-scoped env)
+# We pass this token into each xum process at launch time (process-scoped env)
 # and include it in the app URL query string (?token=...).
 #
 # Why process-scoped env instead of a shared coder_env value:
-# multiple mux module instances can target the same agent (different slug/port).
-# A single global MUX_SERVER_AUTH_TOKEN env key would cause collisions.
-resource "random_password" "mux_auth_token" {
+# multiple xum module instances can target the same agent (different slug/port).
+# A single global XUM_SERVER_AUTH_TOKEN env key would cause collisions.
+resource "random_password" "xum_auth_token" {
   length  = 64
   special = false
 }
 
 locals {
-  mux_auth_token = random_password.mux_auth_token.result
+  xum_auth_token = random_password.xum_auth_token.result
   registry_url   = trimsuffix(var.registry_url, "/")
 }
 
-resource "coder_script" "mux" {
+resource "coder_script" "xum" {
   agent_id     = var.agent_id
   display_name = var.display_name
-  icon         = "/icon/mux.svg"
+  icon         = "/icon/xum.svg"
   script = templatefile("${path.module}/run.sh", {
     VERSION : var.install_version,
     PORT : var.port,
@@ -198,7 +198,7 @@ resource "coder_script" "mux" {
     INSTALL_PREFIX : var.install_prefix,
     OFFLINE : !var.install,
     USE_CACHED : var.use_cached,
-    AUTH_TOKEN : local.mux_auth_token,
+    AUTH_TOKEN : local.xum_auth_token,
     RESTART_ON_KILL : var.restart_on_kill,
     RESTART_DELAY_SECONDS : var.restart_delay_seconds,
     MAX_RESTART_ATTEMPTS : var.max_restart_attempts,
@@ -215,12 +215,12 @@ resource "coder_script" "mux" {
   }
 }
 
-resource "coder_app" "mux" {
+resource "coder_app" "xum" {
   agent_id     = var.agent_id
   slug         = var.slug
   display_name = var.display_name
-  url          = "http://localhost:${var.port}?token=${local.mux_auth_token}"
-  icon         = "/icon/mux.svg"
+  url          = "http://localhost:${var.port}?token=${local.xum_auth_token}"
+  icon         = "/icon/xum.svg"
   subdomain    = var.subdomain
   share        = var.share
   order        = var.order
