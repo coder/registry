@@ -127,21 +127,15 @@ roleRef:
 
 This template exposes an `image` variable, as in the [Kubernetes (Deployment)](../../../coder/templates/kubernetes#workspace-image) template. See that template for image options. On Fargate, every workspace start pulls the image onto a fresh node, so smaller images start faster. Make sure the registry is reachable from the profile's private subnets, through the NAT gateway or [VPC endpoints for Amazon ECR](https://docs.aws.amazon.com/AmazonECR/latest/userguide/vpc-endpoints.html).
 
+The workspace Pod runs as non-root with UID and GID `1000` and privilege escalation disabled, matching the UID and GID the EFS access point enforces. Make sure your image works when run as that user.
+
 ### Authentication
 
 This template authenticates to Kubernetes using a `~/.kube/config`, if present on the server, or via built-in authentication if the Coder provisioner is running on Kubernetes with an authorized ServiceAccount. To use another [authentication method](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs#authentication), edit the template.
 
 ## Variables
 
-| Name                     | Default                        | Description                                                                |
-| ------------------------ | ------------------------------ | -------------------------------------------------------------------------- |
-| `namespace`              | (required)                     | Workspace namespace. Must match your Fargate profile's namespace selector. |
-| `efs_file_system_id`     | (required)                     | EFS file system for home directories, for example `fs-0123456789abcdef0`.  |
-| `aws_region`             | `us-east-1`                    | Region of the EKS cluster and EFS file system.                             |
-| `efs_storage_class_name` | `efs-static`                   | StorageClass used to bind each workspace's PersistentVolume to its claim.  |
-| `fargate_pod_labels`     | `{ compute = "fargate" }`      | Labels that match your Fargate profile's label selector.                   |
-| `image`                  | `codercom/example-base:ubuntu` | Workspace container image.                                                 |
-| `use_kubeconfig`         | `false`                        | Use `~/.kube/config` on the Coder host instead of in-cluster credentials.  |
+Coder shows this template's inputs, with their defaults, in the parameters view on the Registry website. Two inputs are required: `namespace`, which must match your Fargate profile's namespace selector, and `efs_file_system_id`, the EFS file system that holds home directories. The `fargate_pod_labels` input must match the label selector on your Fargate profile so that workspace Pods schedule onto Fargate.
 
 For example:
 
