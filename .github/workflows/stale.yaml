@@ -1,0 +1,50 @@
+name: Stale PRs
+
+on:
+  schedule:
+    # Every day at midnight UTC.
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Log what would change without labeling or closing PRs"
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  stale-prs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Needed to create the stale label and add or remove it on PRs.
+      issues: write
+      # Needed to close PRs.
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Mark and close PRs waiting on their author
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          STALE_LABEL: "stale"
+          # PRs become stale quickly due to merge conflicts, and we want to
+          # minimize WIP. The clock only starts once a reviewer is waiting on
+          # the author, so PRs waiting on a maintainer are never staled.
+          DAYS_BEFORE_STALE: "7"
+          DAYS_BEFORE_CLOSE: "3"
+          # Cap label and close actions per run to stay within the API limit.
+          OPERATIONS_PER_RUN: "60"
+          DRY_RUN: ${{ inputs.dry_run || false }}
+        with:
+          script: |
+            const run = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/stale-prs.js`);
+            await run({ github, context, core });
