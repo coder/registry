@@ -43,9 +43,6 @@ RUN set -eu; \
 		/opt/claude/bin/claude --version; \
 	fi
 
-RUN install -d -o 1000 -g 1000 /sandbox
-
 USER coder
-# OpenShell's workspace root. It is not persistent. The template mounts the
-# home disk at /home/coder, which must not be inside the workspace root.
+# The OpenShell workspace root. The home must be outside it.
 WORKDIR /sandbox
