@@ -1,0 +1,46 @@
+http_port 3128
+
+# Squid resolves names itself, with public DNS. The workspace has no DNS.
+dns_nameservers ${dns_servers}
+
+%{ if any_host ~}
+# Any public host name. A name must end in a letter, so a raw IPv4 address
+# never matches. -n disables reverse DNS.
+acl allowed dstdom_regex -n -i [a-z]$
+%{ else ~}
+# -n disables reverse DNS, so a raw IP address never matches a name.
+acl allowed dstdomain -n ${allowed_domains}
+%{ endif ~}
+
+# Checked after `allowed`, so Squid resolves only allowed names. Denied names
+# never reach DNS, so they cannot leak data in a lookup.
+acl private_dst dst 0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.0.0.0/24 192.168.0.0/16 198.18.0.0/15 224.0.0.0/3 ::/128 ::1 fc00::/7 fe80::/10
+
+acl CONNECT method CONNECT
+acl tls_port port 443
+acl plain_port port 80
+
+# No cache manager, and no IPv6 literals such as [2001:db8::a].
+acl ip6_literal dstdom_regex -n :
+http_access deny manager
+http_access deny ip6_literal
+
+# HTTPS is a CONNECT tunnel to port 443. Plain HTTP goes to port 80 only.
+http_access deny CONNECT !tls_port
+http_access deny !CONNECT !plain_port
+%{ if !allow_tls ~}
+http_access deny CONNECT
+%{ endif ~}
+%{ if !allow_http ~}
+http_access deny !CONNECT
+%{ endif ~}
+http_access allow allowed !private_dst
+http_access deny all
+
+# Relay only: TLS is tunneled, never terminated. No cache, no pid file, and
+# logs to the container output, so Squid needs no writable paths.
+cache deny all
+pid_filename none
+cache_log stdio:/dev/stderr
+access_log stdio:/dev/stdout
+logfile_rotate 0
