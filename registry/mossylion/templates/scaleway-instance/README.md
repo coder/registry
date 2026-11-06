@@ -14,7 +14,7 @@ This template provisions Coder workspaces on [Scaleway](https://www.scaleway.com
 
 - **Multi-region support**: Choose from France (Paris), Netherlands (Amsterdam), or Poland (Warsaw)
 - **Flexible instance sizing**: Wide range of instance types from development to high-performance computing
-- **Multiple OS options**: Debian 12/13, Ubuntu 24.04, and Fedora 41
+- **Multiple OS options**: Debian 12/13, Ubuntu 24.04/26.04, and Fedora 44
 - **Customizable storage**: Adjustable disk size with configurable IOPS
 - **IPv4 and IPv6 networking**: Dual-stack IP configuration for enhanced connectivity
 
