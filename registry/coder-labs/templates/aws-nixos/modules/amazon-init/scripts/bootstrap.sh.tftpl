@@ -31,6 +31,8 @@ chown_handoff() {
   local target
   target=$(systemctl show coder-agent -p User --value 2>/dev/null || true)
   [ -n "$target" ] || return 0
+  # The agent downloads its executable here but must not own the handoff directory.
+  install -d -m 0755 -o "$target" -- "$RUNTIME_DIR/bin"
   chown "$target" "$RUNTIME_DIR/agent.env" "$RUNTIME_DIR/init.sh" 2>/dev/null || true
 }
 chown_handoff

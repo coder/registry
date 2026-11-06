@@ -10,6 +10,18 @@ set -euo pipefail
 #
 # This script only runs tests for changed modules. Documentation and template changes are ignored.
 
+# Terraform discovers test files in the configuration root and its tests/
+# subdirectory. Run tests/ files from the parent so the configuration under
+# test (providers, modules, resources) is loaded.
+test_root() {
+  local dir
+  dir=$(dirname "$1")
+  if [[ "$(basename "$dir")" == "tests" ]]; then
+    dir=$(dirname "$dir")
+  fi
+  echo "$dir"
+}
+
 run_dir() {
   local dir="$1"
   echo "==> Running terraform test in $dir"
@@ -27,7 +39,12 @@ fi
 if [[ "${SHARED_CHANGED:-false}" == "true" ]]; then
   echo "==> Shared infrastructure changed"
   echo "==> Running all tests for safety"
-  mapfile -t test_dirs < <(find . -type f -name "*.tftest.hcl" -print0 | xargs -0 -I{} dirname {} | sort -u)
+  # Skip .terraform/ so copies of downloaded modules are not tested again.
+  mapfile -t test_dirs < <(
+    find . -type f -name "*.tftest.hcl" -not -path "*/.terraform/*" \
+      | while IFS= read -r test_file; do test_root "$test_file"; done \
+      | sort -u
+  )
 elif [[ -z "${MODULE_CHANGED_FILES:-}" ]]; then
   echo "✓ No module files changed, skipping tests"
   exit 0
@@ -66,11 +83,11 @@ else
   test_dirs=()
   for module_dir in "${MODULE_DIRS[@]}"; do
     while IFS= read -r test_file; do
-      test_dir=$(dirname "$test_file")
+      test_dir=$(test_root "$test_file")
       if [[ ! " ${test_dirs[*]} " =~ " $test_dir " ]]; then
         test_dirs+=("$test_dir")
       fi
-    done < <(find "$module_dir" -type f -name "*.tftest.hcl")
+    done < <(find "$module_dir" -type f -name "*.tftest.hcl" -not -path "*/.terraform/*")
   done
 fi
 

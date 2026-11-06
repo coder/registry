@@ -32,6 +32,16 @@ variable "key_name" {
   default     = null
 }
 
+variable "key_type" {
+  description = "Where to upload the Coder public key on GitHub: 'auth' for an authentication key, 'signing' for a commit signing key, or 'both'."
+  type        = string
+  default     = "auth"
+  validation {
+    condition     = contains(["auth", "signing", "both"], var.key_type)
+    error_message = "key_type must be one of 'auth', 'signing', or 'both'."
+  }
+}
+
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
@@ -43,6 +53,7 @@ resource "coder_script" "github_upload_public_key" {
     CODER_EXTERNAL_AUTH_ID : var.external_auth_id,
     GITHUB_API_URL : var.github_api_url,
     CODER_PUBLIC_KEY_NAME : base64encode(var.key_name == null ? "" : var.key_name),
+    KEY_TYPE : var.key_type,
   })
   display_name = "Github Upload Public Key"
   icon         = "/icon/github.svg"
