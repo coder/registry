@@ -58,30 +58,30 @@ Choose from three available regions:
 
 ### Instance Types
 
-The template supports a comprehensive range of Scaleway instance types:
+The instance type dropdown is filtered to the types available in the selected region, so the list differs between Paris, Amsterdam, and Warsaw. Windows-licensed (`-WIN`) types are excluded.
 
 #### Development Instances
 
-- **STARDUST1-S**: 1 CPU, 1GB RAM - Basic development
-- **DEV1-S/M/L/XL**: 2-4 CPUs, 2-12GB RAM - Standard development
+- **STARDUST1, DEV1, PLAY2**: Small, low-cost instances for light development
 
-#### Production Instances
+#### General Purpose and Production Instances
 
-- **ENT1 Series**: 2-96 CPUs, 8-384GB RAM - Enterprise workloads
-- **GP1 Series**: 4-48 CPUs, 16-256GB RAM - General purpose
-- **PRO2 Series**: 2-32 CPUs, 8-128GB RAM - Professional workloads
+- **BASIC3, STANDARD3, COMPUTE3, MEMORY3**: Current-generation x86 families
+- **POP2 Series** (including HC, HM, and HN variants): General purpose, compute, memory, and network optimized
+- **GP1 and PRO2 Series**: Previous-generation general purpose instances
 
 #### Specialized Instances
 
-- **L4 Series**: GPU-enabled instances for AI/ML workloads
-- **COPARM1 Series**: ARM64 architecture for specific use cases
+- **BASIC2 and STANDARD2**: ARM64 instances
+- **L4 and RENDER**: GPU-enabled instances for AI/ML workloads (Paris only)
 
 ### Operating System Options
 
 - **Debian 13 (Trixie)**: Latest Debian release
 - **Debian 12 (Bookworm)**: Stable Debian LTS
-- **Ubuntu 24.04 (Noble)**: Latest Ubuntu LTS
-- **Fedora 41**: Cutting-edge features and packages
+- **Ubuntu 26.04 (Resolute)**: Latest Ubuntu LTS
+- **Ubuntu 24.04 (Noble)**: Previous Ubuntu LTS
+- **Fedora 44**: Cutting-edge features and packages
 
 ### Storage Configuration
 
@@ -140,13 +140,17 @@ You can customize this template by:
 
 ### Updating Instance Types
 
-To update the available instance types, regenerate the `scaleway-config.json` file:
+To update the available instance types, regenerate the `scaleway-config.json` file (requires an authenticated `scw` CLI):
 
 ```bash
-scw instance server-type list -o json | jq 'map({name, cpu, gpu, ram, arch})' > scaleway-config.json.json
+for r in fr-par nl-ams pl-waw; do
+  scw instance server-type list zone=$r-1 -o json | jq --arg r "$r" 'map(select(.name | endswith("-WIN") | not) | {name, cpu, gpu, ram, arch, regions: [$r]})'
+done | jq -s 'add | group_by(.name) | map(.[0] + {regions: map(.regions[0])})' > scaleway-config.json
 ```
 
-This pulls the latest instance types from Scaleway and formats them for use in the template.
+This pulls the latest instance types from each region's default zone (`<region>-1`, where workspaces are created) and records which regions offer each type, so the template can filter the dropdown by region. If you add a region to the template, add it to the loop as well.
+
+To check which OS images are currently available, run `scw marketplace image list`.
 
 ## References
 
