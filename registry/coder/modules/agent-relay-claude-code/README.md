@@ -16,7 +16,7 @@ on each build and runs the Claude Code self-hosted runner.
 ```tf
 module "claude_code_runner" {
   source   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version  = "0.5.0"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Claude Code CLI at start when it is not in the image. Bake
@@ -51,6 +51,17 @@ optional; see [Session attachment](#session-attachment).
 
 ## Requirements
 
+- Coder 2.39.0 or newer and Agent Relay v0.14.0 or newer. On those versions
+  the relay delivers the work order as an ephemeral workspace secret, which
+  the agent injects as `SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET`; it is never a
+  build parameter. A relay that still sends it as the `agent_relay_credential`
+  parameter refuses to serve a template on this version with
+  `missing parameter "agent_relay_credential"`, so on older versions pin
+  `0.5.0`, the last release that declares the parameter. Upgrade Coder, then
+  Agent Relay, then move templates to `1.0.0` one at a time; a `0.5.0`
+  template keeps working on the new versions, except that its `dispatched`
+  output reads `false` on relay builds. To roll a relay or Coder back, pin
+  templates back to `0.5.0` first.
 - The `claude` CLI must be in the workspace. `install_cli` (default `true`)
   downloads it at start only when it is not already on PATH; bake it into the
   image for the fastest start. `cli_binary` overrides the path.
@@ -68,7 +79,7 @@ can contain spaces or quotes without escaping. Flags the module already sets
 ```tf
 module "claude_code_runner" {
   source          = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version         = "0.5.0"
+  version         = "1.0.0"
   agent_id        = coder_agent.main.id
   additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
 }
@@ -78,8 +89,10 @@ module "claude_code_runner" {
 
 Agent Relay verifies this contract against the template's active version at
 startup and refuses to serve a pool that does not satisfy it. Every parameter
-renders disabled with a "Set by Agent Relay on dispatch" placeholder; the
-credential is masked.
+renders disabled with a "Set by Agent Relay on dispatch" placeholder. The
+work order is not among them: it is a workspace secret, so it never appears
+in the build's parameters or Terraform state, and the template should not
+set `SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET` itself.
 
 `agent_relay_client_platform` is attribution rather than contract: the relay
 stamps the surface the session was created from (`web_claude_ai`,
@@ -90,18 +103,24 @@ parameter leaves it empty.
 
 ## Scripts and logs
 
-The module runs two steps through [coder-utils](https://registry.coder.com/modules/coder/coder-utils):
+The module runs three ordered startup steps through [coder-utils](https://registry.coder.com/modules/coder/coder-utils):
+a pre-install step that stops any previous supervisor and runner and clears status,
 an install step that downloads the CLI when `install_cli` is set and the
 binary is missing (a no-op otherwise), then a start step that launches the
-runner. Everything lands under `$HOME/.coder-modules/coder/agent-relay-claude-code`:
+runner. A separate `run_on_stop` script uses the same cleanup source on graceful
+workspace stop. Everything lands under `$HOME/.coder-modules/coder/agent-relay-claude-code`:
 
-| path           | contents                                        |
-| -------------- | ----------------------------------------------- |
-| `scripts/*.sh` | the install and start scripts as they ran       |
-| `logs/*.log`   | output of each step, plus the runner's own log  |
-| `runner-state` | the supervisor's lifecycle line (`state_file`)  |
-| `supervise.sh` | the detached supervisor that owns the runner    |
-| `wrapper.sh`   | session wrapper that forces `bypassPermissions` |
+| path            | contents                                               |
+| --------------- | ------------------------------------------------------ |
+| `scripts/*.sh`  | the pre-install, install and start scripts as they ran |
+| `logs/*.log`    | output of each step, plus the runner's own log         |
+| `runner-state`  | the supervisor's lifecycle line (`state_file`)         |
+| `supervisors/`  | identity records for live supervisors                  |
+| `workers/`      | identity records for runners, even without supervisors |
+| `started/`      | one start claim per cleanup generation                 |
+| `run-runner.sh` | runner identity wrapper before CLI startup             |
+| `supervise.sh`  | the detached supervisor that owns the runner           |
+| `wrapper.sh`    | session wrapper that forces `bypassPermissions`        |
 
 ## Runner lifecycle
 
@@ -114,12 +133,29 @@ A runner that is never assigned its session exits after `exit_if_unused_min`
 minutes (default 10, 0 to disable), so a dispatch that never arrives is reaped
 rather than reporting `working` forever.
 
+A graceful workspace stop uses a separate script to stop the supervisor and
+runner and clear their state. It waits up to 10 seconds after `TERM`, then up
+to 5 seconds after `KILL`. Allow at least 30 seconds for the container or pod
+to terminate so this script and the agent can finish shutting down. A forced
+stop may skip the hook; startup cleanup still runs on the next agent start.
+
+Startup cleanup is availability-first: if it cannot verify that a previous
+process stopped, it logs a warning and starts a fresh runner anyway. Two
+runners may then run concurrently, and a surviving old supervisor can race
+to write stale status. It never signals a process whose recorded
+PID, boot ID, and process start time do not match. The start step can launch
+only once per cleanup generation; without a new work order it reports `idle`
+instead of the previous run's status.
+
+The reaper still needs a short grace after a new build to avoid acting on old
+metadata before cleanup runs and fresh status has been collected.
+
 `agent_relay_status` reports one of:
 
 | value             | meaning                                                                    |
 | ----------------- | -------------------------------------------------------------------------- |
 | `pending`         | no state recorded yet                                                      |
-| `idle`            | no credential: workspace was created manually                              |
+| `idle`            | no work order in this build: created by a person, or restarted by one      |
 | `working`         | runner alive, no session picked up                                         |
 | `serving`         | runner alive, session picked up (best effort, see `serving_log_pattern`)   |
 | `orphaned`        | runner process gone without recording an exit                              |
@@ -146,7 +182,7 @@ fails the start step with `failed invalid-release-idle-session-min`.
 ```tf
 module "claude_code_runner" {
   source                   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version                  = "0.5.0"
+  version                  = "1.0.0"
   agent_id                 = coder_agent.main.id
   release_idle_session_min = 30
 }
@@ -185,7 +221,7 @@ from reaching it.
 ```tf
 module "claude_code_runner" {
   source      = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version     = "0.5.0"
+  version     = "1.0.0"
   agent_id    = coder_agent.main.id
   health_port = 3290
 }
