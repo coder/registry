@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+expand_home() {
+  case "$1" in
+    '$HOME')
+      printf '%s\n' "$HOME"
+      ;;
+    '$HOME/'*)
+      printf '%s/%s\n' "$HOME" "$${1#\$HOME/}"
+      ;;
+    *)
+      printf '%s\n' "$1"
+      ;;
+  esac
+}
+
+decode_path() {
+  local encoded_path="$1"
+  local decoded_path
+
+  decoded_path="$(printf '%s' "$encoded_path" | base64 -d)"
+  expand_home "$decoded_path"
+}
+
+SETTINGS_FILE="$(decode_path '${base64encode(SETTINGS_FILE)}')"
+
+if [ -z "$SETTINGS_FILE" ]; then
+  printf 'settings_file is required when settings are configured.\n' >&2
+  exit 1
+fi
+
+if [ -L "$SETTINGS_FILE" ]; then
+  if ! command -v python3 > /dev/null 2>&1; then
+    printf 'Resolving a symlinked IDE settings file requires python3.\n' >&2
+    exit 1
+  fi
+
+  SETTINGS_FILE="$(python3 - "$SETTINGS_FILE" << 'PY'
+${file("${SCRIPTS_DIR}/resolve-settings-path.py")}
+PY
+)"
+fi
+
+settings_directory="$(dirname "$SETTINGS_FILE")"
+mkdir -p "$settings_directory"
+
+desired_settings="$(mktemp "$settings_directory/.coder-settings.desired.XXXXXX")"
+merged_settings="$(mktemp "$settings_directory/.coder-settings.merged.XXXXXX")"
+trap 'rm -f "$desired_settings" "$merged_settings"' EXIT
+
+printf '%s' '${base64encode(jsonencode(SETTINGS))}' | base64 -d > "$desired_settings"
+chmod 600 "$desired_settings"
+
+if [ ! -e "$SETTINGS_FILE" ]; then
+  mv "$desired_settings" "$SETTINGS_FILE"
+  printf 'Created IDE settings: %s\n' "$SETTINGS_FILE"
+  exit 0
+fi
+
+if [ ! -f "$SETTINGS_FILE" ]; then
+  printf 'IDE settings path is not a regular file: %s\n' "$SETTINGS_FILE" >&2
+  exit 1
+fi
+
+if ! command -v python3 > /dev/null 2>&1; then
+  printf 'Merging an existing IDE settings file requires python3.\n' >&2
+  exit 1
+fi
+
+python3 - "$SETTINGS_FILE" "$desired_settings" "$merged_settings" << 'PY'
+${file("${SCRIPTS_DIR}/merge-settings.py")}
+PY
+
+chmod 600 "$merged_settings"
+mv "$merged_settings" "$SETTINGS_FILE"
+printf 'Merged IDE settings: %s\n' "$SETTINGS_FILE"
