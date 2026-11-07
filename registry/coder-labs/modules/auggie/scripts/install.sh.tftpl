@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+
+if [ -f "$HOME/.bashrc" ]; then
+  # shellcheck source=/dev/null
+  source "$HOME"/.bashrc
+fi
+
+set -euo pipefail
+
+command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+ARG_INSTALL='${ARG_INSTALL}'
+ARG_AUGGIE_VERSION=$(echo -n '${ARG_AUGGIE_VERSION}' | base64 -d)
+ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
+ARG_MCP_CONFIG=$(echo -n '${ARG_MCP_CONFIG}' | base64 -d)
+ARG_MCP_FILES=$(echo -n '${ARG_MCP_FILES}' | base64 -d)
+ARG_RULES=$(echo -n '${ARG_RULES}' | base64 -d)
+ARG_AUGGIE_MODEL=$(echo -n '${ARG_AUGGIE_MODEL}' | base64 -d)
+
+NPM_GLOBAL_PREFIX="$HOME/.npm-global"
+export PATH="$${NPM_GLOBAL_PREFIX}/bin:$PATH"
+
+SETTINGS_FILE="$HOME/.augment/settings.json"
+RULES_FILE="$HOME/.augment/rules/coder-module.md"
+
+echo "--------------------------------"
+printf "install_auggie: %s\n" "$${ARG_INSTALL}"
+printf "auggie_version: %s\n" "$${ARG_AUGGIE_VERSION:-latest}"
+printf "workdir: %s\n" "$${ARG_WORKDIR}"
+printf "auggie_model: %s\n" "$${ARG_AUGGIE_MODEL}"
+echo "--------------------------------"
+
+require_jq() {
+  if ! command_exists jq; then
+    echo "ERROR: 'jq' is required to $1 but was not found." >&2
+    exit 1
+  fi
+}
+
+function add_path_to_shell_profiles() {
+  local path_dir="$1"
+
+  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    if [ -f "$${profile}" ]; then
+      if ! grep -q "$${path_dir}" "$${profile}" 2> /dev/null; then
+        echo "export PATH=\"\$PATH:$${path_dir}\"" >> "$${profile}"
+        echo "Added $${path_dir} to $${profile}"
+      fi
+    fi
+  done
+
+  local fish_config="$HOME/.config/fish/config.fish"
+  if [ -f "$${fish_config}" ]; then
+    if ! grep -q "$${path_dir}" "$${fish_config}" 2> /dev/null; then
+      echo "fish_add_path $${path_dir}" >> "$${fish_config}"
+      echo "Added $${path_dir} to $${fish_config}"
+    fi
+  fi
+}
+
+function ensure_auggie_in_path() {
+  local AUGGIE_BIN=""
+  if command_exists auggie; then
+    AUGGIE_BIN=$(command -v auggie)
+  fi
+
+  if [ -z "$${AUGGIE_BIN}" ] || [ ! -x "$${AUGGIE_BIN}" ]; then
+    echo "Auggie CLI binary (auggie) was not found or is not executable." >&2
+    return 1
+  fi
+
+  local AUGGIE_VERSION
+  if ! AUGGIE_VERSION=$("$${AUGGIE_BIN}" --version); then
+    echo "Auggie CLI binary could not be executed." >&2
+    return 1
+  fi
+  printf "Auggie CLI version: %s\n" "$${AUGGIE_VERSION}"
+
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/auggie" ]; then
+    ln -s "$${AUGGIE_BIN}" "$${CODER_SCRIPT_BIN_DIR}/auggie"
+    echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/auggie -> $${AUGGIE_BIN}"
+  fi
+
+  add_path_to_shell_profiles "$(dirname "$${AUGGIE_BIN}")"
+}
+
+# The documented install method is npm; the user prefix keeps the global
+# install (and `auggie upgrade`) writable without root.
+install_with_npm() {
+  if ! command_exists node || ! command_exists npm; then
+    echo "ERROR: Node.js 20+ and npm are required to install Auggie CLI. Install them in the image or with pre_install_script." >&2
+    return 1
+  fi
+  printf "Node.js version: %s\n" "$(node --version)"
+  printf "npm version: %s\n" "$(npm --version)"
+
+  mkdir -p "$${NPM_GLOBAL_PREFIX}"
+  npm config set prefix "$${NPM_GLOBAL_PREFIX}"
+
+  local package="@augmentcode/auggie"
+  if [ -n "$${ARG_AUGGIE_VERSION}" ]; then
+    package="$${package}@$${ARG_AUGGIE_VERSION}"
+  fi
+  if ! npm install -g "$${package}"; then
+    echo "Auggie CLI installation failed." >&2
+    return 1
+  fi
+}
+
+install_auggie() {
+  if [ "$${ARG_INSTALL}" != "true" ]; then
+    echo "Skipping Auggie CLI installation as per configuration."
+    if ! ensure_auggie_in_path; then
+      echo "ERROR: install_auggie is false but a working 'auggie' was not found on PATH." >&2
+      exit 1
+    fi
+    echo "Validated existing Auggie CLI"
+    return
+  fi
+
+  echo "Installing Auggie CLI"
+  install_with_npm
+
+  if ! ensure_auggie_in_path; then
+    echo "ERROR: Failed to install Auggie CLI" >&2
+    exit 1
+  fi
+  echo "Installed Auggie CLI"
+}
+
+setup_workdir() {
+  if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
+    echo "Creating workdir: $${ARG_WORKDIR}"
+    mkdir -p "$${ARG_WORKDIR}"
+  fi
+}
+
+# Like a non-interactive `auggie mcp add-json`, an existing server name is kept.
+add_mcp_servers() {
+  local mcp_json="$1"
+  local source_desc="$2"
+  local name server output
+
+  while IFS= read -r name && IFS= read -r server; do
+    if output=$(auggie mcp add-json "$${name}" "$${server}" < /dev/null 2>&1); then
+      echo "Added MCP server '$${name}' ($${source_desc})"
+    elif grep -q "already exists" <<< "$${output}"; then
+      echo "Warning: MCP server '$${name}' already exists in $${SETTINGS_FILE}, keeping the existing one."
+    else
+      echo "Warning: Failed to add MCP server '$${name}' ($${source_desc}): $${output}"
+    fi
+  done < <(echo "$${mcp_json}" | jq -r '.mcpServers // {} | to_entries[] | .key, (.value | @json)')
+}
+
+setup_mcp() {
+  if [ -z "$${ARG_MCP_CONFIG}" ] && [ -z "$${ARG_MCP_FILES}" ]; then
+    echo "No MCP servers configured."
+    return
+  fi
+
+  require_jq "configure MCP servers"
+
+  if [ -n "$${ARG_MCP_CONFIG}" ]; then
+    if echo "$${ARG_MCP_CONFIG}" | jq empty > /dev/null 2>&1; then
+      add_mcp_servers "$${ARG_MCP_CONFIG}" "from mcp"
+    else
+      echo "Warning: mcp is not valid JSON, skipping."
+    fi
+  fi
+
+  local file
+  while IFS= read -r file; do
+    [ -z "$${file}" ] && continue
+    if [ ! -f "$${file}" ] || ! jq empty "$${file}" > /dev/null 2>&1; then
+      echo "Warning: MCP file $${file} is missing or not valid JSON, skipping."
+      continue
+    fi
+    add_mcp_servers "$(cat "$${file}")" "from $${file}"
+  done < <(echo "$${ARG_MCP_FILES:-[]}" | jq -r '.[]')
+}
+
+write_rules() {
+  if [ -z "$${ARG_RULES}" ]; then
+    rm -f "$${RULES_FILE}"
+    return
+  fi
+
+  mkdir -p "$(dirname "$${RULES_FILE}")"
+  printf '%s\n' "$${ARG_RULES}" > "$${RULES_FILE}"
+  echo "Wrote rules: $${RULES_FILE}"
+}
+
+# Auggie also accepts JSONC in settings.json, which jq cannot edit safely, so
+# such a file is left unchanged.
+setup_model() {
+  if [ -z "$${ARG_AUGGIE_MODEL}" ]; then
+    return
+  fi
+
+  require_jq "set the Auggie model"
+
+  local existing='{}'
+  if [ -f "$${SETTINGS_FILE}" ]; then
+    if ! jq -e 'type == "object"' "$${SETTINGS_FILE}" > /dev/null 2>&1; then
+      echo "Warning: $${SETTINGS_FILE} is not a strict JSON object (comments or trailing commas); leaving the model unchanged."
+      return
+    fi
+    existing=$(cat "$${SETTINGS_FILE}")
+  fi
+
+  mkdir -p "$(dirname "$${SETTINGS_FILE}")"
+  local updated
+  updated=$(echo "$${existing}" | jq --arg model "$${ARG_AUGGIE_MODEL}" '.model = $model')
+  # Rewrite in place so the file keeps its permissions.
+  printf '%s\n' "$${updated}" > "$${SETTINGS_FILE}"
+  echo "Set model in $${SETTINGS_FILE}"
+}
+
+install_auggie
+setup_workdir
+setup_mcp
+write_rules
+setup_model
+
+echo "Auggie module setup completed."
