@@ -135,7 +135,7 @@ set `AGENT_RELAY_CURSOR_TOKEN` itself.
 
 ## Scripts and logs
 
-The module runs three steps through [coder-utils](https://registry.coder.com/modules/coder/coder-utils):
+The module runs three steps through [coder-utils](https://registry.coder.com/modules/coder/lib-coder-utils):
 a pre-install cleanup that stops any worker a previous agent start left
 running, an install step that downloads the CLI when `install_cli` is set and
 the binary is missing (a no-op otherwise), then a start step that launches the

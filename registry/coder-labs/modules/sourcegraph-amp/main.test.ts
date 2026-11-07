@@ -13,7 +13,7 @@ import {
   setup as setupUtil,
   execModuleScript,
   expectAgentAPIStarted,
-} from "../../../coder/modules/agentapi/test-util";
+} from "../../../coder/modules/lib-agentapi/test-util";
 
 let cleanupFunctions: (() => Promise<void>)[] = [];
 const registerCleanup = (cleanup: () => Promise<void>) => {
