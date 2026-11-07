@@ -16,7 +16,7 @@ on each build and runs the Claude Code self-hosted runner.
 ```tf
 module "claude_code_runner" {
   source   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 
   # Downloads the Claude Code CLI at start when it is not in the image. Bake
@@ -68,6 +68,58 @@ optional; see [Session attachment](#session-attachment).
 - Builds must finish inside Agent Relay's 300s spawn budget: pre-pulled
   images, no persistent volumes.
 
+## Start the runner after your setup
+
+The start step runs as one of the agent's start scripts. Without an
+ordering rule, every start script runs at once, so the runner can take
+a session while your template is still cloning a repository or installing
+tools. The module cannot wait for the agent to be `ready`: its own start
+script is one of the scripts the agent waits on.
+
+Order the module after your setup in the template, with a
+`coder_script_order` rule. The module cannot declare this rule for you,
+because a rule can only select scripts in its own module, so it lives
+beside the module call:
+
+```tf
+resource "coder_script" "setup" {
+  agent_id     = coder_agent.main.id
+  display_name = "Workspace setup"
+  run_on_start = true
+  timeout      = 300
+  script       = file("${path.module}/setup.sh")
+}
+
+data "coder_script_order" "relay_runner" {
+  rule {
+    phase = "start"
+    run   = ["module.claude_code_runner"]
+    after = ["coder_script.setup"]
+  }
+}
+```
+
+- Script ordering needs Coder 2.39.0 or newer on the control plane, the
+  provisioners and the workspace agents, and the Coder provider 2.20.0 or
+  newer. Older Coder ignores the rule without an error and the runner
+  starts right away.
+- `coder_agent.startup_script` cannot be ordered. Put setup the runner
+  depends on in `coder_script` resources or modules, including a step that
+  installs the CLI (set `install_cli = false` and order the module after it).
+- With the default `requires = "success"`, a failed setup script skips
+  this module and the runner never starts. Agent Relay fails the session
+  about a minute after the agent reports the failure. Set
+  `requires = "completion"` to start the runner anyway.
+- While the rule holds the start step, `agent_relay_status` reads `pending`.
+  Agent Relay deletes a workspace that stays `pending` for 15 minutes, so
+  keep setup under that. Prebuilt workspaces run setup at prebuild time and
+  are claimed in seconds.
+- A `cli_binary` wrapper that waits for setup is not needed; the rule does
+  the waiting.
+
+The full example is in the Agent Relay repository under
+[`example/templates/claude-code`](https://github.com/coder/agent-relay/tree/main/example/templates/claude-code).
+
 ## Additional runner arguments
 
 Use `additional_args` to pass extra arguments to `claude self-hosted-runner`, as a
@@ -79,7 +131,7 @@ can contain spaces or quotes without escaping. Flags the module already sets
 ```tf
 module "claude_code_runner" {
   source          = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version         = "1.0.0"
+  version         = "1.0.1"
   agent_id        = coder_agent.main.id
   additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
 }
@@ -182,7 +234,7 @@ fails the start step with `failed invalid-release-idle-session-min`.
 ```tf
 module "claude_code_runner" {
   source                   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version                  = "1.0.0"
+  version                  = "1.0.1"
   agent_id                 = coder_agent.main.id
   release_idle_session_min = 30
 }
@@ -221,7 +273,7 @@ from reaching it.
 ```tf
 module "claude_code_runner" {
   source      = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version     = "1.0.0"
+  version     = "1.0.1"
   agent_id    = coder_agent.main.id
   health_port = 3290
 }
