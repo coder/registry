@@ -6,15 +6,8 @@ terraform {
       source  = "coder/coder"
       version = ">= 2.5"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = ">= 3.0"
-    }
   }
 }
-
-# Keep the log source stable across workspace restarts.
-resource "random_uuid" "log_source" {}
 
 data "coder_workspace" "me" {}
 
@@ -27,37 +20,26 @@ variable "agent_token" {
 }
 
 variable "agent_init_script" {
-  description = "`coder_agent.init_script`, run verbatim once the boot script has finished."
+  description = "`coder_agent.init_script` of the main agent, run by `coder-agent.service` once `start_agent_command` starts it."
   type        = string
   sensitive   = true
 }
 
-variable "boot_script" {
-  description = <<-EOT
-    Shell script run on every boot, after the handoff and workspace facts are
-    published and before the agent is started.
-
-    It runs as root, as a child process, with these set:
-
-    | Variable                 | Meaning                                    |
-    | ------------------------ | ------------------------------------------ |
-    | `CODER_LOG_LIBRARY`      | path to source for `coder_log`             |
-    | `CODER_RUNTIME_DIR`      | the tmpfs this module owns                 |
-    | `CODER_WORKSPACE_FACTS`  | path to `workspace.json`                   |
-    | `CODER_ACCESS_URL`       | deployment URL                             |
-    | `CODER_AGENT_TOKEN`      | agent token                                |
-    | `CODER_LOG_SOURCE_ID`    | log source to write to                     |
-
-    Its exit status is reported and propagated, but never suppresses the agent
-    start: a workspace whose boot script failed still has to be reachable.
-  EOT
+variable "provisioner_token" {
+  description = "Token of the root agent that prepares the machine and then runs `start_agent_command`."
   type        = string
-  default     = ""
+  sensitive   = true
+}
+
+variable "provisioner_init_script" {
+  description = "`coder_agent.init_script` of that root agent, run on every boot as the transient `coder-provisioner` unit."
+  type        = string
+  sensitive   = true
 }
 
 variable "files" {
   description = <<-EOT
-    Files to write before the boot script runs: absolute path to contents.
+    Files to write before the provisioner agent starts: absolute path to contents.
     Written mode 0644, parent directories created.
 
     Contents are carried gzipped and base64-encoded, so any text is safe --
@@ -82,7 +64,7 @@ variable "values" {
     This is the injection point for anything the machine needs to know at
     runtime: one map entry rather than a new file and a new variable each
     time. Keys this module writes (`workspace`, `owner`, `owner_name`,
-    `owner_email`, `access_url`, `hostname`, `log_source_id`) win on conflict.
+    `owner_email`, `access_url`, `hostname`) win on conflict.
 
     Not for secrets. The file is world-readable, by design -- an unprivileged
     service reads it.
@@ -103,34 +85,9 @@ variable "runtime_dir" {
 }
 
 variable "path" {
-  description = "Prepended to `PATH` for the boot script. amazon-init's own PATH is short."
+  description = "Prepended to `PATH` for the provisioner agent. amazon-init's own PATH is short."
   type        = string
   default     = "/run/current-system/sw/bin"
-}
-
-variable "log_display_name" {
-  description = "Name of that log source in the workspace UI."
-  type        = string
-  default     = "Boot"
-}
-
-variable "log_icon" {
-  description = "Icon for that log source."
-  type        = string
-  default     = "/icon/widgets.svg"
-}
-
-variable "log_budget_bytes" {
-  description = <<-EOT
-    How many bytes of log this module will push before going quiet.
-
-    Coder caps agent logs at 1 MiB per agent across every source, and
-    overflowing does not truncate: the agent is flagged overflowed and all
-    later logs are dropped permanently. The default leaves half the cap for
-    everything else.
-  EOT
-  type        = number
-  default     = 524288
 }
 
 variable "hostname" {
@@ -155,32 +112,25 @@ locals {
     owner_email = data.coder_workspace_owner.me.email
     access_url  = data.coder_workspace.me.access_url
     hostname    = local.hostname
+  })
 
-    log_source_id = random_uuid.log_source.result
+  start_agent = templatefile("${path.module}/scripts/start-agent.sh.tftpl", {
+    ARG_RUNTIME_DIR = base64encode(var.runtime_dir)
   })
 
   bootstrap = templatefile("${path.module}/scripts/bootstrap.sh.tftpl", {
-    FACTS_JSON = jsonencode(local.facts)
+    FACTS_JSON              = jsonencode(local.facts)
+    FILES                   = local.files
+    INIT_SCRIPT             = var.agent_init_script
+    PROVISIONER_INIT_SCRIPT = var.provisioner_init_script
+    START_AGENT             = local.start_agent
 
-    LOG_SH      = file("${path.module}/scripts/log.sh")
-    FILES       = local.files
-    BOOT_SCRIPT = var.boot_script
-    INIT_SCRIPT = var.agent_init_script
-
-    ARG_ACCESS_URL  = base64encode(data.coder_workspace.me.access_url)
-    ARG_AGENT_TOKEN = base64encode(var.agent_token)
-    ARG_RUNTIME_DIR = base64encode(var.runtime_dir)
-    ARG_PATH        = base64encode(var.path)
-
-    ARG_LOG_SOURCE_ID = random_uuid.log_source.result
-    ARG_LOG_BUDGET    = var.log_budget_bytes
-    ARG_LOG_REGISTRATION_B64 = base64encode(jsonencode({
-      id           = random_uuid.log_source.result
-      display_name = var.log_display_name
-      icon         = var.log_icon
-    }))
-
-    ARG_HOSTNAME = base64encode(local.hostname)
+    ARG_ACCESS_URL        = base64encode(data.coder_workspace.me.access_url)
+    ARG_AGENT_TOKEN       = base64encode(var.agent_token)
+    ARG_PROVISIONER_TOKEN = base64encode(var.provisioner_token)
+    ARG_RUNTIME_DIR       = base64encode(var.runtime_dir)
+    ARG_PATH              = base64encode(var.path)
+    ARG_HOSTNAME          = base64encode(local.hostname)
   })
 
   # EC2 caps user-data at 16 KiB; compress the bootstrap before sending it.
@@ -208,13 +158,13 @@ output "user_data" {
   }
 }
 
-output "log_source_id" {
-  description = "Log source the boot output is streamed to."
-  value       = random_uuid.log_source.result
+output "start_agent_command" {
+  description = "Root command that hands the token to `coder-agent.service` and starts it. Run it once the machine is ready, also after a failure."
+  value       = "${var.runtime_dir}/start-agent.sh"
 }
 
 output "runtime_dir" {
-  description = "Directory holding the agent handoff, the logging library and the workspace facts."
+  description = "Directory holding the agent handoff and the workspace facts."
   value       = var.runtime_dir
 }
 

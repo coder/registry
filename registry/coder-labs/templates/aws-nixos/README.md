@@ -48,7 +48,9 @@ sudo nixos-rebuild switch --flake /etc/nixos#coder-workspace-ec2-x86_64
 
 Use your host's attribute instead of the example name. The root disk and Nix store survive stop/start, **not** instance deletion or replacement. A larger root disk can be selected later; EBS cannot shrink it.
 
-Watch the **NixOS** workspace log or `/var/log/coder-nixos/rebuild-latest.log`. If first boot has no agent, use EC2 console output:
+A hidden root agent, `provisioner`, runs the rebuild and then starts the `main` agent. The dashboard hides it; read its **NixOS rebuild** log in `/var/log/coder-nixos/rebuild-latest.log`. If a rebuild fails before `main` exists, open a root shell with `coder ssh <workspace>.provisioner`. The workspace has two agents, so name one in CLI commands: `coder ssh <workspace>.main`.
+
+If the provisioner never connects, use EC2 console output:
 
 ```console
 aws ec2 get-console-output --instance-id <instance-id> --output text
@@ -56,7 +58,7 @@ aws ec2 get-console-output --instance-id <instance-id> --output text
 
 ## Secrets and limitations
 
-Do not put secrets in Nix expressions: the Nix store is readable on the VM. Workspace facts and optional bootstrap files are not secret storage. The agent token is kept out of Nix, but EC2 user-data and Terraform state contain it; restrict access to both. Processes with instance-metadata access can read user-data.
+Do not put secrets in Nix expressions: the Nix store is readable on the VM. Workspace facts and optional bootstrap files are not secret storage. Agent tokens are kept out of Nix, but EC2 user-data and Terraform state contain them; restrict access to both. The provisioner agent gives the workspace owner a root shell, the same access as the passwordless `sudo` that `nixos-modules` configures. Processes with instance-metadata access can read user-data.
 
 Private repos need Git authentication before first boot and separate credentials for private Nix inputs; this template supplies neither. HTTP credentials in `flake_ref` are allowed but exposed in Terraform state, EC2 user-data, Coder metadata, and `/etc/nixos/.git/config`. Prefer root-managed credentials. NixOS scripts need `#!/usr/bin/env bash`; downloaded IDE binaries need `programs.nix-ld`.
 
