@@ -1,0 +1,216 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+ARG_INSTALL='${ARG_INSTALL}'
+ARG_OPENCODE_VERSION=$(echo -n '${ARG_OPENCODE_VERSION}' | base64 -d)
+ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
+ARG_BASE_CONFIG=$(echo -n '${ARG_BASE_CONFIG}' | base64 -d)
+ARG_MCP_CONFIG=$(echo -n '${ARG_MCP_CONFIG}' | base64 -d)
+
+# Delivered through coder_env so credentials never appear in this script.
+AUTH_JSON="$${CODER_OPENCODE_AUTH_JSON:-}"
+
+OPENCODE_BIN_DIR="$HOME/.opencode/bin"
+export PATH="$${OPENCODE_BIN_DIR}:$PATH"
+
+# Same resolution order as `opencode debug paths config`.
+OPENCODE_CONFIG_PATH="$${OPENCODE_CONFIG_DIR:-$${XDG_CONFIG_HOME:-$HOME/.config}/opencode}"
+
+echo "--------------------------------"
+printf "install_opencode: %s\n" "$${ARG_INSTALL}"
+printf "opencode_version: %s\n" "$${ARG_OPENCODE_VERSION}"
+printf "workdir: %s\n" "$${ARG_WORKDIR}"
+printf "auth_json: %s\n" "$([ -n "$${AUTH_JSON}" ] && echo provided || echo "not provided")"
+echo "--------------------------------"
+
+require_jq() {
+  if ! command_exists jq; then
+    echo "ERROR: 'jq' is required to $1 but was not found." >&2
+    exit 1
+  fi
+}
+
+function add_path_to_shell_profiles() {
+  local path_dir="$1"
+
+  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    if [ -f "$${profile}" ]; then
+      if ! grep -q "$${path_dir}" "$${profile}" 2> /dev/null; then
+        echo "export PATH=\"\$PATH:$${path_dir}\"" >> "$${profile}"
+        echo "Added $${path_dir} to $${profile}"
+      fi
+    fi
+  done
+
+  local fish_config="$HOME/.config/fish/config.fish"
+  if [ -f "$${fish_config}" ]; then
+    if ! grep -q "$${path_dir}" "$${fish_config}" 2> /dev/null; then
+      echo "fish_add_path $${path_dir}" >> "$${fish_config}"
+      echo "Added $${path_dir} to $${fish_config}"
+    fi
+  fi
+}
+
+function ensure_opencode_in_path() {
+  local OPENCODE_BIN=""
+  if command_exists opencode; then
+    OPENCODE_BIN=$(command -v opencode)
+  fi
+
+  if [ -z "$${OPENCODE_BIN}" ] || [ ! -x "$${OPENCODE_BIN}" ]; then
+    echo "OpenCode binary (opencode) was not found or is not executable." >&2
+    return 1
+  fi
+
+  local OPENCODE_VERSION
+  if ! OPENCODE_VERSION=$("$${OPENCODE_BIN}" --version); then
+    echo "OpenCode binary could not be executed." >&2
+    return 1
+  fi
+  printf "OpenCode version: %s\n" "$${OPENCODE_VERSION}"
+
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/opencode" ]; then
+    ln -s "$${OPENCODE_BIN}" "$${CODER_SCRIPT_BIN_DIR}/opencode"
+    echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/opencode -> $${OPENCODE_BIN}"
+  fi
+
+  add_path_to_shell_profiles "$(dirname "$${OPENCODE_BIN}")"
+}
+
+# Subshell scopes the temp-file cleanup trap to this function.
+install_with_official_installer() (
+  local installer_file
+  installer_file=$(mktemp)
+  trap 'rm -f "$${installer_file}"' EXIT
+
+  if ! curl --fail --silent --show-error --location \
+    --retry 2 --retry-delay 1 --retry-all-errors \
+    --connect-timeout 10 --max-time 300 \
+    --output "$${installer_file}" https://opencode.ai/v2/install; then
+    echo "OpenCode installer could not be downloaded after up to 3 attempts." >&2
+    return 1
+  fi
+
+  if ! bash -n "$${installer_file}"; then
+    echo "OpenCode installer download was invalid." >&2
+    return 1
+  fi
+
+  # The installer treats any non-empty VERSION as a release tag (a leading 'v'
+  # is stripped), so 'latest' must be passed as empty. It installs to
+  # ~/.opencode/bin; PATH is handled by this script.
+  local version="$${ARG_OPENCODE_VERSION}"
+  if [ "$${version}" = "latest" ]; then
+    version=""
+  fi
+  # The installer resolves 'latest' through an update API that intermittently
+  # fails, so retry the whole installer before giving up.
+  local attempt
+  for attempt in 1 2 3; do
+    if VERSION="$${version}" bash "$${installer_file}" --no-modify-path; then
+      return 0
+    fi
+    echo "OpenCode installer attempt $${attempt} failed." >&2
+    sleep $((attempt * 2))
+  done
+  echo "OpenCode installation failed." >&2
+  return 1
+)
+
+install_opencode() {
+  if [ "$${ARG_INSTALL}" != "true" ]; then
+    echo "Skipping OpenCode installation as per configuration."
+    if ! ensure_opencode_in_path; then
+      echo "ERROR: install_opencode is false but a working 'opencode' was not found on PATH." >&2
+      exit 1
+    fi
+    echo "Validated existing OpenCode"
+    return
+  fi
+
+  echo "Installing OpenCode"
+  install_with_official_installer
+
+  if ! ensure_opencode_in_path; then
+    echo "ERROR: Failed to install OpenCode" >&2
+    exit 1
+  fi
+  echo "Installed OpenCode"
+}
+
+setup_workdir() {
+  if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
+    echo "Creating workdir: $${ARG_WORKDIR}"
+    mkdir -p "$${ARG_WORKDIR}"
+  fi
+}
+
+CONFIG_FILE="$${OPENCODE_CONFIG_PATH}/opencode.json"
+
+write_base_config() {
+  if [ -z "$${ARG_BASE_CONFIG}" ]; then
+    return
+  fi
+  mkdir -p "$(dirname "$${CONFIG_FILE}")"
+  printf '%s\n' "$${ARG_BASE_CONFIG}" > "$${CONFIG_FILE}"
+  echo "Wrote OpenCode configuration to $${CONFIG_FILE}"
+}
+
+# Servers already in the file win on duplicate names, like `claude mcp add`.
+setup_mcp() {
+  if [ -z "$${ARG_MCP_CONFIG}" ]; then
+    return
+  fi
+  require_jq "configure OpenCode MCP servers"
+  mkdir -p "$(dirname "$${CONFIG_FILE}")"
+  [ -f "$${CONFIG_FILE}" ] || echo '{}' > "$${CONFIG_FILE}"
+  if ! jq empty "$${CONFIG_FILE}" > /dev/null 2>&1; then
+    echo "Warning: $${CONFIG_FILE} is JSONC or invalid JSON; skipping MCP servers." >&2
+    return
+  fi
+  jq --argjson mcp "$${ARG_MCP_CONFIG}" '.mcp.servers = $mcp + (.mcp.servers // {})' \
+    "$${CONFIG_FILE}" > "$${CONFIG_FILE}.tmp"
+  mv "$${CONFIG_FILE}.tmp" "$${CONFIG_FILE}"
+  echo "Wrote MCP servers to $${CONFIG_FILE}"
+}
+
+# OpenCode 2 stores credentials in its SQLite database and ignores auth.json on
+# fresh installs, so credentials go through `opencode auth import`. Import skips
+# ids that already exist, so the module's own ids are logged out first to apply
+# rotated secrets. --standalone avoids starting the shared background service.
+setup_auth() {
+  if [ -z "$${AUTH_JSON}" ]; then
+    echo "No auth_json provided; leaving OpenCode credentials unchanged."
+    return
+  fi
+
+  require_jq "import OpenCode credentials"
+
+  local existing_ids integration credential_id
+  existing_ids=$(opencode auth export --standalone 2> /dev/null | jq -r '.[].id' 2> /dev/null || true)
+  while IFS=$'\t' read -r integration credential_id; do
+    if [ -n "$${credential_id}" ] && grep -qxF "$${credential_id}" <<< "$${existing_ids}"; then
+      opencode auth logout --standalone "$${integration}" "$${credential_id}" < /dev/null > /dev/null 2>&1 || true
+    fi
+  done < <(jq -rn 'env.CODER_OPENCODE_AUTH_JSON | fromjson | .[] | [.integrationID, .id] | @tsv')
+
+  # printf is a builtin, so the credentials never appear in process arguments.
+  if ! printf '%s' "$${AUTH_JSON}" | opencode auth import --standalone; then
+    echo "ERROR: OpenCode credential import failed." >&2
+    exit 1
+  fi
+  echo "OpenCode credentials imported."
+}
+
+install_opencode
+setup_workdir
+write_base_config
+setup_mcp
+setup_auth
+
+echo "OpenCode module setup completed."

@@ -1,25 +1,37 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Mock OpenCode CLI for testing purposes
-# This script simulates the OpenCode command-line interface
+# Minimal OpenCode 2 stand-in. Credentials live in a JSON array file so tests
+# can assert on `auth import`/`auth logout` semantics.
+store="${HOME}/.opencode-mock-credentials.json"
+[[ -f "${store}" ]] || echo '[]' > "${store}"
 
-echo "OpenCode Mock CLI - Test Version"
-echo "Args received: $*"
+args=()
+for arg in "$@"; do
+  [[ "${arg}" = "--standalone" ]] || args+=("${arg}")
+done
+set -- "${args[@]}"
 
-# Simulate opencode behavior based on arguments
-case "$1" in
-  --version | -v)
-    echo "opencode mock version 0.1.0-test"
+case "$1 ${2:-}" in
+  "--version "* | "-v "*)
+    echo "opencode v2.0.0-mock"
     ;;
-  --help | -h)
-    echo "OpenCode Mock Help"
-    echo "Usage: opencode [options] [command]"
-    echo "This is a mock version for testing"
+  "auth export")
+    cat "${store}"
+    ;;
+  "auth import")
+    incoming=$(cat)
+    echo "auth import invoked" >> /tmp/opencode-mock-calls
+    jq --argjson new "${incoming}" '. as $old | $old + [$new[] | select(.id as $id | ($old | map(.id) | index($id)) == null)]' "${store}" > "${store}.tmp"
+    mv "${store}.tmp" "${store}"
+    echo "Imported credentials"
+    ;;
+  "auth logout")
+    echo "auth logout $3 $4" >> /tmp/opencode-mock-calls
+    jq --arg id "$4" 'map(select(.id != $id))' "${store}" > "${store}.tmp"
+    mv "${store}.tmp" "${store}"
     ;;
   *)
-    echo "Running OpenCode mock with arguments: $*"
-    echo "Mock execution completed successfully"
+    echo "opencode invoked with: $*"
     ;;
 esac
-
 exit 0
