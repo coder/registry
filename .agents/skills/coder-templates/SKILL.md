@@ -32,10 +32,10 @@ Features marked as "Premium" in this skill require a Coder Premium license. When
 - Creating templates: <https://coder.com/docs/admin/templates/creating-templates>
 - Extending templates: <https://coder.com/docs/admin/templates/extending-templates>
 - Template parameters: <https://coder.com/docs/admin/templates/extending-templates/parameters>
-- Dynamic parameters: <https://coder.com/docs/admin/templates/extending-templates/dynamic-parameters>
-- Workspace presets: <https://coder.com/docs/admin/templates/extending-templates/parameters#workspace-presets>
+- Dynamic parameters: <https://coder.com/docs/admin/templates/extending-templates/parameters>
+- Workspace presets: <https://coder.com/docs/admin/templates/extending-templates/parameters/workspace-presets/>
 - Prebuilt workspaces: <https://coder.com/docs/admin/templates/extending-templates/prebuilt-workspaces>
-- Agent Boundaries: <https://coder.com/docs/ai-coder/agent-boundaries>
+- Agent Firewall: <https://coder.com/docs/ai-coder/agent-firewall/>
 - Coder Registry: <https://registry.coder.com>
 
 ### Coder Terraform provider
