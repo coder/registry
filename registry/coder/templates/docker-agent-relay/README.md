@@ -16,10 +16,8 @@ exits, Agent Relay deletes the workspace.
 ## Prerequisites
 
 - Coder 2.39.0 or newer, and Agent Relay v0.14.0 or newer, which the 1.0.0
-  runner modules require. On an older deployment, pin
-  `agent-relay-claude-code` to `0.4.0` and `agent-relay-cursor` to `0.7.0`;
-  those releases receive the relay's credential as a build parameter instead
-  of a workspace secret.
+  runner modules require. On older versions, pin `agent-relay-claude-code` to
+  `0.4.0` and `agent-relay-cursor` to `0.7.0`.
 - A Docker host the provisioner can reach. The
   [Docker Containers](../docker/README.md) template covers giving Coder access
   to the Docker socket.
@@ -48,14 +46,17 @@ These are set on the template in Coder, not in Terraform:
   builds when it rebuilds or tears down a session's workspace, and degrades the
   pool without it.
 - Give the Agent Relay service account `read` and `use` on the template, for
-  example through the `use` role in the template's ACL.
+  example through the `use` role in the template's ACL. The relay also needs
+  organization-scoped `workspace:update` to extend autostop deadlines, and
+  fails to start without it.
 - Do not put the template under a quota. Quota is enforced mid-build, so a
   build over quota fails, and each redelivery of the session fails the same
   way.
-- Keep the autostop TTL finite, but longer than your longest session. Relay
-  sessions do not count as workspace activity, so autostop can stop a
-  workspace mid-session, and the TTL is the only limit on a worker that never
-  receives a session.
+- Keep the autostop TTL finite. Agent Relay extends the deadline while the
+  `agent_relay_session_attached` metadata reports `attached`, which this
+  template publishes every 30 seconds, so a live session is not stopped
+  mid-turn. A required-stop deadline still applies, and the TTL is the only
+  limit on a worker that never receives a session.
 - Turn on dormancy auto-deletion. Agent Relay never deletes a stopped
   workspace, and restarting one brings it back without a credential, where it
   idles. Delete stopped relay workspaces rather than starting them.
@@ -65,10 +66,10 @@ These are set on the template in Coder, not in Terraform:
 Push the template with a provisioner tag, for example
 `coder templates push <name> --provisioner-tag workload=agent-relay`, and run
 dedicated provisioners with a matching key, so relay builds do not queue
-behind human workspaces. Queue time counts against the start deadline: 300
-seconds from the work order for Claude Code, and the pool's
-`dispatch_deadline` for Cursor. With no matching provisioner, builds stay
-`pending`.
+behind human workspaces. Queue time counts against the pool's
+`dispatch_deadline`: by default 5 minutes from the work order for Claude Code
+and 10 minutes from the claim for Cursor, at most 15 for either. With no
+matching provisioner, builds stay `pending`.
 
 ## Prebuilt workspaces
 
@@ -85,7 +86,8 @@ sessions start at once: every instance is a workspace that runs until a
 session claims it, and once all are claimed, new sessions build cold until
 Coder replaces them. Do not pin any other parameter in a preset, or Agent
 Relay's builds stop matching it. If a pool sets more `template_parameters`,
-pin the same values in its preset.
+pin the same values in its preset. Coder keeps prebuilds only for the active
+template version, so a pool that pins `template_version` always builds cold.
 
 Prebuild jobs need provisioners too. Where possible, route them to dedicated
 provisioners with the `is_prebuild` tag, as described in

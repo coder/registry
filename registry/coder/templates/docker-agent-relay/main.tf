@@ -55,14 +55,16 @@ data "coder_parameter" "self_hosted_provider" {
 }
 
 # One prebuilt workspace per provider, so a session claims a running workspace
-# instead of waiting for a cold start. A Claude Code session must start within
-# 300 seconds of its work order, and a Cursor session within the pool's
-# dispatch deadline.
+# instead of waiting for a cold start. Each session must be built within its
+# pool's dispatch_deadline: by default 5 minutes from the work order for
+# Claude Code and 10 minutes from the claim for Cursor, at most 15 for either.
 #
 # Each preset pins only self_hosted_provider. Coder hands a build a prebuild
 # only when every preset parameter matches a value in the build request, and
 # Agent Relay sends self_hosted_provider and its own parameters, nothing else.
-# A preset that pinned any other parameter would never be claimed.
+# A preset that pinned any other parameter would never be claimed. Coder
+# keeps prebuilds only for the active template version, so a pool that pins
+# template_version never claims one.
 #
 # A prebuild has no work order, so its runner idles until a claim rebuilds it
 # with the relay's parameters and the agent restarts the runner module's
@@ -142,9 +144,12 @@ resource "coder_agent" "main" {
     timeout      = 5
   }
 
-  # Optional. Reports whether the runner holds a session, including between
-  # turns: attached, unattached or stopped. Reads the runner's local health
-  # endpoint, so the image needs curl (and awk for Cursor).
+  # Reports whether the runner holds a session, including between turns:
+  # attached, unattached or stopped. Agent Relay extends the autostop deadline
+  # while it reads a fresh `attached` sample, so keep the interval well under
+  # two minutes. Without this item a live session is stopped at the TTL. Reads
+  # the runner's local health endpoint, so the image needs curl (and awk for
+  # Cursor).
   metadata {
     key          = "agent_relay_session_attached"
     display_name = "Session attached"
