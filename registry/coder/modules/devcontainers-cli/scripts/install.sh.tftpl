@@ -1,5 +1,4 @@
-#!/usr/bin/env sh
-# shellcheck shell=sh
+#!/usr/bin/env bash
 
 DEVCONTAINERS_CLI_VERSION=$(printf '%s' "${DEVCONTAINERS_CLI_VERSION_B64}" | base64 -d) || {
   echo "ERROR: Failed to decode devcontainers_cli_version." >&2
@@ -53,10 +52,6 @@ install() {
       ;;
     yarn)
       set -- global add "$PACKAGE_SPEC" --prefix "$INSTALL_PREFIX"
-      ;;
-    *)
-      echo "ERROR: Unsupported package manager: $PACKAGE_MANAGER" >&2
-      return 1
       ;;
   esac
 

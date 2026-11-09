@@ -14,7 +14,7 @@ export const SCRIPT_BIN_DIR = `${SCRIPT_DATA_DIR}/bin`;
 
 type ContainerSetup = (containerID: string) => Promise<void>;
 
-type AlpineScriptOutput = scriptOutput & {
+type InstallScriptOutput = scriptOutput & {
   packageManagerArgs: string[];
 };
 
@@ -47,15 +47,20 @@ chmod +x "$CODER_SCRIPT_BIN_DIR/devcontainer"`
 exit ${exitCode}
 `;
 
-export const executeInAlpine = async (
+export const executeInstall = async (
   state: TerraformState,
   setup: ContainerSetup,
-): Promise<AlpineScriptOutput> => {
-  const instance = findResourceInstance(state, "coder_script");
-  const containerID = await runContainer("alpine");
+): Promise<InstallScriptOutput> => {
+  const instance = findResourceInstance(
+    state,
+    "coder_script",
+    "install_script",
+  );
+  const containerID = await runContainer("python:3.12-slim");
 
   try {
     await execContainer(containerID, ["mkdir", "-p", SCRIPT_BIN_DIR]);
+    await mockCoderSync(containerID);
     await setup(containerID);
 
     const path = `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${SCRIPT_BIN_DIR}`;
@@ -69,7 +74,7 @@ export const executeInAlpine = async (
     ];
     const response = await execContainer(
       containerID,
-      ["sh", "-c", instance.script],
+      ["bash", "-c", instance.script],
       env,
     );
     const argsResponse = await execContainer(containerID, [
@@ -101,4 +106,14 @@ export const setupPackageManager = async (
     "#!/bin/sh\nexit 0\n",
   );
   await writeExecutable(containerID, `/usr/local/bin/${packageManager}`, stub);
+};
+
+export const mockCoderSync = async (containerID: string): Promise<void> => {
+  await writeExecutable(
+    containerID,
+    "/usr/local/bin/coder",
+    `#!/bin/sh
+printf '%s\\n' "$*" >> /tmp/sync-calls
+`,
+  );
 };

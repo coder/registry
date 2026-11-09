@@ -12,10 +12,11 @@ import {
 import {
   SCRIPT_BIN_DIR,
   SCRIPT_DATA_DIR,
-  executeInAlpine,
+  executeInstall,
   packageManagerStub,
   setupPackageManager,
   writeExecutable,
+  mockCoderSync,
 } from "./test-util";
 
 setDefaultTimeout(120 * 1000);
@@ -32,7 +33,7 @@ describe("devcontainers-cli", async () => {
   });
 
   it("skips installation when devcontainer is already available", async () => {
-    const output = await executeInAlpine(defaultState, async (containerID) => {
+    const output = await executeInstall(defaultState, async (containerID) => {
       await writeExecutable(
         containerID,
         "/usr/local/bin/devcontainer",
@@ -47,7 +48,7 @@ describe("devcontainers-cli", async () => {
   });
 
   it("fails when no supported package manager is available", async () => {
-    const output = await executeInAlpine(defaultState, async (containerID) => {
+    const output = await executeInstall(defaultState, async (containerID) => {
       await writeExecutable(
         containerID,
         "/usr/local/bin/docker",
@@ -56,13 +57,13 @@ describe("devcontainers-cli", async () => {
     });
 
     expect(output.exitCode).toBe(1);
-    expect(output.stderr).toEqual([
+    expect(output.stdout).toContain(
       "ERROR: No supported package manager (npm, pnpm, yarn) is installed. Please install one first.",
-    ]);
+    );
   });
 
   it("warns when Docker is unavailable without blocking installation", async () => {
-    const output = await executeInAlpine(defaultState, async (containerID) => {
+    const output = await executeInstall(defaultState, async (containerID) => {
       await writeExecutable(
         containerID,
         "/usr/local/bin/npm",
@@ -82,7 +83,7 @@ describe("devcontainers-cli", async () => {
   it("passes the pinned version without overriding package-manager registries", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "some-agent-id",
-      devcontainers_cli_version: "0.80.0",
+      devcontainers_cli_version: "v0.80.0",
     });
     const cases = [
       [
@@ -109,7 +110,7 @@ describe("devcontainers-cli", async () => {
     ] as const;
 
     for (const [packageManager, expectedArgs] of cases) {
-      const output = await executeInAlpine(state, async (containerID) => {
+      const output = await executeInstall(state, async (containerID) => {
         await setupPackageManager(containerID, packageManager);
       });
 
@@ -119,7 +120,7 @@ describe("devcontainers-cli", async () => {
   });
 
   it("preserves package-manager failures", async () => {
-    const output = await executeInAlpine(defaultState, async (containerID) => {
+    const output = await executeInstall(defaultState, async (containerID) => {
       await setupPackageManager(
         containerID,
         "npm",
@@ -128,11 +129,11 @@ describe("devcontainers-cli", async () => {
     });
 
     expect(output.exitCode).toBe(17);
-    expect(output.stderr).toEqual(["Failed to install @devcontainers/cli"]);
+    expect(output.stdout).toContain("Failed to install @devcontainers/cli");
   });
 
   it("fails when installation does not expose devcontainer on PATH", async () => {
-    const output = await executeInAlpine(defaultState, async (containerID) => {
+    const output = await executeInstall(defaultState, async (containerID) => {
       await setupPackageManager(
         containerID,
         "npm",
@@ -141,18 +142,65 @@ describe("devcontainers-cli", async () => {
     });
 
     expect(output.exitCode).toBe(1);
-    expect(output.stderr).toEqual([
+    expect(output.stdout).toContain(
       "Installation completed but 'devcontainer' command not found in PATH",
-    ]);
+    );
   });
+
+  it.each([0, 23])(
+    "preserves the login wait and sync failures (%i)",
+    async (exitCode) => {
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "some-agent-id",
+        start_blocks_login: true,
+      });
+      const waiter = findResourceInstance(
+        state,
+        "coder_script",
+        "wait_for_install",
+      );
+      const containerID = await runContainer("python:3.12-slim");
+      try {
+        await writeExecutable(
+          containerID,
+          "/usr/local/bin/coder",
+          `#!/bin/sh
+printf '%s\\n' "$*" >> /tmp/sync-calls
+if [ "$3" = start ]; then exit ${exitCode}; fi
+`,
+        );
+        const result = await execContainer(containerID, [
+          "bash",
+          "-c",
+          waiter.script,
+        ]);
+        expect(result.exitCode).toBe(exitCode);
+        const calls = await execContainer(containerID, [
+          "cat",
+          "/tmp/sync-calls",
+        ]);
+        expect(calls.stdout.trim().split("\n")).toEqual([
+          "exp sync want coder-devcontainers-cli-login coder-devcontainers-cli-install_script",
+          "exp sync start coder-devcontainers-cli-login",
+          "exp sync complete coder-devcontainers-cli-login",
+        ]);
+      } finally {
+        await removeContainer(containerID);
+      }
+    },
+  );
 
   it("uses npm registry configuration to install and run a pinned CLI", async () => {
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "some-agent-id",
-      devcontainers_cli_version: "0.80.0",
+      devcontainers_cli_version: "v0.80.0",
     });
-    const instance = findResourceInstance(state, "coder_script");
-    const containerID = await runContainer("node:22-alpine");
+    const instance = findResourceInstance(
+      state,
+      "coder_script",
+      "install_script",
+    );
+    const containerID = await runContainer("node:22-bookworm-slim");
     const path = `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${SCRIPT_BIN_DIR}`;
     const env = [
       "--env",
@@ -165,15 +213,22 @@ describe("devcontainers-cli", async () => {
 
     try {
       await execContainer(containerID, ["mkdir", "-p", SCRIPT_BIN_DIR]);
+      await mockCoderSync(containerID);
+      await execContainer(containerID, [
+        "rm",
+        "-f",
+        "/usr/local/bin/yarn",
+        "/usr/local/bin/yarnpkg",
+      ]);
       const npmrc = "registry=http://127.0.0.1:9/\nfetch-retries=0\n";
       await writeFileContainer(containerID, "/root/.npmrc", npmrc);
       const unavailableRegistry = await execContainer(
         containerID,
-        ["sh", "-c", instance.script],
+        ["bash", "-c", instance.script],
         env,
       );
       expect(unavailableRegistry.exitCode).not.toBe(0);
-      expect(unavailableRegistry.stderr).toContain("127.0.0.1:9");
+      expect(unavailableRegistry.stdout).toContain("127.0.0.1:9");
       const config = await execContainer(containerID, ["cat", "/root/.npmrc"]);
       expect(config.stdout).toBe(npmrc);
 
@@ -184,7 +239,7 @@ describe("devcontainers-cli", async () => {
       );
       const install = await execContainer(
         containerID,
-        ["sh", "-c", instance.script],
+        ["bash", "-c", instance.script],
         env,
       );
       expect(install.exitCode).toBe(0);
