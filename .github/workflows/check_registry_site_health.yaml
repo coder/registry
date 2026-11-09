@@ -8,7 +8,6 @@ on:
 permissions:
   contents: read
 
-# Runs every 15 minutes; never let a slow run overlap the next one.
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
