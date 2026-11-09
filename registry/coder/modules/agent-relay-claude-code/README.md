@@ -109,10 +109,14 @@ data "coder_script_order" "relay_runner" {
   installs the CLI (set `install_cli = false` and order the module after it).
 - With the default `requires = "success"`, a failed setup script skips
   this module and the runner never starts. Agent Relay newer than 0.15.0
-  fails the session about a minute after the agent reports the failure;
-  0.15.0 and older wait out the startup grace and then report that the
-  runner never started. Set `requires = "completion"` to start the runner
-  anyway.
+  reports the failure about a minute after the agent gives up and nacks
+  the work order as retryable, so Anthropic redelivers it, Agent Relay
+  rebuilds the workspace and setup runs once more; a second failure
+  fails the session. On 0.15.0 and older the status stays `pending`,
+  Anthropic redelivers at `dispatch_deadline`, and Agent Relay rebuilds
+  the workspace on every delivery, so the runner never starts and the
+  session is never served. Set `requires = "completion"` to start the
+  runner anyway.
 - While the rule holds the start step, `agent_relay_status` reads `pending`.
   The pool's `dispatch_deadline` from Requirements (default 5 minutes, at
   most 15) is counted from the work order's issue and covers the build,
@@ -124,9 +128,12 @@ data "coder_script_order" "relay_runner" {
 - Setup runs again when a prebuilt workspace is claimed, and the rule holds
   the runner until it finishes. Write setup so it skips work already done,
   for example `test -d ~/repo/.git || git clone ...`. Until setup finishes,
-  `agent_relay_status` still shows the prebuild's `idle`, not `pending`, and
-  a setup that fails on a claim leaves it at `idle`, which Agent Relay
-  neither reaps nor reports.
+  `agent_relay_status` still shows the prebuild's `idle`, not `pending`. A
+  setup that fails on a claim leaves it at `idle`: the reaper neither reaps
+  nor reports it, and because the status never reads `pending` the
+  one-retry rule above does not apply. Anthropic redelivers the work order
+  at `dispatch_deadline`, Agent Relay rebuilds the workspace and setup runs
+  again, on every delivery.
 - A `cli_binary` wrapper that waits for setup is not needed; the rule does
   the waiting.
 
