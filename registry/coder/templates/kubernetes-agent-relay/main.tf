@@ -186,14 +186,14 @@ resource "coder_agent" "main" {
 # Runs the Claude Code self-hosted runner and declares the parameters Agent
 # Relay sets on each build. Since 1.0.0 the work order arrives as an ephemeral
 # workspace secret, so it never appears in build parameters or Terraform
-# state. 1.0.0 requires Coder 2.39.0 and Agent Relay v0.14.0 or newer; an older
+# state. 1.x requires Coder 2.39.0 and Agent Relay v0.14.0 or newer; an older
 # relay refuses this template with `missing parameter "agent_relay_credential"`.
 # On an older deployment, pin 0.4.0 instead.
 # https://registry.coder.com/modules/coder/agent-relay-claude-code
 module "claude_code_runner" {
   count    = local.self_hosted_provider == "claude" ? 1 : 0
   source   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version  = "1.0.0"
+  version  = "~> 1.0"
   agent_id = coder_agent.main.id
   # install_cli defaults to true, which downloads the CLI at start only when it
   # is not already on PATH, so it costs nothing on the default image. If you
@@ -202,14 +202,14 @@ module "claude_code_runner" {
 }
 
 # Runs the Cursor worker and declares the parameters Agent Relay sets on each
-# build. Like the Claude Code module, 1.0.0 receives the session token as a
+# build. Like the Claude Code module, 1.x receives the session token as a
 # workspace secret and has the same Coder and Agent Relay requirements. On an
 # older deployment, pin 0.7.0 instead.
 # https://registry.coder.com/modules/coder/agent-relay-cursor
 module "cursor_worker" {
   count    = local.self_hosted_provider == "cursor" ? 1 : 0
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "1.0.0"
+  version  = "~> 1.0"
   agent_id = coder_agent.main.id
   # install_cli defaults to true, which downloads the CLI at start only when it
   # is not already on PATH, so it costs nothing on the default image. If you

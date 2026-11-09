@@ -15,13 +15,25 @@ exits, Agent Relay deletes the workspace.
 
 ## Prerequisites
 
-- Coder 2.39.0 or newer, and Agent Relay v0.14.0 or newer, which the 1.0.0
+- Coder 2.39.0 or newer, and Agent Relay v0.14.0 or newer, which the 1.x
   runner modules require. On older versions, pin `agent-relay-claude-code` to
   `0.4.0` and `agent-relay-cursor` to `0.7.0`.
 - A Docker host the provisioner can reach. The
   [Docker Containers](../docker/README.md) template covers giving Coder access
   to the Docker socket.
 - The settings under [Template settings](#template-settings).
+
+## Architecture
+
+This template provisions the following resources:
+
+- Docker container (ephemeral), one per session, named by workspace ID
+- Two `coder_workspace_preset` blocks, one per provider, each keeping a
+  prebuilt workspace running
+
+There is no volume. Agent Relay deletes the workspace when the runner exits,
+so nothing in the container outlives its session. To pre-bake tools into
+sessions, modify the container image.
 
 ## Selecting the provider
 
