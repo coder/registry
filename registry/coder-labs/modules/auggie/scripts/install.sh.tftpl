@@ -45,7 +45,7 @@ function add_path_to_shell_profiles() {
   for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
     if [ -f "$${profile}" ]; then
       if ! grep -q "$${path_dir}" "$${profile}" 2> /dev/null; then
-        echo "export PATH=\"\$PATH:$${path_dir}\"" >> "$${profile}"
+        echo "export PATH=\"$${path_dir}:\$PATH\"" >> "$${profile}"
         echo "Added $${path_dir} to $${profile}"
       fi
     fi
@@ -79,7 +79,7 @@ function ensure_auggie_in_path() {
   printf "Auggie CLI version: %s\n" "$${AUGGIE_VERSION}"
 
   if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/auggie" ]; then
-    ln -s "$${AUGGIE_BIN}" "$${CODER_SCRIPT_BIN_DIR}/auggie"
+    ln -sfn "$${AUGGIE_BIN}" "$${CODER_SCRIPT_BIN_DIR}/auggie"
     echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/auggie -> $${AUGGIE_BIN}"
   fi
 

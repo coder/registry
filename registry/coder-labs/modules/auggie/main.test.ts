@@ -231,6 +231,13 @@ describe("auggie", async () => {
     });
     await mockNpm(id);
     await execContainer(id, ["mkdir", "-p", "/tmp/coder-bin"]);
+    // A dangling link from an earlier install must be replaced.
+    await execContainer(id, [
+      "ln",
+      "-s",
+      "/nonexistent",
+      "/tmp/coder-bin/auggie",
+    ]);
     await runScripts(id, scripts, { CODER_SCRIPT_BIN_DIR: "/tmp/coder-bin" });
     const calls = await readFileContainer(id, "/tmp/npm-calls");
     expect(calls).toContain("config set prefix /home/coder/.npm-global");
@@ -240,7 +247,8 @@ describe("auggie", async () => {
     const link = await execContainer(id, ["readlink", "/tmp/coder-bin/auggie"]);
     expect(link.stdout.trim()).toBe("/home/coder/.npm-global/bin/auggie");
     const bashrc = await readFileContainer(id, "/home/coder/.bashrc");
-    expect(bashrc).toContain("/home/coder/.npm-global/bin");
+    // Prepended, as in v0, so an older auggie elsewhere on PATH does not win.
+    expect(bashrc).toContain('export PATH="/home/coder/.npm-global/bin:$PATH"');
   });
 
   test("npm-installs-latest-by-default", async () => {
