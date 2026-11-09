@@ -65,8 +65,9 @@ optional; see [Session attachment](#session-attachment).
 - The `claude` CLI must be in the workspace. `install_cli` (default `true`)
   downloads it at start only when it is not already on PATH; bake it into the
   image for the fastest start. `cli_binary` overrides the path.
-- Builds must finish inside Agent Relay's 300s spawn budget: pre-pulled
-  images, no persistent volumes.
+- Builds must finish inside the pool's `dispatch_deadline` (default 5m, max
+  15m), counted from the work order's issue: pre-pulled images, no
+  persistent volumes.
 
 ## Start the runner after your setup
 
@@ -86,7 +87,7 @@ resource "coder_script" "setup" {
   agent_id     = coder_agent.main.id
   display_name = "Workspace setup"
   run_on_start = true
-  timeout      = 300
+  timeout      = 120
   script       = file("${path.module}/setup.sh")
 }
 
@@ -107,13 +108,25 @@ data "coder_script_order" "relay_runner" {
   depends on in `coder_script` resources or modules, including a step that
   installs the CLI (set `install_cli = false` and order the module after it).
 - With the default `requires = "success"`, a failed setup script skips
-  this module and the runner never starts. Agent Relay fails the session
-  about a minute after the agent reports the failure. Set
-  `requires = "completion"` to start the runner anyway.
+  this module and the runner never starts. Agent Relay newer than 0.15.0
+  fails the session about a minute after the agent reports the failure;
+  0.15.0 and older wait out the startup grace and then report that the
+  runner never started. Set `requires = "completion"` to start the runner
+  anyway.
 - While the rule holds the start step, `agent_relay_status` reads `pending`.
-  Agent Relay deletes a workspace that stays `pending` for 15 minutes, so
-  keep setup under that. Prebuilt workspaces run setup at prebuild time and
-  are claimed in seconds.
+  The pool's `dispatch_deadline` from Requirements (default 5 minutes, at
+  most 15) is counted from the work order's issue and covers the build,
+  setup and runner start together. When the runner is not up within it,
+  Anthropic redelivers the work order and Agent Relay rebuilds the
+  workspace, which reruns setup, so a template that cannot fit is rebuilt
+  on every delivery and never serves. Keep the setup `timeout` well under
+  the deadline, or raise `dispatch_deadline` first.
+- Setup runs again when a prebuilt workspace is claimed, and the rule holds
+  the runner until it finishes. Write setup so it skips work already done,
+  for example `test -d ~/repo/.git || git clone ...`. Until setup finishes,
+  `agent_relay_status` still shows the prebuild's `idle`, not `pending`, and
+  a setup that fails on a claim leaves it at `idle`, which Agent Relay
+  neither reaps nor reports.
 - A `cli_binary` wrapper that waits for setup is not needed; the rule does
   the waiting.
 

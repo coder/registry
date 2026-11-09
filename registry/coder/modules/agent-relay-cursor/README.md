@@ -128,13 +128,23 @@ data "coder_script_order" "relay_worker" {
   depends on in `coder_script` resources or modules, including a step that
   installs the CLI (set `install_cli = false` and order the module after it).
 - With the default `requires = "success"`, a failed setup script skips
-  this module and the worker never starts. Agent Relay fails the session
-  about a minute after the agent reports the failure. Set
-  `requires = "completion"` to start the worker anyway.
+  this module and the worker never starts. Agent Relay newer than 0.15.0
+  fails the session about a minute after the agent reports the failure;
+  0.15.0 and older wait out the startup grace and then report that the
+  worker never started. Set `requires = "completion"` to start the worker
+  anyway.
 - While the rule holds the start step, `agent_relay_status` reads `pending`.
-  Agent Relay deletes a workspace that stays `pending` for 15 minutes, so
-  keep setup under that. Prebuilt workspaces run setup at prebuild time and
-  are claimed in seconds.
+  Agent Relay's `reapStartupGrace` (default 15 minutes) is measured from
+  the build's creation, so the build and setup together must finish within
+  it. Past it, Agent Relay deletes the workspace and reports that the
+  worker never started.
+- Setup runs again when a prebuilt workspace is claimed, and the rule holds
+  the worker until it finishes. Write setup so it skips work already done,
+  for example `test -d ~/repo/.git || git clone ...`. A repo-scoped pool
+  cannot clone at prebuild time, because the repository URL arrives with
+  the session. Until setup finishes, `agent_relay_status` still shows the
+  prebuild's `idle`, not `pending`, and a setup that fails on a claim
+  leaves it at `idle`, which Agent Relay neither reaps nor reports.
 - A `cli_binary` wrapper that waits for setup is not needed and is a trap:
   the status script recognises the worker by the binary's basename, so a
   wrapper not named `agent` reads as `orphaned`.
