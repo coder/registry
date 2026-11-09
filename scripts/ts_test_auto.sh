@@ -10,6 +10,10 @@ set -euo pipefail
 #
 # This script only runs tests for changed modules. Documentation and template changes are ignored.
 
+# Bun's default per-test timeout is 5s, which container-based tests exceed on
+# slow CI runners. Tests that set their own timeout keep it.
+TEST_TIMEOUT_MS="${TEST_TIMEOUT_MS:-30000}"
+
 echo "==> Detecting changed files..."
 
 if [[ -n "${ALL_CHANGED_FILES:-}" ]]; then
@@ -21,7 +25,7 @@ fi
 if [[ "${SHARED_CHANGED:-false}" == "true" ]]; then
   echo "==> Shared infrastructure changed"
   echo "==> Running all tests for safety"
-  exec bun test
+  exec bun test --timeout "$TEST_TIMEOUT_MS"
 fi
 
 if [[ -z "${MODULE_CHANGED_FILES:-}" ]]; then
@@ -60,4 +64,4 @@ for dir in "${MODULE_DIRS[@]}"; do
 done
 echo ""
 
-exec bun test "${MODULE_DIRS[@]}"
+exec bun test --timeout "$TEST_TIMEOUT_MS" "${MODULE_DIRS[@]}"

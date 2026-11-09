@@ -52,7 +52,20 @@ validate_terraform_directory() {
   # `terraform init` fails (for example a bad module source), skip validate
   # so we surface the real init error instead of misleading
   # "Module not installed" errors.
-  if ! terraform init -upgrade; then
+  # Provider downloads fail transiently in CI (registry or GitHub 5xx), so
+  # retry init a few times before reporting a failure.
+  local attempt init_ok=false
+  for attempt in 1 2 3; do
+    if terraform init -upgrade -input=false; then
+      init_ok=true
+      break
+    fi
+    if [[ $attempt -lt 3 ]]; then
+      echo "  terraform init failed in $dir (attempt $attempt), retrying in $((attempt * 5))s" >&2
+      sleep $((attempt * 5))
+    fi
+  done
+  if [[ "$init_ok" != true ]]; then
     echo "  ERROR: \`terraform init\` failed in $dir" >&2
     popd > /dev/null
     return 1
