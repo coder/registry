@@ -61,7 +61,7 @@ created.
 
 ## Requirements
 
-- Coder 2.39.0 or newer and Agent Relay v0.14.0 or newer. On those versions
+- Coder 2.39.0 or newer and Agent Relay 0.14.0 or newer. On those versions
   the relay delivers the worker token as an ephemeral workspace secret, which
   the agent injects as `AGENT_RELAY_CURSOR_TOKEN`; it is never a build
   parameter. A relay that still sends it as the `agent_relay_credential`
@@ -127,17 +127,17 @@ data "coder_script_order" "relay_worker" {
 - `coder_agent.startup_script` cannot be ordered. Put setup the worker
   depends on in `coder_script` resources or modules, including a step that
   installs the CLI (set `install_cli = false` and order the module after it).
-- With the default `requires = "success"`, a failed setup script skips
-  this module and the worker never starts. Agent Relay newer than 0.15.0
+- With the default `requires = "success"`, a setup script that fails or
+  times out skips this module and the worker never starts. Agent Relay newer than 0.15.0
   fails the session about a minute after the agent reports the failure;
   0.15.0 and older wait out the startup grace and then report that the
   worker never started. Set `requires = "completion"` to start the worker
   anyway.
 - While the rule holds the start step, `agent_relay_status` reads `pending`.
-  Agent Relay's `reapStartupGrace` (default 15 minutes) is measured from
-  the build's creation, so the build and setup together must finish within
-  it. Past it, Agent Relay deletes the workspace and reports that the
-  worker never started.
+  Agent Relay's startup grace (`--reap-startup-grace`, default 15 minutes)
+  is measured from the build's creation, so the build and setup together
+  must finish within it. Past it, Agent Relay deletes the workspace and
+  reports that the worker never started.
 - Setup runs again when a prebuilt workspace is claimed, and the rule holds
   the worker until it finishes. Write setup so it skips work already done,
   for example `test -d ~/repo/.git || git clone ...`. A repo-scoped pool
@@ -146,11 +146,11 @@ data "coder_script_order" "relay_worker" {
   prebuild's `idle`, not `pending`, and a setup that fails on a claim
   leaves it at `idle`, which Agent Relay neither reaps nor reports.
 - A `cli_binary` wrapper that waits for setup is not needed and is a trap:
-  the status script recognises the worker by the binary's basename, so a
+  the status script recognizes the worker by the binary's basename, so a
   wrapper not named `agent` reads as `orphaned`.
 
-The full example is in the Agent Relay repository under
-[`example/templates/cursor`](https://github.com/coder/agent-relay/tree/main/example/templates/cursor).
+The full walkthrough is in the Agent Relay docs under
+[Start the worker after workspace setup](https://coder.com/docs/ai-coder/agent-relay/setup#start-the-worker-after-workspace-setup).
 
 ## Worker credential
 
