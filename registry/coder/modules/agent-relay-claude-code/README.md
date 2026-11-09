@@ -130,10 +130,8 @@ data "coder_script_order" "relay_runner" {
   for example `test -d ~/repo/.git || git clone ...`. Until setup finishes,
   `agent_relay_status` still shows the prebuild's `idle`, not `pending`. A
   setup that fails on a claim leaves it at `idle`: the reaper neither reaps
-  nor reports it, and because the status never reads `pending` the
-  one-retry rule above does not apply. Anthropic redelivers the work order
-  at `dispatch_deadline`, Agent Relay rebuilds the workspace and setup runs
-  again, on every delivery.
+  nor reports it. Anthropic redelivers the work order at `dispatch_deadline`
+  and Agent Relay rebuilds the workspace, so setup runs again.
 - A `cli_binary` wrapper that waits for setup is not needed; the rule does
   the waiting.
 
