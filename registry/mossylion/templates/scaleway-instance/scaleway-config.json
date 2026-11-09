@@ -1,450 +1,962 @@
 [
   {
-    "name": "COPARM1-2C-8G",
-    "cpu": 2,
+    "name": "BASIC2-A12C-24G",
+    "cpu": 12,
     "gpu": 0,
-    "ram": 8589934592,
-    "arch": "arm64"
+    "ram": 25769803776,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
   },
   {
-    "name": "COPARM1-4C-16G",
-    "cpu": 4,
+    "name": "BASIC2-A12C-48G",
+    "cpu": 12,
     "gpu": 0,
-    "ram": 17179869184,
-    "arch": "arm64"
+    "ram": 51539607552,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
   },
   {
-    "name": "COPARM1-8C-32G",
-    "cpu": 8,
+    "name": "BASIC2-A16C-32G",
+    "cpu": 16,
     "gpu": 0,
     "ram": 34359738368,
-    "arch": "arm64"
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
   },
   {
-    "name": "COPARM1-16C-64G",
+    "name": "BASIC2-A16C-64G",
     "cpu": 16,
     "gpu": 0,
     "ram": 68719476736,
-    "arch": "arm64"
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
   },
   {
-    "name": "COPARM1-32C-128G",
-    "cpu": 32,
-    "gpu": 0,
-    "ram": 137438953472,
-    "arch": "arm64"
-  },
-  {
-    "name": "DEV1-S",
+    "name": "BASIC2-A2C-4G",
     "cpu": 2,
     "gpu": 0,
-    "ram": 2147483648,
-    "arch": "x86_64"
+    "ram": 4294967296,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
   },
   {
-    "name": "DEV1-M",
-    "cpu": 3,
+    "name": "BASIC2-A2C-8G",
+    "cpu": 2,
+    "gpu": 0,
+    "ram": 8589934592,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC2-A4C-16G",
+    "cpu": 4,
+    "gpu": 0,
+    "ram": 17179869184,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC2-A4C-8G",
+    "cpu": 4,
+    "gpu": 0,
+    "ram": 8589934592,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC2-A6C-12G",
+    "cpu": 6,
+    "gpu": 0,
+    "ram": 12884901888,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC2-A6C-24G",
+    "cpu": 6,
+    "gpu": 0,
+    "ram": 25769803776,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC2-A8C-16G",
+    "cpu": 8,
+    "gpu": 0,
+    "ram": 17179869184,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC2-A8C-32G",
+    "cpu": 8,
+    "gpu": 0,
+    "ram": 34359738368,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC3-X12C-24G",
+    "cpu": 12,
+    "gpu": 0,
+    "ram": 25769803776,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC3-X12C-48G",
+    "cpu": 12,
+    "gpu": 0,
+    "ram": 51539607552,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC3-X16C-32G",
+    "cpu": 16,
+    "gpu": 0,
+    "ram": 34359738368,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC3-X16C-64G",
+    "cpu": 16,
+    "gpu": 0,
+    "ram": 68719476736,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC3-X2C-4G",
+    "cpu": 2,
     "gpu": 0,
     "ram": 4294967296,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC3-X2C-8G",
+    "cpu": 2,
+    "gpu": 0,
+    "ram": 8589934592,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC3-X4C-16G",
+    "cpu": 4,
+    "gpu": 0,
+    "ram": 17179869184,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC3-X4C-8G",
+    "cpu": 4,
+    "gpu": 0,
+    "ram": 8589934592,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC3-X6C-12G",
+    "cpu": 6,
+    "gpu": 0,
+    "ram": 12884901888,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC3-X6C-24G",
+    "cpu": 6,
+    "gpu": 0,
+    "ram": 25769803776,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC3-X8C-16G",
+    "cpu": 8,
+    "gpu": 0,
+    "ram": 17179869184,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "BASIC3-X8C-32G",
+    "cpu": 8,
+    "gpu": 0,
+    "ram": 34359738368,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "COMPUTE3-X12C-24G",
+    "cpu": 12,
+    "gpu": 0,
+    "ram": 25769803776,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "COMPUTE3-X16C-32G",
+    "cpu": 16,
+    "gpu": 0,
+    "ram": 34359738368,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "COMPUTE3-X24C-48G",
+    "cpu": 24,
+    "gpu": 0,
+    "ram": 51539607552,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "COMPUTE3-X2C-4G",
+    "cpu": 2,
+    "gpu": 0,
+    "ram": 4294967296,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "COMPUTE3-X32C-64G",
+    "cpu": 32,
+    "gpu": 0,
+    "ram": 68719476736,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "COMPUTE3-X48C-96G",
+    "cpu": 48,
+    "gpu": 0,
+    "ram": 103079215104,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "COMPUTE3-X4C-8G",
+    "cpu": 4,
+    "gpu": 0,
+    "ram": 8589934592,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "COMPUTE3-X64C-128G",
+    "cpu": 64,
+    "gpu": 0,
+    "ram": 137438953472,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "COMPUTE3-X6C-12G",
+    "cpu": 6,
+    "gpu": 0,
+    "ram": 12884901888,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "COMPUTE3-X8C-16G",
+    "cpu": 8,
+    "gpu": 0,
+    "ram": 17179869184,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "COMPUTE3-X96C-192G",
+    "cpu": 96,
+    "gpu": 0,
+    "ram": 206158430208,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
   },
   {
     "name": "DEV1-L",
     "cpu": 4,
     "gpu": 0,
     "ram": 8589934592,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "DEV1-M",
+    "cpu": 3,
+    "gpu": 0,
+    "ram": 4294967296,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "DEV1-S",
+    "cpu": 2,
+    "gpu": 0,
+    "ram": 2147483648,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
   },
   {
     "name": "DEV1-XL",
     "cpu": 4,
     "gpu": 0,
     "ram": 12884901888,
-    "arch": "x86_64"
-  },
-  {
-    "name": "ENT1-XXS",
-    "cpu": 2,
-    "gpu": 0,
-    "ram": 8589934592,
-    "arch": "x86_64"
-  },
-  {
-    "name": "ENT1-XS",
-    "cpu": 4,
-    "gpu": 0,
-    "ram": 17179869184,
-    "arch": "x86_64"
-  },
-  {
-    "name": "ENT1-S",
-    "cpu": 8,
-    "gpu": 0,
-    "ram": 34359738368,
-    "arch": "x86_64"
-  },
-  {
-    "name": "ENT1-M",
-    "cpu": 16,
-    "gpu": 0,
-    "ram": 68719476736,
-    "arch": "x86_64"
-  },
-  {
-    "name": "ENT1-L",
-    "cpu": 32,
-    "gpu": 0,
-    "ram": 137438953472,
-    "arch": "x86_64"
-  },
-  {
-    "name": "ENT1-XL",
-    "cpu": 64,
-    "gpu": 0,
-    "ram": 274877906944,
-    "arch": "x86_64"
-  },
-  {
-    "name": "ENT1-2XL",
-    "cpu": 96,
-    "gpu": 0,
-    "ram": 412316860416,
-    "arch": "x86_64"
-  },
-  {
-    "name": "GP1-XS",
-    "cpu": 4,
-    "gpu": 0,
-    "ram": 17179869184,
-    "arch": "x86_64"
-  },
-  {
-    "name": "GP1-S",
-    "cpu": 8,
-    "gpu": 0,
-    "ram": 34359738368,
-    "arch": "x86_64"
-  },
-  {
-    "name": "GP1-M",
-    "cpu": 16,
-    "gpu": 0,
-    "ram": 68719476736,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
   },
   {
     "name": "GP1-L",
     "cpu": 32,
     "gpu": 0,
     "ram": 137438953472,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "GP1-M",
+    "cpu": 16,
+    "gpu": 0,
+    "ram": 68719476736,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "GP1-S",
+    "cpu": 8,
+    "gpu": 0,
+    "ram": 34359738368,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
   },
   {
     "name": "GP1-XL",
     "cpu": 48,
     "gpu": 0,
     "ram": 274877906944,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "GP1-XS",
+    "cpu": 4,
+    "gpu": 0,
+    "ram": 17179869184,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
   },
   {
     "name": "L4-1-24G",
     "cpu": 8,
     "gpu": 1,
     "ram": 51539607552,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par"]
   },
   {
     "name": "L4-2-24G",
     "cpu": 16,
     "gpu": 2,
     "ram": 103079215104,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par"]
   },
   {
     "name": "L4-4-24G",
     "cpu": 32,
     "gpu": 4,
     "ram": 206158430208,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par"]
   },
   {
     "name": "L4-8-24G",
     "cpu": 64,
     "gpu": 8,
     "ram": 412316860416,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par"]
   },
   {
-    "name": "PLAY2-PICO",
-    "cpu": 1,
+    "name": "MEMORY3-X12C-96G",
+    "cpu": 12,
     "gpu": 0,
-    "ram": 2147483648,
-    "arch": "x86_64"
+    "ram": 103079215104,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
   },
   {
-    "name": "PLAY2-NANO",
+    "name": "MEMORY3-X16C-128G",
+    "cpu": 16,
+    "gpu": 0,
+    "ram": 137438953472,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "MEMORY3-X24C-192G",
+    "cpu": 24,
+    "gpu": 0,
+    "ram": 206158430208,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "MEMORY3-X2C-16G",
     "cpu": 2,
     "gpu": 0,
-    "ram": 4294967296,
-    "arch": "x86_64"
+    "ram": 17179869184,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "MEMORY3-X32C-256G",
+    "cpu": 32,
+    "gpu": 0,
+    "ram": 274877906944,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "MEMORY3-X48C-384G",
+    "cpu": 48,
+    "gpu": 0,
+    "ram": 412316860416,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "MEMORY3-X4C-32G",
+    "cpu": 4,
+    "gpu": 0,
+    "ram": 34359738368,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "MEMORY3-X6C-48G",
+    "cpu": 6,
+    "gpu": 0,
+    "ram": 51539607552,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "MEMORY3-X8C-64G",
+    "cpu": 8,
+    "gpu": 0,
+    "ram": 68719476736,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
   },
   {
     "name": "PLAY2-MICRO",
     "cpu": 4,
     "gpu": 0,
     "ram": 8589934592,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
   },
   {
-    "name": "POP2-HC-2C-4G",
+    "name": "PLAY2-NANO",
     "cpu": 2,
     "gpu": 0,
     "ram": 4294967296,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
   },
   {
-    "name": "POP2-2C-8G",
-    "cpu": 2,
+    "name": "PLAY2-PICO",
+    "cpu": 1,
     "gpu": 0,
-    "ram": 8589934592,
-    "arch": "x86_64"
+    "ram": 2147483648,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
   },
   {
-    "name": "POP2-HM-2C-16G",
-    "cpu": 2,
+    "name": "POP2-12C-48G",
+    "cpu": 12,
     "gpu": 0,
-    "ram": 17179869184,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-HC-4C-8G",
-    "cpu": 4,
-    "gpu": 0,
-    "ram": 8589934592,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-4C-16G",
-    "cpu": 4,
-    "gpu": 0,
-    "ram": 17179869184,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-2C-8G-WIN",
-    "cpu": 2,
-    "gpu": 0,
-    "ram": 8589934592,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-HM-4C-32G",
-    "cpu": 4,
-    "gpu": 0,
-    "ram": 34359738368,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-HC-8C-16G",
-    "cpu": 8,
-    "gpu": 0,
-    "ram": 17179869184,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-HN-3",
-    "cpu": 2,
-    "gpu": 0,
-    "ram": 4294967296,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-8C-32G",
-    "cpu": 8,
-    "gpu": 0,
-    "ram": 34359738368,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-4C-16G-WIN",
-    "cpu": 4,
-    "gpu": 0,
-    "ram": 17179869184,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-HM-8C-64G",
-    "cpu": 8,
-    "gpu": 0,
-    "ram": 68719476736,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-HC-16C-32G",
-    "cpu": 16,
-    "gpu": 0,
-    "ram": 34359738368,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-HN-5",
-    "cpu": 4,
-    "gpu": 0,
-    "ram": 8589934592,
-    "arch": "x86_64"
+    "ram": 51539607552,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
   },
   {
     "name": "POP2-16C-64G",
     "cpu": 16,
     "gpu": 0,
     "ram": 68719476736,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
   },
   {
-    "name": "POP2-8C-32G-WIN",
-    "cpu": 8,
+    "name": "POP2-24C-96G",
+    "cpu": 24,
     "gpu": 0,
-    "ram": 34359738368,
-    "arch": "x86_64"
+    "ram": 103079215104,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
   },
   {
-    "name": "POP2-HN-10",
-    "cpu": 4,
+    "name": "POP2-2C-8G",
+    "cpu": 2,
     "gpu": 0,
     "ram": 8589934592,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-HM-16C-128G",
-    "cpu": 16,
-    "gpu": 0,
-    "ram": 137438953472,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-HC-32C-64G",
-    "cpu": 32,
-    "gpu": 0,
-    "ram": 68719476736,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
   },
   {
     "name": "POP2-32C-128G",
     "cpu": 32,
     "gpu": 0,
     "ram": 137438953472,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-HC-48C-96G",
-    "cpu": 48,
-    "gpu": 0,
-    "ram": 103079215104,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-16C-64G-WIN",
-    "cpu": 16,
-    "gpu": 0,
-    "ram": 68719476736,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-HM-32C-256G",
-    "cpu": 32,
-    "gpu": 0,
-    "ram": 274877906944,
-    "arch": "x86_64"
-  },
-  {
-    "name": "POP2-HC-64C-128G",
-    "cpu": 64,
-    "gpu": 0,
-    "ram": 137438953472,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
   },
   {
     "name": "POP2-48C-192G",
     "cpu": 48,
     "gpu": 0,
     "ram": 206158430208,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "POP2-4C-16G",
+    "cpu": 4,
+    "gpu": 0,
+    "ram": 17179869184,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
   },
   {
     "name": "POP2-64C-256G",
     "cpu": 64,
     "gpu": 0,
     "ram": 274877906944,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "POP2-6C-24G",
+    "cpu": 6,
+    "gpu": 0,
+    "ram": 25769803776,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "POP2-8C-32G",
+    "cpu": 8,
+    "gpu": 0,
+    "ram": 34359738368,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "POP2-HC-12C-24G",
+    "cpu": 12,
+    "gpu": 0,
+    "ram": 25769803776,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "POP2-HC-16C-32G",
+    "cpu": 16,
+    "gpu": 0,
+    "ram": 34359738368,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "POP2-HC-24C-48G",
+    "cpu": 24,
+    "gpu": 0,
+    "ram": 51539607552,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "POP2-HC-2C-4G",
+    "cpu": 2,
+    "gpu": 0,
+    "ram": 4294967296,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "POP2-HC-32C-64G",
+    "cpu": 32,
+    "gpu": 0,
+    "ram": 68719476736,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "POP2-HC-48C-96G",
+    "cpu": 48,
+    "gpu": 0,
+    "ram": 103079215104,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "POP2-HC-4C-8G",
+    "cpu": 4,
+    "gpu": 0,
+    "ram": 8589934592,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "POP2-HC-64C-128G",
+    "cpu": 64,
+    "gpu": 0,
+    "ram": 137438953472,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "POP2-HC-6C-12G",
+    "cpu": 6,
+    "gpu": 0,
+    "ram": 12884901888,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "POP2-HC-8C-16G",
+    "cpu": 8,
+    "gpu": 0,
+    "ram": 17179869184,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "POP2-HM-12C-96G",
+    "cpu": 12,
+    "gpu": 0,
+    "ram": 103079215104,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "POP2-HM-16C-128G",
+    "cpu": 16,
+    "gpu": 0,
+    "ram": 137438953472,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "POP2-HM-24C-192G",
+    "cpu": 24,
+    "gpu": 0,
+    "ram": 206158430208,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "POP2-HM-2C-16G",
+    "cpu": 2,
+    "gpu": 0,
+    "ram": 17179869184,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "POP2-HM-32C-256G",
+    "cpu": 32,
+    "gpu": 0,
+    "ram": 274877906944,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
   },
   {
     "name": "POP2-HM-48C-384G",
     "cpu": 48,
     "gpu": 0,
     "ram": 412316860416,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
   },
   {
-    "name": "POP2-32C-128G-WIN",
-    "cpu": 32,
+    "name": "POP2-HM-4C-32G",
+    "cpu": 4,
     "gpu": 0,
-    "ram": 137438953472,
-    "arch": "x86_64"
+    "ram": 34359738368,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
   },
   {
     "name": "POP2-HM-64C-512G",
     "cpu": 64,
     "gpu": 0,
     "ram": 549755813888,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
   },
   {
-    "name": "PRO2-XXS",
-    "cpu": 2,
+    "name": "POP2-HM-6C-48G",
+    "cpu": 6,
     "gpu": 0,
-    "ram": 8589934592,
-    "arch": "x86_64"
+    "ram": 51539607552,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
   },
   {
-    "name": "PRO2-XS",
-    "cpu": 4,
-    "gpu": 0,
-    "ram": 17179869184,
-    "arch": "x86_64"
-  },
-  {
-    "name": "PRO2-S",
+    "name": "POP2-HM-8C-64G",
     "cpu": 8,
     "gpu": 0,
-    "ram": 34359738368,
-    "arch": "x86_64"
+    "ram": 68719476736,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
   },
   {
-    "name": "PRO2-M",
-    "cpu": 16,
+    "name": "POP2-HN-10",
+    "cpu": 4,
     "gpu": 0,
-    "ram": 68719476736,
-    "arch": "x86_64"
+    "ram": 8589934592,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "POP2-HN-3",
+    "cpu": 2,
+    "gpu": 0,
+    "ram": 4294967296,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "POP2-HN-5",
+    "cpu": 4,
+    "gpu": 0,
+    "ram": 8589934592,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
   },
   {
     "name": "PRO2-L",
     "cpu": 32,
     "gpu": 0,
     "ram": 137438953472,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "PRO2-M",
+    "cpu": 16,
+    "gpu": 0,
+    "ram": 68719476736,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "PRO2-S",
+    "cpu": 8,
+    "gpu": 0,
+    "ram": 34359738368,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "PRO2-XS",
+    "cpu": 4,
+    "gpu": 0,
+    "ram": 17179869184,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
+  },
+  {
+    "name": "PRO2-XXS",
+    "cpu": 2,
+    "gpu": 0,
+    "ram": 8589934592,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams", "pl-waw"]
   },
   {
     "name": "RENDER-S",
     "cpu": 10,
     "gpu": 1,
     "ram": 45097156608,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par"]
+  },
+  {
+    "name": "STANDARD2-A12C-48G",
+    "cpu": 12,
+    "gpu": 0,
+    "ram": 51539607552,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD2-A16C-64G",
+    "cpu": 16,
+    "gpu": 0,
+    "ram": 68719476736,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD2-A24C-96G",
+    "cpu": 24,
+    "gpu": 0,
+    "ram": 103079215104,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD2-A2C-8G",
+    "cpu": 2,
+    "gpu": 0,
+    "ram": 8589934592,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD2-A32C-128G",
+    "cpu": 32,
+    "gpu": 0,
+    "ram": 137438953472,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD2-A48C-192G",
+    "cpu": 48,
+    "gpu": 0,
+    "ram": 206158430208,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD2-A4C-16G",
+    "cpu": 4,
+    "gpu": 0,
+    "ram": 17179869184,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD2-A64C-256G",
+    "cpu": 64,
+    "gpu": 0,
+    "ram": 274877906944,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD2-A6C-24G",
+    "cpu": 6,
+    "gpu": 0,
+    "ram": 25769803776,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD2-A8C-32G",
+    "cpu": 8,
+    "gpu": 0,
+    "ram": 34359738368,
+    "arch": "arm64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD3-X12C-48G",
+    "cpu": 12,
+    "gpu": 0,
+    "ram": 51539607552,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD3-X16C-64G",
+    "cpu": 16,
+    "gpu": 0,
+    "ram": 68719476736,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD3-X24C-96G",
+    "cpu": 24,
+    "gpu": 0,
+    "ram": 103079215104,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD3-X2C-8G",
+    "cpu": 2,
+    "gpu": 0,
+    "ram": 8589934592,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD3-X32C-128G",
+    "cpu": 32,
+    "gpu": 0,
+    "ram": 137438953472,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD3-X48C-192G",
+    "cpu": 48,
+    "gpu": 0,
+    "ram": 206158430208,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD3-X4C-16G",
+    "cpu": 4,
+    "gpu": 0,
+    "ram": 17179869184,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD3-X64C-256G",
+    "cpu": 64,
+    "gpu": 0,
+    "ram": 274877906944,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD3-X6C-24G",
+    "cpu": 6,
+    "gpu": 0,
+    "ram": 25769803776,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
+  },
+  {
+    "name": "STANDARD3-X8C-32G",
+    "cpu": 8,
+    "gpu": 0,
+    "ram": 34359738368,
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
   },
   {
     "name": "STARDUST1-S",
     "cpu": 1,
     "gpu": 0,
     "ram": 1073741824,
-    "arch": "x86_64"
+    "arch": "x64",
+    "regions": ["fr-par", "nl-ams"]
   }
 ]

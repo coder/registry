@@ -10,6 +10,7 @@ command_exists() {
 }
 
 ARG_INSTALL='${ARG_INSTALL}'
+ARG_MANAGE_CONFIG='${ARG_MANAGE_CONFIG}'
 ARG_CODEX_VERSION='${ARG_CODEX_VERSION}'
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
 ARG_BASE_CONFIG_TOML=$(echo -n '${ARG_BASE_CONFIG_TOML}' | base64 -d)
@@ -130,6 +131,10 @@ EOF
 }
 
 function populate_config_toml() {
+  if [ "$${ARG_MANAGE_CONFIG}" != "true" ]; then
+    echo "Skipping Codex configuration; config.toml remains user-managed."
+    return
+  fi
   local config_path="$${CODEX_HOME:-$HOME/.codex}/config.toml"
   mkdir -p "$(dirname "$${config_path}")"
 

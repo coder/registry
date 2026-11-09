@@ -111,7 +111,7 @@ describe("amp", async () => {
       skipAmpMock: true,
       moduleVariables: {
         install_via_npm: "true",
-        amp_version: "0.0.1755964909-g31e083",
+        amp_version: "0.0.1794196844-g44d37b",
       },
     });
     await execModuleScript(id);
@@ -119,8 +119,8 @@ describe("amp", async () => {
       id,
       "/home/coder/.amp-module/agentapi-start.log",
     );
-    expect(resp).toContain("0.0.1755964909-g31e08");
-  });
+    expect(resp).toContain("0.0.1794196844-g44d37b");
+  }, 120_000);
 
   test("install-via-npm", async () => {
     const { id } = await setup({
