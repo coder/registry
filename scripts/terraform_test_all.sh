@@ -22,26 +22,10 @@ test_root() {
   echo "$dir"
 }
 
-# Provider downloads fail transiently in CI (registry or GitHub 5xx), so retry
-# init a few times before reporting a failure.
-init_with_retry() {
-  local attempt
-  for attempt in 1 2 3; do
-    if terraform init -upgrade -input=false -no-color > /dev/null; then
-      return 0
-    fi
-    if [[ $attempt -lt 3 ]]; then
-      echo "terraform init failed in $PWD (attempt $attempt), retrying in $((attempt * 5))s" >&2
-      sleep $((attempt * 5))
-    fi
-  done
-  return 1
-}
-
 run_dir() {
   local dir="$1"
   echo "==> Running terraform test in $dir"
-  (cd "$dir" && init_with_retry && terraform test -no-color -verbose)
+  (cd "$dir" && terraform init -upgrade -input=false -no-color > /dev/null && terraform test -no-color -verbose)
 }
 
 echo "==> Detecting changed files..."

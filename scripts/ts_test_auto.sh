@@ -10,8 +10,6 @@ set -euo pipefail
 #
 # This script only runs tests for changed modules. Documentation and template changes are ignored.
 
-# Bun's default per-test timeout is 5s, which container-based tests exceed on
-# slow CI runners. Tests that set their own timeout keep it.
 TEST_TIMEOUT_MS="${TEST_TIMEOUT_MS:-30000}"
 
 echo "==> Detecting changed files..."

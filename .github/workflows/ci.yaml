@@ -42,11 +42,6 @@ jobs:
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_wrapper: false
-      # Share downloaded providers across every `terraform init` in this job
-      # (one per module and template) so each provider is fetched once instead
-      # of dozens of times. Fewer downloads means fewer transient registry and
-      # GitHub 5xx failures. Lock files are not committed, so allow Terraform
-      # to use the cache without them.
       - name: Set up Terraform plugin cache
         run: |
           mkdir -p "$RUNNER_TEMP/terraform-plugin-cache"
