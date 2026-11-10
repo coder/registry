@@ -39,15 +39,47 @@ variable "image" {
 }
 
 variable "cpu" {
-  type        = string
-  description = "CPU cores for each session pod."
-  default     = "2"
+  type        = number
+  description = "CPU cores for each session pod. Fractions such as 0.5 are allowed."
+  default     = 2
+
+  validation {
+    condition     = var.cpu > 0
+    error_message = "cpu must be greater than 0."
+  }
 }
 
 variable "memory" {
-  type        = string
-  description = "Memory in GiB for each session pod."
-  default     = "4"
+  type        = number
+  description = "Memory in GiB for each session pod. Fractions such as 0.5 are allowed."
+  default     = 4
+
+  validation {
+    condition     = var.memory > 0
+    error_message = "memory must be greater than 0."
+  }
+}
+
+variable "claude_code_prebuilds" {
+  type        = number
+  description = "Prebuilt Claude Code workspaces to keep ready. Set 0 if no Claude Code pool uses this template."
+  default     = 1
+
+  validation {
+    condition     = var.claude_code_prebuilds >= 0 && floor(var.claude_code_prebuilds) == var.claude_code_prebuilds
+    error_message = "claude_code_prebuilds must be a whole number of at least 0."
+  }
+}
+
+variable "cursor_prebuilds" {
+  type        = number
+  description = "Prebuilt Cursor workspaces to keep ready. Set 0 if no Cursor pool uses this template."
+  default     = 1
+
+  validation {
+    condition     = var.cursor_prebuilds >= 0 && floor(var.cursor_prebuilds) == var.cursor_prebuilds
+    error_message = "cursor_prebuilds must be a whole number of at least 0."
+  }
 }
 
 provider "kubernetes" {
@@ -60,12 +92,15 @@ data "coder_workspace_owner" "me" {}
 # Each Agent Relay pool stamps this through its template_parameters, so one
 # template serves both providers. Only the selected runner module is
 # instantiated, which keeps the other module's parameters off the build.
+#
+# No default, so the parameter is required: Agent Relay marks a pool that does
+# not set it degraded, instead of building the wrong runner. The presets and
+# the workspace form supply a value everywhere else.
 data "coder_parameter" "self_hosted_provider" {
   name         = "self_hosted_provider"
   display_name = "Self-hosted provider"
   description  = "Which Agent Relay runner this workspace serves. Agent Relay pools set this through template_parameters."
   type         = "string"
-  default      = "claude"
   mutable      = false
 
   option {
@@ -96,10 +131,12 @@ data "coder_parameter" "repo_url" {
   mutable      = true
 }
 
-# One prebuilt workspace per provider, so a session claims a running workspace
-# instead of waiting for a cold start. Each session must be built within its
-# pool's dispatch_deadline: by default 5 minutes from the work order for
-# Claude Code and 10 minutes from the claim for Cursor, at most 15 for either.
+# Prebuilt workspaces per provider, so a session claims a running workspace
+# instead of waiting for a cold start. claude_code_prebuilds and
+# cursor_prebuilds set each pool's size; 0 turns a provider's prebuilds off.
+# Each session must be built within its pool's dispatch_deadline: by default
+# 5 minutes from the work order for Claude Code and 10 minutes from the claim
+# for Cursor, at most 15 for either.
 #
 # Each preset pins only self_hosted_provider. Coder hands a build a prebuild
 # only when every preset parameter matches a value in the build request, and
@@ -112,7 +149,7 @@ data "coder_parameter" "repo_url" {
 # with the relay's parameters and the agent restarts the runner module's
 # scripts.
 #
-# Size instances to how many sessions start at once. Each instance is a
+# Size each count to how many sessions start at once. Each instance is a
 # workspace running continuously, and once every prebuild is claimed, new
 # sessions build cold until Coder replaces them. Prebuild jobs also need
 # provisioners and compete with session builds for the queue; where possible,
@@ -125,7 +162,7 @@ data "coder_workspace_preset" "claude" {
     (data.coder_parameter.self_hosted_provider.name) = "claude"
   }
   prebuilds {
-    instances = 1
+    instances = var.claude_code_prebuilds
     # Replace an unclaimed prebuild hourly, so a session does not start on an
     # image tag that has moved since.
     expiration_policy {
@@ -142,7 +179,7 @@ data "coder_workspace_preset" "cursor" {
     (data.coder_parameter.self_hosted_provider.name) = "cursor"
   }
   prebuilds {
-    instances = 1
+    instances = var.cursor_prebuilds
     expiration_policy {
       ttl = 3600
     }
@@ -158,8 +195,14 @@ locals {
 
   # Indexed references keep the agent dependent on the output alone. A splat
   # would pull in the whole module, which depends on the agent.
-  status_metadata_script           = try(module.cursor_worker[0].status_metadata_script, module.claude_code_runner[0].status_metadata_script)
-  session_attached_metadata_script = try(module.cursor_worker[0].session_attached_metadata_script, module.claude_code_runner[0].session_attached_metadata_script)
+  #
+  # Coder evaluates the template without a self_hosted_provider value on
+  # import, so neither module exists and the last fallback applies. A build
+  # cannot reach it, because the parameter is required and limited to its
+  # options.
+  no_provider_script               = "echo 'self_hosted_provider is not set' >&2; exit 1"
+  status_metadata_script           = try(module.cursor_worker[0].status_metadata_script, module.claude_code_runner[0].status_metadata_script, local.no_provider_script)
+  session_attached_metadata_script = try(module.cursor_worker[0].session_attached_metadata_script, module.claude_code_runner[0].session_attached_metadata_script, local.no_provider_script)
 }
 
 # Lets a session clone and push over HTTPS with the workspace owner's GitHub
@@ -377,11 +420,11 @@ resource "kubernetes_pod_v1" "workspace" {
 
       resources {
         requests = {
-          "cpu"    = var.cpu
+          "cpu"    = tostring(var.cpu)
           "memory" = "${var.memory}Gi"
         }
         limits = {
-          "cpu"    = var.cpu
+          "cpu"    = tostring(var.cpu)
           "memory" = "${var.memory}Gi"
         }
       }

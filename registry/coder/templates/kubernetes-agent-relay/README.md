@@ -29,7 +29,8 @@ exits, Agent Relay deletes the workspace.
 
 This template provisions the following resources:
 
-- Kubernetes pod (ephemeral), one per session, named by workspace ID
+- Kubernetes pod (ephemeral), one per session, named by workspace ID, with
+  `cpu` and `memory` as both its requests and limits
 - Two `coder_workspace_preset` blocks, one per provider, each keeping a
   prebuilt workspace running
 - A `Workspace setup` script that clones a repository-scoped Cursor pool's
@@ -51,6 +52,9 @@ pool and a Cursor pool can share this template:
 ```json
 { "template_parameters": { "self_hosted_provider": "cursor" } }
 ```
+
+The parameter has no default, so every pool must set it. Agent Relay marks a
+pool that leaves it out degraded rather than building the wrong runner.
 
 The agent publishes the modules' `agent_relay_status` and
 `agent_relay_session_attached` metadata items. Agent Relay deletes the
@@ -95,13 +99,14 @@ the Claude Code runner clones each session's repository itself.
 
 ## Prebuilt workspaces
 
-Each provider has a `coder_workspace_preset` that keeps one prebuilt workspace
-running and replaces it after an hour unclaimed, so a session claims a running
-workspace instead of waiting for a cold start. Prebuilds need a Premium
-license.
+Each provider has a `coder_workspace_preset` that keeps prebuilt workspaces
+running and replaces each after an hour unclaimed, so a session claims a
+running workspace instead of waiting for a cold start. Prebuilds need a
+Premium license.
 
-- Size `instances` to how many sessions start at once. Each instance runs
-  until a session claims it.
+- Set `claude_code_prebuilds` and `cursor_prebuilds` (default `1` each) to how
+  many sessions of that provider start at once. Each instance runs until a
+  session claims it. Set `0` for a provider no pool uses.
 - Pin only `self_hosted_provider` and any other values the pool sets in
   `template_parameters`, or Agent Relay's builds never match the preset.
   `repo_url` does not need pinning, because the clone runs on claim.

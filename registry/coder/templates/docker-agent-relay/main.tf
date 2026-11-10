@@ -7,6 +7,8 @@ terraform {
     }
     docker = {
       source = "kreuzwerker/docker"
+      # 3.6.0 applies cpu_period and cpu_quota, which limit the container's CPU.
+      version = ">= 3.6.0"
     }
   }
 }
@@ -14,15 +16,59 @@ terraform {
 provider "coder" {}
 
 variable "docker_socket" {
-  default     = ""
-  description = "(Optional) Docker socket URI"
   type        = string
+  description = "(Optional) Docker socket URI"
+  default     = ""
 }
 
 variable "image" {
   type        = string
   description = "Container image for workspaces. The default carries the Claude Code and Cursor CLIs."
   default     = "ghcr.io/coder/agent-relay-workspace:latest"
+}
+
+variable "cpu" {
+  type        = number
+  description = "CPU cores for each session container. Fractions such as 0.5 are allowed."
+  default     = 2
+
+  validation {
+    condition     = var.cpu > 0
+    error_message = "cpu must be greater than 0."
+  }
+}
+
+variable "memory" {
+  type        = number
+  description = "Memory in GiB for each session container. Fractions such as 0.5 are allowed."
+  default     = 4
+
+  validation {
+    condition     = var.memory > 0
+    error_message = "memory must be greater than 0."
+  }
+}
+
+variable "claude_code_prebuilds" {
+  type        = number
+  description = "Prebuilt Claude Code workspaces to keep ready. Set 0 if no Claude Code pool uses this template."
+  default     = 1
+
+  validation {
+    condition     = var.claude_code_prebuilds >= 0 && floor(var.claude_code_prebuilds) == var.claude_code_prebuilds
+    error_message = "claude_code_prebuilds must be a whole number of at least 0."
+  }
+}
+
+variable "cursor_prebuilds" {
+  type        = number
+  description = "Prebuilt Cursor workspaces to keep ready. Set 0 if no Cursor pool uses this template."
+  default     = 1
+
+  validation {
+    condition     = var.cursor_prebuilds >= 0 && floor(var.cursor_prebuilds) == var.cursor_prebuilds
+    error_message = "cursor_prebuilds must be a whole number of at least 0."
+  }
 }
 
 provider "docker" {
@@ -36,12 +82,15 @@ data "coder_workspace_owner" "me" {}
 # Each Agent Relay pool stamps this through its template_parameters, so one
 # template serves both providers. Only the selected runner module is
 # instantiated, which keeps the other module's parameters off the build.
+#
+# No default, so the parameter is required: Agent Relay marks a pool that does
+# not set it degraded, instead of building the wrong runner. The presets and
+# the workspace form supply a value everywhere else.
 data "coder_parameter" "self_hosted_provider" {
   name         = "self_hosted_provider"
   display_name = "Self-hosted provider"
   description  = "Which Agent Relay runner this workspace serves. Agent Relay pools set this through template_parameters."
   type         = "string"
-  default      = "claude"
   mutable      = false
 
   option {
@@ -72,10 +121,12 @@ data "coder_parameter" "repo_url" {
   mutable      = true
 }
 
-# One prebuilt workspace per provider, so a session claims a running workspace
-# instead of waiting for a cold start. Each session must be built within its
-# pool's dispatch_deadline: by default 5 minutes from the work order for
-# Claude Code and 10 minutes from the claim for Cursor, at most 15 for either.
+# Prebuilt workspaces per provider, so a session claims a running workspace
+# instead of waiting for a cold start. claude_code_prebuilds and
+# cursor_prebuilds set each pool's size; 0 turns a provider's prebuilds off.
+# Each session must be built within its pool's dispatch_deadline: by default
+# 5 minutes from the work order for Claude Code and 10 minutes from the claim
+# for Cursor, at most 15 for either.
 #
 # Each preset pins only self_hosted_provider. Coder hands a build a prebuild
 # only when every preset parameter matches a value in the build request, and
@@ -88,7 +139,7 @@ data "coder_parameter" "repo_url" {
 # with the relay's parameters and the agent restarts the runner module's
 # scripts.
 #
-# Size instances to how many sessions start at once. Each instance is a
+# Size each count to how many sessions start at once. Each instance is a
 # workspace running continuously, and once every prebuild is claimed, new
 # sessions build cold until Coder replaces them. Prebuild jobs also need
 # provisioners and compete with session builds for the queue; where possible,
@@ -101,7 +152,7 @@ data "coder_workspace_preset" "claude" {
     (data.coder_parameter.self_hosted_provider.name) = "claude"
   }
   prebuilds {
-    instances = 1
+    instances = var.claude_code_prebuilds
     # Replace an unclaimed prebuild hourly, so a session does not start on an
     # image tag that has moved since.
     expiration_policy {
@@ -118,7 +169,7 @@ data "coder_workspace_preset" "cursor" {
     (data.coder_parameter.self_hosted_provider.name) = "cursor"
   }
   prebuilds {
-    instances = 1
+    instances = var.cursor_prebuilds
     expiration_policy {
       ttl = 3600
     }
@@ -134,8 +185,14 @@ locals {
 
   # Indexed references keep the agent dependent on the output alone. A splat
   # would pull in the whole module, which depends on the agent.
-  status_metadata_script           = try(module.cursor_worker[0].status_metadata_script, module.claude_code_runner[0].status_metadata_script)
-  session_attached_metadata_script = try(module.cursor_worker[0].session_attached_metadata_script, module.claude_code_runner[0].session_attached_metadata_script)
+  #
+  # Coder evaluates the template without a self_hosted_provider value on
+  # import, so neither module exists and the last fallback applies. A build
+  # cannot reach it, because the parameter is required and limited to its
+  # options.
+  no_provider_script               = "echo 'self_hosted_provider is not set' >&2; exit 1"
+  status_metadata_script           = try(module.cursor_worker[0].status_metadata_script, module.claude_code_runner[0].status_metadata_script, local.no_provider_script)
+  session_attached_metadata_script = try(module.cursor_worker[0].session_attached_metadata_script, module.claude_code_runner[0].session_attached_metadata_script, local.no_provider_script)
 }
 
 # Lets a session clone and push over HTTPS with the workspace owner's GitHub
@@ -310,9 +367,9 @@ data "coder_script_order" "relay_runner" {
 # Claiming a prebuild re-applies this with a new owner and workspace name, and
 # Docker replaces a container whose name, hostname or labels change, which
 # would cost the claim the cold start the prebuild exists to avoid. So unlike
-# the docker template, everything here is keyed on the workspace ID, which a
-# claim keeps; look the owner up from the ID. The agent token is reused across
-# a claim, so the env does not change either.
+# the Docker Containers template, everything here is keyed on the workspace
+# ID, which a claim keeps; look the owner up from the ID. The agent token is
+# reused across a claim, so the env does not change either.
 resource "docker_container" "workspace" {
   count = data.coder_workspace.me.start_count
   image = var.image
@@ -320,11 +377,23 @@ resource "docker_container" "workspace" {
   # Use the docker gateway if the access URL is 127.0.0.1
   entrypoint = ["sh", "-c", replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")]
   env        = ["CODER_AGENT_TOKEN=${coder_agent.main.token}"]
+
+  # Caps the container at var.cpu cores and var.memory GiB. Unlike a
+  # Kubernetes request, nothing is reserved. The CFS quota rather than cpus,
+  # because the provider reads cpus back reformatted (2 as "2.0"), and the
+  # diff would replace the container on every claim. Docker takes memory in
+  # MiB.
+  cpu_period = 100000
+  cpu_quota  = floor(var.cpu * 100000)
+  memory     = floor(var.memory * 1024)
+
   host {
     host = "host.docker.internal"
     ip   = "host-gateway"
   }
 
+  # A crashed runner fails the session visibly instead of restarting.
+  restart = "no"
   # Gives the runner modules' stop scripts time to shut the runner down.
   stop_timeout          = 30
   destroy_grace_seconds = 30
