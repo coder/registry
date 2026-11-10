@@ -42,6 +42,13 @@ jobs:
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_wrapper: false
+      - name: Set up Terraform plugin cache
+        run: |
+          mkdir -p "$RUNNER_TEMP/terraform-plugin-cache"
+          {
+            echo "TF_PLUGIN_CACHE_DIR=$RUNNER_TEMP/terraform-plugin-cache"
+            echo "TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE=true"
+          } >> "$GITHUB_ENV"
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
