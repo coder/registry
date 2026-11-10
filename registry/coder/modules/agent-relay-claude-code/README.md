@@ -137,6 +137,8 @@ What Agent Relay does when the runner does not start:
 
 The full walkthrough is in the Agent Relay docs under
 [Start the worker after workspace setup](https://coder.com/docs/ai-coder/agent-relay/setup#start-the-worker-after-workspace-setup).
+That page's 15-minute limit is Agent Relay's startup grace for Cursor pools.
+A Claude Code pool is bounded by `dispatch_deadline` as described above.
 
 ## Additional runner arguments
 
