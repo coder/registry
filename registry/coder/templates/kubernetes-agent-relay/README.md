@@ -23,6 +23,9 @@ exits, Agent Relay deletes the workspace.
   the provisioner's in-cluster ServiceAccount.
 - The settings under [Template settings](#template-settings).
 
+For the relay side of the deployment, see
+[Set up Agent Relay](https://coder.com/docs/ai-coder/agent-relay/setup).
+
 ## Architecture
 
 This template provisions the following resources:
@@ -30,6 +33,9 @@ This template provisions the following resources:
 - Kubernetes pod (ephemeral), one per session, named by workspace ID
 - Two `coder_workspace_preset` blocks, one per provider, each keeping a
   prebuilt workspace running
+- A `Workspace setup` script that clones a repository-scoped Cursor pool's
+  repository, and does nothing on any other build
+- A `coder_script_order` rule that starts the runner only after setup
 
 There is no persistent volume. Agent Relay deletes the workspace when the
 runner exits, so nothing in the pod outlives its session. To pre-bake tools
@@ -50,6 +56,54 @@ pool and a Cursor pool can share this template:
 The `agent_relay_status` metadata item on the agent is required. Agent Relay
 reads it to decide when to delete the workspace, so do not rename its key.
 
+## Startup order
+
+The runner module starts only after the
+[git-config](https://registry.coder.com/modules/coder/git-config) module and
+the `Workspace setup` script, through a
+[`coder_script_order`](https://coder.com/docs/admin/templates/extending-templates/script-ordering)
+rule. Without it, the runner starts as soon as the agent runs its start
+scripts, before the template's own setup has finished. Put any further setup
+that sessions depend on in `coder_script` resources or modules and add them to
+the rule's `after` list; `coder_agent.startup_script` cannot be ordered.
+
+If a setup step fails or times out, Coder skips the runner and Agent Relay
+fails the session: about a minute after the agent reports the failure on Agent
+Relay v0.16.0 or newer, or after its startup grace on older versions. Set
+`requires = "completion"` on the rule to start the runner anyway. Keep setup
+well under 15 minutes, after which Agent Relay deletes a workspace whose
+runner has not started.
+
+## Repository-scoped Cursor pools
+
+A Cursor pool scoped to one repository needs that repository cloned, and the
+worker started inside the checkout. Otherwise the worker registers as "Repo:
+(repo unavailable)", and Cursor can create a second pool with the same name and
+no repository, where sessions land.
+
+The template does both when its `repo_url` parameter is set: the setup script
+clones the URL into `/home/coder/repo` over HTTPS with the owner's GitHub
+token, and the agent starts the worker in that directory. Every Cursor build
+points the worker at that directory, and the agent falls back to the home
+directory when it does not exist, so pools without a repository are
+unaffected. The runner module
+declares its own copy of the URL, which a template cannot read, so set the
+same URL twice in the pool:
+
+```yaml
+pools:
+  cursor:
+    - name: app
+      cursor_pool_name: app
+      repo_url: https://github.com/example/app
+      template_parameters:
+        self_hosted_provider: cursor
+        repo_url: https://github.com/example/app
+```
+
+Leave `repo_url` out for any other pool. Claude Code builds ignore it, because
+the Claude Code runner clones each session's repository itself.
+
 ## Template settings
 
 These are set on the template in Coder, not in Terraform:
@@ -61,9 +115,10 @@ These are set on the template in Coder, not in Terraform:
   example through the `use` role in the template's ACL. The relay also needs
   organization-scoped `workspace:update` to extend autostop deadlines, and
   fails to start without it.
-- Do not put the template under a quota. Quota is enforced mid-build, so a
-  build over quota fails, and each redelivery of the session fails the same
-  way.
+- Use [quotas](https://coder.com/docs/admin/users/quotas) to control spend if
+  you need to. Relay builds count against the session owner's quota, and
+  Coder enforces it during the build, so a build over quota fails and Agent
+  Relay deletes the workspace.
 - Keep the autostop TTL finite. Agent Relay extends the deadline while the
   `agent_relay_session_attached` metadata reports `attached`, which this
   template publishes every 30 seconds, so a live session is not stopped
@@ -98,7 +153,8 @@ sessions start at once: every instance is a workspace that runs until a
 session claims it, and once all are claimed, new sessions build cold until
 Coder replaces them. Do not pin any other parameter in a preset, or Agent
 Relay's builds stop matching it. If a pool sets more `template_parameters`,
-pin the same values in its preset. Coder keeps prebuilds only for the active
+pin the same values in its preset. A repository-scoped pool's `repo_url` does
+not need pinning: the clone runs when a session claims the prebuild. Coder keeps prebuilds only for the active
 template version, so a pool that pins `template_version` always builds cold.
 
 Prebuild jobs need provisioners too. Where possible, route them to dedicated
@@ -159,9 +215,3 @@ link must be made ahead of time.
 - IDEs. Add modules such as
   [code-server](https://registry.coder.com/modules/coder/code-server) to look
   inside a session.
-- Repository-scoped Cursor pools. The template must clone the pool's
-  repository before the worker starts, and the worker must start in that
-  checkout, which means setting `coder_agent.dir` to its path. This template
-  does neither. A worker started outside the checkout registers as "Repo:
-  (repo unavailable)", and Cursor can then create a second pool with the same
-  name and no repository, where sessions land.

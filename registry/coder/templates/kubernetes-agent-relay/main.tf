@@ -2,6 +2,8 @@ terraform {
   required_providers {
     coder = {
       source = "coder/coder"
+      # 2.20.0 adds coder_script_order, which orders the runner after setup.
+      version = ">= 2.20.0"
     }
     kubernetes = {
       source = "hashicorp/kubernetes"
@@ -78,6 +80,22 @@ data "coder_parameter" "self_hosted_provider" {
   }
 }
 
+# The repository a repo-scoped Cursor pool works on. The Cursor module
+# declares agent_relay_cursor_repo_url, which Agent Relay stamps on every
+# build, but a template cannot read a parameter a module declares, and Coder
+# rejects a second parameter with the same name. So a repo-scoped pool sets
+# this one too, through its template_parameters, to the same URL as its
+# repo_url. Leave it empty for every other pool; Claude Code builds ignore it,
+# because the Claude Code runner clones each session's repository itself.
+data "coder_parameter" "repo_url" {
+  name         = "repo_url"
+  display_name = "Repository"
+  description  = "Repository a repo-scoped Cursor pool clones before the worker starts. Agent Relay pools set this through template_parameters; leave it empty otherwise."
+  type         = "string"
+  default      = ""
+  mutable      = true
+}
+
 # One prebuilt workspace per provider, so a session claims a running workspace
 # instead of waiting for a cold start. Each session must be built within its
 # pool's dispatch_deadline: by default 5 minutes from the work order for
@@ -134,6 +152,10 @@ data "coder_workspace_preset" "cursor" {
 locals {
   self_hosted_provider = data.coder_parameter.self_hosted_provider.value
 
+  # Only a Cursor build clones; see data.coder_parameter.repo_url.
+  repo_url  = local.self_hosted_provider == "cursor" ? data.coder_parameter.repo_url.value : ""
+  clone_dir = "/home/coder/repo"
+
   # Indexed references keep the agent dependent on the output alone. A splat
   # would pull in the whole module, which depends on the agent.
   status_metadata_script           = try(module.cursor_worker[0].status_metadata_script, module.claude_code_runner[0].status_metadata_script)
@@ -157,6 +179,21 @@ resource "coder_agent" "main" {
   # The default image is published for amd64 only.
   arch = "amd64"
   os   = "linux"
+
+  # The Cursor worker registers the directory it starts in as the session's
+  # repository, and a worker started outside the checkout registers as
+  # "Repo: (repo unavailable)". The agent starts a command in dir only if it
+  # exists, and in $HOME otherwise, so a Cursor pool with no repository still
+  # starts in $HOME. coder_script_order.relay_runner below starts the worker
+  # after the clone, so the directory exists by then. dir is deprecated, but it
+  # is still the only way to set the worker's starting directory.
+  #
+  # dir is set on every Cursor build, whether or not repo_url is, because
+  # changing it replaces the agent, and with it the pod or container: a
+  # prebuild built without a repository would be replaced when a
+  # repository-scoped session claims it. The preset fixes the provider, so dir
+  # never changes on a claim.
+  dir = local.self_hosted_provider == "cursor" ? local.clone_dir : null
 
   # Required. The key must stay agent_relay_status: Agent Relay reads it to
   # decide when to delete the workspace.
@@ -224,6 +261,71 @@ module "git-config" {
   version            = "~> 1.0"
   agent_id           = coder_agent.main.id
   allow_email_change = true
+}
+
+# Hands the repository URL to the setup script. A coder_env rather than the
+# agent's env attribute, because changing that attribute on a claim would
+# replace the agent; replacing a coder_env does not. An environment value rather
+# than script text, so a quote in the URL cannot change what the script runs.
+resource "coder_env" "setup_repo_url" {
+  agent_id = coder_agent.main.id
+  name     = "SETUP_REPO_URL"
+  value    = local.repo_url
+}
+
+# Clones a repo-scoped Cursor pool's repository, over HTTPS with the owner's
+# token from coder_external_auth.github. It exits 0 with nothing to do on every
+# other build, including an unclaimed prebuild. A failed clone exits non-zero,
+# so the ordering rule below skips the worker and Agent Relay fails the session
+# instead of handing the developer a workspace with no repository.
+resource "coder_script" "setup" {
+  count        = data.coder_workspace.me.start_count
+  agent_id     = coder_agent.main.id
+  display_name = "Workspace setup"
+  icon         = "/icon/git.svg"
+  run_on_start = true
+  timeout      = 300
+  script       = <<-EOT
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    repo_url="$${SETUP_REPO_URL:-}"
+    clone_dir="${local.clone_dir}"
+
+    if [ -z "$repo_url" ]; then
+      echo "No repository for this build; nothing to clone."
+      exit 0
+    fi
+    if [ -d "$clone_dir/.git" ]; then
+      echo "Repository already cloned into $clone_dir."
+      exit 0
+    fi
+
+    # A full clone: a shallow one is single-branch, so a session asked to work
+    # on another branch would find nothing to check out.
+    echo "Cloning $repo_url into $clone_dir."
+    git clone -- "$repo_url" "$clone_dir"
+  EOT
+}
+
+# Starts the runner only after the git identity is set and the setup script
+# has finished, instead of as soon as the agent runs its start scripts. With
+# the default requires = "success", a failed setup step skips the runner and
+# Agent Relay fails the session: about a minute later from Agent Relay v0.16.0,
+# after its startup grace before that.
+#
+# One rule names both runner modules. A module with count = 0 selects no
+# scripts, and a rule with nothing to run adds no ordering, so only the
+# instantiated runner is affected. The selectors are Terraform addresses that
+# Coder resolves when the template is pushed; terraform validate does not check
+# them. Ordering needs Coder 2.39.0 or newer; older Coder ignores the rule.
+# https://registry.terraform.io/providers/coder/coder/latest/docs/data-sources/script_order
+data "coder_script_order" "relay_runner" {
+  rule {
+    phase = "start"
+    run   = ["module.claude_code_runner", "module.cursor_worker"]
+    after = ["module.git-config", "coder_script.setup"]
+  }
 }
 
 # One pod per session, with no persistent volume: Agent Relay deletes the
