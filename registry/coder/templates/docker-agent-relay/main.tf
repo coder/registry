@@ -161,8 +161,8 @@ resource "coder_agent" "main" {
   # "Repo: (repo unavailable)". The agent starts a command in dir only if it
   # exists, and in $HOME otherwise, so a Cursor pool with no repository still
   # starts in $HOME. coder_script_order.relay_runner below starts the worker
-  # after the clone, so the directory exists by then. dir is deprecated, but it
-  # is still the only way to set the worker's starting directory.
+  # after the clone, so the directory exists by then. dir also sets where a
+  # person's shell opens, so a debugging session starts in the checkout.
   #
   # dir is set on every Cursor build, whether or not repo_url is, because
   # changing it replaces the agent, and with it the pod or container: a
