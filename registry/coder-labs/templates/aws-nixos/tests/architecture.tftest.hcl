@@ -74,8 +74,8 @@ run "x86" {
     error_message = "The provisioner agent must match the instance and sort after the main agent."
   }
   assert {
-    condition     = coder_metadata.provisioner[0].hide && coder_script.nixos_rebuild[0].run_on_start
-    error_message = "The provisioner must be hidden and rebuild on start."
+    condition     = coder_script.nixos_rebuild[0].run_on_start
+    error_message = "The provisioner must rebuild on start."
   }
   assert {
     condition     = aws_instance.dev.ami == "ami-example" && coder_metadata.workspace_info.item[0].value == aws_instance.dev.ami
@@ -116,7 +116,7 @@ run "stop" {
     }
   }
   assert {
-    condition     = length(coder_agent.main) == 0 && length(coder_agent.provisioner) == 0 && length(terraform_data.provisioner) == 0 && aws_ec2_instance_state.dev.state == "stopped"
+    condition     = length(coder_agent.main) == 0 && length(coder_agent.provisioner) == 0 && aws_ec2_instance_state.dev.state == "stopped"
     error_message = "Stopping must remove both agents and stop, not destroy, the EC2 instance."
   }
 }

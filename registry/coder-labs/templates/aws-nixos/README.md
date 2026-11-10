@@ -48,7 +48,7 @@ sudo nixos-rebuild switch --flake /etc/nixos#coder-workspace-ec2-x86_64
 
 Use your host's attribute instead of the example name. The root disk and Nix store survive stop/start, **not** instance deletion or replacement. A larger root disk can be selected later; EBS cannot shrink it.
 
-A hidden root agent, `provisioner`, runs the rebuild and then starts the `main` agent. The dashboard hides it; read its **NixOS rebuild** log in `/var/log/coder-nixos/rebuild-latest.log`. If a rebuild fails before `main` exists, open a root shell with `coder ssh <workspace>.provisioner`. The workspace has two agents, so name one in CLI commands: `coder ssh <workspace>.main`.
+A root agent, `provisioner`, shows up after `main`: it runs the rebuild and then starts `main`. Watch its **NixOS rebuild** log or `/var/log/coder-nixos/rebuild-latest.log`. If a rebuild fails before `main` exists, open a root shell with `coder ssh <workspace>.provisioner`. The workspace has two agents, so name one in CLI commands: `coder ssh <workspace>.main`.
 
 If the provisioner never connects, use EC2 console output:
 

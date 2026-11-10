@@ -4,8 +4,7 @@
 # start-agent.sh.
 set -Eeuo pipefail
 decode() { printf '%s' "$1" | base64 -d; }
-SYSTEM_PATH=$(decode '${ARG_PATH}')
-export PATH="$SYSTEM_PATH:$PATH"
+export PATH="$(decode '${ARG_PATH}'):$PATH"
 export HOME=/root
 
 ACCESS_URL=$(decode '${ARG_ACCESS_URL}')
@@ -23,8 +22,14 @@ rm -f "$RUNTIME_DIR/ready"
 umask 077
 printf 'CODER_AGENT_TOKEN=%s\nCODER_AGENT_URL=%s\n' "$AGENT_TOKEN" "$ACCESS_URL" \
   >"$RUNTIME_DIR/agent.env"
-printf 'CODER_AGENT_TOKEN=%s\nCODER_AGENT_URL=%s\n' "$PROVISIONER_TOKEN" "$ACCESS_URL" \
-  >"$RUNTIME_DIR/provisioner.env"
+# The provisioner agent gets this whole environment: amazon-init puts git, nix
+# and nixos-rebuild on PATH. Drop what belongs to the amazon-init unit.
+(
+  unset INVOCATION_ID JOURNAL_STREAM SYSTEMD_EXEC_PID
+  export CODER_AGENT_TOKEN="$PROVISIONER_TOKEN" CODER_AGENT_URL="$ACCESS_URL" \
+    BINARY_DIR="$RUNTIME_DIR/provisioner-bin" CODER_WORKSPACE_FACTS="$RUNTIME_DIR/workspace.json"
+  declare -px
+) >"$RUNTIME_DIR/provisioner.env"
 umask 022
 cat >"$RUNTIME_DIR/init.sh" <<'CODER_AMAZON_INIT_AGENT_SCRIPT'
 ${INIT_SCRIPT}
@@ -60,14 +65,11 @@ chmod 0644 -- "$file_path"
 systemctl stop coder-provisioner 2>/dev/null || true
 systemctl reset-failed coder-provisioner 2>/dev/null || true
 install -d -m 0700 -- "$RUNTIME_DIR/provisioner-bin"
+# shellcheck disable=SC2016
 if ! systemd-run --unit=coder-provisioner --description="Coder provisioner agent" \
   -p Restart=always -p RestartSec=5 \
-  -p EnvironmentFile="$RUNTIME_DIR/provisioner.env" \
-  --setenv=PATH="$SYSTEM_PATH:/run/wrappers/bin:/usr/bin:/bin" \
-  --setenv=HOME=/root \
-  --setenv=BINARY_DIR="$RUNTIME_DIR/provisioner-bin" \
-  --setenv=CODER_WORKSPACE_FACTS="$RUNTIME_DIR/workspace.json" \
-  bash "$RUNTIME_DIR/provisioner.sh"; then
+  bash -c '. "$1"; exec bash "$2"' coder-provisioner \
+  "$RUNTIME_DIR/provisioner.env" "$RUNTIME_DIR/provisioner.sh"; then
   echo "Could not start the provisioner agent; starting coder-agent directly." >&2
   "$RUNTIME_DIR/start-agent.sh"
 fi

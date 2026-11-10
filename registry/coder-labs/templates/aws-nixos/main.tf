@@ -183,21 +183,6 @@ resource "coder_script" "nixos_rebuild" {
   EOT
 }
 
-# Gives the provisioner agent its own resource, so the UI can hide it.
-resource "terraform_data" "provisioner" {
-  count = data.coder_workspace.me.start_count
-  input = {
-    token       = coder_agent.provisioner[0].token
-    init_script = coder_agent.provisioner[0].init_script
-  }
-}
-
-resource "coder_metadata" "provisioner" {
-  count       = data.coder_workspace.me.start_count
-  resource_id = terraform_data.provisioner[0].id
-  hide        = true
-}
-
 module "code-server" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/code-server/coder"
@@ -256,8 +241,8 @@ module "amazon-init" {
   agent_token       = try(coder_agent.main[0].token, "")
   agent_init_script = try(coder_agent.main[0].init_script, "")
 
-  provisioner_token       = try(terraform_data.provisioner[0].output.token, "")
-  provisioner_init_script = try(terraform_data.provisioner[0].output.init_script, "")
+  provisioner_token       = try(coder_agent.provisioner[0].token, "")
+  provisioner_init_script = try(coder_agent.provisioner[0].init_script, "")
 }
 
 resource "aws_instance" "dev" {
