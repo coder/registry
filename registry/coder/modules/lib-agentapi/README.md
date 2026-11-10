@@ -1,12 +1,12 @@
 ---
-display_name: AgentAPI
+display_name: AgentAPI (library)
 description: Building block for modules that need to run an AgentAPI server
 icon: ../../../../.icons/coder.svg
 verified: true
 tags: [internal, library]
 ---
 
-# AgentAPI
+# AgentAPI (library)
 
 > [!CAUTION]
 > We do not recommend using this module directly. Instead, please consider using one of our [Tasks-compatible AI agent modules](https://registry.coder.com/modules?search=tag%3Atasks).
@@ -15,7 +15,7 @@ The AgentAPI module is a building block for modules that need to run an AgentAPI
 
 ```tf
 module "agentapi" {
-  source  = "registry.coder.com/coder/agentapi/coder"
+  source  = "registry.coder.com/coder/lib-agentapi/coder"
   version = "2.4.1"
 
   agent_id             = var.agent_id

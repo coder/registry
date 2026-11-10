@@ -20,7 +20,7 @@ import {
   writeExecutable,
   execModuleScript,
   extractCoderEnvVars,
-} from "../agentapi/test-util";
+} from "../lib-agentapi/test-util";
 
 let cleanupFunctions: (() => Promise<void>)[] = [];
 const registerCleanup = (cleanup: () => Promise<void>) => {

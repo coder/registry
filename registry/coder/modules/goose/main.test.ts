@@ -15,7 +15,10 @@ import {
   runTerraformInit,
   TerraformState,
 } from "~test";
-import { extractCoderEnvVars, writeExecutable } from "../agentapi/test-util";
+import {
+  extractCoderEnvVars,
+  writeExecutable,
+} from "../lib-agentapi/test-util";
 import dedent from "dedent";
 import path from "path";
 
