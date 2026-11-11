@@ -54,10 +54,8 @@ find /tmp -maxdepth 1 \( -name 'coder-*' -o -name 'boundary-audit.sock' \) -user
 # nixos-rebuild switch leaves units it does not manage alone.
 systemctl stop coder-builder 2>/dev/null || true
 systemctl reset-failed coder-builder 2>/dev/null || true
+# Only the builder starts the main agent, after a successful rebuild.
 # shellcheck disable=SC2016
-if ! systemd-run --unit=coder-builder --description="Coder NixOS builder agent" \
+systemd-run --unit=coder-builder --description="Coder NixOS builder agent" \
   -p Restart=always -p RestartSec=5 \
-  bash -c '. "$1"; exec bash "$2"' coder-builder "$RUNTIME_DIR/builder.env" "$RUNTIME_DIR/builder.sh"; then
-  echo "Could not start the builder agent; starting coder-agent directly." >&2
-  "$RUNTIME_DIR/start-agent.sh"
-fi
+  bash -c '. "$1"; exec bash "$2"' coder-builder "$RUNTIME_DIR/builder.env" "$RUNTIME_DIR/builder.sh"
