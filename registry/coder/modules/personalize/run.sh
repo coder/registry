@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+export LC_ALL=C
 BOLD='\033[0;1m'
 CODE='\033[36;40;1m'
 RESET='\033[0m'
@@ -12,25 +13,62 @@ DISPLAY_PATH="$SCRIPT"
 case "$SCRIPT" in
   \~) SCRIPT="$${HOME}" ;;
   \~/*) SCRIPT="$${HOME}/$${SCRIPT#??}" ;;
-  *) ;;
+esac
+case "$SCRIPT" in
+  /*) ;;
+  *) SCRIPT="$${PWD%/}/$SCRIPT" ;;
 esac
 
-# If the personalize script doesn't exist, educate
-# the user how they can customize their environment!
+MODULE_DIR="$HOME/.coder-modules/coder/personalize"
+mkdir -p "$MODULE_DIR" || exit 1
+CONFIG_TMP=$(mktemp "$MODULE_DIR/config.XXXXXX") || exit 1
+trap 'rm -f "$CONFIG_TMP"' EXIT
+
+write_value() {
+  printf "%s='" "$1"
+  printf '%s' "$2" | sed "s/'/'\\\\''/g"
+  printf "'\n"
+}
+
+if ! {
+  write_value PERSONALIZE_PATH "$SCRIPT" \
+    && write_value PERSONALIZE_DIR "$SCRIPT.d" \
+    && write_value PERSONALIZE_LOG_DIR "$MODULE_DIR/logs"
+} > "$CONFIG_TMP" || ! mv "$CONFIG_TMP" "$MODULE_DIR/config"; then
+  echo "Failed to write the personalize config file." >&2
+  exit 1
+fi
+
+STATUS=0
 if [ ! -f "$SCRIPT" ]; then
   printf "✨ %bYou don't have a personalize script!\n\n" "$BOLD"
   printf 'Create a script at %b%s%b and make it executable.\n' "$CODE" "$DISPLAY_PATH" "$RESET"
   printf 'It will run every time your workspace starts. Use it to install personal packages!\n\n'
-  exit 0
-fi
-
-# Check if the personalize script is executable, if not,
-# try to make it executable and educate the user if it fails.
-if [ ! -x "$SCRIPT" ]; then
+elif [ ! -x "$SCRIPT" ]; then
   echo "🔐 Your personalize script isn't executable!"
   printf 'Make %b%s%b executable before restarting the workspace.\n' "$CODE" "$DISPLAY_PATH" "$RESET"
-  exit 0
+else
+  "$SCRIPT" || {
+    STATUS=$?
+    printf 'Personalize script %s failed with exit code %s.\n' "$SCRIPT" "$STATUS" >&2
+  }
+fi
+if [ ! -f "$SCRIPT" ] || [ ! -x "$SCRIPT" ]; then
+  printf 'Add executable init scripts to %b%s.d%b for start and stop.\n' "$CODE" "$DISPLAY_PATH" "$RESET"
+  printf 'Find the module configuration at %s/config.\n' "$MODULE_DIR"
 fi
 
-# Run the personalize script!
-"$SCRIPT"
+for FILE in "$SCRIPT.d/"*; do
+  case "$FILE" in *~) continue ;; esac
+  [ -f "$FILE" ] || continue
+  if [ ! -x "$FILE" ]; then
+    printf 'Skipping non-executable personalize script: %s\n' "$FILE"
+    continue
+  fi
+  "$FILE" start || {
+    EXIT_CODE=$?
+    printf 'Personalize script %s failed with exit code %s.\n' "$FILE" "$EXIT_CODE" >&2
+    if [ "$STATUS" -eq 0 ]; then STATUS=$EXIT_CODE; fi
+  }
+done
+exit "$STATUS"
