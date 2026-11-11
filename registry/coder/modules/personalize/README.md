@@ -89,7 +89,7 @@ Script output goes to `~/.coder-modules/coder/personalize/logs/start.log` and `~
 
 ## Use custom paths
 
-Set `path` when the personalize script is stored elsewhere. The drop-in directory is always `<path>.d`: for example, `path = "~/.init"` uses `~/.init.d`. Paths cannot be empty, be only `~`, end with `/`, or contain newlines or carriage returns.
+Set `path` when the personalize script is stored elsewhere. The drop-in directory is always `<path>.d`: for example, `path = "~/.init"` uses `~/.init.d`. Paths cannot be empty or whitespace-only, be only `~`, end with `/`, have `.` or `..` as their last component, or contain newlines or carriage returns.
 
 ```tf
 module "personalize" {

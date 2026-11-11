@@ -19,8 +19,8 @@ variable "path" {
   type        = string
   default     = "~/personalize"
   validation {
-    condition     = var.path != "" && var.path != "~" && !can(regex("/$", var.path)) && length(regexall("[\n\r]", var.path)) == 0
-    error_message = "The personalize path must not be empty, be only ~, end with /, or contain newlines or carriage returns."
+    condition     = trimspace(var.path) != "" && var.path != "~" && !can(regex("/$", var.path)) && !can(regex("(^|/)\\.\\.?$", var.path)) && length(regexall("[\n\r]", var.path)) == 0
+    error_message = "The personalize path must not be empty or whitespace-only, be only ~, end with /, have . or .. as its last component, or contain newlines or carriage returns."
   }
 }
 
