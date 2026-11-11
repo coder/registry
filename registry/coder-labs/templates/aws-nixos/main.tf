@@ -107,7 +107,7 @@ resource "coder_agent" "main" {
   os    = "linux"
   auth  = "token"
   order = 0
-  # The provisioner starts this agent after the first-boot rebuild.
+  # The builder starts this agent after the first-boot rebuild.
   connection_timeout = 1200
 
   metadata {
@@ -135,7 +135,7 @@ resource "coder_agent" "main" {
 
 # Root agent that rebuilds NixOS and then starts the main agent. It stays
 # connected because a disconnected agent marks the workspace unhealthy.
-resource "coder_agent" "provisioner" {
+resource "coder_agent" "builder" {
   count = data.coder_workspace.me.start_count
   arch  = local.instance.coder_arch
   os    = "linux"
@@ -178,7 +178,7 @@ resource "coder_agent" "provisioner" {
 
 resource "coder_script" "nixos_rebuild" {
   count        = data.coder_workspace.me.start_count
-  agent_id     = coder_agent.provisioner[0].id
+  agent_id     = coder_agent.builder[0].id
   display_name = "NixOS rebuild"
   icon         = "/icon/nix.svg"
   run_on_start = true
@@ -256,8 +256,8 @@ module "amazon-init" {
   agent_token       = try(coder_agent.main[0].token, "")
   agent_init_script = try(coder_agent.main[0].init_script, "")
 
-  provisioner_token       = try(coder_agent.provisioner[0].token, "")
-  provisioner_init_script = try(coder_agent.provisioner[0].init_script, "")
+  builder_token       = try(coder_agent.builder[0].token, "")
+  builder_init_script = try(coder_agent.builder[0].init_script, "")
 }
 
 resource "aws_instance" "dev" {

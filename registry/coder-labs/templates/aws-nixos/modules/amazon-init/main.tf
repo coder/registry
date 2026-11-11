@@ -25,21 +25,21 @@ variable "agent_init_script" {
   sensitive   = true
 }
 
-variable "provisioner_token" {
+variable "builder_token" {
   description = "Token of the root agent that prepares the machine and then runs `start_agent_command`."
   type        = string
   sensitive   = true
 }
 
-variable "provisioner_init_script" {
-  description = "`coder_agent.init_script` of that root agent, run on every boot as the transient `coder-provisioner` unit."
+variable "builder_init_script" {
+  description = "`coder_agent.init_script` of that root agent, run on every boot as the transient `coder-builder` unit."
   type        = string
   sensitive   = true
 }
 
 variable "files" {
   description = <<-EOT
-    Files to write before the provisioner agent starts: absolute path to contents.
+    Files to write before the builder agent starts: absolute path to contents.
     Written mode 0644, parent directories created.
 
     Contents are carried gzipped and base64-encoded, so any text is safe --
@@ -84,19 +84,19 @@ variable "runtime_dir" {
   }
 }
 
-variable "provisioner_log_dir" {
-  description = "Log directory of the provisioner agent and its scripts. Kept apart from the main agent, which runs as another user."
+variable "builder_log_dir" {
+  description = "Log directory of the builder agent and its scripts. Kept apart from the main agent, which runs as another user."
   type        = string
-  default     = "/var/log/coder-provisioner"
+  default     = "/var/log/coder-builder"
 
   validation {
-    condition     = startswith(var.provisioner_log_dir, "/") && !can(regex("[\\x00-\\x1f\\x7f]", var.provisioner_log_dir))
-    error_message = "provisioner_log_dir must be an absolute path without control characters."
+    condition     = startswith(var.builder_log_dir, "/") && !can(regex("[\\x00-\\x1f\\x7f]", var.builder_log_dir))
+    error_message = "builder_log_dir must be an absolute path without control characters."
   }
 }
 
 variable "path" {
-  description = "Prepended to `PATH` for the provisioner agent. amazon-init's own PATH is short."
+  description = "Prepended to `PATH` for the builder agent. amazon-init's own PATH is short."
   type        = string
   default     = "/run/current-system/sw/bin"
 }
@@ -130,19 +130,19 @@ locals {
   })
 
   bootstrap = templatefile("${path.module}/scripts/bootstrap.sh.tftpl", {
-    FACTS_JSON              = jsonencode(local.facts)
-    FILES                   = local.files
-    INIT_SCRIPT             = var.agent_init_script
-    PROVISIONER_INIT_SCRIPT = var.provisioner_init_script
-    START_AGENT             = local.start_agent
+    FACTS_JSON          = jsonencode(local.facts)
+    FILES               = local.files
+    INIT_SCRIPT         = var.agent_init_script
+    BUILDER_INIT_SCRIPT = var.builder_init_script
+    START_AGENT         = local.start_agent
 
-    ARG_ACCESS_URL          = base64encode(data.coder_workspace.me.access_url)
-    ARG_AGENT_TOKEN         = base64encode(var.agent_token)
-    ARG_PROVISIONER_TOKEN   = base64encode(var.provisioner_token)
-    ARG_RUNTIME_DIR         = base64encode(var.runtime_dir)
-    ARG_PROVISIONER_LOG_DIR = base64encode(var.provisioner_log_dir)
-    ARG_PATH                = base64encode(var.path)
-    ARG_HOSTNAME            = base64encode(local.hostname)
+    ARG_ACCESS_URL      = base64encode(data.coder_workspace.me.access_url)
+    ARG_AGENT_TOKEN     = base64encode(var.agent_token)
+    ARG_BUILDER_TOKEN   = base64encode(var.builder_token)
+    ARG_RUNTIME_DIR     = base64encode(var.runtime_dir)
+    ARG_BUILDER_LOG_DIR = base64encode(var.builder_log_dir)
+    ARG_PATH            = base64encode(var.path)
+    ARG_HOSTNAME        = base64encode(local.hostname)
   })
 
   # EC2 caps user-data at 16 KiB; compress the bootstrap before sending it.

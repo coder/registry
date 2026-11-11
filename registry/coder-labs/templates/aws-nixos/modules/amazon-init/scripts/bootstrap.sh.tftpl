@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # amazon-init runs this on every boot. It publishes the agent handoff and
-# starts the provisioner agent, which prepares the machine and then runs
+# starts the builder agent, which prepares the machine and then runs
 # start-agent.sh.
 set -Eeuo pipefail
 decode() { printf '%s' "$1" | base64 -d; }
@@ -9,13 +9,13 @@ export HOME=/root
 
 ACCESS_URL=$(decode '${ARG_ACCESS_URL}')
 AGENT_TOKEN=$(decode '${ARG_AGENT_TOKEN}')
-PROVISIONER_TOKEN=$(decode '${ARG_PROVISIONER_TOKEN}')
+BUILDER_TOKEN=$(decode '${ARG_BUILDER_TOKEN}')
 HOSTNAME_=$(decode '${ARG_HOSTNAME}')
 RUNTIME_DIR=$(decode '${ARG_RUNTIME_DIR}')
-PROVISIONER_LOG_DIR=$(decode '${ARG_PROVISIONER_LOG_DIR}')
+BUILDER_LOG_DIR=$(decode '${ARG_BUILDER_LOG_DIR}')
 # The agent puts its socket and script data in TMPDIR. On disk, not tmpfs:
 # root's nix can build there.
-PROVISIONER_TMP=/var/tmp/coder-provisioner
+BUILDER_TMP=/var/tmp/coder-builder
 
 # The token stays on tmpfs; only handoff files are owned by the agent.
 install -d -m 0700 -- "$RUNTIME_DIR"
@@ -26,27 +26,27 @@ rm -f "$RUNTIME_DIR/ready"
 umask 077
 printf 'CODER_AGENT_TOKEN=%s\nCODER_AGENT_URL=%s\n' "$AGENT_TOKEN" "$ACCESS_URL" \
   >"$RUNTIME_DIR/agent.env"
-# The provisioner agent gets this whole environment: amazon-init puts git, nix
+# The builder agent gets this whole environment: amazon-init puts git, nix
 # and nixos-rebuild on PATH. Drop what belongs to the amazon-init unit.
 (
   unset INVOCATION_ID JOURNAL_STREAM SYSTEMD_EXEC_PID
-  export CODER_AGENT_TOKEN="$PROVISIONER_TOKEN" CODER_AGENT_URL="$ACCESS_URL" \
-    BINARY_DIR="$RUNTIME_DIR/provisioner-bin" CODER_WORKSPACE_FACTS="$RUNTIME_DIR/workspace.json" \
-    CODER_AGENT_LOG_DIR="$PROVISIONER_LOG_DIR" TMPDIR="$PROVISIONER_TMP"
+  export CODER_AGENT_TOKEN="$BUILDER_TOKEN" CODER_AGENT_URL="$ACCESS_URL" \
+    BINARY_DIR="$RUNTIME_DIR/builder-bin" CODER_WORKSPACE_FACTS="$RUNTIME_DIR/workspace.json" \
+    CODER_AGENT_LOG_DIR="$BUILDER_LOG_DIR" TMPDIR="$BUILDER_TMP"
   # The agent sets SSH_CLIENT, so NixOS bash reads /etc/bashrc, which resets
   # PATH from /etc/profile unless the profile is marked as loaded.
   export __ETC_PROFILE_DONE=1
   declare -px
-) >"$RUNTIME_DIR/provisioner.env"
+) >"$RUNTIME_DIR/builder.env"
 umask 022
 cat >"$RUNTIME_DIR/init.sh" <<'CODER_AMAZON_INIT_AGENT_SCRIPT'
 ${INIT_SCRIPT}
 CODER_AMAZON_INIT_AGENT_SCRIPT
 chmod 0700 "$RUNTIME_DIR/init.sh"
-cat >"$RUNTIME_DIR/provisioner.sh" <<'CODER_AMAZON_INIT_PROVISIONER_SCRIPT'
-${PROVISIONER_INIT_SCRIPT}
-CODER_AMAZON_INIT_PROVISIONER_SCRIPT
-chmod 0700 "$RUNTIME_DIR/provisioner.sh"
+cat >"$RUNTIME_DIR/builder.sh" <<'CODER_AMAZON_INIT_BUILDER_SCRIPT'
+${BUILDER_INIT_SCRIPT}
+CODER_AMAZON_INIT_BUILDER_SCRIPT
+chmod 0700 "$RUNTIME_DIR/builder.sh"
 cat >"$RUNTIME_DIR/start-agent.sh" <<'CODER_AMAZON_INIT_START_AGENT'
 ${START_AGENT}
 CODER_AMAZON_INIT_START_AGENT
@@ -70,19 +70,19 @@ chmod 0644 -- "$file_path"
 
 # A transient unit: a fresh AMI has no configuration to declare one in, and
 # nixos-rebuild switch leaves units it does not manage alone.
-systemctl stop coder-provisioner 2>/dev/null || true
-systemctl reset-failed coder-provisioner 2>/dev/null || true
-install -d -m 0700 -- "$RUNTIME_DIR/provisioner-bin" "$PROVISIONER_TMP"
-install -d -m 0755 -- "$PROVISIONER_LOG_DIR"
-# Older versions let the provisioner use the agent defaults in /tmp as root,
+systemctl stop coder-builder 2>/dev/null || true
+systemctl reset-failed coder-builder 2>/dev/null || true
+install -d -m 0700 -- "$RUNTIME_DIR/builder-bin" "$BUILDER_TMP"
+install -d -m 0755 -- "$BUILDER_LOG_DIR"
+# Older versions let the builder use the agent defaults in /tmp as root,
 # which the main agent then cannot write. Only root creates such entries.
 find /tmp -maxdepth 1 \( -name 'coder-*' -o -name 'boundary-audit.sock' \) -user root \
   -exec rm -rf -- {} + 2>/dev/null || true
 # shellcheck disable=SC2016
-if ! systemd-run --unit=coder-provisioner --description="Coder provisioner agent" \
+if ! systemd-run --unit=coder-builder --description="Coder builder agent" \
   -p Restart=always -p RestartSec=5 \
-  bash -c '. "$1"; exec bash "$2"' coder-provisioner \
-  "$RUNTIME_DIR/provisioner.env" "$RUNTIME_DIR/provisioner.sh"; then
-  echo "Could not start the provisioner agent; starting coder-agent directly." >&2
+  bash -c '. "$1"; exec bash "$2"' coder-builder \
+  "$RUNTIME_DIR/builder.env" "$RUNTIME_DIR/builder.sh"; then
+  echo "Could not start the builder agent; starting coder-agent directly." >&2
   "$RUNTIME_DIR/start-agent.sh"
 fi
