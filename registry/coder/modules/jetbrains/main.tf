@@ -67,11 +67,11 @@ variable "tooltip" {
 
 variable "major_version" {
   type        = string
-  description = "The major version of the IDE. i.e. 2025.1"
+  description = "The major version of the IDE. i.e. 2026.2"
   default     = "latest"
   validation {
     condition     = can(regex("^[0-9]{4}\\.[1-3]$", var.major_version)) || var.major_version == "latest"
-    error_message = "The major_version must be a valid version number (e.g., 2025.1) or 'latest'"
+    error_message = "The major_version must be a valid version number (e.g., 2026.2) or 'latest'"
   }
 }
 

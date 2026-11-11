@@ -71,7 +71,7 @@ module "jetbrains" {
   folder        = "/home/coder/project"
   default       = ["IU", "PY"]
   channel       = "eap"    # Use Early Access Preview versions
-  major_version = "2025.2" # Specific major version
+  major_version = "2026.2" # Specific major version
 }
 ```
 
@@ -122,7 +122,7 @@ module "jetbrains_pycharm" {
   default = ["PY"] # Only PyCharm
 
   # Specific version for consistency
-  major_version = "2025.1"
+  major_version = "2026.2"
   channel       = "release"
 }
 ```
