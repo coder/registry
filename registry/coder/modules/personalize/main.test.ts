@@ -105,6 +105,20 @@ describe("personalize", async () => {
     ]);
   });
 
+  it("omits the config discovery hint after a config failure", async () => {
+    const output = await executePersonalize({
+      before: "touch /root/.coder-modules",
+    });
+    expect(output.exitCode).toBe(0);
+    expect(output.stderr.join("\n")).toContain(
+      "Warning: failed to write personalize config file /root/.coder-modules/coder/personalize/config.",
+    );
+    expect(output.stdout.join("\n")).toContain("~/personalize.d");
+    expect(output.stdout.join("\n")).not.toContain(
+      "/root/.coder-modules/coder/personalize/config",
+    );
+  });
+
   it("warns when the personalize script is not executable", async () => {
     const output = await executePersonalize({
       before: createScript(
@@ -345,7 +359,7 @@ describe("personalize", async () => {
     );
 
     it.each(["000", "311", "file"])(
-      `notices an unreadable drop-in directory once at ${phase}: %s`,
+      `notices an unusable drop-in path once at ${phase}: %s`,
       async (mode) => {
         const output = await executePersonalize({
           phase,
@@ -362,7 +376,9 @@ describe("personalize", async () => {
         });
         expect(output.exitCode).toBe(0);
         expect(output.stdout).toEqual([
-          "Skipping unreadable drop-in directory: /tmp/personalize.d",
+          mode === "file"
+            ? "Skipping non-directory drop-in path: /tmp/personalize.d"
+            : "Skipping unreadable drop-in directory: /tmp/personalize.d",
         ]);
       },
     );

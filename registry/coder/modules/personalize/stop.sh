@@ -15,7 +15,11 @@ case "$SCRIPT" in
 esac
 
 if [ -e "$SCRIPT.d" ] || [ -L "$SCRIPT.d" ]; then
-  if [ ! -d "$SCRIPT.d" ] || [ ! -r "$SCRIPT.d" ] || [ ! -x "$SCRIPT.d" ]; then
+  if [ ! -d "$SCRIPT.d" ]; then
+    printf 'Skipping non-directory drop-in path: %s.d\n' "$SCRIPT"
+    exit 0
+  fi
+  if [ ! -r "$SCRIPT.d" ] || [ ! -x "$SCRIPT.d" ]; then
     printf 'Skipping unreadable drop-in directory: %s.d\n' "$SCRIPT"
     exit 0
   fi
