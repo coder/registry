@@ -54,5 +54,9 @@ resource "coder_env" "personalize_path" {
   count    = can(regex("\\$", var.path)) ? 0 : 1
   agent_id = var.agent_id
   name     = "PERSONALIZE_PATH"
-  value    = can(regex("^~/", var.path)) ? "$HOME/${trimprefix(var.path, "~/")}" : var.path
+  value = (
+    can(regex("^~/", var.path))
+    ? "$HOME/${trimprefix(var.path, "~/")}"
+    : var.path
+  )
 }
