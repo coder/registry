@@ -19,7 +19,13 @@ variable "path" {
   type        = string
   default     = "~/personalize"
   validation {
-    condition     = trimspace(var.path) != "" && var.path != "~" && !can(regex("/$", var.path)) && !can(regex("(^|/)\\.\\.?$", var.path)) && length(regexall("[\n\r]", var.path)) == 0
+    condition = (
+      trimspace(var.path) != ""
+      && var.path != "~"
+      && !can(regex("/$", var.path))
+      && !can(regex("(^|/)\\.\\.?$", var.path))
+      && length(regexall("[\n\r]", var.path)) == 0
+    )
     error_message = "The personalize path must not be empty or whitespace-only, be only ~, end with /, have . or .. as its last component, or contain newlines or carriage returns."
   }
 }
@@ -47,10 +53,25 @@ resource "coder_script" "personalize_stop" {
   run_on_stop  = true
 }
 
+locals {
+  # Relative paths are resolved when the script runs, so only absolute and ~/
+  # paths are exported. The agent expands dollar signs in environment values,
+  # but not in scripts, so a path with a dollar sign is not exported either.
+  path_is_absolute_or_under_home = can(regex("^(/|~/)", var.path))
+  path_has_dollar_sign           = can(regex("\\$", var.path))
+  export_path                    = local.path_is_absolute_or_under_home && !local.path_has_dollar_sign
+
+  # A leading ~/ becomes $HOME/, which the agent expands.
+  exported_path = (
+    can(regex("^~/", var.path))
+    ? "$HOME/${trimprefix(var.path, "~/")}"
+    : var.path
+  )
+}
+
 resource "coder_env" "personalize_path" {
-  # The agent expands dollar signs in environment values, but not in scripts.
-  count    = can(regex("^(/|~/)", var.path)) && !can(regex("\\$", var.path)) ? 1 : 0
+  count    = local.export_path ? 1 : 0
   agent_id = var.agent_id
   name     = "PERSONALIZE_PATH"
-  value    = can(regex("^~/", var.path)) ? "$HOME/${trimprefix(var.path, "~/")}" : var.path
+  value    = local.exported_path
 }
