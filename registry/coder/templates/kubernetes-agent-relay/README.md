@@ -29,16 +29,16 @@ exits, Agent Relay deletes the workspace.
 
 This template provisions the following resources:
 
-- Kubernetes pod (ephemeral), one per session, named by workspace ID, with
+- Kubernetes Pod (ephemeral), one per session, named by workspace ID, with
   `cpu` and `memory` as both its requests and limits
-- Two `coder_workspace_preset` blocks, one per provider, each keeping a
-  prebuilt workspace running
+- Two `coder_workspace_preset` blocks, one per provider, keeping
+  `claude_code_prebuilds` and `cursor_prebuilds` prebuilt workspaces running
 - A `Workspace setup` script that clones a repository-scoped Cursor pool's
   repository, and does nothing on any other build
 - A `coder_script_order` rule that starts the runner only after setup
 
 There is no persistent volume. Agent Relay deletes the workspace when the
-runner exits, so nothing in the pod outlives its session. To pre-bake tools
+runner exits, so nothing in the Pod outlives its session. To pre-bake tools
 into sessions, modify the container image.
 
 ## Selecting the provider
@@ -123,6 +123,10 @@ reference image that carries both CLIs, rebuilt weekly. Fork it and add your
 own tooling. With another image, each module downloads its CLI at start when
 it is not on `PATH`, which counts against the start deadline; bake the CLIs in
 and set `install_cli = false` instead.
+
+The Pod runs as uid 1000, the default image's `coder` user. A replacement
+image needs a uid 1000 user that owns its home directory, or a matching change
+to the Pod's `security_context`.
 
 ## Source control
 

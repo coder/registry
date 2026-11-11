@@ -16,31 +16,31 @@ terraform {
 provider "coder" {}
 
 variable "docker_socket" {
-  type        = string
   description = "(Optional) Docker socket URI"
+  type        = string
   default     = ""
 }
 
 variable "image" {
-  type        = string
   description = "Container image for workspaces. The default carries the Claude Code and Cursor CLIs."
+  type        = string
   default     = "ghcr.io/coder/agent-relay-workspace:latest"
 }
 
 variable "cpu" {
-  type        = number
   description = "CPU cores for each session container. Fractions such as 0.5 are allowed."
+  type        = number
   default     = 2
 
   validation {
-    condition     = var.cpu > 0
-    error_message = "cpu must be greater than 0."
+    condition     = var.cpu >= 0.01
+    error_message = "cpu must be at least 0.01."
   }
 }
 
 variable "memory" {
-  type        = number
   description = "Memory in GiB for each session container. Fractions such as 0.5 are allowed."
+  type        = number
   default     = 4
 
   validation {
@@ -50,8 +50,8 @@ variable "memory" {
 }
 
 variable "claude_code_prebuilds" {
-  type        = number
   description = "Prebuilt Claude Code workspaces to keep ready. Set 0 if no Claude Code pool uses this template."
+  type        = number
   default     = 1
 
   validation {
@@ -61,8 +61,8 @@ variable "claude_code_prebuilds" {
 }
 
 variable "cursor_prebuilds" {
-  type        = number
   description = "Prebuilt Cursor workspaces to keep ready. Set 0 if no Cursor pool uses this template."
+  type        = number
   default     = 1
 
   validation {
@@ -222,7 +222,7 @@ resource "coder_agent" "main" {
   # person's shell opens, so a debugging session starts in the checkout.
   #
   # dir is set on every Cursor build, whether or not repo_url is, because
-  # changing it replaces the agent, and with it the pod or container: a
+  # changing it replaces the agent, and with it the Pod or container: a
   # prebuild built without a repository would be replaced when a
   # repository-scoped session claims it. The preset fixes the provider, so dir
   # never changes on a claim.
@@ -250,6 +250,24 @@ resource "coder_agent" "main" {
     script       = local.session_attached_metadata_script
     interval     = 30
     timeout      = 5
+  }
+
+  # Optional, for watching a session from the dashboard. Agent Relay ignores
+  # these keys.
+  metadata {
+    display_name = "CPU Usage"
+    key          = "0_cpu_usage"
+    script       = "coder stat cpu"
+    interval     = 10
+    timeout      = 1
+  }
+
+  metadata {
+    display_name = "RAM Usage"
+    key          = "1_ram_usage"
+    script       = "coder stat mem"
+    interval     = 10
+    timeout      = 1
   }
 }
 
@@ -374,7 +392,7 @@ resource "docker_container" "workspace" {
   count = data.coder_workspace.me.start_count
   image = var.image
   name  = "coder-${data.coder_workspace.me.id}"
-  # Use the docker gateway if the access URL is 127.0.0.1
+  # Use the Docker gateway if the access URL is 127.0.0.1
   entrypoint = ["sh", "-c", replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")]
   env        = ["CODER_AGENT_TOKEN=${coder_agent.main.token}"]
 

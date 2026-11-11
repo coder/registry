@@ -14,7 +14,6 @@ terraform {
 provider "coder" {}
 
 variable "use_kubeconfig" {
-  type        = bool
   description = <<-EOF
   Use host kubeconfig? (true/false)
 
@@ -24,34 +23,35 @@ variable "use_kubeconfig" {
   Set this to true if the Coder host is running outside the Kubernetes cluster
   for workspaces. A valid "~/.kube/config" must be present on the Coder host.
   EOF
+  type        = bool
   default     = false
 }
 
 variable "namespace" {
+  description = "The Kubernetes namespace to create workspace Pods in. It must exist before any workspace is created."
   type        = string
-  description = "The Kubernetes namespace to create workspace pods in. It must exist before any workspace is created."
 }
 
 variable "image" {
-  type        = string
   description = "Container image for workspaces. The default carries the Claude Code and Cursor CLIs."
+  type        = string
   default     = "ghcr.io/coder/agent-relay-workspace:latest"
 }
 
 variable "cpu" {
+  description = "CPU cores for each session Pod. Fractions such as 0.5 are allowed."
   type        = number
-  description = "CPU cores for each session pod. Fractions such as 0.5 are allowed."
   default     = 2
 
   validation {
-    condition     = var.cpu > 0
-    error_message = "cpu must be greater than 0."
+    condition     = var.cpu >= 0.01
+    error_message = "cpu must be at least 0.01."
   }
 }
 
 variable "memory" {
+  description = "Memory in GiB for each session Pod. Fractions such as 0.5 are allowed."
   type        = number
-  description = "Memory in GiB for each session pod. Fractions such as 0.5 are allowed."
   default     = 4
 
   validation {
@@ -61,8 +61,8 @@ variable "memory" {
 }
 
 variable "claude_code_prebuilds" {
-  type        = number
   description = "Prebuilt Claude Code workspaces to keep ready. Set 0 if no Claude Code pool uses this template."
+  type        = number
   default     = 1
 
   validation {
@@ -72,8 +72,8 @@ variable "claude_code_prebuilds" {
 }
 
 variable "cursor_prebuilds" {
-  type        = number
   description = "Prebuilt Cursor workspaces to keep ready. Set 0 if no Cursor pool uses this template."
+  type        = number
   default     = 1
 
   validation {
@@ -232,7 +232,7 @@ resource "coder_agent" "main" {
   # person's shell opens, so a debugging session starts in the checkout.
   #
   # dir is set on every Cursor build, whether or not repo_url is, because
-  # changing it replaces the agent, and with it the pod or container: a
+  # changing it replaces the agent, and with it the Pod or container: a
   # prebuild built without a repository would be replaced when a
   # repository-scoped session claims it. The preset fixes the provider, so dir
   # never changes on a claim.
@@ -260,6 +260,24 @@ resource "coder_agent" "main" {
     script       = local.session_attached_metadata_script
     interval     = 30
     timeout      = 5
+  }
+
+  # Optional, for watching a session from the dashboard. Agent Relay ignores
+  # these keys.
+  metadata {
+    display_name = "CPU Usage"
+    key          = "0_cpu_usage"
+    script       = "coder stat cpu"
+    interval     = 10
+    timeout      = 1
+  }
+
+  metadata {
+    display_name = "RAM Usage"
+    key          = "1_ram_usage"
+    script       = "coder stat mem"
+    interval     = 10
+    timeout      = 1
   }
 }
 
@@ -371,13 +389,13 @@ data "coder_script_order" "relay_runner" {
   }
 }
 
-# One pod per session, with no persistent volume: Agent Relay deletes the
+# One Pod per session, with no persistent volume: Agent Relay deletes the
 # workspace when the runner exits, so a volume would outlive its session.
 #
 # Claiming a prebuild re-applies this with a new owner and workspace name.
 # Nothing derived from either may go in a field Kubernetes cannot update in
 # place, such as spec.hostname or a container env var, or the claim replaces
-# the pod and pays the cold start the prebuild exists to avoid. The pod is
+# the Pod and pays the cold start the prebuild exists to avoid. The Pod is
 # named by workspace ID, which a claim keeps, and owner details live only in
 # labels and annotations, which update in place. Pass anything else
 # owner-specific through coder_env instead.
@@ -408,10 +426,29 @@ resource "kubernetes_pod_v1" "workspace" {
     # Gives the runner modules' stop scripts time to shut the runner down.
     termination_grace_period_seconds = 30
 
+    # The default image and the agent (arch above) are amd64 only, so keep the
+    # Pod off nodes of any other architecture.
+    node_selector = {
+      "kubernetes.io/arch" = "amd64"
+    }
+
+    # Runs as the default image's coder user (uid 1000, owner of /home/coder),
+    # as the Kubernetes (Deployment) template does. A replacement image needs a uid 1000
+    # user with a writable home, or different values here. This does not
+    # block sudo, which the default image allows.
+    security_context {
+      run_as_user     = 1000
+      fs_group        = 1000
+      run_as_non_root = true
+    }
+
     container {
       name    = "dev"
       image   = var.image
       command = ["sh", "-c", coder_agent.main.init_script]
+      security_context {
+        run_as_user = 1000
+      }
 
       env {
         name  = "CODER_AGENT_TOKEN"

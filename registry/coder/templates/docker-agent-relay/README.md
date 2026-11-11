@@ -31,8 +31,8 @@ This template provisions the following resources:
 
 - Docker container (ephemeral), one per session, named by workspace ID, and
   capped at `cpu` and `memory`
-- Two `coder_workspace_preset` blocks, one per provider, each keeping a
-  prebuilt workspace running
+- Two `coder_workspace_preset` blocks, one per provider, keeping
+  `claude_code_prebuilds` and `cursor_prebuilds` prebuilt workspaces running
 - A `Workspace setup` script that clones a repository-scoped Cursor pool's
   repository, and does nothing on any other build
 - A `coder_script_order` rule that starts the runner only after setup
