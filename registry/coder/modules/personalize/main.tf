@@ -10,20 +10,18 @@ terraform {
 }
 
 variable "agent_id" {
-  type        = string
   description = "The ID of a Coder agent."
+  type        = string
 }
 
 variable "path" {
+  description = "The path to the developer's startup script. Executable files in <path>.d run at start and stop."
   type        = string
-  description = "The path to a script that will be ran on start enabling a user to personalize their workspace."
   default     = "~/personalize"
-}
-
-variable "log_path" {
-  type        = string
-  description = "The path to a log file that will contain the output of the personalize script."
-  default     = "~/personalize.log"
+  validation {
+    condition     = !strcontains(var.path, "\n") && !strcontains(var.path, "\r")
+    error_message = "The personalize path must not contain newlines or carriage returns."
+  }
 }
 
 resource "coder_script" "personalize" {
@@ -33,7 +31,26 @@ resource "coder_script" "personalize" {
   })
   display_name       = "Personalize"
   icon               = "/icon/personalize.svg"
-  log_path           = var.log_path
+  log_path           = "$HOME/.coder-modules/coder/personalize/logs/start.log"
   run_on_start       = true
   start_blocks_login = true
+}
+
+resource "coder_script" "personalize_stop" {
+  agent_id = var.agent_id
+  script = templatefile("${path.module}/stop.sh", {
+    PERSONALIZE_PATH : base64encode(var.path),
+  })
+  display_name = "Personalize (stop)"
+  icon         = "/icon/personalize.svg"
+  log_path     = "$HOME/.coder-modules/coder/personalize/logs/stop.log"
+  run_on_stop  = true
+}
+
+resource "coder_env" "personalize_path" {
+  # The agent expands dollar signs in environment values, but not in scripts.
+  count    = strcontains(var.path, "$") ? 0 : 1
+  agent_id = var.agent_id
+  name     = "PERSONALIZE_PATH"
+  value    = var.path == "~" ? "$HOME" : startswith(var.path, "~/") ? "$HOME/${trimprefix(var.path, "~/")}" : var.path
 }
