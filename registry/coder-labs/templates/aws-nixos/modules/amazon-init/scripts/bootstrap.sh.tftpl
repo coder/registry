@@ -28,6 +28,9 @@ printf 'CODER_AGENT_TOKEN=%s\nCODER_AGENT_URL=%s\n' "$AGENT_TOKEN" "$ACCESS_URL"
   unset INVOCATION_ID JOURNAL_STREAM SYSTEMD_EXEC_PID
   export CODER_AGENT_TOKEN="$PROVISIONER_TOKEN" CODER_AGENT_URL="$ACCESS_URL" \
     BINARY_DIR="$RUNTIME_DIR/provisioner-bin" CODER_WORKSPACE_FACTS="$RUNTIME_DIR/workspace.json"
+  # The agent sets SSH_CLIENT, so NixOS bash reads /etc/bashrc, which resets
+  # PATH from /etc/profile unless the profile is marked as loaded.
+  export __ETC_PROFILE_DONE=1
   declare -px
 ) >"$RUNTIME_DIR/provisioner.env"
 umask 022
