@@ -19,23 +19,27 @@ case "$SCRIPT" in
 esac
 
 MODULE_DIR="$HOME/.coder-modules/coder/personalize"
-mkdir -p "$MODULE_DIR" || exit 1
-CONFIG_TMP=$(mktemp "$MODULE_DIR/config.XXXXXX") || exit 1
-trap 'rm -f "$CONFIG_TMP"' EXIT
 
 write_value() {
-  printf "%s='" "$1"
-  printf '%s' "$2" | sed "s/'/'\\\\''/g"
-  printf "'\n"
+  printf "%s='" "$1" \
+    && printf '%s' "$2" | sed "s/'/'\\\\''/g" \
+    && printf "'\n"
 }
 
-if ! {
-  write_value PERSONALIZE_PATH "$SCRIPT" \
-    && write_value PERSONALIZE_DIR "$SCRIPT.d" \
-    && write_value PERSONALIZE_LOG_DIR "$MODULE_DIR/logs"
-} > "$CONFIG_TMP" || ! mv "$CONFIG_TMP" "$MODULE_DIR/config"; then
-  echo "Failed to write the personalize config file." >&2
-  exit 1
+write_config() (
+  mkdir -p "$MODULE_DIR" || exit 1
+  CONFIG_TMP=$(mktemp "$MODULE_DIR/config.XXXXXX") || exit 1
+  trap 'rm -f "$CONFIG_TMP"' EXIT
+  {
+    write_value PERSONALIZE_PATH "$SCRIPT" \
+      && write_value PERSONALIZE_DIR "$SCRIPT.d" \
+      && write_value PERSONALIZE_LOG_DIR "$MODULE_DIR/logs"
+  } > "$CONFIG_TMP" || exit 1
+  mv "$CONFIG_TMP" "$MODULE_DIR/config"
+)
+
+if ! write_config; then
+  printf 'Warning: failed to write personalize config file %s/config.\n' "$MODULE_DIR" >&2
 fi
 
 STATUS=0
