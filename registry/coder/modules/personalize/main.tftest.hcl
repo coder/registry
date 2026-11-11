@@ -105,6 +105,56 @@ run "reject_empty" {
   expect_failures = [var.path]
 }
 
+run "reject_whitespace_only" {
+  command = plan
+
+  variables {
+    path = " \t "
+  }
+
+  expect_failures = [var.path]
+}
+
+run "reject_current_directory" {
+  command = plan
+
+  variables {
+    path = "."
+  }
+
+  expect_failures = [var.path]
+}
+
+run "reject_parent_directory" {
+  command = plan
+
+  variables {
+    path = ".."
+  }
+
+  expect_failures = [var.path]
+}
+
+run "reject_trailing_current_directory" {
+  command = plan
+
+  variables {
+    path = "/tmp/personalize/."
+  }
+
+  expect_failures = [var.path]
+}
+
+run "reject_trailing_parent_directory" {
+  command = plan
+
+  variables {
+    path = "~/personalize/.."
+  }
+
+  expect_failures = [var.path]
+}
+
 run "reject_bare_home" {
   command = plan
 
