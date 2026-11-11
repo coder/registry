@@ -8,23 +8,28 @@ run "defaults" {
   command = plan
 
   assert {
-    condition     = resource.coder_script.personalize.agent_id == "test-agent-id"
-    error_message = "Personalize must use the configured agent ID."
+    condition     = coder_script.personalize.agent_id == var.agent_id && coder_script.personalize_stop.agent_id == var.agent_id
+    error_message = "Both scripts must use the configured agent ID."
   }
 
   assert {
-    condition     = resource.coder_script.personalize.log_path == "~/personalize.log"
-    error_message = "Personalize must preserve the default log path."
+    condition     = coder_script.personalize.run_on_start && coder_script.personalize.start_blocks_login && coder_script.personalize.run_on_stop != true
+    error_message = "Personalize must block login at start and must not run at stop."
   }
 
   assert {
-    condition     = resource.coder_script.personalize.run_on_start
-    error_message = "Personalize must run when the workspace starts."
+    condition     = coder_script.personalize_stop.run_on_stop && coder_script.personalize_stop.run_on_start != true && coder_script.personalize_stop.start_blocks_login != true
+    error_message = "The stop script must run only at stop and must not block login."
   }
 
   assert {
-    condition     = resource.coder_script.personalize.start_blocks_login
-    error_message = "Personalize must continue to block login until it finishes."
+    condition     = coder_script.personalize.log_path == "$HOME/.coder-modules/coder/personalize/logs/start.log" && coder_script.personalize_stop.log_path == "$HOME/.coder-modules/coder/personalize/logs/stop.log"
+    error_message = "Both logs must use the module log directory."
+  }
+
+  assert {
+    condition     = length(coder_env.personalize_path) == 1 && coder_env.personalize_path[0].name == "PERSONALIZE_PATH" && coder_env.personalize_path[0].value == "$HOME/personalize" && coder_env.personalize_path[0].agent_id == var.agent_id
+    error_message = "The default path must be exported with an agent-expandable HOME."
   }
 }
 
@@ -32,22 +37,49 @@ run "custom_paths" {
   command = plan
 
   variables {
-    path     = "/tmp/personalize scripts/$(printf injected) [daily]*"
-    log_path = "/tmp/personalize logs/start.log"
+    path = "/tmp/personalize scripts/'$(printf injected) [daily]*"
   }
 
   assert {
-    condition     = resource.coder_script.personalize.log_path == var.log_path
-    error_message = "Personalize must use the configured log path."
+    condition     = !strcontains(coder_script.personalize.script, var.path) && !strcontains(coder_script.personalize_stop.script, var.path)
+    error_message = "Neither script may interpolate the raw custom path."
   }
 
   assert {
-    condition     = strcontains(resource.coder_script.personalize.script, base64encode(var.path))
-    error_message = "The rendered script must contain the encoded custom path."
+    condition     = length(coder_env.personalize_path) == 0
+    error_message = "Paths containing a dollar sign cannot be exported faithfully by the agent."
+  }
+}
+
+run "absolute_path_environment" {
+  command = plan
+
+  variables {
+    path = "/opt/personalize workspace"
   }
 
   assert {
-    condition     = !strcontains(resource.coder_script.personalize.script, var.path)
-    error_message = "The rendered script must not interpolate the raw custom path."
+    condition     = coder_env.personalize_path[0].value == var.path
+    error_message = "Absolute paths must be exported unchanged."
   }
+}
+
+run "reject_newline" {
+  command = plan
+
+  variables {
+    path = "~/personalize\ninjected"
+  }
+
+  expect_failures = [var.path]
+}
+
+run "reject_carriage_return" {
+  command = plan
+
+  variables {
+    path = "~/personalize\rinjected"
+  }
+
+  expect_failures = [var.path]
 }
