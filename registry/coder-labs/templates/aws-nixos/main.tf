@@ -172,7 +172,7 @@ resource "coder_agent" "provisioner" {
     display_name = "Build log"
     interval     = 60
     timeout      = 5
-    script       = "readlink -e ${module.nix.log_dir}/rebuild-latest.log || echo none"
+    script       = "readlink -e ${module.nix.log_dir}/rebuild-latest.log || echo ${module.nix.log_dir}"
   }
 }
 
