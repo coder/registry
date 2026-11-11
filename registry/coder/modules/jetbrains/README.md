@@ -14,7 +14,7 @@ This module adds JetBrains IDE buttons to launch IDEs directly from the dashboar
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.4.0"
+  version  = "1.4.1"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
@@ -39,7 +39,7 @@ When `default` contains IDE codes, those IDEs are created directly without user 
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.4.0"
+  version  = "1.4.1"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   default  = ["PY", "IU"] # Pre-configure PyCharm and IntelliJ IDEA
@@ -52,7 +52,7 @@ module "jetbrains" {
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.4.0"
+  version  = "1.4.1"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   # Show parameter with limited options
@@ -66,12 +66,12 @@ module "jetbrains" {
 module "jetbrains" {
   count         = data.coder_workspace.me.start_count
   source        = "registry.coder.com/coder/jetbrains/coder"
-  version       = "1.4.0"
+  version       = "1.4.1"
   agent_id      = coder_agent.main.id
   folder        = "/home/coder/project"
   default       = ["IU", "PY"]
   channel       = "eap"    # Use Early Access Preview versions
-  major_version = "2025.2" # Specific major version
+  major_version = "2026.3" # Specific major version
 }
 ```
 
@@ -82,26 +82,32 @@ provided build numbers directly. This is ideal for air-gapped environments
 or when caching IDE installations.
 
 > [!TIP]
-> To find the latest build number for an IDE, query the JetBrains releases API:
+> To get build numbers, query the JetBrains releases API for each product code
+> you need. This prints entries you can paste into `ide_config`:
 >
 > ```sh
-> curl -s "https://data.services.jetbrains.com/products/releases?code=GO&type=release&latest=true" | jq 'to_entries[0].value[0] | {build, version}'
+> for code in GO PY; do
+>   curl -s "https://data.services.jetbrains.com/products/releases?code=${code}&type=release&latest=true&majorVersion=2026.3" \
+>     | jq -r --arg code "$code" '"\"\($code)\" = { build = \"\(.[][0].build)\" }"'
+> done
 > ```
 >
-> Replace `GO` with the product code for the IDE you want (e.g. `IU`, `PY`, `CL`).
+> Set `code` to the IDEs in `options` (`CL`, `GO`, `IU`, `PS`, `PY`, `RD`, `RM`, `RR`, `WS`).
+> Change `majorVersion` to pin another release, or remove it to get the newest one.
+> Use `type=eap` for Early Access Preview builds.
 
 ```tf
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.4.0"
+  version  = "1.4.1"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 
   # Only build is required. Name and icon fall back to built-in defaults.
   ide_config = {
-    "GO" = { build = "261.22158.291" }
-    "PY" = { build = "261.22158.340" }
+    "GO" = { build = "263.7307.211" }
+    "PY" = { build = "263.7307.206" }
     # Add entries for other IDEs as needed.
   }
 
@@ -115,14 +121,14 @@ module "jetbrains" {
 module "jetbrains_pycharm" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.4.0"
+  version  = "1.4.1"
   agent_id = coder_agent.main.id
   folder   = "/workspace/project"
 
   default = ["PY"] # Only PyCharm
 
   # Specific version for consistency
-  major_version = "2025.1"
+  major_version = "2026.3"
   channel       = "release"
 }
 ```
@@ -135,7 +141,7 @@ Add helpful tooltip text that appears when users hover over the IDE app buttons:
 module "jetbrains" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jetbrains/coder"
-  version  = "1.4.0"
+  version  = "1.4.1"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
   default  = ["IU", "PY"]
