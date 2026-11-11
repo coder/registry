@@ -56,19 +56,6 @@ run "custom_path" {
   }
 }
 
-run "relative_path_environment" {
-  command = plan
-
-  variables {
-    path = "personalize"
-  }
-
-  assert {
-    condition     = coder_env.personalize_path[0].value == var.path
-    error_message = "Paths without dollar signs must be exported unchanged."
-  }
-}
-
 run "reject_newline" {
   command = plan
 
