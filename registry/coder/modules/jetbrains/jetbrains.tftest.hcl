@@ -185,18 +185,18 @@ run "specific_major_version" {
     agent_id      = "foo"
     folder        = "/home/coder"
     default       = ["GO"]
-    major_version = "2026.2"
+    major_version = "2026.3"
   }
 
   assert {
-    condition     = output.ide_metadata["GO"].json_data.majorVersion == "2026.2"
-    error_message = "Expected the API to return a release for major version '2026.2', but got '${output.ide_metadata["GO"].json_data.majorVersion}'"
+    condition     = output.ide_metadata["GO"].json_data.majorVersion == "2026.3"
+    error_message = "Expected the API to return a release for major version '2026.3', but got '${output.ide_metadata["GO"].json_data.majorVersion}'"
   }
 
   # A pinned major version must be filtered server-side so only one release is
   # fetched and stored in state, not the IDE's full release history.
   assert {
-    condition     = endswith(data.http.jetbrains_ide_versions["GO"].url, "&latest=true&majorVersion=2026.2")
+    condition     = endswith(data.http.jetbrains_ide_versions["GO"].url, "&latest=true&majorVersion=2026.3")
     error_message = "Expected a pinned major_version to query with latest=true and majorVersion, but got '${data.http.jetbrains_ide_versions["GO"].url}'"
   }
 
@@ -386,7 +386,7 @@ run "rejects_major_version_with_ide_config" {
     folder        = "/home/coder"
     default       = ["GO"]
     options       = ["GO"]
-    major_version = "2026.2"
+    major_version = "2026.3"
     ide_config = {
       "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "253.31033.129" }
     }
