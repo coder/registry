@@ -177,9 +177,11 @@ resource "coder_script" "nixos_rebuild" {
   run_on_start = true
   script       = <<-EOT
     #!/usr/bin/env bash
+    set -euo pipefail
     trap '${module.amazon-init.start_agent_command}' EXIT
     # Pass the script as an argument: on stdin, git or nix could read it.
-    bash -c "$(base64 -d <<< '${base64encode(module.nix.boot_script)}')"
+    # Trace only the boot script, not this line with the encoded script.
+    bash -euxo pipefail -c "$(base64 -d <<< '${base64encode(module.nix.boot_script)}')"
   EOT
 }
 
